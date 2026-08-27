@@ -87,6 +87,7 @@ import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import PublicContentLayout from '@/components/layout/PublicContentLayout.vue'
 import { getLocale } from '@/i18n'
 import { sanitizeUrl } from '@/utils/url'
+import { localizedSiteName } from '@/utils/localizedPublicSettings'
 import { useAppStore } from '@/stores/app'
 import type { LoginAgreementDocument } from '@/types'
 import zhAdminCompliance from '../../../../docs/legal/admin-compliance.zh.md?raw'
@@ -95,7 +96,7 @@ import enAdminCompliance from '../../../../docs/legal/admin-compliance.en.md?raw
 type LegalDocumentIcon = 'document' | 'shield' | 'globe' | 'cog'
 
 const route = useRoute()
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const appStore = useAppStore()
 const settings = computed(() => appStore.cachedPublicSettings)
 const loading = ref(!settings.value)
@@ -109,7 +110,9 @@ marked.setOptions({
 const documentId = computed(() => String(route.params.documentId || ''))
 const isAdminComplianceDocument = computed(() => documentId.value === 'admin-compliance')
 const documents = computed(() => settings.value?.login_agreement_documents ?? [])
-const siteName = computed(() => settings.value?.site_name || '极速蹬')
+const siteName = computed(() =>
+  localizedSiteName(settings.value?.site_name || appStore.siteName, locale.value),
+)
 const siteLogo = computed(() => sanitizeUrl(settings.value?.site_logo || '', {
   allowRelative: true,
   allowDataUrl: true,

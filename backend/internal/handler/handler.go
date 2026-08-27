@@ -83,6 +83,7 @@ type Handlers struct {
 	PromptLibrary     *PromptLibraryHandler
 	MobileAsset       *MobileAssetHandler
 	MobileTask        *MobileTaskHandler
+	MobileVideo       *MobileVideoHandler
 	MobileSupport     *MobileSupportHandler
 	MobileDiagnostic  *MobileDiagnosticHandler
 	MobileDevice      *MobileDeviceHandler

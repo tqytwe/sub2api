@@ -6,32 +6,32 @@ const genericTemplatePaths = new Set([
   '/image-studio/templates/xhs-cover.webp',
 ])
 
-const purposeLabels: Record<string, string> = {
-  'ad-creative': '广告创意',
-  'app-web-design': '界面设计',
-  'document-presentation': '文档演示',
-  'ecommerce-main-image': '电商主图',
-  'free-creation': '自由创作',
-  'game-asset': '游戏素材',
-  'infographic-edu-visual': '信息图',
-  'live-commerce': '直播电商',
-  'packaging-design': '包装设计',
-  'poster-typography': '海报字体',
-  'profile-avatar': '头像形象',
-  'social-media-post': '社媒内容',
-  'virtual-try-on': '虚拟试穿',
-  'youtube-thumbnail': '视频封面',
+const purposeMessageKeys: Record<string, string> = {
+  'ad-creative': 'promptLibrary.cover.purpose.adCreative',
+  'app-web-design': 'promptLibrary.cover.purpose.appWebDesign',
+  'document-presentation': 'promptLibrary.cover.purpose.documentPresentation',
+  'ecommerce-main-image': 'promptLibrary.cover.purpose.ecommerceMainImage',
+  'free-creation': 'promptLibrary.cover.purpose.freeCreation',
+  'game-asset': 'promptLibrary.cover.purpose.gameAsset',
+  'infographic-edu-visual': 'promptLibrary.cover.purpose.infographicEduVisual',
+  'live-commerce': 'promptLibrary.cover.purpose.liveCommerce',
+  'packaging-design': 'promptLibrary.cover.purpose.packagingDesign',
+  'poster-typography': 'promptLibrary.cover.purpose.posterTypography',
+  'profile-avatar': 'promptLibrary.cover.purpose.profileAvatar',
+  'social-media-post': 'promptLibrary.cover.purpose.socialMediaPost',
+  'virtual-try-on': 'promptLibrary.cover.purpose.virtualTryOn',
+  'youtube-thumbnail': 'promptLibrary.cover.purpose.youtubeThumbnail',
 }
 
-const styleLabels: Record<string, string> = {
-  '3d-render': '3D',
-  'cinematic-film-still': '电影感',
-  'flat-vector': '矢量',
-  'luxury-editorial': '高级感',
-  'minimal-clean': '极简',
-  photorealistic: '写实',
-  'poster-typography': '字体',
-  watercolor: '水彩',
+const styleMessageKeys: Record<string, string> = {
+  '3d-render': 'promptLibrary.cover.style.render3d',
+  'cinematic-film-still': 'promptLibrary.cover.style.cinematicFilmStill',
+  'flat-vector': 'promptLibrary.cover.style.flatVector',
+  'luxury-editorial': 'promptLibrary.cover.style.luxuryEditorial',
+  'minimal-clean': 'promptLibrary.cover.style.minimalClean',
+  photorealistic: 'promptLibrary.cover.style.photorealistic',
+  'poster-typography': 'promptLibrary.cover.style.posterTypography',
+  watercolor: 'promptLibrary.cover.style.watercolor',
 }
 
 export function isGenericPromptTemplateImage(url?: string): boolean {
@@ -58,10 +58,18 @@ export function promptCoverTone(prompt: PromptSummary): string {
   return `tone-${hash % 10}`
 }
 
-export function promptCoverKicker(prompt: PromptSummary): string {
-  return purposeLabels[prompt.purpose || ''] || prompt.purpose || prompt.recommended_models[0] || '精选提示词'
+export function promptCoverKickerMessageKey(prompt: PromptSummary): string | undefined {
+  return purposeMessageKeys[prompt.purpose || '']
 }
 
-export function promptCoverBadge(prompt: PromptSummary): string {
-  return styleLabels[prompt.style || ''] || prompt.style || prompt.recommended_sizes[0] || '极速蹬'
+export function promptCoverKickerFallback(prompt: PromptSummary): string {
+  return prompt.purpose || prompt.recommended_models[0] || ''
+}
+
+export function promptCoverBadgeMessageKey(prompt: PromptSummary): string | undefined {
+  return styleMessageKeys[prompt.style || '']
+}
+
+export function promptCoverBadgeFallback(prompt: PromptSummary): string {
+  return prompt.style || prompt.recommended_sizes[0] || ''
 }

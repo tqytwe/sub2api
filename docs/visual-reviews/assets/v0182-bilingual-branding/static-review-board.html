@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>v0.1.182 bilingual branding review</title>
+  <style>
+    :root { color-scheme: light; font-family: Arial, "Noto Sans SC", sans-serif; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #f3f4f6; color: #111827; }
+    .board { width: 1440px; min-height: 1200px; margin: 0 auto; padding: 48px; }
+    .eyebrow { margin: 0 0 8px; color: #6b7280; font-size: 14px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+    h1 { margin: 0; font-size: 32px; line-height: 1.2; }
+    .lead { margin: 12px 0 32px; color: #4b5563; font-size: 16px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+    .panel { overflow: hidden; border: 1px solid #d1d5db; border-radius: 8px; background: #fff; }
+    .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 20px; border-bottom: 1px solid #e5e7eb; }
+    .panel-head h2 { margin: 0; font-size: 18px; }
+    .tag { padding: 4px 8px; border-radius: 999px; background: #e5e7eb; color: #374151; font-size: 12px; font-weight: 700; }
+    .tag.good { background: #dcfce7; color: #166534; }
+    .shell { min-height: 280px; padding: 20px; background: #f9fafb; }
+    .topbar { display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 8px 12px; border: 1px solid #e5e7eb; background: #fff; }
+    .logo-shell { display: grid; width: 40px; height: 40px; place-items: center; overflow: hidden; }
+    .logo { display: block; width: 40px; height: 40px; object-fit: contain; }
+    .logo.deng-logo { transform: scale(1.36); transform-origin: center; }
+    .brand { font-size: 18px; font-weight: 700; }
+    .nav { display: flex; flex-wrap: wrap; gap: 12px; margin-left: auto; color: #4b5563; font-size: 14px; }
+    .content { display: grid; grid-template-columns: 170px 1fr; gap: 16px; margin-top: 16px; }
+    .side { padding: 14px; border: 1px solid #e5e7eb; background: #fff; color: #4b5563; font-size: 14px; line-height: 2; }
+    .main { padding: 18px; border: 1px solid #e5e7eb; background: #fff; }
+    .main h3 { margin: 0 0 12px; font-size: 22px; }
+    .rows { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .stat { padding: 12px; border: 1px solid #e5e7eb; border-radius: 6px; }
+    .stat strong { display: block; margin-top: 6px; font-size: 20px; }
+    .comparison { margin-top: 24px; padding: 16px 20px; border: 1px solid #d1d5db; border-radius: 8px; background: #fff; }
+    .comparison h2 { margin: 0 0 12px; font-size: 18px; }
+    .comparison p { margin: 0; color: #4b5563; line-height: 1.65; }
+    .brand-compare { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 14px; }
+    .brand-token { display: inline-flex; align-items: center; gap: 8px; border: 1px solid #e5e7eb; border-radius: 6px; padding: 8px 10px; color: #374151; font-size: 13px; }
+    .brand-token .logo-shell, .brand-token .logo { width: 28px; height: 28px; }
+    .brand-token .logo.deng-logo { transform: scale(1.36); }
+    .custom-logo { display: grid; width: 28px; height: 28px; place-items: center; border: 1px solid #64748b; border-radius: 4px; color: #334155; font-size: 10px; font-weight: 700; }
+    .image-review { margin-top: 24px; padding: 20px; border: 1px solid #d1d5db; border-radius: 8px; background: #fff; }
+    .image-review h2 { margin: 0; font-size: 18px; }
+    .image-review > p { margin: 8px 0 16px; color: #4b5563; line-height: 1.65; }
+    .studio-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .studio-card { border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; background: #f9fafb; }
+    .studio-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .studio-head h3 { margin: 0; font-size: 16px; }
+    .status-chip { border-radius: 999px; background: #dbeafe; padding: 3px 7px; color: #1d4ed8; font-size: 12px; font-weight: 700; }
+    .field-label { display: block; margin: 16px 0 6px; color: #374151; font-size: 13px; font-weight: 700; }
+    .dimension-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .field { width: 100%; min-height: 40px; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; padding: 8px 10px; color: #111827; font: inherit; }
+    .hint { margin: 8px 0 0; color: #6b7280; font-size: 12px; line-height: 1.5; }
+    .preset-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-top: 10px; }
+    .preset { border: 1px solid #d1d5db; border-radius: 6px; background: #fff; padding: 7px; color: #374151; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; text-align: center; }
+    .preset.active { border-color: #2563eb; background: #eff6ff; color: #1d4ed8; font-weight: 700; }
+  </style>
+</head>
+<body>
+  <main class="board">
+    <p class="eyebrow">Static review board</p>
+    <h1 id="title">DENG brand and bilingual workspace contract</h1>
+    <p class="lead" id="lead">System copy is localized as a complete surface. Model IDs and user-configured names remain unchanged.</p>
+    <div class="grid">
+      <section class="panel">
+        <div class="panel-head"><h2 id="zh-heading">中文工作台</h2><span class="tag good" id="zh-tag">目标</span></div>
+        <div class="shell">
+          <div class="topbar"><span class="logo-shell"><img id="zh-logo" class="logo deng-logo" alt="DENG"></span><span class="brand">极速蹬</span><nav class="nav"><span>模型与价格</span><span>文档</span><span>创作空间</span></nav></div>
+          <div class="content"><aside class="side">仪表盘<br>账号管理<br>使用记录<br>系统设置</aside><section class="main"><h3>账号概览</h3><div class="rows"><div class="stat">可用余额<strong>$42.00</strong></div><div class="stat">账号状态<strong>启用</strong></div><div class="stat">模型测试<strong>选择模型</strong></div></div></section></div>
+        </div>
+      </section>
+      <section class="panel">
+        <div class="panel-head"><h2 id="en-heading">English workspace</h2><span class="tag good" id="en-tag">Target</span></div>
+        <div class="shell">
+          <div class="topbar"><span class="logo-shell"><img id="en-logo" class="logo deng-logo" alt="DENG"></span><span class="brand">Jisudeng</span><nav class="nav"><span>Models &amp; Pricing</span><span>Docs</span><span>Creation Space</span></nav></div>
+          <div class="content"><aside class="side">Dashboard<br>Accounts<br>Usage<br>Settings</aside><section class="main"><h3>Account overview</h3><div class="rows"><div class="stat">Available balance<strong>$42.00</strong></div><div class="stat">Account status<strong>Active</strong></div><div class="stat">Model test<strong>Select a model</strong></div></div></section></div>
+        </div>
+      </section>
+    </div>
+    <section class="comparison"><h2 id="comparison-title">Fallback logo review</h2><p id="comparison-copy">All empty site-logo paths use the same DENG /logo.png asset. The historical black glyph is retained only in the baseline evidence.</p><div class="brand-compare"><span class="brand-token"><span class="logo-shell"><img id="fallback-logo" class="logo deng-logo" alt="DENG fallback"></span>Empty site logo: DENG fallback</span><span class="brand-token"><span class="custom-logo">LOGO</span>Configured site logo: unchanged scale</span></div></section>
+    <section class="image-review">
+      <h2>SenseNova Image Studio size states</h2>
+      <p>Model identifiers stay exact; only the size control follows each model's documented capability.</p>
+      <div class="studio-grid">
+        <section class="studio-card">
+          <div class="studio-head"><h3>sensenova-u1.5-lite</h3><span class="status-chip">Custom dimensions</span></div>
+          <label class="field-label">尺寸 / Dimensions</label>
+          <div class="dimension-row"><input class="field" value="2720" aria-label="宽度"><input class="field" value="1536" aria-label="高度"></div>
+          <p class="hint">512–4096 px, multiples of 32, maximum aspect ratio 3:1.</p>
+        </section>
+        <section class="studio-card">
+          <div class="studio-head"><h3>sensenova-u1-fast</h3><span class="status-chip">Fixed presets</span></div>
+          <label class="field-label">尺寸 / Size</label>
+          <select class="field" aria-label="尺寸"><option>2752x1536</option></select>
+          <div class="preset-list"><span class="preset">1664x2496</span><span class="preset active">2752x1536</span><span class="preset">11 official presets</span></div>
+          <p class="hint">Creation only; no unsupported edit or reference-image option is presented.</p>
+        </section>
+      </div>
+    </section>
+  </main>
+  <script>
+    const baseline = new URLSearchParams(location.search).get('variant') === 'baseline';
+    const logo = baseline ? '../../../../public/logo.png' : '../../../../frontend/public/logo.png';
+    document.getElementById('zh-logo').src = logo;
+    document.getElementById('en-logo').src = logo;
+    document.getElementById('fallback-logo').src = logo;
+    if (baseline) {
+      document.getElementById('title').textContent = 'Baseline: legacy fallback and mixed system copy';
+      document.getElementById('lead').textContent = 'The legacy fallback differs from the current DENG brand. System labels can also leak across language surfaces when they are not localized with their component.';
+      document.getElementById('zh-heading').textContent = '中文工作台 / English workspace';
+      document.getElementById('en-heading').textContent = 'English workspace / 中文工作台';
+      document.getElementById('zh-tag').textContent = '发现的问题';
+      document.getElementById('en-tag').textContent = 'Issue found';
+      document.getElementById('comparison-title').textContent = 'Baseline evidence';
+      document.getElementById('comparison-copy').textContent = 'The frozen baseline PNG records the former fallback mismatch before frontend references were normalized.';
+    }
+  </script>
+</body>
+</html>

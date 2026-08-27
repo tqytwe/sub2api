@@ -1,0 +1,46 @@
+/** Generated from legacy locale values still referenced by runtime components. */
+export default {
+  dashboard: {
+    campaign: {
+      rechargeBonus: 'Recharge bonus +{pct}%',
+      blindboxExtra: 'Blind box +{count} opens/day',
+      arenaMult: 'Arena score ×{mult}',
+      eyebrow: 'Limited event',
+      viewHub: 'View Play Hub',
+      rechargeCta: 'Recharge now',
+    },
+    growth: {
+      firstRecharge: 'First recharge offer — top up to unlock all models and claim your welcome bonus',
+      balanceLow: 'Balance is below ${threshold} — recharge soon to avoid API interruptions',
+      rechargeCta: 'Recharge now',
+    },
+    playHub: {
+      title: 'Play Hub',
+      pending: '{count} pending',
+      desc: 'Check-in, arena, blind box — see today\'s to-dos',
+    },
+    firstLoginWelcome: {
+      rechargeGeneric: 'Top up to unlock all models and claim your welcome bonus.',
+      rechargeBonus: 'Example: pay ${example}, get about ${credited} USD credited',
+      rechargeBonusCampaign: 'Event bonus +{bonusPct}%',
+      step1TitleStudio: 'Welcome — your first image in 3 minutes',
+      step1Title: 'Welcome — create your first API key',
+      step2Title: 'Copy the curl example and try it',
+      step3Title: 'First recharge unlocks all models',
+      defaultKeyName: 'My first key',
+      keyNameRequired: 'Please enter a key name',
+      curlCopied: 'curl command copied',
+      studioHint: 'Start in AI Creation Space, then complete your first image to earn farm energy.',
+      step1DescStudio: 'No prompt skills needed. Pick a template, describe your subject, and generate with your welcome balance.',
+      step1Desc: 'Your API key is the credential for calling models. Create one to send your first request.',
+      step2Desc: 'Paste the command into your terminal (adjust the model name if needed). Your key is filled in when you created one.',
+      step3Desc: 'Balance credits instantly after payment — full model access and play perks.',
+      later: 'Maybe later',
+      studioCta: 'Try a free image',
+      skipKey: 'Create later',
+      createKey: 'Create & continue',
+      next: 'Next',
+      done: 'Go to dashboard',
+    },
+  },
+}

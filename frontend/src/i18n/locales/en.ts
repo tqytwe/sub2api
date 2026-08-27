@@ -237,6 +237,12 @@ const messages = {
     // Status
     quotaMode: 'Key Quota Mode',
     walletBalance: 'Wallet Balance',
+    status: {
+      active: 'Active',
+      expired: 'Expired',
+      quotaExhausted: 'Quota exhausted',
+      unknown: 'Unknown status'
+    },
     // Ring card titles
     totalQuota: 'Total Quota',
     limit5h: '5-Hour Limit',
@@ -440,6 +446,7 @@ const messages = {
     today: 'Today',
     tomorrow: 'Tomorrow',
     unknown: 'Unknown',
+    unknownStatus: 'Unknown status',
     minutes: 'min',
     time: {
       never: 'Never',
@@ -948,6 +955,7 @@ const messages = {
       wechatAvailabilityUnknown: 'WeChat sign-in availability could not be confirmed. Refresh and retry.',
       wechatSystemBrowserOnly: 'This WeChat sign-in flow is only available in your system browser.',
       wechatBrowserOnly: 'This WeChat sign-in flow is only available inside the WeChat browser.',
+      wechatNativeAppOnly: 'This site only has WeChat mobile app login configured. Continue from the native app through the WeChat SDK.',
       wechatNotConfigured: 'WeChat sign-in is not configured yet.'
     },
     linuxdoCallbackPageTitle: 'LinuxDo Sign-In Callback',
@@ -1426,6 +1434,13 @@ const messages = {
     modelVariant: 'Possible version variant',
     modelMismatch: 'Different model',
     reasoningEffort: 'Reasoning Effort',
+    reasoningEffortValues: {
+      low: 'Low',
+      medium: 'Medium',
+      high: 'High',
+      xhigh: 'Extra high',
+      max: 'Max',
+    },
     endpoint: 'Endpoint',
     endpointDistribution: 'Endpoint Distribution',
     inbound: 'Inbound',
@@ -3441,7 +3456,7 @@ const messages = {
       accountsAvailable: 'Avail:',
       accountsRateLimited: 'Limited:',
       accountsTotal: 'Total:',
-      accountsUnit: '',
+      accountsUnit: 'accounts',
       rateAndAccounts: '{rate}x rate · {count} accounts',
       accountsCount: '{count} accounts',
       rateLabel: 'rate',
@@ -3766,6 +3781,7 @@ const messages = {
         officialOutput: 'Official out',
         public: 'Guest visible',
         auth: 'Signed-in visible',
+        mediaCapabilities: 'Media capabilities',
       },
       fields: {
         model: 'Model name',
@@ -3781,6 +3797,49 @@ const messages = {
         visibleAuth: 'Visible when signed in',
         officialCacheRead: 'Official cache read',
         officialCacheWrite: 'Official cache write',
+        mediaCapabilitiesEnabled: 'Declare media capabilities',
+        mediaCapabilitiesVersion: 'Capability version',
+        mediaCapabilitiesAdapter: 'Execution adapter',
+        mediaModalities: 'Supported modalities',
+        imageOperations: 'Image operations',
+        imageSizes: 'Image sizes',
+        imageMinDimension: 'Minimum dimension',
+        imageMaxDimension: 'Maximum dimension',
+        imageDimensionStep: 'Dimension step',
+        imageMaxAspectRatio: 'Maximum aspect ratio',
+        imageAspectRatios: 'Image aspect ratios',
+        imageFormats: 'Image output formats',
+        imageMaxReferences: 'Maximum reference images',
+        videoOperations: 'Video operations',
+        videoResolutions: 'Video resolutions',
+        videoAspectRatios: 'Video aspect ratios',
+        videoDurations: 'Video duration (seconds)',
+        videoMaxReferences: 'Maximum reference assets',
+      },
+      mediaCapabilities: {
+        title: 'Media capabilities',
+        hint: 'Declare only capabilities that the current adapter actually supports. Saving does not change groups, pricing, allowlists, or account mappings.',
+        preflight: 'A model appears as available only after its schedulable account, group access, account mapping, valid pricing, and adapter support all pass validation.',
+        undeclared: 'Not declared',
+        chat: 'Chat',
+        image: 'Image',
+        video: 'Video',
+        audio: 'Audio',
+        imageHint: 'Separate operations and formats with commas, for example create, edit or png, jpeg.',
+        videoHint: 'Separate operations, resolutions, and aspect ratios with commas. Enter positive whole seconds for durations.',
+        validation: {
+          modalities_required: 'Select at least one media modality',
+          version_required: 'Enter a capability version',
+          adapter_required: 'Enter an execution adapter',
+          image_operations_required: 'An image model needs at least one image operation',
+          video_operations_required: 'A video model needs at least one video operation',
+          image_operations_invalid: 'Image operations must be create or edit, without duplicates',
+          video_operations_invalid: 'Video operations must be generate, without duplicates',
+          image_limits_invalid: 'Image limits cannot be negative and the minimum dimension cannot exceed the maximum',
+          video_limits_invalid: 'Video reference limits cannot be negative; durations must be positive whole seconds without duplicates',
+          image_modality_required: 'Select the Image modality for the declared image capability',
+          video_modality_required: 'Select the Video modality for the declared video capability',
+        },
       },
     },
 
@@ -5418,6 +5477,7 @@ const messages = {
           failedToExchangeCode: 'Failed to exchange Grok authorization code',
           failedToValidateRT: 'Failed to validate Grok refresh token',
           failedToConvertSSO: 'Failed to convert Grok SSO cookie',
+          pleaseEnterPassword: 'Enter email----password, one account per line',
           oauthOnlyHint: 'Initial Grok support is OAuth subscription-backed Responses API text and reasoning traffic only.'
         },
         // Gemini specific
@@ -8668,7 +8728,8 @@ const messages = {
     status: {
       active: 'Active',
       expired: 'Expired',
-      revoked: 'Revoked'
+      revoked: 'Revoked',
+      suspended: 'Suspended'
     },
     usage: 'Usage',
     expires: 'Expires',

@@ -802,6 +802,7 @@ import Icon from '@/components/icons/Icon.vue'
 import { GROUP_PLATFORM_OPTIONS } from '@/constants/platforms'
 import { getRemainingDurationParts, isOneTimeDailyQuota, type RemainingDurationParts } from '@/utils/subscriptionQuota'
 import { packageQuotaRows, type PackageQuotaDimension } from '@/utils/packageQuota'
+import { localizedEnumOrUnknown } from '@/utils/localizedEnum'
 
 const { t } = useI18n()
 const appStore = useAppStore()
@@ -1409,8 +1410,7 @@ const subscriptionDisplayStatus = (subscription: UserSubscription): string => {
 
 const subscriptionDisplayStatusLabel = (subscription: UserSubscription, fallbackStatus: string): string => {
   const status = subscriptionDisplayStatus(subscription) || fallbackStatus
-  if (status === 'packageExhausted') return t('admin.subscriptions.status.packageExhausted')
-  return t(`admin.subscriptions.status.${status}`)
+  return localizedEnumOrUnknown(t, `admin.subscriptions.status.${status}`)
 }
 
 const formatResetDuration = (parts: RemainingDurationParts): string => {

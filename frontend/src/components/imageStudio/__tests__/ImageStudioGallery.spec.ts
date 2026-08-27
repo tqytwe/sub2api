@@ -34,10 +34,18 @@ vi.mock('@/api/imageStudio', async (importOriginal) => {
 
 vi.mock('vue-i18n', async (importOriginal) => {
   const actual = await importOriginal<typeof import('vue-i18n')>()
+  const imageStatusLabels: Record<string, string> = {
+    'imageStudio.status.completed': 'completed',
+    'imageStudio.status.failed': 'failed',
+    'imageStudio.status.partial': 'partial',
+    'imageStudio.status.running': 'running',
+    'imageStudio.status.queued': 'queued',
+    'imageStudio.status.cancelled': 'cancelled',
+  }
   return {
     ...actual,
     useI18n: () => ({
-      t: (key: string, params?: Record<string, unknown>) => params ? `${key}:${JSON.stringify(params)}` : key,
+      t: (key: string, params?: Record<string, unknown>) => imageStatusLabels[key] ?? (params ? `${key}:${JSON.stringify(params)}` : key),
     }),
   }
 })

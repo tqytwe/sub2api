@@ -117,10 +117,35 @@ func (s *ImageStudioService) ValidateSizeForModel(apiKey *APIKey, model, size st
 	if size == "" {
 		return ErrImageStudioSizeNotSupported
 	}
+	capability := s.ResolveModelCapabilities(apiKey, model)
+	return s.validateSizeForCapability(model, size, capability)
+}
+
+func (s *ImageStudioService) validateSizeForCapability(
+	model string,
+	size string,
+	capability ImageStudioModelCapabilities,
+) error {
+	size = strings.TrimSpace(size)
+	if size == "" {
+		return ErrImageStudioSizeNotSupported
+	}
+	if capability.SizingKind == "custom_dimensions" {
+		if imageStudioCustomDimensionsAllowed(capability, size) {
+			return nil
+		}
+		return ErrImageStudioSizeNotSupported
+	}
+	if imageStudioStringAllowed(capability.SupportedSizes, size) {
+		return nil
+	}
+	if len(capability.SupportedSizes) > 0 {
+		return ErrImageStudioSizeNotSupported
+	}
 	if !isKnownImageStudioSize(size) {
 		return ErrImageStudioSizeNotSupported
 	}
-	for _, supported := range s.ResolveModelCapabilities(apiKey, model).SupportedSizes {
+	for _, supported := range capability.SupportedSizes {
 		if supported == size {
 			return nil
 		}
@@ -128,25 +153,52 @@ func (s *ImageStudioService) ValidateSizeForModel(apiKey *APIKey, model, size st
 	return ErrImageStudioSizeNotSupported
 }
 
+func imageStudioCustomDimensionsAllowed(capability ImageStudioModelCapabilities, size string) bool {
+	width, height, ok := parseImageStudioDimensions(size)
+	if !ok || capability.MinDimension <= 0 || capability.MaxDimension < capability.MinDimension || capability.DimensionStep <= 0 {
+		return false
+	}
+	if width < capability.MinDimension || height < capability.MinDimension ||
+		width > capability.MaxDimension || height > capability.MaxDimension ||
+		width%capability.DimensionStep != 0 || height%capability.DimensionStep != 0 {
+		return false
+	}
+	if capability.MaxAspectRatio <= 0 {
+		return true
+	}
+	long, short := width, height
+	if short > long {
+		long, short = short, long
+	}
+	return float64(long)/float64(short) <= capability.MaxAspectRatio
+}
+
 func (s *ImageStudioService) ValidateQualityForModel(apiKey *APIKey, model, quality string) error {
+	var capability ImageStudioModelCapabilities
+	if apiKey != nil && apiKey.Group != nil {
+		resolved, ok := resolveImageStudioCapabilitiesForAPIKey(apiKey, model)
+		if !ok {
+			return ErrImageStudioProviderNotSupported
+		}
+		capability = resolved
+	} else {
+		capability.SupportedQualities = inferImageStudioQualities(model)
+	}
+	return validateImageStudioQualityForCapability(capability, quality)
+}
+
+func validateImageStudioQualityForCapability(capability ImageStudioModelCapabilities, quality string) error {
 	quality = strings.TrimSpace(strings.ToLower(quality))
 	if quality == "" {
 		return nil
 	}
-	var supported []string
-	if apiKey != nil && apiKey.Group != nil {
-		capability, ok := resolveImageStudioCapabilitiesForAPIKey(apiKey, model)
-		if !ok {
-			return ErrImageStudioProviderNotSupported
-		}
-		supported = capability.SupportedQualities
-	} else {
-		supported = inferImageStudioQualities(model)
+	if capability.RejectUndeclaredQuality {
+		return ErrImageStudioQualityNotSupported
 	}
-	if len(supported) == 0 {
+	if len(capability.SupportedQualities) == 0 {
 		return nil
 	}
-	for _, item := range supported {
+	for _, item := range capability.SupportedQualities {
 		if item == quality {
 			return nil
 		}

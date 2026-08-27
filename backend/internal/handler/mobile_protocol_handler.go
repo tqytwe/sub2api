@@ -78,6 +78,7 @@ func mobileProtocolPayload(authenticated bool, userID int64, role string) mobile
 		TaskKinds: []string{
 			string(service.MobileTaskKindChat),
 			string(service.MobileTaskKindImage),
+			string(service.MobileTaskKindVideo),
 			string(service.MobileTaskKindFile),
 		},
 		TaskStatuses: []string{

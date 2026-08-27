@@ -24,7 +24,7 @@
               @click="loadChannels"
               :disabled="loading"
               class="btn btn-secondary"
-              :title="t('common.refresh', 'Refresh')"
+              :title="t('common.refresh')"
             >
               <Icon name="refresh" size="md" :class="loading ? 'animate-spin' : ''" />
             </button>

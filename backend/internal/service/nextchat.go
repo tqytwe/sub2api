@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
@@ -19,6 +20,10 @@ const (
 	NextChatSessionPurposeChat      = "chat"
 	NextChatSessionPurposeImage     = "image"
 	NextChatSessionPurposeVideo     = "video"
+	// NextChatGroupPinnedSessionBinding is returned only for replacement
+	// sessions whose key name and database group are immutable as a pair.
+	// Clients must not treat an older, mutable managed key as equivalent.
+	NextChatGroupPinnedSessionBinding = "group-pinned-v1"
 )
 
 type NextChatManagedSession struct {
@@ -26,6 +31,8 @@ type NextChatManagedSession struct {
 	APIKey  string `json:"api_key"`
 	KeyID   int64  `json:"key_id"`
 	Purpose string `json:"purpose,omitempty"`
+	GroupID *int64 `json:"group_id,omitempty"`
+	Binding string `json:"binding,omitempty"`
 }
 
 type NextChatManagedSessions struct {
@@ -59,10 +66,17 @@ type NextChatWorkspaceIdentity struct {
 }
 
 type NextChatWorkspaceModel struct {
-	ID                   string   `json:"id"`
-	Name                 string   `json:"name"`
-	DisplayName          string   `json:"display_name"`
-	Platform             string   `json:"platform,omitempty"`
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	DisplayName string `json:"display_name"`
+	Platform    string `json:"platform,omitempty"`
+	// Modalities and the media fields are the server-owned contract shared by
+	// Canvas, the mobile client, and the OpenAI-compatible model list.  Legacy
+	// chat rows intentionally omit them; clients must not infer a media mode
+	// from an omitted declaration.
+	Modalities           []string `json:"modalities,omitempty"`
+	Adapter              string   `json:"adapter,omitempty"`
+	CapabilityVersion    string   `json:"capability_version,omitempty"`
 	Channel              string   `json:"channel,omitempty"`
 	UseCase              string   `json:"use_case,omitempty"`
 	SortOrder            int      `json:"sort_order"`
@@ -73,7 +87,11 @@ type NextChatWorkspaceModel struct {
 	ToolCapabilities ModelToolCapabilities `json:"tool_capabilities"`
 	// ImageCapabilities is server-owned. Mobile clients must use this contract
 	// for reference-image editing instead of inferring support from model names.
-	ImageCapabilities *ImageStudioModelCapabilities `json:"image_capabilities,omitempty"`
+	ImageCapabilities *ModelImageCapabilities `json:"image_capabilities,omitempty"`
+	// VideoCapabilities is only present for an executable, catalog-declared
+	// video model.  It is deliberately distinct from ImageCapabilities so a
+	// shared model ID cannot borrow another purpose's behavior.
+	VideoCapabilities *MobileVideoCapabilities `json:"video_capabilities,omitempty"`
 }
 
 type NextChatWorkspaceGroup struct {
@@ -86,8 +104,12 @@ type NextChatWorkspaceGroup struct {
 	IsCurrent      bool    `json:"is_current"`
 	// LiveAvailable is the group-level authorization result. The gateway still
 	// validates the concrete model and upstream session before creating a call.
-	LiveAvailable bool                     `json:"live_available"`
-	Models        []NextChatWorkspaceModel `json:"models"`
+	LiveAvailable bool `json:"live_available"`
+	// VideoAvailable is a summary of the exact model declarations below. It is
+	// false until at least one schedulable model has an executable video
+	// declaration; a group name or a model-name pattern is never enough.
+	VideoAvailable bool                     `json:"video_available"`
+	Models         []NextChatWorkspaceModel `json:"models"`
 }
 
 type NextChatWorkspaceModels struct {
@@ -95,12 +117,18 @@ type NextChatWorkspaceModels struct {
 	DefaultModel             string                   `json:"default_model"`
 	SelectedGroupID          *int64                   `json:"selected_group_id,omitempty"`
 	ImageCapabilitiesVersion string                   `json:"image_capabilities_version,omitempty"`
+	VideoCapabilitiesVersion string                   `json:"video_capabilities_version,omitempty"`
 	Groups                   []NextChatWorkspaceGroup `json:"groups"`
 }
 
 // NextChatImageCapabilitiesVersion is bumped whenever the mobile image
 // capability payload changes incompatibly. It lets older clients fail closed.
-const NextChatImageCapabilitiesVersion = "2026-07-16.1"
+const NextChatImageCapabilitiesVersion = "2026-08-26.1"
+
+// NextChatVideoCapabilitiesVersion changes when the server-owned video
+// workspace shape changes. It lets managed clients fail closed on a contract
+// they cannot safely interpret.
+const NextChatVideoCapabilitiesVersion = MobileVideoCapabilitiesVersion
 
 type NextChatAvailableModelResolver interface {
 	GetAvailableModels(ctx context.Context, groupID *int64, platform string) []string
@@ -165,32 +193,23 @@ func (s *APIKeyService) IssueNextChatManagedSessionForPurpose(ctx context.Contex
 		if groupErr != nil {
 			return nil, groupErr
 		}
-		if !shouldKeepNextChatManagedKeyGroup(key.GroupID, groups) {
-			key, err = s.realignNextChatManagedKeyGroup(ctx, key, userID, pickPreferredNextChatGroupID(groups))
-		}
-		if err != nil {
-			return nil, err
+		if shouldKeepNextChatManagedKeyGroup(key.GroupID, groups) {
+			return nextChatManagedSessionFromKey(key, userID, purpose), nil
 		}
 	}
-	if key == nil {
-		groupID, groupErr := s.pickNextChatGroupID(ctx, userID)
-		if groupErr != nil {
-			return nil, groupErr
-		}
-		key, err = s.Create(ctx, userID, CreateAPIKeyRequest{
-			Name:    keyName,
-			GroupID: groupID,
-		})
-		if err != nil {
-			return nil, err
-		}
+
+	groupID, groupErr := s.pickNextChatGroupID(ctx, userID)
+	if groupErr != nil {
+		return nil, groupErr
 	}
-	return &NextChatManagedSession{
-		UserID:  userID,
-		APIKey:  key.Key,
-		KeyID:   key.ID,
-		Purpose: purpose,
-	}, nil
+	if groupID != nil && *groupID > 0 {
+		return s.IssueNextChatManagedSessionForPurposeAndGroup(ctx, userID, purpose, *groupID)
+	}
+	key, err = s.Create(ctx, userID, CreateAPIKeyRequest{Name: keyName})
+	if err != nil {
+		return nil, err
+	}
+	return nextChatManagedSessionFromKey(key, userID, purpose), nil
 }
 
 func (s *APIKeyService) SetNextChatManagedSessionGroup(ctx context.Context, userID int64, purpose string, groupID int64) (*NextChatWorkspaceIdentity, error) {
@@ -198,11 +217,51 @@ func (s *APIKeyService) SetNextChatManagedSessionGroup(ctx context.Context, user
 	if err != nil {
 		return nil, err
 	}
+	// This method remains only for the legacy generic group-switch route. The
+	// modern Canvas/mobile paths use SwitchNextChatManagedSessionGroup or the
+	// explicit group-pinned issuer below and receive a replacement credential.
+	// Preserve old clients while refusing to mutate a new scoped key.
 	session, err := s.IssueNextChatManagedSessionForPurpose(ctx, userID, purpose)
 	if err != nil {
 		return nil, err
 	}
 	return s.SetNextChatManagedKeyGroup(ctx, userID, session.KeyID, groupID)
+}
+
+// SwitchNextChatManagedSessionGroup verifies the caller's current managed
+// session and returns a new immutable purpose/group-bound session. It never
+// changes GroupID on an existing key, so concurrent Canvas tabs and devices
+// cannot reroute or bill one another's request against a different group.
+func (s *APIKeyService) SwitchNextChatManagedSessionGroup(
+	ctx context.Context,
+	userID int64,
+	currentKeyID int64,
+	purpose string,
+	groupID int64,
+) (*NextChatManagedSession, *NextChatWorkspaceIdentity, error) {
+	purpose, _, err := normalizeNextChatSessionPurpose(purpose)
+	if err != nil {
+		return nil, nil, err
+	}
+	if userID <= 0 || currentKeyID <= 0 {
+		return nil, nil, ErrInsufficientPerms
+	}
+	current, err := s.GetByID(ctx, currentKeyID)
+	if err != nil {
+		return nil, nil, fmt.Errorf("get nextchat managed api key: %w", err)
+	}
+	if current.UserID != userID || !current.IsActive() || current.IsExpired() || !nextChatManagedKeyMatchesPurpose(current.Name, purpose) {
+		return nil, nil, ErrInsufficientPerms
+	}
+	session, err := s.IssueNextChatManagedSessionForPurposeAndGroup(ctx, userID, purpose, groupID)
+	if err != nil {
+		return nil, nil, err
+	}
+	identity, err := s.GetNextChatWorkspaceIdentity(ctx, userID, session.KeyID)
+	if err != nil {
+		return nil, nil, err
+	}
+	return session, identity, nil
 }
 
 func normalizeNextChatSessionPurpose(purpose string) (string, string, error) {
@@ -216,6 +275,96 @@ func normalizeNextChatSessionPurpose(purpose string) (string, string, error) {
 	default:
 		return "", "", infraerrors.BadRequest("NEXTCHAT_INVALID_SESSION_PURPOSE", "session purpose must be chat, image, or video")
 	}
+}
+
+func nextChatManagedSessionFromKey(key *APIKey, userID int64, purpose string) *NextChatManagedSession {
+	if key == nil {
+		return nil
+	}
+	var groupID *int64
+	if key.GroupID != nil {
+		value := *key.GroupID
+		groupID = &value
+	}
+	session := &NextChatManagedSession{
+		UserID:  userID,
+		APIKey:  key.Key,
+		KeyID:   key.ID,
+		Purpose: purpose,
+		GroupID: groupID,
+	}
+	if groupID != nil && isNextChatManagedScopedAPIKeyName(key.Name) {
+		session.Binding = NextChatGroupPinnedSessionBinding
+	}
+	return session
+}
+
+func nextChatManagedScopedAPIKeyName(purpose string, groupID int64) (string, error) {
+	if groupID <= 0 {
+		return "", ErrInsufficientPerms
+	}
+	switch purpose {
+	case NextChatSessionPurposeChat:
+		return NextChatManagedChatAPIKeyName + "/" + strconv.FormatInt(groupID, 10), nil
+	case NextChatSessionPurposeImage:
+		return NextChatManagedImageAPIKeyName + "/" + strconv.FormatInt(groupID, 10), nil
+	case NextChatSessionPurposeVideo:
+		return NextChatManagedVideoAPIKeyName + "/" + strconv.FormatInt(groupID, 10), nil
+	default:
+		return "", infraerrors.BadRequest("NEXTCHAT_INVALID_SESSION_PURPOSE", "session purpose must be chat, image, or video")
+	}
+}
+
+func isNextChatManagedScopedAPIKeyName(name string) bool {
+	name = strings.TrimSpace(name)
+	return strings.HasPrefix(name, NextChatManagedChatAPIKeyName+"/") ||
+		strings.HasPrefix(name, NextChatManagedImageAPIKeyName+"/") ||
+		strings.HasPrefix(name, NextChatManagedVideoAPIKeyName+"/")
+}
+
+// IssueNextChatManagedSessionForPurposeAndGroup creates or reuses an immutable
+// key for one exact purpose and group. A scoped key is intentionally separate
+// from the historical single key per purpose: rebinding that legacy key is a
+// cross-request race and can apply the wrong routing or billing group.
+func (s *APIKeyService) IssueNextChatManagedSessionForPurposeAndGroup(ctx context.Context, userID int64, purpose string, groupID int64) (*NextChatManagedSession, error) {
+	purpose, _, err := normalizeNextChatSessionPurpose(purpose)
+	if err != nil {
+		return nil, err
+	}
+	if s == nil || s.apiKeyRepo == nil || userID <= 0 || groupID <= 0 {
+		return nil, ErrInsufficientPerms
+	}
+	groups, err := s.GetNextChatSelectableGroups(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	if !nextChatGroupIsSelectable(groups, groupID) {
+		return nil, ErrGroupNotAllowed
+	}
+	keyName, err := nextChatManagedScopedAPIKeyName(purpose, groupID)
+	if err != nil {
+		return nil, err
+	}
+	key, err := s.findReusableNextChatManagedKeyByNameAndGroup(ctx, userID, keyName, groupID)
+	if err != nil {
+		return nil, err
+	}
+	if key == nil {
+		key, err = s.Create(ctx, userID, CreateAPIKeyRequest{Name: keyName, GroupID: &groupID})
+		if err != nil {
+			return nil, err
+		}
+	}
+	return nextChatManagedSessionFromKey(key, userID, purpose), nil
+}
+
+func nextChatGroupIsSelectable(groups []Group, groupID int64) bool {
+	for _, group := range groups {
+		if group.ID == groupID {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *APIKeyService) GetNextChatWorkspaceIdentity(ctx context.Context, userID, apiKeyID int64) (*NextChatWorkspaceIdentity, error) {
@@ -283,26 +432,27 @@ func (s *APIKeyService) SetNextChatManagedKeyGroup(ctx context.Context, userID, 
 	if key.UserID != userID || !IsNextChatManagedAPIKeyName(key.Name) || !key.IsActive() || key.IsExpired() {
 		return nil, ErrInsufficientPerms
 	}
+	if isNextChatManagedScopedAPIKeyName(key.Name) {
+		// Fixed keys may only be changed through the replacement-session
+		// contract.  Updating their GroupID would restore the multi-tab race
+		// this namespace exists to eliminate.
+		return nil, ErrInsufficientPerms
+	}
+	if _, ok := nextChatManagedKeyPurpose(key.Name); !ok {
+		return nil, ErrInsufficientPerms
+	}
 	groups, err := s.GetNextChatSelectableGroups(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
-	allowed := false
-	for _, group := range groups {
-		if group.ID == groupID {
-			allowed = true
-			break
-		}
+	if !nextChatGroupIsSelectable(groups, groupID) {
+		return nil, ErrGroupNotAllowed
 	}
-	if !allowed {
-		return nil, ErrInsufficientPerms
-	}
-
-	key, err = s.realignNextChatManagedKeyGroup(ctx, key, userID, &groupID)
+	updated, err := s.realignNextChatManagedKeyGroup(ctx, key, userID, &groupID)
 	if err != nil {
 		return nil, err
 	}
-	return s.GetNextChatWorkspaceIdentity(ctx, userID, key.ID)
+	return s.GetNextChatWorkspaceIdentity(ctx, userID, updated.ID)
 }
 
 func BuildNextChatPromptCatalog() NextChatPromptCatalog {
@@ -452,18 +602,66 @@ func (s *APIKeyService) findReusableNextChatManagedKeyForPurpose(ctx context.Con
 	return nil, nil
 }
 
+func (s *APIKeyService) findReusableNextChatManagedKeyByNameAndGroup(ctx context.Context, userID int64, name string, groupID int64) (*APIKey, error) {
+	if s == nil || s.apiKeyRepo == nil {
+		return nil, fmt.Errorf("api key service is not configured")
+	}
+	if lister, ok := s.apiKeyRepo.(apiKeyAllByUserIDLister); ok {
+		keys, err := lister.ListAllByUserID(ctx, userID, APIKeyListFilters{Status: StatusActive, GroupID: &groupID})
+		if err != nil {
+			return nil, fmt.Errorf("list managed api keys: %w", err)
+		}
+		for index := range keys {
+			key := &keys[index]
+			if key.Name == name && key.IsActive() && !key.IsExpired() && key.GroupID != nil && *key.GroupID == groupID {
+				return key, nil
+			}
+		}
+		return nil, nil
+	}
+
+	keys, _, err := s.List(ctx, userID, pagination.PaginationParams{Page: 1, PageSize: 100}, APIKeyListFilters{
+		Search:  name,
+		Status:  StatusActive,
+		GroupID: &groupID,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("search managed api keys: %w", err)
+	}
+	for index := range keys {
+		key := &keys[index]
+		if key.Name == name && key.IsActive() && !key.IsExpired() && key.GroupID != nil && *key.GroupID == groupID {
+			return key, nil
+		}
+	}
+	return nil, nil
+}
+
 func nextChatManagedKeyMatchesPurpose(name, purpose string) bool {
 	name = strings.TrimSpace(name)
 	switch purpose {
 	case NextChatSessionPurposeChat:
-		return name == NextChatManagedAPIKeyName || name == NextChatManagedChatAPIKeyName
+		return name == NextChatManagedAPIKeyName || name == NextChatManagedChatAPIKeyName || strings.HasPrefix(name, NextChatManagedChatAPIKeyName+"/")
 	case NextChatSessionPurposeImage:
-		return name == NextChatManagedImageAPIKeyName
+		return name == NextChatManagedImageAPIKeyName || strings.HasPrefix(name, NextChatManagedImageAPIKeyName+"/")
 	case NextChatSessionPurposeVideo:
-		return name == NextChatManagedVideoAPIKeyName
+		return name == NextChatManagedVideoAPIKeyName || strings.HasPrefix(name, NextChatManagedVideoAPIKeyName+"/")
 	default:
 		return false
 	}
+}
+
+func nextChatManagedKeyPurpose(name string) (string, bool) {
+	for _, purpose := range []string{
+		NextChatSessionPurposeChat,
+		NextChatSessionPurposeImage,
+		NextChatSessionPurposeVideo,
+	} {
+		if nextChatManagedKeyMatchesPurpose(name, purpose) {
+			return purpose, true
+		}
+	}
+	return "", false
 }
 
 func (s *APIKeyService) pickNextChatGroupID(ctx context.Context, userID int64) (*int64, error) {
@@ -617,6 +815,7 @@ func (s *ModelCatalogService) GetNextChatWorkspaceModels(ctx context.Context, us
 		Source:                   "/v1/models",
 		SelectedGroupID:          identity.APIKey.GroupID,
 		ImageCapabilitiesVersion: NextChatImageCapabilitiesVersion,
+		VideoCapabilitiesVersion: NextChatVideoCapabilitiesVersion,
 		Groups:                   make([]NextChatWorkspaceGroup, 0, len(selectableGroups)),
 	}
 	for _, group := range selectableGroups {
@@ -645,37 +844,65 @@ func (s *ModelCatalogService) GetNextChatWorkspaceModels(ctx context.Context, us
 			toolCapabilityEntries = entries
 		}
 	}
+	// The workspace's regular model list remains compatible with legacy chat
+	// and image behavior. Video is different: it has an independent managed
+	// session and per-resolution billing, so it must use the same resolver as
+	// mobile jobs rather than infer executability from the generic model list.
+	executableVideoModels := s.nextChatExecutableVideoModels(ctx, userID)
 	for groupIndex := range out.Groups {
 		group := &out.Groups[groupIndex]
 		sourceGroup := selectableGroups[groupIndex]
-		availableModels := []string{}
-		if s.modelResolver != nil {
-			availableModels = s.modelResolver.GetAvailableModels(ctx, &group.ID, group.Platform)
+		modelSources, sourceErr := s.nextChatWorkspaceModelSources(ctx, sourceGroup)
+		if sourceErr != nil {
+			return nil, fmt.Errorf("resolve nextchat media contracts: %w", sourceErr)
 		}
-		availableModels = filterNextChatWorkspaceModelsForGroup(sourceGroup, availableModels)
-		seen := make(map[string]struct{}, len(availableModels))
-		for _, modelID := range availableModels {
-			modelID = strings.TrimSpace(modelID)
+		for _, modelSource := range modelSources {
+			modelID := strings.TrimSpace(modelSource.ModelID)
 			if modelID == "" {
 				continue
 			}
 			normalizedModelID := strings.ToLower(modelID)
-			if _, exists := seen[normalizedModelID]; exists {
-				continue
-			}
-			seen[normalizedModelID] = struct{}{}
-			meta := metadata.lookup(group.ID, group.Platform, modelID)
-			workspaceModel := buildNextChatWorkspaceModel(group.Platform, modelID, meta)
+			modelGroup := modelSource.Group
+			meta := metadata.lookup(group.ID, modelSource.Platform, modelID)
+			workspaceModel := buildNextChatWorkspaceModel(modelSource.Platform, modelID, meta)
 			upstreamCapabilities := ModelToolCapabilities{}
 			if s.pricingService != nil {
 				upstreamCapabilities = s.pricingService.GetModelToolCapabilities(modelID)
 			}
 			workspaceModel.ToolCapabilities = resolveNextChatWorkspaceModelToolCapabilities(
 				toolCapabilityEntries,
-				sourceGroup,
+				modelGroup,
 				modelID,
 				upstreamCapabilities,
 			)
+			catalogEntry := findCatalogContractEntry(toolCapabilityEntries, modelGroup, modelID)
+			if catalogEntryHasExplicitMediaDeclaration(catalogEntry) {
+				if modelSource.ContractFound && len(modelSource.Contract.Modalities) > 0 {
+					applyNextChatWorkspaceMediaContract(&workspaceModel, modelSource.Contract)
+				} else {
+					// An administrator has explicitly reviewed this row. A malformed
+					// declaration or an unsupported adapter must fail closed instead
+					// of reviving a legacy name-based image profile.
+					clearNextChatWorkspaceMediaContract(&workspaceModel)
+				}
+			} else if modelSource.ContractFound {
+				applyNextChatWorkspaceMediaContract(&workspaceModel, modelSource.Contract)
+			}
+			if resolved, executable := executableVideoModels[group.ID][normalizedModelID]; executable {
+				// The mobile resolver selected this exact provider contract after
+				// mapping, scheduler, adapter and price checks. Project it as one
+				// unit instead of combining its video limits with a first-wins
+				// composite source's adapter or version.
+				applyNextChatWorkspaceResolvedVideoContract(&workspaceModel, resolved)
+			} else if workspaceModel.VideoCapabilities != nil {
+				// A missing resolver, a transient catalog/scheduler failure, or a
+				// failed executable check can only hide video. It must never
+				// degrade a chat or legacy-image model in the same workspace.
+				clearNextChatWorkspaceVideoCapability(&workspaceModel)
+			}
+			if workspaceModel.VideoCapabilities != nil {
+				group.VideoAvailable = true
+			}
 			group.Models = append(group.Models, workspaceModel)
 		}
 	}
@@ -694,6 +921,153 @@ func (s *ModelCatalogService) GetNextChatWorkspaceModels(ctx context.Context, us
 	}
 
 	return out, nil
+}
+
+// nextChatWorkspaceModelSource retains the concrete platform that made a
+// model schedulable. A composite group can route the same public model ID to
+// more than one upstream, so the catalog contract must be resolved against
+// this platform rather than the composite pseudo-platform.
+type nextChatWorkspaceModelSource struct {
+	ModelID       string
+	Platform      string
+	Group         Group
+	Contract      GatewayModelContract
+	ContractFound bool
+}
+
+func (s *ModelCatalogService) nextChatWorkspaceModelSources(
+	ctx context.Context,
+	group Group,
+) ([]nextChatWorkspaceModelSource, error) {
+	if s == nil || s.modelResolver == nil {
+		return nil, nil
+	}
+	if group.Platform != PlatformComposite {
+		return s.nextChatWorkspaceModelSourcesForPlatform(ctx, group, group.Platform)
+	}
+
+	resolver, supportsScheduling := s.modelResolver.(GatewayModelAvailabilityResolver)
+	if !supportsScheduling {
+		// Older embedded/test resolvers only expose the legacy aggregate view.
+		// Preserve it until they implement the scheduler contract; production
+		// GatewayService always implements GatewayModelAvailabilityResolver.
+		return s.nextChatWorkspaceModelSourcesForPlatform(ctx, group, group.Platform)
+	}
+
+	schedulable := resolver.GetSchedulablePlatforms(ctx, &group.ID)
+	platforms := CompositeSchedulableProviderPlatforms(schedulable)
+	if len(platforms) == 0 {
+		// Do not convert a compatibility resolver that only reports the
+		// synthetic composite platform into an empty workspace. Real gateway
+		// snapshots report concrete account platforms and take the path below.
+		return s.nextChatWorkspaceModelSourcesForPlatform(ctx, group, group.Platform)
+	}
+
+	seen := make(map[string]struct{})
+	result := make([]nextChatWorkspaceModelSource, 0)
+	for _, platform := range platforms {
+		concreteGroup := group
+		concreteGroup.Platform = platform
+		sources, err := s.nextChatWorkspaceModelSourcesForPlatform(ctx, concreteGroup, platform)
+		if err != nil {
+			return nil, err
+		}
+		for _, source := range sources {
+			key := strings.ToLower(strings.TrimSpace(source.ModelID))
+			if key == "" {
+				continue
+			}
+			if _, duplicate := seen[key]; duplicate {
+				continue
+			}
+			seen[key] = struct{}{}
+			result = append(result, source)
+		}
+	}
+	return result, nil
+}
+
+func (s *ModelCatalogService) nextChatWorkspaceModelSourcesForPlatform(
+	ctx context.Context,
+	group Group,
+	platform string,
+) ([]nextChatWorkspaceModelSource, error) {
+	availableModels := s.modelResolver.GetAvailableModels(ctx, &group.ID, platform)
+	availableModels = filterNextChatWorkspaceModelsForGroup(group, availableModels)
+	// The scheduler remains the authority for whether a model can be
+	// advertised at all. The catalog only enriches that already-authorized list
+	// with media behavior; it must never add a model by itself.
+	mediaContracts, err := s.ResolveGatewayModelContracts(ctx, group, availableModels)
+	if err != nil {
+		return nil, err
+	}
+	mediaByModel := make(map[string]GatewayModelContract, len(mediaContracts))
+	for _, contract := range mediaContracts {
+		if key := strings.ToLower(strings.TrimSpace(contract.ID)); key != "" {
+			mediaByModel[key] = contract
+		}
+	}
+
+	seen := make(map[string]struct{}, len(availableModels))
+	result := make([]nextChatWorkspaceModelSource, 0, len(availableModels))
+	for _, modelID := range availableModels {
+		modelID = strings.TrimSpace(modelID)
+		if modelID == "" {
+			continue
+		}
+		key := strings.ToLower(modelID)
+		if _, duplicate := seen[key]; duplicate {
+			continue
+		}
+		seen[key] = struct{}{}
+		contract, found := mediaByModel[key]
+		result = append(result, nextChatWorkspaceModelSource{
+			ModelID: modelID, Platform: platform, Group: group,
+			Contract: contract, ContractFound: found,
+		})
+	}
+	return result, nil
+}
+
+// nextChatExecutableVideoModels intentionally delegates to the mobile-video
+// resolver instead of reproducing its group, account, mapping, capability, and
+// price checks. GatewayService supplies the richer resolver in production; a
+// list-only implementation fails closed for video while preserving existing
+// chat/image workspace rows.
+func (s *ModelCatalogService) nextChatExecutableVideoModels(
+	ctx context.Context,
+	userID int64,
+) map[int64]map[string]MobileVideoResolvedModel {
+	if s == nil || s.apiKeyService == nil || s.repo == nil || userID <= 0 {
+		return nil
+	}
+	models, ok := s.modelResolver.(GatewayModelAvailabilityResolver)
+	if !ok {
+		return nil
+	}
+
+	bootstrap, err := NewCatalogMobileVideoAvailabilityResolver(s.apiKeyService, s, models).Bootstrap(ctx, userID)
+	if err != nil {
+		return nil
+	}
+
+	resolved := make(map[int64]map[string]MobileVideoResolvedModel, len(bootstrap.Groups))
+	for _, group := range bootstrap.Groups {
+		if len(group.Models) == 0 {
+			continue
+		}
+		byModel := make(map[string]MobileVideoResolvedModel, len(group.Models))
+		for _, model := range group.Models {
+			key := strings.ToLower(strings.TrimSpace(model.Model))
+			if key != "" {
+				byModel[key] = model
+			}
+		}
+		if len(byModel) > 0 {
+			resolved[group.ID] = byModel
+		}
+	}
+	return resolved
 }
 
 func filterNextChatWorkspaceModelsForGroup(group Group, availableModels []string) []string {
@@ -816,10 +1190,151 @@ func buildNextChatWorkspaceModel(groupPlatform, modelID string, meta nextChatWor
 		EffectiveInputPrice:  meta.effectiveInputPrice,
 		EffectiveOutputPrice: meta.effectiveOutputPrice,
 	}
-	if capability, ok := ResolveImageStudioProviderCapability(platform, modelID); ok {
-		model.ImageCapabilities = &capability
+	if capability, ok := ResolveAuditedLegacyWorkspaceImageCapability(platform, modelID); ok {
+		model.ImageCapabilities = modelImageCapabilitiesFromImageStudio(capability)
+		// Only exact profiles reviewed before the media catalog are retained as a
+		// temporary compatibility declaration. New mappings require an explicit
+		// catalog contract and must never gain image capability from their name.
+		model.Modalities = []string{"image"}
+		model.Adapter = nextChatLegacyImageAdapter(platform, capability)
+		model.CapabilityVersion = capability.Revision
 	}
 	return model
+}
+
+func applyNextChatWorkspaceMediaContract(model *NextChatWorkspaceModel, contract GatewayModelContract) {
+	if model == nil || len(contract.Modalities) == 0 {
+		return
+	}
+	// An explicit declaration takes precedence over the compatibility profile.
+	// This lets an administrator retire an old inferred capability without
+	// needing a separate client release.
+	model.Modalities = cloneCatalogStrings(contract.Modalities)
+	model.Adapter = strings.TrimSpace(contract.Adapter)
+	model.CapabilityVersion = strings.TrimSpace(contract.CapabilityVersion)
+	model.ImageCapabilities = nextChatImageCapabilitiesFromCatalog(contract.ImageCapabilities)
+	model.VideoCapabilities = cloneNextChatVideoCapabilities(contract.VideoCapabilities)
+}
+
+func applyNextChatWorkspaceResolvedVideoContract(model *NextChatWorkspaceModel, resolved MobileVideoResolvedModel) {
+	if model == nil {
+		return
+	}
+	contract, valid := GatewayModelContractFromMobileVideo(resolved)
+	if !valid {
+		clearNextChatWorkspaceVideoCapability(model)
+		return
+	}
+
+	// A top-level adapter/version cannot describe two providers. Preserve an
+	// image declaration only when it is already tied to this exact selected
+	// video contract; otherwise fail closed for image rather than advertise a
+	// hybrid model that neither upstream can execute.
+	preserveImage := model.ImageCapabilities != nil &&
+		strings.EqualFold(strings.TrimSpace(model.Adapter), contract.Adapter) &&
+		strings.TrimSpace(model.CapabilityVersion) == contract.CapabilityVersion
+	if preserveImage {
+		modalities := make([]string, 0, len(model.Modalities)+1)
+		for _, modality := range model.Modalities {
+			if !strings.EqualFold(strings.TrimSpace(modality), "video") {
+				modalities = append(modalities, modality)
+			}
+		}
+		modalities = append(modalities, "video")
+		model.Modalities = modalities
+	} else {
+		model.Modalities = []string{"video"}
+		model.ImageCapabilities = nil
+	}
+	model.Platform = contract.Platform
+	model.Adapter = contract.Adapter
+	model.CapabilityVersion = contract.CapabilityVersion
+	model.VideoCapabilities = cloneNextChatVideoCapabilities(contract.VideoCapabilities)
+}
+
+// catalogEntryHasExplicitMediaDeclaration distinguishes a legacy NULL row from
+// an administrator-reviewed row. Invalid JSON is deliberately explicit here:
+// it must not fall back to a static media profile.
+func catalogEntryHasExplicitMediaDeclaration(entry *SiteModelCatalogEntry) bool {
+	if entry == nil {
+		return false
+	}
+	declaration, err := ParseCatalogMediaCapabilities(entry.MediaCapabilities)
+	return declaration != nil || err != nil
+}
+
+func clearNextChatWorkspaceMediaContract(model *NextChatWorkspaceModel) {
+	if model == nil {
+		return
+	}
+	model.Modalities = nil
+	model.Adapter = ""
+	model.CapabilityVersion = ""
+	model.ImageCapabilities = nil
+	model.VideoCapabilities = nil
+}
+
+// clearNextChatWorkspaceVideoCapability removes only the video projection.
+// A catalog row can intentionally carry chat and image alongside video, so a
+// failed video preflight must not erase the remaining declared modes.
+func clearNextChatWorkspaceVideoCapability(model *NextChatWorkspaceModel) {
+	if model == nil {
+		return
+	}
+	modalities := make([]string, 0, len(model.Modalities))
+	for _, modality := range model.Modalities {
+		if !strings.EqualFold(strings.TrimSpace(modality), "video") {
+			modalities = append(modalities, modality)
+		}
+	}
+	model.Modalities = modalities
+	model.VideoCapabilities = nil
+	if len(model.Modalities) == 0 {
+		model.Adapter = ""
+		model.CapabilityVersion = ""
+	}
+}
+
+func nextChatImageCapabilitiesFromCatalog(capability *ModelImageCapabilities) *ModelImageCapabilities {
+	if capability == nil {
+		return nil
+	}
+	image := capability.Clone()
+	return &image
+}
+
+func modelImageCapabilitiesFromImageStudio(capability ImageStudioModelCapabilities) *ModelImageCapabilities {
+	image := ModelImageCapabilities{
+		Operations:         cloneCatalogStrings(capability.Operations),
+		SizingKind:         strings.TrimSpace(capability.SizingKind),
+		SupportedSizes:     cloneCatalogStrings(capability.SupportedSizes),
+		SupportedRatios:    cloneCatalogStrings(capability.SupportedAspectRatios),
+		SupportedFormats:   cloneCatalogStrings(capability.SupportedOutputFormats),
+		MinDimension:       capability.MinDimension,
+		MaxDimension:       capability.MaxDimension,
+		DimensionStep:      capability.DimensionStep,
+		MaxAspectRatio:     capability.MaxAspectRatio,
+		MaxReferenceImages: capability.MaxReferenceImages,
+	}
+	return &image
+}
+
+func cloneNextChatVideoCapabilities(capability *MobileVideoCapabilities) *MobileVideoCapabilities {
+	return cloneGatewayVideoCapabilities(capability)
+}
+
+func nextChatLegacyImageAdapter(platform string, capability ImageStudioModelCapabilities) string {
+	if providerID := strings.TrimSpace(capability.ProviderID); providerID != "" {
+		return providerID
+	}
+	switch normalizeCatalogContractPlatform(platform) {
+	case PlatformGemini:
+		return "gemini_images"
+	case PlatformGrok:
+		return "grok_images"
+	default:
+		return "openai_images"
+	}
 }
 
 // resolveNextChatModelToolCapabilities applies the only permitted capability

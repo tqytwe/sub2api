@@ -186,8 +186,20 @@ type UsageBillingApplyResult struct {
 	QuotaState           *AccountQuotaState // post-increment quota state (nil = no quota increment)
 }
 
+const (
+	// BalanceHoldKindImage is the historical default. Keep it implicit for all
+	// existing callers so image ledger sources and statements remain unchanged.
+	BalanceHoldKindImage = "image"
+	// BalanceHoldKindMobileVideo reuses the durable hold mechanics while giving
+	// video operations distinct auditable ledger source labels.
+	BalanceHoldKindMobileVideo = "mobile_video"
+)
+
 // BatchImageBalanceHoldCommand describes an idempotent balance hold operation.
+// The type name is retained for compatibility with the existing Image Studio
+// and Batch Image contracts; Kind selects the audit labels only.
 type BatchImageBalanceHoldCommand struct {
+	Kind                string
 	RequestID           string
 	HoldRequestID       string
 	CaptureRequestID    string
@@ -205,6 +217,10 @@ type BatchImageBalanceHoldCommand struct {
 func (c *BatchImageBalanceHoldCommand) Normalize() {
 	if c == nil {
 		return
+	}
+	c.Kind = strings.ToLower(strings.TrimSpace(c.Kind))
+	if c.Kind == "" {
+		c.Kind = BalanceHoldKindImage
 	}
 	c.RequestID = strings.TrimSpace(c.RequestID)
 	c.HoldRequestID = strings.TrimSpace(c.HoldRequestID)
@@ -236,6 +252,9 @@ func buildBatchImageBalanceHoldFingerprint(c *BatchImageBalanceHoldCommand) stri
 	if c == nil {
 		return ""
 	}
+	// Keep the original image-hold fingerprint stable. Existing batch and Image
+	// Studio reservations are deduplicated by this value, so adding Kind to the
+	// legacy image format would turn retries after an upgrade into new holds.
 	raw := fmt.Sprintf(
 		"%d|%d|%s|%0.10f|%0.10f",
 		c.UserID,
@@ -244,6 +263,9 @@ func buildBatchImageBalanceHoldFingerprint(c *BatchImageBalanceHoldCommand) stri
 		c.HoldAmount,
 		c.ActualAmount,
 	)
+	if kind := strings.ToLower(strings.TrimSpace(c.Kind)); kind != "" && kind != BalanceHoldKindImage {
+		raw = kind + "|" + raw
+	}
 	if payloadHash := strings.TrimSpace(c.RequestPayloadHash); payloadHash != "" {
 		raw += "|" + payloadHash
 	}

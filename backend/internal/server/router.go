@@ -202,6 +202,22 @@ func registerRoutes(
 	v1.GET("/mobile/image-history", gin.HandlerFunc(jwtAuth), h.MobileTask.ImageHistory)
 	v1.DELETE("/mobile/image-history/:id", gin.HandlerFunc(jwtAuth), h.MobileTask.DeleteImageHistory)
 	v1.POST("/mobile/image-history/:id/retry", gin.HandlerFunc(jwtAuth), h.MobileTask.RetryImageHistory)
+	mobileVideo := h.MobileVideo
+	if mobileVideo == nil {
+		// Keep the API surface observable in reduced test/bootstrap setups while
+		// failing closed until the production dependencies are wired.
+		mobileVideo = &handler.MobileVideoHandler{}
+	}
+	v1.GET("/mobile/video/bootstrap", gin.HandlerFunc(jwtAuth), mobileVideo.Bootstrap)
+	v1.GET("/mobile/video/models", gin.HandlerFunc(jwtAuth), mobileVideo.Models)
+	v1.POST("/mobile/video/estimate", gin.HandlerFunc(jwtAuth), mobileVideo.Estimate)
+	v1.POST("/mobile/video/jobs", mobileWriteCorrelationID, gin.HandlerFunc(jwtAuth), middleware2.RequestBodyLimit(handler.MobileVideoJobRequestBodyLimit), mobileVideo.Create)
+	v1.GET("/mobile/video/jobs", gin.HandlerFunc(jwtAuth), mobileVideo.List)
+	v1.GET("/mobile/video/jobs/:id", gin.HandlerFunc(jwtAuth), mobileVideo.Get)
+	v1.POST("/mobile/video/jobs/:id/cancel", mobileWriteCorrelationID, gin.HandlerFunc(jwtAuth), mobileVideo.Cancel)
+	v1.POST("/mobile/video/jobs/:id/retry", mobileWriteCorrelationID, gin.HandlerFunc(jwtAuth), mobileVideo.Retry)
+	v1.GET("/mobile/video/jobs/:id/content", gin.HandlerFunc(jwtAuth), mobileVideo.Content)
+	v1.POST("/mobile/video/jobs/:id/content/ack", mobileWriteCorrelationID, gin.HandlerFunc(jwtAuth), mobileVideo.AcknowledgeContent)
 	v1.GET("/mobile/support/tickets", gin.HandlerFunc(jwtAuth), h.MobileSupport.List)
 	v1.POST("/mobile/support/tickets", mobileWriteCorrelationID, gin.HandlerFunc(jwtAuth), h.MobileSupport.Create)
 	v1.GET("/mobile/support/tickets/:id", gin.HandlerFunc(jwtAuth), h.MobileSupport.Detail)

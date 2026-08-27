@@ -195,7 +195,7 @@ export function useOnboardingTour(options: OnboardingOptions) {
               iconSpan.className = 'i-mdi-keyboard-return mr-1'
 
               const textNode = document.createTextNode(
-                t('onboarding.interactiveHint', 'Press Enter or Click to continue'),
+                t('onboarding.interactiveHint'),
               )
 
               hint.appendChild(iconSpan)

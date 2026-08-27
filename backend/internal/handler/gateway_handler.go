@@ -57,6 +57,7 @@ type GatewayHandler struct {
 	maxAccountSwitchesGemini  int
 	cfg                       *config.Config
 	settingService            *service.SettingService
+	modelCatalogService       *service.ModelCatalogService
 }
 
 // NewGatewayHandler creates a new GatewayHandler
@@ -76,6 +77,7 @@ func NewGatewayHandler(
 	userMsgQueueService *service.UserMessageQueueService,
 	cfg *config.Config,
 	settingService *service.SettingService,
+	modelCatalogService *service.ModelCatalogService,
 ) *GatewayHandler {
 	pingInterval := time.Duration(0)
 	maxAccountSwitches := 10
@@ -114,6 +116,7 @@ func NewGatewayHandler(
 		maxAccountSwitchesGemini:  maxAccountSwitchesGemini,
 		cfg:                       cfg,
 		settingService:            settingService,
+		modelCatalogService:       modelCatalogService,
 	}
 }
 
@@ -1072,6 +1075,10 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 // Falls back to default models if no whitelist is configured
 func (h *GatewayHandler) Models(c *gin.Context) {
 	apiKey, _ := middleware2.GetAPIKeyFromContext(c)
+	// A user API key is an authorization boundary. Its model list must reflect
+	// only the current scheduler mapping, never a provider's static defaults.
+	// The no-key branch remains for internal compatibility callers.
+	requireMappedModels := apiKey != nil
 
 	var groupID *int64
 	var platform string
@@ -1085,14 +1092,23 @@ func (h *GatewayHandler) Models(c *gin.Context) {
 	}
 
 	if platform == service.PlatformComposite {
-		availableModels := h.compositeAvailableModels(c.Request.Context(), groupID)
+		availableModels := h.compositeAvailableModels(c.Request.Context(), groupID, !requireMappedModels)
+		mediaContracts := h.compositeGatewayModelMediaContracts(c.Request.Context(), apiKey)
 		if apiKey != nil && apiKey.Group != nil && apiKey.Group.CustomModelsListEnabled() {
-			availableModels = filterModelsByCustomList(availableModels, defaultModelIDsForPlatform(service.PlatformComposite), apiKey.Group.ModelsListConfig.Models)
-			writeCustomModelsList(c, service.PlatformComposite, availableModels)
+			fallbackModels := []string(nil)
+			if !requireMappedModels {
+				fallbackModels = defaultModelIDsForPlatform(service.PlatformComposite)
+			}
+			availableModels = filterModelsByCustomList(availableModels, fallbackModels, apiKey.Group.ModelsListConfig.Models)
+			writeCustomModelsListWithMediaContracts(c, service.PlatformComposite, availableModels, mediaContracts)
 			return
 		}
 		if len(availableModels) > 0 {
-			writeModelsList(c, service.PlatformComposite, availableModels)
+			writeModelsListWithMediaContracts(c, service.PlatformComposite, availableModels, mediaContracts)
+			return
+		}
+		if requireMappedModels {
+			writeModelsListWithMediaContracts(c, service.PlatformComposite, nil, mediaContracts)
 			return
 		}
 		writeModelsList(c, service.PlatformComposite, defaultModelIDsForPlatform(service.PlatformComposite))
@@ -1101,15 +1117,25 @@ func (h *GatewayHandler) Models(c *gin.Context) {
 
 	// Get available models from account configurations for the selected group platform.
 	availableModels := h.gatewayService.GetAvailableModels(c.Request.Context(), groupID, platform)
+	mediaContracts := h.gatewayModelMediaContracts(c.Request.Context(), apiKey, platform, availableModels)
 	if apiKey != nil && apiKey.Group != nil && apiKey.Group.CustomModelsListEnabled() {
-		fallbackModels := defaultModelIDsForPlatform(platform)
-		availableModels = filterModelsByCustomList(customModelsListSource(platform, availableModels, fallbackModels), fallbackModels, apiKey.Group.ModelsListConfig.Models)
-		writeCustomModelsList(c, platform, availableModels)
+		fallbackModels := []string(nil)
+		sourceModels := availableModels
+		if !requireMappedModels {
+			fallbackModels = defaultModelIDsForPlatform(platform)
+			sourceModels = customModelsListSource(platform, availableModels, fallbackModels)
+		}
+		availableModels = filterModelsByCustomList(sourceModels, fallbackModels, apiKey.Group.ModelsListConfig.Models)
+		writeCustomModelsListWithMediaContracts(c, platform, availableModels, mediaContracts)
 		return
 	}
 
 	if len(availableModels) > 0 {
-		writeModelsList(c, platform, availableModels)
+		writeModelsListWithMediaContracts(c, platform, availableModels, mediaContracts)
+		return
+	}
+	if requireMappedModels {
+		writeModelsListWithMediaContracts(c, platform, nil, mediaContracts)
 		return
 	}
 
@@ -1140,16 +1166,16 @@ func (h *GatewayHandler) Models(c *gin.Context) {
 	})
 }
 
-func (h *GatewayHandler) compositeAvailableModels(ctx context.Context, groupID *int64) []string {
+func (h *GatewayHandler) compositeAvailableModels(ctx context.Context, groupID *int64, allowDefaultFallback bool) []string {
 	if h == nil || h.gatewayService == nil {
 		return nil
 	}
 	seen := make(map[string]struct{})
 	models := make([]string, 0)
 	schedulablePlatforms := h.gatewayService.GetSchedulablePlatforms(ctx, groupID)
-	for _, platform := range []string{service.PlatformAnthropic, service.PlatformGemini, service.PlatformOpenAI, service.PlatformAntigravity, service.PlatformGrok, service.PlatformKimi, service.PlatformZhipu, service.PlatformDeepseek} {
+	for _, platform := range service.CompositeSchedulableProviderPlatforms(schedulablePlatforms) {
 		platformModels := h.gatewayService.GetAvailableModels(ctx, groupID, platform)
-		if len(platformModels) == 0 {
+		if len(platformModels) == 0 && allowDefaultFallback {
 			// CN 供应商没有静态默认模型列表（defaultModelIDsForPlatform 的
 			// default 分支是 Claude 列表），composite 下只暴露账号映射键。
 			if _, ok := schedulablePlatforms[platform]; ok && !service.IsCNProvider(platform) {
@@ -1171,9 +1197,124 @@ func (h *GatewayHandler) compositeAvailableModels(ctx context.Context, groupID *
 	return models
 }
 
+// gatewayModelMediaContracts enriches an already-authorized model list. The
+// scheduler/mapping decision above remains the source of visibility: a catalog
+// row may describe a model but cannot make it appear in /v1/models on its own.
+// A catalog outage intentionally preserves the established response shape.
+func (h *GatewayHandler) gatewayModelMediaContracts(
+	ctx context.Context,
+	apiKey *service.APIKey,
+	platform string,
+	modelIDs []string,
+) map[string]service.GatewayModelContract {
+	if h == nil || h.modelCatalogService == nil || apiKey == nil || apiKey.Group == nil || len(modelIDs) == 0 {
+		return nil
+	}
+
+	group := *apiKey.Group
+	if platform = strings.TrimSpace(platform); platform != "" {
+		group.Platform = platform
+	}
+	contracts, err := h.modelCatalogService.ResolveGatewayModelContracts(ctx, group, modelIDs)
+	if err != nil {
+		return nil
+	}
+
+	byModel := make(map[string]service.GatewayModelContract, len(contracts))
+	for _, contract := range contracts {
+		modelID := strings.ToLower(strings.TrimSpace(contract.ID))
+		if modelID == "" || len(contract.Modalities) == 0 {
+			continue
+		}
+		byModel[modelID] = contract
+	}
+	return h.applyGatewayExecutableVideoContracts(ctx, group, modelIDs, byModel)
+}
+
+// compositeGatewayModelMediaContracts resolves each concrete platform before
+// merging the result. Passing the composite pseudo-platform to the catalog
+// would incorrectly skip platform-scoped declarations.
+func (h *GatewayHandler) compositeGatewayModelMediaContracts(ctx context.Context, apiKey *service.APIKey) map[string]service.GatewayModelContract {
+	if h == nil || h.gatewayService == nil || apiKey == nil || apiKey.Group == nil {
+		return nil
+	}
+
+	contracts := make(map[string]service.GatewayModelContract)
+	modelIDs := make([]string, 0)
+	seenModels := make(map[string]struct{})
+	schedulablePlatforms := h.gatewayService.GetSchedulablePlatforms(ctx, &apiKey.Group.ID)
+	for _, platform := range service.CompositeSchedulableProviderPlatforms(schedulablePlatforms) {
+		platformModels := h.gatewayService.GetAvailableModels(ctx, &apiKey.Group.ID, platform)
+		for _, modelID := range platformModels {
+			key := strings.ToLower(strings.TrimSpace(modelID))
+			if key == "" {
+				continue
+			}
+			if _, exists := seenModels[key]; !exists {
+				seenModels[key] = struct{}{}
+				modelIDs = append(modelIDs, modelID)
+			}
+		}
+		for modelID, contract := range h.gatewayModelMediaContracts(
+			ctx,
+			apiKey,
+			platform,
+			platformModels,
+		) {
+			if _, exists := contracts[modelID]; !exists {
+				contracts[modelID] = contract
+			}
+		}
+	}
+	return h.applyGatewayExecutableVideoContracts(ctx, *apiKey.Group, modelIDs, contracts)
+}
+
+// applyGatewayExecutableVideoContracts overlays a full, selected video
+// contract only for models that the caller has already decided to expose. The
+// resolver is shared with mobile-video bootstrap, so composite duplicate IDs
+// cannot retain one provider's adapter/version with another provider's limits.
+func (h *GatewayHandler) applyGatewayExecutableVideoContracts(
+	ctx context.Context,
+	group service.Group,
+	modelIDs []string,
+	contracts map[string]service.GatewayModelContract,
+) map[string]service.GatewayModelContract {
+	if h == nil || h.gatewayService == nil || h.modelCatalogService == nil || len(modelIDs) == 0 {
+		return contracts
+	}
+	allowed := make(map[string]struct{}, len(modelIDs))
+	for _, modelID := range modelIDs {
+		if key := strings.ToLower(strings.TrimSpace(modelID)); key != "" {
+			allowed[key] = struct{}{}
+		}
+	}
+	videoContracts, err := h.modelCatalogService.ResolveGatewayExecutableVideoContracts(ctx, group, h.gatewayService)
+	if err != nil {
+		// Keep the established model list on a transient catalog failure. A
+		// catalog-declared video capability was already fail-closed above when
+		// it could not be resolved.
+		return contracts
+	}
+	for key, contract := range videoContracts {
+		if _, visible := allowed[key]; visible {
+			contracts[key] = contract
+		}
+	}
+	return contracts
+}
+
 func writeModelsList(c *gin.Context, platform string, modelIDs []string) {
+	writeModelsListWithMediaContracts(c, platform, modelIDs, nil)
+}
+
+func writeModelsListWithMediaContracts(
+	c *gin.Context,
+	platform string,
+	modelIDs []string,
+	mediaContracts map[string]service.GatewayModelContract,
+) {
 	if platform == service.PlatformGrok {
-		writeGrokModelsList(c, modelIDs)
+		writeGrokModelsListWithMediaContracts(c, modelIDs, mediaContracts)
 		return
 	}
 	models := make([]claude.Model, 0, len(modelIDs))
@@ -1187,16 +1328,21 @@ func writeModelsList(c *gin.Context, platform string, modelIDs []string) {
 	}
 	c.JSON(http.StatusOK, gin.H{
 		"object": "list",
-		"data":   models,
+		"data":   decorateGatewayModelsWithMediaContracts(models, mediaContracts),
 	})
 }
 
-func writeCustomModelsList(c *gin.Context, platform string, modelIDs []string) {
+func writeCustomModelsListWithMediaContracts(
+	c *gin.Context,
+	platform string,
+	modelIDs []string,
+	mediaContracts map[string]service.GatewayModelContract,
+) {
 	if platform == service.PlatformOpenAI {
-		writeOpenAIModelsList(c, modelIDs)
+		writeOpenAIModelsListWithMediaContracts(c, modelIDs, mediaContracts)
 		return
 	}
-	writeModelsList(c, platform, modelIDs)
+	writeModelsListWithMediaContracts(c, platform, modelIDs, mediaContracts)
 }
 
 type grokReasoningEffortOption struct {
@@ -1213,6 +1359,14 @@ type grokModelListItem struct {
 }
 
 func writeGrokModelsList(c *gin.Context, modelIDs []string) {
+	writeGrokModelsListWithMediaContracts(c, modelIDs, nil)
+}
+
+func writeGrokModelsListWithMediaContracts(
+	c *gin.Context,
+	modelIDs []string,
+	mediaContracts map[string]service.GatewayModelContract,
+) {
 	defaults := xai.DefaultModels()
 	defaultsByID := make(map[string]xai.Model, len(defaults))
 	for _, model := range defaults {
@@ -1245,7 +1399,7 @@ func writeGrokModelsList(c *gin.Context, modelIDs []string) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"object": "list",
-		"data":   models,
+		"data":   decorateGatewayModelsWithMediaContracts(models, mediaContracts),
 	})
 }
 
@@ -1258,7 +1412,11 @@ func grokModelSupportsConfigurableReasoning(modelID string) bool {
 	}
 }
 
-func writeOpenAIModelsList(c *gin.Context, modelIDs []string) {
+func writeOpenAIModelsListWithMediaContracts(
+	c *gin.Context,
+	modelIDs []string,
+	mediaContracts map[string]service.GatewayModelContract,
+) {
 	defaultsByID := make(map[string]openai.Model, len(openai.DefaultModels))
 	for _, model := range openai.DefaultModels {
 		defaultsByID[model.ID] = model
@@ -1281,8 +1439,92 @@ func writeOpenAIModelsList(c *gin.Context, modelIDs []string) {
 	}
 	c.JSON(http.StatusOK, gin.H{
 		"object": "list",
-		"data":   models,
+		"data":   decorateGatewayModelsWithMediaContracts(models, mediaContracts),
 	})
+}
+
+// decorateGatewayModelsWithMediaContracts preserves the existing provider
+// model shape byte-for-field and appends only safe platform extensions. Using
+// RawMessage avoids silently changing provider-specific optional fields while
+// letting OpenAI-compatible clients ignore the extensions.
+func decorateGatewayModelsWithMediaContracts(
+	models any,
+	mediaContracts map[string]service.GatewayModelContract,
+) any {
+	if len(mediaContracts) == 0 {
+		return models
+	}
+
+	encoded, err := json.Marshal(models)
+	if err != nil {
+		return models
+	}
+	var items []json.RawMessage
+	if err := json.Unmarshal(encoded, &items); err != nil {
+		return models
+	}
+
+	decorated := make([]json.RawMessage, len(items))
+	for index, item := range items {
+		var fields map[string]json.RawMessage
+		if err := json.Unmarshal(item, &fields); err != nil {
+			return models
+		}
+		var modelID string
+		if err := json.Unmarshal(fields["id"], &modelID); err != nil {
+			return models
+		}
+		contract, found := mediaContracts[strings.ToLower(strings.TrimSpace(modelID))]
+		if !found || len(contract.Modalities) == 0 {
+			decorated[index] = item
+			continue
+		}
+		if encodedFields, ok := encodeGatewayModelMediaContractFields(contract); ok {
+			for key, value := range encodedFields {
+				fields[key] = value
+			}
+		}
+		encodedItem, err := json.Marshal(fields)
+		if err != nil {
+			return models
+		}
+		decorated[index] = encodedItem
+	}
+	return decorated
+}
+
+func encodeGatewayModelMediaContractFields(contract service.GatewayModelContract) (map[string]json.RawMessage, bool) {
+	if len(contract.Modalities) == 0 {
+		return nil, false
+	}
+	fields := make(map[string]json.RawMessage, 6)
+	set := func(key string, value any) bool {
+		encoded, err := json.Marshal(value)
+		if err != nil {
+			return false
+		}
+		fields[key] = encoded
+		return true
+	}
+	if !set("modalities", contract.Modalities) {
+		return nil, false
+	}
+	if adapter := strings.TrimSpace(contract.Adapter); adapter != "" && !set("adapter", adapter) {
+		return nil, false
+	}
+	if version := strings.TrimSpace(contract.CapabilityVersion); version != "" && !set("capability_version", version) {
+		return nil, false
+	}
+	if platform := strings.TrimSpace(contract.Platform); platform != "" && !set("platform", platform) {
+		return nil, false
+	}
+	if contract.ImageCapabilities != nil && !set("image_capabilities", contract.ImageCapabilities) {
+		return nil, false
+	}
+	if contract.VideoCapabilities != nil && !set("video_capabilities", contract.VideoCapabilities) {
+		return nil, false
+	}
+	return fields, true
 }
 
 func customModelsListSource(platform string, availableModels, fallbackModels []string) []string {
@@ -1374,7 +1616,7 @@ func defaultModelIDsForPlatform(platform string) []string {
 	case service.PlatformComposite:
 		ids := make([]string, 0)
 		seen := make(map[string]struct{})
-		for _, concretePlatform := range []string{service.PlatformAnthropic, service.PlatformGemini, service.PlatformOpenAI, service.PlatformAntigravity, service.PlatformGrok, service.PlatformKimi, service.PlatformZhipu, service.PlatformDeepseek} {
+		for _, concretePlatform := range service.CompositeProviderPlatforms() {
 			for _, id := range defaultModelIDsForPlatform(concretePlatform) {
 				if _, ok := seen[id]; ok {
 					continue

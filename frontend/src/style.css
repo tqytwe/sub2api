@@ -874,6 +874,21 @@
     padding-bottom: env(safe-area-inset-bottom);
   }
 }
+
+/* The approved DENG PNG has transparent padding. Keep every fixed logo shell
+ * visually consistent without changing the shell's reserved layout size. */
+.brand-logo-shell {
+  overflow: hidden;
+}
+
+.brand-logo-asset {
+  display: block;
+}
+
+.brand-logo-asset--deng {
+  transform: scale(1.36);
+  transform-origin: center;
+}
 /* Shared public page frame keeps navigation and public content aligned. */
 .public-content-frame {
   width: 100%;

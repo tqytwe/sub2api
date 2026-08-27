@@ -137,11 +137,12 @@ func ProvideGatewayHandler(
 	userMsgQueueService *service.UserMessageQueueService,
 	cfg *config.Config,
 	settingService *service.SettingService,
+	modelCatalogService *service.ModelCatalogService,
 	coordinator *securityaudit.Coordinator,
 ) *GatewayHandler {
 	h := NewGatewayHandler(gatewayService, openAIGatewayService, geminiCompatService, antigravityGatewayService,
 		userService, concurrencyService, billingCacheService, usageService, apiKeyService, usageRecordWorkerPool,
-		errorPassthroughService, contentModerationService, userMsgQueueService, cfg, settingService)
+		errorPassthroughService, contentModerationService, userMsgQueueService, cfg, settingService, modelCatalogService)
 	h.securityAuditCoordinator = coordinator
 	return h
 }
@@ -263,6 +264,7 @@ func ProvideHandlers(
 	promptLibraryHandler *PromptLibraryHandler,
 	mobileAssetHandler *MobileAssetHandler,
 	mobileTaskHandler *MobileTaskHandler,
+	mobileVideoHandler *MobileVideoHandler,
 	mobileSupportHandler *MobileSupportHandler,
 	mobileDiagnosticHandler *MobileDiagnosticHandler,
 	mobileDeviceHandler *MobileDeviceHandler,
@@ -304,6 +306,7 @@ func ProvideHandlers(
 		PromptLibrary:     promptLibraryHandler,
 		MobileAsset:       mobileAssetHandler,
 		MobileTask:        mobileTaskHandler,
+		MobileVideo:       mobileVideoHandler,
 		MobileSupport:     mobileSupportHandler,
 		MobileDiagnostic:  mobileDiagnosticHandler,
 		MobileDevice:      mobileDeviceHandler,
@@ -344,6 +347,47 @@ func ProvideMobileAssetHandler(db *sql.DB, storage service.MobileAssetStorage) *
 
 func ProvideMobileTaskHandler(db *sql.DB, push *service.MobilePushService) *MobileTaskHandler {
 	return NewMobileTaskHandlerWithPush(service.NewMobileTaskService(db), push)
+}
+
+// ProvideMobileVideoHandler wires the private video-job executor separately
+// from generic mobile tasks. The resolver and task store are database-backed;
+// no user-owned chat/image session is accepted as an execution identity.
+func ProvideMobileVideoHandler(
+	db *sql.DB,
+	apiKeys *service.APIKeyService,
+	catalog *service.ModelCatalogService,
+	models *service.GatewayService,
+	storage service.MobileAssetStorage,
+	billing service.UsageBillingRepository,
+) *MobileVideoHandler {
+	return NewMobileVideoHandler(
+		service.NewMobileTaskService(db),
+		service.NewCatalogMobileVideoAvailabilityResolver(apiKeys, catalog, models),
+		apiKeys,
+		service.NewMobileVideoJobService(db),
+		storage,
+		billing,
+	)
+}
+
+// ProvideMobileVideoWorker starts the durable video worker only after the
+// gateway provider, private task store, and private asset storage are all
+// available. Its Stop method is registered in the server cleanup lifecycle.
+func ProvideMobileVideoWorker(
+	db *sql.DB,
+	provider *MobileVideoGatewayProvider,
+	storage service.MobileAssetStorage,
+	billing service.UsageBillingRepository,
+) *service.MobileVideoWorker {
+	worker := service.NewMobileVideoWorker(
+		service.NewMobileVideoJobService(db),
+		service.NewMobileTaskService(db),
+		provider,
+		storage,
+		service.MobileVideoWorkerOptions{Billing: billing},
+	)
+	worker.Start()
+	return worker
 }
 
 func ProvideMobileSupportHandler(playService *service.PlayService, feedbackAssetService *service.AnnouncementAssetService) *MobileSupportHandler {
@@ -401,6 +445,9 @@ var ProviderSet = wire.NewSet(
 	NewPromptLibraryHandler,
 	ProvideMobileAssetHandler,
 	ProvideMobileTaskHandler,
+	ProvideMobileVideoHandler,
+	NewMobileVideoGatewayProvider,
+	ProvideMobileVideoWorker,
 	ProvideMobileSupportHandler,
 	NewMobileDiagnosticHandler,
 	ProvideMobileDeviceHandler,

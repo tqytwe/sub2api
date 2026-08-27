@@ -75,7 +75,13 @@ vi.mock('vue-i18n', async () => {
     ...actual,
     useI18n: () => ({
       t: (key: string, params?: Record<string, unknown>) => {
-        let value = key
+        const knownMessages: Record<string, string> = {
+          'common.unknownStatus': 'Unknown status',
+          'admin.ipRisk.actionDialog.result.completed': 'Batch action completed',
+          'admin.ipRisk.actionDialog.result.partial': 'Batch action partially completed',
+          'admin.ipRisk.actionDialog.result.failed': 'Batch action failed',
+        }
+        let value = knownMessages[key] || key
         Object.entries(params || {}).forEach(([name, replacement]) => {
           value = value.replace(`{${name}}`, String(replacement))
         })
@@ -261,7 +267,7 @@ describe('IP risk action flows', () => {
     expect(executeAction).toHaveBeenCalledWith(7, expect.objectContaining({
       preview_token: 'preview-token',
     }))
-    expect(wrapper.text()).toContain('admin.ipRisk.actionDialog.result.partial')
+    expect(wrapper.text()).toContain('Batch action partially completed')
     expect(wrapper.emitted('completed')).toHaveLength(1)
   })
 

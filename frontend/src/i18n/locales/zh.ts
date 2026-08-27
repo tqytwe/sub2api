@@ -236,6 +236,12 @@ const messages = {
     // Status
     quotaMode: 'Key 限额模式',
     walletBalance: '钱包余额',
+    status: {
+      active: '正常',
+      expired: '已过期',
+      quotaExhausted: '额度用尽',
+      unknown: '未知状态'
+    },
     // Ring card titles
     totalQuota: '总额度',
     limit5h: '5 小时限额',
@@ -439,6 +445,7 @@ const messages = {
     today: '今天',
     tomorrow: '明天',
     unknown: '未知',
+    unknownStatus: '未知状态',
     minutes: '分钟',
     time: {
       never: '从未',
@@ -945,6 +952,7 @@ const messages = {
       wechatAvailabilityUnknown: '暂时无法确认微信登录可用性，请刷新后重试。',
       wechatSystemBrowserOnly: '当前微信登录流程仅支持在系统浏览器中继续。',
       wechatBrowserOnly: '当前微信登录流程仅支持在微信内置浏览器中继续。',
+      wechatNativeAppOnly: '当前仅配置微信移动应用登录，请在原生 App 中通过微信 SDK 发起授权。',
       wechatNotConfigured: '微信登录尚未配置。'
     },
     linuxdoCallbackPageTitle: 'LinuxDo 登录回调',
@@ -1429,6 +1437,13 @@ const messages = {
     modelVariant: '疑似版本变体',
     modelMismatch: '模型不一致',
     reasoningEffort: '推理强度',
+    reasoningEffortValues: {
+      low: '低',
+      medium: '中',
+      high: '高',
+      xhigh: '极高',
+      max: '最高',
+    },
     endpoint: '端点',
     endpointDistribution: '端点分布',
     inbound: '入站',
@@ -3839,6 +3854,7 @@ const messages = {
         officialOutput: '官方输出',
         public: '游客可见',
         auth: '登录可见',
+        mediaCapabilities: '媒体能力',
       },
       fields: {
         model: '模型名',
@@ -3854,6 +3870,49 @@ const messages = {
         visibleAuth: '登录可见',
         officialCacheRead: '官方缓存读取',
         officialCacheWrite: '官方缓存写入',
+        mediaCapabilitiesEnabled: '声明媒体能力',
+        mediaCapabilitiesVersion: '能力版本',
+        mediaCapabilitiesAdapter: '执行适配器',
+        mediaModalities: '支持的模态',
+        imageOperations: '图片操作',
+        imageSizes: '图片尺寸',
+        imageMinDimension: '最小边长',
+        imageMaxDimension: '最大边长',
+        imageDimensionStep: '边长步长',
+        imageMaxAspectRatio: '最大宽高比',
+        imageAspectRatios: '图片比例',
+        imageFormats: '图片输出格式',
+        imageMaxReferences: '最多参考图',
+        videoOperations: '视频操作',
+        videoResolutions: '视频分辨率',
+        videoAspectRatios: '视频比例',
+        videoDurations: '视频时长（秒）',
+        videoMaxReferences: '最多参考素材',
+      },
+      mediaCapabilities: {
+        title: '媒体能力',
+        hint: '仅声明当前适配器实际支持的能力。保存不会修改分组、价格、白名单或账号映射。',
+        preflight: '模型必须同时通过可调度账号、分组授权、账号映射、有效价格和适配器校验，才会显示为可用。',
+        undeclared: '未声明',
+        chat: '对话',
+        image: '图片',
+        video: '视频',
+        audio: '音频',
+        imageHint: '操作和格式用英文逗号分隔，例如 create, edit 或 png, jpeg。',
+        videoHint: '操作、分辨率和比例用英文逗号分隔；时长填写正整数秒并用英文逗号分隔。',
+        validation: {
+          modalities_required: '请至少选择一种媒体模态',
+          version_required: '请填写能力版本',
+          adapter_required: '请填写执行适配器',
+          image_operations_required: '图片模型至少需要一个图片操作',
+          video_operations_required: '视频模型至少需要一个视频操作',
+          image_operations_invalid: '图片操作只能是 create 或 edit，且不能重复',
+          video_operations_invalid: '视频操作只能是 generate，且不能重复',
+          image_limits_invalid: '图片限制不能为负数，且最小边长不能大于最大边长',
+          video_limits_invalid: '视频参考素材限制不能为负数；时长必须是唯一的正整数秒',
+          image_modality_required: '已填写图片能力，请勾选“图片”模态',
+          video_modality_required: '已填写视频能力，请勾选“视频”模态',
+        },
       },
     },
 
@@ -5578,6 +5637,7 @@ const messages = {
           failedToExchangeCode: 'Grok 授权码兑换失败',
           failedToValidateRT: '验证 Grok refresh token 失败',
           failedToConvertSSO: 'Grok SSO Cookie 转换失败',
+          pleaseEnterPassword: '请输入邮箱----密码，每行一个账号',
           oauthOnlyHint: '首版 Grok 支持仅包含 OAuth 订阅的 Responses API 文本/推理转发。'
         },
         // Gemini specific
@@ -8809,7 +8869,8 @@ const messages = {
     status: {
       active: '有效',
       expired: '已过期',
-      revoked: '已撤销'
+      revoked: '已撤销',
+      suspended: '已暂停'
     },
     usage: '用量',
     expires: '到期时间',

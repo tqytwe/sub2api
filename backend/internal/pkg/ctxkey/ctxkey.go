@@ -76,6 +76,12 @@ const (
 	// used by managed Image Studio usage billing.
 	ImageStudioBillingActualCostCap Key = "ctx_image_studio_billing_actual_cost_cap"
 
+	// MobileVideoManagedExecution marks an internal durable video-worker call.
+	// It is never set by client middleware. The accepted job owns a balance hold,
+	// so gateway eligibility must not re-evaluate mutable user balance/group/RPM
+	// state while still retaining account scheduling and adapter validation.
+	MobileVideoManagedExecution Key = "ctx_mobile_video_managed_execution"
+
 	// IsMaxTokensOneHaikuRequest 标识当前请求是否为 max_tokens=1 + haiku 模型的探测请求
 	// 用于 ClaudeCodeOnly 验证绕过（绕过 system prompt 检查，但仍需验证 User-Agent）
 	IsMaxTokensOneHaikuRequest Key = "ctx_is_max_tokens_one_haiku"

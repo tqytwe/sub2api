@@ -230,6 +230,7 @@ import Icon from '@/components/icons/Icon.vue'
 import { adminAPI } from '@/api/admin'
 import { useAppStore } from '@/stores/app'
 import { extractApiErrorMessage } from '@/utils/apiError'
+import { localizedEnumOrUnknown } from '@/utils/localizedEnum'
 import type { StepUpController } from '@/composables/useStepUp'
 import IPRiskCaseDetail from './IPRiskCaseDetail.vue'
 import IPRiskActionDialog from './IPRiskActionDialog.vue'
@@ -554,19 +555,19 @@ function levelClass(level: RiskLevel) {
 }
 
 function levelLabel(level: RiskLevel) {
-  return t(`admin.ipRisk.levels.${level}`)
+  return localizedEnumOrUnknown(t, `admin.ipRisk.levels.${level}`)
 }
 
 function statusLabel(status: string) {
-  return t(`admin.ipRisk.statuses.${status}`)
+  return localizedEnumOrUnknown(t, `admin.ipRisk.statuses.${status}`)
 }
 
 function confidenceLabel(confidence: EvidenceConfidence) {
-  return t(`admin.ipRisk.confidence.${confidence}`)
+  return localizedEnumOrUnknown(t, `admin.ipRisk.confidence.${confidence}`)
 }
 
 function signalLabel(signal: RiskSignalCode) {
-  return t(`admin.ipRisk.signals.${signal}`)
+  return localizedEnumOrUnknown(t, `admin.ipRisk.signals.${signal}`)
 }
 
 function caseSummary(riskCase: RiskCase) {

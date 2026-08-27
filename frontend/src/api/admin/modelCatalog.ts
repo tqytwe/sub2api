@@ -1,4 +1,5 @@
 import { apiClient } from '../client'
+import type { ModelMediaCapabilities } from '@/utils/modelMediaCapabilities'
 
 export interface SiteModelCatalogEntry {
   id: number
@@ -11,6 +12,7 @@ export interface SiteModelCatalogEntry {
   visible_auth: boolean
   featured: boolean
   group_ids: number[] | null
+  media_capabilities: ModelMediaCapabilities | null
   official_input_price: number | null
   official_output_price: number | null
   official_cache_read_price: number | null

@@ -133,6 +133,7 @@ func provideCleanup(
 	ipRisk *service.IPRiskService,
 	promptAudit *securityaudit.PromptService,
 	mobilePushWorker *service.MobilePushWorker,
+	mobileVideoWorker *service.MobileVideoWorker,
 	openAIAutoReset *service.OpenAIQuotaAutoResetService,
 	pluginManager *service.PluginManager,
 ) func() {
@@ -148,6 +149,12 @@ func provideCleanup(
 
 		// 应用层清理步骤可并行执行，基础设施资源（Redis/Ent）最后按顺序关闭。
 		parallelSteps := []cleanupStep{
+			{"MobileVideoWorker", func() error {
+				if mobileVideoWorker != nil {
+					mobileVideoWorker.Stop()
+				}
+				return nil
+			}},
 			{"MobilePushWorker", func() error {
 				if mobilePushWorker != nil {
 					mobilePushWorker.Stop()

@@ -22,6 +22,20 @@ func TestCompositeTargetPlatformAllowedResolvesKnownAllowedModel(t *testing.T) {
 	require.Equal(t, service.PlatformOpenAI, platform)
 }
 
+func TestCompositeTargetPlatformAllowedResolvesSenseNovaU1ThroughOpenAI(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	for _, model := range []string{"sensenova-u1.5-lite", "sensenova-u1-fast"} {
+		c, _ := gin.CreateTestContext(httptest.NewRecorder())
+		c.Request = httptest.NewRequest("POST", "/v1/images/generations", nil)
+		apiKey := &service.APIKey{Group: &service.Group{Platform: service.PlatformComposite}}
+
+		require.True(t, compositeTargetPlatformAllowed(c, apiKey, model, service.PlatformOpenAI), "model=%s", model)
+		platform, ok := service.ResolvedTargetPlatformFromContext(c.Request.Context())
+		require.True(t, ok, "model=%s", model)
+		require.Equal(t, service.PlatformOpenAI, platform, "model=%s", model)
+	}
+}
+
 func TestOpenAICompatibleTextTargetAllowsCompositeProviders(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 

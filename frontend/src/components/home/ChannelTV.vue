@@ -93,7 +93,7 @@
         </div>
 
         <aside class="ctv-panel">
-          <div class="ctv-panel-tag">CHANNEL</div>
+          <div class="ctv-panel-tag">{{ t('home.jisudeng.channels.panelLabel') }}</div>
           <div v-if="channels.length" class="ctv-list">
             <button v-for="(ch, idx) in channels" :key="ch.key" class="ctv-pick" :class="{ active: activeIndex === idx }" @click="pick(idx)">
               <span class="ctv-pick-no">0{{ idx + 1 }}</span>

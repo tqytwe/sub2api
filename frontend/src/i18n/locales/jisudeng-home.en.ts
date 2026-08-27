@@ -146,6 +146,7 @@ export const jisudengHomeEn = {
   },
   channels: {
     tag: 'USAGE REWARDS',
+    panelLabel: 'CHANNEL',
     title: 'More than a meter.',
     copyTitle: 'Usage should pay you back.',
     copyBody:
@@ -161,28 +162,86 @@ export const jisudengHomeEn = {
   },
   features: {
     multiModel: {
+      kicker: 'Multi-model',
       title: 'Multi-model hub',
       desc: 'DeepSeek, Qwen, Kimi, GLM, GPT, Claude, Gemini and more — one OpenAI-compatible endpoint. Switch models in one line.'
     },
     stable: {
+      kicker: 'Reliability',
       title: 'Reliable routing',
       desc: 'Multi-line redundancy, automatic failover, stable long SSE streams. 99.9% uptime target.'
     },
     privacy: {
+      kicker: 'Privacy',
       title: 'Privacy first',
       desc: 'No disk storage, no training, no third-party sharing. TLS end-to-end. Your prompt stays yours.'
     },
     instant: {
+      kicker: 'Instant access',
       title: 'Instant access',
       desc: 'Register and create an API key immediately. No approval queue, no card required to start.'
     },
     transparent: {
+      kicker: 'Billing',
       title: 'Transparent billing',
       desc: 'Official token multipliers published on the models page. Every call auditable in usage logs.'
     },
     selfService: {
+      kicker: 'Self-service',
       title: 'Self-service billing',
       desc: 'Stripe top-up, balance dashboard, low-balance alerts, promo codes, and referral program.'
+    },
+    hoverCard: {
+      tag: 'Why',
+      labels: {
+        gateway: 'Gateway',
+        reliability: 'Reliability',
+        privacy: 'Privacy',
+        instant: 'Instant access',
+        billing: 'Billing',
+        wallet: 'Wallet',
+        fallback: 'Details',
+      },
+      gateway: {
+        title: 'Multi-model gateway',
+        agent: 'Agent',
+      },
+      reliability: {
+        singleRoute: 'Single route',
+        risky: 'Risky',
+        fallbackRetry: 'Fallback retry',
+        redundantRoute: 'Redundant route',
+        stable: 'Stable',
+        availability: '99.97% availability',
+      },
+      privacy: {
+        title: 'Privacy',
+        localOnly: 'Local only',
+        logs: 'Logs',
+        logsValue: 'Kept inside your stack',
+        keys: 'Keys',
+        masked: 'Masked end-to-end',
+        policy: 'Policy',
+        policyValue: 'Least privilege by default',
+        noExfiltration: 'No exfiltration',
+        auditTrail: 'Audit trail',
+      },
+      instant: {
+        step: 'Step {number}',
+        openGateway: 'Open the gateway',
+        pasteKey: 'Paste key',
+        ready: 'Ready',
+      },
+      billing: {
+        monthTotal: 'Month total',
+      },
+      wallet: {
+        synced: 'Wallet synced',
+        balance: 'Wallet balance',
+        topUp: 'Top up',
+        withdraw: 'Withdraw',
+        history: 'History',
+      },
     }
   },
   onboard: {
@@ -226,6 +285,7 @@ export const jisudengHomeEn = {
     cta: 'Create free account'
   },
   anchors: {
+    navigation: 'Page navigation',
     manifesto: 'Promise',
     stats: 'Stats',
     lmspeed: 'Speed',

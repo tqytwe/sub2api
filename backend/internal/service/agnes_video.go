@@ -47,6 +47,13 @@ func StableAgnesVideoBillingRequestID(id string) string {
 // so this is the only request that can be charged exactly once.
 func ExtractAgnesVideoBillingMetadata(body []byte) (resolution string, durationSeconds int) {
 	resolution = VideoBillingResolution720P
+	dimensionsFound := false
+	if width := gjson.GetBytes(body, "width").Int(); width > 0 {
+		if height := gjson.GetBytes(body, "height").Int(); height > 0 {
+			resolution = agnesVideoBillingResolutionFromDimensions(width, height)
+			dimensionsFound = true
+		}
+	}
 	for _, path := range []string{"dimensions", "size"} {
 		dimensions := strings.ToLower(strings.TrimSpace(gjson.GetBytes(body, path).String()))
 		parts := strings.Split(dimensions, "x")
@@ -55,20 +62,17 @@ func ExtractAgnesVideoBillingMetadata(body []byte) (resolution string, durationS
 		}
 		width := gjson.Parse(parts[0]).Int()
 		height := gjson.Parse(parts[1]).Int()
-		shortEdge := width
-		if height > 0 && (shortEdge <= 0 || height < shortEdge) {
-			shortEdge = height
-		}
-		switch {
-		case shortEdge > 720:
-			resolution = VideoBillingResolution1080P
-		case shortEdge > 0 && shortEdge <= 480:
-			resolution = VideoBillingResolution480P
-		}
+		resolution = agnesVideoBillingResolutionFromDimensions(width, height)
+		dimensionsFound = true
 		break
 	}
-	if normalized, ok := LookupVideoBillingResolution(gjson.GetBytes(body, "resolution").String()); ok {
-		resolution = normalized
+	// New Agnes payloads carry only width/height. Retain the legacy resolution
+	// fallback only when no actual dimensions were supplied, so an ignored
+	// generic field cannot alter billing for a dimensional request.
+	if !dimensionsFound {
+		if normalized, ok := LookupVideoBillingResolution(gjson.GetBytes(body, "resolution").String()); ok {
+			resolution = normalized
+		}
 	}
 
 	frames := gjson.GetBytes(body, "num_frames").Int()
@@ -85,6 +89,27 @@ func ExtractAgnesVideoBillingMetadata(body []byte) (resolution string, durationS
 		}
 	}
 	return resolution, NormalizeVideoBillingDurationSecondsOrDefault(durationSeconds)
+}
+
+func agnesVideoBillingResolutionFromDimensions(width, height int64) string {
+	shortEdge := width
+	if height > 0 && (shortEdge <= 0 || height < shortEdge) {
+		shortEdge = height
+	}
+	// Agnes documents 1024x576 as the request that is normalized to its 480p
+	// output tier. Preserve the pre-existing generic fallback for historical
+	// callers while giving the mobile worker's verified payload its exact tier.
+	if (width == 1024 && height == 576) || (width == 576 && height == 1024) {
+		return VideoBillingResolution480P
+	}
+	switch {
+	case shortEdge > 720:
+		return VideoBillingResolution1080P
+	case shortEdge > 0 && shortEdge <= 480:
+		return VideoBillingResolution480P
+	default:
+		return VideoBillingResolution720P
+	}
 }
 
 func ExtractAgnesVideoRequestModel(body []byte) string {

@@ -90,6 +90,10 @@ var (
 		"IMAGE_STUDIO_PROVIDER_NOT_SUPPORTED",
 		"image provider is not supported by Image Studio",
 	)
+	ErrImageStudioPricingMissing = infraerrors.BadRequest(
+		"IMAGE_STUDIO_PRICE_MISSING",
+		"image model pricing is not configured",
+	)
 	ErrImageStudioCapabilityProfileChanged = infraerrors.New(
 		http.StatusConflict,
 		"IMAGE_STUDIO_CAPABILITY_PROFILE_CHANGED",
@@ -256,6 +260,7 @@ type ImageStudioWorkerRequest struct {
 
 type imageStudioWorkerEnvelope struct {
 	Platform            string          `json:"platform,omitempty"`
+	Adapter             string          `json:"adapter,omitempty"`
 	Operation           string          `json:"operation,omitempty"`
 	CapabilityProfileID string          `json:"capability_profile_id,omitempty"`
 	CapabilityRevision  string          `json:"capability_revision,omitempty"`
@@ -390,6 +395,7 @@ type ImageStudioService struct {
 	playService     *PlayService
 	pricing         *BatchImageModelPricingResolver
 	gateway         ImageStudioModelResolver
+	catalog         ImageStudioCatalogContractResolver
 	promptRepo      PromptLibraryRepository
 	capabilityCache *ImageStudioCapabilityCache
 	encryptor       SecretEncryptor
@@ -503,11 +509,27 @@ func (s *ImageStudioService) CreateReference(
 }
 
 func (s *ImageStudioService) resolveGenerateSize(apiKey *APIKey, model string, req ImageStudioGenerateRequest, tpl ImageStudioTemplate) (string, error) {
+	capability := s.ResolveModelCapabilities(apiKey, model)
+	return s.resolveGenerateSizeForCapability(model, req, tpl, capability)
+}
+
+func (s *ImageStudioService) resolveGenerateSizeForCapability(
+	model string,
+	req ImageStudioGenerateRequest,
+	tpl ImageStudioTemplate,
+	capability ImageStudioModelCapabilities,
+) (string, error) {
 	size := strings.TrimSpace(req.Size)
 	if size == "" {
 		aspect, tier := strings.TrimSpace(req.Aspect), strings.TrimSpace(req.Tier)
 		if aspect == "" && tier == "" {
 			size = tpl.Defaults.Size
+			// Template defaults describe the composition, not a provider contract.
+			// Prefer them when valid, but fall back to the selected model's declared
+			// default rather than rejecting a size the user did not choose.
+			if size == "" || s.validateSizeForCapability(model, size, capability) != nil {
+				size = capability.DefaultSize
+			}
 			if size == "" {
 				size = defaultImageStudioSize
 			}
@@ -518,14 +540,14 @@ func (s *ImageStudioService) resolveGenerateSize(apiKey *APIKey, model string, r
 			}
 			size = resolved
 		}
-	} else {
+	} else if capability.SizingKind != "custom_dimensions" && !imageStudioStringAllowed(capability.SupportedSizes, size) {
 		resolved, err := ResolveImageStudioSize("", "", size)
 		if err != nil {
 			return "", err
 		}
 		size = resolved
 	}
-	if err := s.ValidateSizeForModel(apiKey, model, size); err != nil {
+	if err := s.validateSizeForCapability(model, size, capability); err != nil {
 		return "", err
 	}
 	return size, nil
@@ -565,25 +587,21 @@ func (s *ImageStudioService) Estimate(
 	if err != nil {
 		return nil, err
 	}
-	resolvedModel, err := s.resolveImageModel(ctx, apiKey, model)
+	option, err := s.resolveImageModelOption(ctx, apiKey, model)
 	if err != nil {
 		return nil, err
 	}
-	if size == "" {
-		size = tpl.Defaults.Size
-		if size == "" {
-			size = defaultImageStudioSize
-		}
-	}
-	resolvedSize, err := ResolveImageStudioSize("", "", size)
-	if err != nil {
+	capability := option.ImageStudioModelCapabilities
+	if _, err := imageStudioDispatchPlatformForCapability(apiKey, capability); err != nil {
 		return nil, err
 	}
-	if err := s.ValidateSizeForModel(apiKey, resolvedModel, resolvedSize); err != nil {
+	resolvedModel := option.ID
+	resolvedSize, err := s.resolveGenerateSizeForCapability(resolvedModel, ImageStudioGenerateRequest{Size: size}, tpl, capability)
+	if err != nil {
 		return nil, err
 	}
 	size = resolvedSize
-	cost, err := s.estimateCost(ctx, apiKey, resolvedModel, size, count)
+	cost, err := s.estimateCostForModelOption(ctx, apiKey, option, size, count)
 	if err != nil {
 		return nil, err
 	}
@@ -598,10 +616,6 @@ func (s *ImageStudioService) Estimate(
 	}
 	referenceIDs = normalizeImageStudioReferenceIDs(referenceIDs)
 	if len(referenceIDs) > 0 {
-		capability, ok := resolveImageStudioCapabilitiesForAPIKey(apiKey, resolvedModel)
-		if !ok {
-			return nil, ErrImageStudioProviderNotSupported
-		}
 		if err := ValidateImageStudioProviderOptions(
 			capability,
 			"edit",
@@ -638,11 +652,35 @@ func (s *ImageStudioService) Estimate(
 	}, nil
 }
 
+// estimateCost retains the legacy estimate path for catalog rows that have not
+// yet been migrated to an explicit media declaration. New declarations must
+// use estimateCostForModelOption so a missing price cannot silently become the
+// historical $0.04 default.
 func (s *ImageStudioService) estimateCost(ctx context.Context, apiKey *APIKey, model, size string, count int) (float64, error) {
+	return s.estimateCostWithPricingPolicy(ctx, apiKey, model, size, count, false)
+}
+
+func (s *ImageStudioService) estimateCostForModelOption(
+	ctx context.Context,
+	apiKey *APIKey,
+	option ImageStudioModelOption,
+	size string,
+	count int,
+) (float64, error) {
+	return s.estimateCostWithPricingPolicy(ctx, apiKey, option.ID, size, count, option.RequiresConfiguredPrice)
+}
+
+func (s *ImageStudioService) estimateCostWithPricingPolicy(
+	ctx context.Context,
+	apiKey *APIKey,
+	model, size string,
+	count int,
+	requireConfiguredPrice bool,
+) (float64, error) {
 	if apiKey == nil {
 		return 0, ErrImageStudioAPIKey
 	}
-	unit := 0.04
+	unit := -1.0
 	if s.pricing != nil && apiKey.GroupID != nil {
 		platform := PlatformOpenAI
 		if apiKey.Group != nil && strings.TrimSpace(apiKey.Group.Platform) != "" {
@@ -651,14 +689,22 @@ func (s *ImageStudioService) estimateCost(ctx context.Context, apiKey *APIKey, m
 		if p, err := s.pricing.BatchImageUnitPrice(ctx, &BatchImageJob{
 			Provider: platform,
 			Model:    model,
-		}); err == nil && p > 0 {
+		}); err == nil && p >= 0 {
 			unit = p
 		}
 	}
 	if apiKey.Group != nil {
-		if configured := apiKey.Group.GetImagePrice(normalizeStudioImageSize(size)); configured != nil && *configured > 0 {
+		if configured := apiKey.Group.GetImagePrice(normalizeStudioImageSize(size)); configured != nil && *configured >= 0 {
 			unit = *configured
 		}
+	}
+	if unit < 0 {
+		if requireConfiguredPrice {
+			return 0, ErrImageStudioPricingMissing
+		}
+		unit = 0.04
+	}
+	if apiKey.Group != nil {
 		effectiveGroupMultiplier := apiKey.Group.RateMultiplier
 		multiplierResolved := false
 		if apiKey.GroupID != nil && apiKey.UserID > 0 {
@@ -738,17 +784,45 @@ func imageStudioReferenceInputTokenUpperBound(width, height int) int {
 	return (patchesWide*patchesHigh + baseTokens) * fidelityReserve
 }
 
-func imageStudioPlatformForAPIKey(apiKey *APIKey) (string, error) {
+// imageStudioDispatchPlatformForCapability keeps a composite group from
+// becoming a permissive provider fallback. Explicit openai_images declarations
+// and the two registered SenseNova U1 profiles share the OpenAI-compatible
+// image gateway, where the composite resolver selects a mapped OpenAI account.
+func imageStudioDispatchPlatformForCapability(
+	apiKey *APIKey,
+	capability ImageStudioModelCapabilities,
+) (string, error) {
 	if apiKey == nil || apiKey.Group == nil {
 		return "", ErrImageStudioProviderNotSupported
 	}
-	platform := strings.ToLower(strings.TrimSpace(apiKey.Group.Platform))
-	switch platform {
-	case PlatformOpenAI, PlatformGemini, PlatformGrok:
-		return platform, nil
+	groupPlatform := strings.ToLower(strings.TrimSpace(apiKey.Group.Platform))
+	if !imageStudioCapabilityDispatchableForGroupPlatform(groupPlatform, capability) {
+		return "", ErrImageStudioProviderNotSupported
+	}
+	switch groupPlatform {
+	case PlatformOpenAI:
+		// An OpenAI-compatible account can intentionally expose a Gemini image
+		// model through its standard /v1/images transport. Selection has already
+		// checked its mapped model and provider capability, so retain that
+		// established proxy behavior rather than forcing the capability's native
+		// platform to equal the account platform.
+		return PlatformOpenAI, nil
+	case PlatformGemini, PlatformGrok:
+		return groupPlatform, nil
+	case PlatformComposite:
+		return PlatformOpenAI, nil
 	default:
 		return "", ErrImageStudioProviderNotSupported
 	}
+}
+
+func imageStudioWorkerAdapterForCapability(capability ImageStudioModelCapabilities) string {
+	if strings.EqualFold(strings.TrimSpace(capability.ProviderID), catalogOpenAIImagesAdapterID) &&
+		strings.HasPrefix(strings.TrimSpace(capability.ProfileID), catalogOpenAIImagesProfilePrefix) &&
+		strings.HasPrefix(strings.TrimSpace(capability.Revision), catalogOpenAIImagesRevisionPrefix) {
+		return catalogOpenAIImagesAdapterID
+	}
+	return ""
 }
 
 func inferImageStudioProviderFromModel(model string) (string, error) {
@@ -922,23 +996,21 @@ func (s *ImageStudioService) CreatePendingJob(ctx context.Context, userID int64,
 	if apiKey.Group != nil && apiKey.Group.IsSubscriptionType() {
 		return nil, "", ErrImageStudioSubscriptionGroupUnsupported
 	}
-	resolvedModel, err := s.resolveImageModel(ctx, apiKey, req.Model)
+	option, err := s.resolveImageModelOption(ctx, apiKey, req.Model)
 	if err != nil {
 		return nil, "", err
 	}
-	platform, err := imageStudioPlatformForAPIKey(apiKey)
+	capability := option.ImageStudioModelCapabilities
+	platform, err := imageStudioDispatchPlatformForCapability(apiKey, capability)
 	if err != nil {
 		return nil, "", err
 	}
-	capability, ok := ResolveImageStudioProviderCapability(platform, resolvedModel)
-	if !ok {
-		return nil, "", ErrImageStudioProviderNotSupported
-	}
-	size, err := s.resolveGenerateSize(apiKey, resolvedModel, req, tpl)
+	resolvedModel := option.ID
+	size, err := s.resolveGenerateSizeForCapability(resolvedModel, req, tpl, capability)
 	if err != nil {
 		return nil, "", err
 	}
-	if err := s.ValidateQualityForModel(apiKey, resolvedModel, req.Quality); err != nil {
+	if err := validateImageStudioQualityForCapability(capability, req.Quality); err != nil {
 		return nil, "", err
 	}
 	providedReferenceCount := 0
@@ -978,7 +1050,7 @@ func (s *ImageStudioService) CreatePendingJob(ctx context.Context, userID int64,
 		uploadReferences = refs
 	}
 	prompt := buildImageStudioPrompt(tpl, req)
-	est, err := s.estimateCost(ctx, apiKey, resolvedModel, size, count)
+	est, err := s.estimateCostForModelOption(ctx, apiKey, option, size, count)
 	if err != nil {
 		return nil, "", err
 	}
@@ -1040,6 +1112,7 @@ func (s *ImageStudioService) CreatePendingJob(ctx context.Context, userID int64,
 	}
 	body, err := json.Marshal(imageStudioWorkerEnvelope{
 		Platform:            platform,
+		Adapter:             imageStudioWorkerAdapterForCapability(capability),
 		Operation:           operation,
 		CapabilityProfileID: capability.ProfileID,
 		CapabilityRevision:  capability.Revision,
@@ -1341,7 +1414,13 @@ func (s *ImageStudioService) BuildWorkerRequest(ctx context.Context, job *ImageS
 			return nil, err
 		}
 	}
-	capability, ok := ResolveImageStudioProviderCapability(platform, model)
+	capability, ok := resolveImageStudioWorkerCapability(
+		envelope.Adapter,
+		platform,
+		model,
+		envelope.CapabilityProfileID,
+		envelope.CapabilityRevision,
+	)
 	if !ok {
 		return nil, ErrImageStudioProviderNotSupported
 	}
@@ -1381,12 +1460,32 @@ func (s *ImageStudioService) BuildWorkerRequest(ctx context.Context, job *ImageS
 	}
 }
 
+func resolveImageStudioWorkerCapability(
+	adapter, platform, model, profileID, revision string,
+) (ImageStudioModelCapabilities, bool) {
+	switch strings.ToLower(strings.TrimSpace(adapter)) {
+	case "":
+		return ResolveImageStudioProviderCapability(platform, model)
+	case catalogOpenAIImagesAdapterID:
+		return resolveCatalogOpenAIImagesWorkerCapability(platform, model, profileID, revision)
+	default:
+		return ImageStudioModelCapabilities{}, false
+	}
+}
+
 func (s *ImageStudioService) buildOpenAIImageStudioWorkerRequest(
 	ctx context.Context,
 	job *ImageStudioJob,
 	operation, endpoint string,
 	body []byte,
 ) (*ImageStudioWorkerRequest, error) {
+	model := strings.TrimSpace(gjson.GetBytes(body, "model").String())
+	if model == "" && job != nil {
+		model = strings.TrimSpace(job.Model)
+	}
+	if isSenseNovaImageModel(model) {
+		return s.buildSenseNovaImageStudioWorkerRequest(ctx, job, operation, endpoint, body, model)
+	}
 	if operation == "edit" {
 		if endpoint != openAIImagesEditsEndpoint {
 			return nil, ErrImageStudioOperationNotSupported
@@ -1404,6 +1503,45 @@ func (s *ImageStudioService) buildOpenAIImageStudioWorkerRequest(
 		}, nil
 	}
 	if endpoint != openAIImagesGenerationsEndpoint {
+		return nil, ErrImageStudioOperationNotSupported
+	}
+	single, err := forceImageStudioSingleOutputJSON(body)
+	if err != nil {
+		return nil, err
+	}
+	return &ImageStudioWorkerRequest{
+		Platform:    PlatformOpenAI,
+		Operation:   operation,
+		Endpoint:    endpoint,
+		ContentType: "application/json",
+		Body:        single,
+	}, nil
+}
+
+func (s *ImageStudioService) buildSenseNovaImageStudioWorkerRequest(
+	ctx context.Context,
+	job *ImageStudioJob,
+	operation, endpoint string,
+	body []byte,
+	model string,
+) (*ImageStudioWorkerRequest, error) {
+	if operation == "edit" {
+		if !isSenseNovaU15LiteModel(model) || endpoint != openAIImagesEditsEndpoint {
+			return nil, ErrImageStudioOperationNotSupported
+		}
+		editBody, err := s.buildSenseNovaImageStudioEditJSON(ctx, job, body)
+		if err != nil {
+			return nil, err
+		}
+		return &ImageStudioWorkerRequest{
+			Platform:    PlatformOpenAI,
+			Operation:   operation,
+			Endpoint:    endpoint,
+			ContentType: "application/json",
+			Body:        editBody,
+		}, nil
+	}
+	if operation != "create" || endpoint != openAIImagesGenerationsEndpoint {
 		return nil, ErrImageStudioOperationNotSupported
 	}
 	single, err := forceImageStudioSingleOutputJSON(body)
@@ -1542,6 +1680,56 @@ func (s *ImageStudioService) buildGrokImageStudioEditJSON(
 		images = append(images, map[string]string{
 			"type": "image_url",
 			"url":  "data:" + contentType + ";base64," + base64.StdEncoding.EncodeToString(data),
+		})
+	}
+	delete(payload, "image_studio_job_reference_ids")
+	payload["images"] = images
+	payload["n"] = 1
+	return json.Marshal(payload)
+}
+
+func (s *ImageStudioService) buildSenseNovaImageStudioEditJSON(
+	ctx context.Context,
+	job *ImageStudioJob,
+	body []byte,
+) ([]byte, error) {
+	if s.assetStore == nil {
+		return nil, errors.New("image studio asset store unavailable")
+	}
+	if job == nil || job.ID == "" || job.UserID <= 0 {
+		return nil, errors.New("image studio job identity is required")
+	}
+	var payload map[string]any
+	if err := json.Unmarshal(body, &payload); err != nil {
+		return nil, err
+	}
+	referenceIDs := referenceIDsFromImageStudioPayload(payload["image_studio_job_reference_ids"])
+	if len(referenceIDs) == 0 {
+		return nil, ErrImageStudioReferenceNotFound
+	}
+	repo, ok := s.repo.(ImageStudioJobReferenceReader)
+	if !ok {
+		return nil, ErrImageStudioReferenceNotFound
+	}
+	refs, err := repo.ListJobReferencesByID(ctx, job.ID, referenceIDs)
+	if err != nil {
+		return nil, err
+	}
+	if len(refs) != len(referenceIDs) {
+		return nil, ErrImageStudioReferenceNotFound
+	}
+	images := make([]map[string]string, 0, len(refs))
+	for _, ref := range refs {
+		data, err := s.assetStore.Read(ref.StorageKey)
+		if err != nil {
+			return nil, err
+		}
+		contentType := strings.TrimSpace(ref.ContentType)
+		if contentType == "" {
+			return nil, ErrImageStudioReferenceInvalid
+		}
+		images = append(images, map[string]string{
+			"image_url": "data:" + contentType + ";base64," + base64.StdEncoding.EncodeToString(data),
 		})
 	}
 	delete(payload, "image_studio_job_reference_ids")

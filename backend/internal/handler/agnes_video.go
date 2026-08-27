@@ -21,18 +21,33 @@ func (h *OpenAIGatewayHandler) AgnesVideoCreate(c *gin.Context) {
 }
 
 func (h *OpenAIGatewayHandler) AgnesVideoStatus(c *gin.Context) {
-	videoID := strings.TrimSpace(c.Query("video_id"))
-	if videoID == "" {
-		videoID = strings.TrimSpace(c.Param("task_id"))
-	}
-	if videoID == "" {
-		videoID = strings.TrimSpace(c.Param("request_id"))
-	}
-	endpoint := service.AgnesVideoEndpointStatusVideo
-	if videoID != "" && !strings.HasPrefix(videoID, "video_") {
-		endpoint = service.AgnesVideoEndpointStatusLegacy
-	}
+	videoID, hasVideoIDQuery := c.GetQuery("video_id")
+	endpoint, videoID := resolveAgnesVideoStatusEndpoint(
+		videoID,
+		hasVideoIDQuery,
+		c.Param("task_id"),
+		c.Param("request_id"),
+	)
 	h.handleAgnesVideo(c, endpoint, videoID)
+}
+
+func resolveAgnesVideoStatusEndpoint(queryVideoID string, hasVideoIDQuery bool, taskID string, requestID string) (service.AgnesVideoEndpoint, string) {
+	queryVideoID = strings.TrimSpace(queryVideoID)
+	if hasVideoIDQuery {
+		// The documented query parameter is authoritative. Agnes video IDs are
+		// opaque and may look like legacy task IDs, so a prefix heuristic would
+		// send a valid worker poll to the wrong upstream path.
+		return service.AgnesVideoEndpointStatusVideo, queryVideoID
+	}
+	videoID := strings.TrimSpace(taskID)
+	if videoID == "" {
+		videoID = strings.TrimSpace(requestID)
+	}
+	if strings.HasPrefix(videoID, "video_") {
+		// Retain the legacy route behaviour for historical path parameters.
+		return service.AgnesVideoEndpointStatusVideo, videoID
+	}
+	return service.AgnesVideoEndpointStatusLegacy, videoID
 }
 
 func (h *OpenAIGatewayHandler) handleAgnesVideo(c *gin.Context, endpoint service.AgnesVideoEndpoint, videoID string) {
@@ -94,6 +109,9 @@ func (h *OpenAIGatewayHandler) handleAgnesVideo(c *gin.Context, endpoint service
 		}
 		requestModel = strings.TrimSpace(c.Query("model"))
 		if requestModel == "" {
+			requestModel = strings.TrimSpace(c.Query("model_name"))
+		}
+		if requestModel == "" {
 			requestModel = service.AgnesVideoDefaultModel
 		}
 	}
@@ -129,14 +147,17 @@ func (h *OpenAIGatewayHandler) handleAgnesVideo(c *gin.Context, endpoint service
 		defer userReleaseFunc()
 	}
 
-	billingEligibilityErr := h.billingCacheService.CheckBillingEligibility(
-		c.Request.Context(),
-		apiKey.User,
-		apiKey,
-		apiKey.Group,
-		subscription,
-		service.QuotaPlatform(c.Request.Context(), apiKey),
-	)
+	var billingEligibilityErr error
+	if !service.IsMobileVideoManagedExecution(c.Request.Context()) {
+		billingEligibilityErr = h.billingCacheService.CheckBillingEligibility(
+			c.Request.Context(),
+			apiKey.User,
+			apiKey,
+			apiKey.Group,
+			subscription,
+			service.QuotaPlatform(c.Request.Context(), apiKey),
+		)
+	}
 	if billingEligibilityErr != nil {
 		reqLog.Info("agnes_video.billing_eligibility_check_failed", zap.Error(billingEligibilityErr))
 		status, code, message, retryAfter := billingErrorDetails(billingEligibilityErr)

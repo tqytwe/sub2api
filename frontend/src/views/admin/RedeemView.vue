@@ -124,7 +124,7 @@
                     : 'badge-primary'
               ]"
             >
-              {{ t('admin.redeem.types.' + value) }}
+              {{ redeemTypeLabel(value) }}
             </span>
           </template>
 
@@ -154,7 +154,7 @@
                       : 'badge-danger'
               ]"
             >
-              {{ t('admin.redeem.status.' + value) }}
+              {{ redeemStatusLabel(value) }}
             </span>
           </template>
 
@@ -673,6 +673,7 @@ import { useTableSelection } from '@/composables/useTableSelection'
 import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
 import { adminAPI } from '@/api/admin'
 import { formatDateTime } from '@/utils/format'
+import { localizedEnumOrUnknown } from '@/utils/localizedEnum'
 import type {
   RedeemCode,
   RedeemCodeType,
@@ -822,6 +823,12 @@ const formatIssueSource = (source?: string | null) => {
   const label = t(key)
   return label === key ? source : label
 }
+
+const redeemTypeLabel = (value: unknown): string =>
+  localizedEnumOrUnknown(t, `admin.redeem.types.${String(value ?? '').trim()}`)
+
+const redeemStatusLabel = (value: unknown): string =>
+  localizedEnumOrUnknown(t, `admin.redeem.status.${String(value ?? '').trim()}`)
 
 const batchStatusOptions = computed(() => [
   { value: 'unused', label: t('admin.redeem.status.unused') },

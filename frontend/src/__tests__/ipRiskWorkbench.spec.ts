@@ -51,7 +51,7 @@ vi.mock('vue-i18n', async () => {
     ...actual,
     useI18n: () => ({
       t: (key: string, params?: Record<string, unknown>) => {
-        let value = key
+        let value = key === 'common.unknownStatus' ? 'Unknown status' : key
         Object.entries(params || {}).forEach(([name, replacement]) => {
           value = value.replace(`{${name}}`, String(replacement))
         })
@@ -226,6 +226,26 @@ describe('IPRiskWorkbench', () => {
     expect(getCase).toHaveBeenCalledWith(7)
     expect(wrapper.get('[data-testid="selected-users"]').text()).toBe('1')
     expect(wrapper.text()).toContain('admin.ipRisk.shadowModeHint')
+  })
+
+  it('uses the localized unknown-state label for a newer server case status', async () => {
+    const newerCase = detail()
+    newerCase.case.status = 'archived_by_policy' as never
+    getCase.mockResolvedValue(newerCase)
+    listCases.mockResolvedValue({
+      items: [newerCase.case],
+      total: 1,
+      page: 1,
+      page_size: 20,
+      pages: 1,
+    })
+
+    const wrapper = mountWorkbench()
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Unknown status')
+    expect(wrapper.text()).not.toContain('archived_by_policy')
+    expect(wrapper.text()).not.toContain('admin.ipRisk.statuses.archived_by_policy')
   })
 
   it('debounces search filters and polls an asynchronous scan to completion', async () => {

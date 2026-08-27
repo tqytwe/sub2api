@@ -12,6 +12,7 @@ type MobileTaskKind string
 const (
 	MobileTaskKindChat  MobileTaskKind = "chat"
 	MobileTaskKindImage MobileTaskKind = "image"
+	MobileTaskKindVideo MobileTaskKind = "video"
 	MobileTaskKindFile  MobileTaskKind = "file"
 )
 
@@ -42,6 +43,9 @@ var (
 	ErrMobileTaskNotCancellable    = errors.New("mobile task is not cancellable")
 	ErrMobileTaskNotRetryable      = errors.New("mobile task is not retryable")
 	ErrMobileTaskRetryIDReuse      = errors.New("mobile task retry must use a new id")
+	// Video tasks always need a private execution record. The generic task
+	// projection API cannot create or retry one safely.
+	ErrMobileTaskVideoRequiresDedicatedEndpoint = errors.New("mobile video task requires the dedicated endpoint")
 )
 
 // MobileTaskError is safe to expose to clients. Details must not contain
@@ -71,8 +75,8 @@ type MobileTaskArtifact struct {
 	Metadata    map[string]any `json:"metadata,omitempty"`
 }
 
-// MobileTask is the shared client-facing projection for chat, image, and file
-// work. It is deliberately execution- and storage-agnostic.
+// MobileTask is the shared client-facing projection for chat, image, video,
+// and file work. It is deliberately execution- and storage-agnostic.
 type MobileTask struct {
 	ID              string               `json:"id"`
 	Kind            MobileTaskKind       `json:"kind"`
@@ -95,7 +99,7 @@ type MobileTask struct {
 
 func IsValidMobileTaskKind(kind MobileTaskKind) bool {
 	switch kind {
-	case MobileTaskKindChat, MobileTaskKindImage, MobileTaskKindFile:
+	case MobileTaskKindChat, MobileTaskKindImage, MobileTaskKindVideo, MobileTaskKindFile:
 		return true
 	default:
 		return false

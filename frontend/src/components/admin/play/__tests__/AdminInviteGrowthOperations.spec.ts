@@ -30,6 +30,14 @@ vi.mock('vue-i18n', async (importOriginal) => {
         const labels: Record<string, string> = {
           'admin.playOps.inviteGrowth.title': '邀请增长',
           'admin.playOps.inviteGrowth.newCampaign': '新建邀请活动',
+          'admin.playOps.inviteGrowth.legacyRebate.title': '本地化返佣标题',
+          'admin.playOps.inviteGrowth.legacyRebate.hint': '本地化返佣说明',
+          'admin.playOps.inviteGrowth.legacyRebate.exclude': '本地化默认返佣规则',
+          'admin.playOps.inviteGrowth.legacyRebate.stack': '本地化叠加返佣规则',
+          'admin.playOps.inviteGrowth.publicRulesLabel': '本地化活动规则标签',
+          'admin.playOps.inviteGrowth.inviteeNoticeLabel': '本地化受邀人说明标签',
+          'admin.playOps.inviteGrowth.defaults.publicRules': '本地化活动规则默认内容',
+          'admin.playOps.inviteGrowth.defaults.inviteeNotice': '本地化受邀人说明默认内容',
           'admin.playOps.inviteGrowth.maxLiability': '理论最大负债',
           'admin.playOps.inviteGrowth.tabs.participants': '参与者',
           'admin.playOps.inviteGrowth.tabs.invites': '邀请关联',
@@ -173,6 +181,22 @@ describe('AdminInviteGrowthOperations', () => {
         expect.objectContaining({ tier: 2, reward_amount: 300 }),
       ]),
     }))
+  })
+
+  it('localizes the new campaign public copy and system defaults', async () => {
+    const wrapper = mountComponent()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="new-referral-campaign"]').trigger('click')
+
+    expect(wrapper.text()).toContain('本地化返佣标题')
+    expect(wrapper.text()).toContain('本地化返佣说明')
+    expect(wrapper.text()).toContain('本地化默认返佣规则')
+    expect(wrapper.text()).toContain('本地化叠加返佣规则')
+    expect(wrapper.text()).toContain('本地化活动规则标签')
+    expect(wrapper.text()).toContain('本地化受邀人说明标签')
+    expect((wrapper.get('[data-testid="referral-public-rules"]').element as HTMLTextAreaElement).value).toBe('本地化活动规则默认内容')
+    expect((wrapper.get('[data-testid="referral-invitee-notice"]').element as HTMLTextAreaElement).value).toBe('本地化受邀人说明默认内容')
   })
 
   it('submits status and four-party review operations with optimistic versions', async () => {

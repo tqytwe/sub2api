@@ -145,6 +145,7 @@ export const jisudengHomeZh = {
   },
   channels: {
     tag: '用量回馈',
+    panelLabel: '频道',
     title: '不止 API，还有得玩。',
     copyTitle: 'Token 不该只是消耗品。',
     copyBody:
@@ -160,28 +161,86 @@ export const jisudengHomeZh = {
   },
   features: {
     multiModel: {
+      kicker: '多模型',
       title: '多模型聚合',
       desc: 'Claude / GPT / Gemini 等主流模型一站接入，统一 OpenAI 兼容协议，免在多个平台间切换。'
     },
     stable: {
+      kicker: '稳定',
       title: '稳定可靠',
       desc: '多线路冗余、跨区域容灾、自动故障切换，长链路 SSE 不中断。99.9% 可用性，关键调用从不掉队。'
     },
     privacy: {
+      kicker: '隐私',
       title: '隐私至上',
       desc: '请求体不落盘、不用于模型训练、不与第三方共享。全链路 TLS，日志仅保留必要计费摘要。你的 prompt 只属于你。'
     },
     instant: {
+      kicker: '接入',
       title: '极速接入',
       desc: '注册即开 API，无需审批，无需绑卡。第一次充值即可立即开始调用，凭据自助管理。'
     },
     transparent: {
+      kicker: '计费',
       title: '透明计费',
       desc: '按官方 Token 倍率计价。每一次调用都有用量日志、余额变动与原始响应，可逐条回溯。'
     },
     selfService: {
+      kicker: '自助',
       title: '自助充值',
       desc: '支持主流支付方式，余额可视化，接近阈值自动提醒。卡密兑换、邀请返利同步可用。'
+    },
+    hoverCard: {
+      tag: '优势',
+      labels: {
+        gateway: '网关',
+        reliability: '稳定性',
+        privacy: '隐私',
+        instant: '快速接入',
+        billing: '计费',
+        wallet: '钱包',
+        fallback: '说明',
+      },
+      gateway: {
+        title: '多模型网关',
+        agent: '智能体',
+      },
+      reliability: {
+        singleRoute: '单一路由',
+        risky: '风险高',
+        fallbackRetry: '故障重试',
+        redundantRoute: '冗余路由',
+        stable: '稳定',
+        availability: '99.97% 可用性',
+      },
+      privacy: {
+        title: '隐私',
+        localOnly: '仅本地',
+        logs: '日志',
+        logsValue: '保留在你的服务栈内',
+        keys: '密钥',
+        masked: '端到端脱敏',
+        policy: '策略',
+        policyValue: '默认最小权限',
+        noExfiltration: '不外传',
+        auditTrail: '审计记录',
+      },
+      instant: {
+        step: '步骤 {number}',
+        openGateway: '打开网关',
+        pasteKey: '粘贴密钥',
+        ready: '就绪',
+      },
+      billing: {
+        monthTotal: '本月合计',
+      },
+      wallet: {
+        synced: '钱包已同步',
+        balance: '钱包余额',
+        topUp: '充值',
+        withdraw: '提现',
+        history: '记录',
+      },
     }
   },
   onboard: {
@@ -226,6 +285,7 @@ export const jisudengHomeZh = {
     cta: '创建免费账号'
   },
   anchors: {
+    navigation: '页面导航',
     manifesto: '承诺',
     stats: '数据',
     lmspeed: '测速',

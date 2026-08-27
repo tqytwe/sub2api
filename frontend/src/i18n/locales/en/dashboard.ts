@@ -384,6 +384,13 @@ export default {
 	  modelVariant: 'Possible version variant',
 	  modelMismatch: 'Different model',
     reasoningEffort: 'Reasoning Effort',
+    reasoningEffortValues: {
+      low: 'Low',
+      medium: 'Medium',
+      high: 'High',
+      xhigh: 'Extra high',
+      max: 'Max',
+    },
     endpoint: 'Endpoint',
     endpointDistribution: 'Endpoint Distribution',
     inbound: 'Inbound',

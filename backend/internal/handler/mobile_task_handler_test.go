@@ -220,11 +220,52 @@ func TestMobileTaskHandlerRejectsInvalidAndMapsStateErrors(t *testing.T) {
 	notFound := performMobileTaskHandlerRequest(h.Get, http.MethodGet, "/mobile/tasks/missing", nil, 60, params)
 	require.Equal(t, http.StatusNotFound, notFound.Code)
 	cancel := performMobileTaskHandlerRequest(h.Cancel, http.MethodPost, "/mobile/tasks/missing/cancel", nil, 60, params)
-	require.Equal(t, http.StatusConflict, cancel.Code)
-	require.Contains(t, cancel.Body.String(), "当前任务状态不能取消")
+	require.Equal(t, http.StatusNotFound, cancel.Code)
 	retry := performMobileTaskHandlerRequest(h.Retry, http.MethodPost, "/mobile/tasks/missing/retry", []byte(`{"client_request_id":"retry-1"}`), 60, params)
-	require.Equal(t, http.StatusConflict, retry.Code)
-	require.Contains(t, retry.Body.String(), "当前任务状态不能重试")
+	require.Equal(t, http.StatusNotFound, retry.Code)
+}
+
+func TestMobileTaskHandlerRejectsVideoMutationsOutsideDedicatedEndpoints(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	videoTask := mobileTaskHandlerTestTask("task-video", service.MobileTaskKindVideo, service.MobileTaskStatusQueued)
+	mutated := false
+	store := &fakeMobileTaskStore{
+		getFunc: func(_ context.Context, userID int64, id string) (*service.MobileTask, error) {
+			require.Equal(t, int64(61), userID)
+			require.Equal(t, "task-video", id)
+			return videoTask, nil
+		},
+		deleteFunc: func(context.Context, int64, string) (*service.MobileTaskDeleteResult, error) {
+			mutated = true
+			return nil, nil
+		},
+		cancelFunc: func(context.Context, int64, string) (*service.MobileTask, error) {
+			mutated = true
+			return nil, nil
+		},
+		retryFunc: func(context.Context, int64, string, string) (*service.MobileTask, error) {
+			mutated = true
+			return nil, nil
+		},
+		transitionFunc: func(context.Context, int64, string, service.MobileTaskTransitionInput) (*service.MobileTask, error) {
+			mutated = true
+			return nil, nil
+		},
+	}
+	h := newMobileTaskHandlerWithStore(store)
+	params := gin.Params{{Key: "id", Value: "task-video"}}
+
+	responses := []*httptest.ResponseRecorder{
+		performMobileTaskHandlerRequest(h.Delete, http.MethodDelete, "/mobile/tasks/task-video", nil, 61, params),
+		performMobileTaskHandlerRequest(h.Cancel, http.MethodPost, "/mobile/tasks/task-video/cancel", nil, 61, params),
+		performMobileTaskHandlerRequest(h.Retry, http.MethodPost, "/mobile/tasks/task-video/retry", []byte(`{"client_request_id":"video-retry-1"}`), 61, params),
+		performMobileTaskHandlerRequest(h.Transition, http.MethodPost, "/mobile/tasks/task-video/status", []byte(`{"status":"running"}`), 61, params),
+	}
+	for _, recorder := range responses {
+		require.Equal(t, http.StatusBadRequest, recorder.Code)
+		require.Contains(t, recorder.Body.String(), "专用视频接口")
+	}
+	require.False(t, mutated)
 }
 
 func TestMobileTaskHandlerRequiresAuthentication(t *testing.T) {

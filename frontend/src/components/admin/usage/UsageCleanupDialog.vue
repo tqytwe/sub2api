@@ -126,6 +126,7 @@ import UsageFilters from '@/components/admin/usage/UsageFilters.vue'
 import { adminUsageAPI } from '@/api/admin/usage'
 import type { AdminUsageQueryParams, UsageCleanupTask, CreateUsageCleanupTaskRequest } from '@/api/admin/usage'
 import { requestTypeToLegacyStream } from '@/utils/usageRequestType'
+import { localizedEnumOrUnknown } from '@/utils/localizedEnum'
 
 interface Props {
   show: boolean
@@ -193,14 +194,7 @@ const handleClose = () => {
 }
 
 const statusLabel = (status: string) => {
-  const map: Record<string, string> = {
-    pending: t('admin.usage.cleanup.status.pending'),
-    running: t('admin.usage.cleanup.status.running'),
-    succeeded: t('admin.usage.cleanup.status.succeeded'),
-    failed: t('admin.usage.cleanup.status.failed'),
-    canceled: t('admin.usage.cleanup.status.canceled')
-  }
-  return map[status] || status
+  return localizedEnumOrUnknown(t, `admin.usage.cleanup.status.${status}`)
 }
 
 const statusClass = (status: string) => {

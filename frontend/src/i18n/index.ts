@@ -1,33 +1,27 @@
 import { createI18n } from 'vue-i18n'
 import type { LocationQuery } from 'vue-router'
 import { mergeLocaleMessages } from './locales/merge'
+import {
+  localeScopesForRouteName,
+  type LocaleLoadScope,
+  type LocaleRouteName,
+} from './routeScopes'
+
+export {
+  LOCALE_LOAD_SCOPES,
+  localeScopesForRouteName,
+  ROUTE_LOCALE_SCOPES,
+} from './routeScopes'
+export type { LocaleLoadScope, LocaleRouteName } from './routeScopes'
 
 type LocaleCode = 'en' | 'zh'
 
 type LocaleMessages = Record<string, unknown>
-export type LocaleLoadScope =
-  | 'core'
-  | 'public-pages'
-  | 'user-dashboard'
-  | 'user-wallet'
-  | 'user-batch'
-  | 'user-misc'
-  | 'channel-monitor'
-  | 'admin-overview'
-  | 'admin-accounts'
-  | 'admin-channels'
-  | 'admin-ops'
-  | 'admin-play'
-  | 'admin-resources'
-  | 'admin-settings'
-  | 'admin-plugins'
-  | 'admin-audit'
-  | 'admin-prompt-audit'
 
 type LocaleLoader = () => Promise<{ default: LocaleMessages }>
 
-const LOCALE_KEY = 'sub2api_locale'
 const DEFAULT_LOCALE: LocaleCode = 'zh'
+const LEGACY_LOCALE_STORAGE_KEY = 'sub2api_locale'
 const CHINESE_PUBLIC_LOCALE_PATHS = new Set([
   '/',
   '/home',
@@ -52,18 +46,36 @@ function adminMessages(...fragments: LocaleMessages[]): LocaleMessages {
 
 const localeLoaders: Record<LocaleCode, Record<LocaleLoadScope, LocaleLoader>> = {
   en: {
-    core: () => import('./locales/en/core'),
+    core: async () => {
+      const [core, legacy] = await Promise.all([
+        import('./locales/en/core'),
+        import('./locales/en/legacy/core'),
+      ])
+      return { default: mergeLocaleMessages(legacy.default, core.default) }
+    },
     'public-pages': async () => {
       const { jisudengPagesEn } = await import('./locales/jisudeng-pages.en')
       return { default: jisudengPagesEn }
     },
-    'user-dashboard': () => import('./locales/en/dashboard'),
+    'workspace-shell': () => import('./locales/en/workspaceShell'),
+    'admin-shell': () => import('./locales/en/adminShell'),
+    'user-dashboard': async () => {
+      const [dashboard, legacy] = await Promise.all([
+        import('./locales/en/dashboard'),
+        import('./locales/en/legacy/user-dashboard'),
+      ])
+      return { default: mergeLocaleMessages(legacy.default, dashboard.default) }
+    },
+    'user-usage': () => import('./locales/en/userUsage'),
     'user-wallet': () => import('./locales/en/wallet'),
     'user-batch': () => import('./locales/en/batchImage'),
     'user-misc': async () => {
-      const module = await import('./locales/en/misc')
+      const [module, legacy] = await Promise.all([
+        import('./locales/en/misc'),
+        import('./locales/en/legacy/user-misc'),
+      ])
       return {
-        default: mergeLocaleMessages(module.default, {
+        default: mergeLocaleMessages(mergeLocaleMessages(legacy.default, module.default), {
           marketplace: { title: 'AI Model Marketplace', status: { unavailable: 'The marketplace is not available yet' } },
           nextChatLaunch: {
             title: 'Opening AI Creation Space',
@@ -79,34 +91,48 @@ const localeLoaders: Record<LocaleCode, Record<LocaleLoadScope, LocaleLoader>> =
       return { default: adminMessages(module.default) }
     },
     'admin-accounts': async () => {
-      const [accounts, resources] = await Promise.all([
+      const [accounts, resources, legacy] = await Promise.all([
         import('./locales/en/admin/accounts'),
         import('./locales/en/admin/resources'),
+        import('./locales/en/legacy/admin-accounts'),
       ])
-      return { default: adminMessages(accounts.default, resources.default) }
+      return { default: mergeLocaleMessages(legacy.default, adminMessages(accounts.default, resources.default)) }
     },
     'admin-channels': async () => {
-      const module = await import('./locales/en/admin/channels')
-      return { default: adminMessages(module.default) }
+      const [module, legacy] = await Promise.all([
+        import('./locales/en/admin/channels'),
+        import('./locales/en/legacy/admin-channels'),
+      ])
+      return { default: mergeLocaleMessages(legacy.default, adminMessages(module.default)) }
     },
     'admin-ops': async () => {
-      const module = await import('./locales/en/admin/ops')
-      return { default: adminMessages(module.default) }
+      const [module, legacy] = await Promise.all([
+        import('./locales/en/admin/ops'),
+        import('./locales/en/legacy/admin-ops'),
+      ])
+      return { default: mergeLocaleMessages(legacy.default, adminMessages(module.default)) }
     },
     'admin-play': async () => {
-      const module = await import('./locales/en/admin/playOps')
-      return { default: adminMessages(module.default) }
+      const [module, legacy] = await Promise.all([
+        import('./locales/en/admin/playOps'),
+        import('./locales/en/legacy/admin-play'),
+      ])
+      return { default: mergeLocaleMessages(legacy.default, adminMessages(module.default)) }
     },
     'admin-resources': async () => {
-      const [overview, resources] = await Promise.all([
+      const [overview, resources, legacy] = await Promise.all([
         import('./locales/en/admin/overview'),
         import('./locales/en/admin/resources'),
+        import('./locales/en/legacy/admin-resources'),
       ])
-      return { default: adminMessages(overview.default, resources.default) }
+      return { default: mergeLocaleMessages(legacy.default, adminMessages(overview.default, resources.default)) }
     },
     'admin-settings': async () => {
-      const module = await import('./locales/en/admin/settings')
-      return { default: adminMessages(module.default) }
+      const [module, legacy] = await Promise.all([
+        import('./locales/en/admin/settings'),
+        import('./locales/en/legacy/admin-settings'),
+      ])
+      return { default: mergeLocaleMessages(legacy.default, adminMessages(module.default)) }
     },
     'admin-plugins': async () => {
       const module = await import('./locales/en/admin/plugins')
@@ -122,18 +148,36 @@ const localeLoaders: Record<LocaleCode, Record<LocaleLoadScope, LocaleLoader>> =
     },
   },
   zh: {
-    core: () => import('./locales/zh/core'),
+    core: async () => {
+      const [core, legacy] = await Promise.all([
+        import('./locales/zh/core'),
+        import('./locales/zh/legacy/core'),
+      ])
+      return { default: mergeLocaleMessages(legacy.default, core.default) }
+    },
     'public-pages': async () => {
       const { jisudengPagesZh } = await import('./locales/jisudeng-pages.zh')
       return { default: jisudengPagesZh }
     },
-    'user-dashboard': () => import('./locales/zh/dashboard'),
+    'workspace-shell': () => import('./locales/zh/workspaceShell'),
+    'admin-shell': () => import('./locales/zh/adminShell'),
+    'user-dashboard': async () => {
+      const [dashboard, legacy] = await Promise.all([
+        import('./locales/zh/dashboard'),
+        import('./locales/zh/legacy/user-dashboard'),
+      ])
+      return { default: mergeLocaleMessages(legacy.default, dashboard.default) }
+    },
+    'user-usage': () => import('./locales/zh/userUsage'),
     'user-wallet': () => import('./locales/zh/wallet'),
     'user-batch': () => import('./locales/zh/batchImage'),
     'user-misc': async () => {
-      const module = await import('./locales/zh/misc')
+      const [module, legacy] = await Promise.all([
+        import('./locales/zh/misc'),
+        import('./locales/zh/legacy/user-misc'),
+      ])
       return {
-        default: mergeLocaleMessages(module.default, {
+        default: mergeLocaleMessages(mergeLocaleMessages(legacy.default, module.default), {
           marketplace: { title: 'AI 模型商城', status: { unavailable: '商城功能暂未开放' } },
           nextChatLaunch: {
             title: '正在进入 AI创作空间',
@@ -149,34 +193,48 @@ const localeLoaders: Record<LocaleCode, Record<LocaleLoadScope, LocaleLoader>> =
       return { default: adminMessages(module.default) }
     },
     'admin-accounts': async () => {
-      const [accounts, resources] = await Promise.all([
+      const [accounts, resources, legacy] = await Promise.all([
         import('./locales/zh/admin/accounts'),
         import('./locales/zh/admin/resources'),
+        import('./locales/zh/legacy/admin-accounts'),
       ])
-      return { default: adminMessages(accounts.default, resources.default) }
+      return { default: mergeLocaleMessages(legacy.default, adminMessages(accounts.default, resources.default)) }
     },
     'admin-channels': async () => {
-      const module = await import('./locales/zh/admin/channels')
-      return { default: adminMessages(module.default) }
+      const [module, legacy] = await Promise.all([
+        import('./locales/zh/admin/channels'),
+        import('./locales/zh/legacy/admin-channels'),
+      ])
+      return { default: mergeLocaleMessages(legacy.default, adminMessages(module.default)) }
     },
     'admin-ops': async () => {
-      const module = await import('./locales/zh/admin/ops')
-      return { default: adminMessages(module.default) }
+      const [module, legacy] = await Promise.all([
+        import('./locales/zh/admin/ops'),
+        import('./locales/zh/legacy/admin-ops'),
+      ])
+      return { default: mergeLocaleMessages(legacy.default, adminMessages(module.default)) }
     },
     'admin-play': async () => {
-      const module = await import('./locales/zh/admin/playOps')
-      return { default: adminMessages(module.default) }
+      const [module, legacy] = await Promise.all([
+        import('./locales/zh/admin/playOps'),
+        import('./locales/zh/legacy/admin-play'),
+      ])
+      return { default: mergeLocaleMessages(legacy.default, adminMessages(module.default)) }
     },
     'admin-resources': async () => {
-      const [overview, resources] = await Promise.all([
+      const [overview, resources, legacy] = await Promise.all([
         import('./locales/zh/admin/overview'),
         import('./locales/zh/admin/resources'),
+        import('./locales/zh/legacy/admin-resources'),
       ])
-      return { default: adminMessages(overview.default, resources.default) }
+      return { default: mergeLocaleMessages(legacy.default, adminMessages(overview.default, resources.default)) }
     },
     'admin-settings': async () => {
-      const module = await import('./locales/zh/admin/settings')
-      return { default: adminMessages(module.default) }
+      const [module, legacy] = await Promise.all([
+        import('./locales/zh/admin/settings'),
+        import('./locales/zh/legacy/admin-settings'),
+      ])
+      return { default: mergeLocaleMessages(legacy.default, adminMessages(module.default)) }
     },
     'admin-plugins': async () => {
       const module = await import('./locales/zh/admin/plugins')
@@ -228,17 +286,29 @@ export function localeFromPath(path: string): LocaleCode | null {
   return null
 }
 
-function localeFromURL(): LocaleCode | null {
-  if (typeof window === 'undefined') return null
-  const params = new URLSearchParams(window.location.search)
-  const fromQuery = params.get('lang') ?? params.get('locale')
-  return normalizeStoredLocale(fromQuery)
-}
-
 export function localeFromQuery(query: LocationQuery | null | undefined = {}): LocaleCode | null {
   const raw = query?.lang ?? query?.locale
   const value = Array.isArray(raw) ? raw[0] : raw
   return typeof value === 'string' ? normalizeStoredLocale(value.trim()) : null
+}
+
+/**
+ * Workspace English is URL-scoped. Preserve that explicit choice across an
+ * internal navigation, while a no-query navigation continues to mean Chinese.
+ */
+export function inheritedEnglishLocaleQuery(
+  fromQuery: LocationQuery,
+  toQuery: LocationQuery,
+  destinationPath: string,
+): LocationQuery | null {
+  if (
+    localeFromQuery(fromQuery) === 'en'
+    && localeFromQuery(toQuery) === null
+    && !destinationPath.startsWith('/en')
+  ) {
+    return { ...toQuery, lang: 'en' }
+  }
+  return null
 }
 
 /**
@@ -253,22 +323,23 @@ export function localeForRoute(path: string, query: LocationQuery = {}): LocaleC
 }
 
 function getDefaultLocale(): LocaleCode {
-  const fromPath = typeof window === 'undefined' ? null : localeFromPath(window.location.pathname)
-  if (fromPath) {
-    return fromPath
-  }
-
-  const fromURL = localeFromURL()
-  if (fromURL) {
-    return fromURL
-  }
-  return DEFAULT_LOCALE
+  if (typeof window === 'undefined') return DEFAULT_LOCALE
+  // Use the same precedence as router navigation. In particular, a cold
+  // `/models?lang=en` visit must not render Chinese before the first guard.
+  return localeForRoute(
+    window.location.pathname,
+    Object.fromEntries(new URLSearchParams(window.location.search).entries()),
+  )
 }
 
 export const i18n = createI18n({
   legacy: false,
   locale: getDefaultLocale(),
-  fallbackLocale: DEFAULT_LOCALE,
+  // Each route explicitly loads its zh/en union. Falling back across languages
+  // masks missing fragments and produces mixed-language pages.
+  fallbackLocale: false,
+  fallbackWarn: false,
+  missingWarn: false,
   messages: {},
   warnHtmlMessage: false,
 })
@@ -286,60 +357,94 @@ function loadedScopesFor(locale: LocaleCode): Set<LocaleLoadScope> {
 
 export function localeScopesForPath(path: string): LocaleLoadScope[] {
   const normalized = normalizeRoutePath(path)
-  if (normalized === '/' || normalized === '/home' || normalized === '/en' || normalized === '/login' || normalized === '/register' || normalized === '/setup' || normalized === '/key-usage') {
-    return ['core']
-  }
-
-  if (normalized.startsWith('/admin')) {
-    if (normalized === '/admin/dashboard') return ['core', 'admin-overview']
-    if (normalized.startsWith('/admin/accounts')) return ['core', 'admin-accounts']
-    if (normalized.startsWith('/admin/channels')) return ['core', 'admin-channels', 'channel-monitor']
-    if (normalized.startsWith('/admin/ops')) return ['core', 'admin-ops']
-    if (normalized.startsWith('/admin/play-ops') || normalized.startsWith('/admin/funds') || normalized.startsWith('/admin/withdrawals')) {
-      return ['core', 'admin-play', 'admin-resources']
-    }
-    if (normalized.startsWith('/admin/settings')) return ['core', 'admin-settings']
-    if (normalized.startsWith('/admin/plugins')) return ['core', 'admin-settings', 'admin-plugins']
-    if (normalized.startsWith('/admin/audit-logs')) return ['core', 'admin-resources', 'admin-audit']
-    if (normalized === adminPromptAuditPathForLocale()) return ['core', 'admin-channels', 'admin-prompt-audit']
-    if (normalized.startsWith('/admin/model-plaza')) return ['core', 'user-dashboard', 'admin-channels']
-    return ['core', 'admin-resources', 'admin-channels']
-  }
-
-  if (normalized === '/dashboard') return ['core', 'user-dashboard']
-  if (normalized === '/wallet') return ['core', 'user-dashboard', 'user-wallet', 'user-misc']
-  if (normalized === '/batch-image' || normalized === '/docs/batch-image') {
-    return ['core', 'user-dashboard', 'user-batch']
-  }
-  if (normalized === '/monitor') return ['core', 'user-dashboard', 'channel-monitor']
-
-  if (
-    normalized === '/models'
-    || normalized.startsWith('/models/')
-    || normalized === '/model-plaza'
-    || normalized === '/en/models'
-    || normalized.startsWith('/en/models/')
-  ) {
-    return ['core', 'public-pages', 'user-dashboard']
-  }
-
-  if (
-    normalized === '/docs'
-    || normalized.startsWith('/docs/')
-    || normalized.startsWith('/en/')
-    || normalized === '/about'
-    || normalized === '/contact'
-    || normalized === '/legal'
-    || normalized.startsWith('/download/')
-  ) {
-    return ['core', 'public-pages']
-  }
-
-  return ['core', 'user-dashboard', 'user-misc', 'public-pages']
+  const routeName = routeNameForPath(normalized)
+  return routeName ? localeScopesForRouteName(routeName) : ['core']
 }
 
-function adminPromptAuditPathForLocale(): string {
-  return '/admin/pro' + 'mpt-audit'
+/**
+ * Bootstrap has a path but not a resolved router record. The guard below uses
+ * route names at runtime; this only keeps the initial render on the same
+ * declared fragment union until the router becomes ready.
+ */
+function routeNameForPath(path: string): LocaleRouteName | null {
+  if (path === '/' || path === '/home') return 'Home'
+  if (path === '/en') return 'EnglishHome'
+  if (path === '/en/models' || path.startsWith('/en/models/')) return 'EnglishModels'
+  if (path === '/en/docs') return 'EnglishDocs'
+  if (path === '/en/about') return 'EnglishAbout'
+  if (path === '/en/contact') return 'EnglishContact'
+  if (path === '/models' || path.startsWith('/models/')) return 'Models'
+  if (path === '/model-plaza' || path === '/pricing' || path.startsWith('/pricing/')) return 'Pricing'
+  if (path === '/docs') return 'Docs'
+  if (path.startsWith('/docs/batch-image')) return 'BatchImageGuide'
+  if (path.startsWith('/download/android')) return 'AndroidDownload'
+  if (path === '/login') return 'Login'
+  if (path === '/register') return 'Register'
+  if (path === '/email-verify') return 'EmailVerify'
+  if (path === '/setup') return 'Setup'
+  if (path === '/key-usage') return 'KeyUsage'
+  if (path.startsWith('/legal/')) return 'LegalDocument'
+  if (path === '/about') return 'About'
+  if (path === '/contact' || path === '/contact/qq') return 'Contact'
+  if (path === '/blindbox') return 'Blindbox'
+  if (path === '/arena') return 'Arena'
+  if (path === '/quiz-quest') return 'QuizQuest'
+  if (path === '/agent-team') return 'AgentTeam'
+  if (path === '/dashboard') return 'Dashboard'
+  if (path === '/keys') return 'Keys'
+  if (path === '/keys/speed-test') return 'KeySpeedTest'
+  if (path === '/batch-image') return 'BatchImageGuide'
+  if (path === '/usage') return 'Usage'
+  if (path === '/wallet') return 'Wallet'
+  if (path === '/redeem') return 'Redeem'
+  if (path === '/ai' || path === '/image-studio' || path === '/ai-creation-space') return 'AICreationSpace'
+  if (path === '/play') return 'PlayHub'
+  if (path === '/check-in') return 'CheckIn'
+  if (path === '/affiliate') return 'Affiliate'
+  if (path === '/available-channels') return 'UserAvailableChannels'
+  if (path === '/profile') return 'Profile'
+  if (path === '/subscriptions') return 'Subscriptions'
+  if (path === '/purchase') return 'PurchaseSubscription'
+  if (path === '/orders') return 'OrderList'
+  if (path === '/payment/qrcode') return 'PaymentQRCode'
+  if (path === '/payment/result') return 'PaymentResult'
+  if (path === '/payment/stripe') return 'StripePayment'
+  if (path === '/payment/airwallex') return 'AirwallexPayment'
+  if (path === '/payment/stripe-popup') return 'StripePopup'
+  if (path.startsWith('/custom/')) return 'CustomPage'
+  if (path === '/admin/dashboard' || path === '/admin') return 'AdminDashboard'
+  if (path === '/admin/ops') return 'AdminOps'
+  if (path === '/admin/play-ops') return 'AdminPlayOps'
+  if (path.startsWith('/admin/funds')) return 'AdminFunds'
+  if (path === '/admin/withdrawals') return 'AdminWithdrawals'
+  if (path === '/admin/audit-logs') return 'AdminAuditLogs'
+  if (path === '/admin/users') return 'AdminUsers'
+  if (path === '/admin/groups') return 'AdminGroups'
+  if (path.startsWith('/admin/channels/monitor')) return 'AdminChannelMonitor'
+  if (path.startsWith('/admin/channels')) return 'AdminChannels'
+  if (path === '/admin/model-plaza') return 'AdminModelPlaza'
+  if (path === '/monitor') return 'ChannelStatus'
+  if (path === '/admin/subscriptions') return 'AdminSubscriptions'
+  if (path === '/admin/accounts') return 'AdminAccounts'
+  if (path === '/admin/plugins') return 'AdminPlugins'
+  if (path === '/admin/announcements') return 'AdminAnnouncements'
+  if (path === '/admin/proxies') return 'AdminProxies'
+  if (path === '/admin/proxies/risk') return 'AdminIPRisk'
+  if (path === '/admin/proxies/actions') return 'AdminIPRiskActions'
+  if (path === '/admin/redeem') return 'AdminRedeem'
+  if (path === '/admin/promo-codes') return 'AdminPromoCodes'
+  if (path === '/admin/settings') return 'AdminSettings'
+  if (path === '/admin/risk-control') return 'AdminRiskControl'
+  if (path === '/admin/prompt-audit') return 'AdminPromptAudit'
+  if (path === '/admin/usage') return 'AdminUsage'
+  if (path === '/admin/affiliates/invites') return 'AdminAffiliateInvites'
+  if (path === '/admin/affiliates/rebates') return 'AdminAffiliateRebates'
+  if (path === '/admin/affiliates/transfers') return 'AdminAffiliateTransfers'
+  if (path === '/admin/orders/dashboard') return 'AdminPaymentDashboard'
+  if (path === '/admin/orders/plans') return 'AdminPaymentPlans'
+  if (path === '/admin/orders/play-billing') return 'AdminPlayBillingConfig'
+  if (path === '/admin/orders') return 'AdminOrders'
+  return null
 }
 
 export async function loadLocaleMessages(locale: LocaleCode, scope: LocaleLoadScope = 'core'): Promise<void> {
@@ -371,6 +476,18 @@ export async function ensureLocaleMessagesForPath(
   await Promise.all(scopes.map((scope) => loadLocaleMessages(locale, scope)))
 }
 
+export async function ensureLocaleMessagesForRoute(
+  routeName: unknown,
+  locale: LocaleCode = getLocale(),
+  routeScopes?: readonly LocaleLoadScope[],
+): Promise<void> {
+  const scopes = Array.from(new Set<LocaleLoadScope>([
+    ...localeScopesForRouteName(routeName),
+    ...(routeScopes ?? []),
+  ]))
+  await Promise.all(scopes.map((scope) => loadLocaleMessages(locale, scope)))
+}
+
 export async function initI18n(): Promise<void> {
   const path = typeof window === 'undefined' ? '/' : window.location.pathname
   const current = localeForRoute(
@@ -381,7 +498,6 @@ export async function initI18n(): Promise<void> {
   )
   await ensureLocaleMessagesForPath(path, current)
   i18n.global.locale.value = current
-  localStorage.setItem(LOCALE_KEY, current)
   document.documentElement.setAttribute('lang', documentLanguage(getLocale()))
 }
 
@@ -394,14 +510,19 @@ export async function applyLocaleFromRouteQuery(query: LocationQuery): Promise<v
 
 export async function applyLocaleFromRoute(path: string, query: LocationQuery): Promise<void> {
   const resolved = localeForRoute(path, query)
+  // Versions before URL-scoped locale selection persisted an English preference.
+  // Clear it on Chinese routes so a rollback or an older cached bundle cannot
+  // reintroduce English into a no-query workspace route.
+  if (resolved === 'zh' && typeof localStorage !== 'undefined') {
+    localStorage.removeItem(LEGACY_LOCALE_STORAGE_KEY)
+  }
   if (getLocale() === resolved) {
-    if (typeof localStorage !== 'undefined') localStorage.setItem(LOCALE_KEY, resolved)
     return
   }
   await setLocale(resolved)
 }
 
-export async function setLocale(locale: string, options: { persist?: boolean } = {}): Promise<void> {
+export async function setLocale(locale: string): Promise<void> {
   const normalized = normalizeStoredLocale(locale) ?? (isLocaleCode(locale) ? locale : null)
   if (!normalized) {
     return
@@ -410,9 +531,6 @@ export async function setLocale(locale: string, options: { persist?: boolean } =
   const path = typeof window === 'undefined' ? '/' : window.location.pathname
   await ensureLocaleMessagesForPath(path, normalized)
   i18n.global.locale.value = normalized
-  if (options.persist !== false) {
-    localStorage.setItem(LOCALE_KEY, normalized)
-  }
   document.documentElement.setAttribute('lang', documentLanguage(normalized))
 
   const { resolveRouteDocumentTitle } = await import('@/router/title')

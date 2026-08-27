@@ -1382,7 +1382,7 @@ var (
 	MobileTasksColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
 		{Name: "user_id", Type: field.TypeInt64},
-		{Name: "kind", Type: field.TypeEnum, Enums: []string{"chat", "image", "file"}},
+		{Name: "kind", Type: field.TypeEnum, Enums: []string{"chat", "image", "video", "file"}},
 		{Name: "operation", Type: field.TypeString, Size: 100},
 		{Name: "status", Type: field.TypeEnum, Enums: []string{"queued", "running", "streaming", "completed", "partial", "failed", "cancelled"}, Default: "queued"},
 		{Name: "progress", Type: field.TypeInt, Default: 0},

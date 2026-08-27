@@ -36,7 +36,7 @@ const statusMap: Record<OrderStatus, { key: string; class: string }> = {
 
 const statusLabel = computed(() => {
   const entry = statusMap[props.status]
-  return entry ? t(entry.key) : props.status
+  return entry ? t(entry.key) : t('common.unknownStatus')
 })
 
 const statusClass = computed(() => {

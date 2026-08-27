@@ -320,8 +320,8 @@
               <Icon name="cloud" size="sm" />
             </div>
             <div>
-              <span class="block text-sm font-medium text-gray-900 dark:text-white">Vertex</span>
-              <span class="text-xs text-gray-500 dark:text-gray-400">Service Account</span>
+              <span class="block text-sm font-medium text-gray-900 dark:text-white">{{ t('admin.accounts.vertexLabel') }}</span>
+              <span class="text-xs text-gray-500 dark:text-gray-400">{{ t('admin.accounts.vertexDesc') }}</span>
             </div>
           </button>
 
@@ -1043,7 +1043,7 @@
       <!-- Vertex Service Account -->
       <div v-if="(form.platform === 'gemini' || form.platform === 'anthropic') && accountCategory === 'service_account'" class="space-y-4">
         <div>
-          <label class="input-label">Service Account JSON</label>
+          <label class="input-label">{{ t('admin.accounts.vertexSaJsonLabel') }}</label>
           <input
             ref="vertexServiceAccountFileInput"
             type="file"
@@ -1086,8 +1086,8 @@
               v-if="vertexClientEmail"
               class="mt-3 rounded-md border border-sky-200 bg-white px-3 py-2 text-xs text-sky-900 dark:border-sky-800/50 dark:bg-dark-800 dark:text-sky-200"
             >
-              <div class="truncate">Project ID: <span class="font-mono">{{ vertexProjectId }}</span></div>
-              <div class="truncate">Client Email: <span class="font-mono">{{ vertexClientEmail }}</span></div>
+              <div class="truncate">{{ t('admin.accounts.vertexProjectIdLabel') }}: <span class="font-mono">{{ vertexProjectId }}</span></div>
+              <div class="truncate">{{ t('admin.accounts.vertexClientEmailLabel') }}: <span class="font-mono">{{ vertexClientEmail }}</span></div>
             </div>
           </div>
           <p class="input-hint">{{ t('admin.accounts.vertexSaJsonUploadHint') }}</p>
@@ -1095,7 +1095,7 @@
 
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
-            <label class="input-label">Project ID</label>
+            <label class="input-label">{{ t('admin.accounts.vertexProjectIdLabel') }}</label>
             <input
               v-model="vertexProjectId"
               type="text"
@@ -1105,7 +1105,7 @@
             />
           </div>
           <div>
-            <label class="input-label">Location</label>
+            <label class="input-label">{{ t('admin.accounts.vertexLocationLabel') }}</label>
             <select
               v-model="vertexLocation"
               required
@@ -4900,9 +4900,9 @@ const buildMixedChannelDetails = (resp?: CheckMixedChannelResponse) => {
     return null
   }
   return {
-    groupName: details.group_name || 'Unknown',
-    currentPlatform: details.current_platform || 'Unknown',
-    otherPlatform: details.other_platform || 'Unknown'
+    groupName: details.group_name || t('common.unknown'),
+    currentPlatform: details.current_platform || t('common.unknown'),
+    otherPlatform: details.other_platform || t('common.unknown')
   }
 }
 
@@ -5725,7 +5725,7 @@ const handleGrokValidateRT = async (refreshTokenInput: string) => {
         const tokenInfo = await grokOAuth.validateRefreshToken(refreshTokens[i], form.proxy_id)
         if (!tokenInfo) {
           failedCount++
-          errors.push(`#${i + 1}: ${grokOAuth.error.value || 'Validation failed'}`)
+          errors.push(`#${i + 1}: ${grokOAuth.error.value || t('admin.accounts.oauth.grok.failedToValidateRT')}`)
           grokOAuth.error.value = ''
           continue
         }
@@ -5762,7 +5762,7 @@ const handleGrokValidateRT = async (refreshTokenInput: string) => {
         successCount++
       } catch (error: any) {
         failedCount++
-        const errMsg = error.response?.data?.detail || error.message || 'Unknown error'
+        const errMsg = error.response?.data?.detail || error.message || t('common.unknownError')
         errors.push(`#${i + 1}: ${errMsg}`)
       }
     }
@@ -5843,12 +5843,12 @@ const handleGrokImportSSO = async (ssoInput: string) => {
         t('admin.accounts.oauth.batchPartialSuccess', { success: successCount, failed: failedCount })
       )
       grokOAuth.error.value = (result.failed || [])
-        .map((item) => `#${item.index}: ${item.error || 'Unknown error'}`)
+        .map((item) => `#${item.index}: ${item.error || t('common.unknownError')}`)
         .join('\n')
       emit('created')
     } else {
       grokOAuth.error.value = (result.failed || [])
-        .map((item) => `#${item.index}: ${item.error || 'Unknown error'}`)
+        .map((item) => `#${item.index}: ${item.error || t('common.unknownError')}`)
         .join('\n') || t('admin.accounts.oauth.grok.failedToConvertSSO')
       appStore.showError(t('admin.accounts.oauth.batchFailed'))
     }
@@ -5875,10 +5875,7 @@ const handleGrokAuthorizePassword = async (emailPasswordInput: string) => {
     .filter((line) => line.trim() && line.includes('----'))
 
   if (lines.length === 0) {
-    grokOAuth.error.value = t(
-      'admin.accounts.oauth.grok.pleaseEnterPassword',
-      'Please enter email----password (one per line)'
-    )
+    grokOAuth.error.value = t('admin.accounts.oauth.grok.pleaseEnterPassword')
     return
   }
 
@@ -5895,7 +5892,7 @@ const handleGrokAuthorizePassword = async (emailPasswordInput: string) => {
         const tokenInfo = await grokOAuth.authorizePassword(lines[i], form.proxy_id)
         if (!tokenInfo) {
           failedCount++
-          errors.push(`#${i + 1}: ${grokOAuth.error.value || 'Authorization failed'}`)
+          errors.push(`#${i + 1}: ${grokOAuth.error.value || t('admin.accounts.oauth.authFailed')}`)
           grokOAuth.error.value = ''
           continue
         }
@@ -5939,7 +5936,7 @@ const handleGrokAuthorizePassword = async (emailPasswordInput: string) => {
         successCount++
       } catch (error: any) {
         failedCount++
-        const errMsg = error.response?.data?.detail || error.message || 'Unknown error'
+        const errMsg = error.response?.data?.detail || error.message || t('common.unknownError')
         errors.push(`#${i + 1}: ${errMsg}`)
       }
     }
@@ -6269,7 +6266,7 @@ const handleOpenAIBatchRT = async (refreshTokenInput: string, clientId?: string)
         )
         if (!tokenInfo) {
           failedCount++
-          errors.push(`#${i + 1}: ${oauthClient.error.value || 'Validation failed'}`)
+          errors.push(`#${i + 1}: ${oauthClient.error.value || t('admin.accounts.oauth.openai.failedToValidateRT')}`)
           oauthClient.error.value = ''
           continue
         }
@@ -6321,7 +6318,7 @@ const handleOpenAIBatchRT = async (refreshTokenInput: string, clientId?: string)
         successCount++
       } catch (error: any) {
         failedCount++
-        const errMsg = error.response?.data?.detail || error.message || 'Unknown error'
+        const errMsg = error.response?.data?.detail || error.message || t('common.unknownError')
         errors.push(`#${i + 1}: ${errMsg}`)
       }
     }
@@ -6387,7 +6384,7 @@ const handleAntigravityValidateRT = async (refreshTokenInput: string) => {
         )
         if (!tokenInfo) {
           failedCount++
-          errors.push(`#${i + 1}: ${antigravityOAuth.error.value || 'Validation failed'}`)
+          errors.push(`#${i + 1}: ${antigravityOAuth.error.value || t('admin.accounts.oauth.antigravity.failedToValidateRT')}`)
           antigravityOAuth.error.value = ''
           continue
         }
@@ -6419,7 +6416,7 @@ const handleAntigravityValidateRT = async (refreshTokenInput: string) => {
         successCount++
       } catch (error: any) {
         failedCount++
-        const errMsg = error.response?.data?.detail || error.message || 'Unknown error'
+        const errMsg = error.response?.data?.detail || error.message || t('common.unknownError')
         errors.push(`#${i + 1}: ${errMsg}`)
       }
     }

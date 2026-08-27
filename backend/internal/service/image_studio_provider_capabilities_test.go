@@ -100,6 +100,57 @@ func TestResolveImageStudioProviderCapabilityGPTImage2VariantsInheritBaseProfile
 	}
 }
 
+func TestResolveAuditedLegacyWorkspaceImageCapabilityUsesExactIDsOnly(t *testing.T) {
+	for _, tt := range []struct {
+		name     string
+		platform string
+		model    string
+		want     bool
+	}{
+		{
+			name:     "known SenseNova model remains compatible",
+			platform: PlatformOpenAI,
+			model:    "sensenova-u1-fast",
+			want:     true,
+		},
+		{
+			name:     "case and whitespace are normalized",
+			platform: PlatformOpenAI,
+			model:    " GPT-IMAGE-1 ",
+			want:     true,
+		},
+		{
+			name:     "GPT image suffix is not implicitly approved",
+			platform: PlatformOpenAI,
+			model:    "gpt-image-2-preview-2026-08-26",
+			want:     false,
+		},
+		{
+			name:     "SenseNova suffix is not implicitly approved",
+			platform: PlatformOpenAI,
+			model:    "sensenova-u1.5-lite-preview",
+			want:     false,
+		},
+		{
+			name:     "generic image named model is not implicitly approved",
+			platform: PlatformOpenAI,
+			model:    "flux-pro-image",
+			want:     false,
+		},
+		{
+			name:     "correct ID on wrong platform is rejected",
+			platform: PlatformGemini,
+			model:    "sensenova-u1-fast",
+			want:     false,
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			_, got := ResolveAuditedLegacyWorkspaceImageCapability(tt.platform, tt.model)
+			require.Equal(t, tt.want, got)
+		})
+	}
+}
+
 func TestResolveImageStudioModelCapabilityInfersModelFamilyWithoutTransportPlatform(t *testing.T) {
 	tests := []struct {
 		model    string

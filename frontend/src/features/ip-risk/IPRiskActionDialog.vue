@@ -123,7 +123,7 @@
         <div class="flex items-start gap-2">
           <Icon :name="result.status === 'completed' ? 'checkCircle' : 'exclamationTriangle'" size="md" class="mt-0.5 shrink-0" />
           <div>
-            <div class="font-medium">{{ t(`admin.ipRisk.actionDialog.result.${result.status}`) }}</div>
+            <div class="font-medium">{{ actionResultStatusLabel(result.status) }}</div>
             <div class="mt-1 text-sm opacity-80">
               {{ t('admin.ipRisk.actionDialog.resultSummary', {
                 completed: result.result.completed_items || 0,
@@ -182,6 +182,7 @@ import { useAppStore } from '@/stores/app'
 import { isStepUpCancelled, type StepUpController } from '@/composables/useStepUp'
 import { extractApiErrorCode, extractApiErrorMessage } from '@/utils/apiError'
 import { formatDateTime } from '@/utils/format'
+import { localizedEnumOrUnknown } from '@/utils/localizedEnum'
 import type {
   RiskActionInput,
   RiskActionPreview,
@@ -266,6 +267,10 @@ const previewMetrics = computed(() => {
     { label: t('admin.ipRisk.actionDialog.protected'), value: preview.value.protected_users.length },
   ]
 })
+
+function actionResultStatusLabel(status: string): string {
+  return localizedEnumOrUnknown(t, `admin.ipRisk.actionDialog.result.${status}`)
+}
 
 watch(
   () => props.show,

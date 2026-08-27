@@ -1267,6 +1267,76 @@ describe('useImageStudioWorkspace prompt UX', () => {
     expect(workspace.selectedModel.value).toBe('gpt-image-1')
   })
 
+  it('accepts a provider-specific fixed size that is outside the shared matrix', async () => {
+    mocks.getCapabilities.mockResolvedValueOnce({
+      aspects: [],
+      tiers: [],
+      size_options: [],
+    })
+    mocks.listModels.mockResolvedValueOnce([{
+      id: 'sensenova-u1-fast',
+      display_name: 'SenseNova U1 Fast',
+      operations: ['create'],
+      sizing_kind: 'fixed',
+      supported_sizes: ['1664x2496', '2752x1536'],
+      default_size: '2752x1536',
+    }])
+    const { workspace } = await mountWorkspace()
+
+    expect(workspace.size.value).toBe('2752x1536')
+    expect(workspace.capabilitiesReady.value).toBe(true)
+
+    workspace.userPrompt.value = 'provider specific image'
+    await expect(workspace.generate()).resolves.toBe(true)
+    expect(mocks.generate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: 'sensenova-u1-fast',
+        size: '2752x1536',
+      }),
+      expect.any(String),
+    )
+  })
+
+  it('validates and submits documented custom dimensions without a shared matrix entry', async () => {
+    mocks.getCapabilities.mockResolvedValueOnce({
+      aspects: [],
+      tiers: [],
+      size_options: [],
+    })
+    mocks.listModels.mockResolvedValueOnce([{
+      id: 'sensenova-u1.5-lite',
+      display_name: 'SenseNova U1.5 Lite',
+      operations: ['create', 'edit'],
+      sizing_kind: 'custom_dimensions',
+      min_dimension: 512,
+      max_dimension: 4096,
+      dimension_step: 32,
+      max_aspect_ratio: 3,
+      default_size: '2048x2048',
+      supported_sizes: [],
+      max_reference_images: 4,
+    }])
+    const { workspace } = await mountWorkspace()
+
+    expect(workspace.size.value).toBe('2048x2048')
+    expect(workspace.capabilitiesReady.value).toBe(true)
+
+    workspace.onSizeChange('2720x1536')
+    expect(workspace.size.value).toBe('2720x1536')
+    workspace.onSizeChange('2048x512')
+    expect(workspace.size.value).toBe('2720x1536')
+
+    workspace.userPrompt.value = 'custom dimensions'
+    await expect(workspace.generate()).resolves.toBe(true)
+    expect(mocks.generate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: 'sensenova-u1.5-lite',
+        size: '2720x1536',
+      }),
+      expect.any(String),
+    )
+  })
+
   it('loads history in 12-item pages and replaces the previous terminal page', async () => {
     const pageTwoJob = { ...completedJob(), id: 'job-page-2' }
     const { workspace } = await mountWorkspace()

@@ -45,6 +45,140 @@ func (s *imageStudioModelResolverStub) GetAvailableModels(_ context.Context, _ *
 	return append([]string(nil), s.models...)
 }
 
+type imageStudioCatalogContractResolverStub struct {
+	resolutions map[string]ImageStudioCatalogContractResolution
+	err         error
+	seenGroup   Group
+	seenModels  []string
+}
+
+func (s *imageStudioCatalogContractResolverStub) ResolveImageStudioCatalogContracts(
+	_ context.Context,
+	group Group,
+	models []string,
+) (map[string]ImageStudioCatalogContractResolution, error) {
+	s.seenGroup = group
+	s.seenModels = append([]string(nil), models...)
+	if s.err != nil {
+		return nil, s.err
+	}
+	return s.resolutions, nil
+}
+
+func TestListImageModelOptionsForAPIKey_PrefersExplicitCatalogContracts(t *testing.T) {
+	groupID := int64(71)
+	catalog := &imageStudioCatalogContractResolverStub{resolutions: map[string]ImageStudioCatalogContractResolution{
+		"sensenova-u1-fast": {
+			Declared: true,
+			Capabilities: &ImageStudioModelCapabilities{
+				Platform:               PlatformOpenAI,
+				ProviderID:             imageModelAdapterSenseNovaID,
+				ProfileID:              imageModelAdapterSenseNovaID + ":sensenova-u1-fast:v1",
+				Revision:               imageStudioCapabilityRevision,
+				Operations:             []string{"create"},
+				SizingKind:             "fixed",
+				SupportedSizes:         []string{"2048x2048"},
+				SupportedOutputFormats: []string{"png"},
+				DefaultSize:            "2048x2048",
+				DefaultOutputFormat:    "png",
+			},
+		},
+		// An explicitly reviewed but unsupported declaration must not fall back
+		// to the static profile for this otherwise-known image model.
+		"gpt-image-2": {Declared: true},
+	}}
+	svc := &ImageStudioService{
+		gateway: &imageStudioModelResolverStub{models: []string{
+			"gpt-image-1",
+			"gpt-image-2",
+			"sensenova-u1-fast",
+			"new-image-model",
+		}},
+		catalog: catalog,
+	}
+	key := &APIKey{
+		GroupID: &groupID,
+		Group: &Group{
+			ID:                   groupID,
+			Platform:             PlatformOpenAI,
+			AllowImageGeneration: true,
+		},
+	}
+
+	options, err := svc.listImageModelOptionsForAPIKey(context.Background(), key)
+
+	require.NoError(t, err)
+	require.Equal(t, []string{"gpt-image-1", "gpt-image-2", "sensenova-u1-fast", "new-image-model"}, catalog.seenModels)
+	byID := make(map[string]ImageStudioModelOption, len(options))
+	for _, option := range options {
+		byID[option.ID] = option
+	}
+	require.Contains(t, byID, "gpt-image-1", "legacy exact IDs remain available during catalog migration")
+	require.NotContains(t, byID, "gpt-image-2", "an explicit invalid declaration must fail closed")
+	require.NotContains(t, byID, "new-image-model", "a newly mapped name needs a catalog declaration")
+
+	fast, found := byID["sensenova-u1-fast"]
+	require.True(t, found)
+	require.Equal(t, []string{"create"}, fast.Operations)
+	require.Equal(t, []string{"2048x2048"}, fast.SupportedSizes)
+	require.Equal(t, []string{"png"}, fast.SupportedOutputFormats)
+}
+
+func TestImageStudioCatalogCompositeGroupListsSenseNovaWithOpenAIDispatch(t *testing.T) {
+	const (
+		genericModel   = "vendor-visual-v42"
+		senseNovaModel = "sensenova-u1-fast"
+	)
+	groupID := int64(72)
+	generic, supported := imageStudioCapabilitiesFromCatalogContract(GatewayModelContract{
+		ID:                genericModel,
+		Platform:          PlatformComposite,
+		Adapter:           catalogOpenAIImagesAdapterID,
+		CapabilityVersion: "v1",
+		Modalities:        []string{"image"},
+		ImageCapabilities: &ModelImageCapabilities{
+			Operations:     []string{"create"},
+			SupportedSizes: []string{"1024x1024"},
+		},
+	})
+	require.True(t, supported)
+	senseNova, supported := ResolveImageStudioProviderCapability(PlatformOpenAI, senseNovaModel)
+	require.True(t, supported)
+
+	resolver := &imageStudioModelResolverStub{models: []string{genericModel, senseNovaModel}}
+	svc := &ImageStudioService{
+		gateway: resolver,
+		catalog: &imageStudioCatalogContractResolverStub{resolutions: map[string]ImageStudioCatalogContractResolution{
+			genericModel:   {Declared: true, Capabilities: &generic},
+			senseNovaModel: {Declared: true, Capabilities: &senseNova},
+		}},
+	}
+	options, err := svc.listImageModelOptionsForAPIKey(context.Background(), &APIKey{
+		GroupID: &groupID,
+		Group: &Group{
+			ID:                   groupID,
+			Platform:             PlatformComposite,
+			AllowImageGeneration: true,
+		},
+	})
+
+	require.NoError(t, err)
+	require.Equal(t, "", resolver.seenPlatform, "composite mappings must be collected from concrete accounts")
+	require.Len(t, options, 2)
+	byID := make(map[string]ImageStudioModelOption, len(options))
+	for _, option := range options {
+		byID[option.ID] = option
+	}
+	require.Contains(t, byID, genericModel)
+	require.Contains(t, byID, senseNovaModel)
+	require.Equal(t, imageModelAdapterSenseNovaID, byID[senseNovaModel].ProviderID)
+	require.Equal(t, PlatformOpenAI, byID[senseNovaModel].Platform)
+
+	platform, err := imageStudioDispatchPlatformForCapability(&APIKey{Group: &Group{Platform: PlatformComposite}}, byID[senseNovaModel].ImageStudioModelCapabilities)
+	require.NoError(t, err)
+	require.Equal(t, PlatformOpenAI, platform)
+}
+
 func TestListImageModelsForAPIKey_UsesGroupMapping(t *testing.T) {
 	groupID := int64(7)
 	resolver := &imageStudioModelResolverStub{

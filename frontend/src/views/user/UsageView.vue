@@ -665,12 +665,12 @@ const handleIpGeoBatchFailed = () => {
 
 const getRequestTypeExportText = (log: UsageLog): string => {
   const requestType = resolveUsageRequestType(log)
-  if (requestType === 'cyber') return 'Cyber'
-  if (requestType === 'live') return 'Live'
-  if (requestType === 'ws_v2') return 'WS'
-  if (requestType === 'stream') return 'Stream'
-  if (requestType === 'sync') return 'Sync'
-  return 'Unknown'
+  if (requestType === 'cyber') return t('usage.cyber')
+  if (requestType === 'live') return t('usage.live')
+  if (requestType === 'ws_v2') return t('usage.ws')
+  if (requestType === 'stream') return t('usage.stream')
+  if (requestType === 'sync') return t('usage.sync')
+  return t('common.unknown')
 }
 
 const getDisplayBillingMode = (
@@ -706,23 +706,23 @@ const exportToCSV = async () => {
       return
     }
     const headers = [
-      'Time',
-      'API Key Name',
-      'Model',
-      'Reasoning Effort',
-      'Inbound Endpoint',
-      'IP Address',
-      'Type',
-      'Billing Mode',
-      'Input Tokens',
-      'Output Tokens',
-      'Cache Read Tokens',
-      'Cache Creation Tokens',
-      'Rate Multiplier',
-      'Billed Cost',
-      'Original Cost',
-      'First Token (ms)',
-      'Duration (ms)',
+      t('usage.time'),
+      t('usage.apiKeyFilter'),
+      t('usage.model'),
+      t('usage.reasoningEffort'),
+      t('usage.inboundEndpoint'),
+      t('admin.usage.ipAddress'),
+      t('usage.type'),
+      t('admin.usage.billingMode'),
+      t('admin.usage.inputTokens'),
+      t('admin.usage.outputTokens'),
+      t('admin.usage.cacheReadTokens'),
+      t('admin.usage.cacheCreationTokens'),
+      t('usage.rate'),
+      t('usage.userBilled'),
+      t('usage.original'),
+      t('usage.firstToken'),
+      t('usage.duration'),
     ]
     const rows = allLogs.map((log) => [
       log.created_at,

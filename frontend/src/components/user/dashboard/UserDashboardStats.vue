@@ -226,6 +226,7 @@ import { useI18n } from 'vue-i18n'
 import Icon from '@/components/icons/Icon.vue'
 import type { UserDashboardStats as UserStatsType } from '@/api/usage'
 import type { PlatformQuotaItem } from '@/types'
+import { platformLabel as localizedPlatformLabel } from '@/utils/platformColors'
 
 interface FusedPlatformCard {
   platform: string
@@ -243,16 +244,9 @@ const props = defineProps<{
   isSimple: boolean
   platformQuotas?: PlatformQuotaItem[] | null
 }>()
-const { t } = useI18n()
+const { t, locale } = useI18n()
 
-const PLATFORM_LABELS: Record<string, string> = {
-  anthropic: 'Claude',
-  openai: 'OpenAI',
-  gemini: 'Gemini',
-  antigravity: 'Antigravity'
-}
-
-const platformLabel = (p: string) => PLATFORM_LABELS[p] ?? p
+const platformLabel = (platform: string) => localizedPlatformLabel(platform, locale.value)
 
 const sortedPlatforms = computed(() => {
   const list = props.stats?.by_platform ?? []

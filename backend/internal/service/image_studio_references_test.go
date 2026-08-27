@@ -482,6 +482,25 @@ func TestImageStudioEstimateEditIncludesOwnerScopedReferenceInputCost(t *testing
 	require.ErrorIs(t, err, ErrImageStudioReferenceNotFound)
 }
 
+func TestImageStudioEstimateRejectsFifthReferenceBeforeReferenceLookup(t *testing.T) {
+	repo := &imageStudioReferenceRepoStub{}
+	svc := newImageStudioReferenceServiceForTest(repo, &imageStudioEncryptorStub{}, &imageStudioCreateBillingStub{})
+
+	estimate, err := svc.Estimate(
+		context.Background(),
+		10,
+		"free-create",
+		"1024x1024",
+		1,
+		20,
+		"gpt-image-1",
+		[]string{"ref-1", "ref-2", "ref-3", "ref-4", "ref-5"},
+	)
+
+	require.Nil(t, estimate)
+	require.ErrorIs(t, err, ErrImageStudioReferenceLimit)
+}
+
 func TestImageStudioCreatePendingEditJobRejectsFifthReference(t *testing.T) {
 	repo := &imageStudioReferenceRepoStub{}
 	svc := newImageStudioReferenceServiceForTest(repo, &imageStudioEncryptorStub{}, &imageStudioCreateBillingStub{})

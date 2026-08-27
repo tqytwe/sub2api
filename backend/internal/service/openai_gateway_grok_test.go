@@ -899,21 +899,25 @@ func TestBuildGrokResponsesRequestIgnoresBlockedHeaderOverrides(t *testing.T) {
 	require.Equal(t, "conv-2", req.Header.Get(grokConversationIDHeader))
 }
 
-func TestGrokMediaGenerationGateCoversImagesAndVideo(t *testing.T) {
+func TestGrokMediaGenerationAndImagePermissionGatesAreDistinct(t *testing.T) {
 	tests := []struct {
-		name     string
-		endpoint GrokMediaEndpoint
-		want     bool
+		name                          string
+		endpoint                      GrokMediaEndpoint
+		wantGeneration                bool
+		wantImageGenerationPermission bool
 	}{
-		{name: "image generation", endpoint: GrokMediaEndpointImagesGenerations, want: true},
-		{name: "image edit", endpoint: GrokMediaEndpointImagesEdits, want: true},
-		{name: "video generation", endpoint: GrokMediaEndpointVideosGenerations, want: true},
-		{name: "video status", endpoint: GrokMediaEndpointVideoStatus, want: false},
+		{name: "image generation", endpoint: GrokMediaEndpointImagesGenerations, wantGeneration: true, wantImageGenerationPermission: true},
+		{name: "image edit", endpoint: GrokMediaEndpointImagesEdits, wantGeneration: true, wantImageGenerationPermission: true},
+		{name: "video generation", endpoint: GrokMediaEndpointVideosGenerations, wantGeneration: true, wantImageGenerationPermission: false},
+		{name: "video edit", endpoint: GrokMediaEndpointVideosEdits, wantGeneration: true, wantImageGenerationPermission: false},
+		{name: "video extension", endpoint: GrokMediaEndpointVideosExtensions, wantGeneration: true, wantImageGenerationPermission: false},
+		{name: "video status", endpoint: GrokMediaEndpointVideoStatus, wantGeneration: false, wantImageGenerationPermission: false},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			require.Equal(t, tt.want, tt.endpoint.IsGenerationRequest())
+			require.Equal(t, tt.wantGeneration, tt.endpoint.IsGenerationRequest())
+			require.Equal(t, tt.wantImageGenerationPermission, tt.endpoint.RequiresImageGenerationPermission())
 		})
 	}
 }

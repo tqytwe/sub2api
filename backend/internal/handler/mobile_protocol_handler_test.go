@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	middleware2 "github.com/Wei-Shaw/sub2api/internal/server/middleware"
+	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
 )
 
@@ -31,6 +32,7 @@ func TestMobileProtocolIncludesCanonicalLifecycle(t *testing.T) {
 			Version         int                        `json:"version"`
 			ContractVersion string                     `json:"contract_version"`
 			Session         map[string]any             `json:"session"`
+			TaskKinds       []string                   `json:"task_kinds"`
 			TaskStatuses    []string                   `json:"task_statuses"`
 			Endpoints       []mobileProtocolEndpoint   `json:"endpoints"`
 			Lifecycle       mobileProtocolLifecycle    `json:"lifecycle"`
@@ -53,11 +55,14 @@ func TestMobileProtocolIncludesCanonicalLifecycle(t *testing.T) {
 	assertStringSliceContains(t, envelope.Data.Lifecycle.States, mobileProtocolLifecycleCanonical)
 	assertStringSliceContains(t, envelope.Data.Lifecycle.States, mobileProtocolLifecycleLegacy)
 	assertStringSliceContains(t, envelope.Data.Lifecycle.States, mobileProtocolLifecycleObserve)
+	assertStringSliceContains(t, envelope.Data.TaskKinds, string(service.MobileTaskKindVideo))
 	if got := envelope.Data.Session["refresh_path"]; got != "/api/v1/auth/refresh" {
 		t.Fatalf("refresh path = %v", got)
 	}
 	assertStringSliceContains(t, envelope.Data.TaskStatuses, "streaming")
 	assertEndpointContains(t, envelope.Data.Endpoints, http.MethodGet, "/api/v1/mobile/account-summary", "canonical")
+	assertEndpointContains(t, envelope.Data.Endpoints, http.MethodGet, "/api/v1/mobile/video/bootstrap", "canonical")
+	assertEndpointContains(t, envelope.Data.Endpoints, http.MethodPost, "/api/v1/mobile/video/jobs", "canonical")
 	assertEndpointContains(t, envelope.Data.Endpoints, http.MethodPost, "/api/v1/mobile/web-search", "canonical")
 	for _, endpoint := range envelope.Data.Endpoints {
 		if endpoint.Method == http.MethodPost && endpoint.Path == "/api/v1/mobile/web-search" {

@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import type { PromptSummary } from '@/api/prompts'
 import { shouldUseGeneratedPromptCover } from '@/utils/promptCover'
 import {
-  promptSourceLabel,
-  referenceRequirementLabel,
+  promptSourceMessageKey,
+  referenceRequirementMessageKey,
 } from '@/utils/promptLibrary'
 import Icon from '@/components/icons/Icon.vue'
 import PromptGeneratedCover from '@/components/prompt/PromptGeneratedCover.vue'
@@ -25,8 +26,10 @@ const emit = defineEmits<{
 const authStore = useAuthStore()
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
 
-const brandLabel = computed(() => promptSourceLabel(props.prompt.source_attribution))
+const brandLabel = computed(() => t(promptSourceMessageKey(props.prompt.source_attribution)))
+const referenceLabel = computed(() => t(referenceRequirementMessageKey(props.prompt.reference_requirement)))
 const useGeneratedCover = computed(() => shouldUseGeneratedPromptCover(props.prompt))
 
 async function handleFavorite() {
@@ -46,13 +49,13 @@ async function handleFavorite() {
     <button
       type="button"
       class="prompt-card-media"
-      aria-label="用于创作"
+      :aria-label="t('promptLibrary.card.use')"
       @click="emit('use', prompt)"
     >
       <img
         v-if="!useGeneratedCover && prompt.preview_image_url"
         :src="prompt.preview_image_url"
-        :alt="prompt.preview_image_alt || `${prompt.title}示例效果`"
+        :alt="prompt.preview_image_alt || t('promptLibrary.card.previewAlt', { title: prompt.title })"
         loading="lazy"
       />
       <PromptGeneratedCover v-else :prompt="prompt" />
@@ -69,8 +72,8 @@ async function handleFavorite() {
           type="button"
           class="prompt-icon-button"
           :class="{ 'is-active': prompt.is_favorited }"
-          :aria-label="prompt.is_favorited ? '取消收藏' : '收藏提示词'"
-          :title="prompt.is_favorited ? '取消收藏' : '收藏提示词'"
+          :aria-label="prompt.is_favorited ? t('promptLibrary.card.unfavorite') : t('promptLibrary.card.favorite')"
+          :title="prompt.is_favorited ? t('promptLibrary.card.unfavorite') : t('promptLibrary.card.favorite')"
           :disabled="busy"
           @click="handleFavorite"
         >
@@ -81,20 +84,20 @@ async function handleFavorite() {
       <div class="prompt-card-tags">
         <span v-if="prompt.recommended_models[0]">{{ prompt.recommended_models[0] }}</span>
         <span v-if="prompt.recommended_sizes[0]">{{ prompt.recommended_sizes[0] }}</span>
-        <span>{{ referenceRequirementLabel(prompt.reference_requirement) }}</span>
+        <span>{{ referenceLabel }}</span>
       </div>
 
-      <div class="prompt-card-stats" aria-label="提示词数据">
-        <span>使用 {{ prompt.use_count || 0 }}</span>
-        <span>收藏 {{ prompt.favorite_count || 0 }}</span>
+      <div class="prompt-card-stats" :aria-label="t('promptLibrary.card.stats')">
+        <span>{{ t('promptLibrary.card.useCount', { count: prompt.use_count || 0 }) }}</span>
+        <span>{{ t('promptLibrary.card.favoriteCount', { count: prompt.favorite_count || 0 }) }}</span>
       </div>
 
       <div class="prompt-card-actions">
         <button
           type="button"
           class="prompt-icon-button"
-          aria-label="复制提示词"
-          title="复制提示词"
+          :aria-label="t('promptLibrary.card.copy')"
+          :title="t('promptLibrary.card.copy')"
           @click="emit('copy', prompt)"
         >
           <Icon name="copy" size="sm" />
@@ -102,12 +105,12 @@ async function handleFavorite() {
         <button
           type="button"
           class="prompt-use-button"
-          aria-label="用于创作"
+          :aria-label="t('promptLibrary.card.use')"
           :disabled="busy"
           @click="emit('use', prompt)"
         >
           <Icon name="sparkles" size="sm" />
-          用于创作
+          {{ t('promptLibrary.card.use') }}
         </button>
       </div>
     </div>
