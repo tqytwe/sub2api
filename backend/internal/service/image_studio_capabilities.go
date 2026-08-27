@@ -41,9 +41,11 @@ type ImageStudioSizeOption struct {
 }
 
 type ImageStudioCapabilities struct {
-	Aspects     []ImageStudioAspectOption `json:"aspects"`
-	Tiers       []ImageStudioTierOption   `json:"tiers"`
-	SizeOptions []ImageStudioSizeOption   `json:"size_options"`
+	Aspects        []ImageStudioAspectOption `json:"aspects"`
+	Tiers          []ImageStudioTierOption   `json:"tiers"`
+	SizeOptions    []ImageStudioSizeOption   `json:"size_options"`
+	MinOutputCount int                       `json:"min_output_count"`
+	MaxOutputCount int                       `json:"max_output_count"`
 }
 
 var imageStudioAspectCatalog = []ImageStudioAspectOption{
@@ -119,9 +121,11 @@ func ListImageStudioCapabilities() ImageStudioCapabilities {
 		}
 	}
 	return ImageStudioCapabilities{
-		Aspects:     append([]ImageStudioAspectOption(nil), imageStudioAspectCatalog...),
-		Tiers:       append([]ImageStudioTierOption(nil), imageStudioTierCatalog...),
-		SizeOptions: options,
+		Aspects:        append([]ImageStudioAspectOption(nil), imageStudioAspectCatalog...),
+		Tiers:          append([]ImageStudioTierOption(nil), imageStudioTierCatalog...),
+		SizeOptions:    options,
+		MinOutputCount: 1,
+		MaxOutputCount: maxImageStudioCount,
 	}
 }
 

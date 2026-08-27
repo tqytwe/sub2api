@@ -79,6 +79,13 @@ Instant Answer 接口。两种提供商都只在服务端调用，禁止把密�
 | `GET /api/v1/mobile/assets/:id` | canonical | 素材详情 | `mobile_assets` | 保留 |
 | `GET /api/v1/mobile/assets/:id/content` | canonical | 素材内容读取 | `mobile_assets` | 保留 |
 | `DELETE /api/v1/mobile/assets/:id` | canonical | 删除素材 | `mobile_assets` | 保留 |
+| `GET /api/v1/mobile/studio/projects` | canonical | 按更新时间列出当前账号的短剧创作工程 | `studio_projects` | 保留；工程是分集、创作事实和素材关联的唯一根 |
+| `POST /api/v1/mobile/studio/projects` | canonical | 创建短剧创作工程 | `studio_projects` | 保留；所有写入带 JWT、关联 ID |
+| `GET/PATCH/DELETE /api/v1/mobile/studio/projects/:id` | canonical | 读取、更新或归档工程 | `studio_projects` | `DELETE` 只归档项目，不删除素材、对象文件、任务或账务记录 |
+| `GET/POST/PATCH/DELETE /api/v1/mobile/studio/projects/:id/episodes` | canonical | 管理工程内的稳定分集（`EP-*`） | `studio_episodes` | 保留；所有请求同时按项目和账号隔离 |
+| `GET /api/v1/mobile/studio/projects/:id/documents` | canonical | 读取项目或分集的创作事实版本 | `studio_documents` | 保留 |
+| `PUT /api/v1/mobile/studio/projects/:id/documents/:documentType` | canonical | 写入下一版创作事实 | `studio_documents` | `expected_version` 必填；冲突返回 `409 STUDIO_VERSION_CONFLICT` |
+| `GET/POST/DELETE /api/v1/mobile/studio/projects/:id/assets` | canonical | 管理工程/分集到私有素材的关联 | `studio_asset_links` | 保留；不在 `mobile_assets.metadata` 内写入项目 ID |
 | `GET /api/v1/mobile/skills` | canonical | 服务端技能目录；skill 是可执行模板/流程，不等同 agent | `mobile_skills` | 保留 |
 | `GET /api/v1/mobile/skills/:slug` | canonical | 技能详情、版本、输入要求、示例、消耗说明 | `mobile_skills`, `mobile_skill_versions` | 保留 |
 | `POST /api/v1/mobile/skills/:slug/install` | canonical | 安装技能 | `user_mobile_skills` | 保留 |
@@ -92,6 +99,64 @@ Instant Answer 接口。两种提供商都只在服务端调用，禁止把密�
 | `POST /api/v1/mobile/payments/:order_id/sync` | canonical | 返回 APP 后主动查单同步到账 | payment order | 保留 |
 | `POST /api/v1/redeem-codes/redeem` | canonical | 兑换码、活动码和套餐码兑换 | redeem code | 保留 |
 | `GET /api/v1/redeem-codes/history` | canonical | 兑换记录 | redeem code | 保留 |
+
+### 视频 Bootstrap 合同
+
+`GET /api/v1/mobile/video/bootstrap` 和兼容别名
+`GET /api/v1/mobile/video/models` 为已登录用户返回其授权分组的动态视频候选。
+服务端不得按分组显示名筛选模型；运营在任意已授权分组新增模型、模型映射或定价后，
+APP 刷新 Bootstrap 即可发现变化。
+
+- `groups[].models` 只包含可执行的 typed model。每个条目必须具有
+  `id`、`name`、`platform`、`modalities:["video"]`、`adapter`、
+  `capability_version` 和 `video_capabilities`；后者的 `operations` 必须包含
+  `generate`，并且 `supported_resolutions` 仅来自该模型的有效视频价格。
+- `1080p`、`720p`、`480p` 不由 APP 猜测或补齐。某一分辨率只有在该模型通过
+  `Group.GetVideoPriceForModel` 取得有效价格时才会出现在
+  `supported_resolutions`，估价与提交沿用同一取价逻辑。
+- 已授权但无法执行的候选进入 `groups[].suppressed[]`，使用稳定代码，例如
+  `VIDEO_PRICE_MISSING`、`VIDEO_CAPABILITY_UNAVAILABLE` 或
+  `VIDEO_ADAPTER_UNAVAILABLE`。客户端可以展示本地化诊断，但不得把 suppressed
+  条目重新作为可选模型。
+- 成功但没有可执行模型仍是有效 Bootstrap 响应。此时组级
+  `video_available:false` 和 `video_unavailable_code` 说明原因；不能把它当作
+  网络失败，也不能回退到聊天模型或名称猜测。
+
+### 图片数量与水印合同
+
+`GET /api/v1/image-studio/capabilities` 和模型 capability 都下发
+`min_output_count:1`、`max_output_count:4`。APP 可保留 `1/2/3/4` 快捷值、
+加减控件和直接输入，但生成或估价请求超过范围时服务端返回
+`400 IMAGE_STUDIO_COUNT_INVALID`，绝不静默截断为四张。
+
+两个精确的 SenseNova 图片模型 `sensenova-u1-fast`、`sensenova-u1.5-lite`
+由后端适配器在 OpenAI 兼容图片生成请求中强制发送 JSON 根字段
+`"watermark": false`。该字段不是用户设置、不是字符串、也不是提示词约束；
+其他相似名称模型不会被该适配器匹配。
+
+### 短剧创作工程合同
+
+短剧创作台以 `studio_projects` 为唯一工程根，而不是以散落的图片、视频任务或
+浏览器本地目录拼装项目。每个项目按 `studio_episodes` 组织分集，并保存五类可编辑、
+可版本化的创作事实：`script`、`visual_bible`、`storyboard`、`image_prompts` 和
+`video_prompts`。它们对应剧本、视觉设定、分镜、图片提示词与视频提示词；稳定条目 ID
+（例如 `SCENE-001`、`CHAR-001`、`IMG-001`、`SHOT-001`、`MOTION-001`）由文档内容
+维护并在素材关联的 `stable_ref` 中引用。
+
+- `PUT` 写文档必须携带读取时看到的 `expected_version`。服务端只在版本相同的情况下
+  创建下一版本，否则返回 `409 STUDIO_VERSION_CONFLICT`，避免两台设备互相静默覆盖。
+- 素材只通过 `studio_asset_links` 关联，服务端同时验证项目、分集和 `mobile_assets`
+  都归当前账号，且素材仍是 `ready`。跨账号、跨工程或已删除素材不能被 UUID 猜测链接。
+- `DELETE /mobile/assets/:id` 在素材仍被未归档工程关联时返回
+  `409 ASSET_REFERENCED_BY_STUDIO`，必须先显式解除关联；项目归档绝不删除通用素材或
+  存储字节。
+- Canvas 的公开提示词目录由 APP 直接只读 `https://canvas.jisudeng.com/prompts`
+  对应的公开 API 并缓存到设备。它是图片提示词的选择/查看来源，不新增运营提示词后台，
+  不携带平台 JWT，也不镜像为第二份创作事实。
+
+本期只建立工程、事实版本与素材关联。没有生产确认 token、计费冻结、MP4 合成、FFmpeg
+渲染或 Canvas worker 交接接口；这些动作必须在具有“当前文档版本 + 稳定条目 + 模型参数
+参考素材 + 一次性确认”的独立生产合同后才可以开放。
 
 ### 移动端创建请求重试
 

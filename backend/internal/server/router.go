@@ -215,6 +215,24 @@ func registerRoutes(
 		v1.POST("/mobile/video/jobs/:id/content/acknowledge", gin.HandlerFunc(jwtAuth), mobileVideo.AcknowledgeContent)
 		v1.POST("/mobile/video/jobs/:id/save-as-asset", gin.HandlerFunc(jwtAuth), mobileVideo.SaveAsAsset)
 	}
+	mobileStudio := h.MobileStudio
+	if mobileStudio != nil {
+		studio := v1.Group("/mobile/studio/projects", gin.HandlerFunc(jwtAuth))
+		studio.GET("", mobileStudio.ListProjects)
+		studio.POST("", mobileWriteCorrelationID, mobileStudio.CreateProject)
+		studio.GET("/:id", mobileStudio.GetProject)
+		studio.PATCH("/:id", mobileWriteCorrelationID, mobileStudio.UpdateProject)
+		studio.DELETE("/:id", mobileWriteCorrelationID, mobileStudio.ArchiveProject)
+		studio.GET("/:id/episodes", mobileStudio.ListEpisodes)
+		studio.POST("/:id/episodes", mobileWriteCorrelationID, mobileStudio.CreateEpisode)
+		studio.PATCH("/:id/episodes/:episodeID", mobileWriteCorrelationID, mobileStudio.UpdateEpisode)
+		studio.DELETE("/:id/episodes/:episodeID", mobileWriteCorrelationID, mobileStudio.ArchiveEpisode)
+		studio.GET("/:id/documents", mobileStudio.ListDocuments)
+		studio.PUT("/:id/documents/:documentType", mobileWriteCorrelationID, mobileStudio.PutDocument)
+		studio.GET("/:id/assets", mobileStudio.ListAssetLinks)
+		studio.POST("/:id/assets", mobileWriteCorrelationID, mobileStudio.LinkAsset)
+		studio.DELETE("/:id/assets/:linkID", mobileWriteCorrelationID, mobileStudio.DeleteAssetLink)
+	}
 	v1.GET("/mobile/image-history", gin.HandlerFunc(jwtAuth), h.MobileTask.ImageHistory)
 	v1.DELETE("/mobile/image-history/:id", gin.HandlerFunc(jwtAuth), h.MobileTask.DeleteImageHistory)
 	v1.POST("/mobile/image-history/:id/retry", gin.HandlerFunc(jwtAuth), h.MobileTask.RetryImageHistory)

@@ -101,6 +101,51 @@ func TestMobileVideoHandlerBootstrapFailsClosedForNonVideoGroup(t *testing.T) {
 	require.True(t, envelope.Data.Groups[1].VideoAvailable)
 }
 
+func TestMobileVideoHandlerBootstrapPublishesStrictTypedModelsAndSuppressedReasons(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	price := 0.07
+	h := newMobileVideoHandlerWithDependencies(&mobileVideoTaskStoreFake{}, &mobileVideoGroupStoreFake{groups: []service.Group{{
+		ID: 9, Name: "future video group", Platform: service.PlatformGrok, Status: service.StatusActive,
+		ModelsListConfig: service.GroupModelsListConfig{Models: []string{"future-video-model", "missing-price-model"}},
+		VideoModelPrices: map[string]map[string]float64{
+			"future-video-model": {service.VideoBillingResolution1080P: price},
+		},
+	}}})
+
+	recorder := performMobileVideoRequest(h.Bootstrap, http.MethodGet, "/mobile/video/bootstrap", nil, 42)
+	require.Equal(t, http.StatusOK, recorder.Code)
+
+	var payload struct {
+		Data struct {
+			Groups []struct {
+				Modalities []string `json:"modalities"`
+				Models     []struct {
+					ID                string                         `json:"id"`
+					Modalities        []string                       `json:"modalities"`
+					Adapter           string                         `json:"adapter"`
+					CapabilityVersion string                         `json:"capability_version"`
+					Capabilities      service.VideoModelCapabilities `json:"video_capabilities"`
+				} `json:"models"`
+				Suppressed []mobileVideoSuppressedModel `json:"suppressed"`
+			} `json:"groups"`
+		} `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &payload))
+	require.Len(t, payload.Data.Groups, 1)
+	group := payload.Data.Groups[0]
+	require.Equal(t, []string{"video"}, group.Modalities)
+	require.Len(t, group.Models, 1)
+	model := group.Models[0]
+	require.Equal(t, "future-video-model", model.ID)
+	require.Equal(t, []string{"video"}, model.Modalities)
+	require.Equal(t, "grok-video-gateway", model.Adapter)
+	require.Equal(t, service.NextChatVideoCapabilitiesVersion, model.CapabilityVersion)
+	require.Contains(t, model.Capabilities.Operations, "generate")
+	require.Contains(t, model.Capabilities.Operations, "text_to_video")
+	require.Equal(t, []string{service.VideoBillingResolution1080P}, model.Capabilities.SupportedResolutions)
+	require.Equal(t, []mobileVideoSuppressedModel{{Model: "missing-price-model", Code: "VIDEO_PRICE_MISSING"}}, group.Suppressed)
+}
+
 func TestMobileVideoHandlerRejectsUnauthorizedVideoGroup(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	price := 0.02

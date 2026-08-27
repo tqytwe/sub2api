@@ -81,7 +81,7 @@ func (s *ImageStudioService) ResolveModelCapabilities(apiKey *APIKey, model stri
 		return ImageStudioModelCapabilities{}
 	}
 	capability.SupportedSizes = filterImageStudioSizesForModel(s, model, capability.SupportedSizes)
-	return capability
+	return withImageStudioOutputCountBounds(capability)
 }
 
 func resolveImageStudioCapabilitiesForAPIKey(apiKey *APIKey, model string) (ImageStudioModelCapabilities, bool) {

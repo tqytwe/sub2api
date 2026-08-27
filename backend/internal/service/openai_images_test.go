@@ -707,6 +707,31 @@ func TestRewriteAdaptedOpenAIImagesBodyRejectsAgnesEdits(t *testing.T) {
 	}
 }
 
+func TestRewriteAdaptedOpenAIImagesBodyForcesSenseNovaWatermarkOff(t *testing.T) {
+	parsed := &OpenAIImagesRequest{
+		Endpoint:    openAIImagesGenerationsEndpoint,
+		ContentType: "application/json",
+		Model:       senseNovaU1FastModelID,
+		Prompt:      "draw",
+		Size:        "2752x1536",
+	}
+
+	rewritten, contentType, handled, err := rewriteAdaptedOpenAIImagesBody(
+		[]byte(`{"model":"public-alias","prompt":"draw","watermark":true}`),
+		"application/json",
+		parsed,
+		senseNovaU1FastModelID,
+	)
+
+	require.NoError(t, err)
+	require.True(t, handled)
+	require.Equal(t, "application/json", contentType)
+	require.Equal(t, senseNovaU1FastModelID, gjson.GetBytes(rewritten, "model").String())
+	require.Equal(t, "false", gjson.GetBytes(rewritten, "watermark").Raw)
+	require.False(t, gjson.GetBytes(rewritten, "watermark").Bool())
+	require.False(t, isRegisteredOpenAICompatibleImageModel("custom-"+senseNovaU1FastModelID))
+}
+
 func TestOpenAIGatewayServiceParseOpenAIImagesRequest_AllowsGrokImageModels(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
