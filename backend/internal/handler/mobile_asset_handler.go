@@ -100,13 +100,6 @@ type mobileAssetStore interface {
 	Sync(context.Context, int64, *time.Time) (*mobileAssetSyncResult, error)
 }
 
-// mobileStudioAssetReferenceChecker is intentionally optional while rolling
-// the studio migration out. The production SQL store implements it; older
-// focused test stores do not need to know about project persistence.
-type mobileStudioAssetReferenceChecker interface {
-	HasStudioReferences(context.Context, int64, string) (bool, error)
-}
-
 type MobileAssetHandler struct {
 	store   mobileAssetStore
 	storage service.ImageStorage
@@ -334,10 +327,7 @@ func (h *MobileAssetHandler) Upload(c *gin.Context) {
 	defer func() { _ = file.Close() }()
 	contentType := strings.ToLower(strings.TrimSpace(header.Header.Get("Content-Type")))
 	kind := strings.ToLower(strings.TrimSpace(c.PostForm("kind")))
-	// Multipart writers commonly label an otherwise valid image as generic
-	// octet-stream. Do not commit to the generic "file" kind before sniffing;
-	// an explicit client-supplied kind remains subject to the later MIME check.
-	if kind == "" && contentType != "" && contentType != "application/octet-stream" {
+	if kind == "" {
 		kind = mobileAssetKindFromContentType(contentType, header.Filename)
 	}
 	maxBytes := mobileAssetUploadLimit(kind)
@@ -690,17 +680,6 @@ func (h *MobileAssetHandler) Delete(c *gin.Context) {
 	} else if err != nil {
 		response.InternalError(c, "删除素材失败")
 		return
-	}
-	if checker, ok := h.store.(mobileStudioAssetReferenceChecker); ok {
-		referenced, referenceErr := checker.HasStudioReferences(c.Request.Context(), userID, id)
-		if referenceErr != nil {
-			response.InternalError(c, "删除素材失败")
-			return
-		}
-		if referenced {
-			response.ErrorWithDetails(c, http.StatusConflict, "素材仍被创作项目引用，请先解除关联", "ASSET_REFERENCED_BY_STUDIO", nil)
-			return
-		}
 	}
 	if err := h.store.SoftDelete(c.Request.Context(), userID, id); errors.Is(err, errMobileAssetNotFound) {
 		response.NotFound(c, "素材不存在")
@@ -1083,21 +1062,6 @@ func (s *sqlMobileAssetStore) SoftDelete(ctx context.Context, userID int64, id s
 		return errMobileAssetNotFound
 	}
 	return nil
-}
-
-func (s *sqlMobileAssetStore) HasStudioReferences(ctx context.Context, userID int64, id string) (bool, error) {
-	var referenced bool
-	err := s.db.QueryRowContext(ctx, `
-		SELECT EXISTS (
-			SELECT 1
-			FROM studio_asset_links links
-			JOIN studio_projects projects ON projects.id = links.project_id
-			WHERE links.asset_id = $1::uuid
-			  AND links.user_id = $2
-			  AND projects.user_id = $2
-			  AND projects.archived_at IS NULL
-		)`, id, userID).Scan(&referenced)
-	return referenced, err
 }
 
 type mobileAssetScanner interface {

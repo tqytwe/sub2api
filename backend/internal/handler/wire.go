@@ -260,7 +260,6 @@ func ProvideHandlers(
 	mobileAssetHandler *MobileAssetHandler,
 	mobileTaskHandler *MobileTaskHandler,
 	mobileVideoHandler *MobileVideoHandler,
-	mobileStudioHandler *MobileStudioHandler,
 	mobileSupportHandler *MobileSupportHandler,
 	mobileDiagnosticHandler *MobileDiagnosticHandler,
 	mobileDeviceHandler *MobileDeviceHandler,
@@ -304,7 +303,6 @@ func ProvideHandlers(
 		MobileAsset:        mobileAssetHandler,
 		MobileTask:         mobileTaskHandler,
 		MobileVideo:        mobileVideoHandler,
-		MobileStudio:       mobileStudioHandler,
 		MobileSupport:      mobileSupportHandler,
 		MobileDiagnostic:   mobileDiagnosticHandler,
 		MobileDevice:       mobileDeviceHandler,
@@ -350,10 +348,6 @@ func ProvideMobileTaskHandler(db *sql.DB, push *service.MobilePushService) *Mobi
 func ProvideMobileVideoHandler(db *sql.DB, apiKeys *service.APIKeyService, storage service.MobileAssetStorage) *MobileVideoHandler {
 	return NewMobileVideoHandler(service.NewMobileTaskService(db), apiKeys, []*service.MobileVideoJobService{service.NewMobileVideoJobService(db)}, storage).
 		SetAssetHandler(NewMobileAssetHandlerWithStorage(db, storage))
-}
-
-func ProvideMobileStudioHandler(db *sql.DB) *MobileStudioHandler {
-	return NewMobileStudioHandler(db)
 }
 
 // ProvideMobileVideoWorker wires the durable mobile video executor into the
@@ -439,7 +433,6 @@ var ProviderSet = wire.NewSet(
 	ProvideMobileAssetHandler,
 	ProvideMobileTaskHandler,
 	ProvideMobileVideoHandler,
-	ProvideMobileStudioHandler,
 	ProvideMobileVideoWorker,
 	ProvideMobileSupportHandler,
 	NewMobileDiagnosticHandler,

@@ -45,8 +45,6 @@ func TestResolveImageStudioSizeFromRaw(t *testing.T) {
 
 func TestListImageStudioCapabilities(t *testing.T) {
 	caps := ListImageStudioCapabilities()
-	require.Equal(t, 1, caps.MinOutputCount)
-	require.Equal(t, maxImageStudioCount, caps.MaxOutputCount)
 	require.Len(t, caps.SizeOptions, 20)
 	require.NotEmpty(t, caps.Aspects)
 	require.NotEmpty(t, caps.Tiers)
@@ -94,13 +92,6 @@ func TestImageStudioCapabilityCacheDeniesSize(t *testing.T) {
 	cache.Deny("gpt-image-1.5", "4096x4096")
 	require.True(t, cache.IsDenied("gpt-image-1.5", "4096x4096"))
 	require.False(t, cache.IsDenied("gpt-image-2", "4096x4096"))
-}
-
-func TestResolveImageStudioModelCapabilitiesPublishOutputCountBounds(t *testing.T) {
-	svc := &ImageStudioService{}
-	caps := svc.ResolveModelCapabilities(nil, "gpt-image-1.5")
-	require.Equal(t, 1, caps.MinOutputCount)
-	require.Equal(t, maxImageStudioCount, caps.MaxOutputCount)
 }
 
 func TestResolveModelCapabilitiesUsesProviderProfile(t *testing.T) {

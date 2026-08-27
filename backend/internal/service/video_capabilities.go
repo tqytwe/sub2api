@@ -112,10 +112,3 @@ func groupHasAnyVideoPrice(group *Group, model string) bool {
 	}
 	return false
 }
-
-// GroupModelHasVideoPrice is exported for capability publishers that need to
-// explain why an authorized model is suppressed. It uses the exact same
-// model-and-resolution pricing path as estimates and submission.
-func GroupModelHasVideoPrice(group Group, model string) bool {
-	return groupHasAnyVideoPrice(&group, model)
-}

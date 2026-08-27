@@ -625,39 +625,6 @@ func TestImageStudioCreatePendingJobEncryptsPromptAndReservesBeforePersist(t *te
 	require.False(t, billing.lastReserve.AllowBalanceOverage)
 }
 
-func TestImageStudioCreatePendingJobRejectsOutOfRangeCountInsteadOfClamping(t *testing.T) {
-	for _, count := range []int{-1, maxImageStudioCount + 1} {
-		t.Run("count", func(t *testing.T) {
-			repo := &imageStudioCreateRepoStub{}
-			svc := newImageStudioCreateServiceForTest(repo, &imageStudioEncryptorStub{}, &imageStudioCreateBillingStub{})
-
-			job, _, err := svc.CreatePendingJob(context.Background(), 10, ImageStudioGenerateRequest{
-				TemplateID: "free-create", UserPrompt: "precise output count", Size: "1024x1024",
-				Count: count, Model: "gpt-image-1", APIKeyID: 20,
-			})
-
-			require.Nil(t, job)
-			require.ErrorIs(t, err, ErrImageStudioCountInvalid)
-			require.Nil(t, repo.created)
-		})
-	}
-}
-
-func TestImageStudioCreatePendingJobRejectsUneligibleMultipleOutputsInsteadOfClamping(t *testing.T) {
-	repo := &imageStudioCreateRepoStub{}
-	svc := newImageStudioCreateServiceForTest(repo, &imageStudioEncryptorStub{}, &imageStudioCreateBillingStub{})
-	svc.userRepo.(*imageStudioCreateUserRepoStub).user.TotalRecharged = 0
-
-	job, _, err := svc.CreatePendingJob(context.Background(), 10, ImageStudioGenerateRequest{
-		TemplateID: "free-create", UserPrompt: "no silent downgrade", Size: "1024x1024",
-		Count: 2, Model: "gpt-image-1", APIKeyID: 20,
-	})
-
-	require.Nil(t, job)
-	require.ErrorIs(t, err, ErrImageStudioCountRestricted)
-	require.Nil(t, repo.created)
-}
-
 func TestImageStudioCreatePendingJobHoldFailureDoesNotPersist(t *testing.T) {
 	repo := &imageStudioCreateRepoStub{}
 	billing := &imageStudioCreateBillingStub{reserveErr: ErrBatchImageInsufficientBalance}

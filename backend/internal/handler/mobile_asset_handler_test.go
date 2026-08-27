@@ -91,39 +91,6 @@ type fakeMobileAssetStore struct {
 	syncFunc               func(context.Context, int64, *time.Time) (*mobileAssetSyncResult, error)
 }
 
-type referencedMobileAssetStore struct {
-	*fakeMobileAssetStore
-	referenced bool
-}
-
-func (s *referencedMobileAssetStore) HasStudioReferences(_ context.Context, _ int64, _ string) (bool, error) {
-	return s.referenced, nil
-}
-
-func TestMobileAssetDeleteRejectsStudioReferencedAsset(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	assetID := uuid.NewString()
-	deleted := false
-	store := &referencedMobileAssetStore{
-		fakeMobileAssetStore: &fakeMobileAssetStore{
-			getFunc: func(context.Context, int64, string) (*mobileAssetRecord, error) {
-				return mobileAssetTestRecord(assetID), nil
-			},
-			softDeleteFunc: func(context.Context, int64, string) error {
-				deleted = true
-				return nil
-			},
-		},
-		referenced: true,
-	}
-	handler := newMobileAssetHandlerWithStore(store)
-	recorder := performMobileAssetRequest(handler.Delete, http.MethodDelete, "/mobile/assets/"+assetID, nil, 8, gin.Params{{Key: "id", Value: assetID}})
-
-	require.Equal(t, http.StatusConflict, recorder.Code)
-	require.Contains(t, recorder.Body.String(), "ASSET_REFERENCED_BY_STUDIO")
-	require.False(t, deleted)
-}
-
 func (f *fakeMobileAssetStore) Create(ctx context.Context, userID int64, input mobileAssetCreateInput) (*mobileAssetRecord, error) {
 	return f.createFunc(ctx, userID, input)
 }
@@ -317,7 +284,7 @@ func TestMobileAssetHandlerSanitizesMetadata(t *testing.T) {
 
 	recorder := performMobileAssetRequest(handler.Create, http.MethodPost, "/mobile/assets", body, 12, nil)
 
-	require.Equalf(t, http.StatusCreated, recorder.Code, "response: %s", recorder.Body.String())
+	require.Equal(t, http.StatusCreated, recorder.Code)
 	responseBody := recorder.Body.String()
 	require.Contains(t, responseBody, `"width":1024`)
 	require.NotContains(t, responseBody, "secret-token")
@@ -467,7 +434,7 @@ func TestMobileAssetHandlerUploadReplaysWithoutSavingBytesAgain(t *testing.T) {
 
 	first := perform()
 	second := perform()
-	require.Equalf(t, http.StatusCreated, first.Code, "response: %s", first.Body.String())
+	require.Equal(t, http.StatusCreated, first.Code)
 	require.Equal(t, http.StatusCreated, second.Code)
 	require.Equal(t, "true", second.Header().Get("X-Idempotency-Replayed"))
 	require.Equal(t, 1, storage.saveCount)
@@ -522,7 +489,7 @@ func TestMobileAssetHandlerUploadScopesSameIdempotencyKeyByAccount(t *testing.T)
 
 	first := perform(23)
 	second := perform(24)
-	require.Equalf(t, http.StatusCreated, first.Code, "response: %s", first.Body.String())
+	require.Equal(t, http.StatusCreated, first.Code)
 	require.Equal(t, http.StatusCreated, second.Code)
 	require.Empty(t, second.Header().Get("X-Idempotency-Replayed"))
 	require.Equal(t, []int64{23, 24}, createdFor)

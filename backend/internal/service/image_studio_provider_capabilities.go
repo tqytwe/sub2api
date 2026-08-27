@@ -59,8 +59,6 @@ type ImageStudioModelCapabilities struct {
 	SupportsTransparency     bool                                    `json:"supports_transparency"`
 	OutputCompression        *ImageStudioOutputCompressionCapability `json:"output_compression,omitempty"`
 	MaxReferenceImages       int                                     `json:"max_reference_images,omitempty"`
-	MinOutputCount           int                                     `json:"min_output_count,omitempty"`
-	MaxOutputCount           int                                     `json:"max_output_count,omitempty"`
 	DefaultSize              string                                  `json:"default_size,omitempty"`
 	DefaultAspectRatio       string                                  `json:"default_aspect_ratio,omitempty"`
 	DefaultResolution        string                                  `json:"default_resolution,omitempty"`
@@ -97,12 +95,7 @@ func ResolveImageStudioModelCapability(model string) (ImageStudioModelCapabiliti
 	return resolveGenericOpenAICompatibleImageStudioCapability(model), true
 }
 
-func ResolveImageStudioProviderCapability(platform, model string) (capability ImageStudioModelCapabilities, ok bool) {
-	defer func() {
-		if ok {
-			capability = withImageStudioOutputCountBounds(capability)
-		}
-	}()
+func ResolveImageStudioProviderCapability(platform, model string) (ImageStudioModelCapabilities, bool) {
 	platform = strings.ToLower(strings.TrimSpace(platform))
 	model = strings.ToLower(strings.TrimSpace(model))
 	switch platform {
@@ -127,16 +120,6 @@ func ResolveImageStudioProviderCapability(platform, model string) (capability Im
 	default:
 		return ImageStudioModelCapabilities{}, false
 	}
-}
-
-func withImageStudioOutputCountBounds(capability ImageStudioModelCapabilities) ImageStudioModelCapabilities {
-	if capability.MinOutputCount <= 0 {
-		capability.MinOutputCount = 1
-	}
-	if capability.MaxOutputCount <= 0 {
-		capability.MaxOutputCount = maxImageStudioCount
-	}
-	return capability
 }
 
 func resolveOpenAIImageStudioCapability(model string) (ImageStudioModelCapabilities, bool) {

@@ -64,9 +64,6 @@ var (
 	ErrImageStudioTemplate                     = infraerrors.BadRequest("IMAGE_STUDIO_TEMPLATE_INVALID", "invalid template")
 	ErrImageStudioPromptRequired               = infraerrors.BadRequest("IMAGE_STUDIO_PROMPT_REQUIRED", "image description is required")
 	ErrImageStudioPromptTooLong                = infraerrors.BadRequest("IMAGE_STUDIO_PROMPT_TOO_LONG", "image description exceeds 8000 characters")
-	ErrImageStudioCountInvalid                 = infraerrors.BadRequest("IMAGE_STUDIO_COUNT_INVALID", "image count must be between 1 and 4")
-	ErrImageStudioCountModelLimit              = infraerrors.BadRequest("IMAGE_STUDIO_COUNT_MODEL_LIMIT", "image count is not supported by the selected model")
-	ErrImageStudioCountRestricted              = infraerrors.New(http.StatusForbidden, "IMAGE_STUDIO_COUNT_RESTRICTED", "multiple image outputs require an eligible account")
 	ErrImageStudioPromptRef                    = infraerrors.BadRequest("IMAGE_STUDIO_PROMPT_REFERENCE_INVALID", "prompt id and version must be provided together")
 	ErrImageStudioAPIKey                       = infraerrors.BadRequest("IMAGE_STUDIO_API_KEY_REQUIRED", "valid API key is required")
 	ErrImageStudioAssetNotFound                = infraerrors.NotFound("IMAGE_STUDIO_ASSET_NOT_FOUND", "image studio asset not found")
@@ -551,21 +548,18 @@ func (s *ImageStudioService) Estimate(
 	if !ok {
 		return nil, ErrImageStudioTemplate
 	}
-	if count < 0 {
-		return nil, ErrImageStudioCountInvalid
-	}
-	if count == 0 {
+	if count <= 0 {
 		count = tpl.Defaults.Count
 	}
 	if count > maxImageStudioCount {
-		return nil, ErrImageStudioCountInvalid
+		count = maxImageStudioCount
 	}
 	user, err := s.userRepo.GetByID(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
 	if user.TotalRecharged <= 0 && count > 1 {
-		return nil, ErrImageStudioCountRestricted
+		count = 1
 	}
 	apiKey, err := s.resolveAPIKey(ctx, userID, apiKeyID)
 	if err != nil {
@@ -573,9 +567,6 @@ func (s *ImageStudioService) Estimate(
 	}
 	resolvedModel, err := s.resolveImageModel(ctx, apiKey, model)
 	if err != nil {
-		return nil, err
-	}
-	if err := validateImageStudioOutputCount(s.ResolveModelCapabilities(apiKey, resolvedModel), count); err != nil {
 		return nil, err
 	}
 	if size == "" {
@@ -908,21 +899,18 @@ func (s *ImageStudioService) CreatePendingJob(ctx context.Context, userID int64,
 		return nil, "", ErrImageStudioTemplate
 	}
 	count := req.Count
-	if count < 0 {
-		return nil, "", ErrImageStudioCountInvalid
-	}
-	if count == 0 {
+	if count <= 0 {
 		count = tpl.Defaults.Count
 	}
 	if count > maxImageStudioCount {
-		return nil, "", ErrImageStudioCountInvalid
+		count = maxImageStudioCount
 	}
 	user, err := s.userRepo.GetByID(ctx, userID)
 	if err != nil {
 		return nil, "", err
 	}
 	if user.TotalRecharged <= 0 && count > 1 {
-		return nil, "", ErrImageStudioCountRestricted
+		count = 1
 	}
 	if count <= 0 {
 		count = 1
@@ -945,9 +933,6 @@ func (s *ImageStudioService) CreatePendingJob(ctx context.Context, userID int64,
 	capability, ok := ResolveImageStudioProviderCapability(platform, resolvedModel)
 	if !ok {
 		return nil, "", ErrImageStudioProviderNotSupported
-	}
-	if err := validateImageStudioOutputCount(capability, count); err != nil {
-		return nil, "", err
 	}
 	size, err := s.resolveGenerateSize(apiKey, resolvedModel, req, tpl)
 	if err != nil {
@@ -1137,14 +1122,6 @@ func (s *ImageStudioService) CreatePendingJob(ctx context.Context, userID int64,
 	s.invalidateImageStudioBalance(ctx, userID)
 	job.Items = items
 	return job, string(body), nil
-}
-
-func validateImageStudioOutputCount(capability ImageStudioModelCapabilities, count int) error {
-	capability = withImageStudioOutputCountBounds(capability)
-	if count < capability.MinOutputCount || count > capability.MaxOutputCount {
-		return ErrImageStudioCountModelLimit
-	}
-	return nil
 }
 
 func (s *ImageStudioService) confirmImageStudioJobCommit(

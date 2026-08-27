@@ -60,32 +60,14 @@ type mobileVideoRetryRequest struct {
 }
 
 type mobileVideoGroup struct {
-	ID                   int64                        `json:"id"`
-	Name                 string                       `json:"name"`
-	Platform             string                       `json:"platform"`
-	Modalities           []string                     `json:"modalities"`
-	VideoAvailable       bool                         `json:"video_available"`
-	VideoUnavailableCode string                       `json:"video_unavailable_code,omitempty"`
-	Models               []mobileVideoBootstrapModel  `json:"models"`
-	Suppressed           []mobileVideoSuppressedModel `json:"suppressed,omitempty"`
-}
-
-// mobileVideoBootstrapModel is deliberately complete. The APP treats a
-// versioned bootstrap as strict: a model without every field below is not
-// executable and must be represented in suppressed instead of models.
-type mobileVideoBootstrapModel struct {
-	ID                string                         `json:"id"`
-	Name              string                         `json:"name"`
-	Platform          string                         `json:"platform"`
-	Modalities        []string                       `json:"modalities"`
-	Adapter           string                         `json:"adapter"`
-	CapabilityVersion string                         `json:"capability_version"`
-	VideoCapabilities service.VideoModelCapabilities `json:"video_capabilities"`
-}
-
-type mobileVideoSuppressedModel struct {
-	Model string `json:"model"`
-	Code  string `json:"code"`
+	ID                   int64                                      `json:"id"`
+	Name                 string                                     `json:"name"`
+	Platform             string                                     `json:"platform"`
+	VideoAvailable       bool                                       `json:"video_available"`
+	VideoUnavailableCode string                                     `json:"video_unavailable_code,omitempty"`
+	Models               []string                                   `json:"models"`
+	Capabilities         *service.MobileVideoCapabilities           `json:"capabilities,omitempty"`
+	ModelCapabilities    map[string]service.MobileVideoCapabilities `json:"model_capabilities,omitempty"`
 }
 
 type mobileVideoBootstrap struct {
@@ -622,73 +604,39 @@ func (h *MobileVideoHandler) videoGroupSummary(group service.Group) mobileVideoG
 		seen[strings.ToLower(model)] = struct{}{}
 		unique = append(unique, model)
 	}
-	result := mobileVideoGroup{
-		ID: group.ID, Name: group.Name, Platform: group.Platform,
-		Modalities: []string{"video"}, Models: make([]mobileVideoBootstrapModel, 0, len(unique)),
-	}
+	result := mobileVideoGroup{ID: group.ID, Name: group.Name, Platform: group.Platform, Models: unique}
 	if !group.HasVideoGenerationCapability() {
 		result.VideoUnavailableCode = "VIDEO_GROUP_UNAVAILABLE"
-		for _, model := range unique {
-			result.Suppressed = append(result.Suppressed, mobileVideoSuppressedModel{Model: model, Code: "VIDEO_PRICE_MISSING"})
-		}
 		return result
 	}
+	modelCapabilities := make(map[string]service.MobileVideoCapabilities)
 	for _, model := range unique {
-		capability, ok := service.ResolveVideoModelCapabilities(group, group.Platform, model)
-		if !ok {
-			result.Suppressed = append(result.Suppressed, mobileVideoSuppressedModel{Model: model, Code: videoModelSuppressionCode(group, model)})
-			continue
+		if capability, ok := service.ResolveVideoModelCapabilities(group, group.Platform, model); ok {
+			result.VideoAvailable = true
+			resolved := service.MobileVideoCapabilities{
+				TextToVideo: true, ImageToVideo: containsVideoOperation(capability.Operations, "image_to_video"),
+				VideoReference: containsVideoOperation(capability.Operations, "video_reference"),
+				AudioReference: containsVideoOperation(capability.Operations, "audio_reference"),
+				Resolutions:    capability.SupportedResolutions, Ratios: capability.SupportedRatios,
+				Durations:          capability.SupportedDurations,
+				MaxReferenceImages: capability.MaxReferenceImages,
+				MaxReferenceVideos: capability.MaxReferenceVideos,
+				MaxReferenceAudios: capability.MaxReferenceAudios,
+				GenerateAudio:      capability.GenerateAudio, Watermark: capability.Watermark,
+			}
+			modelCapabilities[strings.TrimSpace(model)] = resolved
+			if result.Capabilities == nil {
+				result.Capabilities = &resolved
+			}
 		}
-		adapter := mobileVideoAdapter(group.Platform, model)
-		if adapter == "" {
-			result.Suppressed = append(result.Suppressed, mobileVideoSuppressedModel{Model: model, Code: "VIDEO_ADAPTER_UNAVAILABLE"})
-			continue
-		}
-		result.VideoAvailable = true
-		result.Models = append(result.Models, mobileVideoBootstrapModel{
-			ID: model, Name: model, Platform: group.Platform, Modalities: []string{"video"}, Adapter: adapter,
-			CapabilityVersion: service.NextChatVideoCapabilitiesVersion, VideoCapabilities: mobileVideoBootstrapCapabilities(capability),
-		})
+	}
+	if len(modelCapabilities) > 0 {
+		result.ModelCapabilities = modelCapabilities
 	}
 	if !result.VideoAvailable {
 		result.VideoUnavailableCode = "VIDEO_MODEL_UNAVAILABLE"
 	}
 	return result
-}
-
-func mobileVideoBootstrapCapabilities(capability service.VideoModelCapabilities) service.VideoModelCapabilities {
-	capability.Operations = append([]string{"generate"}, capability.Operations...)
-	return capability
-}
-
-func videoModelSuppressionCode(group service.Group, model string) string {
-	if !service.GroupModelHasVideoPrice(group, model) {
-		return "VIDEO_PRICE_MISSING"
-	}
-	return "VIDEO_CAPABILITY_UNAVAILABLE"
-}
-
-// The worker dispatches through these stable server-side adapters. This is
-// intentionally keyed by platform/model capability rather than a group name;
-// operators can add models to any authorized group without an APP release.
-func mobileVideoAdapter(platform, model string) string {
-	platform = strings.ToLower(strings.TrimSpace(platform))
-	if platform == service.PlatformComposite {
-		if detected, ok := service.DetectModelPlatform(model); ok {
-			platform = detected
-		}
-	}
-	switch platform {
-	case service.PlatformGrok:
-		return "grok-video-gateway"
-	case service.PlatformOpenAI:
-		if service.IsSeedanceVideoModel(model) {
-			return "seedance-video-gateway"
-		}
-		return "agnes-video-gateway"
-	default:
-		return ""
-	}
 }
 
 func containsVideoOperation(values []string, target string) bool {

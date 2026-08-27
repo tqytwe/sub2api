@@ -84,7 +84,6 @@ type Handlers struct {
 	MobileAsset        *MobileAssetHandler
 	MobileTask         *MobileTaskHandler
 	MobileVideo        *MobileVideoHandler
-	MobileStudio       *MobileStudioHandler
 	MobileSupport      *MobileSupportHandler
 	MobileDiagnostic   *MobileDiagnosticHandler
 	MobileDevice       *MobileDeviceHandler
