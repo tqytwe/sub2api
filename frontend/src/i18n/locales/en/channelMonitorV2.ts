@@ -83,6 +83,7 @@ export default {
       save: 'Save',
       loading: 'Loading…',
       loadFailed: 'Failed to load V2 config',
+      retryConfig: 'Retry config',
       saveSuccess: 'V2 monitor config saved',
       saveFailed: 'Failed to save V2 config',
       modeBanner:
@@ -106,6 +107,10 @@ export default {
       groupsSelected: '{count} groups selected',
       groupsAll: 'All groups',
       groupsEmpty: 'No groups available',
+      groupsLoading: 'Loading groups…',
+      groupsLoadFailed: 'Failed to load groups',
+      groupsLoadFailedHint: 'The current monitor scope is preserved. You can save other settings or retry loading groups.',
+      retryGroups: 'Refresh groups',
       errorsTitle: 'Error categories and ignores',
       errorsHint:
         'Checked “ignore” categories are excluded from error rate and health score, but still appear greyed in the error breakdown. Unmatched errors roll into “Other”.',

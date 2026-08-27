@@ -25,6 +25,7 @@
 | [上游同步手册](./UPSTREAM_SYNC_PLAYBOOK.md) | `active` | 合并、验证、部署和回滚 | 发布负责人 | 2026-07-20 |
 | [复合路由组](./COMPOSITE_GROUPS.md) | `active` | 复合组路由、优先级与管理配置 | 平台维护者 | 2026-07-26 |
 | [Channel Monitor V2 安全默认值与渐进回填](./channel-monitor-v2-safe-defaults.md) | `active` | V2 模式默认值、渐进回填和错误去重约束 | 平台维护者 | 2026-08-15 |
+| [渠道监控与站点存活接口](./CHANNEL_MONITOR_API.md) | `active` | 站点存活、V1/V2 渠道监控接口、认证边界与外部机器人安全限制 | 平台维护者 | 2026-08-28 |
 | [图像工作室](./IMAGE_STUDIO.md) | `active` | 当前产品行为、接口和运维不变量 | 图像工作室维护者 | 2026-07-18 |
 | [GPT / Grok 图片生成 API](./IMAGE_GENERATION_API.md) | `active` | 同步生成/编辑、`n=1-10`、实际尺寸和私有临时 URL | API 维护者 | 2026-07-18 |
 | [Batch Image 持久批任务](./BATCH_IMAGE_API.md) | `active` | Gemini 多 prompt 预检、提交、恢复、结算和下载 | API 维护者 | 2026-07-18 |

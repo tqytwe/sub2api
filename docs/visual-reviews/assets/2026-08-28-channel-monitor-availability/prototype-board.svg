@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="900" viewBox="0 0 1440 900" role="img" aria-labelledby="title desc">
+  <title id="title">渠道监控可用性修复静态原型评审板</title>
+  <desc id="desc">左侧为普通用户导航新增渠道状态，右侧为管理员 V2 配置分组加载失败但其他设置仍可保存的状态。</desc>
+  <rect width="1440" height="900" fill="#f7f8fa"/>
+  <text x="56" y="58" fill="#172033" font-family="Arial, sans-serif" font-size="28" font-weight="700">渠道监控可用性修复</text>
+  <text x="56" y="88" fill="#64748b" font-family="Arial, sans-serif" font-size="15">静态评审板，非浏览器截图。入口与分组加载失败状态的实现边界。</text>
+  <rect x="48" y="126" width="548" height="712" rx="8" fill="#ffffff" stroke="#d9dee7"/>
+  <text x="76" y="168" fill="#172033" font-family="Arial, sans-serif" font-size="20" font-weight="700">登录用户侧栏</text>
+  <text x="76" y="195" fill="#64748b" font-family="Arial, sans-serif" font-size="14">渠道监控启用时显示；不受“可用渠道”开关影响</text>
+  <rect x="76" y="228" width="492" height="51" rx="6" fill="#ffffff"/>
+  <text x="104" y="260" fill="#334155" font-family="Arial, sans-serif" font-size="16">仪表盘</text>
+  <rect x="76" y="286" width="492" height="51" rx="6" fill="#ffffff"/>
+  <text x="104" y="318" fill="#334155" font-family="Arial, sans-serif" font-size="16">API 密钥</text>
+  <rect x="76" y="344" width="492" height="51" rx="6" fill="#ffffff"/>
+  <text x="104" y="376" fill="#334155" font-family="Arial, sans-serif" font-size="16">用量记录</text>
+  <rect x="76" y="402" width="492" height="51" rx="6" fill="#e8f1ff" stroke="#3b82f6"/>
+  <path d="M104 435c7-8 16-8 23 0m-27 4c10-12 24-12 34 0m-38 4c14-16 32-16 46 0" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round"/>
+  <text x="150" y="435" fill="#1d4ed8" font-family="Arial, sans-serif" font-size="16" font-weight="700">渠道状态</text>
+  <text x="150" y="459" fill="#64748b" font-family="Arial, sans-serif" font-size="13">/monitor · 仅登录用户 · 受渠道监控开关控制</text>
+  <rect x="76" y="484" width="492" height="51" rx="6" fill="#ffffff"/>
+  <text x="104" y="516" fill="#334155" font-family="Arial, sans-serif" font-size="16">钱包</text>
+  <rect x="76" y="592" width="492" height="152" rx="8" fill="#f8fafc" stroke="#d9dee7"/>
+  <text x="100" y="628" fill="#172033" font-family="Arial, sans-serif" font-size="15" font-weight="700">可见性规则</text>
+  <text x="100" y="659" fill="#475569" font-family="Arial, sans-serif" font-size="14">channel_monitor_enabled = true: 显示</text>
+  <text x="100" y="686" fill="#475569" font-family="Arial, sans-serif" font-size="14">available_channels_enabled: 不参与判断</text>
+  <text x="100" y="713" fill="#475569" font-family="Arial, sans-serif" font-size="14">游客与管理员个人导航: 不新增入口</text>
+  <rect x="628" y="126" width="764" height="712" rx="8" fill="#ffffff" stroke="#d9dee7"/>
+  <text x="660" y="168" fill="#172033" font-family="Arial, sans-serif" font-size="20" font-weight="700">管理员 V2 数据监控配置</text>
+  <text x="660" y="195" fill="#64748b" font-family="Arial, sans-serif" font-size="14">配置已加载，分组请求独立失败，不阻断保存。</text>
+  <rect x="1170" y="145" width="174" height="42" rx="6" fill="#2563eb"/>
+  <text x="1235" y="172" text-anchor="middle" fill="#ffffff" font-family="Arial, sans-serif" font-size="15" font-weight="700">保存</text>
+  <line x1="660" y1="220" x2="1344" y2="220" stroke="#e2e8f0"/>
+  <text x="660" y="264" fill="#172033" font-family="Arial, sans-serif" font-size="16" font-weight="700">启用 V2 被动监控</text>
+  <rect x="1278" y="241" width="56" height="28" rx="14" fill="#2563eb"/>
+  <circle cx="1320" cy="255" r="10" fill="#ffffff"/>
+  <text x="660" y="315" fill="#172033" font-family="Arial, sans-serif" font-size="16" font-weight="700">刷新间隔</text>
+  <rect x="660" y="334" width="190" height="42" rx="6" fill="#ffffff" stroke="#cbd5e1"/>
+  <text x="680" y="361" fill="#334155" font-family="Arial, sans-serif" font-size="15">60 秒</text>
+  <text x="660" y="429" fill="#172033" font-family="Arial, sans-serif" font-size="16" font-weight="700">纳入分组</text>
+  <rect x="660" y="450" width="684" height="92" rx="6" fill="#fff7ed" stroke="#f59e0b"/>
+  <circle cx="688" cy="480" r="11" fill="#f59e0b"/>
+  <text x="688" y="485" text-anchor="middle" fill="#ffffff" font-family="Arial, sans-serif" font-size="15" font-weight="700">!</text>
+  <text x="714" y="480" fill="#9a3412" font-family="Arial, sans-serif" font-size="15" font-weight="700">分组列表加载失败</text>
+  <text x="714" y="506" fill="#9a3412" font-family="Arial, sans-serif" font-size="14">当前监控范围已保留。可继续保存其他配置，或重试加载分组。</text>
+  <rect x="1192" y="485" width="122" height="34" rx="6" fill="#ffffff" stroke="#f59e0b"/>
+  <text x="1253" y="507" text-anchor="middle" fill="#9a3412" font-family="Arial, sans-serif" font-size="14" font-weight="700">刷新分组</text>
+  <text x="660" y="602" fill="#172033" font-family="Arial, sans-serif" font-size="16" font-weight="700">平台与模型</text>
+  <rect x="660" y="621" width="684" height="76" rx="6" fill="#f8fafc" stroke="#d9dee7"/>
+  <text x="682" y="651" fill="#334155" font-family="Arial, sans-serif" font-size="14">OpenAI · 启用 · 选择模型</text>
+  <text x="682" y="678" fill="#64748b" font-family="Arial, sans-serif" font-size="13">其他已加载配置继续可编辑</text>
+  <text x="660" y="782" fill="#64748b" font-family="Arial, sans-serif" font-size="13">配置失败时改为整页错误状态与“重试加载配置”，不展示空白表单。</text>
+</svg>

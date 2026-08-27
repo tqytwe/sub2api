@@ -36,9 +36,9 @@ check "AppSidebar has buildGrowthNavChildren" \
 check "AppSidebar hides version badge from non-admin users" \
   grep -q 'VersionBadge v-if="isAdmin"' "$ROOT/frontend/src/components/layout/AppSidebar.vue"
 
-check "AppSidebar hides channel entries from user nav" \
+check "AppSidebar keeps available channels out and gates channel status" \
   grep -qv "'/available-channels'" "$ROOT/frontend/src/components/layout/AppSidebar.vue" && \
-  grep -qv "path: '/monitor'" "$ROOT/frontend/src/components/layout/AppSidebar.vue"
+  grep -q "path: '/monitor', label: t('nav.channelStatus'), icon: SignalIcon, featureFlag: flagChannelMonitor" "$ROOT/frontend/src/components/layout/AppSidebar.vue"
 
 check "tailwind primary is ink (not teal)" \
   grep -q "'#0a0a0a'" "$ROOT/frontend/tailwind.config.js" && \

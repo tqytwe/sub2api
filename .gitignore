@@ -141,6 +141,7 @@ deploy/docker-compose.override.yml
 .gocache/
 vite.config.js
 docs/*
+!docs/CHANNEL_MONITOR_API.md
 !docs/PAYMENT.md
 !docs/PAYMENT_CN.md
 !docs/ANDROID_PLAY_BILLING_RUNBOOK.md
