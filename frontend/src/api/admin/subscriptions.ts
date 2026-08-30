@@ -4,6 +4,7 @@
  */
 
 import { apiClient } from '../client'
+import { normalizeSubscriptionProgress } from '../subscriptions'
 import type {
   UserSubscription,
   SubscriptionProgress,
@@ -65,8 +66,8 @@ export async function getById(id: number): Promise<UserSubscription> {
  * @returns Subscription progress with usage stats
  */
 export async function getProgress(id: number): Promise<SubscriptionProgress> {
-  const { data } = await apiClient.get<SubscriptionProgress>(`/admin/subscriptions/${id}/progress`)
-  return data
+  const { data } = await apiClient.get<unknown>(`/admin/subscriptions/${id}/progress`)
+  return normalizeSubscriptionProgress(data)
 }
 
 /**

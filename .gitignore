@@ -155,6 +155,7 @@ docs/*
 !docs/IMAGE_STUDIO.md
 !docs/GROWTH_PLAY.md
 !docs/MODEL_PRICING_CN.md
+!docs/V182_P0_DOCS_SUBSCRIPTIONS_CONTRACT.md
 !docs/FRONTEND_DESIGN_SYSTEM.md
 !docs/FRONTEND_EXPERIENCE_REMEDIATION_PLAN.md
 !docs/frontend-design-governance.json

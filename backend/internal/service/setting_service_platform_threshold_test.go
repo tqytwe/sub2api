@@ -144,6 +144,27 @@ func TestUpdateSettings_OmittedAccountSchedulingThresholdsDoesNotCacheDefaults(t
 	require.NotContains(t, got, "kiro")
 }
 
+func TestBuildSystemSettingsUpdatesRejectsUnsafeFrontendURL(t *testing.T) {
+	svc := newSettingServiceForPlatformThresholdTest(nil)
+
+	updates, err := svc.buildSystemSettingsUpdates(context.Background(), &SystemSettings{
+		FrontendURL: " https://www.jisudeng.com/ ",
+	})
+	require.NoError(t, err)
+	require.Equal(t, "https://www.jisudeng.com/", updates[SettingKeyFrontendURL])
+
+	for _, raw := range []string{
+		"javascript:alert(1)",
+		"https://www.jisudeng.com/?token=not-allowed",
+		"https://operator:secret@www.jisudeng.com",
+		"https://www.jisudeng.com/#fragment",
+		"https://www.jisudeng.com/#",
+	} {
+		_, err := svc.buildSystemSettingsUpdates(context.Background(), &SystemSettings{FrontendURL: raw})
+		require.Error(t, err, raw)
+	}
+}
+
 func TestAccountSchedulingThresholds_InvalidStoredValueUsesSameDefaultsInSettingsAndCache(t *testing.T) {
 	svc := newSettingServiceForPlatformThresholdTest(map[string]string{
 		SettingKeyAccountSchedulingThresholds: `{"openai":0,"grok":88,"kiro":87}`,

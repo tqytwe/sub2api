@@ -84,7 +84,7 @@ watch(
       }
 
       // User logged in: preload subscriptions and start polling
-      subscriptionStore.fetchActiveSubscriptions().catch((error) => {
+      subscriptionStore.refreshActiveSubscriptionState().catch((error) => {
         console.error('Failed to preload subscriptions:', error)
       })
       subscriptionStore.startPolling()

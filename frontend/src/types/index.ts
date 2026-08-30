@@ -2109,27 +2109,28 @@ export interface SubscriptionPurchaseOrder {
 }
 
 export interface SubscriptionProgress {
-  subscription_id: number
-  daily: {
-    used: number
-    limit: number | null
-    percentage: number
-    reset_in_seconds: number | null
-  } | null
-  weekly: {
-    used: number
-    limit: number | null
-    percentage: number
-    reset_in_seconds: number | null
-  } | null
-  monthly: {
-    used: number
-    limit: number | null
-    percentage: number
-    reset_in_seconds: number | null
-  } | null
-  expires_at: string | null
-  days_remaining: number | null
+  id: number
+  groupName: string
+  expiresAt: string | null
+  expiresInDays: number | null
+  daily: SubscriptionUsageWindow | null
+  weekly: SubscriptionUsageWindow | null
+  monthly: SubscriptionUsageWindow | null
+}
+
+export interface SubscriptionUsageWindow {
+  limitUsd: number | null
+  usedUsd: number
+  remainingUsd: number | null
+  percentage: number
+  windowStart: string | null
+  resetsAt: string | null
+  resetsInSeconds: number | null
+}
+
+export interface SubscriptionProgressEntry {
+  subscription: UserSubscription | null
+  progress: SubscriptionProgress
 }
 
 export interface AssignSubscriptionRequest {

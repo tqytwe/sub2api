@@ -196,6 +196,8 @@ vi.mock("vue-i18n", async () => {
     "admin.settings.paymentVisibleMethods.sourceRequiredError": "{title} 已启用，请先选择支付来源。",
     "admin.settings.payment.configGuide": "查看支付配置说明",
     "admin.settings.payment.findProvider": "查看支持的支付方式",
+    "admin.settings.registration.frontendUrlInvalid":
+      "前端地址必须是无查询参数、片段或登录信息的完整 HTTP(S) 地址。",
     "admin.settings.openaiExperimentalScheduler.title": "OpenAI 实验调度策略",
     "admin.settings.openaiExperimentalScheduler.description": "默认关闭。开启后仅影响本网关在 OpenAI 账号间的实验性调度选择逻辑，不代表上游 OpenAI 官方能力。",
     "admin.settings.openaiExperimentalScheduler.lowRatePriorityTitle": "低倍率优先",
@@ -626,6 +628,15 @@ describe("admin SettingsView email domain quota copy", () => {
     expect(enQuotaHint).toContain("one account");
     expect(enQuotaHint).toContain("When disabled");
   });
+
+  it("provides the frontend URL validation error in both locales", () => {
+    expect(zhSettings.settings.registration.frontendUrlInvalid).toContain(
+      "查询参数",
+    );
+    expect(enSettings.settings.registration.frontendUrlInvalid).toContain(
+      "query",
+    );
+  });
 });
 
 describe("admin SettingsView payment visible method controls", () => {
@@ -799,6 +810,99 @@ describe("admin SettingsView payment visible method controls", () => {
 
     expect(wrapper.text()).not.toContain("可见方式");
     expect(wrapper.text()).not.toContain("支付来源");
+  });
+
+  it("keeps the canonical frontend URL editable while email verification and password reset are disabled", async () => {
+    const wrapper = mountView();
+    await flushPromises();
+    await openSecurityTab(wrapper);
+
+    const input = wrapper.get('[data-testid="frontend-url-field"] input');
+    expect(input.exists()).toBe(true);
+
+    await input.setValue("https://www.jisudeng.com");
+    await wrapper.find("form").trigger("submit.prevent");
+    await flushPromises();
+
+    expect(updateSettings).toHaveBeenCalledWith(
+      expect.objectContaining({ frontend_url: "https://www.jisudeng.com" }),
+    );
+  });
+
+  it("keeps an unsafe frontend URL visible and blocks the audited settings save", async () => {
+    getSettings.mockResolvedValueOnce({
+      ...baseSettingsResponse,
+      email_verify_enabled: true,
+      password_reset_enabled: true,
+      frontend_url: "https://www.jisudeng.com/?token=must-not-save",
+    });
+
+    const wrapper = mountView();
+    await flushPromises();
+    await openSecurityTab(wrapper);
+
+    const input = wrapper.get('[data-testid="frontend-url-field"] input');
+    expect((input.element as HTMLInputElement).value).toBe(
+      "https://www.jisudeng.com/?token=must-not-save",
+    );
+
+    await wrapper.find("form").trigger("submit.prevent");
+    await flushPromises();
+
+    expect(updateSettings).not.toHaveBeenCalled();
+    expect(input.attributes("aria-invalid")).toBe("true");
+    expect(input.attributes("aria-describedby")).toBe("frontend-url-error");
+    expect(wrapper.get("#frontend-url-error").text()).toContain(
+      "前端地址必须是无查询参数",
+    );
+    expect(showError).toHaveBeenCalledWith(
+      "前端地址必须是无查询参数、片段或登录信息的完整 HTTP(S) 地址。",
+    );
+
+    for (const unsafeFrontendUrl of [
+      "https://www.jisudeng.com/#fragment",
+      "https://operator:secret@www.jisudeng.com",
+      "/relative",
+      "javascript:alert(1)",
+    ]) {
+      await input.setValue(unsafeFrontendUrl);
+      await wrapper.find("form").trigger("submit.prevent");
+      await flushPromises();
+
+      expect(updateSettings).not.toHaveBeenCalled();
+      expect(input.attributes("aria-invalid")).toBe("true");
+    }
+
+    await input.setValue(" https://www.jisudeng.com ");
+    await flushPromises();
+    expect(input.attributes("aria-invalid")).toBeUndefined();
+    expect(wrapper.find("#frontend-url-error").exists()).toBe(false);
+
+    await wrapper.find("form").trigger("submit.prevent");
+    await flushPromises();
+    expect(updateSettings).toHaveBeenCalledWith(
+      expect.objectContaining({ frontend_url: "https://www.jisudeng.com" }),
+    );
+  });
+
+  it("trims a canonical frontend URL before the audited settings save", async () => {
+    getSettings.mockResolvedValueOnce({
+      ...baseSettingsResponse,
+      email_verify_enabled: true,
+      password_reset_enabled: true,
+      frontend_url: " https://www.jisudeng.com ",
+    });
+
+    const wrapper = mountView();
+    await flushPromises();
+    await openSecurityTab(wrapper);
+
+    await wrapper.find("form").trigger("submit.prevent");
+    await flushPromises();
+
+    expect(updateSettings).toHaveBeenCalledWith(
+      expect.objectContaining({ frontend_url: "https://www.jisudeng.com" }),
+    );
   });
 
   it("shows valid passkey RP configuration and persists the sign-in toggle", async () => {

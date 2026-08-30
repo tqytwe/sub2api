@@ -753,7 +753,7 @@ function onPaymentDone() {
   selectedPlan.value = null
   selectedPlanDetails.value = null
   if (wasSubscription) {
-    subscriptionStore.fetchActiveSubscriptions(true).catch(() => {})
+    subscriptionStore.refreshActiveSubscriptionState(true).catch(() => {})
   }
 }
 
@@ -762,7 +762,7 @@ async function onPaymentSuccess() {
   removeRecoverySnapshot()
   authStore.refreshUser()
   if (paymentState.value.orderType === 'subscription') {
-    subscriptionStore.fetchActiveSubscriptions(true).catch(() => {})
+    subscriptionStore.refreshActiveSubscriptionState(true).catch(() => {})
   }
   await redirectToPaymentResult(completedPayment)
 }
@@ -1466,7 +1466,7 @@ async function createOrder(orderAmount: number, orderType: OrderType, planId?: n
       removeRecoverySnapshot()
       Promise.resolve(authStore.refreshUser()).catch(() => {})
       if (orderType === 'subscription') {
-        subscriptionStore.fetchActiveSubscriptions(true).catch(() => {})
+        subscriptionStore.refreshActiveSubscriptionState(true).catch(() => {})
       }
       await redirectToPaymentResult(decision.paymentState)
       return
@@ -1640,7 +1640,7 @@ async function attemptMobileQrFallback(err: unknown, context: MobileQrFallbackCo
         removeRecoverySnapshot()
         Promise.resolve(authStore.refreshUser()).catch(() => {})
         if (sourcePayment.orderType === 'subscription') {
-          subscriptionStore.fetchActiveSubscriptions(true).catch(() => {})
+          subscriptionStore.refreshActiveSubscriptionState(true).catch(() => {})
         }
         await redirectToPaymentResult(sourcePayment)
         return true

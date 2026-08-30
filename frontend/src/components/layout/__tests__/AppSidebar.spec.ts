@@ -30,11 +30,13 @@ describe('AppSidebar custom SVG styles', () => {
   })
 })
 
-describe('AppSidebar custom docs menu icon', () => {
-  it('uses the built-in sidebar book icon for docs custom menu items', () => {
+describe('AppSidebar custom docs menu targets', () => {
+  it('uses the canonical menu resolver before routing native docs', () => {
     expect(componentSource).toContain('const BookIcon = {')
-    expect(componentSource).toContain('function isDocsCustomMenuItem')
+    expect(componentSource).toContain('resolveCustomMenuRoute')
+    expect(componentSource).toContain('isNativeDocsMenuTarget')
     expect(componentSource).toContain('function buildCustomMenuNavItem')
+    expect(componentSource).toContain('path: nativeDocsRoute ?? `/custom/${item.id}`')
     expect(componentSource).toContain('iconSvg: icon ? undefined : item.icon_svg')
     expect(componentSource).toContain('...customMenuItemsForUser.value.map(buildCustomMenuNavItem)')
     expect(componentSource).toContain('visible.push(buildCustomMenuNavItem(cm))')

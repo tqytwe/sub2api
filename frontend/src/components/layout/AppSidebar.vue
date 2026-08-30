@@ -300,6 +300,7 @@ import { sanitizeUrl } from '@/utils/url'
 import { localizedSiteName } from '@/utils/localizedPublicSettings'
 import { FeatureFlags, makeSidebarFlag } from '@/utils/featureFlags'
 import { useBatchImageAccess } from '@/composables/useBatchImageAccess'
+import { isNativeDocsMenuTarget, resolveCustomMenuRoute } from '@/router/customMenuTarget'
 
 interface NavItem {
   path: string
@@ -826,13 +827,6 @@ const flagOpsMonitoring = () => adminSettingsStore.opsMonitoringEnabled
 const flagAdminPayment = () => adminSettingsStore.paymentEnabled
 const flagBatchImageAccess = () => canUseBatchImage.value
 
-function isDocsCustomMenuItem(item: Pick<CustomMenuNavItem, 'label' | 'url'>): boolean {
-  const label = item.label.trim().toLowerCase()
-  const url = (item.url ?? '').trim().toLowerCase()
-
-  return label.includes('文档') || label.includes('文檔') || label.includes('docs') || url.includes('/docs')
-}
-
 function resolveCustomMenuLabel(label: string): string {
   const key = label.trim()
   if (/^nav\.[\w.-]+$/.test(key) && te(key)) {
@@ -842,10 +836,11 @@ function resolveCustomMenuLabel(label: string): string {
 }
 
 function buildCustomMenuNavItem(item: CustomMenuNavItem): NavItem {
-  const icon = isDocsCustomMenuItem(item) ? BookIcon : null
+  const nativeDocsRoute = resolveCustomMenuRoute(item, locale.value)
+  const icon = isNativeDocsMenuTarget(item) ? BookIcon : null
 
   return {
-    path: `/custom/${item.id}`,
+    path: nativeDocsRoute ?? `/custom/${item.id}`,
     label: resolveCustomMenuLabel(item.label),
     icon,
     iconSvg: icon ? undefined : item.icon_svg,

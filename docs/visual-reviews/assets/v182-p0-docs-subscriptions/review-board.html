@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>P0 Docs and Subscription Review Board</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --page: #f6f7f9;
+        --panel: #ffffff;
+        --line: #d9dee7;
+        --text: #182230;
+        --muted: #657386;
+        --blue: #175cd3;
+        --blue-soft: #eff6ff;
+        --danger: #b42318;
+        --danger-soft: #fef3f2;
+        --success: #067647;
+        --success-soft: #ecfdf3;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-width: 1000px;
+        background: var(--page);
+        color: var(--text);
+        font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      }
+      .shell { display: grid; grid-template-columns: 208px 1fr; min-height: 760px; }
+      .sidebar { background: #182230; color: #dce4ee; padding: 24px 16px; }
+      .brand { display: flex; align-items: center; gap: 10px; font-size: 17px; font-weight: 700; color: #fff; margin-bottom: 32px; }
+      .brand-mark { width: 28px; height: 28px; border-radius: 6px; background: #fff; color: #182230; display: grid; place-items: center; font-weight: 800; }
+      .nav-label { color: #93a2b5; font-size: 11px; margin: 22px 10px 8px; }
+      .nav { display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 6px; margin: 2px 0; }
+      .nav.active { background: #25476f; color: #fff; }
+      .nav .icon { width: 18px; text-align: center; color: #9abfff; }
+      .content { padding: 30px 36px; }
+      .topline { display: flex; align-items: center; justify-content: space-between; margin-bottom: 26px; }
+      h1 { margin: 0; font-size: 24px; line-height: 32px; font-weight: 650; }
+      .subtitle { margin-top: 4px; color: var(--muted); }
+      .tag { border: 1px solid var(--line); background: #fff; padding: 5px 9px; border-radius: 999px; color: var(--muted); font-size: 12px; }
+      .grid { display: grid; grid-template-columns: minmax(0, 1.07fr) minmax(320px, .93fr); gap: 20px; }
+      .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+      .panel-heading { padding: 16px 18px; border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; }
+      .panel-heading h2 { margin: 0; font-size: 16px; line-height: 24px; }
+      .panel-body { padding: 18px; }
+      .row { display: flex; align-items: flex-start; gap: 12px; padding: 12px 0; border-bottom: 1px solid #edf0f4; }
+      .row:last-child { border-bottom: 0; }
+      .route-icon { flex: 0 0 32px; width: 32px; height: 32px; display: grid; place-items: center; border-radius: 6px; background: var(--blue-soft); color: var(--blue); font-size: 16px; }
+      .copy { min-width: 0; flex: 1; }
+      .copy strong { display: block; font-weight: 600; }
+      .copy small { display: block; margin-top: 2px; color: var(--muted); overflow-wrap: anywhere; }
+      .path { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--blue); font-size: 12px; }
+      .alert { margin-top: 16px; padding: 12px; border-radius: 6px; border: 1px solid; }
+      .alert.error { color: var(--danger); background: var(--danger-soft); border-color: #fecdca; }
+      .alert.ok { color: var(--success); background: var(--success-soft); border-color: #abefc6; }
+      .form-row { margin-bottom: 18px; }
+      label { display: block; margin-bottom: 7px; font-weight: 600; }
+      input { width: 100%; height: 40px; border: 1px solid #98a2b3; border-radius: 6px; padding: 0 11px; color: var(--text); background: #fff; font: inherit; }
+      .hint { margin-top: 6px; color: var(--muted); font-size: 12px; }
+      .button { display: inline-flex; align-items: center; min-height: 40px; border: 0; border-radius: 6px; padding: 0 14px; background: var(--blue); color: #fff; font: 600 14px/1 inherit; }
+      .hidden-row { padding: 12px; border: 1px dashed #b8c0cc; border-radius: 6px; color: var(--muted); background: #f8fafc; }
+      [data-mode="baseline"] .native-only, [data-mode="baseline"] .updated-only { display: none; }
+      [data-mode="baseline"] .baseline-only { display: block; }
+      [data-mode="prototype"] .baseline-only, [data-mode="prototype"] .updated-only { display: none; }
+      [data-mode="prototype"] .native-only { display: block; }
+      [data-mode="updated"] .baseline-only { display: none; }
+      [data-mode="updated"] .native-only, [data-mode="updated"] .updated-only { display: block; }
+      [data-mode="updated"] .panel { border-color: #b8d7ff; }
+      .footer-note { margin-top: 20px; color: var(--muted); font-size: 12px; }
+    </style>
+  </head>
+  <body data-mode="updated">
+    <main class="shell">
+      <aside class="sidebar">
+        <div class="brand"><span class="brand-mark">J</span> 极速蹬</div>
+        <div class="nav-label">工作台</div>
+        <div class="nav"><span class="icon">⌂</span>仪表板</div>
+        <div class="nav"><span class="icon">◌</span>订阅管理</div>
+        <div class="nav active"><span class="icon">▤</span>使用文档</div>
+        <div class="nav-label">管理</div>
+        <div class="nav"><span class="icon">⚙</span>系统设置</div>
+      </aside>
+      <section class="content">
+        <div class="topline">
+          <div>
+            <h1>P0: 文档、双语与订阅边界</h1>
+            <div class="subtitle">复用现有导航、表单和订阅布局；没有新增页面框架。</div>
+          </div>
+          <span class="tag">static review board</span>
+        </div>
+        <div class="grid">
+          <article class="panel">
+            <div class="panel-heading"><h2>使用文档</h2><span class="path baseline-only">/custom/095790f89fc04920</span><span class="path native-only">/docs or /en/docs</span></div>
+            <div class="panel-body">
+              <div class="baseline-only">
+                <div class="row"><span class="route-icon">▤</span><div class="copy"><strong>自定义 iframe 页面</strong><small>https://www.jisudeng.com/docs?token=...</small></div></div>
+                <div class="alert error">www.jisudeng.com 拒绝了我们的连接请求。文档目标不允许被当前父页面嵌入。</div>
+              </div>
+              <div class="native-only">
+                <div class="row"><span class="route-icon">▤</span><div class="copy"><strong>同源原生文档路由</strong><small>严格匹配规范 origin 和 <span class="path">/docs</span> 或 <span class="path">/en/docs</span> 后导航；query 与 fragment 不进入路由。</small></div></div>
+                <div class="row"><span class="route-icon">↔</span><div class="copy"><strong>最后一次导航生效</strong><small>旧语言 chunk 完成时不能覆盖当前的 locale、html lang 或标题。</small></div></div>
+                <div class="alert ok">历史书签兼容跳转；第三方自定义页继续走既有 iframe 流程。第一方文档别名不接收 token、user_id、theme、locale 或 src_url。</div>
+              </div>
+            </div>
+          </article>
+          <article class="panel">
+            <div class="panel-heading"><h2>规范前端地址</h2><span class="path">/admin/settings</span></div>
+            <div class="panel-body">
+              <div class="baseline-only hidden-row">邮箱验证或密码重置关闭时，这个字段无法出现，历史非规范地址无法从审计流程修正。</div>
+              <div class="native-only">
+                <div class="form-row"><label for="frontend-url">前端地址</label><input id="frontend-url" value="https://www.jisudeng.com" readonly /><div class="hint">即使邮件开关关闭也保留可编辑入口。只接受无 query、fragment、userinfo 的绝对 HTTP(S) URL。</div></div>
+                <button class="button" type="button">保存设置</button>
+                <div class="updated-only alert ok">保存后继续通过既有审计流程生成邮件与外部跳转地址；CSP 始终保留 frame-ancestors 'self' 与 X-Frame-Options: SAMEORIGIN。</div>
+              </div>
+            </div>
+          </article>
+        </div>
+        <div class="footer-note">此图是可解码的静态审查板，不代表登录态或生产验收。发布后仍需在用户本机浏览器覆盖游客、普通用户、管理员，以及中英文、主题、缩放与键盘状态。</div>
+      </section>
+    </main>
+    <script>
+      const requested = new URLSearchParams(location.search).get('mode');
+      if (requested === 'baseline' || requested === 'prototype' || requested === 'updated') document.body.dataset.mode = requested;
+    </script>
+  </body>
+</html>

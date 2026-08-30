@@ -39,6 +39,19 @@ func TestNotificationEmailPreviewEscapesHTMLAndSanitizesSubject(t *testing.T) {
 	require.Contains(t, preview.HTML, `href=""`)
 }
 
+func TestNotificationEmailUnsubscribeURLPrefersCanonicalFrontendURL(t *testing.T) {
+	ctx := context.Background()
+	repo := newNotificationEmailMemorySettingRepo()
+	require.NoError(t, repo.Set(ctx, SettingKeyAPIBaseURL, "https://api.jisudeng.com"))
+	require.NoError(t, repo.Set(ctx, SettingKeyFrontendURL, "https://www.jisudeng.com/"))
+	svc := NewNotificationEmailService(repo, nil)
+
+	url, err := svc.buildUnsubscribeURL(ctx, "user@example.com", NotificationEmailEventBalanceLow)
+
+	require.NoError(t, err)
+	require.True(t, strings.HasPrefix(url, "https://www.jisudeng.com/api/v1/settings/email-unsubscribe?token="))
+}
+
 func TestNotificationEmailTemplateOverrideAndRestore(t *testing.T) {
 	ctx := context.Background()
 	repo := newNotificationEmailMemorySettingRepo()

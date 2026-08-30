@@ -5,6 +5,7 @@ export default {
     title: 'My Subscriptions',
     viewDetails: 'View subscription details',
     activeCount: '{count} active subscription(s)',
+    groupFallback: 'Group #{id}',
     daily: 'Daily',
     weekly: 'Weekly',
     monthly: 'Monthly',
@@ -111,6 +112,7 @@ export default {
 
   // User Subscriptions Page
   userSubscriptions: {
+    groupFallback: 'Group #{id}',
     title: 'My Subscriptions',
     description: 'View your subscription plans and usage',
     noActiveSubscriptions: 'No Active Subscriptions',
@@ -136,7 +138,12 @@ export default {
     resetIn: 'Resets in {time}',
     quotaEndsIn: 'Quota ends in {time}',
     windowNotActive: 'Awaiting first use',
-    usageOf: '{used} of {limit}'
+    usageOf: '{used} of {limit}',
+    duration: {
+      daysHours: '{days} days {hours} hours',
+      hoursMinutes: '{hours} hours {minutes} minutes',
+      minutes: '{minutes} minutes',
+    }
   },
 
   // Onboarding Tour

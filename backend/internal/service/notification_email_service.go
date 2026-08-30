@@ -591,7 +591,10 @@ func (s *NotificationEmailService) baseURL(ctx context.Context) string {
 	if s == nil || s.settingRepo == nil {
 		return ""
 	}
-	for _, key := range []string{SettingKeyAPIBaseURL, SettingKeyFrontendURL} {
+	// User-facing notification links must follow the public site origin. The
+	// API base can legitimately point at a gateway host and must not override a
+	// separately configured canonical frontend URL.
+	for _, key := range []string{SettingKeyFrontendURL, SettingKeyAPIBaseURL} {
 		value, err := s.settingRepo.GetValue(ctx, key)
 		if err == nil && strings.TrimSpace(value) != "" {
 			return strings.TrimRight(strings.TrimSpace(value), "/")

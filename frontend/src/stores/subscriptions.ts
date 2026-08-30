@@ -6,7 +6,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import subscriptionsAPI from '@/api/subscriptions'
-import type { UserSubscription } from '@/types'
+import type { SubscriptionProgressEntry, UserSubscription } from '@/types'
 
 // Cache TTL: 60 seconds
 const CACHE_TTL_MS = 60_000
@@ -17,18 +17,25 @@ let requestGeneration = 0
 export const useSubscriptionStore = defineStore('subscriptions', () => {
   // State
   const activeSubscriptions = ref<UserSubscription[]>([])
+  const activeSubscriptionProgress = ref<SubscriptionProgressEntry[]>([])
   const loading = ref(false)
+  const progressLoading = ref(false)
   const loaded = ref(false)
+  const progressLoaded = ref(false)
   const lastFetchedAt = ref<number | null>(null)
+  const progressLastFetchedAt = ref<number | null>(null)
 
   // In-flight request deduplication
   let activePromise: Promise<UserSubscription[]> | null = null
+  let progressPromise: Promise<SubscriptionProgressEntry[]> | null = null
+  let progressRequestGeneration = 0
 
   // Auto-refresh interval
   let pollerInterval: ReturnType<typeof setInterval> | null = null
 
   // Computed
   const hasActiveSubscriptions = computed(() => activeSubscriptions.value.length > 0)
+  const hasActiveSubscriptionProgress = computed(() => activeSubscriptionProgress.value.length > 0)
 
   /**
    * Fetch active subscriptions with caching and deduplication
@@ -83,13 +90,73 @@ export const useSubscriptionStore = defineStore('subscriptions', () => {
   }
 
   /**
+   * Fetch normalized progress for active subscriptions. This is intentionally
+   * separate from the legacy subscription list because the progress endpoint
+   * owns current quota and reset-window values.
+   */
+  async function fetchSubscriptionProgress(force = false): Promise<SubscriptionProgressEntry[]> {
+    const now = Date.now()
+
+    if (
+      !force &&
+      progressLoaded.value &&
+      progressLastFetchedAt.value &&
+      now - progressLastFetchedAt.value < CACHE_TTL_MS
+    ) {
+      return activeSubscriptionProgress.value
+    }
+
+    if (progressPromise && !force) {
+      return progressPromise
+    }
+
+    const currentGeneration = ++progressRequestGeneration
+    progressLoading.value = true
+    const requestPromise = subscriptionsAPI
+      .getSubscriptionsProgress()
+      .then((data) => {
+        if (currentGeneration === progressRequestGeneration) {
+          activeSubscriptionProgress.value = data
+          progressLoaded.value = true
+          progressLastFetchedAt.value = Date.now()
+        }
+        return data
+      })
+      .catch((error) => {
+        console.error('Failed to fetch subscription progress:', error)
+        throw error
+      })
+      .finally(() => {
+        if (progressPromise === requestPromise) {
+          progressLoading.value = false
+          progressPromise = null
+        }
+      })
+
+    progressPromise = requestPromise
+    return progressPromise
+  }
+
+  /**
+   * Refresh the two active-subscription representations together. Callers
+   * that need an immediate post-purchase update must use this instead of the
+   * legacy metadata-only fetch.
+   */
+  async function refreshActiveSubscriptionState(force = false): Promise<void> {
+    await Promise.all([
+      fetchActiveSubscriptions(force),
+      fetchSubscriptionProgress(force),
+    ])
+  }
+
+  /**
    * Start auto-refresh polling 
    */
   function startPolling() {
     if (pollerInterval) return
 
     pollerInterval = setInterval(() => {
-      fetchActiveSubscriptions(true).catch((error) => {
+      refreshActiveSubscriptionState(true).catch((error) => {
         console.error('Subscription polling failed:', error)
       })
     }, 5 * 60 * 1000)
@@ -110,10 +177,17 @@ export const useSubscriptionStore = defineStore('subscriptions', () => {
    */
   function clear() {
     requestGeneration++
+    progressRequestGeneration++
     activePromise = null
+    progressPromise = null
     activeSubscriptions.value = []
+    activeSubscriptionProgress.value = []
+    loading.value = false
+    progressLoading.value = false
     loaded.value = false
+    progressLoaded.value = false
     lastFetchedAt.value = null
+    progressLastFetchedAt.value = null
     stopPolling()
   }
 
@@ -122,16 +196,22 @@ export const useSubscriptionStore = defineStore('subscriptions', () => {
    */
   function invalidateCache() {
     lastFetchedAt.value = null
+    progressLastFetchedAt.value = null
   }
 
   return {
     // State
     activeSubscriptions,
+    activeSubscriptionProgress,
     loading,
+    progressLoading,
     hasActiveSubscriptions,
+    hasActiveSubscriptionProgress,
 
     // Actions
     fetchActiveSubscriptions,
+    fetchSubscriptionProgress,
+    refreshActiveSubscriptionState,
     startPolling,
     stopPolling,
     clear,

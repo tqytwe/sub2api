@@ -1207,9 +1207,34 @@ func (s *SubscriptionService) GetSubscriptionProgress(ctx context.Context, subsc
 	if err != nil {
 		return nil, ErrSubscriptionNotFound
 	}
+	return s.subscriptionProgressForLoadedSubscription(ctx, sub)
+}
+
+// GetUserSubscriptionProgress returns progress only when the subscription
+// belongs to the authenticated user. A non-owner receives the same not-found
+// result as a missing subscription so this endpoint cannot reveal another
+// user's subscription IDs or usage.
+func (s *SubscriptionService) GetUserSubscriptionProgress(ctx context.Context, userID, subscriptionID int64) (*SubscriptionProgress, error) {
+	if userID <= 0 || subscriptionID <= 0 {
+		return nil, ErrSubscriptionNotFound
+	}
+
+	sub, err := s.userSubRepo.GetByID(ctx, subscriptionID)
+	if err != nil || sub == nil || sub.UserID != userID {
+		return nil, ErrSubscriptionNotFound
+	}
+
+	return s.subscriptionProgressForLoadedSubscription(ctx, sub)
+}
+
+func (s *SubscriptionService) subscriptionProgressForLoadedSubscription(ctx context.Context, sub *UserSubscription) (*SubscriptionProgress, error) {
+	if sub == nil {
+		return nil, ErrSubscriptionNotFound
+	}
 
 	group := sub.Group
 	if group == nil {
+		var err error
 		group, err = s.groupRepo.GetByID(ctx, sub.GroupID)
 		if err != nil {
 			return nil, err

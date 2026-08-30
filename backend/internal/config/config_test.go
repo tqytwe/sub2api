@@ -1546,6 +1546,9 @@ func TestValidateAbsoluteHTTPURL(t *testing.T) {
 	if err := ValidateAbsoluteHTTPURL("https://example.com/#frag"); err == nil {
 		t.Fatalf("ValidateAbsoluteHTTPURL should reject fragment")
 	}
+	if err := ValidateAbsoluteHTTPURL("https://example.com/#"); err == nil {
+		t.Fatalf("ValidateAbsoluteHTTPURL should reject an empty fragment separator")
+	}
 }
 
 func TestValidateServerFrontendURL(t *testing.T) {
