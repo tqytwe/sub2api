@@ -290,13 +290,13 @@ func TestSyncMembershipOrderNotifiesForumOnTierUpgrade(t *testing.T) {
 	t.Parallel()
 
 	observer := &vipChangeObserverStub{}
-	// 默认档位下 0 元为 V0、100 元为 V2。settingService 为 nil 时 GetRuntime 返回
+	// 默认档位下 0 元为 V0、500 元为 V2。settingService 为 nil 时 GetRuntime 返回
 	// 空 runtime，GetVIPTier 会回落到默认档位，因此边界依然是真实的。
-	repo := &vipSyncMembershipRepo{before: 0, after: 100}
+	repo := &vipSyncMembershipRepo{before: 0, after: 500}
 	svc := &PlayService{repo: repo, userRepo: &userRepoStub{user: &User{ID: 42, Role: RoleUser}}}
 	svc.SetVIPChangeObserver(observer)
 
-	err := svc.SyncMembershipOrder(context.Background(), 9101, 42, "recharge", 100, 0, nil, "paid")
+	err := svc.SyncMembershipOrder(context.Background(), 9101, 42, "recharge", 500, 0, nil, "paid")
 	require.NoError(t, err)
 
 	require.Len(t, observer.calls, 1, "跨档应通知论坛")
@@ -657,11 +657,11 @@ func TestPublishVIPConfigNotifiesForumForAffectedUsers(t *testing.T) {
 	t.Parallel()
 
 	observer := &vipChangeObserverStub{}
-	// user 1: 100 元 → V2 under default tiers; user 2: 10 元 → V0 (unchanged in new cfg).
+	// user 1: 500 元 → V2 under default tiers; user 2: 10 元 → V0 (unchanged in new cfg).
 	// New tiers move V1 threshold from 50→80, so user 1 stays V2, user 2 stays V0.
 	// To get a tier change: user 3 at 60 元 goes V1→V0 when V1 threshold moves to 80.
 	totals := map[int64]decimal.Decimal{
-		1: decimal.NewFromFloat(100), // V2 → V2 (unchanged)
+		1: decimal.NewFromFloat(500), // V2 → V2 (unchanged)
 		2: decimal.NewFromFloat(10),  // V0 → V0 (unchanged)
 		3: decimal.NewFromFloat(60),  // V1 → V0 (downgraded)
 	}
