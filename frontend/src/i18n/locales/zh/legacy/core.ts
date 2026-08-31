@@ -373,6 +373,7 @@ export default {
   },
   groups: {
     subscription: '订阅',
+    rate: '倍率',
   },
   monitorCommon: {
     quota: {
@@ -404,6 +405,7 @@ export default {
     expiresToday: '今天到期',
     expiresTomorrow: '明天到期',
     daysRemaining: '剩余 {days} 天',
+    groupFallback: '分组 #{id}',
   },
   support: {
     trigger: '联系客服',

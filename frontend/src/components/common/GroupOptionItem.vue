@@ -32,7 +32,7 @@
             <span class="font-bold">{{ userRateMultiplier }}x</span>
           </template>
           <template v-else>
-            {{ rateMultiplier }}x {{ t('admin.groups.rateLabel') }}
+            {{ rateMultiplier }}x {{ t('groups.rate') }}
           </template>
         </span>
         <span

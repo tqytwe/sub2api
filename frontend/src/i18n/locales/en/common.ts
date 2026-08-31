@@ -57,6 +57,7 @@ export default {
     toggleMenu: 'Toggle menu',
     closeMenu: 'Close menu',
     userMenu: 'User menu',
+    userId: 'User #{id}',
     pageNotFound: 'Page not found',
     enabled: 'Enabled',
     disabled: 'Disabled',

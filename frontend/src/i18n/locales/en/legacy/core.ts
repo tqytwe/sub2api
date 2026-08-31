@@ -373,6 +373,7 @@ export default {
   },
   groups: {
     subscription: 'Sub',
+    rate: 'rate',
   },
   monitorCommon: {
     quota: {
@@ -404,6 +405,7 @@ export default {
     expiresToday: 'Expires today',
     expiresTomorrow: 'Expires tomorrow',
     daysRemaining: '{days} days left',
+    groupFallback: 'Group #{id}',
   },
   support: {
     trigger: 'Contact support',
