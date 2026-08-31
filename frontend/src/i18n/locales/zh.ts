@@ -1116,7 +1116,8 @@ const messages = {
 
   // Groups (shared)
   groups: {
-    subscription: '订阅'
+    subscription: '订阅',
+    rate: '倍率'
   },
 
   // API Keys

@@ -57,6 +57,7 @@ export default {
     toggleMenu: '切换菜单',
     closeMenu: '关闭菜单',
     userMenu: '用户菜单',
+    userId: '用户 #{id}',
     pageNotFound: '页面不存在',
     enabled: '已启用',
     disabled: '已禁用',

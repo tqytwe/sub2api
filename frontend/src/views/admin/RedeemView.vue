@@ -171,7 +171,7 @@
             <span class="text-sm text-gray-500 dark:text-dark-400">
               {{
                 row.issued_user?.email ||
-                (row.issued_to ? t('admin.redeem.userPrefix', { id: row.issued_to }) : '-')
+                (row.issued_to ? t('common.userId', { id: row.issued_to }) : '-')
               }}
             </span>
           </template>
@@ -193,7 +193,7 @@
 
           <template #cell-used_by="{ value, row }">
             <span class="text-sm text-gray-500 dark:text-dark-400">
-              {{ row.user?.email || (value ? t('admin.redeem.userPrefix', { id: value }) : '-') }}
+              {{ row.user?.email || (value ? t('common.userId', { id: value }) : '-') }}
             </span>
           </template>
 

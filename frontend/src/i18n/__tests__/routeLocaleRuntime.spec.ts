@@ -1,5 +1,5 @@
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { existsSync, readFileSync, statSync } from 'node:fs'
+import { dirname, resolve } from 'node:path'
 
 import { describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
@@ -20,6 +20,69 @@ function readPath(messages: Record<string, unknown>, path: string): unknown {
     if (!node || typeof node !== 'object') return undefined
     return (node as Record<string, unknown>)[key]
   }, messages)
+}
+
+const FRONTEND_SRC = resolve(process.cwd(), 'src')
+const SOURCE_EXTENSIONS = ['', '.ts', '.vue', '.js', '/index.ts', '/index.vue', '/index.js']
+const I18N_LITERAL_CALL = /(?:\bt|\$t)\s*\(\s*(['"])([A-Za-z][A-Za-z0-9_-]*(?:\.[A-Za-z0-9_-]+)+)\1/g
+const I18N_KEYPATH_ATTRIBUTE = /\bkeypath\s*=\s*(['"])([A-Za-z][A-Za-z0-9_-]*(?:\.[A-Za-z0-9_-]+)+)\1/g
+// Dynamic imports are lazy by definition and must not expand the initial
+// cold-visit dependency contract. They are covered when their own route is
+// visited; only statically imported Vue children belong to this scan.
+const LOCAL_SOURCE_IMPORT = /from\s*(['"])(@\/[^'"]+|\.{1,2}\/[^'"]+)\1/g
+
+function routeComponentFiles(): Map<string, string> {
+  const routerSource = readFileSync(resolve(FRONTEND_SRC, 'router/index.ts'), 'utf8')
+  const files = new Map<string, string>()
+  const routeWithComponent = /name:\s*'([^']+)'[\s\S]{0,1200}?component:\s*\(\)\s*=>\s*import\('(@\/[^']+)'\)/g
+
+  for (const match of routerSource.matchAll(routeWithComponent)) {
+    files.set(match[1], resolve(FRONTEND_SRC, match[2].slice(2)))
+  }
+  return files
+}
+
+function resolveSourceImport(sourceFile: string, specifier: string): string | null {
+  const unresolved = specifier.startsWith('@/')
+    ? resolve(FRONTEND_SRC, specifier.slice(2))
+    : resolve(dirname(sourceFile), specifier)
+
+  for (const extension of SOURCE_EXTENSIONS) {
+    const candidate = `${unresolved}${extension}`
+    if (existsSync(candidate) && statSync(candidate).isFile()) return candidate
+  }
+  return null
+}
+
+function componentLocaleKeys(entryFile: string): string[] {
+  const pending = [entryFile]
+  const visited = new Set<string>()
+  const keys = new Set<string>()
+
+  while (pending.length > 0) {
+    const sourceFile = pending.pop()
+    if (!sourceFile || visited.has(sourceFile) || !existsSync(sourceFile)) continue
+    visited.add(sourceFile)
+
+    const source = readFileSync(sourceFile, 'utf8')
+    for (const expression of [I18N_LITERAL_CALL, I18N_KEYPATH_ATTRIBUTE]) {
+      expression.lastIndex = 0
+      for (const match of source.matchAll(expression)) keys.add(match[2])
+    }
+
+    LOCAL_SOURCE_IMPORT.lastIndex = 0
+    for (const match of source.matchAll(LOCAL_SOURCE_IMPORT)) {
+      const dependency = resolveSourceImport(sourceFile, match[2])
+      // Only follow renderable Vue dependencies. Traversing API/store imports
+      // reaches the router and every unrelated route, which would turn a
+      // route-level cold-start test into a meaningless whole-app union test.
+      if (dependency?.startsWith(FRONTEND_SRC) && dependency.endsWith('.vue')) {
+        pending.push(dependency)
+      }
+    }
+  }
+
+  return [...keys].sort()
 }
 
 function translated(locale: 'zh' | 'en', path: string): string {
@@ -120,6 +183,29 @@ const MODEL_CATALOG_MEDIA_CAPABILITY_KEYS = [
 ] as const
 
 describe('route locale runtime scopes', () => {
+  it('keeps every route component static key available on a cold visit', async () => {
+    const routes = routeComponentFiles()
+    expect(routes.size).toBeGreaterThan(0)
+
+    for (const [routeName, componentFile] of routes) {
+      const keys = componentLocaleKeys(componentFile)
+      if (keys.length === 0) continue
+
+      for (const locale of ['zh', 'en'] as const) {
+        const fresh = await loadFreshI18n()
+        await fresh.ensureLocaleMessagesForRoute(routeName, locale)
+        const messages = fresh.i18n.global.getLocaleMessage(locale) as Record<string, unknown>
+
+        for (const key of keys) {
+          const value = readPath(messages, key)
+          expect(typeof value, `${locale}:${routeName}:${key}`).toBe('string')
+          expect((value as string).trim(), `${locale}:${routeName}:${key}`).not.toBe('')
+          expect(value, `${locale}:${routeName}:${key}`).not.toBe(key)
+        }
+      }
+    }
+  })
+
   it.each([
     {
       path: '/dashboard',

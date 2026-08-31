@@ -1118,7 +1118,8 @@ const messages = {
 
   // Groups (shared)
   groups: {
-    subscription: 'Sub'
+    subscription: 'Sub',
+    rate: 'rate'
   },
 
   // API Keys
