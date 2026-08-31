@@ -11,6 +11,7 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	dbent "github.com/Wei-Shaw/sub2api/ent"
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/stretchr/testify/require"
 
 	"entgo.io/ent/dialect"
@@ -53,6 +54,31 @@ type blindboxOpenRepo struct {
 	ledgerInTx        bool
 	balanceInTx       bool
 	membershipPaid    float64
+	events            []string
+}
+
+type playRedeemRewardIssuer struct {
+	code       *RedeemCode
+	claimed    []RedeemCodeRewardClaimRequest
+	replayRefs []string
+}
+
+func (i *playRedeemRewardIssuer) ClaimRedeemCodeRewardInTx(_ context.Context, request RedeemCodeRewardClaimRequest) (*RedeemCode, error) {
+	i.claimed = append(i.claimed, request)
+	if i.code == nil {
+		return nil, ErrCouponRewardPoolUnavailable
+	}
+	copy := *i.code
+	return &copy, nil
+}
+
+func (i *playRedeemRewardIssuer) GetRedeemCodeRewardByIssueRef(_ context.Context, _ int64, _ string, issueRef string) (*RedeemCode, error) {
+	i.replayRefs = append(i.replayRefs, issueRef)
+	if i.code == nil {
+		return nil, nil
+	}
+	copy := *i.code
+	return &copy, nil
 }
 
 func (r *blindboxOpenRepo) GetMembershipPaidTotal(context.Context, int64) (float64, error) {
@@ -113,12 +139,14 @@ func (r *blindboxOpenRepo) InsertBlindboxOpen(
 
 func (r *blindboxOpenRepo) InsertBlindboxOpenRecord(ctx context.Context, record PlayBlindboxOpenRecord) error {
 	r.recordInTx = dbent.TxFromContext(ctx) != nil
+	r.events = append(r.events, "action")
 	r.records = append(r.records, record)
 	return nil
 }
 
 func (r *blindboxOpenRepo) InsertRewardLedger(ctx context.Context, entry PlayRewardLedgerEntry) error {
 	r.ledgerInTx = dbent.TxFromContext(ctx) != nil
+	r.events = append(r.events, "ledger")
 	r.ledgerEntries = append(r.ledgerEntries, entry)
 	return nil
 }
@@ -127,6 +155,46 @@ type blindboxOpenUserRepo struct {
 	UserRepository
 	user           *User
 	balanceUpdates []float64
+}
+
+// blindboxGrowthRepo enables the production qualification path without
+// changing the legacy blindbox test double's default active behavior.
+type blindboxGrowthRepo struct {
+	*blindboxOpenRepo
+	signals       PlayGrowthEligibilitySignals
+	snapshots     []PlayGrowthEligibilitySnapshot
+	blindboxLinks []struct {
+		userID     int64
+		actionID   string
+		snapshotID int64
+	}
+}
+
+func (r *blindboxGrowthRepo) GetGrowthEligibilitySignals(context.Context, int64, time.Time, time.Time, time.Time) (PlayGrowthEligibilitySignals, error) {
+	return r.signals, nil
+}
+
+func (r *blindboxGrowthRepo) CreateGrowthEligibilitySnapshot(_ context.Context, snapshot PlayGrowthEligibilitySnapshot) (int64, error) {
+	r.snapshots = append(r.snapshots, snapshot)
+	return int64(900 + len(r.snapshots)), nil
+}
+
+func (r *blindboxGrowthRepo) LinkGrowthEligibilitySnapshot(context.Context, string, int64, time.Time, int64) error {
+	return nil
+}
+
+func (r *blindboxGrowthRepo) LinkBlindboxGrowthEligibilitySnapshot(_ context.Context, userID int64, actionID string, snapshotID int64) error {
+	r.events = append(r.events, "snapshot")
+	r.blindboxLinks = append(r.blindboxLinks, struct {
+		userID     int64
+		actionID   string
+		snapshotID int64
+	}{userID: userID, actionID: actionID, snapshotID: snapshotID})
+	return nil
+}
+
+func (r *blindboxGrowthRepo) InsertGrowthEnergyLedger(context.Context, PlayGrowthEnergyLedgerEntry) error {
+	return nil
 }
 
 func (r *blindboxOpenUserRepo) GetByID(context.Context, int64) (*User, error) {
@@ -408,6 +476,64 @@ func TestBlindboxOpenSameKeyReplaysWithoutSecondDrawOrBalanceMutation(t *testing
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
+func TestBlindboxRedeemCodeReplayReturnsSameCodeWithoutSecondClaim(t *testing.T) {
+	pool := defaultBlindboxPool()
+	issuer := &playCouponRewardIssuer{pool: &CouponRewardPoolVersion{
+		Activity:           CouponRewardActivityBlindbox,
+		Status:             CouponRewardPoolStatusPublished,
+		CouponWeightBP:     0,
+		RedeemCodeWeightBP: couponWeightBasisPoints,
+		BalanceWeightBP:    0,
+		RewardConfig: CouponRewardPoolConfig{RedeemEntries: []RedeemRewardPoolEntry{{
+			BatchName: "blindbox-codes",
+			CodeType:  RedeemTypeBalance,
+			WeightBP:  couponWeightBasisPoints,
+			Enabled:   true,
+		}}},
+	}}
+	redeem := &playRedeemRewardIssuer{code: &RedeemCode{
+		ID:                812,
+		Code:              "V182-REPLAY-CODE",
+		Type:              RedeemTypeBalance,
+		Value:             1,
+		Status:            StatusIssued,
+		BatchName:         "blindbox-codes",
+		IssueSource:       string(CouponRewardActivityBlindbox),
+		RewardPoolVersion: "redeem-v1",
+	}}
+	repo := &blindboxOpenRepo{lockedBalance: 1, countRecords: true}
+	settings := newCouponRewardSettingService(t, pool, true)
+	client, mock := newCouponRewardEntClient(t)
+	svc := NewPlayService(repo, nil, nil, settings, nil, client)
+	svc.SetCouponRewardIssuer(issuer)
+	svc.SetRedeemCodeRewardIssuer(redeem)
+	svc.rewardDrawSource = func(int64) (int64, error) { return 0, nil }
+	scopedKey, err := scopeBlindboxIdempotencyKey(42, "redeem-replay-open")
+	require.NoError(t, err)
+
+	mock.ExpectBegin()
+	mock.ExpectCommit()
+	first, err := svc.OpenBlindbox(context.Background(), 42, "redeem-replay-open")
+	require.NoError(t, err)
+	require.Equal(t, PlayRewardTypeRedeem, first.RewardType)
+	require.NotNil(t, first.RedeemCode)
+	require.Equal(t, "V182-REPLAY-CODE", first.RedeemCode.Code)
+	require.Len(t, redeem.claimed, 1)
+	require.Equal(t, scopedKey, redeem.claimed[0].IssueRef)
+
+	retry, err := svc.OpenBlindbox(context.Background(), 42, "redeem-replay-open")
+	require.NoError(t, err)
+	require.Equal(t, PlayRewardTypeRedeem, retry.RewardType)
+	require.NotNil(t, retry.RedeemCode)
+	require.Equal(t, first.RedeemCode.Code, retry.RedeemCode.Code)
+	require.Len(t, redeem.claimed, 1)
+	require.Equal(t, []string{redeem.claimed[0].IssueRef}, redeem.replayRefs)
+	require.Len(t, repo.records, 1)
+	require.Len(t, repo.ledgerEntries, 1)
+	require.Equal(t, []float64{-pool.Cost}, repo.balanceUpdates)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
 func TestGrantBalanceUsesPlayBalanceUpdateWithoutRechargeMutation(t *testing.T) {
 	repo := &blindboxOpenRepo{}
 	userRepo := &blindboxOpenUserRepo{}
@@ -492,4 +618,138 @@ func TestBlindboxOpenPoolReadFailureDoesNotGrantBalance(t *testing.T) {
 	require.Empty(t, repo.records)
 	require.Empty(t, repo.ledgerEntries)
 	require.Empty(t, userRepo.balanceUpdates)
+}
+
+func TestBlindboxExplorerCannotOpenOrDeductBalance(t *testing.T) {
+	pool := defaultBlindboxPool()
+	payload, err := json.Marshal(pool)
+	require.NoError(t, err)
+	settings := NewSettingService(&blindboxOpenSettingRepo{values: map[string]string{
+		SettingKeyPlayBlindboxEnabled:    "true",
+		SettingKeyPlayBlindboxPoolJSON:   string(payload),
+		SettingKeyPlayBlindboxDailyLimit: "10",
+	}}, nil)
+	baseRepo := &blindboxOpenRepo{lockedBalance: 10}
+	repo := &blindboxGrowthRepo{
+		blindboxOpenRepo: baseRepo,
+		signals: PlayGrowthEligibilitySignals{
+			EmailVerified:         true,
+			CreatedAt:             time.Date(2026, 8, 28, 12, 0, 0, 0, time.UTC),
+			HasRecentUsage:        false,
+			NetBalanceRecharge30d: 0,
+			HasActiveSubscription: false,
+		},
+	}
+	svc := NewPlayService(repo, nil, nil, settings, nil, nil)
+	svc.now = func() time.Time { return time.Date(2026, 8, 29, 12, 0, 0, 0, time.UTC) }
+
+	status, err := svc.GetBlindboxStatus(context.Background(), 42)
+	require.NoError(t, err)
+	require.Equal(t, PlayGrowthTierExplorer, status.GrowthEligibility.Tier)
+	require.Equal(t, PlayGrowthEligibilityReasonAccountTooNew, status.GrowthEligibility.PrimaryReason)
+	require.False(t, status.CanOpen)
+
+	result, err := svc.OpenBlindbox(context.Background(), 42, "explorer-open")
+
+	require.Nil(t, result)
+	require.ErrorIs(t, err, ErrPlayGrowthRewardIneligible)
+	require.Equal(t, "PLAY_GROWTH_REWARD_INELIGIBLE", infraerrors.Reason(err))
+	require.Equal(t, PlayGrowthEligibilityReasonAccountTooNew, infraerrors.FromError(err).Metadata["primary_reason"])
+	require.Empty(t, baseRepo.records)
+	require.Empty(t, baseRepo.ledgerEntries)
+	require.Empty(t, baseRepo.balanceUpdates)
+	require.False(t, baseRepo.lockInTx)
+}
+
+func TestBlindboxExplorerStatusDoesNotExposeRewardPool(t *testing.T) {
+	pool := defaultBlindboxPool()
+	payload, err := json.Marshal(pool)
+	require.NoError(t, err)
+	settings := NewSettingService(&blindboxOpenSettingRepo{values: map[string]string{
+		SettingKeyPlayBlindboxEnabled:    "true",
+		SettingKeyPlayBlindboxPoolJSON:   string(payload),
+		SettingKeyPlayBlindboxDailyLimit: "10",
+	}}, nil)
+	repo := &blindboxGrowthRepo{
+		blindboxOpenRepo: &blindboxOpenRepo{opens: 4},
+		signals: PlayGrowthEligibilitySignals{
+			EmailVerified: true,
+			CreatedAt:     time.Date(2026, 8, 28, 12, 0, 0, 0, time.UTC),
+		},
+	}
+	svc := NewPlayService(repo, nil, nil, settings, nil, nil)
+	svc.now = func() time.Time { return time.Date(2026, 8, 29, 12, 0, 0, 0, time.UTC) }
+
+	status, err := svc.GetBlindboxStatus(context.Background(), 42)
+	require.NoError(t, err)
+	require.Equal(t, PlayGrowthRewardEnergy, status.GrowthEligibility.RewardMode)
+	require.Equal(t, 4, status.OpensToday)
+	require.Empty(t, status.BlindboxPool.Version)
+	require.Empty(t, status.CurrentPool.Version)
+	require.Nil(t, status.NextPool)
+	require.Empty(t, status.CouponPrizes)
+	require.Zero(t, status.CostAmount)
+	require.Zero(t, status.ExpectedReward)
+	require.Zero(t, status.RTPCap)
+	require.Zero(t, status.PoolVersion)
+	require.False(t, status.CouponPoolReady)
+}
+
+func TestBlindboxRedeemableOpenPersistsEligibilitySnapshotInAuditLedger(t *testing.T) {
+	p := defaultBlindboxPool()
+	payload, err := json.Marshal(p)
+	require.NoError(t, err)
+	settings := NewSettingService(&blindboxOpenSettingRepo{values: map[string]string{
+		SettingKeyPlayBlindboxEnabled:    "true",
+		SettingKeyPlayBlindboxPoolJSON:   string(payload),
+		SettingKeyPlayBlindboxDailyLimit: "10",
+	}}, nil)
+	baseRepo := &blindboxOpenRepo{lockedBalance: 1}
+	now := time.Date(2026, 8, 29, 12, 0, 0, 0, time.UTC)
+	repo := &blindboxGrowthRepo{
+		blindboxOpenRepo: baseRepo,
+		signals: PlayGrowthEligibilitySignals{
+			EmailVerified:  true,
+			CreatedAt:      now.AddDate(0, 0, -4),
+			HasRecentUsage: true,
+		},
+	}
+
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+	driver := entsql.OpenDB(dialect.Postgres, db)
+	client := dbent.NewClient(dbent.Driver(driver))
+	t.Cleanup(func() { _ = client.Close() })
+
+	svc := NewPlayService(repo, nil, nil, settings, nil, client)
+	svc.now = func() time.Time { return now }
+	svc.rewardDrawSource = func(max int64) (int64, error) {
+		require.Equal(t, int64(couponWeightBasisPoints), max)
+		return 6000, nil
+	}
+	svc.blindboxDrawSource = func(max int64) (int64, error) {
+		require.Equal(t, blindboxWeightTotal, max)
+		return max - 1, nil
+	}
+
+	mock.ExpectBegin()
+	mock.ExpectCommit()
+
+	result, err := svc.OpenBlindbox(context.Background(), 42, "qualified-open")
+
+	require.NoError(t, err)
+	require.Equal(t, 20.0, result.RewardAmount)
+	require.Len(t, repo.snapshots, 1)
+	require.Equal(t, PlayRewardSourceBlindbox, repo.snapshots[0].Source)
+	require.Equal(t, PlayGrowthTierActive, repo.snapshots[0].Eligibility.Tier)
+	require.Equal(t, "blindbox:42:"+HashIdempotencyKey("qualified-open"), repo.snapshots[0].ActionID)
+	require.Len(t, baseRepo.ledgerEntries, 1)
+	require.Equal(t, int64(901), baseRepo.ledgerEntries[0].GrowthEligibilitySnapshotID)
+	require.Equal(t, PlayGrowthQualificationRuleVersion(), baseRepo.ledgerEntries[0].GrowthRuleVersion)
+	require.Equal(t, int64(901), baseRepo.ledgerEntries[0].Detail["growth_eligibility_snapshot_id"])
+	require.Equal(t, "v1", baseRepo.ledgerEntries[0].Detail["growth_rule_version"])
+	require.Equal(t, PlayGrowthTierActive, baseRepo.ledgerEntries[0].Detail["growth_tier"])
+	require.Equal(t, []string{"action", "snapshot", "ledger"}, baseRepo.events)
+	require.NoError(t, mock.ExpectationsWereMet())
 }

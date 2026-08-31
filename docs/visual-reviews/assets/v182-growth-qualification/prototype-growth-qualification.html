@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>增长资格与成长能量原型</title>
+  <style>
+    :root { color-scheme: light; --page:#f4f6fa; --panel:#fff; --ink:#152238; --muted:#65738a; --line:#dce3ed; --blue:#2563d9; --blue-soft:#edf4ff; --green:#16724d; --green-soft:#edf8f2; --amber:#9b6205; --amber-soft:#fff7e8; --nav:#172137; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-width:1120px; background:var(--page); color:var(--ink); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif; }
+    .shell { display:grid; grid-template-columns:208px minmax(0,1fr); min-height:900px; }
+    aside { background:var(--nav); color:#d5dfef; padding:28px 16px; }
+    .brand { margin:0 8px 44px; color:#fff; font-size:20px; font-weight:700; }
+    .nav { display:block; padding:11px 12px; margin:4px 0; border-radius:6px; }
+    .nav.active { color:#fff; background:#2c3c5d; }
+    .top { height:64px; display:flex; align-items:center; justify-content:space-between; padding:0 32px; background:#fff; border-bottom:1px solid var(--line); font-weight:600; }
+    .top small { color:var(--muted); font-weight:400; }
+    main { padding:28px 32px 40px; }
+    .eyebrow { margin:0 0 4px; color:var(--blue); font-size:13px; }
+    h1 { margin:0; font-size:24px; line-height:32px; }
+    .sub { margin:4px 0 24px; color:var(--muted); }
+    .grid { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+    .panel { background:var(--panel); border:1px solid var(--line); border-radius:8px; }
+    .head { display:flex; align-items:start; justify-content:space-between; gap:16px; padding:18px; border-bottom:1px solid var(--line); }
+    h2 { margin:0; font-size:18px; line-height:26px; }
+    .label { margin:3px 0 0; color:var(--muted); }
+    .pill { display:inline-flex; align-items:center; padding:3px 8px; border-radius:999px; font-size:12px; white-space:nowrap; }
+    .pill.energy { color:var(--amber); background:var(--amber-soft); }
+    .pill.active { color:var(--green); background:var(--green-soft); }
+    .body { padding:18px; }
+    .notice { border-left:3px solid var(--amber); background:var(--amber-soft); padding:12px 14px; color:#704800; }
+    .notice strong, .success strong { display:block; margin-bottom:3px; }
+    .steps { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin:18px 0; }
+    .step { border-left:2px solid var(--line); padding-left:10px; }
+    .step b { display:block; font-size:15px; }
+    .step small { color:var(--muted); }
+    .button { display:inline-flex; align-items:center; justify-content:center; min-height:40px; padding:0 14px; border:0; border-radius:6px; color:#fff; background:var(--blue); font:inherit; font-weight:600; }
+    .button[disabled] { background:#aeb8c8; }
+    .success { margin-top:18px; border-left:3px solid var(--green); background:var(--green-soft); padding:12px 14px; color:#175c40; }
+    .question { margin:18px 0 12px; font-weight:600; }
+    .options { display:grid; gap:8px; }
+    .option { border:1px solid var(--line); border-radius:6px; padding:10px 12px; }
+    .option.selected { border-color:var(--blue); background:var(--blue-soft); }
+    .summary { margin:0 0 18px; color:var(--muted); }
+    .rule { display:flex; align-items:center; gap:9px; margin:10px 0; }
+    .mark { width:18px; height:18px; display:inline-grid; place-items:center; border-radius:50%; background:var(--green-soft); color:var(--green); font-size:12px; }
+    .mark.pending { background:var(--amber-soft); color:var(--amber); }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside><p class="brand">极速蹬</p><span class="nav active">增长与福利</span><span class="nav">每日签到</span><span class="nav">答题闯关</span><span class="nav">我的优惠</span></aside>
+    <section>
+      <header class="top"><span>增长与福利</span><small>规则由服务端评估 · 2026-08-29</small></header>
+      <main>
+        <p class="eyebrow">统一资格 · 每日参与</p><h1>参与不断档，福利随真实使用解锁</h1><p class="sub">签到和答题始终可完成；现金、优惠券和兑换码只在资格满足后发放。</p>
+        <div class="grid">
+          <article class="panel"><div class="head"><div><h2>每日签到</h2><p class="label">探索档用户</p></div><span class="pill energy">成长能量</span></div><div class="body"><div class="notice"><strong>今日可获得 1 点成长能量</strong>完成一次真实 API 调用、近 30 天余额净充值满 10 CNY，或保持有效订阅后，自动恢复可兑换福利。</div><div class="steps"><div class="step"><b>邮箱验证</b><small>尚未完成</small></div><div class="step"><b>注册满 3 天</b><small>还差 1 天</small></div><div class="step"><b>真实使用</b><small>完成任一条件</small></div></div><button class="button">立即签到</button><div class="success"><strong>签到完成</strong>+1 成长能量。历史奖励不会受本规则影响。</div></div></article>
+          <article class="panel"><div class="head"><div><h2>答题闯关</h2><p class="label">活跃档用户</p></div><span class="pill active">可兑换福利</span></div><div class="body"><p class="summary">资格已满足，本次完整提交按已发布奖池开奖。</p><div class="rule"><span class="mark">✓</span><span>已验证邮箱，注册已满 3 天</span></div><div class="rule"><span class="mark">✓</span><span>近 7 天存在真实 API 调用</span></div><div class="rule"><span class="mark pending">i</span><span>奖励以当前发布奖池为准</span></div><p class="question">1. 接入 OpenAI 兼容 API 的基础地址应由哪里确认？</p><div class="options"><div class="option selected">A. 使用文档中的服务端地址</div><div class="option">B. 浏览器地址栏</div><div class="option">C. 任意第三方转发地址</div></div><p style="margin:16px 0 0"><button class="button">提交答案</button></p></div></article>
+        </div>
+      </main>
+    </section>
+  </div>
+</body>
+</html>

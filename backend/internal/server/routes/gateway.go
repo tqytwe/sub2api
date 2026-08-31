@@ -21,6 +21,61 @@ import (
 	"github.com/tidwall/sjson"
 )
 
+func modelsCompatibilityVary(c *gin.Context) {
+	// /models selects between the legacy document redirect and the protected
+	// OpenAI-compatible API using all four headers. Keep cache variants aligned
+	// with that dispatch so an anonymous redirect cannot be reused for a keyed
+	// request.
+	c.Header("Vary", "Accept, Authorization, X-API-Key, X-Goog-API-Key")
+	if redirectLegacyModelsDocument(c) {
+		return
+	}
+	c.Next()
+}
+
+// redirectLegacyModelsDocument keeps the historical browser URL useful while
+// preserving the root /models API contract for keyed clients and explicit JSON
+// callers. Generic */* requests without fetch metadata are treated as document
+// navigation, matching the embedded frontend's crawler-safe negotiation.
+func redirectLegacyModelsDocument(c *gin.Context) bool {
+	if c == nil || c.Request == nil || c.Request.URL == nil {
+		return false
+	}
+	req := c.Request
+	if req.Method != http.MethodGet && req.Method != http.MethodHead {
+		return false
+	}
+	if strings.TrimSpace(req.Header.Get("Authorization")) != "" ||
+		strings.TrimSpace(req.Header.Get("X-API-Key")) != "" ||
+		strings.TrimSpace(req.Header.Get("X-Goog-API-Key")) != "" {
+		return false
+	}
+	accept := strings.ToLower(strings.TrimSpace(req.Header.Get("Accept")))
+	acceptsJSON := strings.Contains(accept, "application/json")
+	hasFetchMetadata := strings.TrimSpace(req.Header.Get("Sec-Fetch-Mode")) != "" ||
+		strings.TrimSpace(req.Header.Get("Sec-Fetch-Dest")) != "" ||
+		strings.TrimSpace(req.Header.Get("Sec-Fetch-Site")) != ""
+	isDocumentNavigation := strings.EqualFold(strings.TrimSpace(req.Header.Get("Sec-Fetch-Mode")), "navigate") &&
+		strings.EqualFold(strings.TrimSpace(req.Header.Get("Sec-Fetch-Dest")), "document")
+	// An explicit JSON media range keeps the protected API contract even when
+	// a broad client Accept header also mentions HTML. Only browser document
+	// navigation metadata can override this compatibility guard.
+	if acceptsJSON && !isDocumentNavigation {
+		return false
+	}
+	isGenericDocument := accept == "*/*" && !hasFetchMetadata
+	if !strings.Contains(accept, "text/html") && !isGenericDocument && !isDocumentNavigation {
+		return false
+	}
+	location := "/catalog"
+	if req.URL.RawQuery != "" {
+		location += "?" + req.URL.RawQuery
+	}
+	c.Redirect(http.StatusPermanentRedirect, location)
+	c.Abort()
+	return true
+}
+
 // RegisterGatewayRoutes 注册 API 网关路由（Claude/OpenAI/Gemini 兼容）
 func RegisterGatewayRoutes(
 	r *gin.Engine,
@@ -359,7 +414,7 @@ func RegisterGatewayRoutes(
 	r.GET("/responses", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), compositeTarget, requireGroupAnthropic, func(c *gin.Context) {
 		h.OpenAIGateway.ResponsesWebSocket(c)
 	})
-	r.GET("/models", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, modelsHandler)
+	r.GET("/models", modelsCompatibilityVary, bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, modelsHandler)
 	r.POST("/messages/count_tokens", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), compositeTarget, requireGroupAnthropic, countTokensHandler)
 	codexDirect := r.Group("/backend-api/codex")
 	codexDirect.Use(bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), compositeTarget, requireGroupAnthropic)

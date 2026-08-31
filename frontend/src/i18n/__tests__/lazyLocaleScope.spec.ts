@@ -51,22 +51,32 @@ describe('lazy locale loading scopes', () => {
   it('forces English only for the explicit /en route layer', () => {
     expect(localeFromPath('/en')).toBe('en')
     expect(localeFromPath('/en/')).toBe('en')
-    expect(localeFromPath('/en/models')).toBe('en')
-    expect(localeFromPath('/en/models/deepseek')).toBe('en')
+    expect(localeFromPath('/en/catalog')).toBe('en')
+    expect(localeFromPath('/en/catalog/deepseek')).toBe('en')
     expect(localeFromPath('/en/docs?cat=tutorial')).toBe('en')
   })
 
   it('forces Chinese on public Chinese routes even after English route visits', () => {
     expect(localeFromPath('/')).toBe('zh')
     expect(localeFromPath('/home')).toBe('zh')
-    expect(localeFromPath('/models')).toBe('zh')
-    expect(localeFromPath('/models/deepseek')).toBe('zh')
+    expect(localeFromPath('/catalog')).toBe('zh')
+    expect(localeFromPath('/catalog/deepseek')).toBe('zh')
     expect(localeFromPath('/docs')).toBe('zh')
+    expect(localeFromPath('/status')).toBe('zh')
     expect(localeFromPath('/login')).toBe('zh')
     expect(localeFromPath('/register')).toBe('zh')
     expect(localeFromPath('/about')).toBe('zh')
     expect(localeFromPath('/contact')).toBe('zh')
+    // `/models` is retained for the authenticated API compatibility surface;
+    // the crawlable public catalog is `/catalog`.
+    expect(localeFromPath('/models')).toBeNull()
+    expect(localeFromPath('/models/deepseek')).toBeNull()
     expect(localeFromPath('/dashboard')).toBeNull()
+  })
+
+  it('maps both localized status routes to the public status scope', () => {
+    expect(localeScopesForPath('/status')).toEqual(['core', 'public-pages'])
+    expect(localeScopesForPath('/en/status')).toEqual(['core', 'public-pages'])
   })
 
   it('uses Chinese for unprefixed workspace routes regardless of an old stored English locale', () => {

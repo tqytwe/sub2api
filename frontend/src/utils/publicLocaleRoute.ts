@@ -42,19 +42,21 @@ export function resolvePublicLocaleRoute(
     if (path === '/about') return withQuery('/en/about', normalizedQuery)
     if (path === '/contact') return withQuery('/en/contact', normalizedQuery)
     if (path === '/pricing' || path.startsWith('/pricing/')) {
-      return withQuery(path === '/pricing' ? '/en/models' : `/en/models${path.slice('/pricing'.length)}`, normalizedQuery)
+      return withQuery(path === '/pricing' ? '/en/catalog' : `/en/catalog${path.slice('/pricing'.length)}`, normalizedQuery)
     }
-    if (path === '/models' || path.startsWith('/models/')) {
-      return withQuery(path === '/models' ? '/en/models' : `/en/models${path.slice('/models'.length)}`, normalizedQuery)
+    if (path === '/catalog' || path.startsWith('/catalog/')) {
+      return withQuery(path === '/catalog' ? '/en/catalog' : `/en/catalog${path.slice('/catalog'.length)}`, normalizedQuery)
     }
     if (path === '/docs') return withQuery('/en/docs', normalizedQuery)
+    if (path === '/status') return withQuery('/en/status', normalizedQuery)
     return withQuery('/en', normalizedQuery)
   }
 
-  if (path === '/en/models' || path.startsWith('/en/models/')) {
-    return withQuery(path === '/en/models' ? '/models' : `/models${path.slice('/en/models'.length)}`, normalizedQuery)
+  if (path === '/en/catalog' || path.startsWith('/en/catalog/')) {
+    return withQuery(path === '/en/catalog' ? '/catalog' : `/catalog${path.slice('/en/catalog'.length)}`, normalizedQuery)
   }
   if (path === '/en/docs') return withQuery('/docs', normalizedQuery)
+  if (path === '/en/status') return withQuery('/status', normalizedQuery)
   if (path === '/en/about') return withQuery('/about', normalizedQuery)
   if (path === '/en/contact') return withQuery('/contact', normalizedQuery)
   if (path === '/en') return withQuery('/', normalizedQuery)

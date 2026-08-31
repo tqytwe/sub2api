@@ -1123,6 +1123,11 @@ const messages = {
   keys: {
     title: 'API 密钥',
     description: '管理您的 API 密钥和访问令牌',
+    resetTime: {
+      daysHours: '{days} 天 {hours} 小时后重置',
+      hoursMinutes: '{hours} 小时 {minutes} 分钟后重置',
+      minutes: '{minutes} 分钟后重置'
+    },
     searchPlaceholder: '搜索名称或Key...',
     endpoints: {
       title: 'API 端点',
@@ -8891,7 +8896,7 @@ const messages = {
     duration: {
       daysHours: '{days} 天 {hours} 小时',
       hoursMinutes: '{hours} 小时 {minutes} 分钟',
-      minutes: '{minutes} 分钟'
+      minutes: '{minutes} 分钟',
     }
   },
 

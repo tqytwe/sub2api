@@ -16,9 +16,9 @@ func TestBuildPromptLibrarySitemapContainsOnlyExistingPublicPages(t *testing.T) 
 	xml := string(body)
 	require.NotContains(t, xml, "/prompts")
 	for _, path := range []string{
-		"/", "/models", "/models/deepseek", "/models/qwen", "/models/kimi", "/models/glm",
-		"/docs", "/en/", "/en/models", "/en/models/deepseek", "/en/models/qwen",
-		"/en/models/kimi", "/en/models/glm", "/en/docs", "/about", "/contact", "/en/about", "/en/contact",
+		"/", "/catalog", "/catalog/deepseek", "/catalog/qwen", "/catalog/kimi", "/catalog/glm",
+		"/docs", "/en/", "/en/catalog", "/en/catalog/deepseek", "/en/catalog/qwen",
+		"/en/catalog/kimi", "/en/catalog/glm", "/en/docs", "/about", "/contact", "/en/about", "/en/contact",
 		"/download/android",
 	} {
 		require.Contains(t, xml, "<loc>https://www.jisudeng.com"+path+"</loc>")
@@ -26,12 +26,34 @@ func TestBuildPromptLibrarySitemapContainsOnlyExistingPublicPages(t *testing.T) 
 	require.Contains(t, xml, `xmlns:xhtml="http://www.w3.org/1999/xhtml"`)
 	require.Contains(t, xml, `<changefreq>daily</changefreq>`)
 	require.Contains(t, xml, `<priority>1.00</priority>`)
-	require.Contains(t, xml, `<xhtml:link rel="alternate" hreflang="en" href="https://www.jisudeng.com/en/models"></xhtml:link>`)
-	require.Contains(t, xml, `<xhtml:link rel="alternate" hreflang="zh-CN" href="https://www.jisudeng.com/models"></xhtml:link>`)
-	require.Contains(t, xml, `<xhtml:link rel="alternate" hreflang="en" href="https://www.jisudeng.com/en/models/deepseek"></xhtml:link>`)
-	require.Contains(t, xml, `<xhtml:link rel="alternate" hreflang="zh-CN" href="https://www.jisudeng.com/models/deepseek"></xhtml:link>`)
+	require.Contains(t, xml, `<xhtml:link rel="alternate" hreflang="en" href="https://www.jisudeng.com/en/catalog"></xhtml:link>`)
+	require.Contains(t, xml, `<xhtml:link rel="alternate" hreflang="zh-CN" href="https://www.jisudeng.com/catalog"></xhtml:link>`)
+	require.Contains(t, xml, `<xhtml:link rel="alternate" hreflang="x-default" href="https://www.jisudeng.com/catalog"></xhtml:link>`)
+	require.Contains(t, xml, `<xhtml:link rel="alternate" hreflang="en" href="https://www.jisudeng.com/en/catalog/deepseek"></xhtml:link>`)
+	require.Contains(t, xml, `<xhtml:link rel="alternate" hreflang="zh-CN" href="https://www.jisudeng.com/catalog/deepseek"></xhtml:link>`)
+	require.Contains(t, xml, `<xhtml:link rel="alternate" hreflang="x-default" href="https://www.jisudeng.com/catalog/deepseek"></xhtml:link>`)
 	require.NotContains(t, xml, "<loc>https://www.jisudeng.com/home</loc>")
+	require.NotContains(t, xml, "<loc>https://www.jisudeng.com/models</loc>")
+	require.NotContains(t, xml, "<loc>https://www.jisudeng.com/ai-creation-space</loc>")
+	require.NotContains(t, xml, "/en/models")
+	require.NotContains(t, xml, "/models/")
 	require.False(t, strings.Contains(xml, "source_url"))
+}
+
+func TestPromptSitemapStaticPathsUseCanonicalCatalogAndChineseDefault(t *testing.T) {
+	for _, entry := range promptSitemapStaticPaths {
+		require.NotContains(t, entry.Path, "/models", entry.Path)
+		chinese := ""
+		for _, alternate := range entry.Alternates {
+			require.NotContains(t, alternate.Path, "/models", entry.Path)
+			if alternate.Hreflang == "zh-CN" {
+				chinese = alternate.Path
+			}
+			if alternate.Hreflang == "x-default" {
+				require.Equal(t, chinese, alternate.Path, entry.Path)
+			}
+		}
+	}
 }
 
 func TestPromptRequestOriginUsesCanonicalProductionHost(t *testing.T) {
@@ -107,11 +129,12 @@ func TestBuildLLMSTxtExposesBilingualAIReferenceSummary(t *testing.T) {
 
 	require.Contains(t, body, "# Jisudeng")
 	require.Contains(t, body, "Access DeepSeek, Qwen, Kimi, GLM")
-	require.Contains(t, body, "https://www.jisudeng.com/en/models")
-	require.Contains(t, body, "https://www.jisudeng.com/en/models/deepseek")
-	require.Contains(t, body, "https://www.jisudeng.com/en/models/qwen")
-	require.Contains(t, body, "https://www.jisudeng.com/en/models/kimi")
-	require.Contains(t, body, "https://www.jisudeng.com/en/models/glm")
+	require.Contains(t, body, "https://www.jisudeng.com/en/catalog")
+	require.Contains(t, body, "https://www.jisudeng.com/en/catalog/deepseek")
+	require.Contains(t, body, "https://www.jisudeng.com/en/catalog/qwen")
+	require.Contains(t, body, "https://www.jisudeng.com/en/catalog/kimi")
+	require.Contains(t, body, "https://www.jisudeng.com/en/catalog/glm")
+	require.Contains(t, body, "https://www.jisudeng.com/catalog")
 	require.Contains(t, body, "https://www.jisudeng.com/docs")
 	require.Contains(t, body, "## AI Search Reference Policy")
 	require.Contains(t, body, "## Common Questions")
@@ -119,6 +142,7 @@ func TestBuildLLMSTxtExposesBilingualAIReferenceSummary(t *testing.T) {
 	require.Contains(t, body, "中文摘要")
 	require.NotContains(t, body, "Chinese AI")
 	require.NotContains(t, body, "China")
+	require.NotContains(t, body, "AI创作空间")
 }
 
 func TestBuildExtendedAIReferenceFilesExposePublicTextOnlyGuidance(t *testing.T) {
@@ -126,9 +150,21 @@ func TestBuildExtendedAIReferenceFilesExposePublicTextOnlyGuidance(t *testing.T)
 	small := buildLLMSSmallTxt("https://www.jisudeng.com")
 	ai := buildAITxt("https://www.jisudeng.com")
 
+	// llms-full is the human-readable inventory for the same public pages
+	// advertised by sitemap.xml. Keep it complete so an AI crawler is never
+	// pointed at a legacy /models URL or a partial model-family list.
+	for _, path := range []string{
+		"/", "/catalog", "/catalog/deepseek", "/catalog/qwen", "/catalog/kimi", "/catalog/glm",
+		"/docs", "/download/android", "/about", "/contact", "/en/", "/en/catalog",
+		"/en/catalog/deepseek", "/en/catalog/qwen", "/en/catalog/kimi", "/en/catalog/glm",
+		"/en/docs", "/en/about", "/en/contact",
+	} {
+		require.Contains(t, full, "https://www.jisudeng.com"+path, path)
+	}
 	require.Contains(t, full, "https://www.jisudeng.com/en/about")
 	require.Contains(t, full, "https://www.jisudeng.com/en/contact")
 	require.Contains(t, full, "Access and Privacy Boundaries")
+	require.NotContains(t, full, "/models")
 	require.Contains(t, small, "https://www.jisudeng.com/llms-full.txt")
 	require.Contains(t, ai, "https://www.jisudeng.com/llms.small-txt")
 	for _, body := range []string{full, small, ai} {

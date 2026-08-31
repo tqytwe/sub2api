@@ -8,6 +8,7 @@ const {
   appState,
   authState,
   routeState,
+  liveStatsState,
   sanitizeHomeContentMock,
   recoverFromChunkLoadErrorMock,
   fetchPublicSettingsMock,
@@ -32,6 +33,11 @@ const {
   routeState: {
     fullPath: '/',
     path: '/',
+  },
+  liveStatsState: {
+    freshness: 'fresh' as 'fresh' | 'delayed' | 'unavailable',
+    opsDataThrough: '2026-08-29T14:00:00Z',
+    statItems: [{ key: 'requests', value: '657,629', unit: '+' }],
   },
   sanitizeHomeContentMock: vi.fn(),
   recoverFromChunkLoadErrorMock: vi.fn(),
@@ -62,7 +68,12 @@ vi.mock('vue-i18n', async (importOriginal) => {
   const copy: Record<string, string> = {
     'home.jisudeng.hero.titleParts.brand': 'Jisudeng',
     'home.jisudeng.hero.titleParts.mid': 'One API',
-    'home.jisudeng.hero.titleParts.tail': 'for AI models',
+      'home.jisudeng.hero.titleParts.tail': 'for AI models',
+    'home.jisudeng.stats.fresh': 'System status normal',
+    'home.jisudeng.stats.delayed': 'Data delayed',
+    'home.jisudeng.stats.unavailable': 'Status data unavailable',
+    'home.jisudeng.stats.through': 'Data through {time}',
+    'home.jisudeng.stats.statusLink': 'View system status',
   }
   return {
     ...actual,
@@ -86,10 +97,11 @@ vi.mock('@/router/chunkRecovery', () => ({
 
 vi.mock('@/composables/useHomeLiveStats', () => ({
   useHomeLiveStats: () => ({
-    statItems: { value: [] },
+    statItems: { value: liveStatsState.statItems },
     computedAt: { value: '' },
-    opsDataThrough: { value: '' },
-    isStale: { value: false },
+    opsDataThrough: { value: liveStatsState.opsDataThrough },
+    isStale: { value: liveStatsState.freshness !== 'fresh' },
+    freshness: { value: liveStatsState.freshness },
   }),
 }))
 
@@ -113,10 +125,6 @@ vi.mock('@/components/home/TerminalDemo.vue', () => ({
 
 vi.mock('@/components/home/WhyHoverCard.vue', () => ({
   default: { template: '<div data-test="why-hover-card" />' },
-}))
-
-vi.mock('@/components/home/LmspeedBadge.vue', () => ({
-  default: { template: '<span data-test="lmspeed-badge" />' },
 }))
 
 vi.mock('@/components/common/PublicPageToolbar.vue', () => ({
@@ -153,6 +161,8 @@ describe('HomeView startup chunk behavior', () => {
     authState.isAdmin = false
     routeState.fullPath = '/'
     routeState.path = '/'
+    liveStatsState.freshness = 'fresh'
+    liveStatsState.opsDataThrough = '2026-08-29T14:00:00Z'
     sanitizeHomeContentMock.mockResolvedValue('')
     recoverFromChunkLoadErrorMock.mockReturnValue(false)
     fetchPublicSettingsMock.mockResolvedValue(null)
@@ -216,6 +226,40 @@ describe('HomeView startup chunk behavior', () => {
 
     expect(wrapper.get('.home-page').classes()).not.toContain('is-intro')
     expect(wrapper.find('.hero-title').exists()).toBe(true)
+  })
+
+  it('does not retain LMSpeed content, anchors, or third-party homepage proof', () => {
+    const source = readFileSync(resolve(process.cwd(), 'src/views/HomeView.vue'), 'utf8')
+
+    expect(source).not.toMatch(/lmspeed/i)
+  })
+
+  it('places the first-party status summary in the hero before the manifesto', () => {
+    const source = readFileSync(resolve(process.cwd(), 'src/views/HomeView.vue'), 'utf8')
+
+    expect(source.indexOf('class="home-status-summary"')).toBeGreaterThan(source.indexOf('class="hero-ctas"'))
+    expect(source.indexOf('class="home-status-summary"')).toBeLessThan(source.indexOf('id="manifesto"'))
+    expect(source).not.toContain('id="stats"')
+  })
+
+  it.each([
+    ['fresh', 'System status normal'],
+    ['delayed', 'Data delayed'],
+    ['unavailable', 'Status data unavailable'],
+  ] as const)('renders an explicit %s freshness state without a false green indicator', async (freshness, label) => {
+    liveStatsState.freshness = freshness
+    if (freshness === 'unavailable') liveStatsState.opsDataThrough = ''
+
+    const wrapper = mountHomeView()
+    await flushPromises()
+
+    const summary = wrapper.get('.home-status-summary')
+    expect(summary.classes()).toContain(`is-${freshness}`)
+    expect(summary.text()).toContain(label)
+    if (freshness === 'unavailable') {
+      expect(summary.text()).toContain('Status data unavailable')
+      expect(summary.find('.home-status-summary-through').exists()).toBe(true)
+    }
   })
 
   it('keeps below-fold demos out of the initial Home chunk', () => {

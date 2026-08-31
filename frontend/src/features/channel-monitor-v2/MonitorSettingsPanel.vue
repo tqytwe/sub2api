@@ -88,7 +88,7 @@
               :class="draft.refresh_interval_seconds === 60 ? 'tab-active' : ''"
               @click="draft.refresh_interval_seconds = 60"
             >
-              1 min
+              {{ t('channelMonitorV2.settings.refreshIntervalMinutes', { minutes: 1 }) }}
             </button>
             <button
               type="button"
@@ -96,7 +96,7 @@
               :class="draft.refresh_interval_seconds === 300 ? 'tab-active' : ''"
               @click="draft.refresh_interval_seconds = 300"
             >
-              5 min
+              {{ t('channelMonitorV2.settings.refreshIntervalMinutes', { minutes: 5 }) }}
             </button>
           </div>
         </div>
@@ -192,7 +192,7 @@
                 @change="toggleGroup(group.id)"
               />
               <span class="min-w-0 flex-1 truncate font-medium text-gray-800 dark:text-gray-100">{{ group.name }}</span>
-              <small class="shrink-0 text-xs text-gray-400">{{ platformLabel(group.platform) }} · #{{ group.id }}</small>
+              <small class="shrink-0 text-xs text-gray-400">{{ platformLabel(group.platform) }} · {{ t('channelMonitorV2.filters.groupId', { id: group.id }) }}</small>
             </label>
           </div>
           <p v-if="!groupsLoadError && !groupsLoading && groups.length === 0" class="empty-state py-8 text-sm text-gray-400">{{ t('channelMonitorV2.settings.groupsEmpty') }}</p>

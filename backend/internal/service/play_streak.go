@@ -128,6 +128,21 @@ func (s *PlayService) CheckinMakeup(ctx context.Context, userID int64) (*PlayChe
 	}
 
 	now := s.serverNow()
+	growthEligibility, err := s.growthEligibility(ctx, userID, now)
+	if err != nil {
+		return nil, err
+	}
+	if growthEligibility.RewardMode != PlayGrowthRewardRedeemable {
+		return nil, ErrPlayCheckinMakeupUnavailable
+	}
+	// Makeup is a cash-equivalent reward just like a normal check-in. Keep the
+	// operations approval/rollout decision outside the transaction for a fast
+	// fail-closed response, then reserve the budget inside the same reward
+	// transaction below so an approved amount cannot be spent twice.
+	growthGovernance, err := s.requireGrowthGovernanceForReward(ctx, userID, now)
+	if err != nil {
+		return nil, err
+	}
 	today := s.serverDate(now)
 	yesterday := today.AddDate(0, 0, -1)
 	dateKey := yesterday.Format("2006-01-02")
@@ -162,13 +177,48 @@ func (s *PlayService) CheckinMakeup(ctx context.Context, userID int64) (*PlayChe
 	totalReward := reward + milestoneBonus
 
 	idempotencyKey := fmt.Sprintf("checkin_makeup:%d:%s", userID, dateKey)
-	if err := s.grantBalance(ctx, userID, totalReward, PlayRewardSourceCheckinMakeup, idempotencyKey, map[string]any{
+	detail := map[string]any{
 		"checkin_date":    dateKey,
 		"streak_count":    streak,
 		"milestone_bonus": milestoneBonus,
 		"makeup":          true,
-	}, func(txCtx context.Context) error {
-		return s.repo.InsertCheckin(txCtx, userID, yesterday, totalReward, streak)
+	}
+	var growthSnapshotID int64
+	if err := s.grantBalanceWithGrowthSnapshot(ctx, userID, totalReward, PlayRewardSourceCheckinMakeup, idempotencyKey, detail, &growthSnapshotID, func(txCtx context.Context) error {
+		if err := s.repo.InsertCheckin(txCtx, userID, yesterday, totalReward, streak); err != nil {
+			return err
+		}
+		var snapshotErr error
+		growthSnapshotID, snapshotErr = s.createGrowthSnapshot(txCtx, PlayGrowthEligibilitySnapshot{
+			UserID: userID, Source: PlayRewardSourceCheckin, ActionID: idempotencyKey, ActivityDate: yesterday, Eligibility: growthEligibility,
+		})
+		if snapshotErr != nil {
+			return snapshotErr
+		}
+		if growthSnapshotID == 0 {
+			// A redeemable makeup reward must always carry immutable qualification
+			// evidence. This is normally guaranteed by production wiring
+			// (RequireGrowthQualification=true), but keep the transaction fail-closed
+			// if a partially upgraded repository or test double returns no snapshot.
+			return ErrPlayGrowthQualificationUnavailable
+		}
+		growthRepo, ok := s.growthQualificationRepository()
+		if !ok {
+			return fmt.Errorf("growth qualification repository disappeared during check-in makeup")
+		}
+		if err := growthRepo.LinkGrowthEligibilitySnapshot(txCtx, PlayRewardSourceCheckin, userID, yesterday, growthSnapshotID); err != nil {
+			return err
+		}
+		// Governance budgets are scoped to the check-in activity family. The
+		// balance ledger keeps the more specific `checkin_makeup` source, while
+		// the 268 budget table intentionally accepts only checkin/quiz/blindbox.
+		if err := s.reserveGrowthRewardBudget(txCtx, growthGovernance, userID, PlayRewardSourceCheckin, idempotencyKey, growthRewardBudgetCost(PlayRewardTypeBalance, totalReward)); err != nil {
+			return err
+		}
+		detail["growth_eligibility_snapshot_id"] = growthSnapshotID
+		detail["growth_rule_version"] = "v1"
+		detail["growth_tier"] = growthEligibility.Tier
+		return nil
 	}); err != nil {
 		if errors.Is(err, ErrPlayCheckinAlreadyDone) {
 			return nil, ErrPlayCheckinMakeupAlreadyDone
@@ -177,11 +227,12 @@ func (s *PlayService) CheckinMakeup(ctx context.Context, userID int64) (*PlayChe
 	}
 
 	return &PlayCheckinResult{
-		RewardAmount:   totalReward,
-		BalanceAdded:   totalReward,
-		ServerDate:     dateKey,
-		StreakCount:    streak,
-		MilestoneBonus: milestoneBonus,
+		RewardAmount:      totalReward,
+		BalanceAdded:      totalReward,
+		ServerDate:        dateKey,
+		StreakCount:       streak,
+		MilestoneBonus:    milestoneBonus,
+		GrowthEligibility: growthEligibility,
 	}, nil
 }
 

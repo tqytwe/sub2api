@@ -1,8 +1,8 @@
 # v0.1.182 P0 Docs And Subscription Contract
 
-Status: merged and deployed code; final production configuration and local
-browser acceptance remain pending. This document records source behavior and
-release acceptance requirements.
+Status: implementation candidate. This document records source behavior and
+release acceptance requirements. It does not claim that a production setting,
+database, or deployment has changed.
 
 ## Route Contract
 

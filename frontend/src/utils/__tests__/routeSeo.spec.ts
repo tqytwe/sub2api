@@ -1,10 +1,63 @@
 import { describe, expect, it } from 'vitest'
 
+import routeSeoContract from '../public-route-seo-contract.json'
 import { applyPublicRouteSeo, resolvePublicRouteSeo } from '../routeSeo'
 
+function jsonLdTypes(value: unknown, types = new Set<string>()): string[] {
+  if (Array.isArray(value)) {
+    for (const item of value) jsonLdTypes(item, types)
+    return Array.from(types).sort()
+  }
+  if (!value || typeof value !== 'object') return Array.from(types).sort()
+
+  const record = value as Record<string, unknown>
+  const type = record['@type']
+  if (typeof type === 'string') types.add(type)
+  for (const item of Object.values(record)) jsonLdTypes(item, types)
+  return Array.from(types).sort()
+}
+
 describe('public route SEO', () => {
+	it('keeps hydration metadata aligned with the cross-layer public route contract', () => {
+		document.head.innerHTML = ''
+
+		for (const [path, expected] of Object.entries(routeSeoContract.routes)) {
+			const seo = resolvePublicRouteSeo(path)
+			expect(seo, path).toBeTruthy()
+			if (!seo) throw new Error(`missing public SEO metadata for ${path}`)
+
+			expect(seo.title, `${path} title`).toBe(expected.title)
+			expect(seo.description, `${path} description`).toBe(expected.description)
+			expect(seo.twitterTitle || seo.title, `${path} twitter:title`).toBe(expected.twitterTitle)
+			expect(seo.twitterDescription || seo.description, `${path} twitter:description`).toBe(expected.twitterDescription)
+			expect(seo.canonicalPath, `${path} canonical`).toBe(expected.canonicalPath)
+			expect(seo.alternates, `${path} hreflang`).toEqual(expected.alternates)
+
+			applyPublicRouteSeo(path)
+			expect(document.title, `${path} hydrated title`).toBe(expected.title)
+			expect(document.head.querySelector('meta[name="description"]')?.getAttribute('content'), `${path} hydrated description`).toBe(expected.description)
+			expect(document.head.querySelector('meta[name="twitter:title"]')?.getAttribute('content'), `${path} hydrated twitter:title`).toBe(expected.twitterTitle)
+			expect(document.head.querySelector('meta[name="twitter:description"]')?.getAttribute('content'), `${path} hydrated twitter:description`).toBe(expected.twitterDescription)
+			expect(document.head.querySelector('link[rel="canonical"]')?.getAttribute('href'), `${path} hydrated canonical`).toBe(`https://www.jisudeng.com${expected.canonicalPath}`)
+			expect(
+			Array.from(document.head.querySelectorAll<HTMLLinkElement>('link[rel="alternate"][hreflang]')).map((link) => ({
+				hreflang: link.hreflang,
+				path: new URL(link.href).pathname,
+			})),
+			`${path} hydrated hreflang`,
+		).toEqual(expected.alternates.map((alternate) => ({
+			...alternate,
+			path: new URL(alternate.path, 'https://www.jisudeng.com').pathname,
+		})))
+
+			const structured = document.head.querySelector<HTMLScriptElement>('script[type="application/ld+json"][data-jisudeng-route-seo="true"]')
+			const data = structured?.textContent ? JSON.parse(structured.textContent) : undefined
+			expect(jsonLdTypes(data), `${path} JSON-LD types`).toEqual([...expected.jsonLdTypes].sort())
+		}
+	})
+
   it('keeps public metadata within the crawler and social length budgets', () => {
-    for (const path of ['/', '/home', '/models', '/docs', '/download/android', '/about', '/contact', '/en', '/en/models', '/en/docs', '/en/about', '/en/contact']) {
+    for (const path of ['/', '/catalog', '/catalog/deepseek', '/catalog/qwen', '/catalog/kimi', '/catalog/glm', '/docs', '/download/android', '/about', '/contact', '/en', '/en/catalog', '/en/catalog/deepseek', '/en/catalog/qwen', '/en/catalog/kimi', '/en/catalog/glm', '/en/docs', '/en/about', '/en/contact']) {
       const seo = resolvePublicRouteSeo(path)
 
       expect(seo, path).toBeTruthy()
@@ -25,7 +78,7 @@ describe('public route SEO', () => {
 
   it('resolves English brand metadata for the /en layer', () => {
     const home = resolvePublicRouteSeo('/en/')
-    const models = resolvePublicRouteSeo('/en/models')
+    const models = resolvePublicRouteSeo('/en/catalog')
     const docs = resolvePublicRouteSeo('/en/docs')
 
     expect(home?.lang).toBe('en')
@@ -36,9 +89,21 @@ describe('public route SEO', () => {
     expect(home?.twitterDescription?.length).toBeGreaterThanOrEqual(150)
     expect(home?.twitterDescription?.length).toBeLessThanOrEqual(200)
     expect(home?.keywords).toContain('OpenAI-compatible API')
-    expect(models?.canonicalPath).toBe('/en/models')
+    expect(models?.canonicalPath).toBe('/en/catalog')
     expect(models?.description).toContain('Claude, Gemini')
     expect(docs?.description).toContain('OpenAI SDK')
+  })
+
+  it('keeps every public canonical and x-default link on the catalog-era paths', () => {
+    for (const path of ['/', '/catalog', '/catalog/deepseek', '/catalog/qwen', '/catalog/kimi', '/catalog/glm', '/docs', '/download/android', '/about', '/contact', '/en', '/en/catalog', '/en/catalog/deepseek', '/en/catalog/qwen', '/en/catalog/kimi', '/en/catalog/glm', '/en/docs', '/en/about', '/en/contact']) {
+      const seo = resolvePublicRouteSeo(path)
+      expect(seo, path).toBeTruthy()
+      expect(seo?.canonicalPath).not.toContain('/models')
+      const zh = seo?.alternates.find((link) => link.hreflang === 'zh-CN')
+      const fallback = seo?.alternates.find((link) => link.hreflang === 'x-default')
+      expect(fallback?.path, path).toBe(zh?.path)
+      expect(seo?.alternates.some((link) => link.path.includes('/models'))).toBe(false)
+    }
   })
 
   it('keeps Chinese metadata on Chinese public routes', () => {
@@ -49,13 +114,20 @@ describe('public route SEO', () => {
     expect(resolvePublicRouteSeo('/')?.twitterDescription?.length).toBeGreaterThanOrEqual(150)
     expect(resolvePublicRouteSeo('/pricing')).toBeUndefined()
     expect(resolvePublicRouteSeo('/pricing/deepseek')).toBeUndefined()
+    expect(resolvePublicRouteSeo('/models')).toBeUndefined()
+    expect(resolvePublicRouteSeo('/catalog')?.canonicalPath).toBe('/catalog')
+    expect(resolvePublicRouteSeo('/catalog')?.alternates).toEqual([
+      { hreflang: 'zh-CN', path: '/catalog' },
+      { hreflang: 'en', path: '/en/catalog' },
+      { hreflang: 'x-default', path: '/catalog' },
+    ])
     expect(resolvePublicRouteSeo('/docs')?.alternates.some((link) => link.path === '/en/docs')).toBe(true)
     expect(resolvePublicRouteSeo('/download/android')?.canonicalPath).toBe('/download/android')
     expect(resolvePublicRouteSeo('/about')?.canonicalPath).toBe('/about')
     expect(resolvePublicRouteSeo('/about')?.alternates).toEqual([
       { hreflang: 'zh-CN', path: '/about' },
       { hreflang: 'en', path: '/en/about' },
-      { hreflang: 'x-default', path: '/en/about' },
+      { hreflang: 'x-default', path: '/about' },
     ])
     expect(resolvePublicRouteSeo('/contact')?.structuredType).toBe('ContactPage')
     expect(resolvePublicRouteSeo('/en/about')?.lang).toBe('en')
@@ -68,7 +140,7 @@ describe('public route SEO', () => {
       <link rel="canonical" href="https://old.example/" />
     `
 
-    const seo = applyPublicRouteSeo('/en/models')
+    const seo = applyPublicRouteSeo('/en/catalog')
 
     expect(seo?.lang).toBe('en')
     expect(document.documentElement.getAttribute('lang')).toBe('en')
@@ -83,30 +155,62 @@ describe('public route SEO', () => {
     expect(document.head.querySelector('meta[name="twitter:creator"]')?.getAttribute('content')).toBe('@jisudeng')
     expect(document.head.querySelector('meta[name="twitter:title"]')?.getAttribute('content')).toBe('DeepSeek, Qwen, Kimi, GLM, GPT, Claude API Pricing | Jisudeng')
     expect(document.head.querySelector('meta[name="twitter:image"]')?.getAttribute('content')).toBe('https://www.jisudeng.com/logo.png')
-    expect(document.head.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe('https://www.jisudeng.com/en/models')
+    expect(document.head.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe('https://www.jisudeng.com/en/catalog')
     expect(Array.from(document.head.querySelectorAll('link[rel="alternate"][hreflang]')).map((link) => link.getAttribute('hreflang'))).toEqual(['en', 'zh-CN', 'x-default'])
     const structured = document.head.querySelector('script[type="application/ld+json"][data-jisudeng-route-seo="true"]')
     expect(structured).toBeTruthy()
     expect(JSON.parse(structured?.textContent || '{}')).toMatchObject({
       '@context': 'https://schema.org',
-      '@type': 'CollectionPage',
-      name: 'DeepSeek, Qwen, Kimi, GLM, Claude API Pricing | Jisudeng',
-      headline: 'DeepSeek, Qwen, Kimi, GLM, Claude API Pricing | Jisudeng',
+      '@type': 'ItemList',
+      name: 'Jisudeng public model families',
       inLanguage: 'en',
     })
+    expect(JSON.parse(structured?.textContent || '{}').itemListElement).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        '@type': 'ListItem',
+        name: 'DeepSeek API',
+        url: 'https://www.jisudeng.com/en/catalog/deepseek',
+      }),
+    ]))
   })
 
-  it('uses the brand as the Website entity name and the title as headline', () => {
+  it('removes indexable route metadata from private SPA routes', () => {
+    document.head.innerHTML = ''
+
+    applyPublicRouteSeo('/catalog')
+    expect(document.head.querySelector('meta[name="robots"]')?.getAttribute('content')).toBe('index,follow')
+    expect(document.head.querySelector('link[rel="canonical"]')).toBeTruthy()
+
+    for (const path of ['/status', '/en/status', '/login', '/subscriptions', '/monitor', '/ai-creation-space']) {
+      expect(applyPublicRouteSeo(path), path).toBeUndefined()
+      expect(document.head.querySelector('meta[name="robots"]')?.getAttribute('content')).toBe('noindex,nofollow')
+      expect(document.head.querySelector('link[rel="canonical"]')).toBeNull()
+      expect(document.head.querySelector('link[rel="alternate"][hreflang]')).toBeNull()
+      expect(document.head.querySelector('script[data-jisudeng-route-seo="true"]')).toBeNull()
+    }
+  })
+
+  it('uses only the visible home organization and web application entities', () => {
     document.head.innerHTML = ''
 
     applyPublicRouteSeo('/')
 
     const structured = document.head.querySelector('script[type="application/ld+json"][data-jisudeng-route-seo="true"]')
-    expect(JSON.parse(structured?.textContent || '{}')).toMatchObject({
-      '@type': 'WebSite',
-      name: '极速蹬',
-      headline: '极速蹬 - OpenAI兼容 AI API 网关与多模型服务平台',
-      inLanguage: 'zh-CN',
-    })
+    const data = JSON.parse(structured?.textContent || '{}')
+    expect(data).toMatchObject({ '@context': 'https://schema.org' })
+    expect(data['@graph']).toEqual(expect.arrayContaining([
+      expect.objectContaining({ '@type': 'Organization', name: '极速蹬' }),
+      expect.objectContaining({ '@type': 'WebApplication', name: 'Jisudeng', inLanguage: 'zh-CN' }),
+    ]))
+    expect(JSON.stringify(data)).not.toContain('WebSite')
+    expect(JSON.stringify(data)).not.toContain('SoftwareApplication')
+  })
+
+  it('does not emit schema entities for public routes without matching visible content', () => {
+    document.head.innerHTML = ''
+
+    applyPublicRouteSeo('/about')
+
+    expect(document.head.querySelector('script[type="application/ld+json"][data-jisudeng-route-seo="true"]')).toBeNull()
   })
 })

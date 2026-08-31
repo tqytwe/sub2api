@@ -226,4 +226,59 @@ describe('PlayHubView layout', () => {
     expect(wrapper.text()).toContain('playHub.quizPending:{"reward":"0.50"}')
     expect(wrapper.text()).not.toContain('playHub.quizPending:{"reward":"0.10"}')
   })
+
+  it('does not promise redeemable check-in or quiz rewards to explorer accounts', async () => {
+    const explorerHub = hubFixture()
+    explorerHub.checkin = {
+      ...explorerHub.checkin!,
+      growth_energy_enabled: true,
+      redeemable_reward_eligible: false,
+      growth_eligibility: {
+        tier: 'explorer',
+        reward_mode: 'energy',
+        primary_reason: 'no_recent_activity',
+        email_verified: true,
+        account_age_days: 8,
+        has_recent_usage: false,
+        net_balance_recharge_30d: 0,
+        has_active_subscription: false,
+        progress: {
+          email_verified: true, account_age_days: 8, minimum_account_age_days: 3,
+          account_age_requirement_met: true, has_recent_usage: false,
+          net_balance_recharge_30d: 0, minimum_recharge_cny: 10,
+          has_active_subscription: false, activity_requirement_met: false,
+          next_action: 'no_recent_activity',
+        },
+      },
+    }
+    explorerHub.quiz = {
+      ...explorerHub.quiz!,
+      growth_eligibility: {
+        tier: 'explorer',
+        reward_mode: 'energy',
+        primary_reason: 'no_recent_activity',
+        email_verified: true,
+        account_age_days: 8,
+        has_recent_usage: false,
+        net_balance_recharge_30d: 0,
+        has_active_subscription: false,
+        progress: {
+          email_verified: true, account_age_days: 8, minimum_account_age_days: 3,
+          account_age_requirement_met: true, has_recent_usage: false,
+          net_balance_recharge_30d: 0, minimum_recharge_cny: 10,
+          has_active_subscription: false, activity_requirement_met: false,
+          next_action: 'no_recent_activity',
+        },
+      },
+    }
+    state.getPlayHub.mockResolvedValueOnce(explorerHub)
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('checkin.energyHint')
+    expect(wrapper.text()).toContain('quiz.energyHint')
+    expect(wrapper.text()).not.toContain('playHub.checkinPending')
+    expect(wrapper.text()).not.toContain('playHub.quizPending')
+  })
 })

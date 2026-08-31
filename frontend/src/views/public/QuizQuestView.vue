@@ -9,7 +9,7 @@ import PublicPageToolbar from '@/components/common/PublicPageToolbar.vue'
 import PublicPlayBackLink from '@/components/common/PublicPlayBackLink.vue'
 import SupportFloatingCard from '@/components/common/SupportFloatingCard.vue'
 import CouponRewardCard from '@/components/play/CouponRewardCard.vue'
-import playAPI, { type PlayQuizSubmitResult, type PlayQuizToday } from '@/api/play'
+import playAPI, { type PlayGrowthEligibility, type PlayQuizSubmitResult, type PlayQuizToday } from '@/api/play'
 import '@/styles/public-pages.css'
 
 const { t } = useI18n()
@@ -24,13 +24,25 @@ const lastResult = ref<PlayQuizSubmitResult | null>(null)
 let quizLoadRequest = 0
 let quizSubmitRequest = 0
 
-const couponPoolReady = computed(() => quiz.value?.coupon_pool_ready !== false)
+const growthEnergyMode = computed(() => quiz.value?.growth_eligibility?.reward_mode === 'energy')
+const couponPoolReady = computed(() => growthEnergyMode.value || quiz.value?.coupon_pool_ready !== false)
 const fullBalanceReward = computed(() =>
   (quiz.value?.questions.length ?? 0) * (quiz.value?.reward_per_correct ?? 0),
 )
 const answeredCount = computed(() =>
   quiz.value?.questions.filter((q) => typeof choices[q.id] === 'number').length ?? 0,
 )
+
+function growthProgressMessage(eligibility?: PlayGrowthEligibility) {
+  const progress = eligibility?.progress
+  if (!progress) return t('checkin.energyProgress')
+  return t('checkin.energyProgress', {
+    accountAge: progress.account_age_days,
+    minimumAge: progress.minimum_account_age_days,
+    recharge: progress.net_balance_recharge_30d.toFixed(2),
+    minimumRecharge: progress.minimum_recharge_cny.toFixed(2),
+  })
+}
 const completedCouponReward = computed(() => {
   if (lastResult.value?.reward_type === 'coupon' && lastResult.value.coupon) {
     return lastResult.value.coupon
@@ -40,11 +52,27 @@ const completedCouponReward = computed(() => {
   }
   return null
 })
+const completedRedeemCode = computed(() => {
+  if (lastResult.value?.reward_type === 'redeem_code' && lastResult.value.redeem_code) {
+    return lastResult.value.redeem_code
+  }
+  if (quiz.value?.previous_reward_type === 'redeem_code' && quiz.value.previous_redeem_code) {
+    return quiz.value.previous_redeem_code
+  }
+  return null
+})
 const completedQuizSummary = computed(() => {
-  const score = quiz.value?.previous_score || 0
-  const total = quiz.value?.previous_total || 0
+  const score = lastResult.value?.score ?? quiz.value?.previous_score ?? 0
+  const total = lastResult.value?.total ?? quiz.value?.previous_total ?? 0
+  const growthEnergy = lastResult.value?.growth_energy ?? quiz.value?.previous_growth_energy ?? 0
+  if (growthEnergy > 0) {
+    return t('quiz.energyDone', { score, total, amount: growthEnergy })
+  }
   if (completedCouponReward.value) {
     return t('quiz.couponDone', { score, total })
+  }
+  if (completedRedeemCode.value) {
+    return t('quiz.redeemDone', { score, total, code: completedRedeemCode.value.code })
   }
   return t('quiz.done', {
     score,
@@ -130,13 +158,15 @@ async function handleSubmit() {
     const result = await playAPI.submitQuiz(answers)
     if (requestID !== quizSubmitRequest || !isCurrentQuizSession(sessionKey)) return
     lastResult.value = result
-    appStore.showSuccess(result.reward_type === 'coupon' && result.coupon
-      ? t('coupon.reward.issued', { name: result.coupon.name })
-      : t('quiz.success', {
-          score: result.score,
-          total: result.total,
-          reward: result.reward_amount.toFixed(2),
-        }))
+    appStore.showSuccess(result.growth_energy && result.growth_energy > 0
+      ? t('quiz.energySuccess', { score: result.score, total: result.total, amount: result.growth_energy })
+      : result.reward_type === 'coupon' && result.coupon
+        ? t('coupon.reward.issued', { name: result.coupon.name })
+        : t('quiz.success', {
+            score: result.score,
+            total: result.total,
+            reward: result.reward_amount.toFixed(2),
+          }))
     try {
       await authStore.refreshUser()
     } catch {
@@ -206,7 +236,13 @@ watch(
                 </div>
                 <span>{{ answeredCount }}/{{ quiz.questions.length }}</span>
               </div>
-              <p v-if="quiz?.enabled && couponPoolReady" class="play-intro">
+              <p v-if="quiz?.enabled && growthEnergyMode" class="play-intro">
+                {{ t('quiz.energyHint') }}
+              </p>
+              <p v-if="quiz?.enabled && growthEnergyMode" class="play-note">
+                {{ growthProgressMessage(quiz?.growth_eligibility) }}
+              </p>
+              <p v-else-if="quiz?.enabled && couponPoolReady" class="play-intro">
                 {{ t('quiz.rewardHint', { amount: fullBalanceReward.toFixed(2) }) }}
               </p>
               <p v-else-if="quiz?.enabled" class="play-note">{{ t('quiz.couponPoolUnavailable') }}</p>
@@ -227,6 +263,9 @@ watch(
                 {{ completedQuizSummary }}
               </p>
               <CouponRewardCard v-if="completedCouponReward" :coupon="completedCouponReward" />
+              <p v-if="completedRedeemCode" class="play-note">
+                {{ t('quiz.redeemDone', { score: lastResult?.score ?? quiz.previous_score ?? 0, total: lastResult?.total ?? quiz.previous_total ?? 0, code: completedRedeemCode.code }) }}
+              </p>
             </div>
             <div v-else-if="!couponPoolReady" class="play-note">{{ t('quiz.couponPoolUnavailable') }}</div>
             <div v-else-if="!authStore.isAuthenticated" class="play-actions">
@@ -287,6 +326,8 @@ watch(
             <p class="play-note mt-4">
               {{ quiz.already_submitted
                 ? completedQuizSummary
+                : growthEnergyMode
+                  ? growthProgressMessage(quiz.growth_eligibility)
                 : !couponPoolReady
                   ? t('quiz.couponPoolUnavailable')
                 : t('quiz.rewardHint', { amount: fullBalanceReward.toFixed(2) }) }}

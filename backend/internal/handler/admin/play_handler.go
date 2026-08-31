@@ -42,6 +42,18 @@ type adminVIPConfigRequest struct {
 	Reason          string                `json:"reason"`
 }
 
+type adminPlayGrowthApprovalRequest struct {
+	BudgetAmount   float64                         `json:"budget_amount"`
+	RolloutPercent int                             `json:"rollout_percent"`
+	Cohort         service.PlayGrowthCohortMetrics `json:"cohort"`
+	RuleVersion    string                          `json:"rule_version"`
+	Reason         string                          `json:"reason"`
+}
+
+type adminPlayGrowthRevokeRequest struct {
+	Reason string `json:"reason"`
+}
+
 type adminMobileFeedbackUpdateRequest struct {
 	Status          string                             `json:"status"`
 	AdminNote       *string                            `json:"admin_note"`
@@ -567,6 +579,122 @@ func (h *AdminPlayHandler) Summary(c *gin.Context) {
 		MonthlyArenaRewardBudget: summary.MonthlyArenaRewardBudget,
 		DailyArenaRewardBudget:   summary.DailyArenaRewardBudget,
 	})
+}
+
+// GrowthCohort returns the fixed operations cohort report. It is read-only;
+// approving a rollout is a separate step-up protected mutation.
+func (h *AdminPlayHandler) GrowthCohort(c *gin.Context) {
+	if h == nil || h.playService == nil {
+		response.ErrorFrom(c, infraerrors.ServiceUnavailable("PLAY_GROWTH_GOVERNANCE_UNAVAILABLE", "growth governance unavailable"))
+		return
+	}
+	start, end, err := parseGrowthCohortWindow(c)
+	if err != nil {
+		response.ErrorFrom(c, infraerrors.BadRequest("PLAY_GROWTH_COHORT_WINDOW_INVALID", err.Error()))
+		return
+	}
+	metrics, err := h.playService.GetGrowthCohort(c.Request.Context(), start, end)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, metrics)
+}
+
+// GrowthGovernance returns the latest append-only approval/revocation row.
+func (h *AdminPlayHandler) GrowthGovernance(c *gin.Context) {
+	if h == nil || h.playService == nil {
+		response.ErrorFrom(c, infraerrors.ServiceUnavailable("PLAY_GROWTH_GOVERNANCE_UNAVAILABLE", "growth governance unavailable"))
+		return
+	}
+	state, err := h.playService.GetGrowthGovernance(c.Request.Context())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	if state == nil {
+		state = &service.PlayGrowthGovernanceState{Decision: "none", Approved: false}
+	}
+	response.Success(c, state)
+}
+
+// ApproveGrowthGovernance appends an approved decision after step-up auth.
+func (h *AdminPlayHandler) ApproveGrowthGovernance(c *gin.Context) {
+	if h == nil || h.playService == nil {
+		response.ErrorFrom(c, infraerrors.ServiceUnavailable("PLAY_GROWTH_GOVERNANCE_UNAVAILABLE", "growth governance unavailable"))
+		return
+	}
+	var req adminPlayGrowthApprovalRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorFrom(c, infraerrors.BadRequest("INVALID_REQUEST", "invalid growth governance approval"))
+		return
+	}
+	input := service.PlayGrowthGovernanceApprovalInput{
+		BudgetAmount: req.BudgetAmount, RolloutPercent: req.RolloutPercent,
+		Cohort: req.Cohort, RuleVersion: req.RuleVersion, Reason: req.Reason,
+		ActorID: getAdminIDFromContext(c),
+	}
+	state, err := h.playService.ApproveGrowthGovernance(c.Request.Context(), input)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, state)
+}
+
+// RevokeGrowthGovernance appends a revocation decision after step-up auth.
+func (h *AdminPlayHandler) RevokeGrowthGovernance(c *gin.Context) {
+	if h == nil || h.playService == nil {
+		response.ErrorFrom(c, infraerrors.ServiceUnavailable("PLAY_GROWTH_GOVERNANCE_UNAVAILABLE", "growth governance unavailable"))
+		return
+	}
+	var req adminPlayGrowthRevokeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorFrom(c, infraerrors.BadRequest("INVALID_REQUEST", "invalid growth governance revocation"))
+		return
+	}
+	state, err := h.playService.RevokeGrowthGovernance(c.Request.Context(), getAdminIDFromContext(c), req.Reason)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, state)
+}
+
+func parseGrowthCohortWindow(c *gin.Context) (time.Time, time.Time, error) {
+	now := time.Now().UTC()
+	// The cohort lasts 14 days, but its 30-day real-use result is not complete
+	// until the final participant has had a full 30-day observation period.
+	end := now.Add(-30 * 24 * time.Hour)
+	start := end.Add(-14 * 24 * time.Hour)
+	parse := func(raw string) (time.Time, error) {
+		raw = strings.TrimSpace(raw)
+		if raw == "" {
+			return time.Time{}, nil
+		}
+		if value, err := time.Parse(time.RFC3339Nano, raw); err == nil {
+			return value.UTC(), nil
+		}
+		return time.Parse("2006-01-02", raw)
+	}
+	parsedStart, err := parse(c.Query("start"))
+	if err != nil {
+		return time.Time{}, time.Time{}, fmt.Errorf("invalid start; expect RFC3339 or YYYY-MM-DD")
+	}
+	parsedEnd, err := parse(c.Query("end"))
+	if err != nil {
+		return time.Time{}, time.Time{}, fmt.Errorf("invalid end; expect RFC3339 or YYYY-MM-DD")
+	}
+	if !parsedStart.IsZero() {
+		start = parsedStart
+	}
+	if !parsedEnd.IsZero() {
+		end = parsedEnd
+	}
+	if !end.After(start) {
+		return time.Time{}, time.Time{}, fmt.Errorf("end must be after start")
+	}
+	return start, end, nil
 }
 
 func (h *AdminPlayHandler) MembershipOverview(c *gin.Context) {

@@ -14,6 +14,7 @@
         </div>
         <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
           <button
+            v-if="activeTab !== 'growth-governance'"
             type="button"
             class="btn btn-secondary inline-flex items-center gap-2 self-start"
             @click="selectTab('feedback')"
@@ -1094,6 +1095,7 @@
 
       <AdminMembershipOperations v-if="activeTab === 'membership'" />
       <AdminInviteGrowthOperations v-if="activeTab === 'invite-growth'" />
+      <GrowthGovernanceOperations v-if="activeTab === 'growth-governance'" />
       <AdminAppAnalyticsOperations v-if="activeTab === 'app-analytics'" />
       <MobileReleaseManager v-if="activeTab === 'mobile-releases'" />
 
@@ -1464,6 +1466,7 @@ import AppLayout from "@/components/layout/AppLayout.vue";
 import AdminQuizQuestionBank from "@/components/admin/play/AdminQuizQuestionBank.vue";
 import AdminMembershipOperations from "@/components/admin/play/AdminMembershipOperations.vue";
 import AdminInviteGrowthOperations from "@/components/admin/play/AdminInviteGrowthOperations.vue";
+import GrowthGovernanceOperations from "@/components/admin/play/GrowthGovernanceOperations.vue";
 import AdminAppAnalyticsOperations from "@/components/admin/play/AdminAppAnalyticsOperations.vue";
 import BlindboxPoolEditor from "@/components/admin/play/BlindboxPoolEditor.vue";
 import TeamRewardSettings from "@/components/admin/play/TeamRewardSettings.vue";
@@ -1505,6 +1508,7 @@ type PlayOpsTab =
   | "blindbox"
   | "team-rewards"
   | "invite-growth"
+  | "growth-governance"
   | "teams"
   | "app-analytics"
   | "feedback"
@@ -1519,6 +1523,7 @@ const tabKeys: PlayOpsTab[] = [
   "blindbox",
   "team-rewards",
   "invite-growth",
+  "growth-governance",
   "teams",
   "app-analytics",
   "feedback",

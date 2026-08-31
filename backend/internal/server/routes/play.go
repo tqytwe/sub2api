@@ -41,7 +41,11 @@ func RegisterPlayRoutes(
 		play.GET("/teams/leaderboard/public", publicTeamCompetitionRateLimit, h.Play.TeamPublicLeaderboard)
 		play.GET("/teams/seasons", publicTeamCompetitionRateLimit, h.Play.TeamSeasons)
 		play.GET("/teams/seasons/:month", publicTeamCompetitionRateLimit, h.Play.TeamSeason)
-		play.GET("/blindbox/pool", h.Play.BlindboxPool)
+		// The pool endpoint remains publicly reachable for the landing page, but
+		// an optional JWT lets the handler distinguish qualified accounts from
+		// anonymous/Explorer viewers before deciding whether reward details may
+		// be returned.
+		play.GET("/blindbox/pool", middleware.OptionalJWTAuth(jwtAuth), h.Play.BlindboxPool)
 		play.GET("/blindbox/recent", h.Play.BlindboxRecent)
 	}
 

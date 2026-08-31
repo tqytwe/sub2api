@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
@@ -420,6 +421,33 @@ func (r *redeemCodeRepository) ClaimForReward(ctx context.Context, request servi
 		return redeemCodeEntityToService(claimed), nil
 	}
 	return nil, service.ErrCouponRewardPoolUnavailable
+}
+
+// FindClaimedReward returns the exact redeem code assigned to one immutable
+// play action. It never considers unused inventory and therefore cannot issue
+// or reserve a second code during an idempotent response replay.
+func (r *redeemCodeRepository) FindClaimedReward(ctx context.Context, userID int64, issueSource, issueRef string) (*service.RedeemCode, error) {
+	issueSource = strings.TrimSpace(issueSource)
+	issueRef = strings.TrimSpace(issueRef)
+	if userID <= 0 || issueSource == "" || issueRef == "" {
+		return nil, nil
+	}
+	client := clientFromContext(ctx, r.client)
+	claimed, err := client.RedeemCode.Query().
+		Where(
+			redeemcode.IssuedToEQ(userID),
+			redeemcode.IssueSourceEQ(issueSource),
+			redeemcode.IssueRefEQ(issueRef),
+		).
+		Order(dbent.Desc(redeemcode.FieldIssuedAt), dbent.Desc(redeemcode.FieldID)).
+		First(ctx)
+	if dbent.IsNotFound(err) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("find claimed redeem reward: %w", err)
+	}
+	return redeemCodeEntityToService(claimed), nil
 }
 
 func (r *redeemCodeRepository) ListByUser(ctx context.Context, userID int64, limit int) ([]service.RedeemCode, error) {

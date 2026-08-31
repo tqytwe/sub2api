@@ -84,10 +84,22 @@ function simulateGuard(
       return authState.isAdmin ? '/admin/dashboard' : '/dashboard'
     }
     if (authState.backendModeEnabled && !authState.isAuthenticated) {
-      const allowed = ['/login', '/key-usage', '/setup', '/payment/result']
+      const allowed = [
+        '/login',
+        '/key-usage',
+        '/setup',
+        '/payment/result',
+        '/payment/airwallex',
+        '/legal',
+        '/download/android',
+        '/catalog',
+        '/en/catalog',
+      ]
       const callbackPaths = [
         '/auth/callback',
         '/auth/linuxdo/callback',
+        '/auth/dingtalk/callback',
+        '/auth/dingtalk/email-completion',
         '/auth/oidc/callback',
         '/auth/wechat/callback',
         '/auth/wechat/payment/callback',
@@ -133,10 +145,22 @@ function simulateGuard(
     if (authState.isAuthenticated && authState.isAdmin) {
       return null
     }
-    const allowed = ['/login', '/key-usage', '/setup', '/payment/result']
+    const allowed = [
+      '/login',
+      '/key-usage',
+      '/setup',
+      '/payment/result',
+      '/payment/airwallex',
+      '/legal',
+      '/download/android',
+      '/catalog',
+      '/en/catalog',
+    ]
     const callbackPaths = [
       '/auth/callback',
       '/auth/linuxdo/callback',
+      '/auth/dingtalk/callback',
+      '/auth/dingtalk/email-completion',
       '/auth/oidc/callback',
       '/auth/wechat/callback',
       '/auth/wechat/payment/callback',
@@ -370,6 +394,30 @@ describe('路由守卫逻辑', () => {
       }
       const redirect = simulateGuard('/key-usage', { requiresAuth: false }, authState)
       expect(redirect).toBeNull()
+    })
+
+    it.each(['/catalog', '/en/catalog', '/catalog/deepseek'])('unauthenticated: public catalog route %s is allowed', (path) => {
+      const authState: MockAuthState = {
+        isAuthenticated: false,
+        isAdmin: false,
+        isSimpleMode: false,
+        backendModeEnabled: true,
+        hasPendingAuthSession: false,
+      }
+      const redirect = simulateGuard(path, { requiresAuth: false }, authState)
+      expect(redirect).toBeNull()
+    })
+
+    it.each(['/docs', '/en/docs', '/status', '/en/status'])('unauthenticated: public content route %s is blocked when backend mode is enabled', (path) => {
+      const authState: MockAuthState = {
+        isAuthenticated: false,
+        isAdmin: false,
+        isSimpleMode: false,
+        backendModeEnabled: true,
+        hasPendingAuthSession: false,
+      }
+      const redirect = simulateGuard(path, { requiresAuth: false }, authState)
+      expect(redirect).toBe('/login')
     })
 
     it('unauthenticated: /setup is allowed', () => {

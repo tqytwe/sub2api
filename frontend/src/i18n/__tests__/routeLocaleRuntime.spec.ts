@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 import { describe, expect, it, vi } from 'vitest'
+import { createPinia, setActivePinia } from 'pinia'
 
 import {
   ROUTE_LOCALE_SCOPES,
@@ -11,6 +12,7 @@ import {
   inheritedEnglishLocaleQuery,
   localeForRoute,
   localeScopesForRouteName,
+  setLocale,
 } from '../index'
 
 function readPath(messages: Record<string, unknown>, path: string): unknown {
@@ -79,6 +81,7 @@ const ROUTE_RUNTIME_KEYS = {
   AdminPlugins: ['admin.plugins.title'],
   AdminSettings: ['admin.settings.title'],
   AdminAuditLogs: ['admin.audit.title'],
+  AdminSubscriptions: ['admin.subscriptions.title', 'admin.subscriptions.description'],
   AdminPromptAudit: ['admin.promptAudit.title'],
   AdminUsage: ['admin.usage.title', 'usage.totalRequests', 'usage.tabs.usage'],
   AdminPlayBillingConfig: [
@@ -290,8 +293,8 @@ describe('route locale runtime scopes', () => {
     expect(localeForRoute('/dashboard')).toBe('zh')
     expect(localeForRoute('/dashboard', { lang: 'en' })).toBe('en')
     expect(localeForRoute('/dashboard', { lang: 'zh' })).toBe('zh')
-    expect(localeForRoute('/models', { lang: 'en' })).toBe('en')
-    expect(localeForRoute('/en/models', { lang: 'zh' })).toBe('en')
+    expect(localeForRoute('/catalog', { lang: 'en' })).toBe('en')
+    expect(localeForRoute('/en/catalog', { lang: 'zh' })).toBe('en')
   })
 
   it('clears the legacy locale preference on a Chinese workspace route', async () => {
@@ -304,12 +307,40 @@ describe('route locale runtime scopes', () => {
     expect(i18n.global.locale.value).toBe('zh')
   })
 
+  it('keeps the last requested locale when lazy locale work resolves out of order', async () => {
+    setActivePinia(createPinia())
+    i18n.global.locale.value = 'zh'
+    document.documentElement.setAttribute('lang', 'zh-CN')
+
+    const olderEnglishTransition = setLocale('en')
+    const newerChineseTransition = setLocale('zh')
+
+    await Promise.all([olderEnglishTransition, newerChineseTransition])
+
+    expect(i18n.global.locale.value).toBe('zh')
+    expect(document.documentElement.lang).toBe('zh-CN')
+  })
+
+  it('marks a superseded route locale transition stale so its router guard cannot update the title', async () => {
+    setActivePinia(createPinia())
+    i18n.global.locale.value = 'zh'
+    document.documentElement.setAttribute('lang', 'zh-CN')
+
+    const olderEnglishNavigation = applyLocaleFromRoute('/en/docs', {})
+    const newerChineseNavigation = applyLocaleFromRoute('/docs', {})
+
+    await expect(olderEnglishNavigation).resolves.toBe(false)
+    await expect(newerChineseNavigation).resolves.toBe(true)
+    expect(i18n.global.locale.value).toBe('zh')
+    expect(document.documentElement.lang).toBe('zh-CN')
+  })
+
   it('preserves only an explicit English workspace query during internal navigation', () => {
     expect(inheritedEnglishLocaleQuery({ lang: 'en' }, { tab: 'usage' }, '/wallet')).toEqual({
       lang: 'en',
       tab: 'usage',
     })
-    expect(inheritedEnglishLocaleQuery({ lang: 'en' }, {}, '/en/models')).toBeNull()
+    expect(inheritedEnglishLocaleQuery({ lang: 'en' }, {}, '/en/catalog')).toBeNull()
     expect(inheritedEnglishLocaleQuery({ lang: 'zh' }, {}, '/wallet')).toBeNull()
     expect(inheritedEnglishLocaleQuery({}, {}, '/wallet')).toBeNull()
   })

@@ -59,34 +59,11 @@ export const jisudengHomeEn = {
   },
   stats: {
     requests: 'Recorded API requests',
-    uptime: '30-day availability',
-    latency: '24-hour avg. first-token latency',
-    models: 'Models available',
     through: 'Latest operations sample ended {time}',
-    computed: 'Snapshot generated {time}',
-    stale: 'Showing cached or delayed data'
-  },
-  lmspeedProof: {
-    tag: 'LMSPEED STATUS',
-    title: 'Third-party Speed and Status',
-    lede:
-      'Public LMSpeed proof for Jisudeng health checks, supported models, and recent tests. API-key speed tests stay inside this site.',
-    gridLabel: 'Jisudeng LMSpeed third-party status cards',
-    providerLink: 'View LMSpeed provider page',
-    items: {
-      health: {
-        label: 'Health Check',
-        alt: 'Jisudeng Health Check'
-      },
-      models: {
-        label: 'Supported Models',
-        alt: 'Jisudeng Supported Models'
-      },
-      recent: {
-        label: 'Recent Tests',
-        alt: 'Jisudeng Recent Tests'
-      }
-    }
+    fresh: 'System data normal',
+    delayed: 'Data delayed',
+    unavailable: 'Status data unavailable',
+    statusLink: 'View system status'
   },
   sections: {
     imageTag: 'IMAGE API',
@@ -276,8 +253,7 @@ export const jisudengHomeEn = {
   },
   footer: {
     tagline: 'AI API gateway',
-    docs: 'Documentation',
-    lmspeedBadgeAlt: 'Jisudeng is listed on LMSpeed.net'
+    docs: 'Documentation'
   },
   registerBanner: {
     signupCredit: 'Register now — get ${amount} free credits to test every model.',
@@ -288,7 +264,6 @@ export const jisudengHomeEn = {
     navigation: 'Page navigation',
     manifesto: 'Promise',
     stats: 'Stats',
-    lmspeed: 'Speed',
     image: 'Image',
     channels: 'Channels',
     features: 'Why us',

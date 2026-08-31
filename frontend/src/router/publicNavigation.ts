@@ -13,9 +13,11 @@ export const PUBLIC_ROUTE_NAMES = {
   englishDocs: 'EnglishDocs',
   englishHome: 'EnglishHome',
   englishModels: 'EnglishModels',
+  englishStatus: 'EnglishStatus',
   keyUsage: 'KeyUsage',
   login: 'Login',
   models: 'Models',
+  status: 'Status',
   register: 'Register',
 } as const
 

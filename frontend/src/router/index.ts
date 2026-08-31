@@ -50,7 +50,7 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
-    path: '/en/models',
+    path: '/en/catalog',
     name: 'EnglishModels',
     component: () => import('@/views/ModelPlazaView.vue'),
     meta: {
@@ -61,7 +61,7 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
-    path: '/en/models/:family(deepseek|qwen|kimi|glm)',
+    path: '/en/catalog/:family(deepseek|qwen|kimi|glm)',
     name: 'EnglishModelFamily',
     component: () => import('@/views/ModelPlazaView.vue'),
     meta: {
@@ -69,6 +69,16 @@ const routes: RouteRecordRaw[] = [
       title: 'Model pricing',
       frame: 'workspace'
     }
+  },
+  {
+    path: '/en/models',
+    // Legacy browser route. The protected root /models API remains a backend
+    // contract; old English page bookmarks move to the canonical catalog.
+    redirect: to => ({ path: '/en/catalog', query: to.query }),
+  },
+  {
+    path: '/en/models/:family(deepseek|qwen|kimi|glm)',
+    redirect: to => ({ path: `/en/catalog/${to.params.family}`, query: to.query }),
   },
   {
     path: '/en/docs',
@@ -80,6 +90,17 @@ const routes: RouteRecordRaw[] = [
       absoluteTitle: 'Jisudeng API Docs - OpenAI-Compatible Gateway Quickstart',
       frame: 'workspace'
     }
+  },
+  {
+    path: '/en/status',
+    name: 'EnglishStatus',
+    component: () => import('@/views/public/PublicStatusView.vue'),
+    meta: {
+      requiresAuth: false,
+      title: 'System status',
+      absoluteTitle: 'Jisudeng System Status',
+      frame: 'reading',
+    },
   },
   {
     path: '/en/about',
@@ -105,11 +126,11 @@ const routes: RouteRecordRaw[] = [
     path: '/pricing',
     // design-governance-allow: visual-evidence - this compatibility route only restores a named redirect and does not add a new visual surface
     name: 'Pricing',
-    redirect: to => ({ path: '/models', query: to.query }),
+    redirect: to => ({ path: '/catalog', query: to.query }),
   },
   {
     path: '/pricing/:family(deepseek|qwen|kimi|glm)',
-    redirect: to => ({ path: `/models/${to.params.family}`, query: to.query }),
+    redirect: to => ({ path: `/catalog/${to.params.family}`, query: to.query }),
   },
   {
     path: '/download/android',
@@ -298,6 +319,17 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/status',
+    name: 'Status',
+    component: () => import('@/views/public/PublicStatusView.vue'),
+    meta: {
+      requiresAuth: false,
+      title: '系统状态',
+      absoluteTitle: '极速蹬系统状态',
+      frame: 'reading',
+    },
+  },
+  {
     path: '/blindbox',
     name: 'Blindbox',
     component: () => import('@/views/public/BlindboxView.vue'),
@@ -337,7 +369,7 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
-    path: '/models',
+    path: '/catalog',
     name: 'Models',
     component: () => import('@/views/ModelPlazaView.vue'),
     meta: {
@@ -347,7 +379,7 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
-    path: '/models/:family(deepseek|qwen|kimi|glm)',
+    path: '/catalog/:family(deepseek|qwen|kimi|glm)',
     name: 'ModelFamily',
     component: () => import('@/views/ModelPlazaView.vue'),
     meta: {
@@ -357,8 +389,18 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/models',
+    // Keep in-app legacy links useful without reintroducing /models as an SEO
+    // page or changing the OpenAI-compatible API endpoint on the server.
+    redirect: to => ({ path: '/catalog', query: to.query }),
+  },
+  {
+    path: '/models/:family(deepseek|qwen|kimi|glm)',
+    redirect: to => ({ path: `/catalog/${to.params.family}`, query: to.query }),
+  },
+  {
     path: '/model-plaza',
-    redirect: to => ({ path: '/models', query: to.query }),
+    redirect: to => ({ path: '/catalog', query: to.query }),
   },
   {
     path: '/agent-team',
@@ -1185,7 +1227,17 @@ let authInitialized = false
 // 初始化导航加载状态
 const navigationLoading = useNavigationLoadingState()
 const navigationGeneration = createNavigationGeneration()
-const BACKEND_MODE_ALLOWED_PATHS = ['/login', '/key-usage', '/setup', '/payment/result', '/payment/airwallex', '/legal', '/download/android', '/models', '/en/models']
+const BACKEND_MODE_ALLOWED_PATHS = [
+  '/login',
+  '/key-usage',
+  '/setup',
+  '/payment/result',
+  '/payment/airwallex',
+  '/legal',
+  '/download/android',
+  '/catalog',
+  '/en/catalog',
+]
 const BACKEND_MODE_CALLBACK_PATHS = [
   '/auth/callback',
   '/auth/linuxdo/callback',
@@ -1264,8 +1316,9 @@ router.beforeEach(async (to, from, next) => {
       if (abortIfSuperseded()) return
     }
     // AppSidebar normally loads admin settings after the first render. A
-    // direct cold-start visit to an admin custom page must wait for the shared
-    // request before deciding whether it is a native docs target.
+    // direct cold-start visit to an admin custom page can arrive before that
+    // request completes, so wait for the shared in-flight fetch before
+    // deciding whether the entry is a first-party native docs route.
     if (authStore.isAdmin && !adminSettingsStore.loaded) {
       await adminSettingsStore.fetch()
       if (abortIfSuperseded()) return
@@ -1326,10 +1379,10 @@ router.beforeEach(async (to, from, next) => {
     // Model Plaza:公开路由但受「启用开关 + 可选强制登录」双重控制(后端同口径 fail-closed)
     const isModelPlazaRoute =
       to.path === '/model-plaza' ||
-      to.path === '/models' ||
-      to.path.startsWith('/models/') ||
-      to.path === '/en/models' ||
-      to.path.startsWith('/en/models/')
+      to.path === '/catalog' ||
+      to.path.startsWith('/catalog/') ||
+      to.path === '/en/catalog' ||
+      to.path.startsWith('/en/catalog/')
     if (isModelPlazaRoute) {
       if (!appStore.publicSettingsLoaded) {
         try {

@@ -3,7 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
-import playAPI, { type PlayCheckinResult, type PlayCheckinStatus } from '@/api/play'
+import playAPI, { type PlayCheckinResult, type PlayCheckinStatus, type PlayGrowthEligibility } from '@/api/play'
 import { trackQuestCompleteOnce } from '@/utils/growthAnalytics'
 import { useAuthStore } from '@/stores/auth'
 import { useAppStore } from '@/stores/app'
@@ -20,15 +20,18 @@ const makingUp = ref(false)
 const status = ref<PlayCheckinStatus | null>(null)
 
 const user = computed(() => authStore.user)
+const growthEligibility = computed(() => status.value?.growth_eligibility)
+const growthEnergyMode = computed(
+  () => status.value?.growth_energy_enabled || growthEligibility.value?.reward_mode === 'energy',
+)
 const canCheckIn = computed(
   () =>
     status.value?.enabled &&
-    status.value.eligible !== false &&
     !status.value.checked_in_today &&
     !submitting.value,
 )
 const canMakeup = computed(
-  () => status.value?.can_makeup && !makingUp.value && !submitting.value,
+  () => status.value?.can_makeup && status.value.redeemable_reward_eligible && !makingUp.value && !submitting.value,
 )
 
 async function loadStatus() {
@@ -43,6 +46,9 @@ async function loadStatus() {
 }
 
 function successMessage(result: PlayCheckinResult) {
+  if (result.growth_energy && result.growth_energy > 0) {
+    return t('checkin.energySuccess', { amount: result.growth_energy })
+  }
   if (result.reward_type === 'coupon' && result.coupon) {
     return t('checkin.couponSuccess', { name: result.coupon.name })
   }
@@ -59,10 +65,21 @@ function successMessage(result: PlayCheckinResult) {
   return msg
 }
 
-function checkinIneligibleMessage(reason?: string) {
-  const key = `checkin.ineligibleReasons.${reason || 'no_recent_activity'}`
+function growthReasonMessage(reason?: string) {
+  const key = `checkin.growthReasons.${reason || 'no_recent_activity'}`
   const label = t(key)
-  return label === key ? t('checkin.ineligibleReasons.no_recent_activity') : label
+  return label === key ? t('checkin.growthReasons.no_recent_activity') : label
+}
+
+function growthProgressMessage(eligibility?: PlayGrowthEligibility) {
+  const progress = eligibility?.progress
+  if (!progress) return t('checkin.energyProgress')
+  return t('checkin.energyProgress', {
+    accountAge: progress.account_age_days,
+    minimumAge: progress.minimum_account_age_days,
+    recharge: progress.net_balance_recharge_30d.toFixed(2),
+    minimumRecharge: progress.minimum_recharge_cny.toFixed(2),
+  })
 }
 
 async function handleCheckin() {
@@ -83,11 +100,6 @@ async function handleCheckin() {
     }
     if (code === 'PLAY_FEATURE_DISABLED') {
       appStore.showError(t('checkin.disabled'))
-      return
-    }
-    if (code === 'PLAY_CHECKIN_INELIGIBLE') {
-      appStore.showError(checkinIneligibleMessage(status.value?.ineligible_reason))
-      await loadStatus()
       return
     }
     appStore.showError(t('checkin.failed'))
@@ -132,7 +144,7 @@ onMounted(loadStatus)
             <p class="gw-eyebrow">{{ t('checkin.eyebrow') }}</p>
             <h1 class="gw-title">{{ t('checkin.title') }}</h1>
             <p v-if="status?.enabled" class="gw-subtitle">
-              {{ t('checkin.randomRewardHint') }}
+              {{ growthEnergyMode ? t('checkin.energyHint') : t('checkin.randomRewardHint') }}
             </p>
           </div>
 
@@ -164,12 +176,11 @@ onMounted(loadStatus)
             <p v-if="status.checked_in_today" class="text-sm font-medium" style="color: var(--gw-ok)">
               {{ t('checkin.alreadyDone') }}
             </p>
-            <p
-              v-else-if="status.eligible === false"
-              class="rounded-lg border border-amber-300/60 bg-amber-50/80 px-4 py-3 text-sm text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200"
-            >
-              {{ checkinIneligibleMessage(status.ineligible_reason) }}
-            </p>
+            <div v-else-if="growthEnergyMode" class="gw-quest-banner gw-quest-banner--warn" role="status">
+              <p class="gw-quest-banner-title">{{ t('checkin.energyTitle') }}</p>
+              <p class="gw-subtitle">{{ growthReasonMessage(growthEligibility?.primary_reason) }}</p>
+              <p class="gw-subtitle">{{ growthProgressMessage(growthEligibility) }}</p>
+            </div>
             <button
               type="button"
               class="gw-btn gw-btn-primary w-full"
@@ -188,6 +199,10 @@ onMounted(loadStatus)
         </div>
 
         <aside class="gw-workspace">
+          <div v-if="status?.redeemable_reward_eligible" class="gw-quest-banner">
+            <p class="gw-quest-banner-title">{{ t('checkin.redeemableTitle') }}</p>
+            <p class="gw-subtitle">{{ t('checkin.redeemableHint') }}</p>
+          </div>
           <div v-if="status?.next_milestone_days" class="gw-quest-banner">
             {{ t('checkin.nextMilestone', { days: status.next_milestone_days, bonus: (status.next_milestone_bonus || 0).toFixed(2) }) }}
           </div>

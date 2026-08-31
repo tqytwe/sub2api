@@ -134,24 +134,48 @@ export function healthStateClass(state: string | undefined): string {
   return `health-${state || 'unknown'}`
 }
 
+/**
+ * Labels belong to the active UI locale, rather than the monitor payload.
+ * Keeping them explicit prevents a delayed locale transition from displaying
+ * an otherwise correct metric with a stale English prefix.
+ */
+export interface LatencyMetricLabels {
+  average: string
+  p50: string
+  p90: string
+  p95: string
+}
+
+/** Compatibility labels for callers outside Vue components. */
+export function monitorLatencyLabels(locale = monitorIntlLocale()): LatencyMetricLabels {
+  const isChinese = locale.toLowerCase().startsWith('zh')
+  return {
+    average: isChinese ? '平均' : 'Average',
+    p50: 'P50',
+    p90: 'P90',
+    p95: 'P95',
+  }
+}
+
 /** Privacy-safe latency summary: avg + p50 + p90 (no absolute sample counts). */
 export function formatLatencyPrivacy(
   p50: number | null | undefined,
   p90: number | null | undefined,
   avg?: number | null | undefined,
   p95?: number | null | undefined,
+  labels: LatencyMetricLabels = monitorLatencyLabels(),
 ): string {
   const parts: string[] = []
-  if (avg != null) parts.push(`AVG ${formatMonitorMs(avg)}`)
-  if (p50 != null) parts.push(`P50 ${formatMonitorMs(p50)}`)
-  if (p90 != null) parts.push(`P90 ${formatMonitorMs(p90)}`)
+  if (avg != null) parts.push(`${labels.average} ${formatMonitorMs(avg)}`)
+  if (p50 != null) parts.push(`${labels.p50} ${formatMonitorMs(p50)}`)
+  if (p90 != null) parts.push(`${labels.p90} ${formatMonitorMs(p90)}`)
   // p95 only as fallback when p90 missing (older payloads)
-  if (p90 == null && p95 != null) parts.push(`P95 ${formatMonitorMs(p95)}`)
+  if (p90 == null && p95 != null) parts.push(`${labels.p95} ${formatMonitorMs(p95)}`)
   return parts.length ? parts.join(' · ') : '-'
 }
 
 /**
- * KPI secondary line for latency: AVG + P90 only (P50 is the primary value).
+ * KPI secondary line for latency: average + P90 only (P50 is the primary value).
  * Falls back to P95 when P90 is absent. Delimiter is " · " so MetricCell can
  * split into non-truncated chips.
  */
@@ -159,11 +183,12 @@ export function formatLatencyKpiSecondary(
   avg?: number | null | undefined,
   p90?: number | null | undefined,
   p95?: number | null | undefined,
+  labels: LatencyMetricLabels = monitorLatencyLabels(),
 ): string {
   const parts: string[] = []
-  if (avg != null && Number.isFinite(avg)) parts.push(`AVG ${formatMonitorMs(avg)}`)
-  if (p90 != null && Number.isFinite(p90)) parts.push(`P90 ${formatMonitorMs(p90)}`)
-  else if (p95 != null && Number.isFinite(p95)) parts.push(`P95 ${formatMonitorMs(p95)}`)
+  if (avg != null && Number.isFinite(avg)) parts.push(`${labels.average} ${formatMonitorMs(avg)}`)
+  if (p90 != null && Number.isFinite(p90)) parts.push(`${labels.p90} ${formatMonitorMs(p90)}`)
+  else if (p95 != null && Number.isFinite(p95)) parts.push(`${labels.p95} ${formatMonitorMs(p95)}`)
   return parts.length ? parts.join(' · ') : '-'
 }
 

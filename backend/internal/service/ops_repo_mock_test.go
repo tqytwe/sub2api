@@ -189,4 +189,12 @@ func (m *opsRepoMock) GetLatestDailyBucketDate(ctx context.Context) (time.Time, 
 	return time.Time{}, false, nil
 }
 
+func (m *opsRepoMock) GetHourlyAggregationWatermark(ctx context.Context) (time.Time, bool, error) {
+	return time.Time{}, false, nil
+}
+
+func (m *opsRepoMock) AdvanceHourlyAggregationWatermark(ctx context.Context, completedThrough time.Time) error {
+	return nil
+}
+
 var _ OpsRepository = (*opsRepoMock)(nil)

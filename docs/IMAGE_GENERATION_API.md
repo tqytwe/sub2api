@@ -3,7 +3,7 @@
 > 状态：active
 > 网站入口：`https://www.jisudeng.com/docs?cat=deploy&page=text-to-image-api`
 > API Key：`https://www.jisudeng.com/keys`
-> 模型与价格：`https://www.jisudeng.com/models`
+> 模型与价格：`https://www.jisudeng.com/catalog`
 > API 地址：`https://api.jisudeng.com`
 > 最后核验：2026-08-16
 
@@ -118,7 +118,7 @@ GPT 分组不传 `model` 时默认走 `gpt-image-2`。Grok 分组必须传 `mode
 
 1. 打开 `https://www.jisudeng.com/keys`。
 2. 创建或选择一把绑定到 GPT/OpenAI 图像分组或 Grok 图像分组的 API Key。
-3. 在 `https://www.jisudeng.com/models` 确认这把 Key 所属分组能看到可提交到 Images API 的图片模型，例如 `gpt-image-*`、`grok-imagine*`、`agnes-image-2.1-flash`、`agnes-image-2.0-flash` 或 `gemini-3.1-flash-image-preview`。
+3. 在 `https://www.jisudeng.com/catalog` 确认这把 Key 所属分组能看到可提交到 Images API 的图片模型，例如 `gpt-image-*`、`grok-imagine*`、`agnes-image-2.1-flash`、`agnes-image-2.0-flash` 或 `gemini-3.1-flash-image-preview`。
 4. 调用时把 Key 放在请求头里，不要放 URL 参数里。
 
 推荐认证头：

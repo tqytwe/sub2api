@@ -165,57 +165,57 @@ var promptSitemapStaticPaths = []promptSitemapStaticPath{
 		Alternates: []promptSitemapAlternatePath{
 			{Hreflang: "zh-CN", Path: "/"},
 			{Hreflang: "en", Path: "/en/"},
-			{Hreflang: "x-default", Path: "/en/"},
+			{Hreflang: "x-default", Path: "/"},
 		},
 	},
 	{
-		Path:       "/models",
+		Path:       "/catalog",
 		ChangeFreq: "daily",
 		Priority:   "0.95",
 		Alternates: []promptSitemapAlternatePath{
-			{Hreflang: "zh-CN", Path: "/models"},
-			{Hreflang: "en", Path: "/en/models"},
-			{Hreflang: "x-default", Path: "/en/models"},
+			{Hreflang: "zh-CN", Path: "/catalog"},
+			{Hreflang: "en", Path: "/en/catalog"},
+			{Hreflang: "x-default", Path: "/catalog"},
 		},
 	},
 	{
-		Path:       "/models/deepseek",
+		Path:       "/catalog/deepseek",
 		ChangeFreq: "daily",
 		Priority:   "0.82",
 		Alternates: []promptSitemapAlternatePath{
-			{Hreflang: "zh-CN", Path: "/models/deepseek"},
-			{Hreflang: "en", Path: "/en/models/deepseek"},
-			{Hreflang: "x-default", Path: "/en/models/deepseek"},
+			{Hreflang: "zh-CN", Path: "/catalog/deepseek"},
+			{Hreflang: "en", Path: "/en/catalog/deepseek"},
+			{Hreflang: "x-default", Path: "/catalog/deepseek"},
 		},
 	},
 	{
-		Path:       "/models/qwen",
+		Path:       "/catalog/qwen",
 		ChangeFreq: "daily",
 		Priority:   "0.82",
 		Alternates: []promptSitemapAlternatePath{
-			{Hreflang: "zh-CN", Path: "/models/qwen"},
-			{Hreflang: "en", Path: "/en/models/qwen"},
-			{Hreflang: "x-default", Path: "/en/models/qwen"},
+			{Hreflang: "zh-CN", Path: "/catalog/qwen"},
+			{Hreflang: "en", Path: "/en/catalog/qwen"},
+			{Hreflang: "x-default", Path: "/catalog/qwen"},
 		},
 	},
 	{
-		Path:       "/models/kimi",
+		Path:       "/catalog/kimi",
 		ChangeFreq: "daily",
 		Priority:   "0.82",
 		Alternates: []promptSitemapAlternatePath{
-			{Hreflang: "zh-CN", Path: "/models/kimi"},
-			{Hreflang: "en", Path: "/en/models/kimi"},
-			{Hreflang: "x-default", Path: "/en/models/kimi"},
+			{Hreflang: "zh-CN", Path: "/catalog/kimi"},
+			{Hreflang: "en", Path: "/en/catalog/kimi"},
+			{Hreflang: "x-default", Path: "/catalog/kimi"},
 		},
 	},
 	{
-		Path:       "/models/glm",
+		Path:       "/catalog/glm",
 		ChangeFreq: "daily",
 		Priority:   "0.82",
 		Alternates: []promptSitemapAlternatePath{
-			{Hreflang: "zh-CN", Path: "/models/glm"},
-			{Hreflang: "en", Path: "/en/models/glm"},
-			{Hreflang: "x-default", Path: "/en/models/glm"},
+			{Hreflang: "zh-CN", Path: "/catalog/glm"},
+			{Hreflang: "en", Path: "/en/catalog/glm"},
+			{Hreflang: "x-default", Path: "/catalog/glm"},
 		},
 	},
 	{
@@ -225,7 +225,7 @@ var promptSitemapStaticPaths = []promptSitemapStaticPath{
 		Alternates: []promptSitemapAlternatePath{
 			{Hreflang: "zh-CN", Path: "/docs"},
 			{Hreflang: "en", Path: "/en/docs"},
-			{Hreflang: "x-default", Path: "/en/docs"},
+			{Hreflang: "x-default", Path: "/docs"},
 		},
 	},
 	{
@@ -235,57 +235,57 @@ var promptSitemapStaticPaths = []promptSitemapStaticPath{
 		Alternates: []promptSitemapAlternatePath{
 			{Hreflang: "en", Path: "/en/"},
 			{Hreflang: "zh-CN", Path: "/"},
-			{Hreflang: "x-default", Path: "/en/"},
+			{Hreflang: "x-default", Path: "/"},
 		},
 	},
 	{
-		Path:       "/en/models",
+		Path:       "/en/catalog",
 		ChangeFreq: "daily",
 		Priority:   "0.90",
 		Alternates: []promptSitemapAlternatePath{
-			{Hreflang: "en", Path: "/en/models"},
-			{Hreflang: "zh-CN", Path: "/models"},
-			{Hreflang: "x-default", Path: "/en/models"},
+			{Hreflang: "en", Path: "/en/catalog"},
+			{Hreflang: "zh-CN", Path: "/catalog"},
+			{Hreflang: "x-default", Path: "/catalog"},
 		},
 	},
 	{
-		Path:       "/en/models/deepseek",
+		Path:       "/en/catalog/deepseek",
 		ChangeFreq: "daily",
 		Priority:   "0.82",
 		Alternates: []promptSitemapAlternatePath{
-			{Hreflang: "en", Path: "/en/models/deepseek"},
-			{Hreflang: "zh-CN", Path: "/models/deepseek"},
-			{Hreflang: "x-default", Path: "/en/models/deepseek"},
+			{Hreflang: "en", Path: "/en/catalog/deepseek"},
+			{Hreflang: "zh-CN", Path: "/catalog/deepseek"},
+			{Hreflang: "x-default", Path: "/catalog/deepseek"},
 		},
 	},
 	{
-		Path:       "/en/models/qwen",
+		Path:       "/en/catalog/qwen",
 		ChangeFreq: "daily",
 		Priority:   "0.82",
 		Alternates: []promptSitemapAlternatePath{
-			{Hreflang: "en", Path: "/en/models/qwen"},
-			{Hreflang: "zh-CN", Path: "/models/qwen"},
-			{Hreflang: "x-default", Path: "/en/models/qwen"},
+			{Hreflang: "en", Path: "/en/catalog/qwen"},
+			{Hreflang: "zh-CN", Path: "/catalog/qwen"},
+			{Hreflang: "x-default", Path: "/catalog/qwen"},
 		},
 	},
 	{
-		Path:       "/en/models/kimi",
+		Path:       "/en/catalog/kimi",
 		ChangeFreq: "daily",
 		Priority:   "0.82",
 		Alternates: []promptSitemapAlternatePath{
-			{Hreflang: "en", Path: "/en/models/kimi"},
-			{Hreflang: "zh-CN", Path: "/models/kimi"},
-			{Hreflang: "x-default", Path: "/en/models/kimi"},
+			{Hreflang: "en", Path: "/en/catalog/kimi"},
+			{Hreflang: "zh-CN", Path: "/catalog/kimi"},
+			{Hreflang: "x-default", Path: "/catalog/kimi"},
 		},
 	},
 	{
-		Path:       "/en/models/glm",
+		Path:       "/en/catalog/glm",
 		ChangeFreq: "daily",
 		Priority:   "0.82",
 		Alternates: []promptSitemapAlternatePath{
-			{Hreflang: "en", Path: "/en/models/glm"},
-			{Hreflang: "zh-CN", Path: "/models/glm"},
-			{Hreflang: "x-default", Path: "/en/models/glm"},
+			{Hreflang: "en", Path: "/en/catalog/glm"},
+			{Hreflang: "zh-CN", Path: "/catalog/glm"},
+			{Hreflang: "x-default", Path: "/catalog/glm"},
 		},
 	},
 	{
@@ -295,34 +295,33 @@ var promptSitemapStaticPaths = []promptSitemapStaticPath{
 		Alternates: []promptSitemapAlternatePath{
 			{Hreflang: "en", Path: "/en/docs"},
 			{Hreflang: "zh-CN", Path: "/docs"},
-			{Hreflang: "x-default", Path: "/en/docs"},
+			{Hreflang: "x-default", Path: "/docs"},
 		},
 	},
 	{Path: "/about", ChangeFreq: "monthly", Priority: "0.60", Alternates: []promptSitemapAlternatePath{
 		{Hreflang: "zh-CN", Path: "/about"},
 		{Hreflang: "en", Path: "/en/about"},
-		{Hreflang: "x-default", Path: "/en/about"},
+		{Hreflang: "x-default", Path: "/about"},
 	}},
 	{Path: "/contact", ChangeFreq: "monthly", Priority: "0.60", Alternates: []promptSitemapAlternatePath{
 		{Hreflang: "zh-CN", Path: "/contact"},
 		{Hreflang: "en", Path: "/en/contact"},
-		{Hreflang: "x-default", Path: "/en/contact"},
+		{Hreflang: "x-default", Path: "/contact"},
 	}},
 	{Path: "/en/about", ChangeFreq: "monthly", Priority: "0.60", Alternates: []promptSitemapAlternatePath{
 		{Hreflang: "en", Path: "/en/about"},
 		{Hreflang: "zh-CN", Path: "/about"},
-		{Hreflang: "x-default", Path: "/en/about"},
+		{Hreflang: "x-default", Path: "/about"},
 	}},
 	{Path: "/en/contact", ChangeFreq: "monthly", Priority: "0.60", Alternates: []promptSitemapAlternatePath{
 		{Hreflang: "en", Path: "/en/contact"},
 		{Hreflang: "zh-CN", Path: "/contact"},
-		{Hreflang: "x-default", Path: "/en/contact"},
+		{Hreflang: "x-default", Path: "/contact"},
 	}},
 	{Path: "/download/android", ChangeFreq: "weekly", Priority: "0.55", Alternates: []promptSitemapAlternatePath{
 		{Hreflang: "zh-CN", Path: "/download/android"},
 		{Hreflang: "x-default", Path: "/download/android"},
 	}},
-	{Path: "/ai-creation-space", ChangeFreq: "weekly", Priority: "0.70"},
 }
 
 func (h *PromptLibraryHandler) Sitemap(c *gin.Context) {
@@ -471,14 +470,14 @@ Jisudeng is an AI API gateway for developers, teams, and AI tool users. It helps
 ## Key Links
 
 - English homepage: %s/en/
-- Model catalog and pricing: %s/en/models
-- DeepSeek pricing: %s/en/models/deepseek
-- Qwen pricing: %s/en/models/qwen
-- Kimi pricing: %s/en/models/kimi
-- GLM pricing: %s/en/models/glm
+- Model catalog and pricing: %s/en/catalog
+- DeepSeek pricing: %s/en/catalog/deepseek
+- Qwen pricing: %s/en/catalog/qwen
+- Kimi pricing: %s/en/catalog/kimi
+- GLM pricing: %s/en/catalog/glm
 - API docs: %s/en/docs
 - Chinese homepage: %s/
-- 中文模型目录与价格: %s/models
+- 中文模型目录与价格: %s/catalog
 - 中文 API 文档: %s/docs
 - Support contact: %s/contact
 - Sitemap: %s/sitemap.xml
@@ -492,7 +491,7 @@ Jisudeng is an AI API gateway for developers, teams, and AI tool users. It helps
 
 ## AI Search Reference Policy
 
-- Public pages, the model catalog, docs, AI创作空间, sitemap.xml, and llms.txt may be used for search indexing and answer references.
+- Public homepage, model catalog, docs, sitemap.xml, and llms.txt may be used for search indexing and answer references.
 - API routes, admin routes, setup routes, account pages, keys, billing records, and private user data are not public reference material.
 - Model training permission is not granted by this file.
 
@@ -508,11 +507,11 @@ Users can review public model names, model families, docs, usage-based pricing r
 
 ### Which language should search engines use?
 
-Chinese public routes are the default for '/', '/models', and '/docs'. English content is served under '/en/', '/en/models', and '/en/docs'.
+Chinese public routes are the default for '/', '/catalog', and '/docs'. English content is served under '/en/', '/en/catalog', and '/en/docs'.
 
 ## 中文摘要
 
-极速蹬为开发者、团队和 AI 工具用户提供 OpenAI 兼容 API 网关、模型目录、公开价格、接入文档、AI创作空间、图像生成和 API Key 管理。中文页面默认使用中文，英文页面仅在 /en 路径下提供。
+极速蹬为开发者、团队和 AI 工具用户提供 OpenAI 兼容 API 网关、模型目录、公开价格、接入文档、图像生成和 API Key 管理。中文页面默认使用中文，英文页面仅在 /en 路径下提供。
 `, origin, origin, origin, origin, origin, origin, origin, origin, origin, origin, origin, origin)
 }
 
@@ -524,17 +523,24 @@ func buildLLMSFullTxt(origin string) string {
 ### Chinese
 
 - Homepage: %s/
-- Models: %s/models
-- DeepSeek models: %s/models/deepseek
+- Model catalog and pricing: %s/catalog
+- DeepSeek models: %s/catalog/deepseek
+- Qwen models: %s/catalog/qwen
+- Kimi models: %s/catalog/kimi
+- GLM models: %s/catalog/glm
 - API docs: %s/docs
+- Android client: %s/download/android
 - About: %s/about
 - Contact: %s/contact
 
 ### English
 
 - Homepage: %s/en/
-- Models and pricing: %s/en/models
-- DeepSeek pricing: %s/en/models/deepseek
+- Models and pricing: %s/en/catalog
+- DeepSeek pricing: %s/en/catalog/deepseek
+- Qwen pricing: %s/en/catalog/qwen
+- Kimi pricing: %s/en/catalog/kimi
+- GLM pricing: %s/en/catalog/glm
 - API docs: %s/en/docs
 - About: %s/en/about
 - Contact: %s/en/contact
@@ -545,7 +551,7 @@ func buildLLMSFullTxt(origin string) string {
 - API endpoints under /api/, /v1/, and /v1beta/ are service interfaces, not public documentation.
 - Account, key, billing, admin, and setup pages require the appropriate authentication and must not be summarized as public user data.
 - Jisudeng does not grant model-training permission through this file.
-`, origin, origin, origin, origin, origin, origin, origin, origin, origin, origin, origin, origin)
+`, origin, origin, origin, origin, origin, origin, origin, origin, origin, origin, origin, origin, origin, origin, origin, origin, origin, origin, origin)
 }
 
 func buildLLMSSmallTxt(origin string) string {
@@ -556,8 +562,8 @@ func buildLLMSSmallTxt(origin string) string {
 
 - Chinese homepage: %s/
 - English homepage: %s/en/
-- Chinese models: %s/models
-- English pricing: %s/en/models
+- Chinese models: %s/catalog
+- English pricing: %s/en/catalog
 - Chinese docs: %s/docs
 - English docs: %s/en/docs
 - Sitemap: %s/sitemap.xml

@@ -59,6 +59,13 @@ type OpsRepository interface {
 	UpsertDailyMetrics(ctx context.Context, startTime, endTime time.Time) error
 	GetLatestHourlyBucketStart(ctx context.Context) (time.Time, bool, error)
 	GetLatestDailyBucketDate(ctx context.Context) (time.Time, bool, error)
+	// GetHourlyAggregationWatermark returns the exclusive completed source
+	// boundary, which is independent from whether a bucket had traffic rows.
+	GetHourlyAggregationWatermark(ctx context.Context) (time.Time, bool, error)
+	// AdvanceHourlyAggregationWatermark records that the hourly aggregate is
+	// complete through the supplied boundary. Public immutable status snapshots
+	// must not read an hour until this write succeeds.
+	AdvanceHourlyAggregationWatermark(ctx context.Context, completedThrough time.Time) error
 }
 
 type OpsInsertErrorLogInput struct {

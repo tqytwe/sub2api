@@ -75,6 +75,7 @@ vi.mock('vue-i18n', async () => {
       'admin.playOps.tabs.membership': '会员运营',
       'admin.playOps.tabs.arena': '农场月榜',
       'admin.playOps.tabs.invite-growth': '邀请增长',
+      'admin.playOps.tabs.growth-governance': '增长福利治理',
       'admin.playOps.tabs.teams': '团队与排行',
       'admin.playOps.tabs.feedback': 'APP 用户反馈',
       'admin.playOps.tabs.quiz': '题库与其他玩法',
@@ -127,6 +128,7 @@ vi.mock('vue-i18n', async () => {
       'admin.playOps.tabs.membership': 'Membership',
       'admin.playOps.tabs.arena': 'Farm rankings',
       'admin.playOps.tabs.invite-growth': 'Invite growth',
+      'admin.playOps.tabs.growth-governance': 'Growth reward governance',
       'admin.playOps.tabs.teams': 'Teams and rankings',
       'admin.playOps.tabs.feedback': 'APP feedback',
       'admin.playOps.tabs.quiz': 'Question bank and other play',
@@ -200,6 +202,9 @@ function mountView(tab?: string) {
           template: '<div v-if="show"><h2>{{ title }}</h2><slot /><slot name="footer" /></div>',
         },
         TotpStepUpDialog: true,
+        GrowthGovernanceOperations: {
+          template: '<div data-testid="growth-governance-operations-stub" />',
+        },
       },
     },
   })
@@ -335,6 +340,17 @@ describe('PlayOpsView campaigns', () => {
 
     expect(getArenaLeaderboard).toHaveBeenCalledWith({ period_type: 'monthly', limit: 20 })
     expect(listCampaigns).not.toHaveBeenCalled()
+  })
+
+  it('routes the server-owned growth governance workbench through its own Play Ops tab', async () => {
+    routeState.query = { tab: 'growth-governance' }
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="play-ops-tab-growth-governance"]').attributes('aria-selected')).toBe('true')
+    expect(wrapper.get('[data-testid="growth-governance-operations-stub"]').exists()).toBe(true)
+    expect(listCampaigns).not.toHaveBeenCalled()
+    expect(listTeams).not.toHaveBeenCalled()
   })
 
   it('does not render hardcoded audience labels when switching locales', async () => {

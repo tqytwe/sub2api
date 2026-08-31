@@ -34,10 +34,14 @@ describe('home truthfulness copy', () => {
 
   it('has visible freshness labels for the real stats snapshot', () => {
     expect(jisudengHomeZh.stats.through).toBe('最近运营样本结束于 {time}')
-    expect(jisudengHomeZh.stats.computed).toContain('{time}')
-    expect(jisudengHomeZh.stats.stale).toBeTruthy()
+    expect(jisudengHomeZh.stats.fresh).toBeTruthy()
+    expect(jisudengHomeZh.stats.delayed).toBeTruthy()
+    expect(jisudengHomeZh.stats.unavailable).toBeTruthy()
+    expect(jisudengHomeZh.stats.statusLink).toBeTruthy()
     expect(jisudengHomeEn.stats.through).toBe('Latest operations sample ended {time}')
-    expect(jisudengHomeEn.stats.computed).toContain('{time}')
-    expect(jisudengHomeEn.stats.stale).toBeTruthy()
+    expect(jisudengHomeEn.stats.fresh).toBeTruthy()
+    expect(jisudengHomeEn.stats.delayed).toBeTruthy()
+    expect(jisudengHomeEn.stats.unavailable).toBeTruthy()
+    expect(jisudengHomeEn.stats.statusLink).toBeTruthy()
   })
 })

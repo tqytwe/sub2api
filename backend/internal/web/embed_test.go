@@ -5,11 +5,13 @@ package web
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"io/fs"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"unicode/utf8"
@@ -166,15 +168,15 @@ func TestInjectRouteSEO(t *testing.T) {
 </head><body></body></html>`)
 
 	t.Run("injects_english_route_metadata", func(t *testing.T) {
-		result := string(injectRouteSEO(baseHTML, "/en/models/"))
+		result := string(injectRouteSEO(baseHTML, "/en/catalog/"))
 
 		assert.Contains(t, result, `<html lang="en">`)
 		assert.Contains(t, result, `<title>DeepSeek, Qwen, Kimi, GLM, Claude API Pricing | Jisudeng</title>`)
-		assert.Contains(t, result, `<meta name="description" content="Compare model access, public API rates, and usage-based pricing for DeepSeek, Qwen, Kimi, GLM, GPT, Claude, Gemini and more through Jisudeng." />`)
+		assert.Contains(t, result, `<meta name="description" content="Compare model access and usage-based API rates for DeepSeek, Qwen, Kimi, GLM, GPT, Claude, Gemini and more through Jisudeng." />`)
 		assert.Contains(t, result, `<meta name="keywords" content="AI model API pricing, DeepSeek API pricing, Qwen API pricing, Kimi API pricing, GLM API pricing, Claude API, Gemini API, OpenAI-compatible models, usage-based billing" />`)
 		assert.Contains(t, result, `<meta name="author" content="Jisudeng" />`)
 		assert.Contains(t, result, `<meta name="format-detection" content="telephone=no,email=no,address=no" />`)
-		assert.Contains(t, result, `<link rel="canonical" href="https://www.jisudeng.com/en/models" />`)
+		assert.Contains(t, result, `<link rel="canonical" href="https://www.jisudeng.com/en/catalog" />`)
 		assert.Contains(t, result, `<meta property="og:type" content="website" />`)
 		assert.Contains(t, result, `<meta property="og:site_name" content="Jisudeng" />`)
 		assert.Contains(t, result, `<meta property="og:locale" content="en_US" />`)
@@ -186,13 +188,16 @@ func TestInjectRouteSEO(t *testing.T) {
 		assert.Contains(t, result, `<meta name="twitter:image" content="https://www.jisudeng.com/logo.png" />`)
 		assert.Contains(t, result, `<script type="application/ld+json" data-jisudeng-route-seo="true">`)
 		assert.Contains(t, result, `"@context":"https://schema.org"`)
-		assert.Contains(t, result, `"@type":"CollectionPage"`)
-		assert.Contains(t, result, `"headline":"DeepSeek, Qwen, Kimi, GLM, Claude API Pricing | Jisudeng"`)
+		assert.Contains(t, result, `"@type":"ItemList"`)
+		assert.Contains(t, result, `"name":"Jisudeng public model families"`)
+		assert.Contains(t, result, `"@type":"ListItem"`)
+		assert.Contains(t, result, `"url":"https://www.jisudeng.com/en/catalog/deepseek"`)
 		assert.Contains(t, result, `"inLanguage":"en"`)
+		assert.NotContains(t, result, `"@type":"CollectionPage"`)
 		assert.NotContains(t, result, `{"name":"old"}`)
-		assert.Contains(t, result, `<link rel="alternate" hreflang="en" href="https://www.jisudeng.com/en/models" />`)
-		assert.Contains(t, result, `<link rel="alternate" hreflang="zh-CN" href="https://www.jisudeng.com/models" />`)
-		assert.Contains(t, result, `<link rel="alternate" hreflang="x-default" href="https://www.jisudeng.com/en/models" />`)
+		assert.Contains(t, result, `<link rel="alternate" hreflang="en" href="https://www.jisudeng.com/en/catalog" />`)
+		assert.Contains(t, result, `<link rel="alternate" hreflang="zh-CN" href="https://www.jisudeng.com/catalog" />`)
+		assert.Contains(t, result, `<link rel="alternate" hreflang="x-default" href="https://www.jisudeng.com/catalog" />`)
 		assert.Equal(t, 3, strings.Count(result, `rel="alternate"`))
 		assert.NotContains(t, result, "old.example")
 		assert.NotContains(t, result, "Chinese AI")
@@ -200,7 +205,7 @@ func TestInjectRouteSEO(t *testing.T) {
 	})
 
 	t.Run("english_public_routes_do_not_emit_cjk_metadata", func(t *testing.T) {
-		for _, path := range []string{"/en", "/en/docs", "/en/about", "/en/contact", "/en/models/deepseek", "/en/models/qwen", "/en/models/kimi", "/en/models/glm"} {
+		for _, path := range []string{"/en", "/en/docs", "/en/about", "/en/contact", "/en/catalog/deepseek", "/en/catalog/qwen", "/en/catalog/kimi", "/en/catalog/glm"} {
 			result := string(injectRouteSEO(baseHTML, path))
 
 			assert.Contains(t, result, `<html lang="en">`)
@@ -212,10 +217,10 @@ func TestInjectRouteSEO(t *testing.T) {
 
 	t.Run("english_public_routes_localize_injected_shell_config", func(t *testing.T) {
 		html := []byte(`<!doctype html><html lang="zh-CN"><head><title>Old</title></head><body>
-<script nonce="abc">window.__APP_CONFIG__={"site_name":"极速蹬","site_subtitle":"最安全的大模型中转平台","contact_info":"1570539180 微信：tqytwemx","login_agreement_documents":[{"id":"terms","title":"服务条款","content_md":"中文条款"}],"support_contact":{"title":"联系客服","subtitle":"登录、注册、充值、API 或模型调用问题都可以联系人工客服","contacts":[{"id":"legacy-contact","type":"wechat","label":"微信服务群","value":"tqytwemx","copy_value":"tqytwemx","url":"","qr_image":"/qr.png","description":"推荐优先添加微信","primary":true,"enabled":true,"sort_order":1},{"id":"telegram","type":"telegram","label":"TG","value":"Jisudeng","copy_value":"","url":"https://t.me/example","qr_image":"","description":"添加 @Jisudeng","primary":false,"enabled":true,"sort_order":2}]},"api_onboarding":{"enabled":true,"title":"开始接入极速蹬 API","subtitle":"按推荐步骤创建 Key","items":[{"id":"one","title":"创建稳定 Key","description":"创建后可以复制到客户端使用。","badge":"新手必做","enabled":true,"sort_order":1,"cta":"create_key","audience":"new_users"}]},"custom_menu_items":[{"id":"docs","label":"使用文档","url":"https://www.jisudeng.com/docs","visibility":"user","sort_order":0}]};</script>
-<noscript><img alt="极速蹬已被 LMSpeed.net 收录" /></noscript></body></html>`)
+	<script nonce="abc">window.__APP_CONFIG__={"site_name":"极速蹬","site_subtitle":"最安全的大模型中转平台","contact_info":"1570539180 微信：tqytwemx","login_agreement_documents":[{"id":"terms","title":"服务条款","content_md":"中文条款"}],"support_contact":{"title":"联系客服","subtitle":"登录、注册、充值、API 或模型调用问题都可以联系人工客服","contacts":[{"id":"legacy-contact","type":"wechat","label":"微信服务群","value":"tqytwemx","copy_value":"tqytwemx","url":"","qr_image":"/qr.png","description":"推荐优先添加微信","primary":true,"enabled":true,"sort_order":1},{"id":"telegram","type":"telegram","label":"TG","value":"Jisudeng","copy_value":"","url":"https://t.me/example","qr_image":"","description":"添加 @Jisudeng","primary":false,"enabled":true,"sort_order":2}]},"api_onboarding":{"enabled":true,"title":"开始接入极速蹬 API","subtitle":"按推荐步骤创建 Key","items":[{"id":"one","title":"创建稳定 Key","description":"创建后可以复制到客户端使用。","badge":"新手必做","enabled":true,"sort_order":1,"cta":"create_key","audience":"new_users"}]},"custom_menu_items":[{"id":"docs","label":"使用文档","url":"https://www.jisudeng.com/docs","visibility":"user","sort_order":0},{"id":"external-docs","label":"第三方文档","url":"https://docs.example.com/docs","visibility":"user","sort_order":1}]};</script>
+	</body></html>`)
 
-		result := string(localizeEnglishHTMLShell(html, "/en/models"))
+		result := string(localizeEnglishHTMLShell(html, "/en/catalog"))
 
 		assert.NotRegexp(t, `[\x{3400}-\x{9fff}\x{f900}-\x{faff}]`, result)
 		assert.Contains(t, result, `"site_name":"Jisudeng"`)
@@ -223,41 +228,102 @@ func TestInjectRouteSEO(t *testing.T) {
 		assert.Contains(t, result, `"label":"WeChat support"`)
 		assert.Contains(t, result, `"title":"Start using the Jisudeng API"`)
 		assert.Contains(t, result, `"label":"Docs"`)
-		assert.Contains(t, result, `alt="Jisudeng is listed on LMSpeed.net"`)
+		assert.Contains(t, result, `"label":"Menu"`)
+		assert.NotContains(t, result, "LMSpeed")
 	})
 
 	t.Run("chinese_public_routes_keep_injected_shell_config", func(t *testing.T) {
 		html := []byte(`<html><head></head><body><script nonce="abc">window.__APP_CONFIG__={"site_name":"极速蹬"};</script></body></html>`)
 
-		result := string(localizeEnglishHTMLShell(html, "/models"))
+		result := string(localizeEnglishHTMLShell(html, "/catalog"))
 
 		assert.Contains(t, result, `"site_name":"极速蹬"`)
 	})
 
+	t.Run("english_noindex_routes_still_localize_the_static_shell", func(t *testing.T) {
+		html := []byte(`<html lang="zh-CN"><head><title>Old</title></head><body><script nonce="abc">window.__APP_CONFIG__={"site_name":"极速蹬","site_subtitle":"中文"};</script></body></html>`)
+
+		result := string(localizeEnglishHTMLShell(html, "/en/status"))
+
+		assert.Contains(t, result, `<html lang="en">`)
+		assert.Contains(t, result, `"site_name":"Jisudeng"`)
+		assert.NotContains(t, result, `"site_subtitle":"中文"`)
+	})
+
 	t.Run("keeps_chinese_route_metadata_on_chinese_paths", func(t *testing.T) {
-		result := string(injectRouteSEO(baseHTML, "/models"))
+		result := string(injectRouteSEO(baseHTML, "/catalog"))
 
 		assert.Contains(t, result, `<html lang="zh-CN">`)
 		assert.Contains(t, result, `<title>极速蹬模型价格与 API 目录 - 多模型公开计费与调用指南</title>`)
 		assert.Contains(t, result, `<meta name="keywords" content="极速蹬模型价格, AI 模型目录, API 计费`)
 		assert.Contains(t, result, `<meta property="og:site_name" content="极速蹬" />`)
-		assert.Contains(t, result, `<link rel="canonical" href="https://www.jisudeng.com/models" />`)
-		assert.Contains(t, result, `<link rel="alternate" hreflang="en" href="https://www.jisudeng.com/en/models" />`)
+		assert.Contains(t, result, `<link rel="canonical" href="https://www.jisudeng.com/catalog" />`)
+		assert.Contains(t, result, `<link rel="alternate" hreflang="en" href="https://www.jisudeng.com/en/catalog" />`)
 	})
 
 	t.Run("injects_model_family_route_metadata", func(t *testing.T) {
-		zh := string(injectRouteSEO(baseHTML, "/models/deepseek"))
-		en := string(injectRouteSEO(baseHTML, "/en/models/deepseek"))
+		zh := string(injectRouteSEO(baseHTML, "/catalog/deepseek"))
+		en := string(injectRouteSEO(baseHTML, "/en/catalog/deepseek"))
 
 		assert.Contains(t, zh, `<html lang="zh-CN">`)
 		assert.Contains(t, zh, `<title>DeepSeek API 价格与模型接入 - 极速蹬多模型目录</title>`)
-		assert.Contains(t, zh, `<link rel="canonical" href="https://www.jisudeng.com/models/deepseek" />`)
-		assert.Contains(t, zh, `<link rel="alternate" hreflang="en" href="https://www.jisudeng.com/en/models/deepseek" />`)
+		assert.Contains(t, zh, `<link rel="canonical" href="https://www.jisudeng.com/catalog/deepseek" />`)
+		assert.Contains(t, zh, `<link rel="alternate" hreflang="en" href="https://www.jisudeng.com/en/catalog/deepseek" />`)
 		assert.Contains(t, en, `<html lang="en">`)
 		assert.Contains(t, en, `<title>DeepSeek API Pricing and Access | Jisudeng</title>`)
-		assert.Contains(t, en, `<link rel="canonical" href="https://www.jisudeng.com/en/models/deepseek" />`)
-		assert.Contains(t, en, `<link rel="alternate" hreflang="zh-CN" href="https://www.jisudeng.com/models/deepseek" />`)
+		assert.Contains(t, en, `<link rel="canonical" href="https://www.jisudeng.com/en/catalog/deepseek" />`)
+		assert.Contains(t, en, `<link rel="alternate" hreflang="zh-CN" href="https://www.jisudeng.com/catalog/deepseek" />`)
 		assert.NotRegexp(t, `[\x{3400}-\x{9fff}\x{f900}-\x{faff}]`, en)
+	})
+
+	t.Run("injects_semantic_public_fallback_inside_the_spa_root", func(t *testing.T) {
+		html := []byte(`<!doctype html><html><head><title>Old</title></head><body><div id="app"></div></body></html>`)
+
+		result := string(injectRouteSEO(html, "/catalog/deepseek"))
+
+		appStart := strings.Index(result, `<div id="app">`)
+		fallbackStart := strings.Index(result, `<main data-jisudeng-public-fallback="true">`)
+		appEnd := strings.Index(result, `</div></body>`)
+		require.Greater(t, appStart, -1)
+		require.Greater(t, fallbackStart, appStart)
+		require.Greater(t, appEnd, fallbackStart, "Vue mounts into #app and clears this fallback before rendering the SPA")
+		assert.Contains(t, result, `<h1>DeepSeek API 价格与模型接入 - 极速蹬多模型目录</h1>`)
+		assert.Contains(t, result, `<a href="/catalog">查看模型与价格</a>`)
+		assert.Contains(t, result, `<a href="/docs">阅读接入文档</a>`)
+	})
+
+	t.Run("uses_english_links_for_the_english_public_fallback", func(t *testing.T) {
+		html := []byte(`<!doctype html><html><head><title>Old</title></head><body><div id="app"></div></body></html>`)
+
+		result := string(injectRouteSEO(html, "/en/docs"))
+
+		assert.Contains(t, result, `<main data-jisudeng-public-fallback="true">`)
+		assert.Contains(t, result, `<h1>Jisudeng API Docs: OpenAI-Compatible Gateway, Models, Images</h1>`)
+		assert.Contains(t, result, `<a href="/en/catalog">Browse models and pricing</a>`)
+		assert.Contains(t, result, `<a href="/en/docs">Create an API key</a>`)
+		assert.Contains(t, result, `https://api.jisudeng.com/v1`)
+		assert.Contains(t, result, `POST /v1/chat/completions`)
+	})
+
+	t.Run("renders_visible_catalog_entries_before_spa_hydration", func(t *testing.T) {
+		html := []byte(`<!doctype html><html><head><title>Old</title></head><body><div id="app"></div></body></html>`)
+
+		result := string(injectRouteSEO(html, "/catalog"))
+
+		assert.Contains(t, result, `<h2>公开模型系列</h2>`)
+		assert.Contains(t, result, `<a href="/catalog/deepseek">DeepSeek API</a>`)
+		assert.Contains(t, result, `<a href="/catalog/qwen">Qwen API</a>`)
+		assert.Contains(t, result, `<a href="/catalog/kimi">Kimi API</a>`)
+		assert.Contains(t, result, `<a href="/catalog/glm">GLM API</a>`)
+	})
+
+	t.Run("does_not_inject_public_fallback_for_noindex_routes", func(t *testing.T) {
+		html := []byte(`<!doctype html><html><head><title>Old</title></head><body><div id="app"></div></body></html>`)
+
+		result := string(injectRouteSEO(html, "/subscriptions"))
+
+		assert.NotContains(t, result, `data-jisudeng-public-fallback="true"`)
+		assert.Contains(t, result, `<meta name="robots" content="noindex,nofollow" />`)
 	})
 
 	t.Run("injects_about_and_contact_route_metadata", func(t *testing.T) {
@@ -266,10 +332,10 @@ func TestInjectRouteSEO(t *testing.T) {
 
 		assert.Contains(t, about, `<title>关于极速蹬 - OpenAI兼容 API 网关、模型目录与提示词库</title>`)
 		assert.Contains(t, about, `<link rel="canonical" href="https://www.jisudeng.com/about" />`)
-		assert.Contains(t, about, `"@type":"AboutPage"`)
+		assert.NotContains(t, about, `data-jisudeng-route-seo="true"`)
 		assert.Contains(t, contact, `<title>联系极速蹬客服 - API、模型调用、充值、账号与接入支持入口</title>`)
 		assert.Contains(t, contact, `<link rel="canonical" href="https://www.jisudeng.com/contact" />`)
-		assert.Contains(t, contact, `"@type":"ContactPage"`)
+		assert.NotContains(t, contact, `data-jisudeng-route-seo="true"`)
 
 		englishAbout := string(injectRouteSEO(baseHTML, "/en/about"))
 		englishContact := string(injectRouteSEO(baseHTML, "/en/contact"))
@@ -280,26 +346,30 @@ func TestInjectRouteSEO(t *testing.T) {
 		assert.Contains(t, englishContact, `<link rel="canonical" href="https://www.jisudeng.com/en/contact" />`)
 	})
 
-	t.Run("uses_brand_name_for_website_entity", func(t *testing.T) {
+	t.Run("uses_only_visible_home_organization_and_web_application_entities", func(t *testing.T) {
 		result := string(injectRouteSEO(baseHTML, "/"))
 
-		assert.Contains(t, result, `"@type":"WebSite"`)
+		assert.Contains(t, result, `"@graph":[`)
+		assert.Contains(t, result, `"@type":"Organization"`)
+		assert.Contains(t, result, `"@type":"WebApplication"`)
 		assert.Contains(t, result, `"name":"极速蹬"`)
-		assert.Contains(t, result, `"headline":"极速蹬 - OpenAI兼容 AI API 网关与多模型服务平台"`)
+		assert.NotContains(t, result, `"@type":"WebSite"`)
+		assert.NotContains(t, result, `"@type":"SoftwareApplication"`)
 	})
 
 	t.Run("returns_unchanged_for_non_public_routes", func(t *testing.T) {
-		result := injectRouteSEO(baseHTML, "/dashboard")
+		result := string(injectRouteSEO(baseHTML, "/dashboard"))
 
-		assert.Equal(t, string(baseHTML), string(result))
+		assert.Contains(t, result, `<meta name="robots" content="noindex,nofollow" />`)
+		assert.NotContains(t, result, `rel="canonical"`)
 	})
 }
 
 func TestPublicRouteSEOMetadataLengthBudgets(t *testing.T) {
 	for _, path := range []string{
-		"/", "/home", "/models", "/models/deepseek", "/models/qwen", "/models/kimi", "/models/glm",
-		"/docs", "/download/android", "/about", "/contact", "/en", "/en/models",
-		"/en/models/deepseek", "/en/models/qwen", "/en/models/kimi", "/en/models/glm", "/en/docs",
+		"/", "/catalog", "/catalog/deepseek", "/catalog/qwen", "/catalog/kimi", "/catalog/glm",
+		"/docs", "/download/android", "/about", "/contact", "/en", "/en/catalog",
+		"/en/catalog/deepseek", "/en/catalog/qwen", "/en/catalog/kimi", "/en/catalog/glm", "/en/docs", "/en/about", "/en/contact",
 	} {
 		seo, ok := resolveRouteSEO(path)
 		require.True(t, ok, path)
@@ -323,6 +393,140 @@ func TestPublicRouteSEOMetadataLengthBudgets(t *testing.T) {
 		assert.LessOrEqual(t, utf8.RuneCountInString(twitterDescription), 200, path+" twitter:description")
 		assert.NotEmpty(t, strings.TrimSpace(seo.Keywords), path+" keywords")
 	}
+}
+
+func TestPublicRouteSEOUsesCanonicalCatalogPathsAndChineseDefault(t *testing.T) {
+	for path, seo := range publicRouteSEO {
+		if strings.Contains(seo.CanonicalPath, "/models") || strings.Contains(path, "/models") {
+			t.Fatalf("public SEO map contains legacy models path %q", path)
+		}
+		var chinese string
+		for _, alternate := range seo.Alternates {
+			switch alternate.Hreflang {
+			case "zh-CN":
+				chinese = alternate.Path
+			case "x-default":
+				if alternate.Path != chinese {
+					t.Errorf("%s x-default=%q; want Chinese default %q", path, alternate.Path, chinese)
+				}
+			}
+			if strings.Contains(alternate.Path, "/models") {
+				t.Errorf("%s alternate %s contains legacy models path %q", path, alternate.Hreflang, alternate.Path)
+			}
+		}
+	}
+}
+
+type publicRouteSEOContract struct {
+	SchemaVersion int                                    `json:"schemaVersion"`
+	Routes        map[string]publicRouteSEOContractRoute `json:"routes"`
+}
+
+type publicRouteSEOContractRoute struct {
+	Title              string              `json:"title"`
+	Description        string              `json:"description"`
+	TwitterTitle       string              `json:"twitterTitle"`
+	TwitterDescription string              `json:"twitterDescription"`
+	CanonicalPath      string              `json:"canonicalPath"`
+	Alternates         []routeSEOAlternate `json:"alternates"`
+	JSONLDTypes        []string            `json:"jsonLdTypes"`
+}
+
+func readPublicRouteSEOContract(t *testing.T) publicRouteSEOContract {
+	t.Helper()
+	_, sourceFile, _, ok := runtime.Caller(0)
+	require.True(t, ok, "locate embed test source")
+	contractPath := filepath.Join(filepath.Dir(sourceFile), "../../../frontend/src/utils/public-route-seo-contract.json")
+	contents, err := os.ReadFile(contractPath)
+	require.NoError(t, err, "read cross-layer SEO contract")
+
+	var contract publicRouteSEOContract
+	require.NoError(t, json.Unmarshal(contents, &contract), "decode cross-layer SEO contract")
+	require.Equal(t, 1, contract.SchemaVersion)
+	require.NotEmpty(t, contract.Routes)
+	return contract
+}
+
+func jsonLDTypesFromRouteHTML(t *testing.T, html string) []string {
+	t.Helper()
+	const scriptStart = `<script type="application/ld+json" data-jisudeng-route-seo="true">`
+	start := strings.Index(html, scriptStart)
+	if start < 0 {
+		return nil
+	}
+	start += len(scriptStart)
+	endOffset := strings.Index(html[start:], "</script>")
+	require.GreaterOrEqual(t, endOffset, 0, "route JSON-LD script must close")
+
+	var payload any
+	require.NoError(t, json.Unmarshal([]byte(html[start:start+endOffset]), &payload), "route JSON-LD must be valid JSON")
+	types := make(map[string]struct{})
+	collectJSONLDTypes(payload, types)
+	result := make([]string, 0, len(types))
+	for jsonLDType := range types {
+		result = append(result, jsonLDType)
+	}
+	return result
+}
+
+func collectJSONLDTypes(value any, types map[string]struct{}) {
+	switch typed := value.(type) {
+	case map[string]any:
+		if jsonLDType, ok := typed["@type"].(string); ok {
+			types[jsonLDType] = struct{}{}
+		}
+		for _, child := range typed {
+			collectJSONLDTypes(child, types)
+		}
+	case []any:
+		for _, child := range typed {
+			collectJSONLDTypes(child, types)
+		}
+	}
+}
+
+func TestSSRPublicRouteSEOAlignsWithCrossLayerContract(t *testing.T) {
+	contract := readPublicRouteSEOContract(t)
+	baseHTML := []byte(`<!doctype html><html><head><title>Old</title></head><body><div id="app"></div></body></html>`)
+
+	for path, expected := range contract.Routes {
+		t.Run(path, func(t *testing.T) {
+			seo, ok := resolveRouteSEO(path)
+			require.True(t, ok, "missing server SEO metadata")
+			assert.Equal(t, expected.Title, seo.Title, "title")
+			assert.Equal(t, expected.Description, seo.Description, "description")
+			assert.Equal(t, expected.TwitterTitle, routeSEOTextOrFallback(seo.TwitterTitle, seo.Title), "twitter:title")
+			assert.Equal(t, expected.TwitterDescription, routeSEOTextOrFallback(seo.TwitterDescription, seo.Description), "twitter:description")
+			assert.Equal(t, expected.CanonicalPath, seo.CanonicalPath, "canonical")
+			assert.Equal(t, expected.Alternates, seo.Alternates, "hreflang")
+
+			result := string(injectRouteSEO(baseHTML, path))
+			assert.Contains(t, result, `<title>`+expected.Title+`</title>`, "rendered title")
+			assert.Contains(t, result, `<meta name="description" content="`+expected.Description+`" />`, "rendered description")
+			assert.Contains(t, result, `<meta name="twitter:title" content="`+expected.TwitterTitle+`" />`, "rendered twitter:title")
+			assert.Contains(t, result, `<meta name="twitter:description" content="`+expected.TwitterDescription+`" />`, "rendered twitter:description")
+			assert.Contains(t, result, `<link rel="canonical" href="`+routeSEOOrigin+expected.CanonicalPath+`" />`, "rendered canonical")
+			for _, alternate := range expected.Alternates {
+				assert.Contains(t, result, `<link rel="alternate" hreflang="`+alternate.Hreflang+`" href="`+routeSEOOrigin+alternate.Path+`" />`, "rendered hreflang")
+			}
+			assert.ElementsMatch(t, expected.JSONLDTypes, jsonLDTypesFromRouteHTML(t, result), "rendered JSON-LD types")
+		})
+	}
+
+	for path := range publicRouteSEO {
+		if path == "/home" {
+			continue // Legacy redirect, deliberately not indexable or part of the public contract.
+		}
+		_, listed := contract.Routes[path]
+		assert.True(t, listed, "indexable server SEO route %q is missing from the cross-layer contract", path)
+	}
+}
+
+func routeSEOTextOrFallback(value, fallback string) string {
+	if strings.TrimSpace(value) != "" {
+		return value
+	}
+	return fallback
 }
 
 func TestReplaceNoncePlaceholder(t *testing.T) {
@@ -577,14 +781,13 @@ func TestFrontendServer_ServeIndexHTML(t *testing.T) {
 		router.Use(server.Middleware())
 
 		enWriter := httptest.NewRecorder()
-		enReq := httptest.NewRequest(http.MethodGet, "/en/models", nil)
+		enReq := httptest.NewRequest(http.MethodGet, "/en/catalog", nil)
 		router.ServeHTTP(enWriter, enReq)
 		enETag := enWriter.Header().Get("ETag")
 		require.NotEmpty(t, enETag)
 
 		zhWriter := httptest.NewRecorder()
-		zhReq := httptest.NewRequest(http.MethodGet, "/models", nil)
-		zhReq.Header.Set("Accept", "text/html")
+		zhReq := httptest.NewRequest(http.MethodGet, "/catalog", nil)
 		router.ServeHTTP(zhWriter, zhReq)
 		zhETag := zhWriter.Header().Get("ETag")
 		require.NotEmpty(t, zhETag)
@@ -593,13 +796,13 @@ func TestFrontendServer_ServeIndexHTML(t *testing.T) {
 		assert.Contains(t, zhWriter.Body.String(), `<html lang="zh-CN">`)
 
 		wrongETagWriter := httptest.NewRecorder()
-		wrongETagReq := httptest.NewRequest(http.MethodGet, "/en/models", nil)
+		wrongETagReq := httptest.NewRequest(http.MethodGet, "/en/catalog", nil)
 		wrongETagReq.Header.Set("If-None-Match", zhETag)
 		router.ServeHTTP(wrongETagWriter, wrongETagReq)
 		assert.Equal(t, http.StatusOK, wrongETagWriter.Code)
 
 		matchingETagWriter := httptest.NewRecorder()
-		matchingETagReq := httptest.NewRequest(http.MethodGet, "/en/models", nil)
+		matchingETagReq := httptest.NewRequest(http.MethodGet, "/en/catalog", nil)
 		matchingETagReq.Header.Set("If-None-Match", enETag)
 		router.ServeHTTP(matchingETagWriter, matchingETagReq)
 		assert.Equal(t, http.StatusNotModified, matchingETagWriter.Code)
@@ -848,7 +1051,14 @@ func TestFrontendServer_Middleware(t *testing.T) {
 
 		spaPaths := []string{
 			"/",
+			"/catalog",
 			"/dashboard",
+			"/status",
+			"/en/status",
+			"/login",
+			"/subscriptions",
+			"/monitor",
+			"/ai-creation-space",
 			"/users/123",
 			"/settings/profile",
 		}
@@ -861,11 +1071,22 @@ func TestFrontendServer_Middleware(t *testing.T) {
 
 				assert.Equal(t, http.StatusOK, w.Code)
 				assert.Contains(t, w.Header().Get("Content-Type"), "text/html")
+				if path == "/" || path == "/catalog" {
+					assert.Equal(t, "index, follow", w.Header().Get("X-Robots-Tag"))
+					assert.Contains(t, w.Body.String(), `<meta name="robots" content="index,follow" />`)
+					assert.Contains(t, w.Body.String(), `data-jisudeng-public-fallback="true"`)
+				} else {
+					assert.Equal(t, "noindex, nofollow", w.Header().Get("X-Robots-Tag"))
+					assert.Contains(t, w.Body.String(), `<meta name="robots" content="noindex,nofollow" />`)
+					assert.NotContains(t, w.Body.String(), `rel="canonical"`)
+					assert.NotContains(t, w.Body.String(), `data-jisudeng-route-seo="true"`)
+					assert.NotContains(t, w.Body.String(), `data-jisudeng-public-fallback="true"`)
+				}
 			})
 		}
 	})
 
-	t.Run("serves_models_page_for_html_navigation", func(t *testing.T) {
+	t.Run("redirects_legacy_models_page_for_html_navigation", func(t *testing.T) {
 		provider := &mockSettingsProvider{
 			settings: map[string]string{"test": "value"},
 		}
@@ -890,13 +1111,13 @@ func TestFrontendServer_Middleware(t *testing.T) {
 		req.Header.Set("Accept", "text/html")
 		router.ServeHTTP(w, req)
 
-		assert.False(t, nextCalled, "HTML navigation should be served by the embedded frontend")
-		assert.Equal(t, http.StatusOK, w.Code)
-		assert.Contains(t, w.Header().Get("Content-Type"), "text/html")
-		assert.Contains(t, w.Body.String(), "<!doctype html>")
+		assert.False(t, nextCalled, "HTML navigation should be redirected to the catalog")
+		assert.Equal(t, http.StatusPermanentRedirect, w.Code)
+		assert.Equal(t, "/catalog", w.Header().Get("Location"))
+		assert.Equal(t, "Accept, Authorization, X-API-Key, X-Goog-API-Key", w.Header().Get("Vary"))
 	})
 
-	t.Run("serves_models_page_for_document_navigation_without_html_accept", func(t *testing.T) {
+	t.Run("redirects_legacy_models_document_navigation_without_html_accept", func(t *testing.T) {
 		provider := &mockSettingsProvider{settings: map[string]string{"test": "value"}}
 		server, err := NewFrontendServer(provider)
 		require.NoError(t, err)
@@ -907,15 +1128,156 @@ func TestFrontendServer_Middleware(t *testing.T) {
 		router.GET("/models", func(c *gin.Context) { nextCalled = true; c.String(http.StatusUnauthorized, "api route") })
 
 		w := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, "/models", nil)
+		req := httptest.NewRequest(http.MethodGet, "/models?sort=price", nil)
 		req.Header.Set("Accept", "*/*")
 		req.Header.Set("Sec-Fetch-Mode", "navigate")
 		req.Header.Set("Sec-Fetch-Dest", "document")
 		router.ServeHTTP(w, req)
 
 		assert.False(t, nextCalled)
-		assert.Equal(t, http.StatusOK, w.Code)
-		assert.Contains(t, w.Header().Get("Content-Type"), "text/html")
+		assert.Equal(t, http.StatusPermanentRedirect, w.Code)
+		assert.Equal(t, "/catalog?sort=price", w.Header().Get("Location"))
+		assert.Equal(t, "Accept, Authorization, X-API-Key, X-Goog-API-Key", w.Header().Get("Vary"))
+	})
+
+	t.Run("redirects_legacy_models_generic_crawler_navigation_without_browser_headers", func(t *testing.T) {
+		provider := &mockSettingsProvider{settings: map[string]string{"test": "value"}}
+		server, err := NewFrontendServer(provider)
+		require.NoError(t, err)
+		router := gin.New()
+		router.Use(server.Middleware())
+		nextCalled := false
+		router.GET("/models", func(c *gin.Context) { nextCalled = true; c.String(http.StatusUnauthorized, "api route") })
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/models", nil)
+		req.Header.Set("Accept", "*/*")
+		router.ServeHTTP(w, req)
+
+		assert.False(t, nextCalled, "anonymous generic crawler navigation must not receive API_KEY_REQUIRED")
+		assert.Equal(t, http.StatusPermanentRedirect, w.Code)
+		assert.Equal(t, "/catalog", w.Header().Get("Location"))
+		assert.Equal(t, "Accept, Authorization, X-API-Key, X-Goog-API-Key", w.Header().Get("Vary"))
+	})
+
+	t.Run("keeps_legacy_models_api_for_anonymous_browser_fetch", func(t *testing.T) {
+		provider := &mockSettingsProvider{settings: map[string]string{"test": "value"}}
+		server, err := NewFrontendServer(provider)
+		require.NoError(t, err)
+		router := gin.New()
+		router.Use(server.Middleware())
+		nextCalled := false
+		router.GET("/models", func(c *gin.Context) {
+			nextCalled = true
+			c.String(http.StatusUnauthorized, "api route")
+		})
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/models", nil)
+		req.Header.Set("Accept", "*/*")
+		req.Header.Set("Sec-Fetch-Mode", "cors")
+		req.Header.Set("Sec-Fetch-Dest", "empty")
+		router.ServeHTTP(w, req)
+
+		assert.True(t, nextCalled, "browser API fetches must retain protected /models semantics")
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+		assert.Empty(t, w.Header().Get("Location"))
+	})
+
+	t.Run("keeps_legacy_models_api_for_header_key_requests_even_with_html_accept", func(t *testing.T) {
+		provider := &mockSettingsProvider{settings: map[string]string{"test": "value"}}
+		server, err := NewFrontendServer(provider)
+		require.NoError(t, err)
+
+		for header, value := range map[string]string{
+			"x-api-key":      "test-key",
+			"x-goog-api-key": "google-test-key",
+		} {
+			t.Run(header, func(t *testing.T) {
+				router := gin.New()
+				router.Use(server.Middleware())
+				nextCalled := false
+				router.GET("/models", func(c *gin.Context) {
+					nextCalled = true
+					c.String(http.StatusUnauthorized, "api route")
+				})
+
+				w := httptest.NewRecorder()
+				req := httptest.NewRequest(http.MethodGet, "/models", nil)
+				req.Header.Set("Accept", "text/html")
+				req.Header.Set(header, value)
+				router.ServeHTTP(w, req)
+
+				assert.True(t, nextCalled, "keyed request must retain protected /models API semantics")
+				assert.Equal(t, http.StatusUnauthorized, w.Code)
+				assert.Empty(t, w.Header().Get("Location"))
+			})
+		}
+	})
+
+	t.Run("redirects_legacy_catalog_family_pages_for_html_navigation", func(t *testing.T) {
+		provider := &mockSettingsProvider{settings: map[string]string{"test": "value"}}
+		server, err := NewFrontendServer(provider)
+		require.NoError(t, err)
+		router := gin.New()
+		router.Use(server.Middleware())
+
+		for source, target := range map[string]string{
+			"/models/deepseek?sort=price": "/catalog/deepseek?sort=price",
+			"/en/models/qwen?family=all":  "/en/catalog/qwen?family=all",
+		} {
+			w := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodGet, source, nil)
+			req.Header.Set("Accept", "text/html")
+			router.ServeHTTP(w, req)
+
+			assert.Equal(t, http.StatusPermanentRedirect, w.Code, source)
+			assert.Equal(t, target, w.Header().Get("Location"), source)
+			assert.Equal(t, "Accept, Authorization, X-API-Key, X-Goog-API-Key", w.Header().Get("Vary"), source)
+		}
+	})
+
+	t.Run("keeps_legacy_models_api_for_json_requests", func(t *testing.T) {
+		provider := &mockSettingsProvider{settings: map[string]string{"test": "value"}}
+		server, err := NewFrontendServer(provider)
+		require.NoError(t, err)
+		router := gin.New()
+		router.Use(server.Middleware())
+		nextCalled := false
+		router.GET("/models", func(c *gin.Context) {
+			nextCalled = true
+			c.String(http.StatusUnauthorized, "api route")
+		})
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/models", nil)
+		req.Header.Set("Accept", "application/json")
+		router.ServeHTTP(w, req)
+
+		assert.True(t, nextCalled)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("keeps_legacy_models_api_for_mixed_json_accept_requests", func(t *testing.T) {
+		provider := &mockSettingsProvider{settings: map[string]string{"test": "value"}}
+		server, err := NewFrontendServer(provider)
+		require.NoError(t, err)
+		router := gin.New()
+		router.Use(server.Middleware())
+		nextCalled := false
+		router.GET("/models", func(c *gin.Context) {
+			nextCalled = true
+			c.String(http.StatusUnauthorized, "api route")
+		})
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/models", nil)
+		req.Header.Set("Accept", "text/html, application/json")
+		router.ServeHTTP(w, req)
+
+		assert.True(t, nextCalled, "an explicit JSON media range must retain protected /models API semantics")
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+		assert.Empty(t, w.Header().Get("Location"))
 	})
 
 	t.Run("serves_static_files", func(t *testing.T) {
@@ -1107,7 +1469,7 @@ func TestServeEmbeddedFrontend(t *testing.T) {
 		}
 	})
 
-	t.Run("serves_models_page_for_html_navigation", func(t *testing.T) {
+	t.Run("redirects_legacy_models_page_for_html_navigation", func(t *testing.T) {
 		middleware := ServeEmbeddedFrontend()
 
 		router := gin.New()
@@ -1123,10 +1485,10 @@ func TestServeEmbeddedFrontend(t *testing.T) {
 		req.Header.Set("Accept", "text/html")
 		router.ServeHTTP(w, req)
 
-		assert.False(t, nextCalled, "HTML navigation should be served by the embedded frontend")
-		assert.Equal(t, http.StatusOK, w.Code)
-		assert.Contains(t, w.Header().Get("Content-Type"), "text/html")
-		assert.Contains(t, w.Body.String(), "<!doctype html>")
+		assert.False(t, nextCalled, "HTML navigation should be redirected to the catalog")
+		assert.Equal(t, http.StatusPermanentRedirect, w.Code)
+		assert.Equal(t, "/catalog", w.Header().Get("Location"))
+		assert.Equal(t, "Accept, Authorization, X-API-Key, X-Goog-API-Key", w.Header().Get("Vary"))
 	})
 
 	t.Run("skips_api_routes", func(t *testing.T) {

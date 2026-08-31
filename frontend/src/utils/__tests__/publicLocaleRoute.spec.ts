@@ -14,49 +14,51 @@ describe('resolvePublicLocaleRoute', () => {
     expect(resolvePublicLocaleRoute('en', from)).toEqual({ path: to })
   })
 
-  it('keeps models and docs on their matched English public routes', () => {
-    expect(resolvePublicLocaleRoute('en', '/pricing')).toEqual({ path: '/en/models' })
+  it('keeps catalog and docs on their matched English public routes', () => {
+    expect(resolvePublicLocaleRoute('en', '/pricing')).toEqual({ path: '/en/catalog' })
     expect(resolvePublicLocaleRoute('en', '/pricing/deepseek', { sort: 'price' })).toEqual({
-      path: '/en/models/deepseek',
+      path: '/en/catalog/deepseek',
       query: { sort: 'price' },
     })
-    expect(resolvePublicLocaleRoute('en', '/models')).toEqual({ path: '/en/models' })
-    expect(resolvePublicLocaleRoute('en', '/models/deepseek', { sort: 'price' })).toEqual({
-      path: '/en/models/deepseek',
+    expect(resolvePublicLocaleRoute('en', '/catalog')).toEqual({ path: '/en/catalog' })
+    expect(resolvePublicLocaleRoute('en', '/catalog/deepseek', { sort: 'price' })).toEqual({
+      path: '/en/catalog/deepseek',
       query: { sort: 'price' },
     })
     expect(resolvePublicLocaleRoute('en', '/docs', { cat: 'tutorial', page: 'quick-start' })).toEqual({
       path: '/en/docs',
       query: { cat: 'tutorial', page: 'quick-start' },
     })
+    expect(resolvePublicLocaleRoute('en', '/status')).toEqual({ path: '/en/status' })
   })
 
   it('sends English public routes back to canonical Chinese routes', () => {
     expect(resolvePublicLocaleRoute('zh', '/en')).toEqual({ path: '/' })
-    expect(resolvePublicLocaleRoute('zh', '/en/models')).toEqual({ path: '/models' })
-    expect(resolvePublicLocaleRoute('zh', '/en/models/deepseek', { sort: 'price' })).toEqual({
-      path: '/models/deepseek',
+    expect(resolvePublicLocaleRoute('zh', '/en/catalog')).toEqual({ path: '/catalog' })
+    expect(resolvePublicLocaleRoute('zh', '/en/catalog/deepseek', { sort: 'price' })).toEqual({
+      path: '/catalog/deepseek',
       query: { sort: 'price' },
     })
     expect(resolvePublicLocaleRoute('zh', '/en/docs', { cat: 'tutorial' })).toEqual({
       path: '/docs',
       query: { cat: 'tutorial' },
     })
+    expect(resolvePublicLocaleRoute('zh', '/en/status')).toEqual({ path: '/status' })
     expect(resolvePublicLocaleRoute('zh', '/en/about')).toEqual({ path: '/about' })
     expect(resolvePublicLocaleRoute('zh', '/en/contact')).toEqual({ path: '/contact' })
   })
 
   it('removes explicit locale queries when switching to a canonical public route', () => {
-    expect(resolvePublicLocaleRoute('en', '/models', { lang: 'zh', sort: 'price' })).toEqual({
-      path: '/en/models',
+    expect(resolvePublicLocaleRoute('en', '/catalog', { lang: 'zh', sort: 'price' })).toEqual({
+      path: '/en/catalog',
       query: { sort: 'price' },
     })
-    expect(resolvePublicLocaleRoute('zh', '/en/models', { lang: 'en', locale: 'en', sort: 'price' })).toEqual({
-      path: '/models',
+    expect(resolvePublicLocaleRoute('zh', '/en/catalog', { lang: 'en', locale: 'en', sort: 'price' })).toEqual({
+      path: '/catalog',
       query: { sort: 'price' },
     })
-    expect(resolvePublicLocaleRoute('zh', '/models', { lang: 'en', page: '2' })).toEqual({
-      path: '/models',
+    expect(resolvePublicLocaleRoute('zh', '/catalog', { lang: 'en', page: '2' })).toEqual({
+      path: '/catalog',
       query: { page: '2' },
     })
   })

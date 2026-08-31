@@ -120,17 +120,26 @@ func toPlayHubSummaryDTOForActor(s *service.PlayHubSummary, actorUserID int64) p
 	}
 	if s.Checkin != nil {
 		out.Checkin = &playCheckinStatusDTO{
-			Enabled:                s.Checkin.Enabled,
-			CheckedInToday:         s.Checkin.CheckedInToday,
-			RewardAmount:           s.Checkin.RewardAmount,
-			ServerDate:             s.Checkin.ServerDate,
-			StreakCount:            s.Checkin.StreakCount,
-			NextMilestoneDays:      s.Checkin.NextMilestoneDays,
-			NextMilestoneBonus:     s.Checkin.NextMilestoneBonus,
-			CanMakeup:              s.Checkin.CanMakeup,
-			MakeupDate:             s.Checkin.MakeupDate,
-			RechargeBoostActive:    s.Checkin.RechargeBoostActive,
-			BoostCheckinMultiplier: s.Checkin.BoostCheckinMultiplier,
+			Enabled:                  s.Checkin.Enabled,
+			Eligible:                 s.Checkin.Eligible,
+			IneligibleReason:         s.Checkin.IneligibleReason,
+			CheckedInToday:           s.Checkin.CheckedInToday,
+			RewardAmount:             s.Checkin.RewardAmount,
+			CouponPoolReady:          s.Checkin.CouponPoolReady,
+			CouponWeightBP:           s.Checkin.CouponWeightBP,
+			RedeemCodeWeightBP:       s.Checkin.RedeemCodeWeightBP,
+			BalanceWeightBP:          s.Checkin.BalanceWeightBP,
+			ServerDate:               s.Checkin.ServerDate,
+			StreakCount:              s.Checkin.StreakCount,
+			NextMilestoneDays:        s.Checkin.NextMilestoneDays,
+			NextMilestoneBonus:       s.Checkin.NextMilestoneBonus,
+			CanMakeup:                s.Checkin.CanMakeup,
+			MakeupDate:               s.Checkin.MakeupDate,
+			RechargeBoostActive:      s.Checkin.RechargeBoostActive,
+			BoostCheckinMultiplier:   s.Checkin.BoostCheckinMultiplier,
+			GrowthEligibility:        s.Checkin.GrowthEligibility,
+			GrowthEnergyEnabled:      s.Checkin.GrowthEnergyEnabled,
+			RedeemableRewardEligible: s.Checkin.RedeemableRewardEligible,
 		}
 	}
 	if s.Arena != nil {
@@ -165,26 +174,34 @@ func toPlayHubSummaryDTOForActor(s *service.PlayHubSummary, actorUserID int64) p
 		out.DailyArena = &dto
 	}
 	if s.Blindbox != nil {
-		out.Blindbox = &playBlindboxStatusDTO{
+		blindbox := playBlindboxStatusDTO{
 			Enabled:             s.Blindbox.Enabled,
 			CouponPoolReady:     s.Blindbox.CouponPoolReady,
-			CostAmount:          s.Blindbox.CostAmount,
-			Pool:                toPlayBlindboxPoolDTOPtr(s.Blindbox.BlindboxPool),
-			CurrentPool:         toPlayBlindboxPoolDTOPtr(s.Blindbox.CurrentPool),
-			NextPool:            toOptionalPlayBlindboxPoolDTO(s.Blindbox.NextPool),
-			VIPTier:             s.Blindbox.VIPTier,
-			ExpectedReward:      s.Blindbox.ExpectedReward,
-			NextExpectedReward:  s.Blindbox.NextExpectedReward,
-			PoolVersion:         s.Blindbox.PoolVersion,
-			RTPCap:              s.Blindbox.RTPCap,
 			DailyLimit:          s.Blindbox.DailyLimit,
 			EffectiveLimit:      s.Blindbox.EffectiveLimit,
 			OpensToday:          s.Blindbox.OpensToday,
 			CanOpen:             s.Blindbox.CanOpen,
 			ServerDate:          s.Blindbox.ServerDate,
+			GrowthEligibility:   s.Blindbox.GrowthEligibility,
 			RechargeBoostActive: s.Blindbox.RechargeBoostActive,
 			CampaignActive:      s.Blindbox.CampaignActive,
 		}
+		// Reward-pool internals are only safe for an explicitly redeemable,
+		// authenticated actor. A missing actor must fail closed as well: this
+		// helper is used by compatibility tests and may be reused by a route
+		// whose authentication context is absent or malformed.
+		if actorUserID > 0 && s.Blindbox.GrowthEligibility.RewardMode == service.PlayGrowthRewardRedeemable {
+			blindbox.CostAmount = s.Blindbox.CostAmount
+			blindbox.Pool = toPlayBlindboxPoolDTOPtr(s.Blindbox.BlindboxPool)
+			blindbox.CurrentPool = toPlayBlindboxPoolDTOPtr(s.Blindbox.CurrentPool)
+			blindbox.NextPool = toOptionalPlayBlindboxPoolDTO(s.Blindbox.NextPool)
+			blindbox.VIPTier = s.Blindbox.VIPTier
+			blindbox.ExpectedReward = s.Blindbox.ExpectedReward
+			blindbox.NextExpectedReward = s.Blindbox.NextExpectedReward
+			blindbox.PoolVersion = s.Blindbox.PoolVersion
+			blindbox.RTPCap = s.Blindbox.RTPCap
+		}
+		out.Blindbox = &blindbox
 	}
 	if s.Quiz != nil {
 		qdto := playQuizTodayDTO{
@@ -197,9 +214,11 @@ func toPlayHubSummaryDTOForActor(s *service.PlayHubSummary, actorUserID int64) p
 			PreviousReward:            s.Quiz.PreviousReward,
 			PreviousRewardType:        s.Quiz.PreviousRewardType,
 			PreviousCoupon:            toPlayCouponRewardDTO(s.Quiz.PreviousCoupon),
+			PreviousRedeemCode:        toPlayRedeemCodeRewardDTO(s.Quiz.PreviousRedeemCode),
 			PreviousCouponPoolVersion: s.Quiz.PreviousCouponPoolVersion,
 			RewardPerCorrect:          s.Quiz.RewardPerCorrect,
 			ServerDate:                s.Quiz.ServerDate,
+			GrowthEligibility:         s.Quiz.GrowthEligibility,
 		}
 		for _, q := range s.Quiz.Questions {
 			qdto.Questions = append(qdto.Questions, playQuizQuestionDTO{

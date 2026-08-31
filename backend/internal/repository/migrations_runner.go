@@ -67,6 +67,10 @@ const usageLogsUpstreamModelMismatchIndex = "idx_usage_logs_upstream_model_misma
 const usageLogsEffectiveModelIndexesMigration = "226_add_usage_log_effective_model_indexes_notx.sql"
 const usageLogsEffectiveRequestedModelIndex = "idx_usage_logs_effective_requested_model_created"
 const usageLogsEffectiveUpstreamModelIndex = "idx_usage_logs_effective_upstream_model_created"
+const publicStatusTTFTWindowIndexMigration = "264_public_status_ttft_window_index_notx.sql"
+const publicStatusTTFTWindowIndex = "idx_usage_logs_public_status_ttft_window"
+const growthEligibilityOrdersIndexMigration = "265_play_growth_eligibility_orders_index_notx.sql"
+const growthEligibilityOrdersIndex = "idx_payment_orders_growth_eligibility_balance_completed"
 const onlineMigrationLockTimeout = "5s"
 
 var imageStudioPersistentJobsIndexes = []string{
@@ -385,6 +389,10 @@ func prepareNonTransactionalMigration(ctx context.Context, db migrationExecutor,
 			return err
 		}
 		return dropInvalidIndexIfPresent(ctx, db, usageLogsEffectiveUpstreamModelIndex)
+	case publicStatusTTFTWindowIndexMigration:
+		return dropInvalidIndexIfPresent(ctx, db, publicStatusTTFTWindowIndex)
+	case growthEligibilityOrdersIndexMigration:
+		return dropInvalidIndexIfPresent(ctx, db, growthEligibilityOrdersIndex)
 	default:
 		return nil
 	}

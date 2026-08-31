@@ -327,8 +327,15 @@ MIGRATIONS=(
   253_mobile_app_releases.sql
   255_payment_order_coupon_release_processed.sql
   256_payment_order_coupon_release_processed_index_notx.sql
-  259_mobile_video_jobs.sql
-  260_model_catalog_media_capabilities.sql
+	  259_mobile_video_jobs.sql
+	  260_model_catalog_media_capabilities.sql
+	  262_play_growth_qualification.sql
+	  263_public_status_snapshots.sql
+	  264_public_status_ttft_window_index_notx.sql
+	  265_play_growth_eligibility_orders_index_notx.sql
+	  266_play_growth_reward_snapshot_links.sql
+	  267_public_status_ops_aggregation_watermark.sql
+	  268_play_growth_governance.sql
 )
 for migration in "${MIGRATIONS[@]}"; do
   check_file "FORK-MIGRATION-009" "migration $migration" "backend/migrations/$migration"

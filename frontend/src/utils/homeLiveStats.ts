@@ -1,13 +1,27 @@
-import type { PublicHomeStatsResponse } from '@/api/publicHomeStats'
+import type { PublicHomeStatsResponse, PublicStatusFreshness, PublicStatusSummaryResponse } from '@/api/publicHomeStats'
 
 export const HOME_LIVE_STATS_STORAGE_KEY = 'home_live_stats_v2'
-export const HOME_STATS_SNAPSHOT_STALE_MS = 3 * 60_000
 export const HOME_STATS_FUTURE_TOLERANCE_MS = 3 * 60_000
+export const HOME_STATS_DATA_DELAY_MS = 90 * 60_000
+export const HOME_STATS_DATA_UNAVAILABLE_MS = 6 * 60 * 60_000
 
 export interface HomeLiveStatsValues {
   requests: number | null
   uptimePct: number | null
   latencyMs: number | null
+}
+
+export type HomeStatsSnapshot = PublicHomeStatsResponse | PublicStatusSummaryResponse
+
+export function statusSummaryToHomeStats(snapshot: PublicStatusSummaryResponse): PublicHomeStatsResponse {
+  return {
+    total_requests: snapshot.total_requests,
+    availability_pct: snapshot.availability.value_pct,
+    avg_ttft_ms: snapshot.ttft.p50_ms,
+    ops_data_through: snapshot.data_through,
+    computed_at: snapshot.computed_at,
+    freshness: snapshot.freshness,
+  }
 }
 
 export function emptyHomeStats(): HomeLiveStatsValues {
@@ -25,6 +39,22 @@ export function toHomeStatsValues(snapshot: PublicHomeStatsResponse | null): Hom
     uptimePct: finiteNumberOrNull(snapshot.availability_pct),
     latencyMs: finiteNumberOrNull(snapshot.avg_ttft_ms),
   }
+}
+
+export function freshnessFromSnapshot(
+  snapshot: HomeStatsSnapshot | null,
+  nowMs: number = Date.now(),
+): PublicStatusFreshness {
+  if (!snapshot) return 'unavailable'
+  if (snapshot.freshness === 'delayed' || snapshot.freshness === 'unavailable') return snapshot.freshness
+  const dataThrough = 'data_through' in snapshot ? snapshot.data_through : snapshot.ops_data_through
+  if (!dataThrough) return 'unavailable'
+  const throughMs = Date.parse(dataThrough)
+  if (!Number.isFinite(throughMs) || throughMs > nowMs + HOME_STATS_FUTURE_TOLERANCE_MS) return 'unavailable'
+  const age = nowMs - throughMs
+  if (age > HOME_STATS_DATA_UNAVAILABLE_MS) return 'unavailable'
+  if (age > HOME_STATS_DATA_DELAY_MS) return 'delayed'
+  return 'fresh'
 }
 
 export function loadHomeStatsSnapshot(
@@ -72,8 +102,7 @@ export function isHomeStatsSnapshotStale(
   if (!snapshot) return false
   const computedAtMs = Date.parse(snapshot.computed_at)
   if (!Number.isFinite(computedAtMs)) return true
-  if (computedAtMs - nowMs > HOME_STATS_FUTURE_TOLERANCE_MS) return true
-  return nowMs - computedAtMs >= HOME_STATS_SNAPSHOT_STALE_MS
+  return freshnessFromSnapshot(snapshot, nowMs) !== 'fresh'
 }
 
 export function formatHomeStatsTimestamp(value: string | null, locale: string): string {
@@ -107,6 +136,12 @@ export function formatHomeStatUptime(value: number | null): string {
 export function formatHomeStatLatency(value: number | null): string {
   if (value == null) return '--'
   return String(Math.round(value))
+}
+
+export function formatPublicStatusLatency(value: number | null): { value: string; unit: string } {
+  if (value == null || value < 0) return { value: '--', unit: '' }
+  if (value >= 1000) return { value: (value / 1000).toFixed(2), unit: 's' }
+  return { value: String(Math.round(value)), unit: 'ms' }
 }
 
 function finiteNumberOrNull(value: number | null): number | null {

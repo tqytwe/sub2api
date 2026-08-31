@@ -5,6 +5,8 @@
  * instead of defining their own color mappings.
  */
 
+import { platformLabels } from '@/i18n/platformLabels'
+
 export type Platform =
   | 'anthropic'
   | 'openai'
@@ -314,15 +316,20 @@ export function platformGradientSubtextClass(p: string): string {
  * verbatim. Only the two system-owned category values vary by UI locale.
  */
 export function platformLabel(p: string, locale = 'zh'): string {
-  const english = locale.toLowerCase().startsWith('en')
+  const language = locale.toLowerCase().startsWith('en') ? 'en' : 'zh'
+  const localized = isPlatform(p)
+    ? platformLabels[language][p as keyof typeof platformLabels.en]
+    : undefined
+  if (localized) return localized
+
   switch (p) {
     case 'anthropic': return 'Claude'
     case 'openai': return 'OpenAI'
     case 'antigravity': return 'Antigravity'
     case 'gemini': return 'Gemini'
     case 'grok': return 'Grok'
-    case 'image': return english ? 'Image' : '图片'
-    case 'team': return english ? 'Team / Enterprise' : '团队企业'
+    case 'image': return 'Image'
+    case 'team': return 'Team / Enterprise'
     case 'kimi': return 'Kimi'
     case 'zhipu': return 'Zhipu GLM'
     case 'deepseek': return 'DeepSeek'

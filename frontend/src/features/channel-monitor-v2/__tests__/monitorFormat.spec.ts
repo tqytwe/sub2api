@@ -10,6 +10,7 @@ import {
   formatMonitorSuccessRateFromError,
   formatMonitorThroughput,
   formatMonitorTokensPerSecond,
+  monitorLatencyLabels,
   healthScoreClass,
   healthStateClass,
   scoreToBand,
@@ -59,9 +60,11 @@ describe('monitorFormat accuracy', () => {
     expect(formatMonitorMs(999)).toBe('999ms')
   })
 
-  it('formats KPI secondary latency as AVG · P90 (P50 is primary)', () => {
-    expect(formatLatencyKpiSecondary(150, 400)).toBe('AVG 150ms · P90 400ms')
-    expect(formatLatencyKpiSecondary(1500, null, 2000)).toBe('AVG 1.5s · P95 2.0s')
+  it('formats KPI secondary latency with localized average and P90 labels', () => {
+    const english = monitorLatencyLabels('en-US')
+    expect(formatLatencyKpiSecondary(150, 400, undefined, english)).toBe('Average 150ms · P90 400ms')
+    expect(formatLatencyKpiSecondary(1500, null, 2000, english)).toBe('Average 1.5s · P95 2.0s')
+    expect(formatLatencyKpiSecondary(150, 400, undefined, monitorLatencyLabels('zh-CN'))).toBe('平均 150ms · P90 400ms')
     expect(formatLatencyKpiSecondary(null, null)).toBe('-')
   })
 
@@ -112,8 +115,10 @@ describe('monitorFormat accuracy', () => {
   })
 
   it('formats privacy-safe latency lines with avg/p50/p90', () => {
-    expect(formatLatencyPrivacy(100, 250, 120, 300)).toBe('AVG 120ms · P50 100ms · P90 250ms')
-    expect(formatLatencyPrivacy(100, null, null, 300)).toBe('P50 100ms · P95 300ms')
+    const english = monitorLatencyLabels('en-US')
+    expect(formatLatencyPrivacy(100, 250, 120, 300, english)).toBe('Average 120ms · P50 100ms · P90 250ms')
+    expect(formatLatencyPrivacy(100, null, null, 300, english)).toBe('P50 100ms · P95 300ms')
+    expect(formatLatencyPrivacy(100, 250, 120, 300, monitorLatencyLabels('zh-CN'))).toBe('平均 120ms · P50 100ms · P90 250ms')
     expect(formatLatencyPrivacy(null, null)).toBe('-')
   })
 })

@@ -98,6 +98,82 @@ func newGatewayRoutesProtocolTestRouter(
 	return router
 }
 
+func TestRootModelsCompatibilityResponseVary(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.GET("/models", modelsCompatibilityVary, func(c *gin.Context) {
+		c.Status(http.StatusUnauthorized)
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/models", nil)
+	req.Header.Set("Accept", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusUnauthorized, w.Code)
+	require.Equal(t, "Accept, Authorization, X-API-Key, X-Goog-API-Key", w.Header().Get("Vary"))
+}
+
+func TestRootModelsCompatibilityRedirectsDocumentNavigationWithoutChangingAPIContract(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.GET("/models", modelsCompatibilityVary, func(c *gin.Context) {
+		c.Status(http.StatusUnauthorized)
+	})
+
+	t.Run("html navigation redirects to catalog", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/models?source=legacy", nil)
+		req.Header.Set("Accept", "text/html,application/xhtml+xml")
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+
+		require.Equal(t, http.StatusPermanentRedirect, w.Code)
+		require.Equal(t, "/catalog?source=legacy", w.Header().Get("Location"))
+		require.Equal(t, "Accept, Authorization, X-API-Key, X-Goog-API-Key", w.Header().Get("Vary"))
+	})
+
+	t.Run("generic crawler navigation redirects to catalog", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/models", nil)
+		req.Header.Set("Accept", "*/*")
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+
+		require.Equal(t, http.StatusPermanentRedirect, w.Code)
+		require.Equal(t, "/catalog", w.Header().Get("Location"))
+	})
+
+	t.Run("explicit JSON remains protected API", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/models", nil)
+		req.Header.Set("Accept", "application/json")
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+
+		require.Equal(t, http.StatusUnauthorized, w.Code)
+		require.Empty(t, w.Header().Get("Location"))
+	})
+
+	t.Run("mixed JSON and HTML Accept remains protected API", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/models", nil)
+		req.Header.Set("Accept", "application/json, text/html;q=0.8")
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+
+		require.Equal(t, http.StatusUnauthorized, w.Code)
+		require.Empty(t, w.Header().Get("Location"))
+	})
+
+	t.Run("keyed generic request remains protected API", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/models", nil)
+		req.Header.Set("Accept", "*/*")
+		req.Header.Set("Authorization", "Bearer redacted")
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+
+		require.Equal(t, http.StatusUnauthorized, w.Code)
+		require.Empty(t, w.Header().Get("Location"))
+	})
+}
+
 func imageProtocolRouteCases() []struct {
 	method string
 	path   string

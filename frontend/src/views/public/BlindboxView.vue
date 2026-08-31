@@ -18,6 +18,7 @@ import playAPI, {
   type PlayBlindboxPoolResponse,
   type PlayBlindboxRecentWin,
   type PlayBlindboxStatus,
+  type PlayGrowthEligibility,
 } from '@/api/play'
 import '@/styles/public-pages.css'
 
@@ -100,6 +101,13 @@ const prizePool = computed<PlayBlindboxPool | null>(() => {
   return isValidPool(pool) ? pool : null
 })
 
+// The public endpoint intentionally redacts reward-pool internals. Keep that
+// state distinct from a failed or misconfigured pool so the page does not
+// report a healthy feature as unavailable to guests.
+const publicPoolRedacted = computed(
+  () => !authStore.isAuthenticated && featureEnabled.value && !prizePool.value,
+)
+
 const couponPrizes = computed(() => {
   const prizes = authStore.isAuthenticated
     ? status.value?.coupon_prizes
@@ -135,6 +143,7 @@ const balanceBranchWeight = computed(() => {
 const expectedCashReward = computed(() => currentExpectedReward.value * balanceBranchWeight.value)
 const expectedCashRTPCap = computed(() => currentRTPCap.value * balanceBranchWeight.value)
 const nextExpectedCashReward = computed(() => nextExpectedReward.value * balanceBranchWeight.value)
+const growthRewardLocked = computed(() => status.value?.growth_eligibility?.reward_mode === 'energy')
 
 const canOpen = computed(
   () =>
@@ -142,6 +151,7 @@ const canOpen = computed(
     status.value?.enabled &&
     couponPoolReady.value &&
     status.value.can_open &&
+    !growthRewardLocked.value &&
     prizePool.value !== null &&
     !opening.value,
 )
@@ -167,6 +177,28 @@ function couponPrizeTierLabel(tier: string): string {
   const key = `blindbox.couponTier.${tier}`
   const translated = t(key)
   return translated === key ? t('blindbox.couponTier.standard') : translated
+}
+
+function growthReasonMessage(reason?: string) {
+  const knownReasons = new Set([
+    'email_unverified',
+    'account_too_new',
+    'no_recent_activity',
+    'not_logged_in',
+  ])
+  const normalizedReason = knownReasons.has(reason || '') ? reason : 'no_recent_activity'
+  return t(`checkin.growthReasons.${normalizedReason}`)
+}
+
+function growthProgressMessage(eligibility?: PlayGrowthEligibility) {
+  const progress = eligibility?.progress
+  if (!progress) return t('checkin.energyProgress')
+  return t('checkin.energyProgress', {
+    accountAge: progress.account_age_days,
+    minimumAge: progress.minimum_account_age_days,
+    recharge: progress.net_balance_recharge_30d.toFixed(2),
+    minimumRecharge: progress.minimum_recharge_cny.toFixed(2),
+  })
 }
 
 function formatRecentWinReward(win: PlayBlindboxRecentWin): string {
@@ -431,6 +463,11 @@ async function handleOpen() {
         await loadStatus()
         return
       }
+      if (code === 'PLAY_GROWTH_REWARD_INELIGIBLE') {
+        appStore.showInfo(t('blindbox.growthIneligible'))
+        await loadStatus()
+        return
+      }
       appStore.showError(t('blindbox.failed'))
       return
     }
@@ -464,7 +501,10 @@ function viewLatestReward() {
 }
 
 onMounted(async () => {
-  await Promise.all([loadStatus(), loadRecentWins()])
+  await loadStatus()
+  // Explorer accounts deliberately see no reward promises or recent-win feed.
+  // Wait for the server-owned qualification result before fetching it.
+  if (!growthRewardLocked.value) await loadRecentWins()
 })
 
 watch(
@@ -504,11 +544,23 @@ watch(
             </div>
 
             <div class="play-action-panel">
-              <h2 class="play-section-title">{{ t('blindbox.prizePoolTitle') }}</h2>
+              <h2 class="play-section-title">
+                {{ growthRewardLocked ? t('checkin.energyTitle') : t('blindbox.prizePoolTitle') }}
+              </h2>
               <div v-if="authStore.isAuthenticated" class="space-y-4">
                 <div v-if="loading" class="play-note">{{ t('models.loading') }}</div>
                 <div v-else-if="statusLoadFailed" class="play-note">{{ t('blindbox.unavailable') }}</div>
                 <div v-else-if="!status?.enabled" class="play-note">{{ t('blindbox.disabled') }}</div>
+                <template v-else-if="growthRewardLocked">
+                  <div class="play-note" role="status">
+                    {{ t('blindbox.growthIneligible') }}
+                    {{ growthReasonMessage(status?.growth_eligibility?.primary_reason) }}
+                  </div>
+                  <p class="play-note">{{ growthProgressMessage(status?.growth_eligibility) }}</p>
+                  <button type="button" class="play-btn play-btn-primary" disabled>
+                    {{ t('blindbox.openButton') }}
+                  </button>
+                </template>
                 <template v-else-if="!couponPoolReady">
                   <div class="play-note">{{ t('blindbox.couponPoolUnavailable') }}</div>
                   <button type="button" class="play-btn play-btn-primary" disabled>
@@ -572,74 +624,77 @@ watch(
           </div>
         </section>
 
-        <section class="play-four-stat-grid" aria-label="blindbox status">
-          <div class="play-mini-stat">
-            <span class="play-mini-label">{{ t('blindbox.prizePoolTitle') }}</span>
-            <span class="play-mini-value">{{ totalPrizeCount }}</span>
-          </div>
-          <div class="play-mini-stat">
-            <span class="play-mini-label">{{ t('blindbox.openButton') }}</span>
-            <span class="play-mini-value">{{ status?.opens_today ?? 0 }}/{{ status?.daily_limit ?? 0 }}</span>
-          </div>
-          <div class="play-mini-stat">
-            <span class="play-mini-label">{{ t('blindbox.recentWinsTitle') }}</span>
-            <span class="play-mini-value">{{ recentWins.length }}</span>
-          </div>
-        </section>
-
-        <div class="play-two-column-grid">
-          <section class="play-content-panel play-prize-section">
-            <h2 class="play-section-title">{{ t('blindbox.prizePoolTitle') }}</h2>
-            <p class="play-note">{{ t('blindbox.prizePoolNote') }}</p>
-            <p class="play-note">{{ t('blindbox.rewardSplit') }}</p>
-            <p v-if="!loading && statusLoadFailed" class="play-note">{{ t('blindbox.unavailable') }}</p>
-            <p v-else-if="!loading && !featureEnabled" class="play-note">{{ t('blindbox.disabled') }}</p>
-            <p v-else-if="!loading && !couponPoolReady" class="play-note">{{ t('blindbox.couponPoolUnavailable') }}</p>
-            <p v-else-if="!loading && !prizePool" class="play-note">{{ t('blindbox.unavailable') }}</p>
-            <template v-else-if="prizePool">
-              <div class="blindbox-prize-block">
-                <h3 class="blindbox-prize-heading">{{ t('blindbox.couponPrizeTitle') }}</h3>
-                <p v-if="couponPrizes.length === 0" class="play-note">{{ t('blindbox.couponPrizeEmpty') }}</p>
-                <ul v-else class="play-prize-grid">
-                  <li
-                    v-for="prize in couponPrizes"
-                    :key="`coupon-${prize.template_id}`"
-                    class="play-prize-tier blindbox-coupon-prize"
-                  >
-                    <span class="play-prize-amount">{{ prize.name }}</span>
-                    <span class="play-prize-rate">{{ couponPrizeTierLabel(prize.tier) }}</span>
-                  </li>
-                </ul>
-              </div>
-              <div class="blindbox-prize-block">
-                <h3 class="blindbox-prize-heading">{{ t('blindbox.balancePrizeTitle') }}</h3>
-                <ul class="play-prize-grid">
-                  <li
-                    v-for="(tier, index) in prizePool.tiers"
-                    :key="`${prizePool.version}-${index}`"
-                    class="play-prize-tier"
-                  >
-                    <span class="play-prize-amount">${{ formatPrizeAmount(tier.amount) }}</span>
-                    <span class="play-prize-rate">{{ formatBalanceProbability(tier.weight) }}</span>
-                  </li>
-                </ul>
-              </div>
-            </template>
+        <template v-if="!growthRewardLocked">
+          <section class="play-four-stat-grid" aria-label="blindbox status">
+            <div class="play-mini-stat">
+              <span class="play-mini-label">{{ t('blindbox.prizePoolTitle') }}</span>
+              <span class="play-mini-value">{{ totalPrizeCount }}</span>
+            </div>
+            <div class="play-mini-stat">
+              <span class="play-mini-label">{{ t('blindbox.openButton') }}</span>
+              <span class="play-mini-value">{{ status?.opens_today ?? 0 }}/{{ status?.daily_limit ?? 0 }}</span>
+            </div>
+            <div class="play-mini-stat">
+              <span class="play-mini-label">{{ t('blindbox.recentWinsTitle') }}</span>
+              <span class="play-mini-value">{{ recentWins.length }}</span>
+            </div>
           </section>
 
-          <section class="play-content-panel">
-            <h2 class="play-section-title">{{ t('blindbox.recentWinsTitle') }}</h2>
-            <p v-if="recentWinsFailed" class="play-note">{{ t('blindbox.recentWinsUnavailable') }}</p>
-            <p v-else-if="recentWins.length === 0" class="play-note">{{ t('blindbox.recentWinsPlaceholder') }}</p>
-            <ul v-else class="play-wins-list">
-              <li v-for="(win, idx) in recentWins" :key="idx" class="play-win-item">
-                <span class="play-win-user">{{ win.user }}</span>
-                <span class="play-win-reward" :class="{ 'blindbox-coupon-win': win.reward_type === 'coupon' }">{{ formatRecentWinReward(win) }}</span>
-                <span class="play-win-when">{{ formatWinWhen(win.when) }}</span>
-              </li>
-            </ul>
-          </section>
-        </div>
+          <div class="play-two-column-grid">
+            <section class="play-content-panel play-prize-section">
+              <h2 class="play-section-title">{{ t('blindbox.prizePoolTitle') }}</h2>
+              <p class="play-note">{{ t('blindbox.prizePoolNote') }}</p>
+              <p class="play-note">{{ t('blindbox.rewardSplit') }}</p>
+              <p v-if="!loading && statusLoadFailed" class="play-note">{{ t('blindbox.unavailable') }}</p>
+              <p v-else-if="!loading && !featureEnabled" class="play-note">{{ t('blindbox.disabled') }}</p>
+              <p v-else-if="!loading && !couponPoolReady" class="play-note">{{ t('blindbox.couponPoolUnavailable') }}</p>
+              <p v-else-if="!loading && publicPoolRedacted" class="play-note">{{ t('blindbox.signInToViewRewards') }}</p>
+              <p v-else-if="!loading && !prizePool" class="play-note">{{ t('blindbox.unavailable') }}</p>
+              <template v-else-if="prizePool">
+                <div class="blindbox-prize-block">
+                  <h3 class="blindbox-prize-heading">{{ t('blindbox.couponPrizeTitle') }}</h3>
+                  <p v-if="couponPrizes.length === 0" class="play-note">{{ t('blindbox.couponPrizeEmpty') }}</p>
+                  <ul v-else class="play-prize-grid">
+                    <li
+                      v-for="prize in couponPrizes"
+                      :key="`coupon-${prize.template_id}`"
+                      class="play-prize-tier blindbox-coupon-prize"
+                    >
+                      <span class="play-prize-amount">{{ prize.name }}</span>
+                      <span class="play-prize-rate">{{ couponPrizeTierLabel(prize.tier) }}</span>
+                    </li>
+                  </ul>
+                </div>
+                <div class="blindbox-prize-block">
+                  <h3 class="blindbox-prize-heading">{{ t('blindbox.balancePrizeTitle') }}</h3>
+                  <ul class="play-prize-grid">
+                    <li
+                      v-for="(tier, index) in prizePool.tiers"
+                      :key="`${prizePool.version}-${index}`"
+                      class="play-prize-tier"
+                    >
+                      <span class="play-prize-amount">${{ formatPrizeAmount(tier.amount) }}</span>
+                      <span class="play-prize-rate">{{ formatBalanceProbability(tier.weight) }}</span>
+                    </li>
+                  </ul>
+                </div>
+              </template>
+            </section>
+
+            <section class="play-content-panel">
+              <h2 class="play-section-title">{{ t('blindbox.recentWinsTitle') }}</h2>
+              <p v-if="recentWinsFailed" class="play-note">{{ t('blindbox.recentWinsUnavailable') }}</p>
+              <p v-else-if="recentWins.length === 0" class="play-note">{{ t('blindbox.recentWinsPlaceholder') }}</p>
+              <ul v-else class="play-wins-list">
+                <li v-for="(win, idx) in recentWins" :key="idx" class="play-win-item">
+                  <span class="play-win-user">{{ win.user }}</span>
+                  <span class="play-win-reward" :class="{ 'blindbox-coupon-win': win.reward_type === 'coupon' }">{{ formatRecentWinReward(win) }}</span>
+                  <span class="play-win-when">{{ formatWinWhen(win.when) }}</span>
+                </li>
+              </ul>
+            </section>
+          </div>
+        </template>
       </div>
     </main>
 

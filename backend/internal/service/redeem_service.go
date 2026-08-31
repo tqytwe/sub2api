@@ -72,6 +72,12 @@ type RedeemCodeRewardRepository interface {
 	ClaimForReward(ctx context.Context, request RedeemCodeRewardClaimRequest) (*RedeemCode, error)
 }
 
+// RedeemCodeRewardReplayRepository is read-only and keyed by the immutable
+// source/action reference written at reward settlement.
+type RedeemCodeRewardReplayRepository interface {
+	FindClaimedReward(ctx context.Context, userID int64, issueSource, issueRef string) (*RedeemCode, error)
+}
+
 type RedeemCodeRewardClaimRequest struct {
 	UserID            int64
 	BatchName         string
@@ -307,6 +313,25 @@ func (s *RedeemService) ClaimRedeemCodeRewardInTx(ctx context.Context, request R
 		return nil, ErrCouponRewardPoolUnavailable
 	}
 	return rewardRepo.ClaimForReward(ctx, request)
+}
+
+// GetRedeemCodeRewardByIssueRef reconstructs a settled reward without issuing
+// another code. The caller provides the owner and immutable activity action,
+// so an idempotency key cannot reveal a code assigned to another account.
+func (s *RedeemService) GetRedeemCodeRewardByIssueRef(ctx context.Context, userID int64, issueSource, issueRef string) (*RedeemCode, error) {
+	if s == nil || s.redeemRepo == nil {
+		return nil, ErrCouponRewardPoolUnavailable
+	}
+	issueSource = strings.TrimSpace(issueSource)
+	issueRef = strings.TrimSpace(issueRef)
+	if userID <= 0 || issueSource == "" || issueRef == "" {
+		return nil, infraerrors.BadRequest("REDEEM_REWARD_REPLAY_INVALID", "redeem reward replay requires user, source, and action reference")
+	}
+	replayRepo, ok := s.redeemRepo.(RedeemCodeRewardReplayRepository)
+	if !ok || replayRepo == nil {
+		return nil, ErrCouponRewardPoolUnavailable
+	}
+	return replayRepo.FindClaimedReward(ctx, userID, issueSource, issueRef)
 }
 
 func (s *RedeemService) BatchUpdate(ctx context.Context, input *RedeemCodeBatchUpdateInput) (*RedeemCodeBatchUpdateResult, error) {

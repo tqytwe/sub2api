@@ -43,6 +43,14 @@ describe('channel-monitor-v2 design system structure', () => {
     expect(src).toContain("trendView")
     expect(src).toContain("'platform_group'")
     expect(src).toContain('MonitorTrendChart')
+    // Provider and group labels must follow the active locale; avoid leaking
+    // raw provider ids or the old `#<id>` fallback into user-facing filters.
+    expect(src).toContain('platformLabel(item.platform, locale.value)')
+    expect(src).toContain("t('channelMonitorV2.filters.groupId', { id: item.id })")
+    expect(src).not.toContain('`#${item.id}`')
+    const matrix = read('features/channel-monitor-v2/RelayPulseMatrix.vue')
+    expect(matrix).toContain('platformLabel(row.platform, locale.value)')
+    expect(matrix).toContain("t('channelMonitorV2.matrix.timeAxis')")
   })
 
   it('RelayPulseMatrix uses card chrome, matrix scroll, and hover tooltips (no click modal)', () => {

@@ -18,9 +18,14 @@ const i18nT = (key: string, params?: Record<string, unknown>) => {
     'channelMonitorV2.metrics.tpsValue': '每秒 Token {value}',
     'channelMonitorV2.metrics.ttftValue': '首 Token {value}',
     'channelMonitorV2.metrics.durationValue': '时长 {value}',
+    'channelMonitorV2.metrics.average': '平均',
+    'channelMonitorV2.metrics.p50': 'P50',
+    'channelMonitorV2.metrics.p90': 'P90',
+    'channelMonitorV2.metrics.p95': 'P95',
     'channelMonitorV2.metrics.cacheRateValue': '缓存率 {value}',
     'channelMonitorV2.matrix.noTrafficAt': '{time} 无流量',
     'channelMonitorV2.matrix.noTraffic': '无流量',
+    'channelMonitorV2.filters.groupId': '分组 {id}',
     'channelMonitorV2.matrix.legendAria': '图例',
     'channelMonitorV2.matrix.bad': '差',
     'channelMonitorV2.matrix.good': '好',
@@ -139,6 +144,36 @@ describe('RelayPulseMatrix', () => {
     // No click-to-open modal
     await cells[0].trigger('click')
     expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+  })
+
+  it('localizes an unnamed group fallback instead of displaying a bare identifier', () => {
+    const wrapper = mount(RelayPulseMatrix, {
+      props: {
+        rows: [{
+          platform: 'openai',
+          group_id: 7,
+          group_name: '',
+          model: 'gpt-5',
+          metrics: metrics(10),
+          health,
+          buckets: [],
+        }],
+        coverage: {
+          requested_start: '2026-08-01T00:00:00Z',
+          requested_end: '2026-08-01T00:01:00Z',
+          coverage_start: '2026-08-01T00:00:00Z',
+          data_through: '2026-08-01T00:01:00Z',
+          computed_at: '2026-08-01T00:01:00Z',
+          aggregation_lag_seconds: 0,
+          coverage_complete: true,
+          bucket_seconds: 60,
+        },
+        healthMode: 'overall',
+      },
+    })
+
+    expect(wrapper.text()).toContain('OpenAI / 分组 7 / gpt-5')
+    expect(wrapper.text()).not.toContain('OpenAI / #7 / gpt-5')
   })
 })
 

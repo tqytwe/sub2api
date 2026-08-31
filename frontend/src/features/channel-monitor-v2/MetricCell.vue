@@ -46,7 +46,7 @@ const props = defineProps<{
   title?: string
 }>()
 
-/** Split "AVG 475ms · P90 800ms" into chips so nothing is ellipsized. */
+/** Split localized latency details into chips so nothing is ellipsized. */
 const detailParts = computed(() => {
   const raw = (props.detail || '').trim()
   if (!raw || raw === '-') return []

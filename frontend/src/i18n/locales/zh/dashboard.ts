@@ -323,6 +323,11 @@ export default {
     rateLimitResetSuccess: '速率限制已重置',
     failedToResetRateLimit: '重置速率限制失败',
     resetNow: '即将重置',
+    resetTime: {
+      daysHours: '{days} 天 {hours} 小时',
+      hoursMinutes: '{hours} 小时 {minutes} 分钟',
+      minutes: '{minutes} 分钟',
+    },
     expiration: '密钥有效期',
     expiresInDays: '{days} 天',
     extendDays: '+{days} 天',

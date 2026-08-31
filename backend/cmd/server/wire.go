@@ -127,6 +127,8 @@ func provideCleanup(
 	quotaFlusher *service.UserPlatformQuotaUsageFlusher,
 	playGrowthRunner *service.PlayGrowthRunner,
 	publicHomeStatsService *service.PublicHomeStatsService,
+	publicStatusSummaryService *service.PublicStatusSummaryService,
+	publicStatusSnapshotWorker *service.PublicStatusSnapshotWorker,
 	upstreamBillingProbe *service.UpstreamBillingProbeService,
 	ollamaCloudUsage *service.OllamaCloudUsageService,
 	auditLog *service.AuditLogService,
@@ -138,6 +140,7 @@ func provideCleanup(
 	pluginManager *service.PluginManager,
 ) func() {
 	server.SetPublicHomeStatsService(publicHomeStatsService)
+	server.SetPublicStatusSummaryService(publicStatusSummaryService)
 	return func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
@@ -149,6 +152,12 @@ func provideCleanup(
 
 		// 应用层清理步骤可并行执行，基础设施资源（Redis/Ent）最后按顺序关闭。
 		parallelSteps := []cleanupStep{
+			{"PublicStatusSnapshotWorker", func() error {
+				if publicStatusSnapshotWorker != nil {
+					publicStatusSnapshotWorker.Stop()
+				}
+				return nil
+			}},
 			{"MobileVideoWorker", func() error {
 				if mobileVideoWorker != nil {
 					mobileVideoWorker.Stop()

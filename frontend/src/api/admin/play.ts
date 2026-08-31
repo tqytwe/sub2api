@@ -95,6 +95,66 @@ export interface AdminPlayOpsSummary {
   daily_arena_reward_budget: number;
 }
 
+// These structures mirror the read-only growth cohort and append-only
+// governance contract. Nullable ratios stay nullable so the admin UI cannot
+// turn an unavailable risk metric into a misleading zero.
+export interface AdminPlayGrowthCohort {
+  window_start: string;
+  window_end: string;
+  metrics_available: boolean;
+  participation_users: number;
+  real_call_7d_users: number;
+  real_call_7d_ratio: number;
+  real_call_30d_users: number;
+  real_call_30d_ratio: number;
+  first_recharge_users: number;
+  first_recharge_ratio: number;
+  coupons_issued: number;
+  coupons_redeemed: number;
+  coupon_redemption_ratio: number;
+  actual_reward_cost: number;
+  d7_retained_users: number;
+  d7_retention_ratio: number;
+  abnormal_redemption_users: number;
+  abnormal_redemption_ratio: number | null;
+  appeal_count: number;
+  false_positive_appeals: number;
+  appeal_false_positive_ratio: number | null;
+  unavailable_metrics?: string[];
+}
+
+export interface AdminPlayGrowthCohortQuery {
+  start?: string;
+  end?: string;
+}
+
+export interface AdminPlayGrowthGovernanceState {
+  id: number;
+  decision: 'approved' | 'revoked' | 'none' | string;
+  approved: boolean;
+  budget_amount: number;
+  budget_spent: number;
+  budget_remaining: number;
+  rollout_percent: number;
+  cohort: AdminPlayGrowthCohort;
+  rule_version: string;
+  reason: string;
+  actor_id?: number;
+  created_at?: string;
+}
+
+export interface AdminPlayGrowthGovernanceApprovalInput {
+  budget_amount: number;
+  rollout_percent: number;
+  cohort: AdminPlayGrowthCohort;
+  rule_version?: string;
+  reason: string;
+}
+
+export interface AdminPlayGrowthGovernanceRevokeInput {
+  reason: string;
+}
+
 export interface AdminPlayCampaign {
   id: number;
   name: string;
@@ -773,6 +833,43 @@ export async function getSummary(): Promise<AdminPlayOpsSummary> {
   return data;
 }
 
+export async function getGrowthCohort(
+  params: AdminPlayGrowthCohortQuery = {},
+): Promise<AdminPlayGrowthCohort> {
+  const { data } = await apiClient.get<AdminPlayGrowthCohort>(
+    "/admin/play/growth/cohort",
+    { params },
+  );
+  return data;
+}
+
+export async function getGrowthGovernance(): Promise<AdminPlayGrowthGovernanceState> {
+  const { data } = await apiClient.get<AdminPlayGrowthGovernanceState>(
+    "/admin/play/growth/governance",
+  );
+  return data;
+}
+
+export async function approveGrowthGovernance(
+  input: AdminPlayGrowthGovernanceApprovalInput,
+): Promise<AdminPlayGrowthGovernanceState> {
+  const { data } = await apiClient.post<AdminPlayGrowthGovernanceState>(
+    "/admin/play/growth/governance/approve",
+    input,
+  );
+  return data;
+}
+
+export async function revokeGrowthGovernance(
+  input: AdminPlayGrowthGovernanceRevokeInput,
+): Promise<AdminPlayGrowthGovernanceState> {
+  const { data } = await apiClient.post<AdminPlayGrowthGovernanceState>(
+    "/admin/play/growth/governance/revoke",
+    input,
+  );
+  return data;
+}
+
 export async function listCampaigns(): Promise<AdminPlayCampaign[]> {
   const { data } = await apiClient.get<AdminPlayCampaign[]>(
     "/admin/play/campaigns",
@@ -1141,6 +1238,10 @@ export const adminPlayAPI = {
   listTeamRewardSettlements,
   retryTeamRewardSettlement,
   getSummary,
+  getGrowthCohort,
+  getGrowthGovernance,
+  approveGrowthGovernance,
+  revokeGrowthGovernance,
   listCampaigns,
   createCampaign,
   updateCampaign,

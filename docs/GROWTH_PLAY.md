@@ -1,8 +1,8 @@
 # Growth / Play 当前实现
 
-> 状态：active
+> 状态：已上线 Play 能力 + v0.1.182 候选治理扩展（候选尚未部署）
 > 用户入口：`/play`
-> 最后核验：2026-07-19
+> 最后核验：2026-08-29
 
 ## 定位
 
@@ -23,7 +23,7 @@ Play 是极速蹬的增长与留存层，围绕 API 使用、充值、任务和�
 | 充值 boost | 充值完成后 | 支付履约内部调用 | `play_recharge_boost_enabled` |
 | Team Affiliate | Agent Team | Play service | `play_team_affiliate_enabled` |
 | 图像工作室联动 | `/image-studio` | `/api/v1/image-studio/*` | `image_studio_enabled` |
-| 公共模型与 Teaser | `/models`、首页 | `/api/v1/public/*` | `public_models_enabled` 等 |
+| 公共模型与 Teaser | `/catalog`、首页 | `/api/v1/public/*` | `public_models_enabled` 等 |
 
 公共 Arena 榜单和盲盒最近记录允许游客查看；签到、开盲盒、答题提交、团队操作、Hub、任务和活动用户状态需要 JWT。运行时设置读取失败时 fail-closed，奖励类默认值只在设置缺失时使用。
 
@@ -40,6 +40,40 @@ Play 是极速蹬的增长与留存层，围绕 API 使用、充值、任务和�
 
 设置定义、Admin DTO、公开设置和前端类型必须同步更新。奖励写入 Play ledger；支付订单先完成余额履约，再尝试授予 boost，boost 失败只记录警告，不能回滚充值。
 
+## 签到与答题资格
+
+签到和答题的“参与资格”与“可兑换福利资格”是两件事。新动作一律由服务端统一资格评估器决定：
+已验证邮箱、注册至少 3 天，并且满足近 7 天真实调用、近 30 天净余额充值至少 10 CNY、有效订阅三者之一时，
+才进入可兑换 `active` 档。否则仍可签到和答题，但仅记录不可提现、不可兑换、不可参与抽券的成长能量。
+
+前端只展示 `growth_eligibility`，不能以 localStorage、IP、User-Agent 或前端条件计算资格。每次动作写入不可变
+资格快照；成长能量账本以动作 ID 幂等；余额奖励账本保存快照 ID 与规则版本，盲盒动作也直接关联快照。历史余额、券和奖励不追扣。
+完整接口、数据和“14 天参与窗口 + 30 天观测滞后”cohort 口径见
+[v0.1.182 增长资格契约](./V182_GROWTH_QUALIFICATION_CONTRACT.md)。
+
+### 日常福利运营治理范围
+
+候选迁移 `268_play_growth_governance.sql` 只治理由上述统一资格评估器
+产生的新日常福利：签到、补签、答题、盲盒。每次可兑换发放必须同时通过
+运营审批、10-20% 稳定灰度、不可变资格快照和预算预留；成长能量不进入
+可兑换预算。审批、撤销与预留以同一个 PostgreSQL 事务 advisory lock
+串行，且预留在获得锁后重新读取最新 decision 和已用额度，避免并发超额
+或撤销竞争。
+
+以下可变现或准可变现路径**不属于 268**，继续由各自已存在的预算、结算
+和审计域负责，不能因为日常福利治理开关而被误拦：
+
+| 路径 | 当前独立控制域 |
+| --- | --- |
+| Arena 月榜 / 日榜 | 活动周期、排名、日/月预算、结算幂等账本 |
+| Agent Team 共享奖励 | 月结快照、贡献分配、团队消费比例、封顶和领取审计 |
+| Team Affiliate | 配额型返利与团队资格规则，不是余额发奖 |
+| 邀请返利 Campaign | 独立 campaign budget、风险冻结、资格与冲正状态机 |
+
+因此，“所有现金等价奖励”不是 268 的产品承诺。若运营将来要求统一治理
+这些路径，需要单独设计 source 范围、各类预算单位、历史结算兼容和
+fail-closed 语义，不能直接扩大当前每日福利开关。
+
 ## VIP 与充值加赠口径
 
 VIP 默认保留 V0 作为基础档，正式等级为 V1-V5；默认门槛为 `$0 / $50 / $100 / $200 / $500 / $1000`，充值加赠为 `0 / 2 / 4 / 6 / 8 / 10%`。`recharge_bonus_pct` 在服务端钳制到 `0-10`，`color_key` 统一为 `neutral / emerald / sky / indigo / amber / gold`，前端 Play Hub、模型页和公开文档共用同一套颜色。
@@ -54,7 +88,7 @@ VIP 默认保留 V0 作为基础档，正式等级为 V1-V5；默认门槛为 `$
 
 盲盒按用户当前 VIP 使用专属奖池。V0 使用基础 `season-1-v1`，V1-V5 使用 `season-1-vip-v1` 到 `season-1-vip-v5`，默认成本均为 `$0.50`，预计回报从约 `$0.45` 逐级到约 `$0.495`。VIP 奖池升级只调整奖池概率和 RTP 上限，不保证用户稳赚。
 
-`GET /play/blindbox/status` 返回 `pool`、`current_pool`、`next_pool`、`vip_tier`、`expected_reward`、`next_expected_reward`、`pool_version` 和 `rtp_cap`。`POST /play/blindbox/open` 返回中奖金额、净收益、VIP、预计回报和本次 `pool_version`。开箱审计继续写入 `pool_version`，客服查历史记录时以记录版本解释，不能用当前配置反推。
+`GET /play/blindbox/status` 和 Play Hub 的盲盒状态会返回服务端 `growth_eligibility`。匿名请求、Explorer 用户、盲盒功能关闭或资格依赖不可用时只返回启用状态、每日次数和资格原因，不返回 `pool`、赔率、成本、VIP 奖池或预期回报等内部字段；只有服务端明确判定为 `active/redeemable` 的用户才返回 `pool`、`current_pool`、`next_pool`、`vip_tier`、`expected_reward`、`next_expected_reward`、`pool_version` 和 `rtp_cap`。`POST /play/blindbox/open` 仍只允许达标用户执行，并返回中奖金额、净收益、VIP、预计回报和本次 `pool_version`。开箱审计继续写入 `pool_version`，客服查历史记录时以记录版本解释，不能用当前配置反推。
 
 若运营自定义了非默认 `play_blindbox_pool_json`，服务端不会静默替换该自定义奖池；所有 VIP 档会沿用该自定义池，直到运营显式配置新的 VIP 奖池策略。
 

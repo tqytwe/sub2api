@@ -175,6 +175,20 @@ describe('BlindboxView', () => {
     expect(wrapper.text()).not.toContain('$2.00')
   })
 
+  it('keeps an anonymous redacted response from rendering reward-pool details', async () => {
+    getBlindboxPoolMock.mockResolvedValue({
+      enabled: true,
+      coupon_pool_ready: true,
+    })
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(wrapper.findAll('.play-prize-tier')).toHaveLength(0)
+    expect(wrapper.text()).toContain('blindbox.signInToViewRewards')
+    expect(wrapper.text()).not.toContain('$20.00')
+  })
+
   it('loads authenticated status and renders the pool returned with it', async () => {
     authState.isAuthenticated = true
     getBlindboxStatusMock.mockResolvedValue(configuredStatus())
@@ -564,6 +578,47 @@ describe('BlindboxView', () => {
 
     expect(wrapper.text()).toContain('blindbox.unavailable')
     expect(wrapper.text()).not.toContain('blindbox.disabled')
+  })
+
+  it('renders the server-owned explorer reason and cannot start a paid open', async () => {
+    authState.isAuthenticated = true
+    getBlindboxStatusMock.mockResolvedValue({
+      ...configuredStatus(),
+      can_open: false,
+      growth_eligibility: {
+        tier: 'explorer',
+        reward_mode: 'energy',
+        primary_reason: 'account_too_new',
+        email_verified: true,
+        account_age_days: 1,
+        has_recent_usage: false,
+        net_balance_recharge_30d: 0,
+        has_active_subscription: false,
+        progress: {
+          email_verified: true, account_age_days: 1, minimum_account_age_days: 3,
+          account_age_requirement_met: false, has_recent_usage: false,
+          net_balance_recharge_30d: 0, minimum_recharge_cny: 10,
+          has_active_subscription: false, activity_requirement_met: false,
+          next_action: 'account_too_new',
+        },
+      },
+    })
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('blindbox.growthIneligible')
+    expect(wrapper.text()).toContain('checkin.growthReasons.account_too_new')
+    expect(wrapper.text()).toContain('checkin.energyProgress')
+    expect(wrapper.text()).not.toContain('$20.00')
+    expect(wrapper.text()).not.toContain('season-1-vip-v3')
+    expect(wrapper.text()).not.toContain('blindbox.couponPrizeTitle')
+    expect(wrapper.findAll('.play-prize-tier')).toHaveLength(0)
+    expect(getBlindboxRecentWinsMock).not.toHaveBeenCalled()
+    const button = wrapper.get('.play-btn-primary')
+    expect(button.attributes('disabled')).toBeDefined()
+    await button.trigger('click')
+    expect(openBlindboxMock).not.toHaveBeenCalled()
   })
 
   it('distinguishes a recent-wins request failure from a verified empty feed', async () => {
