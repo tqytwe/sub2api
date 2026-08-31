@@ -21,8 +21,15 @@
         </ol>
         <div class="mt-5 flex flex-wrap gap-3">
           <router-link to="/keys" class="btn btn-primary">{{ t('usage.emptyGuide.ctaKeys') }}</router-link>
+          <RouterLink
+            v-if="docsRoute"
+            :to="docsRoute"
+            class="btn btn-secondary"
+          >
+            {{ t('usage.emptyGuide.ctaDocs') }}
+          </RouterLink>
           <a
-            v-if="docUrl"
+            v-else-if="docUrl"
             :href="docUrl"
             target="_blank"
             rel="noopener"
@@ -296,13 +303,15 @@ import type {
 import type { Column } from '@/components/common/types'
 import { COMMON_ERROR_STATUS_CODES } from '@/utils/errorBadges'
 import { sanitizeUrl } from '@/utils/url'
+import { resolveCustomMenuRoute } from '@/router/customMenuTarget'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const appStore = useAppStore()
 
 const docUrl = computed(() =>
   sanitizeUrl(appStore.cachedPublicSettings?.doc_url || appStore.docUrl || ''),
 )
+const docsRoute = computed(() => resolveCustomMenuRoute({ url: docUrl.value }, locale.value))
 
 type DistributionMetric = 'tokens' | 'actual_cost'
 type EndpointSource = 'inbound' | 'upstream' | 'path'

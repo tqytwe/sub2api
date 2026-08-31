@@ -498,6 +498,17 @@ func ProvideOpsAggregationService(
 	return svc
 }
 
+// ProvidePublicStatusSnapshotWorker writes public, immutable hour snapshots in
+// the background so HTTP handlers never aggregate raw usage logs.
+func ProvidePublicStatusSnapshotWorker(
+	repo PublicStatusSummaryRepository,
+	db *sql.DB,
+) *PublicStatusSnapshotWorker {
+	worker := NewPublicStatusSnapshotWorker(repo, db)
+	worker.Start()
+	return worker
+}
+
 // ProvideOpsAlertEvaluatorService creates and starts OpsAlertEvaluatorService.
 func ProvideOpsAlertEvaluatorService(
 	opsService *OpsService,
@@ -965,6 +976,13 @@ func ProvidePlayService(
 	redeemService *RedeemService,
 ) *PlayService {
 	svc := NewPlayService(repo, userRepo, channelService, settingService, affiliateService, entClient, balanceLedger)
+	// The deployed repository must include the growth qualification port and
+	// migrations; otherwise reward endpoints fail closed instead of reverting
+	// to the legacy redeemable path.
+	svc.RequireGrowthQualification(true)
+	// Legacy play_*_enabled settings must not reopen cash-equivalent rewards
+	// without an append-only operations approval, budget, and rollout record.
+	svc.RequireGrowthGovernance(true)
 	svc.SetMobilePushService(mobilePush)
 	svc.SetCouponRewardIssuer(couponService)
 	svc.SetRedeemCodeRewardIssuer(redeemService)
@@ -1019,6 +1037,8 @@ var ProviderSet = wire.NewSet(
 	NewWithdrawableRecomputeService,
 	NewDashboardService,
 	NewPublicHomeStatsService,
+	NewPublicStatusSummaryService,
+	ProvidePublicStatusSnapshotWorker,
 	ProvidePricingService,
 	NewBillingService,
 	ProvideBillingCacheService,

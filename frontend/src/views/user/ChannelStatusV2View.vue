@@ -310,7 +310,7 @@
                     <div class="flex items-center gap-2">
                       <span :class="statusDot(row.health)" aria-hidden="true"></span>
                       <div>
-                        <span class="block text-xs text-gray-500 dark:text-dark-400">{{ row.platform }}</span>
+                        <span class="block text-xs text-gray-500 dark:text-dark-400">{{ platformLabel(row.platform, locale) }}</span>
                         <strong class="font-semibold text-gray-900 dark:text-white">
                           {{ row.model === '__other__' ? t('channelMonitorV2.otherModels') : row.model }}
                         </strong>
@@ -370,7 +370,7 @@
                     class="rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-600 dark:bg-dark-900/50 dark:text-dark-300"
                   >
                     <div class="mb-1 flex flex-wrap items-center gap-2">
-                      <span class="badge badge-gray !px-1.5 !py-0 text-[10px]">{{ detail.platform || '-' }}</span>
+                      <span class="badge badge-gray !px-1.5 !py-0 text-[10px]">{{ detail.platform ? platformLabel(detail.platform, locale) : '-' }}</span>
                       <span class="truncate font-medium">{{ detail.model || '-' }}</span>
                       <span v-if="detail.status_code" class="text-gray-400">{{ t('channelMonitorV2.errorDetail.http', { code: detail.status_code }) }}</span>
                       <span v-if="detail.upstream_status_code" class="text-gray-400">{{ t('channelMonitorV2.errorDetail.upstream', { code: detail.upstream_status_code }) }}</span>
@@ -474,6 +474,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useAppStore } from '@/stores/app'
 import { extractApiErrorMessage } from '@/utils/apiError'
 import { isChannelMonitorThroughputHidden } from '@/utils/featureFlags'
+import { platformLabel } from '@/utils/platformColors'
 import * as api from '@/api/channelMonitorV2'
 import type {
   HealthState,
@@ -498,6 +499,7 @@ import {
   tokensPerSecondFromTpm,
   healthScoreClass,
   monitorErrorCategoryLabel,
+  type LatencyMetricLabels,
 } from '@/features/channel-monitor-v2/monitorFormat'
 
 type Tab = 'models' | 'errors' | 'users'
@@ -512,6 +514,12 @@ const { t, te, locale } = useI18n()
 const isAdmin = computed(() => authStore.isAdmin)
 /** Admins always see RPM/TPM; users honor the hide-throughput system setting. */
 const showThroughput = computed(() => isAdmin.value || !isChannelMonitorThroughputHidden())
+const latencyMetricLabels = computed<LatencyMetricLabels>(() => ({
+  average: t('channelMonitorV2.metrics.average'),
+  p50: t('channelMonitorV2.metrics.p50'),
+  p90: t('channelMonitorV2.metrics.p90'),
+  p95: t('channelMonitorV2.metrics.p95'),
+}))
 
 const ranges = computed(() => [
   { value: '90m' as MonitorRange, label: t('channelMonitorV2.ranges.90m') },
@@ -585,7 +593,9 @@ const groupOptions = computed(() =>
     )
     .map((item) => ({
       value: String(item.id),
-      label: item.platform ? `${item.platform} / ${item.name || `#${item.id}`}` : item.name || `#${item.id}`,
+      label: item.platform
+        ? `${platformLabel(item.platform, locale.value)} / ${item.name || t('channelMonitorV2.filters.groupId', { id: item.id })}`
+        : item.name || t('channelMonitorV2.filters.groupId', { id: item.id }),
     }))
 )
 const modelOptions = computed(() =>
@@ -596,13 +606,20 @@ const modelOptions = computed(() =>
         !item.platform ||
         selectedPlatforms.value.has(item.platform),
     )
-    .map((item) => ({
-      value: item.value,
-      label:
-        item.platform && !item.label.includes(item.platform)
-          ? `${item.platform} / ${item.label}`
-          : item.label,
-    }))
+    .map((item) => {
+      const providerLabel = item.platform ? platformLabel(item.platform, locale.value) : ''
+      const modelLabel = item.label || item.value
+      const hasProviderPrefix = item.platform
+        ? modelLabel.toLocaleLowerCase().includes(item.platform.toLocaleLowerCase())
+          || modelLabel.toLocaleLowerCase().includes(providerLabel.toLocaleLowerCase())
+        : false
+      return {
+        value: item.value,
+        label: item.platform && !hasProviderPrefix
+          ? `${providerLabel} / ${modelLabel}`
+          : modelLabel,
+      }
+    })
 )
 const selectedGroupIds = computed({
   get: () => filter.value.groupIds.map(String),
@@ -841,15 +858,15 @@ function latencyDetail(metric: {
   p95_ms: number | null
   avg_ms?: number | null
 }) {
-  return formatLatencyPrivacy(metric.p50_ms, metric.p90_ms, metric.avg_ms, metric.p95_ms)
+  return formatLatencyPrivacy(metric.p50_ms, metric.p90_ms, metric.avg_ms, metric.p95_ms, latencyMetricLabels.value)
 }
-/** KPI secondary: AVG · P90 under the P50 primary value. */
+/** KPI secondary uses average plus P90 under the P50 primary value. */
 function latencyKpiSecondary(metric: {
   p90_ms?: number | null
   p95_ms: number | null
   avg_ms?: number | null
 }) {
-  return formatLatencyKpiSecondary(metric.avg_ms, metric.p90_ms, metric.p95_ms)
+  return formatLatencyKpiSecondary(metric.avg_ms, metric.p90_ms, metric.p95_ms, latencyMetricLabels.value)
 }
 function formatTime(value: string) {
   return new Intl.DateTimeFormat(locale.value || undefined, {

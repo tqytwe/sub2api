@@ -9,16 +9,29 @@ import type { FeatureCollection } from 'geojson'
 import { geoGraticule, geoOrthographic, geoPath } from 'd3-geo'
 import { onMounted, onUnmounted, ref } from 'vue'
 
-const ANIMATION_MS = 4000
-const MOBILE_PARTICLES = 360
-const DESKTOP_PARTICLES = 650
+const ANIMATION_MS = 1600
+const MAX_FRAME_INTERVAL_MS = 50
+const DESKTOP_PARTICLES = 240
 
 const emit = defineEmits<{ reveal: [] }>()
 
 const rootEl = ref<HTMLElement | null>(null)
 const canvasMainEl = ref<HTMLCanvasElement | null>(null)
 
-const palette = {
+interface GlobePalette {
+  graticule: string
+  landFill: string
+  coast: string
+  river: string
+  lakeFill: string
+  lakeStroke: string
+  rim: string
+  backLand: string
+  backCoast: string
+  particle: string
+}
+
+const lightPalette: GlobePalette = {
   graticule: 'rgba(10,10,10,0.09)',
   landFill: 'rgba(10,10,10,0.045)',
   coast: 'rgba(10,10,10,0.66)',
@@ -29,6 +42,25 @@ const palette = {
   backLand: 'rgba(10,10,10,0.05)',
   backCoast: 'rgba(10,10,10,0.10)',
   particle: '#0a0a0a'
+}
+
+function canvasThemeColor(tone: 'ink' | 'paper' | 'darkBase', alpha: number) {
+  const rgb = tone === 'ink' ? '10,10,10' : tone === 'paper' ? '245,245,244' : '20,20,20'
+  // design-governance-allow: raw-color - Canvas2D cannot resolve CSS semantic tokens; this reviewed art-only helper maps the existing ink/paper home tokens to alpha-safe paint values.
+  return `rgba(${rgb},${alpha})`
+}
+
+const darkPalette: GlobePalette = {
+  graticule: canvasThemeColor('paper', 0.16),
+  landFill: canvasThemeColor('paper', 0.06),
+  coast: canvasThemeColor('paper', 0.60),
+  river: canvasThemeColor('paper', 0.38),
+  lakeFill: canvasThemeColor('darkBase', 0.90),
+  lakeStroke: canvasThemeColor('paper', 0.42),
+  rim: canvasThemeColor('paper', 0.50),
+  backLand: canvasThemeColor('paper', 0.05),
+  backCoast: canvasThemeColor('paper', 0.14),
+  particle: canvasThemeColor('paper', 1)
 }
 
 const projection = geoOrthographic().clipAngle(90).precision(1)
@@ -43,6 +75,7 @@ let lakes: FeatureCollection | null = null
 let mainCtx: CanvasCtx | null = null
 let raf = 0
 let animationStart = 0
+let lastFrameAt = -Infinity
 let animationStarted = false
 let animationComplete = false
 let isIntersecting = true
@@ -50,7 +83,9 @@ let isUnmounted = false
 let staticMode = false
 let enhancementHandle: number | ReturnType<typeof setTimeout> | null = null
 let enhancementUsesIdleCallback = false
+let enhancementsStarted = false
 let observer: IntersectionObserver | null = null
+let themeObserver: MutationObserver | null = null
 let particles: Array<{ x: number; y: number; z: number }> = []
 
 interface CanvasCtx {
@@ -82,8 +117,12 @@ function globeRadius() {
   return (base / 3) * 1.32
 }
 
-function mainGlobeCenterY(canvas: CanvasCtx) {
-  return isMobile() ? canvas.h * 0.9 : canvas.h * 1.2
+function mainGlobeCenter(canvas: CanvasCtx) {
+  // Keep the poster legible in the first viewport without competing with the CTA/status stack.
+  if (isMobile()) {
+    return { x: canvas.w * 0.86, y: canvas.h * 0.48 }
+  }
+  return { x: canvas.w * 0.82, y: canvas.h * 0.83 }
 }
 
 function makeCtx(canvas: HTMLCanvasElement | null): CanvasCtx | null {
@@ -97,6 +136,10 @@ function makeCtx(canvas: HTMLCanvasElement | null): CanvasCtx | null {
     w: 0,
     h: 0
   }
+}
+
+function paletteForCurrentTheme() {
+  return document.documentElement.classList.contains('dark') ? darkPalette : lightPalette
 }
 
 function resize() {
@@ -126,6 +169,7 @@ function drawGlobe(canvas: CanvasCtx, cx: number, cy: number, radius: number) {
   projection.translate([cx, cy]).scale(radius)
   backProjection.translate([cx, cy]).scale(radius)
   const { ctx, pf, pb } = canvas
+  const palette = paletteForCurrentTheme()
 
   if (land) {
     ctx.beginPath()
@@ -186,10 +230,10 @@ function drawGlobe(canvas: CanvasCtx, cx: number, cy: number, radius: number) {
   ctx.stroke()
 }
 
-function drawParticles(canvas: CanvasCtx, radius: number, alpha: number, cy: number) {
+function drawParticles(canvas: CanvasCtx, radius: number, alpha: number, cx: number, cy: number) {
   if (!particles.length || alpha <= 0) return
-  const { ctx, w } = canvas
-  const cx = w / 2
+  const { ctx } = canvas
+  const palette = paletteForCurrentTheme()
   const rotation = projection.rotate()[0] * Math.PI / 180
   const cosY = Math.cos(rotation)
   const sinY = Math.sin(rotation)
@@ -216,12 +260,22 @@ function drawFrame(elapsed: number) {
 
   const canvas = mainCtx
   canvas.ctx.clearRect(0, 0, canvas.w, canvas.h)
-  const centerY = mainGlobeCenterY(canvas)
+  const center = mainGlobeCenter(canvas)
   const radius = globeRadius()
-  drawGlobe(canvas, canvas.w / 2, centerY, radius)
+  drawGlobe(canvas, center.x, center.y, radius)
   if (!staticMode) {
-    drawParticles(canvas, radius, 0.025 * progress, centerY)
+    drawParticles(canvas, radius, 0.025 * progress, center.x, center.y)
   }
+}
+
+function redrawForThemeChange() {
+  if (!mainCtx || isUnmounted) return
+  const elapsed = animationComplete || staticMode
+    ? ANIMATION_MS
+    : animationStarted
+      ? Math.min(Math.max(0, performance.now() - animationStart), ANIMATION_MS)
+      : 0
+  drawFrame(elapsed)
 }
 
 function stopAnimation() {
@@ -235,7 +289,10 @@ function frame(timestamp: number) {
   if (document.hidden || !isIntersecting || isUnmounted) return
 
   const elapsed = Math.max(0, timestamp - animationStart)
-  drawFrame(Math.min(elapsed, ANIMATION_MS))
+  if (timestamp - lastFrameAt >= MAX_FRAME_INTERVAL_MS || elapsed >= ANIMATION_MS) {
+    drawFrame(Math.min(elapsed, ANIMATION_MS))
+    lastFrameAt = timestamp
+  }
   if (elapsed >= ANIMATION_MS) {
     animationComplete = true
     return
@@ -248,6 +305,7 @@ function startAnimation() {
   if (!animationStarted) {
     animationStarted = true
     animationStart = performance.now()
+    lastFrameAt = -Infinity
   }
   raf = window.requestAnimationFrame(frame)
 }
@@ -258,6 +316,7 @@ function handleVisibilityChange() {
     return
   }
   startAnimation()
+  scheduleEnhancements()
 }
 
 function buildParticles(count: number) {
@@ -275,13 +334,17 @@ function shouldUseStaticMode() {
     connection?: { saveData?: boolean }
     deviceMemory?: number
   }
-  return window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  return isMobile()
+    || window.matchMedia('(pointer: coarse)').matches
+    || window.matchMedia('(hover: none)').matches
+    || window.matchMedia('(prefers-reduced-motion: reduce)').matches
     || navigatorWithHints.connection?.saveData === true
     || (navigator.hardwareConcurrency > 0 && navigator.hardwareConcurrency <= 4)
     || (typeof navigatorWithHints.deviceMemory === 'number' && navigatorWithHints.deviceMemory <= 4)
 }
 
 async function loadEnhancements() {
+	if (isUnmounted || document.hidden || !isIntersecting || staticMode) return
   const [loadedRivers, loadedLakes] = await Promise.all([
     loadEarth('rivers50'),
     loadEarth('lakes50')
@@ -293,59 +356,75 @@ async function loadEnhancements() {
 }
 
 function scheduleEnhancements() {
-  if (staticMode || isUnmounted) return
+  if (staticMode || isUnmounted || document.hidden || !isIntersecting || enhancementsStarted || enhancementHandle !== null) return
+
+  const run = () => {
+    enhancementHandle = null
+    if (isUnmounted || document.hidden || !isIntersecting || staticMode) return
+    enhancementsStarted = true
+    void Promise.all([loadEarth('land50'), loadEarth('coast50'), loadEnhancements()]).then(([loadedLand, loadedCoast]) => {
+      if (isUnmounted) return
+      land = loadedLand
+      coast = loadedCoast
+      if (animationComplete) drawFrame(ANIMATION_MS)
+    })
+  }
+
   if (typeof window.requestIdleCallback === 'function') {
     enhancementUsesIdleCallback = true
-    enhancementHandle = window.requestIdleCallback(() => {
-      enhancementHandle = null
-      void loadEnhancements()
-    }, { timeout: 2500 })
+    enhancementHandle = window.requestIdleCallback(run, { timeout: 2500 })
     return
   }
   enhancementUsesIdleCallback = false
-  enhancementHandle = window.setTimeout(() => {
-    enhancementHandle = null
-    void loadEnhancements()
-  }, 1200)
+  enhancementHandle = window.setTimeout(run, 1200)
 }
 
 onMounted(() => {
   mainCtx = makeCtx(canvasMainEl.value)
   staticMode = shouldUseStaticMode()
-  particles = staticMode ? [] : buildParticles(isMobile() ? MOBILE_PARTICLES : DESKTOP_PARTICLES)
+  particles = staticMode ? [] : buildParticles(DESKTOP_PARTICLES)
   resize()
+  // The poster is independent of optional geography assets and must not delay the CTA.
+  drawFrame(staticMode ? ANIMATION_MS : 0)
   emit('reveal')
 
   window.addEventListener('resize', resize)
   document.addEventListener('visibilitychange', handleVisibilityChange)
+
+  if (typeof MutationObserver === 'function') {
+    themeObserver = new MutationObserver((mutations) => {
+      if (mutations.some((mutation) => mutation.attributeName === 'class')) {
+        redrawForThemeChange()
+      }
+    })
+    themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
+  }
 
   if (typeof IntersectionObserver === 'function' && rootEl.value) {
     observer = new IntersectionObserver((entries) => {
       const entry = entries[0]
       if (!entry) return
       isIntersecting = entry.isIntersecting
-      if (isIntersecting) startAnimation()
-      else stopAnimation()
+      if (isIntersecting) {
+        startAnimation()
+        scheduleEnhancements()
+      } else {
+        stopAnimation()
+      }
     })
     observer.observe(rootEl.value)
   }
 
-  if (staticMode) drawFrame(ANIMATION_MS)
-  else startAnimation()
-
-  void Promise.all([loadEarth('land50'), loadEarth('coast50')]).then(([loadedLand, loadedCoast]) => {
-    if (isUnmounted) return
-    land = loadedLand
-    coast = loadedCoast
-    if (staticMode || animationComplete) drawFrame(ANIMATION_MS)
-    scheduleEnhancements()
-  })
+  if (staticMode) return
+  startAnimation()
+  scheduleEnhancements()
 })
 
 onUnmounted(() => {
   isUnmounted = true
   stopAnimation()
   observer?.disconnect()
+  themeObserver?.disconnect()
   window.removeEventListener('resize', resize)
   document.removeEventListener('visibilitychange', handleVisibilityChange)
   if (enhancementHandle !== null) {

@@ -5,11 +5,13 @@ import { useI18n } from 'vue-i18n'
 import Icon from '@/components/icons/Icon.vue'
 import PublicPageToolbar from '@/components/common/PublicPageToolbar.vue'
 import { localizedSiteName } from '@/utils/localizedPublicSettings'
+import { resolveCustomMenuRoute } from '@/router/customMenuTarget'
 
 const props = withDefaults(defineProps<{
   siteName?: string
   siteLogo?: string
   docUrl?: string
+  homeRoute?: string
   frame?: 'compact' | 'reading' | 'content'
   showFooter?: boolean
   githubUrl?: string
@@ -17,6 +19,7 @@ const props = withDefaults(defineProps<{
   siteName: '极速蹬',
   siteLogo: '',
   docUrl: '',
+  homeRoute: '/',
   frame: 'content',
   showFooter: true,
   githubUrl: '',
@@ -25,6 +28,8 @@ const props = withDefaults(defineProps<{
 const { t, locale } = useI18n()
 const currentYear = computed(() => new Date().getFullYear())
 const displaySiteName = computed(() => localizedSiteName(props.siteName, locale.value))
+const docsRoute = computed(() => props.docUrl ? resolveCustomMenuRoute({ url: props.docUrl }, locale.value) : null)
+const defaultDocsRoute = computed(() => locale.value === 'en' ? '/en/docs' : '/docs')
 const frameClass = computed(() => ({
   compact: 'max-w-2xl',
   reading: 'max-w-[50rem]',
@@ -36,7 +41,7 @@ const frameClass = computed(() => ({
   <div class="flex min-h-screen flex-col bg-gray-50 text-gray-900 dark:bg-dark-950 dark:text-white">
     <header class="border-b border-gray-200 bg-white/95 dark:border-dark-800 dark:bg-dark-900/95">
       <div class="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
-        <RouterLink to="/" class="flex min-w-0 items-center gap-3">
+        <RouterLink :to="props.homeRoute" class="flex min-w-0 items-center gap-3">
           <span class="flex h-10 w-10 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white shadow-sm ring-1 ring-gray-200 dark:bg-dark-800 dark:ring-dark-700">
             <img
               :src="siteLogo || '/logo.png'"
@@ -50,8 +55,16 @@ const frameClass = computed(() => ({
         </RouterLink>
 
         <nav class="flex flex-shrink-0 items-center gap-2" :aria-label="t('nav.publicActions')">
+          <RouterLink
+            v-if="docsRoute"
+            :to="docsRoute"
+            class="inline-flex h-10 items-center gap-1.5 rounded-lg px-3 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:text-dark-300 dark:hover:bg-dark-800 dark:hover:text-white"
+          >
+            <Icon name="book" size="sm" />
+            <span class="hidden sm:inline">{{ t('home.viewDocs') }}</span>
+          </RouterLink>
           <a
-            v-if="docUrl"
+            v-else-if="docUrl"
             :href="docUrl"
             target="_blank"
             rel="noopener noreferrer"
@@ -62,7 +75,7 @@ const frameClass = computed(() => ({
           </a>
           <RouterLink
             v-else
-            to="/docs"
+            :to="defaultDocsRoute"
             class="inline-flex h-10 items-center gap-1.5 rounded-lg px-3 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:text-dark-300 dark:hover:bg-dark-800 dark:hover:text-white"
           >
             <Icon name="book" size="sm" />
@@ -89,8 +102,15 @@ const frameClass = computed(() => ({
           &copy; {{ currentYear }} {{ displaySiteName }}. {{ t('home.footer.allRightsReserved') }}
         </p>
         <div class="flex items-center gap-4">
+          <RouterLink
+            v-if="docsRoute"
+            :to="docsRoute"
+            class="text-sm text-gray-500 transition-colors hover:text-gray-900 dark:text-dark-400 dark:hover:text-white"
+          >
+            {{ t('home.docs') }}
+          </RouterLink>
           <a
-            v-if="docUrl"
+            v-else-if="docUrl"
             :href="docUrl"
             target="_blank"
             rel="noopener noreferrer"
@@ -100,7 +120,7 @@ const frameClass = computed(() => ({
           </a>
           <RouterLink
             v-else
-            to="/docs"
+            :to="defaultDocsRoute"
             class="text-sm text-gray-500 transition-colors hover:text-gray-900 dark:text-dark-400 dark:hover:text-white"
           >
             {{ t('home.docs') }}

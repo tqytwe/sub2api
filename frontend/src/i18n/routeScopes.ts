@@ -35,6 +35,7 @@ export type LocaleRouteName =
   | 'EnglishHome'
   | 'EnglishModels'
   | 'EnglishModelFamily'
+  | 'EnglishStatus'
   | 'EnglishDocs'
   | 'EnglishAbout'
   | 'EnglishContact'
@@ -63,6 +64,7 @@ export type LocaleRouteName =
   | 'QuizQuest'
   | 'Models'
   | 'ModelFamily'
+  | 'Status'
   | 'AgentTeam'
   | 'Home'
   | 'Dashboard'
@@ -135,6 +137,7 @@ export const ROUTE_LOCALE_SCOPES = {
   EnglishHome: ['core'],
   EnglishModels: [...PUBLIC, 'user-dashboard'],
   EnglishModelFamily: [...PUBLIC, 'user-dashboard'],
+  EnglishStatus: PUBLIC,
   EnglishDocs: PUBLIC,
   EnglishAbout: PUBLIC,
   EnglishContact: PUBLIC,
@@ -163,6 +166,7 @@ export const ROUTE_LOCALE_SCOPES = {
   QuizQuest: [...PUBLIC, 'user-dashboard'],
   Models: [...PUBLIC, 'user-dashboard'],
   ModelFamily: [...PUBLIC, 'user-dashboard'],
+  Status: PUBLIC,
   AgentTeam: [...PUBLIC, 'user-dashboard'],
   Home: ['core'],
   Dashboard: [...WORKSPACE, 'user-dashboard'],

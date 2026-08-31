@@ -363,6 +363,59 @@ CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS idx_scheduler_outbox_pending_dedu
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
+func TestApplyMigrationsFS_NewOnlineIndexesDropInvalidIndexBeforeRetry(t *testing.T) {
+	tests := []struct {
+		name      string
+		migration string
+		indexName string
+		statement string
+	}{
+		{
+			name:      "public status ttft window",
+			migration: publicStatusTTFTWindowIndexMigration,
+			indexName: publicStatusTTFTWindowIndex,
+			statement: "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_usage_logs_public_status_ttft_window ON usage_logs (created_at DESC) WHERE first_token_ms IS NOT NULL;",
+		},
+		{
+			name:      "growth eligibility completed balance orders",
+			migration: growthEligibilityOrdersIndexMigration,
+			indexName: growthEligibilityOrdersIndex,
+			statement: "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_payment_orders_growth_eligibility_balance_completed ON payment_orders (user_id, completed_at DESC) WHERE order_type = 'balance' AND status = 'COMPLETED' AND completed_at IS NOT NULL;",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			db, mock, err := sqlmock.New()
+			require.NoError(t, err)
+			defer func() { _ = db.Close() }()
+
+			prepareMigrationsBootstrapExpectations(mock)
+			mock.ExpectQuery("SELECT checksum FROM schema_migrations WHERE filename = \\$1").
+				WithArgs(tt.migration).
+				WillReturnError(sql.ErrNoRows)
+			mock.ExpectQuery("SELECT EXISTS \\(").
+				WithArgs(tt.indexName).
+				WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
+			mock.ExpectExec("DROP INDEX CONCURRENTLY IF EXISTS " + tt.indexName).
+				WillReturnResult(sqlmock.NewResult(0, 0))
+			mock.ExpectExec("CREATE INDEX CONCURRENTLY IF NOT EXISTS " + tt.indexName).
+				WillReturnResult(sqlmock.NewResult(0, 0))
+			mock.ExpectExec("INSERT INTO schema_migrations \\(filename, checksum\\) VALUES \\(\\$1, \\$2\\)").
+				WithArgs(tt.migration, sqlmock.AnyArg()).
+				WillReturnResult(sqlmock.NewResult(1, 1))
+			expectMigrationsUnlock(mock)
+
+			fsys := fstest.MapFS{
+				tt.migration: &fstest.MapFile{Data: []byte(tt.statement)},
+			}
+
+			require.NoError(t, applyMigrationsFS(context.Background(), db, fsys))
+			require.NoError(t, mock.ExpectationsWereMet())
+		})
+	}
+}
+
 func TestPrepareNonTransactionalMigration_ImageStudioIndexes(t *testing.T) {
 	const (
 		persistentJobsMigration   = "192_image_studio_persistent_jobs_indexes_notx.sql"

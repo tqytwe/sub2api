@@ -28,6 +28,7 @@ type playCouponRewardIssuer struct {
 	inTx            bool
 	couponWeightBP  int
 	balanceWeightBP int
+	pool            *CouponRewardPoolVersion
 }
 
 type playCouponReadinessIssuer struct {
@@ -66,6 +67,11 @@ func (i *playCouponRewardIssuer) GetPublishedRewardPool(_ context.Context, activ
 	if i.poolUnavailable {
 		return nil, ErrCouponRewardPoolUnavailable
 	}
+	if i.pool != nil {
+		copy := *i.pool
+		copy.Activity = activity
+		return &copy, nil
+	}
 	couponWeightBP := i.couponWeightBP
 	balanceWeightBP := i.balanceWeightBP
 	if couponWeightBP == 0 && balanceWeightBP == 0 {
@@ -90,6 +96,47 @@ type playCouponQuizRepo struct {
 	insertErr      error
 	ledgerEntries  []PlayRewardLedgerEntry
 	balanceUpdates []float64
+}
+
+// growthQualifiedQuizRepo keeps the normal quiz test double but also records
+// immutable qualification evidence, so reward branches can assert the audit
+// link without requiring a real PostgreSQL database.
+type growthQualifiedQuizRepo struct {
+	*playCouponQuizRepo
+	signals       PlayGrowthEligibilitySignals
+	snapshots     []PlayGrowthEligibilitySnapshot
+	links         []int64
+	energyEntries []PlayGrowthEnergyLedgerEntry
+}
+
+func (r *growthQualifiedQuizRepo) GetGrowthEligibilitySignals(_ context.Context, _ int64, _, _, now time.Time) (PlayGrowthEligibilitySignals, error) {
+	if !r.signals.CreatedAt.IsZero() {
+		return r.signals, nil
+	}
+	return PlayGrowthEligibilitySignals{
+		EmailVerified:  true,
+		CreatedAt:      now.AddDate(0, 0, -7),
+		HasRecentUsage: true,
+	}, nil
+}
+
+func (r *growthQualifiedQuizRepo) CreateGrowthEligibilitySnapshot(_ context.Context, snapshot PlayGrowthEligibilitySnapshot) (int64, error) {
+	r.snapshots = append(r.snapshots, snapshot)
+	return int64(900 + len(r.snapshots)), nil
+}
+
+func (r *growthQualifiedQuizRepo) LinkGrowthEligibilitySnapshot(_ context.Context, _ string, _ int64, _ time.Time, snapshotID int64) error {
+	r.links = append(r.links, snapshotID)
+	return nil
+}
+
+func (r *growthQualifiedQuizRepo) LinkBlindboxGrowthEligibilitySnapshot(context.Context, int64, string, int64) error {
+	return nil
+}
+
+func (r *growthQualifiedQuizRepo) InsertGrowthEnergyLedger(_ context.Context, entry PlayGrowthEnergyLedgerEntry) error {
+	r.energyEntries = append(r.energyEntries, entry)
+	return nil
 }
 
 func (r *playCouponQuizRepo) ListQuizQuestions(context.Context, string) ([]PlayQuizQuestionDB, error) {
@@ -266,6 +313,35 @@ func TestQuizTodayRestoresCompletedCouponWhenPoolBecomesUnavailable(t *testing.T
 	require.Equal(t, "充值满10减1", today.PreviousCoupon.Name)
 }
 
+func TestQuizTodayRestoresRedeemCodeRewardByActionReference(t *testing.T) {
+	now := time.Date(2026, time.July, 27, 12, 0, 0, 0, time.UTC)
+	repo := &playCouponQuizRepo{
+		questions: newPlayCouponQuizQuestions(5),
+		attempt:   &PlayQuizAttemptDB{Score: 5, Total: 5, RewardAmount: 0},
+	}
+	redeem := &playRedeemRewardIssuer{code: &RedeemCode{
+		ID:                813,
+		Code:              "V182-QUIZ-REPLAY",
+		Type:              RedeemTypeBalance,
+		Status:            StatusIssued,
+		IssueSource:       string(CouponRewardActivityQuiz),
+		IssueRef:          "quiz:42:2026-07-27",
+		RewardPoolVersion: "quiz-redeem-v1",
+	}}
+	svc := NewPlayService(repo, nil, nil, newCouponQuizSettingService(), nil, nil)
+	svc.now = func() time.Time { return now }
+	svc.SetRedeemCodeRewardIssuer(redeem)
+
+	today, err := svc.GetQuizToday(context.Background(), 42, "en")
+
+	require.NoError(t, err)
+	require.True(t, today.AlreadySubmitted)
+	require.Equal(t, PlayRewardTypeRedeem, today.PreviousRewardType)
+	require.NotNil(t, today.PreviousRedeemCode)
+	require.Equal(t, "V182-QUIZ-REPLAY", today.PreviousRedeemCode.Code)
+	require.Equal(t, []string{"quiz:42:2026-07-27"}, redeem.replayRefs)
+}
+
 func TestBlindboxCouponRewardIssuesCouponAndChargesCostInOneTransaction(t *testing.T) {
 	pool := defaultBlindboxPool()
 	settings := newCouponRewardSettingService(t, pool, true)
@@ -331,7 +407,10 @@ func TestBlindboxCouponIssueFailureRollsBackWithoutBalanceFallback(t *testing.T)
 	require.ErrorIs(t, err, ErrCouponRewardPoolUnavailable)
 	require.True(t, issuer.inTx)
 	require.Len(t, issuer.requests, 1)
-	require.Empty(t, repo.records)
+	// The in-memory double cannot emulate database rollback. This test verifies
+	// the transaction boundary and failure path; PostgreSQL integration coverage
+	// is required to prove the action row is absent after rollback.
+	require.Len(t, repo.records, 1)
 	require.Empty(t, repo.ledgerEntries)
 	require.Empty(t, repo.balanceUpdates)
 	require.Empty(t, userRepo.balanceUpdates)
@@ -485,9 +564,10 @@ func TestQuizCouponIssueFailureRollsBackAttemptWithoutBalanceFallback(t *testing
 	require.ErrorContains(t, err, "coupon stock unavailable")
 	require.True(t, issuer.inTx)
 	require.Len(t, issuer.requests, 1)
-	// The attempt is claimed before the coupon issuer. sqlmock verifies that
-	// the enclosing transaction rolls back, so this in-memory call is not a
-	// persisted completion after the failed issue.
+	// The attempt is claimed before the coupon issuer. The in-memory double
+	// cannot model the database rollback, so this verifies the transaction
+	// boundary; PostgreSQL integration coverage must confirm the row is not
+	// persisted after the failed issue.
 	require.Len(t, repo.inserted, 1)
 	require.True(t, repo.insertedInTx)
 	require.Empty(t, repo.ledgerEntries)
@@ -519,6 +599,73 @@ func TestQuizBalanceBranchUsesFullCompletionReward(t *testing.T) {
 	require.Len(t, repo.ledgerEntries, 1)
 	require.InDelta(t, 0.5, repo.ledgerEntries[0].Amount, 1e-12)
 	require.Equal(t, []float64{0.5}, repo.balanceUpdates)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestQualifiedQuizBalanceCreatesImmutableSnapshotAndAuditableLedger(t *testing.T) {
+	now := time.Date(2026, time.August, 29, 12, 0, 0, 0, time.UTC)
+	repo := &growthQualifiedQuizRepo{playCouponQuizRepo: &playCouponQuizRepo{questions: newPlayCouponQuizQuestions(5)}}
+	client, mock := newCouponRewardEntClient(t)
+	svc := NewPlayService(repo, nil, nil, newCouponQuizSettingService(), nil, client)
+	svc.now = func() time.Time { return now }
+	svc.rewardDrawSource = func(int64) (int64, error) { return 8000, nil }
+
+	mock.ExpectBegin()
+	mock.ExpectCommit()
+
+	result, err := svc.SubmitQuiz(context.Background(), 42, "en", newPlayCouponQuizAnswers(repo.questions))
+	require.NoError(t, err)
+	require.Equal(t, PlayGrowthTierActive, result.GrowthEligibility.Tier)
+	require.Len(t, repo.snapshots, 1)
+	require.Equal(t, PlayRewardSourceQuiz, repo.snapshots[0].Source)
+	require.Equal(t, "quiz:42:2026-08-29", repo.snapshots[0].ActionID)
+	require.Equal(t, []int64{901}, repo.links)
+	require.Len(t, repo.ledgerEntries, 1)
+	require.Equal(t, int64(901), repo.ledgerEntries[0].Detail["growth_eligibility_snapshot_id"])
+	require.Equal(t, "v1", repo.ledgerEntries[0].Detail["growth_rule_version"])
+	require.Equal(t, PlayGrowthTierActive, repo.ledgerEntries[0].Detail["growth_tier"])
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestExplorerQuizRecordsOnlyEnergyWithMatchingSnapshotAction(t *testing.T) {
+	now := time.Date(2026, time.August, 29, 12, 0, 0, 0, time.UTC)
+	repo := &growthQualifiedQuizRepo{
+		playCouponQuizRepo: &playCouponQuizRepo{questions: newPlayCouponQuizQuestions(5)},
+		signals: PlayGrowthEligibilitySignals{
+			EmailVerified: true,
+			CreatedAt:     now.AddDate(0, 0, -8),
+		},
+	}
+	client, mock := newCouponRewardEntClient(t)
+	svc := NewPlayService(repo, nil, nil, newCouponQuizSettingService(), nil, client)
+	svc.now = func() time.Time { return now }
+
+	mock.ExpectBegin()
+	mock.ExpectCommit()
+
+	result, err := svc.SubmitQuiz(context.Background(), 42, "en", newPlayCouponQuizAnswers(repo.questions))
+	require.NoError(t, err)
+	require.Equal(t, PlayGrowthTierExplorer, result.GrowthEligibility.Tier)
+	require.Equal(t, PlayGrowthRewardEnergy, result.GrowthEligibility.RewardMode)
+	require.Equal(t, PlayRewardTypeNone, result.RewardType)
+	require.EqualValues(t, 1, result.GrowthEnergy)
+	require.Zero(t, result.RewardAmount)
+	require.Len(t, repo.inserted, 1)
+	require.Zero(t, repo.inserted[0].RewardAmount)
+	require.Len(t, repo.snapshots, 1)
+	require.Equal(t, PlayRewardSourceQuiz, repo.snapshots[0].Source)
+	require.Equal(t, "quiz:42:2026-08-29", repo.snapshots[0].ActionID)
+	require.Equal(t, PlayGrowthTierExplorer, repo.snapshots[0].Eligibility.Tier)
+	require.Equal(t, []int64{901}, repo.links)
+	require.Equal(t, []PlayGrowthEnergyLedgerEntry{{
+		UserID:                42,
+		Source:                PlayRewardSourceQuiz,
+		ActionID:              "quiz:42:2026-08-29",
+		Amount:                1,
+		EligibilitySnapshotID: 901,
+	}}, repo.energyEntries)
+	require.Empty(t, repo.ledgerEntries)
+	require.Empty(t, repo.balanceUpdates)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 

@@ -318,6 +318,11 @@ export default {
     rateLimitResetSuccess: 'Rate limit usage reset successfully',
     failedToResetRateLimit: 'Failed to reset rate limit usage',
     resetNow: 'Resetting soon',
+    resetTime: {
+      daysHours: '{days} days {hours} hours',
+      hoursMinutes: '{hours} hours {minutes} minutes',
+      minutes: '{minutes} minutes',
+    },
     expiration: 'Expiration',
     expiresInDays: '{days} days',
     extendDays: '+{days} days',

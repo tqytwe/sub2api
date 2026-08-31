@@ -19,8 +19,50 @@ import (
 
 func (s *PlayService) GetBlindboxStatus(ctx context.Context, userID int64) (*PlayBlindboxStatus, error) {
 	rt := s.GetRuntime(ctx)
-	vip := resolveVIPStatus(0, rt.VIPTiers)
+	now := s.serverNow()
+	date := s.serverDate(now)
+	out := &PlayBlindboxStatus{
+		Enabled:                   rt.BlindboxEnabled,
+		CouponPoolReady:           true,
+		GrowthGovernanceAvailable: true,
+		DailyLimit:                rt.BlindboxDailyLimit,
+		ServerDate:                date.Format("2006-01-02"),
+	}
+	out.EffectiveLimit = rt.BlindboxDailyLimit
 	if rt.BlindboxEnabled && userID > 0 {
+		eligibility, err := s.growthEligibility(ctx, userID, now)
+		if err != nil {
+			return nil, err
+		}
+		out.GrowthEligibility = eligibility
+		// Explorer status is intentionally reward-blind. Do not load or expose
+		// the active pool, coupon previews, odds, or expected-value promises
+		// until the server has established redeemable eligibility.
+		if eligibility.RewardMode != PlayGrowthRewardRedeemable {
+			opens, err := s.repo.CountBlindboxOpens(ctx, userID, date)
+			if err != nil {
+				return nil, err
+			}
+			out.OpensToday = opens
+			out.CouponPoolReady = false
+			return out, nil
+		}
+		_, governanceAvailable, governanceReason := s.growthGovernanceForStatus(ctx, userID, now)
+		out.GrowthGovernanceAvailable = governanceAvailable
+		out.GrowthGovernanceReason = governanceReason
+		if !governanceAvailable {
+			out.CouponPoolReady = false
+			opens, countErr := s.repo.CountBlindboxOpens(ctx, userID, date)
+			if countErr != nil {
+				return nil, countErr
+			}
+			out.OpensToday = opens
+			return out, nil
+		}
+	}
+
+	vip := resolveVIPStatus(0, rt.VIPTiers)
+	if userID > 0 {
 		resolvedVIP, err := s.resolveBlindboxVIPStatus(ctx, userID, rt)
 		if err != nil {
 			return nil, err
@@ -29,25 +71,17 @@ func (s *PlayService) GetBlindboxStatus(ctx context.Context, userID int64) (*Pla
 	}
 	pool := resolveVIPBlindboxPool(rt.BlindboxPool, vip)
 	nextPool := resolveNextVIPBlindboxPool(rt.BlindboxPool, vip)
-	now := s.serverNow()
-	date := s.serverDate(now)
-	out := &PlayBlindboxStatus{
-		Enabled:            rt.BlindboxEnabled,
-		CouponPoolReady:    true,
-		CouponWeightBP:     6000,
-		RedeemCodeWeightBP: 0,
-		BalanceWeightBP:    4000,
-		CostAmount:         pool.Cost,
-		BlindboxPool:       pool,
-		CurrentPool:        pool,
-		NextPool:           nextPool,
-		VIPTier:            vip,
-		ExpectedReward:     pool.ExpectedReward(),
-		PoolVersion:        pool.Version,
-		RTPCap:             pool.RTPCap,
-		DailyLimit:         rt.BlindboxDailyLimit,
-		ServerDate:         date.Format("2006-01-02"),
-	}
+	out.CouponWeightBP = 6000
+	out.RedeemCodeWeightBP = 0
+	out.BalanceWeightBP = 4000
+	out.CostAmount = pool.Cost
+	out.BlindboxPool = pool
+	out.CurrentPool = pool
+	out.NextPool = nextPool
+	out.VIPTier = vip
+	out.ExpectedReward = pool.ExpectedReward()
+	out.PoolVersion = pool.Version
+	out.RTPCap = pool.RTPCap
 	if nextPool != nil {
 		out.NextExpectedReward = nextPool.ExpectedReward()
 	}
@@ -72,8 +106,13 @@ func (s *PlayService) GetBlindboxStatus(ctx context.Context, userID int64) (*Pla
 		}
 		out.CouponPrizes = prizes
 	}
-	out.EffectiveLimit = rt.BlindboxDailyLimit
-	if !rt.BlindboxEnabled || userID <= 0 {
+	if userID <= 0 {
+		return out, nil
+	}
+	// Preserve the public configured-pool response while the feature is off;
+	// this is used by the landing page to render a disabled, non-actionable
+	// preview. Authenticated requests also retain the historical shape here.
+	if !rt.BlindboxEnabled {
 		return out, nil
 	}
 	mods, err := s.resolvePlayEffectModifiers(ctx, userID, rt)
@@ -116,6 +155,18 @@ func (s *PlayService) OpenBlindbox(ctx context.Context, userID int64, idempotenc
 	if !rt.BlindboxEnabled {
 		return nil, ErrPlayFeatureDisabled
 	}
+	now := s.serverNow()
+	eligibility, err := s.growthEligibility(ctx, userID, now)
+	if err != nil {
+		return nil, err
+	}
+	if eligibility.RewardMode != PlayGrowthRewardRedeemable {
+		return nil, newPlayGrowthRewardIneligibleError(eligibility)
+	}
+	growthGovernance, err := s.requireGrowthGovernanceForReward(ctx, userID, now)
+	if err != nil {
+		return nil, err
+	}
 	if err := s.requireCouponRewardPool(ctx, CouponRewardActivityBlindbox); err != nil {
 		return nil, err
 	}
@@ -129,7 +180,6 @@ func (s *PlayService) OpenBlindbox(ctx context.Context, userID int64, idempotenc
 	}
 	cost := pool.Cost
 
-	now := s.serverNow()
 	date := s.serverDate(now)
 	dateKey := date.Format("2006-01-02")
 	mods, err := s.resolvePlayEffectModifiers(ctx, userID, rt)
@@ -174,40 +224,67 @@ func (s *PlayService) OpenBlindbox(ctx context.Context, userID int64, idempotenc
 		return nil, err
 	}
 	reward := 0.0
-	var couponIssue *CouponRewardIssueResult
-	var redeemCode *RedeemCode
 	switch rewardType {
 	case PlayRewardTypeBalance:
 		reward, err = s.pickBlindboxReward(pool)
 		if err != nil {
 			return nil, err
 		}
+	}
+	net := reward - cost
+
+	// The blindbox action must win its unique idempotency constraint before
+	// it can issue a coupon or reserve a code. Keep the original seven-column
+	// action insert intact, then append qualification evidence in this same tx.
+	if err := s.repo.InsertBlindboxOpenRecord(txCtx, PlayBlindboxOpenRecord{
+		UserID:         userID,
+		Date:           date,
+		Cost:           cost,
+		Reward:         reward,
+		IdempotencyKey: idempotencyKey,
+		PoolVersion:    pool.Version,
+		OpenSource:     openSource,
+	}); err != nil {
+		if errors.Is(err, ErrPlayRewardDuplicate) {
+			return nil, ErrPlayRewardDuplicate
+		}
+		return nil, err
+	}
+	growthSnapshotID, err := s.createGrowthSnapshot(txCtx, PlayGrowthEligibilitySnapshot{
+		UserID: userID, Source: PlayRewardSourceBlindbox, ActionID: idempotencyKey, ActivityDate: date, Eligibility: eligibility,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if growthSnapshotID > 0 {
+		growthRepo, ok := s.growthQualificationRepository()
+		if !ok {
+			return nil, ErrPlayGrowthQualificationUnavailable
+		}
+		if err := growthRepo.LinkBlindboxGrowthEligibilitySnapshot(txCtx, userID, idempotencyKey, growthSnapshotID); err != nil {
+			return nil, err
+		}
+	} else if s.requireGrowthQualification {
+		return nil, ErrPlayGrowthQualificationUnavailable
+	}
+	if err := s.reserveGrowthRewardBudget(txCtx, growthGovernance, userID, PlayRewardSourceBlindbox, idempotencyKey, growthRewardBudgetCost(rewardType, reward)); err != nil {
+		return nil, err
+	}
+
+	var couponIssue *CouponRewardIssueResult
+	var redeemCode *RedeemCode
+	switch rewardType {
 	case PlayRewardTypeCoupon:
-		couponIssue, err = s.issueCouponRewardInTx(
-			txCtx,
-			userID,
-			CouponRewardActivityBlindbox,
-			idempotencyKey,
-			dateKey,
-			now,
-		)
+		couponIssue, err = s.issueCouponRewardInTx(txCtx, userID, CouponRewardActivityBlindbox, idempotencyKey, dateKey, now, eligibility)
 		if err != nil {
 			return nil, err
 		}
 	case PlayRewardTypeRedeem:
-		redeemCode, err = s.issueRedeemCodeRewardInTx(
-			txCtx,
-			userID,
-			CouponRewardActivityBlindbox,
-			idempotencyKey,
-			dateKey,
-			now,
-		)
+		redeemCode, err = s.issueRedeemCodeRewardInTx(txCtx, userID, CouponRewardActivityBlindbox, idempotencyKey, idempotencyKey, now, eligibility)
 		if err != nil {
 			return nil, err
 		}
 	}
-	net := reward - cost
 
 	detail := map[string]any{
 		"open_date":         dateKey,
@@ -223,6 +300,11 @@ func (s *PlayService) OpenBlindbox(ctx context.Context, userID int64, idempotenc
 		"vip_tier_snapshot": vip,
 		"expected_reward":   pool.ExpectedReward(),
 		"rtp_cap":           pool.RTPCap,
+	}
+	if growthSnapshotID > 0 {
+		detail["growth_eligibility_snapshot_id"] = growthSnapshotID
+		detail["growth_rule_version"] = PlayGrowthQualificationRuleVersion()
+		detail["growth_tier"] = eligibility.Tier
 	}
 	if couponIssue != nil {
 		detail["coupon_pool_version_id"] = couponIssue.PoolVersionID
@@ -240,20 +322,7 @@ func (s *PlayService) OpenBlindbox(ctx context.Context, userID int64, idempotenc
 		detail["redeem_code_expires_at"] = redeemCode.ExpiresAt
 	}
 
-	if err := s.grantBalanceInTx(txCtx, userID, net, PlayRewardSourceBlindbox, idempotencyKey, detail, func(txCtx context.Context) error {
-		return s.repo.InsertBlindboxOpenRecord(txCtx, PlayBlindboxOpenRecord{
-			UserID:         userID,
-			Date:           date,
-			Cost:           cost,
-			Reward:         reward,
-			IdempotencyKey: idempotencyKey,
-			PoolVersion:    pool.Version,
-			OpenSource:     openSource,
-		})
-	}); err != nil {
-		if errors.Is(err, ErrPlayRewardDuplicate) {
-			return nil, ErrPlayRewardDuplicate
-		}
+	if err := s.grantBalanceInTx(txCtx, userID, net, PlayRewardSourceBlindbox, idempotencyKey, detail, &growthSnapshotID, nil); err != nil {
 		return nil, err
 	}
 	if err := tx.Commit(); err != nil {
@@ -302,9 +371,25 @@ func (s *PlayService) replayBlindboxOpen(ctx context.Context, userID int64, idem
 			return nil, err
 		}
 	}
+	if reader, ok := s.redeemRewardIssuer.(RedeemCodeRewardReplayReader); ok && reader != nil {
+		redeemCode, err = reader.GetRedeemCodeRewardByIssueRef(
+			ctx,
+			userID,
+			string(CouponRewardActivityBlindbox),
+			idempotencyKey,
+		)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if couponIssue != nil && redeemCode != nil {
+		return nil, fmt.Errorf("blindbox replay has conflicting coupon and redeem rewards")
+	}
 	rewardType := PlayRewardTypeBalance
 	if couponIssue != nil {
 		rewardType = PlayRewardTypeCoupon
+	} else if redeemCode != nil {
+		rewardType = PlayRewardTypeRedeem
 	}
 	vip := copyBlindboxVIPSnapshot(record.VIPTierSnapshot)
 	return &PlayBlindboxOpenResult{
@@ -543,13 +628,29 @@ func (s *PlayService) GetQuizToday(ctx context.Context, userID int64, language s
 	date := s.serverDate(now)
 	dateKey := date.Format("2006-01-02")
 	out := &PlayQuizToday{
-		Enabled:          rt.QuizEnabled,
-		CouponPoolReady:  true,
-		RewardPerCorrect: rt.QuizRewardPerCorrect,
-		ServerDate:       dateKey,
+		Enabled:                   rt.QuizEnabled,
+		CouponPoolReady:           true,
+		GrowthGovernanceAvailable: true,
+		RewardPerCorrect:          rt.QuizRewardPerCorrect,
+		ServerDate:                dateKey,
 	}
 	if !rt.QuizEnabled {
 		return out, nil
+	}
+	if userID > 0 {
+		eligibility, err := s.growthEligibility(ctx, userID, s.serverNow())
+		if err != nil {
+			return nil, err
+		}
+		out.GrowthEligibility = eligibility
+		if eligibility.RewardMode == PlayGrowthRewardRedeemable {
+			_, governanceAvailable, governanceReason := s.growthGovernanceForStatus(ctx, userID, now)
+			out.GrowthGovernanceAvailable = governanceAvailable
+			out.GrowthGovernanceReason = governanceReason
+			if !governanceAvailable {
+				out.CouponPoolReady = false
+			}
+		}
 	}
 	var attempt *PlayQuizAttemptDB
 	if userID > 0 {
@@ -559,17 +660,24 @@ func (s *PlayService) GetQuizToday(ctx context.Context, userID int64, language s
 			return nil, err
 		}
 	}
-	ready, err := s.couponRewardPoolReady(ctx, CouponRewardActivityQuiz)
-	if err != nil {
-		return nil, err
+	ready := false
+	var err error
+	if out.GrowthGovernanceAvailable {
+		ready, err = s.couponRewardPoolReady(ctx, CouponRewardActivityQuiz)
+		if err != nil {
+			return nil, err
+		}
+		out.CouponPoolReady = ready
 	}
-	out.CouponPoolReady = ready
 	if attempt != nil {
 		out.AlreadySubmitted = true
 		out.PreviousScore = attempt.Score
 		out.PreviousTotal = attempt.Total
 		out.PreviousReward = attempt.RewardAmount
 		out.PreviousRewardType = PlayRewardTypeNone
+		if attempt.GrowthRewardMode == PlayGrowthRewardEnergy {
+			out.PreviousGrowthEnergy = 1
+		}
 		if attempt.RewardAmount > 0 {
 			out.PreviousRewardType = PlayRewardTypeBalance
 		}
@@ -588,9 +696,28 @@ func (s *PlayService) GetQuizToday(ctx context.Context, userID int64, language s
 				out.PreviousCouponPoolVersion = couponPoolVersion(issue)
 			}
 		}
+		if reader, ok := s.redeemRewardIssuer.(RedeemCodeRewardReplayReader); ok && reader != nil {
+			code, codeErr := reader.GetRedeemCodeRewardByIssueRef(
+				ctx,
+				userID,
+				string(CouponRewardActivityQuiz),
+				fmt.Sprintf("quiz:%d:%s", userID, dateKey),
+			)
+			if codeErr != nil {
+				return nil, codeErr
+			}
+			if code != nil {
+				if out.PreviousCoupon != nil {
+					return nil, fmt.Errorf("quiz replay has conflicting coupon and redeem rewards")
+				}
+				out.PreviousRewardType = PlayRewardTypeRedeem
+				out.PreviousRedeemCode = playRedeemCodeRewardSummary(code)
+				out.PreviousCouponPoolVersion = code.RewardPoolVersion
+			}
+		}
 		return out, nil
 	}
-	if !ready {
+	if !ready && out.GrowthEligibility.RewardMode != PlayGrowthRewardEnergy && out.GrowthGovernanceAvailable {
 		return out, nil
 	}
 
@@ -618,16 +745,27 @@ func (s *PlayService) SubmitQuiz(ctx context.Context, userID int64, language str
 	if !rt.QuizEnabled {
 		return nil, ErrPlayFeatureDisabled
 	}
-	if err := s.requireCouponRewardPool(ctx, CouponRewardActivityQuiz); err != nil {
+	now := s.serverNow()
+	growthEligibility, err := s.growthEligibility(ctx, userID, now)
+	if err != nil {
 		return nil, err
+	}
+	var growthGovernance *PlayGrowthGovernanceState
+	if growthEligibility.RewardMode == PlayGrowthRewardRedeemable {
+		if err := s.requireCouponRewardPool(ctx, CouponRewardActivityQuiz); err != nil {
+			return nil, err
+		}
+	}
+	if userID <= 0 {
+		return nil, ErrPlayQuizInvalidAnswer
 	}
 	if len(answers) == 0 {
 		return nil, ErrPlayQuizInvalidAnswer
 	}
 
-	now := s.serverNow()
 	date := s.serverDate(now)
 	dateKey := date.Format("2006-01-02")
+	idempotencyKey := fmt.Sprintf("quiz:%d:%s", userID, dateKey)
 	if existing, err := s.repo.GetQuizAttempt(ctx, userID, date); err != nil {
 		return nil, err
 	} else if existing != nil {
@@ -675,17 +813,60 @@ func (s *PlayService) SubmitQuiz(ctx context.Context, userID int64, language str
 		answerDetail[fmt.Sprintf("%d", ans.QuestionID)] = ans.ChoiceIndex
 	}
 
+	if growthEligibility.RewardMode == PlayGrowthRewardEnergy {
+		var snapshotID int64
+		if err := s.withPlayTx(ctx, func(txCtx context.Context) error {
+			if err := s.repo.InsertQuizAttempt(txCtx, userID, date, score, total, 0, answerDetail); err != nil {
+				return err
+			}
+			var snapshotErr error
+			snapshotID, snapshotErr = s.createGrowthSnapshot(txCtx, PlayGrowthEligibilitySnapshot{UserID: userID, Source: PlayRewardSourceQuiz, ActionID: idempotencyKey, ActivityDate: date, Eligibility: growthEligibility})
+			if snapshotErr != nil {
+				return snapshotErr
+			}
+			if snapshotID > 0 {
+				repo, ok := s.growthQualificationRepository()
+				if !ok {
+					return fmt.Errorf("growth qualification repository disappeared during quiz")
+				}
+				if err := repo.LinkGrowthEligibilitySnapshot(txCtx, PlayRewardSourceQuiz, userID, date, snapshotID); err != nil {
+					return err
+				}
+				if err := s.insertGrowthEnergy(txCtx, PlayGrowthEnergyLedgerEntry{UserID: userID, Source: PlayRewardSourceQuiz, ActionID: idempotencyKey, Amount: 1, EligibilitySnapshotID: snapshotID}); err != nil {
+					return err
+				}
+			}
+			return nil
+		}); err != nil {
+			if errors.Is(err, ErrPlayQuizAlreadyDone) || errors.Is(err, ErrPlayRewardDuplicate) {
+				return nil, ErrPlayQuizAlreadyDone
+			}
+			return nil, err
+		}
+		return &PlayQuizSubmitResult{
+			Score:             score,
+			Total:             total,
+			RewardType:        PlayRewardTypeNone,
+			ServerDate:        dateKey,
+			GrowthEnergy:      1,
+			GrowthEligibility: growthEligibility,
+		}, nil
+	}
+
 	// The quiz is a single completed daily attempt. Correct answers determine
 	// whether it qualifies for a draw, while the balance branch keeps the
 	// original full completion reward instead of paying per correct answer.
 	completionReward := float64(total) * rt.QuizRewardPerCorrect
 	reward := 0.0
-	idempotencyKey := fmt.Sprintf("quiz:%d:%s", userID, dateKey)
 	rewardType := PlayRewardTypeNone
 	var couponIssue *CouponRewardIssueResult
 	var redeemCode *RedeemCode
 
 	if score > 0 {
+		growthGovernance, err = s.requireGrowthGovernanceForReward(ctx, userID, now)
+		if err != nil {
+			return nil, err
+		}
 		rewardType, err = s.drawCouponRewardType(ctx, CouponRewardActivityQuiz)
 		if err != nil {
 			return nil, err
@@ -717,6 +898,22 @@ func (s *PlayService) SubmitQuiz(ctx context.Context, userID int64, language str
 			}
 			return nil, err
 		}
+		growthSnapshotID, err := s.createGrowthSnapshot(txCtx, PlayGrowthEligibilitySnapshot{UserID: userID, Source: PlayRewardSourceQuiz, ActionID: idempotencyKey, ActivityDate: date, Eligibility: growthEligibility})
+		if err != nil {
+			return nil, err
+		}
+		if growthSnapshotID > 0 {
+			growthRepo, ok := s.growthQualificationRepository()
+			if !ok {
+				return nil, fmt.Errorf("growth qualification repository disappeared during quiz")
+			}
+			if err := growthRepo.LinkGrowthEligibilitySnapshot(txCtx, PlayRewardSourceQuiz, userID, date, growthSnapshotID); err != nil {
+				return nil, err
+			}
+		}
+		if err := s.reserveGrowthRewardBudget(txCtx, growthGovernance, userID, PlayRewardSourceQuiz, idempotencyKey, growthRewardBudgetCost(rewardType, reward)); err != nil {
+			return nil, err
+		}
 		couponIssue, err = s.issueCouponRewardInTx(
 			txCtx,
 			userID,
@@ -724,6 +921,7 @@ func (s *PlayService) SubmitQuiz(ctx context.Context, userID int64, language str
 			idempotencyKey,
 			dateKey,
 			now,
+			growthEligibility,
 		)
 		if err != nil {
 			return nil, err
@@ -748,13 +946,30 @@ func (s *PlayService) SubmitQuiz(ctx context.Context, userID int64, language str
 			}
 			return nil, err
 		}
+		growthSnapshotID, err := s.createGrowthSnapshot(txCtx, PlayGrowthEligibilitySnapshot{UserID: userID, Source: PlayRewardSourceQuiz, ActionID: idempotencyKey, ActivityDate: date, Eligibility: growthEligibility})
+		if err != nil {
+			return nil, err
+		}
+		if growthSnapshotID > 0 {
+			growthRepo, ok := s.growthQualificationRepository()
+			if !ok {
+				return nil, fmt.Errorf("growth qualification repository disappeared during quiz")
+			}
+			if err := growthRepo.LinkGrowthEligibilitySnapshot(txCtx, PlayRewardSourceQuiz, userID, date, growthSnapshotID); err != nil {
+				return nil, err
+			}
+		}
+		if err := s.reserveGrowthRewardBudget(txCtx, growthGovernance, userID, PlayRewardSourceQuiz, idempotencyKey, growthRewardBudgetCost(rewardType, reward)); err != nil {
+			return nil, err
+		}
 		redeemCode, err = s.issueRedeemCodeRewardInTx(
 			txCtx,
 			userID,
 			CouponRewardActivityQuiz,
 			idempotencyKey,
-			dateKey,
+			idempotencyKey,
 			now,
+			growthEligibility,
 		)
 		if err != nil {
 			return nil, err
@@ -764,13 +979,38 @@ func (s *PlayService) SubmitQuiz(ctx context.Context, userID int64, language str
 		}
 		reward = 0
 	case PlayRewardTypeBalance:
-		if err := s.grantBalance(ctx, userID, reward, PlayRewardSourceQuiz, idempotencyKey, map[string]any{
+		detail := map[string]any{
 			"attempt_date": dateKey,
 			"score":        score,
 			"total":        total,
 			"reward_type":  string(rewardType),
-		}, func(txCtx context.Context) error {
-			return s.repo.InsertQuizAttempt(txCtx, userID, date, score, total, reward, answerDetail)
+		}
+		var growthSnapshotID int64
+		if err := s.grantBalanceWithGrowthSnapshot(ctx, userID, reward, PlayRewardSourceQuiz, idempotencyKey, detail, &growthSnapshotID, func(txCtx context.Context) error {
+			if err := s.repo.InsertQuizAttempt(txCtx, userID, date, score, total, reward, answerDetail); err != nil {
+				return err
+			}
+			var snapshotErr error
+			growthSnapshotID, snapshotErr = s.createGrowthSnapshot(txCtx, PlayGrowthEligibilitySnapshot{UserID: userID, Source: PlayRewardSourceQuiz, ActionID: idempotencyKey, ActivityDate: date, Eligibility: growthEligibility})
+			if snapshotErr != nil {
+				return snapshotErr
+			}
+			if growthSnapshotID > 0 {
+				growthRepo, ok := s.growthQualificationRepository()
+				if !ok {
+					return fmt.Errorf("growth qualification repository disappeared during quiz")
+				}
+				if err := growthRepo.LinkGrowthEligibilitySnapshot(txCtx, PlayRewardSourceQuiz, userID, date, growthSnapshotID); err != nil {
+					return err
+				}
+				detail["growth_eligibility_snapshot_id"] = growthSnapshotID
+				detail["growth_rule_version"] = "v1"
+				detail["growth_tier"] = growthEligibility.Tier
+			}
+			if err := s.reserveGrowthRewardBudget(txCtx, growthGovernance, userID, PlayRewardSourceQuiz, idempotencyKey, growthRewardBudgetCost(rewardType, reward)); err != nil {
+				return err
+			}
+			return nil
 		}); err != nil {
 			if errors.Is(err, ErrPlayQuizAlreadyDone) || errors.Is(err, ErrPlayRewardDuplicate) {
 				return nil, ErrPlayQuizAlreadyDone
@@ -778,7 +1018,35 @@ func (s *PlayService) SubmitQuiz(ctx context.Context, userID int64, language str
 			return nil, err
 		}
 	case PlayRewardTypeNone:
-		if err := s.repo.InsertQuizAttempt(ctx, userID, date, score, total, 0, answerDetail); err != nil {
+		if _, ok := s.growthQualificationRepository(); !ok {
+			if err := s.repo.InsertQuizAttempt(ctx, userID, date, score, total, 0, answerDetail); err != nil {
+				if errors.Is(err, ErrPlayQuizAlreadyDone) {
+					return nil, ErrPlayQuizAlreadyDone
+				}
+				return nil, err
+			}
+			break
+		}
+		var snapshotID int64
+		err := s.withPlayTx(ctx, func(txCtx context.Context) error {
+			if err := s.repo.InsertQuizAttempt(txCtx, userID, date, score, total, 0, answerDetail); err != nil {
+				return err
+			}
+			var snapshotErr error
+			snapshotID, snapshotErr = s.createGrowthSnapshot(txCtx, PlayGrowthEligibilitySnapshot{UserID: userID, Source: PlayRewardSourceQuiz, ActionID: idempotencyKey, ActivityDate: date, Eligibility: growthEligibility})
+			if snapshotErr != nil {
+				return snapshotErr
+			}
+			if snapshotID > 0 {
+				growthRepo, ok := s.growthQualificationRepository()
+				if !ok {
+					return fmt.Errorf("growth qualification repository disappeared during quiz")
+				}
+				return growthRepo.LinkGrowthEligibilitySnapshot(txCtx, PlayRewardSourceQuiz, userID, date, snapshotID)
+			}
+			return nil
+		})
+		if err != nil {
 			if errors.Is(err, ErrPlayQuizAlreadyDone) {
 				return nil, ErrPlayQuizAlreadyDone
 			}
@@ -797,6 +1065,7 @@ func (s *PlayService) SubmitQuiz(ctx context.Context, userID int64, language str
 		RedeemCode:        playRedeemCodeRewardSummary(redeemCode),
 		CouponPoolVersion: couponPoolVersion(couponIssue),
 		ServerDate:        dateKey,
+		GrowthEligibility: growthEligibility,
 	}, nil
 }
 

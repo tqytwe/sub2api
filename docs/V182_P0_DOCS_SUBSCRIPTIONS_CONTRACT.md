@@ -1,10 +1,15 @@
 # v0.1.182 P0 Docs And Subscription Contract
 
-Status: merged and deployed code; final production configuration and local
-browser acceptance remain pending. This document records source behavior and
-release acceptance requirements.
+Status: implementation candidate. This document records source behavior and
+release acceptance requirements. It does not claim that a production setting,
+database, or deployment has changed.
 
 ## Route Contract
+
+The administrator subscriptions route loads the `admin-resources` lazy locale
+scope. Its `admin.subscriptions.title` and `admin.subscriptions.description`
+keys are defined in both Chinese and English legacy resources and covered by
+the route-locale runtime test, so a cold load cannot expose raw i18n keys.
 
 | Input | Required behavior |
 | --- | --- |

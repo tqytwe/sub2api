@@ -13,18 +13,21 @@ import {
   toHomeStatsValues,
 } from '@/utils/homeLiveStats'
 
-const { fetchPublicHomeStatsMock } = vi.hoisted(() => ({
+const { fetchPublicHomeStatsMock, fetchPublicStatusSummaryMock } = vi.hoisted(() => ({
   fetchPublicHomeStatsMock: vi.fn(),
+  fetchPublicStatusSummaryMock: vi.fn(),
 }))
 
 vi.mock('@/api/publicHomeStats', () => ({
   fetchPublicHomeStats: fetchPublicHomeStatsMock,
+  fetchPublicStatusSummary: fetchPublicStatusSummaryMock,
 }))
 
 describe('homeLiveStats', () => {
   beforeEach(() => {
     vi.useRealTimers()
     fetchPublicHomeStatsMock.mockReset()
+    fetchPublicStatusSummaryMock.mockReset().mockResolvedValue(null)
     localStorage.clear()
   })
 
@@ -53,20 +56,21 @@ describe('homeLiveStats', () => {
     expect(formatHomeStatLatency(null)).toBe('--')
   })
 
-  it('loads only a persisted real API snapshot', () => {
+  it('loads a persisted API snapshot only while its data watermark is fresh', () => {
     const raw = JSON.stringify({
       total_requests: 99,
       availability_pct: null,
       avg_ttft_ms: 420,
-      ops_data_through: null,
+      ops_data_through: '2026-07-16T01:00:00Z',
       computed_at: '2026-07-16T02:00:00Z',
     })
     expect(loadHomeStatsSnapshot(raw, Date.parse('2026-07-16T02:01:00Z'))?.total_requests).toBe(99)
-    expect(loadHomeStatsSnapshot(raw, Date.parse('2026-07-16T02:03:00Z'))).toBeNull()
+    expect(loadHomeStatsSnapshot(raw, Date.parse('2026-07-16T02:30:00Z'))?.total_requests).toBe(99)
+    expect(loadHomeStatsSnapshot(raw, Date.parse('2026-07-16T02:30:01Z'))).toBeNull()
     expect(loadHomeStatsSnapshot(JSON.stringify({ anchorMs: 0, creditedMs: 5000 }))).toBeNull()
   })
 
-  it('marks snapshots stale at the exact freshness boundary', () => {
+  it('marks snapshots stale from the data watermark instead of computed_at', () => {
     const snapshot = {
       total_requests: 99,
       availability_pct: 99.9,
@@ -74,10 +78,10 @@ describe('homeLiveStats', () => {
       ops_data_through: '2026-07-16T01:00:00+08:00',
       computed_at: '2026-07-16T02:00:00Z',
     }
-    const computedAt = Date.parse(snapshot.computed_at)
+    const dataThrough = Date.parse(snapshot.ops_data_through)
 
-    expect(isHomeStatsSnapshotStale(snapshot, computedAt + 3 * 60_000 - 1)).toBe(false)
-    expect(isHomeStatsSnapshotStale(snapshot, computedAt + 3 * 60_000)).toBe(true)
+    expect(isHomeStatsSnapshotStale(snapshot, dataThrough + 90 * 60_000)).toBe(false)
+    expect(isHomeStatsSnapshotStale(snapshot, dataThrough + 90 * 60_000 + 1)).toBe(true)
   })
 
   it('rejects invalid and materially future snapshot timestamps', () => {
@@ -102,15 +106,16 @@ describe('homeLiveStats', () => {
     )
   })
 
-  it('reactively marks a mounted snapshot stale when the freshness boundary passes', async () => {
+  it('reactively marks a mounted snapshot stale when the data-watermark boundary passes', async () => {
     vi.useFakeTimers()
     vi.setSystemTime('2026-07-16T02:00:00Z')
-    fetchPublicHomeStatsMock.mockResolvedValue({
+    fetchPublicStatusSummaryMock.mockResolvedValue({
       total_requests: 99,
-      availability_pct: 99.9,
-      avg_ttft_ms: 420,
-      ops_data_through: '2026-07-16T02:00:00Z',
+      availability: { value_pct: 99.9, sample_count: 12 },
+      ttft: { p50_ms: 420, p95_ms: 900, sample_count: 12 },
+      data_through: '2026-07-16T02:00:00Z',
       computed_at: '2026-07-16T02:00:00Z',
+      freshness: 'fresh',
     })
 
     const wrapper = mount(defineComponent({
@@ -122,9 +127,62 @@ describe('homeLiveStats', () => {
     await flushPromises()
     expect(wrapper.attributes('data-stale')).toBe('false')
 
-    await vi.advanceTimersByTimeAsync(3 * 60_000)
+    await vi.advanceTimersByTimeAsync(90 * 60_000 + 1)
+    // Vitest's configured fake timers do not advance the mocked system clock.
+    vi.setSystemTime('2026-07-16T03:30:01Z')
+    await vi.advanceTimersByTimeAsync(60_000)
     await flushPromises()
     expect(wrapper.attributes('data-stale')).toBe('true')
+
+    wrapper.unmount()
+    vi.useRealTimers()
+  })
+
+  it('does not query the legacy live endpoint when the status snapshot is unavailable', async () => {
+    fetchPublicStatusSummaryMock.mockResolvedValue(null)
+    fetchPublicHomeStatsMock.mockResolvedValue({
+      total_requests: 999,
+      availability_pct: 100,
+      avg_ttft_ms: 1,
+      ops_data_through: '2026-07-16T02:00:00Z',
+      computed_at: '2026-07-16T02:00:00Z',
+    })
+
+    const wrapper = mount(defineComponent({
+      setup() {
+        return useHomeLiveStats()
+      },
+      template: '<div :data-stale="String(isStale)" :data-freshness="freshness" />',
+    }))
+    await flushPromises()
+
+    expect(fetchPublicHomeStatsMock).not.toHaveBeenCalled()
+    expect(wrapper.attributes('data-freshness')).toBe('unavailable')
+    expect(wrapper.attributes('data-stale')).toBe('true')
+    wrapper.unmount()
+  })
+
+  it('uses the server freshness state and data watermark for status summaries', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime('2026-07-16T02:00:00Z')
+    fetchPublicStatusSummaryMock.mockResolvedValue({
+      total_requests: 99,
+      availability: { value_pct: 99.9, sample_count: 12 },
+      ttft: { p50_ms: 420, p95_ms: 900, sample_count: 12 },
+      data_through: '2026-07-16T01:00:00Z',
+      computed_at: '2026-07-16T02:00:00Z',
+      freshness: 'delayed',
+    })
+
+    const wrapper = mount(defineComponent({
+      setup() {
+        return useHomeLiveStats()
+      },
+      template: '<div :data-stale="String(isStale)" :data-freshness="freshness" />',
+    }))
+    await flushPromises()
+    expect(wrapper.attributes('data-stale')).toBe('true')
+    expect(wrapper.attributes('data-freshness')).toBe('delayed')
 
     wrapper.unmount()
     vi.useRealTimers()

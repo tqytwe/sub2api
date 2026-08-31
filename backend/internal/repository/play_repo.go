@@ -71,11 +71,19 @@ func (r *playRepository) InsertRewardLedger(ctx context.Context, entry service.P
 	if err != nil {
 		return fmt.Errorf("marshal reward detail: %w", err)
 	}
+	ruleVersion := entry.GrowthRuleVersion
+	if entry.GrowthEligibilitySnapshotID > 0 && ruleVersion == "" {
+		ruleVersion = service.PlayGrowthQualificationRuleVersion()
+	}
 	res, err := exec.ExecContext(ctx, `
-		INSERT INTO play_reward_ledger (user_id, source, amount, idempotency_key, detail)
-		VALUES ($1, $2, $3, $4, $5)
+		INSERT INTO play_reward_ledger (
+			user_id, source, amount, idempotency_key, detail,
+			growth_eligibility_snapshot_id, growth_rule_version
+		)
+		VALUES ($1, $2, $3, $4, $5, $6, NULLIF($7, ''))
 		ON CONFLICT (idempotency_key) DO NOTHING`,
 		entry.UserID, entry.Source, entry.Amount, entry.IdempotencyKey, detail,
+		nullIfNonPositiveInt64(entry.GrowthEligibilitySnapshotID), ruleVersion,
 	)
 	if err != nil {
 		return fmt.Errorf("insert play reward ledger: %w", err)

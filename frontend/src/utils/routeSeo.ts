@@ -9,6 +9,9 @@ type RouteSeo = {
   ogLocale: 'en_US' | 'zh_CN'
   ogType: 'website' | 'article'
   siteName: string
+  // Content categories are retained for route metadata compatibility only.
+  // They are not emitted as Schema.org types. Structured data is restricted
+  // to visible Organization, WebApplication, and catalog ItemList content.
   structuredType: 'WebSite' | 'CollectionPage' | 'AboutPage' | 'ContactPage'
   alternates: Array<{ hreflang: string; path: string }>
 }
@@ -20,6 +23,19 @@ const SEO_IMAGE_ALT = 'Jisudeng logo'
 const SEO_FORMAT_DETECTION = 'telephone=no,email=no,address=no'
 const SEO_TWITTER_CARD = 'summary'
 const SEO_TWITTER_HANDLE = '@jisudeng'
+
+type PublicCatalogFallbackEntry = {
+  path: string
+  name: string
+  description: string
+}
+
+function isLegacyModelsApiPath(path: string): boolean {
+  return path === '/models'
+    || path.startsWith('/models/')
+    || path === '/en/models'
+    || path.startsWith('/en/models/')
+}
 
 const ROUTE_SEO: Record<string, RouteSeo> = {
   '/': {
@@ -37,7 +53,7 @@ const ROUTE_SEO: Record<string, RouteSeo> = {
     alternates: [
       { hreflang: 'zh-CN', path: '/' },
       { hreflang: 'en', path: '/en/' },
-      { hreflang: 'x-default', path: '/en/' },
+      { hreflang: 'x-default', path: '/' },
     ],
   },
   '/home': {
@@ -55,97 +71,97 @@ const ROUTE_SEO: Record<string, RouteSeo> = {
     alternates: [
       { hreflang: 'zh-CN', path: '/' },
       { hreflang: 'en', path: '/en/' },
-      { hreflang: 'x-default', path: '/en/' },
+      { hreflang: 'x-default', path: '/' },
     ],
   },
-  '/models': {
+  '/catalog': {
     title: '极速蹬模型价格与 API 目录 - 多模型公开计费与调用指南',
     description: '查看极速蹬公开模型目录、模型平台、用途分类与 USD / 1M tokens 计费参考，覆盖 DeepSeek、Qwen、Kimi、GLM、GPT、Claude、Gemini 等模型，登录后可查看分组有效价格与调用权限，帮助开发者快速评估成本。',
     twitterTitle: '极速蹬模型价格与 API 目录 - DeepSeek、Qwen、Kimi、GLM、Claude 多模型公开计费',
     twitterDescription: '查看极速蹬公开模型目录、模型平台、用途分类、USD / 1M tokens 计费参考和分组有效价格，覆盖 DeepSeek、Qwen、Kimi、GLM、GPT、Claude、Gemini 等多模型 API 调用，帮助开发者快速评估成本、调用权限、模型能力与接入路径，并在登录后核对账号实际可用价格表。',
     keywords: '极速蹬模型价格, AI 模型目录, API 计费, DeepSeek API 价格, Qwen API 价格, Kimi API 价格, GLM API 价格, Claude API, Gemini API, OpenAI 兼容接口',
-    canonicalPath: '/models',
+    canonicalPath: '/catalog',
     lang: 'zh-CN',
     ogLocale: 'zh_CN',
     ogType: 'website',
     siteName: '极速蹬',
     structuredType: 'CollectionPage',
     alternates: [
-      { hreflang: 'zh-CN', path: '/models' },
-      { hreflang: 'en', path: '/en/models' },
-      { hreflang: 'x-default', path: '/en/models' },
+      { hreflang: 'zh-CN', path: '/catalog' },
+      { hreflang: 'en', path: '/en/catalog' },
+      { hreflang: 'x-default', path: '/catalog' },
     ],
   },
-  '/models/deepseek': {
+  '/catalog/deepseek': {
     title: 'DeepSeek API 价格与模型接入 - 极速蹬多模型目录',
     description: '查看极速蹬 DeepSeek 模型目录、公开 API 价格、本站基础售价和 USD / 1M tokens 计费参考，支持通过 OpenAI 兼容 API、统一 Key、接入文档、图像能力说明和账单入口快速评估模型能力、调用权限、接入路径与上线成本。',
     twitterTitle: 'DeepSeek API 价格与模型接入 - 极速蹬 OpenAI 兼容 API、公开计费、文档、调用与成本指南',
     twitterDescription: '查看极速蹬 DeepSeek 模型目录、公开 API 价格、本站基础售价、USD / 1M tokens 计费参考、OpenAI 兼容接入方式、API Key 设置、文档入口、图像能力说明、分组实付价提示和账单规则，帮助开发者在登录前评估模型能力、调用权限、接入路径、测试步骤、生产迁移、日常调用、成本监控和上线成本。',
     keywords: 'DeepSeek API 价格, DeepSeek 模型价格, DeepSeek 接口, OpenAI 兼容 DeepSeek, 极速蹬模型目录, API 计费, 模型接入',
-    canonicalPath: '/models/deepseek',
+    canonicalPath: '/catalog/deepseek',
     lang: 'zh-CN',
     ogLocale: 'zh_CN',
     ogType: 'website',
     siteName: '极速蹬',
     structuredType: 'CollectionPage',
     alternates: [
-      { hreflang: 'zh-CN', path: '/models/deepseek' },
-      { hreflang: 'en', path: '/en/models/deepseek' },
-      { hreflang: 'x-default', path: '/en/models/deepseek' },
+      { hreflang: 'zh-CN', path: '/catalog/deepseek' },
+      { hreflang: 'en', path: '/en/catalog/deepseek' },
+      { hreflang: 'x-default', path: '/catalog/deepseek' },
     ],
   },
-  '/models/qwen': {
+  '/catalog/qwen': {
     title: 'Qwen API 价格与模型接入 - 极速蹬多模型公开计费目录',
     description: '查看极速蹬 Qwen 模型目录、公开 API 价格、本站基础售价和 USD / 1M tokens 计费参考，支持通过 OpenAI 兼容 API、统一 Key、接入文档、图像能力说明和账单入口快速评估模型能力、调用权限、接入路径与上线成本。',
     twitterTitle: 'Qwen API 价格与模型接入 - 极速蹬 OpenAI 兼容 API、公开计费、文档、调用与成本指南',
     twitterDescription: '查看极速蹬 Qwen 模型目录、公开 API 价格、本站基础售价、USD / 1M tokens 计费参考、OpenAI 兼容接入方式、API Key 设置、文档入口、图像能力说明、分组实付价提示和账单规则，帮助开发者在登录前评估模型能力、调用权限、接入路径、测试步骤、生产迁移、日常调用、成本监控和上线成本。',
     keywords: 'Qwen API 价格, Qwen 模型价格, Qwen 接口, OpenAI 兼容 Qwen, 极速蹬模型目录, API 计费, 模型接入',
-    canonicalPath: '/models/qwen',
+    canonicalPath: '/catalog/qwen',
     lang: 'zh-CN',
     ogLocale: 'zh_CN',
     ogType: 'website',
     siteName: '极速蹬',
     structuredType: 'CollectionPage',
     alternates: [
-      { hreflang: 'zh-CN', path: '/models/qwen' },
-      { hreflang: 'en', path: '/en/models/qwen' },
-      { hreflang: 'x-default', path: '/en/models/qwen' },
+      { hreflang: 'zh-CN', path: '/catalog/qwen' },
+      { hreflang: 'en', path: '/en/catalog/qwen' },
+      { hreflang: 'x-default', path: '/catalog/qwen' },
     ],
   },
-  '/models/kimi': {
+  '/catalog/kimi': {
     title: 'Kimi API 价格与模型接入 - 极速蹬多模型公开计费目录',
     description: '查看极速蹬 Kimi 模型目录、公开 API 价格、本站基础售价和 USD / 1M tokens 计费参考，支持通过 OpenAI 兼容 API、统一 Key、接入文档、图像能力说明和账单入口快速评估模型能力、调用权限、接入路径与上线成本。',
     twitterTitle: 'Kimi API 价格与模型接入 - 极速蹬 OpenAI 兼容 API、公开计费、文档、调用与成本指南',
     twitterDescription: '查看极速蹬 Kimi 模型目录、公开 API 价格、本站基础售价、USD / 1M tokens 计费参考、OpenAI 兼容接入方式、API Key 设置、文档入口、图像能力说明、分组实付价提示和账单规则，帮助开发者在登录前评估模型能力、调用权限、接入路径、测试步骤、生产迁移、日常调用、成本监控和上线成本。',
     keywords: 'Kimi API 价格, Kimi 模型价格, Kimi 接口, OpenAI 兼容 Kimi, 极速蹬模型目录, API 计费, 模型接入',
-    canonicalPath: '/models/kimi',
+    canonicalPath: '/catalog/kimi',
     lang: 'zh-CN',
     ogLocale: 'zh_CN',
     ogType: 'website',
     siteName: '极速蹬',
     structuredType: 'CollectionPage',
     alternates: [
-      { hreflang: 'zh-CN', path: '/models/kimi' },
-      { hreflang: 'en', path: '/en/models/kimi' },
-      { hreflang: 'x-default', path: '/en/models/kimi' },
+      { hreflang: 'zh-CN', path: '/catalog/kimi' },
+      { hreflang: 'en', path: '/en/catalog/kimi' },
+      { hreflang: 'x-default', path: '/catalog/kimi' },
     ],
   },
-  '/models/glm': {
+  '/catalog/glm': {
     title: 'GLM API 价格与模型接入 - 极速蹬多模型公开计费目录',
     description: '查看极速蹬 GLM 模型目录、公开 API 价格、本站基础售价和 USD / 1M tokens 计费参考，支持通过 OpenAI 兼容 API、统一 Key、接入文档、图像能力说明和账单入口快速评估模型能力、调用权限、接入路径与上线成本。',
     twitterTitle: 'GLM API 价格与模型接入 - 极速蹬 OpenAI 兼容 API、公开计费、文档、调用与成本指南',
     twitterDescription: '查看极速蹬 GLM 模型目录、公开 API 价格、本站基础售价、USD / 1M tokens 计费参考、OpenAI 兼容接入方式、API Key 设置、文档入口、图像能力说明、分组实付价提示和账单规则，帮助开发者在登录前评估模型能力、调用权限、接入路径、测试步骤、生产迁移、日常调用、成本监控和上线成本。',
     keywords: 'GLM API 价格, GLM 模型价格, GLM 接口, OpenAI 兼容 GLM, 极速蹬模型目录, API 计费, 模型接入',
-    canonicalPath: '/models/glm',
+    canonicalPath: '/catalog/glm',
     lang: 'zh-CN',
     ogLocale: 'zh_CN',
     ogType: 'website',
     siteName: '极速蹬',
     structuredType: 'CollectionPage',
     alternates: [
-      { hreflang: 'zh-CN', path: '/models/glm' },
-      { hreflang: 'en', path: '/en/models/glm' },
-      { hreflang: 'x-default', path: '/en/models/glm' },
+      { hreflang: 'zh-CN', path: '/catalog/glm' },
+      { hreflang: 'en', path: '/en/catalog/glm' },
+      { hreflang: 'x-default', path: '/catalog/glm' },
     ],
   },
   '/docs': {
@@ -163,7 +179,7 @@ const ROUTE_SEO: Record<string, RouteSeo> = {
     alternates: [
       { hreflang: 'zh-CN', path: '/docs' },
       { hreflang: 'en', path: '/en/docs' },
-      { hreflang: 'x-default', path: '/en/docs' },
+      { hreflang: 'x-default', path: '/docs' },
     ],
   },
   '/download/android': {
@@ -198,7 +214,7 @@ const ROUTE_SEO: Record<string, RouteSeo> = {
     alternates: [
       { hreflang: 'zh-CN', path: '/about' },
       { hreflang: 'en', path: '/en/about' },
-      { hreflang: 'x-default', path: '/en/about' },
+      { hreflang: 'x-default', path: '/about' },
     ],
   },
   '/contact': {
@@ -216,7 +232,7 @@ const ROUTE_SEO: Record<string, RouteSeo> = {
     alternates: [
       { hreflang: 'zh-CN', path: '/contact' },
       { hreflang: 'en', path: '/en/contact' },
-      { hreflang: 'x-default', path: '/en/contact' },
+      { hreflang: 'x-default', path: '/contact' },
     ],
   },
   '/en': {
@@ -233,97 +249,97 @@ const ROUTE_SEO: Record<string, RouteSeo> = {
     alternates: [
       { hreflang: 'en', path: '/en/' },
       { hreflang: 'zh-CN', path: '/' },
-      { hreflang: 'x-default', path: '/en/' },
+      { hreflang: 'x-default', path: '/' },
     ],
   },
-  '/en/models': {
+  '/en/catalog': {
     title: 'DeepSeek, Qwen, Kimi, GLM, Claude API Pricing | Jisudeng',
     description: 'Compare model access and usage-based API rates for DeepSeek, Qwen, Kimi, GLM, GPT, Claude, Gemini and more through Jisudeng.',
     twitterTitle: 'DeepSeek, Qwen, Kimi, GLM, GPT, Claude API Pricing | Jisudeng',
     twitterDescription: 'Compare model access, public API rates, and usage-based pricing for DeepSeek, Qwen, Kimi, GLM, GPT, Claude, Gemini and more through Jisudeng, with docs and API key setup guidance.',
     keywords: 'AI model API pricing, DeepSeek API pricing, Qwen API pricing, Kimi API pricing, GLM API pricing, Claude API, Gemini API, OpenAI-compatible models, usage-based billing',
-    canonicalPath: '/en/models',
+    canonicalPath: '/en/catalog',
     lang: 'en',
     ogLocale: 'en_US',
     ogType: 'website',
     siteName: 'Jisudeng',
     structuredType: 'CollectionPage',
     alternates: [
-      { hreflang: 'en', path: '/en/models' },
-      { hreflang: 'zh-CN', path: '/models' },
-      { hreflang: 'x-default', path: '/en/models' },
+      { hreflang: 'en', path: '/en/catalog' },
+      { hreflang: 'zh-CN', path: '/catalog' },
+      { hreflang: 'x-default', path: '/catalog' },
     ],
   },
-  '/en/models/deepseek': {
+  '/en/catalog/deepseek': {
     title: 'DeepSeek API Pricing and Access | Jisudeng',
     description: 'Compare DeepSeek model access, public API rates, and usage-based pricing through Jisudeng. Use an OpenAI-compatible base URL, unified keys, docs, and billing.',
     twitterTitle: 'DeepSeek API Pricing, Models, and OpenAI-Compatible Access',
     twitterDescription: 'Compare DeepSeek model access, public API rates, usage-based pricing, OpenAI-compatible setup, API key guidance, docs, image API notes, and billing through Jisudeng.',
     keywords: 'DeepSeek API pricing, DeepSeek model pricing, DeepSeek API access, OpenAI-compatible DeepSeek, Jisudeng model catalog, usage-based billing',
-    canonicalPath: '/en/models/deepseek',
+    canonicalPath: '/en/catalog/deepseek',
     lang: 'en',
     ogLocale: 'en_US',
     ogType: 'website',
     siteName: 'Jisudeng',
     structuredType: 'CollectionPage',
     alternates: [
-      { hreflang: 'en', path: '/en/models/deepseek' },
-      { hreflang: 'zh-CN', path: '/models/deepseek' },
-      { hreflang: 'x-default', path: '/en/models/deepseek' },
+      { hreflang: 'en', path: '/en/catalog/deepseek' },
+      { hreflang: 'zh-CN', path: '/catalog/deepseek' },
+      { hreflang: 'x-default', path: '/catalog/deepseek' },
     ],
   },
-  '/en/models/qwen': {
+  '/en/catalog/qwen': {
     title: 'Qwen API Pricing and Access | Jisudeng',
     description: 'Compare Qwen model access, public API rates, and usage-based pricing through Jisudeng. Use one OpenAI-compatible base URL with unified keys, docs, and billing.',
     twitterTitle: 'Qwen API Pricing, Models, and OpenAI-Compatible Access',
     twitterDescription: 'Compare Qwen model access, public API rates, usage-based pricing, OpenAI-compatible setup, API key guidance, docs, image API notes, and billing through Jisudeng.',
     keywords: 'Qwen API pricing, Qwen model pricing, Qwen API access, OpenAI-compatible Qwen, Jisudeng model catalog, usage-based billing',
-    canonicalPath: '/en/models/qwen',
+    canonicalPath: '/en/catalog/qwen',
     lang: 'en',
     ogLocale: 'en_US',
     ogType: 'website',
     siteName: 'Jisudeng',
     structuredType: 'CollectionPage',
     alternates: [
-      { hreflang: 'en', path: '/en/models/qwen' },
-      { hreflang: 'zh-CN', path: '/models/qwen' },
-      { hreflang: 'x-default', path: '/en/models/qwen' },
+      { hreflang: 'en', path: '/en/catalog/qwen' },
+      { hreflang: 'zh-CN', path: '/catalog/qwen' },
+      { hreflang: 'x-default', path: '/catalog/qwen' },
     ],
   },
-  '/en/models/kimi': {
+  '/en/catalog/kimi': {
     title: 'Kimi API Pricing and Access | Jisudeng',
     description: 'Compare Kimi model access, public API rates, and usage-based pricing through Jisudeng. Use one OpenAI-compatible base URL with unified keys, docs, and billing.',
     twitterTitle: 'Kimi API Pricing, Models, and OpenAI-Compatible Access',
     twitterDescription: 'Compare Kimi model access, public API rates, usage-based pricing, OpenAI-compatible setup, API key guidance, docs, model catalog, and billing through Jisudeng.',
     keywords: 'Kimi API pricing, Kimi model pricing, Kimi API access, OpenAI-compatible Kimi, Jisudeng model catalog, usage-based billing',
-    canonicalPath: '/en/models/kimi',
+    canonicalPath: '/en/catalog/kimi',
     lang: 'en',
     ogLocale: 'en_US',
     ogType: 'website',
     siteName: 'Jisudeng',
     structuredType: 'CollectionPage',
     alternates: [
-      { hreflang: 'en', path: '/en/models/kimi' },
-      { hreflang: 'zh-CN', path: '/models/kimi' },
-      { hreflang: 'x-default', path: '/en/models/kimi' },
+      { hreflang: 'en', path: '/en/catalog/kimi' },
+      { hreflang: 'zh-CN', path: '/catalog/kimi' },
+      { hreflang: 'x-default', path: '/catalog/kimi' },
     ],
   },
-  '/en/models/glm': {
+  '/en/catalog/glm': {
     title: 'GLM API Pricing and Access | Jisudeng',
     description: 'Compare GLM model access, public API rates, and usage-based pricing through Jisudeng. Use one OpenAI-compatible base URL with unified keys, docs, and billing.',
     twitterTitle: 'GLM API Pricing, Models, and OpenAI-Compatible Access',
     twitterDescription: 'Compare GLM model access, public API rates, usage-based pricing, OpenAI-compatible setup, API key guidance, docs, model catalog, and billing through Jisudeng.',
     keywords: 'GLM API pricing, GLM model pricing, GLM API access, OpenAI-compatible GLM, Jisudeng model catalog, usage-based billing',
-    canonicalPath: '/en/models/glm',
+    canonicalPath: '/en/catalog/glm',
     lang: 'en',
     ogLocale: 'en_US',
     ogType: 'website',
     siteName: 'Jisudeng',
     structuredType: 'CollectionPage',
     alternates: [
-      { hreflang: 'en', path: '/en/models/glm' },
-      { hreflang: 'zh-CN', path: '/models/glm' },
-      { hreflang: 'x-default', path: '/en/models/glm' },
+      { hreflang: 'en', path: '/en/catalog/glm' },
+      { hreflang: 'zh-CN', path: '/catalog/glm' },
+      { hreflang: 'x-default', path: '/catalog/glm' },
     ],
   },
   '/en/docs': {
@@ -340,7 +356,7 @@ const ROUTE_SEO: Record<string, RouteSeo> = {
     alternates: [
       { hreflang: 'en', path: '/en/docs' },
       { hreflang: 'zh-CN', path: '/docs' },
-      { hreflang: 'x-default', path: '/en/docs' },
+      { hreflang: 'x-default', path: '/docs' },
     ],
   },
   '/en/about': {
@@ -358,7 +374,7 @@ const ROUTE_SEO: Record<string, RouteSeo> = {
     alternates: [
       { hreflang: 'en', path: '/en/about' },
       { hreflang: 'zh-CN', path: '/about' },
-      { hreflang: 'x-default', path: '/en/about' },
+      { hreflang: 'x-default', path: '/about' },
     ],
   },
   '/en/contact': {
@@ -376,7 +392,7 @@ const ROUTE_SEO: Record<string, RouteSeo> = {
     alternates: [
       { hreflang: 'en', path: '/en/contact' },
       { hreflang: 'zh-CN', path: '/contact' },
-      { hreflang: 'x-default', path: '/en/contact' },
+      { hreflang: 'x-default', path: '/contact' },
     ],
   },
 }
@@ -389,6 +405,38 @@ function normalizePath(path: string): string {
 
 function absoluteURL(path: string): string {
   return new URL(path, SEO_ORIGIN).toString()
+}
+
+function isHomeRoute(path: string): boolean {
+  const normalized = normalizePath(path)
+  return normalized === '/' || normalized === '/en'
+}
+
+function isCatalogLandingRoute(path: string): boolean {
+  const normalized = normalizePath(path)
+  return normalized === '/catalog' || normalized === '/en/catalog'
+}
+
+// These are the same stable model-family routes linked in the server-rendered
+// catalog fallback. They are intentionally not live pricing or entitlement
+// claims, so a client-side head update cannot invent data unavailable to a
+// crawler or guest.
+function publicCatalogFallbackEntries(english: boolean): PublicCatalogFallbackEntry[] {
+  if (english) {
+    return [
+      { path: '/en/catalog/deepseek', name: 'DeepSeek API', description: 'Public access guidance, usage-based rate references, and OpenAI-compatible integration.' },
+      { path: '/en/catalog/qwen', name: 'Qwen API', description: 'Public model-family guidance, rate references, and unified API setup.' },
+      { path: '/en/catalog/kimi', name: 'Kimi API', description: 'Model access guidance, pricing references, and compatible SDK setup.' },
+      { path: '/en/catalog/glm', name: 'GLM API', description: 'Public integration guidance, usage-based pricing references, and API-key setup.' },
+    ]
+  }
+
+  return [
+    { path: '/catalog/deepseek', name: 'DeepSeek API', description: '查看 DeepSeek 系列的公开接入说明、按量计费参考和 OpenAI 兼容调用路径。' },
+    { path: '/catalog/qwen', name: 'Qwen API', description: '查看 Qwen 系列的公开模型说明、价格参考和统一 API 配置方式。' },
+    { path: '/catalog/kimi', name: 'Kimi API', description: '查看 Kimi 系列的模型接入说明、价格参考和兼容 SDK 配置。' },
+    { path: '/catalog/glm', name: 'GLM API', description: '查看 GLM 系列的公开接入说明、按量计费参考和 API Key 配置。' },
+  ]
 }
 
 function setMeta(selector: string, attrName: 'name' | 'property', attrValue: string, content: string) {
@@ -411,6 +459,11 @@ function setCanonical(href: string) {
   link.href = href
 }
 
+function clearPublicRouteMetadata() {
+  document.head.querySelectorAll<HTMLLinkElement>('link[rel="canonical"], link[rel="alternate"][hreflang]').forEach((link) => link.remove())
+  document.head.querySelectorAll<HTMLScriptElement>('script[type="application/ld+json"][data-jisudeng-route-seo="true"]').forEach((script) => script.remove())
+}
+
 function setAlternates(seo: RouteSeo) {
   document.head
     .querySelectorAll<HTMLLinkElement>('link[rel="alternate"][hreflang]')
@@ -426,48 +479,56 @@ function setAlternates(seo: RouteSeo) {
   }
 }
 
-function buildStructuredData(seo: RouteSeo, canonical: string) {
-  const structuredName = seo.structuredType === 'WebSite' ? seo.siteName : seo.title
-  const graph: Record<string, unknown> = {
-    '@context': 'https://schema.org',
-    '@type': seo.structuredType,
-    name: structuredName,
-    headline: seo.title,
-    description: seo.description,
-    url: canonical,
-    inLanguage: seo.lang,
-    isPartOf: {
-      '@type': 'WebSite',
-      name: 'Jisudeng',
-      url: `${SEO_ORIGIN}/`,
-    },
-    publisher: {
-      '@type': 'Organization',
-      name: seo.siteName,
-      url: `${SEO_ORIGIN}/`,
-      logo: {
-        '@type': 'ImageObject',
-        url: SEO_IMAGE,
-      },
-    },
-  }
-
-  if (seo.structuredType === 'WebSite') {
-    graph.alternateName = seo.lang === 'zh-CN' ? ['极速蹬', 'Jisudeng'] : ['Jisudeng']
-    graph.mainEntity = {
-      '@type': 'SoftwareApplication',
-      name: 'Jisudeng',
-      applicationCategory: 'DeveloperApplication',
-      operatingSystem: 'Web',
-      description: seo.description,
-      url: canonical,
+function buildStructuredData(seo: RouteSeo, canonical: string): Record<string, unknown> | undefined {
+  if (isHomeRoute(seo.canonicalPath)) {
+    return {
+      '@context': 'https://schema.org',
+      '@graph': [
+        {
+          '@type': 'Organization',
+          name: seo.siteName,
+          url: `${SEO_ORIGIN}/`,
+          description: seo.description,
+        },
+        {
+          '@type': 'WebApplication',
+          name: 'Jisudeng',
+          applicationCategory: 'DeveloperApplication',
+          operatingSystem: 'Web',
+          description: seo.description,
+          url: canonical,
+          inLanguage: seo.lang,
+        },
+      ],
     }
   }
 
-  return graph
+  if (isCatalogLandingRoute(seo.canonicalPath)) {
+    return {
+      '@context': 'https://schema.org',
+      '@type': 'ItemList',
+      name: seo.lang === 'en' ? 'Jisudeng public model families' : '极速蹬公开模型系列',
+      description: seo.description,
+      url: canonical,
+      inLanguage: seo.lang,
+      itemListElement: publicCatalogFallbackEntries(seo.lang === 'en').map((entry, index) => ({
+        '@type': 'ListItem',
+        position: index + 1,
+        name: entry.name,
+        url: absoluteURL(entry.path),
+      })),
+    }
+  }
+
+  return undefined
 }
 
 function setStructuredData(seo: RouteSeo, canonical: string) {
+  const data = buildStructuredData(seo, canonical)
+  if (!data) {
+    document.head.querySelectorAll<HTMLScriptElement>('script[type="application/ld+json"][data-jisudeng-route-seo="true"]').forEach((script) => script.remove())
+    return
+  }
   let script = document.head.querySelector<HTMLScriptElement>('script[type="application/ld+json"][data-jisudeng-route-seo="true"]')
   if (!script) {
     script = document.createElement('script')
@@ -475,18 +536,25 @@ function setStructuredData(seo: RouteSeo, canonical: string) {
     script.dataset.jisudengRouteSeo = 'true'
     document.head.appendChild(script)
   }
-  script.textContent = JSON.stringify(buildStructuredData(seo, canonical))
+  script.textContent = JSON.stringify(data)
 }
 
 export function resolvePublicRouteSeo(path: string): RouteSeo | undefined {
   const normalized = normalizePath(path)
+  if (normalized === '/home' || isLegacyModelsApiPath(normalized)) return undefined
   return ROUTE_SEO[normalized]
 }
 
 export function applyPublicRouteSeo(path: string): RouteSeo | undefined {
   const seo = resolvePublicRouteSeo(path)
-  if (!seo || typeof document === 'undefined') {
+  if (typeof document === 'undefined') {
     return seo
+  }
+
+  if (!seo) {
+    setMeta('meta[name="robots"]', 'name', 'robots', 'noindex,nofollow')
+    clearPublicRouteMetadata()
+    return undefined
   }
 
   const canonical = absoluteURL(seo.canonicalPath)
@@ -496,6 +564,7 @@ export function applyPublicRouteSeo(path: string): RouteSeo | undefined {
   setMeta('meta[name="keywords"]', 'name', 'keywords', seo.keywords)
   setMeta('meta[name="author"]', 'name', 'author', SEO_AUTHOR)
   setMeta('meta[name="format-detection"]', 'name', 'format-detection', SEO_FORMAT_DETECTION)
+  setMeta('meta[name="robots"]', 'name', 'robots', 'index,follow')
   setMeta('meta[property="og:type"]', 'property', 'og:type', seo.ogType)
   setMeta('meta[property="og:site_name"]', 'property', 'og:site_name', seo.siteName)
   setMeta('meta[property="og:title"]', 'property', 'og:title', seo.title)

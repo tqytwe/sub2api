@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Frontend URL validation review</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        color: #18212f;
+        background: #f4f7fa;
+      }
+      * { box-sizing: border-box; }
+      body { margin: 0; min-width: 960px; }
+      .topline { height: 10px; background: #0f766e; }
+      main { width: 1180px; margin: 0 auto; padding: 34px 0 40px; }
+      h1 { margin: 0; font-size: 30px; line-height: 38px; font-weight: 650; }
+      .lede { margin: 8px 0 28px; color: #526170; font-size: 15px; line-height: 22px; }
+      .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+      .panel { border: 1px solid #d4dde6; border-radius: 8px; background: #fff; padding: 24px; min-height: 402px; }
+      .eyebrow { margin: 0 0 8px; color: #687888; font-size: 12px; font-weight: 700; text-transform: uppercase; }
+      h2 { margin: 0 0 20px; font-size: 19px; line-height: 26px; }
+      label { display: block; margin-bottom: 8px; font-size: 14px; font-weight: 600; }
+      input { width: 100%; height: 40px; border: 1px solid #aebbc8; border-radius: 6px; padding: 0 12px; color: #18212f; font: inherit; }
+      .invalid input { border-color: #c83d3d; box-shadow: 0 0 0 2px #f9d6d6; }
+      .hint, .error { margin: 8px 0 0; font-size: 13px; line-height: 19px; }
+      .hint { color: #657587; }
+      .error { color: #b42318; font-weight: 600; }
+      .result { margin-top: 24px; border-top: 1px solid #e2e8ef; padding-top: 20px; color: #526170; font-size: 14px; line-height: 22px; }
+      .result strong { color: #18212f; }
+      button { margin-top: 22px; height: 40px; border: 0; border-radius: 6px; padding: 0 16px; background: #0f766e; color: #fff; font: inherit; font-weight: 600; }
+      .blocked button { background: #91a0af; }
+      .footer { margin-top: 24px; color: #657587; font-size: 12px; }
+      body[data-mode="baseline"] .proposed { display: none; }
+      body[data-mode="prototype"] .baseline { display: none; }
+      body[data-mode="updated"] .baseline { display: none; }
+    </style>
+  </head>
+  <body data-mode="prototype">
+    <div class="topline"></div>
+    <main>
+      <p class="eyebrow">Settings / Security / Password reset</p>
+      <h1>Frontend URL validation</h1>
+      <p class="lede">The existing Settings input, spacing, and save action remain unchanged. Only unsafe frontend URL submission receives an explicit field error.</p>
+
+      <section class="grid baseline" aria-label="Baseline behavior">
+        <article class="panel">
+          <p class="eyebrow">Before</p>
+          <h2>Unsafe input is silently erased</h2>
+          <label>Frontend URL</label>
+          <input value="https://www.jisudeng.com/?token=..." readonly>
+          <p class="hint">Base URL used for reset and notification links.</p>
+          <button type="button">Save settings</button>
+          <p class="result"><strong>Problem:</strong> the generic optional URL helper clears the value before save. An administrator can unintentionally persist an empty setting.</p>
+        </article>
+        <article class="panel">
+          <p class="eyebrow">Boundary</p>
+          <h2>Canonical base URL is required</h2>
+          <p class="result">Allowed: an empty value or absolute HTTP(S) base URL. Rejected: queries, fragments, userinfo, and non-HTTP(S) schemes. The server remains the final enforcement point.</p>
+        </article>
+      </section>
+
+      <section class="grid proposed" aria-label="Proposed behavior">
+        <article class="panel invalid blocked">
+          <p class="eyebrow">After</p>
+          <h2>Input stays visible and submission stops</h2>
+          <label>Frontend URL</label>
+          <input value="https://www.jisudeng.com/?token=..." aria-invalid="true" readonly>
+          <p class="error">Use an absolute HTTP(S) base URL without a query, fragment, or user information.</p>
+          <button type="button" disabled>Save settings</button>
+          <p class="result"><strong>Outcome:</strong> the value is preserved for correction. No update request is issued and no setting is cleared.</p>
+        </article>
+        <article class="panel">
+          <p class="eyebrow">Valid state</p>
+          <h2>Canonical value continues normally</h2>
+          <label>Frontend URL</label>
+          <input value="https://www.jisudeng.com" readonly>
+          <p class="hint">Base URL used for reset and notification links.</p>
+          <button type="button">Save settings</button>
+          <p class="result"><strong>Outcome:</strong> whitespace is normalized and the existing audited Settings save flow is used.</p>
+        </article>
+      </section>
+      <p class="footer">Static review board only. The implementation reuses the production SettingsView input, existing error message behavior, and save control.</p>
+    </main>
+    <script>
+      const mode = new URLSearchParams(window.location.search).get('mode')
+      if (mode === 'baseline' || mode === 'prototype' || mode === 'updated') document.body.dataset.mode = mode
+    </script>
+  </body>
+</html>

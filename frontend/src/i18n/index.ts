@@ -25,8 +25,9 @@ const LEGACY_LOCALE_STORAGE_KEY = 'sub2api_locale'
 const CHINESE_PUBLIC_LOCALE_PATHS = new Set([
   '/',
   '/home',
-  '/models',
+  '/catalog',
   '/docs',
+  '/status',
   '/login',
   '/register',
   '/about',
@@ -277,7 +278,7 @@ export function localeFromPath(path: string): LocaleCode | null {
   if (normalized === '/en' || normalized.startsWith('/en/')) {
     return 'en'
   }
-  if (normalized.startsWith('/models/') || normalized === '/models') {
+  if (normalized === '/catalog' || normalized.startsWith('/catalog/')) {
     return 'zh'
   }
   if (CHINESE_PUBLIC_LOCALE_PATHS.has(normalized)) {
@@ -325,7 +326,7 @@ export function localeForRoute(path: string, query: LocationQuery = {}): LocaleC
 function getDefaultLocale(): LocaleCode {
   if (typeof window === 'undefined') return DEFAULT_LOCALE
   // Use the same precedence as router navigation. In particular, a cold
-  // `/models?lang=en` visit must not render Chinese before the first guard.
+  // `/catalog?lang=en` visit must not render Chinese before the first guard.
   return localeForRoute(
     window.location.pathname,
     Object.fromEntries(new URLSearchParams(window.location.search).entries()),
@@ -370,13 +371,15 @@ export function localeScopesForPath(path: string): LocaleLoadScope[] {
 function routeNameForPath(path: string): LocaleRouteName | null {
   if (path === '/' || path === '/home') return 'Home'
   if (path === '/en') return 'EnglishHome'
-  if (path === '/en/models' || path.startsWith('/en/models/')) return 'EnglishModels'
+  if (path === '/en/catalog' || path.startsWith('/en/catalog/')) return 'EnglishModels'
   if (path === '/en/docs') return 'EnglishDocs'
+  if (path === '/en/status') return 'EnglishStatus'
   if (path === '/en/about') return 'EnglishAbout'
   if (path === '/en/contact') return 'EnglishContact'
-  if (path === '/models' || path.startsWith('/models/')) return 'Models'
+  if (path === '/catalog' || path.startsWith('/catalog/')) return 'Models'
   if (path === '/model-plaza' || path === '/pricing' || path.startsWith('/pricing/')) return 'Pricing'
   if (path === '/docs') return 'Docs'
+  if (path === '/status') return 'Status'
   if (path.startsWith('/docs/batch-image')) return 'BatchImageGuide'
   if (path.startsWith('/download/android')) return 'AndroidDownload'
   if (path === '/login') return 'Login'

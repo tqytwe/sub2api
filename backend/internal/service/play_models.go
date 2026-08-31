@@ -114,11 +114,13 @@ type PlayArenaDailyRewardLedgerRow struct {
 }
 
 type PlayRewardLedgerEntry struct {
-	UserID         int64
-	Source         string
-	Amount         float64
-	IdempotencyKey string
-	Detail         map[string]any
+	UserID                      int64
+	Source                      string
+	Amount                      float64
+	IdempotencyKey              string
+	Detail                      map[string]any
+	GrowthEligibilitySnapshotID int64
+	GrowthRuleVersion           string
 }
 
 type PlayBlindboxOpenRecord struct {
@@ -142,23 +144,28 @@ type PlayVIPBlindboxPool struct {
 }
 
 type PlayCheckinStatus struct {
-	Enabled                bool
-	Eligible               bool
-	IneligibleReason       string
-	CheckedInToday         bool
-	RewardAmount           float64
-	CouponPoolReady        bool
-	CouponWeightBP         int
-	RedeemCodeWeightBP     int
-	BalanceWeightBP        int
-	ServerDate             string
-	StreakCount            int
-	NextMilestoneDays      int
-	NextMilestoneBonus     float64
-	CanMakeup              bool
-	MakeupDate             string
-	RechargeBoostActive    bool
-	BoostCheckinMultiplier float64
+	Enabled                   bool
+	Eligible                  bool
+	IneligibleReason          string
+	CheckedInToday            bool
+	RewardAmount              float64
+	CouponPoolReady           bool
+	CouponWeightBP            int
+	RedeemCodeWeightBP        int
+	BalanceWeightBP           int
+	ServerDate                string
+	StreakCount               int
+	NextMilestoneDays         int
+	NextMilestoneBonus        float64
+	CanMakeup                 bool
+	MakeupDate                string
+	RechargeBoostActive       bool
+	BoostCheckinMultiplier    float64
+	GrowthEligibility         PlayGrowthEligibility
+	GrowthEnergyEnabled       bool
+	RedeemableRewardEligible  bool
+	GrowthGovernanceAvailable bool   `json:"growth_governance_available"`
+	GrowthGovernanceReason    string `json:"growth_governance_reason,omitempty"`
 }
 
 type PlayCheckinResult struct {
@@ -171,31 +178,36 @@ type PlayCheckinResult struct {
 	ServerDate        string
 	StreakCount       int
 	MilestoneBonus    float64
+	GrowthEnergy      int64
+	GrowthEligibility PlayGrowthEligibility
 }
 
 type PlayBlindboxStatus struct {
-	Enabled             bool
-	CouponPoolReady     bool
-	CouponPrizes        []PlayCouponPrizePreview
-	CouponWeightBP      int
-	RedeemCodeWeightBP  int
-	BalanceWeightBP     int
-	CostAmount          float64
-	BlindboxPool        PlayBlindboxPool
-	CurrentPool         PlayBlindboxPool
-	NextPool            *PlayBlindboxPool
-	VIPTier             PlayVIPStatus
-	ExpectedReward      float64
-	NextExpectedReward  float64
-	PoolVersion         string
-	RTPCap              float64
-	DailyLimit          int
-	EffectiveLimit      int
-	OpensToday          int
-	CanOpen             bool
-	ServerDate          string
-	RechargeBoostActive bool
-	CampaignActive      bool
+	Enabled                   bool
+	CouponPoolReady           bool
+	CouponPrizes              []PlayCouponPrizePreview
+	CouponWeightBP            int
+	RedeemCodeWeightBP        int
+	BalanceWeightBP           int
+	CostAmount                float64
+	BlindboxPool              PlayBlindboxPool
+	CurrentPool               PlayBlindboxPool
+	NextPool                  *PlayBlindboxPool
+	VIPTier                   PlayVIPStatus
+	ExpectedReward            float64
+	NextExpectedReward        float64
+	PoolVersion               string
+	RTPCap                    float64
+	DailyLimit                int
+	EffectiveLimit            int
+	OpensToday                int
+	CanOpen                   bool
+	ServerDate                string
+	GrowthEligibility         PlayGrowthEligibility
+	RechargeBoostActive       bool
+	CampaignActive            bool
+	GrowthGovernanceAvailable bool   `json:"growth_governance_available"`
+	GrowthGovernanceReason    string `json:"growth_governance_reason,omitempty"`
 }
 
 type PlayCouponPrizePreview struct {
@@ -246,11 +258,15 @@ type PlayQuizToday struct {
 	PreviousTotal             int
 	PreviousReward            float64
 	PreviousRewardType        PlayRewardType
+	PreviousGrowthEnergy      int64
 	PreviousCoupon            *PlayCouponRewardSummary
 	PreviousRedeemCode        *PlayRedeemCodeRewardSummary
 	PreviousCouponPoolVersion string
 	RewardPerCorrect          float64
 	ServerDate                string
+	GrowthEligibility         PlayGrowthEligibility
+	GrowthGovernanceAvailable bool   `json:"growth_governance_available"`
+	GrowthGovernanceReason    string `json:"growth_governance_reason,omitempty"`
 }
 
 type PlayQuizAnswer struct {
@@ -267,6 +283,8 @@ type PlayQuizSubmitResult struct {
 	RedeemCode        *PlayRedeemCodeRewardSummary
 	CouponPoolVersion string
 	ServerDate        string
+	GrowthEnergy      int64
+	GrowthEligibility PlayGrowthEligibility
 }
 
 type PlayTeamMember struct {
@@ -1039,6 +1057,137 @@ type PlayCheckinEligibilityRepository interface {
 	GetCheckinEligibility(ctx context.Context, userID int64, since time.Time, now time.Time) (eligible bool, reason string, err error)
 }
 
+// PlayGrowthQualificationRepository is deliberately separate from the legacy
+// check-in eligibility reader. It keeps existing test doubles and historical
+// feature data compatible while the new reward policy becomes authoritative.
+type PlayGrowthQualificationRepository interface {
+	GetGrowthEligibilitySignals(ctx context.Context, userID int64, usageSince, rechargeSince, now time.Time) (PlayGrowthEligibilitySignals, error)
+	CreateGrowthEligibilitySnapshot(ctx context.Context, snapshot PlayGrowthEligibilitySnapshot) (int64, error)
+	LinkGrowthEligibilitySnapshot(ctx context.Context, source string, userID int64, activityDate time.Time, snapshotID int64) error
+	LinkBlindboxGrowthEligibilitySnapshot(ctx context.Context, userID int64, actionID string, snapshotID int64) error
+	InsertGrowthEnergyLedger(ctx context.Context, entry PlayGrowthEnergyLedgerEntry) error
+}
+
+const (
+	PlayGrowthGovernanceDecisionApproved = "approved"
+	PlayGrowthGovernanceDecisionRevoked  = "revoked"
+)
+
+// PlayGrowthCohortMetrics is the fixed two-week operations review contract.
+// Ratios whose source data is not available are nil rather than a fabricated
+// zero.  An approval cannot be created from an incomplete cohort report.
+type PlayGrowthCohortMetrics struct {
+	WindowStart              time.Time `json:"window_start"`
+	WindowEnd                time.Time `json:"window_end"`
+	MetricsAvailable         bool      `json:"metrics_available"`
+	ParticipationUsers       int64     `json:"participation_users"`
+	RealCall7dUsers          int64     `json:"real_call_7d_users"`
+	RealCall7dRatio          float64   `json:"real_call_7d_ratio"`
+	RealCall30dUsers         int64     `json:"real_call_30d_users"`
+	RealCall30dRatio         float64   `json:"real_call_30d_ratio"`
+	FirstRechargeUsers       int64     `json:"first_recharge_users"`
+	FirstRechargeRatio       float64   `json:"first_recharge_ratio"`
+	CouponsIssued            int64     `json:"coupons_issued"`
+	CouponsRedeemed          int64     `json:"coupons_redeemed"`
+	CouponRedemptionRatio    float64   `json:"coupon_redemption_ratio"`
+	ActualRewardCost         float64   `json:"actual_reward_cost"`
+	D7RetainedUsers          int64     `json:"d7_retained_users"`
+	D7RetentionRatio         float64   `json:"d7_retention_ratio"`
+	AbnormalRedemptionUsers  int64     `json:"abnormal_redemption_users"`
+	AbnormalRedemptionRatio  *float64  `json:"abnormal_redemption_ratio,omitempty"`
+	AppealCount              int64     `json:"appeal_count"`
+	FalsePositiveAppeals     int64     `json:"false_positive_appeals"`
+	AppealFalsePositiveRatio *float64  `json:"appeal_false_positive_ratio,omitempty"`
+	UnavailableMetrics       []string  `json:"unavailable_metrics,omitempty"`
+}
+
+// Complete reports whether the cohort contains every metric required for an
+// operational approval.  We infer availability from populated nullable
+// ratios for backwards-compatible callers that do not set MetricsAvailable.
+func (m PlayGrowthCohortMetrics) Complete() bool {
+	if !m.WindowEnd.After(m.WindowStart) || m.WindowEnd.Sub(m.WindowStart) < 14*24*time.Hour {
+		return false
+	}
+	if m.ParticipationUsers < 0 || m.RealCall7dUsers < 0 || m.RealCall30dUsers < 0 ||
+		m.FirstRechargeUsers < 0 || m.CouponsIssued < 0 || m.CouponsRedeemed < 0 ||
+		m.D7RetainedUsers < 0 || m.AbnormalRedemptionUsers < 0 || m.AppealCount < 0 || m.FalsePositiveAppeals < 0 ||
+		m.ActualRewardCost < 0 {
+		return false
+	}
+	if len(m.UnavailableMetrics) > 0 || m.AbnormalRedemptionRatio == nil || m.AppealFalsePositiveRatio == nil {
+		return false
+	}
+	if m.MetricsAvailable {
+		return true
+	}
+	// Older callers predate the explicit flag.  Non-nil nullable ratios are the
+	// persisted evidence that those callers did provide a complete report.
+	return true
+}
+
+type PlayGrowthGovernanceApprovalInput struct {
+	BudgetAmount   float64                 `json:"budget_amount"`
+	RolloutPercent int                     `json:"rollout_percent"`
+	Cohort         PlayGrowthCohortMetrics `json:"cohort"`
+	RuleVersion    string                  `json:"rule_version"`
+	Reason         string                  `json:"reason"`
+	ActorID        int64                   `json:"actor_id,omitempty"`
+}
+
+// PlayGrowthGovernanceState is the current server-side decision.  A nil
+// pointer means no governance row exists; callers must treat that as closed.
+type PlayGrowthGovernanceState struct {
+	ID              int64                   `json:"id"`
+	Decision        string                  `json:"decision"`
+	Approved        bool                    `json:"approved"`
+	BudgetAmount    float64                 `json:"budget_amount"`
+	BudgetSpent     float64                 `json:"budget_spent"`
+	BudgetRemaining float64                 `json:"budget_remaining"`
+	RolloutPercent  int                     `json:"rollout_percent"`
+	Cohort          PlayGrowthCohortMetrics `json:"cohort"`
+	RuleVersion     string                  `json:"rule_version"`
+	Reason          string                  `json:"reason"`
+	ActorID         *int64                  `json:"actor_id,omitempty"`
+	CreatedAt       time.Time               `json:"created_at"`
+}
+
+// PlayGrowthGovernanceRepository is optional to preserve compatibility with
+// pre-268 test doubles. Production wiring enables the fail-closed requirement
+// so the optional port is mandatory for redeemable rewards there.
+type PlayGrowthGovernanceRepository interface {
+	GetGrowthGovernance(ctx context.Context, now time.Time) (*PlayGrowthGovernanceState, error)
+	GetGrowthCohort(ctx context.Context, start, end time.Time) (PlayGrowthCohortMetrics, error)
+	CreateGrowthApproval(ctx context.Context, input PlayGrowthGovernanceApprovalInput) (*PlayGrowthGovernanceState, error)
+	RevokeGrowthApproval(ctx context.Context, actorID int64, reason string) (*PlayGrowthGovernanceState, error)
+	GetGrowthRewardSpend(ctx context.Context, start, end time.Time) (float64, error)
+}
+
+// PlayGrowthBudgetRepository provides an optional atomic reservation boundary.
+// It is separate from PlayGrowthGovernanceRepository so read-only governance
+// test doubles do not accidentally claim to enforce budget writes.
+type PlayGrowthBudgetRepository interface {
+	ReserveGrowthRewardBudget(ctx context.Context, approvalID, userID int64, source, actionID string, amount float64) (bool, error)
+}
+
+type PlayGrowthEligibilitySnapshot struct {
+	UserID int64
+	Source string
+	// ActionID is the immutable idempotency key of the reward-bearing action.
+	// A user may open more than one blindbox on a date, so activity_date alone
+	// cannot identify a qualification decision.
+	ActionID     string
+	ActivityDate time.Time
+	Eligibility  PlayGrowthEligibility
+}
+
+type PlayGrowthEnergyLedgerEntry struct {
+	UserID                int64
+	Source                string
+	ActionID              string
+	Amount                int64
+	EligibilitySnapshotID int64
+}
+
 type PlayQuizQuestionDB struct {
 	ID           int64
 	Language     string
@@ -1095,9 +1244,10 @@ type PlayAdminQuizQuestionStats struct {
 }
 
 type PlayQuizAttemptDB struct {
-	Score        int
-	Total        int
-	RewardAmount float64
+	Score            int
+	Total            int
+	RewardAmount     float64
+	GrowthRewardMode string
 }
 
 type PlayTeamDB struct {

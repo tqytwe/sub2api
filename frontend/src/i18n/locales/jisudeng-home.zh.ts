@@ -59,33 +59,11 @@ export const jisudengHomeZh = {
   },
   stats: {
     requests: '累计已记录 API 请求',
-    uptime: '30 天可用率',
-    latency: '24 小时平均首字延迟',
-    models: '可用模型数',
     through: '最近运营样本结束于 {time}',
-    computed: '快照生成于 {time}',
-    stale: '当前显示缓存或滞后数据'
-  },
-  lmspeedProof: {
-    tag: 'LMSPEED STATUS',
-    title: '第三方测速与状态',
-    lede: '公开展示 LMSpeed 对极速蹬的健康检查、模型支持与最近测试记录；真正带 Key 的测速仍在站内完成。',
-    gridLabel: '极速蹬 LMSpeed 第三方状态卡片',
-    providerLink: '查看 LMSpeed 供应商页面',
-    items: {
-      health: {
-        label: '健康检查',
-        alt: '极速蹬 健康检查'
-      },
-      models: {
-        label: '支持的模型',
-        alt: '极速蹬 支持的模型'
-      },
-      recent: {
-        label: '最近测试记录',
-        alt: '极速蹬 最近测试记录'
-      }
-    }
+    fresh: '系统数据正常',
+    delayed: '数据延迟',
+    unavailable: '状态数据暂不可用',
+    statusLink: '查看系统状态'
   },
   sections: {
     imageTag: 'IMAGE API',
@@ -276,8 +254,7 @@ export const jisudengHomeZh = {
   },
   footer: {
     tagline: 'AI 中转站',
-    docs: '接入文档',
-    lmspeedBadgeAlt: '极速蹬已被 LMSpeed.net 收录'
+    docs: '接入文档'
   },
   registerBanner: {
     signupCredit: '现在注册 — 送 ${amount} 测试额度，全模型可试。',
@@ -288,7 +265,6 @@ export const jisudengHomeZh = {
     navigation: '页面导航',
     manifesto: '承诺',
     stats: '数据',
-    lmspeed: '测速',
     image: '图像',
     channels: '渠道',
     features: '优势',

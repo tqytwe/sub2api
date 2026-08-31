@@ -735,6 +735,8 @@ export default {
       },
     },
     subscriptions: {
+      title: '订阅管理',
+      description: '管理用户订阅和配额限制',
       allStatus: '全部状态',
       allGroups: '全部分组',
       allPlatforms: '全部平台',

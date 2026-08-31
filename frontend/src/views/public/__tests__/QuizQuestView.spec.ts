@@ -228,6 +228,56 @@ describe('QuizQuestView', () => {
     expect(getQuizToday).toHaveBeenCalledTimes(2)
   })
 
+  it('keeps explorer participation available when the redeemable reward pool is unavailable', async () => {
+    authState.isAuthenticated = true
+    authState.user = { id: 61 }
+    authState.token = 'explorer'
+    getQuizToday.mockResolvedValue({
+      enabled: true,
+      coupon_pool_ready: false,
+      questions: [{ id: 1, prompt: 'Explorer question', options: ['A', 'B'] }],
+      already_submitted: false,
+      reward_per_correct: 0.1,
+      server_date: '2026-08-29',
+      growth_eligibility: {
+        tier: 'explorer',
+        reward_mode: 'energy',
+        primary_reason: 'no_recent_activity',
+        email_verified: true,
+        account_age_days: 8,
+        has_recent_usage: false,
+        net_balance_recharge_30d: 0,
+        has_active_subscription: false,
+        progress: {
+          email_verified: true, account_age_days: 8, minimum_account_age_days: 3,
+          account_age_requirement_met: true, has_recent_usage: false,
+          net_balance_recharge_30d: 0, minimum_recharge_cny: 10,
+          has_active_subscription: false, activity_requirement_met: false,
+          next_action: 'no_recent_activity',
+        },
+      },
+    })
+    submitQuiz.mockResolvedValue({
+      score: 1,
+      total: 1,
+      reward_amount: 0,
+      reward_type: 'none',
+      growth_energy: 1,
+      server_date: '2026-08-29',
+    })
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('quiz.energyHint')
+    expect(wrapper.text()).not.toContain('quiz.couponPoolUnavailable')
+    await wrapper.get('input[type="radio"]').setValue()
+    await wrapper.get('.play-btn-primary').trigger('click')
+    await flushPromises()
+
+    expect(showSuccess).toHaveBeenCalledWith('quiz.energySuccess:{"score":1,"total":1,"amount":1}')
+  })
+
   it('does not render or toast a delayed submission result from the previous account', async () => {
     let resolveAccountASubmit: ((value: Record<string, unknown>) => void) | undefined
     authState.isAuthenticated = true

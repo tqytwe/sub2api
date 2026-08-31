@@ -38,8 +38,6 @@ function productUiTemplates(): string[] {
 
   return [
     readFileSync(resolve(process.cwd(), 'index.html'), 'utf8'),
-    template('components/home/LmspeedBadge.vue'),
-    template('components/home/LmspeedProviderProof.vue'),
     template('components/layout/AppHeader.vue'),
     template('components/layout/AppSidebar.vue'),
     template('views/user/ImageStudioView.vue'),

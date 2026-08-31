@@ -36,8 +36,8 @@
 ## FORK-BRAND-001 品牌、首页、登录布局和主题
 
 - 产品目的：公开首页、认证页和控制台保持极速蹬 ink 黑白品牌，不回退到上游 teal 视觉。
-- 不变量：`AuthLayout` 保留 `auth-page`、`asideMode` 和定制 CSS；首页保留极速蹬内容与资源，正文和导航不等待 intro、字体或地理资源即可显示且不锁滚动；`HeroSphere` 的动画有界，隐藏、离开视口和卸载时停止，reduced-motion、Save-Data 和低配置设备直接静态绘制；折叠线以下演示按接近视口异步加载并保留稳定占位；首页页脚和自定义首页保留 LMSpeed Provider 2039 的 claim badge，`frontend/index.html` 保留无 JavaScript 备用标记；Tailwind `primary` 为 ink；版本号只对管理员展示。
-- 关键位置：`frontend/src/views/HomeView.vue`、`frontend/src/components/home/HeroSphere.vue`、`frontend/src/components/home/LmspeedBadge.vue`、`frontend/index.html`、`frontend/src/components/layout/AuthLayout.vue`、`frontend/src/styles/home-view.css`、`frontend/src/styles/auth-layout-jisudeng.css`、`frontend/tailwind.config.js`。
+- 不变量：`AuthLayout` 保留 `auth-page`、`asideMode` 和定制 CSS；首页保留极速蹬内容与资源，正文和导航不等待 intro、字体或地理资源即可显示且不锁滚动；`HeroSphere` 在桌面只做一次性、低帧率增强，移动、reduced-motion、Save-Data 和低配置设备保持静态海报且不请求地理资源；折叠线以下演示按接近视口异步加载并保留稳定占位；首页状态入口只使用第一方 `/status` 与 `/en/status`，不加载 LMSpeed 徽章、图片或跳转；Tailwind `primary` 为 ink；版本号只对管理员展示。
+- 关键位置：`frontend/src/views/HomeView.vue`、`frontend/src/components/home/HeroSphere.vue`、`frontend/src/views/public/PublicStatusView.vue`、`frontend/index.html`、`frontend/src/components/layout/AuthLayout.vue`、`frontend/src/styles/home-view.css`、`frontend/src/styles/auth-layout-jisudeng.css`、`frontend/tailwind.config.js`。
 - 冲突策略：吸收上游可访问性和业务修复，视觉结构、品牌资源及色板保留 Fork 语义。
 - 验证：`scripts/check-jisudeng-branding.sh`、`HeroSphere.spec.ts`、`HomeView.spec.ts`、`homePerformance.spec.ts`、`frontend/src/components/layout/__tests__/AppSidebar.spec.ts` 和 `docs/visual-reviews/2026-08-25-upstream-v0182-performance.md`；线上检查首页、登录、注册、浅色和深色主题。
 
@@ -52,7 +52,7 @@
 ## FORK-NAV-002 用户侧栏和 Growth 导航
 
 - 产品目的：普通用户直接看到“模型与价格”、图像工具和“玩法福利”，并在渠道监控启用时查看经脱敏的渠道状态；渠道运维配置仍只在管理区。
-- 不变量：用户侧栏包含 `/models`、`/image-studio`、`/batch-image` 和 `/growth-group`；Growth 子项由功能开关过滤；普通用户侧栏不得出现 `/available-channels`，但必须在 `channel_monitor_enabled=true` 时显示 `/monitor`，且该入口不受 `available_channels_enabled` 影响；管理员渠道监控配置保留在管理区。路由不得在 `afterEach` 自动预取管理页面；只有侧栏链接的 hover、focus 或 pointerdown 才触发去重预取，Save-Data 下完全禁用。
+- 不变量：用户侧栏包含 `/catalog`、`/image-studio`、`/batch-image` 和 `/growth-group`；Growth 子项由功能开关过滤；普通用户侧栏不得出现 `/available-channels`，但必须在 `channel_monitor_enabled=true` 时显示 `/monitor`，且该入口不受 `available_channels_enabled` 影响；管理员渠道监控配置保留在管理区。路由不得在 `afterEach` 自动预取管理页面；只有侧栏链接的 hover、focus 或 pointerdown 才触发去重预取，Save-Data 下完全禁用。
 - 关键位置：`frontend/src/components/layout/AppSidebar.vue`、`frontend/src/utils/featureFlags.ts`、`frontend/src/router/index.ts`。
 - 冲突策略：上游新增导航项先判断面向用户还是管理员，再合入对应分组，不能恢复上游默认用户渠道入口。
 - 验证：integrity 脚本和 AppSidebar 测试；线上分别使用普通用户与管理员账号检查。
@@ -60,8 +60,8 @@
 ## FORK-PLAY-003 Growth / Play 系统
 
 - 产品目的：以签到、Arena、盲盒、答题、Agent Team、任务、活动和 Hub 提升激活与留存，并为管理员提供受控、可审计的战队成员关系修复能力。
-- 不变量：`/api/v1/play/*`、`/play`、`/check-in`、`/arena`、`/blindbox`、`/quiz-quest`、`/agent-team` 路由存在；功能按 `play_*` 设置 fail-closed；Hub 聚合待办、余额、活动和图像工作室状态。管理员战队修复必须通过 `/api/v1/admin/play/teams/:id/member-candidates` 预检、`/members` 幂等写入和 `/events` 追踪；移动或显式历史生效时间必须使用 JWT 管理员 TOTP step-up，管理员 API Key 禁止；写入在同一事务锁定用户、来源/目标战队和成员关系，并与结算快照共用战队锁；移动的旧 `left_at` 与新 `joined_at` 完全一致；源/目标事件和审计动作不得保存邀请码或令牌。Token 农场日榜公开汇总必须从已结算日榜 period 和 `play_reward_ledger` 读取，最近发放不暴露邮箱，历史缺失的 rank/token 只能通过 period 时间窗安全回补，不能改写旧奖励流水；当前预估不能把昨日已结算榜标为今日排名。中文和英文运行时资源必须保持 key 对称，中文 Play Ops 和 Token 农场不显示英文操作状态或标签。
-- 关键位置：`backend/internal/server/routes/play.go`、`backend/internal/server/routes/admin.go`、`backend/internal/service/setting_play_runtime.go`、`backend/internal/service/play_hub.go`、`backend/internal/service/play_admin_team_repair.go`、`backend/internal/repository/play_repo_admin_team_repair.go`、`frontend/src/views/user/PlayHubView.vue`、`frontend/src/views/admin/PlayOpsView.vue`、`frontend/src/content/play-features.ts`。
+- 不变量：`/api/v1/play/*`、`/play`、`/check-in`、`/arena`、`/blindbox`、`/quiz-quest`、`/agent-team` 路由存在；功能按 `play_*` 设置 fail-closed；Hub 聚合待办、余额、活动和图像工作室状态。管理员战队修复必须通过 `/api/v1/admin/play/teams/:id/member-candidates` 预检、`/members` 幂等写入和 `/events` 追踪；移动或显式历史生效时间必须使用 JWT 管理员 TOTP step-up，管理员 API Key 禁止；写入在同一事务锁定用户、来源/目标战队和成员关系，并与结算快照共用战队锁；移动的旧 `left_at` 与新 `joined_at` 完全一致；源/目标事件和审计动作不得保存邀请码或令牌。Token 农场日榜公开汇总必须从已结算日榜 period 和 `play_reward_ledger` 读取，最近发放不暴露邮箱，历史缺失的 rank/token 只能通过 period 时间窗安全回补，不能改写旧奖励流水；当前预估不能把昨日已结算榜标为今日排名。签到、答题和盲盒奖励由服务端统一评估邮箱验证、账号年龄、真实调用/充值/订阅信号；不满足条件的参与只产生不可变成长能量，现金等价奖励还必须通过不可变运营审批、10%-20% 灰度和预算预留，状态接口必须明确展示审批、灰度和预算暂停原因。中文和英文运行时资源必须保持 key 对称，中文 Play Ops 和 Token 农场不显示英文操作状态或标签。
+- 关键位置：`backend/internal/server/routes/play.go`、`backend/internal/server/routes/admin.go`、`backend/internal/service/setting_play_runtime.go`、`backend/internal/service/play_hub.go`、`backend/internal/service/play_admin_team_repair.go`、`backend/internal/service/play_growth_eligibility.go`、`backend/internal/service/play_growth_governance.go`、`backend/internal/repository/play_repo_admin_team_repair.go`、`backend/internal/repository/play_repo_growth_eligibility.go`、`backend/internal/repository/play_repo_growth_governance.go`、`frontend/src/views/user/PlayHubView.vue`、`frontend/src/views/admin/PlayOpsView.vue`、`frontend/src/content/play-features.ts`。
 - 冲突策略：保留上游共享支付、用户与用量修复；Play 表、路由、设置和奖励账本不得被移除或绕过。
 - 验证：Play service tests、`play_admin_team_repair_test.go`、真实 PostgreSQL `play_repo_team_integration_test.go`、`play_handler_team_repair_test.go`、`play_admin_routes_test.go`、`PlayOpsView.spec.ts`、`admin.play.teamRepair.spec.ts`、`adminPlayOpsParity.spec.ts`、`public_growth_teaser_test.go` 和相关前端 utils tests；线上逐项检查开关关闭和开启状态，并由本地管理员浏览器完成中英文、浅色和深色战队修复验收。
 
@@ -88,7 +88,7 @@
 ## FORK-PRICING-005 模型目录展示价和计费隔离
 
 - 产品目的：区分外部官方参考价、本站参考价和真实扣费价，并让模型绑定明确的业务分组。
-- 不变量：官方价和本站价只用于目录展示/对比，不参与真实扣费解析；真实扣费来源仍是渠道价、LiteLLM/官方 billing catalog 和 legacy fallback；分组或用户倍率只应用在真实基础价上；`group_ids=NULL` 才允许按平台兼容匹配，非空数组只能进入指定分组；刷新官方价不得覆盖手工本站展示价或渠道价。
+- 不变量：官方价和本站价只用于目录展示/对比，不参与真实扣费解析；真实扣费来源仍是渠道价、LiteLLM/官方 billing catalog 和 legacy fallback；分组或用户倍率只应用在真实基础价上；`group_ids=NULL` 才允许按平台兼容匹配，非空数组只能进入指定分组；刷新官方价不得覆盖手工本站展示价或渠道价。浏览器目录的唯一规范路径为 `/catalog` 与 `/en/catalog`；根 `GET /models` 保留 OpenAI 兼容 API，未带凭据的 HTML 导航 308 到 `/catalog`，且 API 变体响应必须携带 `Vary: Accept, Authorization`。
 - 接口与数据：`site_model_catalog`、`group_ids`、`official_*`、`media_capabilities`、`GET /model-plaza`、NextChat 内部展示元数据和 Admin model catalog APIs；字段级人工锁定迁移为 `251_model_catalog_official_field_sources.sql`，媒体能力迁移为 `260_model_catalog_media_capabilities.sql`。
 - 关键位置：`backend/internal/service/model_catalog*`、`backend/internal/service/model_pricing_resolver.go`、`backend/internal/repository/model_catalog_repo.go`、`frontend/src/views/public/ModelsView.vue`、`frontend/src/views/admin/ModelCatalogView.vue`。
 - 冲突策略：上游模型能力可合入，但不得将公开参考价重新接入扣费，也不得用 platform 猜测覆盖显式分组绑定。
@@ -135,7 +135,7 @@
 ## FORK-PUBLIC-008 公共页面与可见性
 
 - 产品目的：游客可浏览极速蹬首页、文档、模型价格和 Play 展示，登录用户看到与账号分组匹配的内容。
-- 不变量：`/home`、`/models`、`/docs` 和公开 Play 页面存在；`public_models_enabled` 控制游客目录；`available_channels_enabled` 控制登录价目数据而不是恢复用户侧栏“可用渠道”入口；公开接口不泄露渠道密钥、账号或内部定价配置。
+- 不变量：`/`、`/catalog`、`/en/catalog`、`/docs`、`/en/docs` 和公开 Play 页面存在；`public_models_enabled` 控制游客目录；`available_channels_enabled` 控制登录价目数据而不是恢复用户侧栏“可用渠道”入口；公开接口不泄露渠道密钥、账号或内部定价配置。公开内容页才允许生成 canonical、hreflang、JSON-LD 和 sitemap；控制台、订阅、监控、管理、支付、创作空间及状态页必须显式 `noindex,nofollow`。
 - 关键位置：`frontend/src/views/public/`、`frontend/src/content/public-docs-data.zh.ts`、`backend/internal/service/public_model_catalog.go`、`backend/internal/service/setting_public.go`。
 - 冲突策略：上游公共设置字段变更需要合并到 DTO 和前端类型，但极速蹬可见性语义优先。
 - 验证：public model/catalog、public settings 和 teaser tests；游客、登录用户、管理员三种身份线上检查。
@@ -232,6 +232,13 @@
 256_payment_order_coupon_release_processed_index_notx.sql
 259_mobile_video_jobs.sql
 260_model_catalog_media_capabilities.sql
+262_play_growth_qualification.sql
+263_public_status_snapshots.sql
+264_public_status_ttft_window_index_notx.sql
+265_play_growth_eligibility_orders_index_notx.sql
+266_play_growth_reward_snapshot_links.sql
+267_public_status_ops_aggregation_watermark.sql
+268_play_growth_governance.sql
 ```
 
 ## FORK-BILLING-010 计费归属与充值联动

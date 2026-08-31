@@ -1,0 +1,2275 @@
+[
+  {
+    "route": "/",
+    "viewport": "360x800",
+    "reduced_motion": false,
+    "http_status": 200,
+    "title": "极速蹬 - OpenAI兼容 AI API 网关与多模型服务平台",
+    "lang": "zh-CN",
+    "dims": {
+      "innerWidth": 360,
+      "scrollWidth": 360,
+      "bodyScrollWidth": 360,
+      "height": 6194
+    },
+    "h1": [
+      "极速蹬\nAI\n网关\n一个 API Key · Claude / GPT / Gemini · 按 Token 计费 · 无月租"
+    ],
+    "body_text": "极速蹬 最注重隐私的中转站 · 拒绝数据倒卖 · 拒绝模型掺水 极速蹬 AI 网关 一个 API Key · Claude / GPT / Gemini · 按 Token 计费 · 无月租 注册即用 · 官方倍率 · 提示词不落盘 免费领 API Key → 看接入文档 ↗ WORKS ON Claude Code · Codex CLI · Cline · Gemini CLI · Cursor · Continue OUR PROMISE · 我们的承诺 一字不改的 Token，一分不掺的账单 在使用记录中查看验证方式 → 极速蹬 API 网关只做一件事——把你的请求按官方协议原样转发给上游模型，响应再原样回到你手里。不蒸馏、不压缩、不替换模型，你收到的每一个 token 都来自你声明的那个模型本身。 同步请求正文不写日志，响应完成即释放；需要恢复的异步与 Batch 任务只加密或受控保留必要数据，并按保留期清理。不参与训练，不与分析或广告平台共享。 私密 · 最小留存 私密 · 最小留存 同步请求体不写日志、不持久化；异步任务只保留恢复所需的加密或受控数据并按期清理。不参与模型训练，不与第三方分析、监控、广告平台共享。 忠实 · 一字不改 忠实 · 一字不改 上游响应字节级转发，不做提示词改写、不蒸馏、不压缩、不静默切换替代模型。 透明 · 原价对账 透明 · 原价对账 每条计费按上游官方原价计算，只乘以你在「模型与价格」页看到的那个倍率。无隐形倍率、无隐形费用、不另外加价。 迅捷 · 毫秒调度 迅捷 · 毫秒调度 调度链路 sub-100ms 完成，首字时间与官方直连",
+    "console": [
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to fetch public settings: {status: 500, code: undefined, reason: undefined, error: undefined, message: Request failed with status code 500}"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      }
+    ],
+    "page_errors": [],
+    "failed_requests": [],
+    "goto_error": null,
+    "screenshot": "docs/visual-reviews/assets/v182-browser-qa/home-360x800.png"
+  },
+  {
+    "route": "/",
+    "viewport": "768x900",
+    "reduced_motion": false,
+    "http_status": 200,
+    "title": "极速蹬 - OpenAI兼容 AI API 网关与多模型服务平台",
+    "lang": "zh-CN",
+    "dims": {
+      "innerWidth": 768,
+      "scrollWidth": 768,
+      "bodyScrollWidth": 768,
+      "height": 7339
+    },
+    "h1": [
+      "极速蹬\nAI\n网关\n一个 API Key · Claude / GPT / Gemini · 按 Token 计费 · 无月租"
+    ],
+    "body_text": "极速蹬 最注重隐私的中转站 · 拒绝数据倒卖 · 拒绝模型掺水 极速蹬 AI 网关 一个 API Key · Claude / GPT / Gemini · 按 Token 计费 · 无月租 注册即用 · 官方倍率 · 提示词不落盘 免费领 API Key → 看接入文档 ↗ WORKS ON Claude Code · Codex CLI · Cline · Gemini CLI · Cursor · Continue OUR PROMISE · 我们的承诺 一字不改的 Token，一分不掺的账单 在使用记录中查看验证方式 → 极速蹬 API 网关只做一件事——把你的请求按官方协议原样转发给上游模型，响应再原样回到你手里。不蒸馏、不压缩、不替换模型，你收到的每一个 token 都来自你声明的那个模型本身。 同步请求正文不写日志，响应完成即释放；需要恢复的异步与 Batch 任务只加密或受控保留必要数据，并按保留期清理。不参与训练，不与分析或广告平台共享。 私密 · 最小留存 私密 · 最小留存 同步请求体不写日志、不持久化；异步任务只保留恢复所需的加密或受控数据并按期清理。不参与模型训练，不与第三方分析、监控、广告平台共享。 忠实 · 一字不改 忠实 · 一字不改 上游响应字节级转发，不做提示词改写、不蒸馏、不压缩、不静默切换替代模型。 透明 · 原价对账 透明 · 原价对账 每条计费按上游官方原价计算，只乘以你在「模型与价格」页看到的那个倍率。无隐形倍率、无隐形费用、不另外加价。 迅捷 · 毫秒调度 迅捷 · 毫秒调度 调度链路 sub-100ms 完成，首字时间与官方直连",
+    "console": [
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to fetch public settings: {status: 500, code: undefined, reason: undefined, error: undefined, message: Request failed with status code 500}"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      }
+    ],
+    "page_errors": [],
+    "failed_requests": [],
+    "goto_error": null,
+    "screenshot": "docs/visual-reviews/assets/v182-browser-qa/home-768x900.png"
+  },
+  {
+    "route": "/",
+    "viewport": "1280x800",
+    "reduced_motion": false,
+    "http_status": 200,
+    "title": "极速蹬 - OpenAI兼容 AI API 网关与多模型服务平台",
+    "lang": "zh-CN",
+    "dims": {
+      "innerWidth": 1280,
+      "scrollWidth": 1280,
+      "bodyScrollWidth": 1280,
+      "height": 6928
+    },
+    "h1": [
+      "极速蹬\nAI\n网关\n一个 API Key · Claude / GPT / Gemini · 按 Token 计费 · 无月租"
+    ],
+    "body_text": "极速蹬 模型与价格 使用文档 AI创作空间 API 查账 了解极速蹬 中 简体中文 下载 APP 登录 免费注册 最注重隐私的中转站 · 拒绝数据倒卖 · 拒绝模型掺水 极速蹬 AI 网关 一个 API Key · Claude / GPT / Gemini · 按 Token 计费 · 无月租 注册即用 · 官方倍率 · 提示词不落盘 免费领 API Key → 看接入文档 ↗ WORKS ON Claude Code · Codex CLI · Cline · Gemini CLI · Cursor · Continue OUR PROMISE · 我们的承诺 一字不改的 Token，一分不掺的账单 在使用记录中查看验证方式 → 极速蹬 API 网关只做一件事——把你的请求按官方协议原样转发给上游模型，响应再原样回到你手里。不蒸馏、不压缩、不替换模型，你收到的每一个 token 都来自你声明的那个模型本身。 同步请求正文不写日志，响应完成即释放；需要恢复的异步与 Batch 任务只加密或受控保留必要数据，并按保留期清理。不参与训练，不与分析或广告平台共享。 私密 · 最小留存 私密 · 最小留存 同步请求体不写日志、不持久化；异步任务只保留恢复所需的加密或受控数据并按期清理。不参与模型训练，不与第三方分析、监控、广告平台共享。 忠实 · 一字不改 忠实 · 一字不改 上游响应字节级转发，不做提示词改写、不蒸馏、不压缩、不静默切换替代模型。 透明 · 原价对账 透明 · 原价对账 每条计费按上游官方原价计算，只乘以你在「模型与价格」页看到的那个倍率。无隐形倍率、无隐形费用、不",
+    "console": [
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to fetch public settings: {status: 500, code: undefined, reason: undefined, error: undefined, message: Request failed with status code 500}"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      }
+    ],
+    "page_errors": [],
+    "failed_requests": [],
+    "goto_error": null,
+    "screenshot": "docs/visual-reviews/assets/v182-browser-qa/home-1280x800.png"
+  },
+  {
+    "route": "/",
+    "viewport": "1600x1000",
+    "reduced_motion": false,
+    "http_status": 200,
+    "title": "极速蹬 - OpenAI兼容 AI API 网关与多模型服务平台",
+    "lang": "zh-CN",
+    "dims": {
+      "innerWidth": 1600,
+      "scrollWidth": 1600,
+      "bodyScrollWidth": 1600,
+      "height": 7116
+    },
+    "h1": [
+      "极速蹬\nAI\n网关\n一个 API Key · Claude / GPT / Gemini · 按 Token 计费 · 无月租"
+    ],
+    "body_text": "极速蹬 模型与价格 使用文档 AI创作空间 API 查账 了解极速蹬 中 简体中文 下载 APP 登录 免费注册 最注重隐私的中转站 · 拒绝数据倒卖 · 拒绝模型掺水 极速蹬 AI 网关 一个 API Key · Claude / GPT / Gemini · 按 Token 计费 · 无月租 注册即用 · 官方倍率 · 提示词不落盘 免费领 API Key → 看接入文档 ↗ WORKS ON Claude Code · Codex CLI · Cline · Gemini CLI · Cursor · Continue OUR PROMISE · 我们的承诺 一字不改的 Token，一分不掺的账单 在使用记录中查看验证方式 → 极速蹬 API 网关只做一件事——把你的请求按官方协议原样转发给上游模型，响应再原样回到你手里。不蒸馏、不压缩、不替换模型，你收到的每一个 token 都来自你声明的那个模型本身。 同步请求正文不写日志，响应完成即释放；需要恢复的异步与 Batch 任务只加密或受控保留必要数据，并按保留期清理。不参与训练，不与分析或广告平台共享。 私密 · 最小留存 私密 · 最小留存 同步请求体不写日志、不持久化；异步任务只保留恢复所需的加密或受控数据并按期清理。不参与模型训练，不与第三方分析、监控、广告平台共享。 忠实 · 一字不改 忠实 · 一字不改 上游响应字节级转发，不做提示词改写、不蒸馏、不压缩、不静默切换替代模型。 透明 · 原价对账 透明 · 原价对账 每条计费按上游官方原价计算，只乘以你在「模型与价格」页看到的那个倍率。无隐形倍率、无隐形费用、不",
+    "console": [
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to fetch public settings: {status: 500, code: undefined, reason: undefined, error: undefined, message: Request failed with status code 500}"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      }
+    ],
+    "page_errors": [],
+    "failed_requests": [],
+    "goto_error": null,
+    "screenshot": "docs/visual-reviews/assets/v182-browser-qa/home-1600x1000.png"
+  },
+  {
+    "route": "/en",
+    "viewport": "360x800",
+    "reduced_motion": false,
+    "http_status": 200,
+    "title": "Jisudeng: One OpenAI-Compatible API for Frontier AI Models",
+    "lang": "en",
+    "dims": {
+      "innerWidth": 360,
+      "scrollWidth": 360,
+      "bodyScrollWidth": 360,
+      "height": 6492
+    },
+    "h1": [
+      "Jisudeng\nOne API for AI models\nAccess DeepSeek, Qwen, Kimi, GLM, GPT, Claude, Gemini and more through one OpenAI-compatible API."
+    ],
+    "body_text": "Jisudeng Privacy-first · No data resale · No model dilution Jisudeng One API for AI models Access DeepSeek, Qwen, Kimi, GLM, GPT, Claude, Gemini and more through one OpenAI-compatible API. Register in minutes. Official token rates. Prompts never stored. Get API key — free → Read docs ↗ WORKS WITH Claude Code · Codex CLI · Cline · Gemini CLI · Cursor · Continue OUR PROMISE Unchanged tokens, unmixed bills SEE HOW TO VERIFY IN USAGE LOGS → We forward your requests to upstream models exactly as specified — no distillation, compression, or silent model swaps. Synchronous request bodies are not logged and are released after the response. Async and Batch jobs keep only the encrypted or access-contr",
+    "console": [
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to fetch public settings: {status: 500, code: undefined, reason: undefined, error: undefined, message: Request failed with status code 500}"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      }
+    ],
+    "page_errors": [],
+    "failed_requests": [],
+    "goto_error": null,
+    "screenshot": "docs/visual-reviews/assets/v182-browser-qa/en-360x800.png"
+  },
+  {
+    "route": "/en",
+    "viewport": "768x900",
+    "reduced_motion": false,
+    "http_status": 200,
+    "title": "Jisudeng: One OpenAI-Compatible API for Frontier AI Models",
+    "lang": "en",
+    "dims": {
+      "innerWidth": 768,
+      "scrollWidth": 768,
+      "bodyScrollWidth": 768,
+      "height": 7496
+    },
+    "h1": [
+      "Jisudeng\nOne API for AI models\nAccess DeepSeek, Qwen, Kimi, GLM, GPT, Claude, Gemini and more through one OpenAI-compatible API."
+    ],
+    "body_text": "Jisudeng Privacy-first · No data resale · No model dilution Jisudeng One API for AI models Access DeepSeek, Qwen, Kimi, GLM, GPT, Claude, Gemini and more through one OpenAI-compatible API. Register in minutes. Official token rates. Prompts never stored. Get API key — free → Read docs ↗ WORKS WITH Claude Code · Codex CLI · Cline · Gemini CLI · Cursor · Continue OUR PROMISE Unchanged tokens, unmixed bills SEE HOW TO VERIFY IN USAGE LOGS → We forward your requests to upstream models exactly as specified — no distillation, compression, or silent model swaps. Synchronous request bodies are not logged and are released after the response. Async and Batch jobs keep only the encrypted or access-contr",
+    "console": [
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to fetch public settings: {status: 500, code: undefined, reason: undefined, error: undefined, message: Request failed with status code 500}"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      }
+    ],
+    "page_errors": [],
+    "failed_requests": [],
+    "goto_error": null,
+    "screenshot": "docs/visual-reviews/assets/v182-browser-qa/en-768x900.png"
+  },
+  {
+    "route": "/en",
+    "viewport": "1280x800",
+    "reduced_motion": false,
+    "http_status": 200,
+    "title": "Jisudeng: One OpenAI-Compatible API for Frontier AI Models",
+    "lang": "en",
+    "dims": {
+      "innerWidth": 1280,
+      "scrollWidth": 1280,
+      "bodyScrollWidth": 1280,
+      "height": 7060
+    },
+    "h1": [
+      "Jisudeng\nOne API for AI models\nAccess DeepSeek, Qwen, Kimi, GLM, GPT, Claude, Gemini and more through one OpenAI-compatible API."
+    ],
+    "body_text": "Jisudeng Models & Pricing Docs AI Creation Space API Audit About EN English Android App Sign in Register free Privacy-first · No data resale · No model dilution Jisudeng One API for AI models Access DeepSeek, Qwen, Kimi, GLM, GPT, Claude, Gemini and more through one OpenAI-compatible API. Register in minutes. Official token rates. Prompts never stored. Get API key — free → Read docs ↗ WORKS WITH Claude Code · Codex CLI · Cline · Gemini CLI · Cursor · Continue OUR PROMISE Unchanged tokens, unmixed bills SEE HOW TO VERIFY IN USAGE LOGS → We forward your requests to upstream models exactly as specified — no distillation, compression, or silent model swaps. Synchronous request bodies are not log",
+    "console": [
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to fetch public settings: {status: 500, code: undefined, reason: undefined, error: undefined, message: Request failed with status code 500}"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      }
+    ],
+    "page_errors": [],
+    "failed_requests": [],
+    "goto_error": null,
+    "screenshot": "docs/visual-reviews/assets/v182-browser-qa/en-1280x800.png"
+  },
+  {
+    "route": "/en",
+    "viewport": "1600x1000",
+    "reduced_motion": false,
+    "http_status": 200,
+    "title": "Jisudeng: One OpenAI-Compatible API for Frontier AI Models",
+    "lang": "en",
+    "dims": {
+      "innerWidth": 1600,
+      "scrollWidth": 1600,
+      "bodyScrollWidth": 1600,
+      "height": 7194
+    },
+    "h1": [
+      "Jisudeng\nOne API for AI models\nAccess DeepSeek, Qwen, Kimi, GLM, GPT, Claude, Gemini and more through one OpenAI-compatible API."
+    ],
+    "body_text": "Jisudeng Models & Pricing Docs AI Creation Space API Audit About EN English Android App Sign in Register free Privacy-first · No data resale · No model dilution Jisudeng One API for AI models Access DeepSeek, Qwen, Kimi, GLM, GPT, Claude, Gemini and more through one OpenAI-compatible API. Register in minutes. Official token rates. Prompts never stored. Get API key — free → Read docs ↗ WORKS WITH Claude Code · Codex CLI · Cline · Gemini CLI · Cursor · Continue OUR PROMISE Unchanged tokens, unmixed bills SEE HOW TO VERIFY IN USAGE LOGS → We forward your requests to upstream models exactly as specified — no distillation, compression, or silent model swaps. Synchronous request bodies are not log",
+    "console": [
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to fetch public settings: {status: 500, code: undefined, reason: undefined, error: undefined, message: Request failed with status code 500}"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      }
+    ],
+    "page_errors": [],
+    "failed_requests": [],
+    "goto_error": null,
+    "screenshot": "docs/visual-reviews/assets/v182-browser-qa/en-1600x1000.png"
+  },
+  {
+    "route": "/status",
+    "viewport": "360x800",
+    "reduced_motion": false,
+    "http_status": 200,
+    "title": "极速蹬系统状态",
+    "lang": "zh-CN",
+    "dims": {
+      "innerWidth": 360,
+      "scrollWidth": 360,
+      "bodyScrollWidth": 360,
+      "height": 1211
+    },
+    "h1": [
+      "系统状态"
+    ],
+    "body_text": "极速蹬 中 公开状态 · 数据水位 系统状态 公开说明运行窗口、样本量与数据新鲜度。 暂不可用 累计已记录调用 -- 30 天请求成功率 -- 24 小时首字延迟 P50 -- 24 小时首字延迟 P95 -- 暂未取得数据水位 重试 指标来自已完成的运营快照；P50/P95 仅使用存在 first_token_ms 的记录。数据延迟或样本不足时明确显示不可用。 © 2026 极速蹬. 保留所有权利。 文档",
+    "console": [
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to fetch public settings: {status: 500, code: undefined, reason: undefined, error: undefined, message: Request failed with status code 500}"
+      }
+    ],
+    "page_errors": [],
+    "failed_requests": [],
+    "goto_error": null,
+    "screenshot": "docs/visual-reviews/assets/v182-browser-qa/status-360x800.png"
+  },
+  {
+    "route": "/status",
+    "viewport": "768x900",
+    "reduced_motion": false,
+    "http_status": 200,
+    "title": "极速蹬系统状态",
+    "lang": "zh-CN",
+    "dims": {
+      "innerWidth": 768,
+      "scrollWidth": 768,
+      "bodyScrollWidth": 768,
+      "height": 900
+    },
+    "h1": [
+      "系统状态"
+    ],
+    "body_text": "极速蹬 查看文档 中 公开状态 · 数据水位 系统状态 公开说明运行窗口、样本量与数据新鲜度。 暂不可用 累计已记录调用 -- 30 天请求成功率 -- 24 小时首字延迟 P50 -- 24 小时首字延迟 P95 -- 暂未取得数据水位 重试 指标来自已完成的运营快照；P50/P95 仅使用存在 first_token_ms 的记录。数据延迟或样本不足时明确显示不可用。 © 2026 极速蹬. 保留所有权利。 文档",
+    "console": [
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to fetch public settings: {status: 500, code: undefined, reason: undefined, error: undefined, message: Request failed with status code 500}"
+      }
+    ],
+    "page_errors": [],
+    "failed_requests": [],
+    "goto_error": null,
+    "screenshot": "docs/visual-reviews/assets/v182-browser-qa/status-768x900.png"
+  },
+  {
+    "route": "/status",
+    "viewport": "1280x800",
+    "reduced_motion": false,
+    "http_status": 200,
+    "title": "极速蹬系统状态",
+    "lang": "zh-CN",
+    "dims": {
+      "innerWidth": 1280,
+      "scrollWidth": 1280,
+      "bodyScrollWidth": 1280,
+      "height": 800
+    },
+    "h1": [
+      "系统状态"
+    ],
+    "body_text": "极速蹬 查看文档 中 简体中文 公开状态 · 数据水位 系统状态 公开说明运行窗口、样本量与数据新鲜度。 暂不可用 累计已记录调用 -- 30 天请求成功率 -- 24 小时首字延迟 P50 -- 24 小时首字延迟 P95 -- 暂未取得数据水位 重试 指标来自已完成的运营快照；P50/P95 仅使用存在 first_token_ms 的记录。数据延迟或样本不足时明确显示不可用。 © 2026 极速蹬. 保留所有权利。 文档",
+    "console": [
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to fetch public settings: {status: 500, code: undefined, reason: undefined, error: undefined, message: Request failed with status code 500}"
+      }
+    ],
+    "page_errors": [],
+    "failed_requests": [],
+    "goto_error": null,
+    "screenshot": "docs/visual-reviews/assets/v182-browser-qa/status-1280x800.png"
+  },
+  {
+    "route": "/status",
+    "viewport": "1600x1000",
+    "reduced_motion": false,
+    "http_status": 200,
+    "title": "极速蹬系统状态",
+    "lang": "zh-CN",
+    "dims": {
+      "innerWidth": 1600,
+      "scrollWidth": 1600,
+      "bodyScrollWidth": 1600,
+      "height": 1000
+    },
+    "h1": [
+      "系统状态"
+    ],
+    "body_text": "极速蹬 查看文档 中 简体中文 公开状态 · 数据水位 系统状态 公开说明运行窗口、样本量与数据新鲜度。 暂不可用 累计已记录调用 -- 30 天请求成功率 -- 24 小时首字延迟 P50 -- 24 小时首字延迟 P95 -- 暂未取得数据水位 重试 指标来自已完成的运营快照；P50/P95 仅使用存在 first_token_ms 的记录。数据延迟或样本不足时明确显示不可用。 © 2026 极速蹬. 保留所有权利。 文档",
+    "console": [
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to fetch public settings: {status: 500, code: undefined, reason: undefined, error: undefined, message: Request failed with status code 500}"
+      }
+    ],
+    "page_errors": [],
+    "failed_requests": [],
+    "goto_error": null,
+    "screenshot": "docs/visual-reviews/assets/v182-browser-qa/status-1600x1000.png"
+  },
+  {
+    "route": "/en/status",
+    "viewport": "360x800",
+    "reduced_motion": false,
+    "http_status": 200,
+    "title": "Jisudeng System Status",
+    "lang": "en",
+    "dims": {
+      "innerWidth": 360,
+      "scrollWidth": 360,
+      "bodyScrollWidth": 360,
+      "height": 1235
+    },
+    "h1": [
+      "System status"
+    ],
+    "body_text": "Jisudeng EN PUBLIC STATUS · DATA FRESHNESS System status Clear windows, sample sizes, and data freshness for the public service. Unavailable Recorded requests -- 30-day request availability -- 24-hour TTFT P50 -- 24-hour TTFT P95 -- Data watermark unavailable Retry Metrics come from completed operations snapshots. P50/P95 use only records with first_token_ms; delayed or insufficient data is shown as unavailable. © 2026 Jisudeng. All rights reserved. Docs",
+    "console": [
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to fetch public settings: {status: 500, code: undefined, reason: undefined, error: undefined, message: Request failed with status code 500}"
+      }
+    ],
+    "page_errors": [],
+    "failed_requests": [],
+    "goto_error": null,
+    "screenshot": "docs/visual-reviews/assets/v182-browser-qa/en-status-360x800.png"
+  },
+  {
+    "route": "/en/status",
+    "viewport": "768x900",
+    "reduced_motion": false,
+    "http_status": 200,
+    "title": "Jisudeng System Status",
+    "lang": "en",
+    "dims": {
+      "innerWidth": 768,
+      "scrollWidth": 768,
+      "bodyScrollWidth": 768,
+      "height": 900
+    },
+    "h1": [
+      "System status"
+    ],
+    "body_text": "Jisudeng View Documentation EN PUBLIC STATUS · DATA FRESHNESS System status Clear windows, sample sizes, and data freshness for the public service. Unavailable Recorded requests -- 30-day request availability -- 24-hour TTFT P50 -- 24-hour TTFT P95 -- Data watermark unavailable Retry Metrics come from completed operations snapshots. P50/P95 use only records with first_token_ms; delayed or insufficient data is shown as unavailable. © 2026 Jisudeng. All rights reserved. Docs",
+    "console": [
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to fetch public settings: {status: 500, code: undefined, reason: undefined, error: undefined, message: Request failed with status code 500}"
+      }
+    ],
+    "page_errors": [],
+    "failed_requests": [],
+    "goto_error": null,
+    "screenshot": "docs/visual-reviews/assets/v182-browser-qa/en-status-768x900.png"
+  },
+  {
+    "route": "/en/status",
+    "viewport": "1280x800",
+    "reduced_motion": false,
+    "http_status": 200,
+    "title": "Jisudeng System Status",
+    "lang": "en",
+    "dims": {
+      "innerWidth": 1280,
+      "scrollWidth": 1280,
+      "bodyScrollWidth": 1280,
+      "height": 800
+    },
+    "h1": [
+      "System status"
+    ],
+    "body_text": "Jisudeng View Documentation EN English PUBLIC STATUS · DATA FRESHNESS System status Clear windows, sample sizes, and data freshness for the public service. Unavailable Recorded requests -- 30-day request availability -- 24-hour TTFT P50 -- 24-hour TTFT P95 -- Data watermark unavailable Retry Metrics come from completed operations snapshots. P50/P95 use only records with first_token_ms; delayed or insufficient data is shown as unavailable. © 2026 Jisudeng. All rights reserved. Docs",
+    "console": [
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to fetch public settings: {status: 500, code: undefined, reason: undefined, error: undefined, message: Request failed with status code 500}"
+      }
+    ],
+    "page_errors": [],
+    "failed_requests": [],
+    "goto_error": null,
+    "screenshot": "docs/visual-reviews/assets/v182-browser-qa/en-status-1280x800.png"
+  },
+  {
+    "route": "/en/status",
+    "viewport": "1600x1000",
+    "reduced_motion": false,
+    "http_status": 200,
+    "title": "Jisudeng System Status",
+    "lang": "en",
+    "dims": {
+      "innerWidth": 1600,
+      "scrollWidth": 1600,
+      "bodyScrollWidth": 1600,
+      "height": 1000
+    },
+    "h1": [
+      "System status"
+    ],
+    "body_text": "Jisudeng View Documentation EN English PUBLIC STATUS · DATA FRESHNESS System status Clear windows, sample sizes, and data freshness for the public service. Unavailable Recorded requests -- 30-day request availability -- 24-hour TTFT P50 -- 24-hour TTFT P95 -- Data watermark unavailable Retry Metrics come from completed operations snapshots. P50/P95 use only records with first_token_ms; delayed or insufficient data is shown as unavailable. © 2026 Jisudeng. All rights reserved. Docs",
+    "console": [
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to fetch public settings: {status: 500, code: undefined, reason: undefined, error: undefined, message: Request failed with status code 500}"
+      }
+    ],
+    "page_errors": [],
+    "failed_requests": [],
+    "goto_error": null,
+    "screenshot": "docs/visual-reviews/assets/v182-browser-qa/en-status-1600x1000.png"
+  },
+  {
+    "route": "/docs",
+    "viewport": "360x800",
+    "reduced_motion": false,
+    "http_status": 200,
+    "title": "极速蹬 API 文档 - OpenAI兼容接口、模型调用与计费指南",
+    "lang": "zh-CN",
+    "dims": {
+      "innerWidth": 360,
+      "scrollWidth": 360,
+      "bodyScrollWidth": 360,
+      "height": 2463
+    },
+    "h1": [
+      "使用文档"
+    ],
+    "body_text": "← 返回首页 文档 · 目录 中 注册 文档 · 目录 使用文档 挑选一个分类开始阅读 — 教程、充值、模型选型、CLI 接入与 Vibe Coding 工具，一站式速查。 📘 使用教程 从零上手 · API Key 创建 · 调用示例 快速开始 API Key 管理 并发与限流 → ⭐ 充值与 VIP VIP 分级 · 充值到账加赠 · 充值流程 · 签到奖励 VIP 分级体系 充值流程 每日签到 Play 权益与充值加赠 +4 → 🛡️ 了解我们 中转技术真伪 · 隐私边界 · 我们的承诺 为什么我们是真的中转 隐私边界 · 我们存什么 → 🧠 模型学习 可用模型 · 选型建议 · 调用范例 可用模型一览 如何选模型 调用最佳实践 → 🚀 接入部署 图片 API · 主流 AI 编程 CLI 接入极速蹬 · 一步到位 图片生成 API Batch Image 持久批任务 异步图片任务 Claude Code CLI 接入 +3 → 🧰 工具与客户端 主流开源 AI 编程客户端 / IDE / 配置工具 · 一键接入极速蹬 CC-Switch · Claude Code 配置切换 大龙虾 (OpenClaw) · 终端 AI 助手 Hermes Agent · Python 终端 AI CherryStudio 桌面客户端 +4 → ⚙️ 环境准备 Node.js 分平台安装 · 终端 · 网络 Node.js · Windows Node.js · macOS Node.js · Linux 网络与代理 → ✨ Vibe Coding 必装 插件 · Skill · 工作流",
+    "console": [
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to fetch public settings: {status: 500, code: undefined, reason: undefined, error: undefined, message: Request failed with status code 500}"
+      }
+    ],
+    "page_errors": [],
+    "failed_requests": [],
+    "goto_error": null,
+    "screenshot": "docs/visual-reviews/assets/v182-browser-qa/docs-360x800.png"
+  },
+  {
+    "route": "/docs",
+    "viewport": "768x900",
+    "reduced_motion": false,
+    "http_status": 200,
+    "title": "极速蹬 API 文档 - OpenAI兼容接口、模型调用与计费指南",
+    "lang": "zh-CN",
+    "dims": {
+      "innerWidth": 768,
+      "scrollWidth": 768,
+      "bodyScrollWidth": 768,
+      "height": 1500
+    },
+    "h1": [
+      "使用文档"
+    ],
+    "body_text": "← 返回首页 文档 · 目录 使用文档 中 注册 文档 · 目录 使用文档 挑选一个分类开始阅读 — 教程、充值、模型选型、CLI 接入与 Vibe Coding 工具，一站式速查。 📘 使用教程 从零上手 · API Key 创建 · 调用示例 快速开始 API Key 管理 并发与限流 → ⭐ 充值与 VIP VIP 分级 · 充值到账加赠 · 充值流程 · 签到奖励 VIP 分级体系 充值流程 每日签到 Play 权益与充值加赠 +4 → 🛡️ 了解我们 中转技术真伪 · 隐私边界 · 我们的承诺 为什么我们是真的中转 隐私边界 · 我们存什么 → 🧠 模型学习 可用模型 · 选型建议 · 调用范例 可用模型一览 如何选模型 调用最佳实践 → 🚀 接入部署 图片 API · 主流 AI 编程 CLI 接入极速蹬 · 一步到位 图片生成 API Batch Image 持久批任务 异步图片任务 Claude Code CLI 接入 +3 → 🧰 工具与客户端 主流开源 AI 编程客户端 / IDE / 配置工具 · 一键接入极速蹬 CC-Switch · Claude Code 配置切换 大龙虾 (OpenClaw) · 终端 AI 助手 Hermes Agent · Python 终端 AI CherryStudio 桌面客户端 +4 → ⚙️ 环境准备 Node.js 分平台安装 · 终端 · 网络 Node.js · Windows Node.js · macOS Node.js · Linux 网络与代理 → ✨ Vibe Coding 必装 插件 · Skill ",
+    "console": [
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to fetch public settings: {status: 500, code: undefined, reason: undefined, error: undefined, message: Request failed with status code 500}"
+      }
+    ],
+    "page_errors": [],
+    "failed_requests": [],
+    "goto_error": null,
+    "screenshot": "docs/visual-reviews/assets/v182-browser-qa/docs-768x900.png"
+  },
+  {
+    "route": "/docs",
+    "viewport": "1280x800",
+    "reduced_motion": false,
+    "http_status": 200,
+    "title": "极速蹬 API 文档 - OpenAI兼容接口、模型调用与计费指南",
+    "lang": "zh-CN",
+    "dims": {
+      "innerWidth": 1280,
+      "scrollWidth": 1280,
+      "bodyScrollWidth": 1280,
+      "height": 997
+    },
+    "h1": [
+      "使用文档"
+    ],
+    "body_text": "← 返回首页 文档 · 目录 使用文档 中 简体中文 注册 文档 · 目录 使用文档 挑选一个分类开始阅读 — 教程、充值、模型选型、CLI 接入与 Vibe Coding 工具，一站式速查。 📘 使用教程 从零上手 · API Key 创建 · 调用示例 快速开始 API Key 管理 并发与限流 → ⭐ 充值与 VIP VIP 分级 · 充值到账加赠 · 充值流程 · 签到奖励 VIP 分级体系 充值流程 每日签到 Play 权益与充值加赠 +4 → 🛡️ 了解我们 中转技术真伪 · 隐私边界 · 我们的承诺 为什么我们是真的中转 隐私边界 · 我们存什么 → 🧠 模型学习 可用模型 · 选型建议 · 调用范例 可用模型一览 如何选模型 调用最佳实践 → 🚀 接入部署 图片 API · 主流 AI 编程 CLI 接入极速蹬 · 一步到位 图片生成 API Batch Image 持久批任务 异步图片任务 Claude Code CLI 接入 +3 → 🧰 工具与客户端 主流开源 AI 编程客户端 / IDE / 配置工具 · 一键接入极速蹬 CC-Switch · Claude Code 配置切换 大龙虾 (OpenClaw) · 终端 AI 助手 Hermes Agent · Python 终端 AI CherryStudio 桌面客户端 +4 → ⚙️ 环境准备 Node.js 分平台安装 · 终端 · 网络 Node.js · Windows Node.js · macOS Node.js · Linux 网络与代理 → ✨ Vibe Coding 必装 插件 · S",
+    "console": [
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to fetch public settings: {status: 500, code: undefined, reason: undefined, error: undefined, message: Request failed with status code 500}"
+      }
+    ],
+    "page_errors": [],
+    "failed_requests": [],
+    "goto_error": null,
+    "screenshot": "docs/visual-reviews/assets/v182-browser-qa/docs-1280x800.png"
+  },
+  {
+    "route": "/docs",
+    "viewport": "1600x1000",
+    "reduced_motion": false,
+    "http_status": 200,
+    "title": "极速蹬 API 文档 - OpenAI兼容接口、模型调用与计费指南",
+    "lang": "zh-CN",
+    "dims": {
+      "innerWidth": 1600,
+      "scrollWidth": 1600,
+      "bodyScrollWidth": 1600,
+      "height": 1000
+    },
+    "h1": [
+      "使用文档"
+    ],
+    "body_text": "← 返回首页 文档 · 目录 使用文档 中 简体中文 注册 文档 · 目录 使用文档 挑选一个分类开始阅读 — 教程、充值、模型选型、CLI 接入与 Vibe Coding 工具，一站式速查。 📘 使用教程 从零上手 · API Key 创建 · 调用示例 快速开始 API Key 管理 并发与限流 → ⭐ 充值与 VIP VIP 分级 · 充值到账加赠 · 充值流程 · 签到奖励 VIP 分级体系 充值流程 每日签到 Play 权益与充值加赠 +4 → 🛡️ 了解我们 中转技术真伪 · 隐私边界 · 我们的承诺 为什么我们是真的中转 隐私边界 · 我们存什么 → 🧠 模型学习 可用模型 · 选型建议 · 调用范例 可用模型一览 如何选模型 调用最佳实践 → 🚀 接入部署 图片 API · 主流 AI 编程 CLI 接入极速蹬 · 一步到位 图片生成 API Batch Image 持久批任务 异步图片任务 Claude Code CLI 接入 +3 → 🧰 工具与客户端 主流开源 AI 编程客户端 / IDE / 配置工具 · 一键接入极速蹬 CC-Switch · Claude Code 配置切换 大龙虾 (OpenClaw) · 终端 AI 助手 Hermes Agent · Python 终端 AI CherryStudio 桌面客户端 +4 → ⚙️ 环境准备 Node.js 分平台安装 · 终端 · 网络 Node.js · Windows Node.js · macOS Node.js · Linux 网络与代理 → ✨ Vibe Coding 必装 插件 · S",
+    "console": [
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to fetch public settings: {status: 500, code: undefined, reason: undefined, error: undefined, message: Request failed with status code 500}"
+      }
+    ],
+    "page_errors": [],
+    "failed_requests": [],
+    "goto_error": null,
+    "screenshot": "docs/visual-reviews/assets/v182-browser-qa/docs-1600x1000.png"
+  },
+  {
+    "route": "/en/docs",
+    "viewport": "360x800",
+    "reduced_motion": false,
+    "http_status": 200,
+    "title": "Jisudeng API Docs: OpenAI-Compatible Gateway, Models, Images",
+    "lang": "en",
+    "dims": {
+      "innerWidth": 360,
+      "scrollWidth": 365,
+      "bodyScrollWidth": 365,
+      "height": 2616
+    },
+    "h1": [
+      "Documentation"
+    ],
+    "body_text": "← Back home DOCS EN Sign up DOCS Documentation Tutorials, billing, models, CLI setup, and Vibe Coding tools — all in one place. 📘 Quickstart API keys, first calls, rate limits, and practical setup notes Use Jisudeng with your existing OpenAI SDK API key setup Concurrency and rate limits → ⭐ Billing and Perks Recharge, VIP levels, check-in rewards, and usage programs VIP levels How to recharge Daily check-in Discount examples +4 → 🛡️ About Jisudeng Platform principles, privacy posture, and service boundaries Platform overview Privacy and request data → 🧠 Models and Pricing Model catalog, model choice, and request best practices Model list Choose a model Model calling best practices → 🚀 API an",
+    "console": [
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to fetch public settings: {status: 500, code: undefined, reason: undefined, error: undefined, message: Request failed with status code 500}"
+      }
+    ],
+    "page_errors": [],
+    "failed_requests": [],
+    "goto_error": null,
+    "screenshot": "docs/visual-reviews/assets/v182-browser-qa/en-docs-360x800.png"
+  },
+  {
+    "route": "/en/docs",
+    "viewport": "768x900",
+    "reduced_motion": false,
+    "http_status": 200,
+    "title": "Jisudeng API Docs: OpenAI-Compatible Gateway, Models, Images",
+    "lang": "en",
+    "dims": {
+      "innerWidth": 768,
+      "scrollWidth": 768,
+      "bodyScrollWidth": 768,
+      "height": 1422
+    },
+    "h1": [
+      "Documentation"
+    ],
+    "body_text": "← Back home DOCS Documentation EN Sign up DOCS Documentation Tutorials, billing, models, CLI setup, and Vibe Coding tools — all in one place. 📘 Quickstart API keys, first calls, rate limits, and practical setup notes Use Jisudeng with your existing OpenAI SDK API key setup Concurrency and rate limits → ⭐ Billing and Perks Recharge, VIP levels, check-in rewards, and usage programs VIP levels How to recharge Daily check-in Discount examples +4 → 🛡️ About Jisudeng Platform principles, privacy posture, and service boundaries Platform overview Privacy and request data → 🧠 Models and Pricing Model catalog, model choice, and request best practices Model list Choose a model Model calling best practi",
+    "console": [
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to fetch public settings: {status: 500, code: undefined, reason: undefined, error: undefined, message: Request failed with status code 500}"
+      }
+    ],
+    "page_errors": [],
+    "failed_requests": [],
+    "goto_error": null,
+    "screenshot": "docs/visual-reviews/assets/v182-browser-qa/en-docs-768x900.png"
+  },
+  {
+    "route": "/en/docs",
+    "viewport": "1280x800",
+    "reduced_motion": false,
+    "http_status": 200,
+    "title": "Jisudeng API Docs: OpenAI-Compatible Gateway, Models, Images",
+    "lang": "en",
+    "dims": {
+      "innerWidth": 1280,
+      "scrollWidth": 1280,
+      "bodyScrollWidth": 1280,
+      "height": 988
+    },
+    "h1": [
+      "Documentation"
+    ],
+    "body_text": "← Back home DOCS Documentation EN English Sign up DOCS Documentation Tutorials, billing, models, CLI setup, and Vibe Coding tools — all in one place. 📘 Quickstart API keys, first calls, rate limits, and practical setup notes Use Jisudeng with your existing OpenAI SDK API key setup Concurrency and rate limits → ⭐ Billing and Perks Recharge, VIP levels, check-in rewards, and usage programs VIP levels How to recharge Daily check-in Discount examples +4 → 🛡️ About Jisudeng Platform principles, privacy posture, and service boundaries Platform overview Privacy and request data → 🧠 Models and Pricing Model catalog, model choice, and request best practices Model list Choose a model Model calling bes",
+    "console": [
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to fetch public settings: {status: 500, code: undefined, reason: undefined, error: undefined, message: Request failed with status code 500}"
+      }
+    ],
+    "page_errors": [],
+    "failed_requests": [],
+    "goto_error": null,
+    "screenshot": "docs/visual-reviews/assets/v182-browser-qa/en-docs-1280x800.png"
+  },
+  {
+    "route": "/en/docs",
+    "viewport": "1600x1000",
+    "reduced_motion": false,
+    "http_status": 200,
+    "title": "Jisudeng API Docs: OpenAI-Compatible Gateway, Models, Images",
+    "lang": "en",
+    "dims": {
+      "innerWidth": 1600,
+      "scrollWidth": 1600,
+      "bodyScrollWidth": 1600,
+      "height": 1000
+    },
+    "h1": [
+      "Documentation"
+    ],
+    "body_text": "← Back home DOCS Documentation EN English Sign up DOCS Documentation Tutorials, billing, models, CLI setup, and Vibe Coding tools — all in one place. 📘 Quickstart API keys, first calls, rate limits, and practical setup notes Use Jisudeng with your existing OpenAI SDK API key setup Concurrency and rate limits → ⭐ Billing and Perks Recharge, VIP levels, check-in rewards, and usage programs VIP levels How to recharge Daily check-in Discount examples +4 → 🛡️ About Jisudeng Platform principles, privacy posture, and service boundaries Platform overview Privacy and request data → 🧠 Models and Pricing Model catalog, model choice, and request best practices Model list Choose a model Model calling bes",
+    "console": [
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to fetch public settings: {status: 500, code: undefined, reason: undefined, error: undefined, message: Request failed with status code 500}"
+      }
+    ],
+    "page_errors": [],
+    "failed_requests": [],
+    "goto_error": null,
+    "screenshot": "docs/visual-reviews/assets/v182-browser-qa/en-docs-1600x1000.png"
+  },
+  {
+    "route": "/catalog",
+    "viewport": "360x800",
+    "reduced_motion": false,
+    "http_status": 200,
+    "title": "极速蹬模型价格与 API 目录 - 多模型公开计费与调用指南",
+    "lang": "zh-CN",
+    "dims": {
+      "innerWidth": 360,
+      "scrollWidth": 360,
+      "bodyScrollWidth": 360,
+      "height": 800
+    },
+    "h1": [
+      "模型广场"
+    ],
+    "body_text": "登录 模型广场 按分组浏览可用模型与价格 登录后可查看你的专属分组与专属倍率 加载模型广场失败",
+    "console": [
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to fetch public settings: {status: 500, code: undefined, reason: undefined, error: undefined, message: Request failed with status code 500}"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to fetch public settings: {status: 500, code: undefined, reason: undefined, error: undefined, message: Request failed with status code 500}"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      }
+    ],
+    "page_errors": [],
+    "failed_requests": [],
+    "goto_error": null,
+    "screenshot": "docs/visual-reviews/assets/v182-browser-qa/catalog-360x800.png"
+  },
+  {
+    "route": "/catalog",
+    "viewport": "768x900",
+    "reduced_motion": false,
+    "http_status": 200,
+    "title": "极速蹬模型价格与 API 目录 - 多模型公开计费与调用指南",
+    "lang": "zh-CN",
+    "dims": {
+      "innerWidth": 768,
+      "scrollWidth": 768,
+      "bodyScrollWidth": 768,
+      "height": 900
+    },
+    "h1": [
+      "模型广场"
+    ],
+    "body_text": "登录 模型广场 按分组浏览可用模型与价格 登录后可查看你的专属分组与专属倍率 加载模型广场失败",
+    "console": [
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to fetch public settings: {status: 500, code: undefined, reason: undefined, error: undefined, message: Request failed with status code 500}"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to fetch public settings: {status: 500, code: undefined, reason: undefined, error: undefined, message: Request failed with status code 500}"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      }
+    ],
+    "page_errors": [],
+    "failed_requests": [],
+    "goto_error": null,
+    "screenshot": "docs/visual-reviews/assets/v182-browser-qa/catalog-768x900.png"
+  },
+  {
+    "route": "/catalog",
+    "viewport": "1280x800",
+    "reduced_motion": false,
+    "http_status": 200,
+    "title": "极速蹬模型价格与 API 目录 - 多模型公开计费与调用指南",
+    "lang": "zh-CN",
+    "dims": {
+      "innerWidth": 1280,
+      "scrollWidth": 1280,
+      "bodyScrollWidth": 1280,
+      "height": 800
+    },
+    "h1": [
+      "模型广场"
+    ],
+    "body_text": "登录 模型广场 按分组浏览可用模型与价格 登录后可查看你的专属分组与专属倍率 加载模型广场失败",
+    "console": [
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to fetch public settings: {status: 500, code: undefined, reason: undefined, error: undefined, message: Request failed with status code 500}"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to fetch public settings: {status: 500, code: undefined, reason: undefined, error: undefined, message: Request failed with status code 500}"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      }
+    ],
+    "page_errors": [],
+    "failed_requests": [],
+    "goto_error": null,
+    "screenshot": "docs/visual-reviews/assets/v182-browser-qa/catalog-1280x800.png"
+  },
+  {
+    "route": "/catalog",
+    "viewport": "1600x1000",
+    "reduced_motion": false,
+    "http_status": 200,
+    "title": "极速蹬模型价格与 API 目录 - 多模型公开计费与调用指南",
+    "lang": "zh-CN",
+    "dims": {
+      "innerWidth": 1600,
+      "scrollWidth": 1600,
+      "bodyScrollWidth": 1600,
+      "height": 1000
+    },
+    "h1": [
+      "模型广场"
+    ],
+    "body_text": "登录 模型广场 按分组浏览可用模型与价格 登录后可查看你的专属分组与专属倍率 加载模型广场失败",
+    "console": [
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to fetch public settings: {status: 500, code: undefined, reason: undefined, error: undefined, message: Request failed with status code 500}"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to fetch public settings: {status: 500, code: undefined, reason: undefined, error: undefined, message: Request failed with status code 500}"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      }
+    ],
+    "page_errors": [],
+    "failed_requests": [],
+    "goto_error": null,
+    "screenshot": "docs/visual-reviews/assets/v182-browser-qa/catalog-1600x1000.png"
+  },
+  {
+    "route": "/en/catalog",
+    "viewport": "360x800",
+    "reduced_motion": false,
+    "http_status": 200,
+    "title": "DeepSeek, Qwen, Kimi, GLM, Claude API Pricing | Jisudeng",
+    "lang": "en",
+    "dims": {
+      "innerWidth": 360,
+      "scrollWidth": 360,
+      "bodyScrollWidth": 360,
+      "height": 800
+    },
+    "h1": [
+      "Model Plaza"
+    ],
+    "body_text": "Sign In Model Plaza Browse available models and pricing by group Sign in to see your exclusive groups and personal rates Failed to load model plaza",
+    "console": [
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to fetch public settings: {status: 500, code: undefined, reason: undefined, error: undefined, message: Request failed with status code 500}"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to fetch public settings: {status: 500, code: undefined, reason: undefined, error: undefined, message: Request failed with status code 500}"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      }
+    ],
+    "page_errors": [],
+    "failed_requests": [],
+    "goto_error": null,
+    "screenshot": "docs/visual-reviews/assets/v182-browser-qa/en-catalog-360x800.png"
+  },
+  {
+    "route": "/en/catalog",
+    "viewport": "768x900",
+    "reduced_motion": false,
+    "http_status": 200,
+    "title": "DeepSeek, Qwen, Kimi, GLM, Claude API Pricing | Jisudeng",
+    "lang": "en",
+    "dims": {
+      "innerWidth": 768,
+      "scrollWidth": 768,
+      "bodyScrollWidth": 768,
+      "height": 900
+    },
+    "h1": [
+      "Model Plaza"
+    ],
+    "body_text": "Sign In Model Plaza Browse available models and pricing by group Sign in to see your exclusive groups and personal rates Failed to load model plaza",
+    "console": [
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to fetch public settings: {status: 500, code: undefined, reason: undefined, error: undefined, message: Request failed with status code 500}"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to fetch public settings: {status: 500, code: undefined, reason: undefined, error: undefined, message: Request failed with status code 500}"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      }
+    ],
+    "page_errors": [],
+    "failed_requests": [],
+    "goto_error": null,
+    "screenshot": "docs/visual-reviews/assets/v182-browser-qa/en-catalog-768x900.png"
+  },
+  {
+    "route": "/en/catalog",
+    "viewport": "1280x800",
+    "reduced_motion": false,
+    "http_status": 200,
+    "title": "DeepSeek, Qwen, Kimi, GLM, Claude API Pricing | Jisudeng",
+    "lang": "en",
+    "dims": {
+      "innerWidth": 1280,
+      "scrollWidth": 1280,
+      "bodyScrollWidth": 1280,
+      "height": 800
+    },
+    "h1": [
+      "Model Plaza"
+    ],
+    "body_text": "Sign In Model Plaza Browse available models and pricing by group Sign in to see your exclusive groups and personal rates Failed to load model plaza",
+    "console": [
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to fetch public settings: {status: 500, code: undefined, reason: undefined, error: undefined, message: Request failed with status code 500}"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to fetch public settings: {status: 500, code: undefined, reason: undefined, error: undefined, message: Request failed with status code 500}"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      }
+    ],
+    "page_errors": [],
+    "failed_requests": [],
+    "goto_error": null,
+    "screenshot": "docs/visual-reviews/assets/v182-browser-qa/en-catalog-1280x800.png"
+  },
+  {
+    "route": "/en/catalog",
+    "viewport": "1600x1000",
+    "reduced_motion": false,
+    "http_status": 200,
+    "title": "DeepSeek, Qwen, Kimi, GLM, Claude API Pricing | Jisudeng",
+    "lang": "en",
+    "dims": {
+      "innerWidth": 1600,
+      "scrollWidth": 1600,
+      "bodyScrollWidth": 1600,
+      "height": 1000
+    },
+    "h1": [
+      "Model Plaza"
+    ],
+    "body_text": "Sign In Model Plaza Browse available models and pricing by group Sign in to see your exclusive groups and personal rates Failed to load model plaza",
+    "console": [
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to fetch public settings: {status: 500, code: undefined, reason: undefined, error: undefined, message: Request failed with status code 500}"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to fetch public settings: {status: 500, code: undefined, reason: undefined, error: undefined, message: Request failed with status code 500}"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      }
+    ],
+    "page_errors": [],
+    "failed_requests": [],
+    "goto_error": null,
+    "screenshot": "docs/visual-reviews/assets/v182-browser-qa/en-catalog-1600x1000.png"
+  },
+  {
+    "route": "/blindbox",
+    "viewport": "360x800",
+    "reduced_motion": false,
+    "http_status": 200,
+    "title": "消耗 Token，开出惊喜 | 极速蹬",
+    "lang": "zh-CN",
+    "dims": {
+      "innerWidth": 360,
+      "scrollWidth": 360,
+      "bodyScrollWidth": 360,
+      "height": 1539
+    },
+    "h1": [
+      "消耗 Token，开出惊喜"
+    ],
+    "body_text": "← 返回首页 中 玩法 · 盲盒 消耗 Token，开出惊喜 把 API 调用变成一点小期待 — 随机奖励测试额度或余额加成。 盲盒是极速蹬的正反馈玩法之一：在控制台消耗一定 Token 后可开启盲盒，奖池包含测试额度、充值加成券等。具体奖池与概率以控制台实时展示为准。 奖池预览 奖池预览 0 开启盲盒 0/0 近期中奖 0 奖池预览 当前 VIP 奖池下列金额档位显示单次开箱的整体命中概率；优惠券按独立券池权重抽取。 每次开箱会按后台当前发布的奖池比例随机开奖，奖励可能是优惠券、兑换码或余额，具体以后台配置为准。 奖池暂不可用，请稍后再试 近期中奖 近期中奖记录暂不可用",
+    "console": [
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to fetch public settings: {status: 500, code: undefined, reason: undefined, error: undefined, message: Request failed with status code 500}"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      }
+    ],
+    "page_errors": [],
+    "failed_requests": [],
+    "goto_error": null,
+    "screenshot": "docs/visual-reviews/assets/v182-browser-qa/blindbox-360x800.png"
+  },
+  {
+    "route": "/blindbox",
+    "viewport": "768x900",
+    "reduced_motion": false,
+    "http_status": 200,
+    "title": "消耗 Token，开出惊喜 | 极速蹬",
+    "lang": "zh-CN",
+    "dims": {
+      "innerWidth": 768,
+      "scrollWidth": 768,
+      "bodyScrollWidth": 768,
+      "height": 1150
+    },
+    "h1": [
+      "消耗 Token，开出惊喜"
+    ],
+    "body_text": "← 返回首页 中 玩法 · 盲盒 消耗 Token，开出惊喜 把 API 调用变成一点小期待 — 随机奖励测试额度或余额加成。 盲盒是极速蹬的正反馈玩法之一：在控制台消耗一定 Token 后可开启盲盒，奖池包含测试额度、充值加成券等。具体奖池与概率以控制台实时展示为准。 奖池预览 奖池预览 0 开启盲盒 0/0 近期中奖 0 奖池预览 当前 VIP 奖池下列金额档位显示单次开箱的整体命中概率；优惠券按独立券池权重抽取。 每次开箱会按后台当前发布的奖池比例随机开奖，奖励可能是优惠券、兑换码或余额，具体以后台配置为准。 奖池暂不可用，请稍后再试 近期中奖 近期中奖记录暂不可用",
+    "console": [
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to fetch public settings: {status: 500, code: undefined, reason: undefined, error: undefined, message: Request failed with status code 500}"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      }
+    ],
+    "page_errors": [],
+    "failed_requests": [],
+    "goto_error": null,
+    "screenshot": "docs/visual-reviews/assets/v182-browser-qa/blindbox-768x900.png"
+  },
+  {
+    "route": "/blindbox",
+    "viewport": "1280x800",
+    "reduced_motion": false,
+    "http_status": 200,
+    "title": "消耗 Token，开出惊喜 | 极速蹬",
+    "lang": "zh-CN",
+    "dims": {
+      "innerWidth": 1280,
+      "scrollWidth": 1280,
+      "bodyScrollWidth": 1280,
+      "height": 888
+    },
+    "h1": [
+      "消耗 Token，开出惊喜"
+    ],
+    "body_text": "← 返回首页 中 简体中文 玩法 · 盲盒 消耗 Token，开出惊喜 把 API 调用变成一点小期待 — 随机奖励测试额度或余额加成。 盲盒是极速蹬的正反馈玩法之一：在控制台消耗一定 Token 后可开启盲盒，奖池包含测试额度、充值加成券等。具体奖池与概率以控制台实时展示为准。 奖池预览 奖池预览 0 开启盲盒 0/0 近期中奖 0 奖池预览 当前 VIP 奖池下列金额档位显示单次开箱的整体命中概率；优惠券按独立券池权重抽取。 每次开箱会按后台当前发布的奖池比例随机开奖，奖励可能是优惠券、兑换码或余额，具体以后台配置为准。 奖池暂不可用，请稍后再试 近期中奖 近期中奖记录暂不可用",
+    "console": [
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to fetch public settings: {status: 500, code: undefined, reason: undefined, error: undefined, message: Request failed with status code 500}"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      }
+    ],
+    "page_errors": [],
+    "failed_requests": [],
+    "goto_error": null,
+    "screenshot": "docs/visual-reviews/assets/v182-browser-qa/blindbox-1280x800.png"
+  },
+  {
+    "route": "/blindbox",
+    "viewport": "1600x1000",
+    "reduced_motion": false,
+    "http_status": 200,
+    "title": "消耗 Token，开出惊喜 | 极速蹬",
+    "lang": "zh-CN",
+    "dims": {
+      "innerWidth": 1600,
+      "scrollWidth": 1600,
+      "bodyScrollWidth": 1600,
+      "height": 1000
+    },
+    "h1": [
+      "消耗 Token，开出惊喜"
+    ],
+    "body_text": "← 返回首页 中 简体中文 玩法 · 盲盒 消耗 Token，开出惊喜 把 API 调用变成一点小期待 — 随机奖励测试额度或余额加成。 盲盒是极速蹬的正反馈玩法之一：在控制台消耗一定 Token 后可开启盲盒，奖池包含测试额度、充值加成券等。具体奖池与概率以控制台实时展示为准。 奖池预览 奖池预览 0 开启盲盒 0/0 近期中奖 0 奖池预览 当前 VIP 奖池下列金额档位显示单次开箱的整体命中概率；优惠券按独立券池权重抽取。 每次开箱会按后台当前发布的奖池比例随机开奖，奖励可能是优惠券、兑换码或余额，具体以后台配置为准。 奖池暂不可用，请稍后再试 近期中奖 近期中奖记录暂不可用",
+    "console": [
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to fetch public settings: {status: 500, code: undefined, reason: undefined, error: undefined, message: Request failed with status code 500}"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      }
+    ],
+    "page_errors": [],
+    "failed_requests": [],
+    "goto_error": null,
+    "screenshot": "docs/visual-reviews/assets/v182-browser-qa/blindbox-1600x1000.png"
+  },
+  {
+    "route": "/check-in",
+    "viewport": "360x800",
+    "reduced_motion": false,
+    "http_status": 200,
+    "title": "登录 | 极速蹬",
+    "lang": "zh-CN",
+    "dims": {
+      "innerWidth": 360,
+      "scrollWidth": 360,
+      "bodyScrollWidth": 360,
+      "height": 800
+    },
+    "h1": [
+      "一念之轻接万模之响"
+    ],
+    "body_text": "极速蹬 中 返回首页 欢迎回来 登录您的账户以继续 邮箱 密码 登录 还没有账户？ 注册 © 2026 极速蹬 · 让一念之间链接每个模型",
+    "console": [
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to fetch public settings: {status: 500, code: undefined, reason: undefined, error: undefined, message: Request failed with status code 500}"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load public settings: {status: 500, code: undefined, reason: undefined, error: undefined, message: Request failed with status code 500}"
+      }
+    ],
+    "page_errors": [],
+    "failed_requests": [],
+    "goto_error": null,
+    "screenshot": "docs/visual-reviews/assets/v182-browser-qa/check-in-360x800.png"
+  },
+  {
+    "route": "/check-in",
+    "viewport": "768x900",
+    "reduced_motion": false,
+    "http_status": 200,
+    "title": "登录 | 极速蹬",
+    "lang": "zh-CN",
+    "dims": {
+      "innerWidth": 768,
+      "scrollWidth": 768,
+      "bodyScrollWidth": 768,
+      "height": 900
+    },
+    "h1": [
+      "一念之轻接万模之响"
+    ],
+    "body_text": "极速蹬 中 返回首页 欢迎回来 登录您的账户以继续 邮箱 密码 登录 还没有账户？ 注册 © 2026 极速蹬 · 让一念之间链接每个模型",
+    "console": [
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to fetch public settings: {status: 500, code: undefined, reason: undefined, error: undefined, message: Request failed with status code 500}"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load public settings: {status: 500, code: undefined, reason: undefined, error: undefined, message: Request failed with status code 500}"
+      }
+    ],
+    "page_errors": [],
+    "failed_requests": [],
+    "goto_error": null,
+    "screenshot": "docs/visual-reviews/assets/v182-browser-qa/check-in-768x900.png"
+  },
+  {
+    "route": "/check-in",
+    "viewport": "1280x800",
+    "reduced_motion": false,
+    "http_status": 200,
+    "title": "登录 | 极速蹬",
+    "lang": "zh-CN",
+    "dims": {
+      "innerWidth": 1280,
+      "scrollWidth": 1280,
+      "bodyScrollWidth": 1280,
+      "height": 800
+    },
+    "h1": [
+      "一念之轻\n接万模之响"
+    ],
+    "body_text": "极速蹬 中 简体中文 返回首页 隐私 · 透明 · 一念可达 一念之轻 接万模之响 不存请求体 · 不参与训练 全链路 TLS · 全程可审计 注册即开 · 秒级接入 欢迎回来 登录您的账户以继续 邮箱 密码 登录 还没有账户？ 注册 © 2026 极速蹬 · 让一念之间链接每个模型",
+    "console": [
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to fetch public settings: {status: 500, code: undefined, reason: undefined, error: undefined, message: Request failed with status code 500}"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load public settings: {status: 500, code: undefined, reason: undefined, error: undefined, message: Request failed with status code 500}"
+      }
+    ],
+    "page_errors": [],
+    "failed_requests": [],
+    "goto_error": null,
+    "screenshot": "docs/visual-reviews/assets/v182-browser-qa/check-in-1280x800.png"
+  },
+  {
+    "route": "/check-in",
+    "viewport": "1600x1000",
+    "reduced_motion": false,
+    "http_status": 200,
+    "title": "登录 | 极速蹬",
+    "lang": "zh-CN",
+    "dims": {
+      "innerWidth": 1600,
+      "scrollWidth": 1600,
+      "bodyScrollWidth": 1600,
+      "height": 1000
+    },
+    "h1": [
+      "一念之轻\n接万模之响"
+    ],
+    "body_text": "极速蹬 中 简体中文 返回首页 隐私 · 透明 · 一念可达 一念之轻 接万模之响 不存请求体 · 不参与训练 全链路 TLS · 全程可审计 注册即开 · 秒级接入 欢迎回来 登录您的账户以继续 邮箱 密码 登录 还没有账户？ 注册 © 2026 极速蹬 · 让一念之间链接每个模型",
+    "console": [
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to fetch public settings: {status: 500, code: undefined, reason: undefined, error: undefined, message: Request failed with status code 500}"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load public settings: {status: 500, code: undefined, reason: undefined, error: undefined, message: Request failed with status code 500}"
+      }
+    ],
+    "page_errors": [],
+    "failed_requests": [],
+    "goto_error": null,
+    "screenshot": "docs/visual-reviews/assets/v182-browser-qa/check-in-1600x1000.png"
+  },
+  {
+    "route": "/quiz-quest",
+    "viewport": "360x800",
+    "reduced_motion": false,
+    "http_status": 200,
+    "title": "答题闯关 · 懂模型的人赢奖励 | 极速蹬",
+    "lang": "zh-CN",
+    "dims": {
+      "innerWidth": 360,
+      "scrollWidth": 360,
+      "bodyScrollWidth": 360,
+      "height": 800
+    },
+    "h1": [
+      "答题闯关 · 懂模型的人赢奖励"
+    ],
+    "body_text": "← 返回首页 中 玩法 · 答题闯关 答题闯关 · 懂模型的人赢奖励 提交整套题目后统一开奖，奖励按后台当前答题奖池随机发放，结果即时到账。 答题闯关 答题闯关暂未开启 答题闯关暂未开启",
+    "console": [
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to fetch public settings: {status: 500, code: undefined, reason: undefined, error: undefined, message: Request failed with status code 500}"
+      }
+    ],
+    "page_errors": [],
+    "failed_requests": [],
+    "goto_error": null,
+    "screenshot": "docs/visual-reviews/assets/v182-browser-qa/quiz-quest-360x800.png"
+  },
+  {
+    "route": "/quiz-quest",
+    "viewport": "768x900",
+    "reduced_motion": false,
+    "http_status": 200,
+    "title": "答题闯关 · 懂模型的人赢奖励 | 极速蹬",
+    "lang": "zh-CN",
+    "dims": {
+      "innerWidth": 768,
+      "scrollWidth": 768,
+      "bodyScrollWidth": 768,
+      "height": 900
+    },
+    "h1": [
+      "答题闯关 · 懂模型的人赢奖励"
+    ],
+    "body_text": "← 返回首页 中 玩法 · 答题闯关 答题闯关 · 懂模型的人赢奖励 提交整套题目后统一开奖，奖励按后台当前答题奖池随机发放，结果即时到账。 答题闯关 答题闯关暂未开启 答题闯关暂未开启",
+    "console": [
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to fetch public settings: {status: 500, code: undefined, reason: undefined, error: undefined, message: Request failed with status code 500}"
+      }
+    ],
+    "page_errors": [],
+    "failed_requests": [],
+    "goto_error": null,
+    "screenshot": "docs/visual-reviews/assets/v182-browser-qa/quiz-quest-768x900.png"
+  },
+  {
+    "route": "/quiz-quest",
+    "viewport": "1280x800",
+    "reduced_motion": false,
+    "http_status": 200,
+    "title": "答题闯关 · 懂模型的人赢奖励 | 极速蹬",
+    "lang": "zh-CN",
+    "dims": {
+      "innerWidth": 1280,
+      "scrollWidth": 1280,
+      "bodyScrollWidth": 1280,
+      "height": 800
+    },
+    "h1": [
+      "答题闯关 · 懂模型的人赢奖励"
+    ],
+    "body_text": "← 返回首页 中 简体中文 玩法 · 答题闯关 答题闯关 · 懂模型的人赢奖励 提交整套题目后统一开奖，奖励按后台当前答题奖池随机发放，结果即时到账。 答题闯关 答题闯关暂未开启 答题闯关暂未开启",
+    "console": [
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to fetch public settings: {status: 500, code: undefined, reason: undefined, error: undefined, message: Request failed with status code 500}"
+      }
+    ],
+    "page_errors": [],
+    "failed_requests": [],
+    "goto_error": null,
+    "screenshot": "docs/visual-reviews/assets/v182-browser-qa/quiz-quest-1280x800.png"
+  },
+  {
+    "route": "/quiz-quest",
+    "viewport": "1600x1000",
+    "reduced_motion": false,
+    "http_status": 200,
+    "title": "答题闯关 · 懂模型的人赢奖励 | 极速蹬",
+    "lang": "zh-CN",
+    "dims": {
+      "innerWidth": 1600,
+      "scrollWidth": 1600,
+      "bodyScrollWidth": 1600,
+      "height": 1000
+    },
+    "h1": [
+      "答题闯关 · 懂模型的人赢奖励"
+    ],
+    "body_text": "← 返回首页 中 简体中文 玩法 · 答题闯关 答题闯关 · 懂模型的人赢奖励 提交整套题目后统一开奖，奖励按后台当前答题奖池随机发放，结果即时到账。 答题闯关 答题闯关暂未开启 答题闯关暂未开启",
+    "console": [
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to fetch public settings: {status: 500, code: undefined, reason: undefined, error: undefined, message: Request failed with status code 500}"
+      }
+    ],
+    "page_errors": [],
+    "failed_requests": [],
+    "goto_error": null,
+    "screenshot": "docs/visual-reviews/assets/v182-browser-qa/quiz-quest-1600x1000.png"
+  },
+  {
+    "route": "/",
+    "viewport": "360x800",
+    "reduced_motion": true,
+    "http_status": 200,
+    "title": "极速蹬 - OpenAI兼容 AI API 网关与多模型服务平台",
+    "lang": "zh-CN",
+    "dims": {
+      "innerWidth": 360,
+      "scrollWidth": 360,
+      "bodyScrollWidth": 360,
+      "height": 6194
+    },
+    "h1": [
+      "极速蹬\nAI\n网关\n一个 API Key · Claude / GPT / Gemini · 按 Token 计费 · 无月租"
+    ],
+    "body_text": "极速蹬 最注重隐私的中转站 · 拒绝数据倒卖 · 拒绝模型掺水 极速蹬 AI 网关 一个 API Key · Claude / GPT / Gemini · 按 Token 计费 · 无月租 注册即用 · 官方倍率 · 提示词不落盘 免费领 API Key → 看接入文档 ↗ WORKS ON Claude Code · Codex CLI · Cline · Gemini CLI · Cursor · Continue OUR PROMISE · 我们的承诺 一字不改的 Token，一分不掺的账单 在使用记录中查看验证方式 → 极速蹬 API 网关只做一件事——把你的请求按官方协议原样转发给上游模型，响应再原样回到你手里。不蒸馏、不压缩、不替换模型，你收到的每一个 token 都来自你声明的那个模型本身。 同步请求正文不写日志，响应完成即释放；需要恢复的异步与 Batch 任务只加密或受控保留必要数据，并按保留期清理。不参与训练，不与分析或广告平台共享。 私密 · 最小留存 私密 · 最小留存 同步请求体不写日志、不持久化；异步任务只保留恢复所需的加密或受控数据并按期清理。不参与模型训练，不与第三方分析、监控、广告平台共享。 忠实 · 一字不改 忠实 · 一字不改 上游响应字节级转发，不做提示词改写、不蒸馏、不压缩、不静默切换替代模型。 透明 · 原价对账 透明 · 原价对账 每条计费按上游官方原价计算，只乘以你在「模型与价格」页看到的那个倍率。无隐形倍率、无隐形费用、不另外加价。 迅捷 · 毫秒调度 迅捷 · 毫秒调度 调度链路 sub-100ms 完成，首字时间与官方直连",
+    "console": [
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to fetch public settings: {status: 500, code: undefined, reason: undefined, error: undefined, message: Request failed with status code 500}"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      }
+    ],
+    "page_errors": [],
+    "failed_requests": [],
+    "goto_error": null,
+    "screenshot": "docs/visual-reviews/assets/v182-browser-qa/home-360x800-reduced.png"
+  },
+  {
+    "route": "/",
+    "viewport": "1280x800",
+    "reduced_motion": true,
+    "http_status": 200,
+    "title": "极速蹬 - OpenAI兼容 AI API 网关与多模型服务平台",
+    "lang": "zh-CN",
+    "dims": {
+      "innerWidth": 1280,
+      "scrollWidth": 1280,
+      "bodyScrollWidth": 1280,
+      "height": 6928
+    },
+    "h1": [
+      "极速蹬\nAI\n网关\n一个 API Key · Claude / GPT / Gemini · 按 Token 计费 · 无月租"
+    ],
+    "body_text": "极速蹬 模型与价格 使用文档 AI创作空间 API 查账 了解极速蹬 中 简体中文 下载 APP 登录 免费注册 最注重隐私的中转站 · 拒绝数据倒卖 · 拒绝模型掺水 极速蹬 AI 网关 一个 API Key · Claude / GPT / Gemini · 按 Token 计费 · 无月租 注册即用 · 官方倍率 · 提示词不落盘 免费领 API Key → 看接入文档 ↗ WORKS ON Claude Code · Codex CLI · Cline · Gemini CLI · Cursor · Continue OUR PROMISE · 我们的承诺 一字不改的 Token，一分不掺的账单 在使用记录中查看验证方式 → 极速蹬 API 网关只做一件事——把你的请求按官方协议原样转发给上游模型，响应再原样回到你手里。不蒸馏、不压缩、不替换模型，你收到的每一个 token 都来自你声明的那个模型本身。 同步请求正文不写日志，响应完成即释放；需要恢复的异步与 Batch 任务只加密或受控保留必要数据，并按保留期清理。不参与训练，不与分析或广告平台共享。 私密 · 最小留存 私密 · 最小留存 同步请求体不写日志、不持久化；异步任务只保留恢复所需的加密或受控数据并按期清理。不参与模型训练，不与第三方分析、监控、广告平台共享。 忠实 · 一字不改 忠实 · 一字不改 上游响应字节级转发，不做提示词改写、不蒸馏、不压缩、不静默切换替代模型。 透明 · 原价对账 透明 · 原价对账 每条计费按上游官方原价计算，只乘以你在「模型与价格」页看到的那个倍率。无隐形倍率、无隐形费用、不",
+    "console": [
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to fetch public settings: {status: 500, code: undefined, reason: undefined, error: undefined, message: Request failed with status code 500}"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      }
+    ],
+    "page_errors": [],
+    "failed_requests": [],
+    "goto_error": null,
+    "screenshot": "docs/visual-reviews/assets/v182-browser-qa/home-1280x800-reduced.png"
+  },
+  {
+    "route": "/en",
+    "viewport": "360x800",
+    "reduced_motion": true,
+    "http_status": 200,
+    "title": "Jisudeng: One OpenAI-Compatible API for Frontier AI Models",
+    "lang": "en",
+    "dims": {
+      "innerWidth": 360,
+      "scrollWidth": 360,
+      "bodyScrollWidth": 360,
+      "height": 6492
+    },
+    "h1": [
+      "Jisudeng\nOne API for AI models\nAccess DeepSeek, Qwen, Kimi, GLM, GPT, Claude, Gemini and more through one OpenAI-compatible API."
+    ],
+    "body_text": "Jisudeng Privacy-first · No data resale · No model dilution Jisudeng One API for AI models Access DeepSeek, Qwen, Kimi, GLM, GPT, Claude, Gemini and more through one OpenAI-compatible API. Register in minutes. Official token rates. Prompts never stored. Get API key — free → Read docs ↗ WORKS WITH Claude Code · Codex CLI · Cline · Gemini CLI · Cursor · Continue OUR PROMISE Unchanged tokens, unmixed bills SEE HOW TO VERIFY IN USAGE LOGS → We forward your requests to upstream models exactly as specified — no distillation, compression, or silent model swaps. Synchronous request bodies are not logged and are released after the response. Async and Batch jobs keep only the encrypted or access-contr",
+    "console": [
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to fetch public settings: {status: 500, code: undefined, reason: undefined, error: undefined, message: Request failed with status code 500}"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      }
+    ],
+    "page_errors": [],
+    "failed_requests": [],
+    "goto_error": null,
+    "screenshot": "docs/visual-reviews/assets/v182-browser-qa/en-360x800-reduced.png"
+  },
+  {
+    "route": "/en",
+    "viewport": "1280x800",
+    "reduced_motion": true,
+    "http_status": 200,
+    "title": "Jisudeng: One OpenAI-Compatible API for Frontier AI Models",
+    "lang": "en",
+    "dims": {
+      "innerWidth": 1280,
+      "scrollWidth": 1280,
+      "bodyScrollWidth": 1280,
+      "height": 7060
+    },
+    "h1": [
+      "Jisudeng\nOne API for AI models\nAccess DeepSeek, Qwen, Kimi, GLM, GPT, Claude, Gemini and more through one OpenAI-compatible API."
+    ],
+    "body_text": "Jisudeng Models & Pricing Docs AI Creation Space API Audit About EN English Android App Sign in Register free Privacy-first · No data resale · No model dilution Jisudeng One API for AI models Access DeepSeek, Qwen, Kimi, GLM, GPT, Claude, Gemini and more through one OpenAI-compatible API. Register in minutes. Official token rates. Prompts never stored. Get API key — free → Read docs ↗ WORKS WITH Claude Code · Codex CLI · Cline · Gemini CLI · Cursor · Continue OUR PROMISE Unchanged tokens, unmixed bills SEE HOW TO VERIFY IN USAGE LOGS → We forward your requests to upstream models exactly as specified — no distillation, compression, or silent model swaps. Synchronous request bodies are not log",
+    "console": [
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to fetch public settings: {status: 500, code: undefined, reason: undefined, error: undefined, message: Request failed with status code 500}"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      }
+    ],
+    "page_errors": [],
+    "failed_requests": [],
+    "goto_error": null,
+    "screenshot": "docs/visual-reviews/assets/v182-browser-qa/en-1280x800-reduced.png"
+  },
+  {
+    "route": "/status",
+    "viewport": "360x800",
+    "reduced_motion": true,
+    "http_status": 200,
+    "title": "极速蹬系统状态",
+    "lang": "zh-CN",
+    "dims": {
+      "innerWidth": 360,
+      "scrollWidth": 360,
+      "bodyScrollWidth": 360,
+      "height": 1211
+    },
+    "h1": [
+      "系统状态"
+    ],
+    "body_text": "极速蹬 中 公开状态 · 数据水位 系统状态 公开说明运行窗口、样本量与数据新鲜度。 暂不可用 累计已记录调用 -- 30 天请求成功率 -- 24 小时首字延迟 P50 -- 24 小时首字延迟 P95 -- 暂未取得数据水位 重试 指标来自已完成的运营快照；P50/P95 仅使用存在 first_token_ms 的记录。数据延迟或样本不足时明确显示不可用。 © 2026 极速蹬. 保留所有权利。 文档",
+    "console": [
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to fetch public settings: {status: 500, code: undefined, reason: undefined, error: undefined, message: Request failed with status code 500}"
+      }
+    ],
+    "page_errors": [],
+    "failed_requests": [],
+    "goto_error": null,
+    "screenshot": "docs/visual-reviews/assets/v182-browser-qa/status-360x800-reduced.png"
+  },
+  {
+    "route": "/status",
+    "viewport": "1280x800",
+    "reduced_motion": true,
+    "http_status": 200,
+    "title": "极速蹬系统状态",
+    "lang": "zh-CN",
+    "dims": {
+      "innerWidth": 1280,
+      "scrollWidth": 1280,
+      "bodyScrollWidth": 1280,
+      "height": 800
+    },
+    "h1": [
+      "系统状态"
+    ],
+    "body_text": "极速蹬 查看文档 中 简体中文 公开状态 · 数据水位 系统状态 公开说明运行窗口、样本量与数据新鲜度。 暂不可用 累计已记录调用 -- 30 天请求成功率 -- 24 小时首字延迟 P50 -- 24 小时首字延迟 P95 -- 暂未取得数据水位 重试 指标来自已完成的运营快照；P50/P95 仅使用存在 first_token_ms 的记录。数据延迟或样本不足时明确显示不可用。 © 2026 极速蹬. 保留所有权利。 文档",
+    "console": [
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to fetch public settings: {status: 500, code: undefined, reason: undefined, error: undefined, message: Request failed with status code 500}"
+      }
+    ],
+    "page_errors": [],
+    "failed_requests": [],
+    "goto_error": null,
+    "screenshot": "docs/visual-reviews/assets/v182-browser-qa/status-1280x800-reduced.png"
+  },
+  {
+    "route": "/en/status",
+    "viewport": "360x800",
+    "reduced_motion": true,
+    "http_status": 200,
+    "title": "Jisudeng System Status",
+    "lang": "en",
+    "dims": {
+      "innerWidth": 360,
+      "scrollWidth": 360,
+      "bodyScrollWidth": 360,
+      "height": 1235
+    },
+    "h1": [
+      "System status"
+    ],
+    "body_text": "Jisudeng EN PUBLIC STATUS · DATA FRESHNESS System status Clear windows, sample sizes, and data freshness for the public service. Unavailable Recorded requests -- 30-day request availability -- 24-hour TTFT P50 -- 24-hour TTFT P95 -- Data watermark unavailable Retry Metrics come from completed operations snapshots. P50/P95 use only records with first_token_ms; delayed or insufficient data is shown as unavailable. © 2026 Jisudeng. All rights reserved. Docs",
+    "console": [
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to fetch public settings: {status: 500, code: undefined, reason: undefined, error: undefined, message: Request failed with status code 500}"
+      }
+    ],
+    "page_errors": [],
+    "failed_requests": [],
+    "goto_error": null,
+    "screenshot": "docs/visual-reviews/assets/v182-browser-qa/en-status-360x800-reduced.png"
+  },
+  {
+    "route": "/en/status",
+    "viewport": "1280x800",
+    "reduced_motion": true,
+    "http_status": 200,
+    "title": "Jisudeng System Status",
+    "lang": "en",
+    "dims": {
+      "innerWidth": 1280,
+      "scrollWidth": 1280,
+      "bodyScrollWidth": 1280,
+      "height": 800
+    },
+    "h1": [
+      "System status"
+    ],
+    "body_text": "Jisudeng View Documentation EN English PUBLIC STATUS · DATA FRESHNESS System status Clear windows, sample sizes, and data freshness for the public service. Unavailable Recorded requests -- 30-day request availability -- 24-hour TTFT P50 -- 24-hour TTFT P95 -- Data watermark unavailable Retry Metrics come from completed operations snapshots. P50/P95 use only records with first_token_ms; delayed or insufficient data is shown as unavailable. © 2026 Jisudeng. All rights reserved. Docs",
+    "console": [
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to fetch public settings: {status: 500, code: undefined, reason: undefined, error: undefined, message: Request failed with status code 500}"
+      }
+    ],
+    "page_errors": [],
+    "failed_requests": [],
+    "goto_error": null,
+    "screenshot": "docs/visual-reviews/assets/v182-browser-qa/en-status-1280x800-reduced.png"
+  },
+  {
+    "route": "/en/docs",
+    "viewport": "360x800",
+    "http_status": 200,
+    "title": "Jisudeng API Docs: OpenAI-Compatible Gateway, Models, Images",
+    "lang": "en",
+    "dims": {
+      "viewport": 360,
+      "documentScrollWidth": 360,
+      "bodyScrollWidth": 360,
+      "pageHeight": 2596
+    },
+    "horizontal_overflow_elements": [],
+    "console": [
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to fetch public settings: {status: 500, code: undefined, reason: undefined, error: undefined, message: Request failed with status code 500}"
+      }
+    ],
+    "page_errors": [],
+    "failed_requests": [],
+    "screenshot": "docs/visual-reviews/assets/v182-browser-qa/en-docs-360x800-overflow-fixed.png",
+    "qa_phase": "follow-up after responsive fix",
+    "supersedes": "initial /en/docs 360x800 normal record with 365px document/body scroll width"
+  }
+]

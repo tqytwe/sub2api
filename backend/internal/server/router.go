@@ -23,9 +23,14 @@ import (
 const frameSrcRefreshTimeout = 5 * time.Second
 
 var publicHomeStatsService atomic.Pointer[service.PublicHomeStatsService]
+var publicStatusSummaryService atomic.Pointer[service.PublicStatusSummaryService]
 
 func SetPublicHomeStatsService(statsService *service.PublicHomeStatsService) {
 	publicHomeStatsService.Store(statsService)
+}
+
+func SetPublicStatusSummaryService(statsService *service.PublicStatusSummaryService) {
+	publicStatusSummaryService.Store(statsService)
 }
 
 func publicHomeStatsRoute() gin.HandlerFunc {
@@ -42,6 +47,33 @@ func publicHomeStatsRoute() gin.HandlerFunc {
 		})
 		route(c)
 	}
+}
+
+func publicStatusSummaryRoute() gin.HandlerFunc {
+	var once sync.Once
+	var route gin.HandlerFunc
+	return func(c *gin.Context) {
+		statsService := publicStatusSummaryService.Load()
+		if statsService == nil {
+			response.Error(c, http.StatusInternalServerError, "failed to load public status")
+			return
+		}
+		once.Do(func() { route = handler.PublicStatusSummary(statsService) })
+		route(c)
+	}
+}
+
+// registerPublicStatusRoutes keeps both public stats endpoints behind the same
+// client-IP boundary. The legacy home endpoint remains for compatibility, but
+// the homepage now reads the persisted status-summary contract exclusively.
+func registerPublicStatusRoutes(
+	v1 *gin.RouterGroup,
+	publicIPLimiter gin.HandlerFunc,
+	homeStats gin.HandlerFunc,
+	statusSummary gin.HandlerFunc,
+) {
+	v1.GET("/public/home-stats", publicIPLimiter, homeStats)
+	v1.GET("/public/status-summary", publicIPLimiter, statusSummary)
 }
 
 // SetupRouter 配置路由器中间件和路由
@@ -234,7 +266,7 @@ func registerRoutes(
 	routes.RegisterPromptLibraryRoutes(v1, h, jwtAuth)
 	routes.RegisterPromptLibrarySEORoutes(r, h)
 
-	v1.GET("/public/home-stats", publicHomeStatsRoute())
+	registerPublicStatusRoutes(v1, panelRateLimiter.PublicIP(), publicHomeStatsRoute(), publicStatusSummaryRoute())
 	v1.GET("/public/growth-teaser", handler.PublicGrowthTeaser(settingService, dashboardService, h.Play))
 	v1.GET("/public/vip-tiers", handler.PublicVIPTiers(settingService))
 	v1.GET("/announcement-assets/*filepath", h.Announcement.GetAsset)

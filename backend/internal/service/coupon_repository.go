@@ -84,6 +84,13 @@ type RedeemCodeRewardIssuer interface {
 	ClaimRedeemCodeRewardInTx(ctx context.Context, request RedeemCodeRewardClaimRequest) (*RedeemCode, error)
 }
 
+// RedeemCodeRewardReplayReader restores a redeem code already issued for a
+// play action. It is deliberately optional so older lightweight issuers keep
+// compiling while replay remains fail-closed when no reader is available.
+type RedeemCodeRewardReplayReader interface {
+	GetRedeemCodeRewardByIssueRef(ctx context.Context, userID int64, issueSource, issueRef string) (*RedeemCode, error)
+}
+
 type CouponRewardDrawRequest struct {
 	UserID         int64
 	Activity       CouponRewardActivity

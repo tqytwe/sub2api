@@ -170,6 +170,41 @@ func TestAuthServiceRegisterDualWritesEmailIdentity(t *testing.T) {
 	require.NotNil(t, identity.VerifiedAt)
 }
 
+func TestAuthServiceVerifiedOAuthEmailPersistsIdentityTimestamp(t *testing.T) {
+	svc, _, client := newAuthServiceWithEnt(t, map[string]string{
+		service.SettingKeyRegistrationEnabled: "true",
+	}, nil)
+	ctx := context.Background()
+
+	_, user, err := svc.Register(ctx, "oauth@example.com", "password")
+	require.NoError(t, err)
+	require.NotNil(t, user)
+
+	_, oauthUser, err := svc.LoginOrRegisterVerifiedEmailOAuth(ctx, service.EmailOAuthIdentityInput{
+		ProviderType:    "github",
+		ProviderKey:     "github",
+		ProviderSubject: "github-subject-1",
+		Email:           "oauth@example.com",
+		EmailVerified:   true,
+	})
+	// The helper intentionally omits a refresh-token cache; identity binding
+	// happens before token generation, so assert the expected final-stage error
+	// while still verifying the durable OAuth identity written by the flow.
+	require.ErrorContains(t, err, "refresh token cache not configured")
+	require.Nil(t, oauthUser)
+
+	identity, err := client.AuthIdentity.Query().
+		Where(
+			authidentity.ProviderTypeEQ("github"),
+			authidentity.ProviderKeyEQ("github"),
+			authidentity.ProviderSubjectEQ("github-subject-1"),
+		).
+		Only(ctx)
+	require.NoError(t, err)
+	require.NotNil(t, identity.VerifiedAt, "verified OAuth email must have durable verified_at evidence")
+	require.Equal(t, true, identity.Metadata["email_verified"])
+}
+
 func TestAuthServiceLoginDefersLastLoginTouchUntilRecordSuccessfulLogin(t *testing.T) {
 	svc, _, client := newAuthServiceWithEnt(t, map[string]string{
 		service.SettingKeyRegistrationEnabled: "true",

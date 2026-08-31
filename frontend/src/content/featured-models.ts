@@ -1,4 +1,4 @@
-/** Static preview rows for guests on /models (full list requires auth). */
+/** Static preview rows for guests on /catalog (full list requires auth). */
 export interface FeaturedModelRow {
   name: string
   platform: string

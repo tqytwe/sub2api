@@ -49,15 +49,18 @@ describe('public navigation contract', () => {
     })
   })
 
-  it('keeps model family compatibility paths and query parameters intact', () => {
-    expect(routerSource).toContain("path: '/models/:family(deepseek|qwen|kimi|glm)'")
-    expect(routerSource).toContain('path: `/models/${to.params.family}`, query: to.query')
-    expect(routerSource).toContain("path: '/models', query: to.query")
+  it('uses catalog routes for public model pages and preserves family query parameters', () => {
+    expect(routerSource).toContain("path: '/catalog/:family(deepseek|qwen|kimi|glm)'")
+    expect(routerSource).toContain('path: `/catalog/${to.params.family}`, query: to.query')
+    expect(routerSource).toContain("path: '/catalog', query: to.query")
+    expect(routerSource).toContain("path: '/models'")
+    expect(routerSource).toContain("path: '/en/models'")
+    expect(routerSource).toContain("path: '/en/catalog', query: to.query")
   })
 
   it('applies Model Plaza access settings to localized and family routes', () => {
-    expect(routerSource).toContain("to.path.startsWith('/models/')")
-    expect(routerSource).toContain("to.path === '/en/models'")
-    expect(routerSource).toContain("to.path.startsWith('/en/models/')")
+    expect(routerSource).toContain("to.path.startsWith('/catalog/')")
+    expect(routerSource).toContain("to.path === '/en/catalog'")
+    expect(routerSource).toContain("to.path.startsWith('/en/catalog/')")
   })
 })

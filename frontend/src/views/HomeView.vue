@@ -8,9 +8,6 @@
       allowfullscreen
     />
     <div v-else v-html="safeHomeContent" />
-    <footer class="custom-home-claim-footer">
-      <LmspeedBadge />
-    </footer>
   </div>
 
   <!-- Compact Home Page -->
@@ -39,8 +36,16 @@
         </nav>
         <div class="flex shrink-0 flex-wrap items-center justify-end gap-2">
           <LocaleSwitcher variant="public" />
+          <router-link
+            v-if="nativeDocsRoute"
+            :to="nativeDocsRoute"
+            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 dark:text-dark-400 dark:hover:bg-dark-800"
+            :title="t('home.viewDocs')"
+          >
+            <Icon name="book" size="md" />
+          </router-link>
           <a
-            v-if="docUrl && !isEnglishPublicRoute"
+            v-else-if="docUrl"
             :href="docUrl"
             target="_blank"
             rel="noopener noreferrer"
@@ -280,6 +285,36 @@
             <span class="arrow-tiny">↗</span>
           </button>
         </div>
+        <aside
+          class="home-status-summary"
+          :class="`is-${homeStatsFreshness}`"
+          data-testid="home-status-summary"
+          role="status"
+          aria-live="polite"
+        >
+          <div class="home-status-summary-count">
+            <strong class="home-status-summary-value">{{ homeRequestStat.value }}{{ homeRequestStat.unit }}</strong>
+            <span>{{ t('home.jisudeng.stats.requests') }}</span>
+          </div>
+          <div class="home-status-summary-copy">
+            <div class="home-status-summary-heading">
+              <span class="home-status-summary-dot" aria-hidden="true" />
+              <strong>{{ t(`home.jisudeng.stats.${homeStatsFreshness}`) }}</strong>
+            </div>
+            <p class="home-status-summary-through">
+              <template v-if="formattedStatsThrough">
+                {{ t('home.jisudeng.stats.through', { time: formattedStatsThrough }) }}
+              </template>
+              <template v-else>
+                {{ t('home.jisudeng.stats.unavailable') }}
+              </template>
+            </p>
+          </div>
+          <router-link :to="statusRoute" class="home-status-summary-link">
+            <span>{{ t('home.jisudeng.stats.statusLink') }}</span>
+            <span aria-hidden="true">→</span>
+          </router-link>
+        </aside>
         <ul class="active-on">
           <li class="active-on-label">{{ t('home.jisudeng.hero.activeOn') }}</li>
           <li>Claude Code</li>
@@ -351,33 +386,6 @@
             </div>
           </li>
         </ul>
-      </div>
-    </section>
-
-    <section id="stats" class="stats-section" :class="{ 'in-view': inView.stats }">
-      <div class="page-container">
-        <div class="stats-strip">
-          <div v-for="stat in statItems" :key="stat.key" class="stat" :class="`stat--${stat.key}`">
-            <span class="sr-only">{{ stat.value }}{{ stat.unit }} {{ t(`home.jisudeng.stats.${stat.key}`) }}</span>
-            <HomeStatOdometer
-              :value="stat.value"
-              :unit="stat.unit"
-              :active="inView.stats"
-              :spin-tail="stat.key === 'uptime' ? 2 : 3"
-            />
-            <span class="stat-label" aria-hidden="true">{{ t(`home.jisudeng.stats.${stat.key}`) }}</span>
-          </div>
-        </div>
-        <div v-if="statsFreshness.length" class="stats-freshness" :class="{ 'is-stale': isStatsStale }">
-          <span v-for="item in statsFreshness" :key="item">{{ item }}</span>
-          <strong v-if="isStatsStale">{{ t('home.jisudeng.stats.stale') }}</strong>
-        </div>
-      </div>
-    </section>
-
-    <section id="lmspeed" class="lmspeed-proof-section section-block" :class="{ 'in-view': inView.lmspeed }">
-      <div class="page-container">
-        <LmspeedProviderProof />
       </div>
     </section>
 
@@ -631,9 +639,8 @@
     <footer class="page-footer">
       <div class="page-container footer-row">
         <span class="f-brand">{{ siteName }} · {{ t('home.jisudeng.footer.tagline') }}</span>
-        <LmspeedBadge />
         <span class="f-links">
-          <router-link v-if="isEnglishPublicRoute" :to="{ name: PUBLIC_ROUTE_NAMES.englishDocs }">{{ t('home.jisudeng.footer.docs') }}</router-link>
+          <router-link v-if="nativeDocsRoute" :to="nativeDocsRoute">{{ t('home.jisudeng.footer.docs') }}</router-link>
           <a v-else-if="docUrl" :href="docUrl" target="_blank" rel="noopener noreferrer">{{ t('home.jisudeng.footer.docs') }}</a>
           <router-link v-else :to="docsRoute">{{ t('home.jisudeng.footer.docs') }}</router-link>
           <span class="f-copy">© {{ year }} {{ siteName }}</span>
@@ -663,10 +670,7 @@ import LocaleSwitcher from '@/components/common/LocaleSwitcher.vue'
 import Icon from '@/components/icons/Icon.vue'
 import HeroSphere from '@/components/home/HeroSphere.vue'
 import WhyHoverCard from '@/components/home/WhyHoverCard.vue'
-import LmspeedBadge from '@/components/home/LmspeedBadge.vue'
-import LmspeedProviderProof from '@/components/home/LmspeedProviderProof.vue'
 import PublicPageToolbar from '@/components/common/PublicPageToolbar.vue'
-import HomeStatOdometer from '@/components/home/HomeStatOdometer.vue'
 import { useHomeLiveStats } from '@/composables/useHomeLiveStats'
 import { usePublicGrowthTeaser } from '@/composables/usePublicGrowthTeaser'
 import { formatHomeStatsTimestamp } from '@/utils/homeLiveStats'
@@ -675,6 +679,7 @@ import { enabledSupportContacts } from '@/utils/supportContact'
 import { localizedSiteName, localizedSiteSubtitle } from '@/utils/localizedPublicSettings'
 import { isHomeContentUrl as isCustomHomeContentUrl, sanitizeHomeContent } from '@/utils/homeContent'
 import { recoverFromChunkLoadError } from '@/router/chunkRecovery'
+import { resolveCustomMenuRoute } from '@/router/customMenuTarget'
 import {
   MODELS_ROUTE,
   PUBLIC_ROUTE_NAMES,
@@ -705,19 +710,18 @@ const onboardPhase = ref(1)
 const year = new Date().getFullYear()
 const {
   statItems,
-  computedAt: statsComputedAt,
   opsDataThrough: statsOpsDataThrough,
-  isStale: isStatsStale,
+  freshness: homeStatsFreshnessRef,
 } = useHomeLiveStats()
 const { perkLines } = usePublicGrowthTeaser()
 
-const statsFreshness = computed(() => {
-  const items: string[] = []
-  const through = formatHomeStatsTimestamp(statsOpsDataThrough.value, locale.value)
-  const computed = formatHomeStatsTimestamp(statsComputedAt.value, locale.value)
-  if (through) items.push(t('home.jisudeng.stats.through', { time: through }))
-  if (computed) items.push(t('home.jisudeng.stats.computed', { time: computed }))
-  return items
+const homeStatItems = computed(() => statItems.value.filter((item) => item.key === 'requests'))
+const homeRequestStat = computed(() => homeStatItems.value[0] ?? { value: '--', unit: '' })
+const formattedStatsThrough = computed(() => formatHomeStatsTimestamp(statsOpsDataThrough.value, locale.value))
+const homeStatsFreshness = computed<'fresh' | 'delayed' | 'unavailable'>(() => {
+  const value = homeStatsFreshnessRef?.value
+  if (value === 'fresh' && !formattedStatsThrough.value) return 'unavailable'
+  return value === 'fresh' || value === 'delayed' ? value : 'unavailable'
 })
 
 const inView = ref<Record<string, boolean>>({})
@@ -764,6 +768,9 @@ const pricingRoute = computed(() =>
 const docsRoute = computed(() =>
   isEnglishPublicRoute.value ? { name: PUBLIC_ROUTE_NAMES.englishDocs } : { name: PUBLIC_ROUTE_NAMES.docs },
 )
+const statusRoute = computed(() =>
+  isEnglishPublicRoute.value ? { name: PUBLIC_ROUTE_NAMES.englishStatus } : { name: PUBLIC_ROUTE_NAMES.status },
+)
 const imageDocsRoute = computed(() =>
   isEnglishPublicRoute.value
     ? englishDocsTopicRoute('deploy', 'text-to-image-api')
@@ -794,6 +801,9 @@ const siteSubtitle = computed(() => {
 })
 const docUrl = computed(() =>
   sanitizeUrl(appStore.cachedPublicSettings?.doc_url || appStore.docUrl || '')
+)
+const nativeDocsRoute = computed(() =>
+  resolveCustomMenuRoute({ url: docUrl.value }, isEnglishPublicRoute.value ? 'en' : 'zh'),
 )
 const homeContent = computed(() => appStore.cachedPublicSettings?.home_content || '')
 const hasHomeContent = computed(() => homeContent.value.trim().length > 0)
@@ -832,8 +842,6 @@ const faqItems = computed((): FaqItem[] => {
 const anchorSections = computed(() => {
   const sections = [
     { id: 'manifesto', label: t('home.jisudeng.anchors.manifesto') },
-    { id: 'stats', label: t('home.jisudeng.anchors.stats') },
-    { id: 'lmspeed', label: t('home.jisudeng.anchors.lmspeed') },
     { id: 'image', label: t('home.jisudeng.anchors.image') },
     { id: 'channels', label: t('home.jisudeng.anchors.channels') },
     { id: 'features', label: t('home.jisudeng.anchors.features') },
@@ -992,8 +1000,8 @@ function goStart() {
 }
 
 function openDocs() {
-  if (isEnglishPublicRoute.value) {
-    router.push({ name: PUBLIC_ROUTE_NAMES.englishDocs })
+  if (nativeDocsRoute.value) {
+    router.push(nativeDocsRoute.value)
     return
   }
   if (docUrl.value) {

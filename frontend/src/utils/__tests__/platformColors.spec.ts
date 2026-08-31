@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-
+import { platformLabels } from '@/i18n/platformLabels'
 import { platformLabel } from '../platformColors'
 
 describe('platformLabel', () => {
@@ -9,5 +9,12 @@ describe('platformLabel', () => {
     expect(platformLabel('image', 'en')).toBe('Image')
     expect(platformLabel('team', 'en')).toBe('Team / Enterprise')
     expect(platformLabel('sensenova-u1.5-lite', 'en')).toBe('sensenova-u1.5-lite')
+  })
+
+  it('uses the shared locale source for system-owned category labels', () => {
+    expect(platformLabels.zh.composite).toBe('组合路由')
+    expect(platformLabels.en.composite).toBe('Composite')
+    expect(platformLabel('composite', 'zh')).toBe('组合路由')
+    expect(platformLabel('composite', 'en')).toBe('Composite')
   })
 })

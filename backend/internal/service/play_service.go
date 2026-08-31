@@ -27,9 +27,18 @@ type PlayService struct {
 	redeemRewardIssuer RedeemCodeRewardIssuer
 	rewardDrawSource   func(max int64) (int64, error)
 	blindboxDrawSource func(max int64) (int64, error)
-	teamAdmissionRisk  PlayTeamAdmissionRiskHook
-	vipObserver        playVIPChangeObserver
-	now                func() time.Time
+	// requireGrowthQualification is enabled by production wiring after the
+	// qualification migrations are part of the deployed schema. Keeping the
+	// default false preserves focused legacy test doubles without allowing a
+	// real production service to silently fall back to redeemable rewards.
+	requireGrowthQualification bool
+	// requireGrowthGovernance is enabled by production wiring. It keeps the
+	// legacy feature toggles from re-opening cash-equivalent rewards before an
+	// operations approval, budget, and rollout record exists.
+	requireGrowthGovernance bool
+	teamAdmissionRisk       PlayTeamAdmissionRiskHook
+	vipObserver             playVIPChangeObserver
+	now                     func() time.Time
 }
 
 type PlayMembershipAdminOverview struct {
@@ -334,6 +343,15 @@ func NewPlayService(
 	return svc
 }
 
+// RequireGrowthQualification makes missing qualification storage fail closed.
+// It is set by the production dependency graph, after the repository and
+// forward-only migrations are wired together.
+func (s *PlayService) RequireGrowthQualification(required bool) {
+	if s != nil {
+		s.requireGrowthQualification = required
+	}
+}
+
 func (s *PlayService) GetRuntime(ctx context.Context) PlayRuntime {
 	if s.settingService == nil {
 		return PlayRuntime{}
@@ -355,38 +373,56 @@ func (s *PlayService) serverDate(now time.Time) time.Time {
 func (s *PlayService) GetCheckinStatus(ctx context.Context, userID int64) (*PlayCheckinStatus, error) {
 	rt := s.GetRuntime(ctx)
 	status := &PlayCheckinStatus{
-		Enabled:            rt.CheckinEnabled,
-		Eligible:           true,
-		RewardAmount:       rt.CheckinReward,
-		CouponPoolReady:    true,
-		CouponWeightBP:     8000,
-		RedeemCodeWeightBP: 2000,
-		BalanceWeightBP:    0,
+		Enabled:                   rt.CheckinEnabled,
+		Eligible:                  true,
+		RewardAmount:              rt.CheckinReward,
+		GrowthGovernanceAvailable: true,
+		CouponPoolReady:           true,
+		CouponWeightBP:            8000,
+		RedeemCodeWeightBP:        2000,
+		BalanceWeightBP:           0,
 	}
 	now := s.serverNow()
 	status.ServerDate = s.serverDate(now).Format("2006-01-02")
 	if !rt.CheckinEnabled || userID <= 0 {
 		return status, nil
 	}
-	eligible, reason, err := s.checkinEligibility(ctx, userID, now)
+	eligibility, err := s.growthEligibility(ctx, userID, s.serverNow())
 	if err != nil {
 		return nil, err
 	}
-	status.Eligible = eligible
-	status.IneligibleReason = reason
-	ready, err := s.couponRewardPoolReady(ctx, CouponRewardActivityCheckin)
-	if err != nil {
-		return nil, err
+	status.GrowthEligibility = eligibility
+	status.Eligible = true
+	status.GrowthEnergyEnabled = eligibility.RewardMode == PlayGrowthRewardEnergy
+	status.RedeemableRewardEligible = eligibility.RewardMode == PlayGrowthRewardRedeemable
+	if eligibility.RewardMode == PlayGrowthRewardRedeemable {
+		_, governanceAvailable, governanceReason := s.growthGovernanceForStatus(ctx, userID, now)
+		status.GrowthGovernanceAvailable = governanceAvailable
+		status.GrowthGovernanceReason = governanceReason
+		status.RedeemableRewardEligible = governanceAvailable
+		if !governanceAvailable {
+			status.IneligibleReason = governanceReason
+			status.CouponPoolReady = false
+		}
 	}
-	status.CouponPoolReady = ready
-	if ready {
-		couponWeightBP, redeemCodeWeightBP, balanceWeightBP, err := s.couponRewardSplit(ctx, CouponRewardActivityCheckin)
+	if status.GrowthEnergyEnabled {
+		status.IneligibleReason = eligibility.PrimaryReason
+	}
+	if status.GrowthGovernanceAvailable {
+		ready, err := s.couponRewardPoolReady(ctx, CouponRewardActivityCheckin)
 		if err != nil {
 			return nil, err
 		}
-		status.CouponWeightBP = couponWeightBP
-		status.RedeemCodeWeightBP = redeemCodeWeightBP
-		status.BalanceWeightBP = balanceWeightBP
+		status.CouponPoolReady = ready
+		if ready {
+			couponWeightBP, redeemCodeWeightBP, balanceWeightBP, err := s.couponRewardSplit(ctx, CouponRewardActivityCheckin)
+			if err != nil {
+				return nil, err
+			}
+			status.CouponWeightBP = couponWeightBP
+			status.RedeemCodeWeightBP = redeemCodeWeightBP
+			status.BalanceWeightBP = balanceWeightBP
+		}
 	}
 	done, err := s.repo.HasCheckin(ctx, userID, s.serverDate(now))
 	if err != nil {
@@ -404,21 +440,62 @@ func (s *PlayService) Checkin(ctx context.Context, userID int64) (*PlayCheckinRe
 	if !rt.CheckinEnabled {
 		return nil, ErrPlayFeatureDisabled
 	}
-	eligible, _, err := s.checkinEligibility(ctx, userID, s.serverNow())
+	now := s.serverNow()
+	growthEligibility, err := s.growthEligibility(ctx, userID, now)
 	if err != nil {
 		return nil, err
 	}
-	if !eligible {
+	var growthGovernance *PlayGrowthGovernanceState
+	if growthEligibility.RewardMode == PlayGrowthRewardRedeemable {
+		growthGovernance, err = s.requireGrowthGovernanceForReward(ctx, userID, now)
+		if err != nil {
+			return nil, err
+		}
+		if err := s.requireCouponRewardPool(ctx, CouponRewardActivityCheckin); err != nil {
+			return nil, err
+		}
+	}
+	if userID <= 0 {
 		return nil, ErrPlayCheckinIneligible
 	}
-	if err := s.requireCouponRewardPool(ctx, CouponRewardActivityCheckin); err != nil {
-		return nil, err
-	}
 
-	now := s.serverNow()
 	date := s.serverDate(now)
 	dateKey := date.Format("2006-01-02")
 	idempotencyKey := fmt.Sprintf("checkin:%d:%s", userID, dateKey)
+	if growthEligibility.RewardMode == PlayGrowthRewardEnergy {
+		var snapshotID int64
+		err := s.withPlayTx(ctx, func(txCtx context.Context) error {
+			if err := s.repo.InsertCheckin(txCtx, userID, date, 0, 0); err != nil {
+				return err
+			}
+			var snapshotErr error
+			snapshotID, snapshotErr = s.createGrowthSnapshot(txCtx, PlayGrowthEligibilitySnapshot{UserID: userID, Source: PlayRewardSourceCheckin, ActionID: idempotencyKey, ActivityDate: date, Eligibility: growthEligibility})
+			if snapshotErr != nil {
+				return snapshotErr
+			}
+			if snapshotID > 0 {
+				repo, ok := s.growthQualificationRepository()
+				if !ok {
+					return fmt.Errorf("growth qualification repository disappeared during check-in")
+				}
+				if err := repo.LinkGrowthEligibilitySnapshot(txCtx, PlayRewardSourceCheckin, userID, date, snapshotID); err != nil {
+					return err
+				}
+				if err := s.insertGrowthEnergy(txCtx, PlayGrowthEnergyLedgerEntry{UserID: userID, Source: PlayRewardSourceCheckin, ActionID: idempotencyKey, Amount: 1, EligibilitySnapshotID: snapshotID}); err != nil {
+					return err
+				}
+			}
+			return nil
+		})
+		if err != nil {
+			if errors.Is(err, ErrPlayCheckinAlreadyDone) || errors.Is(err, ErrPlayRewardDuplicate) {
+				return nil, ErrPlayCheckinAlreadyDone
+			}
+			return nil, err
+		}
+		_ = s.MarkQuestCompleted(ctx, userID, PlayQuestKeyCheckin)
+		return &PlayCheckinResult{RewardType: PlayRewardTypeNone, ServerDate: dateKey, GrowthEnergy: 1, GrowthEligibility: growthEligibility}, nil
+	}
 
 	streak, err := s.computeNextStreak(ctx, userID, date)
 	if err != nil {
@@ -452,33 +529,64 @@ func (s *PlayService) Checkin(ctx context.Context, userID int64) (*PlayCheckinRe
 
 	var couponIssue *CouponRewardIssueResult
 	var redeemCode *RedeemCode
+	var growthSnapshotID int64
 	if err := s.withPlayTx(ctx, func(txCtx context.Context) error {
+		// Claim the once-per-day activity before any externally valuable reward
+		// is issued. This unique insert is the concurrency boundary: a second
+		// request loses before it can draw a coupon or reserve a redeem code.
+		if err := s.repo.InsertCheckin(txCtx, userID, date, totalReward, streak); err != nil {
+			return err
+		}
+		var snapshotErr error
+		growthSnapshotID, snapshotErr = s.createGrowthSnapshot(txCtx, PlayGrowthEligibilitySnapshot{
+			UserID: userID, Source: PlayRewardSourceCheckin, ActionID: idempotencyKey, ActivityDate: date, Eligibility: growthEligibility,
+		})
+		if snapshotErr != nil {
+			return snapshotErr
+		}
+		if growthSnapshotID > 0 {
+			growthRepo, ok := s.growthQualificationRepository()
+			if !ok {
+				return ErrPlayGrowthQualificationUnavailable
+			}
+			if err := growthRepo.LinkGrowthEligibilitySnapshot(txCtx, PlayRewardSourceCheckin, userID, date, growthSnapshotID); err != nil {
+				return err
+			}
+		}
+		if growthGovernance != nil {
+			if err := s.reserveGrowthRewardBudget(txCtx, growthGovernance, userID, PlayRewardSourceCheckin, idempotencyKey, growthRewardBudgetCost(rewardType, totalReward)); err != nil {
+				return err
+			}
+		}
 		switch rewardType {
 		case PlayRewardTypeCoupon:
 			var issueErr error
-			couponIssue, issueErr = s.issueCouponRewardInTx(txCtx, userID, CouponRewardActivityCheckin, idempotencyKey, dateKey, now)
+			couponIssue, issueErr = s.issueCouponRewardInTx(txCtx, userID, CouponRewardActivityCheckin, idempotencyKey, dateKey, now, growthEligibility)
 			if issueErr != nil {
 				return issueErr
 			}
 		case PlayRewardTypeRedeem:
 			var issueErr error
-			redeemCode, issueErr = s.issueRedeemCodeRewardInTx(txCtx, userID, CouponRewardActivityCheckin, idempotencyKey, dateKey, now)
+			redeemCode, issueErr = s.issueRedeemCodeRewardInTx(txCtx, userID, CouponRewardActivityCheckin, idempotencyKey, dateKey, now, growthEligibility)
 			if issueErr != nil {
 				return issueErr
 			}
 		}
-		if err := s.repo.InsertCheckin(txCtx, userID, date, totalReward, streak); err != nil {
-			return err
-		}
 		if rewardType == PlayRewardTypeBalance {
-			return s.grantBalanceLedgerOnlyInTx(txCtx, userID, totalReward, PlayRewardSourceCheckin, idempotencyKey, map[string]any{
+			detail := map[string]any{
 				"checkin_date":    dateKey,
 				"streak_count":    streak,
 				"milestone_bonus": milestoneBonus,
 				"boost_active":    boost.Active,
 				"reward_type":     string(rewardType),
 				"balance_entry":   balanceEntry,
-			})
+			}
+			if growthSnapshotID > 0 {
+				detail["growth_eligibility_snapshot_id"] = growthSnapshotID
+				detail["growth_rule_version"] = "v1"
+				detail["growth_tier"] = growthEligibility.Tier
+			}
+			return s.grantBalanceLedgerOnlyInTx(txCtx, userID, totalReward, PlayRewardSourceCheckin, idempotencyKey, detail, growthSnapshotID)
 		}
 		return nil
 	}); err != nil {
@@ -515,18 +623,76 @@ func (s *PlayService) Checkin(ctx context.Context, userID int64) (*PlayCheckinRe
 		ServerDate:        dateKey,
 		StreakCount:       streak,
 		MilestoneBonus:    milestoneBonus,
+		GrowthEligibility: growthEligibility,
 	}, nil
 }
 
-func (s *PlayService) checkinEligibility(ctx context.Context, userID int64, now time.Time) (bool, string, error) {
+func (s *PlayService) growthEligibility(ctx context.Context, userID int64, now time.Time) (PlayGrowthEligibility, error) {
 	if userID <= 0 {
-		return false, "not_logged_in", nil
+		return PlayGrowthEligibility{Tier: PlayGrowthTierExplorer, RewardMode: PlayGrowthRewardEnergy, PrimaryReason: "not_logged_in"}, nil
 	}
-	repo, ok := s.repo.(PlayCheckinEligibilityRepository)
+	repo, ok := s.repo.(PlayGrowthQualificationRepository)
 	if !ok || repo == nil {
-		return true, "", nil
+		if s.requireGrowthQualification {
+			return PlayGrowthEligibility{}, ErrPlayGrowthQualificationUnavailable
+		}
+		// Focused legacy test doubles may not implement the new repository port;
+		// production wiring explicitly enables the fail-closed path above.
+		return PlayGrowthEligibility{Tier: PlayGrowthTierActive, RewardMode: PlayGrowthRewardRedeemable, PrimaryReason: PlayGrowthEligibilityReasonEligible}, nil
 	}
-	return repo.GetCheckinEligibility(ctx, userID, now.AddDate(0, 0, -7), now)
+	signals, err := repo.GetGrowthEligibilitySignals(ctx, userID, now.AddDate(0, 0, -7), now.AddDate(0, 0, -30), now)
+	if err != nil {
+		return PlayGrowthEligibility{}, err
+	}
+	return EvaluateGrowthEligibility(signals, now), nil
+}
+
+func (s *PlayService) createGrowthSnapshot(ctx context.Context, snapshot PlayGrowthEligibilitySnapshot) (int64, error) {
+	snapshot.ActionID = strings.TrimSpace(snapshot.ActionID)
+	if snapshot.ActionID == "" {
+		return 0, fmt.Errorf("create growth eligibility snapshot: action id is required")
+	}
+	repo, ok := s.growthQualificationRepository()
+	if !ok {
+		if s.requireGrowthQualification {
+			return 0, ErrPlayGrowthQualificationUnavailable
+		}
+		return 0, nil
+	}
+	id, err := repo.CreateGrowthEligibilitySnapshot(ctx, snapshot)
+	if err != nil {
+		return 0, err
+	}
+	// A successful snapshot write must always return a persisted positive ID.
+	// Treat a zero/negative ID as unavailable so callers cannot issue energy or
+	// a redeemable reward without immutable qualification evidence.
+	if id <= 0 {
+		return 0, ErrPlayGrowthQualificationUnavailable
+	}
+	return id, nil
+}
+
+func (s *PlayService) insertGrowthEnergy(ctx context.Context, entry PlayGrowthEnergyLedgerEntry) error {
+	if entry.Amount <= 0 {
+		return nil
+	}
+	entry.ActionID = strings.TrimSpace(entry.ActionID)
+	if entry.ActionID == "" {
+		return fmt.Errorf("insert growth energy ledger: action id is required")
+	}
+	repo, ok := s.growthQualificationRepository()
+	if !ok {
+		if s.requireGrowthQualification {
+			return ErrPlayGrowthQualificationUnavailable
+		}
+		return nil
+	}
+	return repo.InsertGrowthEnergyLedger(ctx, entry)
+}
+
+func (s *PlayService) growthQualificationRepository() (PlayGrowthQualificationRepository, bool) {
+	repo, ok := s.repo.(PlayGrowthQualificationRepository)
+	return repo, ok && repo != nil
 }
 
 func (s *PlayService) grantBalance(
@@ -536,6 +702,19 @@ func (s *PlayService) grantBalance(
 	source string,
 	idempotencyKey string,
 	detail map[string]any,
+	beforeLedger func(txCtx context.Context) error,
+) error {
+	return s.grantBalanceWithGrowthSnapshot(ctx, userID, amount, source, idempotencyKey, detail, nil, beforeLedger)
+}
+
+func (s *PlayService) grantBalanceWithGrowthSnapshot(
+	ctx context.Context,
+	userID int64,
+	amount float64,
+	source string,
+	idempotencyKey string,
+	detail map[string]any,
+	growthSnapshotID *int64,
 	beforeLedger func(txCtx context.Context) error,
 ) error {
 	if s.entClient == nil {
@@ -549,7 +728,7 @@ func (s *PlayService) grantBalance(
 
 	txCtx := dbent.NewTxContext(ctx, tx)
 
-	if err := s.grantBalanceInTx(txCtx, userID, amount, source, idempotencyKey, detail, beforeLedger); err != nil {
+	if err := s.grantBalanceInTx(txCtx, userID, amount, source, idempotencyKey, detail, growthSnapshotID, beforeLedger); err != nil {
 		return err
 	}
 
@@ -557,6 +736,13 @@ func (s *PlayService) grantBalance(
 		return fmt.Errorf("commit play reward tx: %w", err)
 	}
 	return nil
+}
+
+func growthRuleVersionForSnapshot(snapshotID int64) string {
+	if snapshotID <= 0 {
+		return ""
+	}
+	return playGrowthQualificationRuleVersion
 }
 
 func (s *PlayService) withPlayTx(ctx context.Context, fn func(txCtx context.Context) error) error {
@@ -585,13 +771,16 @@ func (s *PlayService) grantBalanceLedgerOnlyInTx(
 	source string,
 	idempotencyKey string,
 	detail map[string]any,
+	growthSnapshotID int64,
 ) error {
 	entry := PlayRewardLedgerEntry{
-		UserID:         userID,
-		Source:         source,
-		Amount:         amount,
-		IdempotencyKey: idempotencyKey,
-		Detail:         detail,
+		UserID:                      userID,
+		Source:                      source,
+		Amount:                      amount,
+		IdempotencyKey:              idempotencyKey,
+		Detail:                      detail,
+		GrowthEligibilitySnapshotID: growthSnapshotID,
+		GrowthRuleVersion:           growthRuleVersionForSnapshot(growthSnapshotID),
 	}
 	if err := s.repo.InsertRewardLedger(txCtx, entry); err != nil {
 		return err
@@ -615,6 +804,7 @@ func (s *PlayService) grantBalanceInTx(
 	source string,
 	idempotencyKey string,
 	detail map[string]any,
+	growthSnapshotID *int64,
 	beforeLedger func(txCtx context.Context) error,
 ) error {
 	if beforeLedger != nil {
@@ -623,12 +813,18 @@ func (s *PlayService) grantBalanceInTx(
 		}
 	}
 
+	snapshotID := int64(0)
+	if growthSnapshotID != nil {
+		snapshotID = *growthSnapshotID
+	}
 	entry := PlayRewardLedgerEntry{
-		UserID:         userID,
-		Source:         source,
-		Amount:         amount,
-		IdempotencyKey: idempotencyKey,
-		Detail:         detail,
+		UserID:                      userID,
+		Source:                      source,
+		Amount:                      amount,
+		IdempotencyKey:              idempotencyKey,
+		Detail:                      detail,
+		GrowthEligibilitySnapshotID: snapshotID,
+		GrowthRuleVersion:           growthRuleVersionForSnapshot(snapshotID),
 	}
 	if err := s.repo.InsertRewardLedger(txCtx, entry); err != nil {
 		return err

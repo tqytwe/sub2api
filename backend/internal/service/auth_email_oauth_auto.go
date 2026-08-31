@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/mail"
 	"strings"
+	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/ent/authidentity"
@@ -277,12 +278,21 @@ func (s *AuthService) ensureEmailOAuthIdentity(ctx context.Context, userID int64
 		if identity.UserID != userID {
 			return infraerrors.Conflict("AUTH_IDENTITY_OWNERSHIP_CONFLICT", "auth identity already belongs to another user")
 		}
-		_, err = s.entClient.AuthIdentity.UpdateOneID(identity.ID).
-			SetMetadata(metadata).
-			Save(ctx)
+		update := s.entClient.AuthIdentity.UpdateOneID(identity.ID).SetMetadata(metadata)
+		if input.EmailVerified {
+			// Keep the durable verification timestamp in sync with the upstream
+			// assertion. Historical rows may only have metadata, so this also
+			// repairs them on the next successful OAuth login.
+			update.SetVerifiedAt(time.Now().UTC())
+		}
+		_, err = update.Save(ctx)
 		return err
 	}
-	_, err = s.entClient.AuthIdentity.Create().
+	create := s.entClient.AuthIdentity.Create()
+	if input.EmailVerified {
+		create.SetVerifiedAt(time.Now().UTC())
+	}
+	_, err = create.
 		SetUserID(userID).
 		SetProviderType(providerType).
 		SetProviderKey(providerKey).

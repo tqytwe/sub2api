@@ -17,10 +17,10 @@ import (
 type playBlindboxStatusDTO struct {
 	Enabled             bool                             `json:"enabled"`
 	CouponPoolReady     bool                             `json:"coupon_pool_ready"`
-	CouponPrizes        []service.PlayCouponPrizePreview `json:"coupon_prizes"`
-	CouponWeightBP      int                              `json:"coupon_weight_bp"`
-	BalanceWeightBP     int                              `json:"balance_weight_bp"`
-	CostAmount          float64                          `json:"cost_amount"`
+	CouponPrizes        []service.PlayCouponPrizePreview `json:"coupon_prizes,omitempty"`
+	CouponWeightBP      int                              `json:"coupon_weight_bp,omitempty"`
+	BalanceWeightBP     int                              `json:"balance_weight_bp,omitempty"`
+	CostAmount          float64                          `json:"cost_amount,omitempty"`
 	Pool                *playBlindboxPoolDTO             `json:"pool,omitempty"`
 	CurrentPool         *playBlindboxPoolDTO             `json:"current_pool,omitempty"`
 	NextPool            *playBlindboxPoolDTO             `json:"next_pool,omitempty"`
@@ -34,6 +34,7 @@ type playBlindboxStatusDTO struct {
 	OpensToday          int                              `json:"opens_today"`
 	CanOpen             bool                             `json:"can_open"`
 	ServerDate          string                           `json:"server_date"`
+	GrowthEligibility   service.PlayGrowthEligibility    `json:"growth_eligibility"`
 	RechargeBoostActive bool                             `json:"recharge_boost_active,omitempty"`
 	CampaignActive      bool                             `json:"campaign_active,omitempty"`
 }
@@ -67,6 +68,14 @@ type playBlindboxPoolResponseDTO struct {
 	NextExpectedReward float64                          `json:"next_expected_reward,omitempty"`
 	PoolVersion        string                           `json:"pool_version,omitempty"`
 	RTPCap             float64                          `json:"rtp_cap,omitempty"`
+}
+
+// playBlindboxPublicPreviewDTO is the deliberately small anonymous/Explorer
+// contract. Pool configuration, odds, costs, and expected-value data are
+// server-side reward controls rather than public marketing content.
+type playBlindboxPublicPreviewDTO struct {
+	Enabled         bool `json:"enabled"`
+	CouponPoolReady bool `json:"coupon_pool_ready"`
 }
 
 type playBlindboxPoolDTO struct {
@@ -139,18 +148,21 @@ type playQuizQuestionDTO struct {
 }
 
 type playQuizTodayDTO struct {
-	Enabled                   bool                   `json:"enabled"`
-	CouponPoolReady           bool                   `json:"coupon_pool_ready"`
-	Questions                 []playQuizQuestionDTO  `json:"questions"`
-	AlreadySubmitted          bool                   `json:"already_submitted"`
-	PreviousScore             int                    `json:"previous_score,omitempty"`
-	PreviousTotal             int                    `json:"previous_total,omitempty"`
-	PreviousReward            float64                `json:"previous_reward,omitempty"`
-	PreviousRewardType        service.PlayRewardType `json:"previous_reward_type,omitempty"`
-	PreviousCoupon            *playCouponRewardDTO   `json:"previous_coupon,omitempty"`
-	PreviousCouponPoolVersion string                 `json:"previous_coupon_pool_version,omitempty"`
-	RewardPerCorrect          float64                `json:"reward_per_correct"`
-	ServerDate                string                 `json:"server_date"`
+	Enabled                   bool                          `json:"enabled"`
+	CouponPoolReady           bool                          `json:"coupon_pool_ready"`
+	Questions                 []playQuizQuestionDTO         `json:"questions"`
+	AlreadySubmitted          bool                          `json:"already_submitted"`
+	PreviousScore             int                           `json:"previous_score,omitempty"`
+	PreviousTotal             int                           `json:"previous_total,omitempty"`
+	PreviousReward            float64                       `json:"previous_reward,omitempty"`
+	PreviousRewardType        service.PlayRewardType        `json:"previous_reward_type,omitempty"`
+	PreviousGrowthEnergy      int64                         `json:"previous_growth_energy,omitempty"`
+	PreviousCoupon            *playCouponRewardDTO          `json:"previous_coupon,omitempty"`
+	PreviousRedeemCode        *playRedeemCodeRewardDTO      `json:"previous_redeem_code,omitempty"`
+	PreviousCouponPoolVersion string                        `json:"previous_coupon_pool_version,omitempty"`
+	RewardPerCorrect          float64                       `json:"reward_per_correct"`
+	ServerDate                string                        `json:"server_date"`
+	GrowthEligibility         service.PlayGrowthEligibility `json:"growth_eligibility"`
 }
 
 type playQuizSubmitRequest struct {
@@ -163,14 +175,16 @@ type playQuizAnswerDTO struct {
 }
 
 type playQuizSubmitResultDTO struct {
-	Score             int                      `json:"score"`
-	Total             int                      `json:"total"`
-	RewardAmount      float64                  `json:"reward_amount"`
-	RewardType        service.PlayRewardType   `json:"reward_type"`
-	Coupon            *playCouponRewardDTO     `json:"coupon,omitempty"`
-	RedeemCode        *playRedeemCodeRewardDTO `json:"redeem_code,omitempty"`
-	CouponPoolVersion string                   `json:"coupon_pool_version,omitempty"`
-	ServerDate        string                   `json:"server_date"`
+	Score             int                           `json:"score"`
+	Total             int                           `json:"total"`
+	RewardAmount      float64                       `json:"reward_amount"`
+	RewardType        service.PlayRewardType        `json:"reward_type"`
+	Coupon            *playCouponRewardDTO          `json:"coupon,omitempty"`
+	RedeemCode        *playRedeemCodeRewardDTO      `json:"redeem_code,omitempty"`
+	CouponPoolVersion string                        `json:"coupon_pool_version,omitempty"`
+	ServerDate        string                        `json:"server_date"`
+	GrowthEnergy      int64                         `json:"growth_energy,omitempty"`
+	GrowthEligibility service.PlayGrowthEligibility `json:"growth_eligibility"`
 }
 
 type playTeamMemberDTO struct {
@@ -250,35 +264,73 @@ func (h *PlayHandler) BlindboxStatus(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
-	response.Success(c, playBlindboxStatusDTO{
+	response.Success(c, toPlayBlindboxStatusDTO(status, true))
+}
+
+// toPlayBlindboxStatusDTO keeps authenticated responses reward-blind unless the
+// service has explicitly established redeemable eligibility. Empty eligibility
+// (for example while the feature is disabled or a dependency is unavailable)
+// must fail closed instead of being treated as qualified.
+func toPlayBlindboxStatusDTO(status *service.PlayBlindboxStatus, authenticated bool) playBlindboxStatusDTO {
+	if status == nil {
+		return playBlindboxStatusDTO{}
+	}
+	// The DTO must fail closed for both anonymous and authenticated callers.
+	// Reward details are an account-scoped, redeemable-only contract.
+	rewardDetailsVisible := authenticated && status.GrowthEligibility.RewardMode == service.PlayGrowthRewardRedeemable
+	out := playBlindboxStatusDTO{
 		Enabled:             status.Enabled,
 		CouponPoolReady:     status.CouponPoolReady,
-		CouponPrizes:        status.CouponPrizes,
-		CouponWeightBP:      status.CouponWeightBP,
-		BalanceWeightBP:     status.BalanceWeightBP,
-		CostAmount:          status.CostAmount,
-		Pool:                toPlayBlindboxPoolDTOPtr(status.BlindboxPool),
-		CurrentPool:         toPlayBlindboxPoolDTOPtr(status.CurrentPool),
-		NextPool:            toOptionalPlayBlindboxPoolDTO(status.NextPool),
-		VIPTier:             status.VIPTier,
-		ExpectedReward:      status.ExpectedReward,
-		NextExpectedReward:  status.NextExpectedReward,
-		PoolVersion:         status.PoolVersion,
-		RTPCap:              status.RTPCap,
 		DailyLimit:          status.DailyLimit,
 		EffectiveLimit:      status.EffectiveLimit,
 		OpensToday:          status.OpensToday,
 		CanOpen:             status.CanOpen,
 		ServerDate:          status.ServerDate,
+		GrowthEligibility:   status.GrowthEligibility,
 		RechargeBoostActive: status.RechargeBoostActive,
 		CampaignActive:      status.CampaignActive,
-	})
+	}
+	if rewardDetailsVisible {
+		out.CouponPrizes = status.CouponPrizes
+		out.CouponWeightBP = status.CouponWeightBP
+		out.BalanceWeightBP = status.BalanceWeightBP
+		out.CostAmount = status.CostAmount
+		out.Pool = toPlayBlindboxPoolDTOPtr(status.BlindboxPool)
+		out.CurrentPool = toPlayBlindboxPoolDTOPtr(status.CurrentPool)
+		out.NextPool = toOptionalPlayBlindboxPoolDTO(status.NextPool)
+		out.VIPTier = status.VIPTier
+		out.ExpectedReward = status.ExpectedReward
+		out.NextExpectedReward = status.NextExpectedReward
+		out.PoolVersion = status.PoolVersion
+		out.RTPCap = status.RTPCap
+	}
+	return out
 }
 
 func (h *PlayHandler) BlindboxPool(c *gin.Context) {
-	status, err := h.playService.GetBlindboxStatus(c.Request.Context(), 0)
+	// The response varies by optional authentication. Prevent shared caches
+	// from replaying a qualified account's detailed pool to an Explorer.
+	c.Writer.Header().Add("Vary", "Authorization")
+	c.Header("Cache-Control", "private, no-store")
+	subject, authenticated := middleware.GetAuthSubjectFromContext(c)
+	userID := int64(0)
+	if authenticated {
+		userID = subject.UserID
+	}
+	status, err := h.playService.GetBlindboxStatus(c.Request.Context(), userID)
 	if err != nil {
 		response.ErrorFrom(c, err)
+		return
+	}
+	// Anonymous requests and authenticated Explorer accounts must not receive
+	// reward-pool internals. Qualified accounts may use the established detail
+	// response, while the canonical authenticated status endpoint applies the
+	// same qualification-aware DTO contract.
+	if !authenticated || status.GrowthEligibility.RewardMode != service.PlayGrowthRewardRedeemable {
+		response.Success(c, playBlindboxPublicPreviewDTO{
+			Enabled:         status.Enabled,
+			CouponPoolReady: status.CouponPoolReady,
+		})
 		return
 	}
 	response.Success(c, playBlindboxPoolResponseDTO{
@@ -430,10 +482,13 @@ func (h *PlayHandler) QuizToday(c *gin.Context) {
 		PreviousTotal:             today.PreviousTotal,
 		PreviousReward:            today.PreviousReward,
 		PreviousRewardType:        today.PreviousRewardType,
+		PreviousGrowthEnergy:      today.PreviousGrowthEnergy,
 		PreviousCoupon:            toPlayCouponRewardDTO(today.PreviousCoupon),
+		PreviousRedeemCode:        toPlayRedeemCodeRewardDTO(today.PreviousRedeemCode),
 		PreviousCouponPoolVersion: today.PreviousCouponPoolVersion,
 		RewardPerCorrect:          today.RewardPerCorrect,
 		ServerDate:                today.ServerDate,
+		GrowthEligibility:         today.GrowthEligibility,
 	}
 	for _, q := range today.Questions {
 		out.Questions = append(out.Questions, playQuizQuestionDTO{
@@ -478,6 +533,8 @@ func (h *PlayHandler) QuizSubmit(c *gin.Context) {
 		RedeemCode:        toPlayRedeemCodeRewardDTO(result.RedeemCode),
 		CouponPoolVersion: result.CouponPoolVersion,
 		ServerDate:        result.ServerDate,
+		GrowthEnergy:      result.GrowthEnergy,
+		GrowthEligibility: result.GrowthEligibility,
 	})
 }
 

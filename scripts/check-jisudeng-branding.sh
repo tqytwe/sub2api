@@ -16,6 +16,17 @@ check() {
   fi
 }
 
+check_not() {
+  local desc="$1"
+  shift
+  if ! "$@"; then
+    echo "  ✓ $desc"
+  else
+    echo "  ✗ $desc"
+    FAIL=1
+  fi
+}
+
 echo "Checking jisudeng branding..."
 
 check "AuthLayout uses auth-page" \
@@ -50,16 +61,11 @@ check "auth-layout-jisudeng.css exists" \
 check "home-view.css exists" \
   test -f "$ROOT/frontend/src/styles/home-view.css"
 
-check "HomeView renders the LMSpeed badge in default and custom home modes" \
-  test "$(grep -c '<LmspeedBadge' "$ROOT/frontend/src/views/HomeView.vue")" -eq 2
+check_not "HomeView has no LMSpeed homepage embedding" \
+  grep -qi 'lmspeed' "$ROOT/frontend/src/views/HomeView.vue"
 
-check "LMSpeed claim badge URL is preserved" \
-  grep -q 'claim-badge/2039?claim=2039-1kHJJSboOUMX0Au9G01tAaBWozH20jbC' \
-    "$ROOT/frontend/src/components/home/LmspeedBadge.vue"
-
-check "LMSpeed claim has a no-JavaScript fallback" \
-  grep -q 'claim-badge/2039?claim=2039-1kHJJSboOUMX0Au9G01tAaBWozH20jbC' \
-    "$ROOT/frontend/index.html"
+check_not "Home document shell has no LMSpeed claim badge" \
+  grep -qi 'lmspeed' "$ROOT/frontend/index.html"
 
 if [ "$FAIL" -ne 0 ]; then
   echo ""

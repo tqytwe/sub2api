@@ -32,18 +32,18 @@ describe('MetricCell', () => {
     expect(critical.find('strong').classes().join(' ')).toMatch(/red/)
   })
 
-  it('renders multi-part detail as non-truncated chips (AVG · P90 fully visible)', () => {
+  it('renders multi-part localized detail as non-truncated chips (average · P90 fully visible)', () => {
     const wrapper = mount(MetricCell, {
       props: {
         label: '首 Token P50',
         value: '400ms',
-        detail: 'AVG 475ms · P90 800ms',
+        detail: '平均 475ms · P90 800ms',
         state: 'healthy',
       },
     })
     expect(wrapper.find('small.truncate').exists()).toBe(false)
     expect(wrapper.find('.whitespace-nowrap').exists()).toBe(true)
-    expect(wrapper.text()).toContain('AVG 475ms')
+    expect(wrapper.text()).toContain('平均 475ms')
     expect(wrapper.text()).toContain('P90 800ms')
     expect(wrapper.text()).not.toContain('…')
   })

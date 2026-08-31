@@ -177,6 +177,13 @@ func (r *playRepository) InsertBlindboxOpenRecord(ctx context.Context, record se
 	return nil
 }
 
+func nullIfNonPositiveInt64(value int64) any {
+	if value <= 0 {
+		return nil
+	}
+	return value
+}
+
 func (r *playRepository) ListRecentBlindboxWins(ctx context.Context, limit int) (result []service.PlayBlindboxRecentWin, err error) {
 	if limit <= 0 {
 		limit = 20
@@ -276,10 +283,13 @@ func (r *playRepository) GetQuizAttempt(ctx context.Context, userID int64, date 
 	exec := r.sqlExec(ctx)
 	var attempt service.PlayQuizAttemptDB
 	err := scanSingleRow(ctx, exec, `
-		SELECT score, total, reward_amount
-		FROM play_quiz_attempts
-		WHERE user_id = $1 AND attempt_date = $2`,
-		[]any{userID, date.Format("2006-01-02")}, &attempt.Score, &attempt.Total, &attempt.RewardAmount)
+		SELECT a.score, a.total, a.reward_amount,
+		       COALESCE(s.reward_mode, '') AS growth_reward_mode
+		FROM play_quiz_attempts a
+		LEFT JOIN play_growth_eligibility_snapshots s
+		  ON s.id = a.growth_eligibility_snapshot_id
+		WHERE a.user_id = $1 AND a.attempt_date = $2`,
+		[]any{userID, date.Format("2006-01-02")}, &attempt.Score, &attempt.Total, &attempt.RewardAmount, &attempt.GrowthRewardMode)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil

@@ -39,6 +39,10 @@ const quizCompletionReward = computed(() => {
   return (quiz?.questions.length ?? 0) * (quiz?.reward_per_correct ?? 0)
 })
 
+function isGrowthEnergyMode(status?: { growth_eligibility?: { reward_mode?: string }; growth_energy_enabled?: boolean }) {
+  return status?.growth_eligibility?.reward_mode === 'energy' || status?.growth_energy_enabled === true
+}
+
 const campaignPerkLinesFor = (campaign: PlayCampaignSummary) => {
   const rules = campaign.rules
   if (!rules) return []
@@ -73,7 +77,9 @@ const playCards = computed(() => {
       title: t('nav.checkIn'),
       subtitle: c?.checked_in_today
         ? t('playHub.checkinDone', { streak: c.streak_count || 0 })
-        : t('playHub.checkinPending', { amount: (c?.reward_amount ?? 0).toFixed(2), streak: c?.streak_count || 0 }),
+        : isGrowthEnergyMode(c)
+          ? t('checkin.energyHint')
+          : t('playHub.checkinPending', { amount: (c?.reward_amount ?? 0).toFixed(2), streak: c?.streak_count || 0 }),
       route: '/check-in',
       badge: c && !c.checked_in_today ? t('playHub.badgePending') : undefined,
       action: c && !c.checked_in_today ? t('playHub.actionCheckin') : undefined,
@@ -123,7 +129,9 @@ const playCards = computed(() => {
       title: t('nav.quizQuest'),
       subtitle: q?.already_submitted
         ? t('playHub.quizDone', { score: q.previous_score ?? 0, total: q.previous_total ?? 0 })
-        : t('playHub.quizPending', { reward: quizCompletionReward.value.toFixed(2) }),
+        : isGrowthEnergyMode(q)
+          ? t('quiz.energyHint')
+          : t('playHub.quizPending', { reward: quizCompletionReward.value.toFixed(2) }),
       route: '/quiz-quest',
       badge: q && !q.already_submitted ? t('playHub.badgePending') : undefined,
       enabled: !!q?.enabled,

@@ -187,6 +187,7 @@ import {
   tokensPerSecondFromTpm,
   healthModeScore,
   healthScoreClass,
+  type LatencyMetricLabels,
 } from '@/features/channel-monitor-v2/monitorFormat'
 import {
   applyWheelZoom,
@@ -196,9 +197,16 @@ import {
   sliceByZoom,
   type ZoomState,
 } from '@/features/channel-monitor-v2/monitorZoom'
+import { platformLabel } from '@/utils/platformColors'
 
 type HealthMode = 'overall' | 'success' | 'ttft' | 'cache'
 const { t, locale } = useI18n()
+const latencyMetricLabels = computed<LatencyMetricLabels>(() => ({
+  average: t('channelMonitorV2.metrics.average'),
+  p50: t('channelMonitorV2.metrics.p50'),
+  p90: t('channelMonitorV2.metrics.p90'),
+  p95: t('channelMonitorV2.metrics.p95'),
+}))
 
 const props = withDefaults(
   defineProps<{
@@ -274,7 +282,7 @@ const pulseStyle = computed(() => {
   }
 })
 const axisStart = computed(() =>
-  bucketStarts.value.length ? formatAxisTime(bucketStarts.value[0]) : '时间脉冲'
+  bucketStarts.value.length ? formatAxisTime(bucketStarts.value[0]) : t('channelMonitorV2.matrix.timeAxis')
 )
 const axisEnd = computed(() =>
   bucketStarts.value.length ? formatAxisTime(bucketStarts.value[bucketStarts.value.length - 1]) : ''
@@ -348,8 +356,10 @@ function cellClass(health: MonitorHealth, requestCount: number): string {
 }
 
 function rowLabel(row: MonitorMatrixRow): string {
-  const parts = [row.platform]
-  if (row.group_name || row.group_id) parts.push(row.group_name || `#${row.group_id}`)
+  const parts = [platformLabel(row.platform, locale.value)]
+  if (row.group_name || row.group_id) {
+    parts.push(row.group_name || t('channelMonitorV2.filters.groupId', { id: row.group_id }))
+  }
   if (row.model) parts.push(row.model === '__other__' ? t('channelMonitorV2.otherModels') : row.model)
   return parts.join(' / ')
 }
@@ -431,7 +441,7 @@ function positionTooltip(event: MouseEvent | FocusEvent) {
 }
 
 function latencyPrivacy(metric: LatencyMetric) {
-  return formatLatencyPrivacy(metric.p50_ms, metric.p90_ms, metric.avg_ms, metric.p95_ms)
+  return formatLatencyPrivacy(metric.p50_ms, metric.p90_ms, metric.avg_ms, metric.p95_ms, latencyMetricLabels.value)
 }
 
 function formatPercent(value: number) {

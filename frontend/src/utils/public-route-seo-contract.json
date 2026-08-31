@@ -1,0 +1,432 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Cross-layer SSR and hydration public metadata contract",
+  "routes": {
+    "/": {
+      "title": "极速蹬 - OpenAI兼容 AI API 网关与多模型服务平台",
+      "description": "极速蹬为开发者、团队和 AI 工具用户提供 OpenAI 兼容 API 网关，统一接入 DeepSeek、Qwen、Kimi、GLM、GPT、Claude、Gemini 等模型，支持公开价格、文档、图像生成、API Key 管理与按量计费。",
+      "twitterTitle": "极速蹬 OpenAI兼容 API 网关 - DeepSeek、Qwen、Kimi、GLM 多模型统一接入",
+      "twitterDescription": "极速蹬统一接入 DeepSeek、Qwen、Kimi、GLM、GPT、Claude、Gemini 等模型，提供 OpenAI 兼容 API、公开模型价格、图像生成、API Key 管理、文档和按量计费服务，适合把现有 OpenAI SDK、AI 工具、自动化脚本和业务应用迁移到统一入口，并持续比较模型能力、调用权限与成本。",
+      "canonicalPath": "/",
+      "alternates": [
+        {
+          "hreflang": "zh-CN",
+          "path": "/"
+        },
+        {
+          "hreflang": "en",
+          "path": "/en/"
+        },
+        {
+          "hreflang": "x-default",
+          "path": "/"
+        }
+      ],
+      "jsonLdTypes": [
+        "Organization",
+        "WebApplication"
+      ]
+    },
+    "/catalog": {
+      "title": "极速蹬模型价格与 API 目录 - 多模型公开计费与调用指南",
+      "description": "查看极速蹬公开模型目录、模型平台、用途分类与 USD / 1M tokens 计费参考，覆盖 DeepSeek、Qwen、Kimi、GLM、GPT、Claude、Gemini 等模型，登录后可查看分组有效价格与调用权限，帮助开发者快速评估成本。",
+      "twitterTitle": "极速蹬模型价格与 API 目录 - DeepSeek、Qwen、Kimi、GLM、Claude 多模型公开计费",
+      "twitterDescription": "查看极速蹬公开模型目录、模型平台、用途分类、USD / 1M tokens 计费参考和分组有效价格，覆盖 DeepSeek、Qwen、Kimi、GLM、GPT、Claude、Gemini 等多模型 API 调用，帮助开发者快速评估成本、调用权限、模型能力与接入路径，并在登录后核对账号实际可用价格表。",
+      "canonicalPath": "/catalog",
+      "alternates": [
+        {
+          "hreflang": "zh-CN",
+          "path": "/catalog"
+        },
+        {
+          "hreflang": "en",
+          "path": "/en/catalog"
+        },
+        {
+          "hreflang": "x-default",
+          "path": "/catalog"
+        }
+      ],
+      "jsonLdTypes": [
+        "ItemList",
+        "ListItem"
+      ]
+    },
+    "/catalog/deepseek": {
+      "title": "DeepSeek API 价格与模型接入 - 极速蹬多模型目录",
+      "description": "查看极速蹬 DeepSeek 模型目录、公开 API 价格、本站基础售价和 USD / 1M tokens 计费参考，支持通过 OpenAI 兼容 API、统一 Key、接入文档、图像能力说明和账单入口快速评估模型能力、调用权限、接入路径与上线成本。",
+      "twitterTitle": "DeepSeek API 价格与模型接入 - 极速蹬 OpenAI 兼容 API、公开计费、文档、调用与成本指南",
+      "twitterDescription": "查看极速蹬 DeepSeek 模型目录、公开 API 价格、本站基础售价、USD / 1M tokens 计费参考、OpenAI 兼容接入方式、API Key 设置、文档入口、图像能力说明、分组实付价提示和账单规则，帮助开发者在登录前评估模型能力、调用权限、接入路径、测试步骤、生产迁移、日常调用、成本监控和上线成本。",
+      "canonicalPath": "/catalog/deepseek",
+      "alternates": [
+        {
+          "hreflang": "zh-CN",
+          "path": "/catalog/deepseek"
+        },
+        {
+          "hreflang": "en",
+          "path": "/en/catalog/deepseek"
+        },
+        {
+          "hreflang": "x-default",
+          "path": "/catalog/deepseek"
+        }
+      ],
+      "jsonLdTypes": []
+    },
+    "/catalog/qwen": {
+      "title": "Qwen API 价格与模型接入 - 极速蹬多模型公开计费目录",
+      "description": "查看极速蹬 Qwen 模型目录、公开 API 价格、本站基础售价和 USD / 1M tokens 计费参考，支持通过 OpenAI 兼容 API、统一 Key、接入文档、图像能力说明和账单入口快速评估模型能力、调用权限、接入路径与上线成本。",
+      "twitterTitle": "Qwen API 价格与模型接入 - 极速蹬 OpenAI 兼容 API、公开计费、文档、调用与成本指南",
+      "twitterDescription": "查看极速蹬 Qwen 模型目录、公开 API 价格、本站基础售价、USD / 1M tokens 计费参考、OpenAI 兼容接入方式、API Key 设置、文档入口、图像能力说明、分组实付价提示和账单规则，帮助开发者在登录前评估模型能力、调用权限、接入路径、测试步骤、生产迁移、日常调用、成本监控和上线成本。",
+      "canonicalPath": "/catalog/qwen",
+      "alternates": [
+        {
+          "hreflang": "zh-CN",
+          "path": "/catalog/qwen"
+        },
+        {
+          "hreflang": "en",
+          "path": "/en/catalog/qwen"
+        },
+        {
+          "hreflang": "x-default",
+          "path": "/catalog/qwen"
+        }
+      ],
+      "jsonLdTypes": []
+    },
+    "/catalog/kimi": {
+      "title": "Kimi API 价格与模型接入 - 极速蹬多模型公开计费目录",
+      "description": "查看极速蹬 Kimi 模型目录、公开 API 价格、本站基础售价和 USD / 1M tokens 计费参考，支持通过 OpenAI 兼容 API、统一 Key、接入文档、图像能力说明和账单入口快速评估模型能力、调用权限、接入路径与上线成本。",
+      "twitterTitle": "Kimi API 价格与模型接入 - 极速蹬 OpenAI 兼容 API、公开计费、文档、调用与成本指南",
+      "twitterDescription": "查看极速蹬 Kimi 模型目录、公开 API 价格、本站基础售价、USD / 1M tokens 计费参考、OpenAI 兼容接入方式、API Key 设置、文档入口、图像能力说明、分组实付价提示和账单规则，帮助开发者在登录前评估模型能力、调用权限、接入路径、测试步骤、生产迁移、日常调用、成本监控和上线成本。",
+      "canonicalPath": "/catalog/kimi",
+      "alternates": [
+        {
+          "hreflang": "zh-CN",
+          "path": "/catalog/kimi"
+        },
+        {
+          "hreflang": "en",
+          "path": "/en/catalog/kimi"
+        },
+        {
+          "hreflang": "x-default",
+          "path": "/catalog/kimi"
+        }
+      ],
+      "jsonLdTypes": []
+    },
+    "/catalog/glm": {
+      "title": "GLM API 价格与模型接入 - 极速蹬多模型公开计费目录",
+      "description": "查看极速蹬 GLM 模型目录、公开 API 价格、本站基础售价和 USD / 1M tokens 计费参考，支持通过 OpenAI 兼容 API、统一 Key、接入文档、图像能力说明和账单入口快速评估模型能力、调用权限、接入路径与上线成本。",
+      "twitterTitle": "GLM API 价格与模型接入 - 极速蹬 OpenAI 兼容 API、公开计费、文档、调用与成本指南",
+      "twitterDescription": "查看极速蹬 GLM 模型目录、公开 API 价格、本站基础售价、USD / 1M tokens 计费参考、OpenAI 兼容接入方式、API Key 设置、文档入口、图像能力说明、分组实付价提示和账单规则，帮助开发者在登录前评估模型能力、调用权限、接入路径、测试步骤、生产迁移、日常调用、成本监控和上线成本。",
+      "canonicalPath": "/catalog/glm",
+      "alternates": [
+        {
+          "hreflang": "zh-CN",
+          "path": "/catalog/glm"
+        },
+        {
+          "hreflang": "en",
+          "path": "/en/catalog/glm"
+        },
+        {
+          "hreflang": "x-default",
+          "path": "/catalog/glm"
+        }
+      ],
+      "jsonLdTypes": []
+    },
+    "/docs": {
+      "title": "极速蹬 API 文档 - OpenAI兼容接口、模型调用与计费指南",
+      "description": "阅读极速蹬 API Key、OpenAI 兼容接口、模型选择、图片生成、异步任务、Batch Image、工具接入和计费说明，快速完成从注册到生产调用的配置。文档覆盖常见 SDK、命令行工具、环境安装与排障，适合开发者、团队和 AI 工具用户查阅。",
+      "twitterTitle": "极速蹬 API 文档 - OpenAI兼容接口、模型调用、图像生成、Batch Image 与计费指南",
+      "twitterDescription": "阅读极速蹬 API 文档，完成 API Key、OpenAI 兼容接口、模型调用、图片生成、异步任务、Batch Image、工具接入、计费说明、SDK 配置和生产排障，帮助团队从注册、创建 Key、切换 base URL 到上线调用都能快速查到步骤、示例、权限说明、排障路径、上线检查和常见问题答案。",
+      "canonicalPath": "/docs",
+      "alternates": [
+        {
+          "hreflang": "zh-CN",
+          "path": "/docs"
+        },
+        {
+          "hreflang": "en",
+          "path": "/en/docs"
+        },
+        {
+          "hreflang": "x-default",
+          "path": "/docs"
+        }
+      ],
+      "jsonLdTypes": []
+    },
+    "/download/android": {
+      "title": "JisudengChat Android 下载 - 极速蹬 AI 客户端与移动模型调用入口",
+      "description": "下载 JisudengChat Android APK，使用极速蹬账号登录并同步余额、分组、API Key 和可用模型，在手机上查看账户状态、接入文档、模型调用入口和更新信息。页面提供版本号、安装包校验、下载说明与故障提示，适合已注册用户快速安装并开始移动端使用。",
+      "twitterTitle": "JisudengChat Android 下载 - 极速蹬 AI 客户端、API Key 与模型调用入口",
+      "twitterDescription": "下载 JisudengChat Android APK，使用极速蹬账号登录并同步余额、分组、API Key、可用模型、接入文档、账户状态和更新信息。页面提供版本号、安装包校验、下载说明、更新提示和移动端入口，帮助已注册用户在手机上快速进入 AI 模型调用、账户查看、文档查询、移动测试与日常使用工作流。",
+      "canonicalPath": "/download/android",
+      "alternates": [
+        {
+          "hreflang": "zh-CN",
+          "path": "/download/android"
+        },
+        {
+          "hreflang": "x-default",
+          "path": "/download/android"
+        }
+      ],
+      "jsonLdTypes": []
+    },
+    "/about": {
+      "title": "关于极速蹬 - OpenAI兼容 API 网关、模型目录与提示词库",
+      "description": "了解极速蹬如何为开发者、团队和 AI 工具用户提供 OpenAI 兼容 API 网关、模型目录、公开价格、接入文档、图像生成、API Key 管理和提示词库，统一接入 DeepSeek、Qwen、Kimi、GLM、GPT、Claude、Gemini 等模型，帮助快速评估能力、成本和上线路径。",
+      "twitterTitle": "关于极速蹬 - OpenAI兼容 API 网关、模型价格、图像生成、API 文档与提示词库服务入口指南",
+      "twitterDescription": "了解极速蹬如何统一 DeepSeek、Qwen、Kimi、GLM、GPT、Claude、Gemini 等模型入口，提供 OpenAI 兼容 API、公开价格、API Key 管理、接入文档、图像生成和提示词库，帮助开发者、团队和 AI 工具用户更快完成模型选择、成本评估、测试接入、生产迁移与日常调用。",
+      "canonicalPath": "/about",
+      "alternates": [
+        {
+          "hreflang": "zh-CN",
+          "path": "/about"
+        },
+        {
+          "hreflang": "en",
+          "path": "/en/about"
+        },
+        {
+          "hreflang": "x-default",
+          "path": "/about"
+        }
+      ],
+      "jsonLdTypes": []
+    },
+    "/contact": {
+      "title": "联系极速蹬客服 - API、模型调用、充值、账号与接入支持入口",
+      "description": "联系极速蹬客服获取登录注册、API Key、模型调用、充值支付、余额、分组权限、文档接入、图像生成、账号安全和故障排查支持。我们会帮助开发者和团队确认 OpenAI 兼容 API 接入路径、模型可用性、价格说明、调用示例、SDK 配置和上线问题。",
+      "twitterTitle": "联系极速蹬客服 - API Key、模型调用、充值、账号、图像生成、API 文档与开发者接入支持入口",
+      "twitterDescription": "通过极速蹬客服入口获取登录注册、API Key、模型调用、充值支付、余额、分组权限、文档接入、图像生成、账号安全和故障排查支持。我们会围绕 OpenAI 兼容 API、DeepSeek、Qwen、Kimi、GLM、GPT、Claude、Gemini 等模型的可用性、价格说明、接入配置和上线问题提供帮助。",
+      "canonicalPath": "/contact",
+      "alternates": [
+        {
+          "hreflang": "zh-CN",
+          "path": "/contact"
+        },
+        {
+          "hreflang": "en",
+          "path": "/en/contact"
+        },
+        {
+          "hreflang": "x-default",
+          "path": "/contact"
+        }
+      ],
+      "jsonLdTypes": []
+    },
+    "/en": {
+      "title": "Jisudeng: One OpenAI-Compatible API for Frontier AI Models",
+      "description": "Access DeepSeek, Qwen, Kimi, GLM, GPT, Claude, Gemini and more through one OpenAI-compatible API with unified keys, public pricing, image APIs, billing, docs.",
+      "twitterTitle": "Jisudeng: One OpenAI-Compatible API for Frontier AI Models",
+      "twitterDescription": "Jisudeng unifies DeepSeek, Qwen, Kimi, GLM, GPT, Claude, Gemini and more behind one OpenAI-compatible API, with public pricing, API docs, image generation, usage controls, and billing.",
+      "canonicalPath": "/en/",
+      "alternates": [
+        {
+          "hreflang": "en",
+          "path": "/en/"
+        },
+        {
+          "hreflang": "zh-CN",
+          "path": "/"
+        },
+        {
+          "hreflang": "x-default",
+          "path": "/"
+        }
+      ],
+      "jsonLdTypes": [
+        "Organization",
+        "WebApplication"
+      ]
+    },
+    "/en/catalog": {
+      "title": "DeepSeek, Qwen, Kimi, GLM, Claude API Pricing | Jisudeng",
+      "description": "Compare model access and usage-based API rates for DeepSeek, Qwen, Kimi, GLM, GPT, Claude, Gemini and more through Jisudeng.",
+      "twitterTitle": "DeepSeek, Qwen, Kimi, GLM, GPT, Claude API Pricing | Jisudeng",
+      "twitterDescription": "Compare model access, public API rates, and usage-based pricing for DeepSeek, Qwen, Kimi, GLM, GPT, Claude, Gemini and more through Jisudeng, with docs and API key setup guidance.",
+      "canonicalPath": "/en/catalog",
+      "alternates": [
+        {
+          "hreflang": "en",
+          "path": "/en/catalog"
+        },
+        {
+          "hreflang": "zh-CN",
+          "path": "/catalog"
+        },
+        {
+          "hreflang": "x-default",
+          "path": "/catalog"
+        }
+      ],
+      "jsonLdTypes": [
+        "ItemList",
+        "ListItem"
+      ]
+    },
+    "/en/catalog/deepseek": {
+      "title": "DeepSeek API Pricing and Access | Jisudeng",
+      "description": "Compare DeepSeek model access, public API rates, and usage-based pricing through Jisudeng. Use an OpenAI-compatible base URL, unified keys, docs, and billing.",
+      "twitterTitle": "DeepSeek API Pricing, Models, and OpenAI-Compatible Access",
+      "twitterDescription": "Compare DeepSeek model access, public API rates, usage-based pricing, OpenAI-compatible setup, API key guidance, docs, image API notes, and billing through Jisudeng.",
+      "canonicalPath": "/en/catalog/deepseek",
+      "alternates": [
+        {
+          "hreflang": "en",
+          "path": "/en/catalog/deepseek"
+        },
+        {
+          "hreflang": "zh-CN",
+          "path": "/catalog/deepseek"
+        },
+        {
+          "hreflang": "x-default",
+          "path": "/catalog/deepseek"
+        }
+      ],
+      "jsonLdTypes": []
+    },
+    "/en/catalog/qwen": {
+      "title": "Qwen API Pricing and Access | Jisudeng",
+      "description": "Compare Qwen model access, public API rates, and usage-based pricing through Jisudeng. Use one OpenAI-compatible base URL with unified keys, docs, and billing.",
+      "twitterTitle": "Qwen API Pricing, Models, and OpenAI-Compatible Access",
+      "twitterDescription": "Compare Qwen model access, public API rates, usage-based pricing, OpenAI-compatible setup, API key guidance, docs, image API notes, and billing through Jisudeng.",
+      "canonicalPath": "/en/catalog/qwen",
+      "alternates": [
+        {
+          "hreflang": "en",
+          "path": "/en/catalog/qwen"
+        },
+        {
+          "hreflang": "zh-CN",
+          "path": "/catalog/qwen"
+        },
+        {
+          "hreflang": "x-default",
+          "path": "/catalog/qwen"
+        }
+      ],
+      "jsonLdTypes": []
+    },
+    "/en/catalog/kimi": {
+      "title": "Kimi API Pricing and Access | Jisudeng",
+      "description": "Compare Kimi model access, public API rates, and usage-based pricing through Jisudeng. Use one OpenAI-compatible base URL with unified keys, docs, and billing.",
+      "twitterTitle": "Kimi API Pricing, Models, and OpenAI-Compatible Access",
+      "twitterDescription": "Compare Kimi model access, public API rates, usage-based pricing, OpenAI-compatible setup, API key guidance, docs, model catalog, and billing through Jisudeng.",
+      "canonicalPath": "/en/catalog/kimi",
+      "alternates": [
+        {
+          "hreflang": "en",
+          "path": "/en/catalog/kimi"
+        },
+        {
+          "hreflang": "zh-CN",
+          "path": "/catalog/kimi"
+        },
+        {
+          "hreflang": "x-default",
+          "path": "/catalog/kimi"
+        }
+      ],
+      "jsonLdTypes": []
+    },
+    "/en/catalog/glm": {
+      "title": "GLM API Pricing and Access | Jisudeng",
+      "description": "Compare GLM model access, public API rates, and usage-based pricing through Jisudeng. Use one OpenAI-compatible base URL with unified keys, docs, and billing.",
+      "twitterTitle": "GLM API Pricing, Models, and OpenAI-Compatible Access",
+      "twitterDescription": "Compare GLM model access, public API rates, usage-based pricing, OpenAI-compatible setup, API key guidance, docs, model catalog, and billing through Jisudeng.",
+      "canonicalPath": "/en/catalog/glm",
+      "alternates": [
+        {
+          "hreflang": "en",
+          "path": "/en/catalog/glm"
+        },
+        {
+          "hreflang": "zh-CN",
+          "path": "/catalog/glm"
+        },
+        {
+          "hreflang": "x-default",
+          "path": "/catalog/glm"
+        }
+      ],
+      "jsonLdTypes": []
+    },
+    "/en/docs": {
+      "title": "Jisudeng API Docs: OpenAI-Compatible Gateway, Models, Images",
+      "description": "Use Jisudeng with your existing OpenAI SDK. Change only the base URL and API key to access AI models, image APIs, tool setup guides, billing notes, and docs.",
+      "twitterTitle": "Jisudeng API Docs: OpenAI-Compatible Gateway, Models, Images",
+      "twitterDescription": "Use Jisudeng with your existing OpenAI SDK. Change only the base URL and API key to access AI models, image APIs, tool setup guides, billing notes, and production docs.",
+      "canonicalPath": "/en/docs",
+      "alternates": [
+        {
+          "hreflang": "en",
+          "path": "/en/docs"
+        },
+        {
+          "hreflang": "zh-CN",
+          "path": "/docs"
+        },
+        {
+          "hreflang": "x-default",
+          "path": "/docs"
+        }
+      ],
+      "jsonLdTypes": []
+    },
+    "/en/about": {
+      "title": "About Jisudeng: A Transparent OpenAI-Compatible API Relay",
+      "description": "Learn how Jisudeng provides a transparent OpenAI-compatible API with public pricing, privacy commitments, and practical developer documentation for teams.",
+      "twitterTitle": "About Jisudeng: Transparent AI API, Pricing, and Privacy",
+      "twitterDescription": "Learn how Jisudeng routes major AI models through an OpenAI-compatible API with transparent channels, public pricing, request-body privacy, image access, developer docs, and support for teams.",
+      "canonicalPath": "/en/about",
+      "alternates": [
+        {
+          "hreflang": "en",
+          "path": "/en/about"
+        },
+        {
+          "hreflang": "zh-CN",
+          "path": "/about"
+        },
+        {
+          "hreflang": "x-default",
+          "path": "/about"
+        }
+      ],
+      "jsonLdTypes": []
+    },
+    "/en/contact": {
+      "title": "Contact Jisudeng: API, Account, Billing, and Support",
+      "description": "Contact Jisudeng for API keys, model access, billing questions, image generation, documentation, integration help, and technical support.",
+      "twitterTitle": "Contact Jisudeng: API, Billing, and Developer Support",
+      "twitterDescription": "Contact Jisudeng for API keys, model access, billing, image generation, docs, integration help, privacy, and technical support for teams using major AI models.",
+      "canonicalPath": "/en/contact",
+      "alternates": [
+        {
+          "hreflang": "en",
+          "path": "/en/contact"
+        },
+        {
+          "hreflang": "zh-CN",
+          "path": "/contact"
+        },
+        {
+          "hreflang": "x-default",
+          "path": "/contact"
+        }
+      ],
+      "jsonLdTypes": []
+    }
+  }
+}

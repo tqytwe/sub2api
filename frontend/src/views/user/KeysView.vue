@@ -1166,6 +1166,8 @@ import type { SubscriptionPlan } from '@/types/payment'
 import { formatDateTime } from '@/utils/format'
 import { localizedEnumOrUnknown } from '@/utils/localizedEnum'
 import { maskApiKey } from '@/utils/maskApiKey'
+import { resolveCustomMenuRoute } from '@/router/customMenuTarget'
+import { getLocale } from '@/i18n'
 import {
   buildCcSwitchImportDeeplink,
   buildCcSwitchUsageScript,
@@ -1596,6 +1598,11 @@ const goBuyPlan = (plan: SubscriptionPlan) => {
 const openDocs = () => {
   const url = publicSettings.value?.doc_url?.trim()
   if (!url) return
+  const nativeRoute = resolveCustomMenuRoute({ url }, getLocale())
+  if (nativeRoute) {
+    router.push(nativeRoute)
+    return
+  }
   if (/^https?:\/\//i.test(url)) {
     window.open(url, '_blank', 'noopener,noreferrer')
     return
@@ -1992,9 +1999,9 @@ function formatResetTime(resetAt: string | null): string {
   const days = Math.floor(diff / 86400000)
   const hours = Math.floor((diff % 86400000) / 3600000)
   const mins = Math.floor((diff % 3600000) / 60000)
-  if (days > 0) return `${days}d ${hours}h`
-  if (hours > 0) return `${hours}h ${mins}m`
-  return `${mins}m`
+  if (days > 0) return t('keys.resetTime.daysHours', { days, hours })
+  if (hours > 0) return t('keys.resetTime.hoursMinutes', { hours, minutes: mins })
+  return t('keys.resetTime.minutes', { minutes: mins })
 }
 
 onMounted(() => {

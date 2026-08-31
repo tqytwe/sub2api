@@ -85,6 +85,8 @@ var ProviderSet = wire.NewSet(
 	NewAnnouncementReadRepository,
 	NewUsageLogRepository,
 	NewPublicHomeStatsRepository,
+	wire.Bind(new(service.PublicHomeStatsRepository), new(*publicHomeStatsRepository)),
+	wire.Bind(new(service.PublicStatusSummaryRepository), new(*publicHomeStatsRepository)),
 	NewUsageBillingRepositoryWithLedger,
 	NewBatchImageRepository,
 	NewImageStudioRepository,

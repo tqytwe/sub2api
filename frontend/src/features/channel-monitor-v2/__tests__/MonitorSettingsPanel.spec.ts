@@ -23,7 +23,12 @@ vi.mock('vue-i18n', async () => {
   return {
     ...actual,
     useI18n: () => ({
-      t: (key: string) => key,
+      t: (key: string, params?: Record<string, unknown>) =>
+        key === 'channelMonitorV2.filters.groupId'
+          ? `分组 ${params?.id}`
+          : key === 'channelMonitorV2.settings.refreshIntervalMinutes'
+            ? `${params?.minutes} 分钟`
+            : key,
       locale: { value: 'zh-CN' },
     }),
   }
@@ -115,5 +120,24 @@ describe('MonitorSettingsPanel loading boundaries', () => {
     expect(wrapper.text()).toContain('channelMonitorV2.settings.loadFailed')
     expect(wrapper.find('[data-testid="channel-monitor-v2-config-retry"]').exists()).toBe(true)
     expect(wrapper.find('button.btn-primary').exists()).toBe(false)
+  })
+
+  it('uses the localized group fallback alongside an internal group identifier', async () => {
+    getGroupsMock.mockResolvedValueOnce([{ id: 7, name: '默认组', platform: 'openai' }])
+    const wrapper = mountPanel()
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('openai · 分组 7')
+    expect(wrapper.text()).not.toContain('openai · #7')
+  })
+
+  it('localizes refresh interval controls for the active locale', async () => {
+    const wrapper = mountPanel()
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('1 分钟')
+    expect(wrapper.text()).toContain('5 分钟')
+    expect(wrapper.text()).not.toContain('1 min')
+    expect(wrapper.text()).not.toContain('5 min')
   })
 })

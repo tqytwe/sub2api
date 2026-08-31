@@ -16,6 +16,8 @@ describe('doc_url sanitization', () => {
 
   it('AppHeader applies sanitizeUrl to docUrl', () => {
     expect(headerSource).toContain('sanitizeUrl(appStore.docUrl)')
+    expect(headerSource).toContain('resolveCustomMenuRoute({ url: docUrl.value }')
+    expect(headerSource).toContain('v-if="docsRoute"')
   })
 
   it('AppHeader exposes support through the shared structured support panel', () => {
@@ -39,5 +41,14 @@ describe('doc_url sanitization', () => {
 
   it('KeyUsageView applies sanitizeUrl to docUrl', () => {
     expect(keyUsageViewSource).toContain('sanitizeUrl(appStore.cachedPublicSettings?.doc_url || appStore.docUrl')
+  })
+
+  it('keeps the public layout and usage empty state on native docs routes', () => {
+    const publicLayoutSource = readFileSync(resolve(dir, '../PublicContentLayout.vue'), 'utf8')
+    const usageSource = readFileSync(resolve(dir, '../../../views/user/UsageView.vue'), 'utf8')
+    expect(publicLayoutSource).toContain('resolveCustomMenuRoute({ url: props.docUrl }')
+    expect(publicLayoutSource).toContain(':to="defaultDocsRoute"')
+    expect(usageSource).toContain('resolveCustomMenuRoute({ url: docUrl.value }')
+    expect(usageSource).toContain('v-if="docsRoute"')
   })
 })

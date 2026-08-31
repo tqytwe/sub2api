@@ -55,6 +55,7 @@ vi.mock('@/composables/useHomeLiveStats', () => ({
     computedAt: { value: '' },
     opsDataThrough: { value: '' },
     isStale: { value: false },
+    freshness: { value: 'unavailable' },
   }),
 }))
 
@@ -186,7 +187,7 @@ describe('HomeView compact mode', () => {
     expect(appStore.fetchPublicSettings).not.toHaveBeenCalled()
   })
 
-  it('keeps the English compact documentation action on the internal English docs page', () => {
+  it('keeps third-party English documentation targets external', () => {
     routeState.path = '/en'
     routeState.fullPath = '/en'
 
@@ -194,11 +195,22 @@ describe('HomeView compact mode', () => {
       compact_home_enabled: true,
       doc_url: 'https://docs.example.com',
     })
+    expect(wrapper.find('a[href="https://docs.example.com/"]').exists()).toBe(true)
+  })
+
+  it('routes canonical English documentation targets internally', () => {
+    routeState.path = '/en'
+    routeState.fullPath = '/en'
+
+    const wrapper = mountHome({
+      compact_home_enabled: true,
+      doc_url: 'https://www.jisudeng.com/docs?token=discarded',
+    })
     const docsLink = wrapper.findAllComponents(RouterLinkStub).find((link) => {
-      return (link.props('to') as { name?: string }).name === 'EnglishDocs'
+      return link.props('to') === '/en/docs'
     })
 
-    expect(docsLink?.props('to')).toEqual({ name: 'EnglishDocs' })
+    expect(docsLink?.props('to')).toBe('/en/docs')
   })
 
   it('exposes download and authentication actions in the mobile menu', async () => {

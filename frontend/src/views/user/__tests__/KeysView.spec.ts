@@ -646,4 +646,49 @@ describe('user KeysView column settings', () => {
       },
     })
   })
+
+  it('opens canonical first-party docs in the native route without retaining configured query values', async () => {
+    getPublicSettings.mockResolvedValueOnce({
+      doc_url: 'https://www.jisudeng.com/docs?token=must-not-survive',
+      api_onboarding: {
+        enabled: true,
+        title: 'Recommended setup',
+        subtitle: '',
+        items: [{
+          id: 'docs',
+          title: 'Read docs',
+          description: '',
+          badge: '',
+          enabled: true,
+          sort_order: 1,
+          group_id: null,
+          plan_id: null,
+          min_balance: 0,
+          cta: 'open_docs',
+          audience: 'new_users',
+        }],
+      },
+    })
+
+    const wrapper = await mountView()
+    const vm = wrapper.vm as unknown as { openDocs: () => void }
+
+    vm.openDocs()
+
+    expect(routerPush).toHaveBeenCalledWith('/docs')
+  })
+
+  it('keeps a third-party docs destination as an external tab', async () => {
+    getPublicSettings.mockResolvedValueOnce({
+      doc_url: 'https://docs.example.com/guide',
+    })
+    const open = vi.spyOn(window, 'open').mockImplementation(() => null)
+    const wrapper = await mountView()
+    const vm = wrapper.vm as unknown as { openDocs: () => void }
+
+    vm.openDocs()
+
+    expect(open).toHaveBeenCalledWith('https://docs.example.com/guide', '_blank', 'noopener,noreferrer')
+    expect(routerPush).not.toHaveBeenCalled()
+  })
 })

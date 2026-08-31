@@ -10,6 +10,7 @@ import { isIOSDevice } from '@/utils/device'
 import './style.css'
 import '@/styles/public-pages.css'
 import { initTheme } from '@/composables/useTheme'
+import { removePublicContentFallback } from '@/utils/publicContentFallback'
 
 function initIOSViewportZoomFix() {
   // iOS Safari 在输入框字号小于 16px 时聚焦会自动放大页面，且失焦后不会恢复。
@@ -54,6 +55,7 @@ async function bootstrap() {
 
   // 等待路由器完成初始导航后再挂载，避免竞态条件导致的空白渲染
   await router.isReady()
+  removePublicContentFallback()
   app.mount('#app')
 }
 

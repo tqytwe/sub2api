@@ -106,6 +106,8 @@ func TestProvideCleanup_WithMinimalDependencies_NoPanic(t *testing.T) {
 		nil, // quotaFlusher
 		nil, // playGrowthRunner
 		nil, // publicHomeStatsService
+		nil, // publicStatusSummaryService
+		nil, // publicStatusSnapshotWorker
 		nil, // upstreamBillingProbe
 		nil, // ollamaCloudUsage
 		nil, // auditLog

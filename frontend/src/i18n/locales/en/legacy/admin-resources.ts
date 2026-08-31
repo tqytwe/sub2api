@@ -735,6 +735,8 @@ export default {
       },
     },
     subscriptions: {
+      title: 'Subscription Management',
+      description: 'Manage user subscriptions and quota limits',
       allStatus: 'All Status',
       allGroups: 'All Groups',
       allPlatforms: 'All Platforms',

@@ -18,6 +18,38 @@ export interface PlayCheckinStatus {
   makeup_date?: string
   recharge_boost_active?: boolean
   boost_checkin_multiplier?: number
+  growth_eligibility?: PlayGrowthEligibility
+  growth_energy_enabled?: boolean
+  redeemable_reward_eligible?: boolean
+}
+
+export type PlayGrowthTier = 'explorer' | 'active' | string
+export type PlayGrowthRewardMode = 'energy' | 'redeemable' | string
+export type PlayGrowthNextAction = 'eligible' | 'email_unverified' | 'account_too_new' | 'no_recent_activity' | string
+
+export interface PlayGrowthEligibilityProgress {
+  email_verified: boolean
+  account_age_days: number
+  minimum_account_age_days: number
+  account_age_requirement_met: boolean
+  has_recent_usage: boolean
+  net_balance_recharge_30d: number
+  minimum_recharge_cny: number
+  has_active_subscription: boolean
+  activity_requirement_met: boolean
+  next_action: PlayGrowthNextAction
+}
+
+export interface PlayGrowthEligibility {
+  tier: PlayGrowthTier
+  reward_mode: PlayGrowthRewardMode
+  primary_reason: string
+  email_verified: boolean
+  account_age_days: number
+  has_recent_usage: boolean
+  net_balance_recharge_30d: number
+  has_active_subscription: boolean
+  progress?: PlayGrowthEligibilityProgress
 }
 
 export interface PlayCheckinResult {
@@ -30,6 +62,8 @@ export interface PlayCheckinResult {
   server_date: string
   streak_count?: number
   milestone_bonus?: number
+  growth_energy?: number
+  growth_eligibility?: PlayGrowthEligibility
 }
 
 export interface PlayArenaPeriod {
@@ -187,6 +221,7 @@ export interface PlayBlindboxStatus {
   opens_today: number
   can_open: boolean
   server_date: string
+  growth_eligibility?: PlayGrowthEligibility
   recharge_boost_active?: boolean
   campaign_active?: boolean
 }
@@ -203,13 +238,19 @@ export interface PlayBlindboxPool {
   tiers: PlayBlindboxPoolTier[]
 }
 
+/**
+ * Public blind-box responses are deliberately redacted for anonymous and
+ * Explorer users. Qualified users receive the detail shape below. Keeping the
+ * fields optional reflects the server contract and prevents callers from
+ * treating public status as a reward-pool disclosure.
+ */
 export interface PlayBlindboxPoolResponse {
   enabled: boolean
   coupon_pool_ready?: boolean
   coupon_prizes?: PlayCouponPrizePreview[]
   coupon_weight_bp?: number
   balance_weight_bp?: number
-  pool: PlayBlindboxPool
+  pool?: PlayBlindboxPool
   current_pool?: PlayBlindboxPool
   next_pool?: PlayBlindboxPool
   vip_tier?: PlayVIPStatus
@@ -294,11 +335,14 @@ export interface PlayQuizToday {
   previous_total?: number
   previous_reward?: number
   previous_reward_type?: PlayRewardType
+  previous_growth_energy?: number
   previous_coupon?: PlayCouponReward
   previous_redeem_code?: PlayRedeemCodeReward
   previous_coupon_pool_version?: string
   reward_per_correct: number
   server_date: string
+  growth_energy?: number
+  growth_eligibility?: PlayGrowthEligibility
 }
 
 export interface PlayQuizSubmitResult {
@@ -310,6 +354,8 @@ export interface PlayQuizSubmitResult {
   redeem_code?: PlayRedeemCodeReward
   coupon_pool_version?: string
   server_date: string
+  growth_energy?: number
+  growth_eligibility?: PlayGrowthEligibility
 }
 
 export interface PlayTeamMember {

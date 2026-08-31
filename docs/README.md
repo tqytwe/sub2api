@@ -1,7 +1,7 @@
 # 项目文档索引
 
 > 状态：active
-> 最后核验：2026-08-08
+> 最后核验：2026-08-29
 > 维护规则：当前实现以代码和测试为准；未登记在本索引中的 `docs/` 文档不得作为项目依据。
 
 ## 状态定义
@@ -34,6 +34,7 @@
 | [Growth / Play](./GROWTH_PLAY.md) | `active` | 当前功能、开关、路由和短期 backlog | Growth 维护者 | 2026-07-15 |
 | [增长埋点](./growth-analytics.md) | `active` | 当前埋点和指标口径 | Growth 维护者 | 2026-07-15 |
 | [模型与价格](./MODEL_PRICING_CN.md) | `active` | 模型目录、参考价和实际计费关系 | 计费维护者 | 2026-07-15 |
+| [公开路由与 SEO 策略](./SEO_ROUTE_POLICY.md) | `active` | 双语公开路由、canonical/hreflang、SSR SEO 契约与 sitemap/llms 边界 | 平台与内容维护者 | 2026-08-31 |
 | [余额账本治理](./BALANCE_LEDGER_ROLLOUT.md) | `active` | 统一资金流水、回填和剩余直写迁移边界 | 计费维护者 | 2026-07-20 |
 | [Play、钱包与提现交付检查点](./PLAY_WALLET_WITHDRAWAL_ROLLOUT.md) | `active` | 分阶段门禁、验证证据、部署和本地浏览器验收状态 | Growth 与计费维护者 | 2026-07-20 |
 | [批量图像 MVP](./BATCH_IMAGE_MVP.md) | `reference` | Batch provider、内部生命周期与运维参考 | API 维护者 | 2026-07-18 |
@@ -45,6 +46,11 @@
 | [BEpusdt 上线前检查清单](./BEPUSDT_PREDEPLOY_CHECKLIST.md) | `proposal` | CNY 结算、数据库契约、回调和真实支付验收门禁 | 支付维护者 | 2026-08-08 |
 | [管理员合规说明（中文）](./legal/admin-compliance.zh.md) | `active` | 管理员合规内容 | 合规维护者 | 2026-07-15 |
 | [Admin compliance](./legal/admin-compliance.en.md) | `active` | English admin compliance content | 合规维护者 | 2026-07-15 |
+| [v182 数据库与部署只读基线](./V182_DATABASE_PREFLIGHT_2026-08-29.md) | `active` | 0.1.182 生产部署身份、迁移谱系与数据库只读核对结果 | 发布负责人 | 2026-08-29 |
+| [v182 生产 Schema 基线](./V182_MIGRATION_BASELINE.md) | `active` | 生产迁移计数、退休历史与待部署 forward-only 迁移边界 | 发布负责人 | 2026-08-29 |
+| [v182 P0 文档与订阅契约](./V182_P0_DOCS_SUBSCRIPTIONS_CONTRACT.md) | `proposal` | 同源文档路由、CSP/XFO、语言竞态与订阅 API 边界 | 平台与前端维护者 | 2026-08-29 |
+| [v182 P1 首页与公开状态契约](./V182_P1_HOME_STATUS_CONTRACT.md) | `proposal` | 首页首屏、公开状态 API、指标水位与 freshness 口径 | 产品与前端维护者 | 2026-08-29 |
+| [v182 Growth Qualification Contract](./V182_GROWTH_QUALIFICATION_CONTRACT.md) | `proposal` | 签到答题资格、成长能量、奖励账本与 cohort 观测规则 | Growth 维护者 | 2026-08-29 |
 
 ## 仓库入口与上游参考
 

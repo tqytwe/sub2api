@@ -1125,6 +1125,11 @@ const messages = {
   keys: {
     title: 'API Keys',
     description: 'Manage your API keys and access tokens',
+    resetTime: {
+      daysHours: 'Resets in {days} days {hours} hours',
+      hoursMinutes: 'Resets in {hours} hours {minutes} minutes',
+      minutes: 'Resets in {minutes} minutes'
+    },
     searchPlaceholder: 'Search name or key...',
     endpoints: {
       title: 'API Endpoints',
@@ -8750,7 +8755,7 @@ const messages = {
     duration: {
       daysHours: '{days} days {hours} hours',
       hoursMinutes: '{hours} hours {minutes} minutes',
-      minutes: '{minutes} minutes'
+      minutes: '{minutes} minutes',
     }
   },
 

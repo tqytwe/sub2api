@@ -168,7 +168,11 @@ func (s *PlayService) issueCouponRewardInTx(
 	idempotencyKey string,
 	sourceRef string,
 	issuedAt time.Time,
+	eligibility PlayGrowthEligibility,
 ) (*CouponRewardIssueResult, error) {
+	if eligibility.RewardMode != PlayGrowthRewardRedeemable {
+		return nil, newPlayGrowthRewardIneligibleError(eligibility)
+	}
 	if s == nil || s.couponRewardIssuer == nil {
 		return nil, ErrCouponRewardPoolUnavailable
 	}
@@ -195,7 +199,11 @@ func (s *PlayService) issueRedeemCodeRewardInTx(
 	idempotencyKey string,
 	sourceRef string,
 	issuedAt time.Time,
+	eligibility PlayGrowthEligibility,
 ) (*RedeemCode, error) {
+	if eligibility.RewardMode != PlayGrowthRewardRedeemable {
+		return nil, newPlayGrowthRewardIneligibleError(eligibility)
+	}
 	if s == nil || s.redeemRewardIssuer == nil {
 		return nil, ErrCouponRewardPoolUnavailable
 	}

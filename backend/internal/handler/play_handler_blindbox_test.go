@@ -33,17 +33,18 @@ func (r *blindboxHandlerSettingRepo) GetMultiple(_ context.Context, keys []strin
 type blindboxPoolResponse struct {
 	Code int `json:"code"`
 	Data struct {
-		Enabled        bool                     `json:"enabled"`
-		Pool           service.PlayBlindboxPool `json:"pool"`
-		CurrentPool    service.PlayBlindboxPool `json:"current_pool"`
-		NextPool       service.PlayBlindboxPool `json:"next_pool"`
-		VIPTier        service.PlayVIPStatus    `json:"vip_tier"`
-		ExpectedReward float64                  `json:"expected_reward"`
-		PoolVersion    string                   `json:"pool_version"`
+		Enabled         bool                     `json:"enabled"`
+		CouponPoolReady bool                     `json:"coupon_pool_ready"`
+		Pool            service.PlayBlindboxPool `json:"pool"`
+		CurrentPool     service.PlayBlindboxPool `json:"current_pool"`
+		NextPool        service.PlayBlindboxPool `json:"next_pool"`
+		VIPTier         service.PlayVIPStatus    `json:"vip_tier"`
+		ExpectedReward  float64                  `json:"expected_reward"`
+		PoolVersion     string                   `json:"pool_version"`
 	} `json:"data"`
 }
 
-func TestBlindboxPoolAndStatusReturnSameConfiguredPool(t *testing.T) {
+func TestBlindboxPoolPublicPreviewAndStatusReturnConfiguredPool(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	pool := service.PlayBlindboxPool{
@@ -87,15 +88,22 @@ func TestBlindboxPoolAndStatusReturnSameConfiguredPool(t *testing.T) {
 	router.ServeHTTP(publicRecorder, publicRequest)
 	require.Equal(t, http.StatusOK, publicRecorder.Code)
 	require.Zero(t, authCalls)
+	require.Equal(t, "Authorization", publicRecorder.Header().Get("Vary"))
+	require.Equal(t, "private, no-store", publicRecorder.Header().Get("Cache-Control"))
 
 	var publicResponse blindboxPoolResponse
 	require.NoError(t, json.Unmarshal(publicRecorder.Body.Bytes(), &publicResponse))
 	require.Equal(t, 0, publicResponse.Code)
 	require.False(t, publicResponse.Data.Enabled)
-	require.Equal(t, 20.0, publicResponse.Data.Pool.Tiers[6].Amount)
-	require.Equal(t, 0, publicResponse.Data.VIPTier.Tier)
-	require.Equal(t, publicResponse.Data.Pool, publicResponse.Data.CurrentPool)
-	require.Equal(t, "season-1-v1", publicResponse.Data.PoolVersion)
+	require.True(t, publicResponse.Data.CouponPoolReady)
+	publicBody := publicRecorder.Body.String()
+	for _, forbidden := range []string{
+		`"pool"`, `"current_pool"`, `"next_pool"`, `"cost_amount"`,
+		`"expected_reward"`, `"rtp_cap"`, `"pool_version"`,
+		`"coupon_prizes"`, `"coupon_weight_bp"`, `"balance_weight_bp"`,
+	} {
+		require.NotContains(t, publicBody, forbidden)
+	}
 
 	statusRecorder := httptest.NewRecorder()
 	statusRequest := httptest.NewRequest(http.MethodGet, "/api/v1/play/blindbox/status", nil)
@@ -107,6 +115,12 @@ func TestBlindboxPoolAndStatusReturnSameConfiguredPool(t *testing.T) {
 	require.NoError(t, json.Unmarshal(statusRecorder.Body.Bytes(), &statusResponse))
 	require.Equal(t, 0, statusResponse.Code)
 	require.Equal(t, publicResponse.Data.Enabled, statusResponse.Data.Enabled)
-	require.Equal(t, publicResponse.Data.Pool, statusResponse.Data.Pool)
-	require.Equal(t, publicResponse.Data.ExpectedReward, statusResponse.Data.ExpectedReward)
+	statusBody := statusRecorder.Body.String()
+	for _, forbidden := range []string{
+		`"pool"`, `"current_pool"`, `"next_pool"`, `"cost_amount"`,
+		`"expected_reward"`, `"rtp_cap"`, `"pool_version"`,
+		`"coupon_prizes"`, `"coupon_weight_bp"`, `"balance_weight_bp"`,
+	} {
+		require.NotContains(t, statusBody, forbidden)
+	}
 }

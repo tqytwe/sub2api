@@ -5,7 +5,60 @@ import (
 	"database/sql"
 	"fmt"
 	"time"
+
+	"github.com/Wei-Shaw/sub2api/internal/service"
 )
+
+const advanceHourlyAggregationWatermarkQuery = `INSERT INTO ops_aggregation_watermarks (
+	job_name,
+	completed_through,
+	updated_at
+) VALUES ($1, $2, NOW())
+ON CONFLICT (job_name) DO UPDATE SET
+	completed_through = GREATEST(
+		ops_aggregation_watermarks.completed_through,
+		EXCLUDED.completed_through
+	),
+	updated_at = NOW()`
+
+const getHourlyAggregationWatermarkQuery = `SELECT completed_through
+FROM ops_aggregation_watermarks
+WHERE job_name = $1`
+
+func (r *opsRepository) GetHourlyAggregationWatermark(ctx context.Context) (time.Time, bool, error) {
+	if r == nil || r.db == nil {
+		return time.Time{}, false, fmt.Errorf("nil ops repository")
+	}
+
+	var completedThrough time.Time
+	err := r.db.QueryRowContext(ctx, getHourlyAggregationWatermarkQuery, service.OpsHourlyAggregationJobName).Scan(&completedThrough)
+	if err == sql.ErrNoRows {
+		return time.Time{}, false, nil
+	}
+	if err != nil {
+		return time.Time{}, false, err
+	}
+	return completedThrough.UTC(), true, nil
+}
+
+func (r *opsRepository) AdvanceHourlyAggregationWatermark(ctx context.Context, completedThrough time.Time) error {
+	if r == nil || r.db == nil {
+		return fmt.Errorf("nil ops repository")
+	}
+	if completedThrough.IsZero() {
+		return fmt.Errorf("hourly aggregation watermark is required")
+	}
+	if !completedThrough.UTC().Equal(completedThrough.UTC().Truncate(time.Hour)) {
+		return fmt.Errorf("hourly aggregation watermark must use a whole UTC hour")
+	}
+	_, err := r.db.ExecContext(
+		ctx,
+		advanceHourlyAggregationWatermarkQuery,
+		service.OpsHourlyAggregationJobName,
+		completedThrough.UTC(),
+	)
+	return err
+}
 
 func (r *opsRepository) UpsertHourlyMetrics(ctx context.Context, startTime, endTime time.Time) error {
 	if r == nil || r.db == nil {

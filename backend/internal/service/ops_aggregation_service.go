@@ -16,18 +16,29 @@ import (
 )
 
 const (
-	opsAggHourlyJobName = "ops_preaggregation_hourly"
-	opsAggDailyJobName  = "ops_preaggregation_daily"
+	// OpsHourlyAggregationJobName is also the durable completion watermark key
+	// consumed by the public-status snapshot worker.
+	OpsHourlyAggregationJobName = "ops_preaggregation_hourly"
+	opsAggDailyJobName          = "ops_preaggregation_daily"
 
 	opsAggHourlyInterval = 10 * time.Minute
 	opsAggDailyInterval  = 1 * time.Hour
 
 	// Keep in sync with ops retention target (vNext default 30d).
 	opsAggBackfillWindow = 1 * time.Hour
+	// A missing durable watermark is the first-run case for the public status
+	// contract. We must materialize the entire availability window before
+	// publishing any completion point: a two-hour bootstrap would otherwise
+	// label an incomplete 30-day aggregate as fresh.
+	opsAggHourlyBootstrapWindow = 30 * 24 * time.Hour
 
 	// Recompute overlap to absorb late-arriving rows near boundaries.
 	opsAggHourlyOverlap = 2 * time.Hour
 	opsAggDailyOverlap  = 48 * time.Hour
+	// A stale completion watermark is resumed in bounded slices. The overlap is
+	// included before each slice so late rows near the prior completion boundary
+	// are materialized before that boundary moves forward again.
+	opsAggHourlyCatchupWindow = 6 * time.Hour
 
 	opsAggHourlyChunk = 24 * time.Hour
 	opsAggDailyChunk  = 7 * 24 * time.Hour
@@ -180,39 +191,28 @@ func (s *OpsAggregationService) aggregateHourly() {
 	startedAt := time.Now().UTC()
 	runAt := startedAt
 
-	// Aggregate stable full hours only.
-	end := utcFloorToHour(time.Now().UTC().Add(-opsAggSafeDelay))
-	start := end.Add(-opsAggBackfillWindow)
-
-	// Resume from the latest bucket with overlap.
-	{
-		ctxMax, cancelMax := context.WithTimeout(context.Background(), opsAggMaxQueryTimeout)
-		latest, ok, err := s.opsRepo.GetLatestHourlyBucketStart(ctxMax)
-		cancelMax()
-		if err != nil {
-			logger.LegacyPrintf("service.ops_aggregation", "[OpsAggregation][hourly] failed to read latest bucket: %v", err)
-		} else if ok {
-			candidate := latest.Add(-opsAggHourlyOverlap)
-			if candidate.After(start) {
-				start = candidate
-			}
-		}
+	// The durable watermark, not a last non-empty metrics bucket, is the only
+	// safe resume point. Reading it must fail closed: an incomplete prior run can
+	// have materialized early chunks without being entitled to advance the public
+	// completion boundary.
+	ctxWatermark, cancelWatermark := context.WithTimeout(context.Background(), opsAggMaxQueryTimeout)
+	completedThrough, hasWatermark, err := s.opsRepo.GetHourlyAggregationWatermark(ctxWatermark)
+	cancelWatermark()
+	if err != nil {
+		logger.LegacyPrintf("service.ops_aggregation", "[OpsAggregation][hourly] failed to read completion watermark: %v", err)
+		return
+	}
+	if hasWatermark && !isWholeUTCHour(completedThrough) {
+		logger.LegacyPrintf("service.ops_aggregation", "[OpsAggregation][hourly] invalid completion watermark: %s", completedThrough.Format(time.RFC3339))
+		return
 	}
 
-	start = utcFloorToHour(start)
+	start, end := hourlyAggregationWindow(startedAt, completedThrough, hasWatermark)
 	if !start.Before(end) {
 		return
 	}
 
-	var aggErr error
-	for cursor := start; cursor.Before(end); cursor = cursor.Add(opsAggHourlyChunk) {
-		chunkEnd := minTime(cursor.Add(opsAggHourlyChunk), end)
-		if err := s.opsRepo.UpsertHourlyMetrics(ctx, cursor, chunkEnd); err != nil {
-			aggErr = err
-			logger.LegacyPrintf("service.ops_aggregation", "[OpsAggregation][hourly] upsert failed (%s..%s): %v", cursor.Format(time.RFC3339), chunkEnd.Format(time.RFC3339), err)
-			break
-		}
-	}
+	aggErr := s.processHourlyWindow(ctx, start, end)
 
 	finishedAt := time.Now().UTC()
 	durationMs := finishedAt.Sub(startedAt).Milliseconds()
@@ -224,7 +224,7 @@ func (s *OpsAggregationService) aggregateHourly() {
 		hbCtx, hbCancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer hbCancel()
 		_ = s.opsRepo.UpsertJobHeartbeat(hbCtx, &OpsUpsertJobHeartbeatInput{
-			JobName:        opsAggHourlyJobName,
+			JobName:        OpsHourlyAggregationJobName,
 			LastRunAt:      &runAt,
 			LastErrorAt:    &errAt,
 			LastError:      &msg,
@@ -238,12 +238,97 @@ func (s *OpsAggregationService) aggregateHourly() {
 	defer hbCancel()
 	result := truncateString(fmt.Sprintf("window=%s..%s", start.Format(time.RFC3339), end.Format(time.RFC3339)), 2048)
 	_ = s.opsRepo.UpsertJobHeartbeat(hbCtx, &OpsUpsertJobHeartbeatInput{
-		JobName:        opsAggHourlyJobName,
+		JobName:        OpsHourlyAggregationJobName,
 		LastRunAt:      &runAt,
 		LastSuccessAt:  &successAt,
 		LastDurationMs: &dur,
 		LastResult:     &result,
 	})
+}
+
+// hourlyAggregationWindow returns only full UTC source hours. The first
+// successful run covers the complete public-status availability horizon before
+// it establishes a durable watermark. On a healthy cadence it replays the
+// late-arrival overlap; a stale watermark resumes in bounded slices instead
+// of allowing a partial previous run to be skipped.
+func hourlyAggregationWindow(now, completedThrough time.Time, hasWatermark bool) (time.Time, time.Time) {
+	end := utcFloorToHour(now.UTC().Add(-opsAggSafeDelay))
+	lookback := opsAggBackfillWindow
+	if opsAggHourlyOverlap > lookback {
+		lookback = opsAggHourlyOverlap
+	}
+	if !hasWatermark {
+		return end.Add(-opsAggHourlyBootstrapWindow), end
+	}
+
+	completedThrough = completedThrough.UTC()
+	if completedThrough.Before(end) {
+		catchupEnd := minTime(end, completedThrough.Add(opsAggHourlyCatchupWindow))
+		return completedThrough.Add(-opsAggHourlyOverlap), catchupEnd
+	}
+
+	return end.Add(-lookback), end
+}
+
+func isWholeUTCHour(value time.Time) bool {
+	if value.IsZero() {
+		return false
+	}
+	utc := value.UTC()
+	return utc.Equal(utc.Truncate(time.Hour))
+}
+
+// processHourlyWindow materializes every requested source chunk and advances
+// the durable completion watermark only after all chunks have succeeded. An
+// empty or already-covered range is still a successful source-window check;
+// advancing the watermark in that case is required so snapshots do not stall
+// during quiet traffic periods.
+func (s *OpsAggregationService) processHourlyWindow(ctx context.Context, start, end time.Time) error {
+	if s == nil || s.opsRepo == nil {
+		return fmt.Errorf("hourly aggregation repository is unavailable")
+	}
+	start = start.UTC()
+	end = end.UTC()
+	if !isWholeUTCHour(start) || !isWholeUTCHour(end) {
+		return fmt.Errorf("hourly aggregation windows must use whole UTC hours")
+	}
+	if start.After(end) {
+		return fmt.Errorf("hourly aggregation window end precedes start")
+	}
+	if start.Equal(end) {
+		return s.finalizeHourlyAggregation(ctx, end, nil)
+	}
+
+	var aggregateErr error
+	for cursor := start; cursor.Before(end); cursor = cursor.Add(opsAggHourlyChunk) {
+		chunkEnd := minTime(cursor.Add(opsAggHourlyChunk), end)
+		if err := s.opsRepo.UpsertHourlyMetrics(ctx, cursor, chunkEnd); err != nil {
+			aggregateErr = err
+			logger.LegacyPrintf("service.ops_aggregation", "[OpsAggregation][hourly] upsert failed (%s..%s): %v", cursor.Format(time.RFC3339), chunkEnd.Format(time.RFC3339), err)
+			break
+		}
+	}
+	return s.finalizeHourlyAggregation(ctx, end, aggregateErr)
+}
+
+// finalizeHourlyAggregation publishes a durable completion point only after
+// every aggregation chunk has succeeded. Treat a watermark write failure as a
+// failed aggregation run: without it, a public snapshot could freeze a partial
+// hour behind its immutable insert trigger.
+func (s *OpsAggregationService) finalizeHourlyAggregation(ctx context.Context, completedThrough time.Time, aggregateErr error) error {
+	if aggregateErr != nil {
+		return aggregateErr
+	}
+	if s == nil || s.opsRepo == nil {
+		return fmt.Errorf("hourly aggregation watermark repository is unavailable")
+	}
+	if !isWholeUTCHour(completedThrough) {
+		return fmt.Errorf("hourly aggregation watermark must use a whole UTC hour")
+	}
+	if err := s.opsRepo.AdvanceHourlyAggregationWatermark(ctx, completedThrough.UTC()); err != nil {
+		return fmt.Errorf("advance hourly aggregation watermark: %w", err)
+	}
+	return nil
 }
 
 func (s *OpsAggregationService) aggregateDaily() {

@@ -27,8 +27,16 @@
         <AnnouncementBell v-if="user" />
 
         <!-- Docs Link -->
+        <RouterLink
+          v-if="docsRoute"
+          :to="docsRoute"
+          class="hidden items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:text-dark-400 dark:hover:bg-dark-800 dark:hover:text-white sm:flex"
+        >
+          <Icon name="book" size="sm" />
+          <span class="hidden sm:inline">{{ t('nav.docs') }}</span>
+        </RouterLink>
         <a
-          v-if="docUrl"
+          v-else-if="docUrl"
           :href="docUrl"
           target="_blank"
           rel="noopener noreferrer"
@@ -41,7 +49,7 @@
         <!-- Model Plaza Entry -->
         <router-link
           v-if="user && modelPlazaEnabled"
-          :to="{ path: '/models', query: { embedded: '1' } }"
+          :to="modelPlazaTarget"
           class="hidden items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:text-dark-400 dark:hover:bg-dark-800 dark:hover:text-white sm:flex"
         >
           <Icon name="grid" size="sm" />
@@ -228,10 +236,11 @@ import Icon from '@/components/icons/Icon.vue'
 import { sanitizeUrl } from '@/utils/url'
 import { enabledSupportContacts } from '@/utils/supportContact'
 import { FeatureFlags, isFeatureFlagEnabled } from '@/utils/featureFlags'
+import { resolveCustomMenuRoute } from '@/router/customMenuTarget'
 
 const router = useRouter()
 const route = useRoute()
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const appStore = useAppStore()
 const authStore = useAuthStore()
 const adminSettingsStore = useAdminSettingsStore()
@@ -242,8 +251,12 @@ const dropdownOpen = ref(false)
 const supportPanelExpanded = ref(false)
 const dropdownRef = ref<HTMLElement | null>(null)
 const docUrl = computed(() => sanitizeUrl(appStore.docUrl))
+const docsRoute = computed(() => resolveCustomMenuRoute({ url: docUrl.value }, locale.value))
 const hasSupportContact = computed(() => enabledSupportContacts(appStore.supportContact).length > 0)
 const modelPlazaEnabled = computed(() => isFeatureFlagEnabled(FeatureFlags.modelPlaza))
+const modelPlazaTarget = computed(() => ({
+  path: locale.value.toLowerCase().startsWith('en') ? '/en/catalog' : '/catalog',
+}))
 const avatarUrl = computed(() => user.value?.avatar_url?.trim() || '')
 const availableBalance = computed(() => Number(user.value?.balance || 0))
 const frozenBalance = computed(() => Number(user.value?.frozen_balance || 0))
