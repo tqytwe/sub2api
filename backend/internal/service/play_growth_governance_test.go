@@ -151,7 +151,7 @@ func (r *governanceOnlyRepo) GetGrowthRewardSpend(context.Context, time.Time, ti
 	return 0, nil
 }
 
-func TestGetGrowthGovernanceFailsClosedWhenRepositoryOrApprovalIsMissing(t *testing.T) {
+func TestGetGrowthGovernanceDistinguishesAnUnavailableRepositoryFromNoApproval(t *testing.T) {
 	svc := NewPlayService(nil, nil, nil, nil, nil, nil)
 	svc.RequireGrowthGovernance(true)
 	_, err := svc.GetGrowthGovernance(context.Background())
@@ -161,11 +161,13 @@ func TestGetGrowthGovernanceFailsClosedWhenRepositoryOrApprovalIsMissing(t *test
 	repo := &governanceOnlyRepo{}
 	svc = NewPlayService(repo, nil, nil, nil, nil, nil)
 	svc.RequireGrowthGovernance(true)
-	_, err = svc.GetGrowthGovernance(context.Background())
-	require.ErrorIs(t, err, ErrPlayGrowthGovernanceUnavailable)
+	state, err := svc.GetGrowthGovernance(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, PlayGrowthGovernanceDecisionNone, state.Decision)
+	require.False(t, state.AllowsReward(now))
 
 	repo.state = &PlayGrowthGovernanceState{Decision: PlayGrowthGovernanceDecisionRevoked}
-	state, err := svc.GetGrowthGovernance(context.Background())
+	state, err = svc.GetGrowthGovernance(context.Background())
 	require.NoError(t, err)
 	require.False(t, state.AllowsReward(now))
 }

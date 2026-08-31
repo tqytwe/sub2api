@@ -190,10 +190,10 @@ func (s *PlayService) getGrowthGovernance(ctx context.Context, now time.Time) (*
 		return nil, err
 	}
 	if state == nil {
-		if s.requireGrowthGovernance {
-			return nil, ErrPlayGrowthGovernanceUnavailable
-		}
-		return nil, nil
+		// An empty approval history is a valid, fail-closed operating state. The
+		// admin surface must be able to distinguish "not configured" from a
+		// repository/service outage; reward paths still reject this state below.
+		return &PlayGrowthGovernanceState{Decision: PlayGrowthGovernanceDecisionNone}, nil
 	}
 	return state, nil
 }

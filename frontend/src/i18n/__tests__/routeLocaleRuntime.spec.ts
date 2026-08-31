@@ -83,6 +83,17 @@ const ROUTE_RUNTIME_KEYS = {
   AdminAuditLogs: ['admin.audit.title'],
   AdminSubscriptions: ['admin.subscriptions.title', 'admin.subscriptions.description'],
   AdminPromptAudit: ['admin.promptAudit.title'],
+  AdminFunds: [
+    'admin.funds.title',
+    'admin.funds.grants.offlineTitle',
+    'admin.funds.status.pending_review',
+  ],
+  AdminPromoCodes: [
+    'coupon.admin.checkinPoolTitle',
+    'coupon.admin.checkinSplit',
+    'coupon.admin.poolStatus.published',
+    'coupon.admin.couponStatus.available',
+  ],
   AdminUsage: ['admin.usage.title', 'usage.totalRequests', 'usage.tabs.usage'],
   AdminPlayBillingConfig: [
     'payment.admin.playBilling.eyebrow',
@@ -133,6 +144,19 @@ describe('route locale runtime scopes', () => {
         'usage.title',
         'admin.dashboard.timeRange',
         'admin.usage.billingMode',
+      ],
+    },
+    {
+      path: '/admin/funds',
+      keys: ['admin.funds.title', 'admin.funds.grants.offlineTitle', 'admin.funds.status.pending_review'],
+    },
+    {
+      path: '/admin/promo-codes',
+      keys: [
+        'coupon.admin.checkinPoolTitle',
+        'coupon.admin.checkinSplit',
+        'coupon.admin.poolStatus.published',
+        'coupon.admin.couponStatus.available',
       ],
     },
   ])('loads every shell and page fragment for a cold $path visit', async ({ path, keys }) => {

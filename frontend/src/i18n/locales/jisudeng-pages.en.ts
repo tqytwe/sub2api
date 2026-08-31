@@ -511,6 +511,7 @@ export const jisudengPagesEn = {
       checkinPoolTitle: 'Check-in reward pool',
       blindboxSplit: 'The outer reward split is configurable in admin. Coupon prizes are then drawn by pool-entry weight.',
       quizSplit: 'The outer reward split is configurable in admin. Coupon prizes are then drawn by pool-entry weight.',
+      checkinSplit: 'Check-in rewards use the currently published pool and can issue a coupon, redeem code, or balance reward according to the configured split.',
       splitConfigTitle: 'Reward split configuration',
       splitConfigHint: 'This controls whether a draw enters the coupon branch or balance branch. Published pools use this split instead of fixed odds.',
       couponWeight: 'Coupon share',
