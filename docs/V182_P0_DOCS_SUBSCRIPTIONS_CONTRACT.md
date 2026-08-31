@@ -1,8 +1,8 @@
 # v0.1.182 P0 Docs And Subscription Contract
 
-Status: implementation candidate. This document records source behavior and
-release acceptance requirements. It does not claim that a production setting,
-database, or deployment has changed.
+Status: merged and deployed code; final production configuration and local
+browser acceptance remain pending. This document records source behavior and
+release acceptance requirements.
 
 ## Route Contract
 
@@ -126,6 +126,21 @@ value. A rollback does not change the CSP contract.
 - This P0 contains no database migration and makes no database schema or data
   change. The production `frontend_url` update remains an authorized manual
   administrator operation after deployment.
-- After an authorized merge/deployment: deployed SHA, `/health`, docs route,
-  protected subscription route, CSP/XFO, and user-local guest/user/admin browser
-  acceptance. Until then this remains an implementation candidate.
+- Merge commit: `ceb8d5aed015b7a5db3b2fdecd0d0381faf9bf37` on
+  `origin/play/main` (PR #296), with all required GitHub checks passing.
+- Production probes after the merge returned `/health` 200 `{"status":"ok"}`;
+  `/docs` and `/en/docs` returned 200 with localized document titles and the
+  new `index-BkSlP1tg.js` asset; unauthenticated subscription and progress
+  routes returned 401 as required.
+- Production HTML responses now send `frame-ancestors 'self'` and
+  `X-Frame-Options: SAMEORIGIN`. A Playwright production capture confirmed the
+  native Chinese docs directory renders populated content without an iframe
+  refusal page.
+- Zeabur deployment ID/SHA could not be read because the local CLI session
+  returned `ERROR_INVALID_TOKEN`; public asset/header/health evidence confirms
+  the new build is serving, but the deployment identifier must be recorded after
+  Zeabur re-authentication.
+- The administrator must still set `frontend_url` to exactly
+  `https://www.jisudeng.com` through Settings and complete local-browser guest,
+  ordinary-user, and administrator acceptance. Until those steps are recorded,
+  the release is not production-complete.
