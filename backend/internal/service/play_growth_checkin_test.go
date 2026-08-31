@@ -184,9 +184,10 @@ func (r *growthCheckinRepo) UpdatePlayBalance(_ context.Context, _ int64, amount
 
 func newGrowthCheckinSettingService(makeup bool) *SettingService {
 	return NewSettingService(&blindboxOpenSettingRepo{values: map[string]string{
-		SettingKeyPlayCheckinEnabled:       "true",
-		SettingKeyPlayCheckinDailyReward:   "0.5",
-		SettingKeyPlayCheckinMakeupEnabled: fmt.Sprintf("%t", makeup),
+		SettingKeyPlayCheckinEnabled:          "true",
+		SettingKeyPlayCheckinDailyReward:      "0.5",
+		SettingKeyPlayCheckinStreakMilestones: `[{"days":7,"bonus":1},{"days":14,"bonus":2},{"days":30,"bonus":5}]`,
+		SettingKeyPlayCheckinMakeupEnabled:    fmt.Sprintf("%t", makeup),
 	}}, nil)
 }
 
@@ -223,6 +224,28 @@ func TestQualifiedCheckinPersistsImmutableSnapshotLink(t *testing.T) {
 	}}, repo.links)
 	require.Empty(t, repo.ledgerEntries, "coupon rewards retain proof through the activity snapshot FK")
 	require.Equal(t, []string{"action", "snapshot"}, repo.events)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestQualifiedCouponCheckinCreditsMilestoneSeparately(t *testing.T) {
+	now := time.Date(2026, time.August, 29, 12, 0, 0, 0, time.UTC)
+	repo := &growthCheckinRepo{streak: 6, streakFound: true}
+	client, mock := newCouponRewardEntClient(t)
+	svc := NewPlayService(repo, nil, nil, newGrowthCheckinSettingService(false), nil, client)
+	svc.now = func() time.Time { return now }
+	svc.rewardDrawSource = func(int64) (int64, error) { return 0, nil }
+	svc.SetCouponRewardIssuer(&growthCheckinRewardIssuer{playCouponRewardIssuer: &playCouponRewardIssuer{result: newPlayCouponRewardIssueResult(now, "checkin-coupon-v1")}})
+	mock.ExpectBegin()
+	mock.ExpectCommit()
+	result, err := svc.Checkin(context.Background(), 42)
+	require.NoError(t, err)
+	require.Equal(t, PlayRewardTypeCoupon, result.RewardType)
+	require.InDelta(t, 1, result.MilestoneAmount, 1e-12)
+	require.InDelta(t, 1, result.BalanceAdded, 1e-12)
+	require.Len(t, repo.ledgerEntries, 1)
+	require.Equal(t, PlayRewardSourceCheckinMilestone, repo.ledgerEntries[0].Source)
+	require.Equal(t, "checkin_milestone:42:7", repo.ledgerEntries[0].IdempotencyKey)
+	require.Equal(t, []float64{1}, repo.balanceUpdates)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 

@@ -111,8 +111,7 @@ GPT 分组不传 `model` 时默认走 `gpt-image-2`。Grok 分组必须传 `mode
 [异步图片任务](./ASYNC_IMAGE_TASKS.md)。该能力依赖图片存储、Redis 持久队列和
 有界 worker；生产同时设置 `IMAGE_STORAGE_ENABLED=true`、
 `IMAGE_ASYNC_QUEUE_ENABLED=true`、`IMAGE_ASYNC_ENABLED=true` 和
-`IMAGE_ASYNC_WORKER_COUNT=4`。极速蹬生产结果写入 RustFS/S3 的
-`image-task-results/images/`，通过 `https://jisu.zeabur.app` 返回 24 小时预签 URL。
+`IMAGE_ASYNC_WORKER_COUNT=20`。极速蹬生产结果写入服务端 RustFS/S3，API 返回 24 小时预签 URL；内部 endpoint 不属于公开接口契约。
 
 ## 准备 API Key
 
@@ -474,7 +473,7 @@ jq -r '.data[0].b64_json' edit-response.json | base64 -d > edited.png
 
 ## 和图像工作室的区别
 
-图像工作室入口是 `https://www.jisudeng.com/image-studio`，适合手动生成和查看图库。开发者 API 调用请使用：
+图像工作室入口是 `https://www.jisudeng.com/ai-creation-space`，旧 `/image-studio` 会兼容跳转，适合手动生成和查看图库。开发者 API 调用请使用：
 
 ```text
 https://api.jisudeng.com/v1/images/generations

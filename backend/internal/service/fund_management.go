@@ -454,6 +454,13 @@ func (s *FundManagementService) AdminMarkRefundPaid(ctx context.Context, input F
 	if req.Status != FundRefundStatusPayoutPending {
 		return nil, ErrFundRefundInvalidStatus
 	}
+	membershipBefore := decimal.Zero
+	if req.RequestType == FundRefundTypeOfflineRecharge {
+		membershipBefore, err = membershipPaidTotalInTx(ctx, tx, req.UserID)
+		if err != nil {
+			return nil, err
+		}
+	}
 	now := s.now().UTC()
 	paidAt := now
 	if input.PaidAt != nil {
@@ -476,6 +483,34 @@ func (s *FundManagementService) AdminMarkRefundPaid(ctx context.Context, input F
 	}
 	if err := completeFundRefundBatches(ctx, tx, req, ledgerTx.ID, now); err != nil {
 		return nil, err
+	}
+	if req.RequestType == FundRefundTypeOfflineRecharge {
+		if _, err := tx.ExecContext(ctx, `
+			UPDATE play_membership_manual_contributions c
+			SET refund_amount = LEAST(c.paid_amount, c.refund_amount + locked.amount),
+			    net_amount = GREATEST(c.paid_amount - LEAST(c.paid_amount, c.refund_amount + locked.amount), 0),
+			    updated_at = NOW()
+			FROM (
+				SELECT b.balance_transaction_id, SUM(r.amount)::numeric AS amount
+				FROM fund_refund_request_batches r
+				JOIN balance_fund_batches b ON b.id=r.batch_id
+				WHERE r.fund_refund_request_id=$1
+				GROUP BY b.balance_transaction_id
+			) locked
+			WHERE c.user_id=$2 AND c.balance_transaction_id=locked.balance_transaction_id`, req.ID, req.UserID); err != nil {
+			return nil, fmt.Errorf("reconcile offline membership refund: %w", err)
+		}
+		membershipAfter, totalErr := membershipPaidTotalInTx(ctx, tx, req.UserID)
+		if totalErr != nil {
+			return nil, totalErr
+		}
+		fromTier := resolveVIPStatus(membershipBefore.InexactFloat64(), defaultPlayVIPTiers()).Tier
+		toTier := resolveVIPStatus(membershipAfter.InexactFloat64(), defaultPlayVIPTiers()).Tier
+		if fromTier != toTier {
+			if _, err := tx.ExecContext(ctx, `INSERT INTO play_membership_tier_history (user_id,from_tier,to_tier,net_paid_before,net_paid_after,reason) VALUES ($1,$2,$3,$4,$5,'refund')`, req.UserID, fromTier, toTier, membershipBefore, membershipAfter); err != nil {
+				return nil, fmt.Errorf("record offline membership refund tier change: %w", err)
+			}
+		}
 	}
 	if _, err := tx.ExecContext(ctx, `
 UPDATE fund_refund_requests
@@ -635,7 +670,82 @@ func (s *FundManagementService) GrantGift(ctx context.Context, input FundGrantIn
 }
 
 func (s *FundManagementService) GrantOfflineRecharge(ctx context.Context, input OfflineRechargeInput) (*BalanceTransaction, error) {
-	return s.adminCreditUser(ctx, input.UserID, input.Amount, FundLedgerSourceOfflineRecharge, fundOfflineRechargeDescription, input.Reason, input.ActorUserID, input.ExternalRef)
+	if s == nil || s.db == nil || s.ledger == nil {
+		return nil, ErrFundManagementUnavailable
+	}
+	amount, err := parseFundCreditAmount(input.Amount)
+	if err != nil {
+		return nil, err
+	}
+	externalRef := strings.TrimSpace(input.ExternalRef)
+	if input.UserID <= 0 || input.ActorUserID <= 0 || externalRef == "" || len([]rune(strings.TrimSpace(input.Reason))) < 3 {
+		return nil, ErrFundInvalidInput
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("begin offline recharge tx: %w", err)
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			_ = tx.Rollback()
+		}
+	}()
+	before, err := membershipPaidTotalInTx(ctx, tx, input.UserID)
+	if err != nil {
+		return nil, err
+	}
+	ledgerTx, err := s.ledger.ApplyDeltaInSQLTx(ctx, tx, BalanceLedgerApplyInput{
+		UserID: input.UserID, BalanceDelta: decimalToLedgerFloat(amount), SourceType: FundLedgerSourceOfflineRecharge,
+		SourceID: externalRef, IdempotencyKey: FundLedgerSourceOfflineRecharge + ":" + externalRef,
+		ActorType: BalanceLedgerActorAdmin, ActorUserID: &input.ActorUserID, Description: fundOfflineRechargeDescription,
+		Metadata: map[string]any{"reason": strings.TrimSpace(input.Reason), "external_ref": externalRef},
+	})
+	if err != nil {
+		return nil, err
+	}
+	if _, err := tx.ExecContext(ctx, `
+		INSERT INTO play_membership_manual_contributions
+		(user_id,balance_transaction_id,source_type,external_ref,paid_amount,net_amount,currency,qualification_state,qualification_source,qualification_reason,reviewed_by,reviewed_at,paid_at)
+		VALUES ($1,$2,$3,$4,$5,$5,'CNY','verified','manual_review',$6,$7,NOW(),NOW())
+		ON CONFLICT (source_type,external_ref) DO NOTHING`, input.UserID, ledgerTx.ID, FundLedgerSourceOfflineRecharge, externalRef, decimalString(amount), strings.TrimSpace(input.Reason), input.ActorUserID); err != nil {
+		return nil, fmt.Errorf("record offline membership contribution: %w", err)
+	}
+	after, err := membershipPaidTotalInTx(ctx, tx, input.UserID)
+	if err != nil {
+		return nil, err
+	}
+	fromTier := resolveVIPStatus(before.InexactFloat64(), defaultPlayVIPTiers()).Tier
+	toTier := resolveVIPStatus(after.InexactFloat64(), defaultPlayVIPTiers()).Tier
+	if fromTier != toTier {
+		if _, err := tx.ExecContext(ctx, `
+			INSERT INTO play_membership_tier_history (user_id,from_tier,to_tier,net_paid_before,net_paid_after,reason)
+			SELECT $1,$2,$3,$4,$5,'offline_recharge'
+			WHERE NOT EXISTS (SELECT 1 FROM play_membership_tier_history WHERE user_id=$1 AND from_tier=$2 AND to_tier=$3 AND reason='offline_recharge' AND net_paid_after=$5)`, input.UserID, fromTier, toTier, before, after); err != nil {
+			return nil, fmt.Errorf("record offline membership tier change: %w", err)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit offline recharge tx: %w", err)
+	}
+	committed = true
+	s.ledger.InvalidateUserBalanceCaches(ctx, input.UserID)
+	return ledgerTx, nil
+}
+
+func membershipPaidTotalInTx(ctx context.Context, tx *sql.Tx, userID int64) (decimal.Decimal, error) {
+	var raw string
+	err := tx.QueryRowContext(ctx, `
+		SELECT COALESCE((SELECT SUM(net_amount) FROM play_membership_order_contributions WHERE user_id=$1 AND qualification_state='verified'),0)
+		     + COALESCE((SELECT SUM(net_amount) FROM play_membership_manual_contributions WHERE user_id=$1 AND qualification_state='verified'),0)::numeric`, userID).Scan(&raw)
+	if err != nil {
+		return decimal.Zero, fmt.Errorf("get membership total in tx: %w", err)
+	}
+	value, err := decimal.NewFromString(raw)
+	if err != nil {
+		return decimal.Zero, fmt.Errorf("parse membership total in tx: %w", err)
+	}
+	return value, nil
 }
 
 func fundRefundRestoreDescription(sourceType string) string {

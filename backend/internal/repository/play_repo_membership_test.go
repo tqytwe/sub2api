@@ -48,7 +48,7 @@ func TestListMembershipContributionsAllowsNullQualificationReason(t *testing.T) 
 	t.Cleanup(func() { _ = db.Close() })
 
 	updatedAt := time.Date(2026, time.August, 15, 8, 0, 0, 0, time.UTC)
-	mock.ExpectQuery(`(?is)SELECT c\.order_id,c\.order_type,c\.paid_amount::text,c\.refund_amount::text,c\.net_amount::text,c\.paid_at,c\.status,c\.updated_at,c\.qualification_state,c\.qualification_source,c\.qualification_reason FROM play_membership_order_contributions c.*JOIN users u ON u\.id = c\.user_id.*u\.deleted_at IS NULL.*WHERE c\.user_id=\$1.*LIMIT \$2`).
+	mock.ExpectQuery(`(?is)SELECT order_id,order_type,paid_amount::text,refund_amount::text,net_amount::text,paid_at,status,updated_at,qualification_state,qualification_source,qualification_reason FROM \(.*play_membership_order_contributions.*play_membership_manual_contributions.*WHERE user_id=\$1.*LIMIT \$2`).
 		WithArgs(int64(264), 50).
 		WillReturnRows(sqlmock.NewRows([]string{
 			"order_id", "order_type", "paid_amount", "refund_amount", "net_amount", "paid_at", "status", "updated_at", "qualification_state", "qualification_source", "qualification_reason",
@@ -71,7 +71,7 @@ func TestGetMembershipPaidTotalExcludesSoftDeletedUsers(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = db.Close() })
 
-	mock.ExpectQuery(`(?is)FROM play_membership_order_contributions c\s+JOIN users u ON u\.id = c\.user_id\s+WHERE c\.user_id = \$1.*u\.deleted_at IS NULL`).
+	mock.ExpectQuery(`(?is)FROM \( SELECT net_amount FROM play_membership_order_contributions.*SELECT net_amount FROM play_membership_manual_contributions.*\) contributions`).
 		WithArgs(int64(264)).
 		WillReturnRows(sqlmock.NewRows([]string{"total"}).AddRow("50.00000000"))
 
@@ -88,7 +88,7 @@ func TestMembershipAdminOverviewExcludesSoftDeletedUsers(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = db.Close() })
 
-	mock.ExpectQuery(`(?is)FROM \(SELECT c\.user_id.*FROM play_membership_order_contributions c\s+JOIN users u ON u\.id = c\.user_id.*c\.qualification_state = 'verified'.*u\.deleted_at IS NULL`).
+	mock.ExpectQuery(`(?is)FROM \(SELECT c\.user_id.*play_membership_order_contributions.*play_membership_manual_contributions.*u\.deleted_at IS NULL`).
 		WithArgs(100.0).
 		WillReturnRows(sqlmock.NewRows([]string{"total_members", "net_paid"}).AddRow(1, "50.00000000"))
 
@@ -127,7 +127,7 @@ func TestListMembershipPaidTotalsExcludesSoftDeletedUsers(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = db.Close() })
 
-	mock.ExpectQuery(`(?is)SELECT u\.id.*FROM users u LEFT JOIN play_membership_order_contributions c.*WHERE u\.deleted_at IS NULL.*GROUP BY u\.id`).
+	mock.ExpectQuery(`(?is)SELECT u\.id.*FROM users u LEFT JOIN \(.*play_membership_order_contributions.*play_membership_manual_contributions.*WHERE u\.deleted_at IS NULL.*GROUP BY u\.id`).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "total"}).AddRow(int64(264), "50.00000000"))
 
 	repo := &playRepository{sql: db}
@@ -143,7 +143,7 @@ func TestGetMembershipAdminRowExcludesSoftDeletedUsers(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = db.Close() })
 
-	mock.ExpectQuery(`(?is)FROM users u LEFT JOIN play_membership_order_contributions c.*WHERE u\.id=\$1 AND u\.deleted_at IS NULL`).
+	mock.ExpectQuery(`(?is)FROM users u LEFT JOIN \(.*play_membership_order_contributions.*play_membership_manual_contributions.*WHERE u\.id=\$1 AND u\.deleted_at IS NULL`).
 		WithArgs(int64(264)).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "email", "username", "total_paid", "created_at", "first_paid_at", "last_paid_at"}).
 			AddRow(int64(264), "user@example.com", "user", "50.00000000", time.Now(), nil, nil))
@@ -162,7 +162,7 @@ func TestGetMembershipAdminRowReturnsNilForMissingOrSoftDeletedUser(t *testing.T
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = db.Close() })
 
-	mock.ExpectQuery(`(?is)FROM users u LEFT JOIN play_membership_order_contributions c.*WHERE u\.id=\$1 AND u\.deleted_at IS NULL`).
+	mock.ExpectQuery(`(?is)FROM users u LEFT JOIN \(.*play_membership_order_contributions.*play_membership_manual_contributions.*WHERE u\.id=\$1 AND u\.deleted_at IS NULL`).
 		WithArgs(int64(264)).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "email", "username", "total_paid", "created_at", "first_paid_at", "last_paid_at"}))
 

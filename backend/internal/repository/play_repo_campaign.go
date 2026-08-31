@@ -351,7 +351,7 @@ SELECT
       )
   ) AS funding_conflict`
 	} else {
-		query = `SELECT COALESCE(SUM(m.net_amount),0)::double precision FROM play_membership_order_contributions m JOIN referral_campaign_attributions a ON a.campaign_id=$1 AND a.invitee_id=m.user_id WHERE m.user_id=$2 AND m.qualification_state='verified' AND m.paid_at>=GREATEST(a.registered_at,$3) AND m.paid_at<LEAST($4,a.qualification_to_snapshot)`
+query = `SELECT COALESCE(SUM(m.net_amount),0)::double precision FROM play_membership_verified_contributions m JOIN referral_campaign_attributions a ON a.campaign_id=$1 AND a.invitee_id=m.user_id WHERE m.user_id=$2 AND m.paid_at>=GREATEST(a.registered_at,$3) AND m.paid_at<LEAST($4,a.qualification_to_snapshot)`
 	}
 	destinations := []any{&metric}
 	if campaign.Rules.QualificationMetric == service.PlayCampaignMetricConsumption {

@@ -407,12 +407,12 @@ curl https://api.jisudeng.com/v1/images/batches/{id}/download \\
 <pre class="docs-endpoint-list"><code>POST https://api.jisudeng.com/v1/images/generations/async
 POST https://api.jisudeng.com/v1/images/edits/async
 GET  https://api.jisudeng.com/v1/images/tasks/{task_id}</code></pre>
-	<p class="docs-tip">异步任务使用加密请求信封、Redis 持久队列、RustFS/S3 结果存储和有界 worker。极速蹬生产使用 <code>https://api.jisudeng.com</code> 接收任务，完成图片写入 <code>image-task-results</code> bucket 的 <code>images/</code> 前缀，并通过 <code>https://jisu.zeabur.app</code> 返回带签名查询参数的临时下载 URL。API 关闭时返回 404；API 已开但 Redis/worker 未就绪时返回 <code>503 IMAGE_ASYNC_NOT_READY</code>，不会创建任务。</p>
+	<p class="docs-tip">异步任务使用加密请求信封、Redis 持久队列、服务端 S3/RustFS 结果存储和有界 worker。生产通过 <code>https://api.jisudeng.com</code> 接收任务，并由 API 返回短期签名下载 URL；内部 bucket、endpoint 和访问密钥不会公开。API 关闭时返回 404；API 已开但 Redis/worker 未就绪时返回 <code>503 IMAGE_ASYNC_NOT_READY</code>，不会创建任务。</p>
 	<h2>生产存储配置</h2>
 	<p>极速蹬当前生产异步生图使用 RustFS/S3 后端，关键环境变量如下。访问密钥只配置在服务端环境变量中，不会写入文档、客户端代码或请求示例。</p>
 	<pre><code>IMAGE_STORAGE_ENABLED=true
 IMAGE_STORAGE_BACKEND=s3
-IMAGE_STORAGE_ENDPOINT=https://jisu.zeabur.app
+# 生产 endpoint 仅配置在服务端，不对外公开
 IMAGE_STORAGE_BUCKET=image-task-results
 IMAGE_STORAGE_PREFIX=images/
 IMAGE_STORAGE_FORCE_PATH_STYLE=true
@@ -422,7 +422,7 @@ IMAGE_STORAGE_MAX_DOWNLOAD_BYTES=33554432
 
 IMAGE_ASYNC_QUEUE_ENABLED=true
 IMAGE_ASYNC_ENABLED=true
-IMAGE_ASYNC_WORKER_COUNT=4</code></pre>
+IMAGE_ASYNC_WORKER_COUNT=20</code></pre>
 	<p class="docs-tip">异步结果有两层 24 小时边界：预签 URL 24 小时过期，RustFS 生命周期规则按 1 天清理 <code>image-task-results</code> bucket 内对象。结果 URL 是临时交付地址，不要当作永久对象存储。</p>
 
 	<h2>提交任务</h2>
@@ -559,7 +559,7 @@ IMAGE_ASYNC_WORKER_COUNT=4</code></pre>
 <ul>
   <li>支付订单成功后，<strong>基础到账金额</strong>计入 VIP 累计，达到阈值即时升级</li>
   <li>档位<strong>永久保留</strong>，不会因消费或时间降级</li>
-  <li>VIP 加赠、活动加赠、签到、盲盒、兑换码和管理员加款不计入 VIP 累计</li>
+	<li>线上已验证支付基础到账与审核通过的真实线下充值净额计入 VIP；VIP 加赠、活动加赠、签到、盲盒、兑换码和赠送余额不计入</li>
   <li>退款成功后，会按订单快照回退对应的基础到账累计，避免退款后累计虚高</li>
 </ul>
 
@@ -659,7 +659,7 @@ IMAGE_ASYNC_WORKER_COUNT=4</code></pre>
 
 <h2>常见问题</h2>
 <ul>
-  <li><strong>签到余额能升 VIP 吗？</strong> — 不能，VIP 只看支付订单的基础到账累计。</li>
+	<li><strong>签到余额能升 VIP 吗？</strong> — 不能。签到、答题、盲盒和兑换码不计入 VIP；审核通过且有外部凭证的线下真实充值会计入。</li>
   <li><strong>与 VIP 档位关系？</strong> — VIP 提供模型页徽章、盲盒/Arena 等玩法权益；签到奖励以后台签到奖池和活动配置为准。</li>
 </ul>`,
       },
@@ -728,7 +728,7 @@ IMAGE_ASYNC_WORKER_COUNT=4</code></pre>
 <p><strong>不会。</strong> VIP 不改变 API 扣费公式，也不会改变订阅价格。API 扣费仍按 <code>上游 usage × 模型价格 × 分组倍率</code>，与 VIP 档位无关。</p>
 
 <h2>赠送余额能升 VIP 吗?</h2>
-<p>不能。只有支付订单里的<strong>基础到账金额</strong>计入 VIP 累计。VIP 加赠、活动加赠、签到、盲盒、兑换码和管理员加款都不计入。</p>
+<p>不能。VIP 累计由支付订单基础到账和审核通过的线下真实充值净额组成。VIP 加赠、活动加赠、签到、答题、盲盒、兑换码和赠送余额不计入；退款或冲正按净额回退。</p>
 
 <h2>退款后 VIP 累计怎么处理?</h2>
 <p>退款成功后，系统按订单快照回退对应的基础到账累计；用户余额扣减则按本单最终到账余额处理。</p>

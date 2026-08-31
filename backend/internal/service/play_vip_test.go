@@ -20,12 +20,12 @@ func TestGetVIPTier(t *testing.T) {
 		wantPerk  string
 	}{
 		{name: "v0 baseline", recharge: 0, wantTier: 0, wantNext: 1, wantAmt: 50, wantBonus: 0, wantColor: "neutral"},
-		{name: "v1 threshold", recharge: 50, wantTier: 1, wantNext: 2, wantAmt: 50, wantBonus: 2, wantColor: "emerald", wantPerk: "models_vip_tag"},
-		{name: "v2 threshold", recharge: 100, wantTier: 2, wantNext: 3, wantAmt: 100, wantBonus: 4, wantColor: "sky", wantPerk: "blindbox_pool_upgrade"},
-		{name: "v3 threshold", recharge: 200, wantTier: 3, wantNext: 4, wantAmt: 300, wantBonus: 6, wantColor: "indigo", wantPerk: "arena_settlement_bonus"},
-		{name: "v5 threshold", recharge: 1000, wantTier: 5, wantNext: 6, wantAmt: 1000, wantBonus: 10, wantColor: "gold", wantPerk: "affiliate_bonus_5pct"},
-		{name: "v6 max", recharge: 2000, wantTier: 6, wantNext: 0, wantAmt: 0, wantBonus: 10, wantColor: "gold", wantPerk: "affiliate_bonus_5pct"},
-		{name: "between v1 and v2", recharge: 80, wantTier: 1, wantNext: 2, wantAmt: 20, wantBonus: 2, wantColor: "emerald"},
+		{name: "v1 threshold", recharge: 50, wantTier: 1, wantNext: 2, wantAmt: 450, wantBonus: 1, wantColor: "emerald", wantPerk: "models_vip_tag"},
+		{name: "v2 threshold", recharge: 500, wantTier: 2, wantNext: 3, wantAmt: 500, wantBonus: 2, wantColor: "sky", wantPerk: "blindbox_pool_upgrade"},
+		{name: "v3 threshold", recharge: 1000, wantTier: 3, wantNext: 4, wantAmt: 1000, wantBonus: 3, wantColor: "indigo", wantPerk: "arena_settlement_bonus"},
+		{name: "v5 threshold", recharge: 5000, wantTier: 5, wantNext: 6, wantAmt: 5000, wantBonus: 5, wantColor: "gold", wantPerk: "affiliate_bonus_5pct"},
+		{name: "v6 max", recharge: 10000, wantTier: 6, wantNext: 0, wantAmt: 0, wantBonus: 6, wantColor: "neutral", wantPerk: "affiliate_bonus_5pct"},
+		{name: "between v1 and v2", recharge: 80, wantTier: 1, wantNext: 2, wantAmt: 420, wantBonus: 1, wantColor: "emerald"},
 	}
 
 	for _, tt := range tests {
@@ -51,7 +51,7 @@ func TestGetVIPTierEmptyUsesDefaults(t *testing.T) {
 	got := GetVIPTier(50, nil)
 	require.Equal(t, 1, got.Tier)
 	require.Equal(t, "V1", got.Label)
-	require.Equal(t, 2.0, got.RechargeBonusPct)
+	require.Equal(t, 1.0, got.RechargeBonusPct)
 	require.Equal(t, "emerald", got.ColorKey)
 }
 

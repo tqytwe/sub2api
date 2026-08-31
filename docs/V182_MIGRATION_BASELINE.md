@@ -44,6 +44,7 @@ Pending additive migrations:
 266_play_growth_reward_snapshot_links.sql
 267_public_status_ops_aggregation_watermark.sql
 268_play_growth_governance.sql
+269_play_membership_manual_contributions.sql
 ```
 
 `033_ops_monitoring_vnext.sql` remains historical and is not a candidate for

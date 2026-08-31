@@ -146,12 +146,12 @@ func resolveVIPStatus(totalRecharged float64, tiers []PlayVIPTier) PlayVIPStatus
 func defaultPlayVIPTiers() []PlayVIPTier {
 	return []PlayVIPTier{
 		{Tier: 0, Label: "V0", MinRecharge: 0, RechargeBonusPct: 0, ColorKey: "neutral"},
-		{Tier: 1, Label: "V1", MinRecharge: 50, RechargeBonusPct: 2, ColorKey: "emerald", Perks: []string{"models_vip_tag"}},
-		{Tier: 2, Label: "V2", MinRecharge: 100, RechargeBonusPct: 4, ColorKey: "sky", Perks: []string{"models_vip_tag", "blindbox_pool_upgrade"}},
-		{Tier: 3, Label: "V3", MinRecharge: 200, RechargeBonusPct: 6, ColorKey: "indigo", Perks: []string{"models_vip_tag", "blindbox_pool_upgrade", "arena_settlement_bonus"}},
-		{Tier: 4, Label: "V4", MinRecharge: 500, RechargeBonusPct: 8, ColorKey: "amber", Perks: []string{"models_vip_tag", "blindbox_pool_upgrade", "arena_settlement_bonus", "affiliate_bonus_5pct"}},
-		{Tier: 5, Label: "V5", MinRecharge: 1000, RechargeBonusPct: 10, ColorKey: "gold", Perks: []string{"models_vip_tag", "blindbox_pool_upgrade", "arena_settlement_bonus", "affiliate_bonus_5pct"}},
-		{Tier: 6, Label: "V6", MinRecharge: 2000, RechargeBonusPct: 10, ColorKey: "gold", Perks: []string{"models_vip_tag", "blindbox_pool_upgrade", "arena_settlement_bonus", "affiliate_bonus_5pct"}},
+		{Tier: 1, Label: "V1", MinRecharge: 50, RechargeBonusPct: 1, ColorKey: "emerald", Perks: []string{"models_vip_tag"}},
+		{Tier: 2, Label: "V2", MinRecharge: 500, RechargeBonusPct: 2, ColorKey: "sky", Perks: []string{"models_vip_tag", "blindbox_pool_upgrade"}},
+		{Tier: 3, Label: "V3", MinRecharge: 1000, RechargeBonusPct: 3, ColorKey: "indigo", Perks: []string{"models_vip_tag", "blindbox_pool_upgrade", "arena_settlement_bonus"}},
+		{Tier: 4, Label: "V4", MinRecharge: 2000, RechargeBonusPct: 4, ColorKey: "amber", Perks: []string{"models_vip_tag", "blindbox_pool_upgrade", "arena_settlement_bonus", "affiliate_bonus_5pct"}},
+		{Tier: 5, Label: "V5", MinRecharge: 5000, RechargeBonusPct: 5, ColorKey: "gold", Perks: []string{"models_vip_tag", "blindbox_pool_upgrade", "arena_settlement_bonus", "affiliate_bonus_5pct"}},
+		{Tier: 6, Label: "V6", MinRecharge: 10000, RechargeBonusPct: 6, ColorKey: "neutral", Perks: []string{"models_vip_tag", "blindbox_pool_upgrade", "arena_settlement_bonus", "affiliate_bonus_5pct"}},
 	}
 }
 

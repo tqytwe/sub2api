@@ -101,7 +101,8 @@
                     </div>
                     <div class="flex items-center justify-between gap-3">
                       <span class="text-gray-500 dark:text-gray-400">{{ t('payment.currentVip') }}</span>
-                      <span :class="vipTierBadgeClass(currentVIP?.color_key)">{{ currentVIP?.label ?? 'V0' }}</span>
+                      <span v-if="currentVIP" :class="vipTierBadgeClass(currentVIP.color_key)">{{ currentVIP.label }}</span>
+                      <span v-else class="text-xs text-amber-600 dark:text-amber-300">{{ t('payment.vipAccountingUnavailable') }}</span>
                     </div>
                     <div class="flex justify-between">
                       <span class="text-gray-500 dark:text-gray-400">{{ t('payment.vipRechargeBonus') }}</span>

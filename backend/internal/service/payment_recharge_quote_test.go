@@ -13,24 +13,24 @@ func TestBuildPaymentRechargeQuoteUsesPreRechargeVIPTier(t *testing.T) {
 
 	require.Equal(t, 1, quote.CurrentVIP.Tier)
 	require.Equal(t, "V1", quote.CurrentVIP.Label)
-	require.Equal(t, 2.0, quote.VIPBonusPct)
+	require.Equal(t, 1.0, quote.VIPBonusPct)
 	require.Equal(t, 5.0, quote.CampaignBonusPct)
 	require.Equal(t, []int64{7}, quote.CampaignIDs)
 	require.Equal(t, 50.0, quote.BaseCredited)
-	require.Equal(t, 53.5, quote.CreditedAmount)
+	require.Equal(t, 53.0, quote.CreditedAmount)
 	require.Equal(t, 140.0, quote.TotalRechargedAfterBase)
 	require.True(t, quote.VIPUpgradeAppliesNextOrder)
 }
 
 func TestBuildPaymentRechargeQuoteAddsVIPAndCampaignBonusAfterBaseMultiplier(t *testing.T) {
-	quote := buildPaymentRechargeQuote(33.335, 1.2, 200, defaultPlayVIPTiers(), paymentRechargeCampaignBonus{BonusPct: 12.5})
+	quote := buildPaymentRechargeQuote(33.335, 1.2, 500, defaultPlayVIPTiers(), paymentRechargeCampaignBonus{BonusPct: 12.5})
 
-	require.Equal(t, 3, quote.CurrentVIP.Tier)
-	require.Equal(t, 6.0, quote.VIPBonusPct)
+	require.Equal(t, 2, quote.CurrentVIP.Tier)
+	require.Equal(t, 2.0, quote.VIPBonusPct)
 	require.Equal(t, 12.5, quote.CampaignBonusPct)
 	require.Equal(t, 40.0, quote.BaseCredited)
-	require.Equal(t, 47.4, quote.CreditedAmount)
-	require.Equal(t, 1.422, quote.EffectiveCreditMultiplier)
+	require.Equal(t, 45.8, quote.CreditedAmount)
+	require.Equal(t, 1.374, quote.EffectiveCreditMultiplier)
 }
 
 func TestPaymentOrderRechargeBaseCreditedUsesSnapshotForAffiliateBase(t *testing.T) {

@@ -522,10 +522,12 @@ func (s *PlayService) Checkin(ctx context.Context, userID int64) (*PlayCheckinRe
 		reward *= boost.CheckinMultiplier
 	}
 	milestoneBonus := s.resolveStreakMilestoneBonus(streak, rt.StreakMilestones)
-	totalReward := reward + milestoneBonus
-	if rewardType != PlayRewardTypeBalance {
-		totalReward = 0
+	dailyBalance := 0.0
+	if rewardType == PlayRewardTypeBalance {
+		dailyBalance = reward
 	}
+	totalReward := dailyBalance + milestoneBonus
+	milestoneKey := fmt.Sprintf("checkin_milestone:%d:%d", userID, streak)
 
 	var couponIssue *CouponRewardIssueResult
 	var redeemCode *RedeemCode
@@ -554,7 +556,8 @@ func (s *PlayService) Checkin(ctx context.Context, userID int64) (*PlayCheckinRe
 			}
 		}
 		if growthGovernance != nil {
-			if err := s.reserveGrowthRewardBudget(txCtx, growthGovernance, userID, PlayRewardSourceCheckin, idempotencyKey, growthRewardBudgetCost(rewardType, totalReward)); err != nil {
+			budgetCost := growthRewardBudgetCost(rewardType, dailyBalance) + milestoneBonus
+			if err := s.reserveGrowthRewardBudget(txCtx, growthGovernance, userID, PlayRewardSourceCheckin, idempotencyKey, budgetCost); err != nil {
 				return err
 			}
 		}
@@ -572,21 +575,33 @@ func (s *PlayService) Checkin(ctx context.Context, userID int64) (*PlayCheckinRe
 				return issueErr
 			}
 		}
-		if rewardType == PlayRewardTypeBalance {
+		if dailyBalance > 0 {
 			detail := map[string]any{
-				"checkin_date":    dateKey,
-				"streak_count":    streak,
-				"milestone_bonus": milestoneBonus,
-				"boost_active":    boost.Active,
-				"reward_type":     string(rewardType),
-				"balance_entry":   balanceEntry,
+				"checkin_date":  dateKey,
+				"streak_count":  streak,
+				"boost_active":  boost.Active,
+				"reward_type":   string(rewardType),
+				"balance_entry": balanceEntry,
 			}
 			if growthSnapshotID > 0 {
 				detail["growth_eligibility_snapshot_id"] = growthSnapshotID
 				detail["growth_rule_version"] = "v1"
 				detail["growth_tier"] = growthEligibility.Tier
 			}
-			return s.grantBalanceLedgerOnlyInTx(txCtx, userID, totalReward, PlayRewardSourceCheckin, idempotencyKey, detail, growthSnapshotID)
+			if err := s.grantBalanceLedgerOnlyInTx(txCtx, userID, dailyBalance, PlayRewardSourceCheckin, idempotencyKey, detail, growthSnapshotID); err != nil {
+				return err
+			}
+		}
+		if milestoneBonus > 0 {
+			detail := map[string]any{"checkin_date": dateKey, "streak_count": streak, "milestone_bonus": milestoneBonus, "daily_reward_type": string(rewardType)}
+			if growthSnapshotID > 0 {
+				detail["growth_eligibility_snapshot_id"] = growthSnapshotID
+				detail["growth_rule_version"] = "v1"
+				detail["growth_tier"] = growthEligibility.Tier
+			}
+			if err := s.grantBalanceLedgerOnlyInTx(txCtx, userID, milestoneBonus, PlayRewardSourceCheckinMilestone, milestoneKey, detail, growthSnapshotID); err != nil {
+				return err
+			}
 		}
 		return nil
 	}); err != nil {
@@ -616,6 +631,8 @@ func (s *PlayService) Checkin(ctx context.Context, userID int64) (*PlayCheckinRe
 	return &PlayCheckinResult{
 		RewardAmount:      totalReward,
 		BalanceAdded:      totalReward,
+		DailyRewardAmount: dailyBalance,
+		MilestoneAmount:   milestoneBonus,
 		RewardType:        rewardType,
 		Coupon:            playCouponRewardSummary(couponIssue),
 		RedeemCode:        playRedeemCodeRewardSummary(redeemCode),
@@ -865,6 +882,8 @@ func playBalanceLedgerDescription(source string) string {
 	switch source {
 	case PlayRewardSourceCheckin:
 		return "签到奖励"
+	case PlayRewardSourceCheckinMilestone:
+		return "连续签到里程碑奖励"
 	case PlayRewardSourceCheckinMakeup:
 		return "补签奖励"
 	case PlayRewardSourceQuiz:

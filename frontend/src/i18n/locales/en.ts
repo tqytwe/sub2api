@@ -8912,6 +8912,7 @@ const messages = {
     creditedBalance: 'Credited Balance',
     baseCredited: 'Base credited',
     currentVip: 'Current VIP',
+    vipAccountingUnavailable: 'VIP accounting unavailable',
     vipRechargeBonus: 'VIP bonus',
     campaignRechargeBonus: 'Campaign bonus',
     expectedCreditedBalance: 'Estimated credit',

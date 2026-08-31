@@ -597,11 +597,11 @@ func (r *userRepository) ListWithFilters(ctx context.Context, params pagination.
 		tier := *filters.VIPTier
 		q = q.Where(predicate.User(func(s *entsql.Selector) {
 			s.Where(entsql.P(func(b *entsql.Builder) {
-				b.WriteString("(COALESCE((SELECT SUM(c.net_amount) FROM play_membership_order_contributions c WHERE c.user_id = ")
+				b.WriteString("(COALESCE((SELECT SUM(c.net_amount) FROM play_membership_verified_contributions c WHERE c.user_id = ")
 				b.Ident(s.C(dbuser.FieldID))
 				b.WriteString(" AND c.qualification_state = 'verified'), 0) >= COALESCE((SELECT (tier->>'min_recharge')::numeric FROM settings cfg, jsonb_array_elements(cfg.value::jsonb) tier WHERE cfg.key = 'play_vip_tiers' AND (tier->>'tier')::int = ")
 				b.Arg(tier)
-				b.WriteString("), 0) AND COALESCE((SELECT SUM(c2.net_amount) FROM play_membership_order_contributions c2 WHERE c2.user_id = ")
+				b.WriteString("), 0) AND COALESCE((SELECT SUM(c2.net_amount) FROM play_membership_verified_contributions c2 WHERE c2.user_id = ")
 				b.Ident(s.C(dbuser.FieldID))
 				b.WriteString(" AND c2.qualification_state = 'verified'), 0) < COALESCE((SELECT MIN((next_tier->>'min_recharge')::numeric) FROM settings cfg2, jsonb_array_elements(cfg2.value::jsonb) next_tier WHERE cfg2.key = 'play_vip_tiers' AND (next_tier->>'tier')::int > ")
 				b.Arg(tier)
@@ -710,7 +710,10 @@ func (r *userRepository) loadMembershipProjection(ctx context.Context, userIDs [
 			       COALESCE(SUM(c.net_amount) FILTER (WHERE c.qualification_state = 'verified'), 0)::numeric AS total_paid,
 			       COUNT(*) FILTER (WHERE c.qualification_state = 'pending_review')::int AS pending_review_count
 			FROM users u
-			LEFT JOIN play_membership_order_contributions c ON c.user_id = u.id
+			LEFT JOIN (
+				SELECT user_id, net_amount, qualification_state FROM play_membership_order_contributions
+				UNION ALL SELECT user_id, net_amount, qualification_state FROM play_membership_manual_contributions
+			) c ON c.user_id = u.id
 			WHERE u.id = ANY($1)
 			GROUP BY u.id
 		)
