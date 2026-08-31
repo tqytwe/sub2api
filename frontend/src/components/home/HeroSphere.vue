@@ -230,11 +230,10 @@ function drawGlobe(canvas: CanvasCtx, cx: number, cy: number, radius: number) {
   ctx.stroke()
 }
 
-function drawParticles(canvas: CanvasCtx, radius: number, alpha: number, cy: number) {
+function drawParticles(canvas: CanvasCtx, radius: number, alpha: number, cx: number, cy: number) {
   if (!particles.length || alpha <= 0) return
-  const { ctx, w } = canvas
+  const { ctx } = canvas
   const palette = paletteForCurrentTheme()
-  const cx = w / 2
   const rotation = projection.rotate()[0] * Math.PI / 180
   const cosY = Math.cos(rotation)
   const sinY = Math.sin(rotation)
@@ -265,7 +264,7 @@ function drawFrame(elapsed: number) {
   const radius = globeRadius()
   drawGlobe(canvas, center.x, center.y, radius)
   if (!staticMode) {
-    drawParticles(canvas, radius, 0.025 * progress, center.y)
+    drawParticles(canvas, radius, 0.025 * progress, center.x, center.y)
   }
 }
 

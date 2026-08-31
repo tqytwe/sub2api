@@ -147,6 +147,13 @@ describe('HeroSphere bounded rendering', () => {
     wrapper.unmount()
   })
 
+  it('keeps enhancement particles aligned with the responsive globe center', () => {
+    const source = readFileSync(resolve(__dirname, '../HeroSphere.vue'), 'utf8')
+    expect(source).toContain('drawParticles(canvas, radius, 0.025 * progress, center.x, center.y)')
+    expect(source).toContain('function drawParticles(canvas: CanvasCtx, radius: number, alpha: number, cx: number, cy: number)')
+    expect(source).not.toContain('const cx = w / 2')
+  })
+
   it('uses a static poster on mobile before downloading geography', async () => {
     Object.defineProperty(window, 'innerWidth', { configurable: true, value: 390 })
     const fetchMock = vi.fn(async () => ({
