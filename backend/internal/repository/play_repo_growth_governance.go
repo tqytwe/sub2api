@@ -198,29 +198,35 @@ WITH participants AS (
     ) activities
     GROUP BY user_id
 ),
-usage_7d AS (
-    SELECT DISTINCT p.user_id
+usage_metrics AS (
+    -- Probe the user/created_at index once per participant/window. The
+    -- previous join forced sequential scans of the large usage_logs table;
+    -- EXISTS stops at the first qualifying call and keeps this admin report
+    -- responsive as usage history grows.
+    SELECT
+      (SELECT COUNT(*) FROM participants)::bigint AS participants,
+      COUNT(*) FILTER (WHERE EXISTS (
+        SELECT 1 FROM usage_logs u
+        WHERE u.user_id = p.user_id
+          AND u.created_at >= p.first_activity_at
+          AND u.created_at < p.first_activity_at + INTERVAL '7 days'
+          AND (u.actual_cost > 0 OR u.billed_cost > 0)
+      ))::bigint AS usage_7d,
+      COUNT(*) FILTER (WHERE EXISTS (
+        SELECT 1 FROM usage_logs u
+        WHERE u.user_id = p.user_id
+          AND u.created_at >= p.first_activity_at
+          AND u.created_at < p.first_activity_at + INTERVAL '30 days'
+          AND (u.actual_cost > 0 OR u.billed_cost > 0)
+      ))::bigint AS usage_30d,
+      COUNT(*) FILTER (WHERE EXISTS (
+        SELECT 1 FROM usage_logs u
+        WHERE u.user_id = p.user_id
+          AND u.created_at >= p.first_activity_at + INTERVAL '7 days'
+          AND u.created_at < p.first_activity_at + INTERVAL '30 days'
+          AND (u.actual_cost > 0 OR u.billed_cost > 0)
+      ))::bigint AS d7_retained
     FROM participants p
-    JOIN usage_logs u ON u.user_id = p.user_id
-      AND u.created_at >= p.first_activity_at
-      AND u.created_at < p.first_activity_at + INTERVAL '7 days'
-      AND (u.actual_cost > 0 OR u.billed_cost > 0)
-),
-usage_30d AS (
-    SELECT DISTINCT p.user_id
-    FROM participants p
-    JOIN usage_logs u ON u.user_id = p.user_id
-      AND u.created_at >= p.first_activity_at
-      AND u.created_at < p.first_activity_at + INTERVAL '30 days'
-      AND (u.actual_cost > 0 OR u.billed_cost > 0)
-),
-d7_retained AS (
-    SELECT DISTINCT p.user_id
-    FROM participants p
-    JOIN usage_logs u ON u.user_id = p.user_id
-      AND u.created_at >= p.first_activity_at + INTERVAL '7 days'
-      AND u.created_at < p.first_activity_at + INTERVAL '30 days'
-      AND (u.actual_cost > 0 OR u.billed_cost > 0)
 ),
 first_recharge AS (
     SELECT DISTINCT p.user_id
@@ -264,12 +270,12 @@ reward_cost AS (
 ),
 counts AS (
     SELECT
-      COUNT(*)::bigint AS participants,
-      (SELECT COUNT(*) FROM usage_7d)::bigint AS usage_7d,
-      (SELECT COUNT(*) FROM usage_30d)::bigint AS usage_30d,
+      um.participants,
+      um.usage_7d,
+      um.usage_30d,
       (SELECT COUNT(*) FROM first_recharge)::bigint AS first_recharge,
-      (SELECT COUNT(*) FROM d7_retained)::bigint AS d7_retained
-    FROM participants
+      um.d7_retained
+    FROM usage_metrics um
 )
 SELECT
   $1::timestamptz AS window_start,

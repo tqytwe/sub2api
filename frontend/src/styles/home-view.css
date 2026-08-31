@@ -744,3 +744,4 @@
     white-space: nowrap;
   }
 }
+.home-page section:not(.hero-section){opacity:1;transform:none}

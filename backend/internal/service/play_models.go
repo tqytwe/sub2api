@@ -1071,6 +1071,7 @@ type PlayGrowthQualificationRepository interface {
 }
 
 const (
+	PlayGrowthGovernanceDecisionNone     = "none"
 	PlayGrowthGovernanceDecisionApproved = "approved"
 	PlayGrowthGovernanceDecisionRevoked  = "revoked"
 )

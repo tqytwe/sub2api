@@ -218,7 +218,10 @@ export const ROUTE_LOCALE_SCOPES = {
   AdminIPRisk: [...ADMIN, 'admin-resources', 'admin-accounts'],
   AdminIPRiskActions: [...ADMIN, 'admin-resources', 'admin-accounts'],
   AdminRedeem: [...ADMIN, 'admin-resources'],
-  AdminPromoCodes: [...ADMIN, 'admin-resources'],
+  // Coupon operations use the public-pages coupon namespace in addition to
+  // the legacy admin resources fragment. Keep this dependency explicit so a
+  // cold navigation cannot render raw coupon.admin.* keys.
+  AdminPromoCodes: [...ADMIN, 'admin-resources', 'public-pages'],
   AdminSettings: [...ADMIN, 'admin-settings'],
   AdminRiskControl: [...ADMIN, 'admin-resources', 'admin-channels'],
   AdminPromptAudit: [...ADMIN, 'admin-channels', 'admin-prompt-audit'],
