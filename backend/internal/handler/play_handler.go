@@ -61,6 +61,8 @@ type playCheckinStatusDTO struct {
 type playCheckinResultDTO struct {
 	RewardAmount      float64                       `json:"reward_amount"`
 	BalanceAdded      float64                       `json:"balance_added"`
+	DailyRewardAmount float64                       `json:"daily_reward_amount"`
+	MilestoneAmount   float64                       `json:"milestone_amount"`
 	RewardType        service.PlayRewardType        `json:"reward_type"`
 	Coupon            *playCouponRewardDTO          `json:"coupon,omitempty"`
 	RedeemCode        *playRedeemCodeRewardDTO      `json:"redeem_code,omitempty"`
@@ -337,6 +339,8 @@ func (h *PlayHandler) CheckinMakeup(c *gin.Context) {
 	response.Success(c, playCheckinResultDTO{
 		RewardAmount:      result.RewardAmount,
 		BalanceAdded:      result.BalanceAdded,
+		DailyRewardAmount: result.DailyRewardAmount,
+		MilestoneAmount:   result.MilestoneAmount,
 		RewardType:        result.RewardType,
 		Coupon:            toPlayCouponRewardDTO(result.Coupon),
 		RedeemCode:        toPlayRedeemCodeRewardDTO(result.RedeemCode),
@@ -366,6 +370,8 @@ func (h *PlayHandler) Checkin(c *gin.Context) {
 	response.Success(c, playCheckinResultDTO{
 		RewardAmount:      result.RewardAmount,
 		BalanceAdded:      result.BalanceAdded,
+		DailyRewardAmount: result.DailyRewardAmount,
+		MilestoneAmount:   result.MilestoneAmount,
 		RewardType:        result.RewardType,
 		Coupon:            toPlayCouponRewardDTO(result.Coupon),
 		RedeemCode:        toPlayRedeemCodeRewardDTO(result.RedeemCode),

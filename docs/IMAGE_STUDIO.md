@@ -1,8 +1,8 @@
 # 图像工作室当前实现
 
 > 状态：active
-> 用户入口：`/image-studio`
-> 生产验收：`https://www.jisudeng.com/image-studio`
+> 用户入口：`/ai-creation-space`（旧 `/image-studio` 自动兼容跳转）
+> 生产验收：`https://www.jisudeng.com/ai-creation-space`
 > 最后核验：2026-07-17
 
 ## 产品行为
@@ -74,7 +74,7 @@ OpenAI worker 可在没有 checkpoint 时按 item 尝试上限重试；Grok 同�
 ## 隐私、资产与清理
 
 - 数据库只保存最终组合 Prompt 的 SHA-256，不保存明文 Prompt；API 响应不暴露 `prompt_hash`。
-- 引用图、原图和缩略图写入配置的私有 data volume 下 `image-studio/<user-id>/`，目录和文件权限分别为 `0700`、`0600`；数据库只保存相对 `storage_key`、类型、字节数和真实宽高。
+- 引用图、原图和缩略图写入服务端配置的 S3/RustFS bucket；客户端只获得短期签名地址，数据库保存相对 `storage_key`、类型、字节数和真实宽高，不公开内部存储 endpoint。
 - 预览、下载、查询和删除都以当前 JWT 用户校验 job/asset 所有权。
 - 默认任务和资产保留 7 天；用户关闭自动清理时 `retain_days=0`，任务不设置过期时间。
 - 图库按 12 条 terminal 历史任务分页，活动任务由 `/jobs/active` 独立返回，不占历史页名额；回访用户首屏从第一页选择最新的 completed/partial 作品，但不会触发成功埋点、任务奖励或清理草稿。历史资产没有缩略图时回退鉴权 `/content`，不会循环请求不存在的 thumbnail。单任务 ZIP 最多 100 个资产、64 MiB、2 路外链抓取和 30 秒超时，外链失败会返回错误而不是静默漏文件。

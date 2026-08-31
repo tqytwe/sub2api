@@ -180,6 +180,7 @@ export default {
       configEmpty: 'No plans in {shelf}',
     },
     currentVip: 'Current VIP',
+    vipAccountingUnavailable: 'VIP accounting unavailable',
   },
   usage: {
     apiKeyFilter: 'API Key',

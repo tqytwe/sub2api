@@ -1,6 +1,6 @@
 # Growth / Play 当前实现
 
-> 状态：已上线 Play 能力 + v0.1.182 候选治理扩展（候选尚未部署）
+> 状态：v0.1.182 Play 能力与增长治理已合入，生产奖励开关按运营审批与 cohort 门禁控制
 > 用户入口：`/play`
 > 最后核验：2026-08-29
 
@@ -22,7 +22,7 @@ Play 是极速蹬的增长与留存层，围绕 API 使用、充值、任务和�
 | 限时活动 | Dashboard / Play Hub | `GET /api/v1/play/campaigns/active` | `play_campaigns_enabled` |
 | 充值 boost | 充值完成后 | 支付履约内部调用 | `play_recharge_boost_enabled` |
 | Team Affiliate | Agent Team | Play service | `play_team_affiliate_enabled` |
-| 图像工作室联动 | `/image-studio` | `/api/v1/image-studio/*` | `image_studio_enabled` |
+| 图像工作室联动 | `/ai-creation-space`（`/image-studio` 兼容跳转） | `/api/v1/image-studio/*` | `image_studio_enabled` |
 | 公共模型与 Teaser | `/catalog`、首页 | `/api/v1/public/*` | `public_models_enabled` 等 |
 
 公共 Arena 榜单和盲盒最近记录允许游客查看；签到、开盲盒、答题提交、团队操作、Hub、任务和活动用户状态需要 JWT。运行时设置读取失败时 fail-closed，奖励类默认值只在设置缺失时使用。
@@ -76,13 +76,13 @@ fail-closed 语义，不能直接扩大当前每日福利开关。
 
 ## VIP 与充值加赠口径
 
-VIP 默认保留 V0 作为基础档，正式等级为 V1-V5；默认门槛为 `$0 / $50 / $100 / $200 / $500 / $1000`，充值加赠为 `0 / 2 / 4 / 6 / 8 / 10%`。`recharge_bonus_pct` 在服务端钳制到 `0-10`，`color_key` 统一为 `neutral / emerald / sky / indigo / amber / gold`，前端 Play Hub、模型页和公开文档共用同一套颜色。
+VIP 默认保留 V0 作为基础档，正式等级为 V1-V6；生产门槛为 `0 / 50 / 500 / 1000 / 2000 / 5000 / 10000`，充值加赠为 `0 / 1 / 2 / 3 / 4 / 5 / 6%`。线上已验证支付基础到账与审核通过的真实 `offline_recharge` 净额计入 VIP；赠送、签到、答题、盲盒、兑换码和活动补偿不计入。`color_key` 统一为 `neutral / emerald / sky / indigo / amber / gold`，前端 Play Hub、模型页、订阅页和公开文档共用同一套颜色。
 
 对用户的统一解释是：VIP 不改变 API 计费公式，不让订单少付钱，也不改变订阅价格；VIP 只影响余额充值成功后的到账加赠。本单按充值前 VIP 等级计算，充值成功后如果升级，下一笔订单才享受新等级。
 
 充值订单使用支付域创建的 `recharge_snapshot` 固化当时口径，包括支付输入金额、基础到账、当前 VIP、VIP 加赠、活动加赠、最终到账、活动 ID 和充值前累计。Play Hub 和订单详情展示的“为什么到账这么多”必须以快照为准，不能用当前配置反推历史订单。
 
-`users.total_recharged` 只累计支付订单的基础到账金额，不包含 VIP 加赠、活动加赠、签到、兑换码或管理员加款。邀请返利基数也使用基础到账金额，避免 VIP 加赠继续放大返利。退款成功时按订单快照回退基础到账累计，用户余额扣减按最终到账余额处理。
+`users.total_recharged` 保持余额/首充兼容语义，不作为 VIP 权威。VIP 使用已验证线上订单与已审核线下真实充值的净额；线下退款或冲正会同步减少 VIP 净额并记录等级历史。升级后的加赠从下一笔订单生效。
 
 ## VIP 盲盒奖池
 

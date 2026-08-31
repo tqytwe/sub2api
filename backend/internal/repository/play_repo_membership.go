@@ -15,10 +15,10 @@ import (
 func (r *playRepository) GetMembershipPaidTotal(ctx context.Context, userID int64) (float64, error) {
 	var total string
 	err := scanSingleRow(ctx, r.sqlExec(ctx), `
-		SELECT COALESCE(SUM(c.net_amount), 0)::text
-		FROM play_membership_order_contributions c
-		JOIN users u ON u.id = c.user_id
-		WHERE c.user_id = $1 AND c.qualification_state = 'verified' AND u.deleted_at IS NULL`, []any{userID}, &total)
+		SELECT COALESCE(SUM(net_amount), 0)::text FROM (
+			SELECT net_amount FROM play_membership_order_contributions WHERE user_id=$1 AND qualification_state='verified'
+			UNION ALL SELECT net_amount FROM play_membership_manual_contributions WHERE user_id=$1 AND qualification_state='verified'
+		) contributions`, []any{userID}, &total)
 	if err != nil {
 		return 0, fmt.Errorf("get membership paid total: %w", err)
 	}
@@ -125,10 +125,9 @@ func (r *playRepository) MembershipAdminOverview(ctx context.Context, memberThre
 		SELECT COUNT(*) FILTER (WHERE total_paid >= $1)::int,
 		       COALESCE(SUM(total_paid), 0)::text
 		FROM (SELECT c.user_id, COALESCE(SUM(c.net_amount), 0) AS total_paid
-		      FROM play_membership_order_contributions c
-		      JOIN users u ON u.id = c.user_id
-		      WHERE c.qualification_state = 'verified' AND u.deleted_at IS NULL
-		      GROUP BY c.user_id) totals`, []any{memberThreshold}, &total, &netPaid)
+		      FROM (SELECT user_id,net_amount FROM play_membership_order_contributions WHERE qualification_state='verified'
+				UNION ALL SELECT user_id,net_amount FROM play_membership_manual_contributions WHERE qualification_state='verified') c
+		      JOIN users u ON u.id = c.user_id WHERE u.deleted_at IS NULL GROUP BY c.user_id) totals`, []any{memberThreshold}, &total, &netPaid)
 	if err != nil {
 		return 0, decimal.Zero, fmt.Errorf("get membership admin overview: %w", err)
 	}
@@ -170,8 +169,8 @@ func (r *playRepository) ListMembershipAdminRows(ctx context.Context, query stri
 	var total int
 	baseJoin := ` FROM users u LEFT JOIN (
 		SELECT user_id, COALESCE(SUM(net_amount),0) AS total_paid
-		FROM play_membership_order_contributions
-		WHERE qualification_state = 'verified'
+		FROM (SELECT user_id,net_amount FROM play_membership_order_contributions WHERE qualification_state='verified'
+			  UNION ALL SELECT user_id,net_amount FROM play_membership_manual_contributions WHERE qualification_state='verified') contributions
 		GROUP BY user_id
 	) totals ON totals.user_id=u.id WHERE ` + whereSQL
 	countSQL := `SELECT COUNT(*)` + baseJoin
@@ -183,8 +182,8 @@ func (r *playRepository) ListMembershipAdminRows(ctx context.Context, query stri
 	rows, err := exec.QueryContext(ctx, `
 			SELECT u.id, COALESCE(u.email,''), COALESCE(u.username,''), COALESCE(totals.total_paid,0)::text,
 			       u.created_at,
-			   (SELECT MIN(paid_at) FROM play_membership_order_contributions c WHERE c.user_id=u.id AND c.net_amount>0 AND c.qualification_state='verified'),
-			   (SELECT MAX(paid_at) FROM play_membership_order_contributions c WHERE c.user_id=u.id AND c.net_amount>0 AND c.qualification_state='verified')
+			   (SELECT MIN(paid_at) FROM (SELECT paid_at FROM play_membership_order_contributions WHERE user_id=u.id AND net_amount>0 AND qualification_state='verified' UNION ALL SELECT paid_at FROM play_membership_manual_contributions WHERE user_id=u.id AND net_amount>0 AND qualification_state='verified') c),
+			   (SELECT MAX(paid_at) FROM (SELECT paid_at FROM play_membership_order_contributions WHERE user_id=u.id AND net_amount>0 AND qualification_state='verified' UNION ALL SELECT paid_at FROM play_membership_manual_contributions WHERE user_id=u.id AND net_amount>0 AND qualification_state='verified') c)
 			`+baseJoin+` ORDER BY COALESCE(totals.total_paid,0) DESC, u.id ASC LIMIT $`+fmt.Sprint(len(args)-1)+` OFFSET $`+fmt.Sprint(len(args)), args...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("list membership admin rows: %w", err)
@@ -207,7 +206,10 @@ func (r *playRepository) ListMembershipAdminRows(ctx context.Context, query stri
 }
 
 func (r *playRepository) ListMembershipPaidTotals(ctx context.Context) (map[int64]decimal.Decimal, error) {
-	rows, err := r.sqlExec(ctx).QueryContext(ctx, `SELECT u.id, COALESCE(SUM(c.net_amount),0)::text FROM users u LEFT JOIN play_membership_order_contributions c ON c.user_id=u.id AND c.qualification_state = 'verified' WHERE u.deleted_at IS NULL GROUP BY u.id`)
+	rows, err := r.sqlExec(ctx).QueryContext(ctx, `SELECT u.id, COALESCE(SUM(c.net_amount),0)::text FROM users u LEFT JOIN (
+		SELECT user_id,net_amount FROM play_membership_order_contributions WHERE qualification_state='verified'
+		UNION ALL SELECT user_id,net_amount FROM play_membership_manual_contributions WHERE qualification_state='verified'
+	) c ON c.user_id=u.id WHERE u.deleted_at IS NULL GROUP BY u.id`)
 	if err != nil {
 		return nil, fmt.Errorf("list membership paid totals: %w", err)
 	}
@@ -234,8 +236,10 @@ func (r *playRepository) GetMembershipAdminRow(ctx context.Context, userID int64
 	err := scanSingleRow(ctx, r.sqlExec(ctx), `
 		SELECT u.id, COALESCE(u.email,''), COALESCE(u.username,''), COALESCE(SUM(c.net_amount),0)::text,
 		       u.created_at, MIN(c.paid_at) FILTER (WHERE c.net_amount>0), MAX(c.paid_at) FILTER (WHERE c.net_amount>0)
-		FROM users u LEFT JOIN play_membership_order_contributions c
-		  ON c.user_id=u.id AND c.qualification_state = 'verified'
+		FROM users u LEFT JOIN (
+			SELECT user_id,net_amount,paid_at FROM play_membership_order_contributions WHERE qualification_state='verified'
+			UNION ALL SELECT user_id,net_amount,paid_at FROM play_membership_manual_contributions WHERE qualification_state='verified'
+		) c ON c.user_id=u.id
 		WHERE u.id=$1 AND u.deleted_at IS NULL GROUP BY u.id`, []any{userID}, &row.UserID, &row.Email, &row.Username, &paid, &row.RegisteredAt, &row.FirstPaidAt, &row.LastPaidAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -254,7 +258,10 @@ func (r *playRepository) ListMembershipContributions(ctx context.Context, userID
 	if limit < 1 || limit > 100 {
 		limit = 50
 	}
-	rows, err := r.sqlExec(ctx).QueryContext(ctx, `SELECT c.order_id,c.order_type,c.paid_amount::text,c.refund_amount::text,c.net_amount::text,c.paid_at,c.status,c.updated_at,c.qualification_state,c.qualification_source,c.qualification_reason FROM play_membership_order_contributions c JOIN users u ON u.id = c.user_id AND u.deleted_at IS NULL WHERE c.user_id=$1 ORDER BY COALESCE(c.paid_at,c.updated_at) DESC,c.order_id DESC LIMIT $2`, userID, limit)
+	rows, err := r.sqlExec(ctx).QueryContext(ctx, `SELECT order_id,order_type,paid_amount::text,refund_amount::text,net_amount::text,paid_at,status,updated_at,qualification_state,qualification_source,qualification_reason FROM (
+		SELECT order_id,order_type,paid_amount,refund_amount,net_amount,paid_at,status,updated_at,qualification_state,qualification_source,qualification_reason FROM play_membership_order_contributions WHERE user_id=$1
+		UNION ALL SELECT 0::bigint,'offline_recharge',paid_amount,refund_amount,net_amount,paid_at,'verified',updated_at,qualification_state,qualification_source,qualification_reason FROM play_membership_manual_contributions WHERE user_id=$1
+	) c ORDER BY COALESCE(paid_at,updated_at) DESC,order_id DESC LIMIT $2`, userID, limit)
 	if err != nil {
 		return nil, err
 	}

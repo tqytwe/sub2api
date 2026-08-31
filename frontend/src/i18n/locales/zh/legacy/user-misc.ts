@@ -180,6 +180,7 @@ export default {
       configEmpty: '{shelf} 暂无套餐',
     },
     currentVip: '当前 VIP',
+    vipAccountingUnavailable: 'VIP 账本暂不可用',
   },
   usage: {
     apiKeyFilter: 'API 密钥',

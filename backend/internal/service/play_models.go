@@ -171,6 +171,8 @@ type PlayCheckinStatus struct {
 type PlayCheckinResult struct {
 	RewardAmount      float64
 	BalanceAdded      float64
+	DailyRewardAmount float64
+	MilestoneAmount   float64
 	RewardType        PlayRewardType
 	Coupon            *PlayCouponRewardSummary
 	RedeemCode        *PlayRedeemCodeRewardSummary

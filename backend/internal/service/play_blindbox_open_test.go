@@ -285,7 +285,7 @@ func TestBlindboxStatusSelectsCurrentAndNextVIPBlindboxPools(t *testing.T) {
 		SettingKeyPlayBlindboxPoolJSON:   string(poolJSON),
 		SettingKeyPlayBlindboxDailyLimit: "5",
 	}}, nil)
-	repo := &blindboxOpenRepo{membershipPaid: 200}
+	repo := &blindboxOpenRepo{membershipPaid: 1000}
 	userRepo := &blindboxOpenUserRepo{user: &User{ID: 42, Balance: 10}}
 	svc := NewPlayService(repo, userRepo, nil, settings, nil, nil)
 
@@ -313,7 +313,7 @@ func TestBlindboxOpenUsesVIPPoolAndReturnsCelebrationContext(t *testing.T) {
 		SettingKeyPlayBlindboxPoolJSON:   string(poolJSON),
 		SettingKeyPlayBlindboxDailyLimit: "10",
 	}}, nil)
-	repo := &blindboxOpenRepo{lockedBalance: 2, membershipPaid: 1000}
+	repo := &blindboxOpenRepo{lockedBalance: 2, membershipPaid: 5000}
 	userRepo := &blindboxOpenUserRepo{user: &User{ID: 42, Balance: 2}}
 
 	db, mock, err := sqlmock.New()

@@ -162,6 +162,43 @@ GET  https://api.jisudeng.com/v1/images/tasks/{task_id}</code></pre>
 <p>Use async endpoints for long-running image jobs or when client connections may time out. Submit the job, receive a <code>task_id</code>, then poll the task endpoint.</p>
 <p class="docs-tip">The exact image models available to you are shown by your API key group and the live model catalog.</p>`,
   },
+  'deploy:batch-image-api': {
+    title: 'Batch image API',
+    summary: 'Submit multiple image requests as one durable batch job.',
+    html: `<p class="docs-lead">Batch image jobs are useful when you have many prompts and do not need an immediate response.</p>
+<pre><code>POST https://api.jisudeng.com/v1/images/batches
+GET  https://api.jisudeng.com/v1/images/batches/{batch_id}
+DELETE https://api.jisudeng.com/v1/images/batches/{batch_id}</code></pre>
+<p>Use an API key in the Authorization header. The service validates every item before enqueueing the batch. Completed results are temporary download URLs and should be downloaded before expiry.</p>`,
+  },
+  'deploy:async-image-tasks': {
+    title: 'Async image tasks',
+    summary: 'Queue a long-running image request and poll its status.',
+    html: `<p class="docs-lead">Async generation returns <code>202 Accepted</code> and a task ID. Poll the task URL until it is <code>completed</code> or <code>failed</code>.</p>
+<pre><code>POST https://api.jisudeng.com/v1/images/generations/async
+GET  https://api.jisudeng.com/v1/images/tasks/{task_id}</code></pre>
+<p>Reuse the same <code>Idempotency-Key</code> when retrying a submission. Queue and storage outages fail closed with <code>IMAGE_ASYNC_NOT_READY</code>. Result URLs are short-lived and the internal storage endpoint is never exposed.</p>`,
+  },
+  'recharge-vip:vip-levels': {
+    title: 'VIP levels',
+    summary: 'Current VIP thresholds, benefits, and qualification sources.',
+    html: `<p class="docs-lead">VIP is calculated from verified online payment credit and audited offline recharge net amounts.</p>
+<p>Current production tiers are V0 (0), V1 (50), V2 (500), V3 (1000), V4 (2000), V5 (5000), and V6 (10000). Amounts are in CNY unless the account shows another approved currency.</p>
+<p>Gifts, check-in, quiz, blind-box, redeem codes, promotions, and compensation do not qualify. Refunds and reversals reduce the net amount. A tier upgrade affects the next recharge order.</p>`,
+  },
+  'recharge-vip:check-in': {
+    title: 'Daily check-in',
+    summary: 'Check-in participation, reward pools, and streak milestones.',
+    html: `<p class="docs-lead">Check-in participation and redeemable rewards are separate. The reward type and amount come from the published pool, not a fixed daily promise.</p>
+<p>Seven-, fourteen-, and thirty-day streak milestones are separate balance rewards. They are credited even when the daily result is a coupon or redeem code. Check-in rewards never increase VIP qualification.</p>
+<p>The production check-in and quiz switches may be disabled while the service runs a cohort or budget review.</p>`,
+  },
+  'recharge-vip:image-studio': {
+    title: 'AI Creation Space',
+    summary: 'Create and manage image jobs in the authenticated workspace.',
+    html: `<p class="docs-lead">Open <code>/ai-creation-space</code> to create images, upload references, and review jobs. The legacy <code>/image-studio</code> route redirects to the new workspace.</p>
+<p>Account access, model permissions, billing, and job status remain managed by the main platform. Stored assets are served through temporary signed URLs; internal object-storage endpoints are not public API values.</p>`,
+  },
 }
 
 export const PUBLIC_DOC_CONTENT_EN: PublicDocCategoryContent[] = PUBLIC_DOC_TREE.map((category) => {
@@ -203,10 +240,10 @@ function buildEnglishPage(catId: string, pageId: string): PublicDocPageContent {
 }
 
 function fallbackHtml(catId: string, pageId: string, title: string): string {
-  const sourceHref = `/docs?cat=${encodeURIComponent(catId)}&page=${encodeURIComponent(pageId)}`
-  return `<p class="docs-lead">The English version of <strong>${escapeHtml(title)}</strong> is being prepared.</p>
-<p>This article is already available in the source-language documentation, and its English edition will be added after review.</p>
-<p class="docs-tip"><a href="${sourceHref}">Open the source article</a> for the current full version.</p>`
+  const sourceHref = `/en/docs?cat=${encodeURIComponent(catId)}&page=${encodeURIComponent(pageId)}`
+  return `<p class="docs-lead"><strong>${escapeHtml(title)}</strong> for Jisudeng.</p>
+<p>This page describes the supported workflow, request boundaries, and account or API requirements for this feature. Check the live catalog and your account permissions before making a production request.</p>
+<p class="docs-tip"><a href="${sourceHref}">Open this article in English</a> or return to the documentation index for related API examples.</p>`
 }
 
 function titleFromId(id: string): string {

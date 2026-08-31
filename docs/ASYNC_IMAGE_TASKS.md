@@ -58,7 +58,7 @@ IMAGE_STORAGE_LOCAL_DIR=/data/image-task-results
 IMAGE_STORAGE_LOCAL_URL_PREFIX=/v1/images/task-assets/
 IMAGE_ASYNC_QUEUE_ENABLED=true
 IMAGE_ASYNC_ENABLED=true
-IMAGE_ASYNC_WORKER_COUNT=4
+IMAGE_ASYNC_WORKER_COUNT=20
 ```
 
 极速蹬当前生产使用 RustFS/S3 结果存储，公开侧可确认的关键配置是：
@@ -66,7 +66,7 @@ IMAGE_ASYNC_WORKER_COUNT=4
 ```text
 IMAGE_STORAGE_ENABLED=true
 IMAGE_STORAGE_BACKEND=s3
-IMAGE_STORAGE_ENDPOINT=https://jisu.zeabur.app
+# 生产 endpoint 仅配置在服务端，不对外公开
 IMAGE_STORAGE_BUCKET=image-task-results
 IMAGE_STORAGE_PREFIX=images/
 IMAGE_STORAGE_FORCE_PATH_STYLE=true
@@ -76,13 +76,12 @@ IMAGE_STORAGE_MAX_DOWNLOAD_BYTES=33554432
 
 IMAGE_ASYNC_QUEUE_ENABLED=true
 IMAGE_ASYNC_ENABLED=true
-IMAGE_ASYNC_WORKER_COUNT=4
+IMAGE_ASYNC_WORKER_COUNT=20
 ```
 
 RustFS/S3 访问密钥只配置在服务端环境变量中，不写入文档、客户端代码或请求示例。
 
-极速蹬生产的完成结果通常返回 `https://jisu.zeabur.app/image-task-results/images/...`
-形式的 RustFS/S3 预签 URL。预签 URL 24 小时过期，RustFS 生命周期规则按 1 天清理
+极速蹬生产的完成结果由 API 返回短期 RustFS/S3 预签 URL；内部 endpoint、bucket 和访问密钥只配置在服务端。预签 URL 24 小时过期，RustFS 生命周期规则按 1 天清理
 `image-task-results` bucket 内对象；结果 URL 是临时交付地址，不是永久对象存储。
 
 `IMAGE_ASYNC_ENABLED=true` 要求 queue 和图片存储同时启用，否则配置校验失败。
@@ -216,7 +215,7 @@ queued -> processing -> completed
 
 ## 结果
 
-worker 内部把生成请求规范化为 Base64，完成后把每张图片写入结果存储。Redis 任务记录只保存紧凑 URL，不保存大段 Base64。本地存储返回 `/v1/images/task-assets/...`，极速蹬生产 RustFS/S3 存储返回 `https://jisu.zeabur.app/image-task-results/images/...` 形式的 24 小时预签 URL。
+worker 内部把生成请求规范化为 Base64，完成后把每张图片写入结果存储。Redis 任务记录只保存紧凑 URL，不保存大段 Base64。生产 API 返回 24 小时预签 URL，内部存储地址不会写入客户端契约。
 
 ```json
 {

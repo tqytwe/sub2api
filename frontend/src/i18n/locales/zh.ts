@@ -9080,6 +9080,7 @@ const messages = {
     creditedBalance: '到账余额',
     baseCredited: '基础到账',
     currentVip: '当前 VIP',
+    vipAccountingUnavailable: 'VIP 账本暂不可用',
     vipRechargeBonus: 'VIP 加赠',
     campaignRechargeBonus: '活动加赠',
     expectedCreditedBalance: '预计到账',
