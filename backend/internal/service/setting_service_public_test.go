@@ -414,15 +414,3 @@ func TestSettingService_GetPublicSettings_BuildsSupportContactFromLegacyFields(t
 	require.Equal(t, "legacy-docs", settings.SupportContact.Contacts[1].ID)
 	require.Equal(t, "https://docs.example.com", settings.SupportContact.Contacts[1].URL)
 }
-
-func TestSettingService_GetFrameAncestorOrigins_UsesFrontendOrigin(t *testing.T) {
-	svc := NewSettingService(&settingPublicRepoStub{
-		values: map[string]string{
-			SettingKeyFrontendURL: "https://www.jisudeng.com/dashboard",
-		},
-	}, &config.Config{})
-
-	origins, err := svc.GetFrameAncestorOrigins(context.Background())
-	require.NoError(t, err)
-	require.Equal(t, []string{"https://www.jisudeng.com"}, origins)
-}

@@ -133,6 +133,7 @@ import AppLayout from '@/components/layout/AppLayout.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { buildApiUrl } from '@/api/client'
 import { buildEmbeddedUrl, detectTheme } from '@/utils/embedded-url'
+import { isFirstPartyDocsTarget } from '@/router/customMenuTarget'
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
 
@@ -188,6 +189,7 @@ const embeddedUrl = computed(() => {
     authStore.token,
     pageTheme.value,
     locale.value,
+    { includePanelContext: !isFirstPartyDocsTarget(menuItem.value) },
   )
 })
 

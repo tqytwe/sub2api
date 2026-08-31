@@ -5,6 +5,7 @@ export default {
     title: '我的订阅',
     viewDetails: '查看订阅详情',
     activeCount: '{count} 个有效订阅',
+    groupFallback: '分组 #{id}',
     daily: '每日',
     weekly: '每周',
     monthly: '每月',
@@ -109,6 +110,7 @@ export default {
 
   // User Subscriptions Page
   userSubscriptions: {
+    groupFallback: '分组 #{id}',
     title: '我的订阅',
     description: '查看您的订阅计划和用量',
     noActiveSubscriptions: '暂无有效订阅',
@@ -133,7 +135,12 @@ export default {
     resetIn: '{time} 后重置',
     quotaEndsIn: '额度将在 {time} 后结束',
     windowNotActive: '等待首次使用',
-    usageOf: '已用 {used} / {limit}'
+    usageOf: '已用 {used} / {limit}',
+    duration: {
+      daysHours: '{days} 天 {hours} 小时',
+      hoursMinutes: '{hours} 小时 {minutes} 分钟',
+      minutes: '{minutes} 分钟',
+    }
   },
 
   // Onboarding Tour

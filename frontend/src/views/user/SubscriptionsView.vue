@@ -40,7 +40,7 @@
               <div>
                 <div class="flex items-center gap-2">
                   <h3 class="font-semibold text-gray-900 dark:text-white">
-                    {{ subscription.group?.name || `Group #${subscription.group_id}` }}
+                    {{ subscription.group?.name || t('userSubscriptions.groupFallback', { id: subscription.group_id }) }}
                   </h3>
                   <span :class="['rounded-md border px-2 py-0.5 text-[11px] font-medium', platformBadgeClass(subscription.group?.platform || '')]">
                     {{ platformLabel(subscription.group?.platform || '', locale) }}
@@ -83,12 +83,12 @@
           <!-- Usage Progress -->
           <div class="space-y-4 p-4">
             <!-- Expiration Info -->
-            <div v-if="subscription.expires_at" class="flex items-center justify-between text-sm">
+            <div v-if="subscription.progress.expiresAt" class="flex items-center justify-between text-sm">
               <span class="text-gray-500 dark:text-dark-400">{{
                 t('userSubscriptions.expires')
               }}</span>
-              <span :class="getExpirationClass(subscription.expires_at)">
-                {{ formatExpirationDate(subscription.expires_at) }}
+              <span :class="getExpirationClass(subscription.progress.expiresAt)">
+                {{ formatExpirationDate(subscription.progress.expiresAt) }}
               </span>
             </div>
             <div v-else class="flex items-center justify-between text-sm">
@@ -101,36 +101,26 @@
             </div>
 
             <!-- Daily Usage -->
-            <div v-if="subscription.group?.daily_limit_usd" class="space-y-2">
+            <div v-if="subscription.progress.daily" class="space-y-2">
               <div class="flex items-center justify-between">
                 <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
                   {{ t('userSubscriptions.daily') }}
                 </span>
                 <span class="text-sm text-gray-500 dark:text-dark-400">
-                  ${{ (subscription.daily_usage_usd || 0).toFixed(2) }} / ${{
-                    subscription.group.daily_limit_usd.toFixed(2)
-                  }}
+                  {{ formatUsage(subscription.progress.daily) }}
                 </span>
               </div>
               <div class="relative h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-dark-600">
                 <div
                   class="absolute inset-y-0 left-0 rounded-full transition-all duration-300"
-                  :class="
-                    getProgressBarClass(
-                      subscription.daily_usage_usd,
-                      subscription.group.daily_limit_usd
-                    )
-                  "
+                  :class="getProgressBarClass(subscription.progress.daily.percentage)"
                   :style="{
-                    width: getProgressWidth(
-                      subscription.daily_usage_usd,
-                      subscription.group.daily_limit_usd
-                    )
+                    width: getProgressWidth(subscription.progress.daily.percentage)
                   }"
                 ></div>
               </div>
               <p
-                v-if="subscription.daily_window_start"
+                v-if="subscription.progress.daily.resetsInSeconds !== null"
                 class="text-xs text-gray-500 dark:text-dark-400"
               >
                 {{ formatDailyUsageWindow(subscription) }}
@@ -138,82 +128,62 @@
             </div>
 
             <!-- Weekly Usage -->
-            <div v-if="subscription.group?.weekly_limit_usd" class="space-y-2">
+            <div v-if="subscription.progress.weekly" class="space-y-2">
               <div class="flex items-center justify-between">
                 <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
                   {{ t('userSubscriptions.weekly') }}
                 </span>
                 <span class="text-sm text-gray-500 dark:text-dark-400">
-                  ${{ (subscription.weekly_usage_usd || 0).toFixed(2) }} / ${{
-                    subscription.group.weekly_limit_usd.toFixed(2)
-                  }}
+                  {{ formatUsage(subscription.progress.weekly) }}
                 </span>
               </div>
               <div class="relative h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-dark-600">
                 <div
                   class="absolute inset-y-0 left-0 rounded-full transition-all duration-300"
-                  :class="
-                    getProgressBarClass(
-                      subscription.weekly_usage_usd,
-                      subscription.group.weekly_limit_usd
-                    )
-                  "
+                  :class="getProgressBarClass(subscription.progress.weekly.percentage)"
                   :style="{
-                    width: getProgressWidth(
-                      subscription.weekly_usage_usd,
-                      subscription.group.weekly_limit_usd
-                    )
+                    width: getProgressWidth(subscription.progress.weekly.percentage)
                   }"
                 ></div>
               </div>
               <p
-                v-if="subscription.weekly_window_start"
+                v-if="subscription.progress.weekly.resetsInSeconds !== null"
                 class="text-xs text-gray-500 dark:text-dark-400"
               >
                 {{
                   t('userSubscriptions.resetIn', {
-                    time: formatResetTime(subscription.weekly_window_start, 168)
+                    time: formatResetIn(subscription.progress.weekly.resetsInSeconds)
                   })
                 }}
               </p>
             </div>
 
             <!-- Monthly Usage -->
-            <div v-if="subscription.group?.monthly_limit_usd" class="space-y-2">
+            <div v-if="subscription.progress.monthly" class="space-y-2">
               <div class="flex items-center justify-between">
                 <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
                   {{ t('userSubscriptions.monthly') }}
                 </span>
                 <span class="text-sm text-gray-500 dark:text-dark-400">
-                  ${{ (subscription.monthly_usage_usd || 0).toFixed(2) }} / ${{
-                    subscription.group.monthly_limit_usd.toFixed(2)
-                  }}
+                  {{ formatUsage(subscription.progress.monthly) }}
                 </span>
               </div>
               <div class="relative h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-dark-600">
                 <div
                   class="absolute inset-y-0 left-0 rounded-full transition-all duration-300"
-                  :class="
-                    getProgressBarClass(
-                      subscription.monthly_usage_usd,
-                      subscription.group.monthly_limit_usd
-                    )
-                  "
+                  :class="getProgressBarClass(subscription.progress.monthly.percentage)"
                   :style="{
-                    width: getProgressWidth(
-                      subscription.monthly_usage_usd,
-                      subscription.group.monthly_limit_usd
-                    )
+                    width: getProgressWidth(subscription.progress.monthly.percentage)
                   }"
                 ></div>
               </div>
               <p
-                v-if="subscription.monthly_window_start"
+                v-if="subscription.progress.monthly.resetsInSeconds !== null"
                 class="text-xs text-gray-500 dark:text-dark-400"
               >
                 {{
                   t('userSubscriptions.resetIn', {
-                    time: formatResetTime(subscription.monthly_window_start, 720)
+                    time: formatResetIn(subscription.progress.monthly.resetsInSeconds)
                   })
                 }}
               </p>
@@ -221,11 +191,7 @@
 
             <!-- No limits configured - Unlimited badge -->
             <div
-              v-if="
-                !subscription.group?.daily_limit_usd &&
-                !subscription.group?.weekly_limit_usd &&
-                !subscription.group?.monthly_limit_usd
-              "
+              v-if="isUnlimitedSubscription(subscription)"
               class="flex items-center justify-center rounded-xl bg-gradient-to-r from-emerald-50 to-teal-50 py-6 dark:from-emerald-900/20 dark:to-teal-900/20"
             >
               <div class="flex items-center gap-3">
@@ -252,8 +218,8 @@ import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { useAppStore } from '@/stores/app'
-import subscriptionsAPI from '@/api/subscriptions'
-import type { UserSubscription } from '@/types'
+import subscriptionsAPI, { createSubscriptionProgressFallback } from '@/api/subscriptions'
+import type { SubscriptionProgress, SubscriptionUsageWindow, UserSubscription } from '@/types'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { formatDateTimeToMinute } from '@/utils/format'
@@ -281,7 +247,9 @@ const { t, locale } = useI18n()
 const router = useRouter()
 const appStore = useAppStore()
 
-const subscriptions = ref<UserSubscription[]>([])
+type SubscriptionProgressDisplay = UserSubscription & { progress: SubscriptionProgress }
+
+const subscriptions = ref<SubscriptionProgressDisplay[]>([])
 const loading = ref(true)
 
 function subscriptionStatusLabel(status: string): string {
@@ -299,7 +267,22 @@ function subscriptionPeakRateLabel(subscription: UserSubscription): string {
 async function loadSubscriptions() {
   try {
     loading.value = true
-    subscriptions.value = await subscriptionsAPI.getMySubscriptions()
+    const [allSubscriptions, progressEntries] = await Promise.all([
+      subscriptionsAPI.getMySubscriptions(),
+      subscriptionsAPI.getSubscriptionsProgress().catch((error) => {
+        console.error('Failed to load subscription progress:', error)
+        return []
+      })
+    ])
+    const progressBySubscriptionID = new Map(
+      progressEntries.map(({ subscription, progress }) => [subscription?.id ?? progress.id, progress])
+    )
+
+    subscriptions.value = allSubscriptions.map((subscription) => ({
+      ...subscription,
+      progress: progressBySubscriptionID.get(subscription.id) ??
+        createSubscriptionProgressFallback(subscription)
+    }))
   } catch (error) {
     console.error('Failed to load subscriptions:', error)
     appStore.showError(t('userSubscriptions.failedToLoad'))
@@ -308,18 +291,33 @@ async function loadSubscriptions() {
   }
 }
 
-function getProgressWidth(used: number | undefined, limit: number | null | undefined): string {
-  if (!limit || limit === 0) return '0%'
-  const percentage = Math.min(((used || 0) / limit) * 100, 100)
-  return `${percentage}%`
+function getProgressWidth(percentage: number | null | undefined): string {
+  const normalized = Math.min(Math.max(percentage ?? 0, 0), 100)
+  return `${normalized}%`
 }
 
-function getProgressBarClass(used: number | undefined, limit: number | null | undefined): string {
-  if (!limit || limit === 0) return 'bg-gray-400'
-  const percentage = ((used || 0) / limit) * 100
+function getProgressBarClass(percentage: number | null | undefined): string {
+  if (percentage === null || percentage === undefined) return 'bg-gray-400'
   if (percentage >= 90) return 'bg-red-500'
   if (percentage >= 70) return 'bg-orange-500'
   return 'bg-green-500'
+}
+
+function formatUsage(window: SubscriptionUsageWindow | null): string {
+  if (!window) return '—'
+  const limit = window.limitUsd === null ? '∞' : window.limitUsd.toFixed(2)
+  return `$${window.usedUsd.toFixed(2)} / $${limit}`
+}
+
+function isUnlimitedSubscription(subscription: SubscriptionProgressDisplay): boolean {
+  return (
+    !subscription.progress.daily &&
+    !subscription.progress.weekly &&
+    !subscription.progress.monthly &&
+    !subscription.group?.daily_limit_usd &&
+    !subscription.group?.weekly_limit_usd &&
+    !subscription.group?.monthly_limit_usd
+  )
 }
 
 function formatExpirationDate(expiresAt: string): string {
@@ -361,36 +359,38 @@ function getExpirationClass(expiresAt: string): string {
 
 function formatDurationParts(parts: RemainingDurationParts): string {
   if (parts.days > 0) {
-    return `${parts.days}d ${parts.hours}h`
+    return t('userSubscriptions.duration.daysHours', { days: parts.days, hours: parts.hours })
   }
 
   if (parts.hours > 0) {
-    return `${parts.hours}h ${parts.minutes}m`
+    return t('userSubscriptions.duration.hoursMinutes', { hours: parts.hours, minutes: parts.minutes })
   }
 
-  return `${parts.minutes}m`
+  return t('userSubscriptions.duration.minutes', { minutes: parts.minutes })
 }
 
-function formatDailyUsageWindow(subscription: UserSubscription): string {
-  if (isOneTimeDailyQuota(subscription) && subscription.expires_at) {
-    const parts = getRemainingDurationParts(subscription.expires_at)
+function formatDailyUsageWindow(subscription: SubscriptionProgressDisplay): string {
+  if (isOneTimeDailyQuota(subscription) && subscription.progress.expiresAt) {
+    const parts = getRemainingDurationParts(subscription.progress.expiresAt)
     if (!parts) return t('userSubscriptions.windowNotActive')
     return t('userSubscriptions.quotaEndsIn', { time: formatDurationParts(parts) })
   }
 
   return t('userSubscriptions.resetIn', {
-    time: formatResetTime(subscription.daily_window_start, 24)
+    time: formatResetIn(subscription.progress.daily?.resetsInSeconds ?? null)
   })
 }
 
-function formatResetTime(windowStart: string | null, windowHours: number): string {
-  if (!windowStart) return t('userSubscriptions.windowNotActive')
-
-  const start = new Date(windowStart)
-  const end = new Date(start.getTime() + windowHours * 60 * 60 * 1000)
-  const parts = getRemainingDurationParts(end)
-
-  return parts ? formatDurationParts(parts) : t('userSubscriptions.windowNotActive')
+function formatResetIn(resetsInSeconds: number | null): string {
+  if (resetsInSeconds === null || resetsInSeconds <= 0) {
+    return t('userSubscriptions.windowNotActive')
+  }
+  const totalMinutes = Math.ceil(resetsInSeconds / 60)
+  return formatDurationParts({
+    days: Math.floor(totalMinutes / (24 * 60)),
+    hours: Math.floor((totalMinutes % (24 * 60)) / 60),
+    minutes: totalMinutes % 60
+  })
 }
 
 onMounted(() => {

@@ -107,11 +107,9 @@ func GetNonceFromContext(c *gin.Context) string {
 
 // SecurityHeaders sets baseline security headers for all responses.
 // getFrameSrcOrigins is an optional function that returns extra origins to inject into frame-src.
-// getFrameAncestorOrigins optionally returns parent origins allowed to embed this app.
 func SecurityHeaders(
 	cfg config.CSPConfig,
 	getFrameSrcOrigins func() []string,
-	getFrameAncestorOrigins ...func() []string,
 ) gin.HandlerFunc {
 	policy := strings.TrimSpace(cfg.Policy)
 	if policy == "" {
@@ -130,13 +128,9 @@ func SecurityHeaders(
 				}
 			}
 		}
-		if len(getFrameAncestorOrigins) > 0 && getFrameAncestorOrigins[0] != nil {
-			for _, origin := range getFrameAncestorOrigins[0]() {
-				if origin != "" {
-					finalPolicy = addToDirective(finalPolicy, "frame-ancestors", origin)
-				}
-			}
-		}
+		// frontend_url is for email and external redirects. It must never widen
+		// embedding policy, which remains aligned with X-Frame-Options.
+		finalPolicy = setDirectiveToSelf(finalPolicy, "frame-ancestors")
 
 		c.Header("X-Content-Type-Options", "nosniff")
 		c.Header("X-Frame-Options", "SAMEORIGIN")
@@ -160,6 +154,32 @@ func SecurityHeaders(
 		}
 		c.Next()
 	}
+}
+
+func setDirectiveToSelf(policy, directive string) string {
+	// CSP directive names are ASCII case-insensitive. Remove every historical
+	// ancestor directive before adding one canonical value, so duplicate mixed-
+	// case directives cannot leave a broader policy in effect.
+	parts := strings.Split(policy, ";")
+	filtered := make([]string, 0, len(parts)+1)
+	found := false
+	for _, part := range parts {
+		fields := strings.Fields(part)
+		if len(fields) > 0 && strings.EqualFold(fields[0], directive) {
+			if !found {
+				filtered = append(filtered, directive+" 'self'")
+				found = true
+			}
+			continue
+		}
+		if trimmed := strings.TrimSpace(part); trimmed != "" {
+			filtered = append(filtered, trimmed)
+		}
+	}
+	if !found {
+		filtered = append(filtered, directive+" 'self'")
+	}
+	return strings.Join(filtered, "; ") + ";"
 }
 
 func isAPIRoutePath(c *gin.Context) bool {

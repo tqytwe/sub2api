@@ -4,10 +4,12 @@ import { useSubscriptionStore } from '@/stores/subscriptions'
 
 // Mock subscriptions API
 const mockGetActiveSubscriptions = vi.fn()
+const mockGetSubscriptionsProgress = vi.fn()
 
 vi.mock('@/api/subscriptions', () => ({
   default: {
     getActiveSubscriptions: (...args: any[]) => mockGetActiveSubscriptions(...args),
+    getSubscriptionsProgress: (...args: any[]) => mockGetSubscriptionsProgress(...args),
   },
 }))
 
@@ -41,6 +43,29 @@ const fakeSubscriptions = [
     created_at: '2024-02-01',
     updated_at: '2024-02-01',
     expires_at: '2025-02-01',
+  },
+]
+
+const fakeProgressEntries = [
+  {
+    subscription: fakeSubscriptions[0],
+    progress: {
+      id: 1,
+      groupName: '',
+      expiresAt: '2025-01-01',
+      expiresInDays: null,
+      daily: {
+        limitUsd: 10,
+        usedUsd: 5,
+        remainingUsd: 5,
+        percentage: 50,
+        windowStart: null,
+        resetsAt: null,
+        resetsInSeconds: null,
+      },
+      weekly: null,
+      monthly: null,
+    },
   },
 ]
 
@@ -147,6 +172,47 @@ describe('useSubscriptionStore', () => {
 
   // --- hasActiveSubscriptions ---
 
+  describe('fetchSubscriptionProgress', () => {
+    it('caches normalized progress and refreshes it when forced', async () => {
+      mockGetSubscriptionsProgress.mockResolvedValue(fakeProgressEntries)
+      const store = useSubscriptionStore()
+
+      await store.fetchSubscriptionProgress()
+      await store.fetchSubscriptionProgress()
+      expect(mockGetSubscriptionsProgress).toHaveBeenCalledTimes(1)
+      expect(store.activeSubscriptionProgress).toEqual(fakeProgressEntries)
+
+      const refreshedProgress = [
+        {
+          ...fakeProgressEntries[0],
+          progress: { ...fakeProgressEntries[0].progress, daily: null },
+        },
+      ]
+      mockGetSubscriptionsProgress.mockResolvedValue(refreshedProgress)
+      await store.fetchSubscriptionProgress(true)
+
+      expect(mockGetSubscriptionsProgress).toHaveBeenCalledTimes(2)
+      expect(store.activeSubscriptionProgress).toEqual(refreshedProgress)
+    })
+  })
+
+  describe('refreshActiveSubscriptionState', () => {
+    it('refreshes metadata and normalized progress together', async () => {
+      mockGetActiveSubscriptions.mockResolvedValue(fakeSubscriptions)
+      mockGetSubscriptionsProgress.mockResolvedValue(fakeProgressEntries)
+      const store = useSubscriptionStore()
+
+      await store.refreshActiveSubscriptionState(true)
+
+      expect(mockGetActiveSubscriptions).toHaveBeenCalledWith()
+      expect(mockGetSubscriptionsProgress).toHaveBeenCalledWith()
+      expect(store.activeSubscriptions).toEqual(fakeSubscriptions)
+      expect(store.activeSubscriptionProgress).toEqual(fakeProgressEntries)
+    })
+  })
+
+  // --- hasActiveSubscriptions ---
+
   describe('hasActiveSubscriptions', () => {
     it('有订阅时返回 true', async () => {
       mockGetActiveSubscriptions.mockResolvedValue(fakeSubscriptions)
@@ -205,6 +271,34 @@ describe('useSubscriptionStore', () => {
 
       expect(store.activeSubscriptions).toHaveLength(0)
       expect(store.hasActiveSubscriptions).toBe(false)
+      expect(store.activeSubscriptionProgress).toHaveLength(0)
+    })
+
+    it('ignores in-flight responses and resets both loading flags', async () => {
+      let resolveSubscriptions!: (value: typeof fakeSubscriptions) => void
+      let resolveProgress!: (value: typeof fakeProgressEntries) => void
+      mockGetActiveSubscriptions.mockImplementation(
+        () => new Promise<typeof fakeSubscriptions>((resolve) => { resolveSubscriptions = resolve })
+      )
+      mockGetSubscriptionsProgress.mockImplementation(
+        () => new Promise<typeof fakeProgressEntries>((resolve) => { resolveProgress = resolve })
+      )
+      const store = useSubscriptionStore()
+
+      const refresh = store.refreshActiveSubscriptionState(true)
+      expect(store.loading).toBe(true)
+      expect(store.progressLoading).toBe(true)
+
+      store.clear()
+      expect(store.loading).toBe(false)
+      expect(store.progressLoading).toBe(false)
+
+      resolveSubscriptions(fakeSubscriptions)
+      resolveProgress(fakeProgressEntries)
+      await refresh
+
+      expect(store.activeSubscriptions).toEqual([])
+      expect(store.activeSubscriptionProgress).toEqual([])
     })
   })
 
@@ -214,6 +308,7 @@ describe('useSubscriptionStore', () => {
     it('startPolling 不会创建重复 interval', () => {
       const store = useSubscriptionStore()
       mockGetActiveSubscriptions.mockResolvedValue([])
+      mockGetSubscriptionsProgress.mockResolvedValue([])
 
       store.startPolling()
       store.startPolling() // 重复调用
@@ -221,6 +316,7 @@ describe('useSubscriptionStore', () => {
       // 推进5分钟只触发一次
       vi.advanceTimersByTime(5 * 60 * 1000)
       expect(mockGetActiveSubscriptions).toHaveBeenCalledTimes(1)
+      expect(mockGetSubscriptionsProgress).toHaveBeenCalledTimes(1)
 
       store.stopPolling()
     })

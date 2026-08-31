@@ -4,7 +4,7 @@
  */
 
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
-import { applyLocaleFromRoute, ensureLocaleMessagesForRoute, inheritedEnglishLocaleQuery } from '@/i18n'
+import { applyLocaleFromRoute, ensureLocaleMessagesForRoute, getLocale, inheritedEnglishLocaleQuery } from '@/i18n'
 import { useAuthStore } from '@/stores/auth'
 import { useAppStore } from '@/stores/app'
 import { useAdminSettingsStore } from '@/stores/adminSettings'
@@ -17,6 +17,8 @@ import { useTheme } from '@/composables/useTheme'
 import { recoverFromChunkLoadError } from './chunkRecovery'
 import { applyPublicRouteSeo } from '@/utils/routeSeo'
 import { FORUM_SSO_RESUME_PARAM } from '@/composables/useForumSsoResume'
+import { resolveCustomMenuRouteById, resolveLegacyDocsCustomPageRoute } from './customMenuTarget'
+import { createNavigationGeneration } from './navigationGeneration'
 
 const adminPromptAuditPath = '/admin/pro' + 'mpt-audit'
 
@@ -1182,6 +1184,7 @@ let authInitialized = false
 
 // 初始化导航加载状态
 const navigationLoading = useNavigationLoadingState()
+const navigationGeneration = createNavigationGeneration()
 const BACKEND_MODE_ALLOWED_PATHS = ['/login', '/key-usage', '/setup', '/payment/result', '/payment/airwallex', '/legal', '/download/android', '/models', '/en/models']
 const BACKEND_MODE_CALLBACK_PATHS = [
   '/auth/callback',
@@ -1211,6 +1214,13 @@ function isBackendModePublicRouteAllowed(path: string, hasPendingAuthSession: bo
 }
 
 router.beforeEach(async (to, from, next) => {
+  const guardGeneration = navigationGeneration.begin()
+  const abortIfSuperseded = (): boolean => {
+    if (navigationGeneration.isCurrent(guardGeneration)) return false
+    next(false)
+    return true
+  }
+
   // 开始导航加载状态
   navigationLoading.startNavigation()
 
@@ -1222,8 +1232,14 @@ router.beforeEach(async (to, from, next) => {
     return
   }
 
-  await applyLocaleFromRoute(to.path, to.query)
+  const localeTransitionApplied = await applyLocaleFromRoute(to.path, to.query)
+  if (!localeTransitionApplied) {
+    next(false)
+    return
+  }
+  if (abortIfSuperseded()) return
   await ensureLocaleMessagesForRoute(to.name, undefined, to.meta.localeScopes)
+  if (abortIfSuperseded()) return
 
   const authStore = useAuthStore()
 
@@ -1236,6 +1252,33 @@ router.beforeEach(async (to, from, next) => {
   // Set page title
   const appStore = useAppStore()
   const adminSettingsStore = useAdminSettingsStore()
+  if (to.name === 'CustomPage') {
+    const customMenuID = typeof to.params.id === 'string' ? to.params.id : ''
+    const legacyDocsRoute = resolveLegacyDocsCustomPageRoute(customMenuID, getLocale())
+    if (legacyDocsRoute) {
+      next(legacyDocsRoute)
+      return
+    }
+    if (!appStore.publicSettingsLoaded) {
+      await appStore.fetchPublicSettings()
+      if (abortIfSuperseded()) return
+    }
+    // AppSidebar normally loads admin settings after the first render. A
+    // direct cold-start visit to an admin custom page must wait for the shared
+    // request before deciding whether it is a native docs target.
+    if (authStore.isAdmin && !adminSettingsStore.loaded) {
+      await adminSettingsStore.fetch()
+      if (abortIfSuperseded()) return
+    }
+    const nativeDocsRoute = resolveCustomMenuRouteById([
+      ...(appStore.cachedPublicSettings?.custom_menu_items ?? []),
+      ...(authStore.isAdmin ? adminSettingsStore.customMenuItems : []),
+    ], customMenuID, getLocale())
+    if (nativeDocsRoute) {
+      next(nativeDocsRoute)
+      return
+    }
+  }
   const customMenuItems = [
     ...(appStore.cachedPublicSettings?.custom_menu_items ?? []),
     ...(authStore.isAdmin ? adminSettingsStore.customMenuItems : []),
@@ -1251,12 +1294,14 @@ router.beforeEach(async (to, from, next) => {
   if (to.path === '/setup') {
     try {
       const status = await getSetupStatus()
+      if (abortIfSuperseded()) return
       if (!status.needs_setup) {
         next(resolveCompletedSetupRedirectPath(authStore.isAuthenticated, authStore.isAdmin))
         return
       }
     } catch {
       // If setup status cannot be determined, keep the setup page reachable.
+      if (abortIfSuperseded()) return
     }
   }
 
@@ -1289,8 +1334,10 @@ router.beforeEach(async (to, from, next) => {
       if (!appStore.publicSettingsLoaded) {
         try {
           await appStore.fetchPublicSettings()
+          if (abortIfSuperseded()) return
         } catch (error) {
           console.warn('Failed to load public settings in route guard', error)
+          if (abortIfSuperseded()) return
         }
       }
       const plazaSettings = appStore.cachedPublicSettings
@@ -1349,7 +1396,9 @@ router.beforeEach(async (to, from, next) => {
     if (!adminComplianceStore.initialized) {
       try {
         await adminComplianceStore.fetchStatus()
+        if (abortIfSuperseded()) return
       } catch (error) {
+        if (abortIfSuperseded()) return
         const err = error as { status?: number; code?: string; metadata?: Record<string, string> }
         if (err.status === 423 && err.code === 'ADMIN_COMPLIANCE_ACK_REQUIRED') {
           adminComplianceStore.requireAcknowledgement(err.metadata)
@@ -1368,8 +1417,10 @@ router.beforeEach(async (to, from, next) => {
   ) {
     try {
       await appStore.fetchPublicSettings()
+      if (abortIfSuperseded()) return
     } catch (error) {
       console.warn('Failed to load public settings before route guard:', error)
+      if (abortIfSuperseded()) return
     }
   }
 

@@ -346,6 +346,7 @@ export const i18n = createI18n({
 
 const loadedLocaleScopes = new Map<LocaleCode, Set<LocaleLoadScope>>()
 const pendingLocaleScopes = new Map<string, Promise<void>>()
+let localeTransitionID = 0
 
 function loadedScopesFor(locale: LocaleCode): Set<LocaleLoadScope> {
   const existing = loadedLocaleScopes.get(locale)
@@ -508,7 +509,13 @@ export async function applyLocaleFromRouteQuery(query: LocationQuery): Promise<v
   await setLocale(value.trim())
 }
 
-export async function applyLocaleFromRoute(path: string, query: LocationQuery): Promise<void> {
+/**
+ * Returns false when a newer navigation claimed the locale transition while
+ * this route was waiting for its lazy locale chunks. Router guards use that
+ * signal to avoid applying stale document-level state afterwards.
+ */
+export async function applyLocaleFromRoute(path: string, query: LocationQuery): Promise<boolean> {
+  const transitionID = ++localeTransitionID
   const resolved = localeForRoute(path, query)
   // Versions before URL-scoped locale selection persisted an English preference.
   // Clear it on Chinese routes so a rollback or an older cached bundle cannot
@@ -517,9 +524,9 @@ export async function applyLocaleFromRoute(path: string, query: LocationQuery): 
     localStorage.removeItem(LEGACY_LOCALE_STORAGE_KEY)
   }
   if (getLocale() === resolved) {
-    return
+    return transitionID === localeTransitionID
   }
-  await setLocale(resolved)
+  return setLocaleForTransition(resolved, transitionID, path)
 }
 
 export async function setLocale(locale: string): Promise<void> {
@@ -529,15 +536,37 @@ export async function setLocale(locale: string): Promise<void> {
   }
 
   const path = typeof window === 'undefined' ? '/' : window.location.pathname
+  await setLocaleForTransition(normalized, ++localeTransitionID, path)
+}
+
+async function setLocaleForTransition(
+  normalized: LocaleCode,
+  transitionID: number,
+  path = typeof window === 'undefined' ? '/' : window.location.pathname,
+): Promise<boolean> {
+  if (transitionID !== localeTransitionID) return false
   await ensureLocaleMessagesForPath(path, normalized)
+  if (transitionID !== localeTransitionID) return false
+
   i18n.global.locale.value = normalized
   document.documentElement.setAttribute('lang', documentLanguage(normalized))
 
-  const { resolveRouteDocumentTitle } = await import('@/router/title')
-  const { default: router } = await import('@/router')
-  const { useAppStore } = await import('@/stores/app')
-  const { useAuthStore } = await import('@/stores/auth')
-  const { useAdminSettingsStore } = await import('@/stores/adminSettings')
+  const [
+    { resolveRouteDocumentTitle },
+    { default: router },
+    { useAppStore },
+    { useAuthStore },
+    { useAdminSettingsStore },
+    { applyPublicRouteSeo },
+  ] = await Promise.all([
+    import('@/router/title'),
+    import('@/router'),
+    import('@/stores/app'),
+    import('@/stores/auth'),
+    import('@/stores/adminSettings'),
+    import('@/utils/routeSeo'),
+  ])
+  if (transitionID !== localeTransitionID) return false
   const route = router.currentRoute.value
   const appStore = useAppStore()
   const authStore = useAuthStore()
@@ -546,10 +575,10 @@ export async function setLocale(locale: string): Promise<void> {
     ...(appStore.cachedPublicSettings?.custom_menu_items ?? []),
     ...(authStore.isAdmin ? adminSettingsStore.customMenuItems : []),
   ]
-  const { applyPublicRouteSeo } = await import('@/utils/routeSeo')
   if (!applyPublicRouteSeo(route.path)) {
     document.title = resolveRouteDocumentTitle(route, appStore.siteName, customMenuItems)
   }
+  return true
 }
 
 export function getLocale(): LocaleCode {

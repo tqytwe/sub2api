@@ -50,39 +50,58 @@ export const useAdminSettingsStore = defineStore('adminSettings', () => {
   const opsQueryModeDefault = ref(readCachedString('ops_query_mode_default_cached', 'auto'))
   const paymentEnabled = ref(readCachedBool('payment_enabled_cached', false))
   const customMenuItems = ref<CustomMenuItem[]>([])
+  // Share one request between the sidebar and route guards. Without this,
+  // `fetch()` returned immediately while a request was already in progress,
+  // leaving direct admin custom-page navigations with an empty menu snapshot.
+  let inFlightFetch: Promise<void> | null = null
 
-  async function fetch(force = false): Promise<void> {
-    if (loaded.value && !force) return
-    if (loading.value) return
+  function fetch(force = false): Promise<void> {
+    if (loaded.value && !force) return Promise.resolve()
+    if (inFlightFetch) return inFlightFetch
 
-    loading.value = true
-    try {
-      const [settings, paymentConfigResp] = await Promise.all([
-        adminAPI.settings.getSettings(),
-        adminAPI.payment.getConfig()
-      ])
-      opsMonitoringEnabled.value = settings.ops_monitoring_enabled ?? true
-      writeCachedBool('ops_monitoring_enabled_cached', opsMonitoringEnabled.value)
+    const request = (async () => {
+      loading.value = true
+      try {
+        const [settings, paymentConfigResp] = await Promise.all([
+          adminAPI.settings.getSettings(),
+          adminAPI.payment.getConfig()
+        ])
+        opsMonitoringEnabled.value = settings.ops_monitoring_enabled ?? true
+        writeCachedBool('ops_monitoring_enabled_cached', opsMonitoringEnabled.value)
 
-      opsRealtimeMonitoringEnabled.value = settings.ops_realtime_monitoring_enabled ?? true
-      writeCachedBool('ops_realtime_monitoring_enabled_cached', opsRealtimeMonitoringEnabled.value)
+        opsRealtimeMonitoringEnabled.value = settings.ops_realtime_monitoring_enabled ?? true
+        writeCachedBool('ops_realtime_monitoring_enabled_cached', opsRealtimeMonitoringEnabled.value)
 
-      opsQueryModeDefault.value = settings.ops_query_mode_default || 'auto'
-      writeCachedString('ops_query_mode_default_cached', opsQueryModeDefault.value)
+        opsQueryModeDefault.value = settings.ops_query_mode_default || 'auto'
+        writeCachedString('ops_query_mode_default_cached', opsQueryModeDefault.value)
 
-      customMenuItems.value = Array.isArray(settings.custom_menu_items) ? settings.custom_menu_items : []
+        customMenuItems.value = Array.isArray(settings.custom_menu_items) ? settings.custom_menu_items : []
 
-      paymentEnabled.value = paymentConfigResp.data?.enabled ?? false
-      writeCachedBool('payment_enabled_cached', paymentEnabled.value)
+        paymentEnabled.value = paymentConfigResp.data?.enabled ?? false
+        writeCachedBool('payment_enabled_cached', paymentEnabled.value)
 
-      loaded.value = true
-    } catch (err) {
-      // Keep cached/default value: do not "flip" the UI based on a transient fetch failure.
-      loaded.value = true
-      console.error('[adminSettings] Failed to fetch settings:', err)
-    } finally {
-      loading.value = false
-    }
+        loaded.value = true
+      } catch (err) {
+        // Keep cached/default value: do not "flip" the UI based on a transient fetch failure.
+        loaded.value = true
+        console.error('[adminSettings] Failed to fetch settings:', err)
+      } finally {
+        loading.value = false
+      }
+    })()
+    inFlightFetch = request
+
+    // Clear only after this specific request settles. A new caller can then
+    // force a fresh fetch without racing the cleanup of the old promise.
+    void request.then(
+      () => {
+        if (inFlightFetch === request) inFlightFetch = null
+      },
+      () => {
+        if (inFlightFetch === request) inFlightFetch = null
+      },
+    )
+    return request
   }
 
   function setOpsMonitoringEnabledLocal(value: boolean) {

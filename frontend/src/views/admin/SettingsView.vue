@@ -1578,27 +1578,22 @@
                 </div>
                 <Toggle v-model="form.password_reset_enabled" />
               </div>
-              <!-- Frontend URL - Only show when password reset is enabled -->
-              <div
-                v-if="form.email_verify_enabled && form.password_reset_enabled"
-                class="border-t border-gray-100 pt-4 dark:border-dark-700"
-              >
-                <label
-                  class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-                >
-                  {{ t("admin.settings.registration.frontendUrl") }}
-                </label>
-                <input
+              <!-- Canonical public origin remains editable for notification links. -->
+              <div class="border-t border-gray-100 pt-4 dark:border-dark-700">
+                <Input
                   v-model="form.frontend_url"
+                  id="frontend-url"
                   type="url"
-                  class="input"
+                  :label="t('admin.settings.registration.frontendUrl')"
                   :placeholder="
                     t('admin.settings.registration.frontendUrlPlaceholder')
                   "
+                  :hint="t('admin.settings.registration.frontendUrlHint')"
+                  :error="frontendUrlError"
+                  autocomplete="url"
+                  data-testid="frontend-url-field"
+                  @update:model-value="clearFrontendUrlError"
                 />
-                <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
-                  {{ t("admin.settings.registration.frontendUrlHint") }}
-                </p>
               </div>
 
               <!-- TOTP 2FA -->
@@ -8668,6 +8663,7 @@ import type {
 import type { ProviderInstance } from "@/types/payment";
 import AppLayout from "@/components/layout/AppLayout.vue";
 import Icon from "@/components/icons/Icon.vue";
+import Input from "@/components/common/Input.vue";
 import Select from "@/components/common/Select.vue";
 import ConfirmDialog from "@/components/common/ConfirmDialog.vue";
 import PaymentProviderList from "@/components/payment/PaymentProviderList.vue";
@@ -8808,6 +8804,7 @@ const { copyToClipboard } = useClipboard();
 const loading = ref(true);
 const loadFailed = ref(false);
 const saving = ref(false);
+const frontendUrlError = ref("");
 const testingSmtp = ref(false);
 const sendingTestEmail = ref(false);
 const smtpPasswordManuallyEdited = ref(false);
@@ -10803,6 +10800,7 @@ function removeCodexWhitelistRow(i: number): void {
 async function loadSettings() {
   loading.value = true;
   loadFailed.value = false;
+  frontendUrlError.value = "";
   try {
     const settings = await adminAPI.settings.getSettings();
     settings.payment_load_balance_strategy =
@@ -11044,6 +11042,38 @@ function findDuplicateDefaultSubscription(
   });
 }
 
+function clearFrontendUrlError(): void {
+  frontendUrlError.value = "";
+}
+
+function normalizeFrontendUrlForSave(raw: string): string | null {
+  const value = raw.trim();
+  if (!value) return "";
+
+  try {
+    const parsed = new URL(value);
+    const authority = value
+      .slice(value.indexOf("://") + 3)
+      .split(/[/?#]/, 1)[0];
+    const isAbsoluteHTTPURL = /^https?:\/\//i.test(value);
+
+    if (
+      !isAbsoluteHTTPURL ||
+      (parsed.protocol !== "http:" && parsed.protocol !== "https:") ||
+      !parsed.hostname ||
+      value.includes("?") ||
+      value.includes("#") ||
+      authority.includes("@")
+    ) {
+      return null;
+    }
+  } catch {
+    return null;
+  }
+
+  return value;
+}
+
 async function saveSettings() {
   saving.value = true;
   try {
@@ -11166,7 +11196,21 @@ async function saveSettings() {
       );
       return;
     }
-    // Validate URL fields — novalidate disables browser-native checks, so we validate here
+    // The form opts out of native validation to retain a consistent Settings save flow.
+    // frontend_url is an audited canonical origin for email links, so it must never
+    // be silently cleared like the optional documentation URL.
+    const normalizedFrontendUrl = normalizeFrontendUrlForSave(form.frontend_url);
+    if (normalizedFrontendUrl === null) {
+      frontendUrlError.value = t(
+        "admin.settings.registration.frontendUrlInvalid",
+      );
+      appStore.showError(frontendUrlError.value);
+      return;
+    }
+    form.frontend_url = normalizedFrontendUrl;
+    clearFrontendUrlError();
+
+    // doc_url remains an optional best-effort URL field with its existing clear-on-invalid behavior.
     const isValidHttpUrl = (url: string): boolean => {
       if (!url) return true;
       try {
@@ -11176,8 +11220,6 @@ async function saveSettings() {
         return false;
       }
     };
-    // Optional URL fields: auto-clear invalid values so they don't cause backend 400 errors
-    if (!isValidHttpUrl(form.frontend_url)) form.frontend_url = "";
     if (!isValidHttpUrl(form.doc_url)) form.doc_url = "";
     const supportContactPayload = normalizeSupportContactForSubmit();
     if (supportContactPayload.contacts.filter((contact) => contact.primary).length > 2) {

@@ -164,6 +164,7 @@ export default {
         frontendUrl: '前端地址',
         frontendUrlPlaceholder: 'https://example.com',
         frontendUrlHint: '用于生成邮件中的密码重置链接，例如 https://example.com',
+        frontendUrlInvalid: '前端地址必须是无查询参数、片段或登录信息的完整 HTTP(S) 地址。',
         totp: '双因素认证 (2FA)',
         totpHint: '允许用户使用 Google Authenticator 等应用进行二次验证',
         totpKeyNotConfigured:

@@ -56,6 +56,28 @@ describe('embedded-url', () => {
     expect(url.searchParams.has('lang')).toBe(false)
   })
 
+  it('does not add panel context when a first-party docs alias must remain an iframe target', () => {
+    const result = buildEmbeddedUrl(
+		'http://www.jisudeng.com/docs?configured=value&token=legacy-token&theme=dark&src_url=https%3A%2F%2Fleak.example#token=legacy-fragment',
+      42,
+      'token-123',
+      'dark',
+      'zh-CN',
+      { includePanelContext: false },
+    )
+
+    const url = new URL(result)
+    expect(url.searchParams.get('configured')).toBe('value')
+    expect(url.searchParams.has('user_id')).toBe(false)
+    expect(url.searchParams.has('token')).toBe(false)
+    expect(url.searchParams.has('theme')).toBe(false)
+    expect(url.searchParams.has('lang')).toBe(false)
+    expect(url.searchParams.has('ui_mode')).toBe(false)
+		expect(url.searchParams.has('src_host')).toBe(false)
+		expect(url.searchParams.has('src_url')).toBe(false)
+		expect(url.hash).toBe('')
+	})
+
   it('returns original string for invalid url input', () => {
     expect(buildEmbeddedUrl('not a url', 1, 'token')).toBe('not a url')
   })

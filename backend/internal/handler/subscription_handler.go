@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"strconv"
+
 	"github.com/Wei-Shaw/sub2api/internal/handler/dto"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	middleware2 "github.com/Wei-Shaw/sub2api/internal/server/middleware"
@@ -117,6 +119,30 @@ func (h *SubscriptionHandler) GetProgress(c *gin.Context) {
 	}
 
 	response.Success(c, result)
+}
+
+// GetProgressByID returns one subscription's progress for its owner only.
+// GET /api/v1/subscriptions/:id/progress
+func (h *SubscriptionHandler) GetProgressByID(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not found in context")
+		return
+	}
+
+	subscriptionID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || subscriptionID <= 0 {
+		response.BadRequest(c, "Invalid subscription ID")
+		return
+	}
+
+	progress, err := h.subscriptionService.GetUserSubscriptionProgress(c.Request.Context(), subject.UserID, subscriptionID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	response.Success(c, progress)
 }
 
 // GetSummary handles getting a summary of current user's subscription status

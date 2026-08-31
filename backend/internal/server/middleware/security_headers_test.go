@@ -155,14 +155,12 @@ func TestSecurityHeaders(t *testing.T) {
 		assert.NotContains(t, csp, "frame-ancestors 'self' https://tickets.example.com")
 	})
 
-	t.Run("injects_configured_parent_origins_into_frame_ancestors", func(t *testing.T) {
+	t.Run("does_not_inject_frontend_or_parent_origins_into_frame_ancestors", func(t *testing.T) {
 		cfg := config.CSPConfig{
 			Enabled: true,
-			Policy:  "default-src 'self'; frame-ancestors 'self'",
+			Policy:  "default-src 'self'; frame-ancestors https://legacy.example.com",
 		}
-		middleware := SecurityHeaders(cfg, nil, func() []string {
-			return []string{"https://www.jisudeng.com"}
-		})
+		middleware := SecurityHeaders(cfg, nil)
 
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
@@ -171,7 +169,30 @@ func TestSecurityHeaders(t *testing.T) {
 		middleware(c)
 
 		csp := w.Header().Get("Content-Security-Policy")
-		assert.Contains(t, csp, "frame-ancestors 'self' https://www.jisudeng.com")
+		assert.Contains(t, csp, "frame-ancestors 'self'")
+		assert.NotContains(t, csp, "legacy.example.com")
+		assert.NotContains(t, csp, "www.jisudeng.com")
+		assert.Equal(t, "SAMEORIGIN", w.Header().Get("X-Frame-Options"))
+	})
+
+	t.Run("normalizes_mixed_case_duplicate_frame_ancestor_directives", func(t *testing.T) {
+		cfg := config.CSPConfig{
+			Enabled: true,
+			Policy:  "default-src 'self'; Frame-Ancestors https://legacy.example.com; frame-ancestors https://other.example.com",
+		}
+		middleware := SecurityHeaders(cfg, nil)
+
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodGet, "/", nil)
+
+		middleware(c)
+
+		csp := w.Header().Get("Content-Security-Policy")
+		assert.Equal(t, 1, strings.Count(strings.ToLower(csp), "frame-ancestors"))
+		assert.Contains(t, csp, "frame-ancestors 'self'")
+		assert.NotContains(t, csp, "legacy.example.com")
+		assert.NotContains(t, csp, "other.example.com")
 	})
 
 	t.Run("old_custom_policy_dynamically_allows_same_origin_frames", func(t *testing.T) {

@@ -158,12 +158,7 @@ func RegisterUserRoutes(
 
 		// 用户订阅
 		subscriptions := authenticated.Group("/subscriptions")
-		{
-			subscriptions.GET("", h.Subscription.List)
-			subscriptions.GET("/active", h.Subscription.GetActive)
-			subscriptions.GET("/progress", h.Subscription.GetProgress)
-			subscriptions.GET("/summary", h.Subscription.GetSummary)
-		}
+		registerUserSubscriptionRoutes(subscriptions, h)
 
 		// 渠道监控（用户只读）
 		monitors := authenticated.Group("/channel-monitors")
@@ -185,4 +180,12 @@ func RegisterUserRoutes(
 			monitorV2.GET("/users", h.ChannelMonitorV2.Users)
 		}
 	}
+}
+
+func registerUserSubscriptionRoutes(subscriptions *gin.RouterGroup, h *handler.Handlers) {
+	subscriptions.GET("", h.Subscription.List)
+	subscriptions.GET("/active", h.Subscription.GetActive)
+	subscriptions.GET("/progress", h.Subscription.GetProgress)
+	subscriptions.GET("/:id/progress", h.Subscription.GetProgressByID)
+	subscriptions.GET("/summary", h.Subscription.GetSummary)
 }

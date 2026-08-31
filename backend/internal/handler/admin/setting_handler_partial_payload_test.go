@@ -53,6 +53,20 @@ func TestUpdateSettingsFullPayloadStillClearsSentEmptyFields(t *testing.T) {
 		"an explicitly sent empty value is a deliberate clear, not an omission")
 }
 
+func TestUpdateSettingsRejectsFrontendURLEmptyFragment(t *testing.T) {
+	h, repo := newStepUpSwitchTestHandler(t, map[string]string{
+		service.SettingKeyFrontendURL: "https://www.jisudeng.com",
+	})
+
+	rec := doUpdateSettings(t, h, map[string]any{
+		"frontend_url": "https://www.jisudeng.com/#",
+	}, nil)
+
+	require.Equal(t, http.StatusBadRequest, rec.Code)
+	require.Contains(t, rec.Body.String(), "Frontend URL")
+	require.Equal(t, "https://www.jisudeng.com", repo.values[service.SettingKeyFrontendURL])
+}
+
 // smtp_from_email is the one request field whose JSON name differs from its
 // setting key; the alias keeps it from being treated as always-omitted.
 func TestUpdateSettingsSMTPFromAliasIsWritable(t *testing.T) {

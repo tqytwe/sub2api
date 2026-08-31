@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"math"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -110,6 +111,11 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 		normalizedWhitelist = []string{}
 	}
 	settings.RegistrationEmailSuffixWhitelist = normalizedWhitelist
+	frontendURL, err := normalizeFrontendURLSetting(settings.FrontendURL)
+	if err != nil {
+		return nil, infraerrors.BadRequest("INVALID_FRONTEND_URL", err.Error())
+	}
+	settings.FrontendURL = frontendURL
 	normalizedForwardedClientIPHeaders, err := config.NormalizeForwardedClientIPHeaders(settings.ForwardedClientIPHeaders)
 	if err != nil {
 		return nil, infraerrors.BadRequest("INVALID_FORWARDED_CLIENT_IP_HEADERS", err.Error())
@@ -568,6 +574,31 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	updates[SettingKeyAllowUserViewErrorRequests] = strconv.FormatBool(settings.AllowUserViewErrorRequests)
 
 	return updates, nil
+}
+
+// normalizeFrontendURLSetting keeps the audited frontend_url setting suitable
+// for email and external redirect links. The server config validates the same
+// safety properties, but the admin Settings flow persists to the database and
+// must not rely on a later process restart to reject an unsafe value.
+func normalizeFrontendURLSetting(raw string) (string, error) {
+	value := strings.TrimSpace(raw)
+	if value == "" {
+		return "", nil
+	}
+	if err := config.ValidateAbsoluteHTTPURL(value); err != nil {
+		return "", fmt.Errorf("frontend_url invalid: %w", err)
+	}
+	parsed, err := url.Parse(value)
+	if err != nil {
+		return "", fmt.Errorf("frontend_url invalid: %w", err)
+	}
+	if parsed.RawQuery != "" || parsed.ForceQuery {
+		return "", fmt.Errorf("frontend_url invalid: must not include query")
+	}
+	if parsed.User != nil {
+		return "", fmt.Errorf("frontend_url invalid: must not include userinfo")
+	}
+	return value, nil
 }
 
 func defaultAccountSchedulingThresholds() map[string]int {

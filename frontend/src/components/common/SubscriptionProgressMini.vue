@@ -18,7 +18,7 @@
           ></div>
         </div>
         <span class="text-xs font-medium text-purple-700 dark:text-purple-300">
-          {{ activeSubscriptions.length }}
+          {{ displaySubscriptions.length }}
         </span>
       </div>
     </button>
@@ -34,7 +34,7 @@
             {{ t('subscriptionProgress.title') }}
           </h3>
           <p class="mt-0.5 text-xs text-gray-500 dark:text-dark-400">
-            {{ t('subscriptionProgress.activeCount', { count: activeSubscriptions.length }) }}
+            {{ t('subscriptionProgress.activeCount', { count: displaySubscriptions.length }) }}
           </p>
         </div>
 
@@ -46,14 +46,17 @@
           >
             <div class="mb-2 flex items-center justify-between">
               <span class="text-sm font-medium text-gray-900 dark:text-white">
-                {{ subscription.group?.name || `Group #${subscription.group_id}` }}
+                {{
+                  subscription.group?.name ||
+                  t('subscriptionProgress.groupFallback', { id: subscription.group_id })
+                }}
               </span>
               <span
-                v-if="subscription.expires_at"
+                v-if="subscription.progress.expiresAt"
                 class="text-xs"
-                :class="getDaysRemainingClass(subscription.expires_at)"
+                :class="getDaysRemainingClass(subscription.progress.expiresAt)"
               >
-                {{ formatDaysRemaining(subscription.expires_at) }}
+                {{ formatDaysRemaining(subscription.progress.expiresAt) }}
               </span>
             </div>
 
@@ -72,90 +75,57 @@
 
               <!-- Progress bars for limited subscriptions -->
               <template v-else>
-                <div v-if="subscription.group?.daily_limit_usd" class="flex items-center gap-2">
+                <div v-if="subscription.progress.daily" class="flex items-center gap-2">
                   <span class="w-8 flex-shrink-0 text-[10px] text-gray-500">{{
                     t('subscriptionProgress.daily')
                   }}</span>
                   <div class="h-1.5 min-w-0 flex-1 rounded-full bg-gray-200 dark:bg-dark-600">
                     <div
                       class="h-1.5 rounded-full transition-all"
-                      :class="
-                        getProgressBarClass(
-                          subscription.daily_usage_usd,
-                          subscription.group?.daily_limit_usd
-                        )
-                      "
+                      :class="getProgressBarClass(subscription.progress.daily.percentage)"
                       :style="{
-                        width: getProgressWidth(
-                          subscription.daily_usage_usd,
-                          subscription.group?.daily_limit_usd
-                        )
+                        width: getProgressWidth(subscription.progress.daily.percentage)
                       }"
                     ></div>
                   </div>
                   <span class="w-24 flex-shrink-0 text-right text-[10px] text-gray-500">
-                    {{
-                      formatUsage(subscription.daily_usage_usd, subscription.group?.daily_limit_usd)
-                    }}
+                    {{ formatUsage(subscription.progress.daily) }}
                   </span>
                 </div>
 
-                <div v-if="subscription.group?.weekly_limit_usd" class="flex items-center gap-2">
+                <div v-if="subscription.progress.weekly" class="flex items-center gap-2">
                   <span class="w-8 flex-shrink-0 text-[10px] text-gray-500">{{
                     t('subscriptionProgress.weekly')
                   }}</span>
                   <div class="h-1.5 min-w-0 flex-1 rounded-full bg-gray-200 dark:bg-dark-600">
                     <div
                       class="h-1.5 rounded-full transition-all"
-                      :class="
-                        getProgressBarClass(
-                          subscription.weekly_usage_usd,
-                          subscription.group?.weekly_limit_usd
-                        )
-                      "
+                      :class="getProgressBarClass(subscription.progress.weekly.percentage)"
                       :style="{
-                        width: getProgressWidth(
-                          subscription.weekly_usage_usd,
-                          subscription.group?.weekly_limit_usd
-                        )
+                        width: getProgressWidth(subscription.progress.weekly.percentage)
                       }"
                     ></div>
                   </div>
                   <span class="w-24 flex-shrink-0 text-right text-[10px] text-gray-500">
-                    {{
-                      formatUsage(subscription.weekly_usage_usd, subscription.group?.weekly_limit_usd)
-                    }}
+                    {{ formatUsage(subscription.progress.weekly) }}
                   </span>
                 </div>
 
-                <div v-if="subscription.group?.monthly_limit_usd" class="flex items-center gap-2">
+                <div v-if="subscription.progress.monthly" class="flex items-center gap-2">
                   <span class="w-8 flex-shrink-0 text-[10px] text-gray-500">{{
                     t('subscriptionProgress.monthly')
                   }}</span>
                   <div class="h-1.5 min-w-0 flex-1 rounded-full bg-gray-200 dark:bg-dark-600">
                     <div
                       class="h-1.5 rounded-full transition-all"
-                      :class="
-                        getProgressBarClass(
-                          subscription.monthly_usage_usd,
-                          subscription.group?.monthly_limit_usd
-                        )
-                      "
+                      :class="getProgressBarClass(subscription.progress.monthly.percentage)"
                       :style="{
-                        width: getProgressWidth(
-                          subscription.monthly_usage_usd,
-                          subscription.group?.monthly_limit_usd
-                        )
+                        width: getProgressWidth(subscription.progress.monthly.percentage)
                       }"
                     ></div>
                   </div>
                   <span class="w-24 flex-shrink-0 text-right text-[10px] text-gray-500">
-                    {{
-                      formatUsage(
-                        subscription.monthly_usage_usd,
-                        subscription.group?.monthly_limit_usd
-                      )
-                    }}
+                    {{ formatUsage(subscription.progress.monthly) }}
                   </span>
                 </div>
               </template>
@@ -182,51 +152,50 @@ import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Icon from '@/components/icons/Icon.vue'
 import { useSubscriptionStore } from '@/stores'
-import type { UserSubscription } from '@/types'
+import type {
+  SubscriptionProgress,
+  SubscriptionUsageWindow,
+  UserSubscription
+} from '@/types'
 
 const { t } = useI18n()
-
 const subscriptionStore = useSubscriptionStore()
 
 const containerRef = ref<HTMLElement | null>(null)
 const tooltipOpen = ref(false)
 
-// Use store data instead of local state
-const activeSubscriptions = computed(() => subscriptionStore.activeSubscriptions)
-const hasActiveSubscriptions = computed(() => subscriptionStore.hasActiveSubscriptions)
+type SubscriptionProgressDisplay = UserSubscription & { progress: SubscriptionProgress }
 
-const displaySubscriptions = computed(() => {
-  // Sort by most usage (highest percentage first)
-  return [...activeSubscriptions.value].sort((a, b) => {
-    const aMax = getMaxUsagePercentage(a)
-    const bMax = getMaxUsagePercentage(b)
-    return bMax - aMax
-  })
+const displaySubscriptions = computed<SubscriptionProgressDisplay[]>(() => {
+  return subscriptionStore.activeSubscriptionProgress
+    .flatMap(({ subscription, progress }) => subscription ? [{ ...subscription, progress }] : [])
+    .sort((a, b) => {
+      const aMax = getMaxUsagePercentage(a)
+      const bMax = getMaxUsagePercentage(b)
+      return bMax - aMax
+    })
 })
 
-function getMaxUsagePercentage(sub: UserSubscription): number {
-  const percentages: number[] = []
-  if (sub.group?.daily_limit_usd) {
-    percentages.push(((sub.daily_usage_usd || 0) / sub.group.daily_limit_usd) * 100)
-  }
-  if (sub.group?.weekly_limit_usd) {
-    percentages.push(((sub.weekly_usage_usd || 0) / sub.group.weekly_limit_usd) * 100)
-  }
-  if (sub.group?.monthly_limit_usd) {
-    percentages.push(((sub.monthly_usage_usd || 0) / sub.group.monthly_limit_usd) * 100)
-  }
+const hasActiveSubscriptions = computed(() => displaySubscriptions.value.length > 0)
+
+function getMaxUsagePercentage(sub: SubscriptionProgressDisplay): number {
+  const percentages = [sub.progress.daily, sub.progress.weekly, sub.progress.monthly]
+    .flatMap((window) => window ? [window.percentage] : [])
   return percentages.length > 0 ? Math.max(...percentages) : 0
 }
 
-function isUnlimited(sub: UserSubscription): boolean {
+function isUnlimited(sub: SubscriptionProgressDisplay): boolean {
   return (
+    !sub.progress.daily &&
+    !sub.progress.weekly &&
+    !sub.progress.monthly &&
     !sub.group?.daily_limit_usd &&
     !sub.group?.weekly_limit_usd &&
     !sub.group?.monthly_limit_usd
   )
 }
 
-function getProgressDotClass(sub: UserSubscription): string {
+function getProgressDotClass(sub: SubscriptionProgressDisplay): string {
   // Unlimited subscriptions get a special color
   if (isUnlimited(sub)) {
     return 'bg-emerald-500'
@@ -237,24 +206,22 @@ function getProgressDotClass(sub: UserSubscription): string {
   return 'bg-green-500'
 }
 
-function getProgressBarClass(used: number | undefined, limit: number | null | undefined): string {
-  if (!limit || limit === 0) return 'bg-gray-400'
-  const percentage = ((used || 0) / limit) * 100
+function getProgressBarClass(percentage: number | null | undefined): string {
+  if (percentage === null || percentage === undefined) return 'bg-gray-400'
   if (percentage >= 90) return 'bg-red-500'
   if (percentage >= 70) return 'bg-orange-500'
   return 'bg-green-500'
 }
 
-function getProgressWidth(used: number | undefined, limit: number | null | undefined): string {
-  if (!limit || limit === 0) return '0%'
-  const percentage = Math.min(((used || 0) / limit) * 100, 100)
-  return `${percentage}%`
+function getProgressWidth(percentage: number | null | undefined): string {
+  const normalized = Math.min(Math.max(percentage ?? 0, 0), 100)
+  return `${normalized}%`
 }
 
-function formatUsage(used: number | undefined, limit: number | null | undefined): string {
-  const usedValue = (used || 0).toFixed(2)
-  const limitValue = limit?.toFixed(2) || '∞'
-  return `$${usedValue}/$${limitValue}`
+function formatUsage(window: SubscriptionUsageWindow | null): string {
+  if (!window) return '—'
+  const limit = window.limitUsd === null ? '∞' : window.limitUsd.toFixed(2)
+  return `$${window.usedUsd.toFixed(2)}/$${limit}`
 }
 
 function formatDaysRemaining(expiresAt: string): string {
@@ -294,9 +261,7 @@ function handleClickOutside(event: MouseEvent) {
 
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
-  // Trigger initial fetch if not already loaded
-  // The actual data loading is handled by App.vue globally
-  subscriptionStore.fetchActiveSubscriptions().catch((error) => {
+  subscriptionStore.fetchSubscriptionProgress().catch((error) => {
     console.error('Failed to load subscriptions in SubscriptionProgressMini:', error)
   })
 })

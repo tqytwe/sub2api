@@ -164,6 +164,7 @@ export default {
         frontendUrl: 'Frontend URL',
         frontendUrlPlaceholder: 'https://example.com',
         frontendUrlHint: 'Used to generate password reset links in emails. Example: https://example.com',
+        frontendUrlInvalid: 'Frontend URL must be a complete HTTP(S) URL without a query, fragment, or user information.',
         totp: 'Two-Factor Authentication (2FA)',
         totpHint: 'Allow users to use authenticator apps like Google Authenticator',
         totpKeyNotConfigured:

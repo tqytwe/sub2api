@@ -13,16 +13,40 @@ const EMBEDDED_UI_MODE_VALUE = 'embedded'
 const EMBEDDED_SRC_HOST_QUERY_KEY = 'src_host'
 const EMBEDDED_SRC_QUERY_KEY = 'src_url'
 
+export interface EmbeddedUrlOptions {
+  /** Omit all panel-derived query values for first-party documents and aliases. */
+  includePanelContext?: boolean
+}
+
 export function buildEmbeddedUrl(
   baseUrl: string,
   userId?: number,
   authToken?: string | null,
   theme: 'light' | 'dark' = 'light',
   lang?: string,
+  options: EmbeddedUrlOptions = {},
 ): string {
   if (!baseUrl) return baseUrl
   try {
     const url = new URL(baseUrl)
+    if (options.includePanelContext === false) {
+      // A historic first-party docs configuration can already contain these
+      // names. Remove them as well as declining new context, otherwise an old
+      // HTTP/alias URL could still leak a panel credential through the iframe.
+		for (const key of [
+        EMBEDDED_USER_ID_QUERY_KEY,
+        EMBEDDED_AUTH_TOKEN_QUERY_KEY,
+        EMBEDDED_THEME_QUERY_KEY,
+        EMBEDDED_LANG_QUERY_KEY,
+        EMBEDDED_UI_MODE_QUERY_KEY,
+        EMBEDDED_SRC_HOST_QUERY_KEY,
+        EMBEDDED_SRC_QUERY_KEY,
+		]) {
+			url.searchParams.delete(key)
+		}
+		url.hash = ''
+		return url.toString()
+    }
     if (userId) {
       url.searchParams.set(EMBEDDED_USER_ID_QUERY_KEY, String(userId))
     }

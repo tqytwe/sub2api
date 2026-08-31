@@ -8,7 +8,7 @@ const {
   routerAfterEachMock,
   getSetupStatusMock,
   fetchPublicSettingsMock,
-  fetchActiveSubscriptionsMock,
+  refreshActiveSubscriptionStateMock,
   fetchAnnouncementsMock,
   fetchAdminComplianceStatusMock,
   requireAdminComplianceMock,
@@ -26,7 +26,7 @@ const {
   routerAfterEachMock: vi.fn(),
   getSetupStatusMock: vi.fn(),
   fetchPublicSettingsMock: vi.fn(),
-  fetchActiveSubscriptionsMock: vi.fn(),
+  refreshActiveSubscriptionStateMock: vi.fn(),
   fetchAnnouncementsMock: vi.fn(),
   fetchAdminComplianceStatusMock: vi.fn(),
   requireAdminComplianceMock: vi.fn(),
@@ -50,7 +50,7 @@ const authStore = {
 }
 
 const subscriptionStore = {
-  fetchActiveSubscriptions: fetchActiveSubscriptionsMock,
+  refreshActiveSubscriptionState: refreshActiveSubscriptionStateMock,
   startPolling: vi.fn(),
   clear: clearSubscriptionsMock,
 }
@@ -131,7 +131,7 @@ describe('App startup performance gates', () => {
     authStore.isAdmin = false
     getSetupStatusMock.mockResolvedValue({ needs_setup: false, step: 'done' })
     fetchPublicSettingsMock.mockResolvedValue(null)
-    fetchActiveSubscriptionsMock.mockResolvedValue(null)
+    refreshActiveSubscriptionStateMock.mockResolvedValue(null)
     fetchAnnouncementsMock.mockResolvedValue(null)
     fetchAdminComplianceStatusMock.mockResolvedValue(null)
     window.__APP_CONFIG__ = { site_name: '极速蹬' } as typeof window.__APP_CONFIG__
@@ -170,5 +170,13 @@ describe('App startup performance gates', () => {
     expect(getSetupStatusMock).toHaveBeenCalledOnce()
     expect(fetchPublicSettingsMock).toHaveBeenCalledOnce()
     expect(routerReplaceMock).not.toHaveBeenCalled()
+  })
+
+  it('preloads normalized subscription progress for an authenticated user', async () => {
+    authStore.isAuthenticated = true
+    mount(App)
+    await flushPromises()
+
+    expect(refreshActiveSubscriptionStateMock).toHaveBeenCalledOnce()
   })
 })
