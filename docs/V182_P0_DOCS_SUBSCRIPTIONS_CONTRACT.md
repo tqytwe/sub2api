@@ -6,6 +6,11 @@ database, or deployment has changed.
 
 ## Route Contract
 
+The administrator subscriptions route loads the `admin-resources` lazy locale
+scope. Its `admin.subscriptions.title` and `admin.subscriptions.description`
+keys are defined in both Chinese and English legacy resources and covered by
+the route-locale runtime test, so a cold load cannot expose raw i18n keys.
+
 | Input | Required behavior |
 | --- | --- |
 | A current custom menu URL whose parsed origin equals the fixed canonical origin `https://www.jisudeng.com` and whose exact path is `/docs` or `/en/docs` | Route to `/docs` for Chinese and `/en/docs` for English. Discard query and fragment values before navigation. |
