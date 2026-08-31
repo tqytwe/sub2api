@@ -135,9 +135,12 @@ explicit release acceptance work.
 
 ## Residual Risk
 
-No production setting, database row, Zeabur deployment, or production browser
-session was changed by this review. After an authorized rollout, a human
-administrator must set `frontend_url` to `https://www.jisudeng.com` through the
-Settings UI and verify audit output, reset/notification links, CSP/XFO headers,
-and the guest/user/admin local-browser matrix before this can be called a
-production-complete fix.
+The code was merged to `origin/play/main` as
+`ceb8d5aed015b7a5db3b2fdecd0d0381faf9bf37` and the public production shell now
+serves the new asset with `frame-ancestors 'self'`; `/health` and both native
+docs routes are healthy. No production setting or database row was changed by
+this review. The Zeabur CLI session is currently invalid, so its deployment ID
+and recorded SHA remain pending re-authentication. A human administrator must
+still set `frontend_url` to `https://www.jisudeng.com` through the Settings UI,
+verify audit output and reset/notification links, and complete the guest/user/
+admin local-browser matrix before this can be called production-complete.
