@@ -77,7 +77,7 @@ func (r *growthCheckinGovernedRepo) GetGrowthRewardSpend(context.Context, time.T
 }
 
 func (r *growthCheckinGovernedRepo) ReserveGrowthRewardBudget(_ context.Context, approvalID, userID int64, source, actionID string, amount float64) (bool, error) {
-	r.growthCheckinRepo.events = append(r.growthCheckinRepo.events, "reserve")
+	r.events = append(r.events, "reserve")
 	r.budgetReservations = append(r.budgetReservations, growthBudgetReservation{
 		ApprovalID: approvalID,
 		UserID:     userID,

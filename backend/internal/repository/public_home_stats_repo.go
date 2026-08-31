@@ -251,7 +251,7 @@ func (r *publicHomeStatsRepository) ListPublicStatusSnapshotWindowEnds(ctx conte
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	out := make([]time.Time, 0, 8)
 	for rows.Next() {
