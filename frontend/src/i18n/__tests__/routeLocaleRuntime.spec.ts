@@ -79,6 +79,7 @@ const ROUTE_RUNTIME_KEYS = {
   AdminPlugins: ['admin.plugins.title'],
   AdminSettings: ['admin.settings.title'],
   AdminAuditLogs: ['admin.audit.title'],
+  AdminSubscriptions: ['admin.subscriptions.title', 'admin.subscriptions.description'],
   AdminPromptAudit: ['admin.promptAudit.title'],
   AdminUsage: ['admin.usage.title', 'usage.totalRequests', 'usage.tabs.usage'],
   AdminPlayBillingConfig: [
