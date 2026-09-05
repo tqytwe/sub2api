@@ -51,17 +51,17 @@ func TestChannelMonitorV2RecomputeRangePostgres(t *testing.T) {
 
 	start := time.Now().UTC().Truncate(time.Minute).Add(-2 * time.Minute)
 	end := start.Add(time.Minute)
-	_, err = db.ExecContext(ctx, `
-		INSERT INTO groups (id, platform) VALUES (7, 'composite');
-		INSERT INTO accounts (id, platform) VALUES (9, 'openai');
-		INSERT INTO usage_logs (
+	_, err = db.ExecContext(ctx, `INSERT INTO groups (id, platform) VALUES (7, 'composite')`)
+	require.NoError(t, err)
+	_, err = db.ExecContext(ctx, `INSERT INTO accounts (id, platform) VALUES (9, 'openai')`)
+	require.NoError(t, err)
+	_, err = db.ExecContext(ctx, `INSERT INTO usage_logs (
 			id, created_at, group_id, account_id, requested_model, model, request_id,
 			request_type, actual_cost, input_tokens, output_tokens, cache_creation_tokens,
 			cache_read_tokens, first_token_ms, duration_ms, user_id
 		) VALUES (
 			1, $1, 7, 9, 'gpt-5', 'gpt-5', 'success-1', 1, 0.01, 10, 20, 0, 0, 100, 300, 42
-		)
-	`, start.Add(10*time.Second))
+		)`, start.Add(10*time.Second))
 	require.NoError(t, err)
 
 	repo := &channelMonitorV2Repository{db: db}
@@ -102,24 +102,28 @@ func TestChannelMonitorV2RecomputeRangePostgres(t *testing.T) {
 }
 
 func createChannelMonitorV2AggregationTestSchema(ctx context.Context, db *sql.DB) error {
-	_, err := db.ExecContext(ctx, `
-		CREATE TABLE groups (id BIGINT PRIMARY KEY, platform TEXT);
-		CREATE TABLE accounts (id BIGINT PRIMARY KEY, platform TEXT);
-		CREATE TABLE usage_logs (
+	for _, statement := range []string{
+		`CREATE TABLE groups (id BIGINT PRIMARY KEY, platform TEXT)`,
+		`CREATE TABLE accounts (id BIGINT PRIMARY KEY, platform TEXT)`,
+		`CREATE TABLE usage_logs (
 			id BIGINT PRIMARY KEY, created_at TIMESTAMPTZ NOT NULL, group_id BIGINT,
 			account_id BIGINT, requested_model TEXT, model TEXT, request_id TEXT,
 			request_type INTEGER, actual_cost NUMERIC NOT NULL DEFAULT 0,
 			input_tokens BIGINT, output_tokens BIGINT, cache_creation_tokens BIGINT,
 			cache_read_tokens BIGINT, first_token_ms BIGINT, duration_ms BIGINT, user_id BIGINT
-		);
-		CREATE TABLE ops_error_logs (
+		)`,
+		`CREATE TABLE ops_error_logs (
 			id BIGINT PRIMARY KEY, created_at TIMESTAMPTZ NOT NULL, request_id TEXT,
 			group_id BIGINT, account_id BIGINT, requested_model TEXT, model TEXT, user_id BIGINT,
 			error_type TEXT NOT NULL, error_owner TEXT, status_code INTEGER, upstream_status_code INTEGER,
 			platform TEXT, error_source TEXT, error_message TEXT, upstream_error_message TEXT,
 			upstream_error_detail TEXT, error_body TEXT, upstream_errors JSONB,
 			is_count_tokens BOOLEAN NOT NULL DEFAULT FALSE
-		);
-	`)
-	return err
+		)`,
+	} {
+		if _, err := db.ExecContext(ctx, statement); err != nil {
+			return err
+		}
+	}
+	return nil
 }

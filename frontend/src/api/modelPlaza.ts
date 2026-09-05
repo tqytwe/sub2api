@@ -48,6 +48,8 @@ export interface PlazaModel {
   platform: string
   /** 展示专用价格，不参与任何扣费或渠道调度。 */
   display_pricing: UserSupportedModelPricing | null
+  /** Legacy alias retained for customized plaza responses. */
+  pricing?: UserSupportedModelPricing | null
   official_pricing: PlazaOfficialPricing | null
   /** 仅多档模型返回。 */
   long_context_basis?: PlazaLongContextBasis

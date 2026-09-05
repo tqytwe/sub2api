@@ -46,6 +46,108 @@ func newBlindboxIntegrationService(t *testing.T, pool service.PlayBlindboxPool, 
 	return svc
 }
 
+// qualifyBlindboxIntegrationUser builds the same persisted signals used by the
+// production eligibility query. Blindbox settlement tests must reach the real
+// transaction and ledger path rather than stopping at the qualification gate.
+func qualifyBlindboxIntegrationUser(t *testing.T, user *service.User) {
+	t.Helper()
+	ctx := context.Background()
+	qualifiedAt := time.Now().UTC()
+
+	_, err := integrationDB.ExecContext(ctx,
+		"UPDATE users SET created_at = $1 WHERE id = $2",
+		qualifiedAt.AddDate(0, 0, -4), user.ID,
+	)
+	require.NoError(t, err)
+
+	identitySuffix := fmt.Sprintf("blindbox-identity-%d", user.ID)
+	_, err = integrationDB.ExecContext(ctx, `
+		INSERT INTO auth_identities (
+			user_id, provider_type, provider_key, provider_subject, verified_at
+		) VALUES ($1, 'email', $2, $2, $3)`,
+		user.ID, identitySuffix, qualifiedAt,
+	)
+	require.NoError(t, err)
+
+	client := testEntClient(t)
+	account := mustCreateAccount(t, client, &service.Account{
+		Name: fmt.Sprintf("blindbox-usage-account-%d", user.ID),
+	})
+	apiKey := mustCreateApiKey(t, client, &service.APIKey{
+		UserID: user.ID,
+		Key:    fmt.Sprintf("sk-blindbox-usage-%d", user.ID),
+		Name:   "blindbox-usage",
+	})
+	_, err = integrationDB.ExecContext(ctx, `
+		INSERT INTO usage_logs (
+			user_id, api_key_id, account_id, model, input_tokens, output_tokens,
+			total_cost, actual_cost, created_at
+		) VALUES ($1, $2, $3, 'integration-qualification', 1, 1, 0.01, 0.01, $4)`,
+		user.ID, apiKey.ID, account.ID, qualifiedAt,
+	)
+	require.NoError(t, err)
+}
+
+func mustCreateBlindboxIntegrationUser(t *testing.T, prefix string) *service.User {
+	t.Helper()
+	client := testEntClient(t)
+	for attempt := 0; attempt < 100; attempt++ {
+		user := mustCreateUser(t, client, &service.User{
+			Email:        fmt.Sprintf("%s-%d-%d@example.com", prefix, time.Now().UnixNano(), attempt),
+			PasswordHash: "hash",
+			Balance:      1,
+		})
+		if service.GrowthRolloutAllowsUser(user.ID, 20) {
+			qualifyBlindboxIntegrationUser(t, user)
+			return user
+		}
+		_, err := integrationDB.ExecContext(context.Background(), "DELETE FROM users WHERE id = $1", user.ID)
+		require.NoError(t, err)
+	}
+	t.Fatal("unable to allocate a blindbox integration user inside the 20% rollout")
+	return nil
+}
+
+func approveBlindboxIntegrationGovernance(t *testing.T, actorID int64) {
+	t.Helper()
+	now := time.Now().UTC()
+	abnormalRatio := 0.02
+	appealRatio := 0.01
+	input := service.PlayGrowthGovernanceApprovalInput{
+		BudgetAmount:   100,
+		RolloutPercent: 20,
+		Cohort: service.PlayGrowthCohortMetrics{
+			WindowStart:              now.Add(-45 * 24 * time.Hour),
+			WindowEnd:                now.Add(-31 * 24 * time.Hour),
+			MetricsAvailable:         true,
+			ParticipationUsers:       100,
+			RealCall7dUsers:          40,
+			RealCall7dRatio:          0.4,
+			RealCall30dUsers:         60,
+			RealCall30dRatio:         0.6,
+			FirstRechargeUsers:       12,
+			FirstRechargeRatio:       0.12,
+			CouponsIssued:            100,
+			CouponsRedeemed:          20,
+			CouponRedemptionRatio:    0.2,
+			ActualRewardCost:         25,
+			D7RetainedUsers:          35,
+			D7RetentionRatio:         0.35,
+			AbnormalRedemptionUsers:  2,
+			AbnormalRedemptionRatio:  &abnormalRatio,
+			AppealCount:              4,
+			FalsePositiveAppeals:     1,
+			AppealFalsePositiveRatio: &appealRatio,
+		},
+		RuleVersion: service.PlayGrowthQualificationRuleVersion(),
+		Reason:      "blindbox integration governance approval",
+		ActorID:     actorID,
+	}
+	require.NoError(t, service.ValidatePlayGrowthGovernanceApproval(input, now))
+	_, err := (&playRepository{client: testEntClient(t), sql: integrationDB}).CreateGrowthApproval(context.Background(), input)
+	require.NoError(t, err)
+}
+
 // integrationCouponRewardIssuer keeps the legacy database accounting tests
 // independent from coupon-table fixtures. The game transaction still sees a
 // real coupon branch and must commit or roll back it together with the ledger.
@@ -102,11 +204,8 @@ func (i *integrationCouponRewardIssuer) GetCouponRewardIssueByIdempotency(_ cont
 
 func TestPlayBlindboxOpenSerializesBalanceAndDailyLimit(t *testing.T) {
 	ctx := context.Background()
-	user := mustCreateUser(t, testEntClient(t), &service.User{
-		Email:        fmt.Sprintf("blindbox-concurrent-%d@example.com", time.Now().UnixNano()),
-		PasswordHash: "hash",
-		Balance:      1,
-	})
+	user := mustCreateBlindboxIntegrationUser(t, "blindbox-concurrent")
+	approveBlindboxIntegrationGovernance(t, user.ID)
 	t.Cleanup(func() {
 		_, _ = integrationDB.ExecContext(context.Background(), "DELETE FROM users WHERE id = $1", user.ID)
 	})
@@ -170,11 +269,8 @@ func TestPlayBlindboxOpenSerializesBalanceAndDailyLimit(t *testing.T) {
 
 func TestPlayBlindboxOpenSameIdempotencyKeySettlesOnlyOnce(t *testing.T) {
 	ctx := context.Background()
-	user := mustCreateUser(t, testEntClient(t), &service.User{
-		Email:        fmt.Sprintf("blindbox-same-key-%d@example.com", time.Now().UnixNano()),
-		PasswordHash: "hash",
-		Balance:      1,
-	})
+	user := mustCreateBlindboxIntegrationUser(t, "blindbox-same-key")
+	approveBlindboxIntegrationGovernance(t, user.ID)
 	t.Cleanup(func() {
 		_, _ = integrationDB.ExecContext(context.Background(), "DELETE FROM users WHERE id = $1", user.ID)
 	})
@@ -243,11 +339,8 @@ func TestPlayBlindboxOpenSameIdempotencyKeySettlesOnlyOnce(t *testing.T) {
 
 func TestPlayBlindboxOpenRollsBackAuditAndBalanceWhenLedgerFails(t *testing.T) {
 	ctx := context.Background()
-	user := mustCreateUser(t, testEntClient(t), &service.User{
-		Email:        fmt.Sprintf("blindbox-rollback-%d@example.com", time.Now().UnixNano()),
-		PasswordHash: "hash",
-		Balance:      1,
-	})
+	user := mustCreateBlindboxIntegrationUser(t, "blindbox-rollback")
+	approveBlindboxIntegrationGovernance(t, user.ID)
 	t.Cleanup(func() {
 		_, _ = integrationDB.ExecContext(context.Background(), "DELETE FROM users WHERE id = $1", user.ID)
 	})

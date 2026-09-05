@@ -1,9 +1,9 @@
 # 极速蹬 Fork 定制登记
 
 > 状态：active
-> 当前验证基线：`upstream/main@aa2c4e8d136b12c171f8a4b38578c68243f73e19` (`v0.1.182`)
-> 本次同步合并提交：`e2db55e6c35566ad1b822aa46e22d4c3dadbd979`（审查分支，待 PR 合入 `play/main`）
-> 最后核验：2026-08-26（`fix/v0182-media-integration-20260826` 候选；待完整门禁、审查和合入）
+> 当前生产基线：`origin/play/main@e5684e5a4ff7ed5ba34c0fe0db989bd15aeac196`（极速蹬 `v0.1.182`）
+> 本次同步候选：`upstream v0.2.0@aa236488351eb71e120fc2b6fb32e36b0374c918`，分支 `sync/upstream-20260903-v0200`（未提交 merge）
+> 最后核验：2026-09-04（服务器自动门禁通过；PostgreSQL 迁移集成测试和生产三身份浏览器验收待完成；尚未提交、推送、建 PR、合并或部署）
 
 本文档是 `play/main` 相对上游的定制权威登记表。只有已经落地的行为进入受保护条目；视频工作室等未实现方案只能作为 `proposal` 独立保存，不能登记成已上线能力。
 

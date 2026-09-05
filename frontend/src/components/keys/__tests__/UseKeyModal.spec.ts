@@ -279,6 +279,50 @@ describe('UseKeyModal', () => {
     expect(codeBlocks.join('\n')).toContain('experimental_bearer_token = "sk-grok-codex-test"')
   })
 
+  it('keeps Gemini CLI and Codex CLI configurations distinct for Gemini groups', async () => {
+    const wrapper = mount(UseKeyModal, {
+      props: {
+        show: true,
+        apiKey: 'sk-gemini-codex-test',
+        baseUrl: 'https://example.com/v1',
+        platform: 'gemini'
+      },
+      global: {
+        stubs: {
+          BaseDialog: {
+            template: '<div><slot /><slot name="footer" /></div>'
+          },
+          Icon: {
+            template: '<span />'
+          }
+        }
+      }
+    })
+
+    let allCode = wrapper.findAll('pre code').map((code) => code.text()).join('\n')
+    expect(allCode).toContain('GOOGLE_GEMINI_BASE_URL')
+    expect(allCode).toContain('GEMINI_API_KEY')
+    expect(allCode).not.toContain('[model_providers.sub2api]')
+
+    const codexTab = wrapper.findAll('button').find((button) =>
+      button.text().includes('keys.useKeyModal.cliTabs.codexCli')
+    )
+    expect(codexTab).toBeDefined()
+    await codexTab!.trigger('click')
+    await nextTick()
+
+    allCode = wrapper.findAll('pre code').map((code) => code.text()).join('\n')
+    expect(allCode).toContain('model_provider = "sub2api"')
+    expect(allCode).toContain('[model_providers.sub2api]')
+    expect(allCode).toContain('name = "Sub2API Gemini"')
+    expect(allCode).toContain('base_url = "https://example.com/v1"')
+    expect(allCode).toContain('env_key = "SUB2API_API_KEY"')
+    expect(allCode).toContain('wire_api = "responses"')
+    expect(allCode).toContain('requires_openai_auth = false')
+    expect(allCode).not.toContain('GOOGLE_GEMINI_BASE_URL')
+    expect(allCode).not.toContain('GEMINI_API_KEY')
+  })
+
   it('keeps legacy OpenAI Codex config as the default', () => {
     const wrapper = mount(UseKeyModal, {
       props: {

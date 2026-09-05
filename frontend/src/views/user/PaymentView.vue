@@ -129,6 +129,9 @@
                   </span>
                   <span v-else>{{ t('payment.createOrder') }} {{ formatRechargePaymentAmount(totalAmount) }}</span>
                 </button>
+                <p v-if="balanceRechargeMultiplier !== 1" class="border-t border-gray-200 pt-2 text-xs text-gray-500 dark:border-dark-600 dark:text-gray-400">
+                  {{ t('payment.rechargeRatePreview', { currency: selectedCurrency, usd: balanceRechargeMultiplier.toFixed(2) }) }}
+                </p>
               </div>
             </div>
           </template>

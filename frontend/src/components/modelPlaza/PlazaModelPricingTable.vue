@@ -86,7 +86,17 @@
                   {{ paidPerMillion(iv.input_price, period) }} / {{ paidPerMillion(iv.output_price, period) }}
                 </div>
               </div>
-              <span v-else>{{ paidPerMillion(displayPricing(m)?.input_price, period) }} / {{ paidPerMillion(displayPricing(m)?.output_price, period) }}</span>
+              <span v-else
+                >{{ paidPerMillion(displayPricing(m)?.input_price, period) }} /
+                {{ paidPerMillion(displayPricing(m)?.output_price, period) }}</span
+              >
+              <template v-if="displayPricing(m)?.cache_write_price != null || displayPricing(m)?.cache_read_price != null">
+                <span class="ml-1 font-sans font-normal text-gray-400 dark:text-dark-500">{{ t('modelPlaza.table.cacheWrite') }}</span>
+                {{ paidPerMillion(displayPricing(m)?.cache_write_price, period) }}
+                <template v-if="displayPricing(m)?.cache_write_1h_price != null"> (1h {{ paidPerMillion(displayPricing(m)?.cache_write_1h_price, period) }})</template>
+                <span class="ml-1 font-sans font-normal text-gray-400 dark:text-dark-500">{{ t('modelPlaza.table.cacheRead') }}</span>
+                {{ paidPerMillion(displayPricing(m)?.cache_read_price, period) }}
+              </template>
             </template>
             <template v-else>
               <div v-if="requestIntervals(m).length" class="space-y-0.5 text-xs leading-5">

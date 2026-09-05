@@ -457,6 +457,25 @@ func (s *APIKeyService) canUserBindGroup(ctx context.Context, user *User, group 
 	return user.CanBindGroup(group.ID, group.IsExclusive)
 }
 
+// validateAPIKeyBoundGroupAccess enforces standard-group grants at request time.
+// This protects keys that were bound before an administrator narrowed the user's
+// public-group access. Subscription groups keep their existing entitlement flow.
+func validateAPIKeyBoundGroupAccess(apiKey *APIKey) error {
+	if apiKey == nil || apiKey.GroupID == nil || *apiKey.GroupID <= 0 {
+		return nil
+	}
+	if apiKey.User == nil || apiKey.Group == nil || apiKey.Group.ID != *apiKey.GroupID {
+		return ErrGroupNotAllowed
+	}
+	if apiKey.Group.IsSubscriptionType() {
+		return nil
+	}
+	if !apiKey.User.CanBindGroup(apiKey.Group.ID, apiKey.Group.IsExclusive) {
+		return ErrGroupNotAllowed
+	}
+	return nil
+}
+
 // Create 创建API Key
 func (s *APIKeyService) Create(ctx context.Context, userID int64, req CreateAPIKeyRequest) (*APIKey, error) {
 	if err := validateCreateAPIKeyRequest(req); err != nil {
@@ -753,6 +772,9 @@ func (s *APIKeyService) GetByKey(ctx context.Context, key string) (*APIKey, erro
 	if err := ValidateAPIKeyUserOwnership(apiKey, apiKey.User); err != nil {
 		return nil, fmt.Errorf("get api key: %w", err)
 	}
+	if err := validateAPIKeyBoundGroupAccess(apiKey); err != nil {
+		return nil, fmt.Errorf("get api key: %w", err)
+	}
 	apiKey.Key = key
 	s.compileAPIKeyIPRules(apiKey)
 	return apiKey, nil
@@ -967,6 +989,12 @@ func (s *APIKeyService) ValidateKey(ctx context.Context, key string) (*APIKey, *
 		return nil, nil, ErrUserNotActive
 	}
 
+	currentAuthorization := *apiKey
+	currentAuthorization.User = user
+	if err := validateAPIKeyBoundGroupAccess(&currentAuthorization); err != nil {
+		return nil, nil, err
+	}
+
 	return apiKey, user, nil
 }
 
@@ -1074,20 +1102,21 @@ func (s *APIKeyService) SearchAPIKeys(ctx context.Context, userID int64, keyword
 	return keys, nil
 }
 
-// GetUserAllowedGroupIDSet 返回 user_allowed_groups 授权给该用户的专属分组 ID 集合。
+// GetUserGroupVisibility 返回 user_allowed_groups 授权给该用户的分组 ID 集合，
+// 以及该用户是否开启了公开分组限制。开启时公开分组的可见性也要落在该集合内。
 //
 // 与 GetAvailableGroups 的区别：这里是「橱窗」语义（模型广场用），不检查订阅有效性，
 // 也不关心分组是否活跃——仅回答"哪些专属分组对该用户可见"。返回值恒非 nil。
-func (s *APIKeyService) GetUserAllowedGroupIDSet(ctx context.Context, userID int64) (map[int64]struct{}, error) {
+func (s *APIKeyService) GetUserGroupVisibility(ctx context.Context, userID int64) (map[int64]struct{}, bool, error) {
 	user, err := s.userRepo.GetByID(ctx, userID)
 	if err != nil {
-		return nil, fmt.Errorf("get user: %w", err)
+		return nil, false, fmt.Errorf("get user: %w", err)
 	}
 	allowed := make(map[int64]struct{}, len(user.AllowedGroups))
 	for _, id := range user.AllowedGroups {
 		allowed[id] = struct{}{}
 	}
-	return allowed, nil
+	return allowed, user.RestrictPublicGroups, nil
 }
 
 // GetUserGroupRates 获取用户的专属分组倍率配置
