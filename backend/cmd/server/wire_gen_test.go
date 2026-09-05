@@ -26,7 +26,7 @@ func TestGeneratedWireWiresChannelMonitorV2Handler(t *testing.T) {
 	require.NoError(t, err)
 
 	source := string(generated)
-	require.Contains(t, source, "channelMonitorV2Handler := handler.NewChannelMonitorV2Handler(channelMonitorV2Service)")
+	require.Contains(t, source, "channelMonitorV2Handler := handler.NewChannelMonitorV2Handler(channelMonitorV2Service, apiKeyService)")
 	require.Contains(t, source, "channelMonitorUserHandler, channelMonitorV2Handler, adminHandlers")
 }
 

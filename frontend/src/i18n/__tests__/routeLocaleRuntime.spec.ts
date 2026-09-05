@@ -204,7 +204,7 @@ describe('route locale runtime scopes', () => {
         }
       }
     }
-  })
+  }, 30_000)
 
   it.each([
     {

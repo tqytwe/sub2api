@@ -192,6 +192,16 @@ describe('PlazaModelPricingTable', () => {
     expect(cells[2].text().trim()).toBe('- / -')
   })
 
+  it('实付价分别展示自定义 5m 与 1h 缓存写入价', () => {
+    const model = tokenModel()
+    model.display_pricing!.cache_write_1h_price = 7e-6
+
+    const wrapper = mountTable([model], 1)
+    expect(wrapper.text()).toContain('$3.75')
+    expect(wrapper.text()).toContain('$7.00')
+    expect(wrapper.text()).toContain('(1h')
+  })
+
   it('per_request 模型按单次价 × 倍率展示,官方价列显示 -', () => {
     const model = tokenModel({
       name: 'search-tool',
@@ -459,6 +469,7 @@ describe('PlazaModelPricingTable 长上下文阶梯', () => {
     expect(rows[1].text()).toContain('>272K')
     expect(rows[1].text()).toContain('$5.00')
     expect(rows[1].text()).toContain('$22.50')
+    expect(cells[1].text().match(/\$2\.50/g)).toHaveLength(1)
     expect(cells).toHaveLength(3)
   })
 

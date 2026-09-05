@@ -260,7 +260,13 @@ func (e *EasyPay) createAPIPayment(ctx context.Context, req payment.CreatePaymen
 	if req.IsMobile && resp.PayURL2 != "" {
 		payURL = resp.PayURL2
 	}
-	return &payment.CreatePaymentResponse{TradeNo: resp.TradeNo, PayURL: payURL, QRCode: resp.QRCode, Currency: e.paymentCurrency()}, nil
+	base := e.apiBase()
+	return &payment.CreatePaymentResponse{
+		TradeNo:  resp.TradeNo,
+		PayURL:   resolveEasyPayReturnedRef(base, payURL),
+		QRCode:   resolveEasyPayReturnedRef(base, resp.QRCode),
+		Currency: e.paymentCurrency(),
+	}, nil
 }
 
 func (e *EasyPay) moneyTypeParam() string {
@@ -378,6 +384,25 @@ func (e *EasyPay) resolveURLs(req payment.CreatePaymentRequest) (string, string)
 		returnURL = e.config["returnUrl"]
 	}
 	return notifyURL, returnURL
+}
+
+// resolveEasyPayReturnedRef resolves root-relative payment references against
+// the configured EasyPay endpoint while preserving absolute URLs and opaque
+// QR payloads returned by providers.
+func resolveEasyPayReturnedRef(apiBase, ref string) string {
+	trimmed := strings.TrimSpace(ref)
+	if !strings.HasPrefix(trimmed, "/") {
+		return ref
+	}
+	base, err := url.Parse(strings.TrimSpace(apiBase))
+	if err != nil || base.Scheme == "" || base.Host == "" {
+		return ref
+	}
+	parsed, err := url.Parse(trimmed)
+	if err != nil || parsed.Scheme != "" {
+		return ref
+	}
+	return base.ResolveReference(parsed).String()
 }
 
 func (e *EasyPay) customMethods() []easyPayCustomMethod {

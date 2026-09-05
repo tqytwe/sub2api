@@ -1256,6 +1256,25 @@ const messages = {
         modelComment: '如果你有 Gemini 3 权限可以填：gemini-3-pro-preview',
         note: '这些环境变量将在当前终端会话中生效。如需永久配置，请将其添加到 ~/.bashrc、~/.zshrc 或相应的配置文件中。'
       },
+      deepseek: {
+        description: '通过当前 DeepSeek 分组配置 Claude Code、Codex 或 OpenCode。',
+        codexDescription: '通过当前 DeepSeek 分组配置带 API 密钥认证的 Codex。',
+        codexNote: '启动 Codex 前导出 SUB2API_API_KEY。',
+      },
+      composite: {
+        description: '通过当前 Composite 路由分组配置支持的客户端。',
+        codexDescription: '为当前 Composite 分组配置带 API 密钥认证和完整模型目录的 Codex。',
+        codexNote: '启动 Codex 前导出 SUB2API_API_KEY，模型请求会按所选目录 slug 路由。',
+      },
+      routedCodex: {
+        description: '为当前路由分组配置完整模型目录的 Codex。',
+        note: '启动 Codex 前导出 SUB2API_API_KEY。',
+      },
+      codexModelCatalog: {
+        title: 'Codex 模型目录', description: '使用此 API 密钥获取目录，并保存到 config.toml 引用的路径。',
+        fetch: '获取目录', retry: '重试', download: '下载目录', modelsCount: '可下载 {count} 个模型',
+        errorDescription: '无法使用此 API 密钥获取模型目录。',
+      },
       grok: {
         description: '配置 Grok Build、Claude Code、Codex 或 OpenCode，让请求通过当前 Sub2API Grok 分组发送。',
         claudeDescription: '配置 Claude Code，让 Messages API 请求通过当前 Sub2API Grok 分组发送。',
@@ -1398,6 +1417,10 @@ const messages = {
     costDetails: '费用明细',
     tokenDetails: 'Token 明细',
     live: '实时',
+    nativeCompactionV2: '压缩',
+    compactionFilter: '请求类别',
+    allCompactionTypes: '全部请求',
+    compactionOnly: '仅压缩请求',
     cacheTtlOverriddenHint: '缓存 TTL Override 已启用',
     cacheTtlOverriddenLabel: 'TTL 替换',
     cacheTtlOverridden5m: '按 5m 计费',
@@ -1450,6 +1473,7 @@ const messages = {
       xhigh: '极高',
       max: '最高',
     },
+    requestedReasoningEffort: '请求推理强度',
     endpoint: '端点',
     endpointDistribution: '端点分布',
     inbound: '入站',
