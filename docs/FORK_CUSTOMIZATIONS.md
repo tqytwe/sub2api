@@ -30,6 +30,7 @@
 | `FORK-MEMBERSHIP-016` | 会员资格与 VIP 配置 | active | integrity 脚本 + Go/PostgreSQL 集成测试 |
 | `FORK-MOBILE-017` | NextChat 移动协议与归因反馈 | active | integrity 脚本 + Go 测试 |
 | `FORK-LIVE-SETTLEMENT-018` | 实时用量结算 outbox | active | integrity 脚本 + Go/PostgreSQL 集成测试 |
+| `FORK-SETTINGS-019` | 管理系统设置完整性 | active | integrity 静态检查 + SettingsView/Vitest 测试 |
 
 所有条目的上游冲突都必须逐段审查，禁止对整个文件直接使用 `ours` 或 `theirs`。
 
@@ -281,6 +282,14 @@
 - 关键位置：`backend/internal/repository/live_settlement_outbox_repo.go`、`backend/internal/service/openai_live_settlement_outbox.go`、`backend/migrations/249_live_usage_settlement_outbox.sql`。
 - 冲突策略：吸收上游用量审计和网关恢复修复时，保留 outbox 的幂等、lease 所有权与隐私边界。
 - 验证：live settlement repository/unit/integration tests，以及真实会话终止后的余额与 usage log 对账。
+
+## FORK-SETTINGS-019 管理系统设置完整性
+
+- 产品目的：保持 `/admin/settings` 的前端控件、设置 DTO、保存载荷和中英文 locale 同步，避免上游同步在没有文本冲突时静默丢失现有设置面。
+- 不变量：注册域名额度、五个平台账号自动停调阈值、Codex 手填版本/自动同步/只读同步版本，以及腾讯和阿里云验证码的安全配置状态必须一起存在。Codex 同步版本只读，不能进入更新载荷；验证码密钥只允许密码输入和“已配置/留空保留原值”状态，不能回显或因空值覆盖。阈值必须归一化为 `1-100`，`100` 表示关闭全局自动停调，单账号覆盖优先级保持不变。
+- 关键位置：`frontend/src/views/admin/SettingsView.vue`、`frontend/src/api/admin/settings.ts`、`frontend/src/views/admin/__tests__/SettingsView.spec.ts`、`frontend/src/i18n/locales/zh/admin/settings.ts`、`frontend/src/i18n/locales/en/admin/settings.ts`、`scripts/check-fork-integrity.sh`。
+- 冲突策略：后续上游同步若触及 `SettingsView.vue`、设置 DTO 或设置 API，必须在 PR 中给出上游新增/删除控件与最终合并树的对照表；任何未保留控件必须放入显式允许清单并说明理由，不能只以无冲突合并作为依据。
+- 验证：`SettingsView.spec.ts` 覆盖加载、保存、阈值边界、只读 Codex 同步值和密钥遮蔽；route locale 冷访问和管理员权限测试保持通过；生产一致隔离环境再做 GET/PUT、重启持久化与中英文界面验证。
 
 ## 更新规则
 
