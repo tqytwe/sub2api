@@ -129,7 +129,9 @@ func TestSettingHandler_GetSettings_InjectsAuthSourceDefaults(t *testing.T) {
 	repo := &settingHandlerRepoStub{
 		values: map[string]string{
 			service.SettingKeyRegistrationEnabled:                 "true",
+			service.SettingKeyRegistrationEmailDomainQuotaEnabled: "true",
 			service.SettingKeyPromoCodeEnabled:                    "true",
+			service.SettingKeyAccountSchedulingThresholds:         `{"openai":81,"anthropic":82,"grok":83,"kimi":84,"zhipu":85}`,
 			service.SettingKeyAuthSourceDefaultEmailBalance:       "9.5",
 			service.SettingKeyAuthSourceDefaultEmailConcurrency:   "8",
 			service.SettingKeyAuthSourceDefaultEmailSubscriptions: `[{"group_id":31,"validity_days":15}]`,
@@ -153,6 +155,14 @@ func TestSettingHandler_GetSettings_InjectsAuthSourceDefaults(t *testing.T) {
 	require.Equal(t, 9.5, data["auth_source_default_email_balance"])
 	require.Equal(t, float64(8), data["auth_source_default_email_concurrency"])
 	require.Equal(t, true, data["force_email_on_third_party_signup"])
+	require.Equal(t, true, data["registration_email_domain_quota_enabled"])
+	require.Equal(t, map[string]any{
+		"openai":    float64(81),
+		"anthropic": float64(82),
+		"grok":      float64(83),
+		"kimi":      float64(84),
+		"zhipu":     float64(85),
+	}, data["account_scheduling_thresholds"])
 
 	subscriptions, ok := data["auth_source_default_email_subscriptions"].([]any)
 	require.True(t, ok)
