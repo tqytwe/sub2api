@@ -1534,6 +1534,24 @@
                 </p>
               </div>
 
+              <!-- Email Domain Quota -->
+              <div
+                class="flex items-center justify-between border-t border-gray-100 pt-4 dark:border-dark-700"
+              >
+                <div>
+                  <label class="font-medium text-gray-900 dark:text-white">{{
+                    t("admin.settings.registration.emailDomainQuota")
+                  }}</label>
+                  <p class="text-sm text-gray-500 dark:text-gray-400">
+                    {{ t("admin.settings.registration.emailDomainQuotaHint") }}
+                  </p>
+                </div>
+                <Toggle
+                  v-model="form.registration_email_domain_quota_enabled"
+                  data-testid="registration-email-domain-quota-toggle"
+                />
+              </div>
+
               <!-- Promo Code -->
               <div
                 class="flex items-center justify-between border-t border-gray-100 pt-4 dark:border-dark-700"
@@ -2133,9 +2151,21 @@
                   </div>
                   <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
                     <div><label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{{ t("admin.settings.tencentCaptcha.appId") }}</label><input v-model="form.tencent_captcha_app_id" type="text" inputmode="numeric" class="input font-mono text-sm" /></div>
-                    <div><label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{{ t("admin.settings.tencentCaptcha.appSecretKey") }}</label><input v-model="form.tencent_captcha_app_secret_key" type="password" autocomplete="new-password" class="input font-mono text-sm" /></div>
-                    <div><label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{{ t("admin.settings.tencentCaptcha.cloudSecretId") }}</label><input v-model="form.tencent_captcha_cloud_secret_id" type="password" autocomplete="new-password" class="input font-mono text-sm" /></div>
-                    <div><label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{{ t("admin.settings.tencentCaptcha.cloudSecretKey") }}</label><input v-model="form.tencent_captcha_cloud_secret_key" type="password" autocomplete="new-password" class="input font-mono text-sm" /></div>
+                    <div>
+                      <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{{ t("admin.settings.tencentCaptcha.appSecretKey") }}</label>
+                      <input v-model="form.tencent_captcha_app_secret_key" type="password" autocomplete="new-password" class="input font-mono text-sm" :placeholder="t('admin.settings.tencentCaptcha.keepExisting')" data-testid="tencent-captcha-app-secret" />
+                      <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400" data-testid="tencent-captcha-app-secret-status">{{ form.tencent_captcha_app_secret_key_configured ? t("admin.settings.tencentCaptcha.configured") : t("admin.settings.tencentCaptcha.required") }}</p>
+                    </div>
+                    <div>
+                      <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{{ t("admin.settings.tencentCaptcha.cloudSecretId") }}</label>
+                      <input v-model="form.tencent_captcha_cloud_secret_id" type="password" autocomplete="new-password" class="input font-mono text-sm" :placeholder="t('admin.settings.tencentCaptcha.keepExisting')" data-testid="tencent-captcha-cloud-secret-id" />
+                      <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400" data-testid="tencent-captcha-cloud-secret-id-status">{{ form.tencent_captcha_cloud_secret_id_configured ? t("admin.settings.tencentCaptcha.configured") : t("admin.settings.tencentCaptcha.required") }}</p>
+                    </div>
+                    <div>
+                      <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{{ t("admin.settings.tencentCaptcha.cloudSecretKey") }}</label>
+                      <input v-model="form.tencent_captcha_cloud_secret_key" type="password" autocomplete="new-password" class="input font-mono text-sm" :placeholder="t('admin.settings.tencentCaptcha.keepExisting')" data-testid="tencent-captcha-cloud-secret-key" />
+                      <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400" data-testid="tencent-captcha-cloud-secret-key-status">{{ form.tencent_captcha_cloud_secret_key_configured ? t("admin.settings.tencentCaptcha.configured") : t("admin.settings.tencentCaptcha.required") }}</p>
+                    </div>
                   </div>
                   <div class="flex flex-wrap gap-x-4 gap-y-2 text-sm">
                     <a :href="tencentCaptchaLinks.console" target="_blank" rel="noopener noreferrer" class="text-primary-600 hover:text-primary-500">{{ t("admin.settings.tencentCaptcha.openCaptchaConsole") }}</a>
@@ -2149,7 +2179,11 @@
                   <div><label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{{ t("admin.settings.aliyunCaptcha.prefix") }}</label><input v-model="form.aliyun_captcha_prefix" type="text" class="input font-mono text-sm" /></div>
                   <div><label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{{ t("admin.settings.aliyunCaptcha.sceneId") }}</label><input v-model="form.aliyun_captcha_scene_id" type="text" class="input font-mono text-sm" /></div>
                   <div><label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{{ t("admin.settings.aliyunCaptcha.accessKeyId") }}</label><input v-model="form.aliyun_captcha_access_key_id" type="text" class="input font-mono text-sm" /></div>
-                  <div><label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{{ t("admin.settings.aliyunCaptcha.accessKeySecret") }}</label><input v-model="form.aliyun_captcha_access_key_secret" type="password" autocomplete="new-password" class="input font-mono text-sm" /></div>
+                  <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{{ t("admin.settings.aliyunCaptcha.accessKeySecret") }}</label>
+                    <input v-model="form.aliyun_captcha_access_key_secret" type="password" autocomplete="new-password" class="input font-mono text-sm" :placeholder="form.aliyun_captcha_access_key_secret_configured ? t('admin.settings.aliyunCaptcha.accessKeySecretConfiguredHint') : t('admin.settings.aliyunCaptcha.accessKeySecretHint')" data-testid="aliyun-captcha-access-key-secret" />
+                    <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400" data-testid="aliyun-captcha-access-key-secret-status">{{ form.aliyun_captcha_access_key_secret_configured ? t("admin.settings.aliyunCaptcha.accessKeySecretConfiguredHint") : t("admin.settings.aliyunCaptcha.accessKeySecretHint") }}</p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -4657,6 +4691,50 @@
               </div>
 
               <div
+                class="border-t border-gray-100 pt-4 dark:border-dark-700"
+                data-testid="account-scheduling-thresholds"
+              >
+                <div class="mb-3">
+                  <label class="font-medium text-gray-900 dark:text-white">
+                    {{ t("admin.settings.scheduling.accountSchedulingThresholdsTitle") }}
+                  </label>
+                  <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    {{ t("admin.settings.scheduling.accountSchedulingThresholdsDescription") }}
+                  </p>
+                  <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                    {{ t("admin.settings.scheduling.accountSchedulingThresholdsGlobalHint") }}
+                  </p>
+                  <p class="mt-0.5 text-xs text-amber-600 dark:text-amber-400">
+                    {{ t("admin.settings.scheduling.accountSchedulingThresholdsDisabledHint") }}
+                  </p>
+                </div>
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                  <div
+                    v-for="platform in schedulingThresholdPlatforms"
+                    :key="platform"
+                    class="rounded-lg border border-gray-200 p-4 dark:border-dark-700"
+                  >
+                    <label class="font-mono text-sm font-medium text-gray-900 dark:text-white">
+                      {{ platform }}
+                    </label>
+                    <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                      {{ t("admin.settings.scheduling.accountSchedulingThresholdsRangeHint") }}
+                    </p>
+                    <input
+                      v-model.number="form.account_scheduling_thresholds[platform]"
+                      type="number"
+                      min="1"
+                      max="100"
+                      step="1"
+                      class="input mt-3"
+                      :data-testid="`account-scheduling-threshold-${platform}`"
+                      placeholder="100"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div
                 v-if="!form.openai_advanced_scheduler_enabled"
                 class="flex items-center justify-between border-t border-gray-100 pt-5 dark:border-dark-700"
               >
@@ -5363,6 +5441,44 @@
                     )
                   }}
                 </p>
+              </div>
+
+              <div>
+                <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {{ t("admin.settings.gatewayForwarding.openaiCodexClientVersion") }}
+                </label>
+                <input
+                  v-model="form.openai_codex_client_version"
+                  type="text"
+                  class="input w-full font-mono text-sm"
+                  :placeholder="t('admin.settings.gatewayForwarding.openaiCodexClientVersionPlaceholder')"
+                  data-testid="openai-codex-client-version"
+                />
+                <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                  {{ t("admin.settings.gatewayForwarding.openaiCodexClientVersionHint") }}
+                </p>
+              </div>
+
+              <div class="flex items-center justify-between">
+                <div>
+                  <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {{ t("admin.settings.gatewayForwarding.openaiCodexVersionAutoSync") }}
+                  </label>
+                  <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                    {{ t("admin.settings.gatewayForwarding.openaiCodexVersionAutoSyncHint") }}
+                  </p>
+                  <p
+                    v-if="codexSyncedVersionLabel"
+                    class="mt-0.5 text-xs text-gray-500 dark:text-gray-400"
+                    data-testid="openai-codex-synced-version"
+                  >
+                    {{ codexSyncedVersionLabel }}
+                  </p>
+                </div>
+                <Toggle
+                  v-model="form.openai_codex_version_auto_sync_enabled"
+                  data-testid="openai-codex-version-auto-sync"
+                />
               </div>
 
             </div>
@@ -8657,8 +8773,11 @@ import { adminAPI } from "@/api";
 import {
   appendAuthSourceDefaultsToUpdateRequest,
   buildAuthSourceDefaultsState,
+  normalizeAccountSchedulingThresholdsMap,
   normalizePlatformQuotasMap,
+  sanitizeAccountSchedulingThresholdsMap,
   sanitizePlatformQuotasMap,
+  SCHEDULING_THRESHOLD_PLATFORMS,
   defaultWeChatConnectScopesForMode,
   deriveWeChatConnectStoredMode,
   normalizeDefaultSubscriptionSettings,
@@ -9409,9 +9528,12 @@ type SettingsForm = Omit<
   openai_advanced_scheduler_weight_upstream_cost: string;
   openai_advanced_scheduler_weight_previous_response: string;
   openai_advanced_scheduler_weight_session_sticky: string;
-  // 系统全局平台限额 map；form 内始终归一化为全 4 平台对象（模板非空绑定依赖此不变量）
+  // 系统全局平台限额 map；form 内始终归一化为全 5 平台对象（模板非空绑定依赖此不变量）
   default_platform_quotas: DefaultPlatformQuotasMap;
+  account_scheduling_thresholds: ReturnType<typeof normalizeAccountSchedulingThresholdsMap>;
 };
+
+const schedulingThresholdPlatforms = SCHEDULING_THRESHOLD_PLATFORMS;
 
 function defaultSupportContactConfig(): SupportContactConfig {
   return {
@@ -9432,7 +9554,7 @@ const form = reactive<SettingsForm>({
   grok_default_text_model: "grok-4.1-mini",
   grok_cross_client_model_map_enabled: false,
   grok_default_base_url_mode: "official",
-  account_scheduling_thresholds: { openai: 100, anthropic: 100, grok: 100, kimi: 100, zhipu: 100 },
+  account_scheduling_thresholds: normalizeAccountSchedulingThresholdsMap(),
   totp_enabled: false,
   totp_encryption_key_configured: false,
   passkey_enabled: false,
@@ -10824,6 +10946,14 @@ function removeCodexWhitelistRow(i: number): void {
   codexWhitelistRows.value.splice(i, 1);
 }
 
+const codexSyncedVersionLabel = computed(() => {
+  const synced = form.openai_codex_client_version_synced?.trim();
+  if (!synced) return "";
+  return t("admin.settings.gatewayForwarding.openaiCodexVersionSyncedValue", {
+    version: synced,
+  });
+});
+
 async function loadSettings() {
   loading.value = true;
   loadFailed.value = false;
@@ -10885,6 +11015,9 @@ async function loadSettings() {
         : defaultLoginAgreementDocuments();
     Object.assign(authSourceDefaults, buildAuthSourceDefaultsState(settings));
     form.default_platform_quotas = normalizePlatformQuotasMap(settings.default_platform_quotas);
+    form.account_scheduling_thresholds = normalizeAccountSchedulingThresholdsMap(
+      settings.account_scheduling_thresholds,
+    );
     form.backend_mode_enabled = settings.backend_mode_enabled;
     form.default_subscriptions = normalizeDefaultSubscriptionSettings(
       settings.default_subscriptions,
@@ -11280,6 +11413,8 @@ async function saveSettings() {
         registrationEmailSuffixWhitelistTags.value.map((suffix) =>
           suffix.startsWith("*.") ? suffix : `@${suffix}`,
         ),
+      registration_email_domain_quota_enabled:
+        form.registration_email_domain_quota_enabled,
       promo_code_enabled: form.promo_code_enabled,
       invitation_code_enabled: form.invitation_code_enabled,
       password_reset_enabled: form.password_reset_enabled,
@@ -11630,6 +11765,9 @@ async function saveSettings() {
     }
 
     payload.default_platform_quotas = sanitizePlatformQuotasMap(form.default_platform_quotas);
+    payload.account_scheduling_thresholds = sanitizeAccountSchedulingThresholdsMap(
+      form.account_scheduling_thresholds,
+    );
     appendAuthSourceDefaultsToUpdateRequest(payload, authSourceDefaults);
 
     const updated = await settingsStepUp.run(() =>
@@ -11648,6 +11786,9 @@ async function saveSettings() {
     );
     Object.assign(authSourceDefaults, buildAuthSourceDefaultsState(updated));
     form.default_platform_quotas = normalizePlatformQuotasMap(updated.default_platform_quotas);
+    form.account_scheduling_thresholds = normalizeAccountSchedulingThresholdsMap(
+      updated.account_scheduling_thresholds,
+    );
     registrationEmailSuffixWhitelistTags.value =
       normalizeRegistrationEmailSuffixDomains(
         updated.registration_email_suffix_whitelist,

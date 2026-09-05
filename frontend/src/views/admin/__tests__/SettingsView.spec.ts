@@ -198,6 +198,24 @@ vi.mock("vue-i18n", async () => {
     "admin.settings.payment.findProvider": "查看支持的支付方式",
     "admin.settings.registration.frontendUrlInvalid":
       "前端地址必须是无查询参数、片段或登录信息的完整 HTTP(S) 地址。",
+    "admin.settings.registration.emailDomainQuota": "非白名单域名限量注册",
+    "admin.settings.registration.emailDomainQuotaHint": "白名单非空时，开启后每个非白名单域名限注册一个账户。",
+    "admin.settings.tencentCaptcha.keepExisting": "留空以保留当前值",
+    "admin.settings.tencentCaptcha.configured": "已配置，留空不会覆盖。",
+    "admin.settings.tencentCaptcha.required": "启用前必须填写此项。",
+    "admin.settings.aliyunCaptcha.accessKeySecretConfiguredHint": "密钥已配置，留空以保留当前值。",
+    "admin.settings.aliyunCaptcha.accessKeySecretHint": "服务端验证密钥（请保密）",
+    "admin.settings.scheduling.accountSchedulingThresholdsTitle": "平台账号自动停调阈值",
+    "admin.settings.scheduling.accountSchedulingThresholdsDescription": "达到阈值后临时移出调度，100 表示禁用。",
+    "admin.settings.scheduling.accountSchedulingThresholdsGlobalHint": "系统级默认值，可由单账号覆盖。",
+    "admin.settings.scheduling.accountSchedulingThresholdsDisabledHint": "100 表示禁用该平台自动停调。",
+    "admin.settings.scheduling.accountSchedulingThresholdsRangeHint": "整数 1-100（百分比）。",
+    "admin.settings.gatewayForwarding.openaiCodexClientVersion": "Codex 客户端版本号",
+    "admin.settings.gatewayForwarding.openaiCodexClientVersionPlaceholder": "留空则跟随自动同步",
+    "admin.settings.gatewayForwarding.openaiCodexClientVersionHint": "手填版本优先于自动同步版本。",
+    "admin.settings.gatewayForwarding.openaiCodexVersionAutoSync": "自动同步 Codex 版本号",
+    "admin.settings.gatewayForwarding.openaiCodexVersionAutoSyncHint": "定期同步官方稳定版本。",
+    "admin.settings.gatewayForwarding.openaiCodexVersionSyncedValue": "当前同步到：{version}",
     "admin.settings.openaiExperimentalScheduler.title": "OpenAI 实验调度策略",
     "admin.settings.openaiExperimentalScheduler.description": "默认关闭。开启后仅影响本网关在 OpenAI 账号间的实验性调度选择逻辑，不代表上游 OpenAI 官方能力。",
     "admin.settings.openaiExperimentalScheduler.lowRatePriorityTitle": "低倍率优先",
@@ -370,6 +388,7 @@ const baseSettingsResponse = {
   registration_enabled: true,
   email_verify_enabled: false,
   registration_email_suffix_whitelist: [],
+  registration_email_domain_quota_enabled: true,
   promo_code_enabled: true,
   invitation_code_enabled: false,
   password_reset_enabled: false,
@@ -412,6 +431,12 @@ const baseSettingsResponse = {
   tencent_captcha_app_secret_key_configured: false,
   tencent_captcha_cloud_secret_id_configured: false,
   tencent_captcha_cloud_secret_key_configured: false,
+  aliyun_captcha_enabled: false,
+  aliyun_captcha_access_key_id: "",
+  aliyun_captcha_access_key_secret_configured: false,
+  aliyun_captcha_scene_id: "",
+  aliyun_captcha_prefix: "",
+  aliyun_captcha_region: "cn",
   api_key_acl_trust_forwarded_ip: true,
   forwarded_client_ip_headers: [],
   linuxdo_connect_enabled: false,
@@ -466,6 +491,13 @@ const baseSettingsResponse = {
   min_claude_code_version: "",
   max_claude_code_version: "",
   allow_ungrouped_key_scheduling: false,
+  account_scheduling_thresholds: {
+    openai: 80,
+    anthropic: 81,
+    grok: 82,
+    kimi: 83,
+    zhipu: 84,
+  },
   openai_ttft_mode: "semantic",
   enable_fingerprint_unification: true,
   enable_metadata_passthrough: false,
@@ -478,6 +510,9 @@ const baseSettingsResponse = {
   enable_client_dateline_normalization: true,
   antigravity_user_agent_version: "",
   openai_codex_user_agent: "",
+  openai_codex_client_version: "",
+  openai_codex_client_version_synced: "0.153.3",
+  openai_codex_version_auto_sync_enabled: true,
   payment_enabled: true,
   payment_min_amount: 1,
   payment_max_amount: 10000,
@@ -638,6 +673,20 @@ describe("admin SettingsView email domain quota copy", () => {
       "query",
     );
   });
+
+  it("keeps restored settings copy complete in Chinese and English", () => {
+    for (const settings of [zhSettings, enSettings]) {
+      expect(settings.settings.registration.emailDomainQuota).toBeTruthy();
+      expect(settings.settings.registration.emailDomainQuotaHint).toBeTruthy();
+      expect(settings.settings.scheduling.accountSchedulingThresholdsTitle).toBeTruthy();
+      expect(settings.settings.scheduling.accountSchedulingThresholdsRangeHint).toBeTruthy();
+      expect(settings.settings.gatewayForwarding.openaiCodexClientVersion).toBeTruthy();
+      expect(settings.settings.gatewayForwarding.openaiCodexVersionAutoSync).toBeTruthy();
+      expect(settings.settings.gatewayForwarding.openaiCodexVersionSyncedValue).toBeTruthy();
+      expect(settings.settings.tencentCaptcha.configured).toBeTruthy();
+      expect(settings.settings.aliyunCaptcha.accessKeySecretConfiguredHint).toBeTruthy();
+    }
+  });
 });
 
 describe("admin SettingsView payment visible method controls", () => {
@@ -732,6 +781,74 @@ describe("admin SettingsView payment visible method controls", () => {
     });
     fetchPublicSettings.mockResolvedValue(undefined);
     adminSettingsFetch.mockResolvedValue(undefined);
+  });
+
+  it("restores all system-setting controls and preserves read-only or secret fields", async () => {
+    getSettings.mockResolvedValueOnce({
+      ...baseSettingsResponse,
+      tencent_captcha_enabled: true,
+      tencent_captcha_app_secret_key_configured: true,
+      tencent_captcha_cloud_secret_id_configured: true,
+      tencent_captcha_cloud_secret_key_configured: true,
+      aliyun_captcha_access_key_secret_configured: true,
+      account_scheduling_thresholds: {
+        openai: 80,
+        anthropic: 81,
+        grok: 82,
+        kimi: 83,
+        zhipu: 999,
+      },
+    });
+
+    const wrapper = mountView();
+    await flushPromises();
+    await openSecurityTab(wrapper);
+
+    expect(wrapper.get('[data-testid="registration-email-domain-quota-toggle"]').exists()).toBe(true);
+    expect(wrapper.get('[data-testid="tencent-captcha-app-secret"]').attributes("type")).toBe("password");
+    expect(wrapper.get('[data-testid="tencent-captcha-app-secret-status"]').text()).toContain("已配置");
+    expect(wrapper.get('[data-testid="tencent-captcha-cloud-secret-id-status"]').text()).toContain("已配置");
+    expect(wrapper.get('[data-testid="tencent-captcha-cloud-secret-key-status"]').text()).toContain("已配置");
+    expect(wrapper.html()).not.toContain("app-secret-value");
+    expect(wrapper.html()).not.toContain("cloud-secret-id-value");
+    await wrapper.get('[data-testid="captcha-provider-aliyun"]').trigger("click");
+    await flushPromises();
+    expect(wrapper.get('[data-testid="aliyun-captcha-access-key-secret"]').attributes("type")).toBe("password");
+    expect(wrapper.get('[data-testid="aliyun-captcha-access-key-secret-status"]').text()).toContain("已配置");
+
+    await openGatewayTab(wrapper);
+    expect(wrapper.get('[data-testid="openai-codex-client-version"]').exists()).toBe(true);
+    expect(wrapper.get('[data-testid="openai-codex-version-auto-sync"]').exists()).toBe(true);
+    expect(wrapper.get('[data-testid="openai-codex-synced-version"]').text()).toContain("0.153.3");
+
+    const thresholds = wrapper.get('[data-testid="account-scheduling-thresholds"]');
+    for (const platform of ["openai", "anthropic", "grok", "kimi", "zhipu"]) {
+      expect(thresholds.get(`[data-testid="account-scheduling-threshold-${platform}"]`).exists()).toBe(true);
+    }
+    expect((thresholds.get('[data-testid="account-scheduling-threshold-zhipu"]').element as HTMLInputElement).value).toBe("100");
+
+    await wrapper.get('[data-testid="openai-codex-client-version"]').setValue("0.154.0");
+    await wrapper.find("form").trigger("submit.prevent");
+    await flushPromises();
+
+    const payload = updateSettings.mock.calls.at(-1)?.[0] as Record<string, unknown>;
+    expect(payload).toMatchObject({
+      registration_email_domain_quota_enabled: true,
+      account_scheduling_thresholds: {
+        openai: 80,
+        anthropic: 81,
+        grok: 82,
+        kimi: 83,
+        zhipu: 100,
+      },
+      openai_codex_client_version: "0.154.0",
+      openai_codex_version_auto_sync_enabled: true,
+    });
+    expect(payload).not.toHaveProperty("openai_codex_client_version_synced");
+    expect(payload).toHaveProperty("tencent_captcha_app_secret_key", undefined);
+    expect(payload).toHaveProperty("tencent_captcha_cloud_secret_id", undefined);
+    expect(payload).toHaveProperty("tencent_captcha_cloud_secret_key", undefined);
+    expect(payload).toHaveProperty("aliyun_captcha_access_key_secret", undefined);
   });
 
   it("keeps the Features tab limited to feature toggles", async () => {
