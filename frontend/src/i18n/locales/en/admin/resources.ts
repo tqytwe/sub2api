@@ -708,6 +708,11 @@ export default {
         conditionType: 'Condition type',
         conditionSubscription: 'Subscription',
         conditionBalance: 'Balance',
+        conditionPlayMembership: 'Play membership',
+        playMembership: 'Current Play membership',
+        playMembershipHint: 'Evaluated in real time from cumulative membership qualification, not subscription packages.',
+        playMembershipOrdinary: 'Ordinary users',
+        playMembershipMember: 'Members',
         operator: 'Operator',
         balanceValue: 'Balance threshold',
         selectPackages: 'Select packages'

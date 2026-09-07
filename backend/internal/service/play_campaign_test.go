@@ -1,6 +1,7 @@
 package service
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -90,6 +91,50 @@ func TestValidateAdminPlayCampaignValidatesNewUserGrowthRules(t *testing.T) {
 	require.Equal(t, PlayCampaignLegacyRebateStack, base.Rules.LegacyRebatePolicy)
 }
 
+func TestValidateAdminPlayCampaignAllowsDisplayCampaignWithoutReferralOrRewards(t *testing.T) {
+	start := time.Date(2026, 9, 8, 0, 0, 0, 0, time.UTC)
+	campaign := &PlayCampaign{
+		Name:    "Upgrade window",
+		StartAt: start,
+		EndAt:   start.Add(7 * 24 * time.Hour),
+		Rules: PlayCampaignRules{
+			CampaignType:     PlayCampaignTypeOperationalDisplay,
+			DisplayTitleI18n: map[string]string{"zh": "限时升级", "en": "Limited upgrade"},
+			DisplayBodyI18n:  map[string]string{"zh": "前往充值", "en": "Recharge to upgrade"},
+			DisplayCTA:       PlayCampaignDisplayCTARecharge,
+			DisplayPriority:  100,
+		},
+		Audience: PlayCampaignAudience{Ordinary: true},
+	}
+
+	require.NoError(t, validateAdminPlayCampaign(campaign))
+	require.Zero(t, campaign.Rules.ReferralCampaignID)
+	require.Empty(t, campaign.Rules.RewardTiers)
+	require.False(t, campaign.Rules.RequireInvite)
+	require.Zero(t, campaign.Rules.RechargeBonusPct)
+	require.Zero(t, campaign.Rules.BlindboxExtraOpens)
+	require.Zero(t, campaign.Rules.ArenaScoreMultiplier)
+}
+
+func TestValidateAdminPlayCampaignRejectsDisplayCampaignRewardsAndUnsafeCTA(t *testing.T) {
+	start := time.Date(2026, 9, 8, 0, 0, 0, 0, time.UTC)
+	base := PlayCampaign{
+		Name:    "Display only",
+		StartAt: start,
+		EndAt:   start.Add(time.Hour),
+		Rules:   PlayCampaignRules{CampaignType: PlayCampaignTypeOperationalDisplay, DisplayCTA: "https://example.com"},
+	}
+	err := validateAdminPlayCampaign(&base)
+	require.Error(t, err)
+	require.Equal(t, "PLAY_CAMPAIGN_DISPLAY_CTA_INVALID", infraerrors.Reason(err))
+
+	base.Rules.DisplayCTA = PlayCampaignDisplayCTANone
+	base.Rules.RechargeBonusPct = 10
+	err = validateAdminPlayCampaign(&base)
+	require.Error(t, err)
+	require.Equal(t, "PLAY_CAMPAIGN_DISPLAY_RULES_INVALID", infraerrors.Reason(err))
+}
+
 func TestParsePlayCampaignAudienceNormalizesTiers(t *testing.T) {
 	got := ParsePlayCampaignAudience(`{"ordinary":true,"vip_tiers":[6,6,-1,2],"registered_within_days":-2}`)
 	require.True(t, got.Ordinary)
@@ -125,6 +170,28 @@ func TestValidateAdminPlayCampaignCleansI18n(t *testing.T) {
 	require.NoError(t, validateAdminPlayCampaign(&campaign))
 	require.Equal(t, "开服福利周", campaign.Name)
 	require.Equal(t, map[string]string{"zh": "开服福利周", "en": "Launch week"}, campaign.Rules.NameI18n)
+}
+
+func TestValidateAdminPlayCampaignKeepsFieldSpecificLocalizedContentLimits(t *testing.T) {
+	start := time.Date(2026, 9, 8, 0, 0, 0, 0, time.UTC)
+	legacy := &PlayCampaign{
+		Name:    "legacy",
+		StartAt: start,
+		EndAt:   start.Add(time.Hour),
+		Rules:   PlayCampaignRules{NameI18n: map[string]string{"zh": strings.Repeat("a", 129)}},
+	}
+	require.Equal(t, "PLAY_CAMPAIGN_NAME_I18N_TOO_LONG", infraerrors.Reason(validateAdminPlayCampaign(legacy)))
+
+	display := &PlayCampaign{
+		Name:    "display",
+		StartAt: start,
+		EndAt:   start.Add(time.Hour),
+		Rules: PlayCampaignRules{
+			CampaignType:    PlayCampaignTypeOperationalDisplay,
+			DisplayBodyI18n: map[string]string{"en": strings.Repeat("a", 2001)},
+		},
+	}
+	require.Equal(t, "PLAY_CAMPAIGN_DISPLAY_BODY_I18N_TOO_LONG", infraerrors.Reason(validateAdminPlayCampaign(display)))
 }
 
 func TestValidateAdminPlayCampaignRejectsInvalidWindow(t *testing.T) {

@@ -59,6 +59,21 @@ const campaignPerkLinesFor = (campaign: PlayCampaignSummary) => {
   return lines
 }
 
+function campaignDisplayI18n(campaign: PlayCampaignSummary, field: 'display_title_i18n' | 'display_body_i18n') {
+  const values = campaign.rules[field]
+  if (!values) return ''
+  const language = locale.value.toLowerCase().startsWith('zh') ? 'zh' : 'en'
+  return values[language] || values.zh || values.en || ''
+}
+
+function campaignCTA(campaign: PlayCampaignSummary) {
+  const cta = campaign.rules.display_cta || 'none'
+	if (cta === 'recharge') return { label: t('dashboard.campaign.rechargeCta'), action: goPurchase }
+	if (cta === 'use_models') return { label: t('dashboard.campaign.useModelsCta'), action: () => router.push({ name: 'Models' }) }
+	if (cta === 'vip_details') return { label: t('dashboard.campaign.vipDetailsCta'), action: () => router.push({ name: 'PlayHub' }) }
+  return null
+}
+
 const playCards = computed(() => {
   const cards: Array<{
     key: string
@@ -199,7 +214,7 @@ async function load() {
 }
 
 function goPurchase() {
-  router.push('/purchase')
+  router.push({ name: 'PurchaseSubscription' })
 }
 
 function trackHubClick(cardKey: string) {
@@ -330,18 +345,19 @@ onMounted(load)
           <section v-for="campaign in hub?.campaigns ?? []" :key="campaign.id" class="gw-panel min-h-[12rem]">
             <div class="flex h-full flex-col">
               <p class="gw-balance-label">{{ t('playHub.campaignEyebrow') }}</p>
-              <h2 class="gw-section-title mt-2 break-words">{{ resolveCampaignDisplayName(campaign, locale) }}</h2>
+			  <h2 class="gw-section-title mt-2 break-words">{{ campaignDisplayI18n(campaign, 'display_title_i18n') || resolveCampaignDisplayName(campaign, locale) }}</h2>
+			  <p v-if="campaignDisplayI18n(campaign, 'display_body_i18n')" class="gw-subtitle mt-2 break-words">{{ campaignDisplayI18n(campaign, 'display_body_i18n') }}</p>
               <ul v-if="campaignPerkLinesFor(campaign).length" class="gw-subtitle mt-0 space-y-1">
                 <li v-for="(line, idx) in campaignPerkLinesFor(campaign)" :key="idx" class="break-words">· {{ line }}</li>
               </ul>
-              <button
-                v-if="hub?.growth.payment_enabled && campaign.rules.recharge_bonus_pct"
+			  <button
+				v-if="campaignCTA(campaign)"
                 type="button"
                 class="gw-btn gw-btn-primary mt-4 w-fit gap-2"
-                @click="goPurchase"
+				@click="campaignCTA(campaign)?.action()"
               >
                 <Icon name="gift" size="sm" />
-                <span>{{ t('playHub.rechargeCta') }}</span>
+				<span>{{ campaignCTA(campaign)?.label }}</span>
               </button>
             </div>
           </section>

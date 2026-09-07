@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Play operations audience prototype</title>
+    <style>
+      :root { color-scheme: light; font-family: Inter, "PingFang SC", "Microsoft YaHei", sans-serif; color: #17212b; background: #eef2f5; }
+      * { box-sizing: border-box; }
+      body { margin: 0; padding: 28px; }
+      .note { color: #52616d; font-size: 13px; line-height: 20px; margin: 0 0 18px; }
+      .shell { background: #fff; border: 1px solid #d9e0e6; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(23,33,43,.08); }
+      .top { align-items: center; background: #fafbfc; border-bottom: 1px solid #d9e0e6; display: flex; justify-content: space-between; padding: 16px 20px; }
+      h1 { font-size: 20px; line-height: 28px; margin: 0; font-weight: 600; }
+      .tag { border: 1px solid #b9c9d5; border-radius: 999px; color: #375166; font-size: 12px; padding: 4px 9px; }
+      .body { display: grid; gap: 20px; grid-template-columns: minmax(0, 1.45fr) minmax(320px, .9fr); padding: 20px; }
+      .panel { border: 1px solid #d9e0e6; border-radius: 8px; background: #fff; }
+      .panel-head { border-bottom: 1px solid #e7ebef; display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; }
+      h2 { font-size: 16px; line-height: 24px; margin: 0; font-weight: 600; }
+      .hint { color: #687785; font-size: 12px; line-height: 18px; margin: 4px 0 0; }
+      .form { display: grid; gap: 14px; padding: 16px; }
+      label, .label { color: #30404d; display: block; font-size: 13px; font-weight: 600; line-height: 20px; }
+      input, textarea, .select { background: #fff; border: 1px solid #aebcc7; border-radius: 6px; color: #17212b; display: block; font: inherit; font-size: 14px; line-height: 20px; margin-top: 5px; padding: 9px 10px; width: 100%; }
+      textarea { height: 72px; resize: none; }
+      .grid { display: grid; gap: 12px; grid-template-columns: 1fr 1fr; }
+      .types, .segments { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+      .choice { align-items: center; border: 1px solid #c9d3db; border-radius: 6px; display: inline-flex; font-size: 13px; gap: 7px; padding: 8px 10px; }
+      .choice.selected { background: #e8f1f6; border-color: #4d7898; color: #234b68; }
+      .dot { border: 1px solid #7c8d99; border-radius: 50%; height: 14px; width: 14px; }
+      .choice.selected .dot { background: #2c6a91; border: 3px solid #e8f1f6; outline: 1px solid #2c6a91; }
+      .callout { background: #f5f8fa; border-left: 3px solid #4d7898; border-radius: 0 6px 6px 0; color: #435563; font-size: 13px; line-height: 20px; padding: 10px 12px; }
+      .cta { align-items: center; display: flex; gap: 8px; }
+      .cta .select { margin-top: 0; }
+      .button { background: #28658b; border: 1px solid #28658b; border-radius: 6px; color: white; font-size: 14px; font-weight: 600; padding: 10px 15px; }
+      .button.secondary { background: #fff; border-color: #aebcc7; color: #30404d; }
+      .actions { display: flex; gap: 10px; justify-content: flex-end; padding-top: 2px; }
+      .side { display: grid; gap: 20px; }
+      .summary { padding: 16px; }
+      .summary h3 { font-size: 14px; margin: 0 0 8px; }
+      .summary p, .summary li { color: #52616d; font-size: 13px; line-height: 20px; }
+      .summary ul { margin: 8px 0 0; padding-left: 18px; }
+      .totp { border-top: 1px solid #d9e0e6; display: grid; gap: 12px; padding: 16px; }
+      .totp-card { border: 1px solid #d2a65a; border-radius: 8px; padding: 13px; }
+      .code { display: flex; gap: 7px; margin-top: 10px; }
+      .code span { border: 1px solid #aebcc7; border-radius: 6px; height: 36px; width: 34px; }
+      .announcement { border-top: 1px solid #d9e0e6; padding: 16px; }
+      .condition { align-items: center; border: 1px dashed #aebcc7; border-radius: 6px; display: flex; gap: 8px; margin-top: 8px; padding: 9px; }
+      .condition strong { font-size: 13px; }
+      @media (max-width: 800px) { body { padding: 16px; } .body { grid-template-columns: 1fr; } .grid { grid-template-columns: 1fr; } }
+    </style>
+  </head>
+  <body>
+    <p class="note">设计原型，非浏览器验收截图。边界：运营展示活动只保存文案、受众和受控 CTA，不进入邀请奖励、预算或账本。</p>
+    <main class="shell">
+      <header class="top"><h1>玩法运营 / 运营展示活动</h1><span class="tag">中文默认路径</span></header>
+      <div class="body">
+        <section class="panel">
+          <header class="panel-head"><div><h2>新建活动</h2><p class="hint">运营展示活动默认创建；邀请奖励活动保持独立配置。</p></div><span class="tag">实时受众</span></header>
+          <form class="form">
+            <div><span class="label">活动类型</span><div class="types"><span class="choice selected"><i class="dot"></i>运营展示活动</span><span class="choice"><i class="dot"></i>权益叠加活动</span><span class="choice"><i class="dot"></i>邀请增长活动</span></div></div>
+            <div class="callout">不关联邀请活动，不创建奖励快照，不发放余额、优惠券或返利。用户达到既有 VIP 门槛后，仍按当前会员资格即时生效。</div>
+            <div class="grid"><label>活动名称<input value="限时升级礼遇"></label><label>展示排序<input value="100"></label></div>
+            <div class="grid"><label>中文标题<input value="充值升级，解锁会员权益"></label><label>English title<input value="Upgrade your membership"></label></div>
+            <div class="grid"><label>中文正文<textarea>限时完成充值或使用模型，达到现有 VIP 门槛后即可查看会员权益。</textarea></label><label>English body<textarea>Reach the existing VIP threshold to unlock your membership benefits.</textarea></label></div>
+            <div class="grid"><label>开始时间<input value="2026-09-08 10:00"></label><label>结束时间<input value="2026-09-15 10:00"></label></div>
+            <div><span class="label">目标受众</span><div class="segments"><span class="choice selected"><i class="dot"></i>普通用户</span><span class="choice"><i class="dot"></i>会员用户</span><span class="choice"><i class="dot"></i>全部用户</span></div><p class="hint">普通/会员按当前累计会员资格实时判定；VIP 等级和注册天数可作为附加限制。</p></div>
+            <div class="grid"><label>VIP 等级（可选）<input placeholder="例如 1, 2, 6"></label><label>注册天数内（可选）<input placeholder="例如 30"></label></div>
+            <label>操作按钮<div class="cta"><div class="select">前往充值</div><span class="hint">仅限：无操作、前往充值、使用模型、VIP 说明</span></div></label>
+            <div class="actions"><button class="button secondary" type="button">取消</button><button class="button" type="button">保存活动</button></div>
+          </form>
+        </section>
+        <aside class="side">
+          <section class="panel"><header class="panel-head"><div><h2>用户端主活动</h2><p class="hint">按排序、开始时间、ID 稳定选择</p></div><span class="tag">Dashboard / Play Hub</span></header><div class="summary"><h3>充值升级，解锁会员权益</h3><p>限时完成充值或使用模型，达到现有 VIP 门槛后即可查看会员权益。</p><button class="button">前往充值</button><ul><li>普通用户可见，升级后即时消失</li><li>旧活动缺少正文时保留名称与既有福利行</li><li>CTA 用命名路由解析，不接受任意 URL</li></ul></div></section>
+          <section class="panel"><header class="panel-head"><div><h2>敏感操作验证</h2><p class="hint">首次收到 STEP_UP_REQUIRED 时自动打开</p></div></header><div class="totp"><div class="totp-card"><strong>输入动态验证码</strong><p class="hint">验证成功后仅重试本次保存一次；取消保留表单且不提示保存失败。</p><div class="code"><span></span><span></span><span></span><span></span><span></span><span></span></div></div><div class="actions"><button class="button secondary" type="button">取消</button><button class="button" type="button">验证并继续</button></div></div></section>
+          <section class="panel"><header class="panel-head"><div><h2>公告受众</h2><p class="hint">服务端使用相同实时会员资格</p></div><span class="tag">English path parity</span></header><div class="announcement"><span class="label">Match all conditions</span><div class="condition"><strong>Play membership</strong><div class="select">Ordinary users</div></div><p class="hint">用户升级为会员后，普通用户公告不再在列表、Bell、Popup、详情或已读接口出现。</p></div></section>
+        </aside>
+      </div>
+    </main>
+  </body>
+</html>

@@ -46,6 +46,10 @@ func toPlayCampaignSummaryDTO(item service.PlayCampaignSummary) playCampaignSumm
 			RewardTiers:          item.Rules.RewardTiers,
 			RequireInvite:        item.Rules.RequireInvite,
 			LegacyRebatePolicy:   item.Rules.LegacyRebatePolicy,
+			DisplayTitleI18n:     item.Rules.DisplayTitleI18n,
+			DisplayBodyI18n:      item.Rules.DisplayBodyI18n,
+			DisplayCTA:           item.Rules.DisplayCTA,
+			DisplayPriority:      item.Rules.DisplayPriority,
 		},
 		NewUserGrowth: item.NewUserGrowth,
 	}

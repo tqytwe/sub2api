@@ -1075,6 +1075,8 @@ const messages = {
       arenaMult: 'Arena 展示积分 ×{mult}',
       viewHub: '查看玩法中枢',
       rechargeCta: '立即充值',
+		useModelsCta: '使用模型',
+		vipDetailsCta: '查看会员权益',
     },
     playHub: {
       title: '玩法中枢',
@@ -6399,6 +6401,11 @@ const messages = {
         conditionType: '条件类型',
         conditionSubscription: '订阅套餐',
         conditionBalance: '余额',
+		conditionPlayMembership: 'Play 会员资格',
+		playMembership: '当前 Play 会员资格',
+		playMembershipHint: '按累计会员资格实时判定，不使用订阅套餐代替。',
+		playMembershipOrdinary: '普通用户',
+		playMembershipMember: '会员用户',
         operator: '运算符',
         balanceValue: '余额阈值',
         selectPackages: '选择套餐'

@@ -64,3 +64,25 @@ func TestAnnouncementTargeting_Matches_AndOrSemantics(t *testing.T) {
 	require.False(t, targeting.Matches(99.9, map[int64]struct{}{10: {}}))
 	require.True(t, targeting.Matches(100, map[int64]struct{}{10: {}}))
 }
+
+func TestAnnouncementTargeting_PlayMembershipIsValidatedAndMatchesRealtimeMembership(t *testing.T) {
+	targeting := AnnouncementTargeting{
+		AnyOf: []AnnouncementConditionGroup{{
+			AllOf: []AnnouncementCondition{{
+				Type:           AnnouncementConditionTypePlayMembership,
+				Operator:       AnnouncementOperatorIn,
+				PlayMembership: AnnouncementPlayMembershipOrdinary,
+			}},
+		}},
+	}
+
+	normalized, err := targeting.NormalizeAndValidate()
+	require.NoError(t, err)
+	require.True(t, normalized.MatchesWithPlayMembership(0, nil, AnnouncementPlayMembershipOrdinary))
+	require.False(t, normalized.MatchesWithPlayMembership(0, nil, AnnouncementPlayMembershipMember))
+
+	invalid := targeting
+	invalid.AnyOf[0].AllOf[0].PlayMembership = "vip"
+	_, err = invalid.NormalizeAndValidate()
+	require.ErrorIs(t, err, ErrAnnouncementInvalidTarget)
+}

@@ -1078,6 +1078,8 @@ const messages = {
       arenaMult: 'Arena score ×{mult}',
       viewHub: 'View Play Hub',
       rechargeCta: 'Recharge now',
+		useModelsCta: 'Use models',
+		vipDetailsCta: 'View membership benefits',
     },
     playHub: {
       title: 'Play Hub',
@@ -6252,6 +6254,11 @@ const messages = {
         conditionType: 'Condition type',
         conditionSubscription: 'Subscription',
         conditionBalance: 'Balance',
+		conditionPlayMembership: 'Play membership',
+		playMembership: 'Current Play membership',
+		playMembershipHint: 'Evaluated in real time from cumulative membership qualification, not subscription packages.',
+		playMembershipOrdinary: 'Ordinary users',
+		playMembershipMember: 'Members',
         operator: 'Operator',
         balanceValue: 'Balance threshold',
         selectPackages: 'Select packages'

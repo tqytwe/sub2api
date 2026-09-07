@@ -8,6 +8,8 @@ export default {
       eyebrow: 'Limited event',
       viewHub: 'View Play Hub',
       rechargeCta: 'Recharge now',
+      useModelsCta: 'Use models',
+      vipDetailsCta: 'View membership benefits',
     },
     growth: {
       firstRecharge: 'First recharge offer — top up to unlock all models and claim your welcome bonus',
