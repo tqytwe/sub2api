@@ -375,6 +375,12 @@ check_contains "FORK-BILLING-010" "API key ownership validation" "backend/intern
 check_contains "FORK-BILLING-010" "subscription ownership validation" "backend/internal/repository/usage_billing_repo.go" "validateUsageBillingSubscriptionOwnership"
 check_contains "FORK-BILLING-010" "sticky sessions are scoped by API key" "backend/internal/service/gateway_service.go" "scopeStickySessionSeed"
 check_contains "FORK-BILLING-010" "recharge completion grants Play boost" "backend/internal/service/payment_fulfillment.go" "GrantRechargeBoost"
+check_contains "FORK-BILLING-010" "group surcharge create control" "frontend/src/views/admin/GroupsView.vue" 'data-testid="create-group-surcharge-override"'
+check_contains "FORK-BILLING-010" "group surcharge edit control" "frontend/src/views/admin/GroupsView.vue" 'data-testid="edit-group-surcharge-override"'
+check_contains "FORK-BILLING-010" "group surcharge frontend contract" "frontend/src/types/index.ts" 'billing_surcharge_override_enabled?: boolean'
+check_contains "FORK-BILLING-010" "group surcharge admin API contract" "backend/internal/handler/admin/group_handler.go" 'json:"billing_surcharge_override_enabled"'
+check_contains "FORK-BILLING-010" "group surcharge database schema" "backend/ent/schema/group.go" 'field.Bool("billing_surcharge_override_enabled")'
+check_contains "FORK-BILLING-010" "group surcharge billing resolution" "backend/internal/service/billing_surcharge.go" "ResolveGroupBillingSurcharge"
 check_file "FORK-BILLING-010" "withdrawable entitlement recompute command" "backend/cmd/recompute-withdrawable-entitlements/main.go"
 check_file "FORK-BILLING-010" "withdrawable entitlement recompute script" "backend/scripts/recompute-withdrawable-entitlements.sh"
 check_contains "FORK-BILLING-010" "image release restores consumed entitlements" "backend/internal/repository/usage_billing_repo.go" "restore_ledger_key"
