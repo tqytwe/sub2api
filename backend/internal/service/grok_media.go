@@ -654,6 +654,7 @@ func (s *OpenAIGatewayService) ForwardGrokMedia(
 	usage := grokMediaUsageFromResponse(endpoint, requestInfo, respBody)
 	return &OpenAIForwardResult{
 		RequestID:            requestIDHeader,
+		UpstreamHeaders:      resp.Header,
 		ResponseID:           usage.ResponseID,
 		Usage:                usage.Usage,
 		Model:                requestModel,
@@ -785,6 +786,7 @@ func (s *OpenAIGatewayService) forwardGrokMediaVideoContent(
 	}
 	return &OpenAIForwardResult{
 		RequestID:       contentRequestID,
+		UpstreamHeaders: contentResp.Header,
 		ResponseHeaders: contentResp.Header.Clone(),
 		Duration:        time.Since(startTime),
 	}, nil
@@ -1192,6 +1194,8 @@ func (s *OpenAIGatewayService) handleGrokMediaErrorResponse(
 	if isGrokContentPolicyRejection(resp.StatusCode, body) {
 		clientMsg := grokContentPolicyClientMessage(body)
 		appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+			ProxyID:            opsUpstreamProxyID(account),
+			ProxyName:          opsUpstreamProxyName(account),
 			Platform:           account.Platform,
 			AccountID:          account.ID,
 			AccountName:        account.Name,
@@ -1222,6 +1226,8 @@ func (s *OpenAIGatewayService) handleGrokMediaErrorResponse(
 
 	if !account.ShouldHandleErrorCode(resp.StatusCode) {
 		appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+			ProxyID:            opsUpstreamProxyID(account),
+			ProxyName:          opsUpstreamProxyName(account),
 			Platform:           account.Platform,
 			AccountID:          account.ID,
 			AccountName:        account.Name,
@@ -1241,6 +1247,8 @@ func (s *OpenAIGatewayService) handleGrokMediaErrorResponse(
 		kind = "failover"
 	}
 	appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+		ProxyID:            opsUpstreamProxyID(account),
+		ProxyName:          opsUpstreamProxyName(account),
 		Platform:           account.Platform,
 		AccountID:          account.ID,
 		AccountName:        account.Name,

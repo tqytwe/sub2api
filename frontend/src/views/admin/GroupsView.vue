@@ -369,7 +369,7 @@
                 value === 'active' ? 'badge-success' : 'badge-danger',
               ]"
             >
-              {{ t(accountStatusTranslationKey(value)) }}
+              {{ t("admin.accounts.status." + value) }}
             </span>
           </template>
 
@@ -613,50 +613,6 @@
           />
           <p class="input-hint">{{ t("admin.groups.rateMultiplierHint") }}</p>
         </div>
-        <div class="md:col-span-2">
-          <div class="grid gap-3 rounded-lg border border-gray-200 p-3 dark:border-dark-600 md:grid-cols-4">
-            <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-              <input
-                v-model="createForm.billing_surcharge_override_enabled"
-                type="checkbox"
-                class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-              />
-              {{ t("admin.groups.surcharge.override") }}
-            </label>
-            <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-              <input
-                v-model="createForm.billing_surcharge_enabled"
-                type="checkbox"
-                class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                :disabled="!createForm.billing_surcharge_override_enabled"
-              />
-              {{ t("admin.groups.surcharge.enabled") }}
-            </label>
-            <select
-              v-model="createForm.billing_surcharge_mode"
-              class="input"
-              :disabled="!createForm.billing_surcharge_override_enabled"
-            >
-              <option value="none">{{ t("admin.groups.surcharge.modeNone") }}</option>
-              <option value="percent_on_charged_cost">
-                {{ t("admin.groups.surcharge.modePercent") }}
-              </option>
-              <option value="additive_multiplier">
-                {{ t("admin.groups.surcharge.modeAdditive") }}
-              </option>
-            </select>
-            <input
-              v-model.number="createForm.billing_surcharge_value"
-              type="number"
-              min="0"
-              step="0.0001"
-              class="input"
-              :disabled="!createForm.billing_surcharge_override_enabled"
-              :placeholder="t('admin.groups.surcharge.valuePlaceholder')"
-            />
-          </div>
-          <p class="input-hint">{{ t("admin.groups.surcharge.hint") }}</p>
-        </div>
         <div>
           <label class="input-label">{{ t("admin.groups.form.rpmLimit") }}</label>
           <input
@@ -819,10 +775,10 @@
           <div class="mb-3 flex items-center justify-between gap-3">
             <div>
               <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                {{ t("admin.groups.modelsList.title") }}
+                {{ t("admin.groups.modelsList.title", { endpoint: modelsListEndpoint(createForm.platform) }) }}
               </label>
               <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                {{ t("admin.groups.modelsList.hint") }}
+                {{ t("admin.groups.modelsList.hint", { endpoint: modelsListEndpoint(createForm.platform) }) }}
               </p>
             </div>
             <button
@@ -1645,7 +1601,7 @@
               :aria-label="t('admin.groups.openaiFast.force')"
               data-testid="create-force-openai-fast"
               @click="createForm.force_openai_fast = !createForm.force_openai_fast"
-              class="relative inline-flex h-6 w-12 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-dark-900"
+	              class="relative inline-flex h-6 w-12 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
               :class="
                 createForm.force_openai_fast
                   ? 'bg-primary-500'
@@ -1674,7 +1630,7 @@
               :aria-label="t('admin.groups.openaiFast.free')"
               data-testid="create-free-openai-fast"
               @click="createForm.free_openai_fast = !createForm.free_openai_fast"
-              class="relative inline-flex h-6 w-12 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-dark-900"
+	              class="relative inline-flex h-6 w-12 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
               :class="
                 createForm.free_openai_fast
                   ? 'bg-emerald-500'
@@ -1709,7 +1665,7 @@
             <button
               type="button"
               @click="toggleLive('create')"
-              class="relative inline-flex h-6 w-12 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-dark-900"
+	              class="relative inline-flex h-6 w-12 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
               :class="
                 createForm.allow_live
                   ? 'bg-primary-500'
@@ -1747,7 +1703,7 @@
                 createForm.allow_messages_dispatch =
                   !createForm.allow_messages_dispatch
               "
-              class="relative inline-flex h-6 w-12 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-dark-900"
+	              class="relative inline-flex h-6 w-12 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
               :class="
                 createForm.allow_messages_dispatch
                   ? 'bg-primary-500'
@@ -1992,7 +1948,7 @@
               @click="
                 createForm.require_oauth_only = !createForm.require_oauth_only
               "
-              class="relative inline-flex h-6 w-12 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-dark-900"
+	              class="relative inline-flex h-6 w-12 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
               :class="
                 createForm.require_oauth_only
                   ? 'bg-primary-500'
@@ -2029,7 +1985,7 @@
               @click="
                 createForm.require_privacy_set = !createForm.require_privacy_set
               "
-              class="relative inline-flex h-6 w-12 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
+	              class="relative inline-flex h-6 w-12 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
               :class="
                 createForm.require_privacy_set
                   ? 'bg-primary-500'
@@ -2456,50 +2412,6 @@
             data-tour="group-form-multiplier"
           />
         </div>
-        <div class="md:col-span-2">
-          <div class="grid gap-3 rounded-lg border border-gray-200 p-3 dark:border-dark-600 md:grid-cols-4">
-            <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-              <input
-                v-model="editForm.billing_surcharge_override_enabled"
-                type="checkbox"
-                class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-              />
-              {{ t("admin.groups.surcharge.override") }}
-            </label>
-            <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-              <input
-                v-model="editForm.billing_surcharge_enabled"
-                type="checkbox"
-                class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                :disabled="!editForm.billing_surcharge_override_enabled"
-              />
-              {{ t("admin.groups.surcharge.enabled") }}
-            </label>
-            <select
-              v-model="editForm.billing_surcharge_mode"
-              class="input"
-              :disabled="!editForm.billing_surcharge_override_enabled"
-            >
-              <option value="none">{{ t("admin.groups.surcharge.modeNone") }}</option>
-              <option value="percent_on_charged_cost">
-                {{ t("admin.groups.surcharge.modePercent") }}
-              </option>
-              <option value="additive_multiplier">
-                {{ t("admin.groups.surcharge.modeAdditive") }}
-              </option>
-            </select>
-            <input
-              v-model.number="editForm.billing_surcharge_value"
-              type="number"
-              min="0"
-              step="0.0001"
-              class="input"
-              :disabled="!editForm.billing_surcharge_override_enabled"
-              :placeholder="t('admin.groups.surcharge.valuePlaceholder')"
-            />
-          </div>
-          <p class="input-hint">{{ t("admin.groups.surcharge.hint") }}</p>
-        </div>
         <div>
           <label class="input-label">{{ t("admin.groups.form.rpmLimit") }}</label>
           <input
@@ -2664,10 +2576,10 @@
           <div class="mb-3 flex items-center justify-between gap-3">
             <div>
               <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                {{ t("admin.groups.modelsList.title") }}
+                {{ t("admin.groups.modelsList.title", { endpoint: modelsListEndpoint(editForm.platform) }) }}
               </label>
               <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                {{ t("admin.groups.modelsList.hint") }}
+                {{ t("admin.groups.modelsList.hint", { endpoint: modelsListEndpoint(editForm.platform) }) }}
               </p>
             </div>
             <button
@@ -3385,6 +3297,15 @@
           </div>
         </div>
 
+        <!-- 固定账号获取 Codex Model Manifest（仅 openai 平台，仅编辑对话框） -->
+        <CodexManifestAccountsField
+          v-if="editForm.platform === 'openai' && editingGroup"
+          ref="editCodexManifestRef"
+          :group-id="editingGroup.id"
+          v-model="editCodexManifestConfig"
+          :account-names="editCodexManifestAccountNames"
+        />
+
 
         <div class="border-t border-gray-200 pt-4 mt-4 dark:border-dark-400">
           <div class="flex flex-wrap items-start justify-between gap-3">
@@ -3486,7 +3407,7 @@
               :aria-label="t('admin.groups.openaiFast.force')"
               data-testid="edit-force-openai-fast"
               @click="editForm.force_openai_fast = !editForm.force_openai_fast"
-              class="relative inline-flex h-6 w-12 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-dark-900"
+	              class="relative inline-flex h-6 w-12 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
               :class="
                 editForm.force_openai_fast
                   ? 'bg-primary-500'
@@ -3515,7 +3436,7 @@
               :aria-label="t('admin.groups.openaiFast.free')"
               data-testid="edit-free-openai-fast"
               @click="editForm.free_openai_fast = !editForm.free_openai_fast"
-              class="relative inline-flex h-6 w-12 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-dark-900"
+	              class="relative inline-flex h-6 w-12 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
               :class="
                 editForm.free_openai_fast
                   ? 'bg-emerald-500'
@@ -3550,7 +3471,7 @@
             <button
               type="button"
               @click="toggleLive('edit')"
-              class="relative inline-flex h-6 w-12 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
+	              class="relative inline-flex h-6 w-12 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
               :class="
                 editForm.allow_live
                   ? 'bg-primary-500'
@@ -4289,11 +4210,13 @@
               type="button"
               class="btn btn-secondary btn-sm"
               :disabled="compositeRoutesLoading"
-              :aria-label="t('common.refresh')"
               @click="loadCompositeRoutes"
             >
-              <LoadingSpinner v-if="compositeRoutesLoading" size="sm" />
-              <Icon v-else name="refresh" size="sm" />
+              <Icon
+                name="refresh"
+                size="sm"
+	                :class="compositeRoutesLoading ? 'opacity-60' : ''"
+              />
             </button>
           </div>
 
@@ -4649,7 +4572,7 @@ import { useOnboardingStore } from "@/stores/onboarding";
 import { adminAPI } from "@/api/admin";
 import type {
   AdminGroup,
-  BillingSurchargeMode,
+  CodexModelsManifestConfig,
   CompositeModelRoute,
   CompositeModelRouteInput,
   CompositeRouteDecision,
@@ -4673,11 +4596,11 @@ import EmptyState from "@/components/common/EmptyState.vue";
 import Select from "@/components/common/Select.vue";
 import PlatformIcon from "@/components/common/PlatformIcon.vue";
 import Icon from "@/components/icons/Icon.vue";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import GroupRateMultipliersModal from "@/components/admin/group/GroupRateMultipliersModal.vue";
 import GroupRPMOverridesModal from "@/components/admin/group/GroupRPMOverridesModal.vue";
 import GroupCapacityBadge from "@/components/common/GroupCapacityBadge.vue";
 import ReasoningEffortPolicyFields from "@/components/admin/group/ReasoningEffortPolicyFields.vue";
+import CodexManifestAccountsField from "@/components/admin/group/CodexManifestAccountsField.vue";
 import PricingEntryCard from "@/components/admin/channel/PricingEntryCard.vue";
 import type { PricingFormEntry } from "@/components/admin/channel/types";
 import {
@@ -4691,7 +4614,6 @@ import {
 import type { ChannelModelPricing } from "@/api/admin/channels";
 import { VueDraggable } from "vue-draggable-plus";
 import { createStableObjectKeyResolver } from "@/utils/stableObjectKey";
-import { accountStatusTranslationKey } from "@/utils/accountStatus";
 import { extractApiErrorMessage } from "@/utils/apiError";
 import { useKeyedDebouncedSearch } from "@/composables/useKeyedDebouncedSearch";
 import { getPersistedPageSize } from "@/composables/usePersistedPageSize";
@@ -5256,6 +5178,8 @@ const createMessagesDispatchDefaults = createDefaultMessagesDispatchFormState();
 const editMessagesDispatchDefaults = createDefaultMessagesDispatchFormState();
 const createModelsListState = reactive(createInitialModelsListState());
 const editModelsListState = reactive(createInitialModelsListState());
+const modelsListEndpoint = (platform: string) =>
+  platform === "gemini" ? "/v1beta/models" : "/v1/models";
 const createModelsListLoading = ref(false);
 const editModelsListLoading = ref(false);
 type ReasoningEffortPolicyFieldsExpose = {
@@ -5264,6 +5188,20 @@ type ReasoningEffortPolicyFieldsExpose = {
 };
 const createReasoningEffortPolicyRef = ref<ReasoningEffortPolicyFieldsExpose | null>(null);
 const editReasoningEffortPolicyRef = ref<ReasoningEffortPolicyFieldsExpose | null>(null);
+
+// 固定账号获取 Codex Model Manifest（仅 openai 分组编辑对话框）
+type CodexManifestAccountsFieldExpose = {
+  validate: () => boolean;
+  resetValidation: () => void;
+};
+const editCodexManifestRef = ref<CodexManifestAccountsFieldExpose | null>(null);
+const createCodexManifestDefaults = (): CodexModelsManifestConfig => ({
+  enabled: false,
+  account_ids: [],
+  fallback_to_scheduler: false,
+});
+const editCodexManifestConfig = reactive<CodexModelsManifestConfig>(createCodexManifestDefaults());
+const editCodexManifestAccountNames = ref<Record<number, string>>({});
 const modelsListCandidatesTracker = createModelsListCandidatesTracker();
 const createModelsListSelectedCount = computed(
   () => createModelsListState.items.filter((item) => item.selected).length,
@@ -5277,10 +5215,6 @@ const createForm = reactive({
   description: "",
   platform: "anthropic" as GroupPlatform,
   rate_multiplier: 1.0,
-  billing_surcharge_override_enabled: false,
-  billing_surcharge_enabled: false,
-  billing_surcharge_mode: "none" as BillingSurchargeMode,
-  billing_surcharge_value: 0,
   is_exclusive: false,
   subscription_type: "standard" as SubscriptionType,
   daily_limit_usd: null as number | null,
@@ -5644,10 +5578,6 @@ const editForm = reactive({
   description: "",
   platform: "anthropic" as GroupPlatform,
   rate_multiplier: 1.0,
-  billing_surcharge_override_enabled: false,
-  billing_surcharge_enabled: false,
-  billing_surcharge_mode: "none" as BillingSurchargeMode,
-  billing_surcharge_value: 0,
   is_exclusive: false,
   status: "active" as "active" | "inactive",
   subscription_type: "standard" as SubscriptionType,
@@ -6111,10 +6041,6 @@ const closeCreateModal = () => {
   createForm.description = "";
   createForm.platform = "anthropic";
   createForm.rate_multiplier = 1.0;
-  createForm.billing_surcharge_override_enabled = false;
-  createForm.billing_surcharge_enabled = false;
-  createForm.billing_surcharge_mode = "none";
-  createForm.billing_surcharge_value = 0;
   createForm.is_exclusive = false;
   createForm.subscription_type = "standard";
   createForm.daily_limit_usd = null;
@@ -6199,16 +6125,6 @@ const normalizeRateMultiplier = (
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : 1;
 };
 
-const normalizeSurchargeValue = (
-  value: number | string | null | undefined,
-): number => {
-  if (value === null || value === undefined || value === "") {
-    return 0;
-  }
-  const parsed = Number(value);
-  return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
-};
-
 // 利润控制表单辅助（换算与校验逻辑见 groupsProfitControl.ts，便于单测）。
 const percentToDecimal = profitPercentToDecimal;
 const decimalToPercent = profitDecimalToPercent;
@@ -6277,6 +6193,8 @@ const handleCreateGroup = async () => {
         createModelRoutingRules.value,
       ),
       models_list_config: buildModelsListConfig(createModelsListState),
+      // 创建时固定账号 manifest 固定发送关闭状态（后端创建路径禁止开启）
+      codex_models_manifest_config: createCodexManifestDefaults(),
       supported_model_scopes: normalizeSupportedModelScopesForPlatform(
         createForm.platform,
         createForm.supported_model_scopes,
@@ -6310,9 +6228,6 @@ const handleCreateGroup = async () => {
     requestData.daily_limit_usd = emptyToNull(requestData.daily_limit_usd);
     requestData.weekly_limit_usd = emptyToNull(requestData.weekly_limit_usd);
     requestData.monthly_limit_usd = emptyToNull(requestData.monthly_limit_usd);
-    requestData.billing_surcharge_value = normalizeSurchargeValue(
-      requestData.billing_surcharge_value,
-    );
     requestData.image_rate_multiplier = normalizeRateMultiplier(
       requestData.image_rate_multiplier,
     );
@@ -6380,11 +6295,6 @@ const handleEdit = async (group: AdminGroup) => {
   editForm.description = group.description || "";
   editForm.platform = group.platform;
   editForm.rate_multiplier = group.rate_multiplier;
-  editForm.billing_surcharge_override_enabled =
-    group.billing_surcharge_override_enabled ?? false;
-  editForm.billing_surcharge_enabled = group.billing_surcharge_enabled ?? false;
-  editForm.billing_surcharge_mode = group.billing_surcharge_mode ?? "none";
-  editForm.billing_surcharge_value = group.billing_surcharge_value ?? 0;
   editForm.is_exclusive = group.is_exclusive;
   editForm.status = group.status;
   editForm.subscription_type = group.subscription_type || "standard";
@@ -6470,6 +6380,28 @@ const handleEdit = async (group: AdminGroup) => {
     group.platform,
   );
   resetModelsListState(editModelsListState, group.models_list_config);
+  // 固定账号 manifest 配置：回显配置并异步解析已存账号名称（失败显示 #<id>）
+  const savedCodexManifestConfig =
+    group.codex_models_manifest_config ?? createCodexManifestDefaults();
+  Object.assign(editCodexManifestConfig, {
+    enabled: savedCodexManifestConfig.enabled ?? false,
+    account_ids: [...(savedCodexManifestConfig.account_ids ?? [])],
+    fallback_to_scheduler: savedCodexManifestConfig.fallback_to_scheduler ?? false,
+  });
+  editCodexManifestAccountNames.value = {};
+  for (const id of editCodexManifestConfig.account_ids) {
+    adminAPI.accounts
+      .getById(id)
+      .then((account) => {
+        editCodexManifestAccountNames.value = {
+          ...editCodexManifestAccountNames.value,
+          [id]: account.name,
+        };
+      })
+      .catch(() => {
+        // 无法解析名称时由组件回退展示 #<id>，提示管理员清理脏 ID。
+      });
+  }
   // 加载模型路由规则（异步加载账号名称）
   editModelRoutingRules.value = await convertApiFormatToRoutingRules(
     group.model_routing,
@@ -6516,6 +6448,9 @@ const closeEditModal = () => {
   resetMessagesDispatchFormState(editForm);
   editForm.allow_live = false;
   resetModelsListState(editModelsListState);
+  Object.assign(editCodexManifestConfig, createCodexManifestDefaults());
+  editCodexManifestAccountNames.value = {};
+  editCodexManifestRef.value?.resetValidation?.();
 };
 
 const handleUpdateGroup = async () => {
@@ -6532,6 +6467,16 @@ const handleUpdateGroup = async () => {
     return;
   }
   if (!validateProfitControlForm(editForm)) {
+    return;
+  }
+  // 固定账号 manifest：开启后至少一个账号，前端阻止提交并提示。
+  if (
+    editForm.platform === "openai" &&
+    editCodexManifestConfig.enabled &&
+    editCodexManifestConfig.account_ids.length === 0
+  ) {
+    appStore.showError(t("admin.groups.codexModelsManifest.selectAtLeastOne"));
+    editCodexManifestRef.value?.validate();
     return;
   }
 
@@ -6574,6 +6519,15 @@ const handleUpdateGroup = async () => {
         editModelRoutingRules.value,
       ),
       models_list_config: buildModelsListConfig(editModelsListState),
+      // 非 openai 平台提交关闭状态，与后端归一化一致
+      codex_models_manifest_config:
+        editForm.platform === "openai"
+          ? {
+              enabled: editCodexManifestConfig.enabled,
+              account_ids: [...editCodexManifestConfig.account_ids],
+              fallback_to_scheduler: editCodexManifestConfig.fallback_to_scheduler,
+            }
+          : createCodexManifestDefaults(),
       supported_model_scopes: normalizeSupportedModelScopesForPlatform(
         editForm.platform,
         editForm.supported_model_scopes,
@@ -6607,9 +6561,6 @@ const handleUpdateGroup = async () => {
     payload.daily_limit_usd = emptyToNull(payload.daily_limit_usd);
     payload.weekly_limit_usd = emptyToNull(payload.weekly_limit_usd);
     payload.monthly_limit_usd = emptyToNull(payload.monthly_limit_usd);
-    payload.billing_surcharge_value = normalizeSurchargeValue(
-      payload.billing_surcharge_value,
-    );
     payload.image_rate_multiplier = normalizeRateMultiplier(
       payload.image_rate_multiplier,
     );

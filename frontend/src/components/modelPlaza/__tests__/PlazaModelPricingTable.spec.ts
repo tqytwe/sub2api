@@ -64,6 +64,15 @@ describe('PlazaModelPricingTable', () => {
     expect(wrapper.findAll('tbody td')).toHaveLength(3)
   })
 
+  it('shows the Max reasoning billing multiplier', () => {
+    const model = tokenModel()
+    model.display_pricing!.max_reasoning_effort_multiplier = 3
+    const wrapper = mountTable([model], 1)
+
+    expect(wrapper.text()).toContain('modelPlaza.table.maxReasoningMultiplierBadge')
+    expect(wrapper.find('[title="modelPlaza.table.maxReasoningMultiplierHint"]').exists()).toBe(true)
+  })
+
   it('倍率 ≠ 1 时价格列为折后实付价,官方价列保持原价', () => {
     const wrapper = mountTable([tokenModel()], 0.5)
     const text = wrapper.text()

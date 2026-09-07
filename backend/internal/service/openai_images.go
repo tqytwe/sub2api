@@ -1152,8 +1152,10 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesAPIKey(
 		}, nil
 	} else {
 		nonStreamUsage, nonStreamCount, nonStreamSizes, err := s.handleOpenAIImagesNonStreamingResponse(
+			upstreamCtx,
 			resp,
 			c,
+			account,
 			parsed,
 			requestModel,
 			upstreamModel,
@@ -1623,8 +1625,10 @@ func cloneMultipartHeader(src textproto.MIMEHeader) textproto.MIMEHeader {
 }
 
 func (s *OpenAIGatewayService) handleOpenAIImagesNonStreamingResponse(
+	ctx context.Context,
 	resp *http.Response,
 	c *gin.Context,
+	account *Account,
 	parsed *OpenAIImagesRequest,
 	publicModel string,
 	upstreamModel string,
@@ -1642,6 +1646,7 @@ func (s *OpenAIGatewayService) handleOpenAIImagesNonStreamingResponse(
 	if err != nil {
 		return OpenAIUsage{}, 0, nil, err
 	}
+	body = s.backfillOpenAIImagesB64JSON(ctx, account, parsed, body)
 	usage, _ := extractOpenAIUsageFromJSONBytes(body)
 	body, err = s.rewriteOpenAIImagesURLResponse(c, parsed, body)
 	if err != nil {
