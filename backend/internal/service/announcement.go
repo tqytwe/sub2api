@@ -21,8 +21,14 @@ const (
 )
 
 const (
-	AnnouncementConditionTypeSubscription = domain.AnnouncementConditionTypeSubscription
-	AnnouncementConditionTypeBalance      = domain.AnnouncementConditionTypeBalance
+	AnnouncementConditionTypeSubscription   = domain.AnnouncementConditionTypeSubscription
+	AnnouncementConditionTypeBalance        = domain.AnnouncementConditionTypeBalance
+	AnnouncementConditionTypePlayMembership = domain.AnnouncementConditionTypePlayMembership
+)
+
+const (
+	AnnouncementPlayMembershipOrdinary = domain.AnnouncementPlayMembershipOrdinary
+	AnnouncementPlayMembershipMember   = domain.AnnouncementPlayMembershipMember
 )
 
 const (

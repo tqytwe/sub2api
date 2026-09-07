@@ -390,15 +390,16 @@ export interface UpdateSubscriptionRequest {
 export type AnnouncementStatus = 'draft' | 'active' | 'archived'
 export type AnnouncementNotifyMode = 'silent' | 'popup'
 
-export type AnnouncementConditionType = 'subscription' | 'balance'
+export type AnnouncementConditionType = 'subscription' | 'balance' | 'play_membership'
 
 export type AnnouncementOperator = 'in' | 'gt' | 'gte' | 'lt' | 'lte' | 'eq'
 
 export interface AnnouncementCondition {
   type: AnnouncementConditionType
   operator: AnnouncementOperator
-  group_ids?: number[]
-  value?: number
+	group_ids?: number[]
+	value?: number
+	play_membership?: 'ordinary' | 'member'
 }
 
 export interface AnnouncementConditionGroup {

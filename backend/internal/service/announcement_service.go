@@ -12,10 +12,26 @@ import (
 )
 
 type AnnouncementService struct {
-	announcementRepo AnnouncementRepository
-	readRepo         AnnouncementReadRepository
-	userRepo         UserRepository
-	userSubRepo      UserSubscriptionRepository
+	announcementRepo       AnnouncementRepository
+	readRepo               AnnouncementReadRepository
+	userRepo               UserRepository
+	userSubRepo            UserSubscriptionRepository
+	playMembershipResolver func(context.Context, int64) (string, error)
+}
+
+// SetPlayMembershipResolver keeps announcements decoupled from the Play
+// implementation while ensuring every read path uses its real-time segment.
+func (s *AnnouncementService) SetPlayMembershipResolver(resolver func(context.Context, int64) (string, error)) {
+	if s != nil {
+		s.playMembershipResolver = resolver
+	}
+}
+
+func (s *AnnouncementService) playMembership(ctx context.Context, userID int64) (string, error) {
+	if s == nil || s.playMembershipResolver == nil {
+		return "", nil
+	}
+	return s.playMembershipResolver(ctx, userID)
 }
 
 func NewAnnouncementService(
@@ -235,6 +251,10 @@ func (s *AnnouncementService) ListForUser(ctx context.Context, userID int64, unr
 	for i := range activeSubs {
 		activeGroupIDs[activeSubs[i].GroupID] = struct{}{}
 	}
+	playMembership, err := s.playMembership(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("resolve Play membership: %w", err)
+	}
 
 	now := time.Now()
 	anns, err := s.announcementRepo.ListActive(ctx, now)
@@ -249,7 +269,7 @@ func (s *AnnouncementService) ListForUser(ctx context.Context, userID int64, unr
 		if !a.IsActiveAt(now) {
 			continue
 		}
-		if !a.Targeting.Matches(user.Balance, activeGroupIDs) {
+		if !a.Targeting.MatchesWithPlayMembership(user.Balance, activeGroupIDs, playMembership) {
 			continue
 		}
 		visible = append(visible, a)
@@ -320,8 +340,12 @@ func (s *AnnouncementService) MarkRead(ctx context.Context, userID, announcement
 	for i := range activeSubs {
 		activeGroupIDs[activeSubs[i].GroupID] = struct{}{}
 	}
+	playMembership, err := s.playMembership(ctx, userID)
+	if err != nil {
+		return fmt.Errorf("resolve Play membership: %w", err)
+	}
 
-	if !a.Targeting.Matches(user.Balance, activeGroupIDs) {
+	if !a.Targeting.MatchesWithPlayMembership(user.Balance, activeGroupIDs, playMembership) {
 		return ErrAnnouncementNotFound
 	}
 
@@ -372,6 +396,10 @@ func (s *AnnouncementService) ListUserReadStatus(
 		for j := range subs {
 			activeGroupIDs[subs[j].GroupID] = struct{}{}
 		}
+		playMembership, err := s.playMembership(ctx, u.ID)
+		if err != nil {
+			return nil, nil, fmt.Errorf("resolve Play membership: %w", err)
+		}
 
 		readAt, ok := readMap[u.ID]
 		var ptr *time.Time
@@ -385,7 +413,7 @@ func (s *AnnouncementService) ListUserReadStatus(
 			Email:    u.Email,
 			Username: u.Username,
 			Balance:  u.Balance,
-			Eligible: domain.AnnouncementTargeting(ann.Targeting).Matches(u.Balance, activeGroupIDs),
+			Eligible: domain.AnnouncementTargeting(ann.Targeting).MatchesWithPlayMembership(u.Balance, activeGroupIDs, playMembership),
 			ReadAt:   ptr,
 		})
 	}

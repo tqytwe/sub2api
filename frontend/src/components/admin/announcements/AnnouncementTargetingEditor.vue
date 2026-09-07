@@ -109,7 +109,7 @@
                 />
               </div>
 
-              <div v-else class="flex flex-1 flex-col gap-3 sm:flex-row">
+              <div v-else-if="cond.type === 'balance'" class="flex flex-1 flex-col gap-3 sm:flex-row">
                 <div class="w-full sm:w-44">
                   <label class="input-label">{{ t('admin.announcements.form.operator') }}</label>
                   <Select
@@ -128,6 +128,16 @@
                     @input="(e) => setBalanceValue(groupIndex, condIndex, (e.target as HTMLInputElement).value)"
                   />
                 </div>
+              </div>
+
+              <div v-else class="flex-1">
+                <label class="input-label">{{ t('admin.announcements.form.playMembership') }}</label>
+                <Select
+                  :model-value="cond.play_membership"
+                  :options="playMembershipOptions"
+                  @update:model-value="(v) => setPlayMembership(groupIndex, condIndex, v as 'ordinary' | 'member')"
+                />
+                <p class="input-hint">{{ t('admin.announcements.form.playMembershipHint') }}</p>
               </div>
 
               <div class="flex justify-end">
@@ -197,8 +207,14 @@ type Mode = 'all' | 'custom'
 const mode = computed<Mode>(() => (anyOf.value.length === 0 ? 'all' : 'custom'))
 
 const conditionTypeOptions = computed(() => [
-  { value: 'subscription', label: t('admin.announcements.form.conditionSubscription') },
-  { value: 'balance', label: t('admin.announcements.form.conditionBalance') }
+	  { value: 'subscription', label: t('admin.announcements.form.conditionSubscription') },
+	  { value: 'balance', label: t('admin.announcements.form.conditionBalance') },
+	  { value: 'play_membership', label: t('admin.announcements.form.conditionPlayMembership') }
+])
+
+const playMembershipOptions = computed(() => [
+  { value: 'ordinary', label: t('admin.announcements.form.playMembershipOrdinary') },
+  { value: 'member', label: t('admin.announcements.form.playMembershipMember') }
 ])
 
 const balanceOperatorOptions = computed(() => [
@@ -233,6 +249,10 @@ function defaultBalanceCondition(): AnnouncementCondition {
     operator: 'gte' as AnnouncementOperator,
     value: 0
   }
+}
+
+function defaultPlayMembershipCondition(): AnnouncementCondition {
+  return { type: 'play_membership', operator: 'in', play_membership: 'ordinary' }
 }
 
 type TargetingDraft = {
@@ -281,11 +301,22 @@ function setConditionType(groupIndex: number, condIndex: number, nextType: Annou
     const group = draft.any_of[groupIndex]
     if (!group?.all_of) return
 
-    if (nextType === 'subscription') {
-      group.all_of[condIndex] = defaultSubscriptionCondition()
-    } else {
-      group.all_of[condIndex] = defaultBalanceCondition()
+	if (nextType === 'subscription') {
+		group.all_of[condIndex] = defaultSubscriptionCondition()
+	} else if (nextType === 'balance') {
+		group.all_of[condIndex] = defaultBalanceCondition()
+	} else {
+		group.all_of[condIndex] = defaultPlayMembershipCondition()
     }
+  })
+}
+
+function setPlayMembership(groupIndex: number, condIndex: number, membership: 'ordinary' | 'member') {
+  updateTargeting((draft) => {
+    const condition = draft.any_of[groupIndex]?.all_of?.[condIndex]
+    if (!condition || condition.type !== 'play_membership') return
+    condition.operator = 'in'
+    condition.play_membership = membership
   })
 }
 

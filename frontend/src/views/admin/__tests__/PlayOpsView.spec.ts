@@ -7,6 +7,9 @@ const {
   getArenaLeaderboard,
   listCampaigns,
   createCampaign,
+	updateCampaign,
+	deleteCampaign,
+	stepUp,
   listTeams,
   getTeam,
   listTeamMemberCandidates,
@@ -23,6 +26,9 @@ const {
   getArenaLeaderboard: vi.fn(),
   listCampaigns: vi.fn(),
   createCampaign: vi.fn(),
+	updateCampaign: vi.fn(),
+	deleteCampaign: vi.fn(),
+	stepUp: vi.fn(),
   listTeams: vi.fn(),
   getTeam: vi.fn(),
   listTeamMemberCandidates: vi.fn(),
@@ -42,8 +48,8 @@ vi.mock('@/api/admin/play', () => ({
     getArenaLeaderboard,
     listCampaigns,
     createCampaign,
-    updateCampaign: vi.fn(),
-    deleteCampaign: vi.fn(),
+    updateCampaign,
+    deleteCampaign,
     listTeams,
     getTeam,
     listTeamMemberCandidates,
@@ -51,6 +57,10 @@ vi.mock('@/api/admin/play', () => ({
     listTeamEvents,
     listQuizQuestions,
   },
+}))
+
+vi.mock('@/api', () => ({
+  totpAPI: { stepUp },
 }))
 
 vi.mock('@/stores', () => ({
@@ -190,7 +200,7 @@ vi.mock('vue-i18n', async () => {
   }
 })
 
-function mountView(tab?: string) {
+function mountView(tab?: string, useActualTotpDialog = false) {
   if (tab) routeState.query = { tab }
   return mount(PlayOpsView, {
     global: {
@@ -201,7 +211,7 @@ function mountView(tab?: string) {
           props: ['show', 'title'],
           template: '<div v-if="show"><h2>{{ title }}</h2><slot /><slot name="footer" /></div>',
         },
-        TotpStepUpDialog: true,
+		TotpStepUpDialog: useActualTotpDialog ? false : true,
         GrowthGovernanceOperations: {
           template: '<div data-testid="growth-governance-operations-stub" />',
         },
@@ -293,6 +303,9 @@ describe('PlayOpsView campaigns', () => {
       },
     ])
     createCampaign.mockReset().mockResolvedValue({})
+	updateCampaign.mockReset().mockResolvedValue({})
+	deleteCampaign.mockReset().mockResolvedValue(undefined)
+	stepUp.mockReset().mockResolvedValue(undefined)
     showError.mockReset()
     showSuccess.mockReset()
     vi.spyOn(window, 'confirm').mockReturnValue(true)
@@ -379,7 +392,7 @@ describe('PlayOpsView campaigns', () => {
     expect(wrapper.text()).toContain('盲盒每日 +2 次')
   })
 
-  it('creates a campaign with structured rules', async () => {
+  it('defaults to an ordinary-user operational display campaign without a referral dependency', async () => {
     const wrapper = mountView()
     await flushPromises()
 
@@ -387,10 +400,14 @@ describe('PlayOpsView campaigns', () => {
     await wrapper.get('[data-testid="campaign-name"]').setValue('暑期限时活动')
     await wrapper.get('[data-testid="campaign-start"]').setValue('2026-08-01T10:00')
     await wrapper.get('[data-testid="campaign-end"]').setValue('2026-08-08T10:00')
-    await wrapper.get('[data-testid="campaign-recharge-bonus"]').setValue('12.5')
-    await wrapper.get('[data-testid="campaign-blindbox-extra"]').setValue('3')
-    await wrapper.get('[data-testid="campaign-arena-multiplier"]').setValue('1.5')
+    await wrapper.get('[data-testid="campaign-display-title-zh"]').setValue('普通用户限时福利')
+    await wrapper.get('[data-testid="campaign-display-body-zh"]').setValue('充值或使用模型即可解锁 VIP。')
+    await wrapper.get('[data-testid="campaign-display-cta"]').setValue('recharge')
+    await wrapper.get('[data-testid="campaign-display-priority"]').setValue('120')
+    await wrapper.get('input[type="radio"][value="ordinary"]').setValue()
     expect((wrapper.get('[data-testid="campaign-name"]').element as HTMLInputElement).value).toBe('暑期限时活动')
+    expect(wrapper.find('[data-testid="campaign-referral-campaign"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="campaign-recharge-bonus"]').exists()).toBe(false)
 
     await (wrapper.vm as unknown as { submitCampaign: () => Promise<void> }).submitCampaign()
     await flushPromises()
@@ -399,13 +416,117 @@ describe('PlayOpsView campaigns', () => {
     expect(createCampaign).toHaveBeenCalledWith(expect.objectContaining({
       name: '暑期限时活动',
       enabled: true,
+      audience: expect.objectContaining({ ordinary: true }),
+      rules: expect.objectContaining({
+        campaign_type: 'operational_display',
+        display_title_i18n: { zh: '普通用户限时福利' },
+        display_body_i18n: { zh: '充值或使用模型即可解锁 VIP。' },
+        display_cta: 'recharge',
+        display_priority: 120,
+      }),
+    }))
+    expect(createCampaign.mock.calls[0]?.[0]?.rules).not.toHaveProperty('referral_campaign_id')
+  })
+
+  it('keeps legacy benefit-overlay controls available when explicitly selected', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="new-campaign"]').trigger('click')
+    await wrapper.get('[data-testid="campaign-type"]').setValue('benefit_overlay')
+    await wrapper.get('[data-testid="campaign-name"]').setValue('暑期限时活动')
+    await wrapper.get('[data-testid="campaign-recharge-bonus"]').setValue('12.5')
+    await wrapper.get('[data-testid="campaign-blindbox-extra"]').setValue('3')
+    await wrapper.get('[data-testid="campaign-arena-multiplier"]').setValue('1.5')
+
+    await (wrapper.vm as unknown as { submitCampaign: () => Promise<void> }).submitCampaign()
+    await flushPromises()
+
+    expect(createCampaign).toHaveBeenCalledWith(expect.objectContaining({
       rules: expect.objectContaining({
         recharge_bonus_pct: 12.5,
         blindbox_extra_opens: 3,
         arena_score_multiplier: 1.5,
       }),
     }))
+    expect(createCampaign.mock.calls[0]?.[0]?.rules).not.toHaveProperty('campaign_type')
   })
+
+  it('shows the referral dependency only for reward-bearing growth campaign types', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="new-campaign"]').trigger('click')
+    expect(wrapper.find('[data-testid="campaign-referral-campaign"]').exists()).toBe(false)
+    await wrapper.get('[data-testid="campaign-type"]').setValue('new_user_growth')
+    expect(wrapper.find('[data-testid="campaign-referral-campaign"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="campaign-display-title-zh"]').exists()).toBe(false)
+  })
+
+	 it('opens TOTP after STEP_UP_REQUIRED and retries the campaign create once after verification', async () => {
+		createCampaign
+			.mockRejectedValueOnce({ status: 403, code: 'STEP_UP_REQUIRED' })
+			.mockResolvedValueOnce({})
+		const wrapper = mountView(undefined, true)
+		await flushPromises()
+		await wrapper.get('[data-testid="new-campaign"]').trigger('click')
+		await wrapper.get('[data-testid="campaign-name"]').setValue('需要验证的活动')
+
+		void (wrapper.vm as unknown as { submitCampaign: () => Promise<void> }).submitCampaign()
+		await flushPromises()
+		expect(createCampaign).toHaveBeenCalledTimes(1)
+		expect(document.querySelector('[role="dialog"]')).not.toBeNull()
+
+		const codeInputs = Array.from(document.querySelectorAll('[role="dialog"] input:not([aria-hidden="true"])')) as HTMLInputElement[]
+		expect(codeInputs).toHaveLength(6)
+		for (const input of codeInputs) {
+			input.value = '1'
+			input.dispatchEvent(new Event('input', { bubbles: true }))
+		}
+		await flushPromises()
+
+		expect(stepUp).toHaveBeenCalledWith('111111')
+		expect(createCampaign).toHaveBeenCalledTimes(2)
+		expect(showError).not.toHaveBeenCalled()
+		expect(document.querySelector('[role="dialog"]')).toBeNull()
+		wrapper.unmount()
+	})
+
+	 it('keeps the campaign form open without an error toast when TOTP is cancelled', async () => {
+		createCampaign.mockRejectedValueOnce({ status: 403, code: 'STEP_UP_REQUIRED' })
+		const wrapper = mountView(undefined, true)
+		await flushPromises()
+		await wrapper.get('[data-testid="new-campaign"]').trigger('click')
+		await wrapper.get('[data-testid="campaign-name"]').setValue('取消验证的活动')
+
+		void (wrapper.vm as unknown as { submitCampaign: () => Promise<void> }).submitCampaign()
+		await flushPromises()
+		const cancel = Array.from(document.querySelectorAll('[role="dialog"] button')).find((button) => button.textContent?.includes('common.cancel'))
+		expect(cancel).toBeDefined()
+		cancel?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+		await flushPromises()
+
+		expect(createCampaign).toHaveBeenCalledTimes(1)
+		expect(showError).not.toHaveBeenCalled()
+		expect(wrapper.find('[data-testid="campaign-form"]').exists()).toBe(true)
+		wrapper.unmount()
+	})
+
+	 it('reports a blocked step-up state without opening TOTP or retrying', async () => {
+		createCampaign.mockRejectedValueOnce({ status: 403, code: 'STEP_UP_TOTP_NOT_ENABLED' })
+		const wrapper = mountView(undefined, true)
+		await flushPromises()
+		await wrapper.get('[data-testid="new-campaign"]').trigger('click')
+		await wrapper.get('[data-testid="campaign-name"]').setValue('未启用验证的活动')
+
+		await (wrapper.vm as unknown as { submitCampaign: () => Promise<void> }).submitCampaign()
+		await flushPromises()
+
+		expect(createCampaign).toHaveBeenCalledTimes(1)
+		expect(document.querySelector('[role="dialog"]')).toBeNull()
+		expect(showError).toHaveBeenCalledWith('stepUp.notEnabled')
+		wrapper.unmount()
+	})
 
   it('does not expose an English backend fallback in the Chinese interface', async () => {
     getSummary.mockRejectedValueOnce({

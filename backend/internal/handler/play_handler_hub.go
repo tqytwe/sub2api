@@ -34,6 +34,10 @@ type playCampaignRulesDTO struct {
 	RewardTiers          []service.PlayCampaignRewardTier `json:"reward_tiers,omitempty"`
 	RequireInvite        bool                             `json:"require_invite,omitempty"`
 	LegacyRebatePolicy   string                           `json:"legacy_rebate_policy,omitempty"`
+	DisplayTitleI18n     map[string]string                `json:"display_title_i18n,omitempty"`
+	DisplayBodyI18n      map[string]string                `json:"display_body_i18n,omitempty"`
+	DisplayCTA           string                           `json:"display_cta,omitempty"`
+	DisplayPriority      int                              `json:"display_priority,omitempty"`
 }
 
 type playCampaignSummaryDTO struct {

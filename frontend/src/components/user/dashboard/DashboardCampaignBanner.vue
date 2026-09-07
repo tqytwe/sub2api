@@ -14,6 +14,15 @@ const loading = ref(true)
 const primary = computed(() => campaigns.value[0] ?? null)
 
 const displayName = computed(() => resolveCampaignDisplayName(primary.value, locale.value))
+const displayTitle = computed(() => resolveDisplayI18n(primary.value?.rules.display_title_i18n) || displayName.value)
+const displayBody = computed(() => resolveDisplayI18n(primary.value?.rules.display_body_i18n))
+const displayCTA = computed(() => primary.value?.rules.display_cta || 'none')
+
+function resolveDisplayI18n(values?: Record<string, string>) {
+  if (!values) return ''
+  const language = locale.value.toLowerCase().startsWith('zh') ? 'zh' : 'en'
+  return values[language] || values.zh || values.en || ''
+}
 
 const perkLines = computed(() => {
   const c = primary.value
@@ -48,8 +57,24 @@ function goPlayHub() {
 }
 
 function goPurchase() {
-  router.push('/purchase')
+	router.push({ name: 'PurchaseSubscription' })
 }
+
+function goDisplayCTA() {
+	const target = displayCTA.value
+	if (target === 'none') return goPurchase()
+  if (target === 'recharge') return goPurchase()
+  if (target === 'use_models') return router.push({ name: 'Models' })
+  if (target === 'vip_details') return router.push({ name: 'PlayHub' })
+}
+
+const displayCTALabel = computed(() => {
+  switch (displayCTA.value) {
+    case 'use_models': return t('dashboard.campaign.useModelsCta')
+    case 'vip_details': return t('dashboard.campaign.vipDetailsCta')
+    default: return t('dashboard.campaign.rechargeCta')
+  }
+})
 
 onMounted(load)
 
@@ -66,7 +91,8 @@ defineExpose({ reload: load })
         <p class="text-xs font-semibold uppercase tracking-wide text-violet-600 dark:text-violet-300">
           {{ t('dashboard.campaign.eyebrow') }}
         </p>
-        <p class="mt-1 text-base font-semibold text-gray-900 dark:text-white">{{ displayName }}</p>
+		<p class="mt-1 text-base font-semibold text-gray-900 dark:text-white">{{ displayTitle }}</p>
+		<p v-if="displayBody" class="mt-2 text-sm text-gray-600 dark:text-gray-300">{{ displayBody }}</p>
         <ul v-if="perkLines.length" class="mt-2 space-y-1 text-sm text-violet-900 dark:text-violet-200">
           <li v-for="(line, idx) in perkLines" :key="idx">· {{ line }}</li>
         </ul>
@@ -75,14 +101,14 @@ defineExpose({ reload: load })
         <button type="button" class="btn btn-secondary btn-sm" @click="goPlayHub">
           {{ t('dashboard.campaign.viewHub') }}
         </button>
-        <button
-          v-if="primary.rules.recharge_bonus_pct"
-          type="button"
-          class="btn btn-primary btn-sm"
-          @click="goPurchase"
-        >
-          {{ t('dashboard.campaign.rechargeCta') }}
-        </button>
+		<button
+		  v-if="displayCTA !== 'none' || primary.rules.recharge_bonus_pct"
+		  type="button"
+		  class="btn btn-primary btn-sm"
+		  @click="goDisplayCTA"
+		>
+		  {{ displayCTALabel }}
+		</button>
       </div>
     </div>
   </div>
