@@ -31,7 +31,7 @@ func newSessionIDUsageLog(sessionID *string) *service.UsageLog {
 // TestPrepareUsageLogInsert_SessionIDArgWiring pins the session_id column to the
 // arg slice / arg-type table so the INSERT column lists stay in sync.
 func TestPrepareUsageLogInsert_SessionIDArgWiring(t *testing.T) {
-	require.Len(t, usageLogInsertArgTypes, 69, "arg-type table must include upstream model audit, session_id, billing surcharge snapshot, audio token, and native compaction columns")
+	require.Len(t, usageLogInsertArgTypes, 70, "arg-type table must include upstream model audit, upstream_request_id, session_id, billing surcharge snapshot, audio token, and native compaction columns")
 
 	sessionID := "sess-persisted-123"
 	prepared := prepareUsageLogInsert(newSessionIDUsageLog(&sessionID))
