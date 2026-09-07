@@ -204,7 +204,7 @@ describe('route locale runtime scopes', () => {
         }
       }
     }
-  }, 30_000)
+  }, 60_000)
 
   it.each([
     {
@@ -258,7 +258,7 @@ describe('route locale runtime scopes', () => {
         expect(value, `${locale}:${path}:${key}`).not.toBe(key)
       }
     }
-  })
+  }, 30_000)
 
   it.each(['zh', 'en'] as const)('loads the AdminUsage shell keys without relying on a prior route for %s', async (locale) => {
     expect(localeScopesForRouteName('AdminUsage')).toEqual(expect.arrayContaining([

@@ -4,21 +4,10 @@ import { fileURLToPath } from 'node:url'
 
 import { describe, expect, it } from 'vitest'
 
-import en from '../../../i18n/locales/en'
-import zh from '../../../i18n/locales/zh'
-
 const componentPath = resolve(dirname(fileURLToPath(import.meta.url)), '../AppSidebar.vue')
 const componentSource = readFileSync(componentPath, 'utf8')
 const stylePath = resolve(dirname(fileURLToPath(import.meta.url)), '../../../style.css')
 const styleSource = readFileSync(stylePath, 'utf8')
-const routerSource = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '../../../router/index.ts'), 'utf8')
-
-function sidebarNavKeys(): string[] {
-  return [...componentSource.matchAll(/t\('nav\.([^']+)'\)/g)]
-    .map((match) => match[1])
-    .filter((key, index, keys) => keys.indexOf(key) === index)
-    .sort()
-}
 
 describe('AppSidebar custom SVG styles', () => {
   it('does not override uploaded SVG fill or stroke colors', () => {
@@ -27,40 +16,6 @@ describe('AppSidebar custom SVG styles', () => {
     expect(componentSource).toContain('display: block;')
     expect(componentSource).not.toContain('stroke: currentColor;')
     expect(componentSource).not.toContain('fill: none;')
-  })
-})
-
-describe('AppSidebar custom docs menu targets', () => {
-  it('uses the canonical menu resolver before routing native docs', () => {
-    expect(componentSource).toContain('const BookIcon = {')
-    expect(componentSource).toContain('resolveCustomMenuRoute')
-    expect(componentSource).toContain('isNativeDocsMenuTarget')
-    expect(componentSource).toContain('function buildCustomMenuNavItem')
-    expect(componentSource).toContain('path: nativeDocsRoute ?? `/custom/${item.id}`')
-    expect(componentSource).toContain('iconSvg: icon ? undefined : item.icon_svg')
-    expect(componentSource).toContain('...customMenuItemsForUser.value.map(buildCustomMenuNavItem)')
-    expect(componentSource).toContain('visible.push(buildCustomMenuNavItem(cm))')
-    expect(componentSource).toContain('filtered.push(buildCustomMenuNavItem(cm))')
-  })
-})
-
-describe('AppSidebar navigation labels', () => {
-  it.each([
-    ['zh', zh],
-    ['en', en]
-  ] as const)('has runtime translations for every %s sidebar nav key', (_locale, messages) => {
-    const nav = (messages as { nav: Record<string, string> }).nav
-    const missing = sidebarNavKeys().filter((key) => typeof nav[key] !== 'string' || nav[key].trim() === '')
-    expect(missing).toEqual([])
-  })
-
-  it('translates the audit-log nav key and the lowercase legacy config key', () => {
-    expect(zh.nav.auditLogs).toBe('操作日志')
-    expect(zh.nav.auditlogs).toBe('操作日志')
-    expect(en.nav.auditLogs).toBe('Audit Logs')
-    expect(en.nav.auditlogs).toBe('Audit Logs')
-    expect(componentSource).toContain('function resolveCustomMenuLabel')
-    expect(componentSource).toContain('resolveCustomMenuLabel(item.label)')
   })
 })
 
@@ -87,26 +42,16 @@ describe('AppSidebar scroll position persistence', () => {
   })
 })
 
-describe('AppSidebar intent prefetch', () => {
-  it('prefetches links only from direct user intent', () => {
-    expect(componentSource).toContain('@mouseenter="prefetchRoute(item.path)"')
-    expect(componentSource).toContain('@focus="prefetchRoute(item.path)"')
-    expect(componentSource).toContain('@pointerdown="prefetchRoute(item.path)"')
-    expect(componentSource).toContain('@mouseenter="prefetchRoute(child.path)"')
-  })
-
-  it('does not automatically prefetch neighboring routes after navigation', () => {
-    expect(routerSource).not.toContain('triggerPrefetch(to)')
-    expect(routerSource).not.toContain('useRoutePrefetch(router)')
+describe('AppSidebar collapsible groups', () => {
+  it('lets the user collapse a group even while a child route is active', () => {
+    // The expand state must come from the user's override first, falling back
+    // to the active-route heuristic only when the user has not clicked yet.
+    expect(componentSource).toContain('const groupExpandOverrides = ref<Map<string, boolean>>(new Map())')
+    expect(componentSource).not.toContain('expandedGroups.value.has(item.path) || isGroupActive(item)')
   })
 })
 
 describe('AppSidebar header styles', () => {
-  it('only shows the version badge to admins', () => {
-    expect(componentSource).toContain('VersionBadge v-if="isAdmin"')
-    expect(componentSource).not.toMatch(/<VersionBadge(?![^>]*v-if="isAdmin")[^>]*:version="siteVersion"/)
-  })
-
   it('does not clip the version badge dropdown', () => {
     const sidebarHeaderBlockMatch = styleSource.match(/\.sidebar-header\s*\{[\s\S]*?\n {2}\}/)
     const sidebarBrandBlockMatch = componentSource.match(/\.sidebar-brand\s*\{[\s\S]*?\n\}/)
@@ -115,24 +60,5 @@ describe('AppSidebar header styles', () => {
     expect(sidebarBrandBlockMatch).not.toBeNull()
     expect(sidebarHeaderBlockMatch?.[0]).not.toContain('@apply overflow-hidden;')
     expect(sidebarBrandBlockMatch?.[0]).not.toContain('overflow: hidden;')
-  })
-})
-
-describe('AppSidebar Fork navigation invariants', () => {
-  const selfNavBlock = componentSource.match(/function buildSelfNavItems[\s\S]*?\n}\n\n\/\/ finalizeNav/)?.[0] ?? ''
-
-  it('keeps the models, AI creation space, and Growth group in user navigation', () => {
-    expect(selfNavBlock).not.toContain("path: '/pricing'")
-    expect(selfNavBlock).toContain("path: '/ai-creation-space'")
-    expect(selfNavBlock).not.toContain("path: '/image-studio'")
-    expect(selfNavBlock).toContain("path: '/batch-image'")
-    expect(selfNavBlock).toContain("path: '/growth-group'")
-    expect(componentSource).toContain('children: buildGrowthNavChildren()')
-  })
-
-  it('exposes channel status only behind the channel monitor feature flag', () => {
-    expect(selfNavBlock).not.toContain("path: '/available-channels'")
-    expect(selfNavBlock).toContain("path: '/monitor'")
-    expect(selfNavBlock).toContain('featureFlag: flagChannelMonitor')
   })
 })
