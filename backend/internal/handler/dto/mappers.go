@@ -68,6 +68,10 @@ func UserFromServiceAdmin(u *service.User) *AdminUser {
 	if base == nil {
 		return nil
 	}
+	base.MembershipPaidAmount = u.MembershipPaidAmount
+	base.VIPTier = u.VIPTier
+	base.VIPLabel = u.VIPLabel
+	base.MembershipDataState = u.MembershipDataState
 	return &AdminUser{
 		User:                 *base,
 		Notes:                u.Notes,

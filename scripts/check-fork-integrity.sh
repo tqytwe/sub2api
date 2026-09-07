@@ -395,6 +395,10 @@ check_file "FORK-MEMBERSHIP-016" "membership reconciliation" "backend/internal/s
 check_contains "FORK-MEMBERSHIP-016" "membership overview route" "backend/internal/server/routes/admin.go" 'play.GET("/membership/overview"'
 check_contains "FORK-MEMBERSHIP-016" "VIP publish remains step-up guarded" "backend/internal/server/routes/admin.go" 'play.PUT("/membership/vip-config", gin.HandlerFunc(stepUpAuth)'
 check_file "FORK-MEMBERSHIP-016" "membership qualification migration" "backend/migrations/251_vip_membership_qualification_review.sql"
+check_contains "FORK-MEMBERSHIP-016" "admin user DTO maps membership amount" "backend/internal/handler/dto/mappers.go" "base.MembershipPaidAmount = u.MembershipPaidAmount"
+check_contains "FORK-MEMBERSHIP-016" "admin user DTO maps VIP tier" "backend/internal/handler/dto/mappers.go" "base.VIPTier = u.VIPTier"
+check_contains "FORK-MEMBERSHIP-016" "admin user DTO maps VIP label" "backend/internal/handler/dto/mappers.go" "base.VIPLabel = u.VIPLabel"
+check_contains "FORK-MEMBERSHIP-016" "admin user DTO maps membership data state" "backend/internal/handler/dto/mappers.go" "base.MembershipDataState = u.MembershipDataState"
 
 check_contains "FORK-MOBILE-017" "mobile login rate-limited route" "backend/internal/server/routes/auth.go" 'auth.POST("/mobile/login"'
 check_contains "FORK-MOBILE-017" "NextChat mobile bootstrap route" "backend/internal/server/routes/nextchat.go" 'authenticated.GET("/mobile/bootstrap"'
@@ -436,7 +440,7 @@ run_check "FORK-BILLING-010" "withdrawable ledger and recompute tests" \
 run_check "FORK-REWARDS-015" "coupon payment lifecycle and daily card quota tests" \
   bash -c "cd '$ROOT/backend' && go test -count=1 ./internal/service ./internal/repository -run '^(TestUserSubscription.*DailyCard|TestCheckAndResetWindows_DailyCard.*|TestValidateAndCheckLimits_DailyCard.*|TestCreateOrderInTx.*Coupon|TestPaidCouponOrder.*|TestCouponOrderRefund.*|TestCouponReward.*)'"
 run_check "FORK-MEMBERSHIP-016" "membership qualification and VIP tests" \
-  bash -c "cd '$ROOT/backend' && go test -count=1 ./internal/service ./internal/repository -run '^(TestMembership|TestPaymentOrderMembership|TestBuildPaymentRechargeQuote|Test(Get|Parse|Validate).*VIP)'"
+  bash -c "cd '$ROOT/backend' && go test -count=1 ./internal/service ./internal/repository ./internal/handler/dto -run '^(TestMembership|TestPaymentOrderMembership|TestBuildPaymentRechargeQuote|Test(Get|Parse|Validate).*VIP|TestUserFromServiceAdmin_Maps.*MembershipProjection)'"
 run_check "FORK-MOBILE-017" "mobile protocol, attribution and feedback tests" \
   bash -c "cd '$ROOT/backend' && go test -count=1 ./internal/server/routes ./internal/service -run '^(TestNextChatMobile|TestMobileAttribution|Test.*MobileFeedback)'"
 run_check "FORK-IMAGE-004/FORK-PRICING-005/FORK-MOBILE-017" "catalog media and mobile video capability tests" \
