@@ -613,6 +613,63 @@
           />
           <p class="input-hint">{{ t("admin.groups.rateMultiplierHint") }}</p>
         </div>
+        <div class="md:col-span-2">
+          <div
+            class="grid gap-3 rounded-lg border border-gray-200 p-3 dark:border-dark-600 md:grid-cols-4"
+            data-testid="create-group-surcharge-panel"
+          >
+            <label class="flex min-h-10 items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+              <input
+                v-model="createForm.billing_surcharge_override_enabled"
+                type="checkbox"
+                class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                data-testid="create-group-surcharge-override"
+              />
+              {{ t("admin.groups.surcharge.override") }}
+            </label>
+            <label class="flex min-h-10 items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+              <input
+                v-model="createForm.billing_surcharge_enabled"
+                type="checkbox"
+                class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                :disabled="!createForm.billing_surcharge_override_enabled"
+                data-testid="create-group-surcharge-enabled"
+              />
+              {{ t("admin.groups.surcharge.enabled") }}
+            </label>
+            <div>
+              <label class="input-label">{{ t("admin.groups.surcharge.modeLabel") }}</label>
+              <select
+                v-model="createForm.billing_surcharge_mode"
+                class="input"
+                :disabled="!createForm.billing_surcharge_override_enabled"
+                data-testid="create-group-surcharge-mode"
+              >
+                <option value="none">{{ t("admin.groups.surcharge.modeNone") }}</option>
+                <option value="percent_on_charged_cost">
+                  {{ t("admin.groups.surcharge.modePercent") }}
+                </option>
+                <option value="additive_multiplier">
+                  {{ t("admin.groups.surcharge.modeAdditive") }}
+                </option>
+              </select>
+            </div>
+            <div>
+              <label class="input-label">{{ t("admin.groups.surcharge.valueLabel") }}</label>
+              <input
+                v-model.number="createForm.billing_surcharge_value"
+                type="number"
+                min="0"
+                step="0.0001"
+                class="input"
+                :disabled="!createForm.billing_surcharge_override_enabled"
+                :placeholder="t('admin.groups.surcharge.valuePlaceholder')"
+                data-testid="create-group-surcharge-value"
+              />
+            </div>
+          </div>
+          <p class="input-hint">{{ t("admin.groups.surcharge.hint") }}</p>
+        </div>
         <div>
           <label class="input-label">{{ t("admin.groups.form.rpmLimit") }}</label>
           <input
@@ -2411,6 +2468,63 @@
             class="input"
             data-tour="group-form-multiplier"
           />
+        </div>
+        <div class="md:col-span-2">
+          <div
+            class="grid gap-3 rounded-lg border border-gray-200 p-3 dark:border-dark-600 md:grid-cols-4"
+            data-testid="edit-group-surcharge-panel"
+          >
+            <label class="flex min-h-10 items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+              <input
+                v-model="editForm.billing_surcharge_override_enabled"
+                type="checkbox"
+                class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                data-testid="edit-group-surcharge-override"
+              />
+              {{ t("admin.groups.surcharge.override") }}
+            </label>
+            <label class="flex min-h-10 items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+              <input
+                v-model="editForm.billing_surcharge_enabled"
+                type="checkbox"
+                class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                :disabled="!editForm.billing_surcharge_override_enabled"
+                data-testid="edit-group-surcharge-enabled"
+              />
+              {{ t("admin.groups.surcharge.enabled") }}
+            </label>
+            <div>
+              <label class="input-label">{{ t("admin.groups.surcharge.modeLabel") }}</label>
+              <select
+                v-model="editForm.billing_surcharge_mode"
+                class="input"
+                :disabled="!editForm.billing_surcharge_override_enabled"
+                data-testid="edit-group-surcharge-mode"
+              >
+                <option value="none">{{ t("admin.groups.surcharge.modeNone") }}</option>
+                <option value="percent_on_charged_cost">
+                  {{ t("admin.groups.surcharge.modePercent") }}
+                </option>
+                <option value="additive_multiplier">
+                  {{ t("admin.groups.surcharge.modeAdditive") }}
+                </option>
+              </select>
+            </div>
+            <div>
+              <label class="input-label">{{ t("admin.groups.surcharge.valueLabel") }}</label>
+              <input
+                v-model.number="editForm.billing_surcharge_value"
+                type="number"
+                min="0"
+                step="0.0001"
+                class="input"
+                :disabled="!editForm.billing_surcharge_override_enabled"
+                :placeholder="t('admin.groups.surcharge.valuePlaceholder')"
+                data-testid="edit-group-surcharge-value"
+              />
+            </div>
+          </div>
+          <p class="input-hint">{{ t("admin.groups.surcharge.hint") }}</p>
         </div>
         <div>
           <label class="input-label">{{ t("admin.groups.form.rpmLimit") }}</label>
@@ -4572,6 +4686,7 @@ import { useOnboardingStore } from "@/stores/onboarding";
 import { adminAPI } from "@/api/admin";
 import type {
   AdminGroup,
+  BillingSurchargeMode,
   CodexModelsManifestConfig,
   CompositeModelRoute,
   CompositeModelRouteInput,
@@ -5215,6 +5330,10 @@ const createForm = reactive({
   description: "",
   platform: "anthropic" as GroupPlatform,
   rate_multiplier: 1.0,
+  billing_surcharge_override_enabled: false,
+  billing_surcharge_enabled: false,
+  billing_surcharge_mode: "none" as BillingSurchargeMode,
+  billing_surcharge_value: 0,
   is_exclusive: false,
   subscription_type: "standard" as SubscriptionType,
   daily_limit_usd: null as number | null,
@@ -5578,6 +5697,10 @@ const editForm = reactive({
   description: "",
   platform: "anthropic" as GroupPlatform,
   rate_multiplier: 1.0,
+  billing_surcharge_override_enabled: false,
+  billing_surcharge_enabled: false,
+  billing_surcharge_mode: "none" as BillingSurchargeMode,
+  billing_surcharge_value: 0,
   is_exclusive: false,
   status: "active" as "active" | "inactive",
   subscription_type: "standard" as SubscriptionType,
@@ -6041,6 +6164,10 @@ const closeCreateModal = () => {
   createForm.description = "";
   createForm.platform = "anthropic";
   createForm.rate_multiplier = 1.0;
+  createForm.billing_surcharge_override_enabled = false;
+  createForm.billing_surcharge_enabled = false;
+  createForm.billing_surcharge_mode = "none";
+  createForm.billing_surcharge_value = 0;
   createForm.is_exclusive = false;
   createForm.subscription_type = "standard";
   createForm.daily_limit_usd = null;
@@ -6123,6 +6250,16 @@ const normalizeRateMultiplier = (
   }
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : 1;
+};
+
+const normalizeSurchargeValue = (
+  value: number | string | null | undefined,
+): number => {
+  if (value === null || value === undefined || value === "") {
+    return 0;
+  }
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
 };
 
 // 利润控制表单辅助（换算与校验逻辑见 groupsProfitControl.ts，便于单测）。
@@ -6228,6 +6365,9 @@ const handleCreateGroup = async () => {
     requestData.daily_limit_usd = emptyToNull(requestData.daily_limit_usd);
     requestData.weekly_limit_usd = emptyToNull(requestData.weekly_limit_usd);
     requestData.monthly_limit_usd = emptyToNull(requestData.monthly_limit_usd);
+    requestData.billing_surcharge_value = normalizeSurchargeValue(
+      requestData.billing_surcharge_value,
+    );
     requestData.image_rate_multiplier = normalizeRateMultiplier(
       requestData.image_rate_multiplier,
     );
@@ -6295,6 +6435,11 @@ const handleEdit = async (group: AdminGroup) => {
   editForm.description = group.description || "";
   editForm.platform = group.platform;
   editForm.rate_multiplier = group.rate_multiplier;
+  editForm.billing_surcharge_override_enabled =
+    group.billing_surcharge_override_enabled ?? false;
+  editForm.billing_surcharge_enabled = group.billing_surcharge_enabled ?? false;
+  editForm.billing_surcharge_mode = group.billing_surcharge_mode ?? "none";
+  editForm.billing_surcharge_value = group.billing_surcharge_value ?? 0;
   editForm.is_exclusive = group.is_exclusive;
   editForm.status = group.status;
   editForm.subscription_type = group.subscription_type || "standard";
@@ -6561,6 +6706,9 @@ const handleUpdateGroup = async () => {
     payload.daily_limit_usd = emptyToNull(payload.daily_limit_usd);
     payload.weekly_limit_usd = emptyToNull(payload.weekly_limit_usd);
     payload.monthly_limit_usd = emptyToNull(payload.monthly_limit_usd);
+    payload.billing_surcharge_value = normalizeSurchargeValue(
+      payload.billing_surcharge_value,
+    );
     payload.image_rate_multiplier = normalizeRateMultiplier(
       payload.image_rate_multiplier,
     );

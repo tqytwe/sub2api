@@ -711,11 +711,13 @@ export default {
       surcharge: {
         override: 'Override global fee',
         enabled: 'Collect fee',
+        modeLabel: 'Fee mode',
+        valueLabel: 'Fee value',
         modeNone: 'No fee',
         modePercent: 'Percent of charged cost',
         modeAdditive: 'Add multiplier points',
         valuePlaceholder: '0.003 / 0.05',
-        hint: '3‰ = 0.003, 万三 = 0.0003, +0.05 multiplier = 0.05',
+        hint: '3‰ = 0.003, 0.03% = 0.0003, +0.05 multiplier = 0.05',
       },
     },
     redeem: {

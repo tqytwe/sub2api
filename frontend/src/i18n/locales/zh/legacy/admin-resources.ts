@@ -711,11 +711,13 @@ export default {
       surcharge: {
         override: '覆盖全局手续费',
         enabled: '收取手续费',
+        modeLabel: '手续费模式',
+        valueLabel: '手续费数值',
         modeNone: '不加收',
         modePercent: '按原扣费比例',
         modeAdditive: '倍率加点',
         valuePlaceholder: '0.003 / 0.05',
-        hint: '3‰ 填 0.003，万三填 0.0003；倍率 +0.05 填 0.05',
+        hint: '3‰ 填 0.003，0.03% 填 0.0003；倍率 +0.05 填 0.05',
       },
     },
     redeem: {
