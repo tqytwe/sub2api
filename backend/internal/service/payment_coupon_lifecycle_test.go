@@ -543,6 +543,69 @@ func TestLateCancelledAndExpiredCouponOrdersAfterGraceDoNotConsumeCoupon(t *test
 	require.Empty(t, stub.consumeIDs)
 }
 
+func TestLateTerminalOrdersWithoutCouponCanRecoverAfterGrace(t *testing.T) {
+	ctx := context.Background()
+	client := newPaymentOrderLifecycleTestClient(t)
+	stub := &paymentCouponLifecycleStub{}
+	svc := &PaymentService{entClient: client, couponService: stub}
+
+	outsideGrace := time.Now().UTC().Add(-(paymentGraceMinutes + 1) * time.Minute)
+	for index, status := range []string{OrderStatusCancelled, OrderStatusExpired, OrderStatusFailed} {
+		order := createCouponLifecycleOrder(t, client, int64(41+index), status, outsideGrace)
+		order, err := client.PaymentOrder.UpdateOneID(order.ID).
+			ClearCouponID().
+			ClearCouponTemplateID().
+			SetUpdatedAt(outsideGrace).
+			Save(ctx)
+		require.NoError(t, err)
+		require.Nil(t, order.CouponID)
+
+		updated, err := svc.markOrderPaidAndConsumeCoupon(ctx, order, "verified-late-"+status, order.PayAmount, true)
+		require.NoError(t, err)
+		require.True(t, updated, status)
+
+		updated, err = svc.markOrderPaidAndConsumeCoupon(ctx, order, "verified-late-"+status, order.PayAmount, true)
+		require.NoError(t, err)
+		require.False(t, updated, "a duplicate callback must not repeat the paid transition")
+
+		reloaded, err := client.PaymentOrder.Get(ctx, order.ID)
+		require.NoError(t, err)
+		require.Equal(t, OrderStatusPaid, reloaded.Status)
+		require.NotNil(t, reloaded.PaidAt)
+	}
+	require.Empty(t, stub.consumeIDs)
+}
+
+func TestLateTerminalOrdersWithoutCouponCannotRecoverWhenAlreadyPaid(t *testing.T) {
+	ctx := context.Background()
+	client := newPaymentOrderLifecycleTestClient(t)
+	stub := &paymentCouponLifecycleStub{}
+	svc := &PaymentService{entClient: client, couponService: stub}
+
+	outsideGrace := time.Now().UTC().Add(-(paymentGraceMinutes + 1) * time.Minute)
+	for index, status := range []string{OrderStatusCancelled, OrderStatusExpired, OrderStatusFailed} {
+		order := createCouponLifecycleOrder(t, client, int64(41+index), status, outsideGrace)
+		order, err := client.PaymentOrder.UpdateOneID(order.ID).
+			ClearCouponID().
+			ClearCouponTemplateID().
+			SetPaidAt(outsideGrace).
+			SetUpdatedAt(outsideGrace).
+			Save(ctx)
+		require.NoError(t, err)
+		require.NotNil(t, order.PaidAt)
+
+		updated, err := svc.markOrderPaidAndConsumeCoupon(ctx, order, "duplicate-paid-"+status, order.PayAmount, true)
+		require.NoError(t, err)
+		require.False(t, updated, status)
+
+		reloaded, err := client.PaymentOrder.Get(ctx, order.ID)
+		require.NoError(t, err)
+		require.Equal(t, status, reloaded.Status)
+		require.NotNil(t, reloaded.PaidAt)
+	}
+	require.Empty(t, stub.consumeIDs)
+}
+
 func TestReleaseCouponLocksSkipsFailedOrderThatWasAlreadyPaid(t *testing.T) {
 	ctx := context.Background()
 	client := newPaymentOrderLifecycleTestClient(t)
