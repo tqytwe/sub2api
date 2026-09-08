@@ -395,15 +395,14 @@ func mobileVideoAdapterMatchesGroup(adapterPlatform, groupPlatform string) bool 
 	return groupPlatform == PlatformComposite || groupPlatform == adapterPlatform
 }
 
-// mobileVideoModelAllowedByGroup mirrors the workspace visibility rule.  A
-// mobile video bootstrap is an authorization response, so a group-level
-// models_list restriction must be honored before a catalog row can become a
-// candidate or a diagnostic entry.
+// mobileVideoModelAllowedByGroup mirrors the gateway visibility rule. A mobile
+// video bootstrap is an authorization response, so the shared group allowlist
+// must be honored before a catalog row becomes a candidate or diagnostic entry.
 func mobileVideoModelAllowedByGroup(group Group, model string) bool {
-	if !group.ModelsListConfig.Enabled {
+	if !group.ModelAllowlistEnabled() {
 		return true
 	}
-	return nextChatWorkspaceModelAllowedByPatterns(group.ModelsListConfig.Models, strings.TrimSpace(model))
+	return group.ModelAllowlist.Allows(strings.TrimSpace(model))
 }
 
 func mobileVideoMappedOnAnyPlatform(mapped map[string]map[string]string, key string) bool {

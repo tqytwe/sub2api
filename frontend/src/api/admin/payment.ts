@@ -143,6 +143,11 @@ export const adminPaymentAPI = {
     return apiClient.post(`/admin/payment/orders/${id}/retry`)
   },
 
+  /** Confirm an externally verified payment for a recoverable unpaid order. */
+  manualConfirm(id: number, data: { gateway_transaction_reference: string }) {
+    return apiClient.post<{ fulfillment_pending: boolean }>(`/admin/payment/orders/${id}/manual-confirm`, data)
+  },
+
   /** Process a refund */
   refundOrder(id: number, data: { amount: number; reason: string; deduct_balance?: boolean; force?: boolean }) {
     return apiClient.post<RefundResult>(`/admin/payment/orders/${id}/refund`, data)

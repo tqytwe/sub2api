@@ -164,7 +164,9 @@ export default {
         grokOauth: 'Grok OAuth',
         antigravityApikey: 'Connect via Base URL + API Key',
         upstream: 'Upstream',
-        upstreamDesc: 'Connect via Base URL + API Key'
+        upstreamDesc: 'Connect via Base URL + API Key',
+        api_key: 'API Key',
+        cookie: 'Cookie',
       },
       antigravityProjectIdLabel: 'GCP Project ID (optional)',
       antigravityProjectIdPlaceholder: 'your-gcp-project-id',
@@ -751,6 +753,8 @@ export default {
       modelRestriction: 'Model Restriction (Optional)',
       modelWhitelist: 'Model Whitelist',
       modelMapping: 'Model Mapping',
+      fromModel: 'Request model',
+      toModel: 'Target model',
       selectAllowedModels: 'Select allowed models. Leave empty to support all models.',
       mapRequestModels:
         'Map request models to actual models. Left is the requested model, right is the actual model sent to API.',
@@ -1593,7 +1597,46 @@ export default {
       linkCopied: 'Link Copied',
       needsReauth: 'Re-auth Required',
       rateLimited: 'Rate Limited',
-      usageError: 'Fetch Error'
+      usageError: 'Fetch Error',
+
+      // Legacy account-list compatibility keys. These remain in the final
+      // locale shape while the screen migrates to the split account bundle.
+      deleteConfirmMessage: 'Delete account "{name}"?',
+      refreshCookie: 'Refresh Cookie',
+      testAccount: 'Test Account',
+      form: {
+        nameLabel: 'Account Name',
+        namePlaceholder: 'Enter account name',
+        platformLabel: 'Platform',
+        selectPlatform: 'Select platform',
+        typeLabel: 'Account Type',
+        selectType: 'Select account type',
+        credentialsLabel: 'Credentials',
+        credentialsPlaceholder: 'Enter credentials',
+        priorityLabel: 'Priority',
+        priorityHint: 'Higher values are scheduled first',
+        weightLabel: 'Weight',
+        weightHint: 'Load-balancing weight',
+        statusLabel: 'Status',
+      },
+      filters: {
+        platform: 'Platform',
+        allPlatforms: 'All Platforms',
+        type: 'Type',
+        allTypes: 'All Types',
+        status: 'Status',
+        allStatuses: 'All Statuses',
+      },
+      saving: 'Saving...',
+      refreshing: 'Refreshing...',
+      noAccounts: 'No accounts',
+      noAccountsDescription: 'Add an AI platform account to start using the API gateway.',
+      accountCreatedSuccess: 'Account created successfully',
+      accountUpdatedSuccess: 'Account updated successfully',
+      accountDeletedSuccess: 'Account deleted successfully',
+      cookieRefreshedSuccess: 'Cookie refreshed successfully',
+      testSuccess: 'Account test succeeded',
+      failedToSave: 'Failed to save account',
     },
 
     // Scheduled Tests

@@ -209,7 +209,7 @@ export const ROUTE_LOCALE_SCOPES = {
   AdminChannelMonitor: [...ADMIN, 'admin-channels', 'channel-monitor', 'admin-settings', 'user-dashboard'],
   AdminModelPlaza: [...ADMIN, 'user-dashboard', 'admin-channels', 'admin-overview'],
   ChannelStatus: [...WORKSPACE, 'user-dashboard', 'channel-monitor'],
-  AdminSubscriptions: [...ADMIN, 'admin-resources'],
+  AdminSubscriptions: [...ADMIN, 'admin-channels', 'admin-resources'],
   AdminAccounts: [...ADMIN, 'admin-accounts', 'admin-settings', 'admin-overview'],
   AdminPlugins: [...ADMIN, 'admin-settings', 'admin-plugins'],
   AdminAnnouncements: [...ADMIN, 'admin-resources'],

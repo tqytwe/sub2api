@@ -289,13 +289,11 @@ func probeContextTier(seg contextSegment, resolved *ResolvedPricing, probe func(
 	if err != nil {
 		return tier, err
 	}
-	tier.CacheWrite1h, err = probeComponentPrice(func(n int) UsageTokens {
-		return UsageTokens{CacheCreationTokens: n, CacheCreation1hTokens: n}
-	}, c, delta, probe)
+	// 输出价只随上下文所在档变化：固定上下文 c，对输出 token 数做差商（固定部分相减抵消）。
+	tier.CacheWrite1h, err = probeComponentPrice(func(n int) UsageTokens { return UsageTokens{CacheCreationTokens: n, CacheCreation1hTokens: n} }, c, delta, probe)
 	if err != nil {
 		return tier, err
 	}
-	// 输出价只随上下文所在档变化：固定上下文 c，对输出 token 数做差商（固定部分相减抵消）。
 	tier.Output, err = probeComponentPrice(func(n int) UsageTokens { return UsageTokens{InputTokens: c, OutputTokens: n} }, 0, contextProbeDelta, probe)
 	if err != nil {
 		return tier, err
@@ -363,13 +361,13 @@ func explicitContextPricingFields(resolved *ResolvedPricing, contextTokens int) 
 	out.input = cp.InputPrice != nil
 	out.output = cp.OutputPrice != nil
 	out.cacheWrite = cp.CacheWritePrice != nil
-	out.cacheWrite1h = cp.CacheWrite1hPrice != nil
+	out.cacheWrite1h = cp.CacheWrite1hPrice != nil || cp.CacheWritePrice != nil
 	out.cacheRead = cp.CacheReadPrice != nil
 	if iv := FindMatchingInterval(resolved.Intervals, contextTokens); iv != nil {
 		out.input = out.input || iv.InputPrice != nil
 		out.output = out.output || iv.OutputPrice != nil
 		out.cacheWrite = out.cacheWrite || iv.CacheWritePrice != nil
-		out.cacheWrite1h = out.cacheWrite1h || iv.CacheWrite1hPrice != nil
+		out.cacheWrite1h = out.cacheWrite1h || iv.CacheWrite1hPrice != nil || iv.CacheWritePrice != nil
 		out.cacheRead = out.cacheRead || iv.CacheReadPrice != nil
 	}
 	return out
@@ -403,8 +401,7 @@ func mergeEqualContextTiers(tiers []ContextPricingTier) []ContextPricingTier {
 
 func sameContextPrices(a, b ContextPricingTier) bool {
 	return samePricePtr(a.Input, b.Input) && samePricePtr(a.Output, b.Output) &&
-		samePricePtr(a.CacheWrite, b.CacheWrite) && samePricePtr(a.CacheWrite1h, b.CacheWrite1h) &&
-		samePricePtr(a.CacheRead, b.CacheRead)
+		samePricePtr(a.CacheWrite, b.CacheWrite) && samePricePtr(a.CacheWrite1h, b.CacheWrite1h) && samePricePtr(a.CacheRead, b.CacheRead)
 }
 
 func samePricePtr(a, b *float64) bool {

@@ -8,6 +8,7 @@ import zh from '@/i18n/locales/zh.ts'
 import GroupsView from '@/views/admin/GroupsView.vue'
 
 const {
+  authState,
   listGroups,
   createGroup,
   updateGroup,
@@ -18,6 +19,7 @@ const {
   showSuccess,
   showError,
 } = vi.hoisted(() => ({
+  authState: { isSimpleMode: false },
   listGroups: vi.fn(),
   createGroup: vi.fn(),
   updateGroup: vi.fn(),
@@ -53,6 +55,10 @@ vi.mock('@/api/admin', () => ({
 
 vi.mock('@/stores/app', () => ({
   useAppStore: () => ({ showSuccess, showError }),
+}))
+
+vi.mock('@/stores/auth', () => ({
+  useAuthStore: () => authState,
 }))
 
 vi.mock('@/stores/onboarding', () => ({
@@ -194,6 +200,7 @@ function findButton(wrapper: ReturnType<typeof mount>, label: string) {
 describe('GroupsView group surcharge controls', () => {
   beforeEach(() => {
     localStorage.clear()
+    authState.isSimpleMode = false
     vi.spyOn(console, 'error').mockImplementation(() => {})
     for (const fn of [
       listGroups,

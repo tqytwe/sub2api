@@ -244,6 +244,7 @@ func ProvideAccountTestService(
 		tlsFPProfileService,
 	)
 	service.agentIdentityWS = openAIGatewayService
+	service.SetOpenAIGatewayService(openAIGatewayService)
 	service.SetSettingService(settingService)
 	service.SetPluginManager(pluginManager)
 	return service
@@ -1047,6 +1048,7 @@ var ProviderSet = wire.NewSet(
 	NewGatewayService,
 	wire.Bind(new(ImageStudioModelResolver), new(*GatewayService)),
 	wire.Bind(new(NextChatAvailableModelResolver), new(*GatewayService)),
+	wire.Bind(new(ChannelCacheInvalidator), new(*ChannelService)),
 	NewOpenAIGatewayServiceWithLiveBilling,
 	ProvideImageStorageSettingService,
 	ProvideAnnouncementAssetService,

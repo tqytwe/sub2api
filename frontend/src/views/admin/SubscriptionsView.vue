@@ -190,12 +190,15 @@
                   }}
                 </span>
               </div>
-              <span class="font-medium text-gray-900 dark:text-white">
+              <RouterLink
+                :to="{ path: '/admin/usage', query: { user_id: row.user_id } }"
+                class="rounded font-medium text-gray-900 hover:text-primary-600 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 dark:text-white dark:hover:text-primary-400 dark:focus-visible:ring-offset-dark-800"
+              >
                 {{ userColumnMode === 'email'
                   ? (row.user?.email || t('common.userId', { id: row.user_id }))
-                  : (row.user?.username || '-')
+                  : (row.user?.username || t('common.userId', { id: row.user_id }))
                 }}
-              </span>
+              </RouterLink>
             </div>
           </template>
 
@@ -219,7 +222,7 @@
                     <span class="usage-label">{{ packageQuotaLabel(quota.dimension) }}</span>
                     <div class="h-1.5 flex-1 rounded-full bg-gray-200 dark:bg-dark-600">
                       <div
-                        class="h-1.5 rounded-full transition-[width,background-color]"
+                        class="h-1.5 rounded-full transition-[width]"
                         :class="getProgressClass(quota.used, quota.limit)"
                         :style="{ width: getProgressWidth(quota.used, quota.limit) }"
                       ></div>
@@ -240,7 +243,7 @@
                   <span class="usage-label">{{ t('admin.subscriptions.daily') }}</span>
                   <div class="h-1.5 flex-1 rounded-full bg-gray-200 dark:bg-dark-600">
                     <div
-                      class="h-1.5 rounded-full transition-[width,background-color]"
+                      class="h-1.5 rounded-full transition-[width]"
                       :class="getProgressClass(row.daily_usage_usd, row.group?.daily_limit_usd)"
                       :style="{
                         width: getProgressWidth(row.daily_usage_usd, row.group?.daily_limit_usd)
@@ -375,9 +378,14 @@
               >
                 {{ formatDateTimeToMinute(value) }}
               </span>
-              <div v-if="getDaysRemaining(value) !== null" class="text-xs text-gray-500">
-                {{ getDaysRemaining(value) }} {{ t('admin.subscriptions.daysRemaining') }}
-              </div>
+              <template
+                v-for="remainingExpiry in [formatRemainingExpiry(value)]"
+                :key="remainingExpiry ?? 'expired'"
+              >
+                <div v-if="remainingExpiry" class="text-xs text-gray-500">
+                  {{ remainingExpiry }}
+                </div>
+              </template>
             </div>
             <span v-else class="text-sm text-gray-500">{{
               t('admin.subscriptions.noExpiration')
@@ -799,8 +807,13 @@ import Select from '@/components/common/Select.vue'
 import GroupBadge from '@/components/common/GroupBadge.vue'
 import GroupOptionItem from '@/components/common/GroupOptionItem.vue'
 import Icon from '@/components/icons/Icon.vue'
+import {
+  getRemainingDurationParts,
+  getRemainingExpiryDuration,
+  isOneTimeDailyQuota,
+  type RemainingDurationParts
+} from '@/utils/subscriptionQuota'
 import { GROUP_PLATFORM_OPTIONS } from '@/constants/platforms'
-import { getRemainingDurationParts, isOneTimeDailyQuota, type RemainingDurationParts } from '@/utils/subscriptionQuota'
 import { packageQuotaRows, type PackageQuotaDimension } from '@/utils/packageQuota'
 import { localizedEnumOrUnknown } from '@/utils/localizedEnum'
 
@@ -1368,6 +1381,21 @@ const getDaysRemaining = (expiresAt: string): number | null => {
   const diff = expires.getTime() - now.getTime()
   if (diff < 0) return null
   return Math.ceil(diff / (1000 * 60 * 60 * 24))
+}
+
+const formatRemainingExpiry = (expiresAt: string): string | null => {
+  const duration = getRemainingExpiryDuration(expiresAt)
+  if (!duration) return null
+  if (duration.unit === 'days') {
+    return t('admin.subscriptions.daysRemaining', { days: duration.days })
+  }
+  if (duration.hours) {
+    return t('admin.subscriptions.hoursMinutesRemaining', {
+      hours: duration.hours,
+      minutes: duration.minutes
+    })
+  }
+  return t('admin.subscriptions.minutesRemaining', { minutes: duration.minutes })
 }
 
 const isExpiringSoon = (expiresAt: string): boolean => {

@@ -1071,51 +1071,10 @@ func (s *ModelCatalogService) nextChatExecutableVideoModels(
 }
 
 func filterNextChatWorkspaceModelsForGroup(group Group, availableModels []string) []string {
-	if !group.ModelsListConfig.Enabled {
+	if !group.ModelAllowlistEnabled() {
 		return availableModels
 	}
-	if len(availableModels) == 0 {
-		return nil
-	}
-	allowed := make([]string, 0, len(availableModels))
-	for _, model := range availableModels {
-		model = strings.TrimSpace(model)
-		if model == "" {
-			continue
-		}
-		allowed = append(allowed, model)
-	}
-	if len(allowed) == 0 {
-		return nil
-	}
-
-	seen := make(map[string]struct{}, len(group.ModelsListConfig.Models))
-	out := make([]string, 0, len(group.ModelsListConfig.Models))
-	for _, model := range group.ModelsListConfig.Models {
-		model = strings.TrimSpace(model)
-		if model == "" || !nextChatWorkspaceModelAllowedByPatterns(allowed, model) {
-			continue
-		}
-		seenKey := strings.ToLower(model)
-		if _, ok := seen[seenKey]; ok {
-			continue
-		}
-		seen[seenKey] = struct{}{}
-		out = append(out, model)
-	}
-	return out
-}
-
-func nextChatWorkspaceModelAllowedByPatterns(availablePatterns []string, model string) bool {
-	for _, pattern := range availablePatterns {
-		if pattern == model {
-			return true
-		}
-		if strings.HasSuffix(pattern, "*") && strings.HasPrefix(model, strings.TrimSuffix(pattern, "*")) {
-			return true
-		}
-	}
-	return false
+	return group.ModelAllowlist.FilterForListing(availableModels)
 }
 
 type nextChatWorkspaceModelMetadata struct {

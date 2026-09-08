@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vue-tsc -b && vite build",
+    "check:i18n": "vitest run src/i18n/__tests__/localeKeyCompleteness.spec.ts",
+    "build": "pnpm run check:i18n && vue-tsc -b && vite build",
     "build:verified": "pnpm design:verify && pnpm build",
     "preview": "vite preview",
     "design:check": "node ../scripts/check-frontend-design-governance.mjs",

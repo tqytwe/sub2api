@@ -2,12 +2,14 @@ package admin
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
+	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 
 	"github.com/gin-gonic/gin"
@@ -161,6 +163,43 @@ func (h *PaymentHandler) RetryFulfillment(c *gin.Context) {
 		return
 	}
 	response.Success(c, gin.H{"message": "fulfillment retried"})
+}
+
+type ManualConfirmPaymentRequest struct {
+	GatewayTransactionReference string `json:"gateway_transaction_reference"`
+}
+
+// ManualConfirmPayment records administrator-verified external payment evidence
+// and reuses the normal idempotent fulfillment workflow.
+// POST /api/v1/admin/payment/orders/:id/manual-confirm
+func (h *PaymentHandler) ManualConfirmPayment(c *gin.Context) {
+	orderID, ok := parseIDParam(c, "id")
+	if !ok {
+		return
+	}
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 8<<10)
+	var req ManualConfirmPaymentRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "invalid manual payment confirmation request")
+		return
+	}
+	subject, ok := middleware.GetAuthSubjectFromContext(c)
+	if !ok || subject.UserID <= 0 {
+		response.ErrorWithDetails(c, http.StatusUnauthorized, "Authorization required", "UNAUTHORIZED", nil)
+		return
+	}
+	result, err := h.paymentService.ManualConfirmPayment(c.Request.Context(), orderID, service.ManualConfirmPaymentInput{
+		GatewayTransactionReference: req.GatewayTransactionReference,
+		Operator:                    fmt.Sprintf("admin:%d", subject.UserID),
+	})
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, gin.H{
+		"message":             "payment manually confirmed",
+		"fulfillment_pending": result.FulfillmentPending,
+	})
 }
 
 type AdminPaymentOrderResult struct {

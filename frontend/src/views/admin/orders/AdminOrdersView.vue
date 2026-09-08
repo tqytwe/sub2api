@@ -34,6 +34,10 @@
               <Icon name="refresh" size="sm" />
               {{ t('payment.admin.retry') }}
             </button>
+            <button v-if="canManualConfirm(row)" data-testid="manual-payment-confirm-action" @click="openManualConfirmDialog(row)" class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-900/20">
+              <Icon name="check" size="sm" />
+              {{ t('payment.admin.manualConfirm.action') }}
+            </button>
             <template v-if="row.status === 'REFUND_REQUESTED'">
               <span v-if="row.refund_amount" class="rounded-full bg-purple-100 px-1.5 py-0.5 text-xs font-medium text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">{{ creditedAmountSymbol }}{{ row.refund_amount.toFixed(2) }}</span>
               <button @click="openRefundDialog(row)" class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-purple-600 hover:bg-purple-50 dark:text-purple-400 dark:hover:bg-purple-900/20">
@@ -116,7 +120,34 @@
       </div>
     </BaseDialog>
 
+    <BaseDialog :show="showManualConfirmDialog" :title="t('payment.admin.manualConfirm.title')" width="normal" @close="closeManualConfirmDialog">
+      <div v-if="manualConfirmOrder" class="space-y-4">
+        <div class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-200">
+          {{ t('payment.admin.manualConfirm.warning') }}
+        </div>
+        <dl class="grid gap-3 text-sm sm:grid-cols-2">
+          <div><dt class="text-xs text-gray-500 dark:text-gray-400">{{ t('payment.orders.orderId') }}</dt><dd class="mt-1 font-mono font-medium text-gray-900 dark:text-white">#{{ manualConfirmOrder.id }}</dd></div>
+          <div><dt class="text-xs text-gray-500 dark:text-gray-400">{{ t('payment.orders.userId') }}</dt><dd class="mt-1 font-medium text-gray-900 dark:text-white">#{{ manualConfirmOrder.user_id }}</dd></div>
+          <div><dt class="text-xs text-gray-500 dark:text-gray-400">{{ t('payment.orders.payAmount') }}</dt><dd class="mt-1 font-medium tabular-nums text-gray-900 dark:text-white">{{ paymentAmountSymbol(manualConfirmOrder) }}{{ manualConfirmOrder.pay_amount.toFixed(2) }}</dd></div>
+          <div><dt class="text-xs text-gray-500 dark:text-gray-400">{{ t('payment.admin.manualConfirm.currency') }}</dt><dd class="mt-1 font-medium text-gray-900 dark:text-white">{{ paymentAmountCurrency(manualConfirmOrder) }}</dd></div>
+        </dl>
+        <div>
+          <label class="input-label" for="manual-payment-reference">{{ t('payment.admin.manualConfirm.reference') }}</label>
+          <input id="manual-payment-reference" data-testid="manual-payment-reference" v-model="manualConfirmReference" maxlength="128" autocomplete="off" class="input font-mono" :disabled="manualConfirming" :placeholder="t('payment.admin.manualConfirm.referencePlaceholder')" />
+          <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t('payment.admin.manualConfirm.referenceHint') }}</p>
+        </div>
+      </div>
+      <template #footer>
+        <button type="button" class="btn btn-secondary" :disabled="manualConfirming" @click="closeManualConfirmDialog()">{{ t('common.cancel') }}</button>
+        <button type="button" data-testid="manual-payment-confirm-submit" class="btn btn-danger inline-flex items-center gap-2" :disabled="manualConfirming || !manualConfirmReference.trim()" @click="submitManualConfirmation">
+          <Icon :name="manualConfirming ? 'refresh' : 'check'" size="sm" />
+          {{ manualConfirming ? t('common.processing') : t('payment.admin.manualConfirm.confirm') }}
+        </button>
+      </template>
+    </BaseDialog>
+
     <AdminRefundDialog :show="showRefundDialog" :order="selectedOrder" :submitting="refundSubmitting" :require-force="refundRequireForce" :warning="refundWarning" @confirm="handleRefund" @cancel="closeRefundDialog" />
+    <TotpStepUpDialog :controller="manualConfirmStepUp" />
   </AppLayout>
 </template>
 
@@ -137,6 +168,8 @@ import AdminRefundDialog from '@/components/admin/payment/AdminRefundDialog.vue'
 import OrderStatusBadge from '@/components/payment/OrderStatusBadge.vue'
 import OrderTable from '@/components/payment/OrderTable.vue'
 import { currencySymbol } from '@/components/payment/currency'
+import { isStepUpBlocked, isStepUpCancelled, stepUpBlockReason, useStepUp } from '@/composables/useStepUp'
+import TotpStepUpDialog from '@/components/auth/TotpStepUpDialog.vue'
 
 interface AuditLog {
   id: number
@@ -157,6 +190,11 @@ const orderPagination = reactive({ page: 1, page_size: 20, total: 0 })
 const selectedOrder = ref<PaymentOrder | null>(null)
 const showDetailDialog = ref(false)
 const showRefundDialog = ref(false)
+const showManualConfirmDialog = ref(false)
+const manualConfirmOrder = ref<PaymentOrder | null>(null)
+const manualConfirmReference = ref('')
+const manualConfirming = ref(false)
+const manualConfirmStepUp = useStepUp()
 const refundSubmitting = ref(false)
 const refundRequireForce = ref(false)
 const refundWarning = ref('')
@@ -165,7 +203,11 @@ const orderAuditLogs = ref<AuditLog[]>([])
 const creditedAmountSymbol = currencySymbol('USD')
 
 function paymentAmountSymbol(order: PaymentOrder | null | undefined): string {
-  return currencySymbol(order?.currency)
+  return currencySymbol(paymentAmountCurrency(order))
+}
+
+function paymentAmountCurrency(order: PaymentOrder | null | undefined): string {
+  return order?.payment_currency || order?.currency || 'CNY'
 }
 
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
@@ -240,6 +282,57 @@ async function handleCancelOrder(order: PaymentOrder) {
 async function handleRetryOrder(order: PaymentOrder) {
   try { await adminPaymentAPI.retryRecharge(order.id); appStore.showSuccess(t('payment.admin.retrySuccess')); loadOrders() }
   catch (err: unknown) { appStore.showError(extractI18nErrorMessage(err, t, 'payment.errors', t('common.error'))) }
+}
+
+function canManualConfirm(order: PaymentOrder): boolean {
+  return !order.paid_at &&
+    !order.refund_at &&
+    !order.refund_requested_at &&
+    !order.refund_amount &&
+    !order.force_refund &&
+    ['PENDING', 'FAILED', 'EXPIRED', 'CANCELLED'].includes(order.status)
+}
+
+function openManualConfirmDialog(order: PaymentOrder) {
+  manualConfirmOrder.value = order
+  manualConfirmReference.value = ''
+  showManualConfirmDialog.value = true
+}
+
+function closeManualConfirmDialog(force = false) {
+  if (manualConfirming.value && !force) return
+  showManualConfirmDialog.value = false
+  manualConfirmOrder.value = null
+  manualConfirmReference.value = ''
+}
+
+async function submitManualConfirmation() {
+  const order = manualConfirmOrder.value
+  const reference = manualConfirmReference.value.trim()
+  if (!order || !reference || manualConfirming.value) return
+  manualConfirming.value = true
+  try {
+    const response = await manualConfirmStepUp.run(
+      () => adminPaymentAPI.manualConfirm(order.id, { gateway_transaction_reference: reference }),
+      { promptBeforeAction: true },
+    )
+    appStore.showSuccess(response.data.fulfillment_pending
+      ? t('payment.admin.manualConfirm.pending')
+      : t('payment.admin.manualConfirm.success'))
+    closeManualConfirmDialog(true)
+    await loadOrders()
+  } catch (error: unknown) {
+    if (isStepUpCancelled(error)) return
+    if (isStepUpBlocked(error)) {
+      appStore.showError(stepUpBlockReason(error) === 'STEP_UP_ADMIN_API_KEY_FORBIDDEN'
+        ? t('stepUp.adminApiKeyForbidden')
+        : t('stepUp.notEnabled'))
+      return
+    }
+    appStore.showError(extractI18nErrorMessage(error, t, 'payment.errors', t('common.error')))
+  } finally {
+    manualConfirming.value = false
+  }
 }
 
 function openRefundDialog(order: PaymentOrder) {
