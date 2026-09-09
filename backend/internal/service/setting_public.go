@@ -642,25 +642,25 @@ type PublicSettingsInjectionPayload struct {
 	ChannelMonitorHideThroughput bool `json:"channel_monitor_hide_throughput"`
 	// ChannelMonitorShowQuota gates the user-facing quota/balance display on
 	// monitors; fail-closed (absent/false = hidden). Admin UI always shows it.
-	ChannelMonitorShowQuota    bool `json:"channel_monitor_show_quota"`
+	ChannelMonitorShowQuota       bool `json:"channel_monitor_show_quota"`
 	ChannelMonitorHideUserRanking bool `json:"channel_monitor_hide_user_ranking"`
-	AvailableChannelsEnabled   bool `json:"available_channels_enabled"`
-	MarketplaceEnabled         bool `json:"marketplace_enabled"`
-	ModelPlazaEnabled          bool `json:"model_plaza_enabled"`
-	ModelPlazaRequireAuth      bool `json:"model_plaza_require_auth"`
-	PluginManagementEnabled    bool `json:"plugin_management_enabled"`
-	AffiliateEnabled           bool `json:"affiliate_enabled"`
-	RiskControlEnabled         bool `json:"risk_control_enabled"`
-	AllowUserViewErrorRequests bool `json:"allow_user_view_error_requests"`
-	PublicModelsEnabled        bool `json:"public_models_enabled"`
-	PlayCheckinEnabled         bool `json:"play_checkin_enabled"`
-	PlayArenaEnabled           bool `json:"play_arena_enabled"`
-	PlayBlindboxEnabled        bool `json:"play_blindbox_enabled"`
-	PlayQuizEnabled            bool `json:"play_quiz_enabled"`
-	PlayAgentTeamEnabled       bool `json:"play_agent_team_enabled"`
-	ImageStudioEnabled         bool `json:"image_studio_enabled"`
-	NextChatEnabled            bool `json:"nextchat_enabled"`
-	SoraClientEnabled          bool `json:"sora_client_enabled"`
+	AvailableChannelsEnabled      bool `json:"available_channels_enabled"`
+	MarketplaceEnabled            bool `json:"marketplace_enabled"`
+	ModelPlazaEnabled             bool `json:"model_plaza_enabled"`
+	ModelPlazaRequireAuth         bool `json:"model_plaza_require_auth"`
+	PluginManagementEnabled       bool `json:"plugin_management_enabled"`
+	AffiliateEnabled              bool `json:"affiliate_enabled"`
+	RiskControlEnabled            bool `json:"risk_control_enabled"`
+	AllowUserViewErrorRequests    bool `json:"allow_user_view_error_requests"`
+	PublicModelsEnabled           bool `json:"public_models_enabled"`
+	PlayCheckinEnabled            bool `json:"play_checkin_enabled"`
+	PlayArenaEnabled              bool `json:"play_arena_enabled"`
+	PlayBlindboxEnabled           bool `json:"play_blindbox_enabled"`
+	PlayQuizEnabled               bool `json:"play_quiz_enabled"`
+	PlayAgentTeamEnabled          bool `json:"play_agent_team_enabled"`
+	ImageStudioEnabled            bool `json:"image_studio_enabled"`
+	NextChatEnabled               bool `json:"nextchat_enabled"`
+	SoraClientEnabled             bool `json:"sora_client_enabled"`
 }
 
 // GetPublicSettingsForInjection returns public settings in a format suitable for HTML injection.
@@ -737,7 +737,7 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		ChannelMonitorDefaultIntervalSeconds: settings.ChannelMonitorDefaultIntervalSeconds,
 		ChannelMonitorHideThroughput:         settings.ChannelMonitorHideThroughput,
 		ChannelMonitorShowQuota:              settings.ChannelMonitorShowQuota,
-		ChannelMonitorHideUserRanking:       settings.ChannelMonitorHideUserRanking,
+		ChannelMonitorHideUserRanking:        settings.ChannelMonitorHideUserRanking,
 		AvailableChannelsEnabled:             settings.AvailableChannelsEnabled,
 		MarketplaceEnabled:                   settings.MarketplaceEnabled,
 		ModelPlazaEnabled:                    settings.ModelPlazaEnabled,

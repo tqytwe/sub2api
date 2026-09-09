@@ -54,6 +54,7 @@ var (
 	ErrImageMultiStreamUnsupported = errors.New("streaming multiple images is not supported")
 	ErrImageResponseFormatInvalid  = errors.New("response_format must be b64_json or url")
 )
+
 // openAIImagesResponsesMainModelValue selects the Responses driver independently
 // of the image_generation tool model. An environment override lets operators
 // recover from upstream model retirement without rebuilding the gateway.
