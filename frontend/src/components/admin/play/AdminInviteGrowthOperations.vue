@@ -7,6 +7,7 @@ import TotpStepUpDialog from '@/components/auth/TotpStepUpDialog.vue'
 import adminPlayAPI, {
   type AdminInviteGrowthOverview,
   type AdminReferralCampaignDetail,
+  type AdminReferralCampaignEarlyClosePreview,
   type AdminReferralCampaignInput,
   type AdminReferralCampaignInvite,
   type AdminReferralCampaignPage,
@@ -18,7 +19,7 @@ import adminPlayAPI, {
   type AdminReferralReviewType,
 } from '@/api/admin/play'
 import { useAppStore } from '@/stores'
-import { extractApiErrorMessage } from '@/utils/apiError'
+import { extractApiErrorMessage, extractI18nErrorMessage } from '@/utils/apiError'
 import { isStepUpBlocked, isStepUpCancelled, stepUpBlockReason, useStepUp } from '@/composables/useStepUp'
 
 type DetailTab = 'participants' | 'invites' | 'rewards'
@@ -55,6 +56,10 @@ const showCampaignDialog = ref(false)
 const campaignDraft = ref<CampaignDraft>(blankCampaignDraft())
 const debtReward = ref<AdminReferralCampaignReward | null>(null)
 const debtNote = ref('')
+const earlyClosePreview = ref<AdminReferralCampaignEarlyClosePreview | null>(null)
+const earlyCloseReason = ref('')
+const earlyCloseConfirmed = ref(false)
+const earlyCloseLoading = ref(false)
 const stepUp = useStepUp()
 
 const statuses: AdminReferralCampaignStatus[] = [
@@ -93,8 +98,13 @@ const statusActions = computed<AdminReferralCampaignStatus[]>(() => {
   if (current === 'scheduled') return ['running', 'paused', 'cancelled']
   if (current === 'running') return ['paused', 'settling']
   if (current === 'paused') return ['running', 'settling', 'cancelled']
-  if (current === 'settling') return ['closed']
   return []
+})
+
+const canStartEarlyClose = computed(() => {
+  if (detail.value?.campaign.status !== 'settling') return false
+  const deadline = new Date(detail.value.campaign.claim_deadline).getTime()
+  return Number.isFinite(deadline) && deadline > Date.now()
 })
 
 const perUserLiability = computed(() => {
@@ -437,7 +447,59 @@ async function changeStatus(status: AdminReferralCampaignStatus): Promise<void> 
         : t('stepUp.notEnabled')
       return
     }
-    appStore.showError(extractApiErrorMessage(cause, t('admin.playOps.inviteGrowth.actionFailed')))
+    appStore.showError(extractI18nErrorMessage(cause, t, 'admin.playOps.inviteGrowth.errors', t('admin.playOps.inviteGrowth.actionFailed')))
+  } finally {
+    actionLoading.value = false
+  }
+}
+
+async function openEarlyClose(): Promise<void> {
+  if (!detail.value || actionLoading.value) return
+  earlyCloseLoading.value = true
+  earlyClosePreview.value = null
+  earlyCloseReason.value = ''
+  earlyCloseConfirmed.value = false
+  try {
+    earlyClosePreview.value = await adminPlayAPI.getReferralCampaignEarlyClosePreview(detail.value.campaign.id)
+    if (!earlyClosePreview.value.can_early_close) {
+      appStore.showError(t('admin.playOps.inviteGrowth.errors.REFERRAL_CAMPAIGN_INVALID_STATE'))
+      earlyClosePreview.value = null
+    }
+  } catch (cause) {
+    appStore.showError(extractI18nErrorMessage(cause, t, 'admin.playOps.inviteGrowth.errors', t('admin.playOps.inviteGrowth.actionFailed')))
+  } finally {
+    earlyCloseLoading.value = false
+  }
+}
+
+function cancelEarlyClose(): void {
+  earlyClosePreview.value = null
+  earlyCloseReason.value = ''
+  earlyCloseConfirmed.value = false
+}
+
+async function confirmEarlyClose(): Promise<void> {
+  if (!detail.value || !earlyClosePreview.value || !earlyCloseConfirmed.value || !earlyCloseReason.value.trim() || actionLoading.value) return
+  const campaign = detail.value.campaign
+  actionLoading.value = true
+  try {
+    await stepUp.run(() => adminPlayAPI.earlyCloseReferralCampaign(campaign.id, {
+      expected_version: earlyClosePreview.value!.campaign_version,
+      reason: earlyCloseReason.value.trim(),
+      confirmation: 'EARLY_CLOSE',
+    }))
+    cancelEarlyClose()
+    appStore.showSuccess(t('admin.playOps.inviteGrowth.earlyCloseCompleted'))
+    await loadCampaigns(campaigns.value.page)
+  } catch (cause) {
+    if (isStepUpCancelled(cause)) return
+    if (isStepUpBlocked(cause)) {
+      error.value = stepUpBlockReason(cause) === 'STEP_UP_ADMIN_API_KEY_FORBIDDEN'
+        ? t('stepUp.adminApiKeyForbidden')
+        : t('stepUp.notEnabled')
+      return
+    }
+    appStore.showError(extractI18nErrorMessage(cause, t, 'admin.playOps.inviteGrowth.errors', t('admin.playOps.inviteGrowth.actionFailed')))
   } finally {
     actionLoading.value = false
   }
@@ -625,7 +687,7 @@ defineExpose({ selectCampaign })
       <section class="card p-5" aria-labelledby="campaign-governance-title">
         <h3 id="campaign-governance-title" class="font-semibold text-gray-900 dark:text-white">{{ t('admin.playOps.inviteGrowth.governance') }}</h3>
         <div class="mt-4 grid gap-5 xl:grid-cols-2">
-          <div><label class="grid gap-1 text-sm"><span class="text-gray-600 dark:text-gray-300">{{ t('admin.playOps.inviteGrowth.operationNote') }}</span><input v-model="statusNote" data-testid="status-note" class="input" maxlength="500" :placeholder="t('admin.playOps.inviteGrowth.operationNotePlaceholder')" /></label><div class="mt-3 flex flex-wrap gap-2"><button v-for="status in statusActions" :key="status" type="button" class="btn" :class="status === 'cancelled' ? 'btn-danger' : 'btn-secondary'" :data-testid="`status-${status}`" :disabled="actionLoading" @click="changeStatus(status)">{{ t('admin.playOps.inviteGrowth.moveTo', { status: localizedLabel('admin.playOps.inviteGrowth.statuses', status) }) }}</button><span v-if="!statusActions.length" class="text-sm text-gray-500">{{ t('admin.playOps.inviteGrowth.noStatusActions') }}</span></div></div>
+          <div><label class="grid gap-1 text-sm"><span class="text-gray-600 dark:text-gray-300">{{ t('admin.playOps.inviteGrowth.operationNote') }}</span><input v-model="statusNote" data-testid="status-note" class="input" maxlength="500" :placeholder="t('admin.playOps.inviteGrowth.operationNotePlaceholder')" /></label><div class="mt-3 flex flex-wrap gap-2"><button v-for="status in statusActions" :key="status" type="button" class="btn" :class="status === 'cancelled' ? 'btn-danger' : 'btn-secondary'" :data-testid="`status-${status}`" :disabled="actionLoading" @click="changeStatus(status)">{{ t('admin.playOps.inviteGrowth.moveTo', { status: localizedLabel('admin.playOps.inviteGrowth.statuses', status) }) }}</button><button v-if="canStartEarlyClose" data-testid="early-close-campaign" type="button" class="btn btn-danger" :disabled="actionLoading || earlyCloseLoading" @click="openEarlyClose">{{ t('admin.playOps.inviteGrowth.earlyClose') }}</button><span v-if="!statusActions.length && !canStartEarlyClose" class="text-sm text-gray-500">{{ t('admin.playOps.inviteGrowth.noStatusActions') }}</span></div><p v-if="detail.campaign.status === 'settling'" class="mt-2 text-xs text-amber-700 dark:text-amber-300">{{ t('admin.playOps.inviteGrowth.claimWindowHint', { deadline: formatDate(detail.campaign.claim_deadline) }) }}</p></div>
           <div>
             <label class="grid gap-1 text-sm"><span class="text-gray-600 dark:text-gray-300">{{ t('admin.playOps.inviteGrowth.reviewNote') }}</span><input v-model="reviewNote" data-testid="review-note" class="input" maxlength="500" :placeholder="t('admin.playOps.inviteGrowth.reviewNotePlaceholder')" /></label>
             <div class="mt-3 grid gap-2 sm:grid-cols-2">
@@ -678,6 +740,16 @@ defineExpose({ selectCampaign })
     <BaseDialog :show="Boolean(debtReward)" :title="t('admin.playOps.inviteGrowth.resolveDebt')" width="narrow" @close="debtReward = null">
       <div v-if="debtReward" class="space-y-4"><p class="text-sm text-gray-600 dark:text-gray-300">{{ t('admin.playOps.inviteGrowth.debtSummary', { email: debtReward.email, amount: formatMoney(debtReward.amount) }) }}</p><label class="grid gap-1 text-sm"><span>{{ t('admin.playOps.inviteGrowth.debtNote') }}</span><textarea v-model="debtNote" data-testid="debt-note" rows="4" maxlength="500" class="input" :placeholder="t('admin.playOps.inviteGrowth.debtNotePlaceholder')" /></label><p class="text-xs text-gray-500">{{ t('admin.playOps.inviteGrowth.debtWarning') }}</p></div>
       <template #footer><button type="button" class="btn btn-secondary" @click="debtReward = null">{{ t('admin.playOps.cancel') }}</button><button data-testid="debt-recovered" type="button" class="btn btn-secondary" :disabled="debtNote.trim().length < 10 || actionLoading" @click="resolveDebt('recovered')">{{ t('admin.playOps.inviteGrowth.recovered') }}</button><button data-testid="debt-waive" type="button" class="btn btn-primary" :disabled="debtNote.trim().length < 10 || actionLoading" @click="resolveDebt('waived')">{{ t('admin.playOps.inviteGrowth.waived') }}</button></template>
+    </BaseDialog>
+
+    <BaseDialog :show="Boolean(earlyClosePreview)" :title="t('admin.playOps.inviteGrowth.earlyCloseTitle')" width="narrow" @close="cancelEarlyClose">
+      <div v-if="earlyClosePreview" class="space-y-4">
+        <p class="text-sm text-gray-600 dark:text-gray-300">{{ t('admin.playOps.inviteGrowth.earlyCloseWarning') }}</p>
+        <dl class="grid gap-3 rounded border border-red-200 bg-red-50 p-4 text-sm dark:border-red-900/60 dark:bg-red-950/30"><div class="flex justify-between gap-3"><dt>{{ t('admin.playOps.inviteGrowth.claimableRewards') }}</dt><dd class="font-semibold tabular-nums">{{ t('admin.playOps.inviteGrowth.rewardCountAmount', { count: earlyClosePreview.claimable_reward_count, amount: formatMoney(earlyClosePreview.claimable_reward_amount) }) }}</dd></div><div class="flex justify-between gap-3"><dt>{{ t('admin.playOps.inviteGrowth.preservedRewards') }}</dt><dd class="font-semibold tabular-nums">{{ t('admin.playOps.inviteGrowth.rewardCountAmount', { count: earlyClosePreview.preserved_reward_count, amount: formatMoney(earlyClosePreview.preserved_reward_amount) }) }}</dd></div><div class="flex justify-between gap-3"><dt>{{ t('admin.playOps.inviteGrowth.claimDeadline') }}</dt><dd class="text-right">{{ formatDate(earlyClosePreview.claim_deadline) }}</dd></div></dl>
+        <label class="grid gap-1 text-sm"><span>{{ t('admin.playOps.inviteGrowth.earlyCloseReason') }}</span><textarea v-model="earlyCloseReason" data-testid="early-close-reason" rows="4" maxlength="500" class="input" :placeholder="t('admin.playOps.inviteGrowth.earlyCloseReasonPlaceholder')" /></label>
+        <label class="flex items-start gap-2 text-sm"><input v-model="earlyCloseConfirmed" data-testid="early-close-confirmation" type="checkbox" class="mt-1" /><span>{{ t('admin.playOps.inviteGrowth.earlyCloseConfirm') }}</span></label>
+      </div>
+      <template #footer><button type="button" class="btn btn-secondary" :disabled="actionLoading" @click="cancelEarlyClose">{{ t('admin.playOps.cancel') }}</button><button data-testid="confirm-early-close" type="button" class="btn btn-danger" :disabled="actionLoading || !earlyCloseConfirmed || !earlyCloseReason.trim()" @click="confirmEarlyClose">{{ t('admin.playOps.inviteGrowth.earlyClose') }}</button></template>
     </BaseDialog>
 
     <TotpStepUpDialog :controller="stepUp" />

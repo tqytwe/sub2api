@@ -376,8 +376,12 @@ func (r *playRepository) ensureNewUserGrowthReward(ctx context.Context, parent n
 		return nil
 	}
 	var lockedCampaignID int64
-	if err := scanSingleRow(txCtx, exec, `SELECT id FROM referral_campaigns WHERE id=$1 FOR UPDATE`, []any{parentCampaignID(parent)}, &lockedCampaignID); err != nil {
+	var referralStatus string
+	if err := scanSingleRow(txCtx, exec, `SELECT id,status FROM referral_campaigns WHERE id=$1 FOR UPDATE`, []any{parentCampaignID(parent)}, &lockedCampaignID, &referralStatus); err != nil {
 		return err
+	}
+	if referralStatus != service.ReferralCampaignStatusScheduled && referralStatus != service.ReferralCampaignStatusRunning {
+		return nil
 	}
 	var existing int64
 	err = scanSingleRow(txCtx, exec, `SELECT id FROM referral_campaign_rewards WHERE campaign_id=$1 AND user_id=$2 AND reward_type='new_user_tier' AND tier_no=$3 AND generation=1 FOR UPDATE`, []any{parentCampaignID(parent), userID, tier.Tier}, &existing)

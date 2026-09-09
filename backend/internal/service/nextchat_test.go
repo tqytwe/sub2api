@@ -950,7 +950,7 @@ func TestGetNextChatWorkspaceModelsAppliesGroupCustomModelsList(t *testing.T) {
 				Name:     "OpenAI limited",
 				Platform: PlatformOpenAI,
 				Status:   StatusActive,
-				ModelsListConfig: GroupModelsListConfig{
+				ModelAllowlist: GroupModelAllowlist{
 					Enabled: true,
 					Models:  []string{"gpt-4o-mini"},
 				},
@@ -972,7 +972,7 @@ func TestGetNextChatWorkspaceModelsAppliesGroupCustomModelsList(t *testing.T) {
 			Name:     "OpenAI limited",
 			Platform: PlatformOpenAI,
 			Status:   StatusActive,
-			ModelsListConfig: GroupModelsListConfig{
+			ModelAllowlist: GroupModelAllowlist{
 				Enabled: true,
 				Models:  []string{"gpt-4o-mini"},
 			},
@@ -1009,7 +1009,7 @@ func TestGetNextChatWorkspaceModelsCustomModelsListEnabledEmptyFailsClosed(t *te
 				Name:     "OpenAI empty whitelist",
 				Platform: PlatformOpenAI,
 				Status:   StatusActive,
-				ModelsListConfig: GroupModelsListConfig{
+				ModelAllowlist: GroupModelAllowlist{
 					Enabled: true,
 				},
 			},
@@ -1030,7 +1030,7 @@ func TestGetNextChatWorkspaceModelsCustomModelsListEnabledEmptyFailsClosed(t *te
 			Name:     "OpenAI empty whitelist",
 			Platform: PlatformOpenAI,
 			Status:   StatusActive,
-			ModelsListConfig: GroupModelsListConfig{
+			ModelAllowlist: GroupModelAllowlist{
 				Enabled: true,
 			},
 		},

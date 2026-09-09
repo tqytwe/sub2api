@@ -128,11 +128,18 @@ func GatewayErrorProtocolForPrefix(prefix string, writeError GatewayErrorWriter)
 	}
 }
 
-// AnthropicErrorWriter 按 Anthropic API 规范输出错误
+// AnthropicErrorWriter emits protocol-specific error types by HTTP status.
 func AnthropicErrorWriter(c *gin.Context, status int, _ string, message string) {
+	errorType := "api_error"
+	switch status {
+	case http.StatusNotFound:
+		errorType = "not_found_error"
+	case http.StatusForbidden:
+		errorType = "permission_error"
+	}
 	c.JSON(status, gin.H{
 		"type":  "error",
-		"error": gin.H{"type": "permission_error", "message": message},
+		"error": gin.H{"type": errorType, "message": message},
 	})
 }
 

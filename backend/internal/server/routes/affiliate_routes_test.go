@@ -27,6 +27,7 @@ func TestAdminReferralCampaignFinancialActionsRequireStepUp(t *testing.T) {
 
 	for _, path := range []string{
 		"/api/v1/admin/affiliates/campaigns/12/status",
+		"/api/v1/admin/affiliates/campaigns/12/early-close",
 		"/api/v1/admin/affiliates/campaigns/12/reviews",
 		"/api/v1/admin/affiliates/campaigns/12/rewards/99/resolve",
 	} {

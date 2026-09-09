@@ -14,6 +14,9 @@ import (
 	"time"
 
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
+	"github.com/Wei-Shaw/sub2api/internal/util/logredact"
+	"go.uber.org/zap"
 )
 
 const (
@@ -51,6 +54,7 @@ var (
 	ErrReferralCampaignAlreadyEnrolled  = errors.New("already enrolled in referral campaign")
 	ErrReferralCampaignInvalidState     = errors.New("invalid referral campaign state transition")
 	ErrReferralCampaignImmutable        = errors.New("only draft referral campaigns can be edited")
+	ErrReferralCampaignEarlyCloseReason = errors.New("early referral campaign closure reason is required")
 	ErrReferralCampaignTokenInvalid     = errors.New("invalid referral campaign token")
 	ErrReferralCampaignTokenExpired     = errors.New("referral campaign token expired")
 	ErrReferralRewardNotClaimable       = errors.New("referral reward is not claimable")
@@ -206,6 +210,21 @@ type ReferralCampaignDetail struct {
 	PendingFinancialVersion *ReferralCampaignFinancialVersion `json:"pending_financial_version,omitempty"`
 }
 
+// ReferralCampaignEarlyClosePreview quantifies the impact of ending a claim
+// window before its configured deadline. Claimed rewards are deliberately
+// reported separately because this operation never reverses them.
+type ReferralCampaignEarlyClosePreview struct {
+	CampaignID            int64     `json:"campaign_id"`
+	CampaignVersion       int64     `json:"campaign_version"`
+	Status                string    `json:"status"`
+	ClaimDeadline         time.Time `json:"claim_deadline"`
+	ClaimableRewardCount  int64     `json:"claimable_reward_count"`
+	ClaimableRewardAmount float64   `json:"claimable_reward_amount"`
+	PreservedRewardCount  int64     `json:"preserved_reward_count"`
+	PreservedRewardAmount float64   `json:"preserved_reward_amount"`
+	CanEarlyClose         bool      `json:"can_early_close"`
+}
+
 type ReferralCampaignRuleVersion struct {
 	RulesVersion int64           `json:"rules_version"`
 	ChangeKind   string          `json:"change_kind"`
@@ -346,6 +365,8 @@ type ReferralCampaignRepository interface {
 	ListRunningReferralCampaignIDs(context.Context, int) ([]int64, error)
 	GetReferralCampaign(context.Context, int64) (*ReferralCampaign, error)
 	SetReferralCampaignStatus(context.Context, int64, int64, string, int64, string) (*ReferralCampaign, error)
+	GetReferralCampaignEarlyClosePreview(context.Context, int64) (*ReferralCampaignEarlyClosePreview, error)
+	EarlyCloseReferralCampaign(context.Context, int64, int64, int64, string) (*ReferralCampaign, error)
 	ReviewReferralCampaign(context.Context, int64, int64, string, string, int64, string) (*ReferralCampaign, error)
 	GetReferralCampaignStats(context.Context, int64) (*ReferralCampaignStats, error)
 	GetReferralCampaignTiers(context.Context, int64) ([]ReferralCampaignTier, error)
@@ -749,7 +770,10 @@ func (s *ReferralCampaignService) SetStatus(ctx context.Context, campaignID, exp
 		return nil, ErrReferralCampaignInvalidState
 	}
 	campaign, err := s.repo.GetReferralCampaign(ctx, campaignID)
-	if err != nil || campaign == nil {
+	if err != nil {
+		return nil, err
+	}
+	if campaign == nil {
 		return nil, ErrReferralCampaignNotFound
 	}
 	if campaign.Version != expectedVersion {
@@ -772,6 +796,48 @@ func (s *ReferralCampaignService) SetStatus(ctx context.Context, campaignID, exp
 		return nil, ErrReferralCampaignInvalidState
 	}
 	return s.repo.SetReferralCampaignStatus(ctx, campaignID, expectedVersion, status, actorID, note)
+}
+
+func (s *ReferralCampaignService) EarlyClosePreview(ctx context.Context, campaignID int64) (*ReferralCampaignEarlyClosePreview, error) {
+	if s == nil || s.repo == nil {
+		return nil, errors.New("referral campaign service unavailable")
+	}
+	preview, err := s.repo.GetReferralCampaignEarlyClosePreview(ctx, campaignID)
+	if err != nil || preview == nil {
+		return preview, err
+	}
+	preview.CanEarlyClose = preview.Status == ReferralCampaignStatusSettling && time.Now().UTC().Before(preview.ClaimDeadline)
+	return preview, nil
+}
+
+func (s *ReferralCampaignService) EarlyClose(ctx context.Context, campaignID, expectedVersion, actorID int64, reason string) (*ReferralCampaign, error) {
+	if s == nil || s.repo == nil {
+		return nil, errors.New("referral campaign service unavailable")
+	}
+	if expectedVersion <= 0 {
+		return nil, ErrReferralCampaignVersionConflict
+	}
+	reason = strings.TrimSpace(reason)
+	if reason == "" {
+		return nil, ErrReferralCampaignEarlyCloseReason
+	}
+	if len([]rune(reason)) > 500 {
+		return nil, ErrReferralCampaignEarlyCloseReason
+	}
+	campaign, err := s.repo.GetReferralCampaign(ctx, campaignID)
+	if err != nil {
+		return nil, err
+	}
+	if campaign == nil {
+		return nil, ErrReferralCampaignNotFound
+	}
+	if campaign.Version != expectedVersion {
+		return nil, ErrReferralCampaignVersionConflict
+	}
+	if campaign.Status != ReferralCampaignStatusSettling || !time.Now().UTC().Before(campaign.ClaimDeadline) {
+		return nil, ErrReferralCampaignInvalidState
+	}
+	return s.repo.EarlyCloseReferralCampaign(ctx, campaignID, expectedVersion, actorID, reason)
 }
 
 func (s *ReferralCampaignService) Review(ctx context.Context, campaignID, expectedVersion int64, reviewType, decision string, actorID int64, note string) (*ReferralCampaign, error) {
@@ -1018,7 +1084,7 @@ func (s *ReferralCampaignService) RecomputeQualification(ctx context.Context, ca
 	if err != nil || attribution == nil {
 		return nil, ErrReferralCampaignNotFound
 	}
-	if (campaign.Status != ReferralCampaignStatusScheduled && campaign.Status != ReferralCampaignStatusRunning && campaign.Status != ReferralCampaignStatusSettling) || now.After(attribution.QualificationToSnapshot) {
+	if (campaign.Status != ReferralCampaignStatusScheduled && campaign.Status != ReferralCampaignStatusRunning) || now.After(attribution.QualificationToSnapshot) {
 		return nil, ErrReferralCampaignNotOpen
 	}
 	q, err := s.repo.RecomputeReferralQualification(ctx, campaignID, inviteeID, now)
@@ -1069,7 +1135,17 @@ func (s *ReferralCampaignService) ClaimReward(ctx context.Context, input Referra
 	}
 	reward, err := s.repo.ClaimReferralReward(ctx, input)
 	if err != nil {
-		return nil, err
+		if errors.Is(err, ErrReferralRewardNotClaimable) || errors.Is(err, ErrReferralCampaignBudgetExceeded) || errors.Is(err, ErrReferralCampaignVersionConflict) {
+			return nil, err
+		}
+		logger.FromContext(ctx).Error("referral.reward_claim_failed",
+			zap.Int64("campaign_id", input.CampaignID),
+			zap.Int64("reward_id", input.RewardID),
+			zap.Int64("user_id", input.UserID),
+			zap.String("error_code", "REFERRAL_REWARD_CLAIM_FAILED"),
+			zap.String("cause", logredact.RedactText(err.Error())),
+		)
+		return nil, infraerrors.InternalServer("REFERRAL_REWARD_CLAIM_FAILED", "referral reward claim could not be completed").WithCause(fmt.Errorf("claim campaign=%d reward=%d user=%d: %w", input.CampaignID, input.RewardID, input.UserID, err))
 	}
 	if reward == nil || reward.Status != ReferralRewardStatusClaimedFrozen {
 		return nil, ErrReferralRewardNotClaimable

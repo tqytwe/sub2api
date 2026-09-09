@@ -1551,33 +1551,160 @@ RETURNING id,version,status`, now)
 }
 
 func (r *affiliateRepository) SetReferralCampaignStatus(ctx context.Context, id, expectedVersion int64, status string, actorID int64, note string) (*service.ReferralCampaign, error) {
-	client := clientFromContext(ctx, r.client)
-	res, err := client.ExecContext(ctx, `
-WITH changed AS (
- UPDATE referral_campaigns SET status=$3, version=version+1, updated_at=NOW()
- WHERE id=$1 AND version=$2
- RETURNING id, version
-), expired AS (
- UPDATE referral_campaign_rewards r SET status='expired',updated_at=NOW(),version=version+1
- WHERE $3='closed' AND r.campaign_id IN (SELECT id FROM changed) AND r.status='claimable' AND r.claim_deadline<=NOW()
- RETURNING r.id,r.campaign_id,r.amount
-), released AS (
- SELECT campaign_id,SUM(amount) AS amount FROM expired GROUP BY campaign_id
-), budget AS (
- UPDATE referral_campaigns c SET budget_reserved=GREATEST(c.budget_reserved-r.amount,0),updated_at=NOW()
- FROM released r WHERE c.id=r.campaign_id RETURNING c.id
-), release_ledger AS (
- INSERT INTO referral_campaign_budget_ledger (campaign_id,reward_id,action,amount,idempotency_key)
- SELECT campaign_id,id,'release',amount,'referral:reward:'||id::text||':closed-expire' FROM expired
- ON CONFLICT (idempotency_key) DO NOTHING RETURNING id
-)
-INSERT INTO referral_campaign_audit_logs (campaign_id,campaign_version,actor_id,action,detail)
-SELECT id,version,$4,'status_changed',jsonb_build_object('status',$3::text,'note',$5::text) FROM changed`, id, expectedVersion, status, actorID, strings.TrimSpace(note))
+	err := r.withTx(ctx, func(txCtx context.Context, txClient *dbent.Client) error {
+		var version int64
+		if err := scanAffiliateRow(txCtx, txClient, `SELECT version FROM referral_campaigns WHERE id=$1 FOR UPDATE`, []any{id}, &version); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return service.ErrReferralCampaignVersionConflict
+			}
+			return err
+		}
+		if version != expectedVersion {
+			return service.ErrReferralCampaignVersionConflict
+		}
+
+		type releasedReward struct {
+			id     int64
+			amount float64
+		}
+		released := make([]releasedReward, 0)
+		totalReleased := 0.0
+		if status == service.ReferralCampaignStatusClosed {
+			rows, err := txClient.QueryContext(txCtx, `SELECT id,amount::double precision FROM referral_campaign_rewards WHERE campaign_id=$1 AND status='claimable' AND claim_deadline<=NOW() FOR UPDATE`, id)
+			if err != nil {
+				return err
+			}
+			for rows.Next() {
+				var reward releasedReward
+				if err := rows.Scan(&reward.id, &reward.amount); err != nil {
+					_ = rows.Close()
+					return err
+				}
+				released = append(released, reward)
+				totalReleased += reward.amount
+			}
+			if err := rows.Close(); err != nil {
+				return err
+			}
+			if err := rows.Err(); err != nil {
+				return err
+			}
+			if _, err := txClient.ExecContext(txCtx, `UPDATE referral_campaign_rewards SET status='expired',updated_at=NOW(),version=version+1 WHERE campaign_id=$1 AND status='claimable' AND claim_deadline<=NOW()`, id); err != nil {
+				return err
+			}
+		}
+
+		var nextVersion int64
+		if err := scanAffiliateRow(txCtx, txClient, `UPDATE referral_campaigns SET status=$1,version=version+1,budget_reserved=CASE WHEN $1='closed' THEN GREATEST(budget_reserved-$2,0) ELSE budget_reserved END,updated_at=NOW() WHERE id=$3 AND version=$4 RETURNING version`, []any{status, totalReleased, id, expectedVersion}, &nextVersion); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return service.ErrReferralCampaignVersionConflict
+			}
+			return err
+		}
+		for _, reward := range released {
+			if _, err := txClient.ExecContext(txCtx, `INSERT INTO referral_campaign_budget_ledger (campaign_id,reward_id,action,amount,idempotency_key) VALUES ($1,$2,'release',$3,$4) ON CONFLICT (idempotency_key) DO NOTHING`, id, reward.id, reward.amount, fmt.Sprintf("referral:reward:%d:closed-expire", reward.id)); err != nil {
+				return err
+			}
+		}
+		_, err := txClient.ExecContext(txCtx, `INSERT INTO referral_campaign_audit_logs (campaign_id,campaign_version,actor_id,action,detail) VALUES ($1,$2,$3,'status_changed',jsonb_build_object('status',$4::text,'note',$5::text))`, id, nextVersion, actorID, status, strings.TrimSpace(note))
+		return err
+	})
 	if err != nil {
 		return nil, fmt.Errorf("set referral campaign status: %w", err)
 	}
-	if n, _ := res.RowsAffected(); n == 0 {
-		return nil, service.ErrReferralCampaignVersionConflict
+	return r.GetReferralCampaign(ctx, id)
+}
+
+func (r *affiliateRepository) GetReferralCampaignEarlyClosePreview(ctx context.Context, campaignID int64) (*service.ReferralCampaignEarlyClosePreview, error) {
+	client := clientFromContext(ctx, r.client)
+	preview := &service.ReferralCampaignEarlyClosePreview{CampaignID: campaignID}
+	err := scanAffiliateRow(ctx, client, `
+SELECT c.version,c.status,c.claim_deadline,
+       COUNT(*) FILTER (WHERE r.status='claimable'),
+       COALESCE(SUM(r.amount) FILTER (WHERE r.status='claimable'),0)::double precision,
+       COUNT(*) FILTER (WHERE r.status IN ('claimed_frozen','available','debt_review','resolved')),
+       COALESCE(SUM(r.amount) FILTER (WHERE r.status IN ('claimed_frozen','available','debt_review','resolved')),0)::double precision
+FROM referral_campaigns c
+LEFT JOIN referral_campaign_rewards r ON r.campaign_id=c.id
+WHERE c.id=$1
+GROUP BY c.id,c.version,c.status,c.claim_deadline`, []any{campaignID},
+		&preview.CampaignVersion, &preview.Status, &preview.ClaimDeadline,
+		&preview.ClaimableRewardCount, &preview.ClaimableRewardAmount,
+		&preview.PreservedRewardCount, &preview.PreservedRewardAmount)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, service.ErrReferralCampaignNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get referral campaign early-close preview: %w", err)
+	}
+	return preview, nil
+}
+
+func (r *affiliateRepository) EarlyCloseReferralCampaign(ctx context.Context, id, expectedVersion, actorID int64, reason string) (*service.ReferralCampaign, error) {
+	reason = strings.TrimSpace(reason)
+	err := r.withTx(ctx, func(txCtx context.Context, txClient *dbent.Client) error {
+		var version int64
+		var status string
+		var claimDeadline time.Time
+		if err := scanAffiliateRow(txCtx, txClient, `SELECT version,status,claim_deadline FROM referral_campaigns WHERE id=$1 FOR UPDATE`, []any{id}, &version, &status, &claimDeadline); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return service.ErrReferralCampaignNotFound
+			}
+			return err
+		}
+		if version != expectedVersion {
+			return service.ErrReferralCampaignVersionConflict
+		}
+		if status != service.ReferralCampaignStatusSettling || !time.Now().UTC().Before(claimDeadline) {
+			return service.ErrReferralCampaignInvalidState
+		}
+
+		type expiredReward struct {
+			id     int64
+			amount float64
+		}
+		expired := make([]expiredReward, 0)
+		totalExpired := 0.0
+		rows, err := txClient.QueryContext(txCtx, `SELECT id,amount::double precision FROM referral_campaign_rewards WHERE campaign_id=$1 AND status='claimable' FOR UPDATE`, id)
+		if err != nil {
+			return err
+		}
+		for rows.Next() {
+			var reward expiredReward
+			if err := rows.Scan(&reward.id, &reward.amount); err != nil {
+				_ = rows.Close()
+				return err
+			}
+			expired = append(expired, reward)
+			totalExpired += reward.amount
+		}
+		if err := rows.Close(); err != nil {
+			return err
+		}
+		if err := rows.Err(); err != nil {
+			return err
+		}
+		if _, err := txClient.ExecContext(txCtx, `UPDATE referral_campaign_rewards SET status='expired',updated_at=NOW(),version=version+1 WHERE campaign_id=$1 AND status='claimable'`, id); err != nil {
+			return err
+		}
+
+		var nextVersion int64
+		if err := scanAffiliateRow(txCtx, txClient, `UPDATE referral_campaigns SET status='closed',version=version+1,budget_reserved=GREATEST(budget_reserved-$1,0),updated_at=NOW() WHERE id=$2 AND version=$3 AND status='settling' AND claim_deadline>NOW() RETURNING version`, []any{totalExpired, id, expectedVersion}, &nextVersion); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return service.ErrReferralCampaignVersionConflict
+			}
+			return err
+		}
+		for _, reward := range expired {
+			if _, err := txClient.ExecContext(txCtx, `INSERT INTO referral_campaign_budget_ledger (campaign_id,reward_id,action,amount,idempotency_key,metadata) VALUES ($1,$2,'release',$3,$4,jsonb_build_object('source','early_close','reason',$5::text)) ON CONFLICT (idempotency_key) DO NOTHING`, id, reward.id, reward.amount, fmt.Sprintf("referral:reward:%d:early-close-expire", reward.id), reason); err != nil {
+				return err
+			}
+		}
+		_, err = txClient.ExecContext(txCtx, `INSERT INTO referral_campaign_audit_logs (campaign_id,campaign_version,actor_id,action,detail) VALUES ($1,$2,$3,'early_closed',jsonb_build_object('reason',$4::text,'expired_reward_count',$5,'expired_reward_amount',$6))`, id, nextVersion, actorID, reason, len(expired), totalExpired)
+		return err
+	})
+	if err != nil {
+		return nil, fmt.Errorf("early close referral campaign: %w", err)
 	}
 	return r.GetReferralCampaign(ctx, id)
 }
@@ -2092,8 +2219,8 @@ func (r *affiliateRepository) UpdateReferralQualification(ctx context.Context, q
 	var out service.ReferralQualification
 	var qualifiedAt, revokedAt sql.NullTime
 	err := r.withTx(ctx, func(txCtx context.Context, txClient *dbent.Client) error {
-		var rewardMode string
-		if err := scanAffiliateRow(txCtx, txClient, `SELECT reward_mode FROM referral_campaigns WHERE id=$1 FOR UPDATE`, []any{q.CampaignID}, &rewardMode); err != nil {
+		var rewardMode, campaignStatus string
+		if err := scanAffiliateRow(txCtx, txClient, `SELECT reward_mode,status FROM referral_campaigns WHERE id=$1 FOR UPDATE`, []any{q.CampaignID}, &rewardMode, &campaignStatus); err != nil {
 			return err
 		}
 		if err := scanAffiliateRow(txCtx, sqlExecutorFromEntClient(txClient), `
@@ -2133,6 +2260,12 @@ ON CONFLICT (campaign_id, invitee_id) DO UPDATE SET
 				return err
 			}
 			return revokeReferralRewardsAboveCountTx(txCtx, txClient, out.CampaignID, out.InviterID, qualifiedCount)
+		}
+		// A claim window accepts claims on rewards already earned, but it never
+		// creates more eligibility. Existing reward reversals above remain valid
+		// so refunds and risk actions retain their normal financial controls.
+		if campaignStatus != service.ReferralCampaignStatusScheduled && campaignStatus != service.ReferralCampaignStatusRunning {
+			return nil
 		}
 		// Serialize reward generation for one inviter. Different invitees can
 		// qualify concurrently, but they must observe one ordered tier state.
@@ -2322,10 +2455,20 @@ func (r *affiliateRepository) ClaimReferralReward(ctx context.Context, input ser
 	var claimDeadline, frozenUntil, unlockAt sql.NullTime
 	err := r.withTx(ctx, func(txCtx context.Context, txClient *dbent.Client) error {
 		now := time.Now().UTC()
+		// All campaign financial transitions lock the campaign before its rewards.
+		// This keeps claim, automatic close, and early close from taking inverse
+		// locks while a claim window is being concluded.
+		var lockedCampaignID int64
+		if err := scanAffiliateRow(txCtx, txClient, `SELECT id FROM referral_campaigns WHERE id=$1 FOR UPDATE`, []any{input.CampaignID}, &lockedCampaignID); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return service.ErrReferralRewardNotClaimable
+			}
+			return err
+		}
 		err := scanAffiliateRow(txCtx, sqlExecutorFromEntClient(txClient), `
 UPDATE referral_campaign_rewards r SET status='claimed_frozen', claimed_at=NOW(), frozen_until=NOW()+make_interval(hours => c.risk_hold_hours), updated_at=NOW(), version=version+1
 FROM referral_campaigns c
-WHERE r.id=$1 AND r.campaign_id=$2 AND r.user_id=$3 AND c.version=$4 AND c.status IN ('running','settling','closed')
+WHERE r.id=$1 AND r.campaign_id=$2 AND r.user_id=$3 AND c.id=r.campaign_id AND c.version=$4 AND c.status IN ('running','settling','closed')
   AND r.status='claimable' AND r.claim_deadline > $5
 	  AND NOT EXISTS (SELECT 1 FROM referral_campaign_rewards debt WHERE debt.user_id=r.user_id AND debt.status='debt_review')
 	  AND NOT EXISTS (

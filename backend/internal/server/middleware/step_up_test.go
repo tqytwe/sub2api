@@ -146,6 +146,7 @@ func TestEnforceStepUpDisabledStillProtectsMandatoryFinancialRoutes(t *testing.T
 	for _, path := range []string{
 		"/api/v1/admin/funds/gifts",
 		"/api/v1/admin/withdrawals/12/approve",
+		"/api/v1/admin/payment/orders/12/manual-confirm",
 		"/api/v1/admin/affiliates/campaigns/12/status",
 		"/api/v1/admin/affiliates/campaigns/12/reviews",
 		"/api/v1/admin/affiliates/campaigns/12/rewards/99/resolve",

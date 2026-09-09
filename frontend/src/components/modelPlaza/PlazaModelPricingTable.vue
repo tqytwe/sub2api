@@ -88,21 +88,30 @@
                   <span
                     class="mr-1 font-sans font-normal text-gray-400 dark:text-dark-500"
                     :title="tierHint(m)"
-                    >{{ tierLabel(iv) }}</span
+                  >{{ tierLabel(iv) }}</span
                   >
                   {{ paidPerMillion(iv.input_price, period) }} / {{ paidPerMillion(iv.output_price, period) }}
+                  <template v-if="iv.cache_write_price != null || iv.cache_read_price != null">
+                    <span class="ml-1 font-sans font-normal text-gray-400 dark:text-dark-500">{{ t('modelPlaza.table.cacheWrite') }}</span>
+                    {{ paidPerMillion(iv.cache_write_price, period) }}
+                    <template v-if="iv.cache_write_1h_price != null"> (1h {{ paidPerMillion(iv.cache_write_1h_price, period) }})</template>
+                    <span class="ml-1 font-sans font-normal text-gray-400 dark:text-dark-500">{{ t('modelPlaza.table.cacheRead') }}</span>
+                    {{ paidPerMillion(iv.cache_read_price, period) }}
+                  </template>
                 </div>
               </div>
-              <span v-else
-                >{{ paidPerMillion(displayPricing(m)?.input_price, period) }} /
-                {{ paidPerMillion(displayPricing(m)?.output_price, period) }}</span
-              >
-              <template v-if="displayPricing(m)?.cache_write_price != null || displayPricing(m)?.cache_read_price != null">
-                <span class="ml-1 font-sans font-normal text-gray-400 dark:text-dark-500">{{ t('modelPlaza.table.cacheWrite') }}</span>
-                {{ paidPerMillion(displayPricing(m)?.cache_write_price, period) }}
-                <template v-if="displayPricing(m)?.cache_write_1h_price != null"> (1h {{ paidPerMillion(displayPricing(m)?.cache_write_1h_price, period) }})</template>
-                <span class="ml-1 font-sans font-normal text-gray-400 dark:text-dark-500">{{ t('modelPlaza.table.cacheRead') }}</span>
-                {{ paidPerMillion(displayPricing(m)?.cache_read_price, period) }}
+              <template v-else>
+                <span
+                  >{{ paidPerMillion(displayPricing(m)?.input_price, period) }} /
+                  {{ paidPerMillion(displayPricing(m)?.output_price, period) }}</span
+                >
+                <template v-if="displayPricing(m)?.cache_write_price != null || displayPricing(m)?.cache_read_price != null">
+                  <span class="ml-1 font-sans font-normal text-gray-400 dark:text-dark-500">{{ t('modelPlaza.table.cacheWrite') }}</span>
+                  {{ paidPerMillion(displayPricing(m)?.cache_write_price, period) }}
+                  <template v-if="displayPricing(m)?.cache_write_1h_price != null"> (1h {{ paidPerMillion(displayPricing(m)?.cache_write_1h_price, period) }})</template>
+                  <span class="ml-1 font-sans font-normal text-gray-400 dark:text-dark-500">{{ t('modelPlaza.table.cacheRead') }}</span>
+                  {{ paidPerMillion(displayPricing(m)?.cache_read_price, period) }}
+                </template>
               </template>
             </template>
             <template v-else>
@@ -146,7 +155,7 @@
 // design-governance-allow: visual-evidence - this is a focused simplification of the existing model plaza table to the two requested display columns.
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { formatScaled } from '@/utils/pricing'
+import { formatScaled, resolveIntervalPrices } from '@/utils/pricing'
 import { platformAccentColor, platformBadgeLightClass, platformLabel } from '@/utils/platformColors'
 import {
   BILLING_MODE_TOKEN,
@@ -210,7 +219,10 @@ function billingMode(m: PlazaModel): BillingMode {
 }
 
 function displayPricing(m: PlazaModel) {
-  return m.display_pricing
+  // Fork responses expose display_pricing; upstream responses use pricing.
+  // Prefer the fork field so this table remains display-only, while accepting
+  // the upstream contract during a rolling frontend/backend update.
+  return m.display_pricing ?? m.pricing ?? null
 }
 
 function billingModeLabel(m: PlazaModel): string {
@@ -289,7 +301,11 @@ function perUnitSuffix(m: PlazaModel): string {
 
 /** token 模式的阶梯定价(内联进输入/输出列)。 */
 function tokenIntervals(m: PlazaModel): UserPricingInterval[] {
-  return orderedIntervals(displayPricing(m)?.intervals)
+  const pricing = displayPricing(m)
+  if (!pricing) return []
+  return orderedIntervals(pricing.intervals).map((interval) =>
+    resolveIntervalPrices(interval, pricing),
+  )
 }
 
 function officialIntervals(m: PlazaModel): UserPricingInterval[] {
