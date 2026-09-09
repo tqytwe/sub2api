@@ -72,10 +72,22 @@ WORKDIR /app/backend
 
 # Copy go mod files first (better caching)
 COPY backend/go.mod backend/go.sum ./
-# Cache mount keeps the module cache across builds so a transient CDN blip on
-# retry resumes instead of re-fetching every zip from scratch.
+# A GOPROXY list only falls through on 404/410; it does not continue after a
+# temporary 5xx. Retry known proxy pairs explicitly so one mirror outage does
+# not cancel an otherwise valid release build.
+# The cache mount keeps successfully downloaded modules across retries.
 RUN --mount=type=cache,id=sub2api-gomod,target=/go/pkg/mod \
-    go mod download
+    set -eu; \
+    attempted=""; \
+    for candidate in "${GOPROXY}|${GOSUMDB}" "https://proxy.golang.org,direct|sum.golang.org" "https://goproxy.cn,direct|sum.golang.google.cn" "direct|sum.golang.org"; do \
+      case " ${attempted} " in *" ${candidate} "*) continue ;; esac; \
+      attempted="${attempted} ${candidate}"; \
+      proxy="${candidate%%|*}"; sumdb="${candidate#*|}"; \
+      echo "Downloading Go modules with GOPROXY=${proxy}"; \
+      if GOPROXY="${proxy}" GOSUMDB="${sumdb}" go mod download; then exit 0; fi; \
+    done; \
+    echo "Go module download failed through every configured proxy" >&2; \
+    exit 1
 
 # Copy backend source first
 COPY backend/ ./

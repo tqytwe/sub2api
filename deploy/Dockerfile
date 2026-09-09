@@ -63,7 +63,19 @@ WORKDIR /app/backend
 
 # Copy go mod files first (better caching)
 COPY backend/go.mod backend/go.sum ./
-RUN go mod download
+# GOPROXY only cascades automatically on 404/410, not temporary 5xx responses.
+# Keep the alternate deployment Dockerfile aligned with the production build.
+RUN set -eu; \
+    attempted=""; \
+    for candidate in "${GOPROXY}|${GOSUMDB}" "https://proxy.golang.org,direct|sum.golang.org" "https://goproxy.cn,direct|sum.golang.google.cn" "direct|sum.golang.org"; do \
+      case " ${attempted} " in *" ${candidate} "*) continue ;; esac; \
+      attempted="${attempted} ${candidate}"; \
+      proxy="${candidate%%|*}"; sumdb="${candidate#*|}"; \
+      echo "Downloading Go modules with GOPROXY=${proxy}"; \
+      if GOPROXY="${proxy}" GOSUMDB="${sumdb}" go mod download; then exit 0; fi; \
+    done; \
+    echo "Go module download failed through every configured proxy" >&2; \
+    exit 1
 
 # Copy backend source first
 COPY backend/ ./
