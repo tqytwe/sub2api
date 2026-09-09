@@ -32,27 +32,31 @@ type adminFundRefundPaidRequest struct {
 }
 
 type adminFundGrantRequest struct {
-	UserID int64  `json:"user_id"`
-	Amount string `json:"amount"`
-	Reason string `json:"reason"`
+	AccountEmail string `json:"account_email"`
+	Amount       string `json:"amount"`
+	Reason       string `json:"reason"`
 }
 
 type adminOfflineRechargeRequest struct {
-	UserID      int64  `json:"user_id"`
-	Amount      string `json:"amount"`
-	ExternalRef string `json:"external_ref"`
-	Reason      string `json:"reason"`
+	AccountEmail string `json:"account_email"`
+	Amount       string `json:"amount"`
+	ExternalRef  string `json:"external_ref"`
+	Reason       string `json:"reason"`
 }
 
-type adminSignupGiftExecuteRequest struct {
-	TransactionIDs []int64 `json:"transaction_ids"`
-	Reason         string  `json:"reason"`
+type adminFundCompensationRequest struct {
+	AccountEmail string `json:"account_email"`
+	Amount       string `json:"amount"`
+	Reason       string `json:"reason"`
+}
+
+type adminFundCorrectionRequest struct {
+	CorrectAccountEmail string `json:"correct_account_email"`
+	Reason              string `json:"reason"`
 }
 
 type adminFundRefundRequestDTO struct {
-	ID                      int64   `json:"id"`
 	RequestNo               string  `json:"request_no"`
-	UserID                  int64   `json:"user_id"`
 	UserEmail               string  `json:"user_email"`
 	RequestType             string  `json:"request_type"`
 	Amount                  string  `json:"amount"`
@@ -64,13 +68,10 @@ type adminFundRefundRequestDTO struct {
 	PayoutCurrency          string  `json:"payout_currency,omitempty"`
 	PayoutAccountMask       string  `json:"payout_account_mask,omitempty"`
 	PayoutRecipientNameMask string  `json:"payout_recipient_name_mask,omitempty"`
-	ApprovedBy              *int64  `json:"approved_by,omitempty"`
 	ApprovedAt              *string `json:"approved_at,omitempty"`
-	RejectedBy              *int64  `json:"rejected_by,omitempty"`
 	RejectedAt              *string `json:"rejected_at,omitempty"`
 	RejectedReason          string  `json:"rejected_reason,omitempty"`
 	CanceledAt              *string `json:"canceled_at,omitempty"`
-	PaidBy                  *int64  `json:"paid_by,omitempty"`
 	PaidAt                  *string `json:"paid_at,omitempty"`
 	PaidAmount              *string `json:"paid_amount,omitempty"`
 	PaidCurrency            string  `json:"paid_currency,omitempty"`
@@ -103,16 +104,11 @@ func (h *FundHandler) ListRefunds(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
-	userID, err := parseAdminFundOptionalInt(c.Query("user_id"), "user_id")
-	if err != nil {
-		response.ErrorFrom(c, err)
-		return
-	}
 	result, err := h.fundService.AdminListRefundRequests(c.Request.Context(), service.FundRefundListQuery{
-		Status:   strings.TrimSpace(c.Query("status")),
-		UserID:   userID,
-		Page:     page,
-		PageSize: pageSize,
+		Status:         strings.TrimSpace(c.Query("status")),
+		AccountKeyword: strings.TrimSpace(c.Query("account")),
+		Page:           page,
+		PageSize:       pageSize,
 	})
 	if err != nil {
 		response.ErrorFrom(c, err)
@@ -122,7 +118,7 @@ func (h *FundHandler) ListRefunds(c *gin.Context) {
 }
 
 func (h *FundHandler) GetRefund(c *gin.Context) {
-	id, err := parseAdminFundIDParam(c, "id")
+	id, err := h.fundService.AdminRefundRequestIDByNo(c.Request.Context(), c.Param("request_no"))
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
@@ -215,7 +211,7 @@ func (h *FundHandler) MarkRefundPaid(c *gin.Context) {
 }
 
 func (h *FundHandler) GetRefundPayoutSensitive(c *gin.Context) {
-	id, err := parseAdminFundIDParam(c, "id")
+	id, err := h.fundService.AdminRefundRequestIDByNo(c.Request.Context(), c.Param("request_no"))
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
@@ -234,11 +230,12 @@ func (h *FundHandler) GrantGift(c *gin.Context) {
 		response.ErrorFrom(c, infraerrors.BadRequest("FUND_INVALID_INPUT", "invalid gift request"))
 		return
 	}
-	result, err := h.fundService.GrantGift(c.Request.Context(), service.FundGrantInput{
-		UserID:      req.UserID,
-		Amount:      req.Amount,
-		Reason:      req.Reason,
-		ActorUserID: currentAdminFundActorID(c),
+	result, err := h.fundService.GrantFundCreditByAccount(c.Request.Context(), service.FundAccountCreditInput{
+		AccountEmail: req.AccountEmail,
+		Amount:       req.Amount,
+		Reason:       req.Reason,
+		Kind:         service.FundOperationKindOpsGift,
+		ActorUserID:  currentAdminFundActorID(c),
 	})
 	if err != nil {
 		response.ErrorFrom(c, err)
@@ -253,12 +250,13 @@ func (h *FundHandler) GrantOfflineRecharge(c *gin.Context) {
 		response.ErrorFrom(c, infraerrors.BadRequest("FUND_INVALID_INPUT", "invalid offline recharge request"))
 		return
 	}
-	result, err := h.fundService.GrantOfflineRecharge(c.Request.Context(), service.OfflineRechargeInput{
-		UserID:      req.UserID,
-		Amount:      req.Amount,
-		ExternalRef: req.ExternalRef,
-		Reason:      req.Reason,
-		ActorUserID: currentAdminFundActorID(c),
+	result, err := h.fundService.GrantFundCreditByAccount(c.Request.Context(), service.FundAccountCreditInput{
+		AccountEmail: req.AccountEmail,
+		Amount:       req.Amount,
+		ExternalRef:  req.ExternalRef,
+		Reason:       req.Reason,
+		Kind:         service.FundOperationKindOfflineRecharge,
+		ActorUserID:  currentAdminFundActorID(c),
 	})
 	if err != nil {
 		response.ErrorFrom(c, err)
@@ -267,31 +265,113 @@ func (h *FundHandler) GrantOfflineRecharge(c *gin.Context) {
 	response.Success(c, result)
 }
 
-func (h *FundHandler) PreviewSignupGift30(c *gin.Context) {
-	limit, err := parseAdminFundPositiveInt(c.DefaultQuery("limit", "100"), "limit")
-	if err != nil {
-		response.ErrorFrom(c, err)
-		return
-	}
-	result, err := h.fundService.PreviewSignupGift30(c.Request.Context(), limit)
-	if err != nil {
-		response.ErrorFrom(c, err)
-		return
-	}
-	response.Success(c, result)
-}
-
-func (h *FundHandler) ExecuteSignupGift30(c *gin.Context) {
-	var req adminSignupGiftExecuteRequest
+func (h *FundHandler) GrantCompensation(c *gin.Context) {
+	var req adminFundCompensationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.ErrorFrom(c, infraerrors.BadRequest("FUND_INVALID_INPUT", "invalid signup gift classification request"))
+		response.ErrorFrom(c, infraerrors.BadRequest("FUND_INVALID_INPUT", "invalid compensation request"))
 		return
 	}
-	result, err := h.fundService.ExecuteSignupGift30(c.Request.Context(), service.FundClassificationExecuteInput{
-		TransactionIDs: req.TransactionIDs,
-		Reason:         req.Reason,
-		ActorUserID:    currentAdminFundActorID(c),
+	result, err := h.fundService.GrantFundCreditByAccount(c.Request.Context(), service.FundAccountCreditInput{
+		AccountEmail: req.AccountEmail, Amount: req.Amount, Reason: req.Reason,
+		Kind: service.FundOperationKindCompensation, ActorUserID: currentAdminFundActorID(c),
 	})
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, result)
+}
+
+func (h *FundHandler) SearchAccounts(c *gin.Context) {
+	result, err := h.fundService.SearchFundAccounts(c.Request.Context(), c.Query("q"), 10)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, result)
+}
+
+func (h *FundHandler) ListOperations(c *gin.Context) {
+	page, err := parseAdminFundPositiveInt(c.DefaultQuery("page", "1"), "page")
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	pageSize, err := parseAdminFundPositiveInt(c.DefaultQuery("page_size", "20"), "page_size")
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	result, err := h.fundService.ListFundOperations(c.Request.Context(), service.FundOperationListQuery{
+		Kind: strings.TrimSpace(c.Query("kind")), Status: strings.TrimSpace(c.Query("status")),
+		AccountKeyword: strings.TrimSpace(c.Query("account")), OperatorKeyword: strings.TrimSpace(c.Query("operator")),
+		Keyword: strings.TrimSpace(c.Query("q")), Page: page, PageSize: pageSize,
+	})
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, result)
+}
+
+func (h *FundHandler) GetOperation(c *gin.Context) {
+	result, err := h.fundService.GetFundOperation(c.Request.Context(), c.Param("operation_no"), false)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, result)
+}
+
+func (h *FundHandler) GetOperationSensitive(c *gin.Context) {
+	result, err := h.fundService.GetFundOperation(c.Request.Context(), c.Param("operation_no"), true)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, result)
+}
+
+func (h *FundHandler) CorrectOperation(c *gin.Context) {
+	actorID := currentAdminFundActorID(c)
+	if actorID <= 0 {
+		response.ErrorFrom(c, infraerrors.Unauthorized("UNAUTHORIZED", "admin JWT session required"))
+		return
+	}
+	var req adminFundCorrectionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorFrom(c, infraerrors.BadRequest("FUND_INVALID_INPUT", "invalid account correction request"))
+		return
+	}
+	result, err := h.fundService.CorrectFundOperationAccount(c.Request.Context(), service.FundOperationCorrectionInput{OperationNo: c.Param("operation_no"), CorrectAccountEmail: req.CorrectAccountEmail, Reason: req.Reason, ActorUserID: actorID})
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, result)
+}
+
+func (h *FundHandler) RetryOperationCorrection(c *gin.Context) {
+	actorID := currentAdminFundActorID(c)
+	if actorID <= 0 {
+		response.ErrorFrom(c, infraerrors.Unauthorized("UNAUTHORIZED", "admin JWT session required"))
+		return
+	}
+	result, err := h.fundService.RetryPendingFundCorrection(c.Request.Context(), c.Param("operation_no"), actorID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, result)
+}
+
+func (h *FundHandler) CancelOperationCorrection(c *gin.Context) {
+	actorID := currentAdminFundActorID(c)
+	if actorID <= 0 {
+		response.ErrorFrom(c, infraerrors.Unauthorized("UNAUTHORIZED", "admin JWT session required"))
+		return
+	}
+	result, err := h.fundService.CancelPendingFundCorrection(c.Request.Context(), c.Param("operation_no"), actorID)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
@@ -300,7 +380,7 @@ func (h *FundHandler) ExecuteSignupGift30(c *gin.Context) {
 }
 
 func (h *FundHandler) actionContext(c *gin.Context) (int64, int64, bool) {
-	id, err := parseAdminFundIDParam(c, "id")
+	id, err := h.fundService.AdminRefundRequestIDByNo(c.Request.Context(), c.Param("request_no"))
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return 0, 0, false
@@ -379,9 +459,7 @@ func toAdminFundRefundPageDTO(page *service.FundRefundRequestPage) adminFundRefu
 
 func toAdminFundRefundDTO(req *service.FundRefundRequest) adminFundRefundRequestDTO {
 	dto := adminFundRefundRequestDTO{
-		ID:                      req.ID,
 		RequestNo:               req.RequestNo,
-		UserID:                  req.UserID,
 		UserEmail:               req.UserEmail,
 		RequestType:             req.RequestType,
 		Amount:                  req.Amount.StringFixed(8),
@@ -393,10 +471,7 @@ func toAdminFundRefundDTO(req *service.FundRefundRequest) adminFundRefundRequest
 		PayoutCurrency:          req.PayoutCurrency,
 		PayoutAccountMask:       req.PayoutAccountMask,
 		PayoutRecipientNameMask: req.PayoutRecipientNameMask,
-		ApprovedBy:              req.ApprovedBy,
-		RejectedBy:              req.RejectedBy,
 		RejectedReason:          req.RejectedReason,
-		PaidBy:                  req.PaidBy,
 		PaidCurrency:            req.PaidCurrency,
 		ExternalTxnID:           req.ExternalTxnID,
 		CreatedAt:               req.CreatedAt.Format(time.RFC3339),

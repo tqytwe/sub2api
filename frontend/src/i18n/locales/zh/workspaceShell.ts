@@ -12,6 +12,8 @@ export default {
     wallet: '钱包',
     growth: '成长活动',
     fundManagement: '资金管理',
+    fundCredits: '入账与补偿',
+    fundOperationHistory: '资金操作记录',
     refundRequests: '退款申请',
     rewardWithdrawals: '奖励提现',
     giftBalance: '赠送余额',

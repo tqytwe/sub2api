@@ -149,8 +149,6 @@ export type {
   AdminFundRefundListQuery,
   AdminFundGrantInput,
   AdminOfflineRechargeInput,
-  AdminFundClassificationCandidate,
-  AdminFundClassificationPreview,
 } from './funds'
 export type {
   PluginInstallation,
