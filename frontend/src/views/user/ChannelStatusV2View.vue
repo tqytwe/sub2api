@@ -3,12 +3,12 @@
     <div class="space-y-6 pb-12">
       <!-- Ops-style elevated shell: title toolbar + filters (mirrors OpsDashboardHeader) -->
       <section
-        class="card sticky top-0 z-20 !rounded-lg !border-0 p-0 shadow-sm ring-1 ring-gray-900/5 backdrop-blur-sm dark:!bg-dark-800 dark:ring-dark-700 supports-[backdrop-filter]:bg-white/95 dark:supports-[backdrop-filter]:bg-dark-800/95"
+        class="card sticky top-0 z-20 !rounded-3xl !border-0 p-0 shadow-sm ring-1 ring-gray-900/5 backdrop-blur-sm dark:!bg-dark-800 dark:ring-dark-700 supports-[backdrop-filter]:bg-white/95 dark:supports-[backdrop-filter]:bg-dark-800/95"
       >
         <header class="page-header mb-0 flex flex-wrap items-start justify-between gap-4 border-b border-gray-100 px-5 py-4 dark:border-dark-700 sm:px-6">
           <div class="min-w-0">
             <h1 class="page-title flex items-center gap-2 text-xl font-black text-gray-900 dark:text-white">
-              <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-500 dark:bg-blue-900/30 dark:text-blue-400">
+              <span class="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-blue-50 text-blue-500 dark:bg-blue-900/30 dark:text-blue-400">
                 <Icon name="chart" size="sm" />
               </span>
               {{ t('channelMonitorV2.title') }}
@@ -50,7 +50,7 @@
             :disabled="loading"
             @click="reload(false)"
           >
-            <Icon name="refresh" size="sm" :class="loading ? 'animate-spin' : ''" /> <!-- design-governance-allow: continuous-motion - bounded refresh feedback respects reduced motion styles. -->
+            <Icon name="refresh" size="sm" :class="loading ? 'animate-spin' : ''" />
           </button>
         </header>
 
@@ -211,7 +211,7 @@
           :value="formatMs(snapshot.metrics.ttft.p50_ms)"
           :detail="latencyKpiSecondary(snapshot.metrics.ttft)"
           :title="latencyDetail(snapshot.metrics.ttft)"
-          :state="snapshot.health.ttft"
+          :state="ttftCellState(snapshot.health.ttft, snapshot.metrics.ttft)"
         />
         <MetricCell
           v-if="showThroughput"
@@ -243,7 +243,7 @@
         <div
           v-for="i in (showThroughput ? 5 : 4)"
           :key="i"
-          class="h-24 rounded-lg bg-gray-50 dark:bg-dark-900/30"
+          class="h-24 animate-pulse rounded-2xl bg-gray-50 dark:bg-dark-900/30"
         />
       </section>
 
@@ -263,15 +263,15 @@
         />
         <div
           v-else-if="loading"
-          class="card flex min-h-[320px] items-center justify-center !rounded-lg !border-0 text-sm text-gray-400 shadow-sm ring-1 ring-gray-900/5 dark:ring-dark-700"
+          class="card flex min-h-[320px] items-center justify-center !rounded-3xl !border-0 text-sm text-gray-400 shadow-sm ring-1 ring-gray-900/5 dark:ring-dark-700"
         >
-          <span>{{ t('common.loading') }}</span>
+          <span class="animate-pulse">{{ t('common.loading') }}</span>
         </div>
       </div>
 
-      <section class="card flex min-h-0 flex-col overflow-hidden !rounded-lg !border-0 shadow-sm ring-1 ring-gray-900/5 dark:!bg-dark-800 dark:ring-dark-700">
+      <section class="card flex min-h-0 flex-col overflow-hidden !rounded-3xl !border-0 shadow-sm ring-1 ring-gray-900/5 dark:!bg-dark-800 dark:ring-dark-700">
         <div class="border-b border-gray-100 px-5 pt-4 dark:border-dark-700 sm:px-6">
-          <nav class="tabs w-full sm:w-auto" role="tablist" :aria-label="t('channelMonitorV2.tabs.aria')">
+          <nav class="tabs w-full max-w-md sm:w-auto" role="tablist" :aria-label="t('channelMonitorV2.tabs.aria')">
             <button
               v-for="item in tabs"
               :key="item.value"
@@ -310,7 +310,7 @@
                     <div class="flex items-center gap-2">
                       <span :class="statusDot(row.health)" aria-hidden="true"></span>
                       <div>
-                        <span class="block text-xs text-gray-500 dark:text-dark-400">{{ platformLabel(row.platform, locale) }}</span>
+                        <span class="block text-xs text-gray-500 dark:text-dark-400">{{ row.platform }}</span>
                         <strong class="font-semibold text-gray-900 dark:text-white">
                           {{ row.model === '__other__' ? t('channelMonitorV2.otherModels') : row.model }}
                         </strong>
@@ -337,7 +337,7 @@
             <div
               v-for="row in errorRows"
               :key="row.category"
-              class="rounded-lg bg-gray-50 p-4 text-sm dark:bg-dark-900/30"
+              class="rounded-2xl bg-gray-50 p-4 text-sm dark:bg-dark-900/30"
               :class="row.ignored ? 'opacity-60' : ''"
             >
               <button
@@ -352,7 +352,7 @@
                 <span class="h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-dark-700">
                   <i
                     class="block h-full rounded-full"
-                    :class="row.ignored ? 'bg-gray-400 dark:bg-gray-500' : 'bg-red-500'"
+                    :class="row.ignored ? 'bg-gray-400 dark:bg-gray-500' : 'bg-gradient-to-r from-red-400 to-red-500'"
                     :style="{ width: `${Math.max(2, row.rate * 100)}%` }"
                   ></i>
                 </span>
@@ -370,7 +370,7 @@
                     class="rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-600 dark:bg-dark-900/50 dark:text-dark-300"
                   >
                     <div class="mb-1 flex flex-wrap items-center gap-2">
-                      <span class="badge badge-gray !px-1.5 !py-0 text-[10px]">{{ detail.platform ? platformLabel(detail.platform, locale) : '-' }}</span>
+                      <span class="badge badge-gray !px-1.5 !py-0 text-[10px]">{{ detail.platform || '-' }}</span>
                       <span class="truncate font-medium">{{ detail.model || '-' }}</span>
                       <span v-if="detail.status_code" class="text-gray-400">{{ t('channelMonitorV2.errorDetail.http', { code: detail.status_code }) }}</span>
                       <span v-if="detail.upstream_status_code" class="text-gray-400">{{ t('channelMonitorV2.errorDetail.upstream', { code: detail.upstream_status_code }) }}</span>
@@ -473,8 +473,7 @@ import RelayPulseMatrix from '@/features/channel-monitor-v2/RelayPulseMatrix.vue
 import { useAuthStore } from '@/stores/auth'
 import { useAppStore } from '@/stores/app'
 import { extractApiErrorMessage } from '@/utils/apiError'
-import { isChannelMonitorThroughputHidden } from '@/utils/featureFlags'
-import { platformLabel } from '@/utils/platformColors'
+import { isChannelMonitorThroughputHidden, isChannelMonitorUserRankingHidden } from '@/utils/featureFlags'
 import * as api from '@/api/channelMonitorV2'
 import type {
   HealthState,
@@ -499,7 +498,7 @@ import {
   tokensPerSecondFromTpm,
   healthScoreClass,
   monitorErrorCategoryLabel,
-  type LatencyMetricLabels,
+  ttftDisplayState,
 } from '@/features/channel-monitor-v2/monitorFormat'
 
 type Tab = 'models' | 'errors' | 'users'
@@ -514,12 +513,8 @@ const { t, te, locale } = useI18n()
 const isAdmin = computed(() => authStore.isAdmin)
 /** Admins always see RPM/TPM; users honor the hide-throughput system setting. */
 const showThroughput = computed(() => isAdmin.value || !isChannelMonitorThroughputHidden())
-const latencyMetricLabels = computed<LatencyMetricLabels>(() => ({
-  average: t('channelMonitorV2.metrics.average'),
-  p50: t('channelMonitorV2.metrics.p50'),
-  p90: t('channelMonitorV2.metrics.p90'),
-  p95: t('channelMonitorV2.metrics.p95'),
-}))
+/** Admins always see ranking; users honor the hide-user-ranking system setting. */
+const showUserRanking = computed(() => isAdmin.value || !isChannelMonitorUserRankingHidden())
 
 const ranges = computed(() => [
   { value: '90m' as MonitorRange, label: t('channelMonitorV2.ranges.90m') },
@@ -527,11 +522,16 @@ const ranges = computed(() => [
   { value: '7d' as MonitorRange, label: t('channelMonitorV2.ranges.7d') },
   { value: '30d' as MonitorRange, label: t('channelMonitorV2.ranges.30d') },
 ])
-const tabs = computed(() => [
-  { value: 'models' as Tab, label: t('channelMonitorV2.tabs.models') },
-  { value: 'errors' as Tab, label: t('channelMonitorV2.tabs.errors') },
-  { value: 'users' as Tab, label: t('channelMonitorV2.tabs.users') },
-])
+const tabs = computed(() => {
+  const items: Array<{ value: Tab; label: string }> = [
+    { value: 'models', label: t('channelMonitorV2.tabs.models') },
+    { value: 'errors', label: t('channelMonitorV2.tabs.errors') },
+  ]
+  if (showUserRanking.value) {
+    items.push({ value: 'users', label: t('channelMonitorV2.tabs.users') })
+  }
+  return items
+})
 const matrixGroupOptions = computed(() => [
   { value: 'platform' as MonitorMatrixGroupBy, label: t('channelMonitorV2.groupBy.platform') },
   { value: 'platform_group' as MonitorMatrixGroupBy, label: t('channelMonitorV2.groupBy.platformGroup') },
@@ -551,9 +551,7 @@ const filter = ref<MonitorFilter>({
   groupIds: csv(route.query.group).map(Number).filter(Boolean),
   models: csv(route.query.model),
 })
-const activeTab = ref<Tab>(
-  (['models', 'errors', 'users'].includes(String(route.query.tab)) ? route.query.tab : 'models') as Tab
-)
+const activeTab = ref<Tab>(parseTab(route.query.tab, showUserRanking.value))
 const matrixGroupBy = ref<MonitorMatrixGroupBy>(parseMatrixGroupBy(route.query.group_by))
 const healthMode = ref<HealthMode>(parseHealthMode(route.query.health_mode))
 const trendView = ref<TrendView>(parseTrendView(route.query.trend_view))
@@ -593,9 +591,7 @@ const groupOptions = computed(() =>
     )
     .map((item) => ({
       value: String(item.id),
-      label: item.platform
-        ? `${platformLabel(item.platform, locale.value)} / ${item.name || t('channelMonitorV2.filters.groupId', { id: item.id })}`
-        : item.name || t('channelMonitorV2.filters.groupId', { id: item.id }),
+      label: item.platform ? `${item.platform} / ${item.name || `#${item.id}`}` : item.name || `#${item.id}`,
     }))
 )
 const modelOptions = computed(() =>
@@ -606,20 +602,13 @@ const modelOptions = computed(() =>
         !item.platform ||
         selectedPlatforms.value.has(item.platform),
     )
-    .map((item) => {
-      const providerLabel = item.platform ? platformLabel(item.platform, locale.value) : ''
-      const modelLabel = item.label || item.value
-      const hasProviderPrefix = item.platform
-        ? modelLabel.toLocaleLowerCase().includes(item.platform.toLocaleLowerCase())
-          || modelLabel.toLocaleLowerCase().includes(providerLabel.toLocaleLowerCase())
-        : false
-      return {
-        value: item.value,
-        label: item.platform && !hasProviderPrefix
-          ? `${providerLabel} / ${modelLabel}`
-          : modelLabel,
-      }
-    })
+    .map((item) => ({
+      value: item.value,
+      label:
+        item.platform && !item.label.includes(item.platform)
+          ? `${item.platform} / ${item.label}`
+          : item.label,
+    }))
 )
 const selectedGroupIds = computed({
   get: () => filter.value.groupIds.map(String),
@@ -688,6 +677,10 @@ function parseMatrixGroupBy(value: unknown): MonitorMatrixGroupBy {
   return allowed.includes(value as MonitorMatrixGroupBy)
     ? (value as MonitorMatrixGroupBy)
     : 'platform_group'
+}
+function parseTab(value: unknown, allowUsers: boolean): Tab {
+  const allowed: Tab[] = allowUsers ? ['models', 'errors', 'users'] : ['models', 'errors']
+  return allowed.includes(value as Tab) ? (value as Tab) : 'models'
 }
 function parseHealthMode(value: unknown): HealthMode {
   const allowed: HealthMode[] = ['overall', 'success', 'ttft', 'cache']
@@ -790,8 +783,10 @@ async function loadTab(signal?: AbortSignal, id = sequence) {
       modelRows.value = (await api.getModels(filter.value, isAdmin.value, signal)).items || []
     } else if (activeTab.value === 'errors') {
       errorRows.value = (await api.getErrors(filter.value, isAdmin.value, signal)).items || []
-    } else {
+    } else if (showUserRanking.value) {
       userRows.value = (await api.getUsers(filter.value, isAdmin.value, signal)).items || []
+    } else {
+      userRows.value = []
     }
   } catch (error) {
     const e = error as { name?: string; code?: string }
@@ -852,21 +847,24 @@ function formatPercent(value: number) {
 function formatMs(value: number | null) {
   return formatMonitorMs(value)
 }
+function ttftCellState(state: HealthState | undefined, metric: { p50_ms: number | null; sample_count?: number }) {
+  return ttftDisplayState(state, metric)
+}
 function latencyDetail(metric: {
   p50_ms: number | null
   p90_ms?: number | null
   p95_ms: number | null
   avg_ms?: number | null
 }) {
-  return formatLatencyPrivacy(metric.p50_ms, metric.p90_ms, metric.avg_ms, metric.p95_ms, latencyMetricLabels.value)
+  return formatLatencyPrivacy(metric.p50_ms, metric.p90_ms, metric.avg_ms, metric.p95_ms)
 }
-/** KPI secondary uses average plus P90 under the P50 primary value. */
+/** KPI secondary: AVG · P90 under the P50 primary value. */
 function latencyKpiSecondary(metric: {
   p90_ms?: number | null
   p95_ms: number | null
   avg_ms?: number | null
 }) {
-  return formatLatencyKpiSecondary(metric.avg_ms, metric.p90_ms, metric.p95_ms, latencyMetricLabels.value)
+  return formatLatencyKpiSecondary(metric.avg_ms, metric.p90_ms, metric.p95_ms)
 }
 function formatTime(value: string) {
   return new Intl.DateTimeFormat(locale.value || undefined, {
@@ -921,6 +919,11 @@ watch(activeTab, () => {
   syncQuery()
   void loadTab()
 })
+watch(showUserRanking, (allowed) => {
+  if (!allowed && activeTab.value === 'users') {
+    activeTab.value = 'models'
+  }
+})
 onMounted(() => void reload(false))
 onBeforeUnmount(() => {
   controller?.abort()
@@ -937,21 +940,21 @@ onBeforeUnmount(() => {
   border-radius: 9999px;
 }
 /* Multi-stop green → yellow → red score bands */
-.health-score10 { background: var(--monitor-health-10); }
-.health-score9  { background: var(--monitor-health-9); }
-.health-score8  { background: var(--monitor-health-8); }
-.health-score7  { background: var(--monitor-health-7); }
-.health-score6  { background: var(--monitor-health-6); }
-.health-score5  { background: var(--monitor-health-5); }
-.health-score4  { background: var(--monitor-health-4); }
-.health-score3  { background: var(--monitor-health-3); }
-.health-score2  { background: var(--monitor-health-2); }
-.health-score1  { background: var(--monitor-health-1); }
-.health-score0  { background: var(--monitor-health-0); }
-.health-healthy  { background: var(--monitor-health-9); }
-.health-warning  { background: var(--monitor-health-4); }
-.health-critical { background: var(--monitor-health-0); }
-.health-unknown  { background: var(--border-strong); }
+.health-score10 { background: #16a34a; }
+.health-score9  { background: #22c55e; }
+.health-score8  { background: #4ade80; }
+.health-score7  { background: #a3e635; }
+.health-score6  { background: #facc15; }
+.health-score5  { background: #fbbf24; }
+.health-score4  { background: #f59e0b; }
+.health-score3  { background: #f97316; }
+.health-score2  { background: #fb7185; }
+.health-score1  { background: #f87171; }
+.health-score0  { background: rgb(239, 67, 67); }
+.health-healthy  { background: #22c55e; }
+.health-warning  { background: #f59e0b; }
+.health-critical { background: #ef4444; }
+.health-unknown  { background: #9ca3af; }
 .matrix-select {
   min-width: 10rem;
 }

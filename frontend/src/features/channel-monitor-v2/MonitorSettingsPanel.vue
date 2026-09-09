@@ -425,7 +425,7 @@ function categoryLabel(category: string) {
 }
 
 function platformLabel(value: string) {
-  return localizedPlatformLabel(value, locale.value)
+ return localizedPlatformLabel(value, locale.value)
 }
 
 function normalizeConfig(value: MonitorConfig): MonitorConfig {
