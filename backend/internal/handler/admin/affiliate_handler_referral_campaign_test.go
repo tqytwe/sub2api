@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
@@ -25,6 +26,7 @@ func TestReferralCampaignAdminErrorsUseStableBusinessResponses(t *testing.T) {
 		{"invalid state", service.ErrReferralCampaignInvalidState, http.StatusConflict, "REFERRAL_CAMPAIGN_INVALID_STATE"},
 		{"version conflict", service.ErrReferralCampaignVersionConflict, http.StatusConflict, "REFERRAL_CAMPAIGN_VERSION_CONFLICT"},
 		{"missing close reason", service.ErrReferralCampaignEarlyCloseReason, http.StatusBadRequest, "REFERRAL_CAMPAIGN_EARLY_CLOSE_REASON_REQUIRED"},
+		{"persistence failure", infraerrors.InternalServer("REFERRAL_CAMPAIGN_EARLY_CLOSE_FAILED", "unable to close the referral campaign; refresh and try again"), http.StatusInternalServerError, "REFERRAL_CAMPAIGN_EARLY_CLOSE_FAILED"},
 	} {
 		t.Run(testCase.name, func(t *testing.T) {
 			recorder := httptest.NewRecorder()

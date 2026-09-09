@@ -68,6 +68,7 @@ vi.mock('vue-i18n', async (importOriginal) => {
           'admin.playOps.inviteGrowth.preservedRewards': '保留',
           'admin.playOps.inviteGrowth.claimDeadline': '领奖截止',
           'admin.playOps.inviteGrowth.rewardCountAmount': '{count} 笔 / {amount}',
+          'admin.playOps.inviteGrowth.errors.REFERRAL_CAMPAIGN_EARLY_CLOSE_FAILED': '提前结束领奖期未完成，请刷新后重试；奖励与预算未修改。',
         }
         let value = labels[key] || key
         for (const [name, replacement] of Object.entries(params || {})) {
@@ -378,5 +379,24 @@ describe('AdminInviteGrowthOperations', () => {
     expect(api.earlyCloseReferralCampaign).not.toHaveBeenCalled()
     expect(store.showError).not.toHaveBeenCalled()
     expect(wrapper.find('[data-testid="dialog"]').exists()).toBe(true)
+  })
+
+  it('localizes an unexpected early-close persistence failure instead of exposing a raw backend error', async () => {
+    api.getReferralCampaign.mockResolvedValue({ ...detail, campaign: { ...campaign, status: 'settling', version: 3 } })
+    api.earlyCloseReferralCampaign.mockRejectedValueOnce({
+      response: { data: { reason: 'REFERRAL_CAMPAIGN_EARLY_CLOSE_FAILED', message: 'internal error' } },
+    })
+    const wrapper = mountComponent()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="early-close-campaign"]').trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-testid="early-close-reason"]').setValue('运营确认')
+    await wrapper.get('[data-testid="early-close-confirmation"]').setValue(true)
+    await wrapper.get('[data-testid="confirm-early-close"]').trigger('click')
+    await flushPromises()
+
+    expect(store.showError).toHaveBeenCalledWith('提前结束领奖期未完成，请刷新后重试；奖励与预算未修改。')
+    expect(store.showError).not.toHaveBeenCalledWith('internal error')
   })
 })

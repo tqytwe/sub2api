@@ -644,6 +644,7 @@ export default {
         REFERRAL_CAMPAIGN_IMMUTABLE: "This campaign can no longer be edited.",
         REFERRAL_CAMPAIGN_EARLY_CLOSE_REASON_REQUIRED: "Enter a reason before ending the claim window early.",
         REFERRAL_CAMPAIGN_EARLY_CLOSE_CONFIRMATION_REQUIRED: "Confirm that unclaimed rewards will expire before continuing.",
+        REFERRAL_CAMPAIGN_EARLY_CLOSE_FAILED: "The claim window was not closed. Refresh the campaign and try again; rewards and budget were not changed.",
         REFERRAL_CAMPAIGN_BUDGET_EXCEEDED: "The campaign reward budget is exhausted.",
       },
       actionFailed: "The operation failed. The campaign version may have changed; refresh and try again.",

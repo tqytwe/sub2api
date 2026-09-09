@@ -234,6 +234,20 @@ func TestReferralCampaignEarlyCloseDelegatesTrimmedReasonOnceValidated(t *testin
 	require.Equal(t, "finance and operations approved", repo.earlyCloseReason)
 }
 
+func TestReferralCampaignEarlyCloseConvertsUnexpectedPersistenceFailureToStableError(t *testing.T) {
+	repo := &referralCampaignMemoryRepo{
+		campaign:      &ReferralCampaign{ID: 7, Version: 3, Status: ReferralCampaignStatusSettling, ClaimDeadline: time.Now().UTC().Add(time.Hour)},
+		earlyCloseErr: errors.New("database implementation detail"),
+	}
+	svc := NewReferralCampaignService(repo)
+
+	_, err := svc.EarlyClose(context.Background(), 7, 3, 42, "operations reviewed")
+	require.Error(t, err)
+	require.Equal(t, "REFERRAL_CAMPAIGN_EARLY_CLOSE_FAILED", infraerrors.Reason(err))
+	require.Equal(t, "unable to close the referral campaign; refresh and try again", infraerrors.Message(err))
+	require.NotContains(t, infraerrors.Message(err), "database")
+}
+
 func TestReferralCampaignClaimWrapsUnexpectedRepositoryFailureWithoutLeakingCause(t *testing.T) {
 	dbErr := errors.New("duplicate key value violates unique constraint user_affiliate_ledger_reward_key")
 	repo := &referralCampaignMemoryRepo{

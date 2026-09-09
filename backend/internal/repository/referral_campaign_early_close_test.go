@@ -26,6 +26,8 @@ func TestEarlyCloseReferralCampaignSQLPreservesProcessedRewardsAndAuditsRelease(
 	require.Contains(t, query, "budget_reserved=GREATEST(budget_reserved-$1,0)")
 	require.Contains(t, query, "referral:reward:%d:early-close-expire")
 	require.Contains(t, query, "'early_closed'")
+	require.Contains(t, query, "'expired_reward_count',$5::integer")
+	require.Contains(t, query, "'expired_reward_amount',$6::numeric")
 	require.NotContains(t, query[strings.Index(query, "func (r *affiliateRepository) EarlyCloseReferralCampaign"):strings.Index(query, "func (r *affiliateRepository) ReviewReferralCampaign")], "WITH changed AS")
 	for _, preserved := range []string{"claimed_frozen", "available", "debt_review", "resolved"} {
 		require.NotContains(t, query[strings.Index(query, "func (r *affiliateRepository) EarlyCloseReferralCampaign"):strings.Index(query, "func (r *affiliateRepository) ReviewReferralCampaign")], "r.status='"+preserved+"'")

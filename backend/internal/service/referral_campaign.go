@@ -837,7 +837,28 @@ func (s *ReferralCampaignService) EarlyClose(ctx context.Context, campaignID, ex
 	if campaign.Status != ReferralCampaignStatusSettling || !time.Now().UTC().Before(campaign.ClaimDeadline) {
 		return nil, ErrReferralCampaignInvalidState
 	}
-	return s.repo.EarlyCloseReferralCampaign(ctx, campaignID, expectedVersion, actorID, reason)
+	closed, err := s.repo.EarlyCloseReferralCampaign(ctx, campaignID, expectedVersion, actorID, reason)
+	if err == nil {
+		return closed, nil
+	}
+	if errors.Is(err, ErrReferralCampaignNotFound) ||
+		errors.Is(err, ErrReferralCampaignVersionConflict) ||
+		errors.Is(err, ErrReferralCampaignInvalidState) ||
+		errors.Is(err, ErrReferralCampaignBudgetExceeded) {
+		return nil, err
+	}
+
+	// Keep database details in structured logs while returning a stable error reason.
+	logger.FromContext(ctx).Error("referral.campaign_early_close_failed",
+		zap.Int64("campaign_id", campaignID),
+		zap.Int64("actor_id", actorID),
+		zap.String("error_code", "REFERRAL_CAMPAIGN_EARLY_CLOSE_FAILED"),
+		zap.Error(err),
+	)
+	return nil, infraerrors.InternalServer(
+		"REFERRAL_CAMPAIGN_EARLY_CLOSE_FAILED",
+		"unable to close the referral campaign; refresh and try again",
+	).WithCause(err)
 }
 
 func (s *ReferralCampaignService) Review(ctx context.Context, campaignID, expectedVersion int64, reviewType, decision string, actorID int64, note string) (*ReferralCampaign, error) {

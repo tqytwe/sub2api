@@ -17,6 +17,8 @@ interface ApiErrorLike {
       detail?: string
       message?: string
       code?: number | string
+      reason?: string
+      metadata?: Record<string, unknown>
     }
   }
 }
@@ -31,7 +33,7 @@ interface ApiErrorLike {
 export function extractApiErrorCode(err: unknown): string | undefined {
   if (!err || typeof err !== 'object') return undefined
   const e = err as ApiErrorLike
-  const code = e.reason ?? e.code ?? e.response?.data?.code
+  const code = e.reason ?? e.code ?? e.response?.data?.reason ?? e.response?.data?.code
   return code != null ? String(code) : undefined
 }
 
@@ -42,7 +44,7 @@ export function extractApiErrorCode(err: unknown): string | undefined {
 export function extractApiErrorMetadata(err: unknown): Record<string, unknown> | undefined {
   if (!err || typeof err !== 'object') return undefined
   const e = err as ApiErrorLike
-  return e.metadata
+  return e.metadata ?? e.response?.data?.metadata
 }
 
 type TranslateFn = (key: string, params?: Record<string, unknown>) => string

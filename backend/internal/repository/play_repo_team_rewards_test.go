@@ -94,6 +94,33 @@ func TestListTeamIDsForRewardMonthIncludesArchivedTeamsWithValidMembership(t *te
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
+func TestRefreshTeamRewardSettlementStatusUsesOneExplicitStatusType(t *testing.T) {
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherRegexp))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+
+	repo := &playRepository{sql: db}
+	mock.ExpectQuery(`(?is)COUNT\(\*\).*FROM play_team_reward_allocations.*WHERE settlement_id = \$1`).
+		WithArgs(int64(7)).
+		WillReturnRows(sqlmock.NewRows([]string{"total", "paid", "processing", "failed"}).AddRow(1, 1, 0, 0))
+	mock.ExpectExec(`(?is)UPDATE play_team_settlements.*SET status = \$2::varchar.*CASE WHEN \$2::varchar = 'completed'::varchar`).
+		WithArgs(int64(7), service.PlayTeamSettlementStatusCompleted).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectQuery(`(?is)SELECT.*FROM play_team_settlements.*WHERE id = \$1`).
+		WithArgs(int64(7)).
+		WillReturnRows(teamSettlementRows().AddRow(
+			int64(7), int64(2), time.Date(2026, time.September, 1, 0, 0, 0, 0, time.UTC),
+			time.Date(2026, time.August, 31, 16, 0, 0, 0, time.UTC), time.Date(2026, time.September, 30, 16, 0, 0, 0, time.UTC),
+			"100.00000000", "50.00000000", "0.02000000", "2.00000000", "100.00000000", service.PlayTeamSettlementStatusCompleted,
+			nil, time.Now().UTC(), time.Now().UTC(),
+		))
+
+	settlement, err := repo.RefreshTeamRewardSettlementStatus(context.Background(), 7)
+	require.NoError(t, err)
+	require.Equal(t, service.PlayTeamSettlementStatusCompleted, settlement.Status)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
 func TestTeamSettlementSnapshotReturnsExistingWithoutRecreatingAllocations(t *testing.T) {
 	db, mock, client := newTeamRewardRepositoryTestClient(t)
 	_ = db
