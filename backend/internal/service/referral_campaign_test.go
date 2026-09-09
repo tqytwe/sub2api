@@ -4,9 +4,12 @@ package service
 
 import (
 	"context"
+	"errors"
+	"strings"
 	"testing"
 	"time"
 
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/stretchr/testify/require"
 )
 
@@ -96,6 +99,14 @@ type referralCampaignMemoryRepo struct {
 	enrollment       *ReferralCampaignEnrollment
 	pendingFinancial *ReferralCampaignFinancialVersion
 	reviewedVersion  int64
+	earlyCloseID     int64
+	earlyCloseVer    int64
+	earlyCloseActor  int64
+	earlyCloseReason string
+	earlyCloseErr    error
+	claimErr         error
+	attribution      *ReferralAttribution
+	recomputeCalled  bool
 }
 
 func (r *referralCampaignMemoryRepo) GetReferralCampaign(_ context.Context, _ int64) (*ReferralCampaign, error) {
@@ -103,7 +114,25 @@ func (r *referralCampaignMemoryRepo) GetReferralCampaign(_ context.Context, _ in
 }
 
 func (r *referralCampaignMemoryRepo) ClaimReferralReward(context.Context, ReferralClaimInput) (*ReferralReward, error) {
+	if r.claimErr != nil {
+		return nil, r.claimErr
+	}
 	return &ReferralReward{ID: 11, Status: ReferralRewardStatusClaimedFrozen}, nil
+}
+
+func (r *referralCampaignMemoryRepo) GetReferralCampaignEarlyClosePreview(context.Context, int64) (*ReferralCampaignEarlyClosePreview, error) {
+	return &ReferralCampaignEarlyClosePreview{}, nil
+}
+
+func (r *referralCampaignMemoryRepo) EarlyCloseReferralCampaign(_ context.Context, id, version, actorID int64, reason string) (*ReferralCampaign, error) {
+	r.earlyCloseID = id
+	r.earlyCloseVer = version
+	r.earlyCloseActor = actorID
+	r.earlyCloseReason = reason
+	if r.earlyCloseErr != nil {
+		return nil, r.earlyCloseErr
+	}
+	return r.campaign, nil
 }
 
 func (r *referralCampaignMemoryRepo) GetReferralCampaignSecret(context.Context, int64) ([]byte, error) {
@@ -112,6 +141,15 @@ func (r *referralCampaignMemoryRepo) GetReferralCampaignSecret(context.Context, 
 
 func (r *referralCampaignMemoryRepo) GetReferralCampaignEnrollment(context.Context, int64, int64) (*ReferralCampaignEnrollment, error) {
 	return r.enrollment, nil
+}
+
+func (r *referralCampaignMemoryRepo) GetReferralAttribution(context.Context, int64, int64) (*ReferralAttribution, error) {
+	return r.attribution, nil
+}
+
+func (r *referralCampaignMemoryRepo) RecomputeReferralQualification(context.Context, int64, int64, time.Time) (*ReferralQualification, error) {
+	r.recomputeCalled = true
+	return &ReferralQualification{}, nil
 }
 
 func (r *referralCampaignMemoryRepo) GetPendingReferralCampaignFinancialVersion(context.Context, int64) (*ReferralCampaignFinancialVersion, error) {
@@ -156,4 +194,83 @@ func TestReferralCampaignValidateInviteTokenBeforeRegistration(t *testing.T) {
 	require.Equal(t, int64(42), inviterID)
 	_, err = svc.ValidateInviteToken(context.Background(), token+"tampered", now)
 	require.ErrorIs(t, err, ErrReferralCampaignTokenInvalid)
+}
+
+func TestReferralCampaignEarlyCloseRequiresSettlingWindowReasonAndCurrentVersion(t *testing.T) {
+	now := time.Now().UTC()
+	repo := &referralCampaignMemoryRepo{campaign: &ReferralCampaign{
+		ID: 7, Version: 3, Status: ReferralCampaignStatusSettling, ClaimDeadline: now.Add(time.Hour),
+	}}
+	svc := NewReferralCampaignService(repo)
+
+	_, err := svc.EarlyClose(context.Background(), 7, 3, 42, " \t ")
+	require.ErrorIs(t, err, ErrReferralCampaignEarlyCloseReason)
+	_, err = svc.EarlyClose(context.Background(), 7, 3, 42, strings.Repeat("x", 501))
+	require.ErrorIs(t, err, ErrReferralCampaignEarlyCloseReason)
+	_, err = svc.EarlyClose(context.Background(), 7, 2, 42, "operations reviewed")
+	require.ErrorIs(t, err, ErrReferralCampaignVersionConflict)
+
+	repo.campaign.Status = ReferralCampaignStatusRunning
+	_, err = svc.EarlyClose(context.Background(), 7, 3, 42, "operations reviewed")
+	require.ErrorIs(t, err, ErrReferralCampaignInvalidState)
+	repo.campaign.Status = ReferralCampaignStatusSettling
+	repo.campaign.ClaimDeadline = now.Add(-time.Minute)
+	_, err = svc.EarlyClose(context.Background(), 7, 3, 42, "operations reviewed")
+	require.ErrorIs(t, err, ErrReferralCampaignInvalidState)
+}
+
+func TestReferralCampaignEarlyCloseDelegatesTrimmedReasonOnceValidated(t *testing.T) {
+	repo := &referralCampaignMemoryRepo{campaign: &ReferralCampaign{
+		ID: 7, Version: 3, Status: ReferralCampaignStatusSettling, ClaimDeadline: time.Now().UTC().Add(time.Hour),
+	}}
+	svc := NewReferralCampaignService(repo)
+
+	_, err := svc.EarlyClose(context.Background(), 7, 3, 42, "  finance and operations approved  ")
+
+	require.NoError(t, err)
+	require.Equal(t, int64(7), repo.earlyCloseID)
+	require.Equal(t, int64(3), repo.earlyCloseVer)
+	require.Equal(t, int64(42), repo.earlyCloseActor)
+	require.Equal(t, "finance and operations approved", repo.earlyCloseReason)
+}
+
+func TestReferralCampaignClaimWrapsUnexpectedRepositoryFailureWithoutLeakingCause(t *testing.T) {
+	dbErr := errors.New("duplicate key value violates unique constraint user_affiliate_ledger_reward_key")
+	repo := &referralCampaignMemoryRepo{
+		campaign: &ReferralCampaign{ID: 7, Version: 3, Status: ReferralCampaignStatusSettling},
+		claimErr: dbErr,
+	}
+	svc := NewReferralCampaignService(repo)
+
+	_, err := svc.ClaimReward(context.Background(), ReferralClaimInput{CampaignID: 7, UserID: 42, RewardID: 11, CampaignVersion: 3})
+
+	require.Equal(t, "REFERRAL_REWARD_CLAIM_FAILED", infraerrors.Reason(err))
+	require.Equal(t, 500, infraerrors.Code(err))
+	require.NotContains(t, infraerrors.Message(err), "duplicate key")
+	require.ErrorIs(t, err, dbErr)
+}
+
+func TestReferralCampaignClaimPreservesKnownDomainFailures(t *testing.T) {
+	repo := &referralCampaignMemoryRepo{
+		campaign: &ReferralCampaign{ID: 7, Version: 3, Status: ReferralCampaignStatusSettling},
+		claimErr: ErrReferralRewardNotClaimable,
+	}
+	svc := NewReferralCampaignService(repo)
+
+	_, err := svc.ClaimReward(context.Background(), ReferralClaimInput{CampaignID: 7, UserID: 42, RewardID: 11, CampaignVersion: 3})
+
+	require.ErrorIs(t, err, ErrReferralRewardNotClaimable)
+}
+
+func TestReferralCampaignSettlingStopsNewQualificationRecomputation(t *testing.T) {
+	repo := &referralCampaignMemoryRepo{
+		campaign:    &ReferralCampaign{ID: 7, Status: ReferralCampaignStatusSettling},
+		attribution: &ReferralAttribution{CampaignID: 7, InviteeID: 42, QualificationToSnapshot: time.Now().UTC().Add(time.Hour)},
+	}
+	svc := NewReferralCampaignService(repo)
+
+	_, err := svc.RecomputeQualification(context.Background(), 7, 42, time.Now().UTC())
+
+	require.ErrorIs(t, err, ErrReferralCampaignNotOpen)
+	require.False(t, repo.recomputeCalled)
 }

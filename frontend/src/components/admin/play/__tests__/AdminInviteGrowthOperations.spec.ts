@@ -9,6 +9,8 @@ const api = vi.hoisted(() => ({
   createReferralCampaign: vi.fn(),
   updateReferralCampaign: vi.fn(),
   setReferralCampaignStatus: vi.fn(),
+  getReferralCampaignEarlyClosePreview: vi.fn(),
+  earlyCloseReferralCampaign: vi.fn(),
   reviewReferralCampaign: vi.fn(),
   listReferralCampaignParticipants: vi.fn(),
   listReferralCampaignInvites: vi.fn(),
@@ -17,9 +19,22 @@ const api = vi.hoisted(() => ({
 }))
 
 const store = vi.hoisted(() => ({ showSuccess: vi.fn(), showError: vi.fn() }))
+const stepUp = vi.hoisted(() => ({ run: vi.fn() }))
 
 vi.mock('@/api/admin/play', () => ({ default: api }))
 vi.mock('@/stores', () => ({ useAppStore: () => store }))
+vi.mock('@/composables/useStepUp', () => ({
+  useStepUp: () => ({
+    visible: { value: false },
+    blockedReason: { value: '' },
+    run: stepUp.run,
+    onVerified: vi.fn(),
+    onCancel: vi.fn(),
+  }),
+  isStepUpCancelled: (cause: unknown) => (cause as { code?: string })?.code === 'STEP_UP_CANCELLED',
+  isStepUpBlocked: (cause: unknown) => Boolean((cause as { code?: string })?.code?.startsWith('STEP_UP_')),
+  stepUpBlockReason: (cause: unknown) => (cause as { code?: string })?.code || '',
+}))
 vi.mock('vue-i18n', async (importOriginal) => {
   const actual = await importOriginal<typeof import('vue-i18n')>()
   return {
@@ -43,6 +58,16 @@ vi.mock('vue-i18n', async (importOriginal) => {
           'admin.playOps.inviteGrowth.tabs.invites': '邀请关联',
           'admin.playOps.inviteGrowth.tabs.rewards': '奖励记录',
           'admin.playOps.inviteGrowth.resolveDebt': '处理追缴',
+          'admin.playOps.inviteGrowth.statuses.settling': '领奖中',
+          'admin.playOps.inviteGrowth.earlyClose': '提前结束领奖',
+          'admin.playOps.inviteGrowth.earlyCloseTitle': '提前结束领奖期',
+          'admin.playOps.inviteGrowth.earlyCloseWarning': '未领取奖励将失效',
+          'admin.playOps.inviteGrowth.earlyCloseReason': '结束原因',
+          'admin.playOps.inviteGrowth.earlyCloseConfirm': '我确认作废未领取奖励',
+          'admin.playOps.inviteGrowth.claimableRewards': '将作废',
+          'admin.playOps.inviteGrowth.preservedRewards': '保留',
+          'admin.playOps.inviteGrowth.claimDeadline': '领奖截止',
+          'admin.playOps.inviteGrowth.rewardCountAmount': '{count} 笔 / {amount}',
         }
         let value = labels[key] || key
         for (const [name, replacement] of Object.entries(params || {})) {
@@ -119,6 +144,8 @@ function mountComponent() {
 describe('AdminInviteGrowthOperations', () => {
   beforeEach(() => {
     Object.values(api).forEach(mock => mock.mockReset())
+    stepUp.run.mockReset()
+    stepUp.run.mockImplementation((action: () => Promise<unknown>) => action())
     store.showSuccess.mockReset()
     store.showError.mockReset()
     api.getInviteGrowthOverview.mockResolvedValue({
@@ -138,6 +165,17 @@ describe('AdminInviteGrowthOperations', () => {
     ]))
     api.listReferralCampaignInvites.mockResolvedValue(page([]))
     api.listReferralCampaignRewards.mockResolvedValue(page([]))
+    api.getReferralCampaignEarlyClosePreview.mockResolvedValue({
+      campaign_id: 7,
+      campaign_version: 3,
+      status: 'settling',
+      claim_deadline: '2026-09-10T00:00:00Z',
+      claimable_reward_count: 2,
+      claimable_reward_amount: 300,
+      preserved_reward_count: 1,
+      preserved_reward_amount: 200,
+      can_early_close: true,
+    })
   })
 
   it('loads campaigns, selects the first draft, and exposes linked participant data', async () => {
@@ -272,5 +310,73 @@ describe('AdminInviteGrowthOperations', () => {
       decision: 'waived',
       note: '已核对退款与账户余额',
     })
+  })
+
+  it('uses a dedicated early-close preview instead of a normal settling status transition', async () => {
+    api.getReferralCampaign.mockResolvedValue({ ...detail, campaign: { ...campaign, status: 'settling', version: 3 } })
+    const wrapper = mountComponent()
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="status-closed"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="early-close-campaign"]').text()).toContain('提前结束领奖')
+    expect(wrapper.text()).toContain('领奖中')
+
+    await wrapper.get('[data-testid="early-close-campaign"]').trigger('click')
+    await flushPromises()
+    expect(api.getReferralCampaignEarlyClosePreview).toHaveBeenCalledWith(7)
+    expect(wrapper.get('[data-testid="dialog"]').text()).toContain('未领取奖励将失效')
+    expect((wrapper.get('[data-testid="confirm-early-close"]').element as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  it('does not offer an early-close write after the claim deadline', async () => {
+    api.getReferralCampaign.mockResolvedValue({
+      ...detail,
+      campaign: { ...campaign, status: 'settling', version: 3, claim_deadline: '2020-01-01T00:00:00Z' },
+    })
+    const wrapper = mountComponent()
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="early-close-campaign"]').exists()).toBe(false)
+    expect(api.getReferralCampaignEarlyClosePreview).not.toHaveBeenCalled()
+  })
+
+  it('requires an audited reason and explicit confirmation before TOTP-wrapped early close', async () => {
+    api.getReferralCampaign.mockResolvedValue({ ...detail, campaign: { ...campaign, status: 'settling', version: 3 } })
+    api.earlyCloseReferralCampaign.mockResolvedValue({ ...campaign, status: 'closed', version: 4 })
+    const wrapper = mountComponent()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="early-close-campaign"]').trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-testid="early-close-reason"]').setValue('  已完成运营核对  ')
+    await wrapper.get('[data-testid="early-close-confirmation"]').setValue(true)
+    await wrapper.get('[data-testid="confirm-early-close"]').trigger('click')
+    await flushPromises()
+
+    expect(stepUp.run).toHaveBeenCalledTimes(1)
+    expect(api.earlyCloseReferralCampaign).toHaveBeenCalledWith(7, {
+      expected_version: 3,
+      reason: '已完成运营核对',
+      confirmation: 'EARLY_CLOSE',
+    })
+    expect(store.showSuccess).toHaveBeenCalled()
+  })
+
+  it('does not turn a cancelled TOTP challenge into a failed operation', async () => {
+    api.getReferralCampaign.mockResolvedValue({ ...detail, campaign: { ...campaign, status: 'settling', version: 3 } })
+    stepUp.run.mockRejectedValueOnce({ code: 'STEP_UP_CANCELLED' })
+    const wrapper = mountComponent()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="early-close-campaign"]').trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-testid="early-close-reason"]').setValue('运营确认')
+    await wrapper.get('[data-testid="early-close-confirmation"]').setValue(true)
+    await wrapper.get('[data-testid="confirm-early-close"]').trigger('click')
+    await flushPromises()
+
+    expect(api.earlyCloseReferralCampaign).not.toHaveBeenCalled()
+    expect(store.showError).not.toHaveBeenCalled()
+    expect(wrapper.find('[data-testid="dialog"]').exists()).toBe(true)
   })
 })

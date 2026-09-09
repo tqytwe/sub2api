@@ -1000,6 +1000,8 @@ func registerAffiliateRoutes(admin *gin.RouterGroup, h *handler.Handlers, stepUp
 		affiliates.GET("/campaigns", h.Admin.Affiliate.ListReferralCampaigns)
 		affiliates.POST("/campaigns", gin.HandlerFunc(stepUpAuth), h.Admin.Affiliate.CreateReferralCampaign)
 		affiliates.GET("/campaigns/:campaign_id", h.Admin.Affiliate.GetReferralCampaign)
+		affiliates.GET("/campaigns/:campaign_id/early-close-preview", h.Admin.Affiliate.ReferralCampaignEarlyClosePreview)
+		affiliates.POST("/campaigns/:campaign_id/early-close", gin.HandlerFunc(stepUpAuth), h.Admin.Affiliate.EarlyCloseReferralCampaign)
 		affiliates.PUT("/campaigns/:campaign_id", gin.HandlerFunc(stepUpAuth), h.Admin.Affiliate.UpdateReferralCampaign)
 		affiliates.POST("/campaigns/:campaign_id/status", gin.HandlerFunc(stepUpAuth), h.Admin.Affiliate.SetReferralCampaignStatus)
 		affiliates.POST("/campaigns/:campaign_id/reviews", gin.HandlerFunc(stepUpAuth), h.Admin.Affiliate.ReviewReferralCampaign)
