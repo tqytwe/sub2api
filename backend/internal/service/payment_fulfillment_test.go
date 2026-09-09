@@ -956,6 +956,7 @@ func TestExecuteBalanceFulfillmentRecoversAfterRedeemWithoutCreditingAgain(t *te
 			Type:   RedeemTypeBalance,
 			Value:  order.Amount,
 			Status: StatusUsed,
+			UsedBy: ptrInt64(order.UserID),
 		},
 	}}
 	svc := &PaymentService{
