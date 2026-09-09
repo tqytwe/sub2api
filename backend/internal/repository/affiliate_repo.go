@@ -1700,7 +1700,7 @@ func (r *affiliateRepository) EarlyCloseReferralCampaign(ctx context.Context, id
 				return err
 			}
 		}
-		_, err = txClient.ExecContext(txCtx, `INSERT INTO referral_campaign_audit_logs (campaign_id,campaign_version,actor_id,action,detail) VALUES ($1,$2,$3,'early_closed',jsonb_build_object('reason',$4::text,'expired_reward_count',$5,'expired_reward_amount',$6))`, id, nextVersion, actorID, reason, len(expired), totalExpired)
+		_, err = txClient.ExecContext(txCtx, `INSERT INTO referral_campaign_audit_logs (campaign_id,campaign_version,actor_id,action,detail) VALUES ($1,$2,$3,'early_closed',jsonb_build_object('reason',$4::text,'expired_reward_count',$5::integer,'expired_reward_amount',$6::numeric))`, id, nextVersion, actorID, reason, len(expired), totalExpired)
 		return err
 	})
 	if err != nil {

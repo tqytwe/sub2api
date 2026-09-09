@@ -798,7 +798,11 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
-    path: '/admin/funds/:tab(refunds|grants|classification)',
+    path: '/admin/funds/classification',
+    redirect: '/admin/funds/operations',
+  },
+  {
+    path: '/admin/funds/:tab(refunds|credits|operations)',
     name: 'AdminFundsTab',
     component: () => import('@/views/admin/AdminFundsView.vue'),
     meta: {

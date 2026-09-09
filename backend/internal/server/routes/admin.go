@@ -179,15 +179,21 @@ func registerFundRoutes(admin *gin.RouterGroup, h *handler.Handlers, stepUpAuth 
 	funds := admin.Group("/funds")
 	{
 		funds.GET("/refund-requests", h.Admin.Fund.ListRefunds)
-		funds.GET("/refund-requests/:id", h.Admin.Fund.GetRefund)
-		funds.POST("/refund-requests/:id/approve", gin.HandlerFunc(stepUpAuth), h.Admin.Fund.ApproveRefund)
-		funds.POST("/refund-requests/:id/reject", gin.HandlerFunc(stepUpAuth), h.Admin.Fund.RejectRefund)
-		funds.GET("/refund-requests/:id/payout-sensitive", gin.HandlerFunc(stepUpAuth), h.Admin.Fund.GetRefundPayoutSensitive)
-		funds.POST("/refund-requests/:id/mark-paid", gin.HandlerFunc(stepUpAuth), h.Admin.Fund.MarkRefundPaid)
+		funds.GET("/refund-requests/:request_no", h.Admin.Fund.GetRefund)
+		funds.POST("/refund-requests/:request_no/approve", gin.HandlerFunc(stepUpAuth), h.Admin.Fund.ApproveRefund)
+		funds.POST("/refund-requests/:request_no/reject", gin.HandlerFunc(stepUpAuth), h.Admin.Fund.RejectRefund)
+		funds.GET("/refund-requests/:request_no/payout-sensitive", gin.HandlerFunc(stepUpAuth), h.Admin.Fund.GetRefundPayoutSensitive)
+		funds.POST("/refund-requests/:request_no/mark-paid", gin.HandlerFunc(stepUpAuth), h.Admin.Fund.MarkRefundPaid)
 		funds.POST("/gifts", gin.HandlerFunc(stepUpAuth), h.Admin.Fund.GrantGift)
+		funds.POST("/compensations", gin.HandlerFunc(stepUpAuth), h.Admin.Fund.GrantCompensation)
 		funds.POST("/offline-recharges", gin.HandlerFunc(stepUpAuth), h.Admin.Fund.GrantOfflineRecharge)
-		funds.GET("/classifications/signup-gift-30/preview", h.Admin.Fund.PreviewSignupGift30)
-		funds.POST("/classifications/signup-gift-30/execute", gin.HandlerFunc(stepUpAuth), h.Admin.Fund.ExecuteSignupGift30)
+		funds.GET("/accounts/search", h.Admin.Fund.SearchAccounts)
+		funds.GET("/operations", h.Admin.Fund.ListOperations)
+		funds.GET("/operations/:operation_no", h.Admin.Fund.GetOperation)
+		funds.GET("/operations/:operation_no/sensitive", gin.HandlerFunc(stepUpAuth), h.Admin.Fund.GetOperationSensitive)
+		funds.POST("/operations/:operation_no/corrections", gin.HandlerFunc(stepUpAuth), h.Admin.Fund.CorrectOperation)
+		funds.POST("/operations/:operation_no/corrections/retry", gin.HandlerFunc(stepUpAuth), h.Admin.Fund.RetryOperationCorrection)
+		funds.POST("/operations/:operation_no/corrections/cancel", gin.HandlerFunc(stepUpAuth), h.Admin.Fund.CancelOperationCorrection)
 	}
 }
 

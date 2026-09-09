@@ -943,8 +943,8 @@ const adminNavItems = computed((): NavItem[] => {
       children: [
         { path: '/admin/funds/refunds', label: t('nav.refundRequests'), icon: CreditCardIcon },
         { path: '/admin/withdrawals', label: t('nav.rewardWithdrawals'), icon: CreditCardIcon },
-        { path: '/admin/funds/grants', label: t('nav.giftBalance'), icon: GiftIcon },
-        { path: '/admin/funds/classification', label: t('nav.historicalGiftReview'), icon: ChartIcon },
+        { path: '/admin/funds/credits', label: t('nav.fundCredits'), icon: GiftIcon },
+        { path: '/admin/funds/operations', label: t('nav.fundOperationHistory'), icon: ChartIcon },
       ],
     },
     { path: '/admin/users', label: t('nav.users'), icon: UsersIcon, hideInSimpleMode: true },

@@ -128,10 +128,11 @@ type FundRefundRequest struct {
 }
 
 type FundRefundListQuery struct {
-	Status   string
-	UserID   int64
-	Page     int
-	PageSize int
+	Status         string
+	UserID         int64 // legacy internal caller filter; admin UI uses AccountKeyword.
+	AccountKeyword string
+	Page           int
+	PageSize       int
 }
 
 type FundRefundRequestPage struct {
@@ -621,6 +622,22 @@ func (s *FundManagementService) ListUserRefundRequests(ctx context.Context, user
 
 func (s *FundManagementService) AdminListRefundRequests(ctx context.Context, query FundRefundListQuery) (*FundRefundRequestPage, error) {
 	return s.listRefundRequests(ctx, query, true)
+}
+
+// AdminRefundRequestIDByNo keeps database primary keys inside the service.
+func (s *FundManagementService) AdminRefundRequestIDByNo(ctx context.Context, requestNo string) (int64, error) {
+	if s == nil || s.db == nil {
+		return 0, ErrFundManagementUnavailable
+	}
+	var id int64
+	err := s.db.QueryRowContext(ctx, `SELECT id FROM fund_refund_requests WHERE request_no=$1`, strings.TrimSpace(requestNo)).Scan(&id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, ErrFundRefundNotFound
+	}
+	if err != nil {
+		return 0, fmt.Errorf("resolve fund refund request number: %w", err)
+	}
+	return id, nil
 }
 
 func (s *FundManagementService) listRefundRequests(ctx context.Context, query FundRefundListQuery, adminView bool) (*FundRefundRequestPage, error) {
@@ -1287,6 +1304,10 @@ func fundRefundListWhere(query FundRefundListQuery, adminView bool) (string, []a
 	if status != "" && status != "all" {
 		args = append(args, status)
 		parts = append(parts, fmt.Sprintf("frr.status = $%d", len(args)))
+	}
+	if keyword := strings.TrimSpace(query.AccountKeyword); keyword != "" {
+		args = append(args, keyword)
+		parts = append(parts, fmt.Sprintf("(u.email ILIKE '%%' || $%d || '%%' OR COALESCE(u.username,'') ILIKE '%%' || $%d || '%%')", len(args), len(args)))
 	}
 	if len(parts) == 0 {
 		return "", args

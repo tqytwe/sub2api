@@ -135,8 +135,11 @@ const ADMIN = ['core', 'workspace-shell', 'admin-shell'] as const
 export const ROUTE_LOCALE_SCOPES = {
   Setup: ['core'],
   EnglishHome: ['core'],
-  EnglishModels: [...PUBLIC, 'user-dashboard'],
-  EnglishModelFamily: [...PUBLIC, 'user-dashboard'],
+  // ModelPlaza conditionally mounts AppLayout for authenticated embedded
+  // visits. Keep the shell explicit so a cold embedded visit never renders
+  // sidebar keys before their active-language messages arrive.
+  EnglishModels: [...PUBLIC, 'workspace-shell', 'user-dashboard'],
+  EnglishModelFamily: [...PUBLIC, 'workspace-shell', 'user-dashboard'],
   EnglishStatus: PUBLIC,
   EnglishDocs: PUBLIC,
   EnglishAbout: PUBLIC,
@@ -161,13 +164,15 @@ export const ROUTE_LOCALE_SCOPES = {
   Contact: PUBLIC,
   ContactQQ: PUBLIC,
   Docs: PUBLIC,
-  Blindbox: [...PUBLIC, 'user-dashboard'],
-  Arena: [...PUBLIC, 'user-dashboard'],
-  QuizQuest: [...PUBLIC, 'user-dashboard'],
-  Models: [...PUBLIC, 'user-dashboard'],
-  ModelFamily: [...PUBLIC, 'user-dashboard'],
+  // Public Play pages mount AuthenticatedPlayShell, which statically includes
+  // AppLayout for signed-in visitors.
+  Blindbox: [...PUBLIC, 'workspace-shell', 'user-dashboard'],
+  Arena: [...PUBLIC, 'workspace-shell', 'user-dashboard'],
+  QuizQuest: [...PUBLIC, 'workspace-shell', 'user-dashboard'],
+  Models: [...PUBLIC, 'workspace-shell', 'user-dashboard'],
+  ModelFamily: [...PUBLIC, 'workspace-shell', 'user-dashboard'],
   Status: PUBLIC,
-  AgentTeam: [...PUBLIC, 'user-dashboard'],
+  AgentTeam: [...PUBLIC, 'workspace-shell', 'user-dashboard'],
   Home: ['core'],
   Dashboard: [...WORKSPACE, 'user-dashboard'],
   Keys: [...WORKSPACE, 'user-dashboard'],

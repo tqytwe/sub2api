@@ -539,3 +539,123 @@ WHERE campaign_id=$1 AND action='created'`, campaign.ID)
 	require.NoError(t, rows.Err())
 	require.Equal(t, campaign.Key, auditCampaignKey)
 }
+
+func TestAffiliateRepository_EarlyCloseReferralCampaignExecutesTypedAuditAndPreservesProcessedRewards(t *testing.T) {
+	ctx := context.Background()
+	client := testEntClient(t)
+	repo := NewAffiliateRepository(client, integrationDB)
+	campaignRepo, ok := repo.(service.ReferralCampaignRepository)
+	require.True(t, ok)
+
+	actor := mustCreateUser(t, client, &service.User{Email: fmt.Sprintf("early-close-actor-%d@example.com", time.Now().UnixNano()), PasswordHash: "hash", Role: service.RoleAdmin, Status: service.StatusActive})
+	recipient := mustCreateUser(t, client, &service.User{Email: fmt.Sprintf("early-close-recipient-%d@example.com", time.Now().UnixNano()), PasswordHash: "hash", Role: service.RoleUser, Status: service.StatusActive})
+	now := time.Now().UTC()
+	var campaignID int64
+	require.NoError(t, integrationDB.QueryRowContext(ctx, `
+		INSERT INTO referral_campaigns (
+			campaign_key,name,status,version,registration_from,registration_to,starts_at,ends_at,qualification_to,claim_deadline,
+			risk_hold_hours,pay_threshold,usage_threshold,max_enrollments,budget_total,budget_reserved,budget_paid,reward_mode,signing_secret,created_by
+		) VALUES ($1,$2,'settling',7,$3,$4,$5,$6,$7,$8,168,0,0,1,100,15,0,'additive',$9,$10)
+		RETURNING id`,
+		fmt.Sprintf("early-close-%d", time.Now().UnixNano()), "Typed early close", now.Add(-96*time.Hour), now.Add(-72*time.Hour), now.Add(-72*time.Hour), now.Add(-48*time.Hour), now.Add(-24*time.Hour), now.Add(time.Hour), []byte("test-secret"), actor.ID,
+	).Scan(&campaignID))
+
+	var claimableID int64
+	require.NoError(t, integrationDB.QueryRowContext(ctx, `
+		INSERT INTO referral_campaign_rewards (campaign_id,user_id,tier_no,reward_type,amount,status,idempotency_key,claim_deadline)
+		VALUES ($1,$2,1,'invite',5,'claimable',$3,$4) RETURNING id`, campaignID, recipient.ID, fmt.Sprintf("early-close-claimable-%d", time.Now().UnixNano()), now.Add(time.Hour),
+	).Scan(&claimableID))
+	require.NoError(t, integrationDB.QueryRowContext(ctx, `
+		INSERT INTO referral_campaign_rewards (campaign_id,user_id,tier_no,reward_type,amount,status,idempotency_key,claim_deadline,frozen_until)
+		VALUES ($1,$2,2,'invite',10,'claimed_frozen',$3,$4,$5) RETURNING id`, campaignID, recipient.ID, fmt.Sprintf("early-close-preserved-%d", time.Now().UnixNano()), now.Add(time.Hour), now.Add(24*time.Hour),
+	).Scan(new(int64)))
+
+	closed, err := campaignRepo.EarlyCloseReferralCampaign(ctx, campaignID, 7, actor.ID, "operations reviewed")
+	require.NoError(t, err)
+	require.Equal(t, service.ReferralCampaignStatusClosed, closed.Status)
+	require.Equal(t, int64(8), closed.Version)
+
+	var claimableStatus, processedStatus string
+	require.NoError(t, integrationDB.QueryRowContext(ctx, `SELECT status FROM referral_campaign_rewards WHERE id=$1`, claimableID).Scan(&claimableStatus))
+	require.NoError(t, integrationDB.QueryRowContext(ctx, `SELECT status FROM referral_campaign_rewards WHERE campaign_id=$1 AND status='claimed_frozen'`, campaignID).Scan(&processedStatus))
+	require.Equal(t, service.ReferralRewardStatusExpired, claimableStatus)
+	require.Equal(t, service.ReferralRewardStatusClaimedFrozen, processedStatus)
+
+	var reserved, released float64
+	require.NoError(t, integrationDB.QueryRowContext(ctx, `SELECT budget_reserved::double precision FROM referral_campaigns WHERE id=$1`, campaignID).Scan(&reserved))
+	require.NoError(t, integrationDB.QueryRowContext(ctx, `SELECT COALESCE(SUM(amount),0)::double precision FROM referral_campaign_budget_ledger WHERE campaign_id=$1 AND action='release'`, campaignID).Scan(&released))
+	require.InDelta(t, 10.0, reserved, 1e-9)
+	require.InDelta(t, 5.0, released, 1e-9)
+
+	var auditCount int
+	require.NoError(t, integrationDB.QueryRowContext(ctx, `SELECT COUNT(*) FROM referral_campaign_audit_logs WHERE campaign_id=$1 AND action='early_closed' AND detail->>'expired_reward_count'='1'`, campaignID).Scan(&auditCount))
+	require.Equal(t, 1, auditCount)
+}
+
+func TestAffiliateRepository_EarlyCloseReferralCampaignRollsBackWhenAuditWriteFails(t *testing.T) {
+	ctx := context.Background()
+	client := testEntClient(t)
+	repo := NewAffiliateRepository(client, integrationDB)
+	campaignRepo, ok := repo.(service.ReferralCampaignRepository)
+	require.True(t, ok)
+
+	// The failure occurs after rewards, budget, and campaign rows would have
+	// changed, so it verifies that the repository transaction is all-or-nothing.
+	_, execErr := integrationDB.ExecContext(ctx, `
+		CREATE OR REPLACE FUNCTION test_referral_early_close_audit_failure()
+		RETURNS trigger LANGUAGE plpgsql AS $$
+		BEGIN
+			IF NEW.action = 'early_closed' THEN
+				RAISE EXCEPTION 'forced early-close audit failure';
+			END IF;
+			RETURN NEW;
+		END;
+		$$`)
+	require.NoError(t, execErr)
+	_, execErr = integrationDB.ExecContext(ctx, `
+		CREATE TRIGGER test_referral_early_close_audit_failure
+		BEFORE INSERT ON referral_campaign_audit_logs
+		FOR EACH ROW EXECUTE FUNCTION test_referral_early_close_audit_failure()`)
+	require.NoError(t, execErr)
+	t.Cleanup(func() {
+		_, _ = integrationDB.ExecContext(context.Background(), `DROP TRIGGER IF EXISTS test_referral_early_close_audit_failure ON referral_campaign_audit_logs`)
+		_, _ = integrationDB.ExecContext(context.Background(), `DROP FUNCTION IF EXISTS test_referral_early_close_audit_failure()`)
+	})
+
+	actor := mustCreateUser(t, client, &service.User{Email: fmt.Sprintf("early-close-rollback-actor-%d@example.com", time.Now().UnixNano()), PasswordHash: "hash", Role: service.RoleAdmin, Status: service.StatusActive})
+	recipient := mustCreateUser(t, client, &service.User{Email: fmt.Sprintf("early-close-rollback-recipient-%d@example.com", time.Now().UnixNano()), PasswordHash: "hash", Role: service.RoleUser, Status: service.StatusActive})
+	now := time.Now().UTC()
+	var campaignID int64
+	require.NoError(t, integrationDB.QueryRowContext(ctx, `
+		INSERT INTO referral_campaigns (
+			campaign_key,name,status,version,registration_from,registration_to,starts_at,ends_at,qualification_to,claim_deadline,
+			risk_hold_hours,pay_threshold,usage_threshold,max_enrollments,budget_total,budget_reserved,budget_paid,reward_mode,signing_secret,created_by
+		) VALUES ($1,$2,'settling',7,$3,$4,$5,$6,$7,$8,168,0,0,1,100,5,0,'additive',$9,$10)
+		RETURNING id`,
+		fmt.Sprintf("early-close-rollback-%d", time.Now().UnixNano()), "Early close rollback", now.Add(-96*time.Hour), now.Add(-72*time.Hour), now.Add(-72*time.Hour), now.Add(-48*time.Hour), now.Add(-24*time.Hour), now.Add(time.Hour), []byte("test-secret"), actor.ID,
+	).Scan(&campaignID))
+	require.NoError(t, integrationDB.QueryRowContext(ctx, `
+		INSERT INTO referral_campaign_rewards (campaign_id,user_id,tier_no,reward_type,amount,status,idempotency_key,claim_deadline)
+		VALUES ($1,$2,1,'invite',5,'claimable',$3,$4) RETURNING id`, campaignID, recipient.ID, fmt.Sprintf("early-close-rollback-reward-%d", time.Now().UnixNano()), now.Add(time.Hour),
+	).Scan(new(int64)))
+
+	_, err := campaignRepo.EarlyCloseReferralCampaign(ctx, campaignID, 7, actor.ID, "operations reviewed")
+	require.Error(t, err)
+	require.ErrorContains(t, err, "forced early-close audit failure")
+
+	var status string
+	var version int64
+	var reserved float64
+	require.NoError(t, integrationDB.QueryRowContext(ctx, `SELECT status,version,budget_reserved::double precision FROM referral_campaigns WHERE id=$1`, campaignID).Scan(&status, &version, &reserved))
+	require.Equal(t, service.ReferralCampaignStatusSettling, status)
+	require.Equal(t, int64(7), version)
+	require.InDelta(t, 5.0, reserved, 1e-9)
+	var rewardStatus string
+	require.NoError(t, integrationDB.QueryRowContext(ctx, `SELECT status FROM referral_campaign_rewards WHERE campaign_id=$1`, campaignID).Scan(&rewardStatus))
+	require.Equal(t, service.ReferralRewardStatusClaimable, rewardStatus)
+	var releases, audits int
+	require.NoError(t, integrationDB.QueryRowContext(ctx, `SELECT COUNT(*) FROM referral_campaign_budget_ledger WHERE campaign_id=$1 AND action='release'`, campaignID).Scan(&releases))
+	require.NoError(t, integrationDB.QueryRowContext(ctx, `SELECT COUNT(*) FROM referral_campaign_audit_logs WHERE campaign_id=$1 AND action='early_closed'`, campaignID).Scan(&audits))
+	require.Zero(t, releases)
+	require.Zero(t, audits)
+}

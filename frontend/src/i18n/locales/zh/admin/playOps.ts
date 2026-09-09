@@ -631,6 +631,7 @@ export default {
         REFERRAL_CAMPAIGN_IMMUTABLE: "当前活动已不可编辑。",
         REFERRAL_CAMPAIGN_EARLY_CLOSE_REASON_REQUIRED: "请填写提前结束领奖期的原因。",
         REFERRAL_CAMPAIGN_EARLY_CLOSE_CONFIRMATION_REQUIRED: "请确认未领取奖励将被作废后再继续。",
+        REFERRAL_CAMPAIGN_EARLY_CLOSE_FAILED: "提前结束领奖期暂时未完成，请刷新活动状态后重试；奖励与预算未被修改。",
         REFERRAL_CAMPAIGN_BUDGET_EXCEEDED: "活动奖励预算已用尽。",
       },
       actionFailed: "操作失败；活动版本可能已更新，请刷新后重试。",
