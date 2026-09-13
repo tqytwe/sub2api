@@ -50,7 +50,8 @@
             :disabled="loading"
             @click="reload(false)"
           >
-            <Icon name="refresh" size="sm" :class="loading ? 'animate-spin' : ''" /> <!-- design-governance-allow: continuous-motion - bounded refresh feedback respects reduced motion styles. -->
+            <LoadingSpinner v-if="loading" size="sm" />
+            <Icon v-else name="refresh" size="sm" />
           </button>
         </header>
 
@@ -211,7 +212,7 @@
           :value="formatMs(snapshot.metrics.ttft.p50_ms)"
           :detail="latencyKpiSecondary(snapshot.metrics.ttft)"
           :title="latencyDetail(snapshot.metrics.ttft)"
-          :state="snapshot.health.ttft"
+          :state="ttftCellState(snapshot.health.ttft, snapshot.metrics.ttft)"
         />
         <MetricCell
           v-if="showThroughput"
@@ -265,7 +266,7 @@
           v-else-if="loading"
           class="card flex min-h-[320px] items-center justify-center !rounded-lg !border-0 text-sm text-gray-400 shadow-sm ring-1 ring-gray-900/5 dark:ring-dark-700"
         >
-          <span>{{ t('common.loading') }}</span>
+          <LoadingSpinner size="sm" />
         </div>
       </div>
 
@@ -310,7 +311,7 @@
                     <div class="flex items-center gap-2">
                       <span :class="statusDot(row.health)" aria-hidden="true"></span>
                       <div>
-                        <span class="block text-xs text-gray-500 dark:text-dark-400">{{ platformLabel(row.platform, locale) }}</span>
+                      <span class="block text-xs text-gray-500 dark:text-dark-400">{{ platformLabel(row.platform, locale) }}</span>
                         <strong class="font-semibold text-gray-900 dark:text-white">
                           {{ row.model === '__other__' ? t('channelMonitorV2.otherModels') : row.model }}
                         </strong>
@@ -352,7 +353,7 @@
                 <span class="h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-dark-700">
                   <i
                     class="block h-full rounded-full"
-                    :class="row.ignored ? 'bg-gray-400 dark:bg-gray-500' : 'bg-red-500'"
+                    :class="row.ignored ? 'bg-gray-400 dark:bg-gray-500' : 'bg-red-500 dark:bg-red-400'"
                     :style="{ width: `${Math.max(2, row.rate * 100)}%` }"
                   ></i>
                 </span>
@@ -473,7 +474,7 @@ import RelayPulseMatrix from '@/features/channel-monitor-v2/RelayPulseMatrix.vue
 import { useAuthStore } from '@/stores/auth'
 import { useAppStore } from '@/stores/app'
 import { extractApiErrorMessage } from '@/utils/apiError'
-import { isChannelMonitorThroughputHidden } from '@/utils/featureFlags'
+import { isChannelMonitorThroughputHidden, isChannelMonitorUserRankingHidden } from '@/utils/featureFlags'
 import { platformLabel } from '@/utils/platformColors'
 import * as api from '@/api/channelMonitorV2'
 import type {
@@ -499,7 +500,7 @@ import {
   tokensPerSecondFromTpm,
   healthScoreClass,
   monitorErrorCategoryLabel,
-  type LatencyMetricLabels,
+  ttftDisplayState,
 } from '@/features/channel-monitor-v2/monitorFormat'
 
 type Tab = 'models' | 'errors' | 'users'
@@ -514,12 +515,8 @@ const { t, te, locale } = useI18n()
 const isAdmin = computed(() => authStore.isAdmin)
 /** Admins always see RPM/TPM; users honor the hide-throughput system setting. */
 const showThroughput = computed(() => isAdmin.value || !isChannelMonitorThroughputHidden())
-const latencyMetricLabels = computed<LatencyMetricLabels>(() => ({
-  average: t('channelMonitorV2.metrics.average'),
-  p50: t('channelMonitorV2.metrics.p50'),
-  p90: t('channelMonitorV2.metrics.p90'),
-  p95: t('channelMonitorV2.metrics.p95'),
-}))
+/** Admins always see ranking; users honor the hide-user-ranking system setting. */
+const showUserRanking = computed(() => isAdmin.value || !isChannelMonitorUserRankingHidden())
 
 const ranges = computed(() => [
   { value: '90m' as MonitorRange, label: t('channelMonitorV2.ranges.90m') },
@@ -527,11 +524,16 @@ const ranges = computed(() => [
   { value: '7d' as MonitorRange, label: t('channelMonitorV2.ranges.7d') },
   { value: '30d' as MonitorRange, label: t('channelMonitorV2.ranges.30d') },
 ])
-const tabs = computed(() => [
-  { value: 'models' as Tab, label: t('channelMonitorV2.tabs.models') },
-  { value: 'errors' as Tab, label: t('channelMonitorV2.tabs.errors') },
-  { value: 'users' as Tab, label: t('channelMonitorV2.tabs.users') },
-])
+const tabs = computed(() => {
+  const items: Array<{ value: Tab; label: string }> = [
+    { value: 'models', label: t('channelMonitorV2.tabs.models') },
+    { value: 'errors', label: t('channelMonitorV2.tabs.errors') },
+  ]
+  if (showUserRanking.value) {
+    items.push({ value: 'users', label: t('channelMonitorV2.tabs.users') })
+  }
+  return items
+})
 const matrixGroupOptions = computed(() => [
   { value: 'platform' as MonitorMatrixGroupBy, label: t('channelMonitorV2.groupBy.platform') },
   { value: 'platform_group' as MonitorMatrixGroupBy, label: t('channelMonitorV2.groupBy.platformGroup') },
@@ -551,9 +553,7 @@ const filter = ref<MonitorFilter>({
   groupIds: csv(route.query.group).map(Number).filter(Boolean),
   models: csv(route.query.model),
 })
-const activeTab = ref<Tab>(
-  (['models', 'errors', 'users'].includes(String(route.query.tab)) ? route.query.tab : 'models') as Tab
-)
+const activeTab = ref<Tab>(parseTab(route.query.tab, showUserRanking.value))
 const matrixGroupBy = ref<MonitorMatrixGroupBy>(parseMatrixGroupBy(route.query.group_by))
 const healthMode = ref<HealthMode>(parseHealthMode(route.query.health_mode))
 const trendView = ref<TrendView>(parseTrendView(route.query.trend_view))
@@ -593,9 +593,7 @@ const groupOptions = computed(() =>
     )
     .map((item) => ({
       value: String(item.id),
-      label: item.platform
-        ? `${platformLabel(item.platform, locale.value)} / ${item.name || t('channelMonitorV2.filters.groupId', { id: item.id })}`
-        : item.name || t('channelMonitorV2.filters.groupId', { id: item.id }),
+      label: item.platform ? `${platformLabel(item.platform, locale.value)} / ${item.name || `#${item.id}`}` : item.name || `#${item.id}`,
     }))
 )
 const modelOptions = computed(() =>
@@ -606,20 +604,13 @@ const modelOptions = computed(() =>
         !item.platform ||
         selectedPlatforms.value.has(item.platform),
     )
-    .map((item) => {
-      const providerLabel = item.platform ? platformLabel(item.platform, locale.value) : ''
-      const modelLabel = item.label || item.value
-      const hasProviderPrefix = item.platform
-        ? modelLabel.toLocaleLowerCase().includes(item.platform.toLocaleLowerCase())
-          || modelLabel.toLocaleLowerCase().includes(providerLabel.toLocaleLowerCase())
-        : false
-      return {
-        value: item.value,
-        label: item.platform && !hasProviderPrefix
-          ? `${providerLabel} / ${modelLabel}`
-          : modelLabel,
-      }
-    })
+    .map((item) => ({
+      value: item.value,
+      label:
+        item.platform && !item.label.includes(item.platform)
+          ? `${platformLabel(item.platform, locale.value)} / ${item.label}`
+          : item.label,
+    }))
 )
 const selectedGroupIds = computed({
   get: () => filter.value.groupIds.map(String),
@@ -688,6 +679,10 @@ function parseMatrixGroupBy(value: unknown): MonitorMatrixGroupBy {
   return allowed.includes(value as MonitorMatrixGroupBy)
     ? (value as MonitorMatrixGroupBy)
     : 'platform_group'
+}
+function parseTab(value: unknown, allowUsers: boolean): Tab {
+  const allowed: Tab[] = allowUsers ? ['models', 'errors', 'users'] : ['models', 'errors']
+  return allowed.includes(value as Tab) ? (value as Tab) : 'models'
 }
 function parseHealthMode(value: unknown): HealthMode {
   const allowed: HealthMode[] = ['overall', 'success', 'ttft', 'cache']
@@ -790,8 +785,10 @@ async function loadTab(signal?: AbortSignal, id = sequence) {
       modelRows.value = (await api.getModels(filter.value, isAdmin.value, signal)).items || []
     } else if (activeTab.value === 'errors') {
       errorRows.value = (await api.getErrors(filter.value, isAdmin.value, signal)).items || []
-    } else {
+    } else if (showUserRanking.value) {
       userRows.value = (await api.getUsers(filter.value, isAdmin.value, signal)).items || []
+    } else {
+      userRows.value = []
     }
   } catch (error) {
     const e = error as { name?: string; code?: string }
@@ -852,21 +849,24 @@ function formatPercent(value: number) {
 function formatMs(value: number | null) {
   return formatMonitorMs(value)
 }
+function ttftCellState(state: HealthState | undefined, metric: { p50_ms: number | null; sample_count?: number }) {
+  return ttftDisplayState(state, metric)
+}
 function latencyDetail(metric: {
   p50_ms: number | null
   p90_ms?: number | null
   p95_ms: number | null
   avg_ms?: number | null
 }) {
-  return formatLatencyPrivacy(metric.p50_ms, metric.p90_ms, metric.avg_ms, metric.p95_ms, latencyMetricLabels.value)
+  return formatLatencyPrivacy(metric.p50_ms, metric.p90_ms, metric.avg_ms, metric.p95_ms)
 }
-/** KPI secondary uses average plus P90 under the P50 primary value. */
+/** KPI secondary: AVG · P90 under the P50 primary value. */
 function latencyKpiSecondary(metric: {
   p90_ms?: number | null
   p95_ms: number | null
   avg_ms?: number | null
 }) {
-  return formatLatencyKpiSecondary(metric.avg_ms, metric.p90_ms, metric.p95_ms, latencyMetricLabels.value)
+  return formatLatencyKpiSecondary(metric.avg_ms, metric.p90_ms, metric.p95_ms)
 }
 function formatTime(value: string) {
   return new Intl.DateTimeFormat(locale.value || undefined, {
@@ -921,6 +921,11 @@ watch(activeTab, () => {
   syncQuery()
   void loadTab()
 })
+watch(showUserRanking, (allowed) => {
+  if (!allowed && activeTab.value === 'users') {
+    activeTab.value = 'models'
+  }
+})
 onMounted(() => void reload(false))
 onBeforeUnmount(() => {
   controller?.abort()
@@ -948,10 +953,10 @@ onBeforeUnmount(() => {
 .health-score2  { background: var(--monitor-health-2); }
 .health-score1  { background: var(--monitor-health-1); }
 .health-score0  { background: var(--monitor-health-0); }
-.health-healthy  { background: var(--monitor-health-9); }
-.health-warning  { background: var(--monitor-health-4); }
-.health-critical { background: var(--monitor-health-0); }
-.health-unknown  { background: var(--border-strong); }
+.health-healthy  { background: var(--status-success); }
+.health-warning  { background: var(--status-warning); }
+.health-critical { background: var(--status-danger); }
+.health-unknown  { background: var(--status-neutral); }
 .matrix-select {
   min-width: 10rem;
 }

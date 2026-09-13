@@ -401,27 +401,6 @@ func currentAdminFundActorID(c *gin.Context) int64 {
 	return subject.UserID
 }
 
-func parseAdminFundIDParam(c *gin.Context, name string) (int64, error) {
-	return parseAdminFundRequiredInt(c.Param(name), name)
-}
-
-func parseAdminFundRequiredInt(raw string, field string) (int64, error) {
-	value, err := strconv.ParseInt(strings.TrimSpace(raw), 10, 64)
-	if err != nil || value <= 0 {
-		return 0, infraerrors.BadRequest("FUND_INVALID_INPUT", "invalid fund request").
-			WithMetadata(map[string]string{"field": field})
-	}
-	return value, nil
-}
-
-func parseAdminFundOptionalInt(raw string, field string) (int64, error) {
-	raw = strings.TrimSpace(raw)
-	if raw == "" {
-		return 0, nil
-	}
-	return parseAdminFundRequiredInt(raw, field)
-}
-
 func parseAdminFundPositiveInt(raw string, field string) (int, error) {
 	value, err := strconv.Atoi(strings.TrimSpace(raw))
 	if err != nil || value <= 0 {

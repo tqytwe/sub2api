@@ -127,7 +127,7 @@ func maskFundOperationReference(raw string) string {
 	return raw[:1] + "***" + raw[len(raw)-3:]
 }
 
-func (s *FundManagementService) SearchFundAccounts(ctx context.Context, keyword string, limit int) ([]FundAccount, error) {
+func (s *FundManagementService) SearchFundAccounts(ctx context.Context, keyword string, limit int) (accounts []FundAccount, err error) {
 	if s == nil || s.db == nil {
 		return nil, ErrFundManagementUnavailable
 	}
@@ -147,8 +147,12 @@ LIMIT $2`, keyword, limit)
 	if err != nil {
 		return nil, fmt.Errorf("search fund accounts: %w", err)
 	}
-	defer rows.Close()
-	accounts := make([]FundAccount, 0)
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil && err == nil {
+			err = fmt.Errorf("close fund account search rows: %w", closeErr)
+		}
+	}()
+	accounts = make([]FundAccount, 0)
 	for rows.Next() {
 		var account FundAccount
 		var balance string
@@ -268,7 +272,7 @@ func isFundOperationUniqueViolation(err error) bool {
 	return errors.As(err, &stateErr) && stateErr.SQLState() == "23505"
 }
 
-func (s *FundManagementService) ListFundOperations(ctx context.Context, query FundOperationListQuery) (*FundOperationPage, error) {
+func (s *FundManagementService) ListFundOperations(ctx context.Context, query FundOperationListQuery) (pageResult *FundOperationPage, err error) {
 	if s == nil || s.db == nil {
 		return nil, ErrFundManagementUnavailable
 	}
@@ -317,7 +321,11 @@ func (s *FundManagementService) ListFundOperations(ctx context.Context, query Fu
 	if err != nil {
 		return nil, fmt.Errorf("list fund operations: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil && err == nil {
+			err = fmt.Errorf("close fund operation rows: %w", closeErr)
+		}
+	}()
 	items := make([]FundOperationRecord, 0)
 	for rows.Next() {
 		record, err := scanFundOperationRecord(rows.Scan)
@@ -336,7 +344,7 @@ func (s *FundManagementService) ListFundOperations(ctx context.Context, query Fu
 	return &FundOperationPage{Items: items, Total: total, Page: page, PageSize: pageSize, Pages: pages}, nil
 }
 
-func (s *FundManagementService) GetFundOperation(ctx context.Context, operationNo string, includeSensitive bool) (*FundOperationRecord, error) {
+func (s *FundManagementService) GetFundOperation(ctx context.Context, operationNo string, includeSensitive bool) (record *FundOperationRecord, err error) {
 	if s == nil || s.db == nil {
 		return nil, ErrFundManagementUnavailable
 	}
@@ -344,11 +352,15 @@ func (s *FundManagementService) GetFundOperation(ctx context.Context, operationN
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil && err == nil {
+			err = fmt.Errorf("close fund operation rows: %w", closeErr)
+		}
+	}()
 	if !rows.Next() {
 		return nil, ErrFundCorrectionNotFound
 	}
-	record, err := scanFundOperationRecord(rows.Scan)
+	record, err = scanFundOperationRecord(rows.Scan)
 	if err != nil {
 		return nil, err
 	}
