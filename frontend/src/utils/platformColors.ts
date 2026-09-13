@@ -111,6 +111,7 @@ const ACCENT: Record<Platform, string> = {
   zhipu: '#6366f1', // indigo-500
   // design-governance-allow: raw-color - platform accent values are centralized tokens used by CSS color-mix consumers.
   deepseek: '#14b8a6', // teal-500
+  // design-governance-allow: raw-color - platform accent values are centralized tokens used by CSS color-mix consumers.
   minimax: '#f43f5e', // rose-500
   composite: '#06b6d4', // cyan-500
 }
@@ -126,14 +127,15 @@ const ACCENT_BAR: Record<Platform, string> = {
   grok: 'bg-gradient-to-r from-zinc-700 to-zinc-900',
   image: 'bg-gradient-to-r from-rose-400 to-fuchsia-500',
   team: 'bg-gradient-to-r from-cyan-400 to-teal-500',
-  composite: 'bg-cyan-600',
   // design-governance-allow: decorative-gradient - provider accent bars use the shared status treatment.
   kimi: 'bg-gradient-to-r from-pink-400 to-pink-500',
   // design-governance-allow: decorative-gradient - provider accent bars use the shared status treatment.
   zhipu: 'bg-gradient-to-r from-indigo-400 to-indigo-500',
   // design-governance-allow: decorative-gradient - provider accent bars use the shared status treatment.
   deepseek: 'bg-gradient-to-r from-teal-400 to-teal-500',
+  // design-governance-allow: decorative-gradient - provider accent bars use the shared status treatment.
   minimax: 'bg-gradient-to-r from-rose-400 to-rose-500',
+  // design-governance-allow: decorative-gradient - composite routing is a provider identity bar, not a section background.
   composite: 'bg-gradient-to-r from-slate-500 to-cyan-500',
 }
 const ACCENT_BAR_DEFAULT = 'bg-gradient-to-r from-primary-400 to-primary-500'

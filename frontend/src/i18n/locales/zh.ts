@@ -4,6 +4,7 @@ import splitAdminZh from './zh/admin'
 import splitBatchImageZh from './zh/batchImage'
 import splitCommonZh from './zh/common'
 import splitChannelMonitorV2Zh from './zh/channelMonitorV2'
+import splitDashboardZh from './zh/dashboard'
 import auditAdminZh from './zh/admin/audit'
 import promptAuditAdminZh from './zh/admin/promptAudit'
 import { mergeLocaleMessages } from './merge'
@@ -9709,6 +9710,7 @@ const messages = {
 export default mergeLocaleMessages(messages, {
   ...splitCommonZh,
   ...splitChannelMonitorV2Zh,
+  ...splitDashboardZh,
   ...splitBatchImageZh,
   admin: splitAdminZh,
 })

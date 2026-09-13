@@ -3,12 +3,12 @@
     <div class="space-y-6 pb-12">
       <!-- Ops-style elevated shell: title toolbar + filters (mirrors OpsDashboardHeader) -->
       <section
-        class="card sticky top-0 z-20 !rounded-3xl !border-0 p-0 shadow-sm ring-1 ring-gray-900/5 backdrop-blur-sm dark:!bg-dark-800 dark:ring-dark-700 supports-[backdrop-filter]:bg-white/95 dark:supports-[backdrop-filter]:bg-dark-800/95"
+        class="card sticky top-0 z-20 !rounded-lg !border-0 p-0 shadow-sm ring-1 ring-gray-900/5 backdrop-blur-sm dark:!bg-dark-800 dark:ring-dark-700 supports-[backdrop-filter]:bg-white/95 dark:supports-[backdrop-filter]:bg-dark-800/95"
       >
         <header class="page-header mb-0 flex flex-wrap items-start justify-between gap-4 border-b border-gray-100 px-5 py-4 dark:border-dark-700 sm:px-6">
           <div class="min-w-0">
             <h1 class="page-title flex items-center gap-2 text-xl font-black text-gray-900 dark:text-white">
-              <span class="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-blue-50 text-blue-500 dark:bg-blue-900/30 dark:text-blue-400">
+              <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-500 dark:bg-blue-900/30 dark:text-blue-400">
                 <Icon name="chart" size="sm" />
               </span>
               {{ t('channelMonitorV2.title') }}
@@ -50,7 +50,8 @@
             :disabled="loading"
             @click="reload(false)"
           >
-            <Icon name="refresh" size="sm" :class="loading ? 'animate-spin' : ''" />
+            <LoadingSpinner v-if="loading" size="sm" />
+            <Icon v-else name="refresh" size="sm" />
           </button>
         </header>
 
@@ -243,7 +244,7 @@
         <div
           v-for="i in (showThroughput ? 5 : 4)"
           :key="i"
-          class="h-24 animate-pulse rounded-2xl bg-gray-50 dark:bg-dark-900/30"
+          class="h-24 rounded-lg bg-gray-50 dark:bg-dark-900/30"
         />
       </section>
 
@@ -263,15 +264,15 @@
         />
         <div
           v-else-if="loading"
-          class="card flex min-h-[320px] items-center justify-center !rounded-3xl !border-0 text-sm text-gray-400 shadow-sm ring-1 ring-gray-900/5 dark:ring-dark-700"
+          class="card flex min-h-[320px] items-center justify-center !rounded-lg !border-0 text-sm text-gray-400 shadow-sm ring-1 ring-gray-900/5 dark:ring-dark-700"
         >
-          <span class="animate-pulse">{{ t('common.loading') }}</span>
+          <LoadingSpinner size="sm" />
         </div>
       </div>
 
-      <section class="card flex min-h-0 flex-col overflow-hidden !rounded-3xl !border-0 shadow-sm ring-1 ring-gray-900/5 dark:!bg-dark-800 dark:ring-dark-700">
+      <section class="card flex min-h-0 flex-col overflow-hidden !rounded-lg !border-0 shadow-sm ring-1 ring-gray-900/5 dark:!bg-dark-800 dark:ring-dark-700">
         <div class="border-b border-gray-100 px-5 pt-4 dark:border-dark-700 sm:px-6">
-          <nav class="tabs w-full max-w-md sm:w-auto" role="tablist" :aria-label="t('channelMonitorV2.tabs.aria')">
+          <nav class="tabs w-full sm:w-auto" role="tablist" :aria-label="t('channelMonitorV2.tabs.aria')">
             <button
               v-for="item in tabs"
               :key="item.value"
@@ -337,7 +338,7 @@
             <div
               v-for="row in errorRows"
               :key="row.category"
-              class="rounded-2xl bg-gray-50 p-4 text-sm dark:bg-dark-900/30"
+              class="rounded-lg bg-gray-50 p-4 text-sm dark:bg-dark-900/30"
               :class="row.ignored ? 'opacity-60' : ''"
             >
               <button
@@ -352,7 +353,7 @@
                 <span class="h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-dark-700">
                   <i
                     class="block h-full rounded-full"
-                    :class="row.ignored ? 'bg-gray-400 dark:bg-gray-500' : 'bg-gradient-to-r from-red-400 to-red-500'"
+                    :class="row.ignored ? 'bg-gray-400 dark:bg-gray-500' : 'bg-red-500 dark:bg-red-400'"
                     :style="{ width: `${Math.max(2, row.rate * 100)}%` }"
                   ></i>
                 </span>
@@ -592,7 +593,7 @@ const groupOptions = computed(() =>
     )
     .map((item) => ({
       value: String(item.id),
-      label: item.platform ? `${platformLabel(item.platform, locale)} / ${item.name || `#${item.id}`}` : item.name || `#${item.id}`,
+      label: item.platform ? `${platformLabel(item.platform, locale.value)} / ${item.name || `#${item.id}`}` : item.name || `#${item.id}`,
     }))
 )
 const modelOptions = computed(() =>
@@ -607,7 +608,7 @@ const modelOptions = computed(() =>
       value: item.value,
       label:
         item.platform && !item.label.includes(item.platform)
-          ? `${platformLabel(item.platform, locale)} / ${item.label}`
+          ? `${platformLabel(item.platform, locale.value)} / ${item.label}`
           : item.label,
     }))
 )
@@ -941,21 +942,21 @@ onBeforeUnmount(() => {
   border-radius: 9999px;
 }
 /* Multi-stop green → yellow → red score bands */
-.health-score10 { background: #16a34a; }
-.health-score9  { background: #22c55e; }
-.health-score8  { background: #4ade80; }
-.health-score7  { background: #a3e635; }
-.health-score6  { background: #facc15; }
-.health-score5  { background: #fbbf24; }
-.health-score4  { background: #f59e0b; }
-.health-score3  { background: #f97316; }
-.health-score2  { background: #fb7185; }
-.health-score1  { background: #f87171; }
-.health-score0  { background: rgb(239, 67, 67); }
-.health-healthy  { background: #22c55e; }
-.health-warning  { background: #f59e0b; }
-.health-critical { background: #ef4444; }
-.health-unknown  { background: #9ca3af; }
+.health-score10 { background: var(--monitor-health-10); }
+.health-score9  { background: var(--monitor-health-9); }
+.health-score8  { background: var(--monitor-health-8); }
+.health-score7  { background: var(--monitor-health-7); }
+.health-score6  { background: var(--monitor-health-6); }
+.health-score5  { background: var(--monitor-health-5); }
+.health-score4  { background: var(--monitor-health-4); }
+.health-score3  { background: var(--monitor-health-3); }
+.health-score2  { background: var(--monitor-health-2); }
+.health-score1  { background: var(--monitor-health-1); }
+.health-score0  { background: var(--monitor-health-0); }
+.health-healthy  { background: var(--status-success); }
+.health-warning  { background: var(--status-warning); }
+.health-critical { background: var(--status-danger); }
+.health-unknown  { background: var(--status-neutral); }
 .matrix-select {
   min-width: 10rem;
 }
