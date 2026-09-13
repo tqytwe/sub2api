@@ -211,9 +211,13 @@ export const ROUTE_LOCALE_SCOPES = {
   // Groups reuse account status labels in their filters and tables.
   AdminGroups: [...ADMIN, 'admin-resources', 'admin-accounts', 'admin-channels'],
   AdminChannels: [...ADMIN, 'admin-channels'],
-  AdminChannelMonitor: [...ADMIN, 'admin-channels', 'channel-monitor', 'admin-settings', 'user-dashboard'],
+  // The monitor embeds UsageProgressBar, which reads account usage-window
+  // labels. Keep admin accounts explicit for a cold direct visit.
+  AdminChannelMonitor: [...ADMIN, 'admin-channels', 'channel-monitor', 'admin-settings', 'admin-accounts', 'user-dashboard'],
   AdminModelPlaza: [...ADMIN, 'user-dashboard', 'admin-channels', 'admin-overview'],
-  ChannelStatus: [...WORKSPACE, 'user-dashboard', 'channel-monitor'],
+  // ChannelStatus also renders UsageProgressBar and therefore needs the
+  // account usage-window labels before a cold visit can paint the rows.
+  ChannelStatus: [...WORKSPACE, 'user-dashboard', 'channel-monitor', 'admin-accounts'],
   AdminSubscriptions: [...ADMIN, 'admin-channels', 'admin-resources'],
   AdminAccounts: [...ADMIN, 'admin-accounts', 'admin-settings', 'admin-overview'],
   AdminPlugins: [...ADMIN, 'admin-settings', 'admin-plugins'],
