@@ -9084,7 +9084,7 @@ const messages = {
     amountTooLow: 'Minimum amount is {min}',
     amountTooHigh: 'Maximum amount is {max}',
     amountNoMethod: 'No payment method available for this amount',
-    rechargeRatePreview: 'Base rate: 1 CNY = {usd} USD.',
+    rechargeRatePreview: 'Current rate: 1 {currency} = {usd} USD',
     rechargeBonusNote: 'VIP does not change API billing; it only adds extra balance on recharge.',
     refundReason: 'Refund Reason',
     refundReasonPlaceholder: 'Please describe your refund reason',

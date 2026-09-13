@@ -91,7 +91,9 @@ const campaign = {
   starts_at: '2026-08-01T00:00:00Z',
   ends_at: '2026-08-31T00:00:00Z',
   qualification_to: '2026-09-05T00:00:00Z',
-  claim_deadline: '2026-09-10T00:00:00Z',
+  // Keep the default fixture in the active claim window; the deadline-specific
+  // regression test overrides this with an explicitly expired date.
+  claim_deadline: '2099-09-10T00:00:00Z',
   risk_hold_hours: 72,
   pay_threshold: 100,
   usage_threshold: 20,

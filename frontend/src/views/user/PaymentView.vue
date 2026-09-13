@@ -117,7 +117,7 @@
                       <span class="text-lg font-bold text-green-600 dark:text-green-400">${{ creditedAmount.toFixed(2) }}</span>
                     </div>
                     <p class="border-t border-gray-200 pt-2 text-xs text-gray-500 dark:border-dark-600 dark:text-gray-400">
-                      {{ t('payment.rechargeRatePreview', { usd: balanceRechargeMultiplier.toFixed(2) }) }}
+                      {{ t('payment.rechargeRatePreview', { currency: selectedCurrency, usd: balanceRechargeMultiplier.toFixed(2) }) }}
                       {{ t('payment.rechargeBonusNote') }}
                     </p>
                   </div>
@@ -1538,6 +1538,7 @@ async function createOrder(orderAmount: number, orderType: OrderType, planId?: n
           sourcePayment: decision.paymentState,
         })
         if (!fallbackApplied) {
+          removeRecoverySnapshot()
           throw err
         }
       }

@@ -593,7 +593,9 @@ const groupOptions = computed(() =>
     )
     .map((item) => ({
       value: String(item.id),
-      label: item.platform ? `${platformLabel(item.platform, locale.value)} / ${item.name || `#${item.id}`}` : item.name || `#${item.id}`,
+      label: item.platform
+        ? `${platformLabel(item.platform, locale.value)} / ${item.name || t('channelMonitorV2.filters.groupId', { id: item.id })}`
+        : item.name || t('channelMonitorV2.filters.groupId', { id: item.id }),
     }))
 )
 const modelOptions = computed(() =>

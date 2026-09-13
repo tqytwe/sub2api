@@ -1046,13 +1046,14 @@ function buildOpenAICodexFileConfigs(
     }
   ]
 
-  // Keep auth.json available in both modes for existing Codex clients. API
-  // Key Mode uses the explicit bearer/header settings above; newer clients
-  // ignore this compatibility file while older clients still discover it.
-  files.push({
-    path: `${configDir}/auth.json`,
-    content: JSON.stringify({ OPENAI_API_KEY: apiKey }, null, 2)
-  })
+  // Legacy OAuth mode relies on Codex's auth.json discovery. API Key Mode
+  // carries its credential in config.toml and must not emit a second key file.
+  if (codexAuthMode.value === 'legacy') {
+    files.push({
+      path: `${configDir}/auth.json`,
+      content: JSON.stringify({ OPENAI_API_KEY: apiKey }, null, 2)
+    })
+  }
 
   return files
 }

@@ -9251,7 +9251,7 @@ const messages = {
     amountTooLow: '最低金额为 {min}',
     amountTooHigh: '最高金额为 {max}',
     amountNoMethod: '该金额没有可用的支付方式',
-    rechargeRatePreview: '基础倍率：1 CNY = {usd} USD。',
+    rechargeRatePreview: '当前倍率：1 {currency} = {usd} USD',
     rechargeBonusNote: 'VIP 不改变 API 计费公式，只影响充值到账加赠。',
     refundReason: '退款原因',
     refundReasonPlaceholder: '请描述您的退款原因',

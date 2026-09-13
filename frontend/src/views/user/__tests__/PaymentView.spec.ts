@@ -4,7 +4,7 @@ import PaymentView from '../PaymentView.vue'
 import { PAYMENT_RECOVERY_STORAGE_KEY } from '@/components/payment/paymentFlow'
 import { formatPaymentAmount } from '@/components/payment/currency'
 import AmountInput from '@/components/payment/AmountInput.vue'
-import SubscriptionPlanCard from '@/components/payment/SubscriptionPlanCard.vue'
+import SubscriptionPlanDecisionShelf from '@/components/payment/SubscriptionPlanDecisionShelf.vue'
 import en from '@/i18n/locales/en'
 import zh from '@/i18n/locales/zh'
 import type { CheckoutInfoResponse, MethodLimit, SubscriptionPlan } from '@/types/payment'
@@ -344,18 +344,11 @@ describe('PaymentView help text', () => {
   })
 })
 
-describe('PaymentView subscription plan grid', () => {
-  it.each([3, 4, 6])('keeps %i plans on the existing mobile/tablet/desktop grid', async (planCount) => {
+describe('PaymentView subscription plan shelf', () => {
+  it.each([3, 4, 6])('renders %i plans in the storefront decision shelf', async (planCount) => {
     const wrapper = await mountSubscriptionPlanList(planCount)
-    const cards = wrapper.findAllComponents(SubscriptionPlanCard)
-
-    expect(cards).toHaveLength(planCount)
-    expect([...(cards[0].element.parentElement?.classList ?? [])]).toEqual(expect.arrayContaining([
-      'grid',
-      'grid-cols-1',
-      'sm:grid-cols-2',
-      'lg:grid-cols-3',
-    ]))
+    const shelf = wrapper.getComponent(SubscriptionPlanDecisionShelf)
+    expect(shelf.props('plans')).toHaveLength(planCount)
   })
 })
 

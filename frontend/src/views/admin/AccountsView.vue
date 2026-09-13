@@ -1898,10 +1898,19 @@ const handleBulkResetStatus = async () => {
 }
 const handleBulkRefreshToken = async () => {
   if (!confirm(t('common.confirm'))) return
+  const accountIds = [...selIds.value]
   try {
-    const result = await adminAPI.accounts.batchRefresh(selIds.value)
+    const result = await adminAPI.accounts.batchRefresh(accountIds)
     if (result.failed > 0) {
       appStore.showError(t('admin.accounts.bulkActions.partialSuccess', { success: result.success, failed: result.failed }))
+      const failedIds = Array.isArray((result as { failed_ids?: number[] }).failed_ids)
+        ? (result as { failed_ids: number[] }).failed_ids
+        : Array.isArray((result as { errors?: Array<{ account_id?: number }> }).errors)
+          ? (result as { errors: Array<{ account_id?: number }> }).errors
+            .map(error => error.account_id)
+            .filter((id): id is number => typeof id === 'number')
+          : []
+      setSelectedIds(failedIds.length > 0 ? failedIds : accountIds)
     } else {
       appStore.showSuccess(t('admin.accounts.bulkActions.refreshTokenSuccess', { count: result.success }))
       clearSelection()
@@ -2500,7 +2509,9 @@ const proxyExpiryText = (p: AccountProxy): string => {
 }
 
 // 表格滚动时关闭行操作菜单，并让顶部工具菜单继续贴紧触发按钮。
-const handleScroll = () => {
+const handleScroll = (event: Event) => {
+  const target = event.target
+  if (target instanceof Element && target.closest('.action-menu-content')) return
   menu.show = false
   if (showAccountToolsDropdown.value) updateAccountToolsDropdownPosition()
 }
