@@ -813,7 +813,22 @@ func ProvideSettingService(settingRepo SettingRepository, groupRepo GroupReposit
 		logger.LegacyPrintf("service.setting", "Warning: migrate Grok default text model failed: %v", err)
 	}
 	antigravity.SetUserAgentVersionResolver(svc.GetAntigravityUserAgentVersion)
+	configureCodexCanonicalUserAgentResolver(svc)
 	return svc
+}
+
+// configureCodexCanonicalUserAgentResolver connects the process-wide Codex
+// identity resolver to the persisted settings service. Codex outbound paths
+// do not carry a SettingService reference, so this binding is required for
+// the auto-synced client version to reach User-Agent and version headers.
+func configureCodexCanonicalUserAgentResolver(settingService *SettingService) {
+	if settingService == nil {
+		SetCodexCanonicalUserAgentResolver(nil)
+		return
+	}
+	SetCodexCanonicalUserAgentResolver(func() string {
+		return settingService.GetOpenAICodexCanonicalUserAgent(context.Background())
+	})
 }
 
 // ProvideBillingCacheService wires BillingCacheService with its RPM dependencies.
