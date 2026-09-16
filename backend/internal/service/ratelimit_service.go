@@ -1233,6 +1233,14 @@ func (s *RateLimitService) handle429(ctx context.Context, account *Account, head
 		// 不适合按 5h/7d 窗口长时间封禁；但完全不标记会导致账号永不冷却，
 		// 调度器让每个请求反复撞同一批持续 429 的账号（failover 预算被白白烧掉，
 		// 客户端稳定收到 429）。因此同样走可配置的秒级兜底回避，管理端可调大或关闭。
+		// An explicit Retry-After is the upstream's authoritative cooldown.
+		if resetAt := parseRetryAfterResetTime(headers, time.Now()); resetAt != nil && resetAt.After(time.Now()) {
+			s.notifyAccountSchedulingBlocked(account, *resetAt, "429_retry_after")
+			if err := s.accountRepo.SetRateLimited(ctx, account.ID, *resetAt); err != nil {
+				slog.Warn("rate_limit_set_failed", "account_id", account.ID, "error", err)
+			}
+			return
+		}
 		if account.Platform == PlatformAnthropic {
 			slog.Warn("rate_limit_429_no_reset_time",
 				"account_id", account.ID,

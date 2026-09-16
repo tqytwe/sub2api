@@ -1734,8 +1734,7 @@ func (s *ContentModerationService) callModeration(ctx context.Context, cfg *Cont
 }
 
 func (s *ContentModerationService) callModerationOnceWithInput(ctx context.Context, cfg *ContentModerationConfig, apiKey string, input any, httpStatus *int) (*moderationAPIResult, error) {
-	base := strings.TrimRight(cfg.BaseURL, "/")
-	endpoint, err := url.JoinPath(base, "/v1/moderations")
+	endpoint, err := contentModerationEndpoint(cfg.BaseURL)
 	if err != nil {
 		return nil, err
 	}
@@ -1783,6 +1782,17 @@ func (s *ContentModerationService) callModerationOnceWithInput(ctx context.Conte
 		return nil, errors.New("moderation api returned empty results")
 	}
 	return &out.Results[0], nil
+}
+
+// contentModerationEndpoint accepts either an OpenAI origin or an already
+// versioned /v1 base URL. Admins commonly enter both forms; avoid producing
+// the invalid /v1/v1/moderations path for the latter.
+func contentModerationEndpoint(baseURL string) (string, error) {
+	base := strings.TrimRight(strings.TrimSpace(baseURL), "/")
+	if strings.HasSuffix(strings.ToLower(base), "/v1") {
+		base = base[:len(base)-len("/v1")]
+	}
+	return url.JoinPath(base, "/v1/moderations")
 }
 
 // moderationProxyURLCacheEntry 缓存 proxy_id 到代理 URL 的解析结果，
