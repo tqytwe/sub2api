@@ -872,6 +872,20 @@ func (s *AccountRepoSuite) TestSetRateLimited() {
 	s.Require().WithinDuration(resetAt, *got.RateLimitResetAt, time.Second)
 }
 
+func (s *AccountRepoSuite) TestSetRateLimitedDoesNotShortenExistingReset() {
+	account := mustCreateAccount(s.T(), s.client, &service.Account{Name: "acc-rl-wrapper-monotonic"})
+	later := time.Now().Add(30 * time.Minute).UTC().Truncate(time.Second)
+	earlier := time.Now().Add(5 * time.Minute).UTC().Truncate(time.Second)
+
+	s.Require().NoError(s.repo.SetRateLimited(s.ctx, account.ID, later))
+	s.Require().NoError(s.repo.SetRateLimited(s.ctx, account.ID, earlier))
+
+	got, err := s.repo.GetByID(s.ctx, account.ID)
+	s.Require().NoError(err)
+	s.Require().NotNil(got.RateLimitResetAt)
+	s.Require().WithinDuration(later, *got.RateLimitResetAt, time.Second)
+}
+
 func (s *AccountRepoSuite) TestSetRateLimitedIfLaterDoesNotShortenReset() {
 	account := mustCreateAccount(s.T(), s.client, &service.Account{Name: "acc-rl-monotonic"})
 	later := time.Now().Add(30 * time.Minute).UTC().Truncate(time.Second)

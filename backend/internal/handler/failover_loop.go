@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"math/rand/v2"
 	"net/http"
 	"time"
 
@@ -55,9 +56,28 @@ const (
 // 语义上等同于「无可用账号」：候选账号都不满足分组的利润约束。
 const profitVetoExhaustedMessage = "No available accounts: all candidates rejected by group profit control"
 
+func oauth429RetryBaseDelay(failoverErr *service.UpstreamFailoverError, retryCount int) time.Duration {
+	delay := time.Second
+	for i := 1; i < retryCount && delay < maxRequestScopedRetryDelay; i++ {
+		delay *= 2
+	}
+	if delay > maxRequestScopedRetryDelay {
+		delay = maxRequestScopedRetryDelay
+	}
+	if failoverErr.SameAccountRetryDelay > delay {
+		delay = failoverErr.SameAccountRetryDelay
+	}
+	return delay
+}
+
 func sameAccountRetryDelayFor(failoverErr *service.UpstreamFailoverError, retryCount int) time.Duration {
 	if failoverErr == nil {
 		return sameAccountRetryDelay
+	}
+	if failoverErr.StatusCode == http.StatusTooManyRequests && !failoverErr.SameAccountRetryDeadline.IsZero() {
+		delay := oauth429RetryBaseDelay(failoverErr, retryCount)
+		// Positive-only jitter cannot violate a server-provided Retry-After.
+		return delay + time.Duration(rand.Int64N(int64(delay/5)+1))
 	}
 	if failoverErr.SameAccountRetryDelay > 0 {
 		return failoverErr.SameAccountRetryDelay
@@ -83,6 +103,19 @@ func sameAccountRetryAllowed(failoverErr *service.UpstreamFailoverError, retryCo
 	if !sameAccountRetryDeadlineAllows(failoverErr) {
 		return false
 	}
+	if retryLimit <= 0 {
+		return false
+	}
+	if !failoverErr.SameAccountRetryDeadline.IsZero() {
+		wait := failoverErr.SameAccountRetryDelay
+		if failoverErr.StatusCode == http.StatusTooManyRequests {
+			wait = oauth429RetryBaseDelay(failoverErr, retryCount+1)
+			wait += wait / 5 // allow for the maximum jitter before granting a retry
+		}
+		if wait > 0 && !time.Now().Add(wait).Before(failoverErr.SameAccountRetryDeadline) {
+			return false
+		}
+	}
 	// Error-specific caps (Grok capacity/stream-idle) remain hard limits even
 	// when the error also carries a freshly reconstructed deadline.
 	if failoverErr.SameAccountRetryMax > 0 {
@@ -94,11 +127,7 @@ func sameAccountRetryAllowed(failoverErr *service.UpstreamFailoverError, retryCo
 		}
 		return retryCount < retryLimit
 	}
-	// OAuth 429 explicitly opts into a deadline window. It is intentionally not
-	// bounded by the ordinary/default pool retry count.
-	if !failoverErr.SameAccountRetryDeadline.IsZero() {
-		return true
-	}
+	// Deadline and count are independent budgets; neither disables the other.
 	return retryLimit > 0 && retryCount < retryLimit
 }
 

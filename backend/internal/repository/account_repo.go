@@ -2181,20 +2181,9 @@ func (r *accountRepository) ListModelAvailabilityCandidates(
 }
 
 func (r *accountRepository) SetRateLimited(ctx context.Context, id int64, resetAt time.Time) error {
-	now := time.Now()
-	_, err := r.client.Account.Update().
-		Where(dbaccount.IDEQ(id)).
-		SetRateLimitedAt(now).
-		SetRateLimitResetAt(resetAt).
-		Save(ctx)
-	if err != nil {
-		return err
-	}
-	if err := enqueueSchedulerOutbox(ctx, r.sql, service.SchedulerOutboxEventAccountChanged, &id, nil, nil); err != nil {
-		logger.LegacyPrintf("repository.account", "[SchedulerOutbox] enqueue rate limit failed: account=%d err=%v", id, err)
-	}
-	r.syncSchedulerAccountSnapshot(ctx, id)
-	return nil
+	// Every upstream observation extends a limit. Only an explicit recovery
+	// operation may clear it; late short responses must not undo a longer wait.
+	return r.SetRateLimitedIfLater(ctx, id, resetAt)
 }
 
 // SetRateLimitedIfLater atomically extends an account-level rate limit. Grok
