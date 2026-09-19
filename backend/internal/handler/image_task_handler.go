@@ -46,7 +46,9 @@ type imageTaskSubscriptionLoader interface {
 
 func NewAsyncImageHandler(tasks *service.ImageTaskService, openAI *OpenAIGatewayHandler, imageStorages ...service.ImageStorage) *AsyncImageHandler {
 	var imageStorage service.ImageStorage
-	if len(imageStorages) > 0 { imageStorage = imageStorages[0] }
+	if len(imageStorages) > 0 {
+		imageStorage = imageStorages[0]
+	}
 	h := &AsyncImageHandler{tasks: tasks, openAI: openAI}
 	if reader, ok := imageStorage.(service.ImageAssetReader); ok {
 		h.assetReader = reader

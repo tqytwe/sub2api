@@ -82,13 +82,14 @@ func TestCodexDirectImagesPricingAndUsage(t *testing.T) {
 }
 
 func TestCodexImagesLunaErrorDoesNotCoolImageAccount(t *testing.T) {
+	mainModel := openAIImagesResponsesMainModelValue()
 	for _, stream := range []bool{false, true} {
 		t.Run(fmt.Sprint(stream), func(t *testing.T) {
 			body := []byte(fmt.Sprintf(`{"model":"gpt-image-1","prompt":"draw","stream":%t}`, stream))
 			c, rec := newOpenAIImagesTestContext(t, body)
 			upstream := &codexModelsHTTPUpstreamStub{do: func(req *http.Request, _ string, _ int64, _ int) (*http.Response, error) {
 				require.Equal(t, "/backend-api/codex/responses", req.URL.Path)
-				return &http.Response{StatusCode: 400, Header: http.Header{}, Body: io.NopCloser(strings.NewReader(`{"error":{"type":"invalid_request_error","message":"The 'gpt-5.6-luna' model is not supported when using Codex with a ChatGPT account."}}`))}, nil
+				return &http.Response{StatusCode: 400, Header: http.Header{}, Body: io.NopCloser(strings.NewReader(fmt.Sprintf(`{"error":{"type":"invalid_request_error","message":"The '%s' model is not supported when using Codex with a ChatGPT account."}}`, mainModel)))}, nil
 			}}
 			svc := newOpenAIImagesTestService(upstream)
 			parsed, err := svc.ParseOpenAIImagesRequest(c, body)
@@ -97,7 +98,7 @@ func TestCodexImagesLunaErrorDoesNotCoolImageAccount(t *testing.T) {
 			require.Nil(t, result)
 			var upstreamErr *OpenAIImagesUpstreamError
 			require.ErrorAs(t, err, &upstreamErr)
-			require.Contains(t, rec.Body.String(), "gpt-5.6-luna")
+			require.Contains(t, rec.Body.String(), mainModel)
 			var failover *UpstreamFailoverError
 			require.NotErrorAs(t, err, &failover)
 		})

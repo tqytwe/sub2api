@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"regexp"
 	"testing"
 	"time"
 
@@ -112,8 +113,19 @@ func TestBulkSubscriptionAction_RollsBackPostWriteFailureBeforeRetry(t *testing.
 			svc := NewSubscriptionService(nil, repo, nil, client, nil)
 			t.Cleanup(svc.Stop)
 			input := &BulkSubscriptionActionInput{SubscriptionIDs: []int64{1}, Action: tc.action, Days: 7, Daily: true}
+			expectNoPackageEntitlement := func() {
+				mock.ExpectQuery(regexp.QuoteMeta("WITH selected_subscriptions (user_id, group_id) AS")).
+					WithArgs(int64(10), int64(20)).
+					WillReturnRows(sqlmock.NewRows([]string{
+						"id", "payment_order_id", "user_id", "group_id", "starts_at", "expires_at", "status", "exhausted_reason",
+						"request_limit", "request_used", "amount_limit_usd", "amount_used_usd", "token_limit", "token_used",
+					}))
+			}
 
 			mock.ExpectBegin()
+			if tc.action == "reset_quota" {
+				expectNoPackageEntitlement()
+			}
 			mock.ExpectRollback()
 			result, err := svc.BulkSubscriptionAction(context.Background(), input)
 			require.NoError(t, err)
@@ -124,6 +136,9 @@ func TestBulkSubscriptionAction_RollsBackPostWriteFailureBeforeRetry(t *testing.
 
 			repo.postReadFailure, repo.statusFailure = false, false
 			mock.ExpectBegin()
+			if tc.action == "reset_quota" {
+				expectNoPackageEntitlement()
+			}
 			mock.ExpectCommit()
 			result, err = svc.BulkSubscriptionAction(context.Background(), input)
 			require.NoError(t, err)

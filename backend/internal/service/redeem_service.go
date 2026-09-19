@@ -184,7 +184,9 @@ func NewRedeemService(
 	balanceLedgers ...*BalanceLedgerService,
 ) *RedeemService {
 	var balanceLedger *BalanceLedgerService
-	if len(balanceLedgers) > 0 { balanceLedger = balanceLedgers[0] }
+	if len(balanceLedgers) > 0 {
+		balanceLedger = balanceLedgers[0]
+	}
 	redeemUserRepo, _ := userRepo.(RedeemUserAdjustmentRepository)
 	return &RedeemService{
 		redeemRepo:           redeemRepo,

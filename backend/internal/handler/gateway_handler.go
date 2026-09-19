@@ -80,7 +80,9 @@ func NewGatewayHandler(
 	modelCatalogServices ...*service.ModelCatalogService,
 ) *GatewayHandler {
 	var modelCatalogService *service.ModelCatalogService
-	if len(modelCatalogServices) > 0 { modelCatalogService = modelCatalogServices[0] }
+	if len(modelCatalogServices) > 0 {
+		modelCatalogService = modelCatalogServices[0]
+	}
 	pingInterval := time.Duration(0)
 	maxAccountSwitches := 10
 	maxAccountSwitchesGemini := 3

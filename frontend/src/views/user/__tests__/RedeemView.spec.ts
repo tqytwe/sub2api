@@ -2,11 +2,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import RedeemView from '../RedeemView.vue'
 
-const { redeem, getHistory, refreshUser, fetchActiveSubscriptions, showError, showWarning, showSuccess } = vi.hoisted(() => ({
+const { redeem, getHistory, refreshUser, refreshActiveSubscriptionState, showError, showWarning, showSuccess } = vi.hoisted(() => ({
   redeem: vi.fn(),
   getHistory: vi.fn(),
   refreshUser: vi.fn(),
-  fetchActiveSubscriptions: vi.fn(),
+  refreshActiveSubscriptionState: vi.fn(),
   showError: vi.fn(),
   showWarning: vi.fn(),
   showSuccess: vi.fn(),
@@ -20,7 +20,7 @@ vi.mock('@/stores/auth', () => ({
   useAuthStore: () => ({ user: { balance: 10, concurrency: 2 }, refreshUser }),
 }))
 vi.mock('@/stores/subscriptions', () => ({
-  useSubscriptionStore: () => ({ fetchActiveSubscriptions }),
+  useSubscriptionStore: () => ({ refreshActiveSubscriptionState }),
 }))
 vi.mock('@/stores/app', () => ({
   useAppStore: () => ({ showError, showWarning, showSuccess }),
@@ -47,7 +47,7 @@ describe('RedeemView refresh after redemption', () => {
     redeem.mockResolvedValue({ type: 'balance', value: 20, message: 'Code applied' })
     getHistory.mockResolvedValue({ items: [], total: 0 })
     refreshUser.mockResolvedValue({ balance: 30, concurrency: 2 })
-    fetchActiveSubscriptions.mockResolvedValue([])
+    refreshActiveSubscriptionState.mockResolvedValue(undefined)
     vi.spyOn(console, 'error').mockImplementation(() => {})
   })
 
@@ -76,9 +76,9 @@ describe('RedeemView refresh after redemption', () => {
       expect(getHistory).toHaveBeenCalledTimes(2)
       expect(wrapper.text()).toContain('REDEEM-C...')
       if (type === 'subscription') {
-        expect(fetchActiveSubscriptions).toHaveBeenCalledWith(true)
+        expect(refreshActiveSubscriptionState).toHaveBeenCalledWith(true)
       } else {
-        expect(fetchActiveSubscriptions).not.toHaveBeenCalled()
+        expect(refreshActiveSubscriptionState).not.toHaveBeenCalled()
       }
       wrapper.unmount()
     }
@@ -213,7 +213,7 @@ describe('RedeemView refresh after redemption', () => {
 
   it('preserves the existing subscription refresh warning after successful redemption', async () => {
     redeem.mockResolvedValue({ type: 'subscription', value: 20, message: 'Code applied' })
-    fetchActiveSubscriptions.mockRejectedValue(new Error('Network Error'))
+    refreshActiveSubscriptionState.mockRejectedValue(new Error('Network Error'))
     const wrapper = await submitCode()
 
     expect(showWarning).toHaveBeenCalledWith('redeem.subscriptionRefreshFailed')
@@ -232,7 +232,7 @@ describe('RedeemView refresh after redemption', () => {
     expect(wrapper.text()).not.toContain('Code applied')
     expect((wrapper.get('input#code').element as HTMLInputElement).value).toBe(' REDEEM-CODE ')
     expect(refreshUser).not.toHaveBeenCalled()
-    expect(fetchActiveSubscriptions).not.toHaveBeenCalled()
+    expect(refreshActiveSubscriptionState).not.toHaveBeenCalled()
     expect(getHistory).toHaveBeenCalledOnce()
     expect(showSuccess).not.toHaveBeenCalled()
     expect(showWarning).not.toHaveBeenCalled()

@@ -10,7 +10,6 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/util/responseheaders"
 	"github.com/gin-gonic/gin"
 	"github.com/tidwall/gjson"
-	"github.com/tidwall/sjson"
 )
 
 type openAIImagesForceResponsesContextKey struct{}
@@ -163,14 +162,6 @@ func parseCodexDirectImagesResponse(body []byte) ([]openAIResponsesImageResult, 
 	return results, nil
 }
 
-func codexDirectImageURL(body []byte, path, outputFormat string) []byte {
-	if result := gjson.GetBytes(body, path+"b64_json").String(); result != "" {
-		body, _ = sjson.SetBytes(body, path+"url", "data:"+openAIImageOutputMIMEType(outputFormat)+";base64,"+result)
-		body, _ = sjson.DeleteBytes(body, path+"b64_json")
-	}
-	return body
-}
-
 func isOpenAIImagesMainModelError(status int, body []byte) bool {
 	if !isOpenAICodexPlanGatedModelError(status, body) {
 		return false
@@ -204,7 +195,13 @@ func codexDirectImagesUsage(body []byte) (OpenAIUsage, bool) {
 	return usage, true
 }
 
-func (s *OpenAIGatewayService) handleCodexDirectImagesNonStreamingResponse(resp *http.Response, c *gin.Context, parsed *OpenAIImagesRequest) (OpenAIUsage, int, []string, error) {
+func (s *OpenAIGatewayService) handleCodexDirectImagesNonStreamingResponse(
+	resp *http.Response,
+	c *gin.Context,
+	parsed *OpenAIImagesRequest,
+	publicModel string,
+	upstreamModel string,
+) (OpenAIUsage, int, []string, error) {
 	body, err := ReadUpstreamResponseBody(resp.Body, s.cfg, c, openAITooLargeError)
 	if err != nil {
 		if shouldClassifyOpenAIUpstreamStreamReadError(err) {
@@ -223,31 +220,21 @@ func (s *OpenAIGatewayService) handleCodexDirectImagesNonStreamingResponse(resp 
 			observer.Observe(result.Model, true)
 		}
 	}
-	clientModel := strings.TrimSpace(parsed.Model)
-	if clientModel != "" {
-		for i := range gjson.GetBytes(body, "data").Array() {
-			body, _ = sjson.SetBytes(body, fmt.Sprintf("data.%d.model", i), clientModel)
-		}
+	body, imageCount, imageOutputSizes, err := decorateOpenAIImagesResponseBody(
+		body,
+		parsed,
+		publicModel,
+		upstreamModel,
+	)
+	if err != nil {
+		return usage, len(results), openAIResponsesImageResultSizes(results), err
 	}
-	for i, item := range gjson.GetBytes(body, "data").Array() {
-		if actualSize := detectOpenAIImageResultSize(item.Get("b64_json").String()); actualSize != "" {
-			body, _ = sjson.SetBytes(body, fmt.Sprintf("data.%d.size", i), actualSize)
-			if i == 0 {
-				body, _ = sjson.SetBytes(body, "size", actualSize)
-			}
-		}
+	body, err = s.rewriteOpenAIImagesURLResponse(c, parsed, body)
+	if err != nil {
+		return usage, imageCount, imageOutputSizes, err
 	}
-	if parsed.ResponseFormat == "url" {
-		for i, item := range gjson.GetBytes(body, "data").Array() {
-			format := item.Get("output_format").String()
-			if format == "" {
-				format = gjson.GetBytes(body, "output_format").String()
-			}
-			if format == "" {
-				format = parsed.OutputFormat
-			}
-			body = codexDirectImageURL(body, fmt.Sprintf("data.%d.", i), format)
-		}
+	if rewrittenSizes := collectOpenAIResponseImageOutputSizesFromJSONBytes(body); len(rewrittenSizes) > 0 {
+		imageOutputSizes = rewrittenSizes
 	}
 	responseheaders.WriteFilteredHeaders(c.Writer.Header(), resp.Header, s.responseHeaderFilter)
 	contentType := "application/json"
@@ -257,5 +244,5 @@ func (s *OpenAIGatewayService) handleCodexDirectImagesNonStreamingResponse(resp 
 		}
 	}
 	c.Data(resp.StatusCode, contentType, body)
-	return usage, len(results), openAIResponsesImageResultSizes(results), nil
+	return usage, imageCount, imageOutputSizes, nil
 }

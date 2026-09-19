@@ -88,7 +88,7 @@ describe('OpsErrorLogTable column order', () => {
     ])
     expect(wrapper.findAll('tbody td')[1].text()).toBe('boom')
 
-    await headers[0].trigger('click')
+    await headers[0].get('button').trigger('click')
     expect(wrapper.emitted('sort')).toEqual([['created_at', 'asc']])
     wrapper.unmount()
   })

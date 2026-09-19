@@ -20,7 +20,7 @@ func directImagesTestAccount() *Account {
 func TestCodexDirectImagesRouting(t *testing.T) {
 	for _, model := range []string{"gpt-image-1.5", "gpt-image-2", "gpt-image-2.5-flare", "gpt-image-2.5-sunburst", "gpt-image-2.5-flare-2026-09-08", "gpt-image-2.5-sunburst-2026-09-08"} {
 		t.Run(model, func(t *testing.T) {
-			body := []byte(fmt.Sprintf(`{"model":%q,"prompt":"  原样保留 prompt  ","quality":"max","size":"auto","response_format":"url","extra":{"preserve":true}}`, model))
+			body := []byte(fmt.Sprintf(`{"model":%q,"prompt":"  原样保留 prompt  ","quality":"max","size":"auto","response_format":"b64_json","extra":{"preserve":true}}`, model))
 			c, rec := newOpenAIImagesTestContext(t, body)
 			upstream := &httpUpstreamRecorder{resp: openAIImagesJSONResponse()}
 			svc := newOpenAIImagesTestService(upstream)
@@ -47,7 +47,7 @@ func TestCodexDirectImagesRouting(t *testing.T) {
 			for _, key := range []string{"tools", "reasoning", "instructions", "response_format", "stream"} {
 				require.False(t, gjson.GetBytes(upstream.lastBody, key).Exists(), key)
 			}
-			require.Equal(t, "data:image/png;base64,aGVsbG8=", gjson.GetBytes(rec.Body.Bytes(), "data.0.url").String())
+			require.Equal(t, "aGVsbG8=", gjson.GetBytes(rec.Body.Bytes(), "data.0.b64_json").String())
 		})
 	}
 }
@@ -75,7 +75,7 @@ func TestCodexDirectImagesMappingBeforeRouting(t *testing.T) {
 		body, target, err := buildOpenAIImagesOAuthPayload(&OpenAIImagesRequest{Prompt: "draw"}, model)
 		require.NoError(t, err)
 		require.Equal(t, chatgptCodexURL, target)
-		require.Equal(t, "gpt-5.6-luna", gjson.GetBytes(body, "model").String())
+		require.Equal(t, openAIImagesResponsesMainModelValue(), gjson.GetBytes(body, "model").String())
 		require.Equal(t, model, gjson.GetBytes(body, "tools.0.model").String())
 	}
 }
@@ -123,24 +123,27 @@ func TestCodexDirectImagesStreamRejectsPlainJSON(t *testing.T) {
 }
 
 func TestCodexDirectImagesMultipleOutputs(t *testing.T) {
-	for _, stream := range []bool{false, true} {
-		t.Run(fmt.Sprint(stream), func(t *testing.T) {
-			body := []byte(fmt.Sprintf(`{"model":"gpt-image-2.5-flare","prompt":"draw","n":2,"stream":%t}`, stream))
-			c, _ := newOpenAIImagesTestContext(t, body)
-			response := `{"data":[{"b64_json":"AA=="},{"b64_json":"AQ=="}],"usage":{"input_tokens":10,"output_tokens":40}}`
-			if stream {
-				response = "data: {\"type\":\"image_generation.completed\",\"b64_json\":\"AA==\"}\n\ndata: {\"type\":\"image_generation.completed\",\"b64_json\":\"AQ==\",\"usage\":{\"input_tokens\":10,\"output_tokens\":40}}\n\n"
-			}
-			upstream := &httpUpstreamRecorder{resp: &http.Response{StatusCode: 200, Header: http.Header{}, Body: io.NopCloser(strings.NewReader(response))}}
-			svc := newOpenAIImagesTestService(upstream)
-			parsed, err := svc.ParseOpenAIImagesRequest(c, body)
-			require.NoError(t, err)
-			result, err := svc.ForwardImages(context.Background(), c, directImagesTestAccount(), body, parsed, "")
-			require.NoError(t, err)
-			require.Equal(t, 2, result.ImageCount)
-			require.Equal(t, 40, result.Usage.ImageOutputTokens)
-		})
-	}
+	body := []byte(`{"model":"gpt-image-2.5-flare","prompt":"draw","n":2}`)
+	c, _ := newOpenAIImagesTestContext(t, body)
+	response := `{"data":[{"b64_json":"AA=="}],"usage":{"input_tokens":5,"output_tokens":20}}`
+	calls := 0
+	upstream := &codexModelsHTTPUpstreamStub{do: func(_ *http.Request, _ string, _ int64, _ int) (*http.Response, error) {
+		calls++
+		return &http.Response{StatusCode: 200, Header: http.Header{}, Body: io.NopCloser(strings.NewReader(response))}, nil
+	}}
+	svc := newOpenAIImagesTestService(upstream)
+	parsed, err := svc.ParseOpenAIImagesRequest(c, body)
+	require.NoError(t, err)
+	result, err := svc.ForwardImages(context.Background(), c, directImagesTestAccount(), body, parsed, "")
+	require.NoError(t, err)
+	require.Equal(t, 2, result.ImageCount)
+	require.Equal(t, 40, result.Usage.ImageOutputTokens)
+	require.Equal(t, 2, calls)
+
+	streamBody := []byte(`{"model":"gpt-image-2.5-flare","prompt":"draw","n":2,"stream":true}`)
+	streamContext, _ := newOpenAIImagesTestContext(t, streamBody)
+	_, err = svc.ParseOpenAIImagesRequest(streamContext, streamBody)
+	require.ErrorIs(t, err, ErrImageMultiStreamUnsupported)
 }
 
 func TestCodexDirectImagesStreaming(t *testing.T) {
@@ -158,9 +161,9 @@ func TestCodexDirectImagesStreaming(t *testing.T) {
 		{"partial_success", "complete,error", 1, true, false},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			body := []byte(`{"model":"gpt-image-2","prompt":"edit","images":[{"image_url":"data:image/png;base64,AA=="}],"stream":true,"response_format":"url"}`)
+			body := []byte(`{"model":"gpt-image-2","prompt":"edit","images":[{"image_url":"data:image/png;base64,AA=="}],"stream":true,"response_format":"b64_json"}`)
 			if test.name == "partial_requested_multiple" {
-				body = []byte(`{"model":"gpt-image-2","prompt":"edit","n":2,"images":[{"image_url":"data:image/png;base64,AA=="}],"stream":true,"response_format":"url"}`)
+				body = []byte(`{"model":"gpt-image-2","prompt":"edit","images":[{"image_url":"data:image/png;base64,AA=="}],"stream":true,"response_format":"b64_json","partial_images":2}`)
 			}
 			c, rec := newOpenAIImagesTestContext(t, body)
 			c.Request.URL.Path = "/v1/images/edits"
@@ -198,7 +201,7 @@ func TestCodexDirectImagesStreaming(t *testing.T) {
 			require.Equal(t, "text/event-stream", upstream.lastReq.Header.Get("Accept"))
 			if !test.disconnect && test.wantCount > 0 {
 				require.Contains(t, rec.Body.String(), "event: image_edit.completed")
-				require.Contains(t, rec.Body.String(), "data:image/webp;base64,aGVsbG8=")
+				require.Contains(t, rec.Body.String(), `"b64_json":"aGVsbG8="`)
 			}
 		})
 	}

@@ -52,7 +52,7 @@ describe('RedeemView subscription refresh', () => {
       type: 'subscription',
       value: 30,
     })
-    getHistory.mockReset().mockResolvedValue([])
+    getHistory.mockReset().mockResolvedValue({ items: [], total: 0, page: 1, page_size: 20, pages: 0 })
     refreshUser.mockReset().mockResolvedValue(undefined)
     refreshActiveSubscriptionState.mockReset().mockResolvedValue(undefined)
     fetchPublicSettings.mockReset().mockResolvedValue(undefined)
