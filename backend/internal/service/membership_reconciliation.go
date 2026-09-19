@@ -67,7 +67,7 @@ func (s *membershipReconciliationService) Reconcile(ctx context.Context, opts Me
 		SELECT c.order_id, p.status, p.order_type, p.payment_currency,
 		       p.list_amount, p.gateway_base_amount, p.qualifying_recharge_amount,
 		       p.amount, p.refund_amount, p.subscription_snapshot
-		FROM play_membership_verified_contributions c
+		FROM play_membership_order_contributions c
 		JOIN payment_orders p ON p.id = c.order_id
 		WHERE c.qualification_state = 'pending_review'
 		  AND c.order_id > $1

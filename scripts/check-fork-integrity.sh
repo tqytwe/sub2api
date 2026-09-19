@@ -98,7 +98,8 @@ for id in \
   FORK-BRAND-001 FORK-NAV-002 FORK-PLAY-003 FORK-IMAGE-004 FORK-PRICING-005 \
   FORK-DEPLOY-006 FORK-OAUTH-007 FORK-PUBLIC-008 FORK-MIGRATION-009 FORK-BILLING-010 \
   FORK-IMAGE-011 FORK-UI-012 FORK-MARKETPLACE-013 FORK-RISK-013 FORK-ADMIN-014 \
-  FORK-REWARDS-015 FORK-MEMBERSHIP-016 FORK-MOBILE-017 FORK-LIVE-SETTLEMENT-018; do
+  FORK-REWARDS-015 FORK-MEMBERSHIP-016 FORK-MOBILE-017 FORK-LIVE-SETTLEMENT-018 \
+  FORK-SETTINGS-019; do
   check_contains "$id" "registry entry exists" "docs/FORK_CUSTOMIZATIONS.md" "## $id"
 done
 
@@ -116,6 +117,33 @@ check_file "FORK-UI-012" "visual review instructions" "docs/visual-reviews/READM
 check_file "FORK-UI-012" "visual review template" "docs/visual-reviews/TEMPLATE.md"
 check_file "FORK-UI-012" "design governance script" "scripts/check-frontend-design-governance.mjs"
 check_file "FORK-UI-012" "design governance tests" "scripts/check-frontend-design-governance.test.mjs"
+
+# SettingsView is a semantic merge boundary: form state and API DTOs can
+# survive an upstream merge while the controls themselves disappear.
+check_contains "FORK-SETTINGS-019" "domain quota control" "frontend/src/views/admin/SettingsView.vue" 'data-testid="registration-email-domain-quota-toggle"'
+check_contains "FORK-SETTINGS-019" "account scheduling threshold panel" "frontend/src/views/admin/SettingsView.vue" 'data-testid="account-scheduling-thresholds"'
+check_contains "FORK-SETTINGS-019" "Codex version input" "frontend/src/views/admin/SettingsView.vue" 'data-testid="openai-codex-client-version"'
+check_contains "FORK-SETTINGS-019" "Codex auto-sync control" "frontend/src/views/admin/SettingsView.vue" 'data-testid="openai-codex-version-auto-sync"'
+check_contains "FORK-SETTINGS-019" "Codex synced version display" "frontend/src/views/admin/SettingsView.vue" 'data-testid="openai-codex-synced-version"'
+check_contains "FORK-SETTINGS-019" "Tencent secret status" "frontend/src/views/admin/SettingsView.vue" 'data-testid="tencent-captcha-app-secret-status"'
+check_contains "FORK-SETTINGS-019" "Aliyun secret status" "frontend/src/views/admin/SettingsView.vue" 'data-testid="aliyun-captcha-access-key-secret-status"'
+check_contains "FORK-SETTINGS-019" "admin sidebar settings entry" "frontend/src/components/layout/AppSidebar.vue" "path: '/admin/settings'"
+check_contains "FORK-SETTINGS-019" "admin settings route" "frontend/src/router/index.ts" "path: '/admin/settings'"
+check_contains "FORK-SETTINGS-019" "admin settings route permission" "frontend/src/router/index.ts" "requiresAdmin: true"
+check_contains "FORK-SETTINGS-019" "admin settings locale scope" "frontend/src/router/index.ts" "localeScopes: ['admin-settings']"
+check_contains "FORK-SETTINGS-019" "admin settings cold locale mapping" "frontend/src/i18n/__tests__/lazyLocaleScope.spec.ts" "['/admin/settings', 'admin-settings']"
+check_contains "FORK-SETTINGS-019" "settings response domain quota field" "frontend/src/api/admin/settings.ts" 'registration_email_domain_quota_enabled: boolean'
+check_contains "FORK-SETTINGS-019" "settings update domain quota field" "frontend/src/api/admin/settings.ts" 'registration_email_domain_quota_enabled?: boolean'
+check_contains "FORK-SETTINGS-019" "settings response threshold field" "frontend/src/api/admin/settings.ts" 'account_scheduling_thresholds: AccountSchedulingThresholdsMap'
+check_contains "FORK-SETTINGS-019" "settings update threshold field" "frontend/src/api/admin/settings.ts" 'account_scheduling_thresholds?: AccountSchedulingThresholdsMap'
+check_contains "FORK-SETTINGS-019" "Chinese Codex version locale" "frontend/src/i18n/locales/zh/admin/settings.ts" 'openaiCodexClientVersion:'
+check_contains "FORK-SETTINGS-019" "English Codex version locale" "frontend/src/i18n/locales/en/admin/settings.ts" 'openaiCodexClientVersion:'
+check_contains "FORK-SETTINGS-019" "Chinese scheduling locale" "frontend/src/i18n/locales/zh/admin/settings.ts" 'accountSchedulingThresholdsTitle:'
+check_contains "FORK-SETTINGS-019" "English scheduling locale" "frontend/src/i18n/locales/en/admin/settings.ts" 'accountSchedulingThresholdsTitle:'
+check_not_contains "FORK-SETTINGS-019" "Tencent app secret is never interpolated" "frontend/src/views/admin/SettingsView.vue" '{{ form.tencent_captcha_app_secret_key }}'
+check_not_contains "FORK-SETTINGS-019" "Tencent cloud secret ID is never interpolated" "frontend/src/views/admin/SettingsView.vue" '{{ form.tencent_captcha_cloud_secret_id }}'
+check_not_contains "FORK-SETTINGS-019" "Tencent cloud secret key is never interpolated" "frontend/src/views/admin/SettingsView.vue" '{{ form.tencent_captcha_cloud_secret_key }}'
+check_not_contains "FORK-SETTINGS-019" "Aliyun access secret is never interpolated" "frontend/src/views/admin/SettingsView.vue" '{{ form.aliyun_captcha_access_key_secret }}'
 check_contains "FORK-UI-012" "root agent rules require rendered UI review" "AGENTS.md" "任何可见界面改动必须新增一份"
 check_contains "FORK-UI-012" "verified frontend build runs design governance" "frontend/package.json" '"build:verified": "pnpm design:verify'
 check_contains "FORK-UI-012" "frontend lint runs design governance" "frontend/package.json" '"lint:check": "pnpm design:check'
@@ -347,6 +375,12 @@ check_contains "FORK-BILLING-010" "API key ownership validation" "backend/intern
 check_contains "FORK-BILLING-010" "subscription ownership validation" "backend/internal/repository/usage_billing_repo.go" "validateUsageBillingSubscriptionOwnership"
 check_contains "FORK-BILLING-010" "sticky sessions are scoped by API key" "backend/internal/service/gateway_service.go" "scopeStickySessionSeed"
 check_contains "FORK-BILLING-010" "recharge completion grants Play boost" "backend/internal/service/payment_fulfillment.go" "GrantRechargeBoost"
+check_contains "FORK-BILLING-010" "group surcharge create control" "frontend/src/views/admin/GroupsView.vue" 'data-testid="create-group-surcharge-override"'
+check_contains "FORK-BILLING-010" "group surcharge edit control" "frontend/src/views/admin/GroupsView.vue" 'data-testid="edit-group-surcharge-override"'
+check_contains "FORK-BILLING-010" "group surcharge frontend contract" "frontend/src/types/index.ts" 'billing_surcharge_override_enabled?: boolean'
+check_contains "FORK-BILLING-010" "group surcharge admin API contract" "backend/internal/handler/admin/group_handler.go" 'json:"billing_surcharge_override_enabled"'
+check_contains "FORK-BILLING-010" "group surcharge database schema" "backend/ent/schema/group.go" 'field.Bool("billing_surcharge_override_enabled")'
+check_contains "FORK-BILLING-010" "group surcharge billing resolution" "backend/internal/service/billing_surcharge.go" "ResolveGroupBillingSurcharge"
 check_file "FORK-BILLING-010" "withdrawable entitlement recompute command" "backend/cmd/recompute-withdrawable-entitlements/main.go"
 check_file "FORK-BILLING-010" "withdrawable entitlement recompute script" "backend/scripts/recompute-withdrawable-entitlements.sh"
 check_contains "FORK-BILLING-010" "image release restores consumed entitlements" "backend/internal/repository/usage_billing_repo.go" "restore_ledger_key"
@@ -367,6 +401,10 @@ check_file "FORK-MEMBERSHIP-016" "membership reconciliation" "backend/internal/s
 check_contains "FORK-MEMBERSHIP-016" "membership overview route" "backend/internal/server/routes/admin.go" 'play.GET("/membership/overview"'
 check_contains "FORK-MEMBERSHIP-016" "VIP publish remains step-up guarded" "backend/internal/server/routes/admin.go" 'play.PUT("/membership/vip-config", gin.HandlerFunc(stepUpAuth)'
 check_file "FORK-MEMBERSHIP-016" "membership qualification migration" "backend/migrations/251_vip_membership_qualification_review.sql"
+check_contains "FORK-MEMBERSHIP-016" "admin user DTO maps membership amount" "backend/internal/handler/dto/mappers.go" "base.MembershipPaidAmount = u.MembershipPaidAmount"
+check_contains "FORK-MEMBERSHIP-016" "admin user DTO maps VIP tier" "backend/internal/handler/dto/mappers.go" "base.VIPTier = u.VIPTier"
+check_contains "FORK-MEMBERSHIP-016" "admin user DTO maps VIP label" "backend/internal/handler/dto/mappers.go" "base.VIPLabel = u.VIPLabel"
+check_contains "FORK-MEMBERSHIP-016" "admin user DTO maps membership data state" "backend/internal/handler/dto/mappers.go" "base.MembershipDataState = u.MembershipDataState"
 
 check_contains "FORK-MOBILE-017" "mobile login rate-limited route" "backend/internal/server/routes/auth.go" 'auth.POST("/mobile/login"'
 check_contains "FORK-MOBILE-017" "NextChat mobile bootstrap route" "backend/internal/server/routes/nextchat.go" 'authenticated.GET("/mobile/bootstrap"'
@@ -408,7 +446,7 @@ run_check "FORK-BILLING-010" "withdrawable ledger and recompute tests" \
 run_check "FORK-REWARDS-015" "coupon payment lifecycle and daily card quota tests" \
   bash -c "cd '$ROOT/backend' && go test -count=1 ./internal/service ./internal/repository -run '^(TestUserSubscription.*DailyCard|TestCheckAndResetWindows_DailyCard.*|TestValidateAndCheckLimits_DailyCard.*|TestCreateOrderInTx.*Coupon|TestPaidCouponOrder.*|TestCouponOrderRefund.*|TestCouponReward.*)'"
 run_check "FORK-MEMBERSHIP-016" "membership qualification and VIP tests" \
-  bash -c "cd '$ROOT/backend' && go test -count=1 ./internal/service ./internal/repository -run '^(TestMembership|TestPaymentOrderMembership|TestBuildPaymentRechargeQuote|Test(Get|Parse|Validate).*VIP)'"
+  bash -c "cd '$ROOT/backend' && go test -count=1 ./internal/service ./internal/repository ./internal/handler/dto -run '^(TestMembership|TestPaymentOrderMembership|TestBuildPaymentRechargeQuote|Test(Get|Parse|Validate).*VIP|TestUserFromServiceAdmin_Maps.*MembershipProjection)'"
 run_check "FORK-MOBILE-017" "mobile protocol, attribution and feedback tests" \
   bash -c "cd '$ROOT/backend' && go test -count=1 ./internal/server/routes ./internal/service -run '^(TestNextChatMobile|TestMobileAttribution|Test.*MobileFeedback)'"
 run_check "FORK-IMAGE-004/FORK-PRICING-005/FORK-MOBILE-017" "catalog media and mobile video capability tests" \
@@ -455,6 +493,13 @@ run_check "FORK-RISK-013" "IP risk routes, scanning, preview, stale, partial and
     src/__tests__/ipRiskRouting.spec.ts \
     src/__tests__/ipRiskWorkbench.spec.ts \
     src/__tests__/ipRiskActions.spec.ts
+run_check "FORK-SETTINGS-019" "system settings controls, API payload, secret masking and bilingual locale tests" \
+  pnpm --dir "$ROOT/frontend" exec vitest run \
+    src/views/admin/__tests__/SettingsView.spec.ts \
+    src/router/__tests__/adminSettingsRoute.spec.ts \
+    src/i18n/__tests__/routeLocaleRuntime.spec.ts \
+    src/i18n/__tests__/lazyLocaleScope.spec.ts \
+    src/i18n/__tests__/adminManagementLocaleKeys.spec.ts
 
 echo
 if [[ "$FAIL" -ne 0 ]]; then

@@ -215,6 +215,39 @@ func TestTeamArchiveRejectsOldInviteAndClosesMembership(t *testing.T) {
 	require.ErrorIs(t, err, service.ErrPlayTeamNotFound)
 }
 
+func TestTeamRewardSettlementRefreshCompletesFullyPaidAllocationsInPostgres(t *testing.T) {
+	f := newTeamLifecycleFixture(t)
+	captainID := f.user("settlement-captain")
+	recipientID := f.user("settlement-recipient")
+	team := f.createTeam(captainID, "settlement-status")
+
+	repo := NewPlayRepository(testEntClient(t), integrationDB)
+	shanghai, err := time.LoadLocation("Asia/Shanghai")
+	require.NoError(t, err)
+	windowStart := time.Date(2026, time.September, 1, 0, 0, 0, 0, shanghai)
+	windowEnd := windowStart.AddDate(0, 1, 0)
+	snapshot, created, err := repo.CreateTeamRewardSnapshot(f.ctx, service.PlayTeamSettlement{
+		TeamID: team.ID, PeriodStart: windowStart, WindowStart: windowStart, WindowEnd: windowEnd,
+		TeamSpend: decimal.NewFromInt(100), ReachedThreshold: decimal.NewFromInt(50), RewardRate: decimal.RequireFromString("0.02"), PoolAmount: decimal.NewFromInt(2), CapAmount: decimal.NewFromInt(100),
+	}, []service.PlayTeamRewardAllocation{{UserID: recipientID, Contribution: decimal.NewFromInt(100), Ratio: decimal.NewFromInt(1), RewardAmount: decimal.NewFromInt(2), IdempotencyKey: fmt.Sprintf("settlement-status-%d", time.Now().UnixNano())}})
+	require.NoError(t, err)
+	require.True(t, created)
+	require.NoError(t, repo.MarkTeamRewardSettlementProcessing(f.ctx, snapshot.ID))
+
+	allocations, err := repo.ListUnpaidTeamRewardAllocations(f.ctx, snapshot.ID)
+	require.NoError(t, err)
+	require.Len(t, allocations, 1)
+	claimed, err := repo.ClaimTeamRewardAllocation(f.ctx, allocations[0].ID)
+	require.NoError(t, err)
+	require.True(t, claimed)
+	require.NoError(t, repo.MarkTeamRewardAllocationPaid(f.ctx, allocations[0].ID))
+
+	settlement, err := repo.RefreshTeamRewardSettlementStatus(f.ctx, snapshot.ID)
+	require.NoError(t, err)
+	require.Equal(t, service.PlayTeamSettlementStatusCompleted, settlement.Status)
+	require.NotNil(t, settlement.CompletedAt)
+}
+
 func TestTeamConcurrentJoinCreatesOneActiveMembership(t *testing.T) {
 	f := newTeamLifecycleFixture(t)
 	captainA := f.user("captain-a")

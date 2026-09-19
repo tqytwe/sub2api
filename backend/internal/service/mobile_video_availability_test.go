@@ -425,7 +425,7 @@ func TestCatalogMobileVideoAvailabilityHonorsGroupModelsListWithoutImagePermissi
 	modelsListResolver := NewCatalogMobileVideoAvailabilityResolver(
 		mobileVideoAvailabilityGroupsFake{groups: []Group{{
 			ID: 29, Name: "video", Platform: PlatformGrok, AllowImageGeneration: true,
-			ModelsListConfig: GroupModelsListConfig{Enabled: true, Models: []string{"allowed-video"}},
+			ModelAllowlist:   GroupModelAllowlist{Enabled: true, Models: []string{"allowed-video"}},
 			VideoModelPrices: map[string]map[string]float64{"allowed-video": {"720p": price}, "hidden-video": {"720p": price}},
 		}}},
 		mobileVideoAvailabilityCatalogFake{entries: []SiteModelCatalogEntry{

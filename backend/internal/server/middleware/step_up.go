@@ -152,8 +152,13 @@ func stepUpAlwaysRequired(c *gin.Context) bool {
 	path = strings.TrimPrefix(path, "/api/v1")
 	return strings.HasPrefix(path, "/admin/withdrawals/") ||
 		strings.HasPrefix(path, "/admin/funds/") ||
+		isMandatoryManualPaymentConfirmationPath(path) ||
 		isMandatoryReferralCampaignStepUpPath(path) ||
 		isMandatoryPlayFinanceStepUpPath(path)
+}
+
+func isMandatoryManualPaymentConfirmationPath(path string) bool {
+	return strings.HasPrefix(path, "/admin/payment/orders/") && strings.HasSuffix(path, "/manual-confirm")
 }
 
 func isMandatoryPlayFinanceStepUpPath(path string) bool {

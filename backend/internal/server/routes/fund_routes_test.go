@@ -31,15 +31,21 @@ func TestAdminFundRoutesContractAndSensitiveStepUp(t *testing.T) {
 	}
 	for _, route := range []string{
 		"GET /api/v1/admin/funds/refund-requests",
-		"GET /api/v1/admin/funds/refund-requests/:id",
-		"POST /api/v1/admin/funds/refund-requests/:id/approve",
-		"POST /api/v1/admin/funds/refund-requests/:id/reject",
-		"GET /api/v1/admin/funds/refund-requests/:id/payout-sensitive",
-		"POST /api/v1/admin/funds/refund-requests/:id/mark-paid",
+		"GET /api/v1/admin/funds/refund-requests/:request_no",
+		"POST /api/v1/admin/funds/refund-requests/:request_no/approve",
+		"POST /api/v1/admin/funds/refund-requests/:request_no/reject",
+		"GET /api/v1/admin/funds/refund-requests/:request_no/payout-sensitive",
+		"POST /api/v1/admin/funds/refund-requests/:request_no/mark-paid",
 		"POST /api/v1/admin/funds/gifts",
+		"POST /api/v1/admin/funds/compensations",
 		"POST /api/v1/admin/funds/offline-recharges",
-		"GET /api/v1/admin/funds/classifications/signup-gift-30/preview",
-		"POST /api/v1/admin/funds/classifications/signup-gift-30/execute",
+		"GET /api/v1/admin/funds/accounts/search",
+		"GET /api/v1/admin/funds/operations",
+		"GET /api/v1/admin/funds/operations/:operation_no",
+		"GET /api/v1/admin/funds/operations/:operation_no/sensitive",
+		"POST /api/v1/admin/funds/operations/:operation_no/corrections",
+		"POST /api/v1/admin/funds/operations/:operation_no/corrections/retry",
+		"POST /api/v1/admin/funds/operations/:operation_no/corrections/cancel",
 	} {
 		_, ok := routes[route]
 		require.Truef(t, ok, "missing route: %s", route)
@@ -49,13 +55,17 @@ func TestAdminFundRoutesContractAndSensitiveStepUp(t *testing.T) {
 		method string
 		path   string
 	}{
-		{http.MethodPost, "/api/v1/admin/funds/refund-requests/12/approve"},
-		{http.MethodPost, "/api/v1/admin/funds/refund-requests/12/reject"},
-		{http.MethodGet, "/api/v1/admin/funds/refund-requests/12/payout-sensitive"},
-		{http.MethodPost, "/api/v1/admin/funds/refund-requests/12/mark-paid"},
+		{http.MethodPost, "/api/v1/admin/funds/refund-requests/FR-20260908-ABC/approve"},
+		{http.MethodPost, "/api/v1/admin/funds/refund-requests/FR-20260908-ABC/reject"},
+		{http.MethodGet, "/api/v1/admin/funds/refund-requests/FR-20260908-ABC/payout-sensitive"},
+		{http.MethodPost, "/api/v1/admin/funds/refund-requests/FR-20260908-ABC/mark-paid"},
 		{http.MethodPost, "/api/v1/admin/funds/gifts"},
+		{http.MethodPost, "/api/v1/admin/funds/compensations"},
 		{http.MethodPost, "/api/v1/admin/funds/offline-recharges"},
-		{http.MethodPost, "/api/v1/admin/funds/classifications/signup-gift-30/execute"},
+		{http.MethodGet, "/api/v1/admin/funds/operations/FM-20260908-ABC/sensitive"},
+		{http.MethodPost, "/api/v1/admin/funds/operations/FM-20260908-ABC/corrections"},
+		{http.MethodPost, "/api/v1/admin/funds/operations/FM-20260908-ABC/corrections/retry"},
+		{http.MethodPost, "/api/v1/admin/funds/operations/FM-20260908-ABC/corrections/cancel"},
 	} {
 		recorder := httptest.NewRecorder()
 		request := httptest.NewRequest(tc.method, tc.path, nil)

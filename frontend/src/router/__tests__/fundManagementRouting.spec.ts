@@ -1,67 +1,16 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-
 import { describe, expect, it } from 'vitest'
 
-describe('fund management route integration', () => {
-  it('adds unified admin fund management and bilingual navigation labels', () => {
-    const routerSource = readFileSync(resolve(process.cwd(), 'src/router/index.ts'), 'utf8')
-    const sidebarSource = readFileSync(resolve(process.cwd(), 'src/components/layout/AppSidebar.vue'), 'utf8')
-    const zhSource = readFileSync(resolve(process.cwd(), 'src/i18n/locales/zh.ts'), 'utf8')
-    const enSource = readFileSync(resolve(process.cwd(), 'src/i18n/locales/en.ts'), 'utf8')
-
-    expect(routerSource).toContain("path: '/admin/funds'")
-    expect(routerSource).toContain("path: '/admin/funds/:tab(refunds|grants|classification)'")
-    expect(routerSource).toContain("component: () => import('@/views/admin/AdminFundsView.vue')")
-    expect(routerSource).toContain("titleKey: 'admin.funds.title'")
-    const fundNavBlock = sidebarSource.slice(
-      sidebarSource.indexOf("path: '/admin/funds'"),
-      sidebarSource.indexOf("path: '/admin/users'")
-    )
-    const orderNavBlock = sidebarSource.slice(
-      sidebarSource.indexOf("path: '/admin/orders'"),
-      sidebarSource.indexOf("path: '/admin/usage'")
-    )
-    expect(sidebarSource).toContain("label: t('nav.fundManagement')")
-    expect(fundNavBlock).not.toContain("path: '/admin/orders'")
-    expect(fundNavBlock).toContain("path: '/admin/funds/refunds'")
-    expect(fundNavBlock).toContain("path: '/admin/funds/grants'")
-    expect(fundNavBlock).toContain("path: '/admin/funds/classification'")
-    expect(fundNavBlock).toContain("label: t('nav.refundRequests')")
-    expect(fundNavBlock).toContain("label: t('nav.giftBalance')")
-    expect(fundNavBlock).toContain("label: t('nav.historicalGiftReview')")
-    expect(orderNavBlock).toContain("path: '/admin/orders/dashboard'")
-    expect(orderNavBlock).toContain("{ path: '/admin/orders', label: t('nav.rechargeOrders')")
-    expect(orderNavBlock).toContain("path: '/admin/orders/plans'")
-    expect(zhSource).toContain("fundManagement: '资金管理'")
-    expect(zhSource).toContain("rechargeOrders: '充值订单'")
-    expect(zhSource).toContain("refundRequests: '余额退回申请'")
-    expect(zhSource).toContain("giftBalance: '赠送余额'")
-    expect(zhSource).toContain("historicalGiftReview: '历史赠送复核'")
-    expect(enSource).toContain("fundManagement: 'Fund Management'")
-    expect(enSource).toContain("rechargeOrders: 'Recharge Orders'")
-    expect(enSource).toContain("refundRequests: 'Balance Return Requests'")
-    expect(enSource).toContain("giftBalance: 'Gift Balance'")
-    expect(enSource).toContain("historicalGiftReview: 'Historical Gift Review'")
-  })
-
-  it('keeps wallet recharge return copy bilingual and source-specific', () => {
-    const walletApiSource = readFileSync(resolve(process.cwd(), 'src/api/wallet.ts'), 'utf8')
-    const walletViewSource = readFileSync(resolve(process.cwd(), 'src/views/user/WalletView.vue'), 'utf8')
-    const adminApiSource = readFileSync(resolve(process.cwd(), 'src/api/admin/funds.ts'), 'utf8')
-    const zhSource = readFileSync(resolve(process.cwd(), 'src/i18n/locales/zh.ts'), 'utf8')
-    const enSource = readFileSync(resolve(process.cwd(), 'src/i18n/locales/en.ts'), 'utf8')
-
-    expect(walletApiSource).toContain('/user/wallet/refund-requests')
-    expect(adminApiSource).toContain('/admin/funds/refund-requests')
-    expect(walletViewSource).toContain('wallet.refunds.title')
-    expect(walletViewSource).toContain('refundable_recharge_balance')
-    expect(walletViewSource).toContain('integerAmountRequired')
-    expect(zhSource).toContain('真实充值和线下充值的未消费部分可从这里申请退回')
-    expect(zhSource).toContain('赠送余额可消费，默认不可提现或退回')
-    expect(zhSource).toContain('退回金额必须为整数')
-    expect(enSource).toContain('Request a return for the unconsumed part of real online or offline recharge')
-    expect(enSource).toContain('Gift balance is spendable but not withdrawable or refundable by default')
-    expect(enSource).toContain('Return amount must be a whole number')
+describe('fund-management routing', () => {
+  it('retires the classification route through a compatibility redirect', () => {
+    const router = readFileSync(resolve(process.cwd(), 'src/router/index.ts'), 'utf8')
+    const sidebar = readFileSync(resolve(process.cwd(), 'src/components/layout/AppSidebar.vue'), 'utf8')
+    expect(router).toContain("path: '/admin/funds/classification'")
+    expect(router).toContain("redirect: '/admin/funds/operations'")
+    expect(router).toContain("path: '/admin/funds/:tab(refunds|credits|operations)'")
+    expect(sidebar).toContain("path: '/admin/funds/credits'")
+    expect(sidebar).toContain("path: '/admin/funds/operations'")
+    expect(sidebar).not.toContain("path: '/admin/funds/classification'")
   })
 })

@@ -13,7 +13,7 @@ func TestMembershipReconciliationPreviewDoesNotWrite(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
 	defer func() { _ = db.Close() }()
-	mock.ExpectQuery(`SELECT c\.order_id, p\.status`).
+	mock.ExpectQuery(`(?s)SELECT c\.order_id, p\.status.*FROM play_membership_order_contributions c`).
 		WithArgs(int64(0), 10).
 		WillReturnRows(sqlmock.NewRows([]string{"order_id", "status", "order_type", "payment_currency", "list_amount", "gateway_base_amount", "qualifying_recharge_amount", "amount", "refund_amount", "subscription_snapshot"}).
 			AddRow(int64(11), "COMPLETED", "balance", "CNY", 100.0, 90.0, 90.0, 100.0, 0.0, nil).

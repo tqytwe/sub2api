@@ -463,6 +463,71 @@ func TestApiKeyAuthWithSubscriptionGoogle_InvalidKey(t *testing.T) {
 	require.Equal(t, IngressRejectInvalidAPIKey, rejectReason)
 }
 
+func TestApiKeyAuthWithSubscriptionGoogle_RejectsGroupNoLongerAllowed(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	groupID := int64(101)
+	apiKey := &service.APIKey{
+		ID:      100,
+		UserID:  7,
+		GroupID: &groupID,
+		Key:     "google-group-not-allowed",
+		Status:  service.StatusActive,
+		User: &service.User{
+			ID:            7,
+			Status:        service.StatusActive,
+			AllowedGroups: []int64{},
+		},
+		Group: &service.Group{
+			ID:          groupID,
+			Name:        "exclusive",
+			Status:      service.StatusActive,
+			Platform:    service.PlatformGemini,
+			IsExclusive: true,
+			Hydrated:    true,
+		},
+	}
+
+	r := gin.New()
+	var markedBusinessLimited bool
+	var businessLimitedReason string
+	var rejectReason IngressRejectReason
+	var rejected bool
+	r.Use(func(c *gin.Context) {
+		c.Next()
+		markedBusinessLimited = service.HasOpsClientBusinessLimited(c)
+		rejectReason, rejected = GetIngressRejectReason(c)
+		if v, ok := c.Get(service.OpsClientBusinessLimitedReasonKey); ok {
+			businessLimitedReason, _ = v.(string)
+		}
+	})
+	apiKeyService := newTestAPIKeyService(fakeAPIKeyRepo{
+		getByKey: func(ctx context.Context, key string) (*service.APIKey, error) {
+			if key != apiKey.Key {
+				return nil, service.ErrAPIKeyNotFound
+			}
+			clone := *apiKey
+			return &clone, nil
+		},
+	})
+	r.Use(APIKeyAuthWithSubscriptionGoogle(apiKeyService, nil, &config.Config{RunMode: config.RunModeSimple}))
+	r.GET("/v1beta/test", func(c *gin.Context) { c.JSON(http.StatusOK, gin.H{"ok": true}) })
+
+	req := httptest.NewRequest(http.MethodGet, "/v1beta/test", nil)
+	req.Header.Set("x-goog-api-key", apiKey.Key)
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusForbidden, rec.Code)
+	var resp googleErrorResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	require.Equal(t, "API Key 所属专属分组不再允许当前用户使用", resp.Error.Message)
+	require.True(t, markedBusinessLimited)
+	require.Equal(t, service.OpsClientBusinessLimitedReasonAPIKeyGroupUnavailable, businessLimitedReason)
+	require.True(t, rejected)
+	require.Equal(t, IngressRejectGroupNotAllowed, rejectReason)
+}
+
 func TestApiKeyAuthWithSubscriptionGoogle_MarksUnavailableGroupBusinessLimited(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 

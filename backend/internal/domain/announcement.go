@@ -19,8 +19,14 @@ const (
 )
 
 const (
-	AnnouncementConditionTypeSubscription = "subscription"
-	AnnouncementConditionTypeBalance      = "balance"
+	AnnouncementConditionTypeSubscription   = "subscription"
+	AnnouncementConditionTypeBalance        = "balance"
+	AnnouncementConditionTypePlayMembership = "play_membership"
+)
+
+const (
+	AnnouncementPlayMembershipOrdinary = "ordinary"
+	AnnouncementPlayMembershipMember   = "member"
 )
 
 const (
@@ -61,9 +67,18 @@ type AnnouncementCondition struct {
 
 	// balance 条件：比较阈值
 	Value float64 `json:"value,omitempty"`
+
+	// play_membership 条件：当前 Play 会员资格，必须是 ordinary 或 member。
+	PlayMembership string `json:"play_membership,omitempty"`
 }
 
 func (t AnnouncementTargeting) Matches(balance float64, activeSubscriptionGroupIDs map[int64]struct{}) bool {
+	return t.MatchesWithPlayMembership(balance, activeSubscriptionGroupIDs, "")
+}
+
+// MatchesWithPlayMembership preserves the original balance/subscription
+// contract while adding a server-derived, real-time Play membership segment.
+func (t AnnouncementTargeting) MatchesWithPlayMembership(balance float64, activeSubscriptionGroupIDs map[int64]struct{}, playMembership string) bool {
 	// 空规则：展示给所有用户
 	if len(t.AnyOf) == 0 {
 		return true
@@ -76,7 +91,7 @@ func (t AnnouncementTargeting) Matches(balance float64, activeSubscriptionGroupI
 		}
 		allMatched := true
 		for _, cond := range group.AllOf {
-			if !cond.Matches(balance, activeSubscriptionGroupIDs) {
+			if !cond.MatchesWithPlayMembership(balance, activeSubscriptionGroupIDs, playMembership) {
 				allMatched = false
 				break
 			}
@@ -90,6 +105,10 @@ func (t AnnouncementTargeting) Matches(balance float64, activeSubscriptionGroupI
 }
 
 func (c AnnouncementCondition) Matches(balance float64, activeSubscriptionGroupIDs map[int64]struct{}) bool {
+	return c.MatchesWithPlayMembership(balance, activeSubscriptionGroupIDs, "")
+}
+
+func (c AnnouncementCondition) MatchesWithPlayMembership(balance float64, activeSubscriptionGroupIDs map[int64]struct{}, playMembership string) bool {
 	switch c.Type {
 	case AnnouncementConditionTypeSubscription:
 		if c.Operator != AnnouncementOperatorIn {
@@ -124,6 +143,9 @@ func (c AnnouncementCondition) Matches(balance float64, activeSubscriptionGroupI
 			return false
 		}
 
+	case AnnouncementConditionTypePlayMembership:
+		return c.Operator == AnnouncementOperatorIn && c.PlayMembership == playMembership
+
 	default:
 		return false
 	}
@@ -152,9 +174,10 @@ func (t AnnouncementTargeting) NormalizeAndValidate() (AnnouncementTargeting, er
 		group := AnnouncementConditionGroup{AllOf: make([]AnnouncementCondition, 0, len(g.AllOf))}
 		for _, c := range g.AllOf {
 			cond := AnnouncementCondition{
-				Type:     strings.TrimSpace(c.Type),
-				Operator: strings.TrimSpace(c.Operator),
-				Value:    c.Value,
+				Type:           strings.TrimSpace(c.Type),
+				Operator:       strings.TrimSpace(c.Operator),
+				Value:          c.Value,
+				PlayMembership: strings.TrimSpace(c.PlayMembership),
 			}
 			for _, gid := range c.GroupIDs {
 				if gid <= 0 {
@@ -193,6 +216,15 @@ func (c AnnouncementCondition) validate() error {
 		default:
 			return ErrAnnouncementInvalidTarget
 		}
+
+	case AnnouncementConditionTypePlayMembership:
+		if c.Operator != AnnouncementOperatorIn {
+			return ErrAnnouncementInvalidTarget
+		}
+		if c.PlayMembership != AnnouncementPlayMembershipOrdinary && c.PlayMembership != AnnouncementPlayMembershipMember {
+			return ErrAnnouncementInvalidTarget
+		}
+		return nil
 
 	default:
 		return ErrAnnouncementInvalidTarget

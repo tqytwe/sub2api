@@ -64,6 +64,15 @@ describe('PlazaModelPricingTable', () => {
     expect(wrapper.findAll('tbody td')).toHaveLength(3)
   })
 
+  it('shows the Max reasoning billing multiplier', () => {
+    const model = tokenModel()
+    model.display_pricing!.max_reasoning_effort_multiplier = 3
+    const wrapper = mountTable([model], 1)
+
+    expect(wrapper.text()).toContain('modelPlaza.table.maxReasoningMultiplierBadge')
+    expect(wrapper.find('[title="modelPlaza.table.maxReasoningMultiplierHint"]').exists()).toBe(true)
+  })
+
   it('倍率 ≠ 1 时价格列为折后实付价,官方价列保持原价', () => {
     const wrapper = mountTable([tokenModel()], 0.5)
     const text = wrapper.text()
@@ -192,6 +201,16 @@ describe('PlazaModelPricingTable', () => {
     expect(cells[2].text().trim()).toBe('- / -')
   })
 
+  it('实付价分别展示自定义 5m 与 1h 缓存写入价', () => {
+    const model = tokenModel()
+    model.display_pricing!.cache_write_1h_price = 7e-6
+
+    const wrapper = mountTable([model], 1)
+    expect(wrapper.text()).toContain('$3.75')
+    expect(wrapper.text()).toContain('$7.00')
+    expect(wrapper.text()).toContain('(1h')
+  })
+
   it('per_request 模型按单次价 × 倍率展示,官方价列显示 -', () => {
     const model = tokenModel({
       name: 'search-tool',
@@ -261,6 +280,44 @@ describe('PlazaModelPricingTable', () => {
     expect(text).toContain('$1.50')
     expect(text).toContain('$7.50')
     expect(text).toContain('$15.00')
+  })
+
+  it('resolves interval multipliers from the display-only pricing baseline', () => {
+    const model = tokenModel({
+      display_pricing: {
+        billing_mode: 'token',
+        input_price: 10e-6,
+        output_price: 50e-6,
+        cache_write_price: 12.5e-6,
+        cache_write_1h_price: 12.5e-6,
+        cache_read_price: 2e-6,
+        image_input_price: null,
+        image_output_price: null,
+        per_request_price: null,
+        intervals: [{
+          min_tokens: 272000,
+          max_tokens: null,
+          tier_label: '>272K',
+          input_price: null,
+          output_price: null,
+          cache_write_price: null,
+          cache_write_1h_price: null,
+          cache_read_price: null,
+          input_multiplier: 2,
+          output_multiplier: 1.5,
+          cache_write_multiplier: 2,
+          cache_read_multiplier: 2,
+          per_request_price: null
+        }]
+      },
+      official_pricing: null
+    })
+
+    const text = mountTable([model], 1).text()
+    expect(text).toContain('$20.00')
+    expect(text).toContain('$75.00')
+    expect(text).toContain('$25.00')
+    expect(text).toContain('$4.00')
   })
 
   it('生图独立倍率开启时,按图价格 × 独立倍率,不乘分组倍率', () => {
@@ -459,6 +516,7 @@ describe('PlazaModelPricingTable 长上下文阶梯', () => {
     expect(rows[1].text()).toContain('>272K')
     expect(rows[1].text()).toContain('$5.00')
     expect(rows[1].text()).toContain('$22.50')
+    expect(cells[1].text().match(/\$2\.50/g)).toHaveLength(1)
     expect(cells).toHaveLength(3)
   })
 

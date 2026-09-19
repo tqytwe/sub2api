@@ -67,6 +67,8 @@ const usageLogsUpstreamModelMismatchIndex = "idx_usage_logs_upstream_model_misma
 const usageLogsEffectiveModelIndexesMigration = "226_add_usage_log_effective_model_indexes_notx.sql"
 const usageLogsEffectiveRequestedModelIndex = "idx_usage_logs_effective_requested_model_created"
 const usageLogsEffectiveUpstreamModelIndex = "idx_usage_logs_effective_upstream_model_created"
+const usageLogsUpstreamRequestIDIndexMigration = "233_add_usage_log_upstream_request_id_index_notx.sql"
+const usageLogsUpstreamRequestIDIndex = "idx_usage_logs_upstream_request_id"
 const publicStatusTTFTWindowIndexMigration = "264_public_status_ttft_window_index_notx.sql"
 const publicStatusTTFTWindowIndex = "idx_usage_logs_public_status_ttft_window"
 const growthEligibilityOrdersIndexMigration = "265_play_growth_eligibility_orders_index_notx.sql"
@@ -83,17 +85,6 @@ var imageStudioPersistentJobsIndexes = []string{
 var recoverablePhasedMigrations = map[string]struct{}{
 	imageStudioPersistentJobsMigration:   {},
 	imageStudioAssetDerivativesMigration: {},
-}
-
-type migrationExecutor interface {
-	ExecContext(context.Context, string, ...any) (sql.Result, error)
-	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
-	QueryRowContext(context.Context, string, ...any) *sql.Row
-}
-
-type migrationSession interface {
-	migrationExecutor
-	BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
 }
 
 type migrationChecksumCompatibilityRule struct {
@@ -165,24 +156,21 @@ func ApplyMigrations(ctx context.Context, db *sql.DB) error {
 //
 // 参数：
 //   - ctx: 上下文
-//   - db: 数据库连接池
+//   - db: 数据库连接
 //   - fsys: 包含迁移文件的文件系统（通常是 embed.FS）
 func applyMigrationsFS(ctx context.Context, db *sql.DB, fsys fs.FS) (retErr error) {
 	if db == nil {
 		return errors.New("nil sql db")
 	}
 
-	conn, err := db.Conn(ctx)
-	if err != nil {
-		return fmt.Errorf("acquire migrations session: %w", err)
-	}
-	defer func() {
-		_ = conn.Close()
-	}()
-
 	// 获取分布式锁，确保多实例部署时只有一个实例执行迁移。
-	// Session-level advisory lock 及所有迁移操作必须使用同一条 PostgreSQL 连接。
-	if err := pgAdvisoryLock(ctx, conn); err != nil {
+	// 这是 PostgreSQL 特有的 Advisory Lock 机制。
+	lockConn, err := db.Conn(ctx)
+	if err != nil {
+		return fmt.Errorf("acquire migrations lock connection: %w", err)
+	}
+	defer func() { _ = lockConn.Close() }()
+	if err := pgAdvisoryLock(ctx, lockConn); err != nil {
 		return err
 	}
 	defer func() {
@@ -191,19 +179,19 @@ func applyMigrationsFS(ctx context.Context, db *sql.DB, fsys fs.FS) (retErr erro
 		// 无限阻塞进程退出。
 		unlockCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		if err := pgAdvisoryUnlock(unlockCtx, conn); err != nil {
+		if err := pgAdvisoryUnlock(unlockCtx, lockConn); err != nil {
 			retErr = errors.Join(retErr, err)
 		}
 	}()
 
 	// 创建迁移记录表（如果不存在）。
 	// 该表记录所有已应用的迁移及其校验和。
-	if _, err := conn.ExecContext(ctx, schemaMigrationsTableDDL); err != nil {
+	if _, err := lockConn.ExecContext(ctx, schemaMigrationsTableDDL); err != nil {
 		return fmt.Errorf("create schema_migrations: %w", err)
 	}
 
 	// 自动对齐 Atlas 基线（如果检测到 legacy schema_migrations 且缺失 atlas_schema_revisions）。
-	if err := ensureAtlasBaselineAligned(ctx, conn, fsys); err != nil {
+	if err := ensureAtlasBaselineAligned(ctx, lockConn, fsys); err != nil {
 		return err
 	}
 
@@ -234,7 +222,7 @@ func applyMigrationsFS(ctx context.Context, db *sql.DB, fsys fs.FS) (retErr erro
 
 		// 检查该迁移是否已经应用
 		var existing string
-		rowErr := conn.QueryRowContext(ctx, "SELECT checksum FROM schema_migrations WHERE filename = $1", name).Scan(&existing)
+		rowErr := lockConn.QueryRowContext(ctx, "SELECT checksum FROM schema_migrations WHERE filename = $1", name).Scan(&existing)
 		if rowErr == nil {
 			// 迁移已应用，验证校验和是否匹配
 			if existing != checksum {
@@ -266,7 +254,7 @@ func applyMigrationsFS(ctx context.Context, db *sql.DB, fsys fs.FS) (retErr erro
 		}
 
 		if nonTx {
-			if err := prepareNonTransactionalMigration(ctx, conn, name); err != nil {
+			if err := prepareNonTransactionalMigration(ctx, lockConn, name); err != nil {
 				return fmt.Errorf("prepare migration %s: %w", name, err)
 			}
 
@@ -281,28 +269,28 @@ func applyMigrationsFS(ctx context.Context, db *sql.DB, fsys fs.FS) (retErr erro
 				if stripSQLLineComment(trimmed) == "" {
 					continue
 				}
-				if _, err := conn.ExecContext(ctx, trimmed); err != nil {
+				if _, err := lockConn.ExecContext(ctx, trimmed); err != nil {
 					return fmt.Errorf("apply migration %s (non-tx statement %d): %w", name, i+1, err)
 				}
 			}
-			if _, err := conn.ExecContext(ctx, "INSERT INTO schema_migrations (filename, checksum) VALUES ($1, $2)", name, checksum); err != nil {
+			if _, err := lockConn.ExecContext(ctx, "INSERT INTO schema_migrations (filename, checksum) VALUES ($1, $2)", name, checksum); err != nil {
 				return fmt.Errorf("record migration %s (non-tx): %w", name, err)
 			}
 			continue
 		}
 
 		if isRecoverablePhasedMigration(name) {
-			if err := applyRecoverablePhasedMigration(ctx, conn, name, content); err != nil {
+			if err := applyRecoverablePhasedMigration(ctx, lockConn, name, content); err != nil {
 				return err
 			}
-			if _, err := conn.ExecContext(ctx, "INSERT INTO schema_migrations (filename, checksum) VALUES ($1, $2)", name, checksum); err != nil {
+			if _, err := lockConn.ExecContext(ctx, "INSERT INTO schema_migrations (filename, checksum) VALUES ($1, $2)", name, checksum); err != nil {
 				return fmt.Errorf("record migration %s (phased): %w", name, err)
 			}
 			continue
 		}
 
 		// 默认迁移在事务中执行，确保原子性：要么完全成功，要么完全回滚。
-		tx, err := conn.BeginTx(ctx, nil)
+		tx, err := lockConn.BeginTx(ctx, nil)
 		if err != nil {
 			return fmt.Errorf("begin migration %s: %w", name, err)
 		}
@@ -332,6 +320,17 @@ func applyMigrationsFS(ctx context.Context, db *sql.DB, fsys fs.FS) (retErr erro
 func isRecoverablePhasedMigration(name string) bool {
 	_, ok := recoverablePhasedMigrations[name]
 	return ok
+}
+
+type migrationConnection interface {
+	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
+	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
+	BeginTx(ctx context.Context, opts *sql.TxOptions) (*sql.Tx, error)
+}
+
+type migrationSession interface {
+	migrationConnection
 }
 
 func applyRecoverablePhasedMigration(
@@ -370,7 +369,7 @@ func applyRecoverablePhasedMigration(
 	return nil
 }
 
-func prepareNonTransactionalMigration(ctx context.Context, db migrationExecutor, name string) error {
+func prepareNonTransactionalMigration(ctx context.Context, db migrationConnection, name string) error {
 	switch name {
 	case paymentOrdersOutTradeNoUniqueMigration:
 		return preparePaymentOrdersOutTradeNoUniqueMigration(ctx, db)
@@ -385,10 +384,14 @@ func prepareNonTransactionalMigration(ctx context.Context, db migrationExecutor,
 	case usageLogsUpstreamModelMismatchIndexMigration:
 		return dropInvalidIndexIfPresent(ctx, db, usageLogsUpstreamModelMismatchIndex)
 	case usageLogsEffectiveModelIndexesMigration:
-		if err := dropInvalidIndexIfPresent(ctx, db, usageLogsEffectiveRequestedModelIndex); err != nil {
-			return err
+		for _, indexName := range []string{usageLogsEffectiveRequestedModelIndex, usageLogsEffectiveUpstreamModelIndex} {
+			if err := dropInvalidIndexIfPresent(ctx, db, indexName); err != nil {
+				return err
+			}
 		}
-		return dropInvalidIndexIfPresent(ctx, db, usageLogsEffectiveUpstreamModelIndex)
+		return nil
+	case usageLogsUpstreamRequestIDIndexMigration:
+		return dropInvalidIndexIfPresent(ctx, db, usageLogsUpstreamRequestIDIndex)
 	case publicStatusTTFTWindowIndexMigration:
 		return dropInvalidIndexIfPresent(ctx, db, publicStatusTTFTWindowIndex)
 	case growthEligibilityOrdersIndexMigration:
@@ -398,7 +401,7 @@ func prepareNonTransactionalMigration(ctx context.Context, db migrationExecutor,
 	}
 }
 
-func preparePaymentOrdersOutTradeNoUniqueMigration(ctx context.Context, db migrationExecutor) error {
+func preparePaymentOrdersOutTradeNoUniqueMigration(ctx context.Context, db migrationConnection) error {
 	duplicates, err := findDuplicatePaymentOrderOutTradeNos(ctx, db)
 	if err != nil {
 		return fmt.Errorf("precheck duplicate out_trade_no: %w", err)
@@ -414,7 +417,7 @@ func preparePaymentOrdersOutTradeNoUniqueMigration(ctx context.Context, db migra
 	return dropInvalidIndexIfPresent(ctx, db, paymentOrdersOutTradeNoUniqueIndex)
 }
 
-func dropInvalidIndexIfPresent(ctx context.Context, db migrationExecutor, indexName string) error {
+func dropInvalidIndexIfPresent(ctx context.Context, db migrationConnection, indexName string) error {
 	invalid, err := indexIsInvalid(ctx, db, indexName)
 	if err != nil {
 		return fmt.Errorf("check invalid index %s: %w", indexName, err)
@@ -429,7 +432,7 @@ func dropInvalidIndexIfPresent(ctx context.Context, db migrationExecutor, indexN
 	return nil
 }
 
-func dropInvalidIndexesIfPresent(ctx context.Context, db migrationExecutor, indexNames []string) error {
+func dropInvalidIndexesIfPresent(ctx context.Context, db migrationConnection, indexNames []string) error {
 	for _, indexName := range indexNames {
 		if err := dropInvalidIndexIfPresent(ctx, db, indexName); err != nil {
 			return err
@@ -438,7 +441,7 @@ func dropInvalidIndexesIfPresent(ctx context.Context, db migrationExecutor, inde
 	return nil
 }
 
-func findDuplicatePaymentOrderOutTradeNos(ctx context.Context, db migrationExecutor) ([]string, error) {
+func findDuplicatePaymentOrderOutTradeNos(ctx context.Context, db migrationConnection) ([]string, error) {
 	rows, err := db.QueryContext(ctx, `
 		SELECT out_trade_no, COUNT(*) AS duplicate_count
 		FROM payment_orders
@@ -470,7 +473,7 @@ func findDuplicatePaymentOrderOutTradeNos(ctx context.Context, db migrationExecu
 	return duplicates, nil
 }
 
-func indexIsInvalid(ctx context.Context, db migrationExecutor, indexName string) (bool, error) {
+func indexIsInvalid(ctx context.Context, db migrationConnection, indexName string) (bool, error) {
 	var invalid bool
 	err := db.QueryRowContext(ctx, `
 		SELECT EXISTS (
@@ -486,7 +489,7 @@ func indexIsInvalid(ctx context.Context, db migrationExecutor, indexName string)
 	return invalid, err
 }
 
-func ensureAtlasBaselineAligned(ctx context.Context, db migrationExecutor, fsys fs.FS) error {
+func ensureAtlasBaselineAligned(ctx context.Context, db migrationConnection, fsys fs.FS) error {
 	hasLegacy, err := tableExists(ctx, db, "schema_migrations")
 	if err != nil {
 		return fmt.Errorf("check schema_migrations: %w", err)
@@ -527,7 +530,7 @@ func ensureAtlasBaselineAligned(ctx context.Context, db migrationExecutor, fsys 
 	return nil
 }
 
-func tableExists(ctx context.Context, db migrationExecutor, tableName string) (bool, error) {
+func tableExists(ctx context.Context, db migrationConnection, tableName string) (bool, error) {
 	var exists bool
 	err := db.QueryRowContext(ctx, `
 		SELECT EXISTS (
@@ -767,7 +770,11 @@ func stripSQLLineComment(s string) string {
 // pgAdvisoryLock 获取 PostgreSQL Advisory Lock。
 // Advisory Lock 是一种轻量级的锁机制，不与任何特定的数据库对象关联。
 // 它非常适合用于应用层面的分布式锁场景，如迁移序列化。
-func pgAdvisoryLock(ctx context.Context, db migrationExecutor) error {
+type advisoryLockConnection interface {
+	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
+}
+
+func pgAdvisoryLock(ctx context.Context, db advisoryLockConnection) error {
 	ticker := time.NewTicker(migrationsLockRetryInterval)
 	defer ticker.Stop()
 
@@ -789,7 +796,7 @@ func pgAdvisoryLock(ctx context.Context, db migrationExecutor) error {
 
 // pgAdvisoryUnlock 释放 PostgreSQL Advisory Lock。
 // 必须在获取锁后确保释放，否则会阻塞其他实例的迁移操作。
-func pgAdvisoryUnlock(ctx context.Context, db migrationExecutor) error {
+func pgAdvisoryUnlock(ctx context.Context, db advisoryLockConnection) error {
 	var unlocked bool
 	if err := db.QueryRowContext(ctx, "SELECT pg_advisory_unlock($1)", migrationsAdvisoryLockID).Scan(&unlocked); err != nil {
 		return fmt.Errorf("release migrations lock: %w", err)

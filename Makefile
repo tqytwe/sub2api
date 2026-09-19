@@ -1,8 +1,12 @@
-.PHONY: build build-backend build-frontend test test-backend test-frontend test-frontend-critical
+.PHONY: build build-backend build-frontend test test-backend test-backend-unit test-frontend test-frontend-critical
 
 FRONTEND_CRITICAL_VITEST := \
+	src/i18n/__tests__/localeKeyCompleteness.spec.ts \
 	src/api/__tests__/client.spec.ts \
 	src/api/__tests__/tokenRefresh.spec.ts \
+	src/api/__tests__/keys.bulkUpdate.spec.ts \
+	src/components/keys/__tests__/BulkEditKeysModal.spec.ts \
+	src/views/user/__tests__/KeysView.spec.ts \
 	src/api/__tests__/channelMonitorV2.spec.ts \
 	src/views/auth/__tests__/LinuxDoCallbackView.spec.ts \
 	src/views/auth/__tests__/WechatCallbackView.spec.ts \
@@ -31,6 +35,11 @@ test: test-backend test-frontend
 
 test-backend:
 	@$(MAKE) -C backend test
+
+# Release preflight must separately include the tag-gated backend unit suite.
+# The ordinary backend test target intentionally excludes files built with -tags=unit.
+test-backend-unit:
+	@$(MAKE) -C backend test-unit
 
 test-frontend:
 	@pnpm --dir frontend run lint:check

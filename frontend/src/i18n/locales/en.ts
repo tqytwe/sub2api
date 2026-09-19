@@ -4,6 +4,7 @@ import splitAdminEn from './en/admin'
 import splitBatchImageEn from './en/batchImage'
 import splitCommonEn from './en/common'
 import splitChannelMonitorV2En from './en/channelMonitorV2'
+import splitDashboardEn from './en/dashboard'
 import auditAdminEn from './en/admin/audit'
 import promptAuditAdminEn from './en/admin/promptAudit'
 import { mergeLocaleMessages } from './merge'
@@ -53,6 +54,9 @@ const messages = {
       cacheWrite: 'Write',
       cacheRead: 'Read',
       tierHintMarginal: 'Only the portion above the threshold is billed at this tier; output is unaffected',
+      maxReasoningMultiplierBadge: 'Max ×{multiplier}',
+      maxReasoningMultiplierHint:
+        'When the forwarded reasoning effort is max, billing and quota usage for the request are multiplied by {multiplier}',
       marginalBadge: 'excess-only tiers',
       timePricingRowHintPeak:
         '; prices in this row exclude the peak-hour rate — where this period overlaps the peak hours {window}, the overlapping portion is additionally multiplied by ×{multiplier}',
@@ -528,6 +532,8 @@ const messages = {
     wallet: 'Wallet',
     withdrawals: 'Withdrawals',
     fundManagement: 'Fund Management',
+    fundCredits: 'Credits & Compensation',
+    fundOperationHistory: 'Fund Operation History',
     fundOverview: 'Fund Overview',
     rechargeOrders: 'Recharge Orders',
     refundRequests: 'Balance Return Requests',
@@ -1075,6 +1081,8 @@ const messages = {
       arenaMult: 'Arena score ×{mult}',
       viewHub: 'View Play Hub',
       rechargeCta: 'Recharge now',
+		useModelsCta: 'Use models',
+		vipDetailsCta: 'View membership benefits',
     },
     playHub: {
       title: 'Play Hub',
@@ -1254,6 +1262,25 @@ const messages = {
         modelComment: 'If you have Gemini 3 access, you can use: gemini-3-pro-preview',
         note: 'These environment variables will be active in the current terminal session. For permanent configuration, add them to ~/.bashrc, ~/.zshrc, or the appropriate configuration file.',
       },
+      deepseek: {
+        description: 'Configure Claude Code, Codex, or OpenCode through the current DeepSeek group.',
+        codexDescription: 'Configure Codex with API key authentication through the current DeepSeek group.',
+        codexNote: 'Export SUB2API_API_KEY before starting Codex.',
+      },
+      composite: {
+        description: 'Configure supported clients through the current Composite routing group.',
+        codexDescription: 'Configure Codex with API key authentication and the complete model catalog for this Composite group.',
+        codexNote: 'Export SUB2API_API_KEY before starting Codex. Model requests are routed by the selected catalog slug.',
+      },
+      routedCodex: {
+        description: 'Configure Codex with the complete model catalog for the current routed group.',
+        note: 'Export SUB2API_API_KEY before starting Codex.',
+      },
+      codexModelCatalog: {
+        title: 'Codex model catalog', description: 'Fetch with this API key, then save the catalog at the path referenced by config.toml.',
+        fetch: 'Fetch catalog', retry: 'Retry', download: 'Download catalog', modelsCount: '{count} models ready to download',
+        errorDescription: 'The catalog could not be fetched with this API key.',
+      },
       grok: {
         description: 'Configure Grok Build, Claude Code, Codex, or OpenCode to send requests through your Sub2API Grok group.',
         claudeDescription: 'Configure Claude Code to send Messages API traffic through your Sub2API Grok group.',
@@ -1395,6 +1422,10 @@ const messages = {
     costDetails: 'Cost Breakdown',
     tokenDetails: 'Token Breakdown',
     live: 'Live',
+    nativeCompactionV2: 'Compaction',
+    compactionFilter: 'Request Kind',
+    allCompactionTypes: 'All Requests',
+    compactionOnly: 'Compaction Only',
     cacheTtlOverriddenHint: 'Cache TTL Override enabled',
     cacheTtlOverriddenLabel: 'TTL Override',
     cacheTtlOverridden5m: 'Billed as 5m',
@@ -1447,6 +1478,7 @@ const messages = {
       xhigh: 'Extra high',
       max: 'Max',
     },
+    requestedReasoningEffort: 'Requested reasoning effort',
     endpoint: 'Endpoint',
     endpointDistribution: 'Endpoint Distribution',
     inbound: 'Inbound',
@@ -1510,6 +1542,7 @@ const messages = {
     cacheWrite: 'Write',
     serviceTier: 'Service tier',
     serviceTierPriority: 'Fast',
+    serviceTierUltrafast: 'Ultrafast',
     serviceTierFlex: 'Flex',
     serviceTierStandard: 'Standard',
     rate: 'Rate',
@@ -2092,17 +2125,17 @@ const messages = {
     ...promptAuditAdminEn,
     funds: {
       title: 'Fund Management',
-      description: 'Manage recharge returns, offline recharge, gift balance, and historical gift review in one place.',
+      description: 'Trace recharge, gifts, compensation, and corrections by account, operation number, and payment reference.',
       loading: 'Loading...',
       tabs: {
         refunds: 'Balance Returns',
-        grants: 'Gifts & Offline Recharge',
-        classification: 'Historical Gift Review',
+        credits: 'Credits & Compensation',
+        operations: 'Fund Operation History',
       },
       refunds: {
         title: 'Balance Return Queue',
         description: 'Review wallet balance return requests for online and offline recharge. Sensitive payout snapshots require step-up.',
-        userId: 'User ID',
+        accountPlaceholder: 'Filter by email or username',
         empty: 'No balance return requests yet',
         viewSensitive: 'View full details',
         sensitiveTitle: 'Payout Snapshot',
@@ -2150,6 +2183,16 @@ const messages = {
         submitGift: 'Confirm Gift',
         submitOffline: 'Confirm Offline Recharge',
       },
+      credits: {
+        title: 'Credits & Compensation', description: 'Find and confirm the account before issuing a gift, compensation, or offline recharge.', accountSearch: 'Search email or username', currentBalance: 'Current balance', review: 'Review credit', safetyTitle: 'Fund-operation protection', safetyDescription: 'Every action receives a traceable public operation number. Confirm the account email and complete administrator step-up verification before submission.',
+      },
+      operations: {
+        title: 'Fund Operation History', description: 'Shows operational fund actions created in Fund Management, not high-frequency API usage charges.', allKinds: 'All types', keyword: 'Account, operation number, reference, or note', operationNo: 'Operation number', operator: 'Operator', reference: 'Reference / note', detail: 'Details', detailTitle: 'Fund operation details', balanceChange: 'Balance change', membershipEffect: 'Membership effect', revealReference: 'View securely', empty: 'No fund operation records yet',
+      },
+      kinds: { offline_recharge: 'Offline recharge', ops_gift: 'Operations gift', compensation: 'Compensation', refund: 'Refund', reversal: 'Reversal', account_correction: 'Account correction' },
+      operationStatus: { completed: 'Completed', pending: 'Pending', canceled: 'Canceled', pending_insufficient_balance: 'Source account has insufficient balance; retry pending' },
+      confirm: { title: 'Confirm fund operation', account: 'Target account', amount: 'Amount', reason: 'Reason', typeEmail: 'Type the target account email to confirm', submit: 'Confirm and submit securely' },
+      correction: { title: 'Correct credited account', account: 'Correct account email', reason: 'Correction reason, at least 3 characters', submit: 'Correct account', pendingTitle: 'Pending account correction', pendingDescription: 'No funds have moved. Retry only after the source account has sufficient balance, or cancel this review record.', retry: 'Retry correction', cancel: 'Cancel correction' },
       forms: {
         userId: 'User ID',
         amount: 'Amount greater than 0, up to 8 decimal places',
@@ -2157,6 +2200,8 @@ const messages = {
         externalRef: 'External payment reference or note ID',
       },
       validation: {
+        creditInvalid: 'Select a valid account and enter a valid amount, reason, and required payment reference',
+        correctionInvalid: 'Enter the correct account email and a correction reason of at least 3 characters',
         userRequired: 'Enter a valid user ID',
         positiveAmountRequired: 'Amount must be greater than 0 with up to 8 decimal places, for example 0.5 or 30',
         reasonTooShort: 'Reason must be at least {min} characters',
@@ -2173,6 +2218,12 @@ const messages = {
         execute: 'Classify {count} rows',
       },
       messages: {
+        creditCreated: 'Fund operation completed: {operation}',
+        correctionCompleted: 'Account correction completed. The original record remains unchanged and is linked to the correction.',
+        correctionPending: 'The source account has insufficient balance. A retry-pending correction was created and no funds moved.',
+        correctionCanceled: 'The pending account correction was canceled. No funds moved.',
+        correctionFailed: 'Account correction failed. Check status and step-up verification.',
+        markPaidRequiresDetails: 'Enter actual payout information in the refund details before marking it paid.',
         loadFailed: 'Failed to load fund data',
         approved: 'Return request approved',
         rejected: 'Return request rejected',
@@ -2204,6 +2255,11 @@ const messages = {
         USER_NOT_FOUND: 'User not found',
         BALANCE_LEDGER_UNAVAILABLE: 'Balance ledger service is unavailable',
         BALANCE_LEDGER_INSUFFICIENT_BALANCE: 'Insufficient balance: this operation would make the account balance negative',
+        FUND_CORRECTION_ALREADY_ACTIVE: 'This operation already has a pending or completed account correction',
+        FUND_CORRECTION_NOT_PENDING: 'This account correction is no longer pending',
+        FUND_CORRECTION_SOURCE_BALANCE_INSUFFICIENT: 'The source account still has insufficient balance. No funds moved.',
+        FUND_CORRECTION_OFFLINE_RECHARGE_REQUIRES_MANUAL_REVIEW: 'Offline recharge corrections require manual financial review to preserve refund and membership records',
+        FUND_EXTERNAL_REF_ALREADY_USED: 'This offline payment reference has already been credited',
       },
     },
     playOps: {
@@ -3477,11 +3533,13 @@ const messages = {
       surcharge: {
         override: 'Override global fee',
         enabled: 'Collect fee',
+        modeLabel: 'Fee mode',
+        valueLabel: 'Fee value',
         modeNone: 'No fee',
         modePercent: 'Percent of charged cost',
         modeAdditive: 'Add multiplier points',
         valuePlaceholder: '0.003 / 0.05',
-        hint: '3‰ = 0.003, 万三 = 0.0003, +0.05 multiplier = 0.05'
+        hint: '3‰ = 0.003, 0.03% = 0.0003, +0.05 multiplier = 0.05'
       },
       form: {
         name: 'Name',
@@ -6224,6 +6282,11 @@ const messages = {
         conditionType: 'Condition type',
         conditionSubscription: 'Subscription',
         conditionBalance: 'Balance',
+		conditionPlayMembership: 'Play membership',
+		playMembership: 'Current Play membership',
+		playMembershipHint: 'Evaluated in real time from cumulative membership qualification, not subscription packages.',
+		playMembershipOrdinary: 'Ordinary users',
+		playMembershipMember: 'Members',
         operator: 'Operator',
         balanceValue: 'Balance threshold',
         selectPackages: 'Select packages'
@@ -8678,6 +8741,8 @@ const messages = {
   purchase: {
     title: 'Recharge / Subscription',
     description: 'Recharge balance or purchase subscription via the embedded page',
+    rechargeDescription: 'Recharge balance via the embedded page',
+    subscriptionDescription: 'Purchase subscription via the embedded page',
     openInNewTab: 'Open in new tab',
     notEnabledTitle: 'Feature not enabled',
     notEnabledDesc: 'The administrator has not enabled the recharge/subscription entry. Please contact admin.',
@@ -9016,12 +9081,13 @@ const messages = {
     tabSubscribe: 'Subscribe',
     noPlans: 'No subscription plans available',
     notAvailable: 'Top-up is currently unavailable',
+    billingUnavailable: 'Neither top-up nor subscriptions are currently available. Please contact the administrator.',
     confirmSubscription: 'Confirm Subscription',
     confirmCancel: 'Are you sure you want to cancel this order?',
     amountTooLow: 'Minimum amount is {min}',
     amountTooHigh: 'Maximum amount is {max}',
     amountNoMethod: 'No payment method available for this amount',
-    rechargeRatePreview: 'Base rate: 1 CNY = {usd} USD.',
+    rechargeRatePreview: 'Current rate: 1 {currency} = {usd} USD',
     rechargeBonusNote: 'VIP does not change API billing; it only adds extra balance on recharge.',
     refundReason: 'Refund Reason',
     refundReasonPlaceholder: 'Please describe your refund reason',
@@ -9213,6 +9279,18 @@ const messages = {
       orderCancelled: 'Order Cancelled',
       retry: 'Retry',
       retrySuccess: 'Retry successful',
+      manualConfirm: {
+        action: 'Confirm payment received',
+        title: 'Confirm order payment received',
+        warning: 'Use this only after verifying the gateway received payment and its callback failed. Fulfillment uses the original order snapshot; amount, user, and currency cannot be changed.',
+        currency: 'Payment currency',
+        reference: 'Gateway transaction reference',
+        referencePlaceholder: 'Enter the unique gateway transaction reference',
+        referenceHint: 'The reference is bound to the payment provider and permanently recorded in the order audit trail.',
+        confirm: 'Confirm payment and fulfill',
+        success: 'Payment was confirmed and the order is being fulfilled.',
+        pending: 'Payment was confirmed, but fulfillment is pending. Use the existing retry action to continue.',
+      },
       approveRefund: 'Approve Refund',
       retryRefund: 'Retry Refund',
       refundRequestInfo: 'Refund Request Info',
@@ -9468,6 +9546,7 @@ const messages = {
 export default mergeLocaleMessages(messages, {
   ...splitCommonEn,
   ...splitChannelMonitorV2En,
+  ...splitDashboardEn,
   ...splitBatchImageEn,
   admin: splitAdminEn,
 })

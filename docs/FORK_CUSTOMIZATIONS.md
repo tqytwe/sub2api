@@ -1,9 +1,9 @@
 # 极速蹬 Fork 定制登记
 
 > 状态：active
-> 当前验证基线：`upstream/main@aa2c4e8d136b12c171f8a4b38578c68243f73e19` (`v0.1.182`)
-> 本次同步合并提交：`e2db55e6c35566ad1b822aa46e22d4c3dadbd979`（审查分支，待 PR 合入 `play/main`）
-> 最后核验：2026-08-26（`fix/v0182-media-integration-20260826` 候选；待完整门禁、审查和合入）
+> 当前生产基线：`origin/play/main@8b2ca0699221aa94cb2620d244d3075f414ec7f0`
+> 本次同步候选：`upstream/main@14e0a49e17afebf62c5f788f4ef1dc8eef56ac76`（`v0.2.2` 发布及其后的账户测试、Ollama Cloud 修复），分支 `release/v022-payment-surcharge-20260908`（非 rebase 合并待提交）
+> 最后核验：2026-09-08（仅开发机静态检查、测试和构建证据；未创建容器、未启动本地服务、未连接或修改生产数据库；尚未提交、推送、建 PR、合并或部署）
 
 本文档是 `play/main` 相对上游的定制权威登记表。只有已经落地的行为进入受保护条目；视频工作室等未实现方案只能作为 `proposal` 独立保存，不能登记成已上线能力。
 
@@ -30,6 +30,7 @@
 | `FORK-MEMBERSHIP-016` | 会员资格与 VIP 配置 | active | integrity 脚本 + Go/PostgreSQL 集成测试 |
 | `FORK-MOBILE-017` | NextChat 移动协议与归因反馈 | active | integrity 脚本 + Go 测试 |
 | `FORK-LIVE-SETTLEMENT-018` | 实时用量结算 outbox | active | integrity 脚本 + Go/PostgreSQL 集成测试 |
+| `FORK-SETTINGS-019` | 管理系统设置完整性 | active | integrity 静态检查 + SettingsView/Vitest 测试 |
 
 所有条目的上游冲突都必须逐段审查，禁止对整个文件直接使用 `ours` 或 `theirs`。
 
@@ -244,11 +245,11 @@
 
 ## FORK-BILLING-010 计费归属与充值联动
 
-- 产品目的：防止 API Key、订阅或批量任务被错误归属到其他用户，同时让成功充值触发可选 Play boost。
-- 不变量：扣费前验证 API Key 与用户归属；订阅扣费验证订阅所有者；余额冻结同样验证归属；NextChat Web 和 Android 只能通过登录用户 JWT 换取该用户名下的受管 API Key，并按用户允许分组返回模型/余额/API Key 权限，不能暴露其他用户密钥；粘性会话种子按 API Key 隔离；模型目录参考价不能覆盖真实渠道计费；支付订单完成后再授予 recharge boost，boost 失败不得回滚已完成充值；`frozen_balance` 只代表图片/任务预留，提现冻结必须写入独立 `withdrawal_frozen_balance`；可提现权益通过 `withdrawable_entitlements` 和 immutable allocation 流水对账；用户提现默认关闭，只有 ready 用户可启用；提现申请必须锁定成熟权益批次，取消、拒绝和退款必须恢复原批次；提现金额和提现规则金额必须为整数；充值退回必须走独立 `balance_fund_batches` / `fund_refund_requests` 批次和审核流程，真实线上/线下充值可退未消费整数部分，赠送/首 30/兑换码赠送默认不可提现也不可退；管理员审批、读取完整收款资料和线下打款登记必须使用 JWT 管理员 TOTP step-up，管理员 API Key 禁止。
-- 关键位置：`backend/internal/repository/usage_billing_repo.go`、`backend/internal/service/gateway_usage_billing.go`、`backend/internal/service/gateway_service.go`、`backend/internal/server/routes/nextchat.go`、`backend/internal/service/payment_fulfillment.go`、`backend/internal/service/play_recharge_boost.go`、`backend/internal/service/withdrawable_ledger.go`、`backend/internal/service/withdrawal.go`、`backend/internal/service/fund_management.go`、`backend/internal/service/fund_batches.go`、`frontend/src/views/user/WalletView.vue`、`frontend/src/views/admin/AdminWithdrawalsView.vue`、`frontend/src/views/admin/AdminFundsView.vue`。
+- 产品目的：防止 API Key、订阅或批量任务被错误归属到其他用户，保留可独立配置的分组内部手续费，同时让成功充值触发可选 Play boost。
+- 不变量：分组创建和编辑必须显示、回填并提交手续费覆盖、启用、模式和数值四个字段；关闭分组覆盖时沿用全局配置，不能删除或清空已保存的分组值；实际扣款使用 `billed_cost = actual_cost + billing_surcharge_cost`，用户展示的原始用量成本不得被手续费污染。扣费前验证 API Key 与用户归属；订阅扣费验证订阅所有者；余额冻结同样验证归属；NextChat Web 和 Android 只能通过登录用户 JWT 换取该用户名下的受管 API Key，并按用户允许分组返回模型/余额/API Key 权限，不能暴露其他用户密钥；粘性会话种子按 API Key 隔离；模型目录参考价不能覆盖真实渠道计费；支付订单完成后再授予 recharge boost，boost 失败不得回滚已完成充值；`frozen_balance` 只代表图片/任务预留，提现冻结必须写入独立 `withdrawal_frozen_balance`；可提现权益通过 `withdrawable_entitlements` 和 immutable allocation 流水对账；用户提现默认关闭，只有 ready 用户可启用；提现申请必须锁定成熟权益批次，取消、拒绝和退款必须恢复原批次；提现金额和提现规则金额必须为整数；充值退回必须走独立 `balance_fund_batches` / `fund_refund_requests` 批次和审核流程，真实线上/线下充值可退未消费整数部分，赠送/首 30/兑换码赠送默认不可提现也不可退；管理员审批、读取完整收款资料和线下打款登记必须使用 JWT 管理员 TOTP step-up，管理员 API Key 禁止。
+- 关键位置：`backend/internal/repository/usage_billing_repo.go`、`backend/internal/service/gateway_usage_billing.go`、`backend/internal/service/billing_surcharge.go`、`backend/internal/service/gateway_service.go`、`backend/internal/server/routes/nextchat.go`、`backend/internal/service/payment_fulfillment.go`、`backend/internal/service/play_recharge_boost.go`、`backend/internal/service/withdrawable_ledger.go`、`backend/internal/service/withdrawal.go`、`backend/internal/service/fund_management.go`、`backend/internal/service/fund_batches.go`、`frontend/src/views/admin/GroupsView.vue`、`frontend/src/views/user/WalletView.vue`、`frontend/src/views/admin/AdminWithdrawalsView.vue`、`frontend/src/views/admin/AdminFundsView.vue`。
 - 冲突策略：上游支付状态机和安全修复必须合入；归属校验、真实计费优先级与充值后 Play 联动必须保留。
-- 验证：usage billing unit/integration tests、session hash tests、model pricing tests、payment lifecycle tests、NextChat mobile bootstrap/group switch route tests；线上以测试订单检查余额到账和 boost 状态。
+- 验证：`GroupsView.surcharge.spec.ts`、usage billing unit/integration tests、session hash tests、model pricing tests、payment lifecycle tests、NextChat mobile bootstrap/group switch route tests；线上以管理员中英文分组页面核对回显/保存，并以测试订单检查余额到账和 boost 状态。
 
 ## FORK-REWARDS-015 优惠券、日卡与支付结算
 
@@ -281,6 +282,14 @@
 - 关键位置：`backend/internal/repository/live_settlement_outbox_repo.go`、`backend/internal/service/openai_live_settlement_outbox.go`、`backend/migrations/249_live_usage_settlement_outbox.sql`。
 - 冲突策略：吸收上游用量审计和网关恢复修复时，保留 outbox 的幂等、lease 所有权与隐私边界。
 - 验证：live settlement repository/unit/integration tests，以及真实会话终止后的余额与 usage log 对账。
+
+## FORK-SETTINGS-019 管理系统设置完整性
+
+- 产品目的：保持 `/admin/settings` 的前端控件、设置 DTO、保存载荷和中英文 locale 同步，避免上游同步在没有文本冲突时静默丢失现有设置面。
+- 不变量：注册域名额度、五个平台账号自动停调阈值、Codex 手填版本/自动同步/只读同步版本，以及腾讯和阿里云验证码的安全配置状态必须一起存在。Codex 同步版本只读，不能进入更新载荷；验证码密钥只允许密码输入和“已配置/留空保留原值”状态，不能回显或因空值覆盖。阈值必须归一化为 `1-100`，`100` 表示关闭全局自动停调，单账号覆盖优先级保持不变。
+- 关键位置：`frontend/src/views/admin/SettingsView.vue`、`frontend/src/api/admin/settings.ts`、`frontend/src/views/admin/__tests__/SettingsView.spec.ts`、`frontend/src/i18n/locales/zh/admin/settings.ts`、`frontend/src/i18n/locales/en/admin/settings.ts`、`scripts/check-fork-integrity.sh`。
+- 冲突策略：后续上游同步若触及 `SettingsView.vue`、设置 DTO 或设置 API，必须在 PR 中给出上游新增/删除控件与最终合并树的对照表；任何未保留控件必须放入显式允许清单并说明理由，不能只以无冲突合并作为依据。
+- 验证：`SettingsView.spec.ts` 覆盖加载、保存、阈值边界、只读 Codex 同步值和密钥遮蔽；route locale 冷访问和管理员权限测试保持通过；生产一致隔离环境再做 GET/PUT、重启持久化与中英文界面验证。
 
 ## 更新规则
 

@@ -28,8 +28,9 @@ const props = withDefaults(defineProps<{
 })
 
 const { t, locale } = useI18n()
+const localeCode = computed(() => locale?.value ?? 'zh-CN')
 const normalizedConfig = computed(() =>
-  localizedSupportContactConfig(props.config, locale.value)
+  localizedSupportContactConfig(props.config, localeCode.value)
 )
 const contacts = computed(() => enabledSupportContacts(normalizedConfig.value))
 const primaryContacts = computed(() => primaryQRCodeContacts(normalizedConfig.value))
@@ -40,7 +41,7 @@ const secondaryContacts = computed(() =>
 const hasContacts = computed(() => contacts.value.length > 0)
 
 function contactTypeLabel(type: string): string {
-  return localizedSupportContactTypeLabel(type, locale.value)
+  return localizedSupportContactTypeLabel(type, localeCode.value)
 }
 
 function contactIconName(type: string): 'chat' | 'mail' | 'book' | 'link' {

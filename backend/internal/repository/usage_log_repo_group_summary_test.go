@@ -17,9 +17,13 @@ func TestUsageLogRepositoryGetAllGroupUsageSummaryUsesRollupTail(t *testing.T) {
 	useGroupUsageRepositoryTestTimezone(t, "America/New_York")
 	todayStart := time.Date(2026, 3, 9, 4, 0, 0, 0, time.UTC)
 	yesterdayStart := time.Date(2026, 3, 8, 5, 0, 0, 0, time.UTC)
+	retainedFrom := time.Date(2026, 3, 1, 5, 0, 0, 0, time.UTC)
 
-	mock.ExpectQuery(`(?s)usage_group_rollup_state.*usage_group_daily_rollups.*created_at >= state\.tail_start.*FROM groups g.*WHERE g\.deleted_at IS NULL`).
-		WithArgs(todayStart, yesterdayStart, "America/New_York", "2026-03-09", "2026-03-08").
+	mock.ExpectQuery(`(?s)SELECT\s+COUNT\(\*\).*FROM usage_group_rollup_state\s+WHERE id = 1`).
+		WillReturnRows(sqlmock.NewRows([]string{"count", "closed_before", "retained_from", "timezone_name"}).
+			AddRow(1, "2026-03-09", retainedFrom, "America/New_York"))
+	mock.ExpectQuery(`(?s)usage_group_daily_rollups.*created_at >= \$7.*FROM groups g.*WHERE g\.deleted_at IS NULL`).
+		WithArgs(todayStart, yesterdayStart, "2026-03-08", true, "2026-03-01", "2026-03-09", todayStart).
 		WillReturnRows(sqlmock.NewRows([]string{"group_id", "total_cost", "today_cost", "yesterday_cost"}).
 			AddRow(int64(7), 12.5, 1.25, 2.5))
 

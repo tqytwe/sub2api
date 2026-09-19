@@ -545,6 +545,18 @@ export interface AdminReferralCampaignDetail {
   };
 }
 
+export interface AdminReferralCampaignEarlyClosePreview {
+  campaign_id: number;
+  campaign_version: number;
+  status: AdminReferralCampaignStatus;
+  claim_deadline: string;
+  claimable_reward_count: number;
+  claimable_reward_amount: number;
+  preserved_reward_count: number;
+  preserved_reward_amount: number;
+  can_early_close: boolean;
+}
+
 export interface AdminReferralCampaignInput {
   key: string;
   name: string;
@@ -1124,6 +1136,26 @@ export async function setReferralCampaignStatus(
   return data;
 }
 
+export async function getReferralCampaignEarlyClosePreview(
+  id: number,
+): Promise<AdminReferralCampaignEarlyClosePreview> {
+  const { data } = await apiClient.get<AdminReferralCampaignEarlyClosePreview>(
+    `/admin/affiliates/campaigns/${id}/early-close-preview`,
+  );
+  return data;
+}
+
+export async function earlyCloseReferralCampaign(
+  id: number,
+  input: { expected_version: number; reason: string; confirmation: 'EARLY_CLOSE' },
+): Promise<AdminReferralCampaign> {
+  const { data } = await apiClient.post<AdminReferralCampaign>(
+    `/admin/affiliates/campaigns/${id}/early-close`,
+    input,
+  );
+  return data;
+}
+
 export async function reviewReferralCampaign(
   id: number,
   input: {
@@ -1270,6 +1302,8 @@ export const adminPlayAPI = {
   createReferralCampaign,
   updateReferralCampaign,
   setReferralCampaignStatus,
+  getReferralCampaignEarlyClosePreview,
+  earlyCloseReferralCampaign,
   reviewReferralCampaign,
   listReferralCampaignParticipants,
   listReferralCampaignInvites,

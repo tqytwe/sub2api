@@ -426,16 +426,17 @@
                 </label>
                 <label class="space-y-1">
                   <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t("admin.playOps.campaignType") }}</span>
-                  <select v-model="campaignForm.campaignType" class="input">
-                    <option value="benefit_overlay">{{ t("admin.playOps.campaignTypes.benefit_overlay") }}</option>
+	                  <select v-model="campaignForm.campaignType" class="input" data-testid="campaign-type">
+	                    <option value="operational_display">{{ t("admin.playOps.campaignTypes.operational_display") }}</option>
+	                    <option value="benefit_overlay">{{ t("admin.playOps.campaignTypes.benefit_overlay") }}</option>
                     <option value="new_user_growth">{{ t("admin.playOps.campaignTypes.new_user_growth") }}</option>
                     <option value="hybrid">{{ t("admin.playOps.campaignTypes.hybrid") }}</option>
                   </select>
                 </label>
-                <template v-if="campaignForm.campaignType !== 'benefit_overlay'">
+	                <template v-if="campaignIsReferralType">
                   <label class="space-y-1">
                     <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t("admin.playOps.referralCampaign") }}</span>
-                    <select v-model="campaignForm.referralCampaignID" class="input" required>
+	                    <select v-model="campaignForm.referralCampaignID" class="input" required data-testid="campaign-referral-campaign">
                       <option value="">{{ t("admin.playOps.referralCampaignPlaceholder") }}</option>
                       <option v-for="item in referralCampaigns" :key="item.id" :value="String(item.id)">{{ item.name }} · #{{ item.id }} · {{ item.legacy_rebate_policy === 'stack' ? t("admin.playOps.rebateStack") : t("admin.playOps.rebateExclude") }}</option>
                     </select>
@@ -459,7 +460,39 @@
                     <textarea v-model="campaignForm.rewardTiers" rows="3" class="input font-mono text-xs" :placeholder="t('admin.playOps.rewardTiersPlaceholder')" required></textarea>
                     <span class="text-xs text-gray-500 dark:text-gray-400">{{ t("admin.playOps.rewardTiersHint") }}</span>
                   </label>
-                </template>
+	                </template>
+	                <template v-if="campaignForm.campaignType === 'operational_display'">
+	                  <p class="lg:col-span-2 text-xs text-gray-500 dark:text-gray-400" data-testid="campaign-display-only-hint">{{ t("admin.playOps.operationalDisplayHint") }}</p>
+	                  <label class="space-y-1">
+	                    <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t("admin.playOps.displayTitleZh") }}</span>
+	                    <input v-model="campaignForm.displayTitleZh" class="input" maxlength="128" data-testid="campaign-display-title-zh" />
+	                  </label>
+	                  <label class="space-y-1">
+	                    <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t("admin.playOps.displayTitleEn") }}</span>
+	                    <input v-model="campaignForm.displayTitleEn" class="input" maxlength="128" data-testid="campaign-display-title-en" />
+	                  </label>
+	                  <label class="space-y-1">
+	                    <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t("admin.playOps.displayBodyZh") }}</span>
+	                    <textarea v-model="campaignForm.displayBodyZh" rows="3" class="input" maxlength="2000" data-testid="campaign-display-body-zh"></textarea>
+	                  </label>
+	                  <label class="space-y-1">
+	                    <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t("admin.playOps.displayBodyEn") }}</span>
+	                    <textarea v-model="campaignForm.displayBodyEn" rows="3" class="input" maxlength="2000" data-testid="campaign-display-body-en"></textarea>
+	                  </label>
+	                  <label class="space-y-1">
+	                    <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t("admin.playOps.displayCTA") }}</span>
+	                    <select v-model="campaignForm.displayCTA" class="input" data-testid="campaign-display-cta">
+	                      <option value="none">{{ t("admin.playOps.displayCTAs.none") }}</option>
+	                      <option value="recharge">{{ t("admin.playOps.displayCTAs.recharge") }}</option>
+	                      <option value="use_models">{{ t("admin.playOps.displayCTAs.use_models") }}</option>
+	                      <option value="vip_details">{{ t("admin.playOps.displayCTAs.vip_details") }}</option>
+	                    </select>
+	                  </label>
+	                  <label class="space-y-1">
+	                    <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t("admin.playOps.displayPriority") }}</span>
+	                    <input v-model="campaignForm.displayPriority" type="number" min="0" max="1000000" step="1" class="input" data-testid="campaign-display-priority" />
+	                  </label>
+	                </template>
                 <label
                   class="flex items-center gap-3 rounded border border-gray-200 bg-white px-3 py-2 text-sm dark:border-dark-700 dark:bg-dark-900"
                 >
@@ -472,7 +505,7 @@
                     t("admin.playOps.campaignEnabled")
                   }}</span>
                 </label>
-                <label class="space-y-1">
+	                <label v-if="campaignForm.campaignType !== 'operational_display'" class="space-y-1">
                   <span
                     class="text-xs font-medium text-gray-500 dark:text-gray-400"
                     >{{ t("admin.playOps.campaignNameZh") }}</span
@@ -483,7 +516,7 @@
                     maxlength="128"
                   />
                 </label>
-                <label class="space-y-1">
+	                <label v-if="campaignForm.campaignType !== 'operational_display'" class="space-y-1">
                   <span
                     class="text-xs font-medium text-gray-500 dark:text-gray-400"
                     >{{ t("admin.playOps.campaignNameEn") }}</span
@@ -494,7 +527,7 @@
                     maxlength="128"
                   />
                 </label>
-                <label class="space-y-1">
+	                <label class="space-y-1">
                   <span
                     class="text-xs font-medium text-gray-500 dark:text-gray-400"
                     >{{ t("admin.playOps.campaignStartAt") }}</span
@@ -507,7 +540,7 @@
                     required
                   />
                 </label>
-                <label class="space-y-1">
+	                <label class="space-y-1">
                   <span
                     class="text-xs font-medium text-gray-500 dark:text-gray-400"
                     >{{ t("admin.playOps.campaignEndAt") }}</span
@@ -520,7 +553,7 @@
                     required
                   />
                 </label>
-                <label class="space-y-1">
+	                <label v-if="campaignForm.campaignType !== 'operational_display'" class="space-y-1">
                   <span
                     class="text-xs font-medium text-gray-500 dark:text-gray-400"
                     >{{ t("admin.playOps.rechargeBonusPct") }}</span
@@ -535,7 +568,7 @@
                     data-testid="campaign-recharge-bonus"
                   />
                 </label>
-                <label class="space-y-1">
+	                <label v-if="campaignForm.campaignType !== 'operational_display'" class="space-y-1">
                   <span
                     class="text-xs font-medium text-gray-500 dark:text-gray-400"
                     >{{ t("admin.playOps.blindboxExtraOpens") }}</span
@@ -550,7 +583,7 @@
                     data-testid="campaign-blindbox-extra"
                   />
                 </label>
-                <label class="space-y-1">
+                <label v-if="campaignForm.campaignType !== 'operational_display'" class="space-y-1">
                   <span
                     class="text-xs font-medium text-gray-500 dark:text-gray-400"
                     >{{ t("admin.playOps.arenaScoreMultiplier") }}</span
@@ -1454,6 +1487,7 @@
         </template>
       </BaseDialog>
       <TotpStepUpDialog :controller="memberRepairStepUp" />
+      <TotpStepUpDialog :controller="campaignStepUp" />
     </div>
   </AppLayout>
 </template>
@@ -1493,7 +1527,7 @@ import adminPlayAPI, {
 } from "@/api/admin/play";
 import { useAppStore } from "@/stores";
 import { extractApiErrorCode } from "@/utils/apiError";
-import { isStepUpCancelled, useStepUp } from "@/composables/useStepUp";
+	import { isStepUpBlocked, isStepUpCancelled, stepUpBlockReason, useStepUp } from "@/composables/useStepUp";
 
 const { t, locale } = useI18n();
 const appStore = useAppStore();
@@ -1570,11 +1604,17 @@ interface CampaignFormState {
   audience: "all" | "ordinary" | "member";
   vipTiers: string;
   registeredWithinDays: string;
-  campaignType: "benefit_overlay" | "new_user_growth" | "hybrid";
+	  campaignType: "operational_display" | "benefit_overlay" | "new_user_growth" | "hybrid";
   referralCampaignID: string;
   qualificationMetric: "net_recharge" | "actual_consumption";
   legacyRebatePolicy: "exclude" | "stack";
-  rewardTiers: string;
+	  rewardTiers: string;
+	  displayTitleZh: string;
+	  displayTitleEn: string;
+	  displayBodyZh: string;
+	  displayBodyEn: string;
+	  displayCTA: "none" | "recharge" | "use_models" | "vip_details";
+	  displayPriority: string;
 }
 
 const loading = ref(false);
@@ -1596,7 +1636,9 @@ const selectedTeam = ref<AdminPlayTeamDetail | null>(null);
 const teamEvents = ref<AdminTeamEvent[]>([]);
 const query = ref("");
 const status = ref<"active" | "archived" | "all">("active");
-const campaignForm = ref<CampaignFormState>(blankCampaignForm());
+	const campaignForm = ref<CampaignFormState>(blankCampaignForm());
+	const campaignStepUp = useStepUp();
+	const campaignIsReferralType = computed(() => campaignForm.value.campaignType === "new_user_growth" || campaignForm.value.campaignType === "hybrid");
 const memberRepairOpen = ref(false);
 const memberRepairOperation = ref<AdminTeamMemberOperation>("add");
 const memberRepairEffectiveAt = ref("");
@@ -1858,16 +1900,22 @@ function blankCampaignForm(): CampaignFormState {
     audience: "all",
     vipTiers: "",
     registeredWithinDays: "",
-    campaignType: "benefit_overlay",
+	    campaignType: "operational_display",
     referralCampaignID: "",
     qualificationMetric: "net_recharge",
     legacyRebatePolicy: "exclude",
-    rewardTiers: JSON.stringify([
+	    rewardTiers: JSON.stringify([
       { tier: 1, required_amount: 50, reward_amount: 50, currency: "CNY" },
       { tier: 2, required_amount: 200, reward_amount: 100, currency: "CNY" },
       { tier: 3, required_amount: 500, reward_amount: 150, currency: "CNY" },
       { tier: 4, required_amount: 1000, reward_amount: 200, currency: "CNY" },
-    ]),
+	    ]),
+	    displayTitleZh: "",
+	    displayTitleEn: "",
+	    displayBodyZh: "",
+	    displayBodyEn: "",
+	    displayCTA: "none",
+	    displayPriority: "0",
   };
 }
 
@@ -1901,7 +1949,13 @@ function startEditCampaign(campaign: AdminPlayCampaign) {
     referralCampaignID: campaign.rules.referral_campaign_id ? String(campaign.rules.referral_campaign_id) : "",
     qualificationMetric: campaign.rules.qualification_metric || "net_recharge",
     legacyRebatePolicy: campaign.rules.legacy_rebate_policy || "exclude",
-    rewardTiers: JSON.stringify(campaign.rules.reward_tiers || [], null, 2),
+	    rewardTiers: JSON.stringify(campaign.rules.reward_tiers || [], null, 2),
+	    displayTitleZh: campaign.rules.display_title_i18n?.zh || "",
+	    displayTitleEn: campaign.rules.display_title_i18n?.en || "",
+	    displayBodyZh: campaign.rules.display_body_i18n?.zh || "",
+	    displayBodyEn: campaign.rules.display_body_i18n?.en || "",
+	    displayCTA: campaign.rules.display_cta || "none",
+	    displayPriority: campaign.rules.display_priority ? String(campaign.rules.display_priority) : "0",
   };
   campaignFormOpen.value = true;
 }
@@ -1921,16 +1975,21 @@ async function submitCampaign() {
 
   campaignSaving.value = true;
   try {
-    if (campaignForm.value.id) {
-      await adminPlayAPI.updateCampaign(campaignForm.value.id, input);
+	    if (campaignForm.value.id) {
+	      await campaignStepUp.run(() => adminPlayAPI.updateCampaign(campaignForm.value.id!, input));
       appStore.showSuccess(t("admin.playOps.campaignUpdated"));
     } else {
-      await adminPlayAPI.createCampaign(input);
+	      await campaignStepUp.run(() => adminPlayAPI.createCampaign(input));
       appStore.showSuccess(t("admin.playOps.campaignCreated"));
     }
     campaignFormOpen.value = false;
     campaigns.value = await adminPlayAPI.listCampaigns();
-  } catch (error) {
+	  } catch (error) {
+	    if (isStepUpCancelled(error)) return;
+	    if (isStepUpBlocked(error)) {
+	      appStore.showError(stepUpBlockReason(error) === "STEP_UP_ADMIN_API_KEY_FORBIDDEN" ? t("stepUp.adminApiKeyForbidden") : t("stepUp.notEnabled"));
+	      return;
+	    }
     appStore.showError(
       localizedPlayOpsError(error, t("admin.playOps.campaignSaveFailed")),
     );
@@ -1949,10 +2008,15 @@ async function deleteCampaign(campaign: AdminPlayCampaign) {
   }
   campaignDeletingId.value = campaign.id;
   try {
-    await adminPlayAPI.deleteCampaign(campaign.id);
+	    await campaignStepUp.run(() => adminPlayAPI.deleteCampaign(campaign.id));
     campaigns.value = campaigns.value.filter((item) => item.id !== campaign.id);
     appStore.showSuccess(t("admin.playOps.campaignDeleted"));
-  } catch (error) {
+	  } catch (error) {
+	    if (isStepUpCancelled(error)) return;
+	    if (isStepUpBlocked(error)) {
+	      appStore.showError(stepUpBlockReason(error) === "STEP_UP_ADMIN_API_KEY_FORBIDDEN" ? t("stepUp.adminApiKeyForbidden") : t("stepUp.notEnabled"));
+	      return;
+	    }
     appStore.showError(
       localizedPlayOpsError(error, t("admin.playOps.campaignDeleteFailed")),
     );
@@ -1976,7 +2040,7 @@ function buildCampaignInput(form: CampaignFormState): AdminPlayCampaignInput {
   if (form.nameEn.trim()) nameI18n.en = form.nameEn.trim();
 
   let rewardTiers: unknown[] | undefined;
-  if (form.campaignType !== "benefit_overlay") {
+	  if (form.campaignType === "new_user_growth" || form.campaignType === "hybrid") {
     try {
       const parsed = JSON.parse(form.rewardTiers);
       if (!Array.isArray(parsed)) throw new Error("tiers")
@@ -1991,14 +2055,27 @@ function buildCampaignInput(form: CampaignFormState): AdminPlayCampaignInput {
     arena_score_multiplier: parseOptionalNumber(form.arenaScoreMultiplier),
     name_i18n: Object.keys(nameI18n).length ? nameI18n : undefined,
   };
-  if (form.campaignType !== "benefit_overlay") {
+	  if (form.campaignType === "new_user_growth" || form.campaignType === "hybrid") {
     rules.campaign_type = form.campaignType;
     rules.referral_campaign_id = parseOptionalInteger(form.referralCampaignID);
     rules.qualification_metric = form.qualificationMetric;
     rules.legacy_rebate_policy = form.legacyRebatePolicy;
     rules.require_invite = true;
-    rules.reward_tiers = rewardTiers as AdminPlayCampaignInput["rules"]["reward_tiers"];
-  }
+	    rules.reward_tiers = rewardTiers as AdminPlayCampaignInput["rules"]["reward_tiers"];
+	  }
+	  if (form.campaignType === "operational_display") {
+	    const displayTitleI18n: Record<string, string> = {};
+	    const displayBodyI18n: Record<string, string> = {};
+	    if (form.displayTitleZh.trim()) displayTitleI18n.zh = form.displayTitleZh.trim();
+	    if (form.displayTitleEn.trim()) displayTitleI18n.en = form.displayTitleEn.trim();
+	    if (form.displayBodyZh.trim()) displayBodyI18n.zh = form.displayBodyZh.trim();
+	    if (form.displayBodyEn.trim()) displayBodyI18n.en = form.displayBodyEn.trim();
+	    rules.campaign_type = "operational_display";
+	    rules.display_title_i18n = Object.keys(displayTitleI18n).length ? displayTitleI18n : undefined;
+	    rules.display_body_i18n = Object.keys(displayBodyI18n).length ? displayBodyI18n : undefined;
+	    rules.display_cta = form.displayCTA;
+	    rules.display_priority = parseOptionalInteger(form.displayPriority) || 0;
+	  }
 
   return {
     name: form.name.trim(),

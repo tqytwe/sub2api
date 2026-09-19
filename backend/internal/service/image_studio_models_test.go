@@ -361,7 +361,7 @@ func TestListImageModelsForAPIKey_CustomModelsListEnabledEmptyFailsClosed(t *tes
 			ID:                   groupID,
 			Platform:             PlatformOpenAI,
 			AllowImageGeneration: true,
-			ModelsListConfig: GroupModelsListConfig{
+			ModelAllowlist: GroupModelAllowlist{
 				Enabled: true,
 			},
 		},

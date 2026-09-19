@@ -1,0 +1,42 @@
+name: Fund Migration PostgreSQL
+
+on:
+  pull_request:
+    branches:
+      - play/main
+    paths:
+      - backend/migrations/270_fund_operation_records.sql
+      - backend/migrations/fund_operation_records_migration_integration_test.go
+      - .github/workflows/fund-migration-integration.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fund-migration-postgres-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fund-operation-records-postgres:
+    name: Fund operation records migration
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+
+      - name: Replay fund migration in isolated PostgreSQL
+        working-directory: backend
+        env:
+          CI: "true"
+        run: >-
+          go test -tags=integration ./migrations
+          -run '^TestFundOperationRecordsMigrationBackfillsAndReplaysPostgres$'
+          -count=1 -timeout=5m

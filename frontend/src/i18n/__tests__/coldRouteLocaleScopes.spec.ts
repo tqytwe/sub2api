@@ -31,11 +31,11 @@ const COLD_ROUTE_CASES: readonly ColdRouteCase[] = [
       },
       {
         source: 'src/components/layout/AppSidebar.vue',
-        key: 'nav.giftBalance',
+        key: 'nav.fundCredits',
       },
       {
         source: 'src/components/layout/AppSidebar.vue',
-        key: 'nav.historicalGiftReview',
+        key: 'nav.fundOperationHistory',
       },
       {
         source: 'src/components/layout/AppSidebar.vue',

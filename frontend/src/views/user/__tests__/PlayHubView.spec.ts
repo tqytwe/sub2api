@@ -9,6 +9,7 @@ const state = vi.hoisted(() => ({
   listReferralCampaigns: vi.fn(),
   refreshUser: vi.fn(),
   push: vi.fn(),
+	locale: 'zh',
 }))
 
 vi.mock('@/api/play', () => ({
@@ -53,7 +54,7 @@ vi.mock('vue-i18n', async (importOriginal) => {
   return {
     ...actual,
     useI18n: () => ({
-      locale: ref('zh'),
+		locale: ref(state.locale),
       t: (key: string, params?: Record<string, unknown>) => {
         if (!params) return key
         return `${key}:${JSON.stringify(params)}`
@@ -180,6 +181,7 @@ function mountView() {
 
 describe('PlayHubView layout', () => {
   beforeEach(() => {
+	state.locale = 'zh'
     state.getPlayHub.mockResolvedValue(hubFixture())
     state.listReferralCampaigns.mockResolvedValue([])
     state.refreshUser.mockResolvedValue(undefined)
@@ -281,4 +283,44 @@ describe('PlayHubView layout', () => {
     expect(wrapper.text()).not.toContain('playHub.checkinPending')
     expect(wrapper.text()).not.toContain('playHub.quizPending')
   })
+
+	 it('uses localized operational display content and a named CTA route while preserving the server order', async () => {
+		const operationalHub = hubFixture()
+		operationalHub.campaigns = [
+			{
+				id: 9,
+				name: 'VIP upgrade week',
+				start_at: '2026-07-20T00:00:00Z',
+				end_at: '2026-07-27T00:00:00Z',
+				rules: {
+					campaign_type: 'operational_display',
+					display_title_i18n: { zh: '普通用户限时福利', en: 'Ordinary user offer' },
+					display_body_i18n: { zh: '充值即可解锁会员权益。', en: 'Recharge to unlock membership benefits.' },
+					display_cta: 'recharge',
+					display_priority: 120,
+				},
+			},
+			...operationalHub.campaigns,
+		]
+		state.getPlayHub.mockResolvedValueOnce(operationalHub)
+
+		const wrapper = mountView()
+		await flushPromises()
+		expect(wrapper.text()).toContain('普通用户限时福利')
+		expect(wrapper.text()).toContain('充值即可解锁会员权益。')
+		expect(wrapper.text()).toContain('夏日加速')
+
+		const campaignCard = wrapper.findAll('section').find((section) => section.text().includes('普通用户限时福利'))
+		const cta = campaignCard?.find('button')
+		expect(cta).toBeDefined()
+		await cta?.trigger('click')
+		expect(state.push).toHaveBeenCalledWith({ name: 'PurchaseSubscription' })
+
+		state.locale = 'en'
+		state.getPlayHub.mockResolvedValueOnce(operationalHub)
+		const englishWrapper = mountView()
+		await flushPromises()
+		expect(englishWrapper.text()).toContain('Ordinary user offer')
+		expect(englishWrapper.text()).toContain('Recharge to unlock membership benefits.')
+	})
 })

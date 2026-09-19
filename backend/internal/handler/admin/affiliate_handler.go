@@ -1,10 +1,12 @@
 package admin
 
 import (
+	"errors"
 	"strconv"
 	"strings"
 	"time"
 
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/timezone"
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -500,10 +502,76 @@ func (h *AffiliateHandler) SetReferralCampaignStatus(c *gin.Context) {
 	}
 	campaign, err := svc.SetStatus(c.Request.Context(), id, req.ExpectedVersion, req.Status, getAdminIDFromContext(c), req.Note)
 	if err != nil {
-		response.ErrorFrom(c, err)
+		respondReferralCampaignAdminError(c, err)
 		return
 	}
 	response.Success(c, campaign)
+}
+
+func (h *AffiliateHandler) ReferralCampaignEarlyClosePreview(c *gin.Context) {
+	svc, ok := h.referralCampaignService(c)
+	if !ok {
+		return
+	}
+	id, err := strconv.ParseInt(c.Param("campaign_id"), 10, 64)
+	if err != nil || id <= 0 {
+		response.ErrorFrom(c, infraerrors.BadRequest("REFERRAL_CAMPAIGN_INVALID_INPUT", "invalid campaign_id"))
+		return
+	}
+	preview, err := svc.EarlyClosePreview(c.Request.Context(), id)
+	if err != nil {
+		respondReferralCampaignAdminError(c, err)
+		return
+	}
+	response.Success(c, preview)
+}
+
+type referralCampaignEarlyCloseRequest struct {
+	ExpectedVersion int64  `json:"expected_version" binding:"required"`
+	Reason          string `json:"reason" binding:"required"`
+	Confirmation    string `json:"confirmation" binding:"required"`
+}
+
+func (h *AffiliateHandler) EarlyCloseReferralCampaign(c *gin.Context) {
+	svc, ok := h.referralCampaignService(c)
+	if !ok {
+		return
+	}
+	id, err := strconv.ParseInt(c.Param("campaign_id"), 10, 64)
+	if err != nil || id <= 0 {
+		response.ErrorFrom(c, infraerrors.BadRequest("REFERRAL_CAMPAIGN_INVALID_INPUT", "invalid campaign_id"))
+		return
+	}
+	var req referralCampaignEarlyCloseRequest
+	if err := c.ShouldBindJSON(&req); err != nil || strings.TrimSpace(req.Confirmation) != "EARLY_CLOSE" {
+		response.ErrorFrom(c, infraerrors.BadRequest("REFERRAL_CAMPAIGN_EARLY_CLOSE_CONFIRMATION_REQUIRED", "early-close confirmation is required"))
+		return
+	}
+	campaign, err := svc.EarlyClose(c.Request.Context(), id, req.ExpectedVersion, getAdminIDFromContext(c), req.Reason)
+	if err != nil {
+		respondReferralCampaignAdminError(c, err)
+		return
+	}
+	response.Success(c, campaign)
+}
+
+func respondReferralCampaignAdminError(c *gin.Context, err error) {
+	switch {
+	case errors.Is(err, service.ErrReferralCampaignNotFound):
+		response.ErrorFrom(c, infraerrors.NotFound("REFERRAL_CAMPAIGN_NOT_FOUND", "referral campaign was not found"))
+	case errors.Is(err, service.ErrReferralCampaignVersionConflict):
+		response.ErrorFrom(c, infraerrors.Conflict("REFERRAL_CAMPAIGN_VERSION_CONFLICT", "referral campaign version changed"))
+	case errors.Is(err, service.ErrReferralCampaignInvalidState):
+		response.ErrorFrom(c, infraerrors.Conflict("REFERRAL_CAMPAIGN_INVALID_STATE", "referral campaign cannot perform this action in its current state"))
+	case errors.Is(err, service.ErrReferralCampaignImmutable):
+		response.ErrorFrom(c, infraerrors.Conflict("REFERRAL_CAMPAIGN_IMMUTABLE", "referral campaign can no longer be edited"))
+	case errors.Is(err, service.ErrReferralCampaignEarlyCloseReason):
+		response.ErrorFrom(c, infraerrors.BadRequest("REFERRAL_CAMPAIGN_EARLY_CLOSE_REASON_REQUIRED", "a reason is required to early close a referral campaign"))
+	case errors.Is(err, service.ErrReferralCampaignBudgetExceeded):
+		response.ErrorFrom(c, infraerrors.Conflict("REFERRAL_CAMPAIGN_BUDGET_EXCEEDED", "referral campaign budget is exhausted"))
+	default:
+		response.ErrorFrom(c, err)
+	}
 }
 
 type referralCampaignReviewRequest struct {

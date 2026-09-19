@@ -50,23 +50,33 @@ func (s *GatewayService) DiagnoseModelAvailabilityForPlatform(
 	groupID *int64,
 	requestedModel string,
 	platform string,
-) ModelAvailabilityDiagnosis {
+) (diagnosis ModelAvailabilityDiagnosis) {
+	fallback := ModelAvailabilityDiagnosis{HasAccountsInPool: true, HasModelSupport: true}
+	diagnosis = fallback
+	// Diagnostics run only after account selection failed. Optional repository
+	// adapters may contain a typed-nil embedded interface; a panic here must
+	// not replace the intended conservative 503 response with a 502.
+	defer func() {
+		if recover() != nil {
+			diagnosis = fallback
+		}
+	}()
 	if s == nil {
-		return ModelAvailabilityDiagnosis{HasAccountsInPool: true, HasModelSupport: true}
+		return fallback
 	}
 	requestedModel = strings.TrimSpace(requestedModel)
 	if requestedModel == "" {
 		// No model specified — cannot decide model_not_found. Caller falls back to 503.
-		return ModelAvailabilityDiagnosis{HasAccountsInPool: true, HasModelSupport: true}
+		return fallback
 	}
 	if strings.TrimSpace(platform) == "" {
 		// Without a platform we cannot scope the lookup; bail out to the
 		// 503 branch rather than make an unscoped scan.
-		return ModelAvailabilityDiagnosis{HasAccountsInPool: true, HasModelSupport: true}
+		return fallback
 	}
 
 	if s.accountRepo == nil {
-		return ModelAvailabilityDiagnosis{HasAccountsInPool: true, HasModelSupport: true}
+		return fallback
 	}
 
 	useMixed := platform == PlatformAnthropic || platform == PlatformGemini
@@ -93,7 +103,7 @@ func (s *GatewayService) DiagnoseModelAvailabilityForPlatform(
 		// Conservative fallback: pretend everything is fine so the caller
 		// returns 503 (we don't want to flip to 404 just because a lookup
 		// hiccup'd).
-		return ModelAvailabilityDiagnosis{HasAccountsInPool: true, HasModelSupport: true}
+		return fallback
 	}
 
 	diag := ModelAvailabilityDiagnosis{}

@@ -4,6 +4,7 @@ import splitAdminZh from './zh/admin'
 import splitBatchImageZh from './zh/batchImage'
 import splitCommonZh from './zh/common'
 import splitChannelMonitorV2Zh from './zh/channelMonitorV2'
+import splitDashboardZh from './zh/dashboard'
 import auditAdminZh from './zh/admin/audit'
 import promptAuditAdminZh from './zh/admin/promptAudit'
 import { mergeLocaleMessages } from './merge'
@@ -53,6 +54,8 @@ const messages = {
       cacheWrite: '写入',
       cacheRead: '读取',
       tierHintMarginal: '仅超过阈值的部分按该档计价，输出不加价',
+      maxReasoningMultiplierBadge: 'Max ×{multiplier}',
+      maxReasoningMultiplierHint: '最终转发的推理强度为 max 时，整次请求的计费与额度消耗乘以 {multiplier}',
       marginalBadge: '超出部分计价',
       timePricingRowHintPeak: '；本行价格未含高峰倍率，与高峰时段 {window} 重叠的部分实付再乘 ×{multiplier}',
       timePricingWeekdays: '工作日',
@@ -527,6 +530,8 @@ const messages = {
     wallet: '钱包',
     withdrawals: '提现管理',
     fundManagement: '资金管理',
+    fundCredits: '入账与补偿',
+    fundOperationHistory: '资金操作记录',
     fundOverview: '资金概览',
     rechargeOrders: '充值订单',
     refundRequests: '余额退回申请',
@@ -1073,6 +1078,8 @@ const messages = {
       arenaMult: 'Arena 展示积分 ×{mult}',
       viewHub: '查看玩法中枢',
       rechargeCta: '立即充值',
+		useModelsCta: '使用模型',
+		vipDetailsCta: '查看会员权益',
     },
     playHub: {
       title: '玩法中枢',
@@ -1256,6 +1263,25 @@ const messages = {
         modelComment: '如果你有 Gemini 3 权限可以填：gemini-3-pro-preview',
         note: '这些环境变量将在当前终端会话中生效。如需永久配置，请将其添加到 ~/.bashrc、~/.zshrc 或相应的配置文件中。'
       },
+      deepseek: {
+        description: '通过当前 DeepSeek 分组配置 Claude Code、Codex 或 OpenCode。',
+        codexDescription: '通过当前 DeepSeek 分组配置带 API 密钥认证的 Codex。',
+        codexNote: '启动 Codex 前导出 SUB2API_API_KEY。',
+      },
+      composite: {
+        description: '通过当前 Composite 路由分组配置支持的客户端。',
+        codexDescription: '为当前 Composite 分组配置带 API 密钥认证和完整模型目录的 Codex。',
+        codexNote: '启动 Codex 前导出 SUB2API_API_KEY，模型请求会按所选目录 slug 路由。',
+      },
+      routedCodex: {
+        description: '为当前路由分组配置完整模型目录的 Codex。',
+        note: '启动 Codex 前导出 SUB2API_API_KEY。',
+      },
+      codexModelCatalog: {
+        title: 'Codex 模型目录', description: '使用此 API 密钥获取目录，并保存到 config.toml 引用的路径。',
+        fetch: '获取目录', retry: '重试', download: '下载目录', modelsCount: '可下载 {count} 个模型',
+        errorDescription: '无法使用此 API 密钥获取模型目录。',
+      },
       grok: {
         description: '配置 Grok Build、Claude Code、Codex 或 OpenCode，让请求通过当前 Sub2API Grok 分组发送。',
         claudeDescription: '配置 Claude Code，让 Messages API 请求通过当前 Sub2API Grok 分组发送。',
@@ -1398,6 +1424,10 @@ const messages = {
     costDetails: '费用明细',
     tokenDetails: 'Token 明细',
     live: '实时',
+    nativeCompactionV2: '压缩',
+    compactionFilter: '请求类别',
+    allCompactionTypes: '全部请求',
+    compactionOnly: '仅压缩请求',
     cacheTtlOverriddenHint: '缓存 TTL Override 已启用',
     cacheTtlOverriddenLabel: 'TTL 替换',
     cacheTtlOverridden5m: '按 5m 计费',
@@ -1450,6 +1480,7 @@ const messages = {
       xhigh: '极高',
       max: '最高',
     },
+    requestedReasoningEffort: '请求推理强度',
     endpoint: '端点',
     endpointDistribution: '端点分布',
     inbound: '入站',
@@ -1513,6 +1544,7 @@ const messages = {
     cacheWrite: '写入',
     serviceTier: '服务档位',
     serviceTierPriority: 'Fast',
+    serviceTierUltrafast: 'Ultrafast',
     serviceTierFlex: 'Flex',
     serviceTierStandard: 'Standard',
     rate: '倍率',
@@ -2095,17 +2127,17 @@ const messages = {
     ...promptAuditAdminZh,
     funds: {
       title: '资金管理',
-      description: '统一处理充值退回、线下充值、赠送余额和历史赠金复核。',
+      description: '按账号、操作单号和支付参考号追溯充值、赠金、补偿与资金纠正。',
       loading: '加载中...',
       tabs: {
         refunds: '余额退回申请',
-        grants: '赠送与线下充值',
-        classification: '历史赠金复核',
+        credits: '入账与补偿',
+        operations: '资金操作记录',
       },
       refunds: {
         title: '余额退回队列',
         description: '审核用户从钱包提交的线上/线下充值余额退回申请，打款前可查看加密收款快照。',
-        userId: '用户 ID',
+        accountPlaceholder: '按邮箱或用户名筛选账号',
         empty: '暂无余额退回申请',
         viewSensitive: '查看完整资料',
         sensitiveTitle: '收款资料快照',
@@ -2153,6 +2185,16 @@ const messages = {
         submitGift: '确认赠送',
         submitOffline: '确认线下充值',
       },
+      credits: {
+        title: '入账与补偿', description: '先检索并确认账号，再执行赠金、补偿或线下充值。', accountSearch: '搜索邮箱或用户名', currentBalance: '当前余额', review: '核对入账信息', safetyTitle: '资金操作保护', safetyDescription: '每笔操作会生成可追溯的公开操作单号。提交前必须确认账号邮箱，并完成管理员二次验证。',
+      },
+      operations: {
+        title: '资金操作记录', description: '仅展示由资金管理执行的运营性资金动作，不混入 API 消费扣费。', allKinds: '全部类型', keyword: '账号、操作单号、参考号或备注', operationNo: '操作单号', operator: '操作人', reference: '参考号 / 备注', detail: '详情', detailTitle: '资金操作详情', balanceChange: '余额变化', membershipEffect: '会员影响', revealReference: '安全查看', empty: '暂无资金操作记录',
+      },
+      kinds: { offline_recharge: '线下充值', ops_gift: '运营赠金', compensation: '补偿', refund: '退款', reversal: '冲正', account_correction: '纠正账号' },
+      operationStatus: { completed: '已完成', pending: '待处理', canceled: '已取消', pending_insufficient_balance: '原账号余额不足，待重试' },
+      confirm: { title: '确认资金操作', account: '目标账号', amount: '金额', reason: '原因', typeEmail: '输入目标账号邮箱以确认', submit: '确认并安全提交' },
+      correction: { title: '纠正入账账号', account: '正确账号邮箱', reason: '纠正原因，至少 3 个字符', submit: '纠正账号', pendingTitle: '待处理账号纠正', pendingDescription: '当前未发生资金变动。请在原账号余额足够后重试，或取消本次复核记录。', retry: '重试纠正', cancel: '取消纠正' },
       forms: {
         userId: '用户 ID',
         amount: '金额，大于 0，最多 8 位小数',
@@ -2160,6 +2202,8 @@ const messages = {
         externalRef: '外部付款凭证或备注编号',
       },
       validation: {
+        creditInvalid: '请选择有效账号，并填写正确金额、原因和所需支付参考号',
+        correctionInvalid: '请填写正确账号邮箱和至少 3 个字符的纠正原因',
         userRequired: '请输入正确的用户 ID',
         positiveAmountRequired: '金额必须大于 0，最多保留 8 位小数，例如 0.5 或 30',
         reasonTooShort: '原因至少需要 {min} 个字符',
@@ -2176,6 +2220,12 @@ const messages = {
         execute: '确认分类 {count} 条',
       },
       messages: {
+        creditCreated: '资金操作已完成：{operation}',
+        correctionCompleted: '账号纠正已完成，原始记录保持不变并已关联新记录',
+        correctionPending: '原账号余额不足，已创建待重试纠正记录，未发生资金变动',
+        correctionCanceled: '待处理账号纠正已取消，未发生资金变动',
+        correctionFailed: '账号纠正失败，请检查状态和二次验证',
+        markPaidRequiresDetails: '请在退款详情中填写实际打款信息后再标记打款',
         loadFailed: '加载资金数据失败',
         approved: '退回申请已通过',
         rejected: '退回申请已拒绝',
@@ -2207,6 +2257,11 @@ const messages = {
         USER_NOT_FOUND: '用户不存在',
         BALANCE_LEDGER_UNAVAILABLE: '余额流水服务暂不可用',
         BALANCE_LEDGER_INSUFFICIENT_BALANCE: '余额不足：本次操作会使账户余额为负',
+        FUND_CORRECTION_ALREADY_ACTIVE: '该操作已有待处理或已完成的账号纠正',
+        FUND_CORRECTION_NOT_PENDING: '该账号纠正不再处于待处理状态',
+        FUND_CORRECTION_SOURCE_BALANCE_INSUFFICIENT: '原账号余额仍不足，未发生资金变动',
+        FUND_CORRECTION_OFFLINE_RECHARGE_REQUIRES_MANUAL_REVIEW: '线下充值纠正必须人工财务复核，以保留退款和会员记录的一致性',
+        FUND_EXTERNAL_REF_ALREADY_USED: '该线下付款参考号已经入账',
       },
     },
     playOps: {
@@ -3515,11 +3570,13 @@ const messages = {
       surcharge: {
         override: '覆盖全局手续费',
         enabled: '收取手续费',
+        modeLabel: '手续费模式',
+        valueLabel: '手续费数值',
         modeNone: '不加收',
         modePercent: '按原扣费比例',
         modeAdditive: '倍率加点',
         valuePlaceholder: '0.003 / 0.05',
-        hint: '3‰ 填 0.003，万三填 0.0003；倍率 +0.05 填 0.05'
+        hint: '3‰ 填 0.003，0.03% 填 0.0003；倍率 +0.05 填 0.05'
       },
       form: {
         name: '名称',
@@ -6372,6 +6429,11 @@ const messages = {
         conditionType: '条件类型',
         conditionSubscription: '订阅套餐',
         conditionBalance: '余额',
+		conditionPlayMembership: 'Play 会员资格',
+		playMembership: '当前 Play 会员资格',
+		playMembershipHint: '按累计会员资格实时判定，不使用订阅套餐代替。',
+		playMembershipOrdinary: '普通用户',
+		playMembershipMember: '会员用户',
         operator: '运算符',
         balanceValue: '余额阈值',
         selectPackages: '选择套餐'
@@ -8821,6 +8883,8 @@ const messages = {
   purchase: {
     title: '充值/订阅',
     description: '通过内嵌页面完成充值/订阅',
+    rechargeDescription: '通过内嵌页面完成充值',
+    subscriptionDescription: '通过内嵌页面完成订阅',
     openInNewTab: '新窗口打开',
     notEnabledTitle: '该功能未开启',
     notEnabledDesc: '管理员暂未开启充值/订阅入口，请联系管理员。',
@@ -9184,12 +9248,13 @@ const messages = {
     tabSubscribe: '订阅',
     noPlans: '暂无可用订阅套餐',
     notAvailable: '充值功能暂未开放',
+    billingUnavailable: '充值与订阅均暂未开放，请联系管理员。',
     confirmSubscription: '确认订阅',
     confirmCancel: '确定要取消此订单吗？',
     amountTooLow: '最低金额为 {min}',
     amountTooHigh: '最高金额为 {max}',
     amountNoMethod: '该金额没有可用的支付方式',
-    rechargeRatePreview: '基础倍率：1 CNY = {usd} USD。',
+    rechargeRatePreview: '当前倍率：1 {currency} = {usd} USD',
     rechargeBonusNote: 'VIP 不改变 API 计费公式，只影响充值到账加赠。',
     refundReason: '退款原因',
     refundReasonPlaceholder: '请描述您的退款原因',
@@ -9369,6 +9434,7 @@ const messages = {
       queryRefundStatus: '查询退款状态',
       refundInfo: '退款信息',
       refundEnabled: '允许退款',
+      allowUserRefund: '允许用户退款',
       alreadyRefunded: '已退款',
       deductBalance: '扣除余额',
       deductBalanceHint: '从用户余额中扣回充值金额',
@@ -9380,6 +9446,18 @@ const messages = {
       orderCancelled: '订单已取消',
       retry: '重试',
       retrySuccess: '重试成功',
+      manualConfirm: {
+        action: '确认已收款',
+        title: '确认订单已收款',
+        warning: '仅在已核对网关实际收款且回调失败时使用。确认后将按原订单快照履约，不能修改金额、用户或币种。',
+        currency: '支付币种',
+        reference: '网关交易号',
+        referencePlaceholder: '输入网关侧的唯一交易号',
+        referenceHint: '交易号将与支付渠道绑定并永久记录到订单审计中。',
+        confirm: '确认已收款并履约',
+        success: '已确认收款，订单正在履约。',
+        pending: '已确认收款，但履约尚未完成；可使用原有“重试”处理。',
+      },
       approveRefund: '批准退款',
       retryRefund: '重试退款',
       refundRequestInfo: '退款申请信息',
@@ -9635,6 +9713,7 @@ const messages = {
 export default mergeLocaleMessages(messages, {
   ...splitCommonZh,
   ...splitChannelMonitorV2Zh,
+  ...splitDashboardZh,
   ...splitBatchImageZh,
   admin: splitAdminZh,
 })

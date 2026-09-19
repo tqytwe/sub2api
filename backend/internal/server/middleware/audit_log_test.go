@@ -40,14 +40,17 @@ func TestAdminTeamRepairBodyIsOmittedFromAudit(t *testing.T) {
 
 func TestFundManagementAuditRoutesHaveStableActionsAndOmitBodies(t *testing.T) {
 	expectedActions := map[string]string{
-		"POST /api/v1/user/wallet/refund-requests":                        service.AuditActionFundRefundSubmit,
-		"POST /api/v1/user/wallet/refund-requests/:id/cancel":             service.AuditActionFundRefundCancel,
-		"POST /api/v1/admin/funds/refund-requests/:id/approve":            service.AuditActionAdminFundRefundApprove,
-		"POST /api/v1/admin/funds/refund-requests/:id/reject":             service.AuditActionAdminFundRefundReject,
-		"POST /api/v1/admin/funds/refund-requests/:id/mark-paid":          service.AuditActionAdminFundRefundPaid,
-		"POST /api/v1/admin/funds/gifts":                                  service.AuditActionAdminFundGiftGrant,
-		"POST /api/v1/admin/funds/offline-recharges":                      service.AuditActionAdminFundOfflineRecharge,
-		"POST /api/v1/admin/funds/classifications/signup-gift-30/execute": service.AuditActionAdminFundClassifyExecute,
+		"POST /api/v1/user/wallet/refund-requests":                             service.AuditActionFundRefundSubmit,
+		"POST /api/v1/user/wallet/refund-requests/:id/cancel":                  service.AuditActionFundRefundCancel,
+		"POST /api/v1/admin/funds/refund-requests/:request_no/approve":         service.AuditActionAdminFundRefundApprove,
+		"POST /api/v1/admin/funds/refund-requests/:request_no/reject":          service.AuditActionAdminFundRefundReject,
+		"POST /api/v1/admin/funds/refund-requests/:request_no/mark-paid":       service.AuditActionAdminFundRefundPaid,
+		"POST /api/v1/admin/funds/gifts":                                       service.AuditActionAdminFundGiftGrant,
+		"POST /api/v1/admin/funds/offline-recharges":                           service.AuditActionAdminFundOfflineRecharge,
+		"POST /api/v1/admin/funds/compensations":                               service.AuditActionAdminFundCompensation,
+		"POST /api/v1/admin/funds/operations/:operation_no/corrections":        service.AuditActionAdminFundOperationCorrection,
+		"POST /api/v1/admin/funds/operations/:operation_no/corrections/retry":  service.AuditActionAdminFundOperationCorrectionRetry,
+		"POST /api/v1/admin/funds/operations/:operation_no/corrections/cancel": service.AuditActionAdminFundOperationCorrectionCancel,
 	}
 	for route, action := range expectedActions {
 		require.Equal(t, action, auditActionOverrides[route])
@@ -55,8 +58,8 @@ func TestFundManagementAuditRoutesHaveStableActionsAndOmitBodies(t *testing.T) {
 		require.Truef(t, omitted, "%s must not persist payout notes, reasons, or external refs", route)
 	}
 
-	require.Equal(t, service.AuditActionAdminFundRefundRead, auditSensitiveReads["GET /api/v1/admin/funds/refund-requests/:id/payout-sensitive"])
-	require.Equal(t, service.AuditActionAdminFundClassifyPreview, auditSensitiveReads["GET /api/v1/admin/funds/classifications/signup-gift-30/preview"])
+	require.Equal(t, service.AuditActionAdminFundRefundRead, auditSensitiveReads["GET /api/v1/admin/funds/refund-requests/:request_no/payout-sensitive"])
+	require.Equal(t, service.AuditActionAdminFundOperationSensitiveRead, auditSensitiveReads["GET /api/v1/admin/funds/operations/:operation_no/sensitive"])
 }
 
 func TestIPRiskMobileRegistrationUsesCanonicalAuditAction(t *testing.T) {

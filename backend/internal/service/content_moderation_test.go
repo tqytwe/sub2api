@@ -990,6 +990,20 @@ func TestBuildModerationTestInputRejectsMultipleImages(t *testing.T) {
 	require.Contains(t, err.Error(), "最多上传 1 张测试图片")
 }
 
+func TestContentModerationEndpointAcceptsRootAndVersionedBaseURLs(t *testing.T) {
+	tests := map[string]string{
+		"https://api.openai.com":                "https://api.openai.com/v1/moderations",
+		"https://api.openai.com/v1":             "https://api.openai.com/v1/moderations",
+		"https://relay.example.test/openai/v1/": "https://relay.example.test/openai/v1/moderations",
+	}
+	for baseURL, want := range tests {
+		endpoint, err := contentModerationEndpoint(baseURL)
+		require.NoError(t, err)
+		require.Equal(t, want, endpoint)
+		require.NotContains(t, endpoint, "/v1/v1/")
+	}
+}
+
 func TestExtractContentModerationInput_OpenAIResponsesCodexPayloadUsesLastUserMessage(t *testing.T) {
 	body := []byte(`{
 		"model":"gpt-5.5",

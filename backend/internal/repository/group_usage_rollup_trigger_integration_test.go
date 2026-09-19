@@ -444,7 +444,10 @@ func createGroupUsageRollupTriggerTestSchema(t *testing.T, ctx context.Context, 
 
 	_, err = tx.ExecContext(ctx, `
 		CREATE TABLE users (id BIGINT PRIMARY KEY);
-		CREATE TABLE groups (id BIGINT PRIMARY KEY);
+		CREATE TABLE groups (
+			id BIGINT PRIMARY KEY,
+			deleted_at TIMESTAMPTZ
+		);
 	`+usageLogsDDL)
 	require.NoError(t, err)
 

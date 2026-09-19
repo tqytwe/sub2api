@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Group surcharge UI recovery prototype</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #f4f6f8; color: #17212b; font: 14px/1.55 system-ui, sans-serif; }
+    main { width: min(1120px, calc(100% - 32px)); margin: 24px auto 48px; }
+    h1 { margin: 0 0 4px; font-size: 24px; }
+    h2 { margin: 0 0 4px; font-size: 16px; }
+    p { margin: 0; color: #52606d; }
+    .intro { margin-bottom: 20px; }
+    .comparison { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .panel { border: 1px solid #cbd3dc; border-radius: 8px; background: #fff; padding: 18px; }
+    .tag { display: inline-flex; margin-bottom: 12px; border-radius: 999px; background: #edf2f7; padding: 3px 9px; color: #52606d; font-size: 12px; font-weight: 600; }
+    .tag.restored { background: #e7f7ef; color: #176947; }
+    .field { margin-top: 14px; }
+    .label { display: block; margin-bottom: 6px; color: #344454; font-size: 13px; font-weight: 600; }
+    .input { width: 100%; min-height: 40px; border: 1px solid #cbd3dc; border-radius: 6px; background: #fff; padding: 8px 10px; color: #17212b; }
+    .hint { margin-top: 5px; font-size: 12px; }
+    .missing { margin-top: 14px; border: 1px dashed #d5a54a; border-radius: 8px; background: #fff8e5; padding: 18px; color: #674c00; }
+    .surcharge { margin-top: 14px; border: 1px solid #cbd3dc; border-radius: 8px; padding: 14px; }
+    .surcharge-grid { display: grid; grid-template-columns: 1fr 1fr 1.2fr .8fr; gap: 12px; align-items: end; }
+    .control-label { display: block; margin-bottom: 6px; color: #344454; font-size: 12px; font-weight: 600; }
+    .check { display: flex; min-height: 40px; align-items: center; gap: 8px; color: #344454; }
+    .check input { width: 18px; height: 18px; accent-color: #1769e0; }
+    .focus { outline: 2px solid #1769e0; outline-offset: 2px; }
+    .footer { margin-top: 18px; border-top: 1px solid #e2e7ec; padding-top: 12px; color: #52606d; font-size: 12px; }
+    @media (max-width: 720px) {
+      main { width: min(100% - 24px, 560px); margin-top: 12px; }
+      .comparison { grid-template-columns: 1fr; }
+      .panel { padding: 14px; }
+      .surcharge-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="intro">
+      <h1>分组手续费入口恢复原型</h1>
+      <p>恢复旧配置能力，不改变分组编辑流程、数据库语义或计费优先级。</p>
+    </div>
+    <div class="comparison">
+      <section class="panel">
+        <span class="tag">当前生产</span>
+        <h2>分组倍率与 RPM</h2>
+        <div class="field">
+          <span class="label">费率倍数</span>
+          <div class="input">1.000</div>
+          <p class="hint">1.0 = 标准费率，0.5 = 半价，2.0 = 双倍</p>
+        </div>
+        <div class="missing">手续费配置入口缺失，管理员无法查看或调整既有分组值。</div>
+        <div class="field">
+          <span class="label">每分钟请求数 (RPM)</span>
+          <div class="input">0</div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <span class="tag restored">恢复后</span>
+        <h2>分组倍率、手续费与 RPM</h2>
+        <div class="field">
+          <span class="label">费率倍数</span>
+          <div class="input">1.000</div>
+          <p class="hint">1.0 = 标准费率，0.5 = 半价，2.0 = 双倍</p>
+        </div>
+        <div class="surcharge">
+          <div class="surcharge-grid">
+            <label class="check"><input type="checkbox" checked>覆盖全局手续费</label>
+            <label class="check"><input type="checkbox" checked>收取手续费</label>
+            <div>
+              <span class="control-label">手续费模式</span>
+              <div class="input">倍率加点</div>
+            </div>
+            <div>
+              <span class="control-label">手续费数值</span>
+              <div class="input focus">0.0500</div>
+            </div>
+          </div>
+          <p class="hint">3‰ 填 0.003，0.03% 填 0.0003；倍率 +0.05 填 0.05</p>
+        </div>
+        <div class="field">
+          <span class="label">每分钟请求数 (RPM)</span>
+          <div class="input">0</div>
+        </div>
+        <div class="footer">未开启“覆盖全局手续费”时，其余三个控件保持禁用并保留服务端现值。</div>
+      </section>
+    </div>
+  </main>
+</body>
+</html>

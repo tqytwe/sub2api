@@ -169,8 +169,8 @@ func (s *ImageStudioService) listImageModelOptionsForAPIKey(ctx context.Context,
 		candidates = mapped
 	}
 
-	if apiKey.Group != nil && apiKey.Group.ModelsListConfig.Enabled {
-		candidates = filterImageModelsByCustomList(candidates, apiKey.Group.ModelsListConfig.Models)
+	if apiKey.Group != nil && apiKey.Group.ModelAllowlistEnabled() {
+		candidates = apiKey.Group.ModelAllowlist.FilterForListing(candidates)
 	}
 
 	if s.catalog != nil && apiKey.Group != nil {

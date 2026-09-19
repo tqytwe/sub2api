@@ -57,11 +57,21 @@ func (s *forumSSORedisStore) ZRange(ctx context.Context, key string, start, stop
 }
 
 func (s *forumSSORedisStore) ZRevRange(ctx context.Context, key string, start, stop int64) ([]string, error) {
-	return s.client.ZRevRange(ctx, key, start, stop).Result()
+	return s.client.ZRangeArgs(ctx, redis.ZRangeArgs{
+		Key:   key,
+		Start: start,
+		Stop:  stop,
+		Rev:   true,
+	}).Result()
 }
 
 func (s *forumSSORedisStore) ZRangeByScore(ctx context.Context, key, min, max string) ([]string, error) {
-	return s.client.ZRangeByScore(ctx, key, &redis.ZRangeBy{Min: min, Max: max}).Result()
+	return s.client.ZRangeArgs(ctx, redis.ZRangeArgs{
+		Key:     key,
+		Start:   min,
+		Stop:    max,
+		ByScore: true,
+	}).Result()
 }
 
 func (s *forumSSORedisStore) ZRem(ctx context.Context, key string, members ...string) error {

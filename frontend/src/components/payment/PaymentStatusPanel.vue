@@ -74,12 +74,15 @@
       <template v-if="!deepLinkFallbackVisible">
         <div class="card p-6">
           <div class="flex flex-col items-center space-y-4 py-4 text-center">
-            <LoadingSpinner v-if="deepLinkState === 'launching'" size="lg" />
+            <div
+              v-if="deepLinkState === 'launching'"
+	              class="h-10 w-10 rounded-full border-4 border-primary-500 border-t-transparent"
+            ></div>
             <div
               v-else
               class="flex h-12 w-12 items-center justify-center rounded-full bg-blue-50 dark:bg-blue-950/30"
             >
-              <Icon name="checkCircle" size="lg" class="text-blue-600 dark:text-blue-400" />
+	              <Icon name="checkCircle" size="lg" class="text-primary-600 dark:text-primary-400" />
             </div>
             <p class="text-lg font-semibold text-gray-900 dark:text-white">
               {{ deepLinkState === 'backgrounded' ? t('payment.qr.alipayContinueInApp') : t('payment.qr.alipayOpening') }}
@@ -229,11 +232,9 @@ import { paymentAPI } from '@/api/payment'
 import { extractI18nErrorMessage } from '@/utils/apiError'
 import { getPaymentPopupFeatures, isBuiltInAlipayMethod, isBuiltInWxpayMethod } from '@/components/payment/providerConfig'
 import { currencySymbol, formatPaymentAmount, normalizePaymentCurrency } from '@/components/payment/currency'
-import { isPaymentFailureStatus, isPaymentSuccessStatus, normalizeOrderStatus } from '@/components/payment/orderUtils'
 import { getHostedQRCodeImageUrl } from '@/components/payment/qrDisplay'
 import type { PaymentOrder } from '@/types/payment'
 import Icon from '@/components/icons/Icon.vue'
-import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import QRCode from 'qrcode'
 import alipayIcon from '@/assets/icons/alipay.svg'
 import wxpayIcon from '@/assets/icons/wxpay.svg'
@@ -304,14 +305,14 @@ const isMobileAlipayDeepLink = computed(() => props.mobileAlipayDeepLink === tru
 const showQRCode = computed(() => !!qrUrl.value && (!isMobileAlipayDeepLink.value || deepLinkFallbackVisible.value))
 
 const qrBorderClass = computed(() => {
-  if (isAlipay.value) return 'border-blue-500 bg-blue-50 dark:border-blue-400/70 dark:bg-blue-950/20'
-  if (isWxpay.value) return 'border-green-500 bg-green-50 dark:border-green-400/70 dark:bg-green-950/20'
+	  if (isAlipay.value) return 'border-blue-500 bg-blue-50 dark:border-blue-400/70 dark:bg-blue-950/20'
+	  if (isWxpay.value) return 'border-green-500 bg-green-50 dark:border-green-400/70 dark:bg-green-950/20'
   return 'border-gray-200 bg-white dark:border-dark-600 dark:bg-dark-800'
 })
 
 const qrLogoBgClass = computed(() => {
-  if (isAlipay.value) return 'bg-blue-500'
-  if (isWxpay.value) return 'bg-green-500'
+	  if (isAlipay.value) return 'bg-blue-500'
+	  if (isWxpay.value) return 'bg-green-500'
   return 'bg-gray-400'
 })
 
@@ -347,7 +348,7 @@ function formatGatewayAmount(value: number, currency?: string | null): string {
 }
 
 function isSuccessStatus(status: string | null | undefined): boolean {
-  return isPaymentSuccessStatus(status)
+  return status === 'COMPLETED' || status === 'PAID' || status === 'RECHARGING'
 }
 
 function shouldVerifyPendingOrder(): boolean {
@@ -407,7 +408,7 @@ async function tryRecoverPendingOrder(order: PaymentOrder): Promise<PaymentOrder
   if (!shouldVerifyPendingOrder()) return order
   const outTradeNo = String(order.out_trade_no || '').trim()
   if (!outTradeNo) return order
-  const normalizedStatus = normalizeOrderStatus(order.status)
+  const normalizedStatus = String(order.status || '').trim().toUpperCase()
   if (normalizedStatus !== 'PENDING') return order
   const now = Date.now()
   if (verifyAttempts >= VERIFY_RETRY_MAX_ATTEMPTS || now - lastVerifyAt < VERIFY_RETRY_INTERVAL_MS) {
@@ -442,10 +443,10 @@ async function pollStatus() {
       paidOrder.value = order
       setOutcome('success')
       emit('success')
-    } else if (normalizeOrderStatus(order.status) === 'CANCELLED') {
+    } else if (order.status === 'CANCELLED') {
       cleanup()
       setOutcome('cancelled')
-    } else if (isPaymentFailureStatus(order.status)) {
+    } else if (order.status === 'EXPIRED' || order.status === 'FAILED') {
       cleanup()
       setOutcome('expired')
     }

@@ -423,9 +423,21 @@ func (s *PaymentService) markOrderPaidAndConsumeCoupon(ctx context.Context, orde
 			paymentorder.UpdatedAtGTE(grace),
 		)
 		if order.CouponID == nil {
-			// Preserve the historical recovery behavior for orders that never
-			// locked a coupon. Coupon orders must remain inside the release grace.
-			lateCancelled = paymentorder.StatusEQ(OrderStatusCancelled)
+			// A verified provider callback remains authoritative for orders that
+			// never locked a coupon, even after local expiry. Coupon orders must
+			// remain inside the release grace because their lock may be reusable.
+			lateCancelled = paymentorder.And(
+				paymentorder.StatusEQ(OrderStatusCancelled),
+				paymentorder.PaidAtIsNil(),
+			)
+			lateExpired = paymentorder.And(
+				paymentorder.StatusEQ(OrderStatusExpired),
+				paymentorder.PaidAtIsNil(),
+			)
+			lateFailed = paymentorder.And(
+				paymentorder.StatusEQ(OrderStatusFailed),
+				paymentorder.PaidAtIsNil(),
+			)
 		}
 		statusPredicate = paymentorder.Or(statusPredicate, lateCancelled, lateExpired, lateFailed)
 	}
