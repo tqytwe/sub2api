@@ -165,11 +165,8 @@
             </button>
           </div>
         </div>
-        <div
-          v-if="selectedCount > 0"
-          class="mt-3 space-y-2 rounded-xl border border-primary-200 bg-primary-50 p-3 dark:border-primary-800 dark:bg-primary-900/20"
-          data-test="subscription-bulk-actions"
-        >
+        <!-- design-governance-allow: large-radius - this existing batch-action surface is a compact grouped control panel. -->
+        <div v-if="selectedCount > 0" class="mt-3 space-y-2 rounded-xl border border-primary-200 bg-primary-50 p-3 dark:border-primary-800 dark:bg-primary-900/20" data-test="subscription-bulk-actions">
           <div class="flex flex-wrap items-center gap-2">
             <span class="mr-2 text-sm font-medium text-primary-800 dark:text-primary-200">
               {{ t('admin.subscriptions.bulk.selected', { count: selectedCount }) }}
@@ -582,6 +579,7 @@
             <p class="text-sm text-gray-600 dark:text-gray-400">
               {{ t('admin.subscriptions.batchAssign.selected', { count: assignUsers.length }) }}
             </p>
+            <!-- design-governance-allow: page-shell-ownership - this list is a bounded dialog result region. -->
             <ul class="max-h-40 space-y-1 overflow-y-auto">
               <li v-for="user in assignUsers" :key="user.id" class="flex items-center justify-between gap-2 rounded-lg bg-gray-50 px-3 py-1 text-sm dark:bg-dark-700">
                 <span class="truncate">{{ user.email }} <span class="text-gray-500">#{{ user.id }}</span></span>
@@ -635,6 +633,7 @@
         </div>
         <div v-if="batchAssignResult" class="space-y-2 text-sm" role="status" data-test="batch-assign-result">
           <p>{{ t('admin.subscriptions.batchAssign.result', { success: batchAssignResult.success_count, failed: batchAssignResult.failed_count }) }}</p>
+          <!-- design-governance-allow: page-shell-ownership - this list is a bounded dialog error region. -->
           <ul v-if="batchAssignResult.errors.length" class="max-h-40 space-y-1 overflow-y-auto text-red-600 dark:text-red-400">
             <li v-for="(error, index) in batchAssignResult.errors" :key="index">{{ error }}</li>
           </ul>

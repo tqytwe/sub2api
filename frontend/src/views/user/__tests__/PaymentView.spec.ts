@@ -829,7 +829,7 @@ describe('PaymentView subscription feature flag', () => {
     const wrapper = await mountSubscriptionPlanList(2)
 
     expect(tabLabels(wrapper)).toEqual(['payment.tabTopUp', 'payment.tabSubscribe'])
-    expect(wrapper.findAllComponents(SubscriptionPlanCard)).toHaveLength(2)
+    expect(wrapper.getComponent(SubscriptionPlanDecisionShelf).props('plans')).toHaveLength(2)
   })
 
   it('drops the subscribe tab, hides the switcher and ignores ?tab=subscription when subscriptions are disabled', async () => {
@@ -837,7 +837,7 @@ describe('PaymentView subscription feature flag', () => {
     const wrapper = await mountSubscriptionPlanList(2)
 
     expect(tabLabels(wrapper)).toEqual([])
-    expect(wrapper.findAllComponents(SubscriptionPlanCard)).toHaveLength(0)
+    expect(wrapper.findComponent(SubscriptionPlanDecisionShelf).exists()).toBe(false)
     expect(wrapper.text()).toContain('payment.rechargeAccount')
   })
 
@@ -846,7 +846,7 @@ describe('PaymentView subscription feature flag', () => {
     const wrapper = await mountSubscriptionConfirm({ checkout: { balance_disabled: true } })
 
     expect(tabLabels(wrapper)).toEqual([])
-    expect(wrapper.findAllComponents(SubscriptionPlanCard)).toHaveLength(0)
+    expect(wrapper.findComponent(SubscriptionPlanDecisionShelf).exists()).toBe(false)
     expect(wrapper.text()).not.toContain('payment.confirmSubscription')
     expect(wrapper.text()).not.toContain('payment.rechargeAccount')
     expect(wrapper.text()).toContain('payment.billingUnavailable')
@@ -855,13 +855,13 @@ describe('PaymentView subscription feature flag', () => {
 
   it('falls back from the subscribe tab to top-up when the flag flips off after mount', async () => {
     const wrapper = await mountSubscriptionPlanList(2)
-    expect(wrapper.findAllComponents(SubscriptionPlanCard)).toHaveLength(2)
+    expect(wrapper.getComponent(SubscriptionPlanDecisionShelf).props('plans')).toHaveLength(2)
 
     appStoreState.setPublicSettings({ subscription_enabled: false })
     await flushPromises()
 
     expect(tabLabels(wrapper)).toEqual([])
-    expect(wrapper.findAllComponents(SubscriptionPlanCard)).toHaveLength(0)
+    expect(wrapper.findComponent(SubscriptionPlanDecisionShelf).exists()).toBe(false)
     expect(wrapper.text()).toContain('payment.rechargeAccount')
     wrapper.unmount()
   })
@@ -876,7 +876,7 @@ describe('PaymentView subscription feature flag', () => {
 
     expect(wrapper.text()).not.toContain('payment.billingUnavailable')
     expect(wrapper.text()).not.toContain('payment.rechargeAccount')
-    expect(wrapper.findAllComponents(SubscriptionPlanCard).length).toBeGreaterThan(0)
+    expect(wrapper.getComponent(SubscriptionPlanDecisionShelf).props('plans')).toHaveLength(1)
     wrapper.unmount()
   })
 })

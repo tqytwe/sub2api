@@ -48,6 +48,7 @@
     />
   </svg>
   <!-- OpenCode official mark -->
+  <!-- design-governance-allow: inline-svg - the provider's official mark has no equivalent shared icon. -->
   <svg v-else-if="platform === 'opencode_go'" :class="sizeClass" viewBox="0 0 24 24" fill="currentColor" fill-rule="evenodd">
     <path d="M16 6H8v12h8V6zm4 16H4V2h16v20z" />
   </svg>

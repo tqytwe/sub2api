@@ -371,6 +371,8 @@ export const useAppStore = defineStore('app', () => {
         compact_home_enabled: false,
         hide_ccs_import_button: false,
         payment_enabled: false,
+        subscription_enabled: true,
+        payment_balance_disabled: false,
         table_default_page_size: 20,
         table_page_size_options: [10, 20, 50, 100],
         custom_menu_items: [],

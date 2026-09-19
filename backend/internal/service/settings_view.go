@@ -385,6 +385,7 @@ type PublicSettings struct {
 	WeChatOAuthMobileEnabled bool
 	BackendModeEnabled       bool
 	PaymentEnabled           bool
+	PaymentBalanceDisabled   bool
 	SubscriptionEnabled      bool
 	OIDCOAuthEnabled         bool
 	OIDCOAuthProviderName    string

@@ -84,7 +84,7 @@
               type="button"
               @click="editOpenCodeAccountMode = 'zen'"
               :class="[
-                'flex items-center gap-3 rounded-lg border-2 p-3 text-left transition-all',
+                'flex items-center gap-3 rounded-lg border-2 p-3 text-left transition-colors',
                 editOpenCodeAccountMode === 'zen'
                   ? 'border-amber-500 bg-amber-50 dark:bg-amber-900/20'
                   : 'border-gray-200 hover:border-gray-400 dark:border-dark-600 dark:hover:border-gray-600'
@@ -107,7 +107,7 @@
               type="button"
               @click="editOpenCodeAccountMode = 'go'"
               :class="[
-                'flex items-center gap-3 rounded-lg border-2 p-3 text-left transition-all',
+                'flex items-center gap-3 rounded-lg border-2 p-3 text-left transition-colors',
                 editOpenCodeAccountMode === 'go'
                   ? 'border-amber-500 bg-amber-50 dark:bg-amber-900/20'
                   : 'border-gray-200 hover:border-gray-400 dark:border-dark-600 dark:hover:border-gray-600'

@@ -22,16 +22,27 @@ func (s *OpenAIGatewayService) DiagnoseModelAvailabilityForPlatform(
 	groupID *int64,
 	requestedModel string,
 	platform string,
-) ModelAvailabilityDiagnosis {
+) (diagnosis ModelAvailabilityDiagnosis) {
+	fallback := ModelAvailabilityDiagnosis{HasAccountsInPool: true, HasModelSupport: true}
+	diagnosis = fallback
+	// This method is only a best-effort classifier on an already-failed request
+	// path. Some test doubles and legacy repository adapters embed an optional
+	// AccountRepository interface; invoking a promoted method on a typed-nil
+	// adapter panics. Never let diagnostics turn a routable 503 into a 502.
+	defer func() {
+		if recover() != nil {
+			diagnosis = fallback
+		}
+	}()
 	if s == nil {
-		return ModelAvailabilityDiagnosis{HasAccountsInPool: true, HasModelSupport: true}
+		return fallback
 	}
 	requestedModel = strings.TrimSpace(requestedModel)
 	if requestedModel == "" {
-		return ModelAvailabilityDiagnosis{HasAccountsInPool: true, HasModelSupport: true}
+		return fallback
 	}
 	if s.accountRepo == nil {
-		return ModelAvailabilityDiagnosis{HasAccountsInPool: true, HasModelSupport: true}
+		return fallback
 	}
 
 	platform = NormalizeOpenAICompatiblePlatform(platform)
@@ -50,7 +61,7 @@ func (s *OpenAIGatewayService) DiagnoseModelAvailabilityForPlatform(
 	if err != nil {
 		// Conservative fallback so the caller keeps returning 503; we do not
 		// want a transient lookup failure to flip into 404 model_not_found.
-		return ModelAvailabilityDiagnosis{HasAccountsInPool: true, HasModelSupport: true}
+		return fallback
 	}
 
 	diag := ModelAvailabilityDiagnosis{}

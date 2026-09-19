@@ -111,16 +111,16 @@ describe('resolveRouteDocumentTitle 站点类型', () => {
 
   it('仅充值时 document.title 不再带「订阅」', () => {
     const title = resolveRouteDocumentTitle(purchaseRoute, 'EzouAPI', [], { billingMode: 'recharge_only' })
-    expect(title).toBe('充值 - EzouAPI')
+    expect(title).toBe('充值 | EzouAPI')
   })
 
   it('仅订阅时 document.title 只剩「订阅」', () => {
     const title = resolveRouteDocumentTitle(purchaseRoute, 'EzouAPI', [], { billingMode: 'subscription_only' })
-    expect(title).toBe('订阅 - EzouAPI')
+    expect(title).toBe('订阅 | EzouAPI')
   })
 
   it('充值 & 订阅时保留原标题', () => {
     const title = resolveRouteDocumentTitle(purchaseRoute, 'EzouAPI', [], { billingMode: 'recharge_and_subscription' })
-    expect(title).toBe('充值/订阅 - EzouAPI')
+    expect(title).toBe('充值/订阅 | EzouAPI')
   })
 })

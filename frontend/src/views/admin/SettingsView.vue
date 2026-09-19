@@ -9562,6 +9562,7 @@ const form = reactive<SettingsForm>({
   email_verify_enabled: false,
   registration_email_suffix_whitelist: [],
   registration_email_domain_quota_enabled: false,
+  subscription_enabled: true,
   promo_code_enabled: true,
   invitation_code_enabled: false,
   password_reset_enabled: false,

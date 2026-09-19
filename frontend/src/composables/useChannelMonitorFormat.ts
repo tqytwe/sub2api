@@ -281,6 +281,7 @@ export function providerGradient(provider: string): string {
       // design-governance-allow: decorative-gradient - provider tiles use the shared two-tone status cue.
       return 'bg-gradient-to-br from-rose-50 to-rose-100 dark:from-rose-500/10 dark:to-rose-500/20'
     case PROVIDER_OPENCODE_GO:
+      // design-governance-allow: decorative-gradient - provider tiles use the shared two-tone status cue.
       return 'bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-500/10 dark:to-amber-500/20'
     default:
       return 'bg-gradient-to-br from-gray-100 to-gray-200 dark:from-dark-700 dark:to-dark-600'
