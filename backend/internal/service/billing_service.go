@@ -1490,6 +1490,10 @@ func (s *BillingService) computeTokenBreakdown(
 	inputPrice := pricing.InputPricePerToken
 	outputPrice := pricing.OutputPricePerToken
 	cacheReadPrice := pricing.CacheReadPricePerToken
+	imageCacheReadPrice := pricing.ImageCacheReadPricePerToken
+	if imageCacheReadPrice == 0 {
+		imageCacheReadPrice = cacheReadPrice
+	}
 	cacheCreationPrice := pricing.CacheCreationPricePerToken
 	cacheCreationMultiplier := 1.0
 	tierMultiplier := 1.0
@@ -1523,6 +1527,7 @@ func (s *BillingService) computeTokenBreakdown(
 		// 缓存读取本质上是输入侧的复用，应与 input 一同应用长上下文倍率；
 		// 否则 cache hit 越多，少计的费用越多（见 #2293）。
 		cacheReadPrice *= longCtxInputMultiplier
+		imageCacheReadPrice *= longCtxInputMultiplier
 		// 缓存创建（cache_write）也是输入侧操作，三档价格（标准 / 5m / 1h）
 		// 都通过 computeCacheCreationCost 直接读取 pricing.*，不会经过这里
 		// 的倍率修改，因此显式向下传一个倍率，避免长上下文场景下被漏乘。
@@ -1590,8 +1595,12 @@ func (s *BillingService) computeTokenBreakdown(
 	}
 
 	cacheReadTotal := nonNegativeTokenCount(tokens.CacheReadTokens)
-	cacheReadAudioTokens := boundedTokenSubset(cacheReadTotal, tokens.CacheReadAudioTokens)
-	bd.CacheReadCost = float64(cacheReadTotal-cacheReadAudioTokens) * cacheReadPrice
+	imageCacheReadTokens := boundedTokenSubset(cacheReadTotal, tokens.ImageCacheReadTokens)
+	remainingCacheReadTokens := cacheReadTotal - imageCacheReadTokens
+	cacheReadAudioTokens := boundedTokenSubset(remainingCacheReadTokens, tokens.CacheReadAudioTokens)
+	textCacheReadTokens := remainingCacheReadTokens - cacheReadAudioTokens
+	bd.CacheReadCost = float64(textCacheReadTokens)*cacheReadPrice +
+		float64(imageCacheReadTokens)*imageCacheReadPrice
 	if cacheReadAudioTokens > 0 {
 		audioCacheReadPrice := pricing.CacheReadAudioPricePerToken
 		if audioCacheReadPrice == 0 {

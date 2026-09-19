@@ -196,17 +196,33 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	if actualInputAudioTokens < 0 {
 		actualInputAudioTokens = 0
 	}
+	cacheReadInputTokens := result.Usage.CacheReadInputTokens
+	if cacheReadInputTokens < 0 {
+		cacheReadInputTokens = 0
+	}
+	imageCacheReadTokens := result.Usage.ImageCacheReadTokens
+	if imageCacheReadTokens < 0 {
+		imageCacheReadTokens = 0
+	}
+	if imageCacheReadTokens > cacheReadInputTokens {
+		imageCacheReadTokens = cacheReadInputTokens
+	}
+	imageInputTokens := result.Usage.ImageInputTokens - imageCacheReadTokens
+	if imageInputTokens < 0 {
+		imageInputTokens = 0
+	}
 
 	// Calculate cost
 	tokens := UsageTokens{
 		InputTokens:              actualInputTokens,
 		InputAudioTokens:         actualInputAudioTokens,
-		ImageInputTokens:         result.Usage.ImageInputTokens,
+		ImageInputTokens:         imageInputTokens,
+		ImageCacheReadTokens:     imageCacheReadTokens,
 		OutputTokens:             result.Usage.OutputTokens,
 		OutputAudioTokens:        result.Usage.OutputAudioTokens,
 		CacheCreationTokens:      result.Usage.CacheCreationInputTokens,
 		CacheCreationAudioTokens: result.Usage.CacheCreationInputAudioTokens,
-		CacheReadTokens:          result.Usage.CacheReadInputTokens,
+		CacheReadTokens:          cacheReadInputTokens,
 		CacheReadAudioTokens:     result.Usage.CacheReadInputAudioTokens,
 		ImageOutputTokens:        result.Usage.ImageOutputTokens,
 	}

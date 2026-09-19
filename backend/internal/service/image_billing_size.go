@@ -135,6 +135,12 @@ func ApplyOpenAIImageBillingResolution(result *OpenAIForwardResult) {
 		&result.ImageSizeBreakdown,
 		resolved,
 	)
+	if result.Usage.ImageCacheReadTokens > 0 {
+		if result.ImageSizeBreakdown == nil {
+			result.ImageSizeBreakdown = make(map[string]int)
+		}
+		result.ImageSizeBreakdown["image_cache_read_tokens"] = result.Usage.ImageCacheReadTokens
+	}
 }
 
 func ApplyForwardImageBillingResolution(result *ForwardResult) {
