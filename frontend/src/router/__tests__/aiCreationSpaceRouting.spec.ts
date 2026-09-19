@@ -6,16 +6,17 @@ const routerSource = readFileSync(resolve(process.cwd(), 'src/router/index.ts'),
 const launchViewSource = readFileSync(resolve(process.cwd(), 'src/views/user/CanvasLaunchView.vue'), 'utf8')
 
 describe('AI creation space web routing', () => {
-  it('uses the unified AI creation space as the protected web entry', () => {
+  it('uses the unified AI creation space as a public direct entry', () => {
     expect(routerSource).toMatch(
-      /path: '\/ai-creation-space'[\s\S]*?name: 'AICreationSpace'[\s\S]*?component: \(\) => import\('@\/views\/user\/CanvasLaunchView\.vue'\)[\s\S]*?requiresAuth: true/,
+      /path: '\/ai-creation-space'[\s\S]*?name: 'AICreationSpace'[\s\S]*?component: \(\) => import\('@\/views\/user\/CanvasLaunchView\.vue'\)[\s\S]*?requiresAuth: false/,
     )
+    expect(routerSource).not.toMatch(/path: '\/ai-creation-space'[\s\S]*?requiresNextChat: true/)
   })
 
-  it('keeps legacy web URLs as compatibility redirects', () => {
-    const legacyRedirect = "redirect: to => ({ path: '/ai-creation-space', query: to.query })"
-    expect(routerSource).toMatch(/path: '\/ai',\s*redirect: to => \(\{ path: '\/ai-creation-space', query: to\.query \}\)/)
-    expect(routerSource).toMatch(/path: '\/image-studio',\s*redirect: to => \(\{ path: '\/ai-creation-space', query: to\.query \}\)/)
+  it('keeps legacy web URLs as plain compatibility redirects', () => {
+    const legacyRedirect = "redirect: '/ai-creation-space'"
+    expect(routerSource).toMatch(/path: '\/ai',[\s\S]*?redirect: '\/ai-creation-space'/)
+    expect(routerSource).toMatch(/path: '\/image-studio',[\s\S]*?redirect: '\/ai-creation-space'/)
     expect(routerSource).toContain(legacyRedirect)
   })
 
@@ -29,11 +30,17 @@ describe('AI creation space web routing', () => {
       .toContain('mobile/sessions/:purpose/group')
   })
 
-  it('opens Canvas directly without minting or forwarding an authentication token', () => {
+  it('opens Canvas directly with only the Jisudeng base URL prefilled', () => {
     expect(launchViewSource).toContain("const canvasURL = new URL('https://canvas.jisudeng.com')")
     expect(launchViewSource).not.toContain('launchAICreationSpace')
     expect(launchViewSource).not.toContain('launch_token')
-    expect(launchViewSource).toContain("canvasURL.searchParams.set('creation_prompt'")
+    expect(launchViewSource).not.toContain('creation_prompt')
+    expect(launchViewSource).toContain("canvasURL.searchParams.set('baseUrl', 'https://api.jisudeng.com')")
+    expect(launchViewSource).not.toContain('apiKey')
+  })
+
+  it('keeps the direct entry public when backend mode is enabled', () => {
+    expect(routerSource).toMatch(/BACKEND_MODE_ALLOWED_PATHS = \[[\s\S]*?'\/ai-creation-space'/)
   })
 
   it('does not depend on the retired public prompt-square routes', () => {

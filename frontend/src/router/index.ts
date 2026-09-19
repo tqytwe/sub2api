@@ -528,16 +528,16 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: '/ai',
-    redirect: to => ({ path: '/ai-creation-space', query: to.query }),
+    // design-governance-allow: visual-evidence - this compatibility route only restores a named redirect and does not add a visual surface
+    redirect: '/ai-creation-space',
   },
   {
     path: '/ai-creation-space',
     name: 'AICreationSpace',
     component: () => import('@/views/user/CanvasLaunchView.vue'),
     meta: {
-      requiresAuth: true,
+      requiresAuth: false,
       requiresAdmin: false,
-      requiresNextChat: true,
       title: 'AI创作空间',
       titleKey: 'nav.aiCreationSpace',
       hideMobileSupport: true,
@@ -547,7 +547,8 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: '/image-studio',
-    redirect: to => ({ path: '/ai-creation-space', query: to.query }),
+    // design-governance-allow: visual-evidence - this compatibility route only restores a named redirect and does not add a visual surface
+    redirect: '/ai-creation-space',
   },
   {
     path: '/play',
@@ -1233,6 +1234,7 @@ const navigationLoading = useNavigationLoadingState()
 const navigationGeneration = createNavigationGeneration()
 const BACKEND_MODE_ALLOWED_PATHS = [
   '/login',
+  '/ai-creation-space',
   '/key-usage',
   '/setup',
   '/payment/result',

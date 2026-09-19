@@ -30,14 +30,12 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRoute } from 'vue-router'
 import { useAppStore } from '@/stores'
 import CompactStatusPanel from '@/components/common/CompactStatusPanel.vue'
 import Icon from '@/components/icons/Icon.vue'
 import AppLayout from '@/components/layout/AppLayout.vue'
 
 const { t } = useI18n()
-const route = useRoute()
 const appStore = useAppStore()
 const loading = ref(false)
 const failed = ref(false)
@@ -53,14 +51,7 @@ async function startLaunch(): Promise<void> {
 
   try {
     const canvasURL = new URL('https://canvas.jisudeng.com')
-    const promptID = Number(route.query.prompt)
-    const promptVersion = Number(route.query.version)
-    if (Number.isSafeInteger(promptID) && promptID > 0) {
-      canvasURL.searchParams.set('creation_prompt', String(promptID))
-      if (Number.isSafeInteger(promptVersion) && promptVersion > 0) {
-        canvasURL.searchParams.set('creation_prompt_version', String(promptVersion))
-      }
-    }
+    canvasURL.searchParams.set('baseUrl', 'https://api.jisudeng.com')
     window.location.replace(canvasURL.toString())
   } catch {
     failed.value = true

@@ -27,11 +27,8 @@ describe('public navigation contract', () => {
     expect(guest).toEqual(['models', 'docs', 'creation', 'keyUsage', 'about', 'contact'])
   })
 
-  it('preserves auth-aware destinations only for protected actions', () => {
-    expect(aiCreationSpaceEntryRoute(false)).toEqual({
-      name: PUBLIC_ROUTE_NAMES.register,
-      query: { redirect: '/ai-creation-space' },
-    })
+  it('keeps the creation space entry independent of the Jisudeng login state', () => {
+    expect(aiCreationSpaceEntryRoute(false)).toEqual({ name: PUBLIC_ROUTE_NAMES.aiCreationSpace })
     expect(aiCreationSpaceEntryRoute(true)).toEqual({ name: PUBLIC_ROUTE_NAMES.aiCreationSpace })
     expect(dashboardEntryRoute(false)).toEqual({ name: PUBLIC_ROUTE_NAMES.dashboard })
     expect(dashboardEntryRoute(true)).toEqual({ name: PUBLIC_ROUTE_NAMES.adminDashboard })
