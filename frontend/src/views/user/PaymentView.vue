@@ -33,8 +33,11 @@
         </template>
         <!-- Tab content (select phase) -->
         <template v-else>
+          <div v-if="tabs.length === 0" class="card py-16 text-center">
+            <p class="text-gray-500 dark:text-gray-400">{{ t('payment.billingUnavailable') }}</p>
+          </div>
           <!-- Top-up Tab -->
-          <template v-if="activeTab === 'recharge'">
+          <template v-else-if="activeTab === 'recharge'">
             <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
               <div class="space-y-6">
                 <div class="card p-5">
@@ -447,6 +450,7 @@ import { useAuthStore } from '@/stores/auth'
 import { usePaymentStore } from '@/stores/payment'
 import { useSubscriptionStore } from '@/stores/subscriptions'
 import { useAppStore } from '@/stores'
+import { FeatureFlags, resolveFeatureFlag } from '@/utils/featureFlags'
 import { paymentAPI } from '@/api/payment'
 import { extractApiErrorCode, extractApiErrorMessage, extractI18nErrorMessage } from '@/utils/apiError'
 import { isMobileDevice } from '@/utils/device'
@@ -788,11 +792,22 @@ const renderedHelpText = computed(() => DOMPurify.sanitize(
   marked.parse(checkout.value.help_text || '', { async: false, gfm: true, breaks: false }),
 ))
 
+const subscriptionEnabled = computed(() =>
+  resolveFeatureFlag(appStore.cachedPublicSettings, FeatureFlags.subscription),
+)
+
 const tabs = computed(() => {
   const result: { key: 'recharge' | 'subscription'; label: string }[] = []
   if (!checkout.value.balance_disabled) result.push({ key: 'recharge', label: t('payment.tabTopUp') })
-  result.push({ key: 'subscription', label: t('payment.tabSubscribe') })
+  if (subscriptionEnabled.value) result.push({ key: 'subscription', label: t('payment.tabSubscribe') })
   return result
+})
+
+watch(tabs, (available) => {
+  if (available.some((tab) => tab.key === activeTab.value)) return
+  const leavingSubscription = activeTab.value === 'subscription'
+  activeTab.value = available[0]?.key ?? 'recharge'
+  if (leavingSubscription) selectedPlan.value = null
 })
 
 const visibleMethods = computed(() => getVisibleMethods(checkout.value.methods))
@@ -1817,11 +1832,11 @@ onMounted(async () => {
       }
     }
     await resumeWechatPaymentFromQuery()
-    if (checkout.value.balance_disabled) {
+    if (checkout.value.balance_disabled && subscriptionEnabled.value) {
       activeTab.value = 'subscription'
     }
     // Handle renewal navigation: ?tab=subscription&group=123
-    if (route.query.tab === 'subscription') {
+    if (route.query.tab === 'subscription' && subscriptionEnabled.value) {
       activeTab.value = 'subscription'
       if (route.query.group) {
         const groupId = Number(route.query.group)

@@ -77,8 +77,12 @@ func NewGatewayHandler(
 	userMsgQueueService *service.UserMessageQueueService,
 	cfg *config.Config,
 	settingService *service.SettingService,
-	modelCatalogService *service.ModelCatalogService,
+	modelCatalogServices ...*service.ModelCatalogService,
 ) *GatewayHandler {
+	var modelCatalogService *service.ModelCatalogService
+	if len(modelCatalogServices) > 0 {
+		modelCatalogService = modelCatalogServices[0]
+	}
 	pingInterval := time.Duration(0)
 	maxAccountSwitches := 10
 	maxAccountSwitchesGemini := 3
@@ -1178,18 +1182,12 @@ func (h *GatewayHandler) Models(c *gin.Context) {
 
 	// Fallback to default models
 	if platform == service.PlatformOpenAI {
-		c.JSON(http.StatusOK, gin.H{
-			"object": "list",
-			"data":   openai.DefaultModels,
-		})
+		writeModelsListResponse(c, openai.DefaultModels)
 		return
 	}
 
 	if platform == service.PlatformGemini {
-		c.JSON(http.StatusOK, gin.H{
-			"object": "list",
-			"data":   geminicli.DefaultModels,
-		})
+		writeModelsListResponse(c, geminicli.DefaultModels)
 		return
 	}
 	if platform == service.PlatformGrok {
@@ -1197,10 +1195,7 @@ func (h *GatewayHandler) Models(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"object": "list",
-		"data":   claude.DefaultModels,
-	})
+	writeModelsListResponse(c, claude.DefaultModels)
 }
 
 // CodexModels returns the effective group model list using the manifest shape
@@ -1398,10 +1393,7 @@ func writeModelsListWithMediaContracts(c *gin.Context, platform string, modelIDs
 			CreatedAt:   "2024-01-01T00:00:00Z",
 		})
 	}
-	c.JSON(http.StatusOK, gin.H{
-		"object": "list",
-		"data":   decorateGatewayModelsWithMediaContracts(models, mediaContracts),
-	})
+	writeModelsListResponse(c, decorateGatewayModelsWithMediaContracts(models, mediaContracts))
 }
 
 func writeAllowlistedModelsList(c *gin.Context, platform string, modelIDs []string, mediaContracts map[string]service.GatewayModelContract) {
@@ -1464,10 +1456,7 @@ func writeGrokModelsListWithMediaContracts(c *gin.Context, modelIDs []string, me
 		models = append(models, item)
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"object": "list",
-		"data":   decorateGatewayModelsWithMediaContracts(models, mediaContracts),
-	})
+	writeModelsListResponse(c, decorateGatewayModelsWithMediaContracts(models, mediaContracts))
 }
 
 func grokModelSupportsConfigurableReasoning(modelID string) bool {
@@ -1500,10 +1489,7 @@ func writeOpenAIModelsListWithMediaContracts(c *gin.Context, modelIDs []string, 
 			DisplayName: modelID,
 		})
 	}
-	c.JSON(http.StatusOK, gin.H{
-		"object": "list",
-		"data":   decorateGatewayModelsWithMediaContracts(models, mediaContracts),
-	})
+	writeModelsListResponse(c, decorateGatewayModelsWithMediaContracts(models, mediaContracts))
 }
 
 func decorateGatewayModelsWithMediaContracts(models any, mediaContracts map[string]service.GatewayModelContract) any {
@@ -1578,7 +1564,7 @@ func modelListingSource(platform string, availableModels, fallbackModels []strin
 func defaultCodexModelIDsForPlatform(platform string) []string {
 	switch platform {
 	case service.PlatformDeepseek:
-		return []string{"deepseek-v4-pro", "deepseek-v4-flash"}
+		return []string{"deepseek-v4-pro", "deepseek-v4-flash", "deepseek-flash"}
 	case service.PlatformMiniMax:
 		return []string{"MiniMax-M3", "MiniMax-M2.7", "MiniMax-M2.5"}
 	default:

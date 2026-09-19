@@ -242,6 +242,7 @@ export interface CustomMenuItem {
   icon_svg: string
   url: string
   page_slug?: string
+  hide_open_button?: boolean
   visibility: 'user' | 'admin'
   sort_order: number
 }
@@ -294,6 +295,8 @@ export interface PublicSettings {
   compact_home_enabled: boolean
   hide_ccs_import_button: boolean
   payment_enabled: boolean
+  subscription_enabled: boolean
+  payment_balance_disabled: boolean
   risk_control_enabled: boolean
   table_default_page_size: number
   table_page_size_options: number[]
@@ -594,7 +597,7 @@ export interface PaginationConfig {
 
 // ==================== API Key & Group Types ====================
 
-export type GroupPlatform = 'anthropic' | 'openai' | 'gemini' | 'antigravity' | 'grok' | 'kimi' | 'zhipu' | 'deepseek' | 'minimax' | 'composite'
+export type GroupPlatform = 'anthropic' | 'openai' | 'gemini' | 'antigravity' | 'grok' | 'kimi' | 'zhipu' | 'deepseek' | 'minimax' | 'opencode_go' | 'composite'
 
 export type SubscriptionType = 'standard' | 'subscription'
 export type BillingSurchargeMode = 'none' | 'percent_on_charged_cost' | 'additive_multiplier'
@@ -973,7 +976,7 @@ export interface UpdateGroupRequest {
 
 // ==================== Account & Proxy Types ====================
 
-export type AccountPlatform = 'anthropic' | 'openai' | 'gemini' | 'antigravity' | 'grok' | 'kimi' | 'zhipu' | 'deepseek' | 'minimax'
+export type AccountPlatform = 'anthropic' | 'openai' | 'gemini' | 'antigravity' | 'grok' | 'kimi' | 'zhipu' | 'deepseek' | 'minimax' | 'opencode_go'
 export type AccountType = 'oauth' | 'setup-token' | 'apikey' | 'upstream' | 'bedrock' | 'service_account'
 export type OAuthAddMethod = 'oauth' | 'setup-token'
 export type ProxyProtocol = 'http' | 'https' | 'socks5' | 'socks5h'
@@ -1506,7 +1509,7 @@ export interface CodexUsageSnapshot {
 
 export type OpenAICompactMode = 'auto' | 'force_on' | 'force_off'
 export type OpenAIResponsesMode = 'auto' | 'force_responses' | 'force_chat_completions'
-export type OpenAIEndpointCapability = 'chat_completions' | 'embeddings'
+export type OpenAIEndpointCapability = 'chat_completions' | 'embeddings' | 'seedance'
 
 export interface OpenAICompactState {
   openai_compact_mode?: OpenAICompactMode

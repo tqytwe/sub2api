@@ -196,17 +196,33 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	if actualInputAudioTokens < 0 {
 		actualInputAudioTokens = 0
 	}
+	cacheReadInputTokens := result.Usage.CacheReadInputTokens
+	if cacheReadInputTokens < 0 {
+		cacheReadInputTokens = 0
+	}
+	imageCacheReadTokens := result.Usage.ImageCacheReadTokens
+	if imageCacheReadTokens < 0 {
+		imageCacheReadTokens = 0
+	}
+	if imageCacheReadTokens > cacheReadInputTokens {
+		imageCacheReadTokens = cacheReadInputTokens
+	}
+	imageInputTokens := result.Usage.ImageInputTokens - imageCacheReadTokens
+	if imageInputTokens < 0 {
+		imageInputTokens = 0
+	}
 
 	// Calculate cost
 	tokens := UsageTokens{
 		InputTokens:              actualInputTokens,
 		InputAudioTokens:         actualInputAudioTokens,
-		ImageInputTokens:         result.Usage.ImageInputTokens,
+		ImageInputTokens:         imageInputTokens,
+		ImageCacheReadTokens:     imageCacheReadTokens,
 		OutputTokens:             result.Usage.OutputTokens,
 		OutputAudioTokens:        result.Usage.OutputAudioTokens,
 		CacheCreationTokens:      result.Usage.CacheCreationInputTokens,
 		CacheCreationAudioTokens: result.Usage.CacheCreationInputAudioTokens,
-		CacheReadTokens:          result.Usage.CacheReadInputTokens,
+		CacheReadTokens:          cacheReadInputTokens,
 		CacheReadAudioTokens:     result.Usage.CacheReadInputAudioTokens,
 		ImageOutputTokens:        result.Usage.ImageOutputTokens,
 	}
@@ -1049,7 +1065,7 @@ func groupMediaPricingLooksIncomplete(group *Group) bool {
 // 运营者的修复手段是配置账号级 model_mapping（映射到已定价的 CN 模型）或
 // 分组/渠道显式定价。
 func (s *OpenAIGatewayService) filterCNProviderBillingModelCandidates(ctx context.Context, account *Account, apiKey *APIKey, candidates []string) []string {
-	if account == nil || !account.IsCNProvider() {
+	if account == nil || (!account.IsCNProvider() && !account.IsOpenCodeGo()) {
 		return candidates
 	}
 	out := make([]string, 0, len(candidates))

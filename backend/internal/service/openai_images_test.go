@@ -1379,7 +1379,7 @@ func TestOpenAIGatewayServiceForwardImages_OAuthFansOutNAndReturnsAllImages(t *t
 		},
 	}
 
-	result, err := svc.ForwardImages(context.Background(), c, account, body, parsed, "")
+	result, err := svc.ForwardImages(withOpenAIImagesForceResponses(context.Background()), c, account, body, parsed, "")
 	require.NoError(t, err)
 	require.NotNil(t, result)
 	require.Equal(t, "gpt-image-2", result.Model)
@@ -1536,7 +1536,7 @@ func TestOpenAIGatewayServiceForwardImages_OAuthUpstreamHTTPErrorSurfacesRealErr
 		},
 	}
 
-	result, err := svc.ForwardImages(context.Background(), c, account, body, parsed, "")
+	result, err := svc.ForwardImages(withOpenAIImagesForceResponses(context.Background()), c, account, body, parsed, "")
 	require.Nil(t, result)
 
 	var upstreamErr *OpenAIImagesUpstreamError
@@ -1594,7 +1594,7 @@ func TestOpenAIGatewayServiceForwardImages_OAuthNonStreamModerationBlockedReturn
 		},
 	}
 
-	result, err := svc.ForwardImages(context.Background(), c, account, body, parsed, "")
+	result, err := svc.ForwardImages(withOpenAIImagesForceResponses(context.Background()), c, account, body, parsed, "")
 	require.Nil(t, result)
 	var upstreamErr *OpenAIImagesUpstreamError
 	require.ErrorAs(t, err, &upstreamErr)
@@ -1644,7 +1644,7 @@ func TestOpenAIGatewayServiceForwardImages_OAuthNonStreamServerErrorReturnsFailo
 		},
 	}
 
-	result, err := svc.ForwardImages(context.Background(), c, account, body, parsed, "")
+	result, err := svc.ForwardImages(withOpenAIImagesForceResponses(context.Background()), c, account, body, parsed, "")
 
 	require.Nil(t, result)
 	var failoverErr *UpstreamFailoverError
@@ -1680,7 +1680,7 @@ func TestOpenAIGatewayServiceForwardImages_OAuth429PreservesRetryAfterCooldown(t
 	parsed, err := svc.ParseOpenAIImagesRequest(c, body)
 	require.NoError(t, err)
 	account := &Account{ID: 22, Platform: PlatformOpenAI, Type: AccountTypeOAuth, Credentials: map[string]any{"access_token": "token-123"}}
-	result, err := svc.ForwardImages(context.Background(), c, account, body, parsed, "")
+	result, err := svc.ForwardImages(withOpenAIImagesForceResponses(context.Background()), c, account, body, parsed, "")
 
 	require.Nil(t, result)
 	var failoverErr *UpstreamFailoverError
@@ -1833,7 +1833,7 @@ func TestOpenAIGatewayServiceForwardImages_OAuthStreamServerErrorAfterFlushDoesN
 		},
 	}
 
-	result, err := svc.ForwardImages(context.Background(), c, account, body, parsed, "")
+	result, err := svc.ForwardImages(withOpenAIImagesForceResponses(context.Background()), c, account, body, parsed, "")
 
 	require.Nil(t, result)
 	var failoverErr *UpstreamFailoverError
@@ -2398,7 +2398,7 @@ func TestOpenAIGatewayServiceForwardImages_OAuthStreamingTransformsEvents(t *tes
 		},
 	}
 
-	result, err := svc.ForwardImages(context.Background(), c, account, body, parsed, "")
+	result, err := svc.ForwardImages(withOpenAIImagesForceResponses(context.Background()), c, account, body, parsed, "")
 	require.NoError(t, err)
 	require.NotNil(t, result)
 	require.True(t, result.Stream)
@@ -2625,7 +2625,7 @@ func TestOpenAIGatewayServiceForwardImages_OAuthEditsMultipartUsesResponsesAPI(t
 		},
 	}
 
-	result, err := svc.ForwardImages(context.Background(), c, account, body.Bytes(), parsed, "")
+	result, err := svc.ForwardImages(withOpenAIImagesForceResponses(context.Background()), c, account, body.Bytes(), parsed, "")
 	require.NoError(t, err)
 	require.NotNil(t, result)
 	require.Equal(t, 1, result.ImageCount)
@@ -2669,7 +2669,7 @@ func TestOpenAIGatewayServiceForwardImages_OAuthFansOutTenImages(t *testing.T) {
 	parsed, err := svc.ParseOpenAIImagesRequest(c, body)
 	require.NoError(t, err)
 
-	result, err := svc.ForwardImages(context.Background(), c, &Account{
+	result, err := svc.ForwardImages(withOpenAIImagesForceResponses(context.Background()), c, &Account{
 		ID:       3,
 		Name:     "openai-oauth",
 		Platform: PlatformOpenAI,
@@ -2725,7 +2725,7 @@ func TestOpenAIGatewayServiceForwardImages_FanoutCapsEachChildAtOneImage(t *test
 	parsed, err := svc.ParseOpenAIImagesRequest(c, body)
 	require.NoError(t, err)
 
-	result, err := svc.ForwardImages(context.Background(), c, &Account{
+	result, err := svc.ForwardImages(withOpenAIImagesForceResponses(context.Background()), c, &Account{
 		ID:       3,
 		Name:     "openai-oauth",
 		Platform: PlatformOpenAI,
@@ -2778,7 +2778,7 @@ func TestOpenAIGatewayServiceForwardImages_OAuthReturnsPartialMultiImageSuccess(
 	parsed, err := svc.ParseOpenAIImagesRequest(c, body)
 	require.NoError(t, err)
 
-	result, err := svc.ForwardImages(context.Background(), c, &Account{
+	result, err := svc.ForwardImages(withOpenAIImagesForceResponses(context.Background()), c, &Account{
 		ID:       3,
 		Name:     "openai-oauth",
 		Platform: PlatformOpenAI,
@@ -2858,7 +2858,7 @@ func TestOpenAIGatewayServiceForwardImages_OAuthEditsStreamingTransformsEvents(t
 		},
 	}
 
-	result, err := svc.ForwardImages(context.Background(), c, account, body, parsed, "")
+	result, err := svc.ForwardImages(withOpenAIImagesForceResponses(context.Background()), c, account, body, parsed, "")
 	require.NoError(t, err)
 	require.NotNil(t, result)
 	require.Equal(t, 1, result.ImageCount)
@@ -3057,7 +3057,7 @@ func TestOpenAIGatewayServiceForwardImages_OAuthStreamingHandlesOutputItemDoneFa
 		},
 	}
 
-	result, err := svc.ForwardImages(context.Background(), c, account, body, parsed, "")
+	result, err := svc.ForwardImages(withOpenAIImagesForceResponses(context.Background()), c, account, body, parsed, "")
 	require.NoError(t, err)
 	require.NotNil(t, result)
 	require.True(t, result.Stream)
@@ -3146,7 +3146,7 @@ func TestOpenAIGatewayServiceForwardImages_OAuthStreamingHandlesMultilineSSE(t *
 		},
 	}
 
-	result, err := svc.ForwardImages(context.Background(), c, account, body, parsed, "")
+	result, err := svc.ForwardImages(withOpenAIImagesForceResponses(context.Background()), c, account, body, parsed, "")
 	require.NoError(t, err)
 	require.NotNil(t, result)
 	require.True(t, result.Stream)
@@ -3210,7 +3210,7 @@ func TestOpenAIGatewayServiceForwardImages_OAuthStreamingDrainsAfterClientDiscon
 		},
 	}
 
-	result, err := svc.ForwardImages(context.Background(), c, account, body, parsed, "")
+	result, err := svc.ForwardImages(withOpenAIImagesForceResponses(context.Background()), c, account, body, parsed, "")
 	require.NoError(t, err)
 	require.NotNil(t, result)
 	require.True(t, result.Stream)

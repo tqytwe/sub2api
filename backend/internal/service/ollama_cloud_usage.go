@@ -397,6 +397,10 @@ type OllamaCloudUsageService struct {
 	db            *sql.DB
 	instanceID    string
 	egressEnabled bool
+	probeMu       sync.Mutex
+	probeQueue    []ollamaCloudUsageProbeRequest
+	probeWake     chan struct{}
+	probeGroups   map[string]ollamaCloudUsageProbeGroupEntry
 }
 
 func NewOllamaCloudUsageService(
@@ -419,6 +423,8 @@ func NewOllamaCloudUsageService(
 		now:                     time.Now,
 		instanceID:              uuid.NewString(),
 		egressEnabled:           true,
+		probeWake:               make(chan struct{}, 1),
+		probeGroups:             make(map[string]ollamaCloudUsageProbeGroupEntry),
 	}
 }
 
@@ -450,9 +456,10 @@ func (s *OllamaCloudUsageService) Start() {
 		return
 	}
 	s.started = true
-	s.wg.Add(1)
+	s.wg.Add(2)
 	s.mu.Unlock()
 	go s.runLoop()
+	go s.probeLoop()
 }
 
 func (s *OllamaCloudUsageService) Stop() {
