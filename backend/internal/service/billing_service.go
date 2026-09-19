@@ -93,10 +93,10 @@ type BillingCache interface {
 
 // ModelPricing 模型价格配置（per-token价格，与LiteLLM格式一致）
 type ModelPricing struct {
-	InputPricePerToken                 float64  // 每token输入价格 (USD)
-	InputAudioPricePerToken            float64  // 音频输入 token 价格；0 时回退到文本输入价格
-	InputPricePerTokenPriority         float64  // priority service tier 下每token输入价格 (USD)
-	ImageInputPricePerToken            float64  // 图片输入 token 价格 (USD)，用于多模态 embedding 等图文不同价场景；为 0 时回退到 InputPricePerToken
+	InputPricePerToken                 float64 // 每token输入价格 (USD)
+	InputAudioPricePerToken            float64 // 音频输入 token 价格；0 时回退到文本输入价格
+	InputPricePerTokenPriority         float64 // priority service tier 下每token输入价格 (USD)
+	ImageInputPricePerToken            float64 // 图片输入 token 价格 (USD)，用于多模态 embedding 等图文不同价场景；为 0 时回退到 InputPricePerToken
 	ImageCacheReadPricePerToken        float64
 	OutputPricePerToken                float64  // 每token输出价格 (USD)
 	OutputAudioPricePerToken           float64  // 音频输出 token 价格；0 时回退到文本输出价格
@@ -1198,6 +1198,10 @@ func (s *BillingService) HasIdentifiedTokenPricing(model string) bool {
 
 // GetModelPricing 获取模型价格配置
 func (s *BillingService) GetModelPricing(model string) (*ModelPricing, error) {
+	return s.getModelPricingAt(model, timezone.Now())
+}
+
+func (s *BillingService) getModelPricingAt(model string, pricingAt time.Time) (*ModelPricing, error) {
 	// 标准化模型名称（转小写）
 	model = strings.ToLower(model)
 
@@ -1219,7 +1223,7 @@ func (s *BillingService) GetModelPricing(model string) (*ModelPricing, error) {
 			price5m := litellmPricing.CacheCreationInputTokenCost
 			price1h := litellmPricing.CacheCreationInputTokenCostAbove1hr
 			enableBreakdown := price1h > 0 && price1h > price5m
-			return s.applyModelSpecificPricingPolicy(model, &ModelPricing{
+			return s.applyModelSpecificPricingPolicyEx(model, &ModelPricing{
 				InputPricePerToken:                 litellmPricing.InputCostPerToken,
 				InputAudioPricePerToken:            litellmPricing.InputCostPerAudioToken,
 				InputPricePerTokenPriority:         litellmPricing.InputCostPerTokenPriority,
@@ -1242,7 +1246,7 @@ func (s *BillingService) GetModelPricing(model string) (*ModelPricing, error) {
 				LongContextOutputMultiplier:   litellmPricing.LongContextOutputCostMultiplier,
 				ImageInputPricePerToken:       litellmPricing.InputCostPerImageToken,
 				ImageOutputPricePerToken:      litellmPricing.OutputCostPerImageToken,
-			}), nil
+			}, true, pricingAt), nil
 		}
 	}
 
@@ -1254,7 +1258,7 @@ func (s *BillingService) GetModelPricing(model string) (*ModelPricing, error) {
 		if _, seen := s.fallbackWarnSeen.LoadOrStore(model, struct{}{}); !seen {
 			log.Printf("[Billing] Using fallback pricing for model: %s", model)
 		}
-		return s.applyModelSpecificPricingPolicy(model, fallback), nil
+		return s.applyModelSpecificPricingPolicyEx(model, fallback, true, pricingAt), nil
 	}
 
 	return nil, fmt.Errorf("%w for model: %s", ErrModelPricingUnavailable, model)
