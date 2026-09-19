@@ -236,6 +236,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingKeyChannelMonitorShowQuota,
 		SettingKeyChannelMonitorHideUserRanking,
 		SettingKeyAvailableChannelsEnabled,
+		SettingKeySubscriptionEnabled,
 		SettingKeyMarketplaceEnabled,
 		SettingKeyModelPlazaEnabled,
 		SettingKeyModelPlazaRequireAuth,
@@ -376,6 +377,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		ChannelMonitorHideUserRanking:        isTrueSettingValue(settings[SettingKeyChannelMonitorHideUserRanking]),
 
 		AvailableChannelsEnabled: settings[SettingKeyAvailableChannelsEnabled] == "true",
+		SubscriptionEnabled:     !isFalseSettingValue(settings[SettingKeySubscriptionEnabled]),
 		MarketplaceEnabled:       marketplaceEnabled,
 		PublicModelsEnabled:      settings[SettingKeyPublicModelsEnabled] == "true",
 		PlayCheckinEnabled:       settings[SettingKeyPlayCheckinEnabled] == "true",
@@ -645,6 +647,7 @@ type PublicSettingsInjectionPayload struct {
 	ChannelMonitorShowQuota       bool `json:"channel_monitor_show_quota"`
 	ChannelMonitorHideUserRanking bool `json:"channel_monitor_hide_user_ranking"`
 	AvailableChannelsEnabled      bool `json:"available_channels_enabled"`
+	SubscriptionEnabled            bool `json:"subscription_enabled"`
 	MarketplaceEnabled            bool `json:"marketplace_enabled"`
 	ModelPlazaEnabled             bool `json:"model_plaza_enabled"`
 	ModelPlazaRequireAuth         bool `json:"model_plaza_require_auth"`
@@ -739,6 +742,7 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		ChannelMonitorShowQuota:              settings.ChannelMonitorShowQuota,
 		ChannelMonitorHideUserRanking:        settings.ChannelMonitorHideUserRanking,
 		AvailableChannelsEnabled:             settings.AvailableChannelsEnabled,
+		SubscriptionEnabled:                  settings.SubscriptionEnabled,
 		MarketplaceEnabled:                   settings.MarketplaceEnabled,
 		ModelPlazaEnabled:                    settings.ModelPlazaEnabled,
 		ModelPlazaRequireAuth:                settings.ModelPlazaRequireAuth,

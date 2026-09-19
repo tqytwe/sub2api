@@ -388,6 +388,7 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		AccountSchedulingThresholds:    settings.AccountSchedulingThresholds,
 
 		AvailableChannelsEnabled: settings.AvailableChannelsEnabled,
+		SubscriptionEnabled:      settings.SubscriptionEnabled,
 
 		ModelPlazaEnabled:       settings.ModelPlazaEnabled,
 		ModelPlazaRequireAuth:   settings.ModelPlazaRequireAuth,

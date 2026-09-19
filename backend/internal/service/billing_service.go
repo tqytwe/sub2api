@@ -97,6 +97,7 @@ type ModelPricing struct {
 	InputAudioPricePerToken            float64  // 音频输入 token 价格；0 时回退到文本输入价格
 	InputPricePerTokenPriority         float64  // priority service tier 下每token输入价格 (USD)
 	ImageInputPricePerToken            float64  // 图片输入 token 价格 (USD)，用于多模态 embedding 等图文不同价场景；为 0 时回退到 InputPricePerToken
+	ImageCacheReadPricePerToken        float64
 	OutputPricePerToken                float64  // 每token输出价格 (USD)
 	OutputAudioPricePerToken           float64  // 音频输出 token 价格；0 时回退到文本输出价格
 	OutputPricePerTokenPriority        float64  // priority service tier 下每token输出价格 (USD)
@@ -184,6 +185,7 @@ type UsageTokens struct {
 	InputTokens              int
 	InputAudioTokens         int
 	ImageInputTokens         int
+	ImageCacheReadTokens     int
 	OutputTokens             int
 	OutputAudioTokens        int
 	CacheCreationTokens      int
@@ -316,6 +318,19 @@ func deepseekPeakMultiplierAt(now time.Time) float64 {
 		return 2.0
 	}
 	return 1.0
+}
+
+var deepseekProRoutesToFlashAt = time.Date(2026, 9, 14, 4, 0, 0, 0, time.UTC)
+
+func deepseekProBilledAsFlash(pricingAt time.Time) bool {
+	if pricingAt.IsZero() {
+		pricingAt = timezone.Now()
+	}
+	return !pricingAt.Before(deepseekProRoutesToFlashAt)
+}
+
+func isDeepSeekProModel(model string) bool {
+	return strings.Contains(strings.ToLower(strings.TrimSpace(model)), "deepseek-v4-pro")
 }
 
 // BillingService 计费服务
@@ -1420,7 +1435,7 @@ func (s *BillingService) calculateTokenCost(resolved *ResolvedPricing, input Cos
 
 	// 默认价卡（Source=LiteLLM）应用 DeepSeek 官方价强制覆盖（幂等，GetModelPricing
 	// 内部已强制过）；分组/渠道自定义定价保留运营者配置，不强制覆盖官方价。
-	pricing = s.applyModelSpecificPricingPolicyEx(input.Model, pricing, resolved.Source == PricingSourceLiteLLM)
+	pricing = s.applyModelSpecificPricingPolicyEx(input.Model, pricing, resolved.Source == PricingSourceLiteLLM, input.PricingAt)
 
 	// DeepSeek 模型默认价卡按官方峰谷口径调整：高峰时段（01:00–04:00 与
 	// 06:00–10:00 UTC，仅工作日；北京时间周末全天低谷）按 2× 低谷价计费。
@@ -1743,14 +1758,14 @@ func (s *BillingService) calculateCostInternalWithPolicy(
 // 调用；分组/渠道自定义定价路径用带参数的 applyModelSpecificPricingPolicyEx
 // 关闭强制，保留运营者配置。
 func (s *BillingService) applyModelSpecificPricingPolicy(model string, pricing *ModelPricing) *ModelPricing {
-	return s.applyModelSpecificPricingPolicyEx(model, pricing, true)
+	return s.applyModelSpecificPricingPolicyEx(model, pricing, true, time.Time{})
 }
 
 // applyModelSpecificPricingPolicyEx 与 applyModelSpecificPricingPolicy 相同，
 // 但由调用方控制是否强制 DeepSeek 官方价（forceDeepSeekRates）。
 // calculateTokenCost 对分组/渠道自定义定价（Source 非 LiteLLM）传 false：
 // 强制覆盖会把运营者配置的售价盖回官方价，违反自定义定价语义。
-func (s *BillingService) applyModelSpecificPricingPolicyEx(model string, pricing *ModelPricing, forceDeepSeekRates bool) *ModelPricing {
+func (s *BillingService) applyModelSpecificPricingPolicyEx(model string, pricing *ModelPricing, forceDeepSeekRates bool, pricingAt time.Time) *ModelPricing {
 	if pricing == nil {
 		return nil
 	}
@@ -1763,7 +1778,7 @@ func (s *BillingService) applyModelSpecificPricingPolicyEx(model string, pricing
 	// 对默认价卡另行叠加（分组/渠道自定义定价不叠加）。
 	if forceDeepSeekRates && isDeepSeekModel(model) {
 		cloned := *pricing
-		if strings.Contains(strings.ToLower(strings.TrimSpace(model)), "deepseek-v4-pro") {
+		if isDeepSeekProModel(model) && !deepseekProBilledAsFlash(pricingAt) {
 			cloned.InputPricePerToken = deepseekProOffPeakInputPrice
 			cloned.OutputPricePerToken = deepseekProOffPeakOutputPrice
 			cloned.CacheReadPricePerToken = deepseekProOffPeakCacheRead

@@ -527,6 +527,24 @@ func (s *OpenAIGatewayService) ResolveGrokMediaVideoRequestAccount(
 	return s.cache.GetSessionAccountID(ctx, derefGroupID(groupID), cacheKey)
 }
 
+func (s *OpenAIGatewayService) SelectGrokMediaVideoRequestAccount(ctx context.Context, groupID *int64, sessionHash string, accountID int64, requestedModel string) (*AccountSelectionResult, OpenAIAccountScheduleDecision, error) {
+	return s.SelectMediaVideoRequestAccount(ctx, groupID, sessionHash, accountID, requestedModel, PlatformGrok)
+}
+
+func (s *OpenAIGatewayService) SelectMediaVideoRequestAccount(ctx context.Context, groupID *int64, sessionHash string, accountID int64, requestedModel, platform string) (*AccountSelectionResult, OpenAIAccountScheduleDecision, error) {
+	decision := OpenAIAccountScheduleDecision{Layer: openAIAccountScheduleLayerSessionSticky}
+	if accountID <= 0 || strings.TrimSpace(sessionHash) == "" { return nil, decision, ErrNoAvailableAccounts }
+	ctx = s.withOpenAIGroupPrivacyRequirement(WithOpenAIProfitControlSuppressed(ctx), groupID)
+	scheduler := &defaultOpenAIAccountScheduler{service: s}
+	selection, _, err := scheduler.selectBySessionHash(ctx, OpenAIAccountScheduleRequest{GroupID: groupID, Platform: platform, SessionHash: sessionHash, StickyAccountID: accountID, PreserveStickyBinding: true, DisableStickyEscape: true, RequestedModel: requestedModel, RequiredTransport: OpenAIUpstreamTransportHTTPSSE, RequirePrivacySet: s.openAIGroupRequiresPrivacySet(ctx, groupID)})
+	if err != nil { return nil, decision, err }
+	if selection == nil || selection.Account == nil { return nil, decision, ErrNoAvailableAccounts }
+	decision.StickySessionHit = true
+	decision.SelectedAccountID = selection.Account.ID
+	decision.SelectedAccountType = selection.Account.Type
+	return selection, decision, nil
+}
+
 func (s *OpenAIGatewayService) ForwardGrokMedia(
 	ctx context.Context,
 	c *gin.Context,

@@ -88,6 +88,7 @@ type IdempotencyExecuteOptions struct {
 	TTL                time.Duration
 	RequireKey         bool
 	FailedRetryBackoff time.Duration
+	ExecutionTimeout   time.Duration
 }
 
 type IdempotencyExecuteResult struct {

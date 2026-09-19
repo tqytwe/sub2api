@@ -227,6 +227,7 @@ type OpenAIUsage struct {
 	// price audio tokens differently from text tokens.
 	InputAudioTokens              int `json:"input_audio_tokens,omitempty"`
 	ImageInputTokens              int `json:"image_input_tokens,omitempty"`
+	ImageCacheReadTokens          int `json:"image_cache_read_tokens,omitempty"`
 	OutputTokens                  int `json:"output_tokens"`
 	OutputAudioTokens             int `json:"output_audio_tokens,omitempty"`
 	CacheCreationInputTokens      int `json:"cache_creation_input_tokens,omitempty"`
@@ -318,6 +319,15 @@ func (r *OpenAIForwardResult) SucceededForScheduling() bool {
 		return true
 	default:
 		return false
+	}
+}
+
+const openAIResponsesUpstreamEndpoint = "/v1/responses"
+
+func stampOpenAIResponsesUpstreamEndpoint(c *gin.Context, result *OpenAIForwardResult) {
+	SetActualOpenAIUpstreamEndpoint(c, openAIResponsesUpstreamEndpoint)
+	if result != nil && strings.TrimSpace(result.UpstreamEndpoint) == "" {
+		result.UpstreamEndpoint = openAIResponsesUpstreamEndpoint
 	}
 }
 
