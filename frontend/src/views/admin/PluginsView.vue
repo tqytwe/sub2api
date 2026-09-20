@@ -144,7 +144,7 @@
                   {{ t(`admin.plugins.${plugin.compatibility.status}`) }}
                 </span>
                 <span class="text-xs text-gray-500 dark:text-gray-400">{{
-                  plugin.compatibility.message
+                  compatibilityMessage(plugin)
                 }}</span>
               </div>
               <dl
@@ -201,13 +201,13 @@
                 v-if="plugin.last_error"
                 class="mt-3 break-words text-xs text-red-600 dark:text-red-400"
               >
-                {{ plugin.last_error }}
+                {{ t("admin.plugins.runtimeError") }}
               </p>
               <p
                 v-else-if="plugin.runtime_message"
                 class="mt-3 break-words text-xs text-gray-500"
               >
-                {{ plugin.runtime_message }}
+                {{ runtimeMessage(plugin) }}
               </p>
             </div>
 
@@ -315,7 +315,7 @@
           <iframe
             v-if="uiSession"
             ref="pluginFrame"
-            :src="uiSession.url"
+            :src="pluginUIURL"
             sandbox="allow-scripts"
             referrerpolicy="no-referrer"
             class="h-full w-full border-0 bg-white dark:bg-dark-900"
@@ -333,7 +333,7 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import {
   adminAPI,
@@ -363,7 +363,7 @@ interface PluginBridgeMessage {
   message?: unknown;
 }
 
-const { t } = useI18n();
+const { t, locale } = useI18n();
 const appStore = useAppStore();
 const pluginStepUp = useStepUp();
 const plugins = ref<PluginInstallation[]>([]);
@@ -380,6 +380,23 @@ const uiError = ref("");
 const iframeHeight = ref(640);
 const pluginFrameLoaded = ref(false);
 const pendingBridgeRequests = new Map<string, number>();
+
+function normalizedPluginLocale(value: string): "zh" | "en" {
+  return value.toLowerCase().startsWith("en") ? "en" : "zh";
+}
+
+function withPluginLocale(url: string, value: string): string {
+  const hashIndex = url.indexOf("#");
+  const base = hashIndex >= 0 ? url.slice(0, hashIndex) : url;
+  const fragment = hashIndex >= 0 ? url.slice(hashIndex + 1) : "";
+  const params = new URLSearchParams(fragment);
+  params.set("locale", normalizedPluginLocale(value));
+  return `${base}#${params.toString()}`;
+}
+
+const pluginUIURL = computed(() =>
+  uiSession.value ? withPluginLocale(uiSession.value.url, locale.value) : "",
+);
 
 function errorMessage(error: unknown): string {
   if (typeof error === "object" && error !== null && "message" in error) {
@@ -443,6 +460,19 @@ function currentRollout(plugin: PluginInstallation): number {
       (binding) => binding.capability === "openai.oauth.outbound_transport.v1",
     )?.rollout_percent || 100
   );
+}
+
+function compatibilityMessage(plugin: PluginInstallation): string {
+  return t(`admin.plugins.${plugin.compatibility.status}Message`, {
+    current: plugin.compatibility.current_sub2api_version,
+    required: plugin.compatibility.required_sub2api_version,
+  });
+}
+
+function runtimeMessage(plugin: PluginInstallation): string {
+  return plugin.runtime_healthy
+    ? t("admin.plugins.runtimeReady")
+    : t("admin.plugins.runtimeUnavailable");
 }
 
 function hasEnabledBinding(plugin: PluginInstallation): boolean {
@@ -513,8 +543,8 @@ async function testPlugin(plugin: PluginInstallation): Promise<void> {
       adminAPI.plugins.test(plugin.id),
     );
     if (result.success)
-      appStore.showSuccess(result.message || t("admin.plugins.testSuccess"));
-    else appStore.showError(result.message || t("common.error"));
+      appStore.showSuccess(t("admin.plugins.testSuccess"));
+    else appStore.showError(t("admin.plugins.testFailed"));
   } catch (error: unknown) {
     reportSensitiveActionError(error);
   } finally {
@@ -656,8 +686,7 @@ async function handleBridgeMessage(event: MessageEvent): Promise<void> {
         // toast on failure so genuine errors are never silently dropped — plugins
         // may call config.test for lightweight status polling, not just as an
         // explicit "test" action, and those must not spam a success toast.
-        if (!result.success)
-          appStore.showError(result.message || t("common.error"));
+        if (!result.success) appStore.showError(t("admin.plugins.testFailed"));
         break;
       }
       case "plugin.status": {

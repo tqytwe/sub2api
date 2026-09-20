@@ -9,14 +9,22 @@ const {
   enablePlugin,
   savePluginConfig,
   createUISession,
+  testPlugin,
   stepUpRun,
+  activeLocale,
+  showError,
+  showSuccess,
 } = vi.hoisted(() => ({
   listPlugins: vi.fn(),
   uploadPlugin: vi.fn(),
   enablePlugin: vi.fn(),
   savePluginConfig: vi.fn(),
   createUISession: vi.fn(),
+  testPlugin: vi.fn(),
   stepUpRun: vi.fn((action: () => Promise<unknown>) => action()),
+  activeLocale: { value: 'zh-CN' },
+  showError: vi.fn(),
+  showSuccess: vi.fn(),
 }))
 
 vi.mock('@/api/admin', () => ({
@@ -29,7 +37,7 @@ vi.mock('@/api/admin', () => ({
       remove: vi.fn(),
       getConfig: vi.fn().mockResolvedValue({}),
       saveConfig: savePluginConfig,
-      test: vi.fn().mockResolvedValue({ success: true, message: 'ok', latency_ms: 1 }),
+      test: testPlugin,
       createUISession,
     },
   },
@@ -37,8 +45,8 @@ vi.mock('@/api/admin', () => ({
 
 vi.mock('@/stores', () => ({
   useAppStore: () => ({
-    showError: vi.fn(),
-    showSuccess: vi.fn(),
+    showError,
+    showSuccess,
     showInfo: vi.fn(),
   }),
 }))
@@ -52,7 +60,7 @@ vi.mock('@/composables/useStepUp', () => ({
 
 vi.mock('vue-i18n', async (importOriginal) => ({
   ...(await importOriginal<typeof import('vue-i18n')>()),
-  useI18n: () => ({ t: (key: string) => key }),
+  useI18n: () => ({ t: (key: string) => key, locale: activeLocale }),
 }))
 
 const plugin = {
@@ -97,7 +105,7 @@ const plugin = {
     compatible: true,
     tested: true,
     status: 'compatible' as const,
-    message: '',
+    message: '当前 Sub2API 版本已由插件声明测试',
     current_sub2api_version: '0.1.0',
     required_sub2api_version: '>=0.1.0',
     recommended_sub2api_version: '0.1.0',
@@ -106,7 +114,7 @@ const plugin = {
     ui_bridge: 1,
   },
   runtime_healthy: false,
-  runtime_message: '',
+  runtime_message: '插件进程运行中',
 }
 
 function mountView() {
@@ -125,11 +133,13 @@ function mountView() {
 describe('管理员插件页二次验证', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    activeLocale.value = 'zh-CN'
     stepUpRun.mockImplementation((action: () => Promise<unknown>) => action())
     listPlugins.mockResolvedValue([plugin])
     uploadPlugin.mockResolvedValue(plugin)
     enablePlugin.mockResolvedValue(plugin)
     savePluginConfig.mockResolvedValue({ enabled: true })
+    testPlugin.mockResolvedValue({ success: true, message: '检查通过', latency_ms: 1 })
     createUISession.mockResolvedValue({
       url: '/api/v1/plugin-ui/token/index.html#bridge_token=bridge',
       bridge_token: 'bridge',
@@ -165,5 +175,56 @@ describe('管理员插件页二次验证', () => {
 
     expect(stepUpRun).toHaveBeenCalledTimes(1)
     expect(uploadPlugin).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([
+    ['zh-CN', 'zh'],
+    ['en-US', 'en'],
+    ['fr-FR', 'zh'],
+  ])('插件配置 iframe 为 %s 传递规范化语言 %s', async (locale, expected) => {
+    activeLocale.value = locale
+    const wrapper = mountView()
+    await flushPromises()
+
+    const button = wrapper.findAll('button').find((item) => item.text().includes('admin.plugins.configure'))
+    expect(button).toBeDefined()
+    await button!.trigger('click')
+    await flushPromises()
+
+    const src = wrapper.get('iframe').attributes('src')
+    const fragment = new URLSearchParams(src.split('#')[1])
+    expect(fragment.get('bridge_token')).toBe('bridge')
+    expect(fragment.get('locale')).toBe(expected)
+  })
+
+  it('英文路径不直接渲染后端中文兼容性和运行状态', async () => {
+    activeLocale.value = 'en-US'
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(wrapper.text()).not.toContain('当前 Sub2API 版本已由插件声明测试')
+    expect(wrapper.text()).not.toContain('插件进程运行中')
+    expect(wrapper.text()).toContain('admin.plugins.compatibleMessage')
+  })
+
+  it('英文路径测试结果不直接显示插件中文消息', async () => {
+    activeLocale.value = 'en-US'
+    const wrapper = mountView()
+    await flushPromises()
+
+    const button = wrapper.findAll('button').find((item) => item.text() === 'admin.plugins.test')
+    expect(button).toBeDefined()
+    await button!.trigger('click')
+    await flushPromises()
+
+    expect(showSuccess).toHaveBeenCalledWith('admin.plugins.testSuccess')
+    expect(showSuccess).not.toHaveBeenCalledWith('检查通过')
+
+    testPlugin.mockResolvedValueOnce({ success: false, message: '配置检查失败', latency_ms: 1 })
+    await button!.trigger('click')
+    await flushPromises()
+
+    expect(showError).toHaveBeenCalledWith('admin.plugins.testFailed')
+    expect(showError).not.toHaveBeenCalledWith('配置检查失败')
   })
 })

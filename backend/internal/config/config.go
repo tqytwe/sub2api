@@ -127,8 +127,13 @@ type ForumSSOConfig struct {
 	UserLanguage          string `mapstructure:"user_language"`
 }
 
+const (
+	jisudengStateKitPublisherID        = "jisudeng-state-kit-release-v1"
+	jisudengStateKitPublisherPublicKey = "gOmq1bdG5kWsA6xe1Oho8L/9FWLfxOeVghA6BN50viM="
+)
+
 // PluginConfig 控制管理员手动上传的本地进程插件。
-// 默认不包含插件，也不允许安装未签名插件；TrustedPublishers 用于追加第三方发布者。
+// 默认不包含插件，也不允许安装未签名插件；TrustedPublishers 用于追加或轮换可信发布者。
 type PluginConfig struct {
 	DataDir              string            `mapstructure:"data_dir"`
 	AllowUnsigned        bool              `mapstructure:"allow_unsigned"`
@@ -1917,6 +1922,7 @@ func load(allowMissingJWTSecret bool) (*Config, error) {
 	if err := viper.Unmarshal(&cfg); err != nil {
 		return nil, fmt.Errorf("unmarshal config error: %w", err)
 	}
+	cfg.Plugins.TrustedPublishers = withBuiltInPluginPublishers(cfg.Plugins.TrustedPublishers)
 	if trustedProxiesEnvConfigured {
 		cfg.Server.TrustedProxies = normalizeStringSlice(strings.Split(trustedProxiesEnv, ","))
 	}
@@ -2075,6 +2081,17 @@ func load(allowMissingJWTSecret bool) (*Config, error) {
 	}
 
 	return &cfg, nil
+}
+
+func withBuiltInPluginPublishers(configured map[string]string) map[string]string {
+	merged := make(map[string]string, len(configured)+1)
+	for id, publicKey := range configured {
+		merged[id] = publicKey
+	}
+	if _, exists := merged[jisudengStateKitPublisherID]; !exists {
+		merged[jisudengStateKitPublisherID] = jisudengStateKitPublisherPublicKey
+	}
+	return merged
 }
 
 func configureConfigSource(setConfigFile, addConfigPath func(string)) {
