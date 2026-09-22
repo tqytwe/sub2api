@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Growth reward blocking states prototype</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 32px; font-family: Arial, sans-serif; color: #172033; background: #f5f7fa; }
+    h1 { margin: 0 0 8px; font-size: 24px; letter-spacing: 0; }
+    .intro { margin: 0 0 24px; color: #5f6b7a; font-size: 14px; }
+    .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+    .panel { padding: 20px; border: 1px solid #d9dee7; border-radius: 8px; background: #fff; }
+    h2 { margin: 0 0 16px; font-size: 18px; letter-spacing: 0; }
+    .state { margin-top: 12px; padding: 12px; border-left: 4px solid #c77a00; background: #fff8e8; }
+    .state strong { display: block; margin-bottom: 4px; font-size: 14px; }
+    .state p { margin: 0; color: #495567; font-size: 13px; line-height: 1.55; }
+    .pool { border-left-color: #b32929; background: #fff1f1; }
+    .success { border-left-color: #16845b; background: #edf9f4; }
+    @media (max-width: 760px) { body { padding: 16px; } .grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <h1>签到与盲盒阻断原因</h1>
+  <p class="intro">状态必须反映真实运行条件；治理阻断不得显示成“奖池正在配置”。</p>
+  <main class="grid">
+    <section class="panel">
+      <h2>每日签到</h2>
+      <div class="state"><strong>治理尚未审批</strong><p>签到奖励尚未通过运营审批，请稍后再试。</p></div>
+      <div class="state"><strong>未命中灰度</strong><p>当前账号暂未进入本轮奖励灰度范围。</p></div>
+      <div class="state"><strong>预算耗尽</strong><p>本轮签到奖励预算已用尽，请等待下一轮审批。</p></div>
+      <div class="state pool"><strong>奖池不可用</strong><p>签到优惠券奖池尚未发布或已失效。</p></div>
+      <div class="state success"><strong>可以签到</strong><p>治理、资格与奖池均已就绪。</p></div>
+    </section>
+    <section class="panel">
+      <h2>幸运盲盒</h2>
+      <div class="state"><strong>治理尚未审批</strong><p>盲盒奖励尚未通过运营审批，请稍后再试。</p></div>
+      <div class="state"><strong>未命中灰度</strong><p>当前账号暂未进入本轮奖励灰度范围。</p></div>
+      <div class="state"><strong>预算耗尽</strong><p>本轮盲盒奖励预算已用尽，请等待下一轮审批。</p></div>
+      <div class="state pool"><strong>奖池不可用</strong><p>优惠券奖池尚未发布；只有此状态显示奖池文案。</p></div>
+      <div class="state success"><strong>可以开奖</strong><p>治理、资格、余额奖池与优惠券奖池均已就绪。</p></div>
+    </section>
+  </main>
+</body>
+</html>

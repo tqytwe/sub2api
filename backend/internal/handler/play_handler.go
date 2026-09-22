@@ -36,26 +36,28 @@ const (
 )
 
 type playCheckinStatusDTO struct {
-	Enabled                  bool                          `json:"enabled"`
-	Eligible                 bool                          `json:"eligible"`
-	IneligibleReason         string                        `json:"ineligible_reason,omitempty"`
-	CheckedInToday           bool                          `json:"checked_in_today"`
-	RewardAmount             float64                       `json:"reward_amount"`
-	CouponPoolReady          bool                          `json:"coupon_pool_ready"`
-	CouponWeightBP           int                           `json:"coupon_weight_bp"`
-	RedeemCodeWeightBP       int                           `json:"redeem_code_weight_bp"`
-	BalanceWeightBP          int                           `json:"balance_weight_bp"`
-	ServerDate               string                        `json:"server_date"`
-	StreakCount              int                           `json:"streak_count,omitempty"`
-	NextMilestoneDays        int                           `json:"next_milestone_days,omitempty"`
-	NextMilestoneBonus       float64                       `json:"next_milestone_bonus,omitempty"`
-	CanMakeup                bool                          `json:"can_makeup,omitempty"`
-	MakeupDate               string                        `json:"makeup_date,omitempty"`
-	RechargeBoostActive      bool                          `json:"recharge_boost_active,omitempty"`
-	BoostCheckinMultiplier   float64                       `json:"boost_checkin_multiplier,omitempty"`
-	GrowthEligibility        service.PlayGrowthEligibility `json:"growth_eligibility"`
-	GrowthEnergyEnabled      bool                          `json:"growth_energy_enabled"`
-	RedeemableRewardEligible bool                          `json:"redeemable_reward_eligible"`
+	Enabled                   bool                          `json:"enabled"`
+	Eligible                  bool                          `json:"eligible"`
+	IneligibleReason          string                        `json:"ineligible_reason,omitempty"`
+	CheckedInToday            bool                          `json:"checked_in_today"`
+	RewardAmount              float64                       `json:"reward_amount"`
+	CouponPoolReady           bool                          `json:"coupon_pool_ready"`
+	CouponWeightBP            int                           `json:"coupon_weight_bp"`
+	RedeemCodeWeightBP        int                           `json:"redeem_code_weight_bp"`
+	BalanceWeightBP           int                           `json:"balance_weight_bp"`
+	ServerDate                string                        `json:"server_date"`
+	StreakCount               int                           `json:"streak_count,omitempty"`
+	NextMilestoneDays         int                           `json:"next_milestone_days,omitempty"`
+	NextMilestoneBonus        float64                       `json:"next_milestone_bonus,omitempty"`
+	CanMakeup                 bool                          `json:"can_makeup,omitempty"`
+	MakeupDate                string                        `json:"makeup_date,omitempty"`
+	RechargeBoostActive       bool                          `json:"recharge_boost_active,omitempty"`
+	BoostCheckinMultiplier    float64                       `json:"boost_checkin_multiplier,omitempty"`
+	GrowthEligibility         service.PlayGrowthEligibility `json:"growth_eligibility"`
+	GrowthEnergyEnabled       bool                          `json:"growth_energy_enabled"`
+	RedeemableRewardEligible  bool                          `json:"redeemable_reward_eligible"`
+	GrowthGovernanceAvailable bool                          `json:"growth_governance_available"`
+	GrowthGovernanceReason    string                        `json:"growth_governance_reason,omitempty"`
 }
 
 type playCheckinResultDTO struct {
@@ -299,28 +301,37 @@ func (h *PlayHandler) CheckinStatus(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
-	response.Success(c, playCheckinStatusDTO{
-		Enabled:                  status.Enabled,
-		Eligible:                 status.Eligible,
-		IneligibleReason:         status.IneligibleReason,
-		CheckedInToday:           status.CheckedInToday,
-		RewardAmount:             status.RewardAmount,
-		CouponPoolReady:          status.CouponPoolReady,
-		CouponWeightBP:           status.CouponWeightBP,
-		RedeemCodeWeightBP:       status.RedeemCodeWeightBP,
-		BalanceWeightBP:          status.BalanceWeightBP,
-		ServerDate:               status.ServerDate,
-		StreakCount:              status.StreakCount,
-		NextMilestoneDays:        status.NextMilestoneDays,
-		NextMilestoneBonus:       status.NextMilestoneBonus,
-		CanMakeup:                status.CanMakeup,
-		MakeupDate:               status.MakeupDate,
-		RechargeBoostActive:      status.RechargeBoostActive,
-		BoostCheckinMultiplier:   status.BoostCheckinMultiplier,
-		GrowthEligibility:        status.GrowthEligibility,
-		GrowthEnergyEnabled:      status.GrowthEnergyEnabled,
-		RedeemableRewardEligible: status.RedeemableRewardEligible,
-	})
+	response.Success(c, toPlayCheckinStatusDTO(status))
+}
+
+func toPlayCheckinStatusDTO(status *service.PlayCheckinStatus) playCheckinStatusDTO {
+	if status == nil {
+		return playCheckinStatusDTO{}
+	}
+	return playCheckinStatusDTO{
+		Enabled:                   status.Enabled,
+		Eligible:                  status.Eligible,
+		IneligibleReason:          status.IneligibleReason,
+		CheckedInToday:            status.CheckedInToday,
+		RewardAmount:              status.RewardAmount,
+		CouponPoolReady:           status.CouponPoolReady,
+		CouponWeightBP:            status.CouponWeightBP,
+		RedeemCodeWeightBP:        status.RedeemCodeWeightBP,
+		BalanceWeightBP:           status.BalanceWeightBP,
+		ServerDate:                status.ServerDate,
+		StreakCount:               status.StreakCount,
+		NextMilestoneDays:         status.NextMilestoneDays,
+		NextMilestoneBonus:        status.NextMilestoneBonus,
+		CanMakeup:                 status.CanMakeup,
+		MakeupDate:                status.MakeupDate,
+		RechargeBoostActive:       status.RechargeBoostActive,
+		BoostCheckinMultiplier:    status.BoostCheckinMultiplier,
+		GrowthEligibility:         status.GrowthEligibility,
+		GrowthEnergyEnabled:       status.GrowthEnergyEnabled,
+		RedeemableRewardEligible:  status.RedeemableRewardEligible,
+		GrowthGovernanceAvailable: status.GrowthGovernanceAvailable,
+		GrowthGovernanceReason:    status.GrowthGovernanceReason,
+	}
 }
 
 // CheckinMakeup backfills yesterday's missed check-in after a recent recharge.

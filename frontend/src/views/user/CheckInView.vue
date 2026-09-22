@@ -24,10 +24,14 @@ const growthEligibility = computed(() => status.value?.growth_eligibility)
 const growthEnergyMode = computed(
   () => status.value?.growth_energy_enabled || growthEligibility.value?.reward_mode === 'energy',
 )
+const governanceBlocked = computed(
+  () => !growthEnergyMode.value && status.value?.growth_governance_available === false,
+)
 const canCheckIn = computed(
   () =>
     status.value?.enabled &&
     !status.value.checked_in_today &&
+    !governanceBlocked.value &&
     !submitting.value,
 )
 const canMakeup = computed(
@@ -80,6 +84,13 @@ function growthProgressMessage(eligibility?: PlayGrowthEligibility) {
     recharge: progress.net_balance_recharge_30d.toFixed(2),
     minimumRecharge: progress.minimum_recharge_cny.toFixed(2),
   })
+}
+
+function governanceMessage(reason?: string) {
+  if (reason === 'rollout_excluded') return t('checkin.governanceRolloutExcluded')
+  if (reason === 'budget_exhausted') return t('checkin.governanceBudgetExhausted')
+  if (reason === 'unavailable') return t('checkin.governanceUnavailable')
+  return t('checkin.governanceNotApproved')
 }
 
 async function handleCheckin() {
@@ -209,6 +220,9 @@ onMounted(loadStatus)
               <p class="gw-quest-banner-title">{{ t('checkin.energyTitle') }}</p>
               <p class="gw-subtitle">{{ growthReasonMessage(growthEligibility?.primary_reason) }}</p>
               <p class="gw-subtitle">{{ growthProgressMessage(growthEligibility) }}</p>
+            </div>
+            <div v-else-if="governanceBlocked" class="gw-quest-banner gw-quest-banner--warn" role="status">
+              <p class="gw-quest-banner-title">{{ governanceMessage(status?.growth_governance_reason) }}</p>
             </div>
             <button
               type="button"

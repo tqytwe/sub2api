@@ -15,28 +15,30 @@ import (
 )
 
 type playBlindboxStatusDTO struct {
-	Enabled             bool                             `json:"enabled"`
-	CouponPoolReady     bool                             `json:"coupon_pool_ready"`
-	CouponPrizes        []service.PlayCouponPrizePreview `json:"coupon_prizes,omitempty"`
-	CouponWeightBP      int                              `json:"coupon_weight_bp,omitempty"`
-	BalanceWeightBP     int                              `json:"balance_weight_bp,omitempty"`
-	CostAmount          float64                          `json:"cost_amount,omitempty"`
-	Pool                *playBlindboxPoolDTO             `json:"pool,omitempty"`
-	CurrentPool         *playBlindboxPoolDTO             `json:"current_pool,omitempty"`
-	NextPool            *playBlindboxPoolDTO             `json:"next_pool,omitempty"`
-	VIPTier             service.PlayVIPStatus            `json:"vip_tier"`
-	ExpectedReward      float64                          `json:"expected_reward,omitempty"`
-	NextExpectedReward  float64                          `json:"next_expected_reward,omitempty"`
-	PoolVersion         string                           `json:"pool_version,omitempty"`
-	RTPCap              float64                          `json:"rtp_cap,omitempty"`
-	DailyLimit          int                              `json:"daily_limit"`
-	EffectiveLimit      int                              `json:"effective_limit,omitempty"`
-	OpensToday          int                              `json:"opens_today"`
-	CanOpen             bool                             `json:"can_open"`
-	ServerDate          string                           `json:"server_date"`
-	GrowthEligibility   service.PlayGrowthEligibility    `json:"growth_eligibility"`
-	RechargeBoostActive bool                             `json:"recharge_boost_active,omitempty"`
-	CampaignActive      bool                             `json:"campaign_active,omitempty"`
+	Enabled                   bool                             `json:"enabled"`
+	CouponPoolReady           bool                             `json:"coupon_pool_ready"`
+	CouponPrizes              []service.PlayCouponPrizePreview `json:"coupon_prizes,omitempty"`
+	CouponWeightBP            int                              `json:"coupon_weight_bp,omitempty"`
+	BalanceWeightBP           int                              `json:"balance_weight_bp,omitempty"`
+	CostAmount                float64                          `json:"cost_amount,omitempty"`
+	Pool                      *playBlindboxPoolDTO             `json:"pool,omitempty"`
+	CurrentPool               *playBlindboxPoolDTO             `json:"current_pool,omitempty"`
+	NextPool                  *playBlindboxPoolDTO             `json:"next_pool,omitempty"`
+	VIPTier                   service.PlayVIPStatus            `json:"vip_tier"`
+	ExpectedReward            float64                          `json:"expected_reward,omitempty"`
+	NextExpectedReward        float64                          `json:"next_expected_reward,omitempty"`
+	PoolVersion               string                           `json:"pool_version,omitempty"`
+	RTPCap                    float64                          `json:"rtp_cap,omitempty"`
+	DailyLimit                int                              `json:"daily_limit"`
+	EffectiveLimit            int                              `json:"effective_limit,omitempty"`
+	OpensToday                int                              `json:"opens_today"`
+	CanOpen                   bool                             `json:"can_open"`
+	ServerDate                string                           `json:"server_date"`
+	GrowthEligibility         service.PlayGrowthEligibility    `json:"growth_eligibility"`
+	RechargeBoostActive       bool                             `json:"recharge_boost_active,omitempty"`
+	CampaignActive            bool                             `json:"campaign_active,omitempty"`
+	GrowthGovernanceAvailable bool                             `json:"growth_governance_available"`
+	GrowthGovernanceReason    string                           `json:"growth_governance_reason,omitempty"`
 }
 
 type playUserTeamSettlementDTO struct {
@@ -279,16 +281,18 @@ func toPlayBlindboxStatusDTO(status *service.PlayBlindboxStatus, authenticated b
 	// Reward details are an account-scoped, redeemable-only contract.
 	rewardDetailsVisible := authenticated && status.GrowthEligibility.RewardMode == service.PlayGrowthRewardRedeemable
 	out := playBlindboxStatusDTO{
-		Enabled:             status.Enabled,
-		CouponPoolReady:     status.CouponPoolReady,
-		DailyLimit:          status.DailyLimit,
-		EffectiveLimit:      status.EffectiveLimit,
-		OpensToday:          status.OpensToday,
-		CanOpen:             status.CanOpen,
-		ServerDate:          status.ServerDate,
-		GrowthEligibility:   status.GrowthEligibility,
-		RechargeBoostActive: status.RechargeBoostActive,
-		CampaignActive:      status.CampaignActive,
+		Enabled:                   status.Enabled,
+		CouponPoolReady:           status.CouponPoolReady,
+		DailyLimit:                status.DailyLimit,
+		EffectiveLimit:            status.EffectiveLimit,
+		OpensToday:                status.OpensToday,
+		CanOpen:                   status.CanOpen,
+		ServerDate:                status.ServerDate,
+		GrowthEligibility:         status.GrowthEligibility,
+		RechargeBoostActive:       status.RechargeBoostActive,
+		CampaignActive:            status.CampaignActive,
+		GrowthGovernanceAvailable: status.GrowthGovernanceAvailable,
+		GrowthGovernanceReason:    status.GrowthGovernanceReason,
 	}
 	if rewardDetailsVisible {
 		out.CouponPrizes = status.CouponPrizes

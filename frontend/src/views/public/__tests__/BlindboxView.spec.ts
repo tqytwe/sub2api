@@ -202,6 +202,29 @@ describe('BlindboxView', () => {
     expect(wrapper.text()).toContain('$20.00')
   })
 
+  it('shows governance approval blocking instead of reporting the configured pool unavailable', async () => {
+    authState.isAuthenticated = true
+    getBlindboxStatusMock.mockResolvedValue({
+      ...configuredStatus(),
+      coupon_pool_ready: false,
+      can_open: false,
+      growth_governance_available: false,
+      growth_governance_reason: 'not_approved',
+      growth_eligibility: {
+        tier: 'active',
+        reward_mode: 'redeemable',
+        primary_reason: 'eligible',
+      },
+    })
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('blindbox.governanceNotApproved')
+    expect(wrapper.text()).not.toContain('blindbox.couponPoolUnavailable')
+    expect(wrapper.get('button.play-btn-primary').attributes('disabled')).toBeDefined()
+  })
+
   it('reloads the authenticated status when a guest signs in without a page refresh', async () => {
     getBlindboxPoolMock.mockResolvedValue({ enabled: true, pool: configuredPool })
     getBlindboxStatusMock.mockResolvedValue(configuredStatus())

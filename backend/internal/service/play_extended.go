@@ -51,7 +51,14 @@ func (s *PlayService) GetBlindboxStatus(ctx context.Context, userID int64) (*Pla
 		out.GrowthGovernanceAvailable = governanceAvailable
 		out.GrowthGovernanceReason = governanceReason
 		if !governanceAvailable {
-			out.CouponPoolReady = false
+			// Keep pool readiness truthful even when governance blocks this
+			// account. The UI must report the governance reason, not blame the
+			// coupon pool for an operational approval decision.
+			ready, readyErr := s.couponRewardPoolReady(ctx, CouponRewardActivityBlindbox)
+			if readyErr != nil {
+				return nil, readyErr
+			}
+			out.CouponPoolReady = ready
 			opens, countErr := s.repo.CountBlindboxOpens(ctx, userID, date)
 			if countErr != nil {
 				return nil, countErr
