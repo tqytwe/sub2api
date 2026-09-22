@@ -687,7 +687,7 @@ const userTrendChartData = computed(() => {
       return email
     }
 
-    return t('admin.redeem.userPrefix', { id: point.user_id })
+    return t('common.userId', { id: point.user_id })
   }
 
   // Group by user_id to avoid merging different users with the same display name

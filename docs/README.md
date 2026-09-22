@@ -41,6 +41,9 @@
 | [支付配置（中文）](./PAYMENT_CN.md) | `reference` | 上游内置支付配置 | 支付维护者 | 2026-07-15 |
 | [Payment configuration](./PAYMENT.md) | `reference` | Upstream payment configuration | 支付维护者 | 2026-07-15 |
 | [插件开发指南](./PLUGIN_DEVELOPMENT.md) | `reference` | 上游插件包、运行时和 UI bridge 开发约束 | 插件维护者 | 2026-08-25 |
+| [State Kit 插件集成边界](./STATE_KIT_PLUGIN_INTEGRATION.md) | `reference` | v0.2.7 官方插件协议、宿主边界和双语验收要求 | 插件维护者 | 2026-09-19 |
+| [Antigravity 429 归因](./ANTIGRAVITY_ATTRIBUTION_429.md) | `reference` | Antigravity 429 归因和重试边界 | 网关维护者 | 2026-09-19 |
+| [Seedance API](./seedance-api.md) | `reference` | Seedance API 路由和请求契约 | 网关维护者 | 2026-09-19 |
 | [Android Google Play Billing 接入手册](./ANDROID_PLAY_BILLING_RUNBOOK.md) | `active` | Play 版数字权益内购、服务端验单、后台商品映射和国内/Play 支付分流 | 移动端与支付维护者 | 2026-08-12 |
 | [外部支付 Admin API](./ADMIN_PAYMENT_INTEGRATION_API.md) | `reference` | 外部支付系统对接 | 支付维护者 | 2026-07-15 |
 | [BEpusdt 上线前检查清单](./BEPUSDT_PREDEPLOY_CHECKLIST.md) | `proposal` | CNY 结算、数据库契约、回调和真实支付验收门禁 | 支付维护者 | 2026-08-08 |

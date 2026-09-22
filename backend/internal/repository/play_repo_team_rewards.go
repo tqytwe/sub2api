@@ -377,8 +377,8 @@ func (r *playRepository) RefreshTeamRewardSettlementStatus(
 	}
 	if _, err := r.sqlExec(ctx).ExecContext(ctx, `
 		UPDATE play_team_settlements
-		SET status = $2,
-		    completed_at = CASE WHEN $2 = 'completed' THEN COALESCE(completed_at, NOW()) ELSE NULL END,
+		SET status = $2::varchar,
+		    completed_at = CASE WHEN $2::varchar = 'completed'::varchar THEN COALESCE(completed_at, NOW()) ELSE NULL END,
 		    updated_at = NOW()
 		WHERE id = $1`, settlementID, status); err != nil {
 		return nil, fmt.Errorf("refresh team reward settlement status: %w", err)

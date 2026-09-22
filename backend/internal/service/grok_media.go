@@ -35,10 +35,16 @@ const (
 )
 
 func (e GrokMediaEndpoint) RequiresRequestBody() bool {
+	if e.IsSeedance() {
+		return e == SeedanceEndpointCreate
+	}
 	return !e.IsVideoLookupRequest()
 }
 
 func (e GrokMediaEndpoint) IsVideoLookupRequest() bool {
+	if e.IsSeedance() {
+		return e == SeedanceEndpointStatus || e == SeedanceEndpointDelete
+	}
 	return e == GrokMediaEndpointVideoStatus || e == GrokMediaEndpointVideoContent
 }
 
@@ -527,6 +533,34 @@ func (s *OpenAIGatewayService) ResolveGrokMediaVideoRequestAccount(
 	return s.cache.GetSessionAccountID(ctx, derefGroupID(groupID), cacheKey)
 }
 
+func (s *OpenAIGatewayService) SelectGrokMediaVideoRequestAccount(ctx context.Context, groupID *int64, sessionHash string, accountID int64, requestedModel string) (*AccountSelectionResult, OpenAIAccountScheduleDecision, error) {
+	return s.SelectMediaVideoRequestAccount(ctx, groupID, sessionHash, accountID, requestedModel, PlatformGrok)
+}
+
+func (s *OpenAIGatewayService) SelectMediaVideoRequestAccount(ctx context.Context, groupID *int64, sessionHash string, accountID int64, requestedModel, platform string, requiredCapability ...OpenAIEndpointCapability) (*AccountSelectionResult, OpenAIAccountScheduleDecision, error) {
+	decision := OpenAIAccountScheduleDecision{Layer: openAIAccountScheduleLayerSessionSticky}
+	if accountID <= 0 || strings.TrimSpace(sessionHash) == "" {
+		return nil, decision, ErrNoAvailableAccounts
+	}
+	ctx = s.withOpenAIGroupPrivacyRequirement(WithOpenAIProfitControlSuppressed(ctx), groupID)
+	scheduler := &defaultOpenAIAccountScheduler{service: s}
+	required := OpenAIEndpointCapability("")
+	if len(requiredCapability) > 0 {
+		required = requiredCapability[0]
+	}
+	selection, _, err := scheduler.selectBySessionHash(ctx, OpenAIAccountScheduleRequest{GroupID: groupID, Platform: platform, SessionHash: sessionHash, StickyAccountID: accountID, PreserveStickyBinding: true, DisableStickyEscape: true, RequestedModel: requestedModel, RequiredTransport: OpenAIUpstreamTransportHTTPSSE, RequiredCapability: required, RequirePrivacySet: s.openAIGroupRequiresPrivacySet(ctx, groupID)})
+	if err != nil {
+		return nil, decision, err
+	}
+	if selection == nil || selection.Account == nil {
+		return nil, decision, ErrNoAvailableAccounts
+	}
+	decision.StickySessionHit = true
+	decision.SelectedAccountID = selection.Account.ID
+	decision.SelectedAccountType = selection.Account.Type
+	return selection, decision, nil
+}
+
 func (s *OpenAIGatewayService) ForwardGrokMedia(
 	ctx context.Context,
 	c *gin.Context,
@@ -539,6 +573,9 @@ func (s *OpenAIGatewayService) ForwardGrokMedia(
 	startTime := time.Now()
 	if account == nil {
 		return nil, fmt.Errorf("grok account is required")
+	}
+	if endpoint.IsSeedance() {
+		return s.ForwardSeedance(ctx, c, account, endpoint, requestID, body)
 	}
 	if account.Platform != PlatformGrok {
 		return nil, fmt.Errorf("account platform %s is not supported for grok media", account.Platform)
@@ -654,6 +691,7 @@ func (s *OpenAIGatewayService) ForwardGrokMedia(
 	usage := grokMediaUsageFromResponse(endpoint, requestInfo, respBody)
 	return &OpenAIForwardResult{
 		RequestID:            requestIDHeader,
+		UpstreamHeaders:      resp.Header,
 		ResponseID:           usage.ResponseID,
 		Usage:                usage.Usage,
 		Model:                requestModel,
@@ -785,6 +823,7 @@ func (s *OpenAIGatewayService) forwardGrokMediaVideoContent(
 	}
 	return &OpenAIForwardResult{
 		RequestID:       contentRequestID,
+		UpstreamHeaders: contentResp.Header,
 		ResponseHeaders: contentResp.Header.Clone(),
 		Duration:        time.Since(startTime),
 	}, nil
@@ -1192,6 +1231,8 @@ func (s *OpenAIGatewayService) handleGrokMediaErrorResponse(
 	if isGrokContentPolicyRejection(resp.StatusCode, body) {
 		clientMsg := grokContentPolicyClientMessage(body)
 		appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+			ProxyID:            opsUpstreamProxyID(account),
+			ProxyName:          opsUpstreamProxyName(account),
 			Platform:           account.Platform,
 			AccountID:          account.ID,
 			AccountName:        account.Name,
@@ -1222,6 +1263,8 @@ func (s *OpenAIGatewayService) handleGrokMediaErrorResponse(
 
 	if !account.ShouldHandleErrorCode(resp.StatusCode) {
 		appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+			ProxyID:            opsUpstreamProxyID(account),
+			ProxyName:          opsUpstreamProxyName(account),
 			Platform:           account.Platform,
 			AccountID:          account.ID,
 			AccountName:        account.Name,
@@ -1241,6 +1284,8 @@ func (s *OpenAIGatewayService) handleGrokMediaErrorResponse(
 		kind = "failover"
 	}
 	appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+		ProxyID:            opsUpstreamProxyID(account),
+		ProxyName:          opsUpstreamProxyName(account),
 		Platform:           account.Platform,
 		AccountID:          account.ID,
 		AccountName:        account.Name,

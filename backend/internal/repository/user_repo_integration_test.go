@@ -30,12 +30,11 @@ func (s *UserRepoSuite) SetupTest() {
 	s.client = testEntClient(s.T())
 	s.repo = newUserRepositoryWithSQL(s.client, integrationDB)
 
-	// 清理测试数据，确保每个测试从干净状态开始
-	_, _ = integrationDB.ExecContext(s.ctx, "DELETE FROM auth_identity_channels")
-	_, _ = integrationDB.ExecContext(s.ctx, "DELETE FROM auth_identities")
-	_, _ = integrationDB.ExecContext(s.ctx, "DELETE FROM user_subscriptions")
-	_, _ = integrationDB.ExecContext(s.ctx, "DELETE FROM user_allowed_groups")
-	_, _ = integrationDB.ExecContext(s.ctx, "DELETE FROM users")
+	// User-related tables have grown beyond this suite's original hand-maintained
+	// delete list. Let PostgreSQL follow the real foreign-key graph so each test
+	// begins without rows left by earlier package integration tests.
+	_, err := integrationDB.ExecContext(s.ctx, "TRUNCATE users CASCADE")
+	s.Require().NoError(err)
 }
 
 func TestUserRepoSuite(t *testing.T) {

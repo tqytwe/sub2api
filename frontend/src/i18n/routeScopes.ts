@@ -135,8 +135,11 @@ const ADMIN = ['core', 'workspace-shell', 'admin-shell'] as const
 export const ROUTE_LOCALE_SCOPES = {
   Setup: ['core'],
   EnglishHome: ['core'],
-  EnglishModels: [...PUBLIC, 'user-dashboard'],
-  EnglishModelFamily: [...PUBLIC, 'user-dashboard'],
+  // ModelPlaza conditionally mounts AppLayout for authenticated embedded
+  // visits. Keep the shell explicit so a cold embedded visit never renders
+  // sidebar keys before their active-language messages arrive.
+  EnglishModels: [...PUBLIC, 'workspace-shell', 'user-dashboard'],
+  EnglishModelFamily: [...PUBLIC, 'workspace-shell', 'user-dashboard'],
   EnglishStatus: PUBLIC,
   EnglishDocs: PUBLIC,
   EnglishAbout: PUBLIC,
@@ -161,29 +164,31 @@ export const ROUTE_LOCALE_SCOPES = {
   Contact: PUBLIC,
   ContactQQ: PUBLIC,
   Docs: PUBLIC,
-  Blindbox: [...PUBLIC, 'user-dashboard'],
-  Arena: [...PUBLIC, 'user-dashboard'],
-  QuizQuest: [...PUBLIC, 'user-dashboard'],
-  Models: [...PUBLIC, 'user-dashboard'],
-  ModelFamily: [...PUBLIC, 'user-dashboard'],
+  // Public Play pages mount AuthenticatedPlayShell, which statically includes
+  // AppLayout for signed-in visitors.
+  Blindbox: [...PUBLIC, 'workspace-shell', 'user-dashboard'],
+  Arena: [...PUBLIC, 'workspace-shell', 'user-dashboard'],
+  QuizQuest: [...PUBLIC, 'workspace-shell', 'user-dashboard'],
+  Models: [...PUBLIC, 'workspace-shell', 'user-dashboard'],
+  ModelFamily: [...PUBLIC, 'workspace-shell', 'user-dashboard'],
   Status: PUBLIC,
-  AgentTeam: [...PUBLIC, 'user-dashboard'],
+  AgentTeam: [...PUBLIC, 'workspace-shell', 'user-dashboard'],
   Home: ['core'],
   Dashboard: [...WORKSPACE, 'user-dashboard'],
   Keys: [...WORKSPACE, 'user-dashboard'],
   KeySpeedTest: [...WORKSPACE, 'user-dashboard'],
   BatchImageGuide: [...WORKSPACE, 'user-dashboard', 'user-batch'],
-  // The user usage page reuses a compact admin-namespaced label subset. Keep
-  // it separate from the much larger admin resources fragment.
-  Usage: [...WORKSPACE, 'user-dashboard', 'user-usage'],
+  // UsageTable is shared with admin usage and renders several admin resource
+  // labels. Its full dependency must be available before a cold user visit.
+  Usage: [...WORKSPACE, 'user-dashboard', 'user-usage', 'admin-resources'],
   Wallet: [...WORKSPACE, 'user-dashboard', 'user-wallet', 'user-misc'],
-  Redeem: [...WORKSPACE, 'user-dashboard'],
+  Redeem: [...WORKSPACE, 'user-dashboard', 'user-misc'],
   // Image Studio and prompt-library copy are public-page fragments even when
   // the route is authenticated, so keep that dependency explicit.
   AICreationSpace: [...WORKSPACE, 'public-pages', 'user-dashboard', 'user-misc'],
   PlayHub: [...WORKSPACE, 'public-pages', 'user-dashboard'],
   CheckIn: [...WORKSPACE, 'public-pages', 'user-dashboard'],
-  Affiliate: [...WORKSPACE, 'user-dashboard'],
+  Affiliate: [...WORKSPACE, 'user-dashboard', 'user-misc'],
   UserAvailableChannels: [...WORKSPACE, 'user-dashboard'],
   Profile: [...WORKSPACE, 'user-dashboard'],
   Subscriptions: [...WORKSPACE, 'user-dashboard', 'user-misc'],
@@ -201,16 +206,20 @@ export const ROUTE_LOCALE_SCOPES = {
   AdminFunds: [...ADMIN, 'admin-play', 'admin-resources'],
   AdminFundsTab: [...ADMIN, 'admin-play', 'admin-resources'],
   AdminWithdrawals: [...ADMIN, 'admin-play', 'admin-resources'],
-  AdminAuditLogs: [...ADMIN, 'admin-resources', 'admin-audit'],
+  AdminAuditLogs: [...ADMIN, 'admin-resources', 'admin-audit', 'admin-ops'],
   AdminUsers: [...ADMIN, 'admin-resources'],
   // Groups reuse account status labels in their filters and tables.
-  AdminGroups: [...ADMIN, 'admin-resources', 'admin-accounts'],
+  AdminGroups: [...ADMIN, 'admin-resources', 'admin-accounts', 'admin-channels'],
   AdminChannels: [...ADMIN, 'admin-channels'],
-  AdminChannelMonitor: [...ADMIN, 'admin-channels', 'channel-monitor'],
-  AdminModelPlaza: [...ADMIN, 'user-dashboard', 'admin-channels'],
-  ChannelStatus: [...WORKSPACE, 'user-dashboard', 'channel-monitor'],
-  AdminSubscriptions: [...ADMIN, 'admin-resources'],
-  AdminAccounts: [...ADMIN, 'admin-accounts'],
+  // The monitor embeds UsageProgressBar, which reads account usage-window
+  // labels. Keep admin accounts explicit for a cold direct visit.
+  AdminChannelMonitor: [...ADMIN, 'admin-channels', 'channel-monitor', 'admin-settings', 'admin-accounts', 'user-dashboard'],
+  AdminModelPlaza: [...ADMIN, 'user-dashboard', 'admin-channels', 'admin-overview'],
+  // ChannelStatus also renders UsageProgressBar and therefore needs the
+  // account usage-window labels before a cold visit can paint the rows.
+  ChannelStatus: [...WORKSPACE, 'user-dashboard', 'channel-monitor', 'admin-accounts'],
+  AdminSubscriptions: [...ADMIN, 'admin-channels', 'admin-resources'],
+  AdminAccounts: [...ADMIN, 'admin-accounts', 'admin-settings', 'admin-overview'],
   AdminPlugins: [...ADMIN, 'admin-settings', 'admin-plugins'],
   AdminAnnouncements: [...ADMIN, 'admin-resources'],
   // Proxies reuse account status labels in filter controls and row badges.
@@ -222,8 +231,8 @@ export const ROUTE_LOCALE_SCOPES = {
   // the legacy admin resources fragment. Keep this dependency explicit so a
   // cold navigation cannot render raw coupon.admin.* keys.
   AdminPromoCodes: [...ADMIN, 'admin-resources', 'public-pages'],
-  AdminSettings: [...ADMIN, 'admin-settings'],
-  AdminRiskControl: [...ADMIN, 'admin-resources', 'admin-channels'],
+  AdminSettings: [...ADMIN, 'admin-settings', 'admin-accounts', 'admin-overview'],
+  AdminRiskControl: [...ADMIN, 'admin-resources', 'admin-channels', 'admin-accounts'],
   AdminPromptAudit: [...ADMIN, 'admin-channels', 'admin-prompt-audit'],
   // Usage also mounts shared operational error-log controls.
   AdminUsage: [...ADMIN, 'admin-resources', 'user-dashboard', 'admin-ops'],
@@ -231,7 +240,7 @@ export const ROUTE_LOCALE_SCOPES = {
   AdminAffiliateRebates: [...ADMIN, 'admin-resources'],
   AdminAffiliateTransfers: [...ADMIN, 'admin-resources'],
   AdminPaymentDashboard: [...ADMIN, 'admin-resources'],
-  AdminOrders: [...ADMIN, 'admin-resources'],
+  AdminOrders: [...ADMIN, 'admin-resources', 'user-misc'],
   AdminPaymentPlans: [...ADMIN, 'admin-resources'],
   AdminPlayBillingConfig: [...ADMIN, 'admin-resources'],
   NotFound: ['core', 'public-pages'],

@@ -158,8 +158,10 @@ export interface PaymentOrder {
   amount: number
   pay_amount: number
   currency?: string
+  payment_currency?: string
   fee_rate: number
   payment_type: string
+  payment_trade_no?: string
   out_trade_no: string
   status: OrderStatus
   order_type: OrderType
@@ -171,11 +173,14 @@ export interface PaymentOrder {
   failed_reason?: string
   refund_amount: number
   refund_reason?: string
+  refund_at?: string
+  force_refund?: boolean
   refund_requested_at?: string
   refund_requested_by?: number
   refund_request_reason?: string
   plan_id?: number
   provider_instance_id?: string
+  provider_key?: string
   recharge_snapshot?: RechargeSnapshot
 }
 

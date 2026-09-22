@@ -273,21 +273,8 @@ const handleBatchTest = async () => {
 
   batchTesting.value = true
 
-  // Test all proxies in parallel
-  const testPromises = props.proxies.map(async (proxy) => {
-    testingProxyIds.add(proxy.id)
-    try {
-      const result = await adminAPI.proxies.testProxy(proxy.id)
-      testResults[proxy.id] = result
-    } catch (error: any) {
-      testResults[proxy.id] = {
-        success: false,
-        message: error.response?.data?.detail || t('common.failed')
-      }
-    } finally {
-      testingProxyIds.delete(proxy.id)
-    }
-  })
+  // Reuse the single-test guard so an already-running proxy is not restarted.
+  const testPromises = props.proxies.map(handleTestProxy)
 
   await Promise.all(testPromises)
   batchTesting.value = false

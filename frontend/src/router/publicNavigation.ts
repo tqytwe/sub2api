@@ -50,17 +50,8 @@ export function authEntryRoute(preferRegister: boolean): RouteLocationRaw {
   return { name: preferRegister ? PUBLIC_ROUTE_NAMES.register : PUBLIC_ROUTE_NAMES.login }
 }
 
-export function aiCreationSpaceEntryRoute(isAuthenticated: boolean, locale: 'zh' | 'en' = 'zh'): RouteLocationRaw {
-  const workspacePath = locale === 'en' ? '/ai-creation-space?lang=en' : '/ai-creation-space'
-  if (isAuthenticated) {
-    return locale === 'en'
-      ? { name: PUBLIC_ROUTE_NAMES.aiCreationSpace, query: { lang: 'en' } }
-      : { name: PUBLIC_ROUTE_NAMES.aiCreationSpace }
-  }
-  return {
-    name: PUBLIC_ROUTE_NAMES.register,
-    query: { redirect: workspacePath },
-  }
+export function aiCreationSpaceEntryRoute(_isAuthenticated: boolean, _locale: 'zh' | 'en' = 'zh'): RouteLocationRaw {
+  return { name: PUBLIC_ROUTE_NAMES.aiCreationSpace }
 }
 
 export function docsTopicRoute(cat: string, page: string): RouteLocationRaw {

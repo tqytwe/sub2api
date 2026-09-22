@@ -160,6 +160,7 @@ type SystemSettings struct {
 	CompactHomeEnabled          bool                         `json:"compact_home_enabled"`
 	HideCcsImportButton         bool                         `json:"hide_ccs_import_button"`
 	PurchaseSubscriptionEnabled bool                         `json:"purchase_subscription_enabled"`
+	SubscriptionEnabled         bool                         `json:"subscription_enabled"`
 	PurchaseSubscriptionURL     string                       `json:"purchase_subscription_url"`
 	TableDefaultPageSize        int                          `json:"table_default_page_size"`
 	TablePageSizeOptions        []int                        `json:"table_page_size_options"`
@@ -203,6 +204,7 @@ type SystemSettings struct {
 	BackendModeEnabled bool `json:"backend_mode_enabled"`
 
 	// Gateway forwarding behavior
+	OpenAITTFTMode                         string `json:"openai_ttft_mode"`
 	EnableFingerprintUnification           bool   `json:"enable_fingerprint_unification"`
 	EnableMetadataPassthrough              bool   `json:"enable_metadata_passthrough"`
 	EnableCCHSigning                       bool   `json:"enable_cch_signing"`
@@ -311,6 +313,7 @@ type SystemSettings struct {
 	ChannelMonitorDefaultIntervalSeconds int    `json:"channel_monitor_default_interval_seconds"`
 	ChannelMonitorHideThroughput         bool   `json:"channel_monitor_hide_throughput"`
 	ChannelMonitorShowQuota              bool   `json:"channel_monitor_show_quota"`
+	ChannelMonitorHideUserRanking        bool   `json:"channel_monitor_hide_user_ranking"`
 
 	// Grok model mapping policy (admin settings; empty account mapping falls back to these).
 	GrokDefaultTextModel           string         `json:"grok_default_text_model"`
@@ -416,6 +419,8 @@ type PublicSettings struct {
 	SoraClientEnabled                   bool                         `json:"sora_client_enabled"`
 	BackendModeEnabled                  bool                         `json:"backend_mode_enabled"`
 	PaymentEnabled                      bool                         `json:"payment_enabled"`
+	PaymentBalanceDisabled              bool                         `json:"payment_balance_disabled"`
+	SubscriptionEnabled                 bool                         `json:"subscription_enabled"`
 	Version                             string                       `json:"version"`
 	// 服务器全局时区（IANA 名称与当前 UTC 偏移，如 "Asia/Shanghai" / "+08:00"）。
 	// 高峰时段等按服务器本地时间判定的窗口，前端展示时据此标注，避免用户按浏览器本地时间误读。
@@ -431,6 +436,7 @@ type PublicSettings struct {
 	ChannelMonitorDefaultIntervalSeconds int    `json:"channel_monitor_default_interval_seconds"`
 	ChannelMonitorHideThroughput         bool   `json:"channel_monitor_hide_throughput"`
 	ChannelMonitorShowQuota              bool   `json:"channel_monitor_show_quota"`
+	ChannelMonitorHideUserRanking        bool   `json:"channel_monitor_hide_user_ranking"`
 
 	AvailableChannelsEnabled bool `json:"available_channels_enabled"`
 	MarketplaceEnabled       bool `json:"marketplace_enabled"`
@@ -471,6 +477,10 @@ type OverloadCooldownSettings struct {
 type RateLimit429CooldownSettings struct {
 	Enabled         bool `json:"enabled"`
 	CooldownSeconds int  `json:"cooldown_seconds"`
+}
+
+type OpenAIImagesOAuthUnavailableCooldownSettings struct {
+	CooldownMinutes int `json:"cooldown_minutes"`
 }
 
 // PanelRateLimitSettings 面板 API 限流配置 DTO

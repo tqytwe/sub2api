@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"sort"
 	"strings"
 	"time"
 
@@ -22,16 +23,28 @@ type PlayCampaignRules struct {
 	RewardTiers          []PlayCampaignRewardTier `json:"reward_tiers,omitempty"`
 	RequireInvite        bool                     `json:"require_invite,omitempty"`
 	LegacyRebatePolicy   string                   `json:"legacy_rebate_policy,omitempty"`
+	DisplayTitleI18n     map[string]string        `json:"display_title_i18n,omitempty"`
+	DisplayBodyI18n      map[string]string        `json:"display_body_i18n,omitempty"`
+	DisplayCTA           string                   `json:"display_cta,omitempty"`
+	DisplayPriority      int                      `json:"display_priority,omitempty"`
 }
 
 const (
-	PlayCampaignTypeBenefitOverlay  = "benefit_overlay"
-	PlayCampaignTypeNewUserGrowth   = "new_user_growth"
-	PlayCampaignTypeHybrid          = "hybrid"
-	PlayCampaignMetricNetRecharge   = "net_recharge"
-	PlayCampaignMetricConsumption   = "actual_consumption"
-	PlayCampaignLegacyRebateExclude = "exclude"
-	PlayCampaignLegacyRebateStack   = "stack"
+	PlayCampaignTypeBenefitOverlay     = "benefit_overlay"
+	PlayCampaignTypeNewUserGrowth      = "new_user_growth"
+	PlayCampaignTypeHybrid             = "hybrid"
+	PlayCampaignTypeOperationalDisplay = "operational_display"
+	PlayCampaignMetricNetRecharge      = "net_recharge"
+	PlayCampaignMetricConsumption      = "actual_consumption"
+	PlayCampaignLegacyRebateExclude    = "exclude"
+	PlayCampaignLegacyRebateStack      = "stack"
+)
+
+const (
+	PlayCampaignDisplayCTANone       = "none"
+	PlayCampaignDisplayCTARecharge   = "recharge"
+	PlayCampaignDisplayCTAUseModels  = "use_models"
+	PlayCampaignDisplayCTAVIPDetails = "vip_details"
 )
 
 type PlayCampaignRewardTier struct {
@@ -186,6 +199,16 @@ func (s *PlayService) ListActiveCampaignsForUser(ctx context.Context, userID int
 			}
 		}
 	}
+	sort.SliceStable(out, func(i, j int) bool {
+		left, right := out[i], out[j]
+		if left.Rules.DisplayPriority != right.Rules.DisplayPriority {
+			return left.Rules.DisplayPriority > right.Rules.DisplayPriority
+		}
+		if !left.StartAt.Equal(right.StartAt) {
+			return left.StartAt.After(right.StartAt)
+		}
+		return left.ID > right.ID
+	})
 	return out, nil
 }
 
@@ -205,6 +228,9 @@ func (s *PlayService) ReconcileNewUserGrowth(ctx context.Context, userID int64, 
 		return err
 	}
 	for _, campaign := range campaigns {
+		if campaign.Rules.CampaignType == PlayCampaignTypeOperationalDisplay {
+			continue
+		}
 		if campaign.Rules.CampaignType != PlayCampaignTypeNewUserGrowth && campaign.Rules.CampaignType != PlayCampaignTypeHybrid {
 			continue
 		}
@@ -355,7 +381,16 @@ func (s *PlayService) resolvePlayEffectModifiers(ctx context.Context, userID int
 	if len(campaigns) == 0 {
 		return out, nil
 	}
-	rules := aggregateCampaignRules(campaigns)
+	benefitCampaigns := make([]PlayCampaign, 0, len(campaigns))
+	for _, campaign := range campaigns {
+		if campaign.Rules.CampaignType != PlayCampaignTypeOperationalDisplay {
+			benefitCampaigns = append(benefitCampaigns, campaign)
+		}
+	}
+	if len(benefitCampaigns) == 0 {
+		return out, nil
+	}
+	rules := aggregateCampaignRules(benefitCampaigns)
 	out.CampaignActive = true
 	if rules.BlindboxExtraOpens > out.BlindboxExtraOpens {
 		out.BlindboxExtraOpens = rules.BlindboxExtraOpens
@@ -474,6 +509,23 @@ func (s *PlayService) campaignAudienceMatches(ctx context.Context, userID int64,
 	return true, nil
 }
 
+// PlayMembershipSegment is the single server-side interpretation of the
+// ordinary/member audience. It deliberately uses cumulative Play membership
+// contributions, never subscription packages.
+func (s *PlayService) PlayMembershipSegment(ctx context.Context, userID int64) (string, error) {
+	if userID <= 0 {
+		return AnnouncementPlayMembershipOrdinary, nil
+	}
+	paid, err := s.MembershipPaidTotal(ctx, userID)
+	if err != nil {
+		return "", err
+	}
+	if paid+1e-9 >= firstMemberThreshold(s.GetRuntime(ctx).VIPTiers) {
+		return AnnouncementPlayMembershipMember, nil
+	}
+	return AnnouncementPlayMembershipOrdinary, nil
+}
+
 func (s *PlayService) playRequestUser(ctx context.Context, userID int64) (*User, error) {
 	if s == nil || s.userRepo == nil {
 		return nil, ErrUserNotFound
@@ -562,8 +614,31 @@ func validateAdminPlayCampaign(c *PlayCampaign) error {
 	if c.Rules.CampaignType == "" {
 		c.Rules.CampaignType = PlayCampaignTypeBenefitOverlay
 	}
-	if c.Rules.CampaignType != PlayCampaignTypeBenefitOverlay && c.Rules.CampaignType != PlayCampaignTypeNewUserGrowth && c.Rules.CampaignType != PlayCampaignTypeHybrid {
+	if c.Rules.CampaignType != PlayCampaignTypeBenefitOverlay && c.Rules.CampaignType != PlayCampaignTypeNewUserGrowth && c.Rules.CampaignType != PlayCampaignTypeHybrid && c.Rules.CampaignType != PlayCampaignTypeOperationalDisplay {
 		return infraerrors.BadRequest("PLAY_CAMPAIGN_TYPE_INVALID", "campaign type is invalid")
+	}
+	if c.Rules.CampaignType == PlayCampaignTypeOperationalDisplay {
+		if c.Rules.RechargeBonusPct != 0 || c.Rules.BlindboxExtraOpens != 0 || c.Rules.ArenaScoreMultiplier != 0 || c.Rules.ReferralCampaignID != 0 || len(c.Rules.RewardTiers) != 0 || c.Rules.RequireInvite || c.Rules.QualificationMetric != "" || c.Rules.LegacyRebatePolicy != "" {
+			return infraerrors.BadRequest("PLAY_CAMPAIGN_DISPLAY_RULES_INVALID", "operational display campaigns cannot include benefits or referral rewards")
+		}
+		if c.Rules.DisplayCTA == "" {
+			c.Rules.DisplayCTA = PlayCampaignDisplayCTANone
+		}
+		switch c.Rules.DisplayCTA {
+		case PlayCampaignDisplayCTANone, PlayCampaignDisplayCTARecharge, PlayCampaignDisplayCTAUseModels, PlayCampaignDisplayCTAVIPDetails:
+		default:
+			return infraerrors.BadRequest("PLAY_CAMPAIGN_DISPLAY_CTA_INVALID", "operational display campaign CTA is invalid")
+		}
+		if c.Rules.DisplayPriority < 0 || c.Rules.DisplayPriority > 1000000 {
+			return infraerrors.BadRequest("PLAY_CAMPAIGN_DISPLAY_PRIORITY_INVALID", "operational display campaign priority is invalid")
+		}
+		var err error
+		if c.Rules.DisplayTitleI18n, err = normalizeCampaignI18n(c.Rules.DisplayTitleI18n, "PLAY_CAMPAIGN_DISPLAY_TITLE", 128); err != nil {
+			return err
+		}
+		if c.Rules.DisplayBodyI18n, err = normalizeCampaignI18n(c.Rules.DisplayBodyI18n, "PLAY_CAMPAIGN_DISPLAY_BODY", 2000); err != nil {
+			return err
+		}
 	}
 	if c.Rules.CampaignType == PlayCampaignTypeNewUserGrowth || c.Rules.CampaignType == PlayCampaignTypeHybrid {
 		if c.Rules.ReferralCampaignID <= 0 {
@@ -614,29 +689,35 @@ func validateAdminPlayCampaign(c *PlayCampaign) error {
 	}
 	c.Audience = ParsePlayCampaignAudience(mustMarshalCampaignAudience(c.Audience))
 
-	if len(c.Rules.NameI18n) > 0 {
-		clean := make(map[string]string, len(c.Rules.NameI18n))
-		for key, value := range c.Rules.NameI18n {
-			locale := strings.TrimSpace(strings.ToLower(key))
-			name := strings.TrimSpace(value)
-			if locale == "" || name == "" {
-				continue
-			}
-			if locale != "zh" && locale != "en" {
-				return infraerrors.BadRequest("PLAY_CAMPAIGN_NAME_I18N_INVALID", "campaign localized names only support zh and en")
-			}
-			if len([]rune(name)) > 128 {
-				return infraerrors.BadRequest("PLAY_CAMPAIGN_NAME_I18N_TOO_LONG", "campaign localized names must be at most 128 characters")
-			}
-			clean[locale] = name
-		}
-		if len(clean) == 0 {
-			c.Rules.NameI18n = nil
-		} else {
-			c.Rules.NameI18n = clean
-		}
+	var err error
+	if c.Rules.NameI18n, err = normalizeCampaignI18n(c.Rules.NameI18n, "PLAY_CAMPAIGN_NAME", 128); err != nil {
+		return err
 	}
 	return nil
+}
+
+func normalizeCampaignI18n(values map[string]string, reasonPrefix string, maxRunes int) (map[string]string, error) {
+	if len(values) == 0 {
+		return nil, nil
+	}
+	clean := make(map[string]string, len(values))
+	for key, value := range values {
+		locale, text := strings.TrimSpace(strings.ToLower(key)), strings.TrimSpace(value)
+		if locale == "" || text == "" {
+			continue
+		}
+		if locale != "zh" && locale != "en" {
+			return nil, infraerrors.BadRequest(reasonPrefix+"_I18N_INVALID", "campaign localized content only supports zh and en")
+		}
+		if len([]rune(text)) > maxRunes {
+			return nil, infraerrors.BadRequest(reasonPrefix+"_I18N_TOO_LONG", "campaign localized content is too long")
+		}
+		clean[locale] = text
+	}
+	if len(clean) == 0 {
+		return nil, nil
+	}
+	return clean, nil
 }
 
 func mustMarshalCampaignAudience(audience PlayCampaignAudience) string {

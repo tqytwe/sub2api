@@ -952,6 +952,7 @@ const geminiApiKeys = computed(() =>
   apiKeys.value.filter((key) =>
     key.status === 'active' &&
     key.group?.platform === 'gemini' &&
+    key.group?.allow_image_generation === true &&
     key.group?.allow_batch_image_generation === true,
   ),
 )

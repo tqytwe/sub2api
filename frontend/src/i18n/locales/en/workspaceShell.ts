@@ -12,6 +12,8 @@ export default {
     wallet: 'Wallet',
     growth: 'Growth',
     fundManagement: 'Fund Management',
+    fundCredits: 'Credits & Compensation',
+    fundOperationHistory: 'Fund Operation History',
     refundRequests: 'Refund Requests',
     rewardWithdrawals: 'Reward Withdrawals',
     giftBalance: 'Gift Balance',

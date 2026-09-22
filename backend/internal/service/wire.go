@@ -244,6 +244,7 @@ func ProvideAccountTestService(
 		tlsFPProfileService,
 	)
 	service.agentIdentityWS = openAIGatewayService
+	service.SetOpenAIGatewayService(openAIGatewayService)
 	service.SetSettingService(settingService)
 	service.SetPluginManager(pluginManager)
 	return service
@@ -458,6 +459,7 @@ func ProvideRateLimitService(
 	openAI403CounterCache OpenAI403CounterCache,
 	settingService *SettingService,
 	tokenCacheInvalidator TokenCacheInvalidator,
+	ollamaCloudUsage *OllamaCloudUsageService,
 ) *RateLimitService {
 	svc := NewRateLimitService(accountRepo, usageRepo, cfg, geminiQuotaService, tempUnschedCache)
 	if healthCache, ok := tempUnschedCache.(OpenAIAPIKeyHealthCache); ok {
@@ -467,6 +469,7 @@ func ProvideRateLimitService(
 	svc.SetOpenAI403CounterCache(openAI403CounterCache)
 	svc.SetSettingService(settingService)
 	svc.SetTokenCacheInvalidator(tokenCacheInvalidator)
+	svc.SetOllamaCloudUsageProbeScheduler(ollamaCloudUsage)
 	return svc
 }
 
@@ -812,7 +815,22 @@ func ProvideSettingService(settingRepo SettingRepository, groupRepo GroupReposit
 		logger.LegacyPrintf("service.setting", "Warning: migrate Grok default text model failed: %v", err)
 	}
 	antigravity.SetUserAgentVersionResolver(svc.GetAntigravityUserAgentVersion)
+	configureCodexCanonicalUserAgentResolver(svc)
 	return svc
+}
+
+// configureCodexCanonicalUserAgentResolver connects the process-wide Codex
+// identity resolver to the persisted settings service. Codex outbound paths
+// do not carry a SettingService reference, so this binding is required for
+// the auto-synced client version to reach User-Agent and version headers.
+func configureCodexCanonicalUserAgentResolver(settingService *SettingService) {
+	if settingService == nil {
+		SetCodexCanonicalUserAgentResolver(nil)
+		return
+	}
+	SetCodexCanonicalUserAgentResolver(func() string {
+		return settingService.GetOpenAICodexCanonicalUserAgent(context.Background())
+	})
 }
 
 // ProvideBillingCacheService wires BillingCacheService with its RPM dependencies.
@@ -1047,6 +1065,7 @@ var ProviderSet = wire.NewSet(
 	NewGatewayService,
 	wire.Bind(new(ImageStudioModelResolver), new(*GatewayService)),
 	wire.Bind(new(NextChatAvailableModelResolver), new(*GatewayService)),
+	wire.Bind(new(ChannelCacheInvalidator), new(*ChannelService)),
 	NewOpenAIGatewayServiceWithLiveBilling,
 	ProvideImageStorageSettingService,
 	ProvideAnnouncementAssetService,

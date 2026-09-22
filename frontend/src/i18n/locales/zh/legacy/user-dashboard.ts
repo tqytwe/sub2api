@@ -8,6 +8,8 @@ export default {
       eyebrow: '限时活动',
       viewHub: '查看玩法中枢',
       rechargeCta: '立即充值',
+      useModelsCta: '使用模型',
+      vipDetailsCta: '查看会员权益',
     },
     growth: {
       firstRecharge: '首充专享：充值即可开始使用全部模型，新人礼包等你领取',

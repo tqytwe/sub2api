@@ -493,12 +493,16 @@ export interface PlayCampaignRules {
   blindbox_extra_opens?: number
   arena_score_multiplier?: number
   name_i18n?: Record<string, string>
-  campaign_type?: 'benefit_overlay' | 'new_user_growth' | 'hybrid'
+  campaign_type?: 'benefit_overlay' | 'new_user_growth' | 'hybrid' | 'operational_display'
   referral_campaign_id?: number
   qualification_metric?: 'net_recharge' | 'actual_consumption'
   reward_tiers?: PlayCampaignRewardTier[]
   require_invite?: boolean
   legacy_rebate_policy?: 'exclude' | 'stack'
+  display_title_i18n?: Record<string, string>
+  display_body_i18n?: Record<string, string>
+  display_cta?: 'none' | 'recharge' | 'use_models' | 'vip_details'
+  display_priority?: number
 }
 
 export interface PlayCampaignRewardTier {

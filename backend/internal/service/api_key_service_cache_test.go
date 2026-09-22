@@ -23,6 +23,18 @@ type authRepoStub struct {
 	listKeysByGroupID func(ctx context.Context, groupID int64) ([]string, error)
 }
 
+type authUserRepoStub struct {
+	UserRepository
+	getByID func(ctx context.Context, id int64) (*User, error)
+}
+
+func (s *authUserRepoStub) GetByID(ctx context.Context, id int64) (*User, error) {
+	if s.getByID == nil {
+		panic("unexpected GetByID call")
+	}
+	return s.getByID(ctx, id)
+}
+
 func (s *authRepoStub) Create(ctx context.Context, key *APIKey) error {
 	panic("unexpected Create call")
 }
@@ -232,6 +244,84 @@ func TestAPIKeyService_GetByKey_UsesL2Cache(t *testing.T) {
 	require.Equal(t, map[string][]int64{"claude-opus-*": {1, 2}}, apiKey.Group.ModelRouting)
 }
 
+func TestAPIKeyService_GetByKey_L2CacheRejectsPreviouslyBoundRestrictedPublicGroup(t *testing.T) {
+	cache := &authCacheStub{}
+	repo := &authRepoStub{
+		getByKeyForAuth: func(context.Context, string) (*APIKey, error) {
+			t.Fatal("authorized cache hit must not reach repository")
+			return nil, nil
+		},
+	}
+	svc := NewAPIKeyService(repo, nil, nil, nil, nil, cache, &config.Config{
+		APIKeyAuth: config.APIKeyAuthCacheConfig{L2TTLSeconds: 60},
+	})
+
+	groupID := int64(9)
+	cache.getAuthCache = func(context.Context, string) (*APIKeyAuthCacheEntry, error) {
+		return &APIKeyAuthCacheEntry{Snapshot: &APIKeyAuthSnapshot{
+			Version:  apiKeyAuthSnapshotVersion,
+			APIKeyID: 1,
+			UserID:   2,
+			GroupID:  &groupID,
+			Status:   StatusActive,
+			User: APIKeyAuthUserSnapshot{
+				ID:                   2,
+				Status:               StatusActive,
+				Role:                 RoleUser,
+				RestrictPublicGroups: true,
+				AllowedGroups:        []int64{10},
+			},
+			Group: &APIKeyAuthGroupSnapshot{
+				ID:               groupID,
+				Status:           StatusActive,
+				SubscriptionType: SubscriptionTypeStandard,
+			},
+		}}, nil
+	}
+
+	_, err := svc.GetByKey(context.Background(), "pre-existing-key")
+	require.ErrorIs(t, err, ErrGroupNotAllowed)
+}
+
+func TestAPIKeyService_ValidateKey_RechecksRestrictedPublicGroupWithCurrentUser(t *testing.T) {
+	cache := &authCacheStub{}
+	groupID := int64(9)
+	cache.getAuthCache = func(context.Context, string) (*APIKeyAuthCacheEntry, error) {
+		return &APIKeyAuthCacheEntry{Snapshot: &APIKeyAuthSnapshot{
+			Version:  apiKeyAuthSnapshotVersion,
+			APIKeyID: 1,
+			UserID:   2,
+			GroupID:  &groupID,
+			Status:   StatusActive,
+			User: APIKeyAuthUserSnapshot{
+				ID:     2,
+				Status: StatusActive,
+				Role:   RoleUser,
+			},
+			Group: &APIKeyAuthGroupSnapshot{
+				ID:               groupID,
+				Status:           StatusActive,
+				SubscriptionType: SubscriptionTypeStandard,
+			},
+		}}, nil
+	}
+	userRepo := &authUserRepoStub{getByID: func(_ context.Context, id int64) (*User, error) {
+		require.Equal(t, int64(2), id)
+		return &User{
+			ID:                   id,
+			Status:               StatusActive,
+			RestrictPublicGroups: true,
+			AllowedGroups:        []int64{10},
+		}, nil
+	}}
+	svc := NewAPIKeyService(&authRepoStub{}, userRepo, nil, nil, nil, cache, &config.Config{
+		APIKeyAuth: config.APIKeyAuthCacheConfig{L2TTLSeconds: 60},
+	})
+
+	_, _, err := svc.ValidateKey(context.Background(), "stale-before-restriction-key")
+	require.ErrorIs(t, err, ErrGroupNotAllowed)
+}
+
 func TestAPIKeyService_SnapshotRoundTrip_PreservesMessagesDispatchModelConfig(t *testing.T) {
 	svc := NewAPIKeyService(nil, nil, nil, nil, nil, nil, &config.Config{})
 	groupID := int64(9)
@@ -303,13 +393,14 @@ func TestAPIKeyService_SnapshotRoundTrip_PreservesReasoningEffortPolicy(t *testi
 			Concurrency: 3,
 		},
 		Group: &Group{
-			ID:                 groupID,
-			Name:               "composite",
-			Platform:           PlatformComposite,
-			Status:             StatusActive,
-			SubscriptionType:   SubscriptionTypeStandard,
-			RateMultiplier:     1,
-			MaxReasoningEffort: "medium",
+			ID:                          groupID,
+			Name:                        "composite",
+			Platform:                    PlatformComposite,
+			Status:                      StatusActive,
+			SubscriptionType:            SubscriptionTypeStandard,
+			RateMultiplier:              1,
+			MaxReasoningEffort:          "medium",
+			MaxReasoningEffortOverLimit: ReasoningEffortOverLimitDeny,
 			ReasoningEffortMappings: []ReasoningEffortMapping{
 				{From: "max", To: "xhigh"},
 			},
@@ -323,6 +414,7 @@ func TestAPIKeyService_SnapshotRoundTrip_PreservesReasoningEffortPolicy(t *testi
 	require.NotNil(t, roundTrip.Group)
 	require.Equal(t, PlatformComposite, roundTrip.Group.Platform)
 	require.Equal(t, "medium", roundTrip.Group.MaxReasoningEffort)
+	require.Equal(t, ReasoningEffortOverLimitDeny, roundTrip.Group.MaxReasoningEffortOverLimit)
 	require.Equal(t, apiKey.Group.ReasoningEffortMappings, roundTrip.Group.ReasoningEffortMappings)
 }
 
@@ -460,6 +552,35 @@ func TestAPIKeyService_GetByKey_CacheMissStoresL2(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, int64(5), apiKey.ID)
 	require.Len(t, cache.setAuthKeys, 1)
+}
+
+func TestAPIKeyService_GetByKey_RepositoryRejectsPreviouslyBoundRestrictedPublicGroup(t *testing.T) {
+	groupID := int64(9)
+	repo := &authRepoStub{
+		getByKeyForAuth: func(context.Context, string) (*APIKey, error) {
+			return &APIKey{
+				ID:      5,
+				UserID:  7,
+				GroupID: &groupID,
+				Status:  StatusActive,
+				User: &User{
+					ID:                   7,
+					Status:               StatusActive,
+					RestrictPublicGroups: true,
+					AllowedGroups:        []int64{10},
+				},
+				Group: &Group{
+					ID:               groupID,
+					Status:           StatusActive,
+					SubscriptionType: SubscriptionTypeStandard,
+				},
+			}, nil
+		},
+	}
+	svc := NewAPIKeyService(repo, nil, nil, nil, nil, nil, &config.Config{})
+
+	_, err := svc.GetByKey(context.Background(), "pre-existing-key")
+	require.ErrorIs(t, err, ErrGroupNotAllowed)
 }
 
 func TestAPIKeyService_GetByKey_UsesL1Cache(t *testing.T) {

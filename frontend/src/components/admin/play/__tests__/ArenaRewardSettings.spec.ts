@@ -2,11 +2,12 @@ import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import ArenaRewardSettings from '@/components/admin/play/ArenaRewardSettings.vue'
 
-const { getArenaRewardSettingsMock, updateArenaRewardSettingsMock, showErrorMock, showSuccessMock } = vi.hoisted(() => ({
+const { getArenaRewardSettingsMock, updateArenaRewardSettingsMock, showErrorMock, showSuccessMock, stepUpRunMock } = vi.hoisted(() => ({
   getArenaRewardSettingsMock: vi.fn(),
   updateArenaRewardSettingsMock: vi.fn(),
   showErrorMock: vi.fn(),
   showSuccessMock: vi.fn(),
+  stepUpRunMock: vi.fn(),
 }))
 
 vi.mock('@/api/admin/play', () => ({
@@ -18,6 +19,13 @@ vi.mock('@/api/admin/play', () => ({
 
 vi.mock('@/stores', () => ({
   useAppStore: () => ({ showError: showErrorMock, showSuccess: showSuccessMock }),
+}))
+
+vi.mock('@/composables/useStepUp', () => ({
+  useStepUp: () => ({ run: (...args: unknown[]) => stepUpRunMock(...args) }),
+  isStepUpCancelled: () => false,
+  isStepUpBlocked: () => false,
+  stepUpBlockReason: () => '',
 }))
 
 vi.mock('vue-i18n', async (importOriginal) => {
@@ -39,10 +47,11 @@ describe('ArenaRewardSettings', () => {
     updateArenaRewardSettingsMock.mockReset().mockImplementation(async (value) => value)
     showErrorMock.mockReset()
     showSuccessMock.mockReset()
+    stepUpRunMock.mockReset().mockImplementation(async (operation: () => unknown) => operation())
   })
 
   it('calculates monthly payout by rank ranges rather than adding tier amounts', async () => {
-    const wrapper = mount(ArenaRewardSettings, { global: { stubs: { Icon: true } } })
+    const wrapper = mount(ArenaRewardSettings, { global: { stubs: { Icon: true, TotpStepUpDialog: true } } })
     await flushPromises()
 
     expect(wrapper.text()).toContain('$125.00')
@@ -50,7 +59,7 @@ describe('ArenaRewardSettings', () => {
   })
 
   it('blocks a non-increasing rank schedule before save', async () => {
-    const wrapper = mount(ArenaRewardSettings, { global: { stubs: { Icon: true } } })
+    const wrapper = mount(ArenaRewardSettings, { global: { stubs: { Icon: true, TotpStepUpDialog: true } } })
     await flushPromises()
 
     await wrapper.findAll('input[type="number"]')[2].setValue(1)
@@ -58,5 +67,19 @@ describe('ArenaRewardSettings', () => {
     expect(wrapper.get('.btn-primary').attributes('disabled')).toBeDefined()
     await wrapper.get('.btn-primary').trigger('click')
     expect(updateArenaRewardSettingsMock).not.toHaveBeenCalled()
+  })
+
+  it('routes protected reward configuration writes through the step-up runner', async () => {
+    const wrapper = mount(ArenaRewardSettings, {
+      global: { stubs: { Icon: true, TotpStepUpDialog: true } },
+    })
+    await flushPromises()
+
+    await wrapper.get('.btn-primary').trigger('click')
+    await flushPromises()
+
+    expect(stepUpRunMock).toHaveBeenCalledTimes(1)
+    expect(updateArenaRewardSettingsMock).toHaveBeenCalledTimes(1)
+    expect(showSuccessMock).toHaveBeenCalledWith('农场奖励规则已保存')
   })
 })

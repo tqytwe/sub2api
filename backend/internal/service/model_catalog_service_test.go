@@ -352,7 +352,7 @@ func TestModelCatalogService_NextChatDisplayKeepsChannelEffectivePricing(t *test
 			InputPrice:  &baseIn,
 			OutputPrice: &baseOut,
 		}},
-	}}}, groupRepo, nil, nil)
+	}}}, groupRepo, nil, nil, nil)
 	apiKeyService := NewAPIKeyService(
 		nil,
 		&modelPricingUserRepoStub{user: &User{ID: 4, Status: StatusActive}},

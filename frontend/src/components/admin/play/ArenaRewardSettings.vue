@@ -29,6 +29,7 @@
       <p v-if="validationMessage" role="alert" class="rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">{{ validationMessage }}</p>
       <div class="flex justify-between gap-3"><button type="button" class="btn btn-secondary inline-flex items-center gap-2" :disabled="activeTiers.length >= 32 || saving" @click="addTier"><Icon name="plus" size="sm" />{{ text('新增档位', 'Add tier') }}</button><!-- design-governance-allow: continuous-motion - save progress spinner is temporary and stops after the request resolves. --><button type="button" class="btn btn-primary inline-flex items-center gap-2" :disabled="Boolean(validationMessage) || saving" @click="save"><Icon :name="saving ? 'refresh' : 'check'" size="sm" :class="{ 'animate-spin': saving }" />{{ text('保存奖励规则', 'Save reward rules') }}</button></div>
     </div>
+    <TotpStepUpDialog :controller="stepUp" />
   </section>
 </template>
 
@@ -39,12 +40,15 @@ import Icon from '@/components/icons/Icon.vue'
 import adminPlayAPI, { type AdminArenaRewardSettings, type AdminArenaRewardTier } from '@/api/admin/play'
 import { useAppStore } from '@/stores'
 import { extractApiErrorMessage } from '@/utils/apiError'
+import { isStepUpBlocked, isStepUpCancelled, stepUpBlockReason, useStepUp } from '@/composables/useStepUp'
+import TotpStepUpDialog from '@/components/auth/TotpStepUpDialog.vue'
 
 const { locale } = useI18n()
 const appStore = useAppStore()
 const settings = ref<AdminArenaRewardSettings | null>(null)
 const loading = ref(false)
 const saving = ref(false)
+const stepUp = useStepUp()
 const mode = ref<'daily' | 'monthly'>('monthly')
 const isZh = computed(() => locale.value.startsWith('zh'))
 const text = (zh: string, en: string) => isZh.value ? zh : en
@@ -73,6 +77,24 @@ function validate() {
 function addTier() { if (!settings.value || activeTiers.value.length >= 32) return; const last = activeTiers.value.at(-1); activeTiers.value.push({ rank_max: (last?.rank_max ?? 0) + 1, amount: last?.amount ?? 0.01 } as AdminArenaRewardTier) }
 function formatMoney(value: number) { return new Intl.NumberFormat(isZh.value ? 'zh-CN' : 'en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(value || 0)) }
 async function load() { loading.value = true; try { settings.value = clone(await adminPlayAPI.getArenaRewardSettings()) } catch (error) { appStore.showError(extractApiErrorMessage(error, text('加载农场奖励规则失败', 'Failed to load farm reward rules'))) } finally { loading.value = false } }
-async function save() { if (!settings.value || validationMessage.value || saving.value) return; saving.value = true; try { settings.value = clone(await adminPlayAPI.updateArenaRewardSettings(clone(settings.value))); appStore.showSuccess(text('农场奖励规则已保存', 'Farm reward rules saved')) } catch (error) { appStore.showError(extractApiErrorMessage(error, text('保存农场奖励规则失败', 'Failed to save farm reward rules'))) } finally { saving.value = false } }
+async function save() {
+  if (!settings.value || validationMessage.value || saving.value) return
+  saving.value = true
+  try {
+    settings.value = clone(await stepUp.run(() => adminPlayAPI.updateArenaRewardSettings(clone(settings.value!))))
+    appStore.showSuccess(text('农场奖励规则已保存', 'Farm reward rules saved'))
+  } catch (error) {
+    if (isStepUpCancelled(error)) return
+    if (isStepUpBlocked(error)) {
+      appStore.showError(stepUpBlockReason(error) === 'STEP_UP_ADMIN_API_KEY_FORBIDDEN'
+        ? text('管理员 API Key 不能完成此验证，请使用管理员会话。', 'An administrator API key cannot complete this verification. Use an administrator session.')
+        : text('当前管理员尚未启用验证器，请先在账号安全设置中启用。', 'This administrator has not enabled an authenticator. Enable it in account security first.'))
+      return
+    }
+    appStore.showError(extractApiErrorMessage(error, text('保存农场奖励规则失败', 'Failed to save farm reward rules')))
+  } finally {
+    saving.value = false
+  }
+}
 onMounted(load)
 </script>
