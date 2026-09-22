@@ -618,6 +618,21 @@ func (h *AdminPlayHandler) GrowthGovernance(c *gin.Context) {
 	response.Success(c, state)
 }
 
+// RewardReadiness returns the read-only operational gate status for check-in
+// and blindbox rewards. It never changes configuration or user balances.
+func (h *AdminPlayHandler) RewardReadiness(c *gin.Context) {
+	if h == nil || h.playService == nil {
+		response.ErrorFrom(c, infraerrors.ServiceUnavailable("PLAY_REWARD_READINESS_UNAVAILABLE", "reward readiness unavailable"))
+		return
+	}
+	items, err := h.playService.GetRewardReadiness(c.Request.Context())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, items)
+}
+
 // ApproveGrowthGovernance appends an approved decision after step-up auth.
 func (h *AdminPlayHandler) ApproveGrowthGovernance(c *gin.Context) {
 	if h == nil || h.playService == nil {

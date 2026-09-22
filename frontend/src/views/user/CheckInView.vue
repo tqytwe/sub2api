@@ -102,6 +102,35 @@ async function handleCheckin() {
       appStore.showError(t('checkin.disabled'))
       return
     }
+    if (code === 'PLAY_GROWTH_REWARD_INELIGIBLE') {
+      appStore.showInfo(growthReasonMessage(status.value?.growth_eligibility?.primary_reason))
+      return
+    }
+    if (code === 'PLAY_GROWTH_GOVERNANCE_NOT_APPROVED') {
+      appStore.showInfo(t('checkin.governanceNotApproved'))
+      return
+    }
+    if (code === 'PLAY_GROWTH_GOVERNANCE_ROLLOUT_EXCLUDED') {
+      appStore.showInfo(t('checkin.governanceRolloutExcluded'))
+      return
+    }
+    if (code === 'PLAY_GROWTH_GOVERNANCE_BUDGET_EXHAUSTED') {
+      appStore.showInfo(t('checkin.governanceBudgetExhausted'))
+      return
+    }
+    if (code === 'PLAY_GROWTH_GOVERNANCE_UNAVAILABLE') {
+      appStore.showError(t('checkin.governanceUnavailable'))
+      return
+    }
+    if (code === 'COUPON_REWARD_POOL_UNAVAILABLE') {
+      appStore.showInfo(t('checkin.poolUnavailable'))
+      await loadStatus()
+      return
+    }
+    if (code === 'PLAY_GROWTH_QUALIFICATION_UNAVAILABLE') {
+      appStore.showError(t('checkin.qualificationUnavailable'))
+      return
+    }
     appStore.showError(t('checkin.failed'))
   } finally {
     submitting.value = false

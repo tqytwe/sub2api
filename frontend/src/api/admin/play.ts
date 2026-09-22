@@ -155,6 +155,24 @@ export interface AdminPlayGrowthGovernanceRevokeInput {
   reason: string;
 }
 
+export interface AdminPlayRewardReadiness {
+  activity: 'checkin' | 'blindbox' | string;
+  enabled: boolean;
+  ready: boolean;
+  blocking_reasons: string[];
+  coupon_pool_ready: boolean;
+  blindbox_pool_valid?: boolean;
+  blindbox_pool_version?: string;
+  blindbox_cost?: number;
+  blindbox_daily_limit?: number;
+  governance_available: boolean;
+  governance_reason?: string;
+  governance_decision?: string;
+  budget_remaining?: number;
+  governance_rollout_percent?: number;
+  checked_at: string;
+}
+
 export interface AdminPlayCampaign {
   id: number;
   name: string;
@@ -862,6 +880,13 @@ export async function getGrowthGovernance(): Promise<AdminPlayGrowthGovernanceSt
   return data;
 }
 
+export async function getRewardReadiness(): Promise<AdminPlayRewardReadiness[]> {
+  const { data } = await apiClient.get<AdminPlayRewardReadiness[]>(
+    "/admin/play/growth/reward-readiness",
+  );
+  return data ?? [];
+}
+
 export async function approveGrowthGovernance(
   input: AdminPlayGrowthGovernanceApprovalInput,
 ): Promise<AdminPlayGrowthGovernanceState> {
@@ -1272,6 +1297,7 @@ export const adminPlayAPI = {
   getSummary,
   getGrowthCohort,
   getGrowthGovernance,
+  getRewardReadiness,
   approveGrowthGovernance,
   revokeGrowthGovernance,
   listCampaigns,

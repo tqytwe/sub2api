@@ -68,8 +68,39 @@
             <p class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ item.label }}</p>
             <p class="mt-2 text-xl font-semibold tabular-nums text-gray-900 dark:text-white">{{ item.value }}</p>
             <p v-if="item.detail" class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ item.detail }}</p>
+      </div>
+    </div>
+
+    <section class="card overflow-hidden" aria-labelledby="growth-reward-readiness-title">
+      <div class="border-b border-gray-100 px-5 py-4 dark:border-dark-700">
+        <h3 id="growth-reward-readiness-title" class="text-base font-semibold text-gray-900 dark:text-white">
+          {{ t('admin.playOps.growthGovernance.readiness.title') }}
+        </h3>
+        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+          {{ t('admin.playOps.growthGovernance.readiness.description') }}
+        </p>
+      </div>
+      <div v-if="readiness.length" class="grid gap-4 p-5 sm:grid-cols-2">
+        <article v-for="item in readiness" :key="item.activity" class="border border-gray-200 p-4 dark:border-dark-700">
+          <div class="flex items-start justify-between gap-3">
+            <h4 class="font-medium text-gray-900 dark:text-white">{{ readinessActivityLabel(item.activity) }}</h4>
+            <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium" :class="item.ready ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-100' : 'bg-amber-100 text-amber-900 dark:bg-amber-900/30 dark:text-amber-100'">
+              <Icon :name="item.ready ? 'checkCircle' : 'exclamationTriangle'" size="xs" />
+              {{ item.ready ? t('admin.playOps.growthGovernance.readiness.ready') : t('admin.playOps.growthGovernance.readiness.blocked') }}
+            </span>
           </div>
-        </div>
+          <dl class="mt-3 space-y-2 text-sm">
+            <div class="flex justify-between gap-3"><dt class="text-gray-500 dark:text-gray-400">{{ t('admin.playOps.growthGovernance.readiness.governance') }}</dt><dd class="font-medium text-gray-900 dark:text-white">{{ item.governance_decision || 'none' }}</dd></div>
+            <div class="flex justify-between gap-3"><dt class="text-gray-500 dark:text-gray-400">{{ t('admin.playOps.growthGovernance.readiness.pool') }}</dt><dd class="font-medium text-gray-900 dark:text-white">{{ item.coupon_pool_ready ? t('admin.playOps.growthGovernance.readiness.available') : t('admin.playOps.growthGovernance.readiness.unavailable') }}</dd></div>
+            <div v-if="item.activity === 'blindbox'" class="flex justify-between gap-3"><dt class="text-gray-500 dark:text-gray-400">{{ t('admin.playOps.growthGovernance.readiness.limit') }}</dt><dd class="font-medium tabular-nums text-gray-900 dark:text-white">{{ item.blindbox_daily_limit }} · ${{ item.blindbox_cost?.toFixed(2) }}</dd></div>
+          </dl>
+          <ul v-if="item.blocking_reasons.length" class="mt-3 list-disc space-y-1 pl-5 text-xs text-amber-800 dark:text-amber-100">
+            <li v-for="reason in item.blocking_reasons" :key="reason">{{ readinessReasonLabel(reason) }}</li>
+          </ul>
+        </article>
+      </div>
+      <p v-else class="px-5 py-6 text-sm text-gray-500 dark:text-gray-400">{{ t('admin.playOps.growthGovernance.readiness.empty') }}</p>
+    </section>
         <p class="mt-3 text-xs text-gray-500 dark:text-gray-400">
           {{ t('admin.playOps.growthGovernance.cohort.lagHint') }}
         </p>
@@ -335,6 +366,7 @@ import TotpStepUpDialog from '@/components/auth/TotpStepUpDialog.vue'
 import adminPlayAPI, {
   type AdminPlayGrowthCohort,
   type AdminPlayGrowthGovernanceState,
+  type AdminPlayRewardReadiness,
 } from '@/api/admin/play'
 import { useAppStore } from '@/stores'
 import { extractI18nErrorMessage } from '@/utils/apiError'
@@ -355,6 +387,7 @@ const error = ref('')
 const actionError = ref('')
 const cohort = ref<AdminPlayGrowthCohort | null>(null)
 const governance = ref<AdminPlayGrowthGovernanceState | null>(null)
+const readiness = ref<AdminPlayRewardReadiness[]>([])
 const approvalDialogOpen = ref(false)
 const revokeDialogOpen = ref(false)
 const approvalBudget = ref('')
@@ -362,6 +395,18 @@ const approvalRollout = ref('10')
 const approvalReason = ref('')
 const revokeReason = ref('')
 let loadGeneration = 0
+
+function readinessActivityLabel(activity: string) {
+  return activity === 'blindbox'
+    ? t('admin.playOps.growthGovernance.readiness.blindbox')
+    : t('admin.playOps.growthGovernance.readiness.checkin')
+}
+
+function readinessReasonLabel(reason: string) {
+  const key = `admin.playOps.growthGovernance.readiness.reasons.${reason}`
+  const value = t(key)
+  return value === key ? reason : value
+}
 
 const ratioMetricNames: Record<string, string> = {
   abnormal_redemption_ratio: 'abnormalRedemption',
@@ -569,13 +614,15 @@ async function load() {
   loading.value = true
   error.value = ''
   try {
-    const [nextCohort, nextGovernance] = await Promise.all([
+    const [nextCohort, nextGovernance, nextReadiness] = await Promise.all([
       adminPlayAPI.getGrowthCohort(),
       adminPlayAPI.getGrowthGovernance(),
+      adminPlayAPI.getRewardReadiness?.() ?? Promise.resolve([]),
     ])
     if (generation !== loadGeneration) return
     cohort.value = nextCohort
     governance.value = nextGovernance
+    readiness.value = nextReadiness
   } catch (cause) {
     if (generation !== loadGeneration) return
     error.value = extractI18nErrorMessage(
