@@ -144,6 +144,9 @@ const expectedCashReward = computed(() => currentExpectedReward.value * balanceB
 const expectedCashRTPCap = computed(() => currentRTPCap.value * balanceBranchWeight.value)
 const nextExpectedCashReward = computed(() => nextExpectedReward.value * balanceBranchWeight.value)
 const growthRewardLocked = computed(() => status.value?.growth_eligibility?.reward_mode === 'energy')
+const governanceBlocked = computed(
+  () => authStore.isAuthenticated && !growthRewardLocked.value && status.value?.growth_governance_available === false,
+)
 
 const canOpen = computed(
   () =>
@@ -163,6 +166,13 @@ function formatProbability(weight: number): string {
 
 function formatBalanceProbability(weight: number): string {
   return formatProbability(weight * balanceBranchWeight.value)
+}
+
+function governanceMessage(reason?: string) {
+  if (reason === 'rollout_excluded') return t('blindbox.governanceRolloutExcluded')
+  if (reason === 'budget_exhausted') return t('blindbox.governanceBudgetExhausted')
+  if (reason === 'unavailable') return t('blindbox.governanceUnavailable')
+  return t('blindbox.governanceNotApproved')
 }
 
 function formatPrizeAmount(amount: number): string {
@@ -584,6 +594,12 @@ watch(
                     {{ t('blindbox.openButton') }}
                   </button>
                 </template>
+                <template v-else-if="governanceBlocked">
+                  <div class="play-note" role="status">{{ governanceMessage(status?.growth_governance_reason) }}</div>
+                  <button type="button" class="play-btn play-btn-primary" disabled>
+                    {{ t('blindbox.openButton') }}
+                  </button>
+                </template>
                 <template v-else-if="!couponPoolReady">
                   <div class="play-note">{{ t('blindbox.couponPoolUnavailable') }}</div>
                   <button type="button" class="play-btn play-btn-primary" disabled>
@@ -670,6 +686,7 @@ watch(
               <p class="play-note">{{ t('blindbox.rewardSplit') }}</p>
               <p v-if="!loading && statusLoadFailed" class="play-note">{{ t('blindbox.unavailable') }}</p>
               <p v-else-if="!loading && !featureEnabled" class="play-note">{{ t('blindbox.disabled') }}</p>
+              <p v-else-if="!loading && governanceBlocked" class="play-note">{{ governanceMessage(status?.growth_governance_reason) }}</p>
               <p v-else-if="!loading && !couponPoolReady" class="play-note">{{ t('blindbox.couponPoolUnavailable') }}</p>
               <p v-else-if="!loading && publicPoolRedacted" class="play-note">{{ t('blindbox.signInToViewRewards') }}</p>
               <p v-else-if="!loading && !prizePool" class="play-note">{{ t('blindbox.unavailable') }}</p>

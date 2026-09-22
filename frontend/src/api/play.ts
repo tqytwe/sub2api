@@ -21,6 +21,8 @@ export interface PlayCheckinStatus {
   growth_eligibility?: PlayGrowthEligibility
   growth_energy_enabled?: boolean
   redeemable_reward_eligible?: boolean
+  growth_governance_available?: boolean
+  growth_governance_reason?: string
 }
 
 export type PlayGrowthTier = 'explorer' | 'active' | string
@@ -224,6 +226,8 @@ export interface PlayBlindboxStatus {
   growth_eligibility?: PlayGrowthEligibility
   recharge_boost_active?: boolean
   campaign_active?: boolean
+  growth_governance_available?: boolean
+  growth_governance_reason?: string
 }
 
 export interface PlayBlindboxPoolTier {

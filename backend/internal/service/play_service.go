@@ -408,13 +408,13 @@ func (s *PlayService) GetCheckinStatus(ctx context.Context, userID int64) (*Play
 	if status.GrowthEnergyEnabled {
 		status.IneligibleReason = eligibility.PrimaryReason
 	}
-	if status.GrowthGovernanceAvailable {
+	if status.GrowthGovernanceAvailable || eligibility.RewardMode == PlayGrowthRewardRedeemable {
 		ready, err := s.couponRewardPoolReady(ctx, CouponRewardActivityCheckin)
 		if err != nil {
 			return nil, err
 		}
 		status.CouponPoolReady = ready
-		if ready {
+		if ready && status.GrowthGovernanceAvailable {
 			couponWeightBP, redeemCodeWeightBP, balanceWeightBP, err := s.couponRewardSplit(ctx, CouponRewardActivityCheckin)
 			if err != nil {
 				return nil, err

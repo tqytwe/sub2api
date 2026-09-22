@@ -152,4 +152,30 @@ describe('CheckInView', () => {
     expect(getCheckinStatus).toHaveBeenCalledTimes(2)
     expect(showError).not.toHaveBeenCalled()
   })
+
+  it('shows the governance reason and disables check-in instead of blaming the coupon pool', async () => {
+    getCheckinStatus.mockResolvedValue({
+      ...explorerStatus,
+      growth_energy_enabled: false,
+      redeemable_reward_eligible: false,
+      growth_governance_available: false,
+      growth_governance_reason: 'not_approved',
+      growth_eligibility: {
+        ...explorerStatus.growth_eligibility,
+        tier: 'active',
+        reward_mode: 'redeemable',
+        primary_reason: 'eligible',
+      },
+    })
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('checkin.governanceNotApproved')
+    expect(wrapper.text()).not.toContain('checkin.poolUnavailable')
+    const button = wrapper.get('button.gw-btn-primary')
+    expect(button.attributes('disabled')).toBeDefined()
+    await button.trigger('click')
+    expect(checkin).not.toHaveBeenCalled()
+  })
 })
