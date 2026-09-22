@@ -468,6 +468,29 @@ async function handleOpen() {
         await loadStatus()
         return
       }
+      if (code === 'PLAY_GROWTH_GOVERNANCE_NOT_APPROVED') {
+        appStore.showInfo(t('blindbox.governanceNotApproved'))
+        await loadStatus()
+        return
+      }
+      if (code === 'PLAY_GROWTH_GOVERNANCE_ROLLOUT_EXCLUDED') {
+        appStore.showInfo(t('blindbox.governanceRolloutExcluded'))
+        await loadStatus()
+        return
+      }
+      if (code === 'PLAY_GROWTH_GOVERNANCE_BUDGET_EXHAUSTED') {
+        appStore.showInfo(t('blindbox.governanceBudgetExhausted'))
+        await loadStatus()
+        return
+      }
+      if (code === 'PLAY_GROWTH_GOVERNANCE_UNAVAILABLE') {
+        appStore.showError(t('blindbox.governanceUnavailable'))
+        return
+      }
+      if (code === 'PLAY_BLINDBOX_POOL_INVALID') {
+        appStore.showError(t('blindbox.poolInvalid'))
+        return
+      }
       appStore.showError(t('blindbox.failed'))
       return
     }

@@ -241,6 +241,7 @@ func registerAdminPlayRoutes(admin *gin.RouterGroup, h *handler.Handlers, stepUp
 		play.GET("/summary", h.Admin.Play.Summary)
 		play.GET("/growth/cohort", h.Admin.Play.GrowthCohort)
 		play.GET("/growth/governance", h.Admin.Play.GrowthGovernance)
+		play.GET("/growth/reward-readiness", h.Admin.Play.RewardReadiness)
 		play.POST("/growth/governance/approve", gin.HandlerFunc(stepUpAuth), h.Admin.Play.ApproveGrowthGovernance)
 		play.POST("/growth/governance/revoke", gin.HandlerFunc(stepUpAuth), h.Admin.Play.RevokeGrowthGovernance)
 		play.GET("/membership/overview", h.Admin.Play.MembershipOverview)
