@@ -34,18 +34,25 @@ func (s *PlayService) GetRewardReadiness(ctx context.Context) ([]PlayRewardReadi
 	}
 	rt := s.GetRuntime(ctx)
 	now := s.serverNow()
-	governance, governanceErr := s.getGrowthGovernance(ctx, now)
-	governanceOK := governanceErr == nil && governance != nil && governance.AllowsReward(now)
+	var governance *PlayGrowthGovernanceState
+	var governanceErr error
+	if s.requireGrowthGovernance {
+		governance, governanceErr = s.getGrowthGovernance(ctx, now)
+	}
+	governanceOK := !s.requireGrowthGovernance || (governanceErr == nil && governance != nil && governance.AllowsReward(now))
 	governanceReason := ""
 	if governanceErr != nil {
 		governanceReason = "unavailable"
-	} else if governance == nil || !governanceOK {
+	} else if s.requireGrowthGovernance && (governance == nil || !governanceOK) {
 		governanceReason = "not_approved"
 		if governance != nil && governance.BudgetAmount > 0 && governance.BudgetRemaining <= 0 {
 			governanceReason = "budget_exhausted"
 		}
 	}
-	governanceDecision := "none"
+	governanceDecision := "not_required"
+	if s.requireGrowthGovernance {
+		governanceDecision = "none"
+	}
 	budgetRemaining := 0.0
 	rollout := 0
 	if governance != nil {
