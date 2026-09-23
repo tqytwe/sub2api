@@ -171,3 +171,42 @@ func TestGetGrowthGovernanceDistinguishesAnUnavailableRepositoryFromNoApproval(t
 	require.NoError(t, err)
 	require.False(t, state.AllowsReward(now))
 }
+
+func TestRewardActionsIgnoreLegacyGovernanceWhenNotRequired(t *testing.T) {
+	now := time.Date(2026, 9, 23, 12, 0, 0, 0, time.UTC)
+	for _, state := range []*PlayGrowthGovernanceState{
+		nil,
+		{Decision: PlayGrowthGovernanceDecisionRevoked},
+	} {
+		svc := NewPlayService(&governanceOnlyRepo{state: state}, nil, nil, nil, nil, nil)
+		approval, err := svc.requireGrowthGovernanceForReward(context.Background(), 42, now)
+		require.NoError(t, err)
+		require.Nil(t, approval)
+		approval, available, reason := svc.growthGovernanceForStatus(context.Background(), 42, now)
+		require.Nil(t, approval)
+		require.True(t, available)
+		require.Empty(t, reason)
+	}
+}
+
+func TestProductionPlayServiceUsesExistingRewardConfigurationWithoutExtraApproval(t *testing.T) {
+	svc := ProvidePlayService(nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	require.True(t, svc.requireGrowthQualification)
+	require.False(t, svc.requireGrowthGovernance)
+}
+
+func TestRewardReadinessDoesNotBlockConfiguredPoolOnLegacyApproval(t *testing.T) {
+	settings := newCouponRewardSettingService(t, defaultBlindboxPool(), true)
+	svc := NewPlayService(&governanceOnlyRepo{
+		state: &PlayGrowthGovernanceState{Decision: PlayGrowthGovernanceDecisionRevoked},
+	}, nil, nil, settings, nil, nil)
+	svc.SetCouponRewardIssuer(&playCouponReadinessIssuer{ready: true})
+
+	items, err := svc.GetRewardReadiness(context.Background())
+	require.NoError(t, err)
+	require.Len(t, items, 2)
+	require.True(t, items[1].Ready)
+	require.True(t, items[1].GovernanceAvailable)
+	require.Empty(t, items[1].GovernanceReason)
+	require.NotContains(t, items[1].BlockingReasons, "governance_not_approved")
+}

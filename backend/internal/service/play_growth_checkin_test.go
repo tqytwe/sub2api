@@ -403,3 +403,20 @@ func TestCheckinMakeupFailsClosedWithoutGrowthGovernanceApproval(t *testing.T) {
 	require.Empty(t, repo.inserted)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
+
+func TestQualifiedCheckinStatusUsesPublishedPoolWithoutLegacyApproval(t *testing.T) {
+	base := &growthCheckinRepo{}
+	repo := &growthCheckinGovernedRepo{
+		growthCheckinRepo: base,
+		governance:        &PlayGrowthGovernanceState{Decision: PlayGrowthGovernanceDecisionRevoked},
+	}
+	svc := NewPlayService(repo, nil, nil, newGrowthCheckinSettingService(false), nil, nil)
+	svc.SetCouponRewardIssuer(&growthCheckinRewardIssuer{playCouponRewardIssuer: &playCouponRewardIssuer{}})
+
+	status, err := svc.GetCheckinStatus(context.Background(), 42)
+	require.NoError(t, err)
+	require.True(t, status.RedeemableRewardEligible)
+	require.True(t, status.GrowthGovernanceAvailable)
+	require.Empty(t, status.GrowthGovernanceReason)
+	require.True(t, status.CouponPoolReady)
+}

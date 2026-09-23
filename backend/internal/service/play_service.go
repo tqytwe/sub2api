@@ -32,9 +32,8 @@ type PlayService struct {
 	// default false preserves focused legacy test doubles without allowing a
 	// real production service to silently fall back to redeemable rewards.
 	requireGrowthQualification bool
-	// requireGrowthGovernance is enabled by production wiring. It keeps the
-	// legacy feature toggles from re-opening cash-equivalent rewards before an
-	// operations approval, budget, and rollout record exists.
+	// requireGrowthGovernance remains available for explicit legacy-policy
+	// tests; production rewards use the configured activity and pool controls.
 	requireGrowthGovernance bool
 	teamAdmissionRisk       PlayTeamAdmissionRiskHook
 	vipObserver             playVIPChangeObserver

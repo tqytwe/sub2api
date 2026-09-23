@@ -998,9 +998,8 @@ func ProvidePlayService(
 	// migrations; otherwise reward endpoints fail closed instead of reverting
 	// to the legacy redeemable path.
 	svc.RequireGrowthQualification(true)
-	// Legacy play_*_enabled settings must not reopen cash-equivalent rewards
-	// without an append-only operations approval, budget, and rollout record.
-	svc.RequireGrowthGovernance(true)
+	// Existing activity switches, published pools, and per-user limits control
+	// rewards. Cohort approval is retained for historical inspection only.
 	svc.SetMobilePushService(mobilePush)
 	svc.SetCouponRewardIssuer(couponService)
 	svc.SetRedeemCodeRewardIssuer(redeemService)

@@ -201,6 +201,9 @@ func (s *PlayService) getGrowthGovernance(ctx context.Context, now time.Time) (*
 // requireGrowthGovernanceForReward is called immediately before a
 // redeemable action. Explorer energy actions intentionally skip this gate.
 func (s *PlayService) requireGrowthGovernanceForReward(ctx context.Context, userID int64, now time.Time) (*PlayGrowthGovernanceState, error) {
+	if !s.requireGrowthGovernance {
+		return nil, nil
+	}
 	state, err := s.getGrowthGovernance(ctx, now)
 	if err != nil {
 		return nil, err
@@ -227,6 +230,9 @@ func (s *PlayService) requireGrowthGovernanceForReward(ctx context.Context, user
 // status endpoints. A status response can explain that rewards are paused
 // while mutation endpoints continue to fail closed with a typed error.
 func (s *PlayService) growthGovernanceForStatus(ctx context.Context, userID int64, now time.Time) (*PlayGrowthGovernanceState, bool, string) {
+	if !s.requireGrowthGovernance {
+		return nil, true, ""
+	}
 	state, err := s.getGrowthGovernance(ctx, now)
 	if err != nil {
 		return nil, false, "unavailable"
