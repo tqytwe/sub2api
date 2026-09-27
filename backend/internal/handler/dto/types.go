@@ -791,6 +791,8 @@ type UserSubscription struct {
 
 	User  *User  `json:"user,omitempty"`
 	Group *Group `json:"group,omitempty"`
+
+	PackageEntitlement *PublicPackageEntitlement `json:"package_entitlement,omitempty"`
 }
 
 type SubscriptionPurchaseOrder struct {
@@ -830,7 +832,23 @@ type AdminUserSubscription struct {
 // administrators for a package-managed subscription.
 type PackageEntitlement struct {
 	ID              int64     `json:"id"`
-	PaymentOrderID  int64     `json:"payment_order_id"`
+	PaymentOrderID  *int64    `json:"payment_order_id,omitempty"`
+	SourceType      string    `json:"source_type"`
+	GrantedBy       *int64    `json:"granted_by,omitempty"`
+	ExpiresAt       time.Time `json:"expires_at"`
+	Status          string    `json:"status"`
+	ExhaustedReason string    `json:"exhausted_reason,omitempty"`
+	RequestLimit    *int64    `json:"request_limit"`
+	RequestUsed     int64     `json:"request_used"`
+	AmountLimitUSD  *float64  `json:"amount_limit_usd"`
+	AmountUsedUSD   float64   `json:"amount_used_usd"`
+	TokenLimit      *int64    `json:"token_limit"`
+	TokenUsed       int64     `json:"token_used"`
+}
+
+// PublicPackageEntitlement exposes only the quota state an ordinary user
+// needs to understand their package progress.
+type PublicPackageEntitlement struct {
 	ExpiresAt       time.Time `json:"expires_at"`
 	Status          string    `json:"status"`
 	ExhaustedReason string    `json:"exhausted_reason,omitempty"`

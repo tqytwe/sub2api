@@ -2137,12 +2137,10 @@ export interface UserSubscription {
   assigned_at?: string
   notes?: string
   purchase_order?: SubscriptionPurchaseOrder | null
-  package_entitlement?: PackageEntitlement | null
+  package_entitlement?: PackageQuota | null
 }
 
-export interface PackageEntitlement {
-  id: number
-  payment_order_id: number
+export interface PackageQuota {
   expires_at: string
   status: 'active' | 'exhausted' | 'expired'
   exhausted_reason: 'request' | 'amount' | 'token' | null
@@ -2152,6 +2150,13 @@ export interface PackageEntitlement {
   amount_used_usd: number
   token_limit: number | null
   token_used: number
+}
+
+export interface PackageEntitlement extends PackageQuota {
+  id: number
+  payment_order_id?: number | null
+  source_type?: 'payment' | 'admin_grant'
+  granted_by?: number | null
 }
 
 export interface SubscriptionPurchaseOrder {
@@ -2208,6 +2213,18 @@ export interface BulkAssignSubscriptionRequest {
   user_ids: number[]
   group_id: number
   validity_days?: number
+}
+
+export interface PackagePlanGrantRequest {
+  user_id: number
+  plan_id: number
+  notes?: string
+}
+
+export interface BulkPackagePlanGrantRequest {
+  user_ids: number[]
+  plan_id: number
+  notes?: string
 }
 
 export interface ExtendSubscriptionRequest {

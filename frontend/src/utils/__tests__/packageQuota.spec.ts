@@ -5,8 +5,6 @@ import { packageQuotaRows } from '../packageQuota'
 describe('packageQuotaRows', () => {
   it('returns request, amount, and Token counters for a package entitlement', () => {
     expect(packageQuotaRows({
-      id: 1,
-      payment_order_id: 331,
       expires_at: '2026-09-16T17:19:00Z',
       status: 'active',
       exhausted_reason: null,

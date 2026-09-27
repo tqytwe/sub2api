@@ -900,6 +900,8 @@ func PackageEntitlementFromService(entitlement *service.PackageEntitlement) *Pac
 	return &PackageEntitlement{
 		ID:              entitlement.ID,
 		PaymentOrderID:  entitlement.PaymentOrderID,
+		SourceType:      entitlement.SourceType,
+		GrantedBy:       entitlement.GrantedBy,
 		ExpiresAt:       entitlement.ExpiresAt,
 		Status:          entitlement.Status,
 		ExhaustedReason: entitlement.ExhaustedReason,
@@ -955,10 +957,51 @@ func userSubscriptionFromServiceBase(sub *service.UserSubscription) UserSubscrip
 		RevokedAt:          sub.DeletedAt,
 		User:               UserFromServiceShallow(sub.User),
 		Group:              GroupFromServiceShallow(sub.Group),
+		PackageEntitlement: PublicPackageEntitlementFromService(sub.PackageEntitlement),
+	}
+}
+
+func PublicPackageEntitlementFromService(entitlement *service.PackageEntitlement) *PublicPackageEntitlement {
+	if entitlement == nil {
+		return nil
+	}
+	return &PublicPackageEntitlement{
+		ExpiresAt:       entitlement.ExpiresAt,
+		Status:          entitlement.Status,
+		ExhaustedReason: entitlement.ExhaustedReason,
+		RequestLimit:    entitlement.RequestLimit,
+		RequestUsed:     entitlement.RequestUsed,
+		AmountLimitUSD:  entitlement.AmountLimitUSD,
+		AmountUsedUSD:   entitlement.AmountUsedUSD,
+		TokenLimit:      entitlement.TokenLimit,
+		TokenUsed:       entitlement.TokenUsed,
 	}
 }
 
 func BulkAssignResultFromService(r *service.BulkAssignResult) *BulkAssignResult {
+	if r == nil {
+		return nil
+	}
+	subs := make([]AdminUserSubscription, 0, len(r.Subscriptions))
+	for i := range r.Subscriptions {
+		subs = append(subs, *UserSubscriptionFromServiceAdmin(&r.Subscriptions[i]))
+	}
+	statuses := make(map[string]string, len(r.Statuses))
+	for userID, status := range r.Statuses {
+		statuses[strconv.FormatInt(userID, 10)] = status
+	}
+	return &BulkAssignResult{
+		SuccessCount:  r.SuccessCount,
+		CreatedCount:  r.CreatedCount,
+		ReusedCount:   r.ReusedCount,
+		FailedCount:   r.FailedCount,
+		Subscriptions: subs,
+		Errors:        r.Errors,
+		Statuses:      statuses,
+	}
+}
+
+func BulkPackagePlanGrantResultFromService(r *service.BulkPackagePlanGrantResult) *BulkAssignResult {
 	if r == nil {
 		return nil
 	}

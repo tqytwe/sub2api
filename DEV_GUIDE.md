@@ -27,6 +27,23 @@
 
 不要混用 npm 与 pnpm 的 `node_modules`。新增 Go interface 方法时必须同步更新全部 mock 和 stub。
 
+### 非 Docker 本地测试
+
+当前 Windows 本地开发环境不以 Docker、PostgreSQL 或 Redis 容器作为前置条件。进行本地代码验证时，**不要**启动 `docker compose`、容器数据库或 Redis；这些依赖由 CI、隔离服务器环境和生产部署流程负责。
+
+本地只运行不依赖外部服务的测试、静态检查和构建，例如：
+
+```bash
+pnpm --dir frontend run lint:check
+pnpm --dir frontend run typecheck
+pnpm --dir frontend run test:run
+pnpm --dir frontend run build
+cd backend && go test ./...
+cd backend && go build -buildvcs=false -o bin/server ./cmd/server
+```
+
+如某项测试明确要求 PostgreSQL、Redis、Docker 或真实外部服务，应记录为“需在 CI 或隔离服务器验证”，不得为了本地测试临时启动或安装容器运行时。本地 `localhost` 也不能替代生产验收。
+
 ## 常用命令
 
 ```bash

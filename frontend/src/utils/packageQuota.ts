@@ -1,4 +1,4 @@
-import type { PackageEntitlement } from '@/types'
+import type { PackageQuota } from '@/types'
 
 export type PackageQuotaDimension = 'request' | 'amount' | 'token'
 
@@ -8,7 +8,7 @@ export interface PackageQuotaRow {
   limit: number
 }
 
-export function packageQuotaRows(entitlement: PackageEntitlement): PackageQuotaRow[] {
+export function packageQuotaRows(entitlement: PackageQuota): PackageQuotaRow[] {
   const rows: PackageQuotaRow[] = []
 
   if (entitlement.request_limit != null) {

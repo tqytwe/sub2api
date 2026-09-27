@@ -210,3 +210,23 @@ func TestSubscriptionBulkAssign_RejectsInvalidUserIDsBeforeExecution(t *testing.
 		})
 	}
 }
+
+func TestPackagePlanGrantRequiresIdempotencyKeyBeforeExecution(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	handler := NewSubscriptionHandler(nil)
+	router.POST("/single", handler.GrantPackagePlan)
+	router.POST("/bulk", handler.BulkGrantPackagePlan)
+
+	for _, tc := range []struct {
+		path string
+		body string
+	}{
+		{path: "/single", body: `{"user_id":451,"plan_id":22}`},
+		{path: "/bulk", body: `{"user_ids":[451],"plan_id":22}`},
+	} {
+		response := bulkActionHandlerRequest(router, tc.path, tc.body, "")
+		require.Equal(t, http.StatusBadRequest, response.Code, response.Body.String())
+		require.Contains(t, response.Body.String(), "IDEMPOTENCY_KEY_REQUIRED")
+	}
+}

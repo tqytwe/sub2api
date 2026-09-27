@@ -132,6 +132,12 @@ export default {
     daily: '每日',
     weekly: '每周',
     monthly: '每月',
+	packageQuota: {
+	  request: '请求次数',
+	  amount: '金额额度',
+	  token: 'Token',
+	  exhausted: '套餐额度已用尽'
+	},
     daysRemaining: '剩余 {days} 天',
     expiresOn: '{date} 到期',
     resetIn: '{time} 后重置',

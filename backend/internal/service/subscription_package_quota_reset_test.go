@@ -28,10 +28,10 @@ func TestAdminResetQuotaResetsOnlyCurrentPackageEntitlement(t *testing.T) {
 	mock.ExpectQuery(regexp.QuoteMeta("WITH selected_subscriptions (user_id, group_id) AS")).
 		WithArgs(int64(451), int64(62)).
 		WillReturnRows(sqlmock.NewRows([]string{
-			"id", "payment_order_id", "user_id", "group_id", "starts_at", "expires_at", "status", "exhausted_reason",
+			"id", "payment_order_id", "source_type", "granted_by", "plan_id", "user_id", "group_id", "starts_at", "expires_at", "status", "exhausted_reason",
 			"request_limit", "request_used", "amount_limit_usd", "amount_used_usd", "token_limit", "token_used",
 		}).
-			AddRow(1, 331, 451, 62, now.Add(-time.Hour), now.AddDate(0, 0, 5), "exhausted", "request", requestLimit, requestLimit, nil, 0, nil, 0))
+			AddRow(1, 331, PackageEntitlementSourcePayment, nil, 22, 451, 62, now.Add(-time.Hour), now.AddDate(0, 0, 5), "exhausted", "request", requestLimit, requestLimit, nil, 0, nil, 0))
 	mock.ExpectExec(regexp.QuoteMeta("UPDATE subscription_package_entitlements")).
 		WithArgs(int64(1), PackageEntitlementActive).
 		WillReturnResult(sqlmock.NewResult(0, 1))

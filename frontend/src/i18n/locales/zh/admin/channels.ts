@@ -659,6 +659,20 @@ export default {
 
     // Subscriptions Management
     subscriptions: {
+	  assignMode: {
+		label: '分配类型',
+		legacy: '传统分组',
+		package: '套餐计划'
+	  },
+	  packageGrant: {
+		plan: '套餐计划',
+		selectPlan: '请选择套餐计划',
+		planHint: '有效期、分组和额度从所选计划复制，此处不可手动修改。',
+		validity: '有效期',
+		days: '{days} 天',
+		noPlans: '尚未配置包含套餐额度的计划。',
+		success: '套餐计划授予成功'
+	  },
       batchAssign: {
         enable: '批量分配订阅',
         hint: '搜索并添加多个用户，统一分配所选分组和有效期。每次最多 100 人。',

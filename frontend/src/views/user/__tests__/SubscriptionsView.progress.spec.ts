@@ -148,4 +148,46 @@ describe('SubscriptionsView progress contract', () => {
     expect(wrapper.text()).toContain('userSubscriptions.status.expired')
     expect(showError).not.toHaveBeenCalled()
   })
+
+	 it('renders package request, amount, and token progress without an unlimited state', async () => {
+		getMySubscriptions.mockResolvedValue([{
+			id: 42,
+			user_id: 9,
+			group_id: 17,
+			status: 'active',
+			starts_at: '2026-08-01T00:00:00Z',
+			daily_usage_usd: 0,
+			weekly_usage_usd: 0,
+			monthly_usage_usd: 0,
+			daily_window_start: null,
+			weekly_window_start: null,
+			monthly_window_start: null,
+			created_at: '2026-08-01T00:00:00Z',
+			updated_at: '2026-08-01T00:00:00Z',
+			expires_at: '2026-11-20T14:14:30Z',
+			package_entitlement: {
+				expires_at: '2026-11-20T14:14:30Z',
+				status: 'active',
+				exhausted_reason: null,
+				request_limit: 30000,
+				request_used: 2022,
+				amount_limit_usd: 2000,
+				amount_used_usd: 140.0548313891,
+				token_limit: 2200000000,
+				token_used: 278715333,
+			},
+		}])
+		getSubscriptionsProgress.mockResolvedValue([])
+
+		const { default: SubscriptionsView } = await import('../SubscriptionsView.vue')
+		const wrapper = mount(SubscriptionsView, {
+			global: { stubs: { AppLayout: { template: '<div><slot /></div>' }, Icon: true } },
+		})
+		await flushPromises()
+
+		expect(wrapper.get('[data-test="package-quota-request"]').text()).toContain('2,022 / 30,000')
+		expect(wrapper.get('[data-test="package-quota-amount"]').text()).toContain('$140.05 / $2,000.00')
+		expect(wrapper.get('[data-test="package-quota-token"]').text()).toContain('278,715,333 / 2,200,000,000')
+		expect(wrapper.find('[data-test="subscription-unlimited"]').exists()).toBe(false)
+	})
 })

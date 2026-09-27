@@ -10,8 +10,10 @@ import type {
   SubscriptionProgress,
   AssignSubscriptionRequest,
   BulkAssignSubscriptionRequest,
+	BulkPackagePlanGrantRequest,
   ExtendSubscriptionRequest,
-  PaginatedResponse
+	PackagePlanGrantRequest,
+	PaginatedResponse
 } from '@/types'
 
 export type SubscriptionBulkAction = 'extend' | 'reset_quota' | 'revoke' | 'restore'
@@ -134,6 +136,30 @@ export async function bulkAssign(
   return data
 }
 
+export async function packageGrant(
+	request: PackagePlanGrantRequest,
+	idempotencyKey: string
+): Promise<UserSubscription> {
+	const { data } = await apiClient.post<UserSubscription>(
+		'/admin/subscriptions/package-grant',
+		request,
+		{ headers: { 'Idempotency-Key': idempotencyKey } }
+	)
+	return data
+}
+
+export async function bulkPackageGrant(
+	request: BulkPackagePlanGrantRequest,
+	idempotencyKey: string
+): Promise<BulkAssignSubscriptionResult> {
+	const { data } = await apiClient.post<BulkAssignSubscriptionResult>(
+		'/admin/subscriptions/package-grant/bulk',
+		request,
+		{ headers: { 'Idempotency-Key': idempotencyKey } }
+	)
+	return data
+}
+
 /**
  * Extend subscription validity
  * @param id - Subscription ID
@@ -227,6 +253,8 @@ export const subscriptionsAPI = {
   getProgress,
   assign,
   bulkAssign,
+	packageGrant,
+	bulkPackageGrant,
   bulkAction,
   extend,
   revoke,

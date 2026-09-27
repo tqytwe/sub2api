@@ -520,6 +520,36 @@
         @submit.prevent="handleAssignSubscription"
         class="space-y-5"
       >
+		<div class="grid grid-cols-2 gap-1 rounded-lg bg-gray-100 p-1 dark:bg-dark-700" role="group" :aria-label="t('admin.subscriptions.assignMode.label')">
+		  <button
+			type="button"
+			data-test="assign-mode-legacy"
+			:disabled="submitting"
+			:class="[
+			  'rounded-md px-3 py-2 text-sm font-medium transition-colors',
+			  assignmentMode === 'legacy'
+				? 'bg-white text-gray-900 shadow-sm dark:bg-dark-800 dark:text-white'
+				: 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
+			]"
+			@click="setAssignmentMode('legacy')"
+		  >
+			{{ t('admin.subscriptions.assignMode.legacy') }}
+		  </button>
+		  <button
+			type="button"
+			data-test="assign-mode-package"
+			:disabled="submitting"
+			:class="[
+			  'rounded-md px-3 py-2 text-sm font-medium transition-colors',
+			  assignmentMode === 'package'
+				? 'bg-white text-primary-700 shadow-sm dark:bg-dark-800 dark:text-primary-300'
+				: 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
+			]"
+			@click="setAssignmentMode('package')"
+		  >
+			{{ t('admin.subscriptions.assignMode.package') }}
+		  </button>
+		</div>
         <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
           <input v-model="batchAssignEnabled" type="checkbox" :disabled="submitting" @change="resetAssignUsers" />
           {{ t('admin.subscriptions.batchAssign.enable') }}
@@ -595,7 +625,7 @@
             </ul>
           </div>
         </div>
-        <div>
+        <div v-if="assignmentMode === 'legacy'">
           <label class="input-label">{{ t('admin.subscriptions.form.group') }}</label>
           <Select
             v-model="assignForm.group_id"
@@ -626,11 +656,41 @@
           </Select>
           <p class="input-hint">{{ t('admin.subscriptions.groupHint') }}</p>
         </div>
-        <div>
+        <div v-if="assignmentMode === 'legacy'">
           <label class="input-label">{{ t('admin.subscriptions.form.validityDays') }}</label>
           <input v-model.number="assignForm.validity_days" type="number" min="1" max="36500" step="1" :disabled="submitting" class="input" />
           <p class="input-hint">{{ t('admin.subscriptions.validityHint') }}</p>
         </div>
+		<div v-else class="space-y-4">
+		  <div>
+			<label class="input-label">{{ t('admin.subscriptions.packageGrant.plan') }}</label>
+			<Select
+			  v-model="assignForm.package_plan_id"
+			  data-test="package-plan-select"
+			  :disabled="submitting"
+			  :options="packagePlanOptions"
+			  :placeholder="t('admin.subscriptions.packageGrant.selectPlan')"
+			/>
+			<p class="input-hint">{{ t('admin.subscriptions.packageGrant.planHint') }}</p>
+		  </div>
+		  <div
+			v-if="selectedPackagePlan"
+			data-test="package-plan-snapshot"
+			class="space-y-3 rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm dark:border-dark-600 dark:bg-dark-700/60"
+		  >
+			<div class="flex items-center justify-between gap-4">
+			  <span class="text-gray-500 dark:text-gray-400">{{ t('admin.subscriptions.packageGrant.validity') }}</span>
+			  <span class="font-medium text-gray-900 dark:text-white">{{ t('admin.subscriptions.packageGrant.days', { days: selectedPackageValidityDays }) }}</span>
+			</div>
+			<div v-for="quota in selectedPackageQuotaRows" :key="quota.dimension" class="flex items-center justify-between gap-4">
+			  <span class="text-gray-500 dark:text-gray-400">{{ packageQuotaLabel(quota.dimension) }}</span>
+			  <span class="text-right font-medium text-gray-900 dark:text-white">{{ formatPackageQuotaValue(quota.dimension, quota.limit) }}</span>
+			</div>
+		  </div>
+		  <p v-else-if="packagePlanOptions.length === 0" class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-900/60 dark:bg-amber-900/20 dark:text-amber-300">
+			{{ t('admin.subscriptions.packageGrant.noPlans') }}
+		  </p>
+		</div>
         <div v-if="batchAssignResult" class="space-y-2 text-sm" role="status" data-test="batch-assign-result">
           <p>{{ t('admin.subscriptions.batchAssign.result', { success: batchAssignResult.success_count, failed: batchAssignResult.failed_count }) }}</p>
           <!-- design-governance-allow: page-shell-ownership - this list is a bounded dialog error region. -->
@@ -648,7 +708,7 @@
           <button
             type="submit"
             form="assign-subscription-form"
-            :disabled="submitting || (batchAssignEnabled && assignUsers.length === 0)"
+			:disabled="assignSubmitDisabled"
             class="btn btn-primary"
           >
             <svg
@@ -866,6 +926,7 @@ import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import { adminAPI } from '@/api/admin'
 import type { AdminUser, UserSubscription, Group, GroupPlatform, SubscriptionType } from '@/types'
+import type { SubscriptionPlan } from '@/types/payment'
 import type { SimpleUser } from '@/api/admin/usage'
 import type { SubscriptionBulkAction, SubscriptionBulkActionResult, BulkAssignSubscriptionResult } from '@/api/admin/subscriptions'
 import { useTableSelection } from '@/composables/useTableSelection'
@@ -1032,6 +1093,7 @@ const statusOptions = computed(() => [
 
 const subscriptions = ref<UserSubscription[]>([])
 const groups = ref<Group[]>([])
+const packagePlans = ref<SubscriptionPlan[]>([])
 const loading = ref(false)
 let abortController: AbortController | null = null
 
@@ -1133,8 +1195,52 @@ const resetQuotaDialogMessage = computed(() => {
 const assignForm = reactive({
   user_id: null as number | null,
   group_id: null as number | null,
-  validity_days: 30
+	validity_days: 30,
+	package_plan_id: null as number | null
 })
+
+const assignmentMode = ref<'legacy' | 'package'>('legacy')
+let packageGrantAttempt: { fingerprint: string; key: string } | null = null
+
+const packagePlanOptions = computed(() =>
+	packagePlans.value
+		.filter((plan) => Boolean(plan.request_limit || plan.amount_limit_usd || plan.token_limit))
+		.map((plan) => ({ value: plan.id, label: `${plan.name} (#${plan.id})` }))
+)
+
+const selectedPackagePlan = computed(() =>
+	packagePlans.value.find((plan) => plan.id === assignForm.package_plan_id) ?? null
+)
+
+const selectedPackageValidityDays = computed(() => {
+	const plan = selectedPackagePlan.value
+	if (!plan) return 0
+	if (['week', 'weeks'].includes(plan.validity_unit)) return plan.validity_days * 7
+	if (['month', 'months'].includes(plan.validity_unit)) return plan.validity_days * 30
+	return plan.validity_days
+})
+
+const selectedPackageQuotaRows = computed(() => {
+	const plan = selectedPackagePlan.value
+	if (!plan) return []
+	return packageQuotaRows({
+		expires_at: '',
+		status: 'active',
+		exhausted_reason: null,
+		request_limit: plan.request_limit ?? null,
+		request_used: 0,
+		amount_limit_usd: plan.amount_limit_usd ?? null,
+		amount_used_usd: 0,
+		token_limit: plan.token_limit ?? null,
+		token_used: 0
+	})
+})
+
+const assignSubmitDisabled = computed(() =>
+	submitting.value ||
+	(batchAssignEnabled.value ? assignUsers.value.length === 0 : !assignForm.user_id) ||
+	(assignmentMode.value === 'legacy' ? !assignForm.group_id : !assignForm.package_plan_id)
+)
 
 const extendForm = reactive({
   days: 30
@@ -1222,6 +1328,16 @@ const loadGroups = async () => {
   } catch (error) {
     console.error('Error loading groups:', error)
   }
+}
+
+const loadPackagePlans = async () => {
+	try {
+		const response = await adminAPI.payment.getPlans()
+		packagePlans.value = response.data || []
+	} catch (error) {
+		packagePlans.value = []
+		console.error('Error loading package plans:', error)
+	}
 }
 
 // Toolbar user filter search with debounce
@@ -1370,11 +1486,30 @@ const closeAssignModal = () => {
   assignForm.user_id = null
   assignForm.group_id = null
   assignForm.validity_days = 30
+	assignForm.package_plan_id = null
+	assignmentMode.value = 'legacy'
+	packageGrantAttempt = null
   // Clear user search state
   selectedUser.value = null
   userSearchKeyword.value = ''
   userSearchResults.value = []
   showUserDropdown.value = false
+}
+
+const setAssignmentMode = (mode: 'legacy' | 'package') => {
+	if (submitting.value) return
+	assignmentMode.value = mode
+	batchAssignResult.value = null
+	packageGrantAttempt = null
+}
+
+const packageGrantIdempotencyKey = (payload: unknown): string => {
+	const fingerprint = JSON.stringify(payload)
+	if (packageGrantAttempt?.fingerprint === fingerprint) return packageGrantAttempt.key
+	const uuid = globalThis.crypto?.randomUUID?.()
+	const key = `package-grant-${uuid ?? `${Date.now()}-${Math.random().toString(36).slice(2, 12)}`}`
+	packageGrantAttempt = { fingerprint, key }
+	return key
 }
 
 const handleAssignSubscription = async () => {
@@ -1383,21 +1518,47 @@ const handleAssignSubscription = async () => {
     appStore.showError(t('admin.subscriptions.pleaseSelectUser'))
     return
   }
-  if (!assignForm.group_id) {
+  if (assignmentMode.value === 'legacy' && !assignForm.group_id) {
     appStore.showError(t('admin.subscriptions.pleaseSelectGroup'))
     return
   }
-  if (!Number.isInteger(assignForm.validity_days) || assignForm.validity_days < 1 || assignForm.validity_days > 36500) {
+  if (assignmentMode.value === 'legacy' && (!Number.isInteger(assignForm.validity_days) || assignForm.validity_days < 1 || assignForm.validity_days > 36500)) {
     appStore.showError(t('admin.subscriptions.validityDaysRequired'))
     return
   }
 
   submitting.value = true
   try {
+	if (assignmentMode.value === 'package') {
+		const planID = assignForm.package_plan_id
+		if (!planID) {
+			appStore.showError(t('admin.subscriptions.packageGrant.selectPlan'))
+			return
+		}
+		if (batchAssignEnabled.value) {
+			const payload = { user_ids: assignUsers.value.map((user) => user.id), plan_id: planID }
+			batchAssignResult.value = await adminAPI.subscriptions.bulkPackageGrant(payload, packageGrantIdempotencyKey(payload))
+			const result = batchAssignResult.value
+			const successIds = new Set(result.subscriptions.map((subscription) => subscription.user_id))
+			assignUsers.value = assignUsers.value.filter((user) => !successIds.has(user.id))
+			if (result.success_count > 0) {
+				appStore.showSuccess(t('admin.subscriptions.batchAssign.result', { success: result.success_count, failed: result.failed_count }))
+				await loadSubscriptions()
+			}
+			return
+		}
+		const payload = { user_id: assignForm.user_id!, plan_id: planID }
+		await adminAPI.subscriptions.packageGrant(payload, packageGrantIdempotencyKey(payload))
+		appStore.showSuccess(t('admin.subscriptions.packageGrant.success'))
+		submitting.value = false
+		closeAssignModal()
+		loadSubscriptions()
+		return
+	}
     if (batchAssignEnabled.value) {
       batchAssignResult.value = await adminAPI.subscriptions.bulkAssign({
         user_ids: assignUsers.value.map((user) => user.id),
-        group_id: assignForm.group_id,
+		group_id: assignForm.group_id!,
         validity_days: assignForm.validity_days
       })
       const result = batchAssignResult.value
@@ -1411,7 +1572,7 @@ const handleAssignSubscription = async () => {
     }
     await adminAPI.subscriptions.assign({
       user_id: assignForm.user_id!,
-      group_id: assignForm.group_id,
+	  group_id: assignForm.group_id!,
       validity_days: assignForm.validity_days
     })
     appStore.showSuccess(t('admin.subscriptions.subscriptionAssigned'))
@@ -1670,6 +1831,7 @@ onMounted(() => {
   loadSavedColumns()
   loadSubscriptions()
   loadGroups()
+	loadPackagePlans()
   document.addEventListener('click', handleClickOutside)
 })
 
