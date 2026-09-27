@@ -659,6 +659,20 @@ export default {
 
     // Subscriptions
     subscriptions: {
+	  assignMode: {
+		label: 'Assignment type',
+		legacy: 'Legacy group',
+		package: 'Package plan'
+	  },
+	  packageGrant: {
+		plan: 'Package plan',
+		selectPlan: 'Select a package plan',
+		planHint: 'Validity, group, and quotas are copied from the selected plan and cannot be edited here.',
+		validity: 'Validity',
+		days: '{days} days',
+		noPlans: 'No plans with package quotas are configured.',
+		success: 'Package plan granted successfully'
+	  },
       batchAssign: {
         enable: 'Assign to multiple users',
         hint: 'Search and add up to 100 users to assign the same group and validity period.',

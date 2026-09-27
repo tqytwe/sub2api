@@ -26,4 +26,26 @@ describe('admin subscription batch APIs', () => {
     expect(await subscriptionsAPI.bulkAssign(request)).toEqual(result)
     expect(post).toHaveBeenCalledWith('/admin/subscriptions/bulk-assign', request)
   })
+
+	it('sends package grants with explicit idempotency keys and no raw quota fields', async () => {
+		const request = { user_id: 451, plan_id: 22 }
+		const result = { user_id: 451, group_id: 63, package_entitlement: { request_limit: 30000 } }
+		post.mockResolvedValue({ data: result })
+
+		expect(await subscriptionsAPI.packageGrant(request, 'package-grant-451')).toEqual(result)
+		expect(post).toHaveBeenCalledWith('/admin/subscriptions/package-grant', request, {
+			headers: { 'Idempotency-Key': 'package-grant-451' }
+		})
+	})
+
+	it('uses one operation key for a bulk package grant', async () => {
+		const request = { user_ids: [451, 452], plan_id: 22 }
+		const result = { success_count: 2, created_count: 2, reused_count: 0, failed_count: 0, subscriptions: [], errors: [] }
+		post.mockResolvedValue({ data: result })
+
+		expect(await subscriptionsAPI.bulkPackageGrant(request, 'package-grant-bulk')).toEqual(result)
+		expect(post).toHaveBeenCalledWith('/admin/subscriptions/package-grant/bulk', request, {
+			headers: { 'Idempotency-Key': 'package-grant-bulk' }
+		})
+	})
 })

@@ -100,8 +100,41 @@
               }}</span>
             </div>
 
+			<!-- Package Usage -->
+			<div v-if="subscription.package_entitlement" class="space-y-4">
+			  <div
+				v-if="subscription.package_entitlement.status === 'exhausted'"
+				class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700 dark:border-red-900/60 dark:bg-red-900/20 dark:text-red-300"
+				role="status"
+			  >
+				{{ t('userSubscriptions.packageQuota.exhausted') }}
+			  </div>
+			  <div
+				v-for="quota in packageQuotaRows(subscription.package_entitlement)"
+				:key="quota.dimension"
+				:data-test="`package-quota-${quota.dimension}`"
+				class="space-y-2"
+			  >
+				<div class="flex items-start justify-between gap-4 text-sm">
+				  <span class="font-medium text-gray-700 dark:text-gray-300">
+					{{ packageQuotaLabel(quota.dimension) }}
+				  </span>
+				  <span class="text-right text-gray-500 dark:text-dark-400">
+					{{ formatPackageQuota(quota) }}
+				  </span>
+				</div>
+				<div class="relative h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-dark-600">
+				  <div
+					class="absolute inset-y-0 left-0 rounded-full transition-[width] duration-300"
+					:class="getProgressBarClass(packageQuotaPercentage(quota))"
+					:style="{ width: getProgressWidth(packageQuotaPercentage(quota)) }"
+				  ></div>
+				</div>
+			  </div>
+			</div>
+
             <!-- Daily Usage -->
-            <div v-if="subscription.progress.daily" class="space-y-2">
+            <div v-if="!subscription.package_entitlement && subscription.progress.daily" class="space-y-2">
               <div class="flex items-center justify-between">
                 <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
                   {{ t('userSubscriptions.daily') }}
@@ -128,7 +161,7 @@
             </div>
 
             <!-- Weekly Usage -->
-            <div v-if="subscription.progress.weekly" class="space-y-2">
+            <div v-if="!subscription.package_entitlement && subscription.progress.weekly" class="space-y-2">
               <div class="flex items-center justify-between">
                 <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
                   {{ t('userSubscriptions.weekly') }}
@@ -159,7 +192,7 @@
             </div>
 
             <!-- Monthly Usage -->
-            <div v-if="subscription.progress.monthly" class="space-y-2">
+            <div v-if="!subscription.package_entitlement && subscription.progress.monthly" class="space-y-2">
               <div class="flex items-center justify-between">
                 <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
                   {{ t('userSubscriptions.monthly') }}
@@ -192,6 +225,7 @@
             <!-- No limits configured - Unlimited badge -->
             <div
               v-if="isUnlimitedSubscription(subscription)"
+			  data-test="subscription-unlimited"
               class="flex items-center justify-center rounded-xl bg-gradient-to-r from-emerald-50 to-teal-50 py-6 dark:from-emerald-900/20 dark:to-teal-900/20"
             >
               <div class="flex items-center gap-3">
@@ -226,6 +260,7 @@ import { formatDateTimeToMinute } from '@/utils/format'
 import { hasPeakRate, formatPeakRateWindow, serverTimezoneLabel } from '@/utils/peak-rate'
 import { platformBorderClass, platformBadgeClass, platformButtonClass, platformLabel } from '@/utils/platformColors'
 import { localizedEnumOrUnknown } from '@/utils/localizedEnum'
+import { packageQuotaRows, type PackageQuotaDimension, type PackageQuotaRow } from '@/utils/packageQuota'
 import {
   getExpirationDateRelation,
   getRemainingDurationParts,
@@ -311,6 +346,7 @@ function formatUsage(window: SubscriptionUsageWindow | null): string {
 
 function isUnlimitedSubscription(subscription: SubscriptionProgressDisplay): boolean {
   return (
+	!subscription.package_entitlement &&
     !subscription.progress.daily &&
     !subscription.progress.weekly &&
     !subscription.progress.monthly &&
@@ -318,6 +354,23 @@ function isUnlimitedSubscription(subscription: SubscriptionProgressDisplay): boo
     !subscription.group?.weekly_limit_usd &&
     !subscription.group?.monthly_limit_usd
   )
+}
+
+function packageQuotaLabel(dimension: PackageQuotaDimension): string {
+  return t(`userSubscriptions.packageQuota.${dimension}`)
+}
+
+function packageQuotaPercentage(quota: PackageQuotaRow): number {
+  if (quota.limit <= 0) return 0
+  return Math.min(100, (quota.used / quota.limit) * 100)
+}
+
+function formatPackageQuota(quota: PackageQuotaRow): string {
+  if (quota.dimension === 'amount') {
+	const formatter = new Intl.NumberFormat(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+	return `$${formatter.format(quota.used)} / $${formatter.format(quota.limit)}`
+  }
+  return `${quota.used.toLocaleString()} / ${quota.limit.toLocaleString()}`
 }
 
 function formatExpirationDate(expiresAt: string): string {

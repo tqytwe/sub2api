@@ -2,15 +2,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import SubscriptionsView from '../SubscriptionsView.vue'
 
-const { list, bulkAction, bulkAssign, listUsers, showError } = vi.hoisted(() => ({
-  list: vi.fn(), bulkAction: vi.fn(), bulkAssign: vi.fn(), listUsers: vi.fn(), showError: vi.fn()
+const { list, bulkAction, bulkAssign, packageGrant, bulkPackageGrant, getPlans, listUsers, showError } = vi.hoisted(() => ({
+  list: vi.fn(), bulkAction: vi.fn(), bulkAssign: vi.fn(), packageGrant: vi.fn(), bulkPackageGrant: vi.fn(),
+  getPlans: vi.fn(), listUsers: vi.fn(), showError: vi.fn()
 }))
 
 vi.mock('@/api/admin', () => ({
   adminAPI: {
-    subscriptions: { list, bulkAction, bulkAssign },
+    subscriptions: { list, bulkAction, bulkAssign, packageGrant, bulkPackageGrant },
     groups: { getAll: vi.fn().mockResolvedValue([]) },
-    users: { list: listUsers }
+    users: { list: listUsers },
+    payment: { getPlans }
   }
 }))
 vi.mock('@/stores/app', () => ({ useAppStore: () => ({ showError, showSuccess: vi.fn() }) }))
@@ -48,6 +50,11 @@ beforeEach(async () => {
   sessionStorage.clear()
   localStorage.setItem('auth_user', JSON.stringify({ id: 777 }))
   list.mockResolvedValue({ items: rows, total: 60, pages: 3 })
+	getPlans.mockResolvedValue({ data: [{
+		id: 22, group_id: 63, name: '国产模型畅享套餐', description: '', price: 199,
+		validity_days: 1, validity_unit: 'month', request_limit: 30000,
+		amount_limit_usd: 2000, token_limit: 2200000000, features: [], for_sale: true, sort_order: 0
+	}] })
   wrapper = mountView()
   await flushPromises()
 })
@@ -140,4 +147,34 @@ describe('subscription bulk operations', () => {
     expect(bulkAssign).toHaveBeenLastCalledWith({ user_ids: [22], group_id: 7, validity_days: 30 })
     expect(form.find('[data-test="assign-users"]').exists()).toBe(false)
   })
+
+	it('grants a configured package plan without submitting raw quota values', async () => {
+		vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+		await wrapper.findAll('button').find(button => button.text() === 'admin.subscriptions.assignSubscription')!.trigger('click')
+		const form = wrapper.get('#assign-subscription-form')
+		listUsers.mockResolvedValue({ items: [{ id: 451, email: 'package-user@example.com' }] })
+		const search = form.get('[data-assign-user-search] input')
+		await search.trigger('focus')
+		await search.setValue('package-user')
+		await vi.advanceTimersByTimeAsync(300)
+		await flushPromises()
+		await form.get('[data-assign-user-search] button').trigger('click')
+		await form.get('[data-test="assign-mode-package"]').trigger('click')
+		form.getComponent('[data-test="package-plan-select"]').vm.$emit('update:modelValue', 22)
+		await flushPromises()
+
+		expect(form.get('[data-test="package-plan-snapshot"]').text()).toContain('30,000')
+		expect(form.get('[data-test="package-plan-snapshot"]').text()).toContain('2,200,000,000')
+		packageGrant.mockResolvedValue({ user_id: 451, package_entitlement: { request_limit: 30000 } })
+		await form.trigger('submit')
+		await flushPromises()
+
+		expect(packageGrant).toHaveBeenCalledTimes(1)
+		const [request, key] = packageGrant.mock.calls[0]!
+		expect(request).toEqual({ user_id: 451, plan_id: 22 })
+		expect(key).toMatch(/^package-grant-/)
+		expect(request).not.toHaveProperty('request_limit')
+		expect(request).not.toHaveProperty('amount_limit_usd')
+		expect(request).not.toHaveProperty('token_limit')
+	})
 })

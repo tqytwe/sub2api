@@ -117,7 +117,7 @@ func TestBulkSubscriptionAction_RollsBackPostWriteFailureBeforeRetry(t *testing.
 				mock.ExpectQuery(regexp.QuoteMeta("WITH selected_subscriptions (user_id, group_id) AS")).
 					WithArgs(int64(10), int64(20)).
 					WillReturnRows(sqlmock.NewRows([]string{
-						"id", "payment_order_id", "user_id", "group_id", "starts_at", "expires_at", "status", "exhausted_reason",
+						"id", "payment_order_id", "source_type", "granted_by", "plan_id", "user_id", "group_id", "starts_at", "expires_at", "status", "exhausted_reason",
 						"request_limit", "request_used", "amount_limit_usd", "amount_used_usd", "token_limit", "token_used",
 					}))
 			}

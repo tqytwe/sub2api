@@ -17,3 +17,16 @@ func TestSubscriptionPackageQuotasMigrationDefinesImmutableEntitlements(t *testi
 	require.Contains(t, text, "plan_snapshot JSONB NOT NULL")
 	require.Contains(t, text, "status IN ('active', 'exhausted', 'expired', 'revoked')")
 }
+
+func TestSubscriptionPackageGrantSourcesMigrationSupportsAdminLedgerEntries(t *testing.T) {
+	sql, err := FS.ReadFile("271_subscription_package_grant_sources.sql")
+	require.NoError(t, err)
+	text := string(sql)
+	require.Contains(t, text, "ALTER COLUMN payment_order_id DROP NOT NULL")
+	require.Contains(t, text, "source_type")
+	require.Contains(t, text, "granted_by")
+	require.Contains(t, text, "ON DELETE SET NULL")
+	require.Contains(t, text, "grant_key")
+	require.Contains(t, text, "source_type = 'payment'")
+	require.Contains(t, text, "source_type = 'admin_grant'")
+}

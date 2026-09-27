@@ -55,6 +55,18 @@ type BulkAssignSubscriptionRequest struct {
 	Notes        string  `json:"notes"`
 }
 
+type PackagePlanGrantRequest struct {
+	UserID int64  `json:"user_id" binding:"required,gt=0"`
+	PlanID int64  `json:"plan_id" binding:"required,gt=0"`
+	Notes  string `json:"notes"`
+}
+
+type BulkPackagePlanGrantRequest struct {
+	UserIDs []int64 `json:"user_ids" binding:"required,min=1,max=100,dive,gt=0"`
+	PlanID  int64   `json:"plan_id" binding:"required,gt=0"`
+	Notes   string  `json:"notes"`
+}
+
 // AdjustSubscriptionRequest represents adjust subscription request (extend or shorten)
 type AdjustSubscriptionRequest struct {
 	Days int `json:"days" binding:"required,min=-36500,max=36500"` // negative to shorten, positive to extend
@@ -185,6 +197,68 @@ func (h *SubscriptionHandler) BulkAssign(c *gin.Context) {
 	}
 
 	response.Success(c, dto.BulkAssignResultFromService(result))
+}
+
+// GrantPackagePlan grants an immutable package-plan snapshot to one user.
+// POST /api/v1/admin/subscriptions/package-grant
+func (h *SubscriptionHandler) GrantPackagePlan(c *gin.Context) {
+	var req PackagePlanGrantRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	adminID := getAdminIDFromContext(c)
+	idempotencyKey, err := service.NormalizeIdempotencyKey(c.GetHeader("Idempotency-Key"))
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	if idempotencyKey == "" {
+		response.ErrorFrom(c, service.ErrIdempotencyKeyRequired)
+		return
+	}
+	c.Request.Header.Set("Idempotency-Key", idempotencyKey)
+	executeAdminIdempotentJSON(c, "admin.subscriptions.package-grant", req, service.DefaultWriteIdempotencyTTL(), func(ctx context.Context) (any, error) {
+		subscription, _, err := h.subscriptionService.GrantPackagePlan(ctx, &service.PackagePlanGrantInput{
+			UserID: req.UserID, PlanID: req.PlanID, GrantedBy: adminID,
+			Notes: req.Notes, IdempotencyKey: idempotencyKey,
+		})
+		if err != nil {
+			return nil, err
+		}
+		return dto.UserSubscriptionFromServiceAdmin(subscription), nil
+	})
+}
+
+// BulkGrantPackagePlan grants one package plan independently to each user.
+// POST /api/v1/admin/subscriptions/package-grant/bulk
+func (h *SubscriptionHandler) BulkGrantPackagePlan(c *gin.Context) {
+	var req BulkPackagePlanGrantRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	adminID := getAdminIDFromContext(c)
+	idempotencyKey, err := service.NormalizeIdempotencyKey(c.GetHeader("Idempotency-Key"))
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	if idempotencyKey == "" {
+		response.ErrorFrom(c, service.ErrIdempotencyKeyRequired)
+		return
+	}
+	c.Request.Header.Set("Idempotency-Key", idempotencyKey)
+	executeAdminIdempotentJSONWithTimeout(c, "admin.subscriptions.package-grant.bulk", req, service.DefaultWriteIdempotencyTTL(), 2*time.Minute, func(ctx context.Context) (any, error) {
+		result, err := h.subscriptionService.BulkGrantPackagePlan(ctx, &service.BulkPackagePlanGrantInput{
+			UserIDs: req.UserIDs, PlanID: req.PlanID, GrantedBy: adminID,
+			Notes: req.Notes, IdempotencyKey: idempotencyKey,
+		})
+		if err != nil {
+			return nil, err
+		}
+		return dto.BulkPackagePlanGrantResultFromService(result), nil
+	})
 }
 
 // BulkAction applies one operation to selected subscriptions, returning each outcome.

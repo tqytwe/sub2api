@@ -8812,6 +8812,12 @@ const messages = {
     daily: 'Daily',
     weekly: 'Weekly',
     monthly: 'Monthly',
+	packageQuota: {
+	  request: 'Requests',
+	  amount: 'Amount',
+	  token: 'Tokens',
+	  exhausted: 'Package quota exhausted'
+	},
     daysRemaining: '{days} days remaining',
     expiresOn: 'Expires on {date}',
     resetIn: 'Resets in {time}',

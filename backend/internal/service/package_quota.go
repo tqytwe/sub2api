@@ -19,13 +19,19 @@ const (
 	PackageExhaustedByRequest = "request"
 	PackageExhaustedByAmount  = "amount"
 	PackageExhaustedByToken   = "token"
+
+	PackageEntitlementSourcePayment    = "payment"
+	PackageEntitlementSourceAdminGrant = "admin_grant"
 )
 
 // PackageEntitlement is the immutable quota snapshot created from a paid
 // package order. Nil limits mean that dimension does not constrain the plan.
 type PackageEntitlement struct {
 	ID              int64
-	PaymentOrderID  int64
+	PaymentOrderID  *int64
+	SourceType      string
+	GrantedBy       *int64
+	PlanID          *int64
 	UserID          int64
 	GroupID         int64
 	StartsAt        time.Time
@@ -43,6 +49,27 @@ type PackageEntitlement struct {
 type packageEntitlementKey struct {
 	userID  int64
 	groupID int64
+}
+
+func subscriptionPlanSnapshot(plan *dbent.SubscriptionPlan) map[string]any {
+	if plan == nil {
+		return nil
+	}
+	snapshot := map[string]any{
+		"plan_id":       plan.ID,
+		"group_id":      plan.GroupID,
+		"validity_days": psComputeValidityDays(plan.ValidityDays, plan.ValidityUnit),
+	}
+	if plan.RequestLimit != nil {
+		snapshot["request_limit"] = *plan.RequestLimit
+	}
+	if plan.AmountLimitUsd != nil {
+		snapshot["amount_limit_usd"] = *plan.AmountLimitUsd
+	}
+	if plan.TokenLimit != nil {
+		snapshot["token_limit"] = *plan.TokenLimit
+	}
+	return snapshot
 }
 
 // PackageQuotaState derives the authoritative state from time and counters.
@@ -70,7 +97,7 @@ func (e *PackageEntitlement) IsActiveAt(now time.Time) bool {
 }
 
 // attachPackageEntitlements attaches one authoritative package snapshot to
-// each subscription returned by an admin list. It uses one query for the page
+// each subscription returned by a list endpoint. It uses one query for the page
 // rather than querying package data once per row.
 func (s *SubscriptionService) attachPackageEntitlements(ctx context.Context, subs []UserSubscription) error {
 	if s == nil || s.entClient == nil || len(subs) == 0 {
@@ -129,7 +156,9 @@ func (s *SubscriptionService) packageEntitlementsForKeys(ctx context.Context, ke
 	}
 	rows, err := s.packageQuotaRunner(ctx).QueryContext(ctx, fmt.Sprintf(`
 		WITH selected_subscriptions (user_id, group_id) AS (VALUES %s)
-		SELECT e.id, e.payment_order_id, e.user_id, e.group_id, e.starts_at, e.expires_at,
+		SELECT e.id, e.payment_order_id, e.source_type, e.granted_by,
+		       NULLIF(e.plan_snapshot->>'plan_id', '')::bigint,
+		       e.user_id, e.group_id, e.starts_at, e.expires_at,
 		       e.status, COALESCE(e.exhausted_reason, ''), e.request_limit, e.request_used,
 		       e.amount_limit_usd, e.amount_used_usd, e.token_limit, e.token_used
 		FROM subscription_package_entitlements e
@@ -163,13 +192,25 @@ func (s *SubscriptionService) packageEntitlementsForKeys(ctx context.Context, ke
 
 func scanPackageEntitlement(scanner interface{ Scan(...any) error }) (*PackageEntitlement, error) {
 	var entitlement PackageEntitlement
-	var requestLimit, tokenLimit sql.NullInt64
+	var paymentOrderID, grantedBy, planID, requestLimit, tokenLimit sql.NullInt64
 	var amountLimit sql.NullFloat64
 	var exhaustedReason sql.NullString
-	if err := scanner.Scan(&entitlement.ID, &entitlement.PaymentOrderID, &entitlement.UserID, &entitlement.GroupID,
+	if err := scanner.Scan(&entitlement.ID, &paymentOrderID, &entitlement.SourceType, &grantedBy, &planID, &entitlement.UserID, &entitlement.GroupID,
 		&entitlement.StartsAt, &entitlement.ExpiresAt, &entitlement.Status, &exhaustedReason,
 		&requestLimit, &entitlement.RequestUsed, &amountLimit, &entitlement.AmountUsedUSD, &tokenLimit, &entitlement.TokenUsed); err != nil {
 		return nil, fmt.Errorf("scan package entitlement: %w", err)
+	}
+	if paymentOrderID.Valid {
+		value := paymentOrderID.Int64
+		entitlement.PaymentOrderID = &value
+	}
+	if grantedBy.Valid {
+		value := grantedBy.Int64
+		entitlement.GrantedBy = &value
+	}
+	if planID.Valid {
+		value := planID.Int64
+		entitlement.PlanID = &value
 	}
 	if exhaustedReason.Valid {
 		entitlement.ExhaustedReason = exhaustedReason.String
@@ -217,7 +258,9 @@ func (s *SubscriptionService) packageEntitlementForUserGroup(ctx context.Context
 		return nil, false, nil
 	}
 	rows, err := s.packageQuotaRunner(ctx).QueryContext(ctx, `
-		SELECT id, payment_order_id, user_id, group_id, starts_at, expires_at,
+		SELECT id, payment_order_id, source_type, granted_by,
+		       NULLIF(plan_snapshot->>'plan_id', '')::bigint,
+		       user_id, group_id, starts_at, expires_at,
 		       status, COALESCE(exhausted_reason, ''), request_limit, request_used,
 		       amount_limit_usd, amount_used_usd, token_limit, token_used
 		FROM subscription_package_entitlements

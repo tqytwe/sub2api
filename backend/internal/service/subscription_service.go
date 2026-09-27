@@ -420,6 +420,9 @@ func (s *SubscriptionService) createSubscription(ctx context.Context, input *Ass
 	}
 
 	now := time.Now()
+	if s.now != nil {
+		now = s.now()
+	}
 	expiresAt := now.AddDate(0, 0, validityDays)
 	if expiresAt.After(MaxExpiresAt) {
 		expiresAt = MaxExpiresAt
@@ -828,6 +831,9 @@ func (s *SubscriptionService) ListUserSubscriptions(ctx context.Context, userID 
 	}
 	normalizeExpiredWindows(subs)
 	normalizeSubscriptionStatus(subs)
+	if err := s.attachPackageEntitlements(ctx, subs); err != nil {
+		return nil, err
+	}
 	return subs, nil
 }
 
@@ -838,6 +844,9 @@ func (s *SubscriptionService) ListActiveUserSubscriptions(ctx context.Context, u
 		return nil, err
 	}
 	normalizeExpiredWindows(subs)
+	if err := s.attachPackageEntitlements(ctx, subs); err != nil {
+		return nil, err
+	}
 	return subs, nil
 }
 
