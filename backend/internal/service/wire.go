@@ -2,13 +2,8 @@ package service
 
 import (
 	"context"
-	"crypto/hmac"
-	"crypto/sha256"
 	"database/sql"
-	"encoding/hex"
-	"github.com/Wei-Shaw/sub2api/internal/requestledger"
 	"os"
-	"strings"
 	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
@@ -25,7 +20,7 @@ import (
 
 func ProvideGrokOAuthService(proxyRepo ProxyRepository, oauthClient GrokOAuthClient, cfg *config.Config, redisClient *redis.Client) *GrokOAuthService {
 	svc := NewGrokOAuthService(proxyRepo, oauthClient, cfg)
-	// wire.go is depguard-exempt for redis; use Redis for cross-instance OAuth sessions.
+	// wire.go is depguard-exempt for redis; construct the Redis session store here.
 	if redisClient != nil {
 		svc = svc.WithSessionStore(xai.NewRedisSessionStore(redisClient))
 	}
@@ -58,6 +53,45 @@ func ProvideEmailQueueService(emailService *EmailService) *EmailQueueService {
 	return NewEmailQueueService(emailService, 3)
 }
 
+// ProvideAuthService wires the optional captcha providers into AuthService while
+// keeping NewAuthService's public constructor compatible with existing tests.
+func ProvideAuthService(
+	entClient *dbent.Client,
+	userRepo UserRepository,
+	redeemRepo RedeemCodeRepository,
+	refreshTokenCache RefreshTokenCache,
+	cfg *config.Config,
+	settingService *SettingService,
+	emailService *EmailService,
+	turnstileService *TurnstileService,
+	tencentCaptchaService *TencentCaptchaService,
+	aliyunCaptchaService *AliyunCaptchaService,
+	emailQueueService *EmailQueueService,
+	promoService *PromoService,
+	defaultSubAssigner DefaultSubscriptionAssigner,
+	affiliateService *AffiliateService,
+	userPlatformQuotaRepo UserPlatformQuotaRepository,
+) *AuthService {
+	svc := NewAuthService(
+		entClient,
+		userRepo,
+		redeemRepo,
+		refreshTokenCache,
+		cfg,
+		settingService,
+		emailService,
+		turnstileService,
+		emailQueueService,
+		promoService,
+		defaultSubAssigner,
+		affiliateService,
+		userPlatformQuotaRepo,
+	)
+	svc.SetTencentCaptchaService(tencentCaptchaService)
+	svc.SetAliyunCaptchaService(aliyunCaptchaService)
+	return svc
+}
+
 // ProvideOAuthRefreshAPI creates OAuthRefreshAPI with the default lock TTL.
 func ProvideOAuthRefreshAPI(accountRepo AccountRepository, tokenCache GeminiTokenCache) *OAuthRefreshAPI {
 	return NewOAuthRefreshAPI(accountRepo, tokenCache)
@@ -65,14 +99,6 @@ func ProvideOAuthRefreshAPI(accountRepo AccountRepository, tokenCache GeminiToke
 
 func ProvideBatchImageModelPricingResolver(resolver *ModelPricingResolver) *BatchImageModelPricingResolver {
 	return &BatchImageModelPricingResolver{Resolver: resolver}
-}
-
-// ProvideMobileAttributionService derives a domain-separated signing key from
-// the server JWT secret. The raw attribution token is never persisted.
-func ProvideMobileAttributionService(repo MobileAttributionRepository, cfg *config.Config) *MobileAttributionService {
-	mac := hmac.New(sha256.New, []byte(cfg.JWT.Secret))
-	_, _ = mac.Write([]byte("sub2api:mobile-attribution:signing-key:v1"))
-	return NewMobileAttributionService(repo, mac.Sum(nil))
 }
 
 func ProvideBatchImageCleanupService(repo BatchImageRepository, accountRepo AccountRepository, cfg *config.Config) *BatchImageCleanupService {
@@ -90,6 +116,22 @@ func ProvideOpenAIOAuthService(
 	svc := NewOpenAIOAuthService(proxyRepo, oauthClient)
 	svc.SetPrivacyClientFactory(privacyClientFactory)
 	return svc
+}
+
+// ProvideOpenAIOAuthReauthService wires the durable mailbox/task flow while
+// keeping the pure HTTP protocol runner in a separately run worker process.
+func ProvideOpenAIOAuthReauthService(
+	repo OpenAIOAuthReauthRepository,
+	adminService AdminService,
+	accountRepo AccountRepository,
+	openaiOAuthService *OpenAIOAuthService,
+	secretEncryptor SecretEncryptor,
+	cfg *config.Config,
+	tokenCacheInvalidator TokenCacheInvalidator,
+	runtimeBlocker AccountRuntimeBlocker,
+) *OpenAIOAuthReauthService {
+	credentialUpdater, _ := accountRepo.(OpenAIOAuthReauthCredentialUpdater)
+	return NewOpenAIOAuthReauthService(repo, adminService, credentialUpdater, openaiOAuthService, secretEncryptor, cfg != nil && cfg.Totp.EncryptionKeyConfigured, tokenCacheInvalidator, runtimeBlocker)
 }
 
 // ProvideTokenRefreshService creates and starts TokenRefreshService
@@ -150,11 +192,9 @@ func ProvideOpenAITokenProvider(
 }
 
 // ProvidePluginManager preserves account-directory wiring when regenerating Wire.
-// The Fork resource directory wraps the gateway so State Kit plugins can also
-// list proxies within the same capability-derived scope.
-func ProvidePluginManager(repo PluginRepository, encryptor SecretEncryptor, cfg *config.Config, hostInfo PluginHostInfo, kvStore PluginKVStore, gateway *OpenAIGatewayService, accountRepo AccountRepository, proxyRepo ProxyRepository) *PluginManager {
+func ProvidePluginManager(repo PluginRepository, encryptor SecretEncryptor, cfg *config.Config, hostInfo PluginHostInfo, kvStore PluginKVStore, gateway *OpenAIGatewayService) *PluginManager {
 	manager := NewPluginManager(repo, encryptor, cfg, hostInfo, kvStore)
-	manager.SetAccountDirectory(NewPluginResourceDirectory(gateway, accountRepo, proxyRepo))
+	manager.SetAccountDirectory(gateway)
 	return manager
 }
 
@@ -172,10 +212,6 @@ func ProvideOpenAIQuotaService(
 	service := NewOpenAIQuotaService(accountRepo, proxyRepo, tokenProvider, privacyClientFactory, referralClient)
 	service.agentIdentityWS = openAIGatewayService
 	return service
-}
-
-func ProvideAnnouncementAssetService(settings *ImageStorageSettingService) *AnnouncementAssetService {
-	return NewAnnouncementAssetService(settings)
 }
 
 // ProvideOpenAIQuotaAutoResetService 启动账号级自动用卡队列与补偿扫描。
@@ -269,8 +305,11 @@ func ProvideGrokQuotaService(
 	httpUpstream HTTPUpstream,
 	cfg *config.Config,
 	usageLogRepo UsageLogRepository,
+	settingService *SettingService,
 ) *GrokQuotaService {
-	return NewGrokQuotaService(accountRepo, proxyRepo, tokenProvider, httpUpstream, cfg, usageLogRepo)
+	service := NewGrokQuotaService(accountRepo, proxyRepo, tokenProvider, httpUpstream, cfg, usageLogRepo)
+	service.SetSettingService(settingService)
+	return service
 }
 
 // ProvideCNProviderQuotaService 构造国产供应商 Coding Plan 额度探测服务。
@@ -381,7 +420,8 @@ func ProvideAccountExpiryService(accountRepo AccountRepository) *AccountExpirySe
 	return svc
 }
 
-// ProvideOpenAICodexVersionSyncService keeps the configured Codex client identity current.
+// ProvideOpenAICodexVersionSyncService creates and starts OpenAICodexVersionSyncService.
+// 出站 Codex 身份的版本号靠它跟随官方发布，无需为了跟版本而发新版本；面板可关闭。
 func ProvideOpenAICodexVersionSyncService(
 	settingRepo SettingRepository,
 	settingService *SettingService,
@@ -485,8 +525,10 @@ func ProvideRateLimitService(
 	settingService *SettingService,
 	tokenCacheInvalidator TokenCacheInvalidator,
 	ollamaCloudUsage *OllamaCloudUsageService,
+	accountOps *AccountOpsService,
 ) *RateLimitService {
 	svc := NewRateLimitService(accountRepo, usageRepo, cfg, geminiQuotaService, tempUnschedCache)
+	svc.accountOps = accountOps
 	if healthCache, ok := tempUnschedCache.(OpenAIAPIKeyHealthCache); ok {
 		svc.SetOpenAIAPIKeyHealthCache(healthCache)
 	}
@@ -524,17 +566,6 @@ func ProvideOpsAggregationService(
 	svc := NewOpsAggregationService(opsRepo, settingRepo, db, redisClient, cfg)
 	svc.Start()
 	return svc
-}
-
-// ProvidePublicStatusSnapshotWorker writes public, immutable hour snapshots in
-// the background so HTTP handlers never aggregate raw usage logs.
-func ProvidePublicStatusSnapshotWorker(
-	repo PublicStatusSummaryRepository,
-	db *sql.DB,
-) *PublicStatusSnapshotWorker {
-	worker := NewPublicStatusSnapshotWorker(repo, db)
-	worker.Start()
-	return worker
 }
 
 // ProvideOpsAlertEvaluatorService creates and starts OpsAlertEvaluatorService.
@@ -642,8 +673,12 @@ func ProvideScheduledTestRunnerService(
 	accountTestSvc *AccountTestService,
 	rateLimitSvc *RateLimitService,
 	cfg *config.Config,
+	judge *QualityJudgeService,
+	groupTests *PelicanGroupTestService,
 ) *ScheduledTestRunnerService {
 	svc := NewScheduledTestRunnerService(planRepo, scheduledSvc, accountTestSvc, rateLimitSvc, cfg)
+	svc.judgeQuality = judge.Judge
+	svc.groupTests = groupTests
 	svc.Start()
 	return svc
 }
@@ -690,65 +725,11 @@ func ProvideImageStorageSettingService(
 
 // ProvideImageTaskService 构造异步图片任务服务。
 //
-// 图片结果持久化是异步图片任务的启用前提：本地持久卷或 S3 兼容存储均可。
-// 未启用或显式 S3 后端凭证不全时，handler 返回 404，不创建任务、不写 Redis，
-// 从而避免大 base64 结果撑爆 Redis。
-func ProvideImageTaskRuntimeState(queue ImageTaskQueue, cfg *config.Config) *ImageTaskRuntimeState {
-	if cfg == nil {
-		return NewImageTaskRuntimeState(queue, false, false, false)
-	}
-	return NewImageTaskRuntimeState(
-		queue,
-		cfg.ImageAsync.Enabled,
-		cfg.ImageAsync.QueueEnabled,
-		cfg.ImageStorage.Active(),
-	)
-}
-
-func ProvideImageTaskService(
-	store ImageTaskStore,
-	queue ImageTaskQueue,
-	settings *ImageStorageSettingService,
-	encryptor SecretEncryptor,
-	runtime *ImageTaskRuntimeState,
-	cfg *config.Config,
-) *ImageTaskService {
-	if settings == nil {
-		return NewImageTaskService(store)
-	}
-	if cfg != nil && cfg.ImageStorage.Enabled && !cfg.ImageStorage.Active() {
-		logger.L().Warn("image_storage.enabled is true but async image storage is not available; async image tasks are disabled")
-	}
-	return NewQueuedImageTaskServiceWithResolver(store, queue, settings.Resolver(), encryptor, runtime, defaultImageTaskTTL, defaultImageTaskExecutionTimeout)
-}
-
-func ProvideOpenAIImageResultService(
-	store OpenAIImageResultStore,
-	storage ImageStorage,
-	cfg *config.Config,
-) *OpenAIImageResultService {
-	reader, _ := storage.(ImageAssetReader)
-	ttl := 24 * time.Hour
-	if cfg != nil && cfg.ImageStorage.PresignExpiry > 0 {
-		ttl = time.Duration(cfg.ImageStorage.PresignExpiry) * time.Hour
-	}
-	prefix := ""
-	if cfg != nil {
-		prefix = cfg.ImageStorage.Prefix
-	}
-	svc := NewOpenAIImageResultService(store, storage, reader, prefix, ttl)
-	if cfg != nil {
-		svc.ConfigureCleanup(
-			time.Duration(cfg.ImageStorage.CleanupIntervalSeconds)*time.Second,
-			cfg.ImageStorage.CleanupBatchSize,
-		)
-	}
-	svc.Start()
-	return svc
-}
-
-func ProvideBatchImageRuntimeState(queue BatchImageQueue, db *sql.DB, cfg *config.Config) *BatchImageRuntimeState {
-	return NewBatchImageRuntimeState(queue, db, cfg)
+// 对象存储是异步图片任务的启用前提：仅当开关打开且凭证齐全时功能才可用，否则整体禁用
+// （handler 返回 404，不创建任务、不写 Redis），从而避免大 base64 结果撑爆 Redis。
+// 启用状态由 settings 服务在运行时解析，因此后台改开关后无需重启即可生效。
+func ProvideImageTaskService(store ImageTaskStore, settings *ImageStorageSettingService) *ImageTaskService {
+	return NewImageTaskServiceWithResolver(store, settings.Resolver(), defaultImageTaskTTL, defaultImageTaskExecutionTimeout)
 }
 
 // ProvideBackupService creates and starts BackupService
@@ -758,8 +739,11 @@ func ProvideBackupService(
 	encryptor SecretEncryptor,
 	storeFactory BackupObjectStoreFactory,
 	dumper DBDumper,
+	lockCache LeaderLockCache,
+	db *sql.DB,
 ) *BackupService {
 	svc := NewBackupService(settingRepo, cfg, encryptor, storeFactory, dumper)
+	svc.SetLeaderLock(lockCache, db)
 	svc.Start()
 	return svc
 }
@@ -840,27 +824,17 @@ func ProvideSettingService(settingRepo SettingRepository, groupRepo GroupReposit
 		logger.LegacyPrintf("service.setting", "Warning: migrate Grok default text model failed: %v", err)
 	}
 	antigravity.SetUserAgentVersionResolver(svc.GetAntigravityUserAgentVersion)
-	configureCodexCanonicalUserAgentResolver(svc)
-	return svc
-}
-
-// configureCodexCanonicalUserAgentResolver connects the process-wide Codex
-// identity resolver to the persisted settings service. Codex outbound paths
-// do not carry a SettingService reference, so this binding is required for
-// the auto-synced client version to reach User-Agent and version headers.
-func configureCodexCanonicalUserAgentResolver(settingService *SettingService) {
-	if settingService == nil {
-		SetCodexCanonicalUserAgentResolver(nil)
-		return
-	}
+	// enforceCodexIdentityHeaders 是所有 Codex 出站路径共用的纯函数收口点，拿不到 ctx，
+	// 故注入无参解析器；解析器内部自带 60s TTL 缓存，热路径不触库。
 	SetCodexCanonicalUserAgentResolver(func() string {
-		return settingService.GetOpenAICodexCanonicalUserAgent(context.Background())
+		return svc.GetOpenAICodexCanonicalUserAgent(context.Background())
 	})
 	// Claude CLI 伪装版本号同理：运行期解析（面板手动值 → 后台同步值 → 内置基线），
 	// 解析器内部自带 60s TTL 缓存，热路径不触库。
 	claude.SetCLIVersionResolver(func() string {
-		return settingService.GetClaudeCodeClientVersion(context.Background())
+		return svc.GetClaudeCodeClientVersion(context.Background())
 	})
+	return svc
 }
 
 // ProvideBillingCacheService wires BillingCacheService with its RPM dependencies.
@@ -875,165 +849,6 @@ func ProvideBillingCacheService(
 	userPlatformQuotaRepo UserPlatformQuotaRepository,
 ) *BillingCacheService {
 	return NewBillingCacheService(cache, userRepo, subRepo, apiKeyRepo, rpmCache, rateRepo, cfg, userPlatformQuotaRepo)
-}
-
-func ProvideIPRiskHasher(cfg *config.Config) *IPRiskHasher {
-	if cfg == nil {
-		return nil
-	}
-	if configured := strings.TrimSpace(cfg.IPRisk.HMACKey); configured != "" {
-		if decoded, err := hex.DecodeString(configured); err == nil && len(decoded) >= 32 {
-			return NewIPRiskHasher(decoded)
-		}
-		return NewIPRiskHasher([]byte(configured))
-	}
-	jwtSecret := strings.TrimSpace(cfg.JWT.Secret)
-	if jwtSecret == "" {
-		return nil
-	}
-	mac := hmac.New(sha256.New, []byte(jwtSecret))
-	_, _ = mac.Write([]byte("sub2api:ip-risk:hmac:v1"))
-	return NewIPRiskHasher(mac.Sum(nil))
-}
-
-func ProvideIPRiskRuntimeConfig(cfg *config.Config) IPRiskRuntimeConfig {
-	runtime := DefaultIPRiskRuntimeConfig()
-	if cfg == nil {
-		return runtime
-	}
-	runtime.Enabled = cfg.IPRisk.Enabled
-	runtime.ShadowMode = true
-	runtime.HistoricalBackfillEnabled = cfg.IPRisk.HistoricalBackfillEnabled
-	if cfg.IPRisk.IncrementalDelaySeconds > 0 {
-		runtime.IncrementalDelay = time.Duration(cfg.IPRisk.IncrementalDelaySeconds) * time.Second
-	}
-	if cfg.IPRisk.ReconcileIntervalMinutes > 0 {
-		runtime.ReconcileInterval = time.Duration(cfg.IPRisk.ReconcileIntervalMinutes) * time.Minute
-	}
-	if cfg.IPRisk.DailyScanIntervalHours > 0 {
-		runtime.DailyScanInterval = time.Duration(cfg.IPRisk.DailyScanIntervalHours) * time.Hour
-	}
-	if cfg.IPRisk.EventRetentionDays > 0 {
-		runtime.EventRetention = time.Duration(cfg.IPRisk.EventRetentionDays) * 24 * time.Hour
-	}
-	if cfg.IPRisk.CaseRetentionDays > 0 {
-		runtime.CaseRetention = time.Duration(cfg.IPRisk.CaseRetentionDays) * 24 * time.Hour
-	}
-	if cfg.IPRisk.HistoricalBackfillMaxDays > 0 {
-		runtime.HistoricalBackfillMaxRange = time.Duration(cfg.IPRisk.HistoricalBackfillMaxDays) * 24 * time.Hour
-	}
-	if cfg.IPRisk.ManualScanMaxDays > 0 {
-		runtime.ManualScanMaxRange = time.Duration(cfg.IPRisk.ManualScanMaxDays) * 24 * time.Hour
-	}
-	if cfg.IPRisk.RetentionBatchSize > 0 {
-		runtime.RetentionBatchSize = cfg.IPRisk.RetentionBatchSize
-	}
-	if cfg.IPRisk.EvaluationQueueCapacity > 0 {
-		runtime.EvaluationQueueCapacity = cfg.IPRisk.EvaluationQueueCapacity
-	}
-	return runtime
-}
-
-func ProvideIPRiskService(
-	repo IPRiskRepository,
-	lockCache LeaderLockCache,
-	db *sql.DB,
-	hasher *IPRiskHasher,
-	runtime IPRiskRuntimeConfig,
-	alertNotifier *IPRiskAlertEmailNotifier,
-	auditRecorder *AuditLogService,
-) *IPRiskService {
-	svc := NewIPRiskService(repo, lockCache, db, hasher, runtime)
-	svc.SetAlertNotifier(alertNotifier)
-	svc.SetAuditRecorder(auditRecorder)
-	svc.Start()
-	return svc
-}
-
-func ProvideAuthService(
-	entClient *dbent.Client,
-	userRepo UserRepository,
-	redeemRepo RedeemCodeRepository,
-	refreshTokenCache RefreshTokenCache,
-	cfg *config.Config,
-	settingService *SettingService,
-	emailService *EmailService,
-	turnstileService *TurnstileService,
-	tencentCaptchaService *TencentCaptchaService,
-	aliyunCaptchaService *AliyunCaptchaService,
-	emailQueueService *EmailQueueService,
-	promoService *PromoService,
-	defaultSubAssigner DefaultSubscriptionAssigner,
-	affiliateService *AffiliateService,
-	userPlatformQuotaRepo UserPlatformQuotaRepository,
-	balanceLedger *BalanceLedgerService,
-	ipRiskService *IPRiskService,
-) *AuthService {
-	svc := NewAuthService(
-		entClient,
-		userRepo,
-		redeemRepo,
-		refreshTokenCache,
-		cfg,
-		settingService,
-		emailService,
-		turnstileService,
-		emailQueueService,
-		promoService,
-		defaultSubAssigner,
-		affiliateService,
-		userPlatformQuotaRepo,
-		balanceLedger,
-	)
-	svc.SetTencentCaptchaService(tencentCaptchaService)
-	svc.SetAliyunCaptchaService(aliyunCaptchaService)
-	svc.SetIPRiskRecorder(ipRiskService)
-	return svc
-}
-
-func ProvideUsageService(
-	usageRepo UsageLogRepository,
-	userRepo UserRepository,
-	entClient *dbent.Client,
-	authCacheInvalidator APIKeyAuthCacheInvalidator,
-	balanceLedger *BalanceLedgerService,
-) *UsageService {
-	return NewUsageService(usageRepo, userRepo, entClient, authCacheInvalidator, balanceLedger)
-}
-
-func ProvideAffiliateService(
-	repo AffiliateRepository,
-	settingService *SettingService,
-	authCacheInvalidator APIKeyAuthCacheInvalidator,
-	billingCacheService *BillingCacheService,
-	balanceLedger *BalanceLedgerService,
-) *AffiliateService {
-	return NewAffiliateService(repo, settingService, authCacheInvalidator, billingCacheService, balanceLedger)
-}
-
-func ProvidePlayService(
-	repo PlayRepository,
-	userRepo UserRepository,
-	channelService *ChannelService,
-	settingService *SettingService,
-	affiliateService *AffiliateService,
-	entClient *dbent.Client,
-	balanceLedger *BalanceLedgerService,
-	mobilePush *MobilePushService,
-	couponService *CouponService,
-	redeemService *RedeemService,
-) *PlayService {
-	svc := NewPlayService(repo, userRepo, channelService, settingService, affiliateService, entClient, balanceLedger)
-	// The deployed repository must include the growth qualification port and
-	// migrations; otherwise reward endpoints fail closed instead of reverting
-	// to the legacy redeemable path.
-	svc.RequireGrowthQualification(true)
-	// Existing activity switches, published pools, and per-user limits control
-	// rewards. Cohort approval is retained for historical inspection only.
-	svc.SetMobilePushService(mobilePush)
-	svc.SetCouponRewardIssuer(couponService)
-	svc.SetRedeemCodeRewardIssuer(redeemService)
-	return svc
 }
 
 // ProvideAPIKeyService wires APIKeyService and connects rate-limit cache invalidation.
@@ -1056,16 +871,8 @@ func ProvideAPIKeyService(
 
 // ProviderSet is the Wire provider set for all services
 var ProviderSet = wire.NewSet(
-	requestledger.NewStarted,
+	ProvideRequestCaptureManager,
 	// Core services
-	ProvideIPRiskHasher,
-	ProvideIPRiskRuntimeConfig,
-	ProvideIPRiskService,
-	NewMobilePushService,
-	NewMobilePlayBillingService,
-	NewMobileAppReleaseService,
-	ProvideMobileAttributionService,
-	ProvideMobilePushWorker,
 	ProvideAuthService,
 	NewPasskeyService,
 	NewUserService,
@@ -1076,43 +883,30 @@ var ProviderSet = wire.NewSet(
 	NewCompositeRouteResolver,
 	NewAccountService,
 	NewProxyService,
-	ProvideRedeemService,
+	NewRedeemService,
 	NewPromoService,
-	NewCouponService,
-	ProvideUsageService,
-	NewBalanceLedgerService,
-	NewWalletService,
-	NewWithdrawableRecomputeService,
+	NewUsageService,
 	NewDashboardService,
-	NewPublicHomeStatsService,
-	NewPublicStatusSummaryService,
-	ProvidePublicStatusSnapshotWorker,
 	ProvidePricingService,
 	NewBillingService,
 	ProvideBillingCacheService,
 	NewAnnouncementService,
 	NewAdminService,
 	NewGatewayService,
-	wire.Bind(new(ImageStudioModelResolver), new(*GatewayService)),
-	wire.Bind(new(NextChatAvailableModelResolver), new(*GatewayService)),
-	wire.Bind(new(ChannelCacheInvalidator), new(*ChannelService)),
-	NewOpenAIGatewayServiceWithLiveBilling,
+	ProvideOpenAIGatewayService,
+	wire.Struct(new(OpenAIGatewayDependencies), "*"),
+	ProvideCodexHarvestService,
 	ProvideImageStorageSettingService,
-	ProvideAnnouncementAssetService,
-	ProvideImageTaskRuntimeState,
 	ProvideImageTaskService,
-	ProvideOpenAIImageResultService,
 	ProvideBatchImageModelPricingResolver,
-	ProvideBatchImageRuntimeState,
-	NewImageRuntimesHealthService,
 	NewBatchImagePublicService,
 	NewBatchImageDownloadService,
 	ProvideBatchImageCleanupService,
 	ProvideBatchImageWorkerRuntime,
 	wire.Bind(new(AccountRuntimeBlocker), new(*OpenAIGatewayService)),
 	NewOAuthService,
-	ProvideClaudeResetCreditService,
 	ProvideOpenAIOAuthService,
+	ProvideOpenAIOAuthReauthService,
 	ProvideGrokOAuthService,
 	wire.Bind(new(GrokOAuthTokenService), new(*GrokOAuthService)),
 	NewGeminiOAuthService,
@@ -1152,11 +946,11 @@ var ProviderSet = wire.NewSet(
 	ProvideOpsAlertEvaluatorService,
 	ProvideOpsCleanupService,
 	ProvideOpsScheduledReportService,
+	ProvideAccountOpsService,
+	ProvideAccountTokenGuardService,
+	ProvideAccountTokenGuardV2Service,
 	NewEmailService,
 	NewNotificationEmailService,
-	NewIPRiskAlertEmailNotifier,
-	NewWithdrawalService,
-	NewFundManagementService,
 	ProvideEmailQueueService,
 	NewTurnstileService,
 	NewTencentCaptchaService,
@@ -1193,14 +987,18 @@ var ProviderSet = wire.NewSet(
 	ProvideIdempotencyCoordinator,
 	ProvideSystemOperationLockService,
 	ProvideIdempotencyCleanupService,
+	NewPelicanShowcaseService,
+	NewPelicanGroupTestService,
 	ProvideScheduledTestService,
 	ProvideScheduledTestRunnerService,
+	NewQualityJudgeService,
 	NewGroupCapacityService,
 	NewChannelService,
+	wire.Bind(new(ChannelCacheInvalidator), new(*ChannelService)),
 	NewModelPricingResolver,
 	NewModelPlazaService,
 	NewContentModerationService,
-	ProvideAffiliateService,
+	NewAffiliateService,
 	ProvidePaymentConfigService,
 	ProvidePaymentService,
 	ProvidePaymentOrderExpiryService,
@@ -1212,41 +1010,7 @@ var ProviderSet = wire.NewSet(
 	ProvideChannelMonitorV2Aggregator,
 	NewChannelMonitorRequestTemplateService,
 	ProvideUserPlatformQuotaUsageFlusher,
-	ProvidePlayService,
-	NewModelCatalogService,
-	NewPromptLibraryService,
-	ProvideImageStudioService,
-	ProvidePlayGrowthRunner,
-	ProvideForumSSOService,
 )
-
-func ProvideMobilePushWorker(push *MobilePushService, cfg config.MobilePushConfig) *MobilePushWorker {
-	worker := NewMobilePushWorker(push, cfg.PollInterval, cfg.BatchSize)
-	worker.Start()
-	return worker
-}
-
-func ProvideImageStudioService(
-	repo ImageStudioRepository,
-	apiKeyService *APIKeyService,
-	userRepo UserRepository,
-	settingService *SettingService,
-	playService *PlayService,
-	pricing *BatchImageModelPricingResolver,
-	gateway ImageStudioModelResolver,
-	catalog *ModelCatalogService,
-	promptRepo PromptLibraryRepository,
-	cfg *config.Config,
-	encryptor SecretEncryptor,
-	billingRepo UsageBillingRepository,
-	billingCache *BillingCacheService,
-) *ImageStudioService {
-	store := NewImageStudioAssetStore(cfg.Pricing.DataDir)
-	svc := NewImageStudioService(repo, store, apiKeyService, userRepo, settingService, playService, pricing, gateway, encryptor, billingRepo, billingCache)
-	svc.catalog = catalog
-	svc.promptRepo = promptRepo
-	return svc
-}
 
 // ProvideUserPlatformQuotaUsageFlusher 创建并启动 UserPlatformQuotaUsageFlusher。
 func ProvideUserPlatformQuotaUsageFlusher(cfg *config.Config, cache BillingCache, quotaRepo UserPlatformQuotaRepository, tw *TimingWheelService) *UserPlatformQuotaUsageFlusher {
@@ -1269,11 +1033,9 @@ func ProvideBalanceNotifyService(emailService *EmailService, settingRepo Setting
 }
 
 // ProvidePaymentService creates PaymentService and attaches notification email delivery.
-func ProvidePaymentService(entClient *dbent.Client, registry *payment.Registry, loadBalancer payment.LoadBalancer, redeemService *RedeemService, subscriptionSvc *SubscriptionService, configService *PaymentConfigService, userRepo UserRepository, groupRepo GroupRepository, affiliateService *AffiliateService, notificationEmailService *NotificationEmailService, playService *PlayService, balanceLedger *BalanceLedgerService, couponService *CouponService) *PaymentService {
-	svc := NewPaymentService(entClient, registry, loadBalancer, redeemService, subscriptionSvc, configService, userRepo, groupRepo, affiliateService, balanceLedger)
+func ProvidePaymentService(entClient *dbent.Client, registry *payment.Registry, loadBalancer payment.LoadBalancer, redeemService *RedeemService, subscriptionSvc *SubscriptionService, configService *PaymentConfigService, userRepo UserRepository, groupRepo GroupRepository, affiliateService *AffiliateService, notificationEmailService *NotificationEmailService) *PaymentService {
+	svc := NewPaymentService(entClient, registry, loadBalancer, redeemService, subscriptionSvc, configService, userRepo, groupRepo, affiliateService)
 	svc.SetNotificationEmailService(notificationEmailService)
-	svc.SetPlayService(playService)
-	svc.SetCouponService(couponService)
 	return svc
 }
 
@@ -1287,11 +1049,15 @@ func ProvidePaymentOrderExpiryService(paymentSvc *PaymentService, lockCache Lead
 
 // ProvideChannelMonitorService 创建渠道监控服务（CRUD + RunCheck + 用户视图聚合）。
 // 加密器复用 wire 中已注入的 SecretEncryptor（AES-256-GCM）。
+// settingService gates RunCheck via channel_monitor_enabled + channel_monitor_mode.
 func ProvideChannelMonitorService(
 	repo ChannelMonitorRepository,
 	encryptor SecretEncryptor,
+	settingService *SettingService,
 ) *ChannelMonitorService {
-	return NewChannelMonitorService(repo, encryptor)
+	svc := NewChannelMonitorService(repo, encryptor)
+	svc.SetRuntimeReader(settingService)
+	return svc
 }
 
 // ProvideChannelMonitorRunner 创建并启动渠道监控调度器。
@@ -1307,6 +1073,8 @@ func ProvideChannelMonitorRunner(
 ) *ChannelMonitorRunner {
 	r := NewChannelMonitorRunner(svc, settingService)
 	if svc != nil {
+		// Ensure runtime reader is set even if ProvideChannelMonitorService
+		// was constructed without settings (tests / alternate providers).
 		svc.SetRuntimeReader(settingService)
 		svc.SetScheduler(r)
 		svc.SetQuotaFetcher(quotaFetcher)
@@ -1316,7 +1084,7 @@ func ProvideChannelMonitorRunner(
 }
 
 // ProvideChannelMonitorV2Service wires settings for user-facing privacy flags
-// (for example, hiding throughput counters from non-admin viewers).
+// (e.g. hide RPM/TPM throughput).
 func ProvideChannelMonitorV2Service(repo ChannelMonitorV2Repository, settingService *SettingService) *ChannelMonitorV2Service {
 	svc := NewChannelMonitorV2Service(repo)
 	svc.SetRuntimeReader(settingService)
@@ -1324,7 +1092,8 @@ func ProvideChannelMonitorV2Service(repo ChannelMonitorV2Repository, settingServ
 }
 
 // ProvideChannelMonitorV2Aggregator starts the passive minute-rollup worker.
-// Aggregation is gated by the channel monitor runtime mode and V2 config.
+// Aggregation only runs when channel_monitor_enabled=true and mode=v2 (and V2 config enabled).
+// Set CHANNEL_MONITOR_V2_DISABLE_AGGREGATOR=1 to skip Start (local demo with seeded facts).
 func ProvideChannelMonitorV2Aggregator(repo ChannelMonitorV2Repository, db *sql.DB, settingService *SettingService) *ChannelMonitorV2Aggregator {
 	aggregator := NewChannelMonitorV2Aggregator(repo, db, settingService)
 	if os.Getenv("CHANNEL_MONITOR_V2_DISABLE_AGGREGATOR") == "1" {
@@ -1334,16 +1103,23 @@ func ProvideChannelMonitorV2Aggregator(repo ChannelMonitorV2Repository, db *sql.
 	return aggregator
 }
 
-// ProvideClaudeResetCreditService wires the Claude reset query and, with the
-// idempotency store and Redis leases, manual redemption.
-func ProvideClaudeResetCreditService(accounts AccountRepository, tokens *ClaudeTokenProvider, proxies ProxyRepository, settings *SettingService, idem *IdempotencyCoordinator, locks LeaderLockCache) *ClaudeResetCreditService {
-	s := NewClaudeResetCreditService(accounts, tokens, proxies, settings)
-	s.ConfigureRedemption(idem, locks)
-	return s
+func ProvideAccountOpsService(settings SettingRepository, repo AccountOpsRepository, email *EmailService) *AccountOpsService {
+	svc := NewAccountOpsService(settings, repo, email)
+	svc.Start()
+	return svc
 }
 
-// ProvideRedeemService keeps the balance ledger wired: NewRedeemService takes it
-// as a variadic argument, which Wire cannot inject on its own.
-func ProvideRedeemService(redeemRepo RedeemCodeRepository, userRepo UserRepository, subscriptionService *SubscriptionService, cache RedeemCache, billingCacheService *BillingCacheService, entClient *dbent.Client, authCacheInvalidator APIKeyAuthCacheInvalidator, affiliateService *AffiliateService, balanceLedger *BalanceLedgerService) *RedeemService {
-	return NewRedeemService(redeemRepo, userRepo, subscriptionService, cache, billingCacheService, entClient, authCacheInvalidator, affiliateService, balanceLedger)
+// ProvideAccountTokenGuardService 创建并启动「凭证守护」后台巡检（智能运维子页面）。
+func ProvideAccountTokenGuardService(settings SettingRepository, repo AccountTokenGuardRepository,
+	accounts AccountRepository, admin AdminService, invalidator TokenCacheInvalidator) *AccountTokenGuardService {
+	svc := NewAccountTokenGuardService(settings, repo, accounts, admin, invalidator)
+	svc.Start()
+	return svc
+}
+
+func ProvideAccountTokenGuardV2Service(repo AccountTokenGuardV2Repository, settings SettingRepository, admin AdminService,
+	openAIGateway *OpenAIGatewayService, reauth *OpenAIOAuthReauthService) *AccountTokenGuardV2Service {
+	svc := NewAccountTokenGuardV2Service(repo, settings, admin, openAIGateway, reauth)
+	svc.Start()
+	return svc
 }

@@ -149,6 +149,7 @@ const localeLoaders: Record<LocaleCode, Record<LocaleLoadScope, LocaleLoader>> =
       const module = await import('./locales/en/admin/promptAudit')
       return { default: adminMessages(module.default) }
     },
+    'admin-token-guard-v2': () => import('./locales/en/tokenGuardV2'),
   },
   zh: {
     core: async () => {
@@ -253,6 +254,7 @@ const localeLoaders: Record<LocaleCode, Record<LocaleLoadScope, LocaleLoader>> =
       const module = await import('./locales/zh/admin/promptAudit')
       return { default: adminMessages(module.default) }
     },
+    'admin-token-guard-v2': () => import('./locales/zh/tokenGuardV2'),
   },
 }
 
