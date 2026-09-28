@@ -726,6 +726,9 @@ func (s *SubscriptionService) ExtendSubscription(ctx context.Context, subscripti
 		if err := s.userSubRepo.ExtendExpiry(txCtx, subscriptionID, newExpiresAt); err != nil {
 			return err
 		}
+		if err := s.alignPackageEntitlementsToSubscriptionExpiry(txCtx, sub.UserID, sub.GroupID, newExpiresAt); err != nil {
+			return err
+		}
 
 		// 如果订阅已过期，恢复为active状态
 		if sub.Status == SubscriptionStatusExpired {

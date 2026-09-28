@@ -121,8 +121,14 @@ func TestBulkSubscriptionAction_RollsBackPostWriteFailureBeforeRetry(t *testing.
 						"request_limit", "request_used", "amount_limit_usd", "amount_used_usd", "token_limit", "token_used",
 					}))
 			}
+			expectNoPackageEntitlementForTermUpdate := func() {
+				expectPackageEntitlementsForTermUpdate(mock, 10, 20, sqlmock.NewRows(packageEntitlementTermColumns))
+			}
 
 			mock.ExpectBegin()
+			if tc.action == "extend" {
+				expectNoPackageEntitlementForTermUpdate()
+			}
 			if tc.action == "reset_quota" {
 				expectNoPackageEntitlement()
 			}
@@ -136,6 +142,9 @@ func TestBulkSubscriptionAction_RollsBackPostWriteFailureBeforeRetry(t *testing.
 
 			repo.postReadFailure, repo.statusFailure = false, false
 			mock.ExpectBegin()
+			if tc.action == "extend" {
+				expectNoPackageEntitlementForTermUpdate()
+			}
 			if tc.action == "reset_quota" {
 				expectNoPackageEntitlement()
 			}

@@ -253,6 +253,83 @@ func (s *SubscriptionService) packageQuotaRunner(ctx context.Context) packageQuo
 	return s.entClient
 }
 
+// alignPackageEntitlementsToSubscriptionExpiry keeps the package chain within
+// a manually adjusted subscription term without changing any quota counters.
+func (s *SubscriptionService) alignPackageEntitlementsToSubscriptionExpiry(ctx context.Context, userID, groupID int64, newExpiresAt time.Time) error {
+	if s == nil || s.entClient == nil {
+		return nil
+	}
+
+	runner := s.packageQuotaRunner(ctx)
+	rows, err := runner.QueryContext(ctx, `
+		SELECT id, payment_order_id, source_type, granted_by,
+		       NULLIF(plan_snapshot->>'plan_id', '')::bigint,
+		       user_id, group_id, starts_at, expires_at,
+		       status, COALESCE(exhausted_reason, ''), request_limit, request_used,
+		       amount_limit_usd, amount_used_usd, token_limit, token_used
+		FROM subscription_package_entitlements
+		WHERE user_id = $1 AND group_id = $2 AND status <> 'revoked'
+		ORDER BY expires_at ASC, id ASC
+		FOR UPDATE`, userID, groupID)
+	if err != nil {
+		return fmt.Errorf("lock package entitlements for term adjustment: %w", err)
+	}
+
+	entitlements := make([]*PackageEntitlement, 0, 1)
+	for rows.Next() {
+		entitlement, scanErr := scanPackageEntitlement(rows)
+		if scanErr != nil {
+			_ = rows.Close()
+			return scanErr
+		}
+		entitlements = append(entitlements, entitlement)
+	}
+	if err := rows.Err(); err != nil {
+		_ = rows.Close()
+		return fmt.Errorf("iterate package entitlements for term adjustment: %w", err)
+	}
+	if err := rows.Close(); err != nil {
+		return fmt.Errorf("close package entitlement term rows: %w", err)
+	}
+	if len(entitlements) == 0 {
+		return nil
+	}
+
+	now := time.Now()
+	if s.now != nil {
+		now = s.now()
+	}
+	terminalIndex := len(entitlements) - 1
+	for index, entitlement := range entitlements {
+		if index != terminalIndex && !entitlement.ExpiresAt.After(newExpiresAt) {
+			continue
+		}
+
+		adjusted := *entitlement
+		adjusted.ExpiresAt = newExpiresAt
+		status, reason := PackageQuotaState(&adjusted, now)
+		if entitlement.ExpiresAt.Equal(newExpiresAt) && entitlement.Status == status && entitlement.ExhaustedReason == reason {
+			continue
+		}
+
+		result, err := runner.ExecContext(ctx, `
+			UPDATE subscription_package_entitlements
+			SET expires_at = $2, status = $3, exhausted_reason = NULLIF($4, ''), updated_at = NOW()
+			WHERE id = $1 AND status <> 'revoked'`, entitlement.ID, newExpiresAt, status, reason)
+		if err != nil {
+			return fmt.Errorf("align package entitlement expiry: %w", err)
+		}
+		updated, err := result.RowsAffected()
+		if err != nil {
+			return fmt.Errorf("inspect package entitlement expiry update: %w", err)
+		}
+		if updated != 1 {
+			return fmt.Errorf("align package entitlement expiry: %w", sql.ErrNoRows)
+		}
+	}
+	return nil
+}
+
 func (s *SubscriptionService) packageEntitlementForUserGroup(ctx context.Context, userID, groupID int64) (*PackageEntitlement, bool, error) {
 	if s == nil || s.entClient == nil {
 		return nil, false, nil
@@ -364,7 +441,11 @@ func (s *SubscriptionService) nextPackageEntitlementExpiry(ctx context.Context, 
 }
 
 func packageEntitlementExpiry(base time.Time, validityDays int) time.Time {
-	return base.AddDate(0, 0, validityDays)
+	expiresAt := base.AddDate(0, 0, validityDays)
+	if expiresAt.After(MaxExpiresAt) {
+		return MaxExpiresAt
+	}
+	return expiresAt
 }
 
 func packageQuotaSnapshot(snapshot map[string]any) (requestLimit *int64, amountLimit *float64, tokenLimit *int64, ok bool) {

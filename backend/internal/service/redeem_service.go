@@ -878,21 +878,19 @@ func (s *RedeemService) reduceOrCancelSubscription(ctx context.Context, userID, 
 
 	notes := fmt.Sprintf("通过兑换码 %s 退款扣减 %d 天", code, reduceDays)
 
+	newExpiresAt := sub.ExpiresAt.AddDate(0, 0, -reduceDays)
 	if remaining <= reduceDays {
 		// 剩余天数不足，直接取消订阅
 		if err := s.subscriptionService.userSubRepo.UpdateStatus(ctx, sub.ID, SubscriptionStatusExpired); err != nil {
 			return fmt.Errorf("cancel subscription: %w", err)
 		}
-		// 设置过期时间为当前时间
-		if err := s.subscriptionService.userSubRepo.ExtendExpiry(ctx, sub.ID, now); err != nil {
-			return fmt.Errorf("set subscription expiry: %w", err)
-		}
-	} else {
-		// 缩短天数
-		newExpiresAt := sub.ExpiresAt.AddDate(0, 0, -reduceDays)
-		if err := s.subscriptionService.userSubRepo.ExtendExpiry(ctx, sub.ID, newExpiresAt); err != nil {
-			return fmt.Errorf("reduce subscription: %w", err)
-		}
+		newExpiresAt = now
+	}
+	if err := s.subscriptionService.userSubRepo.ExtendExpiry(ctx, sub.ID, newExpiresAt); err != nil {
+		return fmt.Errorf("reduce subscription: %w", err)
+	}
+	if err := s.subscriptionService.alignPackageEntitlementsToSubscriptionExpiry(ctx, sub.UserID, sub.GroupID, newExpiresAt); err != nil {
+		return fmt.Errorf("reduce package entitlement: %w", err)
 	}
 
 	// 追加备注
