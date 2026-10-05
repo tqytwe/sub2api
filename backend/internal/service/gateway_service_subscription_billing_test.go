@@ -140,13 +140,3 @@ func TestBuildUsageBillingCommand_SurchargeBilledCostDoesNotPolluteActualCost(t 
 		t.Fatalf("APIKeyGroupName = %q, want paid-group", cmd.APIKeyGroupName)
 	}
 }
-
-type apiKeyQuotaUpdaterStub struct{}
-
-func (apiKeyQuotaUpdaterStub) UpdateQuotaUsed(context.Context, int64, float64) error {
-	return nil
-}
-
-func (apiKeyQuotaUpdaterStub) UpdateRateLimitUsage(context.Context, int64, float64) error {
-	return nil
-}

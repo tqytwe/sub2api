@@ -163,6 +163,15 @@ func roundMultiplier(value decimal.Decimal) float64 {
 	return value.Round(6).InexactFloat64()
 }
 
+// BonusAmount is the VIP/campaign credit above the base recharge. It fills the
+// upstream bonus_amount column so upstream readers see the Fork quote.
+func (q *PaymentRechargeQuote) BonusAmount() float64 {
+	if q == nil {
+		return 0
+	}
+	return roundMoney(q.CreditedAmount - q.BaseCredited)
+}
+
 func paymentOrderRechargeSnapshot(o *dbent.PaymentOrder) map[string]any {
 	if o == nil || len(o.RechargeSnapshot) == 0 {
 		return nil
@@ -180,12 +189,14 @@ func paymentOrderRechargeBaseCredited(o *dbent.PaymentOrder) (float64, bool) {
 	if o.ListAmount > 0 {
 		return roundMoney(o.QualifyingRechargeAmount), true
 	}
-	snapshot := paymentOrderRechargeSnapshot(o)
-	if snapshot == nil {
-		return o.Amount, false
+	if snapshot := paymentOrderRechargeSnapshot(o); snapshot != nil {
+		if base, ok := snapshotFloat(snapshot, "base_credited"); ok && base > 0 {
+			return roundMoney(base), true
+		}
 	}
-	if base, ok := snapshotFloat(snapshot, "base_credited"); ok && base > 0 {
-		return roundMoney(base), true
+	// Orders without a Fork snapshot may still carry upstream's bonus column.
+	if o.BonusAmount > 0 {
+		return roundMoney(math.Max(o.Amount-o.BonusAmount, 0)), true
 	}
 	return o.Amount, false
 }
