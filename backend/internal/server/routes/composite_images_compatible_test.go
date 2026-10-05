@@ -54,17 +54,26 @@ func (r compatibleImagesAccounts) ListModelAvailabilityCandidates(context.Contex
 type compatibleImagesUpstream struct {
 	service.HTTPUpstream
 	accountIDs []int64
+	path       string
 	body       []byte
 }
 
+// Fork (FORK-IMAGE-004): Gemini image models on OpenAI-compatible API-key
+// accounts are translated to native generateContent, so the stub answers in
+// Gemini's inlineData shape for that endpoint.
 func (u *compatibleImagesUpstream) Do(req *http.Request, _ string, id int64, _ int) (*http.Response, error) {
 	u.accountIDs = append(u.accountIDs, id)
+	u.path = req.URL.Path
 	var err error
 	u.body, err = io.ReadAll(req.Body)
 	if err != nil {
 		return nil, err
 	}
-	return &http.Response{StatusCode: 200, Header: http.Header{"Content-Type": {"application/json"}, "X-Request-Id": {"compatible-image-test"}}, Body: io.NopCloser(strings.NewReader(`{"data":[{"b64_json":"aW1hZ2U="}]}`))}, nil
+	respBody := `{"data":[{"b64_json":"aW1hZ2U="}]}`
+	if strings.HasSuffix(req.URL.Path, ":generateContent") {
+		respBody = `{"candidates":[{"content":{"parts":[{"inlineData":{"mimeType":"image/png","data":"aW1hZ2U="}}]}}]}`
+	}
+	return &http.Response{StatusCode: 200, Header: http.Header{"Content-Type": {"application/json"}, "X-Request-Id": {"compatible-image-test"}}, Body: io.NopCloser(strings.NewReader(respBody))}, nil
 }
 
 type compatibleImagesUsage struct {
@@ -123,7 +132,9 @@ func TestCompositeCompatibleImagesEndToEnd(t *testing.T) {
 			body := []byte(fmt.Sprintf(`{"model":%q,"prompt":"draw","size":"1024x1024"}`, publicModel))
 			if scenario == "json_edit" {
 				endpoint = "/v1/images/edits"
-				body = []byte(fmt.Sprintf(`{"model":%q,"prompt":"draw","images":[{"image_url":"https://source.example/input.png"}]}`, publicModel))
+				// A data URL keeps the edit input offline; remote URLs are fetched
+				// before translation to generateContent.
+				body = []byte(fmt.Sprintf(`{"model":%q,"prompt":"draw","images":[{"image_url":"data:image/png;base64,Zml4dHVyZS1pbWFnZQ=="}]}`, publicModel))
 			}
 			if scenario == "multipart_alias" {
 				endpoint = "/v1/images/edits"
@@ -154,7 +165,11 @@ func TestCompositeCompatibleImagesEndToEnd(t *testing.T) {
 			}
 			require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 			require.Equal(t, []int64{3}, upstream.accountIDs)
-			require.Contains(t, string(upstream.body), model)
+			require.Equal(t, "/v1beta/models/"+model+":generateContent", upstream.path)
+			require.Contains(t, string(upstream.body), "draw")
+			if scenario != "generation" {
+				require.Contains(t, string(upstream.body), "inlineData", "edit input image must be forwarded")
+			}
 			require.Contains(t, rec.Body.String(), "aW1hZ2U=")
 			require.Len(t, usage.logs, 1, "the image must reach usage recording, not just return HTTP 200")
 			require.Equal(t, 1, usage.logs[0].ImageCount)

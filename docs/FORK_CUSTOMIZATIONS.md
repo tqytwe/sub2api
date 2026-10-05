@@ -304,7 +304,9 @@
 | 批量操作 | 用户 API Key 页新增批量选择；管理员用户页新增批量删除 | 用户 KeysView 不引入批量选择；管理员 UsersView 批量删除并入 Fork `BulkUserActionDialog` | FORK-ADMIN-014 |
 | 平台 | 新增 `typesafe` 平台 | 吸收（共 6 个平台），自动停调阈值与平台额度表随之覆盖 | FORK-SETTINGS-019 |
 | 仓库卫生 | `.gitignore` 调整、发布工具 | 保留 Fork `.gitignore` 白名单并吸收上游新增条目；保留 `docs/ANTIGRAVITY_ATTRIBUTION_429.md`；吸收 `.github/release-tools` | — |
+| Composite 兼容图片 | 新增 composite 分组经 OpenAI 兼容 API Key 账号出图的端到端测试，假定 Gemini 图片模型原样透传 `/v1/images/*` | 保留 Fork：OpenAI 兼容账号上的 Gemini 图片模型转译为原生 `generateContent`；上游测试桩改为按 Gemini `inlineData` 应答，并改用 data URL 避免测试外网抓取，路由、能力围栏与用量计费断言保持不变 | FORK-IMAGE-004 |
 | 测试 | `apiKeyQuotaUpdaterStub` 仅在 `unit` 标签文件中定义 | 移至无标签的 `gateway_usage_billing_simple_mode_test.go`，保证所有标签组合可编译 | — |
+| 设置 DTO | — | 修正冲突解决时误写的 JSON 字段 `openai_advanced_scheduler_effective_weight_error_rate`（API 契约测试覆盖） | FORK-SETTINGS-019 |
 
 `/admin/settings` 对照（FORK-SETTINGS-019）：
 
