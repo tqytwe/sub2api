@@ -40,13 +40,16 @@ func TestPluginResourceDirectoryCatalogAndResolution(t *testing.T) {
 		{ID: 3, Name: "Front", Protocol: "http", Host: "front.example", Port: 8080, Username: "private-user", Password: "private-password", Status: StatusActive},
 		{ID: 4, Status: StatusActive, ExpiresAt: &past}, {ID: 5, Status: "inactive"},
 	}}
-	base := &fakeAccountDirectory{ids: []int64{7}}
+	base := &fakeAccountDirectory{infos: []PluginAccountInfo{{ID: 7, Platform: PlatformOpenAI, AccountType: AccountTypeOAuth, Name: "Mail Pro"}}}
 	d := NewPluginResourceDirectory(base, &resourceAccounts{}, proxies)
-	s := newPluginHostServiceServer("test.plugin", nil, d)
+	scope := newPluginAccountScope(pluginAccountScopeEntry{Platform: PlatformOpenAI, AccountType: AccountTypeOAuth})
+	s := newPluginHostServiceServer("test.plugin", nil, d, scope)
 	out, err := s.ListResources(context.Background(), &pluginv1.ListResourcesRequest{})
 	require.NoError(t, err)
 	require.Len(t, out.Accounts, 1)
+	require.Equal(t, int64(7), out.Accounts[0].Id)
 	require.Equal(t, "Mail Pro", out.Accounts[0].Name)
+	require.True(t, base.lastScope.Contains(PlatformOpenAI, AccountTypeOAuth))
 	require.Len(t, out.Proxies, 1)
 	b, _ := json.Marshal(out)
 	require.False(t, strings.Contains(string(b), "private-"))
@@ -68,11 +71,20 @@ func TestPluginResourceDirectoryCatalogAndResolution(t *testing.T) {
 	require.NotContains(t, err.Error(), "private-password")
 }
 func TestPluginResourceDirectoryCapabilityGateAndLegacy(t *testing.T) {
+	scope := newPluginAccountScope(pluginAccountScopeEntry{Platform: PlatformOpenAI, AccountType: AccountTypeOAuth})
+	resourceDir := NewPluginResourceDirectory(&fakeAccountDirectory{}, &resourceAccounts{}, &resourceProxies{})
 	for _, tc := range []struct {
-		d    PluginAccountDirectory
-		code codes.Code
-	}{{nil, codes.PermissionDenied}, {&fakeAccountDirectory{}, codes.Unimplemented}} {
-		s := newPluginHostServiceServer("test.plugin", nil, tc.d)
+		d     PluginAccountDirectory
+		scope PluginAccountScope
+		code  codes.Code
+	}{
+		{nil, scope, codes.PermissionDenied},
+		// Plugins without a declared account capability get an empty scope and
+		// must not reach the resource catalog or proxy credentials.
+		{resourceDir, PluginAccountScope{}, codes.PermissionDenied},
+		{&fakeAccountDirectory{}, scope, codes.Unimplemented},
+	} {
+		s := newPluginHostServiceServer("test.plugin", nil, tc.d, tc.scope)
 		_, err := s.ListResources(context.Background(), &pluginv1.ListResourcesRequest{})
 		require.Equal(t, tc.code, status.Code(err))
 		_, err = s.ResolveProxy(context.Background(), &pluginv1.ResolveProxyRequest{ProxyId: 3})

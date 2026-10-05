@@ -1,9 +1,9 @@
 # 极速蹬 Fork 定制登记
 
 > 状态：active
-> 当前生产基线：`origin/play/main@8b2ca0699221aa94cb2620d244d3075f414ec7f0`
-> 本次同步候选：`upstream/main@14e0a49e17afebf62c5f788f4ef1dc8eef56ac76`（`v0.2.2` 发布及其后的账户测试、Ollama Cloud 修复），分支 `release/v022-payment-surcharge-20260908`（非 rebase 合并待提交）
-> 最后核验：2026-09-08（仅开发机静态检查、测试和构建证据；未创建容器、未启动本地服务、未连接或修改生产数据库；尚未提交、推送、建 PR、合并或部署）
+> 当前生产基线：`origin/play/main@450148f00ab5c0bddde214c1d83a845b169c56f0`
+> 本次同步候选：`upstream/main@b8dece9000c68815a5b867ca5a1e6f236e173905`（`v0.2.13`，相对上次同步基线 `v0.2.7`），分支 `sync/upstream-20261003`（非 rebase 合并待提交）
+> 最后核验：2026-10-05（开发机：前端测试/typecheck/lint/design check、后端 `go build`、四种构建标签编译、生成代码一致性、`check-fork-integrity.sh` 全部通过；服务器已不可用，按用户决定跳过服务器验证，以 PR 完整 GitHub CI 替代；未启动本地服务、未连接或修改生产数据库；PR CI、合并和部署待完成）
 
 本文档是 `play/main` 相对上游的定制权威登记表。只有已经落地的行为进入受保护条目；视频工作室等未实现方案只能作为 `proposal` 独立保存，不能登记成已上线能力。
 
@@ -290,6 +290,33 @@
 - 关键位置：`frontend/src/views/admin/SettingsView.vue`、`frontend/src/api/admin/settings.ts`、`frontend/src/views/admin/__tests__/SettingsView.spec.ts`、`frontend/src/i18n/locales/zh/admin/settings.ts`、`frontend/src/i18n/locales/en/admin/settings.ts`、`scripts/check-fork-integrity.sh`。
 - 冲突策略：后续上游同步若触及 `SettingsView.vue`、设置 DTO 或设置 API，必须在 PR 中给出上游新增/删除控件与最终合并树的对照表；任何未保留控件必须放入显式允许清单并说明理由，不能只以无冲突合并作为依据。
 - 验证：`SettingsView.spec.ts` 覆盖加载、保存、阈值边界、只读 Codex 同步值和密钥遮蔽；route locale 冷访问和管理员权限测试保持通过；生产一致隔离环境再做 GET/PUT、重启持久化与中英文界面验证。
+
+## v0.2.13 同步决策（`sync/upstream-20261003`）
+
+原则：Fork 功能优先；上游 bug/安全修复吸收；功能重叠保留 Fork；上游纯新增功能吸收。
+
+| 领域 | 上游变化 | 决定 | 影响条目 |
+| --- | --- | --- | --- |
+| 充值赠送 | 新增按金额阶梯赠送（`payment_recharge_bonus_*` 设置、`RechargeBonusTierEditor`、订单金额剔除赠送） | 保留 Fork VIP/活动报价，不启用上游阶梯赠送 UI；`bonus_amount` 列由 Fork 报价 `SetBonusAmount(rechargeQuote.BonusAmount())` 填充；不合入 `paymentOrderAmountWithoutBonus`。设置 API 类型保留上游可选字段以兼容后端 DTO，但管理端不渲染、不提交 | FORK-REWARDS-015、FORK-MEMBERSHIP-016 |
+| 图片/Gemini | 新增参数校验错误码、驱动模型改为 `gpt-5.6-luna` | 吸收校验错误码；保留 Image Studio 托管计费分支 `CheckImageStudioManagedEligibility`、`IMAGE_RESULT_STORAGE_UNAVAILABLE` 503 与驱动模型 `gpt-5.4-mini` | FORK-IMAGE-004、FORK-IMAGE-011 |
+| CC Switch 导入 | 端点拼接调整 | 保留 Fork：主页使用归一化根地址，Codex 端点为 `${root}/v1`；antigravity 规格按此调整 | FORK-ADMIN-014 |
+| 日期范围选择器 | 预设需二次确认 | 保留 Fork：预设点击立即生效 | FORK-UI-012 |
+| 批量操作 | 用户 API Key 页新增批量选择；管理员用户页新增批量删除 | 用户 KeysView 不引入批量选择；管理员 UsersView 批量删除并入 Fork `BulkUserActionDialog` | FORK-ADMIN-014 |
+| 平台 | 新增 `typesafe` 平台 | 吸收（共 6 个平台），自动停调阈值与平台额度表随之覆盖 | FORK-SETTINGS-019 |
+| 仓库卫生 | `.gitignore` 调整、发布工具 | 保留 Fork `.gitignore` 白名单并吸收上游新增条目；保留 `docs/ANTIGRAVITY_ATTRIBUTION_429.md`；吸收 `.github/release-tools` | — |
+| Composite 兼容图片 | 新增 composite 分组经 OpenAI 兼容 API Key 账号出图的端到端测试，假定 Gemini 图片模型原样透传 `/v1/images/*` | 保留 Fork：OpenAI 兼容账号上的 Gemini 图片模型转译为原生 `generateContent`；上游测试桩改为按 Gemini `inlineData` 应答，并改用 data URL 避免测试外网抓取，路由、能力围栏与用量计费断言保持不变 | FORK-IMAGE-004 |
+| 测试 | `apiKeyQuotaUpdaterStub` 仅在 `unit` 标签文件中定义 | 移至无标签的 `gateway_usage_billing_simple_mode_test.go`，保证所有标签组合可编译 | — |
+| 设置 DTO | — | 修正冲突解决时误写的 JSON 字段 `openai_advanced_scheduler_effective_weight_error_rate`（API 契约测试覆盖） | FORK-SETTINGS-019 |
+
+`/admin/settings` 对照（FORK-SETTINGS-019）：
+
+| 控件/字段 | 来源 | 最终合并树 |
+| --- | --- | --- |
+| 注册域名额度、五平台自动停调阈值、Codex 版本三件套、腾讯/阿里云验证码密钥状态 | Fork | 全部保留；阈值表扩展到 `typesafe` |
+| OpenCode Go 用量全局设置（`opencode-go-usage-global-*`） | 上游新增 | 吸收 |
+| Claude Code 客户端版本/自动同步、Cyber Policy 用户白名单 | 上游新增 | 吸收 |
+| OpenAI OAuth 调度倍率可为空（去掉 `required`，`null` 表示使用账号自身倍率） | 上游修复 | 吸收 |
+| 充值阶梯赠送编辑器 | 上游新增 | 显式不保留（见上表充值赠送） |
 
 ## 更新规则
 

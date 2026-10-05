@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"strings"
 	"time"
@@ -159,6 +160,16 @@ type postUsageBillingParams struct {
 	APIKeyService         APIKeyQuotaUpdater
 	Platform              string // 来自 APIKey 关联 Group 的平台标识
 	Surcharge             BillingSurchargeBreakdown
+	// SimpleModeKeyRateLimitOnly opts the request into the simple-mode billing
+	// path that records only API-key 5h/1d/7d window usage. It must not trigger
+	// balance, subscription, account, platform, or lifetime-key-quota effects.
+	SimpleModeKeyRateLimitOnly bool
+}
+
+var ErrSimpleModeKeyRateLimitBillingUnavailable = errors.New("simple mode api key rate-limit billing unavailable")
+
+func simpleModeKeyRateLimitBillingEnabled(cfg *config.Config, apiKey *APIKey) bool {
+	return cfg != nil && cfg.RunMode == config.RunModeSimple && cfg.SimpleModeKeyRateLimitEnabled && apiKey != nil && apiKey.HasRateLimits()
 }
 
 // PlatformFromAPIKey 从 APIKey 关联的 Group 推导 platform 名称。
@@ -438,6 +449,14 @@ func buildUsageBillingCommandForContext(ctx context.Context, requestID string, u
 		}
 	}
 
+	if p.SimpleModeKeyRateLimitOnly {
+		if p.billedCost() > 0 && p.APIKey.HasRateLimits() {
+			cmd.APIKeyRateLimitCost = p.billedCost()
+		}
+		cmd.Normalize()
+		return cmd
+	}
+
 	// Record subscription / balance cost using ActualCost so the group (and any
 	// user-specific) rate multiplier consumes subscription quota at the expected
 	// speed. TotalCost remains the raw (pre-multiplier) value; downstream guards
@@ -475,10 +494,15 @@ func applyUsageBilling(ctx context.Context, requestID string, usageLog *UsageLog
 
 	cmd := buildUsageBillingCommandForContext(ctx, requestID, usageLog, p)
 	if cmd == nil || cmd.RequestID == "" || repo == nil {
+		if p.SimpleModeKeyRateLimitOnly {
+			return false, ErrSimpleModeKeyRateLimitBillingUnavailable
+		}
 		if IsImageStudioManagedBilling(ctx) {
 			deps.deferredService.ScheduleLastUsedUpdate(p.Account.ID)
 			return true, nil
 		}
+		// The legacy path is only a fallback for standard billing. Simple mode
+		// must retain request-id deduplication and never bill other balances.
 		postUsageBilling(ctx, p, deps)
 		return true, nil
 	}
@@ -526,6 +550,20 @@ func finalizePostUsageBilling(ctx context.Context, p *postUsageBillingParams, de
 	}
 	billedCost := p.billedCost()
 
+	if p.SimpleModeKeyRateLimitOnly {
+		// Simple-mode key windows are DB-authoritative during preflight. Clear
+		// any Redis snapshot after the committed increment as a best-effort aid
+		// when switching back to standard mode. Enforcement here never relies on
+		// successful cache invalidation.
+		if p.APIKey != nil && deps.billingCacheService != nil {
+			if err := deps.billingCacheService.InvalidateAPIKeyRateLimit(ctx, p.APIKey.ID); err != nil {
+				logger.LegacyPrintf("service.gateway", "Warning: invalidate simple-mode api key rate-limit cache failed for key %d: %v", p.APIKey.ID, err)
+			}
+		}
+		deps.deferredService.ScheduleLastUsedUpdate(p.Account.ID)
+		return
+	}
+
 	if p.IsSubscriptionBill {
 		if billedCost > 0 && p.User != nil && p.APIKey != nil && p.APIKey.GroupID != nil {
 			deps.billingCacheService.QueueUpdateSubscriptionUsage(p.User.ID, *p.APIKey.GroupID, billedCost)
@@ -534,7 +572,7 @@ func finalizePostUsageBilling(ctx context.Context, p *postUsageBillingParams, de
 		syncBalanceCacheAfterDeduction(ctx, p, deps, result)
 	}
 
-	if billedCost > 0 && p.APIKey != nil && p.APIKey.HasRateLimits() {
+	if billedCost > 0 && p.APIKey != nil && p.APIKey.HasRateLimits() && deps.billingCacheService != nil {
 		deps.billingCacheService.QueueUpdateAPIKeyRateLimitUsage(p.APIKey.ID, billedCost)
 	}
 
@@ -547,7 +585,7 @@ func finalizePostUsageBilling(ctx context.Context, p *postUsageBillingParams, de
 	//     限制在并发 in-flight 请求数量内（旧实现的异步入队会让超支无限累积直到 worker 处理）
 	//   - DB 异步(flusher_enabled=false):在独立 goroutine 中走 detached context,失败用 ALERT log 触发 oncall 对账
 	//   - flusher_enabled=true:不直写 DB,由 flusher 异步批量刷（markDirty 已在 IncrementUserPlatformQuotaUsage 内部完成）
-	if !p.IsSubscriptionBill && p.Platform != "" && billedCost > 0 && p.User != nil && deps.userPlatformQuotaRepo != nil {
+	if !p.IsSubscriptionBill && p.Platform != "" && billedCost > 0 && p.User != nil && deps.userPlatformQuotaRepo != nil && deps.billingCacheService != nil {
 		if deps.billingCacheService.HasUserPlatformQuotaLimit(ctx, p.User.ID, p.Platform) {
 			deps.billingCacheService.IncrementUserPlatformQuotaUsage(p.User.ID, p.Platform, billedCost)
 			if deps.cfg == nil || !deps.cfg.Database.UserPlatformQuotaFlusherEnabled {
@@ -625,6 +663,16 @@ func syncBalanceCacheAfterDeduction(ctx context.Context, p *postUsageBillingPara
 			)
 		}
 		return
+	}
+	if deps.billingCacheService.InflightReservationEnabled() {
+		// 在途预留开启时同步扣减余额缓存：计费任务结束后才会释放预留，
+		// 必须保证此时准入读取的缓存余额已反映本次扣费，否则释放与扣减之间
+		// 仍存在「在途=0 且余额未扣」的窗口。本函数运行在计费 worker 中，不在请求热路径。
+		err := deps.billingCacheService.DeductBalanceCache(ctx, p.User.ID, p.billedCost())
+		if err == nil {
+			return
+		}
+		logger.LegacyPrintf("service.gateway", "Warning: sync deduct balance cache failed for user %d, falling back to queue: %v", p.User.ID, err)
 	}
 	deps.billingCacheService.QueueDeductBalance(p.User.ID, p.billedCost())
 }
@@ -959,10 +1007,12 @@ func (s *GatewayService) recordUsageCore(ctx context.Context, input *recordUsage
 				ImageOutputTokens:   result.Usage.ImageOutputTokens,
 			},
 			cost.TotalCost, pricingAt,
+			accountStatsLongContextPricingEnabled(nil),
 		)
 	}
 
-	if s.cfg != nil && s.cfg.RunMode == config.RunModeSimple {
+	simpleModeKeyRateLimitOnly := simpleModeKeyRateLimitBillingEnabled(s.cfg, apiKey)
+	if s.cfg != nil && s.cfg.RunMode == config.RunModeSimple && !simpleModeKeyRateLimitOnly {
 		writeUsageLogBestEffort(ctx, s.usageLogRepo, usageLog, "service.gateway")
 		RecordImageStudioManagedBillingCost(ctx, cost.ActualCost)
 		logger.LegacyPrintf("service.gateway", "[SIMPLE MODE] Usage recorded (not billed): user=%d, tokens=%d", usageLog.UserID, usageLog.TotalTokens())
@@ -988,17 +1038,18 @@ func (s *GatewayService) recordUsageCore(ctx context.Context, input *recordUsage
 	surcharge := ApplyBillingSurcharge(cost, ResolveGroupBillingSurcharge(apiKey.Group, globalSurcharge))
 	applyUsageLogBillingSurchargeSnapshot(usageLog, surcharge)
 	_, billingErr := applyUsageBilling(ctx, requestID, usageLog, &postUsageBillingParams{
-		Cost:                  cost,
-		User:                  user,
-		APIKey:                apiKey,
-		Account:               account,
-		Subscription:          subscription,
-		RequestPayloadHash:    resolveUsageBillingPayloadFingerprint(ctx, input.RequestPayloadHash),
-		IsSubscriptionBill:    isSubscriptionBilling,
-		AccountRateMultiplier: accountRateMultiplier,
-		APIKeyService:         input.APIKeyService,
-		Platform:              quotaPlatform,
-		Surcharge:             surcharge,
+		Cost:                       cost,
+		User:                       user,
+		APIKey:                     apiKey,
+		Account:                    account,
+		Subscription:               subscription,
+		RequestPayloadHash:         resolveUsageBillingPayloadFingerprint(ctx, input.RequestPayloadHash),
+		IsSubscriptionBill:         isSubscriptionBilling && !simpleModeKeyRateLimitOnly,
+		AccountRateMultiplier:      accountRateMultiplier,
+		APIKeyService:              input.APIKeyService,
+		Platform:                   quotaPlatform,
+		SimpleModeKeyRateLimitOnly: simpleModeKeyRateLimitOnly,
+		Surcharge:                  surcharge,
 	}, s.billingDeps(), s.usageBillingRepo)
 
 	if billingErr != nil {
@@ -1042,6 +1093,7 @@ func (s *GatewayService) calculateRecordUsageCost(
 				Ctx: ctx, Model: billingModel, GroupID: &gid, Group: apiKey.Group,
 				UsageUnits: result.AudioUsage.DurationOrUnits, SizeTier: result.AudioUsage.Mode,
 				RateMultiplier: multiplier, Resolver: s.resolver, Resolved: resolved,
+				ReasoningEffort: optionalStringValue(result.ReasoningEffort),
 			})
 			if err == nil {
 				return cost
@@ -1164,15 +1216,17 @@ func (s *GatewayService) calculateImageCost(
 		}
 		gid := apiKey.Group.ID
 		cost, err := s.billingService.CalculateCostUnified(CostInput{
-			Ctx:            ctx,
-			Model:          billingModel,
-			GroupID:        &gid,
-			Tokens:         tokens,
-			RequestCount:   result.ImageCount,
-			SizeTier:       sizeTier,
-			RateMultiplier: multiplier,
-			Resolver:       s.resolver,
-			Resolved:       resolved,
+			Ctx:             ctx,
+			Model:           billingModel,
+			GroupID:         &gid,
+			Group:           apiKey.Group,
+			Tokens:          tokens,
+			RequestCount:    result.ImageCount,
+			SizeTier:        sizeTier,
+			ReasoningEffort: optionalStringValue(result.ReasoningEffort),
+			RateMultiplier:  multiplier,
+			Resolver:        s.resolver,
+			Resolved:        resolved,
 		})
 		if err != nil {
 			logger.LegacyPrintf("service.gateway", "Calculate image token cost failed: %v", err)

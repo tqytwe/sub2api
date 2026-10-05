@@ -946,6 +946,7 @@ type PublicOrderResult struct {
 	QualifyingRechargeAmount float64        `json:"qualifying_recharge_amount"`
 	PayAmount                float64        `json:"pay_amount"`
 	FeeRate                  float64        `json:"fee_rate"`
+	BonusAmount              float64        `json:"bonus_amount"`
 	Currency                 string         `json:"currency"`
 	PaymentCurrency          string         `json:"payment_currency"`
 	CouponID                 *int64         `json:"coupon_id,omitempty"`
@@ -992,6 +993,7 @@ func buildPublicOrderResult(order *dbent.PaymentOrder) PublicOrderResult {
 		QualifyingRechargeAmount: order.QualifyingRechargeAmount,
 		PayAmount:                order.PayAmount,
 		FeeRate:                  order.FeeRate,
+		BonusAmount:              order.BonusAmount,
 		Currency:                 service.PaymentOrderCurrency(order),
 		PaymentCurrency:          order.PaymentCurrency,
 		CouponID:                 order.CouponID,
@@ -1111,6 +1113,7 @@ type PaymentOrderResult struct {
 	QualifyingRechargeAmount float64        `json:"qualifying_recharge_amount"`
 	PayAmount                float64        `json:"pay_amount"`
 	FeeRate                  float64        `json:"fee_rate"`
+	BonusAmount              float64        `json:"bonus_amount"`
 	Currency                 string         `json:"currency"`
 	PaymentCurrency          string         `json:"payment_currency"`
 	CouponID                 *int64         `json:"coupon_id,omitempty"`
@@ -1160,6 +1163,7 @@ func sanitizePaymentOrderForResponse(order *dbent.PaymentOrder) *PaymentOrderRes
 		QualifyingRechargeAmount: order.QualifyingRechargeAmount,
 		PayAmount:                order.PayAmount,
 		FeeRate:                  order.FeeRate,
+		BonusAmount:              order.BonusAmount,
 		Currency:                 service.PaymentOrderCurrency(order),
 		PaymentCurrency:          order.PaymentCurrency,
 		CouponID:                 order.CouponID,
