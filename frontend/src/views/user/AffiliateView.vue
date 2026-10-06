@@ -198,6 +198,51 @@ onMounted(() => {
               <div class="mt-4 grid gap-3 border-y py-4 text-sm sm:grid-cols-2" style="border-color: var(--gw-line)"><p><strong>{{ t('affiliate.campaign.rebatePolicy') }}</strong> {{ campaign.campaign.legacy_rebate_policy === 'stack' ? t('affiliate.campaign.rebateStack') : t('affiliate.campaign.rebateExclude') }}</p><p><strong>{{ t('affiliate.campaign.version') }}</strong> {{ campaign.campaign.rules_version }} · {{ formatDateTime(campaign.campaign.rules_updated_at) }}</p><p>{{ t('affiliate.campaign.riskNotice', { hours: campaign.campaign.risk_hold_hours }) }}</p><p>{{ t('affiliate.campaign.refundNotice') }}</p></div>
               <AnnouncementContent class="mt-4" dense :content="campaign.campaign.public_rules_md || ''" />
 
+              <!-- Campaign Details Card -->
+              <div class="mt-4 rounded-lg border bg-gray-50 p-4 dark:bg-dark-800" style="border-color: var(--gw-line)">
+                <h4 class="font-semibold text-sm mb-3">{{ t('affiliate.campaign.details.title') }}</h4>
+
+                <!-- Tier Rewards -->
+                <div class="mb-4">
+                  <p class="text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">{{ t('affiliate.campaign.details.tiers') }}</p>
+                  <div class="space-y-1.5">
+                    <div v-for="tier in campaign.tiers" :key="tier.tier" class="flex items-center justify-between text-sm">
+                      <span>{{ t('affiliate.campaign.details.tierLabel', { threshold: formatCurrency(tier.required_invites * campaign.campaign.pay_threshold), amount: formatCurrency(tier.reward_amount) }) }}</span>
+                      <span v-if="campaign.qualified_count >= tier.required_invites" class="text-xs text-green-600 dark:text-green-400">{{ t('affiliate.campaign.details.reached') }}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Qualification Requirements -->
+                <div class="mb-4 rounded bg-blue-50 p-3 dark:bg-blue-900/20">
+                  <p class="text-xs font-medium text-blue-900 dark:text-blue-200 mb-2">{{ t('affiliate.campaign.details.qualificationTitle') }}</p>
+                  <div class="space-y-1 text-xs text-blue-800 dark:text-blue-300">
+                    <p>• {{ t('affiliate.campaign.details.payThreshold', { amount: formatCurrency(campaign.campaign.pay_threshold) }) }} <span class="text-blue-600 dark:text-blue-400">({{ t('affiliate.campaign.details.current') }}: {{ formatCurrency(0) }})</span></p>
+                    <p>• {{ t('affiliate.campaign.details.usageThreshold', { amount: formatCurrency(campaign.campaign.usage_threshold) }) }} <span class="text-blue-600 dark:text-blue-400">({{ t('affiliate.campaign.details.current') }}: {{ formatCurrency(0) }})</span></p>
+                  </div>
+                </div>
+
+                <!-- Risk Hold -->
+                <div class="mb-4">
+                  <p class="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{{ t('affiliate.campaign.details.holdTitle') }}</p>
+                  <p class="text-xs text-gray-600 dark:text-gray-400">{{ t('affiliate.campaign.details.holdDesc', { hours: campaign.campaign.risk_hold_hours }) }}</p>
+                </div>
+
+                <!-- Claim Deadline -->
+                <div class="mb-4">
+                  <p class="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{{ t('affiliate.campaign.details.deadlineTitle') }}</p>
+                  <p class="text-xs text-gray-600 dark:text-gray-400">{{ formatDateTime(campaign.campaign.claim_deadline) }}</p>
+                </div>
+
+                <!-- Rebate Policy Notice -->
+                <div v-if="campaign.campaign.legacy_rebate_policy === 'stack'" class="text-xs text-green-700 dark:text-green-400">
+                  {{ t('affiliate.campaign.details.stackable') }}
+                </div>
+                <div v-else-if="campaign.campaign.legacy_rebate_policy === 'exclude' && campaign.campaign.funding_source === 'growth_new_user'" class="text-xs text-orange-700 dark:text-orange-400">
+                  {{ t('affiliate.campaign.details.fundingConflict') }}
+                </div>
+              </div>
+
               <div class="mt-5"><div class="flex items-end justify-between gap-3"><div><p class="gw-field-label">{{ t('affiliate.campaign.progress') }}</p><p class="mt-1 text-2xl font-semibold tabular-nums">{{ campaign.qualified_count }} <span class="text-sm font-normal gw-subtitle">/ {{ Math.max(...campaign.tiers.map(item => item.required_invites), 0) }}</span></p><p class="mt-1 text-xs gw-subtitle">{{ t('affiliate.campaign.invitedBreakdown', { invited: campaign.invited_count, qualified: campaign.qualified_count }) }}</p></div><p v-if="campaign.ranking" class="text-sm gw-subtitle">{{ t('affiliate.campaign.myRank', { rank: campaign.ranking.rank }) }}</p></div><div class="mt-3 h-2 overflow-hidden rounded bg-gray-200 dark:bg-dark-700" role="progressbar" :aria-valuenow="campaignProgressPercent(campaign)" aria-valuemin="0" aria-valuemax="100"><div class="h-full bg-primary-600" :style="{ width: `${campaignProgressPercent(campaign)}%` }"></div></div></div>
 
               <div class="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3"><div v-for="tier in campaign.tiers" :key="tier.tier" class="rounded border p-4" style="border-color: var(--gw-line)"><div class="flex items-start justify-between gap-3"><div><p class="font-semibold">{{ t('affiliate.campaign.milestone', { count: tier.required_invites }) }}</p><p class="mt-1 text-lg font-semibold" style="color: var(--gw-ok)">{{ formatCurrency(tier.reward_amount) }}</p></div><span class="agent-pill">{{ campaign.qualified_count >= tier.required_invites ? t('affiliate.campaign.unlocked') : t('affiliate.campaign.locked') }}</span></div><div v-if="campaignReward(campaign, tier.tier)" class="mt-3"><button v-if="campaignReward(campaign, tier.tier)?.status === 'claimable'" type="button" class="gw-btn gw-btn-primary w-full" :disabled="campaignAction === campaignReward(campaign, tier.tier)?.id" @click="claimCampaignReward(campaign, campaignReward(campaign, tier.tier)!.id)">{{ t('affiliate.campaign.claim') }}</button><p v-else class="text-sm gw-subtitle">{{ t(`affiliate.campaign.rewardStatuses.${campaignReward(campaign, tier.tier)?.status}`, campaignReward(campaign, tier.tier)?.status || '') }}</p></div></div></div>

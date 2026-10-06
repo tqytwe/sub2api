@@ -850,7 +850,22 @@ export default {
       rebatePolicy: 'Standard 10% rebate:', rebateExclude: 'Not combined; campaign invitees do not create a standard rebate', rebateStack: 'Combined; campaign rewards and standard rebates settle separately', version: 'Rules version:', riskNotice: 'A claimed reward is held for {hours} hours for risk review.', refundNotice: 'Refunds, chargebacks, or risk rejection revoke qualification and related rewards.', attention: { claimable_reward: 'Reward available to claim', rules_updated: 'Rules updated' },
       statuses: { scheduled: 'Upcoming', running: 'Running', paused: 'Paused', settling: 'Claim window', closed: 'Closed' },
       rewardStatuses: { claimable: 'Claimable', claimed_frozen: 'Claimed and risk-held', available: 'Available', expired: 'Expired', revoked: 'Revoked', debt_review: 'Refund recovery review', resolved: 'Resolved' },
-      errors: { REFERRAL_CAMPAIGN_NOT_FOUND: 'This invite campaign no longer exists.', REFERRAL_CAMPAIGN_NOT_OPEN: 'This invite campaign is not open for this action.', REFERRAL_CAMPAIGN_VERSION_CONFLICT: 'Campaign rules changed. Refresh progress and try again.', REFERRAL_CAMPAIGN_TOKEN_INVALID: 'This invite link is invalid. Ask the inviter for a new link.', REFERRAL_CAMPAIGN_TOKEN_EXPIRED: 'This invite link expired. Ask the inviter for a new link.', REFERRAL_REWARD_NOT_CLAIMABLE: 'This milestone reward is not claimable.', REFERRAL_CAMPAIGN_BUDGET_EXCEEDED: 'The campaign reward budget has been exhausted.', REFERRAL_CAMPAIGN_CAPACITY_REACHED: 'Campaign enrollment is full.', REFERRAL_REWARD_CLAIM_FAILED: 'The reward could not be claimed right now. Refresh progress and try again.' }
+      errors: { REFERRAL_CAMPAIGN_NOT_FOUND: 'This invite campaign no longer exists.', REFERRAL_CAMPAIGN_NOT_OPEN: 'This invite campaign is not open for this action.', REFERRAL_CAMPAIGN_VERSION_CONFLICT: 'Campaign rules changed. Refresh progress and try again.', REFERRAL_CAMPAIGN_TOKEN_INVALID: 'This invite link is invalid. Ask the inviter for a new link.', REFERRAL_CAMPAIGN_TOKEN_EXPIRED: 'This invite link expired. Ask the inviter for a new link.', REFERRAL_REWARD_NOT_CLAIMABLE: 'This milestone reward is not claimable.', REFERRAL_CAMPAIGN_BUDGET_EXCEEDED: 'The campaign reward budget has been exhausted.', REFERRAL_CAMPAIGN_CAPACITY_REACHED: 'Campaign enrollment is full.', REFERRAL_REWARD_CLAIM_FAILED: 'The reward could not be claimed right now. Refresh progress and try again.' },
+      details: {
+        title: 'Campaign Rules',
+        tiers: 'Tier Rewards',
+        tierLabel: 'Recharge {threshold} → Get {amount}',
+        reached: 'Reached',
+        qualificationTitle: 'Qualification (both required)',
+        payThreshold: 'Net payment ≥ {amount}',
+        usageThreshold: 'Actual consumption ≥ {amount}',
+        current: 'Current',
+        holdTitle: 'Risk Hold',
+        holdDesc: 'Rewards frozen for {hours} hours before withdrawal',
+        deadlineTitle: 'Claim Deadline',
+        stackable: '✓ Campaign rewards can stack with regular 10% rebate',
+        fundingConflict: '⚠️ New user growth campaign conflicts with this campaign; rewards paused'
+      }
     },
     growth: { eyebrow: 'New-user growth reward', title: 'Growth activity for invited users', description: 'Users who join through an invite link earn milestone rewards from net recharge or actual consumption, up to CNY 500.', inviteOnly: 'Invite attribution required', metricRecharge: 'Measured by cumulative net recharge', metricConsumption: 'Measured by cumulative actual consumption', rebatePolicy: 'Normal 10% rebate: {policy}', deadline: 'Activity ends: {date}', progress: 'My cumulative progress', tier: 'Reach {amount}', claim: 'Claim milestone', claimed: 'Growth reward claimed', claimFailed: 'Failed to claim growth reward' },
     invitees: {
