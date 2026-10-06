@@ -52,12 +52,12 @@ func CanonicalGrokImagineVideoPriceFamily(model string) string {
 	}
 }
 
-// NormalizeVideoModelPrices cleans and canonicalizes a per-model resolution map.
-// Keys become price families; tiers use 480p/720p/1080p. Negative prices dropped.
+// NormalizeVideoModelPrices preserves exact IDs and normalizes resolution tiers.
+// Family and case folding belong only to legacy query projection.
 //
 // Model keys are walked in sorted order rather than in Go map order: several
-// aliases can canonicalize onto the same family, and an unordered walk would
-// make the winning price for a conflicting tier vary between processes.
+// whitespace variants can trim onto the same ID, and an unordered walk would
+// make a conflicting tier price vary between processes.
 // Unrecognized tiers are dropped with a warning instead of silently collapsing
 // into the 480p bucket.
 func NormalizeVideoModelPrices(in map[string]map[string]float64) map[string]map[string]float64 {
@@ -75,20 +75,11 @@ func NormalizeVideoModelPrices(in map[string]map[string]float64) map[string]map[
 		if len(tierPrices) == 0 {
 			continue
 		}
-		family := CanonicalGrokImagineVideoPriceFamily(modelKey)
-		if family == "" {
-			key := strings.ToLower(strings.TrimSpace(modelKey))
-			switch key {
-			case VideoPriceFamilyGrokImagineVideo, VideoPriceFamilyGrokImagineVideo15:
-				family = key
-			default:
-				if key == "" {
-					continue
-				}
-				family = key
-			}
+		key := strings.TrimSpace(modelKey)
+		if key == "" {
+			continue
 		}
-		normalizedTiers := out[family]
+		normalizedTiers := out[key]
 		if normalizedTiers == nil {
 			normalizedTiers = make(map[string]float64)
 		}
@@ -106,14 +97,12 @@ func NormalizeVideoModelPrices(in map[string]map[string]float64) map[string]map[
 			if !ok {
 				slog.Warn("video_model_prices_unknown_resolution_dropped",
 					"model_key", modelKey,
-					"family", family,
 					"resolution", tierKey)
 				continue
 			}
 			if existing, exists := normalizedTiers[tier]; exists && existing != price {
 				slog.Warn("video_model_prices_conflicting_tier_price",
 					"model_key", modelKey,
-					"family", family,
 					"resolution", tier,
 					"previous_price", existing,
 					"price", price)
@@ -121,7 +110,7 @@ func NormalizeVideoModelPrices(in map[string]map[string]float64) map[string]map[
 			normalizedTiers[tier] = price
 		}
 		if len(normalizedTiers) > 0 {
-			out[family] = normalizedTiers
+			out[key] = normalizedTiers
 		}
 	}
 	if len(out) == 0 {
@@ -130,7 +119,7 @@ func NormalizeVideoModelPrices(in map[string]map[string]float64) map[string]map[
 	return out
 }
 
-// LookupVideoModelPrice returns a per-second price from a model×resolution map, or nil.
+// LookupVideoModelPrice projects legacy aliases without mutating stored IDs.
 func LookupVideoModelPrice(prices map[string]map[string]float64, model, resolution string) *float64 {
 	if len(prices) == 0 {
 		return nil
@@ -142,14 +131,35 @@ func LookupVideoModelPrice(prices map[string]map[string]float64, model, resoluti
 	if family == "" {
 		return nil
 	}
-	tierPrices, ok := prices[family]
-	if !ok || len(tierPrices) == 0 {
-		return nil
-	}
 	tier := NormalizeVideoBillingResolutionOrDefault(resolution)
-	if price, ok := tierPrices[tier]; ok {
-		p := price
-		return &p
+	keys := make([]string, 0, len(prices))
+	for key := range prices {
+		keys = append(keys, key)
 	}
-	return nil
+	sort.Strings(keys)
+	var selected *float64
+	for _, key := range keys {
+		candidate := CanonicalGrokImagineVideoPriceFamily(key)
+		if candidate == "" {
+			candidate = strings.ToLower(strings.TrimSpace(key))
+		}
+		if candidate != family {
+			continue
+		}
+		tiers := make([]string, 0, len(prices[key]))
+		for rawTier := range prices[key] {
+			tiers = append(tiers, rawTier)
+		}
+		sort.Strings(tiers)
+		// Reproduce legacy sorted-last-wins independently for every tier.
+		for _, rawTier := range tiers {
+			price := prices[key][rawTier]
+			resolved, ok := LookupVideoBillingResolution(rawTier)
+			if !ok || resolved != tier || price < 0 {
+				continue
+			}
+			selected = &price
+		}
+	}
+	return selected
 }

@@ -300,6 +300,10 @@ func ContextWithSelectionProfitGate(ctx context.Context, sel *AccountSelectionRe
 // openAIProfitControlVetoReason 报告利润门是否否决该账号。ctx 中没有门
 // （分组未启用利润控制或本请求跳门）或账号为 nil 时一律放行。
 func openAIProfitControlVetoReason(ctx context.Context, account *Account) (bool, string) {
+	if IsStarframeVideoRequest(ctx) && account != nil && account.SupportsOpenAIEndpointCapability(OpenAIEndpointCapabilityStarframe) {
+		// Explicit video prices, not token account-rate estimates, govern this adapter.
+		return false, ""
+	}
 	gate, _ := ctx.Value(openAIProfitControlGateCtxKey{}).(*openAIProfitControlGate)
 	if gate == nil || account == nil {
 		return false, ""

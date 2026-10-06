@@ -20,6 +20,15 @@ func (h *OpenAIGatewayHandler) AgnesVideoCreate(c *gin.Context) {
 	h.handleAgnesVideo(c, service.AgnesVideoEndpointCreate, "")
 }
 
+func (h *OpenAIGatewayHandler) AgnesVideoContent(c *gin.Context) {
+	id := strings.TrimSpace(c.Param("request_id"))
+	if !service.IsStarframeVideoID(id) {
+		h.errorResponse(c, http.StatusNotFound, "not_found_error", "Video content not found")
+		return
+	}
+	h.handleAgnesVideo(c, service.AgnesVideoEndpointContent, id)
+}
+
 func (h *OpenAIGatewayHandler) AgnesVideoStatus(c *gin.Context) {
 	videoID, hasVideoIDQuery := c.GetQuery("video_id")
 	endpoint, videoID := resolveAgnesVideoStatusEndpoint(
@@ -78,6 +87,12 @@ func (h *OpenAIGatewayHandler) handleAgnesVideo(c *gin.Context, endpoint service
 		return
 	}
 
+	owner := service.StarframeVideoOwner{UserID: subject.UserID, APIKeyID: apiKey.ID}
+	if apiKey.GroupID != nil {
+		owner.GroupID = *apiKey.GroupID
+	}
+	starframeLookup := endpoint != service.AgnesVideoEndpointCreate && service.IsStarframeVideoID(videoID)
+	var starframeTask *service.StarframeVideoTask
 	var body []byte
 	var requestModel string
 	contentType := c.GetHeader("Content-Type")
@@ -116,6 +131,16 @@ func (h *OpenAIGatewayHandler) handleAgnesVideo(c *gin.Context, endpoint service
 		}
 	}
 
+	if starframeLookup {
+		var err error
+		starframeTask, err = h.gatewayService.LoadStarframeVideoTask(c.Request.Context(), videoID, owner)
+		if err != nil {
+			h.errorResponse(c, http.StatusNotFound, "not_found_error", "Video task not found or expired (24 hour retention)")
+			return
+		}
+		requestModel = starframeTask.Model
+	}
+
 	reqLog = reqLog.With(zap.String("model", requestModel), zap.String("video_id", videoID))
 	setOpsRequestContext(c, requestModel, false)
 	setOpsEndpointContext(c, "", int16(service.RequestTypeSync))
@@ -148,7 +173,7 @@ func (h *OpenAIGatewayHandler) handleAgnesVideo(c *gin.Context, endpoint service
 	}
 
 	var billingEligibilityErr error
-	if !service.IsMobileVideoManagedExecution(c.Request.Context()) {
+	if !starframeLookup && !service.IsMobileVideoManagedExecution(c.Request.Context()) {
 		billingEligibilityErr = h.billingCacheService.CheckBillingEligibility(
 			c.Request.Context(),
 			apiKey.User,
@@ -180,6 +205,17 @@ func (h *OpenAIGatewayHandler) handleAgnesVideo(c *gin.Context, endpoint service
 		sessionHash = service.AgnesVideoSessionHash(videoID)
 	}
 	requestCtx := c.Request.Context()
+	requiredCapability := service.OpenAIEndpointCapabilityAgnesVideo
+	if endpoint == service.AgnesVideoEndpointCreate {
+		requiredCapability = service.OpenAIEndpointCapabilityVideos
+	}
+	if starframeLookup {
+		requiredCapability = service.OpenAIEndpointCapabilityStarframe
+		sessionHash = service.GrokMediaVideoRequestSessionHash(videoID, subject.UserID, apiKey.ID)
+		routingModel = starframeTask.Model
+		requestCtx = service.WithOpenAIProfitControlSuppressed(requestCtx)
+		requestCtx = service.WithStarframeVideoRequest(requestCtx)
+	}
 	failedAccountIDs := make(map[int64]struct{})
 	sameAccountRetryCount := make(map[int64]int)
 	var lastFailoverErr *service.UpstreamFailoverError
@@ -196,20 +232,27 @@ func (h *OpenAIGatewayHandler) handleAgnesVideo(c *gin.Context, endpoint service
 		if failoverClientGone(c) {
 			return
 		}
-		selection, scheduleDecision, err := h.gatewayService.SelectAccountWithSchedulerForCapability(
-			requestCtx,
-			apiKey.GroupID,
-			"",
-			sessionHash,
-			routingModel,
-			failedAccountIDs,
-			service.OpenAIUpstreamTransportHTTPSSE,
-			"",
-			false,
-			false,
-			false,
-			service.PlatformOpenAI,
-		)
+		var selection *service.AccountSelectionResult
+		var scheduleDecision service.OpenAIAccountScheduleDecision
+		var err error
+		if starframeLookup {
+			selection, scheduleDecision, err = h.gatewayService.SelectMediaVideoRequestAccount(requestCtx, apiKey.GroupID, sessionHash, starframeTask.AccountID, routingModel, service.PlatformOpenAI, requiredCapability)
+		} else {
+			selection, scheduleDecision, err = h.gatewayService.SelectAccountWithSchedulerForCapability(
+				requestCtx,
+				apiKey.GroupID,
+				"",
+				sessionHash,
+				routingModel,
+				failedAccountIDs,
+				service.OpenAIUpstreamTransportHTTPSSE,
+				requiredCapability,
+				false,
+				false,
+				false,
+				service.PlatformOpenAI,
+			)
+		}
 		if err != nil {
 			if failoverClientGone(c) {
 				reqLog.Info("agnes_video.account_select_aborted_client_disconnected", zap.Error(err))
@@ -250,10 +293,50 @@ func (h *OpenAIGatewayHandler) handleAgnesVideo(c *gin.Context, endpoint service
 		)
 
 		account := selection.Account
+		isStarframe := account.SupportsOpenAIEndpointCapability(service.OpenAIEndpointCapabilityStarframe)
+		if starframeLookup && account.ID != starframeTask.AccountID {
+			if selection.ReleaseFunc != nil {
+				selection.ReleaseFunc()
+			}
+			h.errorResponse(c, http.StatusNotFound, "not_found_error", "Video task account unavailable")
+			return
+		}
+		var starframeBilling *service.StarframeVideoBilling
+		if isStarframe && endpoint == service.AgnesVideoEndpointCreate {
+			info, parseErr := service.ParseStarframeVideoRequest(body)
+			if parseErr != nil {
+				if selection.ReleaseFunc != nil {
+					selection.ReleaseFunc()
+				}
+				h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", parseErr.Error())
+				return
+			}
+			var pricingErr error
+			starframeBilling, pricingErr = h.gatewayService.SnapshotStarframeVideoBilling(requestCtx, apiKey, info)
+			if pricingErr != nil {
+				if selection.ReleaseFunc != nil {
+					selection.ReleaseFunc()
+				}
+				h.errorResponse(c, http.StatusServiceUnavailable, "starframe_video_price_not_configured", pricingErr.Error())
+				return
+			}
+			requestCtx = service.WithOpenAIProfitControlSuppressed(requestCtx)
+			requestCtx = service.WithStarframeVideoRequest(requestCtx)
+		}
 		sessionHash = ensureOpenAIPoolModeSessionHash(sessionHash, account)
 		setOpsSelectedAccount(c, account.ID, account.Platform)
 
-		accountReleaseFunc, slotResult := h.acquireResponsesAccountSlot(c, apiKey.GroupID, sessionHash, selection, false, &streamStarted, reqLog)
+		slotSessionHash := sessionHash
+		if starframeLookup {
+			slotSessionHash = ""
+		}
+		var accountReleaseFunc func()
+		var slotResult openAISlotAcquireResult
+		if isStarframe {
+			accountReleaseFunc, slotResult = h.acquireStarframeVideoAccountSlot(c, requestCtx, apiKey.GroupID, slotSessionHash, selection, &streamStarted, reqLog)
+		} else {
+			accountReleaseFunc, slotResult = h.acquireResponsesAccountSlot(c, apiKey.GroupID, slotSessionHash, selection, false, &streamStarted, reqLog)
+		}
 		if slotResult == openAISlotAcquireProfitVetoed {
 			if !recordOpenAIProfitVeto(failedAccountIDs, account.ID, &profitVetoCount) {
 				h.handleOpenAIProfitVetoExhausted(c, streamStarted, reqLog, profitVetoCount)
@@ -272,6 +355,9 @@ func (h *OpenAIGatewayHandler) handleAgnesVideo(c *gin.Context, endpoint service
 					accountReleaseFunc()
 				}
 			}()
+			if isStarframe {
+				return h.gatewayService.ForwardStarframeVideo(requestCtx, c, account, endpoint, starframeTask, body, owner, starframeBilling)
+			}
 			return h.gatewayService.ForwardAgnesVideo(requestCtx, c, account, endpoint, videoID, forwardBody, contentType)
 		}()
 
@@ -325,19 +411,21 @@ func (h *OpenAIGatewayHandler) handleAgnesVideo(c *gin.Context, endpoint service
 
 		h.gatewayService.ReportOpenAIAccountScheduleResult(account, account.GetMappedModel(routingModel), true, nil)
 		if endpoint == service.AgnesVideoEndpointCreate && strings.TrimSpace(result.ResponseID) != "" {
-			if err := h.gatewayService.BindStickySession(requestCtx, apiKey.GroupID, service.AgnesVideoSessionHash(result.ResponseID), account.ID); err != nil {
-				reqLog.Warn("agnes_video.bind_video_account_failed",
-					zap.Int64("account_id", account.ID),
-					zap.String("video_id", result.ResponseID),
-					zap.Error(err),
-				)
-			}
+			if !isStarframe {
+				if err := h.gatewayService.BindStickySession(requestCtx, apiKey.GroupID, service.AgnesVideoSessionHash(result.ResponseID), account.ID); err != nil {
+					reqLog.Warn("agnes_video.bind_video_account_failed",
+						zap.Int64("account_id", account.ID),
+						zap.String("video_id", result.ResponseID),
+						zap.Error(err),
+					)
+				}
 
-			resolution, durationSeconds := service.ExtractAgnesVideoBillingMetadata(body)
-			result.RequestID = service.StableAgnesVideoBillingRequestID(result.ResponseID)
-			result.VideoCount = 1
-			result.VideoResolution = resolution
-			result.VideoDurationSeconds = durationSeconds
+				resolution, durationSeconds := service.ExtractAgnesVideoBillingMetadata(body)
+				result.RequestID = service.StableAgnesVideoBillingRequestID(result.ResponseID)
+				result.VideoCount = 1
+				result.VideoResolution = resolution
+				result.VideoDurationSeconds = durationSeconds
+			}
 			userAgent := c.GetHeader("User-Agent")
 			clientIP := ip.GetClientIP(c)
 			inboundEndpoint := GetInboundEndpoint(c)

@@ -25,7 +25,7 @@ func TestNormalizeAndLookupVideoModelPrices(t *testing.T) {
 	}
 	norm := NormalizeVideoModelPrices(raw)
 	require.NotNil(t, norm)
-	require.Contains(t, norm, VideoPriceFamilyGrokImagineVideo15)
+	require.Contains(t, norm, "grok-imagine-video-1.5-preview")
 	require.Contains(t, norm, VideoPriceFamilyGrokImagineVideo)
 	require.Contains(t, norm, "grok-imagine-video-2")
 
