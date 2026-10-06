@@ -99,11 +99,16 @@ func (s *PaymentService) ManualConfirmPayment(ctx context.Context, orderID int64
 			return nil, fmt.Errorf("consume payment coupon during manual confirmation: %w", err)
 		}
 	}
-	detail, err := json.Marshal(map[string]any{
+	auditDetail := map[string]any{
 		"source":                        "admin_manual_confirmation",
 		"gateway_transaction_reference": reference,
 		"previous_status":               order.Status,
-	})
+	}
+	if previousReference := strings.TrimSpace(order.PaymentTradeNo); previousReference != "" && previousReference != reference {
+		auditDetail["previous_gateway_transaction_reference"] = previousReference
+		auditDetail["reference_overridden"] = true
+	}
+	detail, err := json.Marshal(auditDetail)
 	if err != nil {
 		return nil, fmt.Errorf("encode manual payment audit: %w", err)
 	}
@@ -153,9 +158,9 @@ func validateManualPaymentConfirmationOrder(order *dbent.PaymentOrder, reference
 	if order.PaidAt != nil || !manualPaymentConfirmableStatus(order.Status) || manualPaymentHasRefundState(order) {
 		return infraerrors.BadRequest("INVALID_STATUS", "only unpaid pending, failed, expired, or cancelled orders can be manually confirmed")
 	}
-	if saved := strings.TrimSpace(order.PaymentTradeNo); saved != "" && saved != reference {
-		return infraerrors.Conflict("PAYMENT_REFERENCE_MISMATCH", "gateway transaction reference conflicts with the stored order reference")
-	}
+	// Allow administrator to override the stored gateway transaction reference.
+	// Manual confirmation is a deliberate operator action after verifying external
+	// payment evidence. The audit trail preserves both the previous and new values.
 	return nil
 }
 

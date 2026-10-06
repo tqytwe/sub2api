@@ -58,14 +58,39 @@ func TestManualConfirmPaymentRejectsIneligibleStatesAndReferences(t *testing.T) 
 		})
 	}
 
-	order := createManualConfirmOrder(t, ctx, client, OrderStatusPending, "known-reference")
-	_, err := svc.ManualConfirmPayment(ctx, order.ID, ManualConfirmPaymentInput{GatewayTransactionReference: "other-reference", Operator: "admin:1"})
-	require.Error(t, err)
-	require.Equal(t, "PAYMENT_REFERENCE_MISMATCH", infraerrors.Reason(err))
-
-	_, err = svc.ManualConfirmPayment(ctx, order.ID, ManualConfirmPaymentInput{GatewayTransactionReference: " ", Operator: "admin:1"})
+	_, err := svc.ManualConfirmPayment(ctx, 999999, ManualConfirmPaymentInput{GatewayTransactionReference: " ", Operator: "admin:1"})
 	require.Error(t, err)
 	require.Equal(t, "INVALID_PAYMENT_REFERENCE", infraerrors.Reason(err))
+}
+
+func TestManualConfirmPaymentAllowsReferenceOverride(t *testing.T) {
+	ctx := context.Background()
+	client := newPaymentConfigServiceTestClient(t)
+	svc := &PaymentService{entClient: client}
+
+	// Administrators must be able to correct an incorrect gateway reference.
+	order := createManualConfirmOrder(t, ctx, client, OrderStatusPending, "wrong-reference")
+	result, err := svc.ManualConfirmPayment(ctx, order.ID, ManualConfirmPaymentInput{
+		GatewayTransactionReference: "corrected-reference",
+		Operator:                    "admin:1",
+	})
+	require.NoError(t, err)
+	require.NotNil(t, result)
+
+	reloaded, err := client.PaymentOrder.Get(ctx, order.ID)
+	require.NoError(t, err)
+	require.Equal(t, "corrected-reference", reloaded.PaymentTradeNo)
+	require.Equal(t, OrderStatusPaid, reloaded.Status)
+
+	audits, err := client.PaymentAuditLog.Query().Where(
+		paymentauditlog.OrderIDEQ(strconv.FormatInt(order.ID, 10)),
+		paymentauditlog.ActionEQ(ManualPaymentConfirmedAuditAction),
+	).All(ctx)
+	require.NoError(t, err)
+	require.Len(t, audits, 1)
+	require.Contains(t, audits[0].Detail, "corrected-reference")
+	require.Contains(t, audits[0].Detail, "wrong-reference")
+	require.Contains(t, audits[0].Detail, "reference_overridden")
 }
 
 func TestManualConfirmPaymentRejectsDuplicateProviderReference(t *testing.T) {
