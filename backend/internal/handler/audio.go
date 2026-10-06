@@ -27,8 +27,7 @@ func (h *OpenAIGatewayHandler) AudioSpeech(c *gin.Context) {
 		// Forward to Grok TTS endpoint
 		h.GrokVoice(c, "tts")
 	case service.PlatformOpenAI:
-		// TODO: Forward to OpenAI /v1/audio/speech
-		h.errorResponse(c, http.StatusNotImplemented, "not_implemented", "OpenAI audio/speech forwarding not yet implemented")
+		h.openAIAudio(c, service.OpenAIAudioOperationSpeech)
 	default:
 		h.errorResponse(c, http.StatusNotFound, "not_found_error", "Audio speech API is not supported for this platform")
 	}
@@ -52,8 +51,7 @@ func (h *OpenAIGatewayHandler) AudioTranscriptions(c *gin.Context) {
 		// Forward to Grok STT endpoint
 		h.GrokVoice(c, "stt")
 	case service.PlatformOpenAI:
-		// TODO: Forward to OpenAI /v1/audio/transcriptions
-		h.errorResponse(c, http.StatusNotImplemented, "not_implemented", "OpenAI audio/transcriptions forwarding not yet implemented")
+		h.openAIAudio(c, service.OpenAIAudioOperationTranscriptions)
 	default:
 		h.errorResponse(c, http.StatusNotFound, "not_found_error", "Audio transcriptions API is not supported for this platform")
 	}
@@ -77,8 +75,7 @@ func (h *OpenAIGatewayHandler) AudioTranslations(c *gin.Context) {
 		// Grok may not support translations endpoint, return not found
 		h.errorResponse(c, http.StatusNotFound, "not_found_error", "Audio translations API is not supported for Grok platform")
 	case service.PlatformOpenAI:
-		// TODO: Forward to OpenAI /v1/audio/translations
-		h.errorResponse(c, http.StatusNotImplemented, "not_implemented", "OpenAI audio/translations forwarding not yet implemented")
+		h.openAIAudio(c, service.OpenAIAudioOperationTranslations)
 	default:
 		h.errorResponse(c, http.StatusNotFound, "not_found_error", "Audio translations API is not supported for this platform")
 	}
@@ -108,9 +105,9 @@ func (h *OpenAIGatewayHandler) Realtime(c *gin.Context) {
 		// Forward to Grok Realtime WebSocket
 		h.GrokRealtime(c)
 	case service.PlatformOpenAI:
-		// TODO: Forward to OpenAI Realtime WebSocket
-		h.errorResponse(c, http.StatusNotImplemented, "not_implemented", "OpenAI realtime WebSocket forwarding not yet implemented")
+		h.openAIRealtime(c)
 	default:
+		service.MarkOpsClientBusinessLimited(c, service.OpsClientBusinessLimitedReasonLocalFeatureGate)
 		h.errorResponse(c, http.StatusNotFound, "not_found_error", "Realtime API is not supported for this platform")
 	}
 }

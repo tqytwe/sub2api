@@ -1915,6 +1915,12 @@ func (a *Account) SupportsOpenAIEndpointCapability(capability OpenAIEndpointCapa
 		if a.Type != AccountTypeAPIKey {
 			return false
 		}
+	case OpenAIEndpointCapabilityAudio:
+		// 标准 /v1/audio/* 与 /v1/realtime 只由 OpenAI API Key 上游提供；
+		// ChatGPT OAuth/Codex 上游没有这些端点。
+		if a.Platform != PlatformOpenAI || a.Type != AccountTypeAPIKey {
+			return false
+		}
 	default:
 		return false
 	}
@@ -1923,7 +1929,10 @@ func (a *Account) SupportsOpenAIEndpointCapability(capability OpenAIEndpointCapa
 	if !found {
 		return true
 	}
-	if capability == OpenAIEndpointCapabilityAlphaSearch && configured[string(OpenAIEndpointCapabilityChatCompletions)] {
+	if (capability == OpenAIEndpointCapabilityAlphaSearch || capability == OpenAIEndpointCapabilityAudio) &&
+		configured[string(OpenAIEndpointCapabilityChatCompletions)] {
+		// 能力表单只提供 chat/embeddings 两项：勾选 chat 的通用上游同样承接
+		// 搜索与音频；仅 embeddings 的专用上游不参与。
 		return true
 	}
 	return configured[string(capability)]
