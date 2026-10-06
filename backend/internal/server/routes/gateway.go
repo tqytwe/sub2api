@@ -349,6 +349,11 @@ func RegisterGatewayRoutes(
 		gateway.GET("/videos/:request_id", videoStatusHandler)
 		gateway.GET("/videos/:request_id/content", videoContentHandler)
 
+		// Standard OpenAI Audio API endpoints
+		gateway.POST("/audio/speech", h.OpenAIGateway.AudioSpeech)
+		gateway.POST("/audio/transcriptions", h.OpenAIGateway.AudioTranscriptions)
+		gateway.POST("/audio/translations", h.OpenAIGateway.AudioTranslations)
+
 		voiceHandler := func(endpoint string) gin.HandlerFunc {
 			return func(c *gin.Context) {
 				if getGroupPlatform(c) != service.PlatformGrok {
@@ -375,14 +380,7 @@ func RegisterGatewayRoutes(
 		gateway.GET("/custom-voices/:voice_id", customVoicePathHandler)
 		gateway.PATCH("/custom-voices/:voice_id", customVoicePathHandler)
 		gateway.DELETE("/custom-voices/:voice_id", customVoicePathHandler)
-		gateway.GET("/realtime", func(c *gin.Context) {
-			if getGroupPlatform(c) != service.PlatformGrok {
-				service.MarkOpsClientBusinessLimited(c, service.OpsClientBusinessLimitedReasonLocalFeatureGate)
-				c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"type": "not_found_error", "message": "Realtime API is not supported for this platform"}})
-				return
-			}
-			h.OpenAIGateway.GrokRealtime(c)
-		})
+		gateway.GET("/realtime", h.OpenAIGateway.Realtime)
 	}
 
 	// Gemini 原生 API 兼容层（Gemini SDK/CLI 直连）
