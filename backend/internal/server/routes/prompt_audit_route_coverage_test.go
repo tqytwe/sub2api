@@ -54,6 +54,9 @@ func TestEveryGatewayPOSTRouteIsClassifiedForPromptAuditCoverage(t *testing.T) {
 		"/images/batches/:id/cancel": "control-plane cancellation with no user prompt",
 		"/stt":                       "speech transcription is not a text-generation prompt",
 		"/custom-voices":             "voice profile management has no model prompt",
+		"/audio/speech":              "text-to-speech synthesis is not a text-generation prompt",
+		"/audio/transcriptions":      "speech transcription is not a text-generation prompt",
+		"/audio/translations":        "speech translation is not a text-generation prompt",
 	}
 
 	unclassified := make([]string, 0)
