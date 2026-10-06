@@ -810,6 +810,33 @@ export default {
     }
   },
 
+  // Play - Arena
+  arena: {
+    rewardMechanism: {
+      title: 'Reward Mechanism',
+      description: 'Arena tokens are only used for ranking competition, not direct exchange. Final rewards are distributed as fixed amounts based on leaderboard ranking.',
+      monthlyTitle: 'Monthly Leaderboard Rewards',
+      dailyTitle: 'Daily Leaderboard Rewards',
+      rankLabel: 'Rank {rank}',
+      amountLabel: '{amount}',
+      topRanks: 'Top {count}',
+      settlementNote: 'Rewards are automatically credited to your account balance after settlement'
+    }
+  },
+
+  // Play - Blindbox
+  blindbox: {
+    rewardBranches: {
+      title: 'Reward Types',
+      description: 'Opening a box will randomly grant one of the following rewards:',
+      coupon: 'Coupon',
+      redeemCode: 'Redeem Code',
+      balance: 'Balance',
+      probability: '{percent}% chance',
+      note: 'Specific reward amounts/discounts are randomly generated based on current pool configuration'
+    }
+  },
+
   affiliate: {
     title: 'Affiliate Rebates',
     description: 'Invite new users and convert your rebate quota into account balance',

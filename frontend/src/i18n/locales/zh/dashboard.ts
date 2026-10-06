@@ -814,6 +814,33 @@ export default {
     }
   },
 
+  // Play - Arena
+  arena: {
+    rewardMechanism: {
+      title: '奖励机制说明',
+      description: '农场代币仅用于排名竞争，不能直接兑换。最终奖励按榜单排名发放固定金额。',
+      monthlyTitle: '月榜奖励档位',
+      dailyTitle: '日榜奖励档位',
+      rankLabel: '第 {rank} 名',
+      amountLabel: '{amount}',
+      topRanks: 'Top {count}',
+      settlementNote: '奖励在结算期结束后自动发放到账户余额'
+    }
+  },
+
+  // Play - Blindbox
+  blindbox: {
+    rewardBranches: {
+      title: '奖励类型',
+      description: '开盒后将随机获得以下奖励之一：',
+      coupon: '优惠券',
+      redeemCode: '兑换码',
+      balance: '余额',
+      probability: '概率 {percent}%',
+      note: '具体奖励金额/折扣根据当前奖池配置随机生成'
+    }
+  },
+
   affiliate: {
     title: '邀请返利',
     description: '邀请新用户注册，并将返利额度转入账户余额',
