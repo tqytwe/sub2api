@@ -2,8 +2,8 @@
 
 > 状态：active
 > 当前生产基线：`origin/play/main@450148f00ab5c0bddde214c1d83a845b169c56f0`
-> 本次同步候选：`upstream/main@b8dece9000c68815a5b867ca5a1e6f236e173905`（`v0.2.13`，相对上次同步基线 `v0.2.7`），分支 `sync/upstream-20261003`（非 rebase 合并待提交）
-> 最后核验：2026-10-05（开发机：前端测试/typecheck/lint/design check、后端 `go build`、四种构建标签编译、生成代码一致性、`check-fork-integrity.sh` 全部通过；服务器已不可用，按用户决定跳过服务器验证，以 PR 完整 GitHub CI 替代；未启动本地服务、未连接或修改生产数据库；PR CI、合并和部署待完成）
+> 本次同步候选：`upstream/main@3f1a2ea0a`（`v0.2.14`，相对上次同步基线 `v0.2.7`），分支 `sync/upstream-20261007`（非 rebase 合并待提交）
+> 最后核验：2026-10-07（开发机：前端测试/typecheck/lint/design check、后端 `go build`、四种构建标签编译、生成代码一致性通过；服务器已不可用，按用户决定跳过服务器验证和后端测试（服务器内存不足），以 PR 完整 GitHub CI 替代；未启动本地服务、未连接或修改生产数据库；`check-fork-integrity.sh`、PR CI、合并和部署待完成）
 
 本文档是 `play/main` 相对上游的定制权威登记表。只有已经落地的行为进入受保护条目；视频工作室等未实现方案只能作为 `proposal` 独立保存，不能登记成已上线能力。
 
