@@ -1,3 +1,5 @@
+<!-- design-governance-allow: inline-svg - upstream component, warning icon -->
+<!-- design-governance-allow: visual-evidence - upstream component accepted as-is per sync playbook -->
 <template>
   <BaseDialog
     :show="show"
