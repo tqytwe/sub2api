@@ -165,8 +165,11 @@ func TestCanonicalizeReturnURLAllowsTrustedAndroidHost(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CanonicalizeReturnURL returned error: %v", err)
 	}
-	if got != "https://www.jisudeng.com/payment/result?from=android" {
-		t.Fatalf("CanonicalizeReturnURL = %q", got)
+	// Client-supplied query parameters are dropped per issue #7881 security fix.
+	// buildPaymentReturnURL adds its own signed set; the ?from=android tracking
+	// parameter is not required for Android app payment flow.
+	if got != "https://www.jisudeng.com/payment/result" {
+		t.Fatalf("CanonicalizeReturnURL = %q, want %q (query params dropped)", got, "https://www.jisudeng.com/payment/result")
 	}
 }
 
