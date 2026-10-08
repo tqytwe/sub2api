@@ -95,6 +95,23 @@ func (s *UserSubscription) HasOneTimeDailyQuota() bool {
 	return !s.ExpiresAt.After(s.StartsAt.AddDate(0, 0, 1))
 }
 
+// HasOneTimeWeeklyQuota 判断是否为一次性周额度（订阅期限 ≤ 7天）
+func (s *UserSubscription) HasOneTimeWeeklyQuota() bool {
+	if s == nil || s.StartsAt.IsZero() || s.ExpiresAt.IsZero() {
+		return false
+	}
+	return !s.ExpiresAt.After(s.StartsAt.AddDate(0, 0, 7))
+}
+
+// HasOneTimeMonthlyQuota 判断是否为一次性月额度（订阅期限 ≤ 30天）
+func (s *UserSubscription) HasOneTimeMonthlyQuota() bool {
+	if s == nil || s.StartsAt.IsZero() || s.ExpiresAt.IsZero() {
+		return false
+	}
+	return !s.ExpiresAt.After(s.StartsAt.AddDate(0, 0, 30))
+}
+
+
 func (s *UserSubscription) NeedsDailyReset() bool {
 	return s.NeedsDailyResetAt(time.Now())
 }
@@ -112,6 +129,10 @@ func (s *UserSubscription) NeedsWeeklyResetAt(now time.Time) bool {
 	if s.WeeklyWindowStart == nil {
 		return false
 	}
+	// 一次性周额度不自动重置
+	if s.HasOneTimeWeeklyQuota() {
+		return false
+	}
 	return !now.Before(s.WeeklyWindowStart.Add(7 * 24 * time.Hour))
 }
 
@@ -121,6 +142,10 @@ func (s *UserSubscription) NeedsMonthlyReset() bool {
 
 func (s *UserSubscription) NeedsMonthlyResetAt(now time.Time) bool {
 	if s.MonthlyWindowStart == nil {
+		return false
+	}
+	// 一次性月额度不自动重置
+	if s.HasOneTimeMonthlyQuota() {
 		return false
 	}
 	return !now.Before(s.MonthlyWindowStart.Add(30 * 24 * time.Hour))
@@ -213,6 +238,11 @@ func (s *UserSubscription) WeeklyResetTime() *time.Time {
 	if s.WeeklyWindowStart == nil {
 		return nil
 	}
+	// 一次性周额度：重置时间即过期时间
+	if s.HasOneTimeWeeklyQuota() {
+		t := s.ExpiresAt
+		return &t
+	}
 	t := s.windowResetAnchor(*s.WeeklyWindowStart).Add(7 * 24 * time.Hour)
 	return &t
 }
@@ -220,6 +250,11 @@ func (s *UserSubscription) WeeklyResetTime() *time.Time {
 func (s *UserSubscription) MonthlyResetTime() *time.Time {
 	if s.MonthlyWindowStart == nil {
 		return nil
+	}
+	// 一次性月额度：重置时间即过期时间
+	if s.HasOneTimeMonthlyQuota() {
+		t := s.ExpiresAt
+		return &t
 	}
 	t := s.windowResetAnchor(*s.MonthlyWindowStart).Add(30 * 24 * time.Hour)
 	return &t
