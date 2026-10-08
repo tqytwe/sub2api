@@ -18,6 +18,7 @@ const router = useRouter()
 const authStore = useAuthStore()
 
 const loading = ref(true)
+const loadFailed = ref(false)
 const hub = ref<PlayHubSummary | null>(null)
 const referralCampaigns = ref<ReferralCampaignProgress[]>([])
 
@@ -197,7 +198,9 @@ const playCards = computed(() => {
 })
 
 async function load() {
+  if (loading.value && hub.value) return
   loading.value = true
+  loadFailed.value = false
   try {
 		const [nextHub, nextCampaigns] = await Promise.all([
 			playAPI.getPlayHub(),
@@ -206,6 +209,7 @@ async function load() {
 		hub.value = nextHub
 		referralCampaigns.value = nextCampaigns
   } catch {
+    loadFailed.value = true
     hub.value = null
 		referralCampaigns.value = []
   } finally {
@@ -285,6 +289,10 @@ onMounted(load)
       </section>
 
       <div v-if="loading" class="gw-polling py-12 text-center">{{ t('models.loading') }}</div>
+      <div v-else-if="loadFailed" class="gw-panel gw-subtitle" role="alert">
+        <p>{{ t('playHub.loadFailed') }}</p>
+        <button type="button" class="gw-btn gw-btn-secondary mt-3" @click="load">{{ t('common.retry') }}</button>
+      </div>
       <div v-else-if="!hub?.any_enabled && playCards.length === 0" class="gw-panel py-8 text-center gw-subtitle">
         {{ t('playHub.empty') }}
       </div>
@@ -438,6 +446,7 @@ onMounted(load)
               <div class="min-w-0">
                 <h2 class="gw-section-title break-words">{{ card.title }}</h2>
                 <p class="gw-subtitle break-words">{{ card.subtitle }}</p>
+                <p v-if="card.key === 'arena'" class="gw-subtitle break-words text-sm">{{ t('playHub.arenaRewardHint') }}</p>
                 <p v-if="card.action" class="mt-2 text-xs font-medium" style="color: var(--gw-ink)">{{ card.action }} →</p>
               </div>
               <span v-if="card.badge" class="gw-buff shrink-0">{{ card.badge }}</span>

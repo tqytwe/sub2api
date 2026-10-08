@@ -34,6 +34,7 @@ const loading = ref(true)
 const boardLoading = ref(false)
 const historyLoading = ref(false)
 const loadError = ref('')
+const historyError = ref('')
 const tab = ref<BoardTab>('daily')
 const boards = ref<Record<BoardTab, PlayArenaSeasonOverview | null>>({ daily: null, monthly: null })
 const historyLoaded = ref<Record<BoardTab, boolean>>({ daily: false, monthly: false })
@@ -63,7 +64,7 @@ const rankProgressPercent = computed(() => {
 })
 const rewardStatus = computed(() => {
   if (!selectedRank.value) return t('arena.competitive.noRank')
-  return selectedRank.value <= 10 ? t('arena.competitive.rewardZone') : t('arena.competitive.keepClimbing')
+  return rewardForRank(selectedRank.value) > 0 ? t('arena.competitive.rewardZone') : t('arena.competitive.keepClimbing')
 })
 
 const xpPercent = computed(() => {
@@ -108,7 +109,9 @@ function isCurrentRank(row: PlayArenaScore) {
 }
 
 function switchTab(next: BoardTab) {
-  if (tab.value === next) return
+  if (tab.value === next || boardLoading.value || historyLoading.value) return
+  loadError.value = ''
+  historyError.value = ''
   tab.value = next
   if (next === 'daily') {
     trackGrowthEvent('farm_daily_tab_view')
@@ -133,17 +136,19 @@ async function loadBoard(period: BoardTab, includeHistory = false) {
   if (includeHistory) historyLoading.value = true
   else boardLoading.value = true
   if (!boards.value[period]) loading.value = true
-  loadError.value = ''
+  if (includeHistory) historyError.value = ''
+  else loadError.value = ''
   try {
     const overview = await playAPI.getArenaSeasonOverview(period, includeHistory)
     boards.value = { ...boards.value, [period]: overview }
     if (includeHistory) historyLoaded.value = { ...historyLoaded.value, [period]: true }
   } catch {
-    loadError.value = t('arena.loadFailed')
+    if (includeHistory) historyError.value = t('arena.loadFailed')
+    else loadError.value = t('arena.loadFailed')
   } finally {
     boardLoading.value = false
     historyLoading.value = false
-    if (boards.value[period]) loading.value = false
+    loading.value = false
   }
 }
 
@@ -191,10 +196,10 @@ onMounted(load)
 
             <div class="play-action-panel">
               <div class="arena-rpg-tabs">
-                <button type="button" class="arena-rpg-tab" :class="{ active: tab === 'daily' }" :disabled="boardLoading" @click="switchTab('daily')">
+                <button type="button" class="arena-rpg-tab" :class="{ active: tab === 'daily' }" :disabled="boardLoading || historyLoading" @click="switchTab('daily')">
                   {{ t('arena.rpg.tabDaily') }}
                 </button>
-                <button type="button" class="arena-rpg-tab" :class="{ active: tab === 'monthly' }" :disabled="boardLoading" @click="switchTab('monthly')">
+                <button type="button" class="arena-rpg-tab" :class="{ active: tab === 'monthly' }" :disabled="boardLoading || historyLoading" @click="switchTab('monthly')">
                   {{ t('arena.rpg.tabMonthly') }}
                 </button>
               </div>
@@ -227,7 +232,7 @@ onMounted(load)
               </div>
               <div class="arena-season-stats">
                 <span>{{ rewardStatus }}</span>
-                <span>{{ t('arena.competitive.topRange') }}</span>
+                <span>{{ t('arena.competitive.topRange', { count: Math.max(0, ...rewardTiers.map(tier => tier.rank_max)) }) }}</span>
               </div>
               <p v-if="selectedEstimatedReward > 0" class="arena-estimated-reward">
                 {{ t('arena.estimatedReward', { amount: formatMoney(selectedEstimatedReward) }) }}
@@ -262,8 +267,8 @@ onMounted(load)
                 <span class="arena-summary-badge">{{ tab === 'daily' ? t('arena.rpg.tabDaily') : t('arena.rpg.tabMonthly') }}</span>
               </div>
               <div v-if="rewardTiers.length" class="arena-summary-list">
-                <div v-for="tier in rewardTiers" :key="`${tier.rank_max}-${tier.amount}`" class="arena-summary-row">
-                  <span class="arena-rank-number">#1-{{ tier.rank_max }}</span>
+                <div v-for="(tier, index) in rewardTiers" :key="`${tier.rank_max}-${tier.amount}`" class="arena-summary-row">
+                  <span class="arena-rank-number">#{{ index === 0 ? 1 : rewardTiers[index - 1].rank_max + 1 }}-{{ tier.rank_max }}</span>
                   <span class="arena-rank-tokens">{{ t('arena.rewardTier') }}</span>
                   <strong>{{ t('arena.estimatedReward', { amount: formatMoney(tier.amount) }) }}</strong>
                 </div>
@@ -279,6 +284,7 @@ onMounted(load)
                 </button>
                 <span v-else-if="latestHistory" class="arena-summary-badge">{{ t('arena.monthlySummary.paid') }}</span>
               </div>
+              <p v-if="historyError" class="play-note" role="alert">{{ historyError }}</p>
               <template v-if="latestHistory">
                 <div class="arena-summary-metrics">
                   <strong>{{ t('arena.monthlySummary.total', { amount: formatMoney(latestHistory.total_amount) }) }}</strong>
@@ -313,7 +319,7 @@ onMounted(load)
                     <div class="arena-podium-rank">#{{ row.rank }}</div>
                     <PlayUserAvatar :name="publicName(row)" :avatar-url="row.avatar_url" size-class="h-10 w-10" />
                     <strong>{{ formatTokens(row.token_sum) }}</strong>
-                    <span>{{ row.rank <= 10 ? t('arena.competitive.rewardZone') : t('arena.competitive.keepClimbing') }}</span>
+                    <span>{{ rewardForRank(row.rank) > 0 ? t('arena.competitive.rewardZone') : t('arena.competitive.keepClimbing') }}</span>
                   </article>
                 </div>
               </section>
@@ -681,7 +687,7 @@ onMounted(load)
 
 .arena-quest-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: 10px;
 }
 

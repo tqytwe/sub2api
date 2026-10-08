@@ -128,21 +128,26 @@ const currentRTPCap = computed(() => status.value?.rtp_cap ?? publicPool.value?.
 const nextExpectedReward = computed(() => status.value?.next_expected_reward ?? publicPool.value?.next_expected_reward ?? (nextPool.value ? expectedReward(nextPool.value) : 0))
 
 const rewardSplit = computed(() => authStore.isAuthenticated
-  ? { coupon: status.value?.coupon_weight_bp, balance: status.value?.balance_weight_bp }
-  : { coupon: publicPool.value?.coupon_weight_bp, balance: publicPool.value?.balance_weight_bp })
+  ? { coupon: status.value?.coupon_weight_bp, redeem_code: status.value?.redeem_code_weight_bp, balance: status.value?.balance_weight_bp }
+  : { coupon: publicPool.value?.coupon_weight_bp, redeem_code: undefined, balance: publicPool.value?.balance_weight_bp })
+
+function publishedWeight(value: unknown): number | null {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= 10_000 ? value : null
+}
 
 const balanceBranchWeight = computed(() => {
-  const balanceWeightBP = Number(rewardSplit.value.balance)
-  return Number.isFinite(balanceWeightBP) && balanceWeightBP >= 0
-    ? balanceWeightBP / 10_000
-    : 0.4
+  const weight = publishedWeight(rewardSplit.value.balance)
+  return weight === null ? null : weight / 10_000
 })
 
-// The configured tiers are the original balance pool. Display overall odds
-// after the current published coupon/balance split so users see the real open odds.
-const expectedCashReward = computed(() => currentExpectedReward.value * balanceBranchWeight.value)
-const expectedCashRTPCap = computed(() => currentRTPCap.value * balanceBranchWeight.value)
-const nextExpectedCashReward = computed(() => nextExpectedReward.value * balanceBranchWeight.value)
+// Overall cash odds require the published balance-branch probability.
+const expectedCashReward = computed(() => balanceBranchWeight.value === null ? undefined : currentExpectedReward.value * balanceBranchWeight.value)
+const expectedCashRTPCap = computed(() => balanceBranchWeight.value === null ? undefined : currentRTPCap.value * balanceBranchWeight.value)
+const nextExpectedCashReward = computed(() => balanceBranchWeight.value === null ? undefined : nextExpectedReward.value * balanceBranchWeight.value)
+const rewardBranches = computed(() => Object.entries(rewardSplit.value).map(([key, value]) => ({
+  key,
+  probability: publishedWeight(value) === null ? t('blindbox.probabilityUnknown') : formatProbability(value!),
+})))
 const growthRewardLocked = computed(() => status.value?.growth_eligibility?.reward_mode === 'energy')
 const governanceBlocked = computed(
   () => authStore.isAuthenticated && !growthRewardLocked.value && status.value?.growth_governance_available === false,
@@ -165,7 +170,7 @@ function formatProbability(weight: number): string {
 }
 
 function formatBalanceProbability(weight: number): string {
-  return formatProbability(weight * balanceBranchWeight.value)
+  return balanceBranchWeight.value === null ? t('blindbox.probabilityUnknown') : formatProbability(weight * balanceBranchWeight.value)
 }
 
 function governanceMessage(reason?: string) {
@@ -212,6 +217,7 @@ function growthProgressMessage(eligibility?: PlayGrowthEligibility) {
 }
 
 function formatRecentWinReward(win: PlayBlindboxRecentWin): string {
+  if (win.reward_type === 'redeem_code') return t('blindbox.recentRedeemCodeWin')
   if (win.reward_type === 'coupon' && win.coupon_name) {
     return t('blindbox.recentCouponWin', { name: win.coupon_name })
   }
@@ -541,7 +547,7 @@ onMounted(async () => {
 })
 
 watch(
-  () => [authStore.isAuthenticated, authStore.user?.id] as const,
+  [() => authStore.isAuthenticated, () => authStore.user?.id],
   () => {
     openRequestID += 1
     opening.value = false
@@ -582,7 +588,10 @@ watch(
               </h2>
               <div v-if="authStore.isAuthenticated" class="space-y-4">
                 <div v-if="loading" class="play-note">{{ t('models.loading') }}</div>
-                <div v-else-if="statusLoadFailed" class="play-note">{{ t('blindbox.unavailable') }}</div>
+                <div v-else-if="statusLoadFailed" class="play-note" role="alert">
+                  <p>{{ t('blindbox.unavailable') }}</p>
+                  <button type="button" class="play-btn play-btn-secondary mt-3" data-testid="blindbox-status-retry" @click="loadStatus">{{ t('common.retry') }}</button>
+                </div>
                 <div v-else-if="!status?.enabled" class="play-note">{{ t('blindbox.disabled') }}</div>
                 <template v-else-if="growthRewardLocked">
                   <div class="play-note" role="status">
@@ -623,8 +632,8 @@ watch(
                     </div>
                     <p>{{ t('blindbox.currentPool', { pool: poolVersion }) }}</p>
                     <code>{{ poolVersion }}</code>
-                    <p>{{ t('blindbox.expectedReward', { amount: formatMoney(expectedCashReward), rtp: Math.round(expectedCashRTPCap * 100) }) }}</p>
-                    <p v-if="nextPool && vipPool.amount_to_next">
+                    <p v-if="expectedCashReward !== undefined && expectedCashRTPCap !== undefined">{{ t('blindbox.expectedReward', { amount: formatMoney(expectedCashReward), rtp: Math.round(expectedCashRTPCap * 100) }) }}</p>
+                    <p v-if="nextPool && vipPool.amount_to_next && nextExpectedCashReward !== undefined">
                       {{ t('blindbox.nextPoolHint', {
                         amount: formatMoney(vipPool.amount_to_next),
                         label: vipPool.next_label ?? `V${vipPool.next_tier}`,
@@ -642,7 +651,7 @@ watch(
                   >
                     {{ opening ? t('blindbox.opening') : t('blindbox.openButton') }}
                   </button>
-                  <p v-if="lastResult && !hasCouponResult" class="play-note">
+                  <p v-if="lastResult && !hasCouponResult && !hasRedeemCodeResult" class="play-note">
                     {{ t('blindbox.lastResult', { reward: lastResult.reward_amount.toFixed(2), net: lastResult.net_amount.toFixed(2) }) }}
                   </p>
                   <CouponRewardCard v-if="hasCouponResult && lastResult?.coupon" :coupon="lastResult.coupon" />
@@ -683,7 +692,16 @@ watch(
             <section class="play-content-panel play-prize-section">
               <h2 class="play-section-title">{{ t('blindbox.prizePoolTitle') }}</h2>
               <p class="play-note">{{ t('blindbox.prizePoolNote') }}</p>
-              <p class="play-note">{{ t('blindbox.rewardSplit') }}</p>
+              <section v-if="!loading && featureEnabled && !statusLoadFailed" class="my-4 text-sm" data-testid="blindbox-branches">
+                <h3 class="font-semibold">{{ t('blindbox.branchesTitle') }}</h3>
+                <dl class="mt-3 grid gap-3 sm:grid-cols-3">
+                  <div v-for="branch in rewardBranches" :key="branch.key">
+                    <dt>{{ t(`blindbox.branches.${branch.key}`) }}</dt>
+                    <dd class="font-semibold tabular-nums">{{ branch.probability }}</dd>
+                  </div>
+                </dl>
+                <p class="mt-3">{{ t('blindbox.rewardSplit') }}</p>
+              </section>
               <p v-if="!loading && statusLoadFailed" class="play-note">{{ t('blindbox.unavailable') }}</p>
               <p v-else-if="!loading && !featureEnabled" class="play-note">{{ t('blindbox.disabled') }}</p>
               <p v-else-if="!loading && governanceBlocked" class="play-note">{{ governanceMessage(status?.growth_governance_reason) }}</p>

@@ -1,0 +1,1714 @@
+[
+  {
+    "route": "play",
+    "state": "default",
+    "viewport": "360x900",
+    "scale": 1,
+    "lang": "zh",
+    "theme": "dark",
+    "errors": [],
+    "dimensions": {
+      "width": 360,
+      "scroll": 360,
+      "height": 900,
+      "theme": "dark",
+      "language": "zh-CN"
+    },
+    "focus": {
+      "tag": "A",
+      "outline": "auto",
+      "name": ""
+    },
+    "requests": [
+      {
+        "path": "/api/v1/auth/me",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/subscriptions/active",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/subscriptions/progress",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/announcements",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/keys",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/play/hub",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/user/aff/campaigns",
+        "method": "GET"
+      }
+    ],
+    "screenshot": "updated-play-360-zh-dark-default.png"
+  },
+  {
+    "route": "play",
+    "state": "default",
+    "viewport": "768x900",
+    "scale": 1,
+    "lang": "en",
+    "theme": "light",
+    "errors": [],
+    "dimensions": {
+      "width": 768,
+      "scroll": 768,
+      "height": 900,
+      "theme": "",
+      "language": "en"
+    },
+    "focus": {
+      "tag": "A",
+      "outline": "auto",
+      "name": ""
+    },
+    "requests": [
+      {
+        "path": "/api/v1/auth/me",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/subscriptions/active",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/subscriptions/progress",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/announcements",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/keys",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/play/hub",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/user/aff/campaigns",
+        "method": "GET"
+      }
+    ],
+    "screenshot": "updated-play-768-en-light-default.png"
+  },
+  {
+    "route": "play",
+    "state": "default",
+    "viewport": "1280x900",
+    "scale": 1,
+    "lang": "zh",
+    "theme": "light",
+    "errors": [],
+    "dimensions": {
+      "width": 1280,
+      "scroll": 1280,
+      "height": 900,
+      "theme": "",
+      "language": "zh-CN"
+    },
+    "focus": {
+      "tag": "A",
+      "outline": "auto",
+      "name": ""
+    },
+    "requests": [
+      {
+        "path": "/api/v1/auth/me",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/subscriptions/active",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/subscriptions/progress",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/announcements",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/keys",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/play/hub",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/user/aff/campaigns",
+        "method": "GET"
+      }
+    ],
+    "screenshot": "updated-play-1280-zh-light-default.png"
+  },
+  {
+    "route": "play",
+    "state": "default",
+    "viewport": "1920x900",
+    "scale": 1,
+    "lang": "en",
+    "theme": "dark",
+    "errors": [],
+    "dimensions": {
+      "width": 1920,
+      "scroll": 1920,
+      "height": 900,
+      "theme": "dark",
+      "language": "en"
+    },
+    "focus": {
+      "tag": "A",
+      "outline": "auto",
+      "name": ""
+    },
+    "requests": [
+      {
+        "path": "/api/v1/auth/me",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/subscriptions/active",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/subscriptions/progress",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/announcements",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/keys",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/play/hub",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/user/aff/campaigns",
+        "method": "GET"
+      }
+    ],
+    "screenshot": "updated-play-1920-en-dark-default.png"
+  },
+  {
+    "route": "play",
+    "state": "zoom",
+    "viewport": "640x900",
+    "scale": 2,
+    "lang": "en",
+    "theme": "light",
+    "errors": [],
+    "dimensions": {
+      "width": 640,
+      "scroll": 640,
+      "height": 900,
+      "theme": "",
+      "language": "en"
+    },
+    "focus": {
+      "tag": "A",
+      "outline": "auto",
+      "name": ""
+    },
+    "requests": [
+      {
+        "path": "/api/v1/auth/me",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/subscriptions/active",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/subscriptions/progress",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/announcements",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/keys",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/play/hub",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/user/aff/campaigns",
+        "method": "GET"
+      }
+    ],
+    "screenshot": "updated-play-640-en-light-zoom.png"
+  },
+  {
+    "route": "play",
+    "state": "loading",
+    "viewport": "360x900",
+    "scale": 1,
+    "lang": "zh",
+    "theme": "light",
+    "errors": [],
+    "dimensions": {
+      "width": 360,
+      "scroll": 360,
+      "height": 900,
+      "theme": "",
+      "language": "zh-CN"
+    },
+    "focus": {
+      "tag": "A",
+      "outline": "auto",
+      "name": ""
+    },
+    "requests": [
+      {
+        "path": "/api/v1/auth/me",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/subscriptions/active",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/subscriptions/progress",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/announcements",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/keys",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/play/hub",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/user/aff/campaigns",
+        "method": "GET"
+      }
+    ],
+    "screenshot": "updated-play-360-zh-light-loading.png"
+  },
+  {
+    "route": "play",
+    "state": "error",
+    "viewport": "360x900",
+    "scale": 1,
+    "lang": "zh",
+    "theme": "light",
+    "errors": [],
+    "dimensions": {
+      "width": 360,
+      "scroll": 360,
+      "height": 900,
+      "theme": "",
+      "language": "zh-CN"
+    },
+    "focus": {
+      "tag": "A",
+      "outline": "auto",
+      "name": ""
+    },
+    "requests": [
+      {
+        "path": "/api/v1/auth/me",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/subscriptions/active",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/subscriptions/progress",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/announcements",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/keys",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/play/hub",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/user/aff/campaigns",
+        "method": "GET"
+      }
+    ],
+    "screenshot": "updated-play-360-zh-light-error.png"
+  },
+  {
+    "route": "play",
+    "state": "empty",
+    "viewport": "360x900",
+    "scale": 1,
+    "lang": "zh",
+    "theme": "light",
+    "errors": [],
+    "dimensions": {
+      "width": 360,
+      "scroll": 360,
+      "height": 900,
+      "theme": "",
+      "language": "zh-CN"
+    },
+    "focus": {
+      "tag": "A",
+      "outline": "auto",
+      "name": ""
+    },
+    "requests": [
+      {
+        "path": "/api/v1/auth/me",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/subscriptions/active",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/subscriptions/progress",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/announcements",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/keys",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/play/hub",
+        "method": "GET"
+      }
+    ],
+    "screenshot": "updated-play-360-zh-light-empty.png"
+  },
+  {
+    "route": "arena",
+    "state": "default",
+    "viewport": "360x900",
+    "scale": 1,
+    "lang": "zh",
+    "theme": "dark",
+    "errors": [],
+    "dimensions": {
+      "width": 360,
+      "scroll": 360,
+      "height": 900,
+      "theme": "dark",
+      "language": "zh-CN"
+    },
+    "focus": {
+      "tag": "A",
+      "outline": "auto",
+      "name": ""
+    },
+    "requests": [
+      {
+        "path": "/api/v1/auth/me",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/subscriptions/active",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/subscriptions/progress",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/announcements",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/keys",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/play/arena/overview",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/play/quests/today",
+        "method": "GET"
+      }
+    ],
+    "screenshot": "updated-arena-360-zh-dark-default.png"
+  },
+  {
+    "route": "arena",
+    "state": "default",
+    "viewport": "768x900",
+    "scale": 1,
+    "lang": "en",
+    "theme": "light",
+    "errors": [],
+    "dimensions": {
+      "width": 768,
+      "scroll": 768,
+      "height": 900,
+      "theme": "",
+      "language": "en"
+    },
+    "focus": {
+      "tag": "A",
+      "outline": "auto",
+      "name": ""
+    },
+    "requests": [
+      {
+        "path": "/api/v1/auth/me",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/subscriptions/active",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/subscriptions/progress",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/announcements",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/keys",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/play/arena/overview",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/play/quests/today",
+        "method": "GET"
+      }
+    ],
+    "screenshot": "updated-arena-768-en-light-default.png"
+  },
+  {
+    "route": "arena",
+    "state": "default",
+    "viewport": "1280x900",
+    "scale": 1,
+    "lang": "zh",
+    "theme": "light",
+    "errors": [],
+    "dimensions": {
+      "width": 1280,
+      "scroll": 1280,
+      "height": 900,
+      "theme": "",
+      "language": "zh-CN"
+    },
+    "focus": {
+      "tag": "A",
+      "outline": "auto",
+      "name": ""
+    },
+    "requests": [
+      {
+        "path": "/api/v1/auth/me",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/subscriptions/active",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/subscriptions/progress",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/announcements",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/keys",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/play/arena/overview",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/play/quests/today",
+        "method": "GET"
+      }
+    ],
+    "screenshot": "updated-arena-1280-zh-light-default.png"
+  },
+  {
+    "route": "arena",
+    "state": "default",
+    "viewport": "1920x900",
+    "scale": 1,
+    "lang": "en",
+    "theme": "dark",
+    "errors": [],
+    "dimensions": {
+      "width": 1920,
+      "scroll": 1920,
+      "height": 900,
+      "theme": "dark",
+      "language": "en"
+    },
+    "focus": {
+      "tag": "A",
+      "outline": "auto",
+      "name": ""
+    },
+    "requests": [
+      {
+        "path": "/api/v1/auth/me",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/subscriptions/active",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/subscriptions/progress",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/announcements",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/keys",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/play/arena/overview",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/play/quests/today",
+        "method": "GET"
+      }
+    ],
+    "screenshot": "updated-arena-1920-en-dark-default.png"
+  },
+  {
+    "route": "arena",
+    "state": "zoom",
+    "viewport": "640x900",
+    "scale": 2,
+    "lang": "en",
+    "theme": "light",
+    "errors": [],
+    "dimensions": {
+      "width": 640,
+      "scroll": 640,
+      "height": 900,
+      "theme": "",
+      "language": "en"
+    },
+    "focus": {
+      "tag": "A",
+      "outline": "auto",
+      "name": ""
+    },
+    "requests": [
+      {
+        "path": "/api/v1/auth/me",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/subscriptions/active",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/subscriptions/progress",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/announcements",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/keys",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/play/arena/overview",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/play/quests/today",
+        "method": "GET"
+      }
+    ],
+    "screenshot": "updated-arena-640-en-light-zoom.png"
+  },
+  {
+    "route": "arena",
+    "state": "loading",
+    "viewport": "360x900",
+    "scale": 1,
+    "lang": "zh",
+    "theme": "light",
+    "errors": [],
+    "dimensions": {
+      "width": 360,
+      "scroll": 360,
+      "height": 900,
+      "theme": "",
+      "language": "zh-CN"
+    },
+    "focus": {
+      "tag": "A",
+      "outline": "auto",
+      "name": ""
+    },
+    "requests": [
+      {
+        "path": "/api/v1/auth/me",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/subscriptions/active",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/subscriptions/progress",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/announcements",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/keys",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/play/arena/overview",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/play/quests/today",
+        "method": "GET"
+      }
+    ],
+    "screenshot": "updated-arena-360-zh-light-loading.png"
+  },
+  {
+    "route": "arena",
+    "state": "error",
+    "viewport": "360x900",
+    "scale": 1,
+    "lang": "zh",
+    "theme": "light",
+    "errors": [],
+    "dimensions": {
+      "width": 360,
+      "scroll": 360,
+      "height": 900,
+      "theme": "",
+      "language": "zh-CN"
+    },
+    "focus": {
+      "tag": "A",
+      "outline": "auto",
+      "name": ""
+    },
+    "requests": [
+      {
+        "path": "/api/v1/auth/me",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/subscriptions/active",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/subscriptions/progress",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/announcements",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/keys",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/play/arena/overview",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/play/quests/today",
+        "method": "GET"
+      }
+    ],
+    "screenshot": "updated-arena-360-zh-light-error.png"
+  },
+  {
+    "route": "arena",
+    "state": "empty",
+    "viewport": "360x900",
+    "scale": 1,
+    "lang": "zh",
+    "theme": "light",
+    "errors": [],
+    "dimensions": {
+      "width": 360,
+      "scroll": 360,
+      "height": 900,
+      "theme": "",
+      "language": "zh-CN"
+    },
+    "focus": {
+      "tag": "A",
+      "outline": "auto",
+      "name": ""
+    },
+    "requests": [
+      {
+        "path": "/api/v1/auth/me",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/subscriptions/active",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/subscriptions/progress",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/announcements",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/keys",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/play/arena/overview",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/play/quests/today",
+        "method": "GET"
+      }
+    ],
+    "screenshot": "updated-arena-360-zh-light-empty.png"
+  },
+  {
+    "route": "blindbox",
+    "state": "default",
+    "viewport": "360x900",
+    "scale": 1,
+    "lang": "zh",
+    "theme": "dark",
+    "errors": [],
+    "dimensions": {
+      "width": 360,
+      "scroll": 360,
+      "height": 900,
+      "theme": "dark",
+      "language": "zh-CN"
+    },
+    "focus": {
+      "tag": "A",
+      "outline": "auto",
+      "name": ""
+    },
+    "requests": [
+      {
+        "path": "/api/v1/auth/me",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/subscriptions/active",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/subscriptions/progress",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/announcements",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/keys",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/play/blindbox/status",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/play/blindbox/recent",
+        "method": "GET"
+      }
+    ],
+    "screenshot": "updated-blindbox-360-zh-dark-default.png"
+  },
+  {
+    "route": "blindbox",
+    "state": "default",
+    "viewport": "768x900",
+    "scale": 1,
+    "lang": "en",
+    "theme": "light",
+    "errors": [],
+    "dimensions": {
+      "width": 768,
+      "scroll": 768,
+      "height": 900,
+      "theme": "",
+      "language": "en"
+    },
+    "focus": {
+      "tag": "A",
+      "outline": "auto",
+      "name": ""
+    },
+    "requests": [
+      {
+        "path": "/api/v1/auth/me",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/subscriptions/active",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/subscriptions/progress",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/announcements",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/keys",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/play/blindbox/status",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/play/blindbox/recent",
+        "method": "GET"
+      }
+    ],
+    "screenshot": "updated-blindbox-768-en-light-default.png"
+  },
+  {
+    "route": "blindbox",
+    "state": "default",
+    "viewport": "1280x900",
+    "scale": 1,
+    "lang": "zh",
+    "theme": "light",
+    "errors": [],
+    "dimensions": {
+      "width": 1280,
+      "scroll": 1280,
+      "height": 900,
+      "theme": "",
+      "language": "zh-CN"
+    },
+    "focus": {
+      "tag": "A",
+      "outline": "auto",
+      "name": ""
+    },
+    "requests": [
+      {
+        "path": "/api/v1/auth/me",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/subscriptions/active",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/subscriptions/progress",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/announcements",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/keys",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/play/blindbox/status",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/play/blindbox/recent",
+        "method": "GET"
+      }
+    ],
+    "screenshot": "updated-blindbox-1280-zh-light-default.png"
+  },
+  {
+    "route": "blindbox",
+    "state": "default",
+    "viewport": "1920x900",
+    "scale": 1,
+    "lang": "en",
+    "theme": "dark",
+    "errors": [],
+    "dimensions": {
+      "width": 1920,
+      "scroll": 1920,
+      "height": 900,
+      "theme": "dark",
+      "language": "en"
+    },
+    "focus": {
+      "tag": "A",
+      "outline": "auto",
+      "name": ""
+    },
+    "requests": [
+      {
+        "path": "/api/v1/auth/me",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/subscriptions/active",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/subscriptions/progress",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/announcements",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/keys",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/play/blindbox/status",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/play/blindbox/recent",
+        "method": "GET"
+      }
+    ],
+    "screenshot": "updated-blindbox-1920-en-dark-default.png"
+  },
+  {
+    "route": "blindbox",
+    "state": "zoom",
+    "viewport": "640x900",
+    "scale": 2,
+    "lang": "en",
+    "theme": "light",
+    "errors": [],
+    "dimensions": {
+      "width": 640,
+      "scroll": 640,
+      "height": 900,
+      "theme": "",
+      "language": "en"
+    },
+    "focus": {
+      "tag": "A",
+      "outline": "auto",
+      "name": ""
+    },
+    "requests": [
+      {
+        "path": "/api/v1/auth/me",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/subscriptions/active",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/subscriptions/progress",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/announcements",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/keys",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/play/blindbox/status",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/play/blindbox/recent",
+        "method": "GET"
+      }
+    ],
+    "screenshot": "updated-blindbox-640-en-light-zoom.png"
+  },
+  {
+    "route": "blindbox",
+    "state": "loading",
+    "viewport": "360x900",
+    "scale": 1,
+    "lang": "zh",
+    "theme": "light",
+    "errors": [],
+    "dimensions": {
+      "width": 360,
+      "scroll": 360,
+      "height": 900,
+      "theme": "",
+      "language": "zh-CN"
+    },
+    "focus": {
+      "tag": "A",
+      "outline": "auto",
+      "name": ""
+    },
+    "requests": [
+      {
+        "path": "/api/v1/auth/me",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/subscriptions/active",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/subscriptions/progress",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/announcements",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/keys",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/play/blindbox/status",
+        "method": "GET"
+      }
+    ],
+    "screenshot": "updated-blindbox-360-zh-light-loading.png"
+  },
+  {
+    "route": "blindbox",
+    "state": "error",
+    "viewport": "360x900",
+    "scale": 1,
+    "lang": "zh",
+    "theme": "light",
+    "errors": [],
+    "dimensions": {
+      "width": 360,
+      "scroll": 360,
+      "height": 900,
+      "theme": "",
+      "language": "zh-CN"
+    },
+    "focus": {
+      "tag": "A",
+      "outline": "auto",
+      "name": ""
+    },
+    "requests": [
+      {
+        "path": "/api/v1/auth/me",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/subscriptions/active",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/subscriptions/progress",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/announcements",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/keys",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/play/blindbox/status",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/play/blindbox/recent",
+        "method": "GET"
+      }
+    ],
+    "screenshot": "updated-blindbox-360-zh-light-error.png"
+  },
+  {
+    "route": "blindbox",
+    "state": "empty",
+    "viewport": "360x900",
+    "scale": 1,
+    "lang": "zh",
+    "theme": "light",
+    "errors": [],
+    "dimensions": {
+      "width": 360,
+      "scroll": 360,
+      "height": 900,
+      "theme": "",
+      "language": "zh-CN"
+    },
+    "focus": {
+      "tag": "A",
+      "outline": "auto",
+      "name": ""
+    },
+    "requests": [
+      {
+        "path": "/api/v1/auth/me",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/subscriptions/active",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/subscriptions/progress",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/announcements",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/keys",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/play/blindbox/status",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/play/blindbox/recent",
+        "method": "GET"
+      }
+    ],
+    "screenshot": "updated-blindbox-360-zh-light-empty.png"
+  },
+  {
+    "route": "affiliate",
+    "state": "default",
+    "viewport": "360x900",
+    "scale": 1,
+    "lang": "zh",
+    "theme": "dark",
+    "errors": [],
+    "dimensions": {
+      "width": 360,
+      "scroll": 360,
+      "height": 900,
+      "theme": "dark",
+      "language": "zh-CN"
+    },
+    "focus": {
+      "tag": "A",
+      "outline": "auto",
+      "name": ""
+    },
+    "requests": [
+      {
+        "path": "/api/v1/auth/me",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/subscriptions/active",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/subscriptions/progress",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/announcements",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/keys",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/user/aff",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/play/teams/me",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/user/aff/campaigns",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/play/campaigns/active",
+        "method": "GET"
+      }
+    ],
+    "screenshot": "updated-affiliate-360-zh-dark-default.png"
+  },
+  {
+    "route": "affiliate",
+    "state": "default",
+    "viewport": "768x900",
+    "scale": 1,
+    "lang": "en",
+    "theme": "light",
+    "errors": [],
+    "dimensions": {
+      "width": 768,
+      "scroll": 768,
+      "height": 900,
+      "theme": "",
+      "language": "en"
+    },
+    "focus": {
+      "tag": "A",
+      "outline": "auto",
+      "name": ""
+    },
+    "requests": [
+      {
+        "path": "/api/v1/auth/me",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/subscriptions/active",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/subscriptions/progress",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/announcements",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/keys",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/user/aff",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/play/teams/me",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/user/aff/campaigns",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/play/campaigns/active",
+        "method": "GET"
+      }
+    ],
+    "screenshot": "updated-affiliate-768-en-light-default.png"
+  },
+  {
+    "route": "affiliate",
+    "state": "default",
+    "viewport": "1280x900",
+    "scale": 1,
+    "lang": "zh",
+    "theme": "light",
+    "errors": [],
+    "dimensions": {
+      "width": 1280,
+      "scroll": 1280,
+      "height": 900,
+      "theme": "",
+      "language": "zh-CN"
+    },
+    "focus": {
+      "tag": "A",
+      "outline": "auto",
+      "name": ""
+    },
+    "requests": [
+      {
+        "path": "/api/v1/auth/me",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/subscriptions/active",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/subscriptions/progress",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/announcements",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/keys",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/user/aff",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/play/teams/me",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/user/aff/campaigns",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/play/campaigns/active",
+        "method": "GET"
+      }
+    ],
+    "screenshot": "updated-affiliate-1280-zh-light-default.png"
+  },
+  {
+    "route": "affiliate",
+    "state": "default",
+    "viewport": "1920x900",
+    "scale": 1,
+    "lang": "en",
+    "theme": "dark",
+    "errors": [],
+    "dimensions": {
+      "width": 1920,
+      "scroll": 1920,
+      "height": 900,
+      "theme": "dark",
+      "language": "en"
+    },
+    "focus": {
+      "tag": "A",
+      "outline": "auto",
+      "name": ""
+    },
+    "requests": [
+      {
+        "path": "/api/v1/auth/me",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/subscriptions/active",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/subscriptions/progress",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/announcements",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/keys",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/user/aff",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/play/teams/me",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/user/aff/campaigns",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/play/campaigns/active",
+        "method": "GET"
+      }
+    ],
+    "screenshot": "updated-affiliate-1920-en-dark-default.png"
+  },
+  {
+    "route": "affiliate",
+    "state": "zoom",
+    "viewport": "640x900",
+    "scale": 2,
+    "lang": "en",
+    "theme": "light",
+    "errors": [],
+    "dimensions": {
+      "width": 640,
+      "scroll": 640,
+      "height": 900,
+      "theme": "",
+      "language": "en"
+    },
+    "focus": {
+      "tag": "A",
+      "outline": "auto",
+      "name": ""
+    },
+    "requests": [
+      {
+        "path": "/api/v1/auth/me",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/subscriptions/active",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/subscriptions/progress",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/announcements",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/keys",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/user/aff",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/play/teams/me",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/user/aff/campaigns",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/play/campaigns/active",
+        "method": "GET"
+      }
+    ],
+    "screenshot": "updated-affiliate-640-en-light-zoom.png"
+  },
+  {
+    "route": "affiliate",
+    "state": "loading",
+    "viewport": "360x900",
+    "scale": 1,
+    "lang": "zh",
+    "theme": "light",
+    "errors": [],
+    "dimensions": {
+      "width": 360,
+      "scroll": 360,
+      "height": 900,
+      "theme": "",
+      "language": "zh-CN"
+    },
+    "focus": {
+      "tag": "A",
+      "outline": "auto",
+      "name": ""
+    },
+    "requests": [
+      {
+        "path": "/api/v1/auth/me",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/subscriptions/active",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/subscriptions/progress",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/announcements",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/keys",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/user/aff",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/play/teams/me",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/user/aff/campaigns",
+        "method": "GET"
+      }
+    ],
+    "screenshot": "updated-affiliate-360-zh-light-loading.png"
+  },
+  {
+    "route": "affiliate",
+    "state": "error",
+    "viewport": "360x900",
+    "scale": 1,
+    "lang": "zh",
+    "theme": "light",
+    "errors": [],
+    "dimensions": {
+      "width": 360,
+      "scroll": 360,
+      "height": 900,
+      "theme": "",
+      "language": "zh-CN"
+    },
+    "focus": {
+      "tag": "A",
+      "outline": "auto",
+      "name": ""
+    },
+    "requests": [
+      {
+        "path": "/api/v1/auth/me",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/subscriptions/active",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/subscriptions/progress",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/announcements",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/keys",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/user/aff",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/play/teams/me",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/user/aff/campaigns",
+        "method": "GET"
+      }
+    ],
+    "screenshot": "updated-affiliate-360-zh-light-error.png"
+  },
+  {
+    "route": "affiliate",
+    "state": "empty",
+    "viewport": "360x900",
+    "scale": 1,
+    "lang": "zh",
+    "theme": "light",
+    "errors": [],
+    "dimensions": {
+      "width": 360,
+      "scroll": 360,
+      "height": 900,
+      "theme": "",
+      "language": "zh-CN"
+    },
+    "focus": {
+      "tag": "A",
+      "outline": "auto",
+      "name": ""
+    },
+    "requests": [
+      {
+        "path": "/api/v1/auth/me",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/subscriptions/active",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/subscriptions/progress",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/announcements",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/keys",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/user/aff",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/play/teams/me",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/user/aff/campaigns",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/play/campaigns/active",
+        "method": "GET"
+      }
+    ],
+    "screenshot": "updated-affiliate-360-zh-light-empty.png"
+  }
+]

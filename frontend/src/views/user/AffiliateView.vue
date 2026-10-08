@@ -26,6 +26,7 @@ const transferring = ref(false)
 const detail = ref<UserAffiliateDetail | null>(null)
 const teamInviteCode = ref('')
 const campaignLoading = ref(false)
+const campaignLoadFailed = ref(false)
 const campaignAction = ref<number | null>(null)
 const campaigns = ref<ReferralCampaignProgress[]>([])
 const growthCampaigns = ref<PlayCampaignSummary[]>([])
@@ -98,7 +99,9 @@ async function transferQuota(): Promise<void> {
 }
 
 async function loadCampaigns(): Promise<void> {
+  if (campaignLoading.value || campaignAction.value !== null) return
   campaignLoading.value = true
+  campaignLoadFailed.value = false
   try {
     campaigns.value = await listReferralCampaigns()
     await Promise.all(campaigns.value.filter(item => item.unseen_update).map(item => markReferralCampaignViewed(item.campaign.id).catch(() => undefined)))
@@ -108,7 +111,7 @@ async function loadCampaigns(): Promise<void> {
     } catch {
       growthCampaigns.value = []
     }
-  } catch (error) { appStore.showError(extractI18nErrorMessage(error, t, 'affiliate.campaign.errors', t('affiliate.campaign.loadFailed'))) } finally { campaignLoading.value = false }
+  } catch (error) { campaignLoadFailed.value = true; appStore.showError(extractI18nErrorMessage(error, t, 'affiliate.campaign.errors', t('affiliate.campaign.loadFailed'))) } finally { campaignLoading.value = false }
 }
 
 async function claimGrowthReward(campaign: PlayCampaignSummary, rewardId: number): Promise<void> {
@@ -133,11 +136,13 @@ function growthProgressPercent(campaign: PlayCampaignSummary): number {
 }
 
 async function enrollCampaign(campaign: ReferralCampaignProgress): Promise<void> {
+  if (campaignAction.value !== null || campaignLoading.value) return
   campaignAction.value = campaign.campaign.id
   try { await enrollReferralCampaign(campaign.campaign.id); const progress = await getReferralCampaignProgress(campaign.campaign.id); campaigns.value = campaigns.value.map(item => item.campaign.id === progress.campaign.id ? progress : item); appStore.showSuccess(t('affiliate.campaign.enrolled')) } catch (error) { appStore.showError(extractI18nErrorMessage(error, t, 'affiliate.campaign.errors', t('affiliate.campaign.enrollFailed'))) } finally { campaignAction.value = null }
 }
 
 async function copyCampaignLink(campaign: ReferralCampaignProgress): Promise<void> {
+  if (campaignAction.value !== null || campaignLoading.value) return
   campaignAction.value = campaign.campaign.id
   try {
     const token = await getReferralCampaignInviteToken(campaign.campaign.id)
@@ -150,6 +155,7 @@ async function copyCampaignLink(campaign: ReferralCampaignProgress): Promise<voi
 }
 
 async function claimCampaignReward(campaign: ReferralCampaignProgress, rewardId: number): Promise<void> {
+  if (campaignAction.value !== null || campaignLoading.value) return
   campaignAction.value = rewardId
   try { await claimReferralCampaignReward(campaign.campaign.id, rewardId, campaign.campaign.version); const progress = await getReferralCampaignProgress(campaign.campaign.id); campaigns.value = campaigns.value.map(item => item.campaign.id === progress.campaign.id ? progress : item); appStore.showSuccess(t('affiliate.campaign.claimed')) } catch (error) { appStore.showError(extractI18nErrorMessage(error, t, 'affiliate.campaign.errors', t('affiliate.campaign.claimFailed'))) } finally { campaignAction.value = null }
 }
@@ -189,63 +195,41 @@ onMounted(() => {
         </section>
 
         <section class="gw-panel" aria-labelledby="referral-campaign-title">
-          <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><p class="gw-eyebrow">{{ t('affiliate.campaign.eyebrow') }}</p><h2 id="referral-campaign-title" class="gw-section-title">{{ t('affiliate.campaign.title') }}</h2></div><button type="button" class="gw-btn gw-btn-secondary" :disabled="campaignLoading" @click="loadCampaigns"><Icon name="refresh" size="sm" />{{ t('affiliate.campaign.refresh') }}</button></div>
+          <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><p class="gw-eyebrow">{{ t('affiliate.campaign.eyebrow') }}</p><h2 id="referral-campaign-title" class="gw-section-title">{{ t('affiliate.campaign.title') }}</h2></div><button type="button" class="gw-btn gw-btn-secondary" :disabled="campaignLoading || campaignAction !== null" @click="loadCampaigns"><Icon name="refresh" size="sm" />{{ t('affiliate.campaign.refresh') }}</button></div>
           <div v-if="campaignLoading" class="gw-polling py-8 text-center">{{ t('affiliate.campaign.loading') }}</div>
+          <div v-else-if="campaignLoadFailed" class="mt-4 gw-subtitle" role="alert">{{ t('affiliate.campaign.loadFailed') }}</div>
           <div v-else-if="!campaigns.length" class="mt-4 border border-dashed p-8 text-center gw-subtitle" style="border-color: var(--gw-line)">{{ t('affiliate.campaign.empty') }}</div>
           <div v-else class="mt-4 space-y-6">
             <article v-for="campaign in campaigns" :key="campaign.campaign.id" class="border-t pt-5 first:border-t-0 first:pt-0" style="border-color: var(--gw-line)">
-              <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between"><div><div class="flex flex-wrap items-center gap-2"><h3 class="text-lg font-semibold">{{ campaign.campaign.name }}</h3><span class="agent-pill">{{ t(`affiliate.campaign.statuses.${campaign.campaign.status}`, campaign.campaign.status) }}</span><span v-if="campaign.attention" class="agent-pill" style="color: var(--gw-warn)">{{ t(`affiliate.campaign.attention.${campaign.attention}`) }}</span></div><p class="mt-2 gw-subtitle text-sm">{{ t('affiliate.campaign.rule', { pay: formatCurrency(campaign.campaign.pay_threshold), spend: formatCurrency(campaign.campaign.usage_threshold) }) }}</p><p class="mt-1 gw-subtitle text-xs">{{ t('affiliate.campaign.windows', { registration: formatDateTime(campaign.campaign.registration_to), qualification: formatDateTime(campaign.campaign.qualification_to), claim: formatDateTime(campaign.campaign.claim_deadline) }) }}</p></div><div class="flex flex-col gap-2 sm:flex-row"><button v-if="!campaign.enrollment" type="button" class="gw-btn gw-btn-primary" :disabled="campaignAction === campaign.campaign.id" @click="enrollCampaign(campaign)">{{ t('affiliate.campaign.enroll') }}</button><button v-else type="button" class="gw-btn gw-btn-secondary" :disabled="campaignAction === campaign.campaign.id" @click="copyCampaignLink(campaign)"><Icon name="copy" size="sm" />{{ t('affiliate.campaign.share') }}</button></div></div>
+              <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between"><div><div class="flex flex-wrap items-center gap-2"><h3 class="text-lg font-semibold">{{ campaign.campaign.name }}</h3><span class="agent-pill">{{ t(`affiliate.campaign.statuses.${campaign.campaign.status}`, campaign.campaign.status) }}</span><span v-if="campaign.attention" class="agent-pill" style="color: var(--gw-warn)">{{ t(`affiliate.campaign.attention.${campaign.attention}`) }}</span></div><p class="mt-2 gw-subtitle text-sm">{{ t('affiliate.campaign.rule', { pay: formatCurrency(campaign.campaign.pay_threshold), spend: formatCurrency(campaign.campaign.usage_threshold) }) }}</p><p class="mt-1 gw-subtitle text-xs">{{ t('affiliate.campaign.windows', { registration: formatDateTime(campaign.campaign.registration_to), qualification: formatDateTime(campaign.campaign.qualification_to), claim: formatDateTime(campaign.campaign.claim_deadline) }) }}</p></div><div class="flex flex-col gap-2 sm:flex-row"><button v-if="!campaign.enrollment" type="button" class="gw-btn gw-btn-primary" :disabled="campaignAction !== null" @click="enrollCampaign(campaign)">{{ t('affiliate.campaign.enroll') }}</button><button v-else type="button" class="gw-btn gw-btn-secondary" :disabled="campaignAction !== null" @click="copyCampaignLink(campaign)"><Icon name="copy" size="sm" />{{ t('affiliate.campaign.share') }}</button></div></div>
               <div class="mt-4 grid gap-3 border-y py-4 text-sm sm:grid-cols-2" style="border-color: var(--gw-line)"><p><strong>{{ t('affiliate.campaign.rebatePolicy') }}</strong> {{ campaign.campaign.legacy_rebate_policy === 'stack' ? t('affiliate.campaign.rebateStack') : t('affiliate.campaign.rebateExclude') }}</p><p><strong>{{ t('affiliate.campaign.version') }}</strong> {{ campaign.campaign.rules_version }} · {{ formatDateTime(campaign.campaign.rules_updated_at) }}</p><p>{{ t('affiliate.campaign.riskNotice', { hours: campaign.campaign.risk_hold_hours }) }}</p><p>{{ t('affiliate.campaign.refundNotice') }}</p></div>
               <AnnouncementContent class="mt-4" dense :content="campaign.campaign.public_rules_md || ''" />
 
-              <!-- Campaign Details Card -->
-              <div class="mt-4 rounded-lg border bg-gray-50 p-4 dark:bg-dark-800" style="border-color: var(--gw-line)">
-                <h4 class="font-semibold text-sm mb-3">{{ t('affiliate.campaign.details.title') }}</h4>
-
-                <!-- Tier Rewards -->
-                <div class="mb-4">
-                  <p class="text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">{{ t('affiliate.campaign.details.tiers') }}</p>
-                  <div class="space-y-1.5">
-                    <div v-for="tier in campaign.tiers" :key="tier.tier" class="flex items-center justify-between text-sm">
-                      <span>{{ t('affiliate.campaign.details.tierLabel', { threshold: formatCurrency(tier.required_invites * campaign.campaign.pay_threshold), amount: formatCurrency(tier.reward_amount) }) }}</span>
-                      <span v-if="campaign.qualified_count >= tier.required_invites" class="text-xs text-green-600 dark:text-green-400">{{ t('affiliate.campaign.details.reached') }}</span>
-                    </div>
+              <section class="mt-4 space-y-3 text-sm">
+                <h4 class="font-semibold">{{ t('affiliate.campaign.details.title') }}</h4>
+                <dl class="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <dt class="gw-field-label">{{ t('affiliate.campaign.details.qualificationTitle') }}</dt>
+                    <dd>{{ t('affiliate.campaign.details.payThreshold', { amount: formatCurrency(campaign.campaign.pay_threshold) }) }} · {{ t('affiliate.campaign.details.usageThreshold', { amount: formatCurrency(campaign.campaign.usage_threshold) }) }}</dd>
                   </div>
-                </div>
-
-                <!-- Qualification Requirements -->
-                <div class="mb-4 rounded bg-blue-50 p-3 dark:bg-blue-900/20">
-                  <p class="text-xs font-medium text-blue-900 dark:text-blue-200 mb-2">{{ t('affiliate.campaign.details.qualificationTitle') }}</p>
-                  <div class="space-y-1 text-xs text-blue-800 dark:text-blue-300">
-                    <p>• {{ t('affiliate.campaign.details.payThreshold', { amount: formatCurrency(campaign.campaign.pay_threshold) }) }} <span class="text-blue-600 dark:text-blue-400">({{ t('affiliate.campaign.details.current') }}: {{ formatCurrency(0) }})</span></p>
-                    <p>• {{ t('affiliate.campaign.details.usageThreshold', { amount: formatCurrency(campaign.campaign.usage_threshold) }) }} <span class="text-blue-600 dark:text-blue-400">({{ t('affiliate.campaign.details.current') }}: {{ formatCurrency(0) }})</span></p>
+                  <div v-if="['additive', 'replace'].includes(campaign.campaign.reward_mode)">
+                    <dt class="gw-field-label">{{ t('affiliate.campaign.details.rewardMode') }}</dt>
+                    <dd>{{ t(`affiliate.campaign.details.rewardModes.${campaign.campaign.reward_mode}`) }}</dd>
                   </div>
-                </div>
-
-                <!-- Risk Hold -->
-                <div class="mb-4">
-                  <p class="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{{ t('affiliate.campaign.details.holdTitle') }}</p>
-                  <p class="text-xs text-gray-600 dark:text-gray-400">{{ t('affiliate.campaign.details.holdDesc', { hours: campaign.campaign.risk_hold_hours }) }}</p>
-                </div>
-
-                <!-- Claim Deadline -->
-                <div class="mb-4">
-                  <p class="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{{ t('affiliate.campaign.details.deadlineTitle') }}</p>
-                  <p class="text-xs text-gray-600 dark:text-gray-400">{{ formatDateTime(campaign.campaign.claim_deadline) }}</p>
-                </div>
-
-                <!-- Rebate Policy Notice -->
-                <div v-if="campaign.campaign.legacy_rebate_policy === 'stack'" class="text-xs text-green-700 dark:text-green-400">
-                  {{ t('affiliate.campaign.details.stackable') }}
-                </div>
-                <div v-else-if="campaign.campaign.legacy_rebate_policy === 'exclude' && campaign.campaign.funding_source === 'growth_new_user'" class="text-xs text-orange-700 dark:text-orange-400">
-                  {{ t('affiliate.campaign.details.fundingConflict') }}
-                </div>
-              </div>
+                  <div>
+                    <dt class="gw-field-label">{{ t('affiliate.campaign.details.holdTitle') }}</dt>
+                    <dd>{{ t('affiliate.campaign.details.holdDesc', { hours: campaign.campaign.risk_hold_hours }) }}</dd>
+                  </div>
+                  <div>
+                    <dt class="gw-field-label">{{ t('affiliate.campaign.details.deadlineTitle') }}</dt>
+                    <dd>{{ formatDateTime(campaign.campaign.claim_deadline) }}</dd>
+                  </div>
+                </dl>
+              </section>
 
               <div class="mt-5"><div class="flex items-end justify-between gap-3"><div><p class="gw-field-label">{{ t('affiliate.campaign.progress') }}</p><p class="mt-1 text-2xl font-semibold tabular-nums">{{ campaign.qualified_count }} <span class="text-sm font-normal gw-subtitle">/ {{ Math.max(...campaign.tiers.map(item => item.required_invites), 0) }}</span></p><p class="mt-1 text-xs gw-subtitle">{{ t('affiliate.campaign.invitedBreakdown', { invited: campaign.invited_count, qualified: campaign.qualified_count }) }}</p></div><p v-if="campaign.ranking" class="text-sm gw-subtitle">{{ t('affiliate.campaign.myRank', { rank: campaign.ranking.rank }) }}</p></div><div class="mt-3 h-2 overflow-hidden rounded bg-gray-200 dark:bg-dark-700" role="progressbar" :aria-valuenow="campaignProgressPercent(campaign)" aria-valuemin="0" aria-valuemax="100"><div class="h-full bg-primary-600" :style="{ width: `${campaignProgressPercent(campaign)}%` }"></div></div></div>
 
-              <div class="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3"><div v-for="tier in campaign.tiers" :key="tier.tier" class="rounded border p-4" style="border-color: var(--gw-line)"><div class="flex items-start justify-between gap-3"><div><p class="font-semibold">{{ t('affiliate.campaign.milestone', { count: tier.required_invites }) }}</p><p class="mt-1 text-lg font-semibold" style="color: var(--gw-ok)">{{ formatCurrency(tier.reward_amount) }}</p></div><span class="agent-pill">{{ campaign.qualified_count >= tier.required_invites ? t('affiliate.campaign.unlocked') : t('affiliate.campaign.locked') }}</span></div><div v-if="campaignReward(campaign, tier.tier)" class="mt-3"><button v-if="campaignReward(campaign, tier.tier)?.status === 'claimable'" type="button" class="gw-btn gw-btn-primary w-full" :disabled="campaignAction === campaignReward(campaign, tier.tier)?.id" @click="claimCampaignReward(campaign, campaignReward(campaign, tier.tier)!.id)">{{ t('affiliate.campaign.claim') }}</button><p v-else class="text-sm gw-subtitle">{{ t(`affiliate.campaign.rewardStatuses.${campaignReward(campaign, tier.tier)?.status}`, campaignReward(campaign, tier.tier)?.status || '') }}</p></div></div></div>
+              <div class="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3"><div v-for="tier in campaign.tiers" :key="tier.tier" class="rounded border p-4" style="border-color: var(--gw-line)"><div class="flex items-start justify-between gap-3"><div><p class="font-semibold">{{ t('affiliate.campaign.milestone', { count: tier.required_invites }) }}</p><p class="mt-1 text-lg font-semibold" style="color: var(--gw-ok)">{{ formatCurrency(tier.reward_amount, tier.currency) }}</p></div><span class="agent-pill">{{ campaign.qualified_count >= tier.required_invites ? t('affiliate.campaign.unlocked') : t('affiliate.campaign.locked') }}</span></div><div v-if="campaignReward(campaign, tier.tier)" class="mt-3"><button v-if="campaignReward(campaign, tier.tier)?.status === 'claimable'" type="button" class="gw-btn gw-btn-primary w-full" :disabled="campaignAction !== null" @click="claimCampaignReward(campaign, campaignReward(campaign, tier.tier)!.id)">{{ t('affiliate.campaign.claim') }}</button><p v-else class="text-sm gw-subtitle">{{ t(`affiliate.campaign.rewardStatuses.${campaignReward(campaign, tier.tier)?.status}`, campaignReward(campaign, tier.tier)?.status || '') }}</p></div></div></div>
               <div class="gw-table-wrap mt-5 overflow-x-auto"><h4 class="gw-field-label px-4 pt-4">{{ t('affiliate.campaign.leaderboard') }}</h4><table v-if="campaign.leaderboard?.length" class="gw-leaderboard min-w-[560px]"><thead><tr><th>{{ t('affiliate.campaign.rank') }}</th><th>{{ t('affiliate.campaign.email') }}</th><th class="text-right">{{ t('affiliate.campaign.qualified') }}</th><th class="text-right">{{ t('affiliate.campaign.reward') }}</th></tr></thead><tbody><tr v-for="row in campaign.leaderboard" :key="`${campaign.campaign.id}-${row.rank}`"><td>#{{ row.rank }}</td><td>{{ row.email_masked }}<span v-if="row.is_me" class="ml-2 text-primary-600">{{ t('affiliate.campaign.me') }}</span></td><td class="text-right tabular-nums">{{ row.qualified_count }}</td><td class="text-right tabular-nums">{{ formatCurrency(row.reward_amount) }}</td></tr></tbody></table><p v-else class="px-4 py-5 text-sm gw-subtitle">{{ t('affiliate.campaign.leaderboardEmpty') }}</p></div>
             </article>
           </div>

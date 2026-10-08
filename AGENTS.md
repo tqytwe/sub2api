@@ -3,6 +3,14 @@
 本文件适用于整个仓库。完整流程以
 [服务器开发与生产验收流程](./docs/DELIVERY_WORKFLOW.md) 为准。
 
+## 项目工程管理
+
+遵循 [项目工程管理规范](./docs/PROJECT_HYGIENE.md)：
+- 任务完成后立即归档临时文件到 `docs/archive/completed-tasks/`
+- 根目录和 `frontend/` 不保留任务临时文件（*.patch, *任务*.md, test-*.json）
+- 每次 PR 前检查代码审查清单
+- 生产环境操作遵循 `docs/ZEABUR_POSTGRES_RUNBOOK.md`
+
 ## 强制规则
 
 1. 在服务器上为每项开发创建隔离 Git worktree，不在共享工作树直接开发。

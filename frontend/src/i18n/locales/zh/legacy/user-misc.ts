@@ -640,7 +640,7 @@ export default {
       windows: '报名截止：{registration}；资格截止：{qualification}；领取截止：{claim}',
       enroll: '报名活动',
       share: '复制活动邀请链接',
-      rebatePolicy: '常规 10% 返佣：',
+      rebatePolicy: '常规返佣：',
       version: '规则版本：',
       riskNotice: '奖励领取后会进入 {hours} 小时风控冻结期。',
       refundNotice: '退款、拒付或风控拒绝会撤销资格和相关奖励。',
@@ -666,7 +666,7 @@ export default {
       inviteOnly: '仅限活动邀请用户',
       metricConsumption: '当前按有效付费消费计算',
       metricRecharge: '当前按累计净充值计算',
-      rebatePolicy: '普通 10% 返佣：{policy}',
+      rebatePolicy: '普通返佣：{policy}',
       deadline: '活动结束：{date}',
       fundingConflict: '活动期间检测到非充值余额入账，本期消费不计入成长奖励。',
       progress: '我的累计进度',
@@ -678,7 +678,7 @@ export default {
     description: '邀请新用户注册，并将返利额度转入账户余额',
     standard: {
       eyebrow: '常规返利',
-      title: '常规 10% 邀请返利',
+      title: '常规邀请返利',
     },
     stats: {
       rebateRate: '我的返利比例',

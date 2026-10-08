@@ -814,33 +814,6 @@ export default {
     }
   },
 
-  // Play - Arena
-  arena: {
-    rewardMechanism: {
-      title: '奖励机制说明',
-      description: '农场代币仅用于排名竞争，不能直接兑换。最终奖励按榜单排名发放固定金额。',
-      monthlyTitle: '月榜奖励档位',
-      dailyTitle: '日榜奖励档位',
-      rankLabel: '第 {rank} 名',
-      amountLabel: '{amount}',
-      topRanks: 'Top {count}',
-      settlementNote: '奖励在结算期结束后自动发放到账户余额'
-    }
-  },
-
-  // Play - Blindbox
-  blindbox: {
-    rewardBranches: {
-      title: '奖励类型',
-      description: '开盒后将随机获得以下奖励之一：',
-      coupon: '优惠券',
-      redeemCode: '兑换码',
-      balance: '余额',
-      probability: '概率 {percent}%',
-      note: '具体奖励金额/折扣根据当前奖池配置随机生成'
-    }
-  },
-
   affiliate: {
     title: '邀请返利',
     description: '邀请新用户注册，并将返利额度转入账户余额',
@@ -871,34 +844,30 @@ export default {
     },
     standard: {
       eyebrow: '常规返利',
-      title: '常规 10% 邀请返利'
+      title: '常规邀请返利'
     },
     campaign: {
       eyebrow: '邀请活动', title: '邀请新用户达标活动', refresh: '刷新进度', loading: '活动加载中', empty: '当前暂无可报名的邀请活动', loadFailed: '邀请活动加载失败',
       rule: '受邀用户净实付满 {pay} 且实际消费满 {spend} 后才计为有效邀请。', windows: '报名截止：{registration}；资格截止：{qualification}；领取截止：{claim}', enroll: '报名活动', enrolled: '报名成功', enrollFailed: '报名失败',
       share: '复制活动邀请链接', linkCopied: '活动邀请链接已复制', linkFailed: '邀请链接生成失败', progress: '有效邀请进度', invitedBreakdown: '已邀请注册 {invited} 人，其中 {qualified} 人已充值并消费达标', myRank: '当前第 {rank} 名',
       milestone: '有效邀请 {count} 人', unlocked: '已解锁', locked: '未解锁', claim: '领取奖励', claimed: '奖励领取成功', claimFailed: '奖励领取失败', leaderboard: '有效邀请排行榜', leaderboardEmpty: '暂无达标用户，完成首个有效邀请后将显示排名。', rank: '排名', email: '邮箱', qualified: '有效邀请', reward: '已解锁奖励', me: '我',
-      rebatePolicy: '常规 10% 返佣：', rebateExclude: '不叠加，活动邀请不会产生常规返佣', rebateStack: '允许叠加，活动奖励与常规返佣分别结算', version: '规则版本：', riskNotice: '奖励领取后会进入 {hours} 小时风控冻结期。', refundNotice: '退款、拒付或风控拒绝会撤销资格和相关奖励。', attention: { claimable_reward: '有奖励可领取', rules_updated: '规则已更新' },
+      rebatePolicy: '常规返佣：', rebateExclude: '不叠加，活动邀请不会产生常规返佣', rebateStack: '允许叠加，活动奖励与常规返佣分别结算', version: '规则版本：', riskNotice: '奖励领取后会进入 {hours} 小时风控冻结期。', refundNotice: '退款、拒付或风控拒绝会撤销资格和相关奖励。', attention: { claimable_reward: '有奖励可领取', rules_updated: '规则已更新' },
       statuses: { scheduled: '即将开始', running: '进行中', paused: '已暂停', settling: '领奖中', closed: '已结束' },
       rewardStatuses: { claimable: '可领取', claimed_frozen: '已领取，风控冻结中', available: '已到账', expired: '已过期', revoked: '已撤销', debt_review: '退款追缴复核中', resolved: '已处理' },
       errors: { REFERRAL_CAMPAIGN_NOT_FOUND: '邀请活动不存在或已下线。', REFERRAL_CAMPAIGN_NOT_OPEN: '邀请活动当前不可报名或操作。', REFERRAL_CAMPAIGN_VERSION_CONFLICT: '活动规则已更新，请刷新进度后重试。', REFERRAL_CAMPAIGN_TOKEN_INVALID: '邀请链接无效，请让邀请人重新生成。', REFERRAL_CAMPAIGN_TOKEN_EXPIRED: '邀请链接已过期，请让邀请人重新生成。', REFERRAL_REWARD_NOT_CLAIMABLE: '该档奖励当前不可领取。', REFERRAL_CAMPAIGN_BUDGET_EXCEEDED: '活动奖励预算已用完，请联系平台客服。', REFERRAL_CAMPAIGN_CAPACITY_REACHED: '活动报名人数已满。', REFERRAL_REWARD_CLAIM_FAILED: '奖励暂时无法领取，请刷新进度后重试。' },
       details: {
-        title: '活动规则详情',
-        tiers: '阶梯奖励',
-        tierLabel: '充值满 {threshold} 得 {amount}',
-        reached: '已达成',
-        qualificationTitle: '达标条件（需同时满足）',
-        payThreshold: '净实付 ≥ {amount}',
-        usageThreshold: '实际消费 ≥ {amount}',
-        current: '当前',
-        holdTitle: '风控冻结',
-        holdDesc: '奖励冻结 {hours} 小时后可提现',
-        deadlineTitle: '领取截止',
-        stackable: '✓ 活动奖励可与常规 10% 返佣叠加',
-        fundingConflict: '⚠️ 新用户成长活动与本活动冲突，奖励暂停发放'
+        title: "活动规则详情",
+        qualificationTitle: "每名受邀者须同时达标",
+        payThreshold: "净实付 ≥ {amount}",
+        usageThreshold: "实际消费 ≥ {amount}",
+        rewardMode: "档位奖励方式",
+        holdTitle: "风控冻结",
+        holdDesc: "领取后进入 {hours} 小时风控冻结期，以奖励状态为准；退款、拒付或风控拒绝可能撤销。",
+        deadlineTitle: "领取截止",
+        rewardModes: {"additive": "各档奖励叠加，按实际有效邀请人数解锁", "replace": "按活动替代模式结算，以实际奖励状态和活动规则为准"}
       }
     },
-    growth: { eyebrow: '新用户成长奖励', title: '邀请进来的新用户成长活动', description: '通过邀请链接进入后，按累计净充值或实际消费逐档获得奖励，最高 500 元。', inviteOnly: '仅限活动邀请用户', metricRecharge: '当前按累计净充值计算', metricConsumption: '当前按累计实际消费计算', rebatePolicy: '普通 10% 返佣：{policy}', deadline: '活动结束：{date}', progress: '我的累计进度', tier: '达到 {amount}', claim: '领取本档奖励', claimed: '成长奖励领取成功', claimFailed: '成长奖励领取失败' },
+    growth: { eyebrow: '新用户成长奖励', title: '邀请进来的新用户成长活动', description: '通过邀请链接进入后，按累计净充值或实际消费逐档获得奖励，具体以当前活动档位为准。', inviteOnly: '仅限活动邀请用户', metricRecharge: '当前按累计净充值计算', metricConsumption: '当前按累计实际消费计算', rebatePolicy: '普通返佣：{policy}', deadline: '活动结束：{date}', progress: '我的累计进度', tier: '达到 {amount}', claim: '领取本档奖励', claimed: '成长奖励领取成功', claimFailed: '成长奖励领取失败' },
     invitees: {
       title: '已邀请用户',
       empty: '暂无邀请记录',

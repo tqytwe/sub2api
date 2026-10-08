@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>P0-1 邀请活动详情 - 原型设计</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f3f4f6;
+      padding: 2rem;
+      line-height: 1.6;
+    }
+    .container { max-width: 800px; margin: 0 auto; }
+    .prototype-label {
+      background: #3b82f6;
+      color: white;
+      padding: 0.5rem 1rem;
+      border-radius: 0.5rem;
+      margin-bottom: 1rem;
+      font-weight: 600;
+    }
+    .gw-panel {
+      background: white;
+      border-radius: 1rem;
+      padding: 1.5rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      margin-bottom: 1.5rem;
+    }
+    .gw-section-title {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: #111827;
+      margin-bottom: 1rem;
+    }
+    h4 {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: #111827;
+      margin-bottom: 0.75rem;
+    }
+    .tier-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.75rem;
+      border-radius: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+    .tier-reached {
+      background: #f0fdf4;
+      border: 1px solid #86efac;
+    }
+    .tier-pending {
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+    }
+    .tier-content {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.875rem;
+    }
+    .icon {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+    .icon-check { background: #22c55e; }
+    .icon-pending { background: #d1d5db; }
+    .badge-reached {
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: #16a34a;
+    }
+    .info-box {
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-radius: 0.5rem;
+      padding: 1rem;
+      margin-top: 1.5rem;
+    }
+    .info-header {
+      display: flex;
+      align-items: start;
+      gap: 0.75rem;
+    }
+    .info-icon {
+      width: 20px;
+      height: 20px;
+      background: #3b82f6;
+      border-radius: 50%;
+      flex-shrink: 0;
+      margin-top: 0.125rem;
+    }
+    .info-title {
+      font-weight: 600;
+      color: #111827;
+      margin-bottom: 0.5rem;
+      font-size: 0.875rem;
+    }
+    .info-list {
+      font-size: 0.875rem;
+      color: #374151;
+      list-style: disc;
+      padding-left: 1.25rem;
+    }
+    .info-list li {
+      margin-bottom: 0.25rem;
+    }
+    .info-list strong {
+      font-weight: 600;
+      color: #111827;
+    }
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+    .detail-item {
+      display: flex;
+      align-items: start;
+      gap: 0.75rem;
+    }
+    .detail-icon {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      margin-top: 0.125rem;
+    }
+    .icon-clock { background: #f59e0b; }
+    .icon-calendar { background: #ef4444; }
+    .detail-title {
+      font-weight: 600;
+      color: #111827;
+      font-size: 0.875rem;
+    }
+    .detail-desc {
+      color: #6b7280;
+      font-size: 0.875rem;
+      margin-top: 0.25rem;
+    }
+    .success-box {
+      background: #f0fdf4;
+      border: 1px solid #86efac;
+      border-radius: 0.5rem;
+      padding: 0.75rem;
+      margin-top: 1rem;
+      font-size: 0.875rem;
+      color: #374151;
+    }
+    .success-icon {
+      width: 16px;
+      height: 16px;
+      background: #22c55e;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: 0.5rem;
+    }
+    @media (max-width: 768px) {
+      .grid-2 { grid-template-columns: 1fr; }
+      body { padding: 1rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="prototype-label">
+      原型设计 - P0-1: 邀请活动详情展示
+    </div>
+
+    <div class="gw-panel">
+      <h3 class="gw-section-title">活动规则详情</h3>
+
+      <!-- 阶梯奖励 -->
+      <div>
+        <h4>阶梯奖励</h4>
+        <div>
+          <div class="tier-item tier-reached">
+            <div class="tier-content">
+              <span class="icon icon-check"></span>
+              <span>充值满 ¥50 得 ¥50</span>
+            </div>
+            <span class="badge-reached">已达成</span>
+          </div>
+          <div class="tier-item tier-reached">
+            <div class="tier-content">
+              <span class="icon icon-check"></span>
+              <span>充值满 ¥200 得 ¥50</span>
+            </div>
+            <span class="badge-reached">已达成</span>
+          </div>
+          <div class="tier-item tier-pending">
+            <div class="tier-content">
+              <span class="icon icon-pending"></span>
+              <span>充值满 ¥500 得 ¥100</span>
+            </div>
+          </div>
+          <div class="tier-item tier-pending">
+            <div class="tier-content">
+              <span class="icon icon-pending"></span>
+              <span>充值满 ¥1000 得 ¥200</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 达标条件 -->
+      <div class="info-box">
+        <div class="info-header">
+          <div class="info-icon"></div>
+          <div style="flex: 1;">
+            <p class="info-title">达标条件（需同时满足）</p>
+            <ul class="info-list">
+              <li>
+                净实付 ≥ ¥50
+                <strong>(当前: ¥235.00)</strong>
+              </li>
+              <li>
+                实际消费 ≥ ¥30
+                <strong>(当前: ¥48.50)</strong>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- 风控冻结与截止时间 -->
+      <div class="grid-2">
+        <div class="detail-item">
+          <div class="detail-icon icon-clock"></div>
+          <div style="flex: 1;">
+            <p class="detail-title">风控冻结</p>
+            <p class="detail-desc">奖励冻结 72 小时后可提现</p>
+          </div>
+        </div>
+        <div class="detail-item">
+          <div class="detail-icon icon-calendar"></div>
+          <div style="flex: 1;">
+            <p class="detail-title">领取截止</p>
+            <p class="detail-desc">2026-10-31 23:59:59</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 与常规返佣的关系 -->
+      <div class="success-box">
+        <span class="success-icon"></span>
+        ✓ 活动奖励可与常规 10% 返佣叠加
+      </div>
+    </div>
+
+    <!-- 移动端示例标注 -->
+    <div style="background: #fef3c7; padding: 1rem; border-radius: 0.5rem; margin-top: 1rem; font-size: 0.875rem;">
+      <strong>📱 移动端适配：</strong>
+      <ul style="margin-top: 0.5rem; padding-left: 1.5rem;">
+        <li>阶梯奖励列表保持垂直布局</li>
+        <li>风控冻结与截止时间在 768px 以下堆叠显示</li>
+        <li>最小宽度 360px 不横向溢出</li>
+      </ul>
+    </div>
+
+    <!-- 深色模式预览标注 -->
+    <div style="background: #1f2937; color: white; padding: 1rem; border-radius: 0.5rem; margin-top: 1rem; font-size: 0.875rem;">
+      <strong>🌙 深色模式：</strong>
+      <ul style="margin-top: 0.5rem; padding-left: 1.5rem;">
+        <li>背景：#1f2937（gw-panel 深色）</li>
+        <li>文字：#f9fafb（主文字）/ #d1d5db（次要文字）</li>
+        <li>成功色：#10b981（已达成状态）</li>
+        <li>信息框：#1e3a8a（蓝色深色背景）</li>
+      </ul>
+    </div>
+  </div>
+</body>
+</html>

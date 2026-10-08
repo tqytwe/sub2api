@@ -323,4 +323,16 @@ describe('PlayHubView layout', () => {
 		expect(englishWrapper.text()).toContain('Ordinary user offer')
 		expect(englishWrapper.text()).toContain('Recharge to unlock membership benefits.')
 	})
+  it('keeps a failed hub distinct from an empty hub and retries', async () => {
+    state.getPlayHub.mockRejectedValueOnce(new Error('offline'))
+    const wrapper = mountView()
+    await flushPromises()
+    expect(wrapper.get('[role="alert"]').text()).toContain('playHub.loadFailed')
+    expect(wrapper.text()).not.toContain('playHub.empty')
+    await wrapper.get('[role="alert"] button').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+    expect(wrapper.get('a[href="/arena"]').text()).toContain('playHub.arenaRewardHint')
+  })
+
 })
