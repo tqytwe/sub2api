@@ -111,7 +111,6 @@ func (s *UserSubscription) HasOneTimeMonthlyQuota() bool {
 	return !s.ExpiresAt.After(s.StartsAt.AddDate(0, 0, 30))
 }
 
-
 func (s *UserSubscription) NeedsDailyReset() bool {
 	return s.NeedsDailyResetAt(time.Now())
 }

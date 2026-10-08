@@ -662,4 +662,53 @@ describe('BlindboxView', () => {
     expect(jisudengPagesZh.docs.vipTiers.perks.blindbox_pool_upgrade).not.toContain('暂未启用')
     expect(jisudengPagesEn.docs.vipTiers.perks.blindbox_pool_upgrade).not.toMatch(/not active/i)
   })
+  it.each([undefined, null, -1, 10001])('does not invent global odds or EV for unpublished/invalid weight %s', async (weight) => {
+    authState.isAuthenticated = true
+    authState.user = { id: 7 }
+    getBlindboxStatusMock.mockResolvedValue({ ...configuredStatus(), balance_weight_bp: weight })
+    const wrapper = mountView()
+    await flushPromises()
+    expect(wrapper.find('.play-prize-rate').text()).toBe('blindbox.probabilityUnknown')
+    expect(wrapper.text()).not.toContain('blindbox.expectedReward')
+  })
+
+  it('shows all three independently published branch weights, including valid zero', async () => {
+    authState.isAuthenticated = true
+    authState.user = { id: 7 }
+    getBlindboxStatusMock.mockResolvedValue({ ...configuredStatus(), coupon_weight_bp: 3000, redeem_code_weight_bp: 7000, balance_weight_bp: 0 })
+    const wrapper = mountView()
+    await flushPromises()
+    expect(wrapper.get('[data-testid="blindbox-branches"]').text()).toContain('30%')
+    expect(wrapper.get('[data-testid="blindbox-branches"]').text()).toContain('70%')
+    expect(wrapper.get('[data-testid="blindbox-branches"]').text()).toContain('0%')
+    expect(wrapper.find('.play-prize-rate').text()).toBe('0%')
+  })
+
+  it('offers a status retry after failure without issuing a draw', async () => {
+    authState.isAuthenticated = true
+    authState.user = { id: 7 }
+    getBlindboxStatusMock.mockResolvedValue(configuredStatus()).mockRejectedValueOnce(new Error('offline'))
+    const wrapper = mountView()
+    await flushPromises()
+    await wrapper.get('[data-testid="blindbox-status-retry"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('[data-testid="blindbox-status-retry"]').exists()).toBe(false)
+    expect(openBlindboxMock).not.toHaveBeenCalled()
+  })
+
+  it('preserves the settled result when refresh replaces the same user object', async () => {
+    authState.isAuthenticated = true
+    authState.user = { id: 7 }
+    getBlindboxStatusMock.mockResolvedValue(configuredStatus())
+    openBlindboxMock.mockResolvedValue({ cost_amount: 0.5, reward_amount: 0.2, net_amount: -0.3, reward_type: 'balance', opens_today: 1, server_date: '2026-10-08', pool_version: 'fixture-v1', open_source: 'balance' })
+    refreshUserMock.mockImplementation(async () => { authState.user = { id: 7 } })
+    const wrapper = mountView()
+    await flushPromises()
+    await wrapper.get('.play-btn-primary').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(true)
+    expect(wrapper.text()).toContain('blindbox.lastResult')
+    expect(openBlindboxMock).toHaveBeenCalledTimes(1)
+  })
+
 })

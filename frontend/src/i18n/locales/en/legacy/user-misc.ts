@@ -640,7 +640,7 @@ export default {
       windows: 'Enrollment closes: {registration}; qualification closes: {qualification}; claim closes: {claim}',
       enroll: 'Enroll',
       share: 'Copy campaign invite link',
-      rebatePolicy: 'Standard 10% rebate:',
+      rebatePolicy: 'Standard rebate:',
       version: 'Rules version:',
       riskNotice: 'A claimed reward is held for {hours} hours for risk review.',
       refundNotice: 'Refunds, chargebacks, or risk rejection revoke qualification and related rewards.',
@@ -666,7 +666,7 @@ export default {
       inviteOnly: 'Invite attribution required',
       metricConsumption: 'Measured by verified paid consumption',
       metricRecharge: 'Measured by cumulative net recharge',
-      rebatePolicy: 'Normal 10% rebate: {policy}',
+      rebatePolicy: 'Normal rebate: {policy}',
       deadline: 'Activity ends: {date}',
       fundingConflict: 'A non-recharge balance credit was detected during this activity. This period\'s consumption does not count toward growth rewards.',
       progress: 'My cumulative progress',
@@ -678,7 +678,7 @@ export default {
     description: 'Invite new users and convert your rebate quota into account balance',
     standard: {
       eyebrow: 'Standard rebate',
-      title: 'Standard 10% affiliate rebate',
+      title: 'Standard affiliate rebate',
     },
     stats: {
       rebateRate: 'My Rebate Rate',

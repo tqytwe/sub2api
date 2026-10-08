@@ -13,10 +13,10 @@ func TestHasOneTimeMonthlyQuota(t *testing.T) {
 	startsAt := time.Date(2026, 9, 11, 8, 43, 44, 0, time.UTC)
 
 	tests := []struct {
-		name         string
-		expiresAt    time.Time
-		wantOneTime  bool
-		description  string
+		name        string
+		expiresAt   time.Time
+		wantOneTime bool
+		description string
 	}{
 		{
 			name:        "30天订阅为一次性月额度",

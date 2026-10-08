@@ -1,0 +1,206 @@
+[
+  {
+    "route": "play",
+    "keyboard_reachable": true,
+    "focus": {
+      "outline": "auto",
+      "shadow": "none"
+    },
+    "requests": [
+      {
+        "path": "/api/v1/auth/me",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/subscriptions/active",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/subscriptions/progress",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/announcements",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/keys",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/play/hub",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/user/aff/campaigns",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/play/hub",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/user/aff/campaigns",
+        "method": "GET"
+      }
+    ],
+    "result": "passed"
+  },
+  {
+    "route": "arena",
+    "keyboard_reachable": true,
+    "focus": {
+      "outline": "auto",
+      "shadow": "none"
+    },
+    "requests": [
+      {
+        "path": "/api/v1/auth/me",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/subscriptions/active",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/subscriptions/progress",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/announcements",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/keys",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/play/arena/overview",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/play/quests/today",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/play/arena/overview",
+        "method": "GET"
+      }
+    ],
+    "result": "passed"
+  },
+  {
+    "route": "blindbox",
+    "keyboard_reachable": true,
+    "focus": {
+      "outline": "auto",
+      "shadow": "none"
+    },
+    "requests": [
+      {
+        "path": "/api/v1/auth/me",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/subscriptions/active",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/subscriptions/progress",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/announcements",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/keys",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/play/blindbox/status",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/play/blindbox/recent",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/play/blindbox/open",
+        "method": "POST"
+      },
+      {
+        "path": "/api/v1/auth/me",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/play/blindbox/status",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/play/blindbox/recent",
+        "method": "GET"
+      }
+    ],
+    "result": "passed"
+  },
+  {
+    "route": "affiliate",
+    "keyboard_reachable": true,
+    "focus": {
+      "outline": "auto",
+      "shadow": "none"
+    },
+    "requests": [
+      {
+        "path": "/api/v1/auth/me",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/subscriptions/active",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/subscriptions/progress",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/announcements",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/keys",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/user/aff",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/play/teams/me",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/user/aff/campaigns",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/play/campaigns/active",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/user/aff/campaigns/1/rewards/9/claim",
+        "method": "POST"
+      },
+      {
+        "path": "/api/v1/user/aff/campaigns/1/rewards/9/claim",
+        "method": "POST"
+      },
+      {
+        "path": "/api/v1/user/aff/campaigns/1/progress",
+        "method": "GET"
+      }
+    ],
+    "result": "passed"
+  }
+]

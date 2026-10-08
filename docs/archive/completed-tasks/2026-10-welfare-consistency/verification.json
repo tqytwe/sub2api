@@ -1,0 +1,83 @@
+{
+  "base": "8e88e4b51cac32358badac6240b6c92c4a2503c4",
+  "original_pr329_head": "257ee8888df906f9239b9f6f99b1dc2a86088eba",
+  "frontend_test_files": 486,
+  "frontend_tests": 3420,
+  "browser_matrix_cases": 32,
+  "browser_page_errors": 0,
+  "browser_horizontal_overflow": 0,
+  "browser_interaction_routes": 4,
+  "checks": {
+    "frontend-install": {
+      "exit_code": 0,
+      "log_sha256": "b4d4549b0a75e4e5f19a7ecf4e3b18dc27dccc5f8ece89059415086fec8bb3b9"
+    },
+    "frontend-lint": {
+      "exit_code": 0,
+      "log_sha256": "0e867f5c5034ce30de2c649e5298909813b4aa179f828c719c8909b2b09615d1"
+    },
+    "frontend-type-verified": {
+      "exit_code": 0,
+      "log_sha256": "80b7508ecc51e7d62f606111800ff582e2c93fac58df372a5c824b4fdf658498"
+    },
+    "frontend-full": {
+      "exit_code": 0,
+      "log_sha256": "71404cebd8fe6345676c83af02c1c31276013810e86127459ceae4fbe8f3c557"
+    },
+    "frontend-build-verified": {
+      "exit_code": 0,
+      "log_sha256": "cea450749f901cbc75e7b01e0b2c57b16427e404f7f70364be5965fda755da0f"
+    },
+    "matrix-complete": {
+      "exit_code": 0,
+      "log_sha256": "e97a6962832adbe2a870150827d3ebecd81896f8edf8a48a7ca32a827ab41be4"
+    },
+    "interactions-verified": {
+      "exit_code": 0,
+      "log_sha256": "02dc1336a2b07cc0548ca29857f13dfbee2a8d6cf9097383608d6e9664aac3d3"
+    },
+    "backend-build": {
+      "exit_code": 0,
+      "log_sha256": "dcdbf50ffdbccb5d0b1e812a00289147e060011ca30fb55d89bd5cac6de53b81"
+    },
+    "backend-unit": {
+      "exit_code": 0,
+      "log_sha256": "75a804ad24856525a4b77456f34dc3048063d77f378e5c51f5859f7d34410e5e"
+    },
+    "backend-lint-final": {
+      "exit_code": 0,
+      "log_sha256": "e92606b0bf483111dff0a120c315ea165821348f31365020e2468a0059095c47"
+    },
+    "main334-format-tests": {
+      "exit_code": 0,
+      "log_sha256": "f457c942f04a0bac8e5941398fd77e099a876fd709681076cbce25ba6caca347"
+    },
+    "fork-final": {
+      "exit_code": 0,
+      "log_sha256": "28116395ce1ca5c7313e09092311ee13f5b8e04365fbf96df2273a4da82da1ae"
+    },
+    "candidate-whitespace": {
+      "exit_code": 0,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "backend-ordinary-full": {
+      "result": "passed: make advanced from go test ./... to the lint step",
+      "log_sha256": "31cf4561e511a5415880a32357548ea8c79397da886d5c690dc553d044a83c19",
+      "note": "The combined make command then failed only for two gofmt findings from main334; pure formatting was reviewed, subscription tests and the complete lint were rerun successfully."
+    },
+    "repository-aligned": {
+      "exit_code": 0,
+      "log_sha256": "8333ff1ec58e4852ad04f00df5ead44becbbc71d6c6c54908d41ec514e623237"
+    },
+    "repository-aligned-unit": {
+      "exit_code": 0,
+      "log_sha256": "cf0a2c0939890c76f4fae614d31b630342a4ddadcd31ab06782417088d83f6cb"
+    },
+    "backend-lint-aligned": {
+      "exit_code": 0,
+      "log_sha256": "e92606b0bf483111dff0a120c315ea165821348f31365020e2468a0059095c47"
+    }
+  },
+  "review": "Independent specification then quality review passed, including follow-up fixes. Local captcha fixture is byte-identical to PR328 head to avoid a cross-candidate test-only conflict; both reviews and affected default/unit/lint checks passed again.",
+  "boundary": "Review candidate only; no production merge, deployment, paid generation or real reward operation."
+}
