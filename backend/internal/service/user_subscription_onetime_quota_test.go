@@ -107,11 +107,16 @@ func TestNeedsMonthlyReset_OneTimeQuota(t *testing.T) {
 		MonthlyWindowStart: &monthlyWindowStart,
 	}
 
-	// 即使过了30天，一次性额度也不应触发重置
+	// 即使过了30天，一次性额度的 NeedsMonthlyResetAt 会返回 true（时间到了）
 	now := monthlyWindowStart.Add(31 * 24 * time.Hour)
 	needsReset := sub.NeedsMonthlyResetAt(now)
-	assert.False(t, needsReset,
-		"一次性月额度不应在窗口过期后触发重置（会导致重复发放额度）")
+	assert.True(t, needsReset,
+		"NeedsMonthlyResetAt 纯粹判断时间，一次性套餐过期后也返回 true")
+
+	// 但是 canAutomaticallyResetMonthlyAt 返回 false（不允许自动重置）
+	canReset := sub.canAutomaticallyResetMonthlyAt(now)
+	assert.False(t, canReset,
+		"一次性月额度不应在窗口过期后触发自动重置（会导致重复发放额度）")
 }
 
 // TestHasOneTimeWeeklyQuota 验证一次性周额度的识别逻辑
@@ -187,11 +192,19 @@ func TestOneTimeQuota_NoResetBeforeExpiry(t *testing.T) {
 	now := monthlyWindowStart.Add(29 * 24 * time.Hour)
 	needsReset := sub.NeedsMonthlyResetAt(now)
 	assert.False(t, needsReset,
+		"时间未到窗口边界，NeedsMonthlyResetAt 返回 false")
+
+	canReset := sub.canAutomaticallyResetMonthlyAt(now)
+	assert.False(t, canReset,
 		"一次性套餐不应在到期前重置，否则用户获得双倍额度（issue #5051）")
 
 	// 第31天，订阅已过期
 	nowAfterExpiry := expiresAt.Add(24 * time.Hour)
 	needsResetAfterExpiry := sub.NeedsMonthlyResetAt(nowAfterExpiry)
-	assert.False(t, needsResetAfterExpiry,
-		"一次性套餐在过期后也不应重置（已不可用）")
+	assert.True(t, needsResetAfterExpiry,
+		"时间到达窗口边界后，NeedsMonthlyResetAt 返回 true")
+
+	canResetAfterExpiry := sub.canAutomaticallyResetMonthlyAt(nowAfterExpiry)
+	assert.False(t, canResetAfterExpiry,
+		"一次性套餐在过期后也不应自动重置（已不可用）")
 }
