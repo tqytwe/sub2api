@@ -1560,6 +1560,7 @@ func convertGeminiNativeImageResponseToOpenAIImages(respBody []byte) ([]byte, in
 		}
 		data = append(data, item)
 	}
+	// Try camelCase format first (inlineData)
 	gjson.GetBytes(respBody, "candidates.#.content.parts.#.inlineData").ForEach(func(_, candidate gjson.Result) bool {
 		candidate.ForEach(func(_, inline gjson.Result) bool {
 			appendInline(inline)
@@ -1567,13 +1568,16 @@ func convertGeminiNativeImageResponseToOpenAIImages(respBody []byte) ([]byte, in
 		})
 		return true
 	})
-	gjson.GetBytes(respBody, "candidates.#.content.parts.#.inline_data").ForEach(func(_, candidate gjson.Result) bool {
-		candidate.ForEach(func(_, inline gjson.Result) bool {
-			appendInline(inline)
+	// Only try snake_case format (inline_data) if no images found in camelCase
+	if len(data) == 0 {
+		gjson.GetBytes(respBody, "candidates.#.content.parts.#.inline_data").ForEach(func(_, candidate gjson.Result) bool {
+			candidate.ForEach(func(_, inline gjson.Result) bool {
+				appendInline(inline)
+				return true
+			})
 			return true
 		})
-		return true
-	})
+	}
 	if len(data) == 0 {
 		return nil, 0, fmt.Errorf("gemini image response contained no image data")
 	}
