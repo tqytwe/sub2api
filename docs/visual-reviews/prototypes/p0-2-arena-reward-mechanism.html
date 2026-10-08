@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>P0-2 Arena 奖励机制说明 - 原型设计</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f3f4f6;
+      padding: 2rem;
+      line-height: 1.6;
+    }
+    .container { max-width: 900px; margin: 0 auto; }
+    .prototype-label {
+      background: #3b82f6;
+      color: white;
+      padding: 0.5rem 1rem;
+      border-radius: 0.5rem;
+      margin-bottom: 1rem;
+      font-weight: 600;
+    }
+    .info-card {
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-radius: 0.75rem;
+      padding: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .info-header {
+      display: flex;
+      align-items: start;
+      gap: 0.75rem;
+    }
+    .info-icon {
+      width: 20px;
+      height: 20px;
+      background: #3b82f6;
+      border-radius: 50%;
+      flex-shrink: 0;
+      margin-top: 0.125rem;
+    }
+    .info-title {
+      font-weight: 600;
+      color: #111827;
+      margin-bottom: 0.5rem;
+      font-size: 0.875rem;
+    }
+    .info-desc {
+      color: #374151;
+      font-size: 0.875rem;
+      margin-bottom: 0.75rem;
+    }
+    .reward-table {
+      background: white;
+      border-radius: 0.5rem;
+      overflow: hidden;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.875rem;
+    }
+    thead {
+      background: #f9fafb;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    th {
+      text-align: left;
+      padding: 0.75rem 1rem;
+      font-weight: 600;
+      color: #111827;
+    }
+    th.text-right { text-align: right; }
+    td {
+      padding: 0.75rem 1rem;
+      color: #374151;
+      border-bottom: 1px solid #f3f4f6;
+    }
+    td.text-right {
+      text-align: right;
+      font-weight: 500;
+      font-variant-numeric: tabular-nums;
+    }
+    tbody tr:last-child td {
+      border-bottom: none;
+    }
+    .hub-card {
+      background: white;
+      border-radius: 1rem;
+      padding: 1.5rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      margin-top: 1.5rem;
+    }
+    .hub-title {
+      font-size: 1.125rem;
+      font-weight: 600;
+      color: #111827;
+      margin-bottom: 0.5rem;
+    }
+    .hub-subtitle {
+      color: #6b7280;
+      font-size: 0.875rem;
+    }
+    .hub-subtitle-new {
+      color: #059669;
+      font-size: 0.875rem;
+      font-weight: 500;
+    }
+    .comparison {
+      background: #fef3c7;
+      padding: 1rem;
+      border-radius: 0.5rem;
+      margin-top: 1.5rem;
+      font-size: 0.875rem;
+    }
+    .comparison strong {
+      display: block;
+      margin-bottom: 0.5rem;
+    }
+    .old-text {
+      color: #dc2626;
+      text-decoration: line-through;
+    }
+    .new-text {
+      color: #16a34a;
+      font-weight: 600;
+    }
+    @media (max-width: 640px) {
+      body { padding: 1rem; }
+      .reward-table { overflow-x: auto; }
+      table { min-width: 400px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="prototype-label">
+      原型设计 - P0-2: Arena 奖励机制说明
+    </div>
+
+    <!-- Arena 页面顶部说明卡片 -->
+    <h2 style="margin-bottom: 1rem; color: #111827;">ArenaView.vue 顶部说明卡片</h2>
+    <div class="info-card">
+      <div class="info-header">
+        <div class="info-icon"></div>
+        <div style="flex: 1;">
+          <p class="info-title">奖励结算机制</p>
+          <p class="info-desc">
+            代币仅用于排名竞争，最终奖励按月底/日榜排名发放固定金额。
+          </p>
+
+          <div class="reward-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>排名</th>
+                  <th class="text-right">月榜奖励</th>
+                  <th class="text-right">日榜奖励</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Top 1</td>
+                  <td class="text-right">$50.00</td>
+                  <td class="text-right">$0.50</td>
+                </tr>
+                <tr>
+                  <td>Top 3</td>
+                  <td class="text-right">$20.00</td>
+                  <td class="text-right">$0.20</td>
+                </tr>
+                <tr>
+                  <td>Top 10</td>
+                  <td class="text-right">$5.00</td>
+                  <td class="text-right">$0.10</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Play Hub 文案对比 -->
+    <h2 style="margin-bottom: 1rem; margin-top: 2rem; color: #111827;">PlayHubView.vue 文案修改</h2>
+    <div class="hub-card">
+      <div class="hub-title">代币农场</div>
+      <div class="hub-subtitle old-text">❌ 原文案：使用 API 即可获得代币</div>
+      <div class="hub-subtitle-new" style="margin-top: 0.5rem;">✓ 新文案：使用 API 冲击排行榜奖励</div>
+    </div>
+
+    <!-- 对比说明 -->
+    <div class="comparison">
+      <strong>📝 修改说明：</strong>
+      <p style="margin-bottom: 0.5rem;">
+        <span class="old-text">原提示："使用 API 即可获得代币"</span>
+      </p>
+      <p>
+        <span class="new-text">新提示："使用 API 冲击排行榜奖励"</span>
+      </p>
+      <p style="margin-top: 0.75rem; color: #6b7280;">
+        修改目的：明确告知用户代币不能直接兑换，只用于排名竞争
+      </p>
+    </div>
+
+    <!-- 移动端适配说明 -->
+    <div style="background: #fef3c7; padding: 1rem; border-radius: 0.5rem; margin-top: 1rem; font-size: 0.875rem;">
+      <strong>📱 移动端适配：</strong>
+      <ul style="margin-top: 0.5rem; padding-left: 1.5rem;">
+        <li>说明卡片在 640px 以下保持完整显示</li>
+        <li>奖励表格在小屏幕下可横向滚动（最小宽度 400px）</li>
+        <li>文字大小保持 0.875rem，确保可读性</li>
+      </ul>
+    </div>
+
+    <!-- 深色模式预览 -->
+    <div style="background: #1f2937; color: white; padding: 1rem; border-radius: 0.5rem; margin-top: 1rem; font-size: 0.875rem;">
+      <strong>🌙 深色模式：</strong>
+      <ul style="margin-top: 0.5rem; padding-left: 1.5rem;">
+        <li>说明卡片背景：#1e3a8a（蓝色深色）</li>
+        <li>表格背景：#1f2937（深色面板）</li>
+        <li>表头背景：#374151</li>
+        <li>边框颜色：#4b5563</li>
+      </ul>
+    </div>
+  </div>
+</body>
+</html>

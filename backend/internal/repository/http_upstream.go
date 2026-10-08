@@ -45,13 +45,15 @@ const (
 	// HTTP/2 场景下，单连接可多路复用，240 足以支撑高并发
 	defaultMaxIdleConns = 240
 	// defaultMaxIdleConnsPerHost: 默认每主机最大空闲连接数
-	defaultMaxIdleConnsPerHost = 120
+	// ★ P0 优化：从 120 增加到 150，提高连接复用率
+	defaultMaxIdleConnsPerHost = 150
 	// defaultMaxConnsPerHost: 默认每主机最大连接数（含活跃连接）
 	// 达到上限后新请求会等待，而非无限创建连接
 	defaultMaxConnsPerHost = 240
-	// defaultIdleConnTimeout: 默认空闲连接超时时间（90秒）
-	// 超时后连接会被关闭，释放系统资源（建议小于上游 LB 超时）
-	defaultIdleConnTimeout = 90 * time.Second
+	// defaultIdleConnTimeout: 默认空闲连接超时时间（60秒）
+	// ★ P0 优化：从 90s 缩短到 60s，避免僵尸连接
+	// 在上游提供商关闭连接之前主动清理，减少 HTTP/2 stream 错误
+	defaultIdleConnTimeout = 60 * time.Second
 	// defaultResponseHeaderTimeout: 默认等待响应头超时时间（5分钟）
 	// LLM 请求可能排队较久，需要较长超时
 	defaultResponseHeaderTimeout = 300 * time.Second
@@ -62,8 +64,9 @@ const (
 	// 上游域名被解析到 443 不可达的 IP 时（DNS 污染/路由异常），单个账号就要卡满
 	// 内核超时；而多账号故障转移是串行的，一次请求会阻塞数分钟且不写中间错误。
 	defaultUpstreamDialTimeout = 10 * time.Second
-	// defaultUpstreamDialKeepAlive: TCP keepalive 探测间隔，与 Go 默认值保持一致
-	defaultUpstreamDialKeepAlive = 30 * time.Second
+	// defaultUpstreamDialKeepAlive: TCP keepalive 探测间隔
+	// ★ P0 优化：从 30s 缩短到 15s，更快检测死连接
+	defaultUpstreamDialKeepAlive = 15 * time.Second
 	// defaultUpstreamTLSHandshakeTimeout: TLS 握手超时（10秒）
 	// 与建连超时同量级，避免 TCP 已连通但对端不推进握手时无限等待
 	defaultUpstreamTLSHandshakeTimeout = 10 * time.Second
