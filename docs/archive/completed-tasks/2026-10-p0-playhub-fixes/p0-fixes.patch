@@ -1,0 +1,35 @@
+diff --git a/frontend/src/i18n/locales/zh/dashboard.ts b/frontend/src/i18n/locales/zh/dashboard.ts
+--- a/frontend/src/i18n/locales/zh/dashboard.ts
++++ b/frontend/src/i18n/locales/zh/dashboard.ts
+@@ -900,6 +900,20 @@ export default {
+       keepClimbing: '继续加油，冲击前十！',
+       rewardZone: '已进入奖励区',
+       noRank: '尚未上榜'
++    },
++    rewardMechanism: {
++      title: '奖励机制说明',
++      description: '农场代币仅用于排名竞争，不能直接兑换。最终奖励按榜单排名发放固定金额。',
++      monthlyTitle: '月榜奖励档位',
++      dailyTitle: '日榜奖励档位',
++      rankLabel: '第 {rank} 名',
++      amountLabel: '{amount}',
++      topRanks: 'Top {count}',
++      settlementNote: '奖励在结算期结束后自动发放到账户余额'
+     }
+   },
+   blindbox: {
+@@ -920,6 +934,16 @@ export default {
+     openSuccess: '开盒成功！',
+     opening: '开盒中...',
+     openCost: '开盒消耗 {cost} 代币'
++  },
++  rewardBranches: {
++    title: '奖励类型',
++    description: '开盒后将随机获得以下奖励之一：',
++    coupon: '优惠券',
++    redeemCode: '兑换码',
++    balance: '余额',
++    probability: '概率 {percent}%',
++    note: '具体奖励金额/折扣根据当前奖池配置随机生成'
+   }
+ }
