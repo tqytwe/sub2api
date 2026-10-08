@@ -2,6 +2,8 @@ package service
 
 import (
 	"testing"
+
+	"github.com/tidwall/gjson"
 )
 
 // TestConvertGeminiNativeImageResponseToOpenAIImages_NoDuplication tests that
@@ -96,6 +98,31 @@ func TestConvertGeminiNativeImageResponseToOpenAIImages_NoDuplication(t *testing
 			expectError:   false,
 		},
 		{
+			name: "mixed aliases in separate parts preserve both images",
+			geminiJSON: `{
+				"candidates": [{
+					"content": {
+						"parts": [
+							{
+								"inlineData": {
+									"mimeType": "image/png",
+									"data": "Y2FtZWw="
+								}
+							},
+							{
+								"inline_data": {
+									"mime_type": "image/webp",
+									"data": "c25ha2U="
+								}
+							}
+						]
+					}
+				}]
+			}`,
+			expectedCount: 2,
+			expectError:   false,
+		},
+		{
 			name: "empty response",
 			geminiJSON: `{
 				"candidates": []
@@ -126,6 +153,9 @@ func TestConvertGeminiNativeImageResponseToOpenAIImages_NoDuplication(t *testing
 
 			if respBody == nil {
 				t.Error("respBody is nil")
+			}
+			if got := int(gjson.GetBytes(respBody, "data.#").Int()); got != tt.expectedCount {
+				t.Errorf("response image count = %d, want %d", got, tt.expectedCount)
 			}
 		})
 	}
