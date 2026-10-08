@@ -45,6 +45,7 @@
 | [Antigravity 429 归因](./ANTIGRAVITY_ATTRIBUTION_429.md) | `reference` | Antigravity 429 归因和重试边界 | 网关维护者 | 2026-09-19 |
 | [Seedance API](./seedance-api.md) | `reference` | Seedance API 路由和请求契约 | 网关维护者 | 2026-09-19 |
 | [Android Google Play Billing 接入手册](./ANDROID_PLAY_BILLING_RUNBOOK.md) | `active` | Play 版数字权益内购、服务端验单、后台商品映射和国内/Play 支付分流 | 移动端与支付维护者 | 2026-08-12 |
+| [StarFrame Video Gateway](./STARFRAME_VIDEO_GATEWAY.md) | `proposal` | Opt-in video protocol, owner bindings, exact billing and retention limits; not deployed | API maintainers | 2026-10-05 |
 | [外部支付 Admin API](./ADMIN_PAYMENT_INTEGRATION_API.md) | `reference` | 外部支付系统对接 | 支付维护者 | 2026-07-15 |
 | [BEpusdt 上线前检查清单](./BEPUSDT_PREDEPLOY_CHECKLIST.md) | `proposal` | CNY 结算、数据库契约、回调和真实支付验收门禁 | 支付维护者 | 2026-08-08 |
 | [管理员合规说明（中文）](./legal/admin-compliance.zh.md) | `active` | 管理员合规内容 | 合规维护者 | 2026-07-15 |

@@ -57,3 +57,9 @@ func TestResolveUsageBillingRequestID_ForcedGrokAudioBeatsClientID(t *testing.T)
 	got := resolveUsageBillingRequestID(ctx, StableGrokAudioBillingRequestID("up-9"))
 	require.Equal(t, "grok_audio:up-9", got)
 }
+
+func TestStarframeBillingIDCannotBeOverriddenByClient(t *testing.T) {
+	ctx := context.WithValue(context.Background(), ctxkey.ClientRequestID, "client-changing-id")
+	got := resolveUsageBillingRequestID(ctx, "starframe-video:9:task-1")
+	require.Equal(t, "starframe-video:9:task-1", got)
+}
