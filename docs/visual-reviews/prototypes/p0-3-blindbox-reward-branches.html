@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>P0-3 盲盒奖励分支说明 - 原型设计</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f3f4f6;
+      padding: 2rem;
+      line-height: 1.6;
+    }
+    .container { max-width: 700px; margin: 0 auto; }
+    .prototype-label {
+      background: #3b82f6;
+      color: white;
+      padding: 0.5rem 1rem;
+      border-radius: 0.5rem;
+      margin-bottom: 1rem;
+      font-weight: 600;
+    }
+    .reward-card {
+      background: #faf5ff;
+      border: 1px solid #e9d5ff;
+      border-radius: 0.75rem;
+      padding: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.75rem;
+    }
+    .gift-icon {
+      width: 20px;
+      height: 20px;
+      background: #a855f7;
+      border-radius: 50%;
+    }
+    .card-title {
+      font-weight: 600;
+      color: #111827;
+      font-size: 0.875rem;
+    }
+    .card-desc {
+      color: #374151;
+      font-size: 0.875rem;
+      margin-bottom: 0.75rem;
+    }
+    .weight-row {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 0.5rem;
+    }
+    .weight-label {
+      width: 80px;
+      text-align: right;
+      font-size: 0.75rem;
+      color: #6b7280;
+      flex-shrink: 0;
+    }
+    .weight-bar-container {
+      flex: 1;
+      height: 24px;
+      background: #e5e7eb;
+      border-radius: 9999px;
+      overflow: hidden;
+      position: relative;
+    }
+    .weight-bar {
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 0.75rem;
+      font-weight: 500;
+      font-variant-numeric: tabular-nums;
+      transition: width 0.3s ease;
+    }
+    .bar-coupon {
+      background: linear-gradient(to right, #c084fc, #a855f7);
+    }
+    .bar-redeem {
+      background: linear-gradient(to right, #60a5fa, #3b82f6);
+    }
+    .bar-balance {
+      background: linear-gradient(to right, #4ade80, #22c55e);
+    }
+    .legend {
+      display: flex;
+      gap: 1.5rem;
+      margin-top: 1rem;
+      flex-wrap: wrap;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.75rem;
+      color: #6b7280;
+    }
+    .legend-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+    }
+    .dot-coupon { background: #a855f7; }
+    .dot-redeem { background: #3b82f6; }
+    .dot-balance { background: #22c55e; }
+    .note {
+      background: #fef3c7;
+      padding: 1rem;
+      border-radius: 0.5rem;
+      margin-top: 1.5rem;
+      font-size: 0.875rem;
+    }
+    .dark-preview {
+      background: #1f2937;
+      color: white;
+      padding: 1rem;
+      border-radius: 0.5rem;
+      margin-top: 1rem;
+      font-size: 0.875rem;
+    }
+    @media (max-width: 640px) {
+      body { padding: 1rem; }
+      .weight-label { width: 60px; font-size: 0.7rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="prototype-label">
+      原型设计 - P0-3: 盲盒奖励分支说明
+    </div>
+
+    <!-- 奖励分支说明卡片 -->
+    <div class="reward-card">
+      <div class="card-header">
+        <div class="gift-icon"></div>
+        <h4 class="card-title">奖励类型</h4>
+      </div>
+      <p class="card-desc">
+        开盒后可能获得余额、优惠券或兑换码之一：
+      </p>
+
+      <!-- 权重分配可视化 -->
+      <div>
+        <div class="weight-row">
+          <div class="weight-label">优惠券</div>
+          <div class="weight-bar-container">
+            <div class="weight-bar bar-coupon" style="width: 60%;">
+              60%
+            </div>
+          </div>
+        </div>
+
+        <div class="weight-row">
+          <div class="weight-label">兑换码</div>
+          <div class="weight-bar-container">
+            <div class="weight-bar bar-redeem" style="width: 20%;">
+              20%
+            </div>
+          </div>
+        </div>
+
+        <div class="weight-row">
+          <div class="weight-label">余额</div>
+          <div class="weight-bar-container">
+            <div class="weight-bar bar-balance" style="width: 20%;">
+              20%
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 图例 -->
+      <div class="legend">
+        <div class="legend-item">
+          <div class="legend-dot dot-coupon"></div>
+          <span>优惠券：可用于抵扣充值金额</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot dot-redeem"></div>
+          <span>兑换码：可兑换指定额度</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot dot-balance"></div>
+          <span>余额：直接到账</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 数据来源说明 -->
+    <div class="note">
+      <strong>📊 权重数据来源：</strong>
+      <p style="margin-top: 0.5rem; color: #6b7280;">
+        从 API <code style="background: white; padding: 0.125rem 0.375rem; border-radius: 0.25rem; font-size: 0.8125rem;">/play/blindbox/status</code> 获取：
+      </p>
+      <ul style="margin-top: 0.5rem; padding-left: 1.5rem; color: #6b7280;">
+        <li><code>coupon_weight_bp</code> = 6000 (60%)</li>
+        <li><code>redeem_code_weight_bp</code> = 2000 (20%)</li>
+        <li><code>balance_weight_bp</code> = 2000 (20%)</li>
+      </ul>
+      <p style="margin-top: 0.5rem; color: #6b7280;">
+        ⚠️ 权重单位为 basis points (bp)，10000 = 100%
+      </p>
+    </div>
+
+    <!-- 移动端适配 -->
+    <div class="note" style="margin-top: 1rem;">
+      <strong>📱 移动端适配：</strong>
+      <ul style="margin-top: 0.5rem; padding-left: 1.5rem; color: #6b7280;">
+        <li>标签宽度在小屏幕下缩小为 60px</li>
+        <li>百分比条自动适应剩余宽度</li>
+        <li>图例在窄屏下自动换行</li>
+        <li>最小宽度 360px 不溢出</li>
+      </ul>
+    </div>
+
+    <!-- 深色模式预览 -->
+    <div class="dark-preview">
+      <strong>🌙 深色模式：</strong>
+      <ul style="margin-top: 0.5rem; padding-left: 1.5rem;">
+        <li>卡片背景：#581c87（紫色深色）</li>
+        <li>卡片边框：#7c3aed</li>
+        <li>标签文字：#d1d5db</li>
+        <li>条形背景：#374151</li>
+        <li>渐变保持原色系，亮度降低</li>
+      </ul>
+    </div>
+
+    <!-- 交互说明 -->
+    <div style="background: #dbeafe; padding: 1rem; border-radius: 0.5rem; margin-top: 1rem; font-size: 0.875rem; color: #1e40af;">
+      <strong>💡 交互行为：</strong>
+      <p style="margin-top: 0.5rem;">
+        权重数据动态从 API 加载，每次打开盲盒页面时刷新。如果 API 未返回权重字段，使用默认值（50% 优惠券，30% 兑换码，20% 余额）。
+      </p>
+    </div>
+  </div>
+</body>
+</html>
