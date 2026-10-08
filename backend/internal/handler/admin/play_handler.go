@@ -322,6 +322,33 @@ func (h *AdminPlayHandler) UpdateArenaRewardSettings(c *gin.Context) {
 	response.Success(c, updated)
 }
 
+// GetCheckinMilestoneSettings returns the current checkin streak milestone configuration and makeup toggle.
+// GET /api/v1/admin/play/checkin/milestones
+func (h *AdminPlayHandler) GetCheckinMilestoneSettings(c *gin.Context) {
+	settings, err := h.playService.GetCheckinMilestoneSettings(c.Request.Context())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, settings)
+}
+
+// UpdateCheckinMilestoneSettings validates and replaces checkin streak milestone rewards and makeup toggle.
+// PUT /api/v1/admin/play/checkin/milestones
+func (h *AdminPlayHandler) UpdateCheckinMilestoneSettings(c *gin.Context) {
+	var settings service.PlayCheckinMilestoneSettings
+	if err := c.ShouldBindJSON(&settings); err != nil {
+		response.ErrorFrom(c, infraerrors.BadRequest("INVALID_REQUEST", "invalid checkin milestone settings request"))
+		return
+	}
+	updated, err := h.playService.UpdateCheckinMilestoneSettings(c.Request.Context(), settings)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, updated)
+}
+
 // ArenaSettle settles an arena period and distributes rank rewards.
 // POST /api/v1/admin/play/arena/settle
 func (h *AdminPlayHandler) ArenaSettle(c *gin.Context) {
