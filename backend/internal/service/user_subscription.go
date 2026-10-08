@@ -129,10 +129,6 @@ func (s *UserSubscription) NeedsWeeklyResetAt(now time.Time) bool {
 	if s.WeeklyWindowStart == nil {
 		return false
 	}
-	// 一次性周额度不自动重置
-	if s.HasOneTimeWeeklyQuota() {
-		return false
-	}
 	return !now.Before(s.WeeklyWindowStart.Add(7 * 24 * time.Hour))
 }
 
@@ -142,10 +138,6 @@ func (s *UserSubscription) NeedsMonthlyReset() bool {
 
 func (s *UserSubscription) NeedsMonthlyResetAt(now time.Time) bool {
 	if s.MonthlyWindowStart == nil {
-		return false
-	}
-	// 一次性月额度不自动重置
-	if s.HasOneTimeMonthlyQuota() {
 		return false
 	}
 	return !now.Before(s.MonthlyWindowStart.Add(30 * 24 * time.Hour))
@@ -175,11 +167,19 @@ func (s *UserSubscription) automaticDailyWindowStartAt(now time.Time) (time.Time
 }
 
 func (s *UserSubscription) canAutomaticallyResetWeeklyAt(now time.Time) bool {
+	// 一次性周额度不自动重置
+	if s.HasOneTimeWeeklyQuota() {
+		return false
+	}
 	_, ok := s.automaticWindowStartAt(s.WeeklyWindowStart, 7*24*time.Hour, now)
 	return ok
 }
 
 func (s *UserSubscription) canAutomaticallyResetMonthlyAt(now time.Time) bool {
+	// 一次性月额度不自动重置
+	if s.HasOneTimeMonthlyQuota() {
+		return false
+	}
 	_, ok := s.automaticWindowStartAt(s.MonthlyWindowStart, 30*24*time.Hour, now)
 	return ok
 }
