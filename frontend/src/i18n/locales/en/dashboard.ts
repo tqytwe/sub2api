@@ -799,6 +799,8 @@ export default {
       officialPrice: 'Official Price',
       rate: 'Rate',
       unitPerMillion: '$ / 1M tokens',
+      perUnitSecond: '/ second',
+      perSecond: 'Per second',
       perUnitRequest: '/ request',
       perUnitImage: '/ image',
       perRequest: 'Per request',
