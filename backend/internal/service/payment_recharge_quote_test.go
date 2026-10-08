@@ -71,3 +71,30 @@ func TestPaymentOrderRechargeBaseCreditedFallsBackForLegacyOrders(t *testing.T) 
 	require.Equal(t, 80.0, got)
 	require.Equal(t, -20.0, paymentOrderRefundTotalRechargedDelta(order, 20))
 }
+
+func TestAffiliateRebateBaseAmountPrefersCouponQualifyingAmountOverBonusColumn(t *testing.T) {
+	// Coupon-aware VIP order: credited 116 (VIP/campaign bonus 16), coupon cut the
+	// qualifying cash to 80. Upstream's Amount-BonusAmount would rebate on 100.
+	order := &dbent.PaymentOrder{
+		OrderType:                payment.OrderTypeBalance,
+		Amount:                   116,
+		BonusAmount:              16,
+		ListAmount:               100,
+		QualifyingRechargeAmount: 80,
+		RechargeSnapshot:         map[string]any{"base_credited": 100},
+	}
+
+	require.Equal(t, 80.0, affiliateRebateBaseAmount(order))
+}
+func TestAffiliateRebateBaseAmountFallsBackToUpstreamBonusColumnWithoutSnapshot(t *testing.T) {
+	order := &dbent.PaymentOrder{OrderType: payment.OrderTypeBalance, Amount: 130, BonusAmount: 30}
+
+	require.Equal(t, 100.0, affiliateRebateBaseAmount(order))
+}
+func TestPaymentRechargeQuoteBonusAmountIsCreditedMinusBase(t *testing.T) {
+	quote := buildPaymentRechargeQuote(100, 1, 600, defaultPlayVIPTiers(), paymentRechargeCampaignBonus{BonusPct: 5})
+
+	require.Equal(t, 107.0, quote.CreditedAmount)
+	require.Equal(t, 7.0, quote.BonusAmount())
+	require.Equal(t, 0.0, (*PaymentRechargeQuote)(nil).BonusAmount())
+}

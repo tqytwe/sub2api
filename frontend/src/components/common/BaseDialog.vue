@@ -28,7 +28,7 @@
           </div>
 
           <!-- Body -->
-          <div class="modal-body">
+          <div ref="modalBodyRef" class="modal-body">
             <slot></slot>
           </div>
 
@@ -47,7 +47,7 @@ let dialogIdCounter = 0
 </script>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Icon from '@/components/icons/Icon.vue'
 import { useDialogAccessibility } from '@/composables/useDialogAccessibility'
@@ -111,8 +111,22 @@ const handleClose = () => {
   }
 }
 
+const modalBodyRef = ref<HTMLElement | null>(null)
+
 useDialogAccessibility(computed(() => props.show), dialogRef, {
   closeOnEscape: props.closeOnEscape,
   onClose: () => emit('close'),
 })
+
+watch(
+  () => props.show,
+  async (isOpen) => {
+    if (isOpen) {
+      await nextTick()
+      if (modalBodyRef.value) {
+        modalBodyRef.value.scrollTop = 0
+      }
+    }
+  }
+)
 </script>

@@ -70,6 +70,8 @@ type OpenAIImagesCapability string
 const (
 	OpenAIImagesCapabilityBasic  OpenAIImagesCapability = "images-basic"
 	OpenAIImagesCapabilityNative OpenAIImagesCapability = "images-native"
+	// Compatible provider models require the API-key Images passthrough path.
+	OpenAIImagesCapabilityAPIKey OpenAIImagesCapability = "images-apikey"
 )
 
 type OpenAIImagesUpload struct {
@@ -284,6 +286,13 @@ func (s *OpenAIGatewayService) ParseOpenAIImagesRequest(c *gin.Context, body []b
 	}
 	if req.Stream && req.N > 1 {
 		return nil, ErrImageMultiStreamUnsupported
+	}
+	// Composite middleware preserves multipart bodies, including their public
+	// alias. Validate and forward the resolved model without altering uploads.
+	if platform, _ := ResolvedTargetPlatformFromContext(c.Request.Context()); platform == PlatformOpenAI {
+		if model, ok := ResolvedUpstreamModelFromContext(c.Request.Context()); ok {
+			req.Model = model
+		}
 	}
 	if err := validateOpenAIImagesModel(req.Model); err != nil {
 		return nil, err
@@ -582,6 +591,15 @@ func validateOpenAIImagesModel(model string) error {
 	return fmt.Errorf("images endpoint requires an image model, got %q", model)
 }
 
+// validateOpenAIImagesNativeModel fences OAuth/setup-token accounts: Gemini
+// image models are only served through API-key generateContent translation.
+func validateOpenAIImagesNativeModel(model string) error {
+	if isGeminiOpenAICompatibleImageModel(model) {
+		return fmt.Errorf("images endpoint requires an image model, got %q", strings.TrimSpace(model))
+	}
+	return validateOpenAIImagesModel(model)
+}
+
 func isOpenAIImagesEndpointModel(model string) bool {
 	if isOpenAIImageGenerationModel(model) {
 		return true
@@ -590,9 +608,32 @@ func isOpenAIImagesEndpointModel(model string) bool {
 	return ok && capability.Platform == PlatformOpenAI
 }
 
+// isGeminiOpenAICompatibleImageModel covers registered Image Studio Gemini
+// models plus upstream's gemini-*-image naming rule. Matching models are
+// translated to native generateContent on API-key accounts only.
 func isGeminiOpenAICompatibleImageModel(model string) bool {
+	if isGeminiCompatibleImageModel(model) {
+		return true
+	}
 	capability, ok := ResolveImageStudioModelCapability(model)
 	return ok && capability.Platform == PlatformGemini
+}
+
+// Keep this separate from isOpenAIImageGenerationModel: that predicate also
+// drives native Responses tool conversion, pricing and rate-limit policy.
+func isGeminiCompatibleImageModel(model string) bool {
+	model = strings.ToLower(strings.TrimSpace(model))
+	return strings.HasPrefix(model, "gemini-") &&
+		(strings.HasSuffix(model, "-image") || strings.Contains(model, "-image-"))
+}
+
+// RequiredCapabilityForModel also applies the API-key-only fence when channel
+// mapping introduces a compatible provider model after request parsing.
+func (req *OpenAIImagesRequest) RequiredCapabilityForModel(model string) OpenAIImagesCapability {
+	if isGeminiOpenAICompatibleImageModel(model) {
+		return OpenAIImagesCapabilityAPIKey
+	}
+	return req.RequiredCapability
 }
 
 func normalizeOpenAIImagesEndpointPath(path string) string {
@@ -610,6 +651,9 @@ func normalizeOpenAIImagesEndpointPath(path string) string {
 func classifyOpenAIImagesCapability(req *OpenAIImagesRequest) OpenAIImagesCapability {
 	if req == nil {
 		return OpenAIImagesCapabilityNative
+	}
+	if isGeminiOpenAICompatibleImageModel(req.Model) {
+		return OpenAIImagesCapabilityAPIKey
 	}
 	if req.ExplicitModel || req.ExplicitSize {
 		return OpenAIImagesCapabilityNative
@@ -1094,6 +1138,22 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesAPIKey(
 		resp.Body = io.NopCloser(bytes.NewReader(respBody))
 		upstreamMsg := strings.TrimSpace(extractUpstreamErrorMessage(respBody))
 		upstreamMsg = sanitizeUpstreamErrorMessage(upstreamMsg)
+		if isOpenAIImagesInsufficientBalance(respBody) {
+			appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+				ProxyID:            opsUpstreamProxyID(account),
+				ProxyName:          opsUpstreamProxyName(account),
+				Platform:           account.Platform,
+				AccountID:          account.ID,
+				AccountName:        account.Name,
+				UpstreamStatusCode: resp.StatusCode,
+				UpstreamRequestID:  resp.Header.Get("x-request-id"),
+				UpstreamURL:        safeUpstreamURL(upstreamReq.URL.String()),
+				Kind:               "failover",
+				Message:            OpenAIImagesInsufficientBalanceMessage,
+			})
+			s.coolOpenAIImagesInsufficientBalance(upstreamCtx, account)
+			return nil, newOpenAIImagesInsufficientBalanceFailoverError(resp.StatusCode, resp.Header, respBody)
+		}
 		if s.shouldFailoverOpenAIUpstreamResponse(account, resp.StatusCode, upstreamMsg, respBody) {
 			appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
 				Platform:           account.Platform,
@@ -1298,7 +1358,7 @@ func (s *OpenAIGatewayService) forwardOpenAICompatibleGeminiImageAPIKey(
 	result := &OpenAIForwardResult{
 		RequestID:        resp.Header.Get("x-request-id"),
 		Usage:            OpenAIUsage{},
-		Model:            strings.TrimSpace(parsed.Model),
+		Model:            requestModel,
 		UpstreamModel:    upstreamModel,
 		UpstreamEndpoint: openAICompatibleGeminiImageEndpoint(upstreamModel),
 		Stream:           false,
@@ -1500,6 +1560,7 @@ func convertGeminiNativeImageResponseToOpenAIImages(respBody []byte) ([]byte, in
 		}
 		data = append(data, item)
 	}
+	// Try camelCase format first (inlineData)
 	gjson.GetBytes(respBody, "candidates.#.content.parts.#.inlineData").ForEach(func(_, candidate gjson.Result) bool {
 		candidate.ForEach(func(_, inline gjson.Result) bool {
 			appendInline(inline)
@@ -1507,13 +1568,16 @@ func convertGeminiNativeImageResponseToOpenAIImages(respBody []byte) ([]byte, in
 		})
 		return true
 	})
-	gjson.GetBytes(respBody, "candidates.#.content.parts.#.inline_data").ForEach(func(_, candidate gjson.Result) bool {
-		candidate.ForEach(func(_, inline gjson.Result) bool {
-			appendInline(inline)
+	// Only try snake_case format (inline_data) if no images found in camelCase
+	if len(data) == 0 {
+		gjson.GetBytes(respBody, "candidates.#.content.parts.#.inline_data").ForEach(func(_, candidate gjson.Result) bool {
+			candidate.ForEach(func(_, inline gjson.Result) bool {
+				appendInline(inline)
+				return true
+			})
 			return true
 		})
-		return true
-	})
+	}
 	if len(data) == 0 {
 		return nil, 0, fmt.Errorf("gemini image response contained no image data")
 	}

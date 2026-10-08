@@ -17,7 +17,7 @@ func TestStarframeEchoesOriginalClientTaskIDInCreateAndStatus(t *testing.T) {
 		grokMediaContentStatusResponse(`{"id":"task-1","status":"queued"}`),
 		grokMediaContentStatusResponse(`{"id":"task-1","status":"completed","metadata":{"url":"/v1/videos/task-1/content"}}`),
 	}}
-	svc := &OpenAIGatewayService{cfg: &config.Config{}, cache: &starframeTestCache{}, httpUpstream: upstream}
+	svc := &OpenAIGatewayService{cfg: &config.Config{}, starframeVideos: &starframeMemoryStore{}, cache: &starframeTestCache{}, httpUpstream: upstream}
 	owner := StarframeVideoOwner{UserID: 10, APIKeyID: 20, GroupID: 30}
 	body := []byte(`{"model":"ch-custom-fast","prompt":"waves","mode":"references","client_task_id":"order.1","duration":10,"resolution":"720p"}`)
 	c, recorder := grokMediaContentTestContext(http.MethodPost, "/v1/videos", nil)

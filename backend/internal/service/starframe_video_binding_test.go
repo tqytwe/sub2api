@@ -47,7 +47,7 @@ func (s *starframeTestCache) ClaimGrokVideoBilled(_ context.Context, key string,
 func TestStarframeCreateBindsBeforeReplyAndIsolatesOwner(t *testing.T) {
 	cache := &starframeTestCache{}
 	upstream := &grokMediaContentUpstreamStub{response: grokMediaContentStatusResponse(`{"id":"task-1","model":"ch-custom","status":"queued"}`)}
-	svc := &OpenAIGatewayService{cfg: &config.Config{}, cache: cache, httpUpstream: upstream}
+	svc := &OpenAIGatewayService{cfg: &config.Config{}, starframeVideos: &starframeMemoryStore{}, cache: cache, httpUpstream: upstream}
 	owner := StarframeVideoOwner{UserID: 10, APIKeyID: 20, GroupID: 30}
 	body := []byte(`{"model":"ch-custom","prompt":"waves","mode":"references","client_task_id":"order-1","duration":10,"resolution":"720p"}`)
 	c, recorder := grokMediaContentTestContext(http.MethodPost, "/v1/videos", nil)
@@ -118,4 +118,23 @@ func TestStarframeCreateFailsClosedWithoutCache(t *testing.T) {
 	_, err := svc.ForwardStarframeVideo(context.Background(), c, starframeTestAccount(), AgnesVideoEndpointCreate, nil, []byte(`{"model":"ch-custom","prompt":"waves","mode":"references","client_task_id":"order-1","duration":5,"resolution":"720p"}`), StarframeVideoOwner{UserID: 10, APIKeyID: 20, GroupID: 30})
 	require.Error(t, err)
 	require.Empty(t, upstream.requests)
+}
+
+func TestStarframeRedisLossNeverReopensSubmission(t *testing.T) {
+	cache := &starframeTestCache{}
+	upstream := &grokMediaContentUpstreamStub{response: grokMediaContentStatusResponse(`{"id":"task-1","status":"queued"}`)}
+	svc := &OpenAIGatewayService{cfg: &config.Config{}, starframeVideos: &starframeMemoryStore{}, cache: cache, httpUpstream: upstream}
+	owner := StarframeVideoOwner{UserID: 10, APIKeyID: 20, GroupID: 30}
+	body := []byte(`{"model":"ch-custom","prompt":"waves","mode":"references","client_task_id":"order-loss","duration":5,"resolution":"720p"}`)
+	c, _ := grokMediaContentTestContext(http.MethodPost, "/v1/videos", nil)
+	result, err := svc.ForwardStarframeVideo(context.Background(), c, starframeTestAccount(), AgnesVideoEndpointCreate, nil, body, owner, starframeTestBilling(body))
+	require.NoError(t, err)
+	cache.data = nil
+	cache.claims = nil
+	_, err = svc.LoadStarframeVideoTask(context.Background(), result.ResponseID, owner)
+	require.NoError(t, err, "Redis loss must not erase persistent task binding")
+	c, _ = grokMediaContentTestContext(http.MethodPost, "/v1/videos", nil)
+	_, err = svc.ForwardStarframeVideo(context.Background(), c, starframeTestAccount(), AgnesVideoEndpointCreate, nil, body, owner, starframeTestBilling(body))
+	require.Error(t, err)
+	require.Len(t, upstream.requests, 1)
 }

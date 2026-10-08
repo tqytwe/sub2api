@@ -9,7 +9,7 @@
     </div>
     <input
       ref="inputRef"
-      :value="modelValue"
+      v-model="searchValue"
       type="text"
       class="input pl-10 transition-[background-color,border-color,box-shadow,color] duration-150"
       :class="[
@@ -20,7 +20,6 @@
       :disabled="disabled"
       :aria-label="ariaLabelText"
       :autocomplete="autocomplete"
-      @input="handleInput"
     />
     <button
       v-if="clearable && hasValue && !disabled"
@@ -73,12 +72,14 @@ const debouncedEmitSearch = useDebounceFn((value: string) => {
   emit('search', value)
 }, props.debounceMs)
 
-const handleInput = (event: Event) => {
-  if (props.disabled) return
-  const value = (event.target as HTMLInputElement).value
-  emit('update:modelValue', value)
-  debouncedEmitSearch(value)
-}
+const searchValue = computed({
+  get: () => props.modelValue,
+  set: (value: string) => {
+    if (props.disabled) return
+    emit('update:modelValue', value)
+    debouncedEmitSearch(value)
+  }
+})
 
 const clearSearch = () => {
   if (props.disabled) return

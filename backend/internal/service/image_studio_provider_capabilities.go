@@ -242,7 +242,8 @@ func isGeminiImageStudioModel(model string) bool {
 	normalized := strings.TrimPrefix(model, "models/")
 	return isImageGenerationModel(model) ||
 		strings.HasPrefix(normalized, "imagen-") ||
-		strings.HasPrefix(normalized, "imagen_")
+		strings.HasPrefix(normalized, "imagen_") ||
+		strings.HasPrefix(normalized, "gemini-nano-banana-")
 }
 
 func resolveGrokImageStudioCapability(model string) (ImageStudioModelCapabilities, bool) {

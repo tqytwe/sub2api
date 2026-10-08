@@ -9,10 +9,11 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// Resource access follows the same capability gate as the OAuth account directory.
-// The catalog never carries tokens, usernames, passwords or authenticated URLs.
+// Resource access follows the same capability-derived scope as the account
+// directory. The catalog never carries tokens, usernames, passwords or
+// authenticated URLs.
 type PluginResourceDirectory interface {
-	ListPluginResources(context.Context) (*pluginv1.ListResourcesResponse, error)
+	ListPluginResources(context.Context, PluginAccountScope) (*pluginv1.ListResourcesResponse, error)
 	ResolvePluginProxy(context.Context, int64) (string, error)
 }
 type pluginResourceDirectory struct {
@@ -24,24 +25,17 @@ type pluginResourceDirectory struct {
 func NewPluginResourceDirectory(base PluginAccountDirectory, accounts AccountRepository, proxies ProxyRepository) PluginAccountDirectory {
 	return &pluginResourceDirectory{base, accounts, proxies}
 }
-func (d *pluginResourceDirectory) ListPluginResources(ctx context.Context) (*pluginv1.ListResourcesResponse, error) {
-	ids, err := d.ListPluginAccounts(ctx, PlatformOpenAI, AccountTypeOAuth)
-	if err != nil {
-		return nil, err
-	}
-	allowed := make(map[int64]bool, len(ids))
-	for _, id := range ids {
-		allowed[id] = true
-	}
-	accounts, err := d.accounts.ListByPlatform(ctx, PlatformOpenAI)
+func (d *pluginResourceDirectory) ListPluginResources(ctx context.Context, scope PluginAccountScope) (*pluginv1.ListResourcesResponse, error) {
+	infos, err := d.ListPluginAccounts(ctx, scope, PlatformOpenAI, AccountTypeOAuth)
 	if err != nil {
 		return nil, err
 	}
 	out := &pluginv1.ListResourcesResponse{}
-	for _, a := range accounts {
-		if allowed[a.ID] {
-			out.Accounts = append(out.Accounts, &pluginv1.AccountSummary{Id: a.ID, Name: a.Name})
+	for _, info := range infos {
+		if info.IsShadow {
+			continue
 		}
+		out.Accounts = append(out.Accounts, &pluginv1.AccountSummary{Id: info.ID, Name: info.Name})
 	}
 	proxies, err := d.proxies.ListActive(ctx)
 	if err != nil {
@@ -65,7 +59,7 @@ func (d *pluginResourceDirectory) ResolvePluginProxy(ctx context.Context, id int
 	return p.URL(), nil
 }
 func (s *pluginHostServiceServer) ListResources(ctx context.Context, req *pluginv1.ListResourcesRequest) (*pluginv1.ListResourcesResponse, error) {
-	if s == nil || s.directory == nil {
+	if s == nil || s.directory == nil || s.scope.Empty() {
 		return nil, status.Error(codes.PermissionDenied, "resource directory unavailable")
 	}
 	d, ok := s.directory.(PluginResourceDirectory)
@@ -75,14 +69,14 @@ func (s *pluginHostServiceServer) ListResources(ctx context.Context, req *plugin
 	if req == nil {
 		return nil, status.Error(codes.InvalidArgument, "empty request")
 	}
-	out, err := d.ListPluginResources(ctx)
+	out, err := d.ListPluginResources(ctx, s.scope)
 	if err != nil {
 		return nil, status.Error(codes.Internal, "resource directory unavailable")
 	}
 	return out, nil
 }
 func (s *pluginHostServiceServer) ResolveProxy(ctx context.Context, req *pluginv1.ResolveProxyRequest) (*pluginv1.ResolveProxyResponse, error) {
-	if s == nil || s.directory == nil {
+	if s == nil || s.directory == nil || s.scope.Empty() {
 		return nil, status.Error(codes.PermissionDenied, "proxy directory unavailable")
 	}
 	d, ok := s.directory.(PluginResourceDirectory)

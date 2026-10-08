@@ -81,26 +81,26 @@ Agnes historical IDs and Grok routes retain their existing behavior.
 
 ## Retention And Recovery Boundary
 
-Local owner/account/base bindings are retained for 24 hours in existing Redis JSON
-storage, independent of short scheduler sticky bindings. Missing, expired or lost
-bindings fail closed with 404; no random account lookup is attempted. Changing the
-original account protocol or API base invalidates access rather than moving a task.
-An internal SHA-256 fingerprint also pins the original upstream API key. Replacing
-that key invalidates status/download before any HTTP request; handle pending tasks
-before rotation. Neither the upstream key nor its fingerprint is returned to clients.
+Owner/account/base bindings and submission claims are stored permanently in
+`starframe_video_submissions` (migration 272). Redis is an optional binding cache,
+not the authority. Claims are acquired before POST and never expire or get
+reclaimed; Redis expiry, eviction and restarts cannot authorize resubmission.
+The unique identity is user/API key/group/client task ID. Duplicate submissions
+return 409 without another upstream request or usage record.
 
-Submission claims are retained for 48 hours, scoped to user/key/group/client ID.
-Duplicate submissions return 409 without another upstream request or usage record.
-Ambiguous submissions (timeout, upstream failure or binding write failure) keep
-their claim and do not fail over. A successful upstream submission whose local
-binding cannot be saved returns an explicit error, not a usable-looking task ID.
-Operators must reconcile unknown submissions with the upstream before recovery;
-do not generate a fresh client ID or change accounts to retry an unknown task.
+Queries load the original persistent binding. Changing the original account,
+protocol, API base or upstream key invalidates access instead of moving a task.
+Neither credentials nor key fingerprints are returned to clients.
 
-Redis retention is not durable financial evidence. Expiry, eviction or data loss
-also loses the submission claim. After that boundary, this version cannot promise
-cross-account submission idempotency. Existing usage idempotency uses the fixed
-upstream account and task ID; status/download never create usage records.
+Timeouts, process interruption, upstream failure and binding-write failure retain
+the permanent claim. Unknown outcomes require operator reconciliation with the
+original upstream submission; do not generate a new client ID or change accounts.
+The asynchronous usage recorder is not a durable settlement outbox: interruption
+between upstream acceptance and usage recording also requires financial
+reconciliation. This change prevents repeat submission; it does not claim automatic
+recovery of missing upstream IDs or automatic catch-up billing. Status/download
+never create usage records. Production paid tests and user browser acceptance
+remain pending.
 
 ## Server Validation Record
 

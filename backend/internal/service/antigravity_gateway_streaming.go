@@ -686,6 +686,9 @@ func mergeTextPartsToResponse(response map[string]any, textParts []string) map[s
 	return result
 }
 
+// antigravityStatusClientClosed 是客户端在上游响应前断开时回写的状态码（499 client closed request）。
+const antigravityStatusClientClosed = 499
+
 func (s *AntigravityGatewayService) writeClaudeError(c *gin.Context, status int, errType, message string) error {
 	MarkResponseCommitted(c)
 	c.JSON(status, gin.H{
@@ -790,6 +793,8 @@ func (s *AntigravityGatewayService) writeGoogleError(c *gin.Context, status int,
 		statusStr = "NOT_FOUND"
 	case 429:
 		statusStr = "RESOURCE_EXHAUSTED"
+	case antigravityStatusClientClosed:
+		statusStr = "CANCELLED"
 	case 500:
 		statusStr = "INTERNAL"
 	case 502, 503:
@@ -1232,7 +1237,7 @@ func (s *AntigravityGatewayService) extractImageInputSize(body []byte) string {
 }
 
 // isImageGenerationModel 判断模型是否为图片生成模型
-// 支持的模型：gemini-3.1-flash-image, gemini-3-pro-image, gemini-2.5-flash-image 等
+// 支持的模型：gemini-3.1-flash-image, gemini-3-pro-image, gemini-2.5-flash-image, gemini-nano-banana 等
 func isImageGenerationModel(model string) bool {
 	modelLower := strings.ToLower(model)
 	// 移除 models/ 前缀
@@ -1247,5 +1252,6 @@ func isImageGenerationModel(model string) bool {
 		strings.HasPrefix(modelLower, "gemini-3-pro-image-") ||
 		modelLower == "gemini-2.5-flash-image" ||
 		modelLower == "gemini-2.5-flash-image-preview" ||
-		strings.HasPrefix(modelLower, "gemini-2.5-flash-image-")
+		strings.HasPrefix(modelLower, "gemini-2.5-flash-image-") ||
+		strings.HasPrefix(modelLower, "gemini-nano-banana-")
 }

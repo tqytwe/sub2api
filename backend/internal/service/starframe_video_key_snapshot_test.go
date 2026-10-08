@@ -18,7 +18,7 @@ func TestStarframeLookupRejectsUpstreamKeyReplacement(t *testing.T) {
 				grokMediaContentStatusResponse(`{"id":"task-1","status":"queued"}`),
 				grokMediaContentStatusResponse(`{"id":"task-1","status":"completed"}`),
 			}}
-			svc := &OpenAIGatewayService{cfg: &config.Config{}, cache: &starframeTestCache{}, httpUpstream: upstream}
+			svc := &OpenAIGatewayService{cfg: &config.Config{}, starframeVideos: &starframeMemoryStore{}, cache: &starframeTestCache{}, httpUpstream: upstream}
 			account := starframeTestAccount()
 			owner := StarframeVideoOwner{UserID: 10, APIKeyID: 20, GroupID: 30}
 			body := []byte(`{"model":"ch-custom","prompt":"waves","mode":"references","client_task_id":"order-1","duration":10,"resolution":"720p"}`)

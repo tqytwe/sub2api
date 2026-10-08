@@ -269,6 +269,8 @@ func RegisterGatewayRoutes(
 			}
 			h.Gateway.Messages(c)
 		})
+		// System One carries only JSON text, so it uses the text body limit.
+		gateway.POST("/systemone", textBodyLimit, h.Gateway.SystemOne)
 		// /v1/messages/count_tokens: OpenAI bridges upstream, Grok estimates
 		// locally, and Anthropic-compatible platforms retain their existing path.
 		gateway.POST("/messages/count_tokens", countTokensHandler)
@@ -351,6 +353,11 @@ func RegisterGatewayRoutes(
 		gateway.GET("/videos/:request_id", videoStatusHandler)
 		gateway.GET("/videos/:request_id/content", videoContentHandler)
 
+		// Standard OpenAI Audio API endpoints
+		gateway.POST("/audio/speech", h.OpenAIGateway.AudioSpeech)
+		gateway.POST("/audio/transcriptions", h.OpenAIGateway.AudioTranscriptions)
+		gateway.POST("/audio/translations", h.OpenAIGateway.AudioTranslations)
+
 		voiceHandler := func(endpoint string) gin.HandlerFunc {
 			return func(c *gin.Context) {
 				if getGroupPlatform(c) != service.PlatformGrok {
@@ -377,14 +384,7 @@ func RegisterGatewayRoutes(
 		gateway.GET("/custom-voices/:voice_id", customVoicePathHandler)
 		gateway.PATCH("/custom-voices/:voice_id", customVoicePathHandler)
 		gateway.DELETE("/custom-voices/:voice_id", customVoicePathHandler)
-		gateway.GET("/realtime", func(c *gin.Context) {
-			if getGroupPlatform(c) != service.PlatformGrok {
-				service.MarkOpsClientBusinessLimited(c, service.OpsClientBusinessLimitedReasonLocalFeatureGate)
-				c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"type": "not_found_error", "message": "Realtime API is not supported for this platform"}})
-				return
-			}
-			h.OpenAIGateway.GrokRealtime(c)
-		})
+		gateway.GET("/realtime", h.OpenAIGateway.Realtime)
 	}
 
 	// Gemini 原生 API 兼容层（Gemini SDK/CLI 直连）
@@ -515,14 +515,7 @@ func RegisterGatewayRoutes(
 	r.GET("/custom-voices/:voice_id", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), compositeTarget, requireGroupAnthropic, rootCustomVoicePathHandler)
 	r.PATCH("/custom-voices/:voice_id", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), compositeTarget, requireGroupAnthropic, rootCustomVoicePathHandler)
 	r.DELETE("/custom-voices/:voice_id", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), compositeTarget, requireGroupAnthropic, rootCustomVoicePathHandler)
-	r.GET("/realtime", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), groupModelAllowlist, compositeTarget, requireGroupAnthropic, func(c *gin.Context) {
-		if getGroupPlatform(c) != service.PlatformGrok {
-			service.MarkOpsClientBusinessLimited(c, service.OpsClientBusinessLimitedReasonLocalFeatureGate)
-			c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"type": "not_found_error", "message": "Realtime API is not supported for this platform"}})
-			return
-		}
-		h.OpenAIGateway.GrokRealtime(c)
-	})
+	r.GET("/realtime", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), groupModelAllowlist, compositeTarget, requireGroupAnthropic, h.OpenAIGateway.Realtime)
 
 	// Antigravity 模型列表
 	r.GET("/antigravity/models", gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, h.Gateway.AntigravityModels)

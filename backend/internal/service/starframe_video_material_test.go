@@ -21,7 +21,7 @@ func TestStarframeMaterialValidationBeforeSubmissionClaim(t *testing.T) {
 	} {
 		upstream := &grokMediaContentUpstreamStub{response: grokMediaContentStatusResponse(`{"id":"task-1"}`)}
 		cache := &starframeTestCache{}
-		svc := &OpenAIGatewayService{cfg: &config.Config{}, cache: cache, httpUpstream: upstream}
+		svc := &OpenAIGatewayService{cfg: &config.Config{}, starframeVideos: &starframeMemoryStore{}, cache: cache, httpUpstream: upstream}
 		body := []byte(`{"model":"ch-custom","prompt":"waves","mode":"references","client_task_id":"order-1","duration":10,"resolution":"720p","references":` + refs + `}`)
 		c, _ := grokMediaContentTestContext(http.MethodPost, "/v1/videos", nil)
 		_, err := svc.ForwardStarframeVideo(context.Background(), c, starframeTestAccount(), AgnesVideoEndpointCreate, nil, body, StarframeVideoOwner{UserID: 10, APIKeyID: 20, GroupID: 30}, starframeTestBilling(body))

@@ -24,7 +24,6 @@ const (
 	OpenAIEndpointCapabilityAgnesVideo OpenAIEndpointCapability = "agnes_video"
 	AgnesVideoEndpointContent          AgnesVideoEndpoint       = "content"
 	starframeTaskTTL                                            = 24 * time.Hour
-	starframeSubmissionTTL                                      = 48 * time.Hour
 )
 
 type StarframeVideoOwner struct {
@@ -166,18 +165,17 @@ func starframeTaskCacheKey(localID string, owner StarframeVideoOwner) string {
 }
 
 func (s *OpenAIGatewayService) LoadStarframeVideoTask(ctx context.Context, id string, owner StarframeVideoOwner) (*StarframeVideoTask, error) {
-	if s == nil || s.cache == nil || !IsStarframeVideoID(id) || !isSafeUpstreamPathSegment(id) || owner.UserID <= 0 || owner.APIKeyID <= 0 || owner.GroupID <= 0 {
+	if s == nil || s.starframeVideos == nil || !IsStarframeVideoID(id) || !isSafeUpstreamPathSegment(id) || owner.UserID <= 0 || owner.APIKeyID <= 0 || owner.GroupID <= 0 {
 		return nil, fmt.Errorf("StarFrame task binding unavailable or invalid")
 	}
-	body, err := s.cache.GetGrokVideoPendingBilling(ctx, starframeTaskCacheKey(id, owner))
+	task, err := s.starframeVideos.Get(ctx, id, owner)
 	if err != nil {
 		return nil, err
 	}
-	var task StarframeVideoTask
-	if len(body) == 0 || json.Unmarshal(body, &task) != nil || task.Owner != owner || task.LocalID != id || task.AccountID <= 0 || len(task.UpstreamKeyFingerprint) != 64 || !isSafeUpstreamPathSegment(task.UpstreamID) {
-		return nil, fmt.Errorf("StarFrame task binding not found or expired (24 hour retention)")
+	if task == nil || task.Owner != owner || task.LocalID != id || task.AccountID <= 0 || len(task.UpstreamKeyFingerprint) != 64 || !isSafeUpstreamPathSegment(task.UpstreamID) {
+		return nil, fmt.Errorf("StarFrame task binding unavailable")
 	}
-	return &task, nil
+	return task, nil
 }
 
 // ForwardStarframeVideo never follows response URLs or retries a submitted create.
@@ -199,8 +197,8 @@ func (s *OpenAIGatewayService) ForwardStarframeVideo(ctx context.Context, c *gin
 		if err != nil {
 			return nil, err
 		}
-		if owner.UserID <= 0 || owner.APIKeyID <= 0 || owner.GroupID <= 0 || s.cache == nil {
-			return nil, fmt.Errorf("StarFrame submission requires an available owner binding cache")
+		if owner.UserID <= 0 || owner.APIKeyID <= 0 || owner.GroupID <= 0 || s.starframeVideos == nil {
+			return nil, fmt.Errorf("StarFrame submission requires an available persistent submission ledger")
 		}
 		if len(billing) != 1 || !validStarframeVideoBilling(info, billing[0]) {
 			return nil, fmt.Errorf("StarFrame creation requires a valid explicit billing snapshot")
@@ -234,15 +232,16 @@ func (s *OpenAIGatewayService) ForwardStarframeVideo(ctx context.Context, c *gin
 		return nil, fmt.Errorf("StarFrame original upstream API key changed or fingerprint is missing")
 	}
 	if endpoint == AgnesVideoEndpointCreate {
-		claimKey := fmt.Sprintf("starframe-submit:%d:%d:%d:%s", owner.GroupID, owner.UserID, owner.APIKeyID, info.ClientTaskID)
-		claimed, claimErr := s.cache.ClaimGrokVideoBilled(ctx, claimKey, starframeSubmissionTTL)
+		task = &StarframeVideoTask{Owner: owner, LocalID: "sfv_" + uuid.NewString(), AccountID: account.ID, BaseURL: base, Model: info.Model, ClientTaskID: info.ClientTaskID, UpstreamModel: upstreamModel, Duration: info.Duration, Resolution: info.Resolution, UpstreamKeyFingerprint: starframeUpstreamKeyFingerprint(token), Billing: billing[0]}
+		claimed, claimErr := s.starframeVideos.Claim(ctx, task)
 		if claimErr != nil {
-			return nil, fmt.Errorf("StarFrame submission claim unavailable")
+			return nil, fmt.Errorf("StarFrame persistent submission claim unavailable: %w", claimErr)
 		}
 		if !claimed {
-			writeAgnesVideoErrorResponse(c, http.StatusConflict, "starframe_submission_already_attempted", "This client_task_id was already submitted or has an unknown outcome (48 hour retention); query the original task or reconcile with the upstream")
+			writeAgnesVideoErrorResponse(c, http.StatusConflict, "starframe_submission_already_attempted", "This client_task_id was already attempted; query the original task or reconcile the unknown outcome. Do not submit a new ID.")
 			return nil, fmt.Errorf("StarFrame submission already attempted")
 		}
+
 	}
 	started := time.Now()
 	requestCtx := WithHTTPUpstreamRedirectsDisabled(WithStarframeVideoRequest(ctx))
@@ -297,15 +296,18 @@ func (s *OpenAIGatewayService) ForwardStarframeVideo(ctx context.Context, c *gin
 		if id.Type != gjson.String || !isSafeUpstreamPathSegment(id.String()) {
 			return nil, fmt.Errorf("StarFrame create response missing valid task ID; submission outcome unknown")
 		}
-		task = &StarframeVideoTask{Owner: owner, LocalID: "sfv_" + uuid.NewString(), UpstreamID: id.String(), AccountID: account.ID, BaseURL: base, Model: info.Model, ClientTaskID: info.ClientTaskID, UpstreamModel: upstreamModel, Duration: info.Duration, Resolution: info.Resolution, UpstreamKeyFingerprint: starframeUpstreamKeyFingerprint(token), Billing: billing[0]}
-		binding, marshalErr := json.Marshal(task)
-		if marshalErr != nil {
-			return nil, marshalErr
+		task.UpstreamID = id.String()
+		persistCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
+		defer cancel()
+		if err := s.starframeVideos.Complete(persistCtx, task); err != nil {
+			writeAgnesVideoErrorResponse(c, http.StatusBadGateway, "starframe_task_binding_failed", "Upstream may have accepted the task; reconcile the original submission, never resubmit with a new ID")
+			return nil, fmt.Errorf("StarFrame task binding failed after submission: %w", err)
 		}
-		if err := s.cache.SetGrokVideoPendingBilling(ctx, starframeTaskCacheKey(task.LocalID, owner), binding, starframeTaskTTL); err != nil {
-			writeAgnesVideoErrorResponse(c, http.StatusBadGateway, "starframe_task_binding_failed", "Upstream may have accepted the task but local binding failed; do not resubmit with a new client_task_id, reconcile with the upstream")
-			return nil, fmt.Errorf("StarFrame task binding failed after submission")
+		if s.cache != nil {
+			binding, _ := json.Marshal(task)
+			_ = s.cache.SetGrokVideoPendingBilling(persistCtx, starframeTaskCacheKey(task.LocalID, owner), binding, starframeTaskTTL)
 		}
+
 		result.Model, result.BillingModel, result.UpstreamModel = info.Model, info.Model, upstreamModel
 		result.ResponseID = task.LocalID
 		result.RequestID = fmt.Sprintf("starframe-video:%d:%s", account.ID, task.UpstreamID)
