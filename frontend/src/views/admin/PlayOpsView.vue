@@ -62,6 +62,7 @@
       <ArenaRewardSettings v-if="activeTab === 'arena'" />
       <BlindboxPoolEditor v-if="activeTab === 'blindbox'" />
       <TeamRewardSettings v-if="activeTab === 'team-rewards'" />
+      <CheckinMilestoneEditor v-if="activeTab === 'checkin'" />
 
       <section v-if="activeTab === 'feedback'" class="card">
         <div
@@ -1505,6 +1506,7 @@ import AdminAppAnalyticsOperations from "@/components/admin/play/AdminAppAnalyti
 import BlindboxPoolEditor from "@/components/admin/play/BlindboxPoolEditor.vue";
 import TeamRewardSettings from "@/components/admin/play/TeamRewardSettings.vue";
 import ArenaRewardSettings from "@/components/admin/play/ArenaRewardSettings.vue";
+import CheckinMilestoneEditor from "@/components/admin/play/CheckinMilestoneEditor.vue";
 import MobileReleaseManager from "@/components/admin/play/MobileReleaseManager.vue";
 import Icon from "@/components/icons/Icon.vue";
 import BaseDialog from "@/components/common/BaseDialog.vue";
@@ -1547,6 +1549,7 @@ type PlayOpsTab =
   | "app-analytics"
   | "feedback"
   | "quiz"
+  | "checkin"
   | "mobile-releases";
 
 const tabKeys: PlayOpsTab[] = [
@@ -1556,6 +1559,7 @@ const tabKeys: PlayOpsTab[] = [
   "arena",
   "blindbox",
   "team-rewards",
+  "checkin",
   "invite-growth",
   "growth-governance",
   "teams",

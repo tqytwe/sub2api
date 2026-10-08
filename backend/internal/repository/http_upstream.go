@@ -447,6 +447,7 @@ func isGrokCLICompatibilityAccessDenied(body []byte) bool {
 
 func isGrokCLIAccessDeniedFallbackCandidate(req *http.Request, resp *http.Response) bool {
 	return req != nil && req.URL != nil && req.GetBody != nil && resp != nil &&
+		!service.IsStarframeVideoRequest(req.Context()) &&
 		resp.StatusCode == http.StatusForbidden &&
 		strings.EqualFold(strings.TrimSpace(req.URL.Hostname()), grokCLIProxyHost) &&
 		strings.EqualFold(strings.TrimSpace(req.Header.Get("X-XAI-Token-Auth")), "xai-grok-cli") &&
@@ -523,7 +524,7 @@ type prefixedReadCloser struct {
 // validation; transport is stricter so we never silently advertise an older pin
 // than the binary default.
 func applyGrokCLIProxyHeaders(req *http.Request) {
-	if req == nil || req.URL == nil || !strings.EqualFold(strings.TrimSpace(req.URL.Hostname()), grokCLIProxyHost) {
+	if req == nil || req.URL == nil || service.IsStarframeVideoRequest(req.Context()) || !strings.EqualFold(strings.TrimSpace(req.URL.Hostname()), grokCLIProxyHost) {
 		return
 	}
 	if req.Header == nil {

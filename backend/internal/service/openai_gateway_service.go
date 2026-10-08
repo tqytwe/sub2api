@@ -292,6 +292,8 @@ type OpenAIForwardResult struct {
 	ImageSizeSource       string
 	ImageSizeBreakdown    map[string]int
 	VideoCount            int
+	// StarFrame pins explicit group video pricing before any upstream submission.
+	StarframeVideoBilling *StarframeVideoBilling
 	VideoResolution       string
 	// VideoDurationSeconds 是提交时请求的生成时长（xAI 按输出秒数计费），已归一化到 1-15 秒。
 	VideoDurationSeconds int
@@ -443,6 +445,7 @@ var ErrNoAvailableCompactAccounts = errors.New("no available accounts support /r
 
 // OpenAIGatewayService handles OpenAI API gateway operations
 type OpenAIGatewayService struct {
+	starframeVideos       StarframeVideoRepository
 	accountRepo           AccountRepository
 	usageLogRepo          UsageLogRepository
 	usageBillingRepo      UsageBillingRepository
@@ -624,6 +627,7 @@ func NewOpenAIGatewayServiceWithLiveBilling(
 	userPlatformQuotaRepo UserPlatformQuotaRepository,
 	apiKeyService *APIKeyService,
 	liveSettlementOutbox LiveSettlementOutboxRepository,
+	starframeVideos StarframeVideoRepository,
 ) *OpenAIGatewayService {
 	svc := NewOpenAIGatewayService(
 		accountRepo,
@@ -651,6 +655,7 @@ func NewOpenAIGatewayServiceWithLiveBilling(
 	)
 	svc.SetLiveBillingAPIKeyService(apiKeyService)
 	svc.SetLiveSettlementOutbox(liveSettlementOutbox)
+	svc.starframeVideos = starframeVideos
 	return svc
 }
 

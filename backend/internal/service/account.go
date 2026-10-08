@@ -1859,6 +1859,20 @@ func (a *Account) SupportsOpenAIEndpointCapability(capability OpenAIEndpointCapa
 	if a == nil {
 		return false
 	}
+	if capability == OpenAIEndpointCapabilityStarframe {
+		configured, _ := a.openAIEndpointCapabilitySet()
+		return configured["starframe"] && a.Platform == PlatformOpenAI && a.Type == AccountTypeAPIKey &&
+			a.GetCredential("video_protocol") == "starframe" && strings.TrimSpace(a.GetCredential("base_url")) != ""
+	}
+	if capability == OpenAIEndpointCapabilityVideos {
+		if a.GetCredential("video_protocol") == "starframe" {
+			return a.SupportsOpenAIEndpointCapability(OpenAIEndpointCapabilityStarframe)
+		}
+		return a.SupportsOpenAIEndpointCapability(OpenAIEndpointCapabilityAgnesVideo)
+	}
+	if capability == OpenAIEndpointCapabilityAgnesVideo {
+		return a.Platform == PlatformOpenAI && (a.GetCredential("video_protocol") == "" || a.GetCredential("video_protocol") == "agnes")
+	}
 	if capability == OpenAIEndpointCapabilitySeedance {
 		configured, _ := a.openAIEndpointCapabilitySet()
 		return configured["seedance"] && a.Platform == PlatformOpenAI && a.Type == AccountTypeAPIKey &&

@@ -11,6 +11,17 @@ import type {
 
 export type { PlayBlindboxPool, PlayBlindboxPoolTier } from "../play";
 
+export interface AdminCheckinMilestone {
+  days: number;
+  bonus: number;
+}
+
+export interface AdminCheckinMilestoneSettings {
+  milestones: AdminCheckinMilestone[];
+  makeup_enabled: boolean;
+}
+
+
 export async function getBlindboxPool(): Promise<PlayBlindboxPool> {
   const { data } = await apiClient.get<PlayBlindboxPool>(
     "/admin/play/blindbox/pool",
@@ -856,6 +867,23 @@ export async function updateArenaRewardSettings(
   return data;
 }
 
+export async function getCheckinMilestoneSettings(): Promise<AdminCheckinMilestoneSettings> {
+  const { data } = await apiClient.get<AdminCheckinMilestoneSettings>(
+    "/admin/play/checkin/milestones",
+  );
+  return data;
+}
+
+export async function updateCheckinMilestoneSettings(
+  settings: AdminCheckinMilestoneSettings,
+): Promise<AdminCheckinMilestoneSettings> {
+  const { data } = await apiClient.put<AdminCheckinMilestoneSettings>(
+    "/admin/play/checkin/milestones",
+    settings,
+  );
+  return data;
+}
+
 export async function getSummary(): Promise<AdminPlayOpsSummary> {
   const { data } = await apiClient.get<AdminPlayOpsSummary>(
     "/admin/play/summary",
@@ -1345,6 +1373,8 @@ export const adminPlayAPI = {
   publishMobileRelease,
   pauseMobileRelease,
   retireMobileRelease,
+  getCheckinMilestoneSettings,
+  updateCheckinMilestoneSettings,
 };
 
 export default adminPlayAPI;
