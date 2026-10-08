@@ -313,6 +313,7 @@ export default {
     },
     tabsLabel: "玩法运营模块",
     tabs: {
+      checkin: "签到与答题",
       overview: "运营总览",
       membership: "会员运营",
       campaigns: "限时活动",

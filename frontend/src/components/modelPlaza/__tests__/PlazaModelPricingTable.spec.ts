@@ -59,6 +59,20 @@ function mountTable(
 
 describe('PlazaModelPricingTable', () => {
   it.each([
+    ['video', 'perSecond', 'perUnitSecond'],
+    ['image', 'perImage', 'perUnitImage'],
+    ['per_request', 'perRequest', 'perUnitRequest'],
+  ] as const)('renders %s with its own billing unit without changing price', (mode, label, suffix) => {
+    const model = tokenModel({ name: 'unit-test', official_pricing: null })
+    model.display_pricing!.billing_mode = mode
+    model.display_pricing!.per_request_price = 0.3
+    const wrapper = mountTable([model], 1)
+    expect(wrapper.text()).toContain(`modelPlaza.table.${label}`)
+    expect(wrapper.text()).toContain(`$0.30 modelPlaza.table.${suffix}`)
+    wrapper.unmount()
+  })
+
+  it.each([
     { enabled: true, multiplier: 1, userRate: 0.05, expected: 1 },
     { enabled: true, multiplier: 0.5, userRate: null, expected: 0.5 },
     { enabled: true, multiplier: 0, userRate: 0.05, expected: 0 },

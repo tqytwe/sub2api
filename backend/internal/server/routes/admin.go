@@ -261,6 +261,8 @@ func registerAdminPlayRoutes(admin *gin.RouterGroup, h *handler.Handlers, stepUp
 		play.GET("/arena/rewards", h.Admin.Play.GetArenaRewardSettings)
 		play.PUT("/arena/rewards", gin.HandlerFunc(stepUpAuth), h.Admin.Play.UpdateArenaRewardSettings)
 		play.POST("/arena/settle", gin.HandlerFunc(stepUpAuth), h.Admin.Play.ArenaSettle)
+		play.GET("/checkin/milestones", h.Admin.Play.GetCheckinMilestoneSettings)
+		play.PUT("/checkin/milestones", gin.HandlerFunc(stepUpAuth), h.Admin.Play.UpdateCheckinMilestoneSettings)
 		play.GET("/mobile-feedback", h.Admin.Play.ListMobileFeedback)
 		play.GET("/mobile-feedback/:id", h.Admin.Play.GetMobileFeedback)
 		play.PATCH("/mobile-feedback/:id", h.Admin.Play.UpdateMobileFeedback)

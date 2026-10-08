@@ -326,6 +326,7 @@ export default {
     },
     tabsLabel: "Play Ops modules",
     tabs: {
+      checkin: "Check-in & Quiz",
       overview: "Operations overview",
       membership: "Membership",
       campaigns: "Limited events",
