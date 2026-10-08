@@ -119,7 +119,8 @@ Desktop-first, tablet-acceptable, mobile-not-required per internal tooling guide
     "saving"
   ],
   "viewports": [
-    "1280x900"
+    "1280x900",
+    "1920x1080"
   ],
   "artifact_mode": "static-review-board",
   "prototype_artifacts": ["docs/visual-reviews/assets/play-v2-unification/play-visual-system-v2.png"],
@@ -134,6 +135,10 @@ Desktop-first, tablet-acceptable, mobile-not-required per internal tooling guide
     "keyboard": {
       "status": "passed",
       "reason": "Table inputs and buttons follow standard keyboard navigation. ARIA labels present."
+    },
+    "reduced_motion": {
+      "status": "passed",
+      "reason": "Only transient loading/saving spinners with design-governance-allow exemptions. No persistent animations."
     },
     "screen_reader": {
       "status": "not_tested",
