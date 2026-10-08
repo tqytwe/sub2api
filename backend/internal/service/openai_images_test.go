@@ -783,6 +783,65 @@ func TestOpenAIGatewayServiceImagesRoutesGeminiImageModelToNativeEndpoint(t *tes
 	require.Equal(t, 1, result.ImageCount)
 }
 
+func TestOpenAIGatewayServiceImagesMixedGeminiInlineAliasesKeepResponseUsageAndBillingInSync(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	body := []byte(`{"model":"gemini-3.1-flash-image-preview","prompt":"draw three cards","size":"1024x1024","n":1}`)
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/images/generations", bytes.NewReader(body))
+	c.Request.Header.Set("Content-Type", "application/json")
+	upstream := &httpUpstreamRecorder{resp: &http.Response{
+		StatusCode: http.StatusOK,
+		Header:     http.Header{"Content-Type": []string{"application/json"}},
+		Body: io.NopCloser(strings.NewReader(`{
+			"candidates":[{"content":{"parts":[
+				{"inlineData":{"mimeType":"image/png","data":"Y2FtZWw="}},
+				{"inline_data":{"mime_type":"image/webp","data":"c25ha2U="}},
+				{"inlineData":{"mimeType":"image/jpeg","data":"cHJlZmVycmVk"},"inline_data":{"mime_type":"image/jpeg","data":"aWdub3JlZA=="}}
+			]}}]
+		}`)),
+	}}
+	forwarder := &OpenAIGatewayService{cfg: &config.Config{}, httpUpstream: upstream}
+	parsed, err := forwarder.ParseOpenAIImagesRequest(c, body)
+	require.NoError(t, err)
+
+	result, err := forwarder.ForwardImages(
+		context.Background(),
+		c,
+		&Account{ID: 42, Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Credentials: map[string]any{
+			"api_key":  "sk-test",
+			"base_url": "https://byteclaude.io/v1",
+		}},
+		body,
+		parsed,
+		"",
+	)
+	require.NoError(t, err)
+	require.Equal(t, 3, result.ImageCount, "billing input must match the three actual image parts")
+	require.Equal(t, int64(3), gjson.Get(rec.Body.String(), "data.#").Int(), "response must expose every image part")
+	require.Equal(t, "image/webp", gjson.Get(rec.Body.String(), "data.1.mime_type").String(), "snake_case MIME alias must survive conversion")
+	require.Equal(t, "cHJlZmVycmVk", gjson.Get(rec.Body.String(), "data.2.b64_json").String(), "a part with both aliases is one image and prefers inlineData")
+
+	imagePrice := 0.02
+	usageRepo := &openAIRecordUsageLogRepoStub{inserted: true}
+	userRepo := &openAIRecordUsageUserRepoStub{}
+	usageService := newOpenAIRecordUsageServiceForTest(usageRepo, userRepo, &openAIRecordUsageSubRepoStub{}, nil)
+	err = usageService.RecordUsage(context.Background(), &OpenAIRecordUsageInput{
+		Result:  result,
+		APIKey:  &APIKey{ID: 1, GroupID: i64p(1), Group: &Group{ID: 1, RateMultiplier: 1, ImagePrice1K: &imagePrice}},
+		User:    &User{ID: 2},
+		Account: &Account{ID: 42},
+	})
+	require.NoError(t, err)
+	require.NotNil(t, usageRepo.lastLog)
+	require.Equal(t, 3, usageRepo.lastLog.ImageCount)
+	require.InDelta(t, 0.06, usageRepo.lastLog.TotalCost, 1e-12)
+	require.InDelta(t, 0.06, usageRepo.lastLog.ActualCost, 1e-12)
+	require.Equal(t, 1, userRepo.deductCalls)
+	require.InDelta(t, 0.06, userRepo.lastAmount, 1e-12)
+}
+
 func TestOpenAIGatewayServiceImagesFansOutGeminiAndAddsActualMetadata(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 

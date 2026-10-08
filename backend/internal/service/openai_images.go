@@ -1555,29 +1555,29 @@ func convertGeminiNativeImageResponseToOpenAIImages(respBody []byte) ([]byte, in
 			return
 		}
 		item := map[string]any{"b64_json": b64}
-		if mimeType := strings.TrimSpace(inline.Get("mimeType").String()); mimeType != "" {
+		mimeType := strings.TrimSpace(inline.Get("mimeType").String())
+		if mimeType == "" {
+			mimeType = strings.TrimSpace(inline.Get("mime_type").String())
+		}
+		if mimeType != "" {
 			item["mime_type"] = mimeType
 		}
 		data = append(data, item)
 	}
-	// Try camelCase format first (inlineData)
-	gjson.GetBytes(respBody, "candidates.#.content.parts.#.inlineData").ForEach(func(_, candidate gjson.Result) bool {
-		candidate.ForEach(func(_, inline gjson.Result) bool {
+	// Gemini REST usually returns inlineData while some SDKs and proxies return
+	// inline_data. Resolve the alias per part: a part containing both aliases is
+	// one image, but later parts are free to use the other spelling.
+	gjson.GetBytes(respBody, "candidates").ForEach(func(_, candidate gjson.Result) bool {
+		candidate.Get("content.parts").ForEach(func(_, part gjson.Result) bool {
+			inline := part.Get("inlineData")
+			if !inline.Exists() {
+				inline = part.Get("inline_data")
+			}
 			appendInline(inline)
 			return true
 		})
 		return true
 	})
-	// Only try snake_case format (inline_data) if no images found in camelCase
-	if len(data) == 0 {
-		gjson.GetBytes(respBody, "candidates.#.content.parts.#.inline_data").ForEach(func(_, candidate gjson.Result) bool {
-			candidate.ForEach(func(_, inline gjson.Result) bool {
-				appendInline(inline)
-				return true
-			})
-			return true
-		})
-	}
 	if len(data) == 0 {
 		return nil, 0, fmt.Errorf("gemini image response contained no image data")
 	}
