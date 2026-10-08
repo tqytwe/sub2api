@@ -1546,6 +1546,7 @@ func buildOpenAICompatibleGeminiImageBody(ctx context.Context, parsed *OpenAIIma
 
 func convertGeminiNativeImageResponseToOpenAIImages(respBody []byte) ([]byte, int, error) {
 	data := make([]map[string]any, 0)
+	seen := make(map[string]bool)
 	appendInline := func(inline gjson.Result) {
 		if !inline.Exists() {
 			return
@@ -1554,6 +1555,12 @@ func convertGeminiNativeImageResponseToOpenAIImages(respBody []byte) ([]byte, in
 		if b64 == "" {
 			return
 		}
+		// Deduplicate by b64 data to prevent double-counting when Gemini
+		// response contains both inlineData and inline_data fields
+		if seen[b64] {
+			return
+		}
+		seen[b64] = true
 		item := map[string]any{"b64_json": b64}
 		if mimeType := strings.TrimSpace(inline.Get("mimeType").String()); mimeType != "" {
 			item["mime_type"] = mimeType
