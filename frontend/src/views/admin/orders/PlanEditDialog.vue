@@ -368,9 +368,14 @@ const subscriptionCnyPreview = computed(() => {
   }
 })
 
-// Reset form when dialog opens
+let initializingPlan = false
+let initialPlanPayload: Record<string, unknown> = {}
+
+// Snapshot the initialized form, including display fallbacks for old responses.
+// Those fallbacks must never become writes unless the administrator edits them.
 watch(() => props.show, (visible) => {
   if (!visible) return
+  initializingPlan = true
   if (props.plan) {
     Object.assign(planForm, {
       name: props.plan.name,
@@ -379,8 +384,8 @@ watch(() => props.show, (visible) => {
       product_name: props.plan.product_name || '',
       cover_image_url: props.plan.cover_image_url || '',
       detail_description: props.plan.detail_description || '',
-      storefront_platform: props.plan.storefront_platform || groupPlatformForPlan(props.plan),
-      storefront_category: props.plan.storefront_category || inferStorefrontCategory(props.plan),
+      storefront_platform: props.plan.storefront_platform ?? groupPlatformForPlan(props.plan),
+      storefront_category: props.plan.storefront_category ?? inferStorefrontCategory(props.plan),
       storefront_featured: props.plan.storefront_featured === true,
       storefront_badge: props.plan.storefront_badge || '',
       price: props.plan.price,
@@ -420,15 +425,18 @@ watch(() => props.show, (visible) => {
     })
     planFeaturesText.value = ''
   }
+  initialPlanPayload = buildPlanPayload()
+  initializingPlan = false
 }, { immediate: true })
 
 watch(() => planForm.group_id, (newGroupId, oldGroupId) => {
+  if (initializingPlan) return
   const nextGroup = props.groups.find(group => group.id === newGroupId)
   const previousGroup = props.groups.find(group => group.id === oldGroupId)
   if (nextGroup?.platform && (!planForm.storefront_platform || planForm.storefront_platform === previousGroup?.platform)) {
     planForm.storefront_platform = nextGroup.platform
   }
-})
+}, { flush: 'sync' })
 
 /** Build request payload with snake_case keys matching backend JSON tags */
 function buildPlanPayload() {
@@ -488,7 +496,14 @@ async function handleSavePlan() {
   saving.value = true
   try {
     const data = buildPlanPayload()
-    if (props.plan) { await adminPaymentAPI.updatePlan(props.plan.id, data) }
+    if (props.plan) {
+      // PUT already has patch semantics on the server: omission preserves data,
+      // while explicit empty strings, false, zero and quota clear flags apply.
+      const changes = Object.fromEntries(
+        Object.entries(data).filter(([key, value]) => value !== initialPlanPayload[key]),
+      )
+      await adminPaymentAPI.updatePlan(props.plan.id, changes)
+    }
     else { await adminPaymentAPI.createPlan(data) }
     appStore.showSuccess(t('common.saved'))
     emit('close')
