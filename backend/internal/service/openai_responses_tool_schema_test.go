@@ -1,9 +1,14 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
+	"os"
+	"os/exec"
+	"regexp"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"github.com/tidwall/gjson"
@@ -590,6 +595,25 @@ func buildToolSchemaNullTypeBody(t *testing.T, hits int) []byte {
 // gjson 解析数组和 result 元数据本身会随输入规模增加少量分配；那不是重复全量
 // 改写，因而不能要求大体与小体的分配次数完全相同。
 func TestSanitizeOpenAIResponsesToolParameterTypes_RewriteCountIndependentOfHits(t *testing.T) {
+	// AllocsPerRun reads process-wide Mallocs. Earlier service tests may leave
+	// logging/ticker goroutines alive, so measure in a fresh process containing
+	// only this test rather than relaxing the allocation bound for unrelated work.
+	const childEnv = "SUB2API_TOOL_SCHEMA_ALLOCS_CHILD"
+	if os.Getenv(childEnv) != t.Name() {
+		executable, err := os.Executable()
+		require.NoError(t, err)
+		ctx, cancel := context.WithTimeout(t.Context(), time.Minute)
+		defer cancel()
+		cmd := exec.CommandContext(ctx, executable,
+			"-test.run=^"+regexp.QuoteMeta(t.Name())+"$", "-test.count=1", "-test.v")
+		cmd.Env = append(os.Environ(), childEnv+"="+t.Name())
+		output, err := cmd.CombinedOutput()
+		require.NoError(t, err, "isolated allocation guard failed:\n%s", output)
+		require.Contains(t, string(output), "--- PASS: "+t.Name(), "allocation guard must actually execute")
+		t.Logf("isolated allocation guard:\n%s", output)
+		return
+	}
+
 	small := buildToolSchemaNullTypeBody(t, 4)
 	large := buildToolSchemaNullTypeBody(t, 2000)
 
@@ -600,9 +624,11 @@ func TestSanitizeOpenAIResponsesToolParameterTypes_RewriteCountIndependentOfHits
 		_, _, _ = sanitizeOpenAIResponsesToolParameterTypes(large)
 	})
 
+	t.Logf("isolated allocations: small=%v large=%v", smallAllocs, largeAllocs)
+
 	// 命中切片扩容是对数级，留出充裕余量；线性写法在这里会是 2000 量级。
-	// 干净环境实测 large 约 17 allocs，200 是 10 倍余量，同时容忍 CI 慢 pod 上
-	// 包内后台 goroutine（日志/ticker）对进程级 Mallocs 的噪声污染。
+	// 干净环境实测 large 约 17 allocs，200 是 10 倍余量；隔离进程排除其他测试
+	// 后台 goroutine 对进程级 Mallocs 的污染，保持原有复杂度阈值不变。
 	require.Less(t, largeAllocs, 200.0,
 		"分配次数随命中数线性增长，说明退回了逐路径全量重写 (small=%v large=%v)", smallAllocs, largeAllocs)
 

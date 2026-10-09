@@ -349,7 +349,7 @@ func (h *ImageStudioHandler) processWorkerItem(
 		return nil, 0, service.ErrImageStudioAPIKey
 	}
 	requestID := fmt.Sprintf("image-studio:%s:%s", job.ID, item.ID)
-	ctx = context.WithValue(ctx, ctxkey.ClientRequestID, requestID)
+	ctx = imageWorkerBillingContext(ctx, requestID)
 	ctx = service.WithImageStudioBillingActualCostCap(
 		ctx,
 		service.ImageStudioPerItemBillingCap(job),
