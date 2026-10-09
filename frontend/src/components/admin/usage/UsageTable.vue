@@ -217,6 +217,7 @@
               <!-- Cost Detail Tooltip -->
               <div
                 class="group relative"
+                data-testid="usage-cost-help"
                 @mouseenter="showTooltip($event, row)"
                 @mouseleave="hideTooltip"
               >
@@ -247,6 +248,20 @@
               <span v-else class="text-gray-400 dark:text-gray-500">-</span>
               <span class="text-gray-400 dark:text-gray-500">{{ t('usage.latencyDuration') }}</span>
               <span class="font-medium tabular-nums" :class="LATENCY_TEXT_CLASSES[durationSeverity(row.duration_ms ?? 0)]">{{ formatDuration(row.duration_ms) }}</span>
+              <span class="inline-flex items-center text-gray-400 dark:text-gray-500">
+                {{ t('usage.outputTps') }}
+                <HelpTooltip trigger="click" :content="t('usage.outputTpsNote')">
+                  <template #trigger>
+                    <button
+                      type="button"
+                      data-testid="usage-output-tps-help"
+                      class="rounded p-0.5 transition-colors hover:text-primary-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 dark:hover:text-primary-400"
+                      :aria-label="t('usage.outputTpsHelp')"
+                    ><Icon name="infoCircle" size="xs" /></button>
+                  </template>
+                </HelpTooltip>
+              </span>
+              <span data-testid="usage-output-tps" class="font-medium tabular-nums text-gray-600 dark:text-gray-300">{{ formatUsageOutputTps(row) ?? '—' }}</span>
             </div>
           </div>
         </template>
@@ -397,6 +412,7 @@
   <Teleport to="body">
     <div
       v-if="tooltipVisible"
+      data-testid="usage-cost-tooltip"
       class="fixed z-[9999] pointer-events-none -translate-y-1/2"
       :style="{
         left: tooltipPosition.x + 'px',
@@ -563,6 +579,7 @@ import { formatDateTime, formatReasoningEffort, reasoningEffortValuesEqual } fro
 import { formatCacheTokens, formatMultiplier } from '@/utils/formatters'
 import { formatTokenPricePerMillion } from '@/utils/usagePricing'
 import { getUsageServiceTierLabel } from '@/utils/usageServiceTier'
+import { formatUsageOutputTps } from '@/utils/usageTps'
 import { resolveUsageRequestType } from '@/utils/usageRequestType'
 import {
   LATENCY_BAR_CLASSES,
@@ -613,6 +630,7 @@ function videoBillingUnits(row: Pick<AdminUsageLog, 'video_count' | 'video_durat
 
 
 import DataTable from '@/components/common/DataTable.vue'
+import HelpTooltip from '@/components/common/HelpTooltip.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import IpGeoCell from '@/components/common/IpGeoCell.vue'
 import Icon from '@/components/icons/Icon.vue'

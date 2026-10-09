@@ -96,6 +96,7 @@ const DataTableStub = {
         <slot name="cell-billing_mode" :row="row" />
         <slot name="cell-tokens" :row="row" />
         <slot name="cell-cost" :row="row" />
+        <slot name="cell-latency" :row="row" />
         <slot name="cell-request_id" :row="row" />
         <slot name="cell-upstream_request_id" :row="row" />
       </div>
@@ -132,6 +133,19 @@ const baseImageRow = {
 }
 
 describe('admin UsageTable tooltip', () => {
+  it('shows each record TPS for admin and user surfaces, and opens its definition by keyboard-accessible control', async () => {
+    for (const showAccountBilling of [true, false]) {
+      const wrapper = mount(UsageTable, {
+        props: { data: [{ ...baseImageRow, billing_mode: 'token', image_count: 0, output_tps: 20 }, { ...baseImageRow, request_id: 'missing', output_tps: null }] as any, columns: [{ key: 'latency', label: 'Latency' }], showAccountBilling },
+        global: { stubs: { DataTable: DataTableStub } },
+      })
+      expect(wrapper.findAll('[data-testid="usage-output-tps"]').map(node => node.text())).toEqual(['20.0 t/s', '—'])
+      await wrapper.get('[data-testid="usage-output-tps-help"]').trigger('click')
+      expect(wrapper.findComponent({ name: 'HelpTooltip' }).exists()).toBe(true)
+      wrapper.unmount()
+    }
+  })
+
   beforeEach(() => {
     vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
       x: 0,
@@ -210,7 +224,7 @@ describe('admin UsageTable tooltip', () => {
       },
     })
 
-    const tooltipTriggers = wrapper.findAll('.group.relative')
+    const tooltipTriggers = wrapper.findAll('[data-testid="usage-cost-help"]')
     await tooltipTriggers[tooltipTriggers.length - 1].trigger('mouseenter')
     await nextTick()
 
@@ -248,9 +262,9 @@ describe('admin UsageTable tooltip', () => {
       props: { data: [row], loading: false, columns: [] },
       global: { stubs: { DataTable: DataTableStub, EmptyState: true, Icon: true, Teleport: true } },
     })
-    const triggers = wrapper.findAll('.group.relative')
+    const triggers = wrapper.findAll('[data-testid="usage-cost-help"]')
     await triggers[triggers.length - 1].trigger('mouseenter')
-    const amounts = wrapper.get('.fixed').findAll('span').map(span => span.text())
+    const amounts = wrapper.get('[data-testid="usage-cost-tooltip"]').findAll('span').map(span => span.text())
     expect(amounts).toEqual(expect.arrayContaining([
       '$0.00000001', '$0.00000002', '$0.00000003', '$0.00000004',
       '$0.00000005', '$0.00000006', '$0.00000022', '$0.00000042', '$0.00000018',
@@ -268,9 +282,9 @@ describe('admin UsageTable tooltip', () => {
       },
       global: { stubs: { DataTable: DataTableStub, EmptyState: true, Icon: true, Teleport: true } },
     })
-    const triggers = wrapper.findAll('.group.relative')
+    const triggers = wrapper.findAll('[data-testid="usage-cost-help"]')
     await triggers[triggers.length - 1].trigger('mouseenter')
-    const amounts = wrapper.get('.fixed').findAll('span').map(span => span.text()).filter(text => text.startsWith('$'))
+    const amounts = wrapper.get('[data-testid="usage-cost-tooltip"]').findAll('span').map(span => span.text()).filter(text => text.startsWith('$'))
     expect(amounts).toEqual(['$0.00000000', '$0.00000000', '$0.00000000', '$0.00000000'])
     wrapper.unmount()
   })
@@ -422,7 +436,7 @@ describe('admin UsageTable tooltip', () => {
       },
     })
 
-    const tooltipTriggers = wrapper.findAll('.group.relative')
+    const tooltipTriggers = wrapper.findAll('[data-testid="usage-cost-help"]')
     await tooltipTriggers[tooltipTriggers.length - 1].trigger('mouseenter')
     await nextTick()
 
@@ -467,7 +481,7 @@ describe('admin UsageTable tooltip', () => {
       },
     })
 
-    await wrapper.find('.group.relative').trigger('mouseenter')
+    await wrapper.find('[data-testid="usage-cost-help"]').trigger('mouseenter')
     await nextTick()
 
     const text = wrapper.text()
@@ -505,7 +519,7 @@ describe('admin UsageTable tooltip', () => {
       },
     })
 
-    const tooltipTriggers = wrapper.findAll('.group.relative')
+    const tooltipTriggers = wrapper.findAll('[data-testid="usage-cost-help"]')
     await tooltipTriggers[tooltipTriggers.length - 1].trigger('mouseenter')
     await nextTick()
 
@@ -548,7 +562,7 @@ describe('admin UsageTable tooltip', () => {
 			},
 		})
 
-		const tooltipTriggers = wrapper.findAll('.group.relative')
+		const tooltipTriggers = wrapper.findAll('[data-testid="usage-cost-help"]')
 		await tooltipTriggers[tooltipTriggers.length - 1].trigger('mouseenter')
 		await nextTick()
 

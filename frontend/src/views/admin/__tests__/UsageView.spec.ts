@@ -96,7 +96,8 @@ vi.mock('@/stores/app', () => ({
   }),
 }))
 
-vi.mock('@/utils/format', () => ({
+vi.mock('@/utils/format', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/utils/format')>(),
   formatReasoningEffort: (value: string | null | undefined) => value ?? '-',
 }))
 
@@ -164,10 +165,10 @@ const GroupDistributionChartStub = {
   `,
 }
 
-const mountRouteFilteredUsageView = () => mount(UsageView, {
+const mountRouteFilteredUsageView = (realTable = false) => mount(UsageView, {
   global: { stubs: {
     AppLayout: AppLayoutStub, UsageStatsCards: true, UsageFilters: UsageFiltersStub,
-    UsageTable: true, UsageExportProgress: true, UsageCleanupDialog: true,
+    UsageTable: realTable ? false : true, UsageExportProgress: true, UsageCleanupDialog: true,
     UserBalanceHistoryModal: true, Pagination: true, Select: true,
     DateRangePicker: true, Icon: true, TokenUsageTrend: true,
     ModelDistributionChart: true, GroupDistributionChart: true,
@@ -176,6 +177,25 @@ const mountRouteFilteredUsageView = () => mount(UsageView, {
 })
 
 describe('admin UsageView route filters', () => {
+  it('renders per-record TPS in the real shared table and preserves missing historical values', async () => {
+    list.mockResolvedValueOnce({ items: [
+      { id: 1, request_id: 'one', model: 'gpt-5', output_tps: 20 },
+      { id: 2, request_id: 'two', model: 'gpt-5', output_tps: 50 },
+      { id: 3, request_id: 'history', model: 'gpt-5', output_tps: null },
+    ], total: 3, pages: 1 })
+    const wrapper = mountRouteFilteredUsageView(true)
+    vi.advanceTimersByTime(120)
+    await flushPromises()
+    expect(wrapper.findAll('[data-testid="usage-output-tps"]').map(node => node.text())).toEqual(['20.0 t/s', '50.0 t/s', '—'])
+    await wrapper.get('[data-testid="usage-output-tps-help"]').trigger('click')
+    const help = Array.from(document.querySelectorAll<HTMLElement>('[role="tooltip"]')).find(node => node.style.display !== 'none')
+    expect(help?.textContent).toContain('usage.outputTpsNote')
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+    await flushPromises()
+    expect(help?.style.display).toBe('none')
+    wrapper.unmount()
+  })
+
   beforeEach(() => {
     vi.useFakeTimers()
     Object.keys(routeQuery).forEach((key) => delete routeQuery[key])
@@ -754,6 +774,7 @@ describe('admin UsageView model audit export', () => {
 				cache_read_tokens: 0,
 				cache_creation_tokens: 0,
 				duration_ms: 10,
+				output_tps: 20,
 			}],
 			total: 1,
 			pages: 1,
@@ -797,6 +818,8 @@ describe('admin UsageView model audit export', () => {
 		])
 		const row = sheetAddAoa.mock.calls[0][1][0]
 		expect(row.slice(4, 8)).toEqual(['gpt-5.6-sol', 'gpt-5.5', 'gpt-5.4', 'Yes'])
+		expect(headers.at(-1)).toBe('usage.outputTps')
+		expect(row.at(-1)).toBe(20)
 		expect(saveAs).toHaveBeenCalledTimes(1)
 	})
 })

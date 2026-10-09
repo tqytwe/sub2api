@@ -153,6 +153,8 @@ docs/*
 !docs/README.md
 !docs/FORK_CUSTOMIZATIONS.md
 !docs/UPSTREAM_SYNC_PLAYBOOK.md
+!docs/upstream-migrations/
+!docs/upstream-migrations/**
 !docs/BEPUSDT_PREDEPLOY_CHECKLIST.md
 !docs/IMAGE_STUDIO.md
 !docs/GROWTH_PLAY.md
@@ -196,6 +198,10 @@ output/
 .claude/plans/myagents/
 .codegraph/
 issues/
+
+# Versioned, read-only upstream provenance checks.
+!scripts/check_upstream_release.py
+!scripts/test_upstream_release_check.py
 
 # Vitest / Vite cache at repo root
 .vite/

@@ -3,35 +3,51 @@
 > 状态：active
 > 适用分支：`play/main`
 > 生产环境：Zeabur / `https://www.jisudeng.com/`
-> 最后核验：2026-07-20
+> 最后核验：2026-10-09
 
 ## 分支模型
 
-- `upstream/main`：Wei-Shaw/sub2api，只读上游。
+- `upstream-ranxi`：`https://github.com/ranxi2001/sub2api.git`，当前直接功能上游，仅跟进正式发布。
+- `refs/remotes/upstream-ranxi/releases/<tag>`：本地只读 release ref，避免把外部 v* 标签推送到 Fork 触发发布。
 - `origin/play/main`：极速蹬生产分支。
 - `sync/upstream-YYYYMMDD`：一次上游同步的审查分支。
 - 禁止 rebase 或强推 `play/main`；历史必须保留真实 merge 边界。
+
+旧版流程直接跟进 Wei-Shaw/sub2api 的历史记录保留，但不再用于未来同步。
+Go module/import、LICENSE、作者归属和历史 issue 链接不是更新来源，不做批量替换。
+源码来源与生产产物严格分开：检查 ranxi 正式版，选择性迁入源码；仅部署经过
+Fork 审查、测试和 CI 的 tqytwe 自研构建。不得把 UpdateService/VersionBadge
+中的原版二进制下载地址直接换为 ranxi 发布包。
+
+版本锁定信息：`docs/upstream-migrations/source-lock.json`。`release_commit` 表示
+分析目标，不能据此声称整版已迁移；实际批次证据写入版本目录账本。
 
 ## 同步前
 
 ```bash
 git status --short
-git fetch upstream --tags
-git fetch origin
-git switch play/main
-git pull --ff-only origin play/main
-UPSTREAM_COMMIT="$(git rev-parse upstream/main)"
-git switch -c "sync/upstream-$(date +%Y%m%d)"
+git ls-remote origin refs/heads/play/main
+git fetch origin play/main
+gh api repos/ranxi2001/sub2api/releases/latest
+# 先核实正式 release/tag/commit 并更新 source-lock.json，再抓取该精确 tag。
+# 示例为当前锁定发布；后续版本必须重新核实，不能复制旧 SHA。
+git fetch --no-tags upstream-ranxi refs/tags/v2.10.3:refs/remotes/upstream-ranxi/releases/v2.10.3
+git worktree add -b sync/ranxi-v2.10.3-<batch> <isolated-path> origin/play/main
+# 在隔离 worktree 开始修改前运行（首次更新锁定信息需先审查）。
+python3 scripts/check_upstream_release.py --strict
+python3 -m unittest discover -s scripts -p test_upstream_release_check.py
 ```
 
 工作区不干净时先确认每项改动归属，不得清除他人的未提交修改。
-同步边界必须核对 `backend/cmd/server/VERSION`；如果 release tag 的版本文件仍滞后一档，锁定后续版本同步提交，不直接以 tag 或移动中的 `upstream/main` 标题作为审查结论。
+同步边界必须核对 release 的 `backend/cmd/server/VERSION`、tag 对象和完整 commit。
+不一致即停止，不追随 release 后的分支提交。检查脚本只读，不 fetch、merge、push、
+写 VERSION 或发布；`--offline` 仅检查固定本地对象，明确不证明远端当前状态。
+`--strict` 拒绝脏目录、共享树和生产分支；普通模式可在实现中重跑差异报告。
 
 ## 合并与冲突处理
 
-```bash
-git merge --no-ff upstream/main
-```
+先生成固定 commit 的差异与迁移冲突报告，按独立批次选择性迁入，不执行自动整树合并。
+完整功能来源清单、个性化保留项和验收计划见 `docs/upstream-migrations/v2.10.3/README.md`。
 
 按以下顺序审查：
 
@@ -44,7 +60,7 @@ git merge --no-ff upstream/main
 处理原则：
 
 - 对照 [Fork 定制登记](./FORK_CUSTOMIZATIONS.md) 逐条判断，不对整文件盲选 `ours` 或 `theirs`。
-- 已部署迁移不可改写；同编号不同文件名可以并存。
+- 已部署迁移不可改写；对同编号不同文件名也必须审查表结构和顺序，优先使用未占用的新编号，禁止覆盖自研 270/271。
 - 保留 Fork 产品不变量，同时吸收上游安全、协议和兼容性修复。
 - 用完整 upstream commit 记录基线，不能只依赖 tag 或 merge 标题。
 
@@ -58,7 +74,8 @@ make test
 make build
 ```
 
-检查完成后更新 `FORK_CUSTOMIZATIONS.md` 顶部 upstream commit 和核验日期，并在同步 PR 记录：
+检查完成后按实际批次更新 `FORK_CUSTOMIZATIONS.md` 和版本账本，未完整迁入时
+不得把分析目标 SHA 写成完整同步成果。在同步 PR 记录：
 
 - upstream 起止 commit。
 - 冲突文件和处理结论。

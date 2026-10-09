@@ -285,6 +285,7 @@ import DateRangePicker from '@/components/common/DateRangePicker.vue'
 import SupportContactPanel from '@/components/common/SupportContactPanel.vue'
 import UsageStatsCards from '@/components/admin/usage/UsageStatsCards.vue'
 import UsageTable from '@/components/admin/usage/UsageTable.vue'
+import { usageOutputTps } from '@/utils/usageTps'
 import ModelDistributionChart from '@/components/charts/ModelDistributionChart.vue'
 import GroupDistributionChart from '@/components/charts/GroupDistributionChart.vue'
 import EndpointDistributionChart from '@/components/charts/EndpointDistributionChart.vue'
@@ -749,6 +750,7 @@ const exportToCSV = async () => {
       t('usage.original'),
       t('usage.firstToken'),
       t('usage.duration'),
+      t('usage.outputTps'),
     ]
     const rows = allLogs.map((log) => [
       log.created_at,
@@ -768,6 +770,7 @@ const exportToCSV = async () => {
       log.total_cost.toFixed(8),
       log.first_token_ms ?? '',
       log.duration_ms ?? '',
+      usageOutputTps(log) ?? '',
     ].map(escapeCSVValue))
     const csvContent = [
       headers.map(escapeCSVValue).join(','),

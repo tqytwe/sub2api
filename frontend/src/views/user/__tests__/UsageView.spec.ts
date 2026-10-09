@@ -71,6 +71,7 @@ const messages: Record<string, string> = {
   'usage.original': 'Original Cost',
   'usage.firstToken': 'First Token (ms)',
   'usage.duration': 'Duration (ms)',
+  'usage.outputTps': 'Output TPS',
   'usage.ws': 'WS',
   'usage.stream': 'Stream',
   'usage.sync': 'Sync',
@@ -151,6 +152,7 @@ const usageLog = {
   image_size: null,
   first_token_ms: 12,
   duration_ms: 345,
+  output_tps: 292.75,
   created_at: '2026-03-08T00:00:00Z',
   model: 'gpt-5.4',
   reasoning_effort: null,
@@ -162,7 +164,7 @@ const usageLog = {
   native_compaction_v2: false,
 }
 
-function mountUsageView() {
+function mountUsageView(realTable = false) {
   return mount(UsageView, {
     global: {
       stubs: {
@@ -172,7 +174,7 @@ function mountUsageView() {
         DateRangePicker: true,
         Icon: true,
         UsageStatsCards: chartStub,
-        UsageTable: chartStub,
+        UsageTable: realTable ? false : chartStub,
         UserErrorRequestsTable: chartStub,
         ModelDistributionChart: chartStub,
         GroupDistributionChart: chartStub,
@@ -184,6 +186,43 @@ function mountUsageView() {
 }
 
 describe('user UsageView', () => {
+  it('shows no invented TPS while loading, after an empty response, or when the request fails', async () => {
+    let resolveQuery!: (value: unknown) => void
+    query.mockImplementationOnce(() => new Promise(resolve => { resolveQuery = resolve }))
+    const pending = mountUsageView(true)
+    await flushPromises()
+    expect(pending.findAll('[data-testid="usage-output-tps"]')).toHaveLength(0)
+    resolveQuery({ items: [], total: 0, pages: 0 })
+    await flushPromises()
+    expect(pending.findAll('[data-testid="usage-output-tps"]')).toHaveLength(0)
+    pending.unmount()
+
+    query.mockRejectedValueOnce(new Error('test API unavailable'))
+    const failed = mountUsageView(true)
+    await flushPromises()
+    expect(showError).toHaveBeenCalled()
+    expect(failed.findAll('[data-testid="usage-output-tps"]')).toHaveLength(0)
+    failed.unmount()
+  })
+
+  it('renders per-record TPS from the API in the real shared table', async () => {
+    query.mockResolvedValueOnce({ items: [
+      usageLog,
+      { ...usageLog, id: 2, request_id: 'second', output_tps: 20 },
+      { ...usageLog, id: 3, request_id: 'history', output_tps: null },
+      { ...usageLog, id: 4, request_id: 'old-api', output_tps: undefined, output_tokens: 30, duration_ms: 1000 },
+    ], total: 4, pages: 1 })
+    const wrapper = mountUsageView(true)
+    await flushPromises()
+    expect(wrapper.findAll('[data-testid="usage-output-tps"]').map(node => node.text())).toEqual(['293 t/s', '20.0 t/s', '—', '30.0 t/s'])
+    query.mockResolvedValueOnce({ items: [{ ...usageLog, output_tps: 50 }], total: 1, pages: 1 })
+    await wrapper.findAll('button').find(button => button.text() === 'Refresh')!.trigger('click')
+    await flushPromises()
+    expect(query).toHaveBeenCalledTimes(2)
+    expect(wrapper.findAll('[data-testid="usage-output-tps"]').map(node => node.text())).toEqual(['50.0 t/s'])
+    wrapper.unmount()
+  })
+
   beforeEach(() => {
     query.mockReset()
     getStats.mockReset()
@@ -411,8 +450,8 @@ describe('user UsageView', () => {
     expect(showSuccess).toHaveBeenCalled()
     expect(csvContent.startsWith('\uFEFF')).toBe(true)
     expect(csvContent.slice(1)).toBe([
-      'Time,API Key,Model,Reasoning Effort,Inbound Endpoint,IP Address,Type,Billing Mode,Input Tokens,Output Tokens,Cache Read Tokens,Cache Creation Tokens,Rate Multiplier,Billed Cost,Original Cost,First Token (ms),Duration (ms)',
-      '2026-03-08T00:00:00Z,demo-key,gpt-5.4,-,,203.0.113.10,Sync,Token,4057,101,278272,4,1,0.09288300,0.09288300,12,345',
+      'Time,API Key,Model,Reasoning Effort,Inbound Endpoint,IP Address,Type,Billing Mode,Input Tokens,Output Tokens,Cache Read Tokens,Cache Creation Tokens,Rate Multiplier,Billed Cost,Original Cost,First Token (ms),Duration (ms),Output TPS',
+      '2026-03-08T00:00:00Z,demo-key,gpt-5.4,-,,203.0.113.10,Sync,Token,4057,101,278272,4,1,0.09288300,0.09288300,12,345,292.75',
     ].join('\n'))
     expect(csvContent).toContain('IP Address')
     expect(csvContent).toContain('203.0.113.10')
