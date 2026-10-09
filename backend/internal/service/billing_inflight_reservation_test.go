@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	gocache "github.com/patrickmn/go-cache"
 	"github.com/stretchr/testify/require"
 )
 
@@ -74,11 +75,18 @@ func newInflightEstimateGateway(t *testing.T, channelService *ChannelService) *G
 	cfg := &config.Config{}
 	cfg.Billing.InflightReservation = config.InflightReservationConfig{Enabled: true, DefaultMaxTokens: 1000, MaxInputTokens: 200000, MaxOutputTokens: 128000}
 	billing := NewBillingService(cfg, nil)
+	// Mirror the production constructor's shared rate resolver. A nil cache
+	// creates a new cache and janitor on every estimate, polluting the heap guard
+	// with cleanup goroutines instead of measuring per-model cache growth.
+	// This fixture has no background lifecycle, so disable the cache janitor.
+	rateCache := gocache.New(defaultUserGroupRateCacheTTL, 0)
 	return &GatewayService{
-		cfg:            cfg,
-		billingService: billing,
-		resolver:       NewModelPricingResolver(channelService, billing),
-		channelService: channelService,
+		cfg:                   cfg,
+		billingService:        billing,
+		resolver:              NewModelPricingResolver(channelService, billing),
+		channelService:        channelService,
+		userGroupRateCache:    rateCache,
+		userGroupRateResolver: newUserGroupRateResolver(nil, rateCache, defaultUserGroupRateCacheTTL, nil, "service.gateway"),
 	}
 }
 
@@ -461,7 +469,9 @@ func TestInflightEstimate_AccountMappingNoDBAndBoundedMemory(t *testing.T) {
 	runtime.ReadMemStats(&after)
 	require.Zero(t, repo.dbCalls.Load(), "no direct DB query on the request path")
 	require.Equal(t, int64(n), snap.reads.Load(), "unpriced lookups read the scheduler snapshot only")
-	require.Less(t, int64(after.HeapAlloc)-int64(before.HeapAlloc), int64(8<<20), "no per-model cache growth")
+	growth := int64(after.HeapAlloc) - int64(before.HeapAlloc)
+	t.Logf("retained heap growth after %d unpriced models: %d bytes", n, growth)
+	require.Less(t, growth, int64(8<<20), "no per-model cache growth")
 }
 
 // 无分组 API Key：使用调度器的未分组账号池，估算与计费回退的账号映射模型同口径。
