@@ -133,7 +133,7 @@ linters:
         text: '^SA1019: (golang\.org/x/net/http2\.(Transport|ConfigureTransports)|\(golang\.org/x/net/http2\.Transport\)\.(ReadIdleTimeout|PingTimeout)) is deprecated:'
       - path: '^internal/server/http\.go$'
         linters: [ staticcheck ]
-        text: '^SA1019: (golang\.org/x/net/http2\.ConfigureServer|\(golang\.org/x/net/http2\.Server\)\.(MaxConcurrentStreams|IdleTimeout|MaxReadFrameSize|MaxUploadBufferPerConnection|MaxUploadBufferPerStream)) is deprecated:'
+        text: '^SA1019: (golang\.org/x/net/http2\.(ConfigureServer|Server)|\(golang\.org/x/net/http2\.Server\)\.(MaxConcurrentStreams|IdleTimeout|MaxReadFrameSize|MaxUploadBufferPerConnection|MaxUploadBufferPerStream)) is deprecated:'
       - path: '^internal/service/openai_codex_models_service(_test)?\.go$'
         linters: [ staticcheck ]
         text: '^SA1019: golang\.org/x/net/http2\.GoAwayError is deprecated:'
