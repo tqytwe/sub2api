@@ -67,6 +67,11 @@ type Account struct {
 	GroupIDs      []int64
 	Groups        []*Group
 
+	// Request-local authoritative credentials; never serialized or cached.
+	openAITurnCredentialsAdmitted bool
+	openAITurnCredentialForShadow bool
+	openAITurnCredentialParent    *Account
+
 	// model_mapping 热路径缓存（非持久化字段）
 	modelMappingCache               map[string]string
 	modelMappingCacheReady          bool

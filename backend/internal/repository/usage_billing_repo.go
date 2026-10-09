@@ -118,7 +118,7 @@ func (r *usageBillingRepository) applyUsageBillingTransaction(ctx context.Contex
 		return nil, err
 	}
 	if !applied {
-		return &service.UsageBillingApplyResult{Applied: false}, nil
+		return &service.UsageBillingApplyResult{Applied: false, SettlementVerified: true, SettlementFingerprint: cmd.RequestFingerprint}, nil
 	}
 
 	result := &service.UsageBillingApplyResult{Applied: true}
@@ -130,6 +130,8 @@ func (r *usageBillingRepository) applyUsageBillingTransaction(ctx context.Contex
 		return nil, err
 	}
 	tx = nil
+	result.SettlementVerified = true
+	result.SettlementFingerprint = cmd.RequestFingerprint
 	if result.Applied && r.balanceLedger != nil && cmd.BalanceCost > 0 && cmd.UserID > 0 {
 		r.balanceLedger.InvalidateUserBalanceCaches(ctx, cmd.UserID)
 	}

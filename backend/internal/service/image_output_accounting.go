@@ -87,11 +87,31 @@ func (c *openAIImageOutputCounter) AddSSEData(data []byte) {
 	}
 }
 
-func (c *openAIImageOutputCounter) AddSSEBody(body string) {
+// A failed Responses turn may still contain completed image work. Only an
+// explicitly completed image item is authoritative here; previews never count.
+// Callers opt in for OpenAI accounts so compatible providers keep legacy rules.
+func (c *openAIImageOutputCounter) AddFailedResponseCompletedImages(data []byte, eventType string) {
+	if c == nil || !gjson.ValidBytes(data) || effectiveOpenAISSEEventType(data, eventType) != "response.failed" {
+		return
+	}
+	gjson.GetBytes(data, "response.output").ForEach(func(_, item gjson.Result) bool {
+		if strings.TrimSpace(item.Get("status").String()) == "completed" {
+			c.addImageOutputItem(item)
+		}
+		return true
+	})
+}
+
+func (c *openAIImageOutputCounter) AddSSEBody(body string, includeFailed ...bool) {
 	if c == nil || strings.TrimSpace(body) == "" {
 		return
 	}
 	forEachOpenAISSEDataPayload(body, c.AddSSEData)
+	if len(includeFailed) > 0 && includeFailed[0] {
+		forEachOpenAISSEFrame(body, func(eventType string, data []byte) {
+			c.AddFailedResponseCompletedImages(data, eventType)
+		})
+	}
 }
 
 func (c *openAIImageOutputCounter) addDataArray(data gjson.Result) {
@@ -200,14 +220,14 @@ func collectOpenAIResponseImageOutputSizesFromJSONBytes(body []byte) []string {
 	return counter.Sizes()
 }
 
-func countOpenAIImageOutputsFromSSEBody(body string) int {
+func countOpenAIImageOutputsFromSSEBody(body string, includeFailed ...bool) int {
 	counter := newOpenAIImageOutputCounter()
-	counter.AddSSEBody(body)
+	counter.AddSSEBody(body, includeFailed...)
 	return counter.Count()
 }
 
-func collectOpenAIImageOutputSizesFromSSEBody(body string) []string {
+func collectOpenAIImageOutputSizesFromSSEBody(body string, includeFailed ...bool) []string {
 	counter := newOpenAIImageOutputCounter()
-	counter.AddSSEBody(body)
+	counter.AddSSEBody(body, includeFailed...)
 	return counter.Sizes()
 }

@@ -136,6 +136,12 @@ func (s *OpenAIGatewayService) forwardOpenAIPassthrough(
 	startTime time.Time,
 ) (*OpenAIForwardResult, error) {
 	requestedModel := reqModel
+	admissionRequestModel := openAITurnRequestModel(ctx, reqModel)
+	// API-key retries keep the route chosen for this request even if a reused
+	// account object is mutated in place. OAuth task-renewal keeps its existing
+	// recovery semantics; fresh eligibility is still checked on every attempt.
+	preserveRouteBinding := account != nil && account.IsOpenAIApiKey()
+	initialRouteBinding := openAITurnRouteFingerprint(account)
 	upstreamPassthroughModel := ""
 	if isOpenAIResponsesCompactPath(c) {
 		compactMappedModel := s.resolveOpenAICompactFallbackModel(account, reqModel)
@@ -180,26 +186,30 @@ func (s *OpenAIGatewayService) forwardOpenAIPassthrough(
 		}
 		reqStream = gjson.GetBytes(body, "stream").Bool()
 
-		accountScopedBody, accountScoped, scopeErr := applyCodexAccountIdentityClientMetadataRaw(body, codexAccountIdentitySource(c, account), getAPIKeyIDFromContext(c))
-		if scopeErr != nil {
-			return nil, scopeErr
-		}
-		if accountScoped {
-			body = accountScopedBody
+		// OpenAI HTTP identity is applied per admitted attempt below. Keep
+		// compatible providers on their existing preparation path.
+		if !account.IsOpenAI() {
+			accountScopedBody, accountScoped, scopeErr := applyCodexAccountIdentityClientMetadataRaw(body, codexAccountIdentitySource(c, account), getAPIKeyIDFromContext(c))
+			if scopeErr != nil {
+				return nil, scopeErr
+			}
+			if accountScoped {
+				body = accountScopedBody
+			}
 		}
 
 		stageCodexFingerprintIDs(c, nil)
 		// 指纹收敛：与非透传路径同门控（仅 OAuth、legacy compact 形态跳过）。
-		// 一次性解析收敛 ID：请求体 client_metadata 在此改写（raw 字节外科
-		// 手术，透传热路径禁全量 Unmarshal），出站头改写由请求构造器读取
-		// context 中的同一份 IDs 完成（turn_id 等随机字段两侧必须一致）。
+		// Resolve convergence IDs once. OpenAI applies them to the body after
+		// final-admission namespace scoping below; headers reuse the same IDs.
+		// Compatible providers keep the existing preparation order.
 		if !isOpenAIResponsesCompactPath(c) {
 			var clientHeaders http.Header
 			if c != nil && c.Request != nil {
 				clientHeaders = c.Request.Header
 			}
 			fpIDs := resolveCodexFingerprintIDsFromRequest(account, clientHeaders)
-			if fpIDs != nil {
+			if fpIDs != nil && !account.IsOpenAI() {
 				fpBody, fpChanged, fpErr := applyCodexFingerprintClientMetadataRaw(body, fpIDs)
 				if fpErr != nil {
 					return nil, fpErr
@@ -336,17 +346,6 @@ func (s *OpenAIGatewayService) forwardOpenAIPassthrough(
 		}
 	}
 
-	// Get access token
-	token, _, err := s.GetAccessToken(ctx, account)
-	if err != nil {
-		return nil, err
-	}
-
-	proxyURL := ""
-	if account.ProxyID != nil && account.Proxy != nil {
-		proxyURL = account.Proxy.URL()
-	}
-
 	if c != nil {
 		c.Set("openai_passthrough", true)
 	}
@@ -357,6 +356,7 @@ func (s *OpenAIGatewayService) forwardOpenAIPassthrough(
 	var resp *http.Response
 	var usage *OpenAIUsage
 	var firstTokenMs *int
+	var forwardErr error
 	responseID := ""
 	imageCount := 0
 	var imageOutputSizes []string
@@ -366,8 +366,50 @@ func (s *OpenAIGatewayService) forwardOpenAIPassthrough(
 			actualModel = reqModel
 		}
 		SetOpsUpstreamModel(c, actualModel)
+
+		// Re-read before every attempt, including rejected-field retries, and build
+		// credentials/proxy from the accepted snapshot rather than a stale cache.
+		latest, admissionErr := s.admitOpenAITurnForRequest(ctx, c, account, admissionRequestModel, actualModel)
+		if admissionErr != nil {
+			return nil, admissionErr
+		}
+		if preserveRouteBinding && openAITurnRouteFingerprint(latest) != initialRouteBinding {
+			return nil, denyOpenAITurn("account_binding_changed")
+		}
+		account = latest
+		attemptBody := body
+		if account.IsOpenAI() {
+			if _, err := s.prepareCodexAccountIdentitySource(ctx, c, account); err != nil {
+				return nil, err
+			}
+			if account.UsesOpenAICodexProtocol() {
+				var scopeErr error
+				attemptBody, _, scopeErr = applyCodexAccountIdentityClientMetadataRaw(body, codexAccountIdentitySource(c, account), getAPIKeyIDFromContext(c))
+				if scopeErr != nil {
+					return nil, scopeErr
+				}
+				// Reuse staged random IDs after this attempt's namespace,
+				// while keeping its prompt-cache comparison attempt-local.
+				if ids := stagedCodexFingerprintIDs(c, account); ids != nil {
+					attemptIDs := *ids
+					attemptBody, _, scopeErr = applyCodexFingerprintClientMetadataRaw(attemptBody, &attemptIDs)
+					if scopeErr != nil {
+						return nil, scopeErr
+					}
+				}
+			}
+		}
+		token, _, err := s.GetAccessToken(ctx, account)
+		if err != nil {
+			return nil, err
+		}
+		proxyURL := ""
+		if account.ProxyID != nil && account.Proxy != nil {
+			proxyURL = account.Proxy.URL()
+		}
+
 		upstreamCtx, releaseUpstreamCtx := detachUpstreamContext(ctx)
-		upstreamReq, buildErr := s.buildUpstreamRequestOpenAIPassthrough(upstreamCtx, c, account, body, token)
+		upstreamReq, buildErr := s.buildUpstreamRequestOpenAIPassthrough(upstreamCtx, c, account, attemptBody, token)
 		releaseUpstreamCtx()
 		if buildErr != nil {
 			return nil, buildErr
@@ -446,7 +488,20 @@ func (s *OpenAIGatewayService) forwardOpenAIPassthrough(
 
 		if reqStream {
 			result, handleErr := s.handleStreamingResponsePassthrough(ctx, resp, c, account, startTime, reqModel, upstreamPassthroughModel)
+			if result != nil {
+				usage = result.usage
+				firstTokenMs = result.firstTokenMs
+				responseID = strings.TrimSpace(result.responseID)
+				imageCount = result.imageCount
+				imageOutputSizes = result.imageOutputSizes
+			}
 			if handleErr != nil {
+				// Even a pre-output error can contain billable upstream usage. Stop
+				// before compact fallback or account replay and retain the exact error.
+				if account != nil && account.IsOpenAI() && hasObservedOpenAIUsage(usage, imageCount) {
+					forwardErr = handleErr
+					break
+				}
 				if retryBody, fallbackModel, retry := s.applyOpenAIPassthroughCompactFallbackFromSignal(
 					c, account, requestedModel, body, handleErr, compactModelFallbackRetried, resp,
 				); retry {
@@ -466,14 +521,19 @@ func (s *OpenAIGatewayService) forwardOpenAIPassthrough(
 				_ = resp.Body.Close()
 				return nil, handleErr
 			}
-			usage = result.usage
-			firstTokenMs = result.firstTokenMs
-			responseID = strings.TrimSpace(result.responseID)
-			imageCount = result.imageCount
-			imageOutputSizes = result.imageOutputSizes
 		} else {
 			result, handleErr := s.handleNonStreamingResponsePassthrough(ctx, resp, c, account, reqModel, upstreamPassthroughModel)
+			if result != nil {
+				usage = result.usage
+				responseID = strings.TrimSpace(result.responseID)
+				imageCount = result.imageCount
+				imageOutputSizes = result.imageOutputSizes
+			}
 			if handleErr != nil {
+				if account != nil && account.IsOpenAI() && hasObservedOpenAIUsage(usage, imageCount) {
+					forwardErr = handleErr
+					break
+				}
 				if retryBody, fallbackModel, retry := s.applyOpenAIPassthroughCompactFallbackFromSignal(
 					c, account, requestedModel, body, handleErr, compactModelFallbackRetried, resp,
 				); retry {
@@ -493,16 +553,14 @@ func (s *OpenAIGatewayService) forwardOpenAIPassthrough(
 				_ = resp.Body.Close()
 				return nil, handleErr
 			}
-			usage = result.usage
-			responseID = strings.TrimSpace(result.responseID)
-			imageCount = result.imageCount
-			imageOutputSizes = result.imageOutputSizes
 		}
 		break
 	}
 	defer func() { _ = resp.Body.Close() }()
 	serviceTier := extractOpenAIServiceTierFromBody(body)
-	s.bindHTTPResponseAccount(ctx, c, account, responseID)
+	if forwardErr == nil {
+		s.bindHTTPResponseAccount(ctx, c, account, responseID)
+	}
 
 	// 排除 spark 影子:其 codex_* 仅由 QueryUsage(/wham/usage bengalfox)更新(外审第7轮 P1)。
 	if !account.IsShadow() {
@@ -541,7 +599,7 @@ func (s *OpenAIGatewayService) forwardOpenAIPassthrough(
 		forwardResult.ImageOutputSizes = imageOutputSizes
 		forwardResult.BillingModel = imageBillingModel
 	}
-	return forwardResult, nil
+	return forwardResult, forwardErr
 }
 
 func logOpenAIPassthroughInstructionsRejected(
@@ -2046,6 +2104,15 @@ func (s *OpenAIGatewayService) handleStreamingResponsePassthrough(
 				}
 			}
 			eventType := effectiveOpenAISSEEventType(dataBytes, rawEventType)
+			// Preserve attribution and completed images before any early error or
+			// compact signal returns the already-observed usage to the forwarder.
+			if responseID == "" {
+				responseID = extractOpenAIResponseIDFromJSONBytes(dataBytes)
+			}
+			imageCounter.AddSSEData(dataBytes)
+			if account != nil && account.IsOpenAI() {
+				imageCounter.AddFailedResponseCompletedImages(dataBytes, eventType)
+			}
 			if codexFailureTerminal && sawBareError && !sawResponseFailed && eventType != "response.failed" {
 				suppressCurrentEvent = true
 			}
@@ -2073,7 +2140,7 @@ func (s *OpenAIGatewayService) handleStreamingResponsePassthrough(
 				// response.failed 自带上游已消耗的 usage（input token 通常已扣）；必须先解析
 				// 再打 cyber 标记，否则 mark 记到的是解析前的 0，导致流式 cyber 按 0 token 计费
 				// 而漏记真实用量。对齐 WS V2 / Chat 流式路径（均先解析 usage 再 Mark）。
-				s.parseSSEUsageBytesWithType(dataBytes, eventType, usage)
+				s.parseSSEUsageBytesWithType(dataBytes, eventType, usage, account != nil && account.IsOpenAI())
 				if hit, code, msg := detectOpenAICyberPolicy(dataBytes); hit {
 					cyberHit = true
 					MarkOpsCyberPolicy(c, CyberPolicyMark{
@@ -2149,10 +2216,6 @@ func (s *OpenAIGatewayService) handleStreamingResponsePassthrough(
 					terminalEventType = eventType
 				}
 			}
-			if responseID == "" {
-				responseID = extractOpenAIResponseIDFromJSONBytes(dataBytes)
-			}
-			imageCounter.AddSSEData(dataBytes)
 			if sanitizedData, sanitized := sanitizeOpenAIResponseFailedEventForClient(
 				dataBytes,
 				eventType,
@@ -2179,7 +2242,7 @@ func (s *OpenAIGatewayService) handleStreamingResponsePassthrough(
 				ms := int(time.Since(startTime).Milliseconds())
 				firstTokenMs = &ms
 			}
-			s.parseSSEUsageBytesWithType(dataBytes, eventType, usage)
+			s.parseSSEUsageBytesWithType(dataBytes, eventType, usage, account != nil && account.IsOpenAI())
 		}
 		if line == "" {
 			pendingSSEEventType = ""
@@ -2231,6 +2294,9 @@ func (s *OpenAIGatewayService) handleStreamingResponsePassthrough(
 	}
 	ensureResponseFailedTerminal()
 	if err := documentScanner.Err(); err != nil {
+		if account != nil && account.IsOpenAI() && IsOpenAITurnAdmissionError(err) {
+			return resultWithUsage(), err
+		}
 		if (sawDone || sawTerminalEvent) && !sawFailedEvent {
 			s.clearOpenAIProxyStreamDisconnect(account)
 			return resultWithUsage(), nil
@@ -2297,8 +2363,17 @@ func (s *OpenAIGatewayService) handleNonStreamingResponsePassthrough(
 	originalModel string,
 	mappedModel string,
 ) (*openaiNonStreamingResultPassthrough, error) {
-	body, err := ReadUpstreamResponseBody(resp.Body, s.cfg, c, openAITooLargeError)
+	body, err := readUpstreamResponseBodyWithPartial(resp.Body, s.cfg, c, openAITooLargeError, account != nil && account.IsOpenAI())
 	if err != nil {
+		if account != nil && account.IsOpenAI() {
+			if partial := s.observedOpenAIBufferedReadFailure(c, body); partial != nil {
+				return &openaiNonStreamingResultPassthrough{
+					OpenAIUsage: partial.usage, usage: partial.usage,
+					responseID: partial.responseID, imageCount: partial.imageCount,
+					imageOutputSizes: partial.imageOutputSizes,
+				}, err
+			}
+		}
 		return nil, err
 	}
 	observer := upstreamResponseModelObserverFromContext(c)
@@ -2369,26 +2444,40 @@ func (s *OpenAIGatewayService) handleNonStreamingResponsePassthrough(
 // rewrite model fields back to the original requested model.
 func (s *OpenAIGatewayService) handlePassthroughSSEToJSON(resp *http.Response, c *gin.Context, account *Account, body []byte, originalModel string, mappedModel string) (*openaiNonStreamingResultPassthrough, error) {
 	bodyText := string(body)
+	usage := s.parseSSEUsageFromBody(bodyText, account != nil && account.IsOpenAI())
 	terminalType, terminalPayload, terminalOK := extractOpenAISSETerminalEvent(bodyText)
 	if terminalOK && (terminalType == "response.failed" || terminalType == "error") {
+		result := &openaiNonStreamingResultPassthrough{
+			OpenAIUsage: usage, usage: usage,
+			responseID:       extractOpenAIResponseIDFromJSONBytes(terminalPayload),
+			imageCount:       countOpenAIImageOutputsFromSSEBody(bodyText, account != nil && account.IsOpenAI()),
+			imageOutputSizes: collectOpenAIImageOutputSizesFromSSEBody(bodyText, account != nil && account.IsOpenAI()),
+		}
+		if account == nil || !account.IsOpenAI() || !hasObservedOpenAIUsage(usage, result.imageCount) {
+			result = nil
+		}
+		if account != nil && account.IsOpenAI() {
+			markOpenAINonStreamingCyberPolicy(c, terminalPayload, usage)
+		}
 		msg := extractOpenAISSEErrorMessage(terminalPayload)
 		if msg == "" {
 			msg = "Upstream compact response failed"
 		}
 		if compactErr := newOpenAICompactFallbackSignal(c, terminalPayload, msg); compactErr != nil {
-			return nil, compactErr
+			return result, compactErr
 		}
 		if failoverErr := s.nonStreamingTerminalFailureFailover(c, resp, account, true, terminalType, terminalPayload, msg, mappedModel); failoverErr != nil {
-			return nil, failoverErr
+			return result, failoverErr
 		}
-		return nil, s.writeOpenAINonStreamingProtocolError(resp, c, msg)
+		return result, s.writeOpenAINonStreamingProtocolError(resp, c, msg)
 	}
 	finalResponse, ok := extractCodexFinalResponse(bodyText)
 
-	usage := s.parseSSEUsageFromBody(bodyText)
 	if ok {
 		if parsedUsage, parsed := extractOpenAIUsageFromJSONBytes(finalResponse); parsed {
-			*usage = parsedUsage
+			if account == nil || !account.IsOpenAI() || hasObservedOpenAIUsage(&parsedUsage, 0) || !hasObservedOpenAIUsage(usage, 0) {
+				*usage = parsedUsage
+			}
 		}
 		// When the terminal event has an empty output array, reconstruct
 		// output from accumulated delta events so the client gets full content.
@@ -2437,8 +2526,8 @@ func (s *OpenAIGatewayService) handlePassthroughSSEToJSON(resp *http.Response, c
 		OpenAIUsage:      usage,
 		usage:            usage,
 		responseID:       extractOpenAIResponseIDFromJSONBytes(body),
-		imageCount:       countOpenAIImageOutputsFromSSEBody(bodyText),
-		imageOutputSizes: collectOpenAIImageOutputSizesFromSSEBody(bodyText),
+		imageCount:       countOpenAIImageOutputsFromSSEBody(bodyText, account != nil && account.IsOpenAI()),
+		imageOutputSizes: collectOpenAIImageOutputSizesFromSSEBody(bodyText, account != nil && account.IsOpenAI()),
 	}, nil
 }
 

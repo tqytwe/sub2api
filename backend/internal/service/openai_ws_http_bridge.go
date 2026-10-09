@@ -687,6 +687,26 @@ func (s *OpenAIGatewayService) proxyOpenAIWSHTTPBridgeTurn(
 		}
 		return result
 	}
+	observedOpenAIExpense := func() bool {
+		return account.IsOpenAI() && hasObservedOpenAIUsage(&usage, imageCounter.Count())
+	}
+	// Every post-observation error exits through this ownership boundary.
+	// Legacy result presence is preserved for compatible/unmetered paths.
+	finishFailure := func(turnErr error, retainLegacyResult bool) (*OpenAIForwardResult, error) {
+		if observedOpenAIExpense() {
+			var failoverErr *UpstreamFailoverError
+			if errors.As(turnErr, &failoverErr) && failoverErr != nil {
+				failoverErr.NextAccountAction = NextAccountStop
+				failoverErr.RetryableOnSameAccount = false
+				failoverErr.SameAccountRetryDeadline = time.Time{}
+			}
+			retainLegacyResult = true
+		}
+		if retainLegacyResult {
+			return resultWithUsage(), turnErr
+		}
+		return nil, turnErr
+	}
 
 	maxLineSize := defaultMaxLineSize
 	if s.cfg != nil && s.cfg.Gateway.MaxLineSize > 0 {
@@ -779,12 +799,15 @@ func (s *OpenAIGatewayService) proxyOpenAIWSHTTPBridgeTurn(
 			}
 		}
 		if openAIWSMessageShouldParseUsage(eventType, upstreamMessage) {
-			parseOpenAIWSResponseUsageFromCompletedEvent(upstreamMessage, &usage)
+			parseOpenAIWSResponseUsageFromCompletedEvent(upstreamMessage, &usage, account.IsOpenAI())
 		}
 		if eventType == "error" || eventType == "response.failed" {
 			markOpenAICyberPolicyEvent(c, upstreamMessage, http.StatusOK, &usage)
 		}
 		imageCounter.AddSSEData(upstreamMessage)
+		if account.IsOpenAI() {
+			imageCounter.AddFailedResponseCompletedImages(upstreamMessage, eventType)
+		}
 
 		if needModelReplace && len(mappedModelBytes) > 0 && openAIWSEventMayContainModel(eventType) && strings.Contains(trimmedData, mappedModel) {
 			upstreamMessage = replaceOpenAIWSMessageModel(upstreamMessage, mappedModel, originalModel)
@@ -842,9 +865,11 @@ func (s *OpenAIGatewayService) proxyOpenAIWSHTTPBridgeTurn(
 			// even when only non-semantic heartbeats were delivered.
 			if !clientDisconnected && !wroteDownstream && shouldFailover && (turn == 1 || statusCode == http.StatusTooManyRequests) {
 				if account.Platform == PlatformGrok {
-					return nil, newOpenAIUpstreamFailoverError(statusCode, resp.Header, upstreamMessage, errMessage, false)
+					return finishFailure(newOpenAIUpstreamFailoverError(statusCode, resp.Header, upstreamMessage, errMessage, false), false)
 				}
-				return nil, s.newOpenAIStreamFailoverErrorWithModel(c, account, true, resp.Header.Get("x-request-id"), upstreamMessage, errMessage, mappedModel, resp.Header)
+				failoverErr := s.newOpenAIStreamFailoverErrorWithModel(c, account, true, resp.Header.Get("x-request-id"), upstreamMessage, errMessage, mappedModel, resp.Header)
+				upstreamTerminalEvent = eventType
+				return finishFailure(failoverErr, false)
 			}
 			if account.Platform != PlatformGrok && !failureAccountSideEffectsApplied {
 				if eventType == "response.failed" || (!officialOpenAIResponses && shouldFailover && !requestScopedCapacity) {
@@ -885,7 +910,7 @@ func (s *OpenAIGatewayService) proxyOpenAIWSHTTPBridgeTurn(
 				isOpenAIWSTerminalEvent(eventType)
 			if stageBeforeSemanticOutput && !commitStagedMessages && !isKeepalive {
 				if pendingClientMessageBytes+int64(len(clientMessage)) > openAIFirstOutputStageMaxBytes {
-					return nil, s.newOpenAIStreamFailoverError(
+					return finishFailure(s.newOpenAIStreamFailoverError(
 						c,
 						account,
 						true,
@@ -893,7 +918,7 @@ func (s *OpenAIGatewayService) proxyOpenAIWSHTTPBridgeTurn(
 						nil,
 						"OpenAI WS HTTP bridge first-output staging limit exceeded",
 						resp.Header,
-					)
+					), false)
 				}
 				pendingClientMessages = append(pendingClientMessages, append([]byte(nil), clientMessage...))
 				pendingClientMessageBytes += int64(len(clientMessage))
@@ -921,11 +946,11 @@ func (s *OpenAIGatewayService) proxyOpenAIWSHTTPBridgeTurn(
 							)
 							break
 						}
-						return nil, wrapOpenAIWSIngressTurnError(
+						return finishFailure(wrapOpenAIWSIngressTurnError(
 							"write_client",
 							fmt.Errorf("write client websocket event: %w", err),
 							wroteDownstream,
-						)
+						), false)
 					}
 					if !isKeepalive {
 						wroteDownstream = true
@@ -938,7 +963,7 @@ func (s *OpenAIGatewayService) proxyOpenAIWSHTTPBridgeTurn(
 		}
 
 		if upstreamEventErr != nil {
-			return resultWithUsage(), upstreamEventErr
+			return finishFailure(upstreamEventErr, true)
 		}
 		if isOpenAIWSTerminalEvent(eventType) && !bareErrorPending {
 			if eventType == "response.failed" {
@@ -971,28 +996,36 @@ func (s *OpenAIGatewayService) proxyOpenAIWSHTTPBridgeTurn(
 	}
 	if bareErrorPending {
 		if finalizeErr := finalizeBareError(); finalizeErr != nil {
-			return resultWithUsage(), finalizeErr
+			return finishFailure(finalizeErr, true)
 		}
 		if scanErr := scanner.Err(); scanErr != nil {
-			return resultWithUsage(), fmt.Errorf("read upstream http bridge stream after error event: %w", scanErr)
+			return finishFailure(fmt.Errorf("read upstream http bridge stream after error event: %w", scanErr), true)
 		}
-		return resultWithUsage(), errors.New(bareErrorMessage)
+		return finishFailure(errors.New(bareErrorMessage), true)
 	}
 	if err := scanner.Err(); err != nil {
 		streamErr := fmt.Errorf("read upstream http bridge stream: %w", err)
-		if turn == 1 && !clientDisconnected && !wroteDownstream {
-			return nil, s.handleOpenAIUpstreamTransportError(ctx, c, account, streamErr, true)
+		// Metered work cannot be replayed, and local admission is not an
+		// upstream transport fault. Preserve the original wrapped read error.
+		if observedOpenAIExpense() || account.IsOpenAI() && IsOpenAITurnAdmissionError(streamErr) {
+			return finishFailure(streamErr, false)
 		}
-		return resultWithUsage(), streamErr
+		if turn == 1 && !clientDisconnected && !wroteDownstream {
+			return finishFailure(s.handleOpenAIUpstreamTransportError(ctx, c, account, streamErr, true), false)
+		}
+		return finishFailure(streamErr, true)
 	}
 	terminalErr := errors.New("upstream http bridge stream ended before terminal event")
 	if sawDone {
 		terminalErr = errors.New("upstream http bridge stream sent [DONE] before terminal event")
 	}
-	if turn == 1 && !clientDisconnected && !wroteDownstream {
-		return nil, s.handleOpenAIUpstreamTransportError(ctx, c, account, terminalErr, true)
+	if observedOpenAIExpense() {
+		return finishFailure(terminalErr, false)
 	}
-	return resultWithUsage(), terminalErr
+	if turn == 1 && !clientDisconnected && !wroteDownstream {
+		return finishFailure(s.handleOpenAIUpstreamTransportError(ctx, c, account, terminalErr, true), false)
+	}
+	return finishFailure(terminalErr, true)
 }
 
 func resolveGrokWSCacheIdentity(c *gin.Context, account *Account, seedPayload, currentPayload []byte, originalModel string) (string, error) {

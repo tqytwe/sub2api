@@ -418,6 +418,9 @@ func (s *OpenAIGatewayService) handleStreamingResponseWithReasoning(ctx context.
 		if scanErr == nil {
 			return nil, nil, false
 		}
+		if account != nil && account.IsOpenAI() && IsOpenAITurnAdmissionError(scanErr) {
+			return resultWithUsage(), scanErr, true
+		}
 		if errors.Is(scanErr, errOpenAIFirstOutputScannerLimit) && !firstOutputProgressObserved {
 			logger.LegacyPrintf("service.openai_gateway", "SSE token exceeded guarded first-output limit: account=%d limit=%d error=%v", account.ID, openAIFirstOutputStageMaxBytes+openAIFirstOutputScannerFramingAllowance, scanErr)
 			failoverErr := s.newOpenAIStreamFailoverError(
@@ -513,6 +516,10 @@ func (s *OpenAIGatewayService) handleStreamingResponseWithReasoning(ctx context.
 			if responseID == "" {
 				responseID = extractOpenAIResponseIDFromJSONBytes(dataBytes)
 			}
+			if account != nil && account.IsOpenAI() {
+				imageCounter.AddSSEData(dataBytes)
+				imageCounter.AddFailedResponseCompletedImages(dataBytes, eventType)
+			}
 			forceFlushFailedEvent := false
 			if !capacityFailoverSuppressedLogged && account != nil && account.Platform == PlatformOpenAI &&
 				(eventType == "error" || eventType == "response.failed") &&
@@ -537,7 +544,7 @@ func (s *OpenAIGatewayService) handleStreamingResponseWithReasoning(ctx context.
 				// response.failed 自带上游已消耗的 usage（input token 通常已扣）；必须先解析
 				// 再打 cyber 标记，否则 mark 记到的是解析前的 0，导致流式 cyber 按 0 token 计费
 				// 而漏记真实用量。对齐 WS V2 / Chat 流式路径（均先解析 usage 再 Mark）。
-				s.parseSSEUsageBytesWithType(dataBytes, eventType, usage)
+				s.parseSSEUsageBytesWithType(dataBytes, eventType, usage, account != nil && account.IsOpenAI())
 				if hit, code, msg := detectOpenAICyberPolicy(dataBytes); hit {
 					cyberHit = true
 					MarkOpsCyberPolicy(c, CyberPolicyMark{
@@ -615,7 +622,9 @@ func (s *OpenAIGatewayService) handleStreamingResponseWithReasoning(ctx context.
 				data = string(normalizedData)
 				line = "data: " + data
 			}
-			imageCounter.AddSSEData(dataBytes)
+			if account == nil || !account.IsOpenAI() {
+				imageCounter.AddSSEData(dataBytes)
+			}
 			searchCounter += countGrokNativeSearchCallsInSSEDataDedup(dataBytes, streamSearchSeen)
 
 			// Correct Codex tool calls if needed (apply_patch -> edit, etc.)
@@ -720,7 +729,7 @@ func (s *OpenAIGatewayService) handleStreamingResponseWithReasoning(ctx context.
 				firstTokenMs = &ms
 				stopFirstOutputTimer()
 			}
-			s.parseSSEUsageBytesWithType(dataBytes, eventType, usage)
+			s.parseSSEUsageBytesWithType(dataBytes, eventType, usage, account != nil && account.IsOpenAI())
 			return
 		}
 
@@ -1215,7 +1224,7 @@ func (s *OpenAIGatewayService) parseSSEUsageBytes(data []byte, usage *OpenAIUsag
 	s.parseSSEUsageBytesWithType(data, "", usage)
 }
 
-func (s *OpenAIGatewayService) parseSSEUsageBytesWithType(data []byte, eventType string, usage *OpenAIUsage) {
+func (s *OpenAIGatewayService) parseSSEUsageBytesWithType(data []byte, eventType string, usage *OpenAIUsage, preserveAggregate ...bool) {
 	if usage == nil || len(data) == 0 || bytes.Equal(bytes.TrimSpace(data), []byte("[DONE]")) {
 		return
 	}
@@ -1230,6 +1239,10 @@ func (s *OpenAIGatewayService) parseSSEUsageBytesWithType(data []byte, eventType
 		return
 	}
 	if openAIStreamEventTypeIsTerminal(effectiveOpenAISSEEventType(data, eventType)) {
+		if len(preserveAggregate) > 0 && preserveAggregate[0] &&
+			!hasObservedOpenAIUsage(&parsedUsage, 0) && hasObservedOpenAIUsage(usage, 0) {
+			return
+		}
 		if !openAIUsageHasTokens(&parsedUsage) && openAIUsageHasTokens(usage) {
 			return
 		}
@@ -1593,8 +1606,11 @@ func openAICacheCreationTokensFromUsage(value gjson.Result) int {
 }
 
 func (s *OpenAIGatewayService) handleNonStreamingResponse(ctx context.Context, resp *http.Response, c *gin.Context, account *Account, originalModel, mappedModel string) (*openaiNonStreamingResult, error) {
-	body, err := ReadUpstreamResponseBody(resp.Body, s.cfg, c, openAITooLargeError)
+	body, err := readUpstreamResponseBodyWithPartial(resp.Body, s.cfg, c, openAITooLargeError, account != nil && account.IsOpenAI())
 	if err != nil {
+		if account != nil && account.IsOpenAI() {
+			return s.observedOpenAIBufferedReadFailure(c, body), err
+		}
 		return nil, err
 	}
 	observer := upstreamResponseModelObserverFromContext(c)
@@ -1689,6 +1705,60 @@ func (s *OpenAIGatewayService) handleNonStreamingResponse(ctx context.Context, r
 	}, nil
 }
 
+// Only a fully valid JSON document or complete, valid SSE frames can prove
+// already-metered work after a bounded read fails. Never infer from a fragment.
+func (s *OpenAIGatewayService) observedOpenAIBufferedReadFailure(c *gin.Context, body []byte) *openaiNonStreamingResult {
+	if len(body) == 0 {
+		return nil
+	}
+	observer := upstreamResponseModelObserverFromContext(c)
+	if observer == nil {
+		observer = beginUpstreamResponseModelObservation(c)
+	}
+	usage := &OpenAIUsage{}
+	images := newOpenAIImageOutputCounter()
+	responseID := ""
+	if gjson.ValidBytes(body) {
+		if parsed, ok := extractOpenAIUsageFromJSONBytes(body); ok {
+			*usage = parsed
+		}
+		observer.ObserveOpenAI(body, strings.TrimSpace(gjson.GetBytes(body, "type").String()))
+		responseID = extractOpenAIResponseIDFromJSONBytes(body)
+		images.AddJSONResponse(body)
+		markOpenAINonStreamingCyberPolicy(c, body, usage)
+	} else if bodyHasSSEFraming(body) {
+		// A read error is not an SSE event boundary. Discard the unfinished tail
+		// even if its token-looking prefix happens to be parseable by gjson.
+		end := 0
+		if at := bytes.LastIndex(body, []byte("\n\n")); at >= 0 {
+			end = at + 2
+		}
+		if at := bytes.LastIndex(body, []byte("\r\n\r\n")); at >= 0 && at+4 > end {
+			end = at + 4
+		}
+		forEachOpenAISSEFrame(string(body[:end]), func(eventType string, data []byte) {
+			if !gjson.ValidBytes(data) {
+				return
+			}
+			observer.ObserveOpenAI(data, eventType)
+			s.parseSSEUsageBytesWithType(data, eventType, usage, true)
+			if responseID == "" {
+				responseID = extractOpenAIResponseIDFromJSONBytes(data)
+			}
+			images.AddSSEData(data)
+			images.AddFailedResponseCompletedImages(data, eventType)
+			markOpenAINonStreamingCyberPolicy(c, data, usage)
+		})
+	}
+	if !hasObservedOpenAIUsage(usage, images.Count()) {
+		return nil
+	}
+	return &openaiNonStreamingResult{
+		OpenAIUsage: usage, usage: usage, responseID: responseID,
+		imageCount: images.Count(), imageOutputSizes: images.Sizes(),
+	}
+}
+
 func isEventStreamResponse(header http.Header) bool {
 	contentType := strings.ToLower(header.Get("Content-Type"))
 	return strings.Contains(contentType, "text/event-stream")
@@ -1712,26 +1782,41 @@ func bodyHasSSEFraming(body []byte) bool {
 
 func (s *OpenAIGatewayService) handleSSEToJSON(resp *http.Response, c *gin.Context, account *Account, body []byte, originalModel, mappedModel string) (*openaiNonStreamingResult, error) {
 	bodyText := string(body)
+	usage := s.parseSSEUsageFromBody(bodyText, account != nil && account.IsOpenAI())
 	terminalType, terminalPayload, terminalOK := extractOpenAISSETerminalEvent(bodyText)
 	if terminalOK && (terminalType == "response.failed" || terminalType == "error") {
+		result := &openaiNonStreamingResult{
+			OpenAIUsage: usage, usage: usage,
+			responseID:       extractOpenAIResponseIDFromJSONBytes(terminalPayload),
+			imageCount:       countOpenAIImageOutputsFromSSEBody(bodyText, account != nil && account.IsOpenAI()),
+			imageOutputSizes: collectOpenAIImageOutputSizesFromSSEBody(bodyText, account != nil && account.IsOpenAI()),
+			searchCount:      countGrokNativeSearchCallsFromSSEBody(bodyText),
+		}
+		if account == nil || !account.IsOpenAI() || !hasObservedOpenAIUsage(usage, result.imageCount) {
+			result = nil
+		}
+		if account != nil && account.IsOpenAI() {
+			markOpenAINonStreamingCyberPolicy(c, terminalPayload, usage)
+		}
 		msg := extractOpenAISSEErrorMessage(terminalPayload)
 		if msg == "" {
 			msg = "Upstream compact response failed"
 		}
 		if compactErr := newOpenAICompactFallbackSignal(c, terminalPayload, msg); compactErr != nil {
-			return nil, compactErr
+			return result, compactErr
 		}
 		if failoverErr := s.nonStreamingTerminalFailureFailover(c, resp, account, false, terminalType, terminalPayload, msg, mappedModel); failoverErr != nil {
-			return nil, failoverErr
+			return result, failoverErr
 		}
-		return nil, s.writeOpenAINonStreamingProtocolError(resp, c, msg)
+		return result, s.writeOpenAINonStreamingProtocolError(resp, c, msg)
 	}
 	finalResponse, ok := extractCodexFinalResponse(bodyText)
 
-	usage := s.parseSSEUsageFromBody(bodyText)
 	if ok {
 		if parsedUsage, parsed := extractOpenAIUsageFromJSONBytes(finalResponse); parsed {
-			*usage = parsedUsage
+			if account == nil || !account.IsOpenAI() || hasObservedOpenAIUsage(&parsedUsage, 0) || !hasObservedOpenAIUsage(usage, 0) {
+				*usage = parsedUsage
+			}
 		}
 		// When the terminal event has an empty output array, reconstruct
 		// output from accumulated delta events so the client gets full content.
@@ -1790,10 +1875,26 @@ func (s *OpenAIGatewayService) handleSSEToJSON(resp *http.Response, c *gin.Conte
 		OpenAIUsage:      usage,
 		usage:            usage,
 		responseID:       extractOpenAIResponseIDFromJSONBytes(body),
-		imageCount:       countOpenAIImageOutputsFromSSEBody(bodyText),
-		imageOutputSizes: collectOpenAIImageOutputSizesFromSSEBody(bodyText),
+		imageCount:       countOpenAIImageOutputsFromSSEBody(bodyText, account != nil && account.IsOpenAI()),
+		imageOutputSizes: collectOpenAIImageOutputSizesFromSSEBody(bodyText, account != nil && account.IsOpenAI()),
 		searchCount:      countGrokNativeSearchCallsFromSSEBody(bodyText),
 	}, nil
+}
+
+// Buffered failures carry the same metered cyber attribution as streaming ones.
+// The handler chooses a single billing owner using the complete partial result.
+func markOpenAINonStreamingCyberPolicy(c *gin.Context, payload []byte, usage *OpenAIUsage) {
+	if hit, code, message := detectOpenAICyberPolicy(payload); hit {
+		mark := CyberPolicyMark{
+			Code: code, Message: message, Body: truncateString(string(payload), 4096),
+			UpstreamStatus: http.StatusOK,
+		}
+		if usage != nil {
+			mark.UpstreamInTok = usage.InputTokens
+			mark.UpstreamOutTok = usage.OutputTokens
+		}
+		MarkOpsCyberPolicy(c, mark)
+	}
 }
 
 func extractOpenAISSETerminalEvent(body string) (string, []byte, bool) {
@@ -2371,10 +2472,10 @@ func extractImageGenerationOutputFromSSEData(data []byte, seen map[string]struct
 	return json.RawMessage(item.Raw), true
 }
 
-func (s *OpenAIGatewayService) parseSSEUsageFromBody(body string) *OpenAIUsage {
+func (s *OpenAIGatewayService) parseSSEUsageFromBody(body string, preserveAggregate ...bool) *OpenAIUsage {
 	usage := &OpenAIUsage{}
 	forEachOpenAISSEFrame(body, func(eventType string, data []byte) {
-		s.parseSSEUsageBytesWithType(data, eventType, usage)
+		s.parseSSEUsageBytesWithType(data, eventType, usage, preserveAggregate...)
 	})
 	return usage
 }

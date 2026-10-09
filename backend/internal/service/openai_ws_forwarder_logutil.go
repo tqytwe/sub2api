@@ -198,12 +198,18 @@ func openAIWSMessageLikelyContainsToolCalls(message []byte) bool {
 		bytes.Contains(message, []byte(`"function_call"`))
 }
 
-func parseOpenAIWSResponseUsageFromCompletedEvent(message []byte, usage *OpenAIUsage) {
+func parseOpenAIWSResponseUsageFromCompletedEvent(message []byte, usage *OpenAIUsage, preserveFailedAggregate ...bool) {
 	if usage == nil || len(message) == 0 || !bytes.Contains(message, []byte(`"usage"`)) {
 		return
 	}
 	if parsedUsage, ok := extractOpenAIUsageFromJSONBytes(message); ok {
-		if openAIStreamEventTypeIsTerminal(effectiveOpenAISSEEventType(message, "")) {
+		eventType := effectiveOpenAISSEEventType(message, "")
+		if openAIStreamEventTypeIsTerminal(eventType) {
+			if len(preserveFailedAggregate) > 0 && preserveFailedAggregate[0] &&
+				(eventType == "response.failed" || eventType == "error") &&
+				!hasObservedOpenAIUsage(&parsedUsage, 0) && hasObservedOpenAIUsage(usage, 0) {
+				return
+			}
 			if !openAIUsageHasTokens(&parsedUsage) && openAIUsageHasTokens(usage) {
 				return
 			}

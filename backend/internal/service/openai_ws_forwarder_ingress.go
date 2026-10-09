@@ -691,11 +691,9 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 				turn,
 				writeClientMessage,
 			)
-			if bridgeErr != nil && isOpenAIWSSessionPreempted(ctx) {
-				return errOpenAIWSSessionPreempted
-			}
-			if hooks != nil && hooks.AfterTurn != nil {
-				hooks.AfterTurn(turn, result, bridgeErr)
+			bridgeErr = finishOpenAIWSHTTPBridgeTurn(ctx, account, hooks, turn, result, bridgeErr)
+			if errors.Is(bridgeErr, errOpenAIWSSessionPreempted) {
+				return bridgeErr
 			}
 			if bridgeErr != nil {
 				var failoverErr *UpstreamFailoverError
@@ -1037,7 +1035,7 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 				lastEventType = eventType
 			}
 			if openAIWSMessageShouldParseUsage(eventType, upstreamMessage) {
-				parseOpenAIWSResponseUsageFromCompletedEvent(upstreamMessage, &usage)
+				parseOpenAIWSResponseUsageFromCompletedEvent(upstreamMessage, &usage, account.IsOpenAI())
 			}
 			if eventType == "error" || eventType == "response.failed" {
 				markOpenAICyberPolicyEvent(c, upstreamMessage, http.StatusOK, &usage)
@@ -1986,4 +1984,18 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 		}
 		turn++
 	}
+}
+
+// finishOpenAIWSHTTPBridgeTurn owns the single AfterTurn notification and the
+// existing session-preemption exit for a completed bridge attempt.
+func finishOpenAIWSHTTPBridgeTurn(ctx context.Context, account *Account, hooks *OpenAIWSIngressHooks, turn int, result *OpenAIForwardResult, turnErr error) error {
+	preempted := turnErr != nil && isOpenAIWSSessionPreempted(ctx)
+	observedOpenAI := account != nil && account.IsOpenAI() && result.HasObservedUsage()
+	if (!preempted || observedOpenAI) && hooks != nil && hooks.AfterTurn != nil {
+		hooks.AfterTurn(turn, result, turnErr)
+	}
+	if preempted {
+		return errOpenAIWSSessionPreempted
+	}
+	return turnErr
 }

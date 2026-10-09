@@ -1,0 +1,187 @@
+name: Core Migration PostgreSQL and Redis
+
+on:
+  pull_request:
+    branches:
+      - play/main
+    paths:
+      - .github/workflows/core-migration-integration.yml
+      - backend/go.mod
+      - backend/go.sum
+      # The old-schema upgrade fixture replays every migration before 273.
+      - backend/migrations/*.sql
+      - backend/migrations/migrations.go
+      - backend/migrations/account_group_allowed_models_migration_test.go
+      - backend/migrations/usage_log_billing_reconciliation_test.go
+      - backend/ent/**
+      - backend/internal/repository/integration_*test.go
+      - backend/internal/repository/migrations_runner*.go
+      - backend/internal/repository/migrations_schema_integration_test.go
+      - backend/internal/repository/core_migration*test.go
+      - backend/internal/repository/account_group_allowed_models*.go
+      - backend/internal/repository/account_repo.go
+      - backend/internal/repository/account_repo_integration_test.go
+      - backend/internal/repository/group_repo.go
+      - backend/internal/repository/group_repo_integration_test.go
+      - backend/internal/repository/usage_billing_repo*.go
+      - backend/internal/repository/usage_log_billing_reconciliation*.go
+      - backend/internal/repository/usage_log_repo*.go
+      - backend/internal/repository/billing_cache*.go
+      - backend/internal/service/account.go
+      - backend/internal/service/account_group.go
+      - backend/internal/service/group_model_allowlist.go
+      - backend/internal/service/usage_billing.go
+      - backend/internal/service/usage_log.go
+      - backend/internal/service/balance_ledger*.go
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: core-migration-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  core-postgres-redis:
+    name: Core migration and repository integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+        working-directory: backend
+    env:
+      CI: "true"
+      SUB2API_TEST_POSTGRES_IMAGE: postgres:18.1-alpine3.23
+      # Use disposable testcontainers, never a supplied database or Redis endpoint.
+      SUB2API_TEST_EXTERNAL_MODE: ""
+      SUB2API_TEST_POSTGRES_DSN: ""
+      SUB2API_TEST_REDIS_ADDR: ""
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+
+      - name: Check additive migration contracts
+        run: |
+          set -euo pipefail
+          go test ./migrations -count=1 -timeout=2m -json \
+            -run '^(TestAccountGroupAllowedModelsMigration|TestUsageLogBillingReconciliationMigrationIsForwardOnly)$' \
+            | tee "$RUNNER_TEMP/core-migration-contracts.json"
+
+      - name: Exercise core repositories on PostgreSQL 18.1 and Redis 8.4
+        run: |
+          set -euo pipefail
+          # One repository TestMain provisions both isolated service containers.
+          # Run the three bounded suites in full so their subtests remain visible.
+          core_tests='^(TestCoreMigration.*|TestBillingLogReconciliation.*|TestAccountGroupAllowedModelsConcurrent.*|'
+          core_tests+='TestAccountRepoSuite|TestGroupRepoSuite|TestBillingCacheSuite|'
+          core_tests+='TestMigrationsRunner_ConcurrentInstancesSerializeOnSessionLock|'
+          core_tests+='TestUsageBillingRepositoryApply_(DeduplicatesBalanceBilling|WithLedgerWritesUsageCharge|'
+          core_tests+='RejectsCrossUserCharge|RejectsCrossUserSubscriptionCharge|DeduplicatesSubscriptionBilling|'
+          core_tests+='RequestFingerprintConflict|DeletedAPIKeyStillBillsBalance|UpdatesAccountQuota|'
+          core_tests+='EnqueuesSchedulerOutboxOnQuotaCrossing|DeduplicatesAgainstArchivedKey))$'
+          go test -tags=integration ./internal/repository -count=1 -timeout=10m -json \
+            -run "$core_tests" | tee "$RUNNER_TEMP/core-migration-repositories.json"
+
+      - name: Require executed and passing core coverage
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          module = "github.com/Wei-Shaw/sub2api"
+          expected = {
+              "core-migration-contracts.json": (f"{module}/migrations", {
+                  "TestAccountGroupAllowedModelsMigration",
+                  "TestUsageLogBillingReconciliationMigrationIsForwardOnly",
+              }),
+              "core-migration-repositories.json": (f"{module}/internal/repository", {
+                  "TestCoreMigrationUpgradePreservesDeployedDataAndOldWriter",
+                  "TestCoreMigrationsBoundLockWaitAndRollback",
+                  "TestCoreMigrationsBoundLockWaitAndRollback/273_account_group_allowed_models.sql/target_table",
+                  "TestCoreMigrationsBoundLockWaitAndRollback/273_account_group_allowed_models.sql/migration_history",
+                  "TestCoreMigrationsBoundLockWaitAndRollback/274_usage_log_billing_reconciliation.sql/target_table",
+                  "TestCoreMigrationsBoundLockWaitAndRollback/274_usage_log_billing_reconciliation.sql/migration_history",
+                  "TestBillingLogReconciliationInsertRepairAndStaleFailure",
+                  "TestBillingLogReconciliationBestEffortCacheAndSameBatch",
+                  "TestBillingLogReconciliationLegacyConflictAndArchiveProof",
+                  "TestBillingLogReconciliationConcurrentInsertAndPromotion",
+                  "TestBillingLogReconciliationCreateSameBatchPromotion",
+                  "TestBillingLogReconciliationBatchConcurrentCommitSnapshot",
+                  "TestBillingLogReconciliationRollbackIsAtomic",
+                  "TestAccountGroupAllowedModelsConcurrentRebindPreservesRestriction",
+                  "TestAccountGroupAllowedModelsConcurrentGroupDeletionRejectsRebind",
+                  "TestAccountGroupAllowedModelsConcurrentAccountDeletionDoesNotDeadlock",
+                  "TestAccountGroupAllowedModelsConcurrentCombinedUpdatesStayPaired",
+                  "TestAccountRepoSuite",
+                  "TestAccountRepoSuite/TestGroupAllowedModels_SetBindAndLoad",
+                  "TestAccountRepoSuite/TestGroupAllowedModels_CreateWithAccountGroups",
+                  "TestAccountRepoSuite/TestGroupAllowedModels_OutboxFailureRollsBack",
+                  "TestAccountRepoSuite/TestGroupAllowedModels_CombinedFailureRestoresBindingsAndPolicy",
+                  "TestAccountRepoSuite/TestGroupAllowedModels_AccountDeletionRemainsIdempotent",
+                  "TestGroupRepoSuite",
+                  "TestGroupRepoSuite/TestCreateFromSourceCopiesGroupAllowedModels",
+                  "TestBillingCacheSuite",
+                  "TestBillingCacheSuite/TestUserBalance",
+                  "TestBillingCacheSuite/TestSubscriptionCache",
+                  "TestBillingCacheSuite/TestDeductUserBalance_ErrorPropagation",
+                  "TestBillingCacheSuite/TestUpdateSubscriptionUsage_ErrorPropagation",
+                  "TestMigrationsRunner_ConcurrentInstancesSerializeOnSessionLock",
+                  "TestUsageBillingRepositoryApply_DeduplicatesBalanceBilling",
+                  "TestUsageBillingRepositoryApply_WithLedgerWritesUsageCharge",
+                  "TestUsageBillingRepositoryApply_RejectsCrossUserCharge",
+                  "TestUsageBillingRepositoryApply_RejectsCrossUserSubscriptionCharge",
+                  "TestUsageBillingRepositoryApply_DeduplicatesSubscriptionBilling",
+                  "TestUsageBillingRepositoryApply_RequestFingerprintConflict",
+                  "TestUsageBillingRepositoryApply_DeletedAPIKeyStillBillsBalance",
+                  "TestUsageBillingRepositoryApply_UpdatesAccountQuota",
+                  "TestUsageBillingRepositoryApply_EnqueuesSchedulerOutboxOnQuotaCrossing",
+                  "TestUsageBillingRepositoryApply_DeduplicatesAgainstArchivedKey",
+              }),
+          }
+          failures = []
+          total_passed = 0
+          for filename, (package, required) in expected.items():
+              path = Path(os.environ["RUNNER_TEMP"]) / filename
+              if not path.is_file():
+                  failures.append(f"Missing test evidence: {filename}")
+                  continue
+              passed = set()
+              package_passed = False
+              for line in path.read_text().splitlines():
+                  event = json.loads(line)
+                  if event.get("Package") != package:
+                      continue
+                  action = event.get("Action")
+                  test = event.get("Test")
+                  if action in {"fail", "skip"}:
+                      failures.append(f"{package}: {test or '(package)'} {action}")
+                  if action == "pass":
+                      if test:
+                          passed.add(test)
+                      else:
+                          package_passed = True
+              if not package_passed:
+                  failures.append(f"Package did not pass: {package}")
+              for test in sorted(required - passed):
+                  failures.append(f"Required test did not pass: {test}")
+              total_passed += len(passed)
+              print(f"{package}: {len(required & passed)}/{len(required)} required checks passed; "
+                    f"{len(passed)} test/subtest passes")
+          if failures:
+              raise SystemExit("Core integration coverage failed:\n" + "\n".join(failures))
+          print(f"Core integration coverage verified: {sum(len(tests) for _, tests in expected.values())} "
+                f"required checks; {total_passed} test/subtest passes; no skipped tests.")
+          PY

@@ -1166,6 +1166,10 @@ func (h *GatewayHandler) Models(c *gin.Context) {
 		platform = forcedPlatform
 	}
 
+	filterMembership := func(models []string) []string {
+		return h.gatewayService.FilterModelsByGroupMembership(c.Request.Context(), groupID, platform, models)
+	}
+
 	if platform == service.PlatformOpenAI && apiKey != nil && apiKey.Group != nil &&
 		apiKey.Group.Platform == service.PlatformOpenAI && apiKey.Group.CodexModelsManifestConfig.Enabled {
 		h.pinnedOpenAIModels(c, apiKey.Group)
@@ -1180,14 +1184,14 @@ func (h *GatewayHandler) Models(c *gin.Context) {
 			if len(source) == 0 {
 				source = defaultModelIDsForPlatform(service.PlatformComposite)
 			}
-			writeAllowlistedModelsList(c, service.PlatformComposite, apiKey.Group.ModelAllowlist.FilterForListing(source), mediaContracts)
+			writeAllowlistedModelsList(c, service.PlatformComposite, filterMembership(apiKey.Group.ModelAllowlist.FilterForListing(source)), mediaContracts)
 			return
 		}
 		if len(availableModels) > 0 {
-			writeModelsListWithMediaContracts(c, service.PlatformComposite, availableModels, mediaContracts)
+			writeModelsListWithMediaContracts(c, service.PlatformComposite, filterMembership(availableModels), mediaContracts)
 			return
 		}
-		writeModelsListWithMediaContracts(c, service.PlatformComposite, defaultModelIDsForPlatform(service.PlatformComposite), mediaContracts)
+		writeModelsListWithMediaContracts(c, service.PlatformComposite, filterMembership(defaultModelIDsForPlatform(service.PlatformComposite)), mediaContracts)
 		return
 	}
 
@@ -1196,12 +1200,21 @@ func (h *GatewayHandler) Models(c *gin.Context) {
 	mediaContracts := h.gatewayModelMediaContracts(c.Request.Context(), apiKey, platform, availableModels)
 	if apiKey != nil && apiKey.Group != nil && apiKey.Group.ModelAllowlistEnabled() {
 		source := modelListingSource(platform, availableModels, defaultModelIDsForPlatform(platform))
-		writeAllowlistedModelsList(c, platform, apiKey.Group.ModelAllowlist.FilterForListing(source), mediaContracts)
+		writeAllowlistedModelsList(c, platform, filterMembership(apiKey.Group.ModelAllowlist.FilterForListing(source)), mediaContracts)
 		return
 	}
 
 	if len(availableModels) > 0 {
-		writeModelsListWithMediaContracts(c, platform, availableModels, mediaContracts)
+		writeModelsListWithMediaContracts(c, platform, filterMembership(availableModels), mediaContracts)
+		return
+	}
+
+	// Membership filtering happens after fallback expansion, so an empty
+	// restricted mapping cannot accidentally advertise the entire catalog.
+	defaults := defaultModelIDsForPlatform(platform)
+	filteredDefaults := filterMembership(defaults)
+	if len(filteredDefaults) != len(defaults) {
+		writeModelsListWithMediaContracts(c, platform, filteredDefaults, mediaContracts)
 		return
 	}
 
@@ -1273,6 +1286,10 @@ func (h *GatewayHandler) codexModelIDsForGroup(ctx context.Context, group *servi
 	if platform == "" {
 		platform = group.Platform
 	}
+	filterMembership := func(models []string) []string {
+		return h.gatewayService.FilterCodexModelsByGroupMembership(ctx, groupID, platform, models)
+	}
+
 	if platform == service.PlatformComposite {
 		availableModels := h.compositeAvailableModels(ctx, groupID, false)
 		fallbackModels := defaultCodexModelIDsForPlatform(service.PlatformComposite)
@@ -1281,23 +1298,23 @@ func (h *GatewayHandler) codexModelIDsForGroup(ctx context.Context, group *servi
 			if len(source) == 0 {
 				source = fallbackModels
 			}
-			return group.ModelAllowlist.FilterForListing(source)
+			return filterMembership(group.ModelAllowlist.FilterForListing(source))
 		}
 		if len(availableModels) > 0 {
-			return availableModels
+			return filterMembership(availableModels)
 		}
-		return fallbackModels
+		return filterMembership(fallbackModels)
 	}
 
 	availableModels := h.gatewayService.GetAvailableModels(ctx, groupID, platform)
 	fallbackModels := defaultCodexModelIDsForPlatform(platform)
 	if group.ModelAllowlistEnabled() {
-		return group.ModelAllowlist.FilterForListing(modelListingSource(platform, availableModels, fallbackModels))
+		return filterMembership(group.ModelAllowlist.FilterForListing(modelListingSource(platform, availableModels, fallbackModels)))
 	}
 	if len(availableModels) > 0 {
-		return availableModels
+		return filterMembership(availableModels)
 	}
-	return fallbackModels
+	return filterMembership(fallbackModels)
 }
 
 // compositeAvailableModels lists the models the composite group can serve.
@@ -1322,6 +1339,7 @@ func (h *GatewayHandler) compositeAvailableModels(ctx context.Context, groupID *
 				platformModels = defaultModelIDsForPlatform(platform)
 			}
 		}
+		platformModels = h.gatewayService.FilterModelsByGroupMembership(ctx, groupID, platform, platformModels)
 		for _, model := range platformModels {
 			model = strings.TrimSpace(model)
 			if model == "" {
@@ -1681,10 +1699,21 @@ func mergeModelIDs(primary, secondary []string) []string {
 // 分组级模型白名单开启时按白名单过滤。
 func (h *GatewayHandler) AntigravityModels(c *gin.Context) {
 	models := antigravity.DefaultModels()
-	if apiKey, ok := middleware2.GetAPIKeyFromContext(c); ok && apiKey != nil && apiKey.Group != nil && apiKey.Group.ModelAllowlistEnabled() {
+	if apiKey, ok := middleware2.GetAPIKeyFromContext(c); ok && apiKey != nil && apiKey.Group != nil {
+		var membershipIDs map[string]bool
+		if h.gatewayService != nil {
+			ids := make([]string, 0, len(models))
+			for _, model := range models {
+				ids = append(ids, model.ID)
+			}
+			membershipIDs = make(map[string]bool)
+			for _, id := range h.gatewayService.FilterModelsByGroupMembership(c.Request.Context(), &apiKey.Group.ID, service.PlatformAntigravity, ids) {
+				membershipIDs[id] = true
+			}
+		}
 		filtered := make([]antigravity.ClaudeModel, 0, len(models))
 		for _, model := range models {
-			if apiKey.Group.ModelAllowlist.Allows(model.ID) {
+			if apiKey.Group.ModelAllowlist.Allows(model.ID) && (membershipIDs == nil || membershipIDs[model.ID]) {
 				filtered = append(filtered, model)
 			}
 		}

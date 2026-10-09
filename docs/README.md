@@ -24,6 +24,8 @@
 | [Fork 定制登记](./FORK_CUSTOMIZATIONS.md) | `active` | 极速蹬定制的唯一权威登记表 | Fork 维护者 | 2026-07-20 |
 | [上游同步手册](./UPSTREAM_SYNC_PLAYBOOK.md) | `active` | ranxi 正式版源码核验、分批验证、Fork 部署和回滚 | 发布负责人 | 2026-10-09 |
 | [v2.10.3 核心迁移账本](./upstream-migrations/v2.10.3/README.md) | `active` | 差异、个性化保留、分批验收和准确阻碍 | Fork 维护者 | 2026-10-09 |
+| [Ranxi 核心迁移范围与验收](./CORE_MIGRATION_RANXI.md) | `proposal` | 核心迁移契约、验证证据、剩余范围与分阶段发布边界；尚未部署 | 网关与计费维护者 | 2026-10-09 |
+| [用量日志结算恢复](./BILLING_LOG_RECONCILIATION.md) | `proposal` | 指纹绑定的日志恢复、排除路径与不可追溯扣费边界；尚未部署 | 计费维护者 | 2026-10-09 |
 | [复合路由组](./COMPOSITE_GROUPS.md) | `active` | 复合组路由、优先级与管理配置 | 平台维护者 | 2026-07-26 |
 | [Channel Monitor V2 安全默认值与渐进回填](./channel-monitor-v2-safe-defaults.md) | `active` | V2 模式默认值、渐进回填和错误去重约束 | 平台维护者 | 2026-08-15 |
 | [渠道监控与站点存活接口](./CHANNEL_MONITOR_API.md) | `active` | 站点存活、V1/V2 渠道监控接口、认证边界与外部机器人安全限制 | 平台维护者 | 2026-08-28 |

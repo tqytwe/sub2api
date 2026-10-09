@@ -38,6 +38,9 @@ var (
 	integrationDB        *sql.DB
 	integrationEntClient *dbent.Client
 	integrationRedis     *redisclient.Client
+	// Fixture-only endpoint retained for tests that require a separate empty database.
+	// Never log this value or populate it from application configuration.
+	integrationDSN string
 
 	redisNamespaceSeq uint64
 )
@@ -50,50 +53,81 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
-	if !dockerIsAvailable(ctx) {
-		// In CI we expect Docker to be available so integration tests should fail loudly.
-		if os.Getenv("CI") != "" {
-			log.Printf("docker is not available (CI=true); failing integration tests")
+	external, err := parseExternalIntegrationConfig(
+		os.Getenv("SUB2API_TEST_EXTERNAL_MODE"),
+		os.Getenv("SUB2API_TEST_POSTGRES_DSN"),
+		os.Getenv("SUB2API_TEST_REDIS_ADDR"),
+	)
+	if err != nil {
+		log.Printf("invalid external integration configuration: %v", err)
+		os.Exit(1)
+	}
+	var dsn, redisAddr string
+	if external.enabled {
+		dsn, redisAddr = external.postgresDSN, external.redisAddr
+	} else {
+		if !dockerIsAvailable(ctx) {
+			// In CI we expect Docker to be available so integration tests should fail loudly.
+			if os.Getenv("CI") != "" {
+				log.Printf("docker is not available (CI=true); failing integration tests")
+				os.Exit(1)
+			}
+			log.Printf("docker is not available; skipping integration tests (start Docker to enable)")
+			os.Exit(0)
+		}
+
+		postgresImage := selectDockerImage(ctx, postgresImageTag)
+		pgContainer, err := tcpostgres.Run(
+			ctx,
+			postgresImage,
+			tcpostgres.WithDatabase("sub2api_test"),
+			tcpostgres.WithUsername("postgres"),
+			tcpostgres.WithPassword("postgres"),
+			tcpostgres.BasicWaitStrategies(),
+		)
+		if err != nil {
+			log.Printf("failed to start postgres container: %v", err)
 			os.Exit(1)
 		}
-		log.Printf("docker is not available; skipping integration tests (start Docker to enable)")
-		os.Exit(0)
+		defer func() { _ = pgContainer.Terminate(ctx) }()
+
+		redisContainer, err := tcredis.Run(
+			ctx,
+			redisImageTag,
+		)
+		if err != nil {
+			log.Printf("failed to start redis container: %v", err)
+			os.Exit(1)
+		}
+		defer func() { _ = redisContainer.Terminate(ctx) }()
+
+		dsn, err = pgContainer.ConnectionString(ctx, "sslmode=disable", "TimeZone=UTC")
+		if err != nil {
+			log.Printf("failed to get postgres dsn: %v", err)
+			os.Exit(1)
+		}
+
+		redisHost, err := redisContainer.Host(ctx)
+		if err != nil {
+			log.Printf("failed to get redis host: %v", err)
+			os.Exit(1)
+		}
+		redisPort, err := redisContainer.MappedPort(ctx, "6379/tcp")
+		if err != nil {
+			log.Printf("failed to get redis port: %v", err)
+			os.Exit(1)
+		}
+		redisAddr = fmt.Sprintf("%s:%d", redisHost, redisPort.Int())
 	}
 
-	postgresImage := selectDockerImage(ctx, postgresImageTag)
-	pgContainer, err := tcpostgres.Run(
-		ctx,
-		postgresImage,
-		tcpostgres.WithDatabase("sub2api_test"),
-		tcpostgres.WithUsername("postgres"),
-		tcpostgres.WithPassword("postgres"),
-		tcpostgres.BasicWaitStrategies(),
-	)
-	if err != nil {
-		log.Printf("failed to start postgres container: %v", err)
-		os.Exit(1)
-	}
-	defer func() { _ = pgContainer.Terminate(ctx) }()
-
-	redisContainer, err := tcredis.Run(
-		ctx,
-		redisImageTag,
-	)
-	if err != nil {
-		log.Printf("failed to start redis container: %v", err)
-		os.Exit(1)
-	}
-	defer func() { _ = redisContainer.Terminate(ctx) }()
-
-	dsn, err := pgContainer.ConnectionString(ctx, "sslmode=disable", "TimeZone=UTC")
-	if err != nil {
-		log.Printf("failed to get postgres dsn: %v", err)
-		os.Exit(1)
-	}
-
+	integrationDSN = dsn
 	integrationDB, err = openSQLWithRetry(ctx, dsn, 30*time.Second)
 	if err != nil {
-		log.Printf("failed to open sql db: %v", err)
+		if external.enabled {
+			log.Print("failed to open isolated external test database")
+		} else {
+			log.Printf("failed to open sql db: %v", err)
+		}
 		os.Exit(1)
 	}
 	if err := ApplyMigrations(ctx, integrationDB); err != nil {
@@ -105,19 +139,8 @@ func TestMain(m *testing.M) {
 	drv := entsql.OpenDB(dialect.Postgres, integrationDB)
 	integrationEntClient = dbent.NewClient(dbent.Driver(drv))
 
-	redisHost, err := redisContainer.Host(ctx)
-	if err != nil {
-		log.Printf("failed to get redis host: %v", err)
-		os.Exit(1)
-	}
-	redisPort, err := redisContainer.MappedPort(ctx, "6379/tcp")
-	if err != nil {
-		log.Printf("failed to get redis port: %v", err)
-		os.Exit(1)
-	}
-
 	integrationRedis = redisclient.NewClient(&redisclient.Options{
-		Addr: fmt.Sprintf("%s:%d", redisHost, redisPort.Int()),
+		Addr: redisAddr,
 		DB:   0,
 	})
 	if err := integrationRedis.Ping(ctx).Err(); err != nil {

@@ -24,6 +24,12 @@ func resolveUpstreamResponseReadLimit(cfg *config.Config) int64 {
 }
 
 func readUpstreamResponseBodyLimited(reader io.Reader, maxBytes int64) ([]byte, error) {
+	return readUpstreamResponseBodyLimitedWithPartial(reader, maxBytes, false)
+}
+
+// Retaining received bytes is opt-in for metered OpenAI error settlement. The
+// same configured bound still applies, and ordinary callers keep nil on error.
+func readUpstreamResponseBodyLimitedWithPartial(reader io.Reader, maxBytes int64, preservePartial bool) ([]byte, error) {
 	if reader == nil {
 		return nil, errors.New("response body is nil")
 	}
@@ -33,10 +39,20 @@ func readUpstreamResponseBodyLimited(reader io.Reader, maxBytes int64) ([]byte, 
 
 	body, err := io.ReadAll(io.LimitReader(reader, maxBytes+1))
 	if err != nil {
+		if preservePartial {
+			if int64(len(body)) > maxBytes {
+				body = body[:maxBytes]
+			}
+			return body, err
+		}
 		return nil, err
 	}
 	if int64(len(body)) > maxBytes {
-		return nil, fmt.Errorf("%w: limit=%d", ErrUpstreamResponseBodyTooLarge, maxBytes)
+		err := fmt.Errorf("%w: limit=%d", ErrUpstreamResponseBodyTooLarge, maxBytes)
+		if preservePartial {
+			return body[:maxBytes], err
+		}
+		return nil, err
 	}
 	return body, nil
 }
@@ -47,8 +63,12 @@ type TooLargeWriter func(c *gin.Context)
 // ReadUpstreamResponseBody 读取上游非流式响应体。
 // 超限时自动记录 ops error 并调用 onTooLarge 向客户端写错误。
 func ReadUpstreamResponseBody(reader io.Reader, cfg *config.Config, c *gin.Context, onTooLarge TooLargeWriter) ([]byte, error) {
+	return readUpstreamResponseBodyWithPartial(reader, cfg, c, onTooLarge, false)
+}
+
+func readUpstreamResponseBodyWithPartial(reader io.Reader, cfg *config.Config, c *gin.Context, onTooLarge TooLargeWriter, preservePartial bool) ([]byte, error) {
 	maxBytes := resolveUpstreamResponseReadLimit(cfg)
-	body, err := readUpstreamResponseBodyLimited(reader, maxBytes)
+	body, err := readUpstreamResponseBodyLimitedWithPartial(reader, maxBytes, preservePartial)
 	if err != nil {
 		if errors.Is(err, ErrUpstreamResponseBodyTooLarge) {
 			setOpsUpstreamError(c, http.StatusBadGateway, "upstream response too large", "")
@@ -56,7 +76,7 @@ func ReadUpstreamResponseBody(reader io.Reader, cfg *config.Config, c *gin.Conte
 				onTooLarge(c)
 			}
 		}
-		return nil, err
+		return body, err
 	}
 	return body, nil
 }

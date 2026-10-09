@@ -662,7 +662,7 @@ readLoop:
 			message = restoreCodexToolNamesFromContext(c, message)
 		}
 		if openAIWSMessageShouldParseUsage(eventType, message) {
-			parseOpenAIWSResponseUsageFromCompletedEvent(message, usage)
+			parseOpenAIWSResponseUsageFromCompletedEvent(message, usage, account.IsOpenAI())
 		}
 		imageCounter.AddSSEData(message)
 

@@ -79,7 +79,7 @@ func TestOpenAIWSIngressEndedByClient_GoingAwayWithoutCancellationStillReported(
 		coderws.StatusGoingAway, "upstream going away", errors.New("upstream closed session"))
 
 	require.False(t, openAIWSIngressEndedByClient(err))
-	require.True(t, shouldReportOpenAIWSProxyAccountFailure(err), "真实上游故障仍须归因账号")
+	require.True(t, shouldReportOpenAIWSProxyAccountFailure(&service.Account{Platform: service.PlatformOpenAI}, err), "真实上游故障仍须归因账号")
 }
 
 // 契约没有丢：真正的故障仍然惩罚账号。判定组合与调用点一致——
@@ -118,7 +118,7 @@ func TestOpenAIWSIngressEndedByClient_AbnormalClosuresStillReportAccountFailure(
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			require.False(t, openAIWSIngressEndedByClient(tc.err))
-			require.True(t, shouldReportOpenAIWSProxyAccountFailure(tc.err))
+			require.True(t, shouldReportOpenAIWSProxyAccountFailure(&service.Account{Platform: service.PlatformOpenAI}, tc.err))
 		})
 	}
 }
