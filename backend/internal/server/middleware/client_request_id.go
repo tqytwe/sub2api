@@ -18,7 +18,8 @@ const (
 	clientRequestIDHeader = ClientRequestIDHeader
 )
 
-// ClientRequestID ensures every request has a unique client_request_id in request.Context().
+// ClientRequestID carries bounded public correlation in request.Context().
+// The caller may reuse it; it is not proof of an idempotent upstream operation.
 //
 // This is used by the Ops monitoring module for end-to-end request correlation.
 func ClientRequestID() gin.HandlerFunc {
@@ -58,5 +59,25 @@ func ClientRequestID() gin.HandlerFunc {
 		ctx = logger.IntoContext(ctx, requestLogger)
 		c.Request = c.Request.WithContext(ctx)
 		c.Next()
+	}
+}
+
+// GatewayClientRequestID separates gateway settlement from public correlation.
+// This identity covers one HTTP request (or WS connection), not every WS turn.
+func GatewayClientRequestID() gin.HandlerFunc {
+	correlate := ClientRequestID()
+	return func(c *gin.Context) {
+		if c.Request != nil {
+			ctx := c.Request.Context()
+			id, _ := ctx.Value(ctxkey.UsageBillingRequestID).(string)
+			if strings.TrimSpace(id) == "" {
+				// Never derive this key from a header or either correlation ID.
+				id = uuid.NewString()
+				ctx = context.WithValue(ctx, ctxkey.UsageBillingRequestID, id)
+				ctx = logger.IntoContext(ctx, logger.FromContext(ctx).With(zap.String("gateway_request_id", id)))
+				c.Request = c.Request.WithContext(ctx)
+			}
+		}
+		correlate(c)
 	}
 }

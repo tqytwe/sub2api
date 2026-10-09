@@ -2228,11 +2228,17 @@ func TestOpenAIWSConnPool_TargetConnCountAndPrewarmBranches(t *testing.T) {
 	require.GreaterOrEqual(t, target, len(ap.conns)+1)
 
 	// prewarm: account pool 缺失时，拨号后的连接应被关闭并提前返回
+	prewarmedConn := &openAIWSFakeConn{}
+	pool.setClientDialerForTest(&openAIWSSingleConnDialer{conn: prewarmedConn})
 	req := openAIWSAcquireRequest{
 		Account: &Account{ID: 999, Platform: PlatformOpenAI, Type: AccountTypeAPIKey},
 		WSURL:   "wss://example.com/v1/responses",
 	}
 	pool.prewarmConns(999, req, 1)
+	prewarmedConn.mu.Lock()
+	closed := prewarmedConn.closed
+	prewarmedConn.mu.Unlock()
+	require.True(t, closed, "prewarmed connection must close when the account pool is missing")
 
 	// prewarm: 拨号失败分支（prewarmFails 累加）
 	accountID := int64(1000)

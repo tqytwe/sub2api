@@ -438,7 +438,7 @@ func (h *AsyncImageHandler) newWorkerImageContext(
 	executionCtx, cancel := context.WithTimeout(ctx, h.tasks.ExecutionTimeout())
 	executionCtx = context.WithValue(executionCtx, ctxkey.UserID, apiKey.UserID)
 	executionCtx = context.WithValue(executionCtx, ctxkey.RequestID, taskID)
-	executionCtx = context.WithValue(executionCtx, ctxkey.ClientRequestID, taskID)
+	executionCtx = imageWorkerBillingContext(executionCtx, taskID)
 	request := httptest.NewRequest(envelope.Method, envelope.Path, bytes.NewReader(body)).WithContext(executionCtx)
 	request.Header.Set("Content-Type", contentType)
 	for key, value := range envelope.Headers {
