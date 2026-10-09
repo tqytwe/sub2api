@@ -495,6 +495,8 @@ func TestTokenRefreshService_RefreshWithRetry_Antigravity(t *testing.T) {
 		ID:       8,
 		Platform: PlatformAntigravity,
 		Type:     AccountTypeOAuth,
+		// Privacy is already configured; this test covers cache invalidation only.
+		Extra: map[string]any{"privacy_mode": AntigravityPrivacySet},
 	}
 	refresher := &tokenRefresherStub{
 		credentials: map[string]any{
@@ -506,6 +508,7 @@ func TestTokenRefreshService_RefreshWithRetry_Antigravity(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 1, repo.updateCalls)
 	require.Equal(t, 1, invalidator.calls) // Antigravity 也应触发缓存失效
+	require.Zero(t, repo.updateExtraCalls, "preconfigured privacy must not trigger privacy persistence")
 }
 
 func TestAntigravityTokenRefresher_NeedsRefresh_ForceRefreshMarker(t *testing.T) {
