@@ -86,9 +86,16 @@ function updatePosition() {
   const tooltip = tooltipRef.value
   if (!el || !tooltip) return
   const rect = el.getBoundingClientRect()
-  const { width, height } = tooltip.getBoundingClientRect()
   const gap = 8
   const inset = 8
+  // Measure the caller's width classes first; only tighten their limit when
+  // needed, and release a previous viewport cap when the viewport grows.
+  tooltip.style.maxWidth = ''
+  const availableWidth = Math.max(0, window.innerWidth - inset * 2)
+  if (tooltip.getBoundingClientRect().width > availableWidth) {
+    tooltip.style.maxWidth = `${availableWidth}px`
+  }
+  const { width, height } = tooltip.getBoundingClientRect()
   // Both rects and the teleported fixed tooltip use viewport coordinates.
   // Adding document scroll offsets here moves the tooltip offscreen.
   const center = rect.left + rect.width / 2
@@ -154,7 +161,7 @@ onBeforeUnmount(() => {
           placement === 'top' ? 'before:top-full' : 'before:bottom-full',
           props.widthClass,
         ]"
-        :style="{ ...tooltipStyle, maxWidth: 'calc(100vw - 16px)' }"
+        :style="tooltipStyle"
         @mouseleave="onTooltipLeave"
       >
         <button

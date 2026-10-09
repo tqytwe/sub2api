@@ -1,0 +1,16 @@
+{
+  "commit": "a5dca0465a0fe8cd49b32eb8d2a356e45eea6b15",
+  "source": "AccountsView.vue accountHomepageUrl HelpTooltip template extracted unchanged",
+  "before": {
+    "x": 8,
+    "y": 452.5,
+    "width": 1015.78125,
+    "height": 43.5
+  },
+  "prototype": {
+    "x": 8,
+    "y": 413.5,
+    "width": 384,
+    "height": 82.5
+  }
+}

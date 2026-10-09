@@ -1,0 +1,58 @@
+[
+  {
+    "name": "accounts-width-1280",
+    "expected": 384,
+    "width": 384,
+    "height": 82.5,
+    "x": 8,
+    "y": 413.5,
+    "maxWidth": "384px",
+    "inlineMaxWidth": "",
+    "viewport": 1280,
+    "hit": true,
+    "passed": true
+  },
+  {
+    "name": "accounts-width-360",
+    "expected": 344,
+    "width": 344,
+    "height": 102,
+    "x": 8,
+    "y": 418,
+    "maxWidth": "344px",
+    "inlineMaxWidth": "344px",
+    "viewport": 360,
+    "hit": true,
+    "passed": true
+  },
+  {
+    "name": "accounts-width-960",
+    "expected": 384,
+    "width": 384,
+    "height": 82.5,
+    "x": 8,
+    "y": 413.5,
+    "maxWidth": "384px",
+    "inlineMaxWidth": "",
+    "viewport": 960,
+    "hit": true,
+    "passed": true
+  },
+  {
+    "name": "accounts-width-1920",
+    "expected": 384,
+    "width": 384,
+    "height": 82.5,
+    "x": 8,
+    "y": 413.5,
+    "maxWidth": "384px",
+    "inlineMaxWidth": "",
+    "viewport": 1920,
+    "hit": true,
+    "passed": true
+  },
+  {
+    "name": "hover leave and reopen",
+    "passed": true
+  }
+]
