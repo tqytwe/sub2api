@@ -46,6 +46,8 @@ export const useAppStore = defineStore('app', () => {
   const currentVersion = ref<string>('')
   const latestVersion = ref<string>('')
   const hasUpdate = ref<boolean>(false)
+  const upstreamBaseline = ref('')
+  const versionWarning = ref('')
   const buildType = ref<string>('source')
   const releaseInfo = ref<ReleaseInfo | null>(null)
 
@@ -254,7 +256,11 @@ export const useAppStore = defineStore('app', () => {
         has_update: hasUpdate.value,
         build_type: buildType.value,
         release_info: releaseInfo.value || undefined,
-        cached: true
+        cached: true,
+        upstream_baseline: upstreamBaseline.value,
+        warning: versionWarning.value,
+        install_supported: false,
+        install_repository: 'tqytwe/sub2api'
       }
     }
 
@@ -270,10 +276,13 @@ export const useAppStore = defineStore('app', () => {
       latestVersion.value = data.latest_version
       hasUpdate.value = data.has_update
       buildType.value = data.build_type || 'source'
+      upstreamBaseline.value = data.upstream_baseline || ''
+      versionWarning.value = data.warning || ''
       releaseInfo.value = data.release_info || null
       versionLoaded.value = true
       return data
     } catch (error) {
+      versionWarning.value = 'Version lookup failed'
       console.error('Failed to fetch version:', error)
       return null
     } finally {
@@ -488,6 +497,8 @@ export const useAppStore = defineStore('app', () => {
     // Version state
     versionLoaded,
     versionLoading,
+    upstreamBaseline,
+    versionWarning,
     currentVersion,
     latestVersion,
     hasUpdate,

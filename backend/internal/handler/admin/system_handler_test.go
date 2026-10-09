@@ -83,7 +83,7 @@ type systemUpdateErrorEnvelope struct {
 	Message string `json:"message"`
 }
 
-func newSystemHandlerTestRouter(t *testing.T, updateSvc *systemHandlerUpdateServiceStub, repo *memoryIdempotencyRepoStub) *gin.Engine {
+func newSystemHandlerTestRouter(t *testing.T, updateSvc systemUpdateService, repo *memoryIdempotencyRepoStub) *gin.Engine {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 	service.SetDefaultIdempotencyCoordinator(nil)
@@ -321,4 +321,26 @@ func TestSystemHandlerGetRollbackVersionsError(t *testing.T) {
 	router.ServeHTTP(rec, req)
 
 	require.Equal(t, http.StatusInternalServerError, rec.Code)
+}
+
+// Exercise real UpdateService through HTTP handlers, including legacy no-body rollback.
+func TestSystemHandlerForkSourcePolicyCannotBeBypassed(t *testing.T) {
+	for _, item := range []struct{ path, body string }{
+		{"/api/v1/admin/system/update", ""},
+		{"/api/v1/admin/system/rollback", ""},
+		{"/api/v1/admin/system/rollback", `{"version":"2.10.2"}`},
+	} {
+		t.Run(item.path+item.body, func(t *testing.T) {
+			// Nil clients ensure rejection happens before all external I/O.
+			svc := service.NewUpdateService(nil, nil, "0.2.14", "release")
+			router := newSystemHandlerTestRouter(t, svc, newMemoryIdempotencyRepoStub())
+			rec := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodPost, item.path, strings.NewReader(item.body))
+			req.Header.Set("Content-Type", "application/json")
+			router.ServeHTTP(rec, req)
+			require.Equal(t, http.StatusConflict, rec.Code, rec.Body.String())
+			require.Contains(t, rec.Body.String(), "source")
+			require.NotContains(t, rec.Body.String(), `"need_restart":true`)
+		})
+	}
 }

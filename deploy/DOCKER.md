@@ -1,3 +1,5 @@
+> **Fork source policy:** Wei-Shaw/weishaw install commands, images and templates below describe the original distribution, not a verified tqytwe build. They must not be used to update or roll back this fork. Follow [fork source build and release instructions](FORK_SOURCE_BUILD.md); no public fork image is assumed to exist.
+
 # Sub2API Docker Image
 
 Sub2API is an AI API Gateway Platform for distributing and managing AI product subscription API quotas.

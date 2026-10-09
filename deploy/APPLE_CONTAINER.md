@@ -1,3 +1,5 @@
+> **Fork source policy:** Wei-Shaw/weishaw install commands, images and templates below describe the original distribution, not a verified tqytwe build. They must not be used to update or roll back this fork. Follow [fork source build and release instructions](FORK_SOURCE_BUILD.md); no public fork image is assumed to exist.
+
 # Apple container Deployment
 
 Sub2API can run as a native three-service stack with Apple's `container` CLI. This workflow runs the published Sub2API, PostgreSQL, and Redis OCI images without Docker Desktop or a Docker-compatible daemon.
@@ -160,7 +162,7 @@ The script checks the published `/health` endpoint from macOS before reporting s
 
 ## Web UI Updates
 
-The Web UI uses the same update flow as the Docker deployment: it downloads a release over GitHub, atomically replaces the active executable, and asks the application to restart. Docker supplies the restart policy in a Compose deployment; `apple-container.sh` supplies an equivalent process supervisor inside the Apple application container.
+The tqytwe Web UI only checks ranxi stable releases. In-place update and rollback are disabled until verified fork artifacts have an approved trust policy. Rebuild reviewed fork source and recreate the deployment; the existing Apple process supervisor does not establish artifact provenance.
 
 The active executable lives in `sub2api-apple-data` so a later `up`, `restart`, or `up --recreate` does not discard an update downloaded from the Web UI. The script records the configured base image ID alongside it; when `APPLE_CONTAINER_SUB2API_IMAGE` resolves to a different image ID, the image's `/app/sub2api` becomes the new active executable. This keeps explicit image upgrades authoritative while preserving in-place updates across routine application-container recreation.
 

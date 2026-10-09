@@ -15,6 +15,23 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  release-policy:
+    name: Release source policy
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          persist-credentials: false
+      - name: Test source lock and publication boundaries offline
+        run: |
+          python3 -m venv "$RUNNER_TEMP/release-policy"
+          source "$RUNNER_TEMP/release-policy/bin/activate"
+          python -m pip install -r .github/release-tools/requirements-release.txt
+          python -m unittest discover -s scripts -p test_upstream_release_check.py
+          python -m unittest discover -s .github/release-tools -p test_release_matrix.py
+          bash -n .github/release-tools/release-images.sh
+
   protected-behavior:
     name: Protected behavior
     runs-on: ubuntu-latest

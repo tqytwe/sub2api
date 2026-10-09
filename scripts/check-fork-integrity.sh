@@ -502,6 +502,19 @@ run_check "FORK-SETTINGS-019" "system settings controls, API payload, secret mas
     src/i18n/__tests__/adminManagementLocaleKeys.spec.ts
 
 echo
+# Fork update source and publication boundaries.
+check_file "FORK-DEPLOY-006" "fork source build guide" "deploy/FORK_SOURCE_BUILD.md"
+check_file "FORK-DEPLOY-006" "reviewed upstream source lock" "docs/upstream-migrations/source-lock.json"
+check_file "FORK-DEPLOY-006" "read-only source verifier" "scripts/check_upstream_release.py"
+check_contains "FORK-DEPLOY-006" "PR CI exercises release source policy" ".github/workflows/fork-integrity.yml" 'test_release_matrix.py'
+check_contains "FORK-DEPLOY-006" "ranxi release discovery" "backend/internal/service/update_service.go" '"ranxi2001/sub2api"'
+check_contains "FORK-DEPLOY-006" "unverified in-place installation is rejected" "backend/internal/service/update_service.go" 'FORK_SOURCE_DEPLOYMENT_REQUIRED'
+check_contains "FORK-DEPLOY-006" "cache is bound to source policy" "backend/internal/repository/update_cache.go" 'service.UpdateSourceIdentity'
+check_contains "FORK-DEPLOY-006" "publish only reviewed fork head" ".github/release-tools/release_matrix.py" 'refs/remotes/origin/play/main^{commit}'
+check_not_contains "FORK-DEPLOY-006" "release workflow cannot push VERSION" ".github/workflows/release.yml" 'git push'
+check_not_contains "FORK-DEPLOY-006" "no upstream installer in badge" "frontend/src/components/common/VersionBadge.vue" 'Wei-Shaw/sub2api'
+check_not_contains "FORK-DEPLOY-006" "no original image rollback in badge" "frontend/src/components/common/VersionBadge.vue" 'weishaw/sub2api'
+
 if [[ "$FAIL" -ne 0 ]]; then
   echo "Fork integrity FAILED. Review $REGISTRY before merging upstream." >&2
   exit 1
