@@ -104,12 +104,31 @@ class ReleaseMatrixTest(unittest.TestCase):
                 self.assertFalse(data['archives'])
                 self.assertFalse(data['dockers'])
                 self.assertEqual(data['release']['header'], original['release']['header'])
-                self.assertEqual(data['release']['footer'], original['release']['footer'])
                 if simple:
                     self.assertTrue(data['checksum']['disable'])
                     self.assertTrue(data['release']['skip_upload'])
                 else:
                     self.assertEqual(data['checksum']['extra_files'], data['release']['extra_files'])
+
+    def test_full_publisher_footer_uses_reviewed_fork_source_not_original_installers(self):
+        release.generate_config(argparse.Namespace(mode='publish', simple=False, output='publisher.yaml'))
+        footer = yaml.safe_load(Path('publisher.yaml').read_text())['release']['footer']
+        source_url = ('https://github.com/{{ .Env.GITHUB_REPO_OWNER }}/{{ .Env.GITHUB_REPO_NAME }}'
+                      '/blob/{{ .Env.RELEASE_SHA }}/deploy/FORK_SOURCE_BUILD.md')
+        self.assertIn(source_url, footer)
+        self.assertIn('release-provenance.json', footer)
+        self.assertIn('checksums.txt', footer)
+        for unsafe in ('/main/', 'raw.githubusercontent.com', '/deploy/install.sh',
+                       '/deploy/docker-deploy.sh', 'curl ', 'wget ', '| bash',
+                       '| sudo bash', 'docker pull '):
+            with self.subTest(unsafe=unsafe):
+                self.assertNotIn(unsafe, footer)
+        self.assertNotRegex(footer, r'```(?:bash|sh|shell)')
+        workflow = yaml.load((ROOT / '.github/workflows/release.yml').read_text(), Loader=yaml.BaseLoader)
+        # Snapshot builds also load the release template. Both rendering stages
+        # need the complete source SHA so the commit-pinned links can resolve.
+        for job in ('build-binaries', 'release'):
+            self.assertEqual(workflow['jobs'][job]['env'].get('RELEASE_SHA'), '${{ needs.prepare.outputs.sha }}')
 
     def test_collect_and_verify_hash_and_source_binding(self):
         args = self.fixture_artifacts()

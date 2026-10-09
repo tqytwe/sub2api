@@ -118,6 +118,7 @@ jobs:
     env:
       RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
       RELEASE_DATE: ${{ needs.prepare.outputs.date }}
+      RELEASE_SHA: ${{ needs.prepare.outputs.sha }}
     steps:
       - uses: actions/checkout@v6
         with:
