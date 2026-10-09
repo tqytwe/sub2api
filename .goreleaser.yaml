@@ -185,28 +185,13 @@ release:
 
     ---
 
-    ## 📥 Installation
+    ## tqytwe fork deployment
 
-    **Docker:**
-    ```bash
-    {{ if ne .Env.DOCKERHUB_USERNAME "skip" -}}
-    # Docker Hub
-    docker pull {{ .Env.DOCKERHUB_USERNAME }}/sub2api:{{ .Version }}
+    Build and deploy only a reviewed fork commit, preserving the fork's features and styling.
 
-    {{ end -}}
-    # GitHub Container Registry
-    docker pull ghcr.io/{{ .Env.GITHUB_REPO_OWNER_LOWER }}/sub2api:{{ .Version }}
-    ```
+    1. Review [the exact fork source for this release](https://github.com/{{ .Env.GITHUB_REPO_OWNER }}/{{ .Env.GITHUB_REPO_NAME }}/tree/{{ .Env.RELEASE_SHA }}).
+    2. Follow the [fork source build and rollback guide at that commit](https://github.com/{{ .Env.GITHUB_REPO_OWNER }}/{{ .Env.GITHUB_REPO_NAME }}/blob/{{ .Env.RELEASE_SHA }}/deploy/FORK_SOURCE_BUILD.md).
+    3. Before approving any published artifact for deployment, check its repository, commit and source lock in `release-provenance.json`, verify `checksums.txt`, and complete fork compatibility validation. Provenance metadata and checksums are not a signature or deployment approval.
 
-    **One-line install (Linux):**
-    ```bash
-    curl -sSL https://raw.githubusercontent.com/{{ .Env.GITHUB_REPO_OWNER }}/{{ .Env.GITHUB_REPO_NAME }}/main/deploy/install.sh | sudo bash
-    ```
-
-    **Manual download:**
-    Download the appropriate archive for your platform from the assets below.
-
-    ## 📚 Documentation
-
-    - [GitHub Repository](https://github.com/{{ .Env.GITHUB_REPO_OWNER }}/{{ .Env.GITHUB_REPO_NAME }})
-    - [Installation Guide](https://github.com/{{ .Env.GITHUB_REPO_OWNER }}/{{ .Env.GITHUB_REPO_NAME }}/blob/main/deploy/README.md)
+    In-place binary updates and rollback remain disabled until a verified fork artifact policy exists.
+    Ranxi releases are source review targets; original-distribution installers must not replace this fork.

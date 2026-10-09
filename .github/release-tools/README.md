@@ -6,18 +6,21 @@ Each build uses GoReleaser OSS in snapshot mode with the selected release versio
 
 Go caches are isolated by target and refreshed on each source commit, with fallback to the preceding target cache. Save uses the original restore key, even if a build hook changes `go.sum`. Matrix jobs upload uniquely named artifacts. The publishing job extracts only the regular Linux binary from each verified archive and restores its executable permission before constructing Docker contexts. QEMU remains limited to runtime-image instructions. DockerHub images are omitted when its credentials are absent; GHCR is always retained. Simple mode still publishes only the amd64 GHCR image and the simple release description.
 
-All build jobs use the commit resolved by `prepare`, including a manual release's selected tag. Helper scripts come from the workflow revision and are passed as a run-local artifact, so older application tags do not need to contain the new scripts. The workflow serializes release runs to prevent simultaneous updates to moving image tags.
+All build jobs use the commit resolved by `prepare`. Helper scripts come from the reviewed `play/main` workflow revision and are passed as a run-local artifact. Publication requires a fork tag on the current `origin/play/main` commit, a matching VERSION already reviewed in source, and a source lock matching the runtime policy. Only dry runs may select other application refs. The workflow serializes release runs to prevent simultaneous updates to moving image tags.
 
 ## Validate without publication
 
-From a branch containing this workflow:
+After this workflow is reviewed and merged into `play/main`, select **`play/main` as the workflow ref**. Select the application source independently with the `tag` input; for a dry run it may be a review branch or full commit SHA:
 
 ```bash
-gh workflow run release.yml --ref <branch> \
-  -f tag=<branch> -f dry_run=true -f simple_release=false
+: "${APPLICATION_REF:?set a review branch or full application commit SHA}"
+gh workflow run release.yml --ref play/main \
+  -f tag="$APPLICATION_REF" -f dry_run=true -f simple_release=false
 ```
 
-A dry run builds all selected archives and both runtime images, verifies artifact provenance and produces the final checksum file. It exports images locally as OCI archives instead of pushing them. It skips registry logins, GitHub Release publication, DockerHub description updates, Telegram notifications and VERSION synchronization. Test the simple path separately with `simple_release=true`.
+A dry run builds all selected archives and both runtime images, verifies artifact provenance and produces the final checksum file. It exports images locally as OCI archives instead of pushing them. It skips registry logins, GitHub Release publication, DockerHub description updates and Telegram notifications. No run writes or pushes VERSION; version changes must go through a `play/main` PR. Test the simple path separately with `simple_release=true`.
+
+The full release footer links to the fork source build guide at the exact release commit. It does not recommend original-distribution installers. Provenance JSON and checksums identify the build; they are not signatures or deployment approval, and in-place binary installation remains disabled.
 
 Dry-run artifacts are available in the Actions run, including `release-dry-run-report`. Compare job start/end times, GoReleaser's build duration and cache restore results. Do not present an initial cold-cache run as a warmed-cache benchmark; publishing network time is not measured by dry runs.
 

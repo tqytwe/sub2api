@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# ORIGINAL DISTRIBUTION REFERENCE: Wei-Shaw/weishaw defaults are not verified fork artifacts.
+# Do not use these defaults to update tqytwe; see deploy/FORK_SOURCE_BUILD.md.
 
 set -euo pipefail
 

@@ -142,9 +142,8 @@ func (h *SystemHandler) GetRollbackVersions(c *gin.Context) {
 }
 
 // Rollback restores a previous version.
-// Without a body (or with an empty version) it restores the local .backup binary
-// left by the last in-place update. With {"version": "x.y.z"} it downloads and
-// installs that specific release (must be one of the recent rollback versions).
+// Both legacy local-backup and selected-version requests delegate to the service
+// trust policy. The fork currently rejects both with source-deployment guidance.
 // POST /api/v1/admin/system/rollback
 func (h *SystemHandler) Rollback(c *gin.Context) {
 	var req struct {

@@ -1,5 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
+# Direct/local invocations also default to non-publishing mode.
+DRY_RUN=${DRY_RUN:-true}
+if [[ "$DRY_RUN" != true && "$DRY_RUN" != false ]]; then
+  echo 'DRY_RUN must be true or false' >&2
+  exit 1
+fi
 : "${RELEASE_VERSION:?}" "${RELEASE_SHA:?}" "${GITHUB_REPOSITORY:?}" "${RUNNER_TEMP:?}"
 owner=${GITHUB_REPOSITORY%%/*}
 registries=("ghcr.io/${owner,,}/sub2api")
@@ -19,14 +25,14 @@ for arch in "${arches[@]}"; do
       args+=(--tag "$registry:$RELEASE_VERSION" --tag "$registry:latest")
     fi
   done
-  if [[ ${DRY_RUN:-false} == true ]]; then
+  if [[ $DRY_RUN == true ]]; then
     args+=(--output "type=oci,dest=$RUNNER_TEMP/sub2api-$arch.oci.tar")
   else
     args+=(--push)
   fi
   docker buildx build "${args[@]}" ".release-context/$arch"
 done
-if [[ ${DRY_RUN:-false} != true && ${SIMPLE_RELEASE:-false} != true ]]; then
+if [[ $DRY_RUN != true && ${SIMPLE_RELEASE:-false} != true ]]; then
   major=${RELEASE_VERSION%%.*}
   minor=${RELEASE_VERSION#*.}; minor=${minor%%.*}
   for registry in "${registries[@]}"; do

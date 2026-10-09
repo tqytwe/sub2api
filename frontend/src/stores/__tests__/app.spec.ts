@@ -481,3 +481,17 @@ describe('useAppStore', () => {
     })
   })
 })
+
+describe('fork update discovery cache', () => {
+  it('retains upstream baseline and warning in its in-memory cache', async () => {
+    const { checkUpdates } = await import('@/api/admin/system')
+    setActivePinia(createPinia())
+    vi.mocked(checkUpdates).mockResolvedValueOnce({ current_version: '0.2.14', latest_version: '2.10.3', has_update: false, build_type: 'release', cached: false, upstream_baseline: '2.10.3', install_supported: false, install_repository: 'tqytwe/sub2api', warning: 'Using cached data: offline' })
+    const store = useAppStore()
+    await store.fetchVersion(true)
+    const cached = await store.fetchVersion(false)
+    expect(cached?.upstream_baseline).toBe('2.10.3')
+    expect(cached?.install_supported).toBe(false)
+    expect(cached?.warning).toContain('offline')
+  })
+})

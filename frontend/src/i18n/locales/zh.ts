@@ -8847,18 +8847,18 @@ const messages = {
 
   // Version Badge
   version: {
-    currentVersion: '当前版本',
-    latestVersion: '最新版本',
+    currentVersion: "当前 fork 构建",
+    latestVersion: "ranxi 最新正式版本",
     upToDate: '已是最新版本',
-    updateAvailable: '有新版本可用！',
+    updateAvailable: '有新的 ranxi 正式发布待审查',
     releaseNotes: '更新日志',
     noReleaseNotes: '暂无更新日志',
     viewUpdate: '查看更新',
-    viewRelease: '查看发布',
+    viewRelease: "查看 ranxi 上游新版本",
     viewChangelog: '查看更新日志',
     refresh: '刷新',
     sourceMode: '源码构建',
-    sourceModeHint: '源码构建请使用 git pull 更新',
+    sourceModeHint: "当前暂无已验证的在线安装产物。请从 tqytwe/sub2api 已审查的 play/main 提交构建并部署，保留自研功能与风格。",
     updateNow: '立即更新',
     updating: '正在更新...',
     updateComplete: '更新完成',
@@ -8879,11 +8879,15 @@ const messages = {
     copied: '已复制',
     noRollbackVersions: '暂无可回退的版本',
     loadVersionsFailed: '获取版本列表失败',
-    rollbackSourceHint: '源码构建不支持在线回退',
+    rollbackSourceHint: "回退也需使用已审查的 fork 源码或先前部署镜像。在线回退及旧二进制备份恢复已停用。",
     deployScript: '脚本部署',
     deployDocker: 'Docker',
     dockerEditCompose: '修改 docker-compose.yml 中的镜像版本',
-    dockerRecreate: '重新创建容器'
+    dockerRecreate: '重新创建容器',
+    upstreamBaseline: "已锁定的上游源码：v{version}",
+    forkInstall: "安装已验证的 tqytwe 构建",
+    deploymentGuide: "查看 fork 源码构建部署说明",
+    checkFailed: "上游版本查询失败或正在使用缓存，请刷新重试。",
   },
 
   stepUp: {

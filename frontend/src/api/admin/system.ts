@@ -12,6 +12,11 @@ export interface ReleaseInfo {
 }
 
 export interface VersionInfo {
+  upstream_repository?: string
+  upstream_baseline?: string
+  install_repository?: string
+  install_supported?: boolean
+  deployment_guide_url?: string
   current_version: string
   latest_version: string
   has_update: boolean
@@ -70,8 +75,8 @@ export async function getRollbackVersions(): Promise<{ versions: RollbackVersion
 const UPDATE_REQUEST_TIMEOUT_MS = 15 * 60 * 1000
 
 /**
- * Perform system update
- * Downloads and applies the latest version
+ * Compatibility endpoint: currently returns FORK_SOURCE_DEPLOYMENT_REQUIRED.
+ * Upstream discovery never authorizes a fork binary replacement.
  */
 export async function performUpdate(): Promise<UpdateResult> {
   const { data } = await apiClient.post<UpdateResult>('/admin/system/update', undefined, {
@@ -82,7 +87,8 @@ export async function performUpdate(): Promise<UpdateResult> {
 
 /**
  * Rollback to a previous version
- * @param version - Target version (e.g. "0.1.146"); omit to restore the local backup binary
+ * Both selected-version and no-body legacy backup restoration are currently rejected.
+ * @param version - Reserved for a future verified fork artifact policy.
  */
 export async function rollback(version?: string): Promise<UpdateResult> {
   const { data } = await apiClient.post<UpdateResult>(

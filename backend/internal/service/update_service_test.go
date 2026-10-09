@@ -1,187 +1,127 @@
-//go:build unit
-
 package service
 
 import (
 	"context"
-	"errors"
+	"encoding/json"
+	"fmt"
+	"strings"
 	"testing"
 	"time"
-
-	"github.com/stretchr/testify/require"
 )
 
-type updateServiceCacheStub struct {
-	data string
-}
+type sourcePolicyCache struct{ data string }
 
-func (s *updateServiceCacheStub) GetUpdateInfo(context.Context) (string, error) {
-	if s.data == "" {
-		return "", errors.New("cache miss")
-	}
-	return s.data, nil
-}
-
-func (s *updateServiceCacheStub) SetUpdateInfo(_ context.Context, data string, _ time.Duration) error {
-	s.data = data
+func (c *sourcePolicyCache) GetUpdateInfo(context.Context) (string, error) { return c.data, nil }
+func (c *sourcePolicyCache) SetUpdateInfo(_ context.Context, data string, _ time.Duration) error {
+	c.data = data
 	return nil
 }
 
-type updateServiceGitHubClientStub struct {
-	release        *GitHubRelease
-	recentReleases []*GitHubRelease
-	recentErr      error
+type sourcePolicyClient struct {
+	release *GitHubRelease
+	repo    string
+	calls   int
+	err     error
 }
 
-func (s *updateServiceGitHubClientStub) FetchLatestRelease(context.Context, string) (*GitHubRelease, error) {
-	return s.release, nil
+func (c *sourcePolicyClient) FetchLatestRelease(_ context.Context, repo string) (*GitHubRelease, error) {
+	c.repo = repo
+	c.calls++
+	return c.release, c.err
+}
+func (c *sourcePolicyClient) FetchRecentReleases(context.Context, string, int) ([]*GitHubRelease, error) {
+	panic("unverified rollback release query")
+}
+func (c *sourcePolicyClient) DownloadFile(context.Context, string, string, int64) error {
+	panic("unverified binary download")
+}
+func (c *sourcePolicyClient) FetchChecksumFile(context.Context, string) ([]byte, error) {
+	panic("unverified checksum download")
+}
+func policyRelease() *GitHubRelease {
+	return &GitHubRelease{TagName: "v2.10.3", HTMLURL: "https://github.com/ranxi2001/sub2api/releases/tag/v2.10.3", Assets: []GitHubAsset{{Name: "sub2api_linux_amd64.tar.gz", BrowserDownloadURL: "https://github.com/ranxi2001/sub2api/releases/download/v2.10.3/sub2api_linux_amd64.tar.gz"}}}
 }
 
-func (s *updateServiceGitHubClientStub) FetchRecentReleases(context.Context, string, int) ([]*GitHubRelease, error) {
-	return s.recentReleases, s.recentErr
-}
-
-func (s *updateServiceGitHubClientStub) DownloadFile(context.Context, string, string, int64) error {
-	panic("DownloadFile should not be called when no update is available")
-}
-
-func (s *updateServiceGitHubClientStub) FetchChecksumFile(context.Context, string) ([]byte, error) {
-	panic("FetchChecksumFile should not be called when no update is available")
-}
-
-func TestUpdateServicePerformUpdateNoUpdateReturnsSentinel(t *testing.T) {
-	svc := NewUpdateService(
-		&updateServiceCacheStub{},
-		&updateServiceGitHubClientStub{
-			release: &GitHubRelease{
-				TagName: "v0.1.132",
-				Name:    "v0.1.132",
-			},
-		},
-		"0.1.132",
-		"release",
-	)
-
-	err := svc.PerformUpdate(context.Background())
-
-	require.Error(t, err)
-	require.True(t, errors.Is(err, ErrNoUpdateAvailable))
-	require.ErrorIs(t, err, ErrNoUpdateAvailable)
-}
-
-func newRollbackTestService(current string, releases []*GitHubRelease) *UpdateService {
-	return NewUpdateService(
-		&updateServiceCacheStub{},
-		&updateServiceGitHubClientStub{recentReleases: releases},
-		current,
-		"release",
-	)
-}
-
-func TestUpdateServiceListRollbackVersionsFiltersAndCaps(t *testing.T) {
-	releases := []*GitHubRelease{
-		{TagName: "v0.1.148", PublishedAt: "2026-07-09T00:00:00Z"},                       // newer than current: excluded
-		{TagName: "v0.1.147", PublishedAt: "2026-07-08T00:00:00Z"},                       // current: excluded
-		{TagName: "v0.1.146-rc1", PublishedAt: "2026-07-07T12:00:00Z", Prerelease: true}, // prerelease: excluded
-		{TagName: "v0.1.146", PublishedAt: "2026-07-07T00:00:00Z"},
-		{TagName: "v0.1.145", PublishedAt: "2026-07-06T00:00:00Z", Draft: true}, // draft: excluded
-		{TagName: "v0.1.144", PublishedAt: "2026-07-05T00:00:00Z"},
-		{TagName: "v0.1.144", PublishedAt: "2026-07-05T00:00:00Z"}, // duplicate: excluded
-		{TagName: "v0.1.143", PublishedAt: "2026-07-04T00:00:00Z"},
-		{TagName: "v0.1.142", PublishedAt: "2026-07-03T00:00:00Z"}, // beyond cap of 3: excluded
-	}
-	svc := newRollbackTestService("0.1.147", releases)
-
-	versions, err := svc.ListRollbackVersions(context.Background())
-
-	require.NoError(t, err)
-	require.Len(t, versions, 3)
-	require.Equal(t, "0.1.146", versions[0].Version)
-	require.Equal(t, "0.1.144", versions[1].Version)
-	require.Equal(t, "0.1.143", versions[2].Version)
-}
-
-func TestUpdateServiceListRollbackVersionsSortsUnorderedInput(t *testing.T) {
-	releases := []*GitHubRelease{
-		{TagName: "v0.1.144"},
-		{TagName: "v0.1.146"},
-		{TagName: "v0.1.145"},
-	}
-	svc := newRollbackTestService("0.1.147", releases)
-
-	versions, err := svc.ListRollbackVersions(context.Background())
-
-	require.NoError(t, err)
-	require.Len(t, versions, 3)
-	require.Equal(t, "0.1.146", versions[0].Version)
-	require.Equal(t, "0.1.145", versions[1].Version)
-	require.Equal(t, "0.1.144", versions[2].Version)
-}
-
-func TestUpdateServiceListRollbackVersionsEmptyWhenNoneOlder(t *testing.T) {
-	releases := []*GitHubRelease{
-		{TagName: "v0.1.147"},
-		{TagName: "v0.1.148"},
-	}
-	svc := newRollbackTestService("0.1.147", releases)
-
-	versions, err := svc.ListRollbackVersions(context.Background())
-
-	require.NoError(t, err)
-	require.Empty(t, versions)
-}
-
-func TestUpdateServiceListRollbackVersionsPropagatesFetchError(t *testing.T) {
-	svc := NewUpdateService(
-		&updateServiceCacheStub{},
-		&updateServiceGitHubClientStub{recentErr: errors.New("github unavailable")},
-		"0.1.147",
-		"release",
-	)
-
-	_, err := svc.ListRollbackVersions(context.Background())
-
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "github unavailable")
-}
-
-func TestUpdateServiceRollbackToVersionRejectsDisallowedTargets(t *testing.T) {
-	releases := []*GitHubRelease{
-		{TagName: "v0.1.148"},
-		{TagName: "v0.1.147"},
-		{TagName: "v0.1.146"},
-		{TagName: "v0.1.145"},
-		{TagName: "v0.1.144"},
-		{TagName: "v0.1.143"},
-		{TagName: "v0.1.142"},
-	}
-	svc := newRollbackTestService("0.1.147", releases)
-
-	for _, target := range []string{
-		"",         // empty
-		"0.1.147",  // current version
-		"v0.1.147", // current version with prefix
-		"0.1.148",  // newer than current
-		"0.1.142",  // older than the 3 most recent
-		"9.9.9",    // nonexistent
-	} {
-		err := svc.RollbackToVersion(context.Background(), target)
-		require.ErrorIs(t, err, ErrRollbackVersionNotAllowed, "target %q should be rejected", target)
+func TestUpdateSourcePolicyRejectsAllBinaryMutation(t *testing.T) {
+	for _, build := range []string{"source", "release", ""} {
+		t.Run(build, func(t *testing.T) {
+			client := &sourcePolicyClient{release: policyRelease()}
+			svc := NewUpdateService(&sourcePolicyCache{}, client, "0.2.14", build)
+			for _, err := range []error{svc.PerformUpdate(context.Background()), svc.RollbackToVersion(context.Background(), "2.10.2"), svc.Rollback()} {
+				if err == nil || !strings.Contains(err.Error(), "source") {
+					t.Fatalf("expected source deployment refusal, got %v", err)
+				}
+			}
+			versions, err := svc.ListRollbackVersions(context.Background())
+			if err != nil || len(versions) != 0 {
+				t.Fatalf("unverified rollbacks: %v %v", versions, err)
+			}
+			if client.calls != 0 {
+				t.Fatal("mutation must fail before network or filesystem access")
+			}
+		})
 	}
 }
 
-func TestUpdateServiceRollbackToVersionAcceptsVPrefix(t *testing.T) {
-	// No platform asset in the release: the target passes the allowlist check
-	// and fails later at asset lookup, proving the version itself was accepted.
-	releases := []*GitHubRelease{
-		{TagName: "v0.1.147"},
-		{TagName: "v0.1.146"},
+func TestUpdateSourcePolicyCheckAndCache(t *testing.T) {
+	cache := &sourcePolicyCache{data: fmt.Sprintf(`{"latest":"99.0.0","timestamp":%d,"release_info":{"html_url":"https://github.com/Wei-Shaw/sub2api"}}`, time.Now().Unix())}
+	client := &sourcePolicyClient{release: policyRelease()}
+	svc := NewUpdateService(cache, client, "0.2.14", "release")
+	info, err := svc.CheckUpdate(context.Background(), false)
+	if err != nil || info.LatestVersion != "2.10.3" || info.Cached || client.repo != "ranxi2001/sub2api" {
+		t.Fatalf("old cache/source reused: %+v %v %s", info, err, client.repo)
 	}
-	svc := newRollbackTestService("0.1.147", releases)
+	if len(info.ReleaseInfo.Assets) != 0 {
+		t.Fatal("upstream assets must never be offered as fork updates")
+	}
+	body, _ := json.Marshal(info)
+	var response map[string]any
+	_ = json.Unmarshal(body, &response)
+	if response["install_supported"] != false || response["install_repository"] != "tqytwe/sub2api" {
+		t.Fatalf("missing installation policy: %s", body)
+	}
+	info, err = svc.CheckUpdate(context.Background(), false)
+	if err != nil || !info.Cached || client.calls != 1 {
+		t.Fatalf("cache should be reusable only for matching policy: %+v %v", info, err)
+	}
+	var cached map[string]any
+	_ = json.Unmarshal([]byte(cache.data), &cached)
+	cached["source_identity"] = "Wei-Shaw/sub2api"
+	changed, _ := json.Marshal(cached)
+	cache.data = string(changed)
+	client.err = fmt.Errorf("offline")
+	info, err = svc.CheckUpdate(context.Background(), true)
+	if err != nil || info.Cached || info.HasUpdate || info.Warning == "" {
+		t.Fatalf("wrong-source cache accepted on failure: %+v %v", info, err)
+	}
+}
 
-	err := svc.RollbackToVersion(context.Background(), "v0.1.146")
+func TestUpdateSourcePolicyRejectsUnofficialRelease(t *testing.T) {
+	for _, change := range []func(*GitHubRelease){func(r *GitHubRelease) { r.Draft = true }, func(r *GitHubRelease) { r.Prerelease = true }, func(r *GitHubRelease) { r.HTMLURL = "https://github.com/Wei-Shaw/sub2api/releases/tag/v2.10.3" }, func(r *GitHubRelease) { r.TagName = "v2.10.3-rc1" }} {
+		release := policyRelease()
+		change(release)
+		svc := NewUpdateService(&sourcePolicyCache{}, &sourcePolicyClient{release: release}, "0.2.14", "release")
+		info, err := svc.CheckUpdate(context.Background(), true)
+		if err != nil || info.HasUpdate || info.ReleaseInfo != nil || info.Warning == "" {
+			t.Fatalf("unofficial release accepted: %+v %v", info, err)
+		}
+	}
+}
 
-	require.Error(t, err)
-	require.NotErrorIs(t, err, ErrRollbackVersionNotAllowed)
-	require.Contains(t, err.Error(), "no compatible release found")
+func TestUpdateSourcePolicyComparesUpstreamPinNotForkVersion(t *testing.T) {
+	for _, forkVersion := range []string{"0.2.14", "999.0.0", "dev"} {
+		release := policyRelease()
+		client := &sourcePolicyClient{release: release}
+		svc := NewUpdateService(&sourcePolicyCache{}, client, forkVersion, "release")
+		info, err := svc.CheckUpdate(context.Background(), true)
+		if err != nil || info.HasUpdate {
+			t.Fatalf("the pinned upstream release is not a new fork update: %+v %v", info, err)
+		}
+		release.TagName = "v2.11.0"
+		release.HTMLURL = "https://github.com/ranxi2001/sub2api/releases/tag/v2.11.0"
+		info, err = svc.CheckUpdate(context.Background(), true)
+		if err != nil || !info.HasUpdate {
+			t.Fatalf("new upstream should be compared to review pin: %+v %v", info, err)
+		}
+	}
 }

@@ -8701,18 +8701,18 @@ const messages = {
 
   // Version Badge
   version: {
-    currentVersion: 'Current Version',
-    latestVersion: 'Latest Version',
+    currentVersion: "Current fork build",
+    latestVersion: "Latest ranxi stable release",
     upToDate: "You're running the latest version.",
-    updateAvailable: 'A new version is available!',
+    updateAvailable: 'New ranxi stable release to review',
     releaseNotes: 'Release Notes',
     noReleaseNotes: 'No release notes',
     viewUpdate: 'View Update',
-    viewRelease: 'View Release',
+    viewRelease: "View ranxi upstream releases",
     viewChangelog: 'View Changelog',
     refresh: 'Refresh',
     sourceMode: 'Source Build',
-    sourceModeHint: 'Source build, use git pull to update',
+    sourceModeHint: "No verified artifact is approved for online installation. Build and deploy a reviewed tqytwe/sub2api play/main commit to preserve fork features and styling.",
     updateNow: 'Update Now',
     updating: 'Updating...',
     updateComplete: 'Update Complete',
@@ -8734,11 +8734,15 @@ const messages = {
     copied: 'Copied',
     noRollbackVersions: 'No versions available for rollback',
     loadVersionsFailed: 'Failed to load versions',
-    rollbackSourceHint: 'Online rollback is not available for source builds',
+    rollbackSourceHint: "Roll back using reviewed fork source or a previous deployment image. Online rollback and legacy binary backup restoration are disabled.",
     deployScript: 'Script',
     deployDocker: 'Docker',
     dockerEditCompose: 'Edit the image tag in docker-compose.yml',
-    dockerRecreate: 'Recreate the container'
+    dockerRecreate: 'Recreate the container',
+    upstreamBaseline: "Pinned upstream source: v{version}",
+    forkInstall: "Install verified tqytwe builds",
+    deploymentGuide: "Fork source build and deployment guide",
+    checkFailed: "Upstream lookup failed or is using cached data. Refresh to retry.",
   },
 
   stepUp: {

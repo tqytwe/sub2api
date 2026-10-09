@@ -17,6 +17,7 @@ import yaml
 FULL_CONFIG = Path('.goreleaser.yaml')
 SIMPLE_CONFIG = Path('.goreleaser.simple.yaml')
 VERSION_FILE = Path('backend/cmd/server/VERSION')
+SOURCE_LOCK_FILE = Path('docs/upstream-migrations/source-lock.json')
 VERSION_RE = re.compile(r'\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?')
 
 
@@ -50,6 +51,33 @@ def sha256(path):
         return hashlib.file_digest(stream, 'sha256').hexdigest()
 
 
+def source_policy(required=False):
+    if not SOURCE_LOCK_FILE.is_file():
+        if required:
+            raise ValueError('reviewed source lock is required for publication')
+        return None
+    lock = json.loads(SOURCE_LOCK_FILE.read_text())
+    if (lock.get('schema_version') != 1 or lock.get('source_repository') != 'ranxi2001/sub2api'
+            or lock.get('source_remote') != 'https://github.com/ranxi2001/sub2api.git'
+            or lock.get('production_repository') != 'tqytwe/sub2api'
+            or lock.get('production_branch') != 'play/main'
+            or not re.fullmatch(r'v[0-9]+\.[0-9]+\.[0-9]+', lock.get('release_tag', ''))
+            or lock.get('release_tag') != 'v' + lock.get('version_file', '')):
+        raise ValueError('invalid source lock repository, branch or stable version')
+    for field in ('tag_object', 'release_commit', 'analysis_base'):
+        if not re.fullmatch(r'[0-9a-f]{40}', lock.get(field, '')):
+            raise ValueError('source lock requires full SHA values')
+    runtime = Path('backend/internal/service/update_service.go').read_text()
+    match = re.search(r'upstreamReviewVersion\s*=\s*"([^"]+)"', runtime)
+    if not match or match.group(1) != lock['version_file']:
+        raise ValueError('runtime upstream baseline must match the reviewed source lock')
+    return lock
+
+
+def source_lock_digest():
+    return sha256(SOURCE_LOCK_FILE) if SOURCE_LOCK_FILE.is_file() else None
+
+
 def plan(args):
     sha = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
     if args.dry_run:
@@ -65,7 +93,23 @@ def plan(args):
             raise ValueError('checkout does not match the selected release tag')
     if not VERSION_RE.fullmatch(version):
         raise ValueError('invalid VERSION')
-    VERSION_FILE.write_text(version + '\n')
+    if not args.dry_run:
+        if os.environ.get('GITHUB_REPOSITORY') != 'tqytwe/sub2api':
+            raise ValueError('publication requires the tqytwe/sub2api repository')
+        reviewed_sha = subprocess.check_output(['git', 'rev-parse', '--verify', 'refs/remotes/origin/play/main^{commit}'], text=True).strip()
+        if sha != reviewed_sha:
+            raise ValueError('publication requires a tag on the current reviewed origin/play/main head')
+        if VERSION_FILE.read_text().strip() != version:
+            raise ValueError('VERSION must match the tag in the reviewed source; change it through a play/main PR')
+    source_policy(required=not args.dry_run)
+    if not args.dry_run:
+        # Read the remote directly: --no-tags branch fetches intentionally leave
+        # local tags unchanged, so they cannot detect a tag moved during a build.
+        tag_ref = f'refs/tags/{tag}'
+        lines = subprocess.check_output(['git', 'ls-remote', '--tags', 'origin', tag_ref, tag_ref + '^{}'], text=True)
+        refs = dict(line.split()[::-1] for line in lines.splitlines() if line.strip())
+        if refs.get(tag_ref + '^{}', refs.get(tag_ref)) != sha:
+            raise ValueError('remote fork tag is missing or no longer points to the reviewed source')
     result = {'sha': sha, 'tag': tag, 'version': version,
               'owner_lower': os.environ.get('GITHUB_REPOSITORY_OWNER', '').lower(),
               'simple': str(args.simple).lower(), 'dry_run': str(args.dry_run).lower(),
@@ -95,7 +139,8 @@ def generate_config(args):
         data['before'] = {'hooks': []}
         data['builds'] = [{'id': 'sub2api', 'skip': True}]
         data['archives'] = []
-        extra = [{'glob': 'release-input/sub2api_*.tar.gz'}, {'glob': 'release-input/sub2api_*.zip'}]
+        extra = [{'glob': 'release-input/sub2api_*.tar.gz'}, {'glob': 'release-input/sub2api_*.zip'},
+                 {'glob': '.release-context/release-provenance.json'}]
         if args.simple:
             data['checksum'] = {'disable': True}
         else:
@@ -115,7 +160,11 @@ def collect(args):
     output = Path(args.output)
     output.mkdir(parents=True, exist_ok=True)
     shutil.copy2(source, output / name)
-    manifest = {'sha': args.sha, 'version': args.version, 'target': target, 'archive': name, 'sha256': digest}
+    manifest = {'sha': args.sha, 'version': args.version, 'target': target, 'archive': name, 'sha256': digest,
+                'repository': os.environ.get('GITHUB_REPOSITORY', ''),
+                'workflow_sha': os.environ.get('GITHUB_WORKFLOW_SHA', ''),
+                'run_id': os.environ.get('GITHUB_RUN_ID', ''),
+                'source_lock_sha256': source_lock_digest()}
     (output / f"manifest-{args.goos}-{args.goarch}.json").write_text(json.dumps(manifest) + '\n')
 
 
@@ -128,7 +177,11 @@ def verify(args):
         expected.update((name, manifest_name))
         manifest = json.loads((directory / manifest_name).read_text())
         if manifest != {'sha': args.sha, 'version': args.version, 'target': target,
-                        'archive': name, 'sha256': sha256(directory / name)}:
+                        'archive': name, 'sha256': sha256(directory / name),
+                        'repository': os.environ.get('GITHUB_REPOSITORY', ''),
+                        'workflow_sha': os.environ.get('GITHUB_WORKFLOW_SHA', ''),
+                        'run_id': os.environ.get('GITHUB_RUN_ID', ''),
+                        'source_lock_sha256': source_lock_digest()}:
             raise ValueError(f'build provenance or checksum mismatch: {name}')
     if {p.name for p in directory.iterdir()} != expected:
         raise ValueError('missing or unexpected release artifacts')
@@ -152,6 +205,19 @@ def contexts(args):
         (dest / 'deploy').mkdir(exist_ok=True)
         shutil.copy2('deploy/docker-entrypoint.sh', dest / 'deploy/docker-entrypoint.sh')
         shutil.copytree('backend/resources', dest / 'backend/resources', dirs_exist_ok=True)
+    provenance = {
+        'schema_version': 1,
+        'repository': os.environ.get('GITHUB_REPOSITORY', ''),
+        'commit': args.sha,
+        'version': args.version,
+        'workflow_sha': os.environ.get('GITHUB_WORKFLOW_SHA', ''),
+        'run_id': os.environ.get('GITHUB_RUN_ID', ''),
+        'source_lock': source_policy(),
+        'source_lock_sha256': source_lock_digest(),
+        'upstream_policy': 'ranxi2001/sub2api stable releases; source pin is not proof of integration',
+        'artifacts': [json.loads(p.read_text()) for p in sorted(Path(args.input).glob('manifest-*.json'))],
+    }
+    (Path(args.output) / 'release-provenance.json').write_text(json.dumps(provenance, indent=2) + '\n')
 
 
 def main():

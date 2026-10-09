@@ -1,3 +1,5 @@
+> **tqytwe fork 更新与部署**：仅跟进 ranxi 正式 release 的审查源码。在线更新/回退已停用；下文保留的 Wei-Shaw/weishaw 安装及镜像示例属于原版，不保留本 fork 定制。请先阅读 [fork 源码构建与安全发布](deploy/FORK_SOURCE_BUILD.md)。
+
 <div align="center">
 
 <img src="assets/logo.svg" alt="Sub2API Logo" width="128" />

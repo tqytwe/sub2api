@@ -1,4 +1,6 @@
 #!/bin/bash
+# ORIGINAL DISTRIBUTION REFERENCE: Wei-Shaw/weishaw defaults are not verified fork artifacts.
+# Do not use these defaults to update tqytwe; see deploy/FORK_SOURCE_BUILD.md.
 #
 # Sub2API Installation Script
 # Sub2API 安装脚本
