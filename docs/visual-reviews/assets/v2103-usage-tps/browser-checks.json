@@ -1,0 +1,44 @@
+[
+  {
+    "name": "updated-en-light-1280",
+    "width": 1280,
+    "dark": false,
+    "errors": [],
+    "passed": true
+  },
+  {
+    "name": "updated-zh-dark-1280",
+    "width": 1280,
+    "dark": true,
+    "errors": [],
+    "passed": true
+  },
+  {
+    "name": "updated-zh-light-1920",
+    "width": 1920,
+    "dark": false,
+    "errors": [],
+    "passed": true
+  },
+  {
+    "name": "updated-en-dark-1920",
+    "width": 1920,
+    "dark": true,
+    "errors": [],
+    "passed": true
+  },
+  {
+    "name": "empty-1280",
+    "width": 1280,
+    "dark": false,
+    "errors": [],
+    "passed": true
+  },
+  {
+    "name": "loading-1280",
+    "width": 1280,
+    "dark": false,
+    "errors": [],
+    "passed": true
+  }
+]

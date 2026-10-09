@@ -1,0 +1,17 @@
+{
+  "commit": "0462fe370cf862453c6261218a55ff61e0d3d966",
+  "scrollY": 870,
+  "trigger": {
+    "x": 894.671875,
+    "y": 597,
+    "width": 16,
+    "height": 16
+  },
+  "tooltip": {
+    "x": 774.671875,
+    "y": 1298.5,
+    "width": 256,
+    "height": 160.5
+  },
+  "prototype": "DOM positioning proposal only; captured before implementation"
+}

@@ -22,7 +22,8 @@
 | [前端体验统一整改计划](./FRONTEND_EXPERIENCE_REMEDIATION_PLAN.md) | `reviewed` | 全站布局、交互、公告、导航、客服和 NextChat 分阶段整改 | 产品与前端维护者 | 2026-07-21 |
 | [前端全链路体验与性能基线报告](./PERFORMANCE_BASELINE_20260723.md) | `active` | 首页、登录、钱包、Play、支付和管理员入口的加载性能基线与优化优先级 | 前端维护者 | 2026-07-23 |
 | [Fork 定制登记](./FORK_CUSTOMIZATIONS.md) | `active` | 极速蹬定制的唯一权威登记表 | Fork 维护者 | 2026-07-20 |
-| [上游同步手册](./UPSTREAM_SYNC_PLAYBOOK.md) | `active` | 合并、验证、部署和回滚 | 发布负责人 | 2026-07-20 |
+| [上游同步手册](./UPSTREAM_SYNC_PLAYBOOK.md) | `active` | ranxi 正式版源码核验、分批验证、Fork 部署和回滚 | 发布负责人 | 2026-10-09 |
+| [v2.10.3 核心迁移账本](./upstream-migrations/v2.10.3/README.md) | `active` | 差异、个性化保留、分批验收和准确阻碍 | Fork 维护者 | 2026-10-09 |
 | [复合路由组](./COMPOSITE_GROUPS.md) | `active` | 复合组路由、优先级与管理配置 | 平台维护者 | 2026-07-26 |
 | [Channel Monitor V2 安全默认值与渐进回填](./channel-monitor-v2-safe-defaults.md) | `active` | V2 模式默认值、渐进回填和错误去重约束 | 平台维护者 | 2026-08-15 |
 | [渠道监控与站点存活接口](./CHANNEL_MONITOR_API.md) | `active` | 站点存活、V1/V2 渠道监控接口、认证边界与外部机器人安全限制 | 平台维护者 | 2026-08-28 |

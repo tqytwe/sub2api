@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "source_repository": "ranxi2001/sub2api",
+  "source_remote": "https://github.com/ranxi2001/sub2api.git",
+  "release_tag": "v2.10.3",
+  "tag_object": "95479ee5222e25765b1ab55baa513714db3ca184",
+  "release_commit": "fd1b5ee4eeb20961fbb783fa6f136a1704271e90",
+  "version_file": "2.10.3",
+  "production_repository": "tqytwe/sub2api",
+  "production_branch": "play/main",
+  "analysis_base": "7508cb0cd8a9c38a33805795922ec13662d7753e",
+  "fully_migrated": false,
+  "verified_batches": [],
+  "pending_batches": ["usage-output-tps", "account-routing-admission", "settlement-recovery", "account-statistics-ui", "safe-upstream-update-controls"]
+}

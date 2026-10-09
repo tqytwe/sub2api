@@ -651,6 +651,9 @@ type UsageLog struct {
 	NativeCompactionV2 bool `json:"native_compaction_v2"`
 	DurationMs         *int `json:"duration_ms"`
 	FirstTokenMs       *int `json:"first_token_ms"`
+	// OutputTPS is output tokens per second over DurationMs, including first-token
+	// waiting time. It is request throughput, not pure model generation speed.
+	OutputTPS *float64 `json:"output_tps"`
 
 	// 图片生成字段
 	ImageCount         int            `json:"image_count"`

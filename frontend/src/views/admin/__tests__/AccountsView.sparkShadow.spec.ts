@@ -348,6 +348,46 @@ describe('admin AccountsView — 账号行展示', () => {
     wrapper.unmount()
   })
 
+  it('keeps the homepage tooltip caller width while applying and releasing the viewport cap', async () => {
+    const homepage = `https://${'long-account-domain-'.repeat(7)}.example.com`
+    listAccounts.mockResolvedValue({
+      items: [{ id: 101, name: 'relay-account', platform: 'openai', type: 'apikey', credentials: { base_url: `${homepage}/v1` } }],
+      total: 1, page: 1, page_size: 20, pages: 1,
+    })
+    vi.stubGlobal('innerWidth', 1280)
+    vi.stubGlobal('innerHeight', 900)
+    const wrapper = mountViewWithRow()
+    try {
+      await flushPromises()
+      const help = wrapper.getComponent(HelpTooltip)
+      const bubble = Array.from(document.body.querySelectorAll('[role="tooltip"]'))
+        .find(element => element.textContent?.includes(homepage))
+      if (!(bubble instanceof HTMLDivElement)) throw new Error('account homepage tooltip missing')
+      // JSDOM has no layout: model the caller's 384px natural width; actual
+      // Tailwind/browser geometry is covered by the captured regression.
+      vi.spyOn(bubble, 'getBoundingClientRect').mockImplementation(() => {
+        const width = Math.min(384, Number.parseFloat(bubble.style.maxWidth) || 384)
+        return { left: 0, top: 0, right: width, bottom: 80, x: 0, y: 0, width, height: 80, toJSON: () => ({}) }
+      })
+      await help.trigger('mouseenter')
+      await flushPromises()
+      expect(bubble.style.maxWidth).toBe('')
+
+      vi.stubGlobal('innerWidth', 360)
+      window.dispatchEvent(new Event('resize'))
+      await flushPromises()
+      expect(bubble.getBoundingClientRect().width).toBe(344)
+
+      vi.stubGlobal('innerWidth', 960)
+      window.dispatchEvent(new Event('resize'))
+      await flushPromises()
+      expect(bubble.style.maxWidth).toBe('')
+      expect(bubble.getBoundingClientRect().width).toBe(384)
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
   it('prefers persisted Grok JWT tier over lagging billing/quota snapshots', async () => {
     const grokAccounts = [
       {

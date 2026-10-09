@@ -1826,6 +1826,9 @@ export interface UsageLog {
   native_compaction_v2: boolean
   duration_ms: number | null
   first_token_ms: number | null
+  /** Output tokens / recorded duration, including first-token wait; absent on older servers. */
+  output_tps?: number | null
+  media_type?: string | null
 
   // 图片生成字段
   image_count: number

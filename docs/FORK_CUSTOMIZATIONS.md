@@ -1,11 +1,19 @@
 # 极速蹬 Fork 定制登记
 
 > 状态：active
-> 当前生产基线：`origin/play/main@450148f00ab5c0bddde214c1d83a845b169c56f0`
-> 本次同步候选：`upstream/main@3f1a2ea0a`（`v0.2.14`，相对上次同步基线 `v0.2.7`），分支 `sync/upstream-20261007`（非 rebase 合并待提交）
-> 最后核验：2026-10-07（开发机：前端测试/typecheck/lint/design check、后端 `go build`、四种构建标签编译、生成代码一致性通过；服务器已不可用，按用户决定跳过服务器验证和后端测试（服务器内存不足），以 PR 完整 GitHub CI 替代；未启动本地服务、未连接或修改生产数据库；`check-fork-integrity.sh`、PR CI、合并和部署待完成）
+> 当前生产基线：`origin/play/main@7508cb0cd8a9c38a33805795922ec13662d7753e`（PR #337，2026-10-09 已核验远端）
+> 当前功能迁移目标：ranxi2001/sub2api 正式 release `v2.10.3`；尚未整版迁完，详见下方迁移账本。
+> 历史核验记录（2026-10-07，不代表当前状态）：当时生产基线 `450148f00ab5c0bddde214c1d83a845b169c56f0`，候选 `upstream/main@3f1a2ea0a`（`v0.2.14`，相对 `v0.2.7`），分支 `sync/upstream-20261007`。当时前端检查、后端构建及四种构建标签编译通过；因服务器不可用和内存限制，按用户决定以 PR CI 替代后端测试；当时 integrity、PR、合并、部署待完成。这项历史例外不适用于本次交付。
 
 本文档是 `play/main` 相对上游的定制权威登记表。只有已经落地的行为进入受保护条目；视频工作室等未实现方案只能作为 `proposal` 独立保存，不能登记成已上线能力。
+
+## 当前直接功能上游（2026-10-09）
+
+后续仅跟进 `ranxi2001/sub2api` 正式发布；目标 v2.10.3 / `fd1b5ee4eeb20961fbb783fa6f136a1704271e90`。
+这是迁移分析目标，不是整版已同步声明。实际批次、生产基线、差异、迁移冲突和
+个性化保留证据见 [迁移账本](./upstream-migrations/v2.10.3/README.md) 与
+[来源锁定](./upstream-migrations/source-lock.json)。历史 Wei-Shaw 来源记录保留。
+生产只部署通过测试的 tqytwe 构建，不使用 ranxi 原版二进制覆盖个性化。
 
 ## 登记摘要
 

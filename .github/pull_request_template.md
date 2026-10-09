@@ -22,7 +22,14 @@
 
 受影响的定制 ID：`FORK-...` / 无
 
-核验的 upstream commit：`<full commit>` / 不涉及上游同步
+直接功能上游：`ranxi2001/sub2api` / 不涉及上游同步
+
+正式 release tag 与完整 commit：`<tag>` / `<full commit>`
+
+本批迁入范围与账本：`docs/upstream-migrations/...`；未迁入项：
+
+- [ ] 上游源码与 tqytwe 生产构建产物已区分，未向 Fork 推送外部发布标签或用原版二进制覆盖 Fork。
+- [ ] 已检查 release 来源/漂移标签、迁移完整文件名/编号/表结构冲突，未改写已部署 SQL。
 
 ## 前端视觉检查
 

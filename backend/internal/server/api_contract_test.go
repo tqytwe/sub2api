@@ -613,6 +613,7 @@ func TestAPIContracts(t *testing.T) {
 							"stream": true,
 							"duration_ms": 100,
 							"first_token_ms": 50,
+							"output_tps": 200,
 							"image_count": 0,
 							"image_size": null,
 							"image_input_size": null,
@@ -1543,6 +1544,7 @@ func newContractDeps(t *testing.T) *contractDeps {
 	authHandler := handler.NewAuthHandler(cfg, nil, userService, settingService, nil, redeemService, nil, nil)
 	apiKeyHandler := handler.NewAPIKeyHandler(apiKeyService)
 	usageHandler := handler.NewUsageHandler(usageService, apiKeyService, nil, nil)
+	adminUsageHandler := adminhandler.NewUsageHandler(usageService, nil, nil, nil)
 	adminSettingHandler := adminhandler.NewSettingHandler(settingService, nil, nil, nil, nil, nil, nil)
 	adminAccountHandler := adminhandler.NewAccountHandler(adminService, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 
@@ -1581,6 +1583,7 @@ func newContractDeps(t *testing.T) *contractDeps {
 	v1Usage.Use(jwtAuth)
 	v1Usage.GET("/usage", usageHandler.List)
 	v1Usage.GET("/usage/stats", usageHandler.Stats)
+	v1Usage.GET("/usage/:id", usageHandler.GetByID)
 
 	v1Subs := v1.Group("")
 	v1Subs.Use(jwtAuth)
@@ -1593,6 +1596,7 @@ func newContractDeps(t *testing.T) *contractDeps {
 	v1Admin := v1.Group("/admin")
 	v1Admin.Use(adminAuth)
 	v1Admin.GET("/settings", adminSettingHandler.GetSettings)
+	v1Admin.GET("/usage", adminUsageHandler.List)
 	v1Admin.POST("/accounts/bulk-update", adminAccountHandler.BulkUpdate)
 
 	return &contractDeps{
@@ -2626,7 +2630,14 @@ func (r *stubUsageLogRepo) Create(ctx context.Context, log *service.UsageLog) (b
 }
 
 func (r *stubUsageLogRepo) GetByID(ctx context.Context, id int64) (*service.UsageLog, error) {
-	return nil, errors.New("not implemented")
+	for _, logs := range r.userLogs {
+		for i := range logs {
+			if logs[i].ID == id {
+				return &logs[i], nil
+			}
+		}
+	}
+	return nil, service.ErrUsageLogNotFound
 }
 
 func (r *stubUsageLogRepo) Delete(ctx context.Context, id int64) error {
