@@ -59,12 +59,6 @@ func TestAPIKeyAuthForwardsUserScopedOpenAIFastPolicyToUpstream(t *testing.T) {
 	settingService := service.NewSettingService(&openAIFastPolicyForwardingSettingRepo{
 		value: string(settingsJSON),
 	}, cfg)
-	gatewayService := service.NewOpenAIGatewayService(
-		nil, nil, nil, nil, nil, nil, nil, cfg,
-		nil, nil, nil, nil, nil, &openAIFastPolicyForwardingHTTPUpstream{client: upstreamServer.Client()},
-		nil, nil, nil, nil, nil, nil, settingService, nil,
-	)
-
 	groupID := int64(101)
 	group := &service.Group{
 		ID:       groupID,
@@ -92,6 +86,12 @@ func TestAPIKeyAuthForwardsUserScopedOpenAIFastPolicyToUpstream(t *testing.T) {
 		},
 		Extra: map[string]any{"use_responses_api": true},
 	}
+	accountRepo := &openAIFastPolicyForwardingAccountRepo{account: account}
+	gatewayService := service.NewOpenAIGatewayService(
+		accountRepo, nil, nil, nil, nil, nil, nil, cfg,
+		nil, nil, nil, nil, nil, &openAIFastPolicyForwardingHTTPUpstream{client: upstreamServer.Client()},
+		nil, nil, nil, nil, nil, nil, settingService, nil,
+	)
 
 	router := gin.New()
 	router.Use(gin.HandlerFunc(NewAPIKeyAuthMiddleware(apiKeyService, nil, cfg)))
@@ -120,6 +120,8 @@ func TestAPIKeyAuthForwardsUserScopedOpenAIFastPolicyToUpstream(t *testing.T) {
 		response := httptest.NewRecorder()
 		router.ServeHTTP(response, request)
 		require.Equal(t, http.StatusOK, response.Code)
+		require.Positive(t, accountRepo.reads, "forward must use authoritative account-state admission")
+		accountRepo.reads = 0
 	}
 
 	send("key-user-42")
@@ -129,6 +131,25 @@ func TestAPIKeyAuthForwardsUserScopedOpenAIFastPolicyToUpstream(t *testing.T) {
 	otherUserBody := <-upstreamBodies
 	require.Equal(t, service.OpenAIFastTierPriority, gjson.GetBytes(allowedUserBody, "service_tier").String())
 	require.False(t, gjson.GetBytes(otherUserBody, "service_tier").Exists())
+}
+
+type openAIFastPolicyForwardingAccountRepo struct {
+	service.AccountRepository
+	account *service.Account
+	reads   int
+}
+
+var _ service.OpenAITurnAdmissionReader = (*openAIFastPolicyForwardingAccountRepo)(nil)
+
+func (r *openAIFastPolicyForwardingAccountRepo) GetOpenAITurnAdmission(ctx context.Context, id int64) (*service.Account, *service.Account, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, nil, err
+	}
+	if r.account == nil || r.account.ID != id {
+		return nil, nil, service.ErrAccountNotFound
+	}
+	r.reads++
+	return r.account, nil, nil
 }
 
 func newOpenAIFastPolicyForwardingAPIKey(id int64, key string, userID, groupID int64, group *service.Group) *service.APIKey {

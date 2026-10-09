@@ -48,6 +48,18 @@ type OAuthRefreshCandidatePager interface {
 	ListOAuthRefreshCandidatePage(ctx context.Context, options OAuthRefreshPageOptions) (*OAuthRefreshCandidatePage, error)
 }
 
+// AccountGroupAllowedModelsRepository persists per-membership model restrictions.
+// The map replaces restrictions for currently bound groups only.
+type AccountGroupAllowedModelsRepository interface {
+	SetGroupAllowedModels(context.Context, int64, map[int64][]string) error
+}
+
+// AccountGroupBindingsWithAllowedModelsRepository commits requested bindings and
+// their replacement model policy together, with one transactional notification.
+type AccountGroupBindingsWithAllowedModelsRepository interface {
+	BindGroupsWithAllowedModels(context.Context, int64, []int64, map[int64][]string) error
+}
+
 type AccountRepository interface {
 	Create(ctx context.Context, account *Account) error
 	GetByID(ctx context.Context, id int64) (*Account, error)

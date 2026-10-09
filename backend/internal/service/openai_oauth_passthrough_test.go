@@ -841,26 +841,40 @@ func TestOpenAIGatewayService_OAuthPassthrough_CompactUsesJSONAndKeepsNonStreami
 	require.Contains(t, rec.Body.String(), `"id":"cmp_123"`)
 }
 
+// oauthCancelOnFirstResponseRead cancels the client only after Forward has
+// admitted and sent the request. It keeps the detached transport/drain contract
+// separate from the pre-send admission deadline contract.
+type oauthCancelOnFirstResponseRead struct {
+	io.Reader
+	cancel context.CancelFunc
+	once   sync.Once
+}
+
+func (r *oauthCancelOnFirstResponseRead) Read(p []byte) (int, error) {
+	r.once.Do(r.cancel)
+	return r.Reader.Read(p)
+}
+
 func TestOpenAIGatewayService_OAuthPassthrough_UpstreamRequestIgnoresClientCancel(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	rec := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(rec)
 	reqCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", bytes.NewReader(nil)).WithContext(reqCtx)
 	c.Request.Header.Set("User-Agent", "codex_cli_rs/0.1.0")
-	cancel()
 
 	originalBody := []byte(`{"model":"gpt-5.2","stream":true,"store":true,"instructions":"local-test-instructions","input":[{"type":"text","text":"hi"}]}`)
 	upstream := &httpUpstreamRecorder{resp: &http.Response{
 		StatusCode: http.StatusOK,
 		Header:     http.Header{"Content-Type": []string{"text/event-stream"}, "x-request-id": []string{"rid_passthrough_ctx"}},
-		Body: io.NopCloser(strings.NewReader(strings.Join([]string{
+		Body: io.NopCloser(&oauthCancelOnFirstResponseRead{cancel: cancel, Reader: strings.NewReader(strings.Join([]string{
 			`data: {"type":"response.completed","response":{"usage":{"input_tokens":2,"output_tokens":1}}}`,
 			"",
 			"data: [DONE]",
 			"",
-		}, "\n"))),
+		}, "\n"))}),
 	}}
 
 	svc := &OpenAIGatewayService{
@@ -883,6 +897,10 @@ func TestOpenAIGatewayService_OAuthPassthrough_UpstreamRequestIgnoresClientCance
 	result, err := svc.Forward(reqCtx, c, account, originalBody)
 	require.NoError(t, err)
 	require.NotNil(t, result)
+	require.ErrorIs(t, reqCtx.Err(), context.Canceled, "cancel only after the upstream response starts reading")
+	require.Len(t, upstream.requests, 1)
+	require.Equal(t, 2, result.Usage.InputTokens, "drain terminal usage after client cancellation")
+	require.Equal(t, 1, result.Usage.OutputTokens)
 	require.NotNil(t, upstream.lastReq)
 	require.NoError(t, upstream.lastReq.Context().Err())
 }
@@ -1092,20 +1110,20 @@ func TestOpenAIGatewayService_OAuthLegacy_UpstreamRequestIgnoresClientCancel(t *
 	rec := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(rec)
 	reqCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", bytes.NewReader(nil)).WithContext(reqCtx)
 	c.Request.Header.Set("User-Agent", "codex_cli_rs/0.1.0")
-	cancel()
 
 	originalBody := []byte(`{"model":"gpt-5.2","stream":false,"store":true,"input":[{"type":"text","text":"hi"}]}`)
 	upstream := &httpUpstreamRecorder{resp: &http.Response{
 		StatusCode: http.StatusOK,
 		Header:     http.Header{"Content-Type": []string{"text/event-stream"}, "x-request-id": []string{"rid_legacy_ctx"}},
-		Body: io.NopCloser(strings.NewReader(strings.Join([]string{
+		Body: io.NopCloser(&oauthCancelOnFirstResponseRead{cancel: cancel, Reader: strings.NewReader(strings.Join([]string{
 			`data: {"type":"response.completed","response":{"usage":{"input_tokens":1,"output_tokens":1}}}`,
 			"",
 			"data: [DONE]",
 			"",
-		}, "\n"))),
+		}, "\n"))}),
 	}}
 
 	svc := &OpenAIGatewayService{
@@ -1128,6 +1146,10 @@ func TestOpenAIGatewayService_OAuthLegacy_UpstreamRequestIgnoresClientCancel(t *
 	result, err := svc.Forward(reqCtx, c, account, originalBody)
 	require.NoError(t, err)
 	require.NotNil(t, result)
+	require.ErrorIs(t, reqCtx.Err(), context.Canceled, "cancel only after the upstream response starts reading")
+	require.Len(t, upstream.requests, 1)
+	require.Equal(t, 1, result.Usage.InputTokens, "drain terminal usage after client cancellation")
+	require.Equal(t, 1, result.Usage.OutputTokens)
 	require.NotNil(t, upstream.lastReq)
 	require.NoError(t, upstream.lastReq.Context().Err())
 }
@@ -2768,4 +2790,33 @@ func TestOpenAIGatewayService_OAuthPassthrough_AllowTimeoutHeadersWhenConfigured
 	require.NotNil(t, upstream.lastReq)
 	require.Equal(t, "120000", upstream.lastReq.Header.Get("x-stainless-timeout"))
 	require.Empty(t, upstream.lastReq.Header.Get("X-Test"))
+}
+
+func TestOpenAIGatewayService_OAuthCanceledBeforeForwardDoesNotSend(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	for _, passthrough := range []bool{false, true} {
+		t.Run(map[bool]string{false: "legacy", true: "passthrough"}[passthrough], func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			cancel()
+			body := []byte(`{"model":"gpt-5.2","stream":true,"instructions":"local-test-instructions","input":[{"type":"text","text":"hi"}]}`)
+			c, _ := gin.CreateTestContext(httptest.NewRecorder())
+			c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", bytes.NewReader(body)).WithContext(ctx)
+			upstream := &httpUpstreamRecorder{err: errors.New("must not send a canceled request")}
+			svc := &OpenAIGatewayService{cfg: &config.Config{}, httpUpstream: upstream}
+			account := &Account{
+				ID: 123, Name: "acc", Platform: PlatformOpenAI, Type: AccountTypeOAuth, Concurrency: 1,
+				Credentials: map[string]any{"access_token": "oauth-token", "chatgpt_account_id": "chatgpt-acc"},
+				Extra:       map[string]any{"openai_passthrough": passthrough, "openai_oauth_responses_websockets_v2_mode": OpenAIWSIngressModeOff},
+				Status:      StatusActive, Schedulable: true, RateMultiplier: f64p(1),
+			}
+			result, err := svc.Forward(ctx, c, account, body)
+			require.ErrorIs(t, err, context.Canceled)
+			require.Nil(t, result)
+			require.Empty(t, upstream.requests)
+			var failover *UpstreamFailoverError
+			require.False(t, errors.As(err, &failover), "client cancellation is not an upstream failure")
+			_, hasUpstreamErrors := c.Get(OpsUpstreamErrorsKey)
+			require.False(t, hasUpstreamErrors)
+		})
+	}
 }

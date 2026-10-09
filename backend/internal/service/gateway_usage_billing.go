@@ -514,9 +514,24 @@ func applyUsageBilling(ctx context.Context, requestID string, usageLog *UsageLog
 	billingCtx, cancel := detachedBillingContext(ctx)
 	defer cancel()
 
+	trackSettlement := usageLog != nil && !p.SimpleModeKeyRateLimitOnly && !IsImageStudioManagedBilling(ctx)
+	if trackSettlement {
+		// Normalize is idempotent for the fingerprint; capture before a failure
+		// replaces displayed charges with zero.
+		cmd.Normalize()
+		usageLog.BillingRequestFingerprint = cmd.RequestFingerprint
+	}
 	result, err := repo.Apply(billingCtx, cmd)
 	if err != nil {
 		return false, err
+	}
+	if trackSettlement {
+		usageLog.BillingSettled = result != nil && result.SettlementVerified &&
+			result.SettlementFingerprint == usageLog.BillingRequestFingerprint
+		if !usageLog.BillingSettled {
+			// Legacy/no-op repository implementations cannot authorize repair.
+			usageLog.BillingRequestFingerprint = ""
+		}
 	}
 
 	if result == nil || !result.Applied {
@@ -1057,11 +1072,20 @@ func (s *GatewayService) recordUsageCore(ctx context.Context, input *recordUsage
 	}, s.billingDeps(), s.usageBillingRepo)
 
 	if billingErr != nil {
+		if errors.Is(billingErr, ErrUsageBillingRequestConflict) && !simpleModeKeyRateLimitOnly && !IsImageStudioManagedBilling(ctx) {
+			return billingErr
+		}
 		capturedActualCost := cost.ActualCost
 		usageLog.ActualCost = 0
 		if IsImageStudioManagedBilling(ctx) {
 			recordImageStudioManagedUsageForReconciliation(ctx, s.usageLogRepo, usageLog, "service.gateway", capturedActualCost)
 		} else {
+			// Simple-mode key rate limits keep their pre-existing audit snapshot;
+			// they do not participate in fingerprint-bound settlement recovery.
+			if !simpleModeKeyRateLimitOnly {
+				usageLog.BilledCost = 0
+				usageLog.BillingSurchargeCost = 0
+			}
 			writeUsageLogBestEffort(ctx, s.usageLogRepo, usageLog, "service.gateway")
 		}
 		return billingErr

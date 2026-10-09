@@ -445,33 +445,36 @@ var ErrNoAvailableCompactAccounts = errors.New("no available accounts support /r
 
 // OpenAIGatewayService handles OpenAI API gateway operations
 type OpenAIGatewayService struct {
-	starframeVideos       StarframeVideoRepository
-	accountRepo           AccountRepository
-	usageLogRepo          UsageLogRepository
-	usageBillingRepo      UsageBillingRepository
-	userRepo              UserRepository
-	userSubRepo           UserSubscriptionRepository
-	cache                 GatewayCache
-	cfg                   *config.Config
-	codexDetector         CodexClientRestrictionDetector
-	schedulerSnapshot     *SchedulerSnapshotService
-	concurrencyService    *ConcurrencyService
-	billingService        *BillingService
-	rateLimitService      *RateLimitService
-	billingCacheService   *BillingCacheService
-	userGroupRateResolver *userGroupRateResolver
-	httpUpstream          HTTPUpstream
-	pluginManager         *PluginManager
-	deferredService       *DeferredService
-	openAITokenProvider   *OpenAITokenProvider
-	grokTokenProvider     *GrokTokenProvider
-	toolCorrector         *CodexToolCorrector
-	openaiWSResolver      OpenAIWSProtocolResolver
-	resolver              *ModelPricingResolver
-	channelService        *ChannelService
-	balanceNotifyService  *BalanceNotifyService
-	settingService        *SettingService
-	userPlatformQuotaRepo UserPlatformQuotaRepository
+	// Set only by production constructors. Legacy direct-struct test fixtures may
+	// exercise supplied account state; the exported admission API stays strict.
+	requireLatestTurnAdmission bool
+	starframeVideos            StarframeVideoRepository
+	accountRepo                AccountRepository
+	usageLogRepo               UsageLogRepository
+	usageBillingRepo           UsageBillingRepository
+	userRepo                   UserRepository
+	userSubRepo                UserSubscriptionRepository
+	cache                      GatewayCache
+	cfg                        *config.Config
+	codexDetector              CodexClientRestrictionDetector
+	schedulerSnapshot          *SchedulerSnapshotService
+	concurrencyService         *ConcurrencyService
+	billingService             *BillingService
+	rateLimitService           *RateLimitService
+	billingCacheService        *BillingCacheService
+	userGroupRateResolver      *userGroupRateResolver
+	httpUpstream               HTTPUpstream
+	pluginManager              *PluginManager
+	deferredService            *DeferredService
+	openAITokenProvider        *OpenAITokenProvider
+	grokTokenProvider          *GrokTokenProvider
+	toolCorrector              *CodexToolCorrector
+	openaiWSResolver           OpenAIWSProtocolResolver
+	resolver                   *ModelPricingResolver
+	channelService             *ChannelService
+	balanceNotifyService       *BalanceNotifyService
+	settingService             *SettingService
+	userPlatformQuotaRepo      UserPlatformQuotaRepository
 	// Live settles asynchronously after the sideband ends. Reuse the existing
 	// API key service for both authoritative ownership lookup and quota updates.
 	liveAPIKeyLoader       liveAPIKeyLoader
@@ -552,19 +555,20 @@ func NewOpenAIGatewayService(
 		SetCodexIdentityEnforcementEnabled(!cfg.Gateway.DisableCodexIdentityEnforcement)
 	}
 	svc := &OpenAIGatewayService{
-		accountRepo:         accountRepo,
-		usageLogRepo:        usageLogRepo,
-		usageBillingRepo:    usageBillingRepo,
-		userRepo:            userRepo,
-		userSubRepo:         userSubRepo,
-		cache:               cache,
-		cfg:                 cfg,
-		codexDetector:       NewOpenAICodexClientRestrictionDetector(cfg),
-		schedulerSnapshot:   schedulerSnapshot,
-		concurrencyService:  concurrencyService,
-		billingService:      billingService,
-		rateLimitService:    rateLimitService,
-		billingCacheService: billingCacheService,
+		requireLatestTurnAdmission: true,
+		accountRepo:                accountRepo,
+		usageLogRepo:               usageLogRepo,
+		usageBillingRepo:           usageBillingRepo,
+		userRepo:                   userRepo,
+		userSubRepo:                userSubRepo,
+		cache:                      cache,
+		cfg:                        cfg,
+		codexDetector:              NewOpenAICodexClientRestrictionDetector(cfg),
+		schedulerSnapshot:          schedulerSnapshot,
+		concurrencyService:         concurrencyService,
+		billingService:             billingService,
+		rateLimitService:           rateLimitService,
+		billingCacheService:        billingCacheService,
 		userGroupRateResolver: newUserGroupRateResolver(
 			userGroupRateRepo,
 			nil,

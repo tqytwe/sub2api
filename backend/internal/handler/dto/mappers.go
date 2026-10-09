@@ -517,12 +517,13 @@ func AccountGroupFromService(ag *service.AccountGroup) *AccountGroup {
 		return nil
 	}
 	return &AccountGroup{
-		AccountID: ag.AccountID,
-		GroupID:   ag.GroupID,
-		Priority:  ag.Priority,
-		CreatedAt: ag.CreatedAt,
-		Account:   AccountFromServiceShallow(ag.Account),
-		Group:     GroupFromServiceShallow(ag.Group),
+		AllowedModels: append([]string(nil), ag.AllowedModels...),
+		AccountID:     ag.AccountID,
+		GroupID:       ag.GroupID,
+		Priority:      ag.Priority,
+		CreatedAt:     ag.CreatedAt,
+		Account:       AccountFromServiceShallow(ag.Account),
+		Group:         GroupFromServiceShallow(ag.Group),
 	}
 }
 

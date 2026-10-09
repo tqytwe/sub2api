@@ -741,6 +741,7 @@ func newOpenAIImageGenerationControlTestAccount() *Account {
 	return &Account{
 		ID:          5151,
 		Name:        "openai-image-controls",
+		GroupIDs:    []int64{4242}, // Match the routed group in the paired test context.
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
 		Status:      StatusActive,

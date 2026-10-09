@@ -20,7 +20,9 @@ import (
 //  1. prepareUsageLogInsert().args
 //  2. every INSERT/CTE VALUES column list in this file
 //  3. execUsageLogInsertNoResult placeholder positions
-//  4. scanUsageLog selected column order (via usageLogSelectColumns)
+//
+// Public read columns retain their existing scan order; the final two private
+// settlement columns are write-only here and are not part of scanUsageLog.
 //
 // When adding a usage_logs column, update all of those call sites together.
 var usageLogInsertArgTypes = [...]string{
@@ -94,6 +96,8 @@ var usageLogInsertArgTypes = [...]string{
 	"integer",     // output_audio_tokens
 	"integer",     // cache_creation_audio_tokens
 	"integer",     // cache_read_audio_tokens
+	"text",        // billing_request_fingerprint
+	"boolean",     // billing_settled
 }
 
 const (
@@ -127,11 +131,13 @@ type usageLogBestEffortRequest struct {
 }
 
 type usageLogInsertPrepared struct {
-	createdAt      time.Time
-	requestID      string
-	rateMultiplier float64
-	requestType    int16
-	args           []any
+	createdAt          time.Time
+	requestID          string
+	rateMultiplier     float64
+	requestType        int16
+	args               []any
+	billingFingerprint string
+	billingSettled     bool
 }
 
 type usageLogBatchState struct {
@@ -199,7 +205,7 @@ func (r *usageLogRepository) CreateBestEffort(ctx context.Context, log *service.
 		apiKeyID: log.APIKeyID,
 		resultCh: make(chan error, 1),
 	}
-	if key, ok := r.bestEffortRecentKey(req.prepared.requestID, req.apiKeyID); ok {
+	if key, ok := r.bestEffortRecentKey(req.prepared.requestID, req.apiKeyID); ok && req.prepared.billingFingerprint == "" {
 		if _, exists := r.bestEffortRecent.Get(key); exists {
 			return nil
 		}
@@ -302,20 +308,28 @@ func (r *usageLogRepository) createSingle(ctx context.Context, sqlq sqlExecutor,
 			input_audio_tokens,
 			output_audio_tokens,
 			cache_creation_audio_tokens,
-			cache_read_audio_tokens
+			cache_read_audio_tokens,
+			billing_request_fingerprint,
+			billing_settled
 		) VALUES (
 			$1, $2, $3, $4, $5, $6, $7, $8, $9,
 			$10, $11,
 			$12, $13, $14, $15,
 			$16, $17, $18, $19,
 			$20, $21, $22, $23, $24, $25,
-			$26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54, $55, $56, $57, $58, $59, $60, $61, $62, $63, $64, $65, $66, $67, $68, $69, $70
+			$26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54, $55, $56, $57, $58, $59, $60, $61, $62, $63, $64, $65, $66, $67, $68, $69, $70, $71, $72
 		)
 		ON CONFLICT (request_id, api_key_id) DO NOTHING
 		RETURNING id, created_at
 	`
 
-	if err := scanSingleRow(ctx, sqlq, query, prepared.args, &log.ID, &log.CreatedAt); err != nil {
+	query = usageLogBillingQuery(query, prepared.billingFingerprint != "", "single")
+	inserted := true
+	dest := []any{&log.ID, &log.CreatedAt}
+	if prepared.billingFingerprint != "" {
+		dest = append(dest, &inserted)
+	}
+	if err := scanSingleRow(ctx, sqlq, query, prepared.args, dest...); err != nil {
 		if errors.Is(err, sql.ErrNoRows) && prepared.requestID != "" {
 			selectQuery := "SELECT id, created_at FROM usage_logs WHERE request_id = $1 AND api_key_id = $2"
 			if err := scanSingleRow(ctx, sqlq, selectQuery, []any{prepared.requestID, log.APIKeyID}, &log.ID, &log.CreatedAt); err != nil {
@@ -328,7 +342,7 @@ func (r *usageLogRepository) createSingle(ctx context.Context, sqlq sqlExecutor,
 		}
 	}
 	log.RateMultiplier = prepared.rateMultiplier
-	return true, nil
+	return inserted, nil
 }
 
 func (r *usageLogRepository) createBatched(ctx context.Context, log *service.UsageLog) (bool, error) {
@@ -500,6 +514,8 @@ func (r *usageLogRepository) flushCreateBatch(db *sql.DB, batch []usageLogCreate
 		if _, exists := requestsByKey[key]; !exists {
 			uniqueOrder = append(uniqueOrder, key)
 			preparedByKey[key] = prepared
+		} else {
+			preparedByKey[key] = mergeUsageLogBillingPrepared(preparedByKey[key], prepared)
 		}
 		requestsByKey[key] = append(requestsByKey[key], req)
 	}
@@ -606,11 +622,15 @@ func (r *usageLogRepository) flushBestEffortBatch(db *sql.DB, batch []usageLogBe
 			}
 			groupsByKey[key] = group
 			groupOrder = append(groupOrder, group)
-			preparedList = append(preparedList, prepared)
+		} else {
+			group.prepared = mergeUsageLogBillingPrepared(group.prepared, prepared)
 		}
 		group.reqs = append(group.reqs, req)
 	}
 
+	for _, group := range groupOrder {
+		preparedList = append(preparedList, group.prepared)
+	}
 	if len(preparedList) == 0 {
 		for _, req := range batch {
 			sendUsageLogBestEffortResult(req.resultCh, nil)
@@ -685,10 +705,14 @@ func (r *usageLogRepository) batchInsertUsageLogs(db *sql.DB, keys []string, pre
 	for _, row := range rows {
 		key := usageLogBatchKey(row.RequestID, row.APIKeyID)
 		insertedMap[key] = row.Inserted
-		stateMap[key] = usageLogBatchState{
-			ID:        row.ID,
-			CreatedAt: row.CreatedAt,
+		if row.ID > 0 && !row.CreatedAt.IsZero() {
+			stateMap[key] = usageLogBatchState{ID: row.ID, CreatedAt: row.CreatedAt}
+		} else {
+			insertedMap[key] = false
 		}
+	}
+	if err := resolveUsageLogBatchMissingStates(ctx, db, keys, preparedByKey, insertedMap, stateMap); err != nil {
+		return insertedMap, stateMap, false, err
 	}
 	if len(stateMap) != len(keys) {
 		return insertedMap, stateMap, false, fmt.Errorf("usage log batch state count mismatch: got=%d want=%d", len(stateMap), len(keys))
@@ -770,7 +794,9 @@ func buildUsageLogBatchInsertQuery(keys []string, preparedByKey map[string]usage
 			input_audio_tokens,
 			output_audio_tokens,
 			cache_creation_audio_tokens,
-			cache_read_audio_tokens
+			cache_read_audio_tokens,
+			billing_request_fingerprint,
+			billing_settled
 		) AS (VALUES `)
 
 	// Each batch row prepends the synthetic input_index before usage-log values.
@@ -872,7 +898,9 @@ func buildUsageLogBatchInsertQuery(keys []string, preparedByKey map[string]usage
 			input_audio_tokens,
 			output_audio_tokens,
 			cache_creation_audio_tokens,
-			cache_read_audio_tokens
+			cache_read_audio_tokens,
+			billing_request_fingerprint,
+			billing_settled
 			)
 			SELECT
 				user_id,
@@ -944,7 +972,9 @@ func buildUsageLogBatchInsertQuery(keys []string, preparedByKey map[string]usage
 			input_audio_tokens,
 			output_audio_tokens,
 			cache_creation_audio_tokens,
-			cache_read_audio_tokens
+			cache_read_audio_tokens,
+			billing_request_fingerprint,
+			billing_settled
 			FROM input
 			ON CONFLICT (request_id, api_key_id) DO NOTHING
 			RETURNING request_id, api_key_id, id, created_at
@@ -980,7 +1010,11 @@ func buildUsageLogBatchInsertQuery(keys []string, preparedByKey map[string]usage
 		)
 		FROM resolved
 	`)
-	return query.String(), args
+	hasBilling := false
+	for _, key := range keys {
+		hasBilling = hasBilling || preparedByKey[key].billingFingerprint != ""
+	}
+	return usageLogBillingQuery(query.String(), hasBilling, "batch"), args
 }
 
 func buildUsageLogBestEffortInsertQuery(preparedList []usageLogInsertPrepared) (string, []any) {
@@ -1056,7 +1090,9 @@ func buildUsageLogBestEffortInsertQuery(preparedList []usageLogInsertPrepared) (
 			input_audio_tokens,
 			output_audio_tokens,
 			cache_creation_audio_tokens,
-			cache_read_audio_tokens
+			cache_read_audio_tokens,
+			billing_request_fingerprint,
+			billing_settled
 		) AS (VALUES `)
 
 	args := make([]any, 0, len(preparedList)*len(usageLogInsertArgTypes))
@@ -1154,7 +1190,9 @@ func buildUsageLogBestEffortInsertQuery(preparedList []usageLogInsertPrepared) (
 			input_audio_tokens,
 			output_audio_tokens,
 			cache_creation_audio_tokens,
-			cache_read_audio_tokens
+			cache_read_audio_tokens,
+			billing_request_fingerprint,
+			billing_settled
 		)
 		SELECT
 			user_id,
@@ -1226,16 +1264,18 @@ func buildUsageLogBestEffortInsertQuery(preparedList []usageLogInsertPrepared) (
 			input_audio_tokens,
 			output_audio_tokens,
 			cache_creation_audio_tokens,
-			cache_read_audio_tokens
+			cache_read_audio_tokens,
+			billing_request_fingerprint,
+			billing_settled
 		FROM input
 		ON CONFLICT (request_id, api_key_id) DO NOTHING
 	`)
 
-	return query.String(), args
+	return usageLogBillingQuery(query.String(), usageLogPreparedHasBilling(preparedList), ""), args
 }
 
 func execUsageLogInsertNoResult(ctx context.Context, sqlq sqlExecutor, prepared usageLogInsertPrepared) error {
-	_, err := sqlq.ExecContext(ctx, `
+	query := `
 		INSERT INTO usage_logs (
 			user_id,
 			api_key_id,
@@ -1306,21 +1346,30 @@ func execUsageLogInsertNoResult(ctx context.Context, sqlq sqlExecutor, prepared 
 			input_audio_tokens,
 			output_audio_tokens,
 			cache_creation_audio_tokens,
-			cache_read_audio_tokens
+			cache_read_audio_tokens,
+			billing_request_fingerprint,
+			billing_settled
 		) VALUES (
 			$1, $2, $3, $4, $5, $6, $7, $8, $9,
 			$10, $11,
 			$12, $13, $14, $15,
 			$16, $17, $18, $19,
 			$20, $21, $22, $23, $24, $25,
-			$26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54, $55, $56, $57, $58, $59, $60, $61, $62, $63, $64, $65, $66, $67, $68, $69, $70
+			$26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54, $55, $56, $57, $58, $59, $60, $61, $62, $63, $64, $65, $66, $67, $68, $69, $70, $71, $72
 		)
 		ON CONFLICT (request_id, api_key_id) DO NOTHING
-	`, prepared.args...)
+	`
+	_, err := sqlq.ExecContext(ctx, usageLogBillingQuery(query, prepared.billingFingerprint != "", ""), prepared.args...)
 	return err
 }
 
 func prepareUsageLogInsert(log *service.UsageLog) usageLogInsertPrepared {
+	fingerprint := strings.TrimSpace(log.BillingRequestFingerprint)
+	var fingerprintArg any
+	if fingerprint != "" {
+		fingerprintArg = fingerprint
+	}
+	settled := fingerprint != "" && log.BillingSettled
 	createdAt := log.CreatedAt
 	if createdAt.IsZero() {
 		createdAt = time.Now()
@@ -1375,6 +1424,7 @@ func prepareUsageLogInsert(log *service.UsageLog) usageLogInsertPrepared {
 	}
 
 	return usageLogInsertPrepared{
+		billingFingerprint: fingerprint, billingSettled: settled,
 		createdAt:      createdAt,
 		requestID:      requestID,
 		rateMultiplier: rateMultiplier,
@@ -1450,6 +1500,8 @@ func prepareUsageLogInsert(log *service.UsageLog) usageLogInsertPrepared {
 			log.OutputAudioTokens,
 			log.CacheCreationAudioTokens,
 			log.CacheReadAudioTokens,
+			fingerprintArg,
+			settled,
 		},
 	}
 }

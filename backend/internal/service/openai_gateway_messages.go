@@ -33,6 +33,19 @@ func (s *OpenAIGatewayService) ForwardAsAnthropic(
 	promptCacheKey string,
 	defaultMappedModel string,
 ) (*OpenAIForwardResult, error) {
+	// Messages forwarding drains disconnected requests for metered usage, just
+	// like Chat. Admission reads remain bounded independently of the client.
+	admissionCtx, releaseAdmissionCtx := detachUpstreamContext(ctx)
+	defer releaseAdmissionCtx()
+	admissionBodyModel := gjson.GetBytes(body, "model").String()
+	admissionRequestModel := openAITurnRequestModel(ctx, admissionBodyModel)
+	admissionOutboundModel := normalizeOpenAIModelForUpstream(account, resolveOpenAIForwardModel(account, NormalizeOpenAICompatRequestedModel(admissionBodyModel), defaultMappedModel))
+	latest, admissionErr := s.admitOpenAITurnForRequest(admissionCtx, c, account, admissionRequestModel, admissionOutboundModel)
+	if admissionErr != nil {
+		return nil, admissionErr
+	}
+	account = latest
+
 	// 工具 Schema 清洗必须先于所有分流：下游每条路径（原生 Anthropic 直通、
 	// Chat Completions 转换、Responses 转换）都会把 tools 原样带给上游，而
 	// xAI / Moonshot 等严格校验方会因 input_schema 里的 required:null 或
@@ -261,7 +274,6 @@ func (s *OpenAIGatewayService) ForwardAsAnthropic(
 		if codexResult.PromptCacheKey != "" {
 			promptCacheKey = codexResult.PromptCacheKey
 		}
-		applyCodexAccountIdentityClientMetadataMap(reqBody, codexAccountIdentitySource(c, account), apiKeyID)
 		delete(reqBody, "prompt_cache_key")
 		if shouldAutoInjectPromptCacheKeyForCompat(upstreamModel) {
 			compatTurnState = s.getOpenAICompatSessionTurnState(ctx, c, account, promptCacheKey)
@@ -345,8 +357,29 @@ func (s *OpenAIGatewayService) ForwardAsAnthropic(
 		}
 	}
 
-	// 5. Get access token
-	token, _, err := s.getRequestCredential(ctx, c, account)
+	// Resolve the final credential generation after request preparation and
+	// scope identity once, using that same admitted credential source.
+	latest, admissionErr = s.admitOpenAITurnForRequest(admissionCtx, c, account, admissionRequestModel, upstreamModel)
+	if admissionErr != nil {
+		return nil, admissionErr
+	}
+	account = latest
+	if _, err := s.prepareCodexAccountIdentitySource(admissionCtx, c, account); err != nil {
+		return nil, err
+	}
+	if account.UsesOpenAICodexProtocol() && account.Platform != PlatformGrok {
+		responsesBody, _, err = applyCodexAccountIdentityClientMetadataRaw(responsesBody, codexAccountIdentitySource(c, account), apiKeyID)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// 5. Get access token from the admitted account/parent snapshot.
+	credentialCtx := ctx
+	if account.IsOpenAI() {
+		credentialCtx = admissionCtx
+	}
+	token, _, err := s.getRequestCredential(credentialCtx, c, account)
 	if err != nil {
 		return nil, fmt.Errorf("get access token: %w", err)
 	}
@@ -519,21 +552,23 @@ func (s *OpenAIGatewayService) ForwardAsAnthropic(
 		result, handleErr = s.handleAnthropicBufferedStreamingResponse(resp, c, account, originalModel, billingModel, upstreamModel, startTime)
 	}
 
-	// cyber_policy：标记已设、error 已按 Anthropic 格式发给客户端。丢弃 result、返回哨兵，
-	// 使 handler 落入 tokens=0 免费用量行（对齐 /v1/responses），不计费、不 failover。
+	// Cyber policy remains non-retryable. Retain the observed OpenAI usage so
+	// its cached-token attribution is settled once; zero usage stays audit-only.
 	if GetOpsCyberPolicy(c) != nil {
 		if handleErr == nil {
 			handleErr = errOpenAICyberPolicyForwarded
 		}
-		return nil, handleErr
+		if !account.IsOpenAI() || !result.HasObservedUsage() {
+			return nil, handleErr
+		}
 	}
 
 	// Propagate ServiceTier and ReasoningEffort to result for billing
-	if handleErr == nil && result != nil {
-		if compatContinuationEnabled && promptCacheKey != "" && result.ResponseID != "" {
+	if result != nil && (handleErr == nil || account.IsOpenAI()) {
+		if handleErr == nil && compatContinuationEnabled && promptCacheKey != "" && result.ResponseID != "" {
 			s.bindOpenAICompatSessionResponseID(ctx, c, account, promptCacheKey, result.ResponseID)
 		}
-		if promptCacheKey != "" && anthropicDigestChain != "" {
+		if handleErr == nil && promptCacheKey != "" && anthropicDigestChain != "" {
 			s.bindOpenAICompatAnthropicDigestPromptCacheKey(account, apiKeyID, anthropicDigestChain, promptCacheKey, anthropicMatchedDigestChain)
 		}
 		// 计费 tier 优先采用上游回显值；上游未回显时回退到最终出站 body（经过
@@ -599,10 +634,15 @@ func (s *OpenAIGatewayService) handleAnthropicBufferedStreamingResponse(
 	billingModel string,
 	upstreamModel string,
 	startTime time.Time,
-) (*OpenAIForwardResult, error) {
+) (result *OpenAIForwardResult, returnedErr error) {
 	requestID := resp.Header.Get("x-request-id")
 
-	finalResponse, usage, acc, err := s.readOpenAICompatBufferedTerminal(resp, c, "openai messages buffered", requestID)
+	finalResponse, usage, acc, err := s.readOpenAICompatBufferedTerminal(resp, c, "openai messages buffered", requestID, account.IsOpenAI())
+	defer func() {
+		if returnedErr != nil && result == nil {
+			result = openAICompatObservedFailureResult(c, account, resp, finalResponse, usage, originalModel, billingModel, upstreamModel, startTime)
+		}
+	}()
 	if err != nil {
 		var readErr *openAICompatBufferedReadError
 		if errors.As(err, &readErr) && readErr != nil {
@@ -676,7 +716,7 @@ func (s *OpenAIGatewayService) handleAnthropicBufferedStreamingResponse(
 	c.Header("Content-Type", "application/json; charset=utf-8")
 	c.JSON(http.StatusOK, anthropicResp)
 
-	result := &OpenAIForwardResult{
+	result = &OpenAIForwardResult{
 		RequestID:                     requestID,
 		UpstreamHeaders:               resp.Header,
 		ResponseID:                    finalResponse.ID,
@@ -774,6 +814,7 @@ func (s *OpenAIGatewayService) readOpenAICompatBufferedTerminal(
 	c *gin.Context,
 	logPrefix string,
 	requestID string,
+	preserveAggregate ...bool,
 ) (*apicompat.ResponsesResponse, OpenAIUsage, *apicompat.BufferedResponseAccumulator, error) {
 	acc := apicompat.NewBufferedResponseAccumulator()
 	var usage OpenAIUsage
@@ -854,17 +895,18 @@ func (s *OpenAIGatewayService) readOpenAICompatBufferedTerminal(
 					payload = string(restoreCodexToolNamesFromContext(c, []byte(payload)))
 					var event apicompat.ResponsesStreamEvent
 					if err := json.Unmarshal([]byte(payload), &event); err == nil {
-						s.parseSSEUsageBytesWithType([]byte(payload), event.Type, &usage)
+						s.parseSSEUsageBytesWithType([]byte(payload), event.Type, &usage, preserveAggregate...)
 						acc.ProcessEvent(&event)
 						if response := openAICompatTerminalResponse(&event, []byte(payload)); isOpenAICompatResponsesTerminalEvent(event.Type) && response != nil {
+							preserveFailureAggregate := len(preserveAggregate) > 0 && preserveAggregate[0] && strings.TrimSpace(response.Status) == "failed"
 							if event.Usage != nil {
-								usage = copyOpenAIUsageFromResponsesUsage(event.Usage)
+								usage = openAICompatTerminalUsage(usage, event.Usage, preserveFailureAggregate)
 								if response.Usage == nil {
 									response.Usage = event.Usage
 								}
 							}
 							if response.Usage != nil {
-								usage = copyOpenAIUsageFromResponsesUsage(response.Usage)
+								usage = openAICompatTerminalUsage(usage, response.Usage, preserveFailureAggregate)
 							}
 							return response, usage, acc, nil
 						}
@@ -901,19 +943,20 @@ func (s *OpenAIGatewayService) readOpenAICompatBufferedTerminal(
 				)
 				continue
 			}
-			s.parseSSEUsageBytesWithType([]byte(payload), event.Type, &usage)
+			s.parseSSEUsageBytesWithType([]byte(payload), event.Type, &usage, preserveAggregate...)
 
 			acc.ProcessEvent(&event)
 
 			if response := openAICompatTerminalResponse(&event, []byte(payload)); isOpenAICompatResponsesTerminalEvent(event.Type) && response != nil {
+				preserveFailureAggregate := len(preserveAggregate) > 0 && preserveAggregate[0] && strings.TrimSpace(response.Status) == "failed"
 				if event.Usage != nil {
-					usage = copyOpenAIUsageFromResponsesUsage(event.Usage)
+					usage = openAICompatTerminalUsage(usage, event.Usage, preserveFailureAggregate)
 					if response.Usage == nil {
 						response.Usage = event.Usage
 					}
 				}
 				if response.Usage != nil {
-					usage = copyOpenAIUsageFromResponsesUsage(response.Usage)
+					usage = openAICompatTerminalUsage(usage, response.Usage, preserveFailureAggregate)
 				}
 				return response, usage, acc, nil
 			}
@@ -1026,23 +1069,24 @@ func (s *OpenAIGatewayService) handleAnthropicStreamingResponse(
 			return false
 		}
 		observer.ObserveOpenAI([]byte(payload), event.Type)
-		s.parseSSEUsageBytesWithType([]byte(payload), event.Type, &usage)
+		s.parseSSEUsageBytesWithType([]byte(payload), event.Type, &usage, account.IsOpenAI())
 
 		eventType := strings.TrimSpace(event.Type)
 		isBareErrorEvent := eventType == "error"
 		isTerminalEvent := isOpenAICompatResponsesTerminalEvent(eventType) || isBareErrorEvent
 		if isTerminalEvent {
 			terminalEventType = eventType
+			preserveFailureAggregate := account.IsOpenAI() && (eventType == "response.failed" || isBareErrorEvent)
 			if event.Response != nil {
 				if id := strings.TrimSpace(event.Response.ID); id != "" {
 					responseID = id
 				}
 				if event.Response.Usage != nil {
-					usage = copyOpenAIUsageFromResponsesUsage(event.Response.Usage)
+					usage = openAICompatTerminalUsage(usage, event.Response.Usage, preserveFailureAggregate)
 				}
 			}
 			if event.Usage != nil {
-				usage = copyOpenAIUsageFromResponsesUsage(event.Usage)
+				usage = openAICompatTerminalUsage(usage, event.Usage, preserveFailureAggregate)
 			}
 			// cyber_policy 致命不可重试：标记供 handler 事后记录；以 Anthropic SSE error 事件
 			// 回写让客户端感知并停止重试（F4），丢弃后续转换输出。

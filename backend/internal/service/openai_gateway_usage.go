@@ -543,10 +543,19 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	}, s.billingDeps(), s.usageBillingRepo)
 
 	if billingErr != nil {
+		if errors.Is(billingErr, ErrUsageBillingRequestConflict) && !simpleModeKeyRateLimitOnly && !IsImageStudioManagedBilling(ctx) {
+			return billingErr
+		}
 		if IsImageStudioManagedBilling(ctx) {
 			recordImageStudioManagedUsageForReconciliation(ctx, s.usageLogRepo, usageLog, "service.openai_gateway", cost.ActualCost)
 		} else {
 			usageLog.ActualCost = 0
+			// Simple-mode key rate limits keep their pre-existing audit snapshot;
+			// they do not participate in fingerprint-bound settlement recovery.
+			if !simpleModeKeyRateLimitOnly {
+				usageLog.BilledCost = 0
+				usageLog.BillingSurchargeCost = 0
+			}
 			writeUsageLogBestEffort(ctx, s.usageLogRepo, usageLog, "service.openai_gateway")
 		}
 		return billingErr

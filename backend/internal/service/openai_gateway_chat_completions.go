@@ -71,6 +71,19 @@ func (s *OpenAIGatewayService) forwardAsChatCompletions(
 	defaultMappedModel string,
 	compatPromptCacheTenantIsolated bool,
 ) (*OpenAIForwardResult, error) {
+	// Chat forwarding deliberately drains after a client disconnect. Preserve
+	// that contract for admission too; each primary read has its own deadline.
+	admissionCtx, releaseAdmissionCtx := detachUpstreamContext(ctx)
+	defer releaseAdmissionCtx()
+	admissionBodyModel := gjson.GetBytes(body, "model").String()
+	admissionRequestModel := openAITurnRequestModel(ctx, admissionBodyModel)
+	admissionOutboundModel := normalizeOpenAIModelForUpstream(account, resolveOpenAIForwardModel(account, admissionBodyModel, defaultMappedModel))
+	latest, admissionErr := s.admitOpenAITurnForRequest(admissionCtx, c, account, admissionRequestModel, admissionOutboundModel)
+	if admissionErr != nil {
+		return nil, admissionErr
+	}
+	account = latest
+
 	rememberOpenCodeInboundBody(c, body)
 	beginUpstreamResponseModelObservation(c)
 	ClearActualOpenAIUpstreamEndpoint(c)
@@ -325,7 +338,6 @@ func (s *OpenAIGatewayService) forwardAsChatCompletions(
 		} else if promptCacheKey != "" {
 			reqBody["prompt_cache_key"] = promptCacheKey
 		}
-		applyCodexAccountIdentityClientMetadataMap(reqBody, codexAccountIdentitySource(c, account), getAPIKeyIDFromContext(c))
 		responsesBody, err = json.Marshal(reqBody)
 		if err != nil {
 			return nil, fmt.Errorf("remarshal after codex transform: %w", err)
@@ -368,8 +380,25 @@ func (s *OpenAIGatewayService) forwardAsChatCompletions(
 	responsesBody = updatedBody
 	responsesReq.ServiceTier = normalizedOpenAIServiceTierValue(gjson.GetBytes(responsesBody, "service_tier").String())
 
-	// 5. Get access token
-	token, _, err := s.GetAccessToken(ctx, account)
+	// Refresh eligibility and credentials together after body preparation. Local
+	// rejections must return before transport/error handling can penalize health.
+	latest, admissionErr = s.admitOpenAITurnForRequest(admissionCtx, c, account, admissionRequestModel, upstreamModel)
+	if admissionErr != nil {
+		return nil, admissionErr
+	}
+	account = latest
+	if _, err := s.prepareCodexAccountIdentitySource(admissionCtx, c, account); err != nil {
+		return nil, err
+	}
+	if account.UsesOpenAICodexProtocol() {
+		responsesBody, _, err = applyCodexAccountIdentityClientMetadataRaw(responsesBody, codexAccountIdentitySource(c, account), getAPIKeyIDFromContext(c))
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// 5. Get access token from the admitted account/credential-parent snapshot.
+	token, _, err := s.GetAccessToken(admissionCtx, account)
 	if err != nil {
 		return nil, fmt.Errorf("get access token: %w", err)
 	}
@@ -447,20 +476,22 @@ func (s *OpenAIGatewayService) forwardAsChatCompletions(
 	}
 	stampOpenAIResponsesUpstreamEndpoint(c, result)
 
-	// cyber_policy：标记已设、error 已按 Chat Completions 格式发给客户端。丢弃 result、
-	// 返回哨兵，使 handler 落入 tokens=0 免费用量行（对齐 /v1/responses），不计费、不 failover。
+	// Cyber policy remains non-retryable. A metered result owns its full usage;
+	// without observed usage, retain the existing zero-token audit path.
 	if GetOpsCyberPolicy(c) != nil {
 		if handleErr == nil {
 			handleErr = errOpenAICyberPolicyForwarded
 		}
-		return nil, handleErr
+		if !account.IsOpenAI() || !result.HasObservedUsage() {
+			return nil, handleErr
+		}
 	}
 
 	// Propagate ServiceTier and ReasoningEffort to result for billing.
 	// 计费 tier 优先采用上游回显值；上游未回显时回退到最终出站 body（经过
 	// fast policy filter/force 之后）里的 tier，policy filter 删掉字段后不再
 	// 按原请求 Fast 计费。
-	if handleErr == nil && result != nil {
+	if result != nil && (handleErr == nil || account.IsOpenAI()) {
 		if tier := resolvedOpenAIUpstreamServiceTier(c, extractOpenAIServiceTierFromBody(responsesBody)); tier != nil {
 			result.ServiceTier = tier
 		}
@@ -547,10 +578,15 @@ func (s *OpenAIGatewayService) handleChatBufferedStreamingResponse(
 	billingModel string,
 	upstreamModel string,
 	startTime time.Time,
-) (*OpenAIForwardResult, error) {
+) (result *OpenAIForwardResult, returnedErr error) {
 	requestID := resp.Header.Get("x-request-id")
 
-	finalResponse, usage, acc, err := s.readOpenAICompatBufferedTerminal(resp, c, "openai chat_completions buffered", requestID)
+	finalResponse, usage, acc, err := s.readOpenAICompatBufferedTerminal(resp, c, "openai chat_completions buffered", requestID, account.IsOpenAI())
+	defer func() {
+		if returnedErr != nil && result == nil {
+			result = openAICompatObservedFailureResult(c, account, resp, finalResponse, usage, originalModel, billingModel, upstreamModel, startTime)
+		}
+	}()
 	if err != nil {
 		return nil, s.newOpenAICompatBufferedReadFailoverError(c, account, resp, requestID, err)
 	}
@@ -630,7 +666,7 @@ func (s *OpenAIGatewayService) handleChatBufferedStreamingResponse(
 	c.Writer.Header().Set("Content-Type", "application/json; charset=utf-8")
 	c.JSON(http.StatusOK, chatResp)
 
-	result := &OpenAIForwardResult{
+	result = &OpenAIForwardResult{
 		RequestID:                     requestID,
 		UpstreamHeaders:               resp.Header,
 		Usage:                         usage,
@@ -661,6 +697,9 @@ func (s *OpenAIGatewayService) newOpenAICompatBufferedReadFailoverError(
 	requestID string,
 	err error,
 ) error {
+	if IsOpenAITurnAdmissionError(err) {
+		return err
+	}
 	var readErr *openAICompatBufferedReadError
 	if !errors.As(err, &readErr) || readErr == nil || errors.Is(readErr.cause, bufio.ErrTooLong) {
 		return err
@@ -793,16 +832,17 @@ func (s *OpenAIGatewayService) handleChatStreamingResponse(
 		}
 		observer.ObserveOpenAI([]byte(payload), event.Type)
 		refusalDetector.ObservePayload([]byte(payload))
-		s.parseSSEUsageBytesWithType([]byte(payload), event.Type, &usage)
+		s.parseSSEUsageBytesWithType([]byte(payload), event.Type, &usage, account.IsOpenAI())
 
 		isTerminalEvent := isOpenAICompatResponsesTerminalEvent(event.Type)
 		if isTerminalEvent {
 			terminalEventType = strings.TrimSpace(event.Type)
+			preserveFailureAggregate := account.IsOpenAI() && (terminalEventType == "response.failed" || terminalEventType == "error")
 			if event.Usage != nil {
-				usage = copyOpenAIUsageFromResponsesUsage(event.Usage)
+				usage = openAICompatTerminalUsage(usage, event.Usage, preserveFailureAggregate)
 			}
 			if event.Response != nil && event.Response.Usage != nil {
-				usage = copyOpenAIUsageFromResponsesUsage(event.Response.Usage)
+				usage = openAICompatTerminalUsage(usage, event.Response.Usage, preserveFailureAggregate)
 			}
 		}
 		if strings.TrimSpace(event.Type) == "response.failed" || strings.TrimSpace(event.Type) == "error" {
@@ -934,10 +974,11 @@ func (s *OpenAIGatewayService) handleChatStreamingResponse(
 
 	finalizeStream := func() (*OpenAIForwardResult, error) {
 		if streamFailoverErr != nil {
-			if c == nil || c.Writer == nil || !c.Writer.Written() {
+			result := resultWithUsage()
+			if (c == nil || c.Writer == nil || !c.Writer.Written()) && (!account.IsOpenAI() || !result.HasObservedUsage()) {
 				return nil, streamFailoverErr
 			}
-			return resultWithUsage(), streamFailoverErr
+			return result, streamFailoverErr
 		}
 		if streamNonFailoverErr != nil {
 			return resultWithUsage(), streamNonFailoverErr

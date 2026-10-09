@@ -13,7 +13,7 @@ import (
 )
 
 // AccountGroup holds the edge schema definition for the account_groups relationship.
-// It stores extra fields (priority, created_at) and uses a composite primary key.
+// It stores extra fields (priority, allowed_models, created_at) and uses a composite primary key.
 type AccountGroup struct {
 	ent.Schema
 }
@@ -32,6 +32,9 @@ func (AccountGroup) Fields() []ent.Field {
 		field.Int64("group_id"),
 		field.Int("priority").
 			Default(50),
+		field.JSON("allowed_models", []string{}).
+			Optional().
+			SchemaType(map[string]string{dialect.Postgres: "jsonb"}),
 		field.Time("created_at").
 			Immutable().
 			Default(time.Now).

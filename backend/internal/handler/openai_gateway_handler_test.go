@@ -1761,7 +1761,7 @@ func TestOpenAIChannelForwardModelForScheduler(t *testing.T) {
 func TestShouldReportOpenAIWSProxyAccountFailure(t *testing.T) {
 	t.Run("unsupported client model switch does not penalize account", func(t *testing.T) {
 		err := fmt.Errorf("wrapped ingress turn: %w", newOpenAIWSUnsupportedModelSwitchError("gpt-unsupported"))
-		require.False(t, shouldReportOpenAIWSProxyAccountFailure(err))
+		require.False(t, shouldReportOpenAIWSProxyAccountFailure(&service.Account{Platform: service.PlatformOpenAI}, err))
 
 		var closeErr *service.OpenAIWSClientCloseError
 		require.ErrorAs(t, err, &closeErr)
@@ -1775,11 +1775,11 @@ func TestShouldReportOpenAIWSProxyAccountFailure(t *testing.T) {
 			"upstream websocket authentication failed",
 			errors.New("upstream rejected credentials"),
 		)
-		require.True(t, shouldReportOpenAIWSProxyAccountFailure(err))
+		require.True(t, shouldReportOpenAIWSProxyAccountFailure(&service.Account{Platform: service.PlatformOpenAI}, err))
 	})
 
 	t.Run("generic proxy failure still penalizes account", func(t *testing.T) {
-		require.True(t, shouldReportOpenAIWSProxyAccountFailure(errors.New("upstream websocket read failed")))
+		require.True(t, shouldReportOpenAIWSProxyAccountFailure(&service.Account{Platform: service.PlatformOpenAI}, errors.New("upstream websocket read failed")))
 	})
 }
 

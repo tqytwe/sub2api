@@ -19,6 +19,14 @@ import (
 
 // Forward forwards request to OpenAI API
 func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, account *Account, body []byte) (*OpenAIForwardResult, error) {
+	admissionOutboundModel := gjson.GetBytes(body, "model").String()
+	admissionModel := openAITurnRequestModel(ctx, admissionOutboundModel)
+	latest, admissionErr := s.admitOpenAITurnForRequest(ctx, c, account, admissionModel, admissionOutboundModel)
+	if admissionErr != nil {
+		return nil, admissionErr
+	}
+	account = latest
+
 	beginUpstreamResponseModelObservation(c)
 	ClearActualOpenAIUpstreamEndpoint(c)
 	if shouldForwardOpenAIResponsesViaRawChatCompletions(account) {
@@ -542,7 +550,7 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 		// Account namespace is orthogonal to fingerprint convergence: preserve
 		// each client's identity cardinality, but never reuse it across OAuth
 		// credentials after scheduler failover.
-		if !isCompactRequest && applyCodexAccountIdentityClientMetadataMap(decoded, codexAccountIdentitySource(c, account), getAPIKeyIDFromContext(c)) {
+		if !isCompactRequest && (!account.IsOpenAI() || wsDecision.Transport == OpenAIUpstreamTransportResponsesWebsocketV2) && applyCodexAccountIdentityClientMetadataMap(decoded, codexAccountIdentitySource(c, account), getAPIKeyIDFromContext(c)) {
 			markDecodedModified()
 		}
 		stageCodexFingerprintIDs(c, nil)
@@ -554,7 +562,7 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 				clientHeaders = c.Request.Header
 			}
 			fpIDs := resolveCodexFingerprintIDsFromRequest(account, clientHeaders)
-			if fpIDs != nil {
+			if fpIDs != nil && (!account.IsOpenAI() || wsDecision.Transport == OpenAIUpstreamTransportResponsesWebsocketV2) {
 				if applyCodexFingerprintClientMetadata(decoded, fpIDs) {
 					markDecodedModified()
 				}
@@ -568,8 +576,8 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 			upstreamModel = codexResult.NormalizedModel
 		}
 		if strings.TrimSpace(clientPromptCacheKey) != "" {
-			// The body now carries an account-scoped value. Keep the original here
-			// so the header builder derives the same namespace exactly once.
+			// Keep the original header seed. OpenAI HTTP body identity is scoped
+			// only after final admission, independently for every attempt.
 			promptCacheKey = clientPromptCacheKey
 		} else if currentPromptCacheKey, ok := decoded["prompt_cache_key"].(string); ok && currentPromptCacheKey != "" {
 			// Fingerprint convergence may inject a default key when the client did
@@ -779,15 +787,14 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 		imageSizeTier = imageCfg.SizeTier
 		imageInputSize = imageCfg.InputSize
 	}
-	// Get access token
-	token, _, err := s.GetAccessToken(ctx, account)
-	if err != nil {
-		return nil, err
-	}
 	SetOpsUpstreamModel(c, upstreamModel)
 
 	// 命中 WS 时仅走 WebSocket Mode；不再自动回退 HTTP。
 	if wsDecision.Transport == OpenAIUpstreamTransportResponsesWebsocketV2 {
+		token, _, err := s.GetAccessToken(ctx, account)
+		if err != nil {
+			return nil, err
+		}
 		// WS 分支需要结构化 payload 与重连恢复，命中后再触发 full-map decode。
 		wsReqBody, err := ensureReqBody()
 		if err != nil {
@@ -1038,6 +1045,40 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 	agentTaskRecoveryTried := false
 	rejectedFieldRetryState := openAIResponsesRejectedFieldRetryStateForRequest(c, body)
 	for {
+		// Recheck the prepared request on every native HTTP attempt before deriving
+		// authentication or proxy state. A local denial is never an upstream fault.
+		latest, admissionErr := s.admitOpenAITurnForRequest(ctx, c, account, admissionModel, upstreamModel)
+		if admissionErr != nil {
+			return nil, admissionErr
+		}
+		account = latest
+		if _, err := s.prepareCodexAccountIdentitySource(ctx, c, account); err != nil {
+			return nil, err
+		}
+		token, _, err := s.GetAccessToken(ctx, account)
+		if err != nil {
+			return nil, err
+		}
+		// Keep body unscoped for retries: a rotated setup token must scope both
+		// this attempt's body and headers once from the same admitted account.
+		attemptBody := body
+		if account.IsOpenAI() && !isCompactRequest {
+			var scopeErr error
+			attemptBody, _, scopeErr = applyCodexAccountIdentityClientMetadataRaw(body, codexAccountIdentitySource(c, account), getAPIKeyIDFromContext(c))
+			if scopeErr != nil {
+				return nil, scopeErr
+			}
+			// Namespace first, optional convergence last, matching header order.
+			// Copy staged IDs so each retry captures its own scoped session seed
+			// without regenerating random turn identifiers.
+			if ids := stagedCodexFingerprintIDs(c, account); ids != nil {
+				attemptIDs := *ids
+				attemptBody, _, scopeErr = applyCodexFingerprintClientMetadataRaw(attemptBody, &attemptIDs)
+				if scopeErr != nil {
+					return nil, scopeErr
+				}
+			}
+		}
 		// Build upstream request
 		upstreamCtx, releaseUpstreamCtx := detachUpstreamContext(ctx)
 		var headerGuard *openAIFirstOutputHeaderGuard
@@ -1046,7 +1087,7 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 				upstreamCtx, releaseUpstreamCtx, startTime.Add(firstOutputTimeout),
 			)
 		}
-		upstreamReq, err := s.buildUpstreamRequest(upstreamCtx, c, account, body, token, reqStream, promptCacheKey, isCodexCLI)
+		upstreamReq, err := s.buildUpstreamRequest(upstreamCtx, c, account, attemptBody, token, reqStream, promptCacheKey, isCodexCLI)
 		if headerGuard == nil {
 			releaseUpstreamCtx()
 		}
@@ -1215,6 +1256,8 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 
 		// Handle normal response
 		var usage *OpenAIUsage
+		// Preserve the first metered attempt and its exact error before compact replay.
+		var forwardErr error
 		var firstTokenMs *int
 		responseID := ""
 		imageCount := 0
@@ -1222,7 +1265,16 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 		var imageOutputSizes []string
 		if reqStream {
 			streamResult, err := s.handleStreamingResponseWithReasoning(ctx, resp, c, account, startTime, originalModel, upstreamModel, reasoningEffortValue)
-			if err != nil {
+			forwardErr = err
+			if streamResult != nil {
+				usage = streamResult.usage
+				firstTokenMs = streamResult.firstTokenMs
+				responseID = strings.TrimSpace(streamResult.responseID)
+				imageCount = streamResult.imageCount
+				imageOutputSizes = streamResult.imageOutputSizes
+				searchCount = streamResult.searchCount
+			}
+			if err != nil && (!account.IsOpenAI() || !hasObservedOpenAIUsage(usage, imageCount)) {
 				if signal, ok := asOpenAICompactFallbackSignal(err); ok {
 					if retryBody, fallbackModel, retry := s.prepareOpenAICompactFallbackRetry(
 						c, account, requestedModel, body, http.StatusBadRequest, signal.message, signal.payload, compactModelFallbackRetried,
@@ -1261,15 +1313,17 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 				}
 				return nil, err
 			}
-			usage = streamResult.usage
-			firstTokenMs = streamResult.firstTokenMs
-			responseID = strings.TrimSpace(streamResult.responseID)
-			imageCount = streamResult.imageCount
-			imageOutputSizes = streamResult.imageOutputSizes
-			searchCount = streamResult.searchCount
 		} else {
 			nonStreamResult, err := s.handleNonStreamingResponse(ctx, resp, c, account, originalModel, upstreamModel)
-			if err != nil {
+			forwardErr = err
+			if nonStreamResult != nil {
+				usage = nonStreamResult.usage
+				responseID = strings.TrimSpace(nonStreamResult.responseID)
+				imageCount = nonStreamResult.imageCount
+				imageOutputSizes = nonStreamResult.imageOutputSizes
+				searchCount = nonStreamResult.searchCount
+			}
+			if err != nil && (!account.IsOpenAI() || !hasObservedOpenAIUsage(usage, imageCount)) {
 				if signal, ok := asOpenAICompactFallbackSignal(err); ok {
 					if retryBody, fallbackModel, retry := s.prepareOpenAICompactFallbackRetry(
 						c, account, requestedModel, body, http.StatusBadRequest, signal.message, signal.payload, compactModelFallbackRetried,
@@ -1285,13 +1339,10 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 				}
 				return nil, err
 			}
-			usage = nonStreamResult.usage
-			responseID = strings.TrimSpace(nonStreamResult.responseID)
-			imageCount = nonStreamResult.imageCount
-			imageOutputSizes = nonStreamResult.imageOutputSizes
-			searchCount = nonStreamResult.searchCount
 		}
-		s.bindHTTPResponseAccount(ctx, c, account, responseID)
+		if forwardErr == nil {
+			s.bindHTTPResponseAccount(ctx, c, account, responseID)
+		}
 
 		// Extract and save Codex usage snapshot from response headers (for OAuth accounts).
 		// 排除 spark 影子:其 codex_* 仅由 QueryUsage(/wham/usage bengalfox)更新(外审第7轮 P1)。
@@ -1339,7 +1390,7 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 			forwardResult.SearchCount = searchCount
 		}
 		stampOpenAIResponsesUpstreamEndpoint(c, forwardResult)
-		return forwardResult, nil
+		return forwardResult, forwardErr
 	}
 }
 

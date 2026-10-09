@@ -15,6 +15,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -238,11 +239,12 @@ func (r *accountRepository) CreateWithAccountGroups(ctx context.Context, account
 		builders := make([]*dbent.AccountGroupCreate, 0, len(groups))
 		for i := range groups {
 			groups[i].AccountID = account.ID
-			builders = append(builders, txClient.AccountGroup.Create().
-				SetAccountID(account.ID).
-				SetGroupID(groups[i].GroupID).
-				SetPriority(groups[i].Priority),
-			)
+			groups[i].AllowedModels = service.NormalizeGroupAllowedModels(groups[i].AllowedModels)
+			builder := txClient.AccountGroup.Create().SetAccountID(account.ID).SetGroupID(groups[i].GroupID).SetPriority(groups[i].Priority)
+			if len(groups[i].AllowedModels) > 0 {
+				builder.SetAllowedModels(groups[i].AllowedModels)
+			}
+			builders = append(builders, builder)
 		}
 		if _, err := txClient.AccountGroup.CreateBulk(builders...).Save(ctx); err != nil {
 			return err
@@ -958,10 +960,6 @@ func (r *accountRepository) UpdateCredentials(ctx context.Context, id int64, cre
 }
 
 func (r *accountRepository) Delete(ctx context.Context, id int64) error {
-	groupIDs, err := r.loadAccountGroupIDs(ctx, id)
-	if err != nil {
-		return err
-	}
 	// 使用事务保证账号与关联分组的删除原子性
 	tx, err := r.client.Tx(ctx)
 	if err != nil && !errors.Is(err, dbent.ErrTxStarted) {
@@ -975,6 +973,17 @@ func (r *accountRepository) Delete(ctx context.Context, id int64) error {
 	} else {
 		// 已处于外部事务中（ErrTxStarted），复用当前 client
 		txClient = r.client
+	}
+
+	// Account deletion shares the account-first lock order with policy updates.
+	// Include soft-deleted rows so repeated deletes retain their cleanup semantics.
+	var lockedID int64
+	if err := scanSingleRow(ctx, txClient, "SELECT id FROM accounts WHERE id = $1 FOR NO KEY UPDATE", []any{id}, &lockedID); err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return err
+	}
+	groupIDs, err := loadAccountGroupIDs(ctx, txClient, id)
+	if err != nil {
+		return err
 	}
 
 	if _, err := txClient.AccountGroup.Delete().Where(dbaccountgroup.AccountIDEQ(id)).Exec(ctx); err != nil {
@@ -1928,12 +1937,86 @@ func (r *accountRepository) GetGroups(ctx context.Context, accountID int64) ([]s
 	return outGroups, nil
 }
 
+// BindGroups preserves model restrictions for surviving memberships.
 func (r *accountRepository) BindGroups(ctx context.Context, accountID int64, groupIDs []int64) error {
-	existingGroupIDs, err := r.loadAccountGroupIDs(ctx, accountID)
+	return r.bindGroupsWithAllowedModels(ctx, accountID, groupIDs, nil)
+}
+
+// BindGroupsWithAllowedModels atomically replaces bindings and their policy.
+// A nil policy preserves surviving restrictions; an empty map clears them.
+func (r *accountRepository) BindGroupsWithAllowedModels(ctx context.Context, accountID int64, groupIDs []int64, allowed map[int64][]string) error {
+	if err := service.ValidateGroupAllowedModels(allowed); err != nil {
+		return err
+	}
+	return r.bindGroupsWithAllowedModels(ctx, accountID, groupIDs, allowed)
+}
+
+func (r *accountRepository) bindGroupsWithAllowedModels(ctx context.Context, accountID int64, groupIDs []int64, allowed map[int64][]string) error {
+	tx, err := r.client.Tx(ctx)
+	if err != nil && !errors.Is(err, dbent.ErrTxStarted) {
+		return err
+	}
+	txClient := r.client
+	if tx != nil {
+		defer func() { _ = tx.Rollback() }()
+		txClient = tx.Client()
+	}
+	if err := lockAccountGroupPolicyAccount(ctx, txClient, accountID); err != nil {
+		return err
+	}
+	entries, err := txClient.AccountGroup.Query().Where(dbaccountgroup.AccountIDEQ(accountID)).All(ctx)
 	if err != nil {
 		return err
 	}
-	// 使用事务保证删除旧绑定与创建新绑定的原子性
+	existingGroupIDs := make([]int64, 0, len(entries))
+	existingAllowedModels := make(map[int64][]string, len(entries))
+	for _, entry := range entries {
+		existingGroupIDs = append(existingGroupIDs, entry.GroupID)
+		existingAllowedModels[entry.GroupID] = service.NormalizeGroupAllowedModels(entry.AllowedModels)
+	}
+	if err := lockLiveGroups(ctx, txClient, groupIDs); err != nil {
+		return err
+	}
+	if _, err := txClient.AccountGroup.Delete().Where(dbaccountgroup.AccountIDEQ(accountID)).Exec(ctx); err != nil {
+		return err
+	}
+	if len(groupIDs) > 0 {
+		builders := make([]*dbent.AccountGroupCreate, 0, len(groupIDs))
+		for i, groupID := range groupIDs {
+			models := existingAllowedModels[groupID]
+			if allowed != nil {
+				models = service.NormalizeGroupAllowedModels(allowed[groupID])
+			}
+			builder := txClient.AccountGroup.Create().SetAccountID(accountID).SetGroupID(groupID).SetPriority(i + 1)
+			if len(models) > 0 {
+				builder.SetAllowedModels(models)
+			}
+			builders = append(builders, builder)
+		}
+		if _, err := txClient.AccountGroup.CreateBulk(builders...).Save(ctx); err != nil {
+			return err
+		}
+	}
+	// Publish exactly one union-scope event within the same transaction, including
+	// clearing all bindings. No new unrestricted membership is ever committed.
+	changedGroupIDs := mergeGroupIDs(existingGroupIDs, groupIDs)
+	if len(changedGroupIDs) > 0 {
+		if err := enqueueSchedulerOutbox(ctx, txClient, service.SchedulerOutboxEventAccountGroupsChanged, &accountID, nil, buildSchedulerGroupPayload(changedGroupIDs)); err != nil {
+			return err
+		}
+	}
+	if tx != nil {
+		return tx.Commit()
+	}
+	return nil
+}
+
+// SetGroupAllowedModels 覆盖账号在各个已绑定分组内的模型限制：allowed 里没有的分组恢复为不限制，
+// 账号未绑定的分组被忽略。有变化时通知调度器刷新该账号的缓存。
+func (r *accountRepository) SetGroupAllowedModels(ctx context.Context, accountID int64, allowed map[int64][]string) error {
+	if err := service.ValidateGroupAllowedModels(allowed); err != nil {
+		return err
+	}
 	tx, err := r.client.Tx(ctx)
 	if err != nil && !errors.Is(err, dbent.ErrTxStarted) {
 		return err
@@ -1947,44 +2030,62 @@ func (r *accountRepository) BindGroups(ctx context.Context, accountID int64, gro
 		// 已处于外部事务中（ErrTxStarted），复用当前 client
 		txClient = r.client
 	}
-	if err := lockLiveGroups(ctx, txClient, groupIDs); err != nil {
+
+	if err := lockAccountGroupPolicyAccount(ctx, txClient, accountID); err != nil {
 		return err
 	}
 
-	if _, err := txClient.AccountGroup.Delete().Where(dbaccountgroup.AccountIDEQ(accountID)).Exec(ctx); err != nil {
+	entries, err := txClient.AccountGroup.Query().
+		Where(dbaccountgroup.AccountIDEQ(accountID)).
+		All(ctx)
+	if err != nil {
 		return err
 	}
 
-	if len(groupIDs) == 0 {
-		if tx != nil {
-			return tx.Commit()
+	changedGroupIDs := make([]int64, 0, len(entries))
+	for _, entry := range entries {
+		groupID := entry.GroupID
+		next := service.NormalizeGroupAllowedModels(allowed[groupID])
+		if slices.Equal(next, service.NormalizeGroupAllowedModels(entry.AllowedModels)) {
+			continue
 		}
-		return nil
+		update := txClient.AccountGroup.Update().
+			Where(dbaccountgroup.AccountIDEQ(accountID), dbaccountgroup.GroupIDEQ(groupID))
+		if len(next) == 0 {
+			update.ClearAllowedModels()
+		} else {
+			update.SetAllowedModels(next)
+		}
+		if _, err := update.Save(ctx); err != nil {
+			return err
+		}
+		changedGroupIDs = append(changedGroupIDs, groupID)
 	}
 
-	builders := make([]*dbent.AccountGroupCreate, 0, len(groupIDs))
-	for i, groupID := range groupIDs {
-		builders = append(builders, txClient.AccountGroup.Create().
-			SetAccountID(accountID).
-			SetGroupID(groupID).
-			SetPriority(i+1),
-		)
-	}
-
-	if _, err := txClient.AccountGroup.CreateBulk(builders...).Save(ctx); err != nil {
-		return err
-	}
-
-	if tx != nil {
-		if err := tx.Commit(); err != nil {
+	if len(changedGroupIDs) > 0 {
+		payload := buildSchedulerGroupPayload(changedGroupIDs)
+		if err := enqueueSchedulerOutbox(ctx, txClient, service.SchedulerOutboxEventAccountGroupsChanged, &accountID, nil, payload); err != nil {
 			return err
 		}
 	}
-	payload := buildSchedulerGroupPayload(mergeGroupIDs(existingGroupIDs, groupIDs))
-	if err := enqueueSchedulerOutbox(ctx, r.sql, service.SchedulerOutboxEventAccountGroupsChanged, &accountID, nil, payload); err != nil {
-		logger.LegacyPrintf("repository.account", "[SchedulerOutbox] enqueue bind groups failed: account=%d err=%v", accountID, err)
+	if tx != nil {
+		return tx.Commit()
 	}
 	return nil
+}
+
+// lockAccountGroupPolicyAccount serializes membership rebuilds and policy changes.
+// NO KEY UPDATE remains compatible with FK KEY SHARE from group-side inserts.
+// Acquire it before group or membership locks; keep it within the mutation transaction.
+// Intentional removals keep their existing lock protocol: a group cascade must
+// not acquire this account lock after taking its group lock (reverse order).
+func lockAccountGroupPolicyAccount(ctx context.Context, client *dbent.Client, accountID int64) error {
+	var lockedID int64
+	err := scanSingleRow(ctx, client, "SELECT id FROM accounts WHERE id = $1 AND deleted_at IS NULL FOR NO KEY UPDATE", []any{accountID}, &lockedID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return service.ErrAccountNotFound
+	}
+	return err
 }
 
 func (r *accountRepository) ListSchedulable(ctx context.Context) ([]service.Account, error) {
@@ -3491,11 +3592,12 @@ func (r *accountRepository) loadAccountGroups(ctx context.Context, accountIDs []
 		for _, ag := range entries {
 			groupSvc := groupMap[ag.GroupID]
 			agSvc := service.AccountGroup{
-				AccountID: ag.AccountID,
-				GroupID:   ag.GroupID,
-				Priority:  ag.Priority,
-				CreatedAt: ag.CreatedAt,
-				Group:     groupSvc,
+				AllowedModels: service.NormalizeGroupAllowedModels(ag.AllowedModels),
+				AccountID:     ag.AccountID,
+				GroupID:       ag.GroupID,
+				Priority:      ag.Priority,
+				CreatedAt:     ag.CreatedAt,
+				Group:         groupSvc,
 			}
 			accountGroupsByAccount[ag.AccountID] = append(accountGroupsByAccount[ag.AccountID], agSvc)
 			groupIDsByAccount[ag.AccountID] = append(groupIDsByAccount[ag.AccountID], ag.GroupID)
@@ -3550,8 +3652,8 @@ func uniquePositiveInt64s(ids []int64) []int64 {
 	return out
 }
 
-func (r *accountRepository) loadAccountGroupIDs(ctx context.Context, accountID int64) ([]int64, error) {
-	entries, err := r.client.AccountGroup.
+func loadAccountGroupIDs(ctx context.Context, client *dbent.Client, accountID int64) ([]int64, error) {
+	entries, err := client.AccountGroup.
 		Query().
 		Where(dbaccountgroup.AccountIDEQ(accountID)).
 		All(ctx)

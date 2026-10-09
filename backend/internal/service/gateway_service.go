@@ -1451,6 +1451,11 @@ func (s *GatewayService) GetAvailableModels(ctx context.Context, groupID *int64,
 		accounts = filtered
 	}
 
+	routes, err := s.membershipCatalogRoutes(ctx, groupID)
+	if err != nil {
+		return nil
+	}
+
 	// Collect unique models from all accounts
 	modelSet := make(map[string]struct{})
 	hasAnyMapping := false
@@ -1461,16 +1466,30 @@ func (s *GatewayService) GetAvailableModels(ctx context.Context, groupID *int64,
 		// Treat it like an unmapped account: skip its mapping here and let
 		// supplementUnmappedOpenAIModels contribute the default set. Mappings on
 		// the ordinary accounts in the same group still count.
-		if platform == PlatformOpenAI && acc.IsOpenAIPassthroughEnabled() {
-			continue
-		}
-
 		mapping := acc.GetModelMapping()
+		if platform == PlatformOpenAI && acc.IsOpenAIPassthroughEnabled() {
+			mapping = nil
+		}
 		for model := range mapping {
 			// Accounts pulled in through mixed scheduling only contribute the
 			// models that belong to the listing platform (e.g. an antigravity
 			// account's claude-* mappings must not surface on a gemini group).
 			if platform != "" && acc.Platform != platform && !mixedListingModelAllowed(platform, model) {
+				continue
+			}
+			if !acc.IsModelAllowedInGroup(groupID, model) && len(membershipCatalogRoutesForModel(routes, model, "")) == 0 {
+				continue
+			}
+			modelSet[model] = struct{}{}
+			hasAnyMapping = true
+		}
+		// Concrete membership names also make wildcard mappings discoverable;
+		// membership never grants support outside the account's own mapping.
+		for _, model := range groupAllowedConcreteModels(&acc, groupID) {
+			if platform != "" && acc.Platform != platform && !mixedListingModelAllowed(platform, model) {
+				continue
+			}
+			if !s.isModelSupportedByAccountInGroup(ctx, &acc, groupID, model) {
 				continue
 			}
 			modelSet[model] = struct{}{}
@@ -1495,7 +1514,7 @@ func (s *GatewayService) GetAvailableModels(ctx context.Context, groupID *int64,
 	sort.Strings(models)
 
 	if platform == PlatformOpenAI {
-		models = supplementUnmappedOpenAIModels(accounts, models)
+		models = supplementUnmappedOpenAIModels(accounts, groupID, models)
 	}
 
 	if s.modelsListCache != nil {

@@ -14,6 +14,15 @@ func resolveCredentialAccount(ctx context.Context, repo AccountRepository, accou
 	if account == nil || !account.IsShadow() {
 		return account, nil
 	}
+	// Admission has already read and validated this parent in the same primary
+	// snapshot as the shadow. Re-reading here could authorize one parent state
+	// and send another, including in the ChatGPT identity headers.
+	if parent := account.openAITurnCredentialParent; parent != nil {
+		if parent.ID != *account.ParentAccountID {
+			return nil, denyOpenAITurn("credential_parent_binding_changed")
+		}
+		return parent, nil
+	}
 	parent, err := repo.GetByID(ctx, *account.ParentAccountID)
 	if err != nil {
 		return nil, fmt.Errorf("resolve spark shadow parent %d: %w", *account.ParentAccountID, err)

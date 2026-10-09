@@ -179,7 +179,7 @@ func duplicateAccountGroups(source *Account) ([]AccountGroup, []int64) {
 		groups := make([]AccountGroup, 0, len(source.AccountGroups))
 		groupIDs := make([]int64, 0, len(source.AccountGroups))
 		for _, sourceGroup := range source.AccountGroups {
-			groups = append(groups, AccountGroup{GroupID: sourceGroup.GroupID, Priority: sourceGroup.Priority})
+			groups = append(groups, AccountGroup{GroupID: sourceGroup.GroupID, Priority: sourceGroup.Priority, AllowedModels: NormalizeGroupAllowedModels(sourceGroup.AllowedModels)})
 			groupIDs = append(groupIDs, sourceGroup.GroupID)
 		}
 		return groups, groupIDs
@@ -575,6 +575,23 @@ func (s *adminServiceImpl) CreateAccount(ctx context.Context, input *CreateAccou
 }
 
 func (s *adminServiceImpl) UpdateAccount(ctx context.Context, id int64, input *UpdateAccountInput) (*Account, error) {
+	if err := ValidateGroupAllowedModels(input.GroupAllowedModels); err != nil {
+		return nil, err
+	}
+	var allowedModelsRepo AccountGroupAllowedModelsRepository
+	var bindingsWithModelsRepo AccountGroupBindingsWithAllowedModelsRepository
+	if input.GroupAllowedModels != nil {
+		var ok bool
+		if input.GroupIDs != nil {
+			bindingsWithModelsRepo, ok = s.accountRepo.(AccountGroupBindingsWithAllowedModelsRepository)
+		} else {
+			allowedModelsRepo, ok = s.accountRepo.(AccountGroupAllowedModelsRepository)
+		}
+		if !ok {
+			return nil, errors.New("account group model restrictions are not supported by this repository")
+		}
+	}
+
 	account, err := s.accountRepo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
@@ -908,9 +925,18 @@ func (s *adminServiceImpl) UpdateAccount(ctx context.Context, id int64, input *U
 		}
 	}
 
-	// 绑定分组
-	if input.GroupIDs != nil {
+	// A combined update must not expose bindings before their restriction commits.
+	switch {
+	case bindingsWithModelsRepo != nil:
+		if err := bindingsWithModelsRepo.BindGroupsWithAllowedModels(ctx, account.ID, *input.GroupIDs, input.GroupAllowedModels); err != nil {
+			return nil, err
+		}
+	case input.GroupIDs != nil:
 		if err := s.accountRepo.BindGroups(ctx, account.ID, *input.GroupIDs); err != nil {
+			return nil, err
+		}
+	case allowedModelsRepo != nil:
+		if err := allowedModelsRepo.SetGroupAllowedModels(ctx, account.ID, input.GroupAllowedModels); err != nil {
 			return nil, err
 		}
 	}

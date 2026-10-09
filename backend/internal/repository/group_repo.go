@@ -224,8 +224,8 @@ func (r *groupRepository) CreateFromSource(ctx context.Context, groupIn *service
 	}
 	result, err := txClient.ExecContext(
 		ctx,
-		`INSERT INTO account_groups (account_id, group_id, priority, created_at)
-		 SELECT ag.account_id, $2, ag.priority, NOW()
+		`INSERT INTO account_groups (account_id, group_id, priority, allowed_models, created_at)
+		 SELECT ag.account_id, $2, ag.priority, ag.allowed_models, NOW()
 		 FROM account_groups ag
 		 JOIN accounts a ON a.id = ag.account_id
 		 WHERE ag.group_id = $1

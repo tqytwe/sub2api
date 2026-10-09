@@ -43,6 +43,25 @@ func (r *lifecycleBillingRepo) Apply(ctx context.Context, cmd *service.UsageBill
 	return &service.UsageBillingApplyResult{Applied: true}, nil
 }
 
+type lifecycleAdmissionAccountRepo struct {
+	service.AccountRepository
+	account *service.Account
+	reads   int
+}
+
+var _ service.OpenAITurnAdmissionReader = (*lifecycleAdmissionAccountRepo)(nil)
+
+func (r *lifecycleAdmissionAccountRepo) GetOpenAITurnAdmission(ctx context.Context, id int64) (*service.Account, *service.Account, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, nil, err
+	}
+	if r.account == nil || r.account.ID != id {
+		return nil, nil, service.ErrAccountNotFound
+	}
+	r.reads++
+	return r.account, nil, nil
+}
+
 type lifecycleDisconnectedWriter struct {
 	gin.ResponseWriter
 	disconnect context.CancelFunc
@@ -54,8 +73,9 @@ func (w *lifecycleDisconnectedWriter) Write([]byte) (int, error) {
 }
 
 // Exercise the real forwarding and RecordUsage services with the real HTTP
-// upstream. Only the persistence boundary is replaced: closing an attempt must
-// not cancel the detached stream before its final usage reaches billing.
+// upstream. Account-state reads and usage persistence use test repositories:
+// closing an attempt must not cancel the detached stream before its final usage
+// reaches billing.
 func TestHTTPUpstreamForwardDrainsUsageAfterClientDisconnect(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	clientCtx, disconnect := context.WithCancel(t.Context())
@@ -88,16 +108,18 @@ func TestHTTPUpstreamForwardDrainsUsageAfterClientDisconnect(t *testing.T) {
 	upstream := NewHTTPUpstream(cfg)
 	usageRepo := &lifecycleUsageLogRepo{}
 	billingRepo := &lifecycleBillingRepo{}
-	svc := service.NewOpenAIGatewayService(
-		nil, usageRepo, billingRepo, nil, nil, nil, nil, cfg, nil, nil,
-		service.NewBillingService(cfg, nil), nil, nil, upstream,
-		&service.DeferredService{}, nil, nil, nil, nil, nil, nil, nil,
-	)
 	account := &service.Account{
 		ID: 1, Platform: service.PlatformOpenAI, Type: service.AccountTypeAPIKey,
+		Status: service.StatusActive, Schedulable: true,
 		Concurrency: 1,
 		Credentials: map[string]any{"base_url": srv.URL, "api_key": "test-key"},
 	}
+	accountRepo := &lifecycleAdmissionAccountRepo{account: account}
+	svc := service.NewOpenAIGatewayService(
+		accountRepo, usageRepo, billingRepo, nil, nil, nil, nil, cfg, nil, nil,
+		service.NewBillingService(cfg, nil), nil, nil, upstream,
+		&service.DeferredService{}, nil, nil, nil, nil, nil, nil, nil,
+	)
 	body := []byte(`{"model":"gpt-5.1","stream":true,"input":"hello"}`)
 	c, _ := gin.CreateTestContext(httptest.NewRecorder())
 	c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", strings.NewReader(string(body))).WithContext(clientCtx)
@@ -134,6 +156,7 @@ func TestHTTPUpstreamForwardDrainsUsageAfterClientDisconnect(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("forward did not finish draining usage")
 	}
+	require.Positive(t, accountRepo.reads, "forward must use authoritative account-state admission")
 	require.Len(t, billingRepo.commands, 1)
 	require.Len(t, usageRepo.logs, 1)
 	require.Equal(t, 17, usageRepo.logs[0].InputTokens)

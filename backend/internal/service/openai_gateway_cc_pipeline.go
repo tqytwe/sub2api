@@ -16,6 +16,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/util/responseheaders"
 	"github.com/gin-gonic/gin"
+	"github.com/tidwall/gjson"
 	"go.uber.org/zap"
 )
 
@@ -181,15 +182,33 @@ func (s *OpenAIGatewayService) sendCCUpstreamRequest(
 	bearerToken string,
 	userAgent string,
 	grokCacheIdentity string,
+	requestModel string,
 ) (*http.Response, error) {
+	// This is the last shared boundary for raw Chat and both compatibility
+	// fallbacks. The caller retains the public model before converting/mapping
+	// the body; account model limits use the actual outbound model separately.
+	upstreamCtx, releaseUpstreamCtx := detachUpstreamContext(ctx)
+	defer releaseUpstreamCtx()
+	latest, admissionErr := s.admitOpenAITurnForRequest(upstreamCtx, c, account,
+		openAITurnRequestModel(ctx, requestModel), gjson.GetBytes(body, "model").String())
+	if admissionErr != nil {
+		return nil, admissionErr
+	}
+	account = latest
+	if account.IsOpenAI() {
+		var err error
+		bearerToken, _, err = s.GetAccessToken(upstreamCtx, account)
+		if err != nil {
+			return nil, fmt.Errorf("get admitted access token: %w", err)
+		}
+	}
+
 	// DeepSeek thinking mode 要求历史 assistant 回传 reasoning_content。
 	// Responses→CC 回退在加密-only / 缺 reasoning item 且缓存未命中时会漏掉该
 	// 字段，上游 400 "The `reasoning_content` in the thinking mode must be
 	// passed back to the API"。在共用出站点补空格占位，真实明文不覆盖。
 	body = ensureDeepSeekChatReasoningPlaceholders(account, body)
-	upstreamCtx, releaseUpstreamCtx := detachUpstreamContext(ctx)
 	upstreamReq, err := http.NewRequestWithContext(upstreamCtx, http.MethodPost, targetURL, bytes.NewReader(body))
-	releaseUpstreamCtx()
 	if err != nil {
 		return nil, fmt.Errorf("build upstream request: %w", err)
 	}
