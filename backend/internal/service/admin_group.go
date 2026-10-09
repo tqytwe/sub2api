@@ -634,9 +634,6 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 		group.AllowLive = false
 	}
 	sanitizeGroupReasoningEffortPolicy(group)
-	if err := s.groupRepo.Create(ctx, group); err != nil {
-		return nil, err
-	}
 
 	// require_oauth_only: 过滤掉 apikey 类型账号
 	if group.RequireOAuthOnly && groupSupportsOAuthOnlyFilter(group.Platform) && len(accountIDsToCopy) > 0 {
@@ -659,12 +656,17 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 		accountIDsToCopy = filtered
 	}
 
-	// 如果有需要复制的账号，绑定到新分组
-	if len(accountIDsToCopy) > 0 {
-		if err := s.groupRepo.BindAccountsToGroup(ctx, group.ID, accountIDsToCopy); err != nil {
-			return nil, fmt.Errorf("failed to bind accounts to new group: %w", err)
+	if len(input.CopyAccountsFromGroupIDs) > 0 {
+		writer, ok := s.groupRepo.(GroupAccountCopyRepository)
+		if !ok {
+			return nil, fmt.Errorf("group repository does not support policy-preserving account copy")
+		}
+		if err := writer.CreateWithCopiedAccounts(ctx, group, input.CopyAccountsFromGroupIDs, accountIDsToCopy); err != nil {
+			return nil, err
 		}
 		group.AccountCount = int64(len(accountIDsToCopy))
+	} else if err := s.groupRepo.Create(ctx, group); err != nil {
+		return nil, err
 	}
 
 	return group, nil
@@ -1088,21 +1090,6 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 		}
 	}
 
-	if err := s.groupRepo.Update(ctx, group); err != nil {
-		return nil, err
-	}
-
-	if s.authCacheInvalidator != nil {
-		s.authCacheInvalidator.InvalidateAuthCacheByGroupID(ctx, id)
-	}
-
-	// 平台变了就失效渠道缓存：该缓存持有 groupID → platform，而渠道定价 / 模型映射 /
-	// 模型白名单都按平台严格隔离。不失效的话，缓存最长 10 分钟仍按旧平台匹配，
-	// 期间定价查不到会静默回落到 LiteLLM 价格表、映射与白名单也不生效。
-	if group.Platform != previousPlatform && s.channelCacheInvalidator != nil {
-		s.channelCacheInvalidator.InvalidateCache()
-	}
-
 	// 如果指定了复制账号的源分组，同步绑定（替换当前分组的账号）
 	if len(input.CopyAccountsFromGroupIDs) > 0 {
 		// 去重源分组 IDs
@@ -1137,11 +1124,6 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 			return nil, fmt.Errorf("failed to get accounts from source groups: %w", err)
 		}
 
-		// 先清空当前分组的所有账号绑定
-		if _, err := s.groupRepo.DeleteAccountGroupsByGroupID(ctx, id); err != nil {
-			return nil, fmt.Errorf("failed to clear existing account bindings: %w", err)
-		}
-
 		// require_oauth_only: 过滤掉 apikey 类型账号
 		if group.RequireOAuthOnly && groupSupportsOAuthOnlyFilter(group.Platform) && len(accountIDsToCopy) > 0 {
 			accounts, err := s.accountRepo.GetByIDs(ctx, accountIDsToCopy)
@@ -1163,12 +1145,26 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 			accountIDsToCopy = filtered
 		}
 
-		// 再绑定源分组的账号
-		if len(accountIDsToCopy) > 0 {
-			if err := s.groupRepo.BindAccountsToGroup(ctx, id, accountIDsToCopy); err != nil {
-				return nil, fmt.Errorf("failed to bind accounts to group: %w", err)
-			}
+		writer, ok := s.groupRepo.(GroupAccountCopyRepository)
+		if !ok {
+			return nil, fmt.Errorf("group repository does not support policy-preserving account copy")
 		}
+		if err := writer.UpdateWithCopiedAccounts(ctx, group, uniqueSourceGroupIDs, accountIDsToCopy); err != nil {
+			return nil, err
+		}
+	} else if err := s.groupRepo.Update(ctx, group); err != nil {
+		return nil, err
+	}
+
+	if s.authCacheInvalidator != nil {
+		s.authCacheInvalidator.InvalidateAuthCacheByGroupID(ctx, id)
+	}
+
+	// 平台变了就失效渠道缓存：该缓存持有 groupID → platform，而渠道定价 / 模型映射 /
+	// 模型白名单都按平台严格隔离。不失效的话，缓存最长 10 分钟仍按旧平台匹配，
+	// 期间定价查不到会静默回落到 LiteLLM 价格表、映射与白名单也不生效。
+	if group.Platform != previousPlatform && s.channelCacheInvalidator != nil {
+		s.channelCacheInvalidator.InvalidateCache()
 	}
 
 	return group, nil

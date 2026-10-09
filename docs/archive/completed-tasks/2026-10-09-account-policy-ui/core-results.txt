@@ -1,0 +1,10 @@
+Actual PostgreSQL 18.1 / Redis 8.4 workflow scripts, 2026-10-09 UTC
+49/49 required checks; 198 test/subtest passes; no skips.
+
+New copy-policy cases:
+PASS TestGroupCopyAccountsPreservesAndInheritsPolicies
+PASS TestGroupCopyAccountsEmptySourceRemovesBindings
+PASS TestGroupCopyAccountsOutboxFailureRollsBack
+PASS TestGroupCopyAccountsWaitsForLatestPolicy
+PASS TestGroupCopyAccountsOversizeUnionRollsBack
+PASS TestGroupCopyAccountsReciprocalEmptyCopiesDoNotDeadlock

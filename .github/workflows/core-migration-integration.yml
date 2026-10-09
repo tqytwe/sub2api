@@ -21,6 +21,9 @@ on:
       - backend/internal/repository/account_group_allowed_models*.go
       - backend/internal/repository/account_repo.go
       - backend/internal/repository/account_repo_integration_test.go
+      - backend/internal/repository/group_copy_policy*.go
+      - backend/internal/service/admin_group.go
+      - backend/internal/service/group_service.go
       - backend/internal/repository/group_repo.go
       - backend/internal/repository/group_repo_integration_test.go
       - backend/internal/repository/usage_billing_repo*.go
@@ -83,7 +86,7 @@ jobs:
           set -euo pipefail
           # One repository TestMain provisions both isolated service containers.
           # Run the three bounded suites in full so their subtests remain visible.
-          core_tests='^(TestCoreMigration.*|TestBillingLogReconciliation.*|TestAccountGroupAllowedModelsConcurrent.*|'
+          core_tests='^(TestCoreMigration.*|TestBillingLogReconciliation.*|TestAccountGroupAllowedModelsConcurrent.*|TestGroupCopyAccounts.*|'
           core_tests+='TestAccountRepoSuite|TestGroupRepoSuite|TestBillingCacheSuite|'
           core_tests+='TestMigrationsRunner_ConcurrentInstancesSerializeOnSessionLock|'
           core_tests+='TestUsageBillingRepositoryApply_(DeduplicatesBalanceBilling|WithLedgerWritesUsageCharge|'
@@ -131,6 +134,12 @@ jobs:
                   "TestAccountRepoSuite/TestGroupAllowedModels_OutboxFailureRollsBack",
                   "TestAccountRepoSuite/TestGroupAllowedModels_CombinedFailureRestoresBindingsAndPolicy",
                   "TestAccountRepoSuite/TestGroupAllowedModels_AccountDeletionRemainsIdempotent",
+                  "TestGroupCopyAccountsPreservesAndInheritsPolicies",
+                  "TestGroupCopyAccountsEmptySourceRemovesBindings",
+                  "TestGroupCopyAccountsOutboxFailureRollsBack",
+                  "TestGroupCopyAccountsWaitsForLatestPolicy",
+                  "TestGroupCopyAccountsOversizeUnionRollsBack",
+                  "TestGroupCopyAccountsReciprocalEmptyCopiesDoNotDeadlock",
                   "TestGroupRepoSuite",
                   "TestGroupRepoSuite/TestCreateFromSourceCopiesGroupAllowedModels",
                   "TestBillingCacheSuite",

@@ -53,6 +53,13 @@ type AdminGroupRepository interface {
 	GroupRepository
 	GroupDuplicateRepository
 	EmptyGroupDeleteRepository
+	GroupAccountCopyRepository
+}
+
+// GroupAccountCopyRepository commits group fields and policy-preserving copies together.
+type GroupAccountCopyRepository interface {
+	CreateWithCopiedAccounts(context.Context, *Group, []int64, []int64) error
+	UpdateWithCopiedAccounts(context.Context, *Group, []int64, []int64) error
 }
 
 // EmptyGroupDeleteRepository provides the guarded cascade used by simple mode.

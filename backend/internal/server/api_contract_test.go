@@ -1836,6 +1836,14 @@ func (stubGroupRepo) Create(ctx context.Context, group *service.Group) error {
 	return errors.New("not implemented")
 }
 
+func (stubGroupRepo) CreateWithCopiedAccounts(ctx context.Context, group *service.Group, sourceIDs, accountIDs []int64) error {
+	return errors.New("not implemented")
+}
+
+func (stubGroupRepo) UpdateWithCopiedAccounts(ctx context.Context, group *service.Group, sourceIDs, accountIDs []int64) error {
+	return errors.New("not implemented")
+}
+
 func (stubGroupRepo) GetByID(ctx context.Context, id int64) (*service.Group, error) {
 	return nil, service.ErrGroupNotFound
 }
