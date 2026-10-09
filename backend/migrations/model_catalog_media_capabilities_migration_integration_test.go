@@ -88,7 +88,9 @@ func TestModelCatalogMediaCapabilitiesMigrationUpgradesAndReplaysPostgres(t *tes
 					media_capabilities->>'adapter',
 					(media_capabilities->'modalities') ? $3,
 					(media_capabilities->$3->'operations') ? $4,
-					COALESCE(jsonb_array_length(media_capabilities->'image'->'supported_sizes'), 0),
+					COALESCE(jsonb_array_length(CASE WHEN $3 = 'video'
+						THEN media_capabilities->'video'->'supported_resolutions'
+						ELSE media_capabilities->'image'->'supported_sizes' END), 0),
 					COALESCE((media_capabilities->'image'->>'max_reference_images')::integer, -1)
 				FROM site_model_catalog
 				WHERE LOWER(model_name) = $1 AND LOWER(platform) = $2`,
