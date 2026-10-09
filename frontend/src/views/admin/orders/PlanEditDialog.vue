@@ -370,6 +370,7 @@ const subscriptionCnyPreview = computed(() => {
 
 let initializingPlan = false
 let initialPlanPayload: Record<string, unknown> = {}
+let initialPlanValues: Record<string, unknown> = {}
 
 // Snapshot the initialized form, including display fallbacks for old responses.
 // Those fallbacks must never become writes unless the administrator edits them.
@@ -426,6 +427,7 @@ watch(() => props.show, (visible) => {
     planFeaturesText.value = ''
   }
   initialPlanPayload = buildPlanPayload()
+  initialPlanValues = { ...planForm, features: planFeaturesText.value }
   initializingPlan = false
 }, { immediate: true })
 
@@ -499,8 +501,13 @@ async function handleSavePlan() {
     if (props.plan) {
       // PUT already has patch semantics on the server: omission preserves data,
       // while explicit empty strings, false, zero and quota clear flags apply.
+      // Compare raw inputs too: clearing whitespace-only text is an edit even
+      // when both normalized payloads contain an empty string.
+      const values: Record<string, unknown> = { ...planForm, features: planFeaturesText.value }
       const changes = Object.fromEntries(
-        Object.entries(data).filter(([key, value]) => value !== initialPlanPayload[key]),
+        Object.entries(data).filter(([key, value]) =>
+          value !== initialPlanPayload[key] || values[key] !== initialPlanValues[key],
+        ),
       )
       await adminPaymentAPI.updatePlan(props.plan.id, changes)
     }

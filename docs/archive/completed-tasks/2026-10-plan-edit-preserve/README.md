@@ -46,7 +46,7 @@ go test ./internal/planacceptance -run '^TestAdminPlan' -v -count=1
 | 真实 PostgreSQL 全迁移 + 浏览器/HTTP/DB 契约 | PASS；取消 0 PUT，描述修改仅 1 PUT，GET/DB 未改字段一致 |
 | `make test` 的后端部分：完整 `go test ./...` | PASS |
 | 完整 `golangci-lint run ./...` | PASS，0 issues；首次与全量测试并行时进程被资源终止，限流至 concurrency=2 / GOMEMLIMIT=3GiB 后完整重跑通过 |
-| `make test-frontend`（`make test` 的前端部分） | PASS；design、eslint、typecheck；489 文件 / 3471 测试 |
+| `make test-frontend`（`make test` 的前端部分） | PASS；design、eslint、typecheck；489 文件 / 3476 测试（补充清空回归后） |
 | `make test-backend-unit` | PASS，完整 unit tag 套件 |
 | `make build` | PASS，完整后端与前端构建 |
 | `./scripts/check-fork-integrity.sh` | PASS，含受保护行为检查 |
@@ -54,6 +54,16 @@ go test ./internal/planacceptance -run '^TestAdminPlan' -v -count=1
 | `node scripts/check-doc-links.mjs` / `git diff --check` | PASS |
 
 上述检查均在对齐 `4080e2ac7e93dc9f435e0c0a4652834635cba7be` 后运行。由于仓库体量与资源限制，`make test` 的两个组成目标分别执行；后端首次目标中的 lint 资源失败已单独完整重跑成功，没有跳过检查或缩小 lint 范围。最终提交 SHA、draft PR 与 GitHub CI 结果由交付消息和 PR 记录，避免本文件自引用提交 SHA。
+
+## 首轮 CI 后的明确清空边界复核
+
+首个提交 `5eeabe0e9ddb55356c98b1508e7ba17d8304c294` 的五项 GitHub 检查全部通过。父线程随后指出：仅对规范化载荷判脏，会将“纯空白历史值 → 用户明确清空”误判为未修改。新增五项组件回归先得到 [RED：5 失败 / 14 通过](whitespace-red.log)，再增加原始表单输入快照；最终值相对原始输入变化，或规范化载荷变化，任一成立才发送该字段。未触碰的空白与旧接口展示默认值仍不回写，创建、额度 clear 及金额计算逻辑未变。
+
+[补充 PostgreSQL 浏览器 GREEN](whitespace-green-postgres.log) 在完整迁移后的隔离 DB 中设置纯空白 `product_name`、`detail_description`、`storefront_badge`，通过真实管理页面清空，断言 PUT 恰好包含三个空字符串；随后 GET/DB 核对明确清空与全部未改字段。原 description-only、取消/重开、权限和非法输入合同也重新通过。
+
+覆盖边界：组件用例还覆盖 cover URL 和保留原始数组的兼容 features 响应。既有列表对字符串 features 先 trim/filter；纯空白若已成为空展示，则空→空不构成可辨识的字段变更，仍保留 DB，不宣称该路径可从页面明确清空。此边界经独立规格复审确认，无需扩大第三个生产文件或引入触碰跟踪。补充修复已依次通过独立规格与质量复审，两位审查者独立复跑 19 项组件测试，质量审查另复跑真实 SQLite HTTP/DB 合同；均无未解决问题。补充改动的完整闸门已复跑通过，以普通追加提交交付，不改写首个提交。
+
+补充复验期间，既有 `TestTokenRefreshService_SaturatedProviderPreservesConcurrencyAndActualQPSStartSpacing` 在并行负载下单次断言失败（150.557µs < 5ms），区别于此前 lint 的资源终止。本次未修改该测试或运行时逻辑，隔离连续 20 次通过；随后串行执行完整后端默认 tests + 完整 lint（0 issues）+ unit tests，退出码 0。GC/并发限额仅用于 linter，测试范围和断言不放宽。执行环境重启时，前端 489 文件/3476 测试及完整构建已有完成日志，Fork 检查未完成，故完整重跑该检查，最终退出码 0、Fork integrity passed。
 
 ## 发布边界
 

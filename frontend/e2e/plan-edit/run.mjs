@@ -14,6 +14,7 @@ const { chromium } = require('@playwright/test')
 const origin = process.env.PLAN_CONTRACT_URL
 assert.match(origin, /^http:\/\/127\.0\.0\.1:\d+$/)
 const baseline = process.env.PLAN_CONTRACT_BASELINE === '1'
+const clearWhitespace = process.env.PLAN_CONTRACT_CLEAR_WHITESPACE === '1'
 const evidence = process.env.PLAN_CONTRACT_EVIDENCE || resolve(frontend, '../docs/visual-reviews/assets/plan-edit-preserve')
 await mkdir(evidence, { recursive: true })
 await build({
@@ -44,7 +45,7 @@ try {
   const form = page.locator('#plan-form')
   await form.waitFor()
   await page.waitForFunction(() => !document.querySelector('.modal-enter-active, .modal-leave-active'))
-  await page.screenshot({ path: resolve(evidence, baseline ? 'before-1280.png' : 'after-1280.png') })
+  if (!clearWhitespace) await page.screenshot({ path: resolve(evidence, baseline ? 'before-1280.png' : 'after-1280.png') })
   if (baseline) {
     // The unchanged baseline dialog is the implementation prototype: no layout,
     // controls, theme or new visual pattern is proposed by this data repair.
@@ -63,24 +64,40 @@ try {
   assert.equal(await form.locator('textarea').first().inputValue(), original.description)
   for (const width of [360, 768, 1920]) {
     await page.setViewportSize({ width, height: 900 })
-    await page.screenshot({ path: resolve(evidence, `${baseline ? 'before' : 'after'}-${width}.png`) })
+    if (!clearWhitespace) await page.screenshot({ path: resolve(evidence, `${baseline ? 'before' : 'after'}-${width}.png`) })
   }
   await page.emulateMedia({ reducedMotion: 'reduce', colorScheme: 'dark' })
   await page.evaluate(() => document.documentElement.classList.add('dark'))
   await page.keyboard.press('Tab')
-  await page.screenshot({ path: resolve(evidence, `${baseline ? 'before' : 'after'}-dark.png`) })
-  await form.locator('textarea').first().fill('Browser edited description')
+  if (!clearWhitespace) await page.screenshot({ path: resolve(evidence, `${baseline ? 'before' : 'after'}-dark.png`) })
+  const expectedChanges = clearWhitespace
+    ? { product_name: '', detail_description: '', storefront_badge: '' }
+    : { description: 'Browser edited description' }
+  if (clearWhitespace) {
+    for (const [field, selector] of [
+      ['product_name', '[data-test="plan-product-name"]'],
+      ['detail_description', '[data-test="plan-detail-description"]'],
+      ['storefront_badge', '[data-test="plan-storefront-badge"]'],
+    ]) {
+      assert.equal(original[field], '   ')
+      assert.equal(await form.locator(selector).inputValue(), '   ')
+      await form.locator(selector).fill('')
+    }
+  } else {
+    await form.locator('textarea').first().fill('Browser edited description')
+  }
   const saved = page.waitForResponse(r => r.request().method() === 'PUT')
   await page.getByRole('button', { name: 'Save', exact: true }).click()
   assert.equal((await saved).status(), 200)
   assert.equal(puts.length, 1)
-  if (!baseline) assert.deepEqual(puts[0], { description: 'Browser edited description' })
+  if (!baseline) assert.deepEqual(puts[0], expectedChanges)
   const response = await page.request.get(`${origin}/api/v1/admin/payment/plans`, { headers: { Authorization: `Bearer ${process.env.PLAN_CONTRACT_TOKEN}` } })
   assert.equal(response.status(), 200)
   const after = (await response.json()).data[0]
   for (const [key, value] of Object.entries(baseline ? {} : original)) {
-    if (key === 'description' || key === 'updated_at') continue
+    if (Object.hasOwn(expectedChanges, key) || key === 'updated_at') continue
     assert.deepEqual(after[key], value, `GET after browser PUT: ${key}`)
   }
-  console.log(baseline ? 'Baseline browser submitted actual edit; Go will check for DB loss.' : 'Browser: GET → actual view/dialog → cancel/reopen → description-only PUT → GET passed; DB verified by Go parent.')
+  if (!baseline) for (const [key, value] of Object.entries(expectedChanges)) assert.equal(after[key], value)
+  console.log(baseline ? 'Baseline browser submitted actual edit; Go will check for DB loss.' : `Browser: GET → actual view/dialog → cancel/reopen → ${clearWhitespace ? 'explicit whitespace clear' : 'description-only'} PUT → GET passed; DB verified by Go parent.`)
 } finally { await browser.close() }

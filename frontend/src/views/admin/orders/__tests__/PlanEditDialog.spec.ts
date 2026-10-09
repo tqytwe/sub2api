@@ -427,6 +427,24 @@ describe('PlanEditDialog product display fields', () => {
     expect(updatePlanMock).not.toHaveBeenCalled()
   })
 
+  it.each([
+    ['product_name', '[data-test="plan-product-name"]'],
+    ['cover_image_url', '[data-test="plan-cover-image-url"]'],
+    ['detail_description', '[data-test="plan-detail-description"]'],
+    ['storefront_badge', '[data-test="plan-storefront-badge"]'],
+    ['features', 'textarea[rows="3"]'],
+  ])('sends an explicit clear for whitespace-only %s without writing untouched fields', async (field, selector) => {
+    updatePlanMock.mockReset().mockResolvedValue({})
+    const wrapper = mountDialog({ plan: {
+      id: 26, group_id: 3, name: 'Existing plan', description: 'Original', price: 19.99,
+      validity_days: 30, validity_unit: 'days', features: ['   '], for_sale: true, sort_order: 4,
+      product_name: '   ', cover_image_url: '   ', detail_description: '   ', storefront_badge: '   ',
+    } })
+    await wrapper.find(selector).setValue('')
+    await wrapper.find('form').trigger('submit')
+    expect(updatePlanMock).toHaveBeenCalledWith(26, { [field]: '' })
+  })
+
   it('resets the edit baseline when reopening a different group with blank shelves', async () => {
     updatePlanMock.mockReset().mockResolvedValue({})
     const first: SubscriptionPlan = {

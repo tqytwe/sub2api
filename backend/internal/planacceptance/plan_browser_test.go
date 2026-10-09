@@ -20,7 +20,19 @@ func TestAdminPlanBrowserContract(t *testing.T) {
 	if os.Getenv("PLAN_BROWSER_CONTRACT") != "1" {
 		t.Skip("set PLAN_BROWSER_CONTRACT=1 to run the real browser/HTTP/DB contract")
 	}
+	t.Run("description_only", func(t *testing.T) { runPlanBrowserContract(t, false) })
+	t.Run("explicit_whitespace_clear", func(t *testing.T) { runPlanBrowserContract(t, true) })
+}
+
+func runPlanBrowserContract(t *testing.T, clearWhitespace bool) {
+	t.Helper()
 	f := newPlanContract(t)
+	if clearWhitespace {
+		var err error
+		f.plan, err = f.client.SubscriptionPlan.UpdateOneID(f.plan.ID).
+			SetProductName("   ").SetDetailDescription("   ").SetStorefrontBadge("   ").Save(context.Background())
+		require.NoError(t, err)
+	}
 	root, err := filepath.Abs("../../..")
 	require.NoError(t, err)
 	assets := t.TempDir()
@@ -35,6 +47,9 @@ func TestAdminPlanBrowserContract(t *testing.T) {
 	before := contractPlanJSON(t, f.plan)
 	cmd := exec.CommandContext(context.Background(), "node", filepath.Join(root, "frontend/e2e/plan-edit/run.mjs"))
 	cmd.Env = append(os.Environ(), "PLAN_CONTRACT_URL="+server.URL, "PLAN_CONTRACT_TOKEN="+f.adminToken, "PLAN_CONTRACT_DIST="+assets)
+	if clearWhitespace {
+		cmd.Env = append(cmd.Env, "PLAN_CONTRACT_CLEAR_WHITESPACE=1")
+	}
 	out, err := cmd.CombinedOutput()
 	t.Log(string(out))
 	require.NoError(t, err)
@@ -45,8 +60,12 @@ func TestAdminPlanBrowserContract(t *testing.T) {
 		if key == "updated_at" {
 			continue
 		}
-		if key == "description" {
+		if !clearWhitespace && key == "description" {
 			value = "Browser edited description"
+		}
+		if clearWhitespace && (key == "product_name" || key == "detail_description" || key == "storefront_badge") {
+			// Ent omits these empty strings from its JSON representation.
+			value = nil
 		}
 		assert.Equal(t, value, after[key], "database after browser edit: %s", key)
 	}
