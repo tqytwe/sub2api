@@ -76,7 +76,7 @@ export default {
         '已有账号仅同步 CRS 返回的字段，缺失字段保持原值；凭据按键合并，不会清空未下发的键；未勾选"同步代理"时保留原有代理。',
       crsBack: '返回',
       editAccount: '编辑账号',
-      editLoadFailed: '编辑窗口加载失败，请重新加载页面后重试。',
+      editLoadFailed: '编辑窗口加载失败。请先处理未保存的内容，再刷新页面重试。',
       deleteAccount: '删除账号',
       searchAccounts: '搜索账号...',
       notes: '备注',

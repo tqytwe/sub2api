@@ -529,7 +529,6 @@ import { formatDateTime, formatRelativeTime } from '@/utils/format'
 import { proxyExpiryBadgeClass, proxyExpiryLabelKey } from '@/utils/proxyExpiry'
 import { extractApiErrorMessage } from '@/utils/apiError'
 import { sanitizeUrl } from '@/utils/url'
-import { recoverFromChunkLoadError } from '@/router/chunkRecovery'
 import { getFloatingPanelPosition } from '@/utils/floatingPanel'
 import { formatMultiplier } from '@/utils/formatters'
 import type { Account, AccountListItem, AccountPlatform, AccountSchedulerGroupScore, AccountType, AccountUsageInfo, Proxy as AccountProxy, AdminGroup, WindowStats, ClaudeModel, UpstreamBillingProbeSnapshot } from '@/types'
@@ -538,20 +537,16 @@ const CreateAccountModal = defineAsyncComponent(() => import('@/components/accou
 let accountViewDisposed = false
 const EditAccountModal = defineAsyncComponent({
   loader: () => import('@/components/account/EditAccountModal.vue'),
-  onError(error, _retry, fail) {
+  onError(_error, _retry, fail) {
     if (accountViewDisposed) {
       fail()
       return
     }
-    // Vue handles async loader errors internally, so window error/rejection
-    // listeners cannot recover them. Unmount the failed instance for next click.
+    // Unmount the failed instance for the next click. Never reload automatically:
+    // a different dialog may already contain unsaved work.
     closeEdit()
     appStore.showError(t('admin.accounts.editLoadFailed'))
-    try {
-      recoverFromChunkLoadError(error, undefined)
-    } finally {
-      fail()
-    }
+    fail()
   }
 })
 const BulkEditAccountModal = defineAsyncComponent(() => import('@/components/account/BulkEditAccountModal.vue'))

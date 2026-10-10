@@ -1,0 +1,54 @@
+
+ RUN  v2.1.9 /workspace/account-edit-fix/frontend
+
+Browserslist: browsers data (caniuse-lite) is 10 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+ ❯ src/views/admin/__tests__/AccountsView.lite.spec.ts (17 tests | 1 failed) 387ms
+   × admin AccountsView lite account list > preserves a new account draft when an earlier edit module load fails 21ms
+     → expected "spy" to not be called at all, but actually been called 1 times
+
+Received:
+
+  1st spy call:
+
+    Array [
+      [Error: Failed to fetch dynamically imported module],
+      undefined,
+    ]
+
+
+Number of calls: 1
+
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/views/admin/__tests__/AccountsView.lite.spec.ts > admin AccountsView lite account list > preserves a new account draft when an earlier edit module load fails
+AssertionError: expected "spy" to not be called at all, but actually been called 1 times
+
+Received:
+
+  1st spy call:
+
+    Array [
+      [Error: Failed to fetch dynamically imported module],
+      undefined,
+    ]
+
+
+Number of calls: 1
+
+ ❯ src/views/admin/__tests__/AccountsView.lite.spec.ts:421:30
+    419|     rejectModule(new Error('Failed to fetch dynamically imported modul…
+    420|     await flushPromises()
+    421|     expect(recoverChunk).not.toHaveBeenCalled()
+       |                              ^
+    422|     expect((wrapper.get('[data-test="create-draft"]').element as HTMLI…
+    423|     expect(showError).toHaveBeenCalledWith('admin.accounts.editLoadFai…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 16 passed (17)
+   Start at  06:12:41
+   Duration  3.35s (transform 1.78s, setup 96ms, collect 2.11s, tests 387ms, environment 301ms, prepare 97ms)

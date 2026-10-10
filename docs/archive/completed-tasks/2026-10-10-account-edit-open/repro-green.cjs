@@ -34,6 +34,7 @@ async function main(){
   events.push({event:'first-click',dialog:await page.locator('#edit-account-form').count(),blocks});
   await page.screenshot({path:root+'/green-chunk-first.png'});
   await page.unroute('**/EditAccountModal-*.js');
+  await page.reload();await page.getByPlaceholder('搜索账号...').fill('弹窗复现');await pause(800);
   await click(accounts[1]);
   events.push({event:'network-restored-second-account',dialog:await page.locator('#edit-account-form').count(),blocks});
   assert.equal(await page.locator('#edit-account-form').count(),1,'Second account must open after recovery');

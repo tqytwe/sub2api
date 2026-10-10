@@ -35,17 +35,19 @@
     "docs/visual-reviews/assets/account-policy-ui/updated-edit-1600-light.png"
   ],
   "baseline_artifacts": [
-    "docs/visual-reviews/assets/account-edit-open/red-chunk-retry.png"
+    "docs/visual-reviews/assets/account-edit-open/red-chunk-retry.png",
+    "docs/visual-reviews/assets/account-edit-open/same-page-draft-red.png"
   ],
   "updated_artifacts": [
-    "docs/visual-reviews/assets/account-edit-open/green-chunk-retry.png",
+    "docs/visual-reviews/assets/account-edit-open/same-page-draft-green.png",
     "docs/visual-reviews/assets/account-edit-open/green-persistent-error.png",
     "docs/visual-reviews/assets/account-edit-open/green-edit-light.png",
     "docs/visual-reviews/assets/account-edit-open/green-edit-dark.png"
   ],
   "commands": [
     "pnpm build (Playwright browser tests below)",
-    "node repro-green.cjs",
+    "EXPECT_DRAFT_SAFE=1 node same-page-draft.cjs",
+    "node repro-green.cjs (explicit manual reload)",
     "node persistent-chunk.cjs",
     "node matrix.cjs (complete real HTTP and SQL matrix)",
     "EXPECT_RACE_FIXED=1 node request-race-browser.cjs",
@@ -70,7 +72,7 @@
 
 ## Scope
 
-Restore the existing account editor after an asynchronous module load failure, and keep its save target tied to the latest selected account while detail requests finish out of order. Reuse the existing shared Toast and per-route, session-bounded chunk recovery. No modal fields, styles, page frame, API contract, or persistence code changes. The user authorized the minimal repair and excluded mobile/Canvas.
+Restore the existing account editor after an asynchronous module load failure, and keep its save target tied to the latest selected account while detail requests finish out of order. Reuse the existing shared Toast and manual refresh prompt; editor failures never automatically reload another unsaved dialog. No modal fields, styles, page frame, API contract, or persistence code changes. The user authorized the minimal repair and excluded mobile/Canvas.
 
 ## Baseline
 
@@ -82,12 +84,12 @@ The existing `account-policy-ui/updated-edit-1600-light.png` is deliberately reu
 
 ## Reuse Decision
 
-Reuse `defineAsyncComponent`, the existing `recoverFromChunkLoadError` helper, app-store error Toast, and current modal lifecycle. Vue handles async loader failures internally, so global browser error/rejection listeners do not receive this failure. The local handler closes the failed instance, displays a translated error and attempts the existing bounded page reload. An unmounted-view guard settles late loader failures without touching the newly navigated page.
+Reuse `defineAsyncComponent`, app-store error Toast, and current modal lifecycle. Vue handles async loader failures internally. The local handler closes the failed instance and prompts users to finish unsaved work before explicitly refreshing. No automatic reload occurs: holding Edit, opening Create and entering a draft before the old module rejects must preserve that draft. An unmounted-view guard settles late loader failures without touching the newly navigated page.
 
 ## State Coverage
 
 - Default/success: OpenAI API key and OAuth editors reopen with saved fields after real HTTP update, PostgreSQL verification, detail GET and page reload.
-- Loading/error: a delayed module failure after navigating to Users does not reload the new page or show a stale Toast (unit and rebuilt-browser RED→GREEN). One transient blocked module is recovered; a persistent failure triggers exactly one automatic reload, then a visible Chinese error. Explicit page reload after network recovery succeeds.
+- Loading/error: a delayed module failure after navigating to Users does not reload the new page or show a stale Toast (unit and rebuilt-browser RED→GREEN). Transient and persistent failures trigger zero automatic reloads and a visible Chinese error. Explicit page reload after network recovery succeeds; cancel/reopen works. An actual Create draft survives a late Edit module failure without account writes.
 - Disabled/submission: existing synchronous submitting guard still emits only one PUT for two immediate submissions.
 - Cancel: no PUT and unchanged whole-account database hash; reopening reads existing details. In the follow-up race test, cancelling B invalidates delayed A, so A cannot reopen the editor.
 - Latest selection: actual delayed A HTTP response followed by B cannot replace B or discard its draft; a real save targets B in PUT, SQL and GET. The original candidate reproduced the wrong-target save before the generation guard.

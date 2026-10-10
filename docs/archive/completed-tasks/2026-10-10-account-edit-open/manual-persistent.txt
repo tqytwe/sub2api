@@ -1,0 +1,1 @@
+{"status":"pass","blocked":1,"navigations":2,"automatic_reloads":0,"error_visible":true,"manual_reload_recovered":true,"cancel_reopen":true}

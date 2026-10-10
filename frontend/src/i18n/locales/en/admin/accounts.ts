@@ -77,7 +77,7 @@ export default {
         'Existing accounts only sync fields returned by CRS; missing fields keep their current values. Credentials are merged by key — keys not returned by CRS are preserved. Proxies are kept when "Sync proxies" is unchecked.',
       crsBack: 'Back',
       editAccount: 'Edit Account',
-      editLoadFailed: 'The editor could not load. Reload the page and try again.',
+      editLoadFailed: 'The editor could not load. Finish any unsaved work, then reload the page and try again.',
       deleteAccount: 'Delete Account',
       searchAccounts: 'Search accounts...',
       notes: 'Notes',

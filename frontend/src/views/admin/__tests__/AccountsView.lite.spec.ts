@@ -132,7 +132,7 @@ function mountView(stubActionMenu = true, stubEditModal = true) {
         AppLayout: { template: '<div><slot /></div>' },
         TablePageLayout: { template: '<div><slot name="filters" /><slot name="table" /><slot name="pagination" /></div>' },
         DataTable: DataTableStub,
-        AccountTableActions: { template: '<div><slot name="after" /></div>' },
+        AccountTableActions: { template: '<div><button data-test="create-account" @click="$emit(\'create\')">Create</button><slot name="after" /></div>' },
         AccountTableFilters: true,
         AccountBulkActionsBar: true,
         Pagination: true,
@@ -147,7 +147,7 @@ function mountView(stubActionMenu = true, stubEditModal = true) {
         TempUnschedStatusModal: true,
         ErrorPassthroughRulesModal: true,
         TLSFingerprintProfilesModal: true,
-        CreateAccountModal: true,
+        CreateAccountModal: { data: () => ({ draft: '' }), template: '<input data-test="create-draft" v-model="draft" />' },
         EditAccountModal: stubEditModal ? EditAccountModalStub : false,
         BulkEditAccountModal: true,
         PlatformTypeBadge: true,
@@ -371,7 +371,7 @@ describe('admin AccountsView lite account list', () => {
     await editButton.trigger('click')
     await flushPromises()
     expect(showError).toHaveBeenCalledWith('admin.accounts.editLoadFailed')
-    expect(recoverChunk).toHaveBeenCalledWith(failure, undefined)
+    expect(recoverChunk).not.toHaveBeenCalled()
     expect(onComponentError).not.toHaveBeenCalled()
     expect(wrapper.find('[data-test="edit-account"]').exists()).toBe(false)
 
@@ -401,6 +401,29 @@ describe('admin AccountsView lite account list', () => {
     expect(showError).not.toHaveBeenCalled()
     expect(recoverChunk).not.toHaveBeenCalled()
     expect(onComponentError).not.toHaveBeenCalled()
+  })
+
+  it('preserves a new account draft when an earlier edit module load fails', async () => {
+    let rejectModule!: (error: Error) => void
+    loadEditModule.mockImplementationOnce(() => new Promise((_resolve, reject) => {
+      rejectModule = reject
+    }))
+    const wrapper = mountView(true, false)
+    await flushPromises()
+    const editButton = wrapper.findAll('button').find(button => button.text().includes('common.edit'))!
+    await editButton.trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-test="create-account"]').trigger('click')
+    await wrapper.get('[data-test="create-draft"]').setValue('unsaved account draft')
+
+    rejectModule(new Error('Failed to fetch dynamically imported module'))
+    await flushPromises()
+    expect(recoverChunk).not.toHaveBeenCalled()
+    expect((wrapper.get('[data-test="create-draft"]').element as HTMLInputElement).value).toBe('unsaved account draft')
+    expect(showError).toHaveBeenCalledWith('admin.accounts.editLoadFailed')
+    expect(wrapper.find('[data-test="edit-account"]').exists()).toBe(false)
+    expect(onComponentError).not.toHaveBeenCalled()
+    wrapper.unmount()
   })
 
   it.each([false, true])('ignores an earlier account detail response after selecting another account (closed=%s)', async (closed) => {
