@@ -1,0 +1,167 @@
+{
+  "baseline": "726289bdb757e572eac10ab5f12c689c4dc087b5",
+  "branch": "codex/p1-subscription-counter-acceptance-20261010",
+  "production_source_changed": false,
+  "production_accessed": false,
+  "paid_generation_sent": false,
+  "status": "RED",
+  "source_hashes": {
+    "backend/internal/billingacceptance/subscription_counter_edges_integration_test.go": "55c42dcacef2206f5c363398f53c17f2a84ef871fcee45907735f55af3532269",
+    "backend/internal/billingacceptance/subscription_counters_integration_test.go": "3a60fe477f7ad393bd26076034ec21fec69568bf0d77af6c86b3992555029de1",
+    "scripts/test-subscription-counters.sh": "a0a3df9c078ea0655b88df850af3eed65926910ec33e21da2a2da2b9f814995b",
+    ".github/workflows/subscription-counter-acceptance.yml": "d239e010d4036bf891fb1b9c0c7df0ff599a2a3541ba59d731864e962a2e728d"
+  },
+  "environment": {
+    "go": "1.27.2",
+    "postgres": "18.1",
+    "postgres_image": "postgres:18.1-alpine3.23",
+    "postgres_image_digest": "sha256:aa6eb304ddb6dd26df23d05db4e5cb05af8951cda3e0dc57731b771e0ef4ab29",
+    "pnpm": "9.15.9",
+    "timezone": "UTC",
+    "migration_count": 402,
+    "last_migration": "275_gateway_request_ledger.sql"
+  },
+  "checks": {
+    "counter_matrix": {
+      "state": "RED",
+      "exit_code": 1,
+      "command": "./scripts/test-subscription-counters.sh '^TestSubscriptionCounterHTTP$' -race",
+      "passed": 27,
+      "failed": 2,
+      "data_race_diagnostics": false,
+      "log": "counter-matrix.txt"
+    },
+    "focused_race": {
+      "state": "passed",
+      "exit_code": 0,
+      "passed": 4,
+      "log": "counter-race.txt",
+      "note": "Earlier fixture revision; final full matrix also runs -race and covers all four scenarios."
+    },
+    "tagged_lint_new_diff": {
+      "state": "passed",
+      "exit_code": 0,
+      "command": "golangci-lint run --allow-parallel-runners --build-tags=integration,billing_acceptance --new-from-rev=726289bdb757e572eac10ab5f12c689c4dc087b5 ./internal/billingacceptance",
+      "result": "0 issues"
+    },
+    "tagged_lint_existing_baseline": {
+      "state": "existing_issue",
+      "file": "backend/internal/billingacceptance/identity_integration_test.go:175",
+      "diagnostic": "errcheck: Rows.Close return unchecked",
+      "note": "Full tagged package lint also found five new-test issues; those were fixed and the new diff lint/full race matrix rerun. Baseline file remains unchanged."
+    },
+    "reference_unit": {
+      "state": "passed",
+      "exit_code": 0,
+      "log": "reference-unit.txt"
+    },
+    "backend_test": {
+      "state": "passed",
+      "command": "make test-backend",
+      "retry_environment": {
+        "GOMAXPROCS": "2",
+        "GOMEMLIMIT": "4GiB"
+      },
+      "first_attempt": "go test ./... passed; concurrent lint process was killed, exit 2; retried with bounded resources",
+      "exit_code": 0,
+      "result": "go test ./... passed; golangci-lint: 0 issues"
+    },
+    "frontend_test": {
+      "state": "passed",
+      "exit_code": 0,
+      "command": "make test-frontend",
+      "files_passed": 492,
+      "files_skipped": 1,
+      "tests_passed": 3506,
+      "tests_skipped": 2,
+      "note": "Existing baseline skips; lint, design governance and typecheck also passed."
+    },
+    "build": {
+      "state": "passed",
+      "exit_code": 0,
+      "command": "make build"
+    },
+    "fork_integrity": {
+      "state": "passed",
+      "exit_code": 0,
+      "command": "./scripts/check-fork-integrity.sh"
+    },
+    "doc_links": {
+      "state": "passed",
+      "exit_code": 0,
+      "files": 258
+    },
+    "shell_syntax_and_diff": {
+      "state": "passed",
+      "exit_code": 0
+    },
+    "independent_review": {
+      "state": "pending_main_thread",
+      "note": "Author specification/quality checks do not constitute independent review."
+    }
+  },
+  "log_manifest": {
+    "counters-final-reviewed.log": {
+      "sha256": "a80c0fc2e97f04a595cc6356587936cc29b6b96c252cb0e76c2074d5fc4f1c7a",
+      "bytes": 37691,
+      "last_write_utc": "2026-10-10T20:51:16.647889+00:00"
+    },
+    "counters-race.log": {
+      "sha256": "fea7585c60514eabd4ddbcdd38f326fad6d03a1837c115c7aedec137fc578ab7",
+      "bytes": 5300,
+      "last_write_utc": "2026-10-10T20:43:52.420734+00:00"
+    },
+    "reference-unit.log": {
+      "sha256": "c512975f3c7dbc1be84be2091e1f75bcb4fdaa339f1f5ce2b4d4796f8dec83ab",
+      "bytes": 5855,
+      "last_write_utc": "2026-10-10T20:34:56.769986+00:00"
+    },
+    "counters-lint.log": {
+      "sha256": "2279eb2d944971045bf684ef3e7e6f1e5c637c3dbd4d402f0818f0d9fe2a6ea9",
+      "bytes": 1105,
+      "last_write_utc": "2026-10-10T20:49:49.383974+00:00"
+    },
+    "counters-lint-reviewed.log": {
+      "sha256": "e92606b0bf483111dff0a120c315ea165821348f31365020e2468a0059095c47",
+      "bytes": 10,
+      "last_write_utc": "2026-10-10T20:50:22.606416+00:00"
+    },
+    "test-frontend.log": {
+      "sha256": "68c1273ea0ffb4ffc35e1c16071f56a99c0008b1f72864a04ba3f0a1de53061b",
+      "bytes": 260420,
+      "last_write_utc": "2026-10-10T20:44:13.839725+00:00"
+    },
+    "build.log": {
+      "sha256": "bd8644f653086e584b896619cdbaa0333ce4fa3168f0c88f5dade0b4a59b29f8",
+      "bytes": 69419,
+      "last_write_utc": "2026-10-10T20:42:11.157461+00:00"
+    },
+    "fork-integrity-configured.log": {
+      "sha256": "2686ec985ed7c0c08ec492287f6402a9ce1d380422839c46660c2ecccd6334b1",
+      "bytes": 65319,
+      "last_write_utc": "2026-10-10T20:43:37.681402+00:00"
+    },
+    "test-backend-retry.log": {
+      "sha256": "2fa966298cd100ea09f4d92c4f1564c32710a7919c7005ca9832608079087498",
+      "bytes": 8234,
+      "last_write_utc": "2026-10-10T20:51:26.707419+00:00"
+    }
+  },
+  "blockers": [
+    "wrong_group_entitlement_charged",
+    "exhausted_exact_replay_rejected",
+    "independent_review_pending"
+  ],
+  "delivery": {
+    "commit_pr_ci": "Recorded in the PR description for the commit containing this evidence; CI was not yet run when this immutable local evidence was prepared.",
+    "merge": "not_authorized",
+    "deploy": "not_authorized"
+  },
+  "archived_text_normalization": "Tabs expanded to 8 columns and trailing whitespace removed. Original logs remain in /workspace/p1-evidence; raw SHA-256 digests are recorded in log_manifest.",
+  "archived_log_hashes": {
+    "counter-matrix.txt": "82574efabec7c560209520432a4206f0a7aeb2567dbb53dbbb5173131f2d4805",
+    "counter-race.txt": "50c470b00bd10d5568ebcafadad088c814f1e680ad65e43beb3c66fd0ba31505",
+    "reference-unit.txt": "f6b5d850be10a0705db745e2fc97fff6146f1d32e606a870563a955ce4f7e51c",
+    "validation-output.txt": "716dffc55ccedddd061e754d97e4c2558b54c6ab9e24fa889d63b30c5f34f0e4"
+  }
+}
