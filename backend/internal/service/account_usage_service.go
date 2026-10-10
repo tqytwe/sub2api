@@ -144,8 +144,8 @@ type WindowStats struct {
 	UserCost     float64 `json:"user_cost"`
 
 	// Lifetime totals over retained usage logs; only populated by today-stats queries.
-	LifetimeTokens int64   `json:"lifetime_tokens,omitempty"`
-	LifetimeCost   float64 `json:"lifetime_cost,omitempty"`
+	LifetimeTokens *int64   `json:"lifetime_tokens,omitempty"`
+	LifetimeCost   *float64 `json:"lifetime_cost,omitempty"`
 }
 
 // UsageProgress 使用量进度
@@ -1490,11 +1490,16 @@ func windowStatsFromAccountStats(stats *usagestats.AccountStats) *WindowStats {
 }
 
 func attachLifetimeStats(ws *WindowStats, lifetime *usagestats.AccountStats) {
-	if ws == nil || lifetime == nil {
+	if ws == nil {
 		return
 	}
-	ws.LifetimeTokens = lifetime.Tokens
-	ws.LifetimeCost = lifetime.Cost
+	// A successful empty query is known zero; a failed query never calls this
+	// helper and leaves the optional fields absent.
+	if lifetime == nil {
+		lifetime = &usagestats.AccountStats{}
+	}
+	ws.LifetimeTokens = &lifetime.Tokens
+	ws.LifetimeCost = &lifetime.Cost
 }
 
 func buildCodexUsageProgressFromExtra(extra map[string]any, window string, now time.Time) *UsageProgress {

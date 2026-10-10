@@ -158,12 +158,28 @@ type AccountBillingSettingsRepository interface {
 	) error
 }
 
+// AccountAdminUpdateOptions preserves explicit billing intent while committing
+// the account, inherited shadow proxies, memberships and policies together.
+type AccountAdminUpdateOptions struct {
+	ProbeEnabled       *bool
+	RateSyncEnabled    *bool
+	RateMultiplier     *float64
+	GroupIDs           *[]int64
+	GroupAllowedModels map[int64][]string
+	PropagateProxy     bool
+}
+
+type AccountAdminUpdateRepository interface {
+	UpdateAdminAccount(ctx context.Context, account *Account, options AccountAdminUpdateOptions) (*Account, error)
+}
+
 // AdminAccountRepository makes the account-duplication write capability an explicit
 // construction dependency without forcing read-only gateway test doubles to implement it.
 type AdminAccountRepository interface {
 	AccountRepository
 	AccountDuplicateRepository
 	AccountBillingSettingsRepository
+	AccountAdminUpdateRepository
 }
 
 // AccountBulkUpdate describes the fields that can be updated in a bulk operation.

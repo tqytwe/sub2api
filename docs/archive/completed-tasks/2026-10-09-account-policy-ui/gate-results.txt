@@ -1,10 +1,16 @@
-Local gate results — 2026-10-09 UTC
-make test: backend packages pass; golangci-lint 0 issues; frontend lint/type checks pass; 491 files, 3480 tests pass.
-make test-unit: final isolated command exit 0; full tagged suite pass.
-make build: exit 0; backend binary and production frontend built.
-./scripts/check-fork-integrity.sh: passed.
-pnpm design:verify: passed.
-Core PostgreSQL/Redis workflow scripts: 49 required checks, 198 passes, no skips.
-Real joint acceptance: passed; see joint-results.txt.
-Independent specification and quality reviews: passed after remediation.
-No production deployment or final user-local acceptance performed.
+Local gate results — 2026-10-10 UTC, review revision on merged play/main 9e458b12db91d1c36402c288d61ef7a352beee1c
+make test: backend packages pass; golangci-lint 0 issues; frontend lint/type checks pass; 491 files / 3480 tests pass.
+Default frontend suite intentionally skips the new check-in contract file (2 tests); both pass through its dedicated real HTTP/PostgreSQL gate below.
+make test-backend-unit: complete tagged suite exit 0; service package 206.034s; GOFLAGS="-p=1 -parallel=1", GOMAXPROCS=2.
+make build: exit 0; actual backend binary and production frontend built.
+./scripts/check-fork-integrity.sh: passed, including release source/publication boundaries and protected existing behavior.
+pnpm design:verify: passed against base 9e458b12db91d1c36402c288d61ef7a352beee1c.
+node scripts/check-doc-links.mjs: passed, 242 files.
+Core PostgreSQL/Redis workflow scripts: 54/54 required checks, 203 test/subtest passes, no skips.
+./scripts/test-checkin-contract.sh: passed; actual HTTP/PostgreSQL reconciliation and 2 live frontend contract tests pass.
+Real joint acceptance: passed; see joint-results.txt. Baseline failure reproduction is in boundary-red-results.txt.
+Screenshot verification: manually inspected 1280 light and 1600 dark; browser asserts viewport bounds and elementFromPoint ownership against sticky-column occlusion.
+Independent specification and quality re-reviews: passed after remediation.
+Joint-test server/proxy, task-owned containers/volumes and application data removed after acceptance.
+No production data writes, paid upstream calls, actual OAuth or persistent external authorization.
+No merge, production deployment or final user-local acceptance performed. Final exact head/tree and its CI are in PR #343.

@@ -19,6 +19,9 @@ on:
       - backend/internal/repository/migrations_schema_integration_test.go
       - backend/internal/repository/core_migration*test.go
       - backend/internal/repository/account_group_allowed_models*.go
+      - backend/internal/repository/account_admin_update*.go
+      - backend/internal/service/account_service.go
+      - backend/internal/service/admin_account.go
       - backend/internal/repository/account_repo.go
       - backend/internal/repository/account_repo_integration_test.go
       - backend/internal/repository/group_copy_policy*.go
@@ -86,7 +89,7 @@ jobs:
           set -euo pipefail
           # One repository TestMain provisions both isolated service containers.
           # Run the three bounded suites in full so their subtests remain visible.
-          core_tests='^(TestCoreMigration.*|TestBillingLogReconciliation.*|TestAccountGroupAllowedModelsConcurrent.*|TestGroupCopyAccounts.*|'
+          core_tests='^(TestCoreMigration.*|TestBillingLogReconciliation.*|TestAccountGroupAllowedModelsConcurrent.*|TestGroupCopyAccounts.*|TestAccountAdminUpdate.*|'
           core_tests+='TestAccountRepoSuite|TestGroupRepoSuite|TestBillingCacheSuite|'
           core_tests+='TestMigrationsRunner_ConcurrentInstancesSerializeOnSessionLock|'
           core_tests+='TestUsageBillingRepositoryApply_(DeduplicatesBalanceBilling|WithLedgerWritesUsageCharge|'
@@ -134,6 +137,11 @@ jobs:
                   "TestAccountRepoSuite/TestGroupAllowedModels_OutboxFailureRollsBack",
                   "TestAccountRepoSuite/TestGroupAllowedModels_CombinedFailureRestoresBindingsAndPolicy",
                   "TestAccountRepoSuite/TestGroupAllowedModels_AccountDeletionRemainsIdempotent",
+                  "TestAccountAdminUpdatePolicyFailureRollsBackActivation",
+                  "TestAccountAdminUpdatePolicyFailureRollsBackActivation/rebind_false",
+                  "TestAccountAdminUpdatePolicyFailureRollsBackActivation/rebind_true",
+                  "TestAccountAdminUpdatePreservesExplicitBillingIntent",
+                  "TestAccountAdminUpdateShadowProxyAndCacheCommitTogether",
                   "TestGroupCopyAccountsPreservesAndInheritsPolicies",
                   "TestGroupCopyAccountsEmptySourceRemovesBindings",
                   "TestGroupCopyAccountsOutboxFailureRollsBack",

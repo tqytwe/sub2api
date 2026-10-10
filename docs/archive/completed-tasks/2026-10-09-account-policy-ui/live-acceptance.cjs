@@ -29,6 +29,10 @@ async function main(){
  const key=Number(sql(`INSERT INTO api_keys(user_id,key,name,status) VALUES(${ids[1]},'disabled-policy-fixture-${suffix}','local fixture','inactive') RETURNING id;`).split('\n')[0]);
  sql(`INSERT INTO usage_logs(user_id,api_key_id,account_id,request_id,model,input_tokens,output_tokens,total_cost,account_stats_cost,account_rate_multiplier,actual_cost,created_at) VALUES(${ids[1]},${key},${account.id},'policy-old-${suffix}','gpt-5.5',1000000,200000,10,5,2,99,NOW()-INTERVAL '2 days'),(${ids[1]},${key},${account.id},'policy-today-${suffix}','gpt-5.5',3000,4000,2,1,2,9,NOW());`);
  const stats=await api('GET',`/admin/accounts/${account.id}/today-stats`);assert.equal(stats.lifetime_tokens,1207000);assert.equal(stats.lifetime_cost,12);assert.equal(stats.cost,2);assert.equal(stats.user_cost,9);console.log('Real usage HTTP / DB: retained tokens=1207000 account cost=12; today account cost=2; distinct user charges');
+ const assertZero=s=>{assert.equal(s.lifetime_tokens,0);assert.equal(s.lifetime_cost,0)};
+ assertZero(await api('GET',`/admin/accounts/${newAccount.id}/today-stats`));
+ const zeroBatch=await api('POST','/admin/accounts/today-stats/batch',{account_ids:[newAccount.id]});assertZero(zeroBatch.stats[newAccount.id]);
+ console.log('PASS no-history lifetime fields explicitly zero in real single and batch HTTP');
  // Model discovery is local-only and exercises policy/account intersections without forwarding.
  const modelKey='sk-local-'+crypto.randomBytes(24).toString('hex');
  sql(`UPDATE users SET balance=100 WHERE id=${ids[1]}; INSERT INTO api_keys(user_id,key,name,group_id,status) VALUES(${ids[1]},'${modelKey}','local model discovery',${first.id},'active');`);
@@ -66,13 +70,21 @@ async function main(){
  await edit();let before=requests.length;await page.locator(`#group-models-${first.id}`).fill('cancelled-model');await page.getByRole('button',{name:'取消',exact:true}).click();assert.equal(requests.length,before);assert.deepEqual(dbPolicy(),changed);
  await edit();response=page.waitForResponse(r=>r.request().method()==='PUT'&&new URL(r.url()).pathname===`/api/v1/admin/accounts/${account.id}`);await page.locator('[data-tour="account-form-submit"]').click();await response;await page.locator('#edit-account-form').waitFor({state:'hidden'});assert.equal(requests.at(-1).group_allowed_models,undefined);assert.deepEqual(dbPolicy(),changed);
  console.log('PASS refresh/reopen; cancel no request/write; unrelated save preserves policies');
- // Fail at the real database boundary: account-groups outbox constraint aborts mutation.
- await edit();await page.locator(`#group-models-${first.id}`).fill('gpt-5.5');
+ // Fail activation, credentials and policy together at the real outbox boundary.
+ await api('PUT',`/admin/accounts/${account.id}`,{status:'inactive'});
+ const redisAccount=()=>{const raw=execFileSync('docker',['exec','policy-ui-redis','redis-cli','--raw','GET',`sched:acc:${account.id}`],{encoding:'utf8'}).trim();return raw?JSON.parse(raw):null};
+ await until(()=>redisAccount()?.Status==='inactive');
+ const dbAccount=()=>sql(`SELECT jsonb_build_array(name,status,credentials,proxy_id,rate_multiplier) FROM accounts WHERE id=${account.id};`);
+ const beforeAccount=dbAccount();
+ await page.reload();await page.getByPlaceholder('搜索账号...').fill(account.name);await pause(600);await edit();await page.locator(`#group-models-${first.id}`).fill('gpt-5.5');
+ await page.locator('#edit-account-form label').filter({hasText:/^状态$/}).locator('..').locator('button.select-trigger').click();
+ await page.getByRole('option',{name:'启用',exact:true}).click();
+ const editedBase='http://127.0.0.1:9/atomic-retry';await page.getByPlaceholder('https://api.openai.com',{exact:true}).fill(editedBase);
  sql(`ALTER TABLE scheduler_outbox ADD CONSTRAINT policy_ui_failure_${account.id} CHECK(account_id IS DISTINCT FROM ${account.id} OR event_type<>'account_groups_changed') NOT VALID;`);
- try{response=page.waitForResponse(r=>r.request().method()==='PUT'&&new URL(r.url()).pathname===`/api/v1/admin/accounts/${account.id}`);await page.locator('[data-tour="account-form-submit"]').click();const failed=await response;assert.ok(failed.status()>=400);assert.deepEqual(dbPolicy(),changed);assert.equal(await page.locator(`#group-models-${first.id}`).inputValue(),'gpt-5.5');}
+ try{response=page.waitForResponse(r=>r.request().method()==='PUT'&&new URL(r.url()).pathname===`/api/v1/admin/accounts/${account.id}`);await page.locator('[data-tour="account-form-submit"]').click();const failed=await response;assert.equal(failed.status(),500);assert.equal(requests.at(-1).status,'active');assert.equal(requests.at(-1).credentials.base_url,editedBase);assert.ok(dbAccount()===beforeAccount,'account snapshot must remain unchanged');assert.deepEqual(dbPolicy(),changed);const unchanged=await api('GET',`/admin/accounts/${account.id}`);assert.equal(unchanged.status,'inactive');assert.equal(unchanged.credentials.base_url,'http://127.0.0.1:9');assert.equal(redisAccount().Status,'inactive');assert.equal(redisAccount().Credentials.base_url,'http://127.0.0.1:9');assert.equal(await page.locator(`#group-models-${first.id}`).inputValue(),'gpt-5.5');assert.equal(await page.getByPlaceholder('https://api.openai.com',{exact:true}).inputValue(),editedBase);}
  finally{sql(`ALTER TABLE scheduler_outbox DROP CONSTRAINT policy_ui_failure_${account.id};`);}
- response=page.waitForResponse(r=>r.request().method()==='PUT'&&new URL(r.url()).pathname===`/api/v1/admin/accounts/${account.id}`);await page.locator('[data-tour="account-form-submit"]').click();assert.equal((await response).status(),200);await page.locator('#edit-account-form').waitFor({state:'hidden'});assert.deepEqual(dbPolicy(),original);
- console.log('PASS real database failure rollback -> retained form -> successful retry');
+ response=page.waitForResponse(r=>r.request().method()==='PUT'&&new URL(r.url()).pathname===`/api/v1/admin/accounts/${account.id}`);await page.locator('[data-tour="account-form-submit"]').click();assert.equal((await response).status(),200);await page.locator('#edit-account-form').waitFor({state:'hidden'});assert.deepEqual(dbPolicy(),original);const retried=await api('GET',`/admin/accounts/${account.id}`);assert.equal(retried.status,'active');assert.equal(retried.credentials.base_url,editedBase);await until(()=>redisAccount()?.Status==='active'&&redisAccount()?.Credentials.base_url===editedBase);
+ console.log('PASS UI activation + credentials + policy failure: SQL/GET/Redis unchanged; retained form; retry commits all');
  // Illegal fields and ordinary-user permissions hit real HTTP middleware/service.
  await api('PUT',`/admin/accounts/${account.id}`,{group_allowed_models:{'-1':['gpt-5.5']}},admin,400);
  await api('PUT',`/admin/accounts/${account.id}`,{group_allowed_models:{[first.id]:['x'.repeat(201)]}},admin,400);
@@ -97,6 +109,12 @@ async function main(){
  console.log('PASS bulk rebind, membership removal/re-add readback');
  const clone=await api('POST',`/admin/accounts/${account.id}/duplicate`,{});
  const clonedDetail=await api('GET',`/admin/accounts/${clone.id}`);
+ assertZero(await api('GET',`/admin/accounts/${clone.id}/today-stats`));
+ const freeClone=await api('POST',`/admin/accounts/${account.id}/duplicate`,{});
+ sql(`INSERT INTO usage_logs(user_id,api_key_id,account_id,request_id,model,input_tokens,output_tokens,total_cost,account_stats_cost,account_rate_multiplier,actual_cost,created_at) VALUES(${ids[1]},${key},${freeClone.id},'policy-free-${suffix}','gpt-5.5',3000,4000,2,0,2,9,NOW());`);
+ const freeStats=await api('GET',`/admin/accounts/${freeClone.id}/today-stats`);assert.equal(freeStats.lifetime_tokens,7000);assert.equal(freeStats.lifetime_cost,0);assert.equal(freeStats.user_cost,9);
+ const batch=await api('POST','/admin/accounts/today-stats/batch',{account_ids:[clone.id,freeClone.id]});assertZero(batch.stats[clone.id]);assert.equal(batch.stats[freeClone.id].lifetime_tokens,7000);assert.equal(batch.stats[freeClone.id].lifetime_cost,0);
+ console.log('PASS retained tokens with zero account cost and distinct nonzero user charges; single/batch HTTP');
  for(const [id,models] of Object.entries(original))assert.deepEqual(clonedDetail.account_groups.find(x=>x.group_id===Number(id)).allowed_models,models);
  const clonedGroup=await api('POST',`/admin/groups/${first.id}/duplicate`,{});
  assert.deepEqual(JSON.parse(sql(`SELECT allowed_models FROM account_groups WHERE group_id=${clonedGroup.id} AND account_id=${account.id};`)),original[first.id]);
@@ -117,8 +135,22 @@ async function main(){
  await page.goto('http://127.0.0.1:4174/admin/accounts');
  await page.reload();await page.getByPlaceholder('搜索账号...').fill(account.name);await pause(700);
  await page.locator('[data-testid="lifetime-tokens"]').first().waitFor();assert.ok((await page.locator('[data-testid="lifetime-tokens"]').first().innerText()).includes('1.21M'));assert.ok((await page.locator('[data-testid="lifetime-cost"]').first().innerText()).includes('$12.00'));
- await page.screenshot({path:assets+'/updated-stats-1280-light.png'});await page.setViewportSize({width:1600,height:1000});await page.getByTitle('浅色模式',{exact:true}).click();await page.getByRole('button',{name:'深色模式',exact:true}).last().click();await pause(500);await page.screenshot({path:assets+'/updated-stats-1600-dark.png'});
- console.log('PASS real retained-history UI totals and desktop Chinese themes');
+ const statsCells=page.locator('[data-testid="lifetime-cost"]');assert.equal(await statsCells.count(),3);
+ const tokenTexts=await page.locator('[data-testid="lifetime-tokens"]').allTextContents();assert.ok(tokenTexts.some(x=>x.includes('7.0K')));assert.ok(tokenTexts.some(x=>/累计 Token.*0$/.test(x.trim())));assert.equal((await statsCells.allTextContents()).filter(x=>x.includes('$0.00')).length,2);
+ const assertStatsVisible=async()=>{
+   await statsCells.first().evaluate(cell=>{for(let el=cell.parentElement;el;el=el.parentElement){if(el.scrollWidth>el.clientWidth&&/auto|scroll/.test(getComputedStyle(el).overflowX)){
+     const wrapper=el.getBoundingClientRect(),target=cell.getBoundingClientRect();let left=wrapper.left,right=wrapper.right;
+     for(const header of el.querySelectorAll('thead .sticky-col')){const r=header.getBoundingClientRect();if(header.classList.contains('sticky-col-right'))right=Math.min(right,r.left);else left=Math.max(left,r.right)}
+     el.scrollTo({left:el.scrollLeft+target.left+target.width/2-(left+right)/2,behavior:'instant'});break;
+   }}});
+   for(const cell of await statsCells.all()){
+     assert.ok(await cell.evaluate(el=>{const r=el.getBoundingClientRect();if(r.x<0||r.right>innerWidth||r.y<0||r.bottom>innerHeight)return false;return [r.left+2,r.right-2].every(x=>el.contains(document.elementFromPoint(x,r.y+r.height/2)))}),'cumulative stats must be inside viewport and unobscured by sticky columns');
+   }
+ };
+ // Two zero-cost rows fit the smaller viewport; use the real table's horizontal scroll.
+ await page.getByPlaceholder('搜索账号...').fill(clone.name);await pause(700);assert.equal(await statsCells.count(),2);await assertStatsVisible();await page.screenshot({path:assets+'/updated-stats-1280-light.png'});
+ await page.setViewportSize({width:1600,height:1000});await page.getByPlaceholder('搜索账号...').fill(account.name);await pause(700);assert.equal(await statsCells.count(),3);await page.getByTitle('浅色模式',{exact:true}).click();await page.getByRole('button',{name:'深色模式',exact:true}).last().click();await pause(500);await assertStatsVisible();await page.screenshot({path:assets+'/updated-stats-1600-dark.png'});
+ console.log('PASS visible real UI retained totals: 1.21M/$12.00, 7.0K/$0.00, 0/$0.00; 1280 light and 1600 dark');
  await edit();await page.locator(`#group-models-${first.id}`).fill('');response=page.waitForResponse(r=>r.request().method()==='PUT'&&new URL(r.url()).pathname===`/api/v1/admin/accounts/${account.id}`);await page.locator('[data-tour="account-form-submit"]').click();await response;await page.locator('#edit-account-form').waitFor({state:'hidden'});assert.equal(dbPolicy()[first.id],null);assert.deepEqual(dbPolicy()[second.id],original[second.id]);
  await api('PUT',`/admin/accounts/${account.id}`,{group_allowed_models:null});assert.equal(dbPolicy()[first.id],null);
  await api('PUT',`/admin/accounts/${account.id}`,{group_allowed_models:{}});assert.ok(Object.values(dbPolicy()).every(x=>x===null));

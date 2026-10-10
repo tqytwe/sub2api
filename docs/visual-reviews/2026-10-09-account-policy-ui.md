@@ -53,13 +53,13 @@ Reuse BaseDialog, GroupSelector, input/input-label/input-hint, btn-primary/btn-s
 - Focus/keyboard, hover/active: native textareas and shared buttons; no custom animation or tooltip.
 - Loading/disabled: update and policy inputs lock while submitting; synchronous guard prevents repeated submissions.
 - Empty: blank policy explicitly removes the additional limit. Empty filtered list remains the existing account-table state.
-- Error: per-group byte/count validation; real database notification failure rolls back, retains inputs, and permits retry.
+- Error: per-group byte/count validation; real database notification failure rolls back activation, credentials and policies, retains inputs, and permits retry. SQL, detail GET and Redis agree.
 - Success: real HTTP save, database query, detail GET, scheduler Redis refresh, page reload and reopen checked. Cancel sends no write.
-- Legacy stats: missing lifetime fields omitted; explicit zero supported. Existing loading/error states retained.
+- Legacy stats: missing lifetime fields omitted; successful empty history emits explicit zero. Real single/batch HTTP and browser checks include zero tokens/cost and 7,000 retained tokens with zero account cost despite user charge 9. Existing loading/error states retained.
 
 ## Viewport Coverage
 
-1280×900 and 1600×1000, Chinese light/dark, reduced-motion browser context. Mobile/Canvas explicitly excluded by the task. Screenshots of the final build and checks are recorded in the delivery evidence.
+1280×900 and 1600×1000, Chinese light/dark, reduced-motion browser context. Mobile/Canvas explicitly excluded by the task. The 1280×900 light capture uses two filtered zero-cost rows and the existing table horizontal scroll; the 1600×1000 dark capture shows all three total states. The runner checks viewport bounds and `elementFromPoint` ownership so sticky action columns cannot obscure the cumulative values. Screenshots are also inspected manually: bounding boxes alone were insufficient and the initially occluded 1280 capture was replaced.
 
 ## Evidence
 

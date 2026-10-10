@@ -1,17 +1,18 @@
-Final local joint run, 2026-10-09 UTC. Actual built frontend + HTTP backend + PostgreSQL 18.1 + Redis 8.4.
 Real auth middleware: local admin accepted
 Real usage HTTP / DB: retained tokens=1207000 account cost=12; today account cost=2; distinct user charges
+PASS no-history lifetime fields explicitly zero in real single and batch HTTP
 PASS real local /v1/models wildcard and account-support intersection; no forwarding call
 PASS UI edit -> real PUT -> PostgreSQL -> GET detail -> live Redis scheduler cache
 PASS refresh/reopen; cancel no request/write; unrelated save preserves policies
-PASS real database failure rollback -> retained form -> successful retry
+PASS UI activation + credentials + policy failure: SQL/GET/Redis unchanged; retained form; retry commits all
 PASS invalid policies rejected and normal user denied; database unchanged
 PASS Group Copy Accounts real HTTP / DB / GET preserves and inherits policy
 PASS bulk rebind, membership removal/re-add readback
+PASS retained tokens with zero account cost and distinct nonzero user charges; single/batch HTTP
 PASS account/group clone HTTP -> database -> detail policy preservation
 PASS real HTTP oversize-union 400; create no orphan; update attributes/membership/policies all rolled back
-PASS real retained-history UI totals and desktop Chinese themes
+PASS visible real UI retained totals: 1.21M/$12.00, 7.0K/$0.00, 0/$0.00; 1280 light and 1600 dark
 PASS UI empty-list clear preserves other groups; null preserves; {} clears all
 PASS real pagination and filtering including empty result
 PASS normal-user browser cannot enter admin account management
-{"account_id":61,"group_ids":[23,24,25],"fixture":"local PostgreSQL 18.1 / Redis 8.4; no upstream requests","status":"pass"}
+{"account_id":37,"group_ids":[19,20,21],"fixture":"local PostgreSQL 18.1 / Redis 8.4; no upstream requests","status":"pass"}
