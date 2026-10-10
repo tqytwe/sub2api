@@ -3,6 +3,8 @@
 package service
 
 import (
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
+
 	"context"
 	"errors"
 	"net/http"
@@ -95,7 +97,7 @@ func TestHandleOpenAIImagesOAuthResponseError_TextFallbackDoesNotCoolAccount(t *
 	require.NotNil(t, upstreamErr)
 	require.Equal(t, "image_generation_unavailable", upstreamErr.Code)
 
-	err := svc.handleOpenAIImagesOAuthResponseError(
+	err := svc.handleOpenAIImagesOAuthResponseError(requestledger.Receipt{},
 		context.Background(), c, account, "gpt-image-2", "https://upstream.example/v1/responses",
 		&http.Response{StatusCode: http.StatusOK, Header: http.Header{}},
 		OpenAIImagesJSONKeepaliveAdjustedWrittenSize(c), upstreamErr,
@@ -122,7 +124,7 @@ func TestHandleOpenAIImagesOAuthResponseError_StructuredUnavailableStillCoolsAcc
 		Message:    "image generation tool is not available for this account",
 	}
 
-	_ = svc.handleOpenAIImagesOAuthResponseError(
+	_ = svc.handleOpenAIImagesOAuthResponseError(requestledger.Receipt{},
 		context.Background(), c, account, "gpt-image-2", "https://upstream.example/v1/responses",
 		&http.Response{StatusCode: http.StatusOK, Header: http.Header{}},
 		OpenAIImagesJSONKeepaliveAdjustedWrittenSize(c), upstreamErr,

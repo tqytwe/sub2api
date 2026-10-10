@@ -1,6 +1,8 @@
 package service
 
 import (
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
+
 	"bufio"
 	"context"
 	"encoding/json"
@@ -700,10 +702,10 @@ func (s *AntigravityGatewayService) writeClaudeError(c *gin.Context, status int,
 
 // WriteMappedClaudeError 导出版本，供 handler 层使用（如 fallback 错误处理）
 func (s *AntigravityGatewayService) WriteMappedClaudeError(c *gin.Context, account *Account, upstreamStatus int, upstreamRequestID string, body []byte) error {
-	return s.writeMappedClaudeError(c, account, upstreamStatus, upstreamRequestID, body)
+	return s.writeMappedClaudeError(requestledger.Receipt{}, c, account, upstreamStatus, upstreamRequestID, body)
 }
 
-func (s *AntigravityGatewayService) writeMappedClaudeError(c *gin.Context, account *Account, upstreamStatus int, upstreamRequestID string, body []byte) error {
+func (s *AntigravityGatewayService) writeMappedClaudeError(receipt requestledger.Receipt, c *gin.Context, account *Account, upstreamStatus int, upstreamRequestID string, body []byte) error {
 	MarkResponseCommitted(c)
 	upstreamMsg := strings.TrimSpace(extractUpstreamErrorMessage(body))
 	upstreamMsg = sanitizeUpstreamErrorMessage(upstreamMsg)
@@ -711,6 +713,7 @@ func (s *AntigravityGatewayService) writeMappedClaudeError(c *gin.Context, accou
 	upstreamDetail := s.getUpstreamErrorDetail(body)
 	setOpsUpstreamError(c, upstreamStatus, upstreamMsg, upstreamDetail)
 	appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+		LedgerReceipt:      receipt,
 		ProxyID:            opsUpstreamProxyID(account),
 		ProxyName:          opsUpstreamProxyName(account),
 		Platform:           account.Platform,

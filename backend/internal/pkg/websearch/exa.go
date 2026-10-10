@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
 	"io"
 	"net/http"
 	"net/url"
@@ -90,7 +91,7 @@ func (e *ExaProvider) Search(ctx context.Context, req SearchRequest) (*SearchRes
 	httpReq.Header.Set("Accept", "application/json")
 	httpReq.Header.Set("x-api-key", e.apiKey)
 
-	resp, err := e.httpClient.Do(httpReq)
+	resp, err := requestledger.Do(httpReq, e.httpClient.Do)
 	if err != nil {
 		return nil, fmt.Errorf("exa: request failed: %w", err)
 	}

@@ -17,6 +17,7 @@ type ColdRouteCase = {
 }
 
 const COLD_ROUTE_CASES: readonly ColdRouteCase[] = [
+  { routeName: 'AdminRequestLedger', requiredScope: 'admin-ops', literals: [{ source: 'src/views/admin/ops/components/OpsErrorDetailModal.vue', key: 'admin.ops.errorDetail.title' }] },
   {
     routeName: 'Dashboard',
     requiredScope: 'workspace-shell',

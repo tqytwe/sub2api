@@ -1,6 +1,8 @@
 package service
 
 import (
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
+
 	"bytes"
 	"context"
 	"encoding/json"
@@ -127,7 +129,7 @@ func TestGeminiWriteGeminiMappedError_NoRuleKeepsDefault(t *testing.T) {
 	respBody := []byte(`{"error":{"code":422,"message":"Invalid schema for field messages","status":"INVALID_ARGUMENT"}}`)
 	account := &Account{ID: 13, Platform: PlatformGemini, Type: AccountTypeAPIKey}
 
-	err := svc.writeGeminiMappedError(c, account, http.StatusUnprocessableEntity, "req-2", respBody)
+	err := svc.writeGeminiMappedError(requestledger.Receipt{}, c, account, http.StatusUnprocessableEntity, "req-2", respBody)
 	require.Error(t, err)
 	assert.Equal(t, http.StatusBadRequest, rec.Code)
 
@@ -212,7 +214,7 @@ func TestGeminiWriteGeminiMappedError_AppliesRuleFor422(t *testing.T) {
 	respBody := []byte(`{"error":{"code":422,"message":"Invalid schema for field messages","status":"INVALID_ARGUMENT"}}`)
 	account := &Account{ID: 3, Platform: PlatformGemini, Type: AccountTypeAPIKey}
 
-	err := svc.writeGeminiMappedError(c, account, http.StatusUnprocessableEntity, "req-1", respBody)
+	err := svc.writeGeminiMappedError(requestledger.Receipt{}, c, account, http.StatusUnprocessableEntity, "req-1", respBody)
 	require.Error(t, err)
 	assert.Equal(t, http.StatusTeapot, rec.Code)
 
@@ -360,7 +362,7 @@ func TestGeminiWriteGeminiMappedError_SetsResponseCommitted(t *testing.T) {
 	body := []byte(`{"error":{"message":"invalid field"}}`)
 	account := &Account{ID: 102, Platform: PlatformGemini, Type: AccountTypeAPIKey}
 
-	err := svc.writeGeminiMappedError(c, account, http.StatusBadRequest, "req-99", body)
+	err := svc.writeGeminiMappedError(requestledger.Receipt{}, c, account, http.StatusBadRequest, "req-99", body)
 	require.Error(t, err)
 	assert.True(t, IsResponseCommitted(c), "Gemini path must mark response committed")
 }

@@ -20,6 +20,10 @@ export interface RequestRecord {
   output_observed: boolean
 }
 export interface RequestAttempt {
+  attempt_id?: string | null
+  upstream_request_id?: string
+  upstream_response_id?: string
+  identifier_conflict?: boolean
   usage_state: string
   output_observed: boolean
   upstream_kind: string
@@ -44,6 +48,9 @@ export interface BillingReference {
 }
 export interface LinkedUsage { id: number; model: string; input_tokens: number; output_tokens: number; created_at: string; billed_cost: number | null }
 export interface RequestDetail {
+  diagnostics?: { attempt_no: number; ops_error_log_id: number; available: boolean }[]
+  diagnostics_unavailable?: boolean
+  attempt_evidence_unavailable?: boolean
   request: RequestRecord
   attempts: RequestAttempt[]
   billing: BillingReference[]

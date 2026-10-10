@@ -7,11 +7,67 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 )
+
+func TestForwardOpenAIWSV2_RejectsReusedCompletedIdentity(t *testing.T) {
+	cfg := newOpenAIWSV2TestConfig()
+	cfg.Security.URLAllowlist.AllowInsecureHTTP = true
+	cfg.Gateway.OpenAIWS.MinIdlePerAccount = 0
+	upstream := &openAIWSCaptureConn{events: [][]byte{
+		[]byte(`{"type":"response.completed","response":{"id":"resp_shared","usage":{"input_tokens":7,"output_tokens":3}}}`),
+		[]byte(`{"type":"response.created","response":{"id":"resp_shared"}}`),
+	}}
+	pool := newOpenAIWSConnPool(cfg)
+	defer pool.Close()
+	pool.setClientDialerForTest(&openAIWSCaptureDialer{conn: upstream})
+	svc := &OpenAIGatewayService{cfg: cfg, cache: &stubGatewayCache{}, toolCorrector: NewCodexToolCorrector(), openaiWSPool: pool}
+	account := &Account{ID: 234, Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Credentials: map[string]any{"api_key": "fixture-only"}}
+	var first *OpenAIForwardResult
+	for i := range 2 {
+		c, _ := gin.CreateTestContext(httptest.NewRecorder())
+		c.Request = httptest.NewRequest("POST", "/v1/responses", nil)
+		result, err := svc.forwardOpenAIWSV2(context.Background(), c, account, map[string]any{"model": "gpt-5.1"}, "", "", "fixture-only", OpenAIWSProtocolDecision{Transport: OpenAIUpstreamTransportResponsesWebsocketV2}, false, false, "gpt-5.1", "gpt-5.1", time.Now(), 1, "", nil)
+		if i == 0 {
+			require.NoError(t, err)
+			first = result
+		} else {
+			require.ErrorContains(t, err, "reused a completed response identity")
+			require.False(t, result.HasObservedUsage(), "an ambiguous reused identifier cannot prove B's usage")
+		}
+	}
+	require.Equal(t, 7, first.Usage.InputTokens)
+	require.Equal(t, 3, first.Usage.OutputTokens)
+}
+
+func TestForwardOpenAIWSV2_RejectsAnonymousPrewarmBeforeMainSend(t *testing.T) {
+	for _, terminalID := range []string{"", "resp_conflict"} {
+		t.Run(terminalID, func(t *testing.T) {
+			cfg := newOpenAIWSV2TestConfig()
+			cfg.Security.URLAllowlist.AllowInsecureHTTP = true
+			cfg.Gateway.OpenAIWS.PrewarmGenerateEnabled = true
+			upstream := &openAIWSCaptureConn{events: [][]byte{
+				[]byte(`{"type":"response.created","response":{"id":"resp_start"}}`),
+				[]byte(fmt.Sprintf(`{"type":"response.completed","response":{"id":%q}}`, terminalID)),
+			}}
+			pool := newOpenAIWSConnPool(cfg)
+			defer pool.Close()
+			pool.setClientDialerForTest(&openAIWSCaptureDialer{conn: upstream})
+			svc := &OpenAIGatewayService{cfg: cfg, cache: &stubGatewayCache{}, toolCorrector: NewCodexToolCorrector(), openaiWSPool: pool}
+			c, _ := gin.CreateTestContext(httptest.NewRecorder())
+			c.Request = httptest.NewRequest("POST", "/v1/responses", nil)
+			account := &Account{ID: 234, Platform: PlatformOpenAI, Type: AccountTypeAPIKey}
+			_, err := svc.forwardOpenAIWSV2(context.Background(), c, account, map[string]any{"model": "gpt-5.1"}, "", "", "fixture-only", OpenAIWSProtocolDecision{Transport: OpenAIUpstreamTransportResponsesWebsocketV2}, false, false, "gpt-5.1", "gpt-5.1", time.Now(), 1, "", nil)
+			require.ErrorContains(t, err, "prewarm_ambiguous_terminal")
+			require.Len(t, upstream.writes, 1, "no main create may use the ambiguous prewarm connection")
+			require.Equal(t, false, upstream.lastWrite["generate"])
+		})
+	}
+}
 
 // HTTP POST /v1/responses -> forwardOpenAIWSV2 keeps the canonical outbound
 // tier separate from response.completed.service_tier for usage-time billing.

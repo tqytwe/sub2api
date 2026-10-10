@@ -611,10 +611,10 @@ func TestAdminServiceNoTokenRevokerIsNoop(t *testing.T) {
 // publishVIPConfigAdminRepo 实现 PlayMembershipAdminRepository + PlayRepository
 // 只提供 PublishVIPConfig 路径所需的方法，其余全部 panic。
 type publishVIPConfigAdminRepo struct {
-	vipSyncMembershipRepo                          // embeds base PlayRepository stubs
-	version                int64
-	totals                 map[int64]decimal.Decimal
-	publishedVersion       int64
+	vipSyncMembershipRepo // embeds base PlayRepository stubs
+	version               int64
+	totals                map[int64]decimal.Decimal
+	publishedVersion      int64
 }
 
 func (r *publishVIPConfigAdminRepo) GetVIPConfigVersion(_ context.Context) (int64, error) {

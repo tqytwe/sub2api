@@ -75,6 +75,12 @@
 | [README 日本語](../README_JA.md) | `reference` | Upstream project overview |
 | [通用部署说明](../deploy/README.md) | `reference` | 上游部署方式；极速蹬生产仅使用 Zeabur |
 
+## P0 请求台账关联审查记录
+
+- [精确关联规格](./archive/completed-tasks/2026-10-10-p0-ledger-correlation-spec.md)：`active`，本分支合同与边界；维护责任为本任务提交者。
+- [验证与独立审查记录](./archive/completed-tasks/2026-10-10-p0-ledger-correlation-validation.md)：`historical`，隔离环境技术证据，不代表生产部署；维护责任为本任务提交者。
+- [前端视觉检查](./visual-reviews/2026-10-10-p0-ledger-correlation.md)：`historical`，原型、基线、实际构建资源与状态矩阵；维护责任为本任务提交者。
+
 ## 历史归档
 
 | 文档 | 状态 | 替代文档 |

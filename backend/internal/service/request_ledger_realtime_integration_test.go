@@ -82,3 +82,52 @@ func TestRequestLedgerRealtimeExplicitAndAutomaticTurns(t *testing.T) {
 	require.NoError(t, err)
 	require.ErrorIs(t, audit.BeforeWrite([]byte(`{"type":"response.create"}`)), requestledger.ErrUnavailable)
 }
+
+func TestRequestLedgerRealtimeLateTerminalCannotConsumeNextTurn(t *testing.T) {
+	db := ledgertest.New(t)
+	l := requestledger.New(db)
+	session, err := l.Begin(context.Background(), "/v1/realtime", "GET", "ws_session")
+	require.NoError(t, err)
+	ctx := requestledger.WithHandle(context.Background(), session)
+	require.NoError(t, requestledger.BindIdentity(ctx, 101, 201))
+	audit := newRealtimeLedgerAudit(ctx, &Account{ID: 234})
+	require.NoError(t, audit.BeforeWrite([]byte(`{"type":"response.create"}`)))
+	first := []byte(`{"type":"response.done","response":{"id":"resp_first","status":"completed"}}`)
+	require.NoError(t, audit.Observe(first))
+	require.NoError(t, audit.BeforeWrite([]byte(`{"type":"response.create"}`)))
+	secondID := audit.pending[0].handle.ID
+	require.NoError(t, audit.Observe(first))
+	require.Len(t, audit.pending, 1, "late terminal must not consume new turn")
+	var state string
+	require.NoError(t, db.QueryRow(`SELECT execution_state FROM gateway_requests WHERE id=$1`, secondID).Scan(&state))
+	require.Equal(t, "inflight", state)
+	require.NoError(t, audit.Observe([]byte(`{"type":"response.done","response":{"id":"resp_second","status":"failed"}}`)))
+	var responseID string
+	require.NoError(t, db.QueryRow(`SELECT upstream_response_id FROM gateway_request_attempt_evidence WHERE request_id=$1`, secondID).Scan(&responseID))
+	require.Equal(t, "resp_second", responseID)
+	audit.Close(nil)
+}
+
+func TestRequestLedgerRealtimeCapacityStillCompletesAdmittedUsage(t *testing.T) {
+	db := ledgertest.New(t)
+	l := requestledger.New(db)
+	session, err := l.Begin(context.Background(), "/v1/realtime", "GET", "ws_session")
+	require.NoError(t, err)
+	ctx := requestledger.WithHandle(context.Background(), session)
+	require.NoError(t, requestledger.BindIdentity(ctx, 101, 201))
+	audit := newRealtimeLedgerAudit(ctx, &Account{ID: 234})
+	require.NoError(t, audit.BeforeWrite([]byte(`{"type":"response.create"}`)))
+	require.NoError(t, audit.BeforeWrite([]byte(`{"type":"response.create"}`)))
+	for i := 0; i < 4095; i++ {
+		audit.completed[fmt.Sprintf("old_%d", i)] = struct{}{}
+	}
+	require.NoError(t, audit.Observe([]byte(`{"type":"response.created","response":{"id":"first"}}`)))
+	for _, id := range []string{"first", "second"} {
+		require.NoError(t, audit.Observe([]byte(fmt.Sprintf(`{"type":"response.done","response":{"id":"%s","status":"completed","usage":{"input_tokens":7,"output_tokens":3}}}`, id))))
+	}
+	var count int
+	require.NoError(t, db.QueryRow(`SELECT count(*) FROM gateway_requests WHERE parent_id=$1 AND execution_state='succeeded' AND usage_state='known'`, session.ID).Scan(&count))
+	require.Equal(t, 2, count)
+	require.ErrorIs(t, audit.BeforeWrite([]byte(`{"type":"response.create"}`)), requestledger.ErrUnavailable)
+	require.NoError(t, audit.Observe([]byte(`{"type":"response.done","response":{"id":"first","status":"completed"}}`)))
+}

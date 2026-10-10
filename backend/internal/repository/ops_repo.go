@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/lib/pq"
 )
@@ -81,6 +82,7 @@ func (r *opsRepository) InsertErrorLog(ctx context.Context, input *service.OpsIn
 	if err != nil {
 		return 0, err
 	}
+	requestledger.LinkOps(ctx, r.db, id, input.LedgerReceipts)
 	return id, nil
 }
 
@@ -102,7 +104,7 @@ func (r *opsRepository) BatchInsertErrorLogs(ctx context.Context, inputs []*serv
 		}
 	}()
 
-	stmt, err := tx.PrepareContext(ctx, insertOpsErrorLogSQL)
+	stmt, err := tx.PrepareContext(ctx, insertOpsErrorLogSQL+" RETURNING id")
 	if err != nil {
 		return 0, err
 	}
@@ -111,18 +113,28 @@ func (r *opsRepository) BatchInsertErrorLogs(ctx context.Context, inputs []*serv
 	}()
 
 	var inserted int64
+	type linkedInput struct {
+		id       int64
+		receipts []requestledger.Receipt
+	}
+	links := make([]linkedInput, 0, len(inputs))
 	for _, input := range inputs {
 		if input == nil {
 			continue
 		}
-		if _, err = stmt.ExecContext(ctx, opsInsertErrorLogArgs(input)...); err != nil {
+		var id int64
+		if err = stmt.QueryRowContext(ctx, opsInsertErrorLogArgs(input)...).Scan(&id); err != nil {
 			return inserted, err
 		}
 		inserted++
+		links = append(links, linkedInput{id, input.LedgerReceipts})
 	}
 
 	if err = tx.Commit(); err != nil {
 		return inserted, err
+	}
+	for _, link := range links {
+		requestledger.LinkOps(ctx, r.db, link.id, link.receipts)
 	}
 	return inserted, nil
 }
@@ -595,6 +607,8 @@ LIMIT 1`
 		out.UpstreamErrors = ""
 	}
 
+	out.LedgerReferences, err = requestledger.OpsReferences(ctx, r.db, id)
+	out.LedgerReferencesUnavailable = err != nil
 	return &out, nil
 }
 

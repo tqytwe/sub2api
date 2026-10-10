@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
 	"time"
 )
 
@@ -69,6 +70,8 @@ type OpsRepository interface {
 }
 
 type OpsInsertErrorLogInput struct {
+	// Trusted immutable receipts survive queue sanitization; never reconstructed from JSON.
+	LedgerReceipts  []requestledger.Receipt
 	RequestID       string
 	ClientRequestID string
 

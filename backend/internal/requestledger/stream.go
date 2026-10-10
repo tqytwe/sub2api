@@ -19,6 +19,7 @@ type streamEvidence struct {
 	line      []byte
 	oversized bool
 	terminal  string
+	observeID func(string)
 }
 
 func (s *streamEvidence) observe(p []byte) {
@@ -47,6 +48,13 @@ func (s *streamEvidence) observe(p []byte) {
 	}
 }
 func (s *streamEvidence) observeLine(line string) {
+	if strings.HasPrefix(line, "data:") {
+		if id := ResponseIdentifier([]byte(strings.TrimSpace(strings.TrimPrefix(line, "data:")))); id != "" {
+			if s.observeID != nil {
+				s.observeID(id)
+			}
+		}
+	}
 	if s.terminal == "failed" || s.terminal == "cancelled" {
 		return
 	}

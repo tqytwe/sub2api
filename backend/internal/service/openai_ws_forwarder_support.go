@@ -97,6 +97,7 @@ func (s *OpenAIGatewayService) performOpenAIWSGeneratePrewarm(
 	logOpenAIWSModeInfo("prewarm_write_sent account_id=%d conn_id=%s payload_bytes=%d", account.ID, connID, len(prewarmPayloadJSON))
 
 	prewarmResponseID := ""
+	ownedResponseID := ""
 	prewarmEventCount := 0
 	prewarmTerminalCount := 0
 	for {
@@ -117,10 +118,24 @@ func (s *OpenAIGatewayService) performOpenAIWSGeneratePrewarm(
 		}
 
 		eventType, eventResponseID, _ := parseOpenAIWSEventEnvelope(message)
+		eventOwnershipID := openAIWSResponseOwnershipID(message)
+		if lease.IsCompletedResponse(eventOwnershipID) {
+			if eventType == "response.created" {
+				lease.MarkBroken()
+				return wrapOpenAIWSFallback("prewarm_ambiguous_response", errors.New("upstream websocket reused a completed response identity"))
+			}
+			continue
+		}
 		if eventType == "" {
 			continue
 		}
 		prewarmEventCount++
+		if ownedResponseID != "" && eventOwnershipID != "" && ownedResponseID != eventOwnershipID {
+			lease.conn.retireOnRelease.Store(true)
+		}
+		if ownedResponseID == "" && eventOwnershipID != "" {
+			ownedResponseID = eventOwnershipID
+		}
 		if prewarmResponseID == "" && eventResponseID != "" {
 			prewarmResponseID = eventResponseID
 		}
@@ -164,6 +179,14 @@ func (s *OpenAIGatewayService) performOpenAIWSGeneratePrewarm(
 		}
 
 		if isOpenAIWSTerminalEvent(eventType) {
+			if eventOwnershipID != "" {
+				ownedResponseID = eventOwnershipID
+			}
+			lease.RememberCompletedResponse(ownedResponseID)
+			if eventOwnershipID == "" || lease.conn.retireOnRelease.Load() {
+				lease.conn.retireOnRelease.Store(true)
+				return wrapOpenAIWSFallback("prewarm_ambiguous_terminal", errors.New("upstream websocket prewarm terminal has no response identity"))
+			}
 			prewarmTerminalCount++
 			break
 		}
@@ -231,7 +254,7 @@ func normalizeOpenAIWSTerminalEvent(eventType string) string {
 // markOpenAIWSClientVisibleFailure records only terminal/error protocol events
 // that were delivered to the client. Callers invoke it only after any hidden
 // failover/recovery decision and a successful downstream write.
-func markOpenAIWSClientVisibleFailure(c *gin.Context, eventType string, payload []byte) {
+func markOpenAIWSClientVisibleFailure(c *gin.Context, eventType string, payload []byte, receipts ...requestledger.Receipt) {
 	eventType = strings.TrimSpace(eventType)
 	if eventType != "error" && eventType != "response.failed" {
 		return
@@ -268,7 +291,15 @@ func markOpenAIWSClientVisibleFailure(c *gin.Context, eventType string, payload 
 	if message == "" {
 		message = "upstream websocket request failed"
 	}
-	MarkOpsStreamFailure(c, errType, code, message, status)
+	if len(receipts) > 0 && receipts[0].Correlation() != nil {
+		receipt := receipts[0]
+		if c != nil && c.Request != nil {
+			receipt.ObserveIdentifiers(c.Request.Context(), "", requestledger.ResponseIdentifier(payload))
+		}
+		markOpsStreamError(c, OpsStreamError{ErrType: errType, Code: code, Message: message, IntendedStatus: status, CountTowardsSLA: true, LedgerReceipt: receipt, ledgerExplicit: true, UpstreamStatus: status, UpstreamMessage: message})
+	} else {
+		MarkOpsStreamFailure(c, errType, code, message, status)
+	}
 }
 
 func openAIWSPayloadTransientStatus(payload []byte) int {

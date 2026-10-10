@@ -1,6 +1,8 @@
 package service
 
 import (
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
+
 	"bytes"
 	"context"
 	"errors"
@@ -171,13 +173,14 @@ func (s *OpenAIGatewayService) ForwardOpenAIAudio(
 		safeErr := sanitizeUpstreamErrorMessage(err.Error())
 		setOpsUpstreamError(c, 0, safeErr, "")
 		appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
-			ProxyID:     opsUpstreamProxyID(account),
-			ProxyName:   opsUpstreamProxyName(account),
-			Platform:    account.Platform,
-			AccountID:   account.ID,
-			AccountName: account.Name,
-			Kind:        "request_error",
-			Message:     safeErr,
+			LedgerReceipt: requestledger.ErrorReceipt(err),
+			ProxyID:       opsUpstreamProxyID(account),
+			ProxyName:     opsUpstreamProxyName(account),
+			Platform:      account.Platform,
+			AccountID:     account.ID,
+			AccountName:   account.Name,
+			Kind:          "request_error",
+			Message:       safeErr,
 		})
 		writeOpenAIEmbeddingsError(c, http.StatusBadGateway, "upstream_error", "Upstream request failed")
 		return nil, fmt.Errorf("upstream request failed: %s", safeErr)
@@ -233,6 +236,7 @@ func (s *OpenAIGatewayService) handleOpenAIAudioErrorResponse(ctx context.Contex
 		upstreamDetail = truncateString(string(respBody), maxBytes)
 	}
 	appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+		LedgerReceipt:      requestledger.ResponseReceipt(resp),
 		ProxyID:            opsUpstreamProxyID(account),
 		ProxyName:          opsUpstreamProxyName(account),
 		Platform:           account.Platform,

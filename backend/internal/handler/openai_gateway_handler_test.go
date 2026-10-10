@@ -1930,15 +1930,16 @@ func newOpenAIWSHandlerTestServer(t *testing.T, h *OpenAIGatewayHandler, subject
 }
 
 type openAIResponsesWSUsageLogCase struct {
-	upstreamEvent          func(turn int, model string) string
-	httpUpstream           service.HTTPUpstream
-	accountType            string
-	simpleModeRejectAtRead int64
-	compositeResolver      *service.CompositeRouteResolver
-	accountPlatform        string
-	closeReason            string
-	closeStatus            coderws.StatusCode
-	firstPayload           string
+	upstreamEvent           func(turn int, model string) string
+	allowUpstreamRetirement bool
+	httpUpstream            service.HTTPUpstream
+	accountType             string
+	simpleModeRejectAtRead  int64
+	compositeResolver       *service.CompositeRouteResolver
+	accountPlatform         string
+	closeReason             string
+	closeStatus             coderws.StatusCode
+	firstPayload            string
 	// midPayload 在首个 turn 完成后发送（如 session.update），上游桩会为它
 	// 回一个 response.completed，客户端按普通事件读取。
 	midPayload                string
@@ -1958,6 +1959,7 @@ type openAIResponsesWSUsageLogCase struct {
 }
 
 type openAIResponsesWSUsageLogResult struct {
+	upstreamConnections  int32
 	log                  *service.UsageLog
 	logs                 []*service.UsageLog
 	upstreamFirstPayload []byte
@@ -2881,7 +2883,8 @@ func runOpenAIResponsesWebSocketUsageLogCase(t *testing.T, tc openAIResponsesWSU
 		turnCount++
 	}
 	upstreamPayloadCh := make(chan []byte, turnCount)
-	upstreamErrCh := make(chan error, 1)
+	upstreamErrCh := make(chan error, turnCount+1)
+	var upstreamTurns, upstreamConnections atomic.Int32
 	var channelSvc *service.ChannelService
 	upstreamServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if tc.accountPlatform == service.PlatformGrok {
@@ -2902,15 +2905,23 @@ func runOpenAIResponsesWebSocketUsageLogCase(t *testing.T, tc openAIResponsesWSU
 			upstreamErrCh <- err
 			return
 		}
+		upstreamConnections.Add(1)
 		defer func() {
 			_ = conn.CloseNow()
 		}()
 
-		for turn := 1; turn <= turnCount; turn++ {
+		served := false
+		for upstreamTurns.Load() < int32(turnCount) {
 			readCtx, cancelRead := context.WithTimeout(r.Context(), 3*time.Second)
 			msgType, payload, readErr := conn.Read(readCtx)
 			cancelRead()
 			if readErr != nil {
+				// Anonymous terminal frames retire the physical connection. The next
+				// business turn remains global across the replacement connection.
+				if tc.allowUpstreamRetirement && served && coderws.CloseStatus(readErr) == coderws.StatusNormalClosure {
+					upstreamErrCh <- nil
+					return
+				}
 				upstreamErrCh <- readErr
 				return
 			}
@@ -2918,6 +2929,8 @@ func runOpenAIResponsesWebSocketUsageLogCase(t *testing.T, tc openAIResponsesWSU
 				upstreamErrCh <- errors.New("unexpected upstream websocket message type")
 				return
 			}
+			turn := int(upstreamTurns.Add(1))
+			served = true
 			upstreamPayloadCh <- payload
 			if turn == 1 && tc.afterFirstUpstreamRequest != nil {
 				if callbackErr := tc.afterFirstUpstreamRequest(channelSvc); callbackErr != nil {
@@ -3205,17 +3218,22 @@ func runOpenAIResponsesWebSocketUsageLogCase(t *testing.T, tc openAIResponsesWSU
 		}
 	}
 
+	completedConnections := int(upstreamConnections.Load())
 	if tc.accountPlatform == service.PlatformGrok {
 		upstreamErrCh <- nil
+		completedConnections = 1
 	}
-	select {
-	case upstreamErr := <-upstreamErrCh:
-		require.NoError(t, upstreamErr)
-	case <-time.After(3 * time.Second):
-		t.Fatal("等待上游 WebSocket 结束超时")
+	for range completedConnections {
+		select {
+		case upstreamErr := <-upstreamErrCh:
+			require.NoError(t, upstreamErr)
+		case <-time.After(3 * time.Second):
+			t.Fatal("等待上游 WebSocket 结束超时")
+		}
 	}
 
 	return openAIResponsesWSUsageLogResult{
+		upstreamConnections:  upstreamConnections.Load(),
 		log:                  usageLogs[0],
 		logs:                 usageLogs,
 		upstreamFirstPayload: upstreamPayloads[0],

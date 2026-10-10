@@ -1,6 +1,8 @@
 package service
 
 import (
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
+
 	"fmt"
 	"mime"
 	"net/http"
@@ -38,6 +40,7 @@ type responsesCacheDiagnosticState struct {
 	cacheFailure bool
 	recorded     bool
 	requestID    string
+	receipt      requestledger.Receipt
 }
 
 func responsesCacheState(c *gin.Context) *responsesCacheDiagnosticState {
@@ -68,6 +71,7 @@ func beginResponsesCacheHTTPAttempt(c *gin.Context, body []byte, resp *http.Resp
 		state.TransportHTTPStatus = resp.StatusCode
 		state.SemanticStatus = resp.StatusCode
 		state.requestID = resp.Header.Get("x-request-id")
+		state.receipt = requestledger.ResponseReceipt(resp)
 		contentType, _, _ := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		switch contentType {
 		case "text/event-stream", "application/json":
@@ -180,9 +184,10 @@ func (s *OpenAIGatewayService) recordUnloggedResponsesCacheFailure(c *gin.Contex
 	state.mu.Lock()
 	record := state.cacheFailure && !state.recorded
 	requestID := state.requestID
+	receipt := state.receipt
 	state.mu.Unlock()
 	if record {
-		s.recordOpenAIStreamUpstreamError(c, account, passthrough, requestID, "stream_failed", nil,
+		s.recordOpenAIStreamUpstreamError(receipt, c, account, passthrough, requestID, "stream_failed", nil,
 			"prompt_cache_breakpoint is not supported on this model")
 	}
 }

@@ -200,6 +200,7 @@ func (s *AntigravityGatewayService) attemptCreditsOveragesRetry(
 		return &creditsOveragesRetryResult{handled: true, resp: creditsResp}
 	}
 
+	recordOpsTransferFailure(p.c, creditsResp, err, "credits_retry_failed")
 	s.handleCreditsRetryFailure(p.ctx, p.prefix, modelKey, p.account, creditsResp, err)
 	return &creditsOveragesRetryResult{handled: true}
 }
