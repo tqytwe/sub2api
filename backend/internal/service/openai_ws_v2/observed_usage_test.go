@@ -3,6 +3,7 @@ package openai_ws_v2
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 
 	coderws "github.com/coder/websocket"
@@ -84,5 +85,53 @@ func TestRelayTerminalSettlementIdentity(t *testing.T) {
 			require.Len(t, turns, tc.want)
 			require.Equal(t, 9*tc.want, result.Usage.InputTokens)
 		})
+	}
+}
+
+func TestRelayBareErrorKeepsAuthoritativeSameResponseTerminal(t *testing.T) {
+	for _, terminal := range []string{"response.completed", "response.done", "response.incomplete", "response.failed"} {
+		for _, bare := range []struct{ name, frame string }{
+			{"inferred_id", `{"type":"error","usage":{"input_tokens":5,"output_tokens":1},"error":{"message":"transient"}}`},
+			{"explicit_id", `{"type":"error","response_id":"current","usage":{"input_tokens":5,"output_tokens":1},"error":{"message":"transient"}}`},
+			{"no_id_or_usage", `{"type":"error","error":{"message":"transient"}}`},
+		} {
+			t.Run(terminal+"/"+bare.name, func(t *testing.T) {
+				final := fmt.Sprintf(`{"type":%q,"response":{"id":"current","usage":{"input_tokens":9,"output_tokens":4}}}`, terminal)
+				rawFrames := []string{
+					`{"type":"response.completed","response":{"id":"previous","usage":{"input_tokens":2,"output_tokens":1}}}`,
+					`{"type":"response.created","response":{"id":"current"}}`,
+					bare.frame,
+					`{"type":"rate_limits.updated","rate_limits":[]}`,
+					final,
+					final, // A real repeated terminal is still deduplicated.
+					`{"type":"response.created","response":{"id":"next"}}`,
+					`{"type":"response.completed","response":{"id":"next","usage":{"input_tokens":3,"output_tokens":2}}}`,
+				}
+				frames := make([]passthroughTestFrame, 0, len(rawFrames))
+				for _, raw := range rawFrames {
+					frames = append(frames, passthroughTestFrame{msgType: coderws.MessageText, payload: []byte(raw)})
+				}
+				client := newPassthroughTestFrameConn(nil, false)
+				upstream := newPassthroughTestFrameConn(frames, true)
+				var turns []RelayTurnResult
+				result, relayExit := Relay(context.Background(), client, upstream, []byte(`{"type":"response.create","model":"gpt-5.1"}`), RelayOptions{
+					OnTurnComplete: func(turn RelayTurnResult) { turns = append(turns, turn) },
+				})
+				require.Nil(t, relayExit)
+				require.Len(t, turns, 3)
+				require.Equal(t, "previous", turns[0].RequestID)
+				require.Equal(t, Usage{InputTokens: 2, OutputTokens: 1}, turns[0].Usage)
+				require.Equal(t, "current", turns[1].RequestID)
+				require.Equal(t, terminal, turns[1].TerminalEventType)
+				require.Equal(t, Usage{InputTokens: 9, OutputTokens: 4}, turns[1].Usage)
+				require.Equal(t, "next", turns[2].RequestID)
+				require.Equal(t, Usage{InputTokens: 3, OutputTokens: 2}, turns[2].Usage)
+				require.Equal(t, Usage{InputTokens: 14, OutputTokens: 7}, result.Usage)
+				require.Nil(t, result.UnfinishedTurn)
+				writes := client.Writes()
+				require.Len(t, writes, len(rawFrames)-1)
+				require.Equal(t, final, string(writes[4].payload), "the authoritative terminal must reach the client")
+			})
+		}
 	}
 }

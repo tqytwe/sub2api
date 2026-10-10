@@ -37,6 +37,40 @@ func TestOpenAIWSTurnSettlementClaimAndPrivateIdentity(t *testing.T) {
 	require.NotEqual(t, first, another.context(parent, 1).Value(ctxkey.UsageBillingRequestID))
 }
 
+func TestOpenAIWSTurnSettlementRetryKeepsLogicalIdentity(t *testing.T) {
+	var settlement openAIWSTurnSettlement
+	var acceptedTurns, settledTurns []int
+	var requestIDs []any
+	hooks := &service.OpenAIWSIngressHooks{
+		BeforeRequest: func(turn int, _ []byte, _ string) error {
+			acceptedTurns = append(acceptedTurns, turn)
+			requestIDs = append(requestIDs, settlement.context(context.Background(), turn).Value(ctxkey.UsageBillingRequestID))
+			return nil
+		},
+		AfterTurn: func(turn int, result *service.OpenAIForwardResult, _ error) {
+			if result != nil && settlement.claim(turn) {
+				settledTurns = append(settledTurns, turn)
+			}
+		},
+	}
+	first := settlement.bindAttempt(hooks)
+	require.NoError(t, first.BeforeRequest(1, nil, ""))
+	first.AfterTurn(1, &service.OpenAIForwardResult{}, nil)
+	require.NoError(t, first.BeforeRequest(2, nil, ""))
+	first.AfterTurn(2, nil, errors.New("unmetered 429"))
+	retry := settlement.bindAttempt(hooks)
+	require.NoError(t, retry.BeforeRequest(1, nil, ""))
+	retry.AfterTurn(1, &service.OpenAIForwardResult{}, nil)
+	first.AfterTurn(1, &service.OpenAIForwardResult{}, nil) // Late duplicate retains its original binding.
+	require.NoError(t, retry.BeforeRequest(2, nil, ""))
+	retry.AfterTurn(2, &service.OpenAIForwardResult{}, nil)
+	require.Equal(t, []int{1, 2, 2, 3}, acceptedTurns)
+	require.Equal(t, []int{1, 2, 3}, settledTurns)
+	require.Equal(t, requestIDs[1], requestIDs[2], "the same real turn retains its missing-ID billing key across retry")
+	require.NotEqual(t, requestIDs[0], requestIDs[1])
+	require.NotEqual(t, requestIDs[2], requestIDs[3])
+}
+
 func TestOpenAIWSTurnUsageSettlement(t *testing.T) {
 	turnErr := errors.New("upstream stream interrupted")
 	for _, tc := range []struct {

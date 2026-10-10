@@ -1931,6 +1931,8 @@ func newOpenAIWSHandlerTestServer(t *testing.T, h *OpenAIGatewayHandler, subject
 
 type openAIResponsesWSUsageLogCase struct {
 	upstreamEvent          func(turn int, model string) string
+	httpUpstream           service.HTTPUpstream
+	accountType            string
 	simpleModeRejectAtRead int64
 	compositeResolver      *service.CompositeRouteResolver
 	accountPlatform        string
@@ -2969,6 +2971,12 @@ func runOpenAIResponsesWebSocketUsageLogCase(t *testing.T, tc openAIResponsesWSU
 	if strings.TrimSpace(tc.ingressMode) != "" {
 		account.Extra["openai_apikey_responses_websockets_v2_mode"] = tc.ingressMode
 	}
+	if tc.accountType != "" {
+		account.Type = tc.accountType
+		account.Credentials["access_token"] = "synthetic-oauth-token"
+		account.Extra["openai_oauth_responses_websockets_v2_enabled"] = true
+		account.Extra["openai_oauth_responses_websockets_v2_mode"] = tc.ingressMode
+	}
 
 	cfg := &config.Config{}
 	cfg.RunMode = config.RunModeSimple
@@ -2977,6 +2985,7 @@ func runOpenAIResponsesWebSocketUsageLogCase(t *testing.T, tc openAIResponsesWSU
 	cfg.Security.URLAllowlist.AllowInsecureHTTP = true
 	cfg.Gateway.OpenAIWS.Enabled = true
 	cfg.Gateway.OpenAIWS.APIKeyEnabled = true
+	cfg.Gateway.OpenAIWS.OAuthEnabled = tc.accountType == service.AccountTypeOAuth
 	cfg.Gateway.OpenAIWS.ResponsesWebsocketsV2 = true
 	cfg.Gateway.OpenAIWS.ModeRouterV2Enabled = true
 	cfg.Gateway.OpenAIWS.DialTimeoutSeconds = 3
@@ -3007,6 +3016,10 @@ func runOpenAIResponsesWebSocketUsageLogCase(t *testing.T, tc openAIResponsesWSU
 	}
 	billingCacheSvc := service.NewBillingCacheService(nil, nil, nil, keyRepo, nil, nil, cfg, nil)
 	t.Cleanup(billingCacheSvc.Stop)
+	httpUpstream := tc.httpUpstream
+	if httpUpstream == nil {
+		httpUpstream = &compositeWSHTTPUpstream{}
+	}
 	gatewaySvc := service.NewOpenAIGatewayService(
 		accountRepo,
 		usageRepo,
@@ -3021,7 +3034,7 @@ func runOpenAIResponsesWebSocketUsageLogCase(t *testing.T, tc openAIResponsesWSU
 		service.NewBillingService(cfg, nil),
 		nil,
 		billingCacheSvc,
-		&compositeWSHTTPUpstream{},
+		httpUpstream,
 		&service.DeferredService{},
 		nil,
 		nil,
@@ -3177,6 +3190,9 @@ func runOpenAIResponsesWebSocketUsageLogCase(t *testing.T, tc openAIResponsesWSU
 		case <-time.After(3 * time.Second):
 			t.Fatal("等待 WebSocket usage log 写入超时")
 		}
+	}
+	if tc.httpUpstream != nil {
+		return openAIResponsesWSUsageLogResult{log: usageLogs[0], logs: usageLogs, clientEvents: clientEvents}
 	}
 
 	upstreamPayloads := make([][]byte, 0, turnCount)

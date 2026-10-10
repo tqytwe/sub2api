@@ -27,10 +27,12 @@ No production credentials, paid requests, production account changes, production
 - Specification review: bounded to observed current-turn usage, identity and dedup; no aggregate re-billing or new pricing rules.
 - Code quality review: upstream reader is joined before snapshot; callback claims are synchronized; queued results and billing context are independent per turn; zero-usage retries do not claim a billable turn.
 - Full-suite compatibility review caught and fixed two boundaries: clear the passthrough metering guard after each completed turn, and retain nil-result cleanup for admission rejected before an upstream write. Ignore duplicate frames before policy/lifecycle hooks. Both existing regression tests pass. The prior cyber test now verifies metered errors cannot fail over while unmetered errors retain their existing failover behavior.
+- Parent independent review found two additional blocking regressions in the first submitted head; both have isolated RED/GREEN evidence. Bare error followed by the same response's completed/done/incomplete terminal settled the fallback too early and hid the real terminal. The relay now lets that authoritative terminal replace the pending error; tests include errors with/without ID or usage, previous and next turns, repeated terminal frames, exact aggregate usage and downstream delivery.
+- The same-account HTTP bridge retry reused handler hooks while restarting the Proxy-local turn counter at 1. A completed earlier turn's claim could therefore suppress later usage. Each Proxy call now binds every hook to an immutable logical-turn offset; retry keeps the current logical turn and missing-ID billing key. A real handler/OAuth bridge test covers first-turn success, second-turn 429, same-account retry success, exact user/key/account attribution and two usage rows, with and without response IDs. A binding test verifies later turns and late duplicate callbacks retain distinct identities.
 
 ## Delivery gates
 
-All final local gates passed before commit/push (exit code 0):
+All final local gates passed before commit/push (exit code 0), including a complete fresh run after both parent-review fixes above. The PR remains draft pending the final head's CI and parent review.
 
 | Gate | Result |
 | --- | --- |
@@ -38,12 +40,12 @@ All final local gates passed before commit/push (exit code 0):
 | `go -C backend test -tags=unit ./...` | Full unit-tagged suite passed |
 | `make build` | Backend and frontend production builds passed |
 | `./scripts/check-fork-integrity.sh` | All protected Fork checks passed |
-| Related service/relay/handler `go test -race` | All three packages passed (6.460s / 7.175s / 1.352s) |
+| Related service/relay/handler `go test -race` | All three packages passed (6.429s / 7.042s / 3.536s), including authoritative-terminal and retry-identity regressions |
 | `TestWSObservedUsagePostgresExactlyOnce` with integration tag | Isolated PostgreSQL passed (15.338s); failure retention, concurrent dedup, wallet and usage reconciled |
 | `node scripts/check-doc-links.mjs` | Document index and local targets passed |
 
 The first full-test compilation hit the 17GB environment memory limit while other builds were running; the service compiler was killed. Subsequent gates ran sequentially with `GOMAXPROCS=2 GOFLAGS=-p=2`. The final lint run also verifies the corrected test connection cleanup. Neither issue remains a failed gate.
 
-The separate request-ledger task can consume `UnfinishedTurn` and `AfterTurn` without submitting usage again. Freeze its per-turn context before forwarding; `openAIWSTurnSettlement.context(parent, turn)` provides the stable missing-ID billing key within one handler attempt. Turn number alone is not globally unique, and known upstream response IDs still take precedence in RecordUsage. The existing callback claim may return early for duplicates, so any ledger terminal update must have its own idempotency boundary.
+The separate request-ledger task can consume `UnfinishedTurn` and `AfterTurn` without submitting usage again. All handler hooks receive the logical turn number across same-account Proxy retries. Freeze the per-turn context before forwarding; `openAIWSTurnSettlement.context(parent, turn)` provides the stable missing-ID billing key within one selected-account scope, including its same-account retries. Turn number alone is not globally unique across account reselection, and known upstream response IDs still take precedence in RecordUsage. The existing callback claim may return early for duplicates, so any ledger terminal update must have its own idempotency boundary.
 
 Merge/deployment and the required local-browser product acceptance are owned by the parent thread; this branch must remain a draft PR until its CI and the combined-branch review pass.

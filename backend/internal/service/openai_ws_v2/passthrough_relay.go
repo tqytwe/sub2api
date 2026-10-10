@@ -856,8 +856,8 @@ func observeUpstreamMessage(
 	observeRelayTurnResponseServiceTier(turnTiming, firstRelayResponseServiceTier(message))
 	state.terminalEventType = eventType
 	if eventType == "error" {
-		// Some Responses servers emit error immediately before response.failed.
-		// Defer turn settlement so the authoritative failed usage can replace
+		// Some Responses servers emit error immediately before a response terminal.
+		// Defer turn settlement so the authoritative terminal usage can replace
 		// this fallback instead of billing both terminal frames.
 		if observed.responseID == "" {
 			observed.responseID = openAIWSRelayActiveTurnID(state)
@@ -878,11 +878,23 @@ func shouldFinalizePendingBareError(state *relayState, payload []byte, eventType
 	if eventType == "" || eventType == "error" || eventType == "response.failed" {
 		return false
 	}
-	if isTerminalEvent(eventType) || eventType == "response.created" {
+	if isTerminalEvent(eventType) {
+		values := gjson.GetManyBytes(payload, "response.id", "response_id", "id")
+		for _, value := range values {
+			if responseID := strings.TrimSpace(value.String()); responseID != "" {
+				// The authoritative terminal replaces the pending error for this
+				// same response. Settling first would discard its final usage and
+				// downstream frame as a duplicate of the error fallback.
+				return responseID != state.pendingBareError.responseID
+			}
+		}
+		return true
+	}
+	if eventType == "response.created" {
 		return true
 	}
 	// Auxiliary provider frames may be interleaved between error and its
-	// authoritative response.failed. Only a response event identifying a
+	// authoritative response terminal. Only a response event identifying a
 	// different turn closes the pending error.
 	responseID := strings.TrimSpace(gjson.GetBytes(payload, "response.id").String())
 	if responseID == "" || state.pendingBareError.responseID == "" {
