@@ -402,4 +402,97 @@ describe('admin AccountsView lite account list', () => {
     expect(recoverChunk).not.toHaveBeenCalled()
     expect(onComponentError).not.toHaveBeenCalled()
   })
+
+  it.each([false, true])('ignores an earlier account detail response after selecting another account (closed=%s)', async (closed) => {
+    let resolveFirst!: (account: typeof fullAccount) => void
+    const firstRequest = new Promise<typeof fullAccount>(resolve => { resolveFirst = resolve })
+    const second = { ...fullAccount, id: 43, name: 'second account' }
+    listAccounts.mockResolvedValue({ items: [listRow, second], total: 2, page: 1, page_size: 20, pages: 1 })
+    getById.mockImplementation((id: number) => id === 42 ? firstRequest : Promise.resolve(second))
+    const wrapper = mountView()
+    await flushPromises()
+    const editButtons = wrapper.findAll('button').filter(button => button.text().includes('common.edit'))
+    await editButtons[0].trigger('click')
+    await editButtons[1].trigger('click')
+    await flushPromises()
+    expect(wrapper.get('[data-test="edit-account"]').text()).toBe('second account')
+    if (closed) {
+      wrapper.findComponent(EditAccountModalStub).vm.$emit('close')
+      await flushPromises()
+    }
+
+    resolveFirst(fullAccount)
+    await flushPromises()
+    if (closed) expect(wrapper.find('[data-test="edit-account"]').exists()).toBe(false)
+    else expect(wrapper.get('[data-test="edit-account"]').text()).toBe('second account')
+    wrapper.unmount()
+  })
+
+  it('keeps the latest selection when returning to an account with an earlier detail request pending', async () => {
+    let resolveFirst!: (account: typeof fullAccount) => void
+    let resolveSecond!: (account: typeof fullAccount) => void
+    let resolveLatest!: (account: typeof fullAccount) => void
+    const firstRequest = new Promise<typeof fullAccount>(resolve => { resolveFirst = resolve })
+    const secondRequest = new Promise<typeof fullAccount>(resolve => { resolveSecond = resolve })
+    const latestRequest = new Promise<typeof fullAccount>(resolve => { resolveLatest = resolve })
+    const second = { ...fullAccount, id: 43, name: 'second account' }
+    const latest = { ...fullAccount, name: 'latest compact row' }
+    listAccounts.mockResolvedValue({ items: [listRow, second], total: 2, page: 1, page_size: 20, pages: 1 })
+    getById.mockReturnValueOnce(firstRequest).mockReturnValueOnce(secondRequest).mockReturnValueOnce(latestRequest)
+    const wrapper = mountView()
+    await flushPromises()
+    const editButtons = wrapper.findAll('button').filter(button => button.text().includes('common.edit'))
+    await editButtons[0].trigger('click')
+    await editButtons[1].trigger('click')
+    await editButtons[0].trigger('click')
+    expect(getById.mock.calls.map(([id]) => id)).toEqual([42, 43, 42])
+    resolveLatest(latest)
+    await flushPromises()
+    expect(wrapper.get('[data-test="edit-account"]').text()).toBe('latest compact row')
+    resolveFirst(fullAccount)
+    await flushPromises()
+    expect(wrapper.get('[data-test="edit-account"]').text()).toBe('latest compact row')
+    resolveSecond(second)
+    await flushPromises()
+    expect(wrapper.get('[data-test="edit-account"]').text()).toBe('latest compact row')
+    wrapper.unmount()
+  })
+
+  it('reuses a pending detail request for repeated clicks on the same account', async () => {
+    let resolveDetail!: (account: typeof fullAccount) => void
+    getById.mockReturnValueOnce(new Promise<typeof fullAccount>(resolve => { resolveDetail = resolve }))
+    const wrapper = mountView()
+    await flushPromises()
+    const editButton = wrapper.findAll('button').find(button => button.text().includes('common.edit'))!
+    await editButton.trigger('click')
+    await editButton.trigger('click')
+    expect(getById).toHaveBeenCalledOnce()
+    resolveDetail(fullAccount)
+    await flushPromises()
+    expect(wrapper.get('[data-test="edit-account"]').text()).toBe('compact row')
+    wrapper.unmount()
+  })
+
+  it.each([false, true])('ignores late detail errors after closing or leaving the page (unmounted=%s)', async (unmounted) => {
+    let rejectFirst!: (error: Error) => void
+    const firstRequest = new Promise<typeof fullAccount>((_resolve, reject) => { rejectFirst = reject })
+    const second = { ...fullAccount, id: 43, name: 'second account' }
+    listAccounts.mockResolvedValue({ items: [listRow, second], total: 2, page: 1, page_size: 20, pages: 1 })
+    getById.mockReturnValueOnce(firstRequest).mockResolvedValueOnce(second)
+    const wrapper = mountView()
+    await flushPromises()
+    const editButtons = wrapper.findAll('button').filter(button => button.text().includes('common.edit'))
+    await editButtons[0].trigger('click')
+    await editButtons[1].trigger('click')
+    await flushPromises()
+    if (unmounted) wrapper.unmount()
+    else wrapper.findComponent(EditAccountModalStub).vm.$emit('close')
+    rejectFirst(new Error('stale detail failed'))
+    await flushPromises()
+    expect(showError).not.toHaveBeenCalled()
+    if (!unmounted) {
+      expect(wrapper.find('[data-test="edit-account"]').exists()).toBe(false)
+      wrapper.unmount()
+    }
+  })
 })

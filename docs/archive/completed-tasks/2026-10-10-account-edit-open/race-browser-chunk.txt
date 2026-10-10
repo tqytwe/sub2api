@@ -1,0 +1,8 @@
+{"event":"detail","path":"/api/v1/admin/accounts/11","status":200}
+{"event":"blocked-chunk","path":"/assets/EditAccountModal-B0rxL-xY.js"}
+{"event":"console","message":"Failed to load resource: net::ERR_FAILED"}
+{"event":"first-click","dialog":0,"blocks":1}
+{"event":"detail","path":"/api/v1/admin/accounts/12","status":200}
+{"event":"network-restored-second-account","dialog":1,"blocks":1}
+{"event":"detail","path":"/api/v1/admin/accounts/11","status":200}
+{"event":"network-restored-third-click","dialog":1,"blocks":1}

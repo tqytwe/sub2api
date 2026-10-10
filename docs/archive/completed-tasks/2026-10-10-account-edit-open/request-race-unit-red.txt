@@ -1,0 +1,71 @@
+
+ RUN  v2.1.9 /workspace/account-edit-fix/frontend
+
+Browserslist: browsers data (caniuse-lite) is 10 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+ ❯ src/views/admin/__tests__/AccountsView.lite.spec.ts (13 tests | 3 failed) 281ms
+   × admin AccountsView lite account list > ignores an earlier account detail response after selecting another account (closed=false) 22ms
+     → expected 'compact row' to be 'second account' // Object.is equality
+   × admin AccountsView lite account list > ignores an earlier account detail response after selecting another account (closed=true) 18ms
+     → expected true to be false // Object.is equality
+   × admin AccountsView lite account list > keeps the latest selection when returning to an account with an earlier detail request pending 20ms
+     → expected 'second account' to be 'compact row' // Object.is equality
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/views/admin/__tests__/AccountsView.lite.spec.ts > admin AccountsView lite account list > ignores an earlier account detail response after selecting another account (closed=false)
+AssertionError: expected 'compact row' to be 'second account' // Object.is equality
+
+Expected: "second account"
+Received: "compact row"
+
+ ❯ src/views/admin/__tests__/AccountsView.lite.spec.ts:427:67
+    425|     await flushPromises()
+    426|     if (closed) expect(wrapper.find('[data-test="edit-account"]').exis…
+    427|     else expect(wrapper.get('[data-test="edit-account"]').text()).toBe…
+       |                                                                   ^
+    428|     wrapper.unmount()
+    429|   })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  src/views/admin/__tests__/AccountsView.lite.spec.ts > admin AccountsView lite account list > ignores an earlier account detail response after selecting another account (closed=true)
+AssertionError: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ src/views/admin/__tests__/AccountsView.lite.spec.ts:426:77
+    424|     resolveFirst(fullAccount)
+    425|     await flushPromises()
+    426|     if (closed) expect(wrapper.find('[data-test="edit-account"]').exis…
+       |                                                                             ^
+    427|     else expect(wrapper.get('[data-test="edit-account"]').text()).toBe…
+    428|     wrapper.unmount()
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  src/views/admin/__tests__/AccountsView.lite.spec.ts > admin AccountsView lite account list > keeps the latest selection when returning to an account with an earlier detail request pending
+AssertionError: expected 'second account' to be 'compact row' // Object.is equality
+
+Expected: "compact row"
+Received: "second account"
+
+ ❯ src/views/admin/__tests__/AccountsView.lite.spec.ts:450:62
+    448|     resolveSecond(second)
+    449|     await flushPromises()
+    450|     expect(wrapper.get('[data-test="edit-account"]').text()).toBe('com…
+       |                                                              ^
+    451|     wrapper.unmount()
+    452|   })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+ Test Files  1 failed (1)
+      Tests  3 failed | 10 passed (13)
+   Start at  05:17:45
+   Duration  3.08s (transform 1.75s, setup 81ms, collect 2.06s, tests 281ms, environment 288ms, prepare 54ms)

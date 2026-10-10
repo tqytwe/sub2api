@@ -1,0 +1,53 @@
+{
+  "base_commit": "3843ff3e931349595b8793b52504b02a177f12c9",
+  "gates_exit_codes": {
+    "build": 0,
+    "unit": 0,
+    "core": 0,
+    "checkin": 0,
+    "fork": 0,
+    "design": 0,
+    "docs": 0,
+    "test": 2,
+    "test-serial": 0,
+    "timeout-isolated": 0
+  },
+  "browser_exit_codes": {
+    "race": 0,
+    "matrix": 0,
+    "chunk": 0,
+    "persistent": 0,
+    "disposed": 0,
+    "keyboard": 0
+  },
+  "full_test_rerun_GOFLAGS": "-p=1 -parallel=1",
+  "frontend_default": {
+    "files_passed": 491,
+    "files_skipped": 1,
+    "tests_passed": 3502,
+    "tests_skipped": 2,
+    "skipped_reason": "Both skipped live HTTP tests passed in separate checkin contract"
+  },
+  "targeted_unit": {
+    "files": 3,
+    "tests_passed": 22
+  },
+  "core_integration": {
+    "required_checks": 54,
+    "test_and_subtest_passes": 203,
+    "skipped": 0
+  },
+  "timeout_isolated_repeats": 100,
+  "first_failure": "Unchanged backend late-success timeout assertion; see preexisting-timeout-risk.md. Passing retries do not repair that risk; independent backend fix now authorized.",
+  "source_sha256": {
+    "frontend/src/views/admin/AccountsView.vue": "108e655a51544a3c0f37758939d4d85db3ebb1839a68d876c8c3cf1450be4574",
+    "frontend/src/views/admin/__tests__/AccountsView.lite.spec.ts": "37010efba687f22a0df1ecbed0766e0b146b438aa2f07bfcc607895bdda1736e",
+    "frontend/src/i18n/locales/en/admin/accounts.ts": "92298a3d2edccf7a0166f7c4de6605ebb8fbd473afd1ba8f3fbffd2e38558b9b",
+    "frontend/src/i18n/locales/zh/admin/accounts.ts": "f70ec918f4069cae7fb06bd45d7bb3ddbb87c1ed1e893482486820f703ca1afc"
+  },
+  "review": {
+    "specification": "PASS",
+    "quality": "PASS (editor patch); separate backend risk recorded"
+  },
+  "production": "No merge/deploy; main thread coordinates"
+}

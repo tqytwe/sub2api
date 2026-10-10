@@ -1,6 +1,6 @@
 # Account editor opening recovery
 
-Status: local acceptance, independent reviews and full local gates passed. Draft PR CI is recorded on the PR; merge, deployment and production acceptance belong to the main thread.
+Status: request-race browser acceptance, independent reviews and full local gate rerun passed. The initial full-test failure is retained below; its preexisting backend risk is receiving a separate authorized repair. Next-commit CI remains to be confirmed in the draft PR. Merge, deployment and production acceptance belong to the main thread.
 
 ## Scope and source
 
@@ -15,9 +15,17 @@ Status: local acceptance, independent reviews and full local gates passed. Draft
 
 The built application can become stuck after an EditAccountModal JavaScript fetch fails. The account detail request succeeds, but Vue catches the async component loader error internally, so global `window.error` and `unhandledrejection` recovery does not run. `showEdit` stays true; clicking another row or the same row again does not restart the failed component.
 
-The editor async loader now closes its failed instance, shows the existing translated error Toast, and invokes the existing one-reload-per-route/session recovery. A persistent fault shows an error without looping reloads. The detail-fetch and editor submission logic are unchanged. A quality-review follow-up adds an unmounted-view guard so a delayed loader failure cannot reload a different page after navigation. Its unit test and production-build browser test first reproduced the unwanted reload (RED).
+The editor async loader now closes its failed instance, shows the existing translated error Toast, and invokes the existing one-reload-per-route/session recovery. A persistent fault shows an error without looping reloads. The API endpoint, editor fields, request payload and save logic are unchanged. Editor detail-response ownership is now guarded as described below. A quality-review follow-up adds an unmounted-view guard so a delayed loader failure cannot reload a different page after navigation. Its unit test and production-build browser test first reproduced the unwanted reload (RED).
 
 This is a locally reproduced defect, not a claim that it is the unique cause of the reported production incident. Authenticated production logs were unavailable: public requests from this environment returned HTTP 403 or a browser certificate error. No production credentials were requested, inspected or used.
+
+## Detail request race found in independent main-thread review
+
+The initial `6575f149f86a0da4c0cb952cc4504d5591b388d0` candidate still inherited an account-detail race from the base. Click A, then B while A's real HTTP detail response is delayed: B opens, then A's response changes the editor to A and discards B's draft. A subsequent real PUT targets A; PostgreSQL and detail GET confirm A was written while B was the last selected row. Cancelling B also permits late A to reopen. This is an observed save-target risk, not a hypothetical concern or a claim that a B draft is silently sent unchanged to A.
+
+[Unit RED](request-race-unit-red.txt) and [actual browser/HTTP/SQL RED](request-race-browser-red.txt) demonstrate the defect. The minimal follow-up keeps a generation counter for edit intent and a single pending edit request. Consecutive clicks on the same account share a GET; selecting A→B→A starts a fresh final A request. Only the current generation on a mounted view may apply results or errors. Modal close (including save completion), chunk failure and view unmount invalidate the intent. Promise identity controls pending cleanup. The shared detail loader for test/statistics actions and all business fields remain unchanged.
+
+[22 passing targeted tests](request-race-unit-green.txt) include independent A1/A2 responses, same-account deduplication and stale errors after cancel/unmount. [New-build browser GREEN](race-browser-race.txt) proves B stays selected, its draft survives, the actual PUT/SQL/GET target is B, A stays unchanged, and cancel prevents late reopening. `request-race-browser.cjs` delays a `route.fetch()` response from the actual local server; it does not fabricate account details or save responses. `EXPECT_RACE_FIXED=1` runs its GREEN assertions; the default records the RED behavior against the old build.
 
 ## Acceptance matrix
 
@@ -33,6 +41,8 @@ This is a locally reproduced defect, not a claim that it is the unique cause of 
 | Optional TLS profile failure | Injected 503 hit once; editor still opens and can cancel/reopen | PASS |
 | Normal user | Actual HTTP GET and PUT both 403; unchanged account SQL hash | PASS |
 | Chinese light/dark desktop | Actual built-app 1600×1000 and 1280×900 screenshots inspected | PASS |
+| A→B, late A; then save/cancel | New production build, actual PUT + SQL + GET targets B; B draft survives; cancel stays closed | PASS |
+| A1→B→A2 and duplicate A clicks | Independent Promise results preserve A2; consecutive A shares one GET; stale errors ignored | Unit PASS |
 | Production incident attribution/deployment/user-local acceptance | Outside this isolated task | Pending main thread |
 
 The six data cases check every submitted credential/extra key against PostgreSQL without printing values, scalar fields against SQL and detail GET, group policy against SQL and GET, preservation of an unknown extra field, and all non-password editor controls after refresh. API-key password inputs intentionally return blank on reread; persisted values are checked privately in memory. No real OAuth exchange or paid upstream request occurs: accounts are inactive, unschedulable, have synthetic random credentials and a loopback-only unavailable base URL. The usage column is hidden during these editor tests.
@@ -66,13 +76,19 @@ Independent specification review (`/root/spec_review`): PASS after confirming th
 
 Independent quality review (`/root/quality_review`): PASS after repair. The reviewer identified P2: a pending loader failure could reload a new route after the account view unmounted. The added instance-local disposed flag and early `fail()` return close that issue; unit RED→GREEN covers it. Real-browser RED reproduces the issue; rebuilt-browser GREEN confirms the repaired route remains stable. Full gate results are recorded below. The reviewer also checked bounded reloads, per-instance state, actual Vue async wrapper behavior, fault-injection hit counts and credential-safe evidence.
 
+The request-race follow-up received a second independent specification and quality PASS after checking its actual browser PUT/SQL/GET target, preserved draft, cancelled late response, full six-case matrix and all seven new browser/build exit codes. No new code blocker remains. Its full gates and exact next SHA CI are tracked separately from the initial candidate.
+
 Production and user-local acceptance remain pending regardless of local gate results.
 
-### Final local gates
+### Initial candidate local gates
 
-[Structured gate results and tested source hashes](local-gates.json): `make build`, `make test`, `make test-backend-unit`, exact core PostgreSQL/Redis workflow commands, `scripts/test-checkin-contract.sh`, Fork integrity, `pnpm design:verify` and documentation links all exit 0. Frontend default suite: 491 files / 3496 tests passed, with the two live-HTTP tests skipped there and both passed in the separate check-in contract. Core integration: 54 required checks, 203 test/subtest passes, zero skipped. Targeted async recovery suite: 16 tests passed. A final full build after the disposal guard also passed.
+[Structured gate results and tested source hashes](local-gates.json): `make build`, `make test`, `make test-backend-unit`, exact core PostgreSQL/Redis workflow commands, `scripts/test-checkin-contract.sh`, Fork integrity, `pnpm design:verify` and documentation links all exit 0. Frontend default suite: 491 files / 3496 tests passed, with the two live-HTTP tests skipped there and both passed in the separate check-in contract. Core integration: 54 required checks, 203 test/subtest passes, zero skipped. Initial targeted async recovery suite: 16 tests passed; after the request-race follow-up, 22 tests pass. A final full build after the disposal guard also passed.
 
-The final built frontend passes [late failure after navigation](final-disposed-route.txt), [transient module failure recovery](final-repro-green.txt), and [persistent failure bounds/recovery](final-persistent-chunk.txt); [final HTTP events](final-green-browser-events.json). The six save/readback cases were exercised before the disposal guard; their editor fields, API requests and backend behavior are unchanged by that guard. The initial and final transient-fault runs both open API-key and OAuth editors on the latest base.
+The final built frontend passes [late failure after navigation](final-disposed-route.txt), [transient module failure recovery](final-repro-green.txt), and [persistent failure bounds/recovery](final-persistent-chunk.txt); [final HTTP events](final-green-browser-events.json). The original six save/readback cases and subsequent disposal-guard tests are retained as historical evidence. The request-race follow-up passes the [complete matrix](race-browser-matrix.txt), [transient chunk recovery](race-browser-chunk.txt), [persistent error bounds](race-browser-persistent.txt), [late module failure after navigation](race-browser-disposed.txt) and [keyboard check](race-browser-keyboard.txt) on its new production build. [Real HTTP events](race-matrix-browser-events.json) and [empty runtime-error record](race-matrix-page-errors.json) are separate from the earlier historical runs. That revision has its own gate/source record before push.
+
+### Follow-up gate failure investigation
+
+The first follow-up `make test` failed in the unchanged backend `TestTokenRefreshService_LateSuccessPastAttemptDeadlineIsRejected` (timeout expected, nil returned). The [failure excerpt](preexisting-timeout-failure.txt) and [independent assessment](preexisting-timeout-risk.md) preserve this separately from the account-editor repair. There is a preexisting deadline/`Err()` scheduling window; this test-double failure is not proof of production or actual PostgreSQL impact. A subsequent tagged unit run and 100 isolated executions of the exact test passed. A passing repeat does not fix or dismiss that risk. The [complete serial rerun](race-test-serial-summary.txt) passed with 491 frontend files / 3502 tests; the two skipped live HTTP tests passed separately. [Follow-up gates and tested source hashes](race-local-gates.json) record every exit code, including the first failed run. [Isolated result](timeout-isolated-summary.txt) records all 100 passes. All other follow-up gates passed, including full build, tagged unit, core54/203, checkin HTTP, Fork, design and docs. The main thread subsequently authorized a separate backend correction and deterministic regression; the editor PR does not include that fix.
 
 No production merge, deployment, production credential use, or user-local acceptance is claimed. The commit SHA and final CI runs are provided in the draft PR delivery record, avoiding a self-referential commit hash in this file.
 

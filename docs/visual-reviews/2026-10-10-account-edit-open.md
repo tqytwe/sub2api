@@ -47,7 +47,8 @@
     "pnpm build (Playwright browser tests below)",
     "node repro-green.cjs",
     "node persistent-chunk.cjs",
-    "node matrix.cjs (six data scenarios)",
+    "node matrix.cjs (complete real HTTP and SQL matrix)",
+    "EXPECT_RACE_FIXED=1 node request-race-browser.cjs",
     "node matrix-tail.cjs (HTTP failures, permissions, themes)",
     "pnpm design:check",
     "pnpm lint:check",
@@ -69,7 +70,7 @@
 
 ## Scope
 
-Restore the existing account editor after an asynchronous module load failure. Reuse the existing shared Toast and per-route, session-bounded chunk recovery. No modal fields, styles, page frame, API, or persistence code changes. The user authorized the minimal repair and excluded mobile/Canvas.
+Restore the existing account editor after an asynchronous module load failure, and keep its save target tied to the latest selected account while detail requests finish out of order. Reuse the existing shared Toast and per-route, session-bounded chunk recovery. No modal fields, styles, page frame, API contract, or persistence code changes. The user authorized the minimal repair and excluded mobile/Canvas.
 
 ## Baseline
 
@@ -88,7 +89,8 @@ Reuse `defineAsyncComponent`, the existing `recoverFromChunkLoadError` helper, a
 - Default/success: OpenAI API key and OAuth editors reopen with saved fields after real HTTP update, PostgreSQL verification, detail GET and page reload.
 - Loading/error: a delayed module failure after navigating to Users does not reload the new page or show a stale Toast (unit and rebuilt-browser RED→GREEN). One transient blocked module is recovered; a persistent failure triggers exactly one automatic reload, then a visible Chinese error. Explicit page reload after network recovery succeeds.
 - Disabled/submission: existing synchronous submitting guard still emits only one PUT for two immediate submissions.
-- Cancel: no PUT and unchanged whole-account database hash; reopening reads existing details.
+- Cancel: no PUT and unchanged whole-account database hash; reopening reads existing details. In the follow-up race test, cancelling B invalidates delayed A, so A cannot reopen the editor.
+- Latest selection: actual delayed A HTTP response followed by B cannot replace B or discard its draft; a real save targets B in PUT, SQL and GET. The original candidate reproduced the wrong-target save before the generation guard.
 - Detail error: injected HTTP 503 produces the existing API message, no dialog/write; a following real HTTP GET opens the editor.
 - Optional profile error: an injected TLS profile 503 does not block the dialog.
 - Null/legacy: complete, JSON-null and older partial account data all render and save. No runtime page errors in these data or HTTP-error scenarios.

@@ -456,7 +456,7 @@
       <template #pagination><Pagination v-if="pagination.total > 0" :page="pagination.page" :total="pagination.total" :page-size="pagination.page_size" @update:page="handlePageChange" @update:pageSize="handlePageSizeChange" /></template>
     </TablePageLayout>
     <CreateAccountModal v-if="showCreate" :show="showCreate" :proxies="proxies" :groups="groups" @close="showCreate = false" @created="reload" />
-    <EditAccountModal v-if="showEdit" :show="showEdit" :account="edAcc" :proxies="proxies" :groups="groups" @close="showEdit = false" @updated="handleAccountUpdated" />
+    <EditAccountModal v-if="showEdit" :show="showEdit" :account="edAcc" :proxies="proxies" :groups="groups" @close="closeEdit" @updated="handleAccountUpdated" />
     <ReAuthAccountModal v-if="showReAuth" :show="showReAuth" :account="reAuthAcc" @close="closeReAuthModal" @reauthorized="handleAccountUpdated" />
     <AccountTestModal v-if="showTest" :show="showTest" :account="testingAcc" @close="closeTestModal" />
     <AccountStatsModal v-if="showStats" :show="showStats" :account="statsAcc" @close="closeStatsModal" />
@@ -545,7 +545,7 @@ const EditAccountModal = defineAsyncComponent({
     }
     // Vue handles async loader errors internally, so window error/rejection
     // listeners cannot recover them. Unmount the failed instance for next click.
-    showEdit.value = false
+    closeEdit()
     appStore.showError(t('admin.accounts.editLoadFailed'))
     try {
       recoverFromChunkLoadError(error, undefined)
@@ -1867,11 +1867,31 @@ const loadAccountDetails = async (account: Pick<AccountListItem, 'id'>): Promise
   }
 }
 
+let editRequestGeneration = 0
+let pendingEditRequest: { id: number; promise: Promise<Account> } | null = null
+const closeEdit = () => {
+  editRequestGeneration++
+  pendingEditRequest = null
+  showEdit.value = false
+}
 const handleEdit = async (a: AccountListItem) => {
-  const account = await loadAccountDetails(a)
-  if (!account) return
-  edAcc.value = account
-  showEdit.value = true
+  const generation = ++editRequestGeneration
+  const request = pendingEditRequest?.id === a.id
+    ? pendingEditRequest.promise
+    : adminAPI.accounts.getById(a.id)
+  pendingEditRequest = { id: a.id, promise: request }
+  try {
+    const account = await request
+    if (accountViewDisposed || generation !== editRequestGeneration) return
+    edAcc.value = account
+    showEdit.value = true
+  } catch (error) {
+    if (accountViewDisposed || generation !== editRequestGeneration) return
+    console.error('Failed to load account details:', error)
+    appStore.showError(extractApiErrorMessage(error, t('common.error')))
+  } finally {
+    if (pendingEditRequest?.promise === request) pendingEditRequest = null
+  }
 }
 const openMenu = (a: Account, e: MouseEvent) => {
   menu.acc = a
@@ -2600,6 +2620,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   accountViewDisposed = true
+  closeEdit()
   upstreamBillingRateAbortController?.abort()
   if (usageBatchFlushTimer !== null) {
     clearTimeout(usageBatchFlushTimer)
