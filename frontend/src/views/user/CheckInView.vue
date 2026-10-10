@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import playAPI, { type PlayCheckinResult, type PlayCheckinStatus, type PlayGrowthEligibility } from '@/api/play'
 import { trackQuestCompleteOnce } from '@/utils/growthAnalytics'
+import { extractApiErrorCode } from '@/utils/apiError'
 import { useAuthStore } from '@/stores/auth'
 import { useAppStore } from '@/stores/app'
 import '@/styles/growth-world.css'
@@ -103,7 +104,7 @@ async function handleCheckin() {
     await authStore.refreshUser()
     await loadStatus()
   } catch (err: unknown) {
-    const code = (err as { response?: { data?: { code?: string } } })?.response?.data?.code
+    const code = extractApiErrorCode(err)
     if (code === 'PLAY_CHECKIN_ALREADY_DONE') {
       appStore.showInfo(t('checkin.alreadyDone'))
       await loadStatus()
@@ -157,9 +158,10 @@ async function handleMakeup() {
     await authStore.refreshUser()
     await loadStatus()
   } catch (err: unknown) {
-    const code = (err as { response?: { data?: { code?: string } } })?.response?.data?.code
-    if (code === 'PLAY_CHECKIN_MAKEUP_UNAVAILABLE') {
+    const code = extractApiErrorCode(err)
+    if (code === 'PLAY_CHECKIN_MAKEUP_UNAVAILABLE' || code === 'PLAY_CHECKIN_MAKEUP_ALREADY_DONE') {
       appStore.showError(t('checkin.makeupUnavailable'))
+      await loadStatus()
       return
     }
     appStore.showError(t('checkin.makeupFailed'))

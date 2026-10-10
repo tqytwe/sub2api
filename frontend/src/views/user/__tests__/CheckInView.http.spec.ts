@@ -28,7 +28,7 @@ const baseURL = process.env.CHECKIN_CONTRACT_BASE_URL
 // Default frontend runs explicitly skip this test. The dedicated PR gate runs
 // it through scripts/test-checkin-contract.sh, which cannot skip the database.
 describe.skipIf(!baseURL)('CheckInView with real check-in HTTP and PostgreSQL', () => {
-  for (const mode of ['EXPLORER', 'CASH'] as const) {
+  for (const mode of ['EXPLORER', 'CASH', 'MILESTONE'] as const) {
     it(`renders the persisted ${mode.toLowerCase()} grant and reloads checked-in state`, async () => {
       expect(baseURL).toMatch(/^http:\/\/127\.0\.0\.1:\d+\/api\/v1$/)
       const userID = process.env[`CHECKIN_CONTRACT_${mode}`]
@@ -45,11 +45,16 @@ describe.skipIf(!baseURL)('CheckInView with real check-in HTTP and PostgreSQL', 
       })
       const wrapper = mountView()
       await vi.waitFor(() => expect(wrapper.find('button.gw-btn-primary').exists()).toBe(true))
+      // A second tab keeps its pre-grant status while the first commits a reward.
+      const staleTab = mountView()
+      await vi.waitFor(() => expect(staleTab.find('button.gw-btn-primary').exists()).toBe(true))
       expect(wrapper.get('button.gw-btn-primary').attributes('disabled')).toBeUndefined()
       await wrapper.get('button.gw-btn-primary').trigger('click')
       const expected = mode === 'EXPLORER'
         ? i18n.global.t('checkin.energySuccess', { amount: 1 })
-        : i18n.global.t('checkin.success', { amount: '0.50' })
+        : mode === 'MILESTONE'
+          ? `${i18n.global.t('checkin.success', { amount: '1.50' })} · ${i18n.global.t('checkin.streak', { days: 7 })} · ${i18n.global.t('checkin.milestoneBonus', { amount: '1.00' })}`
+          : i18n.global.t('checkin.success', { amount: '0.50' })
       expect(expected).toMatch(/[\u4e00-\u9fff]/)
       await vi.waitFor(() => expect(showSuccess).toHaveBeenCalledWith(expected))
       expect(showSuccess).toHaveBeenCalledOnce()
@@ -58,6 +63,13 @@ describe.skipIf(!baseURL)('CheckInView with real check-in HTTP and PostgreSQL', 
       expect(refreshUser).toHaveBeenCalledOnce()
       expect(showError).not.toHaveBeenCalled()
       wrapper.unmount()
+
+      await staleTab.get('button.gw-btn-primary').trigger('click')
+      await vi.waitFor(() => expect(showInfo).toHaveBeenCalledWith(i18n.global.t('checkin.alreadyDone')))
+      await vi.waitFor(() => expect(staleTab.get('button.gw-btn-primary').attributes('disabled')).toBeDefined())
+      expect(showSuccess).toHaveBeenCalledOnce()
+      expect(showError).not.toHaveBeenCalled()
+      staleTab.unmount()
 
       // A fresh component must read the committed state through the real API.
       const reloaded = mountView()
@@ -69,4 +81,33 @@ describe.skipIf(!baseURL)('CheckInView with real check-in HTTP and PostgreSQL', 
       expect((await playAPI.getCheckinStatus()).checked_in_today).toBe(true)
     }, 15000)
   }
+
+  it('renders a persisted makeup milestone and refreshes a stale second tab after rejection', async () => {
+    const userID = process.env.CHECKIN_CONTRACT_MAKEUP
+    expect(userID).toMatch(/^\d+$/)
+    apiClient.defaults.baseURL = baseURL
+    apiClient.defaults.adapter = 'http'
+    apiClient.defaults.headers.common['X-Checkin-Test-User'] = userID
+    vi.clearAllMocks()
+    refreshUser.mockResolvedValue(undefined)
+    const i18n = createI18n({ legacy: false, locale: 'zh', messages: { zh } })
+    const mountView = () => mount(CheckInView, {
+      global: { plugins: [i18n], stubs: { AppLayout: { template: '<div><slot /></div>' } } },
+    })
+    const first = mountView()
+    const stale = mountView()
+    await vi.waitFor(() => expect(first.findAll('button.gw-btn-primary')).toHaveLength(2))
+    await vi.waitFor(() => expect(stale.findAll('button.gw-btn-primary')).toHaveLength(2))
+    await first.findAll('button.gw-btn-primary')[1].trigger('click')
+    await vi.waitFor(() => expect(showSuccess).toHaveBeenCalledWith(i18n.global.t('checkin.makeupSuccess', { amount: '1.50' })))
+    await vi.waitFor(() => expect(first.findAll('button.gw-btn-primary')).toHaveLength(1))
+    await stale.findAll('button.gw-btn-primary')[1].trigger('click')
+    await vi.waitFor(() => expect(showError).toHaveBeenCalledWith(i18n.global.t('checkin.makeupUnavailable')))
+    await vi.waitFor(() => expect(stale.findAll('button.gw-btn-primary')).toHaveLength(1))
+    expect(showSuccess).toHaveBeenCalledOnce()
+    expect(refreshUser).toHaveBeenCalledOnce()
+    const reloaded = mountView()
+    await vi.waitFor(() => expect(reloaded.findAll('button.gw-btn-primary')).toHaveLength(1))
+    expect((await playAPI.getCheckinStatus()).can_makeup).toBeFalsy()
+  }, 15000)
 })
