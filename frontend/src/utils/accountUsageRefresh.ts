@@ -37,7 +37,6 @@ export const buildOpenAIUsageRefreshKey = (account: Pick<Account, 'id' | 'platfo
   const extra = account.extra ?? {}
   return [
     account.id,
-    account.updated_at,
     account.last_used_at,
     account.rate_limit_reset_at,
     extra.codex_usage_updated_at,

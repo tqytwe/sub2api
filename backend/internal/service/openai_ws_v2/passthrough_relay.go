@@ -801,6 +801,11 @@ func observeUpstreamMessage(
 	if responseID == "" && isTerminalEvent(eventType) {
 		responseID = strings.TrimSpace(values[3].String())
 	}
+	if responseID == "" && isTerminalEvent(eventType) && eventType != "error" && state.pendingBareError != nil {
+		// A terminal may omit its ID even after the current response supplied
+		// one. Keep that observed identity when it replaces the error fallback.
+		responseID = state.pendingBareError.responseID
+	}
 	// Repeated terminal frames (or late events for an already settled response)
 	// must not recreate a turn or contaminate the next turn's usage.
 	if responseID != "" {
@@ -875,32 +880,31 @@ func shouldFinalizePendingBareError(state *relayState, payload []byte, eventType
 		return false
 	}
 	eventType = strings.TrimSpace(eventType)
-	if eventType == "" || eventType == "error" || eventType == "response.failed" {
+	if eventType == "" {
 		return false
-	}
-	if isTerminalEvent(eventType) {
-		values := gjson.GetManyBytes(payload, "response.id", "response_id", "id")
-		for _, value := range values {
-			if responseID := strings.TrimSpace(value.String()); responseID != "" {
-				// The authoritative terminal replaces the pending error for this
-				// same response. Settling first would discard its final usage and
-				// downstream frame as a duplicate of the error fallback.
-				return responseID != state.pendingBareError.responseID
-			}
-		}
-		return true
 	}
 	if eventType == "response.created" {
 		return true
 	}
-	// Auxiliary provider frames may be interleaved between error and its
-	// authoritative response terminal. Only a response event identifying a
-	// different turn closes the pending error.
-	responseID := strings.TrimSpace(gjson.GetBytes(payload, "response.id").String())
-	if responseID == "" || state.pendingBareError.responseID == "" {
-		return false
+	// Missing IDs do not prove a new turn: its authoritative terminal must
+	// replace the pending error, including when this is the first observed ID.
+	// Explicitly different response IDs establish a boundary on their own.
+	values := gjson.GetManyBytes(payload, "response.id", "response_id", "id")
+	responseID := strings.TrimSpace(values[0].String())
+	if responseID == "" {
+		responseID = strings.TrimSpace(values[1].String())
 	}
-	return responseID != state.pendingBareError.responseID
+	if responseID == "" && isTerminalEvent(eventType) {
+		responseID = strings.TrimSpace(values[2].String())
+	}
+	if responseID != "" && state.pendingBareError.responseID != "" {
+		return responseID != state.pendingBareError.responseID
+	}
+	// Without IDs, a separately accepted client response.create is also a
+	// real boundary. Keep auxiliary frames with the old pending error until
+	// the next response event arrives, so the two generations do not merge.
+	return state.activeTurn != nil && state.pendingTurnStart.Load() != nil &&
+		(isTerminalEvent(eventType) || strings.HasPrefix(eventType, "response."))
 }
 
 func finalizePendingBareError(state *relayState, now time.Time) observedUpstreamEvent {
@@ -949,7 +953,9 @@ func finalizeObservedRelayTerminal(state *relayState, observed observedUpstreamE
 			observed.responseConflict = timing.responseModelConflict
 			observed.responseServiceTier = timing.terminalResponseServiceTier
 		}
-		state.consumePendingTurnStartedAt()
+		if state.activeTurn == nil {
+			state.consumePendingTurnStartedAt()
+		}
 		openAIWSRelayDiscardActiveTurnTiming(state)
 	}
 	return observed
