@@ -1,6 +1,6 @@
 # OpenAI routing, admission and response completion consistency
 
-Status: local validation complete on the recorded baseline; this task delivers a review branch, draft PR and exact-SHA CI. PR metadata records the delivery commit and CI results. The root thread owns any later merge or deployment under its separate authorization.
+Status: local validation complete on the recorded baseline; this task delivers a review branch, draft PR and exact-SHA CI. The draft PR will record the delivery commit and exact-SHA CI results. The root thread owns any later merge or deployment under its separate authorization.
 
 ## Scope and baseline
 
@@ -9,6 +9,7 @@ Status: local validation complete on the recorded baseline; this task delivers a
 - Authorized intermediate base: `9e458b12db91d1c36402c288d61ef7a352beee1c` (#342).
 - Intermediate authorized base: `b23e44625669a36a8f7ac10667e4b04b1904b7db` (#341 + #342), adopted by ordinary fast-forward merge after the running tests finished. Check-in DTO, plan editing, their tests/evidence and migration-test path changes do not overlap this patch.
 - Validated authorized base: `2fbe13d90a2381a3bc8e7495a0c8b00abe2cfe3a` (#343), adopted by ordinary fast-forward only after all b23 local gates finished successfully. There is no file overlap. Independent specification and quality reviews found the transactional account/group-policy update compatible with authoritative admission, route fingerprints and model restrictions. All local combination gates passed.
+- Final authorized integration base: `1f37c7a8312f06218036fcbb0335842a6b23e50f` (#345 cache compatibility), merged normally after all seven 2fbe local gates passed and the reviewed fix was committed as `bd813ce8c23ace5895ce5cf560b53a540d52c84d`. Only `openai_gateway_forward.go` has edits from both patches; all three cache insertions merge without conflicts. Combination unit/default backend tests, lint (0 issues), backend build, Fork integrity, document links and all 14 added cross-boundary cases passed.
 - Preserve all public/routed/account model permissions, account eligibility and credential checks, channel restrictions, billing identities and frozen pricing timestamps.
 - No production reads or writes, paid upstream requests, configuration changes, SQL changes, key-deletion reproduction, merge of this patch into `play/main` or deployment.
 - Protected Fork behavior remains unchanged: `FORK-PRICING-005`, `FORK-BILLING-010`, `FORK-IMAGE-011`, `FORK-DEPLOY-006`. No new Fork policy or UI behavior is introduced; the registry and concurrent UI/governance work remain untouched.
@@ -41,6 +42,12 @@ There are no account configuration edits, automatic probes, tool stripping, prot
 
 Scheduling stores only tool presence, reading top-level and additional-tools declarations without decoding native input/tool extensions. Discovery promotion cannot add the first declaration because it requires an existing `tool_search`. Malformed native tool declarations are conservatively treated as present: eligible Responses routes retain their existing validation, including Responses Lite `error.param`; an all-Chat-only sol pool can reject earlier with the capability 503. Legacy ingress conversion errors still stop before selection.
 
+## Cache baseline combination
+
+The cache patch retains bounded compatibility retries for actual HTTP 400 validation errors without response/work evidence. Our no-replay guarantee refers to local admission rejection; it does not remove those approved compatibility retries. Managed HTTP and passthrough recheck admission before a transformed-body attempt, while the cache transformation leaves model and tool-presence bindings intact. Cache diagnostics do not write to the downstream response.
+
+The existing WS-to-HTTP bridge internal retry loop has no per-attempt admission call; its outer turn checks are unchanged. This task does not expand that guarantee to the bridge or native WS replay/settlement behavior.
+
 ## Verification record
 
 - TDD RED: ordinary-vs-compact transient and persisted cooldowns, channel mapping, global fallback, passthrough, reselection, initial forward admission and absent diagnostics failed on the original implementation for the expected reasons.
@@ -53,9 +60,12 @@ Scheduling stores only tool presence, reading top-level and additional-tools dec
 - The first full unit run exposed two native image hotpath failures (unrelated large JSON numbers were decoded) and two OAuth Responses Lite error-field failures from the new projection. The projection was narrowed to raw declaration presence; existing validators and the original regression tests are retained. The expanded service/handler/repository targeted suite passed (28.872s / 0.089s / 0.286s), including those original failures, all Keepalive cases and the new raw-presence boundaries. Independent specification and quality follow-up reviews approved this correction. The subsequent full-unit gate passed.
 - The next full-unit run passed those regressions but hit the unchanged `TestOpsSystemLogSinkSuppressesRetriesDuringBackoff`: its nominal 300ms observation ran past the 800ms backoff boundary. The existing test passed 20 isolated repetitions (6.355s), without changing code, assertions or timeouts; the subsequent full-unit gate passed.
 - Initial frontend full run: 3462 passed, 3 timed out during concurrent Go compilation. The two affected files passed separately (83 tests), and the later serial full run passed as recorded above without timeout/assertion changes.
+- Final cache combination gates: `make test-backend-unit`, `make test-backend` (default tests and lint), `make build-backend`, Fork integrity and document links passed. The completed 2fbe full frontend test/build, check-in contract and 11 PostgreSQL tests are reused because the cache baseline changes no frontend, database, dependency or check-in inputs. The final PR runs its full configured CI against the final head SHA.
+- Cache combination cross-boundary verification: all six managed/passthrough post-400 account-disable, route-change and model-change cases passed (service 0.087s), retaining typed admission, one send, closed prior body and no failover. All eight stream/passthrough/usage cases passed (handler 0.880s), including complete JSON or one SSE terminal and matching content types.
+- Cache combination default-test attempt: the unchanged Token Refresh QPS timing test observed 2.372584ms against its 5ms floor. Its original test passed 20 isolated repetitions (10.025s); no implementation, assertions or timeouts were changed. The failed log is retained; the subsequent complete default backend test run passed (service 180.334s).
 - Independent specification review: compact, protocol/completion, legacy-ingress handling, integration-fixture correction, final baseline combination and delivery documentation approved.
 - Independent code-quality review: all implementation follow-ups, integration fixture, final baseline combination and delivery documentation approved after specification review.
-- Draft PR, delivery SHA and exact-SHA CI: recorded in the PR delivery metadata.
+- Delivery metadata: the draft PR will record the final commit and exact-SHA CI results.
 - Production deployment, health and local-browser acceptance: outside the authorized scope; not performed.
 
 Rollback is a normal revert of this patch after review. No schema, pricing or configuration rollback is required.
