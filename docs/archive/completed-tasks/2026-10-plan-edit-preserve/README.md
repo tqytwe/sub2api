@@ -65,6 +65,14 @@ go test ./internal/planacceptance -run '^TestAdminPlan' -v -count=1
 
 补充复验期间，既有 `TestTokenRefreshService_SaturatedProviderPreservesConcurrencyAndActualQPSStartSpacing` 在并行负载下单次断言失败（150.557µs < 5ms），区别于此前 lint 的资源终止。本次未修改该测试或运行时逻辑，隔离连续 20 次通过；随后串行执行完整后端默认 tests + 完整 lint（0 issues）+ unit tests，退出码 0。GC/并发限额仅用于 linter，测试范围和断言不放宽。执行环境重启时，前端 489 文件/3476 测试及完整构建已有完成日志，Fork 检查未完成，故完整重跑该检查，最终退出码 0、Fork integrity passed。
 
+## 2026-10-10 主线兼容合并
+
+根线程已将 #342 普通合并到 `play/main` `9e458b12db91d1c36402c288d61ef7a352beee1c`（父提交 `4080e2ac7` / `e58642e42`）。本分支从 `bf28ee393482866f04f771829e20fba06fdc25d8` 通过普通 merge 对齐，无冲突、无 rebase/force。#341 的生产文件和套餐测试与合并前保持字节一致；#342 的十个文件与主线保持一致，仅追加本交付记录及验证日志。独立规格兼容复核后，独立质量兼容复核也通过，无阻断项。
+
+合并后的 [PostgreSQL 双浏览器与 HTTP/DB 合同](merge-342-green-postgres.log) 全部通过。新签到专用脚本执行真实 PostgreSQL/Redis、HTTP 与前端：6 个子用例及两个实时前端用例通过，无跳过；视频媒体迁移定向测试通过，未调整断言。完整后端 default/unit 和 lint 已通过（退出码 0，lint 0 issues）。完整前端门禁通过：489 个文件/3476 测试通过，默认跳过的两个实时签到测试由上述专用脚本实际执行通过。完整 make build、Fork integrity、文档链接与 diff 检查均通过；前端→构建→Fork 串行命令退出码 0。所有检查针对本次新组合运行，未放宽断言，未重复旧 SHA 的 CI。
+
+此处只更新 #341 审查分支，最终确切 merge SHA 与该 SHA 的所有 CI 由 PR 及交付消息记录；根线程统一执行生产合并与部署。
+
 ## 发布边界
 
 本任务不执行合并或部署。PR #340 在此工作期间的已知状态为已合并、Zeabur 部署/验收由主线程监控，未将其写为部署成功。本 PR 同样等待主线程统一合并部署及用户本地电脑最终验收。无生产写入，无真实用户改价，无支付/购买调用。

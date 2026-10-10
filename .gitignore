@@ -126,6 +126,7 @@ scripts/*
 !scripts/push-github-and-deploy.sh
 !scripts/check-jisudeng-branding.sh
 !scripts/check-fork-integrity.sh
+!scripts/test-checkin-contract.sh
 !scripts/check-doc-links.mjs
 !scripts/check-frontend-design-governance.mjs
 !scripts/check-frontend-design-governance.test.mjs

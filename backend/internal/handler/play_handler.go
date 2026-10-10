@@ -364,7 +364,7 @@ func (h *PlayHandler) CheckinMakeup(c *gin.Context) {
 	})
 }
 
-// Checkin grants the daily balance reward.
+// Checkin grants the daily check-in reward.
 // POST /api/v1/play/checkin
 func (h *PlayHandler) Checkin(c *gin.Context) {
 	subject, ok := middleware.GetAuthSubjectFromContext(c)
@@ -390,6 +390,8 @@ func (h *PlayHandler) Checkin(c *gin.Context) {
 		ServerDate:        result.ServerDate,
 		StreakCount:       result.StreakCount,
 		MilestoneBonus:    result.MilestoneBonus,
+		GrowthEnergy:      result.GrowthEnergy,
+		GrowthEligibility: result.GrowthEligibility,
 	})
 }
 
