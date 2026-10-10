@@ -259,6 +259,9 @@
 - 冲突策略：上游支付状态机和安全修复必须合入；归属校验、真实计费优先级与充值后 Play 联动必须保留。
 - 验证：`GroupsView.surcharge.spec.ts`、usage billing unit/integration tests、session hash tests、model pricing tests、payment lifecycle tests、NextChat mobile bootstrap/group switch route tests；线上以管理员中英文分组页面核对回显/保存，并以测试订单检查余额到账和 boost 状态。
 
+- OpenAI 额度读取边界：普通 OAuth 用量、force、batch 和渠道 quota 监测复用只读 `/wham/usage`，不得发起 Responses 生成探针或通知自动消耗 reset credits；失败不回退生成，缺窗口保持未知。spendable credits 余额、5h/7d 使用率、reset 次数分别保存；后台读取不伪造用户收费 usage。显式手动模型测试仍是主动生成操作。
+- 额度读取验证：`account_usage_readonly_test.go` 的隔离 fake upstream 覆盖入口、缓存、失败和零生成/重置请求；`openai_quota_readonly_contract_test.go` 防止查询 handler 重新通知 reset；`AccountUsageCell.spec.ts`、`AccountsView.lite.spec.ts` 防止被动快照强制刷新循环和本地缓存陈旧。
+
 ## FORK-REWARDS-015 优惠券、日卡与支付结算
 
 - 产品目的：让 Play 奖励可安全发放优惠券，并让日卡保持一次性日额度语义，不因支付回调、重试或跨日重置重复发奖或重复扣费。

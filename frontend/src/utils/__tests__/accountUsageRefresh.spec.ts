@@ -2,6 +2,12 @@ import { describe, expect, it } from 'vitest'
 import { buildGrokUsageRefreshKey, buildOpenAIUsageRefreshKey } from '../accountUsageRefresh'
 
 describe('buildOpenAIUsageRefreshKey', () => {
+  it('ignores unrelated updated_at and credit snapshot writes', () => {
+    const base = { id: 9234, platform: 'openai', type: 'oauth', updated_at: 'before', extra: {} } as any
+    const next = { ...base, updated_at: 'after', extra: { codex_credits_snapshot: { fetched_at: 123 } } }
+    expect(buildOpenAIUsageRefreshKey(base)).toBe(buildOpenAIUsageRefreshKey(next))
+  })
+
   it('会在 codex 快照变化时生成不同 key', () => {
     const base = {
       id: 1,
