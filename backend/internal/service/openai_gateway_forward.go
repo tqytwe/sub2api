@@ -18,10 +18,28 @@ import (
 )
 
 // Forward forwards request to OpenAI API
-func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, account *Account, body []byte) (*OpenAIForwardResult, error) {
+func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, account *Account, body []byte) (_ *OpenAIForwardResult, forwardErr error) {
+	// Cover both predicate and later credential/transport admission failures once.
+	ctx = context.WithValue(ctx, openAITurnAdmissionLogAtForwardBoundaryKey{}, true)
+	defer func() { logOpenAITurnAdmissionDenial(ctx, account, forwardErr) }()
 	admissionOutboundModel := gjson.GetBytes(body, "model").String()
 	admissionModel := openAITurnRequestModel(ctx, admissionOutboundModel)
-	latest, admissionErr := s.admitOpenAITurnForRequest(ctx, c, account, admissionModel, admissionOutboundModel)
+	admissionRoutedModel := admissionOutboundModel
+	if account != nil && account.IsOpenAI() {
+		var err error
+		ctx, err = WithOpenAIResponsesToolRequirements(ctx, body)
+		if err != nil {
+			writeOpenAIResponsesFallbackError(c, http.StatusBadRequest, "invalid_request_error", "Invalid Responses tools")
+			return nil, err
+		}
+		ctx = withOpenAIForwardModelDefault(ctx, admissionRoutedModel, isOpenAIResponsesCompactPath(c))
+	}
+	// Normal Responses may still transform an image-only model below. Preserve
+	// that existing initial boundary; compact has no such second transformation.
+	if account != nil && account.IsOpenAI() && isOpenAIResponsesCompactPath(c) {
+		admissionOutboundModel = s.resolveOpenAIInitialUpstreamModel(account, admissionRoutedModel, true)
+	}
+	latest, admissionErr := s.admitOpenAITurnModels(ctx, c, account, admissionModel, admissionRoutedModel, admissionOutboundModel, s == nil || s.requireLatestTurnAdmission)
 	if admissionErr != nil {
 		return nil, admissionErr
 	}
@@ -388,9 +406,7 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 	requestedModel := reqModel
 	billingModel, upstreamModel := resolveOpenAIForwardMappedModels(account, requestedModel, isCompactRequest)
 	if isCompactRequest {
-		if compactModel := s.resolveOpenAICompactFallbackModel(account, requestedModel); compactModel != "" {
-			upstreamModel = compactModel
-		}
+		upstreamModel = s.resolveOpenAIInitialUpstreamModel(account, requestedModel, true)
 	}
 	instructions := gjson.GetBytes(body, "instructions")
 	instructionsEmpty := !instructions.Exists() || instructions.Type != gjson.String || strings.TrimSpace(instructions.String()) == ""

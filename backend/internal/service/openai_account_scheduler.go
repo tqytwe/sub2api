@@ -383,6 +383,7 @@ func (s *defaultOpenAIAccountScheduler) Select(
 	ctx context.Context,
 	req OpenAIAccountScheduleRequest,
 ) (selection *AccountSelectionResult, decision OpenAIAccountScheduleDecision, err error) {
+	ctx = withOpenAIForwardModelDefault(ctx, req.RequestedModel, req.RequireCompact)
 	if s != nil && s.service != nil && s.service.openAIGroupRequiresPrivacySet(ctx, req.GroupID) {
 		req.RequirePrivacySet = true
 	}
@@ -528,7 +529,7 @@ func (s *defaultOpenAIAccountScheduler) selectBySessionHash(
 		clearBinding()
 		return nil, false, nil
 	}
-	if shouldClearStickySession(account, req.RequestedModel) || account.Platform != NormalizeOpenAICompatiblePlatform(req.Platform) || !account.IsOpenAICompatible() || !account.IsSchedulable() {
+	if s.service.shouldClearOpenAIStickySessionForRequest(ctx, account, req.RequestedModel, req.RequireCompact) || account.Platform != NormalizeOpenAICompatiblePlatform(req.Platform) || !account.IsOpenAICompatible() || !account.IsSchedulable() {
 		clearBinding()
 		return nil, false, nil
 	}
@@ -1457,7 +1458,7 @@ func (s *defaultOpenAIAccountScheduler) selectByLoadBalance(
 			filterStats.exclude("platform_mismatch")
 			continue
 		}
-		if s.service.isOpenAIAccountRequestRuntimeBlocked(account, req.RequestedModel) {
+		if s.service.isOpenAIAccountRequestRuntimeBlockedForRequest(ctx, account, req.RequestedModel, req.RequireCompact) {
 			filterStats.exclude("runtime_blocked")
 			continue
 		}
@@ -1483,7 +1484,7 @@ func (s *defaultOpenAIAccountScheduler) selectByLoadBalance(
 		})
 	}
 	if len(filtered) == 0 {
-		return nil, 0, 0, 0, noAvailableOpenAISelectionError(req.RequestedModel, false, filterStats.summary(""))
+		return nil, 0, 0, 0, filterStats.noAvailableError(req.RequestedModel, false, "")
 	}
 
 	loadMap := map[int64]*AccountLoadInfo{}
@@ -1677,7 +1678,7 @@ func (s *defaultOpenAIAccountScheduler) finishLoadBalanceSelectionFallback(
 	loadSkew := attempt.loadSkew
 
 	if len(attempt.selectionOrder) == 0 {
-		return nil, candidateCount, topK, loadSkew, noAvailableOpenAISelectionError(req.RequestedModel, attempt.compactBlocked, filterStats.summary("selection_order_empty"))
+		return nil, candidateCount, topK, loadSkew, filterStats.noAvailableError(req.RequestedModel, attempt.compactBlocked, "selection_order_empty")
 	}
 
 	if stickyFallback, stickyErr := s.tryFallbackToWeightedSticky(ctx, req); stickyErr != nil {
@@ -1712,7 +1713,7 @@ func (s *defaultOpenAIAccountScheduler) finishLoadBalanceSelectionFallback(
 				continue
 			}
 			if !s.consumeOpenAISelectionDBRecheck(budget) {
-				return nil, candidateCount, topK, loadSkew, noAvailableOpenAISelectionError(req.RequestedModel, compactBlocked, filterStats.summary("selection_order_exhausted"))
+				return nil, candidateCount, topK, loadSkew, filterStats.noAvailableError(req.RequestedModel, compactBlocked, "selection_order_exhausted")
 			}
 			fresh = s.service.recheckSelectedOpenAIAccountFromDB(ctx, fresh, req.GroupID, req.Platform, req.RequestedModel, false, req.RequiredCapability)
 			if fresh == nil || !s.isAccountTransportCompatible(fresh, req.RequiredTransport) || !s.isAccountRequestCompatible(ctx, fresh, req) {
@@ -1734,7 +1735,7 @@ func (s *defaultOpenAIAccountScheduler) finishLoadBalanceSelectionFallback(
 		}
 	}
 
-	return nil, candidateCount, topK, loadSkew, noAvailableOpenAISelectionError(req.RequestedModel, compactBlocked, filterStats.summary("selection_order_exhausted"))
+	return nil, candidateCount, topK, loadSkew, filterStats.noAvailableError(req.RequestedModel, compactBlocked, "selection_order_exhausted")
 }
 
 func (s *defaultOpenAIAccountScheduler) isAccountTransportCompatible(account *Account, requiredTransport OpenAIUpstreamTransport) bool {
@@ -1781,10 +1782,14 @@ func (s *defaultOpenAIAccountScheduler) isAccountRequestCompatibleReason(ctx con
 			return false, "account_model_not_owned"
 		}
 	}
+	if account.IsOpenAI() && s != nil && s.service != nil && openAIAccountOutboundModelRateLimited(ctx, account, req.RequestedModel,
+		s.service.resolveOpenAIRequestSchedulingModel(ctx, account, req.RequestedModel, req.RequireCompact)) {
+		return false, "model_rate_limited"
+	}
 	if req.RequirePrivacySet && !account.IsPrivacySet() {
 		return false, "privacy_not_set"
 	}
-	if s != nil && s.service != nil && s.service.isOpenAIAccountRequestRuntimeBlocked(account, req.RequestedModel) {
+	if s != nil && s.service != nil && s.service.isOpenAIAccountRequestRuntimeBlockedForRequest(ctx, account, req.RequestedModel, req.RequireCompact) {
 		return false, "runtime_blocked"
 	}
 	if s != nil && s.service != nil && s.service.isOpenAIProxyStreamQuarantined(ctx, account) {
@@ -1822,6 +1827,9 @@ func (s *defaultOpenAIAccountScheduler) isAccountRequestCompatibleReason(ctx con
 		s.service.needsUpstreamChannelRestrictionCheck(ctx, req.GroupID) &&
 		s.service.isUpstreamModelRestrictedByChannel(ctx, *req.GroupID, account, req.RequestedModel, req.RequireCompact) {
 		return false, "channel_upstream_restricted"
+	}
+	if !s.service.openAIResponsesToolsProtocolCompatible(ctx, account, req.RequestedModel, req.RequireCompact) {
+		return false, openAIResponsesToolsProtocolMismatch
 	}
 	if !accountSupportsOpenAICapabilities(account, req.RequiredCapability, req.RequiredImageCapability) {
 		return false, "capability_mismatch"
@@ -2313,6 +2321,7 @@ func (s *OpenAIGatewayService) selectAccountWithSchedulerOnce(
 	previousResponseCanMove bool,
 	useUpstreamTokenCost bool,
 ) (*AccountSelectionResult, OpenAIAccountScheduleDecision, error) {
+	ctx = withOpenAIForwardModelDefault(ctx, requestedModel, requireCompact)
 	if requiredCapability == OpenAIEndpointCapabilityVideos || requiredCapability == OpenAIEndpointCapabilityStarframe {
 		ctx = WithStarframeVideoRequest(ctx)
 	}

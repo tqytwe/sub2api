@@ -37,7 +37,7 @@ func denyOpenAITurn(reason string) error { return &OpenAITurnAdmissionError{Reas
 // HTTP forwarding uses the same predicate with the production constructor's
 // invariant; only legacy direct-struct unit fixtures retain supplied-state mode.
 func (s *OpenAIGatewayService) AdmitOpenAITurn(ctx context.Context, c *gin.Context, selected *Account, model string) (*Account, error) {
-	return s.admitOpenAITurnModels(ctx, c, selected, openAITurnRequestModel(ctx, model), model, true)
+	return s.admitOpenAITurnModels(ctx, c, selected, openAITurnRequestModel(ctx, model), model, model, true)
 }
 
 // Channel/composite routing can replace the body model before forwarding.
@@ -56,10 +56,15 @@ func openAITurnRequestModel(ctx context.Context, fallback string) string {
 }
 
 func (s *OpenAIGatewayService) admitOpenAITurnForRequest(ctx context.Context, c *gin.Context, selected *Account, requestModel, outboundModel string) (*Account, error) {
-	return s.admitOpenAITurnModels(ctx, c, selected, requestModel, outboundModel, s == nil || s.requireLatestTurnAdmission)
+	return s.admitOpenAITurnModels(ctx, c, selected, requestModel, outboundModel, outboundModel, s == nil || s.requireLatestTurnAdmission)
 }
 
-func (s *OpenAIGatewayService) admitOpenAITurnModels(ctx context.Context, c *gin.Context, selected *Account, requestModel, outboundModel string, requireLatest bool) (*Account, error) {
+func (s *OpenAIGatewayService) admitOpenAITurnModels(ctx context.Context, c *gin.Context, selected *Account, requestModel, routedModel, outboundModel string, requireLatest bool) (admittedAccount *Account, admissionErr error) {
+	defer func() {
+		if atForward, _ := ctx.Value(openAITurnAdmissionLogAtForwardBoundaryKey{}).(bool); !atForward {
+			logOpenAITurnAdmissionDenial(ctx, selected, admissionErr)
+		}
+	}()
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -151,12 +156,18 @@ func (s *OpenAIGatewayService) admitOpenAITurnModels(ctx context.Context, c *gin
 	// of the immutable public name used by the group's allowlist above.
 	if hasGroupContext {
 		groupID := getOpenAIGroupIDFromContext(c)
-		if !latest.IsModelAllowedInGroup(&groupID, outboundModel) {
+		// The initial HTTP check still protects the routed alias independently
+		// of the mapped target. Only model cooldowns use the outbound name alone.
+		if !latest.IsModelAllowedInGroup(&groupID, routedModel) ||
+			(routedModel != outboundModel && !latest.IsModelAllowedInGroup(&groupID, outboundModel)) {
 			return nil, denyOpenAITurn("model_not_allowed_in_group")
 		}
 	}
 	if openAITurnRouteFingerprint(latest) != openAITurnRouteFingerprint(selected) {
 		return nil, denyOpenAITurn("account_binding_changed")
+	}
+	if !s.openAIResponsesToolsProtocolCompatible(ctx, latest, routedModel, false) {
+		return nil, denyOpenAITurn(openAIResponsesToolsProtocolMismatch)
 	}
 	if s != nil {
 		if raw, ok := s.openaiAccountRuntimeBlockUntil.Load(latest.ID); ok {
@@ -168,7 +179,7 @@ func (s *OpenAIGatewayService) admitOpenAITurnModels(ctx context.Context, c *gin
 			return nil, denyOpenAITurn("model_runtime_blocked")
 		}
 	}
-	if latest.isRateLimitActiveForKey(outboundModel) || (openAIImageGenerationRateLimitApplies(ctx, requestModel, outboundModel) && latest.isRateLimitActiveForKey(openAIImageGenerationRateLimitKey)) {
+	if openAIAccountOutboundModelRateLimited(ctx, latest, requestModel, outboundModel) {
 		return nil, denyOpenAITurn("model_rate_limited")
 	}
 	if authoritative {
