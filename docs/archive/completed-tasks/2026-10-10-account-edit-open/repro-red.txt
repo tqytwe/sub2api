@@ -1,0 +1,12 @@
+{"event":"detail","path":"/api/v1/admin/accounts/1","status":200}
+{"event":"blocked-chunk","path":"/assets/EditAccountModal-BPp602u8.js"}
+{"event":"console","message":"Failed to load resource: net::ERR_FAILED"}
+{"event":"console","message":"TypeError: Failed to fetch dynamically imported module: http://127.0.0.1:4176/assets/EditAccountModal-BPp602u8.js"}
+{"event":"first-click","dialog":0,"blocks":1}
+{"event":"detail","path":"/api/v1/admin/accounts/2","status":200}
+{"event":"network-restored-second-account","dialog":0,"blocks":1}
+{"event":"detail","path":"/api/v1/admin/accounts/1","status":200}
+{"event":"network-restored-third-click","dialog":0,"blocks":1}
+Editing should recover after the chunk network failure clears
+
+0 !== 1

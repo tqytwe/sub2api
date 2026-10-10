@@ -15,6 +15,9 @@ const {
   getAllProxies,
   getAllGroups,
   refreshCredentials,
+  loadEditModule,
+  recoverChunk,
+  onComponentError,
   showError,
   showWarning
 } = vi.hoisted(() => ({
@@ -27,9 +30,27 @@ const {
   getAllProxies: vi.fn(),
   getAllGroups: vi.fn(),
   refreshCredentials: vi.fn(),
+  loadEditModule: vi.fn(),
+  recoverChunk: vi.fn(),
+  onComponentError: vi.fn(),
   showError: vi.fn(),
   showWarning: vi.fn()
 }))
+
+vi.mock('@/router/chunkRecovery', () => ({ recoverFromChunkLoadError: recoverChunk }))
+
+vi.mock('vue', async () => {
+  const actual = await vi.importActual<typeof import('vue')>('vue')
+  return {
+    ...actual,
+    defineAsyncComponent: (source: Parameters<typeof actual.defineAsyncComponent>[0]) => {
+      const options = typeof source === 'function' ? { loader: source } : source
+      return actual.defineAsyncComponent(options.loader.toString().includes('/EditAccountModal.vue')
+        ? { ...options, loader: loadEditModule }
+        : options)
+    }
+  }
+})
 
 vi.mock('@/api/admin', () => ({
   adminAPI: {
@@ -102,10 +123,11 @@ const AccountStatsModalStub = defineComponent({
   template: '<div data-test="stats-account">{{ show ? account?.name : "" }}</div>'
 })
 
-function mountView(stubActionMenu = true) {
+function mountView(stubActionMenu = true, stubEditModal = true) {
   return mount(AccountsView, {
     attachTo: document.body,
     global: {
+      config: stubEditModal ? {} : { errorHandler: onComponentError },
       stubs: {
         AppLayout: { template: '<div><slot /></div>' },
         TablePageLayout: { template: '<div><slot name="filters" /><slot name="table" /><slot name="pagination" /></div>' },
@@ -126,7 +148,7 @@ function mountView(stubActionMenu = true) {
         ErrorPassthroughRulesModal: true,
         TLSFingerprintProfilesModal: true,
         CreateAccountModal: true,
-        EditAccountModal: EditAccountModalStub,
+        EditAccountModal: stubEditModal ? EditAccountModalStub : false,
         BulkEditAccountModal: true,
         PlatformTypeBadge: true,
         AccountCapacityCell: true,
@@ -182,6 +204,9 @@ describe('admin AccountsView lite account list', () => {
     getAllProxies.mockReset().mockResolvedValue([])
     getAllGroups.mockReset().mockResolvedValue([{ id: 7, name: 'codex', platform: 'openai' }])
     refreshCredentials.mockReset()
+    loadEditModule.mockReset().mockResolvedValue(EditAccountModalStub)
+    recoverChunk.mockReset().mockReturnValue(false)
+    onComponentError.mockReset()
     showError.mockReset()
     showWarning.mockReset()
   })
@@ -335,5 +360,46 @@ describe('admin AccountsView lite account list', () => {
     expect(wrapper.find('[data-test="edit-account"]').exists()).toBe(false)
     consoleError.mockRestore()
     wrapper.unmount()
+  })
+
+  it('reports an async edit module failure and lets the next click load it again', async () => {
+    const failure = new Error('Failed to fetch dynamically imported module')
+    loadEditModule.mockRejectedValueOnce(failure)
+    const wrapper = mountView(true, false)
+    await flushPromises()
+    const editButton = wrapper.findAll('button').find(button => button.text().includes('common.edit'))!
+    await editButton.trigger('click')
+    await flushPromises()
+    expect(showError).toHaveBeenCalledWith('admin.accounts.editLoadFailed')
+    expect(recoverChunk).toHaveBeenCalledWith(failure, undefined)
+    expect(onComponentError).not.toHaveBeenCalled()
+    expect(wrapper.find('[data-test="edit-account"]').exists()).toBe(false)
+
+    await editButton.trigger('click')
+    await flushPromises()
+    expect(getById).toHaveBeenCalledTimes(2)
+    expect(loadEditModule).toHaveBeenCalledTimes(2)
+    expect(wrapper.get('[data-test="edit-account"]').text()).toBe('compact row')
+    wrapper.unmount()
+  })
+
+  it('does not recover a late edit module failure after leaving the accounts page', async () => {
+    let rejectModule!: (error: Error) => void
+    loadEditModule.mockImplementationOnce(() => new Promise((_resolve, reject) => {
+      rejectModule = reject
+    }))
+    const wrapper = mountView(true, false)
+    await flushPromises()
+    const editButton = wrapper.findAll('button').find(button => button.text().includes('common.edit'))!
+    await editButton.trigger('click')
+    await flushPromises()
+    expect(loadEditModule).toHaveBeenCalledOnce()
+    wrapper.unmount()
+
+    rejectModule(new Error('Failed to fetch dynamically imported module'))
+    await flushPromises()
+    expect(showError).not.toHaveBeenCalled()
+    expect(recoverChunk).not.toHaveBeenCalled()
+    expect(onComponentError).not.toHaveBeenCalled()
   })
 })
