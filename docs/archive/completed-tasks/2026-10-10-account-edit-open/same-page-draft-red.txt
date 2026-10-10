@@ -1,0 +1,9 @@
+{
+  "status": "RED",
+  "scenario": "held Edit chunk -> create account draft -> late chunk failure",
+  "navigations": 2,
+  "create_form_count": 0,
+  "draft_retained": false,
+  "writes": 0,
+  "sql_count_unchanged": true
+}

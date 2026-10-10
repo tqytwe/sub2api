@@ -1,0 +1,7 @@
+[
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/accounts/16",
+    "status": 200
+  }
+]

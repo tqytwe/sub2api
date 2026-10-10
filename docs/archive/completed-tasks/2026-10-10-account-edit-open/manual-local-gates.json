@@ -1,0 +1,48 @@
+{
+  "prior_head": "d0ac716e4952e8918f535b2487f9e49db597f839",
+  "normal_merge_parent": "7291ae9a2be4db7d97b8b641d053f7822276dc23",
+  "gates": {
+    "build": 0,
+    "draft": 0,
+    "frontend-test": 0,
+    "lint": 0,
+    "typecheck": 0,
+    "design": 0,
+    "fork": 0,
+    "docs": 0
+  },
+  "targeted_tests": 23,
+  "browser": {
+    "repro-green": 0,
+    "persistent-chunk": 0,
+    "request-race-browser": 0,
+    "matrix": 0,
+    "disposed-route": 0,
+    "keyboard": 0
+  },
+  "earlier_frontend_command": {
+    "exit": 1,
+    "reason": "Design check ran before the generated screenshot had been copied into the repository; no Vitest tests ran. Original evidence retained; remaining gates rerun after copying the valid PNG."
+  },
+  "unchanged_backend": "Prior full gates retained. Combined production base compatibility verified; no unrelated backend suite rerun for the final frontend-only correction, as requested by main thread. Independent deadline fix excluded.",
+  "source_sha256": {
+    "frontend/src/views/admin/AccountsView.vue": "f79731a23d981c8543a6ea271ef668f8159b2e3347a09a9aa9dff456ef1ba330",
+    "frontend/src/views/admin/__tests__/AccountsView.lite.spec.ts": "de44781aa6c2b90b9f4ae1d80dd26cdeac2a8c3ab9c72fb8dff8cd65308f1b3d",
+    "frontend/src/i18n/locales/en/admin/accounts.ts": "23d0a73be8a68708cd8fa13139049dbd3614915f06146c5427208e8f4a39c70b",
+    "frontend/src/i18n/locales/zh/admin/accounts.ts": "b6e25886d895d11329a54612fddcc3fddc6253a90c956f72c4fad4da8dd92178"
+  },
+  "production_deployment": "not performed",
+  "user_local_acceptance": "pending main thread",
+  "frontend_suite": {
+    "files_passed": 491,
+    "files_skipped": 1,
+    "tests_passed": 3503,
+    "tests_skipped": 2,
+    "skips": "Existing live HTTP tests; the separate prior check-in contract gate passed both. No source changes there."
+  },
+  "reviews": {
+    "specification": "PASS after actual browser GREEN",
+    "quality": "PASS; no product must-fix"
+  },
+  "fixture_cleanup": "Task-owned Go server/static proxy, PostgreSQL and Redis containers, and disposable app-data removed after browser checks."
+}

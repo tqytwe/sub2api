@@ -1,0 +1,3 @@
+Late editor failure must not reload the unrelated page
+
+2 !== 1

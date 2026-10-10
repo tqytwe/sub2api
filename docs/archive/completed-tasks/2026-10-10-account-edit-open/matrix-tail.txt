@@ -1,0 +1,3 @@
+PASS detail HTTP 503: visible error, no dialog/write; real GET recovery opens on next click
+PASS optional profile error does not block opening; Chinese light/dark and cancel/reopen
+PASS real normal-user GET/PUT denied; account unchanged; no runtime page errors

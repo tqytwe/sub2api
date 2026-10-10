@@ -1,0 +1,42 @@
+{
+  "base_commit": "3843ff3e931349595b8793b52504b02a177f12c9",
+  "gates_exit_codes": {
+    "build": 0,
+    "test": 0,
+    "unit": 0,
+    "core": 0,
+    "checkin": 0,
+    "fork": 0,
+    "design": 0,
+    "docs": 0
+  },
+  "frontend_default": {
+    "files_passed": 491,
+    "files_skipped": 1,
+    "tests_passed": 3496,
+    "tests_skipped": 2,
+    "skipped_reason": "CheckInView.http requires live fixture; both pass in separate checkin contract gate"
+  },
+  "core_integration": {
+    "required_checks": 54,
+    "test_and_subtest_passes": 203,
+    "skipped": 0
+  },
+  "targeted_unit": {
+    "files": 3,
+    "tests_passed": 16
+  },
+  "source_sha256": {
+    "frontend/src/views/admin/AccountsView.vue": "38c028e0ef01b360d508d68c20310a5501d30e01ccb19a4bc8d4939331b7eba0",
+    "frontend/src/views/admin/__tests__/AccountsView.lite.spec.ts": "0dd757464f0b3f9fc0ef21e9b9300507dd75cf6a91871ad14cf18f812bb7af1e",
+    "frontend/src/i18n/locales/en/admin/accounts.ts": "92298a3d2edccf7a0166f7c4de6605ebb8fbd473afd1ba8f3fbffd2e38558b9b",
+    "frontend/src/i18n/locales/zh/admin/accounts.ts": "f70ec918f4069cae7fb06bd45d7bb3ddbb87c1ed1e893482486820f703ca1afc"
+  },
+  "deployment": "not performed; main thread coordinates production and user-local acceptance",
+  "final_build_exit_code": 0,
+  "final_browser_exit_codes": {
+    "disposed-route": 0,
+    "repro-green": 0,
+    "persistent-chunk": 0
+  }
+}

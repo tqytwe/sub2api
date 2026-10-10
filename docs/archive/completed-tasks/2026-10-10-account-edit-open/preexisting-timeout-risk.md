@@ -1,0 +1,9 @@
+# Preexisting refresh deadline boundary risk
+
+The first follow-up `make test` exited 2 in `TestTokenRefreshService_LateSuccessPastAttemptDeadlineIsRejected`: the test expected a timeout error but received nil. See the [exact failure excerpt](preexisting-timeout-failure.txt). The backend implementation and test have no diff from base `3843ff3e931349595b8793b52504b02a177f12c9`.
+
+The test uses a local repository double and a synthetic refresher which ignores cancellation and sleeps 30ms against a 10ms attempt budget. It performs no real OAuth call. `token_refresh_service.go` checks `attemptCtx.Err()` around fallback persistence and attempt completion. Go's context deadline uses an asynchronously scheduled timer callback to record cancellation; wall-clock deadline expiry can precede that callback and an `Err()` read can still return nil. The implementation therefore has a preexisting deadline-boundary window consistent with this failure. The single log does not establish its unique cause, nor prove a late PostgreSQL write or production impact. The unified refresh API also uses a context error check, so this evidence does not establish immunity of that path.
+
+Independent quality review recommends a separate backend follow-up. Preserve the intended exception for already durable credentials whose bounded cleanup crosses the attempt deadline; do not weaken this assertion or simply extend its sleep to hide the window. This account-editor patch changes no backend behavior.
+
+The subsequent tagged backend unit suite passed. The exact test is repeated 100 times in isolation, followed by the complete `make test` with `GOFLAGS='-p=1 -parallel=1'` to limit scheduling contention. Their actual results are recorded in the adjacent gate JSON and acceptance README. Passing repeats mean the failure did not recur in those runs; they do not repair or dismiss the existing boundary risk.
