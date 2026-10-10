@@ -1,3 +1,7 @@
+Local joint browser/HTTP/PostgreSQL/Redis evidence — 2026-10-10 UTC
+Account revision: 25c0bcb7cfe5c0a767c61a67e65aaaf37a916a61; tree 39699563b87292695e8502a1ddad66ee6857e3f4.
+Retained after the account-code-identical merge be51c3f67deca915077bb03648471c0e7c5493ac; no new browser run on that merge is claimed.
+
 Real auth middleware: local admin accepted
 Real usage HTTP / DB: retained tokens=1207000 account cost=12; today account cost=2; distinct user charges
 PASS no-history lifetime fields explicitly zero in real single and batch HTTP

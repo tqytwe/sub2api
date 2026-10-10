@@ -13,4 +13,11 @@ Screenshot verification: manually inspected 1280 light and 1600 dark; browser as
 Independent specification and quality re-reviews: passed after remediation.
 Joint-test server/proxy, task-owned containers/volumes and application data removed after acceptance.
 No production data writes, paid upstream calls, actual OAuth or persistent external authorization.
-No merge, production deployment or final user-local acceptance performed. Final exact head/tree and its CI are in PR #343.
+No merge into play/main, production deployment or final user-local acceptance performed. Final exact head/tree and its CI are in PR #343.
+
+Remote historical revision: 25c0bcb7cfe5c0a767c61a67e65aaaf37a916a61; tree 39699563b87292695e8502a1ddad66ee6857e3f4.
+All three workflows completed successfully, attempt 1, before the subsequent base-combination push:
+Fork Integrity: https://github.com/tqytwe/sub2api/actions/runs/38009782631 (Documentation, Release source policy, Check-in PostgreSQL HTTP/frontend contract and Protected behavior all passed).
+Core Migration PostgreSQL and Redis: https://github.com/tqytwe/sub2api/actions/runs/38009782571 (54/54 required checks; 203 test/subtest passes; no skips).
+Security Scan: https://github.com/tqytwe/sub2api/actions/runs/38009782527 (backend and frontend security passed).
+These are evidence for 25c0bcb7c only; subsequent-head CI is recorded separately in PR #343.

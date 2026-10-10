@@ -6,6 +6,7 @@ Scope: complete the account group-model editor and retained-history totals on to
 
 - Worktree: `/workspace/account-policy-ui`; branch: `codex/account-policy-ui-20261009`.
 - PR #340 actual merged base: `4080e2ac7e93dc9f435e0c0a4652834635cba7be`; tree `2f2151ef4d83cc1e62a11039e4807fb3f9d50cd3`. The branch subsequently merged actual `origin/play/main` `9e458b12db91d1c36402c288d61ef7a352beee1c` (tree `29ec07502e5b3e49d4325ea5178a0ad7622e0278`, PR #342) with a normal merge, without rebase or force push.
+- Latest combination: normal merge `be51c3f67deca915077bb03648471c0e7c5493ac` (tree `fc4648a98213bf59836682a0887bc855ba871ccb`) includes actual `origin/play/main` `b23e44625669a36a8f7ac10667e4b04b1904b7db` (tree `f388d0fc3de2ec09ecc763efd432d57eea8c38f0`, PR #341 and #342). Independent specification and quality compatibility reviews passed. Account code, migrations and release protection are byte-identical to the reviewed `25c0bcb7c` revision; the new base changes Plan projection and differential editing plus their tests/evidence.
 - Pinned upstream: ranxi2001/sub2api `v2.10.3`, `fd1b5ee4eeb20961fbb783fa6f136a1704271e90`.
 - Independent specification review: passed after restricting editing to standard mode (simple-mode DTOs omit policies) and rejecting oversized source-policy unions.
 - Independent quality review: passed after making group attributes, memberships, policies and scheduler notification one transaction, with account-then-sorted-group lock order. The 2026-10-10 specification and quality re-reviews also passed for the optional-zero fields and atomic account writer, including shadow proxy/cache coverage and isolated fixture cleanup.
@@ -13,7 +14,7 @@ Scope: complete the account group-model editor and retained-history totals on to
 
 ## Compact acceptance matrix
 
-The final-build local joint run passed every browser/HTTP/SQL row below on 2026-10-10 UTC, including `/v1/models` and oversized-union HTTP rollback. The [sanitized run output](joint-results.txt) records the executed checks. Separate unit and repository evidence covers the rows that name those suites.
+The local joint run for account revision `25c0bcb7cfe5c0a767c61a67e65aaaf37a916a61` (tree `39699563b87292695e8502a1ddad66ee6857e3f4`) passed every browser/HTTP/SQL row below on 2026-10-10 UTC, including `/v1/models` and oversized-union HTTP rollback. The [sanitized run output](joint-results.txt) records the executed checks. These browser results were retained after the account-code-identical merge `be51c3f67`; they are not represented as a new browser run on that merge. Separate unit and repository evidence covers the rows that name those suites.
 
 | Surface / action | Required durable result | Evidence |
 | --- | --- | --- |
@@ -62,6 +63,6 @@ An initial `make test` failed the unchanged `TestServerTimingConnectorRecordsDri
 
 ## Gates and remaining boundary
 
-Final local gate results for the review fixes and merged base are recorded in [gate-results.txt](gate-results.txt), with PostgreSQL/Redis coverage in [core-results.txt](core-results.txt). The PR description records the exact final head and its remote checks. Old-head CI is not used as evidence for the revision. Required commands include `make test`, `make test-backend-unit`, `make build`, `./scripts/check-fork-integrity.sh`, design governance, the exact bounded PostgreSQL/Redis workflow scripts, and the newly merged check-in HTTP/frontend contract.
+Local gate results for account revision `25c0bcb7c` are recorded in [gate-results.txt](gate-results.txt), with PostgreSQL/Redis coverage in [core-results.txt](core-results.txt). The latest combination's independently rerun gates are recorded in [combined-gate-results.txt](combined-gate-results.txt). The PR description records the exact final head and its remote checks. Old-head CI is not used as evidence for a new head. Required commands include `make test`, `make test-backend-unit`, `make build`, `./scripts/check-fork-integrity.sh`, design governance, the exact bounded PostgreSQL/Redis workflow scripts, and the newly merged check-in HTTP/frontend contract.
 
 This task publishes a draft PR only. Merge order, production deployment SHA/health and final user-local browser acceptance (visitor, ordinary user and administrator) remain the main thread's responsibility. No deployment or production acceptance is claimed by these local results. Mobile and Canvas are explicitly outside this batch.
