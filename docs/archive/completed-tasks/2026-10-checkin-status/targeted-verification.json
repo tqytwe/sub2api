@@ -1,0 +1,13 @@
+{
+  "command": "pnpm --dir frontend exec vitest run src/views/user/__tests__/{WelfareStatus.http,CheckInView.errors,CheckInView.balance.http,CheckInView,PlayHubView}.spec.ts",
+  "passed": 43,
+  "files": 5,
+  "skipped": 0,
+  "tests": [
+    "15 real-HTTP status/retry/milestone cases",
+    "15 real-HTTP POST errors/timeouts/account-refresh failure cases",
+    "5 real-Pinia HTTP profile/session/token-renewal cases",
+    "2 existing check-in component cases",
+    "6 existing hub component cases"
+  ]
+}

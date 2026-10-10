@@ -1,0 +1,41 @@
+{
+  "command": "./scripts/test-checkin-contract.sh",
+  "go_parent": "TestCheckinHTTPDatabaseContract",
+  "go_subtests": 8,
+  "live_vue_passed": 5,
+  "live_vue_skipped": 0,
+  "postgres": "18.1-alpine3.23 isolated testcontainer, full migrations",
+  "real_layers": [
+    "route registration",
+    "service",
+    "repository",
+    "balance ledger",
+    "AuthHandler.GetCurrentUser",
+    "Axios",
+    "Pinia auth store",
+    "Vue views"
+  ],
+  "injected": [
+    "synthetic fixture identity allowlist",
+    "explicit GET 403/503 fault header"
+  ],
+  "reconciliation": [
+    "DB reconciliation: checkins=1 snapshots=1 energy=1 cash=0 balance=1",
+    "DB reconciliation: checkins=1 snapshots=1 energy=1 cash=0 balance=1",
+    "DB reconciliation: checkins=1 snapshots=1 energy=1 cash=0 balance=1",
+    "DB reconciliation: checkins=1 snapshots=1 energy=1 cash=0 balance=1",
+    "DB reconciliation: checkins=1 snapshots=1 energy=1 cash=0 balance=1",
+    "DB reconciliation: checkins=1 snapshots=1 energy=1 cash=0 balance=1",
+    "DB reconciliation: checkins=1 snapshots=1 energy=0 cash=0.5 balance=1.5",
+    "DB reconciliation: checkins=1 snapshots=1 energy=0 cash=0.5 balance=1.5",
+    "DB reconciliation: checkins=0 snapshots=0 energy=0 cash=0 balance=1",
+    "DB reconciliation: checkins=0 snapshots=0 energy=0 cash=0 balance=1",
+    "Milestone reconciliation: makeup=false checkins=2 snapshots=1 rewards=2 balances=2 reward=1.50 balance=2.50",
+    "Milestone reconciliation: makeup=true checkins=2 snapshots=1 rewards=1 balances=1 reward=1.50 balance=2.50",
+    "DB reconciliation: checkins=1 snapshots=1 energy=1 cash=0 balance=1",
+    "DB reconciliation: checkins=1 snapshots=1 energy=0 cash=0.5 balance=1.5",
+    "Milestone reconciliation: makeup=false checkins=2 snapshots=1 rewards=2 balances=2 reward=1.50 balance=2.50",
+    "Milestone reconciliation: makeup=true checkins=2 snapshots=1 rewards=1 balances=1 reward=1.50 balance=2.50",
+    "DB reconciliation: checkins=0 snapshots=0 energy=0 cash=0 balance=1"
+  ]
+}
