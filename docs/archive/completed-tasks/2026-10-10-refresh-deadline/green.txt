@@ -1,0 +1,40 @@
+2026/10/10 05:46:24 Timezone initialized: UTC (UTC offset: +00:00)
+=== RUN   TestRefreshDeadline_PendingCancellationRejectsLateCredentials
+=== RUN   TestRefreshDeadline_PendingCancellationRejectsLateCredentials/fallback/0s
+2026/10/10 05:46:24 WARN token_refresh.retry_attempt_failed account_id=501 attempt=1 max_retries=1 error="OAuth refresh attempt timed out"
+2026/10/10 05:46:24 WARN token_refresh.retry_exhausted account_id=501 platform=grok max_retries=1 error="OAuth refresh attempt timed out"
+2026/10/10 05:46:24 INFO token_refresh.temp_unschedulable_set account_id=501 until=2026-10-10T05:56:24Z
+=== RUN   TestRefreshDeadline_PendingCancellationRejectsLateCredentials/fallback/1ns
+2026/10/10 05:46:24 WARN token_refresh.retry_attempt_failed account_id=501 attempt=1 max_retries=1 error="OAuth refresh attempt timed out"
+2026/10/10 05:46:24 WARN token_refresh.retry_exhausted account_id=501 platform=grok max_retries=1 error="OAuth refresh attempt timed out"
+2026/10/10 05:46:24 INFO token_refresh.temp_unschedulable_set account_id=501 until=2026-10-10T05:56:24Z
+=== RUN   TestRefreshDeadline_PendingCancellationRejectsLateCredentials/unified/0s
+2026/10/10 05:46:24 WARN token_refresh.retry_attempt_failed account_id=501 attempt=1 max_retries=1 error="OAuth refresh attempt timed out"
+2026/10/10 05:46:24 WARN token_refresh.retry_exhausted account_id=501 platform=grok max_retries=1 error="OAuth refresh attempt timed out"
+2026/10/10 05:46:24 INFO token_refresh.temp_unschedulable_set account_id=501 until=2026-10-10T05:56:24Z
+=== RUN   TestRefreshDeadline_PendingCancellationRejectsLateCredentials/unified/1ns
+2026/10/10 05:46:24 WARN token_refresh.retry_attempt_failed account_id=501 attempt=1 max_retries=1 error="OAuth refresh attempt timed out"
+2026/10/10 05:46:24 WARN token_refresh.retry_exhausted account_id=501 platform=grok max_retries=1 error="OAuth refresh attempt timed out"
+2026/10/10 05:46:24 INFO token_refresh.temp_unschedulable_set account_id=501 until=2026-10-10T05:56:24Z
+--- PASS: TestRefreshDeadline_PendingCancellationRejectsLateCredentials (0.00s)
+    --- PASS: TestRefreshDeadline_PendingCancellationRejectsLateCredentials/fallback/0s (0.00s)
+    --- PASS: TestRefreshDeadline_PendingCancellationRejectsLateCredentials/fallback/1ns (0.00s)
+    --- PASS: TestRefreshDeadline_PendingCancellationRejectsLateCredentials/unified/0s (0.00s)
+    --- PASS: TestRefreshDeadline_PendingCancellationRejectsLateCredentials/unified/1ns (0.00s)
+=== RUN   TestRefreshDeadline_ParentExpiryDoesNotMutateAccount
+=== RUN   TestRefreshDeadline_ParentExpiryDoesNotMutateAccount/fallback
+=== RUN   TestRefreshDeadline_ParentExpiryDoesNotMutateAccount/unified
+--- PASS: TestRefreshDeadline_ParentExpiryDoesNotMutateAccount (0.00s)
+    --- PASS: TestRefreshDeadline_ParentExpiryDoesNotMutateAccount/fallback (0.00s)
+    --- PASS: TestRefreshDeadline_ParentExpiryDoesNotMutateAccount/unified (0.00s)
+=== RUN   TestRefreshDeadline_DurableSuccessSurvivesCleanupExpiry
+--- PASS: TestRefreshDeadline_DurableSuccessSurvivesCleanupExpiry (0.00s)
+=== RUN   TestTokenRefreshService_ParentCancellationStopsRetryWithoutAccountMutation
+--- PASS: TestTokenRefreshService_ParentCancellationStopsRetryWithoutAccountMutation (0.00s)
+=== RUN   TestTokenRefreshService_LateSuccessPastAttemptDeadlineIsRejected
+2026/10/10 05:46:24 WARN token_refresh.retry_attempt_failed account_id=43 attempt=1 max_retries=1 error="OAuth refresh attempt timed out"
+2026/10/10 05:46:24 WARN token_refresh.retry_exhausted account_id=43 platform=grok max_retries=1 error="OAuth refresh attempt timed out"
+2026/10/10 05:46:24 INFO token_refresh.temp_unschedulable_set account_id=43 until=2026-10-10T05:56:24Z
+--- PASS: TestTokenRefreshService_LateSuccessPastAttemptDeadlineIsRejected (0.03s)
+PASS
+ok      github.com/Wei-Shaw/sub2api/internal/service    0.243s

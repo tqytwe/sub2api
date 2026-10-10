@@ -647,7 +647,7 @@ func TestRelay_OnTurnComplete_PerTerminalEvent(t *testing.T) {
 	require.Equal(t, 5, result.Usage.OutputTokens)
 }
 
-func TestRelay_OnTurnComplete_BareErrorWithoutIDBeforeLaterCompleted(t *testing.T) {
+func TestRelay_OnTurnComplete_BareErrorWithoutIDBeforeNextCreatedAndCompleted(t *testing.T) {
 	t.Parallel()
 
 	clientConn := newPassthroughTestFrameConn(nil, false)
@@ -655,6 +655,10 @@ func TestRelay_OnTurnComplete_BareErrorWithoutIDBeforeLaterCompleted(t *testing.
 		{
 			msgType: coderws.MessageText,
 			payload: []byte(`{"type":"error","usage":{"input_tokens":5,"output_tokens":1},"error":{"message":"first turn failed"}}`),
+		},
+		{
+			msgType: coderws.MessageText,
+			payload: []byte(`{"type":"response.created","response":{"id":"resp_next"}}`),
 		},
 		{
 			msgType: coderws.MessageText,

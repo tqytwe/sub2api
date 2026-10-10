@@ -129,6 +129,8 @@ type OAuthRefreshAPI struct {
 	tokenCache  GeminiTokenCache // 可选，nil = 无分布式锁
 	lockTTL     time.Duration
 	localLocks  sync.Map // key: cacheKey string -> value: *contextMutex
+	// Instance-local clock seam for deadline-boundary tests; nil uses time.Now.
+	deadlineNow func() time.Time
 }
 
 // NewOAuthRefreshAPI 创建统一刷新 API
@@ -256,7 +258,7 @@ func (api *OAuthRefreshAPI) RefreshIfNeeded(
 	// 4. 执行平台特定刷新逻辑
 	attemptedAccount := snapshotOAuthRefreshAccount(freshAccount)
 	newCredentials, refreshErr := executor.Refresh(ctx, freshAccount)
-	if ctxErr := ctx.Err(); ctxErr != nil {
+	if ctxErr := oauthRefreshContextErr(ctx, api.deadlineNow); ctxErr != nil {
 		// A provider implementation may ignore cancellation and return late
 		// credentials. Never persist them after the attempt/cycle boundary.
 		return nil, ctxErr

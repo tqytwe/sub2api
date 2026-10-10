@@ -1836,6 +1836,14 @@ func (stubGroupRepo) Create(ctx context.Context, group *service.Group) error {
 	return errors.New("not implemented")
 }
 
+func (stubGroupRepo) CreateWithCopiedAccounts(ctx context.Context, group *service.Group, sourceIDs, accountIDs []int64) error {
+	return errors.New("not implemented")
+}
+
+func (stubGroupRepo) UpdateWithCopiedAccounts(ctx context.Context, group *service.Group, sourceIDs, accountIDs []int64) error {
+	return errors.New("not implemented")
+}
+
 func (stubGroupRepo) GetByID(ctx context.Context, id int64) (*service.Group, error) {
 	return nil, service.ErrGroupNotFound
 }
@@ -1949,6 +1957,10 @@ func (s *stubAccountRepo) FindByExtraField(ctx context.Context, key string, valu
 
 func (s *stubAccountRepo) Update(ctx context.Context, account *service.Account) error {
 	return errors.New("not implemented")
+}
+
+func (s *stubAccountRepo) UpdateAdminAccount(ctx context.Context, account *service.Account, options service.AccountAdminUpdateOptions) (*service.Account, error) {
+	return nil, errors.New("not implemented")
 }
 
 func (s *stubAccountRepo) UpdateWithAccountBillingSettings(

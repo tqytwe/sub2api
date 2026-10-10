@@ -1,0 +1,19 @@
+Combination validation — 2026-10-10 UTC
+Merge: be51c3f67deca915077bb03648471c0e7c5493ac; tree fc4648a98213bf59836682a0887bc855ba871ccb.
+Base: b23e44625669a36a8f7ac10667e4b04b1904b7db; tree f388d0fc3de2ec09ecc763efd432d57eea8c38f0.
+Parents: account revision 25c0bcb7cfe5c0a767c61a67e65aaaf37a916a61 and actual play/main b23e44625669a36a8f7ac10667e4b04b1904b7db.
+Normal merge, no rebase or force push; no conflict.
+Independent specification and quality compatibility reviews: PASS. Account backend/frontend code, migrations and release protection unchanged from 25c0bcb7c.
+make build: PASS; actual backend and production frontend built.
+Real isolated PostgreSQL Plan HTTP contracts: PASS, three top-level tests and four subtests; full repository migration chain and real administrator/ordinary-user middleware, including omitted fields, explicit clear and denied invalid/unauthorized writes.
+make test: PASS, backend packages and golangci-lint (0 issues), frontend lint/type/design checks; 491 frontend files and 3491 tests pass. The default frontend suite skips one live-contract file (2 tests); both run and pass in the dedicated check-in gate below.
+make test-backend-unit: PASS, complete tagged suite; service package 206.637s, GOFLAGS="-p=1 -parallel=1", GOMAXPROCS=2.
+Core PostgreSQL/Redis workflow scripts: PASS, 54/54 required checks, 203 test/subtest passes, no skips. The exact current workflow scripts were used.
+./scripts/test-checkin-contract.sh: PASS, actual HTTP/PostgreSQL reconciliation and both live frontend contract tests.
+./scripts/check-fork-integrity.sh: PASS, protected backend/frontend behaviors and release source/publication safeguards.
+pnpm design:verify: PASS against base b23e44625669a36a8f7ac10667e4b04b1904b7db.
+node scripts/check-doc-links.mjs: PASS, 244 files.
+All nine recorded combination gates exited 0. The final evidence-only commit does not alter tested product code.
+The Plan PostgreSQL fixture container and its volume were removed after successful acceptance.
+Account browser evidence remains explicitly attributed to 25c0bcb7c in joint-results.txt. No new browser run on this merge is claimed.
+No production mutation, paid upstream request, actual OAuth, merge into play/main or deployment. Main thread retains production coordination and final user-local browser acceptance.

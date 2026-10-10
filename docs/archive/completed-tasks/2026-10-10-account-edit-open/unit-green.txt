@@ -1,0 +1,25 @@
+
+ RUN  v2.1.9 /workspace/account-edit-fix/frontend
+
+stderr | src/router/__tests__/chunkRecovery.spec.ts > chunk load recovery > replaces the browser location with the failed target fullPath once
+Chunk load error detected, retrying target route with latest assets...
+
+stderr | src/router/__tests__/chunkRecovery.spec.ts > chunk load recovery > does not retry the same target more than once
+Chunk load error detected, retrying target route with latest assets...
+Chunk load error persists after retry. Please clear browser cache.
+
+stderr | src/router/__tests__/chunkRecovery.spec.ts > chunk load recovery > allows a different target to retry independently
+Chunk load error detected, retrying target route with latest assets...
+Chunk load error detected, retrying target route with latest assets...
+
+ ✓ src/router/__tests__/chunkRecovery.spec.ts (4 tests) 6ms
+ ✓ src/views/admin/__tests__/AccountsView.lazyDialogs.spec.ts (2 tests) 4ms
+Browserslist: browsers data (caniuse-lite) is 10 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+ ✓ src/views/admin/__tests__/AccountsView.lite.spec.ts (9 tests) 302ms
+
+ Test Files  3 passed (3)
+      Tests  15 passed (15)
+   Start at  04:30:02
+   Duration  3.89s (transform 2.28s, setup 346ms, collect 2.73s, tests 313ms, environment 1.43s, prepare 198ms)

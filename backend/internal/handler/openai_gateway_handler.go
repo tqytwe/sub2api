@@ -592,6 +592,16 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 		legacyCompact,
 	))
 
+	requestPlatform := openAICompatibleRequestPlatform(c.Request.Context(), apiKey)
+	if requestPlatform == service.PlatformOpenAI {
+		toolsCtx, err := service.WithOpenAIResponsesToolRequirements(c.Request.Context(), forwardBody)
+		if err != nil {
+			h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", "Invalid Responses tools")
+			return
+		}
+		c.Request = c.Request.WithContext(toolsCtx)
+	}
+
 	// 提前校验 function_call_output 是否具备可关联上下文，避免上游 400。
 	if !h.validateFunctionCallOutputRequest(c, body, reqLog) {
 		return
@@ -604,7 +614,6 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 
 	// Get subscription info (may be nil)
 	subscription, _ := middleware2.GetSubscriptionFromContext(c)
-	requestPlatform := openAICompatibleRequestPlatform(c.Request.Context(), apiKey)
 
 	service.SetOpsLatencyMs(c, service.OpsAuthLatencyMsKey, time.Since(requestStart).Milliseconds())
 	routingStart := time.Now()
@@ -709,6 +718,11 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 				zap.Error(openAICompatibleSelectionErrorForLog(err, requestPlatform)),
 				zap.Int("excluded_account_count", len(failedAccountIDs)),
 			)
+			if errors.Is(err, service.ErrNoAvailableResponsesToolsAccounts) {
+				markOpsRoutingCapacityLimitedIfNoAvailable(c, err)
+				h.handleStreamingAwareError(c, http.StatusServiceUnavailable, "responses_tools_not_supported", "No available accounts support Responses tool calls for this model", streamStarted)
+				return
+			}
 			if len(failedAccountIDs) == 0 {
 				if legacyCompact && errors.Is(err, service.ErrNoAvailableCompactAccounts) {
 					markOpsRoutingCapacityLimitedIfNoAvailable(c, err)
@@ -2900,6 +2914,7 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 		// turn 级定价：首轮回退到 TurnStarted 的所属 turn 时刻；后续 turn 由
 		// BeforeTurn 重新冻结 pricingAt 并按最新门复核当前账号。
 		var turnPricing openAIWSTurnPricing
+		var turnSettlement openAIWSTurnSettlement
 		// Passthrough ingress does not invoke BeforeTurn for the first frame.
 		if err := checkSimpleModeTurnBilling(); err != nil {
 			closeOpenAIClientWS(wsConn, coderws.StatusPolicyViolation, "billing check failed")
@@ -3027,6 +3042,15 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 				return checkSimpleModeTurnBilling()
 			},
 			AfterTurn: func(turn int, result *service.OpenAIForwardResult, turnErr error) {
+				if account.IsOpenAI() && result != nil && (turnErr == nil || result.HasObservedUsage()) {
+					if !turnSettlement.claim(turn) {
+						return
+					}
+					// The mandatory worker owns its snapshot even if a caller repeats
+					// the callback or reuses the original result after returning.
+					snapshot := *result
+					result = &snapshot
+				}
 				turnStart := getTurnStart(turn)
 				cyberBlockBody := takeCyberTurnBody(turn)
 				// 每次 attempt 都清 cyber mark；failover 链结束前保留 recorded guard，
@@ -3065,6 +3089,12 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 					turnErr,
 				)
 				if !shouldRecordOpenAIWSTurnUsage(account, result, turnErr, service.GetOpsCyberPolicy(c) != nil) {
+					if account.IsOpenAI() && result != nil && turnErr != nil && !result.HasObservedUsage() {
+						reqLog.Warn("openai.websocket_usage_unknown",
+							zap.Int64("user_id", apiKey.UserID), zap.Int64("api_key_id", apiKey.ID),
+							zap.Int64("account_id", account.ID), zap.Int("turn", turn),
+							zap.String("usage_status", "usage_unknown"))
+					}
 					return
 				}
 				if turnErr != nil {
@@ -3100,7 +3130,11 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 				sessionID := service.ExtractClientSessionID(c)
 				turnRecordPricingAt := turnPricing.currentOr(turnStart)
 				cyberBlocked := service.GetOpsCyberPolicy(c) != nil
-				h.submitOpenAIUsageRecordTaskForAccount(ctx, account, result, func(taskCtx context.Context) {
+				turnRecordCtx := ctx
+				if account.IsOpenAI() {
+					turnRecordCtx = turnSettlement.context(ctx, turn)
+				}
+				h.submitOpenAIUsageRecordTaskForAccount(turnRecordCtx, account, result, func(taskCtx context.Context) {
 					if err := h.gatewayService.RecordUsage(taskCtx, &service.OpenAIRecordUsageInput{
 						Result:             result,
 						APIKey:             apiKey,
@@ -3120,6 +3154,7 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 						CyberBlocked:       cyberBlocked,
 					}); err != nil {
 						reqLog.Error("openai.websocket_record_usage_failed",
+							zap.Int64("user_id", apiKey.UserID), zap.Int64("api_key_id", apiKey.ID), zap.Int("turn", turn),
 							zap.Int64("account_id", account.ID),
 							zap.String("request_id", result.RequestID),
 							zap.Error(err),
@@ -3150,7 +3185,11 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 		}
 
 		for {
-			err := h.gatewayService.ProxyResponsesWebSocketFromClient(ctx, c, wsConn, account, token, wsFirstMessage, hooks)
+			attemptHooks := hooks
+			if account.IsOpenAI() {
+				attemptHooks = turnSettlement.bindAttempt(hooks)
+			}
+			err := h.gatewayService.ProxyResponsesWebSocketFromClient(ctx, c, wsConn, account, token, wsFirstMessage, attemptHooks)
 			if err == nil {
 				reqLog.Info("openai.websocket_ingress_closed", zap.Int64("account_id", account.ID))
 				return
@@ -3660,6 +3699,9 @@ func (h *OpenAIGatewayHandler) handleStreamingAwareErrorWithCode(
 	if service.StopOpenAICompactSSEKeepaliveCommitted(c) {
 		streamStarted = true
 	}
+	if service.IsResponseCommitted(c) || openAIJSONErrorResponseWritten(c) {
+		return
+	}
 	if streamStarted {
 		if countTowardsSLA {
 			service.MarkOpsStreamFailure(c, errType, code, message, status)
@@ -3678,6 +3720,7 @@ func (h *OpenAIGatewayHandler) handleStreamingAwareErrorWithCode(
 		// Stream already started, send error as SSE event then close
 		flusher, ok := c.Writer.(http.Flusher)
 		if ok {
+			defer service.MarkResponseCommitted(c)
 			errorObject := gin.H{"type": errType, "message": message}
 			if code != "" {
 				errorObject["code"] = code
@@ -3742,7 +3785,7 @@ func (h *OpenAIGatewayHandler) ensureForwardErrorResponse(c *gin.Context, stream
 		imageKeepalivePaddingOnly = adjustedSize < 0
 		imageKeepaliveResponseWritten = adjustedSize >= 0
 	}
-	if service.IsResponseCommitted(c) || (!compactKeepaliveCommitted && imageKeepaliveResponseWritten) {
+	if service.IsResponseCommitted(c) || openAIJSONErrorResponseWritten(c) || (!compactKeepaliveCommitted && imageKeepaliveResponseWritten) {
 		return false
 	}
 	if c.Writer.Written() && !imageKeepalivePaddingOnly {
@@ -3776,6 +3819,11 @@ func shouldLogOpenAIForwardFailureAsWarn(c *gin.Context, wroteFallback bool) boo
 func openAIForwardErrorAlreadyCommunicated(c *gin.Context, writerSizeBeforeForward int, err error) bool {
 	if err == nil || c == nil || c.Writer == nil {
 		return false
+	}
+	service.StopOpenAICompactSSEKeepaliveCommitted(c)
+	service.StopOpenAIImagesJSONKeepaliveCommitted(c)
+	if service.IsResponseCommitted(c) || openAIJSONErrorResponseWritten(c) {
+		return true
 	}
 	// 与快照同口径：排除 compact 心跳字节，避免"仅心跳写出"被误判为
 	// 响应已写出（#3887）。

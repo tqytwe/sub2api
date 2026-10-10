@@ -3051,6 +3051,13 @@
         :mixed-scheduling="mixedScheduling"
         data-tour="account-form-groups"
       />
+      <AccountGroupModelLimits
+        v-if="!authStore.isSimpleMode"
+        v-model="groupAllowedModels"
+        :saved="savedGroupAllowedModels"
+        :groups="groupsForModelLimits"
+        :disabled="submitting"
+      />
 
     </form>
 
@@ -3109,6 +3116,7 @@
 import { ref, reactive, computed, watch, nextTick, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
+import { useAuthStore } from '@/stores/auth'
 
 import { adminAPI } from '@/api/admin'
 import { useQuotaNotifyState } from '@/composables/useQuotaNotifyState'
@@ -3137,6 +3145,8 @@ import Icon from '@/components/icons/Icon.vue'
 import ProxySelector from '@/components/common/ProxySelector.vue'
 import ProxyAdBanner from '@/components/common/ProxyAdBanner.vue'
 import GroupSelector from '@/components/common/GroupSelector.vue'
+import AccountGroupModelLimits from './AccountGroupModelLimits.vue'
+import { buildGroupAllowedModelsPayload, groupAllowedModelsFromAccount, groupAllowedModelsChanged, groupAllowedModelsError, type GroupAllowedModels } from './groupAllowedModels'
 import ModelWhitelistSelector from '@/components/account/ModelWhitelistSelector.vue'
 import QuotaLimitCard from '@/components/account/QuotaLimitCard.vue'
 import GrokBaseUrlPresets from '@/components/account/GrokBaseUrlPresets.vue'
@@ -3218,6 +3228,7 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 const appStore = useAppStore()
+const authStore = useAuthStore()
 const browserTimeZone = getBrowserTimeZone()
 
 const selectableGroups = computed(() => {
@@ -4027,6 +4038,13 @@ const form = reactive({
   expires_at: null as number | null
 })
 
+const groupAllowedModels = ref<GroupAllowedModels>({})
+const savedGroupAllowedModels = ref<GroupAllowedModels>({})
+const groupsForModelLimits = computed(() => form.group_ids.map(id => ({
+  id,
+  name: selectableGroups.value.find(group => group.id === id)?.name ?? `#${id}`
+})))
+
 const handleUpstreamBillingRateSyncChange = (enabled: boolean) => {
   upstreamBillingRateSyncEnabled.value = enabled
   if (enabled) {
@@ -4133,7 +4151,9 @@ const syncFormFromAccount = (newAccount: Account | null) => {
   form.status = (newAccount.status === 'active' || newAccount.status === 'inactive' || newAccount.status === 'error')
     ? newAccount.status
     : 'active'
-  form.group_ids = newAccount.group_ids || []
+  form.group_ids = [...(newAccount.group_ids || [])]
+  groupAllowedModels.value = groupAllowedModelsFromAccount(newAccount)
+  savedGroupAllowedModels.value = groupAllowedModelsFromAccount(newAccount)
   form.expires_at = newAccount.expires_at ?? null
 
   // Load intercept warmup requests setting (applies to all account types)
@@ -5130,7 +5150,7 @@ const submitUpdateAccount = async (accountID: number, updatePayload: Record<stri
 }
 
 const handleSubmit = async () => {
-  if (!props.account) return
+  if (!props.account || submitting.value) return
   const accountID = props.account.id
 
   if (form.status !== 'active' && form.status !== 'inactive' && form.status !== 'error') {
@@ -5146,6 +5166,19 @@ const handleSubmit = async () => {
 	}
 
   const updatePayload: Record<string, unknown> = { ...form }
+  // Simple-mode detail projection omits policy fields, so it cannot edit a
+  // complete snapshot. Also avoid overwriting policies on unrelated saves.
+  if (!authStore.isSimpleMode && groupAllowedModelsChanged(form.group_ids, groupAllowedModels.value, savedGroupAllowedModels.value)) {
+    for (const id of form.group_ids) {
+      const error = groupAllowedModelsError(groupAllowedModels.value[id] ?? [])
+      if (error) {
+        appStore.showError(t(`admin.accounts.groupModelLimits.${error}`))
+        return
+      }
+    }
+    updatePayload.group_allowed_models = buildGroupAllowedModelsPayload(form.group_ids, groupAllowedModels.value)
+  }
+  submitting.value = true
   try {
     // 后端期望 proxy_id: 0 表示清除代理，而不是 null
     if (updatePayload.proxy_id === null) {
@@ -5868,6 +5901,8 @@ const handleSubmit = async () => {
     await submitUpdateAccount(accountID, updatePayload)
   } catch (error: any) {
     appStore.showError(error.message || t('admin.accounts.failedToUpdate'))
+  } finally {
+    submitting.value = false
   }
 }
 

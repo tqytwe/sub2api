@@ -878,6 +878,18 @@ func (s *adminServiceImpl) UpdateAccount(ctx context.Context, id int64, input *U
 		}
 	}
 
+	// Production requires this capability. Attribute changes must not commit or
+	// refresh the scheduler before the same edit's bindings/policy can commit.
+	if writer, ok := s.accountRepo.(AccountAdminUpdateRepository); ok {
+		return writer.UpdateAdminAccount(ctx, account, AccountAdminUpdateOptions{
+			ProbeEnabled: requestedProbeEnabledUpdate, RateSyncEnabled: requestedRateSyncEnabledUpdate,
+			RateMultiplier: input.RateMultiplier, GroupIDs: input.GroupIDs, GroupAllowedModels: input.GroupAllowedModels,
+			PropagateProxy: input.ProxyID != nil && !account.IsCredentialShadow(),
+		})
+	}
+
+	// Compatibility for narrow service test doubles; NewAdminService requires
+	// AccountAdminUpdateRepository, so deployed writers cannot take this path.
 	billingSettingsAppliedAtomically := false
 	updater := s.accountBillingRepo
 	if updater == nil {

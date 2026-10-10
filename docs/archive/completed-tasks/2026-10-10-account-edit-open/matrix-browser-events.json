@@ -1,0 +1,127 @@
+[
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/accounts/16",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/accounts/16",
+    "status": 200
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/admin/accounts/16",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/accounts/16",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/accounts/17",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/accounts/17",
+    "status": 200
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/admin/accounts/17",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/accounts/17",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/accounts/18",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/accounts/18",
+    "status": 200
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/admin/accounts/18",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/accounts/18",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/accounts/19",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/accounts/19",
+    "status": 200
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/admin/accounts/19",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/accounts/19",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/accounts/20",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/accounts/20",
+    "status": 200
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/admin/accounts/20",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/accounts/20",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/accounts/21",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/accounts/21",
+    "status": 200
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/admin/accounts/21",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/accounts/21",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/accounts/16",
+    "status": 200
+  }
+]

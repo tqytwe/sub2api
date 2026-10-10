@@ -1318,6 +1318,8 @@ export interface Account {
   created_at: string
   updated_at: string
   proxy?: Proxy
+  // Full detail response only; the lite account list intentionally omits bindings.
+  account_groups?: { group_id: number; allowed_models?: string[] | null; priority?: number }[]
   group_ids?: number[] // Groups this account belongs to
   groups?: Group[] // Preloaded group objects
 
@@ -1400,7 +1402,7 @@ export interface Account {
 
 // The admin account list may return this compact shape when lite=1. Detail
 // operations still use Account from /admin/accounts/:id.
-export type AccountListItem = Omit<Account, 'groups'>
+export type AccountListItem = Omit<Account, 'groups' | 'account_groups'>
 
 export interface AccountSchedulerGroupScore {
   group_id?: number | null
@@ -1417,6 +1419,9 @@ export interface WindowStats {
   requests: number
   tokens: number
   cost: number // Account cost (account multiplier)
+  // Retained usage history, using the account multiplier; not user charges.
+  lifetime_tokens?: number
+  lifetime_cost?: number
   standard_cost?: number
   user_cost?: number
 }
@@ -1603,6 +1608,8 @@ export interface UpdateAccountRequest {
   schedulable?: boolean
   status?: 'active' | 'inactive' | 'error'
   group_ids?: number[]
+  // Omitted/null preserves. A map replaces all current membership restrictions.
+  group_allowed_models?: Record<number, string[] | null> | null
   expires_at?: number | null
   auto_pause_on_expired?: boolean
   upstream_billing_probe_enabled?: boolean

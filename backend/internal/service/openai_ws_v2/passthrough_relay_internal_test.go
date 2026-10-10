@@ -523,14 +523,14 @@ func TestEmitTurnCompleteCoverage(t *testing.T) {
 	})
 	require.Equal(t, 0, called)
 
-	// 非 error 终态缺少 response_id 时不应触发。
+	// Missing upstream IDs still finalize a turn; the handler supplies a private per-turn identity.
 	emitTurnComplete(func(turn RelayTurnResult) {
 		called++
 	}, &relayState{requestModel: "gpt-5"}, observedUpstreamEvent{
 		terminal:  true,
 		eventType: "response.completed",
 	})
-	require.Equal(t, 0, called)
+	require.Equal(t, 1, called)
 
 	// Bare error legitimately has no response_id; it must still settle the turn
 	// or a later completed turn would suppress the adapter's aggregate fallback.
@@ -543,7 +543,7 @@ func TestEmitTurnCompleteCoverage(t *testing.T) {
 		eventType: "error",
 		usage:     Usage{InputTokens: 4, OutputTokens: 1},
 	})
-	require.Equal(t, 1, called)
+	require.Equal(t, 2, called)
 	require.Empty(t, bareError.RequestID)
 	require.Equal(t, "error", bareError.TerminalEventType)
 	require.Equal(t, Usage{InputTokens: 4, OutputTokens: 1}, bareError.Usage)
@@ -559,7 +559,7 @@ func TestEmitTurnCompleteCoverage(t *testing.T) {
 		responseID: "resp_emit",
 		usage:      Usage{InputTokens: 2, OutputTokens: 3},
 	})
-	require.Equal(t, 2, called)
+	require.Equal(t, 3, called)
 	require.Equal(t, "resp_emit", got.RequestID)
 	require.Equal(t, "response.completed", got.TerminalEventType)
 	require.Equal(t, 2, got.Usage.InputTokens)

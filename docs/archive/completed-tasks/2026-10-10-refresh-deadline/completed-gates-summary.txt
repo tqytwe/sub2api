@@ -1,0 +1,32 @@
+## test
+exit: 0
+ok      github.com/Wei-Shaw/sub2api/internal/service    142.541s
+0 issues.
+ Test Files  491 passed | 1 skipped (492)
+      Tests  3494 passed | 2 skipped (3496)
+## build
+exit: 0
+../backend/internal/web/dist/assets/OpsDashboard-CafwJidc.js                                                         226.26 kB │ gzip:  48.80 kB
+../backend/internal/web/dist/assets/index-x1buBZoK.js                                                                238.18 kB │ gzip:  63.64 kB
+../backend/internal/web/dist/assets/SettingsView-DkJFrsZk.js                                                         426.35 kB │ gzip:  86.09 kB
+../backend/internal/web/dist/assets/vendor-xlsx-D_0l8YDs.js                                                          429.03 kB │ gzip: 143.08 kB
+✓ built in 33.51s
+## unit
+exit: 0
+ok      github.com/Wei-Shaw/sub2api/internal/web        0.006s
+ok      github.com/Wei-Shaw/sub2api/migrations  0.036s
+ok      github.com/Wei-Shaw/sub2api/pkg/pluginapi/v1    0.006s
+ok      github.com/Wei-Shaw/sub2api/scripts     0.003s
+make[1]: Leaving directory '/workspace/refresh-deadline-fix/backend'
+## core
+exit: 0
+github.com/Wei-Shaw/sub2api/migrations: 2/2 required checks passed; 2 test/subtest passes
+github.com/Wei-Shaw/sub2api/internal/repository: 52/52 required checks passed; 201 test/subtest passes
+Core integration coverage verified: 54 required checks; 203 test/subtest passes; no skipped tests.
+## checkin
+exit: 0
+    --- PASS: TestCheckinHTTPDatabaseContract/cash (0.04s)
+    --- PASS: TestCheckinHTTPDatabaseContract/disabled_and_unauthenticated (0.00s)
+    --- PASS: TestCheckinHTTPDatabaseContract/frontend_live_http (3.73s)
+PASS
+ok      github.com/Wei-Shaw/sub2api/internal/repository 8.488s

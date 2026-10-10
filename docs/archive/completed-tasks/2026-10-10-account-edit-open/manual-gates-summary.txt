@@ -1,0 +1,54 @@
+## build
+exit: 0
+../backend/internal/web/dist/assets/PlayOpsView-CmLA_kbc.js                                                          211.12 kB │ gzip:  48.02 kB
+../backend/internal/web/dist/assets/GroupsView-CAPLCO81.js                                                           218.02 kB │ gzip:  44.34 kB
+../backend/internal/web/dist/assets/OpsDashboard-kjm2Mkvb.js                                                         226.26 kB │ gzip:  48.80 kB
+../backend/internal/web/dist/assets/index-C45JQwdv.js                                                                238.18 kB │ gzip:  63.68 kB
+../backend/internal/web/dist/assets/SettingsView-rs7_Kaiv.js                                                         426.35 kB │ gzip:  86.09 kB
+../backend/internal/web/dist/assets/vendor-xlsx-D_0l8YDs.js                                                          429.03 kB │ gzip: 143.08 kB
+✓ built in 43.58s
+## frontend-test
+exit: 0
+ ✓ src/views/admin/__tests__/GroupsView.compositePlatforms.spec.ts (1 test) 2ms
+
+ Test Files  491 passed | 1 skipped (492)
+      Tests  3503 passed | 2 skipped (3505)
+   Start at  06:18:04
+   Duration  191.95s (transform 24.46s, setup 27.75s, collect 56.70s, tests 54.29s, environment 154.22s, prepare 25.20s)
+
+## lint
+exit: 0
+> pnpm design:check && eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts
+
+
+> sub2api-frontend@1.0.0 design:check /workspace/account-edit-fix/frontend
+> node ../scripts/check-frontend-design-governance.mjs
+
+[design-governance] passed (base: 3843ff3e931349595b8793b52504b02a177f12c9; changed files: 95; checked files: 4; visual files: 3; evidence records: 1)
+## typecheck
+exit: 0
+
+> sub2api-frontend@1.0.0 typecheck /workspace/account-edit-fix/frontend
+> vue-tsc --noEmit
+
+## design
+exit: 0
+ℹ todo 0
+ℹ duration_ms 97.931308
+
+> sub2api-frontend@1.0.0 design:check /workspace/account-edit-fix/frontend
+> node ../scripts/check-frontend-design-governance.mjs
+
+[design-governance] passed (base: 3843ff3e931349595b8793b52504b02a177f12c9; changed files: 95; checked files: 4; visual files: 3; evidence records: 1)
+## fork
+exit: 0
+  [PASS] FORK-DEPLOY-006: unverified in-place installation is rejected
+  [PASS] FORK-DEPLOY-006: cache is bound to source policy
+  [PASS] FORK-DEPLOY-006: publish only reviewed fork head
+  [PASS] FORK-DEPLOY-006: release workflow cannot push VERSION
+  [PASS] FORK-DEPLOY-006: no upstream installer in badge
+  [PASS] FORK-DEPLOY-006: no original image rollback in badge
+Fork integrity passed.
+## docs
+exit: 0
+Documentation integrity check passed (250 files).

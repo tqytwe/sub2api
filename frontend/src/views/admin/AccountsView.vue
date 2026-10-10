@@ -456,7 +456,7 @@
       <template #pagination><Pagination v-if="pagination.total > 0" :page="pagination.page" :total="pagination.total" :page-size="pagination.page_size" @update:page="handlePageChange" @update:pageSize="handlePageSizeChange" /></template>
     </TablePageLayout>
     <CreateAccountModal v-if="showCreate" :show="showCreate" :proxies="proxies" :groups="groups" @close="showCreate = false" @created="reload" />
-    <EditAccountModal v-if="showEdit" :show="showEdit" :account="edAcc" :proxies="proxies" :groups="groups" @close="showEdit = false" @updated="handleAccountUpdated" />
+    <EditAccountModal v-if="showEdit" :show="showEdit" :account="edAcc" :proxies="proxies" :groups="groups" @close="closeEdit" @updated="handleAccountUpdated" />
     <ReAuthAccountModal v-if="showReAuth" :show="showReAuth" :account="reAuthAcc" @close="closeReAuthModal" @reauthorized="handleAccountUpdated" />
     <AccountTestModal v-if="showTest" :show="showTest" :account="testingAcc" @close="closeTestModal" />
     <AccountStatsModal v-if="showStats" :show="showStats" :account="statsAcc" @close="closeStatsModal" />
@@ -534,7 +534,21 @@ import { formatMultiplier } from '@/utils/formatters'
 import type { Account, AccountListItem, AccountPlatform, AccountSchedulerGroupScore, AccountType, AccountUsageInfo, Proxy as AccountProxy, AdminGroup, WindowStats, ClaudeModel, UpstreamBillingProbeSnapshot } from '@/types'
 
 const CreateAccountModal = defineAsyncComponent(() => import('@/components/account/CreateAccountModal.vue'))
-const EditAccountModal = defineAsyncComponent(() => import('@/components/account/EditAccountModal.vue'))
+let accountViewDisposed = false
+const EditAccountModal = defineAsyncComponent({
+  loader: () => import('@/components/account/EditAccountModal.vue'),
+  onError(_error, _retry, fail) {
+    if (accountViewDisposed) {
+      fail()
+      return
+    }
+    // Unmount the failed instance for the next click. Never reload automatically:
+    // a different dialog may already contain unsaved work.
+    closeEdit()
+    appStore.showError(t('admin.accounts.editLoadFailed'))
+    fail()
+  }
+})
 const BulkEditAccountModal = defineAsyncComponent(() => import('@/components/account/BulkEditAccountModal.vue'))
 const SyncFromCrsModal = defineAsyncComponent(() => import('@/components/account/SyncFromCrsModal.vue'))
 const TempUnschedStatusModal = defineAsyncComponent(() => import('@/components/account/TempUnschedStatusModal.vue'))
@@ -838,7 +852,7 @@ const flushQueuedUsageBatch = async () => {
   }
 }
 
-const queueBatchedUsage = (account: Account, options?: { force?: boolean }) => {
+const queueBatchedUsage = (account: Account, options?: { force?: boolean; bypassCache?: boolean }) => {
   if (!isDesktopViewport.value) return
   if (!accountSupportsBatchUsage(account)) return
 
@@ -846,7 +860,7 @@ const queueBatchedUsage = (account: Account, options?: { force?: boolean }) => {
   const cacheKey = account.id
   const key = String(cacheKey)
 
-  if (force) {
+  if (force || options?.bypassCache === true) {
     usageBatchCache.delete(cacheKey)
   } else {
     const cached = usageBatchCache.get(cacheKey)
@@ -1848,11 +1862,31 @@ const loadAccountDetails = async (account: Pick<AccountListItem, 'id'>): Promise
   }
 }
 
+let editRequestGeneration = 0
+let pendingEditRequest: { id: number; promise: Promise<Account> } | null = null
+const closeEdit = () => {
+  editRequestGeneration++
+  pendingEditRequest = null
+  showEdit.value = false
+}
 const handleEdit = async (a: AccountListItem) => {
-  const account = await loadAccountDetails(a)
-  if (!account) return
-  edAcc.value = account
-  showEdit.value = true
+  const generation = ++editRequestGeneration
+  const request = pendingEditRequest?.id === a.id
+    ? pendingEditRequest.promise
+    : adminAPI.accounts.getById(a.id)
+  pendingEditRequest = { id: a.id, promise: request }
+  try {
+    const account = await request
+    if (accountViewDisposed || generation !== editRequestGeneration) return
+    edAcc.value = account
+    showEdit.value = true
+  } catch (error) {
+    if (accountViewDisposed || generation !== editRequestGeneration) return
+    console.error('Failed to load account details:', error)
+    appStore.showError(extractApiErrorMessage(error, t('common.error')))
+  } finally {
+    if (pendingEditRequest?.promise === request) pendingEditRequest = null
+  }
 }
 const openMenu = (a: Account, e: MouseEvent) => {
   menu.acc = a
@@ -2580,6 +2614,8 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  accountViewDisposed = true
+  closeEdit()
   upstreamBillingRateAbortController?.abort()
   if (usageBatchFlushTimer !== null) {
     clearTimeout(usageBatchFlushTimer)
