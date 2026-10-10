@@ -10,6 +10,5 @@
   "production_branch": "play/main",
   "analysis_base": "7508cb0cd8a9c38a33805795922ec13662d7753e",
   "fully_migrated": false,
-  "verified_batches": [],
-  "pending_batches": ["usage-output-tps", "account-routing-admission", "settlement-recovery", "account-statistics-ui", "safe-upstream-update-controls"]
+  "status_snapshot": "docs/upstream-migrations/v2.10.3/handoff.json"
 }
