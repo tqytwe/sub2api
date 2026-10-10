@@ -230,14 +230,11 @@ describe('PlanEditDialog product display fields', () => {
 		await wrapper.find('[data-test="plan-token-limit"]').setValue('120000000')
 		await wrapper.find('form').trigger('submit')
 
-		expect(updatePlanMock).toHaveBeenCalledWith(6, expect.objectContaining({
+		expect(updatePlanMock).toHaveBeenCalledWith(6, {
 			request_limit: 12000,
 			amount_limit_usd: 750,
 			token_limit: 120000000,
-			clear_request_limit: false,
-			clear_amount_limit_usd: false,
-			clear_token_limit: false,
-		}))
+		})
 	})
 
 	it('explicitly clears removed package limits', async () => {
@@ -324,14 +321,11 @@ describe('PlanEditDialog product display fields', () => {
     await wrapper.find('form').trigger('submit')
 
     expect(updatePlanMock).toHaveBeenCalledWith(8, expect.objectContaining({
-      storefront_platform: 'image',
-      storefront_category: 'image',
-      storefront_featured: true,
       storefront_badge: 'Best Value',
     }))
   })
 
-  it('falls back to group platform when editing old plans without storefront platform', async () => {
+  it('does not persist inferred storefront defaults when editing a blank legacy plan', async () => {
     updatePlanMock.mockReset().mockResolvedValue({})
     const wrapper = mountDialog({ plan: {
       id: 9,
@@ -357,9 +351,121 @@ describe('PlanEditDialog product display fields', () => {
 
     await wrapper.find('form').trigger('submit')
 
-    expect(updatePlanMock).toHaveBeenCalledWith(9, expect.objectContaining({
-      storefront_platform: 'openai',
-      storefront_category: 'pro',
-    }))
+    expect(updatePlanMock).toHaveBeenCalledWith(9, {})
+  })
+
+  it.each([false, true])('submits only edits with missing legacy fields: %s', async (legacy) => {
+    updatePlanMock.mockReset().mockResolvedValue({})
+    const plan: SubscriptionPlan = {
+      id: 20, group_id: 3, name: 'Existing plan', description: 'Original',
+      price: 19.99, validity_days: 30, validity_unit: 'days',
+      features: [' Feature with spaces '], for_sale: true, sort_order: 4,
+      ...(!legacy ? {
+        cover_image_url: '/kept.webp', detail_description: ' Detail with spaces ',
+        storefront_platform: 'image' as const, storefront_category: 'enterprise' as const,
+        storefront_featured: true, storefront_badge: 'Badge', currency: 'USD',
+        original_price: 39, request_limit: 123, amount_limit_usd: 4.56, token_limit: 789,
+      } : {}),
+    }
+    const wrapper = mountDialog({ plan })
+    await wrapper.find('textarea').setValue('Changed description')
+    await wrapper.find('form').trigger('submit')
+    expect(updatePlanMock).toHaveBeenCalledWith(20, { description: 'Changed description' })
+    expect(plan.description).toBe('Original')
+  })
+
+  it('preserves blank storefront values through reopen and cancels without writes', async () => {
+    updatePlanMock.mockReset().mockResolvedValue({})
+    const plan: SubscriptionPlan = {
+      id: 21, group_id: 3, name: 'Existing plan', description: 'Original', price: 19.99,
+      validity_days: 30, validity_unit: 'days', features: [], for_sale: false, sort_order: 0,
+      storefront_platform: '', storefront_category: '', storefront_featured: false,
+    }
+    const wrapper = mountDialog({ plan })
+    await wrapper.find('textarea').setValue('Cancelled')
+    await wrapper.find('.btn-secondary').trigger('click')
+    expect(updatePlanMock).not.toHaveBeenCalled()
+    await wrapper.setProps({ show: false })
+    await wrapper.setProps({ show: true })
+    expect((wrapper.find('textarea').element as HTMLTextAreaElement).value).toBe('Original')
+    await wrapper.find('form').trigger('submit')
+    expect(updatePlanMock).toHaveBeenCalledWith(21, {})
+  })
+
+  it('sends explicit empty strings, false and zero while omitting untouched fields', async () => {
+    updatePlanMock.mockReset().mockResolvedValue({})
+    const wrapper = mountDialog({ plan: {
+      id: 22, group_id: 3, name: 'Existing plan', description: 'Original', price: 19.99,
+      validity_days: 30, validity_unit: 'days', features: [], for_sale: true, sort_order: 4,
+      cover_image_url: '/kept.webp', detail_description: 'Details', storefront_badge: 'Badge',
+      storefront_featured: true, original_price: 39,
+    } })
+    await wrapper.find('[data-test="plan-cover-image-url"]').setValue('')
+    await wrapper.find('[data-test="plan-detail-description"]').setValue('')
+    await wrapper.find('[data-test="plan-storefront-badge"]').setValue('')
+    const toggles = wrapper.findAll('button').filter(button => button.classes().includes('rounded-full'))
+    await toggles[0].trigger('click')
+    await toggles[1].trigger('click')
+    const numbers = wrapper.findAll('input[type="number"]')
+    await numbers[1].setValue('0')
+    await numbers[numbers.length - 1].setValue('0')
+    await wrapper.find('form').trigger('submit')
+    expect(updatePlanMock).toHaveBeenCalledWith(22, {
+      cover_image_url: '', detail_description: '', storefront_badge: '', storefront_featured: false,
+      for_sale: false, original_price: 0, sort_order: 0,
+    })
+  })
+
+  it('rejects an invalid price without writing', async () => {
+    updatePlanMock.mockReset()
+    const wrapper = mountDialog({ plan: {
+      id: 23, group_id: 3, name: 'Existing plan', description: 'Original', price: 19.99,
+      validity_days: 30, validity_unit: 'days', features: [], for_sale: true, sort_order: 4,
+    } })
+    await wrapper.find('input[type="number"]').setValue('-1')
+    await wrapper.find('form').trigger('submit')
+    expect(updatePlanMock).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['product_name', '[data-test="plan-product-name"]'],
+    ['cover_image_url', '[data-test="plan-cover-image-url"]'],
+    ['detail_description', '[data-test="plan-detail-description"]'],
+    ['storefront_badge', '[data-test="plan-storefront-badge"]'],
+    ['features', 'textarea[rows="3"]'],
+  ])('sends an explicit clear for whitespace-only %s without writing untouched fields', async (field, selector) => {
+    updatePlanMock.mockReset().mockResolvedValue({})
+    const wrapper = mountDialog({ plan: {
+      id: 26, group_id: 3, name: 'Existing plan', description: 'Original', price: 19.99,
+      validity_days: 30, validity_unit: 'days', features: ['   '], for_sale: true, sort_order: 4,
+      product_name: '   ', cover_image_url: '   ', detail_description: '   ', storefront_badge: '   ',
+    } })
+    await wrapper.find(selector).setValue('')
+    await wrapper.find('form').trigger('submit')
+    expect(updatePlanMock).toHaveBeenCalledWith(26, { [field]: '' })
+  })
+
+  it('resets the edit baseline when reopening a different group with blank shelves', async () => {
+    updatePlanMock.mockReset().mockResolvedValue({})
+    const first: SubscriptionPlan = {
+      id: 24, group_id: 3, name: 'First plan', description: 'First', price: 19.99,
+      validity_days: 30, validity_unit: 'days', features: [], for_sale: true, sort_order: 4,
+      storefront_platform: 'openai', storefront_category: 'pro',
+    }
+    const wrapper = mountDialog({ plan: first, groups: [
+      groupFixture({ id: 3, platform: 'openai' }),
+      groupFixture({ id: 4, platform: 'gemini' }),
+    ] })
+    await wrapper.setProps({ show: false })
+    await wrapper.setProps({ show: true, plan: {
+      ...first, id: 25, group_id: 4, description: 'Second',
+      storefront_platform: '', storefront_category: '',
+    } })
+    const selects = wrapper.findAllComponents(SelectStub)
+    expect(selects[1].props('modelValue')).toBe('')
+    expect(selects[2].props('modelValue')).toBe('')
+    await wrapper.find('textarea').setValue('Changed second description')
+    await wrapper.find('form').trigger('submit')
+    expect(updatePlanMock).toHaveBeenCalledWith(25, { description: 'Changed second description' })
   })
 })
