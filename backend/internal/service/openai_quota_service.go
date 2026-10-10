@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -46,6 +47,29 @@ type OpenAIRateLimitWindow struct {
 	LimitWindowSeconds int64   `json:"limit_window_seconds"`
 	ResetAfterSeconds  int64   `json:"reset_after_seconds"`
 	ResetAt            int64   `json:"reset_at"`
+	usedPercentMissing bool
+	resetAfterMissing  bool
+}
+
+// Preserve missing/null fields without changing the existing public DTO.
+// In-memory literals retain their explicit numeric values, including zero.
+func (w *OpenAIRateLimitWindow) UnmarshalJSON(data []byte) error {
+	type window OpenAIRateLimitWindow
+	var value window
+	if err := json.Unmarshal(data, &value); err != nil {
+		return err
+	}
+	var presence struct {
+		UsedPercent *float64 `json:"used_percent"`
+		ResetAfter  *int64   `json:"reset_after_seconds"`
+	}
+	if err := json.Unmarshal(data, &presence); err != nil {
+		return err
+	}
+	value.usedPercentMissing = presence.UsedPercent == nil
+	value.resetAfterMissing = presence.ResetAfter == nil
+	*w = OpenAIRateLimitWindow(value)
+	return nil
 }
 
 // OpenAIRateLimit is a rate-limit envelope (primary + optional secondary window).
@@ -164,6 +188,16 @@ func NewOpenAIQuotaService(
 // OAuth account. Returns infraerrors so the handler layer can map them to
 // stable error codes / HTTP statuses.
 func (s *OpenAIQuotaService) QueryUsage(ctx context.Context, accountID int64) (*OpenAIQuotaUsage, error) {
+	return s.queryUsage(ctx, accountID, true)
+}
+
+// QueryUsageSnapshot reads only /wham/usage. Passive account and channel quota
+// checks need neither reset-credit details nor any generation/reset operation.
+func (s *OpenAIQuotaService) QueryUsageSnapshot(ctx context.Context, accountID int64) (*OpenAIQuotaUsage, error) {
+	return s.queryUsage(ctx, accountID, false)
+}
+
+func (s *OpenAIQuotaService) queryUsage(ctx context.Context, accountID int64, includeResetDetails bool) (*OpenAIQuotaUsage, error) {
 	accessToken, chatGPTAccountID, proxyURL, fedRAMP, err := s.prepareUpstreamCall(ctx, accountID)
 	if err != nil {
 		return nil, err
@@ -201,8 +235,8 @@ func (s *OpenAIQuotaService) QueryUsage(ctx context.Context, accountID int64) (*
 				continue
 			}
 			status := resp.StatusCode
-			if isOpenAIAutoResetContext(ctx) {
-				slog.Warn("openai_quota_query_failed", "account_id", accountID, "status", status, "source", "auto_reset")
+			if !includeResetDetails || isOpenAIAutoResetContext(ctx) {
+				slog.Warn("openai_quota_query_failed", "account_id", accountID, "status", status)
 				return nil, infraerrors.Newf(mapUpstreamStatus(status), "OPENAI_QUOTA_UPSTREAM_ERROR", "upstream returned %d", status)
 			}
 			body := truncate(s.redactQuotaErrorBody(ctx, accountID, resp.String()), 240)
@@ -213,6 +247,9 @@ func (s *OpenAIQuotaService) QueryUsage(ctx context.Context, accountID int64) (*
 	}
 
 	payload.FetchedAt = time.Now().Unix()
+	if !includeResetDetails {
+		return &payload, nil
+	}
 	details := s.queryResetCreditDetails(callCtx, client, accessToken, chatGPTAccountID, fedRAMP, accountID)
 	if details != nil {
 		payload.autoResetCandidates = details.AutoResetCandidates
@@ -656,61 +693,40 @@ func buildCodexSparkWindowExtraUpdates(usage *OpenAIQuotaUsage, now time.Time) m
 		return nil
 	}
 
-	// Reuse OpenAICodexUsageSnapshot / Normalize to map primary/secondary windows
-	// to canonical 5h/7d buckets (same logic as probeOpenAICodexSnapshot).
-	snap := &OpenAICodexUsageSnapshot{}
-	if w := spark.PrimaryWindow; w != nil {
-		p := w.UsedPercent
-		snap.PrimaryUsedPercent = &p
-		ra := int(w.ResetAfterSeconds)
-		snap.PrimaryResetAfterSeconds = &ra
-		wm := int(w.LimitWindowSeconds / 60)
-		snap.PrimaryWindowMinutes = &wm
-	}
-	if w := spark.SecondaryWindow; w != nil {
-		p := w.UsedPercent
-		snap.SecondaryUsedPercent = &p
-		ra := int(w.ResetAfterSeconds)
-		snap.SecondaryResetAfterSeconds = &ra
-		wm := int(w.LimitWindowSeconds / 60)
-		snap.SecondaryWindowMinutes = &wm
-	}
+	return buildCodexWindowExtraUpdates(spark, now)
+}
 
-	normalized := snap.Normalize()
-	if normalized == nil {
+// Reuse the canonical primary/secondary window mapping used by passive response
+// headers. Spendable balance and reset-credit counts are separate data domains.
+func buildCodexWindowExtraUpdates(limits *OpenAIRateLimit, now time.Time) map[string]any {
+	if limits == nil {
 		return nil
 	}
-
-	updates := make(map[string]any)
-	if normalized.Used5hPercent != nil {
-		updates["codex_5h_used_percent"] = *normalized.Used5hPercent
+	snapshot := &OpenAICodexUsageSnapshot{}
+	setWindow := func(w *OpenAIRateLimitWindow, used **float64, reset **int, minutes **int) {
+		if w == nil || w.usedPercentMissing || w.LimitWindowSeconds <= 0 {
+			return
+		}
+		*used = &w.UsedPercent
+		m := int(w.LimitWindowSeconds / 60)
+		*minutes = &m
+		if w.ResetAt > 0 {
+			seconds := int(w.ResetAt - now.Unix())
+			if seconds < 0 {
+				seconds = 0
+			}
+			*reset = &seconds
+		} else if !w.resetAfterMissing && w.ResetAfterSeconds >= 0 {
+			seconds := int(w.ResetAfterSeconds)
+			*reset = &seconds
+		}
 	}
-	if normalized.Reset5hSeconds != nil {
-		updates["codex_5h_reset_after_seconds"] = *normalized.Reset5hSeconds
-	}
-	if normalized.Window5hMinutes != nil {
-		updates["codex_5h_window_minutes"] = *normalized.Window5hMinutes
-	}
-	if normalized.Used7dPercent != nil {
-		updates["codex_7d_used_percent"] = *normalized.Used7dPercent
-	}
-	if normalized.Reset7dSeconds != nil {
-		updates["codex_7d_reset_after_seconds"] = *normalized.Reset7dSeconds
-	}
-	if normalized.Window7dMinutes != nil {
-		updates["codex_7d_window_minutes"] = *normalized.Window7dMinutes
-	}
-	if r := codexResetAtRFC3339(now, normalized.Reset5hSeconds); r != nil {
-		updates["codex_5h_reset_at"] = *r
-	}
-	if r := codexResetAtRFC3339(now, normalized.Reset7dSeconds); r != nil {
-		updates["codex_7d_reset_at"] = *r
-	}
-	if len(updates) == 0 {
+	setWindow(limits.PrimaryWindow, &snapshot.PrimaryUsedPercent, &snapshot.PrimaryResetAfterSeconds, &snapshot.PrimaryWindowMinutes)
+	setWindow(limits.SecondaryWindow, &snapshot.SecondaryUsedPercent, &snapshot.SecondaryResetAfterSeconds, &snapshot.SecondaryWindowMinutes)
+	if snapshot.PrimaryUsedPercent == nil && snapshot.SecondaryUsedPercent == nil {
 		return nil
 	}
-	updates["codex_usage_updated_at"] = now.Format(time.RFC3339)
-	return updates
+	return buildCodexUsageExtraUpdates(snapshot, now)
 }
 
 // mapUpstreamStatus collapses upstream HTTP statuses into a stable set we

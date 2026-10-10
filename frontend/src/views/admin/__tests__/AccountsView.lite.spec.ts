@@ -10,6 +10,7 @@ const {
   listWithEtag,
   getById,
   getBatchTodayStats,
+  getBatchUsage,
   getUpstreamBillingProbeSettings,
   getAllProxies,
   getAllGroups,
@@ -21,6 +22,7 @@ const {
   listWithEtag: vi.fn(),
   getById: vi.fn(),
   getBatchTodayStats: vi.fn(),
+  getBatchUsage: vi.fn(),
   getUpstreamBillingProbeSettings: vi.fn(),
   getAllProxies: vi.fn(),
   getAllGroups: vi.fn(),
@@ -36,6 +38,7 @@ vi.mock('@/api/admin', () => ({
       getById,
       listWithEtag,
       getBatchTodayStats,
+      getBatchUsage,
       getUpstreamBillingProbeSettings,
       delete: vi.fn(),
       batchClearError: vi.fn(),
@@ -67,10 +70,16 @@ const DataTableStub = defineComponent({
     <div>
       <div v-for="row in data" :key="row.id" :data-account-name="row.name">
         <slot name="cell-groups" :row="row" />
+        <slot name="cell-usage" :row="row" />
         <slot name="cell-actions" :row="row" />
       </div>
     </div>
   `
+})
+
+const AccountUsageCellStub = defineComponent({
+  props: ['account', 'requestBatchedUsage', 'batchedUsage'],
+  template: '<span data-test="account-usage">{{ batchedUsage?.five_hour?.utilization }}</span>'
 })
 
 const AccountGroupsCellStub = defineComponent({
@@ -124,7 +133,7 @@ function mountView(stubActionMenu = true) {
         AccountStatusIndicator: true,
         AccountTodayStatsCell: true,
         AccountGroupsCell: AccountGroupsCellStub,
-        AccountUsageCell: true,
+        AccountUsageCell: AccountUsageCellStub,
         UpstreamBillingRateCell: true,
         HelpTooltip: true,
         Icon: true,
@@ -159,6 +168,12 @@ const fullAccount = {
 describe('admin AccountsView lite account list', () => {
   beforeEach(() => {
     localStorage.clear()
+    vi.spyOn(window, 'matchMedia').mockImplementation((query: string) => ({
+      matches: true, media: query, onchange: null,
+      addListener: vi.fn(), removeListener: vi.fn(), addEventListener: vi.fn(),
+      removeEventListener: vi.fn(), dispatchEvent: vi.fn()
+    }))
+    getBatchUsage.mockReset().mockResolvedValue({ usage: { '42': { five_hour: { utilization: 12 } } } })
     listAccounts.mockReset().mockResolvedValue({ items: [listRow], total: 1, page: 1, page_size: 20, pages: 1 })
     listWithEtag.mockReset().mockResolvedValue({ notModified: true, etag: 'compact-etag', data: null })
     getById.mockReset().mockResolvedValue(fullAccount)
@@ -174,6 +189,33 @@ describe('admin AccountsView lite account list', () => {
   afterEach(() => {
     vi.useRealTimers()
     vi.restoreAllMocks()
+  })
+
+  it('reads a changed snapshot past the page cache without forcing the upstream', async () => {
+    vi.useFakeTimers()
+    const wrapper = mountView()
+    await flushPromises()
+    const cell = wrapper.findComponent(AccountUsageCellStub)
+    const request = cell.props('requestBatchedUsage')
+    request(listRow)
+    await vi.advanceTimersByTimeAsync(1)
+    await flushPromises()
+    expect(cell.props('batchedUsage').five_hour.utilization).toBe(12)
+    expect(getBatchUsage).toHaveBeenCalledTimes(1)
+
+    request(listRow)
+    await vi.advanceTimersByTimeAsync(1)
+    expect(getBatchUsage).toHaveBeenCalledTimes(1)
+
+    getBatchUsage.mockResolvedValue({ usage: { '42': { five_hour: { utilization: 37.5 } } } })
+    const updated = { ...listRow, extra: { codex_usage_updated_at: '2026-10-10T12:00:00Z' } }
+    request(updated, { bypassCache: true })
+    await vi.advanceTimersByTimeAsync(1)
+    await flushPromises()
+    expect(getBatchUsage).toHaveBeenCalledTimes(2)
+    expect(getBatchUsage).toHaveBeenLastCalledWith([42], false)
+    expect(cell.props('batchedUsage').five_hour.utilization).toBe(37.5)
+    wrapper.unmount()
   })
 
   it('keeps lite=1 on the initial list request', async () => {

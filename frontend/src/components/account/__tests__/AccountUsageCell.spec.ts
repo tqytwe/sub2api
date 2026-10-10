@@ -113,6 +113,30 @@ const cnUsageCellStubs = {
 }
 
 describe('AccountUsageCell', () => {
+  it('OpenAI passive snapshot changes never force batch refresh; manual refresh still does', async () => {
+    const requestBatchedUsage = vi.fn()
+    const account = makeAccount({ id: 9234, platform: 'openai', type: 'oauth', extra: {} })
+    const wrapper = mount(AccountUsageCell, {
+      props: { account, requestBatchedUsage, manualRefreshToken: 0 },
+      global: { stubs: { UsageProgressBar: true, AccountQuotaInfo: true } }
+    })
+    await flushPromises()
+    requestBatchedUsage.mockClear()
+    for (let tick = 1; tick <= 3; tick++) {
+      await wrapper.setProps({ account: { ...account, updated_at: `2026-10-10T10:00:0${tick}Z`, extra: {
+        codex_usage_updated_at: `2026-10-10T10:00:0${tick}Z`, codex_5h_used_percent: tick
+      } } })
+      await flushPromises()
+    }
+    expect(requestBatchedUsage).toHaveBeenCalled()
+    expect(requestBatchedUsage.mock.calls.every(([, options]) => options?.force !== true && options?.bypassCache === true)).toBe(true)
+    requestBatchedUsage.mockClear()
+    await wrapper.setProps({ manualRefreshToken: 1 })
+    await flushPromises()
+    expect(requestBatchedUsage).toHaveBeenCalledWith(expect.objectContaining({ id: 9234 }), { force: true })
+    wrapper.unmount()
+  })
+
   beforeEach(() => {
     getUsage.mockReset()
     Object.defineProperty(window, 'matchMedia', {
@@ -746,7 +770,7 @@ describe('AccountUsageCell', () => {
 	expect(wrapper.text()).toContain('7d|0|27700')
   })
 
-  it('OpenAI OAuth 在行数据刷新但仍无 codex 快照时会重新拉取 usage', async () => {
+  it('OpenAI OAuth unrelated row timestamps do not retrigger usage', async () => {
 	getUsage
 	  .mockResolvedValueOnce({
 	    five_hour: {
@@ -815,8 +839,8 @@ describe('AccountUsageCell', () => {
 	})
 
 	await flushPromises()
-	expect(getUsage).toHaveBeenCalledTimes(2)
-	expect(wrapper.text()).toContain('5h|0|200')
+	expect(getUsage).toHaveBeenCalledTimes(1)
+	expect(wrapper.text()).toContain('5h|0|100')
   })
 
   it('OpenAI 重置响应更新账号行后重新拉取 usage', async () => {
@@ -844,7 +868,7 @@ describe('AccountUsageCell', () => {
           OpenAIQuotaResetCell: {
             props: ['account'],
             emits: ['account-updated'],
-            template: '<button data-test="quota-reset-result" @click="$emit(\'account-updated\', { ...account, updated_at: \'2026-03-07T10:01:00Z\' })" />'
+            template: '<button data-test="quota-reset-result" @click="$emit(\'account-updated\', { ...account, updated_at: \'2026-03-07T10:01:00Z\', extra: { codex_usage_updated_at: \'2026-03-07T10:01:00Z\', codex_5h_used_percent: 0 } })" />'
           }
         }
       }

@@ -492,7 +492,6 @@ func (h *OpenAIOAuthHandler) QueryQuota(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
-	service.NotifyOpenAIAutoResetCredit(accountID)
 	response.Success(c, usage)
 }
 
@@ -523,8 +522,6 @@ func (h *OpenAIOAuthHandler) RefreshQuota(c *gin.Context) {
 		response.Error(c, http.StatusInternalServerError, "openai quota query returned an empty result")
 		return
 	}
-	service.NotifyOpenAIAutoResetCredit(accountID)
-
 	refreshResponse := openAIQuotaRefreshResponse{OpenAIQuotaUsage: *usage}
 	if err := h.quotaService.CacheCreditsSnapshot(c.Request.Context(), accountID, usage); err != nil {
 		slog.Warn("openai_quota_credits_cache_persist_failed", "account_id", accountID, "error", err)
