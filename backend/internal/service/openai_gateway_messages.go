@@ -683,9 +683,9 @@ func (s *OpenAIGatewayService) handleAnthropicBufferedStreamingResponse(
 		}
 		message := openAICompatFailedResponseMessage(finalResponse)
 		if openAIStreamFailedEventShouldFailover(payload, message) {
-			return nil, s.newOpenAIStreamFailoverErrorWithModel(c, account, false, requestID, payload, message, upstreamModel, resp.Header)
+			return nil, s.newOpenAIStreamFailoverErrorWithModel(requestledger.ResponseReceipt(resp), c, account, false, requestID, payload, message, upstreamModel, resp.Header)
 		}
-		message = s.recordOpenAIStreamUpstreamError(c, account, false, requestID, "http_error", payload, message)
+		message = s.recordOpenAIStreamUpstreamError(requestledger.ResponseReceipt(resp), c, account, false, requestID, "http_error", payload, message)
 		// 统一走语义状态推断 + body 归一化（与 /v1/responses 路径一致），
 		// 使按错误码配置的透传规则可命中。
 		if status, errType, errMsg, matched := applyOpenAIStreamFailedErrorPassthroughRule(
@@ -751,13 +751,14 @@ func isOpenAICompatResponsesTerminalEvent(eventType string) bool {
 	}
 }
 
-func (s *OpenAIGatewayService) recordOpenAIMessagesStreamUpstreamError(c *gin.Context, account *Account, upstreamRequestID, kind, message string) {
+func (s *OpenAIGatewayService) recordOpenAIMessagesStreamUpstreamError(receipt requestledger.Receipt, c *gin.Context, account *Account, upstreamRequestID, kind, message string) {
 	if c == nil {
 		return
 	}
 	message = sanitizeUpstreamErrorMessage(message)
 	setOpsUpstreamError(c, http.StatusBadGateway, message, "")
 	event := OpsUpstreamErrorEvent{
+		LedgerReceipt:      receipt,
 		ProxyID:            opsUpstreamProxyID(account),
 		ProxyName:          opsUpstreamProxyName(account),
 		Platform:           PlatformOpenAI,
@@ -1133,10 +1134,10 @@ func (s *OpenAIGatewayService) handleAnthropicStreamingResponse(
 					shouldFailover = openAIStreamErrorEventShouldFailover(payloadBytes, message)
 				}
 				if !clientOutputStarted && shouldFailover {
-					streamFailoverErr = s.newOpenAIStreamFailoverErrorWithModel(c, account, false, requestID, payloadBytes, message, upstreamModel, resp.Header)
+					streamFailoverErr = s.newOpenAIStreamFailoverErrorWithModel(requestledger.ResponseReceipt(resp), c, account, false, requestID, payloadBytes, message, upstreamModel, resp.Header)
 					return true
 				}
-				message = s.recordOpenAIStreamUpstreamError(c, account, false, requestID, "http_error", payloadBytes, message)
+				message = s.recordOpenAIStreamUpstreamError(requestledger.ResponseReceipt(resp), c, account, false, requestID, "http_error", payloadBytes, message)
 				errStatus, errType, errMsg := http.StatusBadGateway, "api_error", message
 				// 统一走语义状态推断 + body 归一化（与 /v1/responses 路径一致），
 				// 使按错误码配置的透传规则可命中。
@@ -1242,9 +1243,9 @@ func (s *OpenAIGatewayService) handleAnthropicStreamingResponse(
 		}
 		message := "OpenAI messages stream ended before a terminal event"
 		if !clientOutputStarted {
-			return result, s.newOpenAIStreamFailoverError(c, account, false, requestID, nil, message)
+			return result, s.newOpenAIStreamFailoverError(requestledger.ResponseReceipt(resp), c, account, false, requestID, nil, message)
 		}
-		s.recordOpenAIMessagesStreamUpstreamError(c, account, requestID, "stream_missing_terminal", message)
+		s.recordOpenAIMessagesStreamUpstreamError(requestledger.ResponseReceipt(resp), c, account, requestID, "stream_missing_terminal", message)
 		return result, fmt.Errorf("stream usage incomplete: missing terminal event")
 	}
 	processFrame := func(frame openAICompatSSEFrame) bool {

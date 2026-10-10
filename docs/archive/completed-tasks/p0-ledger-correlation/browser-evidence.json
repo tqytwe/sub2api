@@ -1,0 +1,58 @@
+[
+  {
+    "role": "admin",
+    "request_id": "32dd0bee-f2bd-43a9-ac3f-649c064121be",
+    "attempt_uuids": [
+      "e29c6dd4-5745-4aa1-b8b7-03cb56d2dd49",
+      "d5358787-675a-4bef-ae42-ec33c5ff7d8c"
+    ],
+    "viewports": [
+      360,
+      768,
+      1280,
+      1920
+    ],
+    "themes": [
+      "light",
+      "dark"
+    ],
+    "languages": [
+      "zh",
+      "en"
+    ],
+    "keyboard": true,
+    "reduced_motion": true,
+    "diagnostic_retention": true,
+    "http_failure_retry": true,
+    "pageErrors": [],
+    "optional_evidence_failure": true
+  },
+  {
+    "role": "user",
+    "request_id": "7d94502b-bb84-46ec-aadb-b82500343381",
+    "attempt_uuids": [
+      "0aed3e1a-ee34-4340-9c08-a7713db6cbf3",
+      "8279df5a-8482-4799-afc1-3e5d0f400390"
+    ],
+    "viewports": [
+      360,
+      768,
+      1280,
+      1920
+    ],
+    "themes": [
+      "light",
+      "dark"
+    ],
+    "languages": [
+      "zh",
+      "en"
+    ],
+    "keyboard": true,
+    "reduced_motion": true,
+    "diagnostic_retention": false,
+    "http_failure_retry": true,
+    "pageErrors": [],
+    "optional_evidence_failure": true
+  }
+]

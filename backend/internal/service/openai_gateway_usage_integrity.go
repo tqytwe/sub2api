@@ -1,6 +1,8 @@
 package service
 
 import (
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
+
 	"encoding/json"
 	"net/http"
 	"strings"
@@ -43,7 +45,7 @@ func requiresBillableGrokChatUsage(account *Account, models ...string) bool {
 	return false
 }
 
-func newGrokMissingUsageFailoverError(c *gin.Context, account *Account, upstreamRequestID string) *UpstreamFailoverError {
+func newGrokMissingUsageFailoverError(receipt requestledger.Receipt, c *gin.Context, account *Account, upstreamRequestID string) *UpstreamFailoverError {
 	accountID := int64(0)
 	accountName := ""
 	if account != nil {
@@ -53,6 +55,7 @@ func newGrokMissingUsageFailoverError(c *gin.Context, account *Account, upstream
 
 	setOpsUpstreamError(c, http.StatusBadGateway, grokMissingUsageMessage, "")
 	appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+		LedgerReceipt:      receipt,
 		ProxyID:            opsUpstreamProxyID(account),
 		ProxyName:          opsUpstreamProxyName(account),
 		Platform:           PlatformGrok,

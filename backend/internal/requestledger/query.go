@@ -45,6 +45,10 @@ type Page struct {
 	PageSize int      `json:"page_size"`
 }
 type AttemptRecord struct {
+	AttemptID           *string    `json:"attempt_id"`
+	UpstreamRequestID   *string    `json:"upstream_request_id,omitempty"`
+	UpstreamResponseID  *string    `json:"upstream_response_id,omitempty"`
+	IdentifierConflict  *bool      `json:"identifier_conflict,omitempty"`
 	UsageState          string     `json:"usage_state"`
 	OutputObserved      bool       `json:"output_observed"`
 	UpstreamKind        string     `json:"upstream_kind"`
@@ -165,12 +169,40 @@ func (l *Ledger) Get(ctx context.Context, viewer Viewer, id string) (*Record, er
 }
 
 func (l *Ledger) Attempts(ctx context.Context, viewer Viewer, id string) ([]AttemptRecord, error) {
+	attempts, _, err := l.AttemptsWithEvidence(ctx, viewer, id)
+	return attempts, err
+}
+
+// AttemptsWithEvidence keeps optional diagnostics independent from the original
+// ledger rows. A diagnostic read failure never hides execution or billing.
+func (l *Ledger) AttemptsWithEvidence(ctx context.Context, viewer Viewer, id string) ([]AttemptRecord, bool, error) {
 	if _, err := l.Get(ctx, viewer, id); err != nil {
-		return nil, err
+		return nil, false, err
 	}
+	result, err := l.coreAttempts(ctx, viewer, id)
+	if err != nil {
+		return nil, false, err
+	}
+	evidence, err := l.attemptEvidence(ctx, id)
+	if err != nil {
+		return result, true, nil
+	}
+	for i := range result {
+		e := evidence[result[i].Number]
+		result[i].AttemptID = e.AttemptID
+		if viewer.Admin {
+			result[i].UpstreamRequestID = e.UpstreamRequestID
+			result[i].UpstreamResponseID = e.UpstreamResponseID
+			result[i].IdentifierConflict = e.IdentifierConflict
+		}
+	}
+	return result, false, nil
+}
+
+func (l *Ledger) coreAttempts(ctx context.Context, viewer Viewer, id string) ([]AttemptRecord, error) {
 	ctx, cancel := context.WithTimeout(ctx, writeTimeout)
 	defer cancel()
-	rows, err := l.db.QueryContext(ctx, `SELECT row_to_json(a) FROM gateway_request_attempts a WHERE request_id=$1 ORDER BY attempt_no`, id)
+	rows, err := l.db.QueryContext(ctx, `SELECT to_jsonb(a) FROM gateway_request_attempts a WHERE a.request_id=$1 ORDER BY a.attempt_no`, id)
 	if err != nil {
 		return nil, err
 	}
@@ -190,6 +222,25 @@ func (l *Ledger) Attempts(ctx context.Context, viewer Viewer, id string) ([]Atte
 			a.CredentialAccountID = nil
 		}
 		result = append(result, a)
+	}
+	return result, rows.Err()
+}
+
+func (l *Ledger) attemptEvidence(ctx context.Context, id string) (map[int]AttemptRecord, error) {
+	ctx, cancel := optionalEvidenceContext(ctx)
+	defer cancel()
+	rows, err := l.db.QueryContext(ctx, `SELECT attempt_no,attempt_id,upstream_request_id,upstream_response_id,identifier_conflict FROM gateway_request_attempt_evidence WHERE request_id=$1`, id)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+	result := make(map[int]AttemptRecord)
+	for rows.Next() {
+		var a AttemptRecord
+		if err = rows.Scan(&a.Number, &a.AttemptID, &a.UpstreamRequestID, &a.UpstreamResponseID, &a.IdentifierConflict); err != nil {
+			return nil, err
+		}
+		result[a.Number] = a
 	}
 	return result, rows.Err()
 }
@@ -258,4 +309,15 @@ func (l *Ledger) Usage(ctx context.Context, viewer Viewer, requestID string, usa
 		return nil, err
 	}
 	return &u, nil
+}
+
+// Optional metadata cannot consume the full HTTP request budget after core reads.
+func optionalEvidenceContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	budget := 100 * time.Millisecond
+	if deadline, ok := ctx.Deadline(); ok {
+		if remaining := time.Until(deadline) / 4; remaining < budget {
+			budget = remaining
+		}
+	}
+	return context.WithTimeout(ctx, budget)
 }

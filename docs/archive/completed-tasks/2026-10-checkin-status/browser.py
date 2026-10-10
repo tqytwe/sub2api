@@ -86,6 +86,21 @@ threading.Thread(target=server.serve_forever, daemon=True).start()
 origin = f'http://127.0.0.1:{server.server_port}'
 reports = []
 
+def capture(page, **kwargs):
+    # Observe newly rendered CSS animations after layout, then let finite
+    # entrances finish naturally. Screenshot fast-forward alone can race a
+    # Vue render and capture a newly inserted card at near-zero opacity.
+    page.evaluate("""async () => {
+        await new Promise(requestAnimationFrame);
+        await new Promise(requestAnimationFrame);
+        await Promise.all(document.getAnimations()
+            .filter(a => Number.isFinite(a.effect?.getTiming().iterations))
+            .map(a => a.finished.catch(() => {})));
+    }""")
+    for banner in page.locator('.gw-quest-banner').all():
+        assert banner.evaluate('el => Number(getComputedStyle(el).opacity)') >= 0.99
+    page.screenshot(**kwargs)
+
 def navigate(page, path, width):
     if width < 1024:
         page.locator('header button').first.click()
@@ -100,7 +115,7 @@ with sync_playwright() as pw:
     page.goto(origin + '/check-in?lang=zh', wait_until='networkidle')
     if args.phase == 'baseline':
         expect(page.get_by_text('签到功能暂未开启', exact=True)).to_be_visible()
-        page.screenshot(path=str(OUT / 'baseline-503.png'), full_page=True, animations='disabled')
+        capture(page, path=str(OUT / 'baseline-503.png'), full_page=True, animations='disabled')
         page.evaluate("""() => {
           const panel = document.querySelector('.gw-detail-grid > .gw-panel');
           panel.innerHTML = '<div class="gw-subtitle" role="alert"><p>签到状态加载失败，请检查网络后重试。</p><button type="button" class="gw-btn gw-btn-secondary mt-3">重试</button></div>';
@@ -108,27 +123,27 @@ with sync_playwright() as pw:
           const button = document.createElement('button');button.type='button';button.className='gw-btn gw-btn-secondary mt-3';button.textContent='刷新';title.append(button);
           document.querySelector('.gw-balance-value').textContent='—';
         }""")
-        page.screenshot(path=str(OUT / 'prototype-error.png'), full_page=True, animations='disabled')
+        capture(page, path=str(OUT / 'prototype-error.png'), full_page=True, animations='disabled')
         state['code'] = 0
         page.reload(wait_until='networkidle')
         expect(page.get_by_text('再签 7 天可额外获得 $1.00', exact=True)).to_be_visible()
-        page.screenshot(path=str(OUT / 'baseline-milestone.png'), full_page=True, animations='disabled')
+        capture(page, path=str(OUT / 'baseline-milestone.png'), full_page=True, animations='disabled')
         page.evaluate("""() => {
           document.querySelectorAll('.gw-quest-banner').forEach(el => {
             if (el.textContent.includes('再签 7 天')) el.textContent = '再签 1 天可额外获得 $1.00';
           });
         }""")
-        page.screenshot(path=str(OUT / 'prototype-milestone.png'), full_page=True, animations='disabled')
+        capture(page, path=str(OUT / 'prototype-milestone.png'), full_page=True, animations='disabled')
         state['code'] = 503
         page.goto(origin + '/play?lang=zh', wait_until='networkidle')
         expect(page.get_by_text('福利信息加载失败，请重试。', exact=True)).to_be_visible()
-        page.screenshot(path=str(OUT / 'baseline-hub.png'), full_page=True, animations='disabled')
+        capture(page, path=str(OUT / 'baseline-hub.png'), full_page=True, animations='disabled')
         page.evaluate("""() => {
           const title = document.querySelector('[data-testid="play-hub-shell"] h1').parentElement;
           const button = document.createElement('button');button.type='button';button.className='gw-btn gw-btn-secondary mt-3';button.textContent='刷新';title.append(button);
           document.querySelector('.gw-balance-value').textContent='—';
         }""")
-        page.screenshot(path=str(OUT / 'prototype-hub.png'), full_page=True, animations='disabled')
+        capture(page, path=str(OUT / 'prototype-hub.png'), full_page=True, animations='disabled')
         reports.append(dict(case='503-and-milestone', source='unchanged build; prototypes are DOM previews only', gets=state['gets'], posts=state['posts']))
     context.close()
     if args.phase in ['updated', 'profile-repro']:
@@ -166,7 +181,7 @@ with sync_playwright() as pw:
         page.wait_for_timeout(200)
         expect(page.locator('.gw-balance-value')).to_have_text('$2.50')
         assert page.evaluate("document.querySelector('#app').__vue_app__.config.globalProperties.$pinia._s.get('auth').user.balance") == 2.5
-        page.screenshot(path=str(OUT / (args.phase + '-late-profile.png')), full_page=True, animations='disabled')
+        capture(page, path=str(OUT / (args.phase + '-late-profile.png')), full_page=True, animations='disabled')
         reports.append(dict(case='late-profile-after-router-reopen', balance=2.5, shared_balance=2.5, posts=state['posts']))
         context.close()
     if args.phase == 'updated':
@@ -199,21 +214,21 @@ with sync_playwright() as pw:
                 alert = page.locator('[role="alert"]')
                 expect(alert).to_be_visible()
                 expect(alert).to_contain_text(('福利信息加载失败，请重试。' if hub else '签到状态加载失败，请稍后重试。') if lang == 'zh' else ('Unable to load welfare information. Please retry.' if hub else 'Unable to load check-in status. Please retry.'))
-                page.screenshot(path=str(OUT / (stem + '-error.png')), full_page=True, animations='disabled')
+                capture(page, path=str(OUT / (stem + '-error.png')), full_page=True, animations='disabled')
                 state['code'] = 403
                 alert.locator('button').click()
                 expect(alert).to_contain_text(('暂无权限查看福利信息。' if hub else '暂无权限查看签到状态。') if lang == 'zh' else ('You do not have permission to view welfare information.' if hub else 'You do not have permission to view check-in status.'))
                 gate['network'] = True
                 alert.locator('button').click()
                 expect(alert).to_contain_text(('网络异常，请检查连接后重试。') if lang == 'zh' else 'Network error. Check your connection and retry.')
-                page.screenshot(path=str(OUT / (stem + '-network.png')), full_page=True, animations='disabled')
+                capture(page, path=str(OUT / (stem + '-network.png')), full_page=True, animations='disabled')
                 gate['network'] = False
                 state.update(code=0, status={**INITIAL, 'enabled': False})
                 alert.locator('button').click()
                 expect(alert).to_have_count(0)
                 expect(page.locator('.gw-polling')).to_have_count(0)
                 expect(page.locator('.gw-detail-grid button.w-full')).to_have_count(0)
-                page.screenshot(path=str(OUT / (stem + '-disabled.png')), full_page=True, animations='disabled')
+                capture(page, path=str(OUT / (stem + '-disabled.png')), full_page=True, animations='disabled')
                 state['status']['enabled'] = True
                 refresh = page.get_by_test_id('refresh-status')
                 # Keyboard reachability, focus-visible, hover and native activation.
@@ -233,7 +248,7 @@ with sync_playwright() as pw:
                 page.keyboard.press('Enter')
                 page.wait_for_timeout(100)
                 assert len(held) == 1
-                page.screenshot(path=str(OUT / (stem + '-loading.png')), full_page=True, animations='disabled')
+                capture(page, path=str(OUT / (stem + '-loading.png')), full_page=True, animations='disabled')
                 gate['hold'] = False
                 held.pop().continue_()
                 expect(refresh).to_be_enabled()
@@ -241,7 +256,7 @@ with sync_playwright() as pw:
                     expect(page.get_by_text('再签 1 天可额外获得 $1.00' if lang == 'zh' else '1 more days for an extra $1.00', exact=True)).to_be_visible()
                 else:
                     expect(page.locator('.gw-hub-card[href="/check-in"]')).to_be_visible()
-                page.screenshot(path=str(OUT / (stem + '-ready.png')), full_page=True, animations='disabled')
+                capture(page, path=str(OUT / (stem + '-ready.png')), full_page=True, animations='disabled')
                 # Leave while a refresh is pending, reopen fresh, then release the
                 # old response as disabled. It cannot overwrite the current view.
                 gate['hold'] = True
@@ -299,7 +314,7 @@ with sync_playwright() as pw:
         page.locator('aside a[href="/play"]').click()
         expect(page.locator('.gw-balance-value')).to_have_text('$2.50')
         expect(page.locator('.gw-hub-card[href="/check-in"]')).to_contain_text('已签到')
-        page.screenshot(path=str(OUT / 'updated-navigation-success.png'), full_page=True, animations='disabled')
+        capture(page, path=str(OUT / 'updated-navigation-success.png'), full_page=True, animations='disabled')
         page.locator('.gw-hub-card[href="/check-in"]').click()
         expect(page.locator('.gw-detail-grid button.w-full')).to_be_disabled()
         assert state['posts'] == 1

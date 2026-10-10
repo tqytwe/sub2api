@@ -1,6 +1,8 @@
 package service
 
 import (
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
+
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -80,13 +82,13 @@ func (t *openAIRawStreamTerminalState) IsTruncated(clientOutputStarted bool) boo
 
 // newOpenAIRawStreamTruncatedFailoverError 处理"上游截断且尚未向客户端写出任何
 // 字节"的情况：响应头还没提交，可以透明换号重试，客户端不会看到半截流。
-func newOpenAIRawStreamTruncatedFailoverError(
+func newOpenAIRawStreamTruncatedFailoverError(receipt requestledger.Receipt,
 	c *gin.Context,
 	account *Account,
 	upstreamRequestID string,
 	cause error,
 ) *UpstreamFailoverError {
-	recordOpenAIRawStreamTruncation(c, account, upstreamRequestID, cause, "failover")
+	recordOpenAIRawStreamTruncation(receipt, c, account, upstreamRequestID, cause, "failover")
 
 	headers := http.Header{}
 	if id := strings.TrimSpace(upstreamRequestID); id != "" {
@@ -101,7 +103,7 @@ func newOpenAIRawStreamTruncatedFailoverError(
 
 // recordOpenAIRawStreamTruncation 把上游截断记入 ops 上下文，使其在错误日志与
 // 账号健康度中可见——这正是此前"HTTP 200 假成功"丢掉的信息。
-func recordOpenAIRawStreamTruncation(
+func recordOpenAIRawStreamTruncation(receipt requestledger.Receipt,
 	c *gin.Context,
 	account *Account,
 	upstreamRequestID string,
@@ -123,6 +125,7 @@ func recordOpenAIRawStreamTruncation(
 
 	setOpsUpstreamError(c, http.StatusBadGateway, message, "")
 	appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+		LedgerReceipt:      receipt,
 		ProxyID:            opsUpstreamProxyID(account),
 		ProxyName:          opsUpstreamProxyName(account),
 		Platform:           platform,

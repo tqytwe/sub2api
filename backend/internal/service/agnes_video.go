@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
 	"io"
 	"math"
 	"net/http"
@@ -215,6 +216,7 @@ func (s *OpenAIGatewayService) ForwardAgnesVideo(
 
 	writeAgnesVideoResponse(c, resp, respBody, s.responseHeaderFilter)
 	responseID := ExtractAgnesVideoResponseID(respBody)
+	requestledger.ResponseReceipt(resp).ObserveIdentifiers(ctx, "", responseID)
 	requestModel := ExtractAgnesVideoRequestModel(body)
 	if requestModel == "" {
 		requestModel = AgnesVideoDefaultModel
@@ -280,7 +282,7 @@ func (s *OpenAIGatewayService) writeAgnesVideoUpstreamError(ctx context.Context,
 		}
 		upstreamDetail = truncateString(string(body), maxBytes)
 	}
-	setOpsUpstreamError(c, resp.StatusCode, upstreamMsg, upstreamDetail)
+	setOpsUpstreamResponseError(c, resp, resp.StatusCode, upstreamMsg, upstreamDetail)
 	if account != nil {
 		_ = s.handleOpenAIAccountUpstreamError(ctx, account, resp.StatusCode, resp.Header, body, "")
 	}

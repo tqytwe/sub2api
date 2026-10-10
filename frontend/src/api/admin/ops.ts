@@ -985,6 +985,8 @@ export interface OpsErrorLog {
 }
 
 export interface OpsErrorDetail extends OpsErrorLog {
+  ledger_references?: { request_id: string; attempt_id?: string; attempt_no: number; ops_error_log_id: number }[]
+  ledger_references_unavailable?: boolean
   error_body: string
 
   // Upstream context (optional; enriched by gateway services)

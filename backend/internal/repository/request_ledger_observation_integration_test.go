@@ -38,6 +38,16 @@ func TestRequestLedgerObservationFailureKeepsOriginalSettlement(t *testing.T) {
 			defer func() { _ = blocker.Rollback() }()
 			_, err = blocker.Exec(`SELECT 1 FROM gateway_request_attempts WHERE request_id=$1 FOR UPDATE`, h.ID)
 			require.NoError(t, err)
+			_, err = blocker.Exec(`SELECT 1 FROM gateway_request_attempt_evidence WHERE request_id=$1 FOR UPDATE`, h.ID)
+			require.NoError(t, err)
+			_, err = blocker.Exec(`LOCK TABLE gateway_request_ops_links IN ACCESS EXCLUSIVE MODE`)
+			require.NoError(t, err)
+			attempt.ObserveIdentifiers(ctx, "req_diagnostic_fault", "resp_diagnostic_fault")
+			opsID, err := NewOpsRepository(integrationDB).InsertErrorLog(ctx, &service.OpsInsertErrorLogInput{
+				UserID: &user.ID, APIKeyID: &key.ID, ErrorPhase: "upstream", ErrorType: "upstream_error", Severity: "error", StatusCode: 502, CreatedAt: time.Now(), LedgerReceipts: []requestledger.Receipt{attempt.Receipt()},
+			})
+			require.NoError(t, err, "link failure must not roll back the committed Ops row")
+			require.Positive(t, opsID)
 			billing := NewUsageBillingRepositoryWithLedger(client, integrationDB, service.NewBalanceLedgerService(integrationDB, nil, nil))
 			usage := NewUsageLogRepository(client, integrationDB)
 			cfg := &config.Config{}

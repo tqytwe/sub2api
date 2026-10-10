@@ -1,6 +1,8 @@
 package service
 
 import (
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
+
 	"bytes"
 	"encoding/json"
 	"errors"
@@ -148,7 +150,9 @@ func isExplicitOpenAIModelAvailabilityMessage(value string) bool {
 
 func openAICompactFallbackErrorResponse(resp *http.Response, signal *openAICompactFallbackSignal) (*http.Response, []byte) {
 	headers := make(http.Header)
+	var request *http.Request
 	if resp != nil {
+		request = resp.Request
 		headers = resp.Header.Clone()
 	}
 	if headers.Get("Content-Type") == "" {
@@ -157,6 +161,7 @@ func openAICompactFallbackErrorResponse(resp *http.Response, signal *openAICompa
 	payload := normalizeOpenAICompactFallbackHTTPErrorPayload(signal)
 	return &http.Response{
 		StatusCode: http.StatusBadRequest,
+		Request:    request,
 		Header:     headers,
 		Body:       io.NopCloser(bytes.NewReader(payload)),
 	}, payload
@@ -189,7 +194,7 @@ func normalizeOpenAICompactFallbackHTTPErrorPayload(signal *openAICompactFallbac
 	return normalized
 }
 
-func (s *OpenAIGatewayService) appendOpenAICompactFallbackRetryOps(
+func (s *OpenAIGatewayService) appendOpenAICompactFallbackRetryOps(receipt requestledger.Receipt,
 	c *gin.Context,
 	account *Account,
 	resp *http.Response,
@@ -215,6 +220,7 @@ func (s *OpenAIGatewayService) appendOpenAICompactFallbackRetryOps(
 		detail = truncateString(string(payload), maxBytes)
 	}
 	appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+		LedgerReceipt:        receipt,
 		ProxyID:              opsUpstreamProxyID(account),
 		ProxyName:            opsUpstreamProxyName(account),
 		Platform:             account.Platform,
@@ -280,7 +286,7 @@ func (s *OpenAIGatewayService) applyOpenAIPassthroughCompactFallbackFromSignal(
 	if !retry {
 		return body, "", false
 	}
-	s.appendOpenAICompactFallbackRetryOps(c, account, resp, signal.payload, signal.message, true)
+	s.appendOpenAICompactFallbackRetryOps(requestledger.ResponseReceipt(resp), c, account, resp, signal.payload, signal.message, true)
 	if resp != nil && resp.Body != nil {
 		_ = resp.Body.Close()
 	}

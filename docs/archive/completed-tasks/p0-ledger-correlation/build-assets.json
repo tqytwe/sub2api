@@ -1,0 +1,31 @@
+{
+  "build": "make build (combined with play/main 17b96a20c7e9d2e394b37c6c1b108340853c0169)",
+  "browser_uses_actual_build_files": true,
+  "assets": [
+    {
+      "path": "backend/internal/web/dist/index.html",
+      "sha256": "3368b913018169e94037b121cbb84b01c9d41c7da71dc18592682599e919c89b",
+      "bytes": 4197
+    },
+    {
+      "path": "backend/internal/web/dist/assets/RequestLedgerView-B1mZcFZM.js",
+      "sha256": "6c4d66ae27decf5e548467593fe0031bedbc0f086e5e8580d77cdc7ce61277b0",
+      "bytes": 20374
+    },
+    {
+      "path": "backend/internal/web/dist/assets/OpsErrorDetailModal-DgxkKNnF.js",
+      "sha256": "2b4caa49cd811b13e57a0f395f2a53f50e20eda753e4532a0b91570f0a696baa",
+      "bytes": 384
+    },
+    {
+      "path": "backend/internal/web/dist/assets/OpsErrorDetailModal.vue_vue_type_script_setup_true_lang-Cp2Y7uU0.js",
+      "sha256": "1313996ef809776c9f379b9889207adcc5c9ab5ed173b4e88e14b7634bc31df5",
+      "bytes": 15496
+    },
+    {
+      "path": "backend/internal/web/dist/assets/CheckInView-D7emz286.js",
+      "sha256": "1d75e95f06aa924f335503658127b89e2c4f7686bf227f867a953eac4cefe3cf",
+      "bytes": 8490
+    }
+  ]
+}

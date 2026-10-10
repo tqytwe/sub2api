@@ -32,6 +32,14 @@
 
 环境曾因 /tmp 配额耗尽中断一轮全量 integration 的日志；该轮不计通过。只将本任务Go缓存迁入 /workspace 后恢复空间，最终重新调用全量 suite；39 个未变包复用 Go 缓存，修改过的 PG/HTTP/Vue 合同实际重跑。没有清理源代码、其他任务或生产数据。
 
+## 与 #354 的主线组合
+
+P1 首提交 `7cdab5b6b` 完成上述合并前门禁；随后按父线程指示普通合入 `9b367c378b04db987a36175af0b8a3e02e22da24`，未 rebase/force。三处共享路径为 FORK_CUSTOMIZATIONS、docs/README 和 handoff，均自动合并无冲突。其余 134 个主线新增/修改路径与主线逐字节一致；后端相对新主线仅签到测试夹具有差异，SQL275/276 与主线一致。
+
+完整本地门禁属于合并前实现提交；组合后按影响范围复核实际 PG（包括主线新增迁移）、HTTP/Vue、前端目标测试及冷路由语言范围，并重新构建前端、运行全部 11 组浏览器场景。组合后 54/54 目标用例、5/5 PG live Vue、前端构建与 11/11 构建浏览器、7 项治理单元和设计治理、266 份文档链接、handoff 结构及 8 项校验全部通过。组合结果见 combination-verification.json，文件归属证明见 combination-scope.json。未重复执行未变福利源码的昂贵全量本地门禁；最终准确 merge head 的完整 hosted CI 单独记在草稿 PR。
+
+`premerge-assets.json` / `premerge-browser.json` 保留原基线构建验证归属；`updated-assets.json` / `updated-browser.json` 和更新 PNG 对应组合后的重新构建。最终组合按原顺序再做独立规格、质量复审，记录见 reviews.md。人工截图复核发现动画中间帧后，仅补强截图夹具等待有限动画自然结束并断言 banner opacity≥0.99；质量复审及最终 11/11 重拍通过，未修改样式或业务源码。
+
 ## 下一批：先答题，再盲盒
 
 本批只盘点以下证据，未修改这些页面，也未将已有单层 mock 作为跨层验收。

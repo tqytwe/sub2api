@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
 	"io"
 	"net/http"
 	"net/url"
@@ -62,7 +63,7 @@ func (d *DuckDuckGoProvider) Search(ctx context.Context, req SearchRequest) (*Se
 		return nil, fmt.Errorf("duckduckgo: build request: %w", err)
 	}
 	httpReq.Header.Set("Accept", "application/json")
-	resp, err := d.httpClient.Do(httpReq)
+	resp, err := requestledger.Do(httpReq, d.httpClient.Do)
 	if err != nil {
 		return nil, fmt.Errorf("duckduckgo: request failed: %w", err)
 	}

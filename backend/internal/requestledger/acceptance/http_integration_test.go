@@ -21,6 +21,7 @@ import (
 	entsql "entgo.io/ent/dialect/sql"
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/internal/handler"
+	adminhandler "github.com/Wei-Shaw/sub2api/internal/handler/admin"
 	"github.com/Wei-Shaw/sub2api/internal/repository"
 	"github.com/Wei-Shaw/sub2api/internal/requestledger"
 	"github.com/Wei-Shaw/sub2api/internal/requestledger/ledgertest"
@@ -51,6 +52,20 @@ func ledgerFixtureRouter(t *testing.T) (*gin.Engine, *requestledger.Ledger, *sql
 			c.Set(string(middleware.ContextKeyUserRole), role)
 		}
 	})
+	ops := service.NewOpsService(repository.NewOpsRepository(db), nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	opsHandler := adminhandler.NewOpsHandler(ops)
+	r.GET("/api/v1/admin/ops/errors/:id", func(c *gin.Context) {
+		subject, ok := middleware.GetAuthSubjectFromContext(c)
+		if !ok {
+			c.AbortWithStatus(401)
+			return
+		}
+		if subject.UserID != 999 {
+			c.AbortWithStatus(403)
+			return
+		}
+		c.Next()
+	}, opsHandler.GetErrorLogByID)
 	r.GET("/api/v1/requests", h.ListUser)
 	r.GET("/api/v1/requests/:id", h.GetUser)
 	r.GET("/api/v1/requests/:id/usage/:usage_id", h.UsageUser)
@@ -303,6 +318,7 @@ func TestRequestLedgerBrowserFixture(t *testing.T) {
 			}
 		}
 		seedBilledRequest(t, r, db, uid, true)
+		seedCorrelatedFailure(t, ledger, db, uid)
 	}
 	dist := os.Getenv("LEDGER_BROWSER_DIST")
 	require.True(t, strings.HasPrefix(dist, "/tmp/ledger-"))
@@ -334,4 +350,207 @@ func TestRequestLedgerBrowserFixture(t *testing.T) {
 			}
 		}
 	}
+}
+
+func seedCorrelatedFailure(t *testing.T, ledger *requestledger.Ledger, db *sql.DB, uid int64) (string, int64) {
+	t.Helper()
+	h, err := ledger.Begin(context.Background(), "/v1/responses", "POST", "http")
+	require.NoError(t, err)
+	ctx := requestledger.WithHandle(context.Background(), h)
+	keyID := uid + 100
+	require.NoError(t, requestledger.BindIdentity(ctx, uid, keyID))
+	var number int
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		number++
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.Header().Set("X-Request-ID", fmt.Sprintf("req_fixture_%d", number))
+		_, _ = fmt.Fprintf(w, "data: {\"type\":\"response.failed\",\"response\":{\"id\":\"resp_fixture_%d\",\"status\":\"failed\"}}\n\n", number)
+	}))
+	defer server.Close()
+	client := &http.Client{Transport: requestledger.Transport(http.DefaultTransport, 234)}
+	entry := &service.OpsInsertErrorLogInput{UserID: &uid, APIKeyID: &keyID, ErrorPhase: "upstream", ErrorType: "upstream_error", Severity: "error", StatusCode: 502, RequestPath: "/v1/responses", Platform: "openai", ErrorMessage: "Synthetic upstream failure without usage", CreatedAt: time.Now()}
+	for range 2 {
+		req, err := http.NewRequestWithContext(ctx, "POST", server.URL, nil)
+		require.NoError(t, err)
+		resp, err := client.Do(req)
+		require.NoError(t, err)
+		_, err = io.Copy(io.Discard, resp.Body)
+		require.NoError(t, err)
+		require.NoError(t, resp.Body.Close())
+		receipt := requestledger.ResponseReceipt(resp)
+		entry.UpstreamErrors = append(entry.UpstreamErrors, &service.OpsUpstreamErrorEvent{LedgerReceipt: receipt, AccountID: 234, Platform: "openai", UpstreamStatusCode: 200, UpstreamRequestID: resp.Header.Get("X-Request-ID"), UpstreamResponseID: fmt.Sprintf("resp_fixture_%d", number), Kind: "stream_failed", Message: "Synthetic response.failed"})
+	}
+	require.NoError(t, service.SanitizeOpsUpstreamErrorsForQueue(entry))
+	repo := repository.NewOpsRepository(db)
+	opsID, err := repo.InsertErrorLog(ctx, entry)
+	require.NoError(t, err)
+	expiredID, err := repo.InsertErrorLog(ctx, entry)
+	require.NoError(t, err)
+	_, err = db.Exec(`DELETE FROM ops_error_logs WHERE id=$1`, expiredID)
+	require.NoError(t, err)
+	require.NoError(t, h.Finish(ctx, "failed", 200, "upstream_error"))
+	return h.ID, opsID
+}
+
+func TestRequestLedgerHTTPExactDiagnosticsAndIsolation(t *testing.T) {
+	r, l, db := ledgerFixtureRouter(t)
+	seedBilledRequest(t, r, db, 101)
+	id, opsID := seedCorrelatedFailure(t, l, db, 101)
+	read := func(user, path string) *httptest.ResponseRecorder {
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", path, nil)
+		req.Header.Set("X-Ledger-Test-User", user)
+		r.ServeHTTP(w, req)
+		return w
+	}
+	detail := read("999", "/api/v1/admin/requests/"+id)
+	require.Equal(t, 200, detail.Code)
+	require.Contains(t, detail.Body.String(), `"upstream_request_id":"req_fixture_1"`)
+	require.Contains(t, detail.Body.String(), `"available":false`)
+	require.Contains(t, detail.Body.String(), `"usage_state":"usage_unknown"`)
+	require.Contains(t, detail.Body.String(), `"billing":[]`)
+	own := read("101", "/api/v1/requests/"+id)
+	require.Equal(t, 200, own.Code)
+	for _, private := range []string{"upstream_request_id", "upstream_response_id", "diagnostics", "account_id", "credential_account_id"} {
+		require.NotContains(t, own.Body.String(), private)
+	}
+	require.Contains(t, own.Body.String(), "attempt_id")
+	require.Equal(t, 404, read("102", "/api/v1/requests/"+id).Code)
+	opsPath := fmt.Sprintf("/api/v1/admin/ops/errors/%d", opsID)
+	require.Equal(t, 401, read("", opsPath).Code)
+	require.Equal(t, 403, read("101", opsPath).Code)
+	ops := read("999", opsPath)
+	require.Equal(t, 200, ops.Code)
+	require.Contains(t, ops.Body.String(), id)
+	require.Contains(t, ops.Body.String(), "ledger_references")
+	require.Contains(t, ops.Body.String(), "resp_fixture_1")
+	_, err := db.Exec(`ALTER TABLE gateway_request_ops_links RENAME TO fixture_links_offline`)
+	require.NoError(t, err)
+	detail = read("999", "/api/v1/admin/requests/"+id)
+	require.Equal(t, 200, detail.Code)
+	require.Contains(t, detail.Body.String(), `"diagnostics_unavailable":true`)
+	ops = read("999", opsPath)
+	require.Equal(t, 200, ops.Code)
+	require.Contains(t, ops.Body.String(), `"ledger_references_unavailable":true`)
+}
+
+func TestRequestLedgerHTTPAttemptEvidenceFailurePreservesCoreDetail(t *testing.T) {
+	r, _, db := ledgerFixtureRouter(t)
+	id, usageID := seedBilledRequest(t, r, db, 101)
+	read := func(user, prefix string) *httptest.ResponseRecorder {
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", prefix+id, nil)
+		req.Header.Set("X-Ledger-Test-User", user)
+		r.ServeHTTP(w, req)
+		return w
+	}
+	_, err := db.Exec(`ALTER TABLE gateway_request_attempt_evidence RENAME TO fixture_evidence_offline`)
+	require.NoError(t, err)
+	for _, role := range []struct{ user, prefix string }{{"999", "/api/v1/admin/requests/"}, {"101", "/api/v1/requests/"}} {
+		detail := read(role.user, role.prefix)
+		require.Equal(t, 200, detail.Code, detail.Body.String())
+		require.Contains(t, detail.Body.String(), `"attempt_evidence_unavailable":true`)
+		require.Contains(t, detail.Body.String(), `"attempt_no":1`)
+		require.Contains(t, detail.Body.String(), `"settlement_state":"settled"`)
+		require.Contains(t, detail.Body.String(), fmt.Sprintf(`"usage_log_id":%d`, usageID))
+		require.Contains(t, detail.Body.String(), `"attempt_id":null`)
+		if role.user == "101" {
+			require.NotContains(t, detail.Body.String(), "account_id")
+			require.NotContains(t, detail.Body.String(), "upstream_response_id")
+		}
+	}
+	require.Equal(t, 404, read("102", "/api/v1/requests/").Code)
+	_, err = db.Exec(`ALTER TABLE fixture_evidence_offline RENAME TO gateway_request_attempt_evidence`)
+	require.NoError(t, err)
+	restored := read("101", "/api/v1/requests/")
+	require.Equal(t, 200, restored.Code)
+	require.NotContains(t, restored.Body.String(), `"attempt_evidence_unavailable":true`)
+}
+
+func TestRequestLedgerHTTPIdentifierLockDoesNotConsumeResponseDeadline(t *testing.T) {
+	_, ledger, db := ledgerFixtureRouter(t)
+	for _, identifier := range []string{"header", "stream", "table_header", "table_stream", "single_pool"} {
+		t.Run(identifier, func(t *testing.T) {
+			h, err := ledger.Begin(context.Background(), "/v1/responses", "POST", "http")
+			require.NoError(t, err)
+			ctx := requestledger.WithHandle(context.Background(), h)
+			require.NoError(t, requestledger.BindIdentity(ctx, 101, 201))
+			db.SetMaxOpenConns(2)
+			if identifier == "single_pool" {
+				db.SetMaxOpenConns(1)
+			}
+			locked := make(chan *sql.Tx, 1)
+			upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				if identifier != "single_pool" {
+					tx, err := db.BeginTx(context.Background(), nil)
+					require.NoError(t, err)
+					if strings.HasPrefix(identifier, "table_") {
+						_, err = tx.Exec(`LOCK TABLE gateway_request_attempt_evidence IN ACCESS EXCLUSIVE MODE`)
+					} else {
+						_, err = tx.Exec(`SELECT 1 FROM gateway_request_attempt_evidence WHERE request_id=$1 FOR UPDATE`, h.ID)
+					}
+					require.NoError(t, err)
+					locked <- tx
+				}
+				if strings.Contains(identifier, "header") {
+					w.Header().Set("X-Request-ID", "req_locked")
+				}
+				w.Header().Set("Content-Type", "text/event-stream")
+				_, _ = io.WriteString(w, "data: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_locked\",\"usage\":{\"input_tokens\":13,\"output_tokens\":5}}}\n\n")
+			}))
+			defer upstream.Close()
+			defer func() {
+				if identifier == "single_pool" {
+					return
+				}
+				select {
+				case tx := <-locked:
+					_ = tx.Rollback()
+				case <-time.After(5 * time.Second):
+					t.Error("upstream never acquired evidence lock")
+				}
+			}()
+			client := &http.Client{Transport: requestledger.Transport(http.DefaultTransport, 234), Timeout: 350 * time.Millisecond}
+			req, err := http.NewRequestWithContext(ctx, "POST", upstream.URL, nil)
+			require.NoError(t, err)
+			started := time.Now()
+			resp, err := client.Do(req)
+			require.NoError(t, err, "diagnostic lock must not consume the real HTTP response deadline")
+			defer resp.Body.Close()
+			body, err := io.ReadAll(resp.Body)
+			require.NoError(t, err, "stream identifiers must not block body reads")
+			require.Less(t, time.Since(started), 350*time.Millisecond)
+			require.Contains(t, string(body), `"input_tokens":13`)
+			require.NoError(t, resp.Body.Close())
+			settleCtx, cancel := context.WithTimeout(ctx, 350*time.Millisecond)
+			defer cancel()
+			require.NoError(t, requestledger.ObserveUsage(settleCtx, 234))
+			usageID := settleFixtureRequest(t, settleCtx, db, 101, 13, 5)
+			require.Positive(t, usageID)
+			require.NoError(t, h.Finish(ctx, "succeeded", 200, ""))
+			var state string
+			require.NoError(t, db.QueryRow(`SELECT settlement_state FROM gateway_requests WHERE id=$1`, h.ID).Scan(&state))
+			require.Equal(t, "settled", state, "real usage settles while the diagnostic row remains locked")
+		})
+	}
+}
+
+func TestRequestLedgerHTTPAttemptEvidenceLockPreservesDeadline(t *testing.T) {
+	r, _, db := ledgerFixtureRouter(t)
+	id, usageID := seedBilledRequest(t, r, db, 101)
+	blocker, err := db.Begin()
+	require.NoError(t, err)
+	defer blocker.Rollback()
+	_, err = blocker.Exec(`LOCK TABLE gateway_request_attempt_evidence IN ACCESS EXCLUSIVE MODE`)
+	require.NoError(t, err)
+	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	defer cancel()
+	req := httptest.NewRequest("GET", "/api/v1/admin/requests/"+id, nil).WithContext(ctx)
+	req.Header.Set("X-Ledger-Test-User", "999")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	require.Equal(t, 200, w.Code, w.Body.String())
+	require.NoError(t, ctx.Err(), "optional metadata must leave time to deliver core details")
+	require.Contains(t, w.Body.String(), `"attempt_evidence_unavailable":true`)
+	require.Contains(t, w.Body.String(), fmt.Sprintf(`"usage_log_id":%d`, usageID))
 }

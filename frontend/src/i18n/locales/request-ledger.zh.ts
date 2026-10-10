@@ -1,4 +1,18 @@
 export default {
+  exactEvidence: "精确关联证据",
+  evidenceNotice: "标识仅用于诊断，不证明用量或扣费。标识证据异步写入，历史记录或诊断故障可能留下缺口；空字段不代表上游未提供。",
+  evidenceUnavailable: "关联证据暂时无法读取，执行与计费详情仍可查看。请刷新重试。",
+  attemptId: "尝试 ID",
+  upstreamRequestId: "上游请求 ID",
+  upstreamResponseId: "上游响应 ID",
+  noExactEvidence: "未记录精确关联",
+  identifierConflict: "观察到冲突的上游标识，保留首个有效值。",
+  diagnostics: "Ops 诊断",
+  diagnosticsUnavailable: "诊断关联暂时不可用，请刷新重试。",
+  noDiagnostics: "没有精确关联的诊断",
+  diagnosticExpired: "原诊断已不可用",
+  requestOnly: "仅请求级关联",
+
   walletNotice: '这里引用已存在的钱包流水。预留金额不代表已经完成最终结算。', walletOperations: { video_balance_hold: '视频预留', video_balance_capture: '视频结算', video_balance_release: '视频释放', image_balance_hold: '图像预留', image_balance_capture: '图像结算', image_balance_release: '图像释放' },
   phase: '阶段', phases: { auxiliary: '辅助下载', external_search: '外部搜索', ws_input: 'WS 持续输入', ws_observed: '已观察到的自动轮次', request: '请求发送', ws_connect: 'WS 建连', ws_control: 'WS 控制' },
   walletTransaction: '钱包流水',

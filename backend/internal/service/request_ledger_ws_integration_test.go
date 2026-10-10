@@ -150,4 +150,10 @@ func TestRequestLedgerNativeWebsocketTwoTurnsWithRealPostgres(t *testing.T) {
 	require.NoError(t, db.QueryRow(`SELECT usage_state FROM gateway_requests WHERE parent_id=$1 AND turn_no=2`, session).Scan(&secondUsage))
 	require.Equal(t, "known", firstUsage)
 	require.Equal(t, "usage_unknown", secondUsage)
+	var firstID, secondID string
+	require.NoError(t, db.QueryRow(`SELECT COALESCE(e.upstream_response_id,'') FROM gateway_request_attempt_evidence e JOIN gateway_requests r ON r.id=e.request_id WHERE r.parent_id=$1 AND r.turn_no=1 AND e.attempt_no=(SELECT max(attempt_no) FROM gateway_request_attempts WHERE request_id=r.id AND phase='request')`, session).Scan(&firstID))
+	require.NoError(t, db.QueryRow(`SELECT COALESCE(e.upstream_response_id,'') FROM gateway_request_attempt_evidence e JOIN gateway_requests r ON r.id=e.request_id WHERE r.parent_id=$1 AND r.turn_no=2 AND e.attempt_no=(SELECT max(attempt_no) FROM gateway_request_attempts WHERE request_id=r.id AND phase='request')`, session).Scan(&secondID))
+	require.Equal(t, "fixture-first", firstID)
+	require.Empty(t, secondID, "ID-less turn must not inherit the previous response ID")
+
 }

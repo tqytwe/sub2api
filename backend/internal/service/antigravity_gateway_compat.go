@@ -1,6 +1,8 @@
 package service
 
 import (
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
+
 	"bufio"
 	"context"
 	"encoding/json"
@@ -466,6 +468,7 @@ func (s *AntigravityGatewayService) handleAntigravityCompatHTTPError(
 	if s.shouldFailoverUpstreamError(resp.StatusCode) {
 		message := sanitizeUpstreamErrorMessage(strings.TrimSpace(extractAntigravityErrorMessage(body)))
 		event := OpsUpstreamErrorEvent{
+			LedgerReceipt:      requestledger.ResponseReceipt(resp),
 			ProxyID:            opsUpstreamProxyID(account),
 			ProxyName:          opsUpstreamProxyName(account),
 			Platform:           account.Platform,
@@ -491,7 +494,7 @@ func (s *AntigravityGatewayService) handleAntigravityCompatHTTPError(
 			ResponseHeaders: resp.Header.Clone(),
 		}
 	}
-	return s.writeMappedAntigravityCompatError(c, account, resp.StatusCode, resp.Header.Get("x-request-id"), body)
+	return s.writeMappedAntigravityCompatError(requestledger.ResponseReceipt(resp), c, account, resp.StatusCode, resp.Header.Get("x-request-id"), body)
 }
 
 func antigravityCredentialRejectedError(resp *http.Response, body []byte) *UpstreamFailoverError {
@@ -526,7 +529,7 @@ func (s *AntigravityGatewayService) writeAntigravityCompatError(
 	return errors.New(message)
 }
 
-func (s *AntigravityGatewayService) writeMappedAntigravityCompatError(
+func (s *AntigravityGatewayService) writeMappedAntigravityCompatError(receipt requestledger.Receipt,
 	c *gin.Context,
 	account *Account,
 	upstreamStatus int,
@@ -537,6 +540,7 @@ func (s *AntigravityGatewayService) writeMappedAntigravityCompatError(
 	message := sanitizeUpstreamErrorMessage(strings.TrimSpace(extractAntigravityErrorMessage(body)))
 	setOpsUpstreamError(c, upstreamStatus, message, s.getUpstreamErrorDetail(body))
 	appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+		LedgerReceipt:      receipt,
 		ProxyID:            opsUpstreamProxyID(account),
 		ProxyName:          opsUpstreamProxyName(account),
 		Platform:           account.Platform,

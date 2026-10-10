@@ -1,0 +1,490 @@
+{
+  "scope": "Isolated fixtures and local gates only; no production verification",
+  "checks": [
+    {
+      "name": "requestledger-full-pg",
+      "command": "go test -tags=integration ./internal/requestledger",
+      "exit_code": 0,
+      "log_sha256": "8ee337864f4cf8525f34c7d468a50e772ece2e9a5043d7db4dcda02c7aa39994",
+      "summary": [
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/requestledger\t67.686s"
+      ]
+    },
+    {
+      "name": "correlation-race-pg",
+      "command": "go test -race -tags=integration ./internal/requestledger -run '^TestLedgerPostgres(DoTimeoutAndIsolation|ExactAttemptEvidence|ImmutableReceiptsAndLinks)$' -count=1 -timeout=8m",
+      "exit_code": 0,
+      "log_sha256": "f28f4960a9fdefe94a3d18de1bd1f0a9ef55f6d9416bcd02805bf5d535b7779c",
+      "summary": [
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/requestledger\t10.584s"
+      ]
+    },
+    {
+      "name": "service-ledger-pg",
+      "command": "go test -tags=integration ./internal/service -run ^TestRequestLedger -count=1",
+      "exit_code": 0,
+      "log_sha256": "fd6fcf3774c5b55a390a13caeff27e89d3a58adcfaea368f0411438d0abcc081",
+      "summary": [
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/service\t191.755s"
+      ]
+    },
+    {
+      "name": "repository-http-pg",
+      "command": "go test -tags=integration ./internal/repository ./internal/requestledger/acceptance -run ^TestRequestLedger -count=1",
+      "exit_code": 0,
+      "log_sha256": "87454d921f7361f272361d6fd019db95cbf74737a23545b19fecf865f65c67ae",
+      "summary": [
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/repository\t31.552s",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/requestledger/acceptance\t30.955s"
+      ]
+    },
+    {
+      "name": "frontend-full",
+      "command": "make test-frontend",
+      "exit_code": 0,
+      "log_sha256": "ef8e34ac842c6096350b7528245a557fda9e8351137399b8bbe710d3ae3d434d",
+      "summary": [
+        " Test Files  492 passed | 1 skipped (493)",
+        "      Tests  3511 passed | 2 skipped (3513)"
+      ]
+    },
+    {
+      "name": "full-build",
+      "command": "make build",
+      "exit_code": 0,
+      "log_sha256": "81c0e54c6faa3f1e0a437f7e07be9be1426dba02cce5c165a6a2683a86ae40bf",
+      "summary": [
+        " Test Files  1 passed (1)",
+        "      Tests  3 passed (3)",
+        "✓ built in 1m 11s"
+      ]
+    },
+    {
+      "name": "fork-integrity",
+      "command": "./scripts/check-fork-integrity.sh",
+      "exit_code": 0,
+      "log_sha256": "ce3d5b762eb0a6daa500819fc2c3b5112639a367ed7d6d954b8c23c88a8d9eaa",
+      "summary": [
+        "      Tests  4 passed (4)",
+        " Test Files  2 passed (2)",
+        "      Tests  2 passed (2)",
+        " Test Files  3 passed (3)",
+        "      Tests  8 passed (8)",
+        " Test Files  5 passed (5)",
+        "      Tests  124 passed (124)",
+        "Fork integrity passed."
+      ]
+    },
+    {
+      "name": "actual-browser",
+      "command": "PLAYWRIGHT_MODULE=/opt/codex/runtimes/cua/lib/node_modules/playwright-core node docs/archive/completed-tasks/p0-ledger-correlation/p0-capture.cjs",
+      "exit_code": 0,
+      "log_sha256": "246648dcd23c40cfc3eada0d643dd27f3c646a60074ed04ed4425e00a9f8490b",
+      "summary": []
+    },
+    {
+      "name": "embed-assets",
+      "command": "go test -tags=embed ./internal/web",
+      "exit_code": 0,
+      "log_sha256": "a8ef691996bea986c45e4861bbce9723670039850f18ed0ac696c6a639acd826",
+      "summary": [
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/web\t0.128s"
+      ]
+    },
+    {
+      "name": "backend-unit-full",
+      "command": "make test-backend-unit",
+      "exit_code": 0,
+      "log_sha256": "cfacc0cd061687371c7d86e9f72748e308c7407e99ca87be8ab4dc6422bb0026",
+      "summary": [
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/setup\t0.311s",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/util/logredact\t(cached)",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/util/responseheaders\t(cached)",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/util/urlvalidator\t(cached)",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/web\t(cached)",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/migrations\t0.131s",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/pkg/pluginapi/v1\t(cached)",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/scripts\t(cached)"
+      ]
+    },
+    {
+      "name": "make-test-full",
+      "command": "make test",
+      "exit_code": 0,
+      "log_sha256": "1cee2c24851e0055e89493442543613c579cf6e135ec8141fd2f45c417471aa6",
+      "summary": [
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/setup\t(cached)",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/util/logredact\t(cached)",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/util/responseheaders\t(cached)",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/util/urlvalidator\t(cached)",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/migrations\t(cached)",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/pkg/pluginapi/v1\t(cached)",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/scripts\t(cached)",
+        "0 issues.",
+        " Test Files  492 passed | 1 skipped (493)",
+        "      Tests  3511 passed | 2 skipped (3513)"
+      ]
+    }
+  ],
+  "remaining": [],
+  "completed_at": "2026-10-10T21:17:26Z",
+  "initial_submission": "e209fda11509bfd651741cbc100b5b29b9fed913",
+  "followup_base": "17b96a20c7e9d2e394b37c6c1b108340853c0169",
+  "followup_checks": [
+    {
+      "name": "requestledger-full-race",
+      "command": "go test -race -tags=integration ./internal/requestledger -count=1",
+      "exit_code": 0,
+      "log_sha256": "29367fd7b99a5da69f6a4ffe0961ecfae2dca08b6dc79ad2c57a2ef3ac72879d",
+      "summary": [
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/requestledger\t104.450s"
+      ]
+    },
+    {
+      "name": "service-ledger-full-pg",
+      "command": "go test -tags=integration ./internal/service -run ^TestRequestLedger -count=1 -timeout=12m",
+      "exit_code": 0,
+      "log_sha256": "1fcbc18f67e9019dac54697b3df4cedd77c0f0b2ed8c15340c3c9a3ff9beb8ad",
+      "summary": [
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/service\t136.706s"
+      ]
+    },
+    {
+      "name": "repository-http-pg",
+      "command": "go test -tags=integration ./internal/repository ./internal/requestledger/acceptance -run ^TestRequestLedger -count=1 -timeout=12m",
+      "exit_code": 0,
+      "log_sha256": "20f4ebd1ab0fc1f3f3f405e1a1727ca19b858577317bc753605c60b4525f9371",
+      "summary": [
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/repository\t22.664s",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/requestledger/acceptance\t32.625s"
+      ]
+    },
+    {
+      "name": "handler-observed-usage-race",
+      "command": "go test -race ./internal/handler -run ^TestWSObservedUsage -count=1 -timeout=5m",
+      "exit_code": 0,
+      "log_sha256": "d07ac3d889980ffe1fa7327fab6e811cb838f62106c261d55222de6ba7855e28",
+      "summary": [
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/handler\t3.477s"
+      ]
+    },
+    {
+      "name": "combined-checkin-http-pg",
+      "command": "CHECKIN_FRONTEND_CONTRACT=1 go test -tags=integration ./internal/repository -run ^TestCheckinHTTPDatabaseContract$ -count=1 -timeout=6m",
+      "exit_code": 0,
+      "log_sha256": "f89fbf6d00798461c43ce9f19cb7375e6449748f518bf67723e982a87c267763",
+      "summary": [
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/repository\t12.602s"
+      ]
+    },
+    {
+      "name": "full-build",
+      "command": "make build",
+      "exit_code": 0,
+      "log_sha256": "f76ca0d635b2171f15028524d07175db96e631c3d0d612b533de8d566ae95c7d",
+      "summary": [
+        " Test Files  1 passed (1)",
+        "      Tests  3 passed (3)",
+        "✓ built in 42.95s"
+      ]
+    },
+    {
+      "name": "fork-integrity",
+      "command": "bash scripts/check-fork-integrity.sh",
+      "exit_code": 0,
+      "log_sha256": "0e9846a06a55c4c3e976e546a8a03ca89200db5745d02602db93af9a47bb9830",
+      "summary": [
+        "      Tests  34 passed (34)",
+        " Test Files  1 passed (1)",
+        "      Tests  7 passed (7)",
+        " Test Files  2 passed (2)",
+        "      Tests  4 passed (4)",
+        " Test Files  2 passed (2)",
+        "      Tests  2 passed (2)",
+        " Test Files  3 passed (3)",
+        "      Tests  8 passed (8)",
+        " Test Files  5 passed (5)",
+        "      Tests  124 passed (124)",
+        "Fork integrity passed."
+      ]
+    },
+    {
+      "name": "actual-browser",
+      "command": "PLAYWRIGHT_MODULE=/opt/codex/runtimes/cua/lib/node_modules/playwright-core node docs/archive/completed-tasks/p0-ledger-correlation/p0-capture.cjs",
+      "exit_code": 0,
+      "log_sha256": "2031a07a2b1c88f9b744d4d84cd0a3b88539626076afedbe871793756f41151e",
+      "summary": []
+    },
+    {
+      "name": "embed-assets",
+      "command": "go test -tags=embed ./internal/web",
+      "exit_code": 0,
+      "log_sha256": "8c82f4a7083d065e7cb317d2857f52c2480674077205f3626b6bae2b1aa11e9a",
+      "summary": [
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/web\t0.197s"
+      ]
+    },
+    {
+      "name": "anonymous-fixture",
+      "command": "go test ./internal/service -run ^TestOpenAIGatewayService_ProxyResponsesWebSocketFromClient_StoreDisabledFunctionCallOutputSkipsAutoAttachWhenLastResponseIDMissing$ -count=1 -timeout=2m",
+      "exit_code": 0,
+      "log_sha256": "71a7be97c1e752c53900779bfd8b161256bff0ea7a6567a72487445759ab4c46",
+      "summary": [
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/service\t0.023s"
+      ]
+    },
+    {
+      "name": "make-test",
+      "command": "make test",
+      "exit_code": 0,
+      "log_sha256": "692fcf2bb2d4b8e041b5bc27a42ecf7967aeaf11428cf61e4bc77447d01bf31c",
+      "summary": [
+        "ok  \tgithub.com/Wei-Shaw/sub2api/scripts\t(cached)",
+        "0 issues.",
+        "[design-governance] passed (base: 726289bdb757e572eac10ab5f12c689c4dc087b5; changed files: 177; checked files: 13; visual files: 5; evidence records: 2)",
+        "[design-governance] passed (base: 726289bdb757e572eac10ab5f12c689c4dc087b5; changed files: 177; checked files: 13; visual files: 5; evidence records: 2)",
+        "    at startTests (file:///workspace/sub2api-p0/frontend/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1271:3)",
+        "    at startTests (file:///workspace/sub2api-p0/frontend/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1271:3)",
+        "    at startTests (file:///workspace/sub2api-p0/frontend/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1271:3)",
+        "    at startTests (file:///workspace/sub2api-p0/frontend/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1271:3)",
+        "    at startTests (file:///workspace/sub2api-p0/frontend/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1271:3)",
+        "    at startTests (file:///workspace/sub2api-p0/frontend/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1271:3)",
+        " Test Files  493 passed | 1 skipped (494)",
+        "      Tests  3528 passed | 4 skipped (3532)"
+      ]
+    },
+    {
+      "name": "unit",
+      "command": "make test-backend-unit",
+      "exit_code": 0,
+      "log_sha256": "f507ab2f7381f635676afe5050b1a5cbdd879338f27268df6c85572a4ad6df50",
+      "summary": [
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/server/middleware\t(cached)",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/server/routes\t(cached)",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/service\t196.747s",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/service/openai_ws_v2\t(cached)",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/setup\t(cached)",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/util/logredact\t(cached)",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/util/responseheaders\t(cached)",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/util/urlvalidator\t(cached)",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/web\t(cached)",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/migrations\t(cached)",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/pkg/pluginapi/v1\t(cached)",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/scripts\t(cached)"
+      ]
+    },
+    {
+      "name": "handoff",
+      "command": "python3 scripts/check_project_handoff.py",
+      "exit_code": 0,
+      "log_sha256": "2b0a71e1a933543b0fd97e4ca97cd1d91328157320901a7995bd273b601e11ba",
+      "summary": [
+        "oauth-refresh-deadline: backend=已部署; product=已部署; owner=待分配",
+        "compact-tool-admission: backend=已部署; product=已部署; owner=待分配",
+        "durable-request-ledger: backend=已部署; product=可测; owner=待分配",
+        "Record structure/local paths OK; 21 pending entries. No runtime, remote-link or production validation."
+      ]
+    },
+    {
+      "name": "handoff-tests",
+      "command": "python3 -m unittest discover -s scripts -p test_project_handoff.py",
+      "exit_code": 0,
+      "log_sha256": "35649ccb7621214ac024bd31428022d326fb76b6926043ad7d6527b41cd3c0f8",
+      "summary": [
+        "----------------------------------------------------------------------",
+        "Ran 8 tests in 0.009s",
+        "",
+        "OK"
+      ]
+    },
+    {
+      "name": "doc-links",
+      "command": "node scripts/check-doc-links.mjs",
+      "exit_code": 0,
+      "log_sha256": "f517c094964b93150e5326ae24f7d17251c0d26115e2e5874b9eb04ac34bade0",
+      "summary": [
+        "Documentation integrity check passed (262 files)."
+      ]
+    },
+    {
+      "name": "design",
+      "command": "pnpm --dir frontend design:check",
+      "exit_code": 0,
+      "log_sha256": "abfab94953be8ec89ac0008d53c38c01cb1344587331260102564f6e9741399c",
+      "summary": [
+        "> sub2api-frontend@1.0.0 design:check /workspace/sub2api-p0/frontend",
+        "> node ../scripts/check-frontend-design-governance.mjs",
+        "",
+        "[design-governance] passed (base: 726289bdb757e572eac10ab5f12c689c4dc087b5; changed files: 177; checked files: 13; visual files: 5; evidence records: 2)"
+      ]
+    },
+    {
+      "name": "diff-check",
+      "command": "git diff --check",
+      "exit_code": 0,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "summary": []
+    },
+    {
+      "name": "staged-diff-check",
+      "command": "git diff --cached --check",
+      "exit_code": 0,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "summary": []
+    },
+    {
+      "name": "protected-source-unchanged",
+      "command": "git diff --exit-code 17b96a20c7e9d2e394b37c6c1b108340853c0169 -- backend/internal/repository/usage_billing_repo.go frontend/src/views/user/CheckInView.vue backend/internal/repository/play_checkin_http_integration_test.go",
+      "exit_code": 0,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "summary": []
+    }
+  ],
+  "followup_failures": [
+    {
+      "name": "full-before-fixture-adaptation",
+      "command": "make test",
+      "exit_code": 2,
+      "log_sha256": "e82df40953a7bd42095674c0859f4e012d131ba3d1e59d1192a684c73d1ed702",
+      "summary": [
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/server/middleware\t0.045s",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/server/routes\t10.710s",
+        "--- FAIL: TestOpenAIGatewayService_ProxyResponsesWebSocketFromClient_StoreDisabledFunctionCallOutputSkipsAutoAttachWhenLastResponseIDMissing (0.00s)",
+        "FAIL\tgithub.com/Wei-Shaw/sub2api/internal/service\t138.027s",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/service/openai_ws_v2\t(cached)",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/setup\t0.108s",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/util/logredact\t0.006s",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/util/responseheaders\t0.003s",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/util/urlvalidator\t0.004s",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/migrations\t0.029s",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/pkg/pluginapi/v1\t0.005s",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/scripts\t0.004s"
+      ]
+    },
+    {
+      "name": "unit-disk-full",
+      "command": "make test-backend-unit",
+      "exit_code": 2,
+      "log_sha256": "d2c54d78819c7720d682c8c892bd57dadd2da812742c86b7f313f7729cda70ef",
+      "summary": [
+        "FAIL\tgithub.com/Wei-Shaw/sub2api/internal/server/middleware [build failed]",
+        "FAIL\tgithub.com/Wei-Shaw/sub2api/internal/server/routes [build failed]",
+        "FAIL\tgithub.com/Wei-Shaw/sub2api/internal/service [build failed]",
+        "FAIL\tgithub.com/Wei-Shaw/sub2api/internal/service/openai_ws_v2 [build failed]",
+        "FAIL\tgithub.com/Wei-Shaw/sub2api/internal/setup [build failed]",
+        "FAIL\tgithub.com/Wei-Shaw/sub2api/internal/util/logredact [build failed]",
+        "FAIL\tgithub.com/Wei-Shaw/sub2api/internal/util/responseheaders [build failed]",
+        "FAIL\tgithub.com/Wei-Shaw/sub2api/internal/util/urlvalidator [build failed]",
+        "FAIL\tgithub.com/Wei-Shaw/sub2api/internal/web [build failed]",
+        "FAIL\tgithub.com/Wei-Shaw/sub2api/migrations [build failed]",
+        "FAIL\tgithub.com/Wei-Shaw/sub2api/pkg/pluginapi/v1 [build failed]",
+        "FAIL\tgithub.com/Wei-Shaw/sub2api/scripts [build failed]"
+      ]
+    },
+    {
+      "name": "fork-disk-full",
+      "command": "bash scripts/check-fork-integrity.sh",
+      "exit_code": 1,
+      "log_sha256": "429c1938e95bc489f57c527510f17ea7e0a224c727063c4f6c05800ab12bdae5",
+      "summary": [
+        " Test Files  4 passed (4)",
+        "      Tests  34 passed (34)",
+        " Test Files  1 passed (1)",
+        "      Tests  7 passed (7)",
+        " Test Files  2 passed (2)",
+        "      Tests  4 passed (4)",
+        " Test Files  2 passed (2)",
+        "      Tests  2 passed (2)",
+        " Test Files  3 passed (3)",
+        "      Tests  8 passed (8)",
+        " Test Files  5 passed (5)",
+        "      Tests  124 passed (124)"
+      ]
+    },
+    {
+      "name": "service-pg-disk-full",
+      "command": "go test -tags=integration ./internal/service -run ^TestRequestLedger -count=1 -timeout=12m",
+      "exit_code": 1,
+      "log_sha256": "39f36faf6b08e0519b549bc09da279432db22bf05e3cb2691f8717e3f725170f",
+      "summary": [
+        "--- FAIL: TestRequestLedgerRealtimeExplicitAndAutomaticTurns (10.13s)",
+        "--- FAIL: TestRequestLedgerRealtimeLateTerminalCannotConsumeNextTurn (31.55s)",
+        "--- FAIL: TestRequestLedgerOAuthModelsDirectTransportAdmission (31.13s)",
+        "--- FAIL: TestRequestLedgerImageBackfillKeepsGenerationAttribution (30.99s)",
+        "--- FAIL: TestRequestLedgerModelsCacheRefreshKeepsDurableChild (30.92s)",
+        "--- FAIL: TestRequestLedgerModelsCacheStorageFailureNeverSends (31.00s)",
+        "FAIL\tgithub.com/Wei-Shaw/sub2api/internal/service\t302.106s"
+      ]
+    },
+    {
+      "name": "checkin-container-start-failed",
+      "command": "CHECKIN_FRONTEND_CONTRACT=1 go test -tags=integration ./internal/repository -run ^TestCheckinHTTPDatabaseContract$ -count=1 -timeout=6m",
+      "exit_code": 1,
+      "log_sha256": "a7da49e97e706a89a52427232369fa5e66f71ccdabff25f190438cb6491ad105",
+      "summary": [
+        "FAIL\tgithub.com/Wei-Shaw/sub2api/internal/repository\t3.679s"
+      ]
+    },
+    {
+      "name": "full-cache-race-and-service-fixture",
+      "command": "make test",
+      "exit_code": 2,
+      "log_sha256": "55b51785f0032774383021b92c97971684dea7a099528b45f0d32c0804d52f6f",
+      "summary": [
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/server/middleware\t0.047s",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/server/routes\t(cached)",
+        "--- FAIL: TestOpenAIGatewayService_ProxyResponsesWebSocketFromClient_StoreDisabledFunctionCallOutputSkipsAutoAttachWhenLastResponseIDMissing (0.00s)",
+        "FAIL\tgithub.com/Wei-Shaw/sub2api/internal/service\t136.256s",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/service/openai_ws_v2\t(cached)",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/setup\t(cached)",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/util/logredact\t(cached)",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/util/responseheaders\t(cached)",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/util/urlvalidator\t(cached)",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/migrations\t(cached)",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/pkg/pluginapi/v1\t(cached)",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/scripts\t(cached)"
+      ]
+    },
+    {
+      "name": "full-service-fixture",
+      "command": "make test",
+      "exit_code": 2,
+      "log_sha256": "d284d8e960a05f482ea8893b77f92117b06a9d02e2f86035a604177fb54c5080",
+      "summary": [
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/server/middleware\t(cached)",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/server/routes\t(cached)",
+        "--- FAIL: TestOpenAIGatewayService_ProxyResponsesWebSocketFromClient_StoreDisabledFunctionCallOutputSkipsAutoAttachWhenLastResponseIDMissing (0.00s)",
+        "FAIL\tgithub.com/Wei-Shaw/sub2api/internal/service\t135.631s",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/service/openai_ws_v2\t(cached)",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/setup\t(cached)",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/util/logredact\t(cached)",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/util/responseheaders\t(cached)",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/util/urlvalidator\t(cached)",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/migrations\t(cached)",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/pkg/pluginapi/v1\t(cached)",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/scripts\t(cached)"
+      ]
+    },
+    {
+      "name": "unit-service-fixture",
+      "command": "make test-backend-unit",
+      "exit_code": 2,
+      "log_sha256": "eb32a7605fc8ee91c0543e01651af4e27503b387368f5ab4b4ae9dddbb6091e4",
+      "summary": [
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/server/routes\t10.844s",
+        "--- FAIL: TestOpenAIGatewayService_ProxyResponsesWebSocketFromClient_StoreDisabledFunctionCallOutputSkipsAutoAttachWhenLastResponseIDMissing (0.00s)",
+        "FAIL\tgithub.com/Wei-Shaw/sub2api/internal/service\t197.214s",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/service/openai_ws_v2\t(cached)",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/setup\t0.090s",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/util/logredact\t0.002s",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/util/responseheaders\t0.003s",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/util/urlvalidator\t0.002s",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/web\t0.006s",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/migrations\t0.028s",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/pkg/pluginapi/v1\t0.006s",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/scripts\t0.005s"
+      ]
+    }
+  ],
+  "followup_scope": "Four review fixes plus ordinary merge of #353. Business source unchanged after successful PG/race/build/browser checks; subsequent edits only adapt two retired-connection test fixtures and documentation. Heavy final gates ran serially; no cache cleanup while active. No production verification or operations."
+}

@@ -1,0 +1,16 @@
+{
+  "development_base": "17b96a20c7e9d2e394b37c6c1b108340853c0169",
+  "p1_implementation_commit": "7cdab5b6ba7b7516dd29fd8ecc6651af5540c1fc",
+  "main_merged": "9b367c378b04db987a36175af0b8a3e02e22da24",
+  "merge_strategy": "ordinary --no-ff --no-commit; no conflicts; final merge commit created after affected validation",
+  "shared_paths": [
+    "docs/FORK_CUSTOMIZATIONS.md",
+    "docs/README.md",
+    "docs/upstream-migrations/v2.10.3/handoff.json"
+  ],
+  "unchanged_main_files": 134,
+  "backend_delta": [
+    "backend/internal/repository/play_checkin_http_integration_test.go"
+  ],
+  "migration_275_276": "byte-for-byte main; no changes"
+}

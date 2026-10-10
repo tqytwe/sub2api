@@ -13,6 +13,7 @@ import (
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/openai"
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
 	openaiwsv2 "github.com/Wei-Shaw/sub2api/internal/service/openai_ws_v2"
 	coderws "github.com/coder/websocket"
 	"github.com/gin-gonic/gin"
@@ -1224,6 +1225,7 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 		}
 	}
 	var observedTurnUsage OpenAIUsage
+	var writeReceipt requestledger.Receipt
 	relayResult, relayExit := openaiwsv2.RunEntry(openaiwsv2.EntryInput{
 		Ctx:                ctx,
 		ClientConn:         policyClientConn,
@@ -1258,11 +1260,15 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 				recordTurn(int(completedTurns.Add(1)), turn, nil)
 				observedTurnUsage = OpenAIUsage{}
 			},
-			BeforeClientWrite: func(msgType coderws.MessageType, payload []byte) {
-				// The relay has already discarded terminals from earlier turns.
+			OnUpstreamFrame: func(msgType coderws.MessageType, payload []byte) {
+				// Old terminals are filtered; capture before completion, drain or policy rejection.
+				writeReceipt = ledgerUpstream.receiptForRead()
+				writeReceipt.ObserveIdentifiers(ctx, requestledger.UpstreamRequestID(handshakeHeaders), requestledger.ResponseIdentifier(payload))
 				if len(payload) > 0 {
-					ledgerUpstream.observeOutput(ctx)
+					writeReceipt.ObserveOutput(ctx)
 				}
+			},
+			BeforeClientWrite: func(msgType coderws.MessageType, payload []byte) {
 				if msgType == coderws.MessageText && openAIWSPassthroughIsTerminalOutput(payload) {
 					turnLifecycle.beginTerminalWrite()
 				}
@@ -1270,7 +1276,7 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 			AfterClientWrite: func(msgType coderws.MessageType, payload []byte, writeErr error) {
 				if msgType == coderws.MessageText && writeErr == nil {
 					eventType, _, _ := parseOpenAIWSEventEnvelope(payload)
-					markOpenAIWSClientVisibleFailure(c, eventType, payload)
+					markOpenAIWSClientVisibleFailure(c, eventType, payload, writeReceipt)
 				}
 				if msgType == coderws.MessageText && openAIWSPassthroughIsTerminalOutput(payload) {
 					turnLifecycle.finishTerminalWrite(writeErr == nil, clientFrameConn.markTurnCompleted)
@@ -1440,7 +1446,7 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 		// The relay ran over the WebSocket transport, so a missing managed
 		// proxy is an unknown route (http.DefaultClient), not a direct one.
 		wsProxyID, wsProxyName := opsUpstreamWSProxyAttribution(account)
-		failoverErr := s.newOpenAIFirstOutputTimeoutError(
+		failoverErr := s.newOpenAIFirstOutputTimeoutError(ledgerUpstream.receiptForWrite(),
 			ctx,
 			c,
 			account,

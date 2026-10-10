@@ -1,0 +1,158 @@
+{
+  "recorded_utc": "2026-10-10T22:45:13.288716+00:00",
+  "main_merged": "9b367c378b04db987a36175af0b8a3e02e22da24",
+  "p1_implementation_commit": "7cdab5b6ba7b7516dd29fd8ecc6651af5540c1fc",
+  "final_merge_head_and_hosted_ci": "Recorded in draft PR after local merge commit; no self-referential commit hash here.",
+  "commands": [
+    {
+      "command": "combined PG HTTP Vue contract",
+      "argv": [
+        "./scripts/test-checkin-contract.sh"
+      ],
+      "exit_code": 0,
+      "started_utc": "2026-10-10T22:40:57.377364+00:00",
+      "ended_utc": "2026-10-10T22:42:24.212619+00:00",
+      "log": "/tmp/p2-combined-pg.log"
+    },
+    {
+      "command": "combined frontend targeted",
+      "argv": [
+        "pnpm",
+        "--dir",
+        "frontend",
+        "exec",
+        "vitest",
+        "run",
+        "src/views/user/__tests__/WelfareStatus.http.spec.ts",
+        "src/views/user/__tests__/CheckInView.errors.spec.ts",
+        "src/views/user/__tests__/CheckInView.balance.http.spec.ts",
+        "src/views/user/__tests__/CheckInView.spec.ts",
+        "src/views/user/__tests__/PlayHubView.spec.ts",
+        "src/i18n/__tests__/coldRouteLocaleScopes.spec.ts"
+      ],
+      "exit_code": 0,
+      "started_utc": "2026-10-10T22:42:24.215421+00:00",
+      "ended_utc": "2026-10-10T22:42:34.124335+00:00",
+      "log": "/tmp/p2-combined-targeted.log"
+    },
+    {
+      "command": "combined frontend build",
+      "argv": [
+        "pnpm",
+        "--dir",
+        "frontend",
+        "run",
+        "build"
+      ],
+      "exit_code": 0,
+      "started_utc": "2026-10-10T22:42:34.124747+00:00",
+      "ended_utc": "2026-10-10T22:44:26.142743+00:00",
+      "log": "/tmp/p2-combined-build.log"
+    },
+    {
+      "command": "combined built browser",
+      "argv": [
+        "python3",
+        "docs/archive/completed-tasks/2026-10-checkin-status/browser.py",
+        "--phase",
+        "updated",
+        "--dist",
+        "backend/internal/web/dist"
+      ],
+      "exit_code": 0,
+      "started_utc": "2026-10-10T22:44:26.148071+00:00",
+      "ended_utc": "2026-10-10T22:44:59.917733+00:00",
+      "log": "/tmp/p2-combined-browser.log"
+    },
+    {
+      "command": "combined design verification",
+      "argv": [
+        "pnpm",
+        "--dir",
+        "frontend",
+        "run",
+        "design:verify"
+      ],
+      "exit_code": 0,
+      "started_utc": "2026-10-10T22:44:59.918037+00:00",
+      "ended_utc": "2026-10-10T22:45:01.177865+00:00",
+      "log": "/tmp/p2-combined-design.log"
+    },
+    {
+      "command": "combined doc links",
+      "argv": [
+        "node",
+        "scripts/check-doc-links.mjs"
+      ],
+      "exit_code": 0,
+      "started_utc": "2026-10-10T22:45:01.178177+00:00",
+      "ended_utc": "2026-10-10T22:45:01.249348+00:00",
+      "log": "/tmp/p2-combined-doclinks.log"
+    },
+    {
+      "command": "combined handoff structure",
+      "argv": [
+        "python3",
+        "scripts/check_project_handoff.py"
+      ],
+      "exit_code": 0,
+      "started_utc": "2026-10-10T22:45:01.249638+00:00",
+      "ended_utc": "2026-10-10T22:45:01.286656+00:00",
+      "log": "/tmp/p2-combined-handoff.log"
+    },
+    {
+      "command": "combined built browser, finite-animation capture fix",
+      "exit_code": 0,
+      "started_utc": "2026-10-10T22:46:08.799047+00:00",
+      "ended_utc": "2026-10-10T22:46:51.519283+00:00",
+      "log": "/tmp/p2-combined-browser-final.log"
+    }
+  ],
+  "results": {
+    "pg_http_vue": {
+      "go_parent": 1,
+      "go_subtests": 8,
+      "vue_passed": 5,
+      "vue_skipped": 0,
+      "migration_276_applied_as_main": true
+    },
+    "frontend_targeted": {
+      "files": 6,
+      "passed": 54,
+      "skipped": 0
+    },
+    "frontend_build": "passed (includes typecheck and 3 build contract tests)",
+    "browser_cases": 11,
+    "design_governance": "passed including 7 governance tests",
+    "handoff": "structure passed; 18 existing pending entries; 8 handoff unit tests passed separately",
+    "doc_links": "passed (266 files)"
+  },
+  "reviews": "Spec then quality passed, see reviews.md",
+  "scope_proof": {
+    "non_shared_main_paths_preserved": 134,
+    "shared_paths": [
+      "docs/FORK_CUSTOMIZATIONS.md",
+      "docs/README.md",
+      "docs/upstream-migrations/v2.10.3/handoff.json"
+    ],
+    "handoff_all_other_records_and_metadata_equal_main": true,
+    "only_backend_delta": "backend/internal/repository/play_checkin_http_integration_test.go",
+    "migrations_sha256_equal_main": {
+      "backend/migrations/275_gateway_request_ledger.sql": "ecaf0be340f9b43fa428ab5525399b6d995478ad66b2054bac95779204b151cc",
+      "backend/migrations/276_gateway_request_correlation.sql": "d4dde954b386e1413a58f9db6f42967f834f568be095c4dcdcb61247a2a03718"
+    }
+  },
+  "artifact_ownership": {
+    "premerge_assets": "premerge-assets.json",
+    "premerge_browser": "premerge-browser.json",
+    "combined_assets": "updated-assets.json",
+    "combined_browser": "updated-browser.json"
+  },
+  "full_local_gates": "verification.json records pre-merge full gates; expensive unaffected suites not repeated per parent instruction. Exact final head hosted CI runs complete.",
+  "limits": [
+    "No PR merge into main, deployment or production access.",
+    "Global topbar auth cache policy unchanged.",
+    "No new quiz/blindbox acceptance claim."
+  ],
+  "capture_followup": "Manual PNG review caught an entrance-animation intermediate frame. Only the browser capture helper changed: wait two animation frames and finite animations naturally, assert banner opacity >= 0.99. No product/CSS edits. Quality reviewer approved; final 11/11 run and PNG inspection passed."
+}

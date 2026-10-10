@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "checked_at": "2026-10-10T11:47:59Z",
+  "checked_at": "2026-10-10T21:17:26Z",
   "scope": "v2.10.3 迁移及关联后续修复的交接快照；非实时、非全站完成度。移动端/Canvas 排除。",
   "source_lock": "docs/upstream-migrations/source-lock.json",
   "production": {
     "branch": "play/main",
-    "branch_sha": "d18d504ccf12adc9f299cdf14af6ea32c4efe59c",
+    "branch_sha": "17b96a20c7e9d2e394b37c6c1b108340853c0169",
     "last_verified_deployed_sha": "d18d504ccf12adc9f299cdf14af6ea32c4efe59c",
     "deployment_status": "recorded",
     "evidence": [
@@ -13,9 +13,61 @@
       "https://github.com/tqytwe/sub2api/pull/351",
       "https://github.com/tqytwe/sub2api/runs/114196133288"
     ],
-    "note": "#351于10:43:35Z普通合入d18d504，GitHub Zeabur check于10:48:42Z成功。主线程在恢复验收环境后，于11:09:15及11:30:56 UTC通过官方API确认d18为唯一RUNNING/READY、旧a581为REMOVED，同次curl health=200；11:13:29 UTC确认SQL275登记/checksum与catalog。固定自然窗口11:14:06.545570–11:29:06.545570 UTC，加2分钟缓冲后11:31:08查询exitCode=0并明确ROLLBACK，验收任务已停止。201条已有结算关联无差异不等于全验收完成；unknown、未采样协议/订阅计数器净增量与用户反馈仍待补。运行态、DB与窗口均为主线程交接转述，原始明细未公开；此前11:02执行通道故障已恢复，本任务未执行生产操作。"
+    "note": "#351于10:43:35Z普通合入d18d504，GitHub Zeabur check于10:48:42Z成功。主线程在恢复验收环境后，于11:09:15及11:30:56 UTC通过官方API确认d18为唯一RUNNING/READY、旧a581为REMOVED，同次curl health=200；11:13:29 UTC确认SQL275登记/checksum与catalog。固定自然窗口11:14:06.545570–11:29:06.545570 UTC，加2分钟缓冲后11:31:08查询exitCode=0并明确ROLLBACK，验收任务已停止。201条已有结算关联无差异不等于全验收完成；unknown、未采样协议/订阅计数器净增量与用户反馈仍待补。运行态、DB与窗口均为主线程交接转述，原始明细未公开；此前11:02执行通道故障已恢复，本任务未执行生产操作。 P0 关联任务于2026-10-10再次fetch确认origin/play/main=726289bdb757e572eac10ab5f12c689c4dc087b5（#344）；未重新核验运行部署，不改last_verified_deployed_sha。 21:40 UTC fetch确认#353已正常合入17b96a20c7e9d2e394b37c6c1b108340853c0169，本分支普通merge保留签到改动；本任务未核验其生产部署。"
   },
   "features": [
+    {
+      "id": "request-ledger-exact-correlation",
+      "title": "P0 请求/尝试/Ops 精确关联",
+      "backend_state": "已验证",
+      "product_state": "可测",
+      "owner": "主线程协调",
+      "pr": "https://github.com/tqytwe/sub2api/pull/354",
+      "sha": null,
+      "evidence": {
+        "ui": {
+          "status": "recorded",
+          "refs": [
+            "docs/visual-reviews/2026-10-10-p0-ledger-correlation.md"
+          ],
+          "note": "实际构建资源+隔离HTTP/PG测试，不代替生产验收。"
+        },
+        "api": {
+          "status": "recorded",
+          "refs": [
+            "backend/internal/requestledger/acceptance/http_integration_test.go"
+          ],
+          "note": "服务端attempt UUID、不可伪造Receipt、管理员双向引用与用户字段屏蔽。"
+        },
+        "schema": {
+          "status": "recorded",
+          "refs": [
+            "backend/migrations/276_gateway_request_correlation.sql"
+          ],
+          "note": "只新增2表/4索引；旧SQL/checksum不变，无回填或删除。"
+        },
+        "tests": {
+          "status": "recorded",
+          "refs": [
+            "docs/archive/completed-tasks/2026-10-10-p0-ledger-correlation-validation.md"
+          ],
+          "note": "四项草稿复审修复、独立双评审通过；2026-10-10 22:12 UTC串行完整test/unit通过，真实HTTP/WS/PG/race及build/Fork/browser证据见验证记录。失败/重跑分开记录；未执行生产验收。"
+        },
+        "deployment": {
+          "status": "pending",
+          "refs": [],
+          "note": "仅推送草稿PR，由主线程核实准确SHA/CI并协调合并部署；本任务不部署。"
+        },
+        "production": {
+          "status": "pending",
+          "refs": [],
+          "note": "等待获准部署后的用户本机三身份与自然流量/PG对账；历史gpt22损失未归因。"
+        }
+      },
+      "risks": "诊断失败保留证据缺口，不影响真实usage原结算。unknown不是免费；上游ID不作计费去重。没有追溯关联或历史损失恢复。",
+      "next": "草稿#354已追加四项复审修复并普通合入#353；最终准确head/CI从PR读取，由主线程协调，未合并部署。并行订阅修复仍由另一任务负责usage_billing_repo.go。",
+      "rollback": "协调应用代码回滚；保留276新增表与现有台账，不改历史migration/checksum，不删除或回填记录。"
+    },
     {
       "id": "usage-tps",
       "title": "使用记录逐条 TPS",

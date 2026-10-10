@@ -306,7 +306,7 @@ func (s *httpUpstreamService) DoWithTLS(req *http.Request, proxyURL string, acco
 // caller's context (which may be detached for billing or reused for retries).
 func doUpstreamRequest(client *http.Client, req *http.Request) (*http.Response, error) {
 	ctx, cancel := context.WithCancel(req.Context())
-	resp, err := servertiming.Do(client, req.WithContext(ctx))
+	resp, err := requestledger.Do(req.WithContext(ctx), func(r *http.Request) (*http.Response, error) { return servertiming.Do(client, r) })
 	if err != nil {
 		cancel()
 		return resp, err
