@@ -54,6 +54,7 @@ func TestLedgerPostgresExactAttemptEvidence(t *testing.T) {
 		_, err = io.Copy(io.Discard, resp.Body)
 		require.NoError(t, err)
 		require.NoError(t, resp.Body.Close())
+		waitAttemptIdentifiers(t, ResponseReceipt(resp).attempt)
 	}
 	var previous string
 	for i, state := range []string{"failed", "succeeded"} {
@@ -105,6 +106,7 @@ func TestLedgerPostgresImmutableReceiptsAndLinks(t *testing.T) {
 	require.Equal(t, firstReceipt.Correlation(), ResponseReceipt(first).Correlation(), "restored old response keeps its identity")
 	require.Nil(t, ResponseReceipt(&http.Response{Header: http.Header{"X-Request-Id": {h.ID}}}).Correlation())
 	firstReceipt.ObserveIdentifiers(ctx, "req_conflicting", "resp_conflicting")
+	waitAttemptIdentifiers(t, firstReceipt.attempt)
 	var state, requestID, responseID string
 	var conflict bool
 	require.NoError(t, db.QueryRow(`SELECT a.execution_state,e.upstream_request_id,e.upstream_response_id,e.identifier_conflict FROM gateway_request_attempts a JOIN gateway_request_attempt_evidence e USING(request_id,attempt_no) WHERE a.request_id=$1 AND a.attempt_no=1`, h.ID).Scan(&state, &requestID, &responseID, &conflict))
@@ -223,4 +225,58 @@ func TestLedgerPostgresDoTimeoutAndIsolation(t *testing.T) {
 	var timeout net.Error
 	require.ErrorAs(t, err, &timeout)
 	require.True(t, timeout.Timeout())
+}
+
+func waitAttemptIdentifiers(t *testing.T, a *Attempt) {
+	t.Helper()
+	require.Eventually(t, func() bool { a.evidenceMu.Lock(); defer a.evidenceMu.Unlock(); return !a.evidencePending }, 5*time.Second, 10*time.Millisecond)
+	a.evidenceMu.Lock()
+	defer a.evidenceMu.Unlock()
+	require.False(t, a.evidenceUnavailable)
+}
+
+func TestLedgerPostgresIdentifierQueueIsBounded(t *testing.T) {
+	db := ledgerPostgres(t)
+	l := New(db)
+	h, err := l.Begin(context.Background(), "/v1/responses", "POST", "http")
+	require.NoError(t, err)
+	ctx := WithHandle(context.Background(), h)
+	require.NoError(t, BindIdentity(ctx, 101, 201))
+	attempts := make([]*Attempt, 300)
+	for i := range attempts {
+		attempts[i], err = BeginAttempt(ctx, 234, 234)
+		require.NoError(t, err)
+	}
+	blocker, err := db.Begin()
+	require.NoError(t, err)
+	defer blocker.Rollback()
+	_, err = blocker.Exec(`LOCK TABLE gateway_request_attempt_evidence IN ACCESS EXCLUSIVE MODE`)
+	require.NoError(t, err)
+	started := time.Now()
+	for _, a := range attempts {
+		a.ObserveIdentifiers(ctx, "req_bounded", "resp_bounded")
+	}
+	require.Less(t, time.Since(started), 200*time.Millisecond)
+	require.LessOrEqual(t, len(identifierWrites.queue), 256)
+	dropped := 0
+	for _, a := range attempts {
+		a.evidenceMu.Lock()
+		if a.evidenceUnavailable {
+			dropped++
+		}
+		a.evidenceMu.Unlock()
+	}
+	require.Positive(t, dropped, "overflow is an explicit evidence gap, never a blocking producer")
+	require.NoError(t, blocker.Rollback())
+	require.Eventually(t, func() bool {
+		for _, a := range attempts {
+			a.evidenceMu.Lock()
+			pending := a.evidencePending
+			a.evidenceMu.Unlock()
+			if pending {
+				return false
+			}
+		}
+		return true
+	}, 5*time.Second, 10*time.Millisecond)
 }

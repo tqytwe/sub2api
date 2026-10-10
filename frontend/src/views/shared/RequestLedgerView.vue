@@ -53,10 +53,11 @@
           <section class="space-y-3">
             <h3 class="text-base font-semibold">{{ t('requestLedger.exactEvidence') }}</h3>
             <p class="text-sm text-gray-500 dark:text-gray-400">{{ t('requestLedger.evidenceNotice') }}</p>
+            <p v-if="detail.attempt_evidence_unavailable" role="status" class="text-sm text-amber-700 dark:text-amber-400">{{ t('requestLedger.evidenceUnavailable') }}</p>
             <div v-for="attempt in detail.attempts" :key="attempt.attempt_no" class="space-y-3 border-t border-gray-200 pt-3 dark:border-dark-700">
               <h4 class="text-sm font-semibold">{{ t('requestLedger.attempts') }} #{{ attempt.attempt_no }}</h4>
               <dl class="grid gap-3 text-sm sm:grid-cols-2">
-                <div><dt class="text-gray-500 dark:text-gray-400">{{ t('requestLedger.attemptId') }}</dt><dd class="break-all font-mono">{{ attempt.attempt_id || t('requestLedger.noExactEvidence') }}</dd></div>
+                <div><dt class="text-gray-500 dark:text-gray-400">{{ t('requestLedger.attemptId') }}</dt><dd class="break-all font-mono">{{ attempt.attempt_id || (detail.attempt_evidence_unavailable ? '—' : t('requestLedger.noExactEvidence')) }}</dd></div>
                 <template v-if="admin">
                   <div><dt class="text-gray-500 dark:text-gray-400">{{ t('requestLedger.upstreamRequestId') }}</dt><dd class="break-all font-mono">{{ attempt.upstream_request_id || '—' }}</dd></div>
                   <div><dt class="text-gray-500 dark:text-gray-400">{{ t('requestLedger.upstreamResponseId') }}</dt><dd class="break-all font-mono">{{ attempt.upstream_response_id || '—' }}</dd></div>

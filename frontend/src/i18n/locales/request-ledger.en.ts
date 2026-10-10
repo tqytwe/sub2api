@@ -1,6 +1,7 @@
 export default {
   exactEvidence: "Exact correlation evidence",
-  evidenceNotice: "Identifiers are diagnostic evidence, not proof of usage or charges. Historical records may have no exact link.",
+  evidenceNotice: "Identifiers are diagnostic evidence, not proof of usage or charges. Metadata is written asynchronously; history or diagnostic failures may leave gaps. Empty fields do not prove that the upstream omitted identifiers.",
+  evidenceUnavailable: "Correlation evidence is temporarily unavailable. Execution and billing details remain available. Refresh to retry.",
   attemptId: "Attempt ID",
   upstreamRequestId: "Upstream request ID",
   upstreamResponseId: "Upstream response ID",

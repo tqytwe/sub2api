@@ -64,7 +64,9 @@
     "docs/visual-reviews/assets/p0-ledger-correlation/en-user-1280.png",
     "docs/visual-reviews/assets/p0-ledger-correlation/error-admin-1280.png",
     "docs/visual-reviews/assets/p0-ledger-correlation/error-user-1280.png",
-    "docs/visual-reviews/assets/p0-ledger-correlation/ops-admin-1280.png"
+    "docs/visual-reviews/assets/p0-ledger-correlation/ops-admin-1280.png",
+    "docs/visual-reviews/assets/p0-ledger-correlation/evidence-unavailable-admin-1280.png",
+    "docs/visual-reviews/assets/p0-ledger-correlation/evidence-unavailable-user-1280.png"
   ],
   "commands": [
     "pnpm --dir frontend build",
@@ -123,3 +125,8 @@ prototype-admin.png 先展示新增证据 section、attempt UUID 与管理员 Op
 ## Residual Risk
 
 无生产凭据、生产账户或生成调用。游客访问由实际HTTP 401测试覆盖，未做生产游客浏览器验收。生产部署与用户本机验收仍由主线程协调。此截图不证明历史请求可追溯或历史损失恢复。
+
+
+## 草稿复审增量
+
+沿用原型中的证据section、现有琥珀色状态文案和布局。证据表读取失败新增明确状态，保持核心台账可见；Ops弹窗的代际修复保持布局不变。同路由反向跳转回归保留。本轮已重新执行 Chromium 捕获：实际构建的用户/管理员页面、四视口、中英/主题、键盘、Ops 精确反链及失败重试通过。新增两张 evidence-unavailable 截图由浏览器对真实隔离 fixture 响应注入可选证据读取失败标志，确认核心台账仍可见；数据库缺表/锁表由独立真实 PG/HTTP 测试验证。build-assets.json 记录本轮资源 SHA256，均不是生产验收。

@@ -433,3 +433,124 @@ func TestRequestLedgerHTTPExactDiagnosticsAndIsolation(t *testing.T) {
 	require.Equal(t, 200, ops.Code)
 	require.Contains(t, ops.Body.String(), `"ledger_references_unavailable":true`)
 }
+
+func TestRequestLedgerHTTPAttemptEvidenceFailurePreservesCoreDetail(t *testing.T) {
+	r, _, db := ledgerFixtureRouter(t)
+	id, usageID := seedBilledRequest(t, r, db, 101)
+	read := func(user, prefix string) *httptest.ResponseRecorder {
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", prefix+id, nil)
+		req.Header.Set("X-Ledger-Test-User", user)
+		r.ServeHTTP(w, req)
+		return w
+	}
+	_, err := db.Exec(`ALTER TABLE gateway_request_attempt_evidence RENAME TO fixture_evidence_offline`)
+	require.NoError(t, err)
+	for _, role := range []struct{ user, prefix string }{{"999", "/api/v1/admin/requests/"}, {"101", "/api/v1/requests/"}} {
+		detail := read(role.user, role.prefix)
+		require.Equal(t, 200, detail.Code, detail.Body.String())
+		require.Contains(t, detail.Body.String(), `"attempt_evidence_unavailable":true`)
+		require.Contains(t, detail.Body.String(), `"attempt_no":1`)
+		require.Contains(t, detail.Body.String(), `"settlement_state":"settled"`)
+		require.Contains(t, detail.Body.String(), fmt.Sprintf(`"usage_log_id":%d`, usageID))
+		require.Contains(t, detail.Body.String(), `"attempt_id":null`)
+		if role.user == "101" {
+			require.NotContains(t, detail.Body.String(), "account_id")
+			require.NotContains(t, detail.Body.String(), "upstream_response_id")
+		}
+	}
+	require.Equal(t, 404, read("102", "/api/v1/requests/").Code)
+	_, err = db.Exec(`ALTER TABLE fixture_evidence_offline RENAME TO gateway_request_attempt_evidence`)
+	require.NoError(t, err)
+	restored := read("101", "/api/v1/requests/")
+	require.Equal(t, 200, restored.Code)
+	require.NotContains(t, restored.Body.String(), `"attempt_evidence_unavailable":true`)
+}
+
+func TestRequestLedgerHTTPIdentifierLockDoesNotConsumeResponseDeadline(t *testing.T) {
+	_, ledger, db := ledgerFixtureRouter(t)
+	for _, identifier := range []string{"header", "stream", "table_header", "table_stream", "single_pool"} {
+		t.Run(identifier, func(t *testing.T) {
+			h, err := ledger.Begin(context.Background(), "/v1/responses", "POST", "http")
+			require.NoError(t, err)
+			ctx := requestledger.WithHandle(context.Background(), h)
+			require.NoError(t, requestledger.BindIdentity(ctx, 101, 201))
+			db.SetMaxOpenConns(2)
+			if identifier == "single_pool" {
+				db.SetMaxOpenConns(1)
+			}
+			locked := make(chan *sql.Tx, 1)
+			upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				if identifier != "single_pool" {
+					tx, err := db.BeginTx(context.Background(), nil)
+					require.NoError(t, err)
+					if strings.HasPrefix(identifier, "table_") {
+						_, err = tx.Exec(`LOCK TABLE gateway_request_attempt_evidence IN ACCESS EXCLUSIVE MODE`)
+					} else {
+						_, err = tx.Exec(`SELECT 1 FROM gateway_request_attempt_evidence WHERE request_id=$1 FOR UPDATE`, h.ID)
+					}
+					require.NoError(t, err)
+					locked <- tx
+				}
+				if strings.Contains(identifier, "header") {
+					w.Header().Set("X-Request-ID", "req_locked")
+				}
+				w.Header().Set("Content-Type", "text/event-stream")
+				_, _ = io.WriteString(w, "data: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_locked\",\"usage\":{\"input_tokens\":13,\"output_tokens\":5}}}\n\n")
+			}))
+			defer upstream.Close()
+			defer func() {
+				if identifier == "single_pool" {
+					return
+				}
+				select {
+				case tx := <-locked:
+					_ = tx.Rollback()
+				case <-time.After(5 * time.Second):
+					t.Error("upstream never acquired evidence lock")
+				}
+			}()
+			client := &http.Client{Transport: requestledger.Transport(http.DefaultTransport, 234), Timeout: 350 * time.Millisecond}
+			req, err := http.NewRequestWithContext(ctx, "POST", upstream.URL, nil)
+			require.NoError(t, err)
+			started := time.Now()
+			resp, err := client.Do(req)
+			require.NoError(t, err, "diagnostic lock must not consume the real HTTP response deadline")
+			defer resp.Body.Close()
+			body, err := io.ReadAll(resp.Body)
+			require.NoError(t, err, "stream identifiers must not block body reads")
+			require.Less(t, time.Since(started), 350*time.Millisecond)
+			require.Contains(t, string(body), `"input_tokens":13`)
+			require.NoError(t, resp.Body.Close())
+			settleCtx, cancel := context.WithTimeout(ctx, 350*time.Millisecond)
+			defer cancel()
+			require.NoError(t, requestledger.ObserveUsage(settleCtx, 234))
+			usageID := settleFixtureRequest(t, settleCtx, db, 101, 13, 5)
+			require.Positive(t, usageID)
+			require.NoError(t, h.Finish(ctx, "succeeded", 200, ""))
+			var state string
+			require.NoError(t, db.QueryRow(`SELECT settlement_state FROM gateway_requests WHERE id=$1`, h.ID).Scan(&state))
+			require.Equal(t, "settled", state, "real usage settles while the diagnostic row remains locked")
+		})
+	}
+}
+
+func TestRequestLedgerHTTPAttemptEvidenceLockPreservesDeadline(t *testing.T) {
+	r, _, db := ledgerFixtureRouter(t)
+	id, usageID := seedBilledRequest(t, r, db, 101)
+	blocker, err := db.Begin()
+	require.NoError(t, err)
+	defer blocker.Rollback()
+	_, err = blocker.Exec(`LOCK TABLE gateway_request_attempt_evidence IN ACCESS EXCLUSIVE MODE`)
+	require.NoError(t, err)
+	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	defer cancel()
+	req := httptest.NewRequest("GET", "/api/v1/admin/requests/"+id, nil).WithContext(ctx)
+	req.Header.Set("X-Ledger-Test-User", "999")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	require.Equal(t, 200, w.Code, w.Body.String())
+	require.NoError(t, ctx.Err(), "optional metadata must leave time to deliver core details")
+	require.Contains(t, w.Body.String(), `"attempt_evidence_unavailable":true`)
+	require.Contains(t, w.Body.String(), fmt.Sprintf(`"usage_log_id":%d`, usageID))
+}

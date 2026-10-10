@@ -1,6 +1,7 @@
 export default {
   exactEvidence: "精确关联证据",
-  evidenceNotice: "标识仅用于诊断，不证明用量或扣费。历史记录可能没有精确关联。",
+  evidenceNotice: "标识仅用于诊断，不证明用量或扣费。标识证据异步写入，历史记录或诊断故障可能留下缺口；空字段不代表上游未提供。",
+  evidenceUnavailable: "关联证据暂时无法读取，执行与计费详情仍可查看。请刷新重试。",
   attemptId: "尝试 ID",
   upstreamRequestId: "上游请求 ID",
   upstreamResponseId: "上游响应 ID",

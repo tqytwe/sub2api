@@ -234,7 +234,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Icon from '@/components/icons/Icon.vue'
@@ -363,7 +363,14 @@ function toggleUpstreamDetail(id: number) {
   expandedUpstreamDetailIds.value = next
 }
 
-async function fetchCorrelatedUpstreamErrors(requestErrorId: number) {
+let detailGeneration = 0
+onBeforeUnmount(() => { detailGeneration++ })
+
+function isCurrentDetail(generation: number, id: number) {
+  return generation === detailGeneration && props.show && props.errorId === id
+}
+
+async function fetchCorrelatedUpstreamErrors(requestErrorId: number, generation: number) {
   correlatedUpstreamLoading.value = true
   try {
     const res = await opsAPI.listRequestErrorUpstreamErrors(
@@ -371,12 +378,14 @@ async function fetchCorrelatedUpstreamErrors(requestErrorId: number) {
       { page: 1, page_size: 100, view: 'all' },
       { include_detail: true }
     )
+    if (!isCurrentDetail(generation, requestErrorId)) return
     correlatedUpstream.value = res.items || []
   } catch (err) {
+    if (!isCurrentDetail(generation, requestErrorId)) return
     console.error('[OpsErrorDetailModal] Failed to load correlated upstream errors', err)
     correlatedUpstream.value = []
   } finally {
-    correlatedUpstreamLoading.value = false
+    if (isCurrentDetail(generation, requestErrorId)) correlatedUpstreamLoading.value = false
   }
 }
 
@@ -398,32 +407,35 @@ function prettyJSON(raw?: string): string {
   }
 }
 
-async function fetchDetail(id: number) {
+async function fetchDetail(id: number, generation: number) {
   loading.value = true
   try {
     const kind = props.errorType || (detail.value?.phase === 'upstream' ? 'upstream' : 'request')
     const d = kind === 'any' ? await opsAPI.getErrorLogDetail(id) : kind === 'upstream' ? await opsAPI.getUpstreamErrorDetail(id) : await opsAPI.getRequestErrorDetail(id)
-    detail.value = d
+    if (isCurrentDetail(generation, id)) detail.value = d
   } catch (err: any) {
+    if (!isCurrentDetail(generation, id)) return
     detail.value = null
     appStore.showError(err?.message || t('admin.ops.failedToLoadErrorDetail'))
   } finally {
-    loading.value = false
+    if (isCurrentDetail(generation, id)) loading.value = false
   }
 }
 
 watch(
-  () => [props.show, props.errorId] as const,
+  () => [props.show, props.errorId, props.errorType] as const,
   ([show, id]) => {
-    if (!show) {
-      detail.value = null
-      return
-    }
+    const generation = ++detailGeneration
+    detail.value = null
+    correlatedUpstream.value = []
+    loading.value = false
+    correlatedUpstreamLoading.value = false
+    if (!show) return
     if (typeof id === 'number' && id > 0) {
       expandedUpstreamDetailIds.value = new Set()
-      fetchDetail(id)
+      fetchDetail(id, generation)
       if (props.errorType === 'request') {
-        fetchCorrelatedUpstreamErrors(id)
+        fetchCorrelatedUpstreamErrors(id, generation)
       } else {
         correlatedUpstream.value = []
       }

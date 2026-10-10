@@ -1,0 +1,209 @@
+[
+  {
+    "mode": "duplicate",
+    "viewport": 1280,
+    "lang": "zh",
+    "theme": "light",
+    "gets": 2,
+    "posts": 1,
+    "focus": {
+      "outline": "auto",
+      "shadow": "none"
+    },
+    "page_errors": [],
+    "dimensions": {
+      "width": 1280,
+      "scroll": 1280
+    },
+    "screenshot": "updated-1280-zh-light-duplicate.png"
+  },
+  {
+    "mode": "duplicate",
+    "viewport": 360,
+    "lang": "zh",
+    "theme": "dark",
+    "gets": 2,
+    "posts": 1,
+    "focus": {
+      "outline": "auto",
+      "shadow": "none"
+    },
+    "page_errors": [],
+    "dimensions": {
+      "width": 360,
+      "scroll": 360
+    },
+    "screenshot": "updated-360-zh-dark-duplicate.png"
+  },
+  {
+    "mode": "duplicate",
+    "viewport": 768,
+    "lang": "en",
+    "theme": "light",
+    "gets": 2,
+    "posts": 1,
+    "focus": {
+      "outline": "auto",
+      "shadow": "none"
+    },
+    "page_errors": [],
+    "dimensions": {
+      "width": 768,
+      "scroll": 768
+    },
+    "screenshot": "updated-768-en-light-duplicate.png"
+  },
+  {
+    "mode": "duplicate",
+    "viewport": 1920,
+    "lang": "en",
+    "theme": "dark",
+    "gets": 2,
+    "posts": 1,
+    "focus": {
+      "outline": "auto",
+      "shadow": "none"
+    },
+    "page_errors": [],
+    "dimensions": {
+      "width": 1920,
+      "scroll": 1920
+    },
+    "screenshot": "updated-1920-en-dark-duplicate.png"
+  },
+  {
+    "mode": "loading",
+    "viewport": 360,
+    "lang": "zh",
+    "theme": "light",
+    "gets": 0,
+    "posts": 0,
+    "focus": null,
+    "page_errors": [],
+    "dimensions": {
+      "width": 360,
+      "scroll": 360
+    },
+    "screenshot": "updated-360-zh-light-loading.png"
+  },
+  {
+    "mode": "empty",
+    "viewport": 360,
+    "lang": "zh",
+    "theme": "light",
+    "gets": 1,
+    "posts": 0,
+    "focus": null,
+    "page_errors": [],
+    "dimensions": {
+      "width": 360,
+      "scroll": 360
+    },
+    "screenshot": "updated-360-zh-light-empty.png"
+  },
+  {
+    "mode": "load-error",
+    "viewport": 360,
+    "lang": "zh",
+    "theme": "light",
+    "gets": 1,
+    "posts": 0,
+    "focus": null,
+    "page_errors": [],
+    "dimensions": {
+      "width": 360,
+      "scroll": 360
+    },
+    "screenshot": "updated-360-zh-light-load-error.png"
+  },
+  {
+    "mode": "qualification",
+    "viewport": 360,
+    "lang": "zh",
+    "theme": "light",
+    "gets": 1,
+    "posts": 1,
+    "focus": {
+      "outline": "auto",
+      "shadow": "none"
+    },
+    "page_errors": [],
+    "dimensions": {
+      "width": 360,
+      "scroll": 360
+    },
+    "screenshot": "updated-360-zh-light-qualification.png"
+  },
+  {
+    "mode": "makeup",
+    "viewport": 360,
+    "lang": "zh",
+    "theme": "light",
+    "gets": 2,
+    "posts": 1,
+    "focus": {
+      "outline": "auto",
+      "shadow": "none"
+    },
+    "page_errors": [],
+    "dimensions": {
+      "width": 360,
+      "scroll": 360
+    },
+    "screenshot": "updated-360-zh-light-makeup.png"
+  },
+  {
+    "mode": "success",
+    "viewport": 360,
+    "lang": "zh",
+    "theme": "light",
+    "gets": 2,
+    "posts": 1,
+    "focus": {
+      "outline": "auto",
+      "shadow": "none"
+    },
+    "page_errors": [],
+    "dimensions": {
+      "width": 360,
+      "scroll": 360
+    },
+    "screenshot": "updated-360-zh-light-success.png"
+  },
+  {
+    "mode": "pending",
+    "viewport": 360,
+    "lang": "zh",
+    "theme": "light",
+    "gets": 1,
+    "posts": 1,
+    "focus": {
+      "outline": "auto",
+      "shadow": "none"
+    },
+    "page_errors": [],
+    "dimensions": {
+      "width": 360,
+      "scroll": 360
+    },
+    "screenshot": "updated-360-zh-light-pending.png"
+  },
+  {
+    "mode": "pending-makeup",
+    "viewport": 360,
+    "lang": "zh",
+    "theme": "light",
+    "gets": 1,
+    "posts": 1,
+    "focus": {
+      "outline": "auto",
+      "shadow": "none"
+    },
+    "page_errors": [],
+    "dimensions": {
+      "width": 360,
+      "scroll": 360
+    },
+    "screenshot": "updated-360-zh-light-pending-makeup.png"
+  }
+]

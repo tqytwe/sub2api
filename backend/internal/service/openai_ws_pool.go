@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"math"
@@ -272,9 +273,45 @@ func (l *openAIWSConnLease) Release() {
 	if !l.released.CompareAndSwap(false, true) {
 		return
 	}
+	if l.conn.retireOnRelease.Load() {
+		l.conn.unusable.Store(true)
+	}
 	l.conn.release()
 	if l.pool != nil {
 		l.pool.notifyAccountPoolChanged(l.accountID)
+	}
+}
+
+// Completed responses belong to the physical connection, not a single lease.
+// An idle-buffer check cannot catch a duplicate arriving after the next send.
+func (l *openAIWSConnLease) IsCompletedResponse(id string) bool {
+	if l == nil || l.conn == nil || id == "" {
+		return false
+	}
+	l.conn.completedMu.Lock()
+	defer l.conn.completedMu.Unlock()
+	_, found := l.conn.completedResponses[sha256.Sum256([]byte(id))]
+	return found
+}
+
+func (l *openAIWSConnLease) RememberCompletedResponse(id string) {
+	if l == nil || l.conn == nil || id == "" {
+		return
+	}
+	l.conn.completedMu.Lock()
+	defer l.conn.completedMu.Unlock()
+	if l.conn.completedResponses == nil {
+		l.conn.completedResponses = make(map[[32]byte]struct{})
+	}
+	if len(l.conn.completedResponses) >= 4096 {
+		l.conn.retireOnRelease.Store(true)
+		return
+	}
+	l.conn.completedResponses[sha256.Sum256([]byte(id))] = struct{}{}
+	// Never evict remembered IDs and let an old response become current again.
+	// Complete the admitted turn; retire the connection when its lease is returned.
+	if len(l.conn.completedResponses) >= 4096 {
+		l.conn.retireOnRelease.Store(true)
 	}
 }
 
@@ -290,8 +327,10 @@ type openAIWSConn struct {
 	closedCh  chan struct{}
 	closeOnce sync.Once
 
-	readMu  sync.Mutex
-	writeMu sync.Mutex
+	readMu             sync.Mutex
+	writeMu            sync.Mutex
+	completedMu        sync.Mutex
+	completedResponses map[[32]byte]struct{}
 
 	// readerLoopResults 非 nil 表示池为该连接常驻了读循环：coder/websocket 只在
 	// 阻塞读期间应答上游 ping，空闲连接没有读循环会被上游按保活超时关闭。
@@ -302,7 +341,8 @@ type openAIWSConn struct {
 	// onPeerClosed 由池在建连后设置：上游主动关闭时立刻把连接移出账号池，不等清理周期。
 	onPeerClosed atomic.Pointer[func()]
 	// unusable 表示空闲期收到数据被判为脏连接：持有令牌不再借出，由池在锁外关闭。
-	unusable atomic.Bool
+	unusable        atomic.Bool
+	retireOnRelease atomic.Bool
 
 	waiters       atomic.Int32
 	createdAtNano atomic.Int64
@@ -410,6 +450,10 @@ func (c *openAIWSConn) readerLoopError() error {
 // leaseTokenUsable 在拿到租约令牌后确认连接仍可借出：已关闭的连接退回令牌；
 // 空闲期收到过数据消息的连接状态已不可信，直接关闭而不交给借用者。
 func (c *openAIWSConn) leaseTokenUsable() bool {
+	if c.isUnusable() {
+		c.release()
+		return false
+	}
 	select {
 	case <-c.closedCh:
 		c.release()

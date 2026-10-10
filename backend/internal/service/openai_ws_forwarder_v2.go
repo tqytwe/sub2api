@@ -257,7 +257,8 @@ func (s *OpenAIGatewayService) forwardOpenAIWSV2(
 		}
 		return nil, wrapOpenAIWSFallback(classifyOpenAIWSAcquireError(err), err)
 	}
-	// cleanExit 标记正常终端事件退出，此时上游不会再发送帧，连接可安全归还复用。
+	// cleanExit allows reuse after a terminal; connection-scoped completed IDs
+	// reject duplicates that arrive even after the next lease has sent its request.
 	// 所有异常路径（读写错误、error 事件等）已在各自分支中提前调用 MarkBroken，
 	// 因此 defer 中只需处理正常退出时不 MarkBroken 即可。
 	cleanExit := false
@@ -377,6 +378,7 @@ func (s *OpenAIGatewayService) forwardOpenAIWSV2(
 	imageCounter := newOpenAIImageOutputCounter()
 	var firstTokenMs *int
 	responseID := ""
+	ownedResponseID := ""
 	var finalResponse []byte
 	wroteDownstream := false
 	needModelReplace := originalModel != mappedModel
@@ -549,9 +551,6 @@ readLoop:
 				}
 			}
 			message, readErr = lease.ReadMessageWithContextTimeout(upstreamReadCtx, currentReadTimeout)
-			if len(message) > 0 {
-				ledgerAttempt.ObserveOutput(ctx)
-			}
 			if readErr == nil {
 				if documents, repaired := splitOpenAIConcatenatedJSONDocuments(message); repaired {
 					logOpenAIWSModeInfo(
@@ -622,6 +621,17 @@ readLoop:
 		}
 
 		eventType, eventResponseID, responseField := parseOpenAIWSEventEnvelope(message)
+		eventOwnershipID := openAIWSResponseOwnershipID(message)
+		if lease.IsCompletedResponse(eventOwnershipID) {
+			if eventType == "response.created" {
+				lease.MarkBroken()
+				return resultWithUsage(), errors.New("upstream websocket reused a completed response identity")
+			}
+			continue
+		}
+		if len(message) > 0 {
+			ledgerAttempt.ObserveOutput(ctx)
+		}
 		ledgerAttempt.ObserveIdentifiers(ctx, requestledger.UpstreamRequestID(lease.HandshakeHeaders()), requestledger.ResponseIdentifier(message))
 		if eventType == "" {
 			continue
@@ -633,6 +643,12 @@ readLoop:
 		}
 		lastEventType = eventType
 
+		if ownedResponseID != "" && eventOwnershipID != "" && ownedResponseID != eventOwnershipID {
+			lease.conn.retireOnRelease.Store(true)
+		}
+		if ownedResponseID == "" && eventOwnershipID != "" {
+			ownedResponseID = eventOwnershipID
+		}
 		if responseID == "" && eventResponseID != "" {
 			responseID = eventResponseID
 		}
@@ -783,6 +799,13 @@ readLoop:
 		}
 
 		if isTerminalEvent {
+			if eventOwnershipID != "" {
+				ownedResponseID = eventOwnershipID
+			}
+			lease.RememberCompletedResponse(ownedResponseID)
+			if eventOwnershipID == "" {
+				lease.conn.retireOnRelease.Store(true)
+			}
 			if !clientDisconnected {
 				markOpenAIWSClientVisibleFailure(c, eventType, message, ledgerAttempt.Receipt())
 			}

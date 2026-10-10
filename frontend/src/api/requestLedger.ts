@@ -50,6 +50,7 @@ export interface LinkedUsage { id: number; model: string; input_tokens: number; 
 export interface RequestDetail {
   diagnostics?: { attempt_no: number; ops_error_log_id: number; available: boolean }[]
   diagnostics_unavailable?: boolean
+  attempt_evidence_unavailable?: boolean
   request: RequestRecord
   attempts: RequestAttempt[]
   billing: BillingReference[]

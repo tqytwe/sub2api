@@ -179,14 +179,27 @@ func parseOpenAIWSEventEnvelope(message []byte) (eventType string, responseID st
 	if len(message) == 0 {
 		return "", "", gjson.Result{}
 	}
-	values := gjson.GetManyBytes(message, "type", "response.id", "id", "response")
+	values := gjson.GetManyBytes(message, "type", "response.id", "id", "response", "response_id")
 	eventType = strings.TrimSpace(values[0].String())
 	if id := strings.TrimSpace(values[1].String()); id != "" {
+		responseID = id
+	} else if id := strings.TrimSpace(values[4].String()); id != "" {
 		responseID = id
 	} else {
 		responseID = strings.TrimSpace(values[2].String())
 	}
 	return eventType, responseID, values[3]
+}
+
+// Explicit protocol response identity, excluding unrelated event.id fields.
+func openAIWSResponseOwnershipID(message []byte) string {
+	for _, path := range []string{"response.id", "response_id"} {
+		value := gjson.GetBytes(message, path)
+		if value.Type == gjson.String && strings.TrimSpace(value.String()) != "" {
+			return strings.TrimSpace(value.String())
+		}
+	}
+	return ""
 }
 
 func openAIWSMessageLikelyContainsToolCalls(message []byte) bool {

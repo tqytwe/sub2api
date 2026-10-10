@@ -43,6 +43,15 @@ describe('request ledger', () => {
 })
 
 describe('exact correlation', () => {
+ it.each([false, true])('keeps core details visible and labels an evidence read failure (admin=%s)', async (admin) => {
+  routeMeta.requiresAdmin = admin
+  detail.mockResolvedValue({ request: item, attempts: [{ attempt_no: 1, attempt_id: null }], billing: [], attempt_evidence_unavailable: true })
+  const wrapper = mountView(); await flushPromises()
+  await wrapper.findAll('button').find(b => b.text() === 'requestLedger.detail')!.trigger('click'); await flushPromises()
+  expect(wrapper.text()).toContain(item.id)
+  expect(wrapper.text()).toContain('requestLedger.evidenceUnavailable')
+  expect(wrapper.text()).not.toContain('requestLedger.noExactEvidence')
+ })
  const attempt = { attempt_no: 1, attempt_id: '10000000-0000-4000-8000-000000000001', upstream_request_id: 'req_fixture_one', upstream_response_id: 'resp_fixture_one', identifier_conflict: false, phase: 'request', execution_state: 'failed', usage_state: 'usage_unknown' }
  async function openFixture(admin: boolean) {
   routeMeta.requiresAdmin = admin

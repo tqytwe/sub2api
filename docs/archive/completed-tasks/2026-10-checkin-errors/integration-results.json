@@ -1,0 +1,151 @@
+{
+  "command": "CI=1 CHECKIN_FRONTEND_CONTRACT=1 go test -tags=integration -count=1 -json -timeout=10m ./...",
+  "exit_code": 0,
+  "completed_utc": "2026-10-10T20:51:04.277931674Z",
+  "environment": {
+    "go": "1.27.2",
+    "GOMAXPROCS": 2,
+    "GOFLAGS": "-p=2",
+    "GOGC": 50,
+    "GOMEMLIMIT": "3GiB"
+  },
+  "counts": {
+    "pass_tests_and_subtests": 16660,
+    "pass_packages": 58,
+    "skip_packages": 66,
+    "skip_tests_and_subtests": 23
+  },
+  "checkin_contract_passed": [
+    "TestCheckinHTTPDatabaseContract/explorer",
+    "TestCheckinHTTPDatabaseContract/unverified",
+    "TestCheckinHTTPDatabaseContract/too_new",
+    "TestCheckinHTTPDatabaseContract/cash",
+    "TestCheckinHTTPDatabaseContract/disabled_and_unauthenticated",
+    "TestCheckinHTTPDatabaseContract/milestone_makeup_false",
+    "TestCheckinHTTPDatabaseContract/milestone_makeup_true",
+    "TestCheckinHTTPDatabaseContract/frontend_live_http",
+    "TestCheckinHTTPDatabaseContract"
+  ],
+  "skipped_tests": [
+    {
+      "package": "github.com/Wei-Shaw/sub2api/internal/handler",
+      "test": "TestAudioSpeechPlatformRouting",
+      "reason": "audio_test.go:92: Integration test - requires full service setup"
+    },
+    {
+      "package": "github.com/Wei-Shaw/sub2api/internal/handler",
+      "test": "TestDingTalkOAuthStart_Disabled",
+      "reason": "auth_dingtalk_oauth_test.go:21: helper newTestAuthHandlerWithDingTalk added in Task 1.10; sentinel only"
+    },
+    {
+      "package": "github.com/Wei-Shaw/sub2api/internal/pkg/tlsfingerprint",
+      "test": "TestDialerAgainstCaptureServer",
+      "reason": "dialer_capture_test.go:48: 跳过外部 TLS 指纹 capture 测试：未设置 TLSFINGERPRINT_CAPTURE_URL"
+    },
+    {
+      "package": "github.com/Wei-Shaw/sub2api/internal/pkg/tlsfingerprint",
+      "test": "TestJA3Fingerprint",
+      "reason": "dialer_integration_test.go:76: skipping test: external service unavailable: Get \"https://tls.peet.ws/api/all\": dial tcp 205.185.123.167:443: connect: connection refused"
+    },
+    {
+      "package": "github.com/Wei-Shaw/sub2api/internal/pkg/tlsfingerprint",
+      "test": "TestAllProfiles/default_node_v24",
+      "reason": "dialer_integration_test.go:145: skipping test: external service unavailable: Get \"https://tls.peet.ws/api/all\": dial tcp 205.185.123.167:443: connect: connection refused"
+    },
+    {
+      "package": "github.com/Wei-Shaw/sub2api/internal/pkg/tlsfingerprint",
+      "test": "TestAllProfiles/linux_x64_node_v22171",
+      "reason": "dialer_integration_test.go:145: skipping test: external service unavailable: Get \"https://tls.peet.ws/api/all\": dial tcp 205.185.123.167:443: connect: connection refused"
+    },
+    {
+      "package": "github.com/Wei-Shaw/sub2api/internal/planacceptance",
+      "test": "TestAdminPlanBrowserContract",
+      "reason": "plan_browser_test.go:21: set PLAN_BROWSER_CONTRACT=1 to run the real browser/HTTP/DB contract"
+    },
+    {
+      "package": "github.com/Wei-Shaw/sub2api/internal/repository",
+      "test": "TestConcurrencyCacheSuite/TestGetAccountsLoadBatch",
+      "reason": "concurrency_cache_integration_test.go:525: TODO: Fix this test - CurrentConcurrency returns 0 instead of expected value in CI"
+    },
+    {
+      "package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+      "test": "TestLedgerKilledProcessChild",
+      "reason": "process_integration_test.go:23: subprocess fixture only"
+    },
+    {
+      "package": "github.com/Wei-Shaw/sub2api/internal/repository",
+      "test": "TestStarframeActualRedisLoss",
+      "reason": "starframe_video_redis_test.go:34: isolated Redis not configured"
+    },
+    {
+      "package": "github.com/Wei-Shaw/sub2api/internal/requestledger/acceptance",
+      "test": "TestRequestLedgerBrowserFixture",
+      "reason": "http_integration_test.go:269: opt-in browser fixture"
+    },
+    {
+      "package": "github.com/Wei-Shaw/sub2api/internal/securityaudit",
+      "test": "TestPromptAuditConfigCASSecretRoundTripInvalidationAndTTL",
+      "reason": "prompt_config_integration_test.go:141: PROMPT_AUDIT_TEST_REDIS_ADDR is not set"
+    },
+    {
+      "package": "github.com/Wei-Shaw/sub2api/internal/securityaudit",
+      "test": "TestRedisPayloadStoreRoundTripTTLNamespaceAndDelete",
+      "reason": "prompt_payload_store_integration_test.go:17: PROMPT_AUDIT_TEST_REDIS_ADDR is not set"
+    },
+    {
+      "package": "github.com/Wei-Shaw/sub2api/internal/securityaudit",
+      "test": "TestPromptRuntimeAggregatesConfigWorkersQueueRedisEndpointsAndGuardMetrics",
+      "reason": "prompt_payload_store_integration_test.go:43: PROMPT_AUDIT_TEST_REDIS_ADDR is not set"
+    },
+    {
+      "package": "github.com/Wei-Shaw/sub2api/internal/securityaudit",
+      "test": "TestPromptAuditMigrationSchemaAndLeakageGate",
+      "reason": "prompt_repository_integration_test.go:105: PROMPT_AUDIT_TEST_POSTGRES_DSN is not set"
+    },
+    {
+      "package": "github.com/Wei-Shaw/sub2api/internal/securityaudit",
+      "test": "TestPromptAuditDatabasePersistsFullPromptOnEventsOnly",
+      "reason": "prompt_repository_integration_test.go:155: PROMPT_AUDIT_TEST_POSTGRES_DSN is not set"
+    },
+    {
+      "package": "github.com/Wei-Shaw/sub2api/internal/securityaudit",
+      "test": "TestPromptAuditRepositoryAdmissionClaimFencingAndEventTransaction",
+      "reason": "prompt_repository_integration_test.go:202: PROMPT_AUDIT_TEST_POSTGRES_DSN is not set"
+    },
+    {
+      "package": "github.com/Wei-Shaw/sub2api/internal/securityaudit",
+      "test": "TestPromptAuditRepositoryForeignKeysFiltersAndStableIdentitySnapshots",
+      "reason": "prompt_repository_integration_test.go:299: PROMPT_AUDIT_TEST_POSTGRES_DSN is not set"
+    },
+    {
+      "package": "github.com/Wei-Shaw/sub2api/internal/securityaudit",
+      "test": "TestPromptAuditRepositoryHighWaterAndSafeDeletion",
+      "reason": "prompt_repository_integration_test.go:347: PROMPT_AUDIT_TEST_POSTGRES_DSN is not set"
+    },
+    {
+      "package": "github.com/Wei-Shaw/sub2api/internal/securityaudit",
+      "test": "TestPromptAuditServiceConfirmationKeepsPostPreviewEventsAndConcurrentDeletesAreSafe",
+      "reason": "prompt_repository_integration_test.go:399: PROMPT_AUDIT_TEST_POSTGRES_DSN is not set"
+    },
+    {
+      "package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "test": "TestContentModerationTypeSafeLive",
+      "reason": "content_moderation_typesafe_live_test.go:17: requires explicit TYPESAFE_LIVE_TEST=1 and a new TYPESAFE_API_KEY"
+    },
+    {
+      "package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "test": "TestEstimateOpenAIInputTokens_CompareWithOpenAIAPI",
+      "reason": "openai_gateway_count_tokens_test.go:314: OPENAI_API_KEY not set"
+    },
+    {
+      "package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "test": "TestPluginRuntimeIntegration",
+      "reason": "plugin_runtime_integration_test.go:29: 未提供 SUB2API_TEST_PLUGIN_PACKAGE，跳过本地插件进程集成测试"
+    }
+  ],
+  "notes": [
+    "Package skips mean packages with no tests. Test pass count includes parent tests and subtests.",
+    "Four real Axios/Vue cases were explicitly run by frontend_live_http and passed.",
+    "First parallel run was killed by environment OOM; only this complete restricted-resource retry is counted as successful."
+  ]
+}

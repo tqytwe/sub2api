@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/tidwall/gjson"
 )
@@ -206,9 +207,32 @@ func ResponseIdentifier(data []byte) string {
 	return ""
 }
 
-// ObserveIdentifiers is best effort after admission. It cannot cancel forwarding
-// or settlement. First values are immutable; later disagreement is explicit.
-func (a *Attempt) ObserveIdentifiers(ctx context.Context, requestID, responseID string) {
+// identifierWrites is process-wide and bounded. Only validated metadata and the
+// existing Attempt are queued, never a request context, body or credential.
+var identifierWrites = struct {
+	once  sync.Once
+	queue chan *Attempt
+}{queue: make(chan *Attempt, 256)}
+
+func enqueueIdentifiers(a *Attempt) bool {
+	identifierWrites.once.Do(func() {
+		go func() {
+			for a := range identifierWrites.queue {
+				a.persistIdentifiers()
+			}
+		}()
+	})
+	select {
+	case identifierWrites.queue <- a:
+		return true
+	default:
+		return false
+	}
+}
+
+// ObserveIdentifiers only updates bounded in-memory metadata. In particular it
+// never waits for PostgreSQL while RoundTrip or a streaming body read is active.
+func (a *Attempt) ObserveIdentifiers(_ context.Context, requestID, responseID string) {
 	if a == nil {
 		return
 	}
@@ -218,32 +242,84 @@ func (a *Attempt) ObserveIdentifiers(ctx context.Context, requestID, responseID 
 	}
 	a.evidenceMu.Lock()
 	defer a.evidenceMu.Unlock()
+	if a.evidenceUnavailable {
+		return
+	}
 	conflict := (requestID != "" && a.upstreamRequestID != "" && requestID != a.upstreamRequestID) ||
 		(responseID != "" && a.upstreamResponseID != "" && responseID != a.upstreamResponseID)
-	newValue := (requestID != "" && a.upstreamRequestID == "") || (responseID != "" && a.upstreamResponseID == "")
-	if a.evidenceUnavailable || (!newValue && (!conflict || a.identifierConflict)) {
-		return
-	}
-	writeCtx, cancel := detachedWrite(ctx)
-	defer cancel()
-	_, err := a.handle.ledger.db.ExecContext(writeCtx, `UPDATE gateway_request_attempt_evidence SET
- identifier_conflict=identifier_conflict OR (upstream_request_id IS NOT NULL AND $3<>'' AND upstream_request_id<>$3)
- OR (upstream_response_id IS NOT NULL AND $4<>'' AND upstream_response_id<>$4),
- upstream_request_id=COALESCE(upstream_request_id,NULLIF($3,'')),
- upstream_response_id=COALESCE(upstream_response_id,NULLIF($4,''))
- WHERE request_id=$1 AND attempt_no=$2`, a.handle.ID, a.Number, requestID, responseID)
-	if err != nil {
-		a.evidenceUnavailable = true // A broken diagnostic store cannot stall every SSE frame.
-		slog.Error("request_ledger_identifiers_failed")
-		return
-	}
+	changed := false
 	if requestID != "" && a.upstreamRequestID == "" {
 		a.upstreamRequestID = requestID
+		changed = true
 	}
 	if responseID != "" && a.upstreamResponseID == "" {
 		a.upstreamResponseID = responseID
+		changed = true
 	}
-	a.identifierConflict = a.identifierConflict || conflict
+	if conflict && !a.identifierConflict {
+		a.identifierConflict = true
+		changed = true
+	}
+	if !changed {
+		return
+	}
+	a.evidenceVersion++
+	if a.evidencePending {
+		return
+	}
+	a.evidencePending = true
+	if !enqueueIdentifiers(a) {
+		a.evidencePending = false
+		a.evidenceUnavailable = true
+		slog.Error("request_ledger_identifiers_queue_full")
+	}
+}
+
+func (a *Attempt) persistIdentifiers() {
+	for {
+		a.evidenceMu.Lock()
+		requestID, responseID, conflict, version := a.upstreamRequestID, a.upstreamResponseID, a.identifierConflict, a.evidenceVersion
+		a.evidenceMu.Unlock()
+		// A locked diagnostic row is a gap, never a reason to occupy a database
+		// connection for the full business deadline. No retries of dropped evidence.
+		ctx, cancel := context.WithTimeout(context.Background(), 250*time.Millisecond)
+		stats := a.handle.ledger.db.Stats()
+		if stats.MaxOpenConnections > 0 && stats.InUse >= stats.MaxOpenConnections-1 {
+			cancel()
+			a.evidenceMu.Lock()
+			a.evidenceUnavailable = true
+			a.evidencePending = false
+			a.evidenceMu.Unlock()
+			slog.Error("request_ledger_identifiers_pool_busy")
+			return
+		}
+		result, err := a.handle.ledger.db.ExecContext(ctx, `UPDATE gateway_request_attempt_evidence SET
+ identifier_conflict=identifier_conflict OR $5 OR (upstream_request_id IS NOT NULL AND $3<>'' AND upstream_request_id<>$3)
+ OR (upstream_response_id IS NOT NULL AND $4<>'' AND upstream_response_id<>$4),
+ upstream_request_id=COALESCE(upstream_request_id,NULLIF($3,'')),
+ upstream_response_id=COALESCE(upstream_response_id,NULLIF($4,''))
+ WHERE (request_id,attempt_no) IN (SELECT request_id,attempt_no FROM gateway_request_attempt_evidence
+ WHERE request_id=$1 AND attempt_no=$2 FOR UPDATE SKIP LOCKED)`, a.handle.ID, a.Number, requestID, responseID, conflict)
+		cancel()
+		var affected int64
+		if err == nil {
+			affected, err = result.RowsAffected()
+		}
+		a.evidenceMu.Lock()
+		if err != nil || affected != 1 {
+			a.evidenceUnavailable = true
+			a.evidencePending = false
+			a.evidenceMu.Unlock()
+			slog.Error("request_ledger_identifiers_failed")
+			return
+		}
+		if version == a.evidenceVersion {
+			a.evidencePending = false
+			a.evidenceMu.Unlock()
+			return
+		}
+		a.evidenceMu.Unlock()
+	}
 }
 
 // LinkOps is called only after the original Ops INSERT commits. Ownership is
@@ -293,7 +369,7 @@ func (l *Ledger) Diagnostics(ctx context.Context, viewer Viewer, requestID strin
 	if _, err := l.Get(ctx, viewer, requestID); err != nil {
 		return nil, err
 	}
-	ctx, cancel := context.WithTimeout(ctx, writeTimeout)
+	ctx, cancel := optionalEvidenceContext(ctx)
 	defer cancel()
 	rows, err := l.db.QueryContext(ctx, `SELECT l.attempt_no,l.ops_error_log_id,o.id IS NOT NULL
  FROM gateway_request_ops_links l JOIN gateway_requests r ON r.id=l.request_id

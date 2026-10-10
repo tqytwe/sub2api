@@ -31,8 +31,16 @@ const root=require('path').resolve(__dirname,'../../../visual-reviews/assets/p0-
   await p.screenshot({path:`${root}/en-${role}-1280.png`,animations:'disabled'});
   await context.route(u=>u.pathname===`/api/v1${prefix}/requests/${item.id}`,route=>route.fulfill({status:503,contentType:'application/json',body:'{"message":"synthetic read fault"}'}));await p.reload({waitUntil:'networkidle'});await p.getByRole('dialog').getByRole('alert').waitFor();await p.screenshot({path:`${root}/error-${role}-1280.png`,animations:'disabled'});
   await context.unrouteAll();await p.getByRole('dialog').getByRole('button',{name:'Retry',exact:true}).click();await p.getByText('Exact correlation evidence',{exact:true}).waitFor();
+  await context.route(u=>u.pathname===`/api/v1${prefix}/requests/${item.id}`,async route=>{
+   const response=await route.fetch();const payload=await response.json();payload.data.attempt_evidence_unavailable=true;
+   payload.data.attempts=payload.data.attempts.map(a=>({...a,attempt_id:null,upstream_request_id:undefined,upstream_response_id:undefined,identifier_conflict:undefined}));
+   await route.fulfill({response,json:payload});
+  });
+  await p.reload({waitUntil:'networkidle'});await p.getByText('Correlation evidence is temporarily unavailable.',{exact:false}).waitFor();
+  if(!(await p.getByRole('dialog').innerText()).includes(item.id))throw Error('core detail hidden by optional evidence fault');
+  await p.screenshot({path:`${root}/evidence-unavailable-${role}-1280.png`,animations:'disabled'});await context.unrouteAll();
   await p.keyboard.press('Escape');await p.getByRole('dialog').waitFor({state:'hidden'});
-  if(errors.length)throw Error(JSON.stringify(errors));evidence.push({role,request_id:item.id,attempt_uuids:detail.data.attempts.map(a=>a.attempt_id),viewports:[360,768,1280,1920],themes:['light','dark'],languages:['zh','en'],keyboard:true,reduced_motion:true,diagnostic_retention:role==='admin',http_failure_retry:true,pageErrors:errors});await context.close();
+  if(errors.length)throw Error(JSON.stringify(errors));evidence.push({role,request_id:item.id,attempt_uuids:detail.data.attempts.map(a=>a.attempt_id),viewports:[360,768,1280,1920],themes:['light','dark'],languages:['zh','en'],keyboard:true,reduced_motion:true,diagnostic_retention:role==='admin',http_failure_retry:true,optional_evidence_failure:true,pageErrors:errors});await context.close();
  }
  await browser.close();fs.writeFileSync(require('path').join(__dirname,'browser-evidence.json'),JSON.stringify(evidence,null,2));console.log(JSON.stringify(evidence));
 })().catch(e=>{console.error(e);process.exit(1)});

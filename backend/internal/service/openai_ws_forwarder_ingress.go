@@ -955,7 +955,7 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 	}
 
 	var rejectedFieldRetryState *openAIResponsesRejectedFieldRetryState
-	settledResponseIDs := make(map[string]struct{})
+
 	sendAndRelay := func(turn int, lease *openAIWSConnLease, payload []byte, payloadBytes int, originalModel string, imageBillingModel string, imageSizeTier string, imageInputSize string, requestedReasoningEffort *string) (turnResult *OpenAIForwardResult, turnErr error) {
 		responseModelObserver := &upstreamResponseModelObserver{}
 		if lease == nil {
@@ -986,6 +986,7 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 		}
 
 		responseID := ""
+		ownedResponseID := ""
 		usage := OpenAIUsage{}
 		imageCounter := newOpenAIImageOutputCounter()
 		var firstTokenMs *int
@@ -1068,10 +1069,15 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 			}
 
 			eventType, eventResponseID, _ := parseOpenAIWSEventEnvelope(upstreamMessage)
+			eventOwnershipID := openAIWSResponseOwnershipID(upstreamMessage)
 			if eventResponseID == "" {
 				eventResponseID = strings.TrimSpace(gjson.GetBytes(upstreamMessage, "response_id").String())
 			}
-			if _, settled := settledResponseIDs[eventResponseID]; eventResponseID != "" && settled {
+			if lease.IsCompletedResponse(eventOwnershipID) {
+				if eventType == "response.created" {
+					lease.MarkBroken()
+					return nil, errors.New("upstream websocket reused a completed response identity")
+				}
 				continue
 			}
 			if len(upstreamMessage) > 0 {
@@ -1079,6 +1085,12 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 				ledgerAttempt.ObserveIdentifiers(ctx, requestledger.UpstreamRequestID(lease.HandshakeHeaders()), requestledger.ResponseIdentifier(upstreamMessage))
 			}
 			responseModelObserver.ObserveOpenAI(upstreamMessage, eventType)
+			if ownedResponseID != "" && eventOwnershipID != "" && ownedResponseID != eventOwnershipID {
+				lease.conn.retireOnRelease.Store(true)
+			}
+			if ownedResponseID == "" && eventOwnershipID != "" {
+				ownedResponseID = eventOwnershipID
+			}
 			if responseID == "" && eventResponseID != "" {
 				responseID = eventResponseID
 			}
@@ -1264,6 +1276,13 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 			}
 			if isTerminalEvent {
 				terminalEvent := s.handleOpenAIWSTerminalTransientFailure(ctx, account, mappedModel, lease.HandshakeHeaders(), upstreamMessage)
+				if eventOwnershipID != "" {
+					ownedResponseID = eventOwnershipID
+				}
+				lease.RememberCompletedResponse(ownedResponseID)
+				if eventOwnershipID == "" {
+					lease.conn.retireOnRelease.Store(true)
+				}
 				// 客户端已断连时，上游连接的 session 状态不可信，标记 broken 避免回池复用。
 				if clientDisconnected {
 					lease.MarkBroken()
@@ -1687,6 +1706,13 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 				}
 			}
 		}
+		if sessionLease != nil && sessionLease.conn.retireOnRelease.Load() {
+			if isStrictAffinityTurn(currentPayload) {
+				return NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, "upstream response identity is ambiguous; start a new conversation", nil)
+			}
+			resetSessionLease(false)
+			preferredConnID = ""
+		}
 		forcePreferredConn := isStrictAffinityTurn(currentPayload)
 		if sessionLease == nil {
 			acquiredLease, acquireErr := acquireTurnLease(turn, preferredConnID, forcePreferredConn, turnRetry > 0)
@@ -1875,9 +1901,7 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 			return errors.New("websocket turn result is nil")
 		}
 		responseID := strings.TrimSpace(result.RequestID)
-		if responseID != "" {
-			settledResponseIDs[responseID] = struct{}{}
-		}
+
 		lastTurnResponseID = responseID
 		if contextWindowBoundary.WindowID != "" {
 			lastTurnWindowID = contextWindowBoundary.WindowID

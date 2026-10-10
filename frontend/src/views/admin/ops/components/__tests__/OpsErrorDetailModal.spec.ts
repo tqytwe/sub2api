@@ -88,3 +88,23 @@ describe('OpsErrorDetailModal', () => {
   expect(wrapper.text()).toContain('private-request')
   expect(wrapper.text()).toContain('private-attempt')
  })
+
+it('keeps the selected Ops record and ledger links when a closed request resolves late', async () => {
+  let resolveA!: (value: unknown) => void
+  let resolveB!: (value: unknown) => void
+  mocks.getErrorLogDetail.mockReset()
+  mocks.getErrorLogDetail.mockImplementation((id: number) => new Promise(resolve => {
+    if (id === 1) resolveA = resolve
+    else resolveB = resolve
+  }))
+  const wrapper = shallowMount(OpsErrorDetailModal, { props: { show: true, errorId: 1, errorType: 'any' }, global: { stubs: { BaseDialog: { template: '<div><slot /></div>' }, RouterLink: { template: '<a><slot /></a>' }, Icon: true } } })
+  await wrapper.setProps({ show: false })
+  await wrapper.setProps({ show: true, errorId: 2 })
+  resolveB({ id: 2, phase: 'request', ledger_references: [{ request_id: 'request-B', attempt_no: 1, ops_error_log_id: 2 }] })
+  await flushPromises()
+  expect(wrapper.text()).toContain('request-B')
+  resolveA({ id: 1, phase: 'request', ledger_references: [{ request_id: 'request-A', attempt_no: 1, ops_error_log_id: 1 }] })
+  await flushPromises()
+  expect(wrapper.text()).toContain('request-B')
+  expect(wrapper.text()).not.toContain('request-A')
+})

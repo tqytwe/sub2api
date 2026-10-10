@@ -1,10 +1,10 @@
 [
   {
     "role": "admin",
-    "request_id": "f85d7a6f-ea54-4950-aa83-712ed464edb4",
+    "request_id": "32dd0bee-f2bd-43a9-ac3f-649c064121be",
     "attempt_uuids": [
-      "75a1c374-3215-46df-aa64-16f98ecbc2a9",
-      "a4ac7c54-893c-49b5-957a-ae26463dfa72"
+      "e29c6dd4-5745-4aa1-b8b7-03cb56d2dd49",
+      "d5358787-675a-4bef-ae42-ec33c5ff7d8c"
     ],
     "viewports": [
       360,
@@ -24,14 +24,15 @@
     "reduced_motion": true,
     "diagnostic_retention": true,
     "http_failure_retry": true,
-    "pageErrors": []
+    "pageErrors": [],
+    "optional_evidence_failure": true
   },
   {
     "role": "user",
-    "request_id": "588f6251-1944-4e1f-ba78-8fdced68e30c",
+    "request_id": "7d94502b-bb84-46ec-aadb-b82500343381",
     "attempt_uuids": [
-      "b66e510c-4537-4a36-a693-ebda728efd31",
-      "13946afe-6a13-416e-a750-82324e917193"
+      "0aed3e1a-ee34-4340-9c08-a7713db6cbf3",
+      "8279df5a-8482-4799-afc1-3e5d0f400390"
     ],
     "viewports": [
       360,
@@ -51,6 +52,7 @@
     "reduced_motion": true,
     "diagnostic_retention": false,
     "http_failure_retry": true,
-    "pageErrors": []
+    "pageErrors": [],
+    "optional_evidence_failure": true
   }
 ]

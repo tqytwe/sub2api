@@ -87,6 +87,7 @@
 |------|------|----------|
 | [2026-07 增长世界 PRD](./archive/2026-07-growth-world-prd.md) | `historical` | [Growth / Play](./GROWTH_PLAY.md)、[图像工作室](./IMAGE_STUDIO.md) |
 | [2026-07 Play 路线图](./archive/2026-07-growth-play-roadmap.md) | `superseded` | [Growth / Play](./GROWTH_PLAY.md) |
+| [2026-10 P1 签到错误契约](./archive/completed-tasks/2026-10-checkin-errors/README.md) | `historical` | 限定范围的 RED/GREEN、PG 与构建资源回归；最终 SHA/CI 见该批 PR，生产验收待协调 |
 
 已完成且重复的 `IMAGE_STUDIO_COMPLETION_PLAN.md`、`MODEL_PRICING_PLAN.md` 已删除；需要追溯时使用 Git 历史。
 

@@ -1,8 +1,8 @@
 # P0 精确关联验证记录
 
-状态：本地技术门禁与独立评审全部通过，2026-10-10 21:17 UTC；草稿 PR/准确 head/CI 由提交后的交接消息记录。本记录仅覆盖隔离测试环境；未访问生产秘密，未登录 Zeabur，未生成内容、估算/补扣或变更运营。
+状态：e209fda 的初次本地技术门禁于2026-10-10 21:17 UTC通过；草稿复审四项追加修复与最新主线组合的串行完整门禁于2026-10-10 22:12 UTC通过；草稿 PR/准确 head/CI 由提交后的交接消息记录。本记录仅覆盖隔离测试环境；未访问生产秘密，未登录 Zeabur，未生成内容、估算/补扣或变更运营。
 
-基线：726289bdb757e572eac10ab5f12c689c4dc087b5，2026-10-10 再次 fetch origin/play/main 确认。迁移 275 与现有计费实现保留。环境为 Go 1.27.2、PostgreSQL 18.1 一次性容器、pnpm 9.15.9 冻结锁文件、Chromium；production build + 测试 HTTP handler fixture，不是生产服务或生产验收。
+初始基线：726289bdb757e572eac10ab5f12c689c4dc087b5。本轮复审按主线程要求普通 merge 纳入最新 play/main 17b96a20c7e9d2e394b37c6c1b108340853c0169（#353），没有 rebase/强推，签到实现与该主线一致。迁移 275 与现有计费实现保留。环境为 Go 1.27.2、PostgreSQL 18.1 一次性容器、pnpm 9.15.9 冻结锁文件、Chromium；production build + 测试 HTTP handler fixture，不是生产服务或生产验收。
 
 ## TDD 与针对性证据
 
@@ -12,7 +12,7 @@
 
 补充 `requestledger.Do` 为单次调用分配私有槽，在最终 Client.Timeout 包装抹去错误链时保留原 attempt；每次实际 RoundTrip 前清空，不从 CurrentAttempt 恢复。真实 HTTP/PG + race 验证共享 client 并发隔离、失败后成功清槽、errors.Is/net.Error 与生产 ResponseHeaderTimeout。底层通用取消的既有失败分类不强改为 timeout，最终 caller 的 timeout 语义仍保持。
 
-## 最终门禁
+## 初次提交 e209fda 门禁
 
 | 门禁 | 最终结果 |
 | --- | --- |
@@ -58,3 +58,42 @@
 ## 剩余边界
 
 生产合并、部署 SHA、迁移执行、健康检查与用户本机游客/普通用户/管理员验收由主线程协调，本任务未执行。所有协议的外部真实供应商自然流量未运行；证据是隔离 fixture 与测试。历史 gpt22 损失仍未归因，此补丁只建立未来请求精确证据。
+
+
+## 草稿 PR 复审追加验证
+
+父线程只读复核的四项问题均先得到RED：真实WS/PG确认B发送后迟到A terminal导致B=RequestID resp_A；新证据表改名后detail503；关闭A再开B时A迟到覆盖B精确反链；证据行锁使健康HTTP header和stream读取各停顿约3秒，超过350ms预算。
+
+增量修复及边界详见规格追加契约。本轮定向GREEN已包括：原始WS四组合、详情缺表降级、350ms响应预算、Ops代际、UI明确unavailable；进一步验证三轮WS八组合、辅助event.id/top-level response_id、匿名/冲突退役、严格dedicated下一轮不发送、匿名/冲突prewarm主create不发送、重用完成ID拒绝；并运行单连接/双连接池、行锁/表锁下原真实usage结算与500ms详情读取、300生产者队列上限及race。
+
+最终日志、准确后续SHA和完整门禁以本轮完成后记录为准；未访问生产或部署。
+
+本轮完整门禁曾因本任务构建缓存耗尽磁盘失败，清理后重跑；一次清理与尚未完成的链接竞争造成 cache file missing，也保留为失败，不计入通过。无权限绕过或生产操作。
+
+原 handler fixture 在匿名终态换连接后按连接重置轮次，造成第二轮重复第一轮测试响应、并误报正常退役关闭。测试桩现使用跨连接 atomic 轮次、显式允许正常退役、收齐每条连接的完成结果；保留 9/4 和 18/8 token、唯一计费 ID、无重放断言，新增匿名池模式 2 条物理连接、正常/透传 1 条断言。独立复审确认无弱化。
+
+本轮独立规格评审与代码质量评审均通过。追加审查确认池上限不会提前驱逐活动 lease，旧 generic event.id 不参与新归属，严格续链 shared/dedicated 保留前轮 usage 后拒绝下一轮，prewarm 歧义不发送主请求；最终完整门禁结果见下节。
+
+另一个旧 service fixture 在匿名终态后重复拨出已关闭对象，完整包确认单项失败。改为两条真实独立测试连接，保留第二轮无 previous_response_id、响应 ID 与正常关闭断言，并断言每条连接各发送一次；独立代码复审通过。此项仅适配连接退役契约，未再改业务实现。已通过的相同业务源码 HTTP/PG/race/build/browser 结果复用，完整门禁串行重跑，活动构建期间不再清理 Go 缓存。
+
+## 本轮最终门禁（组合 #353 / 17b96a2）
+
+| 门禁 | 实际结果 |
+| --- | --- |
+| 匿名终态测试桩适配 | exit 0；独立复审未弱化断言 |
+| make test | exit 0；后端全包 service 135.171s；golangci-lint 零问题；前端 lint/typecheck，Test Files  493 passed | 1 skipped (494)；Tests  3528 passed | 4 skipped (3532) |
+| make test-backend-unit | exit 0；全包 tag-gated unit，service 196.747s |
+| 完整 make build | exit 0；组合主线后的实际前端构建 42.95s；后续只有测试桩/文档变化 |
+| Fork integrity | exit 0；后续两处 WS fixture 不在其运行选择范围，其验证目标源码未变化 |
+| 全量 requestledger PG + race | exit 0；104.450s；含 300 生产者有界队列 |
+| 全 service Ledger PG | exit 0；26 顶层测试，136.706s；真实池化 WS、迟到帧与退役矩阵 |
+| repository + HTTP/PG | exit 0；22.664s / 32.625s；小连接池、行/表锁、缺表、权限与原 usage 结算 |
+| handler observed-usage race | exit 0；3.477s；跨连接轮次、每轮 token、唯一计费 ID、无重放 |
+| CheckIn 组合 HTTP/PG | exit 0；12.602s，含真实前端合同 |
+| 新构建浏览器 / embed | exit 0；双角色四宽度/中英/主题/键盘/反链/读故障；embed 0.197s |
+
+常规前端运行跳过的 4 项均为 CheckInView.http.spec.ts 的真实后端条件测试；已由 CHECKIN_FRONTEND_CONTRACT=1 的组合 HTTP/PG 合同单独运行并通过。
+
+`validation-results.json` 的 `followup_checks` 与 `followup_failures` 分开记录日志 SHA256、真实退出码及摘要；初次 e209 证据仍保留为历史，未冒充本轮结果。最后三项重型门禁按同一队列串行执行，未再清理活动缓存。PG/race/build/browser 的业务源码与最终补丁相同，后续测试桩调整单独验证，不重复运行无变化的检查目标。
+
+独立规格及最终测试桩代码复审通过；PR 准确提交 SHA 与 GitHub CI 状态由提交后读取，文档不自指一个尚未生成的 SHA。仅草稿 PR，不合并或部署，不把本地验证代替生产验收。

@@ -20,6 +20,8 @@ type Attempt struct {
 	upstreamResponseID  string
 	identifierConflict  bool
 	evidenceUnavailable bool
+	evidencePending     bool
+	evidenceVersion     uint64
 	outputObserved      atomic.Bool
 	streamTerminal      atomic.Int32
 	handle              *Handle

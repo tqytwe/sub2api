@@ -1,0 +1,38 @@
+Baseline 726289bdb757e572eac10ab5f12c689c4dc087b5
+Real HTTP / Axios / Vue / PostgreSQL regression, before production-code change.
+Command: ./scripts/test-checkin-contract.sh
+
+play_checkin_http_integration_test.go:305: DB reconciliation: checkins=1 snapshots=1 energy=1 cash=0 balance=1
+play_checkin_http_integration_test.go:335: DB reconciliation: checkins=1 snapshots=1 energy=1 cash=0 balance=1
+play_checkin_http_integration_test.go:305: DB reconciliation: checkins=1 snapshots=1 energy=1 cash=0 balance=1
+play_checkin_http_integration_test.go:335: DB reconciliation: checkins=1 snapshots=1 energy=1 cash=0 balance=1
+play_checkin_http_integration_test.go:305: DB reconciliation: checkins=1 snapshots=1 energy=1 cash=0 balance=1
+play_checkin_http_integration_test.go:335: DB reconciliation: checkins=1 snapshots=1 energy=1 cash=0 balance=1
+play_checkin_http_integration_test.go:305: DB reconciliation: checkins=1 snapshots=1 energy=0 cash=0.5 balance=1.5
+play_checkin_http_integration_test.go:335: DB reconciliation: checkins=1 snapshots=1 energy=0 cash=0.5 balance=1.5
+play_checkin_http_integration_test.go:348: DB reconciliation: checkins=0 snapshots=0 energy=0 cash=0 balance=1
+play_checkin_http_integration_test.go:357: DB reconciliation: checkins=0 snapshots=0 energy=0 cash=0 balance=1
+play_checkin_http_integration_test.go:402: Milestone reconciliation: makeup=false checkins=2 snapshots=1 rewards=2 balances=2 reward=1.50 balance=2.50
+play_checkin_http_integration_test.go:402: Milestone reconciliation: makeup=true checkins=2 snapshots=1 rewards=1 balances=1 reward=1.50 balance=2.50
+× CheckInView with real check-in HTTP and PostgreSQL > renders the persisted explorer grant and reloads checked-in state 1806ms
+→ expected "spy" to be called with arguments: [ '今日已签到' ]
+× CheckInView with real check-in HTTP and PostgreSQL > renders the persisted cash grant and reloads checked-in state 1259ms
+→ expected "spy" to be called with arguments: [ '今日已签到' ]
+× CheckInView with real check-in HTTP and PostgreSQL > renders the persisted milestone grant and reloads checked-in state 1303ms
+→ expected "spy" to be called with arguments: [ '今日已签到' ]
+× CheckInView with real check-in HTTP and PostgreSQL > renders a persisted makeup milestone and refreshes a stale second tab after rejection 1625ms
+→ expected "spy" to be called with arguments: [ '当前不可补签' ]
+Tests  4 failed (4)
+play_checkin_http_integration_test.go:426: DB reconciliation: checkins=1 snapshots=1 energy=1 cash=0 balance=1
+play_checkin_http_integration_test.go:427: DB reconciliation: checkins=1 snapshots=1 energy=0 cash=0.5 balance=1.5
+play_checkin_http_integration_test.go:428: Milestone reconciliation: makeup=false checkins=2 snapshots=1 rewards=2 balances=2 reward=1.50 balance=2.50
+play_checkin_http_integration_test.go:429: Milestone reconciliation: makeup=true checkins=2 snapshots=1 rewards=1 balances=1 reward=1.50 balance=2.50
+--- FAIL: TestCheckinHTTPDatabaseContract (23.96s)
+--- PASS: TestCheckinHTTPDatabaseContract/explorer (0.23s)
+--- PASS: TestCheckinHTTPDatabaseContract/unverified (0.32s)
+--- PASS: TestCheckinHTTPDatabaseContract/too_new (0.46s)
+--- PASS: TestCheckinHTTPDatabaseContract/cash (0.37s)
+--- PASS: TestCheckinHTTPDatabaseContract/disabled_and_unauthenticated (0.13s)
+--- PASS: TestCheckinHTTPDatabaseContract/milestone_makeup_false (0.45s)
+--- PASS: TestCheckinHTTPDatabaseContract/milestone_makeup_true (0.11s)
+--- FAIL: TestCheckinHTTPDatabaseContract/frontend_live_http (21.81s)
