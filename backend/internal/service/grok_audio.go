@@ -138,7 +138,10 @@ func (s *OpenAIGatewayService) ProxyGrokRealtime(ctx context.Context, c *gin.Con
 	return s.ProxyGrokRealtimeConn(ctx, c, client, upstream)
 }
 
-type GrokRealtimeUpstream struct{ conn openAIWSClientConn }
+type GrokRealtimeUpstream struct {
+	conn    openAIWSClientConn
+	account *Account
+}
 
 // GrokRealtimeDialError preserves an HTTP status returned before WebSocket
 // upgrade so handlers can apply the normal Grok account policy.
@@ -182,11 +185,11 @@ func (s *OpenAIGatewayService) OpenGrokRealtime(ctx context.Context, account *Ac
 	if account.ProxyID != nil && account.Proxy != nil {
 		proxyURL = account.Proxy.URL()
 	}
-	conn, status, _, err := s.getOpenAIWSPassthroughDialer().Dial(ctx, u.String(), headers, proxyURL)
+	conn, status, _, err := dialWSWithLedger(ctx, s.getOpenAIWSPassthroughDialer(), account, u.String(), headers, proxyURL)
 	if err != nil {
 		return nil, &GrokRealtimeDialError{StatusCode: status, Err: err}
 	}
-	return &GrokRealtimeUpstream{conn: conn}, nil
+	return &GrokRealtimeUpstream{conn: conn, account: account}, nil
 }
 
 // HandleGrokRealtimeUpstreamError applies the shared Grok account policy to a
@@ -198,11 +201,13 @@ func (s *OpenAIGatewayService) HandleGrokRealtimeUpstreamError(ctx context.Conte
 	s.handleGrokAccountUpstreamError(ctx, account, statusCode, nil, body)
 }
 
-func (s *OpenAIGatewayService) ProxyGrokRealtimeConn(ctx context.Context, c *gin.Context, client *coderws.Conn, upstream *GrokRealtimeUpstream) (bool, error) {
+func (s *OpenAIGatewayService) ProxyGrokRealtimeConn(ctx context.Context, c *gin.Context, client *coderws.Conn, upstream *GrokRealtimeUpstream) (_ bool, resultErr error) {
 	if s == nil || client == nil || upstream == nil || upstream.conn == nil {
 		return false, fmt.Errorf("realtime connection is required")
 	}
 	conn := upstream.conn
+	audit := newRealtimeLedgerAudit(ctx, upstream.account)
+	defer func() { audit.Close(resultErr) }()
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -215,6 +220,10 @@ func (s *OpenAIGatewayService) ProxyGrokRealtimeConn(ctx context.Context, c *gin
 			msg, readErr := conn.ReadMessage(ctx)
 			if readErr != nil {
 				errCh <- readErr
+				return
+			}
+			if auditErr := audit.Observe(msg); auditErr != nil {
+				errCh <- auditErr
 				return
 			}
 			if grokRealtimeEventHasAudio(msg) {
@@ -246,7 +255,13 @@ func (s *OpenAIGatewayService) ProxyGrokRealtimeConn(ctx context.Context, c *gin
 				errCh <- fmt.Errorf("invalid realtime event: %w", unmarshalErr)
 				return
 			}
-			if writeErr := conn.WriteJSON(ctx, raw); writeErr != nil {
+			if auditErr := audit.BeforeWrite(msg); auditErr != nil {
+				errCh <- auditErr
+				return
+			}
+			writeErr := conn.WriteJSON(ctx, raw)
+			audit.AfterWrite(writeErr)
+			if writeErr != nil {
 				errCh <- writeErr
 				return
 			}

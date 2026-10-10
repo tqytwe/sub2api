@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
 	"io"
 	"log/slog"
 	"net/http"
@@ -965,7 +966,13 @@ func (m *PluginManager) RoundTripOpenAIOAuth(ctx context.Context, request *http.
 	if !route.runtime.beginRequest() {
 		return nil, true, errors.New("OpenAI OAuth 插件正在停止")
 	}
+	attempt, err := requestledger.BeginAttempt(ctx, account.ID, ledgerCredentialAccountID(account))
+	if err != nil {
+		route.runtime.finishRequest()
+		return nil, true, err
+	}
 	response, err := route.runtime.roundTrip(ctx, request, proxyURL, account)
+	attempt.TrackResponse(ctx, response, err)
 	if err != nil {
 		route.runtime.finishRequest()
 		if route.runtime.client.Exited() {

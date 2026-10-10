@@ -7,6 +7,7 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
 	"io"
 	"net/http"
 	"runtime/debug"
@@ -249,6 +250,7 @@ func usageRecordContext(parent context.Context, base context.Context) context.Co
 	if parent == nil {
 		return base
 	}
+	base = requestledger.WithHandle(base, requestledger.FromContext(requestledger.CurrentContext(parent)))
 	if billingRequestID, ok := parent.Value(ctxkey.UsageBillingRequestID).(string); ok {
 		// Copy explicit clearing too: durable image workers must not inherit
 		// a submission ID from a worker-pool base context.
@@ -279,6 +281,7 @@ func wrapUsageRecordTaskContext(parent context.Context, task service.UsageRecord
 	if task == nil {
 		return nil, func() {}
 	}
+	parent = requestledger.CurrentContext(parent)
 	done := func() {}
 	if parent != nil {
 		done = service.InflightReservationFromContext(parent).Acquire()
@@ -2906,6 +2909,7 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 			closeOpenAIClientWS(wsConn, coderws.StatusPolicyViolation, "billing check failed")
 			return
 		}
+		ledgerTurns := requestledger.NewTurnBindings(ctx)
 		hooks := &service.OpenAIWSIngressHooks{
 			ClientLifecycleContext:      clientLifecycleCtx,
 			InitialRequestModel:         reqModel,
@@ -2915,6 +2919,7 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 			ReasoningEffortMappings:     reasoningEffortMappings,
 			TurnStarted:                 recordTurnStart,
 			BeforeRequest: func(turn int, payload []byte, originalModel string) error {
+				ledgerTurns.Bind(turn, ctx)
 				c.Set(securityAuditWSTurnContextKey, turn)
 				service.BeginOpsStreamTurn(c, turn)
 				setCyberTurnBody(turn, payload)
@@ -3028,6 +3033,8 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 				return checkSimpleModeTurnBilling()
 			},
 			AfterTurn: func(turn int, result *service.OpenAIForwardResult, turnErr error) {
+				ledgerCtx := ledgerTurns.Context(turn, ctx)
+				defer finishRequestLedgerWSTurn(ledgerCtx, result, turnErr)
 				if account.IsOpenAI() && result != nil && (turnErr == nil || result.HasObservedUsage()) {
 					if !turnSettlement.claim(turn) {
 						return
@@ -3116,9 +3123,9 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 				sessionID := service.ExtractClientSessionID(c)
 				turnRecordPricingAt := turnPricing.currentOr(turnStart)
 				cyberBlocked := service.GetOpsCyberPolicy(c) != nil
-				turnRecordCtx := ctx
+				turnRecordCtx := ledgerCtx
 				if account.IsOpenAI() {
-					turnRecordCtx = turnSettlement.context(ctx, turn)
+					turnRecordCtx = turnSettlement.context(ledgerCtx, turn)
 				}
 				h.submitOpenAIUsageRecordTaskForAccount(turnRecordCtx, account, result, func(taskCtx context.Context) {
 					if err := h.gatewayService.RecordUsage(taskCtx, &service.OpenAIRecordUsageInput{

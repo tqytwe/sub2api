@@ -3,6 +3,7 @@ package middleware
 import (
 	"errors"
 	"fmt"
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
 	"net/http"
 	"strings"
 
@@ -122,6 +123,10 @@ func APIKeyAuthWithSubscriptionGoogle(apiKeyService *service.APIKeyService, subs
 		if !apiKey.User.IsActive() {
 			MarkIngressRejected(c, IngressRejectUserInactive)
 			abortWithGoogleError(c, 401, "User account is not active")
+			return
+		}
+		if err := requestledger.BindIdentity(c.Request.Context(), apiKey.User.ID, apiKey.ID); err != nil {
+			requestledger.Reject(c)
 			return
 		}
 		if code, message, ok := validateAPIKeyGroupAvailable(apiKey); !ok {

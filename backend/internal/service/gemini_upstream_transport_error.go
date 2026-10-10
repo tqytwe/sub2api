@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
 	"github.com/gin-gonic/gin"
 )
 
@@ -25,6 +26,9 @@ var geminiTransportFailoverBody = []byte(`{"error":{"code":502,"message":"Upstre
 //
 // 本函数不写响应：响应归 handler 所有（换号，或耗尽后按端点格式渲染错误）。
 func (s *GeminiMessagesCompatService) handleUpstreamTransportError(ctx context.Context, c *gin.Context, account *Account, err error) error {
+	if errors.Is(err, requestledger.ErrUnavailable) {
+		return err
+	}
 	if isClientCanceledTransportError(ctx, err) {
 		return err
 	}

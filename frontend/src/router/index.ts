@@ -487,6 +487,18 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/requests',
+    name: 'RequestLedger',
+    component: () => import('@/views/shared/RequestLedgerView.vue'),
+    meta: { requiresAuth: true, requiresAdmin: false, title: 'Request ledger', titleKey: 'requestLedger.title', descriptionKey: 'requestLedger.description', frame: 'workspace' }
+  },
+  {
+    path: '/admin/requests',
+    name: 'AdminRequestLedger',
+    component: () => import('@/views/shared/RequestLedgerView.vue'),
+    meta: { requiresAuth: true, requiresAdmin: true, title: 'Request ledger', titleKey: 'requestLedger.title', descriptionKey: 'requestLedger.description', frame: 'workspace' }
+  },
+  {
     path: '/usage',
     name: 'Usage',
     component: () => import('@/views/user/UsageView.vue'),

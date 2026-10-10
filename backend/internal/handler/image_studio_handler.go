@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
 	"io"
 	"math"
 	"net/http"
@@ -31,6 +32,7 @@ const (
 )
 
 type ImageStudioHandler struct {
+	ledger        *requestledger.Ledger
 	studio        *service.ImageStudioService
 	gateway       imageStudioGateway
 	geminiGateway *GatewayHandler
@@ -336,10 +338,18 @@ func (h *ImageStudioHandler) processWorkerItem(
 	job *service.ImageStudioJob,
 	item *service.ImageStudioItem,
 	body string,
-) (*service.ImageStudioImagePayload, float64, error) {
+) (_ *service.ImageStudioImagePayload, _ float64, executionErr error) {
 	if job == nil || item == nil || job.APIKeyID == nil {
 		return nil, 0, service.ErrImageStudioAPIKey
 	}
+	execution, err := h.ledger.BeginTask(ctx, "image_studio", job.ID, job.UserID, *job.APIKeyID, true)
+	if err != nil {
+		return nil, 0, err
+	}
+	ctx = requestledger.WithHandle(ctx, execution)
+	defer func() {
+		_ = execution.Finish(ctx, requestledger.Outcome(0, executionErr), 0, requestledger.ErrorCode(executionErr))
+	}()
 	storedKey, err := h.apiKeyService.GetByID(ctx, *job.APIKeyID)
 	if err != nil {
 		return nil, 0, service.ErrImageStudioAPIKey
@@ -373,7 +383,9 @@ func (h *ImageStudioHandler) processWorkerItem(
 func ProvideImageStudioWorkerRuntime(
 	studio *service.ImageStudioService,
 	handler *ImageStudioHandler,
+	ledger *RequestLedgerHandler,
 ) *ImageStudioWorkerRuntime {
+	handler.ledger = ledger.Ledger
 	runtime := NewImageStudioWorkerRuntime(
 		studio,
 		handler.processWorkerItem,

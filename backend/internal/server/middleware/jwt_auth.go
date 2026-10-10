@@ -3,6 +3,7 @@ package middleware
 import (
 	"context"
 	"errors"
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
 	"strings"
 
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -108,6 +109,10 @@ func jwtAuth(
 			return
 		}
 
+		if err := requestledger.BindIdentity(c.Request.Context(), user.ID, 0); err != nil {
+			requestledger.Reject(c)
+			return
+		}
 		c.Set(string(ContextKeyUser), AuthSubject{
 			UserID:      user.ID,
 			Concurrency: user.Concurrency,

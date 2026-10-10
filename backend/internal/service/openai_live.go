@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
 	"io"
 	"net/http"
 	"net/url"
@@ -328,6 +329,10 @@ func (s *OpenAIGatewayService) CreateLiveCall(
 			InboundEndpoint:       identity.InboundEndpoint,
 			AttestationCiphertext: attestationCiphertext,
 		}
+		if err := requestledger.BindTask(ctx, "live_call", record.CallHash, identity.UserID, identity.APIKeyID); err != nil {
+			s.releaseLiveLease(account.ID, identity.UserID, identity.APIKeyID, leaseID)
+			return nil, err
+		}
 		mappingTTL := s.liveMaxSessionDuration() + 5*time.Minute
 		if saveErr := store.SaveLiveCall(ctx, record, mappingTTL); saveErr != nil {
 			s.releaseLiveLease(account.ID, identity.UserID, identity.APIKeyID, leaseID)
@@ -540,6 +545,22 @@ func (s *OpenAIGatewayService) liveSidebandHeaders(
 }
 
 func (s *OpenAIGatewayService) dialLiveSideband(ctx context.Context, record *LiveCallRecord) (liveFrameConn, error) {
+	var execution *requestledger.Handle
+	if s != nil && requestledger.FromContext(ctx) == nil && s.requestLedger != nil && record != nil {
+		var err error
+		execution, err = s.requestLedger.BeginTask(ctx, "live_call", record.CallHash, record.UserID, record.APIKeyID, false)
+		if err != nil {
+			return nil, err
+		}
+		ctx = requestledger.WithHandle(ctx, execution)
+	}
+	handedOff := false
+	defer func() {
+		if !handedOff && execution != nil {
+			_ = execution.Finish(ctx, "failed", 0, "upstream_error")
+		}
+	}()
+
 	if !s.liveEgressEnabled() {
 		return nil, ErrLiveUnavailable
 	}
@@ -555,7 +576,7 @@ func (s *OpenAIGatewayService) dialLiveSideband(ctx context.Context, record *Liv
 		return nil, err
 	}
 	target := strings.TrimRight(chatGPTLiveSidebandBaseURL, "/") + "/" + url.PathEscape(record.CallID)
-	conn, status, _, err := s.getOpenAIWSPassthroughDialer().Dial(ctx, target, headers, resolveAccountProxyURL(account))
+	conn, status, _, err := dialWSWithLedger(ctx, s.getOpenAIWSPassthroughDialer(), account, target, headers, resolveAccountProxyURL(account))
 	if err != nil {
 		return nil, fmt.Errorf("dial live sideband (status %d): %w", status, err)
 	}
@@ -564,7 +585,8 @@ func (s *OpenAIGatewayService) dialLiveSideband(ctx context.Context, record *Liv
 		_ = conn.Close()
 		return nil, errors.New("live sideband transport does not support raw frames")
 	}
-	return raw, nil
+	handedOff = true
+	return &ledgerLiveFrameConn{inner: raw, audit: newRealtimeLedgerAudit(ctx, account), execution: execution, ctx: ctx}, nil
 }
 
 func (s *OpenAIGatewayService) GetLiveCallForIdentity(
@@ -1053,6 +1075,10 @@ func (s *OpenAIGatewayService) settleLiveCall(record *LiveCallRecord) error {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), postUsageBillingTimeout)
 	defer cancel()
+	ctx, ledgerErr := s.requestLedger.ResumeTask(ctx, "live_call", record.CallHash, record.UserID, record.APIKeyID)
+	if ledgerErr != nil {
+		return ledgerErr
+	}
 	apiKey, err := s.liveAPIKeyLoader.GetByID(ctx, record.APIKeyID)
 	if err != nil {
 		return fmt.Errorf("load api key: %w", err)

@@ -3,9 +3,11 @@ package service
 import (
 	"context"
 	"errors"
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
 	"time"
 
 	coderws "github.com/coder/websocket"
+	"github.com/tidwall/gjson"
 )
 
 type openAIWSClientReadResult struct {
@@ -97,6 +99,12 @@ func readOpenAIWSClientMessageWithTimeoutStart(
 	for {
 		select {
 		case result := <-readDone:
+			if result.err == nil && (gjson.GetBytes(result.payload, "type").String() == "response.create" || !gjson.ValidBytes(result.payload)) {
+				if _, err := requestledger.AcceptTurn(controlCtx); err != nil {
+					_ = conn.Close(coderws.StatusTryAgainLater, "request audit storage unavailable")
+					return 0, nil, NewOpenAIWSClientCloseError(coderws.StatusTryAgainLater, "request audit storage unavailable", err)
+				}
+			}
 			return result.messageType, result.payload, result.err
 		case <-timeoutStart:
 			startTimeout()

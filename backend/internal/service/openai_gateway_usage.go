@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
 	"net/http"
 	"strconv"
 	"strings"
@@ -163,6 +164,7 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	if result == nil {
 		return errors.New("openai usage result is nil")
 	}
+
 	if s.rateLimitService != nil && input.Account != nil && input.Account.Platform == PlatformOpenAI {
 		s.rateLimitService.ResetOpenAI403Counter(ctx, input.Account.ID)
 	}
@@ -176,6 +178,11 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	}
 	if subscription != nil && subscription.UserID > 0 && subscription.UserID != user.ID {
 		return ErrUsageBillingOwnershipMismatch
+	}
+	if result.HasObservedUsage() || result.ImageCount > 0 || result.VideoCount > 0 || result.WebSearchCalls > 0 {
+		if err := requestledger.ObserveUsage(ctx, account.ID); err != nil {
+			return err
+		}
 	}
 	billingAccount, err := resolveCredentialAccount(ctx, s.accountRepo, account)
 	if err != nil {

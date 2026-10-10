@@ -1,3 +1,4 @@
+import requestLedger from './request-ledger.zh'
 import { jisudengHomeZh } from './jisudeng-home.zh'
 import { jisudengPagesZh } from './jisudeng-pages.zh'
 import splitAdminZh from './zh/admin'
@@ -10,6 +11,7 @@ import promptAuditAdminZh from './zh/admin/promptAudit'
 import { mergeLocaleMessages } from './merge'
 
 const messages = {
+  requestLedger,
   batchImageGuide: {
     title: '图片批量生成',
     description: '一次提交多条提示词，任务完成后可统一下载图片结果'

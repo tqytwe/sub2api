@@ -879,7 +879,7 @@ func (s *VertexGCSObjectStore) OpenObject(ctx context.Context, accessToken strin
 		return nil, "", err
 	}
 	req.Header.Set("Authorization", "Bearer "+accessToken)
-	resp, err := s.client.Do(req)
+	resp, err := batchImageLedgerHTTP(s.client, req)
 	if err != nil {
 		return nil, "", err
 	}
@@ -959,7 +959,7 @@ func doVertexJSON[T any](client *http.Client, req *http.Request) (*T, error) {
 }
 
 func doVertexDecodeJSON(client *http.Client, req *http.Request, out any) error {
-	resp, err := client.Do(req)
+	resp, err := batchImageLedgerHTTP(client, req)
 	if err != nil {
 		return err
 	}
@@ -971,7 +971,7 @@ func doVertexDecodeJSON(client *http.Client, req *http.Request, out any) error {
 }
 
 func doVertexNoBody(client *http.Client, req *http.Request) error {
-	resp, err := client.Do(req)
+	resp, err := batchImageLedgerHTTP(client, req)
 	if err != nil {
 		return err
 	}

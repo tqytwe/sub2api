@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
 	"net/http"
 	"strings"
 
@@ -165,6 +166,10 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 		if !apiKey.User.IsActive() {
 			MarkIngressRejected(c, IngressRejectUserInactive)
 			AbortWithError(c, 401, "USER_INACTIVE", "User account is not active")
+			return
+		}
+		if err := requestledger.BindIdentity(c.Request.Context(), apiKey.User.ID, apiKey.ID); err != nil {
+			requestledger.Reject(c)
 			return
 		}
 		if abortIfAPIKeyGroupUnavailable(c, apiKey) {

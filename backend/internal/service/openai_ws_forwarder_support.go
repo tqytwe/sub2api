@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
 	"net/http"
 	"strings"
 	"time"
@@ -30,7 +31,7 @@ func (s *OpenAIGatewayService) performOpenAIWSGeneratePrewarm(
 	account *Account,
 	stateStore OpenAIWSStateStore,
 	groupID int64,
-) error {
+) (ledgerErr error) {
 	if s == nil {
 		return nil
 	}
@@ -78,6 +79,11 @@ func (s *OpenAIGatewayService) performOpenAIWSGeneratePrewarm(
 	prewarmPayload["generate"] = false
 	prewarmPayloadJSON := payloadAsJSONBytes(prewarmPayload)
 
+	ledgerAttempt, gateErr := requestledger.BeginControlAttempt(ctx, account.ID, ledgerCredentialAccountID(account))
+	if gateErr != nil {
+		return gateErr
+	}
+	defer func() { finishLedgerWSAttempt(ctx, ledgerAttempt, ledgerErr) }()
 	if err := lease.WriteJSONWithContextTimeout(ctx, prewarmPayload, s.openAIWSWriteTimeout()); err != nil {
 		lease.MarkBroken()
 		logOpenAIWSModeInfo(

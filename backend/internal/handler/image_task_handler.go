@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
 	"io"
 	"mime"
 	"mime/multipart"
@@ -26,6 +27,7 @@ import (
 )
 
 type AsyncImageHandler struct {
+	ledger        *requestledger.Ledger
 	tasks         *service.ImageTaskService
 	openAI        *OpenAIGatewayHandler
 	assetReader   service.ImageAssetReader
@@ -66,9 +68,11 @@ func ProvideAsyncImageHandler(
 	subscriptions *service.SubscriptionService,
 	queue service.ImageTaskQueue,
 	runtimeState *service.ImageTaskRuntimeState,
+	ledger *RequestLedgerHandler,
 	cfg *config.Config,
 ) *AsyncImageHandler {
 	h := NewAsyncImageHandler(tasks, openAI, imageStorage)
+	h.ledger = ledger.Ledger
 	h.imageResults = imageResults
 	h.apiKeys = apiKeys
 	h.subscriptions = subscriptions
@@ -376,8 +380,19 @@ func (h *AsyncImageHandler) ProcessImageTask(ctx context.Context, taskID string)
 	if task.Status == service.ImageTaskStatusCompleted || task.Status == service.ImageTaskStatusFailed {
 		return nil
 	}
+	execution, ledgerErr := h.ledger.BeginTask(ctx, "image_task", task.ID, task.UserID, task.APIKeyID, true)
+	if ledgerErr != nil {
+		return ledgerErr
+	}
+	ctx = requestledger.WithHandle(ctx, execution)
+	terminalStatus := 500
+	defer func() {
+		_ = execution.Finish(ctx, requestledger.Outcome(terminalStatus, err), terminalStatus, requestledger.HTTPErrorCode(terminalStatus))
+	}()
+
 	apiKey, err := h.reloadImageTaskAPIKey(ctx, task)
 	if err != nil {
+		terminalStatus = http.StatusForbidden
 		return h.failTask(ctx, taskID, http.StatusForbidden, imageTaskErrorCodePayload("IMAGE_TASK_AUTH_INVALID", err.Error()))
 	}
 	requestBody := envelope.Body
@@ -385,11 +400,13 @@ func (h *AsyncImageHandler) ProcessImageTask(ctx context.Context, taskID string)
 	if task.Platform == service.PlatformOpenAI {
 		requestBody, contentType, err = forceAsyncImageBase64(envelope.ContentType, envelope.Body)
 		if err != nil {
+			terminalStatus = http.StatusBadRequest
 			return h.failTask(ctx, taskID, http.StatusBadRequest, imageTaskErrorPayload("invalid_request_error", err.Error()))
 		}
 	}
 	taskCtx, recorder, cancel, err := h.newWorkerImageContext(ctx, taskID, apiKey, envelope, contentType, requestBody)
 	if err != nil {
+		terminalStatus = http.StatusServiceUnavailable
 		return h.failTask(ctx, taskID, http.StatusServiceUnavailable, imageTaskErrorCodePayload("IMAGE_TASK_SUBSCRIPTION_UNAVAILABLE", err.Error()))
 	}
 	defer cancel()
@@ -400,14 +417,17 @@ func (h *AsyncImageHandler) ProcessImageTask(ctx context.Context, taskID string)
 	}
 	responseBody := bytes.TrimSpace(recorder.Body.Bytes())
 	if err := taskCtx.Request.Context().Err(); err != nil && len(responseBody) == 0 {
+		terminalStatus = http.StatusGatewayTimeout
 		return h.failTask(ctx, taskID, http.StatusGatewayTimeout, imageTaskErrorPayload("timeout_error", "image generation task timed out"))
 	}
 	statusCode := recorder.Code
+	terminalStatus = statusCode
 	if statusCode == 0 {
 		statusCode = http.StatusOK
 	}
 	if statusCode >= http.StatusOK && statusCode < http.StatusMultipleChoices {
 		if len(responseBody) == 0 || !json.Valid(responseBody) {
+			terminalStatus = http.StatusBadGateway
 			return h.failTask(ctx, taskID, http.StatusBadGateway, imageTaskErrorPayload("api_error", "upstream returned an invalid image response"))
 		}
 		if err := h.tasks.Complete(ctx, taskID, statusCode, json.RawMessage(responseBody)); err != nil {

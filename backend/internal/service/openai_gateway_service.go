@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
 	"log/slog"
 	"math/rand"
 	"net/http"
@@ -477,6 +478,7 @@ type OpenAIGatewayService struct {
 	userPlatformQuotaRepo      UserPlatformQuotaRepository
 	// Live settles asynchronously after the sideband ends. Reuse the existing
 	// API key service for both authoritative ownership lookup and quota updates.
+	requestLedger          *requestledger.Ledger
 	liveAPIKeyLoader       liveAPIKeyLoader
 	liveAPIKeyQuotaUpdater APIKeyQuotaUpdater
 	liveAttestation        liveattestation.Provider
@@ -632,6 +634,7 @@ func NewOpenAIGatewayServiceWithLiveBilling(
 	apiKeyService *APIKeyService,
 	liveSettlementOutbox LiveSettlementOutboxRepository,
 	starframeVideos StarframeVideoRepository,
+	requestLedger *requestledger.Ledger,
 ) *OpenAIGatewayService {
 	svc := NewOpenAIGatewayService(
 		accountRepo,
@@ -657,6 +660,7 @@ func NewOpenAIGatewayServiceWithLiveBilling(
 		settingService,
 		userPlatformQuotaRepo,
 	)
+	svc.requestLedger = requestLedger
 	svc.SetLiveBillingAPIKeyService(apiKeyService)
 	svc.SetLiveSettlementOutbox(liveSettlementOutbox)
 	svc.starframeVideos = starframeVideos
