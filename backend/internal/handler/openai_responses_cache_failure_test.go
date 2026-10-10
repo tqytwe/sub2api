@@ -4,6 +4,7 @@ package handler
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -52,9 +53,18 @@ func TestResponsesCachePartialFailureNeverReplaysOrInventsUsage(t *testing.T) {
 					t.Cleanup(billing.Stop)
 					gateway := service.NewOpenAIGatewayService(repo, logs, nil, nil, nil, nil, nil, cfg, nil, nil, service.NewBillingService(cfg, nil), nil, billing, upstream, &service.DeferredService{}, nil, nil, nil, nil, nil, nil, nil)
 					h := NewOpenAIGatewayHandler(gateway, service.NewConcurrencyService(nil), billing, service.NewAPIKeyService(nil, nil, nil, nil, nil, nil, cfg), nil, nil, nil, nil, cfg)
-					c, _ := newOpenAIResponsesFailoverTestContext(t, context.Background())
+					c, rec := newOpenAIResponsesFailoverTestContext(t, context.Background())
 					c.Request.Body = io.NopCloser(strings.NewReader(fmt.Sprintf(`{"model":"gpt-5.1","stream":%v,"input":"hello"}`, stream)))
 					h.Responses(c)
+					if stream {
+						require.Contains(t, rec.Header().Get("Content-Type"), "text/event-stream")
+						require.Equal(t, 1, strings.Count(rec.Body.String(), `"type":"response.failed"`), "only one terminal failure is written")
+					} else {
+						require.Contains(t, rec.Header().Get("Content-Type"), "application/json")
+						require.True(t, json.Valid(rec.Body.Bytes()), "the complete body must remain one JSON response")
+						require.NotContains(t, rec.Body.String(), "event:")
+						require.NotContains(t, rec.Body.String(), "data:")
+					}
 					require.Equal(t, 1, upstream.calls, "missing error type or usage does not authorize account replay")
 					require.Zero(t, gateway.SnapshotOpenAIAccountSchedulerMetrics().AccountSwitchTotal)
 					_, hasFailures := c.Get(service.OpsUpstreamErrorsKey)

@@ -386,9 +386,17 @@ func (s *OpenAIGatewayService) readCCUpstreamJSONResponse(
 	return &ccResp, usage, nil
 }
 
-// writeOpenAIResponsesFallbackError 以 /v1/responses 回退路径的既有错误格式回写
-// （裸 error 对象；不调用 MarkResponseCommitted，与原内联写法保持一致）。
+// Complete a fallback error once, using the protocol already on the wire.
 func writeOpenAIResponsesFallbackError(c *gin.Context, statusCode int, errType, message string) {
+	streamStarted := StopOpenAICompactSSEKeepaliveCommitted(c)
+	if IsResponseCommitted(c) {
+		return
+	}
+	defer MarkResponseCommitted(c)
+	if streamStarted || (c.Writer.Written() && strings.HasPrefix(strings.ToLower(c.Writer.Header().Get("Content-Type")), "text/event-stream")) {
+		writeOpenAICompactSSEFailureMessage(c, statusCode, errType, message)
+		return
+	}
 	c.JSON(statusCode, gin.H{
 		"error": gin.H{
 			"type":    errType,

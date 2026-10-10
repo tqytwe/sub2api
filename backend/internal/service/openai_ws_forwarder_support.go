@@ -563,7 +563,7 @@ func (s *OpenAIGatewayService) resolveAccountByPreviousResponseIDForCapability(
 	if !account.IsOpenAIApiKey() && s.getOpenAIWSProtocolResolver().Resolve(account).Transport != OpenAIUpstreamTransportResponsesWebsocketV2 {
 		return 0, nil, "", nil
 	}
-	if shouldClearStickySession(account, requestedModel) || !account.IsOpenAI() || !account.IsSchedulable() {
+	if s.shouldClearOpenAIStickySessionForRequest(ctx, account, requestedModel, requireCompact) || !account.IsOpenAI() || !account.IsSchedulable() {
 		_ = store.DeleteResponseAccount(ctx, derefGroupID(groupID), responseID)
 		return 0, nil, "", nil
 	}
@@ -574,7 +574,7 @@ func (s *OpenAIGatewayService) resolveAccountByPreviousResponseIDForCapability(
 	if requestedModel != "" && !account.IsModelSupportedInGroup(groupID, requestedModel) {
 		return 0, nil, "", nil
 	}
-	if !account.SupportsOpenAIEndpointCapability(requiredCapability) {
+	if !s.openAIResponsesToolsProtocolCompatible(ctx, account, requestedModel, requireCompact) || !account.SupportsOpenAIEndpointCapability(requiredCapability) {
 		return 0, nil, "", nil
 	}
 	// Quota auto-pause must also gate the previous_response_id sticky path; otherwise an
@@ -596,7 +596,7 @@ func (s *OpenAIGatewayService) resolveAccountByPreviousResponseIDForCapability(
 			_ = store.DeleteResponseAccount(ctx, derefGroupID(groupID), responseID)
 			return 0, nil, "", nil
 		}
-		if shouldClearStickySession(latest, requestedModel) || !latest.IsOpenAI() || !latest.IsSchedulable() {
+		if s.shouldClearOpenAIStickySessionForRequest(ctx, latest, requestedModel, requireCompact) || !latest.IsOpenAI() || !latest.IsSchedulable() {
 			_ = store.DeleteResponseAccount(ctx, derefGroupID(groupID), responseID)
 			return 0, nil, "", nil
 		}
@@ -613,7 +613,7 @@ func (s *OpenAIGatewayService) resolveAccountByPreviousResponseIDForCapability(
 		if requestedModel != "" && !latest.IsModelSupportedInGroup(groupID, requestedModel) {
 			return 0, nil, "", nil
 		}
-		if !latest.SupportsOpenAIEndpointCapability(requiredCapability) {
+		if !s.openAIResponsesToolsProtocolCompatible(ctx, latest, requestedModel, requireCompact) || !latest.SupportsOpenAIEndpointCapability(requiredCapability) {
 			return 0, nil, "", nil
 		}
 		if paused, _ := shouldAutoPauseOpenAIAccountByQuota(ctx, latest); paused {
@@ -623,7 +623,7 @@ func (s *OpenAIGatewayService) resolveAccountByPreviousResponseIDForCapability(
 		if vetoed, _ := openAIProfitControlVetoReason(ctx, latest); vetoed {
 			return 0, nil, "", nil
 		}
-		if s.isOpenAIAccountRequestRuntimeBlocked(latest, requestedModel) {
+		if s.isOpenAIAccountRequestRuntimeBlockedForRequest(ctx, latest, requestedModel, requireCompact) {
 			_ = store.DeleteResponseAccount(ctx, derefGroupID(groupID), responseID)
 			return 0, nil, "", nil
 		}

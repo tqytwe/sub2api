@@ -555,6 +555,10 @@ func (s *OpenAIGatewayService) clearOpenAIAccountRuntimeBlockIfUnchanged(account
 // are left alone. This is fail-open if a DB write failed or the snapshot has
 // not caught up yet: empty cooldown fields drop the local account-level block.
 func (s *OpenAIGatewayService) isOpenAIAccountRequestRuntimeBlocked(account *Account, requestedModel string) bool {
+	return s.isOpenAIAccountRequestRuntimeBlockedForRequest(context.Background(), account, requestedModel, false)
+}
+
+func (s *OpenAIGatewayService) isOpenAIAccountRequestRuntimeBlockedForRequest(ctx context.Context, account *Account, requestedModel string, requireCompact bool) bool {
 	if s == nil {
 		return false
 	}
@@ -565,7 +569,11 @@ func (s *OpenAIGatewayService) isOpenAIAccountRequestRuntimeBlocked(account *Acc
 		}
 		s.clearOpenAIAccountRuntimeBlockIfUnchanged(account.ID, snapshot)
 	}
-	return s.isOpenAIAccountModelRuntimeBlocked(account, requestedModel)
+	if account == nil {
+		return false
+	}
+	model := s.resolveOpenAIRequestSchedulingModel(ctx, account, requestedModel, requireCompact)
+	return s.getOpenAIAccountModelTransientState().isBlocked(account.ID, openAIAccountModelTransientModel(model), time.Now())
 }
 
 func (s *OpenAIGatewayService) recordOpenAIOAuth429() {
