@@ -14,6 +14,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/pkg/apicompat"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/openai_compat"
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
 	"github.com/Wei-Shaw/sub2api/internal/util/responseheaders"
 	"github.com/gin-gonic/gin"
 	"github.com/tidwall/gjson"
@@ -746,6 +747,7 @@ func (s *OpenAIGatewayService) handleChatStreamingResponse(
 	startTime time.Time,
 	requestBodyLen int,
 ) (*OpenAIForwardResult, error) {
+	ledgerAttempt := requestledger.CurrentAttempt(c.Request.Context())
 	requestID := resp.Header.Get("x-request-id")
 	writeStreamHeaders := s.newStreamHeaderWriter(c, resp.Header)
 
@@ -836,6 +838,12 @@ func (s *OpenAIGatewayService) handleChatStreamingResponse(
 
 		isTerminalEvent := isOpenAICompatResponsesTerminalEvent(event.Type)
 		if isTerminalEvent {
+			terminalStatus := ""
+			if event.Response != nil {
+				terminalStatus = event.Response.Status
+			}
+			observeLedgerResponsesTerminal(ledgerAttempt, event.Type, terminalStatus)
+
 			terminalEventType = strings.TrimSpace(event.Type)
 			preserveFailureAggregate := account.IsOpenAI() && (terminalEventType == "response.failed" || terminalEventType == "error")
 			if event.Usage != nil {

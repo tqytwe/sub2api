@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
 	"github.com/Wei-Shaw/sub2api/internal/util/responseheaders"
 	"github.com/gin-gonic/gin"
 	"github.com/tidwall/gjson"
@@ -1401,8 +1402,15 @@ func (s *OpenAIGatewayService) handleOpenAIImagesOAuthNonStreamingResponse(
 	}
 
 	var usage OpenAIUsage
+	ledgerAttempt := requestledger.CurrentAttempt(c.Request.Context())
 	forEachOpenAISSEDataPayload(string(body), func(data []byte) {
 		s.parseOpenAIImagesSSEUsageBytes(data, &usage)
+		if gjson.ValidBytes(data) {
+			eventType := gjson.GetBytes(data, "type").String()
+			if openAIStreamEventTypeIsTerminal(eventType) {
+				observeLedgerResponsesTerminal(ledgerAttempt, eventType, gjson.GetBytes(data, "response.status").String())
+			}
+		}
 	})
 	results, createdAt, usageRaw, firstMeta, _, err := collectOpenAIImagesFromResponsesBody(body)
 	if err != nil {
@@ -1519,6 +1527,7 @@ func (s *OpenAIGatewayService) handleOpenAIImagesOAuthStreamingResponse(
 	var processDataErr error
 	processDataDone := false
 	writerSizeBeforeResponse := OpenAIImagesJSONKeepaliveAdjustedWrittenSize(c)
+	ledgerAttempt := requestledger.CurrentAttempt(c.Request.Context())
 
 	processData := func(dataBytes []byte) {
 		if processDataDone || processDataErr != nil {
@@ -1531,6 +1540,9 @@ func (s *OpenAIGatewayService) handleOpenAIImagesOAuthStreamingResponse(
 		s.parseOpenAIImagesSSEUsageBytes(dataBytes, &usage)
 		if !gjson.ValidBytes(dataBytes) {
 			return
+		}
+		if eventType := gjson.GetBytes(dataBytes, "type").String(); openAIStreamEventTypeIsTerminal(eventType) {
+			observeLedgerResponsesTerminal(ledgerAttempt, eventType, gjson.GetBytes(dataBytes, "response.status").String())
 		}
 		if meta, eventCreatedAt, ok := extractOpenAIResponsesImageMetaFromLifecycleEvent(dataBytes); ok {
 			mergeOpenAIResponsesImageMeta(&streamMeta, meta)

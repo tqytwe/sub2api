@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
 	"image"
 	"mime/multipart"
 	"net/http"
@@ -947,6 +948,9 @@ func (s *ImageStudioService) CreatePendingJob(ctx context.Context, userID int64,
 			if err != nil {
 				return nil, "", err
 			}
+			if err := bindImageStudioLedgerTask(ctx, existingJob); err != nil {
+				return nil, "", err
+			}
 			return existingJob, "", nil
 		}
 	}
@@ -1144,6 +1148,9 @@ func (s *ImageStudioService) CreatePendingJob(ctx context.Context, userID int64,
 			Status:    ImageStudioItemStatusPending,
 		}
 	}
+	if err := requestledger.BindTask(ctx, "image_studio", job.ID, userID, apiKey.ID); err != nil {
+		return nil, "", err
+	}
 	reserve := func(reserveCtx context.Context) error {
 		return reserveImageStudioBalance(reserveCtx, s.billingRepo, job)
 	}
@@ -1158,6 +1165,9 @@ func (s *ImageStudioService) CreatePendingJob(ctx context.Context, userID int64,
 			)
 			if committed != nil {
 				referencesPersisted = true
+				if ledgerErr := bindImageStudioLedgerTask(ctx, committed); ledgerErr != nil {
+					return nil, "", ledgerErr
+				}
 				return committed, "", nil
 			}
 			if !definitive {
@@ -1168,6 +1178,9 @@ func (s *ImageStudioService) CreatePendingJob(ctx context.Context, userID int64,
 		if !created {
 			existingJob, err := s.repo.GetJob(ctx, userID, existingJobID)
 			if err != nil {
+				return nil, "", err
+			}
+			if err := bindImageStudioLedgerTask(ctx, existingJob); err != nil {
 				return nil, "", err
 			}
 			return existingJob, "", nil
@@ -1184,6 +1197,9 @@ func (s *ImageStudioService) CreatePendingJob(ctx context.Context, userID int64,
 		)
 		if committed != nil {
 			referencesPersisted = true
+			if ledgerErr := bindImageStudioLedgerTask(ctx, committed); ledgerErr != nil {
+				return nil, "", ledgerErr
+			}
 			return committed, "", nil
 		}
 		if !definitive {
@@ -1195,6 +1211,17 @@ func (s *ImageStudioService) CreatePendingJob(ctx context.Context, userID int64,
 	s.invalidateImageStudioBalance(ctx, userID)
 	job.Items = items
 	return job, string(body), nil
+}
+
+func bindImageStudioLedgerTask(ctx context.Context, job *ImageStudioJob) error {
+	if job == nil {
+		return requestledger.ErrUnavailable
+	}
+	var keyID int64
+	if job.APIKeyID != nil {
+		keyID = *job.APIKeyID
+	}
+	return requestledger.BindTask(ctx, "image_studio", job.ID, job.UserID, keyID)
 }
 
 func (s *ImageStudioService) confirmImageStudioJobCommit(

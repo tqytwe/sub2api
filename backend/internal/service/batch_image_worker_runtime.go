@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
 	"sync"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
@@ -36,8 +37,10 @@ func ProvideBatchImageWorkerRuntime(
 	authCache APIKeyAuthCacheInvalidator,
 	state *BatchImageRuntimeState,
 	cfg *config.Config,
+	ledger *requestledger.Ledger,
 ) *BatchImageWorkerRuntime {
 	processor := &BatchImagePipelineProcessor{
+		Ledger: ledger,
 		ProviderProcessor: &BatchImageProviderProcessor{
 			Repo:             repo,
 			ProviderRegistry: NewBatchImageProviderRegistryFromConfig(cfg),

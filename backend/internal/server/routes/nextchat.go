@@ -9,6 +9,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
 	"io"
 	"net/http"
 	"net/url"
@@ -469,6 +470,10 @@ func prepareNextChatImageStudioBFFSession(
 	}
 	userID, apiKeyID, ok := requireNextChatBFFSession(c, cfg)
 	if !ok {
+		return 0, 0, false
+	}
+	if err := requestledger.BindIdentity(c.Request.Context(), userID, 0); err != nil {
+		requestledger.Reject(c)
 		return 0, 0, false
 	}
 	c.Set(string(middleware.ContextKeyUser), middleware.AuthSubject{

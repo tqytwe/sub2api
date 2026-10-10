@@ -15,6 +15,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/pkg/apicompat"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/claude"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
 	"github.com/Wei-Shaw/sub2api/internal/util/responseheaders"
 	"github.com/gin-gonic/gin"
 	"github.com/tidwall/gjson"
@@ -898,6 +899,7 @@ func (s *OpenAIGatewayService) readOpenAICompatBufferedTerminal(
 						s.parseSSEUsageBytesWithType([]byte(payload), event.Type, &usage, preserveAggregate...)
 						acc.ProcessEvent(&event)
 						if response := openAICompatTerminalResponse(&event, []byte(payload)); isOpenAICompatResponsesTerminalEvent(event.Type) && response != nil {
+							observeLedgerResponsesTerminal(requestledger.CurrentAttempt(c.Request.Context()), event.Type, response.Status)
 							preserveFailureAggregate := len(preserveAggregate) > 0 && preserveAggregate[0] && strings.TrimSpace(response.Status) == "failed"
 							if event.Usage != nil {
 								usage = openAICompatTerminalUsage(usage, event.Usage, preserveFailureAggregate)
@@ -948,6 +950,7 @@ func (s *OpenAIGatewayService) readOpenAICompatBufferedTerminal(
 			acc.ProcessEvent(&event)
 
 			if response := openAICompatTerminalResponse(&event, []byte(payload)); isOpenAICompatResponsesTerminalEvent(event.Type) && response != nil {
+				observeLedgerResponsesTerminal(requestledger.CurrentAttempt(c.Request.Context()), event.Type, response.Status)
 				preserveFailureAggregate := len(preserveAggregate) > 0 && preserveAggregate[0] && strings.TrimSpace(response.Status) == "failed"
 				if event.Usage != nil {
 					usage = openAICompatTerminalUsage(usage, event.Usage, preserveFailureAggregate)
@@ -986,6 +989,7 @@ func (s *OpenAIGatewayService) handleAnthropicStreamingResponse(
 	upstreamModel string,
 	startTime time.Time,
 ) (*OpenAIForwardResult, error) {
+	ledgerAttempt := requestledger.CurrentAttempt(c.Request.Context())
 	requestID := resp.Header.Get("x-request-id")
 	writeStreamHeaders := s.newStreamHeaderWriter(c, resp.Header)
 
@@ -1075,6 +1079,12 @@ func (s *OpenAIGatewayService) handleAnthropicStreamingResponse(
 		isBareErrorEvent := eventType == "error"
 		isTerminalEvent := isOpenAICompatResponsesTerminalEvent(eventType) || isBareErrorEvent
 		if isTerminalEvent {
+			terminalStatus := ""
+			if event.Response != nil {
+				terminalStatus = event.Response.Status
+			}
+			observeLedgerResponsesTerminal(ledgerAttempt, event.Type, terminalStatus)
+
 			terminalEventType = eventType
 			preserveFailureAggregate := account.IsOpenAI() && (eventType == "response.failed" || isBareErrorEvent)
 			if event.Response != nil {

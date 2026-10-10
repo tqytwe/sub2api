@@ -17,6 +17,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/pkg/apicompat"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/xai"
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
 	"github.com/Wei-Shaw/sub2api/internal/util/responseheaders"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -254,6 +255,22 @@ func (s *OpenAIGatewayService) handleStreamingResponseWithReasoning(ctx context.
 	sawBareError := false
 	sawResponseFailed := false
 	terminalEventType := ""
+	ledgerAttempt := requestledger.CurrentAttempt(ctx)
+	ledgerTerminalType, ledgerTerminalStatus := "", ""
+	defer func() {
+		if ledgerTerminalType != "" {
+			observeLedgerResponsesTerminal(ledgerAttempt, ledgerTerminalType, ledgerTerminalStatus)
+		} else if sawTerminalEvent {
+			// [DONE] is a fallback only; it cannot overwrite an explicit
+			// failed, incomplete, or cancelled Responses terminal.
+			state := "succeeded"
+			if sawFailedEvent {
+				state = "failed"
+			}
+			ledgerAttempt.ObserveStreamTerminal(state)
+		}
+	}()
+
 	responsesSemanticOutputSeen := false
 	capacityFailoverSuppressedLogged := false
 	failedMessage := ""
@@ -515,6 +532,9 @@ func (s *OpenAIGatewayService) handleStreamingResponseWithReasoning(ctx context.
 			if openAIStreamEventIsTerminalWithType(data, eventType) {
 				sawTerminalEvent = true
 				terminalEventType = eventType
+				if eventType != "" && strings.TrimSpace(data) != "[DONE]" {
+					ledgerTerminalType, ledgerTerminalStatus = eventType, gjson.GetBytes(dataBytes, "response.status").String()
+				}
 				if strings.TrimSpace(data) == "[DONE]" {
 					terminalEventType = "[DONE]"
 				}

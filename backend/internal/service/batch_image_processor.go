@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
 	"io"
 	"net/http"
 	"sort"
@@ -83,6 +84,7 @@ func (p *BatchImageProviderProcessor) Process(ctx context.Context, batchID strin
 	if err != nil {
 		return BatchImageProcessResult{}, err
 	}
+	ctx = requestledger.WithAccount(ctx, account.ID, ledgerCredentialAccountID(account))
 	if !provider.SupportsAccount(account) {
 		return BatchImageProcessResult{}, ErrBatchImageProviderUnsupportedAccount
 	}

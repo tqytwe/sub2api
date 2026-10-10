@@ -1,0 +1,37 @@
+{
+  "frontend": {
+    "before": "f393d93000233cfeb8dbbc61e4bdf072c4319632",
+    "after": "f393d93000233cfeb8dbbc61e4bdf072c4319632",
+    "identical": true
+  },
+  "backend/internal/requestledger": {
+    "before": "9adf2953f66cbd75a6d37601f74d8f6a43c6f7b6",
+    "after": "9adf2953f66cbd75a6d37601f74d8f6a43c6f7b6",
+    "identical": true
+  },
+  "backend/internal/repository": {
+    "before": "dafa678693fc8ecb5f167100750cc58a7e0b7db1",
+    "after": "a087378fcb6b9f5a304013854b2a4e8c5a56ed61",
+    "identical": false
+  },
+  "backend/internal/handler": {
+    "before": "0a123a8ad5fb162db2f95e3f19099da1cfbd3221",
+    "after": "2dd55ef32fd28bd50434c7fac8d5f07da75ee61f",
+    "identical": false
+  },
+  "backend/internal/service": {
+    "before": "158054397f4b9dd519c306ffd2b1e6927c5f6a3c",
+    "after": "19e0206942e3109079a8527e97276607851e8cbf",
+    "identical": false
+  },
+  "backend/migrations": {
+    "before": "2c4fe9a42d465811c7f426b5f48068f8708ffd36",
+    "after": "2c4fe9a42d465811c7f426b5f48068f8708ffd36",
+    "identical": true
+  },
+  ".github": {
+    "before": "c187fcc71400a82bd6cee80c0e79ac883bb23004",
+    "after": "c187fcc71400a82bd6cee80c0e79ac883bb23004",
+    "identical": true
+  }
+}

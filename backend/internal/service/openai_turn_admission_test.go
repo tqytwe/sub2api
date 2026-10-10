@@ -41,7 +41,7 @@ func (r *turnAdmissionRepo) GetOpenAITurnAdmission(ctx context.Context, id int64
 func newTurnAdmissionGateway(repo AccountRepository, live bool) *OpenAIGatewayService {
 	cfg := rawChatCompletionsTestConfig()
 	if live {
-		return NewOpenAIGatewayServiceWithLiveBilling(repo, nil, nil, nil, nil, nil, nil, cfg, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+		return NewOpenAIGatewayServiceWithLiveBilling(repo, nil, nil, nil, nil, nil, nil, cfg, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 	}
 	return NewOpenAIGatewayService(repo, nil, nil, nil, nil, nil, nil, cfg, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 }

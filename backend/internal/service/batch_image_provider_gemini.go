@@ -728,7 +728,7 @@ func (c *GeminiBatchHTTPClient) DownloadFile(ctx context.Context, apiKey string,
 		return nil, "", err
 	}
 	req.Header.Set("x-goog-api-key", apiKey)
-	resp, err := c.client.Do(req)
+	resp, err := batchImageLedgerHTTP(c.client, req)
 	if err != nil {
 		return nil, "", err
 	}
@@ -772,7 +772,7 @@ func (c *GeminiBatchHTTPClient) doBatchJob(req *http.Request) (*GeminiBatchJob, 
 }
 
 func (c *GeminiBatchHTTPClient) doNoBody(req *http.Request) error {
-	resp, err := c.client.Do(req)
+	resp, err := batchImageLedgerHTTP(c.client, req)
 	if err != nil {
 		return err
 	}
@@ -784,7 +784,7 @@ func (c *GeminiBatchHTTPClient) doNoBody(req *http.Request) error {
 }
 
 func (c *GeminiBatchHTTPClient) doJSON(req *http.Request, out any) error {
-	resp, err := c.client.Do(req)
+	resp, err := batchImageLedgerHTTP(c.client, req)
 	if err != nil {
 		return err
 	}

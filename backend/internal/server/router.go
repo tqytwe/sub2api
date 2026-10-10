@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
 	"log"
 	"net/http"
 	"sync"
@@ -114,6 +115,11 @@ func SetupRouter(
 		cachedFrameOrigins.Store(&origins)
 	}
 	refreshFrameOrigins() // 启动时初始化
+
+	// Durable gateway admission precedes all auth, rejection and frontend middleware.
+	if handlers.RequestLedger != nil {
+		r.Use(requestledger.Middleware(handlers.RequestLedger.Ledger))
+	}
 
 	// 应用中间件
 	r.Use(middleware2.RequestLogger())

@@ -1,0 +1,529 @@
+[
+  {
+    "name": "review-green-billing",
+    "command": [
+      "go",
+      "test",
+      "-tags=integration",
+      "./internal/repository",
+      "-run",
+      "^TestRequestLedger(ObservationFailureKeepsOriginalSettlement|PendingUsageSnapshotNeverShowsSettledZero)$",
+      "-count=1",
+      "-timeout=3m"
+    ],
+    "cwd": "backend",
+    "started": "2026-10-10T07:27:33.179475+00:00",
+    "ended": "2026-10-10T07:29:12.271137+00:00",
+    "exit_code": 0
+  },
+  {
+    "name": "review-final-pg",
+    "command": [
+      "go",
+      "test",
+      "-tags=integration",
+      "./internal/requestledger/...",
+      "./internal/handler",
+      "./internal/server/routes",
+      "./internal/repository",
+      "./internal/service",
+      "-run",
+      "RequestLedger|LedgerPostgres|LedgerKilledProcess|LedgerStorage|WSObservedUsage",
+      "-count=1",
+      "-timeout=12m",
+      "-json"
+    ],
+    "cwd": "backend",
+    "started": "2026-10-10T07:37:22.389040+00:00",
+    "ended": "2026-10-10T07:40:57.103915+00:00",
+    "exit_code": 0
+  },
+  {
+    "name": "review-red-boundary",
+    "command": [
+      "go",
+      "test",
+      "-tags=integration",
+      "./internal/requestledger",
+      "-run",
+      "TestLedgerPostgresBodylessResponsesKeepProtocolSuccess|TestRequestLedgerFrozenContextAllowsNilUsageTaskParent",
+      "-count=1",
+      "-timeout=3m",
+      "-v"
+    ],
+    "cwd": "backend",
+    "started": "2026-10-10T07:41:02.421200+00:00",
+    "ended": "2026-10-10T07:41:07.666191+00:00",
+    "exit_code": 1
+  },
+  {
+    "name": "review-final-boundaries",
+    "command": [
+      "go",
+      "test",
+      "-tags=integration",
+      "./internal/requestledger/...",
+      "./internal/service",
+      "./internal/repository",
+      "./internal/handler",
+      "-run",
+      "RequestLedger|LedgerPostgres|LedgerKilledProcess|LedgerStorage|WSObservedUsage",
+      "-count=1",
+      "-timeout=12m",
+      "-json"
+    ],
+    "cwd": "backend",
+    "started": "2026-10-10T07:42:09.969132+00:00",
+    "ended": "2026-10-10T07:45:30.305907+00:00",
+    "exit_code": 0
+  },
+  {
+    "name": "review-final-unit",
+    "command": [
+      "make",
+      "test-backend-unit"
+    ],
+    "cwd": ".",
+    "started": "2026-10-10T07:46:10.125372+00:00",
+    "ended": "2026-10-10T07:53:40.444354+00:00",
+    "exit_code": 0
+  },
+  {
+    "name": "review-red-model-cache",
+    "command": [
+      "go",
+      "test",
+      "-tags=integration",
+      "./internal/service",
+      "-run",
+      "^TestRequestLedgerModelsCacheRefreshKeepsDurableChild$",
+      "-count=1",
+      "-timeout=3m",
+      "-v"
+    ],
+    "cwd": "backend",
+    "started": "2026-10-10T07:53:41.730149+00:00",
+    "ended": "2026-10-10T07:55:24.049308+00:00",
+    "exit_code": 1
+  },
+  {
+    "name": "review-red-model-cache-storage",
+    "command": [
+      "go",
+      "test",
+      "-tags=integration",
+      "./internal/service",
+      "-run",
+      "^TestRequestLedgerModelsCacheStorageFailureNeverSends$",
+      "-count=1",
+      "-timeout=3m",
+      "-v"
+    ],
+    "cwd": "backend",
+    "started": "2026-10-10T07:55:56.047660+00:00",
+    "ended": "2026-10-10T07:56:07.698576+00:00",
+    "exit_code": 1
+  },
+  {
+    "name": "review-green-model-cache",
+    "command": [
+      "go",
+      "test",
+      "-tags=integration",
+      "./internal/service",
+      "./internal/requestledger",
+      "-run",
+      "TestRequestLedgerModelsCache|TestRequestLedgerOAuthModelsDirectTransportAdmission|TestLedgerPostgresHealthyOwnerRecoversFailedFinalization|TestLedgerPostgresBodylessResponsesKeepProtocolSuccess",
+      "-count=1",
+      "-timeout=4m",
+      "-v"
+    ],
+    "cwd": "backend",
+    "started": "2026-10-10T07:56:49.789414+00:00",
+    "ended": "2026-10-10T07:58:59.822776+00:00",
+    "exit_code": 0
+  },
+  {
+    "name": "frozen-final-unit",
+    "command": [
+      "make",
+      "test-backend-unit"
+    ],
+    "cwd": ".",
+    "started": "2026-10-10T07:59:38.624398+00:00",
+    "ended": "2026-10-10T08:09:13.911022+00:00",
+    "exit_code": 0
+  },
+  {
+    "name": "frozen-final-test",
+    "command": [
+      "make",
+      "test"
+    ],
+    "cwd": ".",
+    "started": "2026-10-10T08:09:14.841189+00:00",
+    "ended": "2026-10-10T08:20:34.344410+00:00",
+    "exit_code": 2
+  },
+  {
+    "name": "main348-red-completion",
+    "command": [
+      "go",
+      "test",
+      "-tags=integration",
+      "./internal/handler",
+      "-run",
+      "^TestRequestLedgerCommittedJSONDoesNotBecomeSSE$",
+      "-count=1",
+      "-timeout=3m",
+      "-v"
+    ],
+    "cwd": "backend",
+    "started": "2026-10-10T08:21:46.048658+00:00",
+    "ended": "2026-10-10T08:22:12.446399+00:00",
+    "exit_code": 1
+  },
+  {
+    "name": "main348-green-intersections",
+    "command": [
+      "go",
+      "test",
+      "-tags=integration",
+      "./internal/handler",
+      "./internal/service",
+      "-run",
+      "RequestLedger|WSObservedUsage",
+      "-count=1",
+      "-timeout=12m",
+      "-json"
+    ],
+    "cwd": "backend",
+    "started": "2026-10-10T08:25:14.246072+00:00",
+    "ended": "2026-10-10T08:28:13.765676+00:00",
+    "exit_code": 0
+  },
+  {
+    "name": "main348-repository",
+    "command": [
+      "go",
+      "test",
+      "-tags=integration",
+      "./internal/repository",
+      "-run",
+      "RequestLedger|TestOpenAICompactAdmissionPostgresLatestModelLimits|TestOpenAIResponsesToolsAdmissionPostgresLatestProtocol",
+      "-count=1",
+      "-timeout=6m",
+      "-json"
+    ],
+    "cwd": "backend",
+    "started": "2026-10-10T08:28:15.579061+00:00",
+    "ended": "2026-10-10T08:29:21.401278+00:00",
+    "exit_code": 0
+  },
+  {
+    "name": "main348-changed-unit",
+    "command": [
+      "go",
+      "test",
+      "-tags=unit",
+      "./internal/handler",
+      "./internal/service",
+      "-count=1"
+    ],
+    "cwd": "backend",
+    "started": "2026-10-10T08:29:21.526961+00:00",
+    "ended": "2026-10-10T08:36:15.704770+00:00",
+    "exit_code": 0
+  },
+  {
+    "name": "main348-final-test",
+    "command": [
+      "make",
+      "test"
+    ],
+    "cwd": ".",
+    "started": "2026-10-10T08:36:15.831684+00:00",
+    "ended": "2026-10-10T08:51:46.428148+00:00",
+    "exit_code": 0
+  },
+  {
+    "name": "main348-final-build",
+    "command": [
+      "make",
+      "build"
+    ],
+    "cwd": ".",
+    "started": "2026-10-10T08:51:46.519737+00:00",
+    "ended": "2026-10-10T08:57:51.655469+00:00",
+    "exit_code": 0
+  },
+  {
+    "name": "main348-final-fork",
+    "command": [
+      "./scripts/check-fork-integrity.sh"
+    ],
+    "cwd": ".",
+    "started": "2026-10-10T08:57:51.734804+00:00",
+    "ended": "2026-10-10T09:00:58.566010+00:00",
+    "exit_code": 0
+  },
+  {
+    "name": "revision-browser-fixture",
+    "command": [
+      "go",
+      "test",
+      "-tags=integration",
+      "./internal/requestledger/acceptance",
+      "-run",
+      "^TestRequestLedgerBrowserFixture$",
+      "-count=1",
+      "-timeout=22m",
+      "-v"
+    ],
+    "cwd": "backend",
+    "started": "2026-10-10T09:00:59.961863+00:00",
+    "ended": "2026-10-10T09:01:36.766102+00:00",
+    "exit_code": 0
+  },
+  {
+    "name": "revision-browser-responsive",
+    "command": [
+      "node",
+      "/tmp/ledger-visual/verify.cjs"
+    ],
+    "cwd": ".",
+    "started": "2026-10-10T09:01:14.022598+00:00",
+    "ended": "2026-10-10T09:01:27.085585+00:00",
+    "exit_code": 0
+  },
+  {
+    "name": "revision-browser-states",
+    "command": [
+      "node",
+      "/tmp/ledger-visual/states.cjs"
+    ],
+    "cwd": ".",
+    "started": "2026-10-10T09:01:27.130517+00:00",
+    "ended": "2026-10-10T09:01:29.804119+00:00",
+    "exit_code": 0
+  },
+  {
+    "name": "revision-browser-detail",
+    "command": [
+      "node",
+      "/tmp/ledger-visual/final-states.cjs"
+    ],
+    "cwd": ".",
+    "started": "2026-10-10T09:01:29.843501+00:00",
+    "ended": "2026-10-10T09:01:36.233397+00:00",
+    "exit_code": 0
+  },
+  {
+    "name": "review2-red-protocols",
+    "command": [
+      "go",
+      "test",
+      "-tags=integration",
+      "./internal/service",
+      "-run",
+      "^TestRequestLedger(NativeAndPassthroughTerminalStatus|BridgeAndOAuthImagesTerminal|LiveStoppedTurnRecoversHealthyOwner|ModelsPluginPreservesScheduledAccount)$",
+      "-count=1",
+      "-timeout=5m",
+      "-json"
+    ],
+    "cwd": "backend",
+    "started": "2026-10-10T09:14:52.396528+00:00",
+    "ended": "2026-10-10T09:17:29.834409+00:00",
+    "exit_code": 1
+  },
+  {
+    "name": "review2-red-live",
+    "command": [
+      "go",
+      "test",
+      "-tags=integration",
+      "./internal/service",
+      "-run",
+      "^TestRequestLedgerLiveAuditFailurePreservesRedisAndSettlement$",
+      "-count=1",
+      "-timeout=5m",
+      "-json"
+    ],
+    "cwd": "backend",
+    "started": "2026-10-10T09:18:25.441938+00:00",
+    "ended": "2026-10-10T09:20:58.089471+00:00",
+    "exit_code": 1
+  },
+  {
+    "name": "review2-green-groups",
+    "command": [
+      "go",
+      "test",
+      "-tags=integration",
+      "./internal/service",
+      "./internal/requestledger",
+      "-run",
+      "TestRequestLedger(NativeAndPassthroughTerminalStatus|BridgeAndOAuthImagesTerminal|LiveStoppedTurnRecoversHealthyOwner|ModelsPluginPreservesScheduledAccount|LiveAuditFailurePreservesRedisAndSettlement)|TestLedgerPostgresHealthyOwner|TestRequestLedgerModelsCache",
+      "-count=1",
+      "-timeout=6m",
+      "-json"
+    ],
+    "cwd": "backend",
+    "started": "2026-10-10T09:22:12.956375+00:00",
+    "ended": "2026-10-10T09:25:29.392988+00:00",
+    "exit_code": 1
+  },
+  {
+    "name": "review2-green-complete",
+    "command": [
+      "go",
+      "test",
+      "-tags=integration",
+      "./internal/service",
+      "./internal/requestledger",
+      "-run",
+      "TestRequestLedger(NativeAndPassthroughTerminalStatus|BridgeAndOAuthImagesTerminal|LiveStoppedTurnRecoversHealthyOwner|ModelsPluginPreservesScheduledAccount|LiveAuditFailurePreservesRedisAndSettlement)|TestLedgerPostgresHealthyOwner|TestRequestLedgerModelsCache",
+      "-count=1",
+      "-timeout=6m",
+      "-json"
+    ],
+    "cwd": "backend",
+    "started": "2026-10-10T09:26:23.269722+00:00",
+    "ended": "2026-10-10T09:28:12.919762+00:00",
+    "exit_code": 0
+  },
+  {
+    "name": "review2-final-pg",
+    "command": [
+      "go",
+      "test",
+      "-tags=integration",
+      "./internal/requestledger/...",
+      "./internal/handler",
+      "./internal/server/routes",
+      "./internal/repository",
+      "./internal/service",
+      "-run",
+      "RequestLedger|LedgerPostgres|LedgerKilledProcess|LedgerStorage",
+      "-count=1",
+      "-timeout=12m",
+      "-json"
+    ],
+    "cwd": "backend",
+    "started": "2026-10-10T09:31:43.497926+00:00",
+    "ended": "2026-10-10T09:35:11.472893+00:00",
+    "exit_code": 1
+  },
+  {
+    "name": "review2-final-service-pg",
+    "command": [
+      "go",
+      "test",
+      "-tags=integration",
+      "./internal/service",
+      "-run",
+      "RequestLedger|LedgerPostgres|LedgerKilledProcess|LedgerStorage",
+      "-count=1",
+      "-timeout=12m",
+      "-json"
+    ],
+    "cwd": "backend",
+    "started": "2026-10-10T09:36:16.404292+00:00",
+    "ended": "2026-10-10T09:39:07.712819+00:00",
+    "exit_code": 0
+  },
+  {
+    "name": "review2-final-unit",
+    "command": [
+      "make",
+      "test-backend-unit"
+    ],
+    "cwd": ".",
+    "started": "2026-10-10T09:39:09.001390+00:00",
+    "ended": "2026-10-10T09:47:08.473290+00:00",
+    "exit_code": 0
+  },
+  {
+    "name": "review2-final-test",
+    "command": [
+      "make",
+      "test"
+    ],
+    "cwd": ".",
+    "started": "2026-10-10T09:47:09.089120+00:00",
+    "ended": "2026-10-10T10:03:43.508398+00:00",
+    "exit_code": 0
+  },
+  {
+    "name": "review2-final-build",
+    "command": [
+      "make",
+      "build"
+    ],
+    "cwd": ".",
+    "started": "2026-10-10T10:03:44.449318+00:00",
+    "ended": "2026-10-10T10:07:46.371151+00:00",
+    "exit_code": 0
+  },
+  {
+    "name": "review2-final-fork",
+    "command": [
+      "./scripts/check-fork-integrity.sh"
+    ],
+    "cwd": ".",
+    "started": "2026-10-10T10:07:47.224467+00:00",
+    "ended": "2026-10-10T10:16:57.867265+00:00",
+    "exit_code": 0
+  },
+  {
+    "name": "review2-browser-fixture",
+    "command": [
+      "go",
+      "test",
+      "-tags=integration",
+      "./internal/requestledger/acceptance",
+      "-run",
+      "^TestRequestLedgerBrowserFixture$",
+      "-count=1",
+      "-timeout=22m",
+      "-v"
+    ],
+    "cwd": "backend",
+    "started": "2026-10-10T10:17:00.899050+00:00",
+    "ended": "2026-10-10T10:19:04.503488+00:00",
+    "exit_code": 0
+  },
+  {
+    "name": "review2-browser-responsive",
+    "command": [
+      "node",
+      "/tmp/ledger-visual/verify.cjs"
+    ],
+    "cwd": ".",
+    "started": "2026-10-10T10:18:41.413140+00:00",
+    "ended": "2026-10-10T10:18:53.887711+00:00",
+    "exit_code": 0
+  },
+  {
+    "name": "review2-browser-states",
+    "command": [
+      "node",
+      "/tmp/ledger-visual/states.cjs"
+    ],
+    "cwd": ".",
+    "started": "2026-10-10T10:18:53.931570+00:00",
+    "ended": "2026-10-10T10:18:56.578450+00:00",
+    "exit_code": 0
+  },
+  {
+    "name": "review2-browser-detail",
+    "command": [
+      "node",
+      "/tmp/ledger-visual/final-states.cjs"
+    ],
+    "cwd": ".",
+    "started": "2026-10-10T10:18:56.617319+00:00",
+    "ended": "2026-10-10T10:19:03.297832+00:00",
+    "exit_code": 0
+  }
+]

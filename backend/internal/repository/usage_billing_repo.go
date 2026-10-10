@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
 	"strings"
 	"time"
 
@@ -47,6 +48,11 @@ func NewUsageBillingRepositoryWithLedger(_ *dbent.Client, sqlDB *sql.DB, balance
 func (r *usageBillingRepository) Apply(ctx context.Context, cmd *service.UsageBillingCommand) (*service.UsageBillingApplyResult, error) {
 	if cmd != nil {
 		cmd.Normalize()
+	}
+	if cmd != nil {
+		if err := requestledger.PrepareBilling(ctx, ledgerBillingIntent(cmd)); err != nil {
+			return nil, err
+		}
 	}
 	result, applyErr := r.applyUsageBillingTransaction(ctx, cmd)
 	if applyErr == nil || cmd == nil || !service.IsImageStudioManagedBilling(ctx) {
@@ -118,11 +124,23 @@ func (r *usageBillingRepository) applyUsageBillingTransaction(ctx context.Contex
 		return nil, err
 	}
 	if !applied {
+		if requestledger.FromContext(ctx) != nil {
+			if err := requestledger.VerifyBillingTx(ctx, tx, ledgerBillingIntent(cmd), applied); err != nil {
+				return nil, err
+			}
+			if err := tx.Commit(); err != nil {
+				return nil, err
+			}
+			tx = nil
+		}
 		return &service.UsageBillingApplyResult{Applied: false, SettlementVerified: true, SettlementFingerprint: cmd.RequestFingerprint}, nil
 	}
 
 	result := &service.UsageBillingApplyResult{Applied: true}
 	if err := r.applyUsageBillingEffects(ctx, tx, cmd, result); err != nil {
+		return nil, err
+	}
+	if err := requestledger.VerifyBillingTx(ctx, tx, ledgerBillingIntent(cmd), applied); err != nil {
 		return nil, err
 	}
 
@@ -1362,4 +1380,8 @@ func incrementUsageBillingAccountQuota(ctx context.Context, tx *sql.Tx, accountI
 		}
 	}
 	return &state, nil
+}
+
+func ledgerBillingIntent(cmd *service.UsageBillingCommand) requestledger.BillingIntent {
+	return requestledger.BillingIntent{RequestID: cmd.RequestID, APIKeyID: cmd.APIKeyID, UserID: cmd.UserID, Fingerprint: cmd.RequestFingerprint, SubscriptionID: cmd.SubscriptionID, PackageEntitlementID: cmd.PackageEntitlementID}
 }

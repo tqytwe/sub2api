@@ -18,6 +18,7 @@ import (
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/apicompat"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
 	"github.com/Wei-Shaw/sub2api/internal/util/responseheaders"
 	"github.com/gin-gonic/gin"
 	"github.com/tidwall/gjson"
@@ -1958,6 +1959,22 @@ func (s *OpenAIGatewayService) handleStreamingResponsePassthrough(
 	sawBareError := false
 	sawResponseFailed := false
 	terminalEventType := ""
+	ledgerAttempt := requestledger.CurrentAttempt(ctx)
+	ledgerTerminalType, ledgerTerminalStatus := "", ""
+	defer func() {
+		if ledgerTerminalType != "" {
+			observeLedgerResponsesTerminal(ledgerAttempt, ledgerTerminalType, ledgerTerminalStatus)
+		} else if sawTerminalEvent || sawDone {
+			// [DONE] is a fallback only; it cannot overwrite an explicit
+			// failed, incomplete, or cancelled Responses terminal.
+			state := "succeeded"
+			if sawFailedEvent {
+				state = "failed"
+			}
+			ledgerAttempt.ObserveStreamTerminal(state)
+		}
+	}()
+
 	semanticOutputSeen := false
 	capacityFailoverSuppressedLogged := false
 	failedMessage := ""
@@ -2228,6 +2245,7 @@ func (s *OpenAIGatewayService) handleStreamingResponsePassthrough(
 				sawTerminalEvent = true
 				if trimmedData != "[DONE]" {
 					terminalEventType = eventType
+					ledgerTerminalType, ledgerTerminalStatus = eventType, gjson.GetBytes(dataBytes, "response.status").String()
 				}
 			}
 			if sanitizedData, sanitized := sanitizeOpenAIResponseFailedEventForClient(

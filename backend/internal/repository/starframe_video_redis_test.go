@@ -46,7 +46,7 @@ func TestStarframeActualRedisLoss(t *testing.T) {
 	require.NoError(t, err)
 	upstream := &starframeRedisUpstream{}
 	build := func() *service.OpenAIGatewayService {
-		return service.NewOpenAIGatewayServiceWithLiveBilling(nil, nil, nil, nil, nil, nil, NewGatewayCache(client), &config.Config{}, nil, nil, nil, nil, nil, upstream, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, NewStarframeVideoRepository(db))
+		return service.NewOpenAIGatewayServiceWithLiveBilling(nil, nil, nil, nil, nil, nil, NewGatewayCache(client), &config.Config{}, nil, nil, nil, nil, nil, upstream, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, NewStarframeVideoRepository(db), nil)
 	}
 	svc := build()
 	owner := service.StarframeVideoOwner{UserID: 10, APIKeyID: 20, GroupID: 30}

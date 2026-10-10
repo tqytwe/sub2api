@@ -82,6 +82,7 @@ func providePluginHostInfo(buildInfo handler.BuildInfo) service.PluginHostInfo {
 }
 
 func provideCleanup(
+	requestLedgerHandler *handler.RequestLedgerHandler,
 	entClient *ent.Client,
 	rdb *redis.Client,
 	opsMetricsCollector *service.OpsMetricsCollector,
@@ -154,6 +155,12 @@ func provideCleanup(
 
 		// 应用层清理步骤可并行执行，基础设施资源（Redis/Ent）最后按顺序关闭。
 		parallelSteps := []cleanupStep{
+			{"RequestLedger", func() error {
+				if requestLedgerHandler != nil && requestLedgerHandler.Ledger != nil {
+					requestLedgerHandler.Ledger.Stop()
+				}
+				return nil
+			}},
 			{"PublicStatusSnapshotWorker", func() error {
 				if publicStatusSnapshotWorker != nil {
 					publicStatusSnapshotWorker.Stop()

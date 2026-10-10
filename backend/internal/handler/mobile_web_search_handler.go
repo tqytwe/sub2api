@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"errors"
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
 	"net"
 	"net/http"
 	"os"
@@ -80,16 +81,17 @@ func NewMobileWebSearchHandlerFromEnvironment(budget service.MobileWebSearchBudg
 	useExa := apiKey != "" && configuredProvider != "duckduckgo"
 	if enabledFlag && useExa {
 		primary := websearch.NewExaProvider(apiKey, &http.Client{
-			Timeout: mobileWebSearchTimeout,
+			Timeout:   mobileWebSearchTimeout,
+			Transport: requestledger.ExternalSearchTransport(http.DefaultTransport),
 			// Never follow a redirect with x-api-key attached to an unknown host.
 			CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
 		})
-		fallback := websearch.NewDuckDuckGoProvider(&http.Client{Timeout: mobileWebSearchTimeout})
+		fallback := websearch.NewDuckDuckGoProvider(&http.Client{Timeout: mobileWebSearchTimeout, Transport: requestledger.ExternalSearchTransport(http.DefaultTransport)})
 		fallbackProvider := newMobileWebSearchFallbackProvider(primary, fallback, primary.Name(), fallback.Name())
 		provider = fallbackProvider
 		providerName = fallbackProvider.Name()
 	} else if enabledFlag {
-		provider = websearch.NewDuckDuckGoProvider(&http.Client{Timeout: mobileWebSearchTimeout})
+		provider = websearch.NewDuckDuckGoProvider(&http.Client{Timeout: mobileWebSearchTimeout, Transport: requestledger.ExternalSearchTransport(http.DefaultTransport)})
 		providerName = "duckduckgo"
 	}
 	return newMobileWebSearchHandlerWithBudgetAndName(provider, enabledFlag && provider != nil, providerName, mobileWebSearchTimeout, budget)

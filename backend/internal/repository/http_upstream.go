@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
 	"io"
 	"log/slog"
 	"net"
@@ -221,6 +222,7 @@ func (s *httpUpstreamService) Do(req *http.Request, proxyURL string, accountID i
 
 	// 执行请求
 	client := s.httpClientForUpstreamRequest(entry.client, req)
+	client = httpClientWithRequestLedger(client, accountID)
 	client = httpClientWithGrokAccessDeniedFallback(client)
 	resp, err := doUpstreamRequest(client, req)
 	if err != nil {
@@ -282,6 +284,7 @@ func (s *httpUpstreamService) DoWithTLS(req *http.Request, proxyURL string, acco
 	}
 
 	client := s.httpClientForUpstreamRequest(entry.client, req)
+	client = httpClientWithRequestLedger(client, accountID)
 	client = httpClientWithGrokAccessDeniedFallback(client)
 	resp, err := doUpstreamRequest(client, req)
 	if err != nil {
@@ -1612,4 +1615,15 @@ func (d *decompressedBody) Close() error {
 		_ = rc.Close()
 	}
 	return d.closer.Close()
+}
+
+// Clone the client so per-request account attribution never mutates a pooled transport.
+func httpClientWithRequestLedger(client *http.Client, accountID int64) *http.Client {
+	copy := *client
+	base := copy.Transport
+	if base == nil {
+		base = http.DefaultTransport
+	}
+	copy.Transport = requestledger.TransportDecoded(base, accountID, decompressResponseBody)
+	return &copy
 }

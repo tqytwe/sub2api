@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
 	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
@@ -46,6 +47,7 @@ type mobileVideoGatewaySubscriptionResolver interface {
 // chat/image key: the task's pinned Video Execution key is verified again
 // immediately before every upstream call.
 type MobileVideoGatewayProvider struct {
+	ledger        *requestledger.Ledger
 	apiKeys       mobileVideoExecutionKeyResolver
 	gateway       mobileVideoGatewayExecutor
 	subscriptions mobileVideoGatewaySubscriptionResolver
@@ -55,8 +57,11 @@ func NewMobileVideoGatewayProvider(
 	apiKeys *service.APIKeyService,
 	gateway *OpenAIGatewayHandler,
 	subscriptions *service.SubscriptionService,
+	ledger *requestledger.Ledger,
 ) *MobileVideoGatewayProvider {
-	return newMobileVideoGatewayProviderWithDependencies(apiKeys, gateway, subscriptions)
+	p := newMobileVideoGatewayProviderWithDependencies(apiKeys, gateway, subscriptions)
+	p.ledger = ledger
+	return p
 }
 
 func newMobileVideoGatewayProviderWithDependencies(
@@ -92,9 +97,20 @@ const (
 	mobileVideoGatewayOperationContent mobileVideoGatewayOperation = "content"
 )
 
-func (p *MobileVideoGatewayProvider) call(parent context.Context, job *service.MobileVideoJob, operation mobileVideoGatewayOperation) (service.MobileVideoProviderResult, error) {
+func (p *MobileVideoGatewayProvider) call(parent context.Context, job *service.MobileVideoJob, operation mobileVideoGatewayOperation) (_ service.MobileVideoProviderResult, resultErr error) {
 	if p == nil || p.apiKeys == nil || p.gateway == nil || job == nil {
 		return service.MobileVideoProviderResult{}, mobileVideoProviderError("VIDEO_GATEWAY_UNAVAILABLE", "视频网关暂不可用", true)
+	}
+	execution, err := p.ledger.BeginTask(parent, "mobile_video", job.TaskID, job.UserID, job.ExecutionAPIKeyID, operation == mobileVideoGatewayOperationCreate)
+	if err != nil {
+		return service.MobileVideoProviderResult{}, err
+	}
+	status := 0
+	if execution != nil {
+		parent = requestledger.WithHandle(parent, execution)
+		defer func() {
+			_ = execution.Finish(parent, requestledger.Outcome(status, resultErr), status, requestledger.ErrorCode(resultErr))
+		}()
 	}
 	apiKey, platform, err := p.executionKey(parent, job)
 	if err != nil {
@@ -141,6 +157,7 @@ func (p *MobileVideoGatewayProvider) call(parent context.Context, job *service.M
 		return service.MobileVideoProviderResult{}, mobileVideoProviderError("VIDEO_ADAPTER_UNSUPPORTED", "视频执行适配器不受支持", false)
 	}
 
+	status = writer.Code
 	if writer.Code >= http.StatusBadRequest {
 		return service.MobileVideoProviderResult{}, mobileVideoProviderHTTPError(writer.Code, writer.Body.Bytes())
 	}
