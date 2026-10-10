@@ -838,7 +838,7 @@ const flushQueuedUsageBatch = async () => {
   }
 }
 
-const queueBatchedUsage = (account: Account, options?: { force?: boolean }) => {
+const queueBatchedUsage = (account: Account, options?: { force?: boolean; bypassCache?: boolean }) => {
   if (!isDesktopViewport.value) return
   if (!accountSupportsBatchUsage(account)) return
 
@@ -846,7 +846,7 @@ const queueBatchedUsage = (account: Account, options?: { force?: boolean }) => {
   const cacheKey = account.id
   const key = String(cacheKey)
 
-  if (force) {
+  if (force || options?.bypassCache === true) {
     usageBatchCache.delete(cacheKey)
   } else {
     const cached = usageBatchCache.get(cacheKey)

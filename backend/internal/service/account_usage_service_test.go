@@ -104,14 +104,14 @@ func TestShouldRefreshOpenAICodexSnapshot_SparkShadowIgnoresWSv2(t *testing.T) {
 		t.Fatal("expected fresh spark shadow to skip refresh (TTL not elapsed)")
 	}
 
-	// 反向对照:普通账号无 WSv2 + 过期时间戳→仍不刷(WSv2 门控普通账号的 probe 刷新)。
+	// Ordinary OAuth reads also use the read-only endpoint, independent of WSv2.
 	normalNoWS := &Account{
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeOAuth,
 		Extra:    map[string]any{"codex_usage_updated_at": staleAt},
 	}
-	if shouldRefreshOpenAICodexSnapshot(normalNoWS, usage, now) {
-		t.Fatal("expected non-WSv2 normal account to skip codex probe refresh")
+	if !shouldRefreshOpenAICodexSnapshot(normalNoWS, usage, now) {
+		t.Fatal("expected non-WSv2 normal account to refresh stale quota")
 	}
 }
 
@@ -141,7 +141,7 @@ func TestExtractOpenAICodexProbeUpdatesAccepts429WithCodexHeaders(t *testing.T) 
 	}
 }
 
-func TestAccountUsageService_PersistOpenAICodexProbeSnapshotOnlyUpdatesExtra(t *testing.T) {
+func TestAccountUsageService_PersistOpenAICodexUsageSnapshotOnlyUpdatesExtra(t *testing.T) {
 	t.Parallel()
 
 	repo := &accountUsageCodexProbeRepo{
@@ -149,7 +149,7 @@ func TestAccountUsageService_PersistOpenAICodexProbeSnapshotOnlyUpdatesExtra(t *
 		rateLimitCh:   make(chan time.Time, 1),
 	}
 	svc := &AccountUsageService{accountRepo: repo}
-	svc.persistOpenAICodexProbeSnapshot(321, map[string]any{
+	svc.persistOpenAICodexUsageSnapshot(context.Background(), 321, map[string]any{
 		"codex_7d_used_percent": 100.0,
 		"codex_7d_reset_at":     time.Now().Add(2 * time.Hour).UTC().Truncate(time.Second).Format(time.RFC3339),
 	})
