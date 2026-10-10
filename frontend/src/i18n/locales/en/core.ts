@@ -1,3 +1,4 @@
+import requestLedger from '../request-ledger.en'
 import { jisudengHomeEn } from '../jisudeng-home.en'
 import { jisudengAuthAsideEn } from '../jisudeng-auth-aside.en'
 import { platformLabels } from '../../platformLabels'
@@ -6,6 +7,7 @@ import landing from './landing'
 import { mergeLocaleMessages } from '../merge'
 
 export default mergeLocaleMessages(landing, mergeLocaleMessages(common, {
+  requestLedger,
   platform: platformLabels.en,
   authAside: jisudengAuthAsideEn,
   home: {

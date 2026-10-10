@@ -1,3 +1,4 @@
+import requestLedger from './request-ledger.en'
 import { jisudengHomeEn } from './jisudeng-home.en'
 import { jisudengPagesEn } from './jisudeng-pages.en'
 import splitAdminEn from './en/admin'
@@ -10,6 +11,7 @@ import promptAuditAdminEn from './en/admin/promptAudit'
 import { mergeLocaleMessages } from './merge'
 
 const messages = {
+  requestLedger,
   batchImageGuide: {
     title: 'Batch Image Generation',
     description: 'Submit multiple prompts in one job and download the generated images when complete'

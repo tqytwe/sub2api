@@ -876,7 +876,7 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 			return fmt.Errorf("refresh ws authentication headers: %w", err)
 		}
 		dialCtx, cancelDial := context.WithTimeout(ctx, s.openAIWSDialTimeout())
-		upstreamConn, statusCode, handshakeHeaders, err = dialer.Dial(dialCtx, wsURL, headers, proxyURL)
+		upstreamConn, statusCode, handshakeHeaders, err = dialWSWithLedger(dialCtx, dialer, account, wsURL, headers, proxyURL)
 		cancelDial()
 		if err == nil {
 			break
@@ -921,6 +921,9 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 	if !ok {
 		return errors.New("openai ws passthrough upstream connection does not support frame relay")
 	}
+	ledgerUpstream := &requestLedgerWSFrameConn{inner: upstreamFrameConn, account: account}
+	defer ledgerUpstream.finish(ctx, errors.New("websocket ended before terminal event"))
+	upstreamFrameConn = ledgerUpstream
 	relayUpstreamFrameConn := &openAIWSPassthroughFirstOutputFrameConn{
 		inner:             upstreamFrameConn,
 		activeReadTimeout: s.openAIWSPassthroughIdleTimeout(),
@@ -1215,6 +1218,7 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 			turnResult.Usage.OutputTokens,
 			turnResult.Usage.CacheReadInputTokens,
 		)
+		ledgerUpstream.finishTurn(ctx, turnNo, turnResult, turnErr)
 		if hooks != nil && hooks.AfterTurn != nil {
 			hooks.AfterTurn(turnNo, turnResult, turnErr)
 		}
@@ -1255,6 +1259,10 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 				observedTurnUsage = OpenAIUsage{}
 			},
 			BeforeClientWrite: func(msgType coderws.MessageType, payload []byte) {
+				// The relay has already discarded terminals from earlier turns.
+				if len(payload) > 0 {
+					ledgerUpstream.observeOutput(ctx)
+				}
 				if msgType == coderws.MessageText && openAIWSPassthroughIsTerminalOutput(payload) {
 					turnLifecycle.beginTerminalWrite()
 				}

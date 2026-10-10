@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
 	"log/slog"
 	"strings"
 	"time"
@@ -913,6 +914,13 @@ func (s *GatewayService) recordUsageCore(ctx context.Context, input *recordUsage
 	}
 	if subscription != nil && subscription.UserID > 0 && subscription.UserID != user.ID {
 		return ErrUsageBillingOwnershipMismatch
+	}
+	if result.Usage.InputTokens > 0 || result.Usage.OutputTokens > 0 || result.Usage.CacheReadInputTokens > 0 || result.Usage.CacheCreationInputTokens > 0 || result.ImageCount > 0 || result.SearchCount > 0 {
+		if err := requestledger.ObserveUsage(ctx, account.ID); err != nil {
+			// Admission and attempt evidence already exist. An audit annotation
+			// failure must not suppress the original idempotent settlement.
+			logger.LegacyPrintf("service.gateway", "request_ledger_usage_observation_failed")
+		}
 	}
 	ApplyForwardImageBillingResolution(result)
 	logServiceTierBillingDowngrade("service.gateway", account, result.RequestID, ApplyForwardServiceTierBillingResolution(result))

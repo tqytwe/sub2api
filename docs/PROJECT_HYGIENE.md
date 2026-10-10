@@ -16,6 +16,10 @@
 快照仅覆盖已核查的本轮工作，不是全站功能目录或百分比进度。历史审计、文件/路由计数、
 CI 成功、后端 DTO 或数据库测试均不能替代完整用户闭环。移动端/Canvas 排除在本轮之外。
 接手人先重查 GitHub PR、head/base、CI 和部署证据，再决定下一步；文档年龄不自动触发发布。
+
+历史状态使用不可变 Git 版本保留，例如 [2026-10-10 09:20:49 UTC 快照](https://github.com/tqytwe/sub2api/blob/6e3977e649a94a94cf880a010add6e23e1aae527/docs/upstream-migrations/v2.10.3/handoff.json)。
+该版本记录当时的 PR351 阻断，当前状态仍只更新上表的同一快照；后续交接引用新旧 SHA，不复制另一份当前看板。
+
 `production.branch_sha` 与 `last_verified_deployed_sha` 分别记录分支和最后确认的成功部署；
 合并后仍在排队/部署时保留差异，不能据分支前进宣布上线，也不能假定旧版本仍在线。
 

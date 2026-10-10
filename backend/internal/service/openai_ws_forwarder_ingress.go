@@ -962,6 +962,11 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 		}
 		turnStart := time.Now()
 		wroteDownstream := false
+		ledgerAttempt, ledgerErr := beginLedgerWSAttempt(ctx, account)
+		if ledgerErr != nil {
+			return nil, ledgerErr
+		}
+		defer func() { finishLedgerWSResult(ctx, ledgerAttempt, turnResult, turnErr) }()
 		if err := lease.WriteJSONWithContextTimeout(ctx, json.RawMessage(payload), s.openAIWSWriteTimeout()); err != nil {
 			return nil, wrapOpenAIWSIngressTurnError(
 				"write_upstream",
@@ -1067,6 +1072,9 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 			}
 			if _, settled := settledResponseIDs[eventResponseID]; eventResponseID != "" && settled {
 				continue
+			}
+			if len(upstreamMessage) > 0 {
+				ledgerAttempt.ObserveOutput(ctx)
 			}
 			responseModelObserver.ObserveOpenAI(upstreamMessage, eventType)
 			if responseID == "" && eventResponseID != "" {

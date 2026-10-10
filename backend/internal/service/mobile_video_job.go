@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
 	"math"
 	"net/url"
 	"strings"
@@ -655,6 +656,9 @@ func insertMobileVideoJob(
 	}
 	state, billingState, snapshotJSON, unitPrice, rateMultiplier, holdAmount, err := mobileVideoInitialFunding(input)
 	if err != nil {
+		return err
+	}
+	if err := requestledger.BindTask(ctx, "mobile_video", taskID, userID, input.ExecutionAPIKeyID); err != nil {
 		return err
 	}
 	now = now.UTC()

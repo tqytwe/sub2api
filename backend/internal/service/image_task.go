@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
 	"net/http"
 	"strings"
 	"sync"
@@ -452,6 +453,9 @@ func (s *ImageTaskService) Submit(ctx context.Context, submission ImageTaskSubmi
 		QueuedAt:    &queuedAt,
 		ExpiresAt:   now.Add(s.ttl).Unix(),
 	}
+	if err := requestledger.BindTask(ctx, "image_task", task.ID, task.UserID, task.APIKeyID); err != nil {
+		return nil, false, err
+	}
 	idempotencyKey := imageTaskIdempotencyScope(submission.Owner, submission.IdempotencyKey)
 	taskID, created, err := s.queue.Submit(ctx, task, s.ttl, idempotencyKey)
 	if err != nil {
@@ -464,6 +468,11 @@ func (s *ImageTaskService) Submit(ctx context.Context, submission ImageTaskSubmi
 		task, err = s.store.Get(ctx, taskID)
 		if err != nil {
 			return nil, false, ErrImageTaskUnavailable.WithCause(err)
+		}
+	}
+	if !created {
+		if err := requestledger.BindTask(ctx, "image_task", task.ID, task.UserID, task.APIKeyID); err != nil {
+			return nil, false, err
 		}
 	}
 	return imageTaskToPublic(task), !created, nil

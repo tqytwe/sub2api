@@ -242,6 +242,7 @@ func ProvideOpsHandler(
 
 // ProvideHandlers creates the Handlers struct
 func ProvideHandlers(
+	requestLedgerHandler *RequestLedgerHandler,
 	authHandler *AuthHandler,
 	userHandler *UserHandler,
 	apiKeyHandler *APIKeyHandler,
@@ -285,6 +286,7 @@ func ProvideHandlers(
 	_ *service.OpenAIQuotaAutoResetService,
 ) *Handlers {
 	return &Handlers{
+		RequestLedger:     requestLedgerHandler,
 		Auth:              authHandler,
 		User:              userHandler,
 		APIKey:            apiKeyHandler,
@@ -429,6 +431,7 @@ var ProviderSet = wire.NewSet(
 	NewUserHandler,
 	NewAPIKeyHandler,
 	NewUsageHandler,
+	NewRequestLedgerHandler,
 	NewRedeemHandler,
 	NewSubscriptionHandler,
 	ProvideAnnouncementHandler,

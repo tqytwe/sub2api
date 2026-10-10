@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
 	"sort"
 	"strconv"
 	"strings"
@@ -255,6 +256,10 @@ func (s *BatchImagePublicService) Submit(ctx context.Context, owner BatchImageOw
 	accountID := account.ID
 	holdID := BatchImageHoldRequestID(batchID)
 	holdAmount := pricingSnapshot.HoldAmount
+	if err := requestledger.BindTask(ctx, "image_batch", batchID, owner.UserID, owner.APIKeyID); err != nil {
+		return nil, err
+	}
+	ctx = requestledger.WithAccount(ctx, account.ID, ledgerCredentialAccountID(account))
 	job, err := s.Repo.CreateBatchImageJob(ctx, CreateBatchImageJobParams{
 		BatchID:                 batchID,
 		UserID:                  owner.UserID,
@@ -421,6 +426,9 @@ func (s *BatchImagePublicService) findIdempotentBatch(
 	}
 	if batchImageDerefString(existing.RequestHash) != requestHash {
 		return nil, false, ErrBatchImageIdempotencyConflict
+	}
+	if err := requestledger.BindTask(ctx, "image_batch", existing.BatchID, owner.UserID, owner.APIKeyID); err != nil {
+		return nil, false, err
 	}
 	if existing.Status == BatchImageJobStatusSubmitted && s.Queue != nil {
 		if enqueueErr := s.Queue.Enqueue(ctx, existing.BatchID); enqueueErr != nil && !errors.Is(enqueueErr, ErrBatchImageAlreadyQueued) {

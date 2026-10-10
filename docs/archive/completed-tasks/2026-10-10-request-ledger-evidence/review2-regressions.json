@@ -1,0 +1,465 @@
+{
+  "review2-red-protocols": [
+    {
+      "Time": "2026-10-10T09:17:09.551662332Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Test": "TestRequestLedgerNativeAndPassthroughTerminalStatus/native/response.incomplete/incomplete",
+      "Action": "fail",
+      "Elapsed": 0.02
+    },
+    {
+      "Time": "2026-10-10T09:17:09.586228025Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Test": "TestRequestLedgerNativeAndPassthroughTerminalStatus/native/response.done/failed",
+      "Action": "fail",
+      "Elapsed": 0.03
+    },
+    {
+      "Time": "2026-10-10T09:17:09.612901168Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Test": "TestRequestLedgerNativeAndPassthroughTerminalStatus/native/response.done/incomplete",
+      "Action": "fail",
+      "Elapsed": 0.03
+    },
+    {
+      "Time": "2026-10-10T09:17:09.641195367Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Test": "TestRequestLedgerNativeAndPassthroughTerminalStatus/native/response.done/cancelled",
+      "Action": "fail",
+      "Elapsed": 0.03
+    },
+    {
+      "Time": "2026-10-10T09:17:09.668762586Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Test": "TestRequestLedgerNativeAndPassthroughTerminalStatus/native/response.done/canceled",
+      "Action": "fail",
+      "Elapsed": 0.03
+    },
+    {
+      "Time": "2026-10-10T09:17:09.701641942Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Test": "TestRequestLedgerNativeAndPassthroughTerminalStatus/native/response.completed/completed",
+      "Action": "pass",
+      "Elapsed": 0.03
+    },
+    {
+      "Time": "2026-10-10T09:17:09.725493884Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Test": "TestRequestLedgerNativeAndPassthroughTerminalStatus/passthrough/response.incomplete/incomplete",
+      "Action": "fail",
+      "Elapsed": 0.02
+    },
+    {
+      "Time": "2026-10-10T09:17:09.76709769Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Test": "TestRequestLedgerNativeAndPassthroughTerminalStatus/passthrough/response.done/failed",
+      "Action": "fail",
+      "Elapsed": 0.04
+    },
+    {
+      "Time": "2026-10-10T09:17:09.803745528Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Test": "TestRequestLedgerNativeAndPassthroughTerminalStatus/passthrough/response.done/incomplete",
+      "Action": "fail",
+      "Elapsed": 0.04
+    },
+    {
+      "Time": "2026-10-10T09:17:09.852447975Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Test": "TestRequestLedgerNativeAndPassthroughTerminalStatus/passthrough/response.done/cancelled",
+      "Action": "fail",
+      "Elapsed": 0.05
+    },
+    {
+      "Time": "2026-10-10T09:17:09.895966178Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Test": "TestRequestLedgerNativeAndPassthroughTerminalStatus/passthrough/response.done/canceled",
+      "Action": "fail",
+      "Elapsed": 0.04
+    },
+    {
+      "Time": "2026-10-10T09:17:09.925496901Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Test": "TestRequestLedgerNativeAndPassthroughTerminalStatus/passthrough/response.completed/completed",
+      "Action": "pass",
+      "Elapsed": 0.03
+    },
+    {
+      "Time": "2026-10-10T09:17:10.389513462Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Test": "TestRequestLedgerNativeAndPassthroughTerminalStatus",
+      "Action": "fail",
+      "Elapsed": 7.4
+    },
+    {
+      "Time": "2026-10-10T09:17:15.316883064Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Test": "TestRequestLedgerBridgeAndOAuthImagesTerminal/bridge_bare_error_completed",
+      "Action": "fail",
+      "Elapsed": 0.07
+    },
+    {
+      "Time": "2026-10-10T09:17:15.3871108Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Test": "TestRequestLedgerBridgeAndOAuthImagesTerminal/bridge_large_completed",
+      "Action": "fail",
+      "Elapsed": 0.07
+    },
+    {
+      "Time": "2026-10-10T09:17:15.411471487Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Test": "TestRequestLedgerBridgeAndOAuthImagesTerminal/images_nonstream_large",
+      "Action": "fail",
+      "Elapsed": 0.02
+    },
+    {
+      "Time": "2026-10-10T09:17:15.478549776Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Test": "TestRequestLedgerBridgeAndOAuthImagesTerminal/images_stream_large",
+      "Action": "fail",
+      "Elapsed": 0.07
+    },
+    {
+      "Time": "2026-10-10T09:17:15.93008546Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Test": "TestRequestLedgerBridgeAndOAuthImagesTerminal",
+      "Action": "fail",
+      "Elapsed": 5.54
+    },
+    {
+      "Time": "2026-10-10T09:17:22.504365061Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Test": "TestRequestLedgerLiveStoppedTurnRecoversHealthyOwner/false",
+      "Action": "fail",
+      "Elapsed": 0.04
+    },
+    {
+      "Time": "2026-10-10T09:17:22.528231245Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Test": "TestRequestLedgerLiveStoppedTurnRecoversHealthyOwner/true",
+      "Action": "fail",
+      "Elapsed": 0.02
+    },
+    {
+      "Time": "2026-10-10T09:17:23.106635767Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Test": "TestRequestLedgerLiveStoppedTurnRecoversHealthyOwner",
+      "Action": "fail",
+      "Elapsed": 7.18
+    },
+    {
+      "Time": "2026-10-10T09:17:29.775055969Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Test": "TestRequestLedgerModelsPluginPreservesScheduledAccount",
+      "Action": "fail",
+      "Elapsed": 6.67
+    }
+  ],
+  "review2-red-live": [
+    {
+      "Time": "2026-10-10T09:20:58.039454874Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Test": "TestRequestLedgerLiveAuditFailurePreservesRedisAndSettlement",
+      "Action": "fail",
+      "Elapsed": 10.32
+    }
+  ],
+  "review2-green-groups": [
+    {
+      "Time": "2026-10-10T09:24:06.549428182Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+      "Test": "TestLedgerPostgresHealthyOwnerRecoversFailedFinalization",
+      "Action": "fail",
+      "Elapsed": 32.49
+    },
+    {
+      "Time": "2026-10-10T09:24:06.611048745Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Test": "TestRequestLedgerNativeAndPassthroughTerminalStatus",
+      "Action": "fail",
+      "Elapsed": 32.34
+    },
+    {
+      "Time": "2026-10-10T09:24:10.259809687Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Test": "TestRequestLedgerBridgeAndOAuthImagesTerminal/bridge_bare_error_completed",
+      "Action": "pass",
+      "Elapsed": 0.07
+    },
+    {
+      "Time": "2026-10-10T09:24:10.323738859Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Test": "TestRequestLedgerBridgeAndOAuthImagesTerminal/bridge_large_completed",
+      "Action": "pass",
+      "Elapsed": 0.06
+    },
+    {
+      "Time": "2026-10-10T09:24:10.342569219Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Test": "TestRequestLedgerBridgeAndOAuthImagesTerminal/images_nonstream_large",
+      "Action": "pass",
+      "Elapsed": 0.02
+    },
+    {
+      "Time": "2026-10-10T09:24:10.416864603Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Test": "TestRequestLedgerBridgeAndOAuthImagesTerminal/images_stream_large",
+      "Action": "pass",
+      "Elapsed": 0.07
+    },
+    {
+      "Time": "2026-10-10T09:24:10.658943548Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Test": "TestRequestLedgerBridgeAndOAuthImagesTerminal",
+      "Action": "pass",
+      "Elapsed": 4.05
+    },
+    {
+      "Time": "2026-10-10T09:24:41.466064095Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Test": "TestRequestLedgerLiveStoppedTurnRecoversHealthyOwner",
+      "Action": "fail",
+      "Elapsed": 30.81
+    },
+    {
+      "Time": "2026-10-10T09:25:13.884697715Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Test": "TestRequestLedgerModelsPluginPreservesScheduledAccount",
+      "Action": "fail",
+      "Elapsed": 32.42
+    },
+    {
+      "Time": "2026-10-10T09:25:17.740505862Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Test": "TestRequestLedgerModelsCacheRefreshKeepsDurableChild/stale_false",
+      "Action": "pass",
+      "Elapsed": 0.03
+    },
+    {
+      "Time": "2026-10-10T09:25:17.778614912Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Test": "TestRequestLedgerModelsCacheRefreshKeepsDurableChild/stale_true",
+      "Action": "pass",
+      "Elapsed": 0.04
+    },
+    {
+      "Time": "2026-10-10T09:25:18.041788647Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Test": "TestRequestLedgerModelsCacheRefreshKeepsDurableChild",
+      "Action": "pass",
+      "Elapsed": 4.16
+    },
+    {
+      "Time": "2026-10-10T09:25:21.429567675Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Test": "TestRequestLedgerModelsCacheStorageFailureNeverSends",
+      "Action": "pass",
+      "Elapsed": 3.39
+    },
+    {
+      "Time": "2026-10-10T09:25:29.341047686Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Test": "TestRequestLedgerLiveAuditFailurePreservesRedisAndSettlement",
+      "Action": "pass",
+      "Elapsed": 7.89
+    }
+  ],
+  "review2-green-complete": [
+    {
+      "Time": "2026-10-10T09:27:52.181540192Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Test": "TestRequestLedgerNativeAndPassthroughTerminalStatus/native/response.incomplete/incomplete",
+      "Action": "pass",
+      "Elapsed": 0.02
+    },
+    {
+      "Time": "2026-10-10T09:27:52.200962688Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Test": "TestRequestLedgerNativeAndPassthroughTerminalStatus/native/response.done/failed",
+      "Action": "pass",
+      "Elapsed": 0.02
+    },
+    {
+      "Time": "2026-10-10T09:27:52.216041787Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Test": "TestRequestLedgerNativeAndPassthroughTerminalStatus/native/response.done/incomplete",
+      "Action": "pass",
+      "Elapsed": 0.01
+    },
+    {
+      "Time": "2026-10-10T09:27:52.232364447Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Test": "TestRequestLedgerNativeAndPassthroughTerminalStatus/native/response.done/cancelled",
+      "Action": "pass",
+      "Elapsed": 0.02
+    },
+    {
+      "Time": "2026-10-10T09:27:52.248164205Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Test": "TestRequestLedgerNativeAndPassthroughTerminalStatus/native/response.done/canceled",
+      "Action": "pass",
+      "Elapsed": 0.02
+    },
+    {
+      "Time": "2026-10-10T09:27:52.266264475Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Test": "TestRequestLedgerNativeAndPassthroughTerminalStatus/native/response.completed/completed",
+      "Action": "pass",
+      "Elapsed": 0.02
+    },
+    {
+      "Time": "2026-10-10T09:27:52.28126999Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Test": "TestRequestLedgerNativeAndPassthroughTerminalStatus/passthrough/response.incomplete/incomplete",
+      "Action": "pass",
+      "Elapsed": 0.01
+    },
+    {
+      "Time": "2026-10-10T09:27:52.298960823Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Test": "TestRequestLedgerNativeAndPassthroughTerminalStatus/passthrough/response.done/failed",
+      "Action": "pass",
+      "Elapsed": 0.02
+    },
+    {
+      "Time": "2026-10-10T09:27:52.313943171Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Test": "TestRequestLedgerNativeAndPassthroughTerminalStatus/passthrough/response.done/incomplete",
+      "Action": "pass",
+      "Elapsed": 0.02
+    },
+    {
+      "Time": "2026-10-10T09:27:52.326679676Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Test": "TestRequestLedgerNativeAndPassthroughTerminalStatus/passthrough/response.done/cancelled",
+      "Action": "pass",
+      "Elapsed": 0.01
+    },
+    {
+      "Time": "2026-10-10T09:27:52.338839704Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Test": "TestRequestLedgerNativeAndPassthroughTerminalStatus/passthrough/response.done/canceled",
+      "Action": "pass",
+      "Elapsed": 0.01
+    },
+    {
+      "Time": "2026-10-10T09:27:52.350398007Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Test": "TestRequestLedgerNativeAndPassthroughTerminalStatus/passthrough/response.completed/completed",
+      "Action": "pass",
+      "Elapsed": 0.01
+    },
+    {
+      "Time": "2026-10-10T09:27:52.515546242Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+      "Test": "TestLedgerPostgresHealthyOwnerRecoversFailedFinalization",
+      "Action": "pass",
+      "Elapsed": 4.69
+    },
+    {
+      "Time": "2026-10-10T09:27:52.655861039Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Test": "TestRequestLedgerNativeAndPassthroughTerminalStatus",
+      "Action": "pass",
+      "Elapsed": 4.66
+    },
+    {
+      "Time": "2026-10-10T09:27:54.955138788Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Test": "TestRequestLedgerBridgeAndOAuthImagesTerminal/bridge_bare_error_completed",
+      "Action": "pass",
+      "Elapsed": 0.07
+    },
+    {
+      "Time": "2026-10-10T09:27:55.019436468Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Test": "TestRequestLedgerBridgeAndOAuthImagesTerminal/bridge_large_completed",
+      "Action": "pass",
+      "Elapsed": 0.06
+    },
+    {
+      "Time": "2026-10-10T09:27:55.038586055Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Test": "TestRequestLedgerBridgeAndOAuthImagesTerminal/images_nonstream_large",
+      "Action": "pass",
+      "Elapsed": 0.02
+    },
+    {
+      "Time": "2026-10-10T09:27:55.103311251Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Test": "TestRequestLedgerBridgeAndOAuthImagesTerminal/images_stream_large",
+      "Action": "pass",
+      "Elapsed": 0.06
+    },
+    {
+      "Time": "2026-10-10T09:27:55.35706042Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Test": "TestRequestLedgerBridgeAndOAuthImagesTerminal",
+      "Action": "pass",
+      "Elapsed": 2.7
+    },
+    {
+      "Time": "2026-10-10T09:27:57.534774402Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Test": "TestRequestLedgerLiveStoppedTurnRecoversHealthyOwner/false",
+      "Action": "pass",
+      "Elapsed": 0.02
+    },
+    {
+      "Time": "2026-10-10T09:27:57.549166143Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Test": "TestRequestLedgerLiveStoppedTurnRecoversHealthyOwner/true",
+      "Action": "pass",
+      "Elapsed": 0.01
+    },
+    {
+      "Time": "2026-10-10T09:27:57.787865415Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Test": "TestRequestLedgerLiveStoppedTurnRecoversHealthyOwner",
+      "Action": "pass",
+      "Elapsed": 2.43
+    },
+    {
+      "Time": "2026-10-10T09:28:00.473141351Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Test": "TestRequestLedgerModelsPluginPreservesScheduledAccount",
+      "Action": "pass",
+      "Elapsed": 2.69
+    },
+    {
+      "Time": "2026-10-10T09:28:02.663326146Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Test": "TestRequestLedgerModelsCacheRefreshKeepsDurableChild/stale_false",
+      "Action": "pass",
+      "Elapsed": 0.03
+    },
+    {
+      "Time": "2026-10-10T09:28:02.700334712Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Test": "TestRequestLedgerModelsCacheRefreshKeepsDurableChild/stale_true",
+      "Action": "pass",
+      "Elapsed": 0.04
+    },
+    {
+      "Time": "2026-10-10T09:28:02.93413813Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Test": "TestRequestLedgerModelsCacheRefreshKeepsDurableChild",
+      "Action": "pass",
+      "Elapsed": 2.46
+    },
+    {
+      "Time": "2026-10-10T09:28:06.200177668Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Test": "TestRequestLedgerModelsCacheStorageFailureNeverSends",
+      "Action": "pass",
+      "Elapsed": 3.27
+    },
+    {
+      "Time": "2026-10-10T09:28:12.875910956Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Test": "TestRequestLedgerLiveAuditFailurePreservesRedisAndSettlement",
+      "Action": "pass",
+      "Elapsed": 6.66
+    }
+  ]
+}

@@ -1,0 +1,100 @@
+name: Durable request ledger
+
+on:
+  pull_request:
+    branches: [play/main]
+    paths:
+      - .github/workflows/request-ledger-integration.yml
+      - backend/**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: request-ledger-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  postgres-protocol-contract:
+    name: Ledger PostgreSQL and protocol contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: backend
+        shell: bash
+    env:
+      CI: "true"
+      SUB2API_TEST_POSTGRES_IMAGE: postgres:18.1-alpine3.23
+      SUB2API_TEST_EXTERNAL_MODE: ""
+      SUB2API_TEST_POSTGRES_DSN: ""
+      SUB2API_TEST_REDIS_ADDR: ""
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+      - name: Exercise durable admission, crash recovery, API, WS and existing settlement
+        run: |
+          set -euo pipefail
+          go test -tags=integration ./internal/requestledger/... ./internal/handler ./internal/server/routes ./internal/repository ./internal/service \
+            -run 'RequestLedger|LedgerPostgres|LedgerKilledProcess|LedgerStorage' -count=1 -timeout=12m -json \
+            | tee "$RUNNER_TEMP/request-ledger-tests.json"
+      - name: Require executed acceptance cases
+        run: |
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          required = {
+              "TestLedgerKilledProcessRecoveryRetainsEvidence",
+              "TestLedgerPostgresHealthyOwnerRecoversFailedFinalization",
+              "TestLedgerPostgresFalseUpgradeDoesNotChangeHTTPMetering",
+              "TestLedgerPostgresBodylessResponsesKeepProtocolSuccess",
+              "TestRequestLedgerFrozenContextAllowsNilUsageTaskParent",
+              "TestLedgerPostgresFrozenUsageDoesNotMoveToLaterAttempt",
+              "TestLedgerPostgresBoundedConcurrentAdmissionAndRecovery",
+              "TestRequestLedgerCommittedJSONDoesNotBecomeSSE",
+              "TestRequestLedgerObservationFailureKeepsOriginalSettlement",
+              "TestRequestLedgerPendingUsageSnapshotNeverShowsSettledZero",
+              "TestRequestLedgerBusinessStreamTerminalBeforeTransportEOF",
+              "TestRequestLedgerCompressedSSEUsesDecodedEvidence",
+              "TestRequestLedgerOAuthModelsDirectTransportAdmission",
+              "TestRequestLedgerModelsCacheRefreshKeepsDurableChild",
+              "TestRequestLedgerModelsCacheStorageFailureNeverSends",
+              "TestRequestLedgerImageBackfillKeepsGenerationAttribution",
+              "TestRequestLedgerLiveAuditFailurePreservesRedisAndSettlement",
+              "TestRequestLedgerLiveStoppedTurnRecoversHealthyOwner",
+              "TestRequestLedgerBridgeAndOAuthImagesTerminal",
+              "TestRequestLedgerNativeAndPassthroughTerminalStatus",
+              "TestRequestLedgerModelsPluginPreservesScheduledAccount",
+
+              "TestLedgerPostgresMigrationLockTimeoutPreservesEvidence",
+              "TestLedgerPostgresPanicPreservesAlreadyWrittenHTTPStatus",
+              "TestLedgerStorageErrorDoesNotFailOverAnthropicOrGemini",
+              "TestLedgerPostgresAttemptStorageFailureRejectsOnlyRequest",
+              "TestLedgerPostgresRetryUsageDoesNotHideUnknownEarlierAttempt",
+              "TestRequestLedgerHTTPAPIRolesPaginationAndRefresh",
+              "TestRequestLedgerHTTPLinkedUsageAndRetention",
+              "TestRequestLedgerNativeWebsocketTwoTurnsWithRealPostgres",
+              "TestRequestLedgerRealtimeCapacityRejectionStillPersistsTurn",
+              "TestRequestLedgerPassthroughWaitsForAuthoritativeTurn",
+              "TestRequestLedgerWSLateUsageDoesNotMarkTheNextAttemptKnown",
+              "TestRequestLedgerRealWebsocket1013AndEOFWithoutUsage",
+              "TestRequestLedgerBillingTransactionDedupAndFailure",
+              "TestRequestLedgerTaskFundingReferencesRecoverWithoutCharging",
+              "TestRequestLedgerIdempotentTaskReplayKeepsCurrentAdmission",
+              "TestRequestLedgerRealGatewayRouteRejectionMatrix",
+              "TestRequestLedgerImageStudioAndBFFRouteRejectionMatrix",
+          }
+          passed = set()
+          for line in Path(os.environ["RUNNER_TEMP"], "request-ledger-tests.json").read_text().splitlines():
+              event = json.loads(line)
+              if event.get("Action") == "pass":
+                  passed.add(event.get("Test"))
+          missing = required - passed
+          assert not missing, f"Required ledger cases did not pass: {sorted(missing)}"
+          PY

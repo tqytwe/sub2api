@@ -24,6 +24,11 @@ func RegisterUserRoutes(
 	authenticated.Use(panelRateLimiter.Global())
 	// 用户管理面变更类操作入审计（含 TOTP 启用/禁用、step-up 验证、密码修改等安全事件）
 	authenticated.Use(gin.HandlerFunc(auditLog))
+	if h.RequestLedger != nil {
+		authenticated.GET("/requests", h.RequestLedger.ListUser)
+		authenticated.GET("/requests/:id", h.RequestLedger.GetUser)
+		authenticated.GET("/requests/:id/usage/:usage_id", h.RequestLedger.UsageUser)
+	}
 	{
 		authenticated.GET("/coupons/me", h.Coupon.ListMine)
 

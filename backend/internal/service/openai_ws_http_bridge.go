@@ -14,6 +14,7 @@ import (
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/apicompat"
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
 	"github.com/gin-gonic/gin"
 	"github.com/tidwall/gjson"
 )
@@ -614,6 +615,7 @@ func (s *OpenAIGatewayService) proxyOpenAIWSHTTPBridgeTurn(
 		return nil, fmt.Errorf("upstream http bridge error: status=%d message=%s", resp.StatusCode, upstreamMsg)
 	}
 	defer func() { _ = resp.Body.Close() }()
+	ledgerAttempt := requestledger.CurrentAttempt(ctx)
 	stopCancelBody := context.AfterFunc(ctx, func() { _ = resp.Body.Close() })
 	defer stopCancelBody()
 	if account.Platform == PlatformGrok {
@@ -962,6 +964,9 @@ func (s *OpenAIGatewayService) proxyOpenAIWSHTTPBridgeTurn(
 			markOpenAIWSClientVisibleFailure(c, eventType, upstreamMessage)
 		}
 
+		if isOpenAIWSTerminalEvent(eventType) && !bareErrorPending {
+			observeLedgerResponsesTerminal(ledgerAttempt, eventType, gjson.GetBytes(upstreamMessage, "response.status").String())
+		}
 		if upstreamEventErr != nil {
 			return finishFailure(upstreamEventErr, true)
 		}

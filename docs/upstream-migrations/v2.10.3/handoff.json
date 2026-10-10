@@ -1,19 +1,19 @@
 {
   "schema_version": 1,
-  "checked_at": "2026-10-10T09:20:49Z",
+  "checked_at": "2026-10-10T11:34:03Z",
   "scope": "v2.10.3 迁移及关联后续修复的交接快照；非实时、非全站完成度。移动端/Canvas 排除。",
   "source_lock": "docs/upstream-migrations/source-lock.json",
   "production": {
     "branch": "play/main",
-    "branch_sha": "a581d8db536157c6c325ea4729381ee8b83ed53d",
-    "last_verified_deployed_sha": "a581d8db536157c6c325ea4729381ee8b83ed53d",
+    "branch_sha": "d18d504ccf12adc9f299cdf14af6ea32c4efe59c",
+    "last_verified_deployed_sha": "d18d504ccf12adc9f299cdf14af6ea32c4efe59c",
     "deployment_status": "recorded",
     "evidence": [
-      "https://github.com/tqytwe/sub2api/commit/a581d8db536157c6c325ea4729381ee8b83ed53d",
-      "https://github.com/tqytwe/sub2api/pull/348",
-      "https://github.com/tqytwe/sub2api/runs/114170427913"
+      "https://github.com/tqytwe/sub2api/commit/d18d504ccf12adc9f299cdf14af6ea32c4efe59c",
+      "https://github.com/tqytwe/sub2api/pull/351",
+      "https://github.com/tqytwe/sub2api/runs/114196133288"
     ],
-    "note": "远端 a581d8db 已保留 #343/#345/#347/#346/#349/#350/#348；精确 SHA Zeabur 于 2026-10-10T08:17:04Z 成功。本任务只读核验 GitHub，不执行生产操作；固定窗口样本和用户本机验收限制逐项记录。#351 仍草稿，275 未在本生产基线应用。"
+    "note": "#351于10:43:35Z普通合入d18d504，GitHub Zeabur check于10:48:42Z成功。主线程在恢复验收环境后，于11:09:15及11:30:56 UTC通过官方API确认d18为唯一RUNNING/READY、旧a581为REMOVED，同次curl health=200；11:13:29 UTC确认SQL275登记/checksum与catalog。固定自然窗口11:14:06.545570–11:29:06.545570 UTC，加2分钟缓冲后11:31:08查询exitCode=0并明确ROLLBACK，验收任务已停止。201条已有结算关联无差异不等于全验收完成；unknown、未采样协议/订阅计数器净增量与用户反馈仍待补。运行态、DB与窗口均为主线程交接转述，原始明细未公开；此前11:02执行通道故障已恢复，本任务未执行生产操作。"
   },
   "features": [
     {
@@ -72,8 +72,8 @@
         "deployment": {"status": "recorded", "refs": ["https://github.com/tqytwe/sub2api/pull/340", "https://github.com/tqytwe/sub2api/runs/114062110256", "https://github.com/tqytwe/sub2api/actions/runs/37999474389"], "note": "#340 普通 merge 4080e2ac，审核 head e583f585；六项 CI 成功。精确 merge SHA Zeabur 于 22:58:13Z 成功；不等于健康/迁移/用户本机验收通过。"},
         "production": {"status": "pending", "refs": [], "note": "已合并并取得精确部署成功 check；健康/迁移验收及用户本机验收仍待确认。"}
       },
-      "risks": "限定范围已部署，不是全供应商/全端点迁移。后续缓存、WS和compact/工具修复另列；请求台账#351当前13dbf1a虽CI成功但有五组新增审查阻断，未部署，不能用核心结算能力替代全请求可追溯。",
-      "next": "按各条目补生产验收；#351待当前五组阻断关闭与最终head审查/部署事实再更新，不把草稿275当已部署schema。",
+      "risks": "限定核心范围已部署，不是全供应商/全端点迁移。缓存、WS和compact/工具修复另列；台账#351最终82828e1已关闭五组阻断并部署d18d504，运行/健康与SQL275核验确认，固定窗口已有201条结算关联核对无差异。仍有4个unknown待核对，且无WS子轮/异步/其他协议样本、未验证订阅计数器窗口净增量，不能等同生产全请求闭环。",
+      "next": "按各条目补生产和用户本机验收；参考#351固定窗口的限定证据，继续核对4个unknown、订阅计数器净增量及未采样路径，不回填、估费或补扣，也不沿用13db历史阻断。",
       "rollback": "若权限/计费/迁移异常停止推进；旧 binary 可能绕过新限制，回退须保留策略执行，不能清空限制/历史补扣。"
     },
     {
@@ -299,22 +299,22 @@
     {
       "id": "durable-request-ledger",
       "title": "受管请求持久台账与用户/管理员审计视图",
-      "backend_state": "实现中",
-      "product_state": "实现中",
+      "backend_state": "已部署",
+      "product_state": "可测",
       "owner": "待分配",
       "pr": "https://github.com/tqytwe/sub2api/pull/351",
-      "sha": "13dbf1a4289b305a42873bf11bb1d3854910c3bd",
+      "sha": "d18d504ccf12adc9f299cdf14af6ea32c4efe59c",
       "evidence": {
-        "ui": {"status": "recorded", "refs": ["https://github.com/tqytwe/sub2api/blob/13dbf1a4289b305a42873bf11bb1d3854910c3bd/docs/visual-reviews/2026-10-10-request-ledger.md", "https://github.com/tqytwe/sub2api/pull/351"], "note": "新 head 的最终生产资源 + 隔离 PG 浏览器于 09:01 UTC 验证两角色、四视口、浅深色、刷新/分页/键盘、加载/503重试和原 usage 钻取；该技术环境不替代用户本机生产三身份验收。"},
-        "api": {"status": "recorded", "refs": ["https://github.com/tqytwe/sub2api/blob/13dbf1a4289b305a42873bf11bb1d3854910c3bd/docs/archive/completed-tasks/2026-10-10-durable-request-ledger-spec.md", "https://github.com/tqytwe/sub2api/pull/351"], "note": "新 head 记录鉴权前入口身份、可观察发送前 attempt、用户范围隔离及管理员筛选；33 项必需契约明确通过。完整 Realtime/Live/Grok E2E 与不可观察发送仍有边界，不称全请求闭环。"},
-        "schema": {"status": "recorded", "refs": ["https://github.com/tqytwe/sub2api/blob/13dbf1a4289b305a42873bf11bb1d3854910c3bd/backend/migrations/275_gateway_request_ledger.sql"], "note": "草稿 275_gateway_request_ledger.sql 为五表：gateway_ledger_instances、gateway_requests、gateway_request_attempts、gateway_request_billing_links、gateway_request_tasks；2s lock/30s statement timeout。当前 a581d8db 无 275，本迁移未生产应用，不能据编号预占或自动执行。"},
-        "tests": {"status": "recorded", "refs": ["https://github.com/tqytwe/sub2api/blob/13dbf1a4289b305a42873bf11bb1d3854910c3bd/docs/archive/completed-tasks/2026-10-10-durable-request-ledger-review.md", "https://github.com/tqytwe/sub2api/pull/351", "https://github.com/tqytwe/sub2api/actions/runs/38040011450", "https://github.com/tqytwe/sub2api/actions/runs/38040011329", "https://github.com/tqytwe/sub2api/actions/runs/38040011337", "https://github.com/tqytwe/sub2api/actions/runs/38040011327"], "note": "集中修订 head 13dbf1a 普通 merge 83c8dcb 与 a581d8db，8/8 hosted CI 成功。实施线程证据记录最终 make test 08:51:46、build 08:57:51、Fork 09:00:58 UTC 退出0；前端492文件/3506测试通过、既有1文件/2测试跳过；33项真实PG/协议契约明确pass。最后 handler/service unit 重验，不变包按 Git 子树复用08:09完整unit及此前PG证据。上一轮HTTP/SSE、普通请求恢复、注记失败保留原结算及失败零金额展示等已有修复与RED/GREEN证据；它们不覆盖剩余Live/终态/插件身份缺口。旧83历史保留，这些结果不冒充主线程外部组合复核批准。 PR正文09:15:38已明确同一13db有五组新增审查阻断，正在补真实路径RED/GREEN；本记录保留该head技术历史，绿色CI不解除当前阻断。"},
-        "deployment": {"status": "pending", "refs": ["https://github.com/tqytwe/sub2api/pull/351"], "note": "当前远端13dbf1a为draft/open，虽8/8 CI通过，但同一head五组新增审查阻断尚未解除；未合并、未部署。"},
-        "production": {"status": "pending", "refs": [], "note": "275 五表未生产应用；无本功能生产验收，不将已部署 WS 结算或旧 CI 当完整台账完成。"}
+        "ui": {"status": "recorded", "refs": ["https://github.com/tqytwe/sub2api/blob/82828e121ae032201c50346b5052cd7c4915b590/docs/visual-reviews/2026-10-10-request-ledger.md", "https://github.com/tqytwe/sub2api/pull/351"], "note": "最终head的生产资源+隔离PG浏览器10:19:03 UTC通过两角色、四视口、浅深色、权限/列表分页/刷新/键盘/503重试及普通请求原usage7/3和余额98.75核对。批次首批仅钱包引用、无usage钻取；服务器fixture不代替用户本机生产三身份验收，反馈待补。"},
+        "api": {"status": "recorded", "refs": ["https://github.com/tqytwe/sub2api/blob/82828e121ae032201c50346b5052cd7c4915b590/docs/archive/completed-tasks/2026-10-10-durable-request-ledger-spec.md", "https://github.com/tqytwe/sub2api/pull/351"], "note": "限定受管入口/可观察发送前持久门、独立执行/用量/结算轴、用户SQL隔离与管理员筛选已技术验证；最终38/38真实PG/协议必需契约明确pass。第二轮五组缺陷已通过真实路径RED→GREEN及主线程两路独立复审关闭，不是全协议/全物理故障零丢失保证。"},
+        "schema": {"status": "recorded", "refs": ["https://github.com/tqytwe/sub2api/blob/82828e121ae032201c50346b5052cd7c4915b590/backend/migrations/275_gateway_request_ledger.sql", "https://github.com/tqytwe/sub2api/pull/351"], "note": "已合并275_gateway_request_ledger.sql，新增gateway_ledger_instances、gateway_requests、gateway_request_attempts、gateway_request_billing_links、gateway_request_tasks五表；2s lock/30s statement timeout。运行器trim后checksum为38e88e545ddb1a607e371735491cc764a7505351335635148f0618ea936f18a9，原始文件SHA256 ecaf0be340f9b43fa428ab5525399b6d995478ad66b2054bac95779204b151cc，不混用。主线程11:13:29 UTC生产DB核验返回exitCode=0且明确ROLLBACK；275登记时间10:48:51 UTC，checksum完全一致，5表49字段及约束一致、18索引valid/ready。生产DB结论为主线程转述，暂无可公开引用的原始明细；不是本任务独立访问生产或改写迁移。"},
+        "tests": {"status": "recorded", "refs": ["https://github.com/tqytwe/sub2api/blob/82828e121ae032201c50346b5052cd7c4915b590/docs/archive/completed-tasks/2026-10-10-durable-request-ledger-review.md", "https://github.com/tqytwe/sub2api/blob/82828e121ae032201c50346b5052cd7c4915b590/docs/archive/completed-tasks/2026-10-10-request-ledger-evidence/README.md", "https://github.com/tqytwe/sub2api/pull/351", "https://github.com/tqytwe/sub2api/actions/runs/38044552171", "https://github.com/tqytwe/sub2api/actions/runs/38044552173", "https://github.com/tqytwe/sub2api/actions/runs/38044552263", "https://github.com/tqytwe/sub2api/actions/runs/38044552269", "https://github.com/tqytwe/sub2api/blob/6e3977e649a94a94cf880a010add6e23e1aae527/docs/upstream-migrations/v2.10.3/handoff.json"], "note": "准确head82828e1的8checks/4workflows全部成功，两个独立复审确认五组关闭。冻结源码38项PG/协议契约明确pass；本地完整unit09:47:08、make test10:03:43（前端492文件/3506 pass、既有1文件/2测试skip）、build10:07:46、Fork10:16:57 UTC退出0。Live真实WS/Redis/PG注记故障仍保留7/3 token，重复finalize仅一笔0.13，余额100→99.87，无重连；不冒充生产样本。13db当时五组阻断及09:20快照保留为历史，不能继续当当前阻断；旧失败/复验见审查记录。"},
+        "deployment": {"status": "recorded", "refs": ["https://github.com/tqytwe/sub2api/pull/351", "https://github.com/tqytwe/sub2api/commit/d18d504ccf12adc9f299cdf14af6ea32c4efe59c", "https://github.com/tqytwe/sub2api/runs/114196133288"], "note": "GitHub事实为MERGED：10:43:35Z普通merge d18d504，整树4c51f0fb3f96fac39c635a8c7c6ac256f35f2526与最终head82828e1一致；该SHA的Zeabur check于10:48:42Z成功。主线程在环境恢复后于11:09:15及11:30:56 UTC以官方API确认d18唯一RUNNING/READY、旧a581 REMOVED，同次curl health=200。运行态/健康为主线程转述，原始明细未公开；不等于所有自然流量或用户本机验收完成。"},
+        "production": {"status": "pending", "refs": [], "note": "主线程提供固定自然窗口11:14:06.545570–11:29:06.545570 UTC，另加2分钟缓冲，11:31:08查询exitCode=0且明确ROLLBACK，任务已停止。233入口/207 attempts/201精确usage-billing links：169钱包、32订阅（含22套餐）；成功140、流中断44、取消24、失败25，缓冲后inflight=0。无计费关联32=匿名拒绝8+已鉴权拒绝10+非计量查询10+unknown失败4；另2次重试前次unknown、后次有usage并结算，故unknown总6、仍4待核对。201条已有证据无重复usage/扣款，dedup/fingerprint/归属无差异；2笔各1e-8为二次舍入，实际钱包与原结算命令一致。订阅package差异源于比较字段口径错误，改用billing link package_entitlement_id后归属/订阅/分组/套餐引用无差异，尚未验证订阅计数器窗口净增量。真实协议仅Responses、Messages、Chat Completions，无WS子轮/异步/其他协议样本。窗口内usage204=本窗口198+窗口外6，缓冲补本窗口3，不能直接比计数。以上为主线程转述，原始生产明细未公开；用户本机三身份反馈待补，不将unknown判免费、不声称修复历史损失或100%验收。"}
       },
-      "risks": "13dbf1a当前五组阻断：Live帧/usage保留、Live子turn恢复、bridge/图片OAuth终态、native/passthrough失败状态、插件models账号归属。PR正文09:15:38记录正在补真实路径RED/GREEN，尚未修改生产实现或重启全套门禁；不能凭该head绿色CI解除阻断。另有Realtime/Live/Grok完整E2E、WebRTC/插件不可观察发送、batch drilldown、详情分页、lease热点及匿名增长容量边界，不宣称100%全请求可追溯。",
-      "next": "待这五组当前阻断修订、独立复审及最终head门禁后更新同一记录；只补事实，不继承发布权限。另行确认275编号/五表兼容，未授权不执行；旧实例/回滚期不产生新台账，迁移完成不是覆盖起点。",
-      "rollback": "当前五组阻断未关闭不得发布；由主线程完成组合复核与发布决定。后续若上线异常，源码回退仍保留历史台账与旧版本兼容；删表/列/数据另行授权及备份恢复验证，不能改写已部署SQL。"
+      "risks": "首批边界：batch仅钱包引用、无usage钻取；详情attempts/billing子集合未分页、生产容量/lease热点与匿名增长未验证；用户浏览器验收待反馈。窗口unknown总6中4个失败仍待核对，不能判免费；订阅计数器净增量未验证。package引用差异经比较口径修正已关闭，不继续当当前缺陷。真实样本仅Responses/Messages/Chat Completions，不覆盖WS子轮/异步或全Live/Realtime/Grok/direct-image等模式；WebRTC媒体/插件内部重试不可完全观察，旧实例或应用回退窗口不新增台账。此前五组缺陷已在82828e1关闭。",
+      "next": "核对4个unknown与订阅计数器窗口净增量，补WS子轮/异步/其他协议、用户本机三身份和首批容量/分页/batch验收；不回填、不补扣、不将已有201条结算关联一致外推为100%闭环。治理PR的准确SHA/CI交主线程审核合并，本任务不合并或部署。",
+      "rollback": "若发布/健康/权限/账务异常由主线程协调仅回退应用；保留五表、18索引、已存证据和schema_migrations中275行，不改checksum、不DROP/TRUNCATE/DELETE、不执行down migration。回退期新增覆盖中止，不补发/估费/历史补扣；代码/schema兼容结论不是生产回退实测。"
     }
   ],
   "deprecations": [

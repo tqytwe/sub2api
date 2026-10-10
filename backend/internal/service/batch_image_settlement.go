@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
 	"strconv"
 	"strings"
 	"time"
@@ -385,18 +386,33 @@ func BuildBatchImageSettlementManifestHash(job *BatchImageJob) string {
 }
 
 type BatchImagePipelineProcessor struct {
+	Ledger            *requestledger.Ledger
 	ProviderProcessor *BatchImageProviderProcessor
 	SettlementService *BatchImageSettlementService
 	RetryDelay        time.Duration
 }
 
-func (p *BatchImagePipelineProcessor) Process(ctx context.Context, batchID string) (BatchImageProcessResult, error) {
+func (p *BatchImagePipelineProcessor) Process(ctx context.Context, batchID string) (_ BatchImageProcessResult, resultErr error) {
 	if p == nil || p.ProviderProcessor == nil {
 		return BatchImageProcessResult{}, errors.New("batch image pipeline processor is not configured")
 	}
 	job, err := p.ProviderProcessor.Repo.GetBatchImageJobByBatchID(ctx, batchID)
 	if err != nil {
 		return BatchImageProcessResult{}, err
+	}
+	keyID := int64(0)
+	if job.APIKeyID != nil {
+		keyID = *job.APIKeyID
+	}
+	execution, err := p.Ledger.BeginTask(ctx, "image_batch", batchID, job.UserID, keyID, false)
+	if err != nil {
+		return BatchImageProcessResult{}, err
+	}
+	if execution != nil {
+		ctx = requestledger.WithHandle(ctx, execution)
+		defer func() {
+			_ = execution.Finish(ctx, requestledger.Outcome(0, resultErr), 0, requestledger.ErrorCode(resultErr))
+		}()
 	}
 	if job.Status == BatchImageJobStatusSettling {
 		if p.SettlementService == nil {

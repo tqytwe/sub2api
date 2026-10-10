@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
@@ -40,6 +41,9 @@ var gatewayTransportFailoverBody = []byte(`{"type":"error","error":{"type":"upst
 // It deliberately does NOT write to the response: the handler owns the
 // response (failover, or a protocol-correct error once failover is exhausted).
 func (s *GatewayService) handleUpstreamTransportError(ctx context.Context, c *gin.Context, account *Account, err error, event OpsUpstreamErrorEvent) error {
+	if errors.Is(err, requestledger.ErrUnavailable) {
+		return err
+	}
 	if isClientCanceledTransportError(ctx, err) {
 		return err
 	}

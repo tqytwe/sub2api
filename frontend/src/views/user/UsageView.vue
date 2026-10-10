@@ -1,6 +1,7 @@
 <template>
   <AppLayout>
     <div class="space-y-6">
+      <div class="flex justify-end"><RouterLink :to="{ name: 'RequestLedger' }" class="btn btn-secondary">{{ t('requestLedger.title') }}</RouterLink></div>
       <UsageStatsCards
         :stats="usageStats"
         :show-account-cost="false"

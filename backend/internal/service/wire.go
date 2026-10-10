@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
 	"os"
 	"strings"
 	"time"
@@ -1055,6 +1056,7 @@ func ProvideAPIKeyService(
 
 // ProviderSet is the Wire provider set for all services
 var ProviderSet = wire.NewSet(
+	requestledger.NewStarted,
 	// Core services
 	ProvideIPRiskHasher,
 	ProvideIPRiskRuntimeConfig,
