@@ -1,13 +1,15 @@
 {
   "baseline": "726289bdb757e572eac10ab5f12c689c4dc087b5",
   "branch": "codex/p1-subscription-counter-acceptance-20261010",
-  "production_source_changed": false,
+  "production_source_changed": true,
   "production_accessed": false,
   "paid_generation_sent": false,
-  "status": "RED",
+  "status": "LOCAL_MATRIX_PASS_REVIEW_AND_CI_PENDING",
   "source_hashes": {
+    "backend/internal/repository/usage_billing_repo.go": "e63fd9684a54e0a853de75f5b347d5e781ec4b0ed12f872d3989c5256f74844d",
     "backend/internal/billingacceptance/subscription_counter_edges_integration_test.go": "55c42dcacef2206f5c363398f53c17f2a84ef871fcee45907735f55af3532269",
-    "backend/internal/billingacceptance/subscription_counters_integration_test.go": "3a60fe477f7ad393bd26076034ec21fec69568bf0d77af6c86b3992555029de1",
+    "backend/internal/billingacceptance/subscription_counters_integration_test.go": "0769260203ed76c079f3ec08284d38ce155ca635095275b89cda0d5ae09543d0",
+    "backend/internal/billingacceptance/subscription_counter_ownership_integration_test.go": "37239ceadbe8af302ba21b8ecb4a9b51ee6ee9c05bc7dcd0b8457e2d25bb791b",
     "scripts/test-subscription-counters.sh": "a0a3df9c078ea0655b88df850af3eed65926910ec33e21da2a2da2b9f814995b",
     ".github/workflows/subscription-counter-acceptance.yml": "d239e010d4036bf891fb1b9c0c7df0ff599a2a3541ba59d731864e962a2e728d"
   },
@@ -23,13 +25,14 @@
   },
   "checks": {
     "counter_matrix": {
-      "state": "RED",
-      "exit_code": 1,
+      "state": "passed",
+      "exit_code": 0,
       "command": "./scripts/test-subscription-counters.sh '^TestSubscriptionCounterHTTP$' -race",
-      "passed": 27,
-      "failed": 2,
+      "passed": 42,
+      "failed": 0,
       "data_race_diagnostics": false,
-      "log": "counter-matrix.txt"
+      "log": "counter-matrix.txt",
+      "prior_red_log": "counter-matrix-red.txt"
     },
     "focused_race": {
       "state": "passed",
@@ -41,7 +44,7 @@
     "tagged_lint_new_diff": {
       "state": "passed",
       "exit_code": 0,
-      "command": "golangci-lint run --allow-parallel-runners --build-tags=integration,billing_acceptance --new-from-rev=726289bdb757e572eac10ab5f12c689c4dc087b5 ./internal/billingacceptance",
+      "command": "golangci-lint run --allow-parallel-runners --build-tags=integration,billing_acceptance --new-from-rev=726289bdb757e572eac10ab5f12c689c4dc087b5 ./internal/billingacceptance ./internal/repository",
       "result": "0 issues"
     },
     "tagged_lint_existing_baseline": {
@@ -64,7 +67,19 @@
       },
       "first_attempt": "go test ./... passed; concurrent lint process was killed, exit 2; retried with bounded resources",
       "exit_code": 0,
-      "result": "go test ./... passed; golangci-lint: 0 issues"
+      "result": "Low-load post-fix rerun: go test ./... passed; golangci-lint: 0 issues",
+      "post_fix_first_attempt": {
+        "exit_code": 2,
+        "failed_test": "TestOpenAICompactSSEKeepalive_CommitsHeadersAndComments",
+        "file": "backend/internal/service/openai_compact_sse_keepalive_test.go:58",
+        "note": "Unchanged heartbeat test with a 200ms wait failed during concurrent full builds. Isolating and rerunning without changing its assertions."
+      },
+      "isolated_keepalive_recheck": {
+        "exit_code": 0,
+        "runs": 5,
+        "all_passed": true,
+        "assertions_changed": false
+      }
     },
     "frontend_test": {
       "state": "passed",
@@ -74,17 +89,19 @@
       "files_skipped": 1,
       "tests_passed": 3506,
       "tests_skipped": 2,
-      "note": "Existing baseline skips; lint, design governance and typecheck also passed."
+      "note": "Existing baseline skips. Full suite passed before the production backend fix; frontend sources and dependencies remained unchanged. PR CI reruns the full frontend suite."
     },
     "build": {
       "state": "passed",
       "exit_code": 0,
-      "command": "make build"
+      "command": "make build",
+      "post_fix": true
     },
     "fork_integrity": {
       "state": "passed",
       "exit_code": 0,
-      "command": "./scripts/check-fork-integrity.sh"
+      "command": "./scripts/check-fork-integrity.sh",
+      "post_fix": true
     },
     "doc_links": {
       "state": "passed",
@@ -98,6 +115,11 @@
     "independent_review": {
       "state": "pending_main_thread",
       "note": "Author specification/quality checks do not constitute independent review."
+    },
+    "repository_unit": {
+      "state": "passed",
+      "command": "go test -tags=unit ./internal/repository -count=1",
+      "exit_code": 0
     }
   },
   "log_manifest": {
@@ -145,12 +167,76 @@
       "sha256": "2fa966298cd100ea09f4d92c4f1564c32710a7919c7005ca9832608079087498",
       "bytes": 8234,
       "last_write_utc": "2026-10-10T20:51:26.707419+00:00"
+    },
+    "counters-fix-run1.log": {
+      "sha256": "53818f274bb95876c09356a65083db0cc46576c4748256758e508e1906307a78",
+      "bytes": 47707,
+      "last_write_utc": "2026-10-10T20:58:01.028986+00:00"
+    },
+    "ownership-red.log": {
+      "sha256": "9e8107193816f87c2eb606db9501ae1e82344d6abd95d3973808de6798763ee6",
+      "bytes": 64378,
+      "last_write_utc": "2026-10-10T20:55:45.979317+00:00"
+    },
+    "ownership-red-extra.log": {
+      "sha256": "1bf8363b1095909bd6a7539f68602649ce0f43887bba8b517c376596279e4fbb",
+      "bytes": 20758,
+      "last_write_utc": "2026-10-10T20:56:54.148121+00:00"
+    },
+    "fix-diff-lint.log": {
+      "sha256": "e92606b0bf483111dff0a120c315ea165821348f31365020e2468a0059095c47",
+      "bytes": 10,
+      "last_write_utc": "2026-10-10T20:59:33.960623+00:00"
+    },
+    "billing-unit-after-fix.log": {
+      "sha256": "258973f42db9d71c22ac86f36ffcfea9b44a4f29ecfaa669857bbcc2c7b2f80a",
+      "bytes": 1535,
+      "last_write_utc": "2026-10-10T20:58:03.848854+00:00"
+    },
+    "counters-fix-final.log": {
+      "sha256": "6d739de43dde727b29e1831db68e14a8b606bc0a7503a897a7f9dcb3d0e6387c",
+      "bytes": 49001,
+      "last_write_utc": "2026-10-10T21:02:40.123874+00:00"
+    },
+    "fix-test-backend.log": {
+      "sha256": "9e552732741a670abe0eac1aedced9bdb44b39a13f9c51c51b03eb570ef76beb",
+      "bytes": 2276243,
+      "last_write_utc": "2026-10-10T21:03:03.802751+00:00"
+    },
+    "fix-diff-lint-final.log": {
+      "sha256": "e92606b0bf483111dff0a120c315ea165821348f31365020e2468a0059095c47",
+      "bytes": 10,
+      "last_write_utc": "2026-10-10T21:01:39.918710+00:00"
+    },
+    "fix-repository-unit-all.log": {
+      "sha256": "cebb96a1c508b3c2c2216b3a90d9c138324d926cf4d1f2c729bce99ec47a1ed3",
+      "bytes": 61,
+      "last_write_utc": "2026-10-10T20:59:58.671463+00:00"
+    },
+    "fix-build.log": {
+      "sha256": "6890bcc5032d87d32bbc9c58b85281a4064edb692b7d5280b796df921955555a",
+      "bytes": 69329,
+      "last_write_utc": "2026-10-10T21:03:37.173178+00:00"
+    },
+    "fix-fork-integrity.log": {
+      "sha256": "1a11b59fb53cec3b8bdf13cb145c0087687897bcd59c73ff47144ace0ad23417",
+      "bytes": 62760,
+      "last_write_utc": "2026-10-10T21:04:00.620073+00:00"
+    },
+    "keepalive-repro.log": {
+      "sha256": "84c83bf19d874b9839e12b2b8f5cca0056b23e32dd6908105c0678c2e9f84b52",
+      "bytes": 829,
+      "last_write_utc": "2026-10-10T21:03:28.713573+00:00"
+    },
+    "fix-test-backend-retry.log": {
+      "sha256": "62d5309e894ca4899b80fff428f830154f30da11b9942841f923d0df0c6a4f26",
+      "bytes": 8234,
+      "last_write_utc": "2026-10-10T21:07:29.522233+00:00"
     }
   },
   "blockers": [
-    "wrong_group_entitlement_charged",
-    "exhausted_exact_replay_rejected",
-    "independent_review_pending"
+    "independent_review_pending",
+    "ci_pending"
   ],
   "delivery": {
     "commit_pr_ci": "Recorded in the PR description for the commit containing this evidence; CI was not yet run when this immutable local evidence was prepared.",
@@ -159,9 +245,19 @@
   },
   "archived_text_normalization": "Tabs expanded to 8 columns and trailing whitespace removed. Original logs remain in /workspace/p1-evidence; raw SHA-256 digests are recorded in log_manifest.",
   "archived_log_hashes": {
-    "counter-matrix.txt": "82574efabec7c560209520432a4206f0a7aeb2567dbb53dbbb5173131f2d4805",
+    "counter-matrix.txt": "def2b4779d918b8268e60848a680d74a2d6f5080aa5ac5b6e7eba9d37cc9cd85",
+    "counter-matrix-red.txt": "82574efabec7c560209520432a4206f0a7aeb2567dbb53dbbb5173131f2d4805",
+    "validation-output.txt": "3930a0ce8abc5f44229e744f650f5110b488d3e45c95b447b08b1da8ad176639",
     "counter-race.txt": "50c470b00bd10d5568ebcafadad088c814f1e680ad65e43beb3c66fd0ba31505",
     "reference-unit.txt": "f6b5d850be10a0705db745e2fc97fff6146f1d32e606a870563a955ce4f7e51c",
-    "validation-output.txt": "716dffc55ccedddd061e754d97e4c2558b54c6ab9e24fa889d63b30c5f34f0e4"
-  }
+    "tested-source-sha256.txt": "780d25ee3072255cc749c27f3827c36706ea7269e9e26c03c0241e11113410e0"
+  },
+  "production_files_changed": [
+    "backend/internal/repository/usage_billing_repo.go"
+  ],
+  "red_evidence_commit": "c267052ff1cae08b36812d937ef8db8f89bee6b4",
+  "resolved_regressions": [
+    "wrong_group_entitlement_charged",
+    "exhausted_exact_replay_rejected"
+  ]
 }

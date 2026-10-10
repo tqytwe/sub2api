@@ -446,6 +446,7 @@ func TestSubscriptionCounterHTTP(t *testing.T) {
 		}
 	}
 	t.Run("edges", func(t *testing.T) { runCounterEdges(t, db, client) })
+	t.Run("ownership", func(t *testing.T) { runCounterOwnership(t, db, client) })
 }
 
 func (f *counterFixture) assertSettlement(t *testing.T, before counterSnapshot, requests int, multiplier float64, surcharge, frozen bool) {

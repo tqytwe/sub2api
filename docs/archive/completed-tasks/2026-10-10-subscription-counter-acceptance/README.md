@@ -1,8 +1,11 @@
 # P1 isolated subscription/package counter acceptance
 
-Status: **RED / not accepted**. This is test and evidence work, not a production
-fix, deployment, or production/browser sign-off. The shared handoff ledger and
-P0's production billing/Ops files were not changed.
+Status: **local matrix GREEN / independent review and CI pending**. The original
+strict matrix reproduced two defects (27 PASS / 2 RED). With explicit follow-up
+authorization and P0 ownership coordination, only `usage_billing_repo.go` was
+changed in the two ownership/idempotency areas. The expanded full matrix now has
+**42 PASS / 0 FAIL under `-race`**. No merge, deployment, production/browser
+sign-off, shared handoff ledger, gateway writer, or Ops changes are included.
 
 ## Baseline and isolation
 
@@ -37,7 +40,8 @@ Each invocation owns a fresh container/database; an occupied port fails rather
 than reusing or resetting another database. The wrapper removes only its own
 container and anonymous volume. Do not run multiple wrappers simultaneously.
 The new PR-only acceptance workflow runs the full strict matrix, preserving its
-exit status. Known failures are not skips, expected failures, or softened asserts.
+exit status. Original RED assertions remain unchanged; no skips, expected failures,
+or softened assertions were introduced.
 
 The HTTP fixture uses synthetic authentication and a thin routing adapter to
 call the **real** `OpenAIGatewayService.Forward`, production ledger transport,
@@ -74,7 +78,7 @@ multiplier with surcharge configured, frozen request-time peak pricing plus
 surcharge, request/amount/token exhaustion, expiry, invalid ownership, a targeted
 PostgreSQL constraint failure after package increment, retry repair, and reset.
 
-## Reproduced blockers (unchanged baseline production code)
+## Original RED evidence (baseline production code, now fixed)
 
 ### Wrong group entitlement is charged
 
@@ -121,14 +125,54 @@ eligibility checks for a new charge. Do not simply remove eligibility checks or
 change request identities. Review the frozen entitlement binding when doing so;
 current `buildUsageBillingFingerprint` does not include `PackageEntitlementID`.
 
+## Authorized minimal fix and historical semantics
+
+The first RED-only commit is `c267052ff1cae08b36812d937ef8db8f89bee6b4`.
+[Original evidence](./evidence-red.json) and [RED runtime log](./counter-matrix-red.txt)
+are retained beside the [GREEN full matrix](./counter-matrix.txt).
+
+Only `usage_billing_repo.go` changes production behavior:
+
+1. Claim dedup inside the existing transaction, then validate **every** package
+   command before either a replay acknowledgment or a new charge. Failed ownership
+   rolls the uncommitted claim back. Taking quota-row locks after the claim avoids
+   a duplicate waiting on dedup while blocking its first settlement's row update.
+2. Require the frozen request group, actual subscription group and actual package
+   group to agree, including zero multiplier; require both rows to belong to the
+   billing user. Lock subscription then entitlement until transaction end, matching
+   subscription revocation/term-update order. Do not select the current UI package
+   or the API key's mutable current group.
+3. Immutable ownership is distinct from eligibility for a **new** charge. Existing
+   exact live/archive dedup proof may replay after exhaustion, expiry, or real
+   subscription revocation/soft deletion. A new claim still requires a live
+   subscription and the unchanged active/unexpired atomic package increment.
+
+The package service describes entitlements as immutable quota snapshots. Inspection
+of package creation, renewal/term updates, reset and revocation found no supported
+entitlement group-transfer operation. API-key group reassignment is covered and
+retains the request's frozen billing group. No prices, quota limits, fingerprint
+format, operating rules, schema or package-selection rules were changed.
+
+Thirteen added regressions cover zero-price wrong group/subscription, mutable key
+reassignment, a matching legacy fingerprint with a forged frozen group, new private
+requests following an existing dedup with wrong user/group, two concurrent private
+HTTP requests with four duplicate callbacks each, and eight concurrent
+historical callbacks in each of exhausted/expired/revoked × live/archive cases.
+Real `RevokeSubscription` is used for revoked cases; all six counters remain fixed,
+proof stays verified, and one settled usage remains.
+
+The legacy fingerprint still omits `PackageEntitlementID`; this patch does not
+change its format or claim to solve arbitrary same-group entitlement substitution.
+Frozen ledger-binding hardening remains a separate coordination point with P0.
+
 ## Review and delivery
 
 Author specification and quality checks covered the independent price oracle, four token buckets,
 real writer/repository use, exact row cardinalities, rollback injection point,
 strict errors, callback synchronization, private-ID separation, nullable billed
-amounts, local-only network guard, and preservation of production files.
+amounts, local-only network guard, and confinement of production changes to the authorized two areas.
 An independent reviewer must review the final diff and both RED reproductions
-before this task can be accepted. A draft evidence PR is not merge approval.
+before this task can be accepted. A draft PR is not merge approval.
 
 Run results, exact tested file hashes, validation outcomes, and outstanding gates
 are recorded in [evidence.json](./evidence.json), [counter-matrix.txt](./counter-matrix.txt),
