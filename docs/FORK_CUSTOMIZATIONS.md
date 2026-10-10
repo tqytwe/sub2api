@@ -73,6 +73,7 @@
 - 关键位置：`backend/internal/server/routes/play.go`、`backend/internal/server/routes/admin.go`、`backend/internal/service/setting_play_runtime.go`、`backend/internal/service/play_hub.go`、`backend/internal/service/play_admin_team_repair.go`、`backend/internal/service/play_growth_eligibility.go`、`backend/internal/service/play_growth_governance.go`、`backend/internal/repository/play_repo_admin_team_repair.go`、`backend/internal/repository/play_repo_growth_eligibility.go`、`backend/internal/repository/play_repo_growth_governance.go`、`frontend/src/views/user/PlayHubView.vue`、`frontend/src/views/admin/PlayOpsView.vue`、`frontend/src/content/play-features.ts`。
 - 冲突策略：保留上游共享支付、用户与用量修复；Play 表、路由、设置和奖励账本不得被移除或绕过。
 - 验证：Play service tests、`play_admin_team_repair_test.go`、真实 PostgreSQL `play_repo_team_integration_test.go`、`play_handler_team_repair_test.go`、`play_admin_routes_test.go`、`PlayOpsView.spec.ts`、`admin.play.teamRepair.spec.ts`、`adminPlayOpsParity.spec.ts`、`public_growth_teaser_test.go` 和相关前端 utils tests；线上逐项检查开关关闭和开启状态，并由本地管理员浏览器完成中英文、浅色和深色战队修复验收。
+- 签到错误契约验证：`./scripts/test-checkin-contract.sh`（真实 PostgreSQL→HTTP→Axios/Vue）、`CheckInView.errors.spec.ts`（真实 HTTP 错误与超时）；[P1 证据](./archive/completed-tasks/2026-10-checkin-errors/README.md)。UI 按归一化 `reason` 识别重复/资格错误，补签拒绝后刷新；不恢复历史审批门禁、不改奖励规则。
 
 ## FORK-IMAGE-004 图像工作室
 
