@@ -173,8 +173,69 @@ PR346 已按根线程授权合入；保留它的 claim、快照与结算算法�
 
 - 09:01:27 / 09:01:29 / 09:01:36 UTC：最终production assets+新隔离PG的三项浏览器脚本全部退出0；两角色无pageerror，四档视口与刷新、辅助下载、英文、分页、加载/503重试、键盘/空态、原usage7/3、已结算1.25及同库余额98.75均通过。测试服务09:01:36退出0，没有停止生产服务。代表性最终截图已目视核验。
 
-## 集中修订复核结论
+## 首次集中修订复核结论（13db，已被第二轮阻塞）
 
 执行线程按规格与质量两轮复核了根线程独立审查所列问题：每项修复保留RED与实际PG/业务路径GREEN；全部33项CI必需契约均明确执行通过。最后组合的完整make test（lint 0 issues、前端3506 pass）、make build、Fork与真实API浏览器门禁通过。108个源码/CI文件冻结后未变更，最终提交前再次核对；最后提交的GitHub CI及根线程独立组合复核仍以PR为准，不冒充外部批准。
 
 证据索引：[`2026-10-10-request-ledger-evidence/`](./2026-10-10-request-ledger-evidence/)。摘要仅含命令、时间、退出码、测试名称、源码哈希及合成身份浏览器结果，不提交原始请求、正文、凭据或生产数据。已知能力/容量与批次drilldown边界仍按规格保留。
+
+
+## 第二轮独立审查修订（13db 后续）
+
+已发布 `13dbf1a4289b305a42873bf11bb1d3854910c3bd` 的四个 workflows 全绿（Security 38040011337、Core Migration 38040011329、Ledger 38040011450、Fork 38040011327），但独立审查发现以下五组阻塞。旧 CI 不能证明修订通过，PR 保持 draft，由根线程对新 SHA 增量复审。
+
+| 阻塞 | RED：实际业务路径 | 修订与 GREEN |
+| --- | --- | --- |
+| Live 已收到 frame 的审计注记失败被当成 transport read error，丢失原 Redis/结算用量 | 09:20:58，真实 WS + PostgreSQL constraint 故障：Redis 0、原 outbox 快照 0、余额未扣、charge 0 | ReadFrame 保留真实 frame，固定安全日志；Observe 完成清理后返回注记错误。09:28:12 实际 Redis 7/3、原 PG outbox 快照 7/3、wallet 100→99.87、usage 0.13；重复 done/finalize 仅一笔 charge，只有一次连接 |
+| Live async_execution child 的 attempt 终态失败使健康 owner 永久保护已退出 turn | 09:17:29，实际 Observe 与 Close 两条路径均保留 inflight | attempt 与 turn 终态均尝试，async_execution 结束释放 child liveness；同 owner Recover 后 interrupted/usage_unknown |
+| WS→HTTP bridge 与 OAuth images 缺少业务 parser 终态回调 | 09:17:29，bridge bare error→completed、>128KiB completed；真实 forwardOpenAIImagesOAuth Responses backend 非流/流 completed 均失败 | 在既有业务 parser 获取 type/status，关联精确 attempt；流提前返回及非流 EOF 的真实路径均保存 succeeded |
+| native/passthrough nil error 被误作成功，覆盖 incomplete/done failed/cancelled | 09:17:29，两路径共 10 个非成功变体失败，2 个成功对照通过 | 使用实际 event type 与 response.status；[DONE] 仅后备，不覆盖语义终态；所有 12 个变体通过 |
+| models 插件拿到 credential account 后覆盖 scheduled ID | 09:17:29，实际 PluginManager/runtime/双向协议发送点 PG 中 scheduled=22，期望234 | 新 BeginRoutedAttempt 仅恢复 context 内已验证 scheduled identity；插件仍收到母账号22，发送前 PG 为234/22；不改变路由、rollout或headers |
+
+09:25:29 的首次组合 GREEN 命令退出1：bridge/images 与实际 Live 结算通过；native/passthrough、Live child、plugin、healthy-owner 的 PG fixture Ping 在30秒未就绪，业务断言没有运行，不能算通过。清理本任务一小时前的可再生 Go cache（2,632,422,457 bytes，3952 files）后为 fixture 增加容器末40行诊断，未改超时或断言；没有留存首次失败的容器诊断，不能认定磁盘就是根因。
+
+09:26:23–09:28:12，`review2-green-complete` 退出0。五组新回归与原 healthy-owner/models cache 回归均明确通过。09:31:43 冻结最终源码并启动全台账矩阵；冻结前补充的 nil context 兼容保护也已包含在清单内，最终门禁以本节后续结果为准。
+
+### 规格复审
+
+- 发送前入口/attempt 持久门仍同步且失败拒绝当前发送；只有已经收到上游 frame 之后的审计注记故障允许原业务使用真实数据，不能触发重放。
+- 终态回调传递业务已解析的类型/状态，不存正文、不重新估算用量。执行/用量/结算三轴独立；Live 审计未知不会伪造成零费用，父级原结算可被核对。
+- 每次结束都释放已退出处理的 liveness；保留健康工作保护和跨 owner 租约边界。恢复不补发、不补扣。
+- 插件依然接收原 credential account，台账独立保留 scheduled/mother，未扩大插件内部可观测范围。
+- 本轮无迁移、API查询、UI或收费策略变化；不把 Responses image 回归声称为所有图像供应商或所有 Live 模式的完整端到端矩阵。`openai_images.go` 的 direct-image `image_generation.*` 专用流（尤其无[DONE]）没有新增真实终态回归，不能用本次四项bridge/Responses-image通过为其背书。
+
+### 代码质量复审
+
+检查了 nil receiver/context 兼容、defer 与 body close 顺序、锁内终态/清理、固定日志枚举、实际 terminal status 映射及插件 identity 匹配条件。真实结算测试通过仅 test 编译的导出 fixture 注入原 PG repository，避免生产 service→repository 导入及生产测试开关；外部测试包使用一次性 Redis/PG。新五项均列入 CI 强制执行，要求38项明确 pass，跳过不能代替。
+
+未修改既有收费、dedup、快照、订阅或wallet算法。新的完整门禁与最终源码哈希归档到相邻 evidence 目录；原RED、fixture失败和旧门禁仍保留为历史，不混作新 head 的通过证明。
+
+- 09:35:11 UTC：最终 PG 全矩阵命令退出1。核心82.940s、API15.610s、handler8.395s、routes13.810s、repository25.072s均明确通过；service编译因缺少缓存archive而失败。09:34:46清理本任务大型旧archive时，误删了运行中compiler仍引用的ent/redis文件，日志给出精确缺失路径，属于执行线程缓存维护错误；不是业务测试通过，也不能归因应用。所有后续门禁链已自动停止。保留失败记录，不改源码/断言，停止编译后重新构建受影响service。后续禁止在运行中的编译期间清理缓存。
+
+- 09:39:07 UTC：受影响 service 完整台账集成矩阵重建后退出0，实际84.687s。最终冻结源码的38/38必需契约全部明确pass；五个先前通过包与本次service组合构成完整矩阵，原整条命令exit1仍保留，不伪改。09:39:09开始完整tag=unit门禁，随后串行make test/build/Fork及最终生产资源浏览器。
+
+- 09:47:08 UTC：完整 `make test-backend-unit` 退出0；随后在无编译进程的门禁间隙清理本任务可再生大型cache（1,465,493,174 bytes / 18 files），09:47:09开始 `make test`。后续空间维护仅在同步门禁结束后的安全边界运行，记录在执行环境 `ledger-review2-boundary-cache.jsonl`。
+
+- 10:03:43 UTC：完整 `make test` 退出0，普通后端全部通过、golangci-lint 0 issues、前端设计治理/ESLint/类型通过；前端492文件/3506 tests pass，既有1文件/2 tests skip。10:03:44开始生产构建；之前仅在空闲门禁边界清理11个大型可再生cache条目（837,654,210 bytes）。
+
+- 10:07:46 UTC：完整 `make build` 退出0，后端CGO=0/trimpath发布二进制与前端生产构建通过。10:07:47开始完整Fork检查；空闲边界清理6个可再生大型cache条目（466,836,486 bytes），未在编译中清理。
+
+- 10:16:57 UTC：完整 `./scripts/check-fork-integrity.sh` 退出0，文档、静态及受保护前后端行为全部通过。10:17:00开始最后生产资源+隔离PG浏览器fixture；此前安全边界清理19个可再生大型cache条目（1,464,570,896 bytes），没有并行编译。
+
+代表性最终截图已目视核验：管理员英文usage/母账号详情、普通用户360px列表、管理员深色列表；没有将旧截图当作本次通过证明。
+
+### 第二轮最终冻结门禁
+
+| 门禁 | 结果 | 实际命令 |
+| --- | --- | --- |
+| `review2-final-service-pg` | 09:39:07 UTC，exit0 | `go test -tags=integration ./internal/service -run RequestLedger|LedgerPostgres|LedgerKilledProcess|LedgerStorage -count=1 -timeout=12m -json` |
+| `review2-final-unit` | 09:47:08 UTC，exit0 | `make test-backend-unit` |
+| `review2-final-test` | 10:03:43 UTC，exit0 | `make test` |
+| `review2-final-build` | 10:07:46 UTC，exit0 | `make build` |
+| `review2-final-fork` | 10:16:57 UTC，exit0 | `./scripts/check-fork-integrity.sh` |
+| `review2-browser-fixture` | 10:19:04 UTC，exit0 | `go test -tags=integration ./internal/requestledger/acceptance -run ^TestRequestLedgerBrowserFixture$ -count=1 -timeout=22m -v` |
+| `review2-browser-responsive` | 10:18:53 UTC，exit0 | `node /tmp/ledger-visual/verify.cjs` |
+| `review2-browser-states` | 10:18:56 UTC，exit0 | `node /tmp/ledger-visual/states.cjs` |
+| `review2-browser-detail` | 10:19:03 UTC，exit0 | `node /tmp/ledger-visual/final-states.cjs` |
+
+全部38项CI必需contract明确pass；113个源码/测试/CI文件与冻结清单一致。最终浏览器复验使用最后生产构建、隔离PG与合成身份；两角色刷新、权限、分页、主题/视口、真实原usage及余额对账均按脚本执行，不代替用户本地生产验收。PR新SHA的GitHub CI及根线程增量独立复审仍以PR记录为准。

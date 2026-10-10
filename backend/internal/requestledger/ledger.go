@@ -246,7 +246,7 @@ func (h *Handle) Finish(ctx context.Context, state string, status int, code stri
 	if h == nil {
 		return nil
 	}
-	defer h.ledger.forget(h.ID, h.kind == "ws_session")
+	defer h.ledger.forget(h.ID, h.kind == "ws_session" || h.kind == "async_execution")
 	ctx, cancel := detachedWrite(ctx)
 	defer cancel()
 	_, err := h.ledger.db.ExecContext(ctx, `WITH closing AS (

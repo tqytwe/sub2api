@@ -1,8 +1,8 @@
 # 台账集中修订证据
 
-`local-gates.json` 只保存真实执行的命令、起止时间与退出码。失败记录保留，不将后续修复冒充最初通过。`required-contract-results.json` 汇总最后适用源码上的33项明确执行结果；无跳过替代。源码不变的核心/API/路由测试证据按审查记录复用，其余在a581组合重验。
+`local-gates.json` 只保存真实执行的命令、起止时间与退出码。失败记录保留，不将后续修复冒充最初通过。`required-contract-results.json` 汇总最后适用源码上的38项明确执行结果；无跳过替代。第二轮修订重新执行所有相关PG包；编译失败的原矩阵保留，受影响service须单独重建并通过。
 
-`main348-subtree-comparison.json` 保存合并前后Git对象：repository差异仅为主线新增集成测试；handler/service必须重验。生产源码、测试和CI的最后文件哈希见`final-source-sha256.json`。
+`main348-subtree-comparison.json` 保存合并前后Git对象：repository差异仅为主线新增集成测试；handler/service必须重验。生产源码、测试和CI的最后113个文件哈希见`final-source-sha256.json`，冻结后逐文件核验。第二轮五组RED、首次fixture未就绪以及完整GREEN逐案例结果在`review2-regressions.json`；不包含原始请求、响应或错误正文。
 
 浏览器结果来自生产构建静态资源、隔离PostgreSQL、fake upstream及合成身份，不是生产验收。真实原账务扣费为fixture余额100→98.75、usage7/3、已结算1.25。只读错误注入不冒充上游协议测试。截图在visual-reviews目录。
 

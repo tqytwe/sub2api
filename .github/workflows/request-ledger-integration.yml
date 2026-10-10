@@ -66,6 +66,11 @@ jobs:
               "TestRequestLedgerModelsCacheRefreshKeepsDurableChild",
               "TestRequestLedgerModelsCacheStorageFailureNeverSends",
               "TestRequestLedgerImageBackfillKeepsGenerationAttribution",
+              "TestRequestLedgerLiveAuditFailurePreservesRedisAndSettlement",
+              "TestRequestLedgerLiveStoppedTurnRecoversHealthyOwner",
+              "TestRequestLedgerBridgeAndOAuthImagesTerminal",
+              "TestRequestLedgerNativeAndPassthroughTerminalStatus",
+              "TestRequestLedgerModelsPluginPreservesScheduledAccount",
 
               "TestLedgerPostgresMigrationLockTimeoutPreservesEvidence",
               "TestLedgerPostgresPanicPreservesAlreadyWrittenHTTPStatus",

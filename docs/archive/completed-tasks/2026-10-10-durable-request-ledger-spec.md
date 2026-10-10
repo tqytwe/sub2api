@@ -43,9 +43,10 @@ balance_transactions、subscription/package entitlement；只有可验证结算�
 1. 入口写入失败：503 + Retry-After，固定安全错误码 `request_ledger_unavailable`，不鉴权、不选路、不发上游。
 2. 身份/attempt 写入失败：停止当前请求的后续上游发送；未输出 HTTP 返回 503；已升级 WS 安全错误并终止该 turn。
 3. 上游发送后终态写失败：已提交入口和 attempt 保留；健康实例也会回收已结束处理但终态写失败的记录；进程退出后通过租约恢复为 interrupted、待核对。
-4. 不修改生产配置，不全局关闭平台，不依赖 Redis 或 best-effort 日志队列作为唯一凭据。
-5. 增加每个入口、鉴权绑定和每次发送的 PG 写入与延迟；匿名流量也占持久容量。同实例入口会更新一行 lease，存在写入热点；生产吞吐/容量尚未压测，不作吞吐承诺。
-6. PG 无法写入时无法在同一 PG 保存新的拒绝记录；不会声称 100% 永不丢。TLS/HTTP 解析前、
+4. 已收到上游响应后的审计注记失败：保留已提交入口/attempt，固定安全错误日志，仍将真实 frame/usage 交给原用量聚合和结算；不能将注记错误伪装为传输错误而重连、重放或丢弃已知用量。执行退出必须释放 liveness 供恢复核对。
+5. 不修改生产配置，不全局关闭平台，不依赖 Redis 或 best-effort 日志队列作为唯一凭据。
+6. 增加每个入口、鉴权绑定和每次发送的 PG 写入与延迟；匿名流量也占持久容量。同实例入口会更新一行 lease，存在写入热点；生产吞吐/容量尚未压测，不作吞吐承诺。
+7. PG 无法写入时无法在同一 PG 保存新的拒绝记录；不会声称 100% 永不丢。TLS/HTTP 解析前、
    反向代理拒绝、机器或所有持久介质同时损坏在应用台账能力边界之外。
 
 ## 受管路由清单
@@ -118,7 +119,7 @@ PR346 原 head 为 `edee1a0a57ccfaf0044c1c2edd4c1da6062854e6`；按根线程授�
 | HTTP/SSE/Responses WS | 每次可见发送前提交 attempt；实际入站 WS 两 turn，各自 usage 状态 | HTTP/SSE 截断/超时/取消、原生 Responses 服务路径；没有声称所有供应商端到端完成 |
 | 账务引用 | 在既有事务中验证 dedup，与 wallet/subscription/package/usage 原记录关联 | 故障注入证明余额/去重一起回滚，重试不重扣；台账不发起补扣 |
 | 异步图像/批次/视频 | 提交先绑定任务，worker 新请求关联持久父记录，wallet capture/release 只读恢复 | 批次真实 fake HTTP、移动视频 provider、真实钱包恢复；不是完整第三方任务生命周期实测 |
-| Realtime/Live | 显式 response.create 先记 turn，输入流先记 attempt，服务端自动 turn 观察时记独立身份 | 真实 PG 状态机测试及已有协议测试；自动 turn 的触发身份不能在收到事件之前知道 |
+| Realtime/Live | 显式 response.create 先记 turn，输入流先记 attempt，服务端自动 turn 观察时记独立身份 | 真实 PG 状态机、Live 实收 WS frame+审计故障+Redis+原PG结算回归；自动 turn 的触发身份不能在收到事件之前知道，未覆盖全部模式 |
 
 ### 明确未证实或无法观察的范围
 

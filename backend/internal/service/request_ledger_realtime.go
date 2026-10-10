@@ -120,10 +120,9 @@ func (a *realtimeLedgerAudit) AfterWrite(cause error) {
 
 func (a *realtimeLedgerAudit) finish(turn *realtimeLedgerTurn, state string, cause error) error {
 	ctx := requestledger.WithHandle(a.ctx, turn.handle)
-	if err := turn.attempt.Finish(ctx, 0, cause); err != nil {
-		return err
-	}
-	return requestledger.FinishTurn(ctx, state, cause)
+	attemptErr := turn.attempt.Finish(ctx, 0, cause)
+	turnErr := requestledger.FinishTurn(ctx, state, cause)
+	return errors.Join(attemptErr, turnErr)
 }
 func (a *realtimeLedgerAudit) Observe(payload []byte) error {
 	if !a.enabled() {
@@ -172,12 +171,11 @@ func (a *realtimeLedgerAudit) Observe(payload []byte) error {
 	if !terminal {
 		return nil
 	}
+	var usageErr error
 	input := gjson.GetBytes(payload, "response.usage.input_tokens")
 	output := gjson.GetBytes(payload, "response.usage.output_tokens")
 	if input.Type == gjson.Number && output.Type == gjson.Number && input.Float() >= 0 && output.Float() >= 0 {
-		if err := turn.attempt.ObserveUsage(ctx); err != nil {
-			return err
-		}
+		usageErr = turn.attempt.ObserveUsage(ctx)
 	}
 	state := "succeeded"
 	var cause error
@@ -205,7 +203,7 @@ func (a *realtimeLedgerAudit) Observe(payload []byte) error {
 		cause = errors.New("upstream terminal incomplete")
 	}
 	delete(a.active, id)
-	return a.finish(turn, state, cause)
+	return errors.Join(usageErr, a.finish(turn, state, cause))
 }
 func (a *realtimeLedgerAudit) Close(cause error) {
 	if !a.enabled() {

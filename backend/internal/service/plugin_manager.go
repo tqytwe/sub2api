@@ -966,7 +966,7 @@ func (m *PluginManager) RoundTripOpenAIOAuth(ctx context.Context, request *http.
 	if !route.runtime.beginRequest() {
 		return nil, true, errors.New("OpenAI OAuth 插件正在停止")
 	}
-	attempt, err := requestledger.BeginAttempt(ctx, account.ID, ledgerCredentialAccountID(account))
+	attempt, err := requestledger.BeginRoutedAttempt(ctx, account.ID, ledgerCredentialAccountID(account))
 	if err != nil {
 		route.runtime.finishRequest()
 		return nil, true, err

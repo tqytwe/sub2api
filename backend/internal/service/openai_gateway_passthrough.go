@@ -1960,14 +1960,16 @@ func (s *OpenAIGatewayService) handleStreamingResponsePassthrough(
 	sawResponseFailed := false
 	terminalEventType := ""
 	ledgerAttempt := requestledger.CurrentAttempt(ctx)
+	ledgerTerminalType, ledgerTerminalStatus := "", ""
 	defer func() {
-		if sawTerminalEvent || sawDone {
+		if ledgerTerminalType != "" {
+			observeLedgerResponsesTerminal(ledgerAttempt, ledgerTerminalType, ledgerTerminalStatus)
+		} else if sawTerminalEvent || sawDone {
+			// [DONE] is a fallback only; it cannot overwrite an explicit
+			// failed, incomplete, or cancelled Responses terminal.
 			state := "succeeded"
-			if sawFailedEvent || responseErr != nil {
+			if sawFailedEvent {
 				state = "failed"
-			}
-			if terminalEventType == "response.cancelled" {
-				state = "cancelled"
 			}
 			ledgerAttempt.ObserveStreamTerminal(state)
 		}
@@ -2243,6 +2245,7 @@ func (s *OpenAIGatewayService) handleStreamingResponsePassthrough(
 				sawTerminalEvent = true
 				if trimmedData != "[DONE]" {
 					terminalEventType = eventType
+					ledgerTerminalType, ledgerTerminalStatus = eventType, gjson.GetBytes(dataBytes, "response.status").String()
 				}
 			}
 			if sanitizedData, sanitized := sanitizeOpenAIResponseFailedEventForClient(

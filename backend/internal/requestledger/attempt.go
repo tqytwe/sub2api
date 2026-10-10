@@ -74,6 +74,19 @@ func BeginAttempt(ctx context.Context, accountID, credentialAccountID int64) (*A
 	return beginAttempt(ctx, accountID, credentialAccountID, "request", true)
 }
 
+// BeginRoutedAttempt preserves the scheduled identity when a plugin is passed
+// the resolved credential account. It does not change plugin routing or headers.
+func BeginRoutedAttempt(ctx context.Context, accountID, credentialAccountID int64) (*Attempt, error) {
+	if ctx == nil {
+		return BeginAttempt(ctx, accountID, credentialAccountID)
+	}
+	if identity, ok := ctx.Value(accountKey{}).(accountIdentity); ok && identity.credential == credentialAccountID &&
+		(accountID == identity.scheduled || accountID == identity.credential) {
+		accountID = identity.scheduled
+	}
+	return BeginAttempt(ctx, accountID, credentialAccountID)
+}
+
 func BeginConnectionAttempt(ctx context.Context, accountID, credentialAccountID int64) (*Attempt, error) {
 	return beginAttempt(ctx, accountID, credentialAccountID, "ws_connect", true)
 }

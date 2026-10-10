@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	_ "github.com/lib/pq"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"os"
 	"os/exec"
@@ -42,7 +43,11 @@ func NewWithDSN(t *testing.T) (*sql.DB, string) {
 	db, err := sql.Open("postgres", dsn)
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = db.Close() })
-	require.Eventually(t, func() bool { return db.PingContext(ctx) == nil }, 30*time.Second, 100*time.Millisecond)
+	if !assert.Eventually(t, func() bool { return db.PingContext(ctx) == nil }, 30*time.Second, 100*time.Millisecond) {
+		logs, _ := exec.Command("docker", "logs", "--tail", "40", name).CombinedOutput()
+		t.Logf("Disposable PostgreSQL startup diagnostics: %s", logs)
+		t.FailNow()
+	}
 	_, source, _, _ := runtime.Caller(0)
 	content, err := os.ReadFile(filepath.Join(filepath.Dir(source), "..", "..", "..", "migrations", "275_gateway_request_ledger.sql"))
 	require.NoError(t, err)
