@@ -401,8 +401,9 @@ type OpsUpstreamErrorEvent struct {
 	DroppedEarlierAttempts int `json:"dropped_earlier_attempts,omitempty"`
 
 	// Outcome
-	UpstreamStatusCode int    `json:"upstream_status_code,omitempty"`
-	UpstreamRequestID  string `json:"upstream_request_id,omitempty"`
+	UpstreamStatusCode       int                       `json:"upstream_status_code,omitempty"`
+	UpstreamRequestID        string                    `json:"upstream_request_id,omitempty"`
+	ResponsesCacheDiagnostic *ResponsesCacheDiagnostic `json:"responses_cache_diagnostic,omitempty"`
 
 	// UpstreamURL is the actual upstream URL that was called (host + path, query/fragment stripped).
 	// Helps debug 404/routing errors by showing which endpoint was targeted.
@@ -441,6 +442,7 @@ func appendOpsUpstreamError(c *gin.Context, ev OpsUpstreamErrorEvent) {
 	if c == nil {
 		return
 	}
+	attachResponsesCacheDiagnostic(c, &ev)
 	if ev.AtUnixMs <= 0 {
 		ev.AtUnixMs = time.Now().UnixMilli()
 	}
