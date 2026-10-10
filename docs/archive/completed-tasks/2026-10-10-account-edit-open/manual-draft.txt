@@ -1,0 +1,10 @@
+{
+  "status": "GREEN",
+  "scenario": "held Edit chunk -> create account draft -> late chunk failure",
+  "navigations": 1,
+  "create_form_count": 1,
+  "draft_retained": true,
+  "writes": 0,
+  "sql_count_unchanged": true
+}
+PASS draft preserved; cancel does not write; explicit reload after restoration opens editor; cancel/reopen succeeds; no automatic reload

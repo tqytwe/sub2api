@@ -1,0 +1,18 @@
+
+> sub2api-frontend@1.0.0 test:run /workspace/account-edit-fix/frontend
+> pnpm design:check && vitest run
+
+
+> sub2api-frontend@1.0.0 design:check /workspace/account-edit-fix/frontend
+> node ../scripts/check-frontend-design-governance.mjs
+
+[design-governance] new visual-contract violations found:
+
+- docs/visual-reviews/2026-10-10-account-edit-open.md [visual-evidence]: visual review artifacts are invalid
+  artifact does not exist: docs/visual-reviews/assets/account-edit-open/same-page-draft-green.png
+- frontend/src/i18n/locales/en/admin/accounts.ts, frontend/src/i18n/locales/zh/admin/accounts.ts, frontend/src/views/admin/AccountsView.vue [visual-evidence]: visible files are not mapped by any visual review manifest
+  List every visible changed file in manifest.changed_files.
+
+Use the shared design system, or add a reviewed comment `design-governance-allow: <rule> - <concrete reason>`.
+ ELIFECYCLE  Command failed with exit code 1.
+ ELIFECYCLE  Command failed with exit code 1.

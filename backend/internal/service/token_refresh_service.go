@@ -83,6 +83,8 @@ type TokenRefreshService struct {
 
 	// Test-only duration seam; production uses TokenRefreshConfig seconds.
 	attemptTimeoutOverride time.Duration
+	// Instance-local clock seam for deadline-boundary tests; nil uses time.Now.
+	deadlineNow func() time.Time
 }
 
 // NewTokenRefreshService 创建token刷新服务
@@ -840,7 +842,7 @@ func (s *TokenRefreshService) refreshWithRetryWithRateGate(
 	maxRetries := s.maxRetries()
 
 	for attempt := 1; attempt <= maxRetries; attempt++ {
-		if err := ctx.Err(); err != nil {
+		if err := oauthRefreshContextErr(ctx, s.deadlineNow); err != nil {
 			return err
 		}
 		releaseAttempt := func() {}
@@ -904,8 +906,10 @@ func (s *TokenRefreshService) refreshWithRetryWithRateGate(
 			if releaseRate != nil {
 				releaseRate()
 			}
-			attemptTimedOut := errors.Is(attemptCtx.Err(), context.DeadlineExceeded) && ctx.Err() == nil
-			if err == nil && newCredentials != nil && !attemptTimedOut {
+			if err == nil {
+				err = oauthRefreshContextErr(attemptCtx, s.deadlineNow)
+			}
+			if err == nil && newCredentials != nil {
 				newCredentials["_token_version"] = time.Now().UnixMilli()
 				if saveErr := persistAccountCredentials(attemptCtx, s.accountRepo, account, newCredentials); saveErr != nil {
 					err = fmt.Errorf("failed to save credentials: %w", saveErr)
@@ -914,7 +918,7 @@ func (s *TokenRefreshService) refreshWithRetryWithRateGate(
 				}
 			}
 		}
-		attemptTimedOut := errors.Is(attemptCtx.Err(), context.DeadlineExceeded) && ctx.Err() == nil
+		attemptTimedOut := errors.Is(oauthRefreshContextErr(attemptCtx, s.deadlineNow), context.DeadlineExceeded) && oauthRefreshContextErr(ctx, s.deadlineNow) == nil
 		cancelAttempt()
 		releaseAttempt()
 		persistedAfterAttemptDeadline := attemptTimedOut && credentialsPersisted && err == nil
@@ -934,7 +938,7 @@ func (s *TokenRefreshService) refreshWithRetryWithRateGate(
 		}
 
 		if err == nil {
-			if ctxErr := ctx.Err(); ctxErr != nil {
+			if ctxErr := oauthRefreshContextErr(ctx, s.deadlineNow); ctxErr != nil {
 				if credentialsPersisted {
 					s.postRefreshStateSyncWithCleanup(ctx, account)
 				}
@@ -951,7 +955,7 @@ func (s *TokenRefreshService) refreshWithRetryWithRateGate(
 			s.postRefreshActions(ctx, account)
 			return nil
 		}
-		if ctxErr := ctx.Err(); ctxErr != nil {
+		if ctxErr := oauthRefreshContextErr(ctx, s.deadlineNow); ctxErr != nil {
 			if credentialsPersisted {
 				s.postRefreshStateSyncWithCleanup(ctx, account)
 			}
@@ -1063,13 +1067,13 @@ func (s *TokenRefreshService) refreshWithRetryWithRateGate(
 				select {
 				case <-ctx.Done():
 					timer.Stop()
-					return ctx.Err()
+					return oauthRefreshContextErr(ctx, s.deadlineNow)
 				case <-timer.C:
 				}
 			}
 		}
 	}
-	if err := ctx.Err(); err != nil {
+	if err := oauthRefreshContextErr(ctx, s.deadlineNow); err != nil {
 		return err
 	}
 

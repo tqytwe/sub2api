@@ -1,0 +1,9 @@
+PASS apikey/complete: open/cancel/reopen; double-submit single write; payload fields -> SQL -> GET -> full editor control readback
+PASS apikey/null: open/cancel/reopen; double-submit single write; payload fields -> SQL -> GET -> full editor control readback
+PASS apikey/legacy: open/cancel/reopen; double-submit single write; payload fields -> SQL -> GET -> full editor control readback
+PASS oauth/complete: open/cancel/reopen; double-submit single write; payload fields -> SQL -> GET -> full editor control readback
+PASS oauth/null: open/cancel/reopen; double-submit single write; payload fields -> SQL -> GET -> full editor control readback
+PASS oauth/legacy: open/cancel/reopen; double-submit single write; payload fields -> SQL -> GET -> full editor control readback
+locator.waitFor: Timeout 30000ms exceeded.
+Call log:
+[2m  - waiting for getByText('Local injected detail failure', { exact: true }) to be visible[22m

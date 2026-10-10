@@ -1,0 +1,41 @@
+{
+  "base": "7291ae9a2be4db7d97b8b641d053f7822276dc23",
+  "gates": {
+    "test": 0,
+    "build": 0,
+    "unit": 0,
+    "core": 0,
+    "checkin": 0,
+    "fork": 0,
+    "docs": 0
+  },
+  "targeted": {
+    "top_level": 9,
+    "test_and_subtest_passes": 19,
+    "repeated_top_level": 900,
+    "repeated_test_and_subtest_passes": 1900
+  },
+  "core_integration": {
+    "required_checks": 54,
+    "test_and_subtest_passes": 203,
+    "skipped": 0
+  },
+  "source_sha256": {
+    "backend/internal/service/oauth_refresh_api.go": "1071b4bb4ab08b763ae479b5e9e7a4fb0b43ce59fe64d3a3572890086fc91816",
+    "backend/internal/service/token_refresh_service.go": "047d4fc9002fb1d98e1124ad9aa37d290b7933231389ae5295b10925d093857e",
+    "backend/internal/service/oauth_refresh_context.go": "df3bf9c9d6dd3cf41a717b2e0cc54c099c3093952ccb6368fdeddb94bba7ff62",
+    "backend/internal/service/oauth_refresh_deadline_test.go": "b1d56c8a8bf61bc42e921eab18e5db5db339d7966e79bbbb9c6bb0761d8b41ff"
+  },
+  "earlier_base3843_full_run": "Stopped before completion when main advanced; not claimed as pass. Final full gate ran on7291 without interruption.",
+  "reviews": {
+    "specification": "PASS",
+    "quality": "PASS"
+  },
+  "limits": "Deadline boundary tests use actual service/API with repository/cache doubles; PG integration gates do not prove a historical production late write. No production changes.",
+  "frontend_default_suite": {
+    "files_passed": 491,
+    "tests_passed": 3494,
+    "live_http_tests_skipped": 2,
+    "separate_live_http_contract": "2 passed"
+  }
+}

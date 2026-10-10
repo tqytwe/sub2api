@@ -1,0 +1,24 @@
+{
+  "status": "GREEN",
+  "events": [
+    {
+      "scenario": "select A then B, late A",
+      "last_selected": 7,
+      "modal_name": "详情竞争 B 1791613082386",
+      "opened": 1
+    },
+    {
+      "scenario": "save destination",
+      "last_selected": 7,
+      "actual_put_account": 7,
+      "sql_and_get_confirmed": true,
+      "draft_preserved": true
+    },
+    {
+      "scenario": "cancel B then late A",
+      "last_selected": 7,
+      "modal_name": null,
+      "opened": 0
+    }
+  ]
+}

@@ -6,8 +6,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -68,6 +70,78 @@ func TestCompactForwardAdmissionLogsPredicateAndCredentialDenialsOnce(t *testing
 			require.Equal(t, float64(selected.ID), events[0]["account_id"])
 			require.Len(t, events[0]["request_id_hash"], 32)
 			for _, private := range []string{"private-prompt", "private-request-id", "synthetic-bearer"} {
+				require.NotContains(t, output.String(), private)
+			}
+		})
+	}
+}
+
+// A pending context callback must not turn a late refresh into either a new
+// credential or a fallback to a still-valid admitted/stale cached credential.
+func TestCompactForwardAdmissionRejectsRefreshDeadlineBeforeCancellation(t *testing.T) {
+	for _, valid := range []bool{false, true} {
+		t.Run(map[bool]string{false: "expired", true: "near_expiry_valid"}[valid], func(t *testing.T) {
+			var output bytes.Buffer
+			old := slog.Default()
+			slog.SetDefault(slog.New(slog.NewJSONHandler(&output, nil)))
+			t.Cleanup(func() { slog.SetDefault(old) })
+			selected := admittedOAuthTokenTestAccount()
+			expiry := -time.Minute
+			if valid {
+				expiry = time.Minute
+			}
+			selected.Credentials["expires_at"] = time.Now().Add(expiry).Format(time.RFC3339)
+			original := shallowCopyMap(selected.Credentials)
+			refreshRepo := &refreshAPIAccountRepo{account: snapshotOAuthRefreshAccount(selected)}
+			cache := newOpenAITokenCacheStub()
+			cache.tokens[OpenAITokenCacheKey(selected)] = "stale-cache-test-bearer"
+			now := time.Now()
+			api := NewOAuthRefreshAPI(refreshRepo, cache)
+			api.deadlineNow = func() time.Time { return now }
+			executor := &deadlineRefreshExecutor{beforeReturn: func(ctx context.Context) {
+				deadline, ok := ctx.Deadline()
+				require.True(t, ok)
+				now = deadline
+				require.NoError(t, ctx.Err(), "the real cancellation callback has not fired")
+			}}
+			provider := NewOpenAITokenProvider(refreshRepo, cache, nil)
+			provider.SetRefreshAPI(api, executor)
+			svc := newTurnAdmissionGateway(&turnAdmissionRepo{account: selected}, false)
+			svc.openAITokenProvider = provider
+			upstream := &httpUpstreamRecorder{}
+			svc.httpUpstream = upstream
+			body := []byte(`{"model":"gpt-5.4","input":"private-prompt","stream":false}`)
+			ctx := context.WithValue(context.Background(), ctxkey.RequestID, "private-request-id")
+			result, err := svc.Forward(ctx, adaptiveProtocolTestContext("/v1/responses/compact", body), selected, body)
+			var denial *OpenAITurnAdmissionError
+			require.ErrorAs(t, err, &denial)
+			require.Equal(t, "credential_refresh_unavailable", denial.Reason)
+			var failover *UpstreamFailoverError
+			require.False(t, errors.As(err, &failover))
+			require.Nil(t, result)
+			require.Equal(t, 1, executor.calls)
+			require.Zero(t, refreshRepo.updateCalls)
+			require.Equal(t, original, refreshRepo.account.Credentials)
+			require.Zero(t, atomic.LoadInt32(&cache.getCalled))
+			require.Zero(t, atomic.LoadInt32(&cache.setCalled))
+			require.Empty(t, upstream.requests)
+			require.False(t, svc.peekOpenAIAccountRuntimeBlock(selected).blocked)
+			require.False(t, svc.getOpenAIAccountModelTransientState().isBlocked(selected.ID, "gpt-5.4", time.Now()))
+			require.True(t, selected.Schedulable)
+			require.Equal(t, StatusActive, selected.Status)
+			var events []map[string]any
+			for _, line := range strings.Split(strings.TrimSpace(output.String()), "\n") {
+				var event map[string]any
+				require.NoError(t, json.Unmarshal([]byte(line), &event))
+				if event["msg"] == "openai_turn_admission_denied" {
+					events = append(events, event)
+				}
+			}
+			require.Len(t, events, 1)
+			require.Equal(t, "credential_refresh_unavailable", events[0]["reason"])
+			require.Equal(t, float64(selected.ID), events[0]["account_id"])
+			require.Len(t, events[0]["request_id_hash"], 32)
+			for _, private := range []string{"private-prompt", "private-request-id", "admitted-test-bearer", "stale-cache-test-bearer", "synthetic-new"} {
 				require.NotContains(t, output.String(), private)
 			}
 		})
