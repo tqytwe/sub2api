@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
@@ -18,7 +18,10 @@ const router = useRouter()
 const authStore = useAuthStore()
 
 const loading = ref(true)
-const loadFailed = ref(false)
+const loadError = ref('')
+let loadInFlight = false
+let loadGeneration = 0
+let disposed = false
 const hub = ref<PlayHubSummary | null>(null)
 const referralCampaigns = ref<ReferralCampaignProgress[]>([])
 
@@ -198,23 +201,50 @@ const playCards = computed(() => {
 })
 
 async function load() {
-  if (loading.value && hub.value) return
+  if (loadInFlight || disposed || !authStore.user || !authStore.token) return
+  const generation = ++loadGeneration
+  const userID = authStore.user.id
+  const token = authStore.token
+  const isCurrent = () => !disposed && generation === loadGeneration &&
+    userID === authStore.user?.id && token === authStore.token
+  loadInFlight = true
   loading.value = true
-  loadFailed.value = false
+  loadError.value = ''
+  hub.value = null
+  referralCampaigns.value = []
   try {
 		const [nextHub, nextCampaigns] = await Promise.all([
 			playAPI.getPlayHub(),
 			isFeatureFlagEnabled(FeatureFlags.affiliate) ? listReferralCampaigns().catch(() => []) : Promise.resolve([]),
 		])
-		hub.value = nextHub
-		referralCampaigns.value = nextCampaigns
-  } catch {
-    loadFailed.value = true
-    hub.value = null
-		referralCampaigns.value = []
+		if (isCurrent()) {
+			hub.value = nextHub
+			referralCampaigns.value = nextCampaigns
+		}
+  } catch (err: unknown) {
+    if (isCurrent()) {
+      const httpStatus = (err as { status?: number })?.status
+      loadError.value = httpStatus === 403 ? 'playHub.loadForbidden'
+        : httpStatus === 0 ? 'playHub.loadNetworkFailed' : 'playHub.loadFailed'
+    }
   } finally {
-    loading.value = false
+    if (isCurrent()) {
+      loadInFlight = false
+      loading.value = false
+    }
   }
+}
+
+function resetSession() {
+  // Invalidate every part of the old read, including its error/finally paths.
+  // A new account may load immediately without waiting for the old response.
+  loadGeneration++
+  loadInFlight = false
+  hub.value = null
+  referralCampaigns.value = []
+  loadError.value = ''
+  loading.value = !!(authStore.user && authStore.token)
+  if (loading.value) void load()
 }
 
 function goPurchase() {
@@ -231,13 +261,16 @@ function perkLabel(perk: string): string {
   return translated === key ? perk : translated
 }
 
-onMounted(load)
+onMounted(resetSession)
+onBeforeUnmount(() => { disposed = true; loadGeneration++ })
+watch([() => authStore.user?.id, () => authStore.token], resetSession)
 </script>
 
 <template>
   <AppLayout>
     <div
       data-testid="play-hub-shell"
+      :aria-busy="loading"
       class="w-full max-w-none space-y-5 overflow-x-hidden pb-10 text-[var(--gw-ink)] 2xl:space-y-6"
     >
       <section class="gw-panel p-4 sm:p-5 lg:p-6 2xl:p-7">
@@ -254,13 +287,16 @@ onMounted(load)
             </div>
             <h1 class="gw-title mt-2 break-words">{{ t('playHub.title') }}</h1>
             <p class="gw-subtitle max-w-3xl break-words">{{ t('playHub.subtitle') }}</p>
+            <button type="button" data-testid="refresh-status" class="gw-btn gw-btn-secondary mt-3" :disabled="loading" @click="load">
+              {{ t('common.refresh') }}
+            </button>
           </div>
 
           <div class="rounded-xl border border-[var(--gw-line)] bg-[var(--gw-soft)] p-4 2xl:p-5">
             <div class="flex flex-wrap items-start justify-between gap-4">
               <div class="min-w-0">
                 <p class="gw-balance-label">{{ t('playHub.balanceLabel') }}</p>
-                <p class="gw-balance-value">${{ balance.toFixed(2) }}</p>
+                <p class="gw-balance-value">{{ hub ? `$${balance.toFixed(2)}` : '—' }}</p>
               </div>
               <button
                 v-if="hub?.growth.payment_enabled"
@@ -289,8 +325,8 @@ onMounted(load)
       </section>
 
       <div v-if="loading" class="gw-polling py-12 text-center">{{ t('models.loading') }}</div>
-      <div v-else-if="loadFailed" class="gw-panel gw-subtitle" role="alert">
-        <p>{{ t('playHub.loadFailed') }}</p>
+      <div v-else-if="loadError" class="gw-panel gw-subtitle" role="alert">
+        <p>{{ t(loadError) }}</p>
         <button type="button" class="gw-btn gw-btn-secondary mt-3" @click="load">{{ t('common.retry') }}</button>
       </div>
       <div v-else-if="!hub?.any_enabled && playCards.length === 0" class="gw-panel py-8 text-center gw-subtitle">

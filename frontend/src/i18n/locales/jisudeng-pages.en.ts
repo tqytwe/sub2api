@@ -240,6 +240,9 @@ export const jisudengPagesEn = {
     submitting: 'Checking in…',
     alreadyDone: 'You have already checked in today',
     disabled: 'Check-in is not available right now',
+    loadFailed: 'Unable to load check-in status. Please retry.',
+    loadForbidden: 'You do not have permission to view check-in status.',
+    loadNetworkFailed: 'Network error. Check your connection and retry.',
     success: 'Added ${amount} to your balance',
     couponSuccess: 'Coupon received: {name}',
     redeemSuccess: 'Redeem code received: {code}',
@@ -804,6 +807,8 @@ export const jisudengPagesEn = {
   },
   playHub: {
     loadFailed: "Unable to load welfare information. Please retry.",
+    loadForbidden: 'You do not have permission to view welfare information.',
+    loadNetworkFailed: 'Network error. Check your connection and retry.',
     arenaRewardHint: "Farm tokens count toward ranking and cannot be exchanged directly for balance. Final rewards follow settlement rank and configured tiers; estimates are not payouts.",
     eyebrow: 'Growth perks',
     title: 'Play Hub',

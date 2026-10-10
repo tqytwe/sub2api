@@ -33,22 +33,33 @@ func newCheckinContractServer(t *testing.T, enabled bool, users ...int64) *httpt
 		service.SettingKeyPlayCheckinDailyReward:      "0.5",
 		service.SettingKeyPlayCheckinStreakMilestones: `[{"days":7,"bonus":1}]`,
 	}}, nil)
-	svc := service.ProvidePlayService(NewPlayRepository(integrationEntClient, integrationDB), nil, nil,
+	userRepo := NewUserRepository(integrationEntClient, integrationDB)
+	svc := service.ProvidePlayService(NewPlayRepository(integrationEntClient, integrationDB), userRepo, nil,
 		settings, nil, integrationEntClient, service.NewBalanceLedgerService(integrationDB, nil, nil),
 		nil, service.NewCouponService(NewCouponRepository(integrationDB)), nil)
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-	routes.RegisterPlayRoutes(router.Group("/api/v1"), &handler.Handlers{Play: handler.NewPlayHandler(svc, nil)}, func(c *gin.Context) {
+	authFixture := func(c *gin.Context) {
 		id, _ := strconv.ParseInt(c.GetHeader("X-Checkin-Test-User"), 10, 64)
 		for _, allowed := range users {
 			if id == allowed {
+				// Explicit GET fault injection for the live Vue recovery tests. All
+				// successful reads and every grant still use the real service and PG.
+				fault, _ := strconv.Atoi(c.GetHeader("X-Checkin-Test-Fault"))
+				if c.Request.Method == http.MethodGet && (fault == 403 || fault == 503) {
+					c.AbortWithStatusJSON(fault, gin.H{"code": fault, "reason": "FIXTURE_READ_FAILURE"})
+					return
+				}
 				c.Set(string(middleware.ContextKeyUser), middleware.AuthSubject{UserID: id})
 				c.Next()
 				return
 			}
 		}
 		c.AbortWithStatus(http.StatusUnauthorized)
-	})
+	}
+	routes.RegisterPlayRoutes(router.Group("/api/v1"), &handler.Handlers{Play: handler.NewPlayHandler(svc, nil)}, authFixture)
+	authHandler := handler.NewAuthHandler(nil, nil, service.NewUserService(userRepo, nil, nil, nil), nil, nil, nil, nil, nil)
+	router.GET("/api/v1/auth/me", authFixture, authHandler.GetCurrentUser)
 	server := httptest.NewServer(router)
 	t.Cleanup(server.Close)
 	return server
@@ -411,12 +422,15 @@ func TestCheckinHTTPDatabaseContract(t *testing.T) {
 		qualifyBlindboxIntegrationUser(t, &service.User{ID: cashID})
 		milestoneID := newCheckinMilestoneUser(t, false)
 		makeupID := newCheckinMilestoneUser(t, true)
-		server := newCheckinContractServer(t, true, explorer, cashID, milestoneID, makeupID)
+		readOnlyID := newCheckinExplorer(t, true, 8)
+		server := newCheckinContractServer(t, true, explorer, cashID, milestoneID, makeupID, readOnlyID)
+		disabledServer := newCheckinContractServer(t, false, readOnlyID)
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 		defer cancel()
 		cmd := exec.CommandContext(ctx, "pnpm", "exec", "vitest", "run", "src/views/user/__tests__/CheckInView.http.spec.ts")
 		cmd.Dir = "../../../frontend"
 		cmd.Env = append(os.Environ(), "CHECKIN_CONTRACT_BASE_URL="+server.URL+"/api/v1",
+			"CHECKIN_CONTRACT_DISABLED_URL="+disabledServer.URL+"/api/v1", "CHECKIN_CONTRACT_READONLY="+strconv.FormatInt(readOnlyID, 10),
 			"CHECKIN_CONTRACT_EXPLORER="+strconv.FormatInt(explorer, 10), "CHECKIN_CONTRACT_CASH="+strconv.FormatInt(cashID, 10),
 			"CHECKIN_CONTRACT_MILESTONE="+strconv.FormatInt(milestoneID, 10), "CHECKIN_CONTRACT_MAKEUP="+strconv.FormatInt(makeupID, 10))
 		output, err := cmd.CombinedOutput()
@@ -427,6 +441,7 @@ func TestCheckinHTTPDatabaseContract(t *testing.T) {
 		assertCheckinDatabase(t, cashID, 1, 0, 0.5)
 		assertCheckinMilestoneDatabase(t, milestoneID, false)
 		assertCheckinMilestoneDatabase(t, makeupID, true)
+		assertCheckinDatabase(t, readOnlyID, 0, 0, 0)
 		require.NoError(t, err)
 	})
 }

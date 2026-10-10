@@ -1,0 +1,7 @@
+{
+  "purpose": "intermediate global-account-read implementation; late profile RED, not committed baseline",
+  "sha256": {
+    "index.html": "141ffece030bbbcb6e8e0117bf5631707c1213a94e9f260468a79207f5e7be95",
+    "assets/CheckInView-CWmAc0s2.js": "6fa049971d4d9e69507b210c6c5f670c3cb5f09389fff5751c8b9a1e71215f1d"
+  }
+}

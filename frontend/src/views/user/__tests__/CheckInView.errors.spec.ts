@@ -44,6 +44,8 @@ beforeAll(async () => {
     if (req.method === 'GET' && req.url?.startsWith('/api/v1/play/checkin/status')) {
       getCount++
       json(res, 200, { code: 0, data: status })
+    } else if (req.method === 'GET' && req.url?.startsWith('/api/v1/auth/me')) {
+      json(res, 200, { code: 0, data: { balance: 1 } })
     } else if (req.method === 'POST') {
       postCount++
       respond(res)
@@ -89,6 +91,7 @@ describe('CheckInView errors through the real Axios HTTP client', () => {
     }
     const wrapper = mountView()
     await vi.waitFor(() => expect(wrapper.find('button.w-full').exists()).toBe(true))
+    refreshUser.mockClear()
     await wrapper.get('button.w-full').trigger('click')
     const toast = kind === 'info' ? showInfo : showError
     await vi.waitFor(() => expect(toast).toHaveBeenCalledWith(i18n.global.t(`checkin.${key}`)))
@@ -125,12 +128,34 @@ describe('CheckInView errors through the real Axios HTTP client', () => {
     // Dispatch in the same tick as well as after disabled has rendered.
     const first = button.trigger('click')
     const second = button.trigger('click')
-    await Promise.all([first, second])
+    // The refresh control's DOM disabled attribute has not rendered yet.
+    const refresh = wrapper.get('button[data-testid="refresh-status"]').trigger('click')
+    await Promise.all([first, second, refresh])
     expect(button.attributes('disabled')).toBeDefined()
     await vi.waitFor(() => expect(showError).toHaveBeenCalledWith(i18n.global.t(`checkin.${action === 'checkin' ? 'failed' : 'makeupFailed'}`)), { timeout: 3000 })
     expect(postCount).toBe(1)
+    expect(getCount).toBe(1)
     expect(button.attributes('disabled')).toBeUndefined()
     expect(showSuccess).not.toHaveBeenCalled()
     pending?.destroy()
+  })
+
+  it('keeps a committed reward successful when the shared account refresh fails', async () => {
+    respond = res => {
+      status.checked_in_today = true
+      json(res, 200, { code: 0, data: { balance_added: 0.5, reward_type: 'balance' } })
+    }
+    const wrapper = mountView()
+    await vi.waitFor(() => expect(wrapper.find('button.w-full').exists()).toBe(true))
+    refreshUser.mockRejectedValueOnce(new Error('Account refresh unavailable'))
+    await wrapper.get('button.w-full').trigger('click')
+    await vi.waitFor(() => expect(showSuccess).toHaveBeenCalledOnce())
+    await vi.waitFor(() => expect(wrapper.get('button.w-full').text()).toBe(i18n.global.t('checkin.doneButton')))
+    expect(showError).not.toHaveBeenCalled()
+    expect(wrapper.get('.gw-balance-value').text()).toBe('$1.00')
+    expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+    expect(wrapper.get('button.w-full').attributes('disabled')).toBeDefined()
+    expect(postCount).toBe(1)
+    expect(getCount).toBe(2)
   })
 })

@@ -247,6 +247,9 @@ export const jisudengPagesZh = {
     submitting: '签到中…',
     alreadyDone: '今日已签到',
     disabled: '签到功能暂未开启',
+    loadFailed: '签到状态加载失败，请稍后重试。',
+    loadForbidden: '暂无权限查看签到状态。',
+    loadNetworkFailed: '网络异常，请检查连接后重试。',
     success: '已到账 ${amount}',
     couponSuccess: '恭喜获得优惠券：{name}',
     redeemSuccess: '恭喜获得兑换码：{code}',
@@ -811,6 +814,8 @@ export const jisudengPagesZh = {
   },
   playHub: {
     loadFailed: "福利信息加载失败，请重试。",
+    loadForbidden: '暂无权限查看福利信息。',
+    loadNetworkFailed: '网络异常，请检查连接后重试。',
     arenaRewardHint: "农场代币用于排名，不可直接兑换余额。最终奖励按结算排名和当前档位发放，预计奖励不代表已到账。",
     eyebrow: '增长福利',
     title: '玩法中枢',
