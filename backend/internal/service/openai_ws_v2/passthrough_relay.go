@@ -33,6 +33,9 @@ type Usage struct {
 }
 
 type RelayResult struct {
+	// UnfinishedTurn is separate from Usage, which contains completed turns only.
+	// Callers must settle this snapshot once, never re-submit the aggregate.
+	UnfinishedTurn        *RelayTurnResult
 	RequestModel          string
 	ResponseModel         string
 	ResponseModelConflict bool
@@ -100,6 +103,7 @@ type RelayTraceEvent struct {
 }
 
 type relayState struct {
+	completedResponseIDs    map[string]struct{}
 	usage                   Usage
 	turnUsage               Usage
 	turnWroteDownstream     atomic.Bool
@@ -125,6 +129,7 @@ type relayExitSignal struct {
 }
 
 type observedUpstreamEvent struct {
+	duplicate           bool
 	terminal            bool
 	eventType           string
 	responseID          string
@@ -379,6 +384,7 @@ func Relay(
 
 	emitTurnComplete(options.OnTurnComplete, state, finalizePendingBareError(state, nowFn()))
 	enrichResult(&result, state, nowFn().Sub(startAt))
+	result.UnfinishedTurn = snapshotUnfinishedRelayTurn(state, nowFn())
 	result.ClientToUpstreamFrames = clientToUpstreamFrames.Load()
 	result.UpstreamToClientFrames = upstreamToClientFrames.Load()
 	result.DroppedDownstreamFrames = droppedDownstreamFrames.Load()
@@ -570,6 +576,11 @@ func runUpstreamToClient(
 			return
 		}
 		markActivity()
+		if msgType == coderws.MessageText && isSettledRelayMessage(state, payload) {
+			// Reject duplicates before policy and terminal-write lifecycle hooks;
+			// neither the next turn's metadata nor its admission gate may change.
+			continue
+		}
 		if beforeWriteClient != nil {
 			wroteDownstreamInTurn := wroteDownstream
 			if state != nil {
@@ -609,6 +620,11 @@ func runUpstreamToClient(
 				state.consumePendingTurnStartedAt()
 				openAIWSRelayDiscardActiveTurnTiming(state)
 			}
+		}
+		if observedEvent.duplicate {
+			// Do not let a repeated terminal release the next turn's lifecycle
+			// gate through BeforeClientWrite/AfterClientWrite either.
+			continue
 		}
 		emitTurnComplete(onTurnComplete, state, observedEvent)
 		if dropDownstreamWrites != nil && dropDownstreamWrites.Load() {
@@ -664,6 +680,26 @@ func runUpstreamToClient(
 		}
 		markActivity()
 	}
+}
+
+func isSettledRelayMessage(state *relayState, payload []byte) bool {
+	if state == nil {
+		return false
+	}
+	values := gjson.GetManyBytes(payload, "type", "response.id", "response_id", "id")
+	eventType := strings.TrimSpace(values[0].String())
+	responseID := strings.TrimSpace(values[1].String())
+	if responseID == "" {
+		responseID = strings.TrimSpace(values[2].String())
+	}
+	if responseID == "" && isTerminalEvent(eventType) {
+		responseID = strings.TrimSpace(values[3].String())
+	}
+	if responseID == "" {
+		return isTerminalEvent(eventType) && !state.hasUnfinishedTurn() && state.terminalEventType != ""
+	}
+	_, settled := state.completedResponseIDs[responseID]
+	return settled
 }
 
 func runIdleWatchdog(
@@ -765,7 +801,23 @@ func observeUpstreamMessage(
 	if responseID == "" && isTerminalEvent(eventType) {
 		responseID = strings.TrimSpace(values[3].String())
 	}
+	// Repeated terminal frames (or late events for an already settled response)
+	// must not recreate a turn or contaminate the next turn's usage.
+	if responseID != "" {
+		if _, completed := state.completedResponseIDs[responseID]; completed {
+			return observedUpstreamEvent{duplicate: true}
+		}
+	} else if isTerminalEvent(eventType) && !state.hasUnfinishedTurn() && state.terminalEventType != "" {
+		return observedUpstreamEvent{duplicate: true}
+	}
 	now := nowFn()
+	if state.activeTurn == nil && responseID == "" && (eventType == "response.created" || state.pendingTurnStart.Load() != nil) {
+		startedAt := state.consumePendingTurnStartedAt()
+		if startedAt.IsZero() {
+			startedAt = now
+		}
+		state.activeTurn = &relayTurnTiming{startAt: startedAt}
+	}
 
 	if state.firstTokenMs == nil && isTokenEvent(eventType) {
 		ms := int(now.Sub(startAt).Milliseconds())
@@ -856,6 +908,10 @@ func finalizeObservedRelayTerminal(state *relayState, observed observedUpstreamE
 	observed.terminal = true
 	responseID := strings.TrimSpace(observed.responseID)
 	if responseID != "" {
+		if state.completedResponseIDs == nil {
+			state.completedResponseIDs = make(map[string]struct{})
+		}
+		state.completedResponseIDs[responseID] = struct{}{}
 		state.lastResponseID = responseID
 		if turnTiming, ok := openAIWSRelayDeleteTurnTiming(state, responseID); ok {
 			observed.responseModel = relayTurnResponseModel(&turnTiming)
@@ -873,6 +929,14 @@ func finalizeObservedRelayTerminal(state *relayState, observed observedUpstreamE
 			observed.firstToken = openAIWSRelayCloneIntPtr(turnTiming.firstTokenMs)
 		}
 	} else {
+		if timing := state.activeTurn; timing != nil {
+			observed.startedAt = timing.startAt
+			observed.duration = max(now.Sub(timing.startAt), 0)
+			observed.firstToken = openAIWSRelayCloneIntPtr(timing.firstTokenMs)
+			observed.responseModel = relayTurnResponseModel(timing)
+			observed.responseConflict = timing.responseModelConflict
+			observed.responseServiceTier = timing.terminalResponseServiceTier
+		}
 		state.consumePendingTurnStartedAt()
 		openAIWSRelayDiscardActiveTurnTiming(state)
 	}
@@ -888,9 +952,6 @@ func emitTurnComplete(
 		return
 	}
 	responseID := strings.TrimSpace(observed.responseID)
-	if responseID == "" && strings.TrimSpace(observed.eventType) != "error" {
-		return
-	}
 	requestModel := ""
 	if state != nil {
 		requestModel = state.currentRequestModel()
@@ -990,6 +1051,10 @@ func openAIWSRelayGetOrInitTurnTiming(state *relayState, responseID string, now 
 	}
 	timing, ok := state.turnTimingByID[responseID]
 	if !ok || timing == nil || timing.startAt.IsZero() {
+		if state.activeTurn != nil && openAIWSRelayActiveTurnID(state) == "" {
+			state.turnTimingByID[responseID] = state.activeTurn
+			return state.activeTurn
+		}
 		startAt := state.consumePendingTurnStartedAt()
 		if startAt.IsZero() {
 			startAt = now
@@ -1250,6 +1315,30 @@ func enrichResult(result *RelayResult, state *relayState, duration time.Duration
 	result.RequestID = state.lastResponseID
 	result.TerminalEventType = state.terminalEventType
 	result.FirstTokenMs = state.firstTokenMs
+}
+
+// Called only after joining the upstream reader. It cannot race usage parsing
+// and deliberately excludes all previously finalized turns and response IDs.
+func snapshotUnfinishedRelayTurn(state *relayState, now time.Time) *RelayTurnResult {
+	if state == nil || !state.hasUnfinishedTurn() {
+		return nil
+	}
+	result := &RelayTurnResult{RequestModel: state.currentRequestModel(), Usage: state.turnUsage, RequestID: openAIWSRelayActiveTurnID(state)}
+	timing := state.activeTurn
+	if timing == nil {
+		if startedAt := state.pendingTurnStart.Load(); startedAt != nil {
+			timing = &relayTurnTiming{startAt: *startedAt}
+		}
+	}
+	if timing != nil {
+		result.StartedAt = timing.startAt
+		result.Duration = max(now.Sub(timing.startAt), 0)
+		result.FirstTokenMs = openAIWSRelayCloneIntPtr(timing.firstTokenMs)
+		result.ResponseModel = relayTurnResponseModel(timing)
+		result.ResponseModelConflict = timing.responseModelConflict
+		result.ResponseServiceTier = timing.terminalResponseServiceTier
+	}
+	return result
 }
 
 func (s *relayState) setRequestModel(model string) {

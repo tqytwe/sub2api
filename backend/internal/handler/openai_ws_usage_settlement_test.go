@@ -1,12 +1,41 @@
 package handler
 
 import (
+	"context"
 	"errors"
+	"sync"
+	"sync/atomic"
 	"testing"
 
+	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/stretchr/testify/require"
 )
+
+func TestOpenAIWSTurnSettlementClaimAndPrivateIdentity(t *testing.T) {
+	var settlement openAIWSTurnSettlement
+	var accepted atomic.Int32
+	var wg sync.WaitGroup
+	for range 32 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if settlement.claim(1) {
+				accepted.Add(1)
+			}
+		}()
+	}
+	wg.Wait()
+	require.EqualValues(t, 1, accepted.Load(), "duplicate AfterTurn callbacks must submit once")
+	require.True(t, settlement.claim(2))
+	parent := context.WithValue(context.Background(), ctxkey.UsageBillingRequestID, "connection")
+	first := settlement.context(parent, 1).Value(ctxkey.UsageBillingRequestID)
+	require.NotEqual(t, "connection", first)
+	require.Equal(t, first, settlement.context(parent, 1).Value(ctxkey.UsageBillingRequestID))
+	require.NotEqual(t, first, settlement.context(parent, 2).Value(ctxkey.UsageBillingRequestID))
+	var another openAIWSTurnSettlement
+	require.NotEqual(t, first, another.context(parent, 1).Value(ctxkey.UsageBillingRequestID))
+}
 
 func TestOpenAIWSTurnUsageSettlement(t *testing.T) {
 	turnErr := errors.New("upstream stream interrupted")

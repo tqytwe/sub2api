@@ -197,11 +197,15 @@ func TestProxyResponsesWebSocketFromClient_MarksCyberPolicyBeforeEarlyReturn(t *
 		wantOutput    int
 	}{
 		{
-			name:          "error_before_rate_limit_failover",
+			name:          "metered_error_must_not_failover",
 			upstreamEvent: []byte(`{"type":"error","error":{"type":"rate_limit_error","code":"cyber_policy","message":"rate limit exceeded by cyber policy"},"usage":{"input_tokens":5,"output_tokens":1}}`),
-			wantFailover:  true,
 			wantInput:     5,
 			wantOutput:    1,
+		},
+		{
+			name:          "unmetered_error_before_rate_limit_failover",
+			upstreamEvent: []byte(`{"type":"error","error":{"type":"rate_limit_error","code":"cyber_policy","message":"rate limit exceeded by cyber policy"}}`),
+			wantFailover:  true,
 		},
 		{
 			name:          "response_failed_terminal",

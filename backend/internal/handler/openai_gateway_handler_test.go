@@ -1930,6 +1930,7 @@ func newOpenAIWSHandlerTestServer(t *testing.T, h *OpenAIGatewayHandler, subject
 }
 
 type openAIResponsesWSUsageLogCase struct {
+	upstreamEvent          func(turn int, model string) string
 	simpleModeRejectAtRead int64
 	compositeResolver      *service.CompositeRouteResolver
 	accountPlatform        string
@@ -2928,6 +2929,9 @@ func runOpenAIResponsesWebSocketUsageLogCase(t *testing.T, tc openAIResponsesWSU
 				turn,
 				gjson.GetBytes(payload, "model").String(),
 			)
+			if tc.upstreamEvent != nil {
+				response = tc.upstreamEvent(turn, gjson.GetBytes(payload, "model").String())
+			}
 			writeCtx, cancelWrite := context.WithTimeout(r.Context(), 3*time.Second)
 			writeErr := conn.Write(writeCtx, coderws.MessageText, []byte(response))
 			cancelWrite()
@@ -3121,7 +3125,9 @@ func runOpenAIResponsesWebSocketUsageLogCase(t *testing.T, tc openAIResponsesWSU
 		_, event, readErr := clientConn.Read(readCtx)
 		cancelRead()
 		require.NoError(t, readErr)
-		require.Equal(t, "response.completed", gjson.GetBytes(event, "type").String())
+		if tc.upstreamEvent == nil {
+			require.Equal(t, "response.completed", gjson.GetBytes(event, "type").String())
+		}
 		clientEvents = append(clientEvents, append([]byte(nil), event...))
 	}
 	readCompleted()
