@@ -2900,6 +2900,7 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 		// turn 级定价：首轮回退到 TurnStarted 的所属 turn 时刻；后续 turn 由
 		// BeforeTurn 重新冻结 pricingAt 并按最新门复核当前账号。
 		var turnPricing openAIWSTurnPricing
+		var turnSettlement openAIWSTurnSettlement
 		// Passthrough ingress does not invoke BeforeTurn for the first frame.
 		if err := checkSimpleModeTurnBilling(); err != nil {
 			closeOpenAIClientWS(wsConn, coderws.StatusPolicyViolation, "billing check failed")
@@ -3027,6 +3028,15 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 				return checkSimpleModeTurnBilling()
 			},
 			AfterTurn: func(turn int, result *service.OpenAIForwardResult, turnErr error) {
+				if account.IsOpenAI() && result != nil && (turnErr == nil || result.HasObservedUsage()) {
+					if !turnSettlement.claim(turn) {
+						return
+					}
+					// The mandatory worker owns its snapshot even if a caller repeats
+					// the callback or reuses the original result after returning.
+					snapshot := *result
+					result = &snapshot
+				}
 				turnStart := getTurnStart(turn)
 				cyberBlockBody := takeCyberTurnBody(turn)
 				// 每次 attempt 都清 cyber mark；failover 链结束前保留 recorded guard，
@@ -3065,6 +3075,12 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 					turnErr,
 				)
 				if !shouldRecordOpenAIWSTurnUsage(account, result, turnErr, service.GetOpsCyberPolicy(c) != nil) {
+					if account.IsOpenAI() && result != nil && turnErr != nil && !result.HasObservedUsage() {
+						reqLog.Warn("openai.websocket_usage_unknown",
+							zap.Int64("user_id", apiKey.UserID), zap.Int64("api_key_id", apiKey.ID),
+							zap.Int64("account_id", account.ID), zap.Int("turn", turn),
+							zap.String("usage_status", "usage_unknown"))
+					}
 					return
 				}
 				if turnErr != nil {
@@ -3100,7 +3116,11 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 				sessionID := service.ExtractClientSessionID(c)
 				turnRecordPricingAt := turnPricing.currentOr(turnStart)
 				cyberBlocked := service.GetOpsCyberPolicy(c) != nil
-				h.submitOpenAIUsageRecordTaskForAccount(ctx, account, result, func(taskCtx context.Context) {
+				turnRecordCtx := ctx
+				if account.IsOpenAI() {
+					turnRecordCtx = turnSettlement.context(ctx, turn)
+				}
+				h.submitOpenAIUsageRecordTaskForAccount(turnRecordCtx, account, result, func(taskCtx context.Context) {
 					if err := h.gatewayService.RecordUsage(taskCtx, &service.OpenAIRecordUsageInput{
 						Result:             result,
 						APIKey:             apiKey,
@@ -3120,6 +3140,7 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 						CyberBlocked:       cyberBlocked,
 					}); err != nil {
 						reqLog.Error("openai.websocket_record_usage_failed",
+							zap.Int64("user_id", apiKey.UserID), zap.Int64("api_key_id", apiKey.ID), zap.Int("turn", turn),
 							zap.Int64("account_id", account.ID),
 							zap.String("request_id", result.RequestID),
 							zap.Error(err),
@@ -3150,7 +3171,11 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 		}
 
 		for {
-			err := h.gatewayService.ProxyResponsesWebSocketFromClient(ctx, c, wsConn, account, token, wsFirstMessage, hooks)
+			attemptHooks := hooks
+			if account.IsOpenAI() {
+				attemptHooks = turnSettlement.bindAttempt(hooks)
+			}
+			err := h.gatewayService.ProxyResponsesWebSocketFromClient(ctx, c, wsConn, account, token, wsFirstMessage, attemptHooks)
 			if err == nil {
 				reqLog.Info("openai.websocket_ingress_closed", zap.Int64("account_id", account.ID))
 				return
