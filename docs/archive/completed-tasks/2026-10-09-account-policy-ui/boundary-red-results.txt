@@ -1,0 +1,4 @@
+Real auth middleware: local admin accepted
+Real usage HTTP / DB: retained tokens=1207000 account cost=12; today account cost=2; distinct user charges
+{"probe":"zero lifetime fields","tokens_present":false,"cost_present":false}
+{"probe":"failed activation with policy","status":"active"}

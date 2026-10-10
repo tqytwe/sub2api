@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent } from 'vue'
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 
 const { updateAccountMock, checkMixedChannelRiskMock, authIsSimpleMode } = vi.hoisted(() => ({
   updateAccountMock: vi.fn(),
@@ -1729,5 +1729,78 @@ describe('EditAccountModal OpenAI 自动使用重置卡', () => {
     await wrapper.get('form#edit-account-form').trigger('submit.prevent')
     expect(updateAccountMock).not.toHaveBeenCalled()
     wrapper.unmount()
+  })
+})
+
+
+describe('EditAccountModal group policy persistence contract', () => {
+  const policyAccount = () => ({ ...buildAccount(), group_ids: [11, 22], account_groups: [
+    { group_id: 11, allowed_models: ['gpt-5.5'] },
+    { group_id: 22, allowed_models: ['gpt-5.3-*'] }
+  ] })
+  beforeEach(() => { authIsSimpleMode.value = false; updateAccountMock.mockReset().mockResolvedValue(policyAccount()) })
+
+  it('does not expose or replace policies from the incomplete simple-mode projection', async () => {
+    authIsSimpleMode.value = true
+    const account = { ...policyAccount(), account_groups: [{ group_id: 11 }, { group_id: 22 }] }
+    const wrapper = mountModal(account)
+    expect(wrapper.find('[data-testid="account-group-model-limits"]').exists()).toBe(false)
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(updateAccountMock.mock.calls[0][1]).not.toHaveProperty('group_allowed_models')
+  })
+  it('allows unrelated saves when an existing policy exceeds the current validation limit', async () => {
+    const account = policyAccount()
+    account.account_groups[0].allowed_models = Array.from({ length: 501 }, (_, i) => `model-${i}`)
+    const wrapper = mountModal(account)
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(updateAccountMock.mock.calls[0][1]).not.toHaveProperty('group_allowed_models')
+  })
+  it('reads saved policy from detail and omits policy on an unrelated save', async () => {
+    const wrapper = mountModal(policyAccount())
+    expect((wrapper.get('#group-models-11').element as HTMLTextAreaElement).value).toBe('gpt-5.5')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(updateAccountMock.mock.calls[0][1]).not.toHaveProperty('group_allowed_models')
+  })
+  it('submits all current restrictions when editing one group and clearing another', async () => {
+    const wrapper = mountModal(policyAccount())
+    await wrapper.get('#group-models-11').setValue('gpt-5.4\ngpt-5.4')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(updateAccountMock.mock.calls[0][1].group_allowed_models).toEqual({ 11: ['gpt-5.4'], 22: ['gpt-5.3-*'] })
+  })
+  it('does not write cancelled changes and resets when reopened', async () => {
+    const account = policyAccount()
+    const wrapper = mountModal(account)
+    await wrapper.get('#group-models-11').setValue('discarded')
+    await wrapper.findAll('button').find(button => button.text() === 'common.cancel')!.trigger('click')
+    expect(updateAccountMock).not.toHaveBeenCalled()
+    await wrapper.setProps({ show: false })
+    await wrapper.setProps({ show: true, account: { ...account } })
+    expect((wrapper.get('#group-models-11').element as HTMLTextAreaElement).value).toBe('gpt-5.5')
+  })
+  it('blocks duplicate submit, preserves failed input, and retries the complete snapshot', async () => {
+    let reject!: (error: Error) => void
+    updateAccountMock.mockImplementationOnce(() => new Promise((_, rejectPromise) => { reject = rejectPromise }))
+    const wrapper = mountModal(policyAccount())
+    await wrapper.get('#group-models-11').setValue('gpt-5.4')
+    await wrapper.get('form').trigger('submit')
+    await wrapper.get('form').trigger('submit')
+    expect(updateAccountMock).toHaveBeenCalledTimes(1)
+    reject(new Error('local failure'))
+    await flushPromises()
+    expect((wrapper.get('#group-models-11').element as HTMLTextAreaElement).value).toBe('gpt-5.4')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(updateAccountMock).toHaveBeenCalledTimes(2)
+    expect(updateAccountMock.mock.calls[1][1].group_allowed_models).toEqual({ 11: ['gpt-5.4'], 22: ['gpt-5.3-*'] })
+  })
+  it('rejects an overlong policy before sending a request', async () => {
+    const wrapper = mountModal(policyAccount())
+    await wrapper.get('#group-models-11').setValue('x'.repeat(201))
+    await wrapper.get('form').trigger('submit')
+    expect(updateAccountMock).not.toHaveBeenCalled()
   })
 })

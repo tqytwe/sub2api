@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -85,7 +86,7 @@ func TestAccountUsageService_TodayLifetimeBatchPreservesCostSemantics(t *testing
 	stats, err := svc.GetTodayStatsBatch(context.Background(), []int64{17, 17, 0, -1, 18})
 	require.NoError(t, err)
 	assertLifetimeStatsJSON(t, stats[17])
-	require.Equal(t, &WindowStats{}, stats[18])
+	assertZeroLifetimeJSON(t, stats[18])
 	require.Len(t, stats, 2)
 	require.Equal(t, [][]int64{{17, 18}, {17, 18}}, repo.batchIDs)
 	require.Len(t, repo.batchStarts, 2)
@@ -106,7 +107,7 @@ func TestAccountUsageService_TodayLifetimeFallback(t *testing.T) {
 			stats, err := svc.GetTodayStatsBatch(context.Background(), []int64{17, 18})
 			require.NoError(t, err)
 			assertLifetimeStatsJSON(t, stats[17])
-			require.Equal(t, &WindowStats{}, stats[18])
+			assertZeroLifetimeJSON(t, stats[18])
 			var zero, today int
 			for _, start := range repo.starts {
 				if start.IsZero() {
@@ -172,4 +173,41 @@ func TestAccountUsageService_TodayLifetimeEmptyBatchAvoidsQueries(t *testing.T) 
 	require.Empty(t, result)
 	require.Empty(t, repo.batchStarts)
 	require.Empty(t, repo.starts)
+}
+
+func TestAccountUsageService_TodayLifetimeZeroSerialization(t *testing.T) {
+	for _, mode := range []string{"single", "batch", "fallback"} {
+		for _, tokens := range []int64{0, 7000} {
+			t.Run(fmt.Sprintf("%s/tokens_%d", mode, tokens), func(t *testing.T) {
+				repo := newLifetimeStatsRepo()
+				repo.today = nil
+				repo.lifetime = map[int64]*usagestats.AccountStats{17: {Tokens: tokens, Cost: 0}}
+				svc := &AccountUsageService{usageLogRepo: repo}
+				var stats *WindowStats
+				if mode == "single" {
+					var err error
+					stats, err = svc.GetTodayStats(context.Background(), 17)
+					require.NoError(t, err)
+				} else {
+					if mode == "batch" {
+						svc.usageLogRepo = &lifetimeBatchStatsRepo{lifetimeStatsRepo: repo}
+					}
+					result, err := svc.GetTodayStatsBatch(context.Background(), []int64{17, 18})
+					require.NoError(t, err)
+					stats = result[17]
+					assertZeroLifetimeJSON(t, result[18])
+				}
+				data, err := json.Marshal(stats)
+				require.NoError(t, err)
+				require.JSONEq(t, fmt.Sprintf(`{"requests":0,"tokens":0,"cost":0,"standard_cost":0,"user_cost":0,"lifetime_tokens":%d,"lifetime_cost":0}`, tokens), string(data))
+			})
+		}
+	}
+}
+
+func assertZeroLifetimeJSON(t *testing.T, stats *WindowStats) {
+	t.Helper()
+	data, err := json.Marshal(stats)
+	require.NoError(t, err)
+	require.JSONEq(t, `{"requests":0,"tokens":0,"cost":0,"standard_cost":0,"user_cost":0,"lifetime_tokens":0,"lifetime_cost":0}`, string(data))
 }

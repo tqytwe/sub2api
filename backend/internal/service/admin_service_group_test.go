@@ -31,6 +31,7 @@ type groupRepoStubForAdmin struct {
 	deleteAccountGroupsByGroupIDFn func(groupID int64) (int64, error)
 	bindAccountsToGroupFn          func(groupID int64, accountIDs []int64) error
 	getAccountIDsByGroupIDsFn      func(groupIDs []int64) ([]int64, error)
+	replaceAccountsFromGroupsFn    func(int64, []int64, []int64) error
 
 	listWithFiltersCalls       int
 	listWithFiltersParams      pagination.PaginationParams
@@ -2343,4 +2344,24 @@ func TestAdminService_CreateGroup_CodexModelsManifestConfigDisabledAccepted(t *t
 	require.NoError(t, err)
 	require.Equal(t, []int64{1, 2}, group.CodexModelsManifestConfig.AccountIDs)
 	require.False(t, repo.created.CodexModelsManifestConfig.Enabled)
+}
+
+func (s *groupRepoStubForAdmin) ReplaceAccountsFromGroups(_ context.Context, groupID int64, sourceIDs, accountIDs []int64) error {
+	if s.replaceAccountsFromGroupsFn != nil {
+		return s.replaceAccountsFromGroupsFn(groupID, sourceIDs, accountIDs)
+	}
+	panic("unexpected ReplaceAccountsFromGroups call")
+}
+
+func (s *groupRepoStubForAdmin) CreateWithCopiedAccounts(ctx context.Context, group *Group, sourceIDs, accountIDs []int64) error {
+	if err := s.Create(ctx, group); err != nil {
+		return err
+	}
+	return s.ReplaceAccountsFromGroups(ctx, group.ID, sourceIDs, accountIDs)
+}
+func (s *groupRepoStubForAdmin) UpdateWithCopiedAccounts(ctx context.Context, group *Group, sourceIDs, accountIDs []int64) error {
+	if err := s.Update(ctx, group); err != nil {
+		return err
+	}
+	return s.ReplaceAccountsFromGroups(ctx, group.ID, sourceIDs, accountIDs)
 }

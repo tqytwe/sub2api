@@ -46,6 +46,18 @@
           formatCurrency(props.stats.user_cost)
         }}</span>
       </div>
+      <div v-if="props.stats.lifetime_tokens != null || props.stats.lifetime_cost != null" class="border-t border-gray-200 pt-1 dark:border-dark-600">
+        <div v-if="props.stats.lifetime_tokens != null" data-testid="lifetime-tokens" class="flex items-center gap-1 tabular-nums">
+          <span class="text-gray-500 dark:text-gray-400">{{ t('admin.accounts.stats.lifetimeTokens') }}:</span>
+          <span class="font-medium text-gray-700 dark:text-gray-300">{{ formatTokens(props.stats.lifetime_tokens) }}</span>
+        </div>
+        <div v-if="props.stats.lifetime_cost != null" data-testid="lifetime-cost" class="flex items-center gap-1 tabular-nums">
+          <span class="text-gray-500 dark:text-gray-400">{{ t('admin.accounts.stats.lifetimeCost') }}:</span>
+          <span class="font-medium text-emerald-600 dark:text-emerald-400">{{ formatCurrency(props.stats.lifetime_cost) }}</span>
+        </div>
+        <p class="text-gray-500 dark:text-gray-400">{{ t('admin.accounts.stats.retainedHistory') }}</p>
+        <p class="text-gray-500 dark:text-gray-400">{{ t('admin.accounts.stats.retainedHistoryHint') }}</p>
+      </div>
     </div>
 
     <!-- No data -->
