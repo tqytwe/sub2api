@@ -1,0 +1,52 @@
+
+ RUN  v2.1.9 /workspace/account-edit-fix/frontend
+
+Browserslist: browsers data (caniuse-lite) is 10 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+ ❯ src/views/admin/__tests__/AccountsView.lite.spec.ts (10 tests | 1 failed) 261ms
+   × admin AccountsView lite account list > does not recover a late edit module failure after leaving the accounts page 20ms
+     → expected "spy" to not be called at all, but actually been called 1 times
+
+Received:
+
+  1st spy call:
+
+    Array [
+      "admin.accounts.editLoadFailed",
+    ]
+
+
+Number of calls: 1
+
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/views/admin/__tests__/AccountsView.lite.spec.ts > admin AccountsView lite account list > does not recover a late edit module failure after leaving the accounts page
+AssertionError: expected "spy" to not be called at all, but actually been called 1 times
+
+Received:
+
+  1st spy call:
+
+    Array [
+      "admin.accounts.editLoadFailed",
+    ]
+
+
+Number of calls: 1
+
+ ❯ src/views/admin/__tests__/AccountsView.lite.spec.ts:401:27
+    399|     rejectModule(new Error('Failed to fetch dynamically imported modul…
+    400|     await flushPromises()
+    401|     expect(showError).not.toHaveBeenCalled()
+       |                           ^
+    402|     expect(recoverChunk).not.toHaveBeenCalled()
+    403|     expect(onComponentError).not.toHaveBeenCalled()
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 9 passed (10)
+   Start at  04:42:45
+   Duration  3.10s (transform 1.70s, setup 92ms, collect 2.06s, tests 261ms, environment 296ms, prepare 56ms)

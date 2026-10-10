@@ -1,0 +1,39 @@
+[
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/accounts/16",
+    "status": 503
+  },
+  {
+    "event": "console",
+    "message": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+    "event": "console",
+    "message": "Failed to load account details: {status: 503, code: 503, reason: undefined, error: undefined, message: Local injected detail failure}"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/accounts/16",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/accounts/16",
+    "status": 200
+  },
+  {
+    "event": "console",
+    "message": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/accounts/16",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/accounts/19",
+    "status": 200
+  }
+]

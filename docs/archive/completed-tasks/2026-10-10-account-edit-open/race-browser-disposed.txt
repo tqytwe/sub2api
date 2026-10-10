@@ -1,0 +1,1 @@
+PASS pending edit module -> navigate to users -> reject: no document reload, no unrelated error toast, state preserved, no PUT/runtime errors

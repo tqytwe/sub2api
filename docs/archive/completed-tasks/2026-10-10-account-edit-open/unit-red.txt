@@ -1,0 +1,42 @@
+
+ RUN  v2.1.9 /workspace/account-edit-fix/frontend
+
+Browserslist: browsers data (caniuse-lite) is 10 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+ ❯ src/views/admin/__tests__/AccountsView.lite.spec.ts (9 tests | 1 failed | 8 skipped) 65ms
+   × admin AccountsView lite account list > reports an async edit module failure and lets the next click load it again 65ms
+     → expected "spy" to be called with arguments: [ 'admin.accounts.editLoadFailed' ]
+
+Received:
+
+
+
+Number of calls: 0
+
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/views/admin/__tests__/AccountsView.lite.spec.ts > admin AccountsView lite account list > reports an async edit module failure and lets the next click load it again
+AssertionError: expected "spy" to be called with arguments: [ 'admin.accounts.editLoadFailed' ]
+
+Received:
+
+
+
+Number of calls: 0
+
+ ❯ src/views/admin/__tests__/AccountsView.lite.spec.ts:370:23
+    368|     await editButton.trigger('click')
+    369|     await flushPromises()
+    370|     expect(showError).toHaveBeenCalledWith('admin.accounts.editLoadFai…
+       |                       ^
+    371|     expect(recoverChunk).toHaveBeenCalledWith(failure, undefined)
+    372|     expect(wrapper.find('[data-test="edit-account"]').exists()).toBe(f…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 8 skipped (9)
+   Start at  04:27:54
+   Duration  2.82s (transform 1.69s, setup 66ms, collect 2.02s, tests 65ms, environment 289ms, prepare 55ms)
