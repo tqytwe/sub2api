@@ -1,0 +1,453 @@
+{
+  "schema_version": 1,
+  "checked_at": "2026-10-10T11:47:59Z",
+  "scope": "v2.10.3 迁移及关联后续修复的交接快照；非实时、非全站完成度。移动端/Canvas 排除。",
+  "source_lock": "docs/upstream-migrations/source-lock.json",
+  "production": {
+    "branch": "play/main",
+    "branch_sha": "d18d504ccf12adc9f299cdf14af6ea32c4efe59c",
+    "last_verified_deployed_sha": "d18d504ccf12adc9f299cdf14af6ea32c4efe59c",
+    "deployment_status": "recorded",
+    "evidence": [
+      "https://github.com/tqytwe/sub2api/commit/d18d504ccf12adc9f299cdf14af6ea32c4efe59c",
+      "https://github.com/tqytwe/sub2api/pull/351",
+      "https://github.com/tqytwe/sub2api/runs/114196133288"
+    ],
+    "note": "#351于10:43:35Z普通合入d18d504，GitHub Zeabur check于10:48:42Z成功。主线程在恢复验收环境后，于11:09:15及11:30:56 UTC通过官方API确认d18为唯一RUNNING/READY、旧a581为REMOVED，同次curl health=200；11:13:29 UTC确认SQL275登记/checksum与catalog。固定自然窗口11:14:06.545570–11:29:06.545570 UTC，加2分钟缓冲后11:31:08查询exitCode=0并明确ROLLBACK，验收任务已停止。201条已有结算关联无差异不等于全验收完成；unknown、未采样协议/订阅计数器净增量与用户反馈仍待补。运行态、DB与窗口均为主线程交接转述，原始明细未公开；此前11:02执行通道故障已恢复，本任务未执行生产操作。"
+  },
+  "features": [
+    {
+      "id": "usage-tps",
+      "title": "使用记录逐条 TPS",
+      "backend_state": "已部署",
+      "product_state": "已部署",
+      "owner": "待分配",
+      "pr": "https://github.com/tqytwe/sub2api/pull/338",
+      "sha": "96d202ce266a3858e34df10987ae906942be5f37",
+      "evidence": {
+        "ui": {"status": "recorded", "refs": ["frontend/src/components/admin/usage/UsageTable.vue", "https://github.com/tqytwe/sub2api/pull/338"], "note": "已实现用户/管理员共享表与导出；技术验证见 PR，不能替代生产验收。"},
+        "api": {"status": "recorded", "refs": ["backend/internal/handler/dto/usage_output_tps.go"], "note": "可空 output_tps，历史按读取派生。"},
+        "schema": {"status": "na", "refs": [], "note": "无 SQL/schema 修改，无历史回填。"},
+        "tests": {"status": "recorded", "refs": ["backend/internal/server/usage_tps_contract_test.go", "frontend/src/utils/__tests__/usageTps.spec.ts", "https://github.com/tqytwe/sub2api/pull/338"], "note": "PR 记录 3459 项前端及完整后端验证通过，保留环境/范围限制。"},
+        "deployment": {"status": "recorded", "refs": ["https://github.com/tqytwe/sub2api/pull/339", "https://github.com/tqytwe/sub2api/runs/114031999259"], "note": "96d202 已部署，由 #339 集成记录确认；后继 a7e1c003 部署成功且保留该批。"},
+        "production": {"status": "pending", "refs": [], "note": "等待用户本机游客/普通用户/管理员验收及适用 API/DB 对账；本次未独立执行生产健康/API 核查。"}
+      },
+      "risks": "逐条请求总耗时口径不能当纯生成速度或整版迁移完成。",
+      "next": "补生产用户/管理员记录与导出验收证据。",
+      "rollback": "若显示/导出口径回归，停止后续批次并协调 revert #338；无 DB 回退。"
+    },
+    {
+      "id": "fork-updater",
+      "title": "上游发现与 Fork 安装保护",
+      "backend_state": "已部署",
+      "product_state": "已部署",
+      "owner": "待分配",
+      "pr": "https://github.com/tqytwe/sub2api/pull/339",
+      "sha": "a7e1c00330170754683216e3018cbd4279d7f733",
+      "evidence": {
+        "ui": {"status": "recorded", "refs": ["frontend/src/components/common/VersionBadge.vue", "https://github.com/tqytwe/sub2api/pull/339"], "note": "VersionBadge 提示源码部署，技术验证通过。"},
+        "api": {"status": "recorded", "refs": ["backend/internal/service/update_service.go"], "note": "update/rollback/backup 回退 fail-closed；无获准在线安装产物。"},
+        "schema": {"status": "na", "refs": [], "note": "无数据库迁移。"},
+        "tests": {"status": "recorded", "refs": ["backend/internal/service/update_service_test.go", ".github/release-tools/test_release_matrix.py", "https://github.com/tqytwe/sub2api/pull/339"], "note": "PR 记录完整门禁和 5/5 CI 成功。"},
+        "deployment": {"status": "recorded", "refs": ["https://github.com/tqytwe/sub2api/runs/114031999259"], "note": "a7e1c003 精确 check completed/success，2026-10-09T21:22:41Z。"},
+        "production": {"status": "pending", "refs": [], "note": "等待用户本机游客/普通用户/管理员验收及适用 API/DB 对账；本次未独立执行生产健康/API 核查。"}
+      },
+      "risks": "历史 tag 的旧 workflow 不受追溯保护；不得推外部 tag，不能恢复未知 backup。",
+      "next": "补用户本机三身份验收；旧在线安装路径的兼容/弃用跟踪见 deprecations。",
+      "rollback": "异常时停止发布，协调已验证 Fork 源码 revert/部署；保留安装保护，不下载原版替换。"
+    },
+    {
+      "id": "core-admission-settlement",
+      "title": "限定 OpenAI 准入、部分用量与结算恢复",
+      "backend_state": "已部署",
+      "product_state": "实现中",
+      "owner": "待分配",
+      "pr": "https://github.com/tqytwe/sub2api/pull/340",
+      "sha": "4080e2ac7e93dc9f435e0c0a4652834635cba7be",
+      "evidence": {
+        "ui": {"status": "na", "refs": [], "note": "核心批次无 frontend 源码修改；相关用户闭环另列。"},
+        "api": {"status": "recorded", "refs": ["https://github.com/tqytwe/sub2api/blob/e583f5857794ee49d8ea2d784b2fc399eb2648ef/docs/CORE_MIGRATION_RANXI.md"], "note": "Responses/Chat/共享 CC/Messages 边界实现见限定范围文档。"},
+        "schema": {"status": "recorded", "refs": ["https://github.com/tqytwe/sub2api/blob/e583f5857794ee49d8ea2d784b2fc399eb2648ef/backend/migrations/273_account_group_allowed_models.sql", "https://github.com/tqytwe/sub2api/blob/e583f5857794ee49d8ea2d784b2fc399eb2648ef/backend/migrations/274_usage_log_billing_reconciliation.sql"], "note": "已合并新增 273/274；已随 4080e2ac 部署；真实迁移验收待独立核查。全部 399 个既有 SQL 原字节保留。"},
+        "tests": {"status": "recorded", "refs": ["https://github.com/tqytwe/sub2api/pull/340", "https://github.com/tqytwe/sub2api/actions/runs/37999474389", "https://github.com/tqytwe/sub2api/actions/runs/37999474590"], "note": "六项 hosted CI 成功；本地三个 UNIX socket 测试受限的失败记录仍保留，不冒充重跑通过。"},
+        "deployment": {"status": "recorded", "refs": ["https://github.com/tqytwe/sub2api/pull/340", "https://github.com/tqytwe/sub2api/runs/114062110256", "https://github.com/tqytwe/sub2api/actions/runs/37999474389"], "note": "#340 普通 merge 4080e2ac，审核 head e583f585；六项 CI 成功。精确 merge SHA Zeabur 于 22:58:13Z 成功；不等于健康/迁移/用户本机验收通过。"},
+        "production": {"status": "pending", "refs": [], "note": "已合并并取得精确部署成功 check；健康/迁移验收及用户本机验收仍待确认。"}
+      },
+      "risks": "限定核心范围已部署，不是全供应商/全端点迁移。缓存、WS和compact/工具修复另列；台账#351最终82828e1已关闭五组阻断并部署d18d504，运行/健康与SQL275核验确认，固定窗口已有201条结算关联核对无差异。仍有4个unknown待核对，且无WS子轮/异步/其他协议样本、未验证订阅计数器窗口净增量，不能等同生产全请求闭环。",
+      "next": "按各条目补生产和用户本机验收；参考#351固定窗口的限定证据，继续核对4个unknown、订阅计数器净增量及未采样路径，不回填、估费或补扣，也不沿用13db历史阻断。",
+      "rollback": "若权限/计费/迁移异常停止推进；旧 binary 可能绕过新限制，回退须保留策略执行，不能清空限制/历史补扣。"
+    },
+    {
+      "id": "group-allowed-models",
+      "title": "账号分组模型策略完整编辑闭环",
+      "backend_state": "已部署",
+      "product_state": "已部署",
+      "owner": "待分配",
+      "pr": "https://github.com/tqytwe/sub2api/pull/343",
+      "sha": "2fbe13d90a2381a3bc8e7495a0c8b00abe2cfe3a",
+      "evidence": {
+        "ui": {"status": "recorded", "refs": ["frontend/src/components/account/AccountGroupModelLimits.vue", "frontend/src/components/account/EditAccountModal.vue"], "note": "标准模式已部署完整快照编辑，仅实际变化时提交；简单模式不开放策略编辑。加载恢复与请求竞争后续见 #349。"},
+        "api": {"status": "recorded", "refs": ["backend/internal/repository/account_admin_update.go", "https://github.com/tqytwe/sub2api/pull/343"], "note": "单账号编辑将属性、显式计费设置、影子代理、成员、策略与 outbox 同事务更新；修复先启用后策略失败的部分提交。create/bulk 仍不配置策略。"},
+        "schema": {"status": "recorded", "refs": ["https://github.com/tqytwe/sub2api/blob/e583f5857794ee49d8ea2d784b2fc399eb2648ef/backend/migrations/273_account_group_allowed_models.sql"], "note": "已合并 273 持久化与原子更新，已随 4080e2ac 部署；真实迁移验收待独立核查。"},
+        "tests": {"status": "recorded", "refs": ["docs/archive/completed-tasks/2026-10-09-account-policy-ui/README.md", "https://github.com/tqytwe/sub2api/actions/runs/38011708341", "https://github.com/tqytwe/sub2api/actions/runs/38011708300", "https://github.com/tqytwe/sub2api/actions/runs/38011708234"], "note": "浏览器联合链路归属 25c0bcb7：production build→HTTP→PostgreSQL→GET→Redis→刷新/重开；最终组合 head 02de4163 的 7/7 CI 成功，核心 DB 54/54 必需检查、203 测试/子测试零跳过。不能把浏览器证据改记为新 SHA 上重跑。"},
+        "deployment": {"status": "recorded", "refs": ["https://github.com/tqytwe/sub2api/pull/343", "https://github.com/tqytwe/sub2api/runs/114098653805"], "note": "审查 head 02de416391322e995d2bbb4393b40d83a660ad64；普通 merge 2fbe13d90a2381a3bc8e7495a0c8b00abe2cfe3a 的 Zeabur 于 2026-10-10T01:31:42Z 成功。部署不是生产功能验收。"},
+        "production": {"status": "pending", "refs": [], "note": "已部署；用户本机三身份及适用 UI/API/DB 核对尚无本记录可引用的完整验收。编辑故障后续修复见 account-edit-recovery，#349 用户反馈仍未收到。"}
+      },
+      "risks": "省略策略保留存续成员限制；新加/移除后重加成员默认无限制。账号导出仍不含策略，不能当备份。原子更新已部署，不能以技术测试代替用户现场验收。",
+      "next": "补用户本机 UI→保存→数据库/GET→刷新一致性及异常态验收，维护人待分配；与 account-edit-recovery 合并看待编辑闭环。",
+      "rollback": "任何未授权放宽模型范围须停止推进；不能退到不执行限制的旧 binary 或清空策略。"
+    },
+    {
+      "id": "account-lifetime-stats",
+      "title": "账号 lifetime_stats 展示",
+      "backend_state": "已部署",
+      "product_state": "已部署",
+      "owner": "待分配",
+      "pr": "https://github.com/tqytwe/sub2api/pull/343",
+      "sha": "2fbe13d90a2381a3bc8e7495a0c8b00abe2cfe3a",
+      "evidence": {
+        "ui": {"status": "recorded", "refs": ["frontend/src/components/account/AccountTodayStatsCell.vue"], "note": "累计 Token/账号成本展示已部署；无历史显示 0/0，零成本与请求失败/旧接口缺字段区分。"},
+        "api": {"status": "recorded", "refs": ["backend/internal/service/account_usage_service.go", "https://github.com/tqytwe/sub2api/pull/343"], "note": "保留历史统计并区分成功零值与查询失败；不改变用户实扣/账号成本口径。"},
+        "schema": {"status": "na", "refs": [], "note": "统计读取已有历史；无本项独立新增迁移。"},
+        "tests": {"status": "recorded", "refs": ["docs/archive/completed-tasks/2026-10-09-account-policy-ui/README.md", "https://github.com/tqytwe/sub2api/actions/runs/38011708341", "https://github.com/tqytwe/sub2api/actions/runs/38011708300", "https://github.com/tqytwe/sub2api/actions/runs/38011708234"], "note": "浏览器联合链路归属 25c0bcb7：production build→HTTP→PostgreSQL→GET→Redis→刷新/重开；最终组合 head 02de4163 的 7/7 CI 成功，核心 DB 54/54 必需检查、203 测试/子测试零跳过。不能把浏览器证据改记为新 SHA 上重跑。"},
+        "deployment": {"status": "recorded", "refs": ["https://github.com/tqytwe/sub2api/pull/343", "https://github.com/tqytwe/sub2api/runs/114098653805"], "note": "审查 head 02de416391322e995d2bbb4393b40d83a660ad64；普通 merge 2fbe13d90a2381a3bc8e7495a0c8b00abe2cfe3a 的 Zeabur 于 2026-10-10T01:31:42Z 成功。部署不是生产功能验收。"},
+        "production": {"status": "pending", "refs": [], "note": "已部署；用户本机三身份及适用 UI/API/DB 核对尚无本记录可引用的完整验收。编辑故障后续修复见 account-edit-recovery，#349 用户反馈仍未收到。"}
+      },
+      "risks": "不能用零值冒充请求失败；用户实扣/账号成本/标准价口径须区分。",
+      "next": "补用户本机 UI→保存→数据库/GET→刷新一致性及异常态验收，维护人待分配；与 account-edit-recovery 合并看待编辑闭环。",
+      "rollback": "统计错列或费用口径回归时停止发布，保留历史账务，不回算。"
+    },
+    {
+      "id": "copy-accounts-policy",
+      "title": "Copy Accounts 替换目标策略边界",
+      "backend_state": "已部署",
+      "product_state": "已部署",
+      "owner": "待分配",
+      "pr": "https://github.com/tqytwe/sub2api/pull/343",
+      "sha": "2fbe13d90a2381a3bc8e7495a0c8b00abe2cfe3a",
+      "evidence": {
+        "ui": {"status": "recorded", "refs": ["docs/archive/completed-tasks/2026-10-09-account-policy-ui/README.md", "https://github.com/tqytwe/sub2api/pull/343"], "note": "复制策略说明及对应技术验收已落地；仍须实际用户验收。"},
+        "api": {"status": "recorded", "refs": ["backend/internal/repository/group_copy_policy.go", "backend/internal/repository/group_copy_policy_integration_test.go"], "note": "已部署保留存续目标策略/优先级、新成员继承来源策略并集；超限或通知失败整体回滚。原删除后重建导致清空限制的路径已修复。"},
+        "schema": {"status": "recorded", "refs": ["https://github.com/tqytwe/sub2api/blob/e583f5857794ee49d8ea2d784b2fc399eb2648ef/backend/migrations/273_account_group_allowed_models.sql"], "note": "目标成员关系与 273 allowed_models 受影响；不在本任务修改。"},
+        "tests": {"status": "recorded", "refs": ["docs/archive/completed-tasks/2026-10-09-account-policy-ui/README.md", "https://github.com/tqytwe/sub2api/actions/runs/38011708341", "https://github.com/tqytwe/sub2api/actions/runs/38011708300", "https://github.com/tqytwe/sub2api/actions/runs/38011708234"], "note": "浏览器联合链路归属 25c0bcb7：production build→HTTP→PostgreSQL→GET→Redis→刷新/重开；最终组合 head 02de4163 的 7/7 CI 成功，核心 DB 54/54 必需检查、203 测试/子测试零跳过。不能把浏览器证据改记为新 SHA 上重跑。"},
+        "deployment": {"status": "recorded", "refs": ["https://github.com/tqytwe/sub2api/pull/343", "https://github.com/tqytwe/sub2api/runs/114098653805"], "note": "审查 head 02de416391322e995d2bbb4393b40d83a660ad64；普通 merge 2fbe13d90a2381a3bc8e7495a0c8b00abe2cfe3a 的 Zeabur 于 2026-10-10T01:31:42Z 成功。部署不是生产功能验收。"},
+        "production": {"status": "pending", "refs": [], "note": "已部署；用户本机三身份及适用 UI/API/DB 核对尚无本记录可引用的完整验收。编辑故障后续修复见 account-edit-recovery，#349 用户反馈仍未收到。"}
+      },
+      "risks": "复制应保留目标存续限制；新成员并集和超限回滚是明确合同，不是任意覆盖旧策略。用户生产验收仍待补，不自动修写历史策略。",
+      "next": "补用户本机 UI→保存→数据库/GET→刷新一致性及异常态验收，维护人待分配；与 account-edit-recovery 合并看待编辑闭环。",
+      "rollback": "策略被意外清空时停止推进并调查备份/恢复方案；不得自动修写生产策略。"
+    },
+    {
+      "id": "checkin-growth-response",
+      "title": "普通签到 response growth 字段修复",
+      "backend_state": "已部署",
+      "product_state": "实现中",
+      "owner": "待分配",
+      "pr": "https://github.com/tqytwe/sub2api/pull/342",
+      "sha": "9e458b12db91d1c36402c288d61ef7a352beee1c",
+      "evidence": {
+        "ui": {"status": "recorded", "refs": ["https://github.com/tqytwe/sub2api/pull/342"], "note": "现有 Vue 经真实 Axios/HTTP 显示能量或现金；页面未修改。错误提示链仍有独立缺口。"},
+        "api": {"status": "recorded", "refs": ["https://github.com/tqytwe/sub2api/pull/342"], "note": "#342 已补齐普通 Checkin response 的 GrowthEnergy/GrowthEligibility 两个字段，不改资格政策/奖励规则。"},
+        "schema": {"status": "na", "refs": [], "note": "当前识别为响应映射缺陷；本治理任务不增迁移。"},
+        "tests": {"status": "recorded", "refs": ["https://github.com/tqytwe/sub2api/pull/342", "https://github.com/tqytwe/sub2api/actions/runs/38003522676/job/114066930751"], "note": "PR 记录完整迁移的隔离 PG→正式路由/service→HTTP→Axios/Vue 契约 RED→GREEN；hosted 签到契约作业成功。不是生产验收；其他 integration 跳过项保留原说明。"},
+        "deployment": {"status": "recorded", "refs": ["https://github.com/tqytwe/sub2api/pull/342", "https://github.com/tqytwe/sub2api/runs/114080888744"], "note": "审核 head e58642e426e900d4cc4c4fe079c9a418bd3d6c7a 的 6/6 hosted checks 成功；普通 merge 9e458b12 于 2026-10-10T00:10:49Z Zeabur 成功，健康与用户本机验收仍待确认。"},
+        "production": {"status": "pending", "refs": [], "note": "精确 merge SHA 部署成功；健康、本机 UI/API 与奖励记录核对仍待确认。"}
+      },
+      "risks": "普通签到 response 修复已部署但未完成生产验收；UI 从 err.response.data.code 取错客户端顶层 status/code/reason，过期状态重复签到仍可能显示通用失败，独立后续处理。",
+      "next": "主线程补 #342 精确 SHA 健康与本机验收；另分配页面错误契约修复，不把成功路径当所有状态闭环。",
+      "rollback": "响应不一致时停止推进并协调源码 revert；不删除奖励或重发历史奖励。"
+    },
+    {
+      "id": "plan-admin-list",
+      "title": "套餐 admin list 字段回显/编辑丢值修复",
+      "backend_state": "已部署",
+      "product_state": "已部署",
+      "owner": "待分配",
+      "pr": "https://github.com/tqytwe/sub2api/pull/341",
+      "sha": "b23e44625669a36a8f7ac10667e4b04b1904b7db",
+      "evidence": {
+        "ui": {"status": "recorded", "refs": ["https://github.com/tqytwe/sub2api/pull/341"], "note": "#341 已合并部署：编辑弹窗差异提交，兼容旧缺字段响应与明确清空/false/0，包含纯空白字段明确清空；仍待生产验收。"},
+        "api": {"status": "recorded", "refs": ["https://github.com/tqytwe/sub2api/pull/341"], "note": "已补齐六个套餐字段与四个只读分组字段，编辑仅提交变化字段；#341 与 #342 组合已合并。"},
+        "schema": {"status": "na", "refs": [], "note": "当前识别为 DTO 映射缺陷；schema/持久化验证由修复任务补充，不在此变更。"},
+        "tests": {"status": "recorded", "refs": ["https://github.com/tqytwe/sub2api/pull/341", "https://github.com/tqytwe/sub2api/blob/3c53a6feae80d691afed15aae2cf468407f812cc/docs/archive/completed-tasks/2026-10-plan-edit-preserve/README.md", "https://github.com/tqytwe/sub2api/actions/runs/38008693218"], "note": "PR 记录完整迁移 PostgreSQL、实际页面/Axios/HTTP/service/DB RED→GREEN、24 列对账、明确空白清空；与 #342 普通合并后的审查 head 3c53a6fe 6/6 CI 成功。技术证据不能替代生产验收。"},
+        "deployment": {"status": "recorded", "refs": ["https://github.com/tqytwe/sub2api/pull/341", "https://github.com/tqytwe/sub2api/runs/114089449843", "https://github.com/tqytwe/sub2api/actions/runs/38008693218"], "note": "审查 head 3c53a6feae80d691afed15aae2cf468407f812cc 6/6 hosted checks 成功；普通 merge b23e4462，于 2026-10-10T00:48:08Z Zeabur 成功。健康/用户本机验收仍待确认。"},
+        "production": {"status": "pending", "refs": [], "note": "已合并部署，健康、管理员列表/编辑与 API/DB 对账仍待独立验收证据。"}
+      },
+      "risks": "不能以表单有控件或服务层有字段判定完整；避免覆盖已有套餐值。",
+      "next": "主线程补精确 b23e4462 SHA 健康与用户本机管理员 UI/API/DB 验收；具体负责人待分配。",
+      "rollback": "出现字段丢值或金额/额度变化时停止推进；不自动批量修写历史套餐。"
+    },
+    {
+      "id": "cache-field-compatibility",
+      "title": "Responses 缓存字段拒绝的有界兼容与诊断",
+      "backend_state": "已部署",
+      "product_state": "已部署",
+      "owner": "待分配",
+      "pr": "https://github.com/tqytwe/sub2api/pull/345",
+      "sha": "1f37c7a8312f06218036fcbb0335842a6b23e50f",
+      "evidence": {
+        "ui": {"status": "na", "refs": [], "note": "本批无新增界面；Ops 使用既有失败记录入口。"},
+        "api": {"status": "recorded", "refs": ["backend/internal/service/openai_responses_rejected_field_retry.go", "backend/internal/service/openai_responses_cache_diagnostics.go"], "note": "仅无工作证据的真实 HTTP 400 可精确移除 input[i].content[j].prompt_cache_breakpoint；共享六次预算/正文指纹去重。有输出或 usage 时禁止变换/重放，保留已观察费用。"},
+        "schema": {"status": "na", "refs": [], "note": "本批无新增迁移；复用已部署结构，不回填或删除历史数据。"},
+        "tests": {"status": "recorded", "refs": ["https://github.com/tqytwe/sub2api/pull/345", "docs/archive/completed-tasks/2026-10-10-responses-cache-rejection.md", "https://github.com/tqytwe/sub2api/actions/runs/38018736945", "https://github.com/tqytwe/sub2api/actions/runs/38018736938"], "note": "精确 faed7a85 的 6/6 CI 成功；本地默认/unit、lint、前端全量及构建/Fork 通过。覆盖精确路径、输出/usage 阻断、native/passthrough 流式/同步、队列持久化和脱敏诊断。"},
+        "deployment": {"status": "recorded", "refs": ["https://github.com/tqytwe/sub2api/pull/345", "https://github.com/tqytwe/sub2api/runs/114119248795"], "note": "审查 head faed7a85d7286ddd0d277865c8112e334d8e675a；普通 merge 1f37c7a8312f06218036fcbb0335842a6b23e50f 的 Zeabur 于 2026-10-10T03:20:01Z 成功。部署不是生产功能验收。"},
+        "production": {"status": "pending", "refs": [], "note": "部署已确认，尚无本条完整生产失败样本/发送次数/字段路径与用户验收证据；历史流请求的实际传输状态仍不能倒推。"}
+      },
+      "risks": "未新增 HTTP 200 SSE、通用 502 或 native WS 字段重放。历史 12 次失败不能据此全部归因；无 usage 不代表没有消耗，不估算或补扣历史。",
+      "next": "按实际诊断核对兼容重试次数、输出/usage 边界，与 compact-tool-admission 和 ws-observed-usage 联合观察。",
+      "rollback": "出现本条权限、数据或协议回归时停止推进，由主线程协调普通 revert 并验证既有保护；不自动改写生产数据。"
+    },
+    {
+      "id": "readonly-codex-quota",
+      "title": "Codex 额度查询只读及被动刷新",
+      "backend_state": "已部署",
+      "product_state": "已部署",
+      "owner": "待分配",
+      "pr": "https://github.com/tqytwe/sub2api/pull/347",
+      "sha": "3843ff3e931349595b8793b52504b02a177f12c9",
+      "evidence": {
+        "ui": {"status": "recorded", "refs": ["frontend/src/components/account/AccountUsageCell.vue", "frontend/src/utils/accountUsageRefresh.ts"], "note": "被动快照跳过页面旧缓存但不 force 上游，防止时间戳反馈循环；复用现有额度组件。"},
+        "api": {"status": "recorded", "refs": ["backend/internal/service/account_usage_readonly_test.go", "backend/internal/handler/admin/openai_quota_readonly_contract_test.go"], "note": "普通/force/batch/渠道 quota 复用 wham/usage GET；不生成、不自动 reset，失败不回退生成；缺窗口保持未知。"},
+        "schema": {"status": "na", "refs": [], "note": "本批无新增迁移；复用已部署结构，不回填或删除历史数据。"},
+        "tests": {"status": "recorded", "refs": ["https://github.com/tqytwe/sub2api/pull/347", "https://github.com/tqytwe/sub2api/actions/runs/38022701095", "https://github.com/tqytwe/sub2api/actions/runs/38022700827"], "note": "精确 7df94dc9 的 6/6 CI 成功；fake upstream 验证零生成/零 reset、缓存/错误/缺窗口；前端定向 3 文件/72 项及完整门禁通过。无 schema 变更，未伪造用户收费 usage。"},
+        "deployment": {"status": "recorded", "refs": ["https://github.com/tqytwe/sub2api/pull/347", "https://github.com/tqytwe/sub2api/runs/114131582559"], "note": "审查 head 7df94dc9727916ad089ec3be917ea4d0293f3e52；普通 merge 3843ff3e931349595b8793b52504b02a177f12c9 的 Zeabur 于 2026-10-10T04:29:31Z 成功。部署不是生产功能验收。"},
+        "production": {"status": "pending", "refs": [], "note": "生产已部署；用户现场查询、余额/窗口展示与真实只读行为尚待完整验收，不用静态视觉板替代浏览器。"}
+      },
+      "risks": "不证明历史点数下降归因。并发 force 可能加入旧 non-force flight；首请求取消可能影响合并者并进入错误缓存，专门并发契约待补。同 id credits 同步/时间展示仍是独立剩余项。",
+      "next": "补用户现场额度读取与展示核对；单独验证并发 force/首请求取消及 credits 同步，不扩大为收费修复。",
+      "rollback": "出现本条权限、数据或协议回归时停止推进，由主线程协调普通 revert 并验证既有保护；不自动改写生产数据。"
+    },
+    {
+      "id": "ws-observed-usage",
+      "title": "WS 中断轮已观察用量的归属与幂等结算",
+      "backend_state": "已部署",
+      "product_state": "已部署",
+      "owner": "待分配",
+      "pr": "https://github.com/tqytwe/sub2api/pull/346",
+      "sha": "7291ae9a2be4db7d97b8b641d053f7822276dc23",
+      "evidence": {
+        "ui": {"status": "pending", "refs": ["frontend/src/components/admin/usage/UsageTable.vue"], "note": "复用使用记录展示；尚无成功 WS 结算的生产 UI→API→DB 闭环证据。"},
+        "api": {"status": "recorded", "refs": ["backend/internal/handler/openai_ws_usage_settlement.go", "backend/internal/service/openai_ws_v2/passthrough_relay.go"], "note": "ctx_pool/passthrough 异常退出保留当前未完成轮 usage 和归属，经 mandatory 队列及同步回退；稳定每轮 ID 与终态去重，已计量生成不得重放，无 usage 不估算收费。"},
+        "schema": {"status": "na", "refs": [], "note": "本批无新增迁移；复用已部署结构，不回填或删除历史数据。"},
+        "tests": {"status": "recorded", "refs": ["https://github.com/tqytwe/sub2api/pull/346", "docs/archive/completed-tasks/2026-10-10-ws-observed-usage.md", "https://github.com/tqytwe/sub2api/actions/runs/38027712854", "https://github.com/tqytwe/sub2api/actions/runs/38027712800"], "note": "精确 edee1a0a 的 6/6 CI 成功；32 项缺 ID 矩阵、4 项不同 ID/下一轮边界、四包 race。隔离 PostgreSQL 真实 relay→RecordUsage，结算失败后 16 次并发重试最终 2 usage/2 dedup/2 扣款，27/12 token 及余额一致；证据范围见归档。"},
+        "deployment": {"status": "recorded", "refs": ["https://github.com/tqytwe/sub2api/pull/346", "https://github.com/tqytwe/sub2api/runs/114146567665"], "note": "审查 head edee1a0a57ccfaf0044c1c2edd4c1da6062854e6；普通 merge 7291ae9a2be4db7d97b8b641d053f7822276dc23 的 Zeabur 于 2026-10-10T05:57:26Z 成功。部署不是生产功能验收。"},
+        "production": {"status": "pending", "refs": [], "note": "主线程本次交接提供的固定 15 分钟生产窗口：236 条已落库记录关联一致，但成功 WS 结算样本为 0、WS 失败 4。未提供可公开引用的窗口明细；不能用整体关联一致证明 WS 全链路验收通过。"}
+      },
+      "risks": "不追补历史、不解释全部旧点数差额；无aggregate usage的输出只作未知诊断。请求持久台账#351已随d18d504部署，但其固定自然窗口没有WS子轮/异步样本，仍须补真实WS结算、用户页面与余额对账，不能据台账上线认定WS全链路验收通过。",
+      "next": "补明确起止时间与脱敏证据引用，并等待真实成功/中断 WS 结算样本和用户页面/余额对账；不发付费请求凑样本。",
+      "rollback": "出现本条权限、数据或协议回归时停止推进，由主线程协调普通 revert 并验证既有保护；不自动改写生产数据。"
+    },
+    {
+      "id": "account-edit-recovery",
+      "title": "账号编辑加载恢复、草稿保留与详情请求竞争",
+      "backend_state": "已部署",
+      "product_state": "已部署",
+      "owner": "待分配",
+      "pr": "https://github.com/tqytwe/sub2api/pull/349",
+      "sha": "de3155f176426a975b227cbaebae4ff72a6658db",
+      "evidence": {
+        "ui": {"status": "recorded", "refs": ["frontend/src/views/admin/AccountsView.vue", "frontend/src/components/account/EditAccountModal.vue"], "note": "模块失败关闭失败编辑器并提示先处理草稿再手动刷新；不自动刷新丢失 Create 草稿。迟到详情响应不能覆盖最后选择账号，取消/离页失效。"},
+        "api": {"status": "recorded", "refs": ["https://github.com/tqytwe/sub2api/pull/349", "backend/internal/repository/account_admin_update.go"], "note": "本批无 API/字段/SQL 修改；沿用既有 GET/PUT 与账号原子事务，并验证请求归属不串账号。"},
+        "schema": {"status": "na", "refs": [], "note": "本批无新增迁移；复用已部署结构，不回填或删除历史数据。"},
+        "tests": {"status": "recorded", "refs": ["https://github.com/tqytwe/sub2api/pull/349", "docs/archive/completed-tasks/2026-10-10-account-edit-open/README.md", "https://github.com/tqytwe/sub2api/actions/runs/38031160808", "https://github.com/tqytwe/sub2api/actions/runs/38031160810"], "note": "精确 3d3ee070 的 6/6 CI 成功；23 项定向，实际 Go HTTP+PostgreSQL+Redis 六组字段矩阵，UI提交→SQL→GET→刷新一致；取消零写、重复提交一次 PUT、503 重试、普通用户403、A→B乱序与浅深色真实浏览器均有技术证据。"},
+        "deployment": {"status": "recorded", "refs": ["https://github.com/tqytwe/sub2api/pull/349", "https://github.com/tqytwe/sub2api/runs/114157355796"], "note": "审查 head 3d3ee0706e2c01d96ec496742688f54520ffa697；普通 merge de3155f176426a975b227cbaebae4ff72a6658db 的 Zeabur 于 2026-10-10T07:00:23Z 成功。部署不是生产功能验收。"},
+        "production": {"status": "pending", "refs": [], "note": "精确 merge 已部署，但主线程明确用户浏览器反馈尚未收到；不能把本地真实浏览器技术验收标为用户现场通过。"}
+      },
+      "risks": "局部合成环境复现不能证明生产故障唯一原因；账号导出仍不含策略。原自动刷新日志为历史失败证据，不是现行交互。",
+      "next": "等待用户本机编辑恢复、取消/重开、草稿保留和实际目标账号保存结果；按 UI/API/DB 一致性补证。",
+      "rollback": "出现本条权限、数据或协议回归时停止推进，由主线程协调普通 revert 并验证既有保护；不自动改写生产数据。"
+    },
+    {
+      "id": "oauth-refresh-deadline",
+      "title": "OAuth 刷新按实际 deadline 拒绝迟到凭据",
+      "backend_state": "已部署",
+      "product_state": "已部署",
+      "owner": "待分配",
+      "pr": "https://github.com/tqytwe/sub2api/pull/350",
+      "sha": "63eabcb6a5384f64aaf26f043e73818b8220cbb1",
+      "evidence": {
+        "ui": {"status": "na", "refs": [], "note": "本批无界面改动，复用既有刷新入口。"},
+        "api": {"status": "recorded", "refs": ["backend/internal/service/oauth_refresh_context.go", "backend/internal/service/oauth_refresh_api.go", "backend/internal/service/token_refresh_service.go"], "note": "持久化前同时检查现有上下文错误及 now>=deadline，覆盖 fallback/统一 API；父任务到期不重试或写本路径 cooldown，成功持久化后的 detached cleanup 不抹掉成功。"},
+        "schema": {"status": "na", "refs": [], "note": "本批无新增迁移；复用已部署结构，不回填或删除历史数据。"},
+        "tests": {"status": "recorded", "refs": ["https://github.com/tqytwe/sub2api/pull/350", "docs/archive/completed-tasks/2026-10-10-refresh-deadline/README.md", "https://github.com/tqytwe/sub2api/actions/runs/38032599570", "https://github.com/tqytwe/sub2api/actions/runs/38032599507"], "note": "精确 994d9748 的 6/6 CI 成功；9 顶层/19 测试及子测试，100 次共 900/1900 通过；deadline±1ns/恰好到期且 ctx.Err()==nil。PG/Redis 门禁 54/54 必需、203 测试零跳过与测试替身边界回归分别记录。"},
+        "deployment": {"status": "recorded", "refs": ["https://github.com/tqytwe/sub2api/pull/350", "https://github.com/tqytwe/sub2api/runs/114161300905"], "note": "审查 head 994d97480dabd98c6a5b59e637a72a809a33c020；普通 merge 63eabcb6a5384f64aaf26f043e73818b8220cbb1 的 Zeabur 于 2026-10-10T07:23:19Z 成功。部署不是生产功能验收。"},
+        "production": {"status": "pending", "refs": [], "note": "部署已确认，未据测试替身声称生产或真实 PG 发生迟到写入；实际生产刷新边界与用户反馈待补。"}
+      },
+      "risks": "不是严格数据库提交 deadline，也不保证所有 provider 到期后零副作用。未改的 grok_credential_failure 仍可能在回调窗口按 transient 写 cooldown；旧 token fallback/Antigravity 策略不变。",
+      "next": "保留 Grok credential-failure/cooldown 后续项；观察真实失败分类，不放宽超时或断言。",
+      "rollback": "出现本条权限、数据或协议回归时停止推进，由主线程协调普通 revert 并验证既有保护；不自动改写生产数据。"
+    },
+    {
+      "id": "compact-tool-admission",
+      "title": "compact 最终模型准入、工具选路及单次错误响应",
+      "backend_state": "已部署",
+      "product_state": "已部署",
+      "owner": "待分配",
+      "pr": "https://github.com/tqytwe/sub2api/pull/348",
+      "sha": "a581d8db536157c6c325ea4729381ee8b83ed53d",
+      "evidence": {
+        "ui": {"status": "na", "refs": [], "note": "本批无前端实现改动；复用现有请求/错误展示。"},
+        "api": {"status": "recorded", "refs": ["backend/internal/service/openai_request_scheduling_model.go", "backend/internal/service/openai_responses_tool_capability.go", "backend/internal/handler/openai_response_completion.go"], "note": "调度与准入使用最终出站模型；Responses 工具请求按实际映射协议过滤；已完成 JSON 不追加 SSE，真实 SSE 只终止一次。保留权限/凭据/渠道保护和脱敏原因枚举。"},
+        "schema": {"status": "na", "refs": [], "note": "本批无新增迁移；复用已部署结构，不回填或删除历史数据。"},
+        "tests": {"status": "recorded", "refs": ["https://github.com/tqytwe/sub2api/pull/348", "docs/archive/completed-tasks/2026-10-compact-admission/README.md", "https://github.com/tqytwe/sub2api/actions/runs/38035716564", "https://github.com/tqytwe/sub2api/actions/runs/38035716543"], "note": "精确 4376afed 的 6/6 CI 成功。最终组合新跑 108 项 tagged service、AccountsView 17 项、前端静态/构建通过。真实 PG/Redis 覆盖 compact/协议/缓存及 WS exactly-once；14 个缓存交叉、8 格 quota/冷却和两个刷新 deadline 交叉场景通过。全量旧证据按相同源码范围复用，不冒充最终树全部本地重跑。"},
+        "deployment": {"status": "recorded", "refs": ["https://github.com/tqytwe/sub2api/pull/348", "https://github.com/tqytwe/sub2api/runs/114170427913"], "note": "审查 head 4376afeda1ba2e8841b1d350b2a0597c50b99ead；普通 merge a581d8db536157c6c325ea4729381ee8b83ed53d 的 Zeabur 于 2026-10-10T08:17:04Z 成功。部署不是生产功能验收。"},
+        "production": {"status": "pending", "refs": [], "note": "主线程本次交接提供的固定生产窗口没有相关 compact/tool 诊断样本；不能将零相关样本当成功验收，未提供可公开引用的窗口明细。"}
+      },
+      "risks": "原两条 compact 503 缺拒绝原因，不能逐条归因；既有 WS→HTTP bridge 内部循环不保证逐次重新准入。协议快照与 DB 变化时仍可能安全返回通用503。",
+      "next": "补固定窗口起止时间/脱敏引用，并在有真实 compact/tool 样本时核对最终模型、协议过滤与单次错误响应；不改变准入或凑样本。",
+      "rollback": "出现本条权限、数据或协议回归时停止推进，由主线程协调普通 revert 并验证既有保护；不自动改写生产数据。"
+    },
+    {
+      "id": "durable-request-ledger",
+      "title": "受管请求持久台账与用户/管理员审计视图",
+      "backend_state": "已部署",
+      "product_state": "可测",
+      "owner": "待分配",
+      "pr": "https://github.com/tqytwe/sub2api/pull/351",
+      "sha": "d18d504ccf12adc9f299cdf14af6ea32c4efe59c",
+      "evidence": {
+        "ui": {"status": "recorded", "refs": ["https://github.com/tqytwe/sub2api/blob/82828e121ae032201c50346b5052cd7c4915b590/docs/visual-reviews/2026-10-10-request-ledger.md", "https://github.com/tqytwe/sub2api/pull/351"], "note": "最终head的生产资源+隔离PG浏览器10:19:03 UTC通过两角色、四视口、浅深色、权限/列表分页/刷新/键盘/503重试及普通请求原usage7/3和余额98.75核对。批次首批仅钱包引用、无usage钻取；服务器fixture不代替用户本机生产三身份验收，反馈待补。"},
+        "api": {"status": "recorded", "refs": ["https://github.com/tqytwe/sub2api/blob/82828e121ae032201c50346b5052cd7c4915b590/docs/archive/completed-tasks/2026-10-10-durable-request-ledger-spec.md", "https://github.com/tqytwe/sub2api/pull/351"], "note": "限定受管入口/可观察发送前持久门、独立执行/用量/结算轴、用户SQL隔离与管理员筛选已技术验证；最终38/38真实PG/协议必需契约明确pass。第二轮五组缺陷已通过真实路径RED→GREEN及主线程两路独立复审关闭，不是全协议/全物理故障零丢失保证。"},
+        "schema": {"status": "recorded", "refs": ["https://github.com/tqytwe/sub2api/blob/82828e121ae032201c50346b5052cd7c4915b590/backend/migrations/275_gateway_request_ledger.sql", "https://github.com/tqytwe/sub2api/pull/351"], "note": "已合并275_gateway_request_ledger.sql，新增gateway_ledger_instances、gateway_requests、gateway_request_attempts、gateway_request_billing_links、gateway_request_tasks五表；2s lock/30s statement timeout。运行器trim后checksum为38e88e545ddb1a607e371735491cc764a7505351335635148f0618ea936f18a9，原始文件SHA256 ecaf0be340f9b43fa428ab5525399b6d995478ad66b2054bac95779204b151cc，不混用。主线程11:13:29 UTC生产DB核验返回exitCode=0且明确ROLLBACK；275登记时间10:48:51 UTC，checksum完全一致，5表49字段及约束一致、18索引valid/ready。生产DB结论为主线程转述，暂无可公开引用的原始明细；不是本任务独立访问生产或改写迁移。"},
+        "tests": {"status": "recorded", "refs": ["https://github.com/tqytwe/sub2api/blob/82828e121ae032201c50346b5052cd7c4915b590/docs/archive/completed-tasks/2026-10-10-durable-request-ledger-review.md", "https://github.com/tqytwe/sub2api/blob/82828e121ae032201c50346b5052cd7c4915b590/docs/archive/completed-tasks/2026-10-10-request-ledger-evidence/README.md", "https://github.com/tqytwe/sub2api/pull/351", "https://github.com/tqytwe/sub2api/actions/runs/38044552171", "https://github.com/tqytwe/sub2api/actions/runs/38044552173", "https://github.com/tqytwe/sub2api/actions/runs/38044552263", "https://github.com/tqytwe/sub2api/actions/runs/38044552269", "https://github.com/tqytwe/sub2api/blob/6e3977e649a94a94cf880a010add6e23e1aae527/docs/upstream-migrations/v2.10.3/handoff.json"], "note": "准确head82828e1的8checks/4workflows全部成功，两个独立复审确认五组关闭。冻结源码38项PG/协议契约明确pass；本地完整unit09:47:08、make test10:03:43（前端492文件/3506 pass、既有1文件/2测试skip）、build10:07:46、Fork10:16:57 UTC退出0。Live真实WS/Redis/PG注记故障仍保留7/3 token，重复finalize仅一笔0.13，余额100→99.87，无重连；不冒充生产样本。13db当时五组阻断及09:20快照保留为历史，不能继续当当前阻断；旧失败/复验见审查记录。"},
+        "deployment": {"status": "recorded", "refs": ["https://github.com/tqytwe/sub2api/pull/351", "https://github.com/tqytwe/sub2api/commit/d18d504ccf12adc9f299cdf14af6ea32c4efe59c", "https://github.com/tqytwe/sub2api/runs/114196133288"], "note": "GitHub事实为MERGED：10:43:35Z普通merge d18d504，整树4c51f0fb3f96fac39c635a8c7c6ac256f35f2526与最终head82828e1一致；该SHA的Zeabur check于10:48:42Z成功。主线程在环境恢复后于11:09:15及11:30:56 UTC以官方API确认d18唯一RUNNING/READY、旧a581 REMOVED，同次curl health=200。运行态/健康为主线程转述，原始明细未公开；不等于所有自然流量或用户本机验收完成。"},
+        "production": {"status": "pending", "refs": [], "note": "主线程提供固定自然窗口11:14:06.545570–11:29:06.545570 UTC，另加2分钟缓冲，11:31:08查询exitCode=0且明确ROLLBACK，任务已停止。233入口/207 attempts/201精确usage-billing links：169钱包、32订阅（含22套餐）；成功140、流中断44、取消24、失败25，缓冲后inflight=0。无计费关联32=匿名拒绝8+已鉴权拒绝10+非计量查询10+unknown失败4；另2次重试前次unknown、后次有usage并结算，故unknown总6、仍4待核对。201条已有证据无重复usage/扣款，dedup/fingerprint/归属无差异；2笔各1e-8为二次舍入，实际钱包与原结算命令一致。订阅package差异源于比较字段口径错误，改用billing link package_entitlement_id后归属/订阅/分组/套餐引用无差异，尚未验证订阅计数器窗口净增量。真实协议仅Responses、Messages、Chat Completions，无WS子轮/异步/其他协议样本。窗口内usage204=本窗口198+窗口外6，缓冲补本窗口3，不能直接比计数。以上为主线程转述，原始生产明细未公开；用户本机三身份反馈待补，不将unknown判免费、不声称修复历史损失或100%验收。 进一步核实6个unknown均不涉及gpt22/234；4失败均收到上游响应（1个HTTP400、3个HTTP200且已读正文但无usage/link），2次重试前次均HTTP502、后次已结算。台账直接关联的上游标识缺失；3个200请求的唯一近时Ops候选（同user/key/account、终止前约2ms）有上游request/response ID，但没有共享外键，尚不能精确关联。ledger无对应字段且usage头提取依赖账户配置，不能称上游未提供标识。候选response.failed终止帧为upstream_error/server_error且无usage；代码先解析usage再处理错误，尚未证明本地漏取。仍缺此前流事件观察及上游逐请求收费明细，不能判零费用或损失金额；有限诊断已停止，无猜测补丁或生产改动。"}
+      },
+      "risks": "首批边界：batch仅钱包引用、无usage钻取；详情attempts/billing子集合未分页、生产容量/lease热点与匿名增长未验证；用户浏览器验收待反馈。窗口unknown总6中4个失败（1个400、3个已读正文的200）仍待核对，均缺上游逐请求计量/扣费证据，不能判免费或估算损失；订阅计数器净增量未验证。package引用差异经比较口径修正已关闭，不继续当当前缺陷。真实样本仅Responses/Messages/Chat Completions，不覆盖WS子轮/异步或全Live/Realtime/Grok/direct-image等模式；WebRTC媒体/插件内部重试不可完全观察，旧实例或应用回退窗口不新增台账。此前五组缺陷已在82828e1关闭。",
+      "next": "核对4个unknown与订阅计数器窗口净增量，补WS子轮/异步/其他协议、用户本机三身份和首批容量/分页/batch验收；不回填、不补扣、不将已有201条结算关联一致外推为100%闭环。治理PR的准确SHA/CI交主线程审核合并，本任务不合并或部署。",
+      "rollback": "若发布/健康/权限/账务异常由主线程协调仅回退应用；保留五表、18索引、已存证据和schema_migrations中275行，不改checksum、不DROP/TRUNCATE/DELETE、不执行down migration。回退期新增覆盖中止，不补发/估费/历史补扣；代码/schema兼容结论不是生产回退实测。"
+    }
+  ],
+  "deprecations": [
+    {
+      "id": "legacy-binary-install",
+      "feature_id": "fork-updater",
+      "state": "弃用中",
+      "owner": "待分配",
+      "reason": "旧原版 binary/未知 backup 安装会覆盖 Fork 个性化，#339 已阻断下载/替换。",
+      "decision": "https://github.com/tqytwe/sub2api/pull/339",
+      "version": "a7e1c00330170754683216e3018cbd4279d7f733",
+      "inventory": {"status": "recorded", "refs": ["backend/internal/service/update_service.go", "frontend/src/components/common/VersionBadge.vue"], "note": "旧管理员 UI/API 更新与两种回退路径；服务端拒绝；未访问生产数据或证明外部调用方均已迁移。"},
+      "replacement": {"status": "recorded", "refs": ["deploy/FORK_SOURCE_BUILD.md"], "note": "迁移至经审查的 tqytwe 源码构建部署；非 ranxi 成品替换。"},
+      "compatibility": {"status": "pending", "refs": [], "note": "409 FORK_SOURCE_DEPLOYMENT_REQUIRED 保留明确拒绝；兼容期/旧调用监控窗口待负责人确定，尚无零调用证据。"},
+      "removal_approval": {"status": "pending", "refs": [], "note": "仅已批准保护逻辑；尚无移除 UI/route/API/service/schema 的批准，不自动删除。"},
+      "removal_scope": "候选仅旧安装相关 UI/route/API/service；逐层盘点后再确认。schema 不适用，无 SQL/数据清理授权。",
+      "retained_tests": {"status": "recorded", "refs": ["backend/internal/service/update_service_test.go", ".github/release-tools/test_release_matrix.py"], "note": "保留拒绝原版安装、rollback/backup 与来源漂移/升级回归，不为绿删测试。"}
+    }
+  ],
+  "route_review": {
+    "source": "https://github.com/ranxi2001/sub2api/blob/fd1b5ee4eeb20961fbb783fa6f136a1704271e90/frontend/src/router/index.ts",
+    "target": "https://github.com/tqytwe/sub2api/blob/a7e1c00330170754683216e3018cbd4279d7f733/frontend/src/router/index.ts",
+    "counts": {
+      "source": 81,
+      "target": 105,
+      "common": 64,
+      "source_only": 17,
+      "target_only": 41
+    },
+    "method": "固定源码 route 数组逐项核对，包含源单行路由和目标 adminPromptAuditPath 常量；不含导航守卫中的 path。数量不代表功能实现/验收。",
+    "source_only": [
+      {
+        "path": "/admin/account-ops",
+        "classification": "后续评估",
+        "reason": "账号运营；须先核对探测任务/权限/数据。",
+        "owner": "待分配"
+      },
+      {
+        "path": "/admin/account-quality",
+        "classification": "后续评估",
+        "reason": "账号质量；指标与任务验收独立于核心批次。",
+        "owner": "待分配"
+      },
+      {
+        "path": "/admin/astra-gateway",
+        "classification": "兼容别名",
+        "reason": "源重定向到 /admin/harvest-flow；随目标评估，不算独立功能。",
+        "owner": "待分配"
+      },
+      {
+        "path": "/admin/auto-config",
+        "classification": "后续评估",
+        "reason": "自动配置/对外调用边界另评估。",
+        "owner": "待分配"
+      },
+      {
+        "path": "/admin/controlled-experiments",
+        "classification": "后续评估",
+        "reason": "受控实验，须明确隔离与启停合同。",
+        "owner": "待分配"
+      },
+      {
+        "path": "/admin/harvest-flow",
+        "classification": "后续评估",
+        "reason": "凭据/自动授权和外部调用需专门评估，不自动启用。",
+        "owner": "待分配"
+      },
+      {
+        "path": "/admin/pelican-tests",
+        "classification": "后续评估",
+        "reason": "测试运营入口，需后端/权限合同。",
+        "owner": "待分配"
+      },
+      {
+        "path": "/admin/priority-scheduling",
+        "classification": "后续评估",
+        "reason": "调度后端与配置合同先于 UI。",
+        "owner": "待分配"
+      },
+      {
+        "path": "/admin/request-captures",
+        "classification": "后续评估",
+        "reason": "捕获数据/凭据与留存权限需单独界定。",
+        "owner": "待分配"
+      },
+      {
+        "path": "/admin/smart-ops",
+        "classification": "兼容别名",
+        "reason": "源重定向到 /admin/account-quality；不算独立完成项。",
+        "owner": "待分配"
+      },
+      {
+        "path": "/admin/support-tickets",
+        "classification": "后续评估",
+        "reason": "管理工单列表，须与用户侧及权限闭环。",
+        "owner": "待分配"
+      },
+      {
+        "path": "/admin/support-tickets/:id(\\d+)",
+        "classification": "后续评估",
+        "reason": "管理工单详情，独立核对权限和用户侧。",
+        "owner": "待分配"
+      },
+      {
+        "path": "/admin/token-guard",
+        "classification": "后续评估",
+        "reason": "凭据保护与敏感数据边界先评估。",
+        "owner": "待分配"
+      },
+      {
+        "path": "/admin/token-guard-v2",
+        "classification": "后续评估",
+        "reason": "独立 v2 凭据运营入口，不能只按名称合并判定。",
+        "owner": "待分配"
+      },
+      {
+        "path": "/pelican-showcase",
+        "classification": "后续评估",
+        "reason": "公开展示数据来源及可见性待审。",
+        "owner": "待分配"
+      },
+      {
+        "path": "/support-tickets",
+        "classification": "后续评估",
+        "reason": "用户工单列表，服务端权限及管理侧未闭环。",
+        "owner": "待分配"
+      },
+      {
+        "path": "/support-tickets/:id(\\d+)",
+        "classification": "后续评估",
+        "reason": "用户工单详情，需所有权与异常态验收。",
+        "owner": "待分配"
+      }
+    ]
+  }
+}

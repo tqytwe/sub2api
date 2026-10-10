@@ -22,6 +22,9 @@ Fork 审查、测试和 CI 的 tqytwe 自研构建。不得把 UpdateService/Ver
 版本锁定信息：`docs/upstream-migrations/source-lock.json`。`release_commit` 表示
 分析目标，不能据此声称整版已迁移；实际批次证据写入版本目录账本。
 
+日常交接只维护版本目录的 [交接快照](./upstream-migrations/v2.10.3/handoff.json)，
+字段及弃用规则见 [工程交接入口](./PROJECT_HYGIENE.md)。旧差异清单保留固定比较基线，不作为实时状态。
+
 ## 同步前
 
 ```bash
