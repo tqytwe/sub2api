@@ -1,0 +1,36 @@
+=== RUN   TestAdminPlanBrowserContract
+=== RUN   TestAdminPlanBrowserContract/description_only
+2026/10/10 00:15:42 Timezone initialized: UTC (UTC offset: +00:00)
+    plan_browser_test.go:23: Browserslist: browsers data (caniuse-lite) is 10 months old. Please run:
+          npx update-browserslist-db@latest
+          Why you should do it regularly: https://github.com/browserslist/update-db#readme
+        Browser: GET → actual view/dialog → cancel/reopen → description-only PUT → GET passed; DB verified by Go parent.
+
+=== RUN   TestAdminPlanBrowserContract/explicit_whitespace_clear
+2026/10/10 00:16:00 Timezone initialized: UTC (UTC offset: +00:00)
+    plan_browser_test.go:24: Browserslist: browsers data (caniuse-lite) is 10 months old. Please run:
+          npx update-browserslist-db@latest
+          Why you should do it regularly: https://github.com/browserslist/update-db#readme
+        Browser: GET → actual view/dialog → cancel/reopen → explicit whitespace clear PUT → GET passed; DB verified by Go parent.
+
+--- PASS: TestAdminPlanBrowserContract (39.60s)
+    --- PASS: TestAdminPlanBrowserContract/description_only (17.72s)
+    --- PASS: TestAdminPlanBrowserContract/explicit_whitespace_clear (21.87s)
+=== RUN   TestAdminPlanHTTPContract
+2026/10/10 00:16:22 Timezone initialized: UTC (UTC offset: +00:00)
+=== RUN   TestAdminPlanHTTPContract/list_preserves_every_persisted_field
+=== RUN   TestAdminPlanHTTPContract/legacy_full_edit_roundtrip_preserves_configuration
+--- PASS: TestAdminPlanHTTPContract (3.89s)
+    --- PASS: TestAdminPlanHTTPContract/list_preserves_every_persisted_field (0.00s)
+    --- PASS: TestAdminPlanHTTPContract/legacy_full_edit_roundtrip_preserves_configuration (0.01s)
+=== RUN   TestAdminPlanProjectionCoversModelColumns
+--- PASS: TestAdminPlanProjectionCoversModelColumns (0.00s)
+=== RUN   TestAdminPlanHTTPPatchAndPermissions
+2026/10/10 00:16:26 Timezone initialized: UTC (UTC offset: +00:00)
+=== RUN   TestAdminPlanHTTPPatchAndPermissions/omission_preserves_and_explicit_values_clear
+=== RUN   TestAdminPlanHTTPPatchAndPermissions/invalid_or_unauthorized_requests_do_not_write
+--- PASS: TestAdminPlanHTTPPatchAndPermissions (3.75s)
+    --- PASS: TestAdminPlanHTTPPatchAndPermissions/omission_preserves_and_explicit_values_clear (0.01s)
+    --- PASS: TestAdminPlanHTTPPatchAndPermissions/invalid_or_unauthorized_requests_do_not_write (0.02s)
+PASS
+ok      github.com/Wei-Shaw/sub2api/internal/planacceptance 47.264s

@@ -1,0 +1,244 @@
+
+ RUN  v2.1.9 /workspace/plan-edit-preserve/frontend
+
+Browserslist: browsers data (caniuse-lite) is 10 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+ ❯ src/views/admin/orders/__tests__/PlanEditDialog.spec.ts (19 tests | 5 failed) 359ms
+   × PlanEditDialog product display fields > sends an explicit clear for whitespace-only product_name without writing untouched fields 19ms
+     → expected "spy" to be called with arguments: [ 26, { product_name: '' } ]
+
+Received:
+
+  1st spy call:
+
+  Array [
+    26,
+-   Object {
+-     "product_name": "",
+-   },
++   Object {},
+  ]
+
+
+Number of calls: 1
+
+   × PlanEditDialog product display fields > sends an explicit clear for whitespace-only cover_image_url without writing untouched fields 12ms
+     → expected "spy" to be called with arguments: [ 26, { cover_image_url: '' } ]
+
+Received:
+
+  1st spy call:
+
+  Array [
+    26,
+-   Object {
+-     "cover_image_url": "",
+-   },
++   Object {},
+  ]
+
+
+Number of calls: 1
+
+   × PlanEditDialog product display fields > sends an explicit clear for whitespace-only detail_description without writing untouched fields 12ms
+     → expected "spy" to be called with arguments: [ 26, { detail_description: '' } ]
+
+Received:
+
+  1st spy call:
+
+  Array [
+    26,
+-   Object {
+-     "detail_description": "",
+-   },
++   Object {},
+  ]
+
+
+Number of calls: 1
+
+   × PlanEditDialog product display fields > sends an explicit clear for whitespace-only storefront_badge without writing untouched fields 20ms
+     → expected "spy" to be called with arguments: [ 26, { storefront_badge: '' } ]
+
+Received:
+
+  1st spy call:
+
+  Array [
+    26,
+-   Object {
+-     "storefront_badge": "",
+-   },
++   Object {},
+  ]
+
+
+Number of calls: 1
+
+   × PlanEditDialog product display fields > sends an explicit clear for whitespace-only features without writing untouched fields 8ms
+     → expected "spy" to be called with arguments: [ 26, { features: '' } ]
+
+Received:
+
+  1st spy call:
+
+  Array [
+    26,
+-   Object {
+-     "features": "",
+-   },
++   Object {},
+  ]
+
+
+Number of calls: 1
+
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/views/admin/orders/__tests__/PlanEditDialog.spec.ts > PlanEditDialog product display fields > sends an explicit clear for whitespace-only product_name without writing untouched fields
+AssertionError: expected "spy" to be called with arguments: [ 26, { product_name: '' } ]
+
+Received:
+
+  1st spy call:
+
+  Array [
+    26,
+-   Object {
+-     "product_name": "",
+-   },
++   Object {},
+  ]
+
+
+Number of calls: 1
+
+ ❯ src/views/admin/orders/__tests__/PlanEditDialog.spec.ts:445:28
+    443|     await wrapper.find(selector).setValue('')
+    444|     await wrapper.find('form').trigger('submit')
+    445|     expect(updatePlanMock).toHaveBeenCalledWith(26, { [field]: '' })
+       |                            ^
+    446|   })
+    447|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/5]⎯
+
+ FAIL  src/views/admin/orders/__tests__/PlanEditDialog.spec.ts > PlanEditDialog product display fields > sends an explicit clear for whitespace-only cover_image_url without writing untouched fields
+AssertionError: expected "spy" to be called with arguments: [ 26, { cover_image_url: '' } ]
+
+Received:
+
+  1st spy call:
+
+  Array [
+    26,
+-   Object {
+-     "cover_image_url": "",
+-   },
++   Object {},
+  ]
+
+
+Number of calls: 1
+
+ ❯ src/views/admin/orders/__tests__/PlanEditDialog.spec.ts:445:28
+    443|     await wrapper.find(selector).setValue('')
+    444|     await wrapper.find('form').trigger('submit')
+    445|     expect(updatePlanMock).toHaveBeenCalledWith(26, { [field]: '' })
+       |                            ^
+    446|   })
+    447|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/5]⎯
+
+ FAIL  src/views/admin/orders/__tests__/PlanEditDialog.spec.ts > PlanEditDialog product display fields > sends an explicit clear for whitespace-only detail_description without writing untouched fields
+AssertionError: expected "spy" to be called with arguments: [ 26, { detail_description: '' } ]
+
+Received:
+
+  1st spy call:
+
+  Array [
+    26,
+-   Object {
+-     "detail_description": "",
+-   },
++   Object {},
+  ]
+
+
+Number of calls: 1
+
+ ❯ src/views/admin/orders/__tests__/PlanEditDialog.spec.ts:445:28
+    443|     await wrapper.find(selector).setValue('')
+    444|     await wrapper.find('form').trigger('submit')
+    445|     expect(updatePlanMock).toHaveBeenCalledWith(26, { [field]: '' })
+       |                            ^
+    446|   })
+    447|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/5]⎯
+
+ FAIL  src/views/admin/orders/__tests__/PlanEditDialog.spec.ts > PlanEditDialog product display fields > sends an explicit clear for whitespace-only storefront_badge without writing untouched fields
+AssertionError: expected "spy" to be called with arguments: [ 26, { storefront_badge: '' } ]
+
+Received:
+
+  1st spy call:
+
+  Array [
+    26,
+-   Object {
+-     "storefront_badge": "",
+-   },
++   Object {},
+  ]
+
+
+Number of calls: 1
+
+ ❯ src/views/admin/orders/__tests__/PlanEditDialog.spec.ts:445:28
+    443|     await wrapper.find(selector).setValue('')
+    444|     await wrapper.find('form').trigger('submit')
+    445|     expect(updatePlanMock).toHaveBeenCalledWith(26, { [field]: '' })
+       |                            ^
+    446|   })
+    447|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/5]⎯
+
+ FAIL  src/views/admin/orders/__tests__/PlanEditDialog.spec.ts > PlanEditDialog product display fields > sends an explicit clear for whitespace-only features without writing untouched fields
+AssertionError: expected "spy" to be called with arguments: [ 26, { features: '' } ]
+
+Received:
+
+  1st spy call:
+
+  Array [
+    26,
+-   Object {
+-     "features": "",
+-   },
++   Object {},
+  ]
+
+
+Number of calls: 1
+
+ ❯ src/views/admin/orders/__tests__/PlanEditDialog.spec.ts:445:28
+    443|     await wrapper.find(selector).setValue('')
+    444|     await wrapper.find('form').trigger('submit')
+    445|     expect(updatePlanMock).toHaveBeenCalledWith(26, { [field]: '' })
+       |                            ^
+    446|   })
+    447|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/5]⎯
+
+ Test Files  1 failed (1)
+      Tests  5 failed | 14 passed (19)
+   Start at  23:28:15
+   Duration  2.05s (transform 725ms, setup 95ms, collect 753ms, tests 359ms, environment 359ms, prepare 67ms)

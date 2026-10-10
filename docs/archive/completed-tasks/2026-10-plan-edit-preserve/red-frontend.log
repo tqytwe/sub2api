@@ -1,0 +1,469 @@
+
+ RUN  v2.1.9 /workspace/plan-edit-preserve/frontend
+
+Browserslist: browsers data (caniuse-lite) is 10 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+ ❯ src/views/admin/orders/__tests__/PlanEditDialog.spec.ts (13 tests | 5 failed) 1571ms
+   ✓ PlanEditDialog > shows CNY channel charge using the configured subscription rate and fee 468ms
+   × PlanEditDialog product display fields > falls back to group platform when editing old plans without storefront platform 140ms
+     → expected "spy" to be called with arguments: [ 9, {} ]
+
+Received:
+
+  1st spy call:
+
+  Array [
+    9,
+-   Object {},
++   Object {
++     "amount_limit_usd": null,
++     "clear_amount_limit_usd": true,
++     "clear_request_limit": true,
++     "clear_token_limit": true,
++     "cover_image_url": "",
++     "currency": "",
++     "description": "Short copy",
++     "detail_description": "",
++     "features": "",
++     "for_sale": true,
++     "group_id": 3,
++     "name": "Legacy OpenAI Pro",
++     "original_price": 0,
++     "price": 9.99,
++     "product_name": "",
++     "request_limit": null,
++     "sort_order": 1,
++     "storefront_badge": "",
++     "storefront_category": "pro",
++     "storefront_featured": false,
++     "storefront_platform": "openai",
++     "token_limit": null,
++     "validity_days": 30,
++     "validity_unit": "days",
++   },
+  ]
+
+
+Number of calls: 1
+
+   × PlanEditDialog product display fields > submits only edits with missing legacy fields: false 38ms
+     → expected "spy" to be called with arguments: [ 20, …(1) ]
+
+Received:
+
+  1st spy call:
+
+  Array [
+    20,
+    Object {
++     "amount_limit_usd": 4.56,
++     "clear_amount_limit_usd": false,
++     "clear_request_limit": false,
++     "clear_token_limit": false,
++     "cover_image_url": "/kept.webp",
++     "currency": "USD",
+      "description": "Changed description",
++     "detail_description": "Detail with spaces",
++     "features": "Feature with spaces",
++     "for_sale": true,
++     "group_id": 3,
++     "name": "Existing plan",
++     "original_price": 39,
++     "price": 19.99,
++     "product_name": "",
++     "request_limit": 123,
++     "sort_order": 4,
++     "storefront_badge": "Badge",
++     "storefront_category": "enterprise",
++     "storefront_featured": true,
++     "storefront_platform": "image",
++     "token_limit": 789,
++     "validity_days": 30,
++     "validity_unit": "days",
+    },
+  ]
+
+
+Number of calls: 1
+
+   × PlanEditDialog product display fields > submits only edits with missing legacy fields: true 58ms
+     → expected "spy" to be called with arguments: [ 20, …(1) ]
+
+Received:
+
+  1st spy call:
+
+  Array [
+    20,
+    Object {
++     "amount_limit_usd": null,
++     "clear_amount_limit_usd": true,
++     "clear_request_limit": true,
++     "clear_token_limit": true,
++     "cover_image_url": "",
++     "currency": "",
+      "description": "Changed description",
++     "detail_description": "",
++     "features": "Feature with spaces",
++     "for_sale": true,
++     "group_id": 3,
++     "name": "Existing plan",
++     "original_price": 0,
++     "price": 19.99,
++     "product_name": "",
++     "request_limit": null,
++     "sort_order": 4,
++     "storefront_badge": "",
++     "storefront_category": "pro",
++     "storefront_featured": false,
++     "storefront_platform": "openai",
++     "token_limit": null,
++     "validity_days": 30,
++     "validity_unit": "days",
+    },
+  ]
+
+
+Number of calls: 1
+
+   × PlanEditDialog product display fields > preserves blank storefront values through reopen and cancels without writes 144ms
+     → expected "spy" to be called with arguments: [ 21, {} ]
+
+Received:
+
+  1st spy call:
+
+  Array [
+    21,
+-   Object {},
++   Object {
++     "amount_limit_usd": null,
++     "clear_amount_limit_usd": true,
++     "clear_request_limit": true,
++     "clear_token_limit": true,
++     "cover_image_url": "",
++     "currency": "",
++     "description": "Original",
++     "detail_description": "",
++     "features": "",
++     "for_sale": false,
++     "group_id": 3,
++     "name": "Existing plan",
++     "original_price": 0,
++     "price": 19.99,
++     "product_name": "",
++     "request_limit": null,
++     "sort_order": 0,
++     "storefront_badge": "",
++     "storefront_category": "pro",
++     "storefront_featured": false,
++     "storefront_platform": "openai",
++     "token_limit": null,
++     "validity_days": 30,
++     "validity_unit": "days",
++   },
+  ]
+
+
+Number of calls: 1
+
+   × PlanEditDialog product display fields > sends explicit empty strings, false and zero while omitting untouched fields 85ms
+     → expected "spy" to be called with arguments: [ 22, { cover_image_url: '', …(6) } ]
+
+Received:
+
+  1st spy call:
+
+  Array [
+    22,
+    Object {
++     "amount_limit_usd": null,
++     "clear_amount_limit_usd": true,
++     "clear_request_limit": true,
++     "clear_token_limit": true,
+      "cover_image_url": "",
++     "currency": "",
++     "description": "Original",
+      "detail_description": "",
++     "features": "",
+      "for_sale": false,
++     "group_id": 3,
++     "name": "Existing plan",
+      "original_price": 0,
++     "price": 19.99,
++     "product_name": "",
++     "request_limit": null,
+      "sort_order": 0,
+      "storefront_badge": "",
++     "storefront_category": "pro",
+      "storefront_featured": false,
++     "storefront_platform": "openai",
++     "token_limit": null,
++     "validity_days": 30,
++     "validity_unit": "days",
+    },
+  ]
+
+
+Number of calls: 1
+
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/views/admin/orders/__tests__/PlanEditDialog.spec.ts > PlanEditDialog product display fields > falls back to group platform when editing old plans without storefront platform
+AssertionError: expected "spy" to be called with arguments: [ 9, {} ]
+
+Received:
+
+  1st spy call:
+
+  Array [
+    9,
+-   Object {},
++   Object {
++     "amount_limit_usd": null,
++     "clear_amount_limit_usd": true,
++     "clear_request_limit": true,
++     "clear_token_limit": true,
++     "cover_image_url": "",
++     "currency": "",
++     "description": "Short copy",
++     "detail_description": "",
++     "features": "",
++     "for_sale": true,
++     "group_id": 3,
++     "name": "Legacy OpenAI Pro",
++     "original_price": 0,
++     "price": 9.99,
++     "product_name": "",
++     "request_limit": null,
++     "sort_order": 1,
++     "storefront_badge": "",
++     "storefront_category": "pro",
++     "storefront_featured": false,
++     "storefront_platform": "openai",
++     "token_limit": null,
++     "validity_days": 30,
++     "validity_unit": "days",
++   },
+  ]
+
+
+Number of calls: 1
+
+ ❯ src/views/admin/orders/__tests__/PlanEditDialog.spec.ts:357:28
+    355|     await wrapper.find('form').trigger('submit')
+    356|
+    357|     expect(updatePlanMock).toHaveBeenCalledWith(9, {})
+       |                            ^
+    358|   })
+    359|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/5]⎯
+
+ FAIL  src/views/admin/orders/__tests__/PlanEditDialog.spec.ts > PlanEditDialog product display fields > submits only edits with missing legacy fields: false
+AssertionError: expected "spy" to be called with arguments: [ 20, …(1) ]
+
+Received:
+
+  1st spy call:
+
+  Array [
+    20,
+    Object {
++     "amount_limit_usd": 4.56,
++     "clear_amount_limit_usd": false,
++     "clear_request_limit": false,
++     "clear_token_limit": false,
++     "cover_image_url": "/kept.webp",
++     "currency": "USD",
+      "description": "Changed description",
++     "detail_description": "Detail with spaces",
++     "features": "Feature with spaces",
++     "for_sale": true,
++     "group_id": 3,
++     "name": "Existing plan",
++     "original_price": 39,
++     "price": 19.99,
++     "product_name": "",
++     "request_limit": 123,
++     "sort_order": 4,
++     "storefront_badge": "Badge",
++     "storefront_category": "enterprise",
++     "storefront_featured": true,
++     "storefront_platform": "image",
++     "token_limit": 789,
++     "validity_days": 30,
++     "validity_unit": "days",
+    },
+  ]
+
+
+Number of calls: 1
+
+ ❯ src/views/admin/orders/__tests__/PlanEditDialog.spec.ts:376:28
+    374|     await wrapper.find('textarea').setValue('Changed description')
+    375|     await wrapper.find('form').trigger('submit')
+    376|     expect(updatePlanMock).toHaveBeenCalledWith(20, { description: 'Ch…
+       |                            ^
+    377|     expect(plan.description).toBe('Original')
+    378|   })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/5]⎯
+
+ FAIL  src/views/admin/orders/__tests__/PlanEditDialog.spec.ts > PlanEditDialog product display fields > submits only edits with missing legacy fields: true
+AssertionError: expected "spy" to be called with arguments: [ 20, …(1) ]
+
+Received:
+
+  1st spy call:
+
+  Array [
+    20,
+    Object {
++     "amount_limit_usd": null,
++     "clear_amount_limit_usd": true,
++     "clear_request_limit": true,
++     "clear_token_limit": true,
++     "cover_image_url": "",
++     "currency": "",
+      "description": "Changed description",
++     "detail_description": "",
++     "features": "Feature with spaces",
++     "for_sale": true,
++     "group_id": 3,
++     "name": "Existing plan",
++     "original_price": 0,
++     "price": 19.99,
++     "product_name": "",
++     "request_limit": null,
++     "sort_order": 4,
++     "storefront_badge": "",
++     "storefront_category": "pro",
++     "storefront_featured": false,
++     "storefront_platform": "openai",
++     "token_limit": null,
++     "validity_days": 30,
++     "validity_unit": "days",
+    },
+  ]
+
+
+Number of calls: 1
+
+ ❯ src/views/admin/orders/__tests__/PlanEditDialog.spec.ts:376:28
+    374|     await wrapper.find('textarea').setValue('Changed description')
+    375|     await wrapper.find('form').trigger('submit')
+    376|     expect(updatePlanMock).toHaveBeenCalledWith(20, { description: 'Ch…
+       |                            ^
+    377|     expect(plan.description).toBe('Original')
+    378|   })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/5]⎯
+
+ FAIL  src/views/admin/orders/__tests__/PlanEditDialog.spec.ts > PlanEditDialog product display fields > preserves blank storefront values through reopen and cancels without writes
+AssertionError: expected "spy" to be called with arguments: [ 21, {} ]
+
+Received:
+
+  1st spy call:
+
+  Array [
+    21,
+-   Object {},
++   Object {
++     "amount_limit_usd": null,
++     "clear_amount_limit_usd": true,
++     "clear_request_limit": true,
++     "clear_token_limit": true,
++     "cover_image_url": "",
++     "currency": "",
++     "description": "Original",
++     "detail_description": "",
++     "features": "",
++     "for_sale": false,
++     "group_id": 3,
++     "name": "Existing plan",
++     "original_price": 0,
++     "price": 19.99,
++     "product_name": "",
++     "request_limit": null,
++     "sort_order": 0,
++     "storefront_badge": "",
++     "storefront_category": "pro",
++     "storefront_featured": false,
++     "storefront_platform": "openai",
++     "token_limit": null,
++     "validity_days": 30,
++     "validity_unit": "days",
++   },
+  ]
+
+
+Number of calls: 1
+
+ ❯ src/views/admin/orders/__tests__/PlanEditDialog.spec.ts:395:28
+    393|     expect((wrapper.find('textarea').element as HTMLTextAreaElement).v…
+    394|     await wrapper.find('form').trigger('submit')
+    395|     expect(updatePlanMock).toHaveBeenCalledWith(21, {})
+       |                            ^
+    396|   })
+    397|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/5]⎯
+
+ FAIL  src/views/admin/orders/__tests__/PlanEditDialog.spec.ts > PlanEditDialog product display fields > sends explicit empty strings, false and zero while omitting untouched fields
+AssertionError: expected "spy" to be called with arguments: [ 22, { cover_image_url: '', …(6) } ]
+
+Received:
+
+  1st spy call:
+
+  Array [
+    22,
+    Object {
++     "amount_limit_usd": null,
++     "clear_amount_limit_usd": true,
++     "clear_request_limit": true,
++     "clear_token_limit": true,
+      "cover_image_url": "",
++     "currency": "",
++     "description": "Original",
+      "detail_description": "",
++     "features": "",
+      "for_sale": false,
++     "group_id": 3,
++     "name": "Existing plan",
+      "original_price": 0,
++     "price": 19.99,
++     "product_name": "",
++     "request_limit": null,
+      "sort_order": 0,
+      "storefront_badge": "",
++     "storefront_category": "pro",
+      "storefront_featured": false,
++     "storefront_platform": "openai",
++     "token_limit": null,
++     "validity_days": 30,
++     "validity_unit": "days",
+    },
+  ]
+
+
+Number of calls: 1
+
+ ❯ src/views/admin/orders/__tests__/PlanEditDialog.spec.ts:416:28
+    414|     await numbers[numbers.length - 1].setValue('0')
+    415|     await wrapper.find('form').trigger('submit')
+    416|     expect(updatePlanMock).toHaveBeenCalledWith(22, {
+       |                            ^
+    417|       cover_image_url: '', detail_description: '', storefront_badge: '…
+    418|       for_sale: false, original_price: 0, sort_order: 0,
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/5]⎯
+
+ Test Files  1 failed (1)
+      Tests  5 failed | 8 passed (13)
+   Start at  22:48:18
+   Duration  8.03s (transform 2.38s, setup 319ms, collect 2.75s, tests 1.57s, environment 1.81s, prepare 299ms)
