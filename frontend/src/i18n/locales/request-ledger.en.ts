@@ -1,6 +1,6 @@
 export default {
   walletNotice: 'These are existing wallet entries. A reservation alone does not prove final settlement.', walletOperations: { video_balance_hold: 'Video reservation', video_balance_capture: 'Video capture', video_balance_release: 'Video release', image_balance_hold: 'Image reservation', image_balance_capture: 'Image capture', image_balance_release: 'Image release' },
-  phase: 'Phase', phases: { external_search: 'External search', ws_input: 'Continuous WS input', ws_observed: 'Observed automatic turn', request: 'Request', ws_connect: 'WS connection', ws_control: 'WS control' },
+  phase: 'Phase', phases: { auxiliary: 'Auxiliary download', external_search: 'External search', ws_input: 'Continuous WS input', ws_observed: 'Observed automatic turn', request: 'Request', ws_connect: 'WS connection', ws_control: 'WS control' },
   walletTransaction: 'Wallet transaction',
   inputTokens: 'Input tokens', outputTokens: 'Output tokens',
   title: 'Request ledger', description: 'Execution, usage and settlement are tracked separately.',

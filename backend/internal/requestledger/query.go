@@ -214,7 +214,7 @@ func (l *Ledger) BillingReferences(ctx context.Context, viewer Viewer, id string
  (SELECT bt.id FROM balance_transactions bt JOIN gateway_requests owner ON owner.id=b.request_id
  WHERE bt.user_id=owner.user_id AND bt.source_type='usage_charge' AND bt.source_id=b.billing_request_id
  AND bt.idempotency_key='usage_billing:'||b.api_key_id::text||':'||b.billing_request_id),
- CASE WHEN b.settlement_verified THEN u.billed_cost ELSE NULL END
+ CASE WHEN b.settlement_verified AND u.billing_settled THEN u.billed_cost ELSE NULL END
  FROM gateway_request_billing_links b LEFT JOIN usage_logs u ON u.request_id=b.billing_request_id AND u.api_key_id=b.api_key_id
  AND u.billing_request_fingerprint=b.request_fingerprint WHERE b.request_id=$1 ORDER BY b.created_at`, id)
 	if err != nil {
@@ -250,7 +250,7 @@ func (l *Ledger) Usage(ctx context.Context, viewer Viewer, requestID string, usa
 	defer cancel()
 	var u LinkedUsage
 	err := l.db.QueryRowContext(ctx, `SELECT u.id,u.model,u.input_tokens,u.output_tokens,u.created_at,
- CASE WHEN b.settlement_verified THEN u.billed_cost ELSE NULL END
+ CASE WHEN b.settlement_verified AND u.billing_settled THEN u.billed_cost ELSE NULL END
  FROM gateway_request_billing_links b JOIN gateway_requests r ON r.id=b.request_id
  JOIN usage_logs u ON u.request_id=b.billing_request_id AND u.api_key_id=b.api_key_id AND u.billing_request_fingerprint=b.request_fingerprint
  WHERE b.request_id=$1 AND u.id=$2`, requestID, usageID).Scan(&u.ID, &u.Model, &u.InputTokens, &u.OutputTokens, &u.CreatedAt, &u.BilledCost)

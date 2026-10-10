@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 )
 
 var ErrUnavailable = errors.New("request ledger unavailable")
@@ -24,13 +25,15 @@ type Ledger struct {
 	db             *sql.DB
 	instance       string
 	ownerMu        sync.Mutex
+	activeMu       sync.Mutex
+	active         map[string]string
 	stop           chan struct{}
 	once           sync.Once
 	start          sync.Once
 }
 
 func New(db *sql.DB) *Ledger {
-	return &Ledger{db: db, instance: uuid.NewString(), stop: make(chan struct{})}
+	return &Ledger{db: db, instance: uuid.NewString(), stop: make(chan struct{}), active: make(map[string]string)}
 }
 
 func NewStarted(db *sql.DB) *Ledger {
@@ -151,6 +154,17 @@ func (l *Ledger) begin(ctx context.Context, route, method, kind string, parent *
 		parent.mu.Unlock()
 		parentID = parent.ID
 	}
+	// Register before commit so recovery can never mistake a concurrently
+	// admitted request for abandoned work in this still-healthy process.
+	l.activeMu.Lock()
+	l.active[h.ID] = h.ParentID
+	l.activeMu.Unlock()
+	committed := false
+	defer func() {
+		if !committed {
+			l.forget(h.ID, false)
+		}
+	}()
 	tx, err := l.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, ErrUnavailable
@@ -184,6 +198,7 @@ func (l *Ledger) begin(ctx context.Context, route, method, kind string, parent *
 	if err = tx.Commit(); err != nil {
 		return nil, ErrUnavailable
 	}
+	committed = true
 	return h, nil
 }
 
@@ -214,17 +229,31 @@ func BindIdentity(ctx context.Context, userID, keyID int64) error {
 	return nil
 }
 
+func (l *Ledger) forget(id string, children bool) {
+	l.activeMu.Lock()
+	defer l.activeMu.Unlock()
+	delete(l.active, id)
+	if children {
+		for child, parent := range l.active {
+			if parent == id {
+				delete(l.active, child)
+			}
+		}
+	}
+}
+
 func (h *Handle) Finish(ctx context.Context, state string, status int, code string) error {
 	if h == nil {
 		return nil
 	}
+	defer h.ledger.forget(h.ID, h.kind == "ws_session")
 	ctx, cancel := detachedWrite(ctx)
 	defer cancel()
 	_, err := h.ledger.db.ExecContext(ctx, `WITH closing AS (
  SELECT id, CASE WHEN $2<>'succeeded' THEN $2
- WHEN EXISTS(SELECT 1 FROM gateway_request_attempts a WHERE a.request_id=r.id AND a.execution_state='inflight') THEN 'interrupted'
- ELSE COALESCE((SELECT execution_state FROM gateway_request_attempts a WHERE a.request_id=r.id ORDER BY attempt_no DESC LIMIT 1),$2) END AS state,
- (SELECT error_code FROM gateway_request_attempts a WHERE a.request_id=r.id ORDER BY attempt_no DESC LIMIT 1) AS last_code
+ WHEN EXISTS(SELECT 1 FROM gateway_request_attempts a WHERE a.request_id=r.id AND a.phase<>'auxiliary' AND a.execution_state='inflight') THEN 'interrupted'
+ ELSE COALESCE((SELECT execution_state FROM gateway_request_attempts a WHERE a.request_id=r.id AND a.phase<>'auxiliary' ORDER BY attempt_no DESC LIMIT 1),$2) END AS state,
+ (SELECT error_code FROM gateway_request_attempts a WHERE a.request_id=r.id AND a.phase<>'auxiliary' ORDER BY attempt_no DESC LIMIT 1) AS last_code
  FROM gateway_requests r WHERE id=$1 AND execution_state='inflight' FOR UPDATE
  ), finished AS (
  UPDATE gateway_requests r SET execution_state=c.state,ended_at=clock_timestamp(),http_status=NULLIF($3,0),
@@ -243,6 +272,15 @@ func (h *Handle) Finish(ctx context.Context, state string, status int, code stri
 // Recover only marks stale work uncertain. It cannot infer whether an external
 // request was sent, completed, or billed during a crash window.
 func (l *Ledger) Recover(ctx context.Context) error {
+	// This set is liveness protection, not a log/settlement queue. Every ID is
+	// already durable. After Finish returns, a failed final write is recoverable
+	// even while this owner's lease stays healthy. Other live owners are untouched.
+	l.activeMu.Lock()
+	defer l.activeMu.Unlock()
+	active := make([]string, 0, len(l.active))
+	for id := range l.active {
+		active = append(active, id)
+	}
 	ctx, cancel := detachedWrite(ctx)
 	defer cancel()
 	tx, err := l.db.BeginTx(ctx, nil)
@@ -252,13 +290,13 @@ func (l *Ledger) Recover(ctx context.Context) error {
 	defer func() { _ = tx.Rollback() }()
 	_, err = tx.ExecContext(ctx, `WITH stale AS (
  SELECT r.id FROM gateway_requests r JOIN gateway_ledger_instances i ON i.id=r.instance_id
- WHERE r.execution_state='inflight' AND i.lease_until<clock_timestamp() LIMIT 1000 FOR UPDATE OF r SKIP LOCKED
+ WHERE r.execution_state='inflight' AND (i.lease_until<clock_timestamp() OR (r.instance_id=$1 AND NOT (r.id=ANY($2::uuid[])))) LIMIT 1000 FOR UPDATE OF r SKIP LOCKED
  ), finished AS (
  UPDATE gateway_requests r SET execution_state='interrupted',ended_at=clock_timestamp(),error_code='interrupted',
  usage_state=CASE WHEN usage_state='pending' THEN 'usage_unknown' ELSE usage_state END
  FROM stale WHERE r.id=stale.id RETURNING r.id)
  UPDATE gateway_request_attempts a SET usage_state=CASE WHEN a.usage_state='pending' THEN 'usage_unknown' ELSE a.usage_state END,execution_state='interrupted',ended_at=clock_timestamp(),error_code='interrupted'
- FROM finished WHERE a.request_id=finished.id AND a.execution_state='inflight'`)
+ FROM finished WHERE a.request_id=finished.id AND a.execution_state='inflight'`, l.owner(), pq.Array(active))
 	if err != nil {
 		return ErrUnavailable
 	}

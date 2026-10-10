@@ -52,6 +52,7 @@ func FinishTurn(ctx context.Context, state string, cause error) error {
 	if h == nil {
 		return nil
 	}
+	defer h.ledger.forget(h.ID, false)
 	writeCtx, cancel := detachedWrite(ctx)
 	defer cancel()
 	_, err := h.ledger.db.ExecContext(writeCtx, `UPDATE gateway_request_attempts SET usage_state=CASE WHEN usage_state='pending' THEN 'usage_unknown' ELSE usage_state END,execution_state=$2,ended_at=clock_timestamp(),error_code=$3

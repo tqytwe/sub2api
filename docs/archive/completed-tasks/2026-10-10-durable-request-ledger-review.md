@@ -1,6 +1,6 @@
 # 持久请求台账：规格与质量复核记录
 
-范围：独立 worktree `codex/durable-request-ledger-20261010`，初始审查基线 `3843ff3e931349595b8793b52504b02a177f12c9`，后按根线程授权快进到 `7291ae9a2be4db7d97b8b641d053f7822276dc23`。
+范围：独立 worktree `codex/durable-request-ledger-20261010`，初始审查基线 `3843ff3e931349595b8793b52504b02a177f12c9`，后按根线程授权快进到 `7291ae9a2be4db7d97b8b641d053f7822276dc23`，再按根线程集中授权普通 merge `a581d8db536157c6c325ea4729381ee8b83ed53d`。
 本记录是该实施线程的两轮检查，不冒充外部 reviewer 的独立批准。根线程负责组合审查、发布和生产验收。
 规格见 [台账规格](./2026-10-10-durable-request-ledger-spec.md)。
 
@@ -12,10 +12,10 @@
 - WS turn、连接/control、输入流和自动观察 turn 的阶段明确区分；异步入队意图与后台执行分别保留父子关系。
 - 执行、用量、结算独立；不把缺失 usage 改成 0，不因成功重试覆盖之前 attempt 的未知消费。
 - 已有 settlement/dedup、usage、钱包、订阅及套餐引用保留；台账不产生新的收费策略或金额。
-- crash recovery 仅把过期实例的记录标记中断/未知；不重发、不补扣、不补历史，不删除。
+- recovery 把过期实例及本实例已结束处理但终态写失败的记录标记中断/未知；不重发、不补扣、不补历史，不删除。
 - 受管路由拒绝覆盖不等于完整供应商协议成功覆盖。Realtime/WebRTC/plugin 内部的观察边界在规格逐项标注。
 
-发现并修复：usage worker detached context 会失去私有请求归因；SSE 失败终态会被后来的成功标志覆盖；
+发现并修复：usage worker detached context 会失去私有请求归因；SSE 明确失败终态会被后来的通用成功标志覆盖（可恢复 bare error 由业务 parser 裁定，不一概视为最终失败）；
 第二笔 billing intent 会错误继承上一笔 settled；成功 retry 会隐藏第一次未知消费；图片幂等重放未关联实际旧任务；
 管理员/用户请求路由漏加 lazy locale scopes；英文筛选丢失语言参数；流式响应已写入 200 后 panic 会被误记为 HTTP 500；Anthropic/Gemini 会把台账故障转为上游 failover；Realtime 跟踪容量拒绝在独立 turn 持久化之前发生（两类 PG 用例 RED→GREEN，05:54:52 UTC exit 0）。
 合入 PR346 后追加发现：原始 terminal 不能自行结束 passthrough 当前 attempt；迟到的 WS usage 不能标记重试后的最新 attempt。两项真实 PG RED 于 06:05:15 UTC 证实，按 relay 权威 turn 回调和精确 attempt 编号修正，未复制响应 ID 归因或收费算法。GREEN 于 06:08:31 UTC：service 21.550s、ledger 4.553s；随后统一执行合并后的最终门禁。
@@ -25,10 +25,10 @@
 - DB mutation 参数化；安全 error 枚举、方法白名单及路由模板长度约束，不存正文、原始 URL、query、Authorization、Cookie、IP 或 UA。
 - 每次写入与查询限时 3 秒；响应开始前存储失败只拒绝该请求；不改全局生产配置。已开始输出后无法改写 HTTP 状态，已有证据继续保留。
 - 实例 lease 由 PG 时间决定。新一代只接受新请求，过期 WS/worker 父实例不能被新 turn 复活；重复终态 first-write-wins。
-- attempt 序号在行锁事务内分配；output 标记每 attempt 一次；SSE metadata 缓冲最多 64 KiB/行且不持久化正文。
+- attempt 序号在行锁事务内分配；output 标记每 attempt 一次；通用 SSE metadata 缓冲最多 64 KiB/行且不持久化正文，已接入的业务 parser 以权威终态覆盖该保守 fallback，不以缓冲上限否定已确认的大终态。
 - billing 验证和原 monetary/dedup effects 在同一事务中；验证失败回滚收费。异步任务 wallet reconciliation 只读现有 capture/release 证明，hold 不等于 settled。
 - 后台 recovery 和 task reconciliation 每轮最多 1000 条，按检查时间轮转，避免一直卡在旧待核对项；无自动删除。
-- 只读 API 分页有上限、排序稳定；详情及 usage 原记录二次验证 owner；普通用户隐藏调度/母账号 ID。
+- 只读 API 请求列表分页有上限、排序稳定；详情 attempts/billing 子集合未分页，详情及 usage 原记录二次验证 owner；普通用户隐藏调度/母账号 ID。
 - 新表/索引 additive、forward-only，锁等待 2 秒、语句 30 秒；不扫描修改旧业务大表，无旧迁移 checksum 改动。
 - 前端沿用共享布局、表格、过滤器、分页和对话框；刷新/取消请求使用 AbortController 防止旧响应覆盖新筛选。
 
@@ -51,7 +51,7 @@
 | Realtime/Live 自动 turn | PG 状态机及既有协议测试 | 完整模式端到端矩阵未完成，见规格边界 |
 | UI | production assets + API/PG 的合成身份浏览器 | 不代替用户本地生产三身份验收 |
 
-## 最终门禁
+## 首批 83c8dcb 门禁（不替代独立审查修订门禁）
 
 | 命令/检查 | 结果 | 证据与边界 |
 | --- | --- | --- |
@@ -68,7 +68,27 @@
 
 最终浏览器 fixture 于 06:46:21 UTC 正常退出 0；只停止本任务测试服务。余额断言首次遇到三个相同文本节点的 strict-selector 歧义（06:45:45 exit 1），限定为实际页头余额后精确比对 $98.75 通过；未改产品代码或金额期望。最终截图已目视检查，服务器证据不替代生产本地验收。
 
-实现代码在最终 Go/PG/全量测试与构建后未再修改；之后仅补审查记录和刷新截图。完整 CI 与准确 commit 见本 PR，生产仍由根线程处理。
+上述门禁对应首批 head 83c8dcb。独立审查发现新的可复现缺陷后已修改后端；原门禁与 CI 不能证明这些修改通过。最终集中修订需重新执行必要门禁。
+
+### 主线组合与独立审查修订
+
+首批草稿 PR #351 head `83c8dcb337db16fd9cc3ffb406dd327853d8642a` 的四个 GitHub workflows 全部成功：
+Security 38032181543、Ledger 38032181561、Core Migration 38032181519、Fork 38032181523。没有取消或重跑 CI。
+该 head 的独立审查存在阻塞，不能合并。
+
+曾以 `--no-commit` 组合 PR349 `de3155f`，其 backend tree 与 83c 相同，前端测试于 07:02:56 UTC、构建于 07:06:12 UTC 退出 0。
+随后独立审查修复改变后端，且根线程授权了含 PR350 的主线 `63eabcb6a5384f64aaf26f043e73818b8220cbb1`；最终一次合入该主线后不能再复用“后端树完全一致”的理由。
+
+| 审查缺陷 | RED 证据 | 修订验证 |
+| --- | --- | --- |
+| 健康实例终态写失败长期 inflight | 07:13:46 批次失败 | 07:16:26 GREEN；本实例活跃集合保护真正活动请求，失败终态可回收，其他健康实例保持 inflight |
+| POST 伪 Upgrade 变成非计量 WS | 同上实际 HTTP/SSE | 同上 GREEN；GET 与实际 WS 路由共同判断 |
+| ObserveUsage 注记失败吞掉原有结算 | 07:20:32 OpenAI/Anthropic 行锁故障均失败 | 07:29:12 GREEN；实际 dedup/usage/wallet 正常，重复不扣款 |
+| 失败零快照被显示为已结算零金额 | 07:24:23 实际 usage promotion 故障失败 | 07:29:12 GREEN；link 与 usage 均验证才显示金额 |
+| 提前关闭 / bare error 后成功 / 大终态帧 | 07:23:08 实际业务 parser 回归失败；07:36:00 补充 Chat/Messages 大终态仍失败 | 07:45:30 最终矩阵GREEN，native/CC及Chat/Messages转换均复用业务终态元数据 |
+| 压缩 SSE / OAuth models 直连 / 图像回填归因 | 07:32:23 四编码全部误判、models 缺少发送前证据、图像回填归因/可忽略失败错误聚合 | 07:36:00 直连/四编码/回填GREEN；实际models缓存路径另于07:58:59 GREEN，见后文 |
+
+锁顺序是并发审查的加固候选；未证实稳定死锁，不把它写成已复现根因。迁移为五张新表；详情子集合未分页、lease 单行热点及匿名增长均保留为容量限制。局部并发正确性探测不代表生产吞吐验证。
 
 ```bash
 go test -tags=integration ./internal/requestledger/... ./internal/repository ./internal/service \
@@ -90,3 +110,71 @@ go test -tags=integration ./internal/requestledger/... ./internal/repository ./i
 PR346 已按根线程授权合入；保留它的 claim、快照与结算算法，本分支组合私有台账 context。组合测试单独列证据，不能继承其全绿结论。
 全介质故障、应用接纳前拒绝、WebRTC 直连媒体及插件内部重试不在本台账可无限保证的范围内。
 匿名流量持久保留会增加容量和写入压力；容量/归档治理另案，不擅自加清理策略。
+
+## 集中修订补充证据
+
+- 07:33:04 UTC：迟到 usage 的精确 attempt 回归 RED；07:36:00 批次中该项 GREEN。handler 入队即冻结 attempt；SQL 不再选“同账号最新一条”。WS 原精确回调保持不变。
+- 07:36:00 同批局部并发探测：12 workers、48 requests、Recover 并行，558.863ms，全48条 succeeded/known；两次均通过。只覆盖本地有界负载，未做生产容量基准。
+- 辅助 GET/HEAD 新 phase 为 auxiliary，不替代模型 attempt，也不把可忽略资源失败覆盖模型结果；详情保留该发送失败，中文/英文沿用现有阶段列。
+- 台账注记失败日志使用固定枚举，不包含错误正文；原扣费继续，无法证实的用量仍保持未知，不能用已结算引用反推总上游费用。
+- 07:35 UTC 左右任务工作区剩余空间降至约562MiB，仅删除本任务 Go cache 内两小时前的可再生条目，释放约5.1GB；未删除源码、PG持久数据或验收证据。
+
+- 07:40:57 UTC：第一轮集中全矩阵退出0，六个包全部通过（核心70.852s、API14.216s、handler5.960s、路由11.741s、repository18.198s、service38.265s），含转换 Chat/Messages 大终态、全部实际路由拒绝、WS及原有结算。
+- 07:41:07 UTC：最终边界检查 RED，HEAD/204/304 无正文被判失败、nil父上下文触发 panic；按 HTTP 语义与原调用兼容性修正，未放宽异常流断言。随后受影响矩阵复验。
+- 原始与新门禁日志均留在本任务证据中；CI需30项明确pass，旧head的4个workflows全绿不能替代最终head。
+
+- 07:45:30 UTC：最终受影响矩阵全部GREEN（核心75.231s、API14.669s、repository16.183s、handler7.481s、service48.101s）。路由注册未改，复用07:40:57矩阵的实际注册路由证据。30项CI必需contract均实际执行pass，无隐藏跳过。
+- 本修订沿既有 parent→attempt 顺序加固 usage/output 注记锁序；只写为并发加固，不声称已复现生产死锁。
+- migration275是本草稿首次引入且尚未发布的迁移，因此 auxiliary 枚举在同一新迁移定义；未更改任何已发布旧迁移。
+
+- 07:53:40 UTC：`make test-backend-unit` 完整退出0。随后复核发现 models 共享缓存实际刷新使用 Background，上述直连回归不足以证明实际 cache path 已归因；补充缓存未命中/过期异步刷新与存储门禁回归，不把直连GREEN冒充该入口已覆盖。
+
+- 07:55:24 UTC：真实 `fetchCachedOpenAIModels` 未命中和过期后台刷新均RED，上游检查到0条持久attempt；07:56:07 子记录存储故障用例RED，仍发出上游。修订仅触及既有models审查项：`refreshCachedOpenAIModels` 复制首触发者的已验证handle，先建非计费子执行；实际HTTP发送仍走既有attempt门。命中/合并请求不伪造额外发送。
+
+- 07:58:59 UTC：models 实际缓存路径GREEN，含miss/stale、原HTTP先结束后刷新仍独立完成、缓存命中不多发、跨用户不可读取该子记录、子记录存储故障拒绝发送。定向同时复验直连models、健康实例恢复与HEAD/204/304；service15.259s、ledger13.651s。
+- 该models修订后再次冻结代码；完整unit及其后make test/build/Fork最终结果另列，不沿用前次unit作为最终修订通过证明。CI必需项增加至32项。
+
+
+## 冻结修订最终门禁
+
+源码校验清单建立于08:01:45 UTC，覆盖本轮36个变更源码/CI文件。08:20静态检查后仅对故意nil的测试断言增加局部注释；再按根线程授权于安全点合入a581d8d，并新增JSON/SSE组合回归。最终源码树重新核验，不能称08:01之后完全没有修改。
+
+| 门禁 | 最终修订结果 |
+| --- | --- |
+| `make test-backend-unit` | 08:09:13 UTC，exit0，包含最后models缓存修订 |
+
+| `make test`（旧63e组合） | 08:20:34 UTC，exit2；普通Go测试全部通过，lint唯一SA1012来自故意nil-context断言。保留断言并增加局部nolint说明；前端/build未启动，不计通过 |
+
+### PR348 主线安全点组合
+
+- 08:22:12 UTC：真实PG台账中间件+实际handler回归RED，已提交400 JSON后错误追加SSE；旧63e组合只用来证实回归。
+- 原门禁正常结束后，将未提交的63e组合替换为根线程授权的a581d8d普通merge；自己的26个tracked修改及6个新文件先做完整备份，三方应用无冲突。没有rebase、force或改共享工作树。
+- 合并前后Git子树核验：frontend `f393d93000233cfeb8dbbc61e4bdf072c4319632`、requestledger `9adf2953f66cbd75a6d37601f74d8f6a43c6f7b6`、migrations `2c4fe9a42d465811c7f426b5f48068f8708ffd36`完全相同。repository唯一差异为主线新增`openai_compact_admission_integration_test.go`；其生产源码及台账测试不变。
+- 共享handler/service重验实际PG、WS、JSON单响应、usage归属及完整tag=unit；repository复验两项主线真实PG admission及台账结算。未改变预提交attempt、observed usage禁止重放或主线选路策略。
+- 复用不变核心/API/路由的07:40/07:45实际PG矩阵与08:09完整unit证据；完整make test/build/Fork及前端刷新仍需在最后组合执行完成。
+
+- 08:26:31 UTC：新主线组合的真实JSON/SSE回归GREEN（8.22s），整handler集成包于08:26:35退出0（14.413s）。CI必须执行并pass此案例，总数33项。
+
+- 08:28:13 UTC：最新a581组合的handler/service PG交集矩阵退出0；handler14.413s、service55.476s。包括实际WS、重试/断流、业务流终态、models真实缓存刷新和图片回填。
+
+- 08:29:21 UTC：repository实际PG矩阵退出0，覆盖最新compact/tool admission与台账结算/观察失败/去重/压缩路径。
+
+- 2026-10-10T08:32:32.899637+00:00：仅清理本任务一小时前未使用的可再生成Go缓存，释放1235772966字节；未删除源码、数据库或证据，活动门禁没有取消。
+
+- 08:36:15 UTC：最新组合的完整handler/service tag=unit退出0（53.347s/216.307s）；未改变断言或超时。随后串行启动完整make test/build/Fork。
+
+- 2026-10-10T08:42:00.875221+00:00：为后续构建清理合并主线前生成的8个大型可再生编译cache条目，释放1840844016字节；源码、证据和PG数据未动。完整普通Go测试已通过，继续原lint命令。
+
+- 08:51:46 UTC：最终a581组合`make test`退出0；普通Go全通过、golangci-lint 0 issues、前端设计治理/ESLint/类型与完整测试通过。构建随后开始，没有并行重型门禁。
+
+- 08:57:51 UTC：最终组合`make build`退出0，CGO=0/trimpath后端生产二进制、前端语言完整性及Vite生产构建全部完成；随后启动完整Fork检查。最终make test前端为492文件/3506测试pass，仓库既有1文件/2测试skip。
+
+- 09:00:58 UTC：完整`./scripts/check-fork-integrity.sh`退出0，包含静态/文档及受保护前后端行为。随后才启动最终生产资源+隔离PG浏览器验收。
+
+- 09:01:27 / 09:01:29 / 09:01:36 UTC：最终production assets+新隔离PG的三项浏览器脚本全部退出0；两角色无pageerror，四档视口与刷新、辅助下载、英文、分页、加载/503重试、键盘/空态、原usage7/3、已结算1.25及同库余额98.75均通过。测试服务09:01:36退出0，没有停止生产服务。代表性最终截图已目视核验。
+
+## 集中修订复核结论
+
+执行线程按规格与质量两轮复核了根线程独立审查所列问题：每项修复保留RED与实际PG/业务路径GREEN；全部33项CI必需契约均明确执行通过。最后组合的完整make test（lint 0 issues、前端3506 pass）、make build、Fork与真实API浏览器门禁通过。108个源码/CI文件冻结后未变更，最终提交前再次核对；最后提交的GitHub CI及根线程独立组合复核仍以PR为准，不冒充外部批准。
+
+证据索引：[`2026-10-10-request-ledger-evidence/`](./2026-10-10-request-ledger-evidence/)。摘要仅含命令、时间、退出码、测试名称、源码哈希及合成身份浏览器结果，不提交原始请求、正文、凭据或生产数据。已知能力/容量与批次drilldown边界仍按规格保留。

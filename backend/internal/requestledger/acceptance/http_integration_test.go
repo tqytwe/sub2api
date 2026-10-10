@@ -119,6 +119,15 @@ func ledgerFixtureRouter(t *testing.T) (*gin.Engine, *requestledger.Ledger, *sql
 		require.NoError(t, json.Unmarshal(body, &result))
 		require.Equal(t, 7, result.Usage.Input)
 		require.Equal(t, 3, result.Usage.Output)
+		if c.Query("auxiliary") == "1" {
+			download, err := http.NewRequestWithContext(ctx, "GET", upstream.URL, nil)
+			require.NoError(t, err)
+			downloaded, err := client.Do(download)
+			require.NoError(t, err)
+			_, err = io.Copy(io.Discard, downloaded.Body)
+			require.NoError(t, err)
+			require.NoError(t, downloaded.Body.Close())
+		}
 		require.NoError(t, requestledger.ObserveUsage(ctx, 234))
 		settleFixtureRequest(t, ctx, db, subject.UserID, result.Usage.Input, result.Usage.Output)
 		c.JSON(200, result)
@@ -128,10 +137,14 @@ func ledgerFixtureRouter(t *testing.T) (*gin.Engine, *requestledger.Ledger, *sql
 
 // Only disposable identities; the synthetic API key cannot authenticate at this fixture.
 // Use the real existing billing repository and usage-log writer, not a fabricated settled flag.
-func seedBilledRequest(t *testing.T, r *gin.Engine, db *sql.DB, uid int64) (string, int64) {
+func seedBilledRequest(t *testing.T, r *gin.Engine, db *sql.DB, uid int64, auxiliary ...bool) (string, int64) {
 	t.Helper()
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest("POST", "/v1/chat/completions", nil)
+	path := "/v1/chat/completions"
+	if len(auxiliary) > 0 && auxiliary[0] {
+		path += "?auxiliary=1"
+	}
+	req := httptest.NewRequest("POST", path, nil)
 	req.Header.Set("X-Ledger-Test-User", strconv.FormatInt(uid, 10))
 	r.ServeHTTP(w, req)
 	require.Equal(t, 200, w.Code)
@@ -153,9 +166,9 @@ func settleFixtureRequest(t *testing.T, ctx context.Context, db *sql.DB, uid int
 	client := dbent.NewClient(dbent.Driver(entsql.OpenDB(dialect.Postgres, db)))
 	cmd := &service.UsageBillingCommand{RequestID: uuid.NewString(), UserID: uid, APIKeyID: keyID, AccountID: 234, AccountType: service.AccountTypeAPIKey, Model: "synthetic-usage-fixture", InputTokens: inputTokens, OutputTokens: outputTokens, BilledCost: 1.25, BalanceCost: 1.25}
 	billing := repository.NewUsageBillingRepositoryWithLedger(client, db, service.NewBalanceLedgerService(db, nil, nil))
-	_, err = billing.Apply(ctx, cmd)
+	proof, err := billing.Apply(ctx, cmd)
 	require.NoError(t, err)
-	usage := &service.UsageLog{UserID: uid, APIKeyID: keyID, AccountID: 234, RequestID: cmd.RequestID, BillingRequestFingerprint: cmd.RequestFingerprint, Model: cmd.Model, InputTokens: inputTokens, OutputTokens: outputTokens, BilledCost: 1.25, ActualCost: 1.25}
+	usage := &service.UsageLog{BillingSettled: proof.SettlementVerified, UserID: uid, APIKeyID: keyID, AccountID: 234, RequestID: cmd.RequestID, BillingRequestFingerprint: cmd.RequestFingerprint, Model: cmd.Model, InputTokens: inputTokens, OutputTokens: outputTokens, BilledCost: 1.25, ActualCost: 1.25}
 	_, err = repository.NewUsageLogRepository(client, db).Create(ctx, usage)
 	require.NoError(t, err)
 	return usage.ID
@@ -289,7 +302,7 @@ func TestRequestLedgerBrowserFixture(t *testing.T) {
 				require.NoError(t, h.Finish(ctx, state, 0, state))
 			}
 		}
-		seedBilledRequest(t, r, db, uid)
+		seedBilledRequest(t, r, db, uid, true)
 	}
 	dist := os.Getenv("LEDGER_BROWSER_DIST")
 	require.True(t, strings.HasPrefix(dist, "/tmp/ledger-"))

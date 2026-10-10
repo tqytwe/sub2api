@@ -1,0 +1,9 @@
+First follow-up make test, unchanged backend; exit 2. GOFLAGS=-p=2, GOMAXPROCS=2.
+Excerpt from task-local race-test.log (full original retained outside git).
+
+--- FAIL: TestTokenRefreshService_LateSuccessPastAttemptDeadlineIsRejected (0.03s)
+    token_refresh_pool_health_test.go:949:
+            Error Trace:    /workspace/account-edit-fix/backend/internal/service/token_refresh_pool_health_test.go:949
+            Error:          An error is expected but got nil.
+                            expected: *service.refreshAttemptTimeoutError
+            Test:           TestTokenRefreshService_LateSuccessPastAttemptDeadlineIsRejected

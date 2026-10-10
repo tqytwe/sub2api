@@ -18,6 +18,7 @@ import (
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/apicompat"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
 	"github.com/Wei-Shaw/sub2api/internal/util/responseheaders"
 	"github.com/gin-gonic/gin"
 	"github.com/tidwall/gjson"
@@ -1958,6 +1959,20 @@ func (s *OpenAIGatewayService) handleStreamingResponsePassthrough(
 	sawBareError := false
 	sawResponseFailed := false
 	terminalEventType := ""
+	ledgerAttempt := requestledger.CurrentAttempt(ctx)
+	defer func() {
+		if sawTerminalEvent || sawDone {
+			state := "succeeded"
+			if sawFailedEvent || responseErr != nil {
+				state = "failed"
+			}
+			if terminalEventType == "response.cancelled" {
+				state = "cancelled"
+			}
+			ledgerAttempt.ObserveStreamTerminal(state)
+		}
+	}()
+
 	semanticOutputSeen := false
 	capacityFailoverSuppressedLogged := false
 	failedMessage := ""

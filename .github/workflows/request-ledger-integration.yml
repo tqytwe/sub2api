@@ -51,6 +51,22 @@ jobs:
           from pathlib import Path
           required = {
               "TestLedgerKilledProcessRecoveryRetainsEvidence",
+              "TestLedgerPostgresHealthyOwnerRecoversFailedFinalization",
+              "TestLedgerPostgresFalseUpgradeDoesNotChangeHTTPMetering",
+              "TestLedgerPostgresBodylessResponsesKeepProtocolSuccess",
+              "TestRequestLedgerFrozenContextAllowsNilUsageTaskParent",
+              "TestLedgerPostgresFrozenUsageDoesNotMoveToLaterAttempt",
+              "TestLedgerPostgresBoundedConcurrentAdmissionAndRecovery",
+              "TestRequestLedgerCommittedJSONDoesNotBecomeSSE",
+              "TestRequestLedgerObservationFailureKeepsOriginalSettlement",
+              "TestRequestLedgerPendingUsageSnapshotNeverShowsSettledZero",
+              "TestRequestLedgerBusinessStreamTerminalBeforeTransportEOF",
+              "TestRequestLedgerCompressedSSEUsesDecodedEvidence",
+              "TestRequestLedgerOAuthModelsDirectTransportAdmission",
+              "TestRequestLedgerModelsCacheRefreshKeepsDurableChild",
+              "TestRequestLedgerModelsCacheStorageFailureNeverSends",
+              "TestRequestLedgerImageBackfillKeepsGenerationAttribution",
+
               "TestLedgerPostgresMigrationLockTimeoutPreservesEvidence",
               "TestLedgerPostgresPanicPreservesAlreadyWrittenHTTPStatus",
               "TestLedgerStorageErrorDoesNotFailOverAnthropicOrGemini",

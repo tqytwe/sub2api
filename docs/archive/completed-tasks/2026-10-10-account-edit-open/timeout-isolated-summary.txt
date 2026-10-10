@@ -1,0 +1,7 @@
+Command: GOFLAGS="-p=1 -parallel=1" GOMAXPROCS=2 go test ./internal/service -run "^TestTokenRefreshService_LateSuccessPastAttemptDeadlineIsRejected$" -count=100 -v
+Exit: 0
+Observed matching test passes: 100
+
+--- PASS: TestTokenRefreshService_LateSuccessPastAttemptDeadlineIsRejected (0.03s)
+PASS
+ok  	github.com/Wei-Shaw/sub2api/internal/service	3.117s

@@ -1624,6 +1624,6 @@ func httpClientWithRequestLedger(client *http.Client, accountID int64) *http.Cli
 	if base == nil {
 		base = http.DefaultTransport
 	}
-	copy.Transport = requestledger.Transport(base, accountID)
+	copy.Transport = requestledger.TransportDecoded(base, accountID, decompressResponseBody)
 	return &copy
 }

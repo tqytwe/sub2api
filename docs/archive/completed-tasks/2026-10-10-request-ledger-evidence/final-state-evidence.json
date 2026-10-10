@@ -1,0 +1,24 @@
+[
+  {
+    "role": "user",
+    "realUsageDrilldown": true,
+    "realWalletBalance": 98.75,
+    "languagePreserved": true,
+    "pagination": false,
+    "loading": true,
+    "syntheticReadError": true,
+    "retryRealAPI": true,
+    "pageErrors": []
+  },
+  {
+    "role": "admin",
+    "realUsageDrilldown": true,
+    "realWalletBalance": 98.75,
+    "languagePreserved": true,
+    "pagination": true,
+    "loading": true,
+    "syntheticReadError": true,
+    "retryRealAPI": true,
+    "pageErrors": []
+  }
+]

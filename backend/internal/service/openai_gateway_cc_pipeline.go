@@ -14,6 +14,7 @@ import (
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/apicompat"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
 	"github.com/Wei-Shaw/sub2api/internal/util/responseheaders"
 	"github.com/gin-gonic/gin"
 	"github.com/tidwall/gjson"
@@ -291,6 +292,7 @@ func (s *OpenAIGatewayService) scanCCStream(
 	startTime time.Time,
 	emit func(*apicompat.ChatCompletionsChunk),
 ) ccStreamScanState {
+	ledgerAttempt := requestledger.CurrentAttempt(c.Request.Context())
 	var st ccStreamScanState
 
 	scanner := s.newUpstreamSSEScanner(resp.Body)
@@ -343,6 +345,9 @@ func (s *OpenAIGatewayService) scanCCStream(
 		}
 		st.Err = err
 	}
+	if st.SawDone && st.Err == nil {
+		ledgerAttempt.ObserveStreamTerminal("succeeded")
+	}
 	return st
 }
 
@@ -386,13 +391,40 @@ func (s *OpenAIGatewayService) readCCUpstreamJSONResponse(
 	return &ccResp, usage, nil
 }
 
-// writeOpenAIResponsesFallbackError 以 /v1/responses 回退路径的既有错误格式回写
-// （裸 error 对象；不调用 MarkResponseCommitted，与原内联写法保持一致）。
+// Complete a fallback error once, using the protocol already on the wire.
 func writeOpenAIResponsesFallbackError(c *gin.Context, statusCode int, errType, message string) {
+	streamStarted := StopOpenAICompactSSEKeepaliveCommitted(c)
+	if IsResponseCommitted(c) {
+		return
+	}
+	defer MarkResponseCommitted(c)
+	if streamStarted || (c.Writer.Written() && strings.HasPrefix(strings.ToLower(c.Writer.Header().Get("Content-Type")), "text/event-stream")) {
+		writeOpenAICompactSSEFailureMessage(c, statusCode, errType, message)
+		return
+	}
 	c.JSON(statusCode, gin.H{
 		"error": gin.H{
 			"type":    errType,
 			"message": message,
 		},
 	})
+}
+
+// The protocol parser has already identified a terminal. Only its fixed type /
+// status metadata reaches the ledger; no response content is parsed or retained.
+func observeLedgerResponsesTerminal(attempt *requestledger.Attempt, eventType, status string) {
+	state := "failed"
+	switch strings.TrimSpace(eventType) {
+	case "response.completed", "response.done":
+		state = "succeeded"
+	case "response.cancelled", "response.canceled":
+		state = "cancelled"
+	}
+	switch strings.TrimSpace(status) {
+	case "failed", "incomplete":
+		state = "failed"
+	case "cancelled", "canceled":
+		state = "cancelled"
+	}
+	attempt.ObserveStreamTerminal(state)
 }

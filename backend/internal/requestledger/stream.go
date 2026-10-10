@@ -120,11 +120,11 @@ func (a *Attempt) ObserveOutput(ctx context.Context) {
 func observeOutput(ctx context.Context, h *Handle, attemptNo int) bool {
 	writeCtx, cancel := detachedWrite(ctx)
 	defer cancel()
-	_, err := h.ledger.db.ExecContext(writeCtx, `WITH observed AS (
- UPDATE gateway_request_attempts SET output_observed=TRUE WHERE request_id=$1
+	_, err := h.ledger.db.ExecContext(writeCtx, `WITH owner AS (SELECT id FROM gateway_requests WHERE id=$1 FOR UPDATE), observed AS (
+ UPDATE gateway_request_attempts SET output_observed=TRUE FROM owner WHERE request_id=owner.id
  AND attempt_no=CASE WHEN $2>0 THEN $2 ELSE (SELECT MAX(attempt_no) FROM gateway_request_attempts WHERE request_id=$1) END
  AND NOT output_observed RETURNING request_id)
- UPDATE gateway_requests SET output_observed=TRUE WHERE id=$1 AND NOT output_observed`, h.ID, attemptNo)
+ UPDATE gateway_requests SET output_observed=TRUE WHERE id=(SELECT id FROM owner) AND NOT output_observed`, h.ID, attemptNo)
 	if err != nil {
 		slog.Error("request_ledger_output_observation_failed")
 		return false

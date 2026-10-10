@@ -181,7 +181,9 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	}
 	if result.HasObservedUsage() || result.ImageCount > 0 || result.VideoCount > 0 || result.WebSearchCalls > 0 {
 		if err := requestledger.ObserveUsage(ctx, account.ID); err != nil {
-			return err
+			// Admission and attempt evidence already exist. An audit annotation
+			// failure must not suppress the original idempotent settlement.
+			logger.LegacyPrintf("service.gateway", "request_ledger_usage_observation_failed")
 		}
 	}
 	billingAccount, err := resolveCredentialAccount(ctx, s.accountRepo, account)

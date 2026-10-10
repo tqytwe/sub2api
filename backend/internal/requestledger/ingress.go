@@ -48,7 +48,7 @@ func Middleware(l *Ledger) gin.HandlerFunc {
 			route = "unmatched_gateway"
 		}
 		kind := "http"
-		if strings.EqualFold(c.GetHeader("Upgrade"), "websocket") {
+		if c.Request.Method == http.MethodGet && isWebsocketRoute(route) && strings.EqualFold(c.GetHeader("Upgrade"), "websocket") {
 			kind = "ws_session"
 		}
 		h, err := l.Begin(c.Request.Context(), route, c.Request.Method, kind)
@@ -172,4 +172,15 @@ func (w *ledgerResponseWriter) Flush() {
 	if !w.refuse() {
 		w.ResponseWriter.Flush()
 	}
+}
+
+// These are registered route templates, never client-chosen URL values. A WS
+// session includes a rejected handshake; arbitrary POST/GET headers cannot
+// reclassify a normal generation or models request as a non-metering session.
+func isWebsocketRoute(route string) bool {
+	switch route {
+	case "/v1/responses", "/responses", "/backend-api/codex/responses", "/v1/realtime", "/realtime", "/v1/live/:call_id", "/backend-api/codex/:call_id":
+		return true
+	}
+	return false
 }

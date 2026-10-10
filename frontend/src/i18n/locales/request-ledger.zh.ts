@@ -1,6 +1,6 @@
 export default {
   walletNotice: '这里引用已存在的钱包流水。预留金额不代表已经完成最终结算。', walletOperations: { video_balance_hold: '视频预留', video_balance_capture: '视频结算', video_balance_release: '视频释放', image_balance_hold: '图像预留', image_balance_capture: '图像结算', image_balance_release: '图像释放' },
-  phase: '阶段', phases: { external_search: '外部搜索', ws_input: 'WS 持续输入', ws_observed: '已观察到的自动轮次', request: '请求发送', ws_connect: 'WS 建连', ws_control: 'WS 控制' },
+  phase: '阶段', phases: { auxiliary: '辅助下载', external_search: '外部搜索', ws_input: 'WS 持续输入', ws_observed: '已观察到的自动轮次', request: '请求发送', ws_connect: 'WS 建连', ws_control: 'WS 控制' },
   walletTransaction: '钱包流水',
   inputTokens: '输入 Token', outputTokens: '输出 Token',
   title: '请求台账', description: '分别查看执行、用量和结算状态。',

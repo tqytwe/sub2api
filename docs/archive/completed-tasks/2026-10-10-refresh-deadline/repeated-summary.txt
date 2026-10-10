@@ -1,0 +1,8 @@
+Targeted suite repeated100 times with original existing timing/assertions unchanged.
+Exit: 0
+Top-level passes:900
+Test/subtest passes:1900
+
+--- PASS: TestPathA_ParentCancellationAfterPersistStillSynchronizesCacheState (0.00s)
+PASS
+ok      github.com/Wei-Shaw/sub2api/internal/service    85.376s

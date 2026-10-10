@@ -12,8 +12,60 @@ import (
 
 type Attempt struct {
 	outputObserved atomic.Bool
+	streamTerminal atomic.Int32
 	handle         *Handle
 	Number         int
+	accountID      int64
+}
+
+// CurrentAttempt captures the precise model attempt before a parser or detached
+// usage callback runs. Auxiliary transfers must never replace this attribution.
+func CurrentAttempt(ctx context.Context) *Attempt {
+	if ctx == nil {
+		return nil
+	}
+	if frozen, ok := ctx.Value(attemptKey{}).(*Attempt); ok {
+		return frozen
+	}
+	h := FromContext(CurrentContext(ctx))
+	if h == nil {
+		return nil
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return h.currentAttempt
+}
+
+type attemptKey struct{}
+
+// FreezeContext copies only durable identity, never request bodies or secrets.
+func FreezeContext(parent, base context.Context) context.Context {
+	if parent == nil {
+		return base
+	}
+	if base == nil {
+		base = context.Background()
+	}
+	parent = CurrentContext(parent)
+	base = WithHandle(base, FromContext(parent))
+	return context.WithValue(base, attemptKey{}, CurrentAttempt(parent))
+}
+
+// ObserveStreamTerminal accepts the existing business parser's authoritative
+// terminal classification. It can supersede a provisional bare error, without
+// reparsing or retaining output. Persistence happens when the body is closed.
+func (a *Attempt) ObserveStreamTerminal(state string) {
+	if a == nil {
+		return
+	}
+	switch state {
+	case "succeeded":
+		a.streamTerminal.Store(1)
+	case "failed":
+		a.streamTerminal.Store(2)
+	case "cancelled":
+		a.streamTerminal.Store(3)
+	}
 }
 
 // BeginAttempt is a synchronous admission gate, not an event queue. The row
@@ -73,7 +125,7 @@ func beginAttempt(ctx context.Context, accountID, credentialAccountID int64, pha
 		return nil, ErrUnavailable
 	}
 	defer func() { _ = tx.Rollback() }()
-	a := &Attempt{handle: h}
+	a := &Attempt{handle: h, accountID: accountID}
 	metered := (h.metered && phase == "request") || phase == "ws_input" || phase == "ws_observed" || phase == "external_search"
 	err = tx.QueryRowContext(ctx, `UPDATE gateway_requests r SET attempt_count=attempt_count+1,
  usage_state=CASE WHEN usage_state IN ('not_applicable','known') AND $3 THEN 'pending' ELSE usage_state END,
@@ -128,7 +180,16 @@ func WithAccount(ctx context.Context, scheduled, credential int64) context.Conte
 // Transport wraps the actual RoundTripper, inside any compatibility retry
 // transport, so a fallback request receives its own precommitted attempt.
 func Transport(base http.RoundTripper, accountID int64) http.RoundTripper {
-	return &auditTransport{base: base, accountID: accountID}
+	return TransportDecoded(base, accountID, nil)
+}
+
+// TransportDecoded keeps the admission gate inside each actual RoundTrip, but
+// observes decoded bytes when the upstream client performs explicit decoding.
+func TransportDecoded(base http.RoundTripper, accountID int64, decode func(*http.Response)) http.RoundTripper {
+	if base == nil {
+		base = http.DefaultTransport
+	}
+	return &auditTransport{base: base, accountID: accountID, decode: decode}
 }
 
 // ExternalSearchTransport covers configured search services which have no
@@ -141,6 +202,7 @@ func ExternalSearchTransport(base http.RoundTripper) http.RoundTripper {
 }
 
 type auditTransport struct {
+	decode    func(*http.Response)
 	external  bool
 	base      http.RoundTripper
 	accountID int64
@@ -156,7 +218,11 @@ func (t *auditTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	if t.external {
 		a, err = beginAttempt(req.Context(), 0, 0, "external_search", true)
 	} else {
-		a, err = BeginAttempt(req.Context(), scheduled, credential)
+		phase := "request"
+		if h := FromContext(CurrentContext(req.Context())); h != nil && h.metered && (req.Method == http.MethodGet || req.Method == http.MethodHead) {
+			phase = "auxiliary"
+		}
+		a, err = beginAttempt(req.Context(), scheduled, credential, phase, true)
 	}
 	if err != nil {
 		return nil, err
@@ -168,10 +234,24 @@ func (t *auditTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 		}
 		return resp, err
 	}
+	if t.decode != nil {
+		t.decode(resp)
+	}
 	if a != nil {
-		resp.Body = &attemptBody{ReadCloser: resp.Body, attempt: a, ctx: req.Context(), status: resp.StatusCode, streaming: strings.Contains(strings.ToLower(resp.Header.Get("Content-Type")), "text/event-stream") && resp.StatusCode < 400}
+		resp.Body = newAttemptBody(req.Context(), resp, a, req.Method)
 	}
 	return resp, nil
+}
+
+func newAttemptBody(ctx context.Context, resp *http.Response, attempt *Attempt, method string) *attemptBody {
+	body := &attemptBody{ReadCloser: resp.Body, attempt: attempt, ctx: ctx, status: resp.StatusCode,
+		streaming: strings.Contains(strings.ToLower(resp.Header.Get("Content-Type")), "text/event-stream") && resp.StatusCode < 400}
+	// HEAD, 204 and 304 complete at their headers. Callers correctly skip Read.
+	if method == http.MethodHead || resp.StatusCode == http.StatusNoContent || resp.StatusCode == http.StatusNotModified || resp.Body == http.NoBody {
+		body.streaming = false
+		body.readErr = io.EOF
+	}
+	return body
 }
 
 type attemptBody struct {
@@ -181,7 +261,9 @@ type attemptBody struct {
 	status    int
 	once      sync.Once
 	streaming bool
+	mu        sync.Mutex
 	evidence  streamEvidence
+	readErr   error
 }
 
 func (b *attemptBody) finish(err error) {
@@ -196,34 +278,52 @@ func (b *attemptBody) Read(p []byte) (int, error) {
 	if n > 0 && b.status >= 200 && b.status < 300 {
 		b.attempt.ObserveOutput(b.ctx)
 	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
 	if b.streaming {
 		b.evidence.observe(p[:n])
 	}
-	if err == io.EOF {
-		var cause error
-		if b.streaming {
-			switch b.evidence.terminal {
-			case "succeeded":
-			case "failed":
-				cause = errTerminalFailure
-			case "cancelled":
-				cause = context.Canceled
-			default:
-				cause = errStreamIncomplete
-			}
-		}
-		b.finish(cause)
-	} else if err != nil {
-		b.finish(err)
+	if err != nil {
+		b.readErr = err
 	}
 	return n, err
 }
 func (b *attemptBody) Close() error {
 	err := b.ReadCloser.Close()
-	// Closing before EOF does not prove upstream completion, even for HTTP 200.
-	cause := b.ctx.Err()
-	if cause == nil {
-		cause = io.ErrUnexpectedEOF
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	cause := b.readErr
+	if b.streaming {
+		terminal := b.evidence.terminal
+		switch b.attempt.streamTerminal.Load() {
+		case 1:
+			terminal = "succeeded"
+		case 2:
+			terminal = "failed"
+		case 3:
+			terminal = "cancelled"
+		}
+		// A parser may stop at a terminal before transport EOF. Cleanup cancellation
+		// does not undo that evidence. Without a terminal, an early close is uncertain.
+		switch terminal {
+		case "succeeded":
+			cause = nil
+		case "failed":
+			cause = errTerminalFailure
+		case "cancelled":
+			cause = context.Canceled
+		default:
+			if cause == nil || cause == io.EOF {
+				cause = errStreamIncomplete
+			}
+		}
+	} else if cause == io.EOF {
+		cause = nil
+	} else if cause == nil {
+		cause = b.ctx.Err()
+		if cause == nil {
+			cause = io.ErrUnexpectedEOF
+		}
 	}
 	b.finish(cause)
 	return err
@@ -242,5 +342,9 @@ func (a *Attempt) TrackResponse(ctx context.Context, resp *http.Response, err er
 		_ = a.Finish(ctx, 0, io.ErrUnexpectedEOF)
 		return
 	}
-	resp.Body = &attemptBody{ReadCloser: resp.Body, attempt: a, ctx: ctx, status: resp.StatusCode, streaming: strings.Contains(strings.ToLower(resp.Header.Get("Content-Type")), "text/event-stream") && resp.StatusCode < 400}
+	method := ""
+	if resp.Request != nil {
+		method = resp.Request.Method
+	}
+	resp.Body = newAttemptBody(ctx, resp, a, method)
 }

@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS gateway_requests (
 CREATE TABLE IF NOT EXISTS gateway_request_attempts (
     request_id UUID NOT NULL REFERENCES gateway_requests(id) ON DELETE RESTRICT,
     attempt_no INTEGER NOT NULL CHECK (attempt_no > 0),
-    phase VARCHAR(16) NOT NULL DEFAULT 'request' CHECK (phase IN ('request','ws_connect','ws_control','ws_input','ws_observed','external_search')),
+    phase VARCHAR(16) NOT NULL DEFAULT 'request' CHECK (phase IN ('request','ws_connect','ws_control','ws_input','ws_observed','external_search','auxiliary')),
     upstream_kind VARCHAR(24) NOT NULL DEFAULT 'account' CHECK (upstream_kind IN ('account','external_search')),
     account_id BIGINT,
     credential_account_id BIGINT,

@@ -917,7 +917,9 @@ func (s *GatewayService) recordUsageCore(ctx context.Context, input *recordUsage
 	}
 	if result.Usage.InputTokens > 0 || result.Usage.OutputTokens > 0 || result.Usage.CacheReadInputTokens > 0 || result.Usage.CacheCreationInputTokens > 0 || result.ImageCount > 0 || result.SearchCount > 0 {
 		if err := requestledger.ObserveUsage(ctx, account.ID); err != nil {
-			return err
+			// Admission and attempt evidence already exist. An audit annotation
+			// failure must not suppress the original idempotent settlement.
+			logger.LegacyPrintf("service.gateway", "request_ledger_usage_observation_failed")
 		}
 	}
 	ApplyForwardImageBillingResolution(result)

@@ -771,6 +771,9 @@ func (s *OpenAIGatewayService) isUpstreamModelRestrictedByChannel(ctx context.Co
 		requireCompact = compactForwardModel.useCompactModelMapping
 	}
 	upstreamModel := resolveOpenAIAccountUpstreamModelForRequest(account, requestedModel, requireCompact)
+	if account != nil && account.IsOpenAI() {
+		upstreamModel = s.resolveOpenAIRequestSchedulingModel(ctx, account, requestedModel, requireCompact)
+	}
 	if upstreamModel == "" {
 		return false
 	}

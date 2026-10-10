@@ -1,0 +1,11 @@
+Complete make test (backend tests, golangci-lint, frontend lint/typecheck/design/tests)
+GOFLAGS="-p=1 -parallel=1" GOMAXPROCS=2
+Exit: 0
+
+✓ src/utils/__tests__/formatAffiliatePct.spec.ts (2 tests) 2ms
+ ✓ src/views/admin/__tests__/GroupsView.compositePlatforms.spec.ts (1 test) 2ms
+
+ Test Files  491 passed | 1 skipped (492)
+      Tests  3502 passed | 2 skipped (3504)
+   Start at  05:36:51
+   Duration  172.80s (transform 20.22s, setup 25.67s, collect 49.52s, tests 46.45s, environment 143.08s, prepare 22.92s)

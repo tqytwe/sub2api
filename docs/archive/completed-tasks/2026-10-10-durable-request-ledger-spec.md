@@ -31,8 +31,8 @@ HTTP 状态。三条状态轴互相独立：
 上游响应状态、安全错误码。序号由数据库分配。开始仅证明“发送已获准且可能已发生”，不能
 声称 PG 提交与外部网络发送之间存在分布式原子性。
 
-`gateway_ledger_instances`：实例 UUID、PG 时钟租约。只有过期实例的请求可回收，不能在启动时
-无差别终结所有 inflight。恢复仅标 interrupted/usage_unknown/待核对，不重新发送、不补扣。
+`gateway_ledger_instances`：实例 UUID、PG 时钟租约。过期实例及本实例已退出处理但终态写入失败的请求可回收；本实例活动身份集合只保护存活工作，不是证据队列。不能在启动时
+无差别终结其他健康实例或仍活动的 inflight。恢复仅标 interrupted/usage_unknown/待核对，不重新发送、不补扣。
 
 计费引用通过现有 request ID + API key ID + verified fingerprint 关联 usage_logs、dedup/归档、
 balance_transactions、subscription/package entitlement；只有可验证结算证据才显示 settled。
@@ -42,7 +42,7 @@ balance_transactions、subscription/package entitlement；只有可验证结算�
 
 1. 入口写入失败：503 + Retry-After，固定安全错误码 `request_ledger_unavailable`，不鉴权、不选路、不发上游。
 2. 身份/attempt 写入失败：停止当前请求的后续上游发送；未输出 HTTP 返回 503；已升级 WS 安全错误并终止该 turn。
-3. 上游发送后终态写失败：已提交入口和 attempt 保留；通过租约恢复为 interrupted、待核对。
+3. 上游发送后终态写失败：已提交入口和 attempt 保留；健康实例也会回收已结束处理但终态写失败的记录；进程退出后通过租约恢复为 interrupted、待核对。
 4. 不修改生产配置，不全局关闭平台，不依赖 Redis 或 best-effort 日志队列作为唯一凭据。
 5. 增加每个入口、鉴权绑定和每次发送的 PG 写入与延迟；匿名流量也占持久容量。同实例入口会更新一行 lease，存在写入热点；生产吞吐/容量尚未压测，不作吞吐承诺。
 6. PG 无法写入时无法在同一 PG 保存新的拒绝记录；不会声称 100% 永不丢。TLS/HTTP 解析前、
@@ -71,21 +71,21 @@ balance_transactions、subscription/package entitlement；只有可验证结算�
 | `/api/v1/mobile` | `/tasks` POST/GET、`/tasks/:id` GET/DELETE、`/tasks/:id/{cancel,retry,status}` POST；`/image-history` GET、`/image-history/:id` DELETE、`/image-history/:id/retry` POST；`/web-search` POST |
 | `/api/v1/mobile/video` | GET `/bootstrap`, `/models`, `/jobs`, `/jobs/:id`, `/jobs/:id/content`; POST `/estimate`, `/jobs`, `/jobs/:id/{cancel,retry}`, `/jobs/:id/content/ack` |
 
-模型/额度/计数等非生成查询同样留台账，但不因此扩大收费策略。前端 HTML 重定向不假装模型生成。
+模型/额度/计数等非生成查询同样留台账，但不因此扩大收费策略。models 共享缓存刷新在 Background 上下文执行时，先创建由首个触发者拥有的非计费子执行；原 HTTP 结束不会终结该子执行。其他缓存命中请求各自留入口，不虚构额外上游发送。前端 HTML 重定向不假装模型生成。
 后台图像批次 item、异步图像、Image Studio、移动视频 worker 必须携带持久父请求关联。
 
 ## API 与界面
 
 - 普通用户 list/detail/attempts 在 SQL 中强制 user_id；参数不能覆盖该范围。
 - 管理员按 user/key/account（含母账号）/三轴状态/date/private ID 筛选。
-- 使用有界分页、稳定时间/ID 排序。没有 usage 时金额显示未知，不能显示 $0。
+- 请求列表使用有界分页、稳定时间/ID 排序。详情的 attempts 与 billing references 当前没有独立分页，长会话会增大响应；只有限时，不能声称全部集合均有界。没有 usage 时金额显示未知，不能显示 $0。
 - 沿用用户和管理用量页、共享 DataTable/Select/按钮/详情浮层，显示 inflight、失败、待核对和计费状态。
 - 关联 usage 页面可追溯；普通用户 DTO 不暴露其他用户或上游凭据账号详情。
 - 无清理或删除 API；旧 usage 清理不级联删除新台账。
 
 ## 迁移、阶段与验收
 
-新增 forward-only SQL，`SET LOCAL lock_timeout='2s'`、`statement_timeout='30s'`。新空表索引同事务；
+迁移 275 新增五张表（requests、attempts、instances、billing links、task links）；新增 forward-only SQL，`SET LOCAL lock_timeout='2s'`、`statement_timeout='30s'`。新空表索引同事务；
 若涉及既有大表索引则独立 `_notx.sql` + CONCURRENTLY。无历史更新、无级联删除、无旧 migration 修改。
 根 AGENTS 引用的 PROJECT_HYGIENE.md 与 ZEABUR_POSTGRES_RUNBOOK.md 在基线不存在，按现存
 DELIVERY_WORKFLOW.md、migrations/README.md 和已上线 274 迁移约束执行。
@@ -106,7 +106,8 @@ DELIVERY_WORKFLOW.md、migrations/README.md 和已上线 274 迁移约束执行�
 
 ## 实际范围与独立交付边界
 
-当前合入主线基线：`7291ae9a2be4db7d97b8b641d053f7822276dc23`（普通快进，包含缓存、只读额度及 PR346）。
+当前待提交组合的授权主线基线：`a581d8db536157c6c325ea4729381ee8b83ed53d`（包含缓存、只读额度、PR346、PR349、PR350 OAuth 刷新及 PR348 admission/协议完成修复）。
+先快进到 `7291ae9a2be4db7d97b8b641d053f7822276dc23`，完成台账审查提交后再按根线程授权普通 merge 包含 PR348/PR349/PR350 的主线；不 rebase、不强推。
 PR346 原 head 为 `edee1a0a57ccfaf0044c1c2edd4c1da6062854e6`；按根线程授权合入，没有发布。持久入口、发送门、恢复、账务引用和页面为同一兼容增量。
 新表不依赖旧版本写入；回滚旧二进制会停止新增台账，既有台账保留，不能把回滚期描述成仍有完整覆盖。
 滚动发布期间仍在服务的旧实例也不会产生台账；覆盖起点必须以全部受管实例升级及入口核验为准，不能用迁移完成时间代替。
@@ -130,12 +131,14 @@ PR346 原 head 为 `edee1a0a57ccfaf0044c1c2edd4c1da6062854e6`；按根线程授�
 - 已有按会话聚合的实时收费保留在会话/执行父记录，不把总额虚构分摊给各 turn；没有逐 turn 结算证据的子记录保持待核对，需连同父记录审阅。
 - HTTP 协议解析、反向代理或机器故障发生在应用接纳前时不在本台账内；PG 及所有副本同时不可用时无法无限保证保存。
 
+- 批次图片结算目前可以追溯已有 wallet capture/release，但该旧路径不经过统一 Apply，原始 usage 的 fingerprint / drilldown 尚未完整链接；本阶段明确保留此边界，不扩展批次收费规则。
+
 ### 保留与运维影响
 
 本迁移没有删除、TTL、清理任务、历史回填或旧表外键级联；后台恢复只更新已存在行，最多每轮 1000 行。
 钱包核对按最后检查时间轮转最多 1000 行，使用既有 capture/release 与 dedup 证明；hold 本身不算结算。
 匿名请求同样增长数据量，增加每请求与每 attempt 的同步 PG 写入；需要根线程发布前评估磁盘、连接池和写入延迟。
-本分支不改生产保留策略、限流或配置；后续归档/容量治理需另行设计，不能自动清旧账。查询限页、限大小及超时。
+本分支不改生产保留策略、限流或配置；后续归档/容量治理需另行设计，不能自动清旧账。请求列表限页大小；详情子集合未分页，所有查询限时。
 
 ### PR346 合并接口
 
@@ -143,4 +146,4 @@ PR346 原 head 为 `edee1a0a57ccfaf0044c1c2edd4c1da6062854e6`；按根线程授�
 复用 PR346 `bindAttempt` 的逻辑 turn 编号；使用 `turnSettlement.context(ledgerCtx, turn)` 保留私有台账 context 和原计费幂等键。
 不得复制该 PR 的快照、claim 或收费算法。已在指定主线普通快进后人工合并上下文接口，重新验证缺失 ID 终态与重试组合；未修改 PR346 的结算算法。
 
-状态：实现及本地必需门禁已完成，证据见最终审查记录；根线程外部组合审查、生产发布与用户本地验收待完成。生产历史缺口保持未知。
+状态：独立审查集中修订与a581主线组合已完成本地必要PG/WS/单元测试、完整make test/build/Fork及09:01最终浏览器验收。源码/CI的108个文件哈希及33项必需契约结果已归档。最终提交SHA及对应CI以PR #351为准，不据首批83c的旧CI合并。根线程外部组合复核、生产发布与用户本地验收待完成；生产历史缺口保持未知。

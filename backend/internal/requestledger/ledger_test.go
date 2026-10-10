@@ -66,3 +66,7 @@ func TestUnsafeErrorsNeverBecomeAuditMetadata(t *testing.T) {
 	require.Equal(t, "cancelled", ErrorCode(context.Canceled))
 	require.Equal(t, "timeout", ErrorCode(context.DeadlineExceeded))
 }
+
+func TestRequestLedgerFrozenContextAllowsNilUsageTaskParent(t *testing.T) {
+	require.NotPanics(t, func() { require.Nil(t, FreezeContext(nil, nil)) }) //nolint:staticcheck // Regression: usage-task wrappers accept absent parent contexts.
+}

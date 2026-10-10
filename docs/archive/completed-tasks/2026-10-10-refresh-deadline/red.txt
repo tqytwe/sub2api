@@ -1,0 +1,50 @@
+2026/10/10 05:44:47 Timezone initialized: UTC (UTC offset: +00:00)
+=== RUN   TestRefreshDeadline_PendingCancellationRejectsLateCredentials
+=== RUN   TestRefreshDeadline_PendingCancellationRejectsLateCredentials/fallback/0s
+    oauth_refresh_deadline_test.go:77:
+            Error Trace:    /workspace/refresh-deadline-fix/backend/internal/service/oauth_refresh_deadline_test.go:77
+            Error:          An error is expected but got nil.
+                            expected: *service.refreshAttemptTimeoutError
+            Test:           TestRefreshDeadline_PendingCancellationRejectsLateCredentials/fallback/0s
+=== RUN   TestRefreshDeadline_PendingCancellationRejectsLateCredentials/fallback/1ns
+    oauth_refresh_deadline_test.go:77:
+            Error Trace:    /workspace/refresh-deadline-fix/backend/internal/service/oauth_refresh_deadline_test.go:77
+            Error:          An error is expected but got nil.
+                            expected: *service.refreshAttemptTimeoutError
+            Test:           TestRefreshDeadline_PendingCancellationRejectsLateCredentials/fallback/1ns
+=== RUN   TestRefreshDeadline_PendingCancellationRejectsLateCredentials/unified/0s
+    oauth_refresh_deadline_test.go:77:
+            Error Trace:    /workspace/refresh-deadline-fix/backend/internal/service/oauth_refresh_deadline_test.go:77
+            Error:          An error is expected but got nil.
+                            expected: *service.refreshAttemptTimeoutError
+            Test:           TestRefreshDeadline_PendingCancellationRejectsLateCredentials/unified/0s
+=== RUN   TestRefreshDeadline_PendingCancellationRejectsLateCredentials/unified/1ns
+    oauth_refresh_deadline_test.go:77:
+            Error Trace:    /workspace/refresh-deadline-fix/backend/internal/service/oauth_refresh_deadline_test.go:77
+            Error:          An error is expected but got nil.
+                            expected: *service.refreshAttemptTimeoutError
+            Test:           TestRefreshDeadline_PendingCancellationRejectsLateCredentials/unified/1ns
+--- FAIL: TestRefreshDeadline_PendingCancellationRejectsLateCredentials (0.00s)
+    --- FAIL: TestRefreshDeadline_PendingCancellationRejectsLateCredentials/fallback/0s (0.00s)
+    --- FAIL: TestRefreshDeadline_PendingCancellationRejectsLateCredentials/fallback/1ns (0.00s)
+    --- FAIL: TestRefreshDeadline_PendingCancellationRejectsLateCredentials/unified/0s (0.00s)
+    --- FAIL: TestRefreshDeadline_PendingCancellationRejectsLateCredentials/unified/1ns (0.00s)
+=== RUN   TestRefreshDeadline_ParentExpiryDoesNotMutateAccount
+=== RUN   TestRefreshDeadline_ParentExpiryDoesNotMutateAccount/fallback
+    oauth_refresh_deadline_test.go:104:
+            Error Trace:    /workspace/refresh-deadline-fix/backend/internal/service/oauth_refresh_deadline_test.go:104
+            Error:          Expected error with "context deadline exceeded" in chain but got nil.
+            Test:           TestRefreshDeadline_ParentExpiryDoesNotMutateAccount/fallback
+=== RUN   TestRefreshDeadline_ParentExpiryDoesNotMutateAccount/unified
+    oauth_refresh_deadline_test.go:104:
+            Error Trace:    /workspace/refresh-deadline-fix/backend/internal/service/oauth_refresh_deadline_test.go:104
+            Error:          Expected error with "context deadline exceeded" in chain but got nil.
+            Test:           TestRefreshDeadline_ParentExpiryDoesNotMutateAccount/unified
+--- FAIL: TestRefreshDeadline_ParentExpiryDoesNotMutateAccount (0.00s)
+    --- FAIL: TestRefreshDeadline_ParentExpiryDoesNotMutateAccount/fallback (0.00s)
+    --- FAIL: TestRefreshDeadline_ParentExpiryDoesNotMutateAccount/unified (0.00s)
+=== RUN   TestRefreshDeadline_DurableSuccessSurvivesCleanupExpiry
+--- PASS: TestRefreshDeadline_DurableSuccessSurvivesCleanupExpiry (0.00s)
+FAIL
+FAIL    github.com/Wei-Shaw/sub2api/internal/service    0.018s
+FAIL

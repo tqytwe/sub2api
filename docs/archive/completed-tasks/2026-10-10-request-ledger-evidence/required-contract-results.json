@@ -1,0 +1,205 @@
+{
+  "required_count": 33,
+  "passed_count": 33,
+  "missing": [],
+  "passed": {
+    "TestLedgerPostgresMigrationLockTimeoutPreservesEvidence": {
+      "Time": "2026-10-10T07:42:18.455149863Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+      "Elapsed": 6.19,
+      "gate": "review-final-boundaries"
+    },
+    "TestLedgerPostgresPanicPreservesAlreadyWrittenHTTPStatus": {
+      "Time": "2026-10-10T07:42:21.030183356Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+      "Elapsed": 2.57,
+      "gate": "review-final-boundaries"
+    },
+    "TestLedgerPostgresAttemptStorageFailureRejectsOnlyRequest": {
+      "Time": "2026-10-10T07:42:43.649192742Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+      "Elapsed": 3.1,
+      "gate": "review-final-boundaries"
+    },
+    "TestLedgerPostgresRetryUsageDoesNotHideUnknownEarlierAttempt": {
+      "Time": "2026-10-10T07:43:04.131342491Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+      "Elapsed": 4.24,
+      "gate": "review-final-boundaries"
+    },
+    "TestLedgerKilledProcessRecoveryRetainsEvidence": {
+      "Time": "2026-10-10T07:43:10.821723645Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+      "Elapsed": 3.83,
+      "gate": "review-final-boundaries"
+    },
+    "TestLedgerPostgresHealthyOwnerRecoversFailedFinalization": {
+      "Time": "2026-10-10T07:43:14.358760792Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+      "Elapsed": 3.53,
+      "gate": "review-final-boundaries"
+    },
+    "TestLedgerPostgresFalseUpgradeDoesNotChangeHTTPMetering": {
+      "Time": "2026-10-10T07:43:17.143806531Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+      "Elapsed": 2.79,
+      "gate": "review-final-boundaries"
+    },
+    "TestLedgerPostgresFrozenUsageDoesNotMoveToLaterAttempt": {
+      "Time": "2026-10-10T07:43:19.965916927Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+      "Elapsed": 2.82,
+      "gate": "review-final-boundaries"
+    },
+    "TestLedgerPostgresBoundedConcurrentAdmissionAndRecovery": {
+      "Time": "2026-10-10T07:43:24.300680503Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+      "Elapsed": 4.33,
+      "gate": "review-final-boundaries"
+    },
+    "TestRequestLedgerHTTPLinkedUsageAndRetention": {
+      "Time": "2026-10-10T07:43:25.833508465Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger/acceptance",
+      "Elapsed": 7.79,
+      "gate": "review-final-boundaries"
+    },
+    "TestRequestLedgerHTTPAPIRolesPaginationAndRefresh": {
+      "Time": "2026-10-10T07:43:32.686329392Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger/acceptance",
+      "Elapsed": 6.85,
+      "gate": "review-final-boundaries"
+    },
+    "TestRequestLedgerRealGatewayRouteRejectionMatrix": {
+      "Time": "2026-10-10T07:38:57.966469988Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/server/routes",
+      "Elapsed": 5.2,
+      "gate": "review-final-pg"
+    },
+    "TestRequestLedgerImageStudioAndBFFRouteRejectionMatrix": {
+      "Time": "2026-10-10T07:39:04.46177258Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/server/routes",
+      "Elapsed": 3.03,
+      "gate": "review-final-pg"
+    },
+    "TestRequestLedgerBillingTransactionDedupAndFailure": {
+      "Time": "2026-10-10T08:29:14.680705271Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/repository",
+      "Elapsed": 0.09,
+      "gate": "main348-repository"
+    },
+    "TestRequestLedgerTaskFundingReferencesRecoverWithoutCharging": {
+      "Time": "2026-10-10T08:29:14.711429423Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/repository",
+      "Elapsed": 0.03,
+      "gate": "main348-repository"
+    },
+    "TestRequestLedgerCompressedSSEUsesDecodedEvidence": {
+      "Time": "2026-10-10T08:29:14.759228986Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/repository",
+      "Elapsed": 0.05,
+      "gate": "main348-repository"
+    },
+    "TestRequestLedgerObservationFailureKeepsOriginalSettlement": {
+      "Time": "2026-10-10T08:29:21.198175989Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/repository",
+      "Elapsed": 6.44,
+      "gate": "main348-repository"
+    },
+    "TestRequestLedgerPendingUsageSnapshotNeverShowsSettledZero": {
+      "Time": "2026-10-10T08:29:21.257721321Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/repository",
+      "Elapsed": 0.06,
+      "gate": "main348-repository"
+    },
+    "TestRequestLedgerRealtimeCapacityRejectionStillPersistsTurn": {
+      "Time": "2026-10-10T08:27:28.64644832Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Elapsed": 2.95,
+      "gate": "main348-green-intersections"
+    },
+    "TestRequestLedgerIdempotentTaskReplayKeepsCurrentAdmission": {
+      "Time": "2026-10-10T08:27:33.965681631Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Elapsed": 2.57,
+      "gate": "main348-green-intersections"
+    },
+    "TestRequestLedgerBusinessStreamTerminalBeforeTransportEOF": {
+      "Time": "2026-10-10T08:27:38.002108437Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Elapsed": 4.04,
+      "gate": "main348-green-intersections"
+    },
+    "TestRequestLedgerOAuthModelsDirectTransportAdmission": {
+      "Time": "2026-10-10T08:27:41.550617417Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Elapsed": 3.55,
+      "gate": "main348-green-intersections"
+    },
+    "TestRequestLedgerImageBackfillKeepsGenerationAttribution": {
+      "Time": "2026-10-10T08:27:43.895849627Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Elapsed": 2.34,
+      "gate": "main348-green-intersections"
+    },
+    "TestLedgerStorageErrorDoesNotFailOverAnthropicOrGemini": {
+      "Time": "2026-10-10T07:45:15.233980952Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Elapsed": 0,
+      "gate": "review-final-boundaries"
+    },
+    "TestRequestLedgerRealWebsocket1013AndEOFWithoutUsage": {
+      "Time": "2026-10-10T08:28:00.333056872Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Elapsed": 9.15,
+      "gate": "main348-green-intersections"
+    },
+    "TestRequestLedgerPassthroughWaitsForAuthoritativeTurn": {
+      "Time": "2026-10-10T08:28:03.82017316Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Elapsed": 3.48,
+      "gate": "main348-green-intersections"
+    },
+    "TestRequestLedgerWSLateUsageDoesNotMarkTheNextAttemptKnown": {
+      "Time": "2026-10-10T08:28:09.373520982Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Elapsed": 5.55,
+      "gate": "main348-green-intersections"
+    },
+    "TestRequestLedgerNativeWebsocketTwoTurnsWithRealPostgres": {
+      "Time": "2026-10-10T08:28:13.697113234Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Elapsed": 4.33,
+      "gate": "main348-green-intersections"
+    },
+    "TestRequestLedgerFrozenContextAllowsNilUsageTaskParent": {
+      "Time": "2026-10-10T07:42:12.261675522Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+      "Elapsed": 0,
+      "gate": "review-final-boundaries"
+    },
+    "TestLedgerPostgresBodylessResponsesKeepProtocolSuccess": {
+      "Time": "2026-10-10T07:43:27.47929476Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+      "Elapsed": 3.18,
+      "gate": "review-final-boundaries"
+    },
+    "TestRequestLedgerCommittedJSONDoesNotBecomeSSE": {
+      "Time": "2026-10-10T08:26:31.255963822Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/handler",
+      "Elapsed": 8.22,
+      "gate": "main348-green-intersections"
+    },
+    "TestRequestLedgerModelsCacheRefreshKeepsDurableChild": {
+      "Time": "2026-10-10T08:27:47.513587563Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Elapsed": 3.62,
+      "gate": "main348-green-intersections"
+    },
+    "TestRequestLedgerModelsCacheStorageFailureNeverSends": {
+      "Time": "2026-10-10T08:27:51.185252923Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "Elapsed": 3.67,
+      "gate": "main348-green-intersections"
+    }
+  }
+}

@@ -87,21 +87,21 @@ func ObserveUsage(ctx context.Context, accountID ...int64) error {
 		// observed usage against its exact attempt before submitting that task.
 		return nil
 	}
-	account := int64(0)
-	if len(accountID) > 0 {
-		account = accountID[0]
+	attempt := CurrentAttempt(ctx)
+	if attempt == nil || attempt.handle != h || (len(accountID) > 0 && accountID[0] != attempt.accountID) {
+		return ErrUnavailable
 	}
-	return observeAttemptUsage(ctx, h, account, 0)
+	return attempt.ObserveUsage(ctx)
 }
 
 func (a *Attempt) ObserveUsage(ctx context.Context) error {
 	if a == nil {
 		return nil
 	}
-	return observeAttemptUsage(ctx, a.handle, 0, a.Number)
+	return observeAttemptUsage(ctx, a.handle, a.Number)
 }
 
-func observeAttemptUsage(ctx context.Context, h *Handle, account int64, attemptNo int) error {
+func observeAttemptUsage(ctx context.Context, h *Handle, attemptNo int) error {
 	ctx, cancel := detachedWrite(ctx)
 	defer cancel()
 	tx, err := h.ledger.db.BeginTx(ctx, nil)
@@ -109,11 +109,14 @@ func observeAttemptUsage(ctx context.Context, h *Handle, account int64, attemptN
 		return ErrUnavailable
 	}
 	defer func() { _ = tx.Rollback() }()
-	// Bind evidence to the latest billable attempt on the actual scheduled account.
-	// Connection/control frames do not become metered usage observations.
-	_, err = tx.ExecContext(ctx, `UPDATE gateway_request_attempts SET usage_state='known' WHERE request_id=$1 AND attempt_no=CASE WHEN $3>0 THEN $3 ELSE (
- SELECT attempt_no FROM gateway_request_attempts WHERE request_id=$1 AND phase IN ('request','ws_observed','ws_input','external_search')
- AND ($2=0 OR account_id=$2) ORDER BY attempt_no DESC LIMIT 1) END`, h.ID, account, attemptNo)
+	// Lock the parent first, matching admission/finalization. This is lock-order
+	// hardening; no claim that a production deadlock was reproduced.
+	var id string
+	if err = tx.QueryRowContext(ctx, `SELECT id FROM gateway_requests WHERE id=$1 FOR UPDATE`, h.ID).Scan(&id); err != nil {
+		return ErrUnavailable
+	}
+	// Attribution is frozen by the caller, never selected by a latest-row query.
+	_, err = tx.ExecContext(ctx, `UPDATE gateway_request_attempts SET usage_state='known' WHERE request_id=$1 AND attempt_no=$2 AND phase IN ('request','ws_observed','ws_input','external_search')`, h.ID, attemptNo)
 	if err != nil {
 		return ErrUnavailable
 	}
