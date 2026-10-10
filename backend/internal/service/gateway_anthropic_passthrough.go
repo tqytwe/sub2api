@@ -5,6 +5,8 @@ package service
 // 无任何行为变更。
 
 import (
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
+
 	"bufio"
 	"bytes"
 	"context"
@@ -140,6 +142,7 @@ func (s *GatewayService) forwardAnthropicAPIKeyPassthroughWithInput(
 				respBody, _ := s.readUpstreamErrorBody(resp)
 				_ = resp.Body.Close()
 				appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+					LedgerReceipt:      requestledger.ResponseReceipt(resp),
 					ProxyID:            opsUpstreamProxyID(account),
 					ProxyName:          opsUpstreamProxyName(account),
 					Platform:           account.Platform,
@@ -186,6 +189,7 @@ func (s *GatewayService) forwardAnthropicAPIKeyPassthroughWithInput(
 
 			s.handleRetryExhaustedSideEffects(ctx, resp, account)
 			appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+				LedgerReceipt:      requestledger.ResponseReceipt(resp),
 				ProxyID:            opsUpstreamProxyID(account),
 				ProxyName:          opsUpstreamProxyName(account),
 				Platform:           account.Platform,
@@ -222,6 +226,7 @@ func (s *GatewayService) forwardAnthropicAPIKeyPassthroughWithInput(
 
 		s.handleFailoverSideEffects(ctx, resp, account, input.RequestModel)
 		appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+			LedgerReceipt:      requestledger.ResponseReceipt(resp),
 			ProxyID:            opsUpstreamProxyID(account),
 			ProxyName:          opsUpstreamProxyName(account),
 			Platform:           account.Platform,

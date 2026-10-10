@@ -1,6 +1,8 @@
 package service
 
 import (
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
+
 	"bytes"
 	"encoding/json"
 	"net/http"
@@ -235,7 +237,7 @@ func (d *openAIChatSilentRefusalDetector) observeResponseMessageItem(item gjson.
 	}
 }
 
-func newOpenAISilentRefusalFailoverError(c *gin.Context, account *Account, upstreamRequestID string) *UpstreamFailoverError {
+func newOpenAISilentRefusalFailoverError(receipt requestledger.Receipt, c *gin.Context, account *Account, upstreamRequestID string) *UpstreamFailoverError {
 	accountID := int64(0)
 	accountName := ""
 	platform := PlatformOpenAI
@@ -247,6 +249,7 @@ func newOpenAISilentRefusalFailoverError(c *gin.Context, account *Account, upstr
 
 	setOpsUpstreamError(c, http.StatusBadGateway, openAISilentRefusalUpstreamMessage, "")
 	appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+		LedgerReceipt:      receipt,
 		ProxyID:            opsUpstreamProxyID(account),
 		ProxyName:          opsUpstreamProxyName(account),
 		Platform:           platform,
@@ -274,7 +277,7 @@ func newOpenAISilentRefusalFailoverError(c *gin.Context, account *Account, upstr
 // Responses streams that deliver only response.created + response.completed
 // with no output, no usage and no error are treated as silent upstream
 // refusals rather than successful empty replies (issue #5009).
-func newOpenAIResponsesEmptyCompletedFailoverError(c *gin.Context, account *Account, upstreamRequestID string) *UpstreamFailoverError {
+func newOpenAIResponsesEmptyCompletedFailoverError(receipt requestledger.Receipt, c *gin.Context, account *Account, upstreamRequestID string) *UpstreamFailoverError {
 	accountID := int64(0)
 	accountName := ""
 	platform := PlatformOpenAI
@@ -286,6 +289,7 @@ func newOpenAIResponsesEmptyCompletedFailoverError(c *gin.Context, account *Acco
 
 	setOpsUpstreamError(c, http.StatusBadGateway, openAIResponsesEmptyCompletedMessage, "")
 	appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+		LedgerReceipt:      receipt,
 		ProxyID:            opsUpstreamProxyID(account),
 		ProxyName:          opsUpstreamProxyName(account),
 		Platform:           platform,

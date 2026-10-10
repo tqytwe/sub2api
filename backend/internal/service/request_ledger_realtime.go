@@ -16,20 +16,21 @@ type realtimeLedgerTurn struct {
 }
 
 // Only bounded protocol identifiers live in memory. Neither audio nor text nor
-// upstream IDs are persisted. Automatic turns are explicitly observed phases;
+// payloads are persisted. Validated response IDs are bounded evidence. Automatic turns are explicitly observed phases;
 // their causal input stream has a precommitted session attempt.
 type realtimeLedgerAudit struct {
-	control *requestledger.Attempt
-	mu      sync.Mutex
-	ctx     context.Context
-	account *Account
-	input   *requestledger.Attempt
-	pending []*realtimeLedgerTurn
-	active  map[string]*realtimeLedgerTurn
+	control   *requestledger.Attempt
+	mu        sync.Mutex
+	ctx       context.Context
+	account   *Account
+	input     *requestledger.Attempt
+	pending   []*realtimeLedgerTurn
+	active    map[string]*realtimeLedgerTurn
+	completed map[string]struct{}
 }
 
 func newRealtimeLedgerAudit(ctx context.Context, account *Account) *realtimeLedgerAudit {
-	return &realtimeLedgerAudit{ctx: ctx, account: account, active: make(map[string]*realtimeLedgerTurn)}
+	return &realtimeLedgerAudit{ctx: ctx, account: account, active: make(map[string]*realtimeLedgerTurn), completed: make(map[string]struct{})}
 }
 func (a *realtimeLedgerAudit) enabled() bool {
 	return a != nil && requestledger.FromContext(a.ctx) != nil
@@ -38,7 +39,7 @@ func (a *realtimeLedgerAudit) turn(observed bool) (*realtimeLedgerTurn, error) {
 	if a.account == nil {
 		return nil, requestledger.ErrUnavailable
 	}
-	atCapacity := len(a.active)+len(a.pending) >= 128
+	atCapacity := len(a.active)+len(a.pending) >= 128 || len(a.completed)+len(a.active)+len(a.pending) >= 4096
 	var h *requestledger.Handle
 	var err error
 	if observed {
@@ -152,6 +153,11 @@ func (a *realtimeLedgerAudit) Observe(payload []byte) error {
 	if len(id) == 0 || len(id) > 256 {
 		return nil
 	}
+	if _, done := a.completed[id]; done {
+		return nil
+	}
+	// Never evict completed IDs. Capacity is checked only when accepting a
+	// new turn; all already-admitted active/pending turns may finish with usage.
 	turn := a.active[id]
 	if turn == nil {
 		if len(a.pending) > 0 {
@@ -168,6 +174,7 @@ func (a *realtimeLedgerAudit) Observe(payload []byte) error {
 	}
 	ctx := requestledger.WithHandle(a.ctx, turn.handle)
 	requestledger.ObserveOutput(ctx)
+	turn.attempt.ObserveIdentifiers(ctx, "", id)
 	if !terminal {
 		return nil
 	}
@@ -203,6 +210,7 @@ func (a *realtimeLedgerAudit) Observe(payload []byte) error {
 		cause = errors.New("upstream terminal incomplete")
 	}
 	delete(a.active, id)
+	a.completed[id] = struct{}{}
 	return errors.Join(usageErr, a.finish(turn, state, cause))
 }
 func (a *realtimeLedgerAudit) Close(cause error) {

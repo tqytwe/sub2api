@@ -3,12 +3,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import OpsErrorDetailModal from '../OpsErrorDetailModal.vue'
 
 const mocks = vi.hoisted(() => ({
+  getErrorLogDetail: vi.fn(),
   getRequestErrorDetail: vi.fn(),
   listRequestErrorUpstreamErrors: vi.fn()
 }))
 
 vi.mock('@/api/admin/ops', () => ({
   opsAPI: {
+    getErrorLogDetail: mocks.getErrorLogDetail,
     getRequestErrorDetail: mocks.getRequestErrorDetail,
     getUpstreamErrorDetail: vi.fn(),
     listRequestErrorUpstreamErrors: mocks.listRequestErrorUpstreamErrors
@@ -77,3 +79,12 @@ describe('OpsErrorDetailModal', () => {
     expect(wrapper.text()).not.toContain('admin.ops.errorDetail.payloads.upstream_detail')
   })
 })
+
+ it('opens the exact ledger Ops ID without assuming its request or upstream phase', async () => {
+  mocks.getErrorLogDetail.mockResolvedValue({ id: 42, phase: 'request', ledger_references: [{ request_id: 'private-request', attempt_no: 2, attempt_id: 'private-attempt', ops_error_log_id: 42 }] })
+  const wrapper = shallowMount(OpsErrorDetailModal, { props: { show: true, errorId: 42, errorType: 'any' }, global: { stubs: { BaseDialog: { template: '<div><slot /></div>' }, RouterLink: { template: '<a><slot /></a>' }, Icon: true } } })
+  await flushPromises()
+  expect(mocks.getErrorLogDetail).toHaveBeenCalledWith(42)
+  expect(wrapper.text()).toContain('private-request')
+  expect(wrapper.text()).toContain('private-attempt')
+ })

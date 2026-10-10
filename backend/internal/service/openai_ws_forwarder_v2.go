@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
 	"net/http"
 	"net/url"
 	"strings"
@@ -346,7 +347,10 @@ func (s *OpenAIGatewayService) forwardOpenAIWSV2(
 	if ledgerGateErr != nil {
 		return nil, ledgerGateErr
 	}
-	defer func() { finishLedgerWSResult(ctx, ledgerAttempt, ledgerResult, ledgerErr) }()
+	defer func() {
+		finishLedgerWSResult(ctx, ledgerAttempt, ledgerResult, ledgerErr)
+		ledgerErr = ledgerAttempt.WrapError(ledgerErr)
+	}()
 	if err := lease.WriteJSONWithContextTimeout(ctx, payload, s.openAIWSWriteTimeout()); err != nil {
 		lease.MarkBroken()
 		logOpenAIWSModeInfo(
@@ -618,6 +622,7 @@ readLoop:
 		}
 
 		eventType, eventResponseID, responseField := parseOpenAIWSEventEnvelope(message)
+		ledgerAttempt.ObserveIdentifiers(ctx, requestledger.UpstreamRequestID(lease.HandshakeHeaders()), requestledger.ResponseIdentifier(message))
 		if eventType == "" {
 			continue
 		}
@@ -779,7 +784,7 @@ readLoop:
 
 		if isTerminalEvent {
 			if !clientDisconnected {
-				markOpenAIWSClientVisibleFailure(c, eventType, message)
+				markOpenAIWSClientVisibleFailure(c, eventType, message, ledgerAttempt.Receipt())
 			}
 			upstreamTerminalEvent = s.handleOpenAIWSTerminalTransientFailure(ctx, account, mappedModel, lease.HandshakeHeaders(), message)
 			// A terminal event must be the final JSON document in its WS message.

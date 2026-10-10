@@ -3,6 +3,8 @@
 package service
 
 import (
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
+
 	"context"
 	"encoding/json"
 	"errors"
@@ -201,7 +203,7 @@ func TestWriteGeminiMappedError_400KeepsUpstreamMessage(t *testing.T) {
 	c, _ := gin.CreateTestContext(rec)
 	c.Request = httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
 
-	err := svc.writeGeminiMappedError(c, &Account{ID: 702, Platform: PlatformGemini}, http.StatusBadRequest, "req-1", []byte(geminiSkippedTestUpstreamBody()))
+	err := svc.writeGeminiMappedError(requestledger.Receipt{}, c, &Account{ID: 702, Platform: PlatformGemini}, http.StatusBadRequest, "req-1", []byte(geminiSkippedTestUpstreamBody()))
 
 	require.Error(t, err)
 	require.Equal(t, http.StatusBadRequest, rec.Code)

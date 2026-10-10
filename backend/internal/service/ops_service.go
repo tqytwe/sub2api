@@ -14,6 +14,7 @@ import (
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
 )
 
 var ErrOpsDisabled = infraerrors.NotFound("OPS_DISABLED", "Ops monitoring is disabled")
@@ -597,7 +598,9 @@ func sanitizeOpsUpstreamErrors(entry *OpsInsertErrorLogInput) error {
 		out.Platform = truncateString(strings.TrimSpace(out.Platform), 32)
 		out.AccountName = truncateString(strings.TrimSpace(out.AccountName), 128)
 		out.ProxyName = truncateString(strings.TrimSpace(out.ProxyName), 128)
-		out.UpstreamRequestID = truncateString(strings.TrimSpace(out.UpstreamRequestID), 128)
+		out.UpstreamRequestID = requestledger.UpstreamIdentifier(out.UpstreamRequestID)
+		out.UpstreamResponseID = requestledger.UpstreamIdentifier(out.UpstreamResponseID)
+		out.LedgerCorrelation = out.LedgerReceipt.Correlation()
 		out.UpstreamURL = truncateString(strings.TrimSpace(out.UpstreamURL), urlMaxLen)
 		if body := strings.TrimSpace(out.UpstreamResponseBody); keepBody && body != "" {
 			out.UpstreamResponseBody, _ = sanitizeErrorBodyForStorage(body, OpsErrorLogQueueBodyMaxBytes)
@@ -643,6 +646,11 @@ func sanitizeOpsUpstreamErrors(entry *OpsInsertErrorLogInput) error {
 	}
 
 	sanitized, _ = boundOpsUpstreamErrors(sanitized)
+	for _, ev := range sanitized {
+		if ev.LedgerCorrelation != nil {
+			entry.LedgerReceipts = append(entry.LedgerReceipts, ev.LedgerReceipt)
+		}
+	}
 	entry.UpstreamErrorsJSON = marshalOpsUpstreamErrors(sanitized)
 	entry.UpstreamErrors = nil
 	return nil

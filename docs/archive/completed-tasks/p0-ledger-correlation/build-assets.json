@@ -1,0 +1,26 @@
+{
+  "build": "make build",
+  "browser_uses_actual_build_files": true,
+  "assets": [
+    {
+      "path": "backend/internal/web/dist/index.html",
+      "sha256": "306163c2656b72fb4282fe282dd8a3ec84bed4b9618d91a8a37065257a3b6948",
+      "bytes": 4197
+    },
+    {
+      "path": "backend/internal/web/dist/assets/RequestLedgerView-n_k-x2Hg.js",
+      "sha256": "975b30a212cd7b6eba1da855cda870295c8631d65874d282c3fb5d0678c60728",
+      "bytes": 20144
+    },
+    {
+      "path": "backend/internal/web/dist/assets/OpsErrorDetailModal.vue_vue_type_script_setup_true_lang-C0-aE0v2.js",
+      "sha256": "7b3c07b0266269b3db4f298ed215c50c44b87868336fb6261200dd6a1086d3eb",
+      "bytes": 15272
+    },
+    {
+      "path": "backend/internal/web/dist/assets/OpsErrorDetailModal-CSlXudAJ.js",
+      "sha256": "ae5883afaae5a7832b3698f29339d9212ca3bc08ede17986036cfac8115d15ea",
+      "bytes": 384
+    }
+  ]
+}

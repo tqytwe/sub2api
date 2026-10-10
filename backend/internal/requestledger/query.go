@@ -45,6 +45,10 @@ type Page struct {
 	PageSize int      `json:"page_size"`
 }
 type AttemptRecord struct {
+	AttemptID           *string    `json:"attempt_id"`
+	UpstreamRequestID   *string    `json:"upstream_request_id,omitempty"`
+	UpstreamResponseID  *string    `json:"upstream_response_id,omitempty"`
+	IdentifierConflict  *bool      `json:"identifier_conflict,omitempty"`
 	UsageState          string     `json:"usage_state"`
 	OutputObserved      bool       `json:"output_observed"`
 	UpstreamKind        string     `json:"upstream_kind"`
@@ -170,7 +174,10 @@ func (l *Ledger) Attempts(ctx context.Context, viewer Viewer, id string) ([]Atte
 	}
 	ctx, cancel := context.WithTimeout(ctx, writeTimeout)
 	defer cancel()
-	rows, err := l.db.QueryContext(ctx, `SELECT row_to_json(a) FROM gateway_request_attempts a WHERE request_id=$1 ORDER BY attempt_no`, id)
+	rows, err := l.db.QueryContext(ctx, `SELECT to_jsonb(a) || jsonb_build_object('attempt_id',e.attempt_id,
+ 'upstream_request_id',e.upstream_request_id,'upstream_response_id',e.upstream_response_id,'identifier_conflict',e.identifier_conflict)
+ FROM gateway_request_attempts a LEFT JOIN gateway_request_attempt_evidence e USING(request_id,attempt_no)
+ WHERE a.request_id=$1 ORDER BY a.attempt_no`, id)
 	if err != nil {
 		return nil, err
 	}
@@ -188,6 +195,9 @@ func (l *Ledger) Attempts(ctx context.Context, viewer Viewer, id string) ([]Atte
 		if !viewer.Admin {
 			a.AccountID = nil
 			a.CredentialAccountID = nil
+			a.UpstreamRequestID = nil
+			a.UpstreamResponseID = nil
+			a.IdentifierConflict = nil
 		}
 		result = append(result, a)
 	}

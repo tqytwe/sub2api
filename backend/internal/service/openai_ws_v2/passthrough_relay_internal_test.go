@@ -3,6 +3,7 @@ package openai_ws_v2
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"sync/atomic"
@@ -127,6 +128,7 @@ func TestRunUpstreamToClient_ErrorAndDropPaths(t *testing.T) {
 			nil,
 			nil,
 			nil,
+			nil,
 			drop,
 			nil,
 			nil,
@@ -154,6 +156,7 @@ func TestRunUpstreamToClient_ErrorAndDropPaths(t *testing.T) {
 			time.Now(),
 			time.Now,
 			&relayState{},
+			nil,
 			nil,
 			nil,
 			nil,
@@ -190,6 +193,7 @@ func TestRunUpstreamToClient_ErrorAndDropPaths(t *testing.T) {
 			time.Now(),
 			time.Now,
 			&relayState{},
+			nil,
 			nil,
 			nil,
 			nil,
@@ -794,4 +798,37 @@ func TestObserveUpstreamMessage_ResponseServiceTierOnlyFromTerminalEvents(t *tes
 		nil,
 	)
 	require.Equal(t, "", second.responseServiceTier)
+}
+
+func TestRelayEvidenceSurvivesDrainAndPolicyRejection(t *testing.T) {
+	for _, policyReject := range []bool{false, true} {
+		t.Run(fmt.Sprint(policyReject), func(t *testing.T) {
+			state := &relayState{completedResponseIDs: map[string]struct{}{"old": {}}}
+			upstream := newPassthroughTestFrameConn([]passthroughTestFrame{
+				{msgType: coderws.MessageText, payload: []byte(`{"type":"response.completed","response":{"id":"old"}}`)},
+				{msgType: coderws.MessageBinary, payload: []byte(`{"type":"response.created","response":{"id":"opaque-old"}}`)},
+				{msgType: coderws.MessageText, payload: []byte(`{"type":"response.completed","response":{"id":"current","usage":{"input_tokens":7,"output_tokens":3}}}`)},
+			}, true)
+			drop := &atomic.Bool{}
+			drop.Store(!policyReject)
+			var observed []string
+			observe := func(_ coderws.MessageType, payload []byte) {
+				observed = append(observed, gjson.GetBytes(payload, "response.id").String())
+			}
+			policy := func(kind coderws.MessageType, _ []byte, _ bool) error {
+				if policyReject && kind == coderws.MessageText {
+					return errors.New("synthetic policy exit")
+				}
+				return nil
+			}
+			exits := make(chan relayExitSignal, 1)
+			runUpstreamToClient(context.Background(), upstream, func(kind coderws.MessageType, _ []byte) error {
+				if kind == coderws.MessageText {
+					t.Error("must not write text after drain or policy rejection")
+				}
+				return nil
+			}, time.Now(), time.Now, state, nil, nil, observe, policy, nil, nil, nil, drop, nil, nil, func() {}, nil, exits)
+			require.Equal(t, []string{"current"}, observed, "evidence observes accepted frame before drain/policy but after old-frame filter")
+		})
+	}
 }

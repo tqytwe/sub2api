@@ -193,7 +193,7 @@ func TestMobilePlayBillingAcknowledgeForNonConsumableInAppPlans(t *testing.T) {
 
 	require.True(t, mobilePlayBillingShouldConsume(MobilePlayBillingProductMapping{
 		ProductType: "inapp",
-		Consumable: &consumable,
+		Consumable:  &consumable,
 	}))
 	require.False(t, mobilePlayBillingShouldAcknowledge(
 		MobilePlayBillingProductMapping{ProductType: "inapp", Consumable: &consumable},
@@ -202,7 +202,7 @@ func TestMobilePlayBillingAcknowledgeForNonConsumableInAppPlans(t *testing.T) {
 
 	require.False(t, mobilePlayBillingShouldConsume(MobilePlayBillingProductMapping{
 		ProductType: "inapp",
-		Consumable: &nonConsumable,
+		Consumable:  &nonConsumable,
 	}))
 	require.True(t, mobilePlayBillingShouldAcknowledge(
 		MobilePlayBillingProductMapping{ProductType: "inapp", Consumable: &nonConsumable},

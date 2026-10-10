@@ -127,7 +127,16 @@ func (h *RequestLedgerHandler) get(c *gin.Context, admin bool) {
 		response.Error(c, 503, "Request ledger is temporarily unavailable")
 		return
 	}
-	response.Success(c, gin.H{"request": record, "attempts": attempts, "billing": links, "wallet": wallet})
+	result := gin.H{"request": record, "attempts": attempts, "billing": links, "wallet": wallet}
+	if viewer.Admin {
+		diagnostics, err := h.Ledger.Diagnostics(c.Request.Context(), viewer, id)
+		if err != nil {
+			result["diagnostics_unavailable"] = true
+		} else {
+			result["diagnostics"] = diagnostics
+		}
+	}
+	response.Success(c, result)
 }
 
 func (h *RequestLedgerHandler) UsageUser(c *gin.Context)  { h.linkedUsage(c, false) }

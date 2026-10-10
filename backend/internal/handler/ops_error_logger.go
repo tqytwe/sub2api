@@ -20,6 +20,7 @@ import (
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ip"
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
 	middleware2 "github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
@@ -400,7 +401,7 @@ func estimateOpsErrorLogJobBytes(entry *service.OpsInsertErrorLogInput) int64 {
 		return 1
 	}
 	const fixedOverhead = 512
-	size := fixedOverhead + len(entry.RequestID) + len(entry.ClientRequestID) +
+	size := fixedOverhead + len(entry.LedgerReceipts)*64 + len(entry.RequestID) + len(entry.ClientRequestID) +
 		len(entry.Platform) + len(entry.Model) + len(entry.RequestPath) +
 		len(entry.InboundEndpoint) + len(entry.UpstreamEndpoint) +
 		len(entry.RequestedModel) + len(entry.UpstreamModel) + len(entry.UserAgent) +
@@ -1276,6 +1277,9 @@ func OpsErrorLoggerMiddleware(ops *service.OpsService) gin.HandlerFunc {
 			entry.ClientIP = &clientIP
 		}
 
+		if c.Request != nil && len(entry.LedgerReceipts) == 0 {
+			entry.LedgerReceipts = []requestledger.Receipt{requestledger.IngressReceipt(c.Request.Context())}
+		}
 		enqueueOpsErrorLog(ops, entry)
 	}
 }
@@ -1392,6 +1396,9 @@ func logOpsRecoveredUpstream(c *gin.Context, ops *service.OpsService, finalStatu
 		entry.ClientIP = &clientIP
 	}
 	applyOpsLatencyFieldsFromContext(c, entry)
+	if c.Request != nil && len(entry.LedgerReceipts) == 0 {
+		entry.LedgerReceipts = []requestledger.Receipt{requestledger.IngressReceipt(c.Request.Context())}
+	}
 	enqueueOpsErrorLog(ops, entry)
 }
 
@@ -1556,6 +1563,7 @@ func logOpsStreamErrorValue(c *gin.Context, ops *service.OpsService, wireStatus 
 		CreatedAt: time.Now(),
 	}
 	applyOpsLatencyFieldsFromContext(c, entry)
+	entry.LedgerReceipts = []requestledger.Receipt{streamErr.LedgerReceipt}
 	if !streamErr.RequestScoped {
 		applyOpsUpstreamFieldsFromContext(c, entry)
 	}
@@ -1581,6 +1589,9 @@ func logOpsStreamErrorValue(c *gin.Context, ops *service.OpsService, wireStatus 
 		entry.ClientIP = &clientIP
 	}
 
+	if c.Request != nil && len(entry.LedgerReceipts) == 0 {
+		entry.LedgerReceipts = []requestledger.Receipt{requestledger.IngressReceipt(c.Request.Context())}
+	}
 	enqueueOpsErrorLog(ops, entry)
 }
 

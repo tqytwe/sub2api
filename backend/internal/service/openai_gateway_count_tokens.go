@@ -86,7 +86,8 @@ func (s *OpenAIGatewayService) ForwardResponsesInputTokens(
 	resp, err := s.doOpenAIUpstream(upstreamReq, proxyURL, account)
 	if err != nil {
 		safeErr := sanitizeUpstreamErrorMessage(err.Error())
-		setOpsUpstreamError(c, 0, safeErr, "")
+		recordOpsTransferFailure(c, resp, err, "request_error")
+		setOpsUpstreamResponseError(c, resp, 0, safeErr, "")
 		writeOpenAIResponsesInputTokensError(c, http.StatusBadGateway, "upstream_error", "Upstream request failed")
 		return fmt.Errorf("responses input_tokens: upstream request failed: %s", safeErr)
 	}
@@ -107,7 +108,7 @@ func (s *OpenAIGatewayService) ForwardResponsesInputTokens(
 			s.rateLimitService.HandleUpstreamError(ctx, account, resp.StatusCode, resp.Header, respBody)
 		}
 		upstreamMsg := sanitizeUpstreamErrorMessage(strings.TrimSpace(extractUpstreamErrorMessage(respBody)))
-		setOpsUpstreamError(c, resp.StatusCode, upstreamMsg, "")
+		setOpsUpstreamResponseError(c, resp, resp.StatusCode, upstreamMsg, "")
 		writeOpenAIResponsesInputTokensError(c, resp.StatusCode, "upstream_error", "Upstream request failed")
 		if upstreamMsg == "" {
 			return fmt.Errorf("responses input_tokens: upstream error: %d", resp.StatusCode)
@@ -326,7 +327,8 @@ func (s *OpenAIGatewayService) ForwardCountTokensAsAnthropic(
 	resp, err := s.doOpenAIUpstream(upstreamReq, proxyURL, account)
 	if err != nil {
 		safeErr := sanitizeUpstreamErrorMessage(err.Error())
-		setOpsUpstreamError(c, 0, safeErr, "")
+		recordOpsTransferFailure(c, resp, err, "request_error")
+		setOpsUpstreamResponseError(c, resp, 0, safeErr, "")
 		writeAnthropicCountTokensError(c, http.StatusBadGateway, "upstream_error", "Upstream request failed")
 		return fmt.Errorf("openai input_tokens upstream request failed: %s", safeErr)
 	}
@@ -362,7 +364,7 @@ func (s *OpenAIGatewayService) ForwardCountTokensAsAnthropic(
 			}
 			upstreamDetail = truncateString(string(respBody), maxBytes)
 		}
-		setOpsUpstreamError(c, resp.StatusCode, upstreamMsg, upstreamDetail)
+		setOpsUpstreamResponseError(c, resp, resp.StatusCode, upstreamMsg, upstreamDetail)
 
 		errMsg := "Upstream request failed"
 		switch resp.StatusCode {

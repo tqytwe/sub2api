@@ -1,0 +1,131 @@
+{
+  "scope": "Isolated fixtures and local gates only; no production verification",
+  "checks": [
+    {
+      "name": "requestledger-full-pg",
+      "command": "go test -tags=integration ./internal/requestledger",
+      "exit_code": 0,
+      "log_sha256": "8ee337864f4cf8525f34c7d468a50e772ece2e9a5043d7db4dcda02c7aa39994",
+      "summary": [
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/requestledger\t67.686s"
+      ]
+    },
+    {
+      "name": "correlation-race-pg",
+      "command": "go test -race -tags=integration ./internal/requestledger -run '^TestLedgerPostgres(DoTimeoutAndIsolation|ExactAttemptEvidence|ImmutableReceiptsAndLinks)$' -count=1 -timeout=8m",
+      "exit_code": 0,
+      "log_sha256": "f28f4960a9fdefe94a3d18de1bd1f0a9ef55f6d9416bcd02805bf5d535b7779c",
+      "summary": [
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/requestledger\t10.584s"
+      ]
+    },
+    {
+      "name": "service-ledger-pg",
+      "command": "go test -tags=integration ./internal/service -run ^TestRequestLedger -count=1",
+      "exit_code": 0,
+      "log_sha256": "fd6fcf3774c5b55a390a13caeff27e89d3a58adcfaea368f0411438d0abcc081",
+      "summary": [
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/service\t191.755s"
+      ]
+    },
+    {
+      "name": "repository-http-pg",
+      "command": "go test -tags=integration ./internal/repository ./internal/requestledger/acceptance -run ^TestRequestLedger -count=1",
+      "exit_code": 0,
+      "log_sha256": "87454d921f7361f272361d6fd019db95cbf74737a23545b19fecf865f65c67ae",
+      "summary": [
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/repository\t31.552s",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/requestledger/acceptance\t30.955s"
+      ]
+    },
+    {
+      "name": "frontend-full",
+      "command": "make test-frontend",
+      "exit_code": 0,
+      "log_sha256": "ef8e34ac842c6096350b7528245a557fda9e8351137399b8bbe710d3ae3d434d",
+      "summary": [
+        " Test Files  492 passed | 1 skipped (493)",
+        "      Tests  3511 passed | 2 skipped (3513)"
+      ]
+    },
+    {
+      "name": "full-build",
+      "command": "make build",
+      "exit_code": 0,
+      "log_sha256": "81c0e54c6faa3f1e0a437f7e07be9be1426dba02cce5c165a6a2683a86ae40bf",
+      "summary": [
+        " Test Files  1 passed (1)",
+        "      Tests  3 passed (3)",
+        "✓ built in 1m 11s"
+      ]
+    },
+    {
+      "name": "fork-integrity",
+      "command": "./scripts/check-fork-integrity.sh",
+      "exit_code": 0,
+      "log_sha256": "ce3d5b762eb0a6daa500819fc2c3b5112639a367ed7d6d954b8c23c88a8d9eaa",
+      "summary": [
+        "      Tests  4 passed (4)",
+        " Test Files  2 passed (2)",
+        "      Tests  2 passed (2)",
+        " Test Files  3 passed (3)",
+        "      Tests  8 passed (8)",
+        " Test Files  5 passed (5)",
+        "      Tests  124 passed (124)",
+        "Fork integrity passed."
+      ]
+    },
+    {
+      "name": "actual-browser",
+      "command": "PLAYWRIGHT_MODULE=/opt/codex/runtimes/cua/lib/node_modules/playwright-core node docs/archive/completed-tasks/p0-ledger-correlation/p0-capture.cjs",
+      "exit_code": 0,
+      "log_sha256": "246648dcd23c40cfc3eada0d643dd27f3c646a60074ed04ed4425e00a9f8490b",
+      "summary": []
+    },
+    {
+      "name": "embed-assets",
+      "command": "go test -tags=embed ./internal/web",
+      "exit_code": 0,
+      "log_sha256": "a8ef691996bea986c45e4861bbce9723670039850f18ed0ac696c6a639acd826",
+      "summary": [
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/web\t0.128s"
+      ]
+    },
+    {
+      "name": "backend-unit-full",
+      "command": "make test-backend-unit",
+      "exit_code": 0,
+      "log_sha256": "cfacc0cd061687371c7d86e9f72748e308c7407e99ca87be8ab4dc6422bb0026",
+      "summary": [
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/setup\t0.311s",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/util/logredact\t(cached)",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/util/responseheaders\t(cached)",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/util/urlvalidator\t(cached)",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/web\t(cached)",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/migrations\t0.131s",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/pkg/pluginapi/v1\t(cached)",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/scripts\t(cached)"
+      ]
+    },
+    {
+      "name": "make-test-full",
+      "command": "make test",
+      "exit_code": 0,
+      "log_sha256": "1cee2c24851e0055e89493442543613c579cf6e135ec8141fd2f45c417471aa6",
+      "summary": [
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/setup\t(cached)",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/util/logredact\t(cached)",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/util/responseheaders\t(cached)",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/internal/util/urlvalidator\t(cached)",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/migrations\t(cached)",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/pkg/pluginapi/v1\t(cached)",
+        "ok  \tgithub.com/Wei-Shaw/sub2api/scripts\t(cached)",
+        "0 issues.",
+        " Test Files  492 passed | 1 skipped (493)",
+        "      Tests  3511 passed | 2 skipped (3513)"
+      ]
+    }
+  ],
+  "remaining": [],
+  "completed_at": "2026-10-10T21:17:26Z"
+}

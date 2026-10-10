@@ -3,11 +3,13 @@ package service
 import (
 	"encoding/json"
 	"errors"
+	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
 	"github.com/gin-gonic/gin"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
@@ -140,6 +142,8 @@ func OpsClientBusinessLimitedReason(c *gin.Context) string {
 // 由于 HTTP 状态码停留在 2xx，ops_error_logger 中间件在 status<400 分支消费该标记并
 // 补记错误日志；标记方是 handler.handleStreamingAwareError 或各 service 的带内检测。
 type OpsStreamError struct {
+	LedgerReceipt  requestledger.Receipt
+	ledgerExplicit bool
 	// ErrType 是写入 SSE 帧的对客错误类型（如 rate_limit_error / upstream_error / api_error）。
 	ErrType string
 	// Code 是可选的稳定错误分类；用于既保留通用 OpenAI error.type，又向客户端和 Ops
@@ -228,20 +232,32 @@ func markOpsStreamError(c *gin.Context, streamErr OpsStreamError) {
 	streamErr.ErrType = strings.TrimSpace(streamErr.ErrType)
 	streamErr.Code = strings.TrimSpace(streamErr.Code)
 	streamErr.Message = strings.TrimSpace(streamErr.Message)
-	if !streamErr.RequestScoped {
+	streamErr.ledgerExplicit = streamErr.LedgerReceipt.Correlation() != nil
+	if !streamErr.RequestScoped && (!streamErr.ledgerExplicit || currentOpsMatchesReceipt(c, streamErr.LedgerReceipt)) {
 		streamErr.SkipMonitoring = currentOpsFailureSkipMonitoring(c)
 	}
 	snapshotOpsStreamErrorContext(c, &streamErr)
 	if GetOpenAIClientTransport(c) == OpenAIClientTransportWS {
-		if value, ok := c.Get(OpsStreamTurnKey); ok {
-			streamErr.Turn, _ = value.(int)
+		if !streamErr.ledgerExplicit {
+			if value, ok := c.Get(OpsStreamTurnKey); ok {
+				streamErr.Turn, _ = value.(int)
+			}
+		} else {
+			streamErr.Turn = streamErr.LedgerReceipt.TurnNumber()
 		}
 		var errorsForRequest []OpsStreamError
 		if value, ok := c.Get(OpsStreamErrorsKey); ok {
 			errorsForRequest, _ = value.([]OpsStreamError)
 		}
-		if len(errorsForRequest) > 0 && errorsForRequest[len(errorsForRequest)-1].Turn == streamErr.Turn {
-			return
+		for _, prior := range errorsForRequest {
+			pc, nc := prior.LedgerReceipt.Correlation(), streamErr.LedgerReceipt.Correlation()
+			if pc != nil && nc != nil {
+				if pc.RequestID == nc.RequestID {
+					return
+				}
+			} else if prior.Turn == streamErr.Turn {
+				return
+			}
 		}
 		errorsForRequest = append(errorsForRequest, streamErr)
 		if len(errorsForRequest) > maxOpsStreamErrorsPerRequest {
@@ -262,15 +278,36 @@ func snapshotOpsStreamErrorContext(c *gin.Context, streamErr *OpsStreamError) {
 		return
 	}
 	if c.Request != nil {
+		if !streamErr.ledgerExplicit {
+			streamErr.LedgerReceipt = requestledger.IngressReceipt(c.Request.Context())
+		}
 		if accountID, ok := c.Request.Context().Value(ctxkey.AccountID).(int64); ok && accountID > 0 {
 			streamErr.AccountID = accountID
 		}
 	}
-	if value, ok := c.Get(OpsUpstreamModelKey); ok {
+	if value, ok := c.Get(OpsUpstreamModelKey); ok && (!streamErr.ledgerExplicit || currentOpsMatchesReceipt(c, streamErr.LedgerReceipt)) {
 		streamErr.UpstreamModel, _ = value.(string)
 		streamErr.UpstreamModel = strings.TrimSpace(streamErr.UpstreamModel)
 	}
+	if streamErr.ledgerExplicit && streamErr.LedgerReceipt.AccountID() > 0 {
+		streamErr.AccountID = streamErr.LedgerReceipt.AccountID()
+	}
 	if streamErr.RequestScoped {
+		return
+	}
+	if streamErr.ledgerExplicit {
+		// A delayed turn must never copy newer mutable gin diagnostics.
+		if value, ok := c.Get(OpsUpstreamErrorsKey); ok {
+			if events, ok := value.([]*OpsUpstreamErrorEvent); ok {
+				current := streamErr.LedgerReceipt.Correlation()
+				for _, event := range events {
+					if event != nil && current != nil && event.LedgerCorrelation != nil && event.LedgerCorrelation.RequestID == current.RequestID {
+						copyOfEvent := *event
+						streamErr.UpstreamErrors = append(streamErr.UpstreamErrors, &copyOfEvent)
+					}
+				}
+			}
+		}
 		return
 	}
 	if value, ok := c.Get(OpsUpstreamStatusCodeKey); ok {
@@ -302,6 +339,17 @@ func snapshotOpsStreamErrorContext(c *gin.Context, streamErr *OpsStreamError) {
 			}
 		}
 	}
+}
+
+// Current state may enrich a diagnostic only while the exact captured attempt
+// still owns it. It never supplies the diagnostic's identity.
+func currentOpsMatchesReceipt(c *gin.Context, receipt requestledger.Receipt) bool {
+	if c == nil || c.Request == nil {
+		return false
+	}
+	want := receipt.Correlation()
+	current := requestledger.CurrentAttempt(c.Request.Context()).Receipt().Correlation()
+	return want != nil && current != nil && *want == *current
 }
 
 func currentOpsFailureSkipMonitoring(c *gin.Context) bool {
@@ -378,7 +426,10 @@ func setOpsUpstreamError(c *gin.Context, upstreamStatusCode int, upstreamMessage
 // OpsUpstreamErrorEvent describes one upstream error attempt during a single gateway request.
 // It is stored in ops_error_logs.upstream_errors as a JSON array.
 type OpsUpstreamErrorEvent struct {
-	AtUnixMs int64 `json:"at_unix_ms,omitempty"`
+	LedgerCorrelation  *requestledger.Correlation `json:"ledger_correlation,omitempty"`
+	LedgerReceipt      requestledger.Receipt      `json:"-"`
+	UpstreamResponseID string                     `json:"upstream_response_id,omitempty"`
+	AtUnixMs           int64                      `json:"at_unix_ms,omitempty"`
 
 	// Passthrough 表示本次请求是否命中“原样透传（仅替换认证）”分支。
 	// 该字段用于排障与灰度评估；存入 JSON，不涉及 DB schema 变更。
@@ -441,6 +492,20 @@ const (
 func appendOpsUpstreamError(c *gin.Context, ev OpsUpstreamErrorEvent) {
 	if c == nil {
 		return
+	}
+	// Only the capture site can supply an exact attempt. Account/time/current
+	// pointers are insufficient proof after retries or auxiliary transfers.
+	if ev.LedgerReceipt.Correlation() == nil && c.Request != nil {
+		ev.LedgerReceipt = requestledger.IngressReceipt(c.Request.Context())
+	}
+	ev.LedgerCorrelation = ev.LedgerReceipt.Correlation()
+	ev.UpstreamRequestID = requestledger.UpstreamIdentifier(ev.UpstreamRequestID)
+	ev.UpstreamResponseID = requestledger.UpstreamIdentifier(ev.UpstreamResponseID)
+	if ev.UpstreamResponseID == "" {
+		ev.UpstreamResponseID = requestledger.ResponseIdentifier([]byte(ev.UpstreamResponseBody))
+	}
+	if c.Request != nil {
+		ev.LedgerReceipt.ObserveIdentifiers(c.Request.Context(), ev.UpstreamRequestID, ev.UpstreamResponseID)
 	}
 	attachResponsesCacheDiagnostic(c, &ev)
 	if ev.AtUnixMs <= 0 {
@@ -677,4 +742,36 @@ func safeUpstreamURL(rawURL string) string {
 		rawURL = rawURL[:idx]
 	}
 	return rawURL
+}
+
+// recordOpsTransferFailure adds identity-only evidence for a swallowed retry or
+// interrupted transfer. It never captures request/response bodies or raw errors.
+func recordOpsTransferFailure(c *gin.Context, resp *http.Response, cause error, kind string) {
+	receipt := requestledger.ResponseReceipt(resp)
+	status, upstreamID := 0, ""
+	if resp != nil {
+		status, upstreamID = resp.StatusCode, requestledger.UpstreamRequestID(resp.Header)
+	}
+	if receipt.Correlation() == nil {
+		receipt = requestledger.ErrorReceipt(cause)
+	}
+	if receipt.Correlation() == nil {
+		return
+	}
+	appendOpsUpstreamError(c, OpsUpstreamErrorEvent{LedgerReceipt: receipt, AccountID: receipt.AccountID(), UpstreamStatusCode: status, UpstreamRequestID: upstreamID, Kind: kind, Message: "Upstream transfer failed"})
+	if kind == "stream_interrupted" {
+		markOpsStreamError(c, OpsStreamError{LedgerReceipt: receipt, ErrType: "upstream_error", Code: "stream_interrupted", Message: "Upstream stream ended before terminal evidence", IntendedStatus: http.StatusBadGateway, CountTowardsSLA: true, UpstreamStatus: http.StatusBadGateway, UpstreamMessage: "Upstream stream interrupted"})
+	}
+}
+
+func setOpsUpstreamResponseError(c *gin.Context, resp *http.Response, status int, message, detail string) {
+	setOpsUpstreamError(c, status, message, detail)
+	receipt := requestledger.ResponseReceipt(resp)
+	if receipt.Correlation() == nil {
+		return
+	}
+	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+		requestledger.ResponseAttempt(resp).ObserveStreamTerminal("failed")
+	}
+	appendOpsUpstreamError(c, OpsUpstreamErrorEvent{LedgerReceipt: receipt, AccountID: receipt.AccountID(), UpstreamStatusCode: status, UpstreamRequestID: requestledger.UpstreamRequestID(resp.Header), Kind: "response_error", Message: "Upstream response failed"})
 }

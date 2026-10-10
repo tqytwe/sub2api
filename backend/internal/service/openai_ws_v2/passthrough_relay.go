@@ -83,13 +83,16 @@ type RelayOptions struct {
 	StartClientAfterFirstDownstream bool
 	OnUsageParseFailure             func(eventType string, usageRaw string)
 	OnTurnComplete                  func(turn RelayTurnResult)
-	BeforeWriteClient               func(msgType coderws.MessageType, payload []byte, wroteDownstream bool) error
-	BeforeClientWrite               func(msgType coderws.MessageType, payload []byte)
-	AfterClientWrite                func(msgType coderws.MessageType, payload []byte, writeErr error)
-	BeforeRelayCancel               func(exit RelayExit)
-	ReadClientFrame                 func(ctx context.Context, clientConn FrameConn) (coderws.MessageType, []byte, error)
-	OnTrace                         func(event RelayTraceEvent)
-	Now                             func() time.Time
+	// OnUpstreamFrame observes accepted text frames before policy rejection or drain.
+	// Binary frames remain opaque and cannot supply response identity.
+	OnUpstreamFrame   func(msgType coderws.MessageType, payload []byte)
+	BeforeWriteClient func(msgType coderws.MessageType, payload []byte, wroteDownstream bool) error
+	BeforeClientWrite func(msgType coderws.MessageType, payload []byte)
+	AfterClientWrite  func(msgType coderws.MessageType, payload []byte, writeErr error)
+	BeforeRelayCancel func(exit RelayExit)
+	ReadClientFrame   func(ctx context.Context, clientConn FrameConn) (coderws.MessageType, []byte, error)
+	OnTrace           func(event RelayTraceEvent)
+	Now               func() time.Time
 }
 
 type RelayTraceEvent struct {
@@ -308,6 +311,7 @@ func Relay(
 			state,
 			options.OnUsageParseFailure,
 			options.OnTurnComplete,
+			options.OnUpstreamFrame,
 			options.BeforeWriteClient,
 			options.BeforeClientWrite,
 			options.AfterClientWrite,
@@ -535,6 +539,7 @@ func runUpstreamToClient(
 	state *relayState,
 	onUsageParseFailure func(eventType string, usageRaw string),
 	onTurnComplete func(turn RelayTurnResult),
+	onUpstreamFrame func(msgType coderws.MessageType, payload []byte),
 	beforeWriteClient func(msgType coderws.MessageType, payload []byte, wroteDownstream bool) error,
 	beforeClientWrite func(msgType coderws.MessageType, payload []byte),
 	afterClientWrite func(msgType coderws.MessageType, payload []byte, writeErr error),
@@ -580,6 +585,9 @@ func runUpstreamToClient(
 			// Reject duplicates before policy and terminal-write lifecycle hooks;
 			// neither the next turn's metadata nor its admission gate may change.
 			continue
+		}
+		if msgType == coderws.MessageText && onUpstreamFrame != nil {
+			onUpstreamFrame(msgType, payload)
 		}
 		if beforeWriteClient != nil {
 			wroteDownstreamInTurn := wroteDownstream

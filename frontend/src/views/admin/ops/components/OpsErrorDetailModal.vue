@@ -12,6 +12,15 @@
     </div>
 
     <div v-else class="space-y-6 p-6">
+      <section v-if="detail.ledger_references?.length || detail.ledger_references_unavailable" class="space-y-2 text-sm">
+        <h3 class="font-semibold">{{ t('requestLedger.exactEvidence') }}</h3>
+        <p v-if="detail.ledger_references_unavailable" role="status">{{ t('requestLedger.diagnosticsUnavailable') }}</p>
+        <div v-for="ref in detail.ledger_references" :key="`${ref.request_id}:${ref.attempt_no}`" class="space-y-1">
+          <RouterLink :to="{ name: 'AdminRequestLedger', query: { private_id: ref.request_id } }" class="break-all text-primary-600 underline dark:text-primary-400" @click="close">{{ t('requestLedger.privateId') }} · {{ ref.request_id }}</RouterLink>
+          <p v-if="ref.attempt_id" class="break-all font-mono">{{ t('requestLedger.attempts') }} #{{ ref.attempt_no }} · {{ ref.attempt_id }}</p>
+          <p v-else class="text-gray-500 dark:text-gray-400">{{ t('requestLedger.requestOnly') }}</p>
+        </div>
+      </section>
       <!-- Summary -->
       <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div class="rounded-lg bg-gray-50 p-4 dark:bg-dark-900">
@@ -237,7 +246,7 @@ import { resolveUpstreamPayload } from '../utils/errorDetailResponse'
 interface Props {
   show: boolean
   errorId: number | null
-  errorType?: 'request' | 'upstream'
+  errorType?: 'request' | 'upstream' | 'any'
   backToList?: boolean
 }
 
@@ -393,7 +402,7 @@ async function fetchDetail(id: number) {
   loading.value = true
   try {
     const kind = props.errorType || (detail.value?.phase === 'upstream' ? 'upstream' : 'request')
-    const d = kind === 'upstream' ? await opsAPI.getUpstreamErrorDetail(id) : await opsAPI.getRequestErrorDetail(id)
+    const d = kind === 'any' ? await opsAPI.getErrorLogDetail(id) : kind === 'upstream' ? await opsAPI.getUpstreamErrorDetail(id) : await opsAPI.getRequestErrorDetail(id)
     detail.value = d
   } catch (err: any) {
     detail.value = null

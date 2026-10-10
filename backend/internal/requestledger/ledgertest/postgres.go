@@ -49,17 +49,19 @@ func NewWithDSN(t *testing.T) (*sql.DB, string) {
 		t.FailNow()
 	}
 	_, source, _, _ := runtime.Caller(0)
-	content, err := os.ReadFile(filepath.Join(filepath.Dir(source), "..", "..", "..", "migrations", "275_gateway_request_ledger.sql"))
-	require.NoError(t, err)
-	for range 2 {
-		tx, err := db.BeginTx(ctx, nil)
+	for _, name := range []string{"275_gateway_request_ledger.sql", "276_gateway_request_correlation.sql"} {
+		content, err := os.ReadFile(filepath.Join(filepath.Dir(source), "..", "..", "..", "migrations", name))
 		require.NoError(t, err)
-		_, err = tx.ExecContext(ctx, string(content))
-		if err != nil {
-			_ = tx.Rollback()
+		for range 2 {
+			tx, err := db.BeginTx(ctx, nil)
+			require.NoError(t, err)
+			_, err = tx.ExecContext(ctx, string(content))
+			if err != nil {
+				_ = tx.Rollback()
+			}
+			require.NoError(t, err)
+			require.NoError(t, tx.Commit())
 		}
-		require.NoError(t, err)
-		require.NoError(t, tx.Commit())
 	}
 	return db, dsn
 }

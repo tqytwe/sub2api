@@ -1,6 +1,8 @@
 package service
 
 import (
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
+
 	"bytes"
 	"fmt"
 	"net/http"
@@ -320,7 +322,7 @@ func (b *geminiSSEFallbackBody) Truncated() bool {
 //   - 内容策略类（promptFeedback.blockReason / 内容过滤 finishReason）是请求级结果：
 //     只记请求级带内错误，不归因上游账号，不计入 SLA。
 //   - 错误信封与空响应按上游失败登记：写上游错误上下文与尝试事件，并按语义状态计入 SLA。
-func (s *GeminiMessagesCompatService) markGeminiResponseSignal(c *gin.Context, account *Account, sig geminiResponseSignal, stream bool, upstreamRequestID string) {
+func (s *GeminiMessagesCompatService) markGeminiResponseSignal(receipt requestledger.Receipt, c *gin.Context, account *Account, sig geminiResponseSignal, stream bool, upstreamRequestID string) {
 	if c == nil || sig.Kind == geminiSignalNone {
 		return
 	}
@@ -352,6 +354,7 @@ func (s *GeminiMessagesCompatService) markGeminiResponseSignal(c *gin.Context, a
 		kind = "stream_failed"
 	}
 	event := OpsUpstreamErrorEvent{
+		LedgerReceipt:      receipt,
 		ProxyID:            opsUpstreamProxyID(account),
 		ProxyName:          opsUpstreamProxyName(account),
 		Platform:           PlatformGemini,
@@ -379,14 +382,14 @@ func (s *GeminiMessagesCompatService) markGeminiResponseSignal(c *gin.Context, a
 
 // markGeminiEmptyResponse 登记"上游 2xx 但没有任何响应内容"的结果：流式指整段 body 没有 data 事件
 // 也没有其它非空内容，非流式指空体、空对象或 candidates 为空数组。只记录不换号。
-func (s *GeminiMessagesCompatService) markGeminiEmptyResponse(c *gin.Context, account *Account, stream bool, upstreamRequestID string) {
+func (s *GeminiMessagesCompatService) markGeminiEmptyResponse(receipt requestledger.Receipt, c *gin.Context, account *Account, stream bool, upstreamRequestID string) {
 	reason := geminiSignalEmptyResponseReason
 	message := "Gemini upstream returned an empty response body"
 	if stream {
 		reason = geminiSignalEmptyStreamReason
 		message = "Gemini upstream returned an empty stream body"
 	}
-	s.markGeminiResponseSignal(c, account, geminiResponseSignal{
+	s.markGeminiResponseSignal(receipt, c, account, geminiResponseSignal{
 		Kind:    geminiSignalAbnormalStop,
 		Reason:  reason,
 		Message: message,
@@ -397,9 +400,9 @@ func (s *GeminiMessagesCompatService) markGeminiEmptyResponse(c *gin.Context, ac
 // finalizeGeminiSSESignal 在上游 SSE 读完后做最终登记：优先登记流中优先级最高的信号；
 // 没有任何 data 事件时，兜底内容超限则放弃判定，为空登记空响应，是非 SSE 的 JSON 则对整段
 // 判定一次，整段没有信号但没有任何响应内容同样登记空响应。
-func (s *GeminiMessagesCompatService) finalizeGeminiSSESignal(c *gin.Context, account *Account, stream bool, upstreamRequestID string, best geminiResponseSignal, sawDataEvent bool, fallback *geminiSSEFallbackBody) {
+func (s *GeminiMessagesCompatService) finalizeGeminiSSESignal(receipt requestledger.Receipt, c *gin.Context, account *Account, stream bool, upstreamRequestID string, best geminiResponseSignal, sawDataEvent bool, fallback *geminiSSEFallbackBody) {
 	if best.Kind != geminiSignalNone {
-		s.markGeminiResponseSignal(c, account, best, stream, upstreamRequestID)
+		s.markGeminiResponseSignal(receipt, c, account, best, stream, upstreamRequestID)
 		return
 	}
 	if sawDataEvent || fallback.Truncated() {
@@ -407,14 +410,14 @@ func (s *GeminiMessagesCompatService) finalizeGeminiSSESignal(c *gin.Context, ac
 	}
 	body := fallback.Bytes()
 	if len(bytes.TrimSpace(body)) == 0 {
-		s.markGeminiEmptyResponse(c, account, stream, upstreamRequestID)
+		s.markGeminiEmptyResponse(receipt, c, account, stream, upstreamRequestID)
 		return
 	}
 	if sig, ok := detectGeminiResponseSignalInBody(body); ok {
-		s.markGeminiResponseSignal(c, account, sig, stream, upstreamRequestID)
+		s.markGeminiResponseSignal(receipt, c, account, sig, stream, upstreamRequestID)
 		return
 	}
 	if isGeminiEmptyResponseBody(body) {
-		s.markGeminiEmptyResponse(c, account, stream, upstreamRequestID)
+		s.markGeminiEmptyResponse(receipt, c, account, stream, upstreamRequestID)
 	}
 }

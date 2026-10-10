@@ -1,6 +1,7 @@
 package service
 
 import (
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
 	"strings"
 	"time"
 )
@@ -77,6 +78,8 @@ type OpsErrorLog struct {
 }
 
 type OpsErrorLogDetail struct {
+	LedgerReferences            []requestledger.OpsReference `json:"ledger_references,omitempty"`
+	LedgerReferencesUnavailable bool                         `json:"ledger_references_unavailable,omitempty"`
 	OpsErrorLog
 
 	ErrorBody string `json:"error_body"`

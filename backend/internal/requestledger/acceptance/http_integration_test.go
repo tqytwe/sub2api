@@ -21,6 +21,7 @@ import (
 	entsql "entgo.io/ent/dialect/sql"
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/internal/handler"
+	adminhandler "github.com/Wei-Shaw/sub2api/internal/handler/admin"
 	"github.com/Wei-Shaw/sub2api/internal/repository"
 	"github.com/Wei-Shaw/sub2api/internal/requestledger"
 	"github.com/Wei-Shaw/sub2api/internal/requestledger/ledgertest"
@@ -51,6 +52,20 @@ func ledgerFixtureRouter(t *testing.T) (*gin.Engine, *requestledger.Ledger, *sql
 			c.Set(string(middleware.ContextKeyUserRole), role)
 		}
 	})
+	ops := service.NewOpsService(repository.NewOpsRepository(db), nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	opsHandler := adminhandler.NewOpsHandler(ops)
+	r.GET("/api/v1/admin/ops/errors/:id", func(c *gin.Context) {
+		subject, ok := middleware.GetAuthSubjectFromContext(c)
+		if !ok {
+			c.AbortWithStatus(401)
+			return
+		}
+		if subject.UserID != 999 {
+			c.AbortWithStatus(403)
+			return
+		}
+		c.Next()
+	}, opsHandler.GetErrorLogByID)
 	r.GET("/api/v1/requests", h.ListUser)
 	r.GET("/api/v1/requests/:id", h.GetUser)
 	r.GET("/api/v1/requests/:id/usage/:usage_id", h.UsageUser)
@@ -303,6 +318,7 @@ func TestRequestLedgerBrowserFixture(t *testing.T) {
 			}
 		}
 		seedBilledRequest(t, r, db, uid, true)
+		seedCorrelatedFailure(t, ledger, db, uid)
 	}
 	dist := os.Getenv("LEDGER_BROWSER_DIST")
 	require.True(t, strings.HasPrefix(dist, "/tmp/ledger-"))
@@ -334,4 +350,86 @@ func TestRequestLedgerBrowserFixture(t *testing.T) {
 			}
 		}
 	}
+}
+
+func seedCorrelatedFailure(t *testing.T, ledger *requestledger.Ledger, db *sql.DB, uid int64) (string, int64) {
+	t.Helper()
+	h, err := ledger.Begin(context.Background(), "/v1/responses", "POST", "http")
+	require.NoError(t, err)
+	ctx := requestledger.WithHandle(context.Background(), h)
+	keyID := uid + 100
+	require.NoError(t, requestledger.BindIdentity(ctx, uid, keyID))
+	var number int
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		number++
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.Header().Set("X-Request-ID", fmt.Sprintf("req_fixture_%d", number))
+		_, _ = fmt.Fprintf(w, "data: {\"type\":\"response.failed\",\"response\":{\"id\":\"resp_fixture_%d\",\"status\":\"failed\"}}\n\n", number)
+	}))
+	defer server.Close()
+	client := &http.Client{Transport: requestledger.Transport(http.DefaultTransport, 234)}
+	entry := &service.OpsInsertErrorLogInput{UserID: &uid, APIKeyID: &keyID, ErrorPhase: "upstream", ErrorType: "upstream_error", Severity: "error", StatusCode: 502, RequestPath: "/v1/responses", Platform: "openai", ErrorMessage: "Synthetic upstream failure without usage", CreatedAt: time.Now()}
+	for range 2 {
+		req, err := http.NewRequestWithContext(ctx, "POST", server.URL, nil)
+		require.NoError(t, err)
+		resp, err := client.Do(req)
+		require.NoError(t, err)
+		_, err = io.Copy(io.Discard, resp.Body)
+		require.NoError(t, err)
+		require.NoError(t, resp.Body.Close())
+		receipt := requestledger.ResponseReceipt(resp)
+		entry.UpstreamErrors = append(entry.UpstreamErrors, &service.OpsUpstreamErrorEvent{LedgerReceipt: receipt, AccountID: 234, Platform: "openai", UpstreamStatusCode: 200, UpstreamRequestID: resp.Header.Get("X-Request-ID"), UpstreamResponseID: fmt.Sprintf("resp_fixture_%d", number), Kind: "stream_failed", Message: "Synthetic response.failed"})
+	}
+	require.NoError(t, service.SanitizeOpsUpstreamErrorsForQueue(entry))
+	repo := repository.NewOpsRepository(db)
+	opsID, err := repo.InsertErrorLog(ctx, entry)
+	require.NoError(t, err)
+	expiredID, err := repo.InsertErrorLog(ctx, entry)
+	require.NoError(t, err)
+	_, err = db.Exec(`DELETE FROM ops_error_logs WHERE id=$1`, expiredID)
+	require.NoError(t, err)
+	require.NoError(t, h.Finish(ctx, "failed", 200, "upstream_error"))
+	return h.ID, opsID
+}
+
+func TestRequestLedgerHTTPExactDiagnosticsAndIsolation(t *testing.T) {
+	r, l, db := ledgerFixtureRouter(t)
+	seedBilledRequest(t, r, db, 101)
+	id, opsID := seedCorrelatedFailure(t, l, db, 101)
+	read := func(user, path string) *httptest.ResponseRecorder {
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", path, nil)
+		req.Header.Set("X-Ledger-Test-User", user)
+		r.ServeHTTP(w, req)
+		return w
+	}
+	detail := read("999", "/api/v1/admin/requests/"+id)
+	require.Equal(t, 200, detail.Code)
+	require.Contains(t, detail.Body.String(), `"upstream_request_id":"req_fixture_1"`)
+	require.Contains(t, detail.Body.String(), `"available":false`)
+	require.Contains(t, detail.Body.String(), `"usage_state":"usage_unknown"`)
+	require.Contains(t, detail.Body.String(), `"billing":[]`)
+	own := read("101", "/api/v1/requests/"+id)
+	require.Equal(t, 200, own.Code)
+	for _, private := range []string{"upstream_request_id", "upstream_response_id", "diagnostics", "account_id", "credential_account_id"} {
+		require.NotContains(t, own.Body.String(), private)
+	}
+	require.Contains(t, own.Body.String(), "attempt_id")
+	require.Equal(t, 404, read("102", "/api/v1/requests/"+id).Code)
+	opsPath := fmt.Sprintf("/api/v1/admin/ops/errors/%d", opsID)
+	require.Equal(t, 401, read("", opsPath).Code)
+	require.Equal(t, 403, read("101", opsPath).Code)
+	ops := read("999", opsPath)
+	require.Equal(t, 200, ops.Code)
+	require.Contains(t, ops.Body.String(), id)
+	require.Contains(t, ops.Body.String(), "ledger_references")
+	require.Contains(t, ops.Body.String(), "resp_fixture_1")
+	_, err := db.Exec(`ALTER TABLE gateway_request_ops_links RENAME TO fixture_links_offline`)
+	require.NoError(t, err)
+	detail = read("999", "/api/v1/admin/requests/"+id)
+	require.Equal(t, 200, detail.Code)
+	require.Contains(t, detail.Body.String(), `"diagnostics_unavailable":true`)
+	ops = read("999", opsPath)
+	require.Equal(t, 200, ops.Code)
+	require.Contains(t, ops.Body.String(), `"ledger_references_unavailable":true`)
 }

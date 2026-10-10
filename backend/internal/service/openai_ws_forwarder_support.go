@@ -231,7 +231,7 @@ func normalizeOpenAIWSTerminalEvent(eventType string) string {
 // markOpenAIWSClientVisibleFailure records only terminal/error protocol events
 // that were delivered to the client. Callers invoke it only after any hidden
 // failover/recovery decision and a successful downstream write.
-func markOpenAIWSClientVisibleFailure(c *gin.Context, eventType string, payload []byte) {
+func markOpenAIWSClientVisibleFailure(c *gin.Context, eventType string, payload []byte, receipts ...requestledger.Receipt) {
 	eventType = strings.TrimSpace(eventType)
 	if eventType != "error" && eventType != "response.failed" {
 		return
@@ -268,7 +268,15 @@ func markOpenAIWSClientVisibleFailure(c *gin.Context, eventType string, payload 
 	if message == "" {
 		message = "upstream websocket request failed"
 	}
-	MarkOpsStreamFailure(c, errType, code, message, status)
+	if len(receipts) > 0 && receipts[0].Correlation() != nil {
+		receipt := receipts[0]
+		if c != nil && c.Request != nil {
+			receipt.ObserveIdentifiers(c.Request.Context(), "", requestledger.ResponseIdentifier(payload))
+		}
+		markOpsStreamError(c, OpsStreamError{ErrType: errType, Code: code, Message: message, IntendedStatus: status, CountTowardsSLA: true, LedgerReceipt: receipt, ledgerExplicit: true, UpstreamStatus: status, UpstreamMessage: message})
+	} else {
+		MarkOpsStreamFailure(c, errType, code, message, status)
+	}
 }
 
 func openAIWSPayloadTransientStatus(payload []byte) int {

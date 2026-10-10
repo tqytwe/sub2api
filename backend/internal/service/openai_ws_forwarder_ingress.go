@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
 	"net/http"
 	"net/url"
 	"strings"
@@ -1075,6 +1076,7 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 			}
 			if len(upstreamMessage) > 0 {
 				ledgerAttempt.ObserveOutput(ctx)
+				ledgerAttempt.ObserveIdentifiers(ctx, requestledger.UpstreamRequestID(lease.HandshakeHeaders()), requestledger.ResponseIdentifier(upstreamMessage))
 			}
 			responseModelObserver.ObserveOpenAI(upstreamMessage, eventType)
 			if responseID == "" && eventResponseID != "" {
@@ -1257,7 +1259,7 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 					}
 				} else {
 					wroteDownstream = true
-					markOpenAIWSClientVisibleFailure(c, eventType, upstreamMessage)
+					markOpenAIWSClientVisibleFailure(c, eventType, upstreamMessage, ledgerAttempt.Receipt())
 				}
 			}
 			if isTerminalEvent {

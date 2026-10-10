@@ -1,6 +1,8 @@
 package service
 
 import (
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
+
 	"bytes"
 	"context"
 	"encoding/json"
@@ -150,6 +152,7 @@ func (s *AntigravityGatewayService) Forward(ctx context.Context, c *gin.Context,
 			logBody, maxBytes := s.getLogConfig()
 			upstreamDetail := s.getUpstreamErrorDetail(respBody)
 			appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+				LedgerReceipt:      requestledger.ResponseReceipt(resp),
 				ProxyID:            opsUpstreamProxyID(account),
 				ProxyName:          opsUpstreamProxyName(account),
 				Platform:           account.Platform,
@@ -209,6 +212,7 @@ func (s *AntigravityGatewayService) Forward(ctx context.Context, c *gin.Context,
 				})
 				if retryErr != nil {
 					appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+						LedgerReceipt:      requestledger.ErrorReceipt(retryErr),
 						ProxyID:            opsUpstreamProxyID(account),
 						ProxyName:          opsUpstreamProxyName(account),
 						Platform:           account.Platform,
@@ -250,6 +254,7 @@ func (s *AntigravityGatewayService) Forward(ctx context.Context, c *gin.Context,
 					retryUpstreamDetail = truncateString(string(retryBody), maxBytes)
 				}
 				appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+					LedgerReceipt:      requestledger.ResponseReceipt(retryResp),
 					ProxyID:            opsUpstreamProxyID(account),
 					ProxyName:          opsUpstreamProxyName(account),
 					Platform:           account.Platform,
@@ -266,6 +271,7 @@ func (s *AntigravityGatewayService) Forward(ctx context.Context, c *gin.Context,
 				if retryResp.StatusCode != http.StatusBadRequest || !isSignatureRelatedError(retryBody) {
 					respBody = retryBody
 					resp = &http.Response{
+						Request:    retryResp.Request,
 						StatusCode: retryResp.StatusCode,
 						Header:     retryResp.Header.Clone(),
 						Body:       io.NopCloser(bytes.NewReader(retryBody)),
@@ -276,6 +282,7 @@ func (s *AntigravityGatewayService) Forward(ctx context.Context, c *gin.Context,
 				// Still signature-related; capture context and allow next stage.
 				respBody = retryBody
 				resp = &http.Response{
+					Request:    retryResp.Request,
 					StatusCode: retryResp.StatusCode,
 					Header:     retryResp.Header.Clone(),
 					Body:       io.NopCloser(bytes.NewReader(retryBody)),
@@ -288,6 +295,7 @@ func (s *AntigravityGatewayService) Forward(ctx context.Context, c *gin.Context,
 			errMsg := strings.TrimSpace(extractAntigravityErrorMessage(respBody))
 			if isThinkingBudgetConstraintError(errMsg) && s.settingService.IsBudgetRectifierEnabled(ctx) {
 				appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+					LedgerReceipt:      requestledger.ResponseReceipt(resp),
 					ProxyID:            opsUpstreamProxyID(account),
 					ProxyName:          opsUpstreamProxyName(account),
 					Platform:           account.Platform,
@@ -346,6 +354,7 @@ func (s *AntigravityGatewayService) Forward(ctx context.Context, c *gin.Context,
 								_ = retryResp.Body.Close()
 								respBody = retryBody
 								resp = &http.Response{
+									Request:    retryResp.Request,
 									StatusCode: retryResp.StatusCode,
 									Header:     retryResp.Header.Clone(),
 									Body:       io.NopCloser(bytes.NewReader(retryBody)),
@@ -371,6 +380,7 @@ func (s *AntigravityGatewayService) Forward(ctx context.Context, c *gin.Context,
 					logger.LegacyPrintf("service.antigravity_gateway", "%s status=400 prompt_too_long=true upstream_message=%q request_id=%s body=%s", prefix, upstreamMsg, resp.Header.Get("x-request-id"), truncateForLog(respBody, maxBytes))
 				}
 				appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+					LedgerReceipt:      requestledger.ResponseReceipt(resp),
 					ProxyID:            opsUpstreamProxyID(account),
 					ProxyName:          opsUpstreamProxyName(account),
 					Platform:           account.Platform,
@@ -399,6 +409,7 @@ func (s *AntigravityGatewayService) Forward(ctx context.Context, c *gin.Context,
 					upstreamDetail := s.getUpstreamErrorDetail(respBody)
 					log.Printf("%s status=400 google_config_error failover=true upstream_message=%q account=%d", prefix, upstreamMsg, account.ID)
 					appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+						LedgerReceipt:      requestledger.ResponseReceipt(resp),
 						ProxyID:            opsUpstreamProxyID(account),
 						ProxyName:          opsUpstreamProxyName(account),
 						Platform:           account.Platform,
@@ -419,6 +430,7 @@ func (s *AntigravityGatewayService) Forward(ctx context.Context, c *gin.Context,
 				upstreamMsg = sanitizeUpstreamErrorMessage(upstreamMsg)
 				upstreamDetail := s.getUpstreamErrorDetail(respBody)
 				appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+					LedgerReceipt:      requestledger.ResponseReceipt(resp),
 					ProxyID:            opsUpstreamProxyID(account),
 					ProxyName:          opsUpstreamProxyName(account),
 					Platform:           account.Platform,
@@ -433,7 +445,7 @@ func (s *AntigravityGatewayService) Forward(ctx context.Context, c *gin.Context,
 				return nil, &UpstreamFailoverError{StatusCode: resp.StatusCode, ResponseBody: respBody}
 			}
 
-			return nil, s.writeMappedClaudeError(c, account, resp.StatusCode, resp.Header.Get("x-request-id"), respBody)
+			return nil, s.writeMappedClaudeError(requestledger.ResponseReceipt(resp), c, account, resp.StatusCode, resp.Header.Get("x-request-id"), respBody)
 		}
 	}
 

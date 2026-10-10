@@ -1,6 +1,8 @@
 package service
 
 import (
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
+
 	"context"
 	"encoding/json"
 	"errors"
@@ -219,6 +221,7 @@ func (s *OpenAIGatewayService) forwardAsRawChatCompletions(
 				kind = "failover"
 			}
 			appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+				LedgerReceipt:      requestledger.ResponseReceipt(resp),
 				ProxyID:            opsUpstreamProxyID(account),
 				ProxyName:          opsUpstreamProxyName(account),
 				Platform:           account.Platform,
@@ -433,17 +436,17 @@ func (s *OpenAIGatewayService) streamRawChatCompletions(
 		)
 		if !clientOutputStarted {
 			// 响应头尚未提交：可以透明换号重试，客户端不会看到半截流。
-			return nil, newOpenAIRawStreamTruncatedFailoverError(c, account, requestID, cause)
+			return nil, newOpenAIRawStreamTruncatedFailoverError(requestledger.ResponseReceipt(resp), c, account, requestID, cause)
 		}
 		// 已写出语义字节：无法再 failover，改为带类型的上游错误。handler 会据此
 		// 补发 SSE error 帧并把本次请求计入 SLA 失败。
-		recordOpenAIRawStreamTruncation(c, account, requestID, cause, "http_error")
+		recordOpenAIRawStreamTruncation(requestledger.ResponseReceipt(resp), c, account, requestID, cause, "http_error")
 		return resultWithUsage(), newOpenAIUpstreamStreamReadError(cause)
 	}
 
 	if scanErr == nil && !clientDisconnected && !clientOutputStarted {
 		if refusalDetector.IsSilentRefusal() {
-			return nil, newOpenAISilentRefusalFailoverError(c, account, requestID)
+			return nil, newOpenAISilentRefusalFailoverError(requestledger.ResponseReceipt(resp), c, account, requestID)
 		}
 		if len(pendingLines) > 0 {
 			writeStreamHeaders()
@@ -537,7 +540,7 @@ func (s *OpenAIGatewayService) bufferRawChatCompletions(
 	responseModel := gjson.GetBytes(respBody, "model").String()
 	if requiresBillableGrokChatUsage(account, billingModel, upstreamModel, responseModel) && !hasBillableGrokChatUsage(usage) {
 		upstreamRequestID := firstNonEmpty(requestID, resp.Header.Get("xai-request-id"))
-		return nil, newGrokMissingUsageFailoverError(c, account, upstreamRequestID)
+		return nil, newGrokMissingUsageFailoverError(requestledger.ResponseReceipt(resp), c, account, upstreamRequestID)
 	}
 	respBody = applyOllamaCloudRawChatCompletionsResponse(account, respBody)
 	respBody = s.replaceModelInResponseBody(respBody, upstreamModel, originalModel)
@@ -625,6 +628,7 @@ func (s *OpenAIGatewayService) newRawChatCompletionsInvalidUpstreamFailoverError
 	detail := ""
 	setOpsUpstreamError(c, http.StatusBadGateway, message, detail)
 	appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+		LedgerReceipt:      requestledger.ResponseReceipt(resp),
 		Platform:           platform,
 		AccountID:          accountID,
 		AccountName:        accountName,

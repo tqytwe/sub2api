@@ -35,6 +35,7 @@ func (s *GeminiMessagesCompatService) handleUpstreamTransportError(ctx context.C
 	safeErr := sanitizeUpstreamErrorMessage(err.Error())
 	setOpsUpstreamError(c, 0, safeErr, "")
 	event := OpsUpstreamErrorEvent{
+		LedgerReceipt:      requestledger.ErrorReceipt(err),
 		Platform:           account.Platform,
 		AccountID:          account.ID,
 		AccountName:        account.Name,

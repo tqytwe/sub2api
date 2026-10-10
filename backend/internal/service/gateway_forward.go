@@ -1,6 +1,8 @@
 package service
 
 import (
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
+
 	"bytes"
 	"context"
 	"errors"
@@ -417,6 +419,7 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 
 				if s.shouldRectifySignatureError(ctx, account, respBody, reqModel) {
 					appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+						LedgerReceipt:      requestledger.ResponseReceipt(resp),
 						ProxyID:            opsUpstreamProxyID(account),
 						ProxyName:          opsUpstreamProxyName(account),
 						Platform:           account.Platform,
@@ -480,6 +483,7 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 							_ = retryResp.Body.Close()
 							if retryReadErr == nil && retryResp.StatusCode == 400 && s.isSignatureErrorPattern(ctx, account, retryRespBody) {
 								appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+									LedgerReceipt:      requestledger.ResponseReceipt(retryResp),
 									ProxyID:            opsUpstreamProxyID(account),
 									ProxyName:          opsUpstreamProxyName(account),
 									Platform:           account.Platform,
@@ -522,6 +526,7 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 											_ = retryResp2.Body.Close()
 										}
 										appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+											LedgerReceipt:      requestledger.ErrorReceipt(retryErr2),
 											ProxyID:            opsUpstreamProxyID(account),
 											ProxyName:          opsUpstreamProxyName(account),
 											Platform:           account.Platform,
@@ -541,6 +546,7 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 
 							// Fall back to the original retry response context.
 							resp = &http.Response{
+								Request:    retryResp.Request,
 								StatusCode: retryResp.StatusCode,
 								Header:     retryResp.Header.Clone(),
 								Body:       io.NopCloser(bytes.NewReader(retryRespBody)),
@@ -563,6 +569,7 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 				errMsg := extractUpstreamErrorMessage(respBody)
 				if isThinkingBudgetConstraintError(errMsg) && s.settingService.IsBudgetRectifierEnabled(ctx) {
 					appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+						LedgerReceipt:      requestledger.ResponseReceipt(resp),
 						ProxyID:            opsUpstreamProxyID(account),
 						ProxyName:          opsUpstreamProxyName(account),
 						Platform:           account.Platform,
@@ -635,6 +642,7 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 				respBody, _ := s.readUpstreamErrorBody(resp)
 				_ = resp.Body.Close()
 				appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+					LedgerReceipt:      requestledger.ResponseReceipt(resp),
 					ProxyID:            opsUpstreamProxyID(account),
 					ProxyName:          opsUpstreamProxyName(account),
 					Platform:           account.Platform,
@@ -691,6 +699,7 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 
 			s.handleRetryExhaustedSideEffects(ctx, resp, account)
 			appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+				LedgerReceipt:      requestledger.ResponseReceipt(resp),
 				ProxyID:            opsUpstreamProxyID(account),
 				ProxyName:          opsUpstreamProxyName(account),
 				Platform:           account.Platform,
@@ -728,6 +737,7 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 
 		s.handleFailoverSideEffects(ctx, resp, account, reqModel)
 		appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+			LedgerReceipt:      requestledger.ResponseReceipt(resp),
 			ProxyID:            opsUpstreamProxyID(account),
 			ProxyName:          opsUpstreamProxyName(account),
 			Platform:           account.Platform,
@@ -772,6 +782,7 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 					upstreamDetail = truncateString(string(respBody), maxBytes)
 				}
 				appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+					LedgerReceipt:      requestledger.ResponseReceipt(resp),
 					ProxyID:            opsUpstreamProxyID(account),
 					ProxyName:          opsUpstreamProxyName(account),
 					Platform:           account.Platform,
@@ -829,6 +840,7 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 				if c.Writer.Size() == writerSizeBeforeStream && gjson.GetBytes(body, "error.type").String() == "overloaded_error" {
 					semanticStatus = 529
 					syntheticResp := &http.Response{
+						Request:    resp.Request,
 						StatusCode: semanticStatus,
 						Header:     resp.Header.Clone(),
 						Body:       io.NopCloser(bytes.NewReader(body)),
@@ -850,6 +862,7 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 				}
 
 				appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+					LedgerReceipt:      requestledger.ResponseReceipt(resp),
 					ProxyID:            opsUpstreamProxyID(account),
 					ProxyName:          opsUpstreamProxyName(account),
 					Platform:           account.Platform,

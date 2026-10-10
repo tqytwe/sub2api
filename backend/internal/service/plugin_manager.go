@@ -973,6 +973,7 @@ func (m *PluginManager) RoundTripOpenAIOAuth(ctx context.Context, request *http.
 	}
 	response, err := route.runtime.roundTrip(ctx, request, proxyURL, account)
 	attempt.TrackResponse(ctx, response, err)
+	err = attempt.WrapError(err)
 	if err != nil {
 		route.runtime.finishRequest()
 		if route.runtime.client.Exited() {
