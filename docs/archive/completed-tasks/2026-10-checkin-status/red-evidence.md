@@ -80,3 +80,20 @@ Actual value: $1.00
  FAIL  src/views/user/__tests__/CheckInView.balance.http.spec.ts > refreshes after makeup even when token renewal started an older status read
 AssertionError: expected 2 to be 3 // Object.is equality
       Tests  2 failed | 3 passed (5)
+
+## 同一中枢组件的会话隔离（父线程复审补充）
+
+原组合 head `56e58ed83707ebcc159f0e9f545f6f4ab454cbe9` 虽通过此前用例及 7/7 CI，父线程复审指出 PlayHub 仅检查 disposed，遗漏切账号/登出时的隔离。先以实际 Pinia、auth login/logout、Axios 拦截器和回环 HTTP 复现，再修改页面；没有构造 Axios 错误对象。
+
+有效 RED：8 例中 7 失败、1 个真实 Axios401刷新对照通过，无未处理错误。失败覆盖 A→B 迟到200/403、已有 A 数据清空、旧503不能结束B加载、登出和再登录、实际自动续期后 token 被 store 采用时恢复读取。最早夹具误用含时区 query 的 raw URL 匹配路径，修正为 pathname 后重新取得上述有效 RED；早期夹具错误不计业务证据。
+
+旧 production build Chromium，真实 auth.login 切换账户且断言 DOM 组件未重建；释放 A 的迟到响应后：
+
+```text
+AssertionError: Locator expected to have text '$2.00'
+Actual value: $1.00
+```
+
+截图：`docs/visual-reviews/assets/checkin-status/hub-session-repro-hub-session.png`；旧资源哈希：`hub-session-red-assets.json`（同 56e58ed8 的 pre-session-fix-assets.json）。新增第9例 A→B→A 同 id/token 返回，验证请求代次而非仅比较身份；该例在首次 GREEN 后追加，不冒记首次 RED。
+
+自动续期证据边界：实际 authStore 定时器调用真实 refresh HTTP 并持久化新 token，测试再调用生产 checkAuth 采用该 token；没有宣称既有公共 store 自动同步策略已修复。另以实际 Axios401→refresh→重试验证成功读取不会被丢弃。

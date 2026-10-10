@@ -9,7 +9,7 @@ import apiClient from '@/api/client'
 import zh from '@/i18n/locales/zh'
 
 vi.hoisted(() => vi.stubGlobal('__INTLIFY_JIT_COMPILATION__', true))
-vi.mock('@/stores/auth', () => ({ useAuthStore: () => ({ user: { balance: 1 }, refreshUser: vi.fn() }) }))
+vi.mock('@/stores/auth', () => ({ useAuthStore: () => ({ user: { id: 1, balance: 1 }, token: 'fixture-only', refreshUser: vi.fn() }) }))
 vi.mock('@/stores/app', () => ({ useAppStore: () => ({ showSuccess: vi.fn(), showError: vi.fn(), showInfo: vi.fn() }) }))
 vi.mock('vue-router', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 vi.mock('@/utils/growthAnalytics', () => ({ trackQuestCompleteOnce: vi.fn(), trackGrowthEvent: vi.fn() }))

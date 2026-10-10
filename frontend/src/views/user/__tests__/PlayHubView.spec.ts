@@ -24,7 +24,8 @@ vi.mock('@/api/referralCampaign', () => ({
 
 vi.mock('@/stores/auth', () => ({
   useAuthStore: () => ({
-    user: { balance: 9.5 },
+    user: { id: 1, balance: 9.5 },
+    token: 'fixture-only',
     refreshUser: state.refreshUser,
   }),
 }))

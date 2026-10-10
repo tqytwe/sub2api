@@ -25,3 +25,14 @@
 - verification.json 属于合并前全量门禁；最终组合结果另见 combination-verification.json 与草稿 PR 精确 head/CI。
 
 截图夹具补充复审：人工 PNG 检查发现 screenshot animations=disabled 仍可能捕获刚插入卡片的中间帧；capture helper 改为先等待两帧及有限动画自然结束，断言 banner opacity≥0.99。质量审查确认未写样式或业务状态、无阻塞。随后最终 11/11 重跑与 PNG 人工检查通过；生产源码与构建资源未再修改。
+
+## 父线程发现 Hub 会话遗漏后的纠正审查
+
+此前组合审查和 CI 未覆盖同一 Hub 组件的账号切换，不能作为此项已通过的依据。父线程要求保留隐私隔离回归并暂停旧 head 交付。
+
+1. 规格审查先通过：success/catch/finally 均检查请求代次及 user/token；切会话立即清空 Hub/活动并允许新账号读取，登出不发私有请求；真实自动续期后采用新 token 与401重试均有恢复路径。审查核对有效 RED（7失败、1对照通过）和当时62项 GREEN。
+2. 随后质量审查通过：旧请求无法覆盖新数据、错误或加载状态，保留同会话单请求守卫；公共 auth/Axios/tokenRefresh 与后端未改。另核对旧构建切账号仍显示$1.00的浏览器 RED。
+
+两位只读；审查时第9条 A→B→A、PG补跑、重构建及浏览器GREEN尚未完成，最终结果另见 session-isolation-verification.json，不能把后续门禁冒记为此前审查已完成。
+
+最终证据复审仍按规格→质量顺序，均通过，无剩余阻塞。两位核对新增 ABA 回归、63/63目标、PG/Vue5/5、完整前端3558项（默认5项live跳过已另实际执行）、lint/typecheck、构建及14/14浏览器；源码/资源 SHA256 与归档一致。实际查看B$2.00和登出—/0私有卡片截图，确认旧RED资源、旧CI及历史全量门禁分别归属。此次为只读复审，未重跑重型测试；Fork/静态及新head hosted CI 当时仍待主代理完成，结果单独记录。

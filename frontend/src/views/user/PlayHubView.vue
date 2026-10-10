@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
@@ -20,6 +20,7 @@ const authStore = useAuthStore()
 const loading = ref(true)
 const loadError = ref('')
 let loadInFlight = false
+let loadGeneration = 0
 let disposed = false
 const hub = ref<PlayHubSummary | null>(null)
 const referralCampaigns = ref<ReferralCampaignProgress[]>([])
@@ -200,7 +201,12 @@ const playCards = computed(() => {
 })
 
 async function load() {
-  if (loadInFlight || disposed) return
+  if (loadInFlight || disposed || !authStore.user || !authStore.token) return
+  const generation = ++loadGeneration
+  const userID = authStore.user.id
+  const token = authStore.token
+  const isCurrent = () => !disposed && generation === loadGeneration &&
+    userID === authStore.user?.id && token === authStore.token
   loadInFlight = true
   loading.value = true
   loadError.value = ''
@@ -211,20 +217,34 @@ async function load() {
 			playAPI.getPlayHub(),
 			isFeatureFlagEnabled(FeatureFlags.affiliate) ? listReferralCampaigns().catch(() => []) : Promise.resolve([]),
 		])
-		if (!disposed) {
+		if (isCurrent()) {
 			hub.value = nextHub
 			referralCampaigns.value = nextCampaigns
 		}
   } catch (err: unknown) {
-    if (!disposed) {
+    if (isCurrent()) {
       const httpStatus = (err as { status?: number })?.status
       loadError.value = httpStatus === 403 ? 'playHub.loadForbidden'
         : httpStatus === 0 ? 'playHub.loadNetworkFailed' : 'playHub.loadFailed'
     }
   } finally {
-    loadInFlight = false
-    if (!disposed) loading.value = false
+    if (isCurrent()) {
+      loadInFlight = false
+      loading.value = false
+    }
   }
+}
+
+function resetSession() {
+  // Invalidate every part of the old read, including its error/finally paths.
+  // A new account may load immediately without waiting for the old response.
+  loadGeneration++
+  loadInFlight = false
+  hub.value = null
+  referralCampaigns.value = []
+  loadError.value = ''
+  loading.value = !!(authStore.user && authStore.token)
+  if (loading.value) void load()
 }
 
 function goPurchase() {
@@ -241,8 +261,9 @@ function perkLabel(perk: string): string {
   return translated === key ? perk : translated
 }
 
-onMounted(load)
-onBeforeUnmount(() => { disposed = true })
+onMounted(resetSession)
+onBeforeUnmount(() => { disposed = true; loadGeneration++ })
+watch([() => authStore.user?.id, () => authStore.token], resetSession)
 </script>
 
 <template>

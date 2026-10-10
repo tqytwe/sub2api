@@ -145,10 +145,10 @@
   "artifact_ownership": {
     "premerge_assets": "premerge-assets.json",
     "premerge_browser": "premerge-browser.json",
-    "combined_assets": "updated-assets.json",
-    "combined_browser": "updated-browser.json"
+    "combined_assets": "pre-session-fix-assets.json",
+    "combined_browser": "pre-session-fix-browser.json"
   },
-  "full_local_gates": "verification.json records pre-merge full gates; expensive unaffected suites not repeated per parent instruction. Exact final head hosted CI runs complete.",
+  "full_local_gates": "verification.json records pre-merge full gates; expensive unaffected suites not repeated per parent instruction. Combined head 56e58ed8 hosted CI passed 7/7, but later root review found missing Hub session isolation; this historical success is not final acceptance.",
   "limits": [
     "No PR merge into main, deployment or production access.",
     "Global topbar auth cache policy unchanged.",

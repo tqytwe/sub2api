@@ -38,7 +38,15 @@ P1 首提交 `7cdab5b6b` 完成上述合并前门禁；随后按父线程指示�
 
 完整本地门禁属于合并前实现提交；组合后按影响范围复核实际 PG（包括主线新增迁移）、HTTP/Vue、前端目标测试及冷路由语言范围，并重新构建前端、运行全部 11 组浏览器场景。组合后 54/54 目标用例、5/5 PG live Vue、前端构建与 11/11 构建浏览器、7 项治理单元和设计治理、266 份文档链接、handoff 结构及 8 项校验全部通过。组合结果见 combination-verification.json，文件归属证明见 combination-scope.json。未重复执行未变福利源码的昂贵全量本地门禁；最终准确 merge head 的完整 hosted CI 单独记在草稿 PR。
 
-`premerge-assets.json` / `premerge-browser.json` 保留原基线构建验证归属；`updated-assets.json` / `updated-browser.json` 和更新 PNG 对应组合后的重新构建。最终组合按原顺序再做独立规格、质量复审，记录见 reviews.md。人工截图复核发现动画中间帧后，仅补强截图夹具等待有限动画自然结束并断言 banner opacity≥0.99；质量复审及最终 11/11 重拍通过，未修改样式或业务源码。
+`premerge-assets.json` / `premerge-browser.json` 保留原基线构建验证归属；`pre-session-fix-assets.json` / `pre-session-fix-browser.json` 保留 56e58ed8 组合构建；`updated-assets.json` / `updated-browser.json` 和更新 PNG 对应会话隔离补丁后的最终重构建。最终组合按原顺序再做独立规格、质量复审，记录见 reviews.md。人工截图复核发现动画中间帧后，仅补强截图夹具等待有限动画自然结束并断言 banner opacity≥0.99；质量复审及最终 11/11 重拍通过，未修改样式或业务源码。
+
+## 父线程复审补充：同组件中枢会话隔离
+
+父线程复审旧 head `56e58ed83707ebcc159f0e9f545f6f4ab454cbe9` 时发现同一 Hub 组件仍可应用 A→B 的迟到私有响应；该 head 随后 7/7 CI 通过，但之前的会话测试只覆盖签到，不能证明中枢通过。新真实 Pinia/Axios/HTTP 用例先取得有效 RED（7失败、1自动401刷新对照通过），旧生产构建浏览器也复现 B 的顶栏$2.00而中枢回退A的$1.00。
+
+最小修复仅在 PlayHub 增加 user/token 监听和请求代次：清空旧 Hub/邀请活动，当前账号立即重读；success/catch/finally 都拒绝旧代次，登出不发私有读取。另追加 A→B→A 同 id/token 回归，保留同会话重复点击守卫。没有修改公共 auth/Axios/tokenRefresh，真实续期测试明确区分 token 的实际自动刷新、持久化及 store 随后采用；实际401刷新重试有独立对照，保证成功读取仍可完成。
+
+两轮顺序独立源码审查均通过。最终补丁63/63目标、5/5 live PG/Vue、496文件/3558项完整前端、lint/typecheck、前端构建与14/14实际资源浏览器场景均通过（默认5项 live PG跳过已另实际运行）；适用门禁和结果见 `session-isolation-verification.json`；旧完整后端门禁保留原 SHA 归属，没有因前端补丁重跑未变后端全套。新 head 的全部 hosted checks 单独记录在草稿 PR，旧 CI 不能替代新补丁验证。仍保持草稿、不合并部署，不将本地技术验证视为生产或用户本机验收。
 
 ## 下一批：先答题，再盲盒
 

@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parents[4]
 OUT = ROOT / 'docs/visual-reviews/assets/checkin-status'
 OUT.mkdir(parents=True, exist_ok=True)
 parser = argparse.ArgumentParser()
-parser.add_argument('--phase', choices=['baseline', 'updated', 'profile-repro'], required=True)
+parser.add_argument('--phase', choices=['baseline', 'updated', 'profile-repro', 'hub-session-repro'], required=True)
 parser.add_argument('--dist', required=True)
 args = parser.parse_args()
 dist = Path(args.dist)
@@ -72,7 +72,11 @@ class Handler(SimpleHTTPRequestHandler):
         super().do_GET()
 
     def do_POST(self):
-        self.rfile.read(int(self.headers.get('Content-Length', 0)))
+        body = self.rfile.read(int(self.headers.get('Content-Length', 0)))
+        if self.path.endswith('/auth/login'):
+            account_b = json.loads(body).get('email', '').startswith('b@')
+            USER.update(id=51 if account_b else 50, email='b@example.test' if account_b else 'a@example.test', balance=2 if account_b else 1)
+            return self.reply(200, dict(code=0, data=dict(access_token='fixture-b' if account_b else 'fixture-a', user=USER)))
         if self.path.endswith('/play/checkin'):
             state['posts'] += 1
             state['status'].update(checked_in_today=True, streak_count=7, next_milestone_days=0)
@@ -183,6 +187,76 @@ with sync_playwright() as pw:
         assert page.evaluate("document.querySelector('#app').__vue_app__.config.globalProperties.$pinia._s.get('auth').user.balance") == 2.5
         capture(page, path=str(OUT / (args.phase + '-late-profile.png')), full_page=True, animations='disabled')
         reports.append(dict(case='late-profile-after-router-reopen', balance=2.5, shared_balance=2.5, posts=state['posts']))
+        context.close()
+    if args.phase in ['updated', 'hub-session-repro']:
+        state.update(status=dict(INITIAL), code=0, gets=0, posts=0)
+        USER.update(id=50, email='a@example.test', balance=1)
+        context = browser.new_context(viewport=dict(width=1280, height=900), reduced_motion='reduce')
+        context.add_init_script('window.__APP_CONFIG__=' + json.dumps(SETTINGS) + ';localStorage.setItem("auth_token","fixture-a");localStorage.setItem("auth_user",JSON.stringify(' + json.dumps(USER) + '));')
+        held_hub = []
+        session_gate = dict(hold=False)
+        def intercept_session(route):
+            url = urlparse(route.request.url)
+            if url.netloc != urlparse(origin).netloc:
+                return route.abort()
+            if url.path.endswith('/play/hub') and session_gate['hold']:
+                held_hub.append(route)
+                return
+            route.continue_()
+        context.route('**/*', intercept_session)
+        page = context.new_page()
+        page.goto(origin + '/play?lang=zh', wait_until='networkidle')
+        expect(page.locator('.gw-balance-value')).to_have_text('$1.00')
+        page.evaluate("window.__sessionHubElement = document.querySelector('[data-testid=play-hub-shell]')")
+        session_gate['hold'] = True
+        page.get_by_test_id('refresh-status').click()
+        page.wait_for_timeout(100)
+        assert len(held_hub) == 1
+        old_a = held_hub.pop()
+        session_gate['hold'] = False
+        page.evaluate("async () => await document.querySelector('#app').__vue_app__.config.globalProperties.$pinia._s.get('auth').login({email:'b@example.test',password:'fixture-only'})")
+        # The same actual component stays mounted while a new session loads.
+        assert page.evaluate("window.__sessionHubElement === document.querySelector('[data-testid=play-hub-shell]')")
+        if args.phase == 'updated':
+            expect(page.locator('.gw-balance-value')).to_have_text('$2.00')
+        else:
+            page.wait_for_timeout(150)
+        old_hub = dict(any_enabled=True, pending_actions=1, growth=dict(balance=1, total_recharged=0, payment_enabled=False), checkin=dict(INITIAL))
+        old_a.fulfill(status=200, content_type='application/json', body=json.dumps(dict(code=0, data=old_hub)))
+        page.wait_for_timeout(100)
+        capture(page, path=str(OUT / (args.phase + '-hub-session.png')), full_page=True, animations='disabled')
+        expect(page.locator('.gw-balance-value')).to_have_text('$2.00')
+        reports.append(dict(case='same-mounted-hub-account-switch-late-A', balance=2, same_component=True))
+        # Token adoption during a pending read starts a new read; the old token
+        # response cannot restore a stale balance or finish the new loading state.
+        session_gate['hold'] = True
+        page.get_by_test_id('refresh-status').click()
+        page.wait_for_timeout(100)
+        assert len(held_hub) == 1
+        old_token = held_hub.pop()
+        session_gate['hold'] = False
+        USER['balance'] = 3
+        page.evaluate("() => { const auth=document.querySelector('#app').__vue_app__.config.globalProperties.$pinia._s.get('auth'); localStorage.setItem('auth_token','fixture-renewed'); auth.token='fixture-renewed'; }")
+        expect(page.locator('.gw-balance-value')).to_have_text('$3.00')
+        old_hub['growth']['balance'] = 2
+        old_token.fulfill(status=200, content_type='application/json', body=json.dumps(dict(code=0, data=old_hub)))
+        page.wait_for_timeout(100)
+        expect(page.locator('.gw-balance-value')).to_have_text('$3.00')
+        reports.append(dict(case='same-mounted-hub-token-adoption-late-read', balance=3, actual_automatic_refresh='covered by Pinia HTTP tests'))
+        session_gate['hold'] = True
+        page.get_by_test_id('refresh-status').click()
+        page.wait_for_timeout(100)
+        assert len(held_hub) == 1
+        old_logout = held_hub.pop()
+        page.evaluate("async () => await document.querySelector('#app').__vue_app__.config.globalProperties.$pinia._s.get('auth').logout()")
+        expect(page.locator('.gw-balance-value')).to_have_text('—')
+        old_hub['growth']['balance'] = 3
+        old_logout.fulfill(status=200, content_type='application/json', body=json.dumps(dict(code=0, data=old_hub)))
+        page.wait_for_timeout(100)
+        expect(page.locator('.gw-balance-value')).to_have_text('—')
+        expect(page.locator('.gw-hub-card')).to_have_count(0)
+        capture(page, path=str(OUT / 'updated-hub-logout.png'), full_page=True, animations='disabled')
+        reports.append(dict(case='same-mounted-hub-logout-late-read', balance=None, private_cards=0))
         context.close()
     if args.phase == 'updated':
         for width, lang, theme in [(360, 'zh', 'dark'), (768, 'en', 'light'), (1280, 'zh', 'light'), (1920, 'en', 'dark')]:

@@ -45,14 +45,17 @@
   "baseline_artifacts": [
     "docs/visual-reviews/assets/checkin-status/baseline-503.png",
     "docs/visual-reviews/assets/checkin-status/baseline-milestone.png",
-    "docs/visual-reviews/assets/checkin-status/baseline-hub.png"
+    "docs/visual-reviews/assets/checkin-status/baseline-hub.png",
+    "docs/visual-reviews/assets/checkin-status/hub-session-repro-hub-session.png"
   ],
   "updated_artifacts": [
     "docs/visual-reviews/assets/checkin-status/updated-1280-zh-light-checkin-ready.png",
     "docs/visual-reviews/assets/checkin-status/updated-360-zh-dark-checkin-error.png",
     "docs/visual-reviews/assets/checkin-status/updated-768-en-light-hub-loading.png",
     "docs/visual-reviews/assets/checkin-status/updated-1920-en-dark-hub-ready.png",
-    "docs/visual-reviews/assets/checkin-status/updated-navigation-success.png"
+    "docs/visual-reviews/assets/checkin-status/updated-navigation-success.png",
+    "docs/visual-reviews/assets/checkin-status/updated-hub-session.png",
+    "docs/visual-reviews/assets/checkin-status/updated-hub-logout.png"
   ],
   "commands": [
     "pnpm --dir frontend build",
@@ -93,7 +96,7 @@
 
 ## State Coverage
 
-详见同批browser.py与updated-browser.json：加载、关闭、503、403、网络、重试、重开、焦点/hover/键盘、重复刷新、离开重开后旧响应、真实路由签到→中枢→签到的成功恢复。PG HTTP测试另验证跨层持久化与拒绝/防重奖。
+详见同批browser.py与updated-browser.json：加载、关闭、503、403、网络、重试、重开、焦点/hover/键盘、重复刷新、离开重开后旧响应、真实路由签到→中枢→签到的成功恢复。PG HTTP测试另验证跨层持久化与拒绝/防重奖。补丁后新增同一 Hub DOM 组件 A→B（实际 login HTTP）、token 采用以及登出时的迟到响应回归；旧构建的 A$1.00 RED 与新构建 B$2.00/登出空面板 PNG 均已人工复核。
 
 ## Viewport Coverage
 
@@ -101,7 +104,7 @@
 
 ## Evidence
 
-浏览器报告/构建哈希与门禁结果见 docs/archive/completed-tasks/2026-10-checkin-status/。最终生产构建矩阵 11/11 通过；8个尺寸/语言/主题页面组合的JS异常与横向溢出均为0。本批还增加另一客户端发奖后的余额刷新，以及旧资料响应/身份切换与 token 续期并发的真实 HTTP 回归。截图固定完成既有有限入场动画，避免把动画中间帧误当成颜色问题；没有修改共享样式。
+浏览器报告/构建哈希与门禁结果见 docs/archive/completed-tasks/2026-10-checkin-status/。会话隔离补丁后的最终生产构建矩阵 14/14 通过；8个尺寸/语言/主题页面组合的JS异常与横向溢出均为0。本批还增加另一客户端发奖后的余额刷新，以及旧资料响应/身份切换与 token 续期并发的真实 HTTP 回归。截图固定完成既有有限入场动画，避免把动画中间帧误当成颜色问题；没有修改共享样式。
 
 ## Residual Risk
 

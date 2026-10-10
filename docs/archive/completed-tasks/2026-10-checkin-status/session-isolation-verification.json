@@ -1,0 +1,277 @@
+{
+  "validation_subject": "56e58ed83707ebcc159f0e9f545f6f4ab454cbe9 plus the recorded Hub session fix; final immutable head and CI are in draft PR #355",
+  "base": "9b367c378b04db987a36175af0b8a3e02e22da24",
+  "production_delta_from_previous_head": [
+    "frontend/src/views/user/PlayHubView.vue"
+  ],
+  "file_sha256": {
+    "frontend/src/views/user/PlayHubView.vue": "7e39ae2f1e8893c684b092863dd20568c8f52b204ac7f650015c1ed219c0da58",
+    "frontend/src/views/user/CheckInView.vue": "f1da31794b009aaa9c8abb4ddb919b39af88937bad9a38ed8ea623264e4dd44c",
+    "frontend/src/i18n/locales/jisudeng-pages.zh.ts": "fa0a313631f45cdb736853ed96bcded16406c841506626ce9c815fb07a4cfd0d",
+    "frontend/src/i18n/locales/jisudeng-pages.en.ts": "b69ce77bdb1b1b75a887eb2845404b9c08418dee9086384312e338171e702652",
+    "frontend/src/views/user/__tests__/PlayHubView.session.http.spec.ts": "d3d1f51e57806a0f9aee53b779672775a1d119d5f83b8c6af644bc000920a2d7",
+    "docs/archive/completed-tasks/2026-10-checkin-status/browser.py": "c206355a66752e7f6a6bd831a391e0885768ce1e8db3b29df469a48749d07e57"
+  },
+  "red": {
+    "valid_real_http": {
+      "failed": 7,
+      "passed_control": 1,
+      "unhandled_errors": 0
+    },
+    "built_browser": {
+      "head": "56e58ed83707ebcc159f0e9f545f6f4ab454cbe9",
+      "expected_balance": 2,
+      "actual_balance": 1,
+      "assets": "hub-session-red-assets.json",
+      "screenshot": "docs/visual-reviews/assets/checkin-status/hub-session-repro-hub-session.png"
+    },
+    "ninth_ABA_case": "Added after the initial GREEN, not claimed as initial RED"
+  },
+  "targeted": {
+    "files": 7,
+    "passed": 63,
+    "skipped": 0,
+    "log": "/tmp/p2-hub-session-targeted.log"
+  },
+  "commands": [
+    {
+      "command": "session PG HTTP Vue contract",
+      "argv": [
+        "./scripts/test-checkin-contract.sh"
+      ],
+      "exit_code": 0,
+      "started_utc": "2026-10-10T23:09:08.441303+00:00",
+      "ended_utc": "2026-10-10T23:09:31.216742+00:00",
+      "log": "/tmp/p2-session-pg.log"
+    },
+    {
+      "command": "session frontend lint",
+      "argv": [
+        "pnpm",
+        "--dir",
+        "frontend",
+        "run",
+        "lint:check"
+      ],
+      "exit_code": 0,
+      "started_utc": "2026-10-10T23:09:31.218057+00:00",
+      "ended_utc": "2026-10-10T23:10:01.312067+00:00",
+      "log": "/tmp/p2-session-lint.log"
+    },
+    {
+      "command": "session frontend typecheck",
+      "argv": [
+        "pnpm",
+        "--dir",
+        "frontend",
+        "run",
+        "typecheck"
+      ],
+      "exit_code": 0,
+      "started_utc": "2026-10-10T23:10:01.312408+00:00",
+      "ended_utc": "2026-10-10T23:10:35.293540+00:00",
+      "log": "/tmp/p2-session-typecheck.log"
+    },
+    {
+      "command": "session frontend full tests",
+      "argv": [
+        "pnpm",
+        "--dir",
+        "frontend",
+        "run",
+        "test:run"
+      ],
+      "exit_code": 0,
+      "started_utc": "2026-10-10T23:10:35.295732+00:00",
+      "ended_utc": "2026-10-10T23:14:23.046578+00:00",
+      "log": "/tmp/p2-session-full-tests.log"
+    },
+    {
+      "command": "session frontend build",
+      "argv": [
+        "pnpm",
+        "--dir",
+        "frontend",
+        "run",
+        "build"
+      ],
+      "exit_code": 0,
+      "started_utc": "2026-10-10T23:14:23.049605+00:00",
+      "ended_utc": "2026-10-10T23:15:59.009859+00:00",
+      "log": "/tmp/p2-session-build.log"
+    },
+    {
+      "command": "session built browser",
+      "argv": [
+        "python3",
+        "docs/archive/completed-tasks/2026-10-checkin-status/browser.py",
+        "--phase",
+        "updated",
+        "--dist",
+        "backend/internal/web/dist"
+      ],
+      "exit_code": 0,
+      "started_utc": "2026-10-10T23:15:59.013412+00:00",
+      "ended_utc": "2026-10-10T23:16:44.524463+00:00",
+      "log": "/tmp/p2-session-browser.log"
+    }
+  ],
+  "frontend_full": {
+    "files": {
+      "passed": 496,
+      "skipped": 1
+    },
+    "tests": {
+      "passed": 3558,
+      "skipped": 5
+    }
+  },
+  "pg_http_vue": {
+    "go_parent": 1,
+    "go_subtests": 8,
+    "vue_passed": 5,
+    "vue_skipped": 0,
+    "real_migrations_include_276": true
+  },
+  "browser": {
+    "cases": 14,
+    "report": "updated-browser.json",
+    "assets": "updated-assets.json",
+    "same_component_session_cases": 3,
+    "previous_build_report": "pre-session-fix-browser.json",
+    "previous_build_assets": "pre-session-fix-assets.json"
+  },
+  "automatic_refresh_evidence": "Real auth timer and refresh HTTP persist new tokens; production checkAuth then adopts the stored token and restarts Hub reads. Separate real Axios401 refresh/retry completes successfully. Shared auth implementation unchanged.",
+  "reviews": "Sequential source specification then quality approved; final evidence review recorded in reviews.md.",
+  "scope": "No change to public auth/Axios/router, P0 implementation, SQL275/276, billing or benefit rules. Backend delta remains existing test-only fixture.",
+  "historical_full_backend_gates": "verification.json keeps pre-merge full backend/default/unit/integration/build results. Parent instructed not to rerun unaffected expensive suites; new full frontend and affected live PG/build/browser checks executed.",
+  "limitations": [
+    "Draft only; no merge, deploy or production access/rewards.",
+    "No global topbar cross-tab cache guarantee.",
+    "No quiz/blindbox or production/user-machine three-role acceptance claim."
+  ],
+  "final_evidence_reviews": {
+    "order": [
+      "specification",
+      "quality"
+    ],
+    "result": "both passed; no remaining findings",
+    "verified": [
+      "ABA ninth case and 63/63 targeted",
+      "5/5 live PG Vue",
+      "3558 full frontend and explicit skip attribution",
+      "lint and typecheck",
+      "frontend build and 14/14 browser",
+      "source/build SHA256 and B/logout screenshots"
+    ],
+    "not_yet_complete_at_review": [
+      "Fork/static final gates",
+      "new head hosted CI"
+    ]
+  },
+  "final_static_gates": [
+    {
+      "command": "final Fork integrity",
+      "argv": [
+        "./scripts/check-fork-integrity.sh"
+      ],
+      "exit_code": 0,
+      "started_utc": "2026-10-10T23:16:57.319083+00:00",
+      "ended_utc": "2026-10-10T23:23:59.342745+00:00",
+      "log": "/tmp/p2-session-integrity.log"
+    },
+    {
+      "command": "final design verification",
+      "argv": [
+        "pnpm",
+        "--dir",
+        "frontend",
+        "run",
+        "design:verify"
+      ],
+      "exit_code": 0,
+      "started_utc": "2026-10-10T23:23:59.347212+00:00",
+      "ended_utc": "2026-10-10T23:24:00.781771+00:00",
+      "log": "/tmp/p2-session-design.log"
+    },
+    {
+      "command": "final doc links",
+      "argv": [
+        "node",
+        "scripts/check-doc-links.mjs"
+      ],
+      "exit_code": 0,
+      "started_utc": "2026-10-10T23:24:00.782136+00:00",
+      "ended_utc": "2026-10-10T23:24:00.853590+00:00",
+      "log": "/tmp/p2-session-doclinks.log"
+    },
+    {
+      "command": "final handoff structure",
+      "argv": [
+        "python3",
+        "scripts/check_project_handoff.py"
+      ],
+      "exit_code": 0,
+      "started_utc": "2026-10-10T23:24:00.855686+00:00",
+      "ended_utc": "2026-10-10T23:24:00.903768+00:00",
+      "log": "/tmp/p2-session-handoff.log"
+    },
+    {
+      "command": "final handoff tests",
+      "argv": [
+        "python3",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "scripts",
+        "-p",
+        "test_project_handoff.py"
+      ],
+      "exit_code": 0,
+      "started_utc": "2026-10-10T23:24:20.879590+00:00",
+      "ended_utc": "2026-10-10T23:24:20.991840+00:00",
+      "log": "/tmp/p2-session-handoff-tests-final.log"
+    },
+    {
+      "command": "final diff whitespace",
+      "argv": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exit_code": 0,
+      "started_utc": "2026-10-10T23:24:20.991859+00:00",
+      "ended_utc": "2026-10-10T23:24:21.015809+00:00",
+      "log": "/tmp/p2-session-diff.log"
+    }
+  ],
+  "non_acceptance_attempts": [
+    {
+      "command": "final handoff tests",
+      "argv": [
+        "python3",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "scripts",
+        "-p",
+        "test_check_project_handoff.py"
+      ],
+      "exit_code": 5,
+      "started_utc": "2026-10-10T23:24:00.903972+00:00",
+      "ended_utc": "2026-10-10T23:24:00.970878+00:00",
+      "log": "/tmp/p2-session-handoff-tests.log",
+      "reason": "Mistyped test filename matched no tests; corrected actual test_project_handoff.py executed 8 tests successfully. No failed behavior test."
+    }
+  ],
+  "final_static_results": {
+    "fork_integrity": "passed",
+    "design_governance": "passed; 7 governance tests",
+    "doc_links": "266 files passed",
+    "handoff_structure": "passed; 18 existing pending records",
+    "handoff_tests": "8 passed",
+    "diff_whitespace": "passed"
+  }
+}

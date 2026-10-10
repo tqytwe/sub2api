@@ -6,6 +6,21 @@
     "posts": 1
   },
   {
+    "case": "same-mounted-hub-account-switch-late-A",
+    "balance": 2,
+    "same_component": true
+  },
+  {
+    "case": "same-mounted-hub-token-adoption-late-read",
+    "balance": 3,
+    "actual_automatic_refresh": "covered by Pinia HTTP tests"
+  },
+  {
+    "case": "same-mounted-hub-logout-late-read",
+    "balance": null,
+    "private_cards": 0
+  },
+  {
     "case": "updated-360-zh-dark-checkin",
     "gets": 6,
     "posts": 0,
