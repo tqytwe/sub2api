@@ -1,12 +1,75 @@
 package handler
 
 import (
+	"context"
 	"errors"
+	"sync"
+	"sync/atomic"
 	"testing"
 
+	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/stretchr/testify/require"
 )
+
+func TestOpenAIWSTurnSettlementClaimAndPrivateIdentity(t *testing.T) {
+	var settlement openAIWSTurnSettlement
+	var accepted atomic.Int32
+	var wg sync.WaitGroup
+	for range 32 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if settlement.claim(1) {
+				accepted.Add(1)
+			}
+		}()
+	}
+	wg.Wait()
+	require.EqualValues(t, 1, accepted.Load(), "duplicate AfterTurn callbacks must submit once")
+	require.True(t, settlement.claim(2))
+	parent := context.WithValue(context.Background(), ctxkey.UsageBillingRequestID, "connection")
+	first := settlement.context(parent, 1).Value(ctxkey.UsageBillingRequestID)
+	require.NotEqual(t, "connection", first)
+	require.Equal(t, first, settlement.context(parent, 1).Value(ctxkey.UsageBillingRequestID))
+	require.NotEqual(t, first, settlement.context(parent, 2).Value(ctxkey.UsageBillingRequestID))
+	var another openAIWSTurnSettlement
+	require.NotEqual(t, first, another.context(parent, 1).Value(ctxkey.UsageBillingRequestID))
+}
+
+func TestOpenAIWSTurnSettlementRetryKeepsLogicalIdentity(t *testing.T) {
+	var settlement openAIWSTurnSettlement
+	var acceptedTurns, settledTurns []int
+	var requestIDs []any
+	hooks := &service.OpenAIWSIngressHooks{
+		BeforeRequest: func(turn int, _ []byte, _ string) error {
+			acceptedTurns = append(acceptedTurns, turn)
+			requestIDs = append(requestIDs, settlement.context(context.Background(), turn).Value(ctxkey.UsageBillingRequestID))
+			return nil
+		},
+		AfterTurn: func(turn int, result *service.OpenAIForwardResult, _ error) {
+			if result != nil && settlement.claim(turn) {
+				settledTurns = append(settledTurns, turn)
+			}
+		},
+	}
+	first := settlement.bindAttempt(hooks)
+	require.NoError(t, first.BeforeRequest(1, nil, ""))
+	first.AfterTurn(1, &service.OpenAIForwardResult{}, nil)
+	require.NoError(t, first.BeforeRequest(2, nil, ""))
+	first.AfterTurn(2, nil, errors.New("unmetered 429"))
+	retry := settlement.bindAttempt(hooks)
+	require.NoError(t, retry.BeforeRequest(1, nil, ""))
+	retry.AfterTurn(1, &service.OpenAIForwardResult{}, nil)
+	first.AfterTurn(1, &service.OpenAIForwardResult{}, nil) // Late duplicate retains its original binding.
+	require.NoError(t, retry.BeforeRequest(2, nil, ""))
+	retry.AfterTurn(2, &service.OpenAIForwardResult{}, nil)
+	require.Equal(t, []int{1, 2, 2, 3}, acceptedTurns)
+	require.Equal(t, []int{1, 2, 3}, settledTurns)
+	require.Equal(t, requestIDs[1], requestIDs[2], "the same real turn retains its missing-ID billing key across retry")
+	require.NotEqual(t, requestIDs[0], requestIDs[1])
+	require.NotEqual(t, requestIDs[2], requestIDs[3])
+}
 
 func TestOpenAIWSTurnUsageSettlement(t *testing.T) {
 	turnErr := errors.New("upstream stream interrupted")
