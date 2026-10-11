@@ -191,3 +191,10 @@ claim/计数/结算，分页未将未提交或失败结算显示为已扣费。�
 核对合成usage为6美元/3图，零pageerror；最新截图已替换为本次实际捕获，初始版本保留在8f427f0。
 见[组合门禁/全部资源指纹](./combination-validation.json)与[组合完整协议](./combination-protocol-validation.json)。
 09:01 UTC再次fetch确认远端主线仍为05b44bec；此结果不包含生产部署或用户本机验收。
+
+## 草稿交付
+
+[草稿PR #360](https://github.com/tqytwe/sub2api/pull/360)目标为 `play/main`。技术组合merge为
+`b3df928352b8f7ee3a0acaf93d8b14752a0664f2`，两个父节点为分页初始候选8f427f0与主线05b44bec。
+本节及handoff随后补齐真实PR/SHA，属于纯交接元数据，不改变已测源码/构建。
+最终head与其CI以PR实况为准，由主线程核验；此处不预写CI通过或生产验收结论。
