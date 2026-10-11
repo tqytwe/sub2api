@@ -321,6 +321,6 @@
     "validated_at": "2026-10-11T09:55:04.350605+00:00",
     "technical_commit": "eb8cbab6786df2a2e880b3f95afc7b21669c3b4f"
   },
-  "gates_scope": "Original implementation and 279/#358 revision are historical records; current #361 combination is recorded in merge-361-validation.json.",
-  "current_validation": "merge-361-validation.json"
+  "gates_scope": "Original implementation, 279/#358 and #361 results are historical records; current #360 combination is recorded in merge-360-validation.json.",
+  "current_validation": "merge-360-validation.json"
 }

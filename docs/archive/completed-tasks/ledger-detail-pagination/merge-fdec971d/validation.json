@@ -1,0 +1,263 @@
+{
+  "checked_at": "2026-10-11T10:36:24.277631+00:00",
+  "previous_head": "48248352158fabaf691f582f4f31efba4ddf74d1",
+  "mainline_parent": "fdec971d2a01c25d93874b7688dffcff78f79088",
+  "gates": [
+    {
+      "name": "backend",
+      "command": [
+        "make",
+        "-C",
+        "backend",
+        "test"
+      ],
+      "started_at": "2026-10-11T10:08:26Z",
+      "elapsed_seconds": 651.89,
+      "exit_code": 0,
+      "log": "/tmp/ledger-pagination-binding-backend.log",
+      "raw_log_sha256": "28d38af7262b39402b26a3f8d6967b6c3f178285fefb1660411a015352dc1cbc",
+      "archive_log": "logs/backend.raw.txt.gz",
+      "archive_log_sha256": "dc6f298b925a15895d54aa3a5503ba53e6b9e407b362a7d3b5fce9aa8e6cb787"
+    },
+    {
+      "name": "binding-reproduction",
+      "command": [
+        "./scripts/test-subscription-counters.sh",
+        "^TestSubscriptionEntitlementBindingReproduction$",
+        "-race"
+      ],
+      "started_at": "2026-10-11T10:19:17Z",
+      "elapsed_seconds": 74.77,
+      "exit_code": 0,
+      "log": "/tmp/ledger-pagination-binding-binding-reproduction.log",
+      "raw_log_sha256": "7508ee6e19602cb073d73b2d6288d7064657fddca9221a5f8fba679b4a80e7b3",
+      "archive_log": "logs/binding-reproduction.raw.txt.gz",
+      "archive_log_sha256": "8c8691f394a1d3e5ab8030b0effc4ad0b81626380bd3133f9173e5c9ba90d90e"
+    },
+    {
+      "name": "binding-compatibility",
+      "command": [
+        "./scripts/test-subscription-counters.sh",
+        "^TestSubscriptionBindingCompatibility$",
+        "-race"
+      ],
+      "started_at": "2026-10-11T10:20:32Z",
+      "elapsed_seconds": 13.38,
+      "exit_code": 0,
+      "log": "/tmp/ledger-pagination-binding-binding-compatibility.log",
+      "raw_log_sha256": "0bf98968a46a0595d549ea2e81981bef888606f67dea2b876887da86088899dd",
+      "archive_log": "logs/binding-compatibility.raw.txt.gz",
+      "archive_log_sha256": "994864400efcad9fd35ac0ce09e03219420e3108079e56fdd155e93cf8cb232f"
+    },
+    {
+      "name": "paging-batch-race",
+      "command": [
+        "go",
+        "-C",
+        "backend",
+        "test",
+        "-race",
+        "-tags=integration",
+        "./internal/requestledger/acceptance",
+        "-run",
+        "^(TestRequestLedgerHTTPDetailPagingContract|TestRequestLedgerHTTPBillingWalletSourcePaging|TestRequestLedgerHTTPRefreshFindsLateProofBehindCursor|TestRequestLedgerHTTPLateCommitAndCursorIsolation|TestRequestLedgerHTTPPagedEvidenceIsolationAndFailure|TestRequestLedgerHTTPAttemptPageConcurrentAdmission|TestBatchImageHTTPUsageDrillUsesCommittedCapture|TestBatchImageHTTPRecoveryAndIsolation|TestBatchImageHTTPDisconnectAfterCapture|TestBatchImageHTTPUnknownUsageAndNullableImageCount|TestBatchImageHTTPConflictingProofBeforeUsageRecovery|TestBatchImageHTTPCaptureProofReadFailureKeepsUsage|TestBatchImageHTTPReconciliationBoundsRequestsWithoutTask)$",
+        "-count=1",
+        "-timeout=10m",
+        "-json"
+      ],
+      "started_at": "2026-10-11T10:20:46Z",
+      "elapsed_seconds": 72.37,
+      "exit_code": 0,
+      "log": "/tmp/ledger-pagination-binding-paging-batch-race.log",
+      "raw_log_sha256": "c58bb256db272d53cdad816b435bf7abec04165b53fe68fd668feaeee0f78b29",
+      "archive_log": "logs/paging-batch-race.raw.txt.gz",
+      "archive_log_sha256": "6b16bf4c68fe7d686cfafe0547e48078d032b93806dce94b88fec8815684342f"
+    },
+    {
+      "name": "build",
+      "command": [
+        "make",
+        "build"
+      ],
+      "started_at": "2026-10-11T10:21:58Z",
+      "elapsed_seconds": 122.26,
+      "exit_code": 0,
+      "log": "/tmp/ledger-pagination-binding-build.log",
+      "raw_log_sha256": "ea83a122ecb97b506f0c1789150f5178b0c61df0c135ccd2d5e579f48e90ea3e",
+      "archive_log": "logs/build.raw.txt.gz",
+      "archive_log_sha256": "b2a33ccd5fb271f620596273506a9376c2a888e5736f86a795f2144502b66b0f"
+    },
+    {
+      "name": "embed-build",
+      "command": [
+        "go",
+        "-C",
+        "backend",
+        "build",
+        "-tags=embed",
+        "-o",
+        "/tmp/ledger-pagination-server",
+        "./cmd/server"
+      ],
+      "started_at": "2026-10-11T10:24:00Z",
+      "elapsed_seconds": 12.86,
+      "exit_code": 0,
+      "log": "/tmp/ledger-pagination-binding-embed-build.log",
+      "raw_log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "archive_log": "logs/embed-build.raw.txt.gz",
+      "archive_log_sha256": "f61f27bd17de546264aa58f40f3aafaac7021e0ef69c17f6b1b4cd7664a037ec"
+    },
+    {
+      "name": "embed-test",
+      "command": [
+        "go",
+        "-C",
+        "backend",
+        "test",
+        "-tags=embed",
+        "./internal/web",
+        "-count=1"
+      ],
+      "started_at": "2026-10-11T10:24:13Z",
+      "elapsed_seconds": 2.76,
+      "exit_code": 0,
+      "log": "/tmp/ledger-pagination-binding-embed-test.log",
+      "raw_log_sha256": "8705afc551233f22e3cc233bdf6e62dd183f94e0c9c39620df7ace0d5012385b",
+      "archive_log": "logs/embed-test.raw.txt.gz",
+      "archive_log_sha256": "7ead6d847079b2f323c5154ad31d21304295eb669052344db10851042a0325e7"
+    },
+    {
+      "name": "fork",
+      "command": [
+        "./scripts/check-fork-integrity.sh"
+      ],
+      "started_at": "2026-10-11T10:24:16Z",
+      "elapsed_seconds": 305.31,
+      "exit_code": 0,
+      "log": "/tmp/ledger-pagination-binding-fork.log",
+      "raw_log_sha256": "d26a1407188847f30cb487e316c81e2f7b99eecf053786467b49ac0c696417ec",
+      "archive_log": "logs/fork.raw.txt.gz",
+      "archive_log_sha256": "374d036be0feddd56352a312bcfbe8697cd8c38ecb5102c4d178048769a9f407"
+    }
+  ],
+  "binding_race": {
+    "binding-reproduction": {
+      "passed_leaves": 4,
+      "cases": [
+        "TestSubscriptionEntitlementBindingReproduction/direct_verify_must_reject_changed_entitlement_archive_false",
+        "TestSubscriptionEntitlementBindingReproduction/direct_verify_must_reject_changed_entitlement_archive_true",
+        "TestSubscriptionEntitlementBindingReproduction/retry_must_keep_prepared_entitlement",
+        "TestSubscriptionEntitlementBindingReproduction/unchanged_entitlement_retry_recovers"
+      ]
+    },
+    "binding-compatibility": {
+      "passed_leaves": 36,
+      "cases": [
+        "TestSubscriptionBindingCompatibility/archive_false/both_null_exact",
+        "TestSubscriptionBindingCompatibility/archive_false/drop_both",
+        "TestSubscriptionBindingCompatibility/archive_false/drop_entitlement",
+        "TestSubscriptionBindingCompatibility/archive_false/drop_subscription",
+        "TestSubscriptionBindingCompatibility/archive_false/entitlement_only_exact",
+        "TestSubscriptionBindingCompatibility/archive_false/exact",
+        "TestSubscriptionBindingCompatibility/archive_false/legacy_both_null",
+        "TestSubscriptionBindingCompatibility/archive_false/legacy_null_entitlement",
+        "TestSubscriptionBindingCompatibility/archive_false/legacy_null_subscription",
+        "TestSubscriptionBindingCompatibility/archive_false/no_link_entitlement_only",
+        "TestSubscriptionBindingCompatibility/archive_false/no_link_subscription_only",
+        "TestSubscriptionBindingCompatibility/archive_false/no_link_with_ids",
+        "TestSubscriptionBindingCompatibility/archive_false/no_link_without_ids",
+        "TestSubscriptionBindingCompatibility/archive_false/ordinary_exact",
+        "TestSubscriptionBindingCompatibility/archive_false/other_entitlement",
+        "TestSubscriptionBindingCompatibility/archive_false/other_fingerprint",
+        "TestSubscriptionBindingCompatibility/archive_false/other_subscription",
+        "TestSubscriptionBindingCompatibility/archive_true/both_null_exact",
+        "TestSubscriptionBindingCompatibility/archive_true/drop_both",
+        "TestSubscriptionBindingCompatibility/archive_true/drop_entitlement",
+        "TestSubscriptionBindingCompatibility/archive_true/drop_subscription",
+        "TestSubscriptionBindingCompatibility/archive_true/entitlement_only_exact",
+        "TestSubscriptionBindingCompatibility/archive_true/exact",
+        "TestSubscriptionBindingCompatibility/archive_true/legacy_both_null",
+        "TestSubscriptionBindingCompatibility/archive_true/legacy_null_entitlement",
+        "TestSubscriptionBindingCompatibility/archive_true/legacy_null_subscription",
+        "TestSubscriptionBindingCompatibility/archive_true/no_link_entitlement_only",
+        "TestSubscriptionBindingCompatibility/archive_true/no_link_subscription_only",
+        "TestSubscriptionBindingCompatibility/archive_true/no_link_with_ids",
+        "TestSubscriptionBindingCompatibility/archive_true/no_link_without_ids",
+        "TestSubscriptionBindingCompatibility/archive_true/ordinary_exact",
+        "TestSubscriptionBindingCompatibility/archive_true/other_entitlement",
+        "TestSubscriptionBindingCompatibility/archive_true/other_fingerprint",
+        "TestSubscriptionBindingCompatibility/archive_true/other_subscription",
+        "TestSubscriptionBindingCompatibility/concurrent_prepare_different_ids_freezes_one",
+        "TestSubscriptionBindingCompatibility/no_ledger_context_unchanged"
+      ]
+    }
+  },
+  "pagination_batch_http_race": {
+    "top_level_passed": 13,
+    "cases": [
+      "TestBatchImageHTTPCaptureProofReadFailureKeepsUsage",
+      "TestBatchImageHTTPConflictingProofBeforeUsageRecovery",
+      "TestBatchImageHTTPDisconnectAfterCapture",
+      "TestBatchImageHTTPReconciliationBoundsRequestsWithoutTask",
+      "TestBatchImageHTTPRecoveryAndIsolation",
+      "TestBatchImageHTTPUnknownUsageAndNullableImageCount",
+      "TestBatchImageHTTPUsageDrillUsesCommittedCapture",
+      "TestRequestLedgerHTTPAttemptPageConcurrentAdmission",
+      "TestRequestLedgerHTTPBillingWalletSourcePaging",
+      "TestRequestLedgerHTTPDetailPagingContract",
+      "TestRequestLedgerHTTPLateCommitAndCursorIsolation",
+      "TestRequestLedgerHTTPPagedEvidenceIsolationAndFailure",
+      "TestRequestLedgerHTTPRefreshFindsLateProofBehindCursor"
+    ]
+  },
+  "frontend_suite": {
+    "reused_from": "../session-isolation-followup.json",
+    "passed": 3680,
+    "existing_opt_in_skipped": 8,
+    "http_session_passed": 26,
+    "reason": "Entire frontend source/dependencies unchanged; all final rebuilt assets byte-identical."
+  },
+  "browser": {
+    "started_at": "2026-10-11T10:31:22.207232+00:00",
+    "finished_at": "2026-10-11T10:31:46.494409+00:00",
+    "capture_exit_code": 0,
+    "fixture_exit_code": 0,
+    "ref": "browser-evidence.json",
+    "repeated": "Both-role standard paging, HTTP/PG, all four viewports, themes/languages, amount/image count and authorization.",
+    "session_lifecycle_reused": "../session-browser-evidence.json",
+    "reuse_reason": "Frontend source, test script and every built asset byte-identical; current backend binding interaction separately tested."
+  },
+  "assets": {
+    "manifest": "assets.sha256",
+    "manifest_sha256": "5f5b24f98d48591358ec04bfbfce8f3fb8308dc3b4f29c2a090c03bf894c042e",
+    "count": 356,
+    "entry": "entry-assets.json",
+    "byte_identical_to_session_build": true,
+    "served_bytes_match_build": true
+  },
+  "reviews": {
+    "spec": {
+      "agent": "batch_spec_review",
+      "result": "PASS",
+      "read_only": true,
+      "note": "No additional combination-specific contract needed; existing bounded reads and binding semantics align."
+    },
+    "code": {
+      "agent": "batch_code_review",
+      "result": "PASS",
+      "read_only": true,
+      "note": "No lost repairs, new lock-order issue or pagination/binding proof conflict."
+    }
+  },
+  "limitations": [
+    "No production operations, generation, merge/deploy or user-local acceptance.",
+    "Full frontend / protocol / tagged-unit historical results are not claimed as newly rerun.",
+    "Legacy missing binding is not reconstructed; revocation/in-flight semantics are outside this merge."
+  ],
+  "technical_merge_sha": "c25d74eb1f0383c95c839ea2e31d7b92d1430008",
+  "parents": [
+    "48248352158fabaf691f582f4f31efba4ddf74d1",
+    "fdec971d2a01c25d93874b7688dffcff78f79088"
+  ],
+  "metadata_only_followup": "Following commit records this exact technical SHA; it changes no tested source or build resource."
+}

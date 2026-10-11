@@ -50,6 +50,7 @@ jobs:
           import json, os
           from pathlib import Path
           required = {
+              "TestRequestLedgerRoutingAfterDetailPaginationMigration",
               "TestRequestLedgerRoutingMigrationBusyKeepsAdmission",
               "TestRequestLedgerRoutingMigrationExecutionTimeoutRollsBack",
               "TestLedgerPostgresRoutingKilledProcessIsIncomplete",
@@ -68,6 +69,15 @@ jobs:
               "TestRequestLedgerRoutingHTTPAdminIsolationAndDetailFailure",
               "TestRequestLedgerRoutingActualUnsupportedDispatch",
               "TestRequestLedgerRoutingRepositoryPoolIsPrefiltered",
+              "TestRequestLedgerHTTPDetailPagingContract",
+              "TestRequestLedgerHTTPBillingWalletSourcePaging",
+              "TestRequestLedgerHTTPRefreshFindsLateProofBehindCursor",
+              "TestRequestLedgerHTTPLateCommitAndCursorIsolation",
+              "TestRequestLedgerHTTPPagedEvidenceIsolationAndFailure",
+              "TestRequestLedgerHTTPAttemptPageConcurrentAdmission",
+              "TestRequestLedgerDetailPageCandidatesUseBoundedIndex",
+              "TestRequestLedgerDetailPaginationMigrationRecoversInterruptedIndex",
+
               "TestBatchImageHTTPUsageDrillUsesCommittedCapture",
               "TestBatchImageHTTPRecoveryAndIsolation",
               "TestBatchImageHTTPDisconnectAfterCapture",

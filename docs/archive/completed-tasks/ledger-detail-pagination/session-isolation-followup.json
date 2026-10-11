@@ -1,0 +1,226 @@
+{
+  "checked_at": "2026-10-11T10:00:08.349638+00:00",
+  "baseline_sha": "e818db78b5e1f7b69b286f52944ccfd48ef7b44e",
+  "mainline_merge_parent": "1b701237ec3ceb869c39d28ad11d32e4065a2471",
+  "status": "Local implementation, both reviews, full gates and actual built HTTP/PG browser validation PASS. Draft PR #360 ready for parent exact-head CI/review coordination; not merged/deployed.",
+  "dependency": {
+    "pr": 358,
+    "merged": true,
+    "auth_sources_unchanged": {
+      "frontend/src/api/auth.ts": "89a9092cc964663167cd6214d1bd65588b4c2cd2f1b10111fc9cf10830434803",
+      "frontend/src/api/client.ts": "fb723bf2fa4818b1763a0f8e4bd06272df62b887b85fa844d66ab890457efa2c",
+      "frontend/src/api/tokenRefresh.ts": "386f701168ff2ffc38c01aa5de1bf93d0188a70cc6745f6f106abfb141873e6e",
+      "frontend/src/stores/auth.ts": "c6979bee3420c21bbef8f7f8ec6bcc162a2e628b148d6b739cfcaaa2413f092a"
+    }
+  },
+  "red": [
+    {
+      "log": "ledger-session-358-confirmed-red.txt",
+      "failures": 11,
+      "passes": 2,
+      "filtered_additional_cases": 9,
+      "note": "Original page/section sources with #358 official auth dependency and correctly disposed test stores."
+    },
+    {
+      "log": "ledger-session-ready-red.txt",
+      "failures": 2,
+      "note": "Same-session peer pending to ready initial/explicit reads lost."
+    },
+    {
+      "log": "ledger-session-timeout-red-confirmed.txt",
+      "failures": 1,
+      "note": "Abandoned same-session publication has no bounded retry path."
+    }
+  ],
+  "targeted_green": {
+    "passed": 48,
+    "http_session_cases": 26,
+    "view_cases": 19,
+    "api_cases": 3,
+    "log": "ledger-session-final-targeted.txt"
+  },
+  "evidence_log_sha256": {
+    "ledger-session-358-confirmed-red.txt": "8ad249800eae2da129e6150dd3970320690e9078c6904fde2602798b03fa713e",
+    "ledger-session-ready-red.txt": "79caa1196314e2014685d87d9092ec0e4236d80b222cc3bee956d2655b3527e8",
+    "ledger-session-timeout-red-confirmed.txt": "da7264b00be10f5eab11beec80bec29c18d1f1358382b344455a1b972f3b7e51",
+    "ledger-session-final-targeted.txt": "2eee6b68a60a6f1e8417dec3c217b9700ada169d4b3c1b4824542d7849623492"
+  },
+  "implementation": [
+    "Official session identity distinguishes normal rotation from fresh login, logout and account transitions.",
+    "Synchronous clearing and abort plus identity/request-sequence guards in success/catch/finally.",
+    "Scope shared with independent section controllers; close/reopen never admits obsolete results.",
+    "Pending same-session publication defers reads without resetting page/cursor; readiness resumes them; five seconds produces local retryable errors."
+  ],
+  "limitations": [
+    "No production operations or acceptance.",
+    "Historical gpt22 losses not attributed/repaired.",
+    "Backend protocol/race results must be referenced with source equality; no claim of rerunning them in this frontend follow-up."
+  ],
+  "mainline_frontend_files_preserved": [
+    "frontend/src/api/__tests__/tokenRefresh.spec.ts",
+    "frontend/src/api/auth.ts",
+    "frontend/src/api/client.ts",
+    "frontend/src/api/tokenRefresh.ts",
+    "frontend/src/stores/__tests__/auth.http.spec.ts",
+    "frontend/src/stores/__tests__/auth.spec.ts",
+    "frontend/src/stores/auth.ts",
+    "frontend/src/views/public/QuizQuestView.vue",
+    "frontend/src/views/public/__tests__/BlindboxView.http.spec.ts",
+    "frontend/src/views/public/__tests__/QuizQuestView.session.http.spec.ts",
+    "frontend/src/views/user/__tests__/CheckInView.balance.http.spec.ts",
+    "frontend/src/views/user/__tests__/PlayHubView.session.http.spec.ts"
+  ],
+  "backend_and_workflows_byte_identical_to": "e818db78b5e1f7b69b286f52944ccfd48ef7b44e",
+  "backend_evidence_reused": {
+    "source": "combination-validation.json",
+    "reason": "No backend, migration, test, script or workflow source changed by this #358/frontend follow-up. Full make test still rerun; protocol/unit/race not repeated."
+  },
+  "full_frontend": {
+    "passed": 3680,
+    "skipped": 8,
+    "files_passed": 502,
+    "files_skipped": 3,
+    "note": "Existing explicit opt-in PG fixture tests only; all 26 new HTTP cases executed."
+  },
+  "reviews": {
+    "spec": {
+      "agent": "batch_spec_review",
+      "result": "PASS after ready-defer and timeout issues fixed",
+      "read_only": true
+    },
+    "code": {
+      "agent": "batch_code_review",
+      "result": "PASS, no substantive findings",
+      "read_only": true,
+      "limitation": "Synthetic StorageEvents do not cover every true cross-tab timing; actual built browser runs still required.",
+      "browser_evidence_followup": "PASS after baseline count moved before logout; actual complete rerun then exited 0."
+    }
+  },
+  "gates": [
+    {
+      "name": "make-test",
+      "command": [
+        "make",
+        "test"
+      ],
+      "started_at": "2026-10-11T09:43:53Z",
+      "elapsed_seconds": 379.75,
+      "exit_code": 0,
+      "log": "/tmp/ledger-pagination-session-make-test.log",
+      "log_sha256": "f4a93ae6d63176d4c388e870c9f4f9f11cab30b5bfeedae41fe4229cc3fb847b"
+    },
+    {
+      "name": "build",
+      "command": [
+        "make",
+        "build"
+      ],
+      "started_at": "2026-10-11T09:50:13Z",
+      "elapsed_seconds": 81.12,
+      "exit_code": 0,
+      "log": "/tmp/ledger-pagination-session-build.log",
+      "log_sha256": "139b567509535e3f80c4dbcc34f0d59506a16c6445e404e2f404054a386f0084"
+    },
+    {
+      "name": "embed-build",
+      "command": [
+        "go",
+        "-C",
+        "backend",
+        "build",
+        "-tags=embed",
+        "-o",
+        "/tmp/ledger-pagination-server",
+        "./cmd/server"
+      ],
+      "started_at": "2026-10-11T09:51:34Z",
+      "elapsed_seconds": 11.1,
+      "exit_code": 0,
+      "log": "/tmp/ledger-pagination-session-embed-build.log",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "embed-test",
+      "command": [
+        "go",
+        "-C",
+        "backend",
+        "test",
+        "-tags=embed",
+        "./internal/web",
+        "-count=1"
+      ],
+      "started_at": "2026-10-11T09:51:45Z",
+      "elapsed_seconds": 2.8,
+      "exit_code": 0,
+      "log": "/tmp/ledger-pagination-session-embed-test.log",
+      "log_sha256": "b12d5c355025128df0a1624d90f1a31bf5f0f863ec91345b7859dd645d67626d"
+    },
+    {
+      "name": "fork",
+      "command": [
+        "./scripts/check-fork-integrity.sh"
+      ],
+      "started_at": "2026-10-11T09:51:48Z",
+      "elapsed_seconds": 141.17,
+      "exit_code": 0,
+      "log": "/tmp/ledger-pagination-session-fork.log",
+      "log_sha256": "f718d4d2dfd143e3b4d5cb3b21f8f68481c971859a8e89f4c2a31251f842099b"
+    },
+    {
+      "name": "design",
+      "command": [
+        "pnpm",
+        "--dir",
+        "frontend",
+        "design:check"
+      ],
+      "started_at": "2026-10-11T09:54:09Z",
+      "elapsed_seconds": 0.55,
+      "exit_code": 0,
+      "log": "/tmp/ledger-pagination-session-design.log",
+      "log_sha256": "079967493efb5e47c5dea2b57e73e70ddaf742a97c1973ece9acb2ed3889d9a1"
+    }
+  ],
+  "browser": {
+    "standard": {
+      "started_at": "2026-10-11T09:54:11.542640+00:00",
+      "finished_at": "2026-10-11T09:54:34.519486+00:00",
+      "capture_exit_code": 0,
+      "fixture_exit_code": 0,
+      "ref": "merge-fdec971d/previous-browser-evidence.json",
+      "fixture_log_sha256": "37fd5b3cd9819687d8c1203950fc5267710fbd4e1bf76d471bc78a0b086759ea",
+      "capture_log_sha256": "c5469649863e8e138608210430aa557a3d02a1494c9bfe7865a542eced30edaf"
+    },
+    "lifecycle": {
+      "started_at": "2026-10-11T09:57:41.208080+00:00",
+      "finished_at": "2026-10-11T09:58:04.438648+00:00",
+      "capture_exit_code": 0,
+      "fixture_exit_code": 0,
+      "ref": "session-browser-evidence.json",
+      "fixture_log_sha256": "d6beee175c26965d8ff6a81a4cd6d7770898384d90af6f95ff577aa0b2a404f6",
+      "capture_log_sha256": "738ecca65ebc9456bb81ac182f285296d6f4d120b91ca27fd99d6bdd45e36d26"
+    }
+  },
+  "source_fingerprint": "session-source-fingerprint.json",
+  "browser_harness_correction": {
+    "initial_result": "First lifecycle capture exited 1: timed out locating ledger-refresh after logout.",
+    "cause": "Actual production router had already redirected to /login, correctly removing private content.",
+    "correction": "Accept the real login redirect or verify no guest read if the ledger remains mounted; still require old request ID absent and no extra ledger requests.",
+    "result": "Both roles rerun completely; exit 0, zero page errors.",
+    "product_sources_changed": false,
+    "additional_review": "Reviewer found logout request count began too late; moved baseline before logout after networkidle, then reran both roles completely. Script-only change, independently re-reviewed PASS."
+  },
+  "raw_log_sha256": {
+    "ledger-session-358-confirmed-red.txt": "cb1928d4950777c9ea83a3c2f0cd61a3aabd60421834d37e68401bdeebd80c9e",
+    "ledger-session-ready-red.txt": "6179dfcee4dac375fc83d1472e1a50a855214b5d61ced58694fe3ffa0200c7eb",
+    "ledger-session-timeout-red-confirmed.txt": "d1b0d968a0bc58c1c00d5c029401bb0ba0a1409d8895bfd33b6ed00d2dc7f0c5",
+    "ledger-session-final-targeted.txt": "0dcff18fe301ba7ee78f605c52999261e4ada931285830940b5833be5bba2296"
+  },
+  "evidence_normalization": "Archived logs have trailing blank lines removed; raw-log and archived checksums are both retained.",
+  "technical_merge_sha": "72933acd164ce82d38813596d4294129b9d0edc5",
+  "parents": [
+    "e818db78b5e1f7b69b286f52944ccfd48ef7b44e",
+    "1b701237ec3ceb869c39d28ad11d32e4065a2471"
+  ]
+}

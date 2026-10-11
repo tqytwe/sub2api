@@ -1,0 +1,114 @@
+
+ RUN  v2.1.9 /workspace/sub2api-ledger-pagination/frontend
+
+Browserslist: browsers data (caniuse-lite) is 10 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+ ❯ src/views/shared/__tests__/RequestLedgerView.session.http.spec.ts (22 tests | 11 failed | 9 skipped) 2748ms
+   × clears loaded details/list on same-role account switch even when B fails (admin=false) 334ms
+     → expected 'Unknown usage is not a zero charge. M…' not to contain 'private-fixture-a'
+   × clears loaded details/list on same-role account switch even when B fails (admin=true) 220ms
+     → expected 'Unknown usage is not a zero charge. M…' not to contain 'private-fixture-a'
+   × cancels late old list success without unmounting the page 120ms
+     → expected false to be true // Object.is equality
+   × cancels late old summary success without unmounting the page 107ms
+     → expected false to be true // Object.is equality
+   × cancels late old attempts success without unmounting the page 104ms
+     → expected false to be true // Object.is equality
+   × cancels late old billing success without unmounting the page 110ms
+     → expected false to be true // Object.is equality
+   × cancels late old wallet success without unmounting the page 104ms
+     → expected false to be true // Object.is equality
+   × cancels late old diagnostics success without unmounting the page 103ms
+     → expected false to be true // Object.is equality
+   × cancels late old usage success without unmounting the page 156ms
+     → expected false to be true // Object.is equality
+   × clears on logout synchronously, does no guest read, and isolates A→B→A 127ms
+     → expected 'Unknown usage is not a zero charge. M…' not to contain 'private-fixture-a'
+   × treats a fresh login to the same account as a new session 101ms
+     → expected true to be false // Object.is equality
+   ✓ preserves a pending page and its cursor across real automatic token renewal 1083ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 11 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/views/shared/__tests__/RequestLedgerView.session.http.spec.ts > clears loaded details/list on same-role account switch even when B fails (admin=false)
+ FAIL  src/views/shared/__tests__/RequestLedgerView.session.http.spec.ts > clears loaded details/list on same-role account switch even when B fails (admin=true)
+AssertionError: expected 'Unknown usage is not a zero charge. M…' not to contain 'private-fixture-a'
+
+Expected: "private-fixture-a"
+Received: "Unknown usage is not a zero charge. Missing history before rollout cannot be reconstructed here.Usage recordsPrivate request IDExecutionAll statesUsageAll statesSettlementAll statesKey IDFrom (local time)Until (exclusive)Apply filtersRefreshResetRequest / timeIdentityExecutionUsageSettlementAttemptsActionsPOST /private-fixture-a10/11/2026, 12:00:00 AM00000000-0000-4000-8000-000000000001User ID 1Key ID 201Succeeded200KnownSettled1DetailsPreviousPage 1 of 1NextShowing 1 to 1 of 1 resultsPer page:201DetailsPrivate request ID00000000-0000-4000-8000-000000000001Started10/11/2026, 12:00:00 AMEndedNot finishedExecutionSucceededUsageKnownSettlementSettledUpstream response bytes observedYesEach section pages independently. Refresh a section to see new records, delayed links or evidence, and status changes. Pages are live, not a fixed snapshot.Attempts#PhaseExecutionUsageUpstream response bytes observedHTTP statusSafe error code1RequestSucceededKnownNo evidenceExact correlation evidenceIdentifiers are diagnostic evidence, not proof of usage or charges. Metadata is written asynchronously; history or diagnostic failures may leave gaps. Empty fields do not prove that the upstream omitted identifiers.Attempts #1Attempt IDprivate-fixture-a-attemptPreviousPage 1 · 1 rowsNextRefresh sectionWallet transactionThese are existing wallet entries. A reservation alone does not prove final settlement.#Phase99Image capturePreviousPage 1 · 1 rowsNextRefresh sectionBilling referencesUsage recordUsage record #42Verified billed amount$6.0000SettlementThis batch is settledUsage record #42private-fixture-a-usageVerified billed amount$6.0000Image count3Batch IDprivate-fixture-a-batchPreviousPage 1 · 1 rowsNextRefresh section"
+
+ ❯ src/views/shared/__tests__/RequestLedgerView.session.http.spec.ts:96:27
+     94|   await vi.waitFor(() => expect(view.text()).toContain('private-fixtur…
+     95|   failB = true; await login('b'); await pause(); await flushPromises()
+     96|   expect(view.text()).not.toContain('private-fixture-a')
+       |                           ^
+     97|   expect(view.find('[data-testid="ledger-section-billing"]').exists())…
+     98|   expect((view.get('[name="private_id"]').element as HTMLInputElement)…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/11]⎯
+
+ FAIL  src/views/shared/__tests__/RequestLedgerView.session.http.spec.ts > cancels late old list success without unmounting the page
+ FAIL  src/views/shared/__tests__/RequestLedgerView.session.http.spec.ts > cancels late old summary success without unmounting the page
+ FAIL  src/views/shared/__tests__/RequestLedgerView.session.http.spec.ts > cancels late old attempts success without unmounting the page
+ FAIL  src/views/shared/__tests__/RequestLedgerView.session.http.spec.ts > cancels late old billing success without unmounting the page
+ FAIL  src/views/shared/__tests__/RequestLedgerView.session.http.spec.ts > cancels late old wallet success without unmounting the page
+ FAIL  src/views/shared/__tests__/RequestLedgerView.session.http.spec.ts > cancels late old diagnostics success without unmounting the page
+ FAIL  src/views/shared/__tests__/RequestLedgerView.session.http.spec.ts > cancels late old usage success without unmounting the page
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/views/shared/__tests__/RequestLedgerView.session.http.spec.ts:113:29
+    111|   const old = pending('fixture-a', stage)[0]!
+    112|   hold = ''; failB = true; await login('b'); await pause()
+    113|   expect(old.res.destroyed).toBe(true)
+       |                             ^
+    114|   complete(old, 'obsolete-A'); await pause()
+    115|   expect(view.text()).not.toContain('obsolete-A')
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/11]⎯
+
+ FAIL  src/views/shared/__tests__/RequestLedgerView.session.http.spec.ts > clears on logout synchronously, does no guest read, and isolates A→B→A
+AssertionError: expected 'Unknown usage is not a zero charge. M…' not to contain 'private-fixture-a'
+
+Expected: "private-fixture-a"
+Received: "Unknown usage is not a zero charge. Missing history before rollout cannot be reconstructed here.Usage recordsPrivate request IDExecutionAll statesUsageAll statesSettlementAll statesKey IDFrom (local time)Until (exclusive)Apply filtersRefreshResetRequest / timeIdentityExecutionUsageSettlementAttemptsActionsPOST /private-fixture-a10/11/2026, 12:00:00 AM00000000-0000-4000-8000-000000000001User ID 1Key ID 201Succeeded200KnownSettled1DetailsPreviousPage 1 of 1NextShowing 1 to 1 of 1 resultsPer page:201DetailsPrivate request ID00000000-0000-4000-8000-000000000001Started10/11/2026, 12:00:00 AMEndedNot finishedExecutionSucceededUsageKnownSettlementSettledUpstream response bytes observedYesEach section pages independently. Refresh a section to see new records, delayed links or evidence, and status changes. Pages are live, not a fixed snapshot.AttemptsLoading...#PhaseExecutionUsageUpstream response bytes observedHTTP statusSafe error code1RequestSucceededKnownNo evidenceExact correlation evidenceIdentifiers are diagnostic evidence, not proof of usage or charges. Metadata is written asynchronously; history or diagnostic failures may leave gaps. Empty fields do not prove that the upstream omitted identifiers.Attempts #1Attempt IDprivate-fixture-a-attemptPreviousPage 1 · 1 rowsNextRefresh sectionWallet transactionThese are existing wallet entries. A reservation alone does not prove final settlement.#Phase99Image capturePreviousPage 1 · 1 rowsNextRefresh sectionBilling referencesUsage recordUsage record #42Verified billed amount$6.0000SettlementThis batch is settledPreviousPage 1 · 1 rowsNextRefresh section"
+
+ ❯ src/views/shared/__tests__/RequestLedgerView.session.http.spec.ts:124:27
+    122|   const old = pending('fixture-a', 'attempts')[0]!
+    123|   await auth.logout(); await flushPromises()
+    124|   expect(view.text()).not.toContain('private-fixture-a')
+       |                           ^
+    125|   const count = reads.length; await view.get('[data-testid="ledger-ref…
+    126|   hold = ''; await login('b'); await vi.waitFor(() => expect(view.text…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/11]⎯
+
+ FAIL  src/views/shared/__tests__/RequestLedgerView.session.http.spec.ts > treats a fresh login to the same account as a new session
+AssertionError: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ src/views/shared/__tests__/RequestLedgerView.session.http.spec.ts:132:73
+    130| it('treats a fresh login to the same account as a new session', async …
+    131|   const view = await ready(); await login('a'); await pause()
+    132|   expect(view.find('[data-testid="ledger-section-attempts"]').exists()…
+       |                                                                         ^
+    133|   expect(router.currentRoute.value.query.private_id).toBeUndefined()
+    134| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/11]⎯
+
+ Test Files  1 failed (1)
+      Tests  11 failed | 2 passed | 9 skipped (22)
+   Start at  09:35:38
+   Duration  5.40s (transform 1.53s, setup 69ms, collect 1.89s, tests 2.75s, environment 294ms, prepare 58ms)

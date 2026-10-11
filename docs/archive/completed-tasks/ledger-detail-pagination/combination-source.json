@@ -1,0 +1,33 @@
+{
+  "checked_at": "2026-10-11T08:41:54.549260+00:00",
+  "initial_candidate": "8f427f0577bb47a391b98dfd77d264fe22783e14",
+  "mainline_parent": "05b44bec5c2d30ad58d009fbe5247ea363c6ee70",
+  "staged_merge_tree": "b8b6d1d8520a1065eb5727aedb459e839bec2123",
+  "merge_conflicts": false,
+  "mainline_files_preserved": [
+    ".github/workflows/subscription-counter-acceptance.yml",
+    "backend/internal/billingacceptance/subscription_counter_edges_integration_test.go",
+    "backend/internal/billingacceptance/subscription_counter_ownership_integration_test.go",
+    "backend/internal/billingacceptance/subscription_counters_integration_test.go",
+    "backend/internal/repository/usage_billing_repo.go",
+    "docs/archive/completed-tasks/2026-10-10-subscription-counter-acceptance/2026-10-11-continuation.md",
+    "docs/archive/completed-tasks/2026-10-10-subscription-counter-acceptance/2026-10-11-counter-matrix.txt",
+    "docs/archive/completed-tasks/2026-10-10-subscription-counter-acceptance/2026-10-11-evidence.json",
+    "docs/archive/completed-tasks/2026-10-10-subscription-counter-acceptance/2026-10-11-review.md",
+    "docs/archive/completed-tasks/2026-10-10-subscription-counter-acceptance/2026-10-11-validation.txt",
+    "docs/archive/completed-tasks/2026-10-10-subscription-counter-acceptance/README.md",
+    "docs/archive/completed-tasks/2026-10-10-subscription-counter-acceptance/counter-matrix-red.txt",
+    "docs/archive/completed-tasks/2026-10-10-subscription-counter-acceptance/counter-matrix.txt",
+    "docs/archive/completed-tasks/2026-10-10-subscription-counter-acceptance/counter-race.txt",
+    "docs/archive/completed-tasks/2026-10-10-subscription-counter-acceptance/evidence-red.json",
+    "docs/archive/completed-tasks/2026-10-10-subscription-counter-acceptance/evidence.json",
+    "docs/archive/completed-tasks/2026-10-10-subscription-counter-acceptance/reference-unit.txt",
+    "docs/archive/completed-tasks/2026-10-10-subscription-counter-acceptance/tested-source-sha256.txt",
+    "docs/archive/completed-tasks/2026-10-10-subscription-counter-acceptance/validation-output.txt",
+    "scripts/test-subscription-counters.sh"
+  ],
+  "pagination_source_fingerprint_unchanged": true,
+  "frontend_source_unchanged": true,
+  "restricted_billing_repo_sha256": "e63fd9684a54e0a853de75f5b347d5e781ec4b0ed12f872d3989c5256f74844d",
+  "note": "Ordinary no-ff merge; not committed until affected gates and sequential independent reviews pass. Restricted repository content comes verbatim from mainline #352, not a pagination edit."
+}

@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/lib/pq"
 )
 
 type Viewer struct {
@@ -176,33 +178,20 @@ func (l *Ledger) Attempts(ctx context.Context, viewer Viewer, id string) ([]Atte
 // AttemptsWithEvidence keeps optional diagnostics independent from the original
 // ledger rows. A diagnostic read failure never hides execution or billing.
 func (l *Ledger) AttemptsWithEvidence(ctx context.Context, viewer Viewer, id string) ([]AttemptRecord, bool, error) {
-	if _, err := l.Get(ctx, viewer, id); err != nil {
-		return nil, false, err
-	}
-	result, err := l.coreAttempts(ctx, viewer, id)
+	page, err := l.AttemptsPage(ctx, viewer, id, "", MaxDetailPageSize)
 	if err != nil {
 		return nil, false, err
 	}
-	evidence, err := l.attemptEvidence(ctx, id)
-	if err != nil {
-		return result, true, nil
+	if page.HasMore {
+		return nil, false, ErrDetailPaginationRequired
 	}
-	for i := range result {
-		e := evidence[result[i].Number]
-		result[i].AttemptID = e.AttemptID
-		if viewer.Admin {
-			result[i].UpstreamRequestID = e.UpstreamRequestID
-			result[i].UpstreamResponseID = e.UpstreamResponseID
-			result[i].IdentifierConflict = e.IdentifierConflict
-		}
-	}
-	return result, false, nil
+	return page.Items, page.EvidenceUnavailable, nil
 }
 
-func (l *Ledger) coreAttempts(ctx context.Context, viewer Viewer, id string) ([]AttemptRecord, error) {
+func (l *Ledger) coreAttemptsPage(ctx context.Context, viewer Viewer, id string, after int64, limit int) ([]AttemptRecord, error) {
 	ctx, cancel := context.WithTimeout(ctx, writeTimeout)
 	defer cancel()
-	rows, err := l.db.QueryContext(ctx, `SELECT to_jsonb(a) FROM gateway_request_attempts a WHERE a.request_id=$1 ORDER BY a.attempt_no`, id)
+	rows, err := l.db.QueryContext(ctx, `SELECT to_jsonb(a) FROM gateway_request_attempts a WHERE a.request_id=$1 AND a.attempt_no>$2 ORDER BY a.attempt_no LIMIT $3`, id, after, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -226,10 +215,10 @@ func (l *Ledger) coreAttempts(ctx context.Context, viewer Viewer, id string) ([]
 	return result, rows.Err()
 }
 
-func (l *Ledger) attemptEvidence(ctx context.Context, id string) (map[int]AttemptRecord, error) {
+func (l *Ledger) attemptEvidencePage(ctx context.Context, id string, numbers []int) (map[int]AttemptRecord, error) {
 	ctx, cancel := optionalEvidenceContext(ctx)
 	defer cancel()
-	rows, err := l.db.QueryContext(ctx, `SELECT attempt_no,attempt_id,upstream_request_id,upstream_response_id,identifier_conflict FROM gateway_request_attempt_evidence WHERE request_id=$1`, id)
+	rows, err := l.db.QueryContext(ctx, `SELECT attempt_no,attempt_id,upstream_request_id,upstream_response_id,identifier_conflict FROM gateway_request_attempt_evidence WHERE request_id=$1 AND attempt_no=ANY($2)`, id, pq.Array(numbers))
 	if err != nil {
 		return nil, err
 	}
@@ -257,13 +246,7 @@ type BillingReference struct {
 	BatchID *string `json:"batch_id,omitempty"`
 }
 
-func (l *Ledger) BillingReferences(ctx context.Context, viewer Viewer, id string) ([]BillingReference, error) {
-	if _, err := l.Get(ctx, viewer, id); err != nil {
-		return nil, err
-	}
-	ctx, cancel := context.WithTimeout(ctx, writeTimeout)
-	defer cancel()
-	rows, err := l.db.QueryContext(ctx, usageEvidence+`SELECT u.id,b.subscription_id,b.package_entitlement_id,b.settlement_verified,b.settlement_applied,
+const billingReferencesSelect = `SELECT u.id,b.subscription_id,b.package_entitlement_id,b.settlement_verified,b.settlement_applied,
  (SELECT bt.id FROM balance_transactions bt JOIN gateway_requests owner ON owner.id=b.request_id
  WHERE bt.user_id=owner.user_id AND (
  (b.batch_id IS NULL AND bt.source_type='usage_charge' AND bt.source_id=b.billing_request_id
@@ -272,20 +255,21 @@ func (l *Ledger) BillingReferences(ctx context.Context, viewer Viewer, id string
  AND bt.idempotency_key='image_balance_capture:'||b.api_key_id::text||':'||b.billing_request_id))),
  CASE WHEN b.settlement_verified AND u.billing_settled THEN u.billed_cost ELSE NULL END,b.batch_id
  FROM usage_evidence b LEFT JOIN usage_logs u ON u.request_id=b.billing_request_id AND u.api_key_id=b.api_key_id
- AND u.billing_request_fingerprint=b.request_fingerprint WHERE b.request_id=$1 ORDER BY b.created_at`, id)
+ AND u.billing_request_fingerprint=b.request_fingerprint WHERE b.request_id=$1`
+
+func scanBillingReference(row interface{ Scan(...any) error }, r *BillingReference) error {
+	return row.Scan(&r.UsageLogID, &r.SubscriptionID, &r.PackageEntitlementID, &r.Settled, &r.Applied, &r.WalletTransactionID, &r.BilledCost, &r.BatchID)
+}
+
+func (l *Ledger) BillingReferences(ctx context.Context, viewer Viewer, id string) ([]BillingReference, error) {
+	page, err := l.BillingPage(ctx, viewer, id, "", MaxDetailPageSize)
 	if err != nil {
 		return nil, err
 	}
-	defer func() { _ = rows.Close() }()
-	result := []BillingReference{}
-	for rows.Next() {
-		var r BillingReference
-		if err = rows.Scan(&r.UsageLogID, &r.SubscriptionID, &r.PackageEntitlementID, &r.Settled, &r.Applied, &r.WalletTransactionID, &r.BilledCost, &r.BatchID); err != nil {
-			return nil, err
-		}
-		result = append(result, r)
+	if page.HasMore {
+		return nil, ErrDetailPaginationRequired
 	}
-	return result, rows.Err()
+	return page.Items, nil
 }
 
 // LinkedUsage is a read of an existing usage row, never a copied/reconstructed log.

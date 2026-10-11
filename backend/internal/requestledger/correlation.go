@@ -366,28 +366,14 @@ func (l *Ledger) Diagnostics(ctx context.Context, viewer Viewer, requestID strin
 	if !viewer.Admin {
 		return nil, nil
 	}
-	if _, err := l.Get(ctx, viewer, requestID); err != nil {
-		return nil, err
-	}
-	ctx, cancel := optionalEvidenceContext(ctx)
-	defer cancel()
-	rows, err := l.db.QueryContext(ctx, `SELECT l.attempt_no,l.ops_error_log_id,o.id IS NOT NULL
- FROM gateway_request_ops_links l JOIN gateway_requests r ON r.id=l.request_id
- LEFT JOIN ops_error_logs o ON o.id=l.ops_error_log_id AND o.user_id IS NOT DISTINCT FROM r.user_id
- AND o.api_key_id IS NOT DISTINCT FROM r.api_key_id WHERE l.request_id=$1 ORDER BY l.attempt_no,l.ops_error_log_id`, requestID)
+	page, err := l.DiagnosticsPage(ctx, viewer, requestID, "", MaxDetailPageSize)
 	if err != nil {
 		return nil, err
 	}
-	defer func() { _ = rows.Close() }()
-	result := []DiagnosticReference{}
-	for rows.Next() {
-		var d DiagnosticReference
-		if err := rows.Scan(&d.AttemptNo, &d.OpsErrorLogID, &d.Available); err != nil {
-			return nil, err
-		}
-		result = append(result, d)
+	if page.HasMore {
+		return nil, ErrDetailPaginationRequired
 	}
-	return result, rows.Err()
+	return page.Items, nil
 }
 
 func OpsReferences(ctx context.Context, db *sql.DB, opsID int64) ([]OpsReference, error) {

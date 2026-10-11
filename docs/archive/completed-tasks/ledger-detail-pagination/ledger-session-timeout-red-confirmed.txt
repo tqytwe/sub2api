@@ -1,0 +1,35 @@
+
+ RUN  v2.1.9 /workspace/sub2api-ledger-pagination/frontend
+
+Browserslist: browsers data (caniuse-lite) is 10 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+ ❯ src/views/shared/__tests__/RequestLedgerView.session.http.spec.ts (26 tests | 1 failed | 25 skipped) 6628ms
+   × ends abandoned publication with retryable errors and resumes after ready 6618ms
+     → expected false to be true // Object.is equality
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/views/shared/__tests__/RequestLedgerView.session.http.spec.ts > ends abandoned publication with retryable errors and resumes after ready
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ vi.waitFor.timeout src/views/shared/__tests__/RequestLedgerView.session.http.spec.ts:259:85
+    257| it('ends abandoned publication with retryable errors and resumes after…
+    258|   const finish = beginPeerRotation(), view = mountPage()
+    259|   await vi.waitFor(() => expect(view.find('[data-testid="ledger-retry"…
+       |                                                                                     ^
+    260|   expect(reads).toHaveLength(0)
+    261|   expect(view.get('[data-testid="ledger-refresh"]').attributes('disabl…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 25 skipped (26)
+   Start at  09:46:16
+   Duration  9.35s (transform 1.54s, setup 72ms, collect 1.91s, tests 6.63s, environment 314ms, prepare 57ms)

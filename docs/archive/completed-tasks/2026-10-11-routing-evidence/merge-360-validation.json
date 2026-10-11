@@ -1,0 +1,178 @@
+{
+  "checked_at": "2026-10-11T11:31:56.300865+00:00",
+  "base_sha": "fb2c9747b58ed5d980a36ea6a2316ead2aa03b7e",
+  "prior_head": "ae832b16b63139b2395008a1f2073d7cb15161f7",
+  "state": "All required local combination gates passed; sequential specification/quality reviews passed; exact-head PR CI and parent review pending",
+  "method": "ordinary no-ff merge, no rebase or force; CI required names union and own handoff insertion only conflicts",
+  "preservation": {
+    "nonshared_routing_inputs": 24,
+    "nonshared_main_files": 95,
+    "shared_inputs": "CI union plus new combination test; fixture keeps 279 and main cleanup -v; docs retain both entries",
+    "proof": "merge-360-proof.json",
+    "manifest_count": 27,
+    "api": "GET /api/v1/admin/requests/:id/routing unchanged",
+    "other_inflight_work": "no 280/281 files"
+  },
+  "reviews": "merge-360-reviews.json",
+  "gates": [
+    {
+      "gate": "http_pg_combination",
+      "command": [
+        "go",
+        "test",
+        "-tags=integration",
+        "./internal/requestledger/...",
+        "./internal/repository",
+        "./internal/handler",
+        "./internal/server/routes",
+        "-run",
+        "TestRequestLedgerHTTP|TestRequestLedgerRoutingHTTP|TestRequestLedgerRoutingAfterDetail|TestRequestLedgerRoutingMigration|TestRequestLedgerDetailPage|TestLedgerPostgresRouting",
+        "-count=1",
+        "-timeout=8m",
+        "-json"
+      ],
+      "started_at": "2026-10-11T11:03:22.004875+00:00",
+      "finished_at": "2026-10-11T11:08:18.785914+00:00",
+      "exit_code": 1,
+      "elapsed_seconds": 296.781,
+      "log": "/tmp/routing-merge360-http_pg_combination.log",
+      "log_sha256": "cee4bb770d115ee15d89aca5dc0eba3087f83755d5f27b6713b951e7cb8ec291"
+    },
+    {
+      "gate": "migration_combination_retry",
+      "command": [
+        "go",
+        "test",
+        "-tags=integration",
+        "./internal/repository",
+        "-run",
+        "TestRequestLedgerRoutingAfterDetail|TestRequestLedgerRoutingMigration|TestRequestLedgerDetailPage",
+        "-count=1",
+        "-timeout=8m",
+        "-json"
+      ],
+      "started_at": "2026-10-11T11:10:01.159172+00:00",
+      "finished_at": "2026-10-11T11:10:19.131846+00:00",
+      "exit_code": 0,
+      "elapsed_seconds": 17.973,
+      "log": "/tmp/routing-merge360-migration_combination_retry.log",
+      "log_sha256": "464575b6d2540187152dcec061177497639575540d11c31766c382393f488741"
+    },
+    {
+      "gate": "backend_test_lint",
+      "command": [
+        "make",
+        "test-backend"
+      ],
+      "started_at": "2026-10-11T11:10:19.132139+00:00",
+      "finished_at": "2026-10-11T11:18:34.776258+00:00",
+      "exit_code": 0,
+      "elapsed_seconds": 495.644,
+      "log": "/tmp/routing-merge360-backend_test_lint.log",
+      "log_sha256": "e12cc7f4c3a66d67ced5f90022b1f810af913c43a852a34106822353dba15b87"
+    },
+    {
+      "gate": "backend_unit",
+      "command": [
+        "make",
+        "test-backend-unit"
+      ],
+      "started_at": "2026-10-11T11:18:34.776551+00:00",
+      "finished_at": "2026-10-11T11:26:39.719974+00:00",
+      "exit_code": 0,
+      "elapsed_seconds": 484.943,
+      "log": "/tmp/routing-merge360-backend_unit.log",
+      "log_sha256": "0b5c50d76475410d96262ca94dcb4d16d895800ffde153865290bd2fc8f9a7e2"
+    },
+    {
+      "gate": "build",
+      "command": [
+        "make",
+        "build"
+      ],
+      "started_at": "2026-10-11T11:26:39.720229+00:00",
+      "finished_at": "2026-10-11T11:28:35.213792+00:00",
+      "exit_code": 0,
+      "elapsed_seconds": 115.494,
+      "log": "/tmp/routing-merge360-build.log",
+      "log_sha256": "365bd09a13b1ac0faf993b9dbfda1fc7c7e08e9a5dacb6773e65d47678f50a7b"
+    },
+    {
+      "gate": "embed",
+      "command": [
+        "go",
+        "build",
+        "-tags",
+        "embed",
+        "-buildvcs=false",
+        "-trimpath",
+        "-o",
+        "/tmp/routing-server-embed",
+        "./cmd/server"
+      ],
+      "started_at": "2026-10-11T11:28:35.214060+00:00",
+      "finished_at": "2026-10-11T11:29:19.465331+00:00",
+      "exit_code": 0,
+      "elapsed_seconds": 44.251,
+      "log": "/tmp/routing-merge360-embed.log",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "gate": "fork",
+      "command": [
+        "./scripts/check-fork-integrity.sh"
+      ],
+      "started_at": "2026-10-11T11:29:19.465610+00:00",
+      "finished_at": "2026-10-11T11:31:32.985970+00:00",
+      "exit_code": 0,
+      "elapsed_seconds": 133.52,
+      "log": "/tmp/routing-merge360-fork.log",
+      "log_sha256": "7d01143ebed625baab0fc51d567ba6301916652ad1d8248845d941f1370344fc"
+    },
+    {
+      "gate": "docs",
+      "command": [
+        "node",
+        "scripts/check-doc-links.mjs"
+      ],
+      "started_at": "2026-10-11T11:31:32.986238+00:00",
+      "finished_at": "2026-10-11T11:31:33.039976+00:00",
+      "exit_code": 0,
+      "elapsed_seconds": 0.054,
+      "log": "/tmp/routing-merge360-docs.log",
+      "log_sha256": "226282cbbd13e3ca228c65e8eeab5e56d800bf759efcd89169413ee2d3aac183"
+    }
+  ],
+  "integration": {
+    "top_level_passed": 23,
+    "tests_and_subtests_passed": 47,
+    "expected_helper_skip": [
+      {
+        "Time": "2026-10-11T11:03:37.689092082Z",
+        "Action": "skip",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+        "Test": "TestLedgerPostgresRoutingCrashChild",
+        "Elapsed": 0
+      }
+    ],
+    "first_run_failure": "four repository migration fixtures exited during PostgreSQL startup, before assertions; --rm removed container logs so cause not established. Other packages passed; full affected migration selection reran unchanged and passed. Raw original failure hash retained; no test assertion relaxed or manual interruption.",
+    "results": "merge-360-test-results.json"
+  },
+  "reuse": {
+    "authorization": "Parent explicitly requested minimal composition checks and no unchanged frontend long-test repetition",
+    "frontend": "byte-identical to main; reuse main 3680 passed/8 existing skipped, lint/typecheck, 26 HTTP session checks and reviewed browser evidence; current build 356 assets plus entry files exactly equal",
+    "resources": "merge-360-assets.json",
+    "make_test": "Current make test-backend plus exact-main frontend prior evidence cover both components; no fresh combined make test invocation claimed",
+    "broad_protocol": "75 CI required names is union+one, not a fresh local 75-case full run. Prior 66 ledger/54 core results remain historical evidence."
+  },
+  "migration_raw_sha256": "48abb66e1d91478513d87973e750d802a330cf15cde4fd9764b3866d2ea96fd4",
+  "migration_runner_trimmed_sha256": "4db70ab30cae713b86f653010ee4f5c0ffe3fcddf1ba151a4bbe15b078dac715",
+  "resources": {
+    "go_cache_relocated_bytes": 1913684397,
+    "cache_bytes_preserved": true,
+    "unknown_docker_volumes_removed": false,
+    "tests_manually_interrupted": false,
+    "assertions_relaxed": false
+  },
+  "deployment": "Not performed. Parent owns merge/deploy and exact-head CI review. UI separately assigned to pagination author. No production/replay/backfill/delete."
+}
