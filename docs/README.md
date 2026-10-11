@@ -101,3 +101,6 @@
 3. 方案类文档未上线前使用 `proposal` 标识，不得写入已生效的定制登记条目。
 4. 每次上游同步后更新受影响文档的核验日期和上游 commit。
 5. 交付流程以 [服务器开发与生产验收流程](./DELIVERY_WORKFLOW.md) 为准；旧的“仅服务器线上验收”表述不得继续作为完成标准。
+
+- [答题与盲盒福利闭环技术记录](./archive/completed-tasks/2026-10-welfare-games/README.md) — `in-progress`，隔离 HTTP/PG/Vue 证据，未部署。
+- [答题与盲盒视觉记录](./visual-reviews/2026-10-11-welfare-games.md) — `in-progress`，既有风格内的状态与恢复。

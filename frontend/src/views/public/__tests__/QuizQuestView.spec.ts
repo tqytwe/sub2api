@@ -104,6 +104,8 @@ describe('QuizQuestView', () => {
   })
 
   it('shows the full balance reward for the complete quiz rather than a per-correct amount', async () => {
+    authState.isAuthenticated = true
+    authState.user = { id: 1 }
     const wrapper = mountView()
     await flushPromises()
 
@@ -112,6 +114,8 @@ describe('QuizQuestView', () => {
   })
 
   it('restores a coupon reward after the completed quiz page is refreshed', async () => {
+    authState.isAuthenticated = true
+    authState.user = { id: 1 }
     getQuizToday.mockResolvedValueOnce({
       enabled: true,
       coupon_pool_ready: true,

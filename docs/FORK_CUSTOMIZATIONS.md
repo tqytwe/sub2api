@@ -75,6 +75,7 @@
 - 验证：Play service tests、`play_admin_team_repair_test.go`、真实 PostgreSQL `play_repo_team_integration_test.go`、`play_handler_team_repair_test.go`、`play_admin_routes_test.go`、`PlayOpsView.spec.ts`、`admin.play.teamRepair.spec.ts`、`adminPlayOpsParity.spec.ts`、`public_growth_teaser_test.go` 和相关前端 utils tests；线上逐项检查开关关闭和开启状态，并由本地管理员浏览器完成中英文、浅色和深色战队修复验收。
 - 签到读取与中枢刷新：真实 Axios 区分 GET 服务/权限/网络失败及关闭，单请求加载与离开后旧响应保护；里程碑绝对目标转换为剩余天数。[P1 状态证据](./archive/completed-tasks/2026-10-checkin-status/README.md)，不改后端规则。
 - 签到错误契约验证：`./scripts/test-checkin-contract.sh`（真实 PostgreSQL→HTTP→Axios/Vue）、`CheckInView.errors.spec.ts`（真实 HTTP 错误与超时）；[P1 证据](./archive/completed-tasks/2026-10-checkin-errors/README.md)。UI 按归一化 `reason` 识别重复/资格错误，补签拒绝后刷新；不恢复历史审批门禁、不改奖励规则。
+- 答题/盲盒福利合同：`./scripts/test-welfare-contract.sh` 验证真实 PG→HTTP→Axios/Pinia/Vue，包含同 key/并发防重、事务回滚、未知结果重试与按账号隔离；盲盒 DTO 区分未公开与已发布 0 概率。[P1 证据](./archive/completed-tasks/2026-10-welfare-games/README.md)，不改成本、奖种或资格规则。
 
 ## FORK-IMAGE-004 图像工作室
 

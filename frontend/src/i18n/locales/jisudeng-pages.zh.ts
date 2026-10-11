@@ -380,6 +380,8 @@ export const jisudengPagesZh = {
   blindbox: {
     branchesTitle: "奖励类型与当前概率",
     probabilityUnknown: "概率未公开",
+    pendingOpenHint: '上次开箱结果尚未确认。重试会继续上次开箱，不会重复扣费。',
+    resumeOpen: '重试上次开箱',
     recentRedeemCodeWin: "获得兑换码",
     branches: {"coupon": "优惠券", "redeem_code": "兑换码", "balance": "余额"},
     prizePoolTitle: '奖池预览',
@@ -427,6 +429,11 @@ export const jisudengPagesZh = {
     failed: '开箱失败，请稍后重试',
   },
   quiz: {
+    loginHint: '登录后即可查看今日题目和福利资格。',
+    loadFailed: '题目加载失败，请稍后重试。',
+    loadForbidden: '当前无法读取答题资格，请刷新或重新登录后重试。',
+    loadNetworkFailed: '无法连接答题服务，请检查连接后重试。',
+    empty: '今日暂无可用题目，请稍后刷新。',
     disabled: '答题闯关暂未开启',
     couponPoolUnavailable: '优惠券奖池正在配置中，暂时无法提交答题。',
     rewardHint: '提交整套答案后统一开奖，奖励按后台当前发布的答题奖池随机发放，结果会即时到账。',

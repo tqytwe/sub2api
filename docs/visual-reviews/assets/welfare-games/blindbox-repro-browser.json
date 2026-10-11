@@ -1,0 +1,11 @@
+{
+  "reports": [
+    {
+      "case": "blindbox-pending-recovery-and-known-weights",
+      "prototype": "DOM preview only",
+      "reward": "redeem_code",
+      "opens_today": 2
+    }
+  ],
+  "index_sha256": "f2efed8f6a7b4c2fcfabd46bcc35b7bb9b143650d93bd0a3b291bd1ccd9b4a97"
+}

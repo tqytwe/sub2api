@@ -52,9 +52,10 @@
           "status": "recorded",
           "refs": [
             "docs/archive/completed-tasks/batch-image-ledger/README.md",
-            "docs/archive/completed-tasks/batch-image-ledger/ci-followup-validation.json"
+            "docs/archive/completed-tasks/batch-image-ledger/ci-followup-validation.json",
+            "docs/archive/completed-tasks/batch-image-ledger/merge-357-validation.json"
           ],
-          "note": "2026-10-11 CI修复后重跑全后端/lint、完整unit、48/48协议必需项、7批次HTTP+Realtime race、embed/Fork，独立规格及代码复审通过；前端3562测试与浏览器证据仅复用相同源及资源。旧head CI异步读取失败与冲突证明RED单独留档。"
+          "note": "2026-10-11 CI修复后重跑全后端/lint、完整unit、48/48协议必需项、7批次HTTP+Realtime race、embed/Fork，独立规格及代码复审通过；前端3562测试与浏览器证据仅复用相同源及资源。旧head CI异步读取失败与冲突证明RED单独留档。 随后普通merge主线#357/1bfc7e2无冲突；组合make test/unit、福利/签到PG合同、batch+Realtime race、full build/embed/Fork及新资源双身份浏览器全部通过，顺序双复查通过；精确合并head CI另核验。"
         },
         "deployment": {
           "status": "pending",
@@ -68,7 +69,7 @@
         }
       },
       "risks": "不推断历史指纹、token、unknown零费用；只读证明失败不阻断capture/usage但completed重试不会补证，保留审计缺口。零capture无钱包用例只验证真实保留证明，不覆盖公共零价格跳过hold。受限usage_billing_repo.go未修改。",
-      "next": "PR #356本次技术验收SHA fbc103a5a0b7fcc9b103536e47eb347cac0895d3；紧随提交仅更新此交接元数据，运行源码与ci-followup-validation.json一致。由主线程核验最终head/新CI，不合并部署；生产自然流量、对账及用户本机三身份验收待协调。",
+      "next": "普通merge #357基线1bfc7e2edb788ca11a23ff936f99db904c4b4199；原技术修复fbc103a5a0b7fcc9b103536e47eb347cac0895d3未变。合并技术SHA在后续元数据提交记录，组合证据见merge-357-validation.json；等待精确新head完整CI后交主线程，不合并部署。",
       "rollback": "协调应用回滚；保留277新增索引与已有台账/usage，不改历史SQL、不删数据。"
     },
     {
@@ -252,15 +253,15 @@
       "pr": "https://github.com/tqytwe/sub2api/pull/342",
       "sha": "9e458b12db91d1c36402c288d61ef7a352beee1c",
       "evidence": {
-        "ui": {"status": "recorded", "refs": ["https://github.com/tqytwe/sub2api/pull/342"], "note": "已部署 #342 的 Vue 经真实 Axios/HTTP 显示能量或现金；该批页面未修改。后续 #353 已普通合并为 17b96a20c7e9d2e394b37c6c1b108340853c0169，修复 reason 错误提示及补签拒绝刷新，部署/本机验收由主线程跟进。本批 codex/p1-checkin-status-20261010 收敛 GET 状态/重试、中枢刷新与里程碑剩余天数；未合并部署，证据见 docs/archive/completed-tasks/2026-10-checkin-status/README.md。"},
+        "ui": {"status": "recorded", "refs": ["https://github.com/tqytwe/sub2api/pull/342"], "note": "已部署 #342 的 Vue 经真实 Axios/HTTP 显示能量或现金；该批页面未修改。后续 #353 已普通合并为 17b96a20c7e9d2e394b37c6c1b108340853c0169，修复 reason 错误提示及补签拒绝刷新，部署/本机验收由主线程跟进。后续 #355 已普通合并为 c939d570aa1f01cadab465c38c36e0295703a9b7，收敛 GET 状态/重试、中枢刷新与里程碑剩余天数。后续 #357 已普通合并为 1bfc7e2edb788ca11a23ff936f99db904c4b4199，答题及盲盒经真实 PG/HTTP/Axios/Pinia/Vue 与实际构建资源验证；本次同步未独立核实部署或本机验收，证据见 docs/archive/completed-tasks/2026-10-welfare-games/README.md。"},
         "api": {"status": "recorded", "refs": ["https://github.com/tqytwe/sub2api/pull/342"], "note": "#342 已补齐普通 Checkin response 的 GrowthEnergy/GrowthEligibility 两个字段，不改资格政策/奖励规则。"},
         "schema": {"status": "na", "refs": [], "note": "当前识别为响应映射缺陷；本治理任务不增迁移。"},
         "tests": {"status": "recorded", "refs": ["https://github.com/tqytwe/sub2api/pull/342", "https://github.com/tqytwe/sub2api/actions/runs/38003522676/job/114066930751"], "note": "PR 记录完整迁移的隔离 PG→正式路由/service→HTTP→Axios/Vue 契约 RED→GREEN；hosted 签到契约作业成功。不是生产验收；其他 integration 跳过项保留原说明。"},
         "deployment": {"status": "recorded", "refs": ["https://github.com/tqytwe/sub2api/pull/342", "https://github.com/tqytwe/sub2api/runs/114080888744"], "note": "审核 head e58642e426e900d4cc4c4fe079c9a418bd3d6c7a 的 6/6 hosted checks 成功；普通 merge 9e458b12 于 2026-10-10T00:10:49Z Zeabur 成功，健康与用户本机验收仍待确认。"},
         "production": {"status": "pending", "refs": [], "note": "精确 merge SHA 部署成功；健康、本机 UI/API 与奖励记录核对仍待确认。"}
       },
-      "risks": "普通签到 response 修复已部署但未完成生产验收；页面错误契约已在独立 P1 分支完成真实 PG/HTTP/Axios/Vue RED→GREEN，最终门禁和准确 SHA/CI 见该批 PR，不视为已上线。本批独立 P1 分支已修复 GET 状态失败误显关闭、里程碑剩余天数和两个福利主面板刷新一致性，并覆盖旧响应及提交并发；尚未合并部署。全局顶栏仍采用既有账户缓存，其他福利页面完整闭环尚待分批核查。",
-      "next": "主线程补 #342 精确 SHA 健康与本机验收；协调 #353 合并后的部署验收及 P1 状态修复新草稿 PR，精确 head/CI 记录在各 PR；本次只复核签到条目，未前移整份 checked_at 或其他功能状态。",
+      "risks": "普通签到 response 修复已部署但未完成生产验收；页面错误契约已在独立 P1 分支完成真实 PG/HTTP/Axios/Vue RED→GREEN，最终门禁和准确 SHA/CI 见该批 PR，不视为已上线。#355 已合并对应状态修复；答题/盲盒错误、未知结果恢复及会话隔离修复已由 #357 普通合并；部署和本机验收仍待主线程核验。答题完成记录及盲盒结算后同步原有账户资料；共享 auth 自动续期未及时同步 Pinia 的独立问题待协调，未改鉴权实现。组队、擂台、推广、券包及运营页尚未按本批标准验收。",
+      "next": "主线程补 #342 精确 SHA 健康与本机验收；协调 #353/#355/#357 合并后的部署及本机验收，精确 head/CI 记录在各 PR；本次只复核签到条目，未前移整份 checked_at 或其他功能状态。",
       "rollback": "响应不一致时停止推进并协调源码 revert；不删除奖励或重发历史奖励。"
     },
     {

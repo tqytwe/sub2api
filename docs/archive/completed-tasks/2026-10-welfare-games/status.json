@@ -1,0 +1,51 @@
+{
+  "updated_at": "2026-10-11T01:37:01.522396+00:00",
+  "branch": "codex/p1-welfare-games-20261010",
+  "base_sha": "c939d570aa1f01cadab465c38c36e0295703a9b7",
+  "phase": "Root-review follow-up local gates and sequential independent reviews passed; follow-up commit/push and exact new-head CI next",
+  "source_hashes": {
+    "quiz": "e6b3094759a261ba087429219f5781e9d6b39c657c2cd44d73398eac9072b3ad",
+    "blindbox": "fce7fb6fa3f8365f5a840c66c9127030c77c362c04a6047676e162dceaad7e4a"
+  },
+  "passed": [
+    "Quiz 23 targeted; no Quiz production changes in root follow-up",
+    "Blindbox 52 targeted (22 actual Axios/Pinia/HTTP plus 30 unit); 2 RED then GREEN for root finding",
+    "Current actual welfare PG/HTTP/Vue contract: 133.363s, exit0",
+    "Checkin PG/HTTP/Vue and complete backend tag-unit regression retained; backend unchanged by root follow-up",
+    "Current make test: backend/lint/typecheck passed; frontend3597 passed/8 skipped, 499 files passed/3 skipped",
+    "Current root make build and Fork integrity passed",
+    "Current built browser Quiz9 + Blindbox8, same build index",
+    "Root sequential independent spec/quality reviews, including final browser synchronization, passed",
+    "Current design, docs and handoff checks passed"
+  ],
+  "pending": [
+    "Follow-up commit/push and exact new-head CI"
+  ],
+  "running_logs": [],
+  "blockers": [],
+  "out_of_scope_findings": [
+    "Shared auth.ts automatic refresh persists token before old-token guard returns, so Pinia synchronization still needs separate coordination; tests explicitly use checkAuth after actual renewal."
+  ],
+  "limitations": [
+    "No merge, deployment or production access/rewards",
+    "Synthetic auth fixtures are not JWT or production permission acceptance",
+    "Actual built browser HTTP fixture and PG/Vue tested separately",
+    "Arena/team/affiliate/wallet/admin surfaces, actual midnight, 200% zoom and user-local production acceptance not tested",
+    "The root-review finding concerns public anonymized feed state consistency; no demonstrated private-data exposure"
+  ],
+  "validation_corrections": [
+    "Do not count the first 8 Quiz PG balance cases that refreshed profile from the test; final cases rely on page-driven synchronization",
+    "Recovery test now waits for enabled button, not mere DOM presence",
+    "First full make test Quiz ABA fixed-delay snapshot failure corrected with GET/busy barriers; final full rerun passed",
+    "Historical pre-guard builds excluded from latest evidence",
+    "First current Quiz browser attempt enumerated cards before render; explicit count/idle/checked/enabled barriers passed rerun, old baseline does not require new ARIA"
+  ],
+  "shared_files_reported": [
+    "backend/internal/handler/play_handler_extended.go (DTO projection only)",
+    "frontend/src/api/play.ts (optional field)",
+    "CI workflow and evidence/handoff docs"
+  ],
+  "previous_build_index_sha256": "d565779025b9910ddb0b2e53b346f48685170a564aff4d8398acf9ae13df291d",
+  "new_build_pending": false,
+  "build_index_sha256": "fbff6b8fd39679d7c454486a0131ec0e343d3871c001926ad79d7e7285962e61"
+}

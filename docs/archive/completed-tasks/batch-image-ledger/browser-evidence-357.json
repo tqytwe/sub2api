@@ -1,0 +1,62 @@
+[
+  {
+    "role": "user",
+    "request_id": "2acfded9-7438-4e03-b1b9-daa74073c349",
+    "usage_id": 1,
+    "batch_id": "imgbatch_c45eff73d8ed1945dfde0b4f497f865e",
+    "image_count": 3,
+    "item_image_count": 3,
+    "billed_cost": 6,
+    "viewports": [
+      360,
+      768,
+      1280,
+      1920
+    ],
+    "themes": [
+      "light",
+      "dark"
+    ],
+    "languages": [
+      "zh",
+      "en"
+    ],
+    "keyboard": true,
+    "reduced_motion": true,
+    "zoom": "CSS 200% emulation",
+    "failure_retry": true,
+    "loading": true,
+    "simulated_nullable_count": true,
+    "page_errors": []
+  },
+  {
+    "role": "admin",
+    "request_id": "2acfded9-7438-4e03-b1b9-daa74073c349",
+    "usage_id": 1,
+    "batch_id": "imgbatch_c45eff73d8ed1945dfde0b4f497f865e",
+    "image_count": 3,
+    "item_image_count": 3,
+    "billed_cost": 6,
+    "viewports": [
+      360,
+      768,
+      1280,
+      1920
+    ],
+    "themes": [
+      "light",
+      "dark"
+    ],
+    "languages": [
+      "zh",
+      "en"
+    ],
+    "keyboard": true,
+    "reduced_motion": true,
+    "zoom": "CSS 200% emulation",
+    "failure_retry": true,
+    "loading": true,
+    "simulated_nullable_count": true,
+    "page_errors": []
+  }
+]

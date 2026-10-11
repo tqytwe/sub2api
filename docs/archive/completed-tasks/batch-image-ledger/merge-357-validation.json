@@ -1,0 +1,282 @@
+{
+  "recorded_at": "2026-10-11T02:17:38.759839+00:00",
+  "merge": {
+    "batch_parent": "0a2c51e130cf108ab51016643f0eba7bfa516646",
+    "incoming_parent": "1bfc7e2edb788ca11a23ff936f99db904c4b4199",
+    "merge_base": "c939d570aa1f01cadab465c38c36e0295703a9b7",
+    "batch_only_preserved": 51,
+    "incoming_only_preserved": 104,
+    "shared_docs": [
+      "docs/FORK_CUSTOMIZATIONS.md",
+      "docs/README.md",
+      "docs/upstream-migrations/v2.10.3/handoff.json"
+    ],
+    "conflicts": [],
+    "restricted_billing_repository_unchanged": true,
+    "migration_277_unchanged": true,
+    "migration_277_runner_sha256": "239308e9fa45b74ae00f475597f5795b8308dd09b2d88d32dee91915d73ea6b0"
+  },
+  "source": {
+    "backend_frontend_files": 5369,
+    "path_and_content_sha256": "a8a604ac304fcb5729cae3a5647d50f250f3137aabc141bc3312bb9be48830a3",
+    "reviewed_batch_technical_sha": "fbc103a5a0b7fcc9b103536e47eb347cac0895d3",
+    "runtime_merge_resolution": "None; no conflicts and no authored runtime edits."
+  },
+  "passed_gates": [
+    {
+      "name": "full-test",
+      "command": [
+        "/tmp/p0-run",
+        "make",
+        "test"
+      ],
+      "exit_code": 0,
+      "seconds": 450.53,
+      "log": "/workspace/batch-ledger-357-full-test.log",
+      "log_sha256": "1503b822047bc4ff5ee6e9c4823fb38ae2cc5dc246f19587611cd0a58249d315"
+    },
+    {
+      "name": "unit",
+      "command": [
+        "/tmp/p0-run",
+        "make",
+        "test-backend-unit"
+      ],
+      "exit_code": 0,
+      "seconds": 291.18,
+      "log": "/workspace/batch-ledger-357-unit.log",
+      "log_sha256": "c2203dedf2a156f0ed84f9ea226c5c61e56ea0276209e5993df57722cb56192b"
+    },
+    {
+      "name": "welfare-contract",
+      "command": [
+        "/tmp/p0-run",
+        "./scripts/test-welfare-contract.sh"
+      ],
+      "exit_code": 0,
+      "seconds": 51.58,
+      "log": "/workspace/batch-ledger-357-welfare-contract.log",
+      "log_sha256": "1ff08f0aace5f476c47b54a4eb6b54cb9dad6bd000974fc8eb788d532f048410"
+    },
+    {
+      "name": "checkin-contract",
+      "command": [
+        "/tmp/p0-run",
+        "./scripts/test-checkin-contract.sh"
+      ],
+      "exit_code": 0,
+      "seconds": 13.13,
+      "log": "/workspace/batch-ledger-357-checkin-contract.log",
+      "log_sha256": "f0d231b0ddd0ea4e13624260edd29283ffd56d6b82c71e2bc048015e4cb5323e"
+    },
+    {
+      "name": "batch-realtime-race",
+      "command": [
+        "/tmp/p0-run",
+        "go",
+        "-C",
+        "backend",
+        "test",
+        "-race",
+        "-tags=integration",
+        "./internal/requestledger/acceptance",
+        "./internal/service",
+        "-run",
+        "TestBatchImageHTTP|TestRequestLedgerRealtimeLateTerminalCannotConsumeNextTurn",
+        "-count=1",
+        "-timeout=8m",
+        "-json"
+      ],
+      "exit_code": 0,
+      "seconds": 52.49,
+      "log": "/workspace/batch-ledger-357-batch-realtime-race.log",
+      "log_sha256": "7bd459b70767d35c0ec5678d828cf0b6d312e6e59a439f98abccdd81a5670f83"
+    },
+    {
+      "name": "full-build",
+      "command": [
+        "/tmp/p0-run",
+        "make",
+        "build"
+      ],
+      "exit_code": 0,
+      "seconds": 90.16,
+      "log": "/workspace/batch-ledger-357-full-build.log",
+      "log_sha256": "b7da746a326144b44a907e26bec33a2e00acfdd5032b1ab64cd50873d137e7f3"
+    },
+    {
+      "name": "embed-build",
+      "command": [
+        "/tmp/p0-run",
+        "make",
+        "build-backend",
+        "GO_BUILD_FLAGS=-buildvcs=false -tags=embed"
+      ],
+      "exit_code": 0,
+      "seconds": 10.27,
+      "log": "/workspace/batch-ledger-357-embed-build.log",
+      "log_sha256": "74f36deb8920ab14e2c1d62f4185937444f07c9c877f2e7e2c5bbcfcd71686bc"
+    },
+    {
+      "name": "fork",
+      "command": [
+        "/tmp/p0-run",
+        "./scripts/check-fork-integrity.sh"
+      ],
+      "exit_code": 0,
+      "seconds": 139.04,
+      "log": "/workspace/batch-ledger-357-fork.log",
+      "log_sha256": "17be0718b76513942486be9d3e664bdc99901ec93a5e15db79402f2d8bffcbf6"
+    },
+    {
+      "name": "browser",
+      "command": [
+        "python3",
+        "/tmp/batch-357-browser.py"
+      ],
+      "exit_code": 0,
+      "seconds": 17.73,
+      "log": "/workspace/batch-ledger-357-browser.log",
+      "log_sha256": "76077e8bdaea38197ff25218386ed7243acf56d00ade2d48453c0ab2971e280b"
+    }
+  ],
+  "frontend_summary": [
+    "Test Files  499 passed | 3 skipped (502)",
+    "Tests  3601 passed | 8 skipped (3609)",
+    "Duration  135.86s (transform 25.79s, setup 26.23s, collect 62.37s, tests 69.45s, environment 156.27s, prepare 26.07s)"
+  ],
+  "postgres_contracts": {
+    "welfare-contract": {
+      "required_top_level_passes": [
+        "TestBlindboxBoundaryDatabaseContract",
+        "TestBlindboxHTTPDatabaseContract",
+        "TestBlindboxVueDatabaseContract",
+        "TestQuizHTTPDatabaseContract",
+        "TestQuizVueDatabaseContract"
+      ],
+      "missing": []
+    },
+    "checkin-contract": {
+      "required_top_level_passes": [
+        "TestCheckinHTTPDatabaseContract"
+      ],
+      "missing": []
+    }
+  },
+  "race": {
+    "test_and_subtest_passes": 15,
+    "top_level_passes": [
+      "TestBatchImageHTTPCaptureProofReadFailureKeepsUsage",
+      "TestBatchImageHTTPConflictingProofBeforeUsageRecovery",
+      "TestBatchImageHTTPDisconnectAfterCapture",
+      "TestBatchImageHTTPReconciliationBoundsRequestsWithoutTask",
+      "TestBatchImageHTTPRecoveryAndIsolation",
+      "TestBatchImageHTTPUnknownUsageAndNullableImageCount",
+      "TestBatchImageHTTPUsageDrillUsesCommittedCapture",
+      "TestRequestLedgerRealtimeLateTerminalCannotConsumeNextTurn"
+    ],
+    "failures": []
+  },
+  "resources": {
+    "file_count": 356,
+    "tree_sha256": "1e00cd434b98ca6139d2c9ff8236ee737e4771049d72e3fdd5495607a384c003",
+    "index_sha256": "579bc72b3b0776d623d1a4b66654d55b09ac1d5fa680f70a5327e2368935eb8e",
+    "embedded_binary_sha256": "788f5bd1d3862d8615dc7b515c1212712de81151d45c26ea2c5836c00b6261bf",
+    "built_index_present_in_binary": true,
+    "browser_evidence": "browser-evidence-357.json",
+    "capture_logic": "Existing capture.cjs copied to /tmp; only output destinations changed to preserve prior evidence.",
+    "screenshots": [
+      {
+        "path": "/workspace/batch-ledger-357-browser-assets/after-admin-1280.png",
+        "sha256": "760668c848c09ab99f70ed9f62596cb437f0dc48887b61e0267eafd743452c94"
+      },
+      {
+        "path": "/workspace/batch-ledger-357-browser-assets/after-admin-1920.png",
+        "sha256": "a676d7ba9569466bf5c70543c9872a92dd7e97b2b9a0d8972609df26b0abd293"
+      },
+      {
+        "path": "/workspace/batch-ledger-357-browser-assets/after-admin-360.png",
+        "sha256": "000e818be3360d36de3bbbfb3ae42c9e4eabada7d543180e1e78c31be7fc805b"
+      },
+      {
+        "path": "/workspace/batch-ledger-357-browser-assets/after-admin-768.png",
+        "sha256": "6884785951cf7c821092f05accd4a4fd18365408eb64a03356dc417c0ee4392c"
+      },
+      {
+        "path": "/workspace/batch-ledger-357-browser-assets/after-user-1280.png",
+        "sha256": "85c3d65fef1c00f8fe114c5cf4314ffda470d123bc666e659415202429ab77dc"
+      },
+      {
+        "path": "/workspace/batch-ledger-357-browser-assets/after-user-1920.png",
+        "sha256": "e032ac920dfd071d8155d25a067609ae7024e751440dc1a5bb28f2c153da4142"
+      },
+      {
+        "path": "/workspace/batch-ledger-357-browser-assets/after-user-360.png",
+        "sha256": "05a94ba20034d78367dc719915d8c02efb50e4062acf9c4e3342268bc180690d"
+      },
+      {
+        "path": "/workspace/batch-ledger-357-browser-assets/after-user-768.png",
+        "sha256": "85aa990454590618e5a1a9ae9d64ae42d50af26597652b5fe5a9ae2600cf7b49"
+      },
+      {
+        "path": "/workspace/batch-ledger-357-browser-assets/dark-admin-1280.png",
+        "sha256": "5a708df1b1e1f344ddf073f978ce315b57271afd3d6fb3983cc23cd357b61986"
+      },
+      {
+        "path": "/workspace/batch-ledger-357-browser-assets/dark-user-1280.png",
+        "sha256": "3a7228c210459a105586a529447bd703d662733d26df5dd21ccd5b33c0eae6d1"
+      },
+      {
+        "path": "/workspace/batch-ledger-357-browser-assets/en-admin-1280.png",
+        "sha256": "57eff7bd8800880189b703d5db0e5737ddd4e45bccf7927b136f324c453b27d1"
+      },
+      {
+        "path": "/workspace/batch-ledger-357-browser-assets/en-user-1280.png",
+        "sha256": "9cbf391ec8bdfbbda03edc8e200599936ffe46038c0d2f9f308fcfb393e24fd5"
+      },
+      {
+        "path": "/workspace/batch-ledger-357-browser-assets/error-admin-1280.png",
+        "sha256": "16de7f81d1bca867fed1c75c3931cbb9b85c47c752c25a7a896d5ac562178a36"
+      },
+      {
+        "path": "/workspace/batch-ledger-357-browser-assets/error-user-1280.png",
+        "sha256": "48ae67a2e76f4275227b08fa13b4bbd3a466449f3bb95811b38a2676a1860c5b"
+      },
+      {
+        "path": "/workspace/batch-ledger-357-browser-assets/loading-admin-1280.png",
+        "sha256": "cf11aeec8e772354474dcfcb3364d3f406bdc7f28b38993054c0dba7bfd8aa0f"
+      },
+      {
+        "path": "/workspace/batch-ledger-357-browser-assets/loading-user-1280.png",
+        "sha256": "df6e387080ca1e45cea9138c2cd219ef889a9bbdc558ba6237fac369768c1f4d"
+      },
+      {
+        "path": "/workspace/batch-ledger-357-browser-assets/unknown-count-admin-1280.png",
+        "sha256": "31eb1c66dbeac26dcaf9f37fb7fd4e1b82b86d4a41e3d7d54e70c8a100c9ee18"
+      },
+      {
+        "path": "/workspace/batch-ledger-357-browser-assets/unknown-count-user-1280.png",
+        "sha256": "44a7d22b7415355e1bcc5f331fe3537fc35409e90f309d42c4858a8267972820"
+      },
+      {
+        "path": "/workspace/batch-ledger-357-browser-assets/zoom-admin-1280.png",
+        "sha256": "9148207da7e79926cda3cb086663af0bb8d82b39e16e9d7fb51c222b04981b65"
+      },
+      {
+        "path": "/workspace/batch-ledger-357-browser-assets/zoom-user-1280.png",
+        "sha256": "2f56a1a40beaf11916fd8ac08cc9bd331ea6993b5813b97fcf0d4304d9eddb58"
+      }
+    ]
+  },
+  "review": {
+    "specification": "Passed independent read-only merge review.",
+    "code": "Passed subsequent independent read-only merge review.",
+    "prior_root_review": "Parent reports both root reviews of 0a2c51e passed and migration 277 publication precheck passed; not independently represented as a new execution here."
+  },
+  "coverage_boundary": [
+    "Full make test, tagged unit, full build/embed and Fork rerun on combination. Welfare/check-in real PostgreSQL HTTP/Vue contracts and all batch HTTP plus late Realtime race rerun.",
+    "Prior 48/48 full ledger protocol and 277 recovery evidence retained for identical ledger runtime/migration inputs; this combination does not relabel that prior full protocol run as new. Exact new-head hosted CI will run the full required set.",
+    "Batch user/admin browser matrix rerun against newly built combination assets on disposable HTTP/PG; welfare visual matrix remains the reviewed #357 evidence for identical UI source, not a new welfare browser run.",
+    "No production access, merge to production, deployment, provider generation, financial replay, guessed evidence or historical backfill."
+  ]
+}

@@ -1,0 +1,65 @@
+{
+  "reports": [
+    {
+      "case": "quiz-states",
+      "viewport": 360,
+      "language": "zh",
+      "theme": "dark",
+      "js_errors": [],
+      "overflow": false
+    },
+    {
+      "case": "quiz-states",
+      "viewport": 768,
+      "language": "en",
+      "theme": "light",
+      "js_errors": [],
+      "overflow": false
+    },
+    {
+      "case": "quiz-states",
+      "viewport": 1280,
+      "language": "zh",
+      "theme": "light",
+      "js_errors": [],
+      "overflow": false
+    },
+    {
+      "case": "quiz-states",
+      "viewport": 1920,
+      "language": "en",
+      "theme": "dark",
+      "js_errors": [],
+      "overflow": false
+    },
+    {
+      "case": "quiz-empty-disabled-guest",
+      "guest_private_gets": 0
+    },
+    {
+      "case": "quiz-redeem-toast",
+      "cash_toast": false
+    },
+    {
+      "case": "quiz-submit-then-refresh",
+      "posts": 1,
+      "authoritative_reads": 1,
+      "completed": true
+    },
+    {
+      "case": "quiz-duplicate-balance",
+      "posts": 2,
+      "profile_balance": 1.2,
+      "header_balance": 1.2,
+      "reload": false
+    },
+    {
+      "case": "quiz-unknown-balance",
+      "posts": 2,
+      "profile_balance": 1.2,
+      "header_balance": 1.2,
+      "reload": false
+    }
+  ],
+  "index_sha256": "fbff6b8fd39679d7c454486a0131ec0e343d3871c001926ad79d7e7285962e61"
+}

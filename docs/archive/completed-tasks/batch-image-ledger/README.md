@@ -292,3 +292,66 @@ separately after pushing the correction. The old failed hosted run is retained.
 No merge, deployment, production database access or local-user acceptance was
 performed. Existing public zero-price hold behavior, persistent evidence-read
 gaps and historical gpt22 loss remain outside this patch's resolved scope.
+
+## Mainline combination #357
+
+The coordinator merged #357 into `play/main` as
+`1bfc7e2edb788ca11a23ff936f99db904c4b4199`. This branch then uses a normal
+non-rebase merge with first parent `0a2c51e130cf108ab51016643f0eba7bfa516646`
+and second parent that exact mainline SHA. The merge was staged with
+`--no-ff --no-commit`, had no conflicts, and was validated before committing.
+No force push, production merge or deployment is performed by this task.
+
+Before adding the new delivery metadata, all 51 batch-only files and all 104
+#357-only files matched their respective parents byte-for-byte. The only shared
+files were `docs/FORK_CUSTOMIZATIONS.md`, `docs/README.md` and the handoff JSON;
+both feature records remain. The handoff now records #357's known merge without
+claiming that its production deployment or local-user acceptance was rechecked.
+The reviewed batch technical fix `fbc103a5a0b7fcc9b103536e47eb347cac0895d3`,
+restricted billing repository and migration 277 are unchanged. Migration 277's
+trimmed checksum remains
+`239308e9fa45b74ae00f475597f5795b8308dd09b2d88d32dee91915d73ea6b0`.
+
+#357's production backend delta is the blindbox DTO projection; its frontend
+changes are the quiz/blindbox states and recovery contracts. The combination
+adds no authored runtime changes. Independent read-only specification review,
+then code review, found no merge blocker or required extra cross-feature contract.
+The coordinator also reported two successful root reviews of the previous batch
+head and a successful 277 publication precheck; those are not relabeled as local
+executions or new-head CI.
+
+The combination gates below all passed. Full ledger protocol 48/48 evidence from
+the unchanged batch runtime/migration inputs remains in the prior artifact; the
+new targeted race and actual built-resource checks are separately recorded.
+The new exact-head hosted CI must complete before coordinating a production
+merge. Results, log hashes, source/resource digests and parent preservation are
+in [merge-357-validation.json](./merge-357-validation.json).
+
+| Gate | Seconds |
+| --- | ---: |
+| `full-test` | 450.53 |
+| `unit` | 291.18 |
+| `welfare-contract` | 51.58 |
+| `checkin-contract` | 13.13 |
+| `batch-realtime-race` | 52.49 |
+| `full-build` | 90.16 |
+| `embed-build` | 10.27 |
+| `fork` | 139.04 |
+| `browser` | 17.73 |
+
+Full frontend summary: Test Files  499 passed | 3 skipped (502); Tests  3601 passed | 8 skipped (3609); Duration  135.86s (transform 25.79s, setup 26.23s, collect 62.37s, tests 69.45s, environment 156.27s, prepare 26.07s).
+
+Welfare and check-in PostgreSQL/HTTP/Vue contracts run separately from the default
+frontend suite's opt-in skips. Batch race covers all seven HTTP cases and the
+late-terminal Realtime case, 15 tests/subtests total. Full build and explicit
+embed build use the merged frontend. Both batch roles and four widths run again
+against these new assets with real disposable HTTP/PG; three images and a single
+capture of six agree, and no page errors occur. New browser metadata is in
+[browser-evidence-357.json](./browser-evidence-357.json); previous screenshots and
+evidence are preserved. New screenshot files remain in the task workspace with
+hashes in the validation artifact. The welfare visual matrix is reused only for
+its byte-identical reviewed UI source, not claimed as a new welfare browser run.
+
+The audit-gap boundary remains: proof read errors preserve real usage but do not
+certify settlement, and completed retries do not restore a missing fingerprint.
+No historical repair, upstream generation or production acceptance is claimed.

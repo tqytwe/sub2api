@@ -1,0 +1,435 @@
+{
+  "source_hashes": {
+    "backend/internal/handler/play_handler_extended.go": "bd77c041171279070d2f6130a76769020045e45851ef7e319a719e83d83c8e3e",
+    "backend/internal/repository/play_blindbox_welfare_http_integration_test.go": "9f5aa2eadd33e3e3b70d93178d5ec2f0d02d3738265ac3731c877e9bd5bce92c",
+    "frontend/src/api/play.ts": "62e30aba41709c3cff814345ca9e1f86872cbfcf7dcde51809a4d56637d61f3c",
+    "frontend/src/views/public/BlindboxView.vue": "fce7fb6fa3f8365f5a840c66c9127030c77c362c04a6047676e162dceaad7e4a",
+    "frontend/src/views/public/__tests__/BlindboxView.http.spec.ts": "335615c2ea39b589929f9e56cbef8387f4cf7bcaa0dfca5fba0264305317c693",
+    "frontend/src/views/public/__tests__/BlindboxView.pg.spec.ts": "370c4f6f868a68ac969d4cab4469de7b55c2fce639816766fbe2a2118ee74044",
+    "frontend/src/views/public/__tests__/BlindboxView.spec.ts": "728fcb51ab670fb2924daeda22d0470f02ccda42e88024de6967732f5760efd8"
+  },
+  "logs": {
+    "/tmp/p3-blindbox-fields-red.log": {
+      "sha256": "77aaa2454b7a72c7b810cbe6f88677ebdaf1238e214bb035cb748d682ee590bf",
+      "summary": [
+        "--- FAIL: TestBlindboxHTTPDatabaseContract (0.61s)",
+        "    --- FAIL: TestBlindboxHTTPDatabaseContract/balance (0.22s)",
+        "    --- FAIL: TestBlindboxHTTPDatabaseContract/coupon (0.18s)",
+        "    --- FAIL: TestBlindboxHTTPDatabaseContract/redeem_code (0.21s)"
+      ]
+    },
+    "/tmp/p3-blindbox-unpublished-red.log": {
+      "sha256": "b345747c5b6b35e082c717d3f06d3537d7e76ad31a3a865c218a698ddba8f1bf",
+      "summary": [
+        "--- FAIL: TestBlindboxBoundaryDatabaseContract (0.04s)",
+        "    --- FAIL: TestBlindboxBoundaryDatabaseContract/denied_and_unpublished_no_effects (0.04s)"
+      ]
+    },
+    "/tmp/p3-blindbox-lifecycle-red.log": {
+      "sha256": "9700517990b07c66065c91fea6d3cbd3d3489b6bad09634a2d44e2d5cf13f164",
+      "summary": [
+        "     → expected 1 to be +0 // Object.is equality",
+        "     → expected 3 to be 2 // Object.is equality",
+        "     → expected 2 to be 1 // Object.is equality",
+        "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯",
+        "AssertionError: expected 1 to be +0 // Object.is equality",
+        "AssertionError: expected 3 to be 2 // Object.is equality",
+        "AssertionError: expected 2 to be 1 // Object.is equality",
+        " Test Files  1 failed (1)",
+        "      Tests  3 failed | 5 passed (8)"
+      ]
+    },
+    "/tmp/p3-blindbox-owner-red.log": {
+      "sha256": "f9fb9681c6cc65d44bc37a3742e3c28574eaf9e3f81b9993593485a637aea091",
+      "summary": [
+        "     → expected null to be 'blindbox-02051482-d44a-4e77-a9ad-aa59…' // Object.is equality",
+        "     → expected null to be 'blindbox-7d97b7c9-0474-46e3-948a-ae4b…' // Object.is equality",
+        "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯",
+        "AssertionError: expected null to be 'blindbox-02051482-d44a-4e77-a9ad-aa59…' // Object.is equality",
+        "AssertionError: expected null to be 'blindbox-7d97b7c9-0474-46e3-948a-ae4b…' // Object.is equality",
+        " Test Files  1 failed (1)",
+        "      Tests  2 failed | 11 skipped (13)"
+      ]
+    },
+    "/tmp/p3-blindbox-identity-red.log": {
+      "sha256": "3ca8f9e2c6d2d41f045d562ef1c84bc5fe618ccd6532f9fcb51f831a2fd5f09f",
+      "summary": [
+        "     → expected true to be false // Object.is equality",
+        "     → expected true to be false // Object.is equality",
+        "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯",
+        "AssertionError: expected true to be false // Object.is equality",
+        "AssertionError: expected true to be false // Object.is equality",
+        " Test Files  1 failed (1)",
+        "      Tests  2 failed | 13 passed (15)"
+      ]
+    },
+    "/tmp/p3-blindbox-recent-red.log": {
+      "sha256": "f278401a0a8e660f6eae2fae66a2a5175efda58606fecfdefe809c26e082a191",
+      "summary": [
+        "     → expected 1 to be 2 // Object.is equality",
+        "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯",
+        "AssertionError: expected 1 to be 2 // Object.is equality",
+        " Test Files  1 failed (1)",
+        "      Tests  1 failed | 16 passed (17)"
+      ]
+    },
+    "/tmp/p3-blindbox-reviewed-green.log": {
+      "sha256": "2e29b868e008c02c6abba2c1e27fec22036a45a69c50b8c51fd18970def71dcf",
+      "summary": [
+        " Test Files  2 passed (2)",
+        "      Tests  47 passed (47)"
+      ]
+    },
+    "/tmp/p3-welfare-contract-frozen.log": {
+      "sha256": "c336d4cfa9b47c5d0940904d5837e0943777e8628ad958e5e7087d0ddcb2bb00",
+      "summary": [
+        "    play_blindbox_welfare_http_integration_test.go:142: blindbox DB: opens=1 snapshots=1 coupons=0 codes=0 cost=0.5 reward=0.2 balance=0.7",
+        "    play_blindbox_welfare_http_integration_test.go:142: blindbox DB: opens=1 snapshots=1 coupons=1 codes=0 cost=0.5 reward=0 balance=0.5",
+        "    play_blindbox_welfare_http_integration_test.go:142: blindbox DB: opens=1 snapshots=1 coupons=0 codes=1 cost=0.5 reward=0 balance=0.5",
+        "--- PASS: TestBlindboxHTTPDatabaseContract (0.72s)",
+        "    --- PASS: TestBlindboxHTTPDatabaseContract/balance (0.29s)",
+        "    --- PASS: TestBlindboxHTTPDatabaseContract/coupon (0.20s)",
+        "    --- PASS: TestBlindboxHTTPDatabaseContract/redeem_code (0.23s)",
+        "    play_blindbox_welfare_http_integration_test.go:191: blindbox DB: opens=0 snapshots=0 coupons=0 codes=0 cost=0 reward=0 balance=1",
+        "    play_blindbox_welfare_http_integration_test.go:192: blindbox DB: opens=0 snapshots=0 coupons=0 codes=0 cost=0 reward=0 balance=1",
+        "    play_blindbox_welfare_http_integration_test.go:229: blindbox DB: opens=2 snapshots=2 coupons=0 codes=0 cost=1 reward=0.4 balance=1.4",
+        "    play_blindbox_welfare_http_integration_test.go:241: blindbox DB: opens=0 snapshots=0 coupons=0 codes=0 cost=0 reward=0 balance=0.49",
+        "    play_blindbox_welfare_http_integration_test.go:252: blindbox DB: opens=0 snapshots=0 coupons=0 codes=0 cost=0 reward=0 balance=1",
+        "    play_blindbox_welfare_http_integration_test.go:266: blindbox DB: opens=1 snapshots=1 coupons=0 codes=0 cost=0.5 reward=0.2 balance=0.7",
+        "    play_blindbox_welfare_http_integration_test.go:252: blindbox DB: opens=0 snapshots=0 coupons=0 codes=0 cost=0 reward=0 balance=1",
+        "    play_blindbox_welfare_http_integration_test.go:266: blindbox DB: opens=1 snapshots=1 coupons=1 codes=0 cost=0.5 reward=0 balance=0.5",
+        "    play_blindbox_welfare_http_integration_test.go:252: blindbox DB: opens=0 snapshots=0 coupons=0 codes=0 cost=0 reward=0 balance=1",
+        "    play_blindbox_welfare_http_integration_test.go:266: blindbox DB: opens=1 snapshots=1 coupons=0 codes=1 cost=0.5 reward=0 balance=0.5",
+        "    play_blindbox_welfare_http_integration_test.go:278: blindbox DB: opens=0 snapshots=0 coupons=0 codes=0 cost=0 reward=0 balance=1",
+        "    play_blindbox_welfare_http_integration_test.go:284: blindbox DB: opens=1 snapshots=1 coupons=0 codes=1 cost=0.5 reward=0 balance=0.5",
+        "    play_blindbox_welfare_http_integration_test.go:295: blindbox DB: opens=0 snapshots=0 coupons=0 codes=0 cost=0 reward=0 balance=1",
+        "    play_blindbox_welfare_http_integration_test.go:307: blindbox DB: opens=1 snapshots=1 coupons=1 codes=0 cost=0.5 reward=0 balance=0.5",
+        "    play_blindbox_welfare_http_integration_test.go:319: blindbox DB: opens=1 snapshots=1 coupons=0 codes=1 cost=0.5 reward=0 balance=0.5",
+        "    play_blindbox_welfare_http_integration_test.go:319: blindbox DB: opens=1 snapshots=1 coupons=0 codes=1 cost=0.5 reward=0 balance=0.5",
+        "--- PASS: TestBlindboxBoundaryDatabaseContract (0.80s)",
+        "    --- PASS: TestBlindboxBoundaryDatabaseContract/denied_and_unpublished_no_effects (0.07s)",
+        "    --- PASS: TestBlindboxBoundaryDatabaseContract/distinct_requests_respect_daily_limit (0.17s)",
+        "    --- PASS: TestBlindboxBoundaryDatabaseContract/insufficient_balance_no_effects (0.02s)",
+        "    --- PASS: TestBlindboxBoundaryDatabaseContract/rollback_balance (0.07s)",
+        "    --- PASS: TestBlindboxBoundaryDatabaseContract/rollback_coupon (0.09s)",
+        "    --- PASS: TestBlindboxBoundaryDatabaseContract/rollback_redeem_code (0.07s)",
+        "    --- PASS: TestBlindboxBoundaryDatabaseContract/expired_redeem_inventory (0.07s)",
+        "    --- PASS: TestBlindboxBoundaryDatabaseContract/paused_coupon_then_retired_pool_replay (0.08s)",
+        "    --- PASS: TestBlindboxBoundaryDatabaseContract/same_client_key_is_scoped_to_each_user (0.12s)",
+        "    --- PASS: TestBlindboxBoundaryDatabaseContract/previous_day_does_not_consume_current_limit (0.04s)",
+        "         Test Files  1 passed (1)",
+        "              Tests  1 passed (1)",
+        "    play_blindbox_welfare_http_integration_test.go:376: blindbox DB: opens=2 snapshots=2 coupons=0 codes=0 cost=1 reward=0.4 balance=0.4",
+        "         Test Files  1 passed (1)",
+        "              Tests  1 passed (1)",
+        "    play_blindbox_welfare_http_integration_test.go:376: blindbox DB: opens=2 snapshots=2 coupons=2 codes=0 cost=1 reward=0 balance=0",
+        "         Test Files  1 passed (1)",
+        "              Tests  1 passed (1)",
+        "    play_blindbox_welfare_http_integration_test.go:376: blindbox DB: opens=2 snapshots=2 coupons=0 codes=2 cost=1 reward=0 balance=0",
+        "--- PASS: TestBlindboxVueDatabaseContract (27.50s)",
+        "    --- PASS: TestBlindboxVueDatabaseContract/balance (8.33s)",
+        "    --- PASS: TestBlindboxVueDatabaseContract/coupon (10.12s)",
+        "    --- PASS: TestBlindboxVueDatabaseContract/redeem_code (9.05s)",
+        "    play_welfare_http_integration_test.go:296: quiz DB: attempts=1 snapshots=1 energy=1 coupons=0 codes=0 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:299: quiz DB: attempts=1 snapshots=1 energy=0 coupons=0 codes=0 reward=0.2 balance=1.2",
+        "    play_welfare_http_integration_test.go:305: quiz DB: attempts=1 snapshots=1 energy=0 coupons=1 codes=0 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:311: quiz DB: attempts=1 snapshots=1 energy=0 coupons=0 codes=1 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:325: quiz DB: attempts=0 snapshots=0 energy=0 coupons=0 codes=0 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:325: quiz DB: attempts=0 snapshots=0 energy=0 coupons=0 codes=0 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:325: quiz DB: attempts=0 snapshots=0 energy=0 coupons=0 codes=0 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:325: quiz DB: attempts=0 snapshots=0 energy=0 coupons=0 codes=0 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:325: quiz DB: attempts=0 snapshots=0 energy=0 coupons=0 codes=0 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:334: quiz DB: attempts=1 snapshots=1 energy=0 coupons=0 codes=0 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:357: quiz DB: attempts=0 snapshots=0 energy=0 coupons=0 codes=0 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:374: quiz DB: attempts=0 snapshots=0 energy=0 coupons=0 codes=0 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:383: quiz DB: attempts=1 snapshots=1 energy=0 coupons=0 codes=0 reward=0.2 balance=1.2",
+        "    play_welfare_http_integration_test.go:397: quiz DB: attempts=0 snapshots=0 energy=0 coupons=0 codes=0 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:403: quiz DB: attempts=1 snapshots=1 energy=0 coupons=0 codes=1 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:417: quiz DB: attempts=0 snapshots=0 energy=0 coupons=0 codes=0 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:431: quiz DB: attempts=1 snapshots=1 energy=0 coupons=1 codes=0 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:443: quiz DB: attempts=0 snapshots=0 energy=0 coupons=0 codes=0 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:448: quiz DB: attempts=1 snapshots=1 energy=0 coupons=0 codes=0 reward=0.2 balance=1.2",
+        "--- PASS: TestQuizHTTPDatabaseContract (1.11s)",
+        "    --- PASS: TestQuizHTTPDatabaseContract/energy (0.10s)",
+        "    --- PASS: TestQuizHTTPDatabaseContract/balance (0.19s)",
+        "    --- PASS: TestQuizHTTPDatabaseContract/coupon (0.14s)",
+        "    --- PASS: TestQuizHTTPDatabaseContract/redeem_code (0.16s)",
+        "    --- PASS: TestQuizHTTPDatabaseContract/invalid_and_zero_score (0.11s)",
+        "    --- PASS: TestQuizHTTPDatabaseContract/authentication_and_unpublished_pool (0.04s)",
+        "    --- PASS: TestQuizHTTPDatabaseContract/stale_questions_and_completion_reward (0.06s)",
+        "    --- PASS: TestQuizHTTPDatabaseContract/expired_inventory_rolls_back_attempt (0.08s)",
+        "    --- PASS: TestQuizHTTPDatabaseContract/paused_coupon_pool_and_historical_replay (0.08s)",
+        "    --- PASS: TestQuizHTTPDatabaseContract/ledger_failure_rolls_back_before_retry (0.09s)",
+        "    --- PASS: TestQuizHTTPDatabaseContract/previous_day_does_not_consume_today (0.05s)",
+        "         Test Files  1 passed (1)",
+        "              Tests  2 passed (2)",
+        "    play_welfare_http_integration_test.go:504: quiz DB: attempts=1 snapshots=1 energy=1 coupons=0 codes=0 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:504: quiz DB: attempts=1 snapshots=1 energy=1 coupons=0 codes=0 reward=0 balance=1",
+        "         Test Files  1 passed (1)",
+        "              Tests  2 passed (2)",
+        "    play_welfare_http_integration_test.go:506: quiz DB: attempts=1 snapshots=1 energy=0 coupons=0 codes=0 reward=0.2 balance=1.2",
+        "    play_welfare_http_integration_test.go:506: quiz DB: attempts=1 snapshots=1 energy=0 coupons=0 codes=0 reward=0.2 balance=1.2",
+        "         Test Files  1 passed (1)",
+        "              Tests  2 passed (2)",
+        "    play_welfare_http_integration_test.go:508: quiz DB: attempts=1 snapshots=1 energy=0 coupons=1 codes=0 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:508: quiz DB: attempts=1 snapshots=1 energy=0 coupons=1 codes=0 reward=0 balance=1",
+        "         Test Files  1 passed (1)",
+        "              Tests  2 passed (2)",
+        "    play_welfare_http_integration_test.go:510: quiz DB: attempts=1 snapshots=1 energy=0 coupons=0 codes=1 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:510: quiz DB: attempts=1 snapshots=1 energy=0 coupons=0 codes=1 reward=0 balance=1",
+        "--- PASS: TestQuizVueDatabaseContract (36.49s)",
+        "    --- PASS: TestQuizVueDatabaseContract/energy (9.33s)",
+        "    --- PASS: TestQuizVueDatabaseContract/balance (10.65s)",
+        "    --- PASS: TestQuizVueDatabaseContract/coupon (9.12s)",
+        "    --- PASS: TestQuizVueDatabaseContract/redeem_code (7.38s)"
+      ]
+    },
+    "/tmp/p3-welfare-build-frozen.log": {
+      "sha256": "5bb4b384296cddc797ea32afa53c7390bbf176b718082c96a0b8077e9f0ab098",
+      "summary": [
+        " Test Files  1 passed (1)",
+        "      Tests  3 passed (3)",
+        "✓ built in 1m 14s"
+      ]
+    },
+    "/tmp/p3-blindbox-qualification-red.log": {
+      "sha256": "a9c6d76cea28a27e1fdd4d324a49b67cf8c6ab0066d832b9b1df383027e00de7",
+      "summary": [
+        "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯",
+        " Test Files  1 failed (1)",
+        "      Tests  2 failed | 17 passed (19)"
+      ]
+    },
+    "/tmp/p3-blindbox-qualification-green.log": {
+      "sha256": "04d950f54be5d43089f2c3a6a4b55c8c2ad23b1e6fec66e92df8e2966ca75778",
+      "summary": [
+        " Test Files  2 passed (2)",
+        "      Tests  49 passed (49)"
+      ]
+    },
+    "/tmp/p3-welfare-contract-quality-final.log": {
+      "sha256": "f3c869e55dbae6493e322155bd386746348aabfbe5fe46c870bff649b83fc7bb",
+      "summary": [
+        "    play_blindbox_welfare_http_integration_test.go:142: blindbox DB: opens=1 snapshots=1 coupons=0 codes=0 cost=0.5 reward=0.2 balance=0.7",
+        "    play_blindbox_welfare_http_integration_test.go:142: blindbox DB: opens=1 snapshots=1 coupons=1 codes=0 cost=0.5 reward=0 balance=0.5",
+        "    play_blindbox_welfare_http_integration_test.go:142: blindbox DB: opens=1 snapshots=1 coupons=0 codes=1 cost=0.5 reward=0 balance=0.5",
+        "--- PASS: TestBlindboxHTTPDatabaseContract (0.52s)",
+        "    --- PASS: TestBlindboxHTTPDatabaseContract/balance (0.21s)",
+        "    --- PASS: TestBlindboxHTTPDatabaseContract/coupon (0.17s)",
+        "    --- PASS: TestBlindboxHTTPDatabaseContract/redeem_code (0.14s)",
+        "    play_blindbox_welfare_http_integration_test.go:191: blindbox DB: opens=0 snapshots=0 coupons=0 codes=0 cost=0 reward=0 balance=1",
+        "    play_blindbox_welfare_http_integration_test.go:192: blindbox DB: opens=0 snapshots=0 coupons=0 codes=0 cost=0 reward=0 balance=1",
+        "    play_blindbox_welfare_http_integration_test.go:229: blindbox DB: opens=2 snapshots=2 coupons=0 codes=0 cost=1 reward=0.4 balance=1.4",
+        "    play_blindbox_welfare_http_integration_test.go:241: blindbox DB: opens=0 snapshots=0 coupons=0 codes=0 cost=0 reward=0 balance=0.49",
+        "    play_blindbox_welfare_http_integration_test.go:252: blindbox DB: opens=0 snapshots=0 coupons=0 codes=0 cost=0 reward=0 balance=1",
+        "    play_blindbox_welfare_http_integration_test.go:266: blindbox DB: opens=1 snapshots=1 coupons=0 codes=0 cost=0.5 reward=0.2 balance=0.7",
+        "    play_blindbox_welfare_http_integration_test.go:252: blindbox DB: opens=0 snapshots=0 coupons=0 codes=0 cost=0 reward=0 balance=1",
+        "    play_blindbox_welfare_http_integration_test.go:266: blindbox DB: opens=1 snapshots=1 coupons=1 codes=0 cost=0.5 reward=0 balance=0.5",
+        "    play_blindbox_welfare_http_integration_test.go:252: blindbox DB: opens=0 snapshots=0 coupons=0 codes=0 cost=0 reward=0 balance=1",
+        "    play_blindbox_welfare_http_integration_test.go:266: blindbox DB: opens=1 snapshots=1 coupons=0 codes=1 cost=0.5 reward=0 balance=0.5",
+        "    play_blindbox_welfare_http_integration_test.go:278: blindbox DB: opens=0 snapshots=0 coupons=0 codes=0 cost=0 reward=0 balance=1",
+        "    play_blindbox_welfare_http_integration_test.go:284: blindbox DB: opens=1 snapshots=1 coupons=0 codes=1 cost=0.5 reward=0 balance=0.5",
+        "    play_blindbox_welfare_http_integration_test.go:295: blindbox DB: opens=0 snapshots=0 coupons=0 codes=0 cost=0 reward=0 balance=1",
+        "    play_blindbox_welfare_http_integration_test.go:307: blindbox DB: opens=1 snapshots=1 coupons=1 codes=0 cost=0.5 reward=0 balance=0.5",
+        "    play_blindbox_welfare_http_integration_test.go:319: blindbox DB: opens=1 snapshots=1 coupons=0 codes=1 cost=0.5 reward=0 balance=0.5",
+        "    play_blindbox_welfare_http_integration_test.go:319: blindbox DB: opens=1 snapshots=1 coupons=0 codes=1 cost=0.5 reward=0 balance=0.5",
+        "--- PASS: TestBlindboxBoundaryDatabaseContract (0.55s)",
+        "    --- PASS: TestBlindboxBoundaryDatabaseContract/denied_and_unpublished_no_effects (0.04s)",
+        "    --- PASS: TestBlindboxBoundaryDatabaseContract/distinct_requests_respect_daily_limit (0.12s)",
+        "    --- PASS: TestBlindboxBoundaryDatabaseContract/insufficient_balance_no_effects (0.01s)",
+        "    --- PASS: TestBlindboxBoundaryDatabaseContract/rollback_balance (0.05s)",
+        "    --- PASS: TestBlindboxBoundaryDatabaseContract/rollback_coupon (0.07s)",
+        "    --- PASS: TestBlindboxBoundaryDatabaseContract/rollback_redeem_code (0.06s)",
+        "    --- PASS: TestBlindboxBoundaryDatabaseContract/expired_redeem_inventory (0.05s)",
+        "    --- PASS: TestBlindboxBoundaryDatabaseContract/paused_coupon_then_retired_pool_replay (0.05s)",
+        "    --- PASS: TestBlindboxBoundaryDatabaseContract/same_client_key_is_scoped_to_each_user (0.06s)",
+        "    --- PASS: TestBlindboxBoundaryDatabaseContract/previous_day_does_not_consume_current_limit (0.04s)",
+        "         Test Files  1 passed (1)",
+        "              Tests  1 passed (1)",
+        "    play_blindbox_welfare_http_integration_test.go:376: blindbox DB: opens=2 snapshots=2 coupons=0 codes=0 cost=1 reward=0.4 balance=0.4",
+        "         Test Files  1 passed (1)",
+        "              Tests  1 passed (1)",
+        "    play_blindbox_welfare_http_integration_test.go:376: blindbox DB: opens=2 snapshots=2 coupons=2 codes=0 cost=1 reward=0 balance=0",
+        "         Test Files  1 passed (1)",
+        "              Tests  1 passed (1)",
+        "    play_blindbox_welfare_http_integration_test.go:376: blindbox DB: opens=2 snapshots=2 coupons=0 codes=2 cost=1 reward=0 balance=0",
+        "--- PASS: TestBlindboxVueDatabaseContract (15.25s)",
+        "    --- PASS: TestBlindboxVueDatabaseContract/balance (5.21s)",
+        "    --- PASS: TestBlindboxVueDatabaseContract/coupon (4.87s)",
+        "    --- PASS: TestBlindboxVueDatabaseContract/redeem_code (5.18s)",
+        "    play_welfare_http_integration_test.go:296: quiz DB: attempts=1 snapshots=1 energy=1 coupons=0 codes=0 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:299: quiz DB: attempts=1 snapshots=1 energy=0 coupons=0 codes=0 reward=0.2 balance=1.2",
+        "    play_welfare_http_integration_test.go:305: quiz DB: attempts=1 snapshots=1 energy=0 coupons=1 codes=0 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:311: quiz DB: attempts=1 snapshots=1 energy=0 coupons=0 codes=1 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:325: quiz DB: attempts=0 snapshots=0 energy=0 coupons=0 codes=0 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:325: quiz DB: attempts=0 snapshots=0 energy=0 coupons=0 codes=0 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:325: quiz DB: attempts=0 snapshots=0 energy=0 coupons=0 codes=0 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:325: quiz DB: attempts=0 snapshots=0 energy=0 coupons=0 codes=0 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:325: quiz DB: attempts=0 snapshots=0 energy=0 coupons=0 codes=0 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:334: quiz DB: attempts=1 snapshots=1 energy=0 coupons=0 codes=0 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:357: quiz DB: attempts=0 snapshots=0 energy=0 coupons=0 codes=0 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:374: quiz DB: attempts=0 snapshots=0 energy=0 coupons=0 codes=0 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:383: quiz DB: attempts=1 snapshots=1 energy=0 coupons=0 codes=0 reward=0.2 balance=1.2",
+        "    play_welfare_http_integration_test.go:397: quiz DB: attempts=0 snapshots=0 energy=0 coupons=0 codes=0 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:403: quiz DB: attempts=1 snapshots=1 energy=0 coupons=0 codes=1 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:417: quiz DB: attempts=0 snapshots=0 energy=0 coupons=0 codes=0 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:431: quiz DB: attempts=1 snapshots=1 energy=0 coupons=1 codes=0 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:443: quiz DB: attempts=0 snapshots=0 energy=0 coupons=0 codes=0 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:448: quiz DB: attempts=1 snapshots=1 energy=0 coupons=0 codes=0 reward=0.2 balance=1.2",
+        "--- PASS: TestQuizHTTPDatabaseContract (0.67s)",
+        "    --- PASS: TestQuizHTTPDatabaseContract/energy (0.08s)",
+        "    --- PASS: TestQuizHTTPDatabaseContract/balance (0.09s)",
+        "    --- PASS: TestQuizHTTPDatabaseContract/coupon (0.09s)",
+        "    --- PASS: TestQuizHTTPDatabaseContract/redeem_code (0.10s)",
+        "    --- PASS: TestQuizHTTPDatabaseContract/invalid_and_zero_score (0.07s)",
+        "    --- PASS: TestQuizHTTPDatabaseContract/authentication_and_unpublished_pool (0.01s)",
+        "    --- PASS: TestQuizHTTPDatabaseContract/stale_questions_and_completion_reward (0.06s)",
+        "    --- PASS: TestQuizHTTPDatabaseContract/expired_inventory_rolls_back_attempt (0.04s)",
+        "    --- PASS: TestQuizHTTPDatabaseContract/paused_coupon_pool_and_historical_replay (0.04s)",
+        "    --- PASS: TestQuizHTTPDatabaseContract/ledger_failure_rolls_back_before_retry (0.05s)",
+        "    --- PASS: TestQuizHTTPDatabaseContract/previous_day_does_not_consume_today (0.04s)",
+        "         Test Files  1 passed (1)",
+        "              Tests  2 passed (2)",
+        "    play_welfare_http_integration_test.go:504: quiz DB: attempts=1 snapshots=1 energy=1 coupons=0 codes=0 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:504: quiz DB: attempts=1 snapshots=1 energy=1 coupons=0 codes=0 reward=0 balance=1",
+        "         Test Files  1 passed (1)",
+        "              Tests  2 passed (2)",
+        "    play_welfare_http_integration_test.go:506: quiz DB: attempts=1 snapshots=1 energy=0 coupons=0 codes=0 reward=0.2 balance=1.2",
+        "    play_welfare_http_integration_test.go:506: quiz DB: attempts=1 snapshots=1 energy=0 coupons=0 codes=0 reward=0.2 balance=1.2",
+        "         Test Files  1 passed (1)",
+        "              Tests  2 passed (2)",
+        "    play_welfare_http_integration_test.go:508: quiz DB: attempts=1 snapshots=1 energy=0 coupons=1 codes=0 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:508: quiz DB: attempts=1 snapshots=1 energy=0 coupons=1 codes=0 reward=0 balance=1",
+        "         Test Files  1 passed (1)",
+        "              Tests  2 passed (2)",
+        "    play_welfare_http_integration_test.go:510: quiz DB: attempts=1 snapshots=1 energy=0 coupons=0 codes=1 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:510: quiz DB: attempts=1 snapshots=1 energy=0 coupons=0 codes=1 reward=0 balance=1",
+        "--- PASS: TestQuizVueDatabaseContract (21.24s)",
+        "    --- PASS: TestQuizVueDatabaseContract/energy (5.16s)",
+        "    --- PASS: TestQuizVueDatabaseContract/balance (5.84s)",
+        "    --- PASS: TestQuizVueDatabaseContract/coupon (5.64s)",
+        "    --- PASS: TestQuizVueDatabaseContract/redeem_code (4.59s)"
+      ]
+    },
+    "/tmp/p3-welfare-make-build-quality.log": {
+      "sha256": "87675587b0179a33e201cdc668501e11277d04fdb828512fab942284435194a7",
+      "summary": [
+        " Test Files  1 passed (1)",
+        "      Tests  3 passed (3)",
+        "✓ built in 56.14s"
+      ]
+    },
+    "/tmp/p3-blindbox-root-review-red.log": {
+      "sha256": "bd97419afc1eec7d38d7e7a2661f9578534cc972a92442650634b51bdb45c0a0",
+      "result": "Root-review RED: 2 failed, 20 passed; displayed feed and late-before-retry reproduce"
+    },
+    "/tmp/p3-blindbox-root-review-green.log": {
+      "sha256": "bbd5cfd647428f441f1206f7cfe92c3040899311f7f064bfcc12809e4f594d6f",
+      "result": "Root-review GREEN: 52 passed including 22 real HTTP and 30 unit"
+    },
+    "/tmp/p3-welfare-build-root-review.log": {
+      "sha256": "a441d8cffb2e834b34be26ed4687cf9fd2f73b8a5a769b355229788eb1ca882c",
+      "result": "Root make build passed on revised source"
+    },
+    "/tmp/p3-welfare-contract-root-review.log": {
+      "sha256": "aa0950ceb624ff1ad1ee1bdb9e6630f272eaad349ed95952c3e4d15ce8685a2f",
+      "result": "Welfare actual PG/HTTP/Vue passed, 133.363s"
+    }
+  },
+  "bundle_hashes": {
+    "backend/internal/web/dist/assets/BlindboxView-CIBJt6ZG.js": "754f7646230296a2c58a743434f08d1698fa30be0113b1bd33b51fdc78f39c21"
+  },
+  "superseded_builds": [
+    "3923b13886fb6a651cae3355f1389bad2e2347d143ef5e9e1ef5d56d8b279195: before qualification-failure guard, valid only for prior spec review",
+    "d565779025b9910ddb0b2e53b346f48685170a564aff4d8398acf9ae13df291d: initial PR357 head51b1073, before same-account qualification invalidation; historical only"
+  ],
+  "browser": {
+    "reports": [
+      {
+        "case": "blindbox-same-account-settlement-qualification-failure",
+        "stale_public_feed_cleared": true,
+        "retry_restores_feed": true,
+        "posts": 1
+      },
+      {
+        "case": "blindbox-identity-isolation",
+        "logout_clears_reward": true,
+        "switch_clears_private_pool": true,
+        "failed_qualification_retry": true,
+        "qualified_recent_restored": true,
+        "explorer_recent_requests": 0,
+        "auth_actions": "production Pinia logout/checkAuth; synthetic HTTP identity"
+      },
+      {
+        "case": "blindbox-states",
+        "viewport": 360,
+        "language": "zh",
+        "theme": "dark",
+        "known_probabilities": [
+          0,
+          100,
+          0
+        ],
+        "js_errors": [],
+        "overflow": false
+      },
+      {
+        "case": "blindbox-states",
+        "viewport": 768,
+        "language": "en",
+        "theme": "light",
+        "known_probabilities": [
+          0,
+          100,
+          0
+        ],
+        "js_errors": [],
+        "overflow": false
+      },
+      {
+        "case": "blindbox-states",
+        "viewport": 1280,
+        "language": "zh",
+        "theme": "light",
+        "known_probabilities": [
+          0,
+          100,
+          0
+        ],
+        "js_errors": [],
+        "overflow": false
+      },
+      {
+        "case": "blindbox-states",
+        "viewport": 1920,
+        "language": "en",
+        "theme": "dark",
+        "known_probabilities": [
+          0,
+          100,
+          0
+        ],
+        "js_errors": [],
+        "overflow": false
+      },
+      {
+        "case": "blindbox-unknown-remount-replay",
+        "opens": 2,
+        "posts": 2,
+        "balance": 0
+      },
+      {
+        "case": "blindbox-disabled-unpublished-explorer-guest",
+        "guest_private_gets": 0,
+        "explorer_reward_details": false
+      }
+    ],
+    "index_sha256": "fbff6b8fd39679d7c454486a0131ec0e343d3871c001926ad79d7e7285962e61"
+  },
+  "root_review": {
+    "initial_head": "51b1073b5728fb81b2fce24b0a1a8eadd8fb4a78",
+    "scope": "Public anonymized activity display consistency when qualification becomes unknown; no demonstrated private-data leakage or public backend contract change",
+    "fix": "Current status failure invalidates recent generation and clears feed plus stale feed error",
+    "latest_browser_pending": false
+  }
+}

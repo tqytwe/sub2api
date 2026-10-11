@@ -1,0 +1,11 @@
+{
+  "reports": [
+    {
+      "case": "quiz-409-stale-balance",
+      "profile_balance": 1.2,
+      "header_balance": 1.0,
+      "prototype": "DOM preview only"
+    }
+  ],
+  "index_sha256": "8202a70c3a9c5baaff4876967cd7975673eb77055b9536657f2786ab6e40b36b"
+}
