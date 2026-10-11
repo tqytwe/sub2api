@@ -1,12 +1,14 @@
 # Admin request routing detail
 
+当前进度：#359已正式进入主线8364b462，本分支普通合并后真实JWT/HTTP/PG/编译资源组合已验证。参见[本轮证据与边界](merge-8364b462/README.md)；下列初始/前轮记录保留其原有时间范围。尚未合并部署。
+
 ## Contract and authorized scope
 
 Initial base: `fb2c9747b58ed5d980a36ea6a2316ead2aa03b7e` (`play/main`, merged #360).
 Isolated worktree: `/workspace/sub2api-routing-ui`; branch: `codex/admin-routing-detail-20261011`.
 Dependency read: #359 `ae832b16b63139b2395008a1f2073d7cb15161f7`, not merged when work began.
 [Backend coordination](https://github.com/tqytwe/sub2api/pull/359#issuecomment-6108343601).
-No backend, billing, auth protocol, migration, history backfill or release change is authorized here.
+No production backend, billing, auth protocol, migration, history backfill or release change is included here.
 
 `GET /api/v1/admin/requests/:id/routing` accepts the existing private request UUID. It is admin-only,
 uses existing authentication and no-store, and returns the normal response envelope. Invalid UUID is

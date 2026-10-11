@@ -183,3 +183,9 @@ The original pair was489px; the first combination run saw503px and its assertion
 Global width is therefore recorded as an unresolved existing mobile boundary, not a passing full-site
 assertion. Every admin width and every dialog bounds assertion remains enforced. All356 old baseline
 resources still match the archived PR360 manifest. New combination1280/360 screenshots were inspected.
+
+## 正式主线8364b462组合
+
+本轮没有界面改动；356编译资源逐字保持上轮结果，见[保留证明](../archive/completed-tasks/admin-routing-detail/merge-8364b462/source-proof.json)。新增[真实PG浏览器断言](../archive/completed-tasks/admin-routing-detail/merge-8364b462/browser/browser-evidence.json)与[完整状态截图](../archive/completed-tasks/admin-routing-detail/merge-8364b462/browser/state-complete.png)、[实际读取503截图](../archive/completed-tasks/admin-routing-detail/merge-8364b462/browser/real-storage-503.png)。截图为1280px英文浅色；六状态来自真实recorder/async writer/PG查询，不是响应JSON替身。测试专用签发配合真实JWT/admin中间件；身份切换通过真实Pinia动作，延迟的是实际HTTP响应。关闭后同document重开能忽略旧503。
+
+未重新声称全宽度/主题矩阵全跑；既有360/768/1280/1920与主题证据按源码、资源逐字保留，英文用户360px全局header溢出仍是已知范围外风险。生产和用户本机验收仍待主线程协调。

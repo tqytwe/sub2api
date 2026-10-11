@@ -19,7 +19,7 @@
     {
       "id": "admin-request-routing-detail",
       "title": "管理员请求详情独立只读选路证据区域",
-      "backend_state": "可测",
+      "backend_state": "已验证",
       "product_state": "可测",
       "owner": "主线程协调",
       "pr": "https://github.com/tqytwe/sub2api/pull/363",
@@ -29,17 +29,19 @@
           "status": "recorded",
           "refs": [
             "docs/visual-reviews/2026-10-11-admin-routing-detail.md",
-            "docs/archive/completed-tasks/admin-routing-detail/browser-evidence.json"
+            "docs/archive/completed-tasks/admin-routing-detail/browser-evidence.json",
+            "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/browser/browser-evidence.json"
           ],
-          "note": "新编译资源+合成HTTP routing合同，六状态/四宽度/两角色/503/真实Pinia；含#362倒序登录、发布失败清理恢复。非routing后端PG集成或生产。"
+          "note": "356实际编译资源逐字保留7cc；新1280px真实PG六状态、局部503、实际Pinia/JWT会话切换通过。早期四宽度/主题证据保持原范围；非生产用户本机验收。"
         },
         "api": {
-          "status": "pending",
+          "status": "recorded",
           "refs": [
             "https://github.com/tqytwe/sub2api/pull/359",
-            "docs/archive/completed-tasks/admin-routing-detail/dependency-contract.json"
+            "docs/archive/completed-tasks/admin-routing-detail/dependency-contract.json",
+            "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/README.md"
           ],
-          "note": "精确读取ae832b16合同；最新add3fa4d三文件逐字一致、仍未合入。不合入其未发布分支，不称主线routing可用。"
+          "note": "正式主线8364b462包含#359最终0ceacb244；三合同文件逐字一致。真实recorder→async writer→PG→admin HTTP→实际编译资源通过。真实JWT/AdminAuth/PG角色、签名、停用/凭据版本及租户隔离验证；签发为测试入口，不称真实密码登录/MFA/binding。"
         },
         "schema": {
           "status": "na",
@@ -52,14 +54,16 @@
             "docs/archive/completed-tasks/admin-routing-detail/reviews.json",
             "frontend/src/views/shared/__tests__/RequestLedgerView.routing.http.spec.ts",
             "frontend/src/api/__tests__/requestRouting.spec.ts",
-            "docs/archive/completed-tasks/admin-routing-detail/core-browser-evidence.json"
+            "docs/archive/completed-tasks/admin-routing-detail/core-browser-evidence.json",
+            "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/result.json",
+            "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/validation.json"
           ],
-          "note": "fb基线40新定向/48既有回归通过；6ae普通组合44新定向与全量make test（前端3869通过/8既有跳过）、build/embed通过。顺序双审PASS；新资源合成routing及真实HTTP/PG核心详情均通过。Fork及适用全量门禁均通过。"
+          "note": "836普通组合真实PG浏览器run8通过，0pageerror，六状态/零候选/128上界/两轮选择/账单1.25与余额98.75不变；同document旧真实503不能清除新200。新make test（前端3869通过/8既有跳过、后端lint0）、tag-unit、75项必执行台账契约、完整build/embed/Fork均通过。顺序规格与质量双审PASS，无P1/P2。"
         },
         "deployment": {
           "status": "pending",
           "refs": [],
-          "note": "独立草稿，不合并部署；#359正式进入主线后需普通merge及真实routing HTTP/PG组合复验。"
+          "note": "#359已正式合入主线并完成本地组合；#363仍为草稿，不自行合并部署。主线程核实最终准确head/CI后评审。"
         },
         "production": {
           "status": "pending",
@@ -68,8 +72,61 @@
         }
       },
       "risks": "旧27条503与gpt22历史不可追溯恢复。覆盖仅OpenAI-compatible HTTP文本，WS/媒体/Anthropic/Gemini排除。英文用户360px既有全局溢出：最新旧/新同为466px，前轮489px、组合初跑503px；详情360px。未扩展修全局header，不称全站响应式通过。",
-      "next": "已推送草稿#363，已测普通合并7462d8fc保留6ae auth核心；最终PR head可含交接文档提交。待准确head CI与主线程审查。#359未合并，须正式主线依赖+真实routing HTTP/PG组合后再评估；不合并部署。",
+      "next": "正式836主线组合全部本地门禁及顺序双审PASS；统一推送新冻结head后等待该head全部适用CI及主线程增量审查。不合并部署。",
       "rollback": "如管理员数据泄露、迟到串号或账单受影响，停止推进并由主线程审查源码revert；本UI不删除证据/迁移或改账务。"
+    },
+    {
+      "id": "http-text-routing-evidence",
+      "title": "OpenAI-compatible HTTP 文本选路证据后端",
+      "backend_state": "已验证",
+      "product_state": "实现中",
+      "owner": "主线程协调",
+      "pr": "https://github.com/tqytwe/sub2api/pull/359",
+      "sha": "0dcf99a3c5f786e41a8e2933dd025b1daea1c320",
+      "evidence": {
+        "ui": {
+          "status": "pending",
+          "refs": [],
+          "note": "尚无routing UI；主线程已独立委派分页作者接线，现有GET合同保持稳定。"
+        },
+        "api": {
+          "status": "recorded",
+          "refs": [
+            "backend/internal/handler/routing_handler.go",
+            "backend/internal/requestledger/routing_query.go"
+          ],
+          "note": "独立admin-only只读 /api/v1/admin/requests/:id/routing；失败不影响原详情。coverage限定HTTP文本，selection_no不等于attempt_no。"
+        },
+        "schema": {
+          "status": "recorded",
+          "refs": [
+            "backend/migrations/279_gateway_routing_evidence.sql"
+          ],
+          "note": "草稿279两列一表；父表ACCESS EXCLUSIVE NOWAIT、其他锁50ms、单语句500ms，失败整事务回滚后重试；278随主线PR360完整保留，275–277不变，尚未生产应用。Begin/Finish原SQL载摘要，有界异步明细，旧writer not_recorded。"
+        },
+        "tests": {
+          "status": "recorded",
+          "refs": [
+            "docs/archive/completed-tasks/2026-10-11-routing-evidence/README.md",
+            "docs/archive/completed-tasks/2026-10-11-routing-evidence/merge-362-validation.json",
+            "docs/archive/completed-tasks/2026-10-11-routing-evidence/worker-ack-validation.json"
+          ],
+          "note": "先前#360真实HTTP/PG23顶层47测试、278→279实际runner通过，#362普通合并和资源保留证据已存。add3 Protected CI因既有worker测试提前采样Active=1失败；基线受控Ack延迟3/3复现，6行测试有界等待保留全部断言，修后延迟20/普通100/race10+25通过，永久丢Ack负向仍失败。按序双审无P1/P2；本次重新完整make test（前端504文件3825通过/8既有跳过，后端全量及lint0）、tag-unit/build/embed/完整Fork全部通过。原27路由输入未变，清单28项；不称重跑全75 HTTP/PG合同。新head CI以PR359为准。"
+        },
+        "deployment": {
+          "status": "pending",
+          "refs": [],
+          "note": "独立草稿，主线程负责合并部署；本任务不访问生产。"
+        },
+        "production": {
+          "status": "pending",
+          "refs": [],
+          "note": "没有生产或用户本机三身份验收，不能根据旧27条503倒推路由根因。"
+        }
+      },
+      "risks": "128条/32KiB、队列64，压力或崩溃可以丢明细但显示incomplete；source_population_complete恒false。非HTTP文本/媒体/WS未覆盖。原8665旧锁策略head禁止发布；279 NOWAIT+短时限不变，实际持锁DDL/提交开销仍不可消除。add3 CI失败保留，修复后本地全门禁通过，新head CI及主线程复核待完成。",
+      "next": "普通推送本次worker采样同步修复与交接证据，核对精确head新CI；不盲目重跑add3失败workflow。identifier281保持暂停；UI/合并部署由主线程协调；其他快照条目未重验、checked_at不前移。 技术验证提交0dcf99a3c5f786e41a8e2933dd025b1daea1c320，后继仅记录交接元数据。",
+      "rollback": "279尚未发布，本次按主线程明确授权收紧其SQL并更新checksum；发布后不可改。争用/超时由运行器回滚且无279登记，保留旧应用流量后重试；成功后的应用回退保留新增列/表和证据，不删除/回填历史，不补扣。"
     },
     {
       "id": "request-ledger-detail-pagination",

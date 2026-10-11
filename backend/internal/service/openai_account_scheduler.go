@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
 	"hash/fnv"
 	"log/slog"
 	"math"
@@ -410,14 +411,15 @@ func (s *defaultOpenAIAccountScheduler) Select(
 			return nil, decision, err
 		}
 		if selection != nil && selection.Account != nil {
-			compatible, _ := s.isAccountRequestCompatibleReason(ctx, selection.Account, req)
+			previousCtx := requestledger.RoutingStage(ctx, "previous_response")
+			compatible, _ := s.isAccountRequestCompatibleReason(previousCtx, selection.Account, req)
 			hasGroupMetadata := len(selection.Account.GroupIDs) > 0 || len(selection.Account.AccountGroups) > 0
 			groupCompatible := !hasGroupMetadata || openAIStickyAccountMatchesGroup(selection.Account, req.GroupID)
 			if hasGroupMetadata && s.service != nil {
 				groupCompatible = s.service.openAIAccountMatchesSchedulingGroup(selection.Account, req.GroupID)
 			}
-			if !groupCompatible ||
-				!compatible || !s.isAccountTransportCompatible(selection.Account, req.RequiredTransport) {
+			if observeOpenAIRoutingVeto(previousCtx, selection.Account, "group_mismatch", !groupCompatible && compatible) || !groupCompatible ||
+				!compatible || !s.isAccountTransportCompatibleForRouting(previousCtx, selection.Account, req.RequiredTransport) {
 				if selection.ReleaseFunc != nil {
 					selection.ReleaseFunc()
 				}
@@ -497,6 +499,7 @@ func (s *defaultOpenAIAccountScheduler) selectBySessionHash(
 	ctx context.Context,
 	req OpenAIAccountScheduleRequest,
 ) (*AccountSelectionResult, bool, error) {
+	ctx = requestledger.RoutingStage(ctx, "sticky")
 	sessionHash := strings.TrimSpace(req.SessionHash)
 	if sessionHash == "" || s == nil || s.service == nil || s.service.cache == nil {
 		return nil, false, nil
@@ -520,6 +523,7 @@ func (s *defaultOpenAIAccountScheduler) selectBySessionHash(
 	}
 	if req.ExcludedIDs != nil {
 		if _, excluded := req.ExcludedIDs[accountID]; excluded {
+			requestledger.RoutingVeto(ctx, "", accountID, "excluded")
 			return nil, false, nil
 		}
 	}
@@ -529,19 +533,19 @@ func (s *defaultOpenAIAccountScheduler) selectBySessionHash(
 		clearBinding()
 		return nil, false, nil
 	}
-	if s.service.shouldClearOpenAIStickySessionForRequest(ctx, account, req.RequestedModel, req.RequireCompact) || account.Platform != NormalizeOpenAICompatiblePlatform(req.Platform) || !account.IsOpenAICompatible() || !account.IsSchedulable() {
+	if observeOpenAIRoutingVeto(ctx, account, "sticky_unhealthy", s.service.shouldClearOpenAIStickySessionForRequest(ctx, account, req.RequestedModel, req.RequireCompact)) || observeOpenAIRoutingVeto(ctx, account, "platform_mismatch", account.Platform != NormalizeOpenAICompatiblePlatform(req.Platform)) || observeOpenAIRoutingVeto(ctx, account, "platform_mismatch", !account.IsOpenAICompatible()) || observeOpenAIRoutingVeto(ctx, account, "not_schedulable", !account.IsSchedulable()) {
 		clearBinding()
 		return nil, false, nil
 	}
 	if !s.isAccountRequestCompatible(ctx, account, req) {
 		return nil, false, nil
 	}
-	if !s.isAccountTransportCompatible(account, req.RequiredTransport) {
+	if !s.isAccountTransportCompatibleForRouting(ctx, account, req.RequiredTransport) {
 		clearBinding()
 		return nil, false, nil
 	}
 	account = s.service.recheckSelectedOpenAIAccountFromDB(ctx, account, req.GroupID, req.Platform, req.RequestedModel, req.RequireCompact, req.RequiredCapability)
-	if account == nil || !s.service.openAIAccountMatchesSchedulingGroup(account, req.GroupID) || !s.isAccountRequestCompatible(ctx, account, req) || !s.isAccountTransportCompatible(account, req.RequiredTransport) {
+	if account == nil || observeOpenAIRoutingVeto(ctx, account, "group_mismatch", !s.service.openAIAccountMatchesSchedulingGroup(account, req.GroupID)) || !s.isAccountRequestCompatible(ctx, account, req) || !s.isAccountTransportCompatibleForRouting(ctx, account, req.RequiredTransport) {
 		clearBinding()
 		return nil, false, nil
 	}
@@ -555,15 +559,18 @@ func (s *defaultOpenAIAccountScheduler) selectBySessionHash(
 	now := time.Now()
 	upstreamModel := canonicalOpenAIAccountSchedulingModel(account, req.RequestedModel)
 	if account != nil && isGrokTeamModelRateLimited(account, upstreamModel, now) {
+		recordOpenAIRoutingVeto(ctx, account, "grok_team_model_rate_limit")
 		clearBinding()
 		return nil, false, nil
 	}
 	if account != nil && isGrokModelQuotaBlocked(account.ID, upstreamModel, now) {
+		recordOpenAIRoutingVeto(ctx, account, "grok_model_quota_block")
 		clearBinding()
 		return nil, false, nil
 	}
 	escapeCfg := s.service.openAIStickyEscapeConfig()
 	if reason, errorRate, ttft, shouldEscape := s.shouldEscapeStickyAccount(accountID, escapeCfg); shouldEscape && !req.DisableStickyEscape {
+		requestledger.RoutingVeto(ctx, "", accountID, "sticky_escape_"+reason)
 		slog.Info("sticky_escape_triggered",
 			"account_id", accountID,
 			"reason", reason,
@@ -890,6 +897,9 @@ func (s *defaultOpenAIAccountScheduler) buildOpenAIAccountLoadPlan(
 		candidates = make([]openAIAccountCandidateScore, 0, len(allCandidates))
 		for _, candidate := range allCandidates {
 			if openAICompactSupportTier(candidate.account) == 0 {
+				if s.service.schedulerSnapshot == nil {
+					recordOpenAIRoutingVeto(ctx, candidate.account, "compact_unsupported")
+				}
 				staleSnapshotCompactRetry = append(staleSnapshotCompactRetry, candidate)
 				continue
 			}
@@ -1188,11 +1198,13 @@ func (s *defaultOpenAIAccountScheduler) tryAcquireOpenAISelectionOrderWithBudget
 		}
 		if candidate.loadKnown && candidate.account.Concurrency > 0 &&
 			candidate.loadInfo.CurrentConcurrency >= candidate.account.Concurrency {
+			recordOpenAIRoutingVeto(ctx, candidate.account, "known_full")
 			continue
 		}
 
 		result, attempted, acquireErr := s.tryAcquireOpenAIAccountSlot(ctx, candidate.account.ID, candidate.account.Concurrency, budget)
 		if !attempted {
+			recordOpenAIRoutingVeto(ctx, candidate.account, "probe_budget_exhausted")
 			break
 		}
 		if acquireErr != nil {
@@ -1203,20 +1215,22 @@ func (s *defaultOpenAIAccountScheduler) tryAcquireOpenAISelectionOrderWithBudget
 		}
 
 		fresh := s.service.resolveFreshSchedulableOpenAIAccount(ctx, candidate.account, req.GroupID, req.Platform, req.RequestedModel, false, req.RequiredCapability)
-		if fresh == nil || !s.isAccountTransportCompatible(fresh, req.RequiredTransport) || !s.isAccountRequestCompatible(ctx, fresh, req) {
+		if fresh == nil || !s.isAccountTransportCompatibleForRouting(requestledger.RoutingStage(ctx, "fresh_recheck"), fresh, req.RequiredTransport) || !s.isAccountRequestCompatible(requestledger.RoutingStage(ctx, "fresh_recheck"), fresh, req) {
 			release(result)
 			continue
 		}
 		if !s.consumeOpenAISelectionDBRecheck(budget) {
+			recordOpenAIRoutingVeto(ctx, candidate.account, "db_recheck_budget_exhausted")
 			release(result)
 			break
 		}
 		fresh = s.service.recheckSelectedOpenAIAccountFromDB(ctx, fresh, req.GroupID, req.Platform, req.RequestedModel, false, req.RequiredCapability)
-		if fresh == nil || !s.isAccountTransportCompatible(fresh, req.RequiredTransport) || !s.isAccountRequestCompatible(ctx, fresh, req) {
+		if fresh == nil || !s.isAccountTransportCompatibleForRouting(requestledger.RoutingStage(ctx, "db_recheck"), fresh, req.RequiredTransport) || !s.isAccountRequestCompatible(requestledger.RoutingStage(ctx, "db_recheck"), fresh, req) {
 			release(result)
 			continue
 		}
 		if req.RequireCompact && openAICompactSupportTier(fresh) == 0 {
+			recordOpenAIRoutingVeto(requestledger.RoutingStage(ctx, "db_recheck"), fresh, "compact_unsupported")
 			compactBlocked = true
 			release(result)
 			continue
@@ -1226,6 +1240,7 @@ func (s *defaultOpenAIAccountScheduler) tryAcquireOpenAISelectionOrderWithBudget
 			release(result)
 			result, attempted, acquireErr = s.tryAcquireOpenAIAccountSlot(ctx, fresh.ID, fresh.Concurrency, budget)
 			if !attempted {
+				recordOpenAIRoutingVeto(ctx, candidate.account, "probe_budget_exhausted")
 				continue
 			}
 			if acquireErr != nil {
@@ -1271,6 +1286,7 @@ func (s *defaultOpenAIAccountScheduler) tryFallbackToWeightedSticky(
 	ctx context.Context,
 	req OpenAIAccountScheduleRequest,
 ) (*AccountSelectionResult, error) {
+	ctx = requestledger.RoutingStage(ctx, "fallback")
 	if !req.StickyWeighted {
 		return nil, nil
 	}
@@ -1280,6 +1296,7 @@ func (s *defaultOpenAIAccountScheduler) tryFallbackToWeightedSticky(
 		}
 		if req.ExcludedIDs != nil {
 			if _, excluded := req.ExcludedIDs[accountID]; excluded {
+				requestledger.RoutingVeto(ctx, "", accountID, "excluded")
 				continue
 			}
 		}
@@ -1287,7 +1304,7 @@ func (s *defaultOpenAIAccountScheduler) tryFallbackToWeightedSticky(
 		if err != nil || account == nil {
 			continue
 		}
-		if !s.isAccountRequestCompatible(ctx, account, req) || !s.isAccountTransportCompatible(account, req.RequiredTransport) {
+		if !s.isAccountRequestCompatible(ctx, account, req) || !s.isAccountTransportCompatibleForRouting(ctx, account, req.RequiredTransport) {
 			continue
 		}
 		account = s.service.recheckSelectedOpenAIAccountFromDB(ctx, account, req.GroupID, req.Platform, req.RequestedModel, req.RequireCompact, req.RequiredCapability)
@@ -1297,16 +1314,17 @@ func (s *defaultOpenAIAccountScheduler) tryFallbackToWeightedSticky(
 			}
 			continue
 		}
-		if !s.service.openAIAccountMatchesSchedulingGroup(account, req.GroupID) {
+		if observeOpenAIRoutingVeto(ctx, account, "group_mismatch", !s.service.openAIAccountMatchesSchedulingGroup(account, req.GroupID)) {
 			if accountID == req.StickyAccountID && strings.TrimSpace(req.SessionHash) != "" {
 				_ = s.service.deleteStickySessionAccountID(ctx, req.GroupID, req.SessionHash)
 			}
 			continue
 		}
-		if !s.isAccountRequestCompatible(ctx, account, req) || !s.isAccountTransportCompatible(account, req.RequiredTransport) {
+		if !s.isAccountRequestCompatible(ctx, account, req) || !s.isAccountTransportCompatibleForRouting(ctx, account, req.RequiredTransport) {
 			continue
 		}
 		if req.RequireCompact && openAICompactSupportTier(account) == 0 {
+			recordOpenAIRoutingVeto(ctx, account, "compact_unsupported")
 			continue
 		}
 		// Keep weighted sticky fallback subject to the same free-tier gate as the
@@ -1317,8 +1335,8 @@ func (s *defaultOpenAIAccountScheduler) tryFallbackToWeightedSticky(
 		}
 		upstreamModel := canonicalOpenAIAccountSchedulingModel(account, req.RequestedModel)
 		now := time.Now()
-		if isGrokTeamModelRateLimited(account, upstreamModel, now) ||
-			isGrokModelQuotaBlocked(account.ID, upstreamModel, now) {
+		if observeOpenAIRoutingVeto(ctx, account, "grok_team_model_rate_limit", isGrokTeamModelRateLimited(account, upstreamModel, now)) ||
+			observeOpenAIRoutingVeto(ctx, account, "grok_model_quota_block", isGrokModelQuotaBlocked(account.ID, upstreamModel, now)) {
 			continue
 		}
 		result, acquireErr := s.service.tryAcquireAccountSlot(ctx, account.ID, account.Concurrency)
@@ -1418,7 +1436,7 @@ func (s *defaultOpenAIAccountScheduler) selectByLoadBalance(
 	// Team+model rate-limit cool: siblings of a 429'd team skip the hot model.
 	if req.Platform == PlatformGrok {
 		now := time.Now()
-		filtered := filterGrokTeamModelRateLimitedAccounts(accounts, req.RequestedModel, now)
+		filtered := filterGrokTeamModelRateLimitedAccounts(accounts, req.RequestedModel, now, ctx)
 		if len(filtered) == 0 && len(accounts) > 0 {
 			return nil, 0, 0, 0, noAvailableOpenAISelectionError(req.RequestedModel, false, openAISelectionFilterStats{}.summary("grok_team_model_rate_limit"))
 		}
@@ -1426,7 +1444,7 @@ func (s *defaultOpenAIAccountScheduler) selectByLoadBalance(
 			accounts = filtered
 		}
 		// Per-account model free-usage soft-block (other models stay eligible).
-		modelFiltered := filterGrokModelQuotaBlockedAccounts(accounts, req.RequestedModel, now)
+		modelFiltered := filterGrokModelQuotaBlockedAccounts(accounts, req.RequestedModel, now, ctx)
 		if len(modelFiltered) == 0 && len(accounts) > 0 {
 			return nil, 0, 0, 0, noAvailableOpenAISelectionError(req.RequestedModel, false, openAISelectionFilterStats{}.summary("grok_model_quota_block"))
 		}
@@ -1446,19 +1464,23 @@ func (s *defaultOpenAIAccountScheduler) selectByLoadBalance(
 		account := &accounts[i]
 		if req.ExcludedIDs != nil {
 			if _, excluded := req.ExcludedIDs[account.ID]; excluded {
+				recordOpenAIRoutingVeto(ctx, account, "excluded")
 				filterStats.exclude("excluded")
 				continue
 			}
 		}
 		if !account.IsSchedulable() {
+			recordOpenAIRoutingVeto(ctx, account, "not_schedulable")
 			filterStats.exclude("not_schedulable")
 			continue
 		}
 		if account.Platform != NormalizeOpenAICompatiblePlatform(req.Platform) || !account.IsOpenAICompatible() {
+			recordOpenAIRoutingVeto(ctx, account, "platform_mismatch")
 			filterStats.exclude("platform_mismatch")
 			continue
 		}
 		if s.service.isOpenAIAccountRequestRuntimeBlockedForRequest(ctx, account, req.RequestedModel, req.RequireCompact) {
+			recordOpenAIRoutingVeto(ctx, account, "runtime_blocked")
 			filterStats.exclude("runtime_blocked")
 			continue
 		}
@@ -1466,6 +1488,7 @@ func (s *defaultOpenAIAccountScheduler) selectByLoadBalance(
 		// shared account: another group may intentionally allow accounts whose
 		// upstream privacy setting has not been confirmed.
 		if schedGroup != nil && schedGroup.RequirePrivacySet && !account.IsPrivacySet() {
+			recordOpenAIRoutingVeto(ctx, account, "privacy_not_set")
 			filterStats.exclude("privacy_not_set")
 			continue
 		}
@@ -1473,7 +1496,7 @@ func (s *defaultOpenAIAccountScheduler) selectByLoadBalance(
 			filterStats.exclude(reason)
 			continue
 		}
-		if !s.isAccountTransportCompatible(account, req.RequiredTransport) {
+		if !s.isAccountTransportCompatibleForRouting(ctx, account, req.RequiredTransport) {
 			filterStats.exclude("transport_incompatible")
 			continue
 		}
@@ -1673,6 +1696,7 @@ func (s *defaultOpenAIAccountScheduler) finishLoadBalanceSelectionFallback(
 	budget *openAISelectionProbeBudget,
 	filterStats openAISelectionFilterStats,
 ) (*AccountSelectionResult, int, int, float64, error) {
+	ctx = requestledger.RoutingStage(ctx, "fallback")
 	candidateCount := attempt.candidateCount
 	topK := attempt.topK
 	loadSkew := attempt.loadSkew
@@ -1709,17 +1733,19 @@ func (s *defaultOpenAIAccountScheduler) finishLoadBalanceSelectionFallback(
 				}
 			}
 			fresh := s.service.resolveFreshSchedulableOpenAIAccount(ctx, candidate.account, req.GroupID, req.Platform, req.RequestedModel, false, req.RequiredCapability)
-			if fresh == nil || !s.isAccountTransportCompatible(fresh, req.RequiredTransport) || !s.isAccountRequestCompatible(ctx, fresh, req) {
+			if fresh == nil || !s.isAccountTransportCompatibleForRouting(requestledger.RoutingStage(ctx, "fresh_recheck"), fresh, req.RequiredTransport) || !s.isAccountRequestCompatible(requestledger.RoutingStage(ctx, "fresh_recheck"), fresh, req) {
 				continue
 			}
 			if !s.consumeOpenAISelectionDBRecheck(budget) {
+				recordOpenAIRoutingVeto(ctx, candidate.account, "db_recheck_budget_exhausted")
 				return nil, candidateCount, topK, loadSkew, filterStats.noAvailableError(req.RequestedModel, compactBlocked, "selection_order_exhausted")
 			}
 			fresh = s.service.recheckSelectedOpenAIAccountFromDB(ctx, fresh, req.GroupID, req.Platform, req.RequestedModel, false, req.RequiredCapability)
-			if fresh == nil || !s.isAccountTransportCompatible(fresh, req.RequiredTransport) || !s.isAccountRequestCompatible(ctx, fresh, req) {
+			if fresh == nil || !s.isAccountTransportCompatibleForRouting(requestledger.RoutingStage(ctx, "db_recheck"), fresh, req.RequiredTransport) || !s.isAccountRequestCompatible(requestledger.RoutingStage(ctx, "db_recheck"), fresh, req) {
 				continue
 			}
 			if req.RequireCompact && openAICompactSupportTier(fresh) == 0 {
+				recordOpenAIRoutingVeto(requestledger.RoutingStage(ctx, "db_recheck"), fresh, "compact_unsupported")
 				compactBlocked = true
 				continue
 			}
@@ -1773,7 +1799,12 @@ func (s *defaultOpenAIAccountScheduler) isAccountRequestCompatible(ctx context.C
 // request, and when it cannot, names the veto point. The reason feeds
 // openAISelectionFilterStats so that "no available accounts" errors state why
 // each candidate was dropped instead of failing silently (#4599).
-func (s *defaultOpenAIAccountScheduler) isAccountRequestCompatibleReason(ctx context.Context, account *Account, req OpenAIAccountScheduleRequest) (bool, string) {
+func (s *defaultOpenAIAccountScheduler) isAccountRequestCompatibleReason(ctx context.Context, account *Account, req OpenAIAccountScheduleRequest) (compatible bool, reason string) {
+	defer func() {
+		if !compatible {
+			recordOpenAIRoutingVeto(ctx, account, reason)
+		}
+	}()
 	if account == nil {
 		return false, "account_nil"
 	}
@@ -2268,10 +2299,12 @@ func (s *OpenAIGatewayService) selectLegacyAccountByPreviousResponse(
 	requireCompact bool,
 	platform string,
 ) (*AccountSelectionResult, bool, error) {
+	ctx = requestledger.RoutingStage(ctx, "previous_response")
 	if strings.TrimSpace(previousResponseID) == "" || platform != PlatformOpenAI {
 		return nil, false, nil
 	}
 	if s.checkChannelPricingRestriction(ctx, groupID, requestedModel) {
+		requestledger.RoutingVeto(ctx, "", 0, "channel_pricing_restricted")
 		return nil, false, fmt.Errorf("%w supporting model: %s (channel pricing restriction)", ErrNoAvailableAccounts, requestedModel)
 	}
 	selection, err := s.selectAccountByPreviousResponseIDForCapability(ctx, groupID, previousResponseID, requestedModel, excludedIDs, requiredCapability, requireCompact)
@@ -2294,7 +2327,7 @@ func (s *OpenAIGatewayService) selectLegacyAccountByPreviousResponse(
 		ExcludedIDs:             excludedIDs,
 		RequirePrivacySet:       s.openAIGroupRequiresPrivacySet(ctx, groupID),
 	})
-	if !s.openAIAccountMatchesSchedulingGroup(account, groupID) || !compatible || !scheduler.isAccountTransportCompatible(account, requiredTransport) {
+	if observeOpenAIRoutingGroupAfterCompatibility(ctx, account, compatible, s.openAIAccountMatchesSchedulingGroup(account, groupID)) || !compatible || !scheduler.isAccountTransportCompatibleForRouting(ctx, account, requiredTransport) {
 		if selection.ReleaseFunc != nil {
 			selection.ReleaseFunc()
 		}
@@ -2320,7 +2353,18 @@ func (s *OpenAIGatewayService) selectAccountWithSchedulerOnce(
 	platform string,
 	previousResponseCanMove bool,
 	useUpstreamTokenCost bool,
-) (*AccountSelectionResult, OpenAIAccountScheduleDecision, error) {
+) (selectionResult *AccountSelectionResult, scheduleDecision OpenAIAccountScheduleDecision, selectionErr error) {
+	var endRouting func(int64, bool, bool)
+	ctx, endRouting = requestledger.BeginRoutingSelection(ctx, requiredImageCapability == "" && (requiredCapability == "" || requiredCapability == OpenAIEndpointCapabilityResponses || requiredCapability == OpenAIEndpointCapabilityChatCompletions))
+	defer func() {
+		id := int64(0)
+		wait := false
+		if selectionResult != nil {
+			id = routingAccountID(selectionResult.Account)
+			wait = selectionResult.WaitPlan != nil
+		}
+		endRouting(id, wait, selectionErr != nil)
+	}()
 	ctx = withOpenAIForwardModelDefault(ctx, requestedModel, requireCompact)
 	if requiredCapability == OpenAIEndpointCapabilityVideos || requiredCapability == OpenAIEndpointCapabilityStarframe {
 		ctx = WithStarframeVideoRequest(ctx)
@@ -2357,6 +2401,7 @@ func (s *OpenAIGatewayService) selectAccountWithSchedulerOnce(
 		}
 		if guardianParentAccountID > 0 {
 			if s.checkChannelPricingRestriction(ctx, groupID, requestedModel) {
+				requestledger.RoutingVeto(ctx, "", 0, "channel_pricing_restricted")
 				return nil, decision, fmt.Errorf("%w supporting model: %s (channel pricing restriction)", ErrNoAvailableAccounts, requestedModel)
 			}
 			fallbackScheduler := &defaultOpenAIAccountScheduler{service: s, stats: newOpenAIAccountRuntimeStats()}
@@ -2399,7 +2444,7 @@ func (s *OpenAIGatewayService) selectAccountWithSchedulerOnce(
 				if selection == nil || selection.Account == nil {
 					return selection, decision, nil
 				}
-				if accountSupportsOpenAICapabilities(selection.Account, requiredCapability, requiredImageCapability) {
+				if !observeOpenAIRoutingVeto(ctx, selection.Account, "capability_mismatch", !accountSupportsOpenAICapabilities(selection.Account, requiredCapability, requiredImageCapability)) {
 					applyLegacySelectionDecision(&decision, selection)
 					return selection, decision, nil
 				}
@@ -2444,6 +2489,7 @@ func (s *OpenAIGatewayService) selectAccountWithSchedulerOnce(
 	}
 
 	if s.checkChannelPricingRestriction(ctx, groupID, requestedModel) {
+		requestledger.RoutingVeto(ctx, "", 0, "channel_pricing_restricted")
 		slog.Warn("channel pricing restriction blocked request",
 			"group_id", derefGroupID(groupID),
 			"model", requestedModel)

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"strconv"
 	"strings"
 	"sync"
@@ -107,7 +108,7 @@ func isGrokModelQuotaBlocked(accountID int64, model string, now time.Time) bool 
 	return true
 }
 
-func filterGrokModelQuotaBlockedAccounts(accounts []Account, model string, now time.Time) []Account {
+func filterGrokModelQuotaBlockedAccounts(accounts []Account, model string, now time.Time, routingContext ...context.Context) []Account {
 	if len(accounts) == 0 || strings.TrimSpace(model) == "" {
 		return accounts
 	}
@@ -115,6 +116,9 @@ func filterGrokModelQuotaBlockedAccounts(accounts []Account, model string, now t
 	for i := range accounts {
 		upstreamModel := canonicalOpenAIAccountSchedulingModel(&accounts[i], model)
 		if isGrokModelQuotaBlocked(accounts[i].ID, upstreamModel, now) {
+			if len(routingContext) > 0 {
+				recordOpenAIRoutingVeto(routingContext[0], &accounts[i], "grok_model_quota_block")
+			}
 			continue
 		}
 		out = append(out, accounts[i])

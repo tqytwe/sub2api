@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"strings"
@@ -114,7 +115,7 @@ func isGrokTeamModelRateLimited(account *Account, model string, now time.Time) b
 
 // filterGrokTeamModelRateLimitedAccounts drops candidates whose team is under a
 // model-scoped rate-limit cool. Accounts without team_id pass through.
-func filterGrokTeamModelRateLimitedAccounts(accounts []Account, model string, now time.Time) []Account {
+func filterGrokTeamModelRateLimitedAccounts(accounts []Account, model string, now time.Time, routingContext ...context.Context) []Account {
 	if len(accounts) == 0 || strings.TrimSpace(model) == "" {
 		return accounts
 	}
@@ -123,6 +124,9 @@ func filterGrokTeamModelRateLimitedAccounts(accounts []Account, model string, no
 	for i := range accounts {
 		upstreamModel := canonicalOpenAIAccountSchedulingModel(&accounts[i], model)
 		if isGrokTeamModelRateLimited(&accounts[i], upstreamModel, now) {
+			if len(routingContext) > 0 {
+				recordOpenAIRoutingVeto(routingContext[0], &accounts[i], "grok_team_model_rate_limit")
+			}
 			continue
 		}
 		out = append(out, accounts[i])

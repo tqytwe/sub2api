@@ -1,0 +1,29 @@
+{
+  "main": "8364b462feda15f3bf8f3bb2029314d2193b9dba",
+  "ui": "7cc5c016d409aaccec82ec6b222a4c54b620b6e3",
+  "main_is_merge_of_final_dependency": "8364b462feda15f3bf8f3bb2029314d2193b9dba 6ae024e6b732b64b2ce6f7ba56c5be4e20b88bdb 0ceacb2445f79c3e9ddd1dbe44c89210c8e7ffca",
+  "production_backend_migrations_CI_scripts_exact_main": true,
+  "entire_frontend_exact_frozen_UI": true,
+  "other_handoff_entries_and_global_metadata_exact_main": true,
+  "new_test_only_file": "backend/internal/requestledger/acceptance/routing_ui_pg_fixture_test.go",
+  "source_sha256": {
+    "frontend/src/api/requestLedger.ts": "e214350beafccfea18beebeb3925499376927dc9529222cab4a65637b7a742dc",
+    "frontend/src/api/requestRouting.ts": "b6db3aef5b8d801ad57ad360be222599ea35ad3c1cc04ee3ec1e677e05b68411",
+    "frontend/src/views/shared/RequestLedgerView.vue": "38e9473de1771fbc783fb201492731efaa1a58cec42d4197654052a4d405a24d",
+    "frontend/src/views/shared/components/RequestLedgerRoutingSection.vue": "a83bf88e02fd233a020bbecfbbb41f484122292dcfdda741c90344a2591ce09d",
+    "frontend/src/i18n/locales/request-ledger.en.ts": "7e70b1c8d6de91d65e0fd314b4542dc625c339554fb2f8600ad3c0d8845f0b3f",
+    "frontend/src/i18n/locales/request-ledger.zh.ts": "53933ef38c9ebfac2c977fc3995d96030f54b44c311b08b1b32614cb3a86c820",
+    "frontend/src/api/auth.ts": "df96c725264197d2297736d0242c45b76c36bc23d081e6df4bafac35248038f8",
+    "frontend/src/api/client.ts": "4406425c182b2236f0555cad8b98d6fd323339c39fc56daca3376a16f4860616",
+    "frontend/src/api/tokenRefresh.ts": "ec0c1633058a7a49957e4e955008c544ceb5b1fb4ecad347f83ff15a6f3cf452",
+    "frontend/src/stores/auth.ts": "ef386b9551a46e95c444908da571830de736c6d4dff19ce4e3ccb1c2dbda5be9"
+  },
+  "resource_count": 356,
+  "resource_manifest_sha256": "a4aea4b698e6263adf1a986e909abdf432f813d1257fdbab64a7c0619c885d09",
+  "compiled_resources_exact_prior_7cc_manifest": true,
+  "validation_fixture_sha256": "444e5e7131a1b0e758e1f8c6bac3aec286a12d4d4d3390264013f432996bd541",
+  "resource_manifest_serialization": "Python json.dumps(manifest, sort_keys=True), ensure_ascii=True and default separators; UTF-8; no trailing newline",
+  "assets_json_sha256": "55a9da2330ad6ad8411d8209069590edb6078c9172e572e8c134c1ac7110afc6",
+  "reviewable_frozen_tree": "49e2063bdad369044c40d0b19ff50c5c85bc9337",
+  "fixture_git_blob": "f9536df160461e1c55d2f8b7822716aaa63e06fc"
+}

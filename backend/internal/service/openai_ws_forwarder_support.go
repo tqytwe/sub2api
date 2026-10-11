@@ -566,6 +566,7 @@ func (s *OpenAIGatewayService) resolveAccountByPreviousResponseIDForCapability(
 	requiredCapability OpenAIEndpointCapability,
 	requireCompact bool,
 ) (int64, *Account, string, OpenAIWSStateStore) {
+	ctx = requestledger.RoutingStage(ctx, "previous_response")
 	if s == nil {
 		return 0, nil, "", nil
 	}
@@ -584,6 +585,7 @@ func (s *OpenAIGatewayService) resolveAccountByPreviousResponseIDForCapability(
 	}
 	if excludedIDs != nil {
 		if _, excluded := excludedIDs[accountID]; excluded {
+			requestledger.RoutingVeto(ctx, "", accountID, "excluded")
 			return 0, nil, "", nil
 		}
 	}
@@ -598,75 +600,93 @@ func (s *OpenAIGatewayService) resolveAccountByPreviousResponseIDForCapability(
 	// different: previous_response_id is supported by the provider and scoped to
 	// the selected key/project, so the response-id binding must retain that key.
 	if !account.IsOpenAIApiKey() && s.getOpenAIWSProtocolResolver().Resolve(account).Transport != OpenAIUpstreamTransportResponsesWebsocketV2 {
+		recordOpenAIRoutingVeto(ctx, account, "transport_incompatible")
 		return 0, nil, "", nil
 	}
-	if s.shouldClearOpenAIStickySessionForRequest(ctx, account, requestedModel, requireCompact) || !account.IsOpenAI() || !account.IsSchedulable() {
+	if observeOpenAIRoutingVeto(ctx, account, "sticky_unhealthy", s.shouldClearOpenAIStickySessionForRequest(ctx, account, requestedModel, requireCompact)) || observeOpenAIRoutingVeto(ctx, account, "platform_mismatch", !account.IsOpenAI()) || observeOpenAIRoutingVeto(ctx, account, "not_schedulable", !account.IsSchedulable()) {
 		_ = store.DeleteResponseAccount(ctx, derefGroupID(groupID), responseID)
 		return 0, nil, "", nil
 	}
 	if !parentHealthyForShadow(account, s.parentAccountLookup(ctx)) {
+		recordOpenAIRoutingVeto(ctx, account, "shadow_parent_unhealthy")
 		_ = store.DeleteResponseAccount(ctx, derefGroupID(groupID), responseID)
 		return 0, nil, "", nil
 	}
 	if requestedModel != "" && !account.IsModelSupportedInGroup(groupID, requestedModel) {
+		recordOpenAIRoutingVeto(ctx, account, "model_not_supported_in_group")
 		return 0, nil, "", nil
 	}
-	if !s.openAIResponsesToolsProtocolCompatible(ctx, account, requestedModel, requireCompact) || !account.SupportsOpenAIEndpointCapability(requiredCapability) {
+	if observeOpenAIRoutingVeto(ctx, account, "responses_tools_protocol_mismatch", !s.openAIResponsesToolsProtocolCompatible(ctx, account, requestedModel, requireCompact)) || observeOpenAIRoutingVeto(ctx, account, "capability_mismatch", !account.SupportsOpenAIEndpointCapability(requiredCapability)) {
 		return 0, nil, "", nil
 	}
 	// Quota auto-pause must also gate the previous_response_id sticky path; otherwise an
 	// account over its 5h/7d threshold keeps serving the same response chain even though
 	// normal scheduling skips it. Pause is transient, so fall through to normal scheduling
 	// without deleting the binding (the window may reset before the next turn).
-	if paused, _ := shouldAutoPauseOpenAIAccountByQuota(ctx, account); paused {
+	if paused, decision := shouldAutoPauseOpenAIAccountByQuota(ctx, account); paused {
+		recordOpenAIRoutingVeto(ctx, account, routingQuotaReason(decision))
 		return 0, nil, "", nil
 	}
 	// 分组利润控制：与 quota auto-pause 同语义——利润不合格是暂时
 	// 状态（上游倍率/高峰随时间变化），只跳过本次复用、落回普通调度，不删除
 	// 绑定（倍率恢复后可继续按 previous_response_id 粘连）。
-	if vetoed, _ := openAIProfitControlVetoReason(ctx, account); vetoed {
+	if vetoed, reason := openAIProfitControlVetoReason(ctx, account); vetoed {
+		recordOpenAIRoutingVeto(ctx, account, reason)
 		return 0, nil, "", nil
 	}
 	if s.schedulerSnapshot != nil && s.accountRepo != nil {
 		latest, latestErr := s.accountRepo.GetByID(ctx, account.ID)
 		if latestErr != nil || latest == nil {
+			reason := "account_missing"
+			if latestErr != nil {
+				reason = "account_read_failed"
+			}
+			recordOpenAIRoutingVeto(ctx, account, reason)
 			_ = store.DeleteResponseAccount(ctx, derefGroupID(groupID), responseID)
 			return 0, nil, "", nil
 		}
-		if s.shouldClearOpenAIStickySessionForRequest(ctx, latest, requestedModel, requireCompact) || !latest.IsOpenAI() || !latest.IsSchedulable() {
+		if observeOpenAIRoutingVeto(ctx, latest, "sticky_unhealthy", s.shouldClearOpenAIStickySessionForRequest(ctx, latest, requestedModel, requireCompact)) || observeOpenAIRoutingVeto(ctx, latest, "platform_mismatch", !latest.IsOpenAI()) || observeOpenAIRoutingVeto(ctx, latest, "not_schedulable", !latest.IsSchedulable()) {
 			_ = store.DeleteResponseAccount(ctx, derefGroupID(groupID), responseID)
 			return 0, nil, "", nil
 		}
 		if !s.openAIAccountMatchesSchedulingGroup(latest, groupID) {
+			recordOpenAIRoutingVeto(ctx, latest, "group_mismatch")
 			return 0, nil, "", nil
 		}
 		if s.openAIGroupRequiresPrivacySet(ctx, groupID) && !latest.IsPrivacySet() {
+			recordOpenAIRoutingVeto(ctx, latest, "privacy_not_set")
 			return 0, nil, "", nil
 		}
 		if !parentHealthyForShadow(latest, s.parentAccountLookup(ctx)) {
+			recordOpenAIRoutingVeto(ctx, latest, "shadow_parent_unhealthy")
 			_ = store.DeleteResponseAccount(ctx, derefGroupID(groupID), responseID)
 			return 0, nil, "", nil
 		}
 		if requestedModel != "" && !latest.IsModelSupportedInGroup(groupID, requestedModel) {
+			recordOpenAIRoutingVeto(ctx, latest, "model_not_supported_in_group")
 			return 0, nil, "", nil
 		}
-		if !s.openAIResponsesToolsProtocolCompatible(ctx, latest, requestedModel, requireCompact) || !latest.SupportsOpenAIEndpointCapability(requiredCapability) {
+		if observeOpenAIRoutingVeto(ctx, latest, "responses_tools_protocol_mismatch", !s.openAIResponsesToolsProtocolCompatible(ctx, latest, requestedModel, requireCompact)) || observeOpenAIRoutingVeto(ctx, latest, "capability_mismatch", !latest.SupportsOpenAIEndpointCapability(requiredCapability)) {
 			return 0, nil, "", nil
 		}
-		if paused, _ := shouldAutoPauseOpenAIAccountByQuota(ctx, latest); paused {
+		if paused, decision := shouldAutoPauseOpenAIAccountByQuota(ctx, latest); paused {
+			recordOpenAIRoutingVeto(ctx, latest, routingQuotaReason(decision))
 			return 0, nil, "", nil
 		}
 		// 利润门对最新账号状态复检一次，语义同上：跳过复用、不删绑定。
-		if vetoed, _ := openAIProfitControlVetoReason(ctx, latest); vetoed {
+		if vetoed, reason := openAIProfitControlVetoReason(ctx, latest); vetoed {
+			recordOpenAIRoutingVeto(ctx, latest, reason)
 			return 0, nil, "", nil
 		}
 		if s.isOpenAIAccountRequestRuntimeBlockedForRequest(ctx, latest, requestedModel, requireCompact) {
+			recordOpenAIRoutingVeto(ctx, latest, "runtime_blocked")
 			_ = store.DeleteResponseAccount(ctx, derefGroupID(groupID), responseID)
 			return 0, nil, "", nil
 		}
 		account = latest
 	}
 	if requireCompact && openAICompactSupportTier(account) == 0 {
+		recordOpenAIRoutingVeto(ctx, account, "compact_unsupported")
 		_ = store.DeleteResponseAccount(ctx, derefGroupID(groupID), responseID)
 		return 0, nil, "", nil
 	}

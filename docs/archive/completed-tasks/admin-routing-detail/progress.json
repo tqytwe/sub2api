@@ -1,21 +1,17 @@
 {
-  "checked_at": "2026-10-11T11:48:58.068236+00:00",
-  "base": "6ae024e6b732b64b2ce6f7ba56c5be4e20b88bdb",
+  "checked_at": "2026-10-11T13:32:48.481092+00:00",
+  "base": "8364b462feda15f3bf8f3bb2029314d2193b9dba",
+  "ui_source": "7cc5c016d409aaccec82ec6b222a4c54b620b6e3",
   "branch": "codex/admin-routing-detail-20261011",
-  "reviews": "sequential specification PASS / code quality PASS",
-  "directed_tests": "44 new; four PR362 combination cases included",
-  "full_tests": "3869 passed | 8 skipped (3877)",
-  "gates": "make test/build/embed build/embed test/Fork all passed",
-  "assets": {
-    "full_build_passed": true,
-    "final_resource_files": 356,
-    "captured_and_final_assets_byte_identical": true,
-    "manifest_sha256": "6f8481bed28415622d424a03462c4b50c420b9cb32ec95a1acc198e5ae2962ef"
-  },
-  "browser": "actual new resources: synthetic routing/auth plus real HTTP/PG core ledger both passed; zero page errors",
-  "dependency": "PR359 add3fa4d open/unmerged; no unpublished backend merge; real routing PG pending",
-  "production": "No merge/deploy/secret access/generation",
   "pr": "https://github.com/tqytwe/sub2api/pull/363",
-  "tested_combination_commit": "7462d8fc8730b064e7c56447a9570a53ab54a9a8",
-  "delivery": "Pushed draft; no merge/deployment; final documentation head reported separately"
+  "reviews": "sequential specification PASS / code quality PASS; no P1/P2",
+  "full_tests": "backend default+lint(0 issues), tag-unit; frontend3869 pass/8 existing skips",
+  "ledger_contracts": "75 required executed and passed; names and counts in merge-8364b462/ledger-required.json",
+  "gates": "make test/build/tag-unit/ledger contract/embed build/embed test/Fork all passed",
+  "browser": "real recorder/async writer/PG/HTTP/compiled UI, JWT/AdminAuth/PG users; fixture-only issuance; six states and seven auth lifecycle cases; same-document late503; zero page errors; balance98.75 unchanged",
+  "dependency": "359 final0ceacb244 published in main8364b462; ordinary merge, no unpublished dependency",
+  "evidence": "merge-8364b462/validation.json",
+  "tested_combination_commit": null,
+  "delivery": "local gates complete; pending technical commit, single push and exact-head hosted CI; parent incremental review required",
+  "production": "No merge/deploy/secret access/generation; historical loss not recovered"
 }

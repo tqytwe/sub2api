@@ -1,0 +1,167 @@
+{
+  "state": "completed; superseded by merge-361-validation.json",
+  "updated_at": "2026-10-11T10:39:05.412940+00:00",
+  "base_sha": "fdec971d2a01c25d93874b7688dffcff78f79088",
+  "local_merge": "conflict-free; not committed or pushed until required local gates finish",
+  "reviews": "specification then quality passed",
+  "completed_gates": [
+    {
+      "gate": "billing_counters",
+      "command": [
+        "./scripts/test-subscription-counters.sh",
+        "^TestSubscriptionCounterHTTP$",
+        "-race"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 142.697,
+      "log": "/tmp/routing-merge361-billing_counters.log",
+      "log_sha256": "b1d60e9b5519103239181307414b1aac598ae39fb3be0212fddccddad0b4b242"
+    },
+    {
+      "gate": "billing_reproduction",
+      "command": [
+        "./scripts/test-subscription-counters.sh",
+        "^TestSubscriptionEntitlementBindingReproduction$",
+        "-race"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 11.037,
+      "log": "/tmp/routing-merge361-billing_reproduction.log",
+      "log_sha256": "5abfd8ea7c986e3f994bb218e5440c58927f8d6a6dfd0d033fcba515d6d83ff0"
+    },
+    {
+      "gate": "billing_compatibility",
+      "command": [
+        "./scripts/test-subscription-counters.sh",
+        "^TestSubscriptionBindingCompatibility$",
+        "-race"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 12.666,
+      "log": "/tmp/routing-merge361-billing_compatibility.log",
+      "log_sha256": "bf5096a7dc21322c3c422347e228726ac3df49a867be20e69957d7f2cb032b32"
+    },
+    {
+      "gate": "routing_combination",
+      "command": [
+        "go",
+        "test",
+        "-tags=integration",
+        "./internal/requestledger/...",
+        "./internal/handler",
+        "./internal/server/routes",
+        "./internal/repository",
+        "./internal/service",
+        "-run",
+        "TestRequestLedgerRouting|TestLedgerPostgresRouting(States|Writer|Finish)|TestLedgerPostgresAdditionalBillingIntent|TestRequestLedgerLiveAuditFailurePreservesRedisAndSettlement|TestRequestLedgerHTTPLinkedUsageAndRetention",
+        "-count=1",
+        "-timeout=8m",
+        "-json"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 241.537,
+      "log": "/tmp/routing-merge361-routing_combination.log",
+      "log_sha256": "7673dc66406b6fd48ff8fa3d0134de2f5a2065f6eb964ee9f733ed59b5ca43d4"
+    },
+    {
+      "gate": "backend_test_lint",
+      "command": [
+        "make",
+        "test-backend"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 497.958,
+      "log": "/tmp/routing-merge361-backend_test_lint.log",
+      "log_sha256": "1a8c05adf58250f7783f4544930579f11c286a095bb537c3042c86e771306cf8"
+    },
+    {
+      "gate": "backend_unit",
+      "command": [
+        "make",
+        "test-backend-unit"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 492.587,
+      "log": "/tmp/routing-merge361-backend_unit.log",
+      "log_sha256": "b24b6ddeb2326726493b1dfb7dfc7e470aa8a7535b969aff40f581a4dca035da"
+    },
+    {
+      "gate": "build",
+      "command": [
+        "make",
+        "build"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 119.537,
+      "log": "/tmp/routing-merge361-build.log",
+      "log_sha256": "674ebb68a34dba6db28d842b7870669456a21520aa2ff78c3e95b7ee5e7a310c"
+    },
+    {
+      "gate": "embed",
+      "command": [
+        "go",
+        "build",
+        "-tags",
+        "embed",
+        "-buildvcs=false",
+        "-trimpath",
+        "-o",
+        "/tmp/routing-server-embed",
+        "./cmd/server"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 46.082,
+      "log": "/tmp/routing-merge361-embed.log",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "gate": "fork",
+      "command": [
+        "./scripts/check-fork-integrity.sh"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 136.225,
+      "log": "/tmp/routing-merge361-fork.log",
+      "log_sha256": "e7257b6d5dddda41f3b30d212e33c94da1d71127ad18099bb14a454f989ff7f7"
+    },
+    {
+      "gate": "docs",
+      "command": [
+        "node",
+        "scripts/check-doc-links.mjs"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 0.057,
+      "log": "/tmp/routing-merge361-docs.log",
+      "log_sha256": "ebeb94f04e8f868e1d4e35e66f35831d11d35cd965aafb1ddb6cd44b1aebcec2"
+    }
+  ],
+  "current_stage": "local mandatory gates passed; final-head push/CI handoff follows",
+  "remaining": [
+    "final handoff checks and draft push",
+    "final-head hosted CI",
+    "parent merge/deploy decision"
+  ],
+  "live_process_at_102421_utc": {
+    "pid": 165353,
+    "command": "golangci-lint",
+    "elapsed_seconds": 78,
+    "rss_kib": 3972076
+  },
+  "environment_at_102421_utc": {
+    "workspace_free_gib": 2.2,
+    "tmp_free_gib": 5.5,
+    "new_oom": false
+  },
+  "reuse": "No frontend long suite or broad 66/54 integration rerun; billing.go changed so current complete backend gates rerun. Logs/results are updated per completed command.",
+  "environment_at_103009_utc": {
+    "workspace_free_gib": 1.6,
+    "tmp_free_gib": 4.8,
+    "new_oom": false
+  },
+  "technical_commit": "dec21d65da0540bead469f95713feb7fab829ca8",
+  "merge_parents": [
+    "ebcba25f01775d226d93f0a1031398390739e2fe",
+    "fdec971d2a01c25d93874b7688dffcff78f79088"
+  ]
+}
