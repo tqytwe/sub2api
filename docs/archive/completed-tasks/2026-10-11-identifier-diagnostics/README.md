@@ -1,7 +1,9 @@
 # 上游标识冲突诊断后端小批
 
-状态：正式主线359组合合同/race、按序双审及全部本地门禁通过；独立[草稿PR365](https://github.com/tqytwe/sub2api/pull/365)已创建，最终head CI待确认；未部署。
-技术验收提交 `319353c506e44005464c59796dc2981ec6590f59`，之后只补PR/SHA文档元数据，22项源码输入完全不变。
+状态：独立[草稿PR365](https://github.com/tqytwe/sub2api/pull/365)保持草稿，正普通合并正式主线#363 `caa4805b26114da4b5cb0ddea9343ef6ec9fc528`；本次组合定向验证与按序增量双审已通过，旧head CI已自然9/9通过；组合head CI在普通merge推送后执行，未部署。
+原技术验收提交 `319353c506e44005464c59796dc2981ec6590f59`，到旧head `0c92aa5b2b9b584da311f6fb8e808219825136d7` 仅补了PR/SHA文档。此后#363新增了路由详情前端与可选PG浏览器夹具，本分支原样继承，不能把这次合并称为仅文档变化。22项identifier源码输入及生产后端/迁移/CI/scripts保持不变。
+
+旧96/race、54核心、完整make/tag-unit/Fork与后端构建是已通过的**复用证据**，不冒充在新组合重新全跑。旧0c92 CI已自然9/9通过，见[pre-merge363-ci.json](./pre-merge363-ci.json)；新增组合已通过4项管理员HTTP/PG/race交集、5文件92项前端定向、lint/类型、前端/embed构建，见[merge363-validation.json](./merge363-validation.json)；之后执行组合head CI。见[merge363-preservation.json](./merge363-preservation.json)。路由UI及视觉/真实PG证据继承已审主线，identifier UI仍未实现。
 独立分支 `codex/identifier-diagnostics-20261011` 最初在
 `6ae024e6b732b64b2ce6f7ba56c5be4e20b88bdb` 独立实现，随后正式主线已合入359，
 本分支保存未提交改动后普通快进至 `8364b462feda15f3bf8f3bb2029314d2193b9dba` 并恢复。

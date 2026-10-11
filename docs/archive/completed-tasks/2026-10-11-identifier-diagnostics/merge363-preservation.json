@@ -1,0 +1,27 @@
+{
+  "checked_at": "2026-10-11T13:59:15.877058+00:00",
+  "first_parent": "0c92aa5b2b9b584da311f6fb8e808219825136d7",
+  "second_parent": "caa4805b26114da4b5cb0ddea9343ef6ec9fc528",
+  "operation": "ordinary git merge --no-commit --no-ff origin/play/main; only handoff conflict resolved by preserving allmain features and own281 feature",
+  "unchanged_identifier_source_inputs": 22,
+  "source_manifest_sha256": "0ee49e26dfa2986fe013cbf257f9c48f2f0ba5330c54d13cefcab7e6cde19e59",
+  "incoming_files_exact_main": 194,
+  "shared_document_files": [
+    "docs/FORK_CUSTOMIZATIONS.md",
+    "docs/README.md",
+    "docs/upstream-migrations/v2.10.3/handoff.json"
+  ],
+  "main_frontend_exact": true,
+  "only_new_backend_file_from_main": "backend/internal/requestledger/acceptance/routing_ui_pg_fixture_test.go",
+  "production_backend_unchanged": true,
+  "all_other_handoff_fields_features_exact_main": true,
+  "only_new_migration": "281_gateway_identifier_diagnostics.sql",
+  "no280_draft": true,
+  "reused_evidence": {
+    "backend": "merge-validation.json local gates and pre-merge363-ci.json 0c92 all9 CIpassed naturally;22identifier inputs and productionbackend unchanged",
+    "main_ui": "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/validation.json and PR363 parent approval;all frontend files exactmain",
+    "scope": "reuse prior fullmake/tag-unit/Fork/backendbuild/core54/ledger96;fresh UI/adminHTTP seams +lint/types/frontend/embedbuild;no repeated fullbackendcontracts"
+  },
+  "additional_checks": "all6passed;4actualHTTP/PG/race,5files92frontendtests,lint/types/frontendbuild/embed;see merge363-validation.json",
+  "production": "not accessed; no new visual changes, inherited reviewedUI and artifacts; identifier UI still absent"
+}

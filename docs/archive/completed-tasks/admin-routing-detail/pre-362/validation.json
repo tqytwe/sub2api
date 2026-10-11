@@ -1,0 +1,432 @@
+{
+  "collected_at": "2026-10-11T11:32:22.147658+00:00",
+  "base": "fb2c9747b58ed5d980a36ea6a2316ead2aa03b7e",
+  "technical_commit": null,
+  "dependency": {
+    "pr": 359,
+    "head": "ae832b16b63139b2395008a1f2073d7cb15161f7",
+    "state_at_start": "open_unmerged",
+    "source_sha256": {
+      "backend/internal/requestledger/routing.go": "b464a8489614817e0898dca44909183c24bc88a5de84356d479ae759054a9058",
+      "backend/internal/requestledger/routing_query.go": "39e5c5d43060103a69c1078995a14dd28cf8670d1272e7502f92e07a89132db5",
+      "backend/internal/handler/routing_handler.go": "3e6ae154bf6a3c75e7f0f63314464e54968630d99839b3ee7be946ffa0410964"
+    }
+  },
+  "reviews": {
+    "order": [
+      "specification",
+      "code_quality"
+    ],
+    "specification": {
+      "agent": "routing_ui_spec_review",
+      "result": "PASS",
+      "read_only": true,
+      "independent_targeted_tests": "40/40 passed,6.77s",
+      "notes": "Exact 3 contract hashes; 52 veto+8 observation semantics; no blocker. Routing real PG pending dependency."
+    },
+    "code_quality": {
+      "agent": "routing_ui_code_review",
+      "result": "PASS",
+      "read_only": true,
+      "independent_targeted_tests": "40/40 passed,7.53s",
+      "prior_failure": "Initial maxWorkers=1 without minWorkers caused runner config conflict; no tests ran. Correcting both settings passed.",
+      "notes": "No correctness/security blocker. Existing English header issue documented separately; no routing PG claim."
+    }
+  },
+  "gates": [
+    {
+      "name": "full-test",
+      "command": [
+        "make",
+        "test"
+      ],
+      "started_at": "2026-10-11T11:15:31.129813+00:00",
+      "duration_seconds": 624.31,
+      "exit_code": 0,
+      "log": "/tmp/routing-ui-full-test.log"
+    },
+    {
+      "name": "embed-build",
+      "command": [
+        "go",
+        "-C",
+        "backend",
+        "build",
+        "-tags=embed",
+        "-o",
+        "/tmp/routing-ui-embedded-server",
+        "./cmd/server"
+      ],
+      "started_at": "2026-10-11T11:25:55.436823+00:00",
+      "duration_seconds": 12.9,
+      "exit_code": 0,
+      "log": "/tmp/routing-ui-embed-build.log"
+    },
+    {
+      "name": "embed-test",
+      "command": [
+        "go",
+        "-C",
+        "backend",
+        "test",
+        "-tags=embed",
+        "./internal/web/..."
+      ],
+      "started_at": "2026-10-11T11:26:08.338670+00:00",
+      "duration_seconds": 2.62,
+      "exit_code": 0,
+      "log": "/tmp/routing-ui-embed-test.log"
+    },
+    {
+      "name": "fork",
+      "command": [
+        "./scripts/check-fork-integrity.sh"
+      ],
+      "started_at": "2026-10-11T11:26:10.955630+00:00",
+      "duration_seconds": 314.48,
+      "exit_code": 0,
+      "log": "/tmp/routing-ui-fork.log"
+    }
+  ],
+  "full_frontend_test_summary": "3720 passed | 8 skipped (3728)",
+  "directed_tests": {
+    "routing_http": 20,
+    "routing_parser_veto": 20,
+    "previous_session_http": 26,
+    "previous_view": 19,
+    "previous_api": 3
+  },
+  "build": {
+    "full_build_passed": true,
+    "final_resource_files": 356,
+    "captured_and_final_assets_byte_identical": true,
+    "manifest_sha256": "9d0277986eb0bf5ef4fbd52fd736a7f97b9bebfe6a76850a3f0a9fff4172e282"
+  },
+  "browser_contract": {
+    "scope": "actual build + synthetic HTTP contract; routing PG integration pending #359",
+    "roles": [
+      {
+        "role": "admin",
+        "viewports": [
+          360,
+          768,
+          1280,
+          1920
+        ],
+        "routing_visible": true
+      },
+      {
+        "role": "user",
+        "viewports": [
+          360,
+          768,
+          1280,
+          1920
+        ],
+        "routing_visible": false
+      }
+    ],
+    "states": [
+      "complete",
+      "truncated",
+      "pending",
+      "incomplete",
+      "not_recorded",
+      "unsupported_coverage"
+    ],
+    "page_errors": [],
+    "viewport_measurements": [
+      {
+        "role": "admin",
+        "width": 360,
+        "document_width": 360,
+        "dialog_right": 360,
+        "dialog_width": 360,
+        "dialog_client": 360
+      },
+      {
+        "role": "admin",
+        "width": 768,
+        "document_width": 768,
+        "dialog_right": 768,
+        "dialog_width": 768,
+        "dialog_client": 768
+      },
+      {
+        "role": "admin",
+        "width": 1280,
+        "document_width": 1280,
+        "dialog_right": 1280,
+        "dialog_width": 1280,
+        "dialog_client": 1280
+      },
+      {
+        "role": "admin",
+        "width": 1920,
+        "document_width": 1920,
+        "dialog_right": 1920,
+        "dialog_width": 1920,
+        "dialog_client": 1920
+      },
+      {
+        "role": "user",
+        "width": 360,
+        "document_width": 489,
+        "dialog_right": 360,
+        "dialog_width": 360,
+        "dialog_client": 360
+      },
+      {
+        "role": "user",
+        "width": 768,
+        "document_width": 768,
+        "dialog_right": 768,
+        "dialog_width": 768,
+        "dialog_client": 768
+      },
+      {
+        "role": "user",
+        "width": 1280,
+        "document_width": 1280,
+        "dialog_right": 1280,
+        "dialog_width": 1280,
+        "dialog_client": 1280
+      },
+      {
+        "role": "user",
+        "width": 1920,
+        "document_width": 1920,
+        "dialog_right": 1920,
+        "dialog_width": 1920,
+        "dialog_client": 1920
+      }
+    ],
+    "routing_contract_http": true,
+    "ledger_postgres": false,
+    "independent_error_retry": true,
+    "local_paging": true,
+    "closed_late_error": true,
+    "session_renewal": true,
+    "same_account_relogin": true,
+    "switch_503_clear": true,
+    "keyboard": true,
+    "reduced_motion": true,
+    "zoom": "CSS200% simulation",
+    "fixture_permission_denials": [
+      401,
+      403
+    ]
+  },
+  "core_http_pg": [
+    {
+      "role": "user",
+      "request_id": "4e48ac26-4a7d-4e96-8e4f-e724f02561d0",
+      "usage_id": 1,
+      "batch_id": "imgbatch_1dabd0d090ddb27c5a6d6d7ac686c1b2",
+      "billed_cost": 6,
+      "image_count": 3,
+      "legacy_status": 409,
+      "foreign_status": 404,
+      "admin_denied_status": 403,
+      "request_count": 31,
+      "summary_reads": 2,
+      "all_ui_detail_reads_explicit": true,
+      "bounded_items": true,
+      "independent_paging": true,
+      "empty_intermediate": true,
+      "loading": true,
+      "usage_disabled_during_page_change": true,
+      "error_retry": true,
+      "refresh_resets_cursor": true,
+      "hover_active_focus": true,
+      "keyboard": true,
+      "reduced_motion": true,
+      "zoom": "CSS 200% simulation",
+      "viewports": [
+        360,
+        768,
+        1280,
+        1920
+      ],
+      "page_errors": []
+    },
+    {
+      "role": "admin",
+      "request_id": "4e48ac26-4a7d-4e96-8e4f-e724f02561d0",
+      "usage_id": 1,
+      "batch_id": "imgbatch_1dabd0d090ddb27c5a6d6d7ac686c1b2",
+      "billed_cost": 6,
+      "image_count": 3,
+      "legacy_status": 409,
+      "foreign_status": 404,
+      "admin_denied_status": 403,
+      "request_count": 33,
+      "summary_reads": 2,
+      "all_ui_detail_reads_explicit": true,
+      "bounded_items": true,
+      "independent_paging": true,
+      "empty_intermediate": true,
+      "loading": true,
+      "usage_disabled_during_page_change": true,
+      "error_retry": true,
+      "refresh_resets_cursor": true,
+      "hover_active_focus": true,
+      "keyboard": true,
+      "reduced_motion": true,
+      "zoom": "CSS 200% simulation",
+      "viewports": [
+        360,
+        768,
+        1280,
+        1920
+      ],
+      "page_errors": []
+    }
+  ],
+  "core_fixture_run": {
+    "started_at": "2026-10-11T11:11:37.205045+00:00",
+    "finished_at": "2026-10-11T11:13:37.611154+00:00",
+    "capture_exit_code": 0,
+    "fixture_exit_code": 0
+  },
+  "logs": {
+    "red": {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/red.log.gz",
+      "bytes": 735238,
+      "raw_sha256": "87421901221339b5792a130366cd74a7948400dc2d206c5a4279a140389e8a8f",
+      "gzip_sha256": "0d6cb617a709bba2aa6567eb5a9496e8aca3da760b063ba8153988db95f308ea"
+    },
+    "green": {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/green.log.gz",
+      "bytes": 3057,
+      "raw_sha256": "969e16933a25fb272ca8855c8fd8d33710daf0dbc92aa5f6b0c7c9a618fa7a84",
+      "gzip_sha256": "402e4ef3c406a1044b3d88cecfaa8b494a7317d0c18f0f0c2abdbcce2bfac129"
+    },
+    "green-2": {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/green-2.log.gz",
+      "bytes": 662,
+      "raw_sha256": "9432359cf5439e273ed1fa141fa85754c9d838c9c2f90981bad77bcdc0abeb3b",
+      "gzip_sha256": "48729cf2356171e56777805fb13800a55cc18b270b535713cbb738a5b36c2f81"
+    },
+    "types": {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/types.log.gz",
+      "bytes": 95,
+      "raw_sha256": "c1e36656bbd2622392075efcc9e756e9bc22dbbaab3b4fbf24098359fbe7ba2d",
+      "gzip_sha256": "d6e5c58fafc3927350dabacdbc3e5e04a105fc59492127597d79a53c54ed915d"
+    },
+    "build": {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/build.log.gz",
+      "bytes": 71131,
+      "raw_sha256": "67a8534111afdcb14f0797e71ae83ad1093790ee61fe351436db96d2ee81720e",
+      "gzip_sha256": "311b7a8554917d990fa15430a5d8adb9e6492148db1e5141fe0a3462bc2f4fd3"
+    },
+    "final-build": {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/final-build.log.gz",
+      "bytes": 71131,
+      "raw_sha256": "1f70c474f58f3143ea5048cf0b75d7ffa6dbd6a50355c2c3b3c37b6d643a5102",
+      "gzip_sha256": "4cb22de17536cf311dedb4b5c1222dd9f637ed9555a35d854d3d779af1e76aee"
+    },
+    "design-failure": {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/design-failure.log.gz",
+      "bytes": 1337,
+      "raw_sha256": "bbc15573835088f0dde110bc9e0c459456575c4d57768caec46bbcf0eae85639",
+      "gzip_sha256": "8bab6da0a0b08b05886f0a5f40bfc07011fd47a1749d93623310e2c18e4a9f88"
+    },
+    "design": {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/design.log.gz",
+      "bytes": 285,
+      "raw_sha256": "8f67fcad6d384c8c02aa1c4e349490ca72b9f91073d11fe51c43c62f05c99fb6",
+      "gzip_sha256": "4506467cb5c2a0b795708a6095c8f398de1275ff3e2ae9a25d77aa28f1cde51f"
+    },
+    "handoff": {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/handoff.log.gz",
+      "bytes": 8893,
+      "raw_sha256": "a6d8b786b28969b888016ca7366fe57b1d513e2a0bdaab2ad2ee87d4052d75e2",
+      "gzip_sha256": "3dbabd22d5400845185fc38081e1f228861923382ef254db06b9e9f6967ca4b3"
+    },
+    "handoff-unit": {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/handoff-unit.log.gz",
+      "bytes": 106,
+      "raw_sha256": "322e9bec5d6bbde47d6476008f309469c1e42048ed96320a3bae52af8811e27a",
+      "gzip_sha256": "0c451f21dba6f569a43dcde0db6eb678bb272b764bc466fa837b19d0bb0b1e13"
+    },
+    "links": {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/links.log.gz",
+      "bytes": 50,
+      "raw_sha256": "8cf39589932d429a562cc4653914458830b4369030d8cdb3114f7cc6a69694f1",
+      "gzip_sha256": "0b29579c93347f7206ebe6541df2713fa4953a59e304454013d84ffa33ff1f6d"
+    },
+    "contract-browser": {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/contract-browser.log.gz",
+      "bytes": 327,
+      "raw_sha256": "df7697b655c1f59099e8d83eae867f2cab2838b2f091496d684d7a62ddf2f852",
+      "gzip_sha256": "5df54cb9a174223c7cc793b1a4613f586b02b99c7fe0af3cf0328f0b9f0b0afb"
+    },
+    "browser-overflow": {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/browser-overflow.log.gz",
+      "bytes": 1259,
+      "raw_sha256": "a94edf8f24c254f7c181a558ff8797176173571a4608c84870b0f70de6b9dd13",
+      "gzip_sha256": "c8b168b58f6da25e36ce77a5b9661f4a00315fece90d151029c75456dbcaf561"
+    },
+    "browser-baseline": {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/browser-baseline.log.gz",
+      "bytes": 972,
+      "raw_sha256": "d7136c1109f251ffa86fd164a5ed7c48e8943f6703fcfe48ff63d7f79daeb739",
+      "gzip_sha256": "eaf35c3fec48cae5ee89413fad730b0cdf6fb0643e3b9c6d5d5289b920971187"
+    },
+    "contract-browser-final": {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/contract-browser-final.log.gz",
+      "bytes": 1569,
+      "raw_sha256": "7c6cf0c7b5d0e6d4a645f886f55b72d051afbd9fdbf11f5cdcfc32b7cf68edb4",
+      "gzip_sha256": "c21ced8f7b346b68a4f508a112069ae9ae100be210f84f5221bd7690fbbb099c"
+    },
+    "standard-fixture": {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/standard-fixture.log.gz",
+      "bytes": 2679,
+      "raw_sha256": "4df950c0f85214715b10f5b362d23282710156748843251cc63a99e4675f1891",
+      "gzip_sha256": "eb1071bfac5184046a75e41f25d74c9c58037cede9cdca08df8176f4f95209cb"
+    },
+    "standard-browser": {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/standard-browser.log.gz",
+      "bytes": 1257,
+      "raw_sha256": "ad5c80d17e7e0be52bc5d9ea56d65bf0b450680c4a7b0af4e78ee1d33797aa11",
+      "gzip_sha256": "7c14edc24a4e63b3d8b805b95c87d0a185a32752fa81eb7b9d8a5e0bf843986b"
+    },
+    "full-test": {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/full-test.log.gz",
+      "bytes": 252662,
+      "raw_sha256": "fb28cc4217a54c98bafabc7fdea191c51871ffe41eb32fbc341c6eaa43f10669",
+      "gzip_sha256": "19e594defb21f91b9d47eb6108249e9a28fddda4ffcd7bb1566337d1f286a888"
+    },
+    "embed-build": {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/embed-build.log.gz",
+      "bytes": 0,
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "gzip_sha256": "f61f27bd17de546264aa58f40f3aafaac7021e0ef69c17f6b1b4cd7664a037ec"
+    },
+    "embed-test": {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/embed-test.log.gz",
+      "bytes": 53,
+      "raw_sha256": "bbbac99769f244e5c0611c2306aa39f7f549338b8e9018626740a29864142339",
+      "gzip_sha256": "e896189bd0e19e58b689b7ec63abb3901afd6a0a4cacc8bd0346472c0acc6dcb"
+    },
+    "fork": {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/fork.log.gz",
+      "bytes": 60925,
+      "raw_sha256": "7e917ba0c51ffea7ebf7ee52d330779aeb80891630a75ef1eda7d44d57b5f828",
+      "gzip_sha256": "3909978a1b447951c0dc20b0631920936c73e78cd0ca5f16c3f51c2ad8707d44"
+    }
+  },
+  "remaining": [
+    "#359 merged dependency and real routing handler/PG integration not yet satisfied",
+    "CI exact head to be checked by main thread; no merge/deployment",
+    "Production and user-local acceptance pending",
+    "Existing English user360 global header overflow: baseline and current489px, detail dialog360px; no global header changes"
+  ],
+  "prior_failures": [
+    "HTTP RED:19 expected failures,1 permission absence test passes before UI existed",
+    "Initial combined new HTTP tests:2 intermittent synthetic network errors from closing shared keepalive sockets; explicit non-keepalive fixture Agent fixed; product unchanged",
+    "Design checker treated PR number #359 as raw color and required browser keyword in command:comment/document fixes, no exception bypass",
+    "First actual-built user360 global-overflow assertion failed; exact baseline reproduction retained; known limit reported rather than claimed fixed"
+  ]
+}

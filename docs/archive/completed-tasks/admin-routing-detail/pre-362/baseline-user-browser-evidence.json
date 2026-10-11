@@ -1,0 +1,66 @@
+{
+  "scope": "Baseline fb2c9747-equivalent compiled assets, ordinary user only, synthetic HTTP. No routing or PostgreSQL verification.",
+  "roles": [
+    {
+      "role": "user",
+      "viewports": [
+        360,
+        768,
+        1280,
+        1920
+      ],
+      "routing_visible": false
+    }
+  ],
+  "states": [],
+  "page_errors": [],
+  "viewport_measurements": [
+    {
+      "role": "user",
+      "width": 360,
+      "document_width": 489,
+      "dialog_right": 360,
+      "dialog_width": 360,
+      "dialog_client": 360
+    },
+    {
+      "role": "user",
+      "width": 768,
+      "document_width": 768,
+      "dialog_right": 768,
+      "dialog_width": 768,
+      "dialog_client": 768
+    },
+    {
+      "role": "user",
+      "width": 1280,
+      "document_width": 1280,
+      "dialog_right": 1280,
+      "dialog_width": 1280,
+      "dialog_client": 1280
+    },
+    {
+      "role": "user",
+      "width": 1920,
+      "document_width": 1920,
+      "dialog_right": 1920,
+      "dialog_width": 1920,
+      "dialog_client": 1920
+    }
+  ],
+  "routing_contract_http": false,
+  "ledger_postgres": false,
+  "independent_error_retry": false,
+  "local_paging": false,
+  "closed_late_error": false,
+  "session_renewal": false,
+  "same_account_relogin": false,
+  "switch_503_clear": false,
+  "keyboard": false,
+  "reduced_motion": true,
+  "zoom": "not run",
+  "fixture_permission_denials": [
+    401,
+    403
+  ]
+}

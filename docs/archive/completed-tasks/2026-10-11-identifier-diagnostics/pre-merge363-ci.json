@@ -1,0 +1,61 @@
+{
+  "at": "2026-10-11T14:05:32.523346+00:00",
+  "head": "0c92aa5b2b9b584da311f6fb8e808219825136d7",
+  "draft": true,
+  "checks": [
+    {
+      "name": "Core migration and repository integration",
+      "status": "COMPLETED",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/tqytwe/sub2api/actions/runs/38144369506/job/114484582557"
+    },
+    {
+      "name": "Ledger PostgreSQL and protocol contract",
+      "status": "COMPLETED",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/tqytwe/sub2api/actions/runs/38144369555/job/114484579759"
+    },
+    {
+      "name": "Release source policy",
+      "status": "COMPLETED",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/tqytwe/sub2api/actions/runs/38144369540/job/114484562718"
+    },
+    {
+      "name": "backend-security",
+      "status": "COMPLETED",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/tqytwe/sub2api/actions/runs/38144369521/job/114484542559"
+    },
+    {
+      "name": "postgres-http-counters",
+      "status": "COMPLETED",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/tqytwe/sub2api/actions/runs/38144369582/job/114484582995"
+    },
+    {
+      "name": "Protected behavior",
+      "status": "COMPLETED",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/tqytwe/sub2api/actions/runs/38144369540/job/114484562734"
+    },
+    {
+      "name": "frontend-security",
+      "status": "COMPLETED",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/tqytwe/sub2api/actions/runs/38144369521/job/114484542266"
+    },
+    {
+      "name": "Check-in PostgreSQL HTTP and frontend contract",
+      "status": "COMPLETED",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/tqytwe/sub2api/actions/runs/38144369540/job/114484562577"
+    },
+    {
+      "name": "Documentation",
+      "status": "COMPLETED",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/tqytwe/sub2api/actions/runs/38144369540/job/114484562795"
+    }
+  ]
+}

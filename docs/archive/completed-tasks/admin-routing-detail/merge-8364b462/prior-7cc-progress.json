@@ -1,0 +1,21 @@
+{
+  "checked_at": "2026-10-11T11:48:58.068236+00:00",
+  "base": "6ae024e6b732b64b2ce6f7ba56c5be4e20b88bdb",
+  "branch": "codex/admin-routing-detail-20261011",
+  "reviews": "sequential specification PASS / code quality PASS",
+  "directed_tests": "44 new; four PR362 combination cases included",
+  "full_tests": "3869 passed | 8 skipped (3877)",
+  "gates": "make test/build/embed build/embed test/Fork all passed",
+  "assets": {
+    "full_build_passed": true,
+    "final_resource_files": 356,
+    "captured_and_final_assets_byte_identical": true,
+    "manifest_sha256": "6f8481bed28415622d424a03462c4b50c420b9cb32ec95a1acc198e5ae2962ef"
+  },
+  "browser": "actual new resources: synthetic routing/auth plus real HTTP/PG core ledger both passed; zero page errors",
+  "dependency": "PR359 add3fa4d open/unmerged; no unpublished backend merge; real routing PG pending",
+  "production": "No merge/deploy/secret access/generation",
+  "pr": "https://github.com/tqytwe/sub2api/pull/363",
+  "tested_combination_commit": "7462d8fc8730b064e7c56447a9570a53ab54a9a8",
+  "delivery": "Pushed draft; no merge/deployment; final documentation head reported separately"
+}

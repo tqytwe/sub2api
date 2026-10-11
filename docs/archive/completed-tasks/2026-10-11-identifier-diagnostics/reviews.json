@@ -19,5 +19,8 @@
   "final_frozen_race": "original6ae final frozen76/76 passed, see validation.json; combination8364 full96/race running",
   "merge_specification": "passed /root/routing_spec_review:18 nonshared identifier inputs unchanged,22 manifest exact,406 oldSQL+279 exact,no280,allmain handoff and protectedpaths preserved;CI75+20+1=96;combinedtest proves coexistence via routing hooks and actualHTTP/PG, actualscheduler coverage retained by original contracts;noP1/P2, no tests executed by reviewer",
   "merge_quality": "PASS /root/routing_quality_review after incremental spec:18 unchanged implementation inputs/22 manifest,58 main inheritedfiles,406 oldSQL,279/281 hashes and otherhandoff preserved;CI75->96/no dropped;PGfixture279+281/cleanup-v and bothadminroutes; combined realHTTP/PG routinghooks synchronizes identifier/Finish workers, late originalReceipt cannot overwrite routing DTO, no new lock-order/race issue;noP1/P2;reviewer did not modify/run tests, full gates not yet complete",
-  "merge_reviews_completed_at": "2026-10-11T13:05:19.046293+00:00"
+  "merge_reviews_completed_at": "2026-10-11T13:05:19.046293+00:00",
+  "merge363_specification": "PASS /root/routing_spec_review; initialP2 documentation said onlymetadata after technicalhead despite incoming#363UI, corrected README/proof to distinguish reused oldgates and newcomposition plus old8/9 pending; rechecked closed;22inputs unchanged194incomingfiles exactmain",
+  "merge363_quality": "PASS /root/routing_quality_review after specrecheck;22manifest and194incomingfiles/frontend/nonidentifierhandoff preserved,onlynewbackend opt-infixture, separateAPI/writers unchanged;all6additionalgates exit0;no newP1/P2;no reviewer test or edit",
+  "merge363_reviewed_at": "2026-10-11T14:03:57.047545+00:00"
 }
