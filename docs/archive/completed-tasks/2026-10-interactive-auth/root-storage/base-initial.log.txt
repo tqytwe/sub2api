@@ -1,0 +1,39 @@
+The CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.
+
+ RUN  v2.1.9 /workspace/p1-interactive-storage-base/frontend
+
+ ❯ ../../../tmp/p1-interactive-storage-probe/probe.spec.ts (36 tests | 3 failed) 3384ms
+   × login one-time Storage failure through actual HTTP > does not clear a genuinely newer HTTP session when the original Storage rejection is delivered late 1010ms
+     → expected false to be true // Object.is equality
+   × login2FA one-time Storage failure through actual HTTP > does not clear a genuinely newer HTTP session when the original Storage rejection is delivered late 1005ms
+     → expected false to be true // Object.is equality
+   × register one-time Storage failure through actual HTTP > does not clear a genuinely newer HTTP session when the original Storage rejection is delivered late 1004ms
+     → expected false to be true // Object.is equality
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  ../../../tmp/p1-interactive-storage-probe/probe.spec.ts > login one-time Storage failure through actual HTTP > does not clear a genuinely newer HTTP session when the original Storage rejection is delivered late
+ FAIL  ../../../tmp/p1-interactive-storage-probe/probe.spec.ts > login2FA one-time Storage failure through actual HTTP > does not clear a genuinely newer HTTP session when the original Storage rejection is delivered late
+ FAIL  ../../../tmp/p1-interactive-storage-probe/probe.spec.ts > register one-time Storage failure through actual HTTP > does not clear a genuinely newer HTTP session when the original Storage rejection is delivered late
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ ../../../tmp/p1-interactive-storage-probe/probe.spec.ts:143:45
+    141|     }) as any)
+    142|     const old = settled(call(kind, '2-failed'))
+    143|     await vi.waitFor(() => expect(observed).toBe(true))
+       |                                             ^
+    144|     const newer = await settled(call('login', '3-recovery'))
+    145|     const winner = state()
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ Test Files  1 failed (1)
+      Tests  3 failed | 33 passed (36)
+   Start at  10:26:04
+   Duration  5.17s (transform 675ms, setup 120ms, collect 869ms, tests 3.38s, environment 455ms, prepare 107ms)

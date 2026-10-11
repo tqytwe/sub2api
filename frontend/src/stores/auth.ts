@@ -11,7 +11,8 @@ import {
   getAuthSessionIdentity, isAuthSessionCurrent, invalidateAuthSession, subscribeAuthSession,
   AUTH_SESSION_KEY, startAuthSession, finishAuthSession, isAuthSessionPublishing,
   blockAuthSession, isAuthSessionBlocked, AuthRefreshPendingError, consumeOAuthPublication,
-  beginInteractiveAuthAttempt, isInteractiveAuthAttemptCurrent, commitInteractiveAuth
+  beginInteractiveAuthAttempt, canClearFailedInteractiveAuth, commitInteractiveAuth,
+  startInteractiveAuthSession, type InteractiveAuthAttempt
 } from '@/api/tokenRefresh'
 import type {
   User,
@@ -381,11 +382,11 @@ export const useAuthStore = defineStore('auth', () => {
       const response = await authAPI.login(credentials, attempt)
       return commitInteractiveAuth(attempt, () => {
         // A current 2FA challenge is returned without publishing credentials.
-        if (!isTotp2FARequired(response)) setAuthFromResponse(response)
+        if (!isTotp2FARequired(response)) setAuthFromResponse(response, attempt)
         return response
       })
     } catch (error) {
-      if (isInteractiveAuthAttemptCurrent(attempt)) {
+      if (canClearFailedInteractiveAuth(attempt)) {
         clearAuth({ preservePendingAuthSession: pendingAuthSession.value !== null })
       }
       throw error
@@ -404,11 +405,11 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const response = await authAPI.login2FA({ temp_token: tempToken, totp_code: totpCode }, attempt)
       return commitInteractiveAuth(attempt, () => {
-        setAuthFromResponse(response)
+        setAuthFromResponse(response, attempt)
         return user.value!
       })
     } catch (error) {
-      if (isInteractiveAuthAttemptCurrent(attempt)) {
+      if (canClearFailedInteractiveAuth(attempt)) {
         clearAuth({ preservePendingAuthSession: pendingAuthSession.value !== null })
       }
       throw error
@@ -430,11 +431,11 @@ export const useAuthStore = defineStore('auth', () => {
    * Set auth state from an AuthResponse
    * Internal helper function
    */
-  function setAuthFromResponse(response: AuthResponse): void {
+  function setAuthFromResponse(response: AuthResponse, attempt?: InteractiveAuthAttempt): void {
     stopAutoRefresh()
     stopTokenRefresh()
     sessionGeneration += 1
-    const publication = startAuthSession()
+    const publication = attempt ? startInteractiveAuthSession(attempt) : startAuthSession()
     initialized = true
     storedSessionID = getAuthSessionIdentity().sessionID
 
@@ -485,11 +486,11 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const response = await authAPI.register(userData, attempt)
       return commitInteractiveAuth(attempt, () => {
-        setAuthFromResponse(response)
+        setAuthFromResponse(response, attempt)
         return user.value!
       })
     } catch (error) {
-      if (isInteractiveAuthAttemptCurrent(attempt)) {
+      if (canClearFailedInteractiveAuth(attempt)) {
         clearAuth({ preservePendingAuthSession: pendingAuthSession.value !== null })
       }
       throw error

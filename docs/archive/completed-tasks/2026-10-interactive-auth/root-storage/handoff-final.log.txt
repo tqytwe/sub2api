@@ -1,0 +1,41 @@
+PENDING batch-image-ledger-usage.deployment: 草稿PR #356，由主线程核实最终SHA及新CI；本任务不合并部署。
+PENDING batch-image-ledger-usage.production: 生产自然流量/PG对账及用户本机三身份验收尚未执行。
+PENDING request-ledger-exact-correlation.deployment: #354主线merge已通过本批fetch核实；未访问生产或重验部署，保留pending。
+PENDING request-ledger-exact-correlation.production: 等待获准部署后的用户本机三身份与自然流量/PG对账；历史gpt22损失未归因。
+PENDING usage-tps.production: 等待用户本机游客/普通用户/管理员验收及适用 API/DB 对账；本次未独立执行生产健康/API 核查。
+PENDING fork-updater.production: 等待用户本机游客/普通用户/管理员验收及适用 API/DB 对账；本次未独立执行生产健康/API 核查。
+PENDING core-admission-settlement.production: 已合并并取得精确部署成功 check；健康/迁移验收及用户本机验收仍待确认。
+PENDING group-allowed-models.production: 已部署；用户本机三身份及适用 UI/API/DB 核对尚无本记录可引用的完整验收。编辑故障后续修复见 account-edit-recovery，#349 用户反馈仍未收到。
+PENDING account-lifetime-stats.production: 已部署；用户本机三身份及适用 UI/API/DB 核对尚无本记录可引用的完整验收。编辑故障后续修复见 account-edit-recovery，#349 用户反馈仍未收到。
+PENDING copy-accounts-policy.production: 已部署；用户本机三身份及适用 UI/API/DB 核对尚无本记录可引用的完整验收。编辑故障后续修复见 account-edit-recovery，#349 用户反馈仍未收到。
+PENDING checkin-growth-response.production: 精确 merge SHA 部署成功；健康、本机 UI/API 与奖励记录核对仍待确认。
+PENDING plan-admin-list.production: 已合并部署，健康、管理员列表/编辑与 API/DB 对账仍待独立验收证据。
+PENDING cache-field-compatibility.production: 部署已确认，尚无本条完整生产失败样本/发送次数/字段路径与用户验收证据；历史流请求的实际传输状态仍不能倒推。
+PENDING readonly-codex-quota.production: 生产已部署；用户现场查询、余额/窗口展示与真实只读行为尚待完整验收，不用静态视觉板替代浏览器。
+PENDING ws-observed-usage.ui: 复用使用记录展示；尚无成功 WS 结算的生产 UI→API→DB 闭环证据。
+PENDING ws-observed-usage.production: 主线程本次交接提供的固定 15 分钟生产窗口：236 条已落库记录关联一致，但成功 WS 结算样本为 0、WS 失败 4。未提供可公开引用的窗口明细；不能用整体关联一致证明 WS 全链路验收通过。
+PENDING account-edit-recovery.production: 精确 merge 已部署，但主线程明确用户浏览器反馈尚未收到；不能把本地真实浏览器技术验收标为用户现场通过。
+PENDING oauth-refresh-deadline.production: 部署已确认，未据测试替身声称生产或真实 PG 发生迟到写入；实际生产刷新边界与用户反馈待补。
+PENDING compact-tool-admission.production: 主线程本次交接提供的固定生产窗口没有相关 compact/tool 诊断样本；不能将零相关样本当成功验收，未提供可公开引用的窗口明细。
+PENDING durable-request-ledger.production: 主线程提供固定自然窗口11:14:06.545570–11:29:06.545570 UTC，另加2分钟缓冲，11:31:08查询exitCode=0且明确ROLLBACK，任务已停止。233入口/207 attempts/201精确usage-billing links：169钱包、32订阅（含22套餐）；成功140、流中断44、取消24、失败25，缓冲后inflight=0。无计费关联32=匿名拒绝8+已鉴权拒绝10+非计量查询10+unknown失败4；另2次重试前次unknown、后次有usage并结算，故unknown总6、仍4待核对。201条已有证据无重复usage/扣款，dedup/fingerprint/归属无差异；2笔各1e-8为二次舍入，实际钱包与原结算命令一致。订阅package差异源于比较字段口径错误，改用billing link package_entitlement_id后归属/订阅/分组/套餐引用无差异，尚未验证订阅计数器窗口净增量。真实协议仅Responses、Messages、Chat Completions，无WS子轮/异步/其他协议样本。窗口内usage204=本窗口198+窗口外6，缓冲补本窗口3，不能直接比计数。以上为主线程转述，原始生产明细未公开；用户本机三身份反馈待补，不将unknown判免费、不声称修复历史损失或100%验收。 进一步核实6个unknown均不涉及gpt22/234；4失败均收到上游响应（1个HTTP400、3个HTTP200且已读正文但无usage/link），2次重试前次均HTTP502、后次已结算。台账直接关联的上游标识缺失；3个200请求的唯一近时Ops候选（同user/key/account、终止前约2ms）有上游request/response ID，但没有共享外键，尚不能精确关联。ledger无对应字段且usage头提取依赖账户配置，不能称上游未提供标识。候选response.failed终止帧为upstream_error/server_error且无usage；代码先解析usage再处理错误，尚未证明本地漏取。仍缺此前流事件观察及上游逐请求收费明细，不能判零费用或损失金额；有限诊断已停止，无猜测补丁或生产改动。
+PENDING legacy-binary-install.compatibility: 409 FORK_SOURCE_DEPLOYMENT_REQUIRED 保留明确拒绝；兼容期/旧调用监控窗口待负责人确定，尚无零调用证据。
+PENDING legacy-binary-install.removal_approval: 仅已批准保护逻辑；尚无移除 UI/route/API/service/schema 的批准，不自动删除。
+Snapshot 2026-10-10T21:17:26Z (not live):
+batch-image-ledger-usage: backend=已验证; product=可测; owner=主线程协调
+request-ledger-exact-correlation: backend=已验证; product=可测; owner=主线程协调
+usage-tps: backend=已部署; product=已部署; owner=待分配
+fork-updater: backend=已部署; product=已部署; owner=待分配
+core-admission-settlement: backend=已部署; product=实现中; owner=待分配
+group-allowed-models: backend=已部署; product=已部署; owner=待分配
+account-lifetime-stats: backend=已部署; product=已部署; owner=待分配
+copy-accounts-policy: backend=已部署; product=已部署; owner=待分配
+checkin-growth-response: backend=已部署; product=实现中; owner=待分配
+plan-admin-list: backend=已部署; product=已部署; owner=待分配
+cache-field-compatibility: backend=已部署; product=已部署; owner=待分配
+readonly-codex-quota: backend=已部署; product=已部署; owner=待分配
+ws-observed-usage: backend=已部署; product=已部署; owner=待分配
+account-edit-recovery: backend=已部署; product=已部署; owner=待分配
+oauth-refresh-deadline: backend=已部署; product=已部署; owner=待分配
+compact-tool-admission: backend=已部署; product=已部署; owner=待分配
+durable-request-ledger: backend=已部署; product=可测; owner=待分配
+Record structure/local paths OK; 22 pending entries. No runtime, remote-link or production validation.

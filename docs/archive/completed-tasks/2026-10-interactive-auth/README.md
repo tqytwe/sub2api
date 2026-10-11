@@ -35,3 +35,7 @@
 后端tag-unit首次只有既有`TestTokenRefreshService_SaturatedProviderPreservesConcurrencyAndActualQPSStartSpacing`失败（并发运行下0.13ms低于5ms断言），其余包通过；单独连续10次通过，原因未最终确证。组合后的service失败包和requestledger已完整复核通过，结果见 [验证记录](verification.json)。未修改该后端实现或测试。
 
 `make build`通过；Fork首次链接ENOSPC失败后完整重跑通过。合入#361后后端组合构建通过，复用输入完全相同的前端356文件与原生浏览器/PG证据。新增LoginForm断言增量另作顺序独立复核。环境失败、旧mock失败与QPS失败全部保留，不把同一失败进程改写为通过。
+
+## 根审后续
+
+主线程在c4d0e54c发现一次性存储失败导致自身publication未清理的新增回归，该head不可合并。最小所有权修复及新的RED→GREEN/构建资源/顺序复审另记[root-storage/README.md](root-storage/README.md)，不覆盖原c4证据。

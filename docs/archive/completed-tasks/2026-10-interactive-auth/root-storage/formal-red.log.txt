@@ -1,0 +1,704 @@
+
+ RUN  v2.1.9 /workspace/p1-interactive-auth/frontend
+
+ ❯ src/stores/__tests__/auth.storage.http.spec.ts (36 tests | 33 failed) 541ms
+   × login one-time Storage failure through actual HTTP > cleans own 'api'/'auth_token' failure and recovers 44ms
+     → {"token":"fixture-access-1-initial","userID":1,"authenticated":true,"identity":{"generation":3,"userID":1,"sessionID":"1b71459a-c52e-40af-bfad-d3dc8ad076bf"},"publishing":true,"ownsPublication":true,"blocked":false,"stored":{"auth_token":"fixture-access-1-initial","refresh_token":"fixture-refresh-1-initial","token_expires_at":"1791718320301","auth_user":"{\"id\":1,\"email\":\"fixture-1@example.test\",\"role\":\"user\",\"status\":\"active\",\"balance\":1,\"concurrency\":5}","auth_session_id":"pending:1b71459a-c52e-40af-bfad-d3dc8ad076bf|1a680138-5c0e-4eab-ab69-1af7d3c9d59c"}}: expected false to be true // Object.is equality
+   × login one-time Storage failure through actual HTTP > cleans own 'api'/'refresh_token' failure and recovers 13ms
+     → {"token":"fixture-access-1-initial","userID":1,"authenticated":true,"identity":{"generation":10,"userID":1,"sessionID":"9889813a-1e18-44d0-9e8c-6acad14e3c81"},"publishing":true,"ownsPublication":true,"blocked":false,"stored":{"auth_token":"fixture-access-2-failed","refresh_token":"fixture-refresh-1-initial","token_expires_at":"1791718320324","auth_user":"{\"id\":1,\"email\":\"fixture-1@example.test\",\"role\":\"user\",\"status\":\"active\",\"balance\":1,\"concurrency\":5}","auth_session_id":"pending:9889813a-1e18-44d0-9e8c-6acad14e3c81|d096a144-3767-4a1e-8bf7-803e1e0ce8bb"}}: expected false to be true // Object.is equality
+   × login one-time Storage failure through actual HTTP > cleans own 'api'/'token_expires_at' failure and recovers 12ms
+     → {"token":"fixture-access-1-initial","userID":1,"authenticated":true,"identity":{"generation":17,"userID":1,"sessionID":"81084790-a4cc-4a60-b5ef-908d75ad1d79"},"publishing":true,"ownsPublication":true,"blocked":false,"stored":{"auth_token":"fixture-access-2-failed","refresh_token":"fixture-refresh-2-failed","token_expires_at":"1791718320336","auth_user":"{\"id\":1,\"email\":\"fixture-1@example.test\",\"role\":\"user\",\"status\":\"active\",\"balance\":1,\"concurrency\":5}","auth_session_id":"pending:81084790-a4cc-4a60-b5ef-908d75ad1d79|f4efae65-0dcd-44b2-81e8-2ddbfd2a21c7"}}: expected false to be true // Object.is equality
+   × login one-time Storage failure through actual HTTP > cleans own 'api'/'auth_user' failure and recovers 10ms
+     → {"token":"fixture-access-1-initial","userID":1,"authenticated":true,"identity":{"generation":24,"userID":1,"sessionID":"7fea7842-5802-49b1-b3d2-2098884d7646"},"publishing":true,"ownsPublication":true,"blocked":false,"stored":{"auth_token":"fixture-access-2-failed","refresh_token":"fixture-refresh-2-failed","token_expires_at":"1791718320350","auth_user":"{\"id\":1,\"email\":\"fixture-1@example.test\",\"role\":\"user\",\"status\":\"active\",\"balance\":1,\"concurrency\":5}","auth_session_id":"pending:7fea7842-5802-49b1-b3d2-2098884d7646|2c1cd533-ea84-4d32-8e8f-c745c18b7493"}}: expected false to be true // Object.is equality
+   × login one-time Storage failure through actual HTTP > cleans own 'api'/'auth_session_id' failure and recovers 11ms
+     → {"token":"fixture-access-1-initial","userID":1,"authenticated":true,"identity":{"generation":31,"userID":2,"sessionID":"678b2161-7cec-49c5-a748-a993fcfbaec9"},"publishing":true,"ownsPublication":true,"blocked":false,"stored":{"auth_token":"fixture-access-2-failed","refresh_token":"fixture-refresh-2-failed","token_expires_at":"1791718320360","auth_user":"{\"id\":2,\"email\":\"fixture-2@example.test\",\"role\":\"user\",\"status\":\"active\",\"balance\":2,\"concurrency\":5}","auth_session_id":"pending:678b2161-7cec-49c5-a748-a993fcfbaec9|a7937874-f732-4a89-aa20-e9d66f73233a"}}: expected false to be true // Object.is equality
+   × login one-time Storage failure through actual HTTP > cleans own 'store'/'auth_token' failure and recovers 9ms
+     → {"token":"fixture-access-2-failed","userID":2,"authenticated":true,"identity":{"generation":39,"userID":2,"sessionID":"6207ef0b-6d21-4170-91ea-34d2b91ec752"},"publishing":true,"ownsPublication":true,"blocked":false,"stored":{"auth_token":"fixture-access-2-failed","refresh_token":"fixture-refresh-2-failed","token_expires_at":"1791718320370","auth_user":"{\"id\":2,\"email\":\"fixture-2@example.test\",\"role\":\"user\",\"status\":\"active\",\"balance\":2,\"concurrency\":5}","auth_session_id":"pending:6207ef0b-6d21-4170-91ea-34d2b91ec752|88ea059a-0b38-4cce-b373-92207a244b10"}}: expected false to be true // Object.is equality
+   × login one-time Storage failure through actual HTTP > cleans own 'store'/'refresh_token' failure and recovers 9ms
+     → {"token":"fixture-access-2-failed","userID":1,"authenticated":true,"identity":{"generation":46,"userID":2,"sessionID":"69833ec4-8718-4fa9-acbd-30b2eeba330a"},"publishing":true,"ownsPublication":true,"blocked":false,"stored":{"auth_token":"fixture-access-2-failed","refresh_token":"fixture-refresh-2-failed","token_expires_at":"1791718320380","auth_user":"{\"id\":2,\"email\":\"fixture-2@example.test\",\"role\":\"user\",\"status\":\"active\",\"balance\":2,\"concurrency\":5}","auth_session_id":"pending:69833ec4-8718-4fa9-acbd-30b2eeba330a|fac6ae11-1c78-4c96-b65b-2329b848ef13"}}: expected false to be true // Object.is equality
+   × login one-time Storage failure through actual HTTP > cleans own 'store'/'token_expires_at' failure and recovers 9ms
+     → {"token":"fixture-access-2-failed","userID":2,"authenticated":true,"identity":{"generation":54,"userID":2,"sessionID":"548791bd-a489-4ae7-af28-0daa8c500123"},"publishing":true,"ownsPublication":true,"blocked":false,"stored":{"auth_token":"fixture-access-2-failed","refresh_token":"fixture-refresh-2-failed","token_expires_at":"1791718320388","auth_user":"{\"id\":2,\"email\":\"fixture-2@example.test\",\"role\":\"user\",\"status\":\"active\",\"balance\":2,\"concurrency\":5}","auth_session_id":"pending:548791bd-a489-4ae7-af28-0daa8c500123|0b716b96-cf0d-449d-b472-5071f16def72"}}: expected false to be true // Object.is equality
+   × login one-time Storage failure through actual HTTP > cleans own 'store'/'auth_user' failure and recovers 13ms
+     → {"token":"fixture-access-2-failed","userID":2,"authenticated":true,"identity":{"generation":61,"userID":2,"sessionID":"0fc3b84b-fded-4c14-8b12-4c0374fbdeca"},"publishing":true,"ownsPublication":true,"blocked":false,"stored":{"auth_token":"fixture-access-2-failed","refresh_token":"fixture-refresh-2-failed","token_expires_at":"1791718320398","auth_user":"{\"id\":2,\"email\":\"fixture-2@example.test\",\"role\":\"user\",\"status\":\"active\",\"balance\":2,\"concurrency\":5}","auth_session_id":"pending:0fc3b84b-fded-4c14-8b12-4c0374fbdeca|7dfe4ef9-99a2-4ff5-9406-deedcf275785"}}: expected false to be true // Object.is equality
+   × login one-time Storage failure through actual HTTP > cleans own 'store'/'auth_session_id' failure and recovers 9ms
+     → {"token":"fixture-access-2-failed","userID":2,"authenticated":true,"identity":{"generation":68,"userID":2,"sessionID":"0fc6c180-d520-485b-928d-ae2ebc4e5cc1"},"publishing":true,"ownsPublication":true,"blocked":false,"stored":{"auth_token":"fixture-access-2-failed","refresh_token":"fixture-refresh-2-failed","token_expires_at":"1791718320410","auth_user":"{\"id\":2,\"email\":\"fixture-2@example.test\",\"role\":\"user\",\"status\":\"active\",\"balance\":2,\"concurrency\":5}","auth_session_id":"pending:0fc6c180-d520-485b-928d-ae2ebc4e5cc1|a151f28e-dc6e-409e-bad4-33927417685a"}}: expected false to be true // Object.is equality
+   × login one-time Storage failure through actual HTTP > cleans a fresh-session API auth_user failure and recovers 6ms
+     → {"token":null,"userID":null,"authenticated":false,"identity":{"generation":72,"userID":null,"sessionID":"d0f40880-2af5-4bbb-81db-b92f96228886"},"publishing":true,"ownsPublication":true,"blocked":false,"stored":{"auth_token":"fixture-access-2-failed","refresh_token":"fixture-refresh-2-failed","token_expires_at":"1791718320417","auth_user":null,"auth_session_id":"pending:d0f40880-2af5-4bbb-81db-b92f96228886|aa571bab-b472-4d59-bded-7370008b4bdf"}}: expected false to be true // Object.is equality
+   × login2FA one-time Storage failure through actual HTTP > cleans own 'api'/'auth_token' failure and recovers 7ms
+     → {"token":"fixture-access-1-initial","userID":1,"authenticated":true,"identity":{"generation":85,"userID":1,"sessionID":"b8df4fc3-51f8-4266-abd6-6fd01f05a309"},"publishing":true,"ownsPublication":true,"blocked":false,"stored":{"auth_token":"fixture-access-1-initial","refresh_token":"fixture-refresh-1-initial","token_expires_at":"1791718320481","auth_user":"{\"id\":1,\"email\":\"fixture-1@example.test\",\"role\":\"user\",\"status\":\"active\",\"balance\":1,\"concurrency\":5}","auth_session_id":"pending:b8df4fc3-51f8-4266-abd6-6fd01f05a309|89b543bb-8c65-42a0-90ef-eef1a4ebfbc6"}}: expected false to be true // Object.is equality
+   × login2FA one-time Storage failure through actual HTTP > cleans own 'api'/'refresh_token' failure and recovers 7ms
+     → {"token":"fixture-access-1-initial","userID":1,"authenticated":true,"identity":{"generation":92,"userID":1,"sessionID":"f56653aa-f443-4fd7-9bb5-a519b0e060a0"},"publishing":true,"ownsPublication":true,"blocked":false,"stored":{"auth_token":"fixture-access-2-failed","refresh_token":"fixture-refresh-1-initial","token_expires_at":"1791718320488","auth_user":"{\"id\":1,\"email\":\"fixture-1@example.test\",\"role\":\"user\",\"status\":\"active\",\"balance\":1,\"concurrency\":5}","auth_session_id":"pending:f56653aa-f443-4fd7-9bb5-a519b0e060a0|6728b89f-c0cb-4ffb-a7f5-144ef4f0c7d0"}}: expected false to be true // Object.is equality
+   × login2FA one-time Storage failure through actual HTTP > cleans own 'api'/'token_expires_at' failure and recovers 8ms
+     → {"token":"fixture-access-1-initial","userID":1,"authenticated":true,"identity":{"generation":99,"userID":1,"sessionID":"2caf4787-7c64-488d-b68a-df7d63f1d21e"},"publishing":true,"ownsPublication":true,"blocked":false,"stored":{"auth_token":"fixture-access-2-failed","refresh_token":"fixture-refresh-2-failed","token_expires_at":"1791718320495","auth_user":"{\"id\":1,\"email\":\"fixture-1@example.test\",\"role\":\"user\",\"status\":\"active\",\"balance\":1,\"concurrency\":5}","auth_session_id":"pending:2caf4787-7c64-488d-b68a-df7d63f1d21e|5515cec0-3cae-4446-ab61-6595c53bb6cd"}}: expected false to be true // Object.is equality
+   × login2FA one-time Storage failure through actual HTTP > cleans own 'api'/'auth_user' failure and recovers 7ms
+     → {"token":"fixture-access-1-initial","userID":1,"authenticated":true,"identity":{"generation":106,"userID":1,"sessionID":"1178982d-ca17-40d6-811b-458195397cd0"},"publishing":true,"ownsPublication":true,"blocked":false,"stored":{"auth_token":"fixture-access-2-failed","refresh_token":"fixture-refresh-2-failed","token_expires_at":"1791718320505","auth_user":"{\"id\":1,\"email\":\"fixture-1@example.test\",\"role\":\"user\",\"status\":\"active\",\"balance\":1,\"concurrency\":5}","auth_session_id":"pending:1178982d-ca17-40d6-811b-458195397cd0|86c18945-45eb-4247-8ced-122bb41e4825"}}: expected false to be true // Object.is equality
+   × login2FA one-time Storage failure through actual HTTP > cleans own 'api'/'auth_session_id' failure and recovers 9ms
+     → {"token":"fixture-access-1-initial","userID":1,"authenticated":true,"identity":{"generation":113,"userID":2,"sessionID":"9fa1a62a-79e8-4b5d-a3c0-0ea597b9aaa9"},"publishing":true,"ownsPublication":true,"blocked":false,"stored":{"auth_token":"fixture-access-2-failed","refresh_token":"fixture-refresh-2-failed","token_expires_at":"1791718320513","auth_user":"{\"id\":2,\"email\":\"fixture-2@example.test\",\"role\":\"user\",\"status\":\"active\",\"balance\":2,\"concurrency\":5}","auth_session_id":"pending:9fa1a62a-79e8-4b5d-a3c0-0ea597b9aaa9|ccaa2a8f-ab10-41cd-a784-e92213d4ed30"}}: expected false to be true // Object.is equality
+   × login2FA one-time Storage failure through actual HTTP > cleans own 'store'/'auth_token' failure and recovers 8ms
+     → {"token":"fixture-access-2-failed","userID":2,"authenticated":true,"identity":{"generation":121,"userID":2,"sessionID":"49d67a66-0b51-46f8-a1ab-1153e5ecac6a"},"publishing":true,"ownsPublication":true,"blocked":false,"stored":{"auth_token":"fixture-access-2-failed","refresh_token":"fixture-refresh-2-failed","token_expires_at":"1791718320521","auth_user":"{\"id\":2,\"email\":\"fixture-2@example.test\",\"role\":\"user\",\"status\":\"active\",\"balance\":2,\"concurrency\":5}","auth_session_id":"pending:49d67a66-0b51-46f8-a1ab-1153e5ecac6a|695be061-291f-480a-9cb9-6f71f1c6df92"}}: expected false to be true // Object.is equality
+   × login2FA one-time Storage failure through actual HTTP > cleans own 'store'/'refresh_token' failure and recovers 8ms
+     → {"token":"fixture-access-2-failed","userID":1,"authenticated":true,"identity":{"generation":128,"userID":2,"sessionID":"cbc134b2-acdd-4100-9e5a-fbaabba4ac59"},"publishing":true,"ownsPublication":true,"blocked":false,"stored":{"auth_token":"fixture-access-2-failed","refresh_token":"fixture-refresh-2-failed","token_expires_at":"1791718320529","auth_user":"{\"id\":2,\"email\":\"fixture-2@example.test\",\"role\":\"user\",\"status\":\"active\",\"balance\":2,\"concurrency\":5}","auth_session_id":"pending:cbc134b2-acdd-4100-9e5a-fbaabba4ac59|3d453d53-b54b-4c89-9ce3-540e0f272bd1"}}: expected false to be true // Object.is equality
+   × login2FA one-time Storage failure through actual HTTP > cleans own 'store'/'token_expires_at' failure and recovers 9ms
+     → {"token":"fixture-access-2-failed","userID":2,"authenticated":true,"identity":{"generation":136,"userID":2,"sessionID":"76fd7db6-db99-4404-ba15-681af5b6cb81"},"publishing":true,"ownsPublication":true,"blocked":false,"stored":{"auth_token":"fixture-access-2-failed","refresh_token":"fixture-refresh-2-failed","token_expires_at":"1791718320537","auth_user":"{\"id\":2,\"email\":\"fixture-2@example.test\",\"role\":\"user\",\"status\":\"active\",\"balance\":2,\"concurrency\":5}","auth_session_id":"pending:76fd7db6-db99-4404-ba15-681af5b6cb81|0e2af3c2-97ec-4ed4-a161-457eac635be3"}}: expected false to be true // Object.is equality
+   × login2FA one-time Storage failure through actual HTTP > cleans own 'store'/'auth_user' failure and recovers 8ms
+     → {"token":"fixture-access-2-failed","userID":2,"authenticated":true,"identity":{"generation":143,"userID":2,"sessionID":"2ae7161c-fb3d-4c89-bd76-8d53fd47d5fc"},"publishing":true,"ownsPublication":true,"blocked":false,"stored":{"auth_token":"fixture-access-2-failed","refresh_token":"fixture-refresh-2-failed","token_expires_at":"1791718320546","auth_user":"{\"id\":2,\"email\":\"fixture-2@example.test\",\"role\":\"user\",\"status\":\"active\",\"balance\":2,\"concurrency\":5}","auth_session_id":"pending:2ae7161c-fb3d-4c89-bd76-8d53fd47d5fc|0b4719d5-6cec-48f3-816f-366cc489e56c"}}: expected false to be true // Object.is equality
+   × login2FA one-time Storage failure through actual HTTP > cleans own 'store'/'auth_session_id' failure and recovers 8ms
+     → {"token":"fixture-access-2-failed","userID":2,"authenticated":true,"identity":{"generation":150,"userID":2,"sessionID":"923eded1-c813-490b-b644-22397bb7fc9a"},"publishing":true,"ownsPublication":true,"blocked":false,"stored":{"auth_token":"fixture-access-2-failed","refresh_token":"fixture-refresh-2-failed","token_expires_at":"1791718320554","auth_user":"{\"id\":2,\"email\":\"fixture-2@example.test\",\"role\":\"user\",\"status\":\"active\",\"balance\":2,\"concurrency\":5}","auth_session_id":"pending:923eded1-c813-490b-b644-22397bb7fc9a|3481fa22-ece1-4853-a927-76418d5e0027"}}: expected false to be true // Object.is equality
+   × login2FA one-time Storage failure through actual HTTP > cleans a fresh-session API auth_user failure and recovers 6ms
+     → {"token":null,"userID":null,"authenticated":false,"identity":{"generation":154,"userID":null,"sessionID":"d0d47dd2-ebc0-405e-adc9-2179042aab8e"},"publishing":true,"ownsPublication":true,"blocked":false,"stored":{"auth_token":"fixture-access-2-failed","refresh_token":"fixture-refresh-2-failed","token_expires_at":"1791718320560","auth_user":null,"auth_session_id":"pending:d0d47dd2-ebc0-405e-adc9-2179042aab8e|638455b7-a288-4c0c-8980-5937a883145c"}}: expected false to be true // Object.is equality
+   × register one-time Storage failure through actual HTTP > cleans own 'api'/'auth_token' failure and recovers 7ms
+     → {"token":"fixture-access-1-initial","userID":1,"authenticated":true,"identity":{"generation":167,"userID":1,"sessionID":"8641777f-082e-436e-b819-dcbce97c6c9e"},"publishing":true,"ownsPublication":true,"blocked":false,"stored":{"auth_token":"fixture-access-1-initial","refresh_token":"fixture-refresh-1-initial","token_expires_at":"1791718320627","auth_user":"{\"id\":1,\"email\":\"fixture-1@example.test\",\"role\":\"user\",\"status\":\"active\",\"balance\":1,\"concurrency\":5}","auth_session_id":"pending:8641777f-082e-436e-b819-dcbce97c6c9e|c3fda39b-4038-4d59-82c6-69f0de8ac37c"}}: expected false to be true // Object.is equality
+   × register one-time Storage failure through actual HTTP > cleans own 'api'/'refresh_token' failure and recovers 7ms
+     → {"token":"fixture-access-1-initial","userID":1,"authenticated":true,"identity":{"generation":174,"userID":1,"sessionID":"3d19d0c4-966a-48f9-b4a6-e9904af7bf6b"},"publishing":true,"ownsPublication":true,"blocked":false,"stored":{"auth_token":"fixture-access-2-failed","refresh_token":"fixture-refresh-1-initial","token_expires_at":"1791718320634","auth_user":"{\"id\":1,\"email\":\"fixture-1@example.test\",\"role\":\"user\",\"status\":\"active\",\"balance\":1,\"concurrency\":5}","auth_session_id":"pending:3d19d0c4-966a-48f9-b4a6-e9904af7bf6b|31a20fbd-e742-45b4-9add-9bb8b9186326"}}: expected false to be true // Object.is equality
+   × register one-time Storage failure through actual HTTP > cleans own 'api'/'token_expires_at' failure and recovers 7ms
+     → {"token":"fixture-access-1-initial","userID":1,"authenticated":true,"identity":{"generation":181,"userID":1,"sessionID":"3c9ae288-d76b-4cb1-9c7c-1664b1748e98"},"publishing":true,"ownsPublication":true,"blocked":false,"stored":{"auth_token":"fixture-access-2-failed","refresh_token":"fixture-refresh-2-failed","token_expires_at":"1791718320641","auth_user":"{\"id\":1,\"email\":\"fixture-1@example.test\",\"role\":\"user\",\"status\":\"active\",\"balance\":1,\"concurrency\":5}","auth_session_id":"pending:3c9ae288-d76b-4cb1-9c7c-1664b1748e98|796349bb-beba-4fa6-84fa-f29b69e45c66"}}: expected false to be true // Object.is equality
+   × register one-time Storage failure through actual HTTP > cleans own 'api'/'auth_user' failure and recovers 7ms
+     → {"token":"fixture-access-1-initial","userID":1,"authenticated":true,"identity":{"generation":188,"userID":1,"sessionID":"acc116fe-f1d4-405e-a8c2-6b261d2793f6"},"publishing":true,"ownsPublication":true,"blocked":false,"stored":{"auth_token":"fixture-access-2-failed","refresh_token":"fixture-refresh-2-failed","token_expires_at":"1791718320650","auth_user":"{\"id\":1,\"email\":\"fixture-1@example.test\",\"role\":\"user\",\"status\":\"active\",\"balance\":1,\"concurrency\":5}","auth_session_id":"pending:acc116fe-f1d4-405e-a8c2-6b261d2793f6|fae5f055-fc09-4c42-bd61-86b26543e7ee"}}: expected false to be true // Object.is equality
+   × register one-time Storage failure through actual HTTP > cleans own 'api'/'auth_session_id' failure and recovers 7ms
+     → {"token":"fixture-access-1-initial","userID":1,"authenticated":true,"identity":{"generation":195,"userID":2,"sessionID":"17b0bcf3-ed06-46c7-86d6-a855a838f945"},"publishing":true,"ownsPublication":true,"blocked":false,"stored":{"auth_token":"fixture-access-2-failed","refresh_token":"fixture-refresh-2-failed","token_expires_at":"1791718320658","auth_user":"{\"id\":2,\"email\":\"fixture-2@example.test\",\"role\":\"user\",\"status\":\"active\",\"balance\":2,\"concurrency\":5}","auth_session_id":"pending:17b0bcf3-ed06-46c7-86d6-a855a838f945|7afd1aa5-c4b6-492e-a269-25fef6252555"}}: expected false to be true // Object.is equality
+   × register one-time Storage failure through actual HTTP > cleans own 'store'/'auth_token' failure and recovers 7ms
+     → {"token":"fixture-access-2-failed","userID":2,"authenticated":true,"identity":{"generation":203,"userID":2,"sessionID":"dc1d4d8b-48f4-488a-a6f4-c7ffa1d15dc4"},"publishing":true,"ownsPublication":true,"blocked":false,"stored":{"auth_token":"fixture-access-2-failed","refresh_token":"fixture-refresh-2-failed","token_expires_at":"1791718320664","auth_user":"{\"id\":2,\"email\":\"fixture-2@example.test\",\"role\":\"user\",\"status\":\"active\",\"balance\":2,\"concurrency\":5}","auth_session_id":"pending:dc1d4d8b-48f4-488a-a6f4-c7ffa1d15dc4|000fc849-c289-472c-a1f0-859c21b07e10"}}: expected false to be true // Object.is equality
+   × register one-time Storage failure through actual HTTP > cleans own 'store'/'refresh_token' failure and recovers 9ms
+     → {"token":"fixture-access-2-failed","userID":1,"authenticated":true,"identity":{"generation":210,"userID":2,"sessionID":"f20fa419-d6f9-4c9e-9f15-5b1bf282f9b4"},"publishing":true,"ownsPublication":true,"blocked":false,"stored":{"auth_token":"fixture-access-2-failed","refresh_token":"fixture-refresh-2-failed","token_expires_at":"1791718320672","auth_user":"{\"id\":2,\"email\":\"fixture-2@example.test\",\"role\":\"user\",\"status\":\"active\",\"balance\":2,\"concurrency\":5}","auth_session_id":"pending:f20fa419-d6f9-4c9e-9f15-5b1bf282f9b4|57c58989-36ef-4929-bdfe-1798fcd562aa"}}: expected false to be true // Object.is equality
+   × register one-time Storage failure through actual HTTP > cleans own 'store'/'token_expires_at' failure and recovers 16ms
+     → {"token":"fixture-access-2-failed","userID":2,"authenticated":true,"identity":{"generation":218,"userID":2,"sessionID":"899aecac-45c6-43a9-9870-cdc34adacea1"},"publishing":true,"ownsPublication":true,"blocked":false,"stored":{"auth_token":"fixture-access-2-failed","refresh_token":"fixture-refresh-2-failed","token_expires_at":"1791718320685","auth_user":"{\"id\":2,\"email\":\"fixture-2@example.test\",\"role\":\"user\",\"status\":\"active\",\"balance\":2,\"concurrency\":5}","auth_session_id":"pending:899aecac-45c6-43a9-9870-cdc34adacea1|9e6114f0-18f6-4e0e-b799-23caef29b352"}}: expected false to be true // Object.is equality
+   × register one-time Storage failure through actual HTTP > cleans own 'store'/'auth_user' failure and recovers 25ms
+     → {"token":"fixture-access-2-failed","userID":2,"authenticated":true,"identity":{"generation":225,"userID":2,"sessionID":"a51aad95-57cd-4845-8b22-e5ed042f1fe7"},"publishing":true,"ownsPublication":true,"blocked":false,"stored":{"auth_token":"fixture-access-2-failed","refresh_token":"fixture-refresh-2-failed","token_expires_at":"1791718320702","auth_user":"{\"id\":2,\"email\":\"fixture-2@example.test\",\"role\":\"user\",\"status\":\"active\",\"balance\":2,\"concurrency\":5}","auth_session_id":"pending:a51aad95-57cd-4845-8b22-e5ed042f1fe7|07ebebc8-569d-458b-9622-5baf40ba765d"}}: expected false to be true // Object.is equality
+   × register one-time Storage failure through actual HTTP > cleans own 'store'/'auth_session_id' failure and recovers 19ms
+     → {"token":"fixture-access-2-failed","userID":2,"authenticated":true,"identity":{"generation":232,"userID":2,"sessionID":"3edcd8ae-1954-4f5e-8e53-97520970c3d3"},"publishing":true,"ownsPublication":true,"blocked":false,"stored":{"auth_token":"fixture-access-2-failed","refresh_token":"fixture-refresh-2-failed","token_expires_at":"1791718320725","auth_user":"{\"id\":2,\"email\":\"fixture-2@example.test\",\"role\":\"user\",\"status\":\"active\",\"balance\":2,\"concurrency\":5}","auth_session_id":"pending:3edcd8ae-1954-4f5e-8e53-97520970c3d3|4ed6dae0-c555-4199-8141-5ce0dac173ce"}}: expected false to be true // Object.is equality
+   × register one-time Storage failure through actual HTTP > cleans a fresh-session API auth_user failure and recovers 12ms
+     → {"token":null,"userID":null,"authenticated":false,"identity":{"generation":236,"userID":null,"sessionID":"ae2d7fc9-f730-4e67-95ec-da6c758ed0b9"},"publishing":true,"ownsPublication":true,"blocked":false,"stored":{"auth_token":"fixture-access-2-failed","refresh_token":"fixture-refresh-2-failed","token_expires_at":"1791718320738","auth_user":null,"auth_session_id":"pending:ae2d7fc9-f730-4e67-95ec-da6c758ed0b9|43a78cc4-05aa-4ab9-bf94-595555612de9"}}: expected false to be true // Object.is equality
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 33 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/stores/__tests__/auth.storage.http.spec.ts > login one-time Storage failure through actual HTTP > cleans own 'api'/'auth_token' failure and recovers
+AssertionError: {"token":"fixture-access-1-initial","userID":1,"authenticated":true,"identity":{"generation":3,"userID":1,"sessionID":"1b71459a-c52e-40af-bfad-d3dc8ad076bf"},"publishing":true,"ownsPublication":true,"blocked":false,"stored":{"auth_token":"fixture-access-1-initial","refresh_token":"fixture-refresh-1-initial","token_expires_at":"1791718320301","auth_user":"{\"id\":1,\"email\":\"fixture-1@example.test\",\"role\":\"user\",\"status\":\"active\",\"balance\":1,\"concurrency\":5}","auth_session_id":"pending:1b71459a-c52e-40af-bfad-d3dc8ad076bf|1a680138-5c0e-4eab-ab69-1af7d3c9d59c"}}: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/stores/__tests__/auth.storage.http.spec.ts:96:68
+     94|     expect.soft(fired()).toBe(1)
+     95|     expect.soft(failed.error?.name).toBe('QuotaExceededError')
+     96|     expect.soft(clean(afterFailure), JSON.stringify(afterFailure)).toB…
+       |                                                                    ^
+     97|     expect.soft(recovery.error).toBeNull()
+     98|     expect.soft(recovered(afterRecovery), JSON.stringify(afterRecovery…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/33]⎯
+
+ FAIL  src/stores/__tests__/auth.storage.http.spec.ts > login one-time Storage failure through actual HTTP > cleans own 'api'/'refresh_token' failure and recovers
+AssertionError: {"token":"fixture-access-1-initial","userID":1,"authenticated":true,"identity":{"generation":10,"userID":1,"sessionID":"9889813a-1e18-44d0-9e8c-6acad14e3c81"},"publishing":true,"ownsPublication":true,"blocked":false,"stored":{"auth_token":"fixture-access-2-failed","refresh_token":"fixture-refresh-1-initial","token_expires_at":"1791718320324","auth_user":"{\"id\":1,\"email\":\"fixture-1@example.test\",\"role\":\"user\",\"status\":\"active\",\"balance\":1,\"concurrency\":5}","auth_session_id":"pending:9889813a-1e18-44d0-9e8c-6acad14e3c81|d096a144-3767-4a1e-8bf7-803e1e0ce8bb"}}: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/stores/__tests__/auth.storage.http.spec.ts:96:68
+     94|     expect.soft(fired()).toBe(1)
+     95|     expect.soft(failed.error?.name).toBe('QuotaExceededError')
+     96|     expect.soft(clean(afterFailure), JSON.stringify(afterFailure)).toB…
+       |                                                                    ^
+     97|     expect.soft(recovery.error).toBeNull()
+     98|     expect.soft(recovered(afterRecovery), JSON.stringify(afterRecovery…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/33]⎯
+
+ FAIL  src/stores/__tests__/auth.storage.http.spec.ts > login one-time Storage failure through actual HTTP > cleans own 'api'/'token_expires_at' failure and recovers
+AssertionError: {"token":"fixture-access-1-initial","userID":1,"authenticated":true,"identity":{"generation":17,"userID":1,"sessionID":"81084790-a4cc-4a60-b5ef-908d75ad1d79"},"publishing":true,"ownsPublication":true,"blocked":false,"stored":{"auth_token":"fixture-access-2-failed","refresh_token":"fixture-refresh-2-failed","token_expires_at":"1791718320336","auth_user":"{\"id\":1,\"email\":\"fixture-1@example.test\",\"role\":\"user\",\"status\":\"active\",\"balance\":1,\"concurrency\":5}","auth_session_id":"pending:81084790-a4cc-4a60-b5ef-908d75ad1d79|f4efae65-0dcd-44b2-81e8-2ddbfd2a21c7"}}: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/stores/__tests__/auth.storage.http.spec.ts:96:68
+     94|     expect.soft(fired()).toBe(1)
+     95|     expect.soft(failed.error?.name).toBe('QuotaExceededError')
+     96|     expect.soft(clean(afterFailure), JSON.stringify(afterFailure)).toB…
+       |                                                                    ^
+     97|     expect.soft(recovery.error).toBeNull()
+     98|     expect.soft(recovered(afterRecovery), JSON.stringify(afterRecovery…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/33]⎯
+
+ FAIL  src/stores/__tests__/auth.storage.http.spec.ts > login one-time Storage failure through actual HTTP > cleans own 'api'/'auth_user' failure and recovers
+AssertionError: {"token":"fixture-access-1-initial","userID":1,"authenticated":true,"identity":{"generation":24,"userID":1,"sessionID":"7fea7842-5802-49b1-b3d2-2098884d7646"},"publishing":true,"ownsPublication":true,"blocked":false,"stored":{"auth_token":"fixture-access-2-failed","refresh_token":"fixture-refresh-2-failed","token_expires_at":"1791718320350","auth_user":"{\"id\":1,\"email\":\"fixture-1@example.test\",\"role\":\"user\",\"status\":\"active\",\"balance\":1,\"concurrency\":5}","auth_session_id":"pending:7fea7842-5802-49b1-b3d2-2098884d7646|2c1cd533-ea84-4d32-8e8f-c745c18b7493"}}: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/stores/__tests__/auth.storage.http.spec.ts:96:68
+     94|     expect.soft(fired()).toBe(1)
+     95|     expect.soft(failed.error?.name).toBe('QuotaExceededError')
+     96|     expect.soft(clean(afterFailure), JSON.stringify(afterFailure)).toB…
+       |                                                                    ^
+     97|     expect.soft(recovery.error).toBeNull()
+     98|     expect.soft(recovered(afterRecovery), JSON.stringify(afterRecovery…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/33]⎯
+
+ FAIL  src/stores/__tests__/auth.storage.http.spec.ts > login one-time Storage failure through actual HTTP > cleans own 'api'/'auth_session_id' failure and recovers
+AssertionError: {"token":"fixture-access-1-initial","userID":1,"authenticated":true,"identity":{"generation":31,"userID":2,"sessionID":"678b2161-7cec-49c5-a748-a993fcfbaec9"},"publishing":true,"ownsPublication":true,"blocked":false,"stored":{"auth_token":"fixture-access-2-failed","refresh_token":"fixture-refresh-2-failed","token_expires_at":"1791718320360","auth_user":"{\"id\":2,\"email\":\"fixture-2@example.test\",\"role\":\"user\",\"status\":\"active\",\"balance\":2,\"concurrency\":5}","auth_session_id":"pending:678b2161-7cec-49c5-a748-a993fcfbaec9|a7937874-f732-4a89-aa20-e9d66f73233a"}}: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/stores/__tests__/auth.storage.http.spec.ts:96:68
+     94|     expect.soft(fired()).toBe(1)
+     95|     expect.soft(failed.error?.name).toBe('QuotaExceededError')
+     96|     expect.soft(clean(afterFailure), JSON.stringify(afterFailure)).toB…
+       |                                                                    ^
+     97|     expect.soft(recovery.error).toBeNull()
+     98|     expect.soft(recovered(afterRecovery), JSON.stringify(afterRecovery…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/33]⎯
+
+ FAIL  src/stores/__tests__/auth.storage.http.spec.ts > login one-time Storage failure through actual HTTP > cleans own 'store'/'auth_token' failure and recovers
+AssertionError: {"token":"fixture-access-2-failed","userID":2,"authenticated":true,"identity":{"generation":39,"userID":2,"sessionID":"6207ef0b-6d21-4170-91ea-34d2b91ec752"},"publishing":true,"ownsPublication":true,"blocked":false,"stored":{"auth_token":"fixture-access-2-failed","refresh_token":"fixture-refresh-2-failed","token_expires_at":"1791718320370","auth_user":"{\"id\":2,\"email\":\"fixture-2@example.test\",\"role\":\"user\",\"status\":\"active\",\"balance\":2,\"concurrency\":5}","auth_session_id":"pending:6207ef0b-6d21-4170-91ea-34d2b91ec752|88ea059a-0b38-4cce-b373-92207a244b10"}}: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/stores/__tests__/auth.storage.http.spec.ts:96:68
+     94|     expect.soft(fired()).toBe(1)
+     95|     expect.soft(failed.error?.name).toBe('QuotaExceededError')
+     96|     expect.soft(clean(afterFailure), JSON.stringify(afterFailure)).toB…
+       |                                                                    ^
+     97|     expect.soft(recovery.error).toBeNull()
+     98|     expect.soft(recovered(afterRecovery), JSON.stringify(afterRecovery…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/33]⎯
+
+ FAIL  src/stores/__tests__/auth.storage.http.spec.ts > login one-time Storage failure through actual HTTP > cleans own 'store'/'refresh_token' failure and recovers
+AssertionError: {"token":"fixture-access-2-failed","userID":1,"authenticated":true,"identity":{"generation":46,"userID":2,"sessionID":"69833ec4-8718-4fa9-acbd-30b2eeba330a"},"publishing":true,"ownsPublication":true,"blocked":false,"stored":{"auth_token":"fixture-access-2-failed","refresh_token":"fixture-refresh-2-failed","token_expires_at":"1791718320380","auth_user":"{\"id\":2,\"email\":\"fixture-2@example.test\",\"role\":\"user\",\"status\":\"active\",\"balance\":2,\"concurrency\":5}","auth_session_id":"pending:69833ec4-8718-4fa9-acbd-30b2eeba330a|fac6ae11-1c78-4c96-b65b-2329b848ef13"}}: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/stores/__tests__/auth.storage.http.spec.ts:96:68
+     94|     expect.soft(fired()).toBe(1)
+     95|     expect.soft(failed.error?.name).toBe('QuotaExceededError')
+     96|     expect.soft(clean(afterFailure), JSON.stringify(afterFailure)).toB…
+       |                                                                    ^
+     97|     expect.soft(recovery.error).toBeNull()
+     98|     expect.soft(recovered(afterRecovery), JSON.stringify(afterRecovery…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/33]⎯
+
+ FAIL  src/stores/__tests__/auth.storage.http.spec.ts > login one-time Storage failure through actual HTTP > cleans own 'store'/'token_expires_at' failure and recovers
+AssertionError: {"token":"fixture-access-2-failed","userID":2,"authenticated":true,"identity":{"generation":54,"userID":2,"sessionID":"548791bd-a489-4ae7-af28-0daa8c500123"},"publishing":true,"ownsPublication":true,"blocked":false,"stored":{"auth_token":"fixture-access-2-failed","refresh_token":"fixture-refresh-2-failed","token_expires_at":"1791718320388","auth_user":"{\"id\":2,\"email\":\"fixture-2@example.test\",\"role\":\"user\",\"status\":\"active\",\"balance\":2,\"concurrency\":5}","auth_session_id":"pending:548791bd-a489-4ae7-af28-0daa8c500123|0b716b96-cf0d-449d-b472-5071f16def72"}}: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/stores/__tests__/auth.storage.http.spec.ts:96:68
+     94|     expect.soft(fired()).toBe(1)
+     95|     expect.soft(failed.error?.name).toBe('QuotaExceededError')
+     96|     expect.soft(clean(afterFailure), JSON.stringify(afterFailure)).toB…
+       |                                                                    ^
+     97|     expect.soft(recovery.error).toBeNull()
+     98|     expect.soft(recovered(afterRecovery), JSON.stringify(afterRecovery…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/33]⎯
+
+ FAIL  src/stores/__tests__/auth.storage.http.spec.ts > login one-time Storage failure through actual HTTP > cleans own 'store'/'auth_user' failure and recovers
+AssertionError: {"token":"fixture-access-2-failed","userID":2,"authenticated":true,"identity":{"generation":61,"userID":2,"sessionID":"0fc3b84b-fded-4c14-8b12-4c0374fbdeca"},"publishing":true,"ownsPublication":true,"blocked":false,"stored":{"auth_token":"fixture-access-2-failed","refresh_token":"fixture-refresh-2-failed","token_expires_at":"1791718320398","auth_user":"{\"id\":2,\"email\":\"fixture-2@example.test\",\"role\":\"user\",\"status\":\"active\",\"balance\":2,\"concurrency\":5}","auth_session_id":"pending:0fc3b84b-fded-4c14-8b12-4c0374fbdeca|7dfe4ef9-99a2-4ff5-9406-deedcf275785"}}: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/stores/__tests__/auth.storage.http.spec.ts:96:68
+     94|     expect.soft(fired()).toBe(1)
+     95|     expect.soft(failed.error?.name).toBe('QuotaExceededError')
+     96|     expect.soft(clean(afterFailure), JSON.stringify(afterFailure)).toB…
+       |                                                                    ^
+     97|     expect.soft(recovery.error).toBeNull()
+     98|     expect.soft(recovered(afterRecovery), JSON.stringify(afterRecovery…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/33]⎯
+
+ FAIL  src/stores/__tests__/auth.storage.http.spec.ts > login one-time Storage failure through actual HTTP > cleans own 'store'/'auth_session_id' failure and recovers
+AssertionError: {"token":"fixture-access-2-failed","userID":2,"authenticated":true,"identity":{"generation":68,"userID":2,"sessionID":"0fc6c180-d520-485b-928d-ae2ebc4e5cc1"},"publishing":true,"ownsPublication":true,"blocked":false,"stored":{"auth_token":"fixture-access-2-failed","refresh_token":"fixture-refresh-2-failed","token_expires_at":"1791718320410","auth_user":"{\"id\":2,\"email\":\"fixture-2@example.test\",\"role\":\"user\",\"status\":\"active\",\"balance\":2,\"concurrency\":5}","auth_session_id":"pending:0fc6c180-d520-485b-928d-ae2ebc4e5cc1|a151f28e-dc6e-409e-bad4-33927417685a"}}: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/stores/__tests__/auth.storage.http.spec.ts:96:68
+     94|     expect.soft(fired()).toBe(1)
+     95|     expect.soft(failed.error?.name).toBe('QuotaExceededError')
+     96|     expect.soft(clean(afterFailure), JSON.stringify(afterFailure)).toB…
+       |                                                                    ^
+     97|     expect.soft(recovery.error).toBeNull()
+     98|     expect.soft(recovered(afterRecovery), JSON.stringify(afterRecovery…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/33]⎯
+
+ FAIL  src/stores/__tests__/auth.storage.http.spec.ts > login one-time Storage failure through actual HTTP > cleans a fresh-session API auth_user failure and recovers
+AssertionError: {"token":null,"userID":null,"authenticated":false,"identity":{"generation":72,"userID":null,"sessionID":"d0f40880-2af5-4bbb-81db-b92f96228886"},"publishing":true,"ownsPublication":true,"blocked":false,"stored":{"auth_token":"fixture-access-2-failed","refresh_token":"fixture-refresh-2-failed","token_expires_at":"1791718320417","auth_user":null,"auth_session_id":"pending:d0f40880-2af5-4bbb-81db-b92f96228886|aa571bab-b472-4d59-bded-7370008b4bdf"}}: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/stores/__tests__/auth.storage.http.spec.ts:109:68
+    107|     expect.soft(fired()).toBe(1)
+    108|     expect.soft(failed.error?.name).toBe('QuotaExceededError')
+    109|     expect.soft(clean(afterFailure), JSON.stringify(afterFailure)).toB…
+       |                                                                    ^
+    110|     expect.soft(recovery.error).toBeNull()
+    111|     expect.soft(recovered(afterRecovery), JSON.stringify(afterRecovery…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/33]⎯
+
+ FAIL  src/stores/__tests__/auth.storage.http.spec.ts > login2FA one-time Storage failure through actual HTTP > cleans own 'api'/'auth_token' failure and recovers
+AssertionError: {"token":"fixture-access-1-initial","userID":1,"authenticated":true,"identity":{"generation":85,"userID":1,"sessionID":"b8df4fc3-51f8-4266-abd6-6fd01f05a309"},"publishing":true,"ownsPublication":true,"blocked":false,"stored":{"auth_token":"fixture-access-1-initial","refresh_token":"fixture-refresh-1-initial","token_expires_at":"1791718320481","auth_user":"{\"id\":1,\"email\":\"fixture-1@example.test\",\"role\":\"user\",\"status\":\"active\",\"balance\":1,\"concurrency\":5}","auth_session_id":"pending:b8df4fc3-51f8-4266-abd6-6fd01f05a309|89b543bb-8c65-42a0-90ef-eef1a4ebfbc6"}}: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/stores/__tests__/auth.storage.http.spec.ts:96:68
+     94|     expect.soft(fired()).toBe(1)
+     95|     expect.soft(failed.error?.name).toBe('QuotaExceededError')
+     96|     expect.soft(clean(afterFailure), JSON.stringify(afterFailure)).toB…
+       |                                                                    ^
+     97|     expect.soft(recovery.error).toBeNull()
+     98|     expect.soft(recovered(afterRecovery), JSON.stringify(afterRecovery…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/33]⎯
+
+ FAIL  src/stores/__tests__/auth.storage.http.spec.ts > login2FA one-time Storage failure through actual HTTP > cleans own 'api'/'refresh_token' failure and recovers
+AssertionError: {"token":"fixture-access-1-initial","userID":1,"authenticated":true,"identity":{"generation":92,"userID":1,"sessionID":"f56653aa-f443-4fd7-9bb5-a519b0e060a0"},"publishing":true,"ownsPublication":true,"blocked":false,"stored":{"auth_token":"fixture-access-2-failed","refresh_token":"fixture-refresh-1-initial","token_expires_at":"1791718320488","auth_user":"{\"id\":1,\"email\":\"fixture-1@example.test\",\"role\":\"user\",\"status\":\"active\",\"balance\":1,\"concurrency\":5}","auth_session_id":"pending:f56653aa-f443-4fd7-9bb5-a519b0e060a0|6728b89f-c0cb-4ffb-a7f5-144ef4f0c7d0"}}: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/stores/__tests__/auth.storage.http.spec.ts:96:68
+     94|     expect.soft(fired()).toBe(1)
+     95|     expect.soft(failed.error?.name).toBe('QuotaExceededError')
+     96|     expect.soft(clean(afterFailure), JSON.stringify(afterFailure)).toB…
+       |                                                                    ^
+     97|     expect.soft(recovery.error).toBeNull()
+     98|     expect.soft(recovered(afterRecovery), JSON.stringify(afterRecovery…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[13/33]⎯
+
+ FAIL  src/stores/__tests__/auth.storage.http.spec.ts > login2FA one-time Storage failure through actual HTTP > cleans own 'api'/'token_expires_at' failure and recovers
+AssertionError: {"token":"fixture-access-1-initial","userID":1,"authenticated":true,"identity":{"generation":99,"userID":1,"sessionID":"2caf4787-7c64-488d-b68a-df7d63f1d21e"},"publishing":true,"ownsPublication":true,"blocked":false,"stored":{"auth_token":"fixture-access-2-failed","refresh_token":"fixture-refresh-2-failed","token_expires_at":"1791718320495","auth_user":"{\"id\":1,\"email\":\"fixture-1@example.test\",\"role\":\"user\",\"status\":\"active\",\"balance\":1,\"concurrency\":5}","auth_session_id":"pending:2caf4787-7c64-488d-b68a-df7d63f1d21e|5515cec0-3cae-4446-ab61-6595c53bb6cd"}}: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/stores/__tests__/auth.storage.http.spec.ts:96:68
+     94|     expect.soft(fired()).toBe(1)
+     95|     expect.soft(failed.error?.name).toBe('QuotaExceededError')
+     96|     expect.soft(clean(afterFailure), JSON.stringify(afterFailure)).toB…
+       |                                                                    ^
+     97|     expect.soft(recovery.error).toBeNull()
+     98|     expect.soft(recovered(afterRecovery), JSON.stringify(afterRecovery…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[14/33]⎯
+
+ FAIL  src/stores/__tests__/auth.storage.http.spec.ts > login2FA one-time Storage failure through actual HTTP > cleans own 'api'/'auth_user' failure and recovers
+AssertionError: {"token":"fixture-access-1-initial","userID":1,"authenticated":true,"identity":{"generation":106,"userID":1,"sessionID":"1178982d-ca17-40d6-811b-458195397cd0"},"publishing":true,"ownsPublication":true,"blocked":false,"stored":{"auth_token":"fixture-access-2-failed","refresh_token":"fixture-refresh-2-failed","token_expires_at":"1791718320505","auth_user":"{\"id\":1,\"email\":\"fixture-1@example.test\",\"role\":\"user\",\"status\":\"active\",\"balance\":1,\"concurrency\":5}","auth_session_id":"pending:1178982d-ca17-40d6-811b-458195397cd0|86c18945-45eb-4247-8ced-122bb41e4825"}}: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/stores/__tests__/auth.storage.http.spec.ts:96:68
+     94|     expect.soft(fired()).toBe(1)
+     95|     expect.soft(failed.error?.name).toBe('QuotaExceededError')
+     96|     expect.soft(clean(afterFailure), JSON.stringify(afterFailure)).toB…
+       |                                                                    ^
+     97|     expect.soft(recovery.error).toBeNull()
+     98|     expect.soft(recovered(afterRecovery), JSON.stringify(afterRecovery…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[15/33]⎯
+
+ FAIL  src/stores/__tests__/auth.storage.http.spec.ts > login2FA one-time Storage failure through actual HTTP > cleans own 'api'/'auth_session_id' failure and recovers
+AssertionError: {"token":"fixture-access-1-initial","userID":1,"authenticated":true,"identity":{"generation":113,"userID":2,"sessionID":"9fa1a62a-79e8-4b5d-a3c0-0ea597b9aaa9"},"publishing":true,"ownsPublication":true,"blocked":false,"stored":{"auth_token":"fixture-access-2-failed","refresh_token":"fixture-refresh-2-failed","token_expires_at":"1791718320513","auth_user":"{\"id\":2,\"email\":\"fixture-2@example.test\",\"role\":\"user\",\"status\":\"active\",\"balance\":2,\"concurrency\":5}","auth_session_id":"pending:9fa1a62a-79e8-4b5d-a3c0-0ea597b9aaa9|ccaa2a8f-ab10-41cd-a784-e92213d4ed30"}}: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/stores/__tests__/auth.storage.http.spec.ts:96:68
+     94|     expect.soft(fired()).toBe(1)
+     95|     expect.soft(failed.error?.name).toBe('QuotaExceededError')
+     96|     expect.soft(clean(afterFailure), JSON.stringify(afterFailure)).toB…
+       |                                                                    ^
+     97|     expect.soft(recovery.error).toBeNull()
+     98|     expect.soft(recovered(afterRecovery), JSON.stringify(afterRecovery…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[16/33]⎯
+
+ FAIL  src/stores/__tests__/auth.storage.http.spec.ts > login2FA one-time Storage failure through actual HTTP > cleans own 'store'/'auth_token' failure and recovers
+AssertionError: {"token":"fixture-access-2-failed","userID":2,"authenticated":true,"identity":{"generation":121,"userID":2,"sessionID":"49d67a66-0b51-46f8-a1ab-1153e5ecac6a"},"publishing":true,"ownsPublication":true,"blocked":false,"stored":{"auth_token":"fixture-access-2-failed","refresh_token":"fixture-refresh-2-failed","token_expires_at":"1791718320521","auth_user":"{\"id\":2,\"email\":\"fixture-2@example.test\",\"role\":\"user\",\"status\":\"active\",\"balance\":2,\"concurrency\":5}","auth_session_id":"pending:49d67a66-0b51-46f8-a1ab-1153e5ecac6a|695be061-291f-480a-9cb9-6f71f1c6df92"}}: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/stores/__tests__/auth.storage.http.spec.ts:96:68
+     94|     expect.soft(fired()).toBe(1)
+     95|     expect.soft(failed.error?.name).toBe('QuotaExceededError')
+     96|     expect.soft(clean(afterFailure), JSON.stringify(afterFailure)).toB…
+       |                                                                    ^
+     97|     expect.soft(recovery.error).toBeNull()
+     98|     expect.soft(recovered(afterRecovery), JSON.stringify(afterRecovery…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[17/33]⎯
+
+ FAIL  src/stores/__tests__/auth.storage.http.spec.ts > login2FA one-time Storage failure through actual HTTP > cleans own 'store'/'refresh_token' failure and recovers
+AssertionError: {"token":"fixture-access-2-failed","userID":1,"authenticated":true,"identity":{"generation":128,"userID":2,"sessionID":"cbc134b2-acdd-4100-9e5a-fbaabba4ac59"},"publishing":true,"ownsPublication":true,"blocked":false,"stored":{"auth_token":"fixture-access-2-failed","refresh_token":"fixture-refresh-2-failed","token_expires_at":"1791718320529","auth_user":"{\"id\":2,\"email\":\"fixture-2@example.test\",\"role\":\"user\",\"status\":\"active\",\"balance\":2,\"concurrency\":5}","auth_session_id":"pending:cbc134b2-acdd-4100-9e5a-fbaabba4ac59|3d453d53-b54b-4c89-9ce3-540e0f272bd1"}}: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/stores/__tests__/auth.storage.http.spec.ts:96:68
+     94|     expect.soft(fired()).toBe(1)
+     95|     expect.soft(failed.error?.name).toBe('QuotaExceededError')
+     96|     expect.soft(clean(afterFailure), JSON.stringify(afterFailure)).toB…
+       |                                                                    ^
+     97|     expect.soft(recovery.error).toBeNull()
+     98|     expect.soft(recovered(afterRecovery), JSON.stringify(afterRecovery…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[18/33]⎯
+
+ FAIL  src/stores/__tests__/auth.storage.http.spec.ts > login2FA one-time Storage failure through actual HTTP > cleans own 'store'/'token_expires_at' failure and recovers
+AssertionError: {"token":"fixture-access-2-failed","userID":2,"authenticated":true,"identity":{"generation":136,"userID":2,"sessionID":"76fd7db6-db99-4404-ba15-681af5b6cb81"},"publishing":true,"ownsPublication":true,"blocked":false,"stored":{"auth_token":"fixture-access-2-failed","refresh_token":"fixture-refresh-2-failed","token_expires_at":"1791718320537","auth_user":"{\"id\":2,\"email\":\"fixture-2@example.test\",\"role\":\"user\",\"status\":\"active\",\"balance\":2,\"concurrency\":5}","auth_session_id":"pending:76fd7db6-db99-4404-ba15-681af5b6cb81|0e2af3c2-97ec-4ed4-a161-457eac635be3"}}: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/stores/__tests__/auth.storage.http.spec.ts:96:68
+     94|     expect.soft(fired()).toBe(1)
+     95|     expect.soft(failed.error?.name).toBe('QuotaExceededError')
+     96|     expect.soft(clean(afterFailure), JSON.stringify(afterFailure)).toB…
+       |                                                                    ^
+     97|     expect.soft(recovery.error).toBeNull()
+     98|     expect.soft(recovered(afterRecovery), JSON.stringify(afterRecovery…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[19/33]⎯
+
+ FAIL  src/stores/__tests__/auth.storage.http.spec.ts > login2FA one-time Storage failure through actual HTTP > cleans own 'store'/'auth_user' failure and recovers
+AssertionError: {"token":"fixture-access-2-failed","userID":2,"authenticated":true,"identity":{"generation":143,"userID":2,"sessionID":"2ae7161c-fb3d-4c89-bd76-8d53fd47d5fc"},"publishing":true,"ownsPublication":true,"blocked":false,"stored":{"auth_token":"fixture-access-2-failed","refresh_token":"fixture-refresh-2-failed","token_expires_at":"1791718320546","auth_user":"{\"id\":2,\"email\":\"fixture-2@example.test\",\"role\":\"user\",\"status\":\"active\",\"balance\":2,\"concurrency\":5}","auth_session_id":"pending:2ae7161c-fb3d-4c89-bd76-8d53fd47d5fc|0b4719d5-6cec-48f3-816f-366cc489e56c"}}: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/stores/__tests__/auth.storage.http.spec.ts:96:68
+     94|     expect.soft(fired()).toBe(1)
+     95|     expect.soft(failed.error?.name).toBe('QuotaExceededError')
+     96|     expect.soft(clean(afterFailure), JSON.stringify(afterFailure)).toB…
+       |                                                                    ^
+     97|     expect.soft(recovery.error).toBeNull()
+     98|     expect.soft(recovered(afterRecovery), JSON.stringify(afterRecovery…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[20/33]⎯
+
+ FAIL  src/stores/__tests__/auth.storage.http.spec.ts > login2FA one-time Storage failure through actual HTTP > cleans own 'store'/'auth_session_id' failure and recovers
+AssertionError: {"token":"fixture-access-2-failed","userID":2,"authenticated":true,"identity":{"generation":150,"userID":2,"sessionID":"923eded1-c813-490b-b644-22397bb7fc9a"},"publishing":true,"ownsPublication":true,"blocked":false,"stored":{"auth_token":"fixture-access-2-failed","refresh_token":"fixture-refresh-2-failed","token_expires_at":"1791718320554","auth_user":"{\"id\":2,\"email\":\"fixture-2@example.test\",\"role\":\"user\",\"status\":\"active\",\"balance\":2,\"concurrency\":5}","auth_session_id":"pending:923eded1-c813-490b-b644-22397bb7fc9a|3481fa22-ece1-4853-a927-76418d5e0027"}}: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/stores/__tests__/auth.storage.http.spec.ts:96:68
+     94|     expect.soft(fired()).toBe(1)
+     95|     expect.soft(failed.error?.name).toBe('QuotaExceededError')
+     96|     expect.soft(clean(afterFailure), JSON.stringify(afterFailure)).toB…
+       |                                                                    ^
+     97|     expect.soft(recovery.error).toBeNull()
+     98|     expect.soft(recovered(afterRecovery), JSON.stringify(afterRecovery…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[21/33]⎯
+
+ FAIL  src/stores/__tests__/auth.storage.http.spec.ts > login2FA one-time Storage failure through actual HTTP > cleans a fresh-session API auth_user failure and recovers
+AssertionError: {"token":null,"userID":null,"authenticated":false,"identity":{"generation":154,"userID":null,"sessionID":"d0d47dd2-ebc0-405e-adc9-2179042aab8e"},"publishing":true,"ownsPublication":true,"blocked":false,"stored":{"auth_token":"fixture-access-2-failed","refresh_token":"fixture-refresh-2-failed","token_expires_at":"1791718320560","auth_user":null,"auth_session_id":"pending:d0d47dd2-ebc0-405e-adc9-2179042aab8e|638455b7-a288-4c0c-8980-5937a883145c"}}: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/stores/__tests__/auth.storage.http.spec.ts:109:68
+    107|     expect.soft(fired()).toBe(1)
+    108|     expect.soft(failed.error?.name).toBe('QuotaExceededError')
+    109|     expect.soft(clean(afterFailure), JSON.stringify(afterFailure)).toB…
+       |                                                                    ^
+    110|     expect.soft(recovery.error).toBeNull()
+    111|     expect.soft(recovered(afterRecovery), JSON.stringify(afterRecovery…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[22/33]⎯
+
+ FAIL  src/stores/__tests__/auth.storage.http.spec.ts > register one-time Storage failure through actual HTTP > cleans own 'api'/'auth_token' failure and recovers
+AssertionError: {"token":"fixture-access-1-initial","userID":1,"authenticated":true,"identity":{"generation":167,"userID":1,"sessionID":"8641777f-082e-436e-b819-dcbce97c6c9e"},"publishing":true,"ownsPublication":true,"blocked":false,"stored":{"auth_token":"fixture-access-1-initial","refresh_token":"fixture-refresh-1-initial","token_expires_at":"1791718320627","auth_user":"{\"id\":1,\"email\":\"fixture-1@example.test\",\"role\":\"user\",\"status\":\"active\",\"balance\":1,\"concurrency\":5}","auth_session_id":"pending:8641777f-082e-436e-b819-dcbce97c6c9e|c3fda39b-4038-4d59-82c6-69f0de8ac37c"}}: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/stores/__tests__/auth.storage.http.spec.ts:96:68
+     94|     expect.soft(fired()).toBe(1)
+     95|     expect.soft(failed.error?.name).toBe('QuotaExceededError')
+     96|     expect.soft(clean(afterFailure), JSON.stringify(afterFailure)).toB…
+       |                                                                    ^
+     97|     expect.soft(recovery.error).toBeNull()
+     98|     expect.soft(recovered(afterRecovery), JSON.stringify(afterRecovery…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[23/33]⎯
+
+ FAIL  src/stores/__tests__/auth.storage.http.spec.ts > register one-time Storage failure through actual HTTP > cleans own 'api'/'refresh_token' failure and recovers
+AssertionError: {"token":"fixture-access-1-initial","userID":1,"authenticated":true,"identity":{"generation":174,"userID":1,"sessionID":"3d19d0c4-966a-48f9-b4a6-e9904af7bf6b"},"publishing":true,"ownsPublication":true,"blocked":false,"stored":{"auth_token":"fixture-access-2-failed","refresh_token":"fixture-refresh-1-initial","token_expires_at":"1791718320634","auth_user":"{\"id\":1,\"email\":\"fixture-1@example.test\",\"role\":\"user\",\"status\":\"active\",\"balance\":1,\"concurrency\":5}","auth_session_id":"pending:3d19d0c4-966a-48f9-b4a6-e9904af7bf6b|31a20fbd-e742-45b4-9add-9bb8b9186326"}}: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/stores/__tests__/auth.storage.http.spec.ts:96:68
+     94|     expect.soft(fired()).toBe(1)
+     95|     expect.soft(failed.error?.name).toBe('QuotaExceededError')
+     96|     expect.soft(clean(afterFailure), JSON.stringify(afterFailure)).toB…
+       |                                                                    ^
+     97|     expect.soft(recovery.error).toBeNull()
+     98|     expect.soft(recovered(afterRecovery), JSON.stringify(afterRecovery…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[24/33]⎯
+
+ FAIL  src/stores/__tests__/auth.storage.http.spec.ts > register one-time Storage failure through actual HTTP > cleans own 'api'/'token_expires_at' failure and recovers
+AssertionError: {"token":"fixture-access-1-initial","userID":1,"authenticated":true,"identity":{"generation":181,"userID":1,"sessionID":"3c9ae288-d76b-4cb1-9c7c-1664b1748e98"},"publishing":true,"ownsPublication":true,"blocked":false,"stored":{"auth_token":"fixture-access-2-failed","refresh_token":"fixture-refresh-2-failed","token_expires_at":"1791718320641","auth_user":"{\"id\":1,\"email\":\"fixture-1@example.test\",\"role\":\"user\",\"status\":\"active\",\"balance\":1,\"concurrency\":5}","auth_session_id":"pending:3c9ae288-d76b-4cb1-9c7c-1664b1748e98|796349bb-beba-4fa6-84fa-f29b69e45c66"}}: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/stores/__tests__/auth.storage.http.spec.ts:96:68
+     94|     expect.soft(fired()).toBe(1)
+     95|     expect.soft(failed.error?.name).toBe('QuotaExceededError')
+     96|     expect.soft(clean(afterFailure), JSON.stringify(afterFailure)).toB…
+       |                                                                    ^
+     97|     expect.soft(recovery.error).toBeNull()
+     98|     expect.soft(recovered(afterRecovery), JSON.stringify(afterRecovery…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[25/33]⎯
+
+ FAIL  src/stores/__tests__/auth.storage.http.spec.ts > register one-time Storage failure through actual HTTP > cleans own 'api'/'auth_user' failure and recovers
+AssertionError: {"token":"fixture-access-1-initial","userID":1,"authenticated":true,"identity":{"generation":188,"userID":1,"sessionID":"acc116fe-f1d4-405e-a8c2-6b261d2793f6"},"publishing":true,"ownsPublication":true,"blocked":false,"stored":{"auth_token":"fixture-access-2-failed","refresh_token":"fixture-refresh-2-failed","token_expires_at":"1791718320650","auth_user":"{\"id\":1,\"email\":\"fixture-1@example.test\",\"role\":\"user\",\"status\":\"active\",\"balance\":1,\"concurrency\":5}","auth_session_id":"pending:acc116fe-f1d4-405e-a8c2-6b261d2793f6|fae5f055-fc09-4c42-bd61-86b26543e7ee"}}: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/stores/__tests__/auth.storage.http.spec.ts:96:68
+     94|     expect.soft(fired()).toBe(1)
+     95|     expect.soft(failed.error?.name).toBe('QuotaExceededError')
+     96|     expect.soft(clean(afterFailure), JSON.stringify(afterFailure)).toB…
+       |                                                                    ^
+     97|     expect.soft(recovery.error).toBeNull()
+     98|     expect.soft(recovered(afterRecovery), JSON.stringify(afterRecovery…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[26/33]⎯
+
+ FAIL  src/stores/__tests__/auth.storage.http.spec.ts > register one-time Storage failure through actual HTTP > cleans own 'api'/'auth_session_id' failure and recovers
+AssertionError: {"token":"fixture-access-1-initial","userID":1,"authenticated":true,"identity":{"generation":195,"userID":2,"sessionID":"17b0bcf3-ed06-46c7-86d6-a855a838f945"},"publishing":true,"ownsPublication":true,"blocked":false,"stored":{"auth_token":"fixture-access-2-failed","refresh_token":"fixture-refresh-2-failed","token_expires_at":"1791718320658","auth_user":"{\"id\":2,\"email\":\"fixture-2@example.test\",\"role\":\"user\",\"status\":\"active\",\"balance\":2,\"concurrency\":5}","auth_session_id":"pending:17b0bcf3-ed06-46c7-86d6-a855a838f945|7afd1aa5-c4b6-492e-a269-25fef6252555"}}: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/stores/__tests__/auth.storage.http.spec.ts:96:68
+     94|     expect.soft(fired()).toBe(1)
+     95|     expect.soft(failed.error?.name).toBe('QuotaExceededError')
+     96|     expect.soft(clean(afterFailure), JSON.stringify(afterFailure)).toB…
+       |                                                                    ^
+     97|     expect.soft(recovery.error).toBeNull()
+     98|     expect.soft(recovered(afterRecovery), JSON.stringify(afterRecovery…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[27/33]⎯
+
+ FAIL  src/stores/__tests__/auth.storage.http.spec.ts > register one-time Storage failure through actual HTTP > cleans own 'store'/'auth_token' failure and recovers
+AssertionError: {"token":"fixture-access-2-failed","userID":2,"authenticated":true,"identity":{"generation":203,"userID":2,"sessionID":"dc1d4d8b-48f4-488a-a6f4-c7ffa1d15dc4"},"publishing":true,"ownsPublication":true,"blocked":false,"stored":{"auth_token":"fixture-access-2-failed","refresh_token":"fixture-refresh-2-failed","token_expires_at":"1791718320664","auth_user":"{\"id\":2,\"email\":\"fixture-2@example.test\",\"role\":\"user\",\"status\":\"active\",\"balance\":2,\"concurrency\":5}","auth_session_id":"pending:dc1d4d8b-48f4-488a-a6f4-c7ffa1d15dc4|000fc849-c289-472c-a1f0-859c21b07e10"}}: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/stores/__tests__/auth.storage.http.spec.ts:96:68
+     94|     expect.soft(fired()).toBe(1)
+     95|     expect.soft(failed.error?.name).toBe('QuotaExceededError')
+     96|     expect.soft(clean(afterFailure), JSON.stringify(afterFailure)).toB…
+       |                                                                    ^
+     97|     expect.soft(recovery.error).toBeNull()
+     98|     expect.soft(recovered(afterRecovery), JSON.stringify(afterRecovery…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[28/33]⎯
+
+ FAIL  src/stores/__tests__/auth.storage.http.spec.ts > register one-time Storage failure through actual HTTP > cleans own 'store'/'refresh_token' failure and recovers
+AssertionError: {"token":"fixture-access-2-failed","userID":1,"authenticated":true,"identity":{"generation":210,"userID":2,"sessionID":"f20fa419-d6f9-4c9e-9f15-5b1bf282f9b4"},"publishing":true,"ownsPublication":true,"blocked":false,"stored":{"auth_token":"fixture-access-2-failed","refresh_token":"fixture-refresh-2-failed","token_expires_at":"1791718320672","auth_user":"{\"id\":2,\"email\":\"fixture-2@example.test\",\"role\":\"user\",\"status\":\"active\",\"balance\":2,\"concurrency\":5}","auth_session_id":"pending:f20fa419-d6f9-4c9e-9f15-5b1bf282f9b4|57c58989-36ef-4929-bdfe-1798fcd562aa"}}: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/stores/__tests__/auth.storage.http.spec.ts:96:68
+     94|     expect.soft(fired()).toBe(1)
+     95|     expect.soft(failed.error?.name).toBe('QuotaExceededError')
+     96|     expect.soft(clean(afterFailure), JSON.stringify(afterFailure)).toB…
+       |                                                                    ^
+     97|     expect.soft(recovery.error).toBeNull()
+     98|     expect.soft(recovered(afterRecovery), JSON.stringify(afterRecovery…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[29/33]⎯
+
+ FAIL  src/stores/__tests__/auth.storage.http.spec.ts > register one-time Storage failure through actual HTTP > cleans own 'store'/'token_expires_at' failure and recovers
+AssertionError: {"token":"fixture-access-2-failed","userID":2,"authenticated":true,"identity":{"generation":218,"userID":2,"sessionID":"899aecac-45c6-43a9-9870-cdc34adacea1"},"publishing":true,"ownsPublication":true,"blocked":false,"stored":{"auth_token":"fixture-access-2-failed","refresh_token":"fixture-refresh-2-failed","token_expires_at":"1791718320685","auth_user":"{\"id\":2,\"email\":\"fixture-2@example.test\",\"role\":\"user\",\"status\":\"active\",\"balance\":2,\"concurrency\":5}","auth_session_id":"pending:899aecac-45c6-43a9-9870-cdc34adacea1|9e6114f0-18f6-4e0e-b799-23caef29b352"}}: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/stores/__tests__/auth.storage.http.spec.ts:96:68
+     94|     expect.soft(fired()).toBe(1)
+     95|     expect.soft(failed.error?.name).toBe('QuotaExceededError')
+     96|     expect.soft(clean(afterFailure), JSON.stringify(afterFailure)).toB…
+       |                                                                    ^
+     97|     expect.soft(recovery.error).toBeNull()
+     98|     expect.soft(recovered(afterRecovery), JSON.stringify(afterRecovery…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[30/33]⎯
+
+ FAIL  src/stores/__tests__/auth.storage.http.spec.ts > register one-time Storage failure through actual HTTP > cleans own 'store'/'auth_user' failure and recovers
+AssertionError: {"token":"fixture-access-2-failed","userID":2,"authenticated":true,"identity":{"generation":225,"userID":2,"sessionID":"a51aad95-57cd-4845-8b22-e5ed042f1fe7"},"publishing":true,"ownsPublication":true,"blocked":false,"stored":{"auth_token":"fixture-access-2-failed","refresh_token":"fixture-refresh-2-failed","token_expires_at":"1791718320702","auth_user":"{\"id\":2,\"email\":\"fixture-2@example.test\",\"role\":\"user\",\"status\":\"active\",\"balance\":2,\"concurrency\":5}","auth_session_id":"pending:a51aad95-57cd-4845-8b22-e5ed042f1fe7|07ebebc8-569d-458b-9622-5baf40ba765d"}}: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/stores/__tests__/auth.storage.http.spec.ts:96:68
+     94|     expect.soft(fired()).toBe(1)
+     95|     expect.soft(failed.error?.name).toBe('QuotaExceededError')
+     96|     expect.soft(clean(afterFailure), JSON.stringify(afterFailure)).toB…
+       |                                                                    ^
+     97|     expect.soft(recovery.error).toBeNull()
+     98|     expect.soft(recovered(afterRecovery), JSON.stringify(afterRecovery…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[31/33]⎯
+
+ FAIL  src/stores/__tests__/auth.storage.http.spec.ts > register one-time Storage failure through actual HTTP > cleans own 'store'/'auth_session_id' failure and recovers
+AssertionError: {"token":"fixture-access-2-failed","userID":2,"authenticated":true,"identity":{"generation":232,"userID":2,"sessionID":"3edcd8ae-1954-4f5e-8e53-97520970c3d3"},"publishing":true,"ownsPublication":true,"blocked":false,"stored":{"auth_token":"fixture-access-2-failed","refresh_token":"fixture-refresh-2-failed","token_expires_at":"1791718320725","auth_user":"{\"id\":2,\"email\":\"fixture-2@example.test\",\"role\":\"user\",\"status\":\"active\",\"balance\":2,\"concurrency\":5}","auth_session_id":"pending:3edcd8ae-1954-4f5e-8e53-97520970c3d3|4ed6dae0-c555-4199-8141-5ce0dac173ce"}}: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/stores/__tests__/auth.storage.http.spec.ts:96:68
+     94|     expect.soft(fired()).toBe(1)
+     95|     expect.soft(failed.error?.name).toBe('QuotaExceededError')
+     96|     expect.soft(clean(afterFailure), JSON.stringify(afterFailure)).toB…
+       |                                                                    ^
+     97|     expect.soft(recovery.error).toBeNull()
+     98|     expect.soft(recovered(afterRecovery), JSON.stringify(afterRecovery…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[32/33]⎯
+
+ FAIL  src/stores/__tests__/auth.storage.http.spec.ts > register one-time Storage failure through actual HTTP > cleans a fresh-session API auth_user failure and recovers
+AssertionError: {"token":null,"userID":null,"authenticated":false,"identity":{"generation":236,"userID":null,"sessionID":"ae2d7fc9-f730-4e67-95ec-da6c758ed0b9"},"publishing":true,"ownsPublication":true,"blocked":false,"stored":{"auth_token":"fixture-access-2-failed","refresh_token":"fixture-refresh-2-failed","token_expires_at":"1791718320738","auth_user":null,"auth_session_id":"pending:ae2d7fc9-f730-4e67-95ec-da6c758ed0b9|43a78cc4-05aa-4ab9-bf94-595555612de9"}}: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/stores/__tests__/auth.storage.http.spec.ts:109:68
+    107|     expect.soft(fired()).toBe(1)
+    108|     expect.soft(failed.error?.name).toBe('QuotaExceededError')
+    109|     expect.soft(clean(afterFailure), JSON.stringify(afterFailure)).toB…
+       |                                                                    ^
+    110|     expect.soft(recovery.error).toBeNull()
+    111|     expect.soft(recovered(afterRecovery), JSON.stringify(afterRecovery…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[33/33]⎯
+
+ Test Files  1 failed (1)
+      Tests  33 failed | 3 passed (36)
+   Start at  10:31:58
+   Duration  1.87s (transform 412ms, setup 85ms, collect 541ms, tests 541ms, environment 292ms, prepare 57ms)

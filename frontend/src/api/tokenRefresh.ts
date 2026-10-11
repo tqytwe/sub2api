@@ -50,6 +50,7 @@ let interactiveAuthSequence = 0
 export interface InteractiveAuthAttempt {
   readonly sequence: number
   session: AuthSessionIdentity
+  publication?: string
 }
 
 // A newer interactive intent supersedes an older one even before either publishes.
@@ -63,6 +64,23 @@ export function beginInteractiveAuthAttempt(): InteractiveAuthAttempt {
 
 export function isInteractiveAuthAttemptCurrent(attempt: InteractiveAuthAttempt): boolean {
   return attempt.sequence === interactiveAuthSequence && isAuthSessionCurrent(attempt.session)
+}
+
+// Publication changes the session identity before its credential writes finish.
+// Keep the exact pending marker so a failed write can clean up its own session,
+// without adopting or clearing a session published by another operation.
+export function startInteractiveAuthSession(attempt: InteractiveAuthAttempt): string {
+  const publication = startAuthSession()
+  attempt.publication = publication
+  return publication
+}
+
+export function canClearFailedInteractiveAuth(attempt: InteractiveAuthAttempt): boolean {
+  if (attempt.sequence !== interactiveAuthSequence) return false
+  return isAuthSessionCurrent(attempt.session) || (
+    attempt.publication !== undefined && attempt.publication === ownedPublication &&
+    localStorage.getItem(AUTH_SESSION_KEY) === attempt.publication
+  )
 }
 
 export function commitInteractiveAuth<T>(attempt: InteractiveAuthAttempt, publish: () => T): T {

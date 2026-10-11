@@ -6,7 +6,7 @@
 import { apiClient, type InteractiveAuthRequestConfig } from './client'
 import {
   refreshAuthTokens, startAuthSession, finishAuthSession, beginInteractiveAuthAttempt,
-  commitInteractiveAuth, type InteractiveAuthAttempt, type RefreshTokenResponse
+  commitInteractiveAuth, startInteractiveAuthSession, type InteractiveAuthAttempt, type RefreshTokenResponse
 } from './tokenRefresh'
 export type { RefreshTokenResponse } from './tokenRefresh'
 import type {
@@ -138,7 +138,7 @@ export async function login(credentials: LoginRequest, attempt: InteractiveAuthA
   // Only store token if 2FA is not required
   return commitInteractiveAuth(attempt, () => {
     if (!isTotp2FARequired(data)) {
-      const publication = startAuthSession()
+      const publication = startInteractiveAuthSession(attempt)
       setAuthToken(data.access_token)
       if (data.refresh_token) {
         setRefreshToken(data.refresh_token)
@@ -164,7 +164,7 @@ export async function login2FA(request: TotpLogin2FARequest, attempt: Interactiv
 
   // Store token and user data
   return commitInteractiveAuth(attempt, () => {
-    const publication = startAuthSession()
+    const publication = startInteractiveAuthSession(attempt)
     setAuthToken(data.access_token)
     if (data.refresh_token) {
       setRefreshToken(data.refresh_token)
@@ -190,7 +190,7 @@ export async function register(userData: RegisterRequest, attempt: InteractiveAu
 
   // Store token and user data
   return commitInteractiveAuth(attempt, () => {
-    const publication = startAuthSession()
+    const publication = startInteractiveAuthSession(attempt)
     setAuthToken(data.access_token)
     if (data.refresh_token) {
       setRefreshToken(data.refresh_token)

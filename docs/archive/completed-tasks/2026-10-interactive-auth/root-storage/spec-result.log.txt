@@ -1,0 +1,10 @@
+[33mThe CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.[39m
+
+ RUN  v2.1.9 /workspace/p1-interactive-auth/frontend
+
+ ✓ ../../../tmp/p1-storage-spec-probe/probe.spec.ts (3 tests) 301ms
+
+ Test Files  1 passed (1)
+      Tests  3 passed (3)
+   Start at  10:39:08
+   Duration  2.53s (transform 862ms, setup 138ms, collect 1.06s, tests 301ms, environment 487ms, prepare 94ms)
