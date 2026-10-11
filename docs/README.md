@@ -113,6 +113,8 @@
 - [交互登录响应归属修复](./archive/completed-tasks/2026-10-interactive-auth/README.md) — `in-progress`，真实 HTTP 登录竞态回归，独立草稿交付。
 - [原生自动续期与福利登录态同步](./archive/completed-tasks/2026-10-auth-refresh/README.md) — `in-progress`，隔离 HTTP、构建资源与 PG 回归；草稿交付，不代表部署。
 - [答题续期保留选择视觉记录](./visual-reviews/2026-10-11-auth-refresh.md) — `in-progress`，保留现有控件及样式，实际构建证据。
+- [Codex 点数同账号快照同步](./archive/completed-tasks/2026-10-11-codex-credits-snapshot/README.md) — `review`，定向 RED/GREEN、独立双审和隔离组件浏览器证据；完整门禁及部署由主线程协调。
+- [Codex 点数快照视觉记录](./visual-reviews/2026-10-11-codex-credits-snapshot.md) — `review`，真实基线/修改后截图、零与未知状态、补证原型时序及继承风险。
 
 - [管理员选路详情接线记录](./archive/completed-tasks/admin-routing-detail/README.md)（2026-10-11，已普通合入正式#359并完成真实JWT/HTTP/PG/实际资源组合；UI仍为草稿）
 - [管理员选路详情视觉审查](./visual-reviews/2026-10-11-admin-routing-detail.md)（基线/原型/实际资源、360px既有英文header边界）

@@ -1,0 +1,30 @@
+[
+  {
+    "name": "reset-feedback-zh-light-1280",
+    "checks": {
+      "dialogDetached": true,
+      "queryCalls": [],
+      "resetCalls": 1,
+      "feedbackCount": 1,
+      "balance": "点数 —",
+      "overflow": false
+    },
+    "external": [],
+    "errors": [],
+    "resetMode": "local build-time stub only; no upstream reset"
+  },
+  {
+    "name": "reset-feedback-en-dark-360",
+    "checks": {
+      "dialogDetached": true,
+      "queryCalls": [],
+      "resetCalls": 1,
+      "feedbackCount": 1,
+      "balance": "Points —",
+      "overflow": false
+    },
+    "external": [],
+    "errors": [],
+    "resetMode": "local build-time stub only; no upstream reset"
+  }
+]
