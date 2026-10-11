@@ -167,10 +167,10 @@
     "original_head": "8665a7af963e4b2ff4d7537cdb1e9c19e3b38580",
     "result": "9/9 checks passed; superseded for release because parent identified queued DDL risk",
     "pr": "https://github.com/tqytwe/sub2api/pull/359",
-    "new_head": "pending explicit root-requested lock revision and new CI"
+    "new_head": "Root explicitly requested a new run for the lock revision. Check PR359 final head; no merge/deploy performed."
   },
   "migration_lock_revision": {
-    "state": "all local gates and independent incremental/combination reviews passed; new head CI pending push",
+    "state": "all local gates and independent incremental/combination reviews passed; final-head hosted CI must be checked on PR359",
     "runtime_changes": false,
     "migration": "279_gateway_routing_evidence.sql",
     "raw_file_sha256": "48abb66e1d91478513d87973e750d802a330cf15cde4fd9764b3866d2ea96fd4",
@@ -319,7 +319,7 @@
       "diff_check": "pass"
     },
     "validated_at": "2026-10-11T09:55:04.350605+00:00",
-    "technical_commit": null
+    "technical_commit": "eb8cbab6786df2a2e880b3f95afc7b21669c3b4f"
   },
   "gates_scope": "Original 0702 implementation; current migration279 + #358 revision results are separately recorded below.",
   "current_validation": "migration_lock_revision"
