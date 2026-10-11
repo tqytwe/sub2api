@@ -1,0 +1,13 @@
+{
+  "base": "fb2c9747b58ed5d980a36ea6a2316ead2aa03b7e",
+  "source_sha256": {
+    "frontend/src/api/requestLedger.ts": "e214350beafccfea18beebeb3925499376927dc9529222cab4a65637b7a742dc",
+    "frontend/src/api/requestRouting.ts": "b6db3aef5b8d801ad57ad360be222599ea35ad3c1cc04ee3ec1e677e05b68411",
+    "frontend/src/views/shared/RequestLedgerView.vue": "38e9473de1771fbc783fb201492731efaa1a58cec42d4197654052a4d405a24d",
+    "frontend/src/views/shared/components/RequestLedgerRoutingSection.vue": "a83bf88e02fd233a020bbecfbbb41f484122292dcfdda741c90344a2591ce09d",
+    "frontend/src/i18n/locales/request-ledger.en.ts": "7e70b1c8d6de91d65e0fd314b4542dc625c339554fb2f8600ad3c0d8845f0b3f",
+    "frontend/src/i18n/locales/request-ledger.zh.ts": "53933ef38c9ebfac2c977fc3995d96030f54b44c311b08b1b32614cb3a86c820"
+  },
+  "protected_diff": "",
+  "backend_migrations_billing_auth_dependency_files_unchanged": true
+}
