@@ -1,0 +1,124 @@
+[
+  {
+    "language": "zh",
+    "theme": "light",
+    "active": false,
+    "reducedMotionRequested": true,
+    "motion": {
+      "duration": "1s",
+      "name": "spin"
+    },
+    "zoom": {
+      "overflow": false,
+      "resetCalls": 0,
+      "queryCalls": [
+        5,
+        6,
+        7
+      ],
+      "points": [
+        {
+          "left": 264,
+          "right": 410,
+          "width": 146
+        },
+        {
+          "left": 264,
+          "right": 387.125,
+          "width": 123.125
+        },
+        {
+          "left": 264,
+          "right": 347.453125,
+          "width": 83.453125
+        },
+        {
+          "left": 264,
+          "right": 356,
+          "width": 92
+        },
+        {
+          "left": 279.453125,
+          "right": 402.578125,
+          "width": 123.125
+        },
+        {
+          "left": 264,
+          "right": 410,
+          "width": 146
+        },
+        {
+          "left": 264,
+          "right": 410,
+          "width": 146
+        },
+        {
+          "left": 264,
+          "right": 615.921875,
+          "width": 351.921875
+        }
+      ]
+    }
+  },
+  {
+    "language": "en",
+    "theme": "dark",
+    "active": false,
+    "reducedMotionRequested": true,
+    "motion": {
+      "duration": "1s",
+      "name": "spin"
+    },
+    "zoom": {
+      "overflow": false,
+      "resetCalls": 0,
+      "queryCalls": [
+        5,
+        6,
+        7
+      ],
+      "points": [
+        {
+          "left": 297.203125,
+          "right": 461.734375,
+          "width": 164.53125
+        },
+        {
+          "left": 297.203125,
+          "right": 438.859375,
+          "width": 141.65625
+        },
+        {
+          "left": 297.203125,
+          "right": 399.1875,
+          "width": 101.984375
+        },
+        {
+          "left": 297.203125,
+          "right": 407.734375,
+          "width": 110.53125
+        },
+        {
+          "left": 312.65625,
+          "right": 454.3125,
+          "width": 141.65625
+        },
+        {
+          "left": 297.203125,
+          "right": 461.734375,
+          "width": 164.53125
+        },
+        {
+          "left": 297.203125,
+          "right": 461.734375,
+          "width": 164.53125
+        },
+        {
+          "left": 297.203125,
+          "right": 667.65625,
+          "width": 370.453125
+        }
+      ]
+    }
+  }
+]
