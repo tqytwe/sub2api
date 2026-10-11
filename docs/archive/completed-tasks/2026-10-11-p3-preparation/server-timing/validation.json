@@ -1,0 +1,45 @@
+{
+  "checked_at": "2026-10-11T14:24:42.646992+00:00",
+  "base": "50a580819949887551f6f99ffc02dd3c7785efa1",
+  "red": {
+    "command": "go test -tags=unit ./internal/service -run ^TestAccountTestServerTimingHTTP$ -count=1 -timeout=60s",
+    "outcome": "FAIL as expected: real middleware first-write recursive mutex deadlock, child timeout 30s, parent 30.128s",
+    "evidence": "red.log.gz"
+  },
+  "green": {
+    "real_http_and_keepalive_race": {
+      "command": "go test -race -tags=unit ./internal/service -run TestAccountTest(ServerTimingHTTP|ConnectionKeepaliveHTTP|Keepalive) -count=1 -timeout=120s",
+      "result": "PASS 23.619s",
+      "evidence": "green-race.log.gz"
+    },
+    "account_regression": {
+      "command": "go test -tags=unit ./internal/service -run Test(AccountTest|RunTestBackground) -count=1 -timeout=180s",
+      "result": "PASS 21.564s",
+      "evidence": "accounts.log.gz"
+    },
+    "middleware_contract": {
+      "command": "go test -race ./internal/server/middleware -run ServerTiming -count=1",
+      "result": "PASS 1.062s",
+      "evidence": "middleware.log.gz"
+    },
+    "backend_build": {
+      "command": "make build-backend",
+      "result": "PASS",
+      "evidence": "build-backend.log.gz"
+    },
+    "affected_lint": {
+      "command": "golangci-lint run --concurrency 2 ./internal/service/... ./internal/server/middleware/...",
+      "result": "PASS 0 issues",
+      "evidence": "lint.log.gz"
+    },
+    "inventory_and_checker": "unchanged JSON/TSV hashes; fixed-source detector and 3 checker tests pass",
+    "doc_links": "PASS"
+  },
+  "reviews": {
+    "spec_self": "Pass: enabled real middleware, first bytes and content-following heartbeat, disconnect/deadline release; no weakened assertions or configuration bypass.",
+    "quality_self": "Pass: finalize original writer stack synchronously before wrapper publication; no background writer exists during that initialization; Header/Write methods unchanged.",
+    "independent_root": "pending re-review; do not merge until cleared"
+  },
+  "reuse": "See source-proof.json. No rerun or reinterpretation of unchanged frontend/schema/inventory gates. Original full-gate records remain explicitly bound to pre-fix 50a5808 source. New final-head CI pending.",
+  "production": "not accessed; no deploy or merge"
+}

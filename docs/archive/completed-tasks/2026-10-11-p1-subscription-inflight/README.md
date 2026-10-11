@@ -130,3 +130,14 @@ unit-tag 全量随后发现另 8 个既有 `TestOpenAIResponsesTerminalImageExpe
 此前 8364 组合的全量默认/unit/ledger/Fork 与 184/407/race、82 兼容及40次恢复保留各自原始 source/hash，按主线程授权和上述保全证明复用，**不描述为 16a 的全量重跑**。最新交叉测试与完整构建覆盖新增主线结合点。独立规格→质量顺序复核 PASS，详情见 [最终组合验证](./evidence/main16a-validation.json)、[组合保全证明](./evidence/main16a-combination-proof.json)、[运行日志哈希](./evidence/main16a-log-manifest.json)。
 
 最终提交将以普通双父 merge（父 f0f08eb7 + 16a11abd）更新草稿 PR #364 一次，随后等待该准确 head 的完整 CI；CI 状态以 PR 为准，不采用旧 88cdf339 的绿色结论。主线程最终根审、合并、部署及生产/本机浏览器验收仍由主线程协调，本批没有执行。
+
+
+## 主线 95c308f5 的交付组合
+
+16a 组合通过后固化为 `2d65038dd30aeca3713609c88a5483b9693dbb98`，再无冲突普通 merge 主线 `95c308f54e30fb6776b2215b6139fc25fa85b6d4`（#366 账号测试 SSE 生命周期及 P3 清单/遗漏检测）。P1 的34个受审文件仍完全匹配上述 `b1bc35e6…f08` 清单，69个传入主线文件逐字一致。前端、订阅计费、receipt和迁移没有这轮新增修改。
+
+新依赖交集7项门禁全部通过：默认标签账号测试12个叶子启用race；另以 `-tags=unit -race` 明确运行三个新SSE文件，要求8个指定顶层用例均实际PASS、零skip/fail；P3遗漏检测3个单测、service lint、后端构建、文档链接与diff通过。默认标签命令未覆盖新增unit文件，两个日志分别保存，绝不将默认组代替新SSE验收。unit组实际叶子数见[最终主线组合记录](./evidence/main95-validation.json)。
+
+固定16a的P3专属全清单checker会刻意拒绝本P1受保护路径变化，因此不对本组合声称整项checker通过，也没有修改该脚本或其保护规则。此前完整八项门禁和16a十二项组合门禁保留原source/hash并明确复用。增量规格→质量保全复审依次PASS，[69文件保全证明](./evidence/main95-combination-proof.json)及[新日志哈希](./evidence/main95-log-manifest.json)已归档。
+
+交付提交采用普通双父merge（父2d65038d＋95c308f5），最终一次更新草稿PR #364后等待该准确head的完整CI。此记录不会把中间提交、旧88的CI或本地静态检查作为最终CI。根审、合并、部署及生产/本机浏览器验收仍由主线程协调。

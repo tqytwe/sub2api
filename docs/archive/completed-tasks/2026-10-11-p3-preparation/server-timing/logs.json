@@ -1,0 +1,47 @@
+[
+  {
+    "file": "accounts.log.gz",
+    "raw_sha256": "bede90d5ace5084a9ce01cc5c6781e1f571aa19d731ec2c85c34e626ac64bd9c",
+    "gzip_sha256": "0fefb8095fb8412b3fec4fab60406540401be12283086d9a4d880b4cbeaf2cbc"
+  },
+  {
+    "file": "build-backend.log.gz",
+    "raw_sha256": "8db46346442829331d278ac2205e1160da2054b9bfe0879f45ac819406803511",
+    "gzip_sha256": "b3043289dce4fde43dc2416c0b8eab1e0d19070e67aab2c1ec33483b53ec47c6"
+  },
+  {
+    "file": "checker-tests.log.gz",
+    "raw_sha256": "33060fd73862c5e1af97335504d5b45211fce6d229657f556d8deceeadc52ce4",
+    "gzip_sha256": "d2adbd9c522520adf203a9334589de8212a5c5b3d06ea5304746e7dfa1ef3a25"
+  },
+  {
+    "file": "coverage.log.gz",
+    "raw_sha256": "4450fea081352c18211534469fecfb4a7a51d9d7d3143c859cdee67b5b140e88",
+    "gzip_sha256": "c7bd383501a37c7663015668bb067aab7e66225400269f1062deac3186576966"
+  },
+  {
+    "file": "doc-links.log.gz",
+    "raw_sha256": "2b1522b6b46c5ad92d19770053c55d2d416723e323e94680573db0bf22ba02d0",
+    "gzip_sha256": "9a1686a04e02c99358f7a0a6f9ccd1e9e23611964f800670b74aba9a2218fcca"
+  },
+  {
+    "file": "green-race.log.gz",
+    "raw_sha256": "0946bc8edb51b760353f2bd8aad69fd6f3c0c63dd4d8951a1f85acf382b8c327",
+    "gzip_sha256": "2c2631eca06df7d5e14eb8408f279dc4ffbbb46da7afc14c024cdb7063846d40"
+  },
+  {
+    "file": "lint.log.gz",
+    "raw_sha256": "e92606b0bf483111dff0a120c315ea165821348f31365020e2468a0059095c47",
+    "gzip_sha256": "ae7034bbac02a59e3837b03fecefe9d619f8d38f6ddd573b180069614180fe71"
+  },
+  {
+    "file": "middleware.log.gz",
+    "raw_sha256": "e3931ecac82c1d381c09f08b4eddce9f2d10af297634b5ca21a3c9cfe64e1f77",
+    "gzip_sha256": "87db0824f895b6d962c744a3efce17f489914cb952b08d205980bcbfedf43ede"
+  },
+  {
+    "file": "red.log.gz",
+    "raw_sha256": "9fc7743dfbde96498ce326db4b7455dfc6f32bb71ed46555494c5b15efd7cb8d",
+    "gzip_sha256": "b74539cd67afb50497dfb75126643ad23e4ce2caf66bc14f1abb22498e707de4"
+  }
+]
