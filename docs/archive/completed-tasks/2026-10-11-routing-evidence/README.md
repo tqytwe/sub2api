@@ -213,3 +213,5 @@ auth.checkAuth、原生ledger/PG矩阵、永久Storage故障的边界继续保�
 [merge-362-proof.json](./merge-362-proof.json)、[merge-362-assets.json](./merge-362-assets.json)、
 [merge-362-reviews.json](./merge-362-reviews.json)。没有新增后端实现、API或迁移变动，
 未触碰280/281；identifier保持独立暂停，routing UI由主线程另派作者。
+
+#362最终技术合并提交：`c3f40d84280e454a0e0beedbab819b4e447a9b50`；后继仅补交接元数据，后端/前端与已验证输入不变。

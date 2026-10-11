@@ -115,5 +115,6 @@
   },
   "no_backend_rerun": "Parent explicitly directed reuse after pure frontend main update; no assertions relaxed, no rebase/force",
   "migration": "279 raw/trim checksums unchanged; 278 from main retained; no280/281",
-  "deployment": "not performed; independent draft only, parent owns merge/deploy; identifier paused separately, UI independently assigned"
+  "deployment": "not performed; independent draft only, parent owns merge/deploy; identifier paused separately, UI independently assigned",
+  "technical_merge_commit": "c3f40d84280e454a0e0beedbab819b4e447a9b50"
 }
