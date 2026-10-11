@@ -1,0 +1,33 @@
+{
+  "checked_at": "2026-10-11T14:32:02.229305+00:00",
+  "merge_commit": "8682dba9d6fe827f3766f065f8088732436eff89",
+  "main": "16a11abd29b1f37f3be28820b948f2d8400e4e70",
+  "p3_reviewed_commit": "4a405620587954840978d1f5035da0c614e4122a",
+  "root_review": {
+    "source": "parent delegation message 2026-10-11",
+    "inventory": "PASS",
+    "sse_incremental": "Original ServerTiming P2 cleared; 6 logs and source hashes checked; no new P1/P2.",
+    "final_composition": "pending"
+  },
+  "checks": {
+    "coverage": "PASS: 6279 files, 209 release changes, no failures; no runtime compatibility claim",
+    "omission_detector": "PASS: 3 tests",
+    "p3_sha256": "PASS: all 5 files unchanged",
+    "inherited_blobs": "PASS: every incoming #365 path matches main",
+    "git_diff_check": "PASS"
+  },
+  "logs": {
+    "coverage": {
+      "file": "coverage.log",
+      "sha256": "983083397393027a43bb72ba20e6be0f8c406cf58af7bf4c402eadffc3561353"
+    },
+    "tests": {
+      "file": "tests.log",
+      "sha256": "33060fd73862c5e1af97335504d5b45211fce6d229657f556d8deceeadc52ce4"
+    }
+  },
+  "full_tests_restarted": false,
+  "final_head_ci": "Required after push; not claimed complete",
+  "migration_280": "Reserved to #364, not present; runner iterates filenames individually, existing281 does not skip280.",
+  "new_sql": false
+}

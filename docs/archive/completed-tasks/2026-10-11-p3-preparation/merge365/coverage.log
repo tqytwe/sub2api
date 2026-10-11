@@ -1,0 +1,1 @@
+{"inventory_files": 6279, "release_delta_files": 209, "statuses": {"absorbed-adapted-schema": 1, "needs-port": 38, "needs-port-review": 2910, "not-applicable-current-scope": 1, "not-applicable-preserve": 3009, "pending-composition": 79, "protected-inherited": 241}, "failures": [], "runtime_compatibility": "NOT VERIFIED"}

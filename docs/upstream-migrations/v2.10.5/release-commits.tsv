@@ -1,0 +1,68 @@
+230f70d3af71cb18e2d0b59c1e3a8ca5aedde812	fix(openai): 撤销搜索工具声明的 WS 加速限制
+e3944d938aa0358fc79653e3e00d0ac711d890f0	fix(gateway): 池模式账号可选择让上游连接失败按 503 重试、不临时停调度
+639e99219f2f504e94d7322e67aaf031508bdcd4	fix: authorize pelican preview inline scripts under inherited CSP
+d95517c1a650005af42f879e4d21a813c658207b	feat(keys): add one-click Codex API configuration
+da5ca7849ef13fd70dfadf8993867132b8accfbf	fix(keys): clarify Codex quick config success
+48d169ece8adcb605aa8718a5509534d5489edcc	fix(keys): show Chinese quick config output
+d6f014c49173e99bd6d09f541e375f7f68b6a63d	fix: improve Codex quick config script compatibility and feedback
+2ae8a02438dc8cd55cb76847bd9b1fd7fca5ecf1	feat： 一键配置密钥
+d82625330b21289050df4c03f223942949bac087	fix：codexQuickConfig
+c86140e9a95662ca79eaa430b5a20b696f9626fa	feat(subscription): add subscription renewal
+d916affbfd10dfdf14e14269da02203b2ddfa88b	ci(frontend): use Node 22 for pnpm 11
+bab735546ab8874c8f12535db7fa23a6fca8e261	ci: remove Windows quick config matrix
+016d1d2af48ce42481782669615ea3b6661c439e	ci(frontend): restore Node 20 and pnpm 9
+c0ea9bbec3ed2d390313cce59f15002e6a284708	fix(ci): rebuild frontend lockfile from production
+517cf6c77ceb0d3ee658f3af8e91dc6e3292920c	Merge pull request #348 from ape-ming/fix/pelican-preview-csp-nonce
+a5cf23f38a6ba464d6dd93c4d1ff99b303459377	fix: exclude unsupported model cooldowns from availability faults
+3e7316cda3e0d35e71201a9a1ce505d2cad116aa	test: scope capability monitor fixtures to unit builds
+fae1487b512bb21d05b7af5559ce91abfdf16564	Merge pull request #365 from ranxi2001/fix/model-capability-monitor-exclusion
+8ca21dde44574ac91dc7b0352a1c0f7b1d3539fd	feat(grok): optionally return validated video source URL
+9fce8cbc8b0e73b0c2b3fb07e93b96dfe87845eb	Merge pull request #366 from blackdm666/feat/grok-video-source-url
+a913c636d5023d662ca9d16f71b31b4e15629a24	Merge pull request #354 from ambi-vip/codex/feat-codex-quick-config
+4222db08a0b020b711c80ec9bc3f56725cf0131f	fix: 隔离 Excel OAuth 专用凭据与原生 Codex 通道
+6dafa20d2a28d3d55d3ca37fcce3054b06e11c84	fix: 使用小写开头的 Excel 路由错误信息
+18809856487bff120401b0efecc73daa6548e318	Merge pull request #368 from ranxi2001/fix/367-excel-oauth-route-isolation
+e9c99d970a5ebfe12679a4c8bcee53b355cd00dd	Merge pull request #335 from stl25/fix/ws-sse-search-guard-revert
+2a8d993e6c4b2c07874cc8a5e0be0ed5acbb307f	Merge pull request #338 from Cd1s/fix/pool-mode-transport-errors
+e8fe22e8b637ea7b26f11b081b39aa518d0a90ec	docs: refresh contributor list
+ab36a432fe5c2e5347a11cc407db5c7fa20fc426	fix: diversify quality judge retries across routes
+c703a99a1ca5976e68957b0ef4d8c801ca3d0eb3	Merge pull request #369 from ranxi2001/fix/quality-judge-diverse-retry
+d57c787fcc064c6e4ebc427840d6570e1eaef922	fix: 启用 BPS 前校验 Excel 授权并展示失败原因
+9094f70aa9451fd40151f94be18eac69f64b3539	fix(ci): restore frontend dependency baseline and repair renewal test
+f8733e06fcec44df17c224854fefdb0e48cd5457	fix: 为账号测试长推理流持续发送 SSE 心跳
+d6c1365947b265f0c494caf8fc0ec0a453cc3c6c	test: 检查保活写入器的类型断言
+375a0c4c1205981d4805e4295d65ac328c99134f	fix: 保持 BPS 全自动授权并在成功后自动激活路由
+437465140c419071e4566ab3ab18bc000d9798f8	Merge pull request #371 from ranxi2001/fix/bps-authorization-readiness-20261010
+89199a422409ba885f7984b4de1ee83776df8551	Merge pull request #359 from ambi-vip/codex/feat-subscription-renewal
+39286e2397287555b3533729116872524a333e52	Merge pull request #350 from creamtea47/codex/fix-account-test-keepalive
+ff9198947a70a83c59b8448f5ef13909119cfe7c	chore: release v2.10.4
+b6967b59d6bc13a4314647979c6edda196e43b75	feat(openai): add optional per-account request timezone binding
+09d6c4d50f2800566671d852dd216882f1bf2879	refactor(settings): isolate request timezone control for UI verification
+afd13a6be570e686d13a9d0f437dbcb776497dbb	docs: add rendered request timezone control screenshots
+59b1f1ad7a8768971a41446fcc28bfccf76b4613	fix(bps): cool down model permission failures without pausing native routes
+473907727747bbaf0b8221a6ab67cdb80d4a85ec	test(settings): include timezone switch in API contracts
+5756934a1980418378e3e2973c9d07eb8fd0e0c3	feat(bps): expose safe credential diagnosis for Excel grants
+98fb0e5343b063469e7eded9c38275cd19250688	feat(bps): optionally persist tool state in Redis
+0ab0c94988793eedd09c0fab65895f00504df102	feat(bps): show upstream response evidence in account tests
+63e0bead47db375497c3b2d934f96e5b3cd7f2dc	docs(bps): document shared Redis state limits
+098c4ba787f709fab307ec69a8ba20b099fa186f	fix(settings): 公开设置接口补传 BPS 与 Prism 总开关
+5eb86b425377efb3b1781ee2a0a77fb34a82473b	fix(bps): propagate native plan replay persistence errors
+ae7010a0e8f5e808bad8f613b055f7c1e981099b	docs(bps): add credential diagnosis component screenshot
+8113027daedac305bbdf296fb9d04b3d11cbca1c	docs(bps): add upstream response evidence screenshot
+81bbc3f62a2e2da259b8b15fe276319db09f30bb	Merge pull request #372 from ranxi2001/feat/request-timezone
+47f86da00b06570dee1c1b4baa61d55b23d8bcc1	Merge pull request #373 from ranxi2001/fix/bps-model-permission-cooldown
+b4d097693f003c4781f1f65b4ab94e710fcf1fa7	Merge pull request #378 from akihitohyh/fix/public-settings-bps-prism-switch
+31c9d5fde5b316d97dbfeb99d3ef1ff1d1c9bc72	Merge remote-tracking branch 'origin/production' into fix/pr375-merge-ready
+512d829fcc5c5f713fe816a15d1aa9942b0187b0	merge: preserve timezone and BPS diagnosis in account editor
+9b620eea0335a7c959f0864400fa6914c25e3f3c	fix(i18n): avoid overlap with BPS credential status additions
+3b467fc63cee11f9945d45e8c889e6f122011ede	test: 复现 BPS 401 删除可续期 Excel 凭据
+6084c9ab0045bee83858f99a7cb9e1410119932a	fix: BPS 401 保留 Excel RT 并在后续请求自动续期
+a562e85b365c7439a6efa2485f7051f157b2da49	Merge pull request #376 from ranxi2001/feat/bps-redis-state
+1689fb6a04643ba550e50f89e5f3265274796a7e	Merge pull request #374 from ranxi2001/feat/bps-credential-diagnostics
+3a5090580b45b75065b99d399e00fe28ccb0ead4	Merge pull request #375 from ranxi2001/feat/bps-test-evidence
+b04dff8dd46ef914103bd7b9416ad63d341645bf	fix: 串行化 Excel 401 与 RT 刷新并恢复并发替换凭据
+ab0314b35fa856f19a99928a06fe5550424c080a	docs: 说明 Excel RT 恢复方案与 Codex 并发约束
+2c2e5352010d885f8574c1007773707232ed4369	merge: 整合 production 凭据诊断并保留 Excel RT 并发恢复
+9edfbfb8eb59c855763918eee2f12aa700c70794	docs: 补充 401 保留 RT 时的凭据诊断语义
+352368f049402429416b60416587f53414a28add	Merge pull request #379 from ranxi2001/fix/excel-401-refresh-preserve-rt
+d977e7a5e24e5536db6ce8b8478743e0c4b11f77	chore: release v2.10.5
