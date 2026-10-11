@@ -1,0 +1,116 @@
+{
+  "scope": "real recorder/writer/PG/query/HTTP; real JWT/admin middleware/PG user lookup; test-only token issuance and synthetic scheduler/usage inputs; no password login/MFA/binding/provider/full scheduler proof",
+  "executed_at": "2026-10-11T12:59:18.226Z",
+  "real_routing_HTTP_PG": true,
+  "real_JWT_admin_authorization": true,
+  "production_authentication": false,
+  "full_scheduler_or_provider": false,
+  "states": [
+    {
+      "name": "complete",
+      "request_id": "cbd0ff8a-a8b2-4549-98e4-0e65a1c3ed73",
+      "status": "complete",
+      "event_count": 7,
+      "returned": 7,
+      "omitted_count": 0,
+      "source_population_complete": false
+    },
+    {
+      "name": "incomplete",
+      "request_id": "a01b0a68-90f9-4d7a-a5a8-9d08357cb888",
+      "status": "incomplete",
+      "event_count": 3,
+      "returned": 3,
+      "omitted_count": 1,
+      "source_population_complete": false
+    },
+    {
+      "name": "not_recorded",
+      "request_id": "ac845abd-e634-40cb-b05d-0a3c661709bb",
+      "status": "not_recorded",
+      "event_count": 0,
+      "returned": 0,
+      "omitted_count": 0,
+      "source_population_complete": false
+    },
+    {
+      "name": "pending",
+      "request_id": "640ebb34-f159-48bc-a7f9-34353ba0e5f0",
+      "status": "pending",
+      "event_count": 0,
+      "returned": 0,
+      "omitted_count": 0,
+      "source_population_complete": false
+    },
+    {
+      "name": "truncated",
+      "request_id": "1b2ad78c-d212-4668-bfb7-f6c6c2c29e19",
+      "status": "truncated",
+      "event_count": 128,
+      "returned": 128,
+      "omitted_count": 25,
+      "source_population_complete": false
+    },
+    {
+      "name": "unsupported_coverage",
+      "request_id": "dfd3c4c2-5006-44e3-a7e5-62d085a159ce",
+      "status": "unsupported_coverage",
+      "event_count": 0,
+      "returned": 0,
+      "omitted_count": 0,
+      "source_population_complete": false
+    },
+    {
+      "name": "zero_candidates",
+      "request_id": "7dc16bcc-2324-4132-86da-128e3dbd1eba",
+      "status": "complete",
+      "event_count": 3,
+      "returned": 3,
+      "omitted_count": 0,
+      "source_population_complete": false
+    }
+  ],
+  "page_errors": [],
+  "role_denials": [
+    {
+      "fixture_uid": "guest",
+      "http_status": 401,
+      "source": "real JWT/admin middleware and PG user lookup"
+    },
+    {
+      "fixture_uid": "101",
+      "http_status": 403,
+      "source": "real JWT/admin middleware and PG user lookup"
+    },
+    {
+      "fixture_uid": "102",
+      "http_status": 403,
+      "source": "real JWT/admin middleware and PG user lookup"
+    }
+  ],
+  "screenshots": [
+    "state-complete.png",
+    "state-incomplete.png",
+    "state-not_recorded.png",
+    "state-pending.png",
+    "state-truncated.png",
+    "state-unsupported_coverage.png",
+    "state-zero_candidates.png"
+  ],
+  "real_storage_failure_503": true,
+  "billing_usage_and_attempt_cursor_preserved": true,
+  "late_503_delivery": [
+    "released"
+  ],
+  "real_late_storage_503_ignored_after_reopen": true,
+  "real_auth_session_cases": [
+    "close cancels late routing",
+    "same account relogin clears",
+    "reverse login bytes preserve winning identity",
+    "publication failure clears and recovers",
+    "admin switch clears",
+    "admin to user hides routing",
+    "logout clears"
+  ],
+  "user_ui_routing_absent": true
+}

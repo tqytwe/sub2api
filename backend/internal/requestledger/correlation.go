@@ -3,6 +3,7 @@ package requestledger
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"log/slog"
 	"net"
@@ -10,8 +11,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/tidwall/gjson"
 )
 
 // Correlation is public metadata. Receipt is the in-process capability that
@@ -176,35 +175,13 @@ func UpstreamIdentifier(s string) string {
 }
 
 func UpstreamRequestID(headers http.Header) string {
-	for _, name := range []string{"x-request-id", "request-id", "x-goog-request-id", "xai-request-id", "x-amzn-requestid"} {
-		if id := UpstreamIdentifier(headers.Get(name)); id != "" {
-			return id
-		}
-	}
-	return ""
+	return requestIdentifierObservation(headers).Value
 }
 
-// ResponseIdentifier inspects only known envelope fields, never arbitrary nested
-// content. Callers bound the input; oversized bodies simply have no identifier.
+// ResponseIdentifier preserves the bounded envelope/path preference; diagnostic
+// provenance uses the same selection without reparsing unrelated body fields.
 func ResponseIdentifier(data []byte) string {
-	if len(data) > 64*1024 || !gjson.ValidBytes(data) {
-		return ""
-	}
-	paths := []string{"response.id", "response_id", "responseId", "message.id"}
-	// Top-level event IDs (especially WS error.id) are not response IDs.
-	object, kind := gjson.GetBytes(data, "object").String(), gjson.GetBytes(data, "type").String()
-	if object == "response" || object == "chat.completion" || object == "chat.completion.chunk" || kind == "message" {
-		paths = append(paths, "id")
-	}
-	for _, path := range paths {
-		v := gjson.GetBytes(data, path)
-		if v.Type == gjson.String {
-			if id := UpstreamIdentifier(v.String()); id != "" {
-				return id
-			}
-		}
-	}
-	return ""
+	return responseIdentifierObservation(data, "unknown").Value
 }
 
 // identifierWrites is process-wide and bounded. Only validated metadata and the
@@ -233,52 +210,24 @@ func enqueueIdentifiers(a *Attempt) bool {
 // ObserveIdentifiers only updates bounded in-memory metadata. In particular it
 // never waits for PostgreSQL while RoundTrip or a streaming body read is active.
 func (a *Attempt) ObserveIdentifiers(_ context.Context, requestID, responseID string) {
-	if a == nil {
-		return
-	}
-	requestID, responseID = UpstreamIdentifier(requestID), UpstreamIdentifier(responseID)
-	if requestID == "" && responseID == "" {
-		return
-	}
-	a.evidenceMu.Lock()
-	defer a.evidenceMu.Unlock()
-	if a.evidenceUnavailable {
-		return
-	}
-	conflict := (requestID != "" && a.upstreamRequestID != "" && requestID != a.upstreamRequestID) ||
-		(responseID != "" && a.upstreamResponseID != "" && responseID != a.upstreamResponseID)
-	changed := false
-	if requestID != "" && a.upstreamRequestID == "" {
-		a.upstreamRequestID = requestID
-		changed = true
-	}
-	if responseID != "" && a.upstreamResponseID == "" {
-		a.upstreamResponseID = responseID
-		changed = true
-	}
-	if conflict && !a.identifierConflict {
-		a.identifierConflict = true
-		changed = true
-	}
-	if !changed {
-		return
-	}
-	a.evidenceVersion++
-	if a.evidencePending {
-		return
-	}
-	a.evidencePending = true
-	if !enqueueIdentifiers(a) {
-		a.evidencePending = false
-		a.evidenceUnavailable = true
-		slog.Error("request_ledger_identifiers_queue_full")
-	}
+	a.observeIdentifierMetadata(
+		identifierObservation{Namespace: "request", Value: requestID, Source: "legacy_observer", Field: "unknown", EventType: "unknown"},
+		identifierObservation{Namespace: "response", Value: responseID, Source: "legacy_observer", Field: "unknown", EventType: "unknown"},
+	)
 }
 
 func (a *Attempt) persistIdentifiers() {
 	for {
 		a.evidenceMu.Lock()
 		requestID, responseID, conflict, version := a.upstreamRequestID, a.upstreamResponseID, a.identifierConflict, a.evidenceVersion
+		encoded, err := json.Marshal(a.identifierDiagnostics)
+		if err != nil || len(encoded) > identifierSnapshotMaxBytes {
+			a.evidenceUnavailable = true
+			a.evidencePending = false
+			a.evidenceMu.Unlock()
+			slog.Error("request_ledger_identifier_snapshot_invalid")
+			return
+		}
 		a.evidenceMu.Unlock()
 		// A locked diagnostic row is a gap, never a reason to occupy a database
 		// connection for the full business deadline. No retries of dropped evidence.
@@ -297,9 +246,10 @@ func (a *Attempt) persistIdentifiers() {
  identifier_conflict=identifier_conflict OR $5 OR (upstream_request_id IS NOT NULL AND $3<>'' AND upstream_request_id<>$3)
  OR (upstream_response_id IS NOT NULL AND $4<>'' AND upstream_response_id<>$4),
  upstream_request_id=COALESCE(upstream_request_id,NULLIF($3,'')),
- upstream_response_id=COALESCE(upstream_response_id,NULLIF($4,''))
+ upstream_response_id=COALESCE(upstream_response_id,NULLIF($4,'')),
+ identifier_diagnostics=$6::jsonb
  WHERE (request_id,attempt_no) IN (SELECT request_id,attempt_no FROM gateway_request_attempt_evidence
- WHERE request_id=$1 AND attempt_no=$2 FOR UPDATE SKIP LOCKED)`, a.handle.ID, a.Number, requestID, responseID, conflict)
+ WHERE request_id=$1 AND attempt_no=$2 AND attempt_id=$7::uuid FOR UPDATE SKIP LOCKED)`, a.handle.ID, a.Number, requestID, responseID, conflict, string(encoded), a.ID)
 		cancel()
 		var affected int64
 		if err == nil {

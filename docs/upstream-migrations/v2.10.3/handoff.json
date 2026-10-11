@@ -17,6 +17,122 @@
   },
   "features": [
     {
+      "id": "upstream-identifier-diagnostics",
+      "title": "上游request/response标识冲突来源诊断后端",
+      "backend_state": "已验证",
+      "product_state": "实现中",
+      "owner": "主线程协调",
+      "pr": "https://github.com/tqytwe/sub2api/pull/365",
+      "sha": "319353c506e44005464c59796dc2981ec6590f59",
+      "evidence": {
+        "ui": {
+          "status": "pending",
+          "refs": [],
+          "note": "本批只交后端独立子资源，无UI接线或用户界面验收。"
+        },
+        "api": {
+          "status": "recorded",
+          "refs": [
+            "backend/internal/handler/identifier_handler.go",
+            "backend/internal/requestledger/identifier_query.go"
+          ],
+          "note": "独立admin-only私有UUID /api/v1/admin/requests/:id/identifiers，128项seek分页、no-store、失败不影响原详情。快照完整性恒unknown，旧flag false不证明无后续冲突。"
+        },
+        "schema": {
+          "status": "recorded",
+          "refs": [
+            "backend/migrations/281_gateway_identifier_diagnostics.sql"
+          ],
+          "note": "281仅加默认{} JSONB列及4096字节/object约束；父表NOWAIT、锁50ms/语句500ms、NOT VALID不扫历史，旧writer兼容，争用整事务回滚后重试。正式主线279原字节继承，不引入280草稿。"
+        },
+        "tests": {
+          "status": "recorded",
+          "refs": [
+            "docs/archive/completed-tasks/2026-10-11-identifier-diagnostics/README.md",
+            "docs/archive/completed-tasks/2026-10-11-identifier-diagnostics/progress.json",
+            "docs/archive/completed-tasks/2026-10-11-identifier-diagnostics/reviews.json",
+            "docs/archive/completed-tasks/2026-10-11-identifier-diagnostics/merge-validation.json",
+            "docs/archive/completed-tasks/2026-10-11-identifier-diagnostics/merge363-validation.json"
+          ],
+          "note": "图片namespace真实HTTP/PG TDD及规格修复、原与正式主线增量顺序双审通过。8364组合台账96/96合同race（129顶层/564测试及子测试，3条件子进程入口+2可选浏览器夹具跳过）、核心54/54（203项、无跳过）通过。完整make test（后端/lint0，前端504文件3825通过/8既有跳过）、tag-unit/build/embed/完整Fork通过；22源码输入哈希未变。原缺eslint失败保留。无UI/生产验收声明。 正常组合正式#363/caa，22identifier输入和生产后端不变，旧门禁明确复用；新增4项HTTP/PG/race、5文件92项前端定向、lint/type/frontendbuild/embed通过；旧0c92 CI已自然9/9通过，组合增量双审通过，组合head CI待推送后执行。路由UI证据继承主线，identifierUI无接线。"
+        },
+        "deployment": {
+          "status": "pending",
+          "refs": [
+            "https://github.com/tqytwe/sub2api/pull/365"
+          ],
+          "note": "独立草稿PR365；原技术验收319353c506e44005464c59796dc2981ec6590f59后到0c92仅文档，现普通merge正式#363/caa，22identifier输入未变。组合提交与CI以PR最新head为准；根线程负责合并部署，本任务未部署。"
+        },
+        "production": {
+          "status": "pending",
+          "refs": [],
+          "note": "未生产访问/重放/历史回填；不能用图片namespace问题解释16条普通Responses历史冲突。用户本机三身份反馈与生产验收未进行。"
+        }
+      },
+      "risks": "异步后续观察可能丢失，即使首快照已持久化也只报告unknown完整性；版本/枚举/归属或首值flag不一致不输出伪造来源。SSE event_type仅payload.type，独立event行未采；281取得锁后DDL/提交I/O仍可短暂阻塞。",
+      "next": "普通merge组合已通过六项新增门禁与按序双审；旧0c92 CI已自然9/9。推送后核实组合head CI，根线程并行评审/合并部署。identifierUI/生产验收待后续，其他条目未复核，checked_at不前移。",
+      "rollback": "旧应用可保留新增列/快照；NOWAIT或语句超时整事务回滚且无281登记，保持旧应用后解除争用重试。不删除、清flag、回填或补扣。"
+    },
+    {
+      "id": "admin-request-routing-detail",
+      "title": "管理员请求详情独立只读选路证据区域",
+      "backend_state": "已验证",
+      "product_state": "可测",
+      "owner": "主线程协调",
+      "pr": "https://github.com/tqytwe/sub2api/pull/363",
+      "sha": "e43592e8d924b850153fde4d451747c25438832b",
+      "evidence": {
+        "ui": {
+          "status": "recorded",
+          "refs": [
+            "docs/visual-reviews/2026-10-11-admin-routing-detail.md",
+            "docs/archive/completed-tasks/admin-routing-detail/browser-evidence.json",
+            "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/browser/browser-evidence.json"
+          ],
+          "note": "356实际编译资源逐字保留7cc；新1280px真实PG六状态、局部503、实际Pinia/JWT会话切换通过。早期四宽度/主题证据保持原范围；非生产用户本机验收。"
+        },
+        "api": {
+          "status": "recorded",
+          "refs": [
+            "https://github.com/tqytwe/sub2api/pull/359",
+            "docs/archive/completed-tasks/admin-routing-detail/dependency-contract.json",
+            "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/README.md"
+          ],
+          "note": "正式主线8364b462包含#359最终0ceacb244；三合同文件逐字一致。真实recorder→async writer→PG→admin HTTP→实际编译资源通过。真实JWT/AdminAuth/PG角色、签名、停用/凭据版本及租户隔离验证；签发为测试入口，不称真实密码登录/MFA/binding。"
+        },
+        "schema": {
+          "status": "na",
+          "refs": [],
+          "note": "本UI任务不新增或修改任何迁移。依赖279由#359独立负责。"
+        },
+        "tests": {
+          "status": "recorded",
+          "refs": [
+            "docs/archive/completed-tasks/admin-routing-detail/reviews.json",
+            "frontend/src/views/shared/__tests__/RequestLedgerView.routing.http.spec.ts",
+            "frontend/src/api/__tests__/requestRouting.spec.ts",
+            "docs/archive/completed-tasks/admin-routing-detail/core-browser-evidence.json",
+            "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/result.json",
+            "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/validation.json"
+          ],
+          "note": "836普通组合真实PG浏览器run8通过，0pageerror，六状态/零候选/128上界/两轮选择/账单1.25与余额98.75不变；同document旧真实503不能清除新200。新make test（前端3869通过/8既有跳过、后端lint0）、tag-unit、75项必执行台账契约、完整build/embed/Fork均通过。顺序规格与质量双审PASS，无P1/P2。"
+        },
+        "deployment": {
+          "status": "pending",
+          "refs": [],
+          "note": "#359已正式合入主线并完成本地组合；#363仍为草稿，不自行合并部署。主线程核实最终准确head/CI后评审。"
+        },
+        "production": {
+          "status": "pending",
+          "refs": [],
+          "note": "未访问生产秘密/Zeabur，不调用生成；生产及用户本机三身份验收交主线程。"
+        }
+      },
+      "risks": "旧27条503与gpt22历史不可追溯恢复。覆盖仅OpenAI-compatible HTTP文本，WS/媒体/Anthropic/Gemini排除。英文用户360px既有全局溢出：最新旧/新同为466px，前轮489px、组合初跑503px；详情360px。未扩展修全局header，不称全站响应式通过。",
+      "next": "已测普通技术合并e43592e8d924b850153fde4d451747c25438832b保留836主线；最终PR head另含文档登记。所有本地必需门禁和顺序双审通过，等待最终准确head适用CI及主线程增量审查。不合并部署。",
+      "rollback": "如管理员数据泄露、迟到串号或账单受影响，停止推进并由主线程审查源码revert；本UI不删除证据/迁移或改账务。"
+    },
+    {
       "id": "http-text-routing-evidence",
       "title": "OpenAI-compatible HTTP 文本选路证据后端",
       "backend_state": "已验证",

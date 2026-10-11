@@ -1,0 +1,488 @@
+{
+  "collected_at": "2026-10-11T11:49:18.073133+00:00",
+  "base": "6ae024e6b732b64b2ce6f7ba56c5be4e20b88bdb",
+  "technical_commit": "aa804d32e43f1be133c3632f04c6063959544b19",
+  "combination_commit": "7462d8fc8730b064e7c56447a9570a53ab54a9a8",
+  "previous_validation": "pre-362/validation.json",
+  "dependency": {
+    "pr": 359,
+    "head": "ae832b16b63139b2395008a1f2073d7cb15161f7",
+    "state_at_start": "open_unmerged",
+    "source_sha256": {
+      "backend/internal/requestledger/routing.go": "b464a8489614817e0898dca44909183c24bc88a5de84356d479ae759054a9058",
+      "backend/internal/requestledger/routing_query.go": "39e5c5d43060103a69c1078995a14dd28cf8670d1272e7502f92e07a89132db5",
+      "backend/internal/handler/routing_handler.go": "3e6ae154bf6a3c75e7f0f63314464e54968630d99839b3ee7be946ffa0410964"
+    },
+    "latest_checked_head": "add3fa4dbe8c59e0276e0043eb09270a4b630f89",
+    "latest_state": "open_unmerged",
+    "contract_files_byte_identical_to_initial_read": true
+  },
+  "reviews": {
+    "order": [
+      "specification",
+      "code_quality"
+    ],
+    "specification": {
+      "agent": "routing_ui_spec_review",
+      "result": "PASS",
+      "read_only": true,
+      "independent_targeted_tests": "40/40 passed,6.77s",
+      "notes": "Exact 3 contract hashes; 52 veto+8 observation semantics; no blocker. Routing real PG pending dependency."
+    },
+    "code_quality": {
+      "agent": "routing_ui_code_review",
+      "result": "PASS",
+      "read_only": true,
+      "independent_targeted_tests": "40/40 passed,7.53s",
+      "prior_failure": "Initial maxWorkers=1 without minWorkers caused runner config conflict; no tests ran. Correcting both settings passed.",
+      "notes": "No correctness/security blocker. Existing English header issue documented separately; no routing PG claim."
+    },
+    "PR362_combination": {
+      "base": "6ae024e6b732b64b2ce6f7ba56c5be4e20b88bdb",
+      "order": [
+        "specification",
+        "code_quality"
+      ],
+      "specification": {
+        "agent": "routing_ui_spec_review",
+        "result": "PASS",
+        "read_only": true,
+        "independent_targeted_tests": "4/4 passed,4.75s",
+        "prior_findings": "Stable route meta and true reverse-response coverage fixed in test fixture; no production edit",
+        "notes": "auth4 exactly main; UI6 exactly initial; backend unchanged; shared docs retain both"
+      },
+      "code_quality": {
+        "agent": "routing_ui_code_review",
+        "result": "PASS",
+        "read_only": true,
+        "independent_targeted_tests": "44/44 passed,10.04s",
+        "notes": "No blocker; fixture preserves production guard assertions; capture syntax checked, actual build run owned by primary"
+      }
+    }
+  },
+  "gates": [
+    {
+      "name": "full-test",
+      "command": [
+        "make",
+        "test"
+      ],
+      "started_at": "2026-10-11T11:40:32.257202+00:00",
+      "duration_seconds": 231.68,
+      "exit_code": 0,
+      "log": "/tmp/routing-ui-362-full-test.log"
+    },
+    {
+      "name": "build",
+      "command": [
+        "make",
+        "build"
+      ],
+      "started_at": "2026-10-11T11:44:23.938980+00:00",
+      "duration_seconds": 82.2,
+      "exit_code": 0,
+      "log": "/tmp/routing-ui-362-build.log"
+    },
+    {
+      "name": "embed-build",
+      "command": [
+        "go",
+        "-C",
+        "backend",
+        "build",
+        "-tags=embed",
+        "-o",
+        "/tmp/routing-ui-362-embedded-server",
+        "./cmd/server"
+      ],
+      "started_at": "2026-10-11T11:45:46.142117+00:00",
+      "duration_seconds": 12.06,
+      "exit_code": 0,
+      "log": "/tmp/routing-ui-362-embed-build.log"
+    },
+    {
+      "name": "embed-test",
+      "command": [
+        "go",
+        "-C",
+        "backend",
+        "test",
+        "-tags=embed",
+        "./internal/web/..."
+      ],
+      "started_at": "2026-10-11T11:45:58.201543+00:00",
+      "duration_seconds": 2.98,
+      "exit_code": 0,
+      "log": "/tmp/routing-ui-362-embed-test.log"
+    },
+    {
+      "name": "fork",
+      "command": [
+        "./scripts/check-fork-integrity.sh"
+      ],
+      "started_at": "2026-10-11T11:46:01.183946+00:00",
+      "duration_seconds": 147.63,
+      "exit_code": 0,
+      "log": "/tmp/routing-ui-362-fork.log"
+    }
+  ],
+  "full_frontend_test_summary": "3869 passed | 8 skipped (3877)",
+  "directed_tests": {
+    "routing_http": 24,
+    "routing_parser_veto": 20,
+    "PR362_combination_in_routing_http": 4,
+    "previous_session_http": 26,
+    "previous_view": 19,
+    "previous_api": 3
+  },
+  "build": {
+    "full_build_passed": true,
+    "final_resource_files": 356,
+    "captured_and_final_assets_byte_identical": true,
+    "manifest_sha256": "6f8481bed28415622d424a03462c4b50c420b9cb32ec95a1acc198e5ae2962ef"
+  },
+  "browser_contract": {
+    "scope": "actual build + synthetic HTTP contract; routing PG integration pending #359",
+    "roles": [
+      {
+        "role": "admin",
+        "viewports": [
+          360,
+          768,
+          1280,
+          1920
+        ],
+        "routing_visible": true
+      },
+      {
+        "role": "user",
+        "viewports": [
+          360,
+          768,
+          1280,
+          1920
+        ],
+        "routing_visible": false
+      }
+    ],
+    "states": [
+      "complete",
+      "truncated",
+      "pending",
+      "incomplete",
+      "not_recorded",
+      "unsupported_coverage"
+    ],
+    "page_errors": [],
+    "viewport_measurements": [
+      {
+        "role": "admin",
+        "width": 360,
+        "document_width": 360,
+        "dialog_right": 360,
+        "dialog_width": 360,
+        "dialog_client": 360
+      },
+      {
+        "role": "admin",
+        "width": 768,
+        "document_width": 768,
+        "dialog_right": 768,
+        "dialog_width": 768,
+        "dialog_client": 768
+      },
+      {
+        "role": "admin",
+        "width": 1280,
+        "document_width": 1280,
+        "dialog_right": 1280,
+        "dialog_width": 1280,
+        "dialog_client": 1280
+      },
+      {
+        "role": "admin",
+        "width": 1920,
+        "document_width": 1920,
+        "dialog_right": 1920,
+        "dialog_width": 1920,
+        "dialog_client": 1920
+      },
+      {
+        "role": "user",
+        "width": 360,
+        "document_width": 466,
+        "dialog_right": 360,
+        "dialog_width": 360,
+        "dialog_client": 360
+      },
+      {
+        "role": "user",
+        "width": 768,
+        "document_width": 768,
+        "dialog_right": 768,
+        "dialog_width": 768,
+        "dialog_client": 768
+      },
+      {
+        "role": "user",
+        "width": 1280,
+        "document_width": 1280,
+        "dialog_right": 1280,
+        "dialog_width": 1280,
+        "dialog_client": 1280
+      },
+      {
+        "role": "user",
+        "width": 1920,
+        "document_width": 1920,
+        "dialog_right": 1920,
+        "dialog_width": 1920,
+        "dialog_client": 1920
+      }
+    ],
+    "user_360_document_overflow": 106,
+    "routing_contract_http": true,
+    "ledger_postgres": false,
+    "independent_error_retry": true,
+    "local_paging": true,
+    "closed_late_error": true,
+    "session_renewal": true,
+    "interactive_reverse_response": true,
+    "owned_publication_failure_and_recovery": true,
+    "same_account_relogin": true,
+    "switch_503_clear": true,
+    "keyboard": true,
+    "reduced_motion": true,
+    "zoom": "CSS200% simulation",
+    "fixture_permission_denials": [
+      401,
+      403
+    ]
+  },
+  "core_http_pg": [
+    {
+      "role": "user",
+      "request_id": "ad0197e8-8a7b-4ab2-9d7d-a8471926edd4",
+      "usage_id": 1,
+      "batch_id": "imgbatch_51c739eb040fc21939da5df3cf2dd1ad",
+      "billed_cost": 6,
+      "image_count": 3,
+      "legacy_status": 409,
+      "foreign_status": 404,
+      "admin_denied_status": 403,
+      "request_count": 31,
+      "summary_reads": 2,
+      "all_ui_detail_reads_explicit": true,
+      "bounded_items": true,
+      "independent_paging": true,
+      "empty_intermediate": true,
+      "loading": true,
+      "usage_disabled_during_page_change": true,
+      "error_retry": true,
+      "refresh_resets_cursor": true,
+      "hover_active_focus": true,
+      "keyboard": true,
+      "reduced_motion": true,
+      "zoom": "CSS 200% simulation",
+      "viewports": [
+        360,
+        768,
+        1280,
+        1920
+      ],
+      "page_errors": []
+    },
+    {
+      "role": "admin",
+      "request_id": "ad0197e8-8a7b-4ab2-9d7d-a8471926edd4",
+      "usage_id": 1,
+      "batch_id": "imgbatch_51c739eb040fc21939da5df3cf2dd1ad",
+      "billed_cost": 6,
+      "image_count": 3,
+      "legacy_status": 409,
+      "foreign_status": 404,
+      "admin_denied_status": 403,
+      "request_count": 33,
+      "summary_reads": 2,
+      "all_ui_detail_reads_explicit": true,
+      "bounded_items": true,
+      "independent_paging": true,
+      "empty_intermediate": true,
+      "loading": true,
+      "usage_disabled_during_page_change": true,
+      "error_retry": true,
+      "refresh_resets_cursor": true,
+      "hover_active_focus": true,
+      "keyboard": true,
+      "reduced_motion": true,
+      "zoom": "CSS 200% simulation",
+      "viewports": [
+        360,
+        768,
+        1280,
+        1920
+      ],
+      "page_errors": []
+    }
+  ],
+  "core_fixture_run": {
+    "started_at": "2026-10-11T11:47:26.492635+00:00",
+    "finished_at": "2026-10-11T11:47:51.526260+00:00",
+    "capture_exit_code": 0,
+    "fixture_exit_code": 0
+  },
+  "logs": {
+    "362-baseline-browser.log": {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/362-baseline-browser.log.gz",
+      "bytes": 1086,
+      "raw_sha256": "0f757b01b82bae52ca65042ee7a2113f6097317cb62985099af67afee64126ae",
+      "gzip_sha256": "9acc5035ecac36b4ba640eb489acb938750caf85bff5f0044954d99751fef99e"
+    },
+    "362-browser.log": {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/362-browser.log.gz",
+      "bytes": 1257,
+      "raw_sha256": "76ac15e02023d36102f0aeab6ac263f874e266a79d6e28d3772bb7ab03f2ae7f",
+      "gzip_sha256": "f891edf7cde4ae6bd09536bcadd5ee3005a413b06c920ab7225b05f30fdc044c"
+    },
+    "362-browsers-progress.log": {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/362-browsers-progress.log.gz",
+      "bytes": 189,
+      "raw_sha256": "2ae760721a9cbae4aacca290a82ae08beaedbac226e21fb2062a6c678690d451",
+      "gzip_sha256": "be18d4cfc42d1bf458871608269bade36bdf2048dc50c62d14f53373e5aeb060"
+    },
+    "362-build.log": {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/362-build.log.gz",
+      "bytes": 71131,
+      "raw_sha256": "2c18108070b5d01be06a6582c73a77b18ad88388cdfccf51a1f551b1cc86b25b",
+      "gzip_sha256": "97318d1b1a9de985b34a3587f78b0dda1df44237c5f9627035317fba0b3b9921"
+    },
+    "362-contract-browser-initial-overflow.log": {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/362-contract-browser-initial-overflow.log.gz",
+      "bytes": 327,
+      "raw_sha256": "840e73be384a85298397a05dab5c46d2e5ea824b2dc88b5093fc2597fd0e59e8",
+      "gzip_sha256": "556d0feaf4fc98ff97778648edab40257672ee92f19eb7b8193acca77ea28a59"
+    },
+    "362-contract-browser.log": {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/362-contract-browser.log.gz",
+      "bytes": 1684,
+      "raw_sha256": "fe91ecf108abdc2a881b6e1cf21a0f18d74a8887c265f52a7e14c1e7171aad0e",
+      "gzip_sha256": "4b2e1f8e7c71e5a8dfc2d87334b78643b3caee572ab86cd500cc8bfbe794c557"
+    },
+    "362-core-runner.log": {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/362-core-runner.log.gz",
+      "bytes": 79,
+      "raw_sha256": "236c15be8d64999d565681cf0e70179b3cec80b952c48ed298e3875f2cfaeea0",
+      "gzip_sha256": "8ff2f9efd9b8368f4ee36151ca52eed5f589878f9e96af070c683de305c6d6ff"
+    },
+    "362-design.log": {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/362-design.log.gz",
+      "bytes": 153,
+      "raw_sha256": "c815f070892647094efab0b20b0d487e950df9a4494bd4712a5ca0d306443245",
+      "gzip_sha256": "c79c896e0ddc76113ad0847860a3e7930361b7022491af05a8942bf230ab9926"
+    },
+    "362-embed-build.log": {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/362-embed-build.log.gz",
+      "bytes": 0,
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "gzip_sha256": "f61f27bd17de546264aa58f40f3aafaac7021e0ef69c17f6b1b4cd7664a037ec"
+    },
+    "362-embed-test.log": {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/362-embed-test.log.gz",
+      "bytes": 53,
+      "raw_sha256": "6c5737b065477e116c5885d3968240f00247873cde01d639ed4ee22afafc8d6a",
+      "gzip_sha256": "d98f1d1ab28aab276c4aade08351249acf8addb22bd6377ee7bfa6bcfd810bf6"
+    },
+    "362-fixture.log": {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/362-fixture.log.gz",
+      "bytes": 2679,
+      "raw_sha256": "e4fb3fa05d0a7232ac4dd6cac89e8b6723cc3c8302bb07017923214a107c693c",
+      "gzip_sha256": "a20c615cd3a8dcda6d159ac11a9fbc04bb0431b94968adb42cb8602f91688a17"
+    },
+    "362-fork.log": {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/362-fork.log.gz",
+      "bytes": 60925,
+      "raw_sha256": "a2210277fa1ad3b9ed74877a9de86b703149e454bc8edd6c7e7550bfbdb98a4e",
+      "gzip_sha256": "7d4cd21dce4897d24004b671bd945c0e1bfdc0eb7a3a75a53cb2f111de8a3136"
+    },
+    "362-full-test.log": {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/362-full-test.log.gz",
+      "bytes": 258734,
+      "raw_sha256": "36e2d42471bc29d5342647154dff8c084cc63f3670f73ba5be22a8fcbd75492c",
+      "gzip_sha256": "42203ef8340fde84caa88128970576d7ac2f1c9df0ebdb0cedbd51e08a99d5df"
+    },
+    "362-gates-progress.log": {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/362-gates-progress.log.gz",
+      "bytes": 328,
+      "raw_sha256": "57906f8395119a918f4e36ed17e041d13b46fe9ac7a7158f925d429083b6c595",
+      "gzip_sha256": "04758b514fd91ca6df9ea1cb55e187108fca9c7626cbebcfbc41e3a72cd3ca00"
+    },
+    "362-handoff-command-error.log": {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/362-handoff-command-error.log.gz",
+      "bytes": 128,
+      "raw_sha256": "a01f4b821c19235ca07ac42c9f44d2ee7b966b69fc3ddce7dcd3b8fb5233311d",
+      "gzip_sha256": "f6a8bc6f71be477f0003cf6e241f42b79baabc00281cc2ac96e5c3fd0113f097"
+    },
+    "362-handoff-tests.log": {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/362-handoff-tests.log.gz",
+      "bytes": 106,
+      "raw_sha256": "fc23540c8545d4075fe2f0420accd022e74e5566176c3bd4c597964ff02c2e14",
+      "gzip_sha256": "6e6e5adc5e9a061374c49540ce99669bc1eb93b61d2b5a6861ffa52f44601098"
+    },
+    "362-handoff.log": {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/362-handoff.log.gz",
+      "bytes": 8927,
+      "raw_sha256": "1a6b5f85a3b4f07e380ee6f2b47056e908183cc78638449153d150d8ff8b2374",
+      "gzip_sha256": "305992bc40ea8ed23cc11c7ac702a3a3601269caf5760dc1393e672184a57319"
+    },
+    "362-initial-full-test.log": {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/362-initial-full-test.log.gz",
+      "bytes": 260983,
+      "raw_sha256": "31c25382d058457adfd463c7fa19ada12cda096f19e7c933bc34796a306afba9",
+      "gzip_sha256": "9d1b8ab0c2f8014c70edfa4bffa34f46f53ac9578f5a133499f846a9437b2c86"
+    },
+    "362-initial-gates-progress.log": {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/362-initial-gates-progress.log.gz",
+      "bytes": 68,
+      "raw_sha256": "15ffddd3c2aaa48ca5705b0fb399a202e2f07a4d56b789f138eb7bd9e9eb6f5f",
+      "gzip_sha256": "5e8bb4bed28f01f48482a56449e26681b3a755aa0ac94fcd5e8d405680a75498"
+    },
+    "362-links.log": {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/362-links.log.gz",
+      "bytes": 50,
+      "raw_sha256": "48fa04d3ac0814252c7b24ba8cdd0baeb9a912b6297dcdc2553e1188a7943645",
+      "gzip_sha256": "59682fa3faecfa43e7d54bd0f4cfc02db00344caae57f6992819baad776b82b6"
+    },
+    "362-targeted-final.log": {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/362-targeted-final.log.gz",
+      "bytes": 708,
+      "raw_sha256": "d1b4475a6d2a74233179eadbd6c7f4c00eda2073ccf5086565173664800f8d88",
+      "gzip_sha256": "4c9f921c66ec58b30d1ca51c292e2f3292413e0e19aed8d6e825dfb3f9135322"
+    },
+    "362-targeted-retry.log": {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/362-targeted-retry.log.gz",
+      "bytes": 1967,
+      "raw_sha256": "de2dd583bf6cf9d87f6364cf21b6c2d449aedafdb20003c00e1abef4fb09731e",
+      "gzip_sha256": "7f70aeb3dffb8ff30c08a90cf03dbc78b067dbe9486a87b154c4f6cd860a02e2"
+    },
+    "362-targeted.log": {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/362-targeted.log.gz",
+      "bytes": 63142,
+      "raw_sha256": "e715f009164c4a99bcf65ad9b8e98c6e0f8651835d4cf275ffff229a4d6481b7",
+      "gzip_sha256": "d0e6ad8923899c0803f99ec08939acf6c6fd71b70bd7c96c9431897f9e12a955"
+    }
+  },
+  "remaining": [
+    "#359 merged dependency and real routing handler/PG integration not yet satisfied",
+    "CI exact head to be checked by main thread; no merge/deployment",
+    "Production and user-local acceptance pending",
+    "Existing English user360 global header overflow: latest paired baseline/current466px, earlier489px and first combination503px; detail dialog360px; global layout is outside scope"
+  ],
+  "prior_failures": [
+    "Initial combined targeted:2 route-meta fixture failures; fixed stable admin route record, no product change",
+    "Next targeted/full make test:1 new reverse-login test raced existing asynchronous URL clearing; explicitly await clear before reopening, no product change",
+    "First combination browser strict old489px header assertion saw503px; repeat baseline/current both466px; report measured outside-scope global overflow, retain dialog bounds and all admin width assertions",
+    "Original fb baseline RED/failure/corrected evidence retained in pre-362 and original logs"
+  ],
+  "draft_pr": "https://github.com/tqytwe/sub2api/pull/363",
+  "ci": "Pending exact final-head checks by main thread; not a release approval"
+}

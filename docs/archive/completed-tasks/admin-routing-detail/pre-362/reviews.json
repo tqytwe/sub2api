@@ -1,0 +1,21 @@
+{
+  "order": [
+    "specification",
+    "code_quality"
+  ],
+  "specification": {
+    "agent": "routing_ui_spec_review",
+    "result": "PASS",
+    "read_only": true,
+    "independent_targeted_tests": "40/40 passed,6.77s",
+    "notes": "Exact 3 contract hashes; 52 veto+8 observation semantics; no blocker. Routing real PG pending dependency."
+  },
+  "code_quality": {
+    "agent": "routing_ui_code_review",
+    "result": "PASS",
+    "read_only": true,
+    "independent_targeted_tests": "40/40 passed,7.53s",
+    "prior_failure": "Initial maxWorkers=1 without minWorkers caused runner config conflict; no tests ran. Correcting both settings passed.",
+    "notes": "No correctness/security blocker. Existing English header issue documented separately; no routing PG claim."
+  }
+}

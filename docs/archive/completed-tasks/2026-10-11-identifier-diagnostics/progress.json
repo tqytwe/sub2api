@@ -1,0 +1,48 @@
+{
+  "status": "merge363_validated_ready_for_push",
+  "at": "2026-10-11T14:06:19.748290+00:00",
+  "base_sha": "6ae024e6b732b64b2ce6f7ba56c5be4e20b88bdb",
+  "namespace_red": "real HTTP/PG incomplete+failed request ID namespace mismatch observed",
+  "namespace_green": "minimal image DTO split + targeted image retry/error tests passed before further core edits",
+  "snapshot_unit": "RED missing APIs then GREEN first/different per namespace + bounds + existing parser selection tests",
+  "current_state": "22sourceinputs unchanged,194incomingfiles exactmain;reuse full96race/54core/fullgates;6compositiongatespassed;sequentialreviewspassed;old0c92CI9/9 naturallypassed",
+  "next": "normalmergecommit/push and finalcombinedheadCI;root parallelreview and merge/deploy;scope remains281backend,noidentifierUI",
+  "logs": {
+    "namespace-red": {
+      "path": "/tmp/identifier-namespace-red.log",
+      "sha256": "23f62393884e76ceef8eef90271f4c86fa3de720bbbc0ef20fec90aff434e810"
+    },
+    "namespace-green": {
+      "path": "/tmp/identifier-namespace-green.log",
+      "sha256": "8674a290ffc9391a082a998275ceb1e59d1c165961c61270a40504e2d7807a77"
+    },
+    "snapshot-red": {
+      "path": "/tmp/identifier-snapshot-red.log",
+      "sha256": "37dd01dc42ed164536ceb344a0f9b58710da6af35b4fc6ec6dd022c3503dedca"
+    },
+    "snapshot-green": {
+      "path": "/tmp/identifier-snapshot-green.log",
+      "sha256": "a5d46d332e192514c98ee92e3adf2b824d39830ecb39aaa1b823c7cb8311c558"
+    },
+    "pg-red": {
+      "path": "/tmp/identifier-pg-red.log",
+      "sha256": "d627ae6aa284fc65e901b1db78a3ba96f9f6bc6ac633e67d8a7f79828ce0b136"
+    }
+  },
+  "reader_red": {
+    "log": "/tmp/identifier-pg-http-fixture-retry.log",
+    "sha256": "58a4828779e711c70e8474e8138a42c0f073ea6fc29c0ab3825b52d7267ef409",
+    "failure": "missing evidence row expected not_recorded, got incomplete",
+    "fix": "CASE WHEN evidence attempt UUID IS NULL THEN SQL NULL"
+  },
+  "core_green": {
+    "log": "/tmp/identifier-core-green.log",
+    "sha256": "5f9f117d02cb0dba80b9b2951abbf0233f4a3d2b3ab3cbc06dad6752b2c28ec0",
+    "completed": "2026-10-11T11:53:32.770Z",
+    "result": "pass"
+  },
+  "current_base_sha": "8364b462feda15f3bf8f3bb2029314d2193b9dba",
+  "pr": "https://github.com/tqytwe/sub2api/pull/365",
+  "technical_sha": "319353c506e44005464c59796dc2981ec6590f59",
+  "combined_main_sha": "caa4805b26114da4b5cb0ddea9343ef6ec9fc528"
+}

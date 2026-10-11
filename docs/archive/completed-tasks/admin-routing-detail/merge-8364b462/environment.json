@@ -1,0 +1,14 @@
+{
+  "go": "go version go1.27.2 linux/amd64",
+  "pnpm": "9.15.9",
+  "node": "v24.19.0",
+  "chromium": "Chromium 151.0.7922.173 built on Debian GNU/Linux 13 (trixie)",
+  "postgres_image": "sha256:04468c397044e22f2311a8fd8e5ddb478ab686b67634da068b9bd4b2d2eb3252 [\"postgres@sha256:aa6eb304ddb6dd26df23d05db4e5cb05af8951cda3e0dc57731b771e0ef4ab29\"]",
+  "GOFLAGS": "-p=1",
+  "GOMAXPROCS": 2,
+  "external_test_overrides": "unset",
+  "postgres": "disposable loopback only",
+  "browser_scope": "1280px actual build, no production or user-local-browser acceptance",
+  "remaining_gate_GOTMPDIR": "/tmp/routing363-embed-tmp",
+  "resource_failure": "First embed build failed ENOSPC in /workspace compiler temp; retained failure log. Continued only failed/unrun embed and Fork using separate /tmp with8GB free; shared cache preserved."
+}

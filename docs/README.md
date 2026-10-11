@@ -66,6 +66,7 @@
 | [v182 Growth Qualification Contract](./V182_GROWTH_QUALIFICATION_CONTRACT.md) | `proposal` | 签到答题资格、成长能量、奖励账本与 cohort 观测规则 | Growth 维护者 | 2026-08-29 |
 | [批量图片台账精确钻取](./archive/completed-tasks/batch-image-ledger/README.md) | `active` | capture/usage/task 精确凭据、冻结价格与验证范围；部署另行协调 | 计费维护者 | 2026-10-10 |
 | [批量图片台账视觉证据](./visual-reviews/2026-10-10-batch-image-ledger.md) | `historical` | 隔离环境实际构建资源及原型/响应式证据 | 本批提交者 | 2026-10-10 |
+| [上游标识冲突诊断](./archive/completed-tasks/2026-10-11-identifier-diagnostics/README.md) | `active` | 精确Receipt白名单快照、图片namespace修复与281兼容；草稿验证中、未部署 | 本批提交者 | 2026-10-11 |
 | [请求详情有界分页](./archive/completed-tasks/ledger-detail-pagination/README.md) | `active` | 实时游标与兼容合同、增量索引及验证范围；安全只读补证独立后续 | 本批提交者 | 2026-10-11 |
 | [请求详情分页视觉证据](./visual-reviews/2026-10-11-ledger-detail-pagination.md) | `historical` | 隔离HTTP/PG与实际构建资源，不替代生产验收 | 本批提交者 | 2026-10-11 |
 
@@ -114,3 +115,6 @@
 - [答题续期保留选择视觉记录](./visual-reviews/2026-10-11-auth-refresh.md) — `in-progress`，保留现有控件及样式，实际构建证据。
 - [Codex 点数同账号快照同步](./archive/completed-tasks/2026-10-11-codex-credits-snapshot/README.md) — `review`，定向 RED/GREEN、独立双审和隔离组件浏览器证据；完整门禁及部署由主线程协调。
 - [Codex 点数快照视觉记录](./visual-reviews/2026-10-11-codex-credits-snapshot.md) — `review`，真实基线/修改后截图、零与未知状态、补证原型时序及继承风险。
+
+- [管理员选路详情接线记录](./archive/completed-tasks/admin-routing-detail/README.md)（2026-10-11，已普通合入正式#359并完成真实JWT/HTTP/PG/实际资源组合；UI仍为草稿）
+- [管理员选路详情视觉审查](./visual-reviews/2026-10-11-admin-routing-detail.md)（基线/原型/实际资源、360px既有英文header边界）

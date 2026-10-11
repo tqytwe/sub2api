@@ -1,0 +1,71 @@
+[
+  {
+    "name": "make-test",
+    "command": [
+      "make",
+      "test"
+    ],
+    "started_at": "2026-10-11T12:52:33.845718+00:00",
+    "finished_at": "2026-10-11T13:07:27.604438+00:00",
+    "exit_code": 0,
+    "log": "make-test.log",
+    "sha256": "cb26d2b1949c820d99c94f88bc7abfbd9bf36a9e456ce1c33da0630dbafa58e2"
+  },
+  {
+    "name": "tag-unit",
+    "command": [
+      "make",
+      "test-backend-unit"
+    ],
+    "started_at": "2026-10-11T13:07:27.605105+00:00",
+    "finished_at": "2026-10-11T13:16:14.433637+00:00",
+    "exit_code": 0,
+    "log": "tag-unit.log",
+    "sha256": "2aafe9930b510380503e9d62f522f7fd75927e8a94b6b3436f826561575bf0bd"
+  },
+  {
+    "name": "ledger-contracts",
+    "command": [
+      "go",
+      "-C",
+      "backend",
+      "test",
+      "-tags=integration",
+      "./internal/requestledger/...",
+      "./internal/handler",
+      "./internal/server/routes",
+      "./internal/repository",
+      "./internal/service",
+      "-run",
+      "RequestLedger|LedgerPostgres|LedgerKilledProcess|LedgerStorage|BatchImageHTTP|BatchImageReconciliation|BatchImageLedgerMigration",
+      "-count=1",
+      "-timeout=12m",
+      "-json"
+    ],
+    "started_at": "2026-10-11T13:16:14.434033+00:00",
+    "finished_at": "2026-10-11T13:24:52.224168+00:00",
+    "exit_code": 0,
+    "log": "ledger-contracts.log",
+    "sha256": "caf5e1cadddb5c923d6fc608f4c94d8a25ad7007069962db7b59239a7e0285b5"
+  },
+  {
+    "name": "embed-build",
+    "command": [
+      "go",
+      "-C",
+      "backend",
+      "build",
+      "-tags=embed",
+      "-buildvcs=false",
+      "-trimpath",
+      "-o",
+      "/tmp/routing363-836-embed",
+      "./cmd/server"
+    ],
+    "started_at": "2026-10-11T13:24:52.241567+00:00",
+    "finished_at": "2026-10-11T13:27:00.493464+00:00",
+    "exit_code": 1,
+    "log": "embed-build.log",
+    "sha256": "949345336bf710c7179d5e673f00199361506aacfc3dd65a403bca26b5c41c02"
+  }
+]

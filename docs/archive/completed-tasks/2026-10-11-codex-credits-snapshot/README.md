@@ -1,6 +1,6 @@
 # Codex credits snapshot synchronization — isolated evidence
 
-Status: review; no commit, PR, deployment or production acceptance is claimed here.
+Status: review; source frozen at `b7faef8f1f896b5113dee07278ce50e336d9ff99`; no PR, deployment or production acceptance is claimed here.
 
 Business files: `frontend/src/components/account/OpenAIQuotaResetCell.vue` and its existing `OpenAIQuotaResetCell.spark_shadow.spec.ts`.
 Baseline: `8364b462feda15f3bf8f3bb2029314d2193b9dba`.
@@ -58,5 +58,5 @@ Requires installed frontend dependencies, Playwright and system Chromium. Baseli
 
 1. Parent visual/engineering-artifact review passed; late prototype chronology explicitly accepted as disclosed evidence follow-up.
 2. Local full coverage is complete through the explicitly documented split recovery above; original whole-run failures remain failures. Unit/build/Fork integrity passed.
-3. Create a traceable frontend commit, ordinarily merge the parent-designated main once, record exact hash preservation and affected targeted checks, then coordinate a draft PR targeting `play/main`; CI once at the frozen PR head.
+3. Source freeze committed; ordinary merge of main `16a11abd29b1f37f3be28820b948f2d8400e4e70` preserves both source hashes and main backend/CI/scripts exactly: [merge proof](./merge-proof.json). Post-merge [quota/routing/session intersection](./evidence/quota-frontend-merge-targeted.log.gz) passed 4 files / 116 tests. [Design](./evidence/quota-frontend-merge-design.log.gz) and [documentation links](./evidence/quota-frontend-merge-doclinks.log.gz) passed. Prior local gates and visual evidence are reused where bytes are unchanged; inherited identifier backend changes rely on main evidence, not a claimed rerun. Coordinate draft PR targeting `play/main`; final-head CI pending.
 4. Merge/deploy and user-local-browser acceptance remain outside this agent's authority.
