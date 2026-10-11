@@ -184,6 +184,12 @@ func TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs(t *testin
 	require.Equal(t, 2, processor.maxActive)
 	processor.mu.Unlock()
 
+	// Processor completion precedes the heartbeat join and queue lease Ack.
+	require.Eventually(t, func() bool {
+		stats, err := queue.Stats(context.Background())
+		return err == nil && stats.Ready == 0 && stats.Active == 0
+	}, 3*time.Second, 20*time.Millisecond, "completed task leases must be acknowledged")
+
 	stats, err := queue.Stats(context.Background())
 	require.NoError(t, err)
 	require.Zero(t, stats.Ready)

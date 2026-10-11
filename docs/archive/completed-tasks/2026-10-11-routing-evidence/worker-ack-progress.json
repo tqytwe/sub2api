@@ -1,0 +1,23 @@
+{
+  "status": "local_complete_pending_draft_push",
+  "updated_at": "2026-10-11T12:18:53.699202+00:00",
+  "failed_head": "add3fa4dbe8c59e0276e0043eb09270a4b630f89",
+  "ci_run": 38136192168,
+  "ci_job": 114460430956,
+  "ci_evidence": "Parent reports tag-unit TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs line190 Active=1; 8/9 other checks passed, later frontend skipped. Direct log fetch returned403, no log contents independently retrieved.",
+  "source_finding": "processor.completed precedes heartbeat join and Redis lease Ack; Stats.Active is queue lease count, not processor.active. All3 relevant source/test blobs equal6ae base.",
+  "ownership": "only root AGENTS applies, no deeper backend AGENTS/CODEOWNERS found; file untouched by current routing task or incoming main changes. Parent explicitly authorizes minimal test synchronization fix.",
+  "current_stage": "all target/race/sequential reviews/make test/tag-unit/build/embed/Fork passed",
+  "next": [
+    "single normal draft push/new CI",
+    "parent review/merge/deploy"
+  ],
+  "baseline": {
+    "ordinary_count": 30,
+    "ordinary": "pass",
+    "delayed_ack_count": 3,
+    "delayed_ack": "expected fail at line190 Active2",
+    "log_sha256": "c8ed31d6e36a51bd7fa6aa7c5d7676decb043a54aa675ee749ed77300c86756c"
+  },
+  "technical_commit": "0dcf99a3c5f786e41a8e2933dd025b1daea1c320"
+}

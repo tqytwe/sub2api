@@ -1,0 +1,11 @@
+{
+  "at": "2026-10-11T11:54:43.538583+00:00",
+  "base": "6ae024e6b732b64b2ce6f7ba56c5be4e20b88bdb",
+  "head": "add3fa4dbe8c59e0276e0043eb09270a4b630f89",
+  "same_blobs": {
+    "backend/internal/repository/image_task_worker_integration_test.go": "98dbf291adf2f1e94a526aac6b014fd0f9475370ff1fd598836d247c66ddc059",
+    "backend/internal/service/image_task_worker.go": "a5189de98541d5fa260cacd31d0584f601837e1030c0c18b6fc670479acfe403",
+    "backend/internal/repository/image_task_queue.go": "2eaf791c79a45229e3d2c7f99771686a07c9990d7be0754b8a047c93b9721b36"
+  },
+  "conclusion": "processor.completed is incremented before processSafely returns; runtime then joins heartbeat and calls Redis lock.Ack. Queue Stats.Active is lease ZCARD, not processor.active."
+}

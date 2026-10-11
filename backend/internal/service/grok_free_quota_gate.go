@@ -184,6 +184,7 @@ func filterGrokFreeQuotaAccountsCore(
 		account := &accounts[i]
 		if isExplicitGrokFreeOAuthAccount(account) {
 			if tokens, known := tokensByID[account.ID]; known && tokens >= settings.gateTokens {
+				recordOpenAIRoutingVeto(ctx, account, "grok_free_quota_soft_gate")
 				continue
 			}
 		}

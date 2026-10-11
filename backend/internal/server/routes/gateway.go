@@ -9,6 +9,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/handler"
 	pkghttputil "github.com/Wei-Shaw/sub2api/internal/pkg/httputil"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/requestmodel"
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
 	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 
@@ -267,6 +268,7 @@ func RegisterGatewayRoutes(
 				h.OpenAIGateway.Messages(c)
 				return
 			}
+			requestledger.RoutingUnsupported(c.Request.Context())
 			h.Gateway.Messages(c)
 		})
 		// System One carries only JSON text, so it uses the text body limit.
@@ -288,6 +290,7 @@ func RegisterGatewayRoutes(
 				h.OpenAIGateway.Responses(c)
 				return
 			}
+			requestledger.RoutingUnsupported(c.Request.Context())
 			h.Gateway.Responses(c)
 		})
 		gateway.POST("/responses/*subpath", guardResponsesSubpath(func(c *gin.Context) {
@@ -295,6 +298,7 @@ func RegisterGatewayRoutes(
 				h.OpenAIGateway.Responses(c)
 				return
 			}
+			requestledger.RoutingUnsupported(c.Request.Context())
 			h.Gateway.Responses(c)
 		}))
 		gateway.POST("/alpha/search", textBodyLimit, h.OpenAIGateway.AlphaSearch)
@@ -307,6 +311,7 @@ func RegisterGatewayRoutes(
 				h.OpenAIGateway.ChatCompletions(c)
 				return
 			}
+			requestledger.RoutingUnsupported(c.Request.Context())
 			h.Gateway.ChatCompletions(c)
 		})
 		gateway.POST("/embeddings", textBodyLimit, func(c *gin.Context) {
@@ -410,6 +415,7 @@ func RegisterGatewayRoutes(
 			h.OpenAIGateway.Responses(c)
 			return
 		}
+		requestledger.RoutingUnsupported(c.Request.Context())
 		h.Gateway.Responses(c)
 	}
 	rootRoute := func(method, path string, limit gin.HandlerFunc, handler gin.HandlerFunc) {
@@ -451,6 +457,7 @@ func RegisterGatewayRoutes(
 			h.OpenAIGateway.ChatCompletions(c)
 			return
 		}
+		requestledger.RoutingUnsupported(c.Request.Context())
 		h.Gateway.ChatCompletions(c)
 	})
 	r.POST("/embeddings", textBodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), groupModelAllowlist, compositeTarget, requireGroupAnthropic, func(c *gin.Context) {
