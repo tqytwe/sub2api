@@ -23,7 +23,7 @@
       "product_state": "可测",
       "owner": "主线程协调",
       "pr": "https://github.com/tqytwe/sub2api/pull/356",
-      "sha": "fbc103a5a0b7fcc9b103536e47eb347cac0895d3",
+      "sha": "212da30003f7216e71181298ff58740861f9169f",
       "evidence": {
         "ui": {
           "status": "recorded",
@@ -69,7 +69,7 @@
         }
       },
       "risks": "不推断历史指纹、token、unknown零费用；只读证明失败不阻断capture/usage但completed重试不会补证，保留审计缺口。零capture无钱包用例只验证真实保留证明，不覆盖公共零价格跳过hold。受限usage_billing_repo.go未修改。",
-      "next": "普通merge #357基线1bfc7e2edb788ca11a23ff936f99db904c4b4199；原技术修复fbc103a5a0b7fcc9b103536e47eb347cac0895d3未变。合并技术SHA在后续元数据提交记录，组合证据见merge-357-validation.json；等待精确新head完整CI后交主线程，不合并部署。",
+      "next": "组合技术merge SHA 212da30003f7216e71181298ff58740861f9169f，父节点0a2c51e130cf108ab51016643f0eba7bfa516646与1bfc7e2edb788ca11a23ff936f99db904c4b4199；后继提交仅补交接元数据。原修复fbc103a5a0b7fcc9b103536e47eb347cac0895d3及277未变，组合证据见merge-357-validation.json；等待精确最终head完整CI后交主线程，不合并部署。",
       "rollback": "协调应用回滚；保留277新增索引与已有台账/usage，不改历史SQL、不删数据。"
     },
     {
