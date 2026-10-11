@@ -23,7 +23,7 @@
       "product_state": "可测",
       "owner": "主线程协调",
       "pr": "https://github.com/tqytwe/sub2api/pull/360",
-      "sha": "72933acd164ce82d38813596d4294129b9d0edc5",
+      "sha": "c25d74eb1f0383c95c839ea2e31d7b92d1430008",
       "evidence": {
         "ui": {
           "status": "recorded",
@@ -80,7 +80,7 @@
         }
       },
       "risks": "实时分页不是快照，迟到证明需要刷新；旧客户端大集合需升级。分页自身不修改计费写入/capture/原认证谓词/受限usage_billing_repo.go；原样承接#352及#361主线NULL-safe冻结ID绑定防护。缺link历史proof不能反推目标，撤销/在途规则仍独立后续。unknown非免费，历史gpt22损失仍未归因。",
-      "next": "#360维持草稿，已普通合并fdec971d主线并完成组合双审/适用门禁。当前sha保留上一技术提交，完成本次技术merge后补齐。最新证据和356资源hash见merge-fdec971d目录。主线程核实最终head/CI后协调；不合并部署，不更新整份checked_at或未重验条目。",
+      "next": "#360维持草稿；技术merge c25d74eb1f0383c95c839ea2e31d7b92d1430008，父48248352158fabaf691f582f4f31efba4ddf74d1和fdec971d2a01c25d93874b7688dffcff78f79088。组合顺序双审、八项本地门禁、双角色短实际资源/PG复验通过；356资源逐字一致，hash见merge-fdec971d。最后一笔仅记录本SHA的交接元数据，不改已测源码。最终推送head/CI由主线程核实；不合并部署，不更新整份checked_at或未重验条目。",
       "rollback": "若权限、分页归属、证据或迁移异常，由主线程协调经审查的源码回退；新UI与后端分页契约需配套。保留278及已有台账，不删数据、不改历史迁移。"
     },
     {

@@ -1,7 +1,7 @@
 {
-  "checked_at": "2026-10-11T10:36:24.312951+00:00",
-  "state": "local_validation_complete",
-  "phase": "Final documentation checks and push",
+  "checked_at": "2026-10-11T10:37:18.446638+00:00",
+  "state": "ready_for_push",
+  "phase": "Local gates and evidence complete",
   "completed_gates": [
     {
       "name": "backend",
@@ -117,10 +117,11 @@
     }
   ],
   "remaining": [
-    "final documentation checks",
-    "commit and push new PR head"
+    "Push final documentation head",
+    "Root review and exact-head CI"
   ],
   "blocker": null,
   "note": "All eight local gate commands passed. The automatic pre-browser wait reached its scheduling deadline while Fork was still running; no test failed. Browser started directly after Fork completion; no gate was repeated.",
-  "assets_ready": "5f5b24f98d48591358ec04bfbfce8f3fb8308dc3b4f29c2a090c03bf894c042e"
+  "assets_ready": "5f5b24f98d48591358ec04bfbfce8f3fb8308dc3b4f29c2a090c03bf894c042e",
+  "technical_merge_sha": "c25d74eb1f0383c95c839ea2e31d7b92d1430008"
 }

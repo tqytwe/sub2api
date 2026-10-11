@@ -38,3 +38,6 @@ and zero page errors. All 356 resource bytes match the previous reviewed session
 and [entry/ledger-chunk hashes](./entry-assets.json) support final-head review and release comparison.
 The pre-browser waiter's scheduling deadline expired while Fork was running; the browser was then run
 directly after Fork passed. This was not a test failure, and no completed gate was rerun.
+
+Technical merge: `c25d74eb1f0383c95c839ea2e31d7b92d1430008`, with parents48248352 and fdec971d. The following metadata commit
+records this SHA and changes no tested source or resource. Final pushed head and CI are reported on draft PR #360.

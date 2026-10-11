@@ -253,5 +253,11 @@
     "No production operations, generation, merge/deploy or user-local acceptance.",
     "Full frontend / protocol / tagged-unit historical results are not claimed as newly rerun.",
     "Legacy missing binding is not reconstructed; revocation/in-flight semantics are outside this merge."
-  ]
+  ],
+  "technical_merge_sha": "c25d74eb1f0383c95c839ea2e31d7b92d1430008",
+  "parents": [
+    "48248352158fabaf691f582f4f31efba4ddf74d1",
+    "fdec971d2a01c25d93874b7688dffcff78f79088"
+  ],
+  "metadata_only_followup": "Following commit records this exact technical SHA; it changes no tested source or build resource."
 }
