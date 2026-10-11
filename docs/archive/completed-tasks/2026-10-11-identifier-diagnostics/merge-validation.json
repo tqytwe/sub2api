@@ -1,7 +1,7 @@
 {
   "base_sha": "8364b462feda15f3bf8f3bb2029314d2193b9dba",
   "checked_at": "2026-10-11T13:43:25.025732+00:00",
-  "state": "all required local gates and sequential reviews passed; independent draft submission next",
+  "state": "all local gates passed; independent draftPR365 finalhead CI pending",
   "scope": "identifier281 backend and image namespace only; noUI/production/merge/deploy",
   "source_manifest": "tested-source-sha256.txt",
   "preservation": "main-sync.json",
@@ -205,5 +205,8 @@
     "tests_passed": 3825,
     "tests_skipped": 8
   },
-  "source_manifest_verified_after_gates": true
+  "source_manifest_verified_after_gates": true,
+  "pr": "https://github.com/tqytwe/sub2api/pull/365",
+  "technical_sha": "319353c506e44005464c59796dc2981ec6590f59",
+  "metadata_followup": "PR/SHA-only documentation;22sourceinputs unchanged, no full local test rerun"
 }

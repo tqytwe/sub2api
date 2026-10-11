@@ -22,8 +22,8 @@
       "backend_state": "已验证",
       "product_state": "实现中",
       "owner": "主线程协调",
-      "pr": null,
-      "sha": null,
+      "pr": "https://github.com/tqytwe/sub2api/pull/365",
+      "sha": "319353c506e44005464c59796dc2981ec6590f59",
       "evidence": {
         "ui": {
           "status": "pending",
@@ -57,8 +57,10 @@
         },
         "deployment": {
           "status": "pending",
-          "refs": [],
-          "note": "尚无PR/提交，仅独立分支实现中；根线程负责后续合并部署。"
+          "refs": [
+            "https://github.com/tqytwe/sub2api/pull/365"
+          ],
+          "note": "独立草稿PR365已创建，技术验收提交319353c506e44005464c59796dc2981ec6590f59；随后仅补PR/SHA文档元数据，22源码输入不变；最终head CI以PR为准。根线程负责合并部署，本任务未部署。"
         },
         "production": {
           "status": "pending",
@@ -67,7 +69,7 @@
         }
       },
       "risks": "异步后续观察可能丢失，即使首快照已持久化也只报告unknown完整性；版本/枚举/归属或首值flag不一致不输出伪造来源。SSE event_type仅payload.type，独立event行未采；281取得锁后DDL/提交I/O仍可短暂阻塞。",
-      "next": "本地门禁已过，提交独立草稿PR并核实最终head CI，根线程负责合并部署；UI/生产验收待后续。279与worker修复原样继承，280草稿不引入。其他快照条目未复核，checked_at不前移。",
+      "next": "核实PR365最终head完整CI并由根线程并行评审；合并部署、identifier UI和生产/本机验收待后续。279原样继承，280草稿不引入。其他快照条目未复核，checked_at不前移。",
       "rollback": "旧应用可保留新增列/快照；NOWAIT或语句超时整事务回滚且无281登记，保持旧应用后解除争用重试。不删除、清flag、回填或补扣。"
     },
     {

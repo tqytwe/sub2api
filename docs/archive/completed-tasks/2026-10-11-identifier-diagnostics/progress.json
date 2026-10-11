@@ -1,12 +1,12 @@
 {
-  "status": "local_gates_passed_ready_for_independent_draft",
-  "at": "2026-10-11T13:43:25.025732+00:00",
+  "status": "draft_pr_created_final_ci_pending",
+  "at": "2026-10-11T13:44:14.637486+00:00",
   "base_sha": "6ae024e6b732b64b2ce6f7ba56c5be4e20b88bdb",
   "namespace_red": "real HTTP/PG incomplete+failed request ID namespace mismatch observed",
   "namespace_green": "minimal image DTO split + targeted image retry/error tests passed before further core edits",
   "snapshot_unit": "RED missing APIs then GREEN first/different per namespace + bounds + existing parser selection tests",
   "current_state": "8364 combined96/96 ledger race +core54/54;make test/backendlint0/frontend504files3825pass8skip;tag-unit/build/embed/fullFork allpassed;22 sourceinputs unchanged",
-  "next": "commit and independent draftPR, finalheadCI; root controls merge/deploy; UI/production remain pending",
+  "next": "confirm final PR head CI; root parallel review/merge/deploy; no further scope expansion, UI and production pending",
   "logs": {
     "namespace-red": {
       "path": "/tmp/identifier-namespace-red.log",
@@ -41,5 +41,7 @@
     "completed": "2026-10-11T11:53:32.770Z",
     "result": "pass"
   },
-  "current_base_sha": "8364b462feda15f3bf8f3bb2029314d2193b9dba"
+  "current_base_sha": "8364b462feda15f3bf8f3bb2029314d2193b9dba",
+  "pr": "https://github.com/tqytwe/sub2api/pull/365",
+  "technical_sha": "319353c506e44005464c59796dc2981ec6590f59"
 }
