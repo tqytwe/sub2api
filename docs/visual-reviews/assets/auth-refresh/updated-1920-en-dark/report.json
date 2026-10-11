@@ -1,0 +1,37 @@
+{
+  "index_sha256": "8cf9218f92c17bf2e9850520ddf3f5ee3b99ae6e55c83dc10b3b6a67528b44a8",
+  "reports": [
+    {
+      "case": "reading",
+      "initial": {
+        "user": 1,
+        "token": "fixture-1-access-login-1",
+        "storedUser": 1,
+        "storedToken": "fixture-1-access-login-1"
+      },
+      "width": 1920,
+      "theme": "dark",
+      "language": "en",
+      "web_locks": {
+        "secure": true,
+        "available": true,
+        "request": "function request() { [native code] }"
+      },
+      "selected": 2,
+      "after": {
+        "user": 1,
+        "token": "fixture-1-access-renewed-1",
+        "storedUser": 1,
+        "storedToken": "fixture-1-access-renewed-1"
+      },
+      "quiz_reads": 1,
+      "safe": true,
+      "profiles": [
+        1,
+        1
+      ],
+      "js_errors": [],
+      "overflow": false
+    }
+  ]
+}

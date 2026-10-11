@@ -1,0 +1,9 @@
+{
+  "frontend/src/api/tokenRefresh.ts": "ef54399b4e4bb7152e9b12c290b48061c9dd3d868c6dbe8b87abbaddecd765f5",
+  "frontend/src/api/client.ts": "93c6f83b183a0bfa10cda6891a070c48dba4316db506dd0a34d832142c0c76d0",
+  "frontend/src/stores/auth.ts": "125a6672264424480eab78bdceab09ff5fa52d6062183ad96082cc91ba151d6f",
+  "frontend/src/stores/__tests__/auth.http.spec.ts": "68def5f70cf2b91adc7036d169323a209be8c6995304da93f5f940a7506a7194",
+  "frontend/src/views/public/__tests__/QuizQuestView.session.http.spec.ts": "1649d52c6535d469bbdd03fea61e34aba15ebbd9a460b13d10a628e6b030738d",
+  "frontend/src/views/public/__tests__/BlindboxView.http.spec.ts": "a3113d3d989b2a56152c64c5e2c34983ae7f9c2b2a8df7faa58900ce6c6c4ca5",
+  "frontend/src/views/user/__tests__/CheckInView.balance.http.spec.ts": "76b6909567b56f69f471869968b3a853b0226974a17557563bd59938c8e20dca"
+}

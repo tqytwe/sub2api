@@ -1,0 +1,65 @@
+{
+  "reports": [
+    {
+      "game": "quiz",
+      "mode": "proactive",
+      "viewport": 360,
+      "theme": "dark",
+      "language": "zh",
+      "refreshes": 1,
+      "posts": 1,
+      "fixture_commits": 1,
+      "pinia_matches_storage": true,
+      "displayed_balance": 1.2,
+      "manual_restore": false,
+      "js_errors": [],
+      "overflow": false
+    },
+    {
+      "game": "quiz",
+      "mode": "401",
+      "viewport": 1280,
+      "theme": "light",
+      "language": "en",
+      "refreshes": 1,
+      "posts": 2,
+      "fixture_commits": 1,
+      "pinia_matches_storage": true,
+      "displayed_balance": 1.2,
+      "manual_restore": false,
+      "js_errors": [],
+      "overflow": false
+    },
+    {
+      "game": "blindbox",
+      "mode": "proactive",
+      "viewport": 1280,
+      "theme": "light",
+      "language": "zh",
+      "refreshes": 1,
+      "posts": 1,
+      "fixture_commits": 1,
+      "pinia_matches_storage": true,
+      "displayed_balance": 0.7,
+      "manual_restore": false,
+      "js_errors": [],
+      "overflow": false
+    },
+    {
+      "game": "blindbox",
+      "mode": "401",
+      "viewport": 360,
+      "theme": "dark",
+      "language": "en",
+      "refreshes": 1,
+      "posts": 2,
+      "fixture_commits": 1,
+      "pinia_matches_storage": true,
+      "displayed_balance": 0.7,
+      "manual_restore": false,
+      "js_errors": [],
+      "overflow": false
+    }
+  ],
+  "index_sha256": "8cf9218f92c17bf2e9850520ddf3f5ee3b99ae6e55c83dc10b3b6a67528b44a8"
+}

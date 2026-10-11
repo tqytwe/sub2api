@@ -1,0 +1,421 @@
+{
+  "index_sha256": "8cf9218f92c17bf2e9850520ddf3f5ee3b99ae6e55c83dc10b3b6a67528b44a8",
+  "reports": [
+    {
+      "case": "reading",
+      "initial": {
+        "user": 1,
+        "token": "fixture-1-access-login-1",
+        "storedUser": 1,
+        "storedToken": "fixture-1-access-login-1"
+      },
+      "width": 1280,
+      "theme": "light",
+      "language": "zh",
+      "web_locks": {
+        "secure": true,
+        "available": true,
+        "request": "function request() { [native code] }"
+      },
+      "selected": 2,
+      "after": {
+        "user": 1,
+        "token": "fixture-1-access-renewed-1",
+        "storedUser": 1,
+        "storedToken": "fixture-1-access-renewed-1"
+      },
+      "quiz_reads": 1,
+      "safe": true,
+      "profiles": [
+        1
+      ],
+      "js_errors": [],
+      "overflow": false
+    },
+    {
+      "case": "peer-reading",
+      "initial": {
+        "user": 1,
+        "token": "fixture-1-access-login-1",
+        "storedUser": 1,
+        "storedToken": "fixture-1-access-login-1"
+      },
+      "width": 1280,
+      "theme": "light",
+      "language": "zh",
+      "web_locks": {
+        "secure": true,
+        "available": true,
+        "request": "function request() { [native code] }"
+      },
+      "selected": 2,
+      "after": {
+        "user": 1,
+        "token": "fixture-1-access-renewed-1",
+        "storedUser": 1,
+        "storedToken": "fixture-1-access-renewed-1"
+      },
+      "quiz_reads": 2,
+      "safe": true,
+      "peer_selected": 2,
+      "peer_after": {
+        "user": 1,
+        "token": "fixture-1-access-renewed-1",
+        "storedUser": 1,
+        "storedToken": "fixture-1-access-renewed-1"
+      },
+      "renewals": 1,
+      "refresh_requests": [
+        {
+          "token": "fixture-1-refresh-login-1",
+          "source": "coordinator"
+        }
+      ],
+      "profiles": [
+        1,
+        1
+      ],
+      "js_errors": [],
+      "overflow": false
+    },
+    {
+      "case": "account",
+      "initial": {
+        "user": 1,
+        "token": "fixture-1-access-login-1",
+        "storedUser": 1,
+        "storedToken": "fixture-1-access-login-1"
+      },
+      "width": 1280,
+      "theme": "light",
+      "language": "zh",
+      "web_locks": {
+        "secure": true,
+        "available": true,
+        "request": "function request() { [native code] }"
+      },
+      "immediate": {
+        "user": 2,
+        "token": "fixture-2-access-login-2",
+        "storedUser": 2,
+        "storedToken": "fixture-2-access-login-2"
+      },
+      "after_timer": {
+        "user": 2,
+        "token": "fixture-2-access-login-2",
+        "storedUser": 2,
+        "storedToken": "fixture-2-access-login-2"
+      },
+      "before_new_request": {
+        "user": 2,
+        "token": "fixture-2-access-login-2",
+        "storedUser": 2,
+        "storedToken": "fixture-2-access-login-2"
+      },
+      "posts": [
+        {
+          "owner": 2,
+          "key": "blindbox-fd391369-4bf2-49b3-92d6-a39cf106dc81"
+        }
+      ],
+      "safe": true,
+      "profiles": [
+        1,
+        1,
+        2,
+        2,
+        2,
+        2
+      ],
+      "js_errors": [],
+      "overflow": false
+    },
+    {
+      "case": "account-no-event",
+      "initial": {
+        "user": 1,
+        "token": "fixture-1-access-login-1",
+        "storedUser": 1,
+        "storedToken": "fixture-1-access-login-1"
+      },
+      "width": 1280,
+      "theme": "light",
+      "language": "zh",
+      "web_locks": {
+        "secure": true,
+        "available": true,
+        "request": "function request() { [native code] }"
+      },
+      "immediate": {
+        "user": 1,
+        "token": "fixture-1-access-login-1",
+        "storedUser": 2,
+        "storedToken": "fixture-2-access-login-2"
+      },
+      "before_new_request": {
+        "user": 1,
+        "token": "fixture-1-access-login-1",
+        "storedUser": 2,
+        "storedToken": "fixture-2-access-login-2"
+      },
+      "posts": [],
+      "safe": true,
+      "profiles": [
+        1,
+        1,
+        2
+      ],
+      "js_errors": [],
+      "overflow": false
+    },
+    {
+      "case": "logout",
+      "initial": {
+        "user": 1,
+        "token": "fixture-1-access-login-1",
+        "storedUser": 1,
+        "storedToken": "fixture-1-access-login-1"
+      },
+      "width": 1280,
+      "theme": "light",
+      "language": "zh",
+      "web_locks": {
+        "secure": true,
+        "available": true,
+        "request": "function request() { [native code] }"
+      },
+      "immediate": {
+        "user": null,
+        "token": null,
+        "storedUser": null,
+        "storedToken": null
+      },
+      "before_new_request": {
+        "user": null,
+        "token": null,
+        "storedUser": null,
+        "storedToken": null
+      },
+      "posts": [],
+      "safe": true,
+      "profiles": [
+        1,
+        1
+      ],
+      "js_errors": [],
+      "overflow": false
+    },
+    {
+      "case": "relogin",
+      "initial": {
+        "user": 1,
+        "token": "fixture-1-access-login-1",
+        "storedUser": 1,
+        "storedToken": "fixture-1-access-login-1"
+      },
+      "width": 1280,
+      "theme": "light",
+      "language": "zh",
+      "web_locks": {
+        "secure": true,
+        "available": true,
+        "request": "function request() { [native code] }"
+      },
+      "pending_key_before": "blindbox-ff649924-50ae-4c78-b5f6-5c189649de68",
+      "immediate": {
+        "user": 1,
+        "token": "fixture-1-access-login-2",
+        "storedUser": 1,
+        "storedToken": "fixture-1-access-login-2"
+      },
+      "old_result_visible": false,
+      "pending_key_after": "blindbox-ff649924-50ae-4c78-b5f6-5c189649de68",
+      "posts": [
+        {
+          "owner": 1,
+          "key": "blindbox-ff649924-50ae-4c78-b5f6-5c189649de68"
+        }
+      ],
+      "safe": true,
+      "profiles": [
+        1,
+        1,
+        1
+      ],
+      "js_errors": [],
+      "overflow": false
+    },
+    {
+      "case": "pending-account",
+      "initial": {
+        "user": 1,
+        "token": "fixture-1-access-login-1",
+        "storedUser": 1,
+        "storedToken": "fixture-1-access-login-1"
+      },
+      "width": 1280,
+      "theme": "light",
+      "language": "zh",
+      "web_locks": {
+        "secure": true,
+        "available": true,
+        "request": "function request() { [native code] }"
+      },
+      "pending_key_before": "blindbox-cbbe6800-dd6f-4d97-9d5c-cc63d4f45371",
+      "immediate": {
+        "user": 2,
+        "token": "fixture-2-access-login-2",
+        "storedUser": 2,
+        "storedToken": "fixture-2-access-login-2"
+      },
+      "old_result_visible": false,
+      "pending_key_after": "blindbox-cbbe6800-dd6f-4d97-9d5c-cc63d4f45371",
+      "posts": [
+        {
+          "owner": 1,
+          "key": "blindbox-cbbe6800-dd6f-4d97-9d5c-cc63d4f45371"
+        }
+      ],
+      "safe": true,
+      "profiles": [
+        1,
+        1,
+        2
+      ],
+      "js_errors": [],
+      "overflow": false
+    },
+    {
+      "case": "pending-account-no-event",
+      "initial": {
+        "user": 1,
+        "token": "fixture-1-access-login-1",
+        "storedUser": 1,
+        "storedToken": "fixture-1-access-login-1"
+      },
+      "width": 1280,
+      "theme": "light",
+      "language": "zh",
+      "web_locks": {
+        "secure": true,
+        "available": true,
+        "request": "function request() { [native code] }"
+      },
+      "pending_key_before": "blindbox-b32367c7-1b9b-4359-9a9e-bcd5fb136779",
+      "immediate": {
+        "user": 1,
+        "token": "fixture-1-access-login-1",
+        "storedUser": 2,
+        "storedToken": "fixture-2-access-login-2"
+      },
+      "old_result_visible": false,
+      "pending_key_after": "blindbox-b32367c7-1b9b-4359-9a9e-bcd5fb136779",
+      "posts": [
+        {
+          "owner": 1,
+          "key": "blindbox-b32367c7-1b9b-4359-9a9e-bcd5fb136779"
+        }
+      ],
+      "safe": true,
+      "profiles": [
+        1,
+        1,
+        2
+      ],
+      "js_errors": [],
+      "overflow": false
+    },
+    {
+      "case": "peer-reading",
+      "initial": {
+        "user": 1,
+        "token": "fixture-1-access-login-1",
+        "storedUser": 1,
+        "storedToken": "fixture-1-access-login-1"
+      },
+      "width": 1280,
+      "theme": "light",
+      "language": "zh",
+      "web_locks": {
+        "secure": true,
+        "available": true,
+        "request": "function request() { [native code] }"
+      },
+      "selected": 2,
+      "after": {
+        "user": 1,
+        "token": "fixture-1-access-renewed-1",
+        "storedUser": 1,
+        "storedToken": "fixture-1-access-renewed-1"
+      },
+      "quiz_reads": 2,
+      "safe": true,
+      "peer_selected": 2,
+      "peer_after": {
+        "user": 1,
+        "token": "fixture-1-access-renewed-1",
+        "storedUser": 1,
+        "storedToken": "fixture-1-access-renewed-1"
+      },
+      "renewals": 1,
+      "refresh_requests": [
+        {
+          "token": "fixture-1-refresh-login-1",
+          "source": "coordinator"
+        }
+      ],
+      "profiles": [
+        1,
+        1
+      ],
+      "js_errors": [],
+      "overflow": false
+    },
+    {
+      "case": "peer-reading",
+      "initial": {
+        "user": 1,
+        "token": "fixture-1-access-login-1",
+        "storedUser": 1,
+        "storedToken": "fixture-1-access-login-1"
+      },
+      "width": 1280,
+      "theme": "light",
+      "language": "zh",
+      "web_locks": {
+        "secure": true,
+        "available": true,
+        "request": "function request() { [native code] }"
+      },
+      "selected": 2,
+      "after": {
+        "user": 1,
+        "token": "fixture-1-access-renewed-1",
+        "storedUser": 1,
+        "storedToken": "fixture-1-access-renewed-1"
+      },
+      "quiz_reads": 2,
+      "safe": true,
+      "peer_selected": 2,
+      "peer_after": {
+        "user": 1,
+        "token": "fixture-1-access-renewed-1",
+        "storedUser": 1,
+        "storedToken": "fixture-1-access-renewed-1"
+      },
+      "renewals": 1,
+      "refresh_requests": [
+        {
+          "token": "fixture-1-refresh-login-1",
+          "source": "coordinator"
+        }
+      ],
+      "profiles": [
+        1,
+        1
+      ],
+      "js_errors": [],
+      "overflow": false
+    }
+  ]
+}
