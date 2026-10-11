@@ -1,0 +1,80 @@
+?       github.com/Wei-Shaw/sub2api/ent/promocodeusage  [no test files]
+?       github.com/Wei-Shaw/sub2api/ent/proxy   [no test files]
+?       github.com/Wei-Shaw/sub2api/ent/redeemcode  [no test files]
+?       github.com/Wei-Shaw/sub2api/ent/runtime [no test files]
+ok      github.com/Wei-Shaw/sub2api/ent/schema  2.050s
+?       github.com/Wei-Shaw/sub2api/ent/schema/mixins   [no test files]
+?       github.com/Wei-Shaw/sub2api/ent/securitysecret  [no test files]
+?       github.com/Wei-Shaw/sub2api/ent/setting [no test files]
+?       github.com/Wei-Shaw/sub2api/ent/subscriptionplan    [no test files]
+?       github.com/Wei-Shaw/sub2api/ent/tlsfingerprintprofile   [no test files]
+?       github.com/Wei-Shaw/sub2api/ent/usagecleanuptask    [no test files]
+?       github.com/Wei-Shaw/sub2api/ent/usagelog    [no test files]
+?       github.com/Wei-Shaw/sub2api/ent/user    [no test files]
+?       github.com/Wei-Shaw/sub2api/ent/userallowedgroup    [no test files]
+?       github.com/Wei-Shaw/sub2api/ent/userattributedefinition [no test files]
+?       github.com/Wei-Shaw/sub2api/ent/userattributevalue  [no test files]
+?       github.com/Wei-Shaw/sub2api/ent/usermobileskill [no test files]
+?       github.com/Wei-Shaw/sub2api/ent/userplatformquota   [no test files]
+?       github.com/Wei-Shaw/sub2api/ent/usersubscription    [no test files]
+ok      github.com/Wei-Shaw/sub2api/internal/config 1.027s
+ok      github.com/Wei-Shaw/sub2api/internal/domain 0.007s
+ok      github.com/Wei-Shaw/sub2api/internal/handler    50.877s
+ok      github.com/Wei-Shaw/sub2api/internal/handler/admin  0.673s
+ok      github.com/Wei-Shaw/sub2api/internal/handler/dto    0.088s
+ok      github.com/Wei-Shaw/sub2api/internal/handler/quotaview  0.038s
+ok      github.com/Wei-Shaw/sub2api/internal/middleware 13.709s
+ok      github.com/Wei-Shaw/sub2api/internal/model  0.008s
+ok      github.com/Wei-Shaw/sub2api/internal/payment    0.017s
+ok      github.com/Wei-Shaw/sub2api/internal/payment/provider   0.097s
+ok      github.com/Wei-Shaw/sub2api/internal/pkg/anthropicfp    0.004s
+ok      github.com/Wei-Shaw/sub2api/internal/pkg/antigravity    0.044s
+ok      github.com/Wei-Shaw/sub2api/internal/pkg/apicompat  0.033s
+ok      github.com/Wei-Shaw/sub2api/internal/pkg/claude 0.006s
+?       github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey [no test files]
+ok      github.com/Wei-Shaw/sub2api/internal/pkg/errors 0.005s
+ok      github.com/Wei-Shaw/sub2api/internal/pkg/gemini 0.003s
+ok      github.com/Wei-Shaw/sub2api/internal/pkg/geminicli  0.005s
+ok      github.com/Wei-Shaw/sub2api/internal/pkg/googleapi  0.005s
+ok      github.com/Wei-Shaw/sub2api/internal/pkg/httpclient 0.004s
+ok      github.com/Wei-Shaw/sub2api/internal/pkg/httputil   0.088s
+ok      github.com/Wei-Shaw/sub2api/internal/pkg/ip 0.009s
+ok      github.com/Wei-Shaw/sub2api/internal/pkg/logger 0.005s
+ok      github.com/Wei-Shaw/sub2api/internal/pkg/oauth  0.002s
+ok      github.com/Wei-Shaw/sub2api/internal/pkg/openai 0.007s
+ok      github.com/Wei-Shaw/sub2api/internal/pkg/openai_compat  0.002s
+ok      github.com/Wei-Shaw/sub2api/internal/pkg/pagination 0.004s
+ok      github.com/Wei-Shaw/sub2api/internal/pkg/proxyurl   0.003s
+ok      github.com/Wei-Shaw/sub2api/internal/pkg/proxyutil  0.005s
+ok      github.com/Wei-Shaw/sub2api/internal/pkg/redissession   0.007s
+ok      github.com/Wei-Shaw/sub2api/internal/pkg/requestmodel   0.004s
+ok      github.com/Wei-Shaw/sub2api/internal/pkg/response   0.013s
+ok      github.com/Wei-Shaw/sub2api/internal/pkg/servertiming   0.006s
+?       github.com/Wei-Shaw/sub2api/internal/pkg/sysutil    [no test files]
+ok      github.com/Wei-Shaw/sub2api/internal/pkg/timezone   0.003s
+ok      github.com/Wei-Shaw/sub2api/internal/pkg/tlsfingerprint 0.005s
+ok      github.com/Wei-Shaw/sub2api/internal/pkg/typesafe   0.143s
+ok      github.com/Wei-Shaw/sub2api/internal/pkg/usagestats 0.003s
+ok      github.com/Wei-Shaw/sub2api/internal/pkg/websearch  0.022s
+ok      github.com/Wei-Shaw/sub2api/internal/pkg/xai    0.415s
+ok      github.com/Wei-Shaw/sub2api/internal/planacceptance 0.111s
+ok      github.com/Wei-Shaw/sub2api/internal/platform/liveattestation   0.002s
+ok      github.com/Wei-Shaw/sub2api/internal/repository 11.828s
+ok      github.com/Wei-Shaw/sub2api/internal/requestledger  0.011s
+ok      github.com/Wei-Shaw/sub2api/internal/securityaudit  0.265s
+ok      github.com/Wei-Shaw/sub2api/internal/server 1.778s
+ok      github.com/Wei-Shaw/sub2api/internal/server/middleware  0.073s
+ok      github.com/Wei-Shaw/sub2api/internal/server/routes  14.799s
+ok      github.com/Wei-Shaw/sub2api/internal/service    203.830s
+ok      github.com/Wei-Shaw/sub2api/internal/service/openai_ws_v2   4.267s
+ok      github.com/Wei-Shaw/sub2api/internal/setup  0.143s
+?       github.com/Wei-Shaw/sub2api/internal/testutil   [no test files]
+?       github.com/Wei-Shaw/sub2api/internal/util/httputil  [no test files]
+ok      github.com/Wei-Shaw/sub2api/internal/util/logredact 0.008s
+ok      github.com/Wei-Shaw/sub2api/internal/util/responseheaders   0.011s
+ok      github.com/Wei-Shaw/sub2api/internal/util/urlvalidator  0.011s
+ok      github.com/Wei-Shaw/sub2api/internal/web    0.014s
+ok      github.com/Wei-Shaw/sub2api/migrations  0.108s
+ok      github.com/Wei-Shaw/sub2api/pkg/pluginapi/v1    0.024s
+ok      github.com/Wei-Shaw/sub2api/scripts 0.024s
+make[1]: Leaving directory '/workspace/sub2api-p1-binding-fix/backend'
