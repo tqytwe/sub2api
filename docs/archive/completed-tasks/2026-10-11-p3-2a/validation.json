@@ -1,0 +1,19 @@
+{
+  "baseline": "95c308f54e30fb6776b2215b6139fc25fa85b6d4",
+  "tdd": {
+    "red": "red.log.gz: explicit capability cases fail service and HTTP (expected404 actual503)",
+    "green": "green.log.gz: service 0.053s, handler 0.053s; diagnosis, mapping, mixed boundary, member restrictions, fail-open and existing classification regressions"
+  },
+  "inventory": "6279 files,209release files; no omissions; 3 detector tests pass",
+  "environment_failure": "First invocation used incorrect cwd and produced no valid RED. Stopped that process, freed only old task cache after /tmp exhaustion; valid RED is separately retained. Subsequent cache copied to task-private /workspace to avoid /tmp quota.",
+  "self_spec_review": "Three production files only; public error classification change explicit; ordinary429/unknown/expiry/peer/read failures preserved; admission/retry and entire package completion excluded.",
+  "self_quality_review": "Read-only existing metadata; no map writes, goroutines or persistence; malformed records safely ignored; panic/read-failure fallback retained.",
+  "independent_root_reviews": "pending: stable source ready",
+  "remaining_gates": "race, full backend tests/unit/lint/build/Fork checks and final CI pending",
+  "log_sha256": {
+    "detector.log.gz": "d2adbd9c522520adf203a9334589de8212a5c5b3d06ea5304746e7dfa1ef3a25",
+    "inventory.log.gz": "c5618ef9adcb83eb82d12465f6447bd8bc50cf242c34c04bdc4fab98ea1fdf05",
+    "green.log.gz": "41daa96f95617796d9ab4cf83369c69fa669f490a9035cd80a3a075ddcaf100e",
+    "red.log.gz": "7e7034000ee19872a84ce284ab36c5552384cb97516aeed3a160452a1a48ee61"
+  }
+}
