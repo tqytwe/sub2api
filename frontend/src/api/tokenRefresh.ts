@@ -24,14 +24,44 @@ export interface RefreshAuthTokensOptions {
   failedAccessToken?: string | null
 }
 
-interface AuthSnapshot {
-  accessToken: string | null
-  refreshToken: string
-  expiresAt: number
+export interface AuthSessionIdentity {
+  generation: number
   userID: number | null
 }
 
+interface AuthSnapshot extends AuthSessionIdentity {
+  accessToken: string | null
+  refreshToken: string
+  expiresAt: number
+}
+
 let inFlightRefresh: Promise<RefreshTokenResponse> | null = null
+let sessionGeneration = 0
+const sessionListeners = new Set<() => void>()
+
+export function getAuthSessionIdentity(): AuthSessionIdentity {
+  return { generation: sessionGeneration, userID: getStoredUserID() }
+}
+
+export function isAuthSessionCurrent(identity: AuthSessionIdentity): boolean {
+  return identity.generation === sessionGeneration && identity.userID === getStoredUserID()
+}
+
+// Login/logout starts a new session; token rotation within that session does not.
+export function invalidateAuthSession(): void {
+  sessionGeneration += 1
+  inFlightRefresh = null
+}
+
+export function subscribeAuthSession(listener: () => void): () => void {
+  sessionListeners.add(listener)
+  return () => { sessionListeners.delete(listener) }
+}
+
+// Same-document writes do not emit the browser's storage event. Publish no credentials.
+export function notifyAuthSessionChanged(): void {
+  sessionListeners.forEach(listener => listener())
+}
 
 function getStoredUserID(): number | null {
   const rawUser = localStorage.getItem(AUTH_USER_KEY)
@@ -54,10 +84,10 @@ function readAuthSnapshot(): AuthSnapshot {
   }
 
   return {
+    ...getAuthSessionIdentity(),
     accessToken: localStorage.getItem(AUTH_TOKEN_KEY),
     refreshToken,
     expiresAt: Number(localStorage.getItem(TOKEN_EXPIRES_AT_KEY)),
-    userID: getStoredUserID()
   }
 }
 
@@ -71,7 +101,7 @@ function readStoredTokenPair(snapshot: AuthSnapshot): RefreshTokenResponse | nul
     !refreshToken ||
     !Number.isFinite(expiresAt) ||
     expiresAt <= Date.now() ||
-    getStoredUserID() !== snapshot.userID
+    !isAuthSessionCurrent(snapshot)
   ) {
     return null
   }
@@ -154,7 +184,7 @@ async function requestTokenPair(
 
     if (
       localStorage.getItem(REFRESH_TOKEN_KEY) !== snapshot.refreshToken ||
-      getStoredUserID() !== snapshot.userID
+      !isAuthSessionCurrent(snapshot)
     ) {
       const peerResult = readPeerRefreshResult(snapshot, failedAccessToken)
       if (peerResult) {
@@ -190,6 +220,9 @@ async function requestTokenPair(
 async function runRefresh(options: RefreshAuthTokensOptions): Promise<RefreshTokenResponse> {
   const snapshot = readAuthSnapshot()
   const refresh = async (mayHaveUncoordinatedPeer = false): Promise<RefreshTokenResponse> => {
+    if (!isAuthSessionCurrent(snapshot)) {
+      throw new Error('Session changed during token refresh')
+    }
     const peerResult = readPeerRefreshResult(snapshot, options.failedAccessToken)
     if (peerResult) {
       return peerResult
@@ -217,7 +250,10 @@ export function refreshAuthTokens(
     return inFlightRefresh
   }
 
-  const pending = runRefresh(options)
+  const pending = runRefresh(options).then(tokens => {
+    notifyAuthSessionChanged()
+    return tokens
+  })
   inFlightRefresh = pending
   const clearPending = (): void => {
     if (inFlightRefresh === pending) {

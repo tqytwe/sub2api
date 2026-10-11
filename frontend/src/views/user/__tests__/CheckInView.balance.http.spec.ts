@@ -62,10 +62,10 @@ beforeEach(async () => {
   statusGets = 0
   posts = 0
   showSuccess.mockClear()
-  auth.token = 'fixture-only'
-  await auth.refreshUser()
+  await auth.setToken('fixture-only')
 })
 afterAll(async () => {
+  auth.$dispose()
   Object.assign(apiClient.defaults, original)
   server.closeAllConnections()
   await new Promise<void>(resolve => server.close(() => resolve()))
@@ -97,8 +97,7 @@ it('discards a profile from the previous account and reads the new account', asy
   id = 2
   balance = 3
   profileResponse = success
-  auth.token = 'second-fixture-only'
-  await auth.refreshUser()
+  await auth.setToken('second-fixture-only')
   json(pending!, 200, { id: 1, balance: 1 })
   await vi.waitFor(() => expect(wrapper.get('.gw-balance-value').text()).toBe('$3.00'))
   expect(auth.user?.id).toBe(2)

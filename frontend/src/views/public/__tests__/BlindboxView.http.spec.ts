@@ -1,4 +1,5 @@
 import { createServer, type Server, type ServerResponse } from 'node:http'
+import axios from 'axios'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { createI18n } from 'vue-i18n'
@@ -23,11 +24,15 @@ let wrapper: VueWrapper | undefined
 let gets = 0; let recents = 0; let posts = 0; let publicGets = 0
 let pendingPost: ServerResponse | undefined; let heldProfile: ServerResponse | undefined
 let holdProfile = false
+let expireAccess = false
+let renewals = 0
+let profileBalance = 1
 let statusData = { ...initial }
 let statusResponse: (res: ServerResponse) => void
 let recentResponse: (res: ServerResponse) => void
 const recent = (user = 'fixture-recent-user') => [{ user, reward: .2, when: '2026-10-11T00:00:00Z' }]
 const original = { baseURL: apiClient.defaults.baseURL, adapter: apiClient.defaults.adapter, timeout: apiClient.defaults.timeout }
+const rawOriginal = { baseURL: axios.defaults.baseURL, adapter: axios.defaults.adapter }
 const reply = (res: ServerResponse, data: unknown, status = 200) => {
   res.writeHead(status, { 'Content-Type': 'application/json', Connection: 'close' }); res.end(JSON.stringify({ code: status === 200 ? 0 : status, data }))
 }
@@ -38,41 +43,62 @@ beforeAll(async () => {
     else if (path === '/api/v1/play/blindbox/pool') { publicGets++; reply(res, { enabled: true, coupon_pool_ready: true }) }
     else if (path === '/api/v1/play/blindbox/recent') { recents++; recentResponse(res) }
     else if (path === '/api/v1/play/blindbox/open') { posts++; pendingPost = res }
+    else if (path === '/api/v1/auth/refresh') {
+      renewals++; reply(res, { access_token: 'fixture-renewed', refresh_token: 'fixture-refresh-renewed', expires_in: 3600, token_type: 'Bearer' })
+    }
     else if (path === '/api/v1/auth/me') {
-      if (holdProfile && req.headers.authorization === 'Bearer fixture-a') heldProfile = res
-      else reply(res, user(req.headers.authorization === 'Bearer fixture-b' ? 2 : 1))
+      if (expireAccess && req.headers.authorization === 'Bearer fixture-a') reply(res, {}, 401)
+      else if (holdProfile && req.headers.authorization === 'Bearer fixture-a') heldProfile = res
+      else reply(res, { ...user(req.headers.authorization === 'Bearer fixture-b' ? 2 : 1), balance: profileBalance })
     } else if (path === '/api/v1/auth/logout') reply(res, {})
     else reply(res, {}, 404)
   })
   await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
   const address = server.address(); if (!address || typeof address === 'string') throw new Error('Missing fixture')
   Object.assign(apiClient.defaults, { baseURL: `http://127.0.0.1:${address.port}/api/v1`, adapter: 'http' })
+  Object.assign(axios.defaults, { baseURL: `http://127.0.0.1:${address.port}`, adapter: 'http' })
 })
 beforeEach(() => {
   localStorage.clear(); sessionStorage.clear(); vi.clearAllMocks()
   pinia = createPinia(); setActivePinia(pinia); auth = useAuthStore()
   gets = 0; recents = 0; posts = 0; publicGets = 0; pendingPost = undefined; heldProfile = undefined; holdProfile = false
+  expireAccess = false; renewals = 0; profileBalance = 1
   statusData = { ...initial }; statusResponse = res => reply(res, statusData); recentResponse = res => reply(res, recent()); apiClient.defaults.timeout = 30000
 })
 afterEach(async () => { wrapper?.unmount(); wrapper = undefined; await auth.logout(); server.closeAllConnections() })
-afterAll(async () => { Object.assign(apiClient.defaults, original); await new Promise<void>(resolve => server.close(() => resolve())); vi.unstubAllGlobals() })
-async function signIn(id = 1) {
+afterAll(async () => { Object.assign(apiClient.defaults, original); Object.assign(axios.defaults, rawOriginal); await new Promise<void>(resolve => server.close(() => resolve())); vi.unstubAllGlobals() })
+async function signIn(id = 1, renewal?: 'proactive' | '401') {
   localStorage.setItem('auth_token', id === 1 ? 'fixture-a' : 'fixture-b'); localStorage.setItem('auth_user', JSON.stringify(user(id)))
+  if (renewal) {
+    localStorage.setItem('refresh_token', 'fixture-refresh')
+    localStorage.setItem('token_expires_at', String(Date.now() + (renewal === 'proactive' ? 120800 : 3600000)))
+  }
   auth.checkAuth(); await vi.waitFor(() => expect(auth.user?.id).toBe(id))
 }
-async function start(guest = false) {
-  if (!guest) await signIn()
+async function start(guest = false, renewal?: 'proactive' | '401') {
+  if (!guest) await signIn(1, renewal)
   wrapper = mount(BlindboxView, { global: { plugins: [pinia, i18n], stubs: {
     AuthenticatedPlayShell: { template: '<div><slot /></div>' }, PublicPageToolbar: true, PublicPlayBackLink: true,
     SupportFloatingCard: true, RouterLink: { template: '<a><slot /></a>' }, RewardCelebrationOverlay: { props: ['open'], template: '<div v-if="open" data-testid="visible-reward">reward</div>' },
   } } })
 }
-async function open() {
-  await start(); await vi.waitFor(() => expect(wrapper!.get('button.play-btn-primary').attributes('disabled')).toBeUndefined())
+async function open(renewal?: 'proactive' | '401') {
+  await start(false, renewal); await vi.waitFor(() => expect(wrapper!.get('button.play-btn-primary').attributes('disabled')).toBeUndefined())
   await wrapper!.get('button.play-btn-primary').trigger('click'); await vi.waitFor(() => expect(pendingPost).toBeDefined())
 }
 function commit() { reply(pendingPost!, { cost_amount: .5, reward_amount: .2, net_amount: -.3, reward_type: 'balance', opens_today: 1, pool_version: 'fixture', server_date: '2026-10-11' }) }
 describe('blindbox production Pinia/Axios through HTTP', () => {
+  it.each(['proactive', '401'] as const)('keeps the reward and synchronizes balance through native %s renewal', async renewal => {
+    await open(renewal)
+    if (renewal === 'proactive') await vi.waitFor(() => expect(auth.token).toBe('fixture-renewed'), { timeout: 2500 })
+    else expireAccess = true
+    profileBalance = .7; statusData = { ...initial, opens_today: 1 }; commit()
+    await vi.waitFor(() => expect(auth.user?.balance).toBe(.7))
+    expect(auth.token).toBe('fixture-renewed'); expect(renewals).toBe(1); expect(posts).toBe(1)
+    expect(wrapper!.find('[data-testid="visible-reward"]').exists()).toBe(true)
+    expect(sessionStorage.getItem('blindbox.pending-open:1')).toBeNull()
+    expect(showError).not.toHaveBeenCalled()
+  })
   it.each([403, 503, 0, 'timeout'] as const)('recovers a %s status read without showing disabled', async code => {
     statusResponse = res => { if (code === 0) res.destroy(); else if (code !== 'timeout') reply(res, {}, code) }
     if (code === 'timeout') apiClient.defaults.timeout = 100

@@ -64,6 +64,8 @@
 | [v182 P0 文档与订阅契约](./V182_P0_DOCS_SUBSCRIPTIONS_CONTRACT.md) | `proposal` | 同源文档路由、CSP/XFO、语言竞态与订阅 API 边界 | 平台与前端维护者 | 2026-08-29 |
 | [v182 P1 首页与公开状态契约](./V182_P1_HOME_STATUS_CONTRACT.md) | `proposal` | 首页首屏、公开状态 API、指标水位与 freshness 口径 | 产品与前端维护者 | 2026-08-29 |
 | [v182 Growth Qualification Contract](./V182_GROWTH_QUALIFICATION_CONTRACT.md) | `proposal` | 签到答题资格、成长能量、奖励账本与 cohort 观测规则 | Growth 维护者 | 2026-08-29 |
+| [批量图片台账精确钻取](./archive/completed-tasks/batch-image-ledger/README.md) | `active` | capture/usage/task 精确凭据、冻结价格与验证范围；部署另行协调 | 计费维护者 | 2026-10-10 |
+| [批量图片台账视觉证据](./visual-reviews/2026-10-10-batch-image-ledger.md) | `historical` | 隔离环境实际构建资源及原型/响应式证据 | 本批提交者 | 2026-10-10 |
 
 ## 仓库入口与上游参考
 
@@ -102,3 +104,5 @@
 
 - [答题与盲盒福利闭环技术记录](./archive/completed-tasks/2026-10-welfare-games/README.md) — `in-progress`，隔离 HTTP/PG/Vue 证据，未部署。
 - [答题与盲盒视觉记录](./visual-reviews/2026-10-11-welfare-games.md) — `in-progress`，既有风格内的状态与恢复。
+
+- [原生自动续期与福利登录态同步](./archive/completed-tasks/2026-10-auth-refresh/README.md) — `in-progress`，隔离 HTTP、构建资源与 PG 回归；草稿交付，不代表部署。

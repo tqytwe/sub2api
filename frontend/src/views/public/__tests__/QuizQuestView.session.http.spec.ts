@@ -88,13 +88,10 @@ function commit() {
   reply(pending!, { score: 1, total: 1, reward_amount: .1, reward_type: 'balance' })
 }
 describe('quiz session ownership through real Pinia and HTTP', () => {
-  it.each(['submit', 'result-read'] as const)('reconciles pending %s after automatic token renewal and session restoration', async stage => {
+  it.each(['submit', 'result-read'] as const)('reconciles pending %s after native automatic token renewal', async stage => {
     await start(true)
     if (stage === 'result-read') { holdRead = true; commit(); await vi.waitFor(() => expect(pendingRead).toBeDefined()) }
     await vi.waitFor(() => expect(localStorage.getItem('auth_token')).toBe('fixture-renewed'), { timeout: 2500 })
-    // The shared store currently persists a rotation before its state guard. Restore
-    // through its public lifecycle, without mocking token refresh or assigning state.
-    auth.checkAuth()
     await vi.waitFor(() => expect(auth.token).toBe('fixture-renewed'))
     await new Promise(resolve => setTimeout(resolve, 80))
     expect(renewals).toBe(1)

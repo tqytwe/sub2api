@@ -1,4 +1,5 @@
 export default {
+  imageCount: 'Image count', batchId: 'Batch ID', batchSettled: 'This batch is settled',
   exactEvidence: "Exact correlation evidence",
   evidenceNotice: "Identifiers are diagnostic evidence, not proof of usage or charges. Metadata is written asynchronously; history or diagnostic failures may leave gaps. Empty fields do not prove that the upstream omitted identifiers.",
   evidenceUnavailable: "Correlation evidence is temporarily unavailable. Execution and billing details remain available. Refresh to retry.",

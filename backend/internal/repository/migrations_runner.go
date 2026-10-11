@@ -73,6 +73,8 @@ const publicStatusTTFTWindowIndexMigration = "264_public_status_ttft_window_inde
 const publicStatusTTFTWindowIndex = "idx_usage_logs_public_status_ttft_window"
 const growthEligibilityOrdersIndexMigration = "265_play_growth_eligibility_orders_index_notx.sql"
 const growthEligibilityOrdersIndex = "idx_payment_orders_growth_eligibility_balance_completed"
+const batchImageLedgerReconcileIndexMigration = "277_batch_image_ledger_reconcile_index_notx.sql"
+const batchImageLedgerReconcileIndex = "gateway_requests_batch_reconcile_idx"
 const onlineMigrationLockTimeout = "5s"
 
 var imageStudioPersistentJobsIndexes = []string{
@@ -396,6 +398,8 @@ func prepareNonTransactionalMigration(ctx context.Context, db migrationConnectio
 		return dropInvalidIndexIfPresent(ctx, db, publicStatusTTFTWindowIndex)
 	case growthEligibilityOrdersIndexMigration:
 		return dropInvalidIndexIfPresent(ctx, db, growthEligibilityOrdersIndex)
+	case batchImageLedgerReconcileIndexMigration:
+		return dropInvalidIndexIfPresent(ctx, db, batchImageLedgerReconcileIndex)
 	default:
 		return nil
 	}

@@ -22,6 +22,13 @@ type WalletReference struct {
 	Operation string `json:"operation"`
 }
 
+// Match migration277's partial index. Routes bound candidate scanning only;
+// ownership and committed proof below are still required for every annotation.
+const taskBillingCandidates = `SELECT r.id FROM gateway_requests r
+ WHERE (r.settlement_state='settlement_pending'
+ OR (r.settlement_state='not_required' AND r.route IN ('/v1/images/batches','async/image_batch')))
+ ORDER BY r.reconcile_checked_at NULLS FIRST,r.id LIMIT 1000 FOR UPDATE OF r SKIP LOCKED`
+
 func (l *Ledger) WalletReferences(ctx context.Context, viewer Viewer, id string) ([]WalletReference, error) {
 	if _, err := l.Get(ctx, viewer, id); err != nil {
 		return nil, err
@@ -51,15 +58,14 @@ func (l *Ledger) WalletReferences(ctx context.Context, viewer Viewer, id string)
 func (l *Ledger) ReconcileTaskBilling(ctx context.Context) error {
 	ctx, cancel := detachedWrite(ctx)
 	defer cancel()
-	_, err := l.db.ExecContext(ctx, `WITH candidates AS (
- SELECT r.id FROM gateway_requests r WHERE r.settlement_state='settlement_pending'
- ORDER BY r.reconcile_checked_at NULLS FIRST,r.id LIMIT 1000 FOR UPDATE OF r SKIP LOCKED
- ), evidence AS (
+	_, err := l.db.ExecContext(ctx, `WITH candidates AS (`+taskBillingCandidates+`), evidence AS (
  SELECT r.id,NOT EXISTS(SELECT 1 FROM gateway_request_billing_links b WHERE b.request_id=r.id AND NOT b.settlement_verified)
- AND EXISTS(SELECT 1 `+taskWalletEvidence+` AND bt.source_type IN ('video_balance_capture','video_balance_release','image_balance_capture','image_balance_release')) AS verified
+ AND (EXISTS(SELECT 1 `+taskWalletEvidence+` AND bt.source_type IN ('video_balance_capture','video_balance_release','image_balance_capture','image_balance_release'))
+ OR EXISTS(SELECT 1 `+batchCaptureUsageEvidence+` AND t.request_id=r.id)) AS verified,
+ EXISTS(SELECT 1 `+taskWalletEvidence+` AND t.task_kind='image_batch' AND bt.source_type='image_balance_hold') AS reserved
  FROM gateway_requests r JOIN candidates c ON c.id=r.id)
  UPDATE gateway_requests r SET reconcile_checked_at=clock_timestamp(),
- settlement_state=CASE WHEN e.verified THEN 'settled' ELSE r.settlement_state END FROM evidence e WHERE r.id=e.id`)
+ settlement_state=CASE WHEN e.verified THEN 'settled' WHEN e.reserved THEN 'settlement_pending' ELSE r.settlement_state END FROM evidence e WHERE r.id=e.id`)
 	if err != nil {
 		return ErrUnavailable
 	}

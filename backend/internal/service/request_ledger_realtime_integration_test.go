@@ -7,8 +7,10 @@ import (
 	"fmt"
 	"github.com/Wei-Shaw/sub2api/internal/requestledger"
 	"github.com/Wei-Shaw/sub2api/internal/requestledger/ledgertest"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"testing"
+	"time"
 )
 
 func TestRequestLedgerRealtimeCapacityRejectionStillPersistsTurn(t *testing.T) {
@@ -92,6 +94,7 @@ func TestRequestLedgerRealtimeLateTerminalCannotConsumeNextTurn(t *testing.T) {
 	require.NoError(t, requestledger.BindIdentity(ctx, 101, 201))
 	audit := newRealtimeLedgerAudit(ctx, &Account{ID: 234})
 	require.NoError(t, audit.BeforeWrite([]byte(`{"type":"response.create"}`)))
+	firstID := audit.pending[0].handle.ID
 	first := []byte(`{"type":"response.done","response":{"id":"resp_first","status":"completed"}}`)
 	require.NoError(t, audit.Observe(first))
 	require.NoError(t, audit.BeforeWrite([]byte(`{"type":"response.create"}`)))
@@ -102,9 +105,16 @@ func TestRequestLedgerRealtimeLateTerminalCannotConsumeNextTurn(t *testing.T) {
 	require.NoError(t, db.QueryRow(`SELECT execution_state FROM gateway_requests WHERE id=$1`, secondID).Scan(&state))
 	require.Equal(t, "inflight", state)
 	require.NoError(t, audit.Observe([]byte(`{"type":"response.done","response":{"id":"resp_second","status":"failed"}}`)))
-	var responseID string
-	require.NoError(t, db.QueryRow(`SELECT upstream_response_id FROM gateway_request_attempt_evidence WHERE request_id=$1`, secondID).Scan(&responseID))
-	require.Equal(t, "resp_second", responseID)
+	// Terminal state commits synchronously, but identifier evidence is queued.
+	// Wait for both exact IDs, so a delayed/dropped or misattributed write still
+	// fails instead of racing the asynchronous writer (or closing its database).
+	require.EventuallyWithT(t, func(c *assert.CollectT) {
+		for requestID, want := range map[string]string{firstID: "resp_first", secondID: "resp_second"} {
+			var responseID string
+			require.NoError(c, db.QueryRow(`SELECT upstream_response_id FROM gateway_request_attempt_evidence WHERE request_id=$1`, requestID).Scan(&responseID))
+			require.Equal(c, want, responseID)
+		}
+	}, 5*time.Second, 10*time.Millisecond)
 	audit.Close(nil)
 }
 
