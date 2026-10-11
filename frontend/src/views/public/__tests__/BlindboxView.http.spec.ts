@@ -1,5 +1,5 @@
 import { createServer, type Server, type ServerResponse } from 'node:http'
-import { mount, type VueWrapper } from '@vue/test-utils'
+import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { createI18n } from 'vue-i18n'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -25,6 +25,8 @@ let pendingPost: ServerResponse | undefined; let heldProfile: ServerResponse | u
 let holdProfile = false
 let statusData = { ...initial }
 let statusResponse: (res: ServerResponse) => void
+let recentResponse: (res: ServerResponse) => void
+const recent = (user = 'fixture-recent-user') => [{ user, reward: .2, when: '2026-10-11T00:00:00Z' }]
 const original = { baseURL: apiClient.defaults.baseURL, adapter: apiClient.defaults.adapter, timeout: apiClient.defaults.timeout }
 const reply = (res: ServerResponse, data: unknown, status = 200) => {
   res.writeHead(status, { 'Content-Type': 'application/json', Connection: 'close' }); res.end(JSON.stringify({ code: status === 200 ? 0 : status, data }))
@@ -34,7 +36,7 @@ beforeAll(async () => {
     const path = req.url?.split('?')[0]
     if (path === '/api/v1/play/blindbox/status') { gets++; statusResponse(res) }
     else if (path === '/api/v1/play/blindbox/pool') { publicGets++; reply(res, { enabled: true, coupon_pool_ready: true }) }
-    else if (path === '/api/v1/play/blindbox/recent') { recents++; reply(res, [{ user: 'fixture-recent-user', reward: .2, when: '2026-10-11T00:00:00Z' }]) }
+    else if (path === '/api/v1/play/blindbox/recent') { recents++; recentResponse(res) }
     else if (path === '/api/v1/play/blindbox/open') { posts++; pendingPost = res }
     else if (path === '/api/v1/auth/me') {
       if (holdProfile && req.headers.authorization === 'Bearer fixture-a') heldProfile = res
@@ -50,7 +52,7 @@ beforeEach(() => {
   localStorage.clear(); sessionStorage.clear(); vi.clearAllMocks()
   pinia = createPinia(); setActivePinia(pinia); auth = useAuthStore()
   gets = 0; recents = 0; posts = 0; publicGets = 0; pendingPost = undefined; heldProfile = undefined; holdProfile = false
-  statusData = { ...initial }; statusResponse = res => reply(res, statusData); apiClient.defaults.timeout = 30000
+  statusData = { ...initial }; statusResponse = res => reply(res, statusData); recentResponse = res => reply(res, recent()); apiClient.defaults.timeout = 30000
 })
 afterEach(async () => { wrapper?.unmount(); wrapper = undefined; await auth.logout(); server.closeAllConnections() })
 afterAll(async () => { Object.assign(apiClient.defaults, original); await new Promise<void>(resolve => server.close(() => resolve())); vi.unstubAllGlobals() })
@@ -167,5 +169,42 @@ describe('blindbox qualification failure recovery', () => {
     await wrapper!.get('[data-testid="blindbox-status-retry"]').trigger('click')
     await vi.waitFor(() => expect(wrapper!.text()).toContain('fixture-recent-user'))
     expect(recents).toBe(before + 1)
+  })
+})
+
+describe('blindbox same-account qualification invalidation', () => {
+  it('clears an already displayed public feed after settlement qualification fails and restores it on retry', async () => {
+    await open(); await vi.waitFor(() => expect(wrapper!.text()).toContain('fixture-recent-user'))
+    statusResponse = res => reply(res, {}, 503); commit()
+    await vi.waitFor(() => expect(wrapper!.find('[role="alert"]').exists()).toBe(true))
+    expect(wrapper!.text()).not.toContain('fixture-recent-user'); expect(recents).toBe(1)
+    statusResponse = res => reply(res, initial); recentResponse = res => reply(res, recent('current-recent-user'))
+    await wrapper!.get('[data-testid="blindbox-status-retry"]').trigger('click')
+    await vi.waitFor(() => expect(wrapper!.text()).toContain('current-recent-user'))
+    expect(posts).toBe(1); expect(recents).toBe(2)
+  })
+  it.each(['before-retry', 'after-retry'] as const)('ignores a real delayed public feed after qualification becomes unknown (%s)', async arrival => {
+    let heldRecent: ServerResponse | undefined; let oldResponseObserved = false
+    const observer = apiClient.interceptors.response.use(response => {
+      if (response.config.url?.endsWith('/blindbox/recent') && response.data?.[0]?.user === 'old-recent-user') oldResponseObserved = true
+      return response
+    })
+    try {
+      recentResponse = res => { heldRecent = res }
+      await open(); await vi.waitFor(() => expect(heldRecent).toBeDefined())
+      statusResponse = res => reply(res, {}, 503); commit()
+      await vi.waitFor(() => expect(wrapper!.find('[role="alert"]').exists()).toBe(true))
+      const releaseOld = async () => {
+        reply(heldRecent!, recent('old-recent-user'))
+        await vi.waitFor(() => expect(oldResponseObserved).toBe(true)); await flushPromises()
+        expect(wrapper!.text()).not.toContain('old-recent-user')
+      }
+      if (arrival === 'before-retry') await releaseOld()
+      statusResponse = res => reply(res, initial); recentResponse = res => reply(res, recent('current-recent-user'))
+      await wrapper!.get('[data-testid="blindbox-status-retry"]').trigger('click')
+      await vi.waitFor(() => expect(wrapper!.text()).toContain('current-recent-user'))
+      if (arrival === 'after-retry') await releaseOld()
+      expect(wrapper!.text()).toContain('current-recent-user'); expect(posts).toBe(1); expect(recents).toBe(2)
+    } finally { apiClient.interceptors.response.eject(observer) }
   })
 })

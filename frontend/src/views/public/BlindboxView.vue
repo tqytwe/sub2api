@@ -351,6 +351,9 @@ async function loadStatus() {
     status.value = null
     publicPool.value = null
     statusLoadFailed.value = true
+    recentRequestID += 1
+    recentWins.value = []
+    recentWinsFailed.value = false
   } finally {
     if (requestID === statusRequestID) {
       loading.value = false

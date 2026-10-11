@@ -45,7 +45,8 @@
     "docs/visual-reviews/assets/welfare-games/prototype-quiz-recovered-balance.png",
     "docs/visual-reviews/assets/welfare-games/prototype-blindbox-logout-cleared.png",
     "docs/visual-reviews/assets/welfare-games/prototype-blindbox-switch-cleared.png",
-    "docs/visual-reviews/assets/welfare-games/prototype-blindbox-failed-qualification-hidden.png"
+    "docs/visual-reviews/assets/welfare-games/prototype-blindbox-failed-qualification-hidden.png",
+    "docs/visual-reviews/assets/welfare-games/prototype-blindbox-settled-qualification-hidden.png"
   ],
   "baseline_artifacts": [
     "docs/visual-reviews/assets/welfare-games/baseline-quiz-503.png",
@@ -54,7 +55,8 @@
     "docs/visual-reviews/assets/welfare-games/baseline-quiz-stale-balance.png",
     "docs/visual-reviews/assets/welfare-games/baseline-blindbox-logout-reward.png",
     "docs/visual-reviews/assets/welfare-games/baseline-blindbox-switch-prize.png",
-    "docs/visual-reviews/assets/welfare-games/baseline-blindbox-failed-qualification-feed.png"
+    "docs/visual-reviews/assets/welfare-games/baseline-blindbox-failed-qualification-feed.png",
+    "docs/visual-reviews/assets/welfare-games/baseline-blindbox-settled-qualification-feed.png"
   ],
   "updated_artifacts": [
     "docs/visual-reviews/assets/welfare-games/updated-blindbox-1280-zh-light-error.png",
@@ -79,6 +81,8 @@
     "docs/visual-reviews/assets/welfare-games/updated-blindbox-logout-cleared.png",
     "docs/visual-reviews/assets/welfare-games/updated-blindbox-qualified-recent-restored.png",
     "docs/visual-reviews/assets/welfare-games/updated-blindbox-recovered-reward.png",
+    "docs/visual-reviews/assets/welfare-games/updated-blindbox-settled-qualification-failed.png",
+    "docs/visual-reviews/assets/welfare-games/updated-blindbox-settled-qualification-retried.png",
     "docs/visual-reviews/assets/welfare-games/updated-blindbox-switch-cleared.png",
     "docs/visual-reviews/assets/welfare-games/updated-blindbox-switch-failed-qualification.png",
     "docs/visual-reviews/assets/welfare-games/updated-blindbox-switch-qualification-retried.png",
@@ -163,4 +167,6 @@
 
 无生产访问、合并或部署。服务器浏览器不能替代用户本机验收。仅验证前一日历史不占当前日次数，未推进真实服务器时钟跨午夜。组队、擂台、推广、券包和运营页未按本批标准验收。
 
-质量补证：资格GET失败时不读登录用户的中奖动态，重试成功后恢复；先实际构建截图与DOM原型，正式HTTP mount/switch两项RED后GREEN。最终构建已重新绑定d5657790；不沿用质量修复前的3923b138报告。
+质量补证：资格GET失败时不读登录用户的中奖动态，重试成功后恢复；先实际构建截图与DOM原型，正式HTTP mount/switch两项RED后GREEN。该轮构建d5657790为初始PR历史证据；最终根级补证另见下文。
+
+根级审查补证：同账号结算后的资格GET失败仍保留已展示/迟到的公开匿名化中奖动态。先实际构建baseline/prototype，后真实Axios已显示与延迟乱序RED。修复仅使资格失败时清空动态/旧动态错误并失效在途代次；属于页面状态一致性，不是已证实私有泄漏，也不改变公开接口规则。新版构建 index `fbff6b8fd39679d7c454486a0131ec0e343d3871c001926ad79d7e7285962e61` 已验证盲盒8组：新增资格失败空动态及重试恢复截图，真实HTTP另覆盖旧响应在重试前/后到达。

@@ -18,7 +18,7 @@ ROOT = Path(__file__).resolve().parents[4]
 OUT = ROOT / 'docs/visual-reviews/assets/welfare-games'
 OUT.mkdir(parents=True, exist_ok=True)
 p = argparse.ArgumentParser()
-p.add_argument('--phase', choices=['baseline', 'quiz-repro', 'quiz-balance-repro', 'blindbox-repro', 'blindbox-updated', 'blindbox-identity-repro', 'blindbox-quality-repro', 'updated'], required=True)
+p.add_argument('--phase', choices=['baseline', 'quiz-repro', 'quiz-balance-repro', 'blindbox-repro', 'blindbox-updated', 'blindbox-identity-repro', 'blindbox-quality-repro', 'blindbox-settlement-repro', 'updated'], required=True)
 p.add_argument('--dist', required=True)
 args = p.parse_args()
 dist = Path(args.dist).resolve()
@@ -141,6 +141,14 @@ def capture(page, name):
     }''')
     page.screenshot(path=str(OUT / (name+'.png')), full_page=True, animations='disabled')
 
+def select_quiz_answers(page):
+    expect(page.locator('.quiz-question-card')).to_have_count(2)
+    expect(page.locator('.play-page')).to_have_attribute('aria-busy', 'false')
+    for question in page.locator('.quiz-question-card').all():
+        question.locator('label').first.click()
+        expect(question.locator('input[type="radio"]').first).to_be_checked()
+    expect(page.locator('button.play-btn-primary')).to_be_enabled()
+
 def context_for(browser, width=1280, theme='light', guest=False):
     context = browser.new_context(viewport=dict(width=width, height=900), reduced_motion='reduce')
     script = 'window.__APP_CONFIG__='+json.dumps(SETTINGS)+';localStorage.setItem("theme",'+json.dumps(theme)+');'
@@ -184,6 +192,7 @@ with sync_playwright() as pw:
     if args.phase == 'quiz-balance-repro':
         state.update(code=0,enabled=True,empty=False,submitted=False,reward='balance');USER['balance']=1
         context=context_for(browser);page=context.new_page();page.goto(origin+'/quiz-quest?lang=zh',wait_until='networkidle')
+        expect(page.locator('.quiz-question-card')).to_have_count(2)
         for question in page.locator('.quiz-question-card').all():question.locator('label').first.click()
         assert context.request.post(origin+'/api/v1/play/quiz/submit').status==200
         page.locator('button.play-btn-primary').click()
@@ -208,6 +217,23 @@ with sync_playwright() as pw:
         }''')
         capture(page,'prototype-blindbox-recovery-and-weights');context.close()
         reports.append(dict(case='blindbox-pending-recovery-and-known-weights',prototype='DOM preview only',reward='redeem_code',opens_today=2))
+    if args.phase in ['blindbox-settlement-repro', 'blindbox-updated']:
+        BB.update(opens=0,reward='redeem_code',known=True,code=0,delay=0,enabled=True,ready=True,energy=False,lose=False,results={});USER['balance']=1
+        context=context_for(browser);page=context.new_page();page.goto(origin+'/blindbox?lang=zh',wait_until='networkidle')
+        expect(page.get_by_text('fixture-recent-user')).to_be_visible();before=BB['recents'];before_posts=BB['posts'];BB['code']=503
+        page.locator('.play-action-panel button.play-btn-primary').click();expect(page.get_by_role('dialog')).to_contain_text('FIXTURE-REWARD')
+        page.get_by_role('button',name='关闭',exact=True).click();expect(page.get_by_test_id('blindbox-status-retry')).to_be_visible()
+        if args.phase=='blindbox-settlement-repro':
+            expect(page.get_by_text('fixture-recent-user')).to_be_visible();capture(page,'baseline-blindbox-settled-qualification-feed')
+            page.locator('.play-wins-list').evaluate("el=>el.innerHTML='<li>暂无公开中奖记录，开启后的奖励会即时入账。</li>'")
+            page.locator('.play-mini-value').nth(2).evaluate("el=>el.textContent='0'");capture(page,'prototype-blindbox-settled-qualification-hidden')
+        else:
+            expect(page.get_by_text('fixture-recent-user')).to_have_count(0);assert BB['recents']==before
+            capture(page,'updated-blindbox-settled-qualification-failed')
+            BB['code']=0;page.get_by_test_id('blindbox-status-retry').click();expect(page.get_by_text('fixture-recent-user')).to_be_visible()
+            assert BB['recents']==before+1 and BB['posts']==before_posts+1
+            capture(page,'updated-blindbox-settled-qualification-retried')
+        reports.append(dict(case='blindbox-same-account-settlement-qualification-failure',stale_public_feed_cleared=args.phase=='blindbox-updated',retry_restores_feed=args.phase=='blindbox-updated',posts=1));context.close()
     if args.phase=='blindbox-quality-repro':
         BB.update(opens=0,known=True,code=503,energy=False);USER['balance']=1
         context=context_for(browser);page=context.new_page();page.goto(origin+'/blindbox?lang=zh',wait_until='networkidle')
@@ -307,7 +333,7 @@ with sync_playwright() as pw:
             expect(page.locator('.quiz-question-card')).to_have_count(2)
             assert state['gets']==before+1
             state['delay']=0
-            for question in page.locator('.quiz-question-card').all():question.locator('label').first.click()
+            select_quiz_answers(page)
             capture(page,f'updated-quiz-{width}-{lang}-{theme}-ready')
             button=page.locator('button.play-btn-primary');button.focus();button.press('Enter')
             expect(page.locator('.quiz-question-card')).to_have_count(0)
@@ -330,7 +356,7 @@ with sync_playwright() as pw:
         state.update(code=0,enabled=True,empty=False,submitted=False,reward='redeem_code')
         USER['balance']=1
         context=context_for(browser);page=context.new_page();page.goto(origin+'/quiz-quest?lang=zh',wait_until='networkidle')
-        for question in page.locator('.quiz-question-card').all():question.locator('label').first.click()
+        select_quiz_answers(page)
         page.locator('button.play-btn-primary').click()
         expect(page.get_by_text('今日得分 2/2 · 兑换码 FIXTURE-REWARD 已发放',exact=True).first).to_be_visible()
         expect(page.get_by_text('得分 2/2 · 到账 $0.00',exact=True)).to_have_count(0)
@@ -338,7 +364,7 @@ with sync_playwright() as pw:
         reports.append(dict(case='quiz-redeem-toast',cash_toast=False))
         state.update(code=0,enabled=True,empty=False,submitted=False,reward='balance',lose=False);USER['balance']=1
         context=context_for(browser);page=context.new_page();page.goto(origin+'/quiz-quest?lang=zh',wait_until='networkidle')
-        for question in page.locator('.quiz-question-card').all():question.locator('label').first.click()
+        select_quiz_answers(page)
         before_gets=state['gets'];before_posts=state['posts']
         page.evaluate('''() => { document.querySelector('button.play-btn-primary').click(); document.querySelector('[data-testid="refresh-quiz"]').click(); }''')
         expect(page.locator('.play-page')).to_have_attribute('aria-busy','false')
@@ -350,7 +376,7 @@ with sync_playwright() as pw:
         for recovery in ['duplicate', 'unknown']:
             state.update(code=0,enabled=True,empty=False,submitted=False,reward='balance',lose=False);USER['balance']=1
             context=context_for(browser);page=context.new_page();page.goto(origin+'/quiz-quest?lang=zh',wait_until='networkidle')
-            for question in page.locator('.quiz-question-card').all():question.locator('label').first.click()
+            select_quiz_answers(page)
             before=state['posts']
             if recovery=='duplicate':
                 assert context.request.post(origin+'/api/v1/play/quiz/submit').status==200

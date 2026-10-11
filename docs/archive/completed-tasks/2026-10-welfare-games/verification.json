@@ -4,10 +4,15 @@
     "backend/internal/handler/play_handler_extended.go": "bd77c041171279070d2f6130a76769020045e45851ef7e319a719e83d83c8e3e",
     "frontend/src/api/play.ts": "62e30aba41709c3cff814345ca9e1f86872cbfcf7dcde51809a4d56637d61f3c",
     "frontend/src/views/public/QuizQuestView.vue": "e6b3094759a261ba087429219f5781e9d6b39c657c2cd44d73398eac9072b3ad",
-    "frontend/src/views/public/BlindboxView.vue": "bcca729aad7485135068bd0129cd6f7fcbd63f4d116fff9e665fecbbe35bf103",
+    "frontend/src/views/public/BlindboxView.vue": "fce7fb6fa3f8365f5a840c66c9127030c77c362c04a6047676e162dceaad7e4a",
     "frontend/src/i18n/locales/jisudeng-pages.zh.ts": "a46daf208228bba874aa37e858636fd67641b3528d0949ff7e29bfd01f68d2f5",
     "frontend/src/i18n/locales/jisudeng-pages.en.ts": "881c704079c4e20d7d2a19d6a569029a332300ef22f1f4a0cb4594942608387a",
-    "frontend/src/views/public/__tests__/QuizQuestView.session.http.spec.ts": "101dd2ff8280552b2eeec78db72d742e656cf11947075dbab03fd08734ae74b5"
+    "frontend/src/views/public/__tests__/QuizQuestView.session.http.spec.ts": "101dd2ff8280552b2eeec78db72d742e656cf11947075dbab03fd08734ae74b5",
+    "backend/internal/repository/play_blindbox_welfare_http_integration_test.go": "9f5aa2eadd33e3e3b70d93178d5ec2f0d02d3738265ac3731c877e9bd5bce92c",
+    "frontend/src/views/public/__tests__/BlindboxView.http.spec.ts": "335615c2ea39b589929f9e56cbef8387f4cf7bcaa0dfca5fba0264305317c693",
+    "frontend/src/views/public/__tests__/BlindboxView.pg.spec.ts": "370c4f6f868a68ac969d4cab4469de7b55c2fce639816766fbe2a2118ee74044",
+    "frontend/src/views/public/__tests__/BlindboxView.spec.ts": "728fcb51ab670fb2924daeda22d0470f02ccda42e88024de6967732f5760efd8",
+    "docs/archive/completed-tasks/2026-10-welfare-games/browser.py": "3fa9ccfc53853ed79991feeebd2fae2d53f643534fa9a23451211949e3a7aa92"
   },
   "logs": {
     "/tmp/p3-blindbox-reviewed-green.log": {
@@ -69,6 +74,50 @@
     "/tmp/p3-welfare-handoff-quality-final.log": {
       "sha256": "2b0a71e1a933543b0fd97e4ca97cd1d91328157320901a7995bd273b601e11ba",
       "result": "passed; handoff reports production items pending without claiming acceptance"
+    },
+    "/tmp/p3-blindbox-root-review-red.log": {
+      "sha256": "bd97419afc1eec7d38d7e7a2661f9578534cc972a92442650634b51bdb45c0a0",
+      "result": "Root RED: 2 failed, 20 passed"
+    },
+    "/tmp/p3-blindbox-root-review-green.log": {
+      "sha256": "bbd5cfd647428f441f1206f7cfe92c3040899311f7f064bfcc12809e4f594d6f",
+      "result": "Root GREEN: 52 passed"
+    },
+    "/tmp/p3-welfare-build-root-review.log": {
+      "sha256": "a441d8cffb2e834b34be26ed4687cf9fd2f73b8a5a769b355229788eb1ca882c",
+      "result": "Current root make build passed"
+    },
+    "/tmp/p3-welfare-contract-root-review.log": {
+      "sha256": "aa0950ceb624ff1ad1ee1bdb9e6630f272eaad349ed95952c3e4d15ce8685a2f",
+      "result": "Current real PG/HTTP/Vue contract passed, 133.363s"
+    },
+    "/tmp/p3-welfare-fork-root-review.log": {
+      "sha256": "4d6d49b3afc6e07f6af1e6d0c6ad592774ba1a0d742363402a181acae895d3b2",
+      "result": "Current Fork integrity passed"
+    },
+    "/tmp/p3-blindbox-browser-root-review.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "result": "Current built Blindbox browser 8 groups passed"
+    },
+    "/tmp/p3-quiz-browser-root-review-retry.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "result": "Current built Quiz browser 9 groups passed"
+    },
+    "/tmp/p3-welfare-test-root-review.log": {
+      "sha256": "ac107e97ee52d041ae1cbbdbd3275c6a89f2b05737f6b0b9643646625c7a7877",
+      "result": "Current make test exit0: backend default tests/lint, frontend lint/typecheck; 499 files passed /3 skipped, 3597 tests passed /8 skipped; PG-specific tests independently executed"
+    },
+    "/tmp/p3-welfare-design-root-review.log": {
+      "sha256": "880d4249c50818f6874d37bfdbee297ff4952c88486e08b83fbab130d7244eb8",
+      "result": "Current design governance passed"
+    },
+    "/tmp/p3-welfare-docs-root-review.log": {
+      "sha256": "236309252b13b2c591251dfb3dcb8de80ea201df936386581a99fa47dfc9b41a",
+      "result": "Current documentation links passed"
+    },
+    "/tmp/p3-welfare-handoff-root-review.log": {
+      "sha256": "2b0a71e1a933543b0fd97e4ca97cd1d91328157320901a7995bd273b601e11ba",
+      "result": "Current handoff structural check passed; production items remain pending"
     }
   },
   "browsers": {
@@ -135,10 +184,16 @@
           "reload": false
         }
       ],
-      "index_sha256": "d565779025b9910ddb0b2e53b346f48685170a564aff4d8398acf9ae13df291d"
+      "index_sha256": "fbff6b8fd39679d7c454486a0131ec0e343d3871c001926ad79d7e7285962e61"
     },
     "blindbox-updated": {
       "reports": [
+        {
+          "case": "blindbox-same-account-settlement-qualification-failure",
+          "stale_public_feed_cleared": true,
+          "retry_restores_feed": true,
+          "posts": 1
+        },
         {
           "case": "blindbox-identity-isolation",
           "logout_clears_reward": true,
@@ -212,11 +267,11 @@
           "explorer_reward_details": false
         }
       ],
-      "index_sha256": "d565779025b9910ddb0b2e53b346f48685170a564aff4d8398acf9ae13df291d"
+      "index_sha256": "fbff6b8fd39679d7c454486a0131ec0e343d3871c001926ad79d7e7285962e61"
     }
   },
   "remaining": [
-    "Draft PR creation and exact-head hosted CI; tracked in PR/final delivery record, not inferred from local gates"
+    "Follow-up push and exact new-head hosted CI; tracked in PR and external delivery record"
   ],
   "limitations": [
     "Synthetic auth only; not JWT/production acceptance",
@@ -229,5 +284,36 @@
     "sha256": "7c8192c8170dde945f15e939d1bfaf160e8ad1f5cada35d97d3d4dd50a4b0dbf",
     "result": "3591 passed, 1 failed, 8 skipped: Quiz ABA captured request counts before new-identity GET; explicit GET/busy synchronization replaces fixed 80ms wait"
   },
-  "independent_reviews": "Both quiz and blindbox spec then quality reviews passed; latest production/source hashes confirmed"
+  "independent_reviews": "Root follow-up spec then quality passed; final browser synchronization spec reconfirmed then quality reconfirmed",
+  "earlier_failed_browser": {
+    "path": "/tmp/p3-quiz-browser-root-review.log",
+    "sha256": "ee3f590d4ee4cfcb571961da169e33b690ee4a101291bcab2c5a149d4526d9fa",
+    "result": "Quiz redeem step enumerated cards before render; submit disabled. Updated phase now explicitly waits for 2 cards, aria-busy=false, selected radio checked and submit enabled. Old baseline phase requires no new ARIA."
+  },
+  "current_run": {
+    "build_index_sha256": "fbff6b8fd39679d7c454486a0131ec0e343d3871c001926ad79d7e7285962e61",
+    "targeted": "Quiz23, Blindbox52",
+    "frontend_full": "3597 passed, 8 skipped; 499 files passed, 3 skipped",
+    "browser_groups": {
+      "quiz": 9,
+      "blindbox": 8
+    },
+    "logs": [
+      "/tmp/p3-blindbox-root-review-green.log",
+      "/tmp/p3-welfare-build-root-review.log",
+      "/tmp/p3-welfare-contract-root-review.log",
+      "/tmp/p3-welfare-fork-root-review.log",
+      "/tmp/p3-blindbox-browser-root-review.log",
+      "/tmp/p3-quiz-browser-root-review-retry.log",
+      "/tmp/p3-welfare-test-root-review.log",
+      "/tmp/p3-welfare-design-root-review.log",
+      "/tmp/p3-welfare-docs-root-review.log",
+      "/tmp/p3-welfare-handoff-root-review.log"
+    ],
+    "unchanged_backend_regressions": [
+      "/tmp/p3-checkin-regression-final.log",
+      "/tmp/p3-welfare-backend-unit-final.log"
+    ],
+    "historical_note": "Other quality/frozen logs are previous review-stage evidence, not validation of the latest three-line fix."
+  }
 }

@@ -2,8 +2,8 @@
   "backend/internal/handler/play_handler_extended.go": "bd77c041171279070d2f6130a76769020045e45851ef7e319a719e83d83c8e3e",
   "backend/internal/repository/play_blindbox_welfare_http_integration_test.go": "9f5aa2eadd33e3e3b70d93178d5ec2f0d02d3738265ac3731c877e9bd5bce92c",
   "frontend/src/api/play.ts": "62e30aba41709c3cff814345ca9e1f86872cbfcf7dcde51809a4d56637d61f3c",
-  "frontend/src/views/public/BlindboxView.vue": "bcca729aad7485135068bd0129cd6f7fcbd63f4d116fff9e665fecbbe35bf103",
-  "frontend/src/views/public/__tests__/BlindboxView.http.spec.ts": "c121981a189701bfc11d2d3ed362220e05f55ad604eaa1928001ad0be7ce2e7a",
+  "frontend/src/views/public/BlindboxView.vue": "fce7fb6fa3f8365f5a840c66c9127030c77c362c04a6047676e162dceaad7e4a",
+  "frontend/src/views/public/__tests__/BlindboxView.http.spec.ts": "335615c2ea39b589929f9e56cbef8387f4cf7bcaa0dfca5fba0264305317c693",
   "frontend/src/views/public/__tests__/BlindboxView.pg.spec.ts": "370c4f6f868a68ac969d4cab4469de7b55c2fce639816766fbe2a2118ee74044",
   "frontend/src/views/public/__tests__/BlindboxView.spec.ts": "728fcb51ab670fb2924daeda22d0470f02ccda42e88024de6967732f5760efd8"
 }
