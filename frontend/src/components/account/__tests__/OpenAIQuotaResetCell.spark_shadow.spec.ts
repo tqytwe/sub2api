@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
-import { nextTick, reactive } from 'vue'
+import { h, nextTick, reactive, ref } from 'vue'
 import OpenAIQuotaResetCell from '../OpenAIQuotaResetCell.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import type { Account } from '@/types'
@@ -628,6 +628,58 @@ describe('OpenAIQuotaResetCell — 外审 F6:影子禁用重置', () => {
     expect(resetButton(wrapper).attributes('disabled')).toBeDefined()
     expect(wrapper.emitted('account-updated')).toEqual([[recoveredAccount]])
     wrapper.unmount()
+  })
+
+  it.each([1770000000, 1770000200])('keeps reset-readback unknown after parent feeds back stale snapshot %s', async (returnedAt) => {
+    const snapshot = { credits: { has_credits: true, unlimited: false, balance: '1234.50' }, fetched_at: 1770000000 }
+    const account = makeAccount({ extra: {
+      codex_credits_snapshot: snapshot,
+      codex_reset_credit_snapshot: { available_count: 1, credits: [{ expires_at: FUTURE_EXPIRY_EARLY }] },
+    } })
+    const recoveredAccount = makeAccount({ extra: { ...account.extra,
+      codex_credits_snapshot: { ...snapshot, fetched_at: returnedAt },
+    } })
+    vi.mocked(resetOpenAIQuota).mockResolvedValue({ code: 'success', windows_reset: 1,
+      cache_refreshed: false, account_state_recovered: true,
+      warning_code: 'reset_credit_cache_refresh_failed', account: recoveredAccount,
+    })
+    const row = ref(account)
+    const parent = mount({ render: () => h(OpenAIQuotaResetCell, {
+      account: row.value,
+      // Same object replacement performed by the account list's update handler.
+      'onAccount-updated': (updated: Account) => { row.value = { ...row.value, ...updated } },
+    }) })
+    const wrapper = parent.findComponent(OpenAIQuotaResetCell)
+    await resetButton(wrapper).trigger('click')
+    wrapper.findComponent(ConfirmDialog).vm.$emit('confirm')
+    await flushPromises()
+    expect(wrapper.get('[data-testid="codex-credits"]').text()).toContain('—')
+    // The actual Vue event has already patched the parent row and child props.
+    const emitted = wrapper.emitted('account-updated')![0][0] as Account
+    expect(row.value.extra).toEqual(emitted.extra)
+    expect(wrapper.get('[data-testid="codex-credits"]').text()).toContain('—')
+    row.value = makeAccount({ extra: { ...emitted.extra, codex_credits_snapshot: {
+      ...snapshot, credits: { ...snapshot.credits }, fetched_at: returnedAt,
+    } } })
+    await nextTick()
+    expect(wrapper.get('[data-testid="codex-credits"]').text()).toContain('—')
+    row.value = makeAccount({ extra: { codex_credits_snapshot: {
+      credits: { ...snapshot.credits, balance: '42.50' }, fetched_at: returnedAt + 1,
+    } } })
+    await nextTick()
+    expect(wrapper.get('[data-testid="codex-credits"]').text()).toContain('42.50')
+    expect(resetOpenAIQuota).toHaveBeenCalledTimes(1)
+    expect(refreshOpenAIQuota).not.toHaveBeenCalled()
+    vi.mocked(refreshOpenAIQuota).mockResolvedValue({ fetched_at: returnedAt + 2,
+      cache_persisted: true, credits_cache_persisted: true,
+      credits: { ...snapshot.credits, balance: '55.00' },
+    })
+    await wrapper.get('[data-testid="codex-credits"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.get('[data-testid="codex-credits"]').text()).toContain('55.00')
+    expect(refreshOpenAIQuota).toHaveBeenCalledTimes(1)
+    expect(resetOpenAIQuota).toHaveBeenCalledTimes(1)
+    parent.unmount()
   })
 
   it('账号状态恢复失败时停止后续步骤并提示手动恢复', async () => {

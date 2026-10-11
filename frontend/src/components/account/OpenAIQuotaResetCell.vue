@@ -231,6 +231,7 @@ const readCachedCredits = (account: Account) => {
 const creditsData = ref(readCachedCredits(props.account))
 let accountGeneration = 0
 let creditsRevision = 0
+let invalidatedSnapshotThrough: number | null = null
 const creditsDisplay = computed(() => {
   const credits = creditsData.value?.credits
   if (!credits) return '—'
@@ -502,6 +503,16 @@ const confirmReset = async () => {
   try {
     const result: OpenAIQuotaResetResult = await resetOpenAIQuota(accountID)
     if (props.account.id !== accountID) return
+    if (!result.quota) {
+      // A successful reset invalidates pre-reset observations even when its
+      // returned account still carries the persisted snapshot. Keep that bound
+      // separately: unknown display data must not let parent feedback revive it.
+      const timestamps = [invalidatedSnapshotThrough, creditsData.value?.fetched_at,
+        readCachedCredits(props.account)?.fetched_at,
+        result.account ? readCachedCredits(result.account)?.fetched_at : null,
+      ].filter((time): time is number => time != null)
+      invalidatedSnapshotThrough = timestamps.length ? Math.max(...timestamps) : null
+    }
     updateCredits(result.quota ?? null)
     showResetCreditDetails.value = false
     if (result.cache_refreshed && result.quota) {
@@ -539,6 +550,7 @@ watch(
   () => {
     // Invalidate pending reads even when the row later returns to the same ID.
     accountGeneration++
+    invalidatedSnapshotThrough = null
     // Account row may be reused across paginated lists; reset local state.
     cachedData.value = readCachedResetCredits(props.account)
     data.value = cachedData.value
@@ -561,6 +573,7 @@ watch(
     const cached = readCachedCredits(props.account)
     const currentTime = creditsData.value?.fetched_at
     const cachedTime = cached?.fetched_at
+    if (cachedTime != null && invalidatedSnapshotThrough != null && cachedTime <= invalidatedSnapshotThrough) return
     // A delayed persisted snapshot must not roll back a newer live response.
     if (cachedTime != null && currentTime != null && cachedTime < currentTime) return
     const current = creditsData.value

@@ -1,0 +1,78 @@
+{
+  "review_base": "17ee25b8da01dc715aa7b28d29b6ab719bbbb03a",
+  "component_sha256": "c6f9ca0fbd0d52cbeecc2e3388e2e8e5e856bf3c43d6142f84f277ddac77d3fa",
+  "spec_sha256": "bccfd9e25170c89fc4690a0959080a8bff8debca576a4b827468186004fec2fe",
+  "red": {
+    "failed": 2,
+    "passed": 46,
+    "method": "actual Vue parent event replaces same-ID row"
+  },
+  "full_frontend": {
+    "passed_files": 505,
+    "failed_files": 1,
+    "skipped_files": 3,
+    "passed_tests": 3884,
+    "failed_tests": 4,
+    "skipped_tests": 8,
+    "quota_tests_passed": 48,
+    "failed_suite": "RequestLedgerView.session.http.spec.ts",
+    "failed_assertions": "old summary/attempts/billing/usage response destroyed"
+  },
+  "targeted_recovery": {
+    "runs": 1,
+    "passed_tests": 26,
+    "failed_tests": 0,
+    "duration_seconds": 19.62,
+    "status": "split recovery; original full run remains failed"
+  },
+  "passed": [
+    "full frontend lint",
+    "vue-tsc",
+    "frontend build",
+    "browser fake reset feedback",
+    "Fork static/docs/frontend"
+  ],
+  "fork_backend": "Wrong PATH selected unrelated Go executable; command failed before testing. Unchanged backend prior evidence reused by parent instruction; not a new whole-command PASS.",
+  "independent_review": "specification then quality passed unchanged component; test suggestions adopted",
+  "raw_logs_uploaded": false,
+  "raw_logs": {
+    "reset-parent-red": {
+      "local_path": "/tmp/quota-frontend-reset-parent-red.log",
+      "sha256": "faf863327ca8816a4d8c79b0ed244f10f3fc2ea7d304c22434d5f9a6ab296190"
+    },
+    "reset-parent-green": {
+      "local_path": "/tmp/quota-frontend-reset-parent-green.log",
+      "sha256": "75709d1f4fc13de0528a3eb56009f891a9e98961087e87a6b81120636d97f981"
+    },
+    "reset-full": {
+      "local_path": "/tmp/quota-frontend-reset-full.log",
+      "sha256": "6dfc90a6c49f51060f3ef09a2c83441a1fbed17e02c4c5a90647f0cc54010690"
+    },
+    "reset-session-retry": {
+      "local_path": "/tmp/quota-frontend-reset-session-retry.log",
+      "sha256": "f58ea0150f52a3f0be51bb0266a227232a0f2aac31c7a9318052868a1889fc33"
+    },
+    "reset-types": {
+      "local_path": "/tmp/quota-frontend-reset-types.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "reset-full-lint": {
+      "local_path": "/tmp/quota-frontend-reset-full-lint.log",
+      "sha256": "08a27acb686a896b542b885c5e0d0012174a8362bc79eb91c0bd3e99d338b020"
+    },
+    "reset-build": {
+      "local_path": "/tmp/quota-frontend-reset-build.log",
+      "sha256": "46423be5b2b7ca9da40bbdba1cefe1f980f1f827226b0be134c8cf862cbcdae2"
+    },
+    "reset-browser": {
+      "local_path": "/tmp/quota-frontend-reset-browser.log",
+      "sha256": "21664be592a71ffc82f54c9404d19af6396f4a7bbb87cc530bdb7f45f14f8c9c"
+    },
+    "reset-fork": {
+      "local_path": "/tmp/quota-frontend-reset-fork.log",
+      "sha256": "cd6bd22eff4b4fc795adab58d5ff2890e41a2d5244caaebb737107b800fcdc2f"
+    }
+  },
+  "production_access": false,
+  "pending": "parent final review, commit and update existing draft PR #368; final-head CI"
+}

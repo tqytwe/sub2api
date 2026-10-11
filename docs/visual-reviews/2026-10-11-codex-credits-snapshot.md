@@ -149,3 +149,13 @@
 - Prototype timing is a documented workflow deviation from the repository's pre-code prototype rule; completing the image now cannot retroactively meet that chronology. The parent explicitly accepted this authorized follow-up for the narrow repair after independent visual review. No additional user approval is pending; the chronology deviation remains disclosed.
 - Legacy reduced-motion behavior, native active-state observation and small touch targets are not repaired by this data-only task. They are stated limitations, not ignored passes.
 - Full account-list browser integration, user-local-browser verification, visitor/user/admin identities, production deployment and production account behavior have not been validated. Owner of final acceptance: parent thread/user after authorized deployment.
+
+## Root-review reset-feedback follow-up
+
+The actual updated component was rebuilt after the root review identified stale points reviving through reset-result parent feedback. The isolated harness clicks the existing reset button and confirmation dialog; its build-time fake reset result contains no quota and the old account snapshot. The parent replaces the same-ID row through the real emitted event. No upstream reset or production call occurs.
+
+- [Chinese light 1280](./assets/codex-credits-snapshot/reset-feedback-zh-light-1280.png)
+- [English dark 360](./assets/codex-credits-snapshot/reset-feedback-en-dark-360.png)
+- [Browser checks](./assets/codex-credits-snapshot/reset-feedback-checks.json): points remain unknown (`—`), one local fake reset/one feedback per capture, zero query calls/external requests/page errors/overflow.
+
+The existing warning, disabled reset state and unknown point typography are preserved. Existing 25 screenshots are reused only for unchanged visual design; these two new screenshots document the reset-result feedback behavior. Earlier prototype chronology and active/reduced-motion limitations remain unchanged.
