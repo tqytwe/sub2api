@@ -340,6 +340,7 @@
 - 不变量：私有请求 UUID 在鉴权前提交；发送前提交 attempt；执行/用量/结算为独立状态轴；身份与调度/凭据母账号可追溯；未知用量不是零费用；不更改原计费策略和幂等键，不补造历史或补扣。只存必需元数据与安全枚举，不存 key、正文或任意上游错误文本；用户 SQL 只能读自己的记录。
 - 关键位置：`backend/internal/requestledger/`、`backend/migrations/275_gateway_request_ledger.sql`、`backend/migrations/276_gateway_request_correlation.sql`、`backend/internal/handler/request_ledger_handler.go`、`frontend/src/views/shared/RequestLedgerView.vue`。
 - 冲突策略：保持持久入口早于 auth/限流/读取 body，保持实际发送前的门禁；WS 合并复用逻辑 turn 和计费上下文，不重做 settlement。旧版本不写新表，回滚期间新请求覆盖会中止，已有记录不删除。
+- 计费目标绑定：Prepare/Verify 对冻结的 subscription/entitlement ID 使用 NULL-safe 精确匹配；旧 fingerprint 与 live/archive 精确重放保持不变。旧 NULL 不作通配，已有 dedup 却缺 link 时不得据新输入补造目标归属；不回填历史或补扣。完整迁移回归与兼容边界见[冻结绑定修复记录](./archive/completed-tasks/2026-10-11-frozen-billing-binding/README.md)。
 - P0 精确关联：服务端 attempt UUID 与进程内不可伪造 Receipt 关联原 Ops ID；上游标识仅有界证据，禁止作为计费去重键。旧 attempt 没有证据时保持为空；诊断表/锁失败不能阻断已观察真实 usage 的原结算。管理员双向跳转，用户仅本人 UUID。迁移 276 只增表/索引，不改历史 checksum 或回填。
 - Batch 精确钻取（关联 `FORK-IMAGE-011`）：原 capture 成功后，以单语句只读核验任务归属及全部冷热指纹，再认证新 usage 的指纹与已结算金额；真实金额和图片数始终保留。核验限时 1 秒，缺失 reader、查询失败或冲突仅留下审计缺口，不阻断 usage、不重复 capture，completed 重试也不猜补。task、owner/key、capture request 与 dedup/archive 指纹一致才关联 usage。共享批次结算不代表每次入口/worker 再次扣款；缺失 usage/旧指纹不补猜，不改冻结价格、capture/release 或公开提交规则。迁移 `277_batch_image_ledger_reconcile_index_notx.sql` 仅新增并发部分索引，按索引先选最多 1000 候选再验证证据；中断建索引复用既有恢复机制。
 - Batch 验证：真实 HTTP/PG 的 capture→usage→详情、失败重试、断连、并发/幂等、归属隔离、归档凭据与无 task 扫描上限，以及用户/管理员实际构建资源；见[本批证据](./archive/completed-tasks/batch-image-ledger/README.md)。合法零 capture 凭据测试不证明既有公开零价格跳过 hold 路径已修复；生产验收状态仅见交接快照。

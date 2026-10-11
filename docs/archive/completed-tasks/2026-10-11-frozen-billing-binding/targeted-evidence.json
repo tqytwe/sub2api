@@ -1,0 +1,183 @@
+{
+  "baseline": "05b44bec5c2d30ad58d009fbe5247ea363c6ee70",
+  "branch": "codex/p1-frozen-entitlement-binding-20261011",
+  "runs": [
+    {
+      "name": "compatibility-red",
+      "command": [
+        "./scripts/test-subscription-counters.sh",
+        "^TestSubscriptionBindingCompatibility$",
+        "-race"
+      ],
+      "started_at": "2026-10-11T08:40:38.753023+00:00",
+      "finished_at": "2026-10-11T08:43:31.981123+00:00",
+      "exit_code": 1,
+      "expected_exit_code": 1,
+      "log": "logs/compatibility-red.txt",
+      "sha256": "c112ccd1d0fac2e49b4ca6a857d11ef493f59144ced6b1d471fd54b10e82b36e",
+      "raw_log": "logs/compatibility-red.raw.txt.gz",
+      "raw_sha256": "08e38177c8d3ee6d206af58c16672d568f428ee1db9ff741d8a38fb6722d0b2f",
+      "raw_encoding": "gzip",
+      "display_normalization": "expand tabs to 4 spaces and strip trailing whitespace; raw bytes retained in gzip",
+      "compatibility_test_source_sha256": "b8920b966aff3fbbed9ba826eb2647ac5328788872cee9700171864606028477",
+      "production_source_phase": "baseline 05b44bec"
+    },
+    {
+      "name": "compatibility-green",
+      "command": [
+        "./scripts/test-subscription-counters.sh",
+        "^TestSubscriptionBindingCompatibility$",
+        "-race"
+      ],
+      "started_at": "2026-10-11T08:46:13.605590+00:00",
+      "finished_at": "2026-10-11T08:47:19.579793+00:00",
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "log": "logs/compatibility-green.txt",
+      "sha256": "babb1e6c1aff7bd5fa73cd4e0b632735c4e9f484ecaa265894211ae9fa65b187",
+      "raw_log": "logs/compatibility-green.raw.txt.gz",
+      "raw_sha256": "080620833b7d84631393e7ca16c9c213d7bd5f3acb539776856e5758636f9621",
+      "raw_encoding": "gzip",
+      "display_normalization": "expand tabs to 4 spaces and strip trailing whitespace; raw bytes retained in gzip",
+      "compatibility_test_source_sha256": "b8920b966aff3fbbed9ba826eb2647ac5328788872cee9700171864606028477",
+      "production_source_phase": "final binding.go"
+    },
+    {
+      "name": "binding-green",
+      "command": [
+        "./scripts/test-subscription-counters.sh",
+        "^TestSubscriptionEntitlementBindingReproduction$",
+        "-race"
+      ],
+      "started_at": "2026-10-11T08:47:19.582191+00:00",
+      "finished_at": "2026-10-11T08:47:31.099967+00:00",
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "log": "logs/binding-green.txt",
+      "sha256": "95990684d8e4d4384930345bf115fd4f92a372e0966447a264fe32bdc262f532",
+      "raw_log": "logs/binding-green.raw.txt.gz",
+      "raw_sha256": "a4e52f39795b90f6a7a8140b281615c65bba06320be0b79bb2fd33767a22b856",
+      "raw_encoding": "gzip",
+      "display_normalization": "expand tabs to 4 spaces and strip trailing whitespace; raw bytes retained in gzip",
+      "compatibility_test_source_sha256": "b8920b966aff3fbbed9ba826eb2647ac5328788872cee9700171864606028477",
+      "production_source_phase": "final binding.go",
+      "binding_test_source_sha256": "5077ecd2cf85dba7a07880887e4a833e54ef783a671ddf023e618fbf30558fd8"
+    },
+    {
+      "name": "historical-matrix-green",
+      "command": [
+        "./scripts/test-subscription-counters.sh",
+        "^TestSubscriptionCounterHTTP$",
+        "-race"
+      ],
+      "started_at": "2026-10-11T08:47:31.100597+00:00",
+      "finished_at": "2026-10-11T08:48:09.217502+00:00",
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "log": "logs/historical-matrix-green.txt",
+      "sha256": "75b8f557bc2293eb3c1164796271624464d97cfbaa23a97803a53f8c1484b783",
+      "raw_log": "logs/historical-matrix-green.raw.txt.gz",
+      "raw_sha256": "b12084d63b757bc65b8f0160451e9d81b04949b765a986adada18b8ab372f67d",
+      "raw_encoding": "gzip",
+      "display_normalization": "expand tabs to 4 spaces and strip trailing whitespace; raw bytes retained in gzip",
+      "compatibility_test_source_sha256": "b8920b966aff3fbbed9ba826eb2647ac5328788872cee9700171864606028477",
+      "production_source_phase": "final binding.go"
+    },
+    {
+      "name": "compatibility-final-green",
+      "command": [
+        "./scripts/test-subscription-counters.sh",
+        "^TestSubscriptionBindingCompatibility$",
+        "-race"
+      ],
+      "started_at": "2026-10-11T08:52:41.974110+00:00",
+      "finished_at": "2026-10-11T08:53:04.484909+00:00",
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "log": "logs/compatibility-final-green.txt",
+      "sha256": "c8cee05fc31f8a13ba07ff7efe64c9c9a3653c08eae8756308a442046ea2859d",
+      "raw_log": "logs/compatibility-final-green.raw.txt.gz",
+      "raw_sha256": "a5724d3919e41993172f863e3c64af1d77f610f08afb1934d5b4329299e9d662",
+      "raw_encoding": "gzip",
+      "display_normalization": "expand tabs to 4 spaces and strip trailing whitespace; raw bytes retained in gzip",
+      "production_source_phase": "final binding.go",
+      "compatibility_test_source_sha256": "7e69c421d6f26e6a610872d028d295860eaa3c7b4efa89563f71e5f2a3872a19"
+    },
+    {
+      "name": "binding-final-race-red",
+      "command": [
+        "./scripts/test-subscription-counters.sh",
+        "^TestSubscriptionEntitlementBindingReproduction$",
+        "-race"
+      ],
+      "started_at": "2026-10-11T08:25:00.469949+00:00",
+      "finished_at": "2026-10-11T08:25:18.341516+00:00",
+      "exit_code": 1,
+      "expected_exit_code": 1,
+      "log": "logs/binding-final-race-red.txt",
+      "sha256": "f3f9f8894004c42320f889f24b943c57ee610918f983fa8730282934c5099166",
+      "raw_log": "logs/binding-final-race-red.raw.txt.gz",
+      "raw_sha256": "e6948bbb7e73fb9a828306564659e6ab4fe0207b7e4264ef860d206f0c092eb1",
+      "raw_encoding": "gzip",
+      "display_normalization": "expand tabs to 4 spaces and strip trailing whitespace; raw bytes retained in gzip",
+      "production_source_phase": "baseline 05b44bec",
+      "reuse_note": "Prior isolated investigation on same 05b baseline; original regression source SHA-256 5077ecd2cf85dba7a07880887e4a833e54ef783a671ddf023e618fbf30558fd8. Final source changes only two deferred Rollback cleanup wrappers; assertions unchanged."
+    },
+    {
+      "name": "compatibility-reviewed-green",
+      "command": [
+        "./scripts/test-subscription-counters.sh",
+        "^TestSubscriptionBindingCompatibility$",
+        "-race"
+      ],
+      "started_at": "2026-10-11T08:56:51.410053+00:00",
+      "finished_at": "2026-10-11T08:57:17.166363+00:00",
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "log": "logs/compatibility-reviewed-green.txt",
+      "sha256": "e82669a00b15c7324687eb5162583e00f1bfd825cc644671f99016c43a3d072d",
+      "raw_log": "logs/compatibility-reviewed-green.raw.txt.gz",
+      "raw_sha256": "1d91f1aab67ae7014f1b04887f0467bd93bf0a07a0578615efa0ae4ee2e23ae1",
+      "raw_encoding": "gzip",
+      "display_normalization": "expand tabs to 4 spaces and strip trailing whitespace; raw bytes retained in gzip",
+      "production_source_phase": "final binding.go",
+      "source_sha256": {
+        "backend/internal/requestledger/billing.go": "a1b76fcc4e6f35c981202e95783bca68bca07481767490d7e7d9a0dde0e8a46f",
+        "backend/internal/billingacceptance/subscription_binding_reproduction_integration_test.go": "714ca552ff0741266750e56fbe847904f4d9ee80ec064f433d77edf92f8a8296",
+        "backend/internal/billingacceptance/subscription_binding_compatibility_integration_test.go": "90938aa1552ab3ca4fb3ef2d6f94a6d38de2d9184356edaa743720425e487210",
+        ".github/workflows/subscription-counter-acceptance.yml": "0bfec2ff5ccedb0f232590cd4e51eb40a6e599de399387ab2ffb8222d892457e"
+      }
+    },
+    {
+      "name": "binding-reviewed-green",
+      "command": [
+        "./scripts/test-subscription-counters.sh",
+        "^TestSubscriptionEntitlementBindingReproduction$",
+        "-race"
+      ],
+      "started_at": "2026-10-11T08:57:17.168699+00:00",
+      "finished_at": "2026-10-11T08:57:34.770702+00:00",
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "log": "logs/binding-reviewed-green.txt",
+      "sha256": "3868fcb9831cf2bee001d980687d111a7329daf5367d8ab71b8a7a9438cc1d5d",
+      "raw_log": "logs/binding-reviewed-green.raw.txt.gz",
+      "raw_sha256": "4e56acc0bec6f646aa876b0b6420cfdad97057909b65234265febef3c792b975",
+      "raw_encoding": "gzip",
+      "display_normalization": "expand tabs to 4 spaces and strip trailing whitespace; raw bytes retained in gzip",
+      "production_source_phase": "final binding.go",
+      "source_sha256": {
+        "backend/internal/requestledger/billing.go": "a1b76fcc4e6f35c981202e95783bca68bca07481767490d7e7d9a0dde0e8a46f",
+        "backend/internal/billingacceptance/subscription_binding_reproduction_integration_test.go": "714ca552ff0741266750e56fbe847904f4d9ee80ec064f433d77edf92f8a8296",
+        "backend/internal/billingacceptance/subscription_binding_compatibility_integration_test.go": "90938aa1552ab3ca4fb3ef2d6f94a6d38de2d9184356edaa743720425e487210",
+        ".github/workflows/subscription-counter-acceptance.yml": "0bfec2ff5ccedb0f232590cd4e51eb40a6e599de399387ab2ffb8222d892457e"
+      }
+    }
+  ],
+  "source_sha256": {
+    "backend/internal/requestledger/billing.go": "a1b76fcc4e6f35c981202e95783bca68bca07481767490d7e7d9a0dde0e8a46f",
+    "backend/internal/billingacceptance/subscription_binding_reproduction_integration_test.go": "714ca552ff0741266750e56fbe847904f4d9ee80ec064f433d77edf92f8a8296",
+    "backend/internal/billingacceptance/subscription_binding_compatibility_integration_test.go": "90938aa1552ab3ca4fb3ef2d6f94a6d38de2d9184356edaa743720425e487210",
+    ".github/workflows/subscription-counter-acceptance.yml": "0bfec2ff5ccedb0f232590cd4e51eb40a6e599de399387ab2ffb8222d892457e"
+  }
+}

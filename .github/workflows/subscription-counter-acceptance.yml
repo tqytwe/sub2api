@@ -32,11 +32,21 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ./scripts/test-subscription-counters.sh | tee "$RUNNER_TEMP/subscription-counters.log"
+          ./scripts/test-subscription-counters.sh '^TestSubscriptionCounterHTTP$' -race 2>&1 | tee "$RUNNER_TEMP/subscription-counters.log"
+      - name: Frozen entitlement regression with a fresh migrated database
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./scripts/test-subscription-counters.sh '^TestSubscriptionEntitlementBindingReproduction$' -race 2>&1 | tee "$RUNNER_TEMP/subscription-binding.log"
+      - name: Frozen ID and legacy proof compatibility with a fresh migrated database
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./scripts/test-subscription-counters.sh '^TestSubscriptionBindingCompatibility$' -race 2>&1 | tee "$RUNNER_TEMP/subscription-binding-compatibility.log"
       - name: Preserve strict acceptance evidence
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: subscription-counter-evidence
-          path: ${{ runner.temp }}/subscription-counters.log
+          path: ${{ runner.temp }}/subscription-*.log
           if-no-files-found: error

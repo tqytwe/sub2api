@@ -188,7 +188,7 @@
       "finished_at": "2026-10-11T09:54:34.519486+00:00",
       "capture_exit_code": 0,
       "fixture_exit_code": 0,
-      "ref": "browser-evidence.json",
+      "ref": "merge-fdec971d/previous-browser-evidence.json",
       "fixture_log_sha256": "37fd5b3cd9819687d8c1203950fc5267710fbd4e1bf76d471bc78a0b086759ea",
       "capture_log_sha256": "c5469649863e8e138608210430aa557a3d02a1494c9bfe7865a542eced30edaf"
     },

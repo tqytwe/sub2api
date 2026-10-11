@@ -1,0 +1,126 @@
+{
+  "checked_at": "2026-10-11T10:36:24.312951+00:00",
+  "state": "local_validation_complete",
+  "phase": "Final documentation checks and push",
+  "completed_gates": [
+    {
+      "name": "backend",
+      "command": [
+        "make",
+        "-C",
+        "backend",
+        "test"
+      ],
+      "started_at": "2026-10-11T10:08:26Z",
+      "elapsed_seconds": 651.89,
+      "exit_code": 0,
+      "log": "/tmp/ledger-pagination-binding-backend.log"
+    },
+    {
+      "name": "binding-reproduction",
+      "command": [
+        "./scripts/test-subscription-counters.sh",
+        "^TestSubscriptionEntitlementBindingReproduction$",
+        "-race"
+      ],
+      "started_at": "2026-10-11T10:19:17Z",
+      "elapsed_seconds": 74.77,
+      "exit_code": 0,
+      "log": "/tmp/ledger-pagination-binding-binding-reproduction.log"
+    },
+    {
+      "name": "binding-compatibility",
+      "command": [
+        "./scripts/test-subscription-counters.sh",
+        "^TestSubscriptionBindingCompatibility$",
+        "-race"
+      ],
+      "started_at": "2026-10-11T10:20:32Z",
+      "elapsed_seconds": 13.38,
+      "exit_code": 0,
+      "log": "/tmp/ledger-pagination-binding-binding-compatibility.log"
+    },
+    {
+      "name": "paging-batch-race",
+      "command": [
+        "go",
+        "-C",
+        "backend",
+        "test",
+        "-race",
+        "-tags=integration",
+        "./internal/requestledger/acceptance",
+        "-run",
+        "^(TestRequestLedgerHTTPDetailPagingContract|TestRequestLedgerHTTPBillingWalletSourcePaging|TestRequestLedgerHTTPRefreshFindsLateProofBehindCursor|TestRequestLedgerHTTPLateCommitAndCursorIsolation|TestRequestLedgerHTTPPagedEvidenceIsolationAndFailure|TestRequestLedgerHTTPAttemptPageConcurrentAdmission|TestBatchImageHTTPUsageDrillUsesCommittedCapture|TestBatchImageHTTPRecoveryAndIsolation|TestBatchImageHTTPDisconnectAfterCapture|TestBatchImageHTTPUnknownUsageAndNullableImageCount|TestBatchImageHTTPConflictingProofBeforeUsageRecovery|TestBatchImageHTTPCaptureProofReadFailureKeepsUsage|TestBatchImageHTTPReconciliationBoundsRequestsWithoutTask)$",
+        "-count=1",
+        "-timeout=10m",
+        "-json"
+      ],
+      "started_at": "2026-10-11T10:20:46Z",
+      "elapsed_seconds": 72.37,
+      "exit_code": 0,
+      "log": "/tmp/ledger-pagination-binding-paging-batch-race.log"
+    },
+    {
+      "name": "build",
+      "command": [
+        "make",
+        "build"
+      ],
+      "started_at": "2026-10-11T10:21:58Z",
+      "elapsed_seconds": 122.26,
+      "exit_code": 0,
+      "log": "/tmp/ledger-pagination-binding-build.log"
+    },
+    {
+      "name": "embed-build",
+      "command": [
+        "go",
+        "-C",
+        "backend",
+        "build",
+        "-tags=embed",
+        "-o",
+        "/tmp/ledger-pagination-server",
+        "./cmd/server"
+      ],
+      "started_at": "2026-10-11T10:24:00Z",
+      "elapsed_seconds": 12.86,
+      "exit_code": 0,
+      "log": "/tmp/ledger-pagination-binding-embed-build.log"
+    },
+    {
+      "name": "embed-test",
+      "command": [
+        "go",
+        "-C",
+        "backend",
+        "test",
+        "-tags=embed",
+        "./internal/web",
+        "-count=1"
+      ],
+      "started_at": "2026-10-11T10:24:13Z",
+      "elapsed_seconds": 2.76,
+      "exit_code": 0,
+      "log": "/tmp/ledger-pagination-binding-embed-test.log"
+    },
+    {
+      "name": "fork",
+      "command": [
+        "./scripts/check-fork-integrity.sh"
+      ],
+      "started_at": "2026-10-11T10:24:16Z",
+      "elapsed_seconds": 305.31,
+      "exit_code": 0,
+      "log": "/tmp/ledger-pagination-binding-fork.log"
+    }
+  ],
+  "remaining": [
+    "final documentation checks",
+    "commit and push new PR head"
+  ],
+  "blocker": null,
+  "note": "All eight local gate commands passed. The automatic pre-browser wait reached its scheduling deadline while Fork was still running; no test failed. Browser started directly after Fork completion; no gate was repeated.",
+  "assets_ready": "5f5b24f98d48591358ec04bfbfce8f3fb8308dc3b4f29c2a090c03bf894c042e"
+}

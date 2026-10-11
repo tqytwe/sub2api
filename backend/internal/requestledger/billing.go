@@ -34,9 +34,23 @@ func PrepareBilling(ctx context.Context, in BillingIntent) error {
 	if err != nil || !owned {
 		return ErrUnavailable
 	}
+	// A legacy dedup fingerprint does not encode the entitlement. Without an
+	// existing link for this request, current input cannot certify its old target.
+	// NULL-only intents retain their existing behavior without claiming an ID.
+	values := `VALUES($1,$2,$3,$4,$5,$6)`
+	if in.SubscriptionID != nil || in.PackageEntitlementID != nil {
+		values = `SELECT $1::uuid,$2::varchar,$3::bigint,$4::varchar,$5::bigint,$6::bigint WHERE
+ EXISTS(SELECT 1 FROM gateway_request_billing_links
+ WHERE request_id=$1 AND billing_request_id=$2 AND api_key_id=$3)
+ OR NOT EXISTS(SELECT 1 FROM usage_billing_dedup WHERE request_id=$2 AND api_key_id=$3
+ UNION ALL SELECT 1 FROM usage_billing_dedup_archive WHERE request_id=$2 AND api_key_id=$3)`
+	}
 	var fp string
 	err = tx.QueryRowContext(ctx, `INSERT INTO gateway_request_billing_links(request_id,billing_request_id,api_key_id,request_fingerprint,subscription_id,package_entitlement_id)
- VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(request_id,billing_request_id,api_key_id) DO UPDATE SET request_fingerprint=gateway_request_billing_links.request_fingerprint
+ `+values+` ON CONFLICT(request_id,billing_request_id,api_key_id) DO UPDATE SET request_fingerprint=gateway_request_billing_links.request_fingerprint
+ WHERE gateway_request_billing_links.request_fingerprint=EXCLUDED.request_fingerprint
+ AND gateway_request_billing_links.subscription_id IS NOT DISTINCT FROM EXCLUDED.subscription_id
+ AND gateway_request_billing_links.package_entitlement_id IS NOT DISTINCT FROM EXCLUDED.package_entitlement_id
  RETURNING request_fingerprint`, h.ID, in.RequestID, in.APIKeyID, in.Fingerprint, in.SubscriptionID, in.PackageEntitlementID).Scan(&fp)
 	if err != nil || fp != in.Fingerprint {
 		return ErrUnavailable
@@ -60,9 +74,10 @@ func VerifyBillingTx(ctx context.Context, tx *sql.Tx, in BillingIntent, applied 
 	}
 	result, err := tx.ExecContext(ctx, `UPDATE gateway_request_billing_links SET settlement_verified=TRUE,settlement_applied=settlement_applied OR $5
  WHERE request_id=$1 AND billing_request_id=$2 AND api_key_id=$3 AND request_fingerprint=$4
+ AND subscription_id IS NOT DISTINCT FROM $6 AND package_entitlement_id IS NOT DISTINCT FROM $7
  AND (SELECT COUNT(*)>0 AND BOOL_AND(proof.request_fingerprint=$4) FROM (
  SELECT request_fingerprint FROM usage_billing_dedup WHERE request_id=$2 AND api_key_id=$3
- UNION ALL SELECT request_fingerprint FROM usage_billing_dedup_archive WHERE request_id=$2 AND api_key_id=$3) proof)`, h.ID, in.RequestID, in.APIKeyID, in.Fingerprint, applied)
+ UNION ALL SELECT request_fingerprint FROM usage_billing_dedup_archive WHERE request_id=$2 AND api_key_id=$3) proof)`, h.ID, in.RequestID, in.APIKeyID, in.Fingerprint, applied, in.SubscriptionID, in.PackageEntitlementID)
 	if err != nil {
 		return ErrUnavailable
 	}

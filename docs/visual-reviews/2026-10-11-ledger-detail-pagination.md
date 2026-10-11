@@ -175,3 +175,13 @@ five-second retryable timeout, cancellation, close/reopen, independent out-of-or
 Synthetic StorageEvents do not establish every real cross-tab timing. All server screenshots remain development
 evidence; production and user-local acceptance are still pending. See the session-isolation-followup JSON for times,
 source/build fingerprints, gates and read-only sequential review results.
+
+
+## Frozen-binding mainline combination
+
+The fdec971d ordinary merge changes no frontend source or dependency. After the full rebuild, all 356
+resource files match the reviewed session build byte-for-byte. The short actual-build HTTP/PG paging
+capture was repeated for both roles and all four widths, including themes/languages, permissions,
+retry/refresh and 6 USD / 3 images; zero page errors. Current standard screenshots reflect this run.
+Session lifecycle screenshots/results remain from the identical-source session run. Full source proof,
+gates and exported asset hashes are in ledger-detail-pagination/merge-fdec971d. No production acceptance.
