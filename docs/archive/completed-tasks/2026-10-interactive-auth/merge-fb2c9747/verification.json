@@ -1,0 +1,43 @@
+{
+  "parents": [
+    "8fa6f31442d6cc437a189b5d5ee6b7f369b012ce",
+    "fb2c9747b58ed5d980a36ea6a2316ead2aa03b7e"
+  ],
+  "source": "source-proof.json",
+  "targeted": {
+    "passed": 293,
+    "files": 9,
+    "ledger_real_http": 26,
+    "storage": 45,
+    "interactive": 100
+  },
+  "intersection_probe": {
+    "passed": 4,
+    "filtered_existing": 26,
+    "production_sources_changed": false
+  },
+  "build": "make build-frontend PASS including vue-tsc and3i18n tests",
+  "native": {
+    "storage": 9,
+    "interactive": 27,
+    "index_sha256": "f8a6040200b1468af3f553202cd2a0ba39461f8c61fbaf758b7154b150733b80"
+  },
+  "static": "design/eslint/handoff8/docs PASS",
+  "reuse_authority": "Parent explicitly requested unchanged complete gates not repeated; exact-main backend/PG evidence reused",
+  "not_rerun": [
+    "Full make test",
+    "Backend/PG",
+    "Fork complete",
+    "Ledger native HTTP/PG matrix"
+  ],
+  "reviews": {
+    "order": [
+      "spec",
+      "quality"
+    ],
+    "spec": "PASS source preservation, session compatibility,293+4 realHTTP results; checkAuth caveat documented",
+    "quality": "PASS exact both-parent preservation,12log sets/356resources,native36 and evidence scope; no production source changes"
+  },
+  "ci": "New exact head pending ordinary merge commit/push",
+  "recorded_at": "2026-10-11T11:06:30.230545+00:00"
+}

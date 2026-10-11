@@ -1,0 +1,124 @@
+{
+  "command": "go test -tags=integration ./internal/requestledger/... ./internal/handler ./internal/server/routes ./internal/repository ./internal/service -run 'RequestLedger|LedgerPostgres|LedgerKilledProcess|LedgerStorage|BatchImageHTTP|BatchImageReconciliation|BatchImageLedgerMigration' -count=1 -timeout=12m -json",
+  "exit_code": 0,
+  "started_at": "2026-10-11T07:59:27.370874082Z",
+  "finished_at": "2026-10-11T08:07:19.992365234Z",
+  "required_passed": 56,
+  "required_total": 56,
+  "top_level_passed": 94,
+  "required_cases": [
+    "TestBatchImageHTTPCaptureProofReadFailureKeepsUsage",
+    "TestBatchImageHTTPConflictingProofBeforeUsageRecovery",
+    "TestBatchImageHTTPDisconnectAfterCapture",
+    "TestBatchImageHTTPReconciliationBoundsRequestsWithoutTask",
+    "TestBatchImageHTTPRecoveryAndIsolation",
+    "TestBatchImageHTTPUnknownUsageAndNullableImageCount",
+    "TestBatchImageHTTPUsageDrillUsesCommittedCapture",
+    "TestBatchImageLedgerMigrationRecoversInterruptedIndex",
+    "TestBatchImageReconciliationUsesBoundedIndex",
+    "TestLedgerKilledProcessRecoveryRetainsEvidence",
+    "TestLedgerPostgresAttemptStorageFailureRejectsOnlyRequest",
+    "TestLedgerPostgresBodylessResponsesKeepProtocolSuccess",
+    "TestLedgerPostgresBoundedConcurrentAdmissionAndRecovery",
+    "TestLedgerPostgresFalseUpgradeDoesNotChangeHTTPMetering",
+    "TestLedgerPostgresFrozenUsageDoesNotMoveToLaterAttempt",
+    "TestLedgerPostgresHealthyOwnerRecoversFailedFinalization",
+    "TestLedgerPostgresMigrationLockTimeoutPreservesEvidence",
+    "TestLedgerPostgresPanicPreservesAlreadyWrittenHTTPStatus",
+    "TestLedgerPostgresRetryUsageDoesNotHideUnknownEarlierAttempt",
+    "TestLedgerStorageErrorDoesNotFailOverAnthropicOrGemini",
+    "TestRequestLedgerBillingTransactionDedupAndFailure",
+    "TestRequestLedgerBridgeAndOAuthImagesTerminal",
+    "TestRequestLedgerBusinessStreamTerminalBeforeTransportEOF",
+    "TestRequestLedgerCommittedJSONDoesNotBecomeSSE",
+    "TestRequestLedgerCompressedSSEUsesDecodedEvidence",
+    "TestRequestLedgerDetailPageCandidatesUseBoundedIndex",
+    "TestRequestLedgerDetailPaginationMigrationRecoversInterruptedIndex",
+    "TestRequestLedgerFrozenContextAllowsNilUsageTaskParent",
+    "TestRequestLedgerHTTPAPIRolesPaginationAndRefresh",
+    "TestRequestLedgerHTTPAttemptPageConcurrentAdmission",
+    "TestRequestLedgerHTTPBillingWalletSourcePaging",
+    "TestRequestLedgerHTTPDetailPagingContract",
+    "TestRequestLedgerHTTPLateCommitAndCursorIsolation",
+    "TestRequestLedgerHTTPLinkedUsageAndRetention",
+    "TestRequestLedgerHTTPPagedEvidenceIsolationAndFailure",
+    "TestRequestLedgerHTTPRefreshFindsLateProofBehindCursor",
+    "TestRequestLedgerIdempotentTaskReplayKeepsCurrentAdmission",
+    "TestRequestLedgerImageBackfillKeepsGenerationAttribution",
+    "TestRequestLedgerImageStudioAndBFFRouteRejectionMatrix",
+    "TestRequestLedgerLiveAuditFailurePreservesRedisAndSettlement",
+    "TestRequestLedgerLiveStoppedTurnRecoversHealthyOwner",
+    "TestRequestLedgerModelsCacheRefreshKeepsDurableChild",
+    "TestRequestLedgerModelsCacheStorageFailureNeverSends",
+    "TestRequestLedgerModelsPluginPreservesScheduledAccount",
+    "TestRequestLedgerNativeAndPassthroughTerminalStatus",
+    "TestRequestLedgerNativeWebsocketTwoTurnsWithRealPostgres",
+    "TestRequestLedgerOAuthModelsDirectTransportAdmission",
+    "TestRequestLedgerObservationFailureKeepsOriginalSettlement",
+    "TestRequestLedgerPassthroughWaitsForAuthoritativeTurn",
+    "TestRequestLedgerPendingUsageSnapshotNeverShowsSettledZero",
+    "TestRequestLedgerRealGatewayRouteRejectionMatrix",
+    "TestRequestLedgerRealWebsocket1013AndEOFWithoutUsage",
+    "TestRequestLedgerRealtimeCapacityRejectionStillPersistsTurn",
+    "TestRequestLedgerRealtimeLateTerminalCannotConsumeNextTurn",
+    "TestRequestLedgerTaskFundingReferencesRecoverWithoutCharging",
+    "TestRequestLedgerWSLateUsageDoesNotMarkTheNextAttemptKnown"
+  ],
+  "skipped": [
+    {
+      "package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+      "test": "TestLedgerKilledProcessChild"
+    },
+    {
+      "package": "github.com/Wei-Shaw/sub2api/internal/requestledger/acceptance",
+      "test": "TestRequestLedgerDetailPagingBrowserFixture"
+    },
+    {
+      "package": "github.com/Wei-Shaw/sub2api/internal/requestledger/acceptance",
+      "test": "TestRequestLedgerBrowserFixture"
+    },
+    {
+      "package": "github.com/Wei-Shaw/sub2api/internal/requestledger/ledgertest",
+      "test": null
+    }
+  ],
+  "packages": [
+    {
+      "package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+      "action": "pass",
+      "elapsed_seconds": 87.966
+    },
+    {
+      "package": "github.com/Wei-Shaw/sub2api/internal/requestledger/acceptance",
+      "action": "pass",
+      "elapsed_seconds": 101.159
+    },
+    {
+      "package": "github.com/Wei-Shaw/sub2api/internal/requestledger/ledgertest",
+      "action": "skip",
+      "elapsed_seconds": 0
+    },
+    {
+      "package": "github.com/Wei-Shaw/sub2api/internal/handler",
+      "action": "pass",
+      "elapsed_seconds": 5.327
+    },
+    {
+      "package": "github.com/Wei-Shaw/sub2api/internal/server/routes",
+      "action": "pass",
+      "elapsed_seconds": 9.371
+    },
+    {
+      "package": "github.com/Wei-Shaw/sub2api/internal/repository",
+      "action": "pass",
+      "elapsed_seconds": 18.35
+    },
+    {
+      "package": "github.com/Wei-Shaw/sub2api/internal/service",
+      "action": "pass",
+      "elapsed_seconds": 140.887
+    }
+  ],
+  "raw_log": "execution environment /tmp/ledger-pagination-protocol-final.jsonl",
+  "note": "Fresh serial run after optional-evidence regression fix and disposable-resource recovery. No failed cases. Browser fixture is opt-in and was run separately; child fixture skip is intentional."
+}

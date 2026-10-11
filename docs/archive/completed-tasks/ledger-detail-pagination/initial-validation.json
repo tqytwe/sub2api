@@ -1,0 +1,144 @@
+{
+  "base_sha": "23d06337cbc315cb92d3fc18e94902fe21e7342d",
+  "checked_at": "2026-10-11T08:41:27.041568+00:00",
+  "gates": [
+    {
+      "name": "make-test",
+      "command": [
+        "make",
+        "test"
+      ],
+      "started_at": "2026-10-11T08:07:38Z",
+      "elapsed_seconds": 877.14,
+      "exit_code": 0,
+      "log": "/tmp/ledger-pagination-make-test.log",
+      "log_sha256": "099c36fab472ee34718cbcc4228138f23696ec5679604da3c8f5a45794cc2c55"
+    },
+    {
+      "name": "unit",
+      "command": [
+        "make",
+        "test-backend-unit"
+      ],
+      "started_at": "2026-10-11T08:22:15Z",
+      "elapsed_seconds": 525.99,
+      "exit_code": 0,
+      "log": "/tmp/ledger-pagination-unit.log",
+      "log_sha256": "a3c05d989dd09e69a730603326f520d2f35f7bdb1aa32a75f1bb590419071335"
+    },
+    {
+      "name": "race",
+      "command": [
+        "go",
+        "-C",
+        "backend",
+        "test",
+        "-race",
+        "-tags=integration",
+        "./internal/requestledger/acceptance",
+        "-run",
+        "^(TestRequestLedgerHTTPDetailPagingContract|TestRequestLedgerHTTPBillingWalletSourcePaging|TestRequestLedgerHTTPRefreshFindsLateProofBehindCursor|TestRequestLedgerHTTPLateCommitAndCursorIsolation|TestRequestLedgerHTTPPagedEvidenceIsolationAndFailure|TestRequestLedgerHTTPAttemptPageConcurrentAdmission|TestBatchImageHTTPUsageDrillUsesCommittedCapture|TestBatchImageHTTPRecoveryAndIsolation|TestBatchImageHTTPDisconnectAfterCapture|TestBatchImageHTTPUnknownUsageAndNullableImageCount|TestBatchImageHTTPConflictingProofBeforeUsageRecovery|TestBatchImageHTTPCaptureProofReadFailureKeepsUsage|TestBatchImageHTTPReconciliationBoundsRequestsWithoutTask|TestRequestLedgerRealtimeCapacityRejectionStillPersistsTurn)$",
+        "-count=1",
+        "-timeout=12m",
+        "-json"
+      ],
+      "started_at": "2026-10-11T08:31:01Z",
+      "elapsed_seconds": 386.47,
+      "exit_code": 0,
+      "log": "/tmp/ledger-pagination-race.log",
+      "log_sha256": "937ecffa55914436fe966e76c5ed044f449745f46751c50166294598479824d3"
+    },
+    {
+      "name": "embed-build",
+      "command": [
+        "go",
+        "-C",
+        "backend",
+        "build",
+        "-tags=embed",
+        "-o",
+        "/tmp/ledger-pagination-server",
+        "./cmd/server"
+      ],
+      "started_at": "2026-10-11T08:37:28Z",
+      "elapsed_seconds": 12.36,
+      "exit_code": 0,
+      "log": "/tmp/ledger-pagination-embed-build.log",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "embed-test",
+      "command": [
+        "go",
+        "-C",
+        "backend",
+        "test",
+        "-tags=embed",
+        "./internal/web",
+        "-count=1"
+      ],
+      "started_at": "2026-10-11T08:37:40Z",
+      "elapsed_seconds": 2.72,
+      "exit_code": 0,
+      "log": "/tmp/ledger-pagination-embed-test.log",
+      "log_sha256": "af44a3f071d037747b4063cd6b5633c40c14469045b14e9a18e942079e13c2f4"
+    },
+    {
+      "name": "fork",
+      "command": [
+        "./scripts/check-fork-integrity.sh"
+      ],
+      "started_at": "2026-10-11T08:37:43Z",
+      "elapsed_seconds": 142.36,
+      "exit_code": 0,
+      "log": "/tmp/ledger-pagination-fork.log",
+      "log_sha256": "82bfb992c0fe6528386123d4fee6ccdff03508a33bc602693ff352df93317b11"
+    }
+  ],
+  "build": {
+    "command": "/tmp/p0-run make build",
+    "exit_code": 0,
+    "log_sha256": "c5ec6b029579f409db6d28cfe67a87bde9d9cdbd064cd3c5a211eae37d2ccf1b"
+  },
+  "frontend": {
+    "passed_files": 500,
+    "passed_tests": 3611,
+    "skipped_files": 3,
+    "skipped_tests": 8,
+    "skip_reason": "Existing opt-in CheckInView.http / QuizQuestView.pg / BlindboxView.pg fixtures not enabled. All 22 pagination UI/API tests executed."
+  },
+  "race": {
+    "top_level_passed": 13,
+    "cases": [
+      "TestBatchImageHTTPCaptureProofReadFailureKeepsUsage",
+      "TestBatchImageHTTPConflictingProofBeforeUsageRecovery",
+      "TestBatchImageHTTPDisconnectAfterCapture",
+      "TestBatchImageHTTPReconciliationBoundsRequestsWithoutTask",
+      "TestBatchImageHTTPRecoveryAndIsolation",
+      "TestBatchImageHTTPUnknownUsageAndNullableImageCount",
+      "TestBatchImageHTTPUsageDrillUsesCommittedCapture",
+      "TestRequestLedgerHTTPAttemptPageConcurrentAdmission",
+      "TestRequestLedgerHTTPBillingWalletSourcePaging",
+      "TestRequestLedgerHTTPDetailPagingContract",
+      "TestRequestLedgerHTTPLateCommitAndCursorIsolation",
+      "TestRequestLedgerHTTPPagedEvidenceIsolationAndFailure",
+      "TestRequestLedgerHTTPRefreshFindsLateProofBehindCursor"
+    ],
+    "note": "Acceptance package only; the unused Realtime regex branch did not run a service case. Full protocol includes its required service cases separately."
+  },
+  "migration": {
+    "filename": "278_gateway_request_task_page_index_notx.sql",
+    "file_sha256": "5257b47a53cbedd46003557c78dbeef03da975dea2efc130bc746f3473714f3a",
+    "normalized_checksum": "b99570bed6d23a93ffe937aea158aa4ddfc1dbe39ea2fad4158963f7797d50b3"
+  },
+  "reviews": {
+    "spec": "batch_spec_review passed, including timezone and usage loading follow-up",
+    "code_quality": "batch_code_review passed after spec; read-only, no gate execution claims"
+  },
+  "evidence": [
+    "source-fingerprint.json",
+    "protocol-validation.json",
+    "browser-evidence.json"
+  ],
+  "next": "Parent advanced play/main to 05b44bec5c2d30ad58d009fbe5247ea363c6ee70 (#352). Preserve this candidate, ordinary merge and rerun affected combination gates before draft PR. No merge/deployment authorized."
+}

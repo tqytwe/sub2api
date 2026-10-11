@@ -1,0 +1,133 @@
+
+ RUN  v2.1.9 /workspace/p1-interactive-auth/frontend
+
+Browserslist: browsers data (caniuse-lite) is 10 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+stderr | src/stores/__tests__/auth.http.spec.ts > native authentication refresh through actual HTTP > clears the rejected current session in storage and Pinia (401)
+Error: Not implemented: navigation (except hash changes)
+    at module.exports (/workspace/p1-welfare-games/frontend/node_modules/.pnpm/jsdom@24.1.3/node_modules/jsdom/lib/jsdom/browser/not-implemented.js:9:17)
+    at navigateFetch (/workspace/p1-welfare-games/frontend/node_modules/.pnpm/jsdom@24.1.3/node_modules/jsdom/lib/jsdom/living/window/navigation.js:77:3)
+    at exports.navigate (/workspace/p1-welfare-games/frontend/node_modules/.pnpm/jsdom@24.1.3/node_modules/jsdom/lib/jsdom/living/window/navigation.js:55:3)
+    at LocationImpl.reload (/workspace/p1-welfare-games/frontend/node_modules/.pnpm/jsdom@24.1.3/node_modules/jsdom/lib/jsdom/living/window/Location-impl.js:226:5)
+    at Location.reload (/workspace/p1-welfare-games/frontend/node_modules/.pnpm/jsdom@24.1.3/node_modules/jsdom/lib/jsdom/living/generated/Location.js:102:36)
+    at reloadWhenSessionReady (/workspace/p1-interactive-auth/frontend/src/stores/auth.ts:104:23)
+    at syncStoredTokensBeforeRefresh (/workspace/p1-interactive-auth/frontend/src/stores/auth.ts:266:7)
+    at /workspace/p1-interactive-auth/frontend/src/stores/auth.ts:109:22
+    at /workspace/p1-interactive-auth/frontend/src/api/tokenRefresh.ts:176:40
+    at Set.forEach (<anonymous>) undefined
+
+stderr | src/stores/__tests__/auth.http.spec.ts > native authentication refresh through actual HTTP > clears the rejected current session in storage and Pinia (403)
+Error: Not implemented: navigation (except hash changes)
+    at module.exports (/workspace/p1-welfare-games/frontend/node_modules/.pnpm/jsdom@24.1.3/node_modules/jsdom/lib/jsdom/browser/not-implemented.js:9:17)
+    at navigateFetch (/workspace/p1-welfare-games/frontend/node_modules/.pnpm/jsdom@24.1.3/node_modules/jsdom/lib/jsdom/living/window/navigation.js:77:3)
+    at exports.navigate (/workspace/p1-welfare-games/frontend/node_modules/.pnpm/jsdom@24.1.3/node_modules/jsdom/lib/jsdom/living/window/navigation.js:55:3)
+    at LocationImpl.reload (/workspace/p1-welfare-games/frontend/node_modules/.pnpm/jsdom@24.1.3/node_modules/jsdom/lib/jsdom/living/window/Location-impl.js:226:5)
+    at Location.reload (/workspace/p1-welfare-games/frontend/node_modules/.pnpm/jsdom@24.1.3/node_modules/jsdom/lib/jsdom/living/generated/Location.js:102:36)
+    at reloadWhenSessionReady (/workspace/p1-interactive-auth/frontend/src/stores/auth.ts:104:23)
+    at syncStoredTokensBeforeRefresh (/workspace/p1-interactive-auth/frontend/src/stores/auth.ts:266:7)
+    at /workspace/p1-interactive-auth/frontend/src/stores/auth.ts:109:22
+    at /workspace/p1-interactive-auth/frontend/src/api/tokenRefresh.ts:176:40
+    at Set.forEach (<anonymous>) undefined
+
+ ✓ src/views/shared/__tests__/RequestLedgerView.session.http.spec.ts (26 tests) 16788ms
+   ✓ clears loaded details/list on same-role account switch even when B fails (admin=false) 320ms
+   ✓ clears on logout synchronously, does no guest read, and isolates A→B→A 310ms
+   ✓ preserves a pending page and its cursor across real automatic token renewal 1079ms
+   ✓ closes/reopens a real dialog while 'attempts' returns stale HTTP 200 316ms
+   ✓ closes/reopens a real dialog while 'attempts' returns stale HTTP 503 317ms
+   ✓ closes/reopens a real dialog while 'billing' returns stale HTTP 200 313ms
+   ✓ closes/reopens a real dialog while 'billing' returns stale HTTP 503 316ms
+   ✓ closes/reopens a real dialog while 'wallet' returns stale HTTP 200 316ms
+   ✓ closes/reopens a real dialog while 'wallet' returns stale HTTP 503 311ms
+   ✓ closes/reopens a real dialog while 'diagnostics' returns stale HTTP 200 313ms
+   ✓ closes/reopens a real dialog while 'diagnostics' returns stale HTTP 503 376ms
+   ✓ keeps all four sections independent when replies and a retry complete out of order 431ms
+   ✓ ends abandoned publication with retryable errors and resumes after ready 10206ms
+ ✓ src/views/shared/__tests__/RequestLedgerView.spec.ts (19 tests) 654ms
+ ✓ src/api/__tests__/client.spec.ts (30 tests) 1322ms
+   ✓ API Client > 401 Token 刷新 > 刷新期间换号时旧请求不会清除新会话 1072ms
+stderr | src/stores/__tests__/auth.spec.ts > useAuthStore > checkAuth > localStorage 中用户数据损坏时清除状态
+Failed to parse saved user data: SyntaxError: Unexpected token 'i', "invalid-json{{{" is not valid JSON
+    at JSON.parse (<anonymous>)
+    at Proxy.checkAuth (/workspace/p1-interactive-auth/frontend/src/stores/auth.ts:160:36)
+    at Proxy.wrappedAction (file:///workspace/p1-welfare-games/frontend/node_modules/.pnpm/pinia@2.3.1_typescript@5.6.3_vue@3.5.43_typescript@5.6.3_/node_modules/pinia/dist/pinia.mjs:1399:26)
+    at /workspace/p1-interactive-auth/frontend/src/stores/__tests__/auth.spec.ts:289:13
+    at file:///workspace/p1-welfare-games/frontend/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14
+    at file:///workspace/p1-welfare-games/frontend/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file:///workspace/p1-welfare-games/frontend/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)
+    at runTest (file:///workspace/p1-welfare-games/frontend/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)
+    at runSuite (file:///workspace/p1-welfare-games/frontend/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///workspace/p1-welfare-games/frontend/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+
+ ✓ src/stores/__tests__/auth.spec.ts (24 tests) 69ms
+stderr | src/stores/__tests__/auth.interactive.http.spec.ts > additional login ownership boundaries > keeps current HTTP 401 cleanup and subsequent login recovery
+Error: Not implemented: navigation (except hash changes)
+    at module.exports (/workspace/p1-welfare-games/frontend/node_modules/.pnpm/jsdom@24.1.3/node_modules/jsdom/lib/jsdom/browser/not-implemented.js:9:17)
+    at navigateFetch (/workspace/p1-welfare-games/frontend/node_modules/.pnpm/jsdom@24.1.3/node_modules/jsdom/lib/jsdom/living/window/navigation.js:77:3)
+    at exports.navigate (/workspace/p1-welfare-games/frontend/node_modules/.pnpm/jsdom@24.1.3/node_modules/jsdom/lib/jsdom/living/window/navigation.js:55:3)
+    at LocationImpl.reload (/workspace/p1-welfare-games/frontend/node_modules/.pnpm/jsdom@24.1.3/node_modules/jsdom/lib/jsdom/living/window/Location-impl.js:226:5)
+    at Location.reload (/workspace/p1-welfare-games/frontend/node_modules/.pnpm/jsdom@24.1.3/node_modules/jsdom/lib/jsdom/living/generated/Location.js:102:36)
+    at reloadWhenSessionReady (/workspace/p1-interactive-auth/frontend/src/stores/auth.ts:104:23)
+    at syncStoredTokensBeforeRefresh (/workspace/p1-interactive-auth/frontend/src/stores/auth.ts:266:7)
+    at /workspace/p1-interactive-auth/frontend/src/stores/auth.ts:109:22
+    at /workspace/p1-interactive-auth/frontend/src/api/tokenRefresh.ts:176:40
+    at Set.forEach (<anonymous>) undefined
+
+stderr | src/stores/__tests__/auth.interactive.http.spec.ts > additional login2FA ownership boundaries > keeps current HTTP 401 cleanup and subsequent login recovery
+Error: Not implemented: navigation (except hash changes)
+    at module.exports (/workspace/p1-welfare-games/frontend/node_modules/.pnpm/jsdom@24.1.3/node_modules/jsdom/lib/jsdom/browser/not-implemented.js:9:17)
+    at navigateFetch (/workspace/p1-welfare-games/frontend/node_modules/.pnpm/jsdom@24.1.3/node_modules/jsdom/lib/jsdom/living/window/navigation.js:77:3)
+    at exports.navigate (/workspace/p1-welfare-games/frontend/node_modules/.pnpm/jsdom@24.1.3/node_modules/jsdom/lib/jsdom/living/window/navigation.js:55:3)
+    at LocationImpl.reload (/workspace/p1-welfare-games/frontend/node_modules/.pnpm/jsdom@24.1.3/node_modules/jsdom/lib/jsdom/living/window/Location-impl.js:226:5)
+    at Location.reload (/workspace/p1-welfare-games/frontend/node_modules/.pnpm/jsdom@24.1.3/node_modules/jsdom/lib/jsdom/living/generated/Location.js:102:36)
+    at reloadWhenSessionReady (/workspace/p1-interactive-auth/frontend/src/stores/auth.ts:104:23)
+    at syncStoredTokensBeforeRefresh (/workspace/p1-interactive-auth/frontend/src/stores/auth.ts:266:7)
+    at /workspace/p1-interactive-auth/frontend/src/stores/auth.ts:109:22
+    at /workspace/p1-interactive-auth/frontend/src/api/tokenRefresh.ts:176:40
+    at Set.forEach (<anonymous>) undefined
+
+ ✓ src/stores/__tests__/auth.http.spec.ts (39 tests) 32406ms
+   ✓ native authentication refresh through actual HTTP > retains the current session after publication timeout and accepts its eventual commit 1042ms
+   ✓ native authentication refresh through actual HTTP > updates Pinia automatically after proactive rotation and schedules the next rotation 2017ms
+   ✓ native authentication refresh through actual HTTP > coalesces concurrent 401s and retries each original request once (proactive=true) 1126ms
+   ✓ native authentication refresh through actual HTTP > allows the new session to refresh while an old session refresh is still in flight 1130ms
+   ✓ native authentication refresh through actual HTTP > ignores a late successful refresh after logout 1080ms
+   ✓ native authentication refresh through actual HTTP > ignores a late successful refresh after account 1067ms
+   ✓ native authentication refresh through actual HTTP > ignores a late successful refresh after same-account-login 1078ms
+   ✓ native authentication refresh through actual HTTP > does not clear a new account when an old profile refresh is rejected 1087ms
+   ✓ native authentication refresh through actual HTTP > clears the rejected current session in storage and Pinia (401) 1026ms
+   ✓ native authentication refresh through actual HTTP > clears the rejected current session in storage and Pinia (403) 1020ms
+   ✓ native authentication refresh through actual HTTP > retains the session when refresh is temporarily unavailable (429) 1030ms
+   ✓ native authentication refresh through actual HTTP > retains the session when refresh is temporarily unavailable (503) 1022ms
+   ✓ native authentication refresh through actual HTTP > expires a proactively rejected current session (401) 2031ms
+   ✓ native authentication refresh through actual HTTP > expires a proactively rejected current session (403) 2080ms
+   ✓ native authentication refresh through actual HTTP > retains the session after proactive temporary failure (429) 2105ms
+   ✓ native authentication refresh through actual HTTP > retains the session after proactive temporary failure (503) 2076ms
+   ✓ native authentication refresh through actual HTTP > retains the session after proactive temporary failure (0) 2077ms
+   ✓ native authentication refresh through actual HTTP > ignores proactive hard rejection after logout 2104ms
+   ✓ native authentication refresh through actual HTTP > ignores proactive hard rejection after account 2068ms
+   ✓ native authentication refresh through actual HTTP > ignores proactive hard rejection after same-account-login 2075ms
+   ✓ native authentication refresh through actual HTTP > preserves a same-session profile update when another profile refresh receives 503 1163ms
+stderr | src/stores/__tests__/auth.interactive.http.spec.ts > additional register ownership boundaries > keeps current HTTP 401 cleanup and subsequent login recovery
+Error: Not implemented: navigation (except hash changes)
+    at module.exports (/workspace/p1-welfare-games/frontend/node_modules/.pnpm/jsdom@24.1.3/node_modules/jsdom/lib/jsdom/browser/not-implemented.js:9:17)
+    at navigateFetch (/workspace/p1-welfare-games/frontend/node_modules/.pnpm/jsdom@24.1.3/node_modules/jsdom/lib/jsdom/living/window/navigation.js:77:3)
+    at exports.navigate (/workspace/p1-welfare-games/frontend/node_modules/.pnpm/jsdom@24.1.3/node_modules/jsdom/lib/jsdom/living/window/navigation.js:55:3)
+    at LocationImpl.reload (/workspace/p1-welfare-games/frontend/node_modules/.pnpm/jsdom@24.1.3/node_modules/jsdom/lib/jsdom/living/window/Location-impl.js:226:5)
+    at Location.reload (/workspace/p1-welfare-games/frontend/node_modules/.pnpm/jsdom@24.1.3/node_modules/jsdom/lib/jsdom/living/generated/Location.js:102:36)
+    at reloadWhenSessionReady (/workspace/p1-interactive-auth/frontend/src/stores/auth.ts:104:23)
+    at syncStoredTokensBeforeRefresh (/workspace/p1-interactive-auth/frontend/src/stores/auth.ts:266:7)
+    at /workspace/p1-interactive-auth/frontend/src/stores/auth.ts:109:22
+    at /workspace/p1-interactive-auth/frontend/src/api/tokenRefresh.ts:176:40
+    at Set.forEach (<anonymous>) undefined
+
+ ✓ src/stores/__tests__/auth.interactive.http.spec.ts (100 tests) 8573ms
+ ✓ src/api/__tests__/tokenRefresh.spec.ts (7 tests) 68ms
+ ✓ src/stores/__tests__/auth.storage.http.spec.ts (45 tests) 822ms
+ ✓ src/api/__tests__/requestLedger.spec.ts (3 tests) 6ms
+
+ Test Files  9 passed (9)
+      Tests  293 passed (293)
+   Start at  11:01:02
+   Duration  36.39s (transform 2.64s, setup 697ms, collect 4.19s, tests 60.71s, environment 3.34s, prepare 553ms)

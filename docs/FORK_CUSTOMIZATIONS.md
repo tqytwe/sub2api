@@ -344,6 +344,8 @@
 - P0 精确关联：服务端 attempt UUID 与进程内不可伪造 Receipt 关联原 Ops ID；上游标识仅有界证据，禁止作为计费去重键。旧 attempt 没有证据时保持为空；诊断表/锁失败不能阻断已观察真实 usage 的原结算。管理员双向跳转，用户仅本人 UUID。迁移 276 只增表/索引，不改历史 checksum 或回填。
 - Batch 精确钻取（关联 `FORK-IMAGE-011`）：原 capture 成功后，以单语句只读核验任务归属及全部冷热指纹，再认证新 usage 的指纹与已结算金额；真实金额和图片数始终保留。核验限时 1 秒，缺失 reader、查询失败或冲突仅留下审计缺口，不阻断 usage、不重复 capture，completed 重试也不猜补。task、owner/key、capture request 与 dedup/archive 指纹一致才关联 usage。共享批次结算不代表每次入口/worker 再次扣款；缺失 usage/旧指纹不补猜，不改冻结价格、capture/release 或公开提交规则。迁移 `277_batch_image_ledger_reconcile_index_notx.sql` 仅新增并发部分索引，按索引先选最多 1000 候选再验证证据；中断建索引复用既有恢复机制。
 - Batch 验证：真实 HTTP/PG 的 capture→usage→详情、失败重试、断连、并发/幂等、归属隔离、归档凭据与无 task 扫描上限，以及用户/管理员实际构建资源；见[本批证据](./archive/completed-tasks/batch-image-ledger/README.md)。合法零 capture 凭据测试不证明既有公开零价格跳过 hold 路径已修复；生产验收状态仅见交接快照。
+- 详情分页：摘要与 attempts/billing/wallet/管理员 diagnostics 独立读取，先限制来源候选再复用原证明；每页最多100个认证候选，额外1个来源候选只判断后续页；wallet每个有界task最多展开3个操作，空中间页继续携带游标。游标绑定请求/用户/角色/集合，不代替鉴权。固定成员遍历不漏不重，实时新增、迟到证明与状态变化需刷新；不声称固定快照。旧详情只有在有界预算内确认完整才成功，否则409/PAGINATION_REQUIRED。迁移278仅新增task来源seek并发索引及既有中断恢复；无计费或历史数据修改。行为保护见 `detail_pagination_integration_test.go`、`detail_page_index_integration_test.go`、`migrations_runner_detail_page_integration_test.go` 与前端分页交互/API测试；完成证据见[分页记录](./archive/completed-tasks/ledger-detail-pagination/README.md)，开发/生产状态仍以交接快照为准。
+- 详情会话隔离：使用共享auth的稳定身份，退出/换号/同账号重登同步清除私有内容并取消旧读取；正常续期保留页面与游标。同身份publishing有界等待5秒，ready恢复原操作，超时可重试；不同区域与关闭重开使用独立序号守卫。保护见真实HTTP会话测试及分页归档中的实际构建浏览器证据。
 - 验证：`requestledger` 真实 PG/进程终止测试、真实注册路由拒绝矩阵、HTTP API 角色/分页测试、Responses 多轮 WS、billing rollback/dedup、前端未知消费/刷新测试；范围和未覆盖协议见归档规格。补充 `correlation_integration_test.go`、`request_ledger_ops_integration_test.go` 与 WS late/drain/重试隔离测试。保留策略仅新增、不自动删除。
 
 ## 更新规则

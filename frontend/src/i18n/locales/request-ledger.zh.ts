@@ -1,4 +1,11 @@
 export default {
+  livePagingNotice: "各区域独立翻页。新记录、迟到关联或证明、状态变化请刷新对应区域查看；分页为实时读取，并非固定快照。",
+  sectionError: "此区域读取失败。若仍显示记录，它们来自上次成功读取。请重试或刷新此区域。",
+  sectionPage: "第 {page} 页 · {count} 条",
+  refreshSection: "刷新此区域",
+  emptyPageMore: "本页没有可显示的关联，仍有后续页可查看。",
+  emptyPage: "本页没有可显示的关联。",
+
   imageCount: '图片张数', batchId: '批次 ID', batchSettled: '该批次已结算',
   exactEvidence: "精确关联证据",
   evidenceNotice: "标识仅用于诊断，不证明用量或扣费。标识证据异步写入，历史记录或诊断故障可能留下缺口；空字段不代表上游未提供。",

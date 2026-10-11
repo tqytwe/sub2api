@@ -39,3 +39,7 @@
 ## 根审后续
 
 主线程在c4d0e54c发现一次性存储失败导致自身publication未清理的新增回归，该head不可合并。最小所有权修复及新的RED→GREEN/构建资源/顺序复审另记[root-storage/README.md](root-storage/README.md)，不覆盖原c4证据。
+
+## 与主线 #360 组合
+
+后续普通合并主线fb2c9747的源码保全、ledger真实HTTP交集及新构建证据见[组合归档](merge-fb2c9747/README.md)。8fa Storage修复源码保持不变；准确新head及CI以#362为准。

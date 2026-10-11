@@ -1,0 +1,28 @@
+[
+  {
+    "role": "user",
+    "actual_built_assets": true,
+    "actual_pinia_actions": true,
+    "ledger_http_postgres": true,
+    "auth_transport": "loopback synthetic only",
+    "account_b_failure": "injected HTTP 503",
+    "normal_rotation_keeps_pending_page_and_cursor": true,
+    "same_account_relogin_resets": true,
+    "same_role_switch_clears_on_failure": true,
+    "logout_clears_without_guest_read": true,
+    "page_errors": []
+  },
+  {
+    "role": "admin",
+    "actual_built_assets": true,
+    "actual_pinia_actions": true,
+    "ledger_http_postgres": true,
+    "auth_transport": "loopback synthetic only",
+    "account_b_failure": "injected HTTP 503",
+    "normal_rotation_keeps_pending_page_and_cursor": true,
+    "same_account_relogin_resets": true,
+    "same_role_switch_clears_on_failure": true,
+    "logout_clears_without_guest_read": true,
+    "page_errors": []
+  }
+]
