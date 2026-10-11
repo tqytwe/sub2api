@@ -596,7 +596,7 @@
           "refs": [
             "https://github.com/tqytwe/sub2api/pull/342"
           ],
-          "note": "已部署 #342 的 Vue 经真实 Axios/HTTP 显示能量或现金；该批页面未修改。后续 #353 已普通合并为 17b96a20c7e9d2e394b37c6c1b108340853c0169，修复 reason 错误提示及补签拒绝刷新，部署/本机验收由主线程跟进。后续 #355 已普通合并为 c939d570aa1f01cadab465c38c36e0295703a9b7，收敛 GET 状态/重试、中枢刷新与里程碑剩余天数。答题/盲盒 #357 已普通合并为 1bfc7e2edb788ca11a23ff936f99db904c4b4199，经真实 PG/HTTP/Axios/Pinia/Vue 与实际构建资源验证，证据见 docs/archive/completed-tasks/2026-10-welfare-games/README.md；部署成功由主线程报告，本批未访问生产复核。当前草稿 #358（codex/p1-auth-refresh-20261011）修复原生续期→Pinia、跨页会话发布与答题选择保留；旧E4 CI通过后根审仍阻塞，根审修复及最新05b44bec组合门禁另记 docs/archive/completed-tasks/2026-10-auth-refresh/README.md 和PR，不能以旧head门禁替代；新批未合并部署。"
+          "note": "已部署 #342 的 Vue 经真实 Axios/HTTP 显示能量或现金；该批页面未修改。后续 #353 已普通合并为 17b96a20c7e9d2e394b37c6c1b108340853c0169，修复 reason 错误提示及补签拒绝刷新，部署/本机验收由主线程跟进。后续 #355 已普通合并为 c939d570aa1f01cadab465c38c36e0295703a9b7，收敛 GET 状态/重试、中枢刷新与里程碑剩余天数。答题/盲盒 #357 已普通合并为 1bfc7e2edb788ca11a23ff936f99db904c4b4199，经真实 PG/HTTP/Axios/Pinia/Vue 与实际构建资源验证，证据见 docs/archive/completed-tasks/2026-10-welfare-games/README.md；部署成功由主线程报告，本批未访问生产复核。后续 #358 已由主线程普通合并为 1b701237ec3ceb869c39d28ad11d32e4065a2471，本批 fetch 核实；最终审查 head e0fca21cbc1b28c8ff7c19b3e1cbd6b5c2f19c22 的6/6 CI及根审证据见原归档和PR，部署/本机验收仍由主线程跟进。新独立批 codex/p1-interactive-auth-20261011 处理迟到login/login2FA/register成功与失败的归属，限四个公共auth文件，证据见 docs/archive/completed-tasks/2026-10-interactive-auth/README.md；不修改冻结#358分支。"
         },
         "api": {
           "status": "recorded",
@@ -632,8 +632,8 @@
           "note": "精确 merge SHA 部署成功；健康、本机 UI/API 与奖励记录核对仍待确认。"
         }
       },
-      "risks": "普通签到 response 修复已部署但未完成生产验收；页面错误契约已在独立 P1 分支完成真实 PG/HTTP/Axios/Vue RED→GREEN，最终门禁和准确 SHA/CI 见该批 PR，不视为已上线。#355 已合并对应状态修复；答题/盲盒 #357 已合并并由主线程报告部署成功。当前草稿 #358 根审补充后限五个授权生产文件（含最小Quiz watcher及公共auth持久化入口），规格/质量复审、冻结构建跨页、PG合同及本地完整门禁通过；准确新head CI及主线程总审另记PR，不以续期后checkAuth补救。质量另发现基线已有迟到交互login失败清除后来会话，三版本同样RED，单列后续，不计本批通过范围。新批不部署。组队、擂台、推广、券包及运营页尚未按本批标准验收。",
-      "next": "主线程补 #342 精确 SHA 健康与本机验收；协调 #353/#355/#357 的生产本机验收及原生自动续期新草稿 PR，精确 head/CI 记录在各 PR；本次只复核签到条目，未前移整份 checked_at 或其他功能状态。",
+      "risks": "普通签到 response 修复已部署但未完成生产验收；页面错误契约已在独立 P1 分支完成真实 PG/HTTP/Axios/Vue RED→GREEN，最终门禁和准确 SHA/CI 见该批 PR，不视为已上线。#355 已合并对应状态修复；答题/盲盒 #357 已合并并由主线程报告部署成功。已合并#358的根审、构建跨页、PG合同、本地门禁和准确head CI见原PR。基线已有迟到交互login清除后来会话的三版本RED证据保留；本轮独立小步修复login/login2FA/register归属，200项定向通过并顺序双审PASS，完整门禁、构建浏览器与新head CI另记新归档/PR。Passkey、直接OAuth及跨标签未发布意图全局排序未按本轮矩阵验证。新批不部署。组队、擂台、推广、券包及运营页尚未按本批标准验收。",
+      "next": "主线程补 #342 精确 SHA 健康与本机验收；协调 #353/#355/#357/#358 的生产本机验收；交互认证草稿#362已建立；根审发现c4d0e54c的一次Storage写入异常会遗留部分会话，禁止合并该head。最小增量登记本attempt的publication归属并限定清理，真实HTTP45项、顺序独立规格/质量审查已通过；新构建证据和新head/CI见docs/archive/completed-tasks/2026-10-interactive-auth/root-storage/及#362，不复用旧c4或#358 CI；本次只复核签到条目，未前移整份 checked_at 或其他功能状态。",
       "rollback": "响应不一致时停止推进并协调源码 revert；不删除奖励或重发历史奖励。"
     },
     {

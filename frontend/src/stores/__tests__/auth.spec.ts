@@ -130,7 +130,8 @@ describe('useAuthStore', () => {
       expect(store.token).toBe('test-token-123')
       expect(store.user).toEqual(fakeUser)
       expect(user).toEqual(fakeUser)
-      expect(mockLogin2FA).toHaveBeenCalledWith({
+      expect(mockLogin2FA).toHaveBeenCalledTimes(1)
+      expect(mockLogin2FA.mock.calls[0][0]).toEqual({
         temp_token: 'temp-123',
         totp_code: '654321',
       })

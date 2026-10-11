@@ -1,0 +1,29 @@
+{
+  "manifest_sha256": "0457d3f26e04900a526dd9ac6498fb0e3615483cb0d5c9a33cc0630705d983c1",
+  "order": [
+    "spec",
+    "quality"
+  ],
+  "spec": {
+    "reviewer": "/root/p1_spec_review",
+    "result": "PASS no blocking source issue; exact publication ownership covers API and Pinia; no finally adoption",
+    "independent_probe": "3/3 actual HTTP newer setToken session preserved after delayed old Storage rejection",
+    "log": "spec-result.log.txt"
+  },
+  "quality": {
+    "reviewer": "/root/p1_quality_review",
+    "result": "PASS no blocking source issue; current sequence and exact publication marker; public signatures and noninteractive callers compatible",
+    "independent_probe": "6/6 actual HTTP plus simulated external pending/ready Storage transition preserved; not native cross-tab proof",
+    "log": "quality-result.log.txt"
+  },
+  "scope": "One-time Storage.setItem failure with subsequent writes working; compiled browser and full gates recorded separately",
+  "recorded_at": "2026-10-11T10:43:27.478789+00:00",
+  "supplemental_evidence_review": {
+    "order": [
+      "spec",
+      "quality"
+    ],
+    "spec": "PASS frozen4,resources356,native48,current GREEN vs historical RED and explicit remaining gates; mechanical refs and cleanup wording corrected",
+    "quality": "PASS full source/resource/log binding and trackable .txt refs; handoff next only; no source edits or heavy retests"
+  }
+}

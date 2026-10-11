@@ -1,0 +1,282 @@
+2026/10/11 10:02:02 Timezone initialized: UTC (UTC offset: +00:00)
+2026/10/11 10:02:03 github.com/testcontainers/testcontainers-go - Connected to docker:
+  Server Version: 28.4.0
+  API Version: 1.51
+  Operating System: Debian GNU/Linux 13 (trixie) (containerized)
+  Total Memory: 18007 MB
+  Testcontainers for Go Version: v0.40.0
+  Resolved Docker Host: unix:///var/run/docker.sock
+  Resolved Docker Socket Path: /var/run/docker.sock
+  Test SessionID: 82065dcfc3f3d2769befacb842284b1bff5c322e65c2628d72ca9ddbaec268e9
+  Test ProcessID: e6abf645-2f57-4665-aa70-cb03ec92bfef
+2026/10/11 10:02:03 🐳 Creating container for image postgres:18.1-alpine3.23
+2026/10/11 10:02:09 🐳 Creating container for image testcontainers/ryuk:0.13.0
+2026/10/11 10:02:09 ✅ Container created: cc3de4f485c8
+2026/10/11 10:02:09 🐳 Starting container: cc3de4f485c8
+2026/10/11 10:02:10 ✅ Container started: cc3de4f485c8
+2026/10/11 10:02:10 ⏳ Waiting for container id cc3de4f485c8 image: testcontainers/ryuk:0.13.0. Waiting for: port 8080/tcp to be listening
+2026/10/11 10:02:10 Shell not found in container
+2026/10/11 10:02:10 🔔 Container is ready: cc3de4f485c8
+2026/10/11 10:02:10 ✅ Container created: f2c2c3930185
+2026/10/11 10:02:10 🐳 Starting container: f2c2c3930185
+2026/10/11 10:02:10 ✅ Container started: f2c2c3930185
+2026/10/11 10:02:10 ⏳ Waiting for container id f2c2c3930185 image: postgres:18.1-alpine3.23. Waiting for: all of: [log message "database system is ready to accept connections" (occurrence: 2), port 5432/tcp to be listening]
+2026/10/11 10:02:13 🔔 Container is ready: f2c2c3930185
+2026/10/11 10:02:13 🐳 Creating container for image redis:8.4-alpine
+2026/10/11 10:02:15 ✅ Container created: d70765ae0a35
+2026/10/11 10:02:15 🐳 Starting container: d70765ae0a35
+2026/10/11 10:02:15 ✅ Container started: d70765ae0a35
+2026/10/11 10:02:15 ⏳ Waiting for container id d70765ae0a35 image: redis:8.4-alpine. Waiting for: all of: [port 6379/tcp to be listening, log message "* Ready to accept connections"]
+2026/10/11 10:02:15 🔔 Container is ready: d70765ae0a35
+=== RUN   TestBlindboxHTTPDatabaseContract
+=== RUN   TestBlindboxHTTPDatabaseContract/balance
+    play_blindbox_welfare_http_integration_test.go:142: blindbox DB: opens=1 snapshots=1 coupons=0 codes=0 cost=0.5 reward=0.2 balance=0.7
+=== RUN   TestBlindboxHTTPDatabaseContract/coupon
+    play_blindbox_welfare_http_integration_test.go:142: blindbox DB: opens=1 snapshots=1 coupons=1 codes=0 cost=0.5 reward=0 balance=0.5
+=== RUN   TestBlindboxHTTPDatabaseContract/redeem_code
+    play_blindbox_welfare_http_integration_test.go:142: blindbox DB: opens=1 snapshots=1 coupons=0 codes=1 cost=0.5 reward=0 balance=0.5
+--- PASS: TestBlindboxHTTPDatabaseContract (0.73s)
+    --- PASS: TestBlindboxHTTPDatabaseContract/balance (0.25s)
+    --- PASS: TestBlindboxHTTPDatabaseContract/coupon (0.24s)
+    --- PASS: TestBlindboxHTTPDatabaseContract/redeem_code (0.24s)
+=== RUN   TestBlindboxBoundaryDatabaseContract
+=== RUN   TestBlindboxBoundaryDatabaseContract/denied_and_unpublished_no_effects
+2026/10/11 10:02:21 [ERROR] POST /api/v1/play/blindbox/open
+  Error: error: code=*** reason="COUPON_REWARD_POOL_UNAVAILABLE" message="coupon reward pool is not published" metadata=map[] cause=coupon reward pool is unavailable
+    play_blindbox_welfare_http_integration_test.go:191: blindbox DB: opens=0 snapshots=0 coupons=0 codes=0 cost=0 reward=0 balance=1
+    play_blindbox_welfare_http_integration_test.go:192: blindbox DB: opens=0 snapshots=0 coupons=0 codes=0 cost=0 reward=0 balance=1
+=== RUN   TestBlindboxBoundaryDatabaseContract/distinct_requests_respect_daily_limit
+    play_blindbox_welfare_http_integration_test.go:229: blindbox DB: opens=2 snapshots=2 coupons=0 codes=0 cost=1 reward=0.4 balance=1.4
+=== RUN   TestBlindboxBoundaryDatabaseContract/insufficient_balance_no_effects
+    play_blindbox_welfare_http_integration_test.go:241: blindbox DB: opens=0 snapshots=0 coupons=0 codes=0 cost=0 reward=0 balance=0.49
+=== RUN   TestBlindboxBoundaryDatabaseContract/rollback_balance
+2026/10/11 10:02:21 [ERROR] POST /api/v1/play/blindbox/open
+  Error: insert play reward ledger: pq: isolated welfare ledger failure
+    play_blindbox_welfare_http_integration_test.go:252: blindbox DB: opens=0 snapshots=0 coupons=0 codes=0 cost=0 reward=0 balance=1
+    play_blindbox_welfare_http_integration_test.go:266: blindbox DB: opens=1 snapshots=1 coupons=0 codes=0 cost=0.5 reward=0.2 balance=0.7
+=== RUN   TestBlindboxBoundaryDatabaseContract/rollback_coupon
+2026/10/11 10:02:21 [ERROR] POST /api/v1/play/blindbox/open
+  Error: insert play reward ledger: pq: isolated welfare ledger failure
+    play_blindbox_welfare_http_integration_test.go:252: blindbox DB: opens=0 snapshots=0 coupons=0 codes=0 cost=0 reward=0 balance=1
+    play_blindbox_welfare_http_integration_test.go:266: blindbox DB: opens=1 snapshots=1 coupons=1 codes=0 cost=0.5 reward=0 balance=0.5
+=== RUN   TestBlindboxBoundaryDatabaseContract/rollback_redeem_code
+2026/10/11 10:02:21 [ERROR] POST /api/v1/play/blindbox/open
+  Error: insert play reward ledger: pq: isolated welfare ledger failure
+    play_blindbox_welfare_http_integration_test.go:252: blindbox DB: opens=0 snapshots=0 coupons=0 codes=0 cost=0 reward=0 balance=1
+    play_blindbox_welfare_http_integration_test.go:266: blindbox DB: opens=1 snapshots=1 coupons=0 codes=1 cost=0.5 reward=0 balance=0.5
+=== RUN   TestBlindboxBoundaryDatabaseContract/expired_redeem_inventory
+2026/10/11 10:02:22 [ERROR] POST /api/v1/play/blindbox/open
+  Error: error: code=*** reason="COUPON_REWARD_POOL_UNAVAILABLE" message="coupon reward pool is not published" metadata=map[] cause=coupon reward pool is unavailable
+    play_blindbox_welfare_http_integration_test.go:278: blindbox DB: opens=0 snapshots=0 coupons=0 codes=0 cost=0 reward=0 balance=1
+    play_blindbox_welfare_http_integration_test.go:284: blindbox DB: opens=1 snapshots=1 coupons=0 codes=1 cost=0.5 reward=0 balance=0.5
+=== RUN   TestBlindboxBoundaryDatabaseContract/paused_coupon_then_retired_pool_replay
+2026/10/11 10:02:22 [ERROR] POST /api/v1/play/blindbox/open
+  Error: error: code=*** reason="COUPON_REWARD_POOL_UNAVAILABLE" message="coupon reward pool is not published" metadata=map[] cause=coupon reward pool is unavailable
+    play_blindbox_welfare_http_integration_test.go:295: blindbox DB: opens=0 snapshots=0 coupons=0 codes=0 cost=0 reward=0 balance=1
+    play_blindbox_welfare_http_integration_test.go:307: blindbox DB: opens=1 snapshots=1 coupons=1 codes=0 cost=0.5 reward=0 balance=0.5
+=== RUN   TestBlindboxBoundaryDatabaseContract/same_client_key_is_scoped_to_each_user
+    play_blindbox_welfare_http_integration_test.go:319: blindbox DB: opens=1 snapshots=1 coupons=0 codes=1 cost=0.5 reward=0 balance=0.5
+    play_blindbox_welfare_http_integration_test.go:319: blindbox DB: opens=1 snapshots=1 coupons=0 codes=1 cost=0.5 reward=0 balance=0.5
+=== RUN   TestBlindboxBoundaryDatabaseContract/previous_day_does_not_consume_current_limit
+--- PASS: TestBlindboxBoundaryDatabaseContract (0.97s)
+    --- PASS: TestBlindboxBoundaryDatabaseContract/denied_and_unpublished_no_effects (0.07s)
+    --- PASS: TestBlindboxBoundaryDatabaseContract/distinct_requests_respect_daily_limit (0.20s)
+    --- PASS: TestBlindboxBoundaryDatabaseContract/insufficient_balance_no_effects (0.08s)
+    --- PASS: TestBlindboxBoundaryDatabaseContract/rollback_balance (0.09s)
+    --- PASS: TestBlindboxBoundaryDatabaseContract/rollback_coupon (0.11s)
+    --- PASS: TestBlindboxBoundaryDatabaseContract/rollback_redeem_code (0.08s)
+    --- PASS: TestBlindboxBoundaryDatabaseContract/expired_redeem_inventory (0.08s)
+    --- PASS: TestBlindboxBoundaryDatabaseContract/paused_coupon_then_retired_pool_replay (0.09s)
+    --- PASS: TestBlindboxBoundaryDatabaseContract/same_client_key_is_scoped_to_each_user (0.14s)
+    --- PASS: TestBlindboxBoundaryDatabaseContract/previous_day_does_not_consume_current_limit (0.05s)
+=== RUN   TestBlindboxVueDatabaseContract
+=== RUN   TestBlindboxVueDatabaseContract/balance
+    play_blindbox_welfare_http_integration_test.go:366:
+         RUN  v2.1.9 /workspace/p1-interactive-auth/frontend
+
+        Browserslist: browsers data (caniuse-lite) is 10 months old. Please run:
+          npx update-browserslist-db@latest
+          Why you should do it regularly: https://github.com/browserslist/update-db#readme
+         ✓ src/views/public/__tests__/BlindboxView.pg.spec.ts (1 test) 691ms
+           ✓ blindbox balance actual PostgreSQL recovery > replays the last unknown open after remount despite the exhausted limit/balance 691ms
+
+         Test Files  1 passed (1)
+              Tests  1 passed (1)
+           Start at  10:02:24
+           Duration  12.98s (transform 6.91s, setup 353ms, collect 8.46s, tests 691ms, environment 1.85s, prepare 195ms)
+
+
+    play_blindbox_welfare_http_integration_test.go:376: blindbox DB: opens=2 snapshots=2 coupons=0 codes=0 cost=1 reward=0.4 balance=0.4
+=== RUN   TestBlindboxVueDatabaseContract/coupon
+    play_blindbox_welfare_http_integration_test.go:366:
+         RUN  v2.1.9 /workspace/p1-interactive-auth/frontend
+
+        Browserslist: browsers data (caniuse-lite) is 10 months old. Please run:
+          npx update-browserslist-db@latest
+          Why you should do it regularly: https://github.com/browserslist/update-db#readme
+         ✓ src/views/public/__tests__/BlindboxView.pg.spec.ts (1 test) 754ms
+           ✓ blindbox coupon actual PostgreSQL recovery > replays the last unknown open after remount despite the exhausted limit/balance 748ms
+
+         Test Files  1 passed (1)
+              Tests  1 passed (1)
+           Start at  10:02:39
+           Duration  8.71s (transform 5.39s, setup 192ms, collect 6.75s, tests 754ms, environment 423ms, prepare 88ms)
+
+
+    play_blindbox_welfare_http_integration_test.go:376: blindbox DB: opens=2 snapshots=2 coupons=2 codes=0 cost=1 reward=0 balance=0
+=== RUN   TestBlindboxVueDatabaseContract/redeem_code
+    play_blindbox_welfare_http_integration_test.go:366:
+         RUN  v2.1.9 /workspace/p1-interactive-auth/frontend
+
+        Browserslist: browsers data (caniuse-lite) is 10 months old. Please run:
+          npx update-browserslist-db@latest
+          Why you should do it regularly: https://github.com/browserslist/update-db#readme
+         ✓ src/views/public/__tests__/BlindboxView.pg.spec.ts (1 test) 515ms
+           ✓ blindbox redeem_code actual PostgreSQL recovery > replays the last unknown open after remount despite the exhausted limit/balance 514ms
+
+         Test Files  1 passed (1)
+              Tests  1 passed (1)
+           Start at  10:02:49
+           Duration  9.14s (transform 5.06s, setup 242ms, collect 6.42s, tests 515ms, environment 982ms, prepare 171ms)
+
+
+    play_blindbox_welfare_http_integration_test.go:376: blindbox DB: opens=2 snapshots=2 coupons=0 codes=2 cost=1 reward=0 balance=0
+--- PASS: TestBlindboxVueDatabaseContract (36.40s)
+    --- PASS: TestBlindboxVueDatabaseContract/balance (15.27s)
+    --- PASS: TestBlindboxVueDatabaseContract/coupon (10.33s)
+    --- PASS: TestBlindboxVueDatabaseContract/redeem_code (10.81s)
+=== RUN   TestQuizHTTPDatabaseContract
+=== RUN   TestQuizHTTPDatabaseContract/energy
+    play_welfare_http_integration_test.go:296: quiz DB: attempts=1 snapshots=1 energy=1 coupons=0 codes=0 reward=0 balance=1
+=== RUN   TestQuizHTTPDatabaseContract/balance
+    play_welfare_http_integration_test.go:299: quiz DB: attempts=1 snapshots=1 energy=0 coupons=0 codes=0 reward=0.2 balance=1.2
+=== RUN   TestQuizHTTPDatabaseContract/coupon
+    play_welfare_http_integration_test.go:305: quiz DB: attempts=1 snapshots=1 energy=0 coupons=1 codes=0 reward=0 balance=1
+=== RUN   TestQuizHTTPDatabaseContract/redeem_code
+    play_welfare_http_integration_test.go:311: quiz DB: attempts=1 snapshots=1 energy=0 coupons=0 codes=1 reward=0 balance=1
+=== RUN   TestQuizHTTPDatabaseContract/invalid_and_zero_score
+    play_welfare_http_integration_test.go:325: quiz DB: attempts=0 snapshots=0 energy=0 coupons=0 codes=0 reward=0 balance=1
+    play_welfare_http_integration_test.go:325: quiz DB: attempts=0 snapshots=0 energy=0 coupons=0 codes=0 reward=0 balance=1
+    play_welfare_http_integration_test.go:325: quiz DB: attempts=0 snapshots=0 energy=0 coupons=0 codes=0 reward=0 balance=1
+    play_welfare_http_integration_test.go:325: quiz DB: attempts=0 snapshots=0 energy=0 coupons=0 codes=0 reward=0 balance=1
+    play_welfare_http_integration_test.go:325: quiz DB: attempts=0 snapshots=0 energy=0 coupons=0 codes=0 reward=0 balance=1
+    play_welfare_http_integration_test.go:334: quiz DB: attempts=1 snapshots=1 energy=0 coupons=0 codes=0 reward=0 balance=1
+=== RUN   TestQuizHTTPDatabaseContract/authentication_and_unpublished_pool
+2026/10/11 10:02:59 [ERROR] POST /api/v1/play/quiz/submit
+  Error: error: code=*** reason="COUPON_REWARD_POOL_UNAVAILABLE" message="coupon reward pool is not published" metadata=map[] cause=coupon reward pool is unavailable
+    play_welfare_http_integration_test.go:357: quiz DB: attempts=0 snapshots=0 energy=0 coupons=0 codes=0 reward=0 balance=1
+=== RUN   TestQuizHTTPDatabaseContract/stale_questions_and_completion_reward
+    play_welfare_http_integration_test.go:374: quiz DB: attempts=0 snapshots=0 energy=0 coupons=0 codes=0 reward=0 balance=1
+    play_welfare_http_integration_test.go:383: quiz DB: attempts=1 snapshots=1 energy=0 coupons=0 codes=0 reward=0.2 balance=1.2
+=== RUN   TestQuizHTTPDatabaseContract/expired_inventory_rolls_back_attempt
+2026/10/11 10:02:59 [ERROR] POST /api/v1/play/quiz/submit
+  Error: error: code=*** reason="COUPON_REWARD_POOL_UNAVAILABLE" message="coupon reward pool is not published" metadata=map[] cause=coupon reward pool is unavailable
+    play_welfare_http_integration_test.go:397: quiz DB: attempts=0 snapshots=0 energy=0 coupons=0 codes=0 reward=0 balance=1
+    play_welfare_http_integration_test.go:403: quiz DB: attempts=1 snapshots=1 energy=0 coupons=0 codes=1 reward=0 balance=1
+=== RUN   TestQuizHTTPDatabaseContract/paused_coupon_pool_and_historical_replay
+2026/10/11 10:02:59 [ERROR] POST /api/v1/play/quiz/submit
+  Error: error: code=*** reason="COUPON_REWARD_POOL_UNAVAILABLE" message="coupon reward pool is not published" metadata=map[] cause=coupon reward pool is unavailable
+    play_welfare_http_integration_test.go:417: quiz DB: attempts=0 snapshots=0 energy=0 coupons=0 codes=0 reward=0 balance=1
+    play_welfare_http_integration_test.go:431: quiz DB: attempts=1 snapshots=1 energy=0 coupons=1 codes=0 reward=0 balance=1
+=== RUN   TestQuizHTTPDatabaseContract/ledger_failure_rolls_back_before_retry
+2026/10/11 10:02:59 [ERROR] POST /api/v1/play/quiz/submit
+  Error: insert play reward ledger: pq: isolated welfare ledger failure
+    play_welfare_http_integration_test.go:443: quiz DB: attempts=0 snapshots=0 energy=0 coupons=0 codes=0 reward=0 balance=1
+    play_welfare_http_integration_test.go:448: quiz DB: attempts=1 snapshots=1 energy=0 coupons=0 codes=0 reward=0.2 balance=1.2
+=== RUN   TestQuizHTTPDatabaseContract/previous_day_does_not_consume_today
+--- PASS: TestQuizHTTPDatabaseContract (1.20s)
+    --- PASS: TestQuizHTTPDatabaseContract/energy (0.18s)
+    --- PASS: TestQuizHTTPDatabaseContract/balance (0.21s)
+    --- PASS: TestQuizHTTPDatabaseContract/coupon (0.19s)
+    --- PASS: TestQuizHTTPDatabaseContract/redeem_code (0.13s)
+    --- PASS: TestQuizHTTPDatabaseContract/invalid_and_zero_score (0.11s)
+    --- PASS: TestQuizHTTPDatabaseContract/authentication_and_unpublished_pool (0.03s)
+    --- PASS: TestQuizHTTPDatabaseContract/stale_questions_and_completion_reward (0.07s)
+    --- PASS: TestQuizHTTPDatabaseContract/expired_inventory_rolls_back_attempt (0.06s)
+    --- PASS: TestQuizHTTPDatabaseContract/paused_coupon_pool_and_historical_replay (0.10s)
+    --- PASS: TestQuizHTTPDatabaseContract/ledger_failure_rolls_back_before_retry (0.08s)
+    --- PASS: TestQuizHTTPDatabaseContract/previous_day_does_not_consume_today (0.04s)
+=== RUN   TestQuizVueDatabaseContract
+=== RUN   TestQuizVueDatabaseContract/energy
+    play_welfare_http_integration_test.go:500:
+         RUN  v2.1.9 /workspace/p1-interactive-auth/frontend
+
+        Browserslist: browsers data (caniuse-lite) is 10 months old. Please run:
+          npx update-browserslist-db@latest
+          Why you should do it regularly: https://github.com/browserslist/update-db#readme
+         ✓ src/views/public/__tests__/QuizQuestView.pg.spec.ts (2 tests) 1099ms
+           ✓ quiz energy actual PostgreSQL roundtrip > normal: click, retry and remount reconcile the same single grant 664ms
+           ✓ quiz energy actual PostgreSQL roundtrip > unknown: click, retry and remount reconcile the same single grant 434ms
+
+         Test Files  1 passed (1)
+              Tests  2 passed (2)
+           Start at  10:03:01
+           Duration  7.69s (transform 3.67s, setup 176ms, collect 4.78s, tests 1.10s, environment 676ms, prepare 114ms)
+
+
+    play_welfare_http_integration_test.go:504: quiz DB: attempts=1 snapshots=1 energy=1 coupons=0 codes=0 reward=0 balance=1
+    play_welfare_http_integration_test.go:504: quiz DB: attempts=1 snapshots=1 energy=1 coupons=0 codes=0 reward=0 balance=1
+=== RUN   TestQuizVueDatabaseContract/balance
+    play_welfare_http_integration_test.go:500:
+         RUN  v2.1.9 /workspace/p1-interactive-auth/frontend
+
+        Browserslist: browsers data (caniuse-lite) is 10 months old. Please run:
+          npx update-browserslist-db@latest
+          Why you should do it regularly: https://github.com/browserslist/update-db#readme
+         ✓ src/views/public/__tests__/QuizQuestView.pg.spec.ts (2 tests) 765ms
+           ✓ quiz balance actual PostgreSQL roundtrip > normal: click, retry and remount reconcile the same single grant 386ms
+           ✓ quiz balance actual PostgreSQL roundtrip > unknown: click, retry and remount reconcile the same single grant 376ms
+
+         Test Files  1 passed (1)
+              Tests  2 passed (2)
+           Start at  10:03:10
+           Duration  5.79s (transform 2.80s, setup 107ms, collect 3.46s, tests 765ms, environment 529ms, prepare 130ms)
+
+
+    play_welfare_http_integration_test.go:506: quiz DB: attempts=1 snapshots=1 energy=0 coupons=0 codes=0 reward=0.2 balance=1.2
+    play_welfare_http_integration_test.go:506: quiz DB: attempts=1 snapshots=1 energy=0 coupons=0 codes=0 reward=0.2 balance=1.2
+=== RUN   TestQuizVueDatabaseContract/coupon
+    play_welfare_http_integration_test.go:500:
+         RUN  v2.1.9 /workspace/p1-interactive-auth/frontend
+
+        Browserslist: browsers data (caniuse-lite) is 10 months old. Please run:
+          npx update-browserslist-db@latest
+          Why you should do it regularly: https://github.com/browserslist/update-db#readme
+         ✓ src/views/public/__tests__/QuizQuestView.pg.spec.ts (2 tests) 1158ms
+           ✓ quiz coupon actual PostgreSQL roundtrip > normal: click, retry and remount reconcile the same single grant 493ms
+           ✓ quiz coupon actual PostgreSQL roundtrip > unknown: click, retry and remount reconcile the same single grant 662ms
+
+         Test Files  1 passed (1)
+              Tests  2 passed (2)
+           Start at  10:03:17
+           Duration  6.15s (transform 3.27s, setup 178ms, collect 4.06s, tests 1.16s, environment 286ms, prepare 67ms)
+
+
+    play_welfare_http_integration_test.go:508: quiz DB: attempts=1 snapshots=1 energy=0 coupons=1 codes=0 reward=0 balance=1
+    play_welfare_http_integration_test.go:508: quiz DB: attempts=1 snapshots=1 energy=0 coupons=1 codes=0 reward=0 balance=1
+=== RUN   TestQuizVueDatabaseContract/redeem_code
+    play_welfare_http_integration_test.go:500:
+         RUN  v2.1.9 /workspace/p1-interactive-auth/frontend
+
+        Browserslist: browsers data (caniuse-lite) is 10 months old. Please run:
+          npx update-browserslist-db@latest
+          Why you should do it regularly: https://github.com/browserslist/update-db#readme
+         ✓ src/views/public/__tests__/QuizQuestView.pg.spec.ts (2 tests) 941ms
+           ✓ quiz redeem_code actual PostgreSQL roundtrip > normal: click, retry and remount reconcile the same single grant 552ms
+           ✓ quiz redeem_code actual PostgreSQL roundtrip > unknown: click, retry and remount reconcile the same single grant 388ms
+
+         Test Files  1 passed (1)
+              Tests  2 passed (2)
+           Start at  10:03:25
+           Duration  7.98s (transform 4.26s, setup 126ms, collect 5.55s, tests 941ms, environment 585ms, prepare 104ms)
+
+
+    play_welfare_http_integration_test.go:510: quiz DB: attempts=1 snapshots=1 energy=0 coupons=0 codes=1 reward=0 balance=1
+    play_welfare_http_integration_test.go:510: quiz DB: attempts=1 snapshots=1 energy=0 coupons=0 codes=1 reward=0 balance=1
+--- PASS: TestQuizVueDatabaseContract (33.47s)
+    --- PASS: TestQuizVueDatabaseContract/energy (9.50s)
+    --- PASS: TestQuizVueDatabaseContract/balance (7.05s)
+    --- PASS: TestQuizVueDatabaseContract/coupon (7.17s)
+    --- PASS: TestQuizVueDatabaseContract/redeem_code (9.75s)
+PASS
+ok      github.com/Wei-Shaw/sub2api/internal/repository 90.991s
