@@ -17,6 +17,61 @@
   },
   "features": [
     {
+      "id": "admin-request-routing-detail",
+      "title": "管理员请求详情独立只读选路证据区域",
+      "backend_state": "可测",
+      "product_state": "可测",
+      "owner": "主线程协调",
+      "pr": null,
+      "sha": null,
+      "evidence": {
+        "ui": {
+          "status": "recorded",
+          "refs": [
+            "docs/visual-reviews/2026-10-11-admin-routing-detail.md",
+            "docs/archive/completed-tasks/admin-routing-detail/browser-evidence.json"
+          ],
+          "note": "新编译资源+合成HTTP routing合同，六状态/四宽度/两角色/503/真实Pinia会话；非后端PG集成或生产。"
+        },
+        "api": {
+          "status": "pending",
+          "refs": [
+            "https://github.com/tqytwe/sub2api/pull/359",
+            "docs/archive/completed-tasks/admin-routing-detail/dependency-contract.json"
+          ],
+          "note": "精确读取ae832b16合同；#359开始时未合入，不把其分支合入，不称主线routing可用。"
+        },
+        "schema": {
+          "status": "na",
+          "refs": [],
+          "note": "本UI任务不新增或修改任何迁移。依赖279由#359独立负责。"
+        },
+        "tests": {
+          "status": "recorded",
+          "refs": [
+            "docs/archive/completed-tasks/admin-routing-detail/reviews.json",
+            "frontend/src/views/shared/__tests__/RequestLedgerView.routing.http.spec.ts",
+            "frontend/src/api/__tests__/requestRouting.spec.ts",
+            "docs/archive/completed-tasks/admin-routing-detail/core-browser-evidence.json"
+          ],
+          "note": "fb基线新增40定向、既有48回归、全量make test（前端3720/8既有跳过）、build/embed/Fork/design/handoff均通过；顺序双审及两类实际资源回归通过。后续#362主线auth组合待复验。"
+        },
+        "deployment": {
+          "status": "pending",
+          "refs": [],
+          "note": "独立草稿，不合并部署；#359正式进入主线后需普通merge及真实routing HTTP/PG组合复验。"
+        },
+        "production": {
+          "status": "pending",
+          "refs": [],
+          "note": "未访问生产秘密/Zeabur，不调用生成；生产及用户本机三身份验收交主线程。"
+        }
+      },
+      "risks": "旧27条503与gpt22历史不可追溯恢复。当前覆盖仅OpenAI-compatible HTTP文本，WS/媒体/Anthropic/Gemini诚实排除。普通用户英文360px既有全局header文档宽489px，基线/新资源一致，详情不溢出；本批未扩大范围修header。",
+      "next": "父线程要求普通merge6ae024e6（#362 auth ownership），保持auth核心；组合定向/实际资源复验后尽快推送草稿。#359未合并，不发布缺后端入口的UI。其他条目及整体checked_at/production保持原样。",
+      "rollback": "如管理员数据泄露、迟到串号或账单受影响，停止推进并由主线程审查源码revert；本UI不删除证据/迁移或改账务。"
+    },
+    {
       "id": "request-ledger-detail-pagination",
       "title": "请求台账详情独立有界实时分页",
       "backend_state": "已验证",

@@ -110,3 +110,6 @@
 
 - [原生自动续期与福利登录态同步](./archive/completed-tasks/2026-10-auth-refresh/README.md) — `in-progress`，隔离 HTTP、构建资源与 PG 回归；草稿交付，不代表部署。
 - [答题续期保留选择视觉记录](./visual-reviews/2026-10-11-auth-refresh.md) — `in-progress`，保留现有控件及样式，实际构建证据。
+
+- [管理员选路详情接线记录](./archive/completed-tasks/admin-routing-detail/README.md)（2026-10-11，草稿依赖#359；前端契约模拟、实际资源与既有PG回归分别标注）
+- [管理员选路详情视觉审查](./visual-reviews/2026-10-11-admin-routing-detail.md)（基线/原型/实际资源、360px既有英文header边界）

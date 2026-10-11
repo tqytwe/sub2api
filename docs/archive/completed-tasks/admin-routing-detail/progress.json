@@ -1,0 +1,18 @@
+{
+  "checked_at": "2026-10-11T11:30:32.743229+00:00",
+  "base": "fb2c9747b58ed5d980a36ea6a2316ead2aa03b7e",
+  "branch": "codex/admin-routing-detail-20261011",
+  "spec_review": "PASS",
+  "code_review": "PASS",
+  "directed_tests": "40 new plus26 session+19view+3API passed",
+  "built_resources": {
+    "files": 356,
+    "capture_and_final_byte_identical": true
+  },
+  "core_pg": "both roles passed;6USD/3images; not routing PG",
+  "routing_browser": "six-state synthetic HTTP contract passed;actual compiled assets/Pinia",
+  "full_gates": "make test passed (backend+lint0,frontend3720/8 existing skips), build/embed build/embed tests/design/handoff/links passed; final Fork running",
+  "dependency": "PR359 ae832b16b63139b2395008a1f2073d7cb15161f7 open/unmerged; no unpublished branch merged",
+  "mobile": "Parent confirms low priority. Same360px English user header baseline489/current489; dialog360. No layout scope expansion.",
+  "production": "No merge/deploy/secret access/generation"
+}
