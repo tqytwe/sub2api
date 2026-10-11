@@ -23,7 +23,7 @@
       "product_state": "可测",
       "owner": "主线程协调",
       "pr": "https://github.com/tqytwe/sub2api/pull/356",
-      "sha": "57b11c4bece17aae9e14d338f54b24d0789fdc2c",
+      "sha": "fbc103a5a0b7fcc9b103536e47eb347cac0895d3",
       "evidence": {
         "ui": {
           "status": "recorded",
@@ -68,7 +68,7 @@
         }
       },
       "risks": "不推断历史指纹、token、unknown零费用；只读证明失败不阻断capture/usage但completed重试不会补证，保留审计缺口。零capture无钱包用例只验证真实保留证明，不覆盖公共零价格跳过hold。受限usage_billing_repo.go未修改。",
-      "next": "PR #356修复后的技术SHA由紧随的元数据提交记录；运行源码以ci-followup-validation.json摘要为准。由主线程核验最终head/CI，不合并部署；生产自然流量、对账及用户本机三身份验收待协调。",
+      "next": "PR #356本次技术验收SHA fbc103a5a0b7fcc9b103536e47eb347cac0895d3；紧随提交仅更新此交接元数据，运行源码与ci-followup-validation.json一致。由主线程核验最终head/新CI，不合并部署；生产自然流量、对账及用户本机三身份验收待协调。",
       "rollback": "协调应用回滚；保留277新增索引与已有台账/usage，不改历史SQL、不删数据。"
     },
     {
