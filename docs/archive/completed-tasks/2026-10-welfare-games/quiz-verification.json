@@ -1,0 +1,252 @@
+{
+  "source_hashes": {
+    "frontend/src/views/public/QuizQuestView.vue": "e6b3094759a261ba087429219f5781e9d6b39c657c2cd44d73398eac9072b3ad",
+    "frontend/src/views/public/__tests__/QuizQuestView.http.spec.ts": "929f414ded73be1539151d86efbd94787fbebc722bd949d09b450e47b52d0c3f",
+    "frontend/src/views/public/__tests__/QuizQuestView.pg.spec.ts": "e30924d505050ec2cc57118da71c2207c5d1a036870c002a7575f648b4f4a3a2",
+    "backend/internal/repository/play_welfare_http_integration_test.go": "5a8ad2579e7e53adaac187a58f2190ef65b1b05db0bc745abba34242e624a117",
+    "frontend/src/views/public/__tests__/QuizQuestView.session.http.spec.ts": "59fa7c23519a1690dad090cd793533a9cc231599213d6109e649e40a0ec15aa4"
+  },
+  "browser": {
+    "reports": [
+      {
+        "case": "quiz-states",
+        "viewport": 360,
+        "language": "zh",
+        "theme": "dark",
+        "js_errors": [],
+        "overflow": false
+      },
+      {
+        "case": "quiz-states",
+        "viewport": 768,
+        "language": "en",
+        "theme": "light",
+        "js_errors": [],
+        "overflow": false
+      },
+      {
+        "case": "quiz-states",
+        "viewport": 1280,
+        "language": "zh",
+        "theme": "light",
+        "js_errors": [],
+        "overflow": false
+      },
+      {
+        "case": "quiz-states",
+        "viewport": 1920,
+        "language": "en",
+        "theme": "dark",
+        "js_errors": [],
+        "overflow": false
+      },
+      {
+        "case": "quiz-empty-disabled-guest",
+        "guest_private_gets": 0
+      },
+      {
+        "case": "quiz-redeem-toast",
+        "cash_toast": false
+      },
+      {
+        "case": "quiz-submit-then-refresh",
+        "posts": 1,
+        "authoritative_reads": 1,
+        "completed": true
+      },
+      {
+        "case": "quiz-duplicate-balance",
+        "posts": 2,
+        "profile_balance": 1.2,
+        "header_balance": 1.2,
+        "reload": false
+      },
+      {
+        "case": "quiz-unknown-balance",
+        "posts": 2,
+        "profile_balance": 1.2,
+        "header_balance": 1.2,
+        "reload": false
+      }
+    ],
+    "index_sha256": "f2efed8f6a7b4c2fcfabd46bcc35b7bb9b143650d93bd0a3b291bd1ccd9b4a97"
+  },
+  "logs": {
+    "/tmp/p3-quiz-session-red.log": {
+      "sha256": "bf8233cb1399f1f49881224bd2f47ccc68be8eec260dbb5aea619292f611044e",
+      "summary": [
+        "     → expected true to be false // Object.is equality",
+        "     → expected 1 to be 1.1 // Object.is equality",
+        "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯",
+        "AssertionError: expected true to be false // Object.is equality",
+        "AssertionError: expected 1 to be 1.1 // Object.is equality",
+        " Test Files  1 failed (1)",
+        "      Tests  2 failed | 4 passed (6)"
+      ]
+    },
+    "/tmp/p3-quiz-session-read-red.log": {
+      "sha256": "c5eda76a5b3c2dccca727e38a793a2f989915c58c332fc978ed3a6d45bb11235",
+      "summary": [
+        "     → expected true to be false // Object.is equality",
+        "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯",
+        "AssertionError: expected true to be false // Object.is equality",
+        " Test Files  1 failed (1)",
+        "      Tests  1 failed | 6 passed (7)"
+      ]
+    },
+    "/tmp/p3-quiz-session-final.log": {
+      "sha256": "5d1eba1dfaa1adfb6b3473b3ed63a2957e74d447d47e996d4d5af67efe527fe1",
+      "summary": [
+        " Test Files  1 passed (1)",
+        "      Tests  7 passed (7)"
+      ]
+    },
+    "/tmp/p3-quiz-contract-final.log": {
+      "sha256": "3c421e29e487fe046966861b4473c3a06f21ed4a79abed0e32f32b638413fae5",
+      "summary": [
+        "    play_welfare_http_integration_test.go:296: quiz DB: attempts=1 snapshots=1 energy=1 coupons=0 codes=0 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:299: quiz DB: attempts=1 snapshots=1 energy=0 coupons=0 codes=0 reward=0.2 balance=1.2",
+        "    play_welfare_http_integration_test.go:305: quiz DB: attempts=1 snapshots=1 energy=0 coupons=1 codes=0 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:311: quiz DB: attempts=1 snapshots=1 energy=0 coupons=0 codes=1 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:325: quiz DB: attempts=0 snapshots=0 energy=0 coupons=0 codes=0 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:325: quiz DB: attempts=0 snapshots=0 energy=0 coupons=0 codes=0 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:325: quiz DB: attempts=0 snapshots=0 energy=0 coupons=0 codes=0 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:325: quiz DB: attempts=0 snapshots=0 energy=0 coupons=0 codes=0 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:325: quiz DB: attempts=0 snapshots=0 energy=0 coupons=0 codes=0 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:334: quiz DB: attempts=1 snapshots=1 energy=0 coupons=0 codes=0 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:357: quiz DB: attempts=0 snapshots=0 energy=0 coupons=0 codes=0 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:374: quiz DB: attempts=0 snapshots=0 energy=0 coupons=0 codes=0 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:383: quiz DB: attempts=1 snapshots=1 energy=0 coupons=0 codes=0 reward=0.2 balance=1.2",
+        "    play_welfare_http_integration_test.go:397: quiz DB: attempts=0 snapshots=0 energy=0 coupons=0 codes=0 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:403: quiz DB: attempts=1 snapshots=1 energy=0 coupons=0 codes=1 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:417: quiz DB: attempts=0 snapshots=0 energy=0 coupons=0 codes=0 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:431: quiz DB: attempts=1 snapshots=1 energy=0 coupons=1 codes=0 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:443: quiz DB: attempts=0 snapshots=0 energy=0 coupons=0 codes=0 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:448: quiz DB: attempts=1 snapshots=1 energy=0 coupons=0 codes=0 reward=0.2 balance=1.2",
+        "--- PASS: TestQuizHTTPDatabaseContract (0.82s)",
+        "    --- PASS: TestQuizHTTPDatabaseContract/energy (0.16s)",
+        "    --- PASS: TestQuizHTTPDatabaseContract/balance (0.17s)",
+        "    --- PASS: TestQuizHTTPDatabaseContract/coupon (0.08s)",
+        "    --- PASS: TestQuizHTTPDatabaseContract/redeem_code (0.17s)",
+        "    --- PASS: TestQuizHTTPDatabaseContract/invalid_and_zero_score (0.05s)",
+        "    --- PASS: TestQuizHTTPDatabaseContract/authentication_and_unpublished_pool (0.01s)",
+        "    --- PASS: TestQuizHTTPDatabaseContract/stale_questions_and_completion_reward (0.04s)",
+        "    --- PASS: TestQuizHTTPDatabaseContract/expired_inventory_rolls_back_attempt (0.03s)",
+        "    --- PASS: TestQuizHTTPDatabaseContract/paused_coupon_pool_and_historical_replay (0.04s)",
+        "    --- PASS: TestQuizHTTPDatabaseContract/ledger_failure_rolls_back_before_retry (0.03s)",
+        "    --- PASS: TestQuizHTTPDatabaseContract/previous_day_does_not_consume_today (0.03s)",
+        "         Test Files  1 passed (1)",
+        "              Tests  2 passed (2)",
+        "    play_welfare_http_integration_test.go:504: quiz DB: attempts=1 snapshots=1 energy=1 coupons=0 codes=0 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:504: quiz DB: attempts=1 snapshots=1 energy=1 coupons=0 codes=0 reward=0 balance=1",
+        "         Test Files  1 passed (1)",
+        "              Tests  2 passed (2)",
+        "    play_welfare_http_integration_test.go:506: quiz DB: attempts=1 snapshots=1 energy=0 coupons=0 codes=0 reward=0.2 balance=1.2",
+        "    play_welfare_http_integration_test.go:506: quiz DB: attempts=1 snapshots=1 energy=0 coupons=0 codes=0 reward=0.2 balance=1.2",
+        "         Test Files  1 passed (1)",
+        "              Tests  2 passed (2)",
+        "    play_welfare_http_integration_test.go:508: quiz DB: attempts=1 snapshots=1 energy=0 coupons=1 codes=0 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:508: quiz DB: attempts=1 snapshots=1 energy=0 coupons=1 codes=0 reward=0 balance=1",
+        "         Test Files  1 passed (1)",
+        "              Tests  2 passed (2)",
+        "    play_welfare_http_integration_test.go:510: quiz DB: attempts=1 snapshots=1 energy=0 coupons=0 codes=1 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:510: quiz DB: attempts=1 snapshots=1 energy=0 coupons=0 codes=1 reward=0 balance=1",
+        "--- PASS: TestQuizVueDatabaseContract (39.04s)",
+        "    --- PASS: TestQuizVueDatabaseContract/energy (8.01s)",
+        "    --- PASS: TestQuizVueDatabaseContract/balance (10.47s)",
+        "    --- PASS: TestQuizVueDatabaseContract/coupon (10.26s)",
+        "    --- PASS: TestQuizVueDatabaseContract/redeem_code (10.28s)"
+      ]
+    },
+    "/tmp/p3-quiz-build-final.log": {
+      "sha256": "db018459c204182d13d8d599ac148695027028f2536eeec77ff2e6089efb417d",
+      "summary": [
+        " Test Files  1 passed (1)",
+        "      Tests  3 passed (3)",
+        "✓ built in 1m 1s"
+      ]
+    },
+    "/tmp/p3-quiz-race-red.log": {
+      "sha256": "92e974eaf66fe6f6b87f32cb7e3b867d833963ddd958b5247077cc4002275f8d",
+      "summary": [
+        "     → expected 2 to be 1 // Object.is equality",
+        "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯",
+        "AssertionError: expected 2 to be 1 // Object.is equality",
+        " Test Files  1 failed (1)",
+        "      Tests  1 failed | 9 skipped (10)"
+      ]
+    },
+    "/tmp/p3-quiz-quality-green.log": {
+      "sha256": "6b0d87339ee5b809ed308409defc2a5e28924a2f79593002b79eb7dc5ad98d3e",
+      "summary": [
+        " Test Files  3 passed (3)",
+        "      Tests  23 passed (23)"
+      ]
+    },
+    "/tmp/p3-quiz-contract-quality.log": {
+      "sha256": "5e81e876b9cceace8e619b9791d3d3fe3b48d4986cdb7df54e3c04644f4e8062",
+      "summary": [
+        "    play_welfare_http_integration_test.go:296: quiz DB: attempts=1 snapshots=1 energy=1 coupons=0 codes=0 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:299: quiz DB: attempts=1 snapshots=1 energy=0 coupons=0 codes=0 reward=0.2 balance=1.2",
+        "    play_welfare_http_integration_test.go:305: quiz DB: attempts=1 snapshots=1 energy=0 coupons=1 codes=0 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:311: quiz DB: attempts=1 snapshots=1 energy=0 coupons=0 codes=1 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:325: quiz DB: attempts=0 snapshots=0 energy=0 coupons=0 codes=0 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:325: quiz DB: attempts=0 snapshots=0 energy=0 coupons=0 codes=0 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:325: quiz DB: attempts=0 snapshots=0 energy=0 coupons=0 codes=0 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:325: quiz DB: attempts=0 snapshots=0 energy=0 coupons=0 codes=0 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:325: quiz DB: attempts=0 snapshots=0 energy=0 coupons=0 codes=0 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:334: quiz DB: attempts=1 snapshots=1 energy=0 coupons=0 codes=0 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:357: quiz DB: attempts=0 snapshots=0 energy=0 coupons=0 codes=0 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:374: quiz DB: attempts=0 snapshots=0 energy=0 coupons=0 codes=0 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:383: quiz DB: attempts=1 snapshots=1 energy=0 coupons=0 codes=0 reward=0.2 balance=1.2",
+        "    play_welfare_http_integration_test.go:397: quiz DB: attempts=0 snapshots=0 energy=0 coupons=0 codes=0 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:403: quiz DB: attempts=1 snapshots=1 energy=0 coupons=0 codes=1 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:417: quiz DB: attempts=0 snapshots=0 energy=0 coupons=0 codes=0 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:431: quiz DB: attempts=1 snapshots=1 energy=0 coupons=1 codes=0 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:443: quiz DB: attempts=0 snapshots=0 energy=0 coupons=0 codes=0 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:448: quiz DB: attempts=1 snapshots=1 energy=0 coupons=0 codes=0 reward=0.2 balance=1.2",
+        "--- PASS: TestQuizHTTPDatabaseContract (1.76s)",
+        "    --- PASS: TestQuizHTTPDatabaseContract/energy (0.26s)",
+        "    --- PASS: TestQuizHTTPDatabaseContract/balance (0.24s)",
+        "    --- PASS: TestQuizHTTPDatabaseContract/coupon (0.27s)",
+        "    --- PASS: TestQuizHTTPDatabaseContract/redeem_code (0.21s)",
+        "    --- PASS: TestQuizHTTPDatabaseContract/invalid_and_zero_score (0.17s)",
+        "    --- PASS: TestQuizHTTPDatabaseContract/authentication_and_unpublished_pool (0.07s)",
+        "    --- PASS: TestQuizHTTPDatabaseContract/stale_questions_and_completion_reward (0.11s)",
+        "    --- PASS: TestQuizHTTPDatabaseContract/expired_inventory_rolls_back_attempt (0.09s)",
+        "    --- PASS: TestQuizHTTPDatabaseContract/paused_coupon_pool_and_historical_replay (0.14s)",
+        "    --- PASS: TestQuizHTTPDatabaseContract/ledger_failure_rolls_back_before_retry (0.10s)",
+        "    --- PASS: TestQuizHTTPDatabaseContract/previous_day_does_not_consume_today (0.10s)",
+        "         Test Files  1 passed (1)",
+        "              Tests  2 passed (2)",
+        "    play_welfare_http_integration_test.go:504: quiz DB: attempts=1 snapshots=1 energy=1 coupons=0 codes=0 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:504: quiz DB: attempts=1 snapshots=1 energy=1 coupons=0 codes=0 reward=0 balance=1",
+        "         Test Files  1 passed (1)",
+        "              Tests  2 passed (2)",
+        "    play_welfare_http_integration_test.go:506: quiz DB: attempts=1 snapshots=1 energy=0 coupons=0 codes=0 reward=0.2 balance=1.2",
+        "    play_welfare_http_integration_test.go:506: quiz DB: attempts=1 snapshots=1 energy=0 coupons=0 codes=0 reward=0.2 balance=1.2",
+        "         Test Files  1 passed (1)",
+        "              Tests  2 passed (2)",
+        "    play_welfare_http_integration_test.go:508: quiz DB: attempts=1 snapshots=1 energy=0 coupons=1 codes=0 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:508: quiz DB: attempts=1 snapshots=1 energy=0 coupons=1 codes=0 reward=0 balance=1",
+        "         Test Files  1 passed (1)",
+        "              Tests  2 passed (2)",
+        "    play_welfare_http_integration_test.go:510: quiz DB: attempts=1 snapshots=1 energy=0 coupons=0 codes=1 reward=0 balance=1",
+        "    play_welfare_http_integration_test.go:510: quiz DB: attempts=1 snapshots=1 energy=0 coupons=0 codes=1 reward=0 balance=1",
+        "--- PASS: TestQuizVueDatabaseContract (43.36s)",
+        "    --- PASS: TestQuizVueDatabaseContract/energy (9.62s)",
+        "    --- PASS: TestQuizVueDatabaseContract/balance (13.50s)",
+        "    --- PASS: TestQuizVueDatabaseContract/coupon (11.09s)",
+        "    --- PASS: TestQuizVueDatabaseContract/redeem_code (9.16s)"
+      ]
+    },
+    "/tmp/p3-quiz-build-quality.log": {
+      "sha256": "1f1d41112bcb9fbad0b72109271b1bb5ec4f39591104a048eff497aa05821c10",
+      "summary": [
+        " Test Files  1 passed (1)",
+        "      Tests  3 passed (3)",
+        "✓ built in 1m 14s"
+      ]
+    }
+  }
+}

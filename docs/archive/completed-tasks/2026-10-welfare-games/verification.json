@@ -1,0 +1,233 @@
+{
+  "base_sha": "c939d570aa1f01cadab465c38c36e0295703a9b7",
+  "source_hashes": {
+    "backend/internal/handler/play_handler_extended.go": "bd77c041171279070d2f6130a76769020045e45851ef7e319a719e83d83c8e3e",
+    "frontend/src/api/play.ts": "62e30aba41709c3cff814345ca9e1f86872cbfcf7dcde51809a4d56637d61f3c",
+    "frontend/src/views/public/QuizQuestView.vue": "e6b3094759a261ba087429219f5781e9d6b39c657c2cd44d73398eac9072b3ad",
+    "frontend/src/views/public/BlindboxView.vue": "bcca729aad7485135068bd0129cd6f7fcbd63f4d116fff9e665fecbbe35bf103",
+    "frontend/src/i18n/locales/jisudeng-pages.zh.ts": "a46daf208228bba874aa37e858636fd67641b3528d0949ff7e29bfd01f68d2f5",
+    "frontend/src/i18n/locales/jisudeng-pages.en.ts": "881c704079c4e20d7d2a19d6a569029a332300ef22f1f4a0cb4594942608387a",
+    "frontend/src/views/public/__tests__/QuizQuestView.session.http.spec.ts": "101dd2ff8280552b2eeec78db72d742e656cf11947075dbab03fd08734ae74b5"
+  },
+  "logs": {
+    "/tmp/p3-blindbox-reviewed-green.log": {
+      "sha256": "2e29b868e008c02c6abba2c1e27fec22036a45a69c50b8c51fd18970def71dcf",
+      "result": "blindbox targeted: 47 passed"
+    },
+    "/tmp/p3-welfare-contract-frozen.log": {
+      "sha256": "c336d4cfa9b47c5d0940904d5837e0943777e8628ad958e5e7087d0ddcb2bb00",
+      "result": "welfare PG/HTTP/Vue contract passed"
+    },
+    "/tmp/p3-checkin-regression-final.log": {
+      "sha256": "62e974cf4f89fb417cccf6c4342f0f2885e60e790b67e52af2aeea4434e19289",
+      "result": "checkin PG/HTTP/Vue regression passed"
+    },
+    "/tmp/p3-welfare-backend-unit-final.log": {
+      "sha256": "7caefe6bbc8c72009936cdea0f8c7d6060d0701b0fc4497ac53da7aae4fa6856",
+      "result": "make test-backend-unit passed"
+    },
+    "/tmp/p3-welfare-build-frozen.log": {
+      "sha256": "5bb4b384296cddc797ea32afa53c7390bbf176b718082c96a0b8077e9f0ab098",
+      "result": "frozen frontend build passed"
+    },
+    "/tmp/p3-welfare-build-backend.log": {
+      "sha256": "00143388549abde5b419081cfd4fea8a4ef21a23e95837e9a1e61ab4d44b0899",
+      "result": "backend build passed"
+    },
+    "/tmp/p3-welfare-contract-quality-final.log": {
+      "sha256": "f3c869e55dbae6493e322155bd386746348aabfbe5fe46c870bff649b83fc7bb",
+      "result": "Final welfare PG/HTTP/Vue passed"
+    },
+    "/tmp/p3-welfare-make-build-quality.log": {
+      "sha256": "87675587b0179a33e201cdc668501e11277d04fdb828512fab942284435194a7",
+      "result": "Final make build passed"
+    },
+    "/tmp/p3-quiz-session-stable.log": {
+      "sha256": "cdbb568a9f84300cd7566011202b6b73ce995fdcbf6603785e2c2d0be9dc8c7a",
+      "result": "Quiz session 7 passed after deterministic synchronization"
+    },
+    "/tmp/p3-blindbox-qualification-green.log": {
+      "sha256": "04d950f54be5d43089f2c3a6a4b55c8c2ad23b1e6fec66e92df8e2966ca75778",
+      "result": "Final Blindbox 49 passed"
+    },
+    "/tmp/p3-welfare-fork-quality-final.log": {
+      "sha256": "b5ab5ac33d5677b746e13529053b0ec7f86a7b21f90dad98f7bff45df8079363",
+      "result": "Final Fork integrity passed"
+    },
+    "/tmp/p3-welfare-make-test-quality.log": {
+      "sha256": "ef5936d361f6acf1dbaeacd19b432bb4af1cd84c6c3b8c952228e6ac0316cd92",
+      "result": "make test exit0: backend full tests + lint 0 issues; frontend lint/typecheck, 3594 passed, 8 skipped (PG-specific cases separately executed)"
+    },
+    "/tmp/p3-welfare-design-quality-final.log": {
+      "sha256": "0c8c90ce10e05c05aae058a817c9e6184ce4ecf36d22329b1a54723a2b242ab2",
+      "result": "passed; handoff reports production items pending without claiming acceptance"
+    },
+    "/tmp/p3-welfare-docs-quality-final.log": {
+      "sha256": "236309252b13b2c591251dfb3dcb8de80ea201df936386581a99fa47dfc9b41a",
+      "result": "passed; handoff reports production items pending without claiming acceptance"
+    },
+    "/tmp/p3-welfare-handoff-quality-final.log": {
+      "sha256": "2b0a71e1a933543b0fd97e4ca97cd1d91328157320901a7995bd273b601e11ba",
+      "result": "passed; handoff reports production items pending without claiming acceptance"
+    }
+  },
+  "browsers": {
+    "updated": {
+      "reports": [
+        {
+          "case": "quiz-states",
+          "viewport": 360,
+          "language": "zh",
+          "theme": "dark",
+          "js_errors": [],
+          "overflow": false
+        },
+        {
+          "case": "quiz-states",
+          "viewport": 768,
+          "language": "en",
+          "theme": "light",
+          "js_errors": [],
+          "overflow": false
+        },
+        {
+          "case": "quiz-states",
+          "viewport": 1280,
+          "language": "zh",
+          "theme": "light",
+          "js_errors": [],
+          "overflow": false
+        },
+        {
+          "case": "quiz-states",
+          "viewport": 1920,
+          "language": "en",
+          "theme": "dark",
+          "js_errors": [],
+          "overflow": false
+        },
+        {
+          "case": "quiz-empty-disabled-guest",
+          "guest_private_gets": 0
+        },
+        {
+          "case": "quiz-redeem-toast",
+          "cash_toast": false
+        },
+        {
+          "case": "quiz-submit-then-refresh",
+          "posts": 1,
+          "authoritative_reads": 1,
+          "completed": true
+        },
+        {
+          "case": "quiz-duplicate-balance",
+          "posts": 2,
+          "profile_balance": 1.2,
+          "header_balance": 1.2,
+          "reload": false
+        },
+        {
+          "case": "quiz-unknown-balance",
+          "posts": 2,
+          "profile_balance": 1.2,
+          "header_balance": 1.2,
+          "reload": false
+        }
+      ],
+      "index_sha256": "d565779025b9910ddb0b2e53b346f48685170a564aff4d8398acf9ae13df291d"
+    },
+    "blindbox-updated": {
+      "reports": [
+        {
+          "case": "blindbox-identity-isolation",
+          "logout_clears_reward": true,
+          "switch_clears_private_pool": true,
+          "failed_qualification_retry": true,
+          "qualified_recent_restored": true,
+          "explorer_recent_requests": 0,
+          "auth_actions": "production Pinia logout/checkAuth; synthetic HTTP identity"
+        },
+        {
+          "case": "blindbox-states",
+          "viewport": 360,
+          "language": "zh",
+          "theme": "dark",
+          "known_probabilities": [
+            0,
+            100,
+            0
+          ],
+          "js_errors": [],
+          "overflow": false
+        },
+        {
+          "case": "blindbox-states",
+          "viewport": 768,
+          "language": "en",
+          "theme": "light",
+          "known_probabilities": [
+            0,
+            100,
+            0
+          ],
+          "js_errors": [],
+          "overflow": false
+        },
+        {
+          "case": "blindbox-states",
+          "viewport": 1280,
+          "language": "zh",
+          "theme": "light",
+          "known_probabilities": [
+            0,
+            100,
+            0
+          ],
+          "js_errors": [],
+          "overflow": false
+        },
+        {
+          "case": "blindbox-states",
+          "viewport": 1920,
+          "language": "en",
+          "theme": "dark",
+          "known_probabilities": [
+            0,
+            100,
+            0
+          ],
+          "js_errors": [],
+          "overflow": false
+        },
+        {
+          "case": "blindbox-unknown-remount-replay",
+          "opens": 2,
+          "posts": 2,
+          "balance": 0
+        },
+        {
+          "case": "blindbox-disabled-unpublished-explorer-guest",
+          "guest_private_gets": 0,
+          "explorer_reward_details": false
+        }
+      ],
+      "index_sha256": "d565779025b9910ddb0b2e53b346f48685170a564aff4d8398acf9ae13df291d"
+    }
+  },
+  "remaining": [
+    "Draft PR creation and exact-head hosted CI; tracked in PR/final delivery record, not inferred from local gates"
+  ],
+  "limitations": [
+    "Synthetic auth only; not JWT/production acceptance",
+    "Browser fixture and actual PG/Vue tested separately",
+    "Shared automatic token-to-Pinia synchronization remains out of scope",
+    "Other welfare/admin surfaces, live midnight transition, 200% zoom not tested"
+  ],
+  "earlier_failed_full_test": {
+    "path": "/tmp/p3-welfare-make-test.log",
+    "sha256": "7c8192c8170dde945f15e939d1bfaf160e8ad1f5cada35d97d3d4dd50a4b0dbf",
+    "result": "3591 passed, 1 failed, 8 skipped: Quiz ABA captured request counts before new-identity GET; explicit GET/busy synchronization replaces fixed 80ms wait"
+  },
+  "independent_reviews": "Both quiz and blindbox spec then quality reviews passed; latest production/source hashes confirmed"
+}

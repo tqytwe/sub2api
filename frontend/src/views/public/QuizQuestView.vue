@@ -16,13 +16,15 @@ const { t } = useI18n()
 const authStore = useAuthStore()
 const appStore = useAppStore()
 
-const loading = ref(true)
+const loading = ref(false)
+const loadError = ref('')
 const submitting = ref(false)
 const quiz = ref<PlayQuizToday | null>(null)
 const choices = reactive<Record<number, number>>({})
 const lastResult = ref<PlayQuizSubmitResult | null>(null)
 let quizLoadRequest = 0
 let quizSubmitRequest = 0
+let quizRefreshDeferred = false
 
 const growthEnergyMode = computed(() => quiz.value?.growth_eligibility?.reward_mode === 'energy')
 const couponPoolReady = computed(() => growthEnergyMode.value || quiz.value?.coupon_pool_ready !== false)
@@ -88,6 +90,7 @@ const canSubmit = computed(
     couponPoolReady.value &&
     !quiz.value.already_submitted &&
     !submitting.value &&
+    !loading.value &&
     quiz.value.questions.length > 0 &&
     quiz.value.questions.every((q) => typeof choices[q.id] === 'number' && choices[q.id] >= 0),
 )
@@ -117,27 +120,45 @@ function scrollToQuestion(questionID: number) {
 function resetQuizState() {
   quizLoadRequest += 1
   quizSubmitRequest += 1
+  quizRefreshDeferred = false
   loading.value = false
+  loadError.value = ''
   submitting.value = false
   quiz.value = null
   lastResult.value = null
   clearChoices()
 }
 
-async function loadQuiz() {
+function refreshQuiz() {
+  if (!submitting.value) void loadQuiz()
+}
+
+async function loadQuiz(refreshBalance = true) {
+  if (loading.value || !authStore.isAuthenticated) return
+  quizRefreshDeferred = false
   const requestID = ++quizLoadRequest
   const sessionKey = quizSessionKey()
   loading.value = true
+  loadError.value = ''
   try {
     const nextQuiz = await playAPI.getQuizToday()
     if (requestID !== quizLoadRequest || !isCurrentQuizSession(sessionKey)) return
-    quiz.value = nextQuiz
-    for (const q of nextQuiz.questions) {
-      if (typeof choices[q.id] !== 'number') delete choices[q.id]
+    if (refreshBalance && nextQuiz.already_submitted) {
+      try {
+        await authStore.refreshUser()
+      } catch {
+        // A profile read cannot undo a settled reward. Refresh remains available.
+      }
+      if (requestID !== quizLoadRequest || !isCurrentQuizSession(sessionKey)) return
     }
-  } catch {
+    quiz.value = nextQuiz
+    lastResult.value = null
+    clearChoices()
+  } catch (err: unknown) {
     if (requestID !== quizLoadRequest || !isCurrentQuizSession(sessionKey)) return
     quiz.value = null
+    const status = (err as { status?: number })?.status
+    loadError.value = status === 403 ? 'quiz.loadForbidden' : status === 0 ? 'quiz.loadNetworkFailed' : 'quiz.loadFailed'
   } finally {
     if (requestID === quizLoadRequest && isCurrentQuizSession(sessionKey)) {
       loading.value = false
@@ -148,7 +169,10 @@ async function loadQuiz() {
 async function handleSubmit() {
   if (!canSubmit.value || !quiz.value) return
   const requestID = ++quizSubmitRequest
-  const sessionKey = quizSessionKey()
+  const userID = authStore.user?.id
+  // A same-account token rotation does not change ownership of an in-flight POST.
+  const isCurrentSubmit = () => requestID === quizSubmitRequest &&
+    authStore.isAuthenticated && authStore.user?.id === userID
   submitting.value = true
   try {
     const answers = quiz.value.questions.map((q) => ({
@@ -156,10 +180,12 @@ async function handleSubmit() {
       choice_index: choices[q.id],
     }))
     const result = await playAPI.submitQuiz(answers)
-    if (requestID !== quizSubmitRequest || !isCurrentQuizSession(sessionKey)) return
+    if (!isCurrentSubmit()) return
     lastResult.value = result
     appStore.showSuccess(result.growth_energy && result.growth_energy > 0
       ? t('quiz.energySuccess', { score: result.score, total: result.total, amount: result.growth_energy })
+      : result.reward_type === 'redeem_code' && result.redeem_code
+        ? t('quiz.redeemDone', { score: result.score, total: result.total, code: result.redeem_code.code })
       : result.reward_type === 'coupon' && result.coupon
         ? t('coupon.reward.issued', { name: result.coupon.name })
         : t('quiz.success', {
@@ -172,10 +198,10 @@ async function handleSubmit() {
     } catch {
       // The result is already settled. Continue with the authoritative quiz state.
     }
-    if (requestID !== quizSubmitRequest || !isCurrentQuizSession(sessionKey)) return
-    await loadQuiz()
+    if (!isCurrentSubmit()) return
+    await loadQuiz(false)
   } catch (err: unknown) {
-    if (requestID !== quizSubmitRequest || !isCurrentQuizSession(sessionKey)) return
+    if (!isCurrentSubmit()) return
     const code = extractApiErrorCode(err)
     if (code === 'PLAY_QUIZ_ALREADY_DONE') {
       appStore.showInfo(t('quiz.alreadyDone'))
@@ -189,13 +215,14 @@ async function handleSubmit() {
     }
     appStore.showError(t('quiz.failed'))
   } finally {
-    if (requestID === quizSubmitRequest && isCurrentQuizSession(sessionKey)) {
+    if (isCurrentSubmit()) {
       submitting.value = false
+      if (quizRefreshDeferred) await loadQuiz()
     }
   }
 }
 
-onMounted(loadQuiz)
+onMounted(() => loadQuiz())
 
 onBeforeUnmount(() => {
   quizLoadRequest += 1
@@ -203,8 +230,16 @@ onBeforeUnmount(() => {
 })
 
 watch(
-  () => [authStore.isAuthenticated, authStore.user?.id, authStore.token] as const,
-  () => {
+  [() => authStore.isAuthenticated, () => authStore.user?.id, () => authStore.token],
+  ([authenticated, userID], [wasAuthenticated, previousUserID]) => {
+    if (authenticated && wasAuthenticated && userID === previousUserID && submitting.value) {
+      // Defer the read until this account's POST settles, so a pre-commit GET
+      // cannot replace the final result or re-enable the submit action.
+      quizLoadRequest += 1
+      quizRefreshDeferred = true
+      loading.value = false
+      return
+    }
     resetQuizState()
     void loadQuiz()
   },
@@ -213,7 +248,7 @@ watch(
 
 <template>
   <AuthenticatedPlayShell>
-    <div class="play-page">
+    <div class="play-page" :aria-busy="loading || submitting">
     <header v-if="!authStore.isAuthenticated" class="public-page-header">
       <PublicPlayBackLink />
       <PublicPageToolbar />
@@ -227,9 +262,14 @@ watch(
               <p class="play-eyebrow">{{ t('play.quizQuest.eyebrow') }}</p>
               <h1 class="play-title">{{ t('play.quizQuest.title') }}</h1>
               <p class="play-subtitle">{{ t('play.quizQuest.subtitle') }}</p>
+              <button v-if="authStore.isAuthenticated" type="button" class="play-btn play-btn-secondary mt-3" data-testid="refresh-quiz" :disabled="loading || submitting" @click="refreshQuiz">{{ t('common.refresh') }}</button>
             </div>
             <div class="play-action-panel">
               <h2 class="play-section-title">{{ t('nav.quizQuest') }}</h2>
+              <p v-if="!authStore.isAuthenticated" class="play-note">{{ t('quiz.loginHint') }}</p>
+              <p v-else-if="loading" class="play-note">{{ t('models.loading') }}</p>
+              <p v-else-if="loadError" class="play-note">{{ t(loadError) }}</p>
+              <template v-else>
               <div v-if="quiz?.enabled" class="quiz-hero-progress">
                 <div class="quiz-hero-progress__track">
                   <span :style="{ width: `${quiz.questions.length ? (answeredCount / quiz.questions.length) * 100 : 0}%` }" />
@@ -246,15 +286,21 @@ watch(
                 {{ t('quiz.rewardHint', { amount: fullBalanceReward.toFixed(2) }) }}
               </p>
               <p v-else-if="quiz?.enabled" class="play-note">{{ t('quiz.couponPoolUnavailable') }}</p>
-              <p v-else class="play-note">{{ loading ? t('models.loading') : t('quiz.disabled') }}</p>
-              <div v-if="!authStore.isAuthenticated && quiz?.enabled && couponPoolReady" class="play-actions">
-                <router-link to="/register" class="play-btn play-btn-primary">{{ t('play.quizQuest.ctaGuest') }}</router-link>
-              </div>
+              <p v-else class="play-note">{{ t('quiz.disabled') }}</p>
+              </template>
             </div>
           </div>
         </section>
 
-        <div v-if="loading" class="play-note">{{ t('models.loading') }}</div>
+        <div v-if="!authStore.isAuthenticated" class="play-note">
+          <p>{{ t('quiz.loginHint') }}</p>
+          <router-link to="/login?redirect=/quiz-quest" class="play-btn play-btn-primary mt-3">{{ t('home.login') }}</router-link>
+        </div>
+        <div v-else-if="loading" class="play-note">{{ t('models.loading') }}</div>
+        <div v-else-if="loadError" class="play-note" role="alert">
+          <p>{{ t(loadError) }}</p>
+          <button type="button" class="play-btn play-btn-secondary mt-3" :disabled="loading || submitting" @click="refreshQuiz">{{ t('common.retry') }}</button>
+        </div>
         <div v-else-if="!quiz?.enabled" class="play-note">{{ t('quiz.disabled') }}</div>
         <div v-else class="play-detail-grid">
           <section class="play-content-panel">
@@ -268,9 +314,7 @@ watch(
               </p>
             </div>
             <div v-else-if="!couponPoolReady" class="play-note">{{ t('quiz.couponPoolUnavailable') }}</div>
-            <div v-else-if="!authStore.isAuthenticated" class="play-actions">
-              <router-link to="/register" class="play-btn play-btn-primary">{{ t('play.quizQuest.ctaGuest') }}</router-link>
-            </div>
+            <p v-else-if="!quiz.questions.length" class="play-note">{{ t('quiz.empty') }}</p>
             <div v-else class="space-y-6">
               <div
                 v-for="(q, idx) in quiz.questions"

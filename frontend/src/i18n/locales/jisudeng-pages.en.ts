@@ -373,6 +373,8 @@ export const jisudengPagesEn = {
   blindbox: {
     branchesTitle: "Reward types and current probabilities",
     probabilityUnknown: "Probability not published",
+    pendingOpenHint: 'Your last opening is not yet confirmed. Retry continues that opening without charging twice.',
+    resumeOpen: 'Retry last opening',
     recentRedeemCodeWin: "Received a redeem code",
     branches: {"coupon": "Coupon", "redeem_code": "Redeem code", "balance": "Balance"},
     prizePoolTitle: 'Prize pool preview',
@@ -420,6 +422,11 @@ export const jisudengPagesEn = {
     failed: 'Open failed, please try again',
   },
   quiz: {
+    loginHint: 'Sign in to view today’s questions and your reward eligibility.',
+    loadFailed: 'Questions could not be loaded. Please try again later.',
+    loadForbidden: 'Quiz eligibility is unavailable. Refresh or sign in again to retry.',
+    loadNetworkFailed: 'Could not connect to the quiz service. Check your connection and retry.',
+    empty: 'No questions are available today. Refresh again later.',
     disabled: 'Quiz quest is not available right now',
     couponPoolUnavailable: 'The coupon reward pool is being configured, so quiz submissions are unavailable right now.',
     rewardHint: 'One draw happens after the full quiz is submitted. Rewards follow the currently published quiz pool and are issued instantly.',

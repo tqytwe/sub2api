@@ -1,0 +1,77 @@
+{
+  "reports": [
+    {
+      "case": "blindbox-identity-isolation",
+      "logout_clears_reward": true,
+      "switch_clears_private_pool": true,
+      "failed_qualification_retry": true,
+      "qualified_recent_restored": true,
+      "explorer_recent_requests": 0,
+      "auth_actions": "production Pinia logout/checkAuth; synthetic HTTP identity"
+    },
+    {
+      "case": "blindbox-states",
+      "viewport": 360,
+      "language": "zh",
+      "theme": "dark",
+      "known_probabilities": [
+        0,
+        100,
+        0
+      ],
+      "js_errors": [],
+      "overflow": false
+    },
+    {
+      "case": "blindbox-states",
+      "viewport": 768,
+      "language": "en",
+      "theme": "light",
+      "known_probabilities": [
+        0,
+        100,
+        0
+      ],
+      "js_errors": [],
+      "overflow": false
+    },
+    {
+      "case": "blindbox-states",
+      "viewport": 1280,
+      "language": "zh",
+      "theme": "light",
+      "known_probabilities": [
+        0,
+        100,
+        0
+      ],
+      "js_errors": [],
+      "overflow": false
+    },
+    {
+      "case": "blindbox-states",
+      "viewport": 1920,
+      "language": "en",
+      "theme": "dark",
+      "known_probabilities": [
+        0,
+        100,
+        0
+      ],
+      "js_errors": [],
+      "overflow": false
+    },
+    {
+      "case": "blindbox-unknown-remount-replay",
+      "opens": 2,
+      "posts": 2,
+      "balance": 0
+    },
+    {
+      "case": "blindbox-disabled-unpublished-explorer-guest",
+      "guest_private_gets": 0,
+      "explorer_reward_details": false
+    }
+  ],
+  "index_sha256": "d565779025b9910ddb0b2e53b346f48685170a564aff4d8398acf9ae13df291d"
+}
