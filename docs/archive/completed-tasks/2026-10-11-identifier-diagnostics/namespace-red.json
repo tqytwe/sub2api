@@ -1,0 +1,14 @@
+{
+  "base_sha": "fdec971d2a01c25d93874b7688dffcff78f79088",
+  "status": "RED",
+  "command": "go test -tags=integration ./internal/service -run ^TestRequestLedgerImageIdentifierNamespaces$ -count=1 -timeout=5m",
+  "exit_code": 1,
+  "failed_cases": [
+    "response.incomplete",
+    "response.failed"
+  ],
+  "expected_request_id": "req_image",
+  "actual_request_id": "resp_image",
+  "evidence": "Real loopback HTTP + disposable PostgreSQL, immutable ResponseReceipt through actual image error adapter and Ops append; no production access or historical attribution",
+  "raw_log_sha256": "23f62393884e76ceef8eef90271f4c86fa3de720bbbc0ef20fec90aff434e810"
+}

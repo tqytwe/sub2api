@@ -66,6 +66,7 @@
 | [v182 Growth Qualification Contract](./V182_GROWTH_QUALIFICATION_CONTRACT.md) | `proposal` | 签到答题资格、成长能量、奖励账本与 cohort 观测规则 | Growth 维护者 | 2026-08-29 |
 | [批量图片台账精确钻取](./archive/completed-tasks/batch-image-ledger/README.md) | `active` | capture/usage/task 精确凭据、冻结价格与验证范围；部署另行协调 | 计费维护者 | 2026-10-10 |
 | [批量图片台账视觉证据](./visual-reviews/2026-10-10-batch-image-ledger.md) | `historical` | 隔离环境实际构建资源及原型/响应式证据 | 本批提交者 | 2026-10-10 |
+| [上游标识冲突诊断](./archive/completed-tasks/2026-10-11-identifier-diagnostics/README.md) | `active` | 精确Receipt白名单快照、图片namespace修复与281兼容；草稿验证中、未部署 | 本批提交者 | 2026-10-11 |
 | [请求详情有界分页](./archive/completed-tasks/ledger-detail-pagination/README.md) | `active` | 实时游标与兼容合同、增量索引及验证范围；安全只读补证独立后续 | 本批提交者 | 2026-10-11 |
 | [请求详情分页视觉证据](./visual-reviews/2026-10-11-ledger-detail-pagination.md) | `historical` | 隔离HTTP/PG与实际构建资源，不替代生产验收 | 本批提交者 | 2026-10-11 |
 

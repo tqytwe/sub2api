@@ -1,0 +1,209 @@
+{
+  "base_sha": "8364b462feda15f3bf8f3bb2029314d2193b9dba",
+  "checked_at": "2026-10-11T13:43:25.025732+00:00",
+  "state": "all required local gates and sequential reviews passed; independent draft submission next",
+  "scope": "identifier281 backend and image namespace only; noUI/production/merge/deploy",
+  "source_manifest": "tested-source-sha256.txt",
+  "preservation": "main-sync.json",
+  "reviews": "reviews.json",
+  "contracts": {
+    "ledger": {
+      "required_passed": 96,
+      "required_total": 96,
+      "top_level_passed": 129,
+      "test_subtest_passed": 564,
+      "skipped": [
+        {
+          "Time": "2026-10-11T13:00:50.632632547Z",
+          "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+          "Test": "TestLedgerPostgresIdentifierSnapshotCrashChild",
+          "Action": "skip",
+          "Elapsed": 0
+        },
+        {
+          "Time": "2026-10-11T13:01:45.314211715Z",
+          "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+          "Test": "TestLedgerKilledProcessChild",
+          "Action": "skip",
+          "Elapsed": 0
+        },
+        {
+          "Time": "2026-10-11T13:02:10.408475786Z",
+          "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+          "Test": "TestLedgerPostgresRoutingCrashChild",
+          "Action": "skip",
+          "Elapsed": 0
+        },
+        {
+          "Time": "2026-10-11T13:03:55.294345825Z",
+          "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger/acceptance",
+          "Test": "TestRequestLedgerDetailPagingBrowserFixture",
+          "Action": "skip",
+          "Elapsed": 0
+        },
+        {
+          "Time": "2026-10-11T13:04:34.979305736Z",
+          "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger/acceptance",
+          "Test": "TestRequestLedgerBrowserFixture",
+          "Action": "skip",
+          "Elapsed": 0
+        }
+      ]
+    },
+    "core": {
+      "required_passed": 54,
+      "required_total": 54,
+      "top_level_passed": 38,
+      "test_subtest_passed": 203,
+      "skipped": []
+    }
+  },
+  "contract_gates": [
+    {
+      "name": "ledger-contract-race",
+      "command": [
+        "go",
+        "test",
+        "-race",
+        "-tags=integration",
+        "./internal/requestledger/...",
+        "./internal/handler",
+        "./internal/server/routes",
+        "./internal/repository",
+        "./internal/service",
+        "-run",
+        "RequestLedger|LedgerPostgres|LedgerKilledProcess|LedgerStorage|BatchImageHTTP|BatchImageReconciliation|BatchImageLedgerMigration|TestIdentifierSnapshot",
+        "-count=1",
+        "-timeout=12m",
+        "-json"
+      ],
+      "exit_code": 0,
+      "started_at": "2026-10-11T13:00:15.497979+00:00",
+      "finished_at": "2026-10-11T13:11:11.325854+00:00",
+      "elapsed_seconds": 655.828,
+      "log": "/tmp/identifier281-merge359-ledger-contract-race.log",
+      "log_sha256": "26b9a3231b3f6d726f578a7b2b6489068122fb73e406f734ab1ab1f62a8f5ef1"
+    },
+    {
+      "name": "core-contract",
+      "command": [
+        "go",
+        "test",
+        "./migrations",
+        "-count=1",
+        "-timeout=2m",
+        "-json",
+        "-run",
+        "^(TestAccountGroupAllowedModelsMigration|TestUsageLogBillingReconciliationMigrationIsForwardOnly)$"
+      ],
+      "exit_code": 0,
+      "started_at": "2026-10-11T13:11:11.330280+00:00",
+      "finished_at": "2026-10-11T13:11:46.244458+00:00",
+      "elapsed_seconds": 34.914,
+      "log": "/tmp/identifier281-merge359-core-contract.log",
+      "log_sha256": "e6f2f2350353bed66addbc9b1e6a5a61942564f312935bfbecf2f59bf684c65e"
+    },
+    {
+      "name": "core-repositories",
+      "command": [
+        "go",
+        "test",
+        "-tags=integration",
+        "./internal/repository",
+        "-count=1",
+        "-timeout=10m",
+        "-json",
+        "-run",
+        "^(TestCoreMigration.*|TestBillingLogReconciliation.*|TestAccountGroupAllowedModelsConcurrent.*|TestGroupCopyAccounts.*|TestAccountAdminUpdate.*|TestAccountRepoSuite|TestGroupRepoSuite|TestBillingCacheSuite|TestMigrationsRunner_ConcurrentInstancesSerializeOnSessionLock|TestUsageBillingRepositoryApply_(DeduplicatesBalanceBilling|WithLedgerWritesUsageCharge|RejectsCrossUserCharge|RejectsCrossUserSubscriptionCharge|DeduplicatesSubscriptionBilling|RequestFingerprintConflict|DeletedAPIKeyStillBillsBalance|UpdatesAccountQuota|EnqueuesSchedulerOutboxOnQuotaCrossing|DeduplicatesAgainstArchivedKey))$"
+      ],
+      "exit_code": 0,
+      "started_at": "2026-10-11T13:11:46.244732+00:00",
+      "finished_at": "2026-10-11T13:12:43.546784+00:00",
+      "elapsed_seconds": 57.302,
+      "log": "/tmp/identifier281-merge359-core-repositories.log",
+      "log_sha256": "58d3aac574898d38ddafd31020b18093be064a1a6ac9ad7c53e5487b662642da"
+    }
+  ],
+  "full_gates": [
+    {
+      "name": "make-test",
+      "command": [
+        "make",
+        "test"
+      ],
+      "exit_code": 0,
+      "started_at": "2026-10-11T13:13:29.074872+00:00",
+      "finished_at": "2026-10-11T13:25:19.319899+00:00",
+      "elapsed_seconds": 710.245,
+      "log": "/tmp/identifier281-merge359-make-test.log",
+      "log_sha256": "3ffb2da4f2541abf31d0893e7688d7f9d08d8ab8573ef7a0779896b0233573f8"
+    },
+    {
+      "name": "tag-unit",
+      "command": [
+        "make",
+        "test-backend-unit"
+      ],
+      "exit_code": 0,
+      "started_at": "2026-10-11T13:25:19.320553+00:00",
+      "finished_at": "2026-10-11T13:34:04.209114+00:00",
+      "elapsed_seconds": 524.889,
+      "log": "/tmp/identifier281-merge359-tag-unit.log",
+      "log_sha256": "32e48252f7a1f19ebe5fdccf478bf0f106cf32d84cab39259421404239d0450b"
+    },
+    {
+      "name": "build",
+      "command": [
+        "make",
+        "build"
+      ],
+      "exit_code": 0,
+      "started_at": "2026-10-11T13:34:04.209427+00:00",
+      "finished_at": "2026-10-11T13:38:30.122685+00:00",
+      "elapsed_seconds": 265.913,
+      "log": "/tmp/identifier281-merge359-build.log",
+      "log_sha256": "79dd87bd72bbd19753a50d335acdbce37bb2341d4b7cf9191ddfc4ce97c4a9f6"
+    },
+    {
+      "name": "embed",
+      "command": [
+        "go",
+        "build",
+        "-tags",
+        "embed",
+        "-buildvcs=false",
+        "-trimpath",
+        "-o",
+        "/tmp/identifier281-merge359-server-embed",
+        "./cmd/server"
+      ],
+      "exit_code": 0,
+      "started_at": "2026-10-11T13:38:30.123014+00:00",
+      "finished_at": "2026-10-11T13:40:56.684878+00:00",
+      "elapsed_seconds": 146.562,
+      "log": "/tmp/identifier281-merge359-embed.log",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "fork",
+      "command": [
+        "./scripts/check-fork-integrity.sh"
+      ],
+      "exit_code": 0,
+      "started_at": "2026-10-11T13:40:56.685138+00:00",
+      "finished_at": "2026-10-11T13:43:12.249302+00:00",
+      "elapsed_seconds": 135.564,
+      "log": "/tmp/identifier281-merge359-fork.log",
+      "log_sha256": "c27c579a00bfb9590ba68150a4c3a1a35c446aa657edb9eb875ec36f8aacad7b"
+    }
+  ],
+  "prior_failure": "base-full-first-failure.json",
+  "resources": "cache-cleanup-before-merge-full.json",
+  "frontend": {
+    "test_files_passed": 504,
+    "test_files_skipped": 3,
+    "tests_passed": 3825,
+    "tests_skipped": 8
+  },
+  "source_manifest_verified_after_gates": true
+}

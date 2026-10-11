@@ -1,0 +1,47 @@
+[
+  {
+    "name": "target-race",
+    "command": [
+      "go",
+      "test",
+      "-race",
+      "-tags=integration",
+      "./internal/requestledger/...",
+      "./internal/repository",
+      "./internal/server/routes",
+      "./internal/service",
+      "-run",
+      "TestIdentifierSnapshot|TestCorrelationIdentifier|TestStreamCorrelation|TestLedgerPostgresIdentifier|TestLedgerPostgresExactAttemptEvidence|TestLedgerPostgresImmutableReceiptsAndLinks|TestLedgerPostgresDoTimeoutAndIsolation|TestRequestLedgerHTTPIdentifier|TestRequestLedgerIdentifier|TestRequestLedgerImageIdentifier|TestRequestLedgerOpsRetrySnapshots|TestRequestLedgerEmptyImageFailureKeepsOriginalAttemptAfterRetry|TestRequestLedgerDelayedWSFailureCannotCopyNextTurn|TestRequestLedgerHTTPHeaderTimeoutHasExactErrorReceipt|TestRequestLedgerWSResultBusinessIDIsNotResponseEvidence",
+      "-count=1",
+      "-timeout=8m",
+      "-json"
+    ],
+    "exit_code": 0,
+    "started_at": "2026-10-11T12:23:50.971439+00:00",
+    "finished_at": "2026-10-11T12:29:39.200478+00:00",
+    "elapsed_seconds": 348.229,
+    "log": "/tmp/identifier281-target-race.log",
+    "log_sha256": "144f1b84d9f5468c46900ec1573c4094a45ccfa6b0da5dc55cf15035505af410"
+  },
+  {
+    "name": "image-behavior",
+    "command": [
+      "go",
+      "test",
+      "-race",
+      "-tags=unit",
+      "./internal/service",
+      "-run",
+      "TestExtractImagesUpstreamError|TestImagesOAuth|TestForwardOpenAIImagesAPIKey|TestDetachUpstreamContext|TestOpsUpstream",
+      "-count=1",
+      "-timeout=4m",
+      "-json"
+    ],
+    "exit_code": 0,
+    "started_at": "2026-10-11T12:29:39.201249+00:00",
+    "finished_at": "2026-10-11T12:31:41.832479+00:00",
+    "elapsed_seconds": 122.631,
+    "log": "/tmp/identifier281-image-behavior.log",
+    "log_sha256": "316b713680f553cc368bbc3ae4924a0b0050c3e57a832c687531d013673a6592"
+  }
+]

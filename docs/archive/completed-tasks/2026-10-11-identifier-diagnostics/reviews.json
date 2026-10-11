@@ -1,0 +1,23 @@
+{
+  "specification_first": "P2 missing/null/empty version incorrectly unsupported; SSE absent payload.type incorrectly none; two exact RED failures then minimal fixes",
+  "specification_recheck": "passed /root/routing_spec_review: missing version incomplete, empty legacy{}not_recorded, nonempty future unsupported; SSE payload.type-only scope accurate and parser terminal behavior unchanged; CI56+20=76 preserved",
+  "quality": "passed /root/routing_quality_review after specification rereview, no P1/P2. Independently reviewed writer/reader/concurrency, namespace/Receipt, bounded API/admin/secret/loss semantics, migration rollback tests and retainedCI56->76. No tests run by reviewer; frozen contract/race/full gates remain pending.",
+  "review_tdd": [
+    {
+      "phase": "red",
+      "log": "/tmp/identifier281-review-red.log",
+      "sha256": "b5ad9722657027c7252290dd64f6c0551952b0d9d7873b894d809c092fa7b78f",
+      "expected_exit": 1
+    },
+    {
+      "phase": "green",
+      "log": "/tmp/identifier281-review-green.log",
+      "sha256": "ea1cfc17d25d664a43c80671e9146fcf17e98111857b32374a6cfb2fb3d16227",
+      "expected_exit": 0
+    }
+  ],
+  "final_frozen_race": "original6ae final frozen76/76 passed, see validation.json; combination8364 full96/race running",
+  "merge_specification": "passed /root/routing_spec_review:18 nonshared identifier inputs unchanged,22 manifest exact,406 oldSQL+279 exact,no280,allmain handoff and protectedpaths preserved;CI75+20+1=96;combinedtest proves coexistence via routing hooks and actualHTTP/PG, actualscheduler coverage retained by original contracts;noP1/P2, no tests executed by reviewer",
+  "merge_quality": "PASS /root/routing_quality_review after incremental spec:18 unchanged implementation inputs/22 manifest,58 main inheritedfiles,406 oldSQL,279/281 hashes and otherhandoff preserved;CI75->96/no dropped;PGfixture279+281/cleanup-v and bothadminroutes; combined realHTTP/PG routinghooks synchronizes identifier/Finish workers, late originalReceipt cannot overwrite routing DTO, no new lock-order/race issue;noP1/P2;reviewer did not modify/run tests, full gates not yet complete",
+  "merge_reviews_completed_at": "2026-10-11T13:05:19.046293+00:00"
+}
