@@ -1,0 +1,631 @@
+{
+  "root_review_fix": {
+    "status": "All local gates and sequential spec/quality reviews passed; new exact head/CI will be recorded in draft PR358 after ordinary push. No merge/deployment.",
+    "historical_head": "e4de91174e40847fac894de72ef282e5bbd4379e",
+    "historical_head_ci": "6/6 passed; root review blocked this head",
+    "integration_base_sha": "05b44bec5c2d30ad58d009fbe5247ea363c6ee70",
+    "source_hashes": {
+      "frontend/src/api/client.ts": "fb723bf2fa4818b1763a0f8e4bd06272df62b887b85fa844d66ab890457efa2c",
+      "frontend/src/api/tokenRefresh.ts": "386f701168ff2ffc38c01aa5de1bf93d0188a70cc6745f6f106abfb141873e6e",
+      "frontend/src/api/auth.ts": "89a9092cc964663167cd6214d1bd65588b4c2cd2f1b10111fc9cf10830434803",
+      "frontend/src/stores/auth.ts": "c6979bee3420c21bbef8f7f8ec6bcc162a2e628b148d6b739cfcaaa2413f092a",
+      "frontend/src/views/public/QuizQuestView.vue": "425fd97910333eb8a3f85ff029d9ac6427d64ec1ea0a17bc27f9a30fb87a2a55",
+      "frontend/src/stores/__tests__/auth.http.spec.ts": "3f739f7b4c8b19c001b51cb8256d6504bd5351ebf266c46250f10496e6261b8c",
+      "frontend/src/stores/__tests__/auth.spec.ts": "e0564179e4645666002e716490d5af3057fdc0bc1a6dbf8a80802dddcca9ad64",
+      "frontend/src/api/__tests__/tokenRefresh.spec.ts": "9158bcb66ed9015eb94a0e695e14bcf90cbccf2e97fa122f70a95c03ac4aa59f",
+      "frontend/src/views/public/__tests__/QuizQuestView.session.http.spec.ts": "ca72ee5e733b54382eaac22d790e9b1f306cde2858f4138dc8338d254e74f0a2",
+      "frontend/src/views/public/__tests__/BlindboxView.http.spec.ts": "e4e66bab81be104e7a26bbf3e718c90391e788e11f08e8a7f8370e6dc28e7218",
+      "frontend/src/views/user/__tests__/CheckInView.balance.http.spec.ts": "833e8c049f29237c6616375a1a2a4d8d5048345ce033dcf6ab6e38b6ecf19745",
+      "frontend/src/views/user/__tests__/PlayHubView.session.http.spec.ts": "8c9e01ece61ef99ed058abcf8b5e35d2240ed02157088b11f83ba312c84ee511"
+    },
+    "logs": {
+      "/tmp/p4-auth-quiz-reading-red.log": {
+        "sha256": "4002b0e1bae49f7483210e75d855cc314186704c1cc9d3e22de7416ff0190016",
+        "result": "ActualHTTP quiz pre-submit selection loss RED"
+      },
+      "/tmp/p4-auth-peer-native-trace.log": {
+        "sha256": "3e9dbe392f68afea33df6dbe2e3701cfe9446c74af39d9960af3df6de5e0c4a8",
+        "result": "Native Web Locks serialized but peer sees partial storage RED"
+      },
+      "/tmp/p4-auth-publishing-trace.log": {
+        "sha256": "3af6b2a2e0279046911166f5647fc252db2ccb8b9c11204bd160965f59a28587",
+        "result": "Publication marker candidate still sees all-old storage at queued lock RED; final fix adds contention-specific bounded reconciliation"
+      },
+      "/tmp/p4-auth-spec-login-window/report.json": {
+        "sha256": "0037b27186cb5fbf629c776751564560593d685ba8b56ad79c17df75f11c9dc0",
+        "result": "Independent native login write-gap RED; old pending key cleared"
+      },
+      "/tmp/p4-auth-partial-pair-red.log": {
+        "sha256": "2af18c4a47d1e8786a62d92d3b1654bd5f297972dc2934c7f1634725e40f49b2",
+        "result": "ActualHTTP peer partial-pair RED"
+      },
+      "/tmp/p4-auth-oauth-publish-red2.log": {
+        "sha256": "a42494d6a1088118836117238ebfad271618a2db21f704c358cbc703c8ba1851",
+        "result": "ActualHTTP old success delivered during OAuth helper write gap RED"
+      },
+      "/tmp/p4-auth-spec-oauth-red.log": {
+        "sha256": "066d5523f6222452ea055f29f286a6aedd9911a503f70d126dc125e374b8910e",
+        "result": "Independent actualHTTP old A401 retried with B refresh RED"
+      },
+      "/tmp/p4-auth-spec-oauth-green.log": {
+        "sha256": "c3a5a51cd8e9fa3fac4599bbfccff1831fe59d81789854335876ef3735044988",
+        "result": "Same independent OAuth probe1 passed/35skipped after fix"
+      },
+      "/tmp/p4-auth-publishing-targeted4.log": {
+        "sha256": "b77d1feeb257c4ec2287ec617c4ff9796818eaf255439208db4ff64b68f6c45c",
+        "result": "135passed/1failed: OAuth publication owner stayed blocked after old response; fixed consume ownership reset"
+      },
+      "/tmp/p4-auth-lock-contention-green.log": {
+        "sha256": "536fe25ba2742f012be1d55ecb659c60d997ae68868a0bae2a041afcea03aaf1",
+        "result": "Harness signature mismatch after native Web Locks changed to3args; corrected model, not production regression"
+      },
+      "/tmp/p4-auth-publishing-targeted6.log": {
+        "sha256": "97ab17f03d5cf2a15acb31a34d73d4700ae5d760423378c014a62ad35086fc44",
+        "result": "138passed/7files; actualHTTP39, authunit24, client30, coordinator7, Quiz9, Blindbox24, CheckIn5"
+      },
+      "/tmp/p4-auth-rootfinal-make-test.log": {
+        "sha256": "1a754c3817d688f68ced75586cb82486d6a9792f6ab49d39617d965efd58ab3f",
+        "result": "Backend default tests and lint passed; frontend design stopped because final1280 evidence had not yet been generated. Not full-test PASS"
+      },
+      "/tmp/p4-auth-rootfinal-build.log": {
+        "sha256": "3f9311973a5db0a252658f7237f88e03a5ca80f654d45a6c6e8614a208883463",
+        "result": "Final combined05 make build passed"
+      },
+      "/tmp/p4-auth-rootfinal-welfare-pg.log": {
+        "sha256": "5c9d51dc43b7d4a7332cbe656076f6247cb1ec03f637f9950454232b57f540ab",
+        "result": "FAILED before assertions: isolatedPG initdb no space left; no schema/UI assertions executed"
+      },
+      "/tmp/p4-auth-rootfinal-welfare-pg-retry.log": {
+        "sha256": "65246e287f2a21670680c2bc62ed4a95919ec6636613e814ca4eb33cc9d81e06",
+        "result": "PASS real isolatedPG through277: welfare HTTP/Vue persistence, idempotency, permissions, rollback and deterministic balances"
+      },
+      "/tmp/p4-auth-rootfinal-browser.log": {
+        "sha256": "1069ed943558c905160d902bec01311671804d292a62b749a063176f21b551cf",
+        "result": "PASS final built Vue native4/4 proactive/401 submission paths"
+      },
+      "/tmp/p4-auth-rootfinal-cross-tab.log": {
+        "sha256": "fee8c6f8e1409d692fba428b73d618ea0ee060e7e4a587629fd6aba9f41d753b",
+        "result": "PASS final native Web Locks/shared-context cross-tab10/10 (8scenarios including3peer renewals)"
+      },
+      "/tmp/p4-auth-rootfinal-docs.log": {
+        "sha256": "3596ffd7d956c35820cf1e94e98a10662a769cd08897607b4fb86ea54ab3a5b7",
+        "result": "PASS doc index and local links277files"
+      },
+      "/tmp/p4-auth-rootfinal-handoff.log": {
+        "sha256": "f64af10d899c7cc2be44fcd00dbf58efa7ab4307e3e8ca0fe9c758f08844b4a4",
+        "result": "PASS structure/local paths;22 pending entries retained, no production acceptance claim"
+      },
+      "/tmp/p4-auth-rootfinal-handoff-tests.log": {
+        "sha256": "35649ccb7621214ac024bd31428022d326fb76b6926043ad7d6527b41cd3c0f8",
+        "result": "PASS handoff checker8tests"
+      },
+      "/tmp/p4-auth-rootfinal-checkin-pg.log": {
+        "sha256": "7df5d5b859f1ee116222de93388113a1d7664c31884c2bb8bf72ee9c061779dd",
+        "result": "PASS isolatedPG through277 checkin HTTP/Axios/Vue persistence, idempotency and permission contracts"
+      },
+      "/tmp/p4-auth-rootfinal-fork.log": {
+        "sha256": "74af39bc6aa7b33b78994fa7daf867ac27713422eb03a11ec1d3a3f69d3a33ec",
+        "result": "PASS Fork integrity"
+      },
+      "/tmp/p4-auth-rootfinal-design05.log": {
+        "sha256": "6efd9ed52622872ed2d3b451bce6da7822b2126d95286ca9f6b90871df6da7f1",
+        "result": "PASS design05; validation limited to its stated scope"
+      },
+      "/tmp/p4-auth-rootfinal-docs2.log": {
+        "sha256": "3596ffd7d956c35820cf1e94e98a10662a769cd08897607b4fb86ea54ab3a5b7",
+        "result": "PASS docs2; validation limited to its stated scope"
+      },
+      "/tmp/p4-auth-rootfinal-handoff2.log": {
+        "sha256": "f64af10d899c7cc2be44fcd00dbf58efa7ab4307e3e8ca0fe9c758f08844b4a4",
+        "result": "PASS handoff2; validation limited to its stated scope"
+      },
+      "/tmp/p4-auth-rootfinal-handoff-tests2.log": {
+        "sha256": "274f6bac38cd9c543013527ca3004ec792d15edc09b5a81dc5a505bd86dbbc90",
+        "result": "PASS handoff-tests2; validation limited to its stated scope"
+      },
+      "/tmp/p4-auth-rootverified-make-test.log": {
+        "sha256": "8dac641d3d69e58eee48d1c098d547aa35aa245eb55b81f3a524aabef8177ee0",
+        "result": "Backend default/lint and frontend lint/typecheck PASS; frontend3636passed/8failed/8skipped. All8 failures in PlayHub realHTTP fixture after first test, leaked store subscriptions. Not full-test PASS."
+      },
+      "/tmp/p4-auth-playhub-fixture-green.log": {
+        "sha256": "dbbf851d87b51635578b0bcfe507d5f3ba8d0bf5db2e6b3d2bf9d5cbe0f9d26d",
+        "result": "PlayHub9/9 PASS after disposePinia test cleanup; removed manual post-refresh checkAuth; all prior assertions retained; production files unchanged."
+      },
+      "/tmp/p4-auth-rootcomplete-docs.log": {
+        "sha256": "3596ffd7d956c35820cf1e94e98a10662a769cd08897607b4fb86ea54ab3a5b7",
+        "result": "PASS; docs277files/handoff22pending/checker8tests, no production claims"
+      },
+      "/tmp/p4-auth-rootcomplete-handoff.log": {
+        "sha256": "f64af10d899c7cc2be44fcd00dbf58efa7ab4307e3e8ca0fe9c758f08844b4a4",
+        "result": "PASS; docs277files/handoff22pending/checker8tests, no production claims"
+      },
+      "/tmp/p4-auth-rootcomplete-handoff-tests.log": {
+        "sha256": "640bf7fdb0d5e9c16d5c2deb593359f2b02ae3ffe8e00da72241e69615ca4abe",
+        "result": "PASS; docs277files/handoff22pending/checker8tests, no production claims"
+      },
+      "/tmp/p4-auth-rootcomplete-make-test.log": {
+        "sha256": "06745bdb7a9617560b025b763b11198e3baf43974285889e29afa66f748936fd",
+        "result": "PASS backend default tests/lint; frontend design/lint/typecheck;500files passed/3skipped,3644tests passed/8skipped. PG skipped tests executed by isolated contracts."
+      },
+      "/tmp/p4-auth-rootcomplete-backend-unit.log": {
+        "sha256": "e371ac23b588057133ef5e70202e9292986b92f3ea4ddb9caec53225e766b3b1",
+        "result": "PASS explicit backend -tags=unit suite"
+      }
+    },
+    "boundary": "No merge/deployment/production access; local synthetic identities only. Earlier top-level verification fields are E4 history, not current root-fix evidence.",
+    "browser_index_sha256": "8cf9218f92c17bf2e9850520ddf3f5ee3b99ae6e55c83dc10b3b6a67528b44a8",
+    "resource_gates": {
+      "build": {
+        "status": "passed",
+        "started_at": "2026-10-11T08:32:18.055598+00:00",
+        "exit_code": 0,
+        "finished_at": "2026-10-11T08:34:27.731891+00:00"
+      },
+      "browser": {
+        "status": "passed",
+        "started_at": "2026-10-11T08:34:27.733814+00:00",
+        "exit_code": 0,
+        "finished_at": "2026-10-11T08:34:43.718450+00:00"
+      },
+      "welfare-pg": {
+        "status": "failed",
+        "started_at": "2026-10-11T08:34:43.718661+00:00",
+        "exit_code": 1,
+        "finished_at": "2026-10-11T08:35:24.221623+00:00"
+      },
+      "welfare-pg-retry": {
+        "status": "passed",
+        "exit_code": 0,
+        "log": "/tmp/p4-auth-rootfinal-welfare-pg-retry.log"
+      },
+      "checkin-pg": {
+        "status": "passed",
+        "exit_code": 0,
+        "log": "/tmp/p4-auth-rootfinal-checkin-pg.log"
+      }
+    },
+    "visual_gates": [
+      {
+        "case": "360-zh-dark",
+        "exit_code": 0,
+        "finished_at": "2026-10-11T08:34:58.317840+00:00"
+      },
+      {
+        "case": "768-en-light",
+        "exit_code": 0,
+        "finished_at": "2026-10-11T08:35:09.443849+00:00"
+      },
+      {
+        "case": "1280-zh-light",
+        "exit_code": 0,
+        "finished_at": "2026-10-11T08:35:20.095328+00:00"
+      },
+      {
+        "case": "1920-en-dark",
+        "exit_code": 0,
+        "finished_at": "2026-10-11T08:35:30.173943+00:00"
+      }
+    ],
+    "source_hashes_verified": true,
+    "artifacts": {
+      "docs/archive/completed-tasks/2026-10-auth-refresh/browser-evidence/blindbox-401-360.png": "5ac8b25953c04d96f9f2b86fe7a5146fa0aa93693cddc8a292ccac2d08268564",
+      "docs/archive/completed-tasks/2026-10-auth-refresh/browser-evidence/blindbox-proactive-1280.png": "6712722f7c4e4e66f4046cc1398bca2f3fbaca8b15f961f8ab5ef9711c685015",
+      "docs/archive/completed-tasks/2026-10-auth-refresh/browser-evidence/quiz-401-1280.png": "3a1d6dfb820ba29be897d9c34b3815ec488494395d74469c14062e5565f7b48a",
+      "docs/archive/completed-tasks/2026-10-auth-refresh/browser-evidence/quiz-proactive-360.png": "960a78e8a7dd226a9cb4c7744ecce473de0a57b6e537e7e06d04490a8fd1f8ee",
+      "docs/archive/completed-tasks/2026-10-auth-refresh/browser-evidence/report.json": "8a1653b4580d75bb96943a17c0f1fc27426a9eb6068ac0392072489e572145e8",
+      "docs/archive/completed-tasks/2026-10-auth-refresh/root-review-evidence/login-write-gap-final.json": "13b48cdedd3b4d810b2b275df9e2880f77005216e3a2e71f87f537d8d2b2c236",
+      "docs/archive/completed-tasks/2026-10-auth-refresh/root-review-evidence/known-late-login-base05.txt": "2cc5b7040852e4ca32f06b91e99d64d753b537b9b2d7a2e4225f90eee3d57f42",
+      "docs/archive/completed-tasks/2026-10-auth-refresh/root-review-evidence/known-late-login-e4.txt": "097ac6db11f2920f60dbe60f50a6bfb77167e6f630c9f9aa30ee02868590b1bc",
+      "docs/archive/completed-tasks/2026-10-auth-refresh/root-review-evidence/e4-cross-tab-red.json": "b8c2775037acc5836f60b5dd40b7ae070b558931099c1bb95aa6bfeb14d17d64",
+      "docs/archive/completed-tasks/2026-10-auth-refresh/root-review-evidence/known-late-login-current.txt": "bcb1d5c1ee7c24ca9d4fea490ecdf059ad7e46e8fa0f8ce8a391f5e0c99cba2b",
+      "docs/archive/completed-tasks/2026-10-auth-refresh/root-review-evidence/native-partial-pair-red.json": "1b1b4a001a13a3858427b497f3e913e4d838ee3dd163849c586745b64e9b6087",
+      "docs/archive/completed-tasks/2026-10-auth-refresh/root-review-evidence/old-post-pending-key-red.json": "71534ff8590fafa3efd7f0232feb63a454a36b0d9fea40612de3360e807f9e8b",
+      "docs/archive/completed-tasks/2026-10-auth-refresh/root-review-evidence/base23-cross-tab.json": "854597cbd619418b928a5c2e431d231e38ac084349d69bef5a85d7e0341fb465",
+      "docs/archive/completed-tasks/2026-10-auth-refresh/root-review-evidence/login-write-gap-red.json": "0037b27186cb5fbf629c776751564560593d685ba8b56ad79c17df75f11c9dc0",
+      "docs/archive/completed-tasks/2026-10-auth-refresh/root-review-evidence/native-old-cache-red.json": "8007e71a3a24d7d9c37e3f4a96eba65d88e50c44a9bba32b9a34a58812f9e85f",
+      "docs/archive/completed-tasks/2026-10-auth-refresh/root-review-evidence/reviewed-inputs.json": "1e1a21988098f090ebf7f62146a3f16a6f3bc9c5cf7971a50428396960777897",
+      "docs/archive/completed-tasks/2026-10-auth-refresh/root-review-evidence/final-cross-tab/logout-after.png": "242edebb170915d01df6f0ba6d53ef694f61f2b8e052b10b33822e17afffe20f",
+      "docs/archive/completed-tasks/2026-10-auth-refresh/root-review-evidence/final-cross-tab/account-no-event-after.png": "1e8981f5a6650c48316b9b8c0801fb516efce6ad7bd456c335677f33357c68de",
+      "docs/archive/completed-tasks/2026-10-auth-refresh/root-review-evidence/final-cross-tab/reading-before.png": "739f99eb63e7e91e9163fd9f35bae1700007c9f4b48fcf8a988bd7f708114d4c",
+      "docs/archive/completed-tasks/2026-10-auth-refresh/root-review-evidence/final-cross-tab/pending-account-after.png": "0680069b767e1ea8ee88bee6cc6bf96f0a6dc6ac0fa75a198419d77a83250bd9",
+      "docs/archive/completed-tasks/2026-10-auth-refresh/root-review-evidence/final-cross-tab/reading-after.png": "add9628cc838aa37da27bc08434d8cabe0d4c5c984db9d70863dc7d8b59911e7",
+      "docs/archive/completed-tasks/2026-10-auth-refresh/root-review-evidence/final-cross-tab/account-after.png": "01e42a1dcae044d27b20987d8c3e7ee80ca794a156044f45344bd800ec97142b",
+      "docs/archive/completed-tasks/2026-10-auth-refresh/root-review-evidence/final-cross-tab/pending-account-no-event-after.png": "ba3e2c928358ee34cb1e0cc334e9d31f8bf007d3b33b29b2d094f21b8e52b280",
+      "docs/archive/completed-tasks/2026-10-auth-refresh/root-review-evidence/final-cross-tab/report.json": "51a6c44769a3efc5bc77e43df042088209c190c7352afcca51ae02296574e2a6",
+      "docs/archive/completed-tasks/2026-10-auth-refresh/root-review-evidence/final-cross-tab/relogin-after.png": "9c6901e9daba63b7961d1b25703ff51821088048489cde75e58b69fcc4372b5d",
+      "docs/visual-reviews/assets/auth-refresh/prototype-quiz-selected.png": "34f3d43b872512387866680a6e440c9513cf6209782baf4a326beed7014c8466",
+      "docs/visual-reviews/assets/auth-refresh/baseline-quiz-selection-lost.png": "b35363e797463a82062d72ee6f69e525030e879700e7e10d4ee5fe94a3ef11ff",
+      "docs/visual-reviews/assets/auth-refresh/updated-1920-en-dark/reading-before.png": "aed1f1469b3a9586d1ee23a0cbe8e592291e93ff62b033b1a94ae66f50c6f266",
+      "docs/visual-reviews/assets/auth-refresh/updated-1920-en-dark/reading-after.png": "7e6c159d4895de5053480d60adc0a064bd98af76ecc8a378fe4715215b6088f1",
+      "docs/visual-reviews/assets/auth-refresh/updated-1920-en-dark/report.json": "48c3fc2903870a7084da4b1a5feef6b770ab0e1ec848573ce8407fc787f9556e",
+      "docs/visual-reviews/assets/auth-refresh/updated-360-zh-dark/reading-before.png": "b5d9336d29e89a0365391b5029c305337af19014b192c91e2607d46e26dcdca0",
+      "docs/visual-reviews/assets/auth-refresh/updated-360-zh-dark/reading-after.png": "1168e3d2b5b783ae0e5b66b484689296e8c19ebccc60354208edb1541d65a375",
+      "docs/visual-reviews/assets/auth-refresh/updated-360-zh-dark/report.json": "437afb0393bebd09fe21d76b830e2fdfa10c7133c02dd669eac68215589d1a66",
+      "docs/visual-reviews/assets/auth-refresh/updated-768-en-light/reading-before.png": "d44833f8b27151b54be29c713709787b9f5e11fa85bc147c8b54e77d755ec5fb",
+      "docs/visual-reviews/assets/auth-refresh/updated-768-en-light/reading-after.png": "d44833f8b27151b54be29c713709787b9f5e11fa85bc147c8b54e77d755ec5fb",
+      "docs/visual-reviews/assets/auth-refresh/updated-768-en-light/report.json": "409faa142bb4a78fdfed1befca56a584a6e18c0f8606668e801cfd8cd1f92542",
+      "docs/visual-reviews/assets/auth-refresh/updated-1280-zh-light/reading-before.png": "8148d2bb95e8e2c163f4ecb7fd7126307120587ce2be5c8f150c54477f30fdd3",
+      "docs/visual-reviews/assets/auth-refresh/updated-1280-zh-light/reading-after.png": "20cd4269a70b329611f68df0932b4ac6e9dcb82afd38f7e4094c3589c19eb785",
+      "docs/visual-reviews/assets/auth-refresh/updated-1280-zh-light/report.json": "b7aaece97cbb509a66f70f4130662983dd439eaa80389dbee3bbcde7e8f16678"
+    },
+    "reviews": {
+      "spec": "PASS final12 inputs; production5 unchanged and upstream20 preserved",
+      "quality": "PASS after spec final12 inputs; PlayHub cleanup preserves assertions, no manual checkAuth",
+      "manifest_sha256": "1e1a21988098f090ebf7f62146a3f16a6f3bc9c5cf7971a50428396960777897",
+      "fixture_supplement": "PASS sequential spec then quality;12 inputs and20 upstream files exact;PlayHub9/9 actualHTTP;no weakened assertions or manual checkAuth recovery"
+    },
+    "known_followup": {
+      "description": "Late interactive login401/503 clears later session; same realHTTP probe fails2/2 on base05,E4,current; no newly introduced cause found.2FA/register catch analogues not individually exercised.",
+      "evidence": [
+        "docs/archive/completed-tasks/2026-10-auth-refresh/root-review-evidence/known-late-login-base05.txt",
+        "docs/archive/completed-tasks/2026-10-auth-refresh/root-review-evidence/known-late-login-e4.txt",
+        "docs/archive/completed-tasks/2026-10-auth-refresh/root-review-evidence/known-late-login-current.txt"
+      ],
+      "raw_logs": {
+        "/tmp/auth-rootfix-quality/result.log": {
+          "sha256": "a6e6451ddd5467a9a96e42fb3cee05d4a3a952635fc08b943557df16f529743d",
+          "result": "Original actualHTTP late-login failure; archived text normalizes trailing whitespace only"
+        },
+        "/tmp/auth-rootfix-quality/base05.log": {
+          "sha256": "08161ff66fd9c05dff43b4f2c7132076762fc8f0ca779e4c08639b290840ffdb",
+          "result": "Original actualHTTP late-login failure; archived text normalizes trailing whitespace only"
+        },
+        "/tmp/auth-rootfix-quality/e4.log": {
+          "sha256": "517988daa82cf52f4e28791330a44f3d6afb5bbb23c91c6cb8039f8c29247431",
+          "result": "Original actualHTTP late-login failure; archived text normalizes trailing whitespace only"
+        }
+      },
+      "archive_normalization": "Archived .txt removes trailing whitespace and extra EOF blank lines only; exact raw logs and SHA256 preserved above."
+    },
+    "scope_audit": {
+      "base_sha": "05b44bec5c2d30ad58d009fbe5247ea363c6ee70",
+      "pending_merge_head": "05b44bec5c2d30ad58d009fbe5247ea363c6ee70",
+      "preserved_upstream_files": [
+        ".github/workflows/subscription-counter-acceptance.yml",
+        "backend/internal/billingacceptance/subscription_counter_edges_integration_test.go",
+        "backend/internal/billingacceptance/subscription_counter_ownership_integration_test.go",
+        "backend/internal/billingacceptance/subscription_counters_integration_test.go",
+        "backend/internal/repository/usage_billing_repo.go",
+        "docs/archive/completed-tasks/2026-10-10-subscription-counter-acceptance/2026-10-11-continuation.md",
+        "docs/archive/completed-tasks/2026-10-10-subscription-counter-acceptance/2026-10-11-counter-matrix.txt",
+        "docs/archive/completed-tasks/2026-10-10-subscription-counter-acceptance/2026-10-11-evidence.json",
+        "docs/archive/completed-tasks/2026-10-10-subscription-counter-acceptance/2026-10-11-review.md",
+        "docs/archive/completed-tasks/2026-10-10-subscription-counter-acceptance/2026-10-11-validation.txt",
+        "docs/archive/completed-tasks/2026-10-10-subscription-counter-acceptance/README.md",
+        "docs/archive/completed-tasks/2026-10-10-subscription-counter-acceptance/counter-matrix-red.txt",
+        "docs/archive/completed-tasks/2026-10-10-subscription-counter-acceptance/counter-matrix.txt",
+        "docs/archive/completed-tasks/2026-10-10-subscription-counter-acceptance/counter-race.txt",
+        "docs/archive/completed-tasks/2026-10-10-subscription-counter-acceptance/evidence-red.json",
+        "docs/archive/completed-tasks/2026-10-10-subscription-counter-acceptance/evidence.json",
+        "docs/archive/completed-tasks/2026-10-10-subscription-counter-acceptance/reference-unit.txt",
+        "docs/archive/completed-tasks/2026-10-10-subscription-counter-acceptance/tested-source-sha256.txt",
+        "docs/archive/completed-tasks/2026-10-10-subscription-counter-acceptance/validation-output.txt",
+        "scripts/test-subscription-counters.sh"
+      ],
+      "reviewed_inputs_match": 12,
+      "production_files": [
+        "frontend/src/api/auth.ts",
+        "frontend/src/api/client.ts",
+        "frontend/src/api/tokenRefresh.ts",
+        "frontend/src/stores/auth.ts",
+        "frontend/src/views/public/QuizQuestView.vue"
+      ]
+    },
+    "browser_scripts": {
+      "docs/archive/completed-tasks/2026-10-auth-refresh/browser.py": "7a02bd49d35a7c25dbea5ef8937e41a5981c9167237ced0d888833c1d5c7aeee",
+      "docs/archive/completed-tasks/2026-10-auth-refresh/browser-cross-tab.py": "860d1b035044a1c183aaf90125780a3e0cf65a14fb0fbf4eb3313a06aa5f4368"
+    },
+    "local_test_gates": {
+      "make-test": {
+        "status": "passed",
+        "started_at": "2026-10-11T08:49:13.242351+00:00",
+        "exit_code": 0,
+        "finished_at": "2026-10-11T08:54:54.067071+00:00"
+      },
+      "backend-unit": {
+        "status": "passed",
+        "started_at": "2026-10-11T08:54:54.068743+00:00",
+        "exit_code": 0,
+        "finished_at": "2026-10-11T08:58:47.283525+00:00"
+      }
+    },
+    "delivery_note": "Local merge e23d4823dfd66de0190f586974f6a8f9cbd2c7fe was committed after a staged whitespace check failed on raw diagnostic text because the shell did not stop. No push occurred. A separate documentation-only commit normalizes those3 archives; production/test hashes, build and test evidence unchanged."
+  },
+  "initial_e4_history": {
+    "base_sha": "1bfc7e2edb788ca11a23ff936f99db904c4b4199",
+    "source_hashes": {
+      "frontend/src/api/tokenRefresh.ts": "ef54399b4e4bb7152e9b12c290b48061c9dd3d868c6dbe8b87abbaddecd765f5",
+      "frontend/src/api/client.ts": "93c6f83b183a0bfa10cda6891a070c48dba4316db506dd0a34d832142c0c76d0",
+      "frontend/src/stores/auth.ts": "125a6672264424480eab78bdceab09ff5fa52d6062183ad96082cc91ba151d6f",
+      "frontend/src/stores/__tests__/auth.http.spec.ts": "68def5f70cf2b91adc7036d169323a209be8c6995304da93f5f940a7506a7194",
+      "frontend/src/views/public/__tests__/QuizQuestView.session.http.spec.ts": "1649d52c6535d469bbdd03fea61e34aba15ebbd9a460b13d10a628e6b030738d",
+      "frontend/src/views/public/__tests__/BlindboxView.http.spec.ts": "a3113d3d989b2a56152c64c5e2c34983ae7f9c2b2a8df7faa58900ce6c6c4ca5",
+      "docs/archive/completed-tasks/2026-10-auth-refresh/browser.py": "7a02bd49d35a7c25dbea5ef8937e41a5981c9167237ced0d888833c1d5c7aeee",
+      "frontend/src/views/user/__tests__/CheckInView.balance.http.spec.ts": "76b6909567b56f69f471869968b3a853b0226974a17557563bd59938c8e20dca"
+    },
+    "logs": {
+      "/tmp/p4-auth-refresh-native-red.log": {
+        "sha256": "6970cf9c5d07c6ec1b0f3dad1bca1d946c506e3c365428ec676cd490fe5458ba",
+        "result": "2 failed/5 skipped: actual proactive refresh persists tokens but Pinia stays stale; removed remedial checkAuth"
+      },
+      "/tmp/p4-auth-refresh-http-red.log": {
+        "sha256": "7d178ca207e3f0c8dba2236a6ba6eedfdfc8b7727495b41e21a2ea94d4e6ef79",
+        "result": "11 failed/5 passed: actual HTTP refresh/session isolation fixture"
+      },
+      "/tmp/p4-auth-retry-queued-red.log": {
+        "sha256": "ff09b31b25f23d01346b8f326a3af7c155bf3e2aab8dba16da00349e5e4ea8f5",
+        "result": "1 failed: queued retry rejects session change but outer handler rewrites status401 to0"
+      },
+      "/tmp/p4-auth-refresh-green2.log": {
+        "sha256": "119d7feaf8c5982c635477b577ffc6df5ffc80cb65bafba72cd3f357423a7d9e",
+        "result": "110 passed in6files:18 actual authHTTP,24 auth unit,30 client,7 coordinator,7 Quiz sessionHTTP,24 BlindboxHTTP"
+      },
+      "/tmp/p4-auth-typecheck.log": {
+        "sha256": "0c81cfe324e8995664bb12e9da054cca55b35d9c8dc3cfeec3face9b4af32d02",
+        "result": "typecheck passed"
+      },
+      "/tmp/p4-auth-spec-formal-red.log": {
+        "sha256": "445c07388673d1fa62834007dc86831bf2abe84eb8aac19d005dfb817b048880",
+        "result": "3 behavior RED plus 1 observer timeout at the unchanged 1s peer window; observer deadline corrected to2.5s"
+      },
+      "/tmp/p4-auth-refresh-green3.log": {
+        "sha256": "1145b60c069a74b4ede6dfecc0c2f410a3edb18e0c49584dd3adeb426b47d4fd",
+        "result": "115 passed/4 observer deadline failures before final2.5s observer deadline took effect"
+      },
+      "/tmp/p4-auth-refresh-green4.log": {
+        "sha256": "606dfe3eb68bb3fb059a2e50ff8c179010680f0982f122cb60f6c68656d4a739",
+        "result": "119 passed in6files after spec fixes and corrected test observation deadlines"
+      },
+      "/tmp/p4-auth-spec-independent-green.log": {
+        "sha256": "f4486171ac4a38d1695c5af47a3239cb854f0aaebb48a0aea327678e8cbb1e2d",
+        "result": "Spec reviewer original actualHTTP probes3/3 passed independently"
+      },
+      "/tmp/p4-auth-typecheck2.log": {
+        "sha256": "0c81cfe324e8995664bb12e9da054cca55b35d9c8dc3cfeec3face9b4af32d02",
+        "result": "typecheck passed after spec fixes"
+      },
+      "/tmp/auth-quality-probe/result.log": {
+        "sha256": "c6cafc0b5a09b11259af34707ef19458f6061ec3757f0ab51088cde39f94543a",
+        "result": "Quality reviewer independent actualHTTP probes3/3 passed"
+      },
+      "/tmp/p4-auth-build-final.log": {
+        "sha256": "c269a50a50130c375bca47098235dbddbd94e353b903fd37899b5f471892527c",
+        "result": "make build passed: backend and final frontend assets"
+      },
+      "/tmp/p4-auth-browser-final.log": {
+        "sha256": "b5c3ebfe80b4f027f0009d4a0e9577c9885f11d17f18efe15b56e6c9e16f23ec",
+        "result": "Final built Vue browser4/4; native proactive/401 paths, no manual restore"
+      },
+      "/tmp/p4-auth-welfare-pg.log": {
+        "sha256": "061761037af03379eb8082a6226837883866f07fdffdd4c1f85e6431169193af",
+        "result": "real PG/HTTP/Axios/Pinia/Vue welfare passed"
+      },
+      "/tmp/p4-auth-checkin-pg.log": {
+        "sha256": "78febb283488a03477c9b5b9db0dbb59cb2314a33b7d22fb9c4e0fadc78b567a",
+        "result": "real PG/HTTP/Axios/Vue checkin passed"
+      },
+      "/tmp/p4-auth-fork.log": {
+        "sha256": "e3b0cd7f2661ccd129fa0ccaf401249bf52816e3d078dda85d3dcd68c8257a2e",
+        "result": "Fork integrity passed"
+      },
+      "/tmp/p4-auth-design.log": {
+        "sha256": "fc059638c4ab1cb22143dcf0059e898560e37a11782c3539740b0feec24a8b82",
+        "result": "Design governance passed, visual files0"
+      },
+      "/tmp/p4-auth-docs.log": {
+        "sha256": "d15c2e254c2aef10fb494fa6fd7f1d1a3ad8335649a6a936614e34a0e99c15b2",
+        "result": "Documentation integrity passed"
+      },
+      "/tmp/p4-auth-handoff.log": {
+        "sha256": "2b0a71e1a933543b0fd97e4ca97cd1d91328157320901a7995bd273b601e11ba",
+        "result": "Structure/local paths passed;21 pending production entries remain"
+      },
+      "/tmp/p4-auth-make-test.log": {
+        "sha256": "d864d8a763439d71a3f1a06c246554caf54c80e735c183e4fe31ba4e892b0b39",
+        "result": "FAILED existing server timing assertion app30.2ms<=db39.1ms; frontend full and tag-unit not run by this command"
+      },
+      "/tmp/p4-auth-timing-recheck.log": {
+        "sha256": "7172ebed1c05542e7f63515595a9523a1427ca9de794d940d10f4c4dceec19a7",
+        "result": "Existing backend timing assertion passed3/3 unchanged under low contention; full rerun still required"
+      },
+      "/tmp/p4-auth-make-test-final.log": {
+        "sha256": "bde1437294651ce066d0ed282dbf72748d4a80f5e86f35626aa1a0c9b76309de",
+        "result": "backend default/lint and frontend lint/typecheck passed; frontend3625 passed/1 failed/8 skipped: old checkin fixture assigned token without entering a new session"
+      },
+      "/tmp/p4-auth-checkin-fixture-green.log": {
+        "sha256": "696591429ac1297a22396a54fb3816d71185206485023e64c43cbe5076317e86",
+        "result": "63 realHTTP auth/quiz/blindbox/checkin passed after fixture uses actual setToken session entry"
+      },
+      "/tmp/p4-auth-combined-build.log": {
+        "sha256": "91c1615663d9e46b1a1e372b1794bde92708b3876c05d449bf8cbd6202af39b7",
+        "result": "Combined23d06337 make build passed"
+      },
+      "/tmp/p4-auth-combined-browser.log": {
+        "sha256": "3ff5592da9a9dbfdc3a6c3dadcc4397f7cf0d6fde0bf4f21d161fb56d6f792e5",
+        "result": "Combined built Vue4/4 native auth rotation passed; no manual restoration"
+      },
+      "/tmp/p4-auth-combined-welfare-pg.log": {
+        "sha256": "d24c8e8c3eb0cdc1777fa0894efb4833aafb33c11cbea9eb645fd333e8ed7ecb",
+        "result": "Combined23d06337 isolatedPG through migration277 welfare HTTP/Vue contracts passed"
+      },
+      "/tmp/p4-auth-combined-checkin-pg.log": {
+        "sha256": "f4cbfd1ff22aafea1a47ecc63cc3ad8211a8ba1b47957af40ce60cd358244924",
+        "result": "Combined23d06337 through migration277 actualPG/HTTP/Vue checkin passed"
+      },
+      "/tmp/p4-auth-combined-docs.log": {
+        "sha256": "20b14b0b373d19ac0b4fe554c8aceb0a341dea1ea8405f35ed0ddee3a6022f5f",
+        "result": "Combined doc index/links passed273 files"
+      },
+      "/tmp/p4-auth-combined-handoff.log": {
+        "sha256": "f64af10d899c7cc2be44fcd00dbf58efa7ab4307e3e8ca0fe9c758f08844b4a4",
+        "result": "Combined record structure/local paths passed;22 pending entries preserved, not runtime acceptance"
+      },
+      "/tmp/p4-auth-combined-handoff-tests.log": {
+        "sha256": "fc23540c8545d4075fe2f0420accd022e74e5566176c3bd4c597964ff02c2e14",
+        "result": "Handoff checker8 unit tests passed"
+      },
+      "/tmp/p4-auth-combined-design.log": {
+        "sha256": "fbb14ea75fa1aeb4887566c42f8f1aa654012b200c37c77f8ad08ca2ce7d7917",
+        "result": "Combined frontend design passed:7 checked files,0 visual files"
+      },
+      "/tmp/p4-auth-checkin-fixture-cleanup.log": {
+        "sha256": "962779db936a31115c6b5b5b6ae08585020fb5a6898efa4aabb13686fd77803c",
+        "result": "Checkin HTTP5/5 passed after disposing test store and its timers in afterAll"
+      },
+      "/tmp/p4-auth-combined-fork.log": {
+        "sha256": "b35a6d075333d4822991fc49110847785bc0dcd994e403edf50a75aa3974992b",
+        "result": "Combined23d06337 Fork integrity passed"
+      },
+      "/tmp/p4-auth-combined-make-test.log": {
+        "sha256": "c8d4c4db31aa161ca25aa3c9caaf883df868531ba6452bb05be16a0081c718ab",
+        "result": "Combined23d06337 make test PASS: backend default/lint, frontend lint/typecheck; frontend3630 passed/8 skipped,500 passed/3 skipped files. PG-specific skipped files tested separately."
+      },
+      "/tmp/p4-auth-combined-backend-unit.log": {
+        "sha256": "9557ca8bcc236aac4cc0fc59afaa446b2782d6cebc3c946241885be5382dd737",
+        "result": "Combined23d06337 make test-backend-unit PASS"
+      },
+      "/tmp/p4-auth-final-docs.log": {
+        "sha256": "20b14b0b373d19ac0b4fe554c8aceb0a341dea1ea8405f35ed0ddee3a6022f5f",
+        "result": "Final doc integrity passed273 files"
+      },
+      "/tmp/p4-auth-final-design.log": {
+        "sha256": "fbb14ea75fa1aeb4887566c42f8f1aa654012b200c37c77f8ad08ca2ce7d7917",
+        "result": "Final design governance passed7 checked,0 visual files"
+      },
+      "/tmp/p4-auth-final-handoff.log": {
+        "sha256": "f64af10d899c7cc2be44fcd00dbf58efa7ab4307e3e8ca0fe9c758f08844b4a4",
+        "result": "Final structure/local paths passed;22 pending entries retained"
+      },
+      "/tmp/p4-auth-final-handoff-tests.log": {
+        "sha256": "35649ccb7621214ac024bd31428022d326fb76b6926043ad7d6527b41cd3c0f8",
+        "result": "Final handoff checker8 tests passed"
+      }
+    },
+    "browser_report": {
+      "reports": [
+        {
+          "game": "quiz",
+          "mode": "proactive",
+          "viewport": 360,
+          "theme": "dark",
+          "language": "zh",
+          "refreshes": 1,
+          "posts": 1,
+          "fixture_commits": 1,
+          "pinia_matches_storage": true,
+          "displayed_balance": 1.2,
+          "manual_restore": false,
+          "js_errors": [],
+          "overflow": false
+        },
+        {
+          "game": "quiz",
+          "mode": "401",
+          "viewport": 1280,
+          "theme": "light",
+          "language": "en",
+          "refreshes": 1,
+          "posts": 2,
+          "fixture_commits": 1,
+          "pinia_matches_storage": true,
+          "displayed_balance": 1.2,
+          "manual_restore": false,
+          "js_errors": [],
+          "overflow": false
+        },
+        {
+          "game": "blindbox",
+          "mode": "proactive",
+          "viewport": 1280,
+          "theme": "light",
+          "language": "zh",
+          "refreshes": 1,
+          "posts": 1,
+          "fixture_commits": 1,
+          "pinia_matches_storage": true,
+          "displayed_balance": 0.7,
+          "manual_restore": false,
+          "js_errors": [],
+          "overflow": false
+        },
+        {
+          "game": "blindbox",
+          "mode": "401",
+          "viewport": 360,
+          "theme": "dark",
+          "language": "en",
+          "refreshes": 1,
+          "posts": 2,
+          "fixture_commits": 1,
+          "pinia_matches_storage": true,
+          "displayed_balance": 0.7,
+          "manual_restore": false,
+          "js_errors": [],
+          "overflow": false
+        }
+      ],
+      "index_sha256": "87c5a4c059309191c4ef688a2a4253a7e5d2799a0e917421f132f53735521789"
+    },
+    "artifacts": {
+      "docs/archive/completed-tasks/2026-10-auth-refresh/browser-evidence/blindbox-401-360.png": "5ac8b25953c04d96f9f2b86fe7a5146fa0aa93693cddc8a292ccac2d08268564",
+      "docs/archive/completed-tasks/2026-10-auth-refresh/browser-evidence/blindbox-proactive-1280.png": "6712722f7c4e4e66f4046cc1398bca2f3fbaca8b15f961f8ab5ef9711c685015",
+      "docs/archive/completed-tasks/2026-10-auth-refresh/browser-evidence/quiz-401-1280.png": "3a1d6dfb820ba29be897d9c34b3815ec488494395d74469c14062e5565f7b48a",
+      "docs/archive/completed-tasks/2026-10-auth-refresh/browser-evidence/quiz-proactive-360.png": "6dfb076b54719888169c7b8181e8eb62bf268ec946c61982ac32d686b5015817",
+      "docs/archive/completed-tasks/2026-10-auth-refresh/browser-evidence/report.json": "70490c920db7e3d03d9f5f1129d0033020f09bef03f0d2f7cd741ebb6a890456"
+    },
+    "integration_base_sha": "23d06337cbc315cb92d3fc18e94902fe21e7342d",
+    "combined_resource_gates": {
+      "build": {
+        "status": "passed",
+        "started_at": "2026-10-11T07:06:25.858647+00:00",
+        "exit_code": 0,
+        "finished_at": "2026-10-11T07:10:02.554148+00:00"
+      },
+      "browser": {
+        "status": "passed",
+        "started_at": "2026-10-11T07:10:02.556392+00:00",
+        "exit_code": 0,
+        "finished_at": "2026-10-11T07:10:21.721289+00:00"
+      },
+      "welfare-pg": {
+        "status": "passed",
+        "started_at": "2026-10-11T07:10:21.721535+00:00",
+        "exit_code": 0,
+        "finished_at": "2026-10-11T07:11:58.595972+00:00"
+      },
+      "checkin-pg": {
+        "status": "passed",
+        "started_at": "2026-10-11T07:11:58.607041+00:00",
+        "exit_code": 0,
+        "finished_at": "2026-10-11T07:12:31.821373+00:00"
+      }
+    },
+    "combined_test_gates": {
+      "make-test": {
+        "status": "passed",
+        "started_at": "2026-10-11T07:06:24.621497+00:00",
+        "exit_code": 0,
+        "finished_at": "2026-10-11T07:28:31.963569+00:00"
+      },
+      "backend-unit": {
+        "status": "passed",
+        "started_at": "2026-10-11T07:28:31.971416+00:00",
+        "exit_code": 0,
+        "finished_at": "2026-10-11T07:33:59.987005+00:00"
+      }
+    },
+    "scope_audit": {
+      "integration_base": "23d06337cbc315cb92d3fc18e94902fe21e7342d",
+      "preserved_upstream_nonshared_files": 53,
+      "reviewed_input_hashes_match": 7,
+      "production_scope": [
+        "frontend/src/api/client.ts",
+        "frontend/src/api/tokenRefresh.ts",
+        "frontend/src/stores/auth.ts"
+      ]
+    },
+    "delivery_boundary": "Local technical gates passed; draft PR/exact-head CI to be recorded in the PR. No merge, deployment, or production validation by this batch.",
+    "historical_head": "e4de91174e40847fac894de72ef282e5bbd4379e",
+    "path_resolution": "Historical source/artifact hashes resolve at this immutable Git head, not the root-fix working tree."
+  }
+}

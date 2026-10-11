@@ -1,6 +1,12 @@
-import { flushPromises, mount } from '@vue/test-utils'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { reactive } from 'vue'
+import { createPinia, disposePinia } from 'pinia'
+import { useAuthStore } from '@/stores/auth'
+import type { User } from '@/types'
+const piniaInstances: ReturnType<typeof createPinia>[] = []
+enableAutoUnmount(afterEach)
+afterEach(() => { for (const pinia of piniaInstances.splice(0)) disposePinia(pinia) })
 import { createI18n } from 'vue-i18n'
 import RequestLedgerView from '../RequestLedgerView.vue'
 
@@ -11,7 +17,13 @@ vi.mock('vue-router', () => ({ useRoute: () => ({ meta: routeMeta, query: routeQ
 vi.mock('@/components/layout/AppLayout.vue', () => ({ default: { template: '<main><slot /></main>' } }))
 
 const item = { id: '00000000-0000-4000-8000-000000000001', route: '/v1/responses', method: 'POST', kind: 'http', user_id: 101, api_key_id: 201, started_at: '2026-10-10T00:00:00Z', ended_at: null, execution_state: 'interrupted', usage_state: 'usage_unknown', settlement_state: 'settlement_pending', attempt_count: 1, output_observed: true, error_code: 'interrupted', http_status: 200 }
-const mountView = () => mount(RequestLedgerView, { global: { plugins: [createI18n({ legacy: false, locale: 'en', missingWarn: false, fallbackWarn: false, messages: { en: {} } })], stubs: { RouterLink: { template: '<a><slot /></a>' }, DataTable: { props: ['data'], template: '<div><slot name="cell-execution_state" v-for="row in data" :row="row" /><slot name="cell-usage_state" v-for="row in data" :row="row" /><slot name="cell-settlement_state" v-for="row in data" :row="row" /><slot name="cell-actions" v-for="row in data" :row="row" /></div>' }, BaseDialog: { props: ['show'], template: '<div v-if="show"><slot /></div>' }, Select: true, Pagination: true } } })
+const mountView = () => {
+ const pinia = createPinia(), auth = useAuthStore(pinia)
+ piniaInstances.push(pinia)
+ auth.token = 'fixture-only'; auth.user = { id: 101, role: routeMeta.requiresAdmin ? 'admin' : 'user' } as User
+ localStorage.setItem('auth_token', auth.token); localStorage.setItem('auth_user', JSON.stringify(auth.user))
+ return mount(RequestLedgerView, { global: { plugins: [pinia, createI18n({ legacy: false, locale: 'en', missingWarn: false, fallbackWarn: false, messages: { en: {} } })], stubs: { RouterLink: { template: '<a><slot /></a>' }, DataTable: { props: ['data'], template: '<div><slot name="cell-execution_state" v-for="row in data" :row="row" /><slot name="cell-usage_state" v-for="row in data" :row="row" /><slot name="cell-settlement_state" v-for="row in data" :row="row" /><slot name="cell-actions" v-for="row in data" :row="row" /></div>' }, BaseDialog: { props: ['show'], template: '<div v-if="show"><slot /></div>' }, Select: true, Pagination: true } } })
+}
 
 beforeEach(() => { delete routeQuery.private_id; routeMeta.requiresAdmin = false; replace.mockReset(); list.mockReset(); detail.mockReset(); usage.mockReset(); sectionPage.mockReset(); sectionPage.mockImplementation(async (_admin, _id, section) => { const old = await detail.mock.results.at(-1)?.value; return { items: old?.[section] ?? [], page_size: 20, has_more: false, next_cursor: '', consistency: 'live', refresh_hint: 'new_records_late_evidence_and_state_changes', attempt_evidence_unavailable: old?.attempt_evidence_unavailable } }); list.mockResolvedValue({ items: [item], total: 1, page: 1, page_size: 20 }) })
 describe('request ledger', () => {

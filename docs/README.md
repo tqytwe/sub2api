@@ -106,3 +106,6 @@
 
 - [答题与盲盒福利闭环技术记录](./archive/completed-tasks/2026-10-welfare-games/README.md) — `in-progress`，隔离 HTTP/PG/Vue 证据，未部署。
 - [答题与盲盒视觉记录](./visual-reviews/2026-10-11-welfare-games.md) — `in-progress`，既有风格内的状态与恢复。
+
+- [原生自动续期与福利登录态同步](./archive/completed-tasks/2026-10-auth-refresh/README.md) — `in-progress`，隔离 HTTP、构建资源与 PG 回归；草稿交付，不代表部署。
+- [答题续期保留选择视觉记录](./visual-reviews/2026-10-11-auth-refresh.md) — `in-progress`，保留现有控件及样式，实际构建证据。

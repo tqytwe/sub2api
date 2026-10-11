@@ -50,7 +50,7 @@
             <div v-if="detail.request.error_code"><dt class="text-gray-500">{{ t('requestLedger.errorCode') }}</dt><dd>{{ detail.request.error_code }}</dd></div>
           </dl>
           <p class="text-sm text-gray-500 dark:text-gray-400">{{ t('requestLedger.livePagingNotice') }}</p>
-          <RequestLedgerDetailSection :key="'attempts:' + selectedId" section="attempts" :title="t('requestLedger.attempts')" :load-page="loadAttempts" v-slot="{ page: attemptPage }"><DataTable :data="attemptPage.items" :columns="attemptColumns" row-key="attempt_no"><template #cell-phase="{ row }">{{ t(`requestLedger.phases.${row.phase}`) }}</template><template #cell-usage_state="{ row }">{{ state(row.usage_state) }}</template><template #cell-output_observed="{ row }">{{ t(row.output_observed ? 'requestLedger.yes' : 'requestLedger.no') }}</template><template #cell-execution_state="{ row }">{{ state(row.execution_state) }}</template></DataTable>
+          <RequestLedgerDetailSection :key="'attempts:' + selectedId" :scope="detailScope" section="attempts" :title="t('requestLedger.attempts')" :load-page="loadAttempts" v-slot="{ page: attemptPage }"><DataTable :data="attemptPage.items" :columns="attemptColumns" row-key="attempt_no"><template #cell-phase="{ row }">{{ t(`requestLedger.phases.${row.phase}`) }}</template><template #cell-usage_state="{ row }">{{ state(row.usage_state) }}</template><template #cell-output_observed="{ row }">{{ t(row.output_observed ? 'requestLedger.yes' : 'requestLedger.no') }}</template><template #cell-execution_state="{ row }">{{ state(row.execution_state) }}</template></DataTable>
           <div class="space-y-3">
             <h3 class="text-base font-semibold">{{ t('requestLedger.exactEvidence') }}</h3>
             <p class="text-sm text-gray-500 dark:text-gray-400">{{ t('requestLedger.evidenceNotice') }}</p>
@@ -68,7 +68,7 @@
             </div>
           </div>
           </RequestLedgerDetailSection>
-          <RequestLedgerDetailSection v-if="admin" :key="'diagnostics:' + selectedId" section="diagnostics" :title="t('requestLedger.diagnostics')" :load-page="loadDiagnostics" v-slot="{ page: diagnosticPage }">
+          <RequestLedgerDetailSection v-if="admin" :key="'diagnostics:' + selectedId" :scope="detailScope" section="diagnostics" :title="t('requestLedger.diagnostics')" :load-page="loadDiagnostics" v-slot="{ page: diagnosticPage }">
               <ul v-if="diagnosticPage.items.length" class="space-y-2 text-sm">
                 <li v-for="ref in diagnosticPage.items" :key="`${ref.attempt_no}:${ref.ops_error_log_id}`" class="flex flex-wrap items-center gap-2">
                   <span>{{ ref.attempt_no ? `${t('requestLedger.attempts')} #${ref.attempt_no}` : t('requestLedger.requestOnly') }}</span>
@@ -77,11 +77,11 @@
                 </li>
               </ul>
           </RequestLedgerDetailSection>
-          <RequestLedgerDetailSection :key="'wallet:' + selectedId" section="wallet" :title="t('requestLedger.walletTransaction')" :load-page="loadWallet" v-slot="{ page: walletPage }">
+          <RequestLedgerDetailSection :key="'wallet:' + selectedId" :scope="detailScope" section="wallet" :title="t('requestLedger.walletTransaction')" :load-page="loadWallet" v-slot="{ page: walletPage }">
             <p class="text-sm text-gray-500">{{ t('requestLedger.walletNotice') }}</p>
             <DataTable v-if="walletPage.items.length" :data="walletPage.items" :columns="[{ key: 'id', label: '#' }, { key: 'operation', label: t('requestLedger.phase') }]" row-key="id"><template #cell-operation="{ row }">{{ t(`requestLedger.walletOperations.${row.operation}`) }}</template></DataTable>
           </RequestLedgerDetailSection>
-          <RequestLedgerDetailSection :key="'billing:' + selectedId" section="billing" :title="t('requestLedger.billing')" :load-page="loadBilling" v-slot="{ page: billingPage, loading: billingLoading }" @change="clearUsage">
+          <RequestLedgerDetailSection :key="'billing:' + selectedId" :scope="detailScope" section="billing" :title="t('requestLedger.billing')" :load-page="loadBilling" v-slot="{ page: billingPage, loading: billingLoading }" @change="clearUsage">
             <p v-if="!billingPage.items.length && detail.request.usage_state !== 'not_applicable'" class="text-sm text-gray-500">{{ t('requestLedger.pendingCost') }}</p>
             <dl v-for="(ref, index) in billingPage.items" :key="index" class="grid gap-3 border-t border-gray-200 pt-3 text-sm dark:border-dark-700 sm:grid-cols-2">
               <div><dt class="text-gray-500">{{ t('requestLedger.usageLog') }}</dt><dd><button v-if="ref.usage_log_id" class="text-primary-600 underline disabled:cursor-wait disabled:opacity-50 dark:text-primary-400" :disabled="billingLoading" @click="openUsage(ref.usage_log_id)">{{ t('requestLedger.usageLog') }} #{{ ref.usage_log_id }}</button><span v-else>{{ t('requestLedger.pendingCost') }}</span></dd></div>
@@ -112,9 +112,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, defineAsyncComponent, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, reactive, ref, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
+import { AUTH_SESSION_KEY, getAuthSessionIdentity, isAuthSessionCurrent, isAuthSessionBlocked, isAuthSessionPublishing, subscribeAuthSession, type AuthSessionIdentity } from '@/api/tokenRefresh'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import DataTable from '@/components/common/DataTable.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
@@ -122,13 +124,14 @@ import Select from '@/components/common/Select.vue'
 import Pagination from '@/components/common/Pagination.vue'
 import Icon from '@/components/icons/Icon.vue'
 import RequestLedgerDetailSection from './components/RequestLedgerDetailSection.vue'
-import { requestLedgerAPI, type RequestDetail, type RequestFilters, type RequestPage, type LinkedUsage } from '@/api/requestLedger'
+import { requestLedgerAPI, type RequestDetail, type RequestFilters, type RequestPage, type LinkedUsage, type DetailSectionItems } from '@/api/requestLedger'
 
 const OpsErrorDetailModal = defineAsyncComponent(() => import('@/views/admin/ops/components/OpsErrorDetailModal.vue'))
 const opsErrorId = ref<number | null>(null), showOpsError = ref(false)
 
 const { t, locale } = useI18n()
 const route = useRoute(), router = useRouter()
+const auth = useAuthStore()
 const admin = computed(() => route.meta.requiresAdmin === true)
 const defaults = () => ({ private_id: '', user_id: '', api_key_id: '', account_id: '', execution_state: '', usage_state: '', settlement_state: '', start_date: '', end_date: '' })
 const filters = reactive(defaults())
@@ -148,45 +151,108 @@ const attemptColumns = computed(() => [{ key: 'attempt_no', label: '#' }, { key:
 const page = ref<RequestPage>({ items: [], total: 0, page: 1, page_size: 20 })
 const loading = ref(false), error = ref(''), selectedId = ref(''), detailLoading = ref(false), detailError = ref(false), detail = ref<RequestDetail | null>(null)
 const linkedUsage = ref<LinkedUsage | null>(null), usageLoading = ref(false), usageError = ref(false)
+const detailScope = shallowRef<{ signal: AbortSignal; isCurrent: () => boolean }>()
+let disposed = false, listSequence = 0, detailSequence = 0, usageSequence = 0
+let navigationReset = false, reloadPending = false, sessionCheckQueued = false
+let observedSession = getAuthSessionIdentity(), observedUser = auth.user?.id, observedRole = auth.user?.role
+let observedAuthenticated = auth.isAuthenticated, observedAdmin = admin.value, observedBlocked = isAuthSessionBlocked()
 let usageController: AbortController | undefined
 let listController: AbortController | undefined, detailController: AbortController | undefined
+const viewerCurrent = (identity: AuthSessionIdentity, adminAtStart: boolean) => !disposed && auth.isAuthenticated &&
+  !isAuthSessionBlocked() && isAuthSessionCurrent(identity) && identity.userID === auth.user?.id &&
+  admin.value === adminAtStart && (!adminAtStart || auth.isAdmin)
+const canRead = () => !navigationReset && viewerCurrent(getAuthSessionIdentity(), admin.value)
+const readyWaiters = new Set<() => void>()
+// Preserve read intent while a peer publishes credentials for this same session.
+// Closing, superseding or changing identity aborts the wait before any HTTP read.
+async function waitForSessionReady(signal: AbortSignal, current: () => boolean): Promise<boolean> {
+  if (signal.aborted || !current()) return false
+  if (isAuthSessionPublishing()) {
+    await new Promise<void>((resolve, reject) => {
+      const cleanup = () => {
+        readyWaiters.delete(check)
+        signal.removeEventListener('abort', check)
+        clearTimeout(timeout)
+      }
+      const timeout = setTimeout(() => {
+        cleanup()
+        reject(new Error('Authentication publication did not complete'))
+      }, 5000)
+      const check = () => {
+        if (!signal.aborted && current() && isAuthSessionPublishing()) return
+        cleanup()
+        resolve()
+      }
+      readyWaiters.add(check)
+      signal.addEventListener('abort', check, { once: true })
+      check()
+    })
+  }
+  return !signal.aborted && current() && !isAuthSessionPublishing()
+}
+function resumeReadyReads() { for (const check of readyWaiters) check() }
 async function load() {
+  if (!canRead()) return
   listController?.abort(); const controller = new AbortController(); listController = controller
+  const sequence = ++listSequence, identity = getAuthSessionIdentity(), adminAtStart = admin.value
+  const current = () => sequence === listSequence && !controller.signal.aborted && viewerCurrent(identity, adminAtStart)
   error.value = ''; loading.value = true
   try {
+    if (!await waitForSessionReady(controller.signal, current)) return
     const params: RequestFilters = { page: page.value.page, page_size: page.value.page_size }
     for (const [key, value] of Object.entries(filters)) if (value && (admin.value || !['user_id', 'account_id'].includes(key))) params[key] = key.endsWith('_date') ? new Date(value).toISOString() : value
     if (params.start_date && params.end_date && params.start_date >= params.end_date) { error.value = t('requestLedger.invalidDates'); return }
     const result = await requestLedgerAPI.list(admin.value, params, controller.signal)
-    if (!controller.signal.aborted) page.value = result
-  } catch { if (!controller.signal.aborted) error.value = t('requestLedger.loadError') }
-  finally { if (!controller.signal.aborted) loading.value = false }
+    if (current()) page.value = result
+  } catch { if (current()) error.value = t('requestLedger.loadError') }
+  finally { if (current()) loading.value = false }
 }
 const languageQuery = () => Object.fromEntries(Object.entries(route.query).filter(([key]) => ['lang', 'locale'].includes(key)))
 function applyFilters() { page.value.page = 1; void router.replace({ query: { ...languageQuery(), ...Object.fromEntries(Object.entries(filters).filter(([, value]) => value)) } }); void load() }
 function reset() { Object.assign(filters, defaults()); applyFilters() }
 function changePage(value: number) { page.value.page = value; void load() }
 function changePageSize(value: number) { page.value.page_size = value; page.value.page = 1; void load() }
-const loadAttempts = (cursor: string, signal: AbortSignal) => requestLedgerAPI.sectionPage(admin.value, selectedId.value, 'attempts', cursor, signal)
-const loadBilling = (cursor: string, signal: AbortSignal) => requestLedgerAPI.sectionPage(admin.value, selectedId.value, 'billing', cursor, signal)
-const loadWallet = (cursor: string, signal: AbortSignal) => requestLedgerAPI.sectionPage(admin.value, selectedId.value, 'wallet', cursor, signal)
-const loadDiagnostics = (cursor: string, signal: AbortSignal) => requestLedgerAPI.sectionPage(admin.value, selectedId.value, 'diagnostics', cursor, signal)
-function clearUsage() { usageController?.abort(); linkedUsage.value = null; usageError.value = false; usageLoading.value = false }
+async function loadSection<S extends keyof DetailSectionItems>(section: S, cursor: string, signal: AbortSignal) {
+  const scope = detailScope.value, id = selectedId.value, adminAtStart = admin.value
+  const current = () => !!scope && scope === detailScope.value && !signal.aborted && scope.isCurrent()
+  if (!await waitForSessionReady(signal, current)) throw new Error('Read scope is no longer current')
+  return requestLedgerAPI.sectionPage(adminAtStart, id, section, cursor, signal)
+}
+const loadAttempts = (cursor: string, signal: AbortSignal) => loadSection('attempts', cursor, signal)
+const loadBilling = (cursor: string, signal: AbortSignal) => loadSection('billing', cursor, signal)
+const loadWallet = (cursor: string, signal: AbortSignal) => loadSection('wallet', cursor, signal)
+const loadDiagnostics = (cursor: string, signal: AbortSignal) => loadSection('diagnostics', cursor, signal)
+function clearUsage() { usageSequence++; usageController?.abort(); linkedUsage.value = null; usageError.value = false; usageLoading.value = false }
 async function open(id: string) {
+  if (!canRead()) return
   detailController?.abort(); const controller = new AbortController(); detailController = controller
+  const sequence = ++detailSequence, identity = getAuthSessionIdentity(), adminAtStart = admin.value
+  const current = () => sequence === detailSequence && !controller.signal.aborted && viewerCurrent(identity, adminAtStart)
+  detailScope.value = { signal: controller.signal, isCurrent: current }
   clearUsage(); showOpsError.value = false; opsErrorId.value = null
   selectedId.value = id; detail.value = null; detailLoading.value = true; detailError.value = false
-  try { const result = await requestLedgerAPI.detail(admin.value, id, controller.signal); if (!controller.signal.aborted) detail.value = result }
-  catch { if (!controller.signal.aborted) detailError.value = true }
-  finally { if (!controller.signal.aborted) detailLoading.value = false }
+  try {
+    if (!await waitForSessionReady(controller.signal, current)) return
+    const result = await requestLedgerAPI.detail(adminAtStart, id, controller.signal)
+    if (current()) detail.value = result
+  }
+  catch { if (current()) detailError.value = true }
+  finally { if (current()) detailLoading.value = false }
 }
-function close() { clearUsage(); detailController?.abort(); showOpsError.value = false; opsErrorId.value = null; selectedId.value = ''; detail.value = null }
+function close() { clearUsage(); detailSequence++; detailController?.abort(); detailScope.value = undefined; showOpsError.value = false; opsErrorId.value = null; selectedId.value = ''; detail.value = null; detailLoading.value = false; detailError.value = false }
 async function openUsage(id: number) {
+  if (!canRead() || !selectedId.value) return
   usageController?.abort(); const controller = new AbortController(); usageController = controller
+  const sequence = ++usageSequence, identity = getAuthSessionIdentity(), adminAtStart = admin.value
+  const current = () => sequence === usageSequence && !controller.signal.aborted && viewerCurrent(identity, adminAtStart)
   usageLoading.value = true; usageError.value = false; linkedUsage.value = null
-  try { const result = await requestLedgerAPI.usage(admin.value, selectedId.value, id, controller.signal); if (!controller.signal.aborted) linkedUsage.value = result }
-  catch { if (!controller.signal.aborted) usageError.value = true }
-  finally { if (!controller.signal.aborted) usageLoading.value = false }
+  try {
+    if (!await waitForSessionReady(controller.signal, current)) return
+    const result = await requestLedgerAPI.usage(adminAtStart, selectedId.value, id, controller.signal)
+    if (current()) linkedUsage.value = result
+  }
+  catch { if (current()) usageError.value = true }
+  finally { if (current()) usageLoading.value = false }
 }
 async function followExactReference(id: unknown) {
   if (typeof id !== 'string' || !id) return
@@ -195,10 +261,49 @@ async function followExactReference(id: unknown) {
   await Promise.all([load(), open(id)])
 }
 watch(() => route.query.private_id, id => {
+  if (!canRead()) return
   if (typeof id === 'string' && id) void followExactReference(id)
   else { filters.private_id = ''; close(); void load() }
 })
-watch(admin, () => { close(); void load() })
+function reconcileSession() {
+  if (disposed || (isAuthSessionCurrent(observedSession) && observedUser === auth.user?.id &&
+    observedRole === auth.user?.role && observedAuthenticated === auth.isAuthenticated && observedAdmin === admin.value &&
+    observedBlocked === isAuthSessionBlocked())) return
+  observedSession = getAuthSessionIdentity(); observedUser = auth.user?.id; observedRole = auth.user?.role
+  observedAuthenticated = auth.isAuthenticated; observedAdmin = admin.value; observedBlocked = isAuthSessionBlocked()
+  listSequence++; listController?.abort(); close()
+  page.value = { items: [], total: 0, page: 1, page_size: 20 }
+  Object.assign(filters, defaults()); error.value = ''; loading.value = false; reloadPending = true
+  if (!navigationReset) {
+    navigationReset = true
+    // Remove the old session's exact link and filters, preserving only language.
+    void clearSessionLocation()
+  }
+}
+async function clearSessionLocation() {
+  try { await router.replace({ query: languageQuery() }) }
+  catch { /* Navigation guards or teardown can reject navigation; data is already cleared. */ }
+  finally { navigationReset = false; scheduleSessionCheck() }
+}
+function scheduleSessionCheck() {
+  if (disposed || sessionCheckQueued) return
+  sessionCheckQueued = true
+  void nextTick().then(() => {
+    sessionCheckQueued = false
+    // Login publishes storage after updating Pinia. Recheck once that synchronous
+    // action finishes; a notification itself is never a reason to reset pagination.
+    reconcileSession()
+    resumeReadyReads()
+    if (reloadPending && canRead()) { reloadPending = false; void load() }
+  })
+}
+function checkSession() { reconcileSession(); resumeReadyReads(); scheduleSessionCheck() }
+function onSessionStorage(event: StorageEvent) {
+  if (event.storageArea === localStorage && (event.key === AUTH_SESSION_KEY || event.key === null)) checkSession()
+}
+watch([() => auth.isAuthenticated, () => auth.user, () => auth.user?.id, () => auth.user?.role, () => auth.token, admin], checkSession, { flush: 'sync' })
+const unsubscribeSession = subscribeAuthSession(checkSession)
+window.addEventListener('storage', onSessionStorage)
 onMounted(() => route.query.private_id ? followExactReference(route.query.private_id) : load())
-onUnmounted(() => { listController?.abort(); detailController?.abort(); usageController?.abort() })
+onBeforeUnmount(() => { disposed = true; listSequence++; unsubscribeSession(); window.removeEventListener('storage', onSessionStorage); listController?.abort(); close() })
 </script>

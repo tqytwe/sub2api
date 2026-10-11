@@ -10,7 +10,8 @@
     "frontend/src/i18n/locales/request-ledger.zh.ts",
     "frontend/src/views/shared/RequestLedgerView.vue",
     "frontend/src/views/shared/components/RequestLedgerDetailSection.vue",
-    "frontend/src/views/shared/__tests__/RequestLedgerView.spec.ts"
+    "frontend/src/views/shared/__tests__/RequestLedgerView.spec.ts",
+    "frontend/src/views/shared/__tests__/RequestLedgerView.session.http.spec.ts"
   ],
   "routes_or_surfaces": [
     "/requests",
@@ -74,7 +75,13 @@
     "docs/visual-reviews/assets/ledger-detail-pagination/loading-admin-1280.png",
     "docs/visual-reviews/assets/ledger-detail-pagination/loading-user-1280.png",
     "docs/visual-reviews/assets/ledger-detail-pagination/zoom-admin-1280.png",
-    "docs/visual-reviews/assets/ledger-detail-pagination/zoom-user-1280.png"
+    "docs/visual-reviews/assets/ledger-detail-pagination/zoom-user-1280.png",
+    "docs/visual-reviews/assets/ledger-detail-pagination/session-account-admin-1280.png",
+    "docs/visual-reviews/assets/ledger-detail-pagination/session-account-user-1280.png",
+    "docs/visual-reviews/assets/ledger-detail-pagination/session-logout-admin-1280.png",
+    "docs/visual-reviews/assets/ledger-detail-pagination/session-logout-user-1280.png",
+    "docs/visual-reviews/assets/ledger-detail-pagination/session-renewal-admin-1280.png",
+    "docs/visual-reviews/assets/ledger-detail-pagination/session-renewal-user-1280.png"
   ],
   "commands": [
     "/tmp/p0-run make build",
@@ -150,3 +157,21 @@ AppLayout、BaseDialog、DataTable、Ops浮层和原样式。新组件封装页�
 分页及全部前端源码不变，7个既有入口/台账/共享资源指纹不变；完整356文件资源指纹见
 [组合验证](../archive/completed-tasks/ledger-detail-pagination/combination-validation.json)。
 本轮重新目视普通用户360px与管理员503错误画面，样式和信息关系保持一致。
+
+
+## #358 session isolation follow-up
+
+Reused the existing dialog/loading/error/empty states and the approved prototypes; no new layout, styling or visual pattern.
+The final actual build repeated both roles at all four widths with light/dark, Chinese/English and keyboard checks.
+Additional lifecycle captures show normal renewal retaining attempts page 2, a new account's HTTP 503 with old data
+and filters removed, and logout returning to the real login route. Six new 1280px screenshots are listed above.
+
+The actual Pinia actions use synthetic loopback auth endpoints; ledger reads still use the real HTTP/PostgreSQL fixture.
+The first lifecycle harness incorrectly expected a ledger refresh button after the production router redirected a guest
+to login; correcting that assertion and rerunning both roles passed. No product change was needed.
+
+26 real HTTP session cases plus the existing 22 view/API cases passed, including pending-publication readiness,
+five-second retryable timeout, cancellation, close/reopen, independent out-of-order regions and identity isolation.
+Synthetic StorageEvents do not establish every real cross-tab timing. All server screenshots remain development
+evidence; production and user-local acceptance are still pending. See the session-isolation-followup JSON for times,
+source/build fingerprints, gates and read-only sequential review results.

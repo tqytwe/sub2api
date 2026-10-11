@@ -1,0 +1,311 @@
+{
+  "index_sha256": "f96f70f174e7b61c081bc977c0f3280172126e5446b0deb8603fcee826a23a20",
+  "reports": [
+    {
+      "case": "peer-reading",
+      "initial": {
+        "user": 1,
+        "token": "fixture-1-access-login-1",
+        "storedUser": 1,
+        "storedToken": "fixture-1-access-login-1"
+      },
+      "width": 1280,
+      "theme": "light",
+      "language": "zh",
+      "web_locks": {
+        "secure": true,
+        "available": true,
+        "request": "(name, ...args) => {\n                    record('request', {name});\n                    const callback = args.pop();\n                    return original(name, ...args, async lock => {\n                      record('acquire', {name});\n                      try { return await callback(lock); }\n                      finally { record('release', {name}); }\n                    });\n                  }"
+      },
+      "selected": 2,
+      "after": {
+        "user": 1,
+        "token": "fixture-1-access-renewed-1",
+        "storedUser": 1,
+        "storedToken": "fixture-1-access-renewed-1"
+      },
+      "quiz_reads": 2,
+      "safe": false,
+      "peer_selected": 2,
+      "peer_after": {
+        "user": 1,
+        "token": "fixture-1-access-renewed-1",
+        "storedUser": 1,
+        "storedToken": "fixture-1-access-renewed-1"
+      },
+      "renewals": 2,
+      "refresh_requests": [
+        {
+          "token": "fixture-1-refresh-login-1",
+          "source": "coordinator"
+        },
+        {
+          "token": "fixture-1-refresh-login-1",
+          "source": "coordinator"
+        }
+      ],
+      "lock_traces": [
+        [
+          {
+            "event": "request",
+            "at": 1791707342871,
+            "access": "fixture-1-access-login-1",
+            "refresh": "fixture-1-refresh-login-1",
+            "expiry": "1791707462870",
+            "session": "22b84f7f-5185-4285-8d87-35f161738331",
+            "name": "sub2api-auth-token-refresh"
+          },
+          {
+            "event": "acquire",
+            "at": 1791707342896,
+            "access": "fixture-1-access-login-1",
+            "refresh": "fixture-1-refresh-login-1",
+            "expiry": "1791707462870",
+            "session": "22b84f7f-5185-4285-8d87-35f161738331",
+            "name": "sub2api-auth-token-refresh"
+          },
+          {
+            "event": "storage",
+            "at": 1791707342899,
+            "access": "fixture-1-access-login-1",
+            "refresh": "fixture-1-refresh-login-1",
+            "expiry": "1791707462870",
+            "session": "pending:22b84f7f-5185-4285-8d87-35f161738331|f3bd6a38-71b9-4184-86aa-dc2294fd00e5",
+            "key": "auth_session_id"
+          },
+          {
+            "event": "storage",
+            "at": 1791707342899,
+            "access": "fixture-1-access-renewed-1",
+            "refresh": "fixture-1-refresh-renewed-1",
+            "expiry": "1791710942896",
+            "session": "22b84f7f-5185-4285-8d87-35f161738331",
+            "key": "auth_token"
+          },
+          {
+            "event": "storage",
+            "at": 1791707342900,
+            "access": "fixture-1-access-renewed-1",
+            "refresh": "fixture-1-refresh-renewed-1",
+            "expiry": "1791710942896",
+            "session": "22b84f7f-5185-4285-8d87-35f161738331",
+            "key": "token_expires_at"
+          },
+          {
+            "event": "storage",
+            "at": 1791707342900,
+            "access": "fixture-1-access-renewed-1",
+            "refresh": "fixture-1-refresh-renewed-1",
+            "expiry": "1791710942896",
+            "session": "22b84f7f-5185-4285-8d87-35f161738331",
+            "key": "refresh_token"
+          },
+          {
+            "event": "storage",
+            "at": 1791707342900,
+            "access": "fixture-1-access-renewed-1",
+            "refresh": "fixture-1-refresh-renewed-1",
+            "expiry": "1791710942896",
+            "session": "22b84f7f-5185-4285-8d87-35f161738331",
+            "key": "auth_session_id"
+          },
+          {
+            "event": "release",
+            "at": 1791707342905,
+            "access": "fixture-1-access-renewed-1",
+            "refresh": "fixture-1-refresh-renewed-1",
+            "expiry": "1791710942896",
+            "session": "22b84f7f-5185-4285-8d87-35f161738331",
+            "name": "sub2api-auth-token-refresh"
+          }
+        ],
+        [
+          {
+            "event": "request",
+            "at": 1791707342871,
+            "access": "fixture-1-access-login-1",
+            "refresh": "fixture-1-refresh-login-1",
+            "expiry": "1791707462870",
+            "session": "22b84f7f-5185-4285-8d87-35f161738331",
+            "name": "sub2api-auth-token-refresh"
+          },
+          {
+            "event": "acquire",
+            "at": 1791707342876,
+            "access": "fixture-1-access-login-1",
+            "refresh": "fixture-1-refresh-login-1",
+            "expiry": "1791707462870",
+            "session": "22b84f7f-5185-4285-8d87-35f161738331",
+            "name": "sub2api-auth-token-refresh"
+          },
+          {
+            "event": "release",
+            "at": 1791707342896,
+            "access": "fixture-1-access-renewed-1",
+            "refresh": "fixture-1-refresh-renewed-1",
+            "expiry": "1791710942896",
+            "session": "22b84f7f-5185-4285-8d87-35f161738331",
+            "name": "sub2api-auth-token-refresh"
+          }
+        ]
+      ],
+      "profiles": [
+        1,
+        1
+      ],
+      "js_errors": [],
+      "overflow": false
+    },
+    {
+      "case": "peer-reading",
+      "initial": {
+        "user": 1,
+        "token": "fixture-1-access-login-1",
+        "storedUser": 1,
+        "storedToken": "fixture-1-access-login-1"
+      },
+      "width": 1280,
+      "theme": "light",
+      "language": "zh",
+      "web_locks": {
+        "secure": true,
+        "available": true,
+        "request": "(name, ...args) => {\n                    record('request', {name});\n                    const callback = args.pop();\n                    return original(name, ...args, async lock => {\n                      record('acquire', {name});\n                      try { return await callback(lock); }\n                      finally { record('release', {name}); }\n                    });\n                  }"
+      },
+      "selected": 2,
+      "after": {
+        "user": 1,
+        "token": "fixture-1-access-renewed-1",
+        "storedUser": 1,
+        "storedToken": "fixture-1-access-renewed-1"
+      },
+      "quiz_reads": 2,
+      "safe": true,
+      "peer_selected": 2,
+      "peer_after": {
+        "user": 1,
+        "token": "fixture-1-access-renewed-1",
+        "storedUser": 1,
+        "storedToken": "fixture-1-access-renewed-1"
+      },
+      "renewals": 1,
+      "refresh_requests": [
+        {
+          "token": "fixture-1-refresh-login-1",
+          "source": "coordinator"
+        }
+      ],
+      "lock_traces": [
+        [
+          {
+            "event": "request",
+            "at": 1791707359528,
+            "access": "fixture-1-access-login-1",
+            "refresh": "fixture-1-refresh-login-1",
+            "expiry": "1791707479527",
+            "session": "6d2f1b06-496b-411d-99bd-9102f90a632c",
+            "name": "sub2api-auth-token-refresh"
+          },
+          {
+            "event": "acquire",
+            "at": 1791707359541,
+            "access": "fixture-1-access-login-1",
+            "refresh": "fixture-1-refresh-login-1",
+            "expiry": "1791707479527",
+            "session": "pending:6d2f1b06-496b-411d-99bd-9102f90a632c|b93b6af0-4aab-4115-bddf-984ee19b0e00",
+            "name": "sub2api-auth-token-refresh"
+          },
+          {
+            "event": "storage",
+            "at": 1791707359541,
+            "access": "fixture-1-access-login-1",
+            "refresh": "fixture-1-refresh-login-1",
+            "expiry": "1791707479527",
+            "session": "pending:6d2f1b06-496b-411d-99bd-9102f90a632c|b93b6af0-4aab-4115-bddf-984ee19b0e00",
+            "key": "auth_session_id"
+          },
+          {
+            "event": "storage",
+            "at": 1791707359541,
+            "access": "fixture-1-access-renewed-1",
+            "refresh": "fixture-1-refresh-renewed-1",
+            "expiry": "1791710959540",
+            "session": "6d2f1b06-496b-411d-99bd-9102f90a632c",
+            "key": "auth_token"
+          },
+          {
+            "event": "storage",
+            "at": 1791707359542,
+            "access": "fixture-1-access-renewed-1",
+            "refresh": "fixture-1-refresh-renewed-1",
+            "expiry": "1791710959540",
+            "session": "6d2f1b06-496b-411d-99bd-9102f90a632c",
+            "key": "token_expires_at"
+          },
+          {
+            "event": "storage",
+            "at": 1791707359542,
+            "access": "fixture-1-access-renewed-1",
+            "refresh": "fixture-1-refresh-renewed-1",
+            "expiry": "1791710959540",
+            "session": "6d2f1b06-496b-411d-99bd-9102f90a632c",
+            "key": "refresh_token"
+          },
+          {
+            "event": "storage",
+            "at": 1791707359542,
+            "access": "fixture-1-access-renewed-1",
+            "refresh": "fixture-1-refresh-renewed-1",
+            "expiry": "1791710959540",
+            "session": "6d2f1b06-496b-411d-99bd-9102f90a632c",
+            "key": "auth_session_id"
+          },
+          {
+            "event": "release",
+            "at": 1791707359566,
+            "access": "fixture-1-access-renewed-1",
+            "refresh": "fixture-1-refresh-renewed-1",
+            "expiry": "1791710959540",
+            "session": "6d2f1b06-496b-411d-99bd-9102f90a632c",
+            "name": "sub2api-auth-token-refresh"
+          }
+        ],
+        [
+          {
+            "event": "request",
+            "at": 1791707359528,
+            "access": "fixture-1-access-login-1",
+            "refresh": "fixture-1-refresh-login-1",
+            "expiry": "1791707479527",
+            "session": "6d2f1b06-496b-411d-99bd-9102f90a632c",
+            "name": "sub2api-auth-token-refresh"
+          },
+          {
+            "event": "acquire",
+            "at": 1791707359530,
+            "access": "fixture-1-access-login-1",
+            "refresh": "fixture-1-refresh-login-1",
+            "expiry": "1791707479527",
+            "session": "6d2f1b06-496b-411d-99bd-9102f90a632c",
+            "name": "sub2api-auth-token-refresh"
+          },
+          {
+            "event": "release",
+            "at": 1791707359540,
+            "access": "fixture-1-access-renewed-1",
+            "refresh": "fixture-1-refresh-renewed-1",
+            "expiry": "1791710959540",
+            "session": "6d2f1b06-496b-411d-99bd-9102f90a632c",
+            "name": "sub2api-auth-token-refresh"
+          }
+        ]
+      ],
+      "profiles": [
+        1,
+        1
+      ],
+      "js_errors": [],
+      "overflow": false
+    }
+  ]
+}

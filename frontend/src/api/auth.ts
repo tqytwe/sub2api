@@ -4,7 +4,7 @@
  */
 
 import { apiClient } from './client'
-import { refreshAuthTokens, type RefreshTokenResponse } from './tokenRefresh'
+import { refreshAuthTokens, startAuthSession, finishAuthSession, type RefreshTokenResponse } from './tokenRefresh'
 export type { RefreshTokenResponse } from './tokenRefresh'
 import type {
   LoginRequest,
@@ -133,6 +133,7 @@ export async function login(credentials: LoginRequest): Promise<LoginResponse> {
 
   // Only store token if 2FA is not required
   if (!isTotp2FARequired(data)) {
+    const publication = startAuthSession()
     setAuthToken(data.access_token)
     if (data.refresh_token) {
       setRefreshToken(data.refresh_token)
@@ -141,6 +142,7 @@ export async function login(credentials: LoginRequest): Promise<LoginResponse> {
       setTokenExpiresAt(data.expires_in)
     }
     localStorage.setItem('auth_user', JSON.stringify(data.user))
+    finishAuthSession(publication)
   }
 
   return data
@@ -155,6 +157,7 @@ export async function login2FA(request: TotpLogin2FARequest): Promise<AuthRespon
   const { data } = await apiClient.post<AuthResponse>('/auth/login/2fa', request)
 
   // Store token and user data
+  const publication = startAuthSession()
   setAuthToken(data.access_token)
   if (data.refresh_token) {
     setRefreshToken(data.refresh_token)
@@ -163,6 +166,7 @@ export async function login2FA(request: TotpLogin2FARequest): Promise<AuthRespon
     setTokenExpiresAt(data.expires_in)
   }
   localStorage.setItem('auth_user', JSON.stringify(data.user))
+  finishAuthSession(publication)
 
   return data
 }
@@ -176,6 +180,7 @@ export async function register(userData: RegisterRequest): Promise<AuthResponse>
   const { data } = await apiClient.post<AuthResponse>('/auth/register', userData)
 
   // Store token and user data
+  const publication = startAuthSession()
   setAuthToken(data.access_token)
   if (data.refresh_token) {
     setRefreshToken(data.refresh_token)
@@ -184,6 +189,7 @@ export async function register(userData: RegisterRequest): Promise<AuthResponse>
     setTokenExpiresAt(data.expires_in)
   }
   localStorage.setItem('auth_user', JSON.stringify(data.user))
+  finishAuthSession(publication)
 
   return data
 }
@@ -305,6 +311,7 @@ export function hasPendingOAuthSuggestedProfile(
 }
 
 export function persistOAuthTokenContext(tokens: Partial<OAuthTokenResponse>): void {
+  if (isOAuthLoginCompletion(tokens)) startAuthSession('oauth')
   if (tokens.refresh_token) {
     setRefreshToken(tokens.refresh_token)
   }

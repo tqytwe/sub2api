@@ -1,0 +1,28 @@
+
+ RUN  v2.1.9 /workspace/sub2api-ledger-pagination/frontend
+
+ ✓ src/api/__tests__/requestLedger.spec.ts (3 tests) 5ms
+Browserslist: browsers data (caniuse-lite) is 10 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+ ✓ src/views/shared/__tests__/RequestLedgerView.spec.ts (19 tests) 483ms
+ ✓ src/views/shared/__tests__/RequestLedgerView.session.http.spec.ts (26 tests) 16840ms
+   ✓ clears loaded details/list on same-role account switch even when B fails (admin=false) 322ms
+   ✓ clears on logout synchronously, does no guest read, and isolates A→B→A 325ms
+   ✓ preserves a pending page and its cursor across real automatic token renewal 1077ms
+   ✓ closes/reopens a real dialog while 'attempts' returns stale HTTP 200 329ms
+   ✓ closes/reopens a real dialog while 'attempts' returns stale HTTP 503 325ms
+   ✓ closes/reopens a real dialog while 'billing' returns stale HTTP 200 333ms
+   ✓ closes/reopens a real dialog while 'billing' returns stale HTTP 503 335ms
+   ✓ closes/reopens a real dialog while 'wallet' returns stale HTTP 200 327ms
+   ✓ closes/reopens a real dialog while 'wallet' returns stale HTTP 503 322ms
+   ✓ closes/reopens a real dialog while 'diagnostics' returns stale HTTP 200 322ms
+   ✓ closes/reopens a real dialog while 'diagnostics' returns stale HTTP 503 326ms
+   ✓ keeps all four sections independent when replies and a retry complete out of order 401ms
+   ✓ ends abandoned publication with retryable errors and resumes after ready 10219ms
+
+ Test Files  3 passed (3)
+      Tests  48 passed (48)
+   Start at  09:46:26
+   Duration  19.98s (transform 2.09s, setup 214ms, collect 3.52s, tests 17.33s, environment 1.06s, prepare 188ms)
+

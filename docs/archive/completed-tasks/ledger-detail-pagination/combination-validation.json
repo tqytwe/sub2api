@@ -250,7 +250,7 @@
     "reason": "All frontend source and dependencies unchanged by #352 merge; full frontend 3611 pass/8 existing opt-in skips already passed. Combination build/typecheck and fresh browser were run."
   },
   "browser": {
-    "ref": "browser-evidence.json",
+    "ref": "combination-browser-evidence.json",
     "fixture_log_sha256": "73ddc6f994c9670cdc3d5ca5ed52e6587500bf652eed4ec70bdcea55f64bbf09",
     "capture_log_sha256": "3141228cd1f8af3d7bf01a5aa096d6719a3da085a8e1fcc45108d22c15a52213",
     "served_assets_identical": true,
