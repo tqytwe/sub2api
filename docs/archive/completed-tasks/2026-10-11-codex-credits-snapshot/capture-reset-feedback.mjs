@@ -76,10 +76,12 @@ createApp({ setup() { return () => h('main', { class: 'p-4 md:p-8', style: { max
       await page.locator('main button').nth(1).click()
       await page.locator('[role="dialog"] button').last().click()
       await page.waitForFunction(() => window.feedbackCount === 1 && document.querySelector('[data-testid="codex-credits"]').textContent.includes('—'))
+      // Vue updates precede the leave transition; capture only its settled state.
+      await page.locator('[role="dialog"]').waitFor({ state: 'detached' })
       const name = mode + '-' + variant.language + '-' + variant.theme + '-' + variant.width
       await page.screenshot({ path: path.join(assets, name + '.png'), fullPage: true })
-      const checks = await page.evaluate(() => ({ queryCalls: window.queryCalls, resetCalls: window.resetCalls, feedbackCount: window.feedbackCount, balance: document.querySelector('[data-testid="codex-credits"]').textContent, overflow: document.documentElement.scrollWidth > innerWidth }))
-      if (checks.resetCalls !== 1 || checks.feedbackCount !== 1 || checks.queryCalls.length || checks.overflow || external.length || errors.length) throw new Error(JSON.stringify({ checks, external, errors }))
+      const checks = await page.evaluate(() => ({ dialogDetached: document.querySelector('[role="dialog"]') === null, queryCalls: window.queryCalls, resetCalls: window.resetCalls, feedbackCount: window.feedbackCount, balance: document.querySelector('[data-testid="codex-credits"]').textContent, overflow: document.documentElement.scrollWidth > innerWidth }))
+      if (!checks.dialogDetached || checks.resetCalls !== 1 || checks.feedbackCount !== 1 || checks.queryCalls.length || checks.overflow || external.length || errors.length) throw new Error(JSON.stringify({ checks, external, errors }))
       reports.push({ name, checks, external, errors, resetMode: 'local build-time stub only; no upstream reset' })
       await page.close()
     }

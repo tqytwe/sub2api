@@ -74,5 +74,18 @@
     }
   },
   "production_access": false,
-  "pending": "parent final review, commit and update existing draft PR #368; final-head CI"
+  "pending": "parent final review, commit and update existing draft PR #368; final-head CI",
+  "settled_capture_followup": {
+    "base_head": "7d4e57ba937ac8a3f6b90656e603656031ec87d3",
+    "reason": "Prior Chinese capture still contained the closing confirmation dialog; balance was obscured. Original capture is retained in prior git commit.",
+    "fix": "Wait for role=dialog to detach after Vue leave transition before screenshot.",
+    "result": "Both freshly rendered screenshots inspected using view_image: no modal/backdrop/blur, unknown points and readback warning visible. Both browser records assert dialogDetached=true.",
+    "source_unchanged": true,
+    "source_gates": "Prior passed evidence reused; no source gates rerun.",
+    "screenshots": {
+      "reset-feedback-zh-light-1280.png": "bf1212f7a741d959ae37069aacbe7afb3182af146c5b8b064b640707ee7091e7",
+      "reset-feedback-en-dark-360.png": "d9f116b8a41efed5cb94f9de77d5477cf1c59f622e1b2be13d2d19bc65e9f8aa"
+    },
+    "raw_log_local": "/tmp/quota-frontend-reset-browser-settled.log"
+  }
 }
