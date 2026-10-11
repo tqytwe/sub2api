@@ -339,6 +339,8 @@
 - 关键位置：`backend/internal/requestledger/`、`backend/migrations/275_gateway_request_ledger.sql`、`backend/migrations/276_gateway_request_correlation.sql`、`backend/internal/handler/request_ledger_handler.go`、`frontend/src/views/shared/RequestLedgerView.vue`。
 - 冲突策略：保持持久入口早于 auth/限流/读取 body，保持实际发送前的门禁；WS 合并复用逻辑 turn 和计费上下文，不重做 settlement。旧版本不写新表，回滚期间新请求覆盖会中止，已有记录不删除。
 - P0 精确关联：服务端 attempt UUID 与进程内不可伪造 Receipt 关联原 Ops ID；上游标识仅有界证据，禁止作为计费去重键。旧 attempt 没有证据时保持为空；诊断表/锁失败不能阻断已观察真实 usage 的原结算。管理员双向跳转，用户仅本人 UUID。迁移 276 只增表/索引，不改历史 checksum 或回填。
+- Batch 精确钻取（关联 `FORK-IMAGE-011`）：保留原 capture 事务接受的指纹、实际金额及图片数；task、owner/key、capture request 与 dedup/archive 指纹一致才关联 usage。共享批次结算不代表每次入口/worker 再次扣款；缺失 usage/旧指纹不补猜，不改冻结价格、capture/release 或公开提交规则。迁移 `277_batch_image_ledger_reconcile_index_notx.sql` 仅新增并发部分索引，按索引先选最多 1000 候选再验证证据；中断建索引复用既有恢复机制。
+- Batch 验证：真实 HTTP/PG 的 capture→usage→详情、失败重试、断连、并发/幂等、归属隔离、归档凭据与无 task 扫描上限，以及用户/管理员实际构建资源；见[本批证据](./archive/completed-tasks/batch-image-ledger/README.md)。合法零 capture 凭据测试不证明既有公开零价格跳过 hold 路径已修复；生产验收状态仅见交接快照。
 - 验证：`requestledger` 真实 PG/进程终止测试、真实注册路由拒绝矩阵、HTTP API 角色/分页测试、Responses 多轮 WS、billing rollback/dedup、前端未知消费/刷新测试；范围和未覆盖协议见归档规格。补充 `correlation_integration_test.go`、`request_ledger_ops_integration_test.go` 与 WS late/drain/重试隔离测试。保留策略仅新增、不自动删除。
 
 ## 更新规则

@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
   "checked_at": "2026-10-10T21:17:26Z",
-  "scope": "v2.10.3 迁移及关联后续修复的交接快照；非实时、非全站完成度。移动端/Canvas 排除。",
+  "scope": "v2.10.3 迁移及关联后续修复的交接快照；非实时、非全站完成度。移动端/Canvas 排除。批量图片台账追加仅复核本批与远端基线；未重验其他条目，保留原整体验证时间。",
   "source_lock": "docs/upstream-migrations/source-lock.json",
   "production": {
     "branch": "play/main",
-    "branch_sha": "17b96a20c7e9d2e394b37c6c1b108340853c0169",
+    "branch_sha": "c939d570aa1f01cadab465c38c36e0295703a9b7",
     "last_verified_deployed_sha": "d18d504ccf12adc9f299cdf14af6ea32c4efe59c",
     "deployment_status": "recorded",
     "evidence": [
@@ -13,9 +13,62 @@
       "https://github.com/tqytwe/sub2api/pull/351",
       "https://github.com/tqytwe/sub2api/runs/114196133288"
     ],
-    "note": "#351于10:43:35Z普通合入d18d504，GitHub Zeabur check于10:48:42Z成功。主线程在恢复验收环境后，于11:09:15及11:30:56 UTC通过官方API确认d18为唯一RUNNING/READY、旧a581为REMOVED，同次curl health=200；11:13:29 UTC确认SQL275登记/checksum与catalog。固定自然窗口11:14:06.545570–11:29:06.545570 UTC，加2分钟缓冲后11:31:08查询exitCode=0并明确ROLLBACK，验收任务已停止。201条已有结算关联无差异不等于全验收完成；unknown、未采样协议/订阅计数器净增量与用户反馈仍待补。运行态、DB与窗口均为主线程交接转述，原始明细未公开；此前11:02执行通道故障已恢复，本任务未执行生产操作。 P0 关联任务于2026-10-10再次fetch确认origin/play/main=726289bdb757e572eac10ab5f12c689c4dc087b5（#344）；未重新核验运行部署，不改last_verified_deployed_sha。 21:40 UTC fetch确认#353已正常合入17b96a20c7e9d2e394b37c6c1b108340853c0169，本分支普通merge保留签到改动；本任务未核验其生产部署。"
+    "note": "#351于10:43:35Z普通合入d18d504，GitHub Zeabur check于10:48:42Z成功。主线程在恢复验收环境后，于11:09:15及11:30:56 UTC通过官方API确认d18为唯一RUNNING/READY、旧a581为REMOVED，同次curl health=200；11:13:29 UTC确认SQL275登记/checksum与catalog。固定自然窗口11:14:06.545570–11:29:06.545570 UTC，加2分钟缓冲后11:31:08查询exitCode=0并明确ROLLBACK，验收任务已停止。201条已有结算关联无差异不等于全验收完成；unknown、未采样协议/订阅计数器净增量与用户反馈仍待补。运行态、DB与窗口均为主线程交接转述，原始明细未公开；此前11:02执行通道故障已恢复，本任务未执行生产操作。 P0 关联任务于2026-10-10再次fetch确认origin/play/main=726289bdb757e572eac10ab5f12c689c4dc087b5（#344）；未重新核验运行部署，不改last_verified_deployed_sha。 21:40 UTC fetch确认#353已正常合入17b96a20c7e9d2e394b37c6c1b108340853c0169，本分支普通merge保留签到改动；本任务未核验其生产部署。 批量图片台账任务再次fetch确认play/main=9b367c378b04db987a36175af0b8a3e02e22da24（#354合并）；本任务未核验生产，不更新部署SHA。 父线程确认#355已合并；本批fetch并普通fast-forward到c939d570aa1f01cadab465c38c36e0295703a9b7，无生产操作，组合复核保留全部#355改动。"
   },
   "features": [
+    {
+      "id": "batch-image-ledger-usage",
+      "title": "批量图片 capture/usage/请求台账精确钻取",
+      "backend_state": "已验证",
+      "product_state": "可测",
+      "owner": "主线程协调",
+      "pr": null,
+      "sha": null,
+      "evidence": {
+        "ui": {
+          "status": "recorded",
+          "refs": [
+            "docs/visual-reviews/2026-10-10-batch-image-ledger.md"
+          ],
+          "note": "实际构建资源+一次性HTTP/PG；用户与管理员四宽度/双语/浅深色，不替代生产验收。"
+        },
+        "api": {
+          "status": "recorded",
+          "refs": [
+            "backend/internal/requestledger/acceptance/batch_image_integration_test.go",
+            "backend/internal/requestledger/acceptance/batch_image_recovery_integration_test.go"
+          ],
+          "note": "保留capture成功指纹与金额；task/owner/key/capture dedup完全一致才可钻取。"
+        },
+        "schema": {
+          "status": "recorded",
+          "refs": [
+            "backend/migrations/277_batch_image_ledger_reconcile_index_notx.sql"
+          ],
+          "note": "仅新增并发部分索引；每轮最多1000候选，历史SQL/checksum不变，无回填。"
+        },
+        "tests": {
+          "status": "recorded",
+          "refs": [
+            "docs/archive/completed-tasks/batch-image-ledger/README.md"
+          ],
+          "note": "2026-10-11组合门禁、HTTP/PG/race、完整前端3562测试、build/embed/Fork、实际资源浏览器及独立双评审通过；两次磁盘失败和一次工具链调用失败独立留档。后端全量/unit复用相同编译输入，详见归档。"
+        },
+        "deployment": {
+          "status": "pending",
+          "refs": [],
+          "note": "独立草稿PR，由主线程核实SHA/CI；本任务不合并部署。"
+        },
+        "production": {
+          "status": "pending",
+          "refs": [],
+          "note": "生产自然流量/PG对账及用户本机三身份验收尚未执行。"
+        }
+      },
+      "risks": "不推断历史指纹、token、unknown零费用；completed旧记录不修复。零capture无钱包用例仅验证真实保留证明，不覆盖公共零价格跳过hold的既有问题。受限usage_billing_repo.go未修改。",
+      "next": "技术验证通过；PR创建前编号未知暂为null，创建后由主线程核实准确head/CI并补记录。不合并部署；生产自然流量、对账及用户本机三身份验收待协调。",
+      "rollback": "协调应用回滚；保留277新增索引与已有台账/usage，不改历史SQL、不删数据。"
+    },
     {
       "id": "request-ledger-exact-correlation",
       "title": "P0 请求/尝试/Ops 精确关联",
@@ -23,7 +76,7 @@
       "product_state": "可测",
       "owner": "主线程协调",
       "pr": "https://github.com/tqytwe/sub2api/pull/354",
-      "sha": null,
+      "sha": "9b367c378b04db987a36175af0b8a3e02e22da24",
       "evidence": {
         "ui": {
           "status": "recorded",
@@ -56,7 +109,7 @@
         "deployment": {
           "status": "pending",
           "refs": [],
-          "note": "仅推送草稿PR，由主线程核实准确SHA/CI并协调合并部署；本任务不部署。"
+          "note": "#354主线merge已通过本批fetch核实；未访问生产或重验部署，保留pending。"
         },
         "production": {
           "status": "pending",
@@ -65,7 +118,7 @@
         }
       },
       "risks": "诊断失败保留证据缺口，不影响真实usage原结算。unknown不是免费；上游ID不作计费去重。没有追溯关联或历史损失恢复。",
-      "next": "草稿#354已追加四项复审修复并普通合入#353；最终准确head/CI从PR读取，由主线程协调，未合并部署。并行订阅修复仍由另一任务负责usage_billing_repo.go。",
+      "next": "本批fetch已核实#354正常合并至9b367c；该SHA是主线merge，不代表本批核实部署。主线程继续协调运行态/用户本机验收。",
       "rollback": "协调应用代码回滚；保留276新增表与现有台账，不改历史migration/checksum，不删除或回填记录。"
     },
     {

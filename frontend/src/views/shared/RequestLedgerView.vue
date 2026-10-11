@@ -87,7 +87,7 @@
             <dl v-for="(ref, index) in detail.billing" :key="index" class="grid gap-3 border-t border-gray-200 pt-3 text-sm dark:border-dark-700 sm:grid-cols-2">
               <div><dt class="text-gray-500">{{ t('requestLedger.usageLog') }}</dt><dd><button v-if="ref.usage_log_id" class="text-primary-600 underline dark:text-primary-400" @click="openUsage(ref.usage_log_id)">{{ t('requestLedger.usageLog') }} #{{ ref.usage_log_id }}</button><span v-else>{{ t('requestLedger.pendingCost') }}</span></dd></div>
               <div><dt class="text-gray-500">{{ t('requestLedger.amount') }}</dt><dd class="tabular-nums">{{ money(ref.billed_cost) }}</dd></div>
-              <div><dt class="text-gray-500">{{ t('requestLedger.settlement') }}</dt><dd>{{ ref.settled ? t(ref.applied ? 'requestLedger.applied' : 'requestLedger.deduplicated') : t('requestLedger.pendingCost') }}</dd></div>
+              <div><dt class="text-gray-500">{{ t('requestLedger.settlement') }}</dt><dd>{{ ref.settled ? t(ref.batch_id ? 'requestLedger.batchSettled' : ref.applied ? 'requestLedger.applied' : 'requestLedger.deduplicated') : t('requestLedger.pendingCost') }}</dd></div>
               <div v-if="ref.wallet_transaction_id"><dt class="text-gray-500">{{ t('requestLedger.walletTransaction') }}</dt><dd>{{ ref.wallet_transaction_id }}</dd></div>
               <div v-if="ref.subscription_id"><dt class="text-gray-500">{{ t('requestLedger.subscription') }}</dt><dd>{{ ref.subscription_id }}</dd></div>
               <div v-if="ref.package_entitlement_id"><dt class="text-gray-500">{{ t('requestLedger.package') }}</dt><dd>{{ ref.package_entitlement_id }}</dd></div>
@@ -97,8 +97,12 @@
             <dl v-if="linkedUsage" class="grid gap-3 border-t border-gray-200 pt-3 text-sm dark:border-dark-700 sm:grid-cols-2">
               <div><dt>{{ t('requestLedger.usageLog') }} #{{ linkedUsage.id }}</dt><dd>{{ linkedUsage.model }}</dd></div>
               <div><dt>{{ t('requestLedger.amount') }}</dt><dd class="tabular-nums">{{ money(linkedUsage.billed_cost) }}</dd></div>
-              <div><dt>{{ t('requestLedger.inputTokens') }}</dt><dd class="tabular-nums">{{ linkedUsage.input_tokens.toLocaleString(locale) }}</dd></div>
-              <div><dt>{{ t('requestLedger.outputTokens') }}</dt><dd class="tabular-nums">{{ linkedUsage.output_tokens.toLocaleString(locale) }}</dd></div>
+              <div v-if="linkedUsage.billing_mode === 'image'"><dt>{{ t('requestLedger.imageCount') }}</dt><dd class="tabular-nums">{{ linkedUsage.image_count?.toLocaleString(locale) ?? t('requestLedger.states.usage_unknown') }}</dd></div>
+              <template v-else>
+                <div><dt>{{ t('requestLedger.inputTokens') }}</dt><dd class="tabular-nums">{{ linkedUsage.input_tokens.toLocaleString(locale) }}</dd></div>
+                <div><dt>{{ t('requestLedger.outputTokens') }}</dt><dd class="tabular-nums">{{ linkedUsage.output_tokens.toLocaleString(locale) }}</dd></div>
+              </template>
+              <div v-if="linkedUsage.batch_id"><dt>{{ t('requestLedger.batchId') }}</dt><dd class="break-all font-mono text-xs">{{ linkedUsage.batch_id }}</dd></div>
             </dl>
           </section>
         </template>

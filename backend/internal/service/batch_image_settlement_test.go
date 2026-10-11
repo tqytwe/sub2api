@@ -46,6 +46,10 @@ func TestBatchImageSettlementService_SettlesAndChargesSuccessfulImagesOnly(t *te
 	require.Equal(t, job.UserID, billing.captures[0].UserID)
 	require.Equal(t, job.BatchID, billing.captures[0].BatchID)
 	require.Equal(t, 0.75, billing.captures[0].ActualAmount)
+	require.Equal(t, billing.captures[0].RequestFingerprint, usageLogs.lastLog.BillingRequestFingerprint)
+	require.NotEmpty(t, usageLogs.lastLog.BillingRequestFingerprint)
+	require.True(t, usageLogs.lastLog.BillingSettled)
+	require.Equal(t, 0.75, usageLogs.lastLog.BilledCost)
 	require.Equal(t, 1.25, billing.captures[0].HoldAmount)
 	require.NotContains(t, fmt.Sprintf("%+v", billing.captures[0]), batchImageTestData)
 	require.NotContains(t, fmt.Sprintf("%+v", billing.captures[0]), "gs://")
@@ -112,6 +116,9 @@ func TestBatchImageSettlementService_CompletedJobBackfillsUsageLog(t *testing.T)
 	require.Equal(t, 1, usageRepo.calls)
 	require.Equal(t, BatchImageCaptureRequestID(job.BatchID), usageRepo.lastLog.RequestID)
 	require.Equal(t, settledAt, usageRepo.lastLog.CreatedAt)
+	require.Empty(t, usageRepo.lastLog.BillingRequestFingerprint)
+	require.False(t, usageRepo.lastLog.BillingSettled)
+	require.Zero(t, usageRepo.lastLog.BilledCost)
 }
 
 func TestBatchImageSettlementService_UsageLogFailureAfterCaptureIsRecoverable(t *testing.T) {
@@ -142,6 +149,8 @@ func TestBatchImageSettlementService_UsageLogFailureAfterCaptureIsRecoverable(t 
 	require.Len(t, billing.captures, 2)
 	require.Equal(t, billing.captures[0].RequestID, billing.captures[1].RequestID)
 	require.Equal(t, 2, usageRepo.calls)
+	require.Equal(t, billing.captures[0].RequestFingerprint, usageRepo.lastLog.BillingRequestFingerprint)
+	require.True(t, usageRepo.lastLog.BillingSettled)
 }
 
 func TestBatchImageSettlementService_IdempotentAfterBillingCrash(t *testing.T) {
@@ -493,7 +502,7 @@ func TestBatchImageSettlementUsageLogUsesActualProviderEndpoint(t *testing.T) {
 			usageRepo := &openAIRecordUsageLogRepoStub{inserted: true}
 			svc := &BatchImageSettlementService{UsageLogRepo: usageRepo}
 
-			require.NoError(t, svc.recordUsageLog(context.Background(), job, 0.5, "request-id", time.Now()))
+			require.NoError(t, svc.recordUsageLog(context.Background(), job, 0.5, "request-id", "", time.Now()))
 
 			require.Equal(t, 1, usageRepo.calls)
 			require.NotNil(t, usageRepo.lastLog)

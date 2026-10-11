@@ -4,8 +4,8 @@ import { reactive } from 'vue'
 import { createI18n } from 'vue-i18n'
 import RequestLedgerView from '../RequestLedgerView.vue'
 
-const { list, detail, replace, routeMeta } = vi.hoisted(() => ({ list: vi.fn(), detail: vi.fn(), replace: vi.fn(), routeMeta: { requiresAdmin: false } }))
-vi.mock('@/api/requestLedger', () => ({ requestLedgerAPI: { list, detail } }))
+const { list, detail, usage, replace, routeMeta } = vi.hoisted(() => ({ list: vi.fn(), detail: vi.fn(), usage: vi.fn(), replace: vi.fn(), routeMeta: { requiresAdmin: false } }))
+vi.mock('@/api/requestLedger', () => ({ requestLedgerAPI: { list, detail, usage } }))
 const routeQuery = reactive<Record<string, string>>({ lang: 'en' })
 vi.mock('vue-router', () => ({ useRoute: () => ({ meta: routeMeta, query: routeQuery }), useRouter: () => ({ replace }) }))
 vi.mock('@/components/layout/AppLayout.vue', () => ({ default: { template: '<main><slot /></main>' } }))
@@ -13,7 +13,7 @@ vi.mock('@/components/layout/AppLayout.vue', () => ({ default: { template: '<mai
 const item = { id: '00000000-0000-4000-8000-000000000001', route: '/v1/responses', method: 'POST', kind: 'http', user_id: 101, api_key_id: 201, started_at: '2026-10-10T00:00:00Z', ended_at: null, execution_state: 'interrupted', usage_state: 'usage_unknown', settlement_state: 'settlement_pending', attempt_count: 1, output_observed: true, error_code: 'interrupted', http_status: 200 }
 const mountView = () => mount(RequestLedgerView, { global: { plugins: [createI18n({ legacy: false, locale: 'en', missingWarn: false, fallbackWarn: false, messages: { en: {} } })], stubs: { RouterLink: { template: '<a><slot /></a>' }, DataTable: { props: ['data'], template: '<div><slot name="cell-execution_state" v-for="row in data" :row="row" /><slot name="cell-usage_state" v-for="row in data" :row="row" /><slot name="cell-settlement_state" v-for="row in data" :row="row" /><slot name="cell-actions" v-for="row in data" :row="row" /></div>' }, BaseDialog: { props: ['show'], template: '<div v-if="show"><slot /></div>' }, Select: true, Pagination: true } } })
 
-beforeEach(() => { delete routeQuery.private_id; routeMeta.requiresAdmin = false; replace.mockReset(); list.mockReset(); detail.mockReset(); list.mockResolvedValue({ items: [item], total: 1, page: 1, page_size: 20 }) })
+beforeEach(() => { delete routeQuery.private_id; routeMeta.requiresAdmin = false; replace.mockReset(); list.mockReset(); detail.mockReset(); usage.mockReset(); list.mockResolvedValue({ items: [item], total: 1, page: 1, page_size: 20 }) })
 describe('request ledger', () => {
  it('preserves URL language when applying filters', async () => {
   const wrapper = mountView(); await flushPromises()
@@ -90,4 +90,41 @@ it('follows an exact Ops link when the same route component is reused', async ()
  expect(detail).toHaveBeenLastCalledWith(true, routeQuery.private_id, expect.any(AbortSignal))
  expect(wrapper.text()).toContain(routeQuery.private_id)
  wrapper.unmount()
+})
+
+
+describe('batch image usage drill', () => {
+ async function openUsage(billingMode: string | null, imageCount: number | null) {
+  detail.mockResolvedValue({request:item,attempts:[],billing:[{usage_log_id:42,billed_cost:6,settled:true,applied:false,batch_id:'imgbatch_fixture'}]})
+  usage.mockResolvedValue({id:42,model:'batch-image-fixture',input_tokens:0,output_tokens:0,image_count:imageCount,billing_mode:billingMode,batch_id:'imgbatch_fixture',billed_cost:6})
+  const wrapper=mountView(); await flushPromises()
+  await wrapper.findAll('button').find(b=>b.text()==='requestLedger.detail')!.trigger('click'); await flushPromises()
+  await wrapper.findAll('button').find(b=>b.text()==='requestLedger.usageLog #42')!.trigger('click'); await flushPromises()
+  return wrapper
+ }
+ it.each([false,true])('shows batch settlement and actual image count without invented token usage (admin=%s)', async admin=>{
+  routeMeta.requiresAdmin=admin
+  const wrapper=await openUsage('image',3)
+  expect(usage).toHaveBeenCalledWith(admin,item.id,42,expect.any(AbortSignal))
+  expect(wrapper.text()).toContain('requestLedger.batchSettled')
+  expect(wrapper.text()).toContain('requestLedger.imageCount')
+  expect(wrapper.text()).toContain('imgbatch_fixture')
+  expect(wrapper.text()).not.toContain('requestLedger.inputTokens')
+  expect(wrapper.text()).not.toContain('requestLedger.outputTokens')
+  expect(wrapper.text()).not.toContain('requestLedger.applied')
+  wrapper.unmount()
+ })
+ it('keeps a missing image count unknown',async()=>{
+  const wrapper=await openUsage('image',null)
+  expect(wrapper.text()).toContain('requestLedger.imageCount')
+  expect(wrapper.findAll('dt').find(dt=>dt.text()==='requestLedger.imageCount')!.element.nextElementSibling!.textContent).toBe('requestLedger.states.usage_unknown')
+  wrapper.unmount()
+ })
+ it('preserves the existing token-mode drill',async()=>{
+  const wrapper=await openUsage('token',null)
+  expect(wrapper.text()).toContain('requestLedger.inputTokens')
+  expect(wrapper.text()).toContain('requestLedger.outputTokens')
+  expect(wrapper.text()).not.toContain('requestLedger.imageCount')
+  wrapper.unmount()
+ })
 })
