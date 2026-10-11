@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { setActivePinia, createPinia } from 'pinia'
+import { setActivePinia, createPinia, disposePinia } from 'pinia'
 import { useAuthStore } from '@/stores/auth'
 
 // Mock authAPI
@@ -62,14 +62,17 @@ function deferred<T>() {
 }
 
 describe('useAuthStore', () => {
+  let pinia: ReturnType<typeof createPinia>
   beforeEach(() => {
-    setActivePinia(createPinia())
+    pinia = createPinia()
+    setActivePinia(pinia)
     localStorage.clear()
     vi.useFakeTimers()
     vi.clearAllMocks()
   })
 
   afterEach(() => {
+    disposePinia(pinia)
     vi.useRealTimers()
   })
 

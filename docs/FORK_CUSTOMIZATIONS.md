@@ -76,7 +76,7 @@
 - 签到读取与中枢刷新：真实 Axios 区分 GET 服务/权限/网络失败及关闭，单请求加载与离开后旧响应保护；里程碑绝对目标转换为剩余天数。[P1 状态证据](./archive/completed-tasks/2026-10-checkin-status/README.md)，不改后端规则。
 - 签到错误契约验证：`./scripts/test-checkin-contract.sh`（真实 PostgreSQL→HTTP→Axios/Vue）、`CheckInView.errors.spec.ts`（真实 HTTP 错误与超时）；[P1 证据](./archive/completed-tasks/2026-10-checkin-errors/README.md)。UI 按归一化 `reason` 识别重复/资格错误，补签拒绝后刷新；不恢复历史审批门禁、不改奖励规则。
 - 答题/盲盒福利合同：`./scripts/test-welfare-contract.sh` 验证真实 PG→HTTP→Axios/Pinia/Vue，包含同 key/并发防重、事务回滚、未知结果重试与按账号隔离；盲盒 DTO 区分未公开与已发布 0 概率。[P1 证据](./archive/completed-tasks/2026-10-welfare-games/README.md)，不改成本、奖种或资格规则。
-- 原生自动续期同步：同文档令牌旋转发布后更新 Pinia，旧会话请求禁止借新会话重试；[P1 独立合同与审查](./archive/completed-tasks/2026-10-auth-refresh/README.md)，不改令牌期限或福利规则。
+- 原生自动续期同步：同文档及同会话跨页令牌旋转后更新 Pinia，待提交凭据不供旧页面借用；旧会话请求禁止借新会话重试，正常续期保留答题选择；[P1 独立合同与审查](./archive/completed-tasks/2026-10-auth-refresh/README.md)，不改令牌期限或福利规则。
 
 ## FORK-IMAGE-004 图像工作室
 

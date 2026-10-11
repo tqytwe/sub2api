@@ -1,0 +1,14 @@
+{
+  "frontend/src/api/client.ts": "fb723bf2fa4818b1763a0f8e4bd06272df62b887b85fa844d66ab890457efa2c",
+  "frontend/src/api/tokenRefresh.ts": "386f701168ff2ffc38c01aa5de1bf93d0188a70cc6745f6f106abfb141873e6e",
+  "frontend/src/api/auth.ts": "89a9092cc964663167cd6214d1bd65588b4c2cd2f1b10111fc9cf10830434803",
+  "frontend/src/stores/auth.ts": "c6979bee3420c21bbef8f7f8ec6bcc162a2e628b148d6b739cfcaaa2413f092a",
+  "frontend/src/views/public/QuizQuestView.vue": "425fd97910333eb8a3f85ff029d9ac6427d64ec1ea0a17bc27f9a30fb87a2a55",
+  "frontend/src/stores/__tests__/auth.http.spec.ts": "3f739f7b4c8b19c001b51cb8256d6504bd5351ebf266c46250f10496e6261b8c",
+  "frontend/src/stores/__tests__/auth.spec.ts": "e0564179e4645666002e716490d5af3057fdc0bc1a6dbf8a80802dddcca9ad64",
+  "frontend/src/api/__tests__/tokenRefresh.spec.ts": "9158bcb66ed9015eb94a0e695e14bcf90cbccf2e97fa122f70a95c03ac4aa59f",
+  "frontend/src/views/public/__tests__/QuizQuestView.session.http.spec.ts": "ca72ee5e733b54382eaac22d790e9b1f306cde2858f4138dc8338d254e74f0a2",
+  "frontend/src/views/public/__tests__/BlindboxView.http.spec.ts": "e4e66bab81be104e7a26bbf3e718c90391e788e11f08e8a7f8370e6dc28e7218",
+  "frontend/src/views/user/__tests__/CheckInView.balance.http.spec.ts": "833e8c049f29237c6616375a1a2a4d8d5048345ce033dcf6ab6e38b6ecf19745",
+  "frontend/src/views/user/__tests__/PlayHubView.session.http.spec.ts": "8c9e01ece61ef99ed058abcf8b5e35d2240ed02157088b11f83ba312c84ee511"
+}

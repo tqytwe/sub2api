@@ -8,7 +8,9 @@ import { isAxiosError } from 'axios'
 import { ref, computed, readonly, onScopeDispose } from 'vue'
 import { authAPI, isTotp2FARequired, passkeyAPI, type LoginResponse } from '@/api'
 import {
-  getAuthSessionIdentity, isAuthSessionCurrent, invalidateAuthSession, subscribeAuthSession
+  getAuthSessionIdentity, isAuthSessionCurrent, invalidateAuthSession, subscribeAuthSession,
+  AUTH_SESSION_KEY, startAuthSession, finishAuthSession, isAuthSessionPublishing,
+  blockAuthSession, isAuthSessionBlocked, AuthRefreshPendingError, consumeOAuthPublication
 } from '@/api/tokenRefresh'
 import type {
   User,
@@ -90,12 +92,30 @@ export const useAuthStore = defineStore('auth', () => {
   let refreshIntervalId: ReturnType<typeof setInterval> | null = null
   let tokenRefreshTimeoutId: ReturnType<typeof setTimeout> | null = null
   let sessionGeneration = 0
+  let storedSessionID = getAuthSessionIdentity().sessionID
+  let initialized = false
+  let reloadRequested = false
+
+  function reloadWhenSessionReady(): void {
+    if (!isAuthSessionPublishing() && !reloadRequested) {
+      reloadRequested = true
+      window.location.reload()
+    }
+  }
 
   const unsubscribeSession = subscribeAuthSession(() => {
-    if (token.value) syncStoredTokensBeforeRefresh()
+    if (initialized) syncStoredTokensBeforeRefresh()
   })
+  const onStorage = (event: StorageEvent) => {
+    if (event.storageArea === localStorage && (event.key === null ||
+      [AUTH_SESSION_KEY, AUTH_TOKEN_KEY, AUTH_USER_KEY, REFRESH_TOKEN_KEY, TOKEN_EXPIRES_AT_KEY].includes(event.key))) {
+      if (initialized) syncStoredTokensBeforeRefresh()
+    }
+  }
+  window.addEventListener('storage', onStorage)
   onScopeDispose(() => {
     unsubscribeSession()
+    window.removeEventListener('storage', onStorage)
     stopAutoRefresh()
     stopTokenRefresh()
   })
@@ -121,6 +141,12 @@ export const useAuthStore = defineStore('auth', () => {
    * Also starts auto-refresh and immediately fetches latest user data
    */
   function checkAuth(): void {
+    initialized = true
+    storedSessionID = getAuthSessionIdentity().sessionID
+    if (isAuthSessionPublishing()) {
+      blockAuthSession()
+      return
+    }
     const savedToken = localStorage.getItem(AUTH_TOKEN_KEY)
     const savedUser = localStorage.getItem(AUTH_USER_KEY)
     const savedRefreshToken = localStorage.getItem(REFRESH_TOKEN_KEY)
@@ -224,9 +250,35 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   function syncStoredTokensBeforeRefresh(): boolean {
+    if (isAuthSessionBlocked()) {
+      reloadWhenSessionReady()
+      return true
+    }
+    const storedIdentity = getAuthSessionIdentity()
+    if (storedIdentity.sessionID !== storedSessionID ||
+      (user.value && storedIdentity.userID !== user.value.id)) {
+      // Retire this document before adopting a peer session. Do not erase the peer's storage
+      // or reuse old page state / idempotency ownership under its credentials.
+      clearAuth({ preservePendingAuthSession: true, preserveStoredSession: true })
+      blockAuthSession()
+      reloadWhenSessionReady()
+      return true
+    }
+    // A peer has not committed all credential fields yet. Keep the last complete
+    // in-memory pair; the ready storage event will synchronize it.
+    if (isAuthSessionPublishing()) return true
     const storedAccessToken = localStorage.getItem(AUTH_TOKEN_KEY)
     const storedRefreshToken = localStorage.getItem(REFRESH_TOKEN_KEY)
+    const storedExpiresAt = localStorage.getItem(TOKEN_EXPIRES_AT_KEY)
+    const expiresAtMs = storedExpiresAt ? Number.parseInt(storedExpiresAt, 10) : Number.NaN
     if (storedAccessToken === token.value && storedRefreshToken === refreshTokenValue.value) {
+      // A peer may have updated the store before an already-queued timer runs.
+      if (storedAccessToken && storedRefreshToken && Number.isFinite(expiresAtMs) &&
+        expiresAtMs > Date.now() + TOKEN_REFRESH_BUFFER) {
+        tokenExpiresAt.value = expiresAtMs
+        scheduleTokenRefreshAt(expiresAtMs)
+        return true
+      }
       return false
     }
 
@@ -235,15 +287,9 @@ export const useAuthStore = defineStore('auth', () => {
       return true
     }
 
-    if (getAuthSessionIdentity().userID !== user.value?.id) {
-      return true
-    }
-
     token.value = storedAccessToken
     refreshTokenValue.value = storedRefreshToken
 
-    const storedExpiresAt = localStorage.getItem(TOKEN_EXPIRES_AT_KEY)
-    const expiresAtMs = storedExpiresAt ? Number.parseInt(storedExpiresAt, 10) : Number.NaN
     if (Number.isFinite(expiresAtMs)) {
       tokenExpiresAt.value = expiresAtMs
       if (expiresAtMs > Date.now() + TOKEN_REFRESH_BUFFER) {
@@ -301,6 +347,7 @@ export const useAuthStore = defineStore('auth', () => {
         return
       }
       // Raw refresh HTTP bypasses the API interceptor. Apply the same expiry policy here.
+      if (error instanceof AuthRefreshPendingError) return
       if (isAxiosError(error)) {
         const status = error.response?.status ?? 0
         if (status === 0 || status === 429 || status >= 500) return
@@ -384,7 +431,9 @@ export const useAuthStore = defineStore('auth', () => {
     stopAutoRefresh()
     stopTokenRefresh()
     sessionGeneration += 1
-    invalidateAuthSession()
+    const publication = startAuthSession()
+    initialized = true
+    storedSessionID = getAuthSessionIdentity().sessionID
 
     // Store token and user
     token.value = response.access_token
@@ -405,6 +454,11 @@ export const useAuthStore = defineStore('auth', () => {
     // Persist to localStorage
     localStorage.setItem(AUTH_TOKEN_KEY, response.access_token)
     localStorage.setItem(AUTH_USER_KEY, JSON.stringify(userData))
+    if (response.refresh_token && response.expires_in) {
+      tokenExpiresAt.value = Date.now() + response.expires_in * 1000
+      localStorage.setItem(TOKEN_EXPIRES_AT_KEY, String(tokenExpiresAt.value))
+    }
+    finishAuthSession(publication)
     clearPendingAuthSession()
 
     // Start auto-refresh interval for user data
@@ -413,7 +467,7 @@ export const useAuthStore = defineStore('auth', () => {
     // Start proactive token refresh if we have refresh token and expiry info
     // scheduleTokenRefresh will also store the expiry timestamp
     if (response.refresh_token && response.expires_in) {
-      scheduleTokenRefresh(response.expires_in)
+      scheduleTokenRefreshAt(tokenExpiresAt.value!)
     }
   }
 
@@ -449,7 +503,9 @@ export const useAuthStore = defineStore('auth', () => {
     stopAutoRefresh()
     stopTokenRefresh()
     sessionGeneration += 1
-    invalidateAuthSession()
+    const publication = consumeOAuthPublication() ?? startAuthSession()
+    initialized = true
+    storedSessionID = getAuthSessionIdentity().sessionID
     token.value = null
     user.value = null
 
@@ -469,6 +525,7 @@ export const useAuthStore = defineStore('auth', () => {
 
     try {
       const userData = await refreshUser()
+      if (!finishAuthSession(publication)) throw new Error('Authentication session changed while publishing')
       startAutoRefresh()
 
       // Start proactive token refresh if we have refresh token and expiry info
@@ -480,7 +537,9 @@ export const useAuthStore = defineStore('auth', () => {
       clearPendingAuthSession()
       return userData
     } catch (error) {
-      clearAuth({ preservePendingAuthSession: pendingAuthSession.value !== null })
+      if (localStorage.getItem(AUTH_SESSION_KEY) === publication) {
+        clearAuth({ preservePendingAuthSession: pendingAuthSession.value !== null })
+      }
       throw error
     }
   }
@@ -568,9 +627,12 @@ export const useAuthStore = defineStore('auth', () => {
    * Clear all authentication state
    * Internal helper function
    */
-  function clearAuth(options?: { preservePendingAuthSession?: boolean }): void {
+  function clearAuth(options?: { preservePendingAuthSession?: boolean, preserveStoredSession?: boolean }): void {
     sessionGeneration += 1
-    invalidateAuthSession()
+    if (options?.preserveStoredSession) invalidateAuthSession()
+    const publication = options?.preserveStoredSession ? null : startAuthSession()
+    initialized = true
+    storedSessionID = getAuthSessionIdentity().sessionID
     // Stop auto-refresh
     stopAutoRefresh()
     // Stop token refresh
@@ -580,10 +642,13 @@ export const useAuthStore = defineStore('auth', () => {
     refreshTokenValue.value = null
     tokenExpiresAt.value = null
     user.value = null
-    localStorage.removeItem(AUTH_TOKEN_KEY)
-    localStorage.removeItem(AUTH_USER_KEY)
-    localStorage.removeItem(REFRESH_TOKEN_KEY)
-    localStorage.removeItem(TOKEN_EXPIRES_AT_KEY)
+    if (!options?.preserveStoredSession) {
+      localStorage.removeItem(AUTH_TOKEN_KEY)
+      localStorage.removeItem(AUTH_USER_KEY)
+      localStorage.removeItem(REFRESH_TOKEN_KEY)
+      localStorage.removeItem(TOKEN_EXPIRES_AT_KEY)
+      finishAuthSession(publication!)
+    }
 
     if (options?.preservePendingAuthSession) {
       pendingAuthSession.value = getPersistedPendingAuthSession()

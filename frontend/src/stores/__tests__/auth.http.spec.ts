@@ -4,6 +4,8 @@ import axios from 'axios'
 import { createPinia, disposePinia, setActivePinia } from 'pinia'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import apiClient from '@/api/client'
+import { persistOAuthTokenContext } from '@/api/auth'
+import { refreshAuthTokens, AuthRefreshPendingError, startAuthSession, finishAuthSession } from '@/api/tokenRefresh'
 import { useAuthStore } from '@/stores/auth'
 
 vi.mock('@/i18n', () => ({ getLocale: () => 'zh-CN' }))
@@ -83,7 +85,7 @@ beforeEach(() => {
   holdProfile = false; profileResponse = undefined; profileBalance = 1
   accessOwner = new Map(); refreshOwners = new Map(); rejectedAccess = new Set(); requests = []
   // Model the supported browser Web Locks path; the refresh itself uses actual HTTP.
-  Object.defineProperty(navigator, 'locks', { configurable: true, value: { request: (_name: string, callback: () => unknown) => callback() } })
+  Object.defineProperty(navigator, 'locks', { configurable: true, value: { request: (_name: string, _options: unknown, callback: (lock: object) => unknown) => callback({ name: _name }) } })
   pinia = createPinia(); setActivePinia(pinia); auth = useAuthStore()
 })
 afterEach(async () => {
@@ -102,6 +104,156 @@ function rejectCurrentAccess() { rejectedAccess.add(auth.token!) }
 function protectedRequests() { return requests.filter(r => r.path.startsWith('/api/v1/fixture/')) }
 
 describe('native authentication refresh through actual HTTP', () => {
+  it('waits for a contended peer commit even when every cached storage field is still old', async () => {
+    await login()
+    Object.defineProperty(navigator, 'locks', { configurable: true, value: {
+      request: async (_name: string, optionsOrCallback: unknown, available?: (lock: null) => unknown) => {
+        if (available) return available(null)
+        const { data } = await axios.post('/api/v1/auth/refresh', { refresh_token: localStorage.getItem('refresh_token') })
+        window.setTimeout(() => {
+          localStorage.setItem('auth_token', data.data.access_token)
+          localStorage.setItem('token_expires_at', String(Date.now() + 3600_000))
+          localStorage.setItem('refresh_token', data.data.refresh_token)
+        }, 40)
+        return (optionsOrCallback as () => unknown)()
+      }
+    } })
+    const result = await refreshAuthTokens()
+    expect(result.access_token).toBe('fixture-1-access-renewed-1')
+    expect(refreshCount).toBe(1)
+    expect(auth.token).toBe(result.access_token)
+  })
+
+  it('invalidates an old HTTP response before OAuth refresh credentials become visible', async () => {
+    await login()
+    const old = apiClient.get('/fixture/late').catch(error => error)
+    await vi.waitFor(() => expect(lateResponse).toBeDefined())
+    const incoming = tokenPair(2, 'oauth')
+    persistOAuthTokenContext(incoming)
+    expect.soft(localStorage.getItem('auth_session_id')).toMatch(/^pending:/)
+    reply(lateResponse!, { owner: 1 })
+    expect.soft(await old).toMatchObject({ code: 'AUTH_SESSION_CHANGED' })
+    await auth.setToken(incoming.access_token)
+    expect(auth.user?.id).toBe(2)
+    expect(localStorage.getItem('auth_session_id')).not.toMatch(/^pending:/)
+  })
+
+  it('does not open a new session for an OAuth bind completion without login credentials', async () => {
+    await login()
+    const marker = localStorage.getItem('auth_session_id')
+    persistOAuthTokenContext({})
+    expect(localStorage.getItem('auth_session_id')).toBe(marker)
+  })
+
+  it('does not treat protected auth endpoints as an interactive login during peer publication', async () => {
+    await login()
+    const marker = localStorage.getItem('auth_session_id')!
+    localStorage.setItem('auth_session_id', 'pending:' + marker + '|peer')
+    await expect(apiClient.post('/auth/revoke-all-sessions')).rejects.toMatchObject({ code: 'TOKEN_REFRESH_UNAVAILABLE' })
+    expect(requests.filter(r => r.path.endsWith('/auth/revoke-all-sessions'))).toHaveLength(0)
+    localStorage.setItem('auth_session_id', marker)
+  })
+
+  it.each([false, true])('adopts a publication before the refresh snapshot and blocks mixed-pair requests (commit while queued=%s)', async queued => {
+    await login()
+    const { data } = await axios.post('/api/v1/auth/refresh', { refresh_token: localStorage.getItem('refresh_token') })
+    const marker = localStorage.getItem('auth_session_id')!
+    localStorage.setItem('auth_session_id', 'pending:' + marker + '|peer')
+    localStorage.setItem('auth_token', data.data.access_token)
+    await expect(apiClient.get('/fixture/protected')).rejects.toMatchObject({ code: 'TOKEN_REFRESH_UNAVAILABLE' })
+    expect(auth.token).toBe('fixture-1-access-login-1')
+    expect(protectedRequests()).toHaveLength(0)
+    const commit = () => {
+      localStorage.setItem('token_expires_at', String(Date.now() + 3600_000))
+      localStorage.setItem('refresh_token', data.data.refresh_token)
+      localStorage.setItem('auth_session_id', marker)
+    }
+    if (queued) {
+      localStorage.setItem('refresh_token', data.data.refresh_token)
+      Object.defineProperty(navigator, 'locks', { configurable: true, value: {
+        request: (_name: string, _options: unknown, callback: (lock: object) => unknown) => { commit(); return callback({ name: _name }) }
+      } })
+    }
+    const pending = refreshAuthTokens()
+    if (!queued) commit()
+    expect((await pending).access_token).toBe(data.data.access_token)
+    expect(refreshCount).toBe(1)
+    expect(auth.token).toBe(data.data.access_token)
+  })
+
+  it('retains the current session after publication timeout and accepts its eventual commit', async () => {
+    await login()
+    const marker = localStorage.getItem('auth_session_id')!
+    localStorage.setItem('auth_session_id', 'pending:' + marker + '|peer')
+    await expect(refreshAuthTokens()).rejects.toBeInstanceOf(AuthRefreshPendingError)
+    expect(auth.isAuthenticated).toBe(true)
+    expect(sessionStorage.getItem('auth_expired')).toBeNull()
+    expect(refreshCount).toBe(0)
+    localStorage.setItem('auth_session_id', marker)
+    await expect(apiClient.get('/fixture/protected')).resolves.toMatchObject({ data: { owner: 1 } })
+  })
+
+  it('allows interactive login to recover an abandoned peer publication', async () => {
+    await login()
+    localStorage.setItem('auth_session_id', 'pending:abandoned-peer|publication')
+    auth.checkAuth()
+    await login(2)
+    expect(auth.user?.id).toBe(2)
+    expect(localStorage.getItem('auth_session_id')).not.toMatch(/^pending:/)
+    await expect(apiClient.get('/fixture/protected')).resolves.toMatchObject({ data: { owner: 2 } })
+  })
+
+  it('does not finish a publication replaced by a newer owner', async () => {
+    await login()
+    const first = startAuthSession()
+    const second = startAuthSession()
+    expect(finishAuthSession(first)).toBe(false)
+    expect(localStorage.getItem('auth_session_id')).toBe(second)
+    expect(finishAuthSession(second)).toBe(true)
+  })
+
+  it.each([200, 503])('does not clear or commit over a newer login after an old setToken profile completes (%s)', async status => {
+    await login()
+    holdProfile = true
+    const oldToken = tokenPair(1, 'oauth').access_token
+    const pending = auth.setToken(oldToken).catch(error => error)
+    await vi.waitFor(() => expect(profileResponse).toBeDefined())
+    const oldResponse = profileResponse!
+    holdProfile = false
+    await login(2)
+    const marker = localStorage.getItem('auth_session_id')
+    const access = auth.token
+    reply(oldResponse, user(1), status)
+    await pending
+    expect(auth.user?.id).toBe(2)
+    expect(auth.token).toBe(access)
+    expect(localStorage.getItem('auth_session_id')).toBe(marker)
+    expect(localStorage.getItem('auth_token')).toBe(access)
+  })
+
+  it('waits for the peer refresh commit when storage exposes a partial token pair after the lock', async () => {
+    await login()
+    Object.defineProperty(navigator, 'locks', { configurable: true, value: {
+      request: async (_name: string, _options: unknown, callback: (lock: object) => unknown) => {
+        const { data } = await axios.post('/api/v1/auth/refresh', { refresh_token: localStorage.getItem('refresh_token') })
+        const marker = localStorage.getItem('auth_session_id')!
+        localStorage.setItem('auth_session_id', 'pending:' + marker)
+        localStorage.setItem('auth_token', data.data.access_token)
+        // Reproduce the native two-renderer trace: access arrives before the refresh commit.
+        window.setTimeout(() => {
+          localStorage.setItem('token_expires_at', String(Date.now() + 3600_000))
+          localStorage.setItem('refresh_token', data.data.refresh_token)
+          localStorage.setItem('auth_session_id', marker)
+        }, 40)
+        return callback({ name: _name })
+      }
+    } })
+    const result = await refreshAuthTokens()
+    expect(result.access_token).toBe('fixture-1-access-renewed-1')
+    expect(refreshCount).toBe(1)
+    expect(auth.token).toBe(result.access_token)
+  })
+
   it('updates Pinia automatically after proactive rotation and schedules the next rotation', async () => {
     expiresIn = 121; refreshedExpiresIn = 121
     await login()

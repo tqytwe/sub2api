@@ -14,7 +14,8 @@ import {
 } from './adminUIRequest'
 import {
   refreshAuthTokens, getAuthSessionIdentity, isAuthSessionCurrent,
-  notifyAuthSessionChanged, type AuthSessionIdentity
+  notifyAuthSessionChanged, isAuthSessionBlocked, isAuthSessionPublishing,
+  isOwnAuthSessionPublication, AuthRefreshPendingError, type AuthSessionIdentity
 } from './tokenRefresh'
 import { getAPIBaseURL } from './url'
 export { buildApiUrl, buildGatewayUrl } from './url'
@@ -60,6 +61,12 @@ function getRefreshTokenFromRequestData(data: unknown): string {
 
 // ==================== Request Interceptor ====================
 
+function isInteractiveAuthEndpoint(url = ''): boolean {
+  const path = url.split(/[?#]/)[0]
+  return /^\/auth\/(?:login(?:\/2fa)?|register|passkey\/login\/(?:begin|finish)|send-verify-code|validate-promo-code|validate-invitation-code|forgot-password|reset-password)$/.test(path) ||
+    /^\/auth\/oauth\/(?:pending\/(?:exchange|send-verify-code)|[a-z]+\/(?:start|complete-registration))$/.test(path)
+}
+
 // Get user's timezone
 const getUserTimezone = (): string => {
   try {
@@ -71,6 +78,14 @@ const getUserTimezone = (): string => {
 
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
+    // Storage events may not have run yet. A stale view must not borrow a peer's credentials.
+    notifyAuthSessionChanged()
+    const authEntry = isInteractiveAuthEndpoint(config.url)
+    // A fresh interactive login can recover a publication abandoned by a closed tab.
+    if (isAuthSessionBlocked() && !authEntry) return Promise.reject(sessionChangedError())
+    if (isAuthSessionPublishing() && !isOwnAuthSessionPublication() && !authEntry) {
+      return Promise.reject({ status: 0, code: 'TOKEN_REFRESH_UNAVAILABLE', message: 'Authentication update is still being published' })
+    }
     const authRequest = config as AuthRequestConfig
     if (!authRequest._authSession) {
       authRequest._authSession = getAuthSessionIdentity()
@@ -117,6 +132,15 @@ apiClient.interceptors.request.use(
 
 apiClient.interceptors.response.use(
   (response: AxiosResponse) => {
+    const request = response.config as AuthRequestConfig
+    const url = request.url || ''
+    // Interactive auth endpoints establish their own session. Other late responses
+    // must not reach an old page before its queued storage event has been handled.
+    const authEntry = isInteractiveAuthEndpoint(url)
+    if (!authEntry && request._authSession && !isAuthSessionCurrent(request._authSession)) {
+      notifyAuthSessionChanged()
+      return Promise.reject(sessionChangedError())
+    }
     // Unwrap standard API response format { code, message, data }
     const apiResponse = response.data as ApiResponse<unknown>
     if (apiResponse && typeof apiResponse === 'object' && 'code' in apiResponse) {
@@ -139,7 +163,7 @@ apiClient.interceptors.response.use(
   },
   async (error: AxiosError<ApiResponse<unknown>>) => {
     // A queued retry can be invalidated before dispatch; retain its session error contract.
-    if (error.code === 'AUTH_SESSION_CHANGED') {
+    if (error.code === 'AUTH_SESSION_CHANGED' || error.code === 'TOKEN_REFRESH_UNAVAILABLE') {
       return Promise.reject(error)
     }
     // Request cancellation: keep the original axios cancellation error so callers can ignore it.
@@ -248,6 +272,9 @@ apiClient.interceptors.response.use(
               })
             }
 
+            if (refreshError instanceof AuthRefreshPendingError) {
+              return Promise.reject({ status: 0, code: 'TOKEN_REFRESH_UNAVAILABLE', message: refreshError.message })
+            }
             if (axios.isAxiosError(refreshError)) {
               const refreshStatus = refreshError.response?.status ?? 0
               if (refreshStatus === 0 || refreshStatus === 429 || refreshStatus >= 500) {

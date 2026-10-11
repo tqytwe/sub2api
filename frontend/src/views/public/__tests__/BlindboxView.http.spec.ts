@@ -65,7 +65,7 @@ beforeEach(() => {
   expireAccess = false; renewals = 0; profileBalance = 1
   statusData = { ...initial }; statusResponse = res => reply(res, statusData); recentResponse = res => reply(res, recent()); apiClient.defaults.timeout = 30000
 })
-afterEach(async () => { wrapper?.unmount(); wrapper = undefined; await auth.logout(); server.closeAllConnections() })
+afterEach(async () => { wrapper?.unmount(); wrapper = undefined; await auth.logout(); auth.$dispose(); server.closeAllConnections() })
 afterAll(async () => { Object.assign(apiClient.defaults, original); Object.assign(axios.defaults, rawOriginal); await new Promise<void>(resolve => server.close(() => resolve())); vi.unstubAllGlobals() })
 async function signIn(id = 1, renewal?: 'proactive' | '401') {
   localStorage.setItem('auth_token', id === 1 ? 'fixture-a' : 'fixture-b'); localStorage.setItem('auth_user', JSON.stringify(user(id)))
@@ -145,7 +145,10 @@ describe('blindbox production Pinia/Axios through HTTP', () => {
   it.each(['account', 'unmount'] as const)('does not refresh another view after a settled open and delayed profile (%s)', async change => {
     await open(); holdProfile = true; commit(); await vi.waitFor(() => expect(heldProfile).toBeDefined())
     if (change === 'unmount') { wrapper!.unmount(); wrapper = undefined }
-    else { await auth.logout(); await signIn(2); await vi.waitFor(() => expect(gets).toBe(2)) }
+    else {
+      await auth.logout(); await signIn(2)
+      await vi.waitFor(() => { expect(gets).toBe(2); expect(recents).toBe(2) })
+    }
     await new Promise(resolve => setTimeout(resolve, 80)); const reads = gets; const recentReads = recents
     reply(heldProfile!, user())
     await new Promise(resolve => setTimeout(resolve, 100))

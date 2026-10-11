@@ -1,0 +1,45 @@
+{
+  "index_sha256": "8cf9218f92c17bf2e9850520ddf3f5ee3b99ae6e55c83dc10b3b6a67528b44a8",
+  "reports": [
+    {
+      "case": "relogin",
+      "initial": {
+        "user": 1,
+        "token": "fixture-1-access-login-1",
+        "storedUser": 1,
+        "storedToken": "fixture-1-access-login-1"
+      },
+      "width": 1280,
+      "theme": "light",
+      "language": "zh",
+      "web_locks": {
+        "secure": true,
+        "available": true,
+        "request": "function request() { [native code] }"
+      },
+      "pending_key_before": "blindbox-ad767705-cf19-49f3-8f13-64945c8e8f2e",
+      "immediate": {
+        "user": 1,
+        "token": "fixture-1-access-login-2",
+        "storedUser": 1,
+        "storedToken": "fixture-1-access-login-2"
+      },
+      "old_result_visible": false,
+      "pending_key_after": "blindbox-ad767705-cf19-49f3-8f13-64945c8e8f2e",
+      "posts": [
+        {
+          "owner": 1,
+          "key": "blindbox-ad767705-cf19-49f3-8f13-64945c8e8f2e"
+        }
+      ],
+      "safe": true,
+      "profiles": [
+        1,
+        1,
+        1
+      ],
+      "js_errors": [],
+      "overflow": false
+    }
+  ]
+}

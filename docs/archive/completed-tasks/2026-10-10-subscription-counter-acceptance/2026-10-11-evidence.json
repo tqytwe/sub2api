@@ -1,0 +1,276 @@
+{
+  "recorded_at": "2026-10-11T07:37:11.365015+00:00",
+  "state": "all local runtime gates and sequential independent reviews passed; final remote CI/main-thread review recorded in PR",
+  "source": {
+    "captured_at": "2026-10-11T07:05:26.811891+00:00",
+    "local_fix_parent": "5864a5a23a0d55294fab1e1b0a2ed497106499ff",
+    "merged_base": "23d06337cbc315cb92d3fc18e94902fe21e7342d",
+    "index_tree": "a189161edb2c2df4c6c07a379c93356e419145f6",
+    "backend_tree": "e4523652b1ee94eb948329d4ed26b38a6729fba9",
+    "frontend_tree": "6b5a31fa5b5fb3fd120a5d34a72cd9082d12991d",
+    "branch": "codex/p1-subscription-counter-acceptance-20261010"
+  },
+  "original_tree_upload": {
+    "checked_at": "2026-10-11T07:11:40.253268+00:00",
+    "tool": "mcp__codex_apps__github_create_tree",
+    "isError": false,
+    "sha": "3328384067bf682373dffc3d8124c77c6356cdc1",
+    "same_as_local_fix_commit": "5864a5a23a0d55294fab1e1b0a2ed497106499ff",
+    "original_action_retried_once": true,
+    "branch_updated": false
+  },
+  "primary_matrix": {
+    "command": "./scripts/test-subscription-counters.sh '^TestSubscriptionCounterHTTP$' -race",
+    "exit_code": 0,
+    "leaf_passes": 42,
+    "leaf_failures": 0,
+    "race_diagnostics": false,
+    "postgres": "18.1",
+    "migration_count": 404,
+    "last_migration": "277_batch_image_ledger_reconcile_index_notx.sql",
+    "log": "2026-10-11-counter-matrix.txt",
+    "sha256": "5f83703b31005a359478cefda36c7cdcd64cc97b9933a8f3c5098de7c32bd3de"
+  },
+  "source_files_sha256": {
+    "backend/internal/repository/usage_billing_repo.go": "e63fd9684a54e0a853de75f5b347d5e781ec4b0ed12f872d3989c5256f74844d",
+    "backend/internal/billingacceptance/subscription_counter_edges_integration_test.go": "55c42dcacef2206f5c363398f53c17f2a84ef871fcee45907735f55af3532269",
+    "backend/internal/billingacceptance/subscription_counters_integration_test.go": "0769260203ed76c079f3ec08284d38ce155ca635095275b89cda0d5ae09543d0",
+    "backend/internal/billingacceptance/subscription_counter_ownership_integration_test.go": "37239ceadbe8af302ba21b8ecb4a9b51ee6ee9c05bc7dcd0b8457e2d25bb791b",
+    "scripts/test-subscription-counters.sh": "a0a3df9c078ea0655b88df850af3eed65926910ec33e21da2a2da2b9f814995b",
+    ".github/workflows/subscription-counter-acceptance.yml": "d239e010d4036bf891fb1b9c0c7df0ff599a2a3541ba59d731864e962a2e728d"
+  },
+  "checks": [
+    {
+      "name": "full-test",
+      "command": [
+        "make",
+        "test"
+      ],
+      "cwd": "/workspace/sub2api-p1",
+      "started_at": "2026-10-11T07:04:33.317293+00:00",
+      "status": "passed",
+      "exit_code": 0,
+      "completed_at": "2026-10-11T07:17:21.131506+00:00",
+      "log": "/workspace/p1-evidence/resume-20261011/full-test.log",
+      "sha256": "7d2726eb787805f4a6f724c5652a7763b088d44e67fa4e7c75b659eadbef7d86"
+    },
+    {
+      "name": "unit-tags",
+      "command": [
+        "make",
+        "test-backend-unit"
+      ],
+      "cwd": "/workspace/sub2api-p1",
+      "started_at": "2026-10-11T07:17:21.133494+00:00",
+      "status": "passed",
+      "exit_code": 0,
+      "completed_at": "2026-10-11T07:23:55.913028+00:00",
+      "log": "/workspace/p1-evidence/resume-20261011/unit-tags.log",
+      "sha256": "2c1f818707e75973e14d08b495c1e82c4a5b97857508a6862dff3cc3f58abbd6"
+    },
+    {
+      "name": "ledger-integration",
+      "command": [
+        "go",
+        "test",
+        "-tags=integration",
+        "./internal/requestledger/...",
+        "./internal/handler",
+        "./internal/server/routes",
+        "./internal/repository",
+        "./internal/service",
+        "-run",
+        "RequestLedger|LedgerPostgres|LedgerKilledProcess|LedgerStorage|BatchImageHTTP|BatchImageReconciliation|BatchImageLedgerMigration",
+        "-count=1",
+        "-timeout=12m",
+        "-json"
+      ],
+      "cwd": "/workspace/sub2api-p1/backend",
+      "started_at": "2026-10-11T07:23:55.913822+00:00",
+      "status": "passed",
+      "exit_code": 0,
+      "completed_at": "2026-10-11T07:29:27.393842+00:00",
+      "log": "/workspace/p1-evidence/resume-20261011/ledger-integration.log",
+      "sha256": "f34b4ec40513650af0bbb6709cad6773f54d34fa897e5ee8d1e9f622ce83ce5f"
+    },
+    {
+      "name": "full-build",
+      "command": [
+        "make",
+        "build"
+      ],
+      "cwd": "/workspace/sub2api-p1",
+      "started_at": "2026-10-11T07:29:27.395794+00:00",
+      "status": "passed",
+      "exit_code": 0,
+      "completed_at": "2026-10-11T07:31:51.211391+00:00",
+      "log": "/workspace/p1-evidence/resume-20261011/full-build.log",
+      "sha256": "dabfa864403b81be8f3b76c0036ff8d3f543ca733123a51768406645fbf1a062"
+    },
+    {
+      "name": "fork-integrity",
+      "command": [
+        "./scripts/check-fork-integrity.sh"
+      ],
+      "cwd": "/workspace/sub2api-p1",
+      "started_at": "2026-10-11T07:31:51.213761+00:00",
+      "status": "passed",
+      "exit_code": 0,
+      "completed_at": "2026-10-11T07:33:40.472633+00:00",
+      "log": "/workspace/p1-evidence/resume-20261011/fork-integrity.log",
+      "sha256": "217ef102bd2cea6686fdeb1eb5b1fd3b14b0451fe3dbb9da0ffa41ae12359a48"
+    },
+    {
+      "name": "tagged-diff-lint",
+      "command": [
+        "golangci-lint",
+        "run",
+        "--build-tags=integration,billing_acceptance",
+        "--new-from-rev=23d06337cbc315cb92d3fc18e94902fe21e7342d",
+        "./internal/billingacceptance",
+        "./internal/repository"
+      ],
+      "cwd": "/workspace/sub2api-p1/backend",
+      "started_at": "2026-10-11T07:33:40.473938+00:00",
+      "status": "passed",
+      "exit_code": 0,
+      "completed_at": "2026-10-11T07:34:23.888602+00:00",
+      "log": "/workspace/p1-evidence/resume-20261011/tagged-diff-lint.log",
+      "sha256": "e92606b0bf483111dff0a120c315ea165821348f31365020e2468a0059095c47"
+    },
+    {
+      "name": "doc-links",
+      "command": [
+        "node",
+        "scripts/check-doc-links.mjs"
+      ],
+      "cwd": "/workspace/sub2api-p1",
+      "started_at": "2026-10-11T07:34:23.889079+00:00",
+      "status": "passed",
+      "exit_code": 0,
+      "completed_at": "2026-10-11T07:34:24.009405+00:00",
+      "log": "/workspace/p1-evidence/resume-20261011/doc-links.log",
+      "sha256": "20b14b0b373d19ac0b4fe554c8aceb0a341dea1ea8405f35ed0ddee3a6022f5f"
+    },
+    {
+      "name": "diff-check",
+      "command": [
+        "git",
+        "diff",
+        "--check",
+        "origin/play/main"
+      ],
+      "cwd": "/workspace/sub2api-p1",
+      "started_at": "2026-10-11T07:34:24.009800+00:00",
+      "status": "passed",
+      "exit_code": 0,
+      "completed_at": "2026-10-11T07:34:24.032438+00:00",
+      "log": "/workspace/p1-evidence/resume-20261011/diff-check.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "checkin-contract",
+      "command": [
+        "./scripts/test-checkin-contract.sh"
+      ],
+      "started_at": "2026-10-11T07:34:31.705465+00:00",
+      "status": "passed",
+      "exit_code": 0,
+      "completed_at": "2026-10-11T07:34:47.822680+00:00",
+      "log": "/workspace/p1-evidence/resume-20261011/checkin-contract.log",
+      "sha256": "a5a311fe86181569a0cfee18fb8bce23bd6ff95c7f7c11b0f7d994f9b1bc2c8b"
+    },
+    {
+      "name": "welfare-contract",
+      "command": [
+        "./scripts/test-welfare-contract.sh"
+      ],
+      "started_at": "2026-10-11T07:34:47.823058+00:00",
+      "status": "passed",
+      "exit_code": 0,
+      "completed_at": "2026-10-11T07:35:29.699309+00:00",
+      "log": "/workspace/p1-evidence/resume-20261011/welfare-contract.log",
+      "sha256": "67bc7a29c4eddc5e7fcd84eb895f211c3b6cc15328672647f855aec023f87bdc"
+    }
+  ],
+  "ledger_required_cases": {
+    "required_count": 48,
+    "required_passed": 48,
+    "missing": [],
+    "failures": [],
+    "test_skips": [
+      "TestRequestLedgerBrowserFixture",
+      "TestLedgerKilledProcessChild"
+    ],
+    "packages": [
+      {
+        "package": "github.com/Wei-Shaw/sub2api/internal/requestledger/acceptance",
+        "result": "pass"
+      },
+      {
+        "package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+        "result": "pass"
+      },
+      {
+        "package": "github.com/Wei-Shaw/sub2api/internal/handler",
+        "result": "pass"
+      },
+      {
+        "package": "github.com/Wei-Shaw/sub2api/internal/server/routes",
+        "result": "pass"
+      },
+      {
+        "package": "github.com/Wei-Shaw/sub2api/internal/repository",
+        "result": "pass"
+      },
+      {
+        "package": "github.com/Wei-Shaw/sub2api/internal/service",
+        "result": "pass"
+      }
+    ],
+    "log_sha256": "f34b4ec40513650af0bbb6709cad6773f54d34fa897e5ee8d1e9f622ce83ce5f"
+  },
+  "frontend_default_suite": {
+    "passed_files": 499,
+    "passed_tests": 3601,
+    "skipped_files": 3,
+    "skipped_tests": 8,
+    "skip_followup": "explicit checkin/welfare Vue/HTTP/PG contract scripts both passed"
+  },
+  "reviews": {
+    "specification": {
+      "reviewer": "/root/p1_spec_review",
+      "result": "PASS",
+      "read_only": true,
+      "tests_rerun_by_reviewer": false
+    },
+    "quality": {
+      "reviewer": "/root/p1_quality_review",
+      "result": "PASS",
+      "read_only": true,
+      "tests_rerun_by_reviewer": false
+    },
+    "record": "2026-10-11-review.md",
+    "evidence_followup": {
+      "reviewer": "/root/p1_spec_review",
+      "result": "PASS",
+      "evidence_association_finding": "closed",
+      "tests_rerun_by_reviewer": false
+    }
+  },
+  "production_accessed": false,
+  "paid_generation_sent": false,
+  "production_merge": false,
+  "deployed": false,
+  "final_commit_and_ci": "https://github.com/tqytwe/sub2api/pull/352",
+  "final_evidence_check": {
+    "command": [
+      "node",
+      "scripts/check-doc-links.mjs"
+    ],
+    "exit_code": 0,
+    "completed_at": "2026-10-11T07:40:11.259536+00:00",
+    "result": "Documentation integrity check passed (274 files).",
+    "sha256": "8b1c29a45da94c0b1283e377ed8f44d6e5bef7798683acfe957f4b52733a286e"
+  }
+}

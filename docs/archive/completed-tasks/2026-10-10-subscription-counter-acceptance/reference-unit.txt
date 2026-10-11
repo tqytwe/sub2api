@@ -1,0 +1,69 @@
+2026/10/10 20:34:56 Timezone initialized: UTC (UTC offset: +00:00)
+=== RUN   TestBuildUsageBillingCommand_SubscriptionAppliesRateMultiplier
+=== PAUSE TestBuildUsageBillingCommand_SubscriptionAppliesRateMultiplier
+=== RUN   TestBuildUsageBillingCommand_SurchargeBilledCostDoesNotPolluteActualCost
+=== PAUSE TestBuildUsageBillingCommand_SurchargeBilledCostDoesNotPolluteActualCost
+=== RUN   TestPackageQuotaStateUsesAnyQuotaAsHardStop
+--- PASS: TestPackageQuotaStateUsesAnyQuotaAsHardStop (0.00s)
+=== RUN   TestPackageQuotaStateExpiresAtExactBoundary
+--- PASS: TestPackageQuotaStateExpiresAtExactBoundary (0.00s)
+=== RUN   TestPackageEntitlementDisplayPriorityUsesCurrentPackage
+--- PASS: TestPackageEntitlementDisplayPriorityUsesCurrentPackage (0.00s)
+=== RUN   TestAttachPackageEntitlementsUsesOneBatchQueryAndSelectsCurrentPackage
+--- PASS: TestAttachPackageEntitlementsUsesOneBatchQueryAndSelectsCurrentPackage (0.01s)
+=== RUN   TestUserSubscriptionListsAttachPackageEntitlements
+--- PASS: TestUserSubscriptionListsAttachPackageEntitlements (0.00s)
+=== RUN   TestPackageQuotaSnapshotReadsPaymentOrderPointerValues
+--- PASS: TestPackageQuotaSnapshotReadsPaymentOrderPointerValues (0.00s)
+=== RUN   TestSubscriptionPlanSnapshotIsSharedAndImmutable
+--- PASS: TestSubscriptionPlanSnapshotIsSharedAndImmutable (0.00s)
+=== RUN   TestPackageEntitlementExpiryExtendsFromExistingPackageEnd
+--- PASS: TestPackageEntitlementExpiryExtendsFromExistingPackageEnd (0.00s)
+=== RUN   TestCheckAndResetWindows_DailyResetsAtMidnightNotRollingAnchor
+--- PASS: TestCheckAndResetWindows_DailyResetsAtMidnightNotRollingAnchor (0.00s)
+=== RUN   TestCheckAndResetWindows_DailyNoResetWithinSameCalendarDay
+--- PASS: TestCheckAndResetWindows_DailyNoResetWithinSameCalendarDay (0.00s)
+=== RUN   TestCheckAndResetWindows_LegacyRollingAnchorHealsToMidnight
+--- PASS: TestCheckAndResetWindows_LegacyRollingAnchorHealsToMidnight (0.00s)
+=== RUN   TestNeedsDailyReset_MidnightScheduleSurvivesManualReset
+--- PASS: TestNeedsDailyReset_MidnightScheduleSurvivesManualReset (0.00s)
+=== RUN   TestDailyResetTime_NextMidnightForMultiDaySubscription
+--- PASS: TestDailyResetTime_NextMidnightForMultiDaySubscription (0.00s)
+=== RUN   TestNormalizeExpiredWindows_DailyUsageClearsAfterMidnight
+--- PASS: TestNormalizeExpiredWindows_DailyUsageClearsAfterMidnight (0.00s)
+=== RUN   TestCheckAndResetWindows_OneTimeDailyCardStillExemptFromMidnightReset
+--- PASS: TestCheckAndResetWindows_OneTimeDailyCardStillExemptFromMidnightReset (0.00s)
+=== RUN   TestAdminResetQuotaResetsOnlyCurrentPackageEntitlement
+--- PASS: TestAdminResetQuotaResetsOnlyCurrentPackageEntitlement (0.00s)
+=== RUN   TestPackageEntitlementExpirySupportsArbitraryPlanDurations
+=== RUN   TestPackageEntitlementExpirySupportsArbitraryPlanDurations/1.44µs
+=== RUN   TestPackageEntitlementExpirySupportsArbitraryPlanDurations/2.16µs
+=== RUN   TestPackageEntitlementExpirySupportsArbitraryPlanDurations/2.88µs
+--- PASS: TestPackageEntitlementExpirySupportsArbitraryPlanDurations (0.00s)
+    --- PASS: TestPackageEntitlementExpirySupportsArbitraryPlanDurations/1.44µs (0.00s)
+    --- PASS: TestPackageEntitlementExpirySupportsArbitraryPlanDurations/2.16µs (0.00s)
+    --- PASS: TestPackageEntitlementExpirySupportsArbitraryPlanDurations/2.88µs (0.00s)
+=== RUN   TestCheckAndResetWindows_DailyCardDoesNotResetDailyUsage
+--- PASS: TestCheckAndResetWindows_DailyCardDoesNotResetDailyUsage (0.00s)
+=== CONT  TestBuildUsageBillingCommand_SubscriptionAppliesRateMultiplier
+=== RUN   TestBuildUsageBillingCommand_SubscriptionAppliesRateMultiplier/subscription_with_2x_multiplier_consumes_2x_quota
+=== PAUSE TestBuildUsageBillingCommand_SubscriptionAppliesRateMultiplier/subscription_with_2x_multiplier_consumes_2x_quota
+=== RUN   TestBuildUsageBillingCommand_SubscriptionAppliesRateMultiplier/subscription_with_0.5x_multiplier_consumes_0.5x_quota
+=== PAUSE TestBuildUsageBillingCommand_SubscriptionAppliesRateMultiplier/subscription_with_0.5x_multiplier_consumes_0.5x_quota
+=== RUN   TestBuildUsageBillingCommand_SubscriptionAppliesRateMultiplier/free_subscription_(multiplier_0)_consumes_no_quota
+=== PAUSE TestBuildUsageBillingCommand_SubscriptionAppliesRateMultiplier/free_subscription_(multiplier_0)_consumes_no_quota
+=== RUN   TestBuildUsageBillingCommand_SubscriptionAppliesRateMultiplier/balance_billing_keeps_using_ActualCost_(regression)
+=== PAUSE TestBuildUsageBillingCommand_SubscriptionAppliesRateMultiplier/balance_billing_keeps_using_ActualCost_(regression)
+=== CONT  TestBuildUsageBillingCommand_SubscriptionAppliesRateMultiplier/subscription_with_2x_multiplier_consumes_2x_quota
+=== CONT  TestBuildUsageBillingCommand_SurchargeBilledCostDoesNotPolluteActualCost
+--- PASS: TestBuildUsageBillingCommand_SurchargeBilledCostDoesNotPolluteActualCost (0.00s)
+=== CONT  TestBuildUsageBillingCommand_SubscriptionAppliesRateMultiplier/balance_billing_keeps_using_ActualCost_(regression)
+=== CONT  TestBuildUsageBillingCommand_SubscriptionAppliesRateMultiplier/free_subscription_(multiplier_0)_consumes_no_quota
+=== CONT  TestBuildUsageBillingCommand_SubscriptionAppliesRateMultiplier/subscription_with_0.5x_multiplier_consumes_0.5x_quota
+--- PASS: TestBuildUsageBillingCommand_SubscriptionAppliesRateMultiplier (0.00s)
+    --- PASS: TestBuildUsageBillingCommand_SubscriptionAppliesRateMultiplier/subscription_with_2x_multiplier_consumes_2x_quota (0.00s)
+    --- PASS: TestBuildUsageBillingCommand_SubscriptionAppliesRateMultiplier/balance_billing_keeps_using_ActualCost_(regression) (0.00s)
+    --- PASS: TestBuildUsageBillingCommand_SubscriptionAppliesRateMultiplier/free_subscription_(multiplier_0)_consumes_no_quota (0.00s)
+    --- PASS: TestBuildUsageBillingCommand_SubscriptionAppliesRateMultiplier/subscription_with_0.5x_multiplier_consumes_0.5x_quota (0.00s)
+PASS
+ok      github.com/Wei-Shaw/sub2api/internal/service    0.376s

@@ -1,5 +1,19 @@
 # 独立审查记录
 
+## 根审修复（当前批）
+
+规格审查在两个发布时序阻塞及OAuth helper遗漏完成RED→GREEN后通过。11项冻结源码/相关测试hash见root-review-evidence/reviewed-inputs.json；5生产文件，138项定向通过。原独立OAuth真实HTTP探针与最终构建原login-gap探针均通过。最终构建index8cf9218f…下8场景/10次原生跨页运行与4视口均通过，既有原生提交/401四路径也通过。代码质量复审在规格源码通过后启动，最终PASS无新增阻塞，11哈希与20上游文件逐字节一致；清单SHA256 c6cb35c0e248a655341dc3c9bcb309e76cec0d3887716832a3cf9948eaca120a。全量及准确新head CI另记，不提前记为通过。隔离PG签到及福利合同随后实际通过，空间不足首轮记录保留。
+
+质量窄探针另发现已有迟到交互login失败会清除后来会话，当前/base05/E4三版本同一真实HTTP探针均2/2 RED，未见本批新增因果；这是单列后续，2FA/register同类catch未逐项执行，不能宣称全部认证并发已修。原始三份日志保存在root-review-evidence/known-late-login-*.txt。
+
+完整回归发现PlayHub首例通过而后8例失败，旧Pinia的订阅在夹具间未清理。仅补disposePinia并删除续期后手工checkAuth，原断言未放宽，真实HTTP9/9通过。规格补审PASS：12项冻结hash、5生产文件不变、20个上游暂存文件逐字节一致；质量补审随后PASS无阻塞，再次核对原断言未放宽、12哈希及上游20文件；五个生产文件未漂移。最终清单SHA256 `1e1a21988098f090ebf7f62146a3f16a6f3bc9c5cf7971a50428396960777897`。
+
+本批最终本地门禁随后全部通过：完整make test前端3644通过/8默认跳过及后端默认测试/lint；独立tag-unit通过。最终构建、原生矩阵及隔离PG证据绑定不变的5生产hash。准确新head CI留在PR，不用旧E4结果代替。
+
+## 初始 E4 历史审查
+
+以下旧结论只绑定初始E4，不替代上述根审修复。
+
 ## 顺序 1：规格审查
 
 `/root/p1_spec_review` 首审阻塞：定时 raw Axios 401/403 被拒绝却保持登录；同账号 auth/me 更新 auth_user JSON 使并发 refresh 503 误判会话变更并清除当前用户。原探针及正式 RED 均保留摘要/hash。
