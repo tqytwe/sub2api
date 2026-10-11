@@ -9,9 +9,11 @@ Branch: `codex/batch-image-ledger-20261010`.
 ## Scope and contracts
 
 - Keep the existing batch capture transaction, idempotency keys, command
-  normalization and fingerprint algorithm. A successful capture (including an
-  exact duplicate) is the proof for the new usage row's fingerprint, settled flag
-  and billed cost. Do not call ordinary usage billing a second time.
+  normalization and fingerprint algorithm. Only capture success followed by a
+  read-only check of job ownership and all retained hot/archive fingerprints
+  certifies the new usage row's fingerprint, settled flag and billed cost. A
+  duplicate's nil error alone is insufficient. Do not call ordinary usage billing
+  a second time.
 - Keep output-image count × frozen unit price, group/account multipliers and
   existing capture/release amounts unchanged. Tokens are not inferred from images.
 - Preserve the existing retry after capture/usage-write failure. A completed job
@@ -78,6 +80,18 @@ The production Batch worker creates a background context and calls capture outsi
 any caller-owned financial transaction. Read-only review found the repository's
 private transaction context only on the separate Image Studio path. This patch
 does not generalize the capture-return contract to future transactional callers.
+
+The optional proof reader uses a single statement snapshot after capture and a
+one-second deadline detached from client cancellation. An unavailable reader,
+read error or contradictory proof does not change capture success, real
+`actual_cost`/`image_count` persistence or job completion. It leaves the new
+fingerprint empty and `billing_settled=false`; the default unverified billed cost
+is not a free-usage claim. A completed retry does not later invent that missing
+fingerprint, so this remains an observable audit gap, not automatic repair.
+Existing wallet capture proof remains independently visible; this degraded usage
+row does not establish an exact usage/billing link. Any future recovery requires
+a separately designed exact-evidence flow; a successful usage INSERT alone is
+insufficient, and no repair or historical backfill is implemented here.
 
 The zero-capture/no-wallet test explicitly seeds a valid zero hold through the
 real repository before capturing. It validates retained proof/read consistency,
@@ -162,7 +176,7 @@ log are retained separately. The corrected command uses the same Go/pnpm
 environment as the passing test/build gates; this was an invocation correction,
 not a product change or a reason to rerun already-passing full suites.
 
-## Final combined validation
+## Initial combined validation (15eb0f57)
 
 Recorded on 2026-10-11 UTC. All gates below exited 0; commands, durations, raw-log
 SHA-256 summaries, failed-run history, source digest and built-resource digest
@@ -204,12 +218,77 @@ new Fork registry wording also passed sequential specification/code review.
 The 85 nonshared #355 files are byte-identical to the combined base; the three
 shared documents retain upstream content and add this task's records.
 
-## Delivery boundary
+## Hosted CI follow-up
 
-The technical commit and a metadata-only follow-up are recorded in the same
-handoff entry. A new draft PR targets `play/main`; its exact head and GitHub CI
-are verified separately after creation. PR number is unknown before creation,
-so the snapshot keeps that field null until the coordinating thread records it.
+The draft PR #356 head `15eb0f57f48dfc2025240cdfbb4437e3bdfcb221`
+had seven successful checks and one failed ledger-contract job:
+[run 38097649870 / job 114346796783](https://github.com/tqytwe/sub2api/actions/runs/38097649870/job/114346796783).
+GitHub tested synthetic merge `5d5fe553db50bf6f3bf8f169937fcb768ab34fe6`
+with parents that head and `c939d570aa1f01cadab465c38c36e0295703a9b7`.
+The sole failing test was
+`TestRequestLedgerRealtimeLateTerminalCannotConsumeNextTurn`: an immediate
+`upstream_response_id` scan saw SQL NULL before the asynchronous evidence writer
+finished. Terminal state is synchronous; identifier evidence is queued. The test
+now waits at most five seconds for both exact turn IDs, preserving the pending
+turn and execution assertions. Missing or misattributed evidence still fails.
+There is no COALESCE, skip or change to runtime WS logic. Ten isolated repeats
+passed. The failed hosted job skipped its required-name verification step, so it
+does not count as a complete 45/45 hosted contract pass.
+
+Independent review also exposed a separate batch recovery defect: a matching hot
+capture proof plus a contradictory archive proof could create a new usage row
+marked settled. The real PostgreSQL RED first commits capture, rejects the usage
+INSERT, adds the conflicting archived fingerprint, then retries. It observed
+`settled=true billed=6 actual=6 images=3`; the balance showed only one capture.
+The new optional reader now checks all retained proof and job ownership before
+annotating new usage. The GREEN preserves the same real image usage and single
+capture while leaving settlement metadata unverified. A separate real PostgreSQL
+read-error injection verifies that failed evidence reads still allow usage and
+job completion. The original capture/dedup transaction file remains unchanged.
+
+The CI required-name list now explicitly includes the late-terminal test and
+both new batch regression cases. Follow-up verification reruns affected backend,
+full unit, protocol, race, embedded build and Fork gates serially. The frontend
+source and built assets are unchanged from the initial combined validation;
+its full frontend and actual-resource browser results are reused with that
+source-equivalence boundary. Follow-up results and log hashes are recorded
+separately from the original evidence.
+
+### Follow-up gate results
+
+All eight follow-up gates exited 0. Commands, durations, exact required-test
+names, source/resource digests and failure-log hashes are recorded in
+[ci-followup-validation.json](./ci-followup-validation.json). The protocol run
+executed all 48 required names, including the formerly intermittent Realtime
+test. The race run passed all seven batch HTTP cases plus that Realtime case.
+Independent specification and subsequent code review passed this follow-up.
+
+| Gate | Seconds | Scope |
+| --- | ---: | --- |
+| `target-unit` | 84.45 | Batch settlement unit regressions |
+| `proof-http` | 35.13 | All 7 batch HTTP/PG cases |
+| `backend` | 600.50 | Full untagged backend tests and lint |
+| `unit` | 403.88 | Full unit-tagged backend suite |
+| `protocol` | 377.03 | 445 tests/subtests; 48 required names |
+| `race` | 191.65 | 15 tests/subtests; 7 batch HTTP + late Realtime |
+| `embed-build` | 44.48 | New backend binary with unchanged verified frontend assets |
+| `fork` | 139.80 | Full static and protected behavior checks |
+
+Frontend 496 files / 3,562 passing tests and the built-resource browser matrix
+are reused only for unchanged frontend source and byte-identical assets. The new
+backend embedded build contains that same verified index. The original core
+migration/repository checks remain recorded separately; no old gate is relabeled
+as a new run. Documentation links, handoff structure and eight handoff unit tests,
+frontend design governance and diff formatting also pass.
+
+## Delivery boundary
+Draft [PR #356](https://github.com/tqytwe/sub2api/pull/356) targets `play/main`.
+The initial technical commit was `57b11c4bece17aae9e14d338f54b24d0789fdc2c`;
+`15eb0f57f48dfc2025240cdfbb4437e3bdfcb221` recorded only its handoff metadata.
+The current correction's source digest is in the follow-up validation artifact;
+its technical SHA is recorded by a subsequent metadata-only commit in the same
+handoff entry. The exact final remote head and its new hosted CI are verified
+separately after pushing the correction. The old failed hosted run is retained.
 No merge, deployment, production database access or local-user acceptance was
-performed. Existing public zero-price hold behavior and historical gpt22 loss
-remain outside this patch's resolved scope.
+performed. Existing public zero-price hold behavior, persistent evidence-read
+gaps and historical gpt22 loss remain outside this patch's resolved scope.

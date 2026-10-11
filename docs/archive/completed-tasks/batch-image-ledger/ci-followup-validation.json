@@ -1,0 +1,293 @@
+{
+  "recorded_at": "2026-10-11T01:37:46.300716+00:00",
+  "source": {
+    "parent_sha": "15eb0f57f48dfc2025240cdfbb4437e3bdfcb221",
+    "combined_base_sha": "c939d570aa1f01cadab465c38c36e0295703a9b7",
+    "tracked_and_new_backend_frontend_files": 5362,
+    "path_and_content_sha256": "64449b2c12f70db6b82f6864d407cda57adf091bcfe04f740743dfc8ccac7b4d",
+    "restricted_billing_repository_unchanged": true,
+    "historical_migrations_unchanged": true
+  },
+  "hosted_failure": {
+    "head_sha": "15eb0f57f48dfc2025240cdfbb4437e3bdfcb221",
+    "synthetic_merge_sha": "5d5fe553db50bf6f3bf8f169937fcb768ab34fe6",
+    "run_id": 38097649870,
+    "job_id": 114346796783,
+    "url": "https://github.com/tqytwe/sub2api/actions/runs/38097649870/job/114346796783",
+    "raw_log_sha256": "822607f838d0dca31631958ae7f7e955b75bec365da144e868e1284ed7d76dcb",
+    "failed_test": "TestRequestLedgerRealtimeLateTerminalCannotConsumeNextTurn",
+    "reason": "Immediate string Scan raced the asynchronous identifier evidence writer and observed SQL NULL. Both exact IDs are now checked with a bounded wait; production WS logic unchanged.",
+    "required_name_step": "Skipped after failing test command; not a complete hosted 45/45 pass.",
+    "other_checks": "Seven succeeded on the original head."
+  },
+  "proof_regression_red": {
+    "log_sha256": "9db70bcfece599b8df7d120ecb43709db895fd54be900b19a14cfafcc0192186",
+    "test": "TestBatchImageHTTPConflictingProofBeforeUsageRecovery",
+    "observed": "settled=true billed=6 actual=6 images=3 after hot matching/archive conflicting proof and usage recovery",
+    "financial_observation": "Only one capture; defect was incorrect new usage certification, not duplicate charging."
+  },
+  "targeted_realtime_repeat": {
+    "count": 10,
+    "all_passed": true,
+    "log_sha256": "47e1cceee942d4b5725709c73d62e8ee3398ac9b554980f1e54dffb13754350f"
+  },
+  "passed_gates": [
+    {
+      "name": "target-unit",
+      "command": [
+        "/tmp/p0-run",
+        "go",
+        "-C",
+        "backend",
+        "test",
+        "-tags=unit",
+        "./internal/service",
+        "-run",
+        "TestBatchImageSettlement",
+        "-count=1",
+        "-timeout=3m",
+        "-json"
+      ],
+      "exit_code": 0,
+      "seconds": 84.45,
+      "log": "/workspace/batch-ledger-ci-followup-target-unit.log",
+      "log_sha256": "7d8a4ddfca54e5c5aaa8bf1dab18ca6ca58ee86f441b9d0285afe30f9da28d0f"
+    },
+    {
+      "name": "proof-http",
+      "command": [
+        "/tmp/p0-run",
+        "go",
+        "-C",
+        "backend",
+        "test",
+        "-tags=integration",
+        "./internal/requestledger/acceptance",
+        "-run",
+        "TestBatchImageHTTP",
+        "-count=1",
+        "-timeout=4m",
+        "-json"
+      ],
+      "exit_code": 0,
+      "seconds": 35.13,
+      "log": "/workspace/batch-ledger-ci-followup-proof-http.log",
+      "log_sha256": "f9df984e2f842b4cc903e51e6920b6e6a5f706fe068c548bedc95bdc79c3570a"
+    },
+    {
+      "name": "backend",
+      "command": [
+        "/tmp/p0-run",
+        "make",
+        "test-backend"
+      ],
+      "exit_code": 0,
+      "seconds": 600.5,
+      "log": "/workspace/batch-ledger-ci-followup-backend.log",
+      "log_sha256": "9443cc6bead6c3f9e1ba14547588042bef84c523ee54f79f216f700abbed1d49"
+    },
+    {
+      "name": "unit",
+      "command": [
+        "/tmp/p0-run",
+        "make",
+        "test-backend-unit"
+      ],
+      "exit_code": 0,
+      "seconds": 403.88,
+      "log": "/workspace/batch-ledger-ci-followup-unit.log",
+      "log_sha256": "c952730f1844e773b1f920d73b37e66656d550433f05691c4c9ea19c653046dd"
+    },
+    {
+      "name": "protocol",
+      "command": [
+        "/tmp/p0-run",
+        "go",
+        "-C",
+        "backend",
+        "test",
+        "-tags=integration",
+        "./internal/requestledger/...",
+        "./internal/handler",
+        "./internal/server/routes",
+        "./internal/repository",
+        "./internal/service",
+        "-run",
+        "RequestLedger|LedgerPostgres|LedgerKilledProcess|LedgerStorage|BatchImageHTTP|BatchImageReconciliation|BatchImageLedgerMigration",
+        "-count=1",
+        "-timeout=12m",
+        "-json"
+      ],
+      "exit_code": 0,
+      "seconds": 377.03,
+      "log": "/workspace/batch-ledger-ci-followup-protocol.log",
+      "log_sha256": "fda98deeb179053a04d725e6af2ad004f50d9dc8607df87d0ca9767a2731750e"
+    },
+    {
+      "name": "race",
+      "command": [
+        "/tmp/p0-run",
+        "go",
+        "-C",
+        "backend",
+        "test",
+        "-race",
+        "-tags=integration",
+        "./internal/requestledger/acceptance",
+        "./internal/service",
+        "-run",
+        "TestBatchImageHTTP|TestRequestLedgerRealtimeLateTerminalCannotConsumeNextTurn",
+        "-count=1",
+        "-timeout=8m",
+        "-json"
+      ],
+      "exit_code": 0,
+      "seconds": 191.65,
+      "log": "/workspace/batch-ledger-ci-followup-race.log",
+      "log_sha256": "663e45a12a38d491329cf68365a9f889e12288b597efbd90296cfae86721548e"
+    },
+    {
+      "name": "embed-build",
+      "command": [
+        "/tmp/p0-run",
+        "make",
+        "build-backend",
+        "GO_BUILD_FLAGS=-buildvcs=false -tags=embed"
+      ],
+      "exit_code": 0,
+      "seconds": 44.48,
+      "log": "/workspace/batch-ledger-ci-followup-embed-build.log",
+      "log_sha256": "74f36deb8920ab14e2c1d62f4185937444f07c9c877f2e7e2c5bbcfcd71686bc"
+    },
+    {
+      "name": "fork",
+      "command": [
+        "/tmp/p0-run",
+        "./scripts/check-fork-integrity.sh"
+      ],
+      "exit_code": 0,
+      "seconds": 139.8,
+      "log": "/workspace/batch-ledger-ci-followup-fork.log",
+      "log_sha256": "96ed5202ab5a6df1969fd16802ceb80019bca8651d3e7b8614b23eea86d0dca4"
+    }
+  ],
+  "required_coverage": {
+    "target-unit": {
+      "test_and_subtest_passes": 34,
+      "required_names": [],
+      "missing_required": [],
+      "skips": []
+    },
+    "proof-http": {
+      "test_and_subtest_passes": 14,
+      "required_names": [
+        "TestBatchImageHTTPCaptureProofReadFailureKeepsUsage",
+        "TestBatchImageHTTPConflictingProofBeforeUsageRecovery",
+        "TestBatchImageHTTPDisconnectAfterCapture",
+        "TestBatchImageHTTPReconciliationBoundsRequestsWithoutTask",
+        "TestBatchImageHTTPRecoveryAndIsolation",
+        "TestBatchImageHTTPUnknownUsageAndNullableImageCount",
+        "TestBatchImageHTTPUsageDrillUsesCommittedCapture"
+      ],
+      "missing_required": [],
+      "skips": []
+    },
+    "protocol": {
+      "test_and_subtest_passes": 445,
+      "required_names": [
+        "TestBatchImageHTTPCaptureProofReadFailureKeepsUsage",
+        "TestBatchImageHTTPConflictingProofBeforeUsageRecovery",
+        "TestBatchImageHTTPDisconnectAfterCapture",
+        "TestBatchImageHTTPReconciliationBoundsRequestsWithoutTask",
+        "TestBatchImageHTTPRecoveryAndIsolation",
+        "TestBatchImageHTTPUnknownUsageAndNullableImageCount",
+        "TestBatchImageHTTPUsageDrillUsesCommittedCapture",
+        "TestBatchImageLedgerMigrationRecoversInterruptedIndex",
+        "TestBatchImageReconciliationUsesBoundedIndex",
+        "TestLedgerKilledProcessRecoveryRetainsEvidence",
+        "TestLedgerPostgresAttemptStorageFailureRejectsOnlyRequest",
+        "TestLedgerPostgresBodylessResponsesKeepProtocolSuccess",
+        "TestLedgerPostgresBoundedConcurrentAdmissionAndRecovery",
+        "TestLedgerPostgresFalseUpgradeDoesNotChangeHTTPMetering",
+        "TestLedgerPostgresFrozenUsageDoesNotMoveToLaterAttempt",
+        "TestLedgerPostgresHealthyOwnerRecoversFailedFinalization",
+        "TestLedgerPostgresMigrationLockTimeoutPreservesEvidence",
+        "TestLedgerPostgresPanicPreservesAlreadyWrittenHTTPStatus",
+        "TestLedgerPostgresRetryUsageDoesNotHideUnknownEarlierAttempt",
+        "TestLedgerStorageErrorDoesNotFailOverAnthropicOrGemini",
+        "TestRequestLedgerBillingTransactionDedupAndFailure",
+        "TestRequestLedgerBridgeAndOAuthImagesTerminal",
+        "TestRequestLedgerBusinessStreamTerminalBeforeTransportEOF",
+        "TestRequestLedgerCommittedJSONDoesNotBecomeSSE",
+        "TestRequestLedgerCompressedSSEUsesDecodedEvidence",
+        "TestRequestLedgerFrozenContextAllowsNilUsageTaskParent",
+        "TestRequestLedgerHTTPAPIRolesPaginationAndRefresh",
+        "TestRequestLedgerHTTPLinkedUsageAndRetention",
+        "TestRequestLedgerIdempotentTaskReplayKeepsCurrentAdmission",
+        "TestRequestLedgerImageBackfillKeepsGenerationAttribution",
+        "TestRequestLedgerImageStudioAndBFFRouteRejectionMatrix",
+        "TestRequestLedgerLiveAuditFailurePreservesRedisAndSettlement",
+        "TestRequestLedgerLiveStoppedTurnRecoversHealthyOwner",
+        "TestRequestLedgerModelsCacheRefreshKeepsDurableChild",
+        "TestRequestLedgerModelsCacheStorageFailureNeverSends",
+        "TestRequestLedgerModelsPluginPreservesScheduledAccount",
+        "TestRequestLedgerNativeAndPassthroughTerminalStatus",
+        "TestRequestLedgerNativeWebsocketTwoTurnsWithRealPostgres",
+        "TestRequestLedgerOAuthModelsDirectTransportAdmission",
+        "TestRequestLedgerObservationFailureKeepsOriginalSettlement",
+        "TestRequestLedgerPassthroughWaitsForAuthoritativeTurn",
+        "TestRequestLedgerPendingUsageSnapshotNeverShowsSettledZero",
+        "TestRequestLedgerRealGatewayRouteRejectionMatrix",
+        "TestRequestLedgerRealWebsocket1013AndEOFWithoutUsage",
+        "TestRequestLedgerRealtimeCapacityRejectionStillPersistsTurn",
+        "TestRequestLedgerRealtimeLateTerminalCannotConsumeNextTurn",
+        "TestRequestLedgerTaskFundingReferencesRecoverWithoutCharging",
+        "TestRequestLedgerWSLateUsageDoesNotMarkTheNextAttemptKnown"
+      ],
+      "missing_required": [],
+      "skips": [
+        "TestLedgerKilledProcessChild",
+        "TestRequestLedgerBrowserFixture"
+      ]
+    },
+    "race": {
+      "test_and_subtest_passes": 15,
+      "required_names": [
+        "TestBatchImageHTTPCaptureProofReadFailureKeepsUsage",
+        "TestBatchImageHTTPConflictingProofBeforeUsageRecovery",
+        "TestBatchImageHTTPDisconnectAfterCapture",
+        "TestBatchImageHTTPReconciliationBoundsRequestsWithoutTask",
+        "TestBatchImageHTTPRecoveryAndIsolation",
+        "TestBatchImageHTTPUnknownUsageAndNullableImageCount",
+        "TestBatchImageHTTPUsageDrillUsesCommittedCapture",
+        "TestRequestLedgerRealtimeLateTerminalCannotConsumeNextTurn"
+      ],
+      "missing_required": [],
+      "skips": []
+    }
+  },
+  "frontend_reuse": {
+    "source_head": "15eb0f57f48dfc2025240cdfbb4437e3bdfcb221",
+    "frontend_source_unchanged": true,
+    "test_files": 496,
+    "tests_passed": 3562,
+    "intentional_opt_in_skips": 5,
+    "browser_evidence": "browser-evidence.json",
+    "resource_file_count": 356,
+    "resource_tree_sha256": "68bc59eeb44909cb7b9a14e000c639b8a0ffac4e5865231825fb5ad14858d551",
+    "new_embedded_binary_sha256": "4006e1ba44553c8a5b8e23ebb9ac16b82aaa55b5d1966c0b365d8456785c2786",
+    "built_index_present_in_binary": true,
+    "boundary": "Full frontend/build-assets/browser results reused for byte-identical source/resources. Backend tests and embedded binary rebuilt after runtime evidence change."
+  },
+  "reviews": {
+    "specification": "Passed; updated capture-proof and persistent-gap contracts.",
+    "code": "Passed current follow-up diff after specification review; no substantive defects, restricted file/history unchanged."
+  },
+  "limitations": [
+    "Proof read is best-effort with one-second timeout; actual usage and capture remain successful when proof fails. Unverified metadata is not a free-usage claim.",
+    "Completed retries do not backfill missing fingerprints. Evidence failure can therefore leave a persistent audit gap.",
+    "Read-only proof is observed after capture, outside the existing financial transaction; no atomic financial/dedup semantics are changed.",
+    "No production access, provider generation, historical backfill, deployment, or local-user production acceptance.",
+    "Existing public zero-price hold omission and historical gpt22 attribution remain unresolved."
+  ]
+}

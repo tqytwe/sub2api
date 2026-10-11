@@ -76,6 +76,10 @@ type batchCaptureDisconnectGate struct {
 	captured chan struct{}
 }
 
+func (g *batchCaptureDisconnectGate) VerifyBatchImageCaptureProof(ctx context.Context, cmd *service.BatchImageBalanceHoldCommand) (bool, error) {
+	return g.UsageBillingRepository.(service.BatchImageCaptureProofReader).VerifyBatchImageCaptureProof(ctx, cmd)
+}
+
 func (g *batchCaptureDisconnectGate) CaptureBatchImageBalance(ctx context.Context, cmd *service.BatchImageBalanceHoldCommand) (*service.BatchImageBalanceHoldResult, error) {
 	result, err := g.UsageBillingRepository.CaptureBatchImageBalance(ctx, cmd)
 	if err != nil {

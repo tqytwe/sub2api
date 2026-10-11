@@ -22,7 +22,7 @@
       "backend_state": "已验证",
       "product_state": "可测",
       "owner": "主线程协调",
-      "pr": null,
+      "pr": "https://github.com/tqytwe/sub2api/pull/356",
       "sha": "57b11c4bece17aae9e14d338f54b24d0789fdc2c",
       "evidence": {
         "ui": {
@@ -36,9 +36,10 @@
           "status": "recorded",
           "refs": [
             "backend/internal/requestledger/acceptance/batch_image_integration_test.go",
-            "backend/internal/requestledger/acceptance/batch_image_recovery_integration_test.go"
+            "backend/internal/requestledger/acceptance/batch_image_recovery_integration_test.go",
+            "backend/internal/requestledger/acceptance/batch_image_proof_conflict_integration_test.go"
           ],
-          "note": "保留capture成功指纹与金额；task/owner/key/capture dedup完全一致才可钻取。"
+          "note": "capture成功后只读核验任务归属与冷热全部指纹才认证新usage；失败仍保留真实金额/图片数；task/owner/key/capture凭据一致才可钻取。"
         },
         "schema": {
           "status": "recorded",
@@ -50,14 +51,15 @@
         "tests": {
           "status": "recorded",
           "refs": [
-            "docs/archive/completed-tasks/batch-image-ledger/README.md"
+            "docs/archive/completed-tasks/batch-image-ledger/README.md",
+            "docs/archive/completed-tasks/batch-image-ledger/ci-followup-validation.json"
           ],
-          "note": "2026-10-11组合门禁、HTTP/PG/race、完整前端3562测试、build/embed/Fork、实际资源浏览器及独立双评审通过；两次磁盘失败和一次工具链调用失败独立留档。后端全量/unit复用相同编译输入，详见归档。"
+          "note": "2026-10-11 CI修复后重跑全后端/lint、完整unit、48/48协议必需项、7批次HTTP+Realtime race、embed/Fork，独立规格及代码复审通过；前端3562测试与浏览器证据仅复用相同源及资源。旧head CI异步读取失败与冲突证明RED单独留档。"
         },
         "deployment": {
           "status": "pending",
           "refs": [],
-          "note": "独立草稿PR，由主线程核实SHA/CI；本任务不合并部署。"
+          "note": "草稿PR #356，由主线程核实最终SHA及新CI；本任务不合并部署。"
         },
         "production": {
           "status": "pending",
@@ -65,8 +67,8 @@
           "note": "生产自然流量/PG对账及用户本机三身份验收尚未执行。"
         }
       },
-      "risks": "不推断历史指纹、token、unknown零费用；completed旧记录不修复。零capture无钱包用例仅验证真实保留证明，不覆盖公共零价格跳过hold的既有问题。受限usage_billing_repo.go未修改。",
-      "next": "技术验证SHA 57b11c4bece17aae9e14d338f54b24d0789fdc2c；其后仅交接元数据提交，运行源码与验证相同。PR创建前编号未知暂为null，创建后由主线程核实准确head/CI并补记录。不合并部署；生产自然流量、对账及用户本机三身份验收待协调。",
+      "risks": "不推断历史指纹、token、unknown零费用；只读证明失败不阻断capture/usage但completed重试不会补证，保留审计缺口。零capture无钱包用例只验证真实保留证明，不覆盖公共零价格跳过hold。受限usage_billing_repo.go未修改。",
+      "next": "PR #356修复后的技术SHA由紧随的元数据提交记录；运行源码以ci-followup-validation.json摘要为准。由主线程核验最终head/CI，不合并部署；生产自然流量、对账及用户本机三身份验收待协调。",
       "rollback": "协调应用回滚；保留277新增索引与已有台账/usage，不改历史SQL、不删数据。"
     },
     {
