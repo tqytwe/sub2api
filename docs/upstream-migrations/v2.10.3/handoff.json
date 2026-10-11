@@ -49,9 +49,10 @@
           "status": "recorded",
           "refs": [
             "docs/archive/completed-tasks/2026-10-11-routing-evidence/README.md",
-            "docs/archive/completed-tasks/2026-10-11-routing-evidence/merge-362-validation.json"
+            "docs/archive/completed-tasks/2026-10-11-routing-evidence/merge-362-validation.json",
+            "docs/archive/completed-tasks/2026-10-11-routing-evidence/worker-ack-validation.json"
           ],
-          "note": "#360真实HTTP/PG23顶层47测试、278→279runner及完整backend普通/lint/unit/build/embed/Fork通过。#362普通merge保持backend/迁移/CI/scripts原字节，按授权复用；前端等最新main复用3789/8、293+4HTTP及36native。本次build/embed/静态/docs通过，356资源等主线。75是CI必需集合，不称本地新跑75或最新完整Fork；CI以PR359精确head为准。"
+          "note": "先前#360真实HTTP/PG23顶层47测试、278→279实际runner通过，#362普通合并和资源保留证据已存。add3 Protected CI因既有worker测试提前采样Active=1失败；基线受控Ack延迟3/3复现，6行测试有界等待保留全部断言，修后延迟20/普通100/race10+25通过，永久丢Ack负向仍失败。按序双审无P1/P2；本次重新完整make test（前端504文件3825通过/8既有跳过，后端全量及lint0）、tag-unit/build/embed/完整Fork全部通过。原27路由输入未变，清单28项；不称重跑全75 HTTP/PG合同。新head CI以PR359为准。"
         },
         "deployment": {
           "status": "pending",
@@ -64,8 +65,8 @@
           "note": "没有生产或用户本机三身份验收，不能根据旧27条503倒推路由根因。"
         }
       },
-      "risks": "128条/32KiB、队列64，压力或崩溃可以丢明细但显示incomplete；source_population_complete恒false。非HTTP文本/媒体/WS未覆盖。原8665头5秒DDL排队超过3秒准入，禁止合并；279 NOWAIT+短时限不变，实际持锁DDL/提交开销仍不可消除。#360完整及#362最小组合本地通过，新head尚待CI及主线程增量复审。",
-      "next": "已普通merge最新6ae024e6（#362），后台原字节复用750的全门禁，前端等新main并完成build/embed及静态组合；262传入文件完整保留，无280/281、rebase/force。普通推送草稿精确head供CI和主线程复核。identifier独立暂停，UI/合并/部署由主线程协调；其他快照条目未重验、checked_at不前移。 技术合并c3f40d84280e454a0e0beedbab819b4e447a9b50；后继仅交接元数据。",
+      "risks": "128条/32KiB、队列64，压力或崩溃可以丢明细但显示incomplete；source_population_complete恒false。非HTTP文本/媒体/WS未覆盖。原8665旧锁策略head禁止发布；279 NOWAIT+短时限不变，实际持锁DDL/提交开销仍不可消除。add3 CI失败保留，修复后本地全门禁通过，新head CI及主线程复核待完成。",
+      "next": "普通推送本次worker采样同步修复与交接证据，核对精确head新CI；不盲目重跑add3失败workflow。identifier281保持暂停；UI/合并部署由主线程协调；其他快照条目未重验、checked_at不前移。",
       "rollback": "279尚未发布，本次按主线程明确授权收紧其SQL并更新checksum；发布后不可改。争用/超时由运行器回滚且无279登记，保留旧应用流量后重试；成功后的应用回退保留新增列/表和证据，不删除/回填历史，不补扣。"
     },
     {

@@ -1,6 +1,6 @@
 # HTTP 文本路由证据后端小批
 
-状态：已普通合入最新主线6ae024e6（#362）；#360完整本地门禁通过，后端原字节复用；最新构建与静态组合通过。最终head CI以PR359为准，未合并部署。
+状态：add3 CI既有worker测试采样竞态已用6行有界等待修正；受控RED/GREEN、永久丢Ack负向、race、按序双审与全部本地门禁通过。新head CI及主线程复核待完成，未合并部署。
 维护责任：本任务提交者；生产发布由主线程协调。
 
 基线 `23d06337cbc315cb92d3fc18e94902fe21e7342d`；独立分支
@@ -215,3 +215,35 @@ auth.checkAuth、原生ledger/PG矩阵、永久Storage故障的边界继续保�
 未触碰280/281；identifier保持独立暂停，routing UI由主线程另派作者。
 
 #362最终技术合并提交：`c3f40d84280e454a0e0beedbab819b4e447a9b50`；后继仅补交接元数据，后端/前端与已验证输入不变。
+
+
+### CI worker 队列归零采样修复
+
+主线程报告 add3 head 的 Fork Integrity run38136192168 / job114460430956
+在 tag-unit 的 `TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs`
+最终 Active 断言读取到1。直接下载日志返回403，未独立取回日志正文，保留来源限制。
+
+独立基线6ae工作树确认相关测试、worker运行时和Redis队列三文件与add3原字节相同；
+未修改基线普通测试30次通过，没有自然复现。源码显示处理器completed计数先于
+heartbeat结束和Redis租约Ack，Stats.Active统计的是租约ZCARD。测试专用overlay只
+延迟最后两个Ack至首次Stats快照后放行，在基线连续3次触发原断言Active=2。
+修复只增加3秒/20ms的Eventually等待Ready=0且Active=0，保留原并发上限、完成数、
+第三任务启动限制与最终Ready/Active断言。当前Stats DTO没有Delayed字段。
+运行时、队列Ack顺序、路由、迁移和结算代码未改，不称证明了生产worker缺陷。
+
+修复后延迟Ack20次通过，普通100次通过；永久丢Ack的负向探针在3.18秒于新的有界
+等待断言失败，证明真正不归零仍被检测。延迟Ack race10次、worker5个用例各5轮均通过，按序规格/质量审查均通过；结果
+记录在[worker-ack-validation.json](./worker-ack-validation.json)。基线hash与测试事件
+见[worker-ack-base-proof.json](./worker-ack-base-proof.json)、
+[worker-ack-base-tests.json](./worker-ack-base-tests.json)，可复现的测试overlay生成器为
+[worker-ack-probe.py](./worker-ack-probe.py)。探针只用于本地验证，不改生产代码或CI脚本。
+原add3 CI失败保留；新head只普通推送一次触发CI，不盲目重跑原workflow。
+
+本次重新完整执行make test（后端全量和lint0问题、前端504文件/3825测试通过，保留既有
+3文件/8测试跳过）、make test-backend-unit、make build、embed build和完整Fork检查，
+全部通过。没有用旧证据代替本次必需门禁。先前27个路由/279/CI输入原字节保留，
+新清单增加worker测试共28项；历史HTTP/PG证据继续限定原范围，不称本地重跑全75项。
+具体命令、耗时和原始日志哈希见worker-ack-validation.json，逐测试白名单事件见
+[worker-ack-test-results.json](./worker-ack-test-results.json)，双审与保留证据见
+[worker-ack-reviews.json](./worker-ack-reviews.json)、
+[worker-ack-preservation.json](./worker-ack-preservation.json)。

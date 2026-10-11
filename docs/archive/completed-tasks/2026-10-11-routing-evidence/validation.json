@@ -321,6 +321,6 @@
     "validated_at": "2026-10-11T09:55:04.350605+00:00",
     "technical_commit": "eb8cbab6786df2a2e880b3f95afc7b21669c3b4f"
   },
-  "gates_scope": "Original, 279/#358 and #361 records are historical. #360 full local combination is current unchanged backend evidence; #362 final frontend-only composition/build and exact-source reuse are recorded in merge-362-validation.json.",
-  "current_validation": "merge-362-validation.json"
+  "gates_scope": "Earlier implementation and merge records remain historical. Current worker-ack-validation.json records the six-line test synchronization fix, negative probes and fresh full mandatory local gates; routing/279 prior inputs unchanged.",
+  "current_validation": "worker-ack-validation.json"
 }

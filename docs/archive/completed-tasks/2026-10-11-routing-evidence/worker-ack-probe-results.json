@@ -1,0 +1,112 @@
+[
+  {
+    "gate": "delayed-green",
+    "command": [
+      "go",
+      "test",
+      "-overlay=/tmp/routing-worker-release_on_first_stats-routing-evidence.json",
+      "-tags=unit",
+      "./internal/repository",
+      "-run",
+      "^TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs$",
+      "-count=20",
+      "-timeout=3m",
+      "-json"
+    ],
+    "expected_exit": 0,
+    "exit_code": 0,
+    "started_at": "2026-10-11T12:01:29.951003+00:00",
+    "finished_at": "2026-10-11T12:01:47.704757+00:00",
+    "elapsed_seconds": 17.754,
+    "log": "/tmp/routing-worker-delayed-green.log",
+    "log_sha256": "d9a92ec739bb3b020d5a9ef975bda00d7c88bc333cd75ccb00b1f6231288d536"
+  },
+  {
+    "gate": "lost-ack-negative",
+    "command": [
+      "go",
+      "test",
+      "-overlay=/tmp/routing-worker-drop_ack-routing-evidence.json",
+      "-tags=unit",
+      "./internal/repository",
+      "-run",
+      "^TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs$",
+      "-count=1",
+      "-timeout=1m",
+      "-json"
+    ],
+    "expected_exit": 1,
+    "exit_code": 1,
+    "started_at": "2026-10-11T12:01:47.705060+00:00",
+    "finished_at": "2026-10-11T12:02:04.738416+00:00",
+    "elapsed_seconds": 17.033,
+    "log": "/tmp/routing-worker-lost-ack-negative.log",
+    "log_sha256": "e4c1d34ccbac359b66278678f2a3bd3d0bd756e3e086af47e21478f5703d7e82"
+  },
+  {
+    "gate": "ordinary-repeat",
+    "command": [
+      "go",
+      "test",
+      "-tags=unit",
+      "./internal/repository",
+      "-run",
+      "^TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs$",
+      "-count=100",
+      "-timeout=3m",
+      "-json"
+    ],
+    "expected_exit": 0,
+    "exit_code": 0,
+    "started_at": "2026-10-11T12:02:04.738715+00:00",
+    "finished_at": "2026-10-11T12:02:36.093897+00:00",
+    "elapsed_seconds": 31.355,
+    "log": "/tmp/routing-worker-ordinary-repeat.log",
+    "log_sha256": "3c4242c9725a127645169d98d634e5e9438053bb75a536fe09df77438d0b8edf"
+  },
+  {
+    "gate": "delayed-race",
+    "command": [
+      "go",
+      "test",
+      "-race",
+      "-overlay=/tmp/routing-worker-release_on_first_stats-routing-evidence.json",
+      "-tags=unit",
+      "./internal/repository",
+      "-run",
+      "^TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs$",
+      "-count=10",
+      "-timeout=3m",
+      "-json"
+    ],
+    "expected_exit": 0,
+    "exit_code": 0,
+    "started_at": "2026-10-11T12:02:36.094806+00:00",
+    "finished_at": "2026-10-11T12:03:57.515341+00:00",
+    "elapsed_seconds": 81.421,
+    "log": "/tmp/routing-worker-delayed-race.log",
+    "log_sha256": "86b193799eafc084e3e2a6f010ccb1e9e840b91601a5be649a64df3b5b69b2a8"
+  },
+  {
+    "gate": "worker-race",
+    "command": [
+      "go",
+      "test",
+      "-race",
+      "-tags=unit",
+      "./internal/repository",
+      "-run",
+      "^TestImageTaskWorker",
+      "-count=5",
+      "-timeout=5m",
+      "-json"
+    ],
+    "expected_exit": 0,
+    "exit_code": 0,
+    "started_at": "2026-10-11T12:03:57.515655+00:00",
+    "finished_at": "2026-10-11T12:04:20.910343+00:00",
+    "elapsed_seconds": 23.395,
+    "log": "/tmp/routing-worker-worker-race.log",
+    "log_sha256": "ac30a68a3da00790b997e413a366f02d936812c1eed45cc1174b5d7cfc173539"
+  }
+]
