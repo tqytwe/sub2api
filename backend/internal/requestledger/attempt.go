@@ -27,6 +27,7 @@ type Attempt struct {
 	handle              *Handle
 	Number              int
 	accountID           int64
+	subscriptionReceipt *SubscriptionReceipt
 }
 
 // CurrentAttempt captures the precise model attempt before a parser or detached
@@ -149,6 +150,10 @@ func beginAttempt(ctx context.Context, accountID, credentialAccountID int64, pha
 		return nil, ErrUnavailable
 	}
 	defer func() { _ = tx.Rollback() }()
+	receipt, err := lockSubscriptionAdmission(ctx, tx, h, accountID, phase)
+	if err != nil {
+		return nil, err
+	}
 	a := &Attempt{handle: h, accountID: accountID, ID: uuid.NewString()}
 	metered := (h.metered && phase == "request") || phase == "ws_input" || phase == "ws_observed" || phase == "external_search"
 	err = tx.QueryRowContext(ctx, `UPDATE gateway_requests r SET attempt_count=attempt_count+1,
@@ -168,10 +173,14 @@ func beginAttempt(ctx context.Context, accountID, credentialAccountID int64, pha
 	if err != nil {
 		return nil, ErrUnavailable
 	}
+	if err := insertSubscriptionReceipt(ctx, tx, receipt, a); err != nil {
+		return nil, err
+	}
 	if err = tx.Commit(); err != nil {
 		return nil, ErrUnavailable
 	}
 	if metered {
+		a.subscriptionReceipt = receipt
 		h.mu.Lock()
 		h.currentAttempt = a
 		h.mu.Unlock()

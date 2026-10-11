@@ -107,6 +107,7 @@
 - [答题与盲盒福利闭环技术记录](./archive/completed-tasks/2026-10-welfare-games/README.md) — `in-progress`，隔离 HTTP/PG/Vue 证据，未部署。
 - [答题与盲盒视觉记录](./visual-reviews/2026-10-11-welfare-games.md) — `in-progress`，既有风格内的状态与恢复。
 - [冻结计费目标绑定修复](./archive/completed-tasks/2026-10-11-frozen-billing-binding/README.md) — `review`，Prepare/Verify 的 NULL 与历史证明兼容；完整 PG 回归与本地全门禁通过，待 PR CI/主线程审查，未部署。
+- [订阅撤销中的在途结算](./archive/completed-tasks/2026-10-11-p1-subscription-inflight/README.md) — `review`，文本请求逐次准入、冻结价格与持久恢复的隔离验收；本批提交者维护，未部署。
 
 - [交互登录响应归属修复](./archive/completed-tasks/2026-10-interactive-auth/README.md) — `in-progress`，真实 HTTP 登录竞态回归，独立草稿交付。
 - [原生自动续期与福利登录态同步](./archive/completed-tasks/2026-10-auth-refresh/README.md) — `in-progress`，隔离 HTTP、构建资源与 PG 回归；草稿交付，不代表部署。

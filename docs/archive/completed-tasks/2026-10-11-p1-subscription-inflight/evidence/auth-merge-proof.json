@@ -1,0 +1,18 @@
+{
+  "old_base": "fb2c9747b58ed5d980a36ea6a2316ead2aa03b7e",
+  "new_base": "6ae024e6b732b64b2ce6f7ba56c5be4e20b88bdb",
+  "method": "git merge --ff-only; preserved own changes via task stash; no conflicts; no rebase/force",
+  "main_backend_ci_scripts_diff": [],
+  "reviewed_source_manifest_sha256": "24c365b5ea02eaa87c1eafceac620a52646d8570e1eee545c384ea8ff2702b8d",
+  "source_pr": 362,
+  "source_head": "df28f49d0c3c355a622cc753055f4b63da4e3e9e",
+  "source_ci": "6 SUCCESS, see auth-source-ci.json",
+  "auth_combination": {
+    "command": "pnpm --dir frontend exec vitest run src/stores/__tests__/auth.interactive.http.spec.ts src/stores/__tests__/auth.storage.http.spec.ts src/stores/__tests__/auth.spec.ts src/components/__tests__/LoginForm.spec.ts src/api/__tests__/client.spec.ts src/api/__tests__/tokenRefresh.spec.ts",
+    "exit_code": 0,
+    "passed_files": 6,
+    "passed_tests": 211,
+    "log": "auth-combination.log",
+    "sha256": "6ef07744a354da9a50249da6e3f2c5f11411b1f7fe67f9048cb8437029d35573"
+  }
+}

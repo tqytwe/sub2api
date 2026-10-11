@@ -1,0 +1,58 @@
+[
+  {
+    "name": "inflight-final",
+    "command": [
+      "./scripts/test-subscription-counters.sh",
+      "^TestSubscriptionInflightRevoke$",
+      "-race"
+    ],
+    "started_at": "2026-10-11T10:58:22.494555+00:00",
+    "finished_at": "2026-10-11T11:00:03.879656+00:00",
+    "exit_code": 0,
+    "expected_exit_code": 0,
+    "log": "/workspace/p1-inflight-evidence/inflight-final.log",
+    "sha256": "a6726698db89f76fff5d7b8ff20db2d1740fbcd76b5752ce0e4f8a1f4d712d99"
+  },
+  {
+    "name": "counter-legacy",
+    "command": [
+      "./scripts/test-subscription-counters.sh",
+      "^TestSubscriptionCounterHTTP$",
+      "-race"
+    ],
+    "started_at": "2026-10-11T11:00:03.880631+00:00",
+    "finished_at": "2026-10-11T11:00:39.474859+00:00",
+    "exit_code": 0,
+    "expected_exit_code": 0,
+    "log": "/workspace/p1-inflight-evidence/counter-legacy.log",
+    "sha256": "accd5e896a0ecfe6b3e83e45d5cb0df0413b4febb95c95f7fab85eecbc48b4bb"
+  },
+  {
+    "name": "binding-reproduction",
+    "command": [
+      "./scripts/test-subscription-counters.sh",
+      "^TestSubscriptionEntitlementBindingReproduction$",
+      "-race"
+    ],
+    "started_at": "2026-10-11T11:00:39.477554+00:00",
+    "finished_at": "2026-10-11T11:01:03.815841+00:00",
+    "exit_code": 0,
+    "expected_exit_code": 0,
+    "log": "/workspace/p1-inflight-evidence/binding-reproduction.log",
+    "sha256": "bab791770d4857b457afe4795e926bd04c7b72b8a95dc8e63d63f34555d527f9"
+  },
+  {
+    "name": "binding-compatibility",
+    "command": [
+      "./scripts/test-subscription-counters.sh",
+      "^TestSubscriptionBindingCompatibility$",
+      "-race"
+    ],
+    "started_at": "2026-10-11T11:01:03.817070+00:00",
+    "finished_at": "2026-10-11T11:01:27.967473+00:00",
+    "exit_code": 0,
+    "expected_exit_code": 0,
+    "log": "/workspace/p1-inflight-evidence/binding-compatibility.log",
+    "sha256": "7bd76b30a979c61fee0a73821b4a0c60041a1531c51764586672396be81f7264"
+  }
+]

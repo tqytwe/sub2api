@@ -51,6 +51,7 @@ func TestRevokeSubscriptionRevokesPackageEntitlementsAtomically(t *testing.T) {
 	t.Cleanup(func() { _ = client.Close() })
 
 	mock.ExpectBegin()
+	expectSubscriptionLifecycle(mock, 42, 451, 62, "revoke")
 	mock.ExpectExec(regexp.QuoteMeta(`UPDATE subscription_package_entitlements
 				SET status = 'revoked', exhausted_reason = NULL, updated_at = NOW()
 				WHERE user_id = $1 AND group_id = $2 AND status <> 'revoked'`)).
@@ -81,6 +82,7 @@ func TestRevokeSubscriptionRollsBackWhenPackageEntitlementRevocationFails(t *tes
 	t.Cleanup(func() { _ = client.Close() })
 
 	mock.ExpectBegin()
+	expectSubscriptionLifecycle(mock, 42, 451, 62, "revoke")
 	mock.ExpectExec(regexp.QuoteMeta(`UPDATE subscription_package_entitlements
 				SET status = 'revoked', exhausted_reason = NULL, updated_at = NOW()
 				WHERE user_id = $1 AND group_id = $2 AND status <> 'revoked'`)).

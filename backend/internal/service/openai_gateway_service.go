@@ -448,34 +448,35 @@ var ErrNoAvailableCompactAccounts = errors.New("no available accounts support /r
 type OpenAIGatewayService struct {
 	// Set only by production constructors. Legacy direct-struct test fixtures may
 	// exercise supplied account state; the exported admission API stays strict.
-	requireLatestTurnAdmission bool
-	starframeVideos            StarframeVideoRepository
-	accountRepo                AccountRepository
-	usageLogRepo               UsageLogRepository
-	usageBillingRepo           UsageBillingRepository
-	userRepo                   UserRepository
-	userSubRepo                UserSubscriptionRepository
-	cache                      GatewayCache
-	cfg                        *config.Config
-	codexDetector              CodexClientRestrictionDetector
-	schedulerSnapshot          *SchedulerSnapshotService
-	concurrencyService         *ConcurrencyService
-	billingService             *BillingService
-	rateLimitService           *RateLimitService
-	billingCacheService        *BillingCacheService
-	userGroupRateResolver      *userGroupRateResolver
-	httpUpstream               HTTPUpstream
-	pluginManager              *PluginManager
-	deferredService            *DeferredService
-	openAITokenProvider        *OpenAITokenProvider
-	grokTokenProvider          *GrokTokenProvider
-	toolCorrector              *CodexToolCorrector
-	openaiWSResolver           OpenAIWSProtocolResolver
-	resolver                   *ModelPricingResolver
-	channelService             *ChannelService
-	balanceNotifyService       *BalanceNotifyService
-	settingService             *SettingService
-	userPlatformQuotaRepo      UserPlatformQuotaRepository
+	requireLatestTurnAdmission   bool
+	starframeVideos              StarframeVideoRepository
+	accountRepo                  AccountRepository
+	usageLogRepo                 UsageLogRepository
+	usageBillingRepo             UsageBillingRepository
+	userRepo                     UserRepository
+	userSubRepo                  UserSubscriptionRepository
+	cache                        GatewayCache
+	cfg                          *config.Config
+	codexDetector                CodexClientRestrictionDetector
+	schedulerSnapshot            *SchedulerSnapshotService
+	concurrencyService           *ConcurrencyService
+	billingService               *BillingService
+	rateLimitService             *RateLimitService
+	billingCacheService          *BillingCacheService
+	userGroupRateResolver        *userGroupRateResolver
+	subscriptionSettlementWorker *subscriptionSettlementWorker
+	httpUpstream                 HTTPUpstream
+	pluginManager                *PluginManager
+	deferredService              *DeferredService
+	openAITokenProvider          *OpenAITokenProvider
+	grokTokenProvider            *GrokTokenProvider
+	toolCorrector                *CodexToolCorrector
+	openaiWSResolver             OpenAIWSProtocolResolver
+	resolver                     *ModelPricingResolver
+	channelService               *ChannelService
+	balanceNotifyService         *BalanceNotifyService
+	settingService               *SettingService
+	userPlatformQuotaRepo        UserPlatformQuotaRepository
 	// Live settles asynchronously after the sideband ends. Reuse the existing
 	// API key service for both authoritative ownership lookup and quota updates.
 	requestLedger          *requestledger.Ledger
@@ -661,6 +662,7 @@ func NewOpenAIGatewayServiceWithLiveBilling(
 		userPlatformQuotaRepo,
 	)
 	svc.requestLedger = requestLedger
+	svc.subscriptionSettlementWorker = startSubscriptionSettlementWorker(usageBillingRepo)
 	svc.SetLiveBillingAPIKeyService(apiKeyService)
 	svc.SetLiveSettlementOutbox(liveSettlementOutbox)
 	svc.starframeVideos = starframeVideos
@@ -701,6 +703,9 @@ func (s *OpenAIGatewayService) SetLiveSettlementOutbox(outbox LiveSettlementOutb
 }
 
 func (s *OpenAIGatewayService) StopLiveSettlementWorker() {
+	if s != nil {
+		s.subscriptionSettlementWorker.Stop()
+	}
 	if s != nil && s.liveSettlementWorker != nil {
 		s.liveSettlementWorker.Stop()
 	}

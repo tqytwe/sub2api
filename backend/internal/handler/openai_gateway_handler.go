@@ -819,6 +819,15 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 		// 从不可变的 canonical forwardBody 派生本次尝试 body 并整块剔除上游私有的加密
 		// reasoning item（含耦合的 id/summary），避免非透传上游 400 拒绝 Kiro reasoning 形态。
 		attemptBody := h.deriveOpenAIForwardAttemptBody(reqLog, forwardBody, account, &passthroughFailoverState)
+		admissionCtx, admissionErr := h.gatewayService.PrepareSubscriptionAdmission(c.Request.Context(), apiKey, subscription, account, attemptBody, clientRequestedUsageFields(c, channelMapping, reqModel, ""), service.HashUsageRequestPayload(body), pricingAt)
+		if admissionErr != nil {
+			if accountReleaseFunc != nil {
+				accountReleaseFunc()
+			}
+			h.ensureForwardErrorResponse(c, streamStarted)
+			return
+		}
+		c.Request = c.Request.WithContext(admissionCtx)
 		result, err := func() (*service.OpenAIForwardResult, error) {
 			defer func() {
 				if accountReleaseFunc != nil {
@@ -3459,6 +3468,12 @@ func (h *OpenAIGatewayHandler) runUsageRecordTaskSync(parent context.Context, ta
 // Only explicitly account-aware OpenAI routes opt observed text into mandatory
 // settlement. Raw legacy callers keep their configured text overflow policy.
 func (h *OpenAIGatewayHandler) submitOpenAIUsageRecordTaskForAccount(parent context.Context, account *service.Account, result *service.OpenAIForwardResult, task service.UsageRecordTask) {
+	if requestledger.CurrentSubscriptionReceipt(parent) != nil {
+		// The admitted text path persists exact usage and its command before
+		// returning to any in-memory queue. Failed Apply is recovered from PG.
+		h.runUsageRecordTaskSync(parent, task)
+		return
+	}
 	if account != nil && account.IsOpenAI() && result.HasObservedUsage() && !service.IsImageStudioManagedBilling(parent) {
 		h.submitMandatoryUsageRecordTask(parent, task)
 		return

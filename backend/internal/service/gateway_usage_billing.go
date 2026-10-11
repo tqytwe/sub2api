@@ -2,8 +2,8 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
-	"github.com/Wei-Shaw/sub2api/internal/requestledger"
 	"log/slog"
 	"strings"
 	"time"
@@ -12,6 +12,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/timezone"
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
 )
 
 func (s *GatewayService) getUserGroupRateMultiplier(ctx context.Context, userID, groupID int64, groupDefaultMultiplier float64) float64 {
@@ -521,6 +522,30 @@ func applyUsageBilling(ctx context.Context, requestID string, usageLog *UsageLog
 		// replaces displayed charges with zero.
 		cmd.Normalize()
 		usageLog.BillingRequestFingerprint = cmd.RequestFingerprint
+	}
+	if receipt := requestledger.CurrentSubscriptionReceipt(billingCtx); receipt != nil {
+		cmd.SubscriptionReceiptID = receipt.ID
+		usage, ok := ctx.Value(subscriptionObservedKey{}).(string)
+		if !ok || !trackSettlement {
+			return false, requestledger.ErrUnavailable
+		}
+		commandJSON, marshalErr := json.Marshal(cmd)
+		if marshalErr != nil {
+			return false, marshalErr
+		}
+		logJSON, marshalErr := json.Marshal(usageLog)
+		if marshalErr != nil {
+			return false, marshalErr
+		}
+		if err := requestledger.PersistSubscriptionUsage(billingCtx, requestledger.SubscriptionObservation{Command: string(commandJSON), Usage: usage, Log: string(logJSON)}); err != nil {
+			return false, err
+		}
+		claimed, claimErr := requestledger.ClaimCurrentSubscriptionOutbox(billingCtx)
+		if claimErr != nil {
+			return false, claimErr
+		}
+		billingCtx = claimed
+		defer requestledger.ReleaseSubscriptionOutbox(billingCtx)
 	}
 	result, err := repo.Apply(billingCtx, cmd)
 	if err != nil {
