@@ -98,5 +98,20 @@
     "file": "upstream-checker-tests.log.gz",
     "sha256": "d2adbd9c522520adf203a9334589de8212a5c5b3d06ea5304746e7dfa1ef3a25",
     "raw_sha256": "33060fd73862c5e1af97335504d5b45211fce6d229657f556d8deceeadc52ce4"
+  },
+  {
+    "file": "composed-checker-tests.log.gz",
+    "sha256": "d2adbd9c522520adf203a9334589de8212a5c5b3d06ea5304746e7dfa1ef3a25",
+    "raw_sha256": "33060fd73862c5e1af97335504d5b45211fce6d229657f556d8deceeadc52ce4"
+  },
+  {
+    "file": "composed-coverage.log.gz",
+    "sha256": "c7bd383501a37c7663015668bb067aab7e66225400269f1062deac3186576966",
+    "raw_sha256": "4450fea081352c18211534469fecfb4a7a51d9d7d3143c859cdee67b5b140e88"
+  },
+  {
+    "file": "composed-links.log.gz",
+    "sha256": "653ff15299cbe5b48c012e5dba81e97814ea21c84f728e40c1f050a31eaad6a4",
+    "raw_sha256": "1060096f6c0aa1b77bb2ecb2598bbd0fc294f2f64cc64b38720558217a81ba58"
   }
 ]

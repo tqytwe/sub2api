@@ -12,7 +12,8 @@ ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / 'docs/upstream-migrations/v2.10.5'
 BASE = 'fd1b5ee4eeb20961fbb783fa6f136a1704271e90'
 TARGET = 'd977e7a5e24e5536db6ce8b8478743e0c4b11f77'
-FORK = '8364b462feda15f3bf8f3bb2029314d2193b9dba'
+INITIAL_FORK = '8364b462feda15f3bf8f3bb2029314d2193b9dba'
+FORK = 'caa4805b26114da4b5cb0ddea9343ef6ec9fc528'
 TAG = 'e7f36d0ed124fccbf55382166c116a89ef79dd83'
 
 def git(*args):
@@ -36,6 +37,7 @@ def artifacts():
     a, b, f = tree(BASE), tree(TARGET), tree(FORK)
     protection = json.loads((OUT/'protected.json').read_text())
     protected = set(protection['paths'])
+    inherited = set(protection.get('inherited_paths', [])) - set(protection.get('inflight_paths', []))
     sql_decisions = {d['source_path']: d for d in json.loads((OUT/'migration-decisions.json').read_text())}
     rows = []
     for p in sorted(set(a)|set(b)|set(f)):
@@ -51,6 +53,8 @@ def artifacts():
             status, reason = sql_decisions[p]['status'], sql_decisions[p]['reason']
         if p in protected or '/migrations/280_' in p or '/migrations/281_' in p or '/requestledger/' in p or 'request_ledger' in p:
             status, reason = 'pending-composition', 'Reserved parallel owner; inventory only, no overwrite or duplicate repair.'
+        if p in inherited:
+            status, reason = 'protected-inherited', 'Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review.'
         rows.append({'path':p,'layer':layer(p),'source_base_blob':a.get(p),'target_blob':b.get(p),'fork_blob':f.get(p),'release_delta':delta,'status':status,'reason':reason})
     migrations = []
     for p in sorted(set(b)|set(f)):
@@ -71,7 +75,7 @@ def artifacts():
         return found
     upstream_routes, fork_routes = routes(TARGET), routes(FORK)
     route_inventory = {'method':'Fixed route declarations only, includes known adminPromptAuditPath constant; not runtime/API permission validation.', 'source':sorted(upstream_routes), 'fork':sorted(fork_routes), 'source_only':[{'path':p,'status':'needs-port-review','reason':'Inspect backend/schema/permissions/UI entry and tests together; alias is not independent implementation.'} for p in sorted(upstream_routes-fork_routes)], 'fork_only':[{'path':p,'status':'preserve','reason':'Fork customization; no removal authorized.'} for p in sorted(fork_routes-upstream_routes)]}
-    data={'schema_version':1,'source_repository':'ranxi2001/sub2api','source_base':BASE,'target_tag':'v2.10.5','target_tag_object':TAG,'target_commit':TARGET,'fork_baseline':FORK,'fully_migrated':False,'meaning':'Exhaustive file/blob accounting; needs-port-review is conservative, not an assertion of missing behavior. No runtime compatibility inferred.','files':rows}
+    data={'schema_version':1,'source_repository':'ranxi2001/sub2api','source_base':BASE,'target_tag':'v2.10.5','target_tag_object':TAG,'target_commit':TARGET,'fork_baseline':FORK,'initial_fork_baseline':INITIAL_FORK,'fully_migrated':False,'meaning':'Exhaustive file/blob accounting; needs-port-review is conservative, not an assertion of missing behavior. No runtime compatibility inferred.','files':rows}
     return {'routes.json':json.dumps(route_inventory,ensure_ascii=False,indent=2)+'\n','coverage.json':json.dumps(data,ensure_ascii=False,indent=2)+'\n','migrations.json':json.dumps(migrations,ensure_ascii=False,indent=2)+'\n','release-commits.tsv':commits,'release-diff.tsv':diff,'fork-target-diff.tsv':full}
 
 def validate_features(rows, features):
@@ -92,6 +96,13 @@ def main():
     assert git('rev-parse',TAG+'^{}').decode().strip()==TARGET
     assert git('show',TARGET+':backend/cmd/server/VERSION').decode().strip()=='2.10.5'
     assert git('show',FORK+':docs/upstream-migrations/source-lock.json') == (ROOT/'docs/upstream-migrations/source-lock.json').read_bytes(), 'formal source lock changed'
+    composition = json.loads((OUT/'composition.json').read_text())
+    assert composition['composition_base'] == FORK
+    assert git('show','-s','--format=%P',composition['merge_commit']).decode().split() == composition['merge_parents']
+    assert git('rev-parse','HEAD:frontend') == git('rev-parse',FORK+':frontend'), 'inherited frontend changed'
+    for entry in (OUT/'p3-1-source.sha256').read_text().splitlines():
+        expected, path = entry.split('  ', 1)
+        assert hashlib.sha256((ROOT/path).read_bytes()).hexdigest() == expected, 'validated P3 source changed: '+path
     failures=[]
     for name,content in artifacts().items():
         path=OUT/name

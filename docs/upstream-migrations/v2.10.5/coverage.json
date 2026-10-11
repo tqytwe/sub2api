@@ -5,7 +5,8 @@
   "target_tag": "v2.10.5",
   "target_tag_object": "e7f36d0ed124fccbf55382166c116a89ef79dd83",
   "target_commit": "d977e7a5e24e5536db6ce8b8478743e0c4b11f77",
-  "fork_baseline": "8364b462feda15f3bf8f3bb2029314d2193b9dba",
+  "fork_baseline": "caa4805b26114da4b5cb0ddea9343ef6ec9fc528",
+  "initial_fork_baseline": "8364b462feda15f3bf8f3bb2029314d2193b9dba",
   "fully_migrated": false,
   "meaning": "Exhaustive file/blob accounting; needs-port-review is conservative, not an assertion of missing behavior. No runtime compatibility inferred.",
   "files": [
@@ -11098,6 +11099,16 @@
       "release_delta": false,
       "status": "pending-composition",
       "reason": "Reserved parallel owner; inventory only, no overwrite or duplicate repair."
+    },
+    {
+      "path": "backend/internal/requestledger/acceptance/routing_ui_pg_fixture_test.go",
+      "layer": "tests",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "f9536df160461e1c55d2f8b7822716aaa63e06fc",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
     },
     {
       "path": "backend/internal/requestledger/attempt.go",
@@ -28124,7 +28135,7 @@
       "layer": "engineering",
       "source_base_blob": null,
       "target_blob": null,
-      "fork_blob": "f032108b77ce12c9d24cf9d67517857e4668ed10",
+      "fork_blob": "25c9425db665a7f1b41587eccfa77b1f09a51ac2",
       "release_delta": false,
       "status": "pending-composition",
       "reason": "Reserved parallel owner; inventory only, no overwrite or duplicate repair."
@@ -28264,7 +28275,7 @@
       "layer": "engineering",
       "source_base_blob": null,
       "target_blob": null,
-      "fork_blob": "eb8f81dbb108aef2b9fcbc7c87a52c2b4b86f6e6",
+      "fork_blob": "c6438dd811c41e59f3be66e07372d22ee7225c67",
       "release_delta": false,
       "status": "pending-composition",
       "reason": "Reserved parallel owner; inventory only, no overwrite or duplicate repair."
@@ -33970,6 +33981,1296 @@
       "reason": "Fork-only or upstream-deleted path; no deletion authorized."
     },
     {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/README.md",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "f192efc8332acef004ebe79a60e687669a2067af",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/assets.sha256",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "3e231aba0c7336931dd7fdbe96024e0b2bafa32d",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/baseline-user-browser-evidence.json",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "2b9f165dd0aa9f8ab04e7e499072d40f65a2d42f",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/browser-evidence.json",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "b440d2ea203fa601bab9d314008d22becbf728c1",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/capture.cjs",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "ce0ce3df2ec0bcb5ef2f3897d5881c692586ca15",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/core-browser-evidence.json",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "c7cdc154a80668d29d3425dd6dfa8fe3d45223ab",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/core-capture.cjs",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "b57b17e343c68b8318cba028088c32499358a7a2",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/dependency-contract.json",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "5740a36f65d960999e11f6276fea8dfcbaa03fd4",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/entry-assets.json",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "f9cee1ba1e5578a808fc361427ed6b1d580962c7",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/362-baseline-browser.log.gz",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "9594afc6b58979e581bd7b66c52dbcca03be577d",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/362-browser.log.gz",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "4f5598f06ac7b72e3c54dac60d2d90116e922c8c",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/362-browsers-progress.log.gz",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "f7ad047e50e2a02c9f987b13b2f6a949f041f510",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/362-build.log.gz",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "159ac470647ead9581d6e4cd16c7fd90a2eda13b",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/362-contract-browser-initial-overflow.log.gz",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "65467983d1f08a381412d2577dadd48b355e87da",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/362-contract-browser.log.gz",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "d35214f6ea5eaadbd54be064b63e7f63fa2c6850",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/362-core-runner.log.gz",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "43490e19a29fbcb0c8ec6d934ddfb646f5d6de32",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/362-design.log.gz",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "f5232ee38f876994c3aad3e3aea0352535aacbfa",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/362-embed-build.log.gz",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "d4b9926df0b7defceb6caf0b474c4a190c5ca8f0",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/362-embed-test.log.gz",
+      "layer": "tests",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "242c03e591f6cdf7f0d4cc4633f4b95f51962338",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/362-fixture.log.gz",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "1950578ea686d778aa5a56b791aa30420e572cbb",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/362-fork.log.gz",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "020c4c793d65e9db4cf0ca4e9b55fb1e530593e5",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/362-full-test.log.gz",
+      "layer": "tests",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "facfae54a860a0c5120401bfb122ffb86d5ce5b8",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/362-gates-progress.log.gz",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "116633f9667f0d6f63f5229cf883846369d203ce",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/362-handoff-command-error.log.gz",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "768d82bddfcd708e2f56db1ae9f6dd1d1b96e0f1",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/362-handoff-tests.log.gz",
+      "layer": "tests",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "8f3953bb139a3635bc5fba51f6d511d3853f857f",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/362-handoff.log.gz",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "6ab442ca4f9238e17e856b00f6872406b2e4b0b2",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/362-initial-full-test.log.gz",
+      "layer": "tests",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "7931ed7948c55184a70261336ec4bd322b8a1c3f",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/362-initial-gates-progress.log.gz",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "5bb01ce96bc4fb47ab009312e1a1304df41180dd",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/362-links.log.gz",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "b2a814e008223fe3cbddfba31477f0bbb87de1d3",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/362-targeted-final.log.gz",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "4d4c4570b0a7b24dc869163e3118183dd26a8845",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/362-targeted-retry.log.gz",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "d1ffc57f34f6709947194727c562dcc8116088ce",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/362-targeted.log.gz",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "fce92ea356e1abf0942b45eb919a1ddba3554460",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/browser-baseline.log.gz",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "bbbbcc9bb24ca159b8a30da94b9f7cea727f0b74",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/browser-overflow.log.gz",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "98887580b86373590008fef672112637457cd104",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/build.log.gz",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "b67675216064aa91f5187305633f8c3ef892dc48",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/contract-browser-final.log.gz",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "8e0419dc89c5bdba2c39ba8e406b0d10c7e08c78",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/contract-browser.log.gz",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "9406709ce17ac6ad68f3f7ed7eeef5e52e93fccd",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/design-failure.log.gz",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "2b095d781b8a9908d3b96ffc637ae583a632eba3",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/design.log.gz",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "8364a1e753d63f0218f2f31721ad3f58ab119210",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/embed-build.log.gz",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "d4b9926df0b7defceb6caf0b474c4a190c5ca8f0",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/embed-test.log.gz",
+      "layer": "tests",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "6455c383703d165cb75b717931eeaa3263ed837f",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/final-build.log.gz",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "ee86ab15ace1eff1622e88b67c9b1a9de653570e",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/fork.log.gz",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "e44df552e8c3add35b9f872496f66d52cc75af74",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/full-test.log.gz",
+      "layer": "tests",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "9ecccdedf253c73b9cc67e103b5367c5abccb2ae",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/green-2.log.gz",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "a96c6a81aa1a6859a71fe5d63c1d13376a889558",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/green.log.gz",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "de9ab7b8ea0c1c6f748c0b7ff3d4c0471cb61638",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/handoff-unit.log.gz",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "948f9b9bb9b9eb5910d81e12bab1514117e4e12d",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/handoff.log.gz",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "930e7f25e44e0b49c3b47c432d5e8a5760208b3b",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/links.log.gz",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "a2b7805853206ad2e061edfced95dc82145b33e6",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/red.log.gz",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "a70f2444829e646296e56451c27da74a232d0294",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/standard-browser.log.gz",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "b913e848e351a1d4782ed6c1d63fbd28ab1bf414",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/standard-fixture.log.gz",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "63c505ebc79c7e478c8812e4f3b1c1f61e78d331",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/logs/types.log.gz",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "729de13004bbd312af404e37a73c12a0abc4f625",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/README.md",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "8c31936770b3ce7bb53e927b39d5ba6d259a0042",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/assets.json",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "16fd7a7990863c5592e07114bd020e273c0a60f9",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/browser.cjs",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "25ff8e6867d6e1f89897c3308df53e14241b93a1",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/browser/browser-evidence.json",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "fe006161face9ba82ca63ff1b338b2c51eb4d31c",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/browser/real-storage-503.png",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "1ec19d1ad5954822a28dae76f4cddb7e36cf5e34",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/browser/state-complete.png",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "8e0b452f9b385ab1d3aba272213607c47f2c60cf",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/browser/state-incomplete.png",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "1d45130bb2304539a74907b3766f38079577cd3b",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/browser/state-not_recorded.png",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "5995129a53b90970a2c03e1b99cb2ca31164a776",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/browser/state-pending.png",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "fe250a4d3dd41940575cc9ddfa67534046ead37d",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/browser/state-truncated.png",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "0d69ce2c9417b6c94ce906745d6e90895f4aa580",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/browser/state-unsupported_coverage.png",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "c1f7f4a44ba3bc92f06b7ff2071b666ffa586920",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/browser/state-zero_candidates.png",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "4fe7b0ca319c814e582d36ed98250109c3ecbbb2",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/environment.json",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "03684a25b9d22838b07bd6d9e0c674fafba7d678",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/evidence.sha256",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "587dde35f646f363905463512f6eecd4dea0833a",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/execution-runner.py",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "109d9bc4e22aa5032b1ec27e2c7a6a65cbf89c15",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/fixture.json",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "4cc890c6c344b6ab7c212f9888bfb7d0cca0e841",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/full-gates-runner.py",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "0dc5629809e4d0376df72d820d785ebe3dcd7a7a",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/gates.json",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "bc85fd339025523792b92132a7d3cb40b81bf408",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/ledger-required.json",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "73ea9e7c18fb7a08e9f7a02c3009dc02004d0752",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/logs/browser.log.gz",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "7f6e578ed98a59627408f3e492aeb98329c9caba",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/logs/build.log.gz",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "4d91d8eb681ced14bf13b8309d7501dc0350b37d",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/logs/embed-build-enospc.log.gz",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "c0238144b71e0e68451ec41509d8db507cba362c",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/logs/embed-build.log.gz",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "c40f286307fa479d83fddc269e83c52c7a4ed319",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/logs/embed-test.log.gz",
+      "layer": "tests",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "73fda85a764762dc4bcdd63874e29703f2ab7a1f",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/logs/final-handoff.log.gz",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "ccc93870c380194df4127b5251f3c1e8daf2b3d7",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/logs/final-links.log.gz",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "5eb783e35218277915675cb170de0cf64cd4760d",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/logs/fixture.log.gz",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "d212d5209b7b8d832054ebea0da2ba44a2642380",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/logs/fork.log.gz",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "1681a90afd122369e5730339a938050469386195",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/logs/handoff-tests.log.gz",
+      "layer": "tests",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "3ae92c6e42b2c18b49446561cf257ddd1b4dd427",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/logs/ledger-contracts.log.gz",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "709f2784126abd8ee5239ae3117248742e7923e9",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/logs/make-test.log.gz",
+      "layer": "tests",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "1efaa93fc6e04693a2acdbc4f12aa36b16918df4",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/logs/preparation-guards.log.gz",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "2592dadaa21cfdcd57b24383eb17579bcba4db96",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/logs/published-http.log.gz",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "a53fe9616f34e29ace09871adb9c7d3799ca0c0a",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/logs/tag-unit.log.gz",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "580f605c4395a87d84c5bdf16dc9d96343f48b65",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/prepared-runner-tests.py",
+      "layer": "tests",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "5a70fadfaab626c9c32b08076a726d44c29860e9",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/prepared-runner.py",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "4ec278d26d167d0cd5d89b6e8f44cbe712e3a392",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/prior-7cc-dependency-contract.json",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "8cebf41a81beb10bd2b18078b2e197443dbe23a5",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/prior-7cc-progress.json",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "6a6c93d81ed971312d1ee089fbc84116498bbd85",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/prior-runs/embed-enospc-gates.json",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "160dceda09ab7dadd361c59fff9f21efccd40dc2",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/prior-runs/initial-merge-conflict.json",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "8bfd96409ecc99b88c3cb1b06a3dd224c2e1f866",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/prior-runs/run1/fixture.log.gz",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "7eb05473b3ac77b18601c0c0647f7cc4b9790a38",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/prior-runs/run1/result.json.gz",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "b2ba71ff606cb2db216d2f869dab87a11fc2f65c",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/prior-runs/run2/fixture.log.gz",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "b838fc983ae47a7f8c9f41a97629a65f77f25685",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/prior-runs/run2/result.json.gz",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "44fc3005548295ff53707147f247f50f69915614",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/prior-runs/run3/browser.log.gz",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "f2da47a3aba80e1917c98b6cf0c97402ec129de6",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/prior-runs/run3/fixture.log.gz",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "8e941ec49baa508ce4efcf793f28532a05804f38",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/prior-runs/run3/result.json.gz",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "34eeddf51e5ece19a4bfa697eae698dd16fb7f4e",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/prior-runs/run4/browser.log.gz",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "2a4d9255e0d803bb179b698aa484ea261c449e51",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/prior-runs/run4/fixture.log.gz",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "f1f9c320ff8157c9ec4af6b3442f1505cbb7d8c2",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/prior-runs/run4/result.json.gz",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "10204c0071069a8cd2d387daf00c4c3d9df5eb63",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/prior-runs/run5/browser.log.gz",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "7f6e578ed98a59627408f3e492aeb98329c9caba",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/prior-runs/run5/fixture.log.gz",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "f11aab2bb6555c630f7ee1f085aeb9f546147a12",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/prior-runs/run5/result.json.gz",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "1ed2c7501adcf79367ec598585d1f731d1976cc4",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/prior-runs/run6/browser.log.gz",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "7f6e578ed98a59627408f3e492aeb98329c9caba",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/prior-runs/run6/fixture.log.gz",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "806c87539ee5292bb0b87dcebe1eafeb2eea330e",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/prior-runs/run6/result.json.gz",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "37800aedac6c6dfb7e6578ffda977d691aaf1e5d",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/prior-runs/run7/browser.log.gz",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "7f6e578ed98a59627408f3e492aeb98329c9caba",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/prior-runs/run7/fixture.log.gz",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "c2ea2bb674f476e650648d6ea75bff88d3b64049",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/prior-runs/run7/result.json.gz",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "808acddcf24f848377bb4b28e1a9d68b05a63dd6",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/result.json",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "78ce5e3c967449502119eb2df8bdef59fcdcf4f0",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/resume-gates-runner.py",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "7ab7f38f94e1abade301a26afe629a8b934eb90b",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/reviews.json",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "1a8308c199201ac491b3dc4ac583f53dec851833",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/source-proof.json",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "df0df7162026ba9782b4c0627b4b0a6d7561b844",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/validation.json",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "293c76d1a6d3be6a386adb627b4c37c39dfaaa50",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/pre-362/assets.sha256",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "f1a9970f616b0bc0cc852f414a4923d0801daa40",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/pre-362/baseline-user-browser-evidence.json",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "1971c35d14c693422f58d909543ceeeb48d7bf0d",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/pre-362/browser-evidence.json",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "8c9955d0fe1bb7abca7fe5ade906c13eda9c1d98",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/pre-362/core-browser-evidence.json",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "eb07ca4dafb93cca6a2ae875ffbb4d6503f47b2e",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/pre-362/entry-assets.json",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "e80fe5ae67b521fc1a50c9638a629c6efd0606c5",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/pre-362/reviews.json",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "f0c385a8d430ede5faebcb65a3f4795bc0a9d0ed",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/pre-362/source-proof.json",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "33819fd8e281024974771c9cf188918d045b1d9b",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/pre-362/validation.json",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "183be157a017e7f6b361f7fe151dcba5d7a437ad",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/progress.json",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "4085ff61da9ace326fe927e93883cf16049ff78e",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/reviews.json",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "703e13c514b7a3dbe388450cd58e6a7584ff71d7",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/source-proof.json",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "5ec515373dbb7a096408ab179d630ed21858d17e",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/archive/completed-tasks/admin-routing-detail/validation.json",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "7286e95ceb1301192292cd078b9ab8b49103ff8f",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
       "path": "docs/archive/completed-tasks/batch-image-ledger/README.md",
       "layer": "engineering",
       "source_base_blob": null,
@@ -37904,10 +39205,10 @@
       "layer": "engineering",
       "source_base_blob": null,
       "target_blob": null,
-      "fork_blob": "19b646ef59ed77927538e3b19f29e339b15c4016",
+      "fork_blob": "873de3d1f4a5dcb5f943b4dd3093d98b9d500f07",
       "release_delta": false,
-      "status": "pending-composition",
-      "reason": "Reserved parallel owner; inventory only, no overwrite or duplicate repair."
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
     },
     {
       "path": "docs/upstream-migrations/v2.10.3/production-migration-files.txt",
@@ -39740,6 +41041,16 @@
       "reason": "Fork-only or upstream-deleted path; no deletion authorized."
     },
     {
+      "path": "docs/visual-reviews/2026-10-11-admin-routing-detail.md",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "347336299ce3749d582bfefdedf56dec3525d119",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
       "path": "docs/visual-reviews/2026-10-11-auth-refresh.md",
       "layer": "engineering",
       "source_base_blob": null,
@@ -40298,6 +41609,556 @@
       "release_delta": false,
       "status": "not-applicable-preserve",
       "reason": "Fork-only or upstream-deleted path; no deletion authorized."
+    },
+    {
+      "path": "docs/visual-reviews/assets/admin-routing-detail/active-admin-1280.png",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "481962c699bca3aba0de39a0de5b1449f3f92003",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/visual-reviews/assets/admin-routing-detail/after-admin-1280.png",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "1ef5a85feca6a77f9a8cde20996d1d93322f637e",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/visual-reviews/assets/admin-routing-detail/after-admin-1920.png",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "74ef81b641cf325b82eb2a732e6fec2167123ac9",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/visual-reviews/assets/admin-routing-detail/after-admin-360.png",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "e78a86f18fecde54c5ce7ce3fe7ad03fd460bcc1",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/visual-reviews/assets/admin-routing-detail/after-admin-768.png",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "f3f622f8ea185996593939c2f24e23ef58d7fe5a",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/visual-reviews/assets/admin-routing-detail/after-user-1280.png",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "59cda768dadcb0783bb88481628ed343b6bb8f6e",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/visual-reviews/assets/admin-routing-detail/after-user-1920.png",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "fdd2d5e07f4de553611877dc8ea7ba8d9bd93188",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/visual-reviews/assets/admin-routing-detail/after-user-360.png",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "cc38bcfc37b120df592d2b1cbcbf279032c25abe",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/visual-reviews/assets/admin-routing-detail/after-user-768.png",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "b3eae3eaca6d79f2b938ab1321223a74a752fa07",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/visual-reviews/assets/admin-routing-detail/baseline-admin-1280.png",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "5cd6d54435684f4b05deffb65d31bd68bb409856",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/visual-reviews/assets/admin-routing-detail/core-regression/active-admin-1280.png",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "5e17ae07a0ef2326e0f5abaeb2546a84b973a791",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/visual-reviews/assets/admin-routing-detail/core-regression/active-user-1280.png",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "ee7b6fa42a6e68f4d5ed1e3a95cce18316f03ef1",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/visual-reviews/assets/admin-routing-detail/core-regression/after-admin-1280.png",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "9a14effd3981441d518995f240118fd79839e303",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/visual-reviews/assets/admin-routing-detail/core-regression/after-admin-1920.png",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "1e13cb5bd65b9338369a1a65dfd7301b97262486",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/visual-reviews/assets/admin-routing-detail/core-regression/after-admin-360.png",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "fb725c8d70058ca4f14ac0e30420cb179930edef",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/visual-reviews/assets/admin-routing-detail/core-regression/after-admin-768.png",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "6014574d82fb9a5b49db32cd1a9257374ca5221c",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/visual-reviews/assets/admin-routing-detail/core-regression/after-user-1280.png",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "df65ff5f9f4bdf178b51fb9fa749b603c79f40f8",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/visual-reviews/assets/admin-routing-detail/core-regression/after-user-1920.png",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "0205929cc055178d30b03b5b6cebac6634a862b7",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/visual-reviews/assets/admin-routing-detail/core-regression/after-user-360.png",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "24ab76f68b57ac1de7e8b34d207c370812eaa826",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/visual-reviews/assets/admin-routing-detail/core-regression/after-user-768.png",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "aea20665f5f9f2e5490a79ca020f4a09cb910c81",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/visual-reviews/assets/admin-routing-detail/core-regression/attempts-admin-1280.png",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "82d139979b1d898fe4eec643f7387609ec57c17b",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/visual-reviews/assets/admin-routing-detail/core-regression/attempts-user-1280.png",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "f133f089430ddfccc87f228e699c90850e95a42e",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/visual-reviews/assets/admin-routing-detail/core-regression/dark-admin-1280.png",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "279249e5c98267d0b56ee1d6e8e04e68e226a06b",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/visual-reviews/assets/admin-routing-detail/core-regression/dark-user-1280.png",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "533f989788cb64933d64be714a6b8695be37f62e",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/visual-reviews/assets/admin-routing-detail/core-regression/empty-admin-1280.png",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "c55714978a9e8b10771370f0cc00f34b299c4b59",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/visual-reviews/assets/admin-routing-detail/core-regression/empty-user-1280.png",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "4c499cd05318b22d68a79c755d9e9dff31a9c8e6",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/visual-reviews/assets/admin-routing-detail/core-regression/en-admin-1280.png",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "be7803bd398af82defbe16544066ddc47e001f8f",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/visual-reviews/assets/admin-routing-detail/core-regression/en-user-1280.png",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "366e02e7f97f6d40191edd9ae1bff5f3c3d47db2",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/visual-reviews/assets/admin-routing-detail/core-regression/error-admin-1280.png",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "641e6ad84b5af80430be3547c1e687ee4f6ecf74",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/visual-reviews/assets/admin-routing-detail/core-regression/error-user-1280.png",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "a3700804fb2c29bae8b67edd040b0f6df86972a0",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/visual-reviews/assets/admin-routing-detail/core-regression/focus-admin-1280.png",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "c55714978a9e8b10771370f0cc00f34b299c4b59",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/visual-reviews/assets/admin-routing-detail/core-regression/focus-user-1280.png",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "4c499cd05318b22d68a79c755d9e9dff31a9c8e6",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/visual-reviews/assets/admin-routing-detail/core-regression/hover-admin-1280.png",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "c55714978a9e8b10771370f0cc00f34b299c4b59",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/visual-reviews/assets/admin-routing-detail/core-regression/hover-user-1280.png",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "4c499cd05318b22d68a79c755d9e9dff31a9c8e6",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/visual-reviews/assets/admin-routing-detail/core-regression/loading-admin-1280.png",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "61062ce2aeeac2b2285a22764b38d2eed1b8c16c",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/visual-reviews/assets/admin-routing-detail/core-regression/loading-user-1280.png",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "513a135f3d7840a9f5f4376eca71c4cc8ca7cb6f",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/visual-reviews/assets/admin-routing-detail/core-regression/zoom-admin-1280.png",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "5a929a676273dc6122f36188118f41f730124fcf",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/visual-reviews/assets/admin-routing-detail/core-regression/zoom-user-1280.png",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "681b22d029ee44e3b9d76e884599e32febe51edb",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/visual-reviews/assets/admin-routing-detail/dark-admin-1280.png",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "ec3faff14d530a0340bdc12e03dafb58b23e2499",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/visual-reviews/assets/admin-routing-detail/error-admin-1280.png",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "221fd53fe35384827bd8e07ccdbb49965ea90259",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/visual-reviews/assets/admin-routing-detail/focus-admin-1280.png",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "08e8690400001380f6f7b5afdb77eec79c6cb4af",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/visual-reviews/assets/admin-routing-detail/hover-admin-1280.png",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "481962c699bca3aba0de39a0de5b1449f3f92003",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/visual-reviews/assets/admin-routing-detail/loading-admin-1280.png",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "84b4fd48b673a2de7ae420dea33c744acd4bfad2",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/visual-reviews/assets/admin-routing-detail/prototype-admin-1280.png",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "251842e0ec25c3a8c1ba91f0fbb5674aed6ea8a2",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/visual-reviews/assets/admin-routing-detail/session-account-admin-1280.png",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "05456e21ec91613415b8de5ae5fcd3053209a8d0",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/visual-reviews/assets/admin-routing-detail/session-publication-recovery-admin-1280.png",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "1ef5a85feca6a77f9a8cde20996d1d93322f637e",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/visual-reviews/assets/admin-routing-detail/session-reverse-admin-1280.png",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "b51bc3b66b15e2e28011fbb726ecfd5a0c3dbfe2",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/visual-reviews/assets/admin-routing-detail/state-complete-admin-1280.png",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "1ef5a85feca6a77f9a8cde20996d1d93322f637e",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/visual-reviews/assets/admin-routing-detail/state-incomplete-admin-1280.png",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "f678521a79551a9106f76aebd6043c5530c5b642",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/visual-reviews/assets/admin-routing-detail/state-not_recorded-admin-1280.png",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "c052f16e4bd06c74ebf3afb233d2e1060da0dcc4",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/visual-reviews/assets/admin-routing-detail/state-pending-admin-1280.png",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "669569e1c6b506bc81fd5e4b873b157bf203138b",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/visual-reviews/assets/admin-routing-detail/state-truncated-admin-1280.png",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "bf2fbf90bdce0dcf0961c171f1e018382a40c4d6",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/visual-reviews/assets/admin-routing-detail/state-unsupported_coverage-admin-1280.png",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "9c91da819660c5d91882051a0f932ad273f1b532",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/visual-reviews/assets/admin-routing-detail/zh-admin-1280.png",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "eb3ef03b16516b02cf0e3522ed37980fdf234b92",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "docs/visual-reviews/assets/admin-routing-detail/zoom-admin-1280.png",
+      "layer": "engineering",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "c70a823ecae10b93043e95b1237c7f8c378e84de",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
     },
     {
       "path": "docs/visual-reviews/assets/admin-users-bulk-actions/baseline-admin-users-selection-1440.png",
@@ -49050,6 +50911,16 @@
       "reason": "Fork-only or upstream-deleted path; no deletion authorized."
     },
     {
+      "path": "frontend/src/api/__tests__/requestRouting.spec.ts",
+      "layer": "tests",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "f5cc4977702e85ace822723c071e1a5ae5e5a4f4",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
       "path": "frontend/src/api/__tests__/settings.authSourceDefaults.spec.ts",
       "layer": "tests",
       "source_base_blob": "fe84bdcfb652b93b24fa99652c3ce4ec46bd66a5",
@@ -49694,10 +51565,20 @@
       "layer": "api-dto",
       "source_base_blob": null,
       "target_blob": null,
-      "fork_blob": "da57e0b0aaff8cbcd40a00dd4415efb2fb20a016",
+      "fork_blob": "3c25c9b1f7a72bda3e9b0215658e173a52ec9dcc",
       "release_delta": false,
-      "status": "pending-composition",
-      "reason": "Reserved parallel owner; inventory only, no overwrite or duplicate repair."
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "frontend/src/api/requestRouting.ts",
+      "layer": "api-dto",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "e2dbd9c533383139edaf6269b676cc6c62c98e94",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
     },
     {
       "path": "frontend/src/api/subscriptions.ts",
@@ -55354,20 +57235,20 @@
       "layer": "frontend-entry-ui",
       "source_base_blob": null,
       "target_blob": null,
-      "fork_blob": "278aacf5517a3282764e6caaae5ad763db353e4e",
+      "fork_blob": "ae6dc61e5aa0ed7157562ca57c5f3490b68dcb6a",
       "release_delta": false,
-      "status": "pending-composition",
-      "reason": "Reserved parallel owner; inventory only, no overwrite or duplicate repair."
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
     },
     {
       "path": "frontend/src/i18n/locales/request-ledger.zh.ts",
       "layer": "frontend-entry-ui",
       "source_base_blob": null,
       "target_blob": null,
-      "fork_blob": "e5274a8301dc9d15997ad2615605e11db71f1799",
+      "fork_blob": "7d50e8b095d04e4adb481f83ed5dff4c46325804",
       "release_delta": false,
-      "status": "pending-composition",
-      "reason": "Reserved parallel owner; inventory only, no overwrite or duplicate repair."
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
     },
     {
       "path": "frontend/src/i18n/locales/zh.ts",
@@ -59144,10 +61025,20 @@
       "layer": "frontend-entry-ui",
       "source_base_blob": null,
       "target_blob": null,
-      "fork_blob": "2538cee02715cf4eb41007d448b0e515f9cd90a6",
+      "fork_blob": "692f849d06d45ee2ee8ad2c4c404b8d4542c5c01",
       "release_delta": false,
-      "status": "pending-composition",
-      "reason": "Reserved parallel owner; inventory only, no overwrite or duplicate repair."
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
+    },
+    {
+      "path": "frontend/src/views/shared/__tests__/RequestLedgerView.routing.http.spec.ts",
+      "layer": "tests",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "f96ac0d56ab877ba95711cc4520b704b3e222706",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
     },
     {
       "path": "frontend/src/views/shared/__tests__/RequestLedgerView.session.http.spec.ts",
@@ -59178,6 +61069,16 @@
       "release_delta": false,
       "status": "not-applicable-preserve",
       "reason": "Fork-only or upstream-deleted path; no deletion authorized."
+    },
+    {
+      "path": "frontend/src/views/shared/components/RequestLedgerRoutingSection.vue",
+      "layer": "frontend-entry-ui",
+      "source_base_blob": null,
+      "target_blob": null,
+      "fork_blob": "1191d817b4a8d730a8366e44a29d76468aee8d3e",
+      "release_delta": false,
+      "status": "protected-inherited",
+      "reason": "Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review."
     },
     {
       "path": "frontend/src/views/user/AffiliateView.vue",

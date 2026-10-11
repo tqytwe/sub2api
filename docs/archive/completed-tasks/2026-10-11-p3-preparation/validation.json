@@ -14,7 +14,8 @@
     "full_build": "build.log make build exit 0; backend and frontend production build",
     "fork_integrity": "fork-integrity-retry.log exit 0; initial wrong /usr/bin/go and pnpm11 environment recorded",
     "inventory": "coverage.log and checker-tests.log; three omission tests pass",
-    "doc_links": "doc-links.log passed"
+    "doc_links": "doc-links.log passed",
+    "composition": "Normal merge ac99aa11a68cbde888e120ebfdff25450e5e5b7f with caa4805b26114da4b5cb0ddea9343ef6ec9fc528; source/tree hashes and inherited #363 8/8 checks prove reuse scope. Detector/unit/doc links pass after merge."
   },
   "reuse_policy": "Application source hashes unchanged across corrected fixtures and gate retries. No repeat of passing backend untagged suite. Post-#363 composition evidence recorded separately.",
   "reviews": {
@@ -22,5 +23,7 @@
     "code_quality": "self-review passed; isolated helper, writer serialization, cancellation, no protected file changes",
     "independent_root_review": "pending; draft review artifact only"
   },
-  "production": "not accessed, no merge/deploy"
+  "production": "not accessed, no merge/deploy",
+  "composition": "docs/upstream-migrations/v2.10.5/composition.json",
+  "remaining_risks": "Root independent review and final PR CI pending. Initial repository lease-loss assertion failed; same source complete package retry passed, no claim of root cause fix."
 }

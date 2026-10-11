@@ -12,7 +12,7 @@
 - 来源 ranxi2001/sub2api，正式 release [v2.10.5](https://github.com/ranxi2001/sub2api/releases/tag/v2.10.5)，发布时间 2026-10-10T16:06:55Z，draft/prerelease=false。
 - tag object `e7f36d0ed124fccbf55382166c116a89ef79dd83` → commit `d977e7a5e24e5536db6ce8b8478743e0c4b11f77`；VERSION=2.10.5。
 - 正式来源锁 v2.10.3 commit `fd1b5ee4eeb20961fbb783fa6f136a1704271e90`，fully_migrated=false。
-- Fork 固定基线与远端 play/main：`8364b462feda15f3bf8f3bb2029314d2193b9dba`。不代表本任务确认生产运行版本。
+- 初始 Fork 固定基线与当时远端 play/main：`8364b462feda15f3bf8f3bb2029314d2193b9dba`。不代表本任务确认生产运行版本。
 - 独立 worktree `/workspace/sub2api-p3`，分支 `sync/ranxi-v2.10.5-p3-preparation`。
 - `/workspace/.agents` 空，仓库无 `.agents/skills`；已读根 AGENTS、DELIVERY_WORKFLOW、PROJECT_HYGIENE、UPSTREAM_SYNC_PLAYBOOK、既有来源锁/账本/交接及 FORK_CUSTOMIZATIONS。本片不改前端。
 
@@ -34,7 +34,7 @@
 状态：`absorbed-adapted-schema` 仅指有列定义/迁移测试证据的既有适配；`not-applicable-current-scope` 必须有既有排除理由；SQL `needs-port` 仍须编号与兼容审查。
 `absorbed-bytes` 只表示固定Fork字节与目标相同；`needs-port-review` 表示有差异须逐项适配/证明语义已吸收，
 不能读成所有文件都缺功能；`not-applicable-preserve` 表示目标不存在该路径，保留Fork/旧入口，绝不自动删除；
-`pending-composition` 表示独立在途。不存在从文件相同推导UI/API/DB闭环的规则。
+`pending-composition` 表示独立在途；`protected-inherited` 表示#363已合入并完整继承，不能再标成在途。不存在从文件相同推导UI/API/DB闭环的规则。
 历史已吸收 TPS、最终模型准入、权威账号读取、钱包附加费统计、原版更新阻断等保留回归，
 具体证据在历史快照；不重复标记为本轮新增，也不把旧快照状态套成当前部署状态。
 
@@ -94,9 +94,15 @@ BPS共享Redis需协调所有实例，回退前关闭可选开关；旧401实现
 
 ## 交接校正
 
-GitHub实际 #363/#364目前OPEN，head分别7cc5c016d409aaccec82ec6b222a4c54b620b6e3 / 88cdf3395288723f305e18fbe4a4352d58670efc。
+初始GitHub核查 #363/#364为OPEN，head分别7cc5c016d409aaccec82ec6b222a4c54b620b6e3 / 88cdf3395288723f305e18fbe4a4352d58670efc。
+随后根确认且本任务fetch核实#363已合并caa4805b26114da4b5cb0ddea9343ef6ec9fc528；已普通merge并保留全部文件，见[组合与复用证明](./composition.json)。
+当前机器清单已重算至caa基线，最初8364清单保留于8060c27fa提交。17个历史PR已通过GitHub重新核为MERGED，见[PR核查](./baseline-pr-status.json)；不代表已验证生产部署。
 历史handoff checked_at=2026-10-10T21:17:26Z，不前移未复核全表时间。
 根明确281是独立进行中任务，不能继续按历史“暂停”描述；额度并发独立线程01a12b27-537f-71f2-9b0f-7df4f11d800e。
 docs/README.md与旧handoff属于并行热区，索引链接待根组合添加，未自行覆盖。
 
 本片验证结果见 [归档证据](../../archive/completed-tasks/2026-10-11-p3-preparation/README.md)。完整源码差异清单通过不代表完整功能兼容通过。
+
+组合后前端整树等于caa；P3四文件与本地已验证提交8060c27fa完全同字节。后台只继承#363的隔离PG验收fixture，生产后端/迁移/CI/scripts无额外差异；复用#363归档门禁、双审及CI。无业务交集，不重新启动完整后端合同；本任务最终head CI另行一次。
+
+组合后的三方差异清单为6,241项（新增190项来自#363源码/证据），release增量仍为209文件；这些是文件数，不是缺失功能数。
