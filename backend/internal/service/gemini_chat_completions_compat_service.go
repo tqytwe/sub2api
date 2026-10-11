@@ -1,6 +1,8 @@
 package service
 
 import (
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
+
 	"bufio"
 	"bytes"
 	"context"
@@ -139,6 +141,7 @@ func (s *GeminiMessagesCompatService) forwardClaudeBodyAsChatCompletions(
 			_ = resp.Body.Close()
 			if resp.StatusCode == http.StatusForbidden && isGeminiInsufficientScope(resp.Header, respBody) {
 				resp = &http.Response{
+					Request:    resp.Request,
 					StatusCode: resp.StatusCode,
 					Header:     resp.Header.Clone(),
 					Body:       io.NopCloser(bytes.NewReader(respBody)),
@@ -156,6 +159,7 @@ func (s *GeminiMessagesCompatService) forwardClaudeBodyAsChatCompletions(
 				upstreamMsg := strings.TrimSpace(extractUpstreamErrorMessage(respBody))
 				upstreamMsg = sanitizeUpstreamErrorMessage(upstreamMsg)
 				appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+					LedgerReceipt:      requestledger.ResponseReceipt(resp),
 					ProxyID:            opsUpstreamProxyID(account),
 					ProxyName:          opsUpstreamProxyName(account),
 					Platform:           account.Platform,
@@ -171,6 +175,7 @@ func (s *GeminiMessagesCompatService) forwardClaudeBodyAsChatCompletions(
 				continue
 			}
 			resp = &http.Response{
+				Request:    resp.Request,
 				StatusCode: resp.StatusCode,
 				Header:     resp.Header.Clone(),
 				Body:       io.NopCloser(bytes.NewReader(respBody)),
@@ -208,6 +213,7 @@ func (s *GeminiMessagesCompatService) forwardClaudeBodyAsChatCompletions(
 		if s.shouldFailoverGeminiUpstreamError(resp.StatusCode) {
 			upstreamMsg := sanitizeUpstreamErrorMessage(strings.TrimSpace(extractUpstreamErrorMessage(evBody)))
 			appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+				LedgerReceipt:      requestledger.ResponseReceipt(resp),
 				ProxyID:            opsUpstreamProxyID(account),
 				ProxyName:          opsUpstreamProxyName(account),
 				Platform:           account.Platform,
@@ -226,11 +232,11 @@ func (s *GeminiMessagesCompatService) forwardClaudeBodyAsChatCompletions(
 		}
 
 		if policy == ErrorPolicySkipped && account.IsCustomErrorCodesEnabled() {
-			return nil, s.writeGeminiCustomCodeSkippedError(c, account, resp.StatusCode, requestID, evBody, func() {
+			return nil, s.writeGeminiCustomCodeSkippedError(requestledger.ResponseReceipt(resp), c, account, resp.StatusCode, requestID, evBody, func() {
 				_ = s.writeChatCompletionsError(c, http.StatusInternalServerError, "api_error", geminiCustomCodeSkippedClientMessage)
 			})
 		}
-		return nil, s.writeGeminiChatCompletionsMappedError(c, account, resp.StatusCode, requestID, evBody)
+		return nil, s.writeGeminiChatCompletionsMappedError(requestledger.ResponseReceipt(resp), c, account, resp.StatusCode, requestID, evBody)
 	}
 
 	var usage *ClaudeUsage
@@ -791,7 +797,7 @@ func (s *GeminiMessagesCompatService) handleChatCompletionsStreamingResponseFrom
 	return &geminiStreamResult{usage: &usage, firstTokenMs: firstTokenMs}, nil
 }
 
-func (s *GeminiMessagesCompatService) writeGeminiChatCompletionsMappedError(
+func (s *GeminiMessagesCompatService) writeGeminiChatCompletionsMappedError(receipt requestledger.Receipt,
 	c *gin.Context,
 	account *Account,
 	upstreamStatus int,
@@ -802,6 +808,7 @@ func (s *GeminiMessagesCompatService) writeGeminiChatCompletionsMappedError(
 	setOpsUpstreamError(c, upstreamStatus, upstreamMsg, "")
 	if account != nil {
 		appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+			LedgerReceipt:      receipt,
 			ProxyID:            opsUpstreamProxyID(account),
 			ProxyName:          opsUpstreamProxyName(account),
 			Platform:           account.Platform,

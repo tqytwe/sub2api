@@ -50,6 +50,34 @@
             <div v-if="detail.request.error_code"><dt class="text-gray-500">{{ t('requestLedger.errorCode') }}</dt><dd>{{ detail.request.error_code }}</dd></div>
           </dl>
           <section class="space-y-3"><h3 class="text-base font-semibold">{{ t('requestLedger.attempts') }}</h3><DataTable :data="detail.attempts" :columns="attemptColumns" row-key="attempt_no"><template #cell-phase="{ row }">{{ t(`requestLedger.phases.${row.phase}`) }}</template><template #cell-usage_state="{ row }">{{ state(row.usage_state) }}</template><template #cell-output_observed="{ row }">{{ t(row.output_observed ? 'requestLedger.yes' : 'requestLedger.no') }}</template><template #cell-execution_state="{ row }">{{ state(row.execution_state) }}</template></DataTable></section>
+          <section class="space-y-3">
+            <h3 class="text-base font-semibold">{{ t('requestLedger.exactEvidence') }}</h3>
+            <p class="text-sm text-gray-500 dark:text-gray-400">{{ t('requestLedger.evidenceNotice') }}</p>
+            <p v-if="detail.attempt_evidence_unavailable" role="status" class="text-sm text-amber-700 dark:text-amber-400">{{ t('requestLedger.evidenceUnavailable') }}</p>
+            <div v-for="attempt in detail.attempts" :key="attempt.attempt_no" class="space-y-3 border-t border-gray-200 pt-3 dark:border-dark-700">
+              <h4 class="text-sm font-semibold">{{ t('requestLedger.attempts') }} #{{ attempt.attempt_no }}</h4>
+              <dl class="grid gap-3 text-sm sm:grid-cols-2">
+                <div><dt class="text-gray-500 dark:text-gray-400">{{ t('requestLedger.attemptId') }}</dt><dd class="break-all font-mono">{{ attempt.attempt_id || (detail.attempt_evidence_unavailable ? '—' : t('requestLedger.noExactEvidence')) }}</dd></div>
+                <template v-if="admin">
+                  <div><dt class="text-gray-500 dark:text-gray-400">{{ t('requestLedger.upstreamRequestId') }}</dt><dd class="break-all font-mono">{{ attempt.upstream_request_id || '—' }}</dd></div>
+                  <div><dt class="text-gray-500 dark:text-gray-400">{{ t('requestLedger.upstreamResponseId') }}</dt><dd class="break-all font-mono">{{ attempt.upstream_response_id || '—' }}</dd></div>
+                </template>
+              </dl>
+              <p v-if="admin && attempt.identifier_conflict" class="text-sm text-amber-700 dark:text-amber-400">{{ t('requestLedger.identifierConflict') }}</p>
+            </div>
+            <template v-if="admin">
+              <h4 class="text-sm font-semibold">{{ t('requestLedger.diagnostics') }}</h4>
+              <p v-if="detail.diagnostics_unavailable" role="status" class="text-sm text-amber-700 dark:text-amber-400">{{ t('requestLedger.diagnosticsUnavailable') }}</p>
+              <p v-else-if="!detail.diagnostics?.length" class="text-sm text-gray-500 dark:text-gray-400">{{ t('requestLedger.noDiagnostics') }}</p>
+              <ul v-else class="space-y-2 text-sm">
+                <li v-for="ref in detail.diagnostics" :key="`${ref.attempt_no}:${ref.ops_error_log_id}`" class="flex flex-wrap items-center gap-2">
+                  <span>{{ ref.attempt_no ? `${t('requestLedger.attempts')} #${ref.attempt_no}` : t('requestLedger.requestOnly') }}</span>
+                  <button v-if="ref.available" type="button" class="btn btn-secondary" :data-testid="`ledger-ops-${ref.ops_error_log_id}`" @click="opsErrorId = ref.ops_error_log_id; showOpsError = true">Ops #{{ ref.ops_error_log_id }}</button>
+                  <span v-else class="text-gray-500 dark:text-gray-400">Ops #{{ ref.ops_error_log_id }} · {{ t('requestLedger.diagnosticExpired') }}</span>
+                </li>
+              </ul>
+            </template>
+          </section>
           <section v-if="detail.wallet?.length" class="space-y-3"><h3 class="text-base font-semibold">{{ t('requestLedger.walletTransaction') }}</h3>
             <p class="text-sm text-gray-500">{{ t('requestLedger.walletNotice') }}</p>
             <DataTable :data="detail.wallet" :columns="[{ key: 'id', label: '#' }, { key: 'operation', label: t('requestLedger.phase') }]" row-key="id"><template #cell-operation="{ row }">{{ t(`requestLedger.walletOperations.${row.operation}`) }}</template></DataTable>
@@ -59,7 +87,7 @@
             <dl v-for="(ref, index) in detail.billing" :key="index" class="grid gap-3 border-t border-gray-200 pt-3 text-sm dark:border-dark-700 sm:grid-cols-2">
               <div><dt class="text-gray-500">{{ t('requestLedger.usageLog') }}</dt><dd><button v-if="ref.usage_log_id" class="text-primary-600 underline dark:text-primary-400" @click="openUsage(ref.usage_log_id)">{{ t('requestLedger.usageLog') }} #{{ ref.usage_log_id }}</button><span v-else>{{ t('requestLedger.pendingCost') }}</span></dd></div>
               <div><dt class="text-gray-500">{{ t('requestLedger.amount') }}</dt><dd class="tabular-nums">{{ money(ref.billed_cost) }}</dd></div>
-              <div><dt class="text-gray-500">{{ t('requestLedger.settlement') }}</dt><dd>{{ ref.settled ? t(ref.applied ? 'requestLedger.applied' : 'requestLedger.deduplicated') : t('requestLedger.pendingCost') }}</dd></div>
+              <div><dt class="text-gray-500">{{ t('requestLedger.settlement') }}</dt><dd>{{ ref.settled ? t(ref.batch_id ? 'requestLedger.batchSettled' : ref.applied ? 'requestLedger.applied' : 'requestLedger.deduplicated') : t('requestLedger.pendingCost') }}</dd></div>
               <div v-if="ref.wallet_transaction_id"><dt class="text-gray-500">{{ t('requestLedger.walletTransaction') }}</dt><dd>{{ ref.wallet_transaction_id }}</dd></div>
               <div v-if="ref.subscription_id"><dt class="text-gray-500">{{ t('requestLedger.subscription') }}</dt><dd>{{ ref.subscription_id }}</dd></div>
               <div v-if="ref.package_entitlement_id"><dt class="text-gray-500">{{ t('requestLedger.package') }}</dt><dd>{{ ref.package_entitlement_id }}</dd></div>
@@ -69,18 +97,23 @@
             <dl v-if="linkedUsage" class="grid gap-3 border-t border-gray-200 pt-3 text-sm dark:border-dark-700 sm:grid-cols-2">
               <div><dt>{{ t('requestLedger.usageLog') }} #{{ linkedUsage.id }}</dt><dd>{{ linkedUsage.model }}</dd></div>
               <div><dt>{{ t('requestLedger.amount') }}</dt><dd class="tabular-nums">{{ money(linkedUsage.billed_cost) }}</dd></div>
-              <div><dt>{{ t('requestLedger.inputTokens') }}</dt><dd class="tabular-nums">{{ linkedUsage.input_tokens.toLocaleString(locale) }}</dd></div>
-              <div><dt>{{ t('requestLedger.outputTokens') }}</dt><dd class="tabular-nums">{{ linkedUsage.output_tokens.toLocaleString(locale) }}</dd></div>
+              <div v-if="linkedUsage.billing_mode === 'image'"><dt>{{ t('requestLedger.imageCount') }}</dt><dd class="tabular-nums">{{ linkedUsage.image_count?.toLocaleString(locale) ?? t('requestLedger.states.usage_unknown') }}</dd></div>
+              <template v-else>
+                <div><dt>{{ t('requestLedger.inputTokens') }}</dt><dd class="tabular-nums">{{ linkedUsage.input_tokens.toLocaleString(locale) }}</dd></div>
+                <div><dt>{{ t('requestLedger.outputTokens') }}</dt><dd class="tabular-nums">{{ linkedUsage.output_tokens.toLocaleString(locale) }}</dd></div>
+              </template>
+              <div v-if="linkedUsage.batch_id"><dt>{{ t('requestLedger.batchId') }}</dt><dd class="break-all font-mono text-xs">{{ linkedUsage.batch_id }}</dd></div>
             </dl>
           </section>
         </template>
       </div>
     </BaseDialog>
+    <OpsErrorDetailModal v-if="admin && showOpsError" v-model:show="showOpsError" :error-id="opsErrorId" error-type="any" />
   </AppLayout>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
+import { computed, defineAsyncComponent, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import AppLayout from '@/components/layout/AppLayout.vue'
@@ -90,6 +123,9 @@ import Select from '@/components/common/Select.vue'
 import Pagination from '@/components/common/Pagination.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { requestLedgerAPI, type RequestDetail, type RequestFilters, type RequestPage, type LinkedUsage } from '@/api/requestLedger'
+
+const OpsErrorDetailModal = defineAsyncComponent(() => import('@/views/admin/ops/components/OpsErrorDetailModal.vue'))
+const opsErrorId = ref<number | null>(null), showOpsError = ref(false)
 
 const { t, locale } = useI18n()
 const route = useRoute(), router = useRouter()
@@ -147,6 +183,16 @@ async function openUsage(id: number) {
   catch { if (!controller.signal.aborted) usageError.value = true }
   finally { if (!controller.signal.aborted) usageLoading.value = false }
 }
-onMounted(load)
+async function followExactReference(id: unknown) {
+  if (typeof id !== 'string' || !id) return
+  filters.private_id = id
+  page.value.page = 1
+  await Promise.all([load(), open(id)])
+}
+watch(() => route.query.private_id, id => {
+  if (typeof id === 'string' && id) void followExactReference(id)
+  else { filters.private_id = ''; close(); void load() }
+})
+onMounted(() => route.query.private_id ? followExactReference(route.query.private_id) : load())
 onUnmounted(() => { listController?.abort(); detailController?.abort(); usageController?.abort() })
 </script>

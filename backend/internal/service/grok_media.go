@@ -1,6 +1,8 @@
 package service
 
 import (
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
+
 	"bytes"
 	"context"
 	"encoding/json"
@@ -672,7 +674,7 @@ func (s *OpenAIGatewayService) ForwardGrokMedia(
 	}
 	if endpoint == GrokMediaEndpointImagesGenerations || endpoint == GrokMediaEndpointImagesEdits {
 		if countOpenAIResponseImageOutputsFromJSONBytes(respBody) <= 0 {
-			setOpsUpstreamError(c, http.StatusBadGateway, "xAI upstream returned no image output", truncateString(string(respBody), 512))
+			setOpsUpstreamResponseError(c, resp, http.StatusBadGateway, "xAI upstream returned no image output", truncateString(string(respBody), 512))
 			return nil, &UpstreamFailoverError{
 				StatusCode:      http.StatusBadGateway,
 				ResponseBody:    respBody,
@@ -1227,10 +1229,11 @@ func (s *OpenAIGatewayService) handleGrokMediaErrorResponse(
 		}
 		upstreamDetail = truncateString(string(body), maxBytes)
 	}
-	setOpsUpstreamError(c, resp.StatusCode, upstreamMsg, upstreamDetail)
+	setOpsUpstreamResponseError(c, resp, resp.StatusCode, upstreamMsg, upstreamDetail)
 	if isGrokContentPolicyRejection(resp.StatusCode, body) {
 		clientMsg := grokContentPolicyClientMessage(body)
 		appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+			LedgerReceipt:      requestledger.ResponseReceipt(resp),
 			ProxyID:            opsUpstreamProxyID(account),
 			ProxyName:          opsUpstreamProxyName(account),
 			Platform:           account.Platform,
@@ -1263,6 +1266,7 @@ func (s *OpenAIGatewayService) handleGrokMediaErrorResponse(
 
 	if !account.ShouldHandleErrorCode(resp.StatusCode) {
 		appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+			LedgerReceipt:      requestledger.ResponseReceipt(resp),
 			ProxyID:            opsUpstreamProxyID(account),
 			ProxyName:          opsUpstreamProxyName(account),
 			Platform:           account.Platform,
@@ -1284,6 +1288,7 @@ func (s *OpenAIGatewayService) handleGrokMediaErrorResponse(
 		kind = "failover"
 	}
 	appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+		LedgerReceipt:      requestledger.ResponseReceipt(resp),
 		ProxyID:            opsUpstreamProxyID(account),
 		ProxyName:          opsUpstreamProxyName(account),
 		Platform:           account.Platform,

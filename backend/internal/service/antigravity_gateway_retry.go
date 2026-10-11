@@ -1,6 +1,8 @@
 package service
 
 import (
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
+
 	"bytes"
 	"context"
 	"encoding/json"
@@ -191,6 +193,7 @@ func (s *AntigravityGatewayService) handleSmartRetry(p antigravityRetryLoopParam
 					return &smartRetryResult{
 						action: smartRetryActionBreakWithResp,
 						resp: &http.Response{
+							Request:    resp.Request,
 							StatusCode: resp.StatusCode,
 							Header:     resp.Header.Clone(),
 							Body:       io.NopCloser(bytes.NewReader(respBody)),
@@ -221,6 +224,7 @@ func (s *AntigravityGatewayService) handleSmartRetry(p antigravityRetryLoopParam
 				return &smartRetryResult{
 					action: smartRetryActionBreakWithResp,
 					resp: &http.Response{
+						Request:    resp.Request,
 						StatusCode: resp.StatusCode,
 						Header:     resp.Header.Clone(),
 						Body:       io.NopCloser(bytes.NewReader(respBody)),
@@ -229,6 +233,9 @@ func (s *AntigravityGatewayService) handleSmartRetry(p antigravityRetryLoopParam
 			}
 
 			retryResp, retryErr := p.httpUpstream.Do(retryReq, p.proxyURL, p.account.ID, p.account.Concurrency)
+			if retryErr != nil || (retryResp != nil && retryResp.StatusCode >= 400) {
+				recordOpsTransferFailure(p.c, retryResp, retryErr, "smart_retry_failed")
+			}
 			if retryErr == nil && retryResp != nil && retryResp.StatusCode != http.StatusTooManyRequests && retryResp.StatusCode != http.StatusServiceUnavailable {
 				log.Printf("%s status=%d smart_retry_success attempt=%d/%d", p.prefix, retryResp.StatusCode, attempt, maxAttempts)
 				// 重试成功，清除 MODEL_CAPACITY_EXHAUSTED cooldown
@@ -270,6 +277,12 @@ func (s *AntigravityGatewayService) handleSmartRetry(p antigravityRetryLoopParam
 		if rateLimitDuration <= 0 {
 			rateLimitDuration = antigravityDefaultRateLimitDuration
 		}
+		// Preserve the existing client/failover status; physical retry statuses are
+		// recorded separately on each durable attempt and its Ops event.
+		evidenceResp := resp
+		if lastRetryBody != nil && lastRetryResp != nil {
+			evidenceResp = lastRetryResp
+		}
 		retryBody := lastRetryBody
 		if retryBody == nil {
 			retryBody = respBody
@@ -289,8 +302,9 @@ func (s *AntigravityGatewayService) handleSmartRetry(p antigravityRetryLoopParam
 			return &smartRetryResult{
 				action: smartRetryActionBreakWithResp,
 				resp: &http.Response{
+					Request:    evidenceResp.Request,
 					StatusCode: resp.StatusCode,
-					Header:     resp.Header.Clone(),
+					Header:     evidenceResp.Header.Clone(),
 					Body:       io.NopCloser(bytes.NewReader(retryBody)),
 				},
 			}
@@ -304,8 +318,9 @@ func (s *AntigravityGatewayService) handleSmartRetry(p antigravityRetryLoopParam
 			return &smartRetryResult{
 				action: smartRetryActionBreakWithResp,
 				resp: &http.Response{
+					Request:    evidenceResp.Request,
 					StatusCode: resp.StatusCode,
-					Header:     resp.Header.Clone(),
+					Header:     evidenceResp.Header.Clone(),
 					Body:       io.NopCloser(bytes.NewReader(retryBody)),
 				},
 			}
@@ -404,6 +419,9 @@ func (s *AntigravityGatewayService) handleSingleAccountRetryInPlace(
 		}
 
 		retryResp, retryErr := p.httpUpstream.Do(retryReq, p.proxyURL, p.account.ID, p.account.Concurrency)
+		if retryErr != nil || (retryResp != nil && retryResp.StatusCode >= 400) {
+			recordOpsTransferFailure(p.c, retryResp, retryErr, "smart_retry_failed")
+		}
 		if retryErr == nil && retryResp != nil && retryResp.StatusCode != http.StatusTooManyRequests && retryResp.StatusCode != http.StatusServiceUnavailable {
 			logger.LegacyPrintf("service.antigravity_gateway", "%s status=%d single_account_503_retry_success attempt=%d/%d total_waited=%v",
 				p.prefix, retryResp.StatusCode, attempt, antigravitySingleAccountSmartRetryMaxAttempts, totalWaited)
@@ -446,6 +464,12 @@ func (s *AntigravityGatewayService) handleSingleAccountRetryInPlace(
 
 	// 所有重试都失败，不设限流，直接返回 503
 	// Handler 层的单账号退避循环会做最终处理
+	// Preserve the existing client/failover status; physical retry statuses are
+	// recorded separately on each durable attempt and its Ops event.
+	evidenceResp := resp
+	if lastRetryBody != nil && lastRetryResp != nil {
+		evidenceResp = lastRetryResp
+	}
 	retryBody := lastRetryBody
 	if retryBody == nil {
 		retryBody = respBody
@@ -456,8 +480,9 @@ func (s *AntigravityGatewayService) handleSingleAccountRetryInPlace(
 	return &smartRetryResult{
 		action: smartRetryActionBreakWithResp,
 		resp: &http.Response{
+			Request:    evidenceResp.Request,
 			StatusCode: resp.StatusCode,
-			Header:     resp.Header.Clone(),
+			Header:     evidenceResp.Header.Clone(),
 			Body:       io.NopCloser(bytes.NewReader(retryBody)),
 		},
 	}
@@ -548,6 +573,7 @@ urlFallbackLoop:
 			if err != nil {
 				safeErr := sanitizeUpstreamErrorMessage(err.Error())
 				appendOpsUpstreamError(p.c, OpsUpstreamErrorEvent{
+					LedgerReceipt:      requestledger.ErrorReceipt(err),
 					ProxyID:            opsUpstreamProxyID(p.account),
 					ProxyName:          opsUpstreamProxyName(p.account),
 					Platform:           p.account.Platform,
@@ -583,6 +609,7 @@ urlFallbackLoop:
 				if overagesInjected && shouldMarkCreditsExhausted(resp, respBody, nil) {
 					modelKey := resolveCreditsOveragesModelKey(p.ctx, p.account, "", p.requestedModel)
 					s.handleCreditsRetryFailure(p.ctx, p.prefix, modelKey, p.account, &http.Response{
+						Request:    resp.Request,
 						StatusCode: resp.StatusCode,
 						Header:     resp.Header.Clone(),
 						Body:       io.NopCloser(bytes.NewReader(respBody)),
@@ -595,6 +622,7 @@ urlFallbackLoop:
 						return nil, policyErr
 					}
 					resp = &http.Response{
+						Request:    resp.Request,
 						StatusCode: outStatus,
 						Header:     resp.Header.Clone(),
 						Body:       io.NopCloser(bytes.NewReader(respBody)),
@@ -627,6 +655,7 @@ urlFallbackLoop:
 						upstreamMsg := strings.TrimSpace(extractAntigravityErrorMessage(respBody))
 						upstreamMsg = sanitizeUpstreamErrorMessage(upstreamMsg)
 						appendOpsUpstreamError(p.c, OpsUpstreamErrorEvent{
+							LedgerReceipt:      requestledger.ResponseReceipt(resp),
 							ProxyID:            opsUpstreamProxyID(p.account),
 							ProxyName:          opsUpstreamProxyName(p.account),
 							Platform:           p.account.Platform,
@@ -651,6 +680,7 @@ urlFallbackLoop:
 					p.handleError(p.ctx, p.prefix, p.account, resp.StatusCode, resp.Header, respBody, p.requestedModel, p.groupID, p.sessionHash, p.isStickySession)
 					logger.LegacyPrintf("service.antigravity_gateway", "%s status=%d rate_limited base_url=%s body=%s", p.prefix, resp.StatusCode, baseURL, truncateForLog(respBody, 200))
 					resp = &http.Response{
+						Request:    resp.Request,
 						StatusCode: resp.StatusCode,
 						Header:     resp.Header.Clone(),
 						Body:       io.NopCloser(bytes.NewReader(respBody)),
@@ -664,6 +694,7 @@ urlFallbackLoop:
 						upstreamMsg := strings.TrimSpace(extractAntigravityErrorMessage(respBody))
 						upstreamMsg = sanitizeUpstreamErrorMessage(upstreamMsg)
 						appendOpsUpstreamError(p.c, OpsUpstreamErrorEvent{
+							LedgerReceipt:      requestledger.ResponseReceipt(resp),
 							ProxyID:            opsUpstreamProxyID(p.account),
 							ProxyName:          opsUpstreamProxyName(p.account),
 							Platform:           p.account.Platform,
@@ -696,6 +727,7 @@ urlFallbackLoop:
 
 				// 其他 4xx 错误或重试用尽，直接返回
 				resp = &http.Response{
+					Request:    resp.Request,
 					StatusCode: resp.StatusCode,
 					Header:     resp.Header.Clone(),
 					Body:       io.NopCloser(bytes.NewReader(respBody)),

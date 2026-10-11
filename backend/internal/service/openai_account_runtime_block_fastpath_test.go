@@ -3,6 +3,8 @@
 package service
 
 import (
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
+
 	"context"
 	"errors"
 	"net/http"
@@ -232,7 +234,7 @@ func TestOpenAIStreamFailover_Spark429KeepsModelScope(t *testing.T) {
 	headers.Set("x-codex-secondary-window-minutes", "300")
 	payload := []byte(`{"type":"error","error":{"type":"rate_limit_error","code":"rate_limit_exceeded"}}`)
 
-	failoverErr := svc.newOpenAIStreamFailoverErrorWithModel(
+	failoverErr := svc.newOpenAIStreamFailoverErrorWithModel(requestledger.Receipt{},
 		nil, account, false, "", payload, "quota exhausted", "gpt-5.3-codex-spark", headers,
 	)
 

@@ -545,12 +545,14 @@ func (s *OpenAIGatewayService) proxyOpenAIWSHTTPBridgeTurn(
 	turnStart := time.Now()
 	rejectedFieldRetryState := newOpenAIResponsesRejectedFieldRetryState(body)
 	var resp *http.Response
+	var ledgerAttempt *requestledger.Attempt
 	for {
 		upstreamReq, buildErr := buildUpstreamRequest(body)
 		if buildErr != nil {
 			return nil, buildErr
 		}
 		resp, err = s.doOpenAIUpstream(upstreamReq, proxyURL, account)
+		ledgerAttempt = requestledger.ResponseAttempt(resp)
 		if err != nil {
 			if turn == 1 {
 				return nil, s.handleOpenAIUpstreamTransportError(ctx, c, account, err, true)
@@ -558,7 +560,7 @@ func (s *OpenAIGatewayService) proxyOpenAIWSHTTPBridgeTurn(
 			safeErr := sanitizeUpstreamErrorMessage(err.Error())
 			clientError := buildOpenAIWSHTTPBridgeErrorEvent(http.StatusBadGateway, "Upstream request failed")
 			if writeErr := writeClientMessage(clientError); writeErr == nil {
-				markOpenAIWSClientVisibleFailure(c, "error", clientError)
+				markOpenAIWSClientVisibleFailure(c, "error", clientError, requestledger.ErrorReceipt(err))
 			}
 			return nil, fmt.Errorf("upstream http bridge request failed: %s", safeErr)
 		}
@@ -610,12 +612,12 @@ func (s *OpenAIGatewayService) proxyOpenAIWSHTTPBridgeTurn(
 		}
 		clientError := buildOpenAIWSHTTPBridgeErrorEvent(resp.StatusCode, upstreamMsg)
 		if writeErr := writeClientMessage(clientError); writeErr == nil {
-			markOpenAIWSClientVisibleFailure(c, "error", clientError)
+			markOpenAIWSClientVisibleFailure(c, "error", clientError, ledgerAttempt.Receipt())
 		}
 		return nil, fmt.Errorf("upstream http bridge error: status=%d message=%s", resp.StatusCode, upstreamMsg)
 	}
 	defer func() { _ = resp.Body.Close() }()
-	ledgerAttempt := requestledger.CurrentAttempt(ctx)
+	ledgerAttempt = requestledger.ResponseAttempt(resp)
 	stopCancelBody := context.AfterFunc(ctx, func() { _ = resp.Body.Close() })
 	defer stopCancelBody()
 	if account.Platform == PlatformGrok {
@@ -751,7 +753,7 @@ func (s *OpenAIGatewayService) proxyOpenAIWSHTTPBridgeTurn(
 			}
 			wroteDownstream = true
 		}
-		markOpenAIWSClientVisibleFailure(c, "response.failed", clientMessage)
+		markOpenAIWSClientVisibleFailure(c, "response.failed", clientMessage, ledgerAttempt.Receipt())
 		return nil
 	}
 	for scanner.Scan() {
@@ -869,7 +871,7 @@ func (s *OpenAIGatewayService) proxyOpenAIWSHTTPBridgeTurn(
 				if account.Platform == PlatformGrok {
 					return finishFailure(newOpenAIUpstreamFailoverError(statusCode, resp.Header, upstreamMessage, errMessage, false), false)
 				}
-				failoverErr := s.newOpenAIStreamFailoverErrorWithModel(c, account, true, resp.Header.Get("x-request-id"), upstreamMessage, errMessage, mappedModel, resp.Header)
+				failoverErr := s.newOpenAIStreamFailoverErrorWithModel(requestledger.ResponseReceipt(resp), c, account, true, resp.Header.Get("x-request-id"), upstreamMessage, errMessage, mappedModel, resp.Header)
 				upstreamTerminalEvent = eventType
 				return finishFailure(failoverErr, false)
 			}
@@ -912,7 +914,7 @@ func (s *OpenAIGatewayService) proxyOpenAIWSHTTPBridgeTurn(
 				isOpenAIWSTerminalEvent(eventType)
 			if stageBeforeSemanticOutput && !commitStagedMessages && !isKeepalive {
 				if pendingClientMessageBytes+int64(len(clientMessage)) > openAIFirstOutputStageMaxBytes {
-					return finishFailure(s.newOpenAIStreamFailoverError(
+					return finishFailure(s.newOpenAIStreamFailoverError(requestledger.ResponseReceipt(resp),
 						c,
 						account,
 						true,
@@ -961,7 +963,7 @@ func (s *OpenAIGatewayService) proxyOpenAIWSHTTPBridgeTurn(
 			}
 		}
 		if !clientDisconnected && !suppressClientMessage {
-			markOpenAIWSClientVisibleFailure(c, eventType, upstreamMessage)
+			markOpenAIWSClientVisibleFailure(c, eventType, upstreamMessage, ledgerAttempt.Receipt())
 		}
 
 		if isOpenAIWSTerminalEvent(eventType) && !bareErrorPending {

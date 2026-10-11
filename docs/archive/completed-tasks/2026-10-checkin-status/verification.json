@@ -1,0 +1,298 @@
+{
+  "base_sha": "17b96a20c7e9d2e394b37c6c1b108340853c0169",
+  "branch": "codex/p1-checkin-status-20261010",
+  "recorded_utc": "2026-10-10T22:40:29.034996+00:00",
+  "final_head_and_hosted_ci": "Recorded in this batch draft PR; this committed file does not self-reference its commit.",
+  "environment": {
+    "go": "1.27.2",
+    "node": "24.19.0",
+    "pnpm": "10.34.4",
+    "postgres": "18.1-alpine3.23 isolated testcontainers",
+    "redis": "8.4-alpine isolated testcontainers"
+  },
+  "gates": [
+    {
+      "command": "make test",
+      "exit_code": 0,
+      "started_utc": "2026-10-10T22:08:11.840290+00:00",
+      "ended_utc": "2026-10-10T22:20:22.452617+00:00",
+      "log": "/tmp/p2-make-test.log"
+    },
+    {
+      "command": "make test-backend-unit",
+      "exit_code": 0,
+      "started_utc": "2026-10-10T22:20:22.455260+00:00",
+      "ended_utc": "2026-10-10T22:29:11.791355+00:00",
+      "log": "/tmp/p2-unit.log"
+    },
+    {
+      "command": "full integration",
+      "exit_code": 0,
+      "started_utc": "2026-10-10T22:29:11.794977+00:00",
+      "ended_utc": "2026-10-10T22:38:10.727747+00:00",
+      "log": "/tmp/p2-integration-final.jsonl"
+    },
+    {
+      "command": "fork integrity",
+      "exit_code": 0,
+      "started_utc": "2026-10-10T22:38:10.731344+00:00",
+      "ended_utc": "2026-10-10T22:40:21.160196+00:00",
+      "log": "/tmp/p2-integrity.log"
+    }
+  ],
+  "frontend_full": {
+    "files_passed": 495,
+    "files_skipped": 1,
+    "tests_passed": 3541,
+    "tests_skipped": 5,
+    "skip_explanation": "All five live PostgreSQL Vue cases run without skips in the dedicated contract and CHECKIN_FRONTEND_CONTRACT=1 full integration."
+  },
+  "backend_unit": {
+    "packages_passed": 62
+  },
+  "integration": {
+    "command": "CI=1 CHECKIN_FRONTEND_CONTRACT=1 go test -tags=integration -json -timeout=10m ./...",
+    "counts_include_subtests": true,
+    "tests": {
+      "pass": 16660,
+      "fail": 0,
+      "skip": 23
+    },
+    "cached_packages": 39,
+    "packages_passed": 58,
+    "packages_without_tests": 66,
+    "skipped_tests": [
+      {
+        "package": "github.com/Wei-Shaw/sub2api/internal/handler",
+        "test": "TestAudioSpeechPlatformRouting",
+        "output": [
+          "=== RUN   TestAudioSpeechPlatformRouting",
+          "audio_test.go:92: Integration test - requires full service setup",
+          "--- SKIP: TestAudioSpeechPlatformRouting (0.00s)"
+        ]
+      },
+      {
+        "package": "github.com/Wei-Shaw/sub2api/internal/handler",
+        "test": "TestDingTalkOAuthStart_Disabled",
+        "output": [
+          "=== RUN   TestDingTalkOAuthStart_Disabled",
+          "auth_dingtalk_oauth_test.go:21: helper newTestAuthHandlerWithDingTalk added in Task 1.10; sentinel only",
+          "--- SKIP: TestDingTalkOAuthStart_Disabled (0.00s)"
+        ]
+      },
+      {
+        "package": "github.com/Wei-Shaw/sub2api/internal/pkg/tlsfingerprint",
+        "test": "TestDialerAgainstCaptureServer",
+        "output": [
+          "=== RUN   TestDialerAgainstCaptureServer",
+          "dialer_capture_test.go:48: 跳过外部 TLS 指纹 capture 测试：未设置 TLSFINGERPRINT_CAPTURE_URL",
+          "--- SKIP: TestDialerAgainstCaptureServer (0.00s)"
+        ]
+      },
+      {
+        "package": "github.com/Wei-Shaw/sub2api/internal/pkg/tlsfingerprint",
+        "test": "TestJA3Fingerprint",
+        "output": [
+          "=== RUN   TestJA3Fingerprint",
+          "dialer_integration_test.go:76: skipping test: external service unavailable: Get \"https://tls.peet.ws/api/all\": dial tcp 205.185.123.167:443: connect: connection refused",
+          "--- SKIP: TestJA3Fingerprint (0.05s)"
+        ]
+      },
+      {
+        "package": "github.com/Wei-Shaw/sub2api/internal/pkg/tlsfingerprint",
+        "test": "TestAllProfiles/default_node_v24",
+        "output": [
+          "=== RUN   TestAllProfiles/default_node_v24",
+          "dialer_integration_test.go:145: skipping test: external service unavailable: Get \"https://tls.peet.ws/api/all\": dial tcp 205.185.123.167:443: connect: connection refused",
+          "--- SKIP: TestAllProfiles/default_node_v24 (0.07s)"
+        ]
+      },
+      {
+        "package": "github.com/Wei-Shaw/sub2api/internal/pkg/tlsfingerprint",
+        "test": "TestAllProfiles/linux_x64_node_v22171",
+        "output": [
+          "=== RUN   TestAllProfiles/linux_x64_node_v22171",
+          "dialer_integration_test.go:145: skipping test: external service unavailable: Get \"https://tls.peet.ws/api/all\": dial tcp 205.185.123.167:443: connect: connection refused",
+          "--- SKIP: TestAllProfiles/linux_x64_node_v22171 (0.07s)"
+        ]
+      },
+      {
+        "package": "github.com/Wei-Shaw/sub2api/internal/planacceptance",
+        "test": "TestAdminPlanBrowserContract",
+        "output": [
+          "=== RUN   TestAdminPlanBrowserContract",
+          "plan_browser_test.go:21: set PLAN_BROWSER_CONTRACT=1 to run the real browser/HTTP/DB contract",
+          "--- SKIP: TestAdminPlanBrowserContract (0.00s)"
+        ]
+      },
+      {
+        "package": "github.com/Wei-Shaw/sub2api/internal/repository",
+        "test": "TestConcurrencyCacheSuite/TestGetAccountsLoadBatch",
+        "output": [
+          "=== RUN   TestConcurrencyCacheSuite/TestGetAccountsLoadBatch",
+          "concurrency_cache_integration_test.go:525: TODO: Fix this test - CurrentConcurrency returns 0 instead of expected value in CI",
+          "--- SKIP: TestConcurrencyCacheSuite/TestGetAccountsLoadBatch (0.00s)"
+        ]
+      },
+      {
+        "package": "github.com/Wei-Shaw/sub2api/internal/repository",
+        "test": "TestStarframeActualRedisLoss",
+        "output": [
+          "=== RUN   TestStarframeActualRedisLoss",
+          "starframe_video_redis_test.go:34: isolated Redis not configured",
+          "--- SKIP: TestStarframeActualRedisLoss (0.00s)"
+        ]
+      },
+      {
+        "package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+        "test": "TestLedgerKilledProcessChild",
+        "output": [
+          "=== RUN   TestLedgerKilledProcessChild",
+          "process_integration_test.go:23: subprocess fixture only",
+          "--- SKIP: TestLedgerKilledProcessChild (0.00s)"
+        ]
+      },
+      {
+        "package": "github.com/Wei-Shaw/sub2api/internal/securityaudit",
+        "test": "TestPromptAuditConfigCASSecretRoundTripInvalidationAndTTL",
+        "output": [
+          "=== RUN   TestPromptAuditConfigCASSecretRoundTripInvalidationAndTTL",
+          "prompt_config_integration_test.go:141: PROMPT_AUDIT_TEST_REDIS_ADDR is not set",
+          "--- SKIP: TestPromptAuditConfigCASSecretRoundTripInvalidationAndTTL (0.00s)"
+        ]
+      },
+      {
+        "package": "github.com/Wei-Shaw/sub2api/internal/securityaudit",
+        "test": "TestRedisPayloadStoreRoundTripTTLNamespaceAndDelete",
+        "output": [
+          "=== RUN   TestRedisPayloadStoreRoundTripTTLNamespaceAndDelete",
+          "prompt_payload_store_integration_test.go:17: PROMPT_AUDIT_TEST_REDIS_ADDR is not set",
+          "--- SKIP: TestRedisPayloadStoreRoundTripTTLNamespaceAndDelete (0.00s)"
+        ]
+      },
+      {
+        "package": "github.com/Wei-Shaw/sub2api/internal/securityaudit",
+        "test": "TestPromptRuntimeAggregatesConfigWorkersQueueRedisEndpointsAndGuardMetrics",
+        "output": [
+          "=== RUN   TestPromptRuntimeAggregatesConfigWorkersQueueRedisEndpointsAndGuardMetrics",
+          "prompt_payload_store_integration_test.go:43: PROMPT_AUDIT_TEST_REDIS_ADDR is not set",
+          "--- SKIP: TestPromptRuntimeAggregatesConfigWorkersQueueRedisEndpointsAndGuardMetrics (0.00s)"
+        ]
+      },
+      {
+        "package": "github.com/Wei-Shaw/sub2api/internal/securityaudit",
+        "test": "TestPromptAuditMigrationSchemaAndLeakageGate",
+        "output": [
+          "=== RUN   TestPromptAuditMigrationSchemaAndLeakageGate",
+          "prompt_repository_integration_test.go:105: PROMPT_AUDIT_TEST_POSTGRES_DSN is not set",
+          "--- SKIP: TestPromptAuditMigrationSchemaAndLeakageGate (0.00s)"
+        ]
+      },
+      {
+        "package": "github.com/Wei-Shaw/sub2api/internal/securityaudit",
+        "test": "TestPromptAuditDatabasePersistsFullPromptOnEventsOnly",
+        "output": [
+          "=== RUN   TestPromptAuditDatabasePersistsFullPromptOnEventsOnly",
+          "prompt_repository_integration_test.go:155: PROMPT_AUDIT_TEST_POSTGRES_DSN is not set",
+          "--- SKIP: TestPromptAuditDatabasePersistsFullPromptOnEventsOnly (0.00s)"
+        ]
+      },
+      {
+        "package": "github.com/Wei-Shaw/sub2api/internal/securityaudit",
+        "test": "TestPromptAuditRepositoryAdmissionClaimFencingAndEventTransaction",
+        "output": [
+          "=== RUN   TestPromptAuditRepositoryAdmissionClaimFencingAndEventTransaction",
+          "prompt_repository_integration_test.go:202: PROMPT_AUDIT_TEST_POSTGRES_DSN is not set",
+          "--- SKIP: TestPromptAuditRepositoryAdmissionClaimFencingAndEventTransaction (0.00s)"
+        ]
+      },
+      {
+        "package": "github.com/Wei-Shaw/sub2api/internal/securityaudit",
+        "test": "TestPromptAuditRepositoryForeignKeysFiltersAndStableIdentitySnapshots",
+        "output": [
+          "=== RUN   TestPromptAuditRepositoryForeignKeysFiltersAndStableIdentitySnapshots",
+          "prompt_repository_integration_test.go:299: PROMPT_AUDIT_TEST_POSTGRES_DSN is not set",
+          "--- SKIP: TestPromptAuditRepositoryForeignKeysFiltersAndStableIdentitySnapshots (0.00s)"
+        ]
+      },
+      {
+        "package": "github.com/Wei-Shaw/sub2api/internal/securityaudit",
+        "test": "TestPromptAuditRepositoryHighWaterAndSafeDeletion",
+        "output": [
+          "=== RUN   TestPromptAuditRepositoryHighWaterAndSafeDeletion",
+          "prompt_repository_integration_test.go:347: PROMPT_AUDIT_TEST_POSTGRES_DSN is not set",
+          "--- SKIP: TestPromptAuditRepositoryHighWaterAndSafeDeletion (0.00s)"
+        ]
+      },
+      {
+        "package": "github.com/Wei-Shaw/sub2api/internal/securityaudit",
+        "test": "TestPromptAuditServiceConfirmationKeepsPostPreviewEventsAndConcurrentDeletesAreSafe",
+        "output": [
+          "=== RUN   TestPromptAuditServiceConfirmationKeepsPostPreviewEventsAndConcurrentDeletesAreSafe",
+          "prompt_repository_integration_test.go:399: PROMPT_AUDIT_TEST_POSTGRES_DSN is not set",
+          "--- SKIP: TestPromptAuditServiceConfirmationKeepsPostPreviewEventsAndConcurrentDeletesAreSafe (0.00s)"
+        ]
+      },
+      {
+        "package": "github.com/Wei-Shaw/sub2api/internal/requestledger/acceptance",
+        "test": "TestRequestLedgerBrowserFixture",
+        "output": [
+          "=== RUN   TestRequestLedgerBrowserFixture",
+          "http_integration_test.go:269: opt-in browser fixture",
+          "--- SKIP: TestRequestLedgerBrowserFixture (0.00s)"
+        ]
+      },
+      {
+        "package": "github.com/Wei-Shaw/sub2api/internal/service",
+        "test": "TestContentModerationTypeSafeLive",
+        "output": [
+          "=== RUN   TestContentModerationTypeSafeLive",
+          "content_moderation_typesafe_live_test.go:17: requires explicit TYPESAFE_LIVE_TEST=1 and a new TYPESAFE_API_KEY",
+          "--- SKIP: TestContentModerationTypeSafeLive (0.00s)"
+        ]
+      },
+      {
+        "package": "github.com/Wei-Shaw/sub2api/internal/service",
+        "test": "TestEstimateOpenAIInputTokens_CompareWithOpenAIAPI",
+        "output": [
+          "=== RUN   TestEstimateOpenAIInputTokens_CompareWithOpenAIAPI",
+          "openai_gateway_count_tokens_test.go:314: OPENAI_API_KEY not set",
+          "--- SKIP: TestEstimateOpenAIInputTokens_CompareWithOpenAIAPI (0.00s)"
+        ]
+      },
+      {
+        "package": "github.com/Wei-Shaw/sub2api/internal/service",
+        "test": "TestPluginRuntimeIntegration",
+        "output": [
+          "=== RUN   TestPluginRuntimeIntegration",
+          "plugin_runtime_integration_test.go:29: 未提供 SUB2API_TEST_PLUGIN_PACKAGE，跳过本地插件进程集成测试",
+          "--- SKIP: TestPluginRuntimeIntegration (0.00s)"
+        ]
+      }
+    ]
+  },
+  "supporting": {
+    "targeted": "targeted-verification.json",
+    "pg_http_vue": "contract-verification.json",
+    "build": "build-verification.json",
+    "actual_built_browser": "updated-browser.json",
+    "built_assets": "updated-assets.json",
+    "independent_reviews": "reviews.md"
+  },
+  "quick_checks": {
+    "design_governance": "passed (4 visible files, 1 evidence record; 7 governance tests passed)",
+    "documentation_links": "passed (263 files)",
+    "handoff_structure": "passed (18 existing pending entries retained; not runtime/production validation)",
+    "handoff_unit": "8 passed"
+  },
+  "interrupted_run": {
+    "status": "discarded; not counted as passed",
+    "reason": "The earlier integration run exhausted /tmp quota. Moved only this task Go cache to /workspace, recovered space, restarted the full suite invocation. Unchanged packages may use Go cache; the changed PG/HTTP/Vue contract ran live. No other task or source data deleted."
+  },
+  "scope_limits": [
+    "No production access, reward issuance, merge or deployment.",
+    "Production and user-local three-role acceptance pending.",
+    "Only two welfare page primary balance panels covered; shared topbar auth cache policy unchanged.",
+    "Quiz and blindbox acceptance plan only, not claimed verified."
+  ]
+}

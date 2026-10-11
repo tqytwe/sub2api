@@ -34,11 +34,13 @@ func finishLedgerWSAttempt(ctx context.Context, attempt *requestledger.Attempt, 
 }
 
 type requestLedgerWSFrameConn struct {
-	inner    openaiwsv2.FrameConn
-	account  *Account
-	mu       sync.Mutex
-	turn     int
-	attempts map[int]*requestledger.Attempt
+	inner            openaiwsv2.FrameConn
+	account          *Account
+	mu               sync.Mutex
+	turn             int
+	attempts         map[int]*requestledger.Attempt
+	lastFinished     *requestledger.Attempt
+	lastFinishedTurn int
 }
 
 func (c *requestLedgerWSFrameConn) WriteFrame(ctx context.Context, kind coderws.MessageType, payload []byte) error {
@@ -71,16 +73,34 @@ func (c *requestLedgerWSFrameConn) ReadFrame(ctx context.Context) (coderws.Messa
 	// Raw frames have not passed the relay's duplicate/turn attribution yet.
 	return c.inner.ReadFrame(ctx)
 }
-func (c *requestLedgerWSFrameConn) observeOutput(ctx context.Context) {
+
+// Only an admitted active turn may receive newly observed upstream evidence.
+func (c *requestLedgerWSFrameConn) receiptForRead() requestledger.Receipt {
 	c.mu.Lock()
-	attempt := c.attempts[c.turn]
-	c.mu.Unlock()
-	attempt.ObserveOutput(ctx)
+	defer c.mu.Unlock()
+	return c.attempts[c.turn].Receipt()
+}
+
+// Relay completion precedes its terminal write. Keep only that one completed
+// receipt, and only use it while its local turn still matches the writer.
+func (c *requestLedgerWSFrameConn) receiptForWrite() requestledger.Receipt {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if a := c.attempts[c.turn]; a != nil {
+		return a.Receipt()
+	}
+	if c.lastFinishedTurn == c.turn {
+		return c.lastFinished.Receipt()
+	}
+	return requestledger.Receipt{}
 }
 func (c *requestLedgerWSFrameConn) finishTurn(ctx context.Context, turn int, result *OpenAIForwardResult, cause error) {
 	c.mu.Lock()
 	attempt := c.attempts[turn]
 	delete(c.attempts, turn)
+	if attempt != nil {
+		c.lastFinished, c.lastFinishedTurn = attempt, turn
+	}
 	c.mu.Unlock()
 	if result != nil && (result.RequestID != "" || result.UpstreamTerminalEvent != "" || result.FirstTokenMs != nil || result.HasObservedUsage()) {
 		attempt.ObserveOutput(ctx)
@@ -109,13 +129,17 @@ func dialWSWithLedger(ctx context.Context, dialer openAIWSClientDialer, account 
 	if conn == nil && err == nil {
 		err = errors.New("openai ws dialer returned nil connection")
 	}
+	a.ObserveIdentifiers(ctx, requestledger.UpstreamRequestID(responseHeaders), "")
 	if finishErr := a.Finish(ctx, status, err); finishErr != nil {
 		slog.Error("request_ledger_ws_handshake_finish_failed")
 	}
-	return conn, status, responseHeaders, err
+	return conn, status, responseHeaders, a.WrapError(err)
 }
 
 func finishLedgerWSResult(ctx context.Context, attempt *requestledger.Attempt, result *OpenAIForwardResult, cause error) {
+	if result != nil {
+		attempt.ObserveIdentifiers(ctx, requestledger.UpstreamRequestID(result.ResponseHeaders), "")
+	}
 	if result != nil && result.HasObservedUsage() {
 		if err := attempt.ObserveUsage(ctx); err != nil {
 			slog.Error("request_ledger_ws_usage_observation_failed")

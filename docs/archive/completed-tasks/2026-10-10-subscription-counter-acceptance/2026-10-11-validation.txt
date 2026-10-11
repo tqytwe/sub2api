@@ -1,0 +1,113 @@
+full-test; exit 0; SHA256 7d2726eb787805f4a6f724c5652a7763b088d44e67fa4e7c75b659eadbef7d86
+Command: make test
+0 issues.
+ Test Files  499 passed | 3 skipped (502)
+      Tests  3601 passed | 8 skipped (3609)
+   Start at  07:14:09
+   Duration  191.30s (transform 32.37s, setup 40.22s, collect 83.14s, tests 99.05s, environment 219.88s, prepare 36.07s)
+
+
+unit-tags; exit 0; SHA256 2c1f818707e75973e14d08b495c1e82c4a5b97857508a6862dff3cc3f58abbd6
+Command: make test-backend-unit
+ok  	github.com/Wei-Shaw/sub2api/pkg/pluginapi/v1	0.006s
+ok  	github.com/Wei-Shaw/sub2api/scripts	0.005s
+make[1]: Leaving directory '/workspace/sub2api-p1/backend'
+
+ledger-integration; exit 0; SHA256 f34b4ec40513650af0bbb6709cad6773f54d34fa897e5ee8d1e9f622ce83ce5f
+Command: go test -tags=integration ./internal/requestledger/... ./internal/handler ./internal/server/routes ./internal/repository ./internal/service -run RequestLedger|LedgerPostgres|LedgerKilledProcess|LedgerStorage|BatchImageHTTP|BatchImageReconciliation|BatchImageLedgerMigration -count=1 -timeout=12m -json
+All 48 required cases passed; see required-case reconciliation in JSON.
+{"Time":"2026-10-11T07:29:27.330252357Z","Action":"output","Package":"github.com/Wei-Shaw/sub2api/internal/service","Output":"PASS\n","OutputType":"frame"}
+{"Time":"2026-10-11T07:29:27.332564249Z","Action":"output","Package":"github.com/Wei-Shaw/sub2api/internal/service","Output":"ok  \tgithub.com/Wei-Shaw/sub2api/internal/service\t156.859s\n"}
+{"Time":"2026-10-11T07:29:27.332594939Z","Action":"pass","Package":"github.com/Wei-Shaw/sub2api/internal/service","Elapsed":156.859}
+
+full-build; exit 0; SHA256 dabfa864403b81be8f3b76c0036ff8d3f543ca733123a51768406645fbf1a062
+Command: make build
+ Test Files  1 passed (1)
+      Tests  3 passed (3)
+../backend/internal/web/dist/assets/SettingsView-B_VBhjCk.js                                                         426.35 kB │ gzip:  86.08 kB
+../backend/internal/web/dist/assets/vendor-xlsx-D_0l8YDs.js                                                          429.03 kB │ gzip: 143.08 kB
+✓ built in 54.99s
+
+fork-integrity; exit 0; SHA256 217ef102bd2cea6686fdeb1eb5b1fd3b14b0451fe3dbb9da0ffa41ae12359a48
+Command: ./scripts/check-fork-integrity.sh
+ Test Files  5 passed (5)
+      Tests  50 passed (50)
+ Test Files  4 passed (4)
+      Tests  34 passed (34)
+ Test Files  1 passed (1)
+      Tests  7 passed (7)
+ Test Files  2 passed (2)
+      Tests  4 passed (4)
+ Test Files  2 passed (2)
+      Tests  2 passed (2)
+ Test Files  3 passed (3)
+      Tests  8 passed (8)
+ Test Files  5 passed (5)
+      Tests  124 passed (124)
+Fork integrity passed.
+  [PASS] FORK-DEPLOY-006: no upstream installer in badge
+  [PASS] FORK-DEPLOY-006: no original image rollback in badge
+Fork integrity passed.
+
+tagged-diff-lint; exit 0; SHA256 e92606b0bf483111dff0a120c315ea165821348f31365020e2468a0059095c47
+Command: golangci-lint run --build-tags=integration,billing_acceptance --new-from-rev=23d06337cbc315cb92d3fc18e94902fe21e7342d ./internal/billingacceptance ./internal/repository
+0 issues.
+0 issues.
+
+doc-links; exit 0; SHA256 20b14b0b373d19ac0b4fe554c8aceb0a341dea1ea8405f35ed0ddee3a6022f5f
+Command: node scripts/check-doc-links.mjs
+Documentation integrity check passed (273 files).
+
+diff-check; exit 0; SHA256 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+Command: git diff --check origin/play/main
+
+checkin-contract; exit 0; SHA256 a5a311fe86181569a0cfee18fb8bce23bd6ff95c7f7c11b0f7d994f9b1bc2c8b
+Command: ./scripts/test-checkin-contract.sh
+    play_checkin_http_integration_test.go:316: DB reconciliation: checkins=1 snapshots=1 energy=0 cash=0.5 balance=1.5
+    play_checkin_http_integration_test.go:346: DB reconciliation: checkins=1 snapshots=1 energy=0 cash=0.5 balance=1.5
+    play_checkin_http_integration_test.go:359: DB reconciliation: checkins=0 snapshots=0 energy=0 cash=0 balance=1
+    play_checkin_http_integration_test.go:368: DB reconciliation: checkins=0 snapshots=0 energy=0 cash=0 balance=1
+         Test Files  1 passed (1)
+              Tests  5 passed (5)
+    play_checkin_http_integration_test.go:440: DB reconciliation: checkins=1 snapshots=1 energy=1 cash=0 balance=1
+    play_checkin_http_integration_test.go:441: DB reconciliation: checkins=1 snapshots=1 energy=0 cash=0.5 balance=1.5
+    play_checkin_http_integration_test.go:444: DB reconciliation: checkins=0 snapshots=0 energy=0 cash=0 balance=1
+--- PASS: TestCheckinHTTPDatabaseContract (6.22s)
+    --- PASS: TestCheckinHTTPDatabaseContract/explorer (0.06s)
+    --- PASS: TestCheckinHTTPDatabaseContract/unverified (0.03s)
+    --- PASS: TestCheckinHTTPDatabaseContract/too_new (0.02s)
+    --- PASS: TestCheckinHTTPDatabaseContract/cash (0.05s)
+    --- PASS: TestCheckinHTTPDatabaseContract/disabled_and_unauthenticated (0.01s)
+    --- PASS: TestCheckinHTTPDatabaseContract/milestone_makeup_false (0.05s)
+    --- PASS: TestCheckinHTTPDatabaseContract/milestone_makeup_true (0.04s)
+    --- PASS: TestCheckinHTTPDatabaseContract/frontend_live_http (5.95s)
+    --- PASS: TestCheckinHTTPDatabaseContract/frontend_live_http (5.95s)
+PASS
+ok  	github.com/Wei-Shaw/sub2api/internal/repository	13.011s
+
+welfare-contract; exit 0; SHA256 67bc7a29c4eddc5e7fcd84eb895f211c3b6cc15328672647f855aec023f87bdc
+Command: ./scripts/test-welfare-contract.sh
+    --- PASS: TestQuizHTTPDatabaseContract/stale_questions_and_completion_reward (0.04s)
+    --- PASS: TestQuizHTTPDatabaseContract/expired_inventory_rolls_back_attempt (0.04s)
+    --- PASS: TestQuizHTTPDatabaseContract/paused_coupon_pool_and_historical_replay (0.04s)
+    --- PASS: TestQuizHTTPDatabaseContract/ledger_failure_rolls_back_before_retry (0.04s)
+    --- PASS: TestQuizHTTPDatabaseContract/previous_day_does_not_consume_today (0.02s)
+         Test Files  1 passed (1)
+              Tests  2 passed (2)
+         Test Files  1 passed (1)
+              Tests  2 passed (2)
+         Test Files  1 passed (1)
+              Tests  2 passed (2)
+         Test Files  1 passed (1)
+              Tests  2 passed (2)
+--- PASS: TestQuizVueDatabaseContract (18.54s)
+    --- PASS: TestQuizVueDatabaseContract/energy (4.48s)
+    --- PASS: TestQuizVueDatabaseContract/balance (4.72s)
+    --- PASS: TestQuizVueDatabaseContract/coupon (4.71s)
+    --- PASS: TestQuizVueDatabaseContract/redeem_code (4.63s)
+    --- PASS: TestQuizVueDatabaseContract/redeem_code (4.63s)
+PASS
+ok  	github.com/Wei-Shaw/sub2api/internal/repository	38.646s
+
+Final documentation check after evidence additions; exit 0; SHA256 8b1c29a45da94c0b1283e377ed8f44d6e5bef7798683acfe957f4b52733a286e
+Documentation integrity check passed (274 files).

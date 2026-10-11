@@ -111,11 +111,6 @@ func (h *RequestLedgerHandler) get(c *gin.Context, admin bool) {
 		response.Error(c, 503, "Request ledger is temporarily unavailable")
 		return
 	}
-	attempts, err := h.Ledger.Attempts(c.Request.Context(), viewer, id)
-	if err != nil {
-		response.Error(c, 503, "Request ledger is temporarily unavailable")
-		return
-	}
 	links, err := h.Ledger.BillingReferences(c.Request.Context(), viewer, id)
 	if err != nil {
 		response.Error(c, 503, "Request ledger is temporarily unavailable")
@@ -127,7 +122,24 @@ func (h *RequestLedgerHandler) get(c *gin.Context, admin bool) {
 		response.Error(c, 503, "Request ledger is temporarily unavailable")
 		return
 	}
-	response.Success(c, gin.H{"request": record, "attempts": attempts, "billing": links, "wallet": wallet})
+	attempts, evidenceUnavailable, err := h.Ledger.AttemptsWithEvidence(c.Request.Context(), viewer, id)
+	if err != nil {
+		response.Error(c, 503, "Request ledger is temporarily unavailable")
+		return
+	}
+	result := gin.H{"request": record, "attempts": attempts, "billing": links, "wallet": wallet}
+	if evidenceUnavailable {
+		result["attempt_evidence_unavailable"] = true
+	}
+	if viewer.Admin {
+		diagnostics, err := h.Ledger.Diagnostics(c.Request.Context(), viewer, id)
+		if err != nil {
+			result["diagnostics_unavailable"] = true
+		} else {
+			result["diagnostics"] = diagnostics
+		}
+	}
+	response.Success(c, result)
 }
 
 func (h *RequestLedgerHandler) UsageUser(c *gin.Context)  { h.linkedUsage(c, false) }

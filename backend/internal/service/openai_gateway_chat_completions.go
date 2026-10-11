@@ -624,9 +624,9 @@ func (s *OpenAIGatewayService) handleChatBufferedStreamingResponse(
 		}
 		message := openAICompatFailedResponseMessage(finalResponse)
 		if openAIStreamFailedEventShouldFailover(payload, message) {
-			return nil, s.newOpenAIStreamFailoverErrorWithModel(c, account, false, requestID, payload, message, upstreamModel, resp.Header)
+			return nil, s.newOpenAIStreamFailoverErrorWithModel(requestledger.ResponseReceipt(resp), c, account, false, requestID, payload, message, upstreamModel, resp.Header)
 		}
-		message = s.recordOpenAIStreamUpstreamError(c, account, false, requestID, "http_error", payload, message)
+		message = s.recordOpenAIStreamUpstreamError(requestledger.ResponseReceipt(resp), c, account, false, requestID, "http_error", payload, message)
 		// response.failed 到达在 HTTP 200 SSE 流上，无真实 HTTP 错误码；统一走语义
 		// 状态推断 + body 归一化（与 /v1/responses 路径一致），使按错误码配置的规则可命中。
 		if status, errType, errMsg, matched := applyOpenAIStreamFailedErrorPassthroughRule(
@@ -648,7 +648,7 @@ func (s *OpenAIGatewayService) handleChatBufferedStreamingResponse(
 
 	if requiresBillableGrokChatUsage(account, billingModel, upstreamModel, finalResponse.Model) && !hasBillableGrokChatUsage(usage) {
 		upstreamRequestID := firstNonEmpty(requestID, resp.Header.Get("xai-request-id"))
-		return nil, newGrokMissingUsageFailoverError(c, account, upstreamRequestID)
+		return nil, newGrokMissingUsageFailoverError(requestledger.ResponseReceipt(resp), c, account, upstreamRequestID)
 	}
 
 	// When the terminal event has an empty output array, reconstruct from
@@ -729,7 +729,7 @@ func (s *OpenAIGatewayService) newOpenAICompatBufferedReadFailoverError(
 	if resp != nil {
 		responseHeaders = resp.Header
 	}
-	failoverErr := s.newOpenAIStreamFailoverError(c, account, false, requestID, payload, message, responseHeaders)
+	failoverErr := s.newOpenAIStreamFailoverError(requestledger.ResponseReceipt(resp), c, account, false, requestID, payload, message, responseHeaders)
 	// 保留稳定错误码，确保重试耗尽后客户端和错误透传规则仍能识别传输故障。
 	failoverErr.ResponseBody = payload
 	return failoverErr
@@ -892,10 +892,10 @@ func (s *OpenAIGatewayService) handleChatStreamingResponse(
 				shouldFailover = openAIStreamErrorEventShouldFailover(payloadBytes, message)
 			}
 			if !clientOutputStarted && shouldFailover {
-				streamFailoverErr = s.newOpenAIStreamFailoverErrorWithModel(c, account, false, requestID, payloadBytes, message, upstreamModel, resp.Header)
+				streamFailoverErr = s.newOpenAIStreamFailoverErrorWithModel(requestledger.ResponseReceipt(resp), c, account, false, requestID, payloadBytes, message, upstreamModel, resp.Header)
 				return true
 			}
-			message = s.recordOpenAIStreamUpstreamError(c, account, false, requestID, "http_error", payloadBytes, message)
+			message = s.recordOpenAIStreamUpstreamError(requestledger.ResponseReceipt(resp), c, account, false, requestID, "http_error", payloadBytes, message)
 			defaultStatus, defaultErrType, defaultMsg := http.StatusBadGateway, "upstream_error", message
 			// 统一走语义状态推断 + body 归一化（与 /v1/responses 路径一致），
 			// 使按错误码配置的透传规则可命中。
@@ -1030,7 +1030,7 @@ func (s *OpenAIGatewayService) handleChatStreamingResponse(
 		}
 		if !clientDisconnected && !clientOutputStarted {
 			if refusalDetector.IsSilentRefusal() {
-				return nil, newOpenAISilentRefusalFailoverError(c, account, requestID)
+				return nil, newOpenAISilentRefusalFailoverError(requestledger.ResponseReceipt(resp), c, account, requestID)
 			}
 			if len(pendingSSE) > 0 {
 				writeStreamHeaders()

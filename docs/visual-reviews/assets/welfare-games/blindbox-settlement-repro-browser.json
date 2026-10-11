@@ -1,0 +1,11 @@
+{
+  "reports": [
+    {
+      "case": "blindbox-same-account-settlement-qualification-failure",
+      "stale_public_feed_cleared": false,
+      "retry_restores_feed": false,
+      "posts": 1
+    }
+  ],
+  "index_sha256": "d565779025b9910ddb0b2e53b346f48685170a564aff4d8398acf9ae13df291d"
+}

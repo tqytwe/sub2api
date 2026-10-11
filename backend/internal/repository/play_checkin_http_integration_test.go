@@ -29,25 +29,37 @@ import (
 func newCheckinContractServer(t *testing.T, enabled bool, users ...int64) *httptest.Server {
 	t.Helper()
 	settings := service.NewSettingService(&blindboxIntegrationSettingRepo{values: map[string]string{
-		service.SettingKeyPlayCheckinEnabled:     strconv.FormatBool(enabled),
-		service.SettingKeyPlayCheckinDailyReward: "0.5",
+		service.SettingKeyPlayCheckinEnabled:          strconv.FormatBool(enabled),
+		service.SettingKeyPlayCheckinDailyReward:      "0.5",
+		service.SettingKeyPlayCheckinStreakMilestones: `[{"days":7,"bonus":1}]`,
 	}}, nil)
-	svc := service.ProvidePlayService(NewPlayRepository(integrationEntClient, integrationDB), nil, nil,
+	userRepo := NewUserRepository(integrationEntClient, integrationDB)
+	svc := service.ProvidePlayService(NewPlayRepository(integrationEntClient, integrationDB), userRepo, nil,
 		settings, nil, integrationEntClient, service.NewBalanceLedgerService(integrationDB, nil, nil),
 		nil, service.NewCouponService(NewCouponRepository(integrationDB)), nil)
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-	routes.RegisterPlayRoutes(router.Group("/api/v1"), &handler.Handlers{Play: handler.NewPlayHandler(svc, nil)}, func(c *gin.Context) {
+	authFixture := func(c *gin.Context) {
 		id, _ := strconv.ParseInt(c.GetHeader("X-Checkin-Test-User"), 10, 64)
 		for _, allowed := range users {
 			if id == allowed {
+				// Explicit GET fault injection for the live Vue recovery tests. All
+				// successful reads and every grant still use the real service and PG.
+				fault, _ := strconv.Atoi(c.GetHeader("X-Checkin-Test-Fault"))
+				if c.Request.Method == http.MethodGet && (fault == 403 || fault == 503) {
+					c.AbortWithStatusJSON(fault, gin.H{"code": fault, "reason": "FIXTURE_READ_FAILURE"})
+					return
+				}
 				c.Set(string(middleware.ContextKeyUser), middleware.AuthSubject{UserID: id})
 				c.Next()
 				return
 			}
 		}
 		c.AbortWithStatus(http.StatusUnauthorized)
-	})
+	}
+	routes.RegisterPlayRoutes(router.Group("/api/v1"), &handler.Handlers{Play: handler.NewPlayHandler(svc, nil)}, authFixture)
+	authHandler := handler.NewAuthHandler(nil, nil, service.NewUserService(userRepo, nil, nil, nil), nil, nil, nil, nil, nil)
+	router.GET("/api/v1/auth/me", authFixture, authHandler.GetCurrentUser)
 	server := httptest.NewServer(router)
 	t.Cleanup(server.Close)
 	return server
@@ -185,6 +197,62 @@ func assertCheckinSnapshot(t *testing.T, userID int64, eligibility service.PlayG
 	require.Equal(t, eligibility, stored, "HTTP qualification must match the committed immutable snapshot")
 }
 
+func newCheckinMilestoneUser(t *testing.T, makeup bool) int64 {
+	t.Helper()
+	id := newCheckinExplorer(t, false, 8)
+	qualifyBlindboxIntegrationUser(t, &service.User{ID: id})
+	daysAgo := -1
+	if makeup {
+		daysAgo = -2
+		// Synthetic completed recharge is eligibility evidence only. It does not
+		// invoke a payment gateway or change this fixture user's starting balance.
+		_, err := integrationDB.Exec(`INSERT INTO payment_orders
+		 (user_id, amount, pay_amount, expires_at, status, order_type, completed_at)
+		 VALUES ($1, 1, 1, NOW() + INTERVAL '1 hour', 'COMPLETED', 'balance', NOW())`, id)
+		require.NoError(t, err)
+	}
+	require.NoError(t, NewPlayRepository(integrationEntClient, integrationDB).InsertCheckin(
+		context.Background(), id, time.Now().UTC().AddDate(0, 0, daysAgo), 0, 6))
+	return id
+}
+
+func assertCheckinMilestoneDatabase(t *testing.T, id int64, makeup bool) {
+	t.Helper()
+	entries := 2
+	actionPrefix := "checkin:"
+	if makeup {
+		entries = 1
+		actionPrefix = "checkin_makeup:"
+	}
+	var checkins, snapshots, rewards, balances, linked, energy int
+	var reward, delta, balance float64
+	err := integrationDB.QueryRow(`SELECT
+	 (SELECT COUNT(*) FROM play_checkins WHERE user_id=$1),
+	 (SELECT COUNT(*) FROM play_growth_eligibility_snapshots WHERE user_id=$1),
+	 (SELECT COUNT(*) FROM play_reward_ledger WHERE user_id=$1),
+	 (SELECT COUNT(*) FROM balance_transactions WHERE user_id=$1),
+	 (SELECT COUNT(*) FROM play_growth_energy_ledger WHERE user_id=$1),
+	 (SELECT SUM(reward_amount) FROM play_checkins WHERE user_id=$1),
+	 (SELECT SUM(amount) FROM play_reward_ledger WHERE user_id=$1),
+	 balance FROM users WHERE id=$1`, id).Scan(&checkins, &snapshots, &rewards, &balances, &energy, &reward, &delta, &balance)
+	require.NoError(t, err)
+	require.Equal(t, 2, checkins, "one zero-reward seed plus one actual grant")
+	require.Equal(t, 1, snapshots)
+	require.Equal(t, entries, rewards)
+	require.Equal(t, entries, balances)
+	require.Zero(t, energy)
+	require.InDelta(t, 1.5, reward, 1e-8)
+	require.InDelta(t, 1.5, delta, 1e-8)
+	require.InDelta(t, 2.5, balance, 1e-8)
+	require.NoError(t, integrationDB.QueryRow(`SELECT COUNT(*) FROM play_reward_ledger r
+	 JOIN play_growth_eligibility_snapshots s ON s.id=r.growth_eligibility_snapshot_id AND s.user_id=r.user_id
+	 JOIN play_checkins c ON c.growth_eligibility_snapshot_id=s.id AND c.user_id=s.user_id AND c.checkin_date=s.activity_date
+	 JOIN balance_transactions b ON b.user_id=r.user_id AND b.idempotency_key=r.idempotency_key AND b.balance_delta=r.amount
+	 WHERE r.user_id=$1 AND c.streak_count=7 AND s.action_id=$2 || r.user_id || ':' || c.checkin_date`, id, actionPrefix).Scan(&linked))
+	require.Equal(t, entries, linked, "reward, qualification, activity and balance must reconcile")
+	t.Logf("Milestone reconciliation: makeup=%t checkins=%d snapshots=%d rewards=%d balances=%d reward=%.2f balance=%.2f", makeup, checkins, snapshots, rewards, balances, reward, balance)
+}
+
 func TestCheckinHTTPDatabaseContract(t *testing.T) {
 	seedCheckinCashPool(t)
 	for _, tc := range []struct {
@@ -289,7 +357,62 @@ func TestCheckinHTTPDatabaseContract(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, http.StatusUnauthorized, status)
 		assertCheckinDatabase(t, id, 0, 0, 0)
+		status, _, err = checkinContractRequest(server, 0, http.MethodPost, "/makeup")
+		require.NoError(t, err)
+		require.Equal(t, http.StatusUnauthorized, status)
+		server = newCheckinContractServer(t, true, id)
+		status, body, err = checkinContractRequest(server, id, http.MethodPost, "/makeup")
+		require.NoError(t, err)
+		require.Equal(t, http.StatusBadRequest, status)
+		require.Equal(t, "PLAY_CHECKIN_MAKEUP_UNAVAILABLE", body.Reason)
+		assertCheckinDatabase(t, id, 0, 0, 0)
 	})
+	for _, makeup := range []bool{false, true} {
+		t.Run(fmt.Sprintf("milestone_makeup_%t", makeup), func(t *testing.T) {
+			id := newCheckinMilestoneUser(t, makeup)
+			server := newCheckinContractServer(t, true, id)
+			path := ""
+			if makeup {
+				path = "/makeup"
+			}
+			var wg sync.WaitGroup
+			codes := make([]int, 2)
+			bodies := make([]checkinContractResponse, 2)
+			errs := make([]error, 2)
+			start := make(chan struct{})
+			for i := range 2 {
+				wg.Add(1)
+				go func(i int) {
+					defer wg.Done()
+					<-start
+					codes[i], bodies[i], errs[i] = checkinContractRequest(server, id, http.MethodPost, path)
+				}(i)
+			}
+			close(start)
+			wg.Wait()
+			successes := 0
+			for i := range 2 {
+				require.NoError(t, errs[i])
+				if codes[i] == http.StatusOK {
+					successes++
+					require.JSONEq(t, "1.5", string(bodies[i].Data["balance_added"]))
+					require.JSONEq(t, "1", string(bodies[i].Data["milestone_bonus"]))
+					require.JSONEq(t, "7", string(bodies[i].Data["streak_count"]))
+				} else if makeup {
+					require.Contains(t, []int{http.StatusBadRequest, http.StatusConflict}, codes[i])
+					require.Contains(t, []string{"PLAY_CHECKIN_MAKEUP_UNAVAILABLE", "PLAY_CHECKIN_MAKEUP_ALREADY_DONE"}, bodies[i].Reason)
+				} else {
+					require.Equal(t, http.StatusConflict, codes[i])
+					require.Equal(t, "PLAY_CHECKIN_ALREADY_DONE", bodies[i].Reason)
+				}
+			}
+			require.Equal(t, 1, successes)
+			status, _, err := checkinContractRequest(server, id, http.MethodPost, path)
+			require.NoError(t, err)
+			require.NotEqual(t, http.StatusOK, status)
+			assertCheckinMilestoneDatabase(t, id, makeup)
+		})
+	}
 	t.Run("frontend_live_http", func(t *testing.T) {
 		if os.Getenv("CHECKIN_FRONTEND_CONTRACT") != "1" {
 			t.Skip("run scripts/test-checkin-contract.sh to include the live frontend")
@@ -297,19 +420,28 @@ func TestCheckinHTTPDatabaseContract(t *testing.T) {
 		explorer := newCheckinExplorer(t, true, 8)
 		cashID := newCheckinExplorer(t, false, 8)
 		qualifyBlindboxIntegrationUser(t, &service.User{ID: cashID})
-		server := newCheckinContractServer(t, true, explorer, cashID)
+		milestoneID := newCheckinMilestoneUser(t, false)
+		makeupID := newCheckinMilestoneUser(t, true)
+		readOnlyID := newCheckinExplorer(t, true, 8)
+		server := newCheckinContractServer(t, true, explorer, cashID, milestoneID, makeupID, readOnlyID)
+		disabledServer := newCheckinContractServer(t, false, readOnlyID)
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 		defer cancel()
 		cmd := exec.CommandContext(ctx, "pnpm", "exec", "vitest", "run", "src/views/user/__tests__/CheckInView.http.spec.ts")
 		cmd.Dir = "../../../frontend"
 		cmd.Env = append(os.Environ(), "CHECKIN_CONTRACT_BASE_URL="+server.URL+"/api/v1",
-			"CHECKIN_CONTRACT_EXPLORER="+strconv.FormatInt(explorer, 10), "CHECKIN_CONTRACT_CASH="+strconv.FormatInt(cashID, 10))
+			"CHECKIN_CONTRACT_DISABLED_URL="+disabledServer.URL+"/api/v1", "CHECKIN_CONTRACT_READONLY="+strconv.FormatInt(readOnlyID, 10),
+			"CHECKIN_CONTRACT_EXPLORER="+strconv.FormatInt(explorer, 10), "CHECKIN_CONTRACT_CASH="+strconv.FormatInt(cashID, 10),
+			"CHECKIN_CONTRACT_MILESTONE="+strconv.FormatInt(milestoneID, 10), "CHECKIN_CONTRACT_MAKEUP="+strconv.FormatInt(makeupID, 10))
 		output, err := cmd.CombinedOutput()
 		t.Log(string(output))
 		// Reconcile even on a frontend assertion failure: this is the regression
 		// where a committed energy grant used to be rendered as a zero-cash reward.
 		assertCheckinDatabase(t, explorer, 1, 1, 0)
 		assertCheckinDatabase(t, cashID, 1, 0, 0.5)
+		assertCheckinMilestoneDatabase(t, milestoneID, false)
+		assertCheckinMilestoneDatabase(t, makeupID, true)
+		assertCheckinDatabase(t, readOnlyID, 0, 0, 0)
 		require.NoError(t, err)
 	})
 }

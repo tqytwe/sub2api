@@ -1,6 +1,8 @@
 package service
 
 import (
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
+
 	"bytes"
 	"context"
 	"encoding/base64"
@@ -1769,7 +1771,7 @@ func TestOpenAIImagesOAuthBodyReadTransportErrorFailover(t *testing.T) {
 
 	_, _, _, readErr := svc.handleOpenAIImagesOAuthNonStreamingResponse(resp, c, &OpenAIImagesRequest{ResponseFormat: "b64_json"}, "gpt-image-2")
 	require.Error(t, readErr)
-	err := svc.handleOpenAIImagesOAuthResponseError(context.Background(), c, account, "gpt-image-2", "https://api.openai.com/v1/responses", resp, OpenAIImagesJSONKeepaliveAdjustedWrittenSize(c), readErr)
+	err := svc.handleOpenAIImagesOAuthResponseError(requestledger.Receipt{}, context.Background(), c, account, "gpt-image-2", "https://api.openai.com/v1/responses", resp, OpenAIImagesJSONKeepaliveAdjustedWrittenSize(c), readErr)
 
 	var failoverErr *UpstreamFailoverError
 	require.ErrorAs(t, err, &failoverErr)
@@ -1811,7 +1813,7 @@ func TestOpenAIImagesOAuthBodyReadErrorsNotMisclassified(t *testing.T) {
 				err = newOpenAIUpstreamStreamReadError(err)
 			}
 
-			got := (&OpenAIGatewayService{}).handleOpenAIImagesOAuthResponseError(context.Background(), c, &Account{Platform: PlatformOpenAI}, "gpt-image-2", "", resp, OpenAIImagesJSONKeepaliveAdjustedWrittenSize(c), err)
+			got := (&OpenAIGatewayService{}).handleOpenAIImagesOAuthResponseError(requestledger.Receipt{}, context.Background(), c, &Account{Platform: PlatformOpenAI}, "gpt-image-2", "", resp, OpenAIImagesJSONKeepaliveAdjustedWrittenSize(c), err)
 			var failoverErr *UpstreamFailoverError
 			require.False(t, errors.As(got, &failoverErr))
 			require.ErrorIs(t, got, tt.err)
@@ -1831,7 +1833,7 @@ func TestOpenAIImagesOAuthTransportErrorAfterDownstreamWriteDoesNotFailover(t *t
 	account := &Account{ID: 5401, Name: "openai-oauth", Platform: PlatformOpenAI, Type: AccountTypeOAuth}
 	resp := &http.Response{Header: http.Header{"X-Request-Id": []string{"req_after_write"}}}
 
-	err := (&OpenAIGatewayService{}).handleOpenAIImagesOAuthResponseError(context.Background(), c, account, "gpt-image-2", "", resp, before, classifiedErr)
+	err := (&OpenAIGatewayService{}).handleOpenAIImagesOAuthResponseError(requestledger.Receipt{}, context.Background(), c, account, "gpt-image-2", "", resp, before, classifiedErr)
 
 	var failoverErr *UpstreamFailoverError
 	require.False(t, errors.As(err, &failoverErr))

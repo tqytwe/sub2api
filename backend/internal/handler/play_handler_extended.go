@@ -18,8 +18,9 @@ type playBlindboxStatusDTO struct {
 	Enabled                   bool                             `json:"enabled"`
 	CouponPoolReady           bool                             `json:"coupon_pool_ready"`
 	CouponPrizes              []service.PlayCouponPrizePreview `json:"coupon_prizes,omitempty"`
-	CouponWeightBP            int                              `json:"coupon_weight_bp,omitempty"`
-	BalanceWeightBP           int                              `json:"balance_weight_bp,omitempty"`
+	CouponWeightBP            *int                             `json:"coupon_weight_bp,omitempty"`
+	RedeemCodeWeightBP        *int                             `json:"redeem_code_weight_bp,omitempty"`
+	BalanceWeightBP           *int                             `json:"balance_weight_bp,omitempty"`
 	CostAmount                float64                          `json:"cost_amount,omitempty"`
 	Pool                      *playBlindboxPoolDTO             `json:"pool,omitempty"`
 	CurrentPool               *playBlindboxPoolDTO             `json:"current_pool,omitempty"`
@@ -60,8 +61,9 @@ type playBlindboxPoolResponseDTO struct {
 	Enabled            bool                             `json:"enabled"`
 	CouponPoolReady    bool                             `json:"coupon_pool_ready"`
 	CouponPrizes       []service.PlayCouponPrizePreview `json:"coupon_prizes"`
-	CouponWeightBP     int                              `json:"coupon_weight_bp"`
-	BalanceWeightBP    int                              `json:"balance_weight_bp"`
+	CouponWeightBP     *int                             `json:"coupon_weight_bp,omitempty"`
+	RedeemCodeWeightBP *int                             `json:"redeem_code_weight_bp,omitempty"`
+	BalanceWeightBP    *int                             `json:"balance_weight_bp,omitempty"`
 	Pool               playBlindboxPoolDTO              `json:"pool"`
 	CurrentPool        playBlindboxPoolDTO              `json:"current_pool"`
 	NextPool           *playBlindboxPoolDTO             `json:"next_pool,omitempty"`
@@ -296,8 +298,7 @@ func toPlayBlindboxStatusDTO(status *service.PlayBlindboxStatus, authenticated b
 	}
 	if rewardDetailsVisible {
 		out.CouponPrizes = status.CouponPrizes
-		out.CouponWeightBP = status.CouponWeightBP
-		out.BalanceWeightBP = status.BalanceWeightBP
+		out.CouponWeightBP, out.RedeemCodeWeightBP, out.BalanceWeightBP = publishedBlindboxWeights(status)
 		out.CostAmount = status.CostAmount
 		out.Pool = toPlayBlindboxPoolDTOPtr(status.BlindboxPool)
 		out.CurrentPool = toPlayBlindboxPoolDTOPtr(status.CurrentPool)
@@ -309,6 +310,14 @@ func toPlayBlindboxStatusDTO(status *service.PlayBlindboxStatus, authenticated b
 		out.RTPCap = status.RTPCap
 	}
 	return out
+}
+
+// Preserve a published zero while omitting unknown/default probabilities.
+func publishedBlindboxWeights(status *service.PlayBlindboxStatus) (*int, *int, *int) {
+	if !status.CouponPoolReady || !status.GrowthGovernanceAvailable {
+		return nil, nil, nil
+	}
+	return &status.CouponWeightBP, &status.RedeemCodeWeightBP, &status.BalanceWeightBP
 }
 
 func (h *PlayHandler) BlindboxPool(c *gin.Context) {
@@ -337,12 +346,14 @@ func (h *PlayHandler) BlindboxPool(c *gin.Context) {
 		})
 		return
 	}
+	couponWeight, redeemWeight, balanceWeight := publishedBlindboxWeights(status)
 	response.Success(c, playBlindboxPoolResponseDTO{
 		Enabled:            status.Enabled,
 		CouponPoolReady:    status.CouponPoolReady,
 		CouponPrizes:       status.CouponPrizes,
-		CouponWeightBP:     status.CouponWeightBP,
-		BalanceWeightBP:    status.BalanceWeightBP,
+		CouponWeightBP:     couponWeight,
+		RedeemCodeWeightBP: redeemWeight,
+		BalanceWeightBP:    balanceWeight,
 		Pool:               toPlayBlindboxPoolDTO(status.BlindboxPool),
 		CurrentPool:        toPlayBlindboxPoolDTO(status.CurrentPool),
 		NextPool:           toOptionalPlayBlindboxPoolDTO(status.NextPool),

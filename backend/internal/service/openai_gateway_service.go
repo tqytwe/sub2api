@@ -1038,6 +1038,7 @@ func (s *OpenAIGatewayService) writeOpenAIWSFallbackErrorResponse(c *gin.Context
 	if account != nil {
 		proxyID, proxyName := opsUpstreamWSProxyAttribution(account)
 		appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+			LedgerReceipt:      requestledger.ErrorReceipt(wsErr),
 			ProxyID:            proxyID,
 			ProxyName:          proxyName,
 			Platform:           account.Platform,

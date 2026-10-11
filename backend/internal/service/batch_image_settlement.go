@@ -97,7 +97,9 @@ func (s *BatchImageSettlementService) Settle(ctx context.Context, batchID string
 		result.ActualCost = *job.ActualCost
 	}
 	if job.Status == BatchImageJobStatusCompleted {
-		if err := s.recordUsageLog(ctx, job, result.ActualCost, result.RequestID, batchImageSettlementLogTime(job, time.Now())); err != nil {
+		// A completed legacy job is not capture proof. Preserve an existing usage
+		// row, but never invent its missing fingerprint from status or price.
+		if err := s.recordUsageLog(ctx, job, result.ActualCost, result.RequestID, "", batchImageSettlementLogTime(job, time.Now())); err != nil {
 			return nil, ErrBatchImageSettlementBillingFailed.WithCause(err)
 		}
 		result.AlreadySettled = true
@@ -157,7 +159,8 @@ func (s *BatchImageSettlementService) Settle(ctx context.Context, batchID string
 		return nil, ErrBatchImageSettlementCostExceedsHold
 	}
 
-	if err := captureBatchImageBalanceHold(ctx, s.BillingRepo, job, actualCost, manifestHash); err != nil {
+	captureFingerprint, err := captureBatchImageBalanceHold(ctx, s.BillingRepo, job, actualCost, manifestHash)
+	if err != nil {
 		msg := truncateBatchImageMessage(err.Error(), batchImageMaxErrorMessageLength)
 		if failErr := s.recordSettlementFailure(ctx, job, "SETTLEMENT_BILLING_FAILED", msg); failErr != nil {
 			return nil, failErr
@@ -167,7 +170,7 @@ func (s *BatchImageSettlementService) Settle(ctx context.Context, batchID string
 	s.invalidateAuthCache(ctx, job.UserID)
 
 	now := time.Now()
-	if err := s.recordUsageLog(ctx, job, actualCost, result.RequestID, now); err != nil {
+	if err := s.recordUsageLog(ctx, job, actualCost, result.RequestID, captureFingerprint, now); err != nil {
 		msg := truncateBatchImageMessage(err.Error(), batchImageMaxErrorMessageLength)
 		if _, recordErr := s.Repo.SetBatchImageJobSettlementFailed(ctx, job.BatchID, "USAGE_LOG_PERSIST_FAILED", msg); recordErr != nil {
 			logger.L().Warn("batch_image.usage_log_failure_record_failed",
@@ -271,7 +274,7 @@ func (s *BatchImageSettlementService) failExhaustedSettlement(ctx context.Contex
 	return ErrBatchImageSettlementBillingFailed
 }
 
-func (s *BatchImageSettlementService) recordUsageLog(ctx context.Context, job *BatchImageJob, actualCost float64, requestID string, createdAt time.Time) error {
+func (s *BatchImageSettlementService) recordUsageLog(ctx context.Context, job *BatchImageJob, actualCost float64, requestID, captureFingerprint string, createdAt time.Time) error {
 	if s == nil || s.UsageLogRepo == nil || job == nil || job.APIKeyID == nil || job.AccountID == nil {
 		return nil
 	}
@@ -281,26 +284,31 @@ func (s *BatchImageSettlementService) recordUsageLog(ctx context.Context, job *B
 	upstreamEndpoint := batchImageUsageUpstreamEndpoint(job.Provider)
 	imageSize := "1K"
 	usageLog := &UsageLog{
-		UserID:                job.UserID,
-		APIKeyID:              *job.APIKeyID,
-		AccountID:             *job.AccountID,
-		RequestID:             strings.TrimSpace(requestID),
-		Model:                 job.Model,
-		RequestedModel:        job.Model,
-		InboundEndpoint:       &inboundEndpoint,
-		UpstreamEndpoint:      &upstreamEndpoint,
-		ImageCount:            job.OutputImageCount,
-		ImageOutputCost:       actualCost,
-		TotalCost:             actualCost,
-		ActualCost:            actualCost,
-		RateMultiplier:        job.GroupRateMultiplier * job.BatchDiscountMultiplier,
-		AccountRateMultiplier: &accountRateMultiplier,
-		BillingType:           BillingTypeBalance,
-		RequestType:           RequestTypeSync,
-		BillingMode:           &billingMode,
-		ImageSize:             &imageSize,
-		SessionID:             job.SessionID,
-		CreatedAt:             createdAt,
+		BillingRequestFingerprint: captureFingerprint,
+		BillingSettled:            captureFingerprint != "",
+		UserID:                    job.UserID,
+		APIKeyID:                  *job.APIKeyID,
+		AccountID:                 *job.AccountID,
+		RequestID:                 strings.TrimSpace(requestID),
+		Model:                     job.Model,
+		RequestedModel:            job.Model,
+		InboundEndpoint:           &inboundEndpoint,
+		UpstreamEndpoint:          &upstreamEndpoint,
+		ImageCount:                job.OutputImageCount,
+		ImageOutputCost:           actualCost,
+		TotalCost:                 actualCost,
+		ActualCost:                actualCost,
+		RateMultiplier:            job.GroupRateMultiplier * job.BatchDiscountMultiplier,
+		AccountRateMultiplier:     &accountRateMultiplier,
+		BillingType:               BillingTypeBalance,
+		RequestType:               RequestTypeSync,
+		BillingMode:               &billingMode,
+		ImageSize:                 &imageSize,
+		SessionID:                 job.SessionID,
+		CreatedAt:                 createdAt,
+	}
+	if usageLog.BillingSettled {
+		usageLog.BilledCost = actualCost
 	}
 	usageCtx, cancel := detachedBillingContext(ctx)
 	defer cancel()

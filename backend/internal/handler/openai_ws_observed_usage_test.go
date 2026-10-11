@@ -96,9 +96,10 @@ func TestWSObservedUsageHandlerPersistsEachTurn(t *testing.T) {
 			for _, terminal := range []string{"response.completed", "response.in_progress", "response.incomplete", "response.failed", "error"} {
 				t.Run(fmt.Sprintf("%s/no_id=%v/%s", mode, noID, terminal), func(t *testing.T) {
 					got := runOpenAIResponsesWebSocketUsageLogCase(t, openAIResponsesWSUsageLogCase{
-						firstPayload:  `{"type":"response.create","model":"gpt-5.1"}`,
-						secondPayload: `{"type":"response.create","model":"gpt-5.1"}`,
-						ingressMode:   mode,
+						firstPayload:            `{"type":"response.create","model":"gpt-5.1"}`,
+						secondPayload:           `{"type":"response.create","model":"gpt-5.1"}`,
+						ingressMode:             mode,
+						allowUpstreamRetirement: noID && mode == service.OpenAIWSIngressModeCtxPool,
 						upstreamEvent: func(turn int, model string) string {
 							id := fmt.Sprintf("resp_%d", turn)
 							if noID {
@@ -111,6 +112,11 @@ func TestWSObservedUsageHandlerPersistsEachTurn(t *testing.T) {
 							return fmt.Sprintf(`{"type":%q,"response":{"id":%q,"model":%q,"usage":{"input_tokens":%d,"output_tokens":%d}}}`, event, id, model, turn*9, turn*4)
 						},
 					})
+					if noID && mode == service.OpenAIWSIngressModeCtxPool {
+						require.EqualValues(t, 2, got.upstreamConnections)
+					} else {
+						require.EqualValues(t, 1, got.upstreamConnections)
+					}
 					require.Len(t, got.logs, 2)
 					for i, row := range got.logs {
 						require.EqualValues(t, 1701, row.UserID)

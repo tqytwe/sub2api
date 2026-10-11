@@ -64,6 +64,8 @@
 | [v182 P0 文档与订阅契约](./V182_P0_DOCS_SUBSCRIPTIONS_CONTRACT.md) | `proposal` | 同源文档路由、CSP/XFO、语言竞态与订阅 API 边界 | 平台与前端维护者 | 2026-08-29 |
 | [v182 P1 首页与公开状态契约](./V182_P1_HOME_STATUS_CONTRACT.md) | `proposal` | 首页首屏、公开状态 API、指标水位与 freshness 口径 | 产品与前端维护者 | 2026-08-29 |
 | [v182 Growth Qualification Contract](./V182_GROWTH_QUALIFICATION_CONTRACT.md) | `proposal` | 签到答题资格、成长能量、奖励账本与 cohort 观测规则 | Growth 维护者 | 2026-08-29 |
+| [批量图片台账精确钻取](./archive/completed-tasks/batch-image-ledger/README.md) | `active` | capture/usage/task 精确凭据、冻结价格与验证范围；部署另行协调 | 计费维护者 | 2026-10-10 |
+| [批量图片台账视觉证据](./visual-reviews/2026-10-10-batch-image-ledger.md) | `historical` | 隔离环境实际构建资源及原型/响应式证据 | 本批提交者 | 2026-10-10 |
 
 ## 仓库入口与上游参考
 
@@ -75,12 +77,20 @@
 | [README 日本語](../README_JA.md) | `reference` | Upstream project overview |
 | [通用部署说明](../deploy/README.md) | `reference` | 上游部署方式；极速蹬生产仅使用 Zeabur |
 
+## P0 请求台账关联审查记录
+
+- [精确关联规格](./archive/completed-tasks/2026-10-10-p0-ledger-correlation-spec.md)：`active`，本分支合同与边界；维护责任为本任务提交者。
+- [验证与独立审查记录](./archive/completed-tasks/2026-10-10-p0-ledger-correlation-validation.md)：`historical`，隔离环境技术证据，不代表生产部署；维护责任为本任务提交者。
+- [前端视觉检查](./visual-reviews/2026-10-10-p0-ledger-correlation.md)：`historical`，原型、基线、实际构建资源与状态矩阵；维护责任为本任务提交者。
+
 ## 历史归档
 
 | 文档 | 状态 | 替代文档 |
 |------|------|----------|
 | [2026-07 增长世界 PRD](./archive/2026-07-growth-world-prd.md) | `historical` | [Growth / Play](./GROWTH_PLAY.md)、[图像工作室](./IMAGE_STUDIO.md) |
 | [2026-07 Play 路线图](./archive/2026-07-growth-play-roadmap.md) | `superseded` | [Growth / Play](./GROWTH_PLAY.md) |
+| [2026-10 P1 签到读取状态](./archive/completed-tasks/2026-10-checkin-status/README.md) | `historical` | GET 失败/重试与中枢刷新、里程碑剩余天数；独立 PG 和构建资源证据，生产验收未执行 |
+| [2026-10 P1 签到错误契约](./archive/completed-tasks/2026-10-checkin-errors/README.md) | `historical` | 限定范围的 RED/GREEN、PG 与构建资源回归；最终 SHA/CI 见该批 PR，生产验收待协调 |
 
 已完成且重复的 `IMAGE_STUDIO_COMPLETION_PLAN.md`、`MODEL_PRICING_PLAN.md` 已删除；需要追溯时使用 Git 历史。
 
@@ -91,3 +101,6 @@
 3. 方案类文档未上线前使用 `proposal` 标识，不得写入已生效的定制登记条目。
 4. 每次上游同步后更新受影响文档的核验日期和上游 commit。
 5. 交付流程以 [服务器开发与生产验收流程](./DELIVERY_WORKFLOW.md) 为准；旧的“仅服务器线上验收”表述不得继续作为完成标准。
+
+- [答题与盲盒福利闭环技术记录](./archive/completed-tasks/2026-10-welfare-games/README.md) — `in-progress`，隔离 HTTP/PG/Vue 证据，未部署。
+- [答题与盲盒视觉记录](./visual-reviews/2026-10-11-welfare-games.md) — `in-progress`，既有风格内的状态与恢复。

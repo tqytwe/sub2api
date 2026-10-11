@@ -1,0 +1,392 @@
+{
+  "recorded_at": "2026-10-11T00:10:40.611462+00:00",
+  "source": {
+    "base_sha": "c939d570aa1f01cadab465c38c36e0295703a9b7",
+    "source_count": 5360,
+    "source_sha256": "614d46d4ddfc6e9d2e40456d79285b107c8b0c04badfd54cb196f583b27f491e",
+    "restricted_billing_repository_unchanged": true,
+    "historical_migrations_unchanged": true
+  },
+  "toolchain": {
+    "go": "1.27.2 linux/amd64",
+    "pnpm": "9.15.9",
+    "postgres": "18.1-alpine3.23",
+    "redis": "8.4",
+    "go_parallelism": "GOFLAGS=-p=1, GOMAXPROCS=2"
+  },
+  "backend_reuse": "Final untagged backend/lint and full unit passed before #355 merge. #355 changes no production backend or unit-tagged compilation input; its new backend fixture is integration-only. Protocol/race/frontend/build/browser rerun on combined base.",
+  "passed_gates": [
+    {
+      "name": "final-backend",
+      "command": [
+        "/tmp/p0-run",
+        "make",
+        "test-backend"
+      ],
+      "exit_code": 0,
+      "seconds": 278.1,
+      "log": "/workspace/batch-ledger-final-backend.log",
+      "log_sha256": "ef441b41a4f089d142087ff9b4c8c0946fc8b2bb1957f4e11f58fab6e7f9687f"
+    },
+    {
+      "name": "unit",
+      "command": [
+        "/tmp/p0-run",
+        "make",
+        "test-backend-unit"
+      ],
+      "exit_code": 0,
+      "seconds": 518.04,
+      "log": "/workspace/batch-ledger-unit.log",
+      "log_sha256": "259434c484d4662b0c8f142cd16a9cc5dced31d588452611af8da2e206a507d0"
+    },
+    {
+      "name": "recovery-smoke",
+      "command": [
+        "/tmp/p0-run",
+        "go",
+        "-C",
+        "backend",
+        "test",
+        "-tags=integration",
+        "./internal/service",
+        "-run",
+        "^TestRequestLedgerNativeAndPassthroughTerminalStatus$",
+        "-count=1",
+        "-timeout=3m",
+        "-json"
+      ],
+      "exit_code": 0,
+      "seconds": 39.65,
+      "log": "/workspace/batch-ledger-recovery-smoke.log",
+      "log_sha256": "9e1fcb4dbd57e5548c4b7f4f6314f906b20d50a656230fe594264c77095c7294"
+    },
+    {
+      "name": "protocol",
+      "command": [
+        "/tmp/p0-run",
+        "go",
+        "-C",
+        "backend",
+        "test",
+        "-tags=integration",
+        "./internal/requestledger/...",
+        "./internal/handler",
+        "./internal/server/routes",
+        "./internal/repository",
+        "./internal/service",
+        "-run",
+        "RequestLedger|LedgerPostgres|LedgerKilledProcess|LedgerStorage|BatchImageHTTP|BatchImageReconciliation|BatchImageLedgerMigration",
+        "-count=1",
+        "-timeout=12m",
+        "-json"
+      ],
+      "exit_code": 0,
+      "seconds": 337.75,
+      "log": "/workspace/batch-ledger-protocol.log",
+      "log_sha256": "3178929d87dbbdf7d50cc767eeda729944533f6b38962b0df46136e5d3c922da"
+    },
+    {
+      "name": "core-contracts",
+      "command": [
+        "/tmp/p0-run",
+        "go",
+        "-C",
+        "backend",
+        "test",
+        "./migrations",
+        "-run",
+        "^(TestAccountGroupAllowedModelsMigration|TestUsageLogBillingReconciliationMigrationIsForwardOnly)$",
+        "-count=1",
+        "-timeout=2m",
+        "-json"
+      ],
+      "exit_code": 0,
+      "seconds": 2.7,
+      "log": "/workspace/batch-ledger-core-contracts.log",
+      "log_sha256": "f5c01576f34d054ad682df838a58e8b73beb45e75f31399ee2fca7a20e8f6051"
+    },
+    {
+      "name": "core-repositories",
+      "command": [
+        "/tmp/p0-run",
+        "go",
+        "-C",
+        "backend",
+        "test",
+        "-tags=integration",
+        "./internal/repository",
+        "-run",
+        "^(TestCoreMigration.*|TestBillingLogReconciliation.*|TestAccountGroupAllowedModelsConcurrent.*|TestGroupCopyAccounts.*|TestAccountAdminUpdate.*|TestAccountRepoSuite|TestGroupRepoSuite|TestBillingCacheSuite|TestMigrationsRunner_ConcurrentInstancesSerializeOnSessionLock|TestUsageBillingRepositoryApply_(DeduplicatesBalanceBilling|WithLedgerWritesUsageCharge|RejectsCrossUserCharge|RejectsCrossUserSubscriptionCharge|DeduplicatesSubscriptionBilling|RequestFingerprintConflict|DeletedAPIKeyStillBillsBalance|UpdatesAccountQuota|EnqueuesSchedulerOutboxOnQuotaCrossing|DeduplicatesAgainstArchivedKey))$",
+        "-count=1",
+        "-timeout=10m",
+        "-json"
+      ],
+      "exit_code": 0,
+      "seconds": 29.43,
+      "log": "/workspace/batch-ledger-core-repositories.log",
+      "log_sha256": "04642fcb4419cd3c331a1e052edafb57c225c0cbaaca1a8034fb27d65166331f"
+    },
+    {
+      "name": "batch-repositories",
+      "command": [
+        "/tmp/p0-run",
+        "go",
+        "-C",
+        "backend",
+        "test",
+        "-tags=integration",
+        "./internal/repository",
+        "-run",
+        "BatchImage",
+        "-count=1",
+        "-timeout=5m",
+        "-json"
+      ],
+      "exit_code": 0,
+      "seconds": 8.42,
+      "log": "/workspace/batch-ledger-batch-repositories.log",
+      "log_sha256": "c3a4f9afef822044e9f1706e7ffffea4e0806a043b272700b589a3c02604b58d"
+    },
+    {
+      "name": "fund",
+      "command": [
+        "/tmp/p0-run",
+        "go",
+        "-C",
+        "backend",
+        "test",
+        "-tags=integration",
+        "./migrations",
+        "-run",
+        "^TestFundOperationRecordsMigrationBackfillsAndReplaysPostgres$",
+        "-count=1",
+        "-timeout=5m",
+        "-json"
+      ],
+      "exit_code": 0,
+      "seconds": 23.16,
+      "log": "/workspace/batch-ledger-fund.log",
+      "log_sha256": "20897589d6dc440f57bcc97915ae42e75d939fa56c953938fd255ea31ebd3018"
+    },
+    {
+      "name": "race",
+      "command": [
+        "/tmp/p0-run",
+        "go",
+        "-C",
+        "backend",
+        "test",
+        "-race",
+        "-tags=integration",
+        "./internal/requestledger/acceptance",
+        "-run",
+        "TestBatchImageHTTP",
+        "-count=1",
+        "-timeout=8m",
+        "-json"
+      ],
+      "exit_code": 0,
+      "seconds": 163.44,
+      "log": "/workspace/batch-ledger-race.log",
+      "log_sha256": "c238a5efa633dca107b1f452bf8f855c0993a29cfbdab0d010598fe1d4735eae"
+    },
+    {
+      "name": "combination-frontend",
+      "command": [
+        "/tmp/p0-run",
+        "make",
+        "test-frontend"
+      ],
+      "exit_code": 0,
+      "seconds": 193.33,
+      "log": "/workspace/batch-ledger-combination-frontend.log",
+      "log_sha256": "e64fdbfaeb648723e397d2e1d958e3400235993250dae61c91be45cfe9a65d15"
+    },
+    {
+      "name": "build",
+      "command": [
+        "/tmp/p0-run",
+        "make",
+        "build"
+      ],
+      "exit_code": 0,
+      "seconds": 118.66,
+      "log": "/workspace/batch-ledger-build.log",
+      "log_sha256": "edd075142e3e575078ee4b7c046e660910d4e267bc74812c23a45c4f5c785a80"
+    },
+    {
+      "name": "fork",
+      "command": [
+        "/tmp/p0-run",
+        "./scripts/check-fork-integrity.sh"
+      ],
+      "exit_code": 0,
+      "seconds": 252.43,
+      "log": "/workspace/batch-ledger-fork.log",
+      "log_sha256": "947bd1b944f029143bf869093230d9c01699e9038b2472ade306c1ebb5c9790f"
+    },
+    {
+      "name": "embed-refresh",
+      "command": [
+        "/tmp/p0-run",
+        "make",
+        "build-backend",
+        "GO_BUILD_FLAGS=-buildvcs=false -tags=embed"
+      ],
+      "exit_code": 0,
+      "seconds": 10.83,
+      "log": "/workspace/batch-ledger-embed-refresh.log",
+      "log_sha256": "74f36deb8920ab14e2c1d62f4185937444f07c9c877f2e7e2c5bbcfcd71686bc"
+    },
+    {
+      "name": "browser-combination",
+      "command": [
+        "/tmp/p0-run",
+        "go",
+        "-C",
+        "backend",
+        "test",
+        "-tags=integration",
+        "./internal/requestledger/acceptance",
+        "-run",
+        "^TestBatchImageBrowserFixture$",
+        "-count=1",
+        "-timeout=25m",
+        "-v",
+        "AND",
+        "node",
+        "docs/archive/completed-tasks/batch-image-ledger/capture.cjs",
+        "/workspace/batch-ledger-browser-combination.log"
+      ],
+      "exit_code": 0,
+      "seconds": 16.78,
+      "log": "/workspace/batch-ledger-browser-combination-capture.log",
+      "log_sha256": "c933404505b6be38a9c2b39fcb5b0bdbdab55f58e3e8ecf8c2754119d8a2eeea"
+    }
+  ],
+  "required_coverage": {
+    "protocol": {
+      "test_and_subtest_passes": 443,
+      "skipped": [
+        "TestLedgerKilledProcessChild",
+        "TestRequestLedgerBrowserFixture"
+      ]
+    },
+    "core-contracts": {
+      "test_and_subtest_passes": 2,
+      "skipped": []
+    },
+    "core-repositories": {
+      "test_and_subtest_passes": 201,
+      "skipped": []
+    },
+    "batch-repositories": {
+      "test_and_subtest_passes": 24,
+      "skipped": []
+    },
+    "fund": {
+      "test_and_subtest_passes": 1,
+      "skipped": []
+    },
+    "race": {
+      "test_and_subtest_passes": 12,
+      "skipped": []
+    },
+    "required": {
+      "protocol": 45,
+      "core": 54,
+      "race_http": 5,
+      "missing": []
+    }
+  },
+  "frontend_summary": [
+    "Test Files  496 passed | 1 skipped (497)",
+    "Tests  3562 passed | 5 skipped (3567)",
+    "Duration  133.87s (transform 27.20s, setup 26.47s, collect 62.84s, tests 61.78s, environment 156.56s, prepare 26.44s)"
+  ],
+  "failed_runs": [
+    {
+      "name": "protocol",
+      "command": [
+        "/tmp/p0-run",
+        "go",
+        "-C",
+        "backend",
+        "test",
+        "-tags=integration",
+        "./internal/requestledger/...",
+        "./internal/handler",
+        "./internal/server/routes",
+        "./internal/repository",
+        "./internal/service",
+        "-run",
+        "RequestLedger|LedgerPostgres|LedgerKilledProcess|LedgerStorage|BatchImageHTTP|BatchImageReconciliation|BatchImageLedgerMigration",
+        "-count=1",
+        "-timeout=12m",
+        "-json"
+      ],
+      "exit_code": -15,
+      "seconds": 406.09,
+      "log": "/workspace/batch-ledger-protocol-disk-failure.log",
+      "log_sha256": "177947fc78f39002ec20477fb1ceacab7f722dcaecbcfe43618bbd5f23547a08",
+      "reason": "Disposable PostgreSQL ENOSPC; remaining owned test process terminated after failure; not a passing run."
+    },
+    {
+      "name": "protocol",
+      "command": [
+        "/tmp/p0-run",
+        "go",
+        "-C",
+        "backend",
+        "test",
+        "-tags=integration",
+        "./internal/requestledger/...",
+        "./internal/handler",
+        "./internal/server/routes",
+        "./internal/repository",
+        "./internal/service",
+        "-run",
+        "RequestLedger|LedgerPostgres|LedgerKilledProcess|LedgerStorage|BatchImageHTTP|BatchImageReconciliation|BatchImageLedgerMigration",
+        "-count=1",
+        "-timeout=12m",
+        "-json"
+      ],
+      "exit_code": -15,
+      "seconds": 239.9,
+      "log": "/workspace/batch-ledger-second-disk-failure-protocol.log",
+      "log_sha256": "63552f90b3afdae7545dbdcd5b00b11396795464b9bd80e262e8b98a22c6ab8d",
+      "reason": "Disposable PostgreSQL ENOSPC; remaining owned test process terminated after failure; not a passing run."
+    },
+    {
+      "name": "fork",
+      "command": [
+        "./scripts/check-fork-integrity.sh"
+      ],
+      "exit_code": 1,
+      "seconds": 6.92,
+      "log": "/workspace/batch-ledger-fork-env-failure.log",
+      "log_sha256": "088643065db23566abd424f77334e28827079c8411f7cbfc1b9d96791ee93a68",
+      "reason": "Gate orchestrator omitted the toolchain wrapper for Fork; wrong system go/pnpm could not start protected tests. Corrected environment retry recorded separately."
+    }
+  ],
+  "browser_resources": {
+    "file_count": 356,
+    "tree_sha256": "68bc59eeb44909cb7b9a14e000c639b8a0ffac4e5865231825fb5ad14858d551",
+    "index_sha256": "204290753e5aab64f88d47d3bbea6da876e132805eb3f288ce7523f9468272d7",
+    "embedded_binary_sha256": "d5d5dcd5093793d71227b33a8e9fa647a30866c4688a806f7dad1cc31745bddf",
+    "built_index_present_in_binary": true,
+    "evidence": "browser-evidence.json"
+  },
+  "reviews": {
+    "specification": "Passed after shared-batch semantics, nullable count, zero-proof and bounded-scan fixes.",
+    "code": "Passed after real interrupted-index RED/GREEN and recovery registration.",
+    "combination": "Passed on c939d570; #355 nonshared files preserved byte-for-byte, shared docs retained; restricted file and historical SQL unchanged."
+  },
+  "limitations": [
+    "Disposable HTTP/PG and synthetic identity middleware; no production acceptance or real provider submission/generation.",
+    "No historical fingerprint backfill, zero-cost inference, extra billing or #352 restricted repository changes.",
+    "Existing public zero-price hold omission is outside scope; retained zero-capture-proof tests do not validate that path.",
+    "Two ENOSPC runs were stopped and preserved; only later completed runs are counted as passes."
+  ]
+}

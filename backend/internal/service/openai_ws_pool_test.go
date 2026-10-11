@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -13,6 +14,22 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/stretchr/testify/require"
 )
+
+func TestOpenAIWSCompletedResponseHistoryRetiresOnlyAfterRelease(t *testing.T) {
+	conn := newOpenAIWSConn("history", 1, &openAIWSFakeConn{}, nil)
+	require.True(t, conn.tryAcquire())
+	lease := &openAIWSConnLease{conn: conn}
+	for i := range 5000 {
+		lease.RememberCompletedResponse(strconv.Itoa(i))
+	}
+	require.Len(t, conn.completedResponses, 4096)
+	require.True(t, lease.IsCompletedResponse("0"))
+	require.True(t, conn.retireOnRelease.Load())
+	require.False(t, conn.isUnusable(), "an admitted turn must retain its live connection")
+	lease.Release()
+	require.True(t, conn.isUnusable())
+	require.False(t, conn.tryAcquire(), "a retired connection cannot accept another request")
+}
 
 func TestOpenAIWSConnPool_CleanupStaleAndTrimIdle(t *testing.T) {
 	cfg := &config.Config{}

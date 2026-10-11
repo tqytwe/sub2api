@@ -108,6 +108,8 @@ function mountView() {
   })
 }
 
+vi.mock('@/api/auth', () => ({ default: { getCurrentUser: vi.fn().mockResolvedValue({ data: { balance: 0 } }) } }))
+
 describe('CheckInView', () => {
   beforeEach(() => {
     authState.user = { id: 61, balance: 0 }

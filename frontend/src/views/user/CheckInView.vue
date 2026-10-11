@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import playAPI, { type PlayCheckinResult, type PlayCheckinStatus, type PlayGrowthEligibility } from '@/api/play'
+import authAPI from '@/api/auth'
 import { trackQuestCompleteOnce } from '@/utils/growthAnalytics'
+import { extractApiErrorCode } from '@/utils/apiError'
 import { useAuthStore } from '@/stores/auth'
 import { useAppStore } from '@/stores/app'
 import '@/styles/growth-world.css'
@@ -18,8 +20,17 @@ const loading = ref(true)
 const submitting = ref(false)
 const makingUp = ref(false)
 const status = ref<PlayCheckinStatus | null>(null)
+const balance = ref<number | null>(null)
+const loadError = ref('')
+let loadInFlight = false
+let reloadAfterLoad = false
+let disposed = false
 
-const user = computed(() => authStore.user)
+// The API field is an absolute streak target, while this label shows days left.
+const remainingMilestoneDays = computed(() =>
+  Math.max(0, (status.value?.next_milestone_days || 0) - (status.value?.streak_count || 0)),
+)
+
 const growthEligibility = computed(() => status.value?.growth_eligibility)
 const growthEnergyMode = computed(
   () => status.value?.growth_energy_enabled || growthEligibility.value?.reward_mode === 'energy',
@@ -32,21 +43,58 @@ const canCheckIn = computed(
     status.value?.enabled &&
     !status.value.checked_in_today &&
     !governanceBlocked.value &&
-    !submitting.value,
+    !loading.value && !submitting.value && !makingUp.value,
 )
 const canMakeup = computed(
-  () => status.value?.can_makeup && status.value.redeemable_reward_eligible && !makingUp.value && !submitting.value,
+  () => status.value?.enabled && status.value.can_makeup && status.value.redeemable_reward_eligible && !loading.value && !makingUp.value && !submitting.value,
 )
 
 async function loadStatus() {
+  if (loadInFlight || disposed) return
+  loadInFlight = true
+  const userID = authStore.user?.id
+  const token = authStore.token
+  const sameSession = () => userID === authStore.user?.id && token === authStore.token
   loading.value = true
+  loadError.value = ''
+  status.value = null
+  balance.value = null
   try {
-    status.value = await playAPI.getCheckinStatus()
-  } catch {
-    status.value = null
+    const nextStatus = await playAPI.getCheckinStatus()
+    if (disposed || !sameSession()) return
+    // Keep this read local: a late profile response from an unmounted page
+    // must not overwrite the shared account or a newly opened page's balance.
+    const { data: profile } = await authAPI.getCurrentUser()
+    if (!disposed && sameSession() && !reloadAfterLoad) {
+      status.value = nextStatus
+      balance.value = profile.balance
+    }
+  } catch (err: unknown) {
+    if (!disposed && !reloadAfterLoad) {
+      const httpStatus = (err as { status?: number })?.status
+      loadError.value = httpStatus === 403 ? 'checkin.loadForbidden'
+        : httpStatus === 0 ? 'checkin.loadNetworkFailed' : 'checkin.loadFailed'
+    }
   } finally {
-    loading.value = false
+    loadInFlight = false
+    if (!disposed) {
+      if (reloadAfterLoad || !sameSession()) {
+        reloadAfterLoad = false
+        void loadStatus()
+      } else loading.value = false
+    }
   }
+}
+
+function refreshStatus() {
+  if (!submitting.value && !makingUp.value) void loadStatus()
+}
+
+async function reloadStatusAfterMutation() {
+  // A token renewal may have started a read before the reward committed.
+  // Discard that response and follow it with a fresh read of the committed state.
+  if (loadInFlight) reloadAfterLoad = true
+  else await loadStatus()
 }
 
 function successMessage(result: PlayCheckinResult) {
@@ -100,13 +148,13 @@ async function handleCheckin() {
     const result = await playAPI.checkin()
     appStore.showSuccess(successMessage(result))
     trackQuestCompleteOnce('checkin')
-    await authStore.refreshUser()
-    await loadStatus()
+    await authStore.refreshUser().catch(() => undefined)
+    await reloadStatusAfterMutation()
   } catch (err: unknown) {
-    const code = (err as { response?: { data?: { code?: string } } })?.response?.data?.code
+    const code = extractApiErrorCode(err)
     if (code === 'PLAY_CHECKIN_ALREADY_DONE') {
       appStore.showInfo(t('checkin.alreadyDone'))
-      await loadStatus()
+      await reloadStatusAfterMutation()
       return
     }
     if (code === 'PLAY_FEATURE_DISABLED') {
@@ -135,7 +183,7 @@ async function handleCheckin() {
     }
     if (code === 'COUPON_REWARD_POOL_UNAVAILABLE') {
       appStore.showInfo(t('checkin.poolUnavailable'))
-      await loadStatus()
+      await reloadStatusAfterMutation()
       return
     }
     if (code === 'PLAY_GROWTH_QUALIFICATION_UNAVAILABLE') {
@@ -154,12 +202,13 @@ async function handleMakeup() {
   try {
     const result = await playAPI.checkinMakeup()
     appStore.showSuccess(t('checkin.makeupSuccess', { amount: result.balance_added.toFixed(2) }))
-    await authStore.refreshUser()
-    await loadStatus()
+    await authStore.refreshUser().catch(() => undefined)
+    await reloadStatusAfterMutation()
   } catch (err: unknown) {
-    const code = (err as { response?: { data?: { code?: string } } })?.response?.data?.code
-    if (code === 'PLAY_CHECKIN_MAKEUP_UNAVAILABLE') {
+    const code = extractApiErrorCode(err)
+    if (code === 'PLAY_CHECKIN_MAKEUP_UNAVAILABLE' || code === 'PLAY_CHECKIN_MAKEUP_ALREADY_DONE') {
       appStore.showError(t('checkin.makeupUnavailable'))
+      await reloadStatusAfterMutation()
       return
     }
     appStore.showError(t('checkin.makeupFailed'))
@@ -173,11 +222,13 @@ function goPurchase() {
 }
 
 onMounted(loadStatus)
+onBeforeUnmount(() => { disposed = true })
+watch([() => authStore.user?.id, () => authStore.token], () => { void loadStatus() })
 </script>
 
 <template>
   <AppLayout>
-    <div class="gw-page gw-workspace pb-10">
+    <div class="gw-page gw-workspace pb-10" :aria-busy="loading">
       <section class="gw-hero-panel">
         <div class="gw-hero-grid">
           <div>
@@ -186,11 +237,14 @@ onMounted(loadStatus)
             <p v-if="status?.enabled" class="gw-subtitle">
               {{ growthEnergyMode ? t('checkin.energyHint') : t('checkin.randomRewardHint') }}
             </p>
+            <button type="button" data-testid="refresh-status" class="gw-btn gw-btn-secondary mt-3" :disabled="loading || submitting || makingUp" @click="refreshStatus">
+              {{ t('common.refresh') }}
+            </button>
           </div>
 
           <div class="gw-hub-balance">
             <p class="gw-balance-label">{{ t('checkin.balanceLabel') }}</p>
-            <p class="gw-balance-value">${{ user?.balance?.toFixed(2) || '0.00' }}</p>
+            <p class="gw-balance-value">{{ balance !== null ? `$${balance.toFixed(2)}` : '—' }}</p>
             <p v-if="status?.streak_count" class="gw-subtitle mt-2">
               {{ t('checkin.streak', { days: status.streak_count }) }}
             </p>
@@ -205,6 +259,10 @@ onMounted(loadStatus)
         <div class="gw-panel">
           <div v-if="loading" class="gw-polling text-center py-6">
             {{ t('models.loading') }}
+          </div>
+          <div v-else-if="loadError" class="gw-subtitle" role="alert">
+            <p>{{ t(loadError) }}</p>
+            <button type="button" class="gw-btn gw-btn-secondary mt-3" @click="loadStatus">{{ t('common.retry') }}</button>
           </div>
           <div v-else-if="!status?.enabled" class="gw-subtitle text-center py-6">
             {{ t('checkin.disabled') }}
@@ -246,8 +304,8 @@ onMounted(loadStatus)
             <p class="gw-quest-banner-title">{{ t('checkin.redeemableTitle') }}</p>
             <p class="gw-subtitle">{{ t('checkin.redeemableHint') }}</p>
           </div>
-          <div v-if="status?.next_milestone_days" class="gw-quest-banner">
-            {{ t('checkin.nextMilestone', { days: status.next_milestone_days, bonus: (status.next_milestone_bonus || 0).toFixed(2) }) }}
+          <div v-if="remainingMilestoneDays" class="gw-quest-banner">
+            {{ t('checkin.nextMilestone', { days: remainingMilestoneDays, bonus: (status?.next_milestone_bonus || 0).toFixed(2) }) }}
           </div>
 
           <div v-if="status?.can_makeup" class="gw-panel">

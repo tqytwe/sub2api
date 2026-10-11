@@ -1,0 +1,76 @@
+// Development-only: built assets + the disposable HTTP/PostgreSQL fixture.
+const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright-core')
+const fs = require('fs')
+const path = require('path')
+const root = path.resolve(__dirname, '../../../visual-reviews/assets/batch-image-ledger')
+;(async () => {
+  const match = fs.readFileSync(process.argv[2], 'utf8').match(/BATCH_BROWSER_READY url=(\S+) request=(\S+) batch=(\S+) usage=(\d+)/)
+  if (!match) throw Error('Fixture is not ready')
+  const [, url, requestID, batchID, usageID] = match
+  const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_BIN || '/usr/bin/chromium', headless: true, args: ['--no-sandbox'] })
+  const evidence = []
+  for (const [uid, role] of [[101, 'user'], [999, 'admin']]) {
+    const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, reducedMotion: 'reduce', extraHTTPHeaders: { 'X-Ledger-Test-User': String(uid) } })
+    await context.addInitScript(({ uid, role }) => {
+      localStorage.setItem('auth_token', 'fixture-only-not-a-credential')
+      localStorage.setItem('auth_user', JSON.stringify({ id: uid, role, username: 'Synthetic reviewer', email: 'fixture@example.invalid', balance: 94 }))
+      localStorage.setItem(`${role}_guide_${uid}_${role}_v4_interactive`, 'true')
+    }, { uid, role })
+    const prefix = role === 'admin' ? '/admin' : ''
+    const apiPath = `/api/v1${prefix}/requests/${requestID}/usage/${usageID}`
+    const proof = (await (await context.request.get(url + apiPath)).json()).data
+    const items = await (await context.request.get(url + `/v1/images/batches/${batchID}/items`, { headers: { 'X-Ledger-Test-User': '101' } })).json()
+    if (proof.image_count !== 3 || proof.image_count !== items.data.reduce((sum, item) => sum + item.image_count, 0) || proof.batch_id !== batchID || proof.billed_cost !== 6) throw Error('HTTP proof/item mismatch')
+    const p = await context.newPage(), errors = []
+    p.on('pageerror', e => errors.push(e.message))
+    await p.goto(url + `${prefix}/requests?private_id=${requestID}`, { waitUntil: 'networkidle' })
+    const openZH = p.getByRole('button', { name: `用量记录 #${usageID}`, exact: true })
+    await openZH.focus(); await p.keyboard.press('Enter')
+    await p.getByText(batchID, { exact: true }).waitFor()
+    if (!(await p.getByRole('dialog').innerText()).includes('该批次已结算')) throw Error('Missing shared batch scope')
+    if (await p.getByText('输入 Token', { exact: true }).count()) throw Error('Invented image token display')
+    for (const width of [360, 768, 1280, 1920]) {
+      await p.setViewportSize({ width, height: 900 }); await p.locator('dl').last().scrollIntoViewIfNeeded()
+      await p.screenshot({ path: `${root}/after-${role}-${width}.png`, animations: 'disabled' })
+      if (await p.evaluate(() => document.documentElement.scrollWidth > innerWidth)) throw Error('Page overflow: ' + role + width)
+    }
+    await p.setViewportSize({ width: 1280, height: 900 })
+    await p.evaluate(() => document.documentElement.classList.add('dark'))
+    await p.screenshot({ path: `${root}/dark-${role}-1280.png`, animations: 'disabled' })
+    await p.evaluate(() => document.documentElement.classList.remove('dark'))
+    await p.keyboard.press('Escape'); await p.getByRole('dialog').waitFor({ state: 'hidden' })
+    await p.goto(url + `${prefix}/requests?private_id=${requestID}&lang=en`, { waitUntil: 'networkidle' })
+    const open = p.getByRole('button', { name: `Usage record #${usageID}`, exact: true })
+    await open.click(); await p.getByText(batchID, { exact: true }).waitFor()
+    await p.locator('dl').last().scrollIntoViewIfNeeded()
+    await p.screenshot({ path: `${root}/en-${role}-1280.png`, animations: 'disabled' })
+    if (!(await p.getByRole('dialog').innerText()).includes('This batch is settled')) throw Error('Missing English scope')
+    await p.evaluate(() => document.documentElement.style.zoom = '200%')
+    await p.getByText(batchID, { exact: true }).scrollIntoViewIfNeeded()
+    await p.screenshot({ path: `${root}/zoom-${role}-1280.png`, animations: 'disabled' })
+    await p.evaluate(() => document.documentElement.style.zoom = '')
+    await context.route(u => u.pathname === apiPath, route => route.fulfill({ status: 503, contentType: 'application/json', body: '{"message":"synthetic usage read failure"}' }))
+    await open.click(); await p.getByRole('dialog').getByRole('alert').waitFor()
+    await p.screenshot({ path: `${root}/error-${role}-1280.png`, animations: 'disabled' })
+    await context.unrouteAll(); await open.click(); await p.getByText(batchID, { exact: true }).waitFor()
+    let release
+    const pending = new Promise(resolve => { release = resolve })
+    await context.route(u => u.pathname === apiPath, async route => { await pending; await route.continue() })
+    await open.click(); await p.getByRole('dialog').getByRole('status').waitFor()
+    await p.screenshot({ path: `${root}/loading-${role}-1280.png`, animations: 'disabled' })
+    release(); await p.getByText(batchID, { exact: true }).waitFor(); await context.unrouteAll()
+    await context.route(u => u.pathname === apiPath, async route => { const response = await route.fetch(); const payload = await response.json(); payload.data.image_count = null; await route.fulfill({ response, json: payload }) })
+    await open.click(); await p.getByText('Image count', { exact: true }).waitFor()
+    const countText = await p.getByText('Image count', { exact: true }).locator('..').innerText()
+    if (!countText.includes('Unknown usage')) throw Error('Missing image count represented as a number: ' + countText)
+    await p.locator('dl').last().scrollIntoViewIfNeeded()
+    await p.screenshot({ path: `${root}/unknown-count-${role}-1280.png`, animations: 'disabled' })
+    await context.unrouteAll()
+    if (errors.length) throw Error(JSON.stringify(errors))
+    evidence.push({ role, request_id: requestID, usage_id: Number(usageID), batch_id: batchID, image_count: proof.image_count, item_image_count: 3, billed_cost: proof.billed_cost, viewports: [360, 768, 1280, 1920], themes: ['light', 'dark'], languages: ['zh', 'en'], keyboard: true, reduced_motion: true, zoom: 'CSS 200% emulation', failure_retry: true, loading: true, simulated_nullable_count: true, page_errors: errors })
+    await context.close()
+  }
+  await browser.close()
+  fs.writeFileSync(path.join(__dirname, 'browser-evidence.json'), JSON.stringify(evidence, null, 2) + '\n')
+  console.log(JSON.stringify(evidence))
+})().catch(e => { console.error(e); process.exit(1) })

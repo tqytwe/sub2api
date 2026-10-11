@@ -1,6 +1,8 @@
 package service
 
 import (
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
+
 	"context"
 	"errors"
 	"fmt"
@@ -71,6 +73,7 @@ func (s *GatewayService) ForwardSystemOne(ctx context.Context, c *gin.Context, a
 		// gateway cannot relay it; keep an ops trail for reconciliation.
 		setOpsUpstreamError(c, resp.StatusCode, err.Error(), "")
 		appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+			LedgerReceipt:      requestledger.ResponseReceipt(resp),
 			Passthrough:        true,
 			ProxyID:            opsUpstreamProxyID(account),
 			ProxyName:          opsUpstreamProxyName(account),
@@ -123,6 +126,7 @@ func (s *GatewayService) handleSystemOneErrorResponse(ctx context.Context, c *gi
 	upstreamMsg := sanitizeUpstreamErrorMessage(strings.TrimSpace(extractUpstreamErrorMessage(respBody)))
 	setOpsUpstreamError(c, resp.StatusCode, upstreamMsg, "")
 	event := OpsUpstreamErrorEvent{
+		LedgerReceipt:      requestledger.ResponseReceipt(resp),
 		Passthrough:        true,
 		ProxyID:            opsUpstreamProxyID(account),
 		ProxyName:          opsUpstreamProxyName(account),

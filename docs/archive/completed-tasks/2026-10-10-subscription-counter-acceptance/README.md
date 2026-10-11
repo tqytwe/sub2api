@@ -1,6 +1,10 @@
 # P1 isolated subscription/package counter acceptance
 
-Status: **local matrix GREEN / independent review and CI pending**. The original
+See the [2026-10-11 continuation](./2026-10-11-continuation.md) for the merged
+baseline, fresh 404-migration run, complete local gates and independent reviews.
+The execution records in the original sections below remain historical.
+
+Historical 2026-10-10 status: **local matrix GREEN / independent review and CI pending**. The original
 strict matrix reproduced two defects (27 PASS / 2 RED). With explicit follow-up
 authorization and P0 ownership coordination, only `usage_billing_repo.go` was
 changed in the two ownership/idempotency areas. The expanded full matrix now has
@@ -172,7 +176,10 @@ real writer/repository use, exact row cardinalities, rollback injection point,
 strict errors, callback synchronization, private-ID separation, nullable billed
 amounts, local-only network guard, and confinement of production changes to the authorized two areas.
 An independent reviewer must review the final diff and both RED reproductions
-before this task can be accepted. A draft PR is not merge approval.
+before this task can be accepted. A draft PR is not merge approval. The subsequent
+[2026-10-11 independent reviews](./2026-10-11-review.md) passed specification and
+quality review on the merged baseline; this does not retroactively change the
+older execution records below.
 
 Run results, exact tested file hashes, validation outcomes, and outstanding gates
 are recorded in [evidence.json](./evidence.json), [counter-matrix.txt](./counter-matrix.txt),

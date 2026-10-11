@@ -1,0 +1,11 @@
+{
+  "reports": [
+    {
+      "case": "blindbox-identity-isolation",
+      "logout_clears_reward": false,
+      "switch_clears_private_pool": false,
+      "auth_actions": "production Pinia logout/checkAuth; synthetic HTTP identity"
+    }
+  ],
+  "index_sha256": "ad99c6b568db812e616b85baede9f0723949f9d5ae64041efa2112f1218dfa1d"
+}

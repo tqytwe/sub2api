@@ -16,5 +16,5 @@ func batchImageLedgerHTTP(client *http.Client, req *http.Request) (*http.Respons
 		base = http.DefaultTransport
 	}
 	clone.Transport = requestledger.Transport(base, 0)
-	return clone.Do(req)
+	return requestledger.Do(req, clone.Do)
 }

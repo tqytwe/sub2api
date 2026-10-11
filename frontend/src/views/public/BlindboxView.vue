@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import router from '@/router'
@@ -39,6 +39,8 @@ const pendingOpenIdempotencyKey = ref<string | null>(null)
 const pendingOpenStorageKey = ref<string | null>(null)
 let statusRequestID = 0
 let openRequestID = 0
+let recentRequestID = 0
+let disposed = false
 
 const pendingOpenStoragePrefix = 'blindbox.pending-open:'
 const maxIdempotencyKeyLength = 128
@@ -153,16 +155,18 @@ const governanceBlocked = computed(
   () => authStore.isAuthenticated && !growthRewardLocked.value && status.value?.growth_governance_available === false,
 )
 
-const canOpen = computed(
+const openingAllowed = computed(
   () =>
     authStore.isAuthenticated &&
     status.value?.enabled &&
     couponPoolReady.value &&
     status.value.can_open &&
     !growthRewardLocked.value &&
-    prizePool.value !== null &&
-    !opening.value,
+    prizePool.value !== null,
 )
+const canOpen = computed(() => openingAllowed.value && !opening.value && !loading.value)
+const hasPendingOpen = computed(() => authStore.isAuthenticated && !!pendingOpenIdempotencyKey.value)
+const canResumePendingOpen = computed(() => hasPendingOpen.value && !opening.value && !loading.value)
 
 function formatProbability(weight: number): string {
   const percentage = weight / 100
@@ -306,10 +310,15 @@ const celebrationDetails = computed(() => {
 })
 
 async function loadRecentWins() {
+  if (disposed || growthRewardLocked.value || (authStore.isAuthenticated && (!status.value || statusLoadFailed.value))) return
+  const requestID = ++recentRequestID
   recentWinsFailed.value = false
   try {
-    recentWins.value = await playAPI.getBlindboxRecentWins()
+    const wins = await playAPI.getBlindboxRecentWins()
+    if (requestID !== recentRequestID || disposed) return
+    recentWins.value = wins
   } catch {
+    if (requestID !== recentRequestID || disposed) return
     recentWins.value = []
     recentWinsFailed.value = true
   }
@@ -342,11 +351,20 @@ async function loadStatus() {
     status.value = null
     publicPool.value = null
     statusLoadFailed.value = true
+    recentRequestID += 1
+    recentWins.value = []
+    recentWinsFailed.value = false
   } finally {
     if (requestID === statusRequestID) {
       loading.value = false
     }
   }
+}
+
+async function loadStatusAndRecentWins() {
+  const requestID = statusRequestID + 1
+  await loadStatus()
+  if (!disposed && requestID === statusRequestID && !statusLoadFailed.value) await loadRecentWins()
 }
 
 function currentBlindboxUserID(): number | null {
@@ -380,6 +398,12 @@ function loadPersistedOpenIdempotencyKey(storageKey: string): string | null {
     // Storage can be unavailable in privacy-restricted browser contexts.
   }
   return null
+}
+
+function restorePendingOpen() {
+  const storageKey = pendingOpenStorageKeyForCurrentUser()
+  pendingOpenIdempotencyKey.value = storageKey ? loadPersistedOpenIdempotencyKey(storageKey) : null
+  pendingOpenStorageKey.value = pendingOpenIdempotencyKey.value ? storageKey : null
 }
 
 function persistOpenIdempotencyKey(storageKey: string | null, idempotencyKey: string) {
@@ -454,7 +478,7 @@ function isCurrentOpenRequest(requestID: number, open: PendingBlindboxOpen): boo
 }
 
 async function handleOpen() {
-  if (!canOpen.value) return
+  if (!canOpen.value && !canResumePendingOpen.value) return
   const requestID = ++openRequestID
   const open = currentOpenIdempotencyKey()
   opening.value = true
@@ -511,8 +535,8 @@ async function handleOpen() {
       return
     }
 
-    clearPendingOpenIdempotencyKey(open)
     if (!isCurrentOpenRequest(requestID, open)) return
+    clearPendingOpenIdempotencyKey(open)
     lastResult.value = result
     celebrationOpen.value = true
     try {
@@ -520,7 +544,8 @@ async function handleOpen() {
     } catch {
       // The draw is already settled; refresh the view below without reporting it as a failed open.
     }
-    await Promise.all([loadStatus(), loadRecentWins()])
+    if (!isCurrentOpenRequest(requestID, open)) return
+    await loadStatusAndRecentWins()
   } finally {
     if (requestID === openRequestID) opening.value = false
   }
@@ -540,25 +565,34 @@ function viewLatestReward() {
 }
 
 onMounted(async () => {
-  await loadStatus()
+  restorePendingOpen()
   // Explorer accounts deliberately see no reward promises or recent-win feed.
   // Wait for the server-owned qualification result before fetching it.
-  if (!growthRewardLocked.value) await loadRecentWins()
+  await loadStatusAndRecentWins()
+})
+
+onBeforeUnmount(() => {
+  disposed = true
+  statusRequestID += 1
+  openRequestID += 1
+  recentRequestID += 1
 })
 
 watch(
   [() => authStore.isAuthenticated, () => authStore.user?.id],
-  () => {
+  async () => {
     openRequestID += 1
+    recentRequestID += 1
     opening.value = false
-    const storageKey = pendingOpenStorageKeyForCurrentUser()
-    if (pendingOpenStorageKey.value !== storageKey) {
-      pendingOpenIdempotencyKey.value = null
-      pendingOpenStorageKey.value = null
-      lastResult.value = null
-      celebrationOpen.value = false
-    }
-    void loadStatus()
+    status.value = null
+    publicPool.value = null
+    lastResult.value = null
+    celebrationOpen.value = false
+    recentWins.value = []
+    recentWinsFailed.value = false
+    statusLoadFailed.value = false
+    restorePendingOpen()
+    await loadStatusAndRecentWins()
   },
 )
 </script>
@@ -590,7 +624,7 @@ watch(
                 <div v-if="loading" class="play-note">{{ t('models.loading') }}</div>
                 <div v-else-if="statusLoadFailed" class="play-note" role="alert">
                   <p>{{ t('blindbox.unavailable') }}</p>
-                  <button type="button" class="play-btn play-btn-secondary mt-3" data-testid="blindbox-status-retry" @click="loadStatus">{{ t('common.retry') }}</button>
+                  <button type="button" class="play-btn play-btn-secondary mt-3" data-testid="blindbox-status-retry" @click="loadStatusAndRecentWins">{{ t('common.retry') }}</button>
                 </div>
                 <div v-else-if="!status?.enabled" class="play-note">{{ t('blindbox.disabled') }}</div>
                 <template v-else-if="growthRewardLocked">
@@ -656,6 +690,12 @@ watch(
                   </p>
                   <CouponRewardCard v-if="hasCouponResult && lastResult?.coupon" :coupon="lastResult.coupon" />
                 </template>
+                <div v-if="hasPendingOpen && !openingAllowed" class="play-note" role="status">
+                  <p>{{ t('blindbox.pendingOpenHint') }}</p>
+                  <button type="button" class="play-btn play-btn-secondary mt-3" data-testid="blindbox-resume" :disabled="!canResumePendingOpen" @click="handleOpen">
+                    {{ opening ? t('blindbox.opening') : t('blindbox.resumeOpen') }}
+                  </button>
+                </div>
               </div>
 
               <div v-else class="play-actions">

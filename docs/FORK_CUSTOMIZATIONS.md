@@ -73,6 +73,9 @@
 - 关键位置：`backend/internal/server/routes/play.go`、`backend/internal/server/routes/admin.go`、`backend/internal/service/setting_play_runtime.go`、`backend/internal/service/play_hub.go`、`backend/internal/service/play_admin_team_repair.go`、`backend/internal/service/play_growth_eligibility.go`、`backend/internal/service/play_growth_governance.go`、`backend/internal/repository/play_repo_admin_team_repair.go`、`backend/internal/repository/play_repo_growth_eligibility.go`、`backend/internal/repository/play_repo_growth_governance.go`、`frontend/src/views/user/PlayHubView.vue`、`frontend/src/views/admin/PlayOpsView.vue`、`frontend/src/content/play-features.ts`。
 - 冲突策略：保留上游共享支付、用户与用量修复；Play 表、路由、设置和奖励账本不得被移除或绕过。
 - 验证：Play service tests、`play_admin_team_repair_test.go`、真实 PostgreSQL `play_repo_team_integration_test.go`、`play_handler_team_repair_test.go`、`play_admin_routes_test.go`、`PlayOpsView.spec.ts`、`admin.play.teamRepair.spec.ts`、`adminPlayOpsParity.spec.ts`、`public_growth_teaser_test.go` 和相关前端 utils tests；线上逐项检查开关关闭和开启状态，并由本地管理员浏览器完成中英文、浅色和深色战队修复验收。
+- 签到读取与中枢刷新：真实 Axios 区分 GET 服务/权限/网络失败及关闭，单请求加载与离开后旧响应保护；里程碑绝对目标转换为剩余天数。[P1 状态证据](./archive/completed-tasks/2026-10-checkin-status/README.md)，不改后端规则。
+- 签到错误契约验证：`./scripts/test-checkin-contract.sh`（真实 PostgreSQL→HTTP→Axios/Vue）、`CheckInView.errors.spec.ts`（真实 HTTP 错误与超时）；[P1 证据](./archive/completed-tasks/2026-10-checkin-errors/README.md)。UI 按归一化 `reason` 识别重复/资格错误，补签拒绝后刷新；不恢复历史审批门禁、不改奖励规则。
+- 答题/盲盒福利合同：`./scripts/test-welfare-contract.sh` 验证真实 PG→HTTP→Axios/Pinia/Vue，包含同 key/并发防重、事务回滚、未知结果重试与按账号隔离；盲盒 DTO 区分未公开与已发布 0 概率。[P1 证据](./archive/completed-tasks/2026-10-welfare-games/README.md)，不改成本、奖种或资格规则。
 
 ## FORK-IMAGE-004 图像工作室
 
@@ -334,9 +337,12 @@
 
 - 产品目的：受管请求从入口就有可审计证据，拒绝、取消、断流和崩溃后未知消费可被查到并归因。
 - 不变量：私有请求 UUID 在鉴权前提交；发送前提交 attempt；执行/用量/结算为独立状态轴；身份与调度/凭据母账号可追溯；未知用量不是零费用；不更改原计费策略和幂等键，不补造历史或补扣。只存必需元数据与安全枚举，不存 key、正文或任意上游错误文本；用户 SQL 只能读自己的记录。
-- 关键位置：`backend/internal/requestledger/`、`backend/migrations/275_gateway_request_ledger.sql`、`backend/internal/handler/request_ledger_handler.go`、`frontend/src/views/shared/RequestLedgerView.vue`。
+- 关键位置：`backend/internal/requestledger/`、`backend/migrations/275_gateway_request_ledger.sql`、`backend/migrations/276_gateway_request_correlation.sql`、`backend/internal/handler/request_ledger_handler.go`、`frontend/src/views/shared/RequestLedgerView.vue`。
 - 冲突策略：保持持久入口早于 auth/限流/读取 body，保持实际发送前的门禁；WS 合并复用逻辑 turn 和计费上下文，不重做 settlement。旧版本不写新表，回滚期间新请求覆盖会中止，已有记录不删除。
-- 验证：`requestledger` 真实 PG/进程终止测试、真实注册路由拒绝矩阵、HTTP API 角色/分页测试、Responses 多轮 WS、billing rollback/dedup、前端未知消费/刷新测试；范围和未覆盖协议见归档规格。保留策略仅新增、不自动删除。
+- P0 精确关联：服务端 attempt UUID 与进程内不可伪造 Receipt 关联原 Ops ID；上游标识仅有界证据，禁止作为计费去重键。旧 attempt 没有证据时保持为空；诊断表/锁失败不能阻断已观察真实 usage 的原结算。管理员双向跳转，用户仅本人 UUID。迁移 276 只增表/索引，不改历史 checksum 或回填。
+- Batch 精确钻取（关联 `FORK-IMAGE-011`）：原 capture 成功后，以单语句只读核验任务归属及全部冷热指纹，再认证新 usage 的指纹与已结算金额；真实金额和图片数始终保留。核验限时 1 秒，缺失 reader、查询失败或冲突仅留下审计缺口，不阻断 usage、不重复 capture，completed 重试也不猜补。task、owner/key、capture request 与 dedup/archive 指纹一致才关联 usage。共享批次结算不代表每次入口/worker 再次扣款；缺失 usage/旧指纹不补猜，不改冻结价格、capture/release 或公开提交规则。迁移 `277_batch_image_ledger_reconcile_index_notx.sql` 仅新增并发部分索引，按索引先选最多 1000 候选再验证证据；中断建索引复用既有恢复机制。
+- Batch 验证：真实 HTTP/PG 的 capture→usage→详情、失败重试、断连、并发/幂等、归属隔离、归档凭据与无 task 扫描上限，以及用户/管理员实际构建资源；见[本批证据](./archive/completed-tasks/batch-image-ledger/README.md)。合法零 capture 凭据测试不证明既有公开零价格跳过 hold 路径已修复；生产验收状态仅见交接快照。
+- 验证：`requestledger` 真实 PG/进程终止测试、真实注册路由拒绝矩阵、HTTP API 角色/分页测试、Responses 多轮 WS、billing rollback/dedup、前端未知消费/刷新测试；范围和未覆盖协议见归档规格。补充 `correlation_integration_test.go`、`request_ledger_ops_integration_test.go` 与 WS late/drain/重试隔离测试。保留策略仅新增、不自动删除。
 
 ## 更新规则
 

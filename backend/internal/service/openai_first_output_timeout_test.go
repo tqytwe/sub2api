@@ -1,6 +1,8 @@
 package service
 
 import (
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
+
 	"bytes"
 	"context"
 	"errors"
@@ -161,9 +163,9 @@ func TestNewOpenAIFirstOutputTimeoutErrorRecordsCallerProxyAttribution(t *testin
 
 	// WebSocket callers pass the WS attribution; HTTP callers pass the HTTP one.
 	wsID, wsName := opsUpstreamWSProxyAttribution(&Account{ID: 2, Platform: PlatformOpenAI})
-	_ = svc.newOpenAIFirstOutputTimeoutError(context.Background(), c, &Account{ID: 2, Name: "ws", Platform: PlatformOpenAI},
+	_ = svc.newOpenAIFirstOutputTimeoutError(requestledger.Receipt{}, context.Background(), c, &Account{ID: 2, Name: "ws", Platform: PlatformOpenAI},
 		wsID, wsName, time.Now(), "gpt-5.5", "", time.Second, "websocket_first_semantic_output", nil)
-	_ = svc.newOpenAIFirstOutputTimeoutError(context.Background(), c, account,
+	_ = svc.newOpenAIFirstOutputTimeoutError(requestledger.Receipt{}, context.Background(), c, account,
 		opsUpstreamProxyID(account), opsUpstreamProxyName(account), time.Now(), "gpt-5.5", "", time.Second, "semantic_output", nil)
 
 	raw, ok := c.Get(OpsUpstreamErrorsKey)

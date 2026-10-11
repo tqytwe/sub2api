@@ -396,7 +396,7 @@ describe('BlindboxView', () => {
     expect(window.sessionStorage.getItem('blindbox.pending-open:42')).toBe(openBlindboxMock.mock.calls[0]?.[0])
   })
 
-  it('does not show a settled result from the previous user after an account switch', async () => {
+  it('keeps the previous user result recoverable without showing it to the new account', async () => {
     let resolveOpen!: (result: {
       cost_amount: number
       reward_amount: number
@@ -433,7 +433,7 @@ describe('BlindboxView', () => {
     expect(showSuccessMock).not.toHaveBeenCalled()
     expect(showErrorMock).not.toHaveBeenCalled()
     expect(wrapper.find('.reward-celebration-overlay').exists()).toBe(false)
-    expect(window.sessionStorage.getItem('blindbox.pending-open:42')).toBeNull()
+    expect(window.sessionStorage.getItem('blindbox.pending-open:42')).toBe(openBlindboxMock.mock.calls[0]?.[0])
   })
 
   it('allows the current account to open while an old account request is still pending', async () => {

@@ -1,0 +1,234 @@
+[
+  {
+    "case": "late-profile-after-router-reopen",
+    "balance": 2.5,
+    "shared_balance": 2.5,
+    "posts": 1
+  },
+  {
+    "case": "same-mounted-hub-account-switch-late-A",
+    "balance": 2,
+    "same_component": true
+  },
+  {
+    "case": "same-mounted-hub-token-adoption-late-read",
+    "balance": 3,
+    "actual_automatic_refresh": "covered by Pinia HTTP tests"
+  },
+  {
+    "case": "same-mounted-hub-logout-late-read",
+    "balance": null,
+    "private_cards": 0
+  },
+  {
+    "case": "updated-360-zh-dark-checkin",
+    "gets": 6,
+    "posts": 0,
+    "focus": {
+      "outline": "auto",
+      "shadow": "none"
+    },
+    "dimensions": {
+      "width": 360,
+      "scroll": 360
+    },
+    "page_errors": [],
+    "states": [
+      "503",
+      "403",
+      "network",
+      "disabled",
+      "reopen",
+      "retry",
+      "loading",
+      "rapid-click",
+      "late-response"
+    ]
+  },
+  {
+    "case": "updated-360-zh-dark-hub",
+    "gets": 6,
+    "posts": 0,
+    "focus": {
+      "outline": "auto",
+      "shadow": "none"
+    },
+    "dimensions": {
+      "width": 360,
+      "scroll": 360
+    },
+    "page_errors": [],
+    "states": [
+      "503",
+      "403",
+      "network",
+      "disabled",
+      "reopen",
+      "retry",
+      "loading",
+      "rapid-click",
+      "late-response"
+    ]
+  },
+  {
+    "case": "updated-768-en-light-checkin",
+    "gets": 6,
+    "posts": 0,
+    "focus": {
+      "outline": "auto",
+      "shadow": "none"
+    },
+    "dimensions": {
+      "width": 768,
+      "scroll": 768
+    },
+    "page_errors": [],
+    "states": [
+      "503",
+      "403",
+      "network",
+      "disabled",
+      "reopen",
+      "retry",
+      "loading",
+      "rapid-click",
+      "late-response"
+    ]
+  },
+  {
+    "case": "updated-768-en-light-hub",
+    "gets": 6,
+    "posts": 0,
+    "focus": {
+      "outline": "auto",
+      "shadow": "none"
+    },
+    "dimensions": {
+      "width": 768,
+      "scroll": 768
+    },
+    "page_errors": [],
+    "states": [
+      "503",
+      "403",
+      "network",
+      "disabled",
+      "reopen",
+      "retry",
+      "loading",
+      "rapid-click",
+      "late-response"
+    ]
+  },
+  {
+    "case": "updated-1280-zh-light-checkin",
+    "gets": 6,
+    "posts": 0,
+    "focus": {
+      "outline": "auto",
+      "shadow": "none"
+    },
+    "dimensions": {
+      "width": 1280,
+      "scroll": 1280
+    },
+    "page_errors": [],
+    "states": [
+      "503",
+      "403",
+      "network",
+      "disabled",
+      "reopen",
+      "retry",
+      "loading",
+      "rapid-click",
+      "late-response"
+    ]
+  },
+  {
+    "case": "updated-1280-zh-light-hub",
+    "gets": 6,
+    "posts": 0,
+    "focus": {
+      "outline": "auto",
+      "shadow": "none"
+    },
+    "dimensions": {
+      "width": 1280,
+      "scroll": 1280
+    },
+    "page_errors": [],
+    "states": [
+      "503",
+      "403",
+      "network",
+      "disabled",
+      "reopen",
+      "retry",
+      "loading",
+      "rapid-click",
+      "late-response"
+    ]
+  },
+  {
+    "case": "updated-1920-en-dark-checkin",
+    "gets": 6,
+    "posts": 0,
+    "focus": {
+      "outline": "auto",
+      "shadow": "none"
+    },
+    "dimensions": {
+      "width": 1920,
+      "scroll": 1920
+    },
+    "page_errors": [],
+    "states": [
+      "503",
+      "403",
+      "network",
+      "disabled",
+      "reopen",
+      "retry",
+      "loading",
+      "rapid-click",
+      "late-response"
+    ]
+  },
+  {
+    "case": "updated-1920-en-dark-hub",
+    "gets": 6,
+    "posts": 0,
+    "focus": {
+      "outline": "auto",
+      "shadow": "none"
+    },
+    "dimensions": {
+      "width": 1920,
+      "scroll": 1920
+    },
+    "page_errors": [],
+    "states": [
+      "503",
+      "403",
+      "network",
+      "disabled",
+      "reopen",
+      "retry",
+      "loading",
+      "rapid-click",
+      "late-response"
+    ]
+  },
+  {
+    "case": "other-tab-grant-hub-checkin-balance",
+    "posts": 1,
+    "balance": 2.5
+  },
+  {
+    "case": "router-checkin-hub-refresh",
+    "gets": 4,
+    "posts": 1,
+    "balance": 2.5
+  }
+]

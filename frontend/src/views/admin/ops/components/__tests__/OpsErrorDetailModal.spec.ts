@@ -3,12 +3,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import OpsErrorDetailModal from '../OpsErrorDetailModal.vue'
 
 const mocks = vi.hoisted(() => ({
+  getErrorLogDetail: vi.fn(),
   getRequestErrorDetail: vi.fn(),
   listRequestErrorUpstreamErrors: vi.fn()
 }))
 
 vi.mock('@/api/admin/ops', () => ({
   opsAPI: {
+    getErrorLogDetail: mocks.getErrorLogDetail,
     getRequestErrorDetail: mocks.getRequestErrorDetail,
     getUpstreamErrorDetail: vi.fn(),
     listRequestErrorUpstreamErrors: mocks.listRequestErrorUpstreamErrors
@@ -76,4 +78,33 @@ describe('OpsErrorDetailModal', () => {
     expect(wrapper.findAll('pre')).toHaveLength(2)
     expect(wrapper.text()).not.toContain('admin.ops.errorDetail.payloads.upstream_detail')
   })
+})
+
+ it('opens the exact ledger Ops ID without assuming its request or upstream phase', async () => {
+  mocks.getErrorLogDetail.mockResolvedValue({ id: 42, phase: 'request', ledger_references: [{ request_id: 'private-request', attempt_no: 2, attempt_id: 'private-attempt', ops_error_log_id: 42 }] })
+  const wrapper = shallowMount(OpsErrorDetailModal, { props: { show: true, errorId: 42, errorType: 'any' }, global: { stubs: { BaseDialog: { template: '<div><slot /></div>' }, RouterLink: { template: '<a><slot /></a>' }, Icon: true } } })
+  await flushPromises()
+  expect(mocks.getErrorLogDetail).toHaveBeenCalledWith(42)
+  expect(wrapper.text()).toContain('private-request')
+  expect(wrapper.text()).toContain('private-attempt')
+ })
+
+it('keeps the selected Ops record and ledger links when a closed request resolves late', async () => {
+  let resolveA!: (value: unknown) => void
+  let resolveB!: (value: unknown) => void
+  mocks.getErrorLogDetail.mockReset()
+  mocks.getErrorLogDetail.mockImplementation((id: number) => new Promise(resolve => {
+    if (id === 1) resolveA = resolve
+    else resolveB = resolve
+  }))
+  const wrapper = shallowMount(OpsErrorDetailModal, { props: { show: true, errorId: 1, errorType: 'any' }, global: { stubs: { BaseDialog: { template: '<div><slot /></div>' }, RouterLink: { template: '<a><slot /></a>' }, Icon: true } } })
+  await wrapper.setProps({ show: false })
+  await wrapper.setProps({ show: true, errorId: 2 })
+  resolveB({ id: 2, phase: 'request', ledger_references: [{ request_id: 'request-B', attempt_no: 1, ops_error_log_id: 2 }] })
+  await flushPromises()
+  expect(wrapper.text()).toContain('request-B')
+  resolveA({ id: 1, phase: 'request', ledger_references: [{ request_id: 'request-A', attempt_no: 1, ops_error_log_id: 1 }] })
+  await flushPromises()
+  expect(wrapper.text()).toContain('request-B')
+  expect(wrapper.text()).not.toContain('request-A')
 })

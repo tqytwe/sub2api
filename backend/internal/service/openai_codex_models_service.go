@@ -1979,7 +1979,7 @@ func (s *OpenAIGatewayService) fetchOpenAIModelsUpstream(ctx context.Context, re
 			}
 			audited := *client
 			audited.Transport = requestledger.Transport(client.Transport, request.accountID)
-			resp, err = audited.Do(req)
+			resp, err = requestledger.Do(req, audited.Do)
 		}
 	}
 	if err != nil {

@@ -8,14 +8,25 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+
+	"github.com/google/uuid"
+	"github.com/tidwall/gjson"
 )
 
 type Attempt struct {
-	outputObserved atomic.Bool
-	streamTerminal atomic.Int32
-	handle         *Handle
-	Number         int
-	accountID      int64
+	ID                  string
+	evidenceMu          sync.Mutex
+	upstreamRequestID   string
+	upstreamResponseID  string
+	identifierConflict  bool
+	evidenceUnavailable bool
+	evidencePending     bool
+	evidenceVersion     uint64
+	outputObserved      atomic.Bool
+	streamTerminal      atomic.Int32
+	handle              *Handle
+	Number              int
+	accountID           int64
 }
 
 // CurrentAttempt captures the precise model attempt before a parser or detached
@@ -138,7 +149,7 @@ func beginAttempt(ctx context.Context, accountID, credentialAccountID int64, pha
 		return nil, ErrUnavailable
 	}
 	defer func() { _ = tx.Rollback() }()
-	a := &Attempt{handle: h, accountID: accountID}
+	a := &Attempt{handle: h, accountID: accountID, ID: uuid.NewString()}
 	metered := (h.metered && phase == "request") || phase == "ws_input" || phase == "ws_observed" || phase == "external_search"
 	err = tx.QueryRowContext(ctx, `UPDATE gateway_requests r SET attempt_count=attempt_count+1,
  usage_state=CASE WHEN usage_state IN ('not_applicable','known') AND $3 THEN 'pending' ELSE usage_state END,
@@ -150,6 +161,10 @@ func beginAttempt(ctx context.Context, accountID, credentialAccountID int64, pha
 		return nil, ErrUnavailable
 	}
 	_, err = tx.ExecContext(ctx, `INSERT INTO gateway_request_attempts(request_id,attempt_no,account_id,credential_account_id,phase,upstream_kind,usage_state) VALUES($1,$2,NULLIF($3,0),NULLIF($4,0),$5::text,CASE WHEN $5::text='external_search' THEN 'external_search' ELSE 'account' END,CASE WHEN $6 THEN 'pending' ELSE 'not_applicable' END)`, h.ID, a.Number, accountID, credentialAccountID, phase, metered)
+	if err != nil {
+		return nil, ErrUnavailable
+	}
+	_, err = tx.ExecContext(ctx, `INSERT INTO gateway_request_attempt_evidence(request_id,attempt_no,attempt_id) VALUES($1,$2,$3)`, h.ID, a.Number, a.ID)
 	if err != nil {
 		return nil, ErrUnavailable
 	}
@@ -222,6 +237,7 @@ type auditTransport struct {
 }
 
 func (t *auditTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	captureTransportFailure(req.Context(), Receipt{})
 	scheduled, credential := t.accountID, t.accountID
 	if identity, ok := req.Context().Value(accountKey{}).(accountIdentity); ok && (scheduled == 0 || identity.scheduled == scheduled) {
 		scheduled, credential = identity.scheduled, identity.credential
@@ -245,7 +261,8 @@ func (t *auditTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 		if finishErr := a.Finish(req.Context(), 0, err); finishErr != nil {
 			slog.Error("request_ledger_attempt_finish_failed")
 		}
-		return resp, err
+		captureTransportFailure(req.Context(), a.Receipt())
+		return resp, a.WrapError(err)
 	}
 	if t.decode != nil {
 		t.decode(resp)
@@ -257,8 +274,11 @@ func (t *auditTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 }
 
 func newAttemptBody(ctx context.Context, resp *http.Response, attempt *Attempt, method string) *attemptBody {
+	attachResponseReceipt(ctx, resp, attempt.Receipt())
+	attempt.ObserveIdentifiers(ctx, UpstreamRequestID(resp.Header), "")
 	body := &attemptBody{ReadCloser: resp.Body, attempt: attempt, ctx: ctx, status: resp.StatusCode,
 		streaming: strings.Contains(strings.ToLower(resp.Header.Get("Content-Type")), "text/event-stream") && resp.StatusCode < 400}
+	body.evidence.observeID = func(id string) { attempt.ObserveIdentifiers(ctx, "", id) }
 	// HEAD, 204 and 304 complete at their headers. Callers correctly skip Read.
 	if method == http.MethodHead || resp.StatusCode == http.StatusNoContent || resp.StatusCode == http.StatusNotModified || resp.Body == http.NoBody {
 		body.streaming = false
@@ -269,14 +289,16 @@ func newAttemptBody(ctx context.Context, resp *http.Response, attempt *Attempt, 
 
 type attemptBody struct {
 	io.ReadCloser
-	attempt   *Attempt
-	ctx       context.Context
-	status    int
-	once      sync.Once
-	streaming bool
-	mu        sync.Mutex
-	evidence  streamEvidence
-	readErr   error
+	attempt             *Attempt
+	ctx                 context.Context
+	status              int
+	once                sync.Once
+	streaming           bool
+	mu                  sync.Mutex
+	evidence            streamEvidence
+	readErr             error
+	identifierBody      []byte
+	identifierOversized bool
 }
 
 func (b *attemptBody) finish(err error) {
@@ -295,6 +317,29 @@ func (b *attemptBody) Read(p []byte) (int, error) {
 	defer b.mu.Unlock()
 	if b.streaming {
 		b.evidence.observe(p[:n])
+	}
+	if !b.streaming && !b.identifierOversized {
+		if len(b.identifierBody)+n > 64*1024 {
+			b.identifierBody = nil
+			b.identifierOversized = true
+		} else {
+			b.identifierBody = append(b.identifierBody, p[:n]...)
+		}
+	}
+	if err == io.EOF && !b.streaming {
+		b.attempt.ObserveIdentifiers(b.ctx, "", ResponseIdentifier(b.identifierBody))
+		if b.status >= 200 && b.status < 300 {
+			switch gjson.GetBytes(b.identifierBody, "status").String() {
+			case "failed", "incomplete":
+				b.attempt.ObserveStreamTerminal("failed")
+			case "cancelled":
+				b.attempt.ObserveStreamTerminal("cancelled")
+			}
+			if gjson.GetBytes(b.identifierBody, "error").IsObject() {
+				b.attempt.ObserveStreamTerminal("failed")
+			}
+		}
+		b.identifierBody = nil
 	}
 	if err != nil {
 		b.readErr = err
@@ -330,6 +375,10 @@ func (b *attemptBody) Close() error {
 				cause = errStreamIncomplete
 			}
 		}
+	} else if b.attempt.streamTerminal.Load() == 2 {
+		cause = errTerminalFailure
+	} else if b.attempt.streamTerminal.Load() == 3 {
+		cause = context.Canceled
 	} else if cause == io.EOF {
 		cause = nil
 	} else if cause == nil {

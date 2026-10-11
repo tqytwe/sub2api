@@ -183,7 +183,7 @@ export const ROUTE_LOCALE_SCOPES = {
   // UsageTable is shared with admin usage and renders several admin resource
   // labels. Its full dependency must be available before a cold user visit.
   RequestLedger: [...WORKSPACE, 'user-dashboard'],
-  AdminRequestLedger: [...ADMIN, 'user-dashboard'],
+  AdminRequestLedger: [...ADMIN, 'user-dashboard', 'admin-ops'],
   Usage: [...WORKSPACE, 'user-dashboard', 'user-usage', 'admin-resources'],
   Wallet: [...WORKSPACE, 'user-dashboard', 'user-wallet', 'user-misc'],
   Redeem: [...WORKSPACE, 'user-dashboard', 'user-misc'],

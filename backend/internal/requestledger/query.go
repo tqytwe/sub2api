@@ -45,6 +45,10 @@ type Page struct {
 	PageSize int      `json:"page_size"`
 }
 type AttemptRecord struct {
+	AttemptID           *string    `json:"attempt_id"`
+	UpstreamRequestID   *string    `json:"upstream_request_id,omitempty"`
+	UpstreamResponseID  *string    `json:"upstream_response_id,omitempty"`
+	IdentifierConflict  *bool      `json:"identifier_conflict,omitempty"`
 	UsageState          string     `json:"usage_state"`
 	OutputObserved      bool       `json:"output_observed"`
 	UpstreamKind        string     `json:"upstream_kind"`
@@ -165,12 +169,40 @@ func (l *Ledger) Get(ctx context.Context, viewer Viewer, id string) (*Record, er
 }
 
 func (l *Ledger) Attempts(ctx context.Context, viewer Viewer, id string) ([]AttemptRecord, error) {
+	attempts, _, err := l.AttemptsWithEvidence(ctx, viewer, id)
+	return attempts, err
+}
+
+// AttemptsWithEvidence keeps optional diagnostics independent from the original
+// ledger rows. A diagnostic read failure never hides execution or billing.
+func (l *Ledger) AttemptsWithEvidence(ctx context.Context, viewer Viewer, id string) ([]AttemptRecord, bool, error) {
 	if _, err := l.Get(ctx, viewer, id); err != nil {
-		return nil, err
+		return nil, false, err
 	}
+	result, err := l.coreAttempts(ctx, viewer, id)
+	if err != nil {
+		return nil, false, err
+	}
+	evidence, err := l.attemptEvidence(ctx, id)
+	if err != nil {
+		return result, true, nil
+	}
+	for i := range result {
+		e := evidence[result[i].Number]
+		result[i].AttemptID = e.AttemptID
+		if viewer.Admin {
+			result[i].UpstreamRequestID = e.UpstreamRequestID
+			result[i].UpstreamResponseID = e.UpstreamResponseID
+			result[i].IdentifierConflict = e.IdentifierConflict
+		}
+	}
+	return result, false, nil
+}
+
+func (l *Ledger) coreAttempts(ctx context.Context, viewer Viewer, id string) ([]AttemptRecord, error) {
 	ctx, cancel := context.WithTimeout(ctx, writeTimeout)
 	defer cancel()
-	rows, err := l.db.QueryContext(ctx, `SELECT row_to_json(a) FROM gateway_request_attempts a WHERE request_id=$1 ORDER BY attempt_no`, id)
+	rows, err := l.db.QueryContext(ctx, `SELECT to_jsonb(a) FROM gateway_request_attempts a WHERE a.request_id=$1 ORDER BY a.attempt_no`, id)
 	if err != nil {
 		return nil, err
 	}
@@ -194,6 +226,25 @@ func (l *Ledger) Attempts(ctx context.Context, viewer Viewer, id string) ([]Atte
 	return result, rows.Err()
 }
 
+func (l *Ledger) attemptEvidence(ctx context.Context, id string) (map[int]AttemptRecord, error) {
+	ctx, cancel := optionalEvidenceContext(ctx)
+	defer cancel()
+	rows, err := l.db.QueryContext(ctx, `SELECT attempt_no,attempt_id,upstream_request_id,upstream_response_id,identifier_conflict FROM gateway_request_attempt_evidence WHERE request_id=$1`, id)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+	result := make(map[int]AttemptRecord)
+	for rows.Next() {
+		var a AttemptRecord
+		if err = rows.Scan(&a.Number, &a.AttemptID, &a.UpstreamRequestID, &a.UpstreamResponseID, &a.IdentifierConflict); err != nil {
+			return nil, err
+		}
+		result[a.Number] = a
+	}
+	return result, rows.Err()
+}
+
 type BillingReference struct {
 	WalletTransactionID  *int64   `json:"wallet_transaction_id"`
 	UsageLogID           *int64   `json:"usage_log_id"`
@@ -202,6 +253,8 @@ type BillingReference struct {
 	Applied              bool     `json:"applied"`
 	Settled              bool     `json:"settled"`
 	BilledCost           *float64 `json:"billed_cost"`
+	// BatchID means shared task settlement, not a charge applied by this request.
+	BatchID *string `json:"batch_id,omitempty"`
 }
 
 func (l *Ledger) BillingReferences(ctx context.Context, viewer Viewer, id string) ([]BillingReference, error) {
@@ -210,12 +263,15 @@ func (l *Ledger) BillingReferences(ctx context.Context, viewer Viewer, id string
 	}
 	ctx, cancel := context.WithTimeout(ctx, writeTimeout)
 	defer cancel()
-	rows, err := l.db.QueryContext(ctx, `SELECT u.id,b.subscription_id,b.package_entitlement_id,b.settlement_verified,b.settlement_applied,
+	rows, err := l.db.QueryContext(ctx, usageEvidence+`SELECT u.id,b.subscription_id,b.package_entitlement_id,b.settlement_verified,b.settlement_applied,
  (SELECT bt.id FROM balance_transactions bt JOIN gateway_requests owner ON owner.id=b.request_id
- WHERE bt.user_id=owner.user_id AND bt.source_type='usage_charge' AND bt.source_id=b.billing_request_id
- AND bt.idempotency_key='usage_billing:'||b.api_key_id::text||':'||b.billing_request_id),
- CASE WHEN b.settlement_verified AND u.billing_settled THEN u.billed_cost ELSE NULL END
- FROM gateway_request_billing_links b LEFT JOIN usage_logs u ON u.request_id=b.billing_request_id AND u.api_key_id=b.api_key_id
+ WHERE bt.user_id=owner.user_id AND (
+ (b.batch_id IS NULL AND bt.source_type='usage_charge' AND bt.source_id=b.billing_request_id
+ AND bt.idempotency_key='usage_billing:'||b.api_key_id::text||':'||b.billing_request_id)
+ OR (b.batch_id IS NOT NULL AND bt.source_type='image_balance_capture' AND bt.source_id=b.batch_id
+ AND bt.idempotency_key='image_balance_capture:'||b.api_key_id::text||':'||b.billing_request_id))),
+ CASE WHEN b.settlement_verified AND u.billing_settled THEN u.billed_cost ELSE NULL END,b.batch_id
+ FROM usage_evidence b LEFT JOIN usage_logs u ON u.request_id=b.billing_request_id AND u.api_key_id=b.api_key_id
  AND u.billing_request_fingerprint=b.request_fingerprint WHERE b.request_id=$1 ORDER BY b.created_at`, id)
 	if err != nil {
 		return nil, err
@@ -224,7 +280,7 @@ func (l *Ledger) BillingReferences(ctx context.Context, viewer Viewer, id string
 	result := []BillingReference{}
 	for rows.Next() {
 		var r BillingReference
-		if err = rows.Scan(&r.UsageLogID, &r.SubscriptionID, &r.PackageEntitlementID, &r.Settled, &r.Applied, &r.WalletTransactionID, &r.BilledCost); err != nil {
+		if err = rows.Scan(&r.UsageLogID, &r.SubscriptionID, &r.PackageEntitlementID, &r.Settled, &r.Applied, &r.WalletTransactionID, &r.BilledCost, &r.BatchID); err != nil {
 			return nil, err
 		}
 		result = append(result, r)
@@ -238,6 +294,9 @@ type LinkedUsage struct {
 	Model        string    `json:"model"`
 	InputTokens  int64     `json:"input_tokens"`
 	OutputTokens int64     `json:"output_tokens"`
+	ImageCount   *int64    `json:"image_count"`
+	BillingMode  *string   `json:"billing_mode"`
+	BatchID      *string   `json:"batch_id"`
 	CreatedAt    time.Time `json:"created_at"`
 	BilledCost   *float64  `json:"billed_cost"`
 }
@@ -249,13 +308,24 @@ func (l *Ledger) Usage(ctx context.Context, viewer Viewer, requestID string, usa
 	ctx, cancel := context.WithTimeout(ctx, writeTimeout)
 	defer cancel()
 	var u LinkedUsage
-	err := l.db.QueryRowContext(ctx, `SELECT u.id,u.model,u.input_tokens,u.output_tokens,u.created_at,
+	err := l.db.QueryRowContext(ctx, usageEvidence+`SELECT u.id,u.model,u.input_tokens,u.output_tokens,u.image_count,u.billing_mode,b.batch_id,u.created_at,
  CASE WHEN b.settlement_verified AND u.billing_settled THEN u.billed_cost ELSE NULL END
- FROM gateway_request_billing_links b JOIN gateway_requests r ON r.id=b.request_id
+ FROM usage_evidence b JOIN gateway_requests r ON r.id=b.request_id
  JOIN usage_logs u ON u.request_id=b.billing_request_id AND u.api_key_id=b.api_key_id AND u.billing_request_fingerprint=b.request_fingerprint
- WHERE b.request_id=$1 AND u.id=$2`, requestID, usageID).Scan(&u.ID, &u.Model, &u.InputTokens, &u.OutputTokens, &u.CreatedAt, &u.BilledCost)
+ WHERE b.request_id=$1 AND u.id=$2`, requestID, usageID).Scan(&u.ID, &u.Model, &u.InputTokens, &u.OutputTokens, &u.ImageCount, &u.BillingMode, &u.BatchID, &u.CreatedAt, &u.BilledCost)
 	if err != nil {
 		return nil, err
 	}
 	return &u, nil
+}
+
+// Optional metadata cannot consume the full HTTP request budget after core reads.
+func optionalEvidenceContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	budget := 100 * time.Millisecond
+	if deadline, ok := ctx.Deadline(); ok {
+		if remaining := time.Until(deadline) / 4; remaining < budget {
+			budget = remaining
+		}
+	}
+	return context.WithTimeout(ctx, budget)
 }

@@ -1,0 +1,20 @@
+[
+  {
+    "mode": "duplicate",
+    "viewport": 1280,
+    "lang": "zh",
+    "theme": "light",
+    "gets": 1,
+    "posts": 1,
+    "focus": {
+      "outline": "auto",
+      "shadow": "none"
+    },
+    "page_errors": [],
+    "dimensions": {
+      "width": 1280,
+      "scroll": 1280
+    },
+    "screenshot": "baseline-1280-zh-light-duplicate.png"
+  }
+]

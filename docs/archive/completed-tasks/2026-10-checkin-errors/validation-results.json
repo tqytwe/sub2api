@@ -1,0 +1,90 @@
+{
+  "recorded_utc": "2026-10-10T21:17:21.629672+00:00",
+  "baseline_sha": "726289bdb757e572eac10ab5f12c689c4dc087b5",
+  "branch": "codex/p1-checkin-errors-20261010",
+  "head_sha_and_ci": "Recorded on this branch’s draft PR; this record does not assert deployment.",
+  "toolchain": {
+    "go": "1.27.2",
+    "pnpm": "10.34.4",
+    "node": "24.19.0",
+    "golangci_lint": "2.14.0"
+  },
+  "full_gates": [
+    {
+      "command": "make test",
+      "exit_code": 0,
+      "started_utc": "2026-10-10T20:51:14.573903+00:00",
+      "ended_utc": "2026-10-10T21:06:17.206522+00:00"
+    },
+    {
+      "command": "make test-backend-unit",
+      "exit_code": 0,
+      "started_utc": "2026-10-10T21:06:17.210626+00:00",
+      "ended_utc": "2026-10-10T21:14:00.222945+00:00"
+    },
+    {
+      "command": "fork integrity",
+      "exit_code": 0,
+      "started_utc": "2026-10-10T21:14:00.226682+00:00",
+      "ended_utc": "2026-10-10T21:17:04.371031+00:00"
+    }
+  ],
+  "frontend_default": {
+    "passed_files": 493,
+    "skipped_files": 1,
+    "passed_tests": 3520,
+    "skipped_tests": 4,
+    "skipped_reason": "Real PG HTTP cases require the dedicated live Go fixture; all four passed separately and in full integration."
+  },
+  "targeted_frontend": {
+    "passed_files": 6,
+    "passed_tests": 65,
+    "includes_real_http_fault_cases": 14
+  },
+  "targeted_pg_contract": {
+    "passed_parent_tests": 1,
+    "passed_subtests": 8,
+    "passed_live_vue_tests": 4
+  },
+  "full_build": {
+    "command": "make build",
+    "exit_code": 0
+  },
+  "browser": {
+    "cases": 12,
+    "page_errors": 0,
+    "horizontal_overflow": 0,
+    "png_artifacts": 26,
+    "report": "updated-browser.json",
+    "assets_sha256": "updated-assets.json"
+  },
+  "static_checks": {
+    "design_verify": "passed; 7 governance tests",
+    "docs_integrity": "passed",
+    "handoff_structure": "passed with 18 existing pending entries; not production verification",
+    "handoff_unit_tests": 8,
+    "git_diff_check": "passed"
+  },
+  "reviews": [
+    {
+      "type": "specification",
+      "result": "passed after actual built-resource pending/repeated-click evidence was added"
+    },
+    {
+      "type": "quality",
+      "result": "passed; no blocking introduced defects"
+    }
+  ],
+  "source_sha256": {
+    "frontend/src/views/user/CheckInView.vue": "c125251a6b8a31b0390813b80e8677bc0a9f18ec57d8d36d9617aba814490196",
+    "frontend/src/views/user/__tests__/CheckInView.errors.spec.ts": "3e5fd6c435a08fbb212a31625e231dcb78590549cfd58b236a2493416c46a703",
+    "frontend/src/views/user/__tests__/CheckInView.http.spec.ts": "2751e3c7f92323d3251048b871dbfee82757dbf09b5ea97f8e6b6fa6a130c73b",
+    "backend/internal/repository/play_checkin_http_integration_test.go": "fedf2d52ab9ed565c02e2fc58e4e1166eaf367f24e9a664043b068a160c4f85d"
+  },
+  "limitations": [
+    "Initial parallel broad runs suffered OOM and did not pass; final full results use bounded resources and serial heavy checks.",
+    "The full integration result includes parent tests and subtests; all 23 skipped tests have reasons in integration-results.json.",
+    "Fixture auth allowlist is not a JWT/admin permission acceptance test.",
+    "No production access, production rewards, deployment or user-local three-role acceptance. Other welfare pages do not have a newly completed full HTTP/PG state matrix."
+  ]
+}
