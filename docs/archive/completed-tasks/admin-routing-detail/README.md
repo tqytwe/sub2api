@@ -2,7 +2,7 @@
 
 ## Contract and authorized scope
 
-Base: `fb2c9747b58ed5d980a36ea6a2316ead2aa03b7e` (`play/main`, merged #360).
+Initial base: `fb2c9747b58ed5d980a36ea6a2316ead2aa03b7e` (`play/main`, merged #360).
 Isolated worktree: `/workspace/sub2api-routing-ui`; branch: `codex/admin-routing-detail-20261011`.
 Dependency read: #359 `ae832b16b63139b2395008a1f2073d7cb15161f7`, not merged when work began.
 [Backend coordination](https://github.com/tqytwe/sub2api/pull/359#issuecomment-6108343601).
@@ -73,4 +73,20 @@ pre-362 preserves the original result before subsequent auth combination work.
 
 The parent subsequently authorized an ordinary merge of PR362 mainline
 6ae024e6b732b64b2ce6f7ba56c5be4e20b88bdb. New auth ownership behavior will be preserved,
-with combination tests/resource captures before push. PR359 remains unmerged.
+with combination tests/resource captures before push. PR359 remains unmerged. Its latest checked
+head `add3fa4dbe8c59e0276e0043eb09270a4b630f89` has the same three contract files byte-for-byte.
+The PR359 branch has only been fetched/read, never merged into this UI branch.
+
+## Final PR362 combination verification
+
+Ordinary mainline merge preserves all four auth files exactly as6ae, all six routing production
+files exactly as initial UI commit aa804d32, and backend/migrations/dependencies unchanged.
+Full make test passed: backend default suite/lint, frontend506 files/3869 tests passed,
+3 files/8 existing opt-in tests skipped. Full build, embed build/test and Fork integrity passed.
+Sequential reviews passed (spec4/4, quality44/44); new HTTP file24/24 passed.
+New actual compiled routing contract browser includes reverse login responses and owned storage
+publication failure/recovery; independent actual HTTP/PG core ledger capture passes both roles,
+6 USD/3 images, zero page errors. These remain distinct from pending routing PG integration.
+All356 captured resource hashes match final output; see validation.json/assets.sha256.
+Latest old/new user360 header measurements both466px; earlier489px and first combination503px
+are retained. Dialogs remain360px, admin widths within viewport; no global responsive claim.

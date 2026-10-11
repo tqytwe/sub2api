@@ -1,0 +1,42 @@
+{
+  "status": "Scoped local verification complete; new commit, exact-head hosted CI and root incremental review recorded on draft PR362",
+  "base_sha": "fdec971d2a01c25d93874b7688dffcff78f79088",
+  "superseded_unsafe_head": "c4d0e54c1a44570b4815a78e0bb148f2e50d93d1",
+  "source_manifest_sha256": "0457d3f26e04900a526dd9ac6498fb0e3615483cb0d5c9a33cc0630705d983c1",
+  "dist_index_sha256": "553b6169477c027e59d4347e6a589de457552eb54f3d4b9fe8be6af4cbb5b8a3",
+  "production_changed_files": [
+    "frontend/src/api/auth.ts",
+    "frontend/src/api/tokenRefresh.ts",
+    "frontend/src/stores/auth.ts"
+  ],
+  "red": {
+    "comparison": "base33/33 own failures clean vs c4 0/33; both33/33 recovery; newer-login barrier c4 3/3 preserved vs base0/3",
+    "formal": "33failed/3passed before fix",
+    "native_c4": "0/9clean,9/9recovery"
+  },
+  "green": {
+    "targeted": "241/241 initial Storage36 plus existing205",
+    "storage_final": "45/45 including pending marker and newer logout",
+    "full_frontend": "make test-frontend exit0; lint/design/typecheck PASS;502filesPASS3skip;3789testsPASS8skip",
+    "frontend_build": "make build-frontend exit0;356resource hashes",
+    "native": "Storage9,interactive27,refresh4,cross-tab8;48/48 PASS on exact same build",
+    "independent_review": "spec then quality PASS; extra spec realHTTP3 and quality external storage transition6 PASS",
+    "docs": "node scripts/check-doc-links.mjs exit0 282files; initial mistaken nonexistent Python script invocation retained in /tmp/p1-storage-docs.log, corrected actual script passed",
+    "handoff": "checker and8testsPASS; only own feature next updated",
+    "fork": "Initial full Fork exit1: unchanged TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs expected active0 saw1. Focused-count10 PASS; exact full failed group PASS. Subsequent complete Fork rerun exit0 PASS. Initial failure remains recorded."
+  },
+  "reuse": {
+    "authority": "Parent explicitly requested no repeat of expensive gates on unchanged already passing source",
+    "backend": "Backend/.github/scripts unchanged from origin/play/main fdec; previous default/lint, backend build and full failed service unit package follow-up PASS; prior failed command exits remain unchanged in ../verification.json",
+    "pg": "Previous two isolated realPG HTTP/Vue suites PASS; bootstrap setToken and all PG/backend paths unchanged by this incremental interactive login publication ownership fix; native fixtures are distinct evidence"
+  },
+  "limits": [
+    "One-time setItem exception and writable subsequent cleanup/recovery only",
+    "Native compiled store actions use synthetic loopback HTTP, not form/TOTP/JWT/production acceptance",
+    "No full Passkey/directOAuth race matrix or globally ordered unpublished cross-tab intents",
+    "No production access, rewards, merge or deployment",
+    "Accurate new-head hosted CI and root incremental review remain separate"
+  ],
+  "fork_failure_analysis": "Test waits for processor.completed==4 before reading queue stats, while worker performs heartbeat join/Ack after processor returns: a synchronization window is visible in unchanged code; this is a possible explanation, not measured root-cause proof. No backend changes.",
+  "recorded_at": "2026-10-11T10:52:23.469766+00:00"
+}

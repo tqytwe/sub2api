@@ -1,0 +1,15 @@
+{
+  "combined_base_sha": "fdec971d2a01c25d93874b7688dffcff78f79088",
+  "original_base_sha": "1b701237ec3ceb869c39d28ad11d32e4065a2471",
+  "integration": "fast-forward of authorized main before first feature commit; no rebase or force; stash reapplied without conflicts",
+  "core_six_hashes_unchanged": true,
+  "backend_and_migrations_equal_origin": true,
+  "test_only_followup": {
+    "path": "frontend/src/components/__tests__/LoginForm.spec.ts",
+    "sha256": "66c2973d78559302f2c8c399079d1a3625fce96426d09e541d7ecc518f0946be"
+  },
+  "retained_scope": "Four auth production files; no billing, routing or migration edit",
+  "combined_backend_binary_sha256": "3d32fb8100eb83cc921ece7c71aa6f30a94d7526f72e987e692d1287c151288b",
+  "combined_backend_build": "PASS",
+  "failed_backend_packages_retest": "PASS service and requestledger unit; other unchanged packages retained prior passing results"
+}

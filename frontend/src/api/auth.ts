@@ -3,8 +3,11 @@
  * Handles user login, registration, and logout operations
  */
 
-import { apiClient } from './client'
-import { refreshAuthTokens, startAuthSession, finishAuthSession, type RefreshTokenResponse } from './tokenRefresh'
+import { apiClient, type InteractiveAuthRequestConfig } from './client'
+import {
+  refreshAuthTokens, startAuthSession, finishAuthSession, beginInteractiveAuthAttempt,
+  commitInteractiveAuth, startInteractiveAuthSession, type InteractiveAuthAttempt, type RefreshTokenResponse
+} from './tokenRefresh'
 export type { RefreshTokenResponse } from './tokenRefresh'
 import type {
   LoginRequest,
@@ -128,12 +131,40 @@ export function clearAuthToken(): void {
  * @param credentials - Email and password
  * @returns Authentication response with token and user data, or 2FA required response
  */
-export async function login(credentials: LoginRequest): Promise<LoginResponse> {
-  const { data } = await apiClient.post<LoginResponse>('/auth/login', credentials)
+export async function login(credentials: LoginRequest, attempt: InteractiveAuthAttempt = beginInteractiveAuthAttempt()): Promise<LoginResponse> {
+  const config: InteractiveAuthRequestConfig = { _interactiveAuthAttempt: attempt }
+  const { data } = await apiClient.post<LoginResponse>('/auth/login', credentials, config)
 
   // Only store token if 2FA is not required
-  if (!isTotp2FARequired(data)) {
-    const publication = startAuthSession()
+  return commitInteractiveAuth(attempt, () => {
+    if (!isTotp2FARequired(data)) {
+      const publication = startInteractiveAuthSession(attempt)
+      setAuthToken(data.access_token)
+      if (data.refresh_token) {
+        setRefreshToken(data.refresh_token)
+      }
+      if (data.expires_in) {
+        setTokenExpiresAt(data.expires_in)
+      }
+      localStorage.setItem('auth_user', JSON.stringify(data.user))
+      finishAuthSession(publication)
+    }
+    return data
+  })
+}
+
+/**
+ * Complete login with 2FA code
+ * @param request - Temp token and TOTP code
+ * @returns Authentication response with token and user data
+ */
+export async function login2FA(request: TotpLogin2FARequest, attempt: InteractiveAuthAttempt = beginInteractiveAuthAttempt()): Promise<AuthResponse> {
+  const config: InteractiveAuthRequestConfig = { _interactiveAuthAttempt: attempt }
+  const { data } = await apiClient.post<AuthResponse>('/auth/login/2fa', request, config)
+
+  // Store token and user data
+  return commitInteractiveAuth(attempt, () => {
+    const publication = startInteractiveAuthSession(attempt)
     setAuthToken(data.access_token)
     if (data.refresh_token) {
       setRefreshToken(data.refresh_token)
@@ -143,32 +174,9 @@ export async function login(credentials: LoginRequest): Promise<LoginResponse> {
     }
     localStorage.setItem('auth_user', JSON.stringify(data.user))
     finishAuthSession(publication)
-  }
 
-  return data
-}
-
-/**
- * Complete login with 2FA code
- * @param request - Temp token and TOTP code
- * @returns Authentication response with token and user data
- */
-export async function login2FA(request: TotpLogin2FARequest): Promise<AuthResponse> {
-  const { data } = await apiClient.post<AuthResponse>('/auth/login/2fa', request)
-
-  // Store token and user data
-  const publication = startAuthSession()
-  setAuthToken(data.access_token)
-  if (data.refresh_token) {
-    setRefreshToken(data.refresh_token)
-  }
-  if (data.expires_in) {
-    setTokenExpiresAt(data.expires_in)
-  }
-  localStorage.setItem('auth_user', JSON.stringify(data.user))
-  finishAuthSession(publication)
-
-  return data
+    return data
+  })
 }
 
 /**
@@ -176,22 +184,25 @@ export async function login2FA(request: TotpLogin2FARequest): Promise<AuthRespon
  * @param userData - Registration data (username, email, password)
  * @returns Authentication response with token and user data
  */
-export async function register(userData: RegisterRequest): Promise<AuthResponse> {
-  const { data } = await apiClient.post<AuthResponse>('/auth/register', userData)
+export async function register(userData: RegisterRequest, attempt: InteractiveAuthAttempt = beginInteractiveAuthAttempt()): Promise<AuthResponse> {
+  const config: InteractiveAuthRequestConfig = { _interactiveAuthAttempt: attempt }
+  const { data } = await apiClient.post<AuthResponse>('/auth/register', userData, config)
 
   // Store token and user data
-  const publication = startAuthSession()
-  setAuthToken(data.access_token)
-  if (data.refresh_token) {
-    setRefreshToken(data.refresh_token)
-  }
-  if (data.expires_in) {
-    setTokenExpiresAt(data.expires_in)
-  }
-  localStorage.setItem('auth_user', JSON.stringify(data.user))
-  finishAuthSession(publication)
+  return commitInteractiveAuth(attempt, () => {
+    const publication = startInteractiveAuthSession(attempt)
+    setAuthToken(data.access_token)
+    if (data.refresh_token) {
+      setRefreshToken(data.refresh_token)
+    }
+    if (data.expires_in) {
+      setTokenExpiresAt(data.expires_in)
+    }
+    localStorage.setItem('auth_user', JSON.stringify(data.user))
+    finishAuthSession(publication)
 
-  return data
+    return data
+  })
 }
 
 /**

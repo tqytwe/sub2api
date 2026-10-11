@@ -67,7 +67,7 @@
     {
       "role": "user",
       "width": 360,
-      "document_width": 489,
+      "document_width": 466,
       "dialog_right": 360,
       "dialog_width": 360,
       "dialog_client": 360
@@ -97,12 +97,15 @@
       "dialog_client": 1920
     }
   ],
+  "user_360_document_overflow": 106,
   "routing_contract_http": true,
   "ledger_postgres": false,
   "independent_error_retry": true,
   "local_paging": true,
   "closed_late_error": true,
   "session_renewal": true,
+  "interactive_reverse_response": true,
+  "owned_publication_failure_and_recovery": true,
   "same_account_relogin": true,
   "switch_503_clear": true,
   "keyboard": true,

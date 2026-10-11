@@ -1,0 +1,125 @@
+{
+  "original_base_sha": "1b701237ec3ceb869c39d28ad11d32e4065a2471",
+  "combined_base_sha": "fdec971d2a01c25d93874b7688dffcff78f79088",
+  "branch": "codex/p1-interactive-auth-20261011",
+  "status": "Local scoped validation complete; independent draft delivery, exact-head hosted CI pending",
+  "production_source_files": [
+    "frontend/src/api/auth.ts",
+    "frontend/src/api/client.ts",
+    "frontend/src/api/tokenRefresh.ts",
+    "frontend/src/stores/auth.ts"
+  ],
+  "logs": {
+    "targeted": {
+      "local_log": "/tmp/p1-interactive-green3.log",
+      "sha256": "3cc5bc775ae44ebe14b4fa1e5ae30460c668e2f2b3cc8c5a39780fa6970266cf",
+      "result": "PASS 200 in5files"
+    },
+    "loginform": {
+      "local_log": "/tmp/p1-interactive-loginform-green.log",
+      "sha256": "4943a5557e29f98eb4e422b38647e8233fe39f12863b714e5a479e4dd632d09d",
+      "result": "PASS5 after exact-argument mock assertion correction"
+    },
+    "full_initial": {
+      "local_log": "/tmp/p1-interactive-make-test.log",
+      "sha256": "f45ad8edac1a0ef6fcdd16d34f2804e4eedf37c94048625c3d3b3bcb444d48b3",
+      "result": "FAIL ENOSPC before assertions; retried"
+    },
+    "full_retry": {
+      "local_log": "/tmp/p1-interactive-make-test-retry.log",
+      "sha256": "9f3dffd50ed94ccbda2af956392fc8e65017513daf75ea6a160b7fa78be73ea8",
+      "result": "Backend default/lint and frontend lint/typecheck PASS; frontend3743PASS/1LoginForm mock assertion FAIL/8SKIP; corrected file5PASS separately. This process exit2 remains a failure"
+    },
+    "unit_initial": {
+      "local_log": "/tmp/p1-interactive-backend-unit.log",
+      "sha256": "49cff5dcd9c9e399adbec73b2c68f636aecf942ee9937bd8d655fc1fa9351b56",
+      "result": "FAIL existing QPS timing assertion; other packages PASS"
+    },
+    "qps_probe": {
+      "local_log": "/tmp/p1-interactive-qps-probe.log",
+      "sha256": "4a0d8979ccc8a6414d21cbd8418e9a663fdfa692ca4f44a42625274380e8b573",
+      "result": "PASS same failing test10 consecutive independent iterations; failure cause not established"
+    },
+    "build": {
+      "local_log": "/tmp/p1-interactive-build.log",
+      "sha256": "da4c9e5b16ac1c91dc496db01e97339b20fe6b90ba9f7bce3baf15511c73e8ed",
+      "result": "PASS make build on original base plus frozen auth source"
+    },
+    "combined_backend_build": {
+      "local_log": "/tmp/p1-interactive-combined-build.log",
+      "sha256": "4e82f42c96d2619a7670f71f53f8cdcbe2a3d448ff0aca099208fe6d88ebe64d",
+      "result": "PASS latest-main backend rebuild; unchanged frontend build reused"
+    },
+    "fork_initial": {
+      "local_log": "/tmp/p1-interactive-fork.log",
+      "sha256": "7d498145abb3b0494dc59db311eb5ee9e881034393a71c864fbf73bca37a81d4",
+      "result": "FAIL ENOSPC linking service test"
+    },
+    "fork_retry": {
+      "local_log": "/tmp/p1-interactive-fork-retry.log",
+      "sha256": "3f561867083645f19307819d73ee853ca45b14eeb1faa5903773abbdc4563ac9",
+      "result": "PASS full Fork integrity rerun before latest-main incorporation; script and frozen frontend source unchanged"
+    },
+    "welfare_pg": {
+      "local_log": "/tmp/p1-interactive-welfare-pg.log",
+      "sha256": "bbbfc185bed4a6db38ebfb45e3039954552900b9049edf9b3c8607d927ca2bc2",
+      "result": "PASS isolated PostgreSQL/Redis real HTTP/Axios/Pinia/Vue; no skips"
+    },
+    "checkin_pg": {
+      "local_log": "/tmp/p1-interactive-checkin-pg.log",
+      "sha256": "63af1e6c36fdf29d5052090e379b81e12f9d9ff804e6b8db054b5d1485c61ef9",
+      "result": "PASS isolated PostgreSQL/Redis checkin/milestone and real frontend HTTP; no skips"
+    },
+    "native_interactive": {
+      "local_log": "/tmp/p1-interactive-browser-transition.log",
+      "sha256": "c7252ca632e85c5456fcb6a5496fa3c8478cc50ba99cfd36988fe183b9c109a7",
+      "result": "PASS27 strengthened target-transition and obsolete-response checks on actual build"
+    },
+    "native_refresh": {
+      "local_log": "/tmp/p1-interactive-browser-refresh.log",
+      "sha256": "32203501d9c2428ba3cc99c9551df9d21664c42f99f622a097da11bd6ec772eb",
+      "result": "PASS4 actual build"
+    },
+    "native_cross_tab": {
+      "local_log": "/tmp/p1-interactive-browser-cross-tab.log",
+      "sha256": "165c8164144f12c92b16d7892a40a8b25773e258f387fbf3567f8b818c49fa35",
+      "result": "PASS8 actual build, native WebLocks"
+    },
+    "design": {
+      "local_log": "/tmp/p1-interactive-combined-design.log",
+      "sha256": "e30b9dc2d56664268fb654966c47444869e4ae97508e469a13a860e07ecd8977",
+      "result": "PASS latest fdec base, 0 visual files"
+    },
+    "docs": {
+      "local_log": "/tmp/p1-interactive-combined-docs.log",
+      "sha256": "0ec7366f7f609edca05cf83b1d509ac5bb47e638b89f0b5224116eaeff63504b",
+      "result": "PASS281files"
+    },
+    "handoff": {
+      "local_log": "/tmp/p1-interactive-combined-handoff.log",
+      "sha256": "f64af10d899c7cc2be44fcd00dbf58efa7ab4307e3e8ca0fe9c758f08844b4a4",
+      "result": "PASS only owned feature notes updated"
+    },
+    "handoff_tests": {
+      "local_log": "/tmp/p1-interactive-combined-handoff-tests.log",
+      "sha256": "274f6bac38cd9c543013527ca3004ec792d15edc09b5a81dc5a505bd86dbbc90",
+      "result": "PASS8"
+    },
+    "combined_failed_packages": {
+      "local_log": "/tmp/p1-interactive-combined-unit.log",
+      "sha256": "e0cf9cdf1b7aaba01df7348deb4f21417df29ef9e6984d0224e843b1f57c53ea",
+      "result": "PASS go test -tags=unit -count=1 ./internal/service ./internal/requestledger on fdec971d combined tree; replaces failed-package outcome, not initial process exit"
+    }
+  },
+  "source_preservation": "combination-proof.json; parent main backend/CI/migrations unchanged; original six frontend hashes and356assets unchanged",
+  "reviews": "Independent spec then quality PASS; supplemental browser evidence and mechanical LoginForm/main preservation reviewed in same order",
+  "repeat_policy": "Parent explicitly requested prompt draft delivery and no repetition of expensive tests on unchanged passing source; only failed fixture and failed packages rerun. Exact-head hosted CI must be checked separately.",
+  "known_limits": [
+    "No form/TOTP/WebAuthn/production JWT acceptance",
+    "No Passkey/direct OAuth full race matrix",
+    "No global ordering for unpublished interactive intents in different tabs",
+    "No merge/deployment/production access; remaining welfare pages not accepted by this batch",
+    "Initial full make test and tag-unit failures remain recorded, never relabeled as successful processes"
+  ],
+  "recorded_at": "2026-10-11T10:18:35.147894+00:00"
+}

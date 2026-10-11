@@ -8,7 +8,7 @@ import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 import { afterAll, afterEach, beforeAll, beforeEach, expect, it, vi } from 'vitest'
 import { useAuthStore } from '@/stores/auth'
 import apiClient from '@/api/client'
-import { AUTH_SESSION_KEY, finishAuthSession, getAuthSessionIdentity } from '@/api/tokenRefresh'
+import { authAPI } from '@/api/auth'
 import RequestLedgerView from '../RequestLedgerView.vue'
 import en from '@/i18n/locales/en'
 
@@ -22,6 +22,8 @@ let wrapper: VueWrapper | undefined
 let routingStatus = 'complete', routingHTTP = 200, routingEvents = 3, wrongRequest = false, malformed = false
 let role = 'user', hold = '', failB = false, renewSoon = false, unauthorizedOnce = false, refreshes = 0
 const reads: Read[] = []
+let holdAuth = false
+const authReplies: {res: ServerResponse; data: unknown}[] = []
 const saved = { baseURL: apiClient.defaults.baseURL, adapter: apiClient.defaults.adapter }
 const rawAdapter = axios.defaults.adapter
 const previousAgent = apiClient.defaults.httpAgent, rawAgent = axios.defaults.httpAgent
@@ -56,7 +58,8 @@ beforeAll(async () => {
     if (url.pathname.endsWith('/auth/login')) {
       let body = ''; for await (const chunk of req) body += chunk
       const account = JSON.parse(body).email.startsWith('b@') ? 'b' : 'a'
-      reply(res, { access_token: `fixture-${account}`, refresh_token: `refresh-${account}`, ...(renewSoon ? { expires_in: 121 } : {}), user: user(account) })
+      const data = { access_token: `fixture-${account}`, refresh_token: `refresh-${account}`, ...(renewSoon ? { expires_in: 121 } : {}), user: user(account) }
+      if (holdAuth) authReplies.push({ res, data }); else reply(res, data)
     } else if (url.pathname.endsWith('/auth/refresh')) {
       refreshes++; reply(res, { access_token: 'fixture-renewed', refresh_token: 'refresh-renewed', expires_in: 3600, token_type: 'Bearer' })
     } else if (url.pathname.endsWith('/auth/logout')) reply(res, {})
@@ -76,6 +79,7 @@ beforeAll(async () => {
   Object.assign(apiClient.defaults, { baseURL: endpoint.base, adapter: 'http', httpAgent }); axios.defaults.adapter = 'http'; axios.defaults.httpAgent = httpAgent
 })
 beforeEach(async () => {
+  holdAuth = false; authReplies.length = 0
   routingStatus = 'complete'; routingHTTP = 200; routingEvents = 3; wrongRequest = false; malformed = false
   localStorage.clear(); role = 'user'; hold = ''; failB = false; renewSoon = false; unauthorizedOnce = false; refreshes = 0; reads.length = 0
   pinia = createPinia(); setActivePinia(pinia); auth = useAuthStore(); await login('a')
@@ -83,12 +87,12 @@ beforeEach(async () => {
   await router.push(`/requests?private_id=${id}&lang=en`); await router.isReady()
 })
 afterEach(async () => {
-  try { wrapper?.unmount(); await auth.logout() }
+  try { vi.restoreAllMocks(); wrapper?.unmount(); await auth.logout() }
   finally { wrapper = undefined; auth.$dispose(); server.closeAllConnections() }
 })
 afterAll(async () => { Object.assign(apiClient.defaults, saved, { httpAgent: previousAgent }); axios.defaults.adapter = rawAdapter; axios.defaults.httpAgent = rawAgent; httpAgent.destroy(); await new Promise<void>(resolve => server.close(() => resolve())); vi.unstubAllGlobals() })
 async function start(admin = false) {
-  if (admin) { role = 'admin'; await login('a'); router.currentRoute.value.meta.requiresAdmin = true }
+  if (admin) { role = 'admin'; await login('a'); router.getRoutes().find(r => r.path === '/requests')!.meta.requiresAdmin = true; router.currentRoute.value.meta.requiresAdmin = true }
   mountPage()
   await vi.waitFor(() => expect(reads.some(r => r.stage === 'list')).toBe(true))
   return wrapper!
@@ -199,4 +203,89 @@ it('keeps pending routing through real same-session token renewal', async () => 
   expect(old.res.destroyed).toBe(false)
   complete(old); await vi.waitFor(() => expect(region(view).attributes('aria-busy')).toBe('false'))
   expect(region(view).text()).toContain('Model rate limited')
+})
+
+// PR362 combination: keep the routing reader on the official winning session.
+const settled = (promise: Promise<unknown>) => promise.then(value => ({value,error:null}), error => ({value:null,error}))
+it('keeps routing on the current session when an old login arrives while a newer intent is pending', async () => {
+  hold = 'routing'; const view = await ready(true)
+  await vi.waitFor(() => expect(pending('fixture-a','routing')).toHaveLength(1))
+  const oldRead = pending('fixture-a','routing')[0]!
+  holdAuth = true; const obsolete = settled(login('b'))
+  await vi.waitFor(() => expect(authReplies).toHaveLength(1))
+  const winner = settled(login('a'))
+  await vi.waitFor(() => expect(authReplies).toHaveLength(2))
+  reply(authReplies[0]!.res,authReplies[0]!.data)
+  expect((await obsolete).error?.code).toBe('AUTH_SESSION_CHANGED')
+  expect(auth.user?.id).toBe(1)
+  expect(oldRead.res.destroyed).toBe(false)
+  expect(region(view).attributes('aria-busy')).toBe('true')
+  reply(authReplies[1]!.res,authReplies[1]!.data)
+  expect((await winner).error).toBeNull()
+  await vi.waitFor(() => expect(oldRead.res.destroyed).toBe(true))
+  complete(oldRead,'obsolete-auth-reply'); await pause()
+  expect(view.find('[data-testid="ledger-section-routing"]').exists()).toBe(false)
+  expect(view.text()).not.toContain('987654')
+})
+function failNextAuthUserWrite() {
+  const target = Object.getPrototypeOf(localStorage), original = target.setItem
+  let fired = false
+  vi.spyOn(target,'setItem').mockImplementation(function(this: Storage,key: string,value: string) {
+    if (this === localStorage && key === 'auth_user' && !fired) { fired = true; throw new DOMException('synthetic publication failure','QuotaExceededError') }
+    return original.call(this,key,value)
+  })
+  return () => fired
+}
+it('clears pending routing on an owned publication failure and permits a clean explicit retry after recovery', async () => {
+  hold = 'routing'; const view = await ready(true)
+  await vi.waitFor(() => expect(pending('fixture-a','routing')).toHaveLength(1))
+  const oldRead = pending('fixture-a','routing')[0]!, fired = failNextAuthUserWrite()
+  expect((await settled(login('b'))).error?.name).toBe('QuotaExceededError')
+  expect(fired()).toBe(true); expect(auth.isAuthenticated).toBe(false)
+  await vi.waitFor(() => expect(oldRead.res.destroyed).toBe(true))
+  complete(oldRead,'obsolete-storage'); await pause()
+  expect(view.find('[data-testid="ledger-section-routing"]').exists()).toBe(false)
+  expect(view.text()).not.toContain('987654')
+  hold = ''; await login('a'); await router.push({query:{private_id:id,lang:'en'}})
+  await vi.waitFor(() => expect(region(view).text()).toContain('Model rate limited'))
+})
+it('cannot clear a new routing read when an obsolete publication error reaches Pinia late', async () => {
+  const view = await ready(true), fired = failNextAuthUserWrite(), realLogin = authAPI.login
+  let observed = false, release!: () => void
+  const barrier = new Promise<void>(resolve => { release = resolve })
+  vi.spyOn(authAPI,'login').mockImplementation(async (...args) => {
+    try { return await realLogin(...args) }
+    catch (error) { if (args[0].email.startsWith('b@')) { observed = true; await barrier } throw error }
+  })
+  const old = settled(login('b'))
+  try {
+    await vi.waitFor(() => expect(observed).toBe(true)); expect(fired()).toBe(true)
+    await login('a'); hold = 'routing'; await router.push({query:{private_id:id,lang:'en'}})
+    await vi.waitFor(() => expect(pending('fixture-a','routing')).toHaveLength(1))
+    const fresh = pending('fixture-a','routing')[0]!
+    release(); expect((await old).error?.name).toBe('QuotaExceededError')
+    expect(auth.isAuthenticated).toBe(true); expect(auth.user?.id).toBe(1)
+    expect(fresh.res.destroyed).toBe(false); expect(region(view).attributes('aria-busy')).toBe('true')
+    complete(fresh); await vi.waitFor(() => expect(region(view).text()).toContain('Model rate limited'))
+  } finally { release(); await old }
+})
+
+it('preserves the winning session routing when newer login succeeds before an older success arrives', async () => {
+  const view = await ready(true)
+  holdAuth = true; const obsolete = settled(login('b'))
+  await vi.waitFor(() => expect(authReplies).toHaveLength(1))
+  const winner = settled(login('a'))
+  await vi.waitFor(() => expect(authReplies).toHaveLength(2))
+  reply(authReplies[1]!.res,authReplies[1]!.data)
+  expect((await winner).error).toBeNull()
+  await vi.waitFor(() => expect(router.currentRoute.value.query.private_id).toBeUndefined())
+  await flushPromises()
+  hold = 'routing'; await router.push({query:{private_id:id,lang:'en'}})
+  await vi.waitFor(() => expect(pending('fixture-a','routing')).toHaveLength(1))
+  const fresh = pending('fixture-a','routing')[0]!
+  reply(authReplies[0]!.res,authReplies[0]!.data)
+  expect((await obsolete).error?.code).toBe('AUTH_SESSION_CHANGED')
+  expect(auth.user?.id).toBe(1); expect(auth.isAuthenticated).toBe(true)
+  expect(fresh.res.destroyed).toBe(false); expect(region(view).attributes('aria-busy')).toBe('true')
+  complete(fresh); await vi.waitFor(() => expect(region(view).text()).toContain('Model rate limited'))
 })

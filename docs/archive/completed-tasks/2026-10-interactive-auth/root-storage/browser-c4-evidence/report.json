@@ -1,0 +1,384 @@
+{
+  "dist_index_sha256": "f3d9d20d8ea1766cd5c02e22a218a473f1e63cceb9b2ef4b43e6b419c6872e6f",
+  "scope": "Actual built store actions, native Storage wrapper throwing exactly once and loopback HTTP; no production/TOTP/form acceptance",
+  "cases": [
+    {
+      "kind": "login",
+      "phase": "api",
+      "viewport": 1280,
+      "fault_count": 1,
+      "error": {
+        "name": "QuotaExceededError",
+        "message": "one-time fixture Storage failure",
+        "code": 22
+      },
+      "after_failure": {
+        "token": "fixture-access-1-initial",
+        "userID": 1,
+        "authenticated": true,
+        "stored": {
+          "auth_token": "fixture-access-2-failed",
+          "refresh_token": "fixture-refresh-2-failed",
+          "token_expires_at": "1791718586559",
+          "auth_user": "{\"id\":1,\"email\":\"fixture-1@example.test\",\"username\":\"Fixture 1\",\"role\":\"user\",\"status\":\"active\",\"balance\":1,\"concurrency\":5}",
+          "auth_session_id": "pending:6ffc3a0a-8993-469c-b9b1-ff29dfa0e3da|d6e201de-837e-474a-8ba8-bde8c5918a55"
+        }
+      },
+      "cleanup_correct": false,
+      "recovery_error": null,
+      "after_recovery": {
+        "token": "fixture-access-3-recovery",
+        "userID": 3,
+        "authenticated": true,
+        "stored": {
+          "auth_token": "fixture-access-3-recovery",
+          "refresh_token": "fixture-refresh-3-recovery",
+          "token_expires_at": "1791718586655",
+          "auth_user": "{\"id\":3,\"email\":\"fixture-3@example.test\",\"username\":\"Fixture 3\",\"role\":\"user\",\"status\":\"active\",\"balance\":3,\"concurrency\":5}",
+          "auth_session_id": "532ad634-fe32-4032-ab70-e1b2d4acb934"
+        }
+      },
+      "recovery_correct": true,
+      "page_loads": 1,
+      "js_errors": [],
+      "overflow": false,
+      "manual_restore": false
+    },
+    {
+      "kind": "login",
+      "phase": "store",
+      "viewport": 360,
+      "fault_count": 1,
+      "error": {
+        "name": "QuotaExceededError",
+        "message": "one-time fixture Storage failure",
+        "code": 22
+      },
+      "after_failure": {
+        "token": "fixture-access-2-failed",
+        "userID": 2,
+        "authenticated": true,
+        "stored": {
+          "auth_token": "fixture-access-2-failed",
+          "refresh_token": "fixture-refresh-2-failed",
+          "token_expires_at": "1791718588322",
+          "auth_user": "{\"id\":2,\"email\":\"fixture-2@example.test\",\"username\":\"Fixture 2\",\"role\":\"user\",\"status\":\"active\",\"balance\":2,\"concurrency\":5}",
+          "auth_session_id": "pending:7d2d140c-353d-48d9-8fc6-aec66a763c75|2dcdc881-8601-4599-988f-b174a5bd1d45"
+        }
+      },
+      "cleanup_correct": false,
+      "recovery_error": null,
+      "after_recovery": {
+        "token": "fixture-access-3-recovery",
+        "userID": 3,
+        "authenticated": true,
+        "stored": {
+          "auth_token": "fixture-access-3-recovery",
+          "refresh_token": "fixture-refresh-3-recovery",
+          "token_expires_at": "1791718588380",
+          "auth_user": "{\"id\":3,\"email\":\"fixture-3@example.test\",\"username\":\"Fixture 3\",\"role\":\"user\",\"status\":\"active\",\"balance\":3,\"concurrency\":5}",
+          "auth_session_id": "27eb76d4-cd03-4323-b07a-e426c4bbd2e5"
+        }
+      },
+      "recovery_correct": true,
+      "page_loads": 1,
+      "js_errors": [],
+      "overflow": false,
+      "manual_restore": false
+    },
+    {
+      "kind": "login",
+      "phase": "fresh",
+      "viewport": 1280,
+      "fault_count": 1,
+      "error": {
+        "name": "QuotaExceededError",
+        "message": "one-time fixture Storage failure",
+        "code": 22
+      },
+      "after_failure": {
+        "token": null,
+        "userID": null,
+        "authenticated": false,
+        "stored": {
+          "auth_token": "fixture-access-2-failed",
+          "refresh_token": "fixture-refresh-2-failed",
+          "token_expires_at": "1791718589998",
+          "auth_user": null,
+          "auth_session_id": "pending:a9721078-58a8-46e1-a117-126c459aa408|d3911132-5e1e-48f3-99cc-aa1d25d111ea"
+        }
+      },
+      "cleanup_correct": false,
+      "recovery_error": null,
+      "after_recovery": {
+        "token": "fixture-access-3-recovery",
+        "userID": 3,
+        "authenticated": true,
+        "stored": {
+          "auth_token": "fixture-access-3-recovery",
+          "refresh_token": "fixture-refresh-3-recovery",
+          "token_expires_at": "1791718590086",
+          "auth_user": "{\"id\":3,\"email\":\"fixture-3@example.test\",\"username\":\"Fixture 3\",\"role\":\"user\",\"status\":\"active\",\"balance\":3,\"concurrency\":5}",
+          "auth_session_id": "68997778-d6d3-4965-a3c5-69af8e327019"
+        }
+      },
+      "recovery_correct": true,
+      "page_loads": 1,
+      "js_errors": [],
+      "overflow": false,
+      "manual_restore": false
+    },
+    {
+      "kind": "login2FA",
+      "phase": "api",
+      "viewport": 1280,
+      "fault_count": 1,
+      "error": {
+        "name": "QuotaExceededError",
+        "message": "one-time fixture Storage failure",
+        "code": 22
+      },
+      "after_failure": {
+        "token": "fixture-access-1-initial",
+        "userID": 1,
+        "authenticated": true,
+        "stored": {
+          "auth_token": "fixture-access-2-failed",
+          "refresh_token": "fixture-refresh-2-failed",
+          "token_expires_at": "1791718591750",
+          "auth_user": "{\"id\":1,\"email\":\"fixture-1@example.test\",\"username\":\"Fixture 1\",\"role\":\"user\",\"status\":\"active\",\"balance\":1,\"concurrency\":5}",
+          "auth_session_id": "pending:1dd23d6a-9bf8-404c-a1d4-cdd6147a37f2|281914b5-af88-49ee-b558-999e49ffc822"
+        }
+      },
+      "cleanup_correct": false,
+      "recovery_error": null,
+      "after_recovery": {
+        "token": "fixture-access-3-recovery",
+        "userID": 3,
+        "authenticated": true,
+        "stored": {
+          "auth_token": "fixture-access-3-recovery",
+          "refresh_token": "fixture-refresh-3-recovery",
+          "token_expires_at": "1791718591830",
+          "auth_user": "{\"id\":3,\"email\":\"fixture-3@example.test\",\"username\":\"Fixture 3\",\"role\":\"user\",\"status\":\"active\",\"balance\":3,\"concurrency\":5}",
+          "auth_session_id": "e314b542-f4a6-4ff9-afba-b82528ac406c"
+        }
+      },
+      "recovery_correct": true,
+      "page_loads": 1,
+      "js_errors": [],
+      "overflow": false,
+      "manual_restore": false
+    },
+    {
+      "kind": "login2FA",
+      "phase": "store",
+      "viewport": 360,
+      "fault_count": 1,
+      "error": {
+        "name": "QuotaExceededError",
+        "message": "one-time fixture Storage failure",
+        "code": 22
+      },
+      "after_failure": {
+        "token": "fixture-access-2-failed",
+        "userID": 2,
+        "authenticated": true,
+        "stored": {
+          "auth_token": "fixture-access-2-failed",
+          "refresh_token": "fixture-refresh-2-failed",
+          "token_expires_at": "1791718593454",
+          "auth_user": "{\"id\":2,\"email\":\"fixture-2@example.test\",\"username\":\"Fixture 2\",\"role\":\"user\",\"status\":\"active\",\"balance\":2,\"concurrency\":5}",
+          "auth_session_id": "pending:95dc614c-c74d-4750-979d-0e8a8ba185fd|71e23a0a-baec-426d-9c12-a989f2fbcca8"
+        }
+      },
+      "cleanup_correct": false,
+      "recovery_error": null,
+      "after_recovery": {
+        "token": "fixture-access-3-recovery",
+        "userID": 3,
+        "authenticated": true,
+        "stored": {
+          "auth_token": "fixture-access-3-recovery",
+          "refresh_token": "fixture-refresh-3-recovery",
+          "token_expires_at": "1791718593510",
+          "auth_user": "{\"id\":3,\"email\":\"fixture-3@example.test\",\"username\":\"Fixture 3\",\"role\":\"user\",\"status\":\"active\",\"balance\":3,\"concurrency\":5}",
+          "auth_session_id": "7d4468ec-030d-4d27-a5ad-2456ec643b77"
+        }
+      },
+      "recovery_correct": true,
+      "page_loads": 1,
+      "js_errors": [],
+      "overflow": false,
+      "manual_restore": false
+    },
+    {
+      "kind": "login2FA",
+      "phase": "fresh",
+      "viewport": 1280,
+      "fault_count": 1,
+      "error": {
+        "name": "QuotaExceededError",
+        "message": "one-time fixture Storage failure",
+        "code": 22
+      },
+      "after_failure": {
+        "token": null,
+        "userID": null,
+        "authenticated": false,
+        "stored": {
+          "auth_token": "fixture-access-2-failed",
+          "refresh_token": "fixture-refresh-2-failed",
+          "token_expires_at": "1791718595148",
+          "auth_user": null,
+          "auth_session_id": "pending:40480311-533b-47fd-b4c9-4b121010eb6c|c8dcbfa4-0d11-4161-a47b-6e9a90ba7b59"
+        }
+      },
+      "cleanup_correct": false,
+      "recovery_error": null,
+      "after_recovery": {
+        "token": "fixture-access-3-recovery",
+        "userID": 3,
+        "authenticated": true,
+        "stored": {
+          "auth_token": "fixture-access-3-recovery",
+          "refresh_token": "fixture-refresh-3-recovery",
+          "token_expires_at": "1791718595242",
+          "auth_user": "{\"id\":3,\"email\":\"fixture-3@example.test\",\"username\":\"Fixture 3\",\"role\":\"user\",\"status\":\"active\",\"balance\":3,\"concurrency\":5}",
+          "auth_session_id": "f863e157-3ecb-402f-8ac4-4997fcc21827"
+        }
+      },
+      "recovery_correct": true,
+      "page_loads": 1,
+      "js_errors": [],
+      "overflow": false,
+      "manual_restore": false
+    },
+    {
+      "kind": "register",
+      "phase": "api",
+      "viewport": 1280,
+      "fault_count": 1,
+      "error": {
+        "name": "QuotaExceededError",
+        "message": "one-time fixture Storage failure",
+        "code": 22
+      },
+      "after_failure": {
+        "token": "fixture-access-1-initial",
+        "userID": 1,
+        "authenticated": true,
+        "stored": {
+          "auth_token": "fixture-access-2-failed",
+          "refresh_token": "fixture-refresh-2-failed",
+          "token_expires_at": "1791718596957",
+          "auth_user": "{\"id\":1,\"email\":\"fixture-1@example.test\",\"username\":\"Fixture 1\",\"role\":\"user\",\"status\":\"active\",\"balance\":1,\"concurrency\":5}",
+          "auth_session_id": "pending:cf889d96-5b53-4374-af6b-880ac4842b74|405a9ae6-1f14-4f36-a11e-7efab7ebcbb5"
+        }
+      },
+      "cleanup_correct": false,
+      "recovery_error": null,
+      "after_recovery": {
+        "token": "fixture-access-3-recovery",
+        "userID": 3,
+        "authenticated": true,
+        "stored": {
+          "auth_token": "fixture-access-3-recovery",
+          "refresh_token": "fixture-refresh-3-recovery",
+          "token_expires_at": "1791718597033",
+          "auth_user": "{\"id\":3,\"email\":\"fixture-3@example.test\",\"username\":\"Fixture 3\",\"role\":\"user\",\"status\":\"active\",\"balance\":3,\"concurrency\":5}",
+          "auth_session_id": "3b4a938a-f6b2-476d-8aed-46e95cedbf43"
+        }
+      },
+      "recovery_correct": true,
+      "page_loads": 1,
+      "js_errors": [],
+      "overflow": false,
+      "manual_restore": false
+    },
+    {
+      "kind": "register",
+      "phase": "store",
+      "viewport": 360,
+      "fault_count": 1,
+      "error": {
+        "name": "QuotaExceededError",
+        "message": "one-time fixture Storage failure",
+        "code": 22
+      },
+      "after_failure": {
+        "token": "fixture-access-2-failed",
+        "userID": 2,
+        "authenticated": true,
+        "stored": {
+          "auth_token": "fixture-access-2-failed",
+          "refresh_token": "fixture-refresh-2-failed",
+          "token_expires_at": "1791718598678",
+          "auth_user": "{\"id\":2,\"email\":\"fixture-2@example.test\",\"username\":\"Fixture 2\",\"role\":\"user\",\"status\":\"active\",\"balance\":2,\"concurrency\":5}",
+          "auth_session_id": "pending:867ea54a-096f-4bc5-8159-abfcf11d8d09|56bdb6fb-4607-49f8-b371-327c31fcfa78"
+        }
+      },
+      "cleanup_correct": false,
+      "recovery_error": null,
+      "after_recovery": {
+        "token": "fixture-access-3-recovery",
+        "userID": 3,
+        "authenticated": true,
+        "stored": {
+          "auth_token": "fixture-access-3-recovery",
+          "refresh_token": "fixture-refresh-3-recovery",
+          "token_expires_at": "1791718598744",
+          "auth_user": "{\"id\":3,\"email\":\"fixture-3@example.test\",\"username\":\"Fixture 3\",\"role\":\"user\",\"status\":\"active\",\"balance\":3,\"concurrency\":5}",
+          "auth_session_id": "580963ab-6341-4a04-a495-b981ba36dd71"
+        }
+      },
+      "recovery_correct": true,
+      "page_loads": 1,
+      "js_errors": [],
+      "overflow": false,
+      "manual_restore": false
+    },
+    {
+      "kind": "register",
+      "phase": "fresh",
+      "viewport": 1280,
+      "fault_count": 1,
+      "error": {
+        "name": "QuotaExceededError",
+        "message": "one-time fixture Storage failure",
+        "code": 22
+      },
+      "after_failure": {
+        "token": null,
+        "userID": null,
+        "authenticated": false,
+        "stored": {
+          "auth_token": "fixture-access-2-failed",
+          "refresh_token": "fixture-refresh-2-failed",
+          "token_expires_at": "1791718600344",
+          "auth_user": null,
+          "auth_session_id": "pending:702fd70f-6888-414c-90d1-767103356d41|9beeb5ba-da84-48dc-b309-2c90517193f6"
+        }
+      },
+      "cleanup_correct": false,
+      "recovery_error": null,
+      "after_recovery": {
+        "token": "fixture-access-3-recovery",
+        "userID": 3,
+        "authenticated": true,
+        "stored": {
+          "auth_token": "fixture-access-3-recovery",
+          "refresh_token": "fixture-refresh-3-recovery",
+          "token_expires_at": "1791718600441",
+          "auth_user": "{\"id\":3,\"email\":\"fixture-3@example.test\",\"username\":\"Fixture 3\",\"role\":\"user\",\"status\":\"active\",\"balance\":3,\"concurrency\":5}",
+          "auth_session_id": "00c45757-1bec-45f8-8988-448dfb1f6d45"
+        }
+      },
+      "recovery_correct": true,
+      "page_loads": 1,
+      "js_errors": [],
+      "overflow": false,
+      "manual_restore": false
+    }
+  ]
+}

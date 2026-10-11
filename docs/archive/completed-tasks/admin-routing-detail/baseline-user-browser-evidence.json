@@ -1,5 +1,5 @@
 {
-  "scope": "Baseline fb2c9747-equivalent compiled assets, ordinary user only, synthetic HTTP. No routing or PostgreSQL verification.",
+  "scope": "actual build + synthetic HTTP contract; routing PG integration pending #359",
   "roles": [
     {
       "role": "user",
@@ -18,7 +18,7 @@
     {
       "role": "user",
       "width": 360,
-      "document_width": 489,
+      "document_width": 466,
       "dialog_right": 360,
       "dialog_width": 360,
       "dialog_client": 360
@@ -48,12 +48,15 @@
       "dialog_client": 1920
     }
   ],
+  "user_360_document_overflow": 106,
   "routing_contract_http": false,
   "ledger_postgres": false,
   "independent_error_retry": false,
   "local_paging": false,
   "closed_late_error": false,
   "session_renewal": false,
+  "interactive_reverse_response": false,
+  "owned_publication_failure_and_recovery": false,
   "same_account_relogin": false,
   "switch_503_clear": false,
   "keyboard": false,

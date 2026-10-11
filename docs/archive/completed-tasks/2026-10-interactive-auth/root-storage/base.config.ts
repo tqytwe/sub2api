@@ -1,0 +1,2 @@
+import base from '/workspace/p1-interactive-storage-base/frontend/vitest.config.ts'
+export default {...base,test:{...base.test,include:['/tmp/p1-interactive-storage-probe/probe.spec.ts'],minWorkers:1,maxWorkers:1}}

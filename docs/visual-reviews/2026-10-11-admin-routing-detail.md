@@ -62,6 +62,8 @@
     "docs/visual-reviews/assets/admin-routing-detail/hover-admin-1280.png",
     "docs/visual-reviews/assets/admin-routing-detail/loading-admin-1280.png",
     "docs/visual-reviews/assets/admin-routing-detail/session-account-admin-1280.png",
+    "docs/visual-reviews/assets/admin-routing-detail/session-reverse-admin-1280.png",
+    "docs/visual-reviews/assets/admin-routing-detail/session-publication-recovery-admin-1280.png",
     "docs/visual-reviews/assets/admin-routing-detail/state-complete-admin-1280.png",
     "docs/visual-reviews/assets/admin-routing-detail/state-incomplete-admin-1280.png",
     "docs/visual-reviews/assets/admin-routing-detail/state-not_recorded-admin-1280.png",
@@ -91,7 +93,7 @@
   "residual_risks": [
     "#359 was unmerged at implementation start. Contract HTTP simulation does not prove integrated backend/PG routing.",
     "Server browser evidence is not final production/user-local acceptance. No merge/deployment authorization.",
-    "Existing ordinary-user English header overflows document at360px: baseline and final both489px; dialog remains360px and admin routing stays within viewport. No header source changes.",
+    "Existing ordinary-user English header overflows document at360px: initial baseline/final489px; latest paired baseline/final466px (first combination503px); dialog remains360px and admin routing stays within viewport. No header source changes.",
     "CSS 200% simulation is not native browser zoom."
   ]
 }
@@ -128,11 +130,11 @@ btn-secondary, wrapping controls and plain detail lists. Routing is a bounded AP
 Six backend evidence states have distinct localized text. Initial loading/disabled, no recorded events,
 error/retry and success are local to routing. Hover/active/focus use existing buttons. Unknown version
 is shown without assuming veto interpretation. First recorded veto and no-veto evidence are qualified.
-Automated/browser results are pending; no placeholder screenshots are counted as validation.
+Completed automated/browser checks are listed below; the initial prototype is not validation.
 
 ## Viewport Coverage
 
-Planned actual-built checks at 360/768/1280/1920, light/dark, Chinese/English, keyboard/reduced motion.
+Actual-built checks at 360/768/1280/1920, light/dark, Chinese/English, keyboard/reduced motion are recorded below.
 
 ## Evidence
 
@@ -167,3 +169,17 @@ claimed fixed and is not silently turned into a full-site responsive pass. No br
 
 Inspected admin360px, error1280px, dark1280px and Chinese1280px screenshots: readable scope/status/first-veto,
 wrapping data and existing button/section style. Baseline and prototype remain distinct from these captures.
+
+## PR362 combination
+
+Ordinary merge of main `6ae024e6b732b64b2ce6f7ba56c5be4e20b88bdb`; four auth production
+files are byte-identical to main and six routing production files retain the original implementation.
+Added four HTTP combination cases: pending newer login intent, genuinely reverse success replies, owned
+publication failure and recovery, obsolete publication error reaching Pinia after a new session.
+Sequential independent combination reviews passed (spec4/4, quality44/44). Actual new compiled resources
+repeat reverse-login ownership and auth_user publication-failure clear/recovery, with zero page errors.
+The latest paired old/new English user360px captures both measure document466px/dialog360px.
+The original pair was489px; the first combination run saw503px and its assertion/log is retained.
+Global width is therefore recorded as an unresolved existing mobile boundary, not a passing full-site
+assertion. Every admin width and every dialog bounds assertion remains enforced. All356 old baseline
+resources still match the archived PR360 manifest. New combination1280/360 screenshots were inspected.

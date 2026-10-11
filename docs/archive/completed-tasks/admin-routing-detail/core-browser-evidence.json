@@ -1,9 +1,9 @@
 [
   {
     "role": "user",
-    "request_id": "4e48ac26-4a7d-4e96-8e4f-e724f02561d0",
+    "request_id": "ad0197e8-8a7b-4ab2-9d7d-a8471926edd4",
     "usage_id": 1,
-    "batch_id": "imgbatch_1dabd0d090ddb27c5a6d6d7ac686c1b2",
+    "batch_id": "imgbatch_51c739eb040fc21939da5df3cf2dd1ad",
     "billed_cost": 6,
     "image_count": 3,
     "legacy_status": 409,
@@ -33,9 +33,9 @@
   },
   {
     "role": "admin",
-    "request_id": "4e48ac26-4a7d-4e96-8e4f-e724f02561d0",
+    "request_id": "ad0197e8-8a7b-4ab2-9d7d-a8471926edd4",
     "usage_id": 1,
-    "batch_id": "imgbatch_1dabd0d090ddb27c5a6d6d7ac686c1b2",
+    "batch_id": "imgbatch_51c739eb040fc21939da5df3cf2dd1ad",
     "billed_cost": 6,
     "image_count": 3,
     "legacy_status": 409,

@@ -1,13 +1,21 @@
 {
-  "base": "fb2c9747b58ed5d980a36ea6a2316ead2aa03b7e",
+  "base": "6ae024e6b732b64b2ce6f7ba56c5be4e20b88bdb",
+  "initial_ui_commit": "aa804d32e43f1be133c3632f04c6063959544b19",
   "source_sha256": {
     "frontend/src/api/requestLedger.ts": "e214350beafccfea18beebeb3925499376927dc9529222cab4a65637b7a742dc",
     "frontend/src/api/requestRouting.ts": "b6db3aef5b8d801ad57ad360be222599ea35ad3c1cc04ee3ec1e677e05b68411",
     "frontend/src/views/shared/RequestLedgerView.vue": "38e9473de1771fbc783fb201492731efaa1a58cec42d4197654052a4d405a24d",
     "frontend/src/views/shared/components/RequestLedgerRoutingSection.vue": "a83bf88e02fd233a020bbecfbbb41f484122292dcfdda741c90344a2591ce09d",
     "frontend/src/i18n/locales/request-ledger.en.ts": "7e70b1c8d6de91d65e0fd314b4542dc625c339554fb2f8600ad3c0d8845f0b3f",
-    "frontend/src/i18n/locales/request-ledger.zh.ts": "53933ef38c9ebfac2c977fc3995d96030f54b44c311b08b1b32614cb3a86c820"
+    "frontend/src/i18n/locales/request-ledger.zh.ts": "53933ef38c9ebfac2c977fc3995d96030f54b44c311b08b1b32614cb3a86c820",
+    "frontend/src/api/auth.ts": "df96c725264197d2297736d0242c45b76c36bc23d081e6df4bafac35248038f8",
+    "frontend/src/api/client.ts": "4406425c182b2236f0555cad8b98d6fd323339c39fc56daca3376a16f4860616",
+    "frontend/src/api/tokenRefresh.ts": "ec0c1633058a7a49957e4e955008c544ceb5b1fb4ecad347f83ff15a6f3cf452",
+    "frontend/src/stores/auth.ts": "ef386b9551a46e95c444908da571830de736c6d4dff19ce4e3ccb1c2dbda5be9"
   },
+  "ui_exactly_matches_initial_commit": true,
+  "auth_exactly_matches_main_PR362": true,
+  "backend_migrations_billing_dependency_files_unchanged": true,
   "protected_diff": "",
-  "backend_migrations_billing_auth_dependency_files_unchanged": true
+  "ordinary_merge_main_parent": "6ae024e6b732b64b2ce6f7ba56c5be4e20b88bdb"
 }

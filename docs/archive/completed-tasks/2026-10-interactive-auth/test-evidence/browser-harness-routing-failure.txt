@@ -1,0 +1,5 @@
+Traceback (most recent call last):
+  File "/workspace/p1-interactive-auth/docs/archive/completed-tasks/2026-10-interactive-auth/browser-interactive.py", line 127, in <module>
+    assert received.wait(5), 'Old HTTP request was not observed'
+           ^^^^^^^^^^^^^^^^
+AssertionError: Old HTTP request was not observed

@@ -1,0 +1,6 @@
+{
+  "frontend/src/api/auth.ts": "df96c725264197d2297736d0242c45b76c36bc23d081e6df4bafac35248038f8",
+  "frontend/src/api/tokenRefresh.ts": "ec0c1633058a7a49957e4e955008c544ceb5b1fb4ecad347f83ff15a6f3cf452",
+  "frontend/src/stores/auth.ts": "ef386b9551a46e95c444908da571830de736c6d4dff19ce4e3ccb1c2dbda5be9",
+  "frontend/src/stores/__tests__/auth.storage.http.spec.ts": "028b59687cfc59ee2cac6c6f1a1c2f8707a43eaabe95ef1b5715e437389a4ced"
+}

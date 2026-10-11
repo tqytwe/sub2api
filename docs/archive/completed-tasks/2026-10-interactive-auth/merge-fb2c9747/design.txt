@@ -1,0 +1,5 @@
+
+> sub2api-frontend@1.0.0 design:check /workspace/p1-interactive-auth/frontend
+> node ../scripts/check-frontend-design-governance.mjs
+
+[design-governance] passed (base: fb2c9747b58ed5d980a36ea6a2316ead2aa03b7e; changed files: 205; checked files: 8; visual files: 0; evidence records: 0)

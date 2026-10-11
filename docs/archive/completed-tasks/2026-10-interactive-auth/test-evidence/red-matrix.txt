@@ -1,0 +1,760 @@
+
+ RUN  v2.1.9 /workspace/p1-interactive-auth/frontend
+
+stderr | src/stores/__tests__/auth.interactive.http.spec.ts > interactive login through actual HTTP > does not clear a session when old HTTP 401 arrives before the newer success
+Error: Not implemented: navigation (except hash changes)
+    at module.exports (/workspace/p1-welfare-games/frontend/node_modules/.pnpm/jsdom@24.1.3/node_modules/jsdom/lib/jsdom/browser/not-implemented.js:9:17)
+    at navigateFetch (/workspace/p1-welfare-games/frontend/node_modules/.pnpm/jsdom@24.1.3/node_modules/jsdom/lib/jsdom/living/window/navigation.js:77:3)
+    at exports.navigate (/workspace/p1-welfare-games/frontend/node_modules/.pnpm/jsdom@24.1.3/node_modules/jsdom/lib/jsdom/living/window/navigation.js:55:3)
+    at LocationImpl.reload (/workspace/p1-welfare-games/frontend/node_modules/.pnpm/jsdom@24.1.3/node_modules/jsdom/lib/jsdom/living/window/Location-impl.js:226:5)
+    at Location.reload (/workspace/p1-welfare-games/frontend/node_modules/.pnpm/jsdom@24.1.3/node_modules/jsdom/lib/jsdom/living/generated/Location.js:102:36)
+    at reloadWhenSessionReady (/workspace/p1-interactive-auth/frontend/src/stores/auth.ts:102:23)
+    at syncStoredTokensBeforeRefresh (/workspace/p1-interactive-auth/frontend/src/stores/auth.ts:264:7)
+    at /workspace/p1-interactive-auth/frontend/src/stores/auth.ts:107:22
+    at /workspace/p1-interactive-auth/frontend/src/api/tokenRefresh.ts:128:40
+    at Set.forEach (<anonymous>) undefined
+
+stderr | src/stores/__tests__/auth.interactive.http.spec.ts > interactive login2FA through actual HTTP > does not clear a session when old HTTP 401 arrives before the newer success
+Error: Not implemented: navigation (except hash changes)
+    at module.exports (/workspace/p1-welfare-games/frontend/node_modules/.pnpm/jsdom@24.1.3/node_modules/jsdom/lib/jsdom/browser/not-implemented.js:9:17)
+    at navigateFetch (/workspace/p1-welfare-games/frontend/node_modules/.pnpm/jsdom@24.1.3/node_modules/jsdom/lib/jsdom/living/window/navigation.js:77:3)
+    at exports.navigate (/workspace/p1-welfare-games/frontend/node_modules/.pnpm/jsdom@24.1.3/node_modules/jsdom/lib/jsdom/living/window/navigation.js:55:3)
+    at LocationImpl.reload (/workspace/p1-welfare-games/frontend/node_modules/.pnpm/jsdom@24.1.3/node_modules/jsdom/lib/jsdom/living/window/Location-impl.js:226:5)
+    at Location.reload (/workspace/p1-welfare-games/frontend/node_modules/.pnpm/jsdom@24.1.3/node_modules/jsdom/lib/jsdom/living/generated/Location.js:102:36)
+    at reloadWhenSessionReady (/workspace/p1-interactive-auth/frontend/src/stores/auth.ts:102:23)
+    at syncStoredTokensBeforeRefresh (/workspace/p1-interactive-auth/frontend/src/stores/auth.ts:264:7)
+    at /workspace/p1-interactive-auth/frontend/src/stores/auth.ts:107:22
+    at /workspace/p1-interactive-auth/frontend/src/api/tokenRefresh.ts:128:40
+    at Set.forEach (<anonymous>) undefined
+
+stderr | src/stores/__tests__/auth.interactive.http.spec.ts > interactive register through actual HTTP > does not clear a session when old HTTP 401 arrives before the newer success
+Error: Not implemented: navigation (except hash changes)
+    at module.exports (/workspace/p1-welfare-games/frontend/node_modules/.pnpm/jsdom@24.1.3/node_modules/jsdom/lib/jsdom/browser/not-implemented.js:9:17)
+    at navigateFetch (/workspace/p1-welfare-games/frontend/node_modules/.pnpm/jsdom@24.1.3/node_modules/jsdom/lib/jsdom/living/window/navigation.js:77:3)
+    at exports.navigate (/workspace/p1-welfare-games/frontend/node_modules/.pnpm/jsdom@24.1.3/node_modules/jsdom/lib/jsdom/living/window/navigation.js:55:3)
+    at LocationImpl.reload (/workspace/p1-welfare-games/frontend/node_modules/.pnpm/jsdom@24.1.3/node_modules/jsdom/lib/jsdom/living/window/Location-impl.js:226:5)
+    at Location.reload (/workspace/p1-welfare-games/frontend/node_modules/.pnpm/jsdom@24.1.3/node_modules/jsdom/lib/jsdom/living/generated/Location.js:102:36)
+    at reloadWhenSessionReady (/workspace/p1-interactive-auth/frontend/src/stores/auth.ts:102:23)
+    at syncStoredTokensBeforeRefresh (/workspace/p1-interactive-auth/frontend/src/stores/auth.ts:264:7)
+    at /workspace/p1-interactive-auth/frontend/src/stores/auth.ts:107:22
+    at /workspace/p1-interactive-auth/frontend/src/api/tokenRefresh.ts:128:40
+    at Set.forEach (<anonymous>) undefined
+
+ ❯ src/stores/__tests__/auth.interactive.http.spec.ts (77 tests | 61 failed) 6839ms
+   × interactive login through actual HTTP > preserves 'account' after old 200 120ms
+     → old 200: expected { token: 'fixture-access-1-old', …(4) } to deeply equal { …(5) }
+   × interactive login through actual HTTP > preserves 'account' after old 401 60ms
+     → old 401: expected { token: null, userID: null, …(3) } to deeply equal { …(5) }
+   × interactive login through actual HTTP > preserves 'account' after old 503 64ms
+     → old 503: expected { token: null, userID: null, …(3) } to deeply equal { …(5) }
+   × interactive login through actual HTTP > preserves 'account' after old 'timeout' 212ms
+     → old timeout: expected { token: null, userID: null, …(3) } to deeply equal { …(5) }
+   × interactive login through actual HTTP > preserves 'account' after old 'cancel' 69ms
+     → old cancel: expected { token: null, userID: null, …(3) } to deeply equal { …(5) }
+   × interactive login through actual HTTP > preserves 'same-account' after old 200 60ms
+     → old 200: expected { token: 'fixture-access-1-old', …(4) } to deeply equal { …(5) }
+   × interactive login through actual HTTP > preserves 'same-account' after old 401 56ms
+     → old 401: expected { token: null, userID: null, …(3) } to deeply equal { …(5) }
+   × interactive login through actual HTTP > preserves 'same-account' after old 503 56ms
+     → old 503: expected { token: null, userID: null, …(3) } to deeply equal { …(5) }
+   × interactive login through actual HTTP > preserves 'same-account' after old 'timeout' 206ms
+     → old timeout: expected { token: null, userID: null, …(3) } to deeply equal { …(5) }
+   × interactive login through actual HTTP > preserves 'same-account' after old 'cancel' 58ms
+     → old cancel: expected { token: null, userID: null, …(3) } to deeply equal { …(5) }
+   × interactive login through actual HTTP > preserves 'logout' after old 200 58ms
+     → old 200: expected { token: 'fixture-access-1-old', …(4) } to deeply equal { token: null, userID: null, …(3) }
+   × interactive login through actual HTTP > preserves 'logout' after old 401 56ms
+     → old 401: expected { token: null, userID: null, …(3) } to deeply equal { token: null, userID: null, …(3) }
+   × interactive login through actual HTTP > preserves 'logout' after old 503 56ms
+     → old 503: expected { token: null, userID: null, …(3) } to deeply equal { token: null, userID: null, …(3) }
+   × interactive login through actual HTTP > preserves 'logout' after old 'timeout' 205ms
+     → old timeout: expected { token: null, userID: null, …(3) } to deeply equal { token: null, userID: null, …(3) }
+   × interactive login through actual HTTP > preserves 'logout' after old 'cancel' 55ms
+     → old cancel: expected { token: null, userID: null, …(3) } to deeply equal { token: null, userID: null, …(3) }
+   × interactive login through actual HTTP > rejects an old success while the latest login is still pending 118ms
+     → expected { token: 'fixture-access-1-old', …(4) } to deeply equal { …(5) }
+   × interactive login through actual HTTP > does not clear a session when old HTTP 401 arrives before the newer success 130ms
+     → expected { token: null, userID: null, …(3) } to deeply equal { …(5) }
+   × interactive login through actual HTTP > does not clear a session when old HTTP 503 arrives before the newer success 108ms
+     → expected { token: null, userID: null, …(3) } to deeply equal { …(5) }
+   × interactive login through actual HTTP > cannot overwrite a later successful login2FA 56ms
+     → expected null to be truthy
+   × interactive login through actual HTTP > cannot overwrite a later successful register 55ms
+     → expected null to be truthy
+   × interactive login2FA through actual HTTP > preserves 'account' after old 200 62ms
+     → old 200: expected { token: 'fixture-access-1-old', …(4) } to deeply equal { …(5) }
+   × interactive login2FA through actual HTTP > preserves 'account' after old 401 60ms
+     → old 401: expected { token: null, userID: null, …(3) } to deeply equal { …(5) }
+   × interactive login2FA through actual HTTP > preserves 'account' after old 503 60ms
+     → old 503: expected { token: null, userID: null, …(3) } to deeply equal { …(5) }
+   × interactive login2FA through actual HTTP > preserves 'account' after old 'timeout' 205ms
+     → old timeout: expected { token: null, userID: null, …(3) } to deeply equal { …(5) }
+   × interactive login2FA through actual HTTP > preserves 'account' after old 'cancel' 63ms
+     → old cancel: expected { token: null, userID: null, …(3) } to deeply equal { …(5) }
+   × interactive login2FA through actual HTTP > preserves 'same-account' after old 200 62ms
+     → old 200: expected { token: 'fixture-access-1-old', …(4) } to deeply equal { …(5) }
+   × interactive login2FA through actual HTTP > preserves 'same-account' after old 401 56ms
+     → old 401: expected { token: null, userID: null, …(3) } to deeply equal { …(5) }
+   × interactive login2FA through actual HTTP > preserves 'same-account' after old 503 55ms
+     → old 503: expected { token: null, userID: null, …(3) } to deeply equal { …(5) }
+   × interactive login2FA through actual HTTP > preserves 'same-account' after old 'timeout' 205ms
+     → old timeout: expected { token: null, userID: null, …(3) } to deeply equal { …(5) }
+   × interactive login2FA through actual HTTP > preserves 'same-account' after old 'cancel' 69ms
+     → old cancel: expected { token: null, userID: null, …(3) } to deeply equal { …(5) }
+   × interactive login2FA through actual HTTP > preserves 'logout' after old 200 70ms
+     → old 200: expected { token: 'fixture-access-1-old', …(4) } to deeply equal { token: null, userID: null, …(3) }
+   × interactive login2FA through actual HTTP > preserves 'logout' after old 401 60ms
+     → old 401: expected { token: null, userID: null, …(3) } to deeply equal { token: null, userID: null, …(3) }
+   × interactive login2FA through actual HTTP > preserves 'logout' after old 503 73ms
+     → old 503: expected { token: null, userID: null, …(3) } to deeply equal { token: null, userID: null, …(3) }
+   × interactive login2FA through actual HTTP > preserves 'logout' after old 'timeout' 206ms
+     → old timeout: expected { token: null, userID: null, …(3) } to deeply equal { token: null, userID: null, …(3) }
+   × interactive login2FA through actual HTTP > preserves 'logout' after old 'cancel' 60ms
+     → old cancel: expected { token: null, userID: null, …(3) } to deeply equal { token: null, userID: null, …(3) }
+   × interactive login2FA through actual HTTP > rejects an old success while the latest login is still pending 108ms
+     → expected { token: 'fixture-access-1-old', …(4) } to deeply equal { …(5) }
+   × interactive login2FA through actual HTTP > does not clear a session when old HTTP 401 arrives before the newer success 105ms
+     → expected { token: null, userID: null, …(3) } to deeply equal { …(5) }
+   × interactive login2FA through actual HTTP > does not clear a session when old HTTP 503 arrives before the newer success 105ms
+     → expected { token: null, userID: null, …(3) } to deeply equal { …(5) }
+   × interactive login2FA through actual HTTP > cannot overwrite a later successful login2FA 54ms
+     → expected null to be truthy
+   × interactive login2FA through actual HTTP > cannot overwrite a later successful register 57ms
+     → expected null to be truthy
+   × interactive register through actual HTTP > preserves 'account' after old 200 70ms
+     → old 200: expected { token: 'fixture-access-1-old', …(4) } to deeply equal { …(5) }
+   × interactive register through actual HTTP > preserves 'account' after old 401 63ms
+     → old 401: expected { token: null, userID: null, …(3) } to deeply equal { …(5) }
+   × interactive register through actual HTTP > preserves 'account' after old 503 60ms
+     → old 503: expected { token: null, userID: null, …(3) } to deeply equal { …(5) }
+   × interactive register through actual HTTP > preserves 'account' after old 'timeout' 208ms
+     → old timeout: expected { token: null, userID: null, …(3) } to deeply equal { …(5) }
+   × interactive register through actual HTTP > preserves 'account' after old 'cancel' 60ms
+     → old cancel: expected { token: null, userID: null, …(3) } to deeply equal { …(5) }
+   × interactive register through actual HTTP > preserves 'same-account' after old 200 68ms
+     → old 200: expected { token: 'fixture-access-1-old', …(4) } to deeply equal { …(5) }
+   × interactive register through actual HTTP > preserves 'same-account' after old 401 57ms
+     → old 401: expected { token: null, userID: null, …(3) } to deeply equal { …(5) }
+   × interactive register through actual HTTP > preserves 'same-account' after old 503 54ms
+     → old 503: expected { token: null, userID: null, …(3) } to deeply equal { …(5) }
+   × interactive register through actual HTTP > preserves 'same-account' after old 'timeout' 209ms
+     → old timeout: expected { token: null, userID: null, …(3) } to deeply equal { …(5) }
+   × interactive register through actual HTTP > preserves 'same-account' after old 'cancel' 55ms
+     → old cancel: expected { token: null, userID: null, …(3) } to deeply equal { …(5) }
+   × interactive register through actual HTTP > preserves 'logout' after old 200 57ms
+     → old 200: expected { token: 'fixture-access-1-old', …(4) } to deeply equal { token: null, userID: null, …(3) }
+   × interactive register through actual HTTP > preserves 'logout' after old 401 54ms
+     → old 401: expected { token: null, userID: null, …(3) } to deeply equal { token: null, userID: null, …(3) }
+   × interactive register through actual HTTP > preserves 'logout' after old 503 57ms
+     → old 503: expected { token: null, userID: null, …(3) } to deeply equal { token: null, userID: null, …(3) }
+   × interactive register through actual HTTP > preserves 'logout' after old 'timeout' 206ms
+     → old timeout: expected { token: null, userID: null, …(3) } to deeply equal { token: null, userID: null, …(3) }
+   × interactive register through actual HTTP > preserves 'logout' after old 'cancel' 55ms
+     → old cancel: expected { token: null, userID: null, …(3) } to deeply equal { token: null, userID: null, …(3) }
+   × interactive register through actual HTTP > rejects an old success while the latest login is still pending 105ms
+     → expected { token: 'fixture-access-1-old', …(4) } to deeply equal { …(5) }
+   × interactive register through actual HTTP > does not clear a session when old HTTP 401 arrives before the newer success 104ms
+     → expected { token: null, userID: null, …(3) } to deeply equal { …(5) }
+   × interactive register through actual HTTP > does not clear a session when old HTTP 503 arrives before the newer success 104ms
+     → expected { token: null, userID: null, …(3) } to deeply equal { …(5) }
+   × interactive register through actual HTTP > cannot overwrite a later successful login2FA 54ms
+     → expected null to be truthy
+   × interactive register through actual HTTP > cannot overwrite a later successful register 56ms
+     → expected null to be truthy
+   × rejects an obsolete 2FA challenge after another login succeeds 55ms
+     → expected null to be truthy
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 61 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/stores/__tests__/auth.interactive.http.spec.ts > interactive login through actual HTTP > preserves 'account' after old 200
+ FAIL  src/stores/__tests__/auth.interactive.http.spec.ts > interactive login through actual HTTP > preserves 'same-account' after old 200
+ FAIL  src/stores/__tests__/auth.interactive.http.spec.ts > interactive login2FA through actual HTTP > preserves 'account' after old 200
+ FAIL  src/stores/__tests__/auth.interactive.http.spec.ts > interactive login2FA through actual HTTP > preserves 'same-account' after old 200
+ FAIL  src/stores/__tests__/auth.interactive.http.spec.ts > interactive register through actual HTTP > preserves 'account' after old 200
+ FAIL  src/stores/__tests__/auth.interactive.http.spec.ts > interactive register through actual HTTP > preserves 'same-account' after old 200
+AssertionError: old 200: expected { token: 'fixture-access-1-old', …(4) } to deeply equal { …(5) }
+
+- Expected
++ Received
+
+  Object {
+    "authenticated": true,
+    "identity": Object {
+-     "generation": 4,
+-     "sessionID": "9a76480d-b9c9-4642-88e1-4577fefaffa1",
+-     "userID": 2,
++     "generation": 6,
++     "sessionID": "143da25e-a551-4870-a9d4-3d39a3b41614",
++     "userID": 1,
+    },
+    "stored": Object {
+-     "auth_session_id": "9a76480d-b9c9-4642-88e1-4577fefaffa1",
+-     "auth_token": "fixture-access-2-current",
+-     "auth_user": "{\"id\":2,\"email\":\"fixture-2@example.test\",\"role\":\"user\",\"status\":\"active\",\"balance\":2,\"concurrency\":5}",
+-     "refresh_token": "fixture-refresh-2-current",
+-     "token_expires_at": "1791714761206",
++     "auth_session_id": "143da25e-a551-4870-a9d4-3d39a3b41614",
++     "auth_token": "fixture-access-1-old",
++     "auth_user": "{\"id\":1,\"email\":\"fixture-1@example.test\",\"role\":\"user\",\"status\":\"active\",\"balance\":1,\"concurrency\":5}",
++     "refresh_token": "fixture-refresh-1-old",
++     "token_expires_at": "1791714761208",
+    },
+-   "token": "fixture-access-2-current",
+-   "userID": 2,
++   "token": "fixture-access-1-old",
++   "userID": 1,
+  }
+
+ ❯ src/stores/__tests__/auth.interactive.http.spec.ts:107:39
+    105|     await completeOld(outcome)
+    106|     const result = await old
+    107|     expect(state(), `old ${outcome}`).toEqual(current)
+       |                                       ^
+    108|     expect(result.error, `old ${outcome} must reject`).toBeTruthy()
+    109|     if (outcome === 'cancel') expect(axios.isCancel(result.error)).toB…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/61]⎯
+
+ FAIL  src/stores/__tests__/auth.interactive.http.spec.ts > interactive login through actual HTTP > preserves 'account' after old 401
+ FAIL  src/stores/__tests__/auth.interactive.http.spec.ts > interactive login through actual HTTP > preserves 'same-account' after old 401
+ FAIL  src/stores/__tests__/auth.interactive.http.spec.ts > interactive login2FA through actual HTTP > preserves 'account' after old 401
+ FAIL  src/stores/__tests__/auth.interactive.http.spec.ts > interactive login2FA through actual HTTP > preserves 'same-account' after old 401
+ FAIL  src/stores/__tests__/auth.interactive.http.spec.ts > interactive register through actual HTTP > preserves 'account' after old 401
+ FAIL  src/stores/__tests__/auth.interactive.http.spec.ts > interactive register through actual HTTP > preserves 'same-account' after old 401
+AssertionError: old 401: expected { token: null, userID: null, …(3) } to deeply equal { …(5) }
+
+- Expected
++ Received
+
+  Object {
+-   "authenticated": true,
++   "authenticated": false,
+    "identity": Object {
+-     "generation": 11,
+-     "sessionID": "c842b4f7-bf3d-429e-a118-9e3bcd80b7e4",
+-     "userID": 2,
++     "generation": 12,
++     "sessionID": "d1ea7886-cb7a-43b2-98d0-1ec91f5da7e8",
++     "userID": null,
+    },
+    "stored": Object {
+-     "auth_session_id": "c842b4f7-bf3d-429e-a118-9e3bcd80b7e4",
+-     "auth_token": "fixture-access-2-current",
+-     "auth_user": "{\"id\":2,\"email\":\"fixture-2@example.test\",\"role\":\"user\",\"status\":\"active\",\"balance\":2,\"concurrency\":5}",
+-     "refresh_token": "fixture-refresh-2-current",
+-     "token_expires_at": "1791714761277",
++     "auth_session_id": "d1ea7886-cb7a-43b2-98d0-1ec91f5da7e8",
++     "auth_token": null,
++     "auth_user": null,
++     "refresh_token": null,
++     "token_expires_at": null,
+    },
+-   "token": "fixture-access-2-current",
+-   "userID": 2,
++   "token": null,
++   "userID": null,
+  }
+
+ ❯ src/stores/__tests__/auth.interactive.http.spec.ts:107:39
+    105|     await completeOld(outcome)
+    106|     const result = await old
+    107|     expect(state(), `old ${outcome}`).toEqual(current)
+       |                                       ^
+    108|     expect(result.error, `old ${outcome} must reject`).toBeTruthy()
+    109|     if (outcome === 'cancel') expect(axios.isCancel(result.error)).toB…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/61]⎯
+
+ FAIL  src/stores/__tests__/auth.interactive.http.spec.ts > interactive login through actual HTTP > preserves 'account' after old 503
+ FAIL  src/stores/__tests__/auth.interactive.http.spec.ts > interactive login through actual HTTP > preserves 'same-account' after old 503
+ FAIL  src/stores/__tests__/auth.interactive.http.spec.ts > interactive login2FA through actual HTTP > preserves 'account' after old 503
+ FAIL  src/stores/__tests__/auth.interactive.http.spec.ts > interactive login2FA through actual HTTP > preserves 'same-account' after old 503
+ FAIL  src/stores/__tests__/auth.interactive.http.spec.ts > interactive register through actual HTTP > preserves 'account' after old 503
+ FAIL  src/stores/__tests__/auth.interactive.http.spec.ts > interactive register through actual HTTP > preserves 'same-account' after old 503
+AssertionError: old 503: expected { token: null, userID: null, …(3) } to deeply equal { …(5) }
+
+- Expected
++ Received
+
+  Object {
+-   "authenticated": true,
++   "authenticated": false,
+    "identity": Object {
+-     "generation": 17,
+-     "sessionID": "7bcb9db3-9f0a-475f-9c03-f4c8fd3dfd8c",
+-     "userID": 2,
++     "generation": 18,
++     "sessionID": "1382d1ab-1f08-448f-b633-79de7b71f6f4",
++     "userID": null,
+    },
+    "stored": Object {
+-     "auth_session_id": "7bcb9db3-9f0a-475f-9c03-f4c8fd3dfd8c",
+-     "auth_token": "fixture-access-2-current",
+-     "auth_user": "{\"id\":2,\"email\":\"fixture-2@example.test\",\"role\":\"user\",\"status\":\"active\",\"balance\":2,\"concurrency\":5}",
+-     "refresh_token": "fixture-refresh-2-current",
+-     "token_expires_at": "1791714761339",
++     "auth_session_id": "1382d1ab-1f08-448f-b633-79de7b71f6f4",
++     "auth_token": null,
++     "auth_user": null,
++     "refresh_token": null,
++     "token_expires_at": null,
+    },
+-   "token": "fixture-access-2-current",
+-   "userID": 2,
++   "token": null,
++   "userID": null,
+  }
+
+ ❯ src/stores/__tests__/auth.interactive.http.spec.ts:107:39
+    105|     await completeOld(outcome)
+    106|     const result = await old
+    107|     expect(state(), `old ${outcome}`).toEqual(current)
+       |                                       ^
+    108|     expect(result.error, `old ${outcome} must reject`).toBeTruthy()
+    109|     if (outcome === 'cancel') expect(axios.isCancel(result.error)).toB…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/61]⎯
+
+ FAIL  src/stores/__tests__/auth.interactive.http.spec.ts > interactive login through actual HTTP > preserves 'account' after old 'timeout'
+ FAIL  src/stores/__tests__/auth.interactive.http.spec.ts > interactive login through actual HTTP > preserves 'same-account' after old 'timeout'
+ FAIL  src/stores/__tests__/auth.interactive.http.spec.ts > interactive login2FA through actual HTTP > preserves 'account' after old 'timeout'
+ FAIL  src/stores/__tests__/auth.interactive.http.spec.ts > interactive login2FA through actual HTTP > preserves 'same-account' after old 'timeout'
+ FAIL  src/stores/__tests__/auth.interactive.http.spec.ts > interactive register through actual HTTP > preserves 'account' after old 'timeout'
+ FAIL  src/stores/__tests__/auth.interactive.http.spec.ts > interactive register through actual HTTP > preserves 'same-account' after old 'timeout'
+AssertionError: old timeout: expected { token: null, userID: null, …(3) } to deeply equal { …(5) }
+
+- Expected
++ Received
+
+  Object {
+-   "authenticated": true,
++   "authenticated": false,
+    "identity": Object {
+-     "generation": 23,
+-     "sessionID": "e0b2076f-eb02-4f09-96e9-82e2d930acdc",
+-     "userID": 2,
++     "generation": 24,
++     "sessionID": "7ef0cd1a-1102-480b-8c6a-03a493302052",
++     "userID": null,
+    },
+    "stored": Object {
+-     "auth_session_id": "e0b2076f-eb02-4f09-96e9-82e2d930acdc",
+-     "auth_token": "fixture-access-2-current",
+-     "auth_user": "{\"id\":2,\"email\":\"fixture-2@example.test\",\"role\":\"user\",\"status\":\"active\",\"balance\":2,\"concurrency\":5}",
+-     "refresh_token": "fixture-refresh-2-current",
+-     "token_expires_at": "1791714761405",
++     "auth_session_id": "7ef0cd1a-1102-480b-8c6a-03a493302052",
++     "auth_token": null,
++     "auth_user": null,
++     "refresh_token": null,
++     "token_expires_at": null,
+    },
+-   "token": "fixture-access-2-current",
+-   "userID": 2,
++   "token": null,
++   "userID": null,
+  }
+
+ ❯ src/stores/__tests__/auth.interactive.http.spec.ts:107:39
+    105|     await completeOld(outcome)
+    106|     const result = await old
+    107|     expect(state(), `old ${outcome}`).toEqual(current)
+       |                                       ^
+    108|     expect(result.error, `old ${outcome} must reject`).toBeTruthy()
+    109|     if (outcome === 'cancel') expect(axios.isCancel(result.error)).toB…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/61]⎯
+
+ FAIL  src/stores/__tests__/auth.interactive.http.spec.ts > interactive login through actual HTTP > preserves 'account' after old 'cancel'
+ FAIL  src/stores/__tests__/auth.interactive.http.spec.ts > interactive login through actual HTTP > preserves 'same-account' after old 'cancel'
+ FAIL  src/stores/__tests__/auth.interactive.http.spec.ts > interactive login2FA through actual HTTP > preserves 'account' after old 'cancel'
+ FAIL  src/stores/__tests__/auth.interactive.http.spec.ts > interactive login2FA through actual HTTP > preserves 'same-account' after old 'cancel'
+ FAIL  src/stores/__tests__/auth.interactive.http.spec.ts > interactive register through actual HTTP > preserves 'account' after old 'cancel'
+ FAIL  src/stores/__tests__/auth.interactive.http.spec.ts > interactive register through actual HTTP > preserves 'same-account' after old 'cancel'
+AssertionError: old cancel: expected { token: null, userID: null, …(3) } to deeply equal { …(5) }
+
+- Expected
++ Received
+
+  Object {
+-   "authenticated": true,
++   "authenticated": false,
+    "identity": Object {
+-     "generation": 29,
+-     "sessionID": "23bbe07c-c416-46e2-86d6-50a9983a01a5",
+-     "userID": 2,
++     "generation": 30,
++     "sessionID": "cfc2ec0a-25b4-4c0d-a3ef-165cd4adbac1",
++     "userID": null,
+    },
+    "stored": Object {
+-     "auth_session_id": "23bbe07c-c416-46e2-86d6-50a9983a01a5",
+-     "auth_token": "fixture-access-2-current",
+-     "auth_user": "{\"id\":2,\"email\":\"fixture-2@example.test\",\"role\":\"user\",\"status\":\"active\",\"balance\":2,\"concurrency\":5}",
+-     "refresh_token": "fixture-refresh-2-current",
+-     "token_expires_at": "1791714761618",
++     "auth_session_id": "cfc2ec0a-25b4-4c0d-a3ef-165cd4adbac1",
++     "auth_token": null,
++     "auth_user": null,
++     "refresh_token": null,
++     "token_expires_at": null,
+    },
+-   "token": "fixture-access-2-current",
+-   "userID": 2,
++   "token": null,
++   "userID": null,
+  }
+
+ ❯ src/stores/__tests__/auth.interactive.http.spec.ts:107:39
+    105|     await completeOld(outcome)
+    106|     const result = await old
+    107|     expect(state(), `old ${outcome}`).toEqual(current)
+       |                                       ^
+    108|     expect(result.error, `old ${outcome} must reject`).toBeTruthy()
+    109|     if (outcome === 'cancel') expect(axios.isCancel(result.error)).toB…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/61]⎯
+
+ FAIL  src/stores/__tests__/auth.interactive.http.spec.ts > interactive login through actual HTTP > preserves 'logout' after old 200
+ FAIL  src/stores/__tests__/auth.interactive.http.spec.ts > interactive login2FA through actual HTTP > preserves 'logout' after old 200
+ FAIL  src/stores/__tests__/auth.interactive.http.spec.ts > interactive register through actual HTTP > preserves 'logout' after old 200
+AssertionError: old 200: expected { token: 'fixture-access-1-old', …(4) } to deeply equal { token: null, userID: null, …(3) }
+
+- Expected
++ Received
+
+  Object {
+-   "authenticated": false,
++   "authenticated": true,
+    "identity": Object {
+-     "generation": 65,
+-     "sessionID": "f2104bd7-53fa-491a-bb26-ff8792c32819",
+-     "userID": null,
++     "generation": 67,
++     "sessionID": "adcedfbb-9f0b-49d3-847e-f2a10cfdfffe",
++     "userID": 1,
+    },
+    "stored": Object {
+-     "auth_session_id": "f2104bd7-53fa-491a-bb26-ff8792c32819",
+-     "auth_token": null,
+-     "auth_user": null,
+-     "refresh_token": null,
+-     "token_expires_at": null,
++     "auth_session_id": "adcedfbb-9f0b-49d3-847e-f2a10cfdfffe",
++     "auth_token": "fixture-access-1-old",
++     "auth_user": "{\"id\":1,\"email\":\"fixture-1@example.test\",\"role\":\"user\",\"status\":\"active\",\"balance\":1,\"concurrency\":5}",
++     "refresh_token": "fixture-refresh-1-old",
++     "token_expires_at": "1791714762116",
+    },
+-   "token": null,
+-   "userID": null,
++   "token": "fixture-access-1-old",
++   "userID": 1,
+  }
+
+ ❯ src/stores/__tests__/auth.interactive.http.spec.ts:107:39
+    105|     await completeOld(outcome)
+    106|     const result = await old
+    107|     expect(state(), `old ${outcome}`).toEqual(current)
+       |                                       ^
+    108|     expect(result.error, `old ${outcome} must reject`).toBeTruthy()
+    109|     if (outcome === 'cancel') expect(axios.isCancel(result.error)).toB…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/61]⎯
+
+ FAIL  src/stores/__tests__/auth.interactive.http.spec.ts > interactive login through actual HTTP > preserves 'logout' after old 401
+ FAIL  src/stores/__tests__/auth.interactive.http.spec.ts > interactive login2FA through actual HTTP > preserves 'logout' after old 401
+ FAIL  src/stores/__tests__/auth.interactive.http.spec.ts > interactive register through actual HTTP > preserves 'logout' after old 401
+AssertionError: old 401: expected { token: null, userID: null, …(3) } to deeply equal { token: null, userID: null, …(3) }
+
+- Expected
++ Received
+
+  Object {
+    "authenticated": false,
+    "identity": Object {
+-     "generation": 71,
+-     "sessionID": "447d4142-29e2-468a-b527-95d6d5e20e99",
++     "generation": 72,
++     "sessionID": "237eefd7-8f54-4a48-9a5b-239714e126dc",
+      "userID": null,
+    },
+    "stored": Object {
+-     "auth_session_id": "447d4142-29e2-468a-b527-95d6d5e20e99",
++     "auth_session_id": "237eefd7-8f54-4a48-9a5b-239714e126dc",
+      "auth_token": null,
+      "auth_user": null,
+      "refresh_token": null,
+      "token_expires_at": null,
+    },
+    "token": null,
+    "userID": null,
+  }
+
+ ❯ src/stores/__tests__/auth.interactive.http.spec.ts:107:39
+    105|     await completeOld(outcome)
+    106|     const result = await old
+    107|     expect(state(), `old ${outcome}`).toEqual(current)
+       |                                       ^
+    108|     expect(result.error, `old ${outcome} must reject`).toBeTruthy()
+    109|     if (outcome === 'cancel') expect(axios.isCancel(result.error)).toB…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/61]⎯
+
+ FAIL  src/stores/__tests__/auth.interactive.http.spec.ts > interactive login through actual HTTP > preserves 'logout' after old 503
+ FAIL  src/stores/__tests__/auth.interactive.http.spec.ts > interactive login2FA through actual HTTP > preserves 'logout' after old 503
+ FAIL  src/stores/__tests__/auth.interactive.http.spec.ts > interactive register through actual HTTP > preserves 'logout' after old 503
+AssertionError: old 503: expected { token: null, userID: null, …(3) } to deeply equal { token: null, userID: null, …(3) }
+
+- Expected
++ Received
+
+  Object {
+    "authenticated": false,
+    "identity": Object {
+-     "generation": 76,
+-     "sessionID": "711799f7-e339-4773-af05-40f31388cd8b",
++     "generation": 77,
++     "sessionID": "f4b5b252-6f2c-4946-9f65-f895afd4c3ce",
+      "userID": null,
+    },
+    "stored": Object {
+-     "auth_session_id": "711799f7-e339-4773-af05-40f31388cd8b",
++     "auth_session_id": "f4b5b252-6f2c-4946-9f65-f895afd4c3ce",
+      "auth_token": null,
+      "auth_user": null,
+      "refresh_token": null,
+      "token_expires_at": null,
+    },
+    "token": null,
+    "userID": null,
+  }
+
+ ❯ src/stores/__tests__/auth.interactive.http.spec.ts:107:39
+    105|     await completeOld(outcome)
+    106|     const result = await old
+    107|     expect(state(), `old ${outcome}`).toEqual(current)
+       |                                       ^
+    108|     expect(result.error, `old ${outcome} must reject`).toBeTruthy()
+    109|     if (outcome === 'cancel') expect(axios.isCancel(result.error)).toB…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/61]⎯
+
+ FAIL  src/stores/__tests__/auth.interactive.http.spec.ts > interactive login through actual HTTP > preserves 'logout' after old 'timeout'
+ FAIL  src/stores/__tests__/auth.interactive.http.spec.ts > interactive login2FA through actual HTTP > preserves 'logout' after old 'timeout'
+ FAIL  src/stores/__tests__/auth.interactive.http.spec.ts > interactive register through actual HTTP > preserves 'logout' after old 'timeout'
+AssertionError: old timeout: expected { token: null, userID: null, …(3) } to deeply equal { token: null, userID: null, …(3) }
+
+- Expected
++ Received
+
+  Object {
+    "authenticated": false,
+    "identity": Object {
+-     "generation": 81,
+-     "sessionID": "75abc16f-381c-428f-a62c-3f34649b9a7c",
++     "generation": 82,
++     "sessionID": "2adda2cb-922a-4c36-9c46-bf8c295b2655",
+      "userID": null,
+    },
+    "stored": Object {
+-     "auth_session_id": "75abc16f-381c-428f-a62c-3f34649b9a7c",
++     "auth_session_id": "2adda2cb-922a-4c36-9c46-bf8c295b2655",
+      "auth_token": null,
+      "auth_user": null,
+      "refresh_token": null,
+      "token_expires_at": null,
+    },
+    "token": null,
+    "userID": null,
+  }
+
+ ❯ src/stores/__tests__/auth.interactive.http.spec.ts:107:39
+    105|     await completeOld(outcome)
+    106|     const result = await old
+    107|     expect(state(), `old ${outcome}`).toEqual(current)
+       |                                       ^
+    108|     expect(result.error, `old ${outcome} must reject`).toBeTruthy()
+    109|     if (outcome === 'cancel') expect(axios.isCancel(result.error)).toB…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/61]⎯
+
+ FAIL  src/stores/__tests__/auth.interactive.http.spec.ts > interactive login through actual HTTP > preserves 'logout' after old 'cancel'
+ FAIL  src/stores/__tests__/auth.interactive.http.spec.ts > interactive login2FA through actual HTTP > preserves 'logout' after old 'cancel'
+ FAIL  src/stores/__tests__/auth.interactive.http.spec.ts > interactive register through actual HTTP > preserves 'logout' after old 'cancel'
+AssertionError: old cancel: expected { token: null, userID: null, …(3) } to deeply equal { token: null, userID: null, …(3) }
+
+- Expected
++ Received
+
+  Object {
+    "authenticated": false,
+    "identity": Object {
+-     "generation": 86,
+-     "sessionID": "9909915b-b934-4bf2-828f-d23017c7164f",
++     "generation": 87,
++     "sessionID": "28c65874-d6d5-4894-8d87-5ac433ea02d4",
+      "userID": null,
+    },
+    "stored": Object {
+-     "auth_session_id": "9909915b-b934-4bf2-828f-d23017c7164f",
++     "auth_session_id": "28c65874-d6d5-4894-8d87-5ac433ea02d4",
+      "auth_token": null,
+      "auth_user": null,
+      "refresh_token": null,
+      "token_expires_at": null,
+    },
+    "token": null,
+    "userID": null,
+  }
+
+ ❯ src/stores/__tests__/auth.interactive.http.spec.ts:107:39
+    105|     await completeOld(outcome)
+    106|     const result = await old
+    107|     expect(state(), `old ${outcome}`).toEqual(current)
+       |                                       ^
+    108|     expect(result.error, `old ${outcome} must reject`).toBeTruthy()
+    109|     if (outcome === 'cancel') expect(axios.isCancel(result.error)).toB…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/61]⎯
+
+ FAIL  src/stores/__tests__/auth.interactive.http.spec.ts > interactive login through actual HTTP > rejects an old success while the latest login is still pending
+ FAIL  src/stores/__tests__/auth.interactive.http.spec.ts > interactive login2FA through actual HTTP > rejects an old success while the latest login is still pending
+ FAIL  src/stores/__tests__/auth.interactive.http.spec.ts > interactive register through actual HTTP > rejects an old success while the latest login is still pending
+AssertionError: expected { token: 'fixture-access-1-old', …(4) } to deeply equal { …(5) }
+
+- Expected
++ Received
+
+  Object {
+    "authenticated": true,
+    "identity": Object {
+-     "generation": 90,
+-     "sessionID": "cd1ecbe1-531f-4395-b3b8-9ebd883f0b18",
++     "generation": 92,
++     "sessionID": "3a3cd559-cd71-40ef-88a7-3c6f5b629192",
+      "userID": 1,
+    },
+    "stored": Object {
+-     "auth_session_id": "cd1ecbe1-531f-4395-b3b8-9ebd883f0b18",
+-     "auth_token": "fixture-access-1-initial",
++     "auth_session_id": "3a3cd559-cd71-40ef-88a7-3c6f5b629192",
++     "auth_token": "fixture-access-1-old",
+      "auth_user": "{\"id\":1,\"email\":\"fixture-1@example.test\",\"role\":\"user\",\"status\":\"active\",\"balance\":1,\"concurrency\":5}",
+-     "refresh_token": "fixture-refresh-1-initial",
+-     "token_expires_at": "1791714762495",
++     "refresh_token": "fixture-refresh-1-old",
++     "token_expires_at": "1791714762597",
+    },
+-   "token": "fixture-access-1-initial",
++   "token": "fixture-access-1-old",
+    "userID": 1,
+  }
+
+ ❯ src/stores/__tests__/auth.interactive.http.spec.ts:124:21
+    122|     release('1-old')
+    123|     const oldResult = await old
+    124|     expect(state()).toEqual(initial)
+       |                     ^
+    125|     expect(oldResult.error).toBeTruthy()
+    126|     release('2-current')
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/61]⎯
+
+ FAIL  src/stores/__tests__/auth.interactive.http.spec.ts > interactive login through actual HTTP > does not clear a session when old HTTP 401 arrives before the newer success
+ FAIL  src/stores/__tests__/auth.interactive.http.spec.ts > interactive login through actual HTTP > does not clear a session when old HTTP 503 arrives before the newer success
+ FAIL  src/stores/__tests__/auth.interactive.http.spec.ts > interactive login2FA through actual HTTP > does not clear a session when old HTTP 401 arrives before the newer success
+ FAIL  src/stores/__tests__/auth.interactive.http.spec.ts > interactive login2FA through actual HTTP > does not clear a session when old HTTP 503 arrives before the newer success
+ FAIL  src/stores/__tests__/auth.interactive.http.spec.ts > interactive register through actual HTTP > does not clear a session when old HTTP 401 arrives before the newer success
+ FAIL  src/stores/__tests__/auth.interactive.http.spec.ts > interactive register through actual HTTP > does not clear a session when old HTTP 503 arrives before the newer success
+AssertionError: expected { token: null, userID: null, …(3) } to deeply equal { …(5) }
+
+- Expected
++ Received
+
+  Object {
+-   "authenticated": true,
++   "authenticated": false,
+    "identity": Object {
+-     "generation": 96,
+-     "sessionID": "96cc19f0-4f4d-4a92-ae7f-feaaff1fd426",
+-     "userID": 1,
++     "generation": 98,
++     "sessionID": "c3f08fe0-1869-4eed-9a2e-e4e38fc6438d",
++     "userID": null,
+    },
+    "stored": Object {
+-     "auth_session_id": "96cc19f0-4f4d-4a92-ae7f-feaaff1fd426",
+-     "auth_token": "fixture-access-1-initial",
+-     "auth_user": "{\"id\":1,\"email\":\"fixture-1@example.test\",\"role\":\"user\",\"status\":\"active\",\"balance\":1,\"concurrency\":5}",
+-     "refresh_token": "fixture-refresh-1-initial",
+-     "token_expires_at": "1791714762629",
++     "auth_session_id": "c3f08fe0-1869-4eed-9a2e-e4e38fc6438d",
++     "auth_token": null,
++     "auth_user": null,
++     "refresh_token": null,
++     "token_expires_at": null,
+    },
+-   "token": "fixture-access-1-initial",
+-   "userID": 1,
++   "token": null,
++   "userID": null,
+  }
+
+ ❯ src/stores/__tests__/auth.interactive.http.spec.ts:141:21
+    139|     release('1-old', code)
+    140|     expect((await old).error.status).toBe(code)
+    141|     expect(state()).toEqual(initial)
+       |                     ^
+    142|     release('2-current')
+    143|     expect((await current).error).toBeNull()
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/61]⎯
+
+ FAIL  src/stores/__tests__/auth.interactive.http.spec.ts > interactive login through actual HTTP > cannot overwrite a later successful login2FA
+ FAIL  src/stores/__tests__/auth.interactive.http.spec.ts > interactive login through actual HTTP > cannot overwrite a later successful register
+ FAIL  src/stores/__tests__/auth.interactive.http.spec.ts > interactive login2FA through actual HTTP > cannot overwrite a later successful login2FA
+ FAIL  src/stores/__tests__/auth.interactive.http.spec.ts > interactive login2FA through actual HTTP > cannot overwrite a later successful register
+ FAIL  src/stores/__tests__/auth.interactive.http.spec.ts > interactive register through actual HTTP > cannot overwrite a later successful login2FA
+ FAIL  src/stores/__tests__/auth.interactive.http.spec.ts > interactive register through actual HTTP > cannot overwrite a later successful register
+AssertionError: expected null to be truthy
+
+- Expected:
+true
+
++ Received:
+null
+
+ ❯ src/stores/__tests__/auth.interactive.http.spec.ts:154:31
+    152|     const current = state()
+    153|     release('1-old')
+    154|     expect((await old).error).toBeTruthy()
+       |                               ^
+    155|     expect(state()).toEqual(current)
+    156|   })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[13/61]⎯
+
+ FAIL  src/stores/__tests__/auth.interactive.http.spec.ts > rejects an obsolete 2FA challenge after another login succeeds
+AssertionError: expected null to be truthy
+
+- Expected:
+true
+
++ Received:
+null
+
+ ❯ src/stores/__tests__/auth.interactive.http.spec.ts:206:33
+    204|   const current = state()
+    205|   release('1-old', 200, { requires_2fa: true, temp_token: 'fixture-onl…
+    206|   expect((await pending).error).toBeTruthy()
+       |                                 ^
+    207|   expect(state()).toEqual(current)
+    208| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[14/61]⎯
+
+ Test Files  1 failed (1)
+      Tests  61 failed | 16 passed (77)
+   Start at  09:32:39
+   Duration  8.43s (transform 411ms, setup 97ms, collect 575ms, tests 6.84s, environment 495ms, prepare 53ms)

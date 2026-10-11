@@ -1,0 +1,68 @@
+The CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.
+
+ RUN  v2.1.9 /workspace/p1-interactive-storage-base/frontend
+
+ ❯ ../../../tmp/p1-interactive-storage-probe/probe.spec.ts (36 tests | 3 failed) 620ms
+   × login one-time Storage failure through actual HTTP > does not clear a genuinely newer HTTP session when the original Storage rejection is delivered late 76ms
+     → expected { token: null, userID: null, …(6) } to deeply equal { …(8) }
+   × login2FA one-time Storage failure through actual HTTP > does not clear a genuinely newer HTTP session when the original Storage rejection is delivered late 56ms
+     → expected { token: null, userID: null, …(6) } to deeply equal { …(8) }
+   × register one-time Storage failure through actual HTTP > does not clear a genuinely newer HTTP session when the original Storage rejection is delivered late 55ms
+     → expected { token: null, userID: null, …(6) } to deeply equal { …(8) }
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  ../../../tmp/p1-interactive-storage-probe/probe.spec.ts > login one-time Storage failure through actual HTTP > does not clear a genuinely newer HTTP session when the original Storage rejection is delivered late
+ FAIL  ../../../tmp/p1-interactive-storage-probe/probe.spec.ts > login2FA one-time Storage failure through actual HTTP > does not clear a genuinely newer HTTP session when the original Storage rejection is delivered late
+ FAIL  ../../../tmp/p1-interactive-storage-probe/probe.spec.ts > register one-time Storage failure through actual HTTP > does not clear a genuinely newer HTTP session when the original Storage rejection is delivered late
+AssertionError: expected { token: null, userID: null, …(6) } to deeply equal { …(8) }
+
+- Expected
++ Received
+
+  Object {
+-   "authenticated": true,
++   "authenticated": false,
+    "blocked": false,
+    "identity": Object {
+-     "generation": 86,
+-     "sessionID": "3c198f5d-cfd5-4790-ada0-3ab240a4c8df",
+-     "userID": 3,
++     "generation": 87,
++     "sessionID": "442730e6-1c1a-40ad-bf75-fe397b9fa8fb",
++     "userID": null,
+    },
+    "ownsPublication": false,
+    "publishing": false,
+    "stored": Object {
+-     "auth_session_id": "3c198f5d-cfd5-4790-ada0-3ab240a4c8df",
+-     "auth_token": "fixture-access-3-recovery",
+-     "auth_user": "{\"id\":3,\"email\":\"fixture-3@example.test\",\"role\":\"user\",\"status\":\"active\",\"balance\":3,\"concurrency\":5}",
+-     "refresh_token": "fixture-refresh-3-recovery",
+-     "token_expires_at": "1791718013562",
++     "auth_session_id": "442730e6-1c1a-40ad-bf75-fe397b9fa8fb",
++     "auth_token": null,
++     "auth_user": null,
++     "refresh_token": null,
++     "token_expires_at": null,
+    },
+-   "token": "fixture-access-3-recovery",
+-   "userID": 3,
++   "token": null,
++   "userID": null,
+  }
+
+ ❯ ../../../tmp/p1-interactive-storage-probe/probe.spec.ts:156:27
+    154|     expect.soft(recovered(winner), JSON.stringify(winner)).toBe(true)
+    155|     expect.soft(oldResult.error?.name).toBe('QuotaExceededError')
+    156|     expect.soft(afterOld).toEqual(winner)
+       |                           ^
+    157|   })
+    158| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ Test Files  1 failed (1)
+      Tests  3 failed | 33 passed (36)
+   Start at  10:26:51
+   Duration  2.43s (transform 632ms, setup 76ms, collect 833ms, tests 620ms, environment 456ms, prepare 228ms)
