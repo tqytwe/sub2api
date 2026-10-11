@@ -17,6 +17,57 @@
   },
   "features": [
     {
+      "id": "http-text-routing-evidence",
+      "title": "OpenAI-compatible HTTP 文本选路证据后端",
+      "backend_state": "已验证",
+      "product_state": "实现中",
+      "owner": "主线程协调",
+      "pr": null,
+      "sha": null,
+      "evidence": {
+        "ui": {
+          "status": "pending",
+          "refs": [],
+          "note": "本批不改UI，待与并行分页协调接线；不能称用户界面完成。"
+        },
+        "api": {
+          "status": "recorded",
+          "refs": [
+            "backend/internal/handler/routing_handler.go",
+            "backend/internal/requestledger/routing_query.go"
+          ],
+          "note": "独立admin-only只读 /api/v1/admin/requests/:id/routing；失败不影响原详情。coverage限定HTTP文本，selection_no不等于attempt_no。"
+        },
+        "schema": {
+          "status": "recorded",
+          "refs": [
+            "backend/migrations/279_gateway_routing_evidence.sql"
+          ],
+          "note": "草稿279两列一表，278留并行分页，275–277不变；Begin/Finish原SQL载摘要，有界异步明细，旧writer not_recorded。未应用生产。"
+        },
+        "tests": {
+          "status": "recorded",
+          "refs": [
+            "docs/archive/completed-tasks/2026-10-11-routing-evidence/README.md"
+          ],
+          "note": "TDD/实际HTTP/PG、首veto与动作数、预过滤、队列/锁/池/崩溃、归属与秘密哨兵；本地完整test/unit/build/embed/Fork、64/64台账与54/54迁移合同、routing race和组合套餐合同均通过；旧失败与修正保留。"
+        },
+        "deployment": {
+          "status": "pending",
+          "refs": [],
+          "note": "独立草稿，主线程负责合并部署；本任务不访问生产。"
+        },
+        "production": {
+          "status": "pending",
+          "refs": [],
+          "note": "没有生产或用户本机三身份验收，不能根据旧27条503倒推路由根因。"
+        }
+      },
+      "risks": "128条/32KiB、队列64，压力或崩溃可以丢候选明细但显示incomplete；source_population_complete恒false。非HTTP文本/媒体/WS不覆盖，不改调度或计费。",
+      "next": "原基线23d06337；正常FF合入05b44bec5保留#352，无rebase/force。最终PR/SHA由草稿交接时补充；未重验其他快照条目，checked_at不前移。后续UI、CI及合并部署由主线程协调。",
+      "rollback": "协调应用源码回退，保留279新增列/表和已有证据；不删除/回填历史，不改旧SQL/checksum，不补扣。"
+    },
+    {
       "id": "batch-image-ledger-usage",
       "title": "批量图片 capture/usage/请求台账精确钻取",
       "backend_state": "已验证",

@@ -50,6 +50,22 @@ jobs:
           import json, os
           from pathlib import Path
           required = {
+              "TestLedgerPostgresRoutingKilledProcessIsIncomplete",
+              "TestLedgerPostgresRoutingMigrationOldWriterAndLock",
+              "TestLedgerPostgresRoutingStatesBoundsAndLoss",
+              "TestLedgerPostgresRoutingWriterLockAndPoolPressure",
+              "TestLedgerPostgresRoutingFinishBarrierAndFailure",
+              "TestLedgerPostgresRoutingFinishedBatchLossExpires",
+              "TestRequestLedgerRoutingActualSchedulersHTTP",
+              "TestRequestLedgerRoutingRecheckFallbackActionsUnchanged",
+              "TestRequestLedgerRoutingFirstVetoPoolAndPreviousResponse",
+              "TestRequestLedgerRoutingCompactAndQuarantineSelections",
+              "TestRequestLedgerRoutingLegacyMissingStickyIsOneVeto",
+              "TestRequestLedgerRoutingRealTextHandlersHTTP",
+              "TestRequestLedgerRoutingTerminalProfitAndQueue",
+              "TestRequestLedgerRoutingHTTPAdminIsolationAndDetailFailure",
+              "TestRequestLedgerRoutingActualUnsupportedDispatch",
+              "TestRequestLedgerRoutingRepositoryPoolIsPrefiltered",
               "TestBatchImageHTTPUsageDrillUsesCommittedCapture",
               "TestBatchImageHTTPRecoveryAndIsolation",
               "TestBatchImageHTTPDisconnectAfterCapture",

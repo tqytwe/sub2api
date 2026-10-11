@@ -1,0 +1,165 @@
+{
+  "base_sha": "05b44bec5c2d30ad58d009fbe5247ea363c6ee70",
+  "environment": "isolated worktree, disposable loopback PostgreSQL 18.1; no production access",
+  "scope": "backend OpenAI-compatible HTTP text routing evidence only; UI/merge/deploy/local production acceptance pending",
+  "reviews": {
+    "specification": "passed; original veto/coverage findings corrected, final docs/test followup passed",
+    "quality": "passed; Finish/worker regressions and final belowFull/UUID channel/persisted pool event refinements independently reviewed"
+  },
+  "tdd": {
+    "red": [
+      "routing capture API undefined before implementation",
+      "real HTTP scheduler evidence tests failed without hooks",
+      "missing sticky emitted duplicate account_nil after account_missing"
+    ],
+    "green": "new capture/scheduler/HTTP/PG targeted cases passed"
+  },
+  "gates": {
+    "ledger_contract": {
+      "status": "pass",
+      "required_passed": 64,
+      "required_total": 64,
+      "missing": [],
+      "failed": [],
+      "packages": [
+        {
+          "Time": "2026-10-11T08:13:50.943597644Z",
+          "Package": "github.com/Wei-Shaw/sub2api/internal/handler",
+          "Elapsed": 32.359
+        },
+        {
+          "Time": "2026-10-11T08:14:13.271717976Z",
+          "Package": "github.com/Wei-Shaw/sub2api/internal/server/routes",
+          "Elapsed": 43.906
+        },
+        {
+          "Time": "2026-10-11T08:14:56.232414594Z",
+          "Package": "github.com/Wei-Shaw/sub2api/internal/repository",
+          "Elapsed": 40.56
+        },
+        {
+          "Time": "2026-10-11T08:15:48.502559449Z",
+          "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger/acceptance",
+          "Elapsed": 204.783
+        },
+        {
+          "Time": "2026-10-11T08:16:05.294261522Z",
+          "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+          "Elapsed": 236.771
+        },
+        {
+          "Time": "2026-10-11T08:17:40.301304002Z",
+          "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+          "Elapsed": 193.288
+        }
+      ]
+    },
+    "combined_subscription_counters": {
+      "status": "pass",
+      "elapsed_seconds": 18.993
+    },
+    "make_test": {
+      "status": "pass",
+      "command": "make test",
+      "environment": "GOMAXPROCS=2 GOMEMLIMIT=4GiB GOFLAGS=-p=1; run after other heavy checks",
+      "frontend": {
+        "files_passed": 499,
+        "files_skipped": 3,
+        "tests_passed": 3601,
+        "tests_skipped": 8,
+        "duration_seconds": 133.08
+      },
+      "note": "default backend tests, backend lint (0 issues), frontend design/lint/typecheck and full Vitest suite all exited 0; unchanged frontend skipped cases retained"
+    },
+    "make_test_backend_unit": {
+      "status": "pass",
+      "command": "make test-backend-unit (GOFLAGS=-p=1)",
+      "note": "full tagged unit suite; no assertions changed"
+    },
+    "build": {
+      "status": "pass",
+      "command": "make build",
+      "note": "backend server + complete frontend production build; Vite 38.12s; no deployment"
+    },
+    "fork_integrity": {
+      "status": "pass",
+      "command": "./scripts/check-fork-integrity.sh",
+      "note": "correct toolchain; full static and protected behavior checks"
+    },
+    "race": {
+      "status": "pass",
+      "scope": [
+        "requestledger",
+        "requestledger/acceptance",
+        "handler",
+        "server/routes",
+        "service"
+      ],
+      "service_frozen_source_rerun_seconds": 17.612
+    },
+    "backend_ordinary_tests": {
+      "status": "pass",
+      "note": "part of final make test; lint/frontend still pending"
+    },
+    "core_migration_contract": {
+      "status": "pass",
+      "required_passed": 54,
+      "required_total": 54,
+      "tests_and_subtests_passed": 203,
+      "failed_or_skipped": []
+    },
+    "embed_build": {
+      "status": "pass",
+      "command": "CGO_ENABLED=0 go build -tags embed -buildvcs=false -trimpath ./cmd/server"
+    },
+    "backend_lint": {
+      "status": "pass",
+      "issues": 0,
+      "note": "final make test invocation alone with GOMEMLIMIT=4GiB"
+    },
+    "docs_and_handoff": {
+      "status": "pass",
+      "handoff_unit_tests": 8,
+      "local_doc_links": "pass",
+      "source_manifest": "pass",
+      "diff_check": "pass"
+    }
+  },
+  "prior_failures": [
+    {
+      "check": "make test and make test-backend-unit",
+      "reason": "existing repository TestServerTimingConnectorRecordsDriverCallsWithoutRowLifetime wall-clock comparison failed under concurrent compilation; unchanged test, serial rerun pending"
+    },
+    {
+      "check": "fork integrity",
+      "reason": "first invocation omitted toolchain PATH and resolved unrelated system Go executable; static checks passed, runtime gate rerun pending"
+    },
+    {
+      "check": "early make test",
+      "reason": "invoked while source editing added RoutingObservation; stale compile snapshot failed; superseded by frozen-source runs"
+    },
+    {
+      "check": "standalone lint",
+      "reason": "QF1001 flagged negated float comparison; retained original <100 evaluation in a bool to preserve NaN behavior, final rerun pending"
+    },
+    {
+      "check": "serial make test first retry",
+      "reason": "all backend test packages passed; lint conflicted with separate running lint; final single lint rerun pending"
+    },
+    {
+      "check": "frozen-source make test lint",
+      "reason": "kernel OOM killed golangci-lint while multiple large Go packages compiled within the 16 GiB execution limit; no manual signal sent, backend tests passed; wait for existing jobs and rerun make test alone with GOMEMLIMIT"
+    }
+  ],
+  "existing_timing_recheck": {
+    "status": "pass",
+    "count": 10,
+    "elapsed_seconds": 0.465
+  },
+  "toolchain": {
+    "go": "1.27.2",
+    "golangci_lint": "2.14.0",
+    "pnpm": "9.15.9"
+  },
+  "validated_at": "2026-10-11T08:48:06.061705+00:00"
+}

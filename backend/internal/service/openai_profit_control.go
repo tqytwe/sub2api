@@ -61,6 +61,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
 	"log/slog"
 	"math"
 	"sync"
@@ -338,7 +339,11 @@ func (s *OpenAIGatewayService) ProfitControlVetoLatest(ctx context.Context, sele
 	if s == nil {
 		return selected, false, ""
 	}
-	return profitControlVetoLatest(ctx, selected, s.schedulerSnapshot)
+	latest, vetoed, reason := profitControlVetoLatest(ctx, selected, s.schedulerSnapshot)
+	if vetoed {
+		requestledger.RoutingVeto(ctx, "admission", routingAccountID(latest), reason)
+	}
+	return latest, vetoed, reason
 }
 
 // bindOpenAIStickySessionDuringSelection preserves the official eager binding

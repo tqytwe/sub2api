@@ -1,0 +1,42 @@
+
+routing-service-red.log
+--- FAIL: TestRequestLedgerRoutingActualSchedulersHTTP (5.94s)
+    --- FAIL: TestRequestLedgerRoutingActualSchedulersHTTP/advanced (1.01s)
+                Error Trace:    /workspace/routing-evidence/backend/internal/service/routing_evidence_integration_test.go:58
+                Error:          Condition never satisfied
+    --- FAIL: TestRequestLedgerRoutingActualSchedulersHTTP/legacy (1.01s)
+                Error Trace:    /workspace/routing-evidence/backend/internal/service/routing_evidence_integration_test.go:58
+                Error:          Condition never satisfied
+    --- FAIL: TestRequestLedgerRoutingActualSchedulersHTTP/legacy_batch (1.01s)
+                Error Trace:    /workspace/routing-evidence/backend/internal/service/routing_evidence_integration_test.go:58
+                Error:          Condition never satisfied
+
+routing-sticky-debug.log
+--- FAIL: TestRequestLedgerRoutingLegacyMissingStickyIsOneVeto (2.33s)
+            Error Trace:    /workspace/routing-evidence/backend/internal/service/routing_evidence_integration_test.go:300
+            Error:          Not equal:
+                            expected: 1
+                            actual  : 2
+
+routing-make-test-final.log
+--- FAIL: TestServerTimingConnectorRecordsDriverCallsWithoutRowLifetime (0.09s)
+    server_timing_sql_test.go:196: row processing gap was counted as DB time: app=30.2ms db=59.6ms header="total;dur=89.9, app;dur=30.2, db;dur=59.6;desc=\"queries=2\", redis;dur=0.0;desc=\"commands=0\", cache;desc=\"bypass\", deps;dur=0.0;desc=\"calls=0\""
+
+routing-unit-final.log
+--- FAIL: TestServerTimingConnectorRecordsDriverCallsWithoutRowLifetime (0.07s)
+    server_timing_sql_test.go:196: row processing gap was counted as DB time: app=30.2ms db=35.0ms header="total;dur=65.2, app;dur=30.2, db;dur=35.0;desc=\"queries=2\", redis;dur=0.0;desc=\"commands=0\", cache;desc=\"bypass\", deps;dur=0.0;desc=\"calls=0\""
+
+routing-existing-timing-recheck.log
+ok      github.com/Wei-Shaw/sub2api/internal/repository 0.465s
+
+routing-lint-final.log
+internal/service/openai_gateway_scheduling.go:1375:57: QF1001: could apply De Morgan's law (staticcheck)
+1 issues:
+
+routing-make-test-serial.log
+Error: parallel golangci-lint is running
+The command is terminated due to an error: parallel golangci-lint is running
+
+routing-make-test-pass.log
+make[1]: *** [Makefile:16: test] Killed
+cgroup memory.events: oom_kill 1 (16 GiB limit); no manual signal sent.

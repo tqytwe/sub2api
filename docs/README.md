@@ -104,3 +104,5 @@
 
 - [答题与盲盒福利闭环技术记录](./archive/completed-tasks/2026-10-welfare-games/README.md) — `in-progress`，隔离 HTTP/PG/Vue 证据，未部署。
 - [答题与盲盒视觉记录](./visual-reviews/2026-10-11-welfare-games.md) — `in-progress`，既有风格内的状态与恢复。
+
+- [HTTP 文本路由证据后端记录](./archive/completed-tasks/2026-10-11-routing-evidence/README.md) — `in-progress`，限定 coverage、279兼容与真实HTTP/PG验证；维护责任为本任务提交者，UI与发布另行协调。
