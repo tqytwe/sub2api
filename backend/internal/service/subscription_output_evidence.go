@@ -44,7 +44,13 @@ func mergeOpenAIUnpricedOutputUsage(dst *OpenAIUsage, src *OpenAIUnpricedOutputU
 // here are observations, not extra billable units; existing tool pricing stays
 // on its original fields and deduplicating counters.
 func observeOpenAIUnpricedOutput(usage *OpenAIUsage, data []byte) {
-	if usage == nil || (!bytes.Contains(data, []byte(`"output"`)) && !bytes.Contains(data, []byte(`"item"`)) && !bytes.Contains(data, []byte(`"part"`))) || !gjson.ValidBytes(data) {
+	observeOpenAIUnpricedOutputEvent(usage, data, "")
+}
+
+func observeOpenAIUnpricedOutputEvent(usage *OpenAIUsage, data []byte, eventType string) {
+	eventType = effectiveOpenAISSEEventType(data, eventType)
+	audioEvent := eventType == "response.audio.delta" || eventType == "response.audio.done"
+	if usage == nil || (!audioEvent && !bytes.Contains(data, []byte(`"output"`)) && !bytes.Contains(data, []byte(`"item"`)) && !bytes.Contains(data, []byte(`"part"`))) || !gjson.ValidBytes(data) {
 		return
 	}
 	evidence := &OpenAIUnpricedOutputUsage{SearchCalls: countGrokNativeSearchCallsInSSEData(data)}
@@ -55,6 +61,9 @@ func observeOpenAIUnpricedOutput(usage *OpenAIUsage, data []byte) {
 		if !slices.Contains(evidence.OutputTypes, kind) {
 			evidence.OutputTypes = append(evidence.OutputTypes, kind)
 		}
+	}
+	if audioEvent {
+		add("output_audio")
 	}
 	contentPart := func(v gjson.Result) {
 		kind := strings.TrimSpace(v.Get("type").String())
@@ -81,7 +90,7 @@ func observeOpenAIUnpricedOutput(usage *OpenAIUsage, data []byte) {
 	if v := gjson.GetBytes(data, "item"); v.IsObject() {
 		item(v)
 	}
-	if eventType := gjson.GetBytes(data, "type").String(); eventType == "response.content_part.added" || eventType == "response.content_part.done" {
+	if eventType == "response.content_part.added" || eventType == "response.content_part.done" {
 		if part := gjson.GetBytes(data, "part"); part.IsObject() {
 			contentPart(part)
 		}

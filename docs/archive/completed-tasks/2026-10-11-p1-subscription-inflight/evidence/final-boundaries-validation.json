@@ -1,0 +1,33 @@
+{
+  "baseline": "4f26c8f6227827209ac1e95826ed380babf94b2d",
+  "full_migrations": 408,
+  "race": true,
+  "red_test_only": true,
+  "source_manifest_sha256": "f5bf171600cd87b2c300f7a5b98b880f1851b60e28af43c1df142e490fb82000",
+  "source_files": 35,
+  "logs": [
+    {
+      "name": "final-root-boundaries-red.log.gz",
+      "sha256": "9f99fe23e09bf81438c90f1ae86a9888f9a671fc65fb3e9fe0a5a0ca0cfb1768",
+      "uncompressed_sha256": "9fcbe4d85db675f3ca2114b546272ae61f4ba91bbe3b2c07f72a3c5ad7ff3244",
+      "pass_leaves": 4,
+      "fail_leaves": 40,
+      "race_warning": false
+    },
+    {
+      "name": "final-root-boundaries-green.log.gz",
+      "sha256": "cb0f7a6653a562550e5ad4117d04bb0dbe4925ad170ed18f6e87dff90117a0d3",
+      "uncompressed_sha256": "0ce9d285ed729ef44296ec687fcd313c5fe71951e2153f7c8a75bf105a018bf8",
+      "pass_leaves": 44,
+      "fail_leaves": 0,
+      "race_warning": false
+    }
+  ],
+  "review": {
+    "spec": "PASS; read-only source/log review; no independent runtime",
+    "quality": "PASS after SPEC; read-only source/log review; no independent runtime",
+    "five_file_manifest_sha256": "c9b502365cd125bb624b5a447aa8aacf2e553bff86a7d311cfbfda40639820e8"
+  },
+  "gate_scope": "44 new HTTP leaves completed; relevant intersections/build/lint running; unchanged prior evidence retained with original source hashes; not final CI",
+  "deployment": "not performed"
+}

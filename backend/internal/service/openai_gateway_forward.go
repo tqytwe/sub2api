@@ -100,8 +100,8 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 	if legacyIngressChanged {
 		body = legacyIngressBody
 	}
-	// The final normalized payload and freshly admitted account remain the
-	// authority even if routing/probe metadata changed after the price snapshot.
+	// Reject legacy protocol conversion early. The final HTTP body is checked
+	// again after model/tool transforms when each actual request is built.
 	if requestledger.HasSubscriptionAdmission(ctx) && (shouldForwardOpenAIResponsesViaRawChatCompletions(account) || !subscriptionNativeTextRequest(body)) {
 		ctx = requestledger.WithoutSubscriptionAdmission(ctx)
 	}
@@ -1495,6 +1495,12 @@ func (s *OpenAIGatewayService) buildUpstreamRequest(ctx context.Context, c *gin.
 	// DeepSeek / Kimi 原生 Responses 端点为无状态实现：强制 store=false、清除
 	// previous_response_id，避免携带状态字段被上游拒绝。
 	body = normalizeDeepSeekResponsesRequestBody(account, body)
+	// Image-only model conversion and the Codex bridge can add image_generation
+	// after the initial text price snapshot. Check this serialized send's body,
+	// including retries, before the transport can create a subscription receipt.
+	if requestledger.HasSubscriptionAdmission(ctx) && !subscriptionNativeTextRequest(body) {
+		ctx = requestledger.WithoutSubscriptionAdmission(ctx)
+	}
 
 	req, err := http.NewRequestWithContext(ctx, "POST", targetURL, bytes.NewReader(body))
 	if err != nil {

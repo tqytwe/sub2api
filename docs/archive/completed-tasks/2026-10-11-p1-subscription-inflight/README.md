@@ -141,3 +141,14 @@ unit-tag 全量随后发现另 8 个既有 `TestOpenAIResponsesTerminalImageExpe
 固定16a的P3专属全清单checker会刻意拒绝本P1受保护路径变化，因此不对本组合声称整项checker通过，也没有修改该脚本或其保护规则。此前完整八项门禁和16a十二项组合门禁保留原source/hash并明确复用。增量规格→质量保全复审依次PASS，[69文件保全证明](./evidence/main95-combination-proof.json)及[新日志哈希](./evidence/main95-log-manifest.json)已归档。
 
 交付提交采用普通双父merge（父2d65038d＋95c308f5），最终一次更新草稿PR #364后等待该准确head的完整CI。此记录不会把中间提交、旧88的CI或本地静态检查作为最终CI。根审、合并、部署及生产/本机浏览器验收仍由主线程协调。
+
+
+## 最终媒体 body 与独立音频事件阻断修复
+
+根审对 `2d65038d` 的静态检查确认两项剩余阻断：图片模型转换/Codex bridge 在早期 scope 检查之后注入图片工具；独立 `response.audio.delta/done` 缺少 output/item/part，且 content-part 的 SSE event 回退未进入证据识别。本批以 `4f26c8f` 加纯测试先复现：40 个有效 RED、4 个显式图片工具正向对照 PASS。
+
+修复在每次最终序列化 body 构建 HTTP request 前核 scope，包含内部重试；最终媒体请求移除文本 admission，沿用原图片结算。共享解析器接受独立 audio delta/done 和现有 JSON type 优先、SSE event 回退规则，仍要求有效 JSON。音频只保存 unsupported pending 证据，不按纯文本扣费、不重发、不自动补扣。没有调整价格或运营规则。事件依据见 [OpenAI Responses streaming events](https://developers.openai.com/api/reference/resources/responses/streaming-events)。
+
+新矩阵 **44/44、完整408迁移、race PASS**：8个媒体场景覆盖普通/套餐、图片模型/自动bridge、显式/隐式；断言实际出站工具、receipt=0/outbox=0、原费用0.1及六计数器。36个音频场景覆盖normal/passthrough、delta/done/content-part event、terminal/EOF/buffered、零/非零aggregate；均持久pending且零Apply/恢复/计数变化。GREEN原始日志SHA256 `0ce9d285ed729ef44296ec687fcd313c5fe71951e2153f7c8a75bf105a018bf8`。独立SPEC→QUALITY依次只读PASS，未独立重跑。
+
+[本批源码清单](./final-boundaries-reviewed-source.sha256)包含35文件，摘要 `f5bf171600cd87b2c300f7a5b98b880f1851b60e28af43c1df142e490fb82000`；[RED/GREEN与审查记录](./evidence/final-boundaries-validation.json)及压缩日志可下载核验。依主线程明确要求先发布最小可审阅提交供根并行复审；此时相关交集/构建/lint、最新main722be88普通merge及准确head CI尚在后续流程，不能把旧4f CI用于放行。本批没有生产访问、合并或部署。

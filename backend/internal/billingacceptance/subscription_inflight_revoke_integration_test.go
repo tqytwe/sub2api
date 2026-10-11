@@ -36,6 +36,7 @@ type admissionFixture struct {
 	stream         bool
 	requestBody    string
 	requestPath    string
+	requestHeaders map[string]string
 	channels       *service.ChannelService
 	workers        *service.UsageRecordWorkerPool
 	billingContext *admissionBillingContext
@@ -218,6 +219,9 @@ func (f *admissionFixture) requestWithContext(parent context.Context) (int, stri
 	r.Header.Set("X-Client-Request-ID", "same-client-header")
 	r.Header.Set("X-Request-ID", "same-request-header")
 	r.Header.Set("Authorization", "Bearer "+f.keyValue)
+	for name, value := range f.requestHeaders {
+		r.Header.Set(name, value)
+	}
 	response, err := f.server.Client().Do(r)
 	if err != nil {
 		return 0, "", err
@@ -436,6 +440,8 @@ func TestSubscriptionInflightRevoke(t *testing.T) {
 	t.Run("ExpiryWait", func(t *testing.T) { runInflightExpiryWait(t, db, client) })
 	t.Run("LegacyScope", func(t *testing.T) { runInflightLegacyScope(t, db, client) })
 	t.Run("UnknownOutput", func(t *testing.T) { runInflightUnknownOutput(t, db, client) })
+	t.Run("FinalMediaScope", func(t *testing.T) { runInflightFinalMediaScope(t, db, client) })
+	t.Run("StandaloneAudio", func(t *testing.T) { runInflightStandaloneAudio(t, db, client) })
 	t.Run("ModelCase", func(t *testing.T) { runInflightModelCase(t, db, client) })
 	t.Run("ProjectionOwnership", func(t *testing.T) { runSubscriptionProjectionOwnership(t, db, client) })
 	t.Run("projection_single_owner", func(t *testing.T) { runSubscriptionProjectionOwner(t, db, client) })
