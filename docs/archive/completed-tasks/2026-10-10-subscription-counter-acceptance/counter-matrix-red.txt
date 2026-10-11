@@ -1,0 +1,233 @@
+=== RUN   TestSubscriptionCounterHTTP
+2026/10/10 20:50:52 Timezone initialized: UTC (UTC offset: +00:00)
+    subscription_counters_integration_test.go:391: full_migrations count=402 last=275_gateway_request_ledger.sql postgres=18.1
+=== RUN   TestSubscriptionCounterHTTP/subscription/sequential_replay
+2026/10/10 20:50:56 [OpenAI WS Mode][openai_ws_mode=true] bootstrap enabled=false oauth_enabled=false apikey_enabled=false force_http=false responses_websockets_v2=false responses_websockets=false payload_log_sample_rate=0.000 event_flush_batch_size=0 event_flush_interval_ms=0 prewarm_cooldown_ms=0 retry_backoff_initial_ms=0 retry_backoff_max_ms=0 retry_jitter_ratio=0.000 retry_total_budget_ms=0 ws_read_limit_bytes=16777216
+2026/10/10 20:50:56 [Billing] Using fallback pricing for model: gpt-5.1
+2026/10/10 20:50:56 [Billing] Using fallback pricing for model: gpt-5.1
+    subscription_counters_integration_test.go:444: counter_evidence kind_package=false requests=1 callbacks=2 before={Daily:1.125 Weekly:2.25 Monthly:3.5 Requests:0 Amount:0 Tokens:0} after={Daily:1.12526263 Weekly:2.25026263 Monthly:3.50026263 Requests:0 Amount:0 Tokens:0} delta={Daily:0.0002626299999999304 Weekly:0.0002626299999999304 Monthly:0.0002626299999999304 Requests:0 Amount:0 Tokens:0} total=0.0005252500 actual=0.0002626250 billed=0.0002626250 dedup=usage=links=1
+=== RUN   TestSubscriptionCounterHTTP/subscription/concurrent_duplicate
+2026/10/10 20:50:56 [OpenAI WS Mode][openai_ws_mode=true] bootstrap enabled=false oauth_enabled=false apikey_enabled=false force_http=false responses_websockets_v2=false responses_websockets=false payload_log_sample_rate=0.000 event_flush_batch_size=0 event_flush_interval_ms=0 prewarm_cooldown_ms=0 retry_backoff_initial_ms=0 retry_backoff_max_ms=0 retry_jitter_ratio=0.000 retry_total_budget_ms=0 ws_read_limit_bytes=16777216
+2026/10/10 20:50:56 [Billing] Using fallback pricing for model: gpt-5.1
+2026/10/10 20:50:56 [Billing] Using fallback pricing for model: gpt-5.1
+    subscription_counters_integration_test.go:444: counter_evidence kind_package=false requests=1 callbacks=8 before={Daily:1.125 Weekly:2.25 Monthly:3.5 Requests:0 Amount:0 Tokens:0} after={Daily:1.12526263 Weekly:2.25026263 Monthly:3.50026263 Requests:0 Amount:0 Tokens:0} delta={Daily:0.0002626299999999304 Weekly:0.0002626299999999304 Monthly:0.0002626299999999304 Requests:0 Amount:0 Tokens:0} total=0.0005252500 actual=0.0002626250 billed=0.0002626250 dedup=usage=links=1
+=== RUN   TestSubscriptionCounterHTTP/subscription/independent_private_requests
+2026/10/10 20:50:57 [OpenAI WS Mode][openai_ws_mode=true] bootstrap enabled=false oauth_enabled=false apikey_enabled=false force_http=false responses_websockets_v2=false responses_websockets=false payload_log_sample_rate=0.000 event_flush_batch_size=0 event_flush_interval_ms=0 prewarm_cooldown_ms=0 retry_backoff_initial_ms=0 retry_backoff_max_ms=0 retry_jitter_ratio=0.000 retry_total_budget_ms=0 ws_read_limit_bytes=16777216
+2026/10/10 20:50:57 [Billing] Using fallback pricing for model: gpt-5.1
+2026/10/10 20:50:57 [Billing] Using fallback pricing for model: gpt-5.1
+    subscription_counters_integration_test.go:444: counter_evidence kind_package=false requests=2 callbacks=4 before={Daily:1.125 Weekly:2.25 Monthly:3.5 Requests:0 Amount:0 Tokens:0} after={Daily:1.12552526 Weekly:2.25052526 Monthly:3.50052526 Requests:0 Amount:0 Tokens:0} delta={Daily:0.0005252600000000829 Weekly:0.0005252599999998608 Monthly:0.0005252599999998608 Requests:0 Amount:0 Tokens:0} total=0.0005252500 actual=0.0002626250 billed=0.0002626250 dedup=usage=links=2
+=== RUN   TestSubscriptionCounterHTTP/subscription/canceled_context_observed_usage
+2026/10/10 20:50:57 [OpenAI WS Mode][openai_ws_mode=true] bootstrap enabled=false oauth_enabled=false apikey_enabled=false force_http=false responses_websockets_v2=false responses_websockets=false payload_log_sample_rate=0.000 event_flush_batch_size=0 event_flush_interval_ms=0 prewarm_cooldown_ms=0 retry_backoff_initial_ms=0 retry_backoff_max_ms=0 retry_jitter_ratio=0.000 retry_total_budget_ms=0 ws_read_limit_bytes=16777216
+2026/10/10 20:50:57 [Billing] Using fallback pricing for model: gpt-5.1
+2026/10/10 20:50:57 [Billing] Using fallback pricing for model: gpt-5.1
+    subscription_counters_integration_test.go:444: counter_evidence kind_package=false requests=1 callbacks=2 before={Daily:1.125 Weekly:2.25 Monthly:3.5 Requests:0 Amount:0 Tokens:0} after={Daily:1.12526263 Weekly:2.25026263 Monthly:3.50026263 Requests:0 Amount:0 Tokens:0} delta={Daily:0.0002626299999999304 Weekly:0.0002626299999999304 Monthly:0.0002626299999999304 Requests:0 Amount:0 Tokens:0} total=0.0005252500 actual=0.0002626250 billed=0.0002626250 dedup=usage=links=1
+=== RUN   TestSubscriptionCounterHTTP/subscription/http_client_disconnect_observed_usage
+2026/10/10 20:50:57 [OpenAI WS Mode][openai_ws_mode=true] bootstrap enabled=false oauth_enabled=false apikey_enabled=false force_http=false responses_websockets_v2=false responses_websockets=false payload_log_sample_rate=0.000 event_flush_batch_size=0 event_flush_interval_ms=0 prewarm_cooldown_ms=0 retry_backoff_initial_ms=0 retry_backoff_max_ms=0 retry_jitter_ratio=0.000 retry_total_budget_ms=0 ws_read_limit_bytes=16777216
+2026/10/10 20:51:02 [Billing] Using fallback pricing for model: gpt-5.1
+2026/10/10 20:51:02 [Billing] Using fallback pricing for model: gpt-5.1
+    subscription_counters_integration_test.go:444: counter_evidence kind_package=false requests=1 callbacks=2 before={Daily:1.125 Weekly:2.25 Monthly:3.5 Requests:0 Amount:0 Tokens:0} after={Daily:1.12526263 Weekly:2.25026263 Monthly:3.50026263 Requests:0 Amount:0 Tokens:0} delta={Daily:0.0002626299999999304 Weekly:0.0002626299999999304 Monthly:0.0002626299999999304 Requests:0 Amount:0 Tokens:0} total=0.0005252500 actual=0.0002626250 billed=0.0002626250 dedup=usage=links=1
+=== RUN   TestSubscriptionCounterHTTP/subscription/partial_output_observed_usage
+2026/10/10 20:51:02 [OpenAI WS Mode][openai_ws_mode=true] bootstrap enabled=false oauth_enabled=false apikey_enabled=false force_http=false responses_websockets_v2=false responses_websockets=false payload_log_sample_rate=0.000 event_flush_batch_size=0 event_flush_interval_ms=0 prewarm_cooldown_ms=0 retry_backoff_initial_ms=0 retry_backoff_max_ms=0 retry_jitter_ratio=0.000 retry_total_budget_ms=0 ws_read_limit_bytes=16777216
+2026/10/10 20:51:02 [Billing] Using fallback pricing for model: gpt-5.1
+2026/10/10 20:51:02 [Billing] Using fallback pricing for model: gpt-5.1
+    subscription_counters_integration_test.go:444: counter_evidence kind_package=false requests=1 callbacks=2 before={Daily:1.125 Weekly:2.25 Monthly:3.5 Requests:0 Amount:0 Tokens:0} after={Daily:1.12526263 Weekly:2.25026263 Monthly:3.50026263 Requests:0 Amount:0 Tokens:0} delta={Daily:0.0002626299999999304 Weekly:0.0002626299999999304 Monthly:0.0002626299999999304 Requests:0 Amount:0 Tokens:0} total=0.0005252500 actual=0.0002626250 billed=0.0002626250 dedup=usage=links=1
+=== RUN   TestSubscriptionCounterHTTP/subscription/zero_multiplier
+2026/10/10 20:51:02 [OpenAI WS Mode][openai_ws_mode=true] bootstrap enabled=false oauth_enabled=false apikey_enabled=false force_http=false responses_websockets_v2=false responses_websockets=false payload_log_sample_rate=0.000 event_flush_batch_size=0 event_flush_interval_ms=0 prewarm_cooldown_ms=0 retry_backoff_initial_ms=0 retry_backoff_max_ms=0 retry_jitter_ratio=0.000 retry_total_budget_ms=0 ws_read_limit_bytes=16777216
+2026/10/10 20:51:02 [Billing] Using fallback pricing for model: gpt-5.1
+2026/10/10 20:51:03 [Billing] Using fallback pricing for model: gpt-5.1
+    subscription_counters_integration_test.go:444: counter_evidence kind_package=false requests=1 callbacks=2 before={Daily:1.125 Weekly:2.25 Monthly:3.5 Requests:0 Amount:0 Tokens:0} after={Daily:1.125 Weekly:2.25 Monthly:3.5 Requests:0 Amount:0 Tokens:0} delta={Daily:0 Weekly:0 Monthly:0 Requests:0 Amount:0 Tokens:0} total=0.0005252500 actual=0.0000000000 billed=0.0000000000 dedup=usage=links=1
+=== RUN   TestSubscriptionCounterHTTP/subscription/surcharge_frozen_price
+2026/10/10 20:51:03 [OpenAI WS Mode][openai_ws_mode=true] bootstrap enabled=false oauth_enabled=false apikey_enabled=false force_http=false responses_websockets_v2=false responses_websockets=false payload_log_sample_rate=0.000 event_flush_batch_size=0 event_flush_interval_ms=0 prewarm_cooldown_ms=0 retry_backoff_initial_ms=0 retry_backoff_max_ms=0 retry_jitter_ratio=0.000 retry_total_budget_ms=0 ws_read_limit_bytes=16777216
+2026/10/10 20:51:03 [Billing] Using fallback pricing for model: gpt-5.1
+2026/10/10 20:51:03 [Billing] Using fallback pricing for model: gpt-5.1
+    subscription_counters_integration_test.go:444: counter_evidence kind_package=false requests=1 callbacks=2 before={Daily:1.125 Weekly:2.25 Monthly:3.5 Requests:0 Amount:0 Tokens:0} after={Daily:1.12594545 Weekly:2.25094545 Monthly:3.50094545 Requests:0 Amount:0 Tokens:0} delta={Daily:0.0009454499999999033 Weekly:0.0009454500000001254 Monthly:0.0009454500000001254 Requests:0 Amount:0 Tokens:0} total=0.0005252500 actual=0.0007878750 billed=0.0009454500 dedup=usage=links=1
+=== RUN   TestSubscriptionCounterHTTP/package/sequential_replay
+2026/10/10 20:51:03 [OpenAI WS Mode][openai_ws_mode=true] bootstrap enabled=false oauth_enabled=false apikey_enabled=false force_http=false responses_websockets_v2=false responses_websockets=false payload_log_sample_rate=0.000 event_flush_batch_size=0 event_flush_interval_ms=0 prewarm_cooldown_ms=0 retry_backoff_initial_ms=0 retry_backoff_max_ms=0 retry_jitter_ratio=0.000 retry_total_budget_ms=0 ws_read_limit_bytes=16777216
+2026/10/10 20:51:03 [Billing] Using fallback pricing for model: gpt-5.1
+2026/10/10 20:51:03 [Billing] Using fallback pricing for model: gpt-5.1
+    subscription_counters_integration_test.go:444: counter_evidence kind_package=true requests=1 callbacks=2 before={Daily:1.125 Weekly:2.25 Monthly:3.5 Requests:7 Amount:4.75 Tokens:123} after={Daily:1.12526263 Weekly:2.25026263 Monthly:3.50026263 Requests:8 Amount:4.750262625 Tokens:243} delta={Daily:0.0002626299999999304 Weekly:0.0002626299999999304 Monthly:0.0002626299999999304 Requests:1 Amount:0.0002626250000004049 Tokens:120} total=0.0005252500 actual=0.0002626250 billed=0.0002626250 dedup=usage=links=1
+=== RUN   TestSubscriptionCounterHTTP/package/concurrent_duplicate
+2026/10/10 20:51:03 [OpenAI WS Mode][openai_ws_mode=true] bootstrap enabled=false oauth_enabled=false apikey_enabled=false force_http=false responses_websockets_v2=false responses_websockets=false payload_log_sample_rate=0.000 event_flush_batch_size=0 event_flush_interval_ms=0 prewarm_cooldown_ms=0 retry_backoff_initial_ms=0 retry_backoff_max_ms=0 retry_jitter_ratio=0.000 retry_total_budget_ms=0 ws_read_limit_bytes=16777216
+2026/10/10 20:51:03 [Billing] Using fallback pricing for model: gpt-5.1
+2026/10/10 20:51:03 [Billing] Using fallback pricing for model: gpt-5.1
+    subscription_counters_integration_test.go:444: counter_evidence kind_package=true requests=1 callbacks=8 before={Daily:1.125 Weekly:2.25 Monthly:3.5 Requests:7 Amount:4.75 Tokens:123} after={Daily:1.12526263 Weekly:2.25026263 Monthly:3.50026263 Requests:8 Amount:4.750262625 Tokens:243} delta={Daily:0.0002626299999999304 Weekly:0.0002626299999999304 Monthly:0.0002626299999999304 Requests:1 Amount:0.0002626250000004049 Tokens:120} total=0.0005252500 actual=0.0002626250 billed=0.0002626250 dedup=usage=links=1
+=== RUN   TestSubscriptionCounterHTTP/package/independent_private_requests
+2026/10/10 20:51:03 [OpenAI WS Mode][openai_ws_mode=true] bootstrap enabled=false oauth_enabled=false apikey_enabled=false force_http=false responses_websockets_v2=false responses_websockets=false payload_log_sample_rate=0.000 event_flush_batch_size=0 event_flush_interval_ms=0 prewarm_cooldown_ms=0 retry_backoff_initial_ms=0 retry_backoff_max_ms=0 retry_jitter_ratio=0.000 retry_total_budget_ms=0 ws_read_limit_bytes=16777216
+2026/10/10 20:51:03 [Billing] Using fallback pricing for model: gpt-5.1
+2026/10/10 20:51:03 [Billing] Using fallback pricing for model: gpt-5.1
+    subscription_counters_integration_test.go:444: counter_evidence kind_package=true requests=2 callbacks=4 before={Daily:1.125 Weekly:2.25 Monthly:3.5 Requests:7 Amount:4.75 Tokens:123} after={Daily:1.12552526 Weekly:2.25052526 Monthly:3.50052526 Requests:9 Amount:4.75052525 Tokens:363} delta={Daily:0.0005252600000000829 Weekly:0.0005252599999998608 Monthly:0.0005252599999998608 Requests:2 Amount:0.0005252499999999216 Tokens:240} total=0.0005252500 actual=0.0002626250 billed=0.0002626250 dedup=usage=links=2
+=== RUN   TestSubscriptionCounterHTTP/package/canceled_context_observed_usage
+2026/10/10 20:51:03 [OpenAI WS Mode][openai_ws_mode=true] bootstrap enabled=false oauth_enabled=false apikey_enabled=false force_http=false responses_websockets_v2=false responses_websockets=false payload_log_sample_rate=0.000 event_flush_batch_size=0 event_flush_interval_ms=0 prewarm_cooldown_ms=0 retry_backoff_initial_ms=0 retry_backoff_max_ms=0 retry_jitter_ratio=0.000 retry_total_budget_ms=0 ws_read_limit_bytes=16777216
+2026/10/10 20:51:04 [Billing] Using fallback pricing for model: gpt-5.1
+2026/10/10 20:51:04 [Billing] Using fallback pricing for model: gpt-5.1
+    subscription_counters_integration_test.go:444: counter_evidence kind_package=true requests=1 callbacks=2 before={Daily:1.125 Weekly:2.25 Monthly:3.5 Requests:7 Amount:4.75 Tokens:123} after={Daily:1.12526263 Weekly:2.25026263 Monthly:3.50026263 Requests:8 Amount:4.750262625 Tokens:243} delta={Daily:0.0002626299999999304 Weekly:0.0002626299999999304 Monthly:0.0002626299999999304 Requests:1 Amount:0.0002626250000004049 Tokens:120} total=0.0005252500 actual=0.0002626250 billed=0.0002626250 dedup=usage=links=1
+=== RUN   TestSubscriptionCounterHTTP/package/http_client_disconnect_observed_usage
+2026/10/10 20:51:04 [OpenAI WS Mode][openai_ws_mode=true] bootstrap enabled=false oauth_enabled=false apikey_enabled=false force_http=false responses_websockets_v2=false responses_websockets=false payload_log_sample_rate=0.000 event_flush_batch_size=0 event_flush_interval_ms=0 prewarm_cooldown_ms=0 retry_backoff_initial_ms=0 retry_backoff_max_ms=0 retry_jitter_ratio=0.000 retry_total_budget_ms=0 ws_read_limit_bytes=16777216
+2026/10/10 20:51:09 [Billing] Using fallback pricing for model: gpt-5.1
+2026/10/10 20:51:09 [Billing] Using fallback pricing for model: gpt-5.1
+    subscription_counters_integration_test.go:444: counter_evidence kind_package=true requests=1 callbacks=2 before={Daily:1.125 Weekly:2.25 Monthly:3.5 Requests:7 Amount:4.75 Tokens:123} after={Daily:1.12526263 Weekly:2.25026263 Monthly:3.50026263 Requests:8 Amount:4.750262625 Tokens:243} delta={Daily:0.0002626299999999304 Weekly:0.0002626299999999304 Monthly:0.0002626299999999304 Requests:1 Amount:0.0002626250000004049 Tokens:120} total=0.0005252500 actual=0.0002626250 billed=0.0002626250 dedup=usage=links=1
+=== RUN   TestSubscriptionCounterHTTP/package/partial_output_observed_usage
+2026/10/10 20:51:09 [OpenAI WS Mode][openai_ws_mode=true] bootstrap enabled=false oauth_enabled=false apikey_enabled=false force_http=false responses_websockets_v2=false responses_websockets=false payload_log_sample_rate=0.000 event_flush_batch_size=0 event_flush_interval_ms=0 prewarm_cooldown_ms=0 retry_backoff_initial_ms=0 retry_backoff_max_ms=0 retry_jitter_ratio=0.000 retry_total_budget_ms=0 ws_read_limit_bytes=16777216
+2026/10/10 20:51:09 [Billing] Using fallback pricing for model: gpt-5.1
+2026/10/10 20:51:09 [Billing] Using fallback pricing for model: gpt-5.1
+    subscription_counters_integration_test.go:444: counter_evidence kind_package=true requests=1 callbacks=2 before={Daily:1.125 Weekly:2.25 Monthly:3.5 Requests:7 Amount:4.75 Tokens:123} after={Daily:1.12526263 Weekly:2.25026263 Monthly:3.50026263 Requests:8 Amount:4.750262625 Tokens:243} delta={Daily:0.0002626299999999304 Weekly:0.0002626299999999304 Monthly:0.0002626299999999304 Requests:1 Amount:0.0002626250000004049 Tokens:120} total=0.0005252500 actual=0.0002626250 billed=0.0002626250 dedup=usage=links=1
+=== RUN   TestSubscriptionCounterHTTP/package/zero_multiplier
+2026/10/10 20:51:09 [OpenAI WS Mode][openai_ws_mode=true] bootstrap enabled=false oauth_enabled=false apikey_enabled=false force_http=false responses_websockets_v2=false responses_websockets=false payload_log_sample_rate=0.000 event_flush_batch_size=0 event_flush_interval_ms=0 prewarm_cooldown_ms=0 retry_backoff_initial_ms=0 retry_backoff_max_ms=0 retry_jitter_ratio=0.000 retry_total_budget_ms=0 ws_read_limit_bytes=16777216
+2026/10/10 20:51:09 [Billing] Using fallback pricing for model: gpt-5.1
+2026/10/10 20:51:09 [Billing] Using fallback pricing for model: gpt-5.1
+    subscription_counters_integration_test.go:444: counter_evidence kind_package=true requests=1 callbacks=2 before={Daily:1.125 Weekly:2.25 Monthly:3.5 Requests:7 Amount:4.75 Tokens:123} after={Daily:1.125 Weekly:2.25 Monthly:3.5 Requests:8 Amount:4.75 Tokens:243} delta={Daily:0 Weekly:0 Monthly:0 Requests:1 Amount:0 Tokens:120} total=0.0005252500 actual=0.0000000000 billed=0.0000000000 dedup=usage=links=1
+=== RUN   TestSubscriptionCounterHTTP/package/surcharge_frozen_price
+2026/10/10 20:51:10 [OpenAI WS Mode][openai_ws_mode=true] bootstrap enabled=false oauth_enabled=false apikey_enabled=false force_http=false responses_websockets_v2=false responses_websockets=false payload_log_sample_rate=0.000 event_flush_batch_size=0 event_flush_interval_ms=0 prewarm_cooldown_ms=0 retry_backoff_initial_ms=0 retry_backoff_max_ms=0 retry_jitter_ratio=0.000 retry_total_budget_ms=0 ws_read_limit_bytes=16777216
+2026/10/10 20:51:10 [Billing] Using fallback pricing for model: gpt-5.1
+2026/10/10 20:51:10 [Billing] Using fallback pricing for model: gpt-5.1
+    subscription_counters_integration_test.go:444: counter_evidence kind_package=true requests=1 callbacks=2 before={Daily:1.125 Weekly:2.25 Monthly:3.5 Requests:7 Amount:4.75 Tokens:123} after={Daily:1.12594545 Weekly:2.25094545 Monthly:3.50094545 Requests:8 Amount:4.75094545 Tokens:243} delta={Daily:0.0009454499999999033 Weekly:0.0009454500000001254 Monthly:0.0009454500000001254 Requests:1 Amount:0.0009454499999996813 Tokens:120} total=0.0005252500 actual=0.0007878750 billed=0.0009454500 dedup=usage=links=1
+=== RUN   TestSubscriptionCounterHTTP/edges
+=== RUN   TestSubscriptionCounterHTTP/edges/exhausted_replay_must_remain_idempotent
+2026/10/10 20:51:10 [OpenAI WS Mode][openai_ws_mode=true] bootstrap enabled=false oauth_enabled=false apikey_enabled=false force_http=false responses_websockets_v2=false responses_websockets=false payload_log_sample_rate=0.000 event_flush_batch_size=0 event_flush_interval_ms=0 prewarm_cooldown_ms=0 retry_backoff_initial_ms=0 retry_backoff_max_ms=0 retry_jitter_ratio=0.000 retry_total_budget_ms=0 ws_read_limit_bytes=16777216
+2026/10/10 20:51:10 [Billing] Using fallback pricing for model: gpt-5.1
+    subscription_counter_edges_integration_test.go:33:
+                Error Trace:    /workspace/sub2api-p1/backend/internal/billingacceptance/subscription_counter_edges_integration_test.go:33
+                Error:          Received unexpected error:
+                                usage billing user does not own api key or subscription
+                Test:           TestSubscriptionCounterHTTP/edges/exhausted_replay_must_remain_idempotent
+                Messages:       already-settled exhausted package callback must replay successfully
+    subscription_counter_edges_integration_test.go:36: exhausted replay: error=usage billing user does not own api key or subscription before={Daily:1.125 Weekly:2.25 Monthly:3.5 Requests:7 Amount:4.75 Tokens:123} after={Daily:1.12526263 Weekly:2.25026263 Monthly:3.50026263 Requests:8 Amount:4.750262625 Tokens:243}
+=== RUN   TestSubscriptionCounterHTTP/edges/exhaustion_request_next_request_rejected
+2026/10/10 20:51:10 [OpenAI WS Mode][openai_ws_mode=true] bootstrap enabled=false oauth_enabled=false apikey_enabled=false force_http=false responses_websockets_v2=false responses_websockets=false payload_log_sample_rate=0.000 event_flush_batch_size=0 event_flush_interval_ms=0 prewarm_cooldown_ms=0 retry_backoff_initial_ms=0 retry_backoff_max_ms=0 retry_jitter_ratio=0.000 retry_total_budget_ms=0 ws_read_limit_bytes=16777216
+2026/10/10 20:51:10 [Billing] Using fallback pricing for model: gpt-5.1
+=== RUN   TestSubscriptionCounterHTTP/edges/exhaustion_amount_next_request_rejected
+2026/10/10 20:51:10 [OpenAI WS Mode][openai_ws_mode=true] bootstrap enabled=false oauth_enabled=false apikey_enabled=false force_http=false responses_websockets_v2=false responses_websockets=false payload_log_sample_rate=0.000 event_flush_batch_size=0 event_flush_interval_ms=0 prewarm_cooldown_ms=0 retry_backoff_initial_ms=0 retry_backoff_max_ms=0 retry_jitter_ratio=0.000 retry_total_budget_ms=0 ws_read_limit_bytes=16777216
+2026/10/10 20:51:10 [Billing] Using fallback pricing for model: gpt-5.1
+=== RUN   TestSubscriptionCounterHTTP/edges/exhaustion_token_next_request_rejected
+2026/10/10 20:51:10 [OpenAI WS Mode][openai_ws_mode=true] bootstrap enabled=false oauth_enabled=false apikey_enabled=false force_http=false responses_websockets_v2=false responses_websockets=false payload_log_sample_rate=0.000 event_flush_batch_size=0 event_flush_interval_ms=0 prewarm_cooldown_ms=0 retry_backoff_initial_ms=0 retry_backoff_max_ms=0 retry_jitter_ratio=0.000 retry_total_budget_ms=0 ws_read_limit_bytes=16777216
+2026/10/10 20:51:10 [Billing] Using fallback pricing for model: gpt-5.1
+=== RUN   TestSubscriptionCounterHTTP/edges/exhausted_rolls_back
+2026/10/10 20:51:11 [OpenAI WS Mode][openai_ws_mode=true] bootstrap enabled=false oauth_enabled=false apikey_enabled=false force_http=false responses_websockets_v2=false responses_websockets=false payload_log_sample_rate=0.000 event_flush_batch_size=0 event_flush_interval_ms=0 prewarm_cooldown_ms=0 retry_backoff_initial_ms=0 retry_backoff_max_ms=0 retry_jitter_ratio=0.000 retry_total_budget_ms=0 ws_read_limit_bytes=16777216
+2026/10/10 20:51:11 [Billing] Using fallback pricing for model: gpt-5.1
+    subscription_counter_edges_integration_test.go:104: rejected edge=exhausted error=usage billing user does not own api key or subscription counters_before={Daily:1.125 Weekly:2.25 Monthly:3.5 Requests:100 Amount:4.75 Tokens:123} counters_after={Daily:1.125 Weekly:2.25 Monthly:3.5 Requests:100 Amount:4.75 Tokens:123} dedup=0 verified=0
+=== RUN   TestSubscriptionCounterHTTP/edges/expired_rolls_back
+2026/10/10 20:51:11 [OpenAI WS Mode][openai_ws_mode=true] bootstrap enabled=false oauth_enabled=false apikey_enabled=false force_http=false responses_websockets_v2=false responses_websockets=false payload_log_sample_rate=0.000 event_flush_batch_size=0 event_flush_interval_ms=0 prewarm_cooldown_ms=0 retry_backoff_initial_ms=0 retry_backoff_max_ms=0 retry_jitter_ratio=0.000 retry_total_budget_ms=0 ws_read_limit_bytes=16777216
+2026/10/10 20:51:11 [Billing] Using fallback pricing for model: gpt-5.1
+    subscription_counter_edges_integration_test.go:104: rejected edge=expired error=error: code=429 reason="PACKAGE_QUOTA_EXHAUSTED" message="套餐额度已用尽" metadata=map[] counters_before={Daily:1.125 Weekly:2.25 Monthly:3.5 Requests:7 Amount:4.75 Tokens:123} counters_after={Daily:1.125 Weekly:2.25 Monthly:3.5 Requests:7 Amount:4.75 Tokens:123} dedup=0 verified=0
+=== RUN   TestSubscriptionCounterHTTP/edges/wrong_user_rolls_back
+2026/10/10 20:51:11 [OpenAI WS Mode][openai_ws_mode=true] bootstrap enabled=false oauth_enabled=false apikey_enabled=false force_http=false responses_websockets_v2=false responses_websockets=false payload_log_sample_rate=0.000 event_flush_batch_size=0 event_flush_interval_ms=0 prewarm_cooldown_ms=0 retry_backoff_initial_ms=0 retry_backoff_max_ms=0 retry_jitter_ratio=0.000 retry_total_budget_ms=0 ws_read_limit_bytes=16777216
+2026/10/10 20:51:11 [OpenAI WS Mode][openai_ws_mode=true] bootstrap enabled=false oauth_enabled=false apikey_enabled=false force_http=false responses_websockets_v2=false responses_websockets=false payload_log_sample_rate=0.000 event_flush_batch_size=0 event_flush_interval_ms=0 prewarm_cooldown_ms=0 retry_backoff_initial_ms=0 retry_backoff_max_ms=0 retry_jitter_ratio=0.000 retry_total_budget_ms=0 ws_read_limit_bytes=16777216
+2026/10/10 20:51:11 [Billing] Using fallback pricing for model: gpt-5.1
+    subscription_counter_edges_integration_test.go:104: rejected edge=wrong_user error=usage billing user does not own api key or subscription counters_before={Daily:1.125 Weekly:2.25 Monthly:3.5 Requests:7 Amount:4.75 Tokens:123} counters_after={Daily:1.125 Weekly:2.25 Monthly:3.5 Requests:7 Amount:4.75 Tokens:123} dedup=0 verified=0
+=== RUN   TestSubscriptionCounterHTTP/edges/wrong_group_rolls_back
+2026/10/10 20:51:11 [OpenAI WS Mode][openai_ws_mode=true] bootstrap enabled=false oauth_enabled=false apikey_enabled=false force_http=false responses_websockets_v2=false responses_websockets=false payload_log_sample_rate=0.000 event_flush_batch_size=0 event_flush_interval_ms=0 prewarm_cooldown_ms=0 retry_backoff_initial_ms=0 retry_backoff_max_ms=0 retry_jitter_ratio=0.000 retry_total_budget_ms=0 ws_read_limit_bytes=16777216
+2026/10/10 20:51:11 [Billing] Using fallback pricing for model: gpt-5.1
+    subscription_counter_edges_integration_test.go:92:
+                Error Trace:    /workspace/sub2api-p1/backend/internal/billingacceptance/subscription_counter_edges_integration_test.go:92
+                Error:          An error is expected but got nil.
+                Test:           TestSubscriptionCounterHTTP/edges/wrong_group_rolls_back
+                Messages:       invalid entitlement must not settle
+    subscription_counter_edges_integration_test.go:93:
+                Error Trace:    /workspace/sub2api-p1/backend/internal/billingacceptance/subscription_counters_integration_test.go:94
+                                                        /workspace/sub2api-p1/backend/internal/billingacceptance/subscription_counter_edges_integration_test.go:93
+                Error:          Max difference between 1.125 and 1.12526263 allowed is 1e-10, but difference was -0.0002626299999999304
+                Test:           TestSubscriptionCounterHTTP/edges/wrong_group_rolls_back
+                Messages:       daily
+    subscription_counter_edges_integration_test.go:93:
+                Error Trace:    /workspace/sub2api-p1/backend/internal/billingacceptance/subscription_counters_integration_test.go:95
+                                                        /workspace/sub2api-p1/backend/internal/billingacceptance/subscription_counter_edges_integration_test.go:93
+                Error:          Max difference between 2.25 and 2.25026263 allowed is 1e-10, but difference was -0.0002626299999999304
+                Test:           TestSubscriptionCounterHTTP/edges/wrong_group_rolls_back
+                Messages:       weekly
+    subscription_counter_edges_integration_test.go:93:
+                Error Trace:    /workspace/sub2api-p1/backend/internal/billingacceptance/subscription_counters_integration_test.go:96
+                                                        /workspace/sub2api-p1/backend/internal/billingacceptance/subscription_counter_edges_integration_test.go:93
+                Error:          Max difference between 3.5 and 3.50026263 allowed is 1e-10, but difference was -0.0002626299999999304
+                Test:           TestSubscriptionCounterHTTP/edges/wrong_group_rolls_back
+                Messages:       monthly
+    subscription_counter_edges_integration_test.go:93:
+                Error Trace:    /workspace/sub2api-p1/backend/internal/billingacceptance/subscription_counters_integration_test.go:97
+                                                        /workspace/sub2api-p1/backend/internal/billingacceptance/subscription_counter_edges_integration_test.go:93
+                Error:          Not equal:
+                                expected: 7
+                                actual  : 8
+                Test:           TestSubscriptionCounterHTTP/edges/wrong_group_rolls_back
+                Messages:       requests
+    subscription_counter_edges_integration_test.go:93:
+                Error Trace:    /workspace/sub2api-p1/backend/internal/billingacceptance/subscription_counters_integration_test.go:98
+                                                        /workspace/sub2api-p1/backend/internal/billingacceptance/subscription_counter_edges_integration_test.go:93
+                Error:          Max difference between 4.75 and 4.750262625 allowed is 1e-10, but difference was -0.0002626250000004049
+                Test:           TestSubscriptionCounterHTTP/edges/wrong_group_rolls_back
+                Messages:       amount
+    subscription_counter_edges_integration_test.go:93:
+                Error Trace:    /workspace/sub2api-p1/backend/internal/billingacceptance/subscription_counters_integration_test.go:99
+                                                        /workspace/sub2api-p1/backend/internal/billingacceptance/subscription_counter_edges_integration_test.go:93
+                Error:          Not equal:
+                                expected: 123
+                                actual  : 243
+                Test:           TestSubscriptionCounterHTTP/edges/wrong_group_rolls_back
+                Messages:       tokens
+    subscription_counter_edges_integration_test.go:96:
+                Error Trace:    /workspace/sub2api-p1/backend/internal/billingacceptance/subscription_counter_edges_integration_test.go:96
+                Error:          Should be zero, but was 1
+                Test:           TestSubscriptionCounterHTTP/edges/wrong_group_rolls_back
+    subscription_counter_edges_integration_test.go:98:
+                Error Trace:    /workspace/sub2api-p1/backend/internal/billingacceptance/subscription_counter_edges_integration_test.go:98
+                Error:          Should be zero, but was 1
+                Test:           TestSubscriptionCounterHTTP/edges/wrong_group_rolls_back
+    subscription_counter_edges_integration_test.go:99:
+                Error Trace:    /workspace/sub2api-p1/backend/internal/billingacceptance/subscription_counter_edges_integration_test.go:99
+                Error:          Condition never satisfied
+                Test:           TestSubscriptionCounterHTTP/edges/wrong_group_rolls_back
+                Messages:       failed usage must be uncharged and unsettled
+    subscription_counter_edges_integration_test.go:104: rejected edge=wrong_group error=<nil> counters_before={Daily:1.125 Weekly:2.25 Monthly:3.5 Requests:7 Amount:4.75 Tokens:123} counters_after={Daily:1.12526263 Weekly:2.25026263 Monthly:3.50026263 Requests:8 Amount:4.750262625 Tokens:243} dedup=1 verified=1
+=== RUN   TestSubscriptionCounterHTTP/edges/database_failure_rollback_package_false
+2026/10/10 20:51:14 [OpenAI WS Mode][openai_ws_mode=true] bootstrap enabled=false oauth_enabled=false apikey_enabled=false force_http=false responses_websockets_v2=false responses_websockets=false payload_log_sample_rate=0.000 event_flush_batch_size=0 event_flush_interval_ms=0 prewarm_cooldown_ms=0 retry_backoff_initial_ms=0 retry_backoff_max_ms=0 retry_jitter_ratio=0.000 retry_total_budget_ms=0 ws_read_limit_bytes=16777216
+2026/10/10 20:51:14 [Billing] Using fallback pricing for model: gpt-5.1
+2026/10/10 20:51:15 [Billing] Using fallback pricing for model: gpt-5.1
+    subscription_counter_edges_integration_test.go:139: counter_evidence kind_package=false requests=1 callbacks=3 before={Daily:1.125 Weekly:2.25 Monthly:3.5 Requests:0 Amount:0 Tokens:0} after={Daily:1.1254202 Weekly:2.2504202 Monthly:3.5004202 Requests:0 Amount:0 Tokens:0} delta={Daily:0.0004201999999999817 Weekly:0.00042020000000020374 Monthly:0.00042020000000020374 Requests:0 Amount:0 Tokens:0} total=0.0005252500 actual=0.0002626250 billed=0.0004202000 dedup=usage=links=1
+=== RUN   TestSubscriptionCounterHTTP/edges/database_failure_rollback_package_true
+2026/10/10 20:51:15 [OpenAI WS Mode][openai_ws_mode=true] bootstrap enabled=false oauth_enabled=false apikey_enabled=false force_http=false responses_websockets_v2=false responses_websockets=false payload_log_sample_rate=0.000 event_flush_batch_size=0 event_flush_interval_ms=0 prewarm_cooldown_ms=0 retry_backoff_initial_ms=0 retry_backoff_max_ms=0 retry_jitter_ratio=0.000 retry_total_budget_ms=0 ws_read_limit_bytes=16777216
+2026/10/10 20:51:15 [Billing] Using fallback pricing for model: gpt-5.1
+2026/10/10 20:51:15 [Billing] Using fallback pricing for model: gpt-5.1
+    subscription_counter_edges_integration_test.go:139: counter_evidence kind_package=true requests=1 callbacks=3 before={Daily:1.125 Weekly:2.25 Monthly:3.5 Requests:7 Amount:4.75 Tokens:123} after={Daily:1.1254202 Weekly:2.2504202 Monthly:3.5004202 Requests:8 Amount:4.7504202 Tokens:243} delta={Daily:0.0004201999999999817 Weekly:0.00042020000000020374 Monthly:0.00042020000000020374 Requests:1 Amount:0.00042019999999975965 Tokens:120} total=0.0005252500 actual=0.0002626250 billed=0.0004202000 dedup=usage=links=1
+=== RUN   TestSubscriptionCounterHTTP/edges/charged_entitlement_is_not_current_display_pointer
+2026/10/10 20:51:15 [OpenAI WS Mode][openai_ws_mode=true] bootstrap enabled=false oauth_enabled=false apikey_enabled=false force_http=false responses_websockets_v2=false responses_websockets=false payload_log_sample_rate=0.000 event_flush_batch_size=0 event_flush_interval_ms=0 prewarm_cooldown_ms=0 retry_backoff_initial_ms=0 retry_backoff_max_ms=0 retry_jitter_ratio=0.000 retry_total_budget_ms=0 ws_read_limit_bytes=16777216
+2026/10/10 20:51:15 [Billing] Using fallback pricing for model: gpt-5.1
+    subscription_counter_edges_integration_test.go:166: billing_link_entitlement=19 displayed_entitlement=20 old_delta={Daily:0.0002626299999999304 Weekly:0.0002626299999999304 Monthly:0.0002626299999999304 Requests:1 Amount:0.0002626250000004049 Tokens:120} renewal={Daily:1.12526263 Weekly:2.25026263 Monthly:3.50026263 Requests:0 Amount:0 Tokens:0}
+=== RUN   TestSubscriptionCounterHTTP/edges/window_anchors_and_stale_reset_CAS
+2026/10/10 20:51:16 [OpenAI WS Mode][openai_ws_mode=true] bootstrap enabled=false oauth_enabled=false apikey_enabled=false force_http=false responses_websockets_v2=false responses_websockets=false payload_log_sample_rate=0.000 event_flush_batch_size=0 event_flush_interval_ms=0 prewarm_cooldown_ms=0 retry_backoff_initial_ms=0 retry_backoff_max_ms=0 retry_jitter_ratio=0.000 retry_total_budget_ms=0 ws_read_limit_bytes=16777216
+2026/10/10 20:51:16 [Billing] Using fallback pricing for model: gpt-5.1
+    subscription_counter_edges_integration_test.go:237: reset evidence: day=calendar-midnight week=7d month=30d stale_CAS_preserved={Daily:0.00026263 Weekly:0.00026263 Monthly:0.00026263 Requests:0 Amount:0 Tokens:0} initial={Daily:0 Weekly:0 Monthly:0 Requests:0 Amount:0 Tokens:0}
+=== RUN   TestSubscriptionCounterHTTP/edges/explicit_package_reset_only_current
+2026/10/10 20:51:16 [OpenAI WS Mode][openai_ws_mode=true] bootstrap enabled=false oauth_enabled=false apikey_enabled=false force_http=false responses_websockets_v2=false responses_websockets=false payload_log_sample_rate=0.000 event_flush_batch_size=0 event_flush_interval_ms=0 prewarm_cooldown_ms=0 retry_backoff_initial_ms=0 retry_backoff_max_ms=0 retry_jitter_ratio=0.000 retry_total_budget_ms=0 ws_read_limit_bytes=16777216
+2026/10/10 20:51:16 [Billing] Using fallback pricing for model: gpt-5.1
+--- FAIL: TestSubscriptionCounterHTTP (23.71s)
+    --- PASS: TestSubscriptionCounterHTTP/subscription/sequential_replay (0.20s)
+    --- PASS: TestSubscriptionCounterHTTP/subscription/concurrent_duplicate (0.30s)
+    --- PASS: TestSubscriptionCounterHTTP/subscription/independent_private_requests (0.37s)
+    --- PASS: TestSubscriptionCounterHTTP/subscription/canceled_context_observed_usage (0.16s)
+    --- PASS: TestSubscriptionCounterHTTP/subscription/http_client_disconnect_observed_usage (5.18s)
+    --- PASS: TestSubscriptionCounterHTTP/subscription/partial_output_observed_usage (0.17s)
+    --- PASS: TestSubscriptionCounterHTTP/subscription/zero_multiplier (0.16s)
+    --- PASS: TestSubscriptionCounterHTTP/subscription/surcharge_frozen_price (0.16s)
+    --- PASS: TestSubscriptionCounterHTTP/package/sequential_replay (0.18s)
+    --- PASS: TestSubscriptionCounterHTTP/package/concurrent_duplicate (0.26s)
+    --- PASS: TestSubscriptionCounterHTTP/package/independent_private_requests (0.29s)
+    --- PASS: TestSubscriptionCounterHTTP/package/canceled_context_observed_usage (0.15s)
+    --- PASS: TestSubscriptionCounterHTTP/package/http_client_disconnect_observed_usage (5.21s)
+    --- PASS: TestSubscriptionCounterHTTP/package/partial_output_observed_usage (0.30s)
+    --- PASS: TestSubscriptionCounterHTTP/package/zero_multiplier (0.35s)
+    --- PASS: TestSubscriptionCounterHTTP/package/surcharge_frozen_price (0.29s)
+    --- FAIL: TestSubscriptionCounterHTTP/edges (6.34s)
+        --- FAIL: TestSubscriptionCounterHTTP/edges/exhausted_replay_must_remain_idempotent (0.23s)
+        --- PASS: TestSubscriptionCounterHTTP/edges/exhaustion_request_next_request_rejected (0.18s)
+        --- PASS: TestSubscriptionCounterHTTP/edges/exhaustion_amount_next_request_rejected (0.22s)
+        --- PASS: TestSubscriptionCounterHTTP/edges/exhaustion_token_next_request_rejected (0.18s)
+        --- PASS: TestSubscriptionCounterHTTP/edges/exhausted_rolls_back (0.14s)
+        --- PASS: TestSubscriptionCounterHTTP/edges/expired_rolls_back (0.15s)
+        --- PASS: TestSubscriptionCounterHTTP/edges/wrong_user_rolls_back (0.30s)
+        --- FAIL: TestSubscriptionCounterHTTP/edges/wrong_group_rolls_back (3.20s)
+        --- PASS: TestSubscriptionCounterHTTP/edges/database_failure_rollback_package_false (0.32s)
+        --- PASS: TestSubscriptionCounterHTTP/edges/database_failure_rollback_package_true (0.46s)
+        --- PASS: TestSubscriptionCounterHTTP/edges/charged_entitlement_is_not_current_display_pointer (0.38s)
+        --- PASS: TestSubscriptionCounterHTTP/edges/window_anchors_and_stale_reset_CAS (0.39s)
+        --- PASS: TestSubscriptionCounterHTTP/edges/explicit_package_reset_only_current (0.19s)
+FAIL
+FAIL    github.com/Wei-Shaw/sub2api/internal/billingacceptance  23.815s
+FAIL

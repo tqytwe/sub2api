@@ -105,7 +105,7 @@ func (r *usageBillingRepository) applyUsageBillingTransaction(ctx context.Contex
 	} else if cmd.BalanceCost > 0 || cmd.SubscriptionCost > 0 {
 		return nil, service.ErrUsageBillingOwnershipMismatch
 	}
-	if cmd.SubscriptionCost > 0 {
+	if cmd.SubscriptionCost > 0 && cmd.PackageEntitlementID == nil {
 		if cmd.SubscriptionID == nil || *cmd.SubscriptionID <= 0 {
 			return nil, service.ErrUsageBillingOwnershipMismatch
 		}
@@ -113,15 +113,17 @@ func (r *usageBillingRepository) applyUsageBillingTransaction(ctx context.Contex
 			return nil, err
 		}
 	}
-	if cmd.PackageEntitlementID != nil {
-		if err := validateUsageBillingPackageEntitlementOwnership(ctx, tx, *cmd.PackageEntitlementID, cmd.UserID); err != nil {
-			return nil, err
-		}
-	}
-
 	applied, err := r.claimUsageBillingKey(ctx, tx, cmd)
 	if err != nil {
 		return nil, err
+	}
+	if cmd.PackageEntitlementID != nil {
+		// A claim is still uncommitted here. Check ownership for new charges AND
+		// exact replays; invalid claims roll back. Lock only after the claim so a
+		// duplicate cannot block its first settlement while waiting on dedup.
+		if err := validateUsageBillingPackageEntitlementOwnership(ctx, tx, cmd, applied); err != nil {
+			return nil, err
+		}
 	}
 	if !applied {
 		if requestledger.FromContext(ctx) != nil {
@@ -727,9 +729,35 @@ func (r *usageBillingRepository) applyUsageBillingEffects(ctx context.Context, t
 	return nil
 }
 
-func validateUsageBillingPackageEntitlementOwnership(ctx context.Context, tx *sql.Tx, entitlementID, userID int64) error {
+func validateUsageBillingPackageEntitlementOwnership(ctx context.Context, tx *sql.Tx, cmd *service.UsageBillingCommand, newCharge bool) error {
+	if cmd.UserID <= 0 || cmd.SubscriptionID == nil || *cmd.SubscriptionID <= 0 ||
+		cmd.PackageEntitlementID == nil || *cmd.PackageEntitlementID <= 0 ||
+		cmd.APIKeyGroupID == nil || *cmd.APIKeyGroupID <= 0 {
+		return service.ErrUsageBillingOwnershipMismatch
+	}
+	// Compare the frozen request group, not the API key's current group or the
+	// currently displayed renewal. Lock subscription then entitlement, matching
+	// revocation/term updates and keeping the relationship stable through commit.
 	var exists int
-	err := tx.QueryRowContext(ctx, `SELECT 1 FROM subscription_package_entitlements WHERE id = $1 AND user_id = $2 AND status = 'active'`, entitlementID, userID).Scan(&exists)
+	err := tx.QueryRowContext(ctx, `
+		SELECT 1 FROM user_subscriptions
+		WHERE id = $1 AND user_id = $2 AND group_id = $3
+		  AND (NOT $4::boolean OR deleted_at IS NULL)
+		FOR UPDATE
+	`, *cmd.SubscriptionID, cmd.UserID, *cmd.APIKeyGroupID, newCharge).Scan(&exists)
+	if errors.Is(err, sql.ErrNoRows) {
+		return service.ErrUsageBillingOwnershipMismatch
+	}
+	if err != nil {
+		return err
+	}
+	// Exhaustion, expiry and revocation do not invalidate an already committed
+	// exact replay. New-charge eligibility remains on the atomic increment below.
+	err = tx.QueryRowContext(ctx, `
+		SELECT 1 FROM subscription_package_entitlements
+		WHERE id = $1 AND user_id = $2 AND group_id = $3
+		FOR UPDATE
+	`, *cmd.PackageEntitlementID, cmd.UserID, *cmd.APIKeyGroupID).Scan(&exists)
 	if errors.Is(err, sql.ErrNoRows) {
 		return service.ErrUsageBillingOwnershipMismatch
 	}
