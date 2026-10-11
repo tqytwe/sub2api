@@ -1265,6 +1265,57 @@
       "risks": "首批边界：batch仅钱包引用、无usage钻取；详情attempts/billing子集合未分页、生产容量/lease热点与匿名增长未验证；用户浏览器验收待反馈。窗口unknown总6中4个失败（1个400、3个已读正文的200）仍待核对，均缺上游逐请求计量/扣费证据，不能判免费或估算损失；订阅计数器净增量未验证。package引用差异经比较口径修正已关闭，不继续当当前缺陷。真实样本仅Responses/Messages/Chat Completions，不覆盖WS子轮/异步或全Live/Realtime/Grok/direct-image等模式；WebRTC媒体/插件内部重试不可完全观察，旧实例或应用回退窗口不新增台账。此前五组缺陷已在82828e1关闭。",
       "next": "核对4个unknown与订阅计数器窗口净增量，补WS子轮/异步/其他协议、用户本机三身份和首批容量/分页/batch验收；不回填、不补扣、不将已有201条结算关联一致外推为100%闭环。治理PR的准确SHA/CI交主线程审核合并，本任务不合并或部署。",
       "rollback": "若发布/健康/权限/账务异常由主线程协调仅回退应用；保留五表、18索引、已存证据和schema_migrations中275行，不改checksum、不DROP/TRUNCATE/DELETE、不执行down migration。回退期新增覆盖中止，不补发/估费/历史补扣；代码/schema兼容结论不是生产回退实测。"
+    },
+    {
+      "id": "ws-attempt-end-evidence",
+      "title": "精确WS attempt结束证据后端",
+      "backend_state": "实现中",
+      "product_state": "实现中",
+      "owner": "主线程协调",
+      "pr": null,
+      "sha": null,
+      "evidence": {
+        "ui": {
+          "status": "na",
+          "refs": [],
+          "note": "本批不新增UI，管理员独立只读API。"
+        },
+        "api": {
+          "status": "recorded",
+          "refs": [
+            "backend/internal/handler/ws_end_handler.go",
+            "backend/internal/requestledger/ws_end_query.go"
+          ],
+          "note": "admin-only私有UUID /api/v1/admin/requests/:id/ws-end，128项seek分页，失败仅限本子资源。"
+        },
+        "schema": {
+          "status": "recorded",
+          "refs": [
+            "backend/migrations/282_gateway_ws_attempt_end_evidence.sql"
+          ],
+          "note": "主线程保留282，仅新建每attempt一行的WS诊断表，精确UUID与4096字节快照；attempt父表NOWAIT/短超时，旧writer不受新表影响；未应用生产，不改280/281。"
+        },
+        "tests": {
+          "status": "pending",
+          "refs": [
+            "docs/archive/completed-tasks/2026-10-11-ws-attempt-end-evidence/README.md"
+          ],
+          "note": "初轮共享evidence行方案导致identifier回归，真实race与受控阻塞RED均保留；独立表修复及规格/质量增量复审进行中；不宣称全门禁通过。"
+        },
+        "deployment": {
+          "status": "pending",
+          "refs": [],
+          "note": "只授权独立草稿PR，根线程负责合并部署。"
+        },
+        "production": {
+          "status": "pending",
+          "refs": [],
+          "note": "无业务生产访问/重放/历史回填；首轮夹具四次合成无效凭据外部握手401已记录并修正回环约束，不计有效本地证据。"
+        }
+      },
+      "risks": "异步缺失不证明无错误/无usage/零费用；终态仅归一化result，relay downstream标量为session范围；无完整帧覆盖或历史归因。",
+      "next": "完成定向及故障验证，依次规格/质量审，全门禁并推独立草稿PR；其他快照条目未复核，checked_at不前移。",
+      "rollback": "仅回退应用保留新增表及历史数据；282锁/语句超时整事务回滚后重试，不删表或补扣。"
     }
   ],
   "deprecations": [

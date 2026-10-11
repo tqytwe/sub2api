@@ -1171,7 +1171,7 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 		firstTurnStartedAt = hooks.InitialTurnStartedAt
 	}
 	failureAccountSideEffectsApplied := false
-	recordTurn := func(turnNo int, turn openaiwsv2.RelayTurnResult, turnErr error) {
+	recordTurn := func(turnNo int, turn openaiwsv2.RelayTurnResult, turnErr error, diagnostic requestledger.WSEndObservation) {
 		if hooks != nil && hooks.TurnStarted != nil && !turn.StartedAt.IsZero() {
 			hooks.TurnStarted(turnNo, turn.StartedAt)
 		}
@@ -1219,7 +1219,7 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 			turnResult.Usage.OutputTokens,
 			turnResult.Usage.CacheReadInputTokens,
 		)
-		ledgerUpstream.finishTurn(ctx, turnNo, turnResult, turnErr)
+		ledgerUpstream.finishTurn(ctx, turnNo, turnResult, turnErr, diagnostic)
 		if hooks != nil && hooks.AfterTurn != nil {
 			hooks.AfterTurn(turnNo, turnResult, turnErr)
 		}
@@ -1257,7 +1257,7 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 				)
 			},
 			OnTurnComplete: func(turn openaiwsv2.RelayTurnResult) {
-				recordTurn(int(completedTurns.Add(1)), turn, nil)
+				recordTurn(int(completedTurns.Add(1)), turn, nil, requestledger.WSEndObservation{Stage: "turn_complete", StageSource: "relay_turn_complete"})
 				observedTurnUsage = OpenAIUsage{}
 			},
 			OnUpstreamFrame: func(msgType coderws.MessageType, payload []byte) {
@@ -1360,14 +1360,24 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 	// turn before any cancellation/lease/preemption return; completed turns have
 	// already been settled by OnTurnComplete.
 	if partial := relayResult.UnfinishedTurn; partial != nil {
+		diagnostic := requestledger.WSEndObservation{JoinedUnfinished: true}
+		if relayExit != nil {
+			diagnostic.Stage, diagnostic.StageSource = relayExit.Stage, "relay_exit"
+			diagnostic.WroteDownstream, diagnostic.WroteDownstreamScope = &relayExit.WroteDownstream, "relay_session"
+		}
 		partialErr := context.Cause(ctx)
+		if partialErr != nil {
+			diagnostic.ReasonSource = "context_cause"
+		}
 		if partialErr == nil && relayExit != nil {
 			partialErr = relayExit.Err
+			diagnostic.ReasonSource = "relay_exit"
 		}
 		if partialErr == nil {
 			partialErr = errors.New("upstream websocket ended before terminal event")
+			diagnostic.Reason, diagnostic.ReasonSource = "unfinished_turn", "relay_joined_unfinished"
 		}
-		recordTurn(int(completedTurns.Load())+1, *partial, partialErr)
+		recordTurn(int(completedTurns.Load())+1, *partial, partialErr, diagnostic)
 	}
 
 	if cause := context.Cause(ctx); cause != nil {

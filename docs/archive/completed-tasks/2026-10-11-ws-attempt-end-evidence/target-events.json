@@ -1,0 +1,444 @@
+[
+  {
+    "Time": "2026-10-11T15:27:56.820332804Z",
+    "Action": "pass",
+    "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+    "Test": "TestWSEndSnapshotWhitelistAndUsageSemantics",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-11T15:27:56.820464449Z",
+    "Action": "pass",
+    "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+    "Test": "TestWSEndSnapshotTerminalAuthorityAndImmutableScalars",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-11T15:27:56.820545268Z",
+    "Action": "pass",
+    "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+    "Test": "TestWSEndSnapshotRequiresResultForPositiveOrTerminal",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-11T15:27:59.455055977Z",
+    "Action": "pass",
+    "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+    "Test": "TestLedgerPostgresWSEndReceiptIsolationAndFirstSnapshot",
+    "Elapsed": 2.63
+  },
+  {
+    "Time": "2026-10-11T15:28:01.913341984Z",
+    "Action": "pass",
+    "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+    "Test": "TestLedgerPostgresWSEndLockPoolAndOldWriter/table_lock",
+    "Elapsed": 2.46
+  },
+  {
+    "Time": "2026-10-11T15:28:04.640869105Z",
+    "Action": "pass",
+    "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+    "Test": "TestLedgerPostgresWSEndLockPoolAndOldWriter/identifier_lock",
+    "Elapsed": 2.73
+  },
+  {
+    "Time": "2026-10-11T15:28:06.939219411Z",
+    "Action": "pass",
+    "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+    "Test": "TestLedgerPostgresWSEndLockPoolAndOldWriter/pool",
+    "Elapsed": 2.3
+  },
+  {
+    "Time": "2026-10-11T15:28:09.588911206Z",
+    "Action": "pass",
+    "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+    "Test": "TestLedgerPostgresWSEndLockPoolAndOldWriter/old_writer",
+    "Elapsed": 2.65
+  },
+  {
+    "Time": "2026-10-11T15:28:09.588923254Z",
+    "Action": "pass",
+    "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+    "Test": "TestLedgerPostgresWSEndLockPoolAndOldWriter",
+    "Elapsed": 10.13
+  },
+  {
+    "Time": "2026-10-11T15:28:12.530479001Z",
+    "Action": "pass",
+    "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+    "Test": "TestLedgerPostgresWSEndQueueBoundedAndMissing",
+    "Elapsed": 2.94
+  },
+  {
+    "Time": "2026-10-11T15:28:14.750322953Z",
+    "Action": "pass",
+    "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+    "Test": "TestLedgerPostgresWSEndWriterCannotSuppressIdentifiersOrFinish",
+    "Elapsed": 2.22
+  },
+  {
+    "Time": "2026-10-11T15:28:14.750642586Z",
+    "Action": "skip",
+    "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+    "Test": "TestLedgerPostgresWSEndCrashChild",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-11T15:28:17.059597953Z",
+    "Action": "pass",
+    "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+    "Test": "TestLedgerPostgresWSEndKilledBeforeWrite",
+    "Elapsed": 2.31
+  },
+  {
+    "Time": "2026-10-11T15:28:17.059899408Z",
+    "Action": "pass",
+    "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+    "Test": "TestWSEndReaderMissingFutureInvalidAndSecretFields/old",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-11T15:28:17.059982732Z",
+    "Action": "pass",
+    "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+    "Test": "TestWSEndReaderMissingFutureInvalidAndSecretFields/empty",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-11T15:28:17.060126815Z",
+    "Action": "pass",
+    "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+    "Test": "TestWSEndReaderMissingFutureInvalidAndSecretFields/malformed",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-11T15:28:17.060217068Z",
+    "Action": "pass",
+    "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+    "Test": "TestWSEndReaderMissingFutureInvalidAndSecretFields/missing_version",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-11T15:28:17.060324367Z",
+    "Action": "pass",
+    "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+    "Test": "TestWSEndReaderMissingFutureInvalidAndSecretFields/future",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-11T15:28:17.060452096Z",
+    "Action": "pass",
+    "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+    "Test": "TestWSEndReaderMissingFutureInvalidAndSecretFields/good",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-11T15:28:17.062473475Z",
+    "Action": "pass",
+    "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+    "Test": "TestWSEndReaderMissingFutureInvalidAndSecretFields",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-11T15:28:18.067731805Z",
+    "Action": "pass",
+    "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+    "Elapsed": 21.286
+  },
+  {
+    "Time": "2026-10-11T15:29:27.696000716Z",
+    "Action": "pass",
+    "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger/acceptance",
+    "Test": "TestRequestLedgerHTTPWSEndSnapshotsAdminPagingAndFailure",
+    "Elapsed": 5.17
+  },
+  {
+    "Time": "2026-10-11T15:29:28.702211657Z",
+    "Action": "pass",
+    "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger/acceptance",
+    "Elapsed": 6.235
+  },
+  {
+    "Time": "2026-10-11T15:29:28.709762633Z",
+    "Action": "skip",
+    "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger/ledgertest",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-11T15:30:05.731597797Z",
+    "Action": "pass",
+    "Package": "github.com/Wei-Shaw/sub2api/internal/repository",
+    "Test": "TestRequestLedgerWSEndMigrationCompatibilityAndBusy/reader",
+    "Elapsed": 2.26
+  },
+  {
+    "Time": "2026-10-11T15:30:07.713019899Z",
+    "Action": "pass",
+    "Package": "github.com/Wei-Shaw/sub2api/internal/repository",
+    "Test": "TestRequestLedgerWSEndMigrationCompatibilityAndBusy/writer",
+    "Elapsed": 1.98
+  },
+  {
+    "Time": "2026-10-11T15:30:07.713030565Z",
+    "Action": "pass",
+    "Package": "github.com/Wei-Shaw/sub2api/internal/repository",
+    "Test": "TestRequestLedgerWSEndMigrationCompatibilityAndBusy",
+    "Elapsed": 4.24
+  },
+  {
+    "Time": "2026-10-11T15:30:11.153367186Z",
+    "Action": "pass",
+    "Package": "github.com/Wei-Shaw/sub2api/internal/repository",
+    "Test": "TestRequestLedgerWSEndMigrationExecutionTimeoutRollsBack",
+    "Elapsed": 3.44
+  },
+  {
+    "Time": "2026-10-11T15:30:12.161160445Z",
+    "Action": "pass",
+    "Package": "github.com/Wei-Shaw/sub2api/internal/repository",
+    "Elapsed": 14.762
+  },
+  {
+    "Time": "2026-10-11T15:30:18.927917677Z",
+    "Action": "pass",
+    "Package": "github.com/Wei-Shaw/sub2api/internal/server/routes",
+    "Test": "TestRequestLedgerWSEndAdminRouteProtection",
+    "Elapsed": 0.01
+  },
+  {
+    "Time": "2026-10-11T15:30:19.93326301Z",
+    "Action": "pass",
+    "Package": "github.com/Wei-Shaw/sub2api/internal/server/routes",
+    "Elapsed": 1.153
+  },
+  {
+    "Time": "2026-10-11T15:31:48.804459852Z",
+    "Action": "pass",
+    "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+    "Test": "TestRequestLedgerDelayedWSFailureCannotCopyNextTurn",
+    "Elapsed": 2.82
+  },
+  {
+    "Time": "2026-10-11T15:31:51.329450647Z",
+    "Action": "pass",
+    "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+    "Test": "TestRequestLedgerRealWebsocket1013AndEOFWithoutUsage/1013",
+    "Elapsed": 2.52
+  },
+  {
+    "Time": "2026-10-11T15:31:53.694955923Z",
+    "Action": "pass",
+    "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+    "Test": "TestRequestLedgerRealWebsocket1013AndEOFWithoutUsage/eof",
+    "Elapsed": 2.37
+  },
+  {
+    "Time": "2026-10-11T15:31:53.695022482Z",
+    "Action": "pass",
+    "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+    "Test": "TestRequestLedgerRealWebsocket1013AndEOFWithoutUsage",
+    "Elapsed": 4.89
+  },
+  {
+    "Time": "2026-10-11T15:31:56.19014274Z",
+    "Action": "pass",
+    "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+    "Test": "TestRequestLedgerWSEndExactTurnAndFirstWrite",
+    "Elapsed": 2.49
+  },
+  {
+    "Time": "2026-10-11T15:31:58.14503374Z",
+    "Action": "pass",
+    "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+    "Test": "TestRequestLedgerWSEndResultAndTypedCauseContract/cancel",
+    "Elapsed": 0.02
+  },
+  {
+    "Time": "2026-10-11T15:31:58.150971367Z",
+    "Action": "pass",
+    "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+    "Test": "TestRequestLedgerWSEndResultAndTypedCauseContract/deadline",
+    "Elapsed": 0.01
+  },
+  {
+    "Time": "2026-10-11T15:31:58.154714038Z",
+    "Action": "pass",
+    "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+    "Test": "TestRequestLedgerWSEndResultAndTypedCauseContract/lease",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-11T15:31:58.158229464Z",
+    "Action": "pass",
+    "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+    "Test": "TestRequestLedgerWSEndResultAndTypedCauseContract/preempt",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-11T15:31:58.161995781Z",
+    "Action": "pass",
+    "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+    "Test": "TestRequestLedgerWSEndResultAndTypedCauseContract/unknown",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-11T15:31:58.165396357Z",
+    "Action": "pass",
+    "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+    "Test": "TestRequestLedgerWSEndResultAndTypedCauseContract/empty",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-11T15:31:58.179791444Z",
+    "Action": "pass",
+    "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+    "Test": "TestRequestLedgerWSEndResultAndTypedCauseContract/zero",
+    "Elapsed": 0.01
+  },
+  {
+    "Time": "2026-10-11T15:31:58.183602968Z",
+    "Action": "pass",
+    "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+    "Test": "TestRequestLedgerWSEndResultAndTypedCauseContract/details_only",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-11T15:31:58.189776022Z",
+    "Action": "pass",
+    "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+    "Test": "TestRequestLedgerWSEndResultAndTypedCauseContract/positive",
+    "Elapsed": 0.01
+  },
+  {
+    "Time": "2026-10-11T15:31:58.19532238Z",
+    "Action": "pass",
+    "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+    "Test": "TestRequestLedgerWSEndResultAndTypedCauseContract/image",
+    "Elapsed": 0.01
+  },
+  {
+    "Time": "2026-10-11T15:31:58.199121485Z",
+    "Action": "pass",
+    "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+    "Test": "TestRequestLedgerWSEndResultAndTypedCauseContract/failed",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-11T15:31:58.202884687Z",
+    "Action": "pass",
+    "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+    "Test": "TestRequestLedgerWSEndResultAndTypedCauseContract/incomplete",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-11T15:31:58.206727317Z",
+    "Action": "pass",
+    "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+    "Test": "TestRequestLedgerWSEndResultAndTypedCauseContract/cancelled",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-11T15:31:58.399270747Z",
+    "Action": "pass",
+    "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+    "Test": "TestRequestLedgerWSEndResultAndTypedCauseContract",
+    "Elapsed": 2.21
+  },
+  {
+    "Time": "2026-10-11T15:32:00.548016087Z",
+    "Action": "pass",
+    "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+    "Test": "TestRequestLedgerWSEndRealPassthroughHTTPWSPostgres/eof",
+    "Elapsed": 2.15
+  },
+  {
+    "Time": "2026-10-11T15:32:02.796190018Z",
+    "Action": "pass",
+    "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+    "Test": "TestRequestLedgerWSEndRealPassthroughHTTPWSPostgres/cancel",
+    "Elapsed": 2.25
+  },
+  {
+    "Time": "2026-10-11T15:32:06.426072927Z",
+    "Action": "pass",
+    "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+    "Test": "TestRequestLedgerWSEndRealPassthroughHTTPWSPostgres/terminal",
+    "Elapsed": 3.63
+  },
+  {
+    "Time": "2026-10-11T15:32:08.651557067Z",
+    "Action": "pass",
+    "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+    "Test": "TestRequestLedgerWSEndRealPassthroughHTTPWSPostgres/two_turns",
+    "Elapsed": 2.22
+  },
+  {
+    "Time": "2026-10-11T15:32:08.651568664Z",
+    "Action": "pass",
+    "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+    "Test": "TestRequestLedgerWSEndRealPassthroughHTTPWSPostgres",
+    "Elapsed": 10.25
+  },
+  {
+    "Time": "2026-10-11T15:32:10.872315768Z",
+    "Action": "pass",
+    "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+    "Test": "TestRequestLedgerWSEndRealNativeRetryHTTPWSPostgres/1013",
+    "Elapsed": 2.22
+  },
+  {
+    "Time": "2026-10-11T15:32:13.51742894Z",
+    "Action": "pass",
+    "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+    "Test": "TestRequestLedgerWSEndRealNativeRetryHTTPWSPostgres/eof",
+    "Elapsed": 2.64
+  },
+  {
+    "Time": "2026-10-11T15:32:13.517440307Z",
+    "Action": "pass",
+    "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+    "Test": "TestRequestLedgerWSEndRealNativeRetryHTTPWSPostgres",
+    "Elapsed": 4.87
+  },
+  {
+    "Time": "2026-10-11T15:32:13.517454618Z",
+    "Action": "pass",
+    "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+    "Test": "TestRequestLedgerWSEndTypedFailoverAndSentinelPriority",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-11T15:32:13.51746306Z",
+    "Action": "pass",
+    "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+    "Test": "TestRequestLedgerWSEndPassthroughTimeoutCauses",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-11T15:32:15.660387135Z",
+    "Action": "pass",
+    "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+    "Test": "TestRequestLedgerPassthroughWaitsForAuthoritativeTurn",
+    "Elapsed": 2.14
+  },
+  {
+    "Time": "2026-10-11T15:32:18.04035717Z",
+    "Action": "pass",
+    "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+    "Test": "TestRequestLedgerWSLateUsageDoesNotMarkTheNextAttemptKnown",
+    "Elapsed": 2.38
+  },
+  {
+    "Time": "2026-10-11T15:32:20.772576604Z",
+    "Action": "pass",
+    "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+    "Test": "TestRequestLedgerNativeWebsocketTwoTurnsWithRealPostgres",
+    "Elapsed": 2.73
+  },
+  {
+    "Time": "2026-10-11T15:32:21.871307092Z",
+    "Action": "pass",
+    "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+    "Elapsed": 36.822
+  }
+]

@@ -42,7 +42,7 @@ jobs:
         run: |
           set -euo pipefail
           go test -tags=integration ./internal/requestledger/... ./internal/handler ./internal/server/routes ./internal/repository ./internal/service \
-            -run 'RequestLedger|LedgerPostgres|LedgerKilledProcess|LedgerStorage|BatchImageHTTP|BatchImageReconciliation|BatchImageLedgerMigration' -count=1 -timeout=12m -json \
+            -run 'RequestLedger|LedgerPostgres|LedgerKilledProcess|LedgerStorage|BatchImageHTTP|BatchImageReconciliation|BatchImageLedgerMigration|WSEnd' -count=1 -timeout=12m -json \
             | tee "$RUNNER_TEMP/request-ledger-tests.json"
       - name: Require executed acceptance cases
         run: |
@@ -50,6 +50,25 @@ jobs:
           import json, os
           from pathlib import Path
           required = {
+              "TestLedgerPostgresWSEndWriterCannotSuppressIdentifiersOrFinish",
+              "TestRequestLedgerWSEndPassthroughTimeoutCauses",
+              "TestWSEndSnapshotRequiresResultForPositiveOrTerminal",
+              "TestLedgerPostgresWSEndKilledBeforeWrite",
+              "TestLedgerPostgresWSEndLockPoolAndOldWriter",
+              "TestLedgerPostgresWSEndQueueBoundedAndMissing",
+              "TestLedgerPostgresWSEndReceiptIsolationAndFirstSnapshot",
+              "TestRequestLedgerHTTPWSEndSnapshotsAdminPagingAndFailure",
+              "TestRequestLedgerWSEndAdminRouteProtection",
+              "TestRequestLedgerWSEndExactTurnAndFirstWrite",
+              "TestRequestLedgerWSEndMigrationCompatibilityAndBusy",
+              "TestRequestLedgerWSEndMigrationExecutionTimeoutRollsBack",
+              "TestRequestLedgerWSEndRealNativeRetryHTTPWSPostgres",
+              "TestRequestLedgerWSEndRealPassthroughHTTPWSPostgres",
+              "TestRequestLedgerWSEndResultAndTypedCauseContract",
+              "TestRequestLedgerWSEndTypedFailoverAndSentinelPriority",
+              "TestWSEndReaderMissingFutureInvalidAndSecretFields",
+              "TestWSEndSnapshotTerminalAuthorityAndImmutableScalars",
+              "TestWSEndSnapshotWhitelistAndUsageSemantics",
               "TestLedgerPostgresIdentifierSnapshotWithRoutingFinish",
               "TestRequestLedgerRoutingAfterDetailPaginationMigration",
               "TestRequestLedgerRoutingMigrationBusyKeepsAdmission",

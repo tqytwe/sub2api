@@ -1,0 +1,26 @@
+[
+  {
+    "name": "target-race",
+    "command": [
+      "go",
+      "test",
+      "-race",
+      "-tags=integration",
+      "./internal/requestledger/...",
+      "./internal/repository",
+      "./internal/server/routes",
+      "./internal/service",
+      "-run",
+      "WSEnd|TestRequestLedgerPassthroughWaitsForAuthoritativeTurn|TestRequestLedgerWSLateUsageDoesNotMarkTheNextAttemptKnown|TestRequestLedgerDelayedWSFailureCannotCopyNextTurn|TestRequestLedgerRealWebsocket1013AndEOFWithoutUsage|TestRequestLedgerNativeWebsocketTwoTurnsWithRealPostgres",
+      "-count=1",
+      "-timeout=8m",
+      "-json"
+    ],
+    "exit_code": 0,
+    "started_at": "2026-10-11T15:27:53.560926+00:00",
+    "finished_at": "2026-10-11T15:32:21.928832+00:00",
+    "elapsed_seconds": 268.368,
+    "log": "/tmp/ws282-target-race.log",
+    "log_sha256": "254898e99a2814326a77b9f95ba43344a588b687cf8714a8c0154f4ec98cb9a9"
+  }
+]

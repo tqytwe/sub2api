@@ -35,6 +35,7 @@ func RegisterAdminRoutes(
 		admin.GET("/requests/:id", h.RequestLedger.GetAdmin)
 		admin.GET("/requests/:id/routing", h.RequestLedger.RoutingAdmin)
 		admin.GET("/requests/:id/identifiers", h.RequestLedger.IdentifierAdmin)
+		admin.GET("/requests/:id/ws-end", h.RequestLedger.WSEndAdmin)
 		admin.GET("/requests/:id/usage/:usage_id", h.RequestLedger.UsageAdmin)
 	}
 	{

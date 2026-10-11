@@ -116,3 +116,5 @@
 
 - [管理员选路详情接线记录](./archive/completed-tasks/admin-routing-detail/README.md)（2026-10-11，已普通合入正式#359并完成真实JWT/HTTP/PG/实际资源组合；UI仍为草稿）
 - [管理员选路详情视觉审查](./visual-reviews/2026-10-11-admin-routing-detail.md)（基线/原型/实际资源、360px既有英文header边界）
+
+- [WS attempt 结束证据后端候选](./archive/completed-tasks/2026-10-11-ws-attempt-end-evidence/README.md)

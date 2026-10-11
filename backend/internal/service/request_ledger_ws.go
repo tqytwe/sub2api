@@ -3,7 +3,9 @@ package service
 import (
 	"context"
 	"errors"
+	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"sync"
 
@@ -28,6 +30,11 @@ func beginLedgerWSAttempt(ctx context.Context, account *Account) (*requestledger
 }
 
 func finishLedgerWSAttempt(ctx context.Context, attempt *requestledger.Attempt, cause error) {
+	observeLedgerWSEnd(attempt, nil, cause, requestledger.WSEndObservation{})
+	finishLedgerWSAttemptState(ctx, attempt, cause)
+}
+
+func finishLedgerWSAttemptState(ctx context.Context, attempt *requestledger.Attempt, cause error) {
 	if err := attempt.Finish(ctx, 0, cause); err != nil {
 		slog.Error("request_ledger_ws_attempt_finish_failed")
 	}
@@ -62,9 +69,9 @@ func (c *requestLedgerWSFrameConn) WriteFrame(ctx context.Context, kind coderws.
 	err := c.inner.WriteFrame(ctx, kind, payload)
 	if err != nil {
 		if turn > 0 {
-			c.finishTurn(ctx, turn, nil, err)
+			c.finishTurn(ctx, turn, nil, err, requestledger.WSEndObservation{Stage: "write_upstream", StageSource: "frame_write"})
 		} else {
-			c.finish(ctx, err)
+			c.finish(ctx, err, requestledger.WSEndObservation{Stage: "write_upstream", StageSource: "frame_write"})
 		}
 	}
 	return err
@@ -94,7 +101,7 @@ func (c *requestLedgerWSFrameConn) receiptForWrite() requestledger.Receipt {
 	}
 	return requestledger.Receipt{}
 }
-func (c *requestLedgerWSFrameConn) finishTurn(ctx context.Context, turn int, result *OpenAIForwardResult, cause error) {
+func (c *requestLedgerWSFrameConn) finishTurn(ctx context.Context, turn int, result *OpenAIForwardResult, cause error, diagnostic ...requestledger.WSEndObservation) {
 	c.mu.Lock()
 	attempt := c.attempts[turn]
 	delete(c.attempts, turn)
@@ -105,15 +112,20 @@ func (c *requestLedgerWSFrameConn) finishTurn(ctx context.Context, turn int, res
 	if result != nil && (result.RequestID != "" || result.UpstreamTerminalEvent != "" || result.FirstTokenMs != nil || result.HasObservedUsage()) {
 		attempt.ObserveOutput(ctx)
 	}
-	finishLedgerWSResult(ctx, attempt, result, cause)
+	finishLedgerWSResult(ctx, attempt, result, cause, diagnostic...)
 }
-func (c *requestLedgerWSFrameConn) finish(ctx context.Context, cause error) {
+func (c *requestLedgerWSFrameConn) finish(ctx context.Context, cause error, diagnostic ...requestledger.WSEndObservation) {
+	observation := requestledger.WSEndObservation{Stage: "cleanup", StageSource: "cleanup"}
+	if len(diagnostic) > 0 {
+		observation = diagnostic[0]
+	}
 	c.mu.Lock()
 	attempts := c.attempts
 	c.attempts = nil
 	c.mu.Unlock()
 	for _, attempt := range attempts {
-		finishLedgerWSAttempt(ctx, attempt, cause)
+		observeLedgerWSEnd(attempt, nil, cause, observation)
+		finishLedgerWSAttemptState(ctx, attempt, cause)
 	}
 }
 func (c *requestLedgerWSFrameConn) Close() error { return c.inner.Close() }
@@ -130,13 +142,19 @@ func dialWSWithLedger(ctx context.Context, dialer openAIWSClientDialer, account 
 		err = errors.New("openai ws dialer returned nil connection")
 	}
 	a.ObserveIdentifiers(ctx, requestledger.UpstreamRequestID(responseHeaders), "")
+	observeLedgerWSEnd(a, nil, err, requestledger.WSEndObservation{Stage: "dial", StageSource: "dial"})
 	if finishErr := a.Finish(ctx, status, err); finishErr != nil {
 		slog.Error("request_ledger_ws_handshake_finish_failed")
 	}
 	return conn, status, responseHeaders, a.WrapError(err)
 }
 
-func finishLedgerWSResult(ctx context.Context, attempt *requestledger.Attempt, result *OpenAIForwardResult, cause error) {
+func finishLedgerWSResult(ctx context.Context, attempt *requestledger.Attempt, result *OpenAIForwardResult, cause error, diagnostic ...requestledger.WSEndObservation) {
+	observation := requestledger.WSEndObservation{}
+	if len(diagnostic) > 0 {
+		observation = diagnostic[0]
+	}
+	observeLedgerWSEnd(attempt, result, cause, observation)
 	if result != nil {
 		attempt.ObserveIdentifiers(ctx, requestledger.UpstreamRequestID(result.ResponseHeaders), "")
 	}
@@ -153,5 +171,78 @@ func finishLedgerWSResult(ctx context.Context, attempt *requestledger.Attempt, r
 			cause = context.Canceled
 		}
 	}
-	finishLedgerWSAttempt(ctx, attempt, cause)
+	finishLedgerWSAttemptState(ctx, attempt, cause)
+}
+
+// Interpret only typed, existing result/error metadata. This observer never
+// wraps or substitutes the business error, and never copies error text.
+func observeLedgerWSEnd(attempt *requestledger.Attempt, result *OpenAIForwardResult, cause error, observation requestledger.WSEndObservation) {
+	if attempt == nil {
+		return
+	}
+	if observation.Stage == "" {
+		var ingress *openAIWSIngressTurnError
+		var fallback *openAIWSFallbackError
+		switch {
+		case errors.As(cause, &ingress) && ingress != nil:
+			observation.Stage, observation.StageSource = ingress.stage, "ingress_turn_error"
+			observation.WroteDownstream, observation.WroteDownstreamScope = &ingress.wroteDownstream, "attempt"
+		case errors.As(cause, &fallback) && fallback != nil:
+			observation.Stage, observation.StageSource = fallback.Reason, "fallback_error"
+		}
+	}
+	if result != nil {
+		observation.ResultObserved = true
+		observation.TerminalEvent = result.UpstreamTerminalEvent
+		observation.PositiveUnitsObserved = result.HasObservedUsage()
+	}
+	if observation.ReasonSource == "" {
+		observation.ReasonSource = "finish_cause"
+	}
+	if observation.Reason == "" {
+		observation.Reason = ledgerWSEndReason(cause)
+		if cause == nil && result != nil {
+			switch result.UpstreamTerminalEvent {
+			case "response.failed":
+				observation.Reason, observation.ReasonSource = "upstream_failed", "ws_forward_result"
+			case "response.incomplete":
+				observation.Reason, observation.ReasonSource = "upstream_incomplete", "ws_forward_result"
+			case "response.cancelled":
+				observation.Reason, observation.ReasonSource = "upstream_cancelled", "ws_forward_result"
+			}
+		}
+	}
+	attempt.Receipt().ObserveWSEnd(observation)
+}
+
+func ledgerWSEndReason(cause error) string {
+	var networkError net.Error
+	var failover *openAIWSCurrentTurnFailoverError
+	var upstreamFailover *UpstreamFailoverError
+	switch {
+	case cause == nil:
+		return "none"
+	case errors.Is(cause, errOpenAIWSSessionPreempted):
+		return "session_preempted"
+	case errors.Is(cause, ErrOpenAIWSIngressLeaseLost):
+		return "ingress_lease_lost"
+	case errors.Is(cause, context.Canceled):
+		return "cancelled"
+	case errors.Is(cause, context.DeadlineExceeded):
+		return "deadline_exceeded"
+	case errors.Is(cause, errOpenAIWSPassthroughFirstOutputTimeout), errors.Is(cause, errOpenAIWSPassthroughActiveTurnTimeout):
+		return "timeout"
+	case errors.Is(cause, io.ErrUnexpectedEOF):
+		return "unexpected_eof"
+	case errors.Is(cause, io.EOF):
+		return "eof"
+	case errors.As(cause, &networkError) && networkError.Timeout():
+		return "timeout"
+	case coderws.CloseStatus(cause) != -1:
+		return "websocket_close"
+	case errors.As(cause, &failover) || errors.As(cause, &upstreamFailover):
+		return "failover"
+	default:
+		return "unknown"
+	}
 }

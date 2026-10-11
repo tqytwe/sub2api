@@ -51,7 +51,7 @@ func NewWithDSN(t *testing.T) (*sql.DB, string) {
 		t.FailNow()
 	}
 	_, source, _, _ := runtime.Caller(0)
-	for _, name := range []string{"275_gateway_request_ledger.sql", "276_gateway_request_correlation.sql", "279_gateway_routing_evidence.sql", "281_gateway_identifier_diagnostics.sql"} {
+	for _, name := range []string{"275_gateway_request_ledger.sql", "276_gateway_request_correlation.sql", "279_gateway_routing_evidence.sql", "281_gateway_identifier_diagnostics.sql", "282_gateway_ws_attempt_end_evidence.sql"} {
 		content, err := os.ReadFile(filepath.Join(filepath.Dir(source), "..", "..", "..", "migrations", name))
 		require.NoError(t, err)
 		for range 2 {

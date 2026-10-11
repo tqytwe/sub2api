@@ -336,6 +336,8 @@
 
 ## FORK-REQUEST-LEDGER-020 持久请求台账
 
+- WS attempt 结束诊断（本分支候选）：精确 Receipt 与白名单本地结束快照，独立非阻塞有界异步写入及 admin-only 子资源；terminal 范围仅 normalized result，usage_presence 恒 unknown。迁移282增量兼容旧 writer，不改调度、重试、业务 Finish、结算或公开错误，无 UI/历史回填；[合同及验证](./archive/completed-tasks/2026-10-11-ws-attempt-end-evidence/README.md)。
+
 - 产品目的：受管请求从入口就有可审计证据，拒绝、取消、断流和崩溃后未知消费可被查到并归因。
 - 不变量：私有请求 UUID 在鉴权前提交；发送前提交 attempt；执行/用量/结算为独立状态轴；身份与调度/凭据母账号可追溯；未知用量不是零费用；不更改原计费策略和幂等键，不补造历史或补扣。只存必需元数据与安全枚举，不存 key、正文或任意上游错误文本；用户 SQL 只能读自己的记录。
 - 关键位置：`backend/internal/requestledger/`、`backend/migrations/275_gateway_request_ledger.sql`、`backend/migrations/276_gateway_request_correlation.sql`、`backend/internal/handler/request_ledger_handler.go`、`frontend/src/views/shared/RequestLedgerView.vue`。

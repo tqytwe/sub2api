@@ -1,0 +1,40 @@
+{
+  "shared_row_plan": "rejected before commit/PR",
+  "failure": "new WS row lock suppressed legacy identifier writer; reverse WS loss observed",
+  "deterministic_red": {
+    "path": "/tmp/ws282-writer-isolation-red.log",
+    "sha256": "c72156de363c493e8a205bb758de422e8e262a069f906d2dbd6a1ff3b51db075"
+  },
+  "race_failure": [
+    {
+      "name": "target-race",
+      "command": [
+        "go",
+        "test",
+        "-race",
+        "-tags=integration",
+        "./internal/requestledger/...",
+        "./internal/repository",
+        "./internal/server/routes",
+        "./internal/service",
+        "-run",
+        "WSEnd|TestRequestLedgerPassthroughWaitsForAuthoritativeTurn|TestRequestLedgerWSLateUsageDoesNotMarkTheNextAttemptKnown|TestRequestLedgerDelayedWSFailureCannotCopyNextTurn|TestRequestLedgerRealWebsocket1013AndEOFWithoutUsage|TestRequestLedgerNativeWebsocketTwoTurnsWithRealPostgres",
+        "-count=1",
+        "-timeout=8m",
+        "-json"
+      ],
+      "exit_code": 1,
+      "started_at": "2026-10-11T15:16:11.149002+00:00",
+      "finished_at": "2026-10-11T15:21:56.709002+00:00",
+      "elapsed_seconds": 345.56,
+      "log": "/tmp/ws282-shared-row-target-failure.log",
+      "log_sha256": "d461f2ed10c4b62a063a25901fa9762aa255552e0822d703a482c30a06a92591"
+    }
+  ],
+  "resolution": "282独立表已依次通过规格与质量增量复审；确定性并发隔离和最终目标 race 均通过。完整门禁仍待完成。",
+  "deterministic_green": {
+    "path": "/tmp/ws282-writer-isolation-green.log",
+    "sha256": "4a7cd6ea0c28d524feff20069d3e74afb7cebb06e9f2a4e688c0f38b586ebcd2",
+    "result": "pass"
+  }
+}
