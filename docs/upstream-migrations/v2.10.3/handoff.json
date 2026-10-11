@@ -23,7 +23,7 @@
       "product_state": "可测",
       "owner": "主线程协调",
       "pr": null,
-      "sha": null,
+      "sha": "57b11c4bece17aae9e14d338f54b24d0789fdc2c",
       "evidence": {
         "ui": {
           "status": "recorded",
@@ -66,7 +66,7 @@
         }
       },
       "risks": "不推断历史指纹、token、unknown零费用；completed旧记录不修复。零capture无钱包用例仅验证真实保留证明，不覆盖公共零价格跳过hold的既有问题。受限usage_billing_repo.go未修改。",
-      "next": "技术验证通过；PR创建前编号未知暂为null，创建后由主线程核实准确head/CI并补记录。不合并部署；生产自然流量、对账及用户本机三身份验收待协调。",
+      "next": "技术验证SHA 57b11c4bece17aae9e14d338f54b24d0789fdc2c；其后仅交接元数据提交，运行源码与验证相同。PR创建前编号未知暂为null，创建后由主线程核实准确head/CI并补记录。不合并部署；生产自然流量、对账及用户本机三身份验收待协调。",
       "rollback": "协调应用回滚；保留277新增索引与已有台账/usage，不改历史SQL、不删数据。"
     },
     {
