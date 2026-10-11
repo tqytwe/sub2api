@@ -23,7 +23,7 @@
       "product_state": "实现中",
       "owner": "主线程协调",
       "pr": null,
-      "sha": null,
+      "sha": "0702e5bf41018a1aef8b8f9ff4fcb931ddfc4160",
       "evidence": {
         "ui": {
           "status": "pending",
@@ -64,7 +64,7 @@
         }
       },
       "risks": "128条/32KiB、队列64，压力或崩溃可以丢候选明细但显示incomplete；source_population_complete恒false。非HTTP文本/媒体/WS不覆盖，不改调度或计费。",
-      "next": "原基线23d06337；正常FF合入05b44bec5保留#352，无rebase/force。最终PR/SHA由草稿交接时补充；未重验其他快照条目，checked_at不前移。后续UI、CI及合并部署由主线程协调。",
+      "next": "原基线23d06337；正常FF合入05b44bec5保留#352，无rebase/force。技术验证SHA 0702e5bf41018a1aef8b8f9ff4fcb931ddfc4160；后继提交仅交接元数据。PR创建前编号未知，链接随草稿交接给主线程补记，保持完整CI仅由PR触发一次；未重验其他快照条目，checked_at不前移。后续UI、CI及合并部署由主线程协调。",
       "rollback": "协调应用源码回退，保留279新增列/表和已有证据；不删除/回填历史，不改旧SQL/checksum，不补扣。"
     },
     {

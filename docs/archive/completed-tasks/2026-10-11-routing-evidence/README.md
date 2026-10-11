@@ -96,3 +96,5 @@ CI 只由独立草稿 PR 触发一次，不合并或部署。
 [prior-failures.txt](./prior-failures.txt)。最终单独执行make test时限制Go内存4GiB通过，
 没有删测试、放宽断言或手工终止检查。精确结果见[validation.json](./validation.json)，
 源码对应[tested-source-sha256.txt](./tested-source-sha256.txt)。CI、合并部署和用户本机验收另行记录。
+
+技术验证提交：`0702e5bf41018a1aef8b8f9ff4fcb931ddfc4160`；后继提交仅补交接元数据，源码校验清单不变。
