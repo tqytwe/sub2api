@@ -1,11 +1,11 @@
 {
   "base": "95c308f54e30fb6776b2215b6139fc25fa85b6d4",
   "files": {
-    "backend/internal/service/model_rate_limit.go": "9016285bd3323db4d4bdca643cd7fe13c579aea34d28e402819312c03b21f51c",
-    "backend/internal/service/gateway_model_availability.go": "680c1d92d5f22c4dd12cc0a66f893ba388a99a1b2f2319081007f58579cb421e",
-    "backend/internal/service/openai_gateway_model_availability.go": "e1cd4784c263286ae09e9580478deefa012857a41ef134c455888b435a85ab4d",
-    "backend/internal/service/model_capability_diagnosis_test.go": "c43ae1f8e5fa940b313d070eb84b73ef273e896c8bcedeab57bbe44b9ea06c35",
-    "backend/internal/handler/model_capability_diagnosis_contract_test.go": "93402430fc3023c763878549e469ead3c587fb71be4fcd618696c1242e73724f"
+    "backend/internal/service/model_rate_limit.go": "a56349fc1b4e6e0df2321aaaff441ac5f0395e2a96a90bd9c834a86f121ebb50",
+    "backend/internal/service/gateway_model_availability.go": "b3c1ecedb7f97fa1d448161b3517c012d7cf9531bf41ff639baa4dbffa11ac73",
+    "backend/internal/service/openai_gateway_model_availability.go": "2b73a2dd8e00ded5f39e0ee598cd5fddb61035f94f5cf59497d7b9a64b099650",
+    "backend/internal/service/model_capability_diagnosis_test.go": "9a71aca803305bddf195362347c930db23f93b9e4bcb720e4d328fa15161ae0f",
+    "backend/internal/handler/model_capability_diagnosis_contract_test.go": "4a6cf6595148b97f8fc03b5840de8917e84957f4a1260ff2c3be8f05f3333935"
   },
   "hot_prs": {
     "364": {
@@ -29,5 +29,6 @@
   "formal_lock_unchanged": true,
   "inherited_365_intersection": [],
   "frontend_reuse": "Same frontend tree as reviewed #366/#365; reuse archived frontend lint/typecheck/3825 tests/build and final #366 CI, no frontend changes.",
-  "scope": "Only diagnosis and tests; no admission/retry/billing/parser/token/expiry or SQL changes. Full model-capability remains incomplete."
+  "scope": "Only diagnosis and tests; no admission/retry/billing/parser/token/expiry or SQL changes. Full model-capability remains incomplete.",
+  "supersedes": "8d50ad5bb: root P2 actual provider identity; see provider-identity/README.md"
 }

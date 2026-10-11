@@ -5,6 +5,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/config"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/claude"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
 )
 
@@ -216,12 +218,36 @@ func (a *Account) modelCapabilityRejected(scope string) bool {
 
 // Use the actual outbound model, including Codex alias normalization, so a
 // public alias cannot hide a previously observed model capability rejection.
-func (a *Account) modelCapabilityRejectedForRequest(ctx context.Context, model string) bool {
+func (a *Account) modelCapabilityRejectedForRequest(ctx context.Context, model string, cfg *config.Config) bool {
 	scope := a.GetMappedModel(model)
-	if a.IsOpenAICompatible() {
+	if a.IsOpenAI() {
+		// Reuse the actual scheduling identity, including channel context, native-v2
+		// opt-out and configured legacy compact fallback. This does not schedule.
+		resolver := OpenAIGatewayService{cfg: cfg}
+		scope = resolver.resolveOpenAIRequestSchedulingModel(ctx, a, model, false)
+	} else if a.IsOpenAICompatible() {
 		scope = resolveOpenAIAccountUpstreamModelForRequest(a, model, false)
 	} else if a.Platform == PlatformAntigravity {
 		scope = resolveFinalAntigravityModelKey(ctx, a, model)
+	}
+	if a.Platform == PlatformAnthropic {
+		// Mirror gateway_forward's provider identity before the rate-limit writer
+		// resolves its storage key. OAuth/setup tokens normalize short IDs; Vertex
+		// gives explicit account mappings precedence over its dated-ID form.
+		outbound := model
+		switch a.Type {
+		case AccountTypeAPIKey:
+			outbound = a.GetMappedModel(model)
+		case AccountTypeServiceAccount:
+			if mapped, matched := a.ResolveMappedModel(model); matched {
+				outbound = mapped
+			} else {
+				outbound = normalizeVertexAnthropicModelID(claude.NormalizeModelID(model))
+			}
+		default:
+			outbound = claude.NormalizeModelID(model)
+		}
+		scope = modelRateLimitKeyForUpstreamModelNotFound(ctx, a, outbound)
 	}
 	return a.modelCapabilityRejected(scope)
 }

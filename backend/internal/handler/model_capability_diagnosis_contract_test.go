@@ -103,3 +103,44 @@ func TestModelCapabilityDiagnosisHTTP(t *testing.T) {
 		})
 	}
 }
+
+func TestModelCapabilityDiagnosisForwardContextHTTP(t *testing.T) {
+	for _, tc := range []struct {
+		name, forward, compactTarget, blocked string
+		compact                               bool
+		status                                int
+	}{
+		{"channel public rejected", "provider-model", "", "public-model", false, 503},
+		{"channel provider rejected", "provider-model", "", "provider-model", false, 404},
+		{"legacy public rejected", "public-model", "compact-model", "public-model", true, 503},
+		{"legacy compact rejected", "public-model", "compact-model", "compact-model", true, 404},
+		{"native v2 ignores legacy mapping", "public-model", "compact-model", "compact-model", false, 503},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			until := time.Now().Add(time.Hour)
+			a := service.Account{ID: 1, Platform: service.PlatformOpenAI, Type: service.AccountTypeAPIKey, Status: service.StatusActive, Schedulable: true, OverloadUntil: &until, Credentials: map[string]any{}, Extra: map[string]any{"openai_compact_mode": "force_on", "model_rate_limits": map[string]any{tc.blocked: map[string]any{"reason": "upstream_404_model_not_found", "rate_limit_reset_at": until.Format(time.RFC3339)}}}}
+			if tc.compactTarget != "" {
+				a.Credentials["compact_model_mapping"] = map[string]any{tc.forward: tc.compactTarget}
+			}
+			svc := service.NewOpenAIGatewayService(capabilityDiagnosisRepo{accounts: []service.Account{a}}, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+			group := int64(7)
+			key := &service.APIKey{GroupID: &group}
+			r := gin.New()
+			r.POST("/diagnose", func(c *gin.Context) {
+				c.Request = c.Request.WithContext(service.WithOpenAIForwardModel(c.Request.Context(), tc.forward, tc.compact))
+				cls := classifyNoAccountErrorFromGin(c, svc, key, "public-model", "public-model", service.PlatformOpenAI)
+				c.Header("X-Test-Business-Limited", fmt.Sprint(service.HasOpsClientBusinessLimited(c)))
+				c.JSON(cls.Status, gin.H{"error": gin.H{"type": cls.ErrType}})
+			})
+			server := httptest.NewServer(r)
+			defer server.Close()
+			client := server.Client()
+			client.Timeout = 3 * time.Second
+			res, err := client.Post(server.URL+"/diagnose", "application/json", nil)
+			require.NoError(t, err)
+			defer res.Body.Close()
+			require.Equal(t, tc.status, res.StatusCode)
+			require.Equal(t, fmt.Sprint(tc.status == 404), res.Header.Get("X-Test-Business-Limited"))
+		})
+	}
+}

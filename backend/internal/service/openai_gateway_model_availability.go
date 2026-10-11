@@ -73,7 +73,7 @@ func (s *OpenAIGatewayService) DiagnoseModelAvailabilityForPlatform(
 		// model_mapping accepts everything; otherwise the explicit / wildcard
 		// mapping must match.
 		if accounts[i].IsModelSupportedInGroup(groupID, requestedModel) &&
-			!accounts[i].modelCapabilityRejectedForRequest(ctx, requestedModel) {
+			!accounts[i].modelCapabilityRejectedForRequest(ctx, requestedModel, s.cfg) {
 			diag.HasModelSupport = true
 			return diag
 		}

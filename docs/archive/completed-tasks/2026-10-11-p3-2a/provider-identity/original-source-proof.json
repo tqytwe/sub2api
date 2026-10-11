@@ -1,0 +1,33 @@
+{
+  "base": "95c308f54e30fb6776b2215b6139fc25fa85b6d4",
+  "files": {
+    "backend/internal/service/model_rate_limit.go": "9016285bd3323db4d4bdca643cd7fe13c579aea34d28e402819312c03b21f51c",
+    "backend/internal/service/gateway_model_availability.go": "680c1d92d5f22c4dd12cc0a66f893ba388a99a1b2f2319081007f58579cb421e",
+    "backend/internal/service/openai_gateway_model_availability.go": "e1cd4784c263286ae09e9580478deefa012857a41ef134c455888b435a85ab4d",
+    "backend/internal/service/model_capability_diagnosis_test.go": "c43ae1f8e5fa940b313d070eb84b73ef273e896c8bcedeab57bbe44b9ea06c35",
+    "backend/internal/handler/model_capability_diagnosis_contract_test.go": "93402430fc3023c763878549e469ead3c587fb71be4fcd618696c1242e73724f"
+  },
+  "hot_prs": {
+    "364": {
+      "head": "88cdf3395288723f305e18fbe4a4352d58670efc",
+      "intersection": []
+    },
+    "367": {
+      "head": "2e2b839f5ef2fc4b09b4adc2b3780fb8993d4619",
+      "intersection": []
+    },
+    "368": {
+      "head": "db13bc5c4932533b3943a95be12fa952c377a592",
+      "intersection": []
+    }
+  },
+  "unchanged_trees": {
+    "frontend": "cadf09348e846bf456a99d934fb0626c32be0d09",
+    "backend/migrations": "c23b7d1f504bb86b6c065fc627d3f1e37480377f",
+    ".github": "418927ad0ada5fd37db41a922d0298fc2375b440"
+  },
+  "formal_lock_unchanged": true,
+  "inherited_365_intersection": [],
+  "frontend_reuse": "Same frontend tree as reviewed #366/#365; reuse archived frontend lint/typecheck/3825 tests/build and final #366 CI, no frontend changes.",
+  "scope": "Only diagnosis and tests; no admission/retry/billing/parser/token/expiry or SQL changes. Full model-capability remains incomplete."
+}

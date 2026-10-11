@@ -114,7 +114,7 @@ func (s *GatewayService) DiagnoseModelAvailabilityForPlatform(
 		}
 		diag.HasAccountsInPool = true
 		if s.isModelSupportedByAccountInGroup(ctx, &accounts[i], groupID, requestedModel) &&
-			!accounts[i].modelCapabilityRejectedForRequest(ctx, requestedModel) {
+			!accounts[i].modelCapabilityRejectedForRequest(ctx, requestedModel, s.cfg) {
 			diag.HasModelSupport = true
 			return diag
 		}
