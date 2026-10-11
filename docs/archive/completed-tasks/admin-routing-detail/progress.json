@@ -14,5 +14,8 @@
   },
   "browser": "actual new resources: synthetic routing/auth plus real HTTP/PG core ledger both passed; zero page errors",
   "dependency": "PR359 add3fa4d open/unmerged; no unpublished backend merge; real routing PG pending",
-  "production": "No merge/deploy/secret access/generation"
+  "production": "No merge/deploy/secret access/generation",
+  "pr": "https://github.com/tqytwe/sub2api/pull/363",
+  "tested_combination_commit": "7462d8fc8730b064e7c56447a9570a53ab54a9a8",
+  "delivery": "Pushed draft; no merge/deployment; final documentation head reported separately"
 }

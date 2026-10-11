@@ -22,8 +22,8 @@
       "backend_state": "可测",
       "product_state": "可测",
       "owner": "主线程协调",
-      "pr": null,
-      "sha": null,
+      "pr": "https://github.com/tqytwe/sub2api/pull/363",
+      "sha": "7462d8fc8730b064e7c56447a9570a53ab54a9a8",
       "evidence": {
         "ui": {
           "status": "recorded",
@@ -68,7 +68,7 @@
         }
       },
       "risks": "旧27条503与gpt22历史不可追溯恢复。覆盖仅OpenAI-compatible HTTP文本，WS/媒体/Anthropic/Gemini排除。英文用户360px既有全局溢出：最新旧/新同为466px，前轮489px、组合初跑503px；详情360px。未扩展修全局header，不称全站响应式通过。",
-      "next": "普通合并6ae024e6并保留auth核心，组合定向及实际资源复验通过，适用全量门禁通过，推送独立草稿待主线程审查。#359未合并，须正式主线依赖+真实routing HTTP/PG组合、准确head CI后交主线程审查；不合并部署。",
+      "next": "已推送草稿#363，已测普通合并7462d8fc保留6ae auth核心；最终PR head可含交接文档提交。待准确head CI与主线程审查。#359未合并，须正式主线依赖+真实routing HTTP/PG组合后再评估；不合并部署。",
       "rollback": "如管理员数据泄露、迟到串号或账单受影响，停止推进并由主线程审查源码revert；本UI不删除证据/迁移或改账务。"
     },
     {

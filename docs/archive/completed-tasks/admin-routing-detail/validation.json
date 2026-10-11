@@ -2,7 +2,7 @@
   "collected_at": "2026-10-11T11:49:18.073133+00:00",
   "base": "6ae024e6b732b64b2ce6f7ba56c5be4e20b88bdb",
   "technical_commit": "aa804d32e43f1be133c3632f04c6063959544b19",
-  "combination_commit": null,
+  "combination_commit": "7462d8fc8730b064e7c56447a9570a53ab54a9a8",
   "previous_validation": "pre-362/validation.json",
   "dependency": {
     "pr": 359,
@@ -482,5 +482,7 @@
     "Next targeted/full make test:1 new reverse-login test raced existing asynchronous URL clearing; explicitly await clear before reopening, no product change",
     "First combination browser strict old489px header assertion saw503px; repeat baseline/current both466px; report measured outside-scope global overflow, retain dialog bounds and all admin width assertions",
     "Original fb baseline RED/failure/corrected evidence retained in pre-362 and original logs"
-  ]
+  ],
+  "draft_pr": "https://github.com/tqytwe/sub2api/pull/363",
+  "ci": "Pending exact final-head checks by main thread; not a release approval"
 }

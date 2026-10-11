@@ -90,3 +90,7 @@ publication failure/recovery; independent actual HTTP/PG core ledger capture pas
 All356 captured resource hashes match final output; see validation.json/assets.sha256.
 Latest old/new user360 header measurements both466px; earlier489px and first combination503px
 are retained. Dialogs remain360px, admin widths within viewport; no global responsive claim.
+
+Draft PR: [363](https://github.com/tqytwe/sub2api/pull/363). Tested combination commit: `7462d8fc8730b064e7c56447a9570a53ab54a9a8`.
+The final PR head may include documentation-only handoff metadata; source preservation proof
+and build hashes remain attached to this tested combination. No merge or deployment performed.
