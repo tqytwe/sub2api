@@ -181,7 +181,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { Account } from '@/types'
 import {
@@ -219,12 +219,18 @@ const creditsCacheWarning = ref(false)
 
 const readCachedCredits = (account: Account) => {
   const snapshot = account.extra?.codex_credits_snapshot
-  const credits = snapshot?.credits
-  if (!credits || typeof credits.has_credits !== 'boolean' || typeof credits.unlimited !== 'boolean') return null
-  if (credits.balance != null && typeof credits.balance !== 'string') return null
-  return { credits, fetched_at: snapshot.fetched_at }
+  if (!snapshot) return null
+  const credits = snapshot.credits
+  // Unknown is still a dated observation; retain its freshness boundary.
+  if (!credits || typeof credits.has_credits !== 'boolean' || typeof credits.unlimited !== 'boolean' ||
+    (credits.balance != null && typeof credits.balance !== 'string')) {
+    return { credits: null, fetched_at: snapshot.fetched_at }
+  }
+  return { credits: { ...credits }, fetched_at: snapshot.fetched_at }
 }
 const creditsData = ref(readCachedCredits(props.account))
+let accountGeneration = 0
+let creditsRevision = 0
 const creditsDisplay = computed(() => {
   const credits = creditsData.value?.credits
   if (!credits) return '—'
@@ -245,7 +251,7 @@ const creditsButtonTitle = computed(() => {
 })
 
 const updateCredits = (usage: OpenAIQuotaUsage | null) => {
-  creditsData.value = usage?.credits ? { credits: usage.credits, fetched_at: usage.fetched_at } : null
+  creditsData.value = usage ? { credits: usage.credits ?? null, fetched_at: usage.fetched_at } : null
 }
 
 type AutoResetCreditState = NonNullable<NonNullable<Account['extra']>['codex_auto_reset_credit_state']>
@@ -435,6 +441,9 @@ const toggleResetCreditDetails = () => {
 const handleQuery = async () => {
   if (loading.value || resetting.value) return
   const accountID = props.account.id
+  const generation = accountGeneration
+  const revision = creditsRevision
+  const isCurrent = () => generation === accountGeneration && props.account.id === accountID
   loading.value = true
   creditsCacheWarning.value = false
   error.value = null
@@ -443,9 +452,14 @@ const handleQuery = async () => {
   showResetCreditDetails.value = false
   try {
     const result = await refreshOpenAIQuota(accountID)
-    if (props.account.id !== accountID) return
-    updateCredits(result)
-    creditsCacheWarning.value = result.credits_cache_persisted === false
+    if (!isCurrent()) return
+    // A list refresh may have delivered a new snapshot while this read waited.
+    const currentTime = creditsData.value?.fetched_at
+    const isOlder = currentTime != null && result.fetched_at < currentTime
+    if (!isOlder && (revision === creditsRevision || (currentTime != null && result.fetched_at > currentTime))) {
+      updateCredits(result)
+      creditsCacheWarning.value = result.credits_cache_persisted === false
+    }
     // The upstream read succeeded even when the snapshot write was rejected, so
     // the live count is always adopted. Only the persisted view is left alone,
     // which keeps the displayed expirations consistent with what is stored.
@@ -456,10 +470,10 @@ const handleQuery = async () => {
       resetWarning.value = t('admin.accounts.openaiQuotaReset.refreshCachePersistFailed')
     }
   } catch (e) {
-    if (props.account.id !== accountID) return
+    if (!isCurrent()) return
     error.value = extractErrorMessage(e)
   } finally {
-    if (props.account.id === accountID) loading.value = false
+    if (isCurrent()) loading.value = false
   }
 }
 
@@ -523,6 +537,8 @@ const confirmReset = async () => {
 watch(
   () => props.account.id,
   () => {
+    // Invalidate pending reads even when the row later returns to the same ID.
+    accountGeneration++
     // Account row may be reused across paginated lists; reset local state.
     cachedData.value = readCachedResetCredits(props.account)
     data.value = cachedData.value
@@ -537,6 +553,29 @@ watch(
     showResetCreditDetails.value = false
   }
 )
+
+// Snapshot-only updates must not issue another upstream query or consume cards.
+watch(
+  () => props.account.extra?.codex_credits_snapshot,
+  () => {
+    const cached = readCachedCredits(props.account)
+    const currentTime = creditsData.value?.fetched_at
+    const cachedTime = cached?.fetched_at
+    // A delayed persisted snapshot must not roll back a newer live response.
+    if (cachedTime != null && currentTime != null && cachedTime < currentTime) return
+    const current = creditsData.value
+    if (cachedTime === currentTime && cached?.credits?.has_credits === current?.credits?.has_credits &&
+      cached?.credits?.unlimited === current?.credits?.unlimited && cached?.credits?.balance === current?.credits?.balance) return
+    creditsRevision++
+    creditsData.value = cached
+    creditsCacheWarning.value = false
+  },
+  { deep: true }
+)
+
+onBeforeUnmount(() => {
+  accountGeneration++
+})
 
 watch(
   resetCreditExpirations,

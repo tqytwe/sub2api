@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
+import { nextTick, reactive } from 'vue'
 import OpenAIQuotaResetCell from '../OpenAIQuotaResetCell.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import type { Account } from '@/types'
@@ -101,6 +102,234 @@ describe('OpenAIQuotaResetCell — Codex 点数', () => {
     expect(points(wrapper).attributes('title')).toContain('admin.accounts.openaiQuotaReset.pointsUpdatedAt:')
     expect(refreshOpenAIQuota).not.toHaveBeenCalled()
     expect(resetButton(wrapper).attributes('disabled')).toBeDefined()
+    wrapper.unmount()
+  })
+
+  it('follows same-ID snapshots and timestamp without querying or resetting', async () => {
+    const wrapper = mount(OpenAIQuotaResetCell, { props: { account: makeAccount({
+      extra: { codex_credits_snapshot: { credits: balance, fetched_at: 1770000000 } },
+    }) } })
+    await wrapper.setProps({ account: makeAccount({
+      extra: { codex_credits_snapshot: { credits: { ...balance, balance: '42.50' }, fetched_at: 1770000200 } },
+    }) })
+    expect(points(wrapper).text()).toContain('42.50')
+    expect(points(wrapper).attributes('title')).toContain(new Date(1770000200 * 1000).toLocaleString())
+    expect(refreshOpenAIQuota).not.toHaveBeenCalled()
+    expect(resetOpenAIQuota).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it.each([{ credits: null, fetched_at: 1770000200 }, undefined])('clears same-ID unknown snapshot %s without inventing zero', async (snapshot) => {
+    const wrapper = mount(OpenAIQuotaResetCell, { props: { account: makeAccount({
+      extra: { codex_credits_snapshot: { credits: balance, fetched_at: 1770000000 } },
+    }) } })
+    await wrapper.setProps({ account: makeAccount({ extra: { codex_credits_snapshot: snapshot } }) })
+    expect(points(wrapper).text()).toContain('—')
+    expect(refreshOpenAIQuota).not.toHaveBeenCalled()
+    expect(resetOpenAIQuota).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('does not overwrite a newer snapshot with an already pending query', async () => {
+    let resolve!: (value: OpenAIQuotaRefreshResult) => void
+    vi.mocked(refreshOpenAIQuota).mockReturnValue(new Promise((done) => { resolve = done }))
+    const wrapper = mount(OpenAIQuotaResetCell, { props: { account: makeAccount({}) } })
+    await points(wrapper).trigger('click')
+    await wrapper.setProps({ account: makeAccount({
+      extra: { codex_credits_snapshot: { credits: { ...balance, balance: '42.50' }, fetched_at: 1770000200 } },
+    }) })
+    resolve({ credits: balance, fetched_at: 1770000000, cache_persisted: true, credits_cache_persisted: false })
+    await flushPromises()
+    expect(points(wrapper).text()).toContain('42.50')
+    expect(wrapper.text()).not.toContain('admin.accounts.openaiQuotaReset.pointsCachePersistFailed')
+    expect(points(wrapper).attributes('disabled')).toBeUndefined()
+    expect(refreshOpenAIQuota).toHaveBeenCalledTimes(1)
+    expect(resetOpenAIQuota).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('does not replace a newer live query with an older persisted snapshot', async () => {
+    vi.mocked(refreshOpenAIQuota).mockResolvedValue({ credits: balance, fetched_at: 1770000200, cache_persisted: true })
+    const wrapper = mount(OpenAIQuotaResetCell, { props: { account: makeAccount({}) } })
+    await points(wrapper).trigger('click')
+    await flushPromises()
+    await wrapper.setProps({ account: makeAccount({
+      extra: { codex_credits_snapshot: { credits: { ...balance, balance: '42.50' }, fetched_at: 1770000000 } },
+    }) })
+    expect(points(wrapper).text()).toContain(balance.balance)
+    wrapper.unmount()
+  })
+
+  it('ignores an old query after switching away and back to the same ID', async () => {
+    let resolve!: (value: OpenAIQuotaRefreshResult) => void
+    vi.mocked(refreshOpenAIQuota).mockReturnValue(new Promise((done) => { resolve = done }))
+    const wrapper = mount(OpenAIQuotaResetCell, { props: { account: makeAccount({}) } })
+    await points(wrapper).trigger('click')
+    await wrapper.setProps({ account: makeAccount({ id: 2 }) })
+    await wrapper.setProps({ account: makeAccount({}) })
+    resolve({ credits: balance, fetched_at: 1770000000, cache_persisted: true })
+    await flushPromises()
+    expect(points(wrapper).text()).toContain('—')
+    wrapper.unmount()
+  })
+
+  it.each(['resolve', 'reject'] as const)('ignores a query that settles after unmount: %s', async (settlement) => {
+    let resolve!: (value: OpenAIQuotaRefreshResult) => void
+    let reject!: (reason: Error) => void
+    vi.mocked(refreshOpenAIQuota).mockReturnValue(new Promise((done, fail) => { resolve = done; reject = fail }))
+    const wrapper = mount(OpenAIQuotaResetCell, { props: { account: makeAccount({}) } })
+    await points(wrapper).trigger('click')
+    // Keep the component's state proxy to observe otherwise invisible late writes.
+    const state = wrapper.vm.$.setupState as Record<string, unknown>
+    wrapper.unmount()
+    if (settlement === 'resolve') resolve({ credits: balance, fetched_at: 1770000000, cache_persisted: true })
+    else reject(new Error('late failure'))
+    await flushPromises()
+    expect(state.creditsData).toBeNull()
+    expect(state.error).toBeNull()
+    expect(wrapper.emitted('account-updated')).toBeUndefined()
+    expect(resetOpenAIQuota).not.toHaveBeenCalled()
+  })
+
+  it('follows nested snapshot mutation including an explicit zero without a request', async () => {
+    const account = reactive(makeAccount({
+      extra: { codex_credits_snapshot: { credits: { ...balance }, fetched_at: 1770000000 } },
+    }))
+    const wrapper = mount(OpenAIQuotaResetCell, { props: { account } })
+    account.extra!.codex_credits_snapshot!.credits = { has_credits: false, unlimited: false, balance: '0' }
+    account.extra!.codex_credits_snapshot!.fetched_at = 1770000200
+    await nextTick()
+    expect(points(wrapper).text()).toContain('0')
+    expect(points(wrapper).text()).not.toContain('—')
+    expect(refreshOpenAIQuota).not.toHaveBeenCalled()
+    expect(resetOpenAIQuota).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('does not leak an older nested snapshot mutation through the displayed balance', async () => {
+    const account = reactive(makeAccount({
+      extra: { codex_credits_snapshot: { credits: { ...balance }, fetched_at: 1770000200 } },
+    }))
+    const wrapper = mount(OpenAIQuotaResetCell, { props: { account } })
+    account.extra!.codex_credits_snapshot!.credits!.balance = '42.50'
+    account.extra!.codex_credits_snapshot!.fetched_at = 1770000000
+    await nextTick()
+    expect(points(wrapper).text()).toContain(balance.balance)
+    wrapper.unmount()
+  })
+
+  it('does not resurrect a balance after a same-ID snapshot becomes unknown', async () => {
+    let resolve!: (value: OpenAIQuotaRefreshResult) => void
+    vi.mocked(refreshOpenAIQuota).mockReturnValue(new Promise((done) => { resolve = done }))
+    const wrapper = mount(OpenAIQuotaResetCell, { props: { account: makeAccount({
+      extra: { codex_credits_snapshot: { credits: balance, fetched_at: 1770000000 } },
+    }) } })
+    await points(wrapper).trigger('click')
+    await wrapper.setProps({ account: makeAccount({
+      extra: { codex_credits_snapshot: { credits: null, fetched_at: 1770000200 } },
+    }) })
+    resolve({ credits: balance, fetched_at: 1770000000, cache_persisted: true })
+    await flushPromises()
+    expect(points(wrapper).text()).toContain('—')
+    expect(points(wrapper).attributes('disabled')).toBeUndefined()
+    expect(resetOpenAIQuota).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('an ABA response cannot clear the loading state of a new query', async () => {
+    let resolveOld!: (value: OpenAIQuotaRefreshResult) => void
+    let resolveNew!: (value: OpenAIQuotaRefreshResult) => void
+    vi.mocked(refreshOpenAIQuota)
+      .mockReturnValueOnce(new Promise((done) => { resolveOld = done }))
+      .mockReturnValueOnce(new Promise((done) => { resolveNew = done }))
+    const wrapper = mount(OpenAIQuotaResetCell, { props: { account: makeAccount({}) } })
+    await points(wrapper).trigger('click')
+    await wrapper.setProps({ account: makeAccount({ id: 2 }) })
+    await wrapper.setProps({ account: makeAccount({}) })
+    await points(wrapper).trigger('click')
+    resolveOld({ credits: balance, fetched_at: 1770000000, cache_persisted: true })
+    await flushPromises()
+    expect(points(wrapper).attributes('disabled')).toBeDefined()
+    expect(points(wrapper).text()).toContain('—')
+    resolveNew({ credits: { ...balance, balance: '42.50' }, fetched_at: 1770000200, cache_persisted: true })
+    await flushPromises()
+    expect(points(wrapper).attributes('disabled')).toBeUndefined()
+    expect(points(wrapper).text()).toContain('42.50')
+    expect(refreshOpenAIQuota).toHaveBeenCalledTimes(2)
+    expect(resetOpenAIQuota).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('accepts a fresher query after an identical snapshot is delivered again', async () => {
+    let resolve!: (value: OpenAIQuotaRefreshResult) => void
+    vi.mocked(refreshOpenAIQuota).mockReturnValue(new Promise((done) => { resolve = done }))
+    const cachedAccount = () => makeAccount({
+      extra: { codex_credits_snapshot: { credits: { ...balance }, fetched_at: 1770000000 } },
+    })
+    const wrapper = mount(OpenAIQuotaResetCell, { props: { account: cachedAccount() } })
+    await points(wrapper).trigger('click')
+    await wrapper.setProps({ account: cachedAccount() })
+    resolve({ credits: { ...balance, balance: '42.50' }, fetched_at: 1770000200, cache_persisted: true })
+    await flushPromises()
+    expect(points(wrapper).text()).toContain('42.50')
+    expect(refreshOpenAIQuota).toHaveBeenCalledTimes(1)
+    expect(resetOpenAIQuota).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('accepts a query newer than the snapshot delivered while it was pending', async () => {
+    let resolve!: (value: OpenAIQuotaRefreshResult) => void
+    vi.mocked(refreshOpenAIQuota).mockReturnValue(new Promise((done) => { resolve = done }))
+    const wrapper = mount(OpenAIQuotaResetCell, { props: { account: makeAccount({}) } })
+    await points(wrapper).trigger('click')
+    await wrapper.setProps({ account: makeAccount({
+      extra: { codex_credits_snapshot: { credits: balance, fetched_at: 1770000000 } },
+    }) })
+    resolve({ credits: { ...balance, balance: '42.50' }, fetched_at: 1770000200, cache_persisted: true })
+    await flushPromises()
+    expect(points(wrapper).text()).toContain('42.50')
+    wrapper.unmount()
+  })
+
+  it('retains unknown snapshot freshness against an older persisted balance', async () => {
+    const wrapper = mount(OpenAIQuotaResetCell, { props: { account: makeAccount({
+      extra: { codex_credits_snapshot: { credits: { ...balance, balance: '10' }, fetched_at: 1769999900 } },
+    }) } })
+    await wrapper.setProps({ account: makeAccount({
+      extra: { codex_credits_snapshot: { credits: null, fetched_at: 1770000200 } },
+    }) })
+    await wrapper.setProps({ account: makeAccount({
+      extra: { codex_credits_snapshot: { credits: balance, fetched_at: 1770000000 } },
+    }) })
+    expect(points(wrapper).text()).toContain('—')
+    expect(refreshOpenAIQuota).not.toHaveBeenCalled()
+    expect(resetOpenAIQuota).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('does not clear a newer balance with an older unknown snapshot', async () => {
+    const wrapper = mount(OpenAIQuotaResetCell, { props: { account: makeAccount({
+      extra: { codex_credits_snapshot: { credits: balance, fetched_at: 1770000200 } },
+    }) } })
+    await wrapper.setProps({ account: makeAccount({
+      extra: { codex_credits_snapshot: { credits: null, fetched_at: 1770000000 } },
+    }) })
+    expect(points(wrapper).text()).toContain(balance.balance)
+    expect(refreshOpenAIQuota).not.toHaveBeenCalled()
+    expect(resetOpenAIQuota).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('does not roll an existing newer snapshot back to an older query result', async () => {
+    vi.mocked(refreshOpenAIQuota).mockResolvedValue({
+      credits: balance, fetched_at: 1770000000, cache_persisted: true,
+    })
+    const wrapper = mount(OpenAIQuotaResetCell, { props: { account: makeAccount({
+      extra: { codex_credits_snapshot: { credits: null, fetched_at: 1770000200 } },
+    }) } })
+    await points(wrapper).trigger('click')
+    await flushPromises()
+    expect(points(wrapper).text()).toContain('—')
     wrapper.unmount()
   })
 
