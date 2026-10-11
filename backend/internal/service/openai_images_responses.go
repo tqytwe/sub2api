@@ -35,12 +35,13 @@ type openAIResponsesImageResult struct {
 }
 
 type OpenAIImagesUpstreamError struct {
-	StatusCode        int
-	ErrorType         string
-	Code              string
-	Message           string
-	Param             string
-	UpstreamRequestID string
+	StatusCode         int
+	ErrorType          string
+	Code               string
+	Message            string
+	Param              string
+	UpstreamRequestID  string
+	UpstreamResponseID string
 
 	// SynthesizedFromModelText marks an error the gateway inferred from the
 	// model's plain-text output instead of reading it off a structured upstream
@@ -858,15 +859,15 @@ func openAIImagesIncompleteUpstreamError(response gjson.Result) *OpenAIImagesUps
 		message = fmt.Sprintf("Upstream image generation incomplete: %s", reason)
 	}
 	return &OpenAIImagesUpstreamError{
-		StatusCode:        statusCode,
-		ErrorType:         errType,
-		Code:              "response_incomplete",
-		Message:           sanitizeUpstreamErrorMessage(message),
-		UpstreamRequestID: strings.TrimSpace(response.Get("id").String()),
+		StatusCode:         statusCode,
+		ErrorType:          errType,
+		Code:               "response_incomplete",
+		Message:            sanitizeUpstreamErrorMessage(message),
+		UpstreamResponseID: strings.TrimSpace(response.Get("id").String()),
 	}
 }
 
-func openAIImagesUpstreamErrorFromGJSON(errorObj gjson.Result, upstreamRequestID string) *OpenAIImagesUpstreamError {
+func openAIImagesUpstreamErrorFromGJSON(errorObj gjson.Result, upstreamResponseID string) *OpenAIImagesUpstreamError {
 	if !errorObj.Exists() {
 		return nil
 	}
@@ -879,12 +880,12 @@ func openAIImagesUpstreamErrorFromGJSON(errorObj gjson.Result, upstreamRequestID
 		message = "Upstream request failed"
 	}
 	return &OpenAIImagesUpstreamError{
-		StatusCode:        statusCode,
-		ErrorType:         errType,
-		Code:              code,
-		Message:           sanitizeUpstreamErrorMessage(message),
-		Param:             param,
-		UpstreamRequestID: strings.TrimSpace(upstreamRequestID),
+		StatusCode:         statusCode,
+		ErrorType:          errType,
+		Code:               code,
+		Message:            sanitizeUpstreamErrorMessage(message),
+		Param:              param,
+		UpstreamResponseID: strings.TrimSpace(upstreamResponseID),
 	}
 }
 
@@ -2276,6 +2277,7 @@ func (s *OpenAIGatewayService) handleOpenAIImagesOAuthResponseError(receipt requ
 		AccountName:        account.Name,
 		UpstreamStatusCode: upstreamErr.StatusCode,
 		UpstreamRequestID:  requestID,
+		UpstreamResponseID: upstreamErr.UpstreamResponseID,
 		UpstreamURL:        upstreamURL,
 		Kind:               kind,
 		Message:            upstreamErr.clientMessage(),

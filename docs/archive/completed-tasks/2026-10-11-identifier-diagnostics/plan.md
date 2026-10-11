@@ -1,0 +1,15 @@
+# Identifier conflict诊断独立小批
+
+状态：正式主线组合合同/race、按序增量双审及全部本地门禁通过；准备独立草稿PR，未访问生产。
+原基线6ae024e6b732b64b2ce6f7ba56c5be4e20b88bdb，当前正式基线8364b462feda15f3bf8f3bb2029314d2193b9dba；分支codex/identifier-diagnostics-20261011。
+PR359由主线程正常合入8364；本批原实现不依赖其草稿，现从正式主线原样继承279和worker测试fix。保存未提交工作后普通快进再恢复，未rebase/force；不引入280草稿。
+
+静态证据：openai_images_responses.go的response.incomplete与response.failed均把response.id作为UpstreamRequestID，经handleOpenAIImagesOAuthResponseError和appendOpsUpstreamError回灌同一Receipt。先以真实HTTP/PG隔离RED证明，不能据此解释生产16条普通Responses流式冲突；不清历史flag或猜Ops关联。
+
+计划文件范围：service/openai_images_responses.go、ops_upstream_context.go；requestledger/correlation.go、attempt.go、stream.go及新identifier_diagnostics.go、identifier_query.go；新identifier_handler.go与admin路由接线。独立测试/CI合同与归档。避开分页query.go、request_ledger_handler.go/详情UI、账号管理/auth及usage/wallet结算。
+
+预留迁移281_gateway_identifier_diagnostics.sql，仅扩展现有attempt evidence快照，NOWAIT父表锁与短锁/语句时限；275–280不改，不创建占位。旧writer/旧行保留原flag且新证据not_recorded，应用回退保留新增列与诊断，不删除/回填历史。
+
+复用#354私有Receipt与已有256项非阻塞异步队列、短超时及池压力保护，不增加业务同步DB往返。每namespace至多首值与首次不同值，记录受控来源/字段/event type、时间及准确attempt UUID；有效ID仍按既有128字符白名单，禁止body/header原文、凭据、任意错误字符串。保留真实同namespace冲突，后续不同值不覆盖第一次冲突证据。独立admin-only查询，缺失/快照不等于无冲突，不牵连旧详情。
+
+回归：retry不同ID、恢复旧response的Receipt、同流变化、terminal后不同ID、JSON/SSE/Ops来源、权限/秘密哨兵/旧writer及queue/lock/pool失效。HTTP/PG及race；顺序规格/质量复审、仓库必需门禁、独立草稿及精确head CI；不自行合并部署。

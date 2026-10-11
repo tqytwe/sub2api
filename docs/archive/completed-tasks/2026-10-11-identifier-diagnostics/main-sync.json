@@ -1,0 +1,43 @@
+{
+  "at": "2026-10-11T13:01:32.566413+00:00",
+  "old_base": "6ae024e6b732b64b2ce6f7ba56c5be4e20b88bdb",
+  "new_formal_main": "8364b462feda15f3bf8f3bb2029314d2193b9dba",
+  "normal_sync": "git merge --ff-only origin/play/main after preserving uncommitted work; exact stash applied, four content conflicts resolved, no rebase/force",
+  "stash_checkpoint": "a51245ac6764f20f0eaca40020ad1b6ab652c1c4",
+  "inherited_main_files_unchanged": 58,
+  "identifier_nonshared_inputs_unchanged": 18,
+  "shared_files": [
+    ".github/workflows/request-ledger-integration.yml",
+    "backend/internal/requestledger/ledgertest/postgres.go",
+    "backend/internal/server/routes/admin.go",
+    "docs/FORK_CUSTOMIZATIONS.md",
+    "docs/README.md",
+    "docs/upstream-migrations/v2.10.3/handoff.json"
+  ],
+  "added_combination_test": "backend/internal/requestledger/identifier_routing_integration_test.go",
+  "existing_migrations_byte_identical": 406,
+  "migration279_raw_sha256": "48abb66e1d91478513d87973e750d802a330cf15cde4fd9764b3866d2ea96fd4",
+  "migration281_raw_sha256": "359768b018b700fd2cae179207e98cd84dbe8cc1b92365657182243ef724ec06",
+  "no280_draft": true,
+  "ci_required": {
+    "old": 56,
+    "formal_main": 75,
+    "identifier_before_main": 76,
+    "union_plus_combination": 96,
+    "no_dropped_cases": true
+  },
+  "protected_paths_unchanged": [
+    "frontend",
+    "backend/internal/repository/usage_billing_repo.go",
+    "backend/internal/requestledger/query.go",
+    "backend/internal/handler/request_ledger_handler.go",
+    "backend/internal/service/openai_account_scheduler.go",
+    "backend/internal/service/openai_gateway_scheduling.go",
+    "backend/internal/server/middleware",
+    "backend/internal/service/admin_account.go",
+    "backend/internal/repository/account_repo.go"
+  ],
+  "other_handoff_fields_and_features_exact_main": true,
+  "source_manifest_count": 22,
+  "tests": "96/96 ledger withrace,54/54 core,make test,tag-unit,build,embed and fullFork passed;see merge-validation.json"
+}

@@ -1,0 +1,17 @@
+{
+  "checked_at": "2026-10-11T13:17:52.494303+00:00",
+  "source": "gh pr list/view tqytwe/sub2api base play/main, read-only",
+  "main": "8364b462feda15f3bf8f3bb2029314d2193b9dba",
+  "reserved_identifier_migration": "281_gateway_identifier_diagnostics.sql",
+  "parallel_280": {
+    "pr": "https://github.com/tqytwe/sub2api/pull/364",
+    "head": "88cdf3395288723f305e18fbe4a4352d58670efc",
+    "file": "backend/migrations/280_subscription_inflight_admission.sql",
+    "included": false
+  },
+  "parallel_ui": {
+    "pr": "https://github.com/tqytwe/sub2api/pull/363",
+    "included": false
+  },
+  "note": "current source includes only formal279, no280 draft; no production schema query"
+}
