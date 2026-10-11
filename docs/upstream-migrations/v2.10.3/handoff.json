@@ -17,6 +17,65 @@
   },
   "features": [
     {
+      "id": "admin-request-routing-detail",
+      "title": "管理员请求详情独立只读选路证据区域",
+      "backend_state": "已验证",
+      "product_state": "可测",
+      "owner": "主线程协调",
+      "pr": "https://github.com/tqytwe/sub2api/pull/363",
+      "sha": "e43592e8d924b850153fde4d451747c25438832b",
+      "evidence": {
+        "ui": {
+          "status": "recorded",
+          "refs": [
+            "docs/visual-reviews/2026-10-11-admin-routing-detail.md",
+            "docs/archive/completed-tasks/admin-routing-detail/browser-evidence.json",
+            "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/browser/browser-evidence.json"
+          ],
+          "note": "356实际编译资源逐字保留7cc；新1280px真实PG六状态、局部503、实际Pinia/JWT会话切换通过。早期四宽度/主题证据保持原范围；非生产用户本机验收。"
+        },
+        "api": {
+          "status": "recorded",
+          "refs": [
+            "https://github.com/tqytwe/sub2api/pull/359",
+            "docs/archive/completed-tasks/admin-routing-detail/dependency-contract.json",
+            "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/README.md"
+          ],
+          "note": "正式主线8364b462包含#359最终0ceacb244；三合同文件逐字一致。真实recorder→async writer→PG→admin HTTP→实际编译资源通过。真实JWT/AdminAuth/PG角色、签名、停用/凭据版本及租户隔离验证；签发为测试入口，不称真实密码登录/MFA/binding。"
+        },
+        "schema": {
+          "status": "na",
+          "refs": [],
+          "note": "本UI任务不新增或修改任何迁移。依赖279由#359独立负责。"
+        },
+        "tests": {
+          "status": "recorded",
+          "refs": [
+            "docs/archive/completed-tasks/admin-routing-detail/reviews.json",
+            "frontend/src/views/shared/__tests__/RequestLedgerView.routing.http.spec.ts",
+            "frontend/src/api/__tests__/requestRouting.spec.ts",
+            "docs/archive/completed-tasks/admin-routing-detail/core-browser-evidence.json",
+            "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/result.json",
+            "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/validation.json"
+          ],
+          "note": "836普通组合真实PG浏览器run8通过，0pageerror，六状态/零候选/128上界/两轮选择/账单1.25与余额98.75不变；同document旧真实503不能清除新200。新make test（前端3869通过/8既有跳过、后端lint0）、tag-unit、75项必执行台账契约、完整build/embed/Fork均通过。顺序规格与质量双审PASS，无P1/P2。"
+        },
+        "deployment": {
+          "status": "pending",
+          "refs": [],
+          "note": "#359已正式合入主线并完成本地组合；#363仍为草稿，不自行合并部署。主线程核实最终准确head/CI后评审。"
+        },
+        "production": {
+          "status": "pending",
+          "refs": [],
+          "note": "未访问生产秘密/Zeabur，不调用生成；生产及用户本机三身份验收交主线程。"
+        }
+      },
+      "risks": "旧27条503与gpt22历史不可追溯恢复。覆盖仅OpenAI-compatible HTTP文本，WS/媒体/Anthropic/Gemini排除。英文用户360px既有全局溢出：最新旧/新同为466px，前轮489px、组合初跑503px；详情360px。未扩展修全局header，不称全站响应式通过。",
+      "next": "已测普通技术合并e43592e8d924b850153fde4d451747c25438832b保留836主线；最终PR head另含文档登记。所有本地必需门禁和顺序双审通过，等待最终准确head适用CI及主线程增量审查。不合并部署。",
+      "rollback": "如管理员数据泄露、迟到串号或账单受影响，停止推进并由主线程审查源码revert；本UI不删除证据/迁移或改账务。"
+    },
+    {
       "id": "http-text-routing-evidence",
       "title": "OpenAI-compatible HTTP 文本选路证据后端",
       "backend_state": "已验证",

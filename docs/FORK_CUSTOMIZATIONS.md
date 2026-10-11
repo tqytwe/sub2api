@@ -347,6 +347,7 @@
 - Batch 验证：真实 HTTP/PG 的 capture→usage→详情、失败重试、断连、并发/幂等、归属隔离、归档凭据与无 task 扫描上限，以及用户/管理员实际构建资源；见[本批证据](./archive/completed-tasks/batch-image-ledger/README.md)。合法零 capture 凭据测试不证明既有公开零价格跳过 hold 路径已修复；生产验收状态仅见交接快照。
 - 详情分页：摘要与 attempts/billing/wallet/管理员 diagnostics 独立读取，先限制来源候选再复用原证明；每页最多100个认证候选，额外1个来源候选只判断后续页；wallet每个有界task最多展开3个操作，空中间页继续携带游标。游标绑定请求/用户/角色/集合，不代替鉴权。固定成员遍历不漏不重，实时新增、迟到证明与状态变化需刷新；不声称固定快照。旧详情只有在有界预算内确认完整才成功，否则409/PAGINATION_REQUIRED。迁移278仅新增task来源seek并发索引及既有中断恢复；无计费或历史数据修改。行为保护见 `detail_pagination_integration_test.go`、`detail_page_index_integration_test.go`、`migrations_runner_detail_page_integration_test.go` 与前端分页交互/API测试；完成证据见[分页记录](./archive/completed-tasks/ledger-detail-pagination/README.md)，开发/生产状态仍以交接快照为准。
 - 详情会话隔离：使用共享auth的稳定身份，退出/换号/同账号重登同步清除私有内容并取消旧读取；正常续期保留页面与游标。同身份publishing有界等待5秒，ready恢复原操作，超时可重试；不同区域与关闭重开使用独立序号守卫。保护见真实HTTP会话测试及分页归档中的实际构建浏览器证据。
+- 管理员选路详情接线（#359已正式合入，UI草稿待审）：独立只读routing区域使用既有详情会话守卫；六种完整性状态、候选范围/覆盖版本/省略数均保留，首个已记录veto只按已知版本白名单和返回顺序识别，观察事件不升级为拒绝。0候选不证明分组无账号，selected不证明forward；20事件本地分页不冒充API游标，失败不拖垮账单/用量。普通用户不挂载或调用此管理员资源；无计费/迁移/历史回填。保护见 `RequestLedgerView.routing.http.spec.ts`、`requestRouting.spec.ts`；依赖状态与验证边界见[接线记录](./archive/completed-tasks/admin-routing-detail/README.md)。
 - 验证：`requestledger` 真实 PG/进程终止测试、真实注册路由拒绝矩阵、HTTP API 角色/分页测试、Responses 多轮 WS、billing rollback/dedup、前端未知消费/刷新测试；范围和未覆盖协议见归档规格。补充 `correlation_integration_test.go`、`request_ledger_ops_integration_test.go` 与 WS late/drain/重试隔离测试。保留策略仅新增、不自动删除。
 
 ## 更新规则
