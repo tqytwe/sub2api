@@ -1,0 +1,88 @@
+{
+  "analysis_baseline": "8364b462feda15f3bf8f3bb2029314d2193b9dba",
+  "validated_task_commit": "8060c27fab3dad8a92b861d177c726f52830b943",
+  "composition_base": "caa4805b26114da4b5cb0ddea9343ef6ec9fc528",
+  "merge_commit": "ac99aa11a68cbde888e120ebfdff25450e5e5b7f",
+  "merge_parents": [
+    "8060c27fab3dad8a92b861d177c726f52830b943",
+    "caa4805b26114da4b5cb0ddea9343ef6ec9fc528"
+  ],
+  "pr363_head": "dc60e6f6aa998cbff8be05edcadcfcadb195651f",
+  "frontend_tree": "cadf09348e846bf456a99d934fb0626c32be0d09",
+  "frontend_exact_main_bytes": true,
+  "backend_delta_from_validated_task": [
+    "backend/internal/requestledger/acceptance/routing_ui_pg_fixture_test.go"
+  ],
+  "new_backend_file_kind": "isolated acceptance fixture only, inherited byte-for-byte from #363; no production backend changes",
+  "production_backend_migrations_ci_scripts_unchanged_by_merge": true,
+  "p3_source_blobs": {
+    "backend/internal/service/account_test_service.go": "1726e1a5acb24dae521da73df461242c53420052",
+    "backend/internal/service/account_test_sse_keepalive.go": "799fbde3413058d157a33a5fb663fbae866eeffb",
+    "backend/internal/service/account_test_sse_keepalive_test.go": "d5d0eb267b06e7d84001b0b15898244e86bf24e9",
+    "backend/internal/service/account_test_sse_http_test.go": "7aed29c5aed5a30abba23f250d4f4b91b84b81d7"
+  },
+  "pr363_ci": [
+    {
+      "name": "Protected behavior",
+      "status": "completed",
+      "conclusion": "success",
+      "html_url": "https://github.com/tqytwe/sub2api/actions/runs/38143726817/job/114482645809",
+      "head_sha": "dc60e6f6aa998cbff8be05edcadcfcadb195651f"
+    },
+    {
+      "name": "Release source policy",
+      "status": "completed",
+      "conclusion": "success",
+      "html_url": "https://github.com/tqytwe/sub2api/actions/runs/38143726817/job/114482645779",
+      "head_sha": "dc60e6f6aa998cbff8be05edcadcfcadb195651f"
+    },
+    {
+      "name": "Check-in PostgreSQL HTTP and frontend contract",
+      "status": "completed",
+      "conclusion": "success",
+      "html_url": "https://github.com/tqytwe/sub2api/actions/runs/38143726817/job/114482645748",
+      "head_sha": "dc60e6f6aa998cbff8be05edcadcfcadb195651f"
+    },
+    {
+      "name": "Documentation",
+      "status": "completed",
+      "conclusion": "success",
+      "html_url": "https://github.com/tqytwe/sub2api/actions/runs/38143726817/job/114482645690",
+      "head_sha": "dc60e6f6aa998cbff8be05edcadcfcadb195651f"
+    },
+    {
+      "name": "frontend-security",
+      "status": "completed",
+      "conclusion": "success",
+      "html_url": "https://github.com/tqytwe/sub2api/actions/runs/38143726803/job/114482645686",
+      "head_sha": "dc60e6f6aa998cbff8be05edcadcfcadb195651f"
+    },
+    {
+      "name": "postgres-http-counters",
+      "status": "completed",
+      "conclusion": "success",
+      "html_url": "https://github.com/tqytwe/sub2api/actions/runs/38143726832/job/114482645657",
+      "head_sha": "dc60e6f6aa998cbff8be05edcadcfcadb195651f"
+    },
+    {
+      "name": "Ledger PostgreSQL and protocol contract",
+      "status": "completed",
+      "conclusion": "success",
+      "html_url": "https://github.com/tqytwe/sub2api/actions/runs/38143726809/job/114482645573",
+      "head_sha": "dc60e6f6aa998cbff8be05edcadcfcadb195651f"
+    },
+    {
+      "name": "backend-security",
+      "status": "completed",
+      "conclusion": "success",
+      "html_url": "https://github.com/tqytwe/sub2api/actions/runs/38143726803/job/114482645513",
+      "head_sha": "dc60e6f6aa998cbff8be05edcadcfcadb195651f"
+    }
+  ],
+  "reused_evidence": [
+    "docs/archive/completed-tasks/2026-10-11-p3-preparation/validation.json",
+    "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/validation.json",
+    "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/reviews.json"
+  ],
+  "remaining": "Final task-head CI and independent root review; no production access or deployment."
+}

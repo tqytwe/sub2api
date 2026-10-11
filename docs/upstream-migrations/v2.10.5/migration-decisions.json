@@ -1,0 +1,558 @@
+[
+  {
+    "source_path": "backend/migrations/237_add_api_key_concurrency_limit.sql",
+    "tables": [
+      "api_keys"
+    ],
+    "status": "needs-port",
+    "reason": "需随对应schema/repository/默认配置、API/DTO/前端入口和测试完整迁入；先报根分配编号，不执行原编号SQL。",
+    "fork_evidence": [],
+    "same_number_fork_paths": [
+      "backend/migrations/237_add_minimax_platform.sql",
+      "backend/migrations/237_mobile_attribution.sql"
+    ],
+    "runtime_validation": "pending"
+  },
+  {
+    "source_path": "backend/migrations/239_codex_harvest_node_learning.sql",
+    "tables": [
+      "codex_harvest_learning_epoch",
+      "codex_harvest_nodes"
+    ],
+    "status": "needs-port",
+    "reason": "需随对应schema/repository/默认配置、API/DTO/前端入口和测试完整迁入；先报根分配编号，不执行原编号SQL。",
+    "fork_evidence": [],
+    "same_number_fork_paths": [
+      "backend/migrations/239_channel_reasoning_effort_multipliers.sql",
+      "backend/migrations/239_membership_financial_fk_guard.sql"
+    ],
+    "runtime_validation": "pending"
+  },
+  {
+    "source_path": "backend/migrations/239_payment_order_subscription_renewal_mode.sql",
+    "tables": [
+      "payment_orders"
+    ],
+    "status": "pending-composition",
+    "reason": "新增续费模式同时影响订单默认值/套餐周期counter与#364冻结价格/receipt；239已占用且280/281保留，待根分配编号。",
+    "fork_evidence": [],
+    "same_number_fork_paths": [
+      "backend/migrations/239_channel_reasoning_effort_multipliers.sql",
+      "backend/migrations/239_membership_financial_fk_guard.sql"
+    ],
+    "runtime_validation": "pending"
+  },
+  {
+    "source_path": "backend/migrations/240_codex_harvest_flow_events.sql",
+    "tables": [
+      "codex_harvest_flow_events"
+    ],
+    "status": "needs-port",
+    "reason": "需随对应schema/repository/默认配置、API/DTO/前端入口和测试完整迁入；先报根分配编号，不执行原编号SQL。",
+    "fork_evidence": [],
+    "same_number_fork_paths": [
+      "backend/migrations/240_affiliate_ledger_operation_id.sql",
+      "backend/migrations/240_mobile_attribution_referral_campaign_fk.sql"
+    ],
+    "runtime_validation": "pending"
+  },
+  {
+    "source_path": "backend/migrations/241_add_account_group_rate_multiplier.sql",
+    "tables": [
+      "accounts"
+    ],
+    "status": "needs-port",
+    "reason": "需随对应schema/repository/默认配置、API/DTO/前端入口和测试完整迁入；先报根分配编号，不执行原编号SQL。",
+    "fork_evidence": [],
+    "same_number_fork_paths": [
+      "backend/migrations/241_add_payment_order_bonus_amount.sql",
+      "backend/migrations/241_add_typesafe_platform.sql",
+      "backend/migrations/241_play_daily_arena_budget.sql",
+      "backend/migrations/241_play_growth_competition.sql",
+      "backend/migrations/241_referral_campaign_single_admin_review.sql"
+    ],
+    "runtime_validation": "pending"
+  },
+  {
+    "source_path": "backend/migrations/242_request_timing_details.sql",
+    "tables": [
+      "request_timing_details"
+    ],
+    "status": "needs-port",
+    "reason": "现有台账耗时不等于上游timing schema；先对照281与路由证据，避免双存与字段语义冲突，管理详情同批。",
+    "fork_evidence": [],
+    "same_number_fork_paths": [],
+    "runtime_validation": "pending"
+  },
+  {
+    "source_path": "backend/migrations/243_pelican_scheduled_tests.sql",
+    "tables": [
+      "scheduled_test_plans",
+      "scheduled_test_results"
+    ],
+    "status": "needs-port",
+    "reason": "需随对应schema/repository/默认配置、API/DTO/前端入口和测试完整迁入；先报根分配编号，不执行原编号SQL。",
+    "fork_evidence": [],
+    "same_number_fork_paths": [
+      "backend/migrations/243_play_team_competition.sql"
+    ],
+    "runtime_validation": "pending"
+  },
+  {
+    "source_path": "backend/migrations/244_account_group_allowed_models.sql",
+    "tables": [
+      "account_groups"
+    ],
+    "status": "absorbed-adapted-schema",
+    "reason": "Fork已在273_account_group_allowed_models.sql加入相同account_groups.allowed_models JSONB语义；不能再导入源244，权限/最终准入回归仍需保留。",
+    "fork_evidence": [
+      "backend/migrations/273_account_group_allowed_models.sql",
+      "backend/migrations/account_group_allowed_models_migration_test.go"
+    ],
+    "same_number_fork_paths": [
+      "backend/migrations/244_play_arena_period_integrity.sql"
+    ],
+    "runtime_validation": "pending"
+  },
+  {
+    "source_path": "backend/migrations/244_astra_gateway_history.sql",
+    "tables": [
+      "astra_gateway_history"
+    ],
+    "status": "needs-port",
+    "reason": "需随对应schema/repository/默认配置、API/DTO/前端入口和测试完整迁入；先报根分配编号，不执行原编号SQL。",
+    "fork_evidence": [],
+    "same_number_fork_paths": [
+      "backend/migrations/244_play_arena_period_integrity.sql"
+    ],
+    "runtime_validation": "pending"
+  },
+  {
+    "source_path": "backend/migrations/245_user_group_denied_models.sql",
+    "tables": [
+      "user_group_rate_multipliers"
+    ],
+    "status": "needs-port",
+    "reason": "需随对应schema/repository/默认配置、API/DTO/前端入口和测试完整迁入；先报根分配编号，不执行原编号SQL。",
+    "fork_evidence": [],
+    "same_number_fork_paths": [
+      "backend/migrations/245_referral_campaign_closure.sql"
+    ],
+    "runtime_validation": "pending"
+  },
+  {
+    "source_path": "backend/migrations/246_group_stream_only.sql",
+    "tables": [
+      "groups"
+    ],
+    "status": "needs-port",
+    "reason": "需随对应schema/repository/默认配置、API/DTO/前端入口和测试完整迁入；先报根分配编号，不执行原编号SQL。",
+    "fork_evidence": [],
+    "same_number_fork_paths": [
+      "backend/migrations/246_new_user_growth_campaign.sql"
+    ],
+    "runtime_validation": "pending"
+  },
+  {
+    "source_path": "backend/migrations/247_account_quality_ops.sql",
+    "tables": [
+      "account_quality_states",
+      "scheduled_test_results"
+    ],
+    "status": "needs-port",
+    "reason": "需随对应schema/repository/默认配置、API/DTO/前端入口和测试完整迁入；先报根分配编号，不执行原编号SQL。",
+    "fork_evidence": [],
+    "same_number_fork_paths": [],
+    "runtime_validation": "pending"
+  },
+  {
+    "source_path": "backend/migrations/248_account_quality_judgment.sql",
+    "tables": [
+      "scheduled_test_results"
+    ],
+    "status": "needs-port",
+    "reason": "需随对应schema/repository/默认配置、API/DTO/前端入口和测试完整迁入；先报根分配编号，不执行原编号SQL。",
+    "fork_evidence": [],
+    "same_number_fork_paths": [
+      "backend/migrations/248_restore_upstream_daily_subscription_usage.sql",
+      "backend/migrations/248_usage_logs_audio_token_breakdown.sql"
+    ],
+    "runtime_validation": "pending"
+  },
+  {
+    "source_path": "backend/migrations/249_account_ops_alerts.sql",
+    "tables": [
+      "account_ops_alerts"
+    ],
+    "status": "needs-port",
+    "reason": "需随对应schema/repository/默认配置、API/DTO/前端入口和测试完整迁入；先报根分配编号，不执行原编号SQL。",
+    "fork_evidence": [],
+    "same_number_fork_paths": [
+      "backend/migrations/249_live_usage_settlement_outbox.sql"
+    ],
+    "runtime_validation": "pending"
+  },
+  {
+    "source_path": "backend/migrations/249_astra_scheduling_states.sql",
+    "tables": [
+      "astra_scheduling_states"
+    ],
+    "status": "needs-port",
+    "reason": "需随对应schema/repository/默认配置、API/DTO/前端入口和测试完整迁入；先报根分配编号，不执行原编号SQL。",
+    "fork_evidence": [],
+    "same_number_fork_paths": [
+      "backend/migrations/249_live_usage_settlement_outbox.sql"
+    ],
+    "runtime_validation": "pending"
+  },
+  {
+    "source_path": "backend/migrations/249_pelican_showcase_items.sql",
+    "tables": [
+      "pelican_showcase_items"
+    ],
+    "status": "needs-port",
+    "reason": "需随对应schema/repository/默认配置、API/DTO/前端入口和测试完整迁入；先报根分配编号，不执行原编号SQL。",
+    "fork_evidence": [],
+    "same_number_fork_paths": [
+      "backend/migrations/249_live_usage_settlement_outbox.sql"
+    ],
+    "runtime_validation": "pending"
+  },
+  {
+    "source_path": "backend/migrations/250_account_token_guard.sql",
+    "tables": [
+      "account_token_guard_events",
+      "account_token_guard_states"
+    ],
+    "status": "needs-port",
+    "reason": "需先确定凭证schema/加密/权限/审计/默认关闭与既有账号兼容；只迁功能代码，不建立真实授权，不读取凭据。",
+    "fork_evidence": [],
+    "same_number_fork_paths": [
+      "backend/migrations/250_model_catalog_tool_capabilities.sql"
+    ],
+    "runtime_validation": "pending"
+  },
+  {
+    "source_path": "backend/migrations/251_request_captures.sql",
+    "tables": [
+      "request_capture_records",
+      "request_capture_tasks"
+    ],
+    "status": "needs-port",
+    "reason": "采集/留存/脱敏/读取权限先明确，避免引入凭据或正文泄露；服务、DTO、管理页面同批。",
+    "fork_evidence": [],
+    "same_number_fork_paths": [
+      "backend/migrations/251_model_catalog_official_field_sources.sql",
+      "backend/migrations/251_vip_membership_qualification_review.sql"
+    ],
+    "runtime_validation": "pending"
+  },
+  {
+    "source_path": "backend/migrations/252_user_observer_groups.sql",
+    "tables": [
+      "users"
+    ],
+    "status": "not-applicable-current-scope",
+    "reason": "既有迁移账本明确不导入扩大授权的观察员角色；保留现有用户/管理员权限，不能静默放宽。若产品决定引入需另审权限合同。",
+    "fork_evidence": [],
+    "same_number_fork_paths": [
+      "backend/migrations/252_bepusdt_payment_contract.sql"
+    ],
+    "runtime_validation": "pending"
+  },
+  {
+    "source_path": "backend/migrations/253_pelican_group_tests.sql",
+    "tables": [
+      "pelican_group_test_plans",
+      "pelican_group_test_results"
+    ],
+    "status": "needs-port",
+    "reason": "需随对应schema/repository/默认配置、API/DTO/前端入口和测试完整迁入；先报根分配编号，不执行原编号SQL。",
+    "fork_evidence": [],
+    "same_number_fork_paths": [
+      "backend/migrations/253_mobile_app_releases.sql"
+    ],
+    "runtime_validation": "pending"
+  },
+  {
+    "source_path": "backend/migrations/254_channel_monitor_v2_candy.sql",
+    "tables": [
+      "channel_monitor_v2_candy_results",
+      "channel_monitor_v2_config"
+    ],
+    "status": "needs-port",
+    "reason": "保留Fork渠道监控V2、用户可见性与现有配置；对比新V3/candy表和老表迁移兼容，不替换现有入口。",
+    "fork_evidence": [],
+    "same_number_fork_paths": [
+      "backend/migrations/254_subscription_package_quotas.sql"
+    ],
+    "runtime_validation": "pending"
+  },
+  {
+    "source_path": "backend/migrations/254_openai_oauth_reauth.sql",
+    "tables": [
+      "openai_oauth_reauth_configs",
+      "openai_oauth_reauth_tasks"
+    ],
+    "status": "needs-port",
+    "reason": "需先确定凭证schema/加密/权限/审计/默认关闭与既有账号兼容；只迁功能代码，不建立真实授权，不读取凭据。",
+    "fork_evidence": [],
+    "same_number_fork_paths": [
+      "backend/migrations/254_subscription_package_quotas.sql"
+    ],
+    "runtime_validation": "pending"
+  },
+  {
+    "source_path": "backend/migrations/254_quality_bps_coexist.sql",
+    "tables": [],
+    "status": "needs-port",
+    "reason": "需随对应schema/repository/默认配置、API/DTO/前端入口和测试完整迁入；先报根分配编号，不执行原编号SQL。",
+    "fork_evidence": [],
+    "same_number_fork_paths": [
+      "backend/migrations/254_subscription_package_quotas.sql"
+    ],
+    "runtime_validation": "pending"
+  },
+  {
+    "source_path": "backend/migrations/255_account_token_guard_v2.sql",
+    "tables": [
+      "account_token_guard_v2_accounts",
+      "openai_oauth_reauth_configs",
+      "openai_oauth_reauth_tasks"
+    ],
+    "status": "needs-port",
+    "reason": "需先确定凭证schema/加密/权限/审计/默认关闭与既有账号兼容；只迁功能代码，不建立真实授权，不读取凭据。",
+    "fork_evidence": [],
+    "same_number_fork_paths": [
+      "backend/migrations/255_payment_order_coupon_release_processed.sql"
+    ],
+    "runtime_validation": "pending"
+  },
+  {
+    "source_path": "backend/migrations/256_openai_oauth_reauth_proxy_override.sql",
+    "tables": [
+      "openai_oauth_reauth_configs"
+    ],
+    "status": "needs-port",
+    "reason": "需先确定凭证schema/加密/权限/审计/默认关闭与既有账号兼容；只迁功能代码，不建立真实授权，不读取凭据。",
+    "fork_evidence": [],
+    "same_number_fork_paths": [
+      "backend/migrations/256_payment_order_coupon_release_processed_index_notx.sql"
+    ],
+    "runtime_validation": "pending"
+  },
+  {
+    "source_path": "backend/migrations/257_openai_oauth_reauth_proxy_source.sql",
+    "tables": [
+      "openai_oauth_reauth_configs"
+    ],
+    "status": "needs-port",
+    "reason": "需先确定凭证schema/加密/权限/审计/默认关闭与既有账号兼容；只迁功能代码，不建立真实授权，不读取凭据。",
+    "fork_evidence": [],
+    "same_number_fork_paths": [],
+    "runtime_validation": "pending"
+  },
+  {
+    "source_path": "backend/migrations/258_quality_observation_scope.sql",
+    "tables": [],
+    "status": "needs-port",
+    "reason": "需随对应schema/repository/默认配置、API/DTO/前端入口和测试完整迁入；先报根分配编号，不执行原编号SQL。",
+    "fork_evidence": [],
+    "same_number_fork_paths": [],
+    "runtime_validation": "pending"
+  },
+  {
+    "source_path": "backend/migrations/259_account_auto_config_events.sql",
+    "tables": [
+      "account_auto_config_events"
+    ],
+    "status": "needs-port",
+    "reason": "需随对应schema/repository/默认配置、API/DTO/前端入口和测试完整迁入；先报根分配编号，不执行原编号SQL。",
+    "fork_evidence": [],
+    "same_number_fork_paths": [
+      "backend/migrations/259_mobile_video_jobs.sql"
+    ],
+    "runtime_validation": "pending"
+  },
+  {
+    "source_path": "backend/migrations/260_quality_rule_templates.sql",
+    "tables": [
+      "quality_rule_template_accounts",
+      "quality_rule_templates"
+    ],
+    "status": "needs-port",
+    "reason": "需随对应schema/repository/默认配置、API/DTO/前端入口和测试完整迁入；先报根分配编号，不执行原编号SQL。",
+    "fork_evidence": [],
+    "same_number_fork_paths": [
+      "backend/migrations/260_model_catalog_media_capabilities.sql"
+    ],
+    "runtime_validation": "pending"
+  },
+  {
+    "source_path": "backend/migrations/261_pelican_group_test_costs.sql",
+    "tables": [
+      "pelican_group_test_daily_costs",
+      "pelican_group_test_results"
+    ],
+    "status": "needs-port",
+    "reason": "需随对应schema/repository/默认配置、API/DTO/前端入口和测试完整迁入；先报根分配编号，不执行原编号SQL。",
+    "fork_evidence": [],
+    "same_number_fork_paths": [
+      "backend/migrations/261_mobile_video_execution_billing.sql"
+    ],
+    "runtime_validation": "pending"
+  },
+  {
+    "source_path": "backend/migrations/262_openai_oauth_reauth_engine.sql",
+    "tables": [
+      "openai_oauth_reauth_configs"
+    ],
+    "status": "needs-port",
+    "reason": "需先确定凭证schema/加密/权限/审计/默认关闭与既有账号兼容；只迁功能代码，不建立真实授权，不读取凭据。",
+    "fork_evidence": [],
+    "same_number_fork_paths": [
+      "backend/migrations/262_play_growth_qualification.sql"
+    ],
+    "runtime_validation": "pending"
+  },
+  {
+    "source_path": "backend/migrations/263_strip_pelican_prompt_restriction.sql",
+    "tables": [],
+    "status": "needs-port",
+    "reason": "需随对应schema/repository/默认配置、API/DTO/前端入口和测试完整迁入；先报根分配编号，不执行原编号SQL。",
+    "fork_evidence": [],
+    "same_number_fork_paths": [
+      "backend/migrations/263_public_status_snapshots.sql"
+    ],
+    "runtime_validation": "pending"
+  },
+  {
+    "source_path": "backend/migrations/264_channel_monitor_v3.sql",
+    "tables": [
+      "channel_monitor_v3_categories",
+      "channel_monitor_v3_components",
+      "channel_monitor_v3_config"
+    ],
+    "status": "needs-port",
+    "reason": "保留Fork渠道监控V2、用户可见性与现有配置；对比新V3/candy表和老表迁移兼容，不替换现有入口。",
+    "fork_evidence": [],
+    "same_number_fork_paths": [
+      "backend/migrations/264_public_status_ttft_window_index_notx.sql"
+    ],
+    "runtime_validation": "pending"
+  },
+  {
+    "source_path": "backend/migrations/265_new_api_site_authorizations.sql",
+    "tables": [
+      "ON",
+      "new_api_account_bindings",
+      "new_api_site_authorizations"
+    ],
+    "status": "needs-port",
+    "reason": "需先确定凭证schema/加密/权限/审计/默认关闭与既有账号兼容；只迁功能代码，不建立真实授权，不读取凭据。",
+    "fork_evidence": [],
+    "same_number_fork_paths": [
+      "backend/migrations/265_play_growth_eligibility_orders_index_notx.sql"
+    ],
+    "runtime_validation": "pending"
+  },
+  {
+    "source_path": "backend/migrations/266_account_ops_notifications.sql",
+    "tables": [
+      "account_ops_alerts"
+    ],
+    "status": "needs-port",
+    "reason": "需随对应schema/repository/默认配置、API/DTO/前端入口和测试完整迁入；先报根分配编号，不执行原编号SQL。",
+    "fork_evidence": [],
+    "same_number_fork_paths": [
+      "backend/migrations/266_play_growth_reward_snapshot_links.sql"
+    ],
+    "runtime_validation": "pending"
+  },
+  {
+    "source_path": "backend/migrations/267_account_ops_threshold_episodes.sql",
+    "tables": [
+      "account_ops_alerts",
+      "account_ops_threshold_events",
+      "account_ops_threshold_monitors"
+    ],
+    "status": "needs-port",
+    "reason": "需随对应schema/repository/默认配置、API/DTO/前端入口和测试完整迁入；先报根分配编号，不执行原编号SQL。",
+    "fork_evidence": [],
+    "same_number_fork_paths": [
+      "backend/migrations/267_public_status_ops_aggregation_watermark.sql"
+    ],
+    "runtime_validation": "pending"
+  },
+  {
+    "source_path": "backend/migrations/268_controlled_experiments.sql",
+    "tables": [
+      "controlled_experiment_attempts",
+      "controlled_experiments"
+    ],
+    "status": "needs-port",
+    "reason": "需随对应schema/repository/默认配置、API/DTO/前端入口和测试完整迁入；先报根分配编号，不执行原编号SQL。",
+    "fork_evidence": [],
+    "same_number_fork_paths": [
+      "backend/migrations/268_play_growth_governance.sql"
+    ],
+    "runtime_validation": "pending"
+  },
+  {
+    "source_path": "backend/migrations/268_support_tickets.sql",
+    "tables": [
+      "support_ticket_messages",
+      "support_tickets"
+    ],
+    "status": "needs-port",
+    "reason": "用户/管理员列表详情、所有权与附件权限必须随新表一起迁入，不能只创建表。",
+    "fork_evidence": [],
+    "same_number_fork_paths": [
+      "backend/migrations/268_play_growth_governance.sql"
+    ],
+    "runtime_validation": "pending"
+  },
+  {
+    "source_path": "backend/migrations/269_openai_totp_rotation.sql",
+    "tables": [
+      "ON",
+      "openai_totp_rotations"
+    ],
+    "status": "needs-port",
+    "reason": "需先确定凭证schema/加密/权限/审计/默认关闭与既有账号兼容；只迁功能代码，不建立真实授权，不读取凭据。",
+    "fork_evidence": [],
+    "same_number_fork_paths": [
+      "backend/migrations/269_play_membership_manual_contributions.sql"
+    ],
+    "runtime_validation": "pending"
+  },
+  {
+    "source_path": "backend/migrations/270_drop_platform_check_constraints.sql",
+    "tables": [
+      "composite_model_routes",
+      "user_platform_quotas"
+    ],
+    "status": "needs-port",
+    "reason": "仅删DB平台约束会与API/Ent平台校验不一致；逐供应商与Fork平台清单协调，禁止裸DROP约束。",
+    "fork_evidence": [],
+    "same_number_fork_paths": [
+      "backend/migrations/270_fund_operation_records.sql",
+      "backend/migrations/270_payment_manual_confirmation_reference.sql"
+    ],
+    "runtime_validation": "pending"
+  },
+  {
+    "source_path": "backend/migrations/271_openai_excel_dual_oauth.sql",
+    "tables": [
+      "openai_excel_oauth_credentials",
+      "openai_oauth_reauth_tasks"
+    ],
+    "status": "needs-port",
+    "reason": "需先确定凭证schema/加密/权限/审计/默认关闭与既有账号兼容；只迁功能代码，不建立真实授权，不读取凭据。",
+    "fork_evidence": [],
+    "same_number_fork_paths": [
+      "backend/migrations/271_subscription_package_grant_sources.sql"
+    ],
+    "runtime_validation": "pending"
+  }
+]

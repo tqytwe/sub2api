@@ -1,0 +1,973 @@
+[
+  {
+    "id": "account-test-keepalive",
+    "title": "账号测试 SSE 首包/静默保活及断连取消",
+    "status": "implemented-awaiting-root-review",
+    "batch": "P3-1",
+    "reason": "根已授权 #350 最小适配；不捆绑 BPS/OAuth；无 SQL。 定向真实HTTP/race和完整相关门禁已完成，见归档验证；仅保活片，account_test_service其它上游变更仍未吸收。",
+    "source_paths": [
+      "backend/internal/service/account_test_service.go",
+      "backend/internal/service/account_test_service_bps_probe.go",
+      "backend/internal/service/account_test_sse_http_test.go",
+      "backend/internal/service/account_test_sse_keepalive.go",
+      "backend/internal/service/account_test_sse_keepalive_test.go",
+      "backend/internal/service/openai_compact_sse_keepalive.go",
+      "frontend/src/components/admin/account/__tests__/IQTestModal.spec.ts"
+    ],
+    "associations": {
+      "ui": {
+        "status": "pending",
+        "refs": [],
+        "note": "逐字段/入口/默认值和运行验证待该批补齐；清单存在不代表闭环。"
+      },
+      "api_dto": {
+        "status": "pending",
+        "refs": [
+          "backend/internal/service/openai_compact_sse_keepalive.go"
+        ],
+        "note": "逐字段/入口/默认值和运行验证待该批补齐；清单存在不代表闭环。"
+      },
+      "schema": {
+        "status": "na",
+        "refs": [],
+        "note": "本片只为既有管理账号测试 SSE 加保活，不新增持久化字段、配置、路由或DTO。"
+      },
+      "config": {
+        "status": "na",
+        "refs": [],
+        "note": "本片只为既有管理账号测试 SSE 加保活，不新增持久化字段、配置、路由或DTO。"
+      },
+      "tests": {
+        "status": "pending",
+        "refs": [
+          "backend/internal/service/account_test_service.go",
+          "backend/internal/service/account_test_service_bps_probe.go",
+          "backend/internal/service/account_test_sse_http_test.go",
+          "backend/internal/service/account_test_sse_keepalive.go",
+          "backend/internal/service/account_test_sse_keepalive_test.go",
+          "frontend/src/components/admin/account/__tests__/IQTestModal.spec.ts"
+        ],
+        "note": "逐字段/入口/默认值和运行验证待该批补齐；清单存在不代表闭环。"
+      }
+    },
+    "rollback": "停止推进，根协调经审查应用revert；不改历史SQL、不删除数据、不历史补扣。"
+  },
+  {
+    "id": "subscription-renewal",
+    "title": "套餐续费 restart/extend",
+    "status": "pending-composition",
+    "batch": "P3-6",
+    "reason": "旧订单/DB默认 extend，新购买默认 restart；重置周期用量会碰 #364 receipt/冻结价格/原子性。239 已占用，先报根分配。",
+    "source_paths": [
+      "backend/ent/migrate/schema.go",
+      "backend/ent/mutation.go",
+      "backend/ent/paymentorder.go",
+      "backend/ent/paymentorder/paymentorder.go",
+      "backend/ent/paymentorder/where.go",
+      "backend/ent/paymentorder_create.go",
+      "backend/ent/paymentorder_update.go",
+      "backend/ent/runtime/runtime.go",
+      "backend/ent/schema/payment_order.go",
+      "backend/internal/handler/admin/payment_handler.go",
+      "backend/internal/handler/payment_handler.go",
+      "backend/internal/handler/payment_handler_resume_test.go",
+      "backend/internal/service/payment_fulfillment.go",
+      "backend/internal/service/payment_order.go",
+      "backend/internal/service/payment_order_provider_snapshot_test.go",
+      "backend/internal/service/payment_resume_service.go",
+      "backend/internal/service/payment_resume_service_test.go",
+      "backend/internal/service/payment_service.go",
+      "backend/internal/service/subscription_renewal_lock_test.go",
+      "backend/internal/service/subscription_service.go",
+      "backend/migrations/239_payment_order_subscription_renewal_mode.sql",
+      "backend/migrations/payment_order_subscription_renewal_mode_migration_test.go",
+      "frontend/src/components/payment/__tests__/paymentFlow.spec.ts",
+      "frontend/src/components/payment/paymentFlow.ts",
+      "frontend/src/types/payment.ts",
+      "frontend/src/views/user/PaymentView.vue",
+      "frontend/src/views/user/SubscriptionsView.vue",
+      "frontend/src/views/user/__tests__/PaymentView.spec.ts",
+      "frontend/src/views/user/__tests__/SubscriptionsView.spec.ts",
+      "frontend/src/views/user/__tests__/paymentWechatResume.spec.ts",
+      "frontend/src/views/user/paymentWechatResume.ts"
+    ],
+    "associations": {
+      "ui": {
+        "status": "pending",
+        "refs": [
+          "frontend/src/components/payment/paymentFlow.ts",
+          "frontend/src/types/payment.ts",
+          "frontend/src/views/user/PaymentView.vue",
+          "frontend/src/views/user/SubscriptionsView.vue",
+          "frontend/src/views/user/paymentWechatResume.ts"
+        ],
+        "note": "逐字段/入口/默认值和运行验证待该批补齐；清单存在不代表闭环。"
+      },
+      "api_dto": {
+        "status": "pending",
+        "refs": [
+          "backend/internal/handler/admin/payment_handler.go",
+          "backend/internal/handler/payment_handler.go",
+          "backend/internal/service/payment_fulfillment.go",
+          "backend/internal/service/payment_order.go",
+          "backend/internal/service/payment_resume_service.go",
+          "backend/internal/service/payment_service.go",
+          "backend/internal/service/subscription_service.go"
+        ],
+        "note": "逐字段/入口/默认值和运行验证待该批补齐；清单存在不代表闭环。"
+      },
+      "schema": {
+        "status": "pending",
+        "refs": [
+          "backend/ent/migrate/schema.go",
+          "backend/ent/mutation.go",
+          "backend/ent/paymentorder.go",
+          "backend/ent/paymentorder/paymentorder.go",
+          "backend/ent/paymentorder/where.go",
+          "backend/ent/paymentorder_create.go",
+          "backend/ent/paymentorder_update.go",
+          "backend/ent/runtime/runtime.go",
+          "backend/ent/schema/payment_order.go",
+          "backend/migrations/239_payment_order_subscription_renewal_mode.sql"
+        ],
+        "note": "逐字段/入口/默认值和运行验证待该批补齐；清单存在不代表闭环。"
+      },
+      "config": {
+        "status": "pending",
+        "refs": [],
+        "note": "逐字段/入口/默认值和运行验证待该批补齐；清单存在不代表闭环。"
+      },
+      "tests": {
+        "status": "pending",
+        "refs": [
+          "backend/internal/handler/payment_handler_resume_test.go",
+          "backend/internal/service/payment_order_provider_snapshot_test.go",
+          "backend/internal/service/payment_resume_service_test.go",
+          "backend/internal/service/subscription_renewal_lock_test.go",
+          "backend/migrations/payment_order_subscription_renewal_mode_migration_test.go",
+          "frontend/src/components/payment/__tests__/paymentFlow.spec.ts",
+          "frontend/src/views/user/__tests__/PaymentView.spec.ts",
+          "frontend/src/views/user/__tests__/SubscriptionsView.spec.ts",
+          "frontend/src/views/user/__tests__/paymentWechatResume.spec.ts"
+        ],
+        "note": "逐字段/入口/默认值和运行验证待该批补齐；清单存在不代表闭环。"
+      }
+    },
+    "rollback": "停止推进，根协调经审查应用revert；不改历史SQL、不删除数据、不历史补扣。"
+  },
+  {
+    "id": "bps-credentials",
+    "title": "BPS 双 OAuth 隔离、授权就绪、401/RT 并发恢复和安全诊断",
+    "status": "needs-port",
+    "batch": "P3-4",
+    "reason": "不能只搬修复；Fork 缺 BPS 基础设施时先补 schema/repository/权限与 UI；保留原生 Codex、管理员停用。",
+    "source_paths": [
+      "backend/internal/handler/dto/excel_bps_credential_state_test.go",
+      "backend/internal/repository/account_quality_bps.go",
+      "backend/internal/repository/account_quality_bps_integration_test.go",
+      "backend/internal/repository/excel_bps_credential_state_test.go",
+      "backend/internal/repository/openai_excel_oauth_integration_test.go",
+      "backend/internal/repository/openai_excel_oauth_repo.go",
+      "backend/internal/service/account_excel_bps_groups.go",
+      "backend/internal/service/account_test_bps_evidence.go",
+      "backend/internal/service/account_test_bps_evidence_test.go",
+      "backend/internal/service/excel_bps_credential_state.go",
+      "backend/internal/service/excel_bps_credential_state_test.go",
+      "backend/internal/service/openai_excel_bps.go",
+      "backend/internal/service/openai_excel_oauth.go",
+      "backend/internal/service/openai_excel_oauth_recovery_test.go",
+      "backend/internal/service/openai_excel_oauth_routing.go",
+      "backend/internal/service/openai_excel_oauth_routing_test.go",
+      "backend/internal/service/openai_excel_oauth_test.go",
+      "backend/internal/service/openai_excel_readiness_test.go",
+      "docs/excel-bps.md",
+      "docs/features/bps-credential-diagnostics.md",
+      "docs/features/excel-bps-refresh-recovery.md",
+      "docs/screenshots/bps-credential-diagnostics/README.md",
+      "docs/screenshots/bps-credential-diagnostics/states.png",
+      "frontend/src/components/account/AccountStatusIndicator.vue",
+      "frontend/src/components/account/AccountUsageCell.vue",
+      "frontend/src/components/account/ExcelBPSCredentialStatus.vue",
+      "frontend/src/components/account/__tests__/ExcelBPSCredentialStatus.spec.ts",
+      "frontend/src/utils/excelBpsCredentialState.ts"
+    ],
+    "associations": {
+      "ui": {
+        "status": "pending",
+        "refs": [
+          "frontend/src/components/account/AccountStatusIndicator.vue",
+          "frontend/src/components/account/AccountUsageCell.vue",
+          "frontend/src/components/account/ExcelBPSCredentialStatus.vue",
+          "frontend/src/utils/excelBpsCredentialState.ts"
+        ],
+        "note": "逐字段/入口/默认值和运行验证待该批补齐；清单存在不代表闭环。"
+      },
+      "api_dto": {
+        "status": "pending",
+        "refs": [
+          "backend/internal/repository/account_quality_bps.go",
+          "backend/internal/repository/openai_excel_oauth_repo.go",
+          "backend/internal/service/account_excel_bps_groups.go",
+          "backend/internal/service/excel_bps_credential_state.go",
+          "backend/internal/service/openai_excel_bps.go",
+          "backend/internal/service/openai_excel_oauth.go",
+          "backend/internal/service/openai_excel_oauth_routing.go",
+          "docs/excel-bps.md",
+          "docs/features/bps-credential-diagnostics.md",
+          "docs/features/excel-bps-refresh-recovery.md",
+          "docs/screenshots/bps-credential-diagnostics/README.md",
+          "docs/screenshots/bps-credential-diagnostics/states.png"
+        ],
+        "note": "逐字段/入口/默认值和运行验证待该批补齐；清单存在不代表闭环。"
+      },
+      "schema": {
+        "status": "pending",
+        "refs": [],
+        "note": "逐字段/入口/默认值和运行验证待该批补齐；清单存在不代表闭环。"
+      },
+      "config": {
+        "status": "pending",
+        "refs": [],
+        "note": "逐字段/入口/默认值和运行验证待该批补齐；清单存在不代表闭环。"
+      },
+      "tests": {
+        "status": "pending",
+        "refs": [
+          "backend/internal/handler/dto/excel_bps_credential_state_test.go",
+          "backend/internal/repository/account_quality_bps_integration_test.go",
+          "backend/internal/repository/excel_bps_credential_state_test.go",
+          "backend/internal/repository/openai_excel_oauth_integration_test.go",
+          "backend/internal/service/account_test_bps_evidence.go",
+          "backend/internal/service/account_test_bps_evidence_test.go",
+          "backend/internal/service/excel_bps_credential_state_test.go",
+          "backend/internal/service/openai_excel_oauth_recovery_test.go",
+          "backend/internal/service/openai_excel_oauth_routing_test.go",
+          "backend/internal/service/openai_excel_oauth_test.go",
+          "backend/internal/service/openai_excel_readiness_test.go",
+          "frontend/src/components/account/__tests__/ExcelBPSCredentialStatus.spec.ts"
+        ],
+        "note": "逐字段/入口/默认值和运行验证待该批补齐；清单存在不代表闭环。"
+      }
+    },
+    "rollback": "停止推进，根协调经审查应用revert；不改历史SQL、不删除数据、不历史补扣。"
+  },
+  {
+    "id": "bps-model-cooldown",
+    "title": "映射模型权限拒绝冷却",
+    "status": "needs-port",
+    "batch": "P3-4",
+    "reason": "别名共享实际模型冷却，其他模型及原生路由不暂停；进程内状态不误称共享。",
+    "source_paths": [
+      "backend/internal/service/openai_excel_bps_model_access.go",
+      "backend/internal/service/openai_excel_bps_model_cooldown.go",
+      "backend/internal/service/openai_excel_bps_model_cooldown_test.go"
+    ],
+    "associations": {
+      "ui": {
+        "status": "pending",
+        "refs": [],
+        "note": "逐字段/入口/默认值和运行验证待该批补齐；清单存在不代表闭环。"
+      },
+      "api_dto": {
+        "status": "pending",
+        "refs": [
+          "backend/internal/service/openai_excel_bps_model_access.go",
+          "backend/internal/service/openai_excel_bps_model_cooldown.go"
+        ],
+        "note": "逐字段/入口/默认值和运行验证待该批补齐；清单存在不代表闭环。"
+      },
+      "schema": {
+        "status": "pending",
+        "refs": [],
+        "note": "逐字段/入口/默认值和运行验证待该批补齐；清单存在不代表闭环。"
+      },
+      "config": {
+        "status": "pending",
+        "refs": [],
+        "note": "逐字段/入口/默认值和运行验证待该批补齐；清单存在不代表闭环。"
+      },
+      "tests": {
+        "status": "pending",
+        "refs": [
+          "backend/internal/service/openai_excel_bps_model_cooldown_test.go"
+        ],
+        "note": "逐字段/入口/默认值和运行验证待该批补齐；清单存在不代表闭环。"
+      }
+    },
+    "rollback": "停止推进，根协调经审查应用revert；不改历史SQL、不删除数据、不历史补扣。"
+  },
+  {
+    "id": "bps-redis-state",
+    "title": "可选跨实例工具会话状态",
+    "status": "needs-port",
+    "batch": "P3-4",
+    "reason": "默认关闭；隔离账号/key/session namespace，Redis失败不可悄悄降级不完整历史。",
+    "source_paths": [
+      "backend/internal/repository/gateway_cache_bps_state.go",
+      "backend/internal/repository/gateway_cache_bps_state_test.go",
+      "backend/internal/service/basispoints/catalog_cache.go",
+      "backend/internal/service/basispoints/persistent_state.go",
+      "backend/internal/service/basispoints/plan.go",
+      "backend/internal/service/basispoints/plan_test.go",
+      "backend/internal/service/basispoints/tools.go"
+    ],
+    "associations": {
+      "ui": {
+        "status": "pending",
+        "refs": [],
+        "note": "逐字段/入口/默认值和运行验证待该批补齐；清单存在不代表闭环。"
+      },
+      "api_dto": {
+        "status": "pending",
+        "refs": [
+          "backend/internal/repository/gateway_cache_bps_state.go",
+          "backend/internal/service/basispoints/catalog_cache.go",
+          "backend/internal/service/basispoints/persistent_state.go",
+          "backend/internal/service/basispoints/plan.go",
+          "backend/internal/service/basispoints/tools.go"
+        ],
+        "note": "逐字段/入口/默认值和运行验证待该批补齐；清单存在不代表闭环。"
+      },
+      "schema": {
+        "status": "pending",
+        "refs": [],
+        "note": "逐字段/入口/默认值和运行验证待该批补齐；清单存在不代表闭环。"
+      },
+      "config": {
+        "status": "pending",
+        "refs": [],
+        "note": "逐字段/入口/默认值和运行验证待该批补齐；清单存在不代表闭环。"
+      },
+      "tests": {
+        "status": "pending",
+        "refs": [
+          "backend/internal/repository/gateway_cache_bps_state_test.go",
+          "backend/internal/service/basispoints/plan_test.go"
+        ],
+        "note": "逐字段/入口/默认值和运行验证待该批补齐；清单存在不代表闭环。"
+      }
+    },
+    "rollback": "停止推进，根协调经审查应用revert；不改历史SQL、不删除数据、不历史补扣。"
+  },
+  {
+    "id": "timezone",
+    "title": "可选账号请求 IANA 时区绑定",
+    "status": "needs-port",
+    "batch": "P3-3",
+    "reason": "默认关闭；只改已有环境/搜索时区，不改日期/普通文本；HTTP与WS同步覆盖。",
+    "source_paths": [
+      "backend/internal/handler/admin/account_request_timezone_test.go",
+      "backend/internal/service/openai_request_locale.go",
+      "backend/internal/service/openai_request_locale_test.go",
+      "backend/internal/service/openai_request_locale_transport_test.go",
+      "backend/internal/service/openai_request_timezone.go",
+      "backend/internal/service/openai_request_timezones.txt",
+      "backend/internal/service/setting_request_timezone.go",
+      "backend/internal/service/setting_request_timezone_test.go",
+      "backend/internal/service/setting_request_timezone_update_test.go",
+      "docs/features/request-timezone.md",
+      "docs/screenshots/request-timezone/README.md",
+      "docs/screenshots/request-timezone/disabled.png",
+      "docs/screenshots/request-timezone/enabled.png",
+      "frontend/src/components/account/OpenAIRequestTimezoneField.vue",
+      "frontend/src/components/account/__tests__/OpenAIRequestTimezoneField.spec.ts",
+      "frontend/src/components/settings/RequestTimezoneSettings.vue"
+    ],
+    "associations": {
+      "ui": {
+        "status": "pending",
+        "refs": [
+          "frontend/src/components/account/OpenAIRequestTimezoneField.vue",
+          "frontend/src/components/settings/RequestTimezoneSettings.vue"
+        ],
+        "note": "逐字段/入口/默认值和运行验证待该批补齐；清单存在不代表闭环。"
+      },
+      "api_dto": {
+        "status": "pending",
+        "refs": [
+          "backend/internal/service/openai_request_locale.go",
+          "backend/internal/service/openai_request_timezone.go",
+          "backend/internal/service/openai_request_timezones.txt",
+          "backend/internal/service/setting_request_timezone.go",
+          "docs/features/request-timezone.md",
+          "docs/screenshots/request-timezone/README.md",
+          "docs/screenshots/request-timezone/disabled.png",
+          "docs/screenshots/request-timezone/enabled.png"
+        ],
+        "note": "逐字段/入口/默认值和运行验证待该批补齐；清单存在不代表闭环。"
+      },
+      "schema": {
+        "status": "pending",
+        "refs": [],
+        "note": "逐字段/入口/默认值和运行验证待该批补齐；清单存在不代表闭环。"
+      },
+      "config": {
+        "status": "pending",
+        "refs": [],
+        "note": "逐字段/入口/默认值和运行验证待该批补齐；清单存在不代表闭环。"
+      },
+      "tests": {
+        "status": "pending",
+        "refs": [
+          "backend/internal/handler/admin/account_request_timezone_test.go",
+          "backend/internal/service/openai_request_locale_test.go",
+          "backend/internal/service/openai_request_locale_transport_test.go",
+          "backend/internal/service/setting_request_timezone_test.go",
+          "backend/internal/service/setting_request_timezone_update_test.go",
+          "frontend/src/components/account/__tests__/OpenAIRequestTimezoneField.spec.ts"
+        ],
+        "note": "逐字段/入口/默认值和运行验证待该批补齐；清单存在不代表闭环。"
+      }
+    },
+    "rollback": "停止推进，根协调经审查应用revert；不改历史SQL、不删除数据、不历史补扣。"
+  },
+  {
+    "id": "model-capability",
+    "title": "模型不存在/能力拒绝排除可用性故障",
+    "status": "pending-composition",
+    "batch": "P3-2",
+    "reason": "handler 与 #364 热区交叉；最终模型/父分组/别名准入不放宽；404分类不能掩盖真实503。",
+    "source_paths": [
+      "backend/internal/handler/no_account_error.go",
+      "backend/internal/handler/openai_admission_monitor_test.go",
+      "backend/internal/handler/openai_admission_retry.go",
+      "backend/internal/repository/ops_monitor_rejections_integration_test.go",
+      "backend/internal/service/gateway_model_availability.go",
+      "backend/internal/service/model_capability_monitor_test.go",
+      "backend/internal/service/model_rate_limit.go",
+      "backend/internal/service/openai_gateway_model_availability.go",
+      "backend/internal/service/openai_turn_admission.go",
+      "backend/internal/service/ops_client_rejection.go",
+      "backend/internal/service/ops_client_rejection_test.go"
+    ],
+    "associations": {
+      "ui": {
+        "status": "pending",
+        "refs": [],
+        "note": "逐字段/入口/默认值和运行验证待该批补齐；清单存在不代表闭环。"
+      },
+      "api_dto": {
+        "status": "pending",
+        "refs": [
+          "backend/internal/handler/no_account_error.go",
+          "backend/internal/handler/openai_admission_retry.go",
+          "backend/internal/service/gateway_model_availability.go",
+          "backend/internal/service/model_rate_limit.go",
+          "backend/internal/service/openai_gateway_model_availability.go",
+          "backend/internal/service/openai_turn_admission.go",
+          "backend/internal/service/ops_client_rejection.go"
+        ],
+        "note": "逐字段/入口/默认值和运行验证待该批补齐；清单存在不代表闭环。"
+      },
+      "schema": {
+        "status": "pending",
+        "refs": [],
+        "note": "逐字段/入口/默认值和运行验证待该批补齐；清单存在不代表闭环。"
+      },
+      "config": {
+        "status": "pending",
+        "refs": [],
+        "note": "逐字段/入口/默认值和运行验证待该批补齐；清单存在不代表闭环。"
+      },
+      "tests": {
+        "status": "pending",
+        "refs": [
+          "backend/internal/handler/openai_admission_monitor_test.go",
+          "backend/internal/repository/ops_monitor_rejections_integration_test.go",
+          "backend/internal/service/model_capability_monitor_test.go",
+          "backend/internal/service/ops_client_rejection_test.go"
+        ],
+        "note": "逐字段/入口/默认值和运行验证待该批补齐；清单存在不代表闭环。"
+      }
+    },
+    "rollback": "停止推进，根协调经审查应用revert；不改历史SQL、不删除数据、不历史补扣。"
+  },
+  {
+    "id": "transport-retry",
+    "title": "池模式上游传输失败可选503重试",
+    "status": "needs-port",
+    "batch": "P3-2",
+    "reason": "保留已响应不重试、部分用量一次结算、台账每次attempt，跨 #364/281 先协调。",
+    "source_paths": [
+      "backend/internal/service/gateway_upstream_transport_error.go",
+      "backend/internal/service/gateway_upstream_transport_error_test.go"
+    ],
+    "associations": {
+      "ui": {
+        "status": "pending",
+        "refs": [],
+        "note": "逐字段/入口/默认值和运行验证待该批补齐；清单存在不代表闭环。"
+      },
+      "api_dto": {
+        "status": "pending",
+        "refs": [
+          "backend/internal/service/gateway_upstream_transport_error.go"
+        ],
+        "note": "逐字段/入口/默认值和运行验证待该批补齐；清单存在不代表闭环。"
+      },
+      "schema": {
+        "status": "pending",
+        "refs": [],
+        "note": "逐字段/入口/默认值和运行验证待该批补齐；清单存在不代表闭环。"
+      },
+      "config": {
+        "status": "pending",
+        "refs": [],
+        "note": "逐字段/入口/默认值和运行验证待该批补齐；清单存在不代表闭环。"
+      },
+      "tests": {
+        "status": "pending",
+        "refs": [
+          "backend/internal/service/gateway_upstream_transport_error_test.go"
+        ],
+        "note": "逐字段/入口/默认值和运行验证待该批补齐；清单存在不代表闭环。"
+      }
+    },
+    "rollback": "停止推进，根协调经审查应用revert；不改历史SQL、不删除数据、不历史补扣。"
+  },
+  {
+    "id": "ws-search",
+    "title": "WS/SSE搜索工具加速策略",
+    "status": "pending-composition",
+    "batch": "P3-2",
+    "reason": "保留 Fork compact/tool 最终准入与已响应单终止；跨 handler/forwarder 组合审查。",
+    "source_paths": [
+      "backend/internal/handler/openai_gateway_handler.go",
+      "backend/internal/service/openai_account_runtime_block_fastpath.go",
+      "backend/internal/service/openai_account_scheduler.go",
+      "backend/internal/service/openai_gateway_forward.go",
+      "backend/internal/service/openai_gateway_passthrough.go",
+      "backend/internal/service/openai_gateway_scheduling.go",
+      "backend/internal/service/openai_gateway_service.go",
+      "backend/internal/service/openai_images_responses.go",
+      "backend/internal/service/openai_models_list.go",
+      "backend/internal/service/openai_ws_forwarder_ingress.go",
+      "backend/internal/service/openai_ws_forwarder_payload.go",
+      "backend/internal/service/openai_ws_forwarder_v2.go",
+      "backend/internal/service/openai_ws_sse_acceleration.go",
+      "backend/internal/service/openai_ws_sse_presend_test.go",
+      "backend/internal/service/openai_ws_v2_passthrough_adapter.go"
+    ],
+    "associations": {
+      "ui": {
+        "status": "pending",
+        "refs": [],
+        "note": "逐字段/入口/默认值和运行验证待该批补齐；清单存在不代表闭环。"
+      },
+      "api_dto": {
+        "status": "pending",
+        "refs": [
+          "backend/internal/handler/openai_gateway_handler.go",
+          "backend/internal/service/openai_account_runtime_block_fastpath.go",
+          "backend/internal/service/openai_account_scheduler.go",
+          "backend/internal/service/openai_gateway_forward.go",
+          "backend/internal/service/openai_gateway_passthrough.go",
+          "backend/internal/service/openai_gateway_scheduling.go",
+          "backend/internal/service/openai_gateway_service.go",
+          "backend/internal/service/openai_images_responses.go",
+          "backend/internal/service/openai_models_list.go",
+          "backend/internal/service/openai_ws_forwarder_ingress.go",
+          "backend/internal/service/openai_ws_forwarder_payload.go",
+          "backend/internal/service/openai_ws_forwarder_v2.go",
+          "backend/internal/service/openai_ws_sse_acceleration.go",
+          "backend/internal/service/openai_ws_v2_passthrough_adapter.go"
+        ],
+        "note": "逐字段/入口/默认值和运行验证待该批补齐；清单存在不代表闭环。"
+      },
+      "schema": {
+        "status": "pending",
+        "refs": [],
+        "note": "逐字段/入口/默认值和运行验证待该批补齐；清单存在不代表闭环。"
+      },
+      "config": {
+        "status": "pending",
+        "refs": [],
+        "note": "逐字段/入口/默认值和运行验证待该批补齐；清单存在不代表闭环。"
+      },
+      "tests": {
+        "status": "pending",
+        "refs": [
+          "backend/internal/service/openai_ws_sse_presend_test.go"
+        ],
+        "note": "逐字段/入口/默认值和运行验证待该批补齐；清单存在不代表闭环。"
+      }
+    },
+    "rollback": "停止推进，根协调经审查应用revert；不改历史SQL、不删除数据、不历史补扣。"
+  },
+  {
+    "id": "grok-video",
+    "title": "Grok视频验证来源URL",
+    "status": "needs-port",
+    "batch": "P3-5",
+    "reason": "保留 StarFrame/ImageStudio和图片/视频计费，不把来源URL暴露当作生成验收。",
+    "source_paths": [
+      "backend/internal/service/grok_media.go",
+      "backend/internal/service/grok_media_content_test.go"
+    ],
+    "associations": {
+      "ui": {
+        "status": "pending",
+        "refs": [],
+        "note": "逐字段/入口/默认值和运行验证待该批补齐；清单存在不代表闭环。"
+      },
+      "api_dto": {
+        "status": "pending",
+        "refs": [
+          "backend/internal/service/grok_media.go"
+        ],
+        "note": "逐字段/入口/默认值和运行验证待该批补齐；清单存在不代表闭环。"
+      },
+      "schema": {
+        "status": "pending",
+        "refs": [],
+        "note": "逐字段/入口/默认值和运行验证待该批补齐；清单存在不代表闭环。"
+      },
+      "config": {
+        "status": "pending",
+        "refs": [],
+        "note": "逐字段/入口/默认值和运行验证待该批补齐；清单存在不代表闭环。"
+      },
+      "tests": {
+        "status": "pending",
+        "refs": [
+          "backend/internal/service/grok_media_content_test.go"
+        ],
+        "note": "逐字段/入口/默认值和运行验证待该批补齐；清单存在不代表闭环。"
+      }
+    },
+    "rollback": "停止推进，根协调经审查应用revert；不改历史SQL、不删除数据、不历史补扣。"
+  },
+  {
+    "id": "quality-retry",
+    "title": "质量评估跨路由多样重试",
+    "status": "needs-port",
+    "batch": "P3-5",
+    "reason": "先补账号质量基础与权限/任务开关；默认不得自动探测真实账号。",
+    "source_paths": [
+      "backend/internal/service/quality_judge.go",
+      "backend/internal/service/quality_judge_test.go"
+    ],
+    "associations": {
+      "ui": {
+        "status": "pending",
+        "refs": [],
+        "note": "逐字段/入口/默认值和运行验证待该批补齐；清单存在不代表闭环。"
+      },
+      "api_dto": {
+        "status": "pending",
+        "refs": [
+          "backend/internal/service/quality_judge.go"
+        ],
+        "note": "逐字段/入口/默认值和运行验证待该批补齐；清单存在不代表闭环。"
+      },
+      "schema": {
+        "status": "pending",
+        "refs": [],
+        "note": "逐字段/入口/默认值和运行验证待该批补齐；清单存在不代表闭环。"
+      },
+      "config": {
+        "status": "pending",
+        "refs": [],
+        "note": "逐字段/入口/默认值和运行验证待该批补齐；清单存在不代表闭环。"
+      },
+      "tests": {
+        "status": "pending",
+        "refs": [
+          "backend/internal/service/quality_judge_test.go"
+        ],
+        "note": "逐字段/入口/默认值和运行验证待该批补齐；清单存在不代表闭环。"
+      }
+    },
+    "rollback": "停止推进，根协调经审查应用revert；不改历史SQL、不删除数据、不历史补扣。"
+  },
+  {
+    "id": "codex-config",
+    "title": "Codex一键配置",
+    "status": "needs-port",
+    "batch": "P3-5",
+    "reason": "复用 Fork KeysView 风格；合成 key，跨 shell/系统引号与配置保留测试；不执行生成脚本。",
+    "source_paths": [
+      "frontend/src/components/keys/CodexQuickConfigModal.vue",
+      "frontend/src/components/keys/__tests__/CodexQuickConfigModal.spec.ts",
+      "frontend/src/utils/__tests__/codexQuickConfig.spec.ts",
+      "frontend/src/utils/codexQuickConfig.ts",
+      "frontend/src/views/user/KeysView.vue"
+    ],
+    "associations": {
+      "ui": {
+        "status": "pending",
+        "refs": [
+          "frontend/src/views/user/KeysView.vue"
+        ],
+        "note": "逐字段/入口/默认值和运行验证待该批补齐；清单存在不代表闭环。"
+      },
+      "api_dto": {
+        "status": "pending",
+        "refs": [],
+        "note": "逐字段/入口/默认值和运行验证待该批补齐；清单存在不代表闭环。"
+      },
+      "schema": {
+        "status": "pending",
+        "refs": [],
+        "note": "逐字段/入口/默认值和运行验证待该批补齐；清单存在不代表闭环。"
+      },
+      "config": {
+        "status": "pending",
+        "refs": [
+          "frontend/src/components/keys/CodexQuickConfigModal.vue",
+          "frontend/src/utils/codexQuickConfig.ts"
+        ],
+        "note": "逐字段/入口/默认值和运行验证待该批补齐；清单存在不代表闭环。"
+      },
+      "tests": {
+        "status": "pending",
+        "refs": [
+          "frontend/src/components/keys/__tests__/CodexQuickConfigModal.spec.ts",
+          "frontend/src/utils/__tests__/codexQuickConfig.spec.ts"
+        ],
+        "note": "逐字段/入口/默认值和运行验证待该批补齐；清单存在不代表闭环。"
+      }
+    },
+    "rollback": "停止推进，根协调经审查应用revert；不改历史SQL、不删除数据、不历史补扣。"
+  },
+  {
+    "id": "pelican-csp",
+    "title": "Pelican CSP nonce预览",
+    "status": "needs-port",
+    "batch": "P3-5",
+    "reason": "需确认展示入口、隔离与CSP契约；没有对应页面不代表可无理由跳过。",
+    "source_paths": [
+      "frontend/src/components/user/pelican/PelicanArtworkPreview.vue",
+      "frontend/src/components/user/pelican/__tests__/PelicanArtworkPreview.spec.ts",
+      "frontend/src/utils/__tests__/pelicanCspNonce.spec.ts",
+      "frontend/src/utils/pelicanHtml.ts",
+      "frontend/src/utils/pelicanPreview.ts"
+    ],
+    "associations": {
+      "ui": {
+        "status": "pending",
+        "refs": [
+          "frontend/src/components/user/pelican/PelicanArtworkPreview.vue",
+          "frontend/src/utils/pelicanHtml.ts",
+          "frontend/src/utils/pelicanPreview.ts"
+        ],
+        "note": "逐字段/入口/默认值和运行验证待该批补齐；清单存在不代表闭环。"
+      },
+      "api_dto": {
+        "status": "pending",
+        "refs": [],
+        "note": "逐字段/入口/默认值和运行验证待该批补齐；清单存在不代表闭环。"
+      },
+      "schema": {
+        "status": "pending",
+        "refs": [],
+        "note": "逐字段/入口/默认值和运行验证待该批补齐；清单存在不代表闭环。"
+      },
+      "config": {
+        "status": "pending",
+        "refs": [],
+        "note": "逐字段/入口/默认值和运行验证待该批补齐；清单存在不代表闭环。"
+      },
+      "tests": {
+        "status": "pending",
+        "refs": [
+          "frontend/src/components/user/pelican/__tests__/PelicanArtworkPreview.spec.ts",
+          "frontend/src/utils/__tests__/pelicanCspNonce.spec.ts"
+        ],
+        "note": "逐字段/入口/默认值和运行验证待该批补齐；清单存在不代表闭环。"
+      }
+    },
+    "rollback": "停止推进，根协调经审查应用revert；不改历史SQL、不删除数据、不历史补扣。"
+  },
+  {
+    "id": "shared-contracts",
+    "title": "共享设置/API/DTO/配置与构建联动",
+    "status": "needs-port",
+    "batch": "P3-2..6",
+    "reason": "逐字段认领至业务包；保留 Fork Go1.27.2、安全依赖/CI/自研产物，不覆盖上游成品部署。",
+    "source_paths": [
+      "Makefile",
+      "README.md",
+      "backend/Makefile",
+      "backend/cmd/server/VERSION",
+      "backend/config/config.yaml",
+      "backend/go.sum",
+      "backend/internal/config/config.go",
+      "backend/internal/handler/admin/account_handler.go",
+      "backend/internal/handler/admin/setting_handler.go",
+      "backend/internal/handler/admin/setting_handler_audit.go",
+      "backend/internal/handler/admin/setting_handler_partial_payload_test.go",
+      "backend/internal/handler/admin/setting_handler_update.go",
+      "backend/internal/handler/auth_wechat_oauth.go",
+      "backend/internal/handler/auth_wechat_oauth_test.go",
+      "backend/internal/handler/dto/mappers.go",
+      "backend/internal/handler/dto/settings.go",
+      "backend/internal/handler/dto/types.go",
+      "backend/internal/handler/openai_chat_completions.go",
+      "backend/internal/handler/setting_handler.go",
+      "backend/internal/handler/setting_handler_public_test.go",
+      "backend/internal/repository/account_repo.go",
+      "backend/internal/server/api_contract_test.go",
+      "backend/internal/server/routes/admin.go",
+      "backend/internal/service/account.go",
+      "backend/internal/service/account_service.go",
+      "backend/internal/service/admin_account.go",
+      "backend/internal/service/admin_service.go",
+      "backend/internal/service/domain_constants.go",
+      "backend/internal/service/openai_bulk_account_settings.go",
+      "backend/internal/service/openai_codex_models_service.go",
+      "backend/internal/service/openai_codex_ticket.go",
+      "backend/internal/service/setting_parse.go",
+      "backend/internal/service/setting_service.go",
+      "backend/internal/service/setting_update.go",
+      "backend/internal/service/settings_view.go",
+      "backend/internal/service/wire.go",
+      "backend/internal/web/embed_on.go",
+      "backend/internal/web/embed_test.go",
+      "deploy/config.example.yaml",
+      "docs/features/bps-model-permission-cooldown.md",
+      "docs/features/bps-redis-state.md",
+      "docs/openai-2fa-dual-oauth.md",
+      "docs/screenshots/bps-authorization/README.md",
+      "docs/screenshots/bps-authorization/admin.png",
+      "docs/screenshots/bps-authorization/after.png",
+      "docs/screenshots/bps-authorization/before.png",
+      "docs/screenshots/bps-authorization/preparing.png",
+      "docs/screenshots/bps-test-evidence/README.md",
+      "docs/screenshots/bps-test-evidence/responses.png",
+      "frontend/package.json",
+      "frontend/pnpm-lock.yaml",
+      "frontend/src/api/admin/accounts.ts",
+      "frontend/src/api/admin/settings.ts",
+      "frontend/src/components/account/AccountTestEvidence.vue",
+      "frontend/src/components/account/AccountTestModal.vue",
+      "frontend/src/components/account/CreateAccountModal.vue",
+      "frontend/src/components/account/EditAccountModal.vue",
+      "frontend/src/components/account/__tests__/AccountTestModal.spec.ts",
+      "frontend/src/components/admin/account/AccountTestModal.vue",
+      "frontend/src/components/admin/account/__tests__/AccountTestModal.spec.ts",
+      "frontend/src/i18n/locales/en/admin/accounts.ts",
+      "frontend/src/i18n/locales/en/admin/settings.ts",
+      "frontend/src/i18n/locales/en/dashboard.ts",
+      "frontend/src/i18n/locales/en/misc.ts",
+      "frontend/src/i18n/locales/en/qualityOps.ts",
+      "frontend/src/i18n/locales/zh/admin/accounts.ts",
+      "frontend/src/i18n/locales/zh/admin/settings.ts",
+      "frontend/src/i18n/locales/zh/dashboard.ts",
+      "frontend/src/i18n/locales/zh/misc.ts",
+      "frontend/src/i18n/locales/zh/qualityOps.ts",
+      "frontend/src/types/accountTestEvidence.ts",
+      "frontend/src/types/index.ts",
+      "frontend/src/views/admin/AccountsView.vue",
+      "frontend/src/views/admin/SettingsView.vue",
+      "frontend/src/views/admin/__tests__/SettingsView.spec.ts"
+    ],
+    "associations": {
+      "ui": {
+        "status": "pending",
+        "refs": [
+          "frontend/package.json",
+          "frontend/pnpm-lock.yaml",
+          "frontend/src/api/admin/accounts.ts",
+          "frontend/src/api/admin/settings.ts",
+          "frontend/src/components/account/CreateAccountModal.vue",
+          "frontend/src/components/account/EditAccountModal.vue",
+          "frontend/src/i18n/locales/en/admin/accounts.ts",
+          "frontend/src/i18n/locales/en/admin/settings.ts",
+          "frontend/src/i18n/locales/en/dashboard.ts",
+          "frontend/src/i18n/locales/en/misc.ts",
+          "frontend/src/i18n/locales/en/qualityOps.ts",
+          "frontend/src/i18n/locales/zh/admin/accounts.ts",
+          "frontend/src/i18n/locales/zh/admin/settings.ts",
+          "frontend/src/i18n/locales/zh/dashboard.ts",
+          "frontend/src/i18n/locales/zh/misc.ts",
+          "frontend/src/i18n/locales/zh/qualityOps.ts",
+          "frontend/src/types/index.ts",
+          "frontend/src/views/admin/AccountsView.vue",
+          "frontend/src/views/admin/SettingsView.vue"
+        ],
+        "note": "逐字段/入口/默认值和运行验证待该批补齐；清单存在不代表闭环。"
+      },
+      "api_dto": {
+        "status": "pending",
+        "refs": [
+          "Makefile",
+          "README.md",
+          "backend/Makefile",
+          "backend/cmd/server/VERSION",
+          "backend/go.sum",
+          "backend/internal/handler/admin/account_handler.go",
+          "backend/internal/handler/admin/setting_handler.go",
+          "backend/internal/handler/admin/setting_handler_audit.go",
+          "backend/internal/handler/admin/setting_handler_update.go",
+          "backend/internal/handler/auth_wechat_oauth.go",
+          "backend/internal/handler/dto/mappers.go",
+          "backend/internal/handler/dto/settings.go",
+          "backend/internal/handler/dto/types.go",
+          "backend/internal/handler/openai_chat_completions.go",
+          "backend/internal/handler/setting_handler.go",
+          "backend/internal/repository/account_repo.go",
+          "backend/internal/server/routes/admin.go",
+          "backend/internal/service/account.go",
+          "backend/internal/service/account_service.go",
+          "backend/internal/service/admin_account.go",
+          "backend/internal/service/admin_service.go",
+          "backend/internal/service/domain_constants.go",
+          "backend/internal/service/openai_bulk_account_settings.go",
+          "backend/internal/service/openai_codex_models_service.go",
+          "backend/internal/service/openai_codex_ticket.go",
+          "backend/internal/service/setting_parse.go",
+          "backend/internal/service/setting_service.go",
+          "backend/internal/service/setting_update.go",
+          "backend/internal/service/settings_view.go",
+          "backend/internal/service/wire.go",
+          "backend/internal/web/embed_on.go",
+          "docs/features/bps-model-permission-cooldown.md",
+          "docs/features/bps-redis-state.md",
+          "docs/openai-2fa-dual-oauth.md",
+          "docs/screenshots/bps-authorization/README.md",
+          "docs/screenshots/bps-authorization/admin.png",
+          "docs/screenshots/bps-authorization/after.png",
+          "docs/screenshots/bps-authorization/before.png",
+          "docs/screenshots/bps-authorization/preparing.png"
+        ],
+        "note": "逐字段/入口/默认值和运行验证待该批补齐；清单存在不代表闭环。"
+      },
+      "schema": {
+        "status": "pending",
+        "refs": [],
+        "note": "逐字段/入口/默认值和运行验证待该批补齐；清单存在不代表闭环。"
+      },
+      "config": {
+        "status": "pending",
+        "refs": [
+          "backend/config/config.yaml",
+          "backend/internal/config/config.go",
+          "deploy/config.example.yaml"
+        ],
+        "note": "逐字段/入口/默认值和运行验证待该批补齐；清单存在不代表闭环。"
+      },
+      "tests": {
+        "status": "pending",
+        "refs": [
+          "backend/internal/handler/admin/setting_handler_partial_payload_test.go",
+          "backend/internal/handler/auth_wechat_oauth_test.go",
+          "backend/internal/handler/setting_handler_public_test.go",
+          "backend/internal/server/api_contract_test.go",
+          "backend/internal/web/embed_test.go",
+          "docs/screenshots/bps-test-evidence/README.md",
+          "docs/screenshots/bps-test-evidence/responses.png",
+          "frontend/src/components/account/AccountTestEvidence.vue",
+          "frontend/src/components/account/AccountTestModal.vue",
+          "frontend/src/components/account/__tests__/AccountTestModal.spec.ts",
+          "frontend/src/components/admin/account/AccountTestModal.vue",
+          "frontend/src/components/admin/account/__tests__/AccountTestModal.spec.ts",
+          "frontend/src/types/accountTestEvidence.ts",
+          "frontend/src/views/admin/__tests__/SettingsView.spec.ts"
+        ],
+        "note": "逐字段/入口/默认值和运行验证待该批补齐；清单存在不代表闭环。"
+      }
+    },
+    "rollback": "停止推进，根协调经审查应用revert；不改历史SQL、不删除数据、不历史补扣。"
+  }
+]
