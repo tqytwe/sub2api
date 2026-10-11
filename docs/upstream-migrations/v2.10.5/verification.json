@@ -9,7 +9,8 @@
   "v2103_to_v2105_commits": 68,
   "sql_inventory": {
     "union": 447,
-    "source_only": 41
+    "source_only": 41,
+    "scope": "Historical initial 8364 baseline; current composition count is 448 in migrations.json."
   },
   "production_accessed": false,
   "formal_lock_modified": false

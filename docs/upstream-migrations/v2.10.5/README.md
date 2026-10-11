@@ -1,7 +1,7 @@
 # P3 v2.10.5 完整升级准备（未完成迁移）
 
 可行动：先交付 P3-1 账号测试 SSE 保活；根已明确授权。其余按下面批次认领。
-阻断：#364/#363、281 标识诊断、独立 account_usage_service.go 并发任务不能覆盖；
+阻断：#364（含280）、独立 account_usage_service.go 并发任务不能覆盖；#363/#365（含281）已继承，后续移植须保留；
 续费 SQL 新编号未分配；全部非等价文件仍需语义审查；全量升级和生产验收均未通过。
 本目录是固定准备报告，不是替代 v2.10.3/handoff.json 的实时看板。正式来源锁不修改。
 
@@ -29,7 +29,7 @@
 - [routes.json](./routes.json)：固定路由声明的源/目标/独有集合；别名不冒充功能，Fork独有入口必须保留。
 - [migrations.json](./migrations.json)：两端所有SQL文件、完整名称、blob、SHA256及同编号异名冲突；[migration-decisions.json](./migration-decisions.json)逐项记录41个源独有SQL的表/状态/理由，含源244已由Fork273适配吸收、观察员权限当前不适用。
 - [baseline-feature-evidence.json](./baseline-feature-evidence.json)：历史已吸收批次线索及是否在固定Fork祖先链，非最新部署证明。
-- [protected.json](./protected.json)：GitHub实际 #363/#364完整文件列表；281路径未获根确认前保守保护 requestledger/request_ledger 及所有SQL，另保护额度读取文件。
+- [protected.json](./protected.json)：GitHub实际并行任务文件列表及已合并#363/#365继承文件；保守保护 requestledger/request_ledger 及所有SQL，另保护额度读取文件。
 
 状态：`absorbed-adapted-schema` 仅指有列定义/迁移测试证据的既有适配；`not-applicable-current-scope` 必须有既有排除理由；SQL `needs-port` 仍须编号与兼容审查。
 `absorbed-bytes` 只表示固定Fork字节与目标相同；`needs-port-review` 表示有差异须逐项适配/证明语义已吸收，
@@ -59,7 +59,7 @@ paymentFlow/types及测试必须同批适配。新订单默认restart会重置�
    首字节立即送SSE注释、事件后持续心跳、断连取消、停止后等待协程、恢复原context/writer；不改模型输出与计费。
    RED→GREEN真实隔离HTTP两跳；首包/正文静默、成功/失败/截断终止一次、写失败、race、停止后无写入。
    默认10秒节拍，长等待测试检查实际节拍；全部合成凭据/假上游，不请求生产账号。
-2. **P3-2 核心协议/能力路由**：能力拒绝与真实可用性故障分类、transport retry、WS搜索策略；先与#364/281认领handler/forwarder。
+2. **P3-2 核心协议/能力路由**：能力拒绝与真实可用性故障分类、transport retry、WS搜索策略；先与#364认领handler/forwarder，并保留已合并#365标识语义。
    覆盖映射后模型、父组允许范围、停用/删除/凭据刷新、Chat/Responses/共享CC/WS、取消/429/5xx及部分流用量只结算一次。
 3. **P3-3 账号请求时区**：settings总开关→API/DTO→账号编辑/创建→请求HTTP/WS全链。默认关闭，非法IANA拒绝，缺字段兼容；只替换已有字段。
 4. **P3-4 BPS与账号管理完整基础**：先schema/凭证repo与账号协议/路由，再401恢复/并发隔离、模型冷却、安全诊断UI、可选Redis工具状态。
@@ -96,15 +96,23 @@ BPS共享Redis需协调所有实例，回退前关闭可选开关；旧401实现
 
 初始GitHub核查 #363/#364为OPEN，head分别7cc5c016d409aaccec82ec6b222a4c54b620b6e3 / 88cdf3395288723f305e18fbe4a4352d58670efc。
 随后根确认且本任务fetch核实#363已合并caa4805b26114da4b5cb0ddea9343ef6ec9fc528；已普通merge并保留全部文件，见[组合与复用证明](./composition.json)。
-当前机器清单已重算至caa基线，最初8364清单保留于8060c27fa提交。17个历史PR已通过GitHub重新核为MERGED，见[PR核查](./baseline-pr-status.json)；不代表已验证生产部署。
+当前机器清单已重算至16a11abd29b1f37f3be28820b948f2d8400e4e70基线，最初8364清单保留于8060c27fa提交。17个历史PR已通过GitHub重新核为MERGED，见[PR核查](./baseline-pr-status.json)；不代表已验证生产部署。
 历史handoff checked_at=2026-10-10T21:17:26Z，不前移未复核全表时间。
-根明确281是独立进行中任务，不能继续按历史“暂停”描述；额度并发独立线程01a12b27-537f-71f2-9b0f-7df4f11d800e。
+281原为独立进行中任务，现随#365合入并原字节继承；额度并发独立线程01a12b27-537f-71f2-9b0f-7df4f11d800e。
 docs/README.md与旧handoff属于并行热区，索引链接待根组合添加，未自行覆盖。
 
 本片验证结果见 [归档证据](../../archive/completed-tasks/2026-10-11-p3-preparation/README.md)。完整源码差异清单通过不代表完整功能兼容通过。
 
 组合时（P2修复前）前端整树等于caa；P3四文件与本地已验证提交8060c27fa完全同字节。后台只继承#363的隔离PG验收fixture，生产后端/迁移/CI/scripts无额外差异；复用#363归档门禁、双审及CI。无业务交集，不重新启动完整后端合同；本任务最终head CI另行一次。
 
-组合后的三方差异清单为6,241项（新增190项来自#363源码/证据），release增量仍为209文件；这些是文件数，不是缺失功能数。
+此前#363组合后的三方差异清单为6,241项（新增190项来自#363源码/证据），release增量仍为209文件；这些是文件数，不是缺失功能数。
 
 根审发现50a5808在启用ServerTiming时首写锁重入；候选修复与新增真实中间件HTTP回归见[增量证据](../../archive/completed-tasks/2026-10-11-p3-preparation/server-timing/README.md)。历史完整门禁不代替该组合验证。
+
+## #365最终组合
+
+普通merge `8682dba9d6fe827f3766f065f8088732436eff89` 继承主线 `16a11abd29b1f37f3be28820b948f2d8400e4e70` 全部变更；当前清单6,279文件、209个release增量文件、448条SQL清单，41条来源独有SQL逐项决策未改变。详见[组合证据](../../archive/completed-tasks/2026-10-11-p3-preparation/merge365/README.md)。
+
+根已对 `4a405620587954840978d1f5035da0c614e4122a` 完成SSE增量审并解除ServerTiming P2，无新增P1/P2；清单此前根审PASS。五个P3文件、ServerTiming及前端均保持该已验证字节，#365生产代码与281保持主线字节，无源码交集；复用现有证据，不重跑未变全套。最终组合head独立增量审及CI仍须通过。
+
+280仍归#364，未包含本分支。迁移runner按完整文件名逐项查schema_migrations，不按最大编号跳过：281已存在不允许漏执行后续合入的280。此结论来自runner实现，不代表280兼容验证已完成。

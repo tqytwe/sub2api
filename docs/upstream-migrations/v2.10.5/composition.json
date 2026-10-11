@@ -1,88 +1,148 @@
 {
   "analysis_baseline": "8364b462feda15f3bf8f3bb2029314d2193b9dba",
-  "validated_task_commit": "8060c27fab3dad8a92b861d177c726f52830b943",
-  "composition_base": "caa4805b26114da4b5cb0ddea9343ef6ec9fc528",
-  "merge_commit": "ac99aa11a68cbde888e120ebfdff25450e5e5b7f",
+  "validated_task_commit": "4a405620587954840978d1f5035da0c614e4122a",
+  "composition_base": "16a11abd29b1f37f3be28820b948f2d8400e4e70",
+  "merge_commit": "8682dba9d6fe827f3766f065f8088732436eff89",
   "merge_parents": [
-    "8060c27fab3dad8a92b861d177c726f52830b943",
-    "caa4805b26114da4b5cb0ddea9343ef6ec9fc528"
+    "4a405620587954840978d1f5035da0c614e4122a",
+    "16a11abd29b1f37f3be28820b948f2d8400e4e70"
   ],
-  "pr363_head": "dc60e6f6aa998cbff8be05edcadcfcadb195651f",
-  "frontend_tree": "cadf09348e846bf456a99d934fb0626c32be0d09",
-  "frontend_exact_main_bytes": true,
-  "backend_delta_from_validated_task": [
-    "backend/internal/requestledger/acceptance/routing_ui_pg_fixture_test.go"
-  ],
-  "new_backend_file_kind": "isolated acceptance fixture only, inherited byte-for-byte from #363; no production backend changes",
-  "production_backend_migrations_ci_scripts_unchanged_by_merge": true,
-  "p3_source_blobs": {
-    "backend/internal/service/account_test_service.go": "1726e1a5acb24dae521da73df461242c53420052",
-    "backend/internal/service/account_test_sse_keepalive.go": "799fbde3413058d157a33a5fb663fbae866eeffb",
-    "backend/internal/service/account_test_sse_keepalive_test.go": "d5d0eb267b06e7d84001b0b15898244e86bf24e9",
-    "backend/internal/service/account_test_sse_http_test.go": "7aed29c5aed5a30abba23f250d4f4b91b84b81d7"
-  },
-  "pr363_ci": [
-    {
-      "name": "Protected behavior",
-      "status": "completed",
-      "conclusion": "success",
-      "html_url": "https://github.com/tqytwe/sub2api/actions/runs/38143726817/job/114482645809",
-      "head_sha": "dc60e6f6aa998cbff8be05edcadcfcadb195651f"
-    },
+  "pr365_head": "68a06da04109e26c8e9d4f930c9403245375a833",
+  "pr365_checks": [
     {
       "name": "Release source policy",
       "status": "completed",
       "conclusion": "success",
-      "html_url": "https://github.com/tqytwe/sub2api/actions/runs/38143726817/job/114482645779",
-      "head_sha": "dc60e6f6aa998cbff8be05edcadcfcadb195651f"
+      "html_url": "https://github.com/tqytwe/sub2api/actions/runs/38145840686/job/114488878180",
+      "head_sha": "68a06da04109e26c8e9d4f930c9403245375a833"
     },
     {
-      "name": "Check-in PostgreSQL HTTP and frontend contract",
+      "name": "Protected behavior",
       "status": "completed",
       "conclusion": "success",
-      "html_url": "https://github.com/tqytwe/sub2api/actions/runs/38143726817/job/114482645748",
-      "head_sha": "dc60e6f6aa998cbff8be05edcadcfcadb195651f"
+      "html_url": "https://github.com/tqytwe/sub2api/actions/runs/38145840686/job/114488878128",
+      "head_sha": "68a06da04109e26c8e9d4f930c9403245375a833"
     },
     {
       "name": "Documentation",
       "status": "completed",
       "conclusion": "success",
-      "html_url": "https://github.com/tqytwe/sub2api/actions/runs/38143726817/job/114482645690",
-      "head_sha": "dc60e6f6aa998cbff8be05edcadcfcadb195651f"
+      "html_url": "https://github.com/tqytwe/sub2api/actions/runs/38145840686/job/114488878116",
+      "head_sha": "68a06da04109e26c8e9d4f930c9403245375a833"
     },
     {
-      "name": "frontend-security",
+      "name": "Check-in PostgreSQL HTTP and frontend contract",
       "status": "completed",
       "conclusion": "success",
-      "html_url": "https://github.com/tqytwe/sub2api/actions/runs/38143726803/job/114482645686",
-      "head_sha": "dc60e6f6aa998cbff8be05edcadcfcadb195651f"
-    },
-    {
-      "name": "postgres-http-counters",
-      "status": "completed",
-      "conclusion": "success",
-      "html_url": "https://github.com/tqytwe/sub2api/actions/runs/38143726832/job/114482645657",
-      "head_sha": "dc60e6f6aa998cbff8be05edcadcfcadb195651f"
+      "html_url": "https://github.com/tqytwe/sub2api/actions/runs/38145840686/job/114488877919",
+      "head_sha": "68a06da04109e26c8e9d4f930c9403245375a833"
     },
     {
       "name": "Ledger PostgreSQL and protocol contract",
       "status": "completed",
       "conclusion": "success",
-      "html_url": "https://github.com/tqytwe/sub2api/actions/runs/38143726809/job/114482645573",
-      "head_sha": "dc60e6f6aa998cbff8be05edcadcfcadb195651f"
+      "html_url": "https://github.com/tqytwe/sub2api/actions/runs/38145840666/job/114488877695",
+      "head_sha": "68a06da04109e26c8e9d4f930c9403245375a833"
     },
     {
       "name": "backend-security",
       "status": "completed",
       "conclusion": "success",
-      "html_url": "https://github.com/tqytwe/sub2api/actions/runs/38143726803/job/114482645513",
-      "head_sha": "dc60e6f6aa998cbff8be05edcadcfcadb195651f"
+      "html_url": "https://github.com/tqytwe/sub2api/actions/runs/38145840679/job/114488877588",
+      "head_sha": "68a06da04109e26c8e9d4f930c9403245375a833"
+    },
+    {
+      "name": "frontend-security",
+      "status": "completed",
+      "conclusion": "success",
+      "html_url": "https://github.com/tqytwe/sub2api/actions/runs/38145840679/job/114488877389",
+      "head_sha": "68a06da04109e26c8e9d4f930c9403245375a833"
+    },
+    {
+      "name": "postgres-http-counters",
+      "status": "completed",
+      "conclusion": "success",
+      "html_url": "https://github.com/tqytwe/sub2api/actions/runs/38145840581/job/114488877208",
+      "head_sha": "68a06da04109e26c8e9d4f930c9403245375a833"
+    },
+    {
+      "name": "Core migration and repository integration",
+      "status": "completed",
+      "conclusion": "success",
+      "html_url": "https://github.com/tqytwe/sub2api/actions/runs/38145840640/job/114488877175",
+      "head_sha": "68a06da04109e26c8e9d4f930c9403245375a833"
     }
   ],
+  "incoming_paths_exact_main": {
+    ".github/workflows/request-ledger-integration.yml": "2562417d342c49673cb23180fa340e4bc5ece75b",
+    "backend/internal/handler/identifier_handler.go": "9c317bc296b08b8f4032208c0552bb10915ee456",
+    "backend/internal/repository/identifier_migration_integration_test.go": "881594361a35f2f40621495378e81e8dd29b308d",
+    "backend/internal/requestledger/acceptance/identifier_http_integration_test.go": "61854d5f8835b4bbc8bfff781dc50f2ef6294306",
+    "backend/internal/requestledger/attempt.go": "659f6afa413066759cfbaef3af1e5478a5f38e73",
+    "backend/internal/requestledger/correlation.go": "0e722ce656a820badbd78f05fcd85c2a2904a9b6",
+    "backend/internal/requestledger/correlation_test.go": "ea57421d680d23a3654a011a92a2b4831f1e55f5",
+    "backend/internal/requestledger/identifier_diagnostics.go": "4f26d30b6085bfc6c03f7d105443113e86fed3f7",
+    "backend/internal/requestledger/identifier_diagnostics_integration_test.go": "4a3678b5391dc2a73fe975bdcb3129176342ed83",
+    "backend/internal/requestledger/identifier_diagnostics_test.go": "7b6078f776dfd016bc4621f6b165c59c2c216274",
+    "backend/internal/requestledger/identifier_process_integration_test.go": "c19c0985d383f02ee45fed8b58b0a2593b3a2d6b",
+    "backend/internal/requestledger/identifier_query.go": "01a18ad903417a4f2d9ebcf9e9e927c1d8ba9b6a",
+    "backend/internal/requestledger/identifier_reader_test.go": "2b4b577285a51a794d4eb4904949462852ee67d8",
+    "backend/internal/requestledger/identifier_routing_integration_test.go": "b40fae3657c83f9fb2b58decd710d68b4e132026",
+    "backend/internal/requestledger/ledgertest/postgres.go": "07fdedb8caebb0f5ba2abfc7149d6bd6cc08aee0",
+    "backend/internal/requestledger/stream.go": "03f4a94a2c79089ad24c15cd1285044adab0fc94",
+    "backend/internal/server/routes/admin.go": "43e7d1027dc560be90f3eab7d1440018b3d78793",
+    "backend/internal/server/routes/identifier_routes_test.go": "fd84286e83fcb6c4668c4264f3ed32d057df8d5c",
+    "backend/internal/service/identifier_namespace_integration_test.go": "8f00d08403527ed3678047546cf55f1472c4e7e9",
+    "backend/internal/service/openai_images_responses.go": "13288e838748f19f2df8846d1f8db90f6ac397c7",
+    "backend/internal/service/ops_upstream_context.go": "480870877916c5cc1f3614c396add0be56017baa",
+    "backend/migrations/281_gateway_identifier_diagnostics.sql": "3ff6399f73dbfdb9aea5eed02549c129c3725b4e",
+    "docs/FORK_CUSTOMIZATIONS.md": "45b9a744aacbe04eae0581092200a18609c6e06f",
+    "docs/README.md": "126875b1bf11d2d993da2889f57ccd4279b3ee62",
+    "docs/archive/completed-tasks/2026-10-11-identifier-diagnostics/README.md": "f7d43aab589c6f2a1ef1f25c3020daf9345f650b",
+    "docs/archive/completed-tasks/2026-10-11-identifier-diagnostics/base-full-first-failure.json": "bfa70676a9ebfdeb7513ce4b69717efd10c276d2",
+    "docs/archive/completed-tasks/2026-10-11-identifier-diagnostics/cache-cleanup-before-full.json": "5bb769299d3701d035fa77527f9d0cfd2f35e3f1",
+    "docs/archive/completed-tasks/2026-10-11-identifier-diagnostics/cache-cleanup-before-merge-full.json": "15b69d11b48c270de525de3a5f5cb358d9da386a",
+    "docs/archive/completed-tasks/2026-10-11-identifier-diagnostics/cache-cleanup.json": "50c99798ff05a02ce351bbe793bcc7ce05236331",
+    "docs/archive/completed-tasks/2026-10-11-identifier-diagnostics/contract-test-results.json": "d05498de8761d271d193ddd2c4a8bf69dc7167ac",
+    "docs/archive/completed-tasks/2026-10-11-identifier-diagnostics/first-target-results.json": "41de2c111f1f565e4bf5709063ea68e9ab8334ef",
+    "docs/archive/completed-tasks/2026-10-11-identifier-diagnostics/initial-tests.json": "4ecbe705ab8873cbe0aff33d38e11eace0f49d55",
+    "docs/archive/completed-tasks/2026-10-11-identifier-diagnostics/main-sync-pending.json": "3938abf9cd6213bda03eb3703fa2c25b0328e7e7",
+    "docs/archive/completed-tasks/2026-10-11-identifier-diagnostics/main-sync.json": "627807ed6515c18faef70f2d3ab658f345460c19",
+    "docs/archive/completed-tasks/2026-10-11-identifier-diagnostics/merge-contract-test-results.json": "bc9a8a53bbcc553bcbf0355a4bf16dbb7cb97771",
+    "docs/archive/completed-tasks/2026-10-11-identifier-diagnostics/merge-validation.json": "abb127c97fd5c12b0f9e0ebde2db280322f3963c",
+    "docs/archive/completed-tasks/2026-10-11-identifier-diagnostics/merge363-preservation.json": "7cee334b3d5e059d34ea1b8b407363a2b5627a5d",
+    "docs/archive/completed-tasks/2026-10-11-identifier-diagnostics/merge363-validation.json": "b312fbce3adaa2aefd2de92835b929c32fdb3d4f",
+    "docs/archive/completed-tasks/2026-10-11-identifier-diagnostics/migration-coordination.json": "a41377cf81cf9170f874d5600a4aef85535429bd",
+    "docs/archive/completed-tasks/2026-10-11-identifier-diagnostics/migration-red.json": "f4f72cd7f86d7c4a975dafad9df10a50855b1a59",
+    "docs/archive/completed-tasks/2026-10-11-identifier-diagnostics/namespace-red.json": "f48361f124db5846e720b237d9ae9056bf4625ee",
+    "docs/archive/completed-tasks/2026-10-11-identifier-diagnostics/plan.md": "c9d228053658e36c827f908e1b40d878c12b8dbb",
+    "docs/archive/completed-tasks/2026-10-11-identifier-diagnostics/pre-main-tested-source-sha256.txt": "05a71189638a9f40c3cd00115d1a46c2664d8e77",
+    "docs/archive/completed-tasks/2026-10-11-identifier-diagnostics/pre-merge363-ci.json": "95f0c218e467a17e9120befc713e158dffddd8b4",
+    "docs/archive/completed-tasks/2026-10-11-identifier-diagnostics/preservation.json": "edfafcc7751a8fed4db87e8f55661b351b035e67",
+    "docs/archive/completed-tasks/2026-10-11-identifier-diagnostics/progress.json": "8bf3dcc456666ef25898602641b018f1c634fed3",
+    "docs/archive/completed-tasks/2026-10-11-identifier-diagnostics/reviews.json": "d8d60b8b584356e6d19c8e1965957d7582420190",
+    "docs/archive/completed-tasks/2026-10-11-identifier-diagnostics/tested-source-sha256.txt": "f194daacb930cfaee3589bcf511458401d19fb42",
+    "docs/archive/completed-tasks/2026-10-11-identifier-diagnostics/validation.json": "f0c01a040a05b78e186f819f6057ba35f0143548",
+    "docs/upstream-migrations/v2.10.3/handoff.json": "fbb1aa95daa1a820f2443b533137aea4b14ce091"
+  },
+  "p3_source_blobs_unchanged": {
+    "backend/internal/service/account_test_service.go": "1726e1a5acb24dae521da73df461242c53420052",
+    "backend/internal/service/account_test_sse_keepalive.go": "473d069f8613c12242600fb31b9f037e53a3bc40",
+    "backend/internal/service/account_test_sse_keepalive_test.go": "d5d0eb267b06e7d84001b0b15898244e86bf24e9",
+    "backend/internal/service/account_test_sse_http_test.go": "7aed29c5aed5a30abba23f250d4f4b91b84b81d7",
+    "backend/internal/service/account_test_sse_middleware_test.go": "b463d003bb79c33ade74aa59a1c5f5bd9537904e"
+  },
+  "source_intersection": [],
+  "frontend_tree": "cadf09348e846bf456a99d934fb0626c32be0d09",
+  "frontend_exact_main_bytes": true,
+  "server_timing_blob_unchanged": "0ebc66e1b2cbf06a1287064faab488832579cb87",
+  "migration_runner_blob_unchanged": "2e3ca070f03558468bcafa8230b027e36f0b3f69",
+  "migration_281_sha256": "359768b018b700fd2cae179207e98cd84dbe8cc1b92365657182243ef724ec06",
+  "migration_280": "Not included: still reserved to #364. Runner sorts complete filenames then queries schema_migrations WHERE filename=$1 per file (migrations_runner.go:208,229), no highest-number cutoff; existing281 does not authorize skipping later-arriving280. No runner/SQL edits.",
   "reused_evidence": [
-    "docs/archive/completed-tasks/2026-10-11-p3-preparation/validation.json",
-    "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/validation.json",
-    "docs/archive/completed-tasks/admin-routing-detail/merge-8364b462/reviews.json"
+    "docs/archive/completed-tasks/2026-10-11-p3-preparation/server-timing/validation.json",
+    "docs/archive/completed-tasks/2026-10-11-identifier-diagnostics/merge363-validation.json",
+    "docs/archive/completed-tasks/2026-10-11-identifier-diagnostics/reviews.json"
   ],
-  "remaining": "Final task-head CI and independent root review; no production access or deployment."
+  "scope": "No source intersection with account probe or ServerTiming; exact inherited 365 bytes and prior nine CI checks. Only fixed-source baseline/inventory tooling refreshed; no restarted backend contracts. Final combined-head CI required."
 }

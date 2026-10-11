@@ -13,7 +13,7 @@ OUT = ROOT / 'docs/upstream-migrations/v2.10.5'
 BASE = 'fd1b5ee4eeb20961fbb783fa6f136a1704271e90'
 TARGET = 'd977e7a5e24e5536db6ce8b8478743e0c4b11f77'
 INITIAL_FORK = '8364b462feda15f3bf8f3bb2029314d2193b9dba'
-FORK = 'caa4805b26114da4b5cb0ddea9343ef6ec9fc528'
+FORK = '16a11abd29b1f37f3be28820b948f2d8400e4e70'
 TAG = 'e7f36d0ed124fccbf55382166c116a89ef79dd83'
 
 def git(*args):
@@ -54,7 +54,7 @@ def artifacts():
         if p in protected or '/migrations/280_' in p or '/migrations/281_' in p or '/requestledger/' in p or 'request_ledger' in p:
             status, reason = 'pending-composition', 'Reserved parallel owner; inventory only, no overwrite or duplicate repair.'
         if p in inherited:
-            status, reason = 'protected-inherited', 'Reviewed #363 already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review.'
+            status, reason = 'protected-inherited', 'Reviewed mainline (#363/#365) already merged and inherited byte-for-byte; not an open task. Any upstream overlay requires separate semantic review.'
         rows.append({'path':p,'layer':layer(p),'source_base_blob':a.get(p),'target_blob':b.get(p),'fork_blob':f.get(p),'release_delta':delta,'status':status,'reason':reason})
     migrations = []
     for p in sorted(set(b)|set(f)):
@@ -100,6 +100,10 @@ def main():
     assert composition['composition_base'] == FORK
     assert git('show','-s','--format=%P',composition['merge_commit']).decode().split() == composition['merge_parents']
     assert git('rev-parse','HEAD:frontend') == git('rev-parse',FORK+':frontend'), 'inherited frontend changed'
+    for path, blob in composition['incoming_paths_exact_main'].items():
+        assert git('hash-object',path).decode().strip() == blob, 'inherited main bytes changed: '+path
+    for path, blob in composition['p3_source_blobs_unchanged'].items():
+        assert git('hash-object',path).decode().strip() == blob, 'reviewed P3 bytes changed: '+path
     for entry in (OUT/'p3-1-source.sha256').read_text().splitlines():
         expected, path = entry.split('  ', 1)
         assert hashlib.sha256((ROOT/path).read_bytes()).hexdigest() == expected, 'validated P3 source changed: '+path

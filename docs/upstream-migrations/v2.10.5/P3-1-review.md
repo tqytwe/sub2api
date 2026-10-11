@@ -19,7 +19,7 @@ RED：真实HTTP四个子场景均失败，成功路径无任何keepalive；两�
 初次GREEN的50ms上游夹具提前结束，使断连断言失真；记录保留，不能把该失败宣称真实取消缺陷。
 夹具修正：断连场景只由context取消退出；正常HTTP等待11秒，使用真实10秒节拍，至少2次心跳。
 修正后定向GREEN+race通过12.492s。完整门禁见最终验证记录；未完成项不得由静态推断代替。
-稳定4文件字节哈希见 [p3-1-source.sha256](./p3-1-source.sha256)，可提前交根审，与本地全量门禁并行。
+当前5文件字节哈希见 [p3-1-source.sha256](./p3-1-source.sha256)，可提前交根审，与本地全量门禁并行。
 前端两处AccountTestModal只解析`data: `前缀（既有501/954行），心跳注释不成为内容；没有必要搬上游IQ/Pelican UI测试或不存在的Pelican入口。
 
 规格自审：需求是首包与正文静默保活、事件后不停拍、断连取消、心跳非模型输出、终止语义与生命周期保持。
@@ -30,11 +30,11 @@ RED：真实HTTP四个子场景均失败，成功路径无任何keepalive；两�
 独立helper隔离compact重试/计费语义。HTTP网络/上游body读取通过派生context取消。
 测试只在stop后读ResponseRecorder，避免测试本身制造race；client关闭body后的服务/上游退出均设超时。
 
-根独立规格/代码质量审查待补；本文件自审不冒充独立批准。未通过完整门禁前不提交推送。
+初始自审记录不代替独立批准；后续根审结果见下文。
 回滚仅移除服务入口生命周期和新增helper；无DB变更，无数据回滚。
 
 ## 根审P2：真实ServerTiming首写重入
 
 50a5808的剥离中间件夹具没有覆盖真实全局ServerTiming。根审确认启用配置且角色为admin时，首次Write的finalize调用c.Writer.Header，重入保活mutex；30秒有界子进程RED堆栈已复现。
 候选仅将首次同步beat移到wrapper发布之前；原writer栈的一次性finalize完成后，再发布wrapper和启动心跳协程。不修改ServerTiming开关、权限或Header/Write锁。新增外部service_test包通过公开服务构造器与真实Gin middleware验证，避免复制middleware或引入import cycle。
-旧四文件字节证明仅对原审查点成立；当前五文件哈希与增量验证对应。根独立复审仍待补。
+旧四文件字节证明仅对原审查点成立；当前五文件哈希与增量验证对应。根于2026-10-11明确对4a405620解除原ServerTiming P2，已核6份原日志与源码双hash，无新增P1/P2。最终16a11组合head仍待最小增量核验。
