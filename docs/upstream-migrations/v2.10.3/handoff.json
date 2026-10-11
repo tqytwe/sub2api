@@ -23,7 +23,7 @@
       "product_state": "实现中",
       "owner": "主线程协调",
       "pr": "https://github.com/tqytwe/sub2api/pull/359",
-      "sha": "eb8cbab6786df2a2e880b3f95afc7b21669c3b4f",
+      "sha": "dec21d65da0540bead469f95713feb7fab829ca8",
       "evidence": {
         "ui": {
           "status": "pending",
@@ -65,7 +65,7 @@
         }
       },
       "risks": "128条/32KiB、队列64，压力或崩溃可以丢明细但显示incomplete；source_population_complete恒false。非HTTP文本/媒体/WS未覆盖。原8665头5秒DDL排队超过3秒准入，禁止合并；279 NOWAIT+短时限不变，实际持锁DDL/提交开销仍不可消除。#361组合本地通过，新head尚待CI及主线程增量复审。",
-      "next": "已普通merge最新fdec971d2a01c25d93874b7688dffcff78f79088（#361）并完成最小组合复核及后端门禁；路由及279不变，绑定修复完整保留，无rebase/force。推送草稿新head供CI及主线程复审；#360仍未合并，不提前合入278。未重验其他快照条目，checked_at不前移；UI/合并/部署由主线程协调。",
+      "next": "已普通merge最新fdec971d2a01c25d93874b7688dffcff78f79088（#361）并完成最小组合复核及后端门禁；路由及279不变，绑定修复完整保留，无rebase/force。推送草稿新head供CI及主线程复审；#360仍未合并，不提前合入278。未重验其他快照条目，checked_at不前移；UI/合并/部署由主线程协调。 技术合并提交dec21d65da0540bead469f95713feb7fab829ca8；后继仅交接元数据。",
       "rollback": "279尚未发布，本次按主线程明确授权收紧其SQL并更新checksum；发布后不可改。争用/超时由运行器回滚且无279登记，保留旧应用流量后重试；成功后的应用回退保留新增列/表和证据，不删除/回填历史，不补扣。"
     },
     {

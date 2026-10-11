@@ -180,5 +180,10 @@
     "diff_check": "pass",
     "nonrouting_handoff_state_preserved": true,
     "checked_at": "2026-10-11T10:39:22.683023+00:00"
-  }
+  },
+  "technical_commit": "dec21d65da0540bead469f95713feb7fab829ca8",
+  "merge_parents": [
+    "ebcba25f01775d226d93f0a1031398390739e2fe",
+    "fdec971d2a01c25d93874b7688dffcff78f79088"
+  ]
 }
