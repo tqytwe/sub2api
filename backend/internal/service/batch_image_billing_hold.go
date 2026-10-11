@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"go.uber.org/zap"
@@ -78,18 +79,42 @@ func reserveBatchImageBalanceHold(ctx context.Context, repo UsageBillingReposito
 	return nil
 }
 
-func captureBatchImageBalanceHold(ctx context.Context, repo UsageBillingRepository, job *BatchImageJob, actualAmount float64, payloadHash string) error {
+// BatchImageCaptureProofReader is an optional, read-only evidence capability.
+// Capture success alone cannot certify a duplicate's hot/archive consistency.
+type BatchImageCaptureProofReader interface {
+	VerifyBatchImageCaptureProof(context.Context, *BatchImageBalanceHoldCommand) (bool, error)
+}
+
+// Return a fingerprint only after the unchanged capture operation succeeds and
+// all retained proof agrees. Evidence failure never reverses or retries capture.
+func captureBatchImageBalanceHold(ctx context.Context, repo UsageBillingRepository, job *BatchImageJob, actualAmount float64, payloadHash string) (string, error) {
 	if repo == nil {
-		return ErrBatchImageSettlementBillingFailed.WithCause(errors.New("batch image billing repository is not configured"))
+		return "", ErrBatchImageSettlementBillingFailed.WithCause(errors.New("batch image billing repository is not configured"))
 	}
 	cmd, err := buildBatchImageHoldCommand(job, BatchImageCaptureRequestID(job.BatchID), actualAmount, payloadHash)
 	if err != nil {
-		return err
+		return "", err
 	}
+	cmd.Normalize()
 	if _, err := repo.CaptureBatchImageBalance(ctx, cmd); err != nil {
-		return ErrBatchImageSettlementBillingFailed.WithCause(err)
+		return "", ErrBatchImageSettlementBillingFailed.WithCause(err)
 	}
-	return nil
+	proof, ok := repo.(BatchImageCaptureProofReader)
+	if !ok {
+		return "", nil
+	}
+	base := context.Background()
+	if ctx != nil {
+		base = context.WithoutCancel(ctx)
+	}
+	proofCtx, cancel := context.WithTimeout(base, time.Second)
+	defer cancel()
+	verified, err := proof.VerifyBatchImageCaptureProof(proofCtx, cmd)
+	if err != nil || !verified {
+		logger.L().Warn("batch_image.capture_proof_unverified")
+		return "", nil
+	}
+	return cmd.RequestFingerprint, nil
 }
 
 func releaseBatchImageBalanceHold(ctx context.Context, repo UsageBillingRepository, job *BatchImageJob, payloadHash string) error {

@@ -42,7 +42,7 @@ jobs:
         run: |
           set -euo pipefail
           go test -tags=integration ./internal/requestledger/... ./internal/handler ./internal/server/routes ./internal/repository ./internal/service \
-            -run 'RequestLedger|LedgerPostgres|LedgerKilledProcess|LedgerStorage' -count=1 -timeout=12m -json \
+            -run 'RequestLedger|LedgerPostgres|LedgerKilledProcess|LedgerStorage|BatchImageHTTP|BatchImageReconciliation|BatchImageLedgerMigration' -count=1 -timeout=12m -json \
             | tee "$RUNNER_TEMP/request-ledger-tests.json"
       - name: Require executed acceptance cases
         run: |
@@ -50,6 +50,15 @@ jobs:
           import json, os
           from pathlib import Path
           required = {
+              "TestBatchImageHTTPUsageDrillUsesCommittedCapture",
+              "TestBatchImageHTTPRecoveryAndIsolation",
+              "TestBatchImageHTTPDisconnectAfterCapture",
+              "TestBatchImageHTTPUnknownUsageAndNullableImageCount",
+              "TestBatchImageReconciliationUsesBoundedIndex",
+              "TestBatchImageLedgerMigrationRecoversInterruptedIndex",
+              "TestBatchImageHTTPReconciliationBoundsRequestsWithoutTask",
+              "TestBatchImageHTTPConflictingProofBeforeUsageRecovery",
+              "TestBatchImageHTTPCaptureProofReadFailureKeepsUsage",
               "TestLedgerKilledProcessRecoveryRetainsEvidence",
               "TestLedgerPostgresHealthyOwnerRecoversFailedFinalization",
               "TestLedgerPostgresFalseUpgradeDoesNotChangeHTTPMetering",
@@ -81,6 +90,7 @@ jobs:
               "TestRequestLedgerHTTPLinkedUsageAndRetention",
               "TestRequestLedgerNativeWebsocketTwoTurnsWithRealPostgres",
               "TestRequestLedgerRealtimeCapacityRejectionStillPersistsTurn",
+              "TestRequestLedgerRealtimeLateTerminalCannotConsumeNextTurn",
               "TestRequestLedgerPassthroughWaitsForAuthoritativeTurn",
               "TestRequestLedgerWSLateUsageDoesNotMarkTheNextAttemptKnown",
               "TestRequestLedgerRealWebsocket1013AndEOFWithoutUsage",

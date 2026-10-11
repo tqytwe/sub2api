@@ -46,10 +46,44 @@ func TestBatchImageSettlementService_SettlesAndChargesSuccessfulImagesOnly(t *te
 	require.Equal(t, job.UserID, billing.captures[0].UserID)
 	require.Equal(t, job.BatchID, billing.captures[0].BatchID)
 	require.Equal(t, 0.75, billing.captures[0].ActualAmount)
+	require.Equal(t, billing.captures[0].RequestFingerprint, usageLogs.lastLog.BillingRequestFingerprint)
+	require.NotEmpty(t, usageLogs.lastLog.BillingRequestFingerprint)
+	require.True(t, usageLogs.lastLog.BillingSettled)
+	require.Equal(t, 0.75, usageLogs.lastLog.BilledCost)
 	require.Equal(t, 1.25, billing.captures[0].HoldAmount)
 	require.NotContains(t, fmt.Sprintf("%+v", billing.captures[0]), batchImageTestData)
 	require.NotContains(t, fmt.Sprintf("%+v", billing.captures[0]), "gs://")
 	require.NotContains(t, fmt.Sprintf("%+v", billing.captures[0]), "prompt")
+}
+
+func TestBatchImageSettlementService_UnverifiedCaptureStillRecordsUsage(t *testing.T) {
+	for _, mode := range []string{"conflict", "read failure", "reader unavailable"} {
+		t.Run(mode, func(t *testing.T) {
+			repo := newFakeBatchImageRepository()
+			job := testSettlingBatchImageJob("imgbatch_unverified")
+			repo.jobs[job.BatchID] = job
+			billing := &fakeBatchImageBillingRepo{proofInvalid: mode == "conflict"}
+			if mode == "read failure" {
+				billing.proofErr = errors.New("synthetic proof read failure")
+			}
+			var billingRepo UsageBillingRepository = billing
+			if mode == "reader unavailable" {
+				billingRepo = struct{ UsageBillingRepository }{billing}
+			}
+			usage := &openAIRecordUsageLogRepoStub{}
+			svc := &BatchImageSettlementService{Repo: repo, BillingRepo: billingRepo, UsageLogRepo: usage, Pricing: &fakeBatchImagePricingResolver{unitPrice: 0.25}}
+			result, err := svc.Settle(context.Background(), job.BatchID)
+			require.NoError(t, err)
+			require.Equal(t, BatchImageJobStatusCompleted, repo.jobs[job.BatchID].Status)
+			require.Len(t, billing.captures, 1)
+			require.Equal(t, 1, usage.calls)
+			require.Equal(t, result.ActualCost, usage.lastLog.ActualCost)
+			require.Equal(t, result.OutputImageCount, usage.lastLog.ImageCount)
+			require.Empty(t, usage.lastLog.BillingRequestFingerprint)
+			require.False(t, usage.lastLog.BillingSettled)
+			require.Zero(t, usage.lastLog.BilledCost)
+		})
+	}
 }
 
 func TestBatchImageSettlementService_ZeroSuccessCanComplete(t *testing.T) {
@@ -112,6 +146,9 @@ func TestBatchImageSettlementService_CompletedJobBackfillsUsageLog(t *testing.T)
 	require.Equal(t, 1, usageRepo.calls)
 	require.Equal(t, BatchImageCaptureRequestID(job.BatchID), usageRepo.lastLog.RequestID)
 	require.Equal(t, settledAt, usageRepo.lastLog.CreatedAt)
+	require.Empty(t, usageRepo.lastLog.BillingRequestFingerprint)
+	require.False(t, usageRepo.lastLog.BillingSettled)
+	require.Zero(t, usageRepo.lastLog.BilledCost)
 }
 
 func TestBatchImageSettlementService_UsageLogFailureAfterCaptureIsRecoverable(t *testing.T) {
@@ -142,6 +179,8 @@ func TestBatchImageSettlementService_UsageLogFailureAfterCaptureIsRecoverable(t 
 	require.Len(t, billing.captures, 2)
 	require.Equal(t, billing.captures[0].RequestID, billing.captures[1].RequestID)
 	require.Equal(t, 2, usageRepo.calls)
+	require.Equal(t, billing.captures[0].RequestFingerprint, usageRepo.lastLog.BillingRequestFingerprint)
+	require.True(t, usageRepo.lastLog.BillingSettled)
 }
 
 func TestBatchImageSettlementService_IdempotentAfterBillingCrash(t *testing.T) {
@@ -493,7 +532,7 @@ func TestBatchImageSettlementUsageLogUsesActualProviderEndpoint(t *testing.T) {
 			usageRepo := &openAIRecordUsageLogRepoStub{inserted: true}
 			svc := &BatchImageSettlementService{UsageLogRepo: usageRepo}
 
-			require.NoError(t, svc.recordUsageLog(context.Background(), job, 0.5, "request-id", time.Now()))
+			require.NoError(t, svc.recordUsageLog(context.Background(), job, 0.5, "request-id", "", time.Now()))
 
 			require.Equal(t, 1, usageRepo.calls)
 			require.NotNil(t, usageRepo.lastLog)
@@ -577,6 +616,8 @@ type fakeBatchImageBillingRepo struct {
 	reserveErr     error
 	captureErr     error
 	releaseErr     error
+	proofInvalid   bool
+	proofErr       error
 }
 
 func (r *fakeBatchImageBillingRepo) Apply(_ context.Context, cmd *UsageBillingCommand) (*UsageBillingApplyResult, error) {
@@ -613,6 +654,10 @@ func (r *fakeBatchImageBillingRepo) CaptureBatchImageBalance(_ context.Context, 
 		return nil, r.captureErr
 	}
 	return r.applyHold(cmd, &r.captures)
+}
+
+func (r *fakeBatchImageBillingRepo) VerifyBatchImageCaptureProof(context.Context, *BatchImageBalanceHoldCommand) (bool, error) {
+	return !r.proofInvalid, r.proofErr
 }
 
 func (r *fakeBatchImageBillingRepo) ReleaseBatchImageBalance(_ context.Context, cmd *BatchImageBalanceHoldCommand) (*BatchImageBalanceHoldResult, error) {

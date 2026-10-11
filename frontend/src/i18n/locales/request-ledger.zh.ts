@@ -1,4 +1,5 @@
 export default {
+  imageCount: '图片张数', batchId: '批次 ID', batchSettled: '该批次已结算',
   exactEvidence: "精确关联证据",
   evidenceNotice: "标识仅用于诊断，不证明用量或扣费。标识证据异步写入，历史记录或诊断故障可能留下缺口；空字段不代表上游未提供。",
   evidenceUnavailable: "关联证据暂时无法读取，执行与计费详情仍可查看。请刷新重试。",
