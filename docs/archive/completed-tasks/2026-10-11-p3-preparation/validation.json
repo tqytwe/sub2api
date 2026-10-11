@@ -1,0 +1,26 @@
+{
+  "checked_at": "2026-10-11T13:57:47.454329+00:00",
+  "source_hashes": "../../../upstream-migrations/v2.10.5/p3-1-source.sha256",
+  "baseline": "8364b462feda15f3bf8f3bb2029314d2193b9dba",
+  "gates": {
+    "tdd_red": "red.log: missing keepalive confirmed; 50ms cancellation fixture later corrected, initial nil assertions not proof of real cancellation bug",
+    "targeted_race": "green-race-v2.log passed, 12.492s; real HTTP waits 11s with production 10s beat; abort waits solely for cancellation",
+    "backend_test": "full-test.log go test ./... passed; subsequent lint cache permission failed, only failed/missing components resumed",
+    "backend_unit": "full-unit.log service 204.635s passed; only repository lease-loss assertion failed under load; same source complete repository package retry passed 10.876s",
+    "backend_lint": "lint-retry.log: 0 issues; initial parallel run OOM 137 retained",
+    "frontend_lint": "frontend-test.log lint/design passed before typecheck OOM",
+    "frontend_typecheck": "frontend-typecheck-retry.log exit 0, 6144MiB heap; no source change",
+    "frontend_tests": "frontend-vitest.log 504 files / 3825 tests passed, 3 files / 8 tests skipped",
+    "full_build": "build.log make build exit 0; backend and frontend production build",
+    "fork_integrity": "fork-integrity-retry.log exit 0; initial wrong /usr/bin/go and pnpm11 environment recorded",
+    "inventory": "coverage.log and checker-tests.log; three omission tests pass",
+    "doc_links": "doc-links.log passed"
+  },
+  "reuse_policy": "Application source hashes unchanged across corrected fixtures and gate retries. No repeat of passing backend untagged suite. Post-#363 composition evidence recorded separately.",
+  "reviews": {
+    "specification": "self-review passed after fixture correction",
+    "code_quality": "self-review passed; isolated helper, writer serialization, cancellation, no protected file changes",
+    "independent_root_review": "pending; draft review artifact only"
+  },
+  "production": "not accessed, no merge/deploy"
+}

@@ -1,0 +1,499 @@
+{
+  "method": "Fixed route declarations only, includes known adminPromptAuditPath constant; not runtime/API permission validation.",
+  "source": [
+    "/",
+    "/:pathMatch(.*)*",
+    "/admin",
+    "/admin/account-ops",
+    "/admin/account-quality",
+    "/admin/accounts",
+    "/admin/affiliates",
+    "/admin/affiliates/invites",
+    "/admin/affiliates/rebates",
+    "/admin/affiliates/transfers",
+    "/admin/announcements",
+    "/admin/astra-gateway",
+    "/admin/audit-logs",
+    "/admin/auto-config",
+    "/admin/channels",
+    "/admin/channels/monitor",
+    "/admin/channels/pricing",
+    "/admin/controlled-experiments",
+    "/admin/dashboard",
+    "/admin/groups",
+    "/admin/harvest-flow",
+    "/admin/ops",
+    "/admin/orders",
+    "/admin/orders/dashboard",
+    "/admin/orders/plans",
+    "/admin/pelican-tests",
+    "/admin/plugins",
+    "/admin/priority-scheduling",
+    "/admin/promo-codes",
+    "/admin/prompt-audit",
+    "/admin/proxies",
+    "/admin/redeem",
+    "/admin/request-captures",
+    "/admin/risk-control",
+    "/admin/settings",
+    "/admin/smart-ops",
+    "/admin/subscriptions",
+    "/admin/support-tickets",
+    "/admin/support-tickets/:id(\\\\d+)",
+    "/admin/token-guard",
+    "/admin/token-guard-v2",
+    "/admin/usage",
+    "/admin/users",
+    "/affiliate",
+    "/auth/callback",
+    "/auth/dingtalk/callback",
+    "/auth/dingtalk/email-completion",
+    "/auth/linuxdo/callback",
+    "/auth/oidc/callback",
+    "/auth/wechat/callback",
+    "/auth/wechat/payment/callback",
+    "/available-channels",
+    "/batch-image",
+    "/custom/:id",
+    "/dashboard",
+    "/email-verify",
+    "/forgot-password",
+    "/home",
+    "/key-usage",
+    "/keys",
+    "/legal/:documentId",
+    "/login",
+    "/model-plaza",
+    "/monitor",
+    "/orders",
+    "/payment/airwallex",
+    "/payment/qrcode",
+    "/payment/result",
+    "/payment/stripe",
+    "/payment/stripe-popup",
+    "/pelican-showcase",
+    "/profile",
+    "/purchase",
+    "/redeem",
+    "/register",
+    "/reset-password",
+    "/setup",
+    "/subscriptions",
+    "/support-tickets",
+    "/support-tickets/:id(\\\\d+)",
+    "/usage"
+  ],
+  "fork": [
+    "/",
+    "/:pathMatch(.*)*",
+    "/about",
+    "/admin",
+    "/admin/accounts",
+    "/admin/affiliates",
+    "/admin/affiliates/invites",
+    "/admin/affiliates/rebates",
+    "/admin/affiliates/transfers",
+    "/admin/announcements",
+    "/admin/audit-logs",
+    "/admin/channels",
+    "/admin/channels/monitor",
+    "/admin/channels/pricing",
+    "/admin/dashboard",
+    "/admin/funds",
+    "/admin/funds/:tab(refunds|credits|operations)",
+    "/admin/funds/classification",
+    "/admin/groups",
+    "/admin/model-plaza",
+    "/admin/ops",
+    "/admin/orders",
+    "/admin/orders/dashboard",
+    "/admin/orders/plans",
+    "/admin/orders/play-billing",
+    "/admin/play-ops",
+    "/admin/plugins",
+    "/admin/promo-codes",
+    "/admin/prompt-audit",
+    "/admin/proxies",
+    "/admin/proxies/actions",
+    "/admin/proxies/risk",
+    "/admin/redeem",
+    "/admin/requests",
+    "/admin/risk-control",
+    "/admin/settings",
+    "/admin/subscriptions",
+    "/admin/usage",
+    "/admin/users",
+    "/admin/withdrawals",
+    "/affiliate",
+    "/agent-team",
+    "/ai",
+    "/ai-creation-space",
+    "/arena",
+    "/auth/callback",
+    "/auth/dingtalk/callback",
+    "/auth/dingtalk/email-completion",
+    "/auth/linuxdo/callback",
+    "/auth/oidc/callback",
+    "/auth/wechat/callback",
+    "/auth/wechat/payment/callback",
+    "/available-channels",
+    "/batch-image",
+    "/blindbox",
+    "/catalog",
+    "/catalog/:family(deepseek|qwen|kimi|glm)",
+    "/check-in",
+    "/contact",
+    "/contact/qq",
+    "/custom/:id",
+    "/dashboard",
+    "/docs",
+    "/download/android",
+    "/email-verify",
+    "/en",
+    "/en/about",
+    "/en/catalog",
+    "/en/catalog/:family(deepseek|qwen|kimi|glm)",
+    "/en/contact",
+    "/en/docs",
+    "/en/models",
+    "/en/models/:family(deepseek|qwen|kimi|glm)",
+    "/en/status",
+    "/forgot-password",
+    "/home",
+    "/image-studio",
+    "/key-usage",
+    "/keys",
+    "/keys/speed-test",
+    "/legal/:documentId",
+    "/login",
+    "/model-plaza",
+    "/models",
+    "/models/:family(deepseek|qwen|kimi|glm)",
+    "/monitor",
+    "/orders",
+    "/payment/airwallex",
+    "/payment/qrcode",
+    "/payment/result",
+    "/payment/stripe",
+    "/payment/stripe-popup",
+    "/play",
+    "/pricing",
+    "/pricing/:family(deepseek|qwen|kimi|glm)",
+    "/profile",
+    "/purchase",
+    "/quiz-quest",
+    "/redeem",
+    "/register",
+    "/requests",
+    "/reset-password",
+    "/setup",
+    "/status",
+    "/subscriptions",
+    "/usage",
+    "/wallet"
+  ],
+  "source_only": [
+    {
+      "path": "/admin/account-ops",
+      "status": "needs-port-review",
+      "reason": "Inspect backend/schema/permissions/UI entry and tests together; alias is not independent implementation."
+    },
+    {
+      "path": "/admin/account-quality",
+      "status": "needs-port-review",
+      "reason": "Inspect backend/schema/permissions/UI entry and tests together; alias is not independent implementation."
+    },
+    {
+      "path": "/admin/astra-gateway",
+      "status": "needs-port-review",
+      "reason": "Inspect backend/schema/permissions/UI entry and tests together; alias is not independent implementation."
+    },
+    {
+      "path": "/admin/auto-config",
+      "status": "needs-port-review",
+      "reason": "Inspect backend/schema/permissions/UI entry and tests together; alias is not independent implementation."
+    },
+    {
+      "path": "/admin/controlled-experiments",
+      "status": "needs-port-review",
+      "reason": "Inspect backend/schema/permissions/UI entry and tests together; alias is not independent implementation."
+    },
+    {
+      "path": "/admin/harvest-flow",
+      "status": "needs-port-review",
+      "reason": "Inspect backend/schema/permissions/UI entry and tests together; alias is not independent implementation."
+    },
+    {
+      "path": "/admin/pelican-tests",
+      "status": "needs-port-review",
+      "reason": "Inspect backend/schema/permissions/UI entry and tests together; alias is not independent implementation."
+    },
+    {
+      "path": "/admin/priority-scheduling",
+      "status": "needs-port-review",
+      "reason": "Inspect backend/schema/permissions/UI entry and tests together; alias is not independent implementation."
+    },
+    {
+      "path": "/admin/request-captures",
+      "status": "needs-port-review",
+      "reason": "Inspect backend/schema/permissions/UI entry and tests together; alias is not independent implementation."
+    },
+    {
+      "path": "/admin/smart-ops",
+      "status": "needs-port-review",
+      "reason": "Inspect backend/schema/permissions/UI entry and tests together; alias is not independent implementation."
+    },
+    {
+      "path": "/admin/support-tickets",
+      "status": "needs-port-review",
+      "reason": "Inspect backend/schema/permissions/UI entry and tests together; alias is not independent implementation."
+    },
+    {
+      "path": "/admin/support-tickets/:id(\\\\d+)",
+      "status": "needs-port-review",
+      "reason": "Inspect backend/schema/permissions/UI entry and tests together; alias is not independent implementation."
+    },
+    {
+      "path": "/admin/token-guard",
+      "status": "needs-port-review",
+      "reason": "Inspect backend/schema/permissions/UI entry and tests together; alias is not independent implementation."
+    },
+    {
+      "path": "/admin/token-guard-v2",
+      "status": "needs-port-review",
+      "reason": "Inspect backend/schema/permissions/UI entry and tests together; alias is not independent implementation."
+    },
+    {
+      "path": "/pelican-showcase",
+      "status": "needs-port-review",
+      "reason": "Inspect backend/schema/permissions/UI entry and tests together; alias is not independent implementation."
+    },
+    {
+      "path": "/support-tickets",
+      "status": "needs-port-review",
+      "reason": "Inspect backend/schema/permissions/UI entry and tests together; alias is not independent implementation."
+    },
+    {
+      "path": "/support-tickets/:id(\\\\d+)",
+      "status": "needs-port-review",
+      "reason": "Inspect backend/schema/permissions/UI entry and tests together; alias is not independent implementation."
+    }
+  ],
+  "fork_only": [
+    {
+      "path": "/about",
+      "status": "preserve",
+      "reason": "Fork customization; no removal authorized."
+    },
+    {
+      "path": "/admin/funds",
+      "status": "preserve",
+      "reason": "Fork customization; no removal authorized."
+    },
+    {
+      "path": "/admin/funds/:tab(refunds|credits|operations)",
+      "status": "preserve",
+      "reason": "Fork customization; no removal authorized."
+    },
+    {
+      "path": "/admin/funds/classification",
+      "status": "preserve",
+      "reason": "Fork customization; no removal authorized."
+    },
+    {
+      "path": "/admin/model-plaza",
+      "status": "preserve",
+      "reason": "Fork customization; no removal authorized."
+    },
+    {
+      "path": "/admin/orders/play-billing",
+      "status": "preserve",
+      "reason": "Fork customization; no removal authorized."
+    },
+    {
+      "path": "/admin/play-ops",
+      "status": "preserve",
+      "reason": "Fork customization; no removal authorized."
+    },
+    {
+      "path": "/admin/proxies/actions",
+      "status": "preserve",
+      "reason": "Fork customization; no removal authorized."
+    },
+    {
+      "path": "/admin/proxies/risk",
+      "status": "preserve",
+      "reason": "Fork customization; no removal authorized."
+    },
+    {
+      "path": "/admin/requests",
+      "status": "preserve",
+      "reason": "Fork customization; no removal authorized."
+    },
+    {
+      "path": "/admin/withdrawals",
+      "status": "preserve",
+      "reason": "Fork customization; no removal authorized."
+    },
+    {
+      "path": "/agent-team",
+      "status": "preserve",
+      "reason": "Fork customization; no removal authorized."
+    },
+    {
+      "path": "/ai",
+      "status": "preserve",
+      "reason": "Fork customization; no removal authorized."
+    },
+    {
+      "path": "/ai-creation-space",
+      "status": "preserve",
+      "reason": "Fork customization; no removal authorized."
+    },
+    {
+      "path": "/arena",
+      "status": "preserve",
+      "reason": "Fork customization; no removal authorized."
+    },
+    {
+      "path": "/blindbox",
+      "status": "preserve",
+      "reason": "Fork customization; no removal authorized."
+    },
+    {
+      "path": "/catalog",
+      "status": "preserve",
+      "reason": "Fork customization; no removal authorized."
+    },
+    {
+      "path": "/catalog/:family(deepseek|qwen|kimi|glm)",
+      "status": "preserve",
+      "reason": "Fork customization; no removal authorized."
+    },
+    {
+      "path": "/check-in",
+      "status": "preserve",
+      "reason": "Fork customization; no removal authorized."
+    },
+    {
+      "path": "/contact",
+      "status": "preserve",
+      "reason": "Fork customization; no removal authorized."
+    },
+    {
+      "path": "/contact/qq",
+      "status": "preserve",
+      "reason": "Fork customization; no removal authorized."
+    },
+    {
+      "path": "/docs",
+      "status": "preserve",
+      "reason": "Fork customization; no removal authorized."
+    },
+    {
+      "path": "/download/android",
+      "status": "preserve",
+      "reason": "Fork customization; no removal authorized."
+    },
+    {
+      "path": "/en",
+      "status": "preserve",
+      "reason": "Fork customization; no removal authorized."
+    },
+    {
+      "path": "/en/about",
+      "status": "preserve",
+      "reason": "Fork customization; no removal authorized."
+    },
+    {
+      "path": "/en/catalog",
+      "status": "preserve",
+      "reason": "Fork customization; no removal authorized."
+    },
+    {
+      "path": "/en/catalog/:family(deepseek|qwen|kimi|glm)",
+      "status": "preserve",
+      "reason": "Fork customization; no removal authorized."
+    },
+    {
+      "path": "/en/contact",
+      "status": "preserve",
+      "reason": "Fork customization; no removal authorized."
+    },
+    {
+      "path": "/en/docs",
+      "status": "preserve",
+      "reason": "Fork customization; no removal authorized."
+    },
+    {
+      "path": "/en/models",
+      "status": "preserve",
+      "reason": "Fork customization; no removal authorized."
+    },
+    {
+      "path": "/en/models/:family(deepseek|qwen|kimi|glm)",
+      "status": "preserve",
+      "reason": "Fork customization; no removal authorized."
+    },
+    {
+      "path": "/en/status",
+      "status": "preserve",
+      "reason": "Fork customization; no removal authorized."
+    },
+    {
+      "path": "/image-studio",
+      "status": "preserve",
+      "reason": "Fork customization; no removal authorized."
+    },
+    {
+      "path": "/keys/speed-test",
+      "status": "preserve",
+      "reason": "Fork customization; no removal authorized."
+    },
+    {
+      "path": "/models",
+      "status": "preserve",
+      "reason": "Fork customization; no removal authorized."
+    },
+    {
+      "path": "/models/:family(deepseek|qwen|kimi|glm)",
+      "status": "preserve",
+      "reason": "Fork customization; no removal authorized."
+    },
+    {
+      "path": "/play",
+      "status": "preserve",
+      "reason": "Fork customization; no removal authorized."
+    },
+    {
+      "path": "/pricing",
+      "status": "preserve",
+      "reason": "Fork customization; no removal authorized."
+    },
+    {
+      "path": "/pricing/:family(deepseek|qwen|kimi|glm)",
+      "status": "preserve",
+      "reason": "Fork customization; no removal authorized."
+    },
+    {
+      "path": "/quiz-quest",
+      "status": "preserve",
+      "reason": "Fork customization; no removal authorized."
+    },
+    {
+      "path": "/requests",
+      "status": "preserve",
+      "reason": "Fork customization; no removal authorized."
+    },
+    {
+      "path": "/status",
+      "status": "preserve",
+      "reason": "Fork customization; no removal authorized."
+    },
+    {
+      "path": "/wallet",
+      "status": "preserve",
+      "reason": "Fork customization; no removal authorized."
+    }
+  ]
+}
