@@ -103,6 +103,8 @@ docs/README.md与旧handoff属于并行热区，索引链接待根组合添加�
 
 本片验证结果见 [归档证据](../../archive/completed-tasks/2026-10-11-p3-preparation/README.md)。完整源码差异清单通过不代表完整功能兼容通过。
 
-组合后前端整树等于caa；P3四文件与本地已验证提交8060c27fa完全同字节。后台只继承#363的隔离PG验收fixture，生产后端/迁移/CI/scripts无额外差异；复用#363归档门禁、双审及CI。无业务交集，不重新启动完整后端合同；本任务最终head CI另行一次。
+组合时（P2修复前）前端整树等于caa；P3四文件与本地已验证提交8060c27fa完全同字节。后台只继承#363的隔离PG验收fixture，生产后端/迁移/CI/scripts无额外差异；复用#363归档门禁、双审及CI。无业务交集，不重新启动完整后端合同；本任务最终head CI另行一次。
 
 组合后的三方差异清单为6,241项（新增190项来自#363源码/证据），release增量仍为209文件；这些是文件数，不是缺失功能数。
+
+根审发现50a5808在启用ServerTiming时首写锁重入；候选修复与新增真实中间件HTTP回归见[增量证据](../../archive/completed-tasks/2026-10-11-p3-preparation/server-timing/README.md)。历史完整门禁不代替该组合验证。

@@ -32,3 +32,9 @@ RED：真实HTTP四个子场景均失败，成功路径无任何keepalive；两�
 
 根独立规格/代码质量审查待补；本文件自审不冒充独立批准。未通过完整门禁前不提交推送。
 回滚仅移除服务入口生命周期和新增helper；无DB变更，无数据回滚。
+
+## 根审P2：真实ServerTiming首写重入
+
+50a5808的剥离中间件夹具没有覆盖真实全局ServerTiming。根审确认启用配置且角色为admin时，首次Write的finalize调用c.Writer.Header，重入保活mutex；30秒有界子进程RED堆栈已复现。
+候选仅将首次同步beat移到wrapper发布之前；原writer栈的一次性finalize完成后，再发布wrapper和启动心跳协程。不修改ServerTiming开关、权限或Header/Write锁。新增外部service_test包通过公开服务构造器与真实Gin middleware验证，避免复制middleware或引入import cycle。
+旧四文件字节证明仅对原审查点成立；当前五文件哈希与增量验证对应。根独立复审仍待补。

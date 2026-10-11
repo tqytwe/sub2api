@@ -20,8 +20,11 @@ func startAccountTestSSEKeepalive(c *gin.Context, interval time.Duration) func()
 	ctx, cancel := context.WithCancel(originalContext)
 	c.Request = c.Request.WithContext(ctx)
 	w := &accountTestKeepaliveWriter{ResponseWriter: originalWriter, ctx: ctx, cancel: cancel}
-	c.Writer = w
+	// Finalize the existing writer stack before publishing our locking wrapper.
+	// ServerTiming's first Write reads c.Writer.Header(); publishing w first
+	// would reenter w.mu while beat holds it. No heartbeat goroutine exists yet.
 	w.beat()
+	c.Writer = w
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
