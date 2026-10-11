@@ -1,0 +1,132 @@
+{
+  "checked_at": "2026-10-11T09:38:06.739912+00:00",
+  "head_sha": "63c0c31f12ab423f848216420c67948dfd122736",
+  "base_sha": "05b44bec5c2d30ad58d009fbe5247ea363c6ee70",
+  "draft": true,
+  "state": "open",
+  "checks": [
+    {
+      "id": 114436671942,
+      "name": "Check-in PostgreSQL HTTP and frontend contract",
+      "status": "completed",
+      "conclusion": "success",
+      "html_url": "https://github.com/tqytwe/sub2api/actions/runs/38128135724/job/114436671942",
+      "started_at": "2026-10-11T09:22:28Z",
+      "completed_at": "2026-10-11T09:26:45Z"
+    },
+    {
+      "id": 114436671855,
+      "name": "Protected behavior",
+      "status": "completed",
+      "conclusion": "success",
+      "html_url": "https://github.com/tqytwe/sub2api/actions/runs/38128135724/job/114436671855",
+      "started_at": "2026-10-11T09:22:28Z",
+      "completed_at": "2026-10-11T09:37:51Z"
+    },
+    {
+      "id": 114436671820,
+      "name": "Release source policy",
+      "status": "completed",
+      "conclusion": "success",
+      "html_url": "https://github.com/tqytwe/sub2api/actions/runs/38128135724/job/114436671820",
+      "started_at": "2026-10-11T09:22:28Z",
+      "completed_at": "2026-10-11T09:22:39Z"
+    },
+    {
+      "id": 114436671796,
+      "name": "Documentation",
+      "status": "completed",
+      "conclusion": "success",
+      "html_url": "https://github.com/tqytwe/sub2api/actions/runs/38128135724/job/114436671796",
+      "started_at": "2026-10-11T09:22:28Z",
+      "completed_at": "2026-10-11T09:22:40Z"
+    },
+    {
+      "id": 114436671700,
+      "name": "postgres-http-counters",
+      "status": "completed",
+      "conclusion": "success",
+      "html_url": "https://github.com/tqytwe/sub2api/actions/runs/38128135820/job/114436671700",
+      "started_at": "2026-10-11T09:22:28Z",
+      "completed_at": "2026-10-11T09:26:19Z"
+    },
+    {
+      "id": 114436671601,
+      "name": "backend-security",
+      "status": "completed",
+      "conclusion": "success",
+      "html_url": "https://github.com/tqytwe/sub2api/actions/runs/38128135743/job/114436671601",
+      "started_at": "2026-10-11T09:22:28Z",
+      "completed_at": "2026-10-11T09:23:03Z"
+    },
+    {
+      "id": 114436671553,
+      "name": "frontend-security",
+      "status": "completed",
+      "conclusion": "success",
+      "html_url": "https://github.com/tqytwe/sub2api/actions/runs/38128135743/job/114436671553",
+      "started_at": "2026-10-11T09:22:27Z",
+      "completed_at": "2026-10-11T09:22:57Z"
+    },
+    {
+      "id": 114436671476,
+      "name": "Ledger PostgreSQL and protocol contract",
+      "status": "completed",
+      "conclusion": "success",
+      "html_url": "https://github.com/tqytwe/sub2api/actions/runs/38128135722/job/114436671476",
+      "started_at": "2026-10-11T09:22:27Z",
+      "completed_at": "2026-10-11T09:28:15Z"
+    }
+  ],
+  "runs": [
+    {
+      "id": 38128135743,
+      "name": "Security Scan",
+      "head_sha": "63c0c31f12ab423f848216420c67948dfd122736",
+      "status": "completed",
+      "conclusion": "success",
+      "event": "pull_request",
+      "run_attempt": 1,
+      "html_url": "https://github.com/tqytwe/sub2api/actions/runs/38128135743"
+    },
+    {
+      "id": 38128135820,
+      "name": "Subscription counter acceptance",
+      "head_sha": "63c0c31f12ab423f848216420c67948dfd122736",
+      "status": "completed",
+      "conclusion": "success",
+      "event": "pull_request",
+      "run_attempt": 1,
+      "html_url": "https://github.com/tqytwe/sub2api/actions/runs/38128135820"
+    },
+    {
+      "id": 38128135722,
+      "name": "Durable request ledger",
+      "head_sha": "63c0c31f12ab423f848216420c67948dfd122736",
+      "status": "completed",
+      "conclusion": "success",
+      "event": "pull_request",
+      "run_attempt": 1,
+      "html_url": "https://github.com/tqytwe/sub2api/actions/runs/38128135722"
+    },
+    {
+      "id": 38128135724,
+      "name": "Fork Integrity",
+      "head_sha": "63c0c31f12ab423f848216420c67948dfd122736",
+      "status": "completed",
+      "conclusion": "success",
+      "event": "pull_request",
+      "run_attempt": 1,
+      "html_url": "https://github.com/tqytwe/sub2api/actions/runs/38128135724"
+    }
+  ],
+  "tested_tree_proof": {
+    "pr": 361,
+    "head": "63c0c31f12ab423f848216420c67948dfd122736",
+    "base": "05b44bec5c2d30ad58d009fbe5247ea363c6ee70",
+    "synthetic_merge": "bb3a69e006276c3886a0416d0c21a068e223119c",
+    "merge_tree": "087b94244ed52457432d9ada0322b95481a26335",
+    "review_tree": "087b94244ed52457432d9ada0322b95481a26335"
+  },
+  "note": "These runs belong to the initial review head, tested on the initial merge tree with base 05b; the current PR base field advanced to 1b while CI ran. They do not replace the forthcoming combined-head checks."
+}

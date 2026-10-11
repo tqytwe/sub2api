@@ -1,6 +1,6 @@
 # HTTP 文本路由证据后端小批
 
-状态：279锁修正与#358组合已通过本地完整门禁及独立双审查；新head CI结果以PR359为准，草稿未合并/部署。
+状态：已普通merge主线fdec971d（#361）；本地组合验证及顺序双审查通过，新head CI结果以PR359为准，草稿未合并/部署。
 维护责任：本任务提交者；生产发布由主线程协调。
 
 基线 `23d06337cbc315cb92d3fc18e94902fe21e7342d`；独立分支
@@ -141,3 +141,28 @@ make test（后端全量、lint零问题、前端lint/typecheck、500文件/3644
 新head仍需独立CI及主线程增量复审，之后由主线程决定合并部署；本任务不发布。
 
 增量技术验证提交：`eb8cbab6786df2a2e880b3f95afc7b21669c3b4f`；后继提交仅补交接元数据，26文件源码清单不变。
+
+### 合入 #361 冻结计费绑定修复
+
+普通无冲突merge `fdec971d2a01c25d93874b7688dffcff78f79088`，父分支原head为
+`ebcba25f01775d226d93f0a1031398390739e2fe`。26个路由/279/CI输入与旧head逐字节相同，
+55个非共享主线文件完整保留，两个共享索引保留双方条目，前端及迁移零变化。
+本任务没有另改计费逻辑；继承主线billing.go冻结subscription/entitlement绑定校验。
+保留证明见[merge-361-proof.json](./merge-361-proof.json)，依次通过规格、质量复审，
+未发现Finish字段覆盖或异步worker互锁风险，见[merge-361-reviews.json](./merge-361-reviews.json)。
+
+三套计费HTTP/PG合同分别使用新建数据库执行含279的全部迁移，均通过race检查：
+套餐/订阅计数42个叶用例、绑定问题复现4个、绑定兼容36个。
+路由/Finish/计费组合回归、完整后端普通测试与lint、tag-unit全量、make build、
+embed构建、Fork完整性和文档检查通过。具体命令、耗时、原始日志摘要哈希及
+白名单测试事件见[merge-361-validation.json](./merge-361-validation.json)和
+[merge-361-test-results.json](./merge-361-test-results.json)。
+
+按主线程明确要求复用无增量的长测试：前端源码完全相同，沿用ebcba25f的
+lint/typecheck及500文件/3644测试通过结果（保留既有3文件/8测试跳过）。
+此次执行make test-backend，结合上述前端结果覆盖make test的两部分；未声称重新运行
+整个make test。旧66项广协议与54项核心合同只保留历史范围证据，billing.go已变，
+不能称整个集成套件同源码或新head本地重跑66项。
+
+279原始及运行器checksum不变，未引入分页278。新head CI与主线程增量复核待完成；
+UI接线、合并部署和用户本机生产验收仍由主线程协调，本任务未访问生产。

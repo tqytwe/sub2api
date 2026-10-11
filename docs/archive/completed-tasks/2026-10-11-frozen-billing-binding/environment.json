@@ -1,0 +1,11 @@
+{
+  "go": "go version go1.27.2 linux/amd64",
+  "node": "v24.19.0",
+  "pnpm": "9.15.9",
+  "golangci_lint": "golangci-lint has version 2.14.0 built with go1.27.2 from (unknown, modified: ?, mod sum: \"h1:ot8QffRa4LzAAEgtvNYrVs9esxQ7xoTwoAv6uhp4ngA=\") on (unknown)",
+  "postgres_image": "postgres:18.1-alpine3.23",
+  "environment": "isolated local disposable PostgreSQL only",
+  "GOMAXPROCS": "3",
+  "GOFLAGS": "-p=2",
+  "base_commit": "05b44bec5c2d30ad58d009fbe5247ea363c6ee70"
+}

@@ -1,0 +1,171 @@
+{
+  "baseline": "05b44bec5c2d30ad58d009fbe5247ea363c6ee70",
+  "source_sha256": {
+    "backend/internal/requestledger/billing.go": "a1b76fcc4e6f35c981202e95783bca68bca07481767490d7e7d9a0dde0e8a46f",
+    "backend/internal/billingacceptance/subscription_binding_reproduction_integration_test.go": "714ca552ff0741266750e56fbe847904f4d9ee80ec064f433d77edf92f8a8296",
+    "backend/internal/billingacceptance/subscription_binding_compatibility_integration_test.go": "90938aa1552ab3ca4fb3ef2d6f94a6d38de2d9184356edaa743720425e487210",
+    ".github/workflows/subscription-counter-acceptance.yml": "0bfec2ff5ccedb0f232590cd4e51eb40a6e599de399387ab2ffb8222d892457e"
+  },
+  "runs": [
+    {
+      "name": "full-test",
+      "command": [
+        "make",
+        "test"
+      ],
+      "cwd": "/workspace/sub2api-p1-binding-fix",
+      "started_at": "2026-10-11T08:47:37.913496+00:00",
+      "status": "passed",
+      "exit_code": 0,
+      "completed_at": "2026-10-11T09:01:55.366957+00:00",
+      "log": "logs/full-test.tail.txt",
+      "sha256": "a88db7fd1fdb442805ab4cee6c67f08297d7db06aaa2d177ef1e1b0cf8dd6025",
+      "raw_log": "logs/full-test.raw.txt.gz",
+      "raw_sha256": "f6dfa3fe9e29e1e983d61349a303261b878a0c64437cadaaff796c2be89a6c51",
+      "raw_encoding": "gzip",
+      "display_note": "Last 80 lines only, expand tabs to 4 spaces and strip trailing whitespace; full raw log retained in gzip"
+    },
+    {
+      "name": "unit-tags",
+      "command": [
+        "make",
+        "test-backend-unit"
+      ],
+      "cwd": "/workspace/sub2api-p1-binding-fix",
+      "started_at": "2026-10-11T09:01:55.371711+00:00",
+      "status": "passed",
+      "exit_code": 0,
+      "completed_at": "2026-10-11T09:09:12.907376+00:00",
+      "log": "logs/unit-tags.tail.txt",
+      "sha256": "64434a520229eb6a2d22afb5a7d09f8c9be4c52097df50063eb71dca2a3e167f",
+      "raw_log": "logs/unit-tags.raw.txt.gz",
+      "raw_sha256": "d91ff981976a9390e00f3099963234c70e0487c2ec7301287626739aff8a7d4a",
+      "raw_encoding": "gzip",
+      "display_note": "Last 80 lines only, expand tabs to 4 spaces and strip trailing whitespace; full raw log retained in gzip"
+    },
+    {
+      "name": "ledger-integration",
+      "command": [
+        "go",
+        "test",
+        "-tags=integration",
+        "./internal/requestledger/...",
+        "./internal/handler",
+        "./internal/server/routes",
+        "./internal/repository",
+        "./internal/service",
+        "-run",
+        "RequestLedger|LedgerPostgres|LedgerKilledProcess|LedgerStorage|BatchImageHTTP|BatchImageReconciliation|BatchImageLedgerMigration",
+        "-count=1",
+        "-timeout=12m",
+        "-json"
+      ],
+      "cwd": "/workspace/sub2api-p1-binding-fix/backend",
+      "started_at": "2026-10-11T09:09:12.910807+00:00",
+      "status": "passed",
+      "exit_code": 0,
+      "completed_at": "2026-10-11T09:15:53.497412+00:00",
+      "log": "logs/ledger-integration.tail.txt",
+      "sha256": "196b1a34a88401c7f61e53c40253f1024d82631d6fbbd1dec310dbcbba965762",
+      "raw_log": "logs/ledger-integration.raw.txt.gz",
+      "raw_sha256": "6d4c7a06304f653c6a20718529d4412c55e9a5ba851dbabd22a7fdfcc5c19d0d",
+      "raw_encoding": "gzip",
+      "display_note": "Last 80 lines only, expand tabs to 4 spaces and strip trailing whitespace; full raw log retained in gzip"
+    },
+    {
+      "name": "full-build",
+      "command": [
+        "make",
+        "build"
+      ],
+      "cwd": "/workspace/sub2api-p1-binding-fix",
+      "started_at": "2026-10-11T09:15:53.502809+00:00",
+      "status": "passed",
+      "exit_code": 0,
+      "completed_at": "2026-10-11T09:18:27.759367+00:00",
+      "log": "logs/full-build.tail.txt",
+      "sha256": "4dae01b64be44172333097dad36787d7de6dcdecab1b111ddf70dc41428e531d",
+      "raw_log": "logs/full-build.raw.txt.gz",
+      "raw_sha256": "85d310c3f48fd39ddb155c36ff5535da9ec6403e402f708be93c61d5bfe173cf",
+      "raw_encoding": "gzip",
+      "display_note": "Last 80 lines only, expand tabs to 4 spaces and strip trailing whitespace; full raw log retained in gzip"
+    },
+    {
+      "name": "fork-integrity",
+      "command": [
+        "./scripts/check-fork-integrity.sh"
+      ],
+      "cwd": "/workspace/sub2api-p1-binding-fix",
+      "started_at": "2026-10-11T09:18:27.763517+00:00",
+      "status": "passed",
+      "exit_code": 0,
+      "completed_at": "2026-10-11T09:20:26.174322+00:00",
+      "log": "logs/fork-integrity.tail.txt",
+      "sha256": "03a922a0a57363e5af5e440a0c08ab244534805c75e9bd70fb051c00cdc5dffb",
+      "raw_log": "logs/fork-integrity.raw.txt.gz",
+      "raw_sha256": "a895cacbc70f0c609eb4a0bcabcdb8a1639c6060f125d98b4ad48916c5199983",
+      "raw_encoding": "gzip",
+      "display_note": "Last 80 lines only, expand tabs to 4 spaces and strip trailing whitespace; full raw log retained in gzip"
+    },
+    {
+      "name": "tagged-diff-lint",
+      "command": [
+        "golangci-lint",
+        "run",
+        "--build-tags=integration,billing_acceptance",
+        "--new-from-rev=05b44bec5c2d30ad58d009fbe5247ea363c6ee70",
+        "./internal/billingacceptance",
+        "./internal/requestledger"
+      ],
+      "cwd": "/workspace/sub2api-p1-binding-fix/backend",
+      "started_at": "2026-10-11T09:20:26.176820+00:00",
+      "status": "passed",
+      "exit_code": 0,
+      "completed_at": "2026-10-11T09:20:37.826763+00:00",
+      "log": "logs/tagged-diff-lint.tail.txt",
+      "sha256": "e92606b0bf483111dff0a120c315ea165821348f31365020e2468a0059095c47",
+      "raw_log": "logs/tagged-diff-lint.raw.txt.gz",
+      "raw_sha256": "e92606b0bf483111dff0a120c315ea165821348f31365020e2468a0059095c47",
+      "raw_encoding": "gzip",
+      "display_note": "Last 80 lines only, expand tabs to 4 spaces and strip trailing whitespace; full raw log retained in gzip"
+    },
+    {
+      "name": "doc-links",
+      "command": [
+        "node",
+        "scripts/check-doc-links.mjs"
+      ],
+      "cwd": "/workspace/sub2api-p1-binding-fix",
+      "started_at": "2026-10-11T09:20:37.827225+00:00",
+      "status": "passed",
+      "exit_code": 0,
+      "completed_at": "2026-10-11T09:20:37.942410+00:00",
+      "log": "logs/doc-links.tail.txt",
+      "sha256": "670b84d12575428fa13343088674050e58f9a3753765eeb0621a6cb19684f7f9",
+      "raw_log": "logs/doc-links.raw.txt.gz",
+      "raw_sha256": "670b84d12575428fa13343088674050e58f9a3753765eeb0621a6cb19684f7f9",
+      "raw_encoding": "gzip",
+      "display_note": "Last 80 lines only, expand tabs to 4 spaces and strip trailing whitespace; full raw log retained in gzip"
+    },
+    {
+      "name": "diff-check",
+      "command": [
+        "git",
+        "diff",
+        "--check",
+        "origin/play/main"
+      ],
+      "cwd": "/workspace/sub2api-p1-binding-fix",
+      "started_at": "2026-10-11T09:20:37.943076+00:00",
+      "status": "passed",
+      "exit_code": 0,
+      "completed_at": "2026-10-11T09:20:37.960673+00:00",
+      "log": "logs/diff-check.tail.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "raw_log": "logs/diff-check.raw.txt.gz",
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "raw_encoding": "gzip",
+      "display_note": "Last 80 lines only, expand tabs to 4 spaces and strip trailing whitespace; full raw log retained in gzip"
+    }
+  ]
+}

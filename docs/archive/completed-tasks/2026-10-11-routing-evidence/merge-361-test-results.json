@@ -1,0 +1,566 @@
+{
+  "billing_counters": {
+    "passed": [
+      "TestSubscriptionCounterHTTP",
+      "TestSubscriptionCounterHTTP/subscription/sequential_replay",
+      "TestSubscriptionCounterHTTP/subscription/concurrent_duplicate",
+      "TestSubscriptionCounterHTTP/subscription/independent_private_requests",
+      "TestSubscriptionCounterHTTP/subscription/canceled_context_observed_usage",
+      "TestSubscriptionCounterHTTP/subscription/http_client_disconnect_observed_usage",
+      "TestSubscriptionCounterHTTP/subscription/partial_output_observed_usage",
+      "TestSubscriptionCounterHTTP/subscription/zero_multiplier",
+      "TestSubscriptionCounterHTTP/subscription/surcharge_frozen_price",
+      "TestSubscriptionCounterHTTP/package/sequential_replay",
+      "TestSubscriptionCounterHTTP/package/concurrent_duplicate",
+      "TestSubscriptionCounterHTTP/package/independent_private_requests",
+      "TestSubscriptionCounterHTTP/package/canceled_context_observed_usage",
+      "TestSubscriptionCounterHTTP/package/http_client_disconnect_observed_usage",
+      "TestSubscriptionCounterHTTP/package/partial_output_observed_usage",
+      "TestSubscriptionCounterHTTP/package/zero_multiplier",
+      "TestSubscriptionCounterHTTP/package/surcharge_frozen_price",
+      "TestSubscriptionCounterHTTP/edges",
+      "TestSubscriptionCounterHTTP/edges/exhausted_replay_must_remain_idempotent",
+      "TestSubscriptionCounterHTTP/edges/exhaustion_request_next_request_rejected",
+      "TestSubscriptionCounterHTTP/edges/exhaustion_amount_next_request_rejected",
+      "TestSubscriptionCounterHTTP/edges/exhaustion_token_next_request_rejected",
+      "TestSubscriptionCounterHTTP/edges/exhausted_rolls_back",
+      "TestSubscriptionCounterHTTP/edges/expired_rolls_back",
+      "TestSubscriptionCounterHTTP/edges/wrong_user_rolls_back",
+      "TestSubscriptionCounterHTTP/edges/wrong_group_rolls_back",
+      "TestSubscriptionCounterHTTP/edges/database_failure_rollback_package_false",
+      "TestSubscriptionCounterHTTP/edges/database_failure_rollback_package_true",
+      "TestSubscriptionCounterHTTP/edges/charged_entitlement_is_not_current_display_pointer",
+      "TestSubscriptionCounterHTTP/edges/window_anchors_and_stale_reset_CAS",
+      "TestSubscriptionCounterHTTP/edges/explicit_package_reset_only_current",
+      "TestSubscriptionCounterHTTP/ownership",
+      "TestSubscriptionCounterHTTP/ownership/zero_multiplier_wrong_group_rolls_back",
+      "TestSubscriptionCounterHTTP/ownership/zero_multiplier_wrong_subscription_rolls_back",
+      "TestSubscriptionCounterHTTP/ownership/frozen_group_survives_key_reassignment",
+      "TestSubscriptionCounterHTTP/ownership/dedup_does_not_authorize_changed_frozen_group",
+      "TestSubscriptionCounterHTTP/ownership/prior_dedup_does_not_authorize_new_wrong_group",
+      "TestSubscriptionCounterHTTP/ownership/prior_dedup_does_not_authorize_new_wrong_user",
+      "TestSubscriptionCounterHTTP/ownership/concurrent_independent_private_requests",
+      "TestSubscriptionCounterHTTP/ownership/historical_exhausted_archive_false",
+      "TestSubscriptionCounterHTTP/ownership/historical_exhausted_archive_true",
+      "TestSubscriptionCounterHTTP/ownership/historical_expired_archive_false",
+      "TestSubscriptionCounterHTTP/ownership/historical_expired_archive_true",
+      "TestSubscriptionCounterHTTP/ownership/historical_revoked_archive_false",
+      "TestSubscriptionCounterHTTP/ownership/historical_revoked_archive_true"
+    ],
+    "leaf_cases_passed": 42,
+    "failed": [],
+    "race": "pass"
+  },
+  "billing_reproduction": {
+    "passed": [
+      "TestSubscriptionEntitlementBindingReproduction",
+      "TestSubscriptionEntitlementBindingReproduction/unchanged_entitlement_retry_recovers",
+      "TestSubscriptionEntitlementBindingReproduction/retry_must_keep_prepared_entitlement",
+      "TestSubscriptionEntitlementBindingReproduction/direct_verify_must_reject_changed_entitlement_archive_false",
+      "TestSubscriptionEntitlementBindingReproduction/direct_verify_must_reject_changed_entitlement_archive_true"
+    ],
+    "leaf_cases_passed": 4,
+    "failed": [],
+    "race": "pass"
+  },
+  "billing_compatibility": {
+    "passed": [
+      "TestSubscriptionBindingCompatibility",
+      "TestSubscriptionBindingCompatibility/archive_false/exact",
+      "TestSubscriptionBindingCompatibility/archive_false/ordinary_exact",
+      "TestSubscriptionBindingCompatibility/archive_false/entitlement_only_exact",
+      "TestSubscriptionBindingCompatibility/archive_false/other_fingerprint",
+      "TestSubscriptionBindingCompatibility/archive_false/other_subscription",
+      "TestSubscriptionBindingCompatibility/archive_false/other_entitlement",
+      "TestSubscriptionBindingCompatibility/archive_false/drop_subscription",
+      "TestSubscriptionBindingCompatibility/archive_false/drop_entitlement",
+      "TestSubscriptionBindingCompatibility/archive_false/drop_both",
+      "TestSubscriptionBindingCompatibility/archive_false/legacy_null_subscription",
+      "TestSubscriptionBindingCompatibility/archive_false/legacy_null_entitlement",
+      "TestSubscriptionBindingCompatibility/archive_false/legacy_both_null",
+      "TestSubscriptionBindingCompatibility/archive_false/both_null_exact",
+      "TestSubscriptionBindingCompatibility/archive_false/no_link_with_ids",
+      "TestSubscriptionBindingCompatibility/archive_false/no_link_subscription_only",
+      "TestSubscriptionBindingCompatibility/archive_false/no_link_entitlement_only",
+      "TestSubscriptionBindingCompatibility/archive_false/no_link_without_ids",
+      "TestSubscriptionBindingCompatibility/archive_true/exact",
+      "TestSubscriptionBindingCompatibility/archive_true/ordinary_exact",
+      "TestSubscriptionBindingCompatibility/archive_true/entitlement_only_exact",
+      "TestSubscriptionBindingCompatibility/archive_true/other_fingerprint",
+      "TestSubscriptionBindingCompatibility/archive_true/other_subscription",
+      "TestSubscriptionBindingCompatibility/archive_true/other_entitlement",
+      "TestSubscriptionBindingCompatibility/archive_true/drop_subscription",
+      "TestSubscriptionBindingCompatibility/archive_true/drop_entitlement",
+      "TestSubscriptionBindingCompatibility/archive_true/drop_both",
+      "TestSubscriptionBindingCompatibility/archive_true/legacy_null_subscription",
+      "TestSubscriptionBindingCompatibility/archive_true/legacy_null_entitlement",
+      "TestSubscriptionBindingCompatibility/archive_true/legacy_both_null",
+      "TestSubscriptionBindingCompatibility/archive_true/both_null_exact",
+      "TestSubscriptionBindingCompatibility/archive_true/no_link_with_ids",
+      "TestSubscriptionBindingCompatibility/archive_true/no_link_subscription_only",
+      "TestSubscriptionBindingCompatibility/archive_true/no_link_entitlement_only",
+      "TestSubscriptionBindingCompatibility/archive_true/no_link_without_ids",
+      "TestSubscriptionBindingCompatibility/no_ledger_context_unchanged",
+      "TestSubscriptionBindingCompatibility/concurrent_prepare_different_ids_freezes_one"
+    ],
+    "leaf_cases_passed": 36,
+    "failed": [],
+    "race": "pass"
+  },
+  "routing_combination": {
+    "tests_and_subtests_passed": 57,
+    "top_level_tests_passed": 19,
+    "package_only_skips": [
+      {
+        "Time": "2026-10-11T10:15:08.891773621Z",
+        "Action": "skip",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger/ledgertest",
+        "Elapsed": 0
+      }
+    ],
+    "failed": [],
+    "results": [
+      {
+        "Time": "2026-10-11T10:13:29.045705442Z",
+        "Action": "pass",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+        "Test": "TestLedgerPostgresAdditionalBillingIntentReopensPending",
+        "Elapsed": 2.67
+      },
+      {
+        "Time": "2026-10-11T10:13:31.387947699Z",
+        "Action": "pass",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+        "Test": "TestLedgerPostgresRoutingStatesBoundsAndLoss/old_writer_and_no_selection",
+        "Elapsed": 0.01
+      },
+      {
+        "Time": "2026-10-11T10:13:31.405289366Z",
+        "Action": "pass",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+        "Test": "TestLedgerPostgresRoutingStatesBoundsAndLoss/truncated_and_secrets",
+        "Elapsed": 0.02
+      },
+      {
+        "Time": "2026-10-11T10:13:31.411111967Z",
+        "Action": "pass",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+        "Test": "TestLedgerPostgresRoutingStatesBoundsAndLoss/crash_and_missing_batch",
+        "Elapsed": 0.01
+      },
+      {
+        "Time": "2026-10-11T10:13:31.415109239Z",
+        "Action": "pass",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+        "Test": "TestLedgerPostgresRoutingStatesBoundsAndLoss/queue_full",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-11T10:13:31.41900411Z",
+        "Action": "pass",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+        "Test": "TestLedgerPostgresRoutingStatesBoundsAndLoss/unsupported",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-11T10:13:31.620468186Z",
+        "Action": "pass",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+        "Test": "TestLedgerPostgresRoutingStatesBoundsAndLoss",
+        "Elapsed": 2.57
+      },
+      {
+        "Time": "2026-10-11T10:13:33.943313017Z",
+        "Action": "pass",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+        "Test": "TestLedgerPostgresRoutingWriterLockAndPoolPressure",
+        "Elapsed": 2.32
+      },
+      {
+        "Time": "2026-10-11T10:13:36.467718318Z",
+        "Action": "pass",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+        "Test": "TestLedgerPostgresRoutingFinishBarrierAndFailure/ready_waits_for_finish",
+        "Elapsed": 0.12
+      },
+      {
+        "Time": "2026-10-11T10:13:36.489326964Z",
+        "Action": "pass",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+        "Test": "TestLedgerPostgresRoutingFinishBarrierAndFailure/failed_finish_with_persisted_batch",
+        "Elapsed": 0.02
+      },
+      {
+        "Time": "2026-10-11T10:13:36.680639141Z",
+        "Action": "pass",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+        "Test": "TestLedgerPostgresRoutingFinishBarrierAndFailure",
+        "Elapsed": 2.74
+      },
+      {
+        "Time": "2026-10-11T10:13:38.952614878Z",
+        "Action": "pass",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+        "Test": "TestLedgerPostgresRoutingFinishedBatchLossExpires/lock",
+        "Elapsed": 0.06
+      },
+      {
+        "Time": "2026-10-11T10:13:38.963613003Z",
+        "Action": "pass",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+        "Test": "TestLedgerPostgresRoutingFinishedBatchLossExpires/pool",
+        "Elapsed": 0.01
+      },
+      {
+        "Time": "2026-10-11T10:13:39.157940533Z",
+        "Action": "pass",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+        "Test": "TestLedgerPostgresRoutingFinishedBatchLossExpires",
+        "Elapsed": 2.48
+      },
+      {
+        "Time": "2026-10-11T10:13:39.159620502Z",
+        "Action": "pass",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+        "Elapsed": 12.794
+      },
+      {
+        "Time": "2026-10-11T10:15:00.042868727Z",
+        "Action": "pass",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger/acceptance",
+        "Test": "TestRequestLedgerHTTPLinkedUsageAndRetention",
+        "Elapsed": 4.71
+      },
+      {
+        "Time": "2026-10-11T10:15:04.621919646Z",
+        "Action": "pass",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger/acceptance",
+        "Test": "TestRequestLedgerRoutingHTTPAdminIsolationAndDetailFailure",
+        "Elapsed": 4.58
+      },
+      {
+        "Time": "2026-10-11T10:15:08.887445564Z",
+        "Action": "pass",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger/acceptance",
+        "Test": "TestRequestLedgerRoutingRepositoryPoolIsPrefiltered",
+        "Elapsed": 4.27
+      },
+      {
+        "Time": "2026-10-11T10:15:08.889542631Z",
+        "Action": "pass",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger/acceptance",
+        "Elapsed": 13.576
+      },
+      {
+        "Time": "2026-10-11T10:15:08.891773621Z",
+        "Action": "skip",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger/ledgertest",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-11T10:15:25.94884782Z",
+        "Action": "pass",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/handler",
+        "Test": "TestRequestLedgerRoutingRealTextHandlersHTTP//v1/responses",
+        "Elapsed": 0.01
+      },
+      {
+        "Time": "2026-10-11T10:15:25.967134597Z",
+        "Action": "pass",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/handler",
+        "Test": "TestRequestLedgerRoutingRealTextHandlersHTTP//v1/messages",
+        "Elapsed": 0.02
+      },
+      {
+        "Time": "2026-10-11T10:15:25.983204985Z",
+        "Action": "pass",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/handler",
+        "Test": "TestRequestLedgerRoutingRealTextHandlersHTTP//v1/chat/completions",
+        "Elapsed": 0.02
+      },
+      {
+        "Time": "2026-10-11T10:15:26.174837162Z",
+        "Action": "pass",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/handler",
+        "Test": "TestRequestLedgerRoutingRealTextHandlersHTTP",
+        "Elapsed": 2.54
+      },
+      {
+        "Time": "2026-10-11T10:15:28.06407845Z",
+        "Action": "pass",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/handler",
+        "Test": "TestRequestLedgerRoutingTerminalProfitAndQueue/profit",
+        "Elapsed": 0.01
+      },
+      {
+        "Time": "2026-10-11T10:15:28.071464784Z",
+        "Action": "pass",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/handler",
+        "Test": "TestRequestLedgerRoutingTerminalProfitAndQueue/queue_full",
+        "Elapsed": 0.01
+      },
+      {
+        "Time": "2026-10-11T10:15:28.271065933Z",
+        "Action": "pass",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/handler",
+        "Test": "TestRequestLedgerRoutingTerminalProfitAndQueue",
+        "Elapsed": 2.09
+      },
+      {
+        "Time": "2026-10-11T10:15:28.276886882Z",
+        "Action": "pass",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/handler",
+        "Elapsed": 4.704
+      },
+      {
+        "Time": "2026-10-11T10:15:35.495175139Z",
+        "Action": "pass",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/server/routes",
+        "Test": "TestRequestLedgerRoutingActualUnsupportedDispatch/anthropic/v1/messages",
+        "Elapsed": 0.01
+      },
+      {
+        "Time": "2026-10-11T10:15:35.498612883Z",
+        "Action": "pass",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/server/routes",
+        "Test": "TestRequestLedgerRoutingActualUnsupportedDispatch/anthropic/v1/responses",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-11T10:15:35.502096085Z",
+        "Action": "pass",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/server/routes",
+        "Test": "TestRequestLedgerRoutingActualUnsupportedDispatch/anthropic/responses",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-11T10:15:35.505623662Z",
+        "Action": "pass",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/server/routes",
+        "Test": "TestRequestLedgerRoutingActualUnsupportedDispatch/anthropic/backend-api/codex/responses",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-11T10:15:35.508991923Z",
+        "Action": "pass",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/server/routes",
+        "Test": "TestRequestLedgerRoutingActualUnsupportedDispatch/anthropic/v1/chat/completions",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-11T10:15:35.512217324Z",
+        "Action": "pass",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/server/routes",
+        "Test": "TestRequestLedgerRoutingActualUnsupportedDispatch/anthropic/chat/completions",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-11T10:15:35.515621759Z",
+        "Action": "pass",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/server/routes",
+        "Test": "TestRequestLedgerRoutingActualUnsupportedDispatch/gemini/v1/messages",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-11T10:15:35.518979244Z",
+        "Action": "pass",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/server/routes",
+        "Test": "TestRequestLedgerRoutingActualUnsupportedDispatch/gemini/v1/responses",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-11T10:15:35.522427054Z",
+        "Action": "pass",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/server/routes",
+        "Test": "TestRequestLedgerRoutingActualUnsupportedDispatch/gemini/responses",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-11T10:15:35.525753143Z",
+        "Action": "pass",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/server/routes",
+        "Test": "TestRequestLedgerRoutingActualUnsupportedDispatch/gemini/backend-api/codex/responses",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-11T10:15:35.529255182Z",
+        "Action": "pass",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/server/routes",
+        "Test": "TestRequestLedgerRoutingActualUnsupportedDispatch/gemini/v1/chat/completions",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-11T10:15:35.532685025Z",
+        "Action": "pass",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/server/routes",
+        "Test": "TestRequestLedgerRoutingActualUnsupportedDispatch/gemini/chat/completions",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-11T10:15:35.710067028Z",
+        "Action": "pass",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/server/routes",
+        "Test": "TestRequestLedgerRoutingActualUnsupportedDispatch",
+        "Elapsed": 2.65
+      },
+      {
+        "Time": "2026-10-11T10:15:35.712170449Z",
+        "Action": "pass",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/server/routes",
+        "Elapsed": 2.689
+      },
+      {
+        "Time": "2026-10-11T10:16:03.221057079Z",
+        "Action": "pass",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/repository",
+        "Test": "TestRequestLedgerRoutingMigrationBusyKeepsAdmission/reader",
+        "Elapsed": 1.79
+      },
+      {
+        "Time": "2026-10-11T10:16:05.090067874Z",
+        "Action": "pass",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/repository",
+        "Test": "TestRequestLedgerRoutingMigrationBusyKeepsAdmission/writer",
+        "Elapsed": 1.87
+      },
+      {
+        "Time": "2026-10-11T10:16:05.090089115Z",
+        "Action": "pass",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/repository",
+        "Test": "TestRequestLedgerRoutingMigrationBusyKeepsAdmission",
+        "Elapsed": 3.66
+      },
+      {
+        "Time": "2026-10-11T10:16:07.423249942Z",
+        "Action": "pass",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/repository",
+        "Test": "TestRequestLedgerRoutingMigrationExecutionTimeoutRollsBack",
+        "Elapsed": 2.33
+      },
+      {
+        "Time": "2026-10-11T10:16:07.439083299Z",
+        "Action": "pass",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/repository",
+        "Elapsed": 11.016
+      },
+      {
+        "Time": "2026-10-11T10:17:12.473924839Z",
+        "Action": "pass",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+        "Test": "TestRequestLedgerRoutingActualSchedulersHTTP/advanced",
+        "Elapsed": 0.01
+      },
+      {
+        "Time": "2026-10-11T10:17:12.491369121Z",
+        "Action": "pass",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+        "Test": "TestRequestLedgerRoutingActualSchedulersHTTP/legacy",
+        "Elapsed": 0.02
+      },
+      {
+        "Time": "2026-10-11T10:17:12.506230243Z",
+        "Action": "pass",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+        "Test": "TestRequestLedgerRoutingActualSchedulersHTTP/legacy_batch",
+        "Elapsed": 0.01
+      },
+      {
+        "Time": "2026-10-11T10:17:12.706540224Z",
+        "Action": "pass",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+        "Test": "TestRequestLedgerRoutingActualSchedulersHTTP",
+        "Elapsed": 2.85
+      },
+      {
+        "Time": "2026-10-11T10:17:15.078720719Z",
+        "Action": "pass",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+        "Test": "TestRequestLedgerRoutingRecheckFallbackActionsUnchanged",
+        "Elapsed": 2.37
+      },
+      {
+        "Time": "2026-10-11T10:17:17.170379619Z",
+        "Action": "pass",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+        "Test": "TestRequestLedgerRoutingFirstVetoPoolAndPreviousResponse/empty_pool",
+        "Elapsed": 0.02
+      },
+      {
+        "Time": "2026-10-11T10:17:17.187751744Z",
+        "Action": "pass",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+        "Test": "TestRequestLedgerRoutingFirstVetoPoolAndPreviousResponse/first_veto",
+        "Elapsed": 0.02
+      },
+      {
+        "Time": "2026-10-11T10:17:17.2032112Z",
+        "Action": "pass",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+        "Test": "TestRequestLedgerRoutingFirstVetoPoolAndPreviousResponse/previous_response",
+        "Elapsed": 0.02
+      },
+      {
+        "Time": "2026-10-11T10:17:17.218067104Z",
+        "Action": "pass",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+        "Test": "TestRequestLedgerRoutingFirstVetoPoolAndPreviousResponse/sticky",
+        "Elapsed": 0.01
+      },
+      {
+        "Time": "2026-10-11T10:17:17.231482217Z",
+        "Action": "pass",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+        "Test": "TestRequestLedgerRoutingFirstVetoPoolAndPreviousResponse/weighted_fallback",
+        "Elapsed": 0.01
+      },
+      {
+        "Time": "2026-10-11T10:17:17.430770396Z",
+        "Action": "pass",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+        "Test": "TestRequestLedgerRoutingFirstVetoPoolAndPreviousResponse",
+        "Elapsed": 2.35
+      },
+      {
+        "Time": "2026-10-11T10:17:19.280385352Z",
+        "Action": "pass",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+        "Test": "TestRequestLedgerRoutingCompactAndQuarantineSelections/compact",
+        "Elapsed": 0.02
+      },
+      {
+        "Time": "2026-10-11T10:17:19.29707761Z",
+        "Action": "pass",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+        "Test": "TestRequestLedgerRoutingCompactAndQuarantineSelections/quarantine",
+        "Elapsed": 0.02
+      },
+      {
+        "Time": "2026-10-11T10:17:19.487389116Z",
+        "Action": "pass",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+        "Test": "TestRequestLedgerRoutingCompactAndQuarantineSelections",
+        "Elapsed": 2.06
+      },
+      {
+        "Time": "2026-10-11T10:17:21.441071141Z",
+        "Action": "pass",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+        "Test": "TestRequestLedgerRoutingLegacyMissingStickyIsOneVeto",
+        "Elapsed": 1.95
+      },
+      {
+        "Time": "2026-10-11T10:17:26.005953535Z",
+        "Action": "pass",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+        "Test": "TestRequestLedgerLiveAuditFailurePreservesRedisAndSettlement",
+        "Elapsed": 4.55
+      },
+      {
+        "Time": "2026-10-11T10:17:26.009167789Z",
+        "Action": "pass",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+        "Elapsed": 16.278
+      }
+    ]
+  }
+}

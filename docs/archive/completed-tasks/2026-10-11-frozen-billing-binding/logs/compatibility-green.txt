@@ -1,0 +1,151 @@
+=== RUN   TestSubscriptionBindingCompatibility
+2026/10/11 08:47:11 Timezone initialized: UTC (UTC offset: +00:00)
+    subscription_binding_compatibility_integration_test.go:25: full_migrations count=404
+=== RUN   TestSubscriptionBindingCompatibility/archive_false/exact
+2026/10/11 08:47:15 [OpenAI WS Mode][openai_ws_mode=true] bootstrap enabled=false oauth_enabled=false apikey_enabled=false force_http=false responses_websockets_v2=false responses_websockets=false payload_log_sample_rate=0.000 event_flush_batch_size=0 event_flush_interval_ms=0 prewarm_cooldown_ms=0 retry_backoff_initial_ms=0 retry_backoff_max_ms=0 retry_jitter_ratio=0.000 retry_total_budget_ms=0 ws_read_limit_bytes=16777216
+2026/10/11 08:47:15 [Billing] Using fallback pricing for model: gpt-5.1
+    subscription_binding_compatibility_integration_test.go:115: binding_compat archive=false scenario=exact prepare_error=<nil> verify_error=<nil> counters_unchanged=true legacy_proof_unchanged=true
+=== RUN   TestSubscriptionBindingCompatibility/archive_false/ordinary_exact
+2026/10/11 08:47:15 [OpenAI WS Mode][openai_ws_mode=true] bootstrap enabled=false oauth_enabled=false apikey_enabled=false force_http=false responses_websockets_v2=false responses_websockets=false payload_log_sample_rate=0.000 event_flush_batch_size=0 event_flush_interval_ms=0 prewarm_cooldown_ms=0 retry_backoff_initial_ms=0 retry_backoff_max_ms=0 retry_jitter_ratio=0.000 retry_total_budget_ms=0 ws_read_limit_bytes=16777216
+2026/10/11 08:47:15 [Billing] Using fallback pricing for model: gpt-5.1
+    subscription_binding_compatibility_integration_test.go:115: binding_compat archive=false scenario=ordinary_exact prepare_error=<nil> verify_error=<nil> counters_unchanged=true legacy_proof_unchanged=true
+=== RUN   TestSubscriptionBindingCompatibility/archive_false/entitlement_only_exact
+2026/10/11 08:47:15 [OpenAI WS Mode][openai_ws_mode=true] bootstrap enabled=false oauth_enabled=false apikey_enabled=false force_http=false responses_websockets_v2=false responses_websockets=false payload_log_sample_rate=0.000 event_flush_batch_size=0 event_flush_interval_ms=0 prewarm_cooldown_ms=0 retry_backoff_initial_ms=0 retry_backoff_max_ms=0 retry_jitter_ratio=0.000 retry_total_budget_ms=0 ws_read_limit_bytes=16777216
+2026/10/11 08:47:15 [Billing] Using fallback pricing for model: gpt-5.1
+    subscription_binding_compatibility_integration_test.go:115: binding_compat archive=false scenario=entitlement_only_exact prepare_error=<nil> verify_error=<nil> counters_unchanged=true legacy_proof_unchanged=true
+=== RUN   TestSubscriptionBindingCompatibility/archive_false/other_fingerprint
+2026/10/11 08:47:15 [OpenAI WS Mode][openai_ws_mode=true] bootstrap enabled=false oauth_enabled=false apikey_enabled=false force_http=false responses_websockets_v2=false responses_websockets=false payload_log_sample_rate=0.000 event_flush_batch_size=0 event_flush_interval_ms=0 prewarm_cooldown_ms=0 retry_backoff_initial_ms=0 retry_backoff_max_ms=0 retry_jitter_ratio=0.000 retry_total_budget_ms=0 ws_read_limit_bytes=16777216
+2026/10/11 08:47:15 [Billing] Using fallback pricing for model: gpt-5.1
+    subscription_binding_compatibility_integration_test.go:115: binding_compat archive=false scenario=other_fingerprint prepare_error=request ledger unavailable verify_error=request ledger unavailable counters_unchanged=true legacy_proof_unchanged=true
+=== RUN   TestSubscriptionBindingCompatibility/archive_false/other_subscription
+2026/10/11 08:47:15 [OpenAI WS Mode][openai_ws_mode=true] bootstrap enabled=false oauth_enabled=false apikey_enabled=false force_http=false responses_websockets_v2=false responses_websockets=false payload_log_sample_rate=0.000 event_flush_batch_size=0 event_flush_interval_ms=0 prewarm_cooldown_ms=0 retry_backoff_initial_ms=0 retry_backoff_max_ms=0 retry_jitter_ratio=0.000 retry_total_budget_ms=0 ws_read_limit_bytes=16777216
+2026/10/11 08:47:15 [Billing] Using fallback pricing for model: gpt-5.1
+    subscription_binding_compatibility_integration_test.go:115: binding_compat archive=false scenario=other_subscription prepare_error=request ledger unavailable verify_error=request ledger unavailable counters_unchanged=true legacy_proof_unchanged=true
+=== RUN   TestSubscriptionBindingCompatibility/archive_false/other_entitlement
+2026/10/11 08:47:15 [OpenAI WS Mode][openai_ws_mode=true] bootstrap enabled=false oauth_enabled=false apikey_enabled=false force_http=false responses_websockets_v2=false responses_websockets=false payload_log_sample_rate=0.000 event_flush_batch_size=0 event_flush_interval_ms=0 prewarm_cooldown_ms=0 retry_backoff_initial_ms=0 retry_backoff_max_ms=0 retry_jitter_ratio=0.000 retry_total_budget_ms=0 ws_read_limit_bytes=16777216
+2026/10/11 08:47:15 [Billing] Using fallback pricing for model: gpt-5.1
+    subscription_binding_compatibility_integration_test.go:115: binding_compat archive=false scenario=other_entitlement prepare_error=request ledger unavailable verify_error=request ledger unavailable counters_unchanged=true legacy_proof_unchanged=true
+=== RUN   TestSubscriptionBindingCompatibility/archive_false/drop_subscription
+2026/10/11 08:47:16 [OpenAI WS Mode][openai_ws_mode=true] bootstrap enabled=false oauth_enabled=false apikey_enabled=false force_http=false responses_websockets_v2=false responses_websockets=false payload_log_sample_rate=0.000 event_flush_batch_size=0 event_flush_interval_ms=0 prewarm_cooldown_ms=0 retry_backoff_initial_ms=0 retry_backoff_max_ms=0 retry_jitter_ratio=0.000 retry_total_budget_ms=0 ws_read_limit_bytes=16777216
+2026/10/11 08:47:16 [Billing] Using fallback pricing for model: gpt-5.1
+    subscription_binding_compatibility_integration_test.go:115: binding_compat archive=false scenario=drop_subscription prepare_error=request ledger unavailable verify_error=request ledger unavailable counters_unchanged=true legacy_proof_unchanged=true
+=== RUN   TestSubscriptionBindingCompatibility/archive_false/drop_entitlement
+2026/10/11 08:47:16 [OpenAI WS Mode][openai_ws_mode=true] bootstrap enabled=false oauth_enabled=false apikey_enabled=false force_http=false responses_websockets_v2=false responses_websockets=false payload_log_sample_rate=0.000 event_flush_batch_size=0 event_flush_interval_ms=0 prewarm_cooldown_ms=0 retry_backoff_initial_ms=0 retry_backoff_max_ms=0 retry_jitter_ratio=0.000 retry_total_budget_ms=0 ws_read_limit_bytes=16777216
+2026/10/11 08:47:16 [Billing] Using fallback pricing for model: gpt-5.1
+    subscription_binding_compatibility_integration_test.go:115: binding_compat archive=false scenario=drop_entitlement prepare_error=request ledger unavailable verify_error=request ledger unavailable counters_unchanged=true legacy_proof_unchanged=true
+=== RUN   TestSubscriptionBindingCompatibility/archive_false/legacy_null_subscription
+2026/10/11 08:47:16 [OpenAI WS Mode][openai_ws_mode=true] bootstrap enabled=false oauth_enabled=false apikey_enabled=false force_http=false responses_websockets_v2=false responses_websockets=false payload_log_sample_rate=0.000 event_flush_batch_size=0 event_flush_interval_ms=0 prewarm_cooldown_ms=0 retry_backoff_initial_ms=0 retry_backoff_max_ms=0 retry_jitter_ratio=0.000 retry_total_budget_ms=0 ws_read_limit_bytes=16777216
+2026/10/11 08:47:16 [Billing] Using fallback pricing for model: gpt-5.1
+    subscription_binding_compatibility_integration_test.go:115: binding_compat archive=false scenario=legacy_null_subscription prepare_error=request ledger unavailable verify_error=request ledger unavailable counters_unchanged=true legacy_proof_unchanged=true
+=== RUN   TestSubscriptionBindingCompatibility/archive_false/legacy_null_entitlement
+2026/10/11 08:47:16 [OpenAI WS Mode][openai_ws_mode=true] bootstrap enabled=false oauth_enabled=false apikey_enabled=false force_http=false responses_websockets_v2=false responses_websockets=false payload_log_sample_rate=0.000 event_flush_batch_size=0 event_flush_interval_ms=0 prewarm_cooldown_ms=0 retry_backoff_initial_ms=0 retry_backoff_max_ms=0 retry_jitter_ratio=0.000 retry_total_budget_ms=0 ws_read_limit_bytes=16777216
+2026/10/11 08:47:16 [Billing] Using fallback pricing for model: gpt-5.1
+    subscription_binding_compatibility_integration_test.go:115: binding_compat archive=false scenario=legacy_null_entitlement prepare_error=request ledger unavailable verify_error=request ledger unavailable counters_unchanged=true legacy_proof_unchanged=true
+=== RUN   TestSubscriptionBindingCompatibility/archive_false/legacy_both_null
+2026/10/11 08:47:16 [OpenAI WS Mode][openai_ws_mode=true] bootstrap enabled=false oauth_enabled=false apikey_enabled=false force_http=false responses_websockets_v2=false responses_websockets=false payload_log_sample_rate=0.000 event_flush_batch_size=0 event_flush_interval_ms=0 prewarm_cooldown_ms=0 retry_backoff_initial_ms=0 retry_backoff_max_ms=0 retry_jitter_ratio=0.000 retry_total_budget_ms=0 ws_read_limit_bytes=16777216
+2026/10/11 08:47:16 [Billing] Using fallback pricing for model: gpt-5.1
+    subscription_binding_compatibility_integration_test.go:115: binding_compat archive=false scenario=legacy_both_null prepare_error=request ledger unavailable verify_error=request ledger unavailable counters_unchanged=true legacy_proof_unchanged=true
+=== RUN   TestSubscriptionBindingCompatibility/archive_false/both_null_exact
+2026/10/11 08:47:16 [OpenAI WS Mode][openai_ws_mode=true] bootstrap enabled=false oauth_enabled=false apikey_enabled=false force_http=false responses_websockets_v2=false responses_websockets=false payload_log_sample_rate=0.000 event_flush_batch_size=0 event_flush_interval_ms=0 prewarm_cooldown_ms=0 retry_backoff_initial_ms=0 retry_backoff_max_ms=0 retry_jitter_ratio=0.000 retry_total_budget_ms=0 ws_read_limit_bytes=16777216
+2026/10/11 08:47:16 [Billing] Using fallback pricing for model: gpt-5.1
+    subscription_binding_compatibility_integration_test.go:115: binding_compat archive=false scenario=both_null_exact prepare_error=<nil> verify_error=<nil> counters_unchanged=true legacy_proof_unchanged=true
+=== RUN   TestSubscriptionBindingCompatibility/archive_false/no_link_with_ids
+2026/10/11 08:47:16 [OpenAI WS Mode][openai_ws_mode=true] bootstrap enabled=false oauth_enabled=false apikey_enabled=false force_http=false responses_websockets_v2=false responses_websockets=false payload_log_sample_rate=0.000 event_flush_batch_size=0 event_flush_interval_ms=0 prewarm_cooldown_ms=0 retry_backoff_initial_ms=0 retry_backoff_max_ms=0 retry_jitter_ratio=0.000 retry_total_budget_ms=0 ws_read_limit_bytes=16777216
+2026/10/11 08:47:16 [Billing] Using fallback pricing for model: gpt-5.1
+    subscription_binding_compatibility_integration_test.go:115: binding_compat archive=false scenario=no_link_with_ids prepare_error=request ledger unavailable verify_error=request ledger unavailable counters_unchanged=true legacy_proof_unchanged=true
+=== RUN   TestSubscriptionBindingCompatibility/archive_false/no_link_without_ids
+2026/10/11 08:47:16 [OpenAI WS Mode][openai_ws_mode=true] bootstrap enabled=false oauth_enabled=false apikey_enabled=false force_http=false responses_websockets_v2=false responses_websockets=false payload_log_sample_rate=0.000 event_flush_batch_size=0 event_flush_interval_ms=0 prewarm_cooldown_ms=0 retry_backoff_initial_ms=0 retry_backoff_max_ms=0 retry_jitter_ratio=0.000 retry_total_budget_ms=0 ws_read_limit_bytes=16777216
+2026/10/11 08:47:16 [Billing] Using fallback pricing for model: gpt-5.1
+    subscription_binding_compatibility_integration_test.go:115: binding_compat archive=false scenario=no_link_without_ids prepare_error=<nil> verify_error=request ledger unavailable counters_unchanged=true legacy_proof_unchanged=true
+=== RUN   TestSubscriptionBindingCompatibility/archive_true/exact
+2026/10/11 08:47:16 [OpenAI WS Mode][openai_ws_mode=true] bootstrap enabled=false oauth_enabled=false apikey_enabled=false force_http=false responses_websockets_v2=false responses_websockets=false payload_log_sample_rate=0.000 event_flush_batch_size=0 event_flush_interval_ms=0 prewarm_cooldown_ms=0 retry_backoff_initial_ms=0 retry_backoff_max_ms=0 retry_jitter_ratio=0.000 retry_total_budget_ms=0 ws_read_limit_bytes=16777216
+2026/10/11 08:47:16 [Billing] Using fallback pricing for model: gpt-5.1
+    subscription_binding_compatibility_integration_test.go:115: binding_compat archive=true scenario=exact prepare_error=<nil> verify_error=<nil> counters_unchanged=true legacy_proof_unchanged=true
+=== RUN   TestSubscriptionBindingCompatibility/archive_true/ordinary_exact
+2026/10/11 08:47:16 [OpenAI WS Mode][openai_ws_mode=true] bootstrap enabled=false oauth_enabled=false apikey_enabled=false force_http=false responses_websockets_v2=false responses_websockets=false payload_log_sample_rate=0.000 event_flush_batch_size=0 event_flush_interval_ms=0 prewarm_cooldown_ms=0 retry_backoff_initial_ms=0 retry_backoff_max_ms=0 retry_jitter_ratio=0.000 retry_total_budget_ms=0 ws_read_limit_bytes=16777216
+2026/10/11 08:47:16 [Billing] Using fallback pricing for model: gpt-5.1
+    subscription_binding_compatibility_integration_test.go:115: binding_compat archive=true scenario=ordinary_exact prepare_error=<nil> verify_error=<nil> counters_unchanged=true legacy_proof_unchanged=true
+=== RUN   TestSubscriptionBindingCompatibility/archive_true/entitlement_only_exact
+2026/10/11 08:47:17 [OpenAI WS Mode][openai_ws_mode=true] bootstrap enabled=false oauth_enabled=false apikey_enabled=false force_http=false responses_websockets_v2=false responses_websockets=false payload_log_sample_rate=0.000 event_flush_batch_size=0 event_flush_interval_ms=0 prewarm_cooldown_ms=0 retry_backoff_initial_ms=0 retry_backoff_max_ms=0 retry_jitter_ratio=0.000 retry_total_budget_ms=0 ws_read_limit_bytes=16777216
+2026/10/11 08:47:17 [Billing] Using fallback pricing for model: gpt-5.1
+    subscription_binding_compatibility_integration_test.go:115: binding_compat archive=true scenario=entitlement_only_exact prepare_error=<nil> verify_error=<nil> counters_unchanged=true legacy_proof_unchanged=true
+=== RUN   TestSubscriptionBindingCompatibility/archive_true/other_fingerprint
+2026/10/11 08:47:17 [OpenAI WS Mode][openai_ws_mode=true] bootstrap enabled=false oauth_enabled=false apikey_enabled=false force_http=false responses_websockets_v2=false responses_websockets=false payload_log_sample_rate=0.000 event_flush_batch_size=0 event_flush_interval_ms=0 prewarm_cooldown_ms=0 retry_backoff_initial_ms=0 retry_backoff_max_ms=0 retry_jitter_ratio=0.000 retry_total_budget_ms=0 ws_read_limit_bytes=16777216
+2026/10/11 08:47:17 [Billing] Using fallback pricing for model: gpt-5.1
+    subscription_binding_compatibility_integration_test.go:115: binding_compat archive=true scenario=other_fingerprint prepare_error=request ledger unavailable verify_error=request ledger unavailable counters_unchanged=true legacy_proof_unchanged=true
+=== RUN   TestSubscriptionBindingCompatibility/archive_true/other_subscription
+2026/10/11 08:47:17 [OpenAI WS Mode][openai_ws_mode=true] bootstrap enabled=false oauth_enabled=false apikey_enabled=false force_http=false responses_websockets_v2=false responses_websockets=false payload_log_sample_rate=0.000 event_flush_batch_size=0 event_flush_interval_ms=0 prewarm_cooldown_ms=0 retry_backoff_initial_ms=0 retry_backoff_max_ms=0 retry_jitter_ratio=0.000 retry_total_budget_ms=0 ws_read_limit_bytes=16777216
+2026/10/11 08:47:17 [Billing] Using fallback pricing for model: gpt-5.1
+    subscription_binding_compatibility_integration_test.go:115: binding_compat archive=true scenario=other_subscription prepare_error=request ledger unavailable verify_error=request ledger unavailable counters_unchanged=true legacy_proof_unchanged=true
+=== RUN   TestSubscriptionBindingCompatibility/archive_true/other_entitlement
+2026/10/11 08:47:17 [OpenAI WS Mode][openai_ws_mode=true] bootstrap enabled=false oauth_enabled=false apikey_enabled=false force_http=false responses_websockets_v2=false responses_websockets=false payload_log_sample_rate=0.000 event_flush_batch_size=0 event_flush_interval_ms=0 prewarm_cooldown_ms=0 retry_backoff_initial_ms=0 retry_backoff_max_ms=0 retry_jitter_ratio=0.000 retry_total_budget_ms=0 ws_read_limit_bytes=16777216
+2026/10/11 08:47:17 [Billing] Using fallback pricing for model: gpt-5.1
+    subscription_binding_compatibility_integration_test.go:115: binding_compat archive=true scenario=other_entitlement prepare_error=request ledger unavailable verify_error=request ledger unavailable counters_unchanged=true legacy_proof_unchanged=true
+=== RUN   TestSubscriptionBindingCompatibility/archive_true/drop_subscription
+2026/10/11 08:47:17 [OpenAI WS Mode][openai_ws_mode=true] bootstrap enabled=false oauth_enabled=false apikey_enabled=false force_http=false responses_websockets_v2=false responses_websockets=false payload_log_sample_rate=0.000 event_flush_batch_size=0 event_flush_interval_ms=0 prewarm_cooldown_ms=0 retry_backoff_initial_ms=0 retry_backoff_max_ms=0 retry_jitter_ratio=0.000 retry_total_budget_ms=0 ws_read_limit_bytes=16777216
+2026/10/11 08:47:17 [Billing] Using fallback pricing for model: gpt-5.1
+    subscription_binding_compatibility_integration_test.go:115: binding_compat archive=true scenario=drop_subscription prepare_error=request ledger unavailable verify_error=request ledger unavailable counters_unchanged=true legacy_proof_unchanged=true
+=== RUN   TestSubscriptionBindingCompatibility/archive_true/drop_entitlement
+2026/10/11 08:47:17 [OpenAI WS Mode][openai_ws_mode=true] bootstrap enabled=false oauth_enabled=false apikey_enabled=false force_http=false responses_websockets_v2=false responses_websockets=false payload_log_sample_rate=0.000 event_flush_batch_size=0 event_flush_interval_ms=0 prewarm_cooldown_ms=0 retry_backoff_initial_ms=0 retry_backoff_max_ms=0 retry_jitter_ratio=0.000 retry_total_budget_ms=0 ws_read_limit_bytes=16777216
+2026/10/11 08:47:17 [Billing] Using fallback pricing for model: gpt-5.1
+    subscription_binding_compatibility_integration_test.go:115: binding_compat archive=true scenario=drop_entitlement prepare_error=request ledger unavailable verify_error=request ledger unavailable counters_unchanged=true legacy_proof_unchanged=true
+=== RUN   TestSubscriptionBindingCompatibility/archive_true/legacy_null_subscription
+2026/10/11 08:47:17 [OpenAI WS Mode][openai_ws_mode=true] bootstrap enabled=false oauth_enabled=false apikey_enabled=false force_http=false responses_websockets_v2=false responses_websockets=false payload_log_sample_rate=0.000 event_flush_batch_size=0 event_flush_interval_ms=0 prewarm_cooldown_ms=0 retry_backoff_initial_ms=0 retry_backoff_max_ms=0 retry_jitter_ratio=0.000 retry_total_budget_ms=0 ws_read_limit_bytes=16777216
+2026/10/11 08:47:17 [Billing] Using fallback pricing for model: gpt-5.1
+    subscription_binding_compatibility_integration_test.go:115: binding_compat archive=true scenario=legacy_null_subscription prepare_error=request ledger unavailable verify_error=request ledger unavailable counters_unchanged=true legacy_proof_unchanged=true
+=== RUN   TestSubscriptionBindingCompatibility/archive_true/legacy_null_entitlement
+2026/10/11 08:47:17 [OpenAI WS Mode][openai_ws_mode=true] bootstrap enabled=false oauth_enabled=false apikey_enabled=false force_http=false responses_websockets_v2=false responses_websockets=false payload_log_sample_rate=0.000 event_flush_batch_size=0 event_flush_interval_ms=0 prewarm_cooldown_ms=0 retry_backoff_initial_ms=0 retry_backoff_max_ms=0 retry_jitter_ratio=0.000 retry_total_budget_ms=0 ws_read_limit_bytes=16777216
+2026/10/11 08:47:17 [Billing] Using fallback pricing for model: gpt-5.1
+    subscription_binding_compatibility_integration_test.go:115: binding_compat archive=true scenario=legacy_null_entitlement prepare_error=request ledger unavailable verify_error=request ledger unavailable counters_unchanged=true legacy_proof_unchanged=true
+=== RUN   TestSubscriptionBindingCompatibility/archive_true/legacy_both_null
+2026/10/11 08:47:17 [OpenAI WS Mode][openai_ws_mode=true] bootstrap enabled=false oauth_enabled=false apikey_enabled=false force_http=false responses_websockets_v2=false responses_websockets=false payload_log_sample_rate=0.000 event_flush_batch_size=0 event_flush_interval_ms=0 prewarm_cooldown_ms=0 retry_backoff_initial_ms=0 retry_backoff_max_ms=0 retry_jitter_ratio=0.000 retry_total_budget_ms=0 ws_read_limit_bytes=16777216
+2026/10/11 08:47:17 [Billing] Using fallback pricing for model: gpt-5.1
+    subscription_binding_compatibility_integration_test.go:115: binding_compat archive=true scenario=legacy_both_null prepare_error=request ledger unavailable verify_error=request ledger unavailable counters_unchanged=true legacy_proof_unchanged=true
+=== RUN   TestSubscriptionBindingCompatibility/archive_true/both_null_exact
+2026/10/11 08:47:17 [OpenAI WS Mode][openai_ws_mode=true] bootstrap enabled=false oauth_enabled=false apikey_enabled=false force_http=false responses_websockets_v2=false responses_websockets=false payload_log_sample_rate=0.000 event_flush_batch_size=0 event_flush_interval_ms=0 prewarm_cooldown_ms=0 retry_backoff_initial_ms=0 retry_backoff_max_ms=0 retry_jitter_ratio=0.000 retry_total_budget_ms=0 ws_read_limit_bytes=16777216
+2026/10/11 08:47:17 [Billing] Using fallback pricing for model: gpt-5.1
+    subscription_binding_compatibility_integration_test.go:115: binding_compat archive=true scenario=both_null_exact prepare_error=<nil> verify_error=<nil> counters_unchanged=true legacy_proof_unchanged=true
+=== RUN   TestSubscriptionBindingCompatibility/archive_true/no_link_with_ids
+2026/10/11 08:47:18 [OpenAI WS Mode][openai_ws_mode=true] bootstrap enabled=false oauth_enabled=false apikey_enabled=false force_http=false responses_websockets_v2=false responses_websockets=false payload_log_sample_rate=0.000 event_flush_batch_size=0 event_flush_interval_ms=0 prewarm_cooldown_ms=0 retry_backoff_initial_ms=0 retry_backoff_max_ms=0 retry_jitter_ratio=0.000 retry_total_budget_ms=0 ws_read_limit_bytes=16777216
+2026/10/11 08:47:18 [Billing] Using fallback pricing for model: gpt-5.1
+    subscription_binding_compatibility_integration_test.go:115: binding_compat archive=true scenario=no_link_with_ids prepare_error=request ledger unavailable verify_error=request ledger unavailable counters_unchanged=true legacy_proof_unchanged=true
+=== RUN   TestSubscriptionBindingCompatibility/archive_true/no_link_without_ids
+2026/10/11 08:47:18 [OpenAI WS Mode][openai_ws_mode=true] bootstrap enabled=false oauth_enabled=false apikey_enabled=false force_http=false responses_websockets_v2=false responses_websockets=false payload_log_sample_rate=0.000 event_flush_batch_size=0 event_flush_interval_ms=0 prewarm_cooldown_ms=0 retry_backoff_initial_ms=0 retry_backoff_max_ms=0 retry_jitter_ratio=0.000 retry_total_budget_ms=0 ws_read_limit_bytes=16777216
+2026/10/11 08:47:18 [Billing] Using fallback pricing for model: gpt-5.1
+    subscription_binding_compatibility_integration_test.go:115: binding_compat archive=true scenario=no_link_without_ids prepare_error=<nil> verify_error=request ledger unavailable counters_unchanged=true legacy_proof_unchanged=true
+=== RUN   TestSubscriptionBindingCompatibility/no_ledger_context_unchanged
+=== RUN   TestSubscriptionBindingCompatibility/concurrent_prepare_different_ids_freezes_one
+2026/10/11 08:47:18 [OpenAI WS Mode][openai_ws_mode=true] bootstrap enabled=false oauth_enabled=false apikey_enabled=false force_http=false responses_websockets_v2=false responses_websockets=false payload_log_sample_rate=0.000 event_flush_batch_size=0 event_flush_interval_ms=0 prewarm_cooldown_ms=0 retry_backoff_initial_ms=0 retry_backoff_max_ms=0 retry_jitter_ratio=0.000 retry_total_budget_ms=0 ws_read_limit_bytes=16777216
+--- PASS: TestSubscriptionBindingCompatibility (6.50s)
+    --- PASS: TestSubscriptionBindingCompatibility/archive_false/exact (0.17s)
+    --- PASS: TestSubscriptionBindingCompatibility/archive_false/ordinary_exact (0.10s)
+    --- PASS: TestSubscriptionBindingCompatibility/archive_false/entitlement_only_exact (0.10s)
+    --- PASS: TestSubscriptionBindingCompatibility/archive_false/other_fingerprint (0.09s)
+    --- PASS: TestSubscriptionBindingCompatibility/archive_false/other_subscription (0.08s)
+    --- PASS: TestSubscriptionBindingCompatibility/archive_false/other_entitlement (0.09s)
+    --- PASS: TestSubscriptionBindingCompatibility/archive_false/drop_subscription (0.09s)
+    --- PASS: TestSubscriptionBindingCompatibility/archive_false/drop_entitlement (0.09s)
+    --- PASS: TestSubscriptionBindingCompatibility/archive_false/legacy_null_subscription (0.09s)
+    --- PASS: TestSubscriptionBindingCompatibility/archive_false/legacy_null_entitlement (0.09s)
+    --- PASS: TestSubscriptionBindingCompatibility/archive_false/legacy_both_null (0.10s)
+    --- PASS: TestSubscriptionBindingCompatibility/archive_false/both_null_exact (0.10s)
+    --- PASS: TestSubscriptionBindingCompatibility/archive_false/no_link_with_ids (0.10s)
+    --- PASS: TestSubscriptionBindingCompatibility/archive_false/no_link_without_ids (0.10s)
+    --- PASS: TestSubscriptionBindingCompatibility/archive_true/exact (0.12s)
+    --- PASS: TestSubscriptionBindingCompatibility/archive_true/ordinary_exact (0.10s)
+    --- PASS: TestSubscriptionBindingCompatibility/archive_true/entitlement_only_exact (0.10s)
+    --- PASS: TestSubscriptionBindingCompatibility/archive_true/other_fingerprint (0.10s)
+    --- PASS: TestSubscriptionBindingCompatibility/archive_true/other_subscription (0.10s)
+    --- PASS: TestSubscriptionBindingCompatibility/archive_true/other_entitlement (0.10s)
+    --- PASS: TestSubscriptionBindingCompatibility/archive_true/drop_subscription (0.11s)
+    --- PASS: TestSubscriptionBindingCompatibility/archive_true/drop_entitlement (0.10s)
+    --- PASS: TestSubscriptionBindingCompatibility/archive_true/legacy_null_subscription (0.09s)
+    --- PASS: TestSubscriptionBindingCompatibility/archive_true/legacy_null_entitlement (0.10s)
+    --- PASS: TestSubscriptionBindingCompatibility/archive_true/legacy_both_null (0.10s)
+    --- PASS: TestSubscriptionBindingCompatibility/archive_true/both_null_exact (0.10s)
+    --- PASS: TestSubscriptionBindingCompatibility/archive_true/no_link_with_ids (0.10s)
+    --- PASS: TestSubscriptionBindingCompatibility/archive_true/no_link_without_ids (0.10s)
+    --- PASS: TestSubscriptionBindingCompatibility/no_ledger_context_unchanged (0.00s)
+    --- PASS: TestSubscriptionBindingCompatibility/concurrent_prepare_different_ids_freezes_one (0.04s)
+PASS
+ok      github.com/Wei-Shaw/sub2api/internal/billingacceptance  7.587s

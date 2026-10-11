@@ -48,9 +48,10 @@
         "tests": {
           "status": "recorded",
           "refs": [
-            "docs/archive/completed-tasks/2026-10-11-routing-evidence/README.md"
+            "docs/archive/completed-tasks/2026-10-11-routing-evidence/README.md",
+            "docs/archive/completed-tasks/2026-10-11-routing-evidence/merge-361-validation.json"
           ],
-          "note": "279锁风险真实PG RED/GREEN、race三轮、增量及#358组合双审查通过；组合完整test/unit/build/embed/Fork、66/66台账、54/54迁移合同/203测试、前端500文件/3644测试、8项交接测试与26文件清单全部通过。台账PG initdb磁盘不足的失败保留，完整重跑受影响service通过；新head CI结果以PR359为准，旧8665虽9/9绿仍不得合并。"
+          "note": "#361普通merge组合三套完整迁移计费race（42/4/36叶用例）、路由/Finish/计费回归、backend普通/lint/unit、build/embed/Fork通过，顺序规格/质量审查通过。26路由输入及279未变、55个主线文件保留。前端同源码复用500文件/3644测试；旧66/66与54/54仅为历史范围证据，不称新head本地重跑。新head CI以PR359为准。"
         },
         "deployment": {
           "status": "pending",
@@ -63,8 +64,8 @@
           "note": "没有生产或用户本机三身份验收，不能根据旧27条503倒推路由根因。"
         }
       },
-      "risks": "128条/32KiB、队列64，压力或崩溃可以丢明细但显示incomplete；source_population_complete恒false。非HTTP文本/媒体/WS未覆盖，不改调度或结算。原8665头5秒DDL排队超过3秒准入，禁止合并；279已NOWAIT+短时限并完成本地门禁，实际持锁DDL/提交开销仍不可消除。新head尚待CI及主线程增量复审。",
-      "next": "已普通merge最新1b701237ec3ceb869c39d28ad11d32e4065a2471（#358）并完成组合门禁；认证/Quiz字节等于主线，文档索引双方条目和其他handoff项完整保留。#360仍未合并，不提前合入278。推送新head供CI及主线程复审；旧8665不得合并。未重验其他快照条目，checked_at不前移；UI/合并/部署由主线程协调。 技术验证提交eb8cbab6786df2a2e880b3f95afc7b21669c3b4f；后继仅交接元数据，代码清单不变。",
+      "risks": "128条/32KiB、队列64，压力或崩溃可以丢明细但显示incomplete；source_population_complete恒false。非HTTP文本/媒体/WS未覆盖。原8665头5秒DDL排队超过3秒准入，禁止合并；279 NOWAIT+短时限不变，实际持锁DDL/提交开销仍不可消除。#361组合本地通过，新head尚待CI及主线程增量复审。",
+      "next": "已普通merge最新fdec971d2a01c25d93874b7688dffcff78f79088（#361）并完成最小组合复核及后端门禁；路由及279不变，绑定修复完整保留，无rebase/force。推送草稿新head供CI及主线程复审；#360仍未合并，不提前合入278。未重验其他快照条目，checked_at不前移；UI/合并/部署由主线程协调。",
       "rollback": "279尚未发布，本次按主线程明确授权收紧其SQL并更新checksum；发布后不可改。争用/超时由运行器回滚且无279登记，保留旧应用流量后重试；成功后的应用回退保留新增列/表和证据，不删除/回填历史，不补扣。"
     },
     {
