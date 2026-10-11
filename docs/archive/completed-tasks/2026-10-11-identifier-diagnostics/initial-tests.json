@@ -1,0 +1,476 @@
+[
+  {
+    "name": "core-green",
+    "log": "/tmp/identifier-core-green.log",
+    "sha256": "5f9f117d02cb0dba80b9b2951abbf0233f4a3d2b3ab3cbc06dad6752b2c28ec0",
+    "counts": {
+      "pass": 33,
+      "skip": 1
+    },
+    "events": [
+      {
+        "Time": "2026-10-11T11:50:50.979388453Z",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+        "Test": "TestLedgerPostgresIdentifierSnapshotReceiptIsolation",
+        "Action": "pass",
+        "Elapsed": 3.16
+      },
+      {
+        "Time": "2026-10-11T11:50:53.917804007Z",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+        "Test": "TestLedgerPostgresIdentifierSnapshotBothConflictsAndLoss/none",
+        "Action": "pass",
+        "Elapsed": 2.94
+      },
+      {
+        "Time": "2026-10-11T11:50:56.584509069Z",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+        "Test": "TestLedgerPostgresIdentifierSnapshotBothConflictsAndLoss/row_lock",
+        "Action": "pass",
+        "Elapsed": 2.67
+      },
+      {
+        "Time": "2026-10-11T11:50:58.830792085Z",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+        "Test": "TestLedgerPostgresIdentifierSnapshotBothConflictsAndLoss/pool",
+        "Action": "pass",
+        "Elapsed": 2.25
+      },
+      {
+        "Time": "2026-10-11T11:50:58.83080835Z",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+        "Test": "TestLedgerPostgresIdentifierSnapshotBothConflictsAndLoss",
+        "Action": "pass",
+        "Elapsed": 7.85
+      },
+      {
+        "Time": "2026-10-11T11:51:01.379471546Z",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+        "Test": "TestLedgerPostgresIdentifierSnapshotLegacyAndQueryFailure",
+        "Action": "pass",
+        "Elapsed": 2.55
+      },
+      {
+        "Time": "2026-10-11T11:51:03.372993585Z",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+        "Test": "TestLedgerPostgresIdentifierSnapshotAfterTerminalAndJSON//stream",
+        "Action": "pass",
+        "Elapsed": 0.02
+      },
+      {
+        "Time": "2026-10-11T11:51:03.391548741Z",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+        "Test": "TestLedgerPostgresIdentifierSnapshotAfterTerminalAndJSON//json",
+        "Action": "pass",
+        "Elapsed": 0.02
+      },
+      {
+        "Time": "2026-10-11T11:51:03.587055558Z",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+        "Test": "TestLedgerPostgresIdentifierSnapshotAfterTerminalAndJSON",
+        "Action": "pass",
+        "Elapsed": 2.2
+      },
+      {
+        "Time": "2026-10-11T11:51:03.58717258Z",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+        "Test": "TestIdentifierSnapshotFirstDifferentPerNamespace",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-11T11:51:03.587232268Z",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+        "Test": "TestIdentifierSnapshotBoundsAndWhitelist",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-11T11:51:03.587297364Z",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+        "Test": "TestLedgerPostgresIdentifierSnapshotCrashChild",
+        "Action": "skip",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-11T11:51:05.799411633Z",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+        "Test": "TestLedgerPostgresIdentifierSnapshotKilledAfterFirstWrite",
+        "Action": "pass",
+        "Elapsed": 2.21
+      },
+      {
+        "Time": "2026-10-11T11:51:08.954550691Z",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+        "Test": "TestLedgerPostgresIdentifierSnapshotQueueLossAfterFirstWrite",
+        "Action": "pass",
+        "Elapsed": 3.16
+      },
+      {
+        "Time": "2026-10-11T11:51:08.955283752Z",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+        "Test": "TestIdentifierSnapshotReaderRejectsUntrustedMetadata/valid",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-11T11:51:08.955300827Z",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+        "Test": "TestIdentifierSnapshotReaderRejectsUntrustedMetadata/different_attempt",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-11T11:51:08.955332013Z",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+        "Test": "TestIdentifierSnapshotReaderRejectsUntrustedMetadata/unknown_version",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-11T11:51:08.955341487Z",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+        "Test": "TestIdentifierSnapshotReaderRejectsUntrustedMetadata/untrusted_source",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-11T11:51:08.955348337Z",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+        "Test": "TestIdentifierSnapshotReaderRejectsUntrustedMetadata/untrusted_event",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-11T11:51:08.955358562Z",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+        "Test": "TestIdentifierSnapshotReaderRejectsUntrustedMetadata/untrusted_field",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-11T11:51:08.955366213Z",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+        "Test": "TestIdentifierSnapshotReaderRejectsUntrustedMetadata/invalid_identifier",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-11T11:51:08.955373083Z",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+        "Test": "TestIdentifierSnapshotReaderRejectsUntrustedMetadata/old_first_mismatch",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-11T11:51:08.955380164Z",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+        "Test": "TestIdentifierSnapshotReaderRejectsUntrustedMetadata/missing_observation_time",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-11T11:51:08.955387975Z",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+        "Test": "TestIdentifierSnapshotReaderRejectsUntrustedMetadata/missing_first",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-11T11:51:08.955396047Z",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+        "Test": "TestIdentifierSnapshotReaderRejectsUntrustedMetadata/snapshot_flag_mismatch",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-11T11:51:08.955400314Z",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+        "Test": "TestIdentifierSnapshotReaderRejectsUntrustedMetadata",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-11T11:51:57.759297596Z",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger/acceptance",
+        "Test": "TestRequestLedgerHTTPIdentifierSnapshotsAdminPagingAndFailure",
+        "Action": "pass",
+        "Elapsed": 5.24
+      },
+      {
+        "Time": "2026-10-11T11:52:25.966745018Z",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/repository",
+        "Test": "TestRequestLedgerIdentifierMigrationCompatibilityAndBusy/reader",
+        "Action": "pass",
+        "Elapsed": 2.91
+      },
+      {
+        "Time": "2026-10-11T11:52:28.459278334Z",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/repository",
+        "Test": "TestRequestLedgerIdentifierMigrationCompatibilityAndBusy/writer",
+        "Action": "pass",
+        "Elapsed": 2.49
+      },
+      {
+        "Time": "2026-10-11T11:52:28.459288429Z",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/repository",
+        "Test": "TestRequestLedgerIdentifierMigrationCompatibilityAndBusy",
+        "Action": "pass",
+        "Elapsed": 5.41
+      },
+      {
+        "Time": "2026-10-11T11:52:30.881292512Z",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/repository",
+        "Test": "TestRequestLedgerIdentifierMigrationExecutionTimeoutRollsBack",
+        "Action": "pass",
+        "Elapsed": 2.42
+      },
+      {
+        "Time": "2026-10-11T11:53:32.439868512Z",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+        "Test": "TestRequestLedgerImageIdentifierNamespaces/response.incomplete",
+        "Action": "pass",
+        "Elapsed": 0.02
+      },
+      {
+        "Time": "2026-10-11T11:53:32.448823571Z",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+        "Test": "TestRequestLedgerImageIdentifierNamespaces/response.failed",
+        "Action": "pass",
+        "Elapsed": 0.01
+      },
+      {
+        "Time": "2026-10-11T11:53:32.693062196Z",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/service",
+        "Test": "TestRequestLedgerImageIdentifierNamespaces",
+        "Action": "pass",
+        "Elapsed": 2.45
+      }
+    ]
+  },
+  {
+    "name": "pg-http-green",
+    "log": "/tmp/identifier-pg-http-green.log",
+    "sha256": "7668ef3e4d9c046b598672de07655519c8f1c96152a6f98402cf2c72df46bc3e",
+    "counts": {
+      "pass": 21,
+      "fail": 4
+    },
+    "events": [
+      {
+        "Time": "2026-10-11T11:45:14.188893566Z",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+        "Test": "TestLedgerPostgresIdentifierQueueIsBounded",
+        "Action": "pass",
+        "Elapsed": 3.59
+      },
+      {
+        "Time": "2026-10-11T11:45:16.320063489Z",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+        "Test": "TestLedgerPostgresIdentifierSnapshotReceiptIsolation",
+        "Action": "pass",
+        "Elapsed": 2.13
+      },
+      {
+        "Time": "2026-10-11T11:45:18.554072716Z",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+        "Test": "TestLedgerPostgresIdentifierSnapshotBothConflictsAndLoss/none",
+        "Action": "pass",
+        "Elapsed": 2.23
+      },
+      {
+        "Time": "2026-10-11T11:45:20.853785255Z",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+        "Test": "TestLedgerPostgresIdentifierSnapshotBothConflictsAndLoss/row_lock",
+        "Action": "pass",
+        "Elapsed": 2.3
+      },
+      {
+        "Time": "2026-10-11T11:45:23.519111994Z",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+        "Test": "TestLedgerPostgresIdentifierSnapshotBothConflictsAndLoss/pool",
+        "Action": "pass",
+        "Elapsed": 2.67
+      },
+      {
+        "Time": "2026-10-11T11:45:23.519125995Z",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+        "Test": "TestLedgerPostgresIdentifierSnapshotBothConflictsAndLoss",
+        "Action": "pass",
+        "Elapsed": 7.2
+      },
+      {
+        "Time": "2026-10-11T11:45:25.73747958Z",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+        "Test": "TestLedgerPostgresIdentifierSnapshotLegacyAndQueryFailure",
+        "Action": "pass",
+        "Elapsed": 2.22
+      },
+      {
+        "Time": "2026-10-11T11:45:28.248407396Z",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+        "Test": "TestLedgerPostgresIdentifierSnapshotAfterTerminalAndJSON//stream",
+        "Action": "fail",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-11T11:45:28.250464699Z",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+        "Test": "TestLedgerPostgresIdentifierSnapshotAfterTerminalAndJSON//json",
+        "Action": "fail",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-11T11:45:28.460539715Z",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+        "Test": "TestLedgerPostgresIdentifierSnapshotAfterTerminalAndJSON",
+        "Action": "fail",
+        "Elapsed": 2.72
+      },
+      {
+        "Time": "2026-10-11T11:45:28.460578532Z",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+        "Test": "TestIdentifierSnapshotFirstDifferentPerNamespace",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-11T11:45:28.460668155Z",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+        "Test": "TestIdentifierSnapshotBoundsAndWhitelist",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-11T11:45:28.46088128Z",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+        "Test": "TestIdentifierSnapshotReaderRejectsUntrustedMetadata/valid",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-11T11:45:28.460915731Z",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+        "Test": "TestIdentifierSnapshotReaderRejectsUntrustedMetadata/different_attempt",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-11T11:45:28.460991754Z",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+        "Test": "TestIdentifierSnapshotReaderRejectsUntrustedMetadata/unknown_version",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-11T11:45:28.461028668Z",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+        "Test": "TestIdentifierSnapshotReaderRejectsUntrustedMetadata/untrusted_source",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-11T11:45:28.46105007Z",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+        "Test": "TestIdentifierSnapshotReaderRejectsUntrustedMetadata/untrusted_event",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-11T11:45:28.461101786Z",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+        "Test": "TestIdentifierSnapshotReaderRejectsUntrustedMetadata/untrusted_field",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-11T11:45:28.461134805Z",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+        "Test": "TestIdentifierSnapshotReaderRejectsUntrustedMetadata/invalid_identifier",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-11T11:45:28.461187683Z",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+        "Test": "TestIdentifierSnapshotReaderRejectsUntrustedMetadata/old_first_mismatch",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-11T11:45:28.461234112Z",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+        "Test": "TestIdentifierSnapshotReaderRejectsUntrustedMetadata/missing_observation_time",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-11T11:45:28.461277957Z",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+        "Test": "TestIdentifierSnapshotReaderRejectsUntrustedMetadata/missing_first",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-11T11:45:28.461318206Z",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+        "Test": "TestIdentifierSnapshotReaderRejectsUntrustedMetadata/snapshot_flag_mismatch",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-11T11:45:28.461335342Z",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+        "Test": "TestIdentifierSnapshotReaderRejectsUntrustedMetadata",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-11T11:46:20.424631179Z",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger/acceptance",
+        "Test": "TestRequestLedgerHTTPIdentifierSnapshotsAdminPagingAndFailure",
+        "Action": "fail",
+        "Elapsed": 5.22
+      }
+    ]
+  },
+  {
+    "name": "pg-http-fixture-retry",
+    "log": "/tmp/identifier-pg-http-fixture-retry.log",
+    "sha256": "58a4828779e711c70e8474e8138a42c0f073ea6fc29c0ab3825b52d7267ef409",
+    "counts": {
+      "pass": 3,
+      "fail": 1
+    },
+    "events": [
+      {
+        "Time": "2026-10-11T11:47:18.45101754Z",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+        "Test": "TestLedgerPostgresIdentifierSnapshotAfterTerminalAndJSON//stream",
+        "Action": "pass",
+        "Elapsed": 0.02
+      },
+      {
+        "Time": "2026-10-11T11:47:18.469954487Z",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+        "Test": "TestLedgerPostgresIdentifierSnapshotAfterTerminalAndJSON//json",
+        "Action": "pass",
+        "Elapsed": 0.02
+      },
+      {
+        "Time": "2026-10-11T11:47:18.684127147Z",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+        "Test": "TestLedgerPostgresIdentifierSnapshotAfterTerminalAndJSON",
+        "Action": "pass",
+        "Elapsed": 2.95
+      },
+      {
+        "Time": "2026-10-11T11:47:27.02147156Z",
+        "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger/acceptance",
+        "Test": "TestRequestLedgerHTTPIdentifierSnapshotsAdminPagingAndFailure",
+        "Action": "fail",
+        "Elapsed": 5.22
+      }
+    ]
+  }
+]

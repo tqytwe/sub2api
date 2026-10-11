@@ -1,0 +1,16 @@
+{
+  "old_base": "6ae024e6b732b64b2ce6f7ba56c5be4e20b88bdb",
+  "new_formal_main": "8364b462feda15f3bf8f3bb2029314d2193b9dba",
+  "parent_report": "3590ce head9/9 CI and two parent reviews, ordinary merge8364; deployment/production separate",
+  "current_full_gates": "old-base backend all+lint passed; frontend stopped at missing eslint, original failure preserved; no failed-source commit made",
+  "next": "completed normal fast-forward to8364 after exact uncommitted checkpoint, restored and resolved four conflicts; see main-sync.json; offline frozen frontend dependencies installed; combination validation running",
+  "shared_files": [
+    ".github/workflows/request-ledger-integration.yml",
+    "backend/internal/requestledger/ledgertest/postgres.go",
+    "backend/internal/server/routes/admin.go",
+    "docs/FORK_CUSTOMIZATIONS.md",
+    "docs/README.md",
+    "docs/upstream-migrations/v2.10.3/handoff.json"
+  ],
+  "frontend_main_unchanged": true
+}

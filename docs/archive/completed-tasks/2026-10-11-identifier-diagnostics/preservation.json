@@ -1,0 +1,22 @@
+{
+  "base": "6ae024e6b732b64b2ce6f7ba56c5be4e20b88bdb",
+  "existing_migrations_identical": 405,
+  "new_migration_only": "281_gateway_identifier_diagnostics.sql",
+  "no_279_or_280_dependency": true,
+  "migration_raw_sha256": "359768b018b700fd2cae179207e98cd84dbe8cc1b92365657182243ef724ec06",
+  "migration_runner_trim_sha256": "b4dacb2c07efb25d372012d0af3a5926f90211a025814c5e6a6a02c90d40654b",
+  "source_manifest_count": 21,
+  "nonidentifier_handoff": "all prior features and top fields exactly preserved",
+  "frozen_at": "2026-10-11T12:32:50.953017+00:00",
+  "protected_paths_unchanged": [
+    "frontend",
+    "backend/internal/repository/usage_billing_repo.go",
+    "backend/internal/requestledger/query.go",
+    "backend/internal/handler/request_ledger_handler.go",
+    "backend/internal/service/openai_account_scheduler.go",
+    "backend/internal/service/openai_gateway_scheduling.go",
+    "backend/internal/server/middleware",
+    "backend/internal/service/admin_account.go",
+    "backend/internal/repository/account_repo.go"
+  ]
+}

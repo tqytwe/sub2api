@@ -1,0 +1,164 @@
+{
+  "at": "2026-10-11T14:03:04.807873+00:00",
+  "merge_parents": [
+    "0c92aa5b2b9b584da311f6fb8e808219825136d7",
+    "caa4805b26114da4b5cb0ddea9343ef6ec9fc528"
+  ],
+  "source_manifest": "tested-source-sha256.txt",
+  "preservation": "merge363-preservation.json",
+  "reused": "old96/race+54core+fullmake/tagunit/Fork/backendbuild, production source unchanged; mainUI fullgates and browser evidence exactmain, not reexecuted",
+  "additional_gates": [
+    {
+      "name": "seam-http-pg",
+      "command": [
+        "go",
+        "test",
+        "-race",
+        "-tags=integration",
+        "./internal/requestledger",
+        "./internal/requestledger/acceptance",
+        "./internal/server/routes",
+        "-run",
+        "^(TestLedgerPostgresIdentifierSnapshotWithRoutingFinish|TestRequestLedgerHTTPIdentifierSnapshotsAdminPagingAndFailure|TestRequestLedgerRoutingHTTPAdminIsolationAndDetailFailure|TestRequestLedgerIdentifierAdminRouteProtection)$",
+        "-count=1",
+        "-timeout=3m",
+        "-json"
+      ],
+      "exit_code": 0,
+      "started_at": "2026-10-11T13:58:45.517418+00:00",
+      "finished_at": "2026-10-11T13:59:10.918234+00:00",
+      "elapsed_seconds": 25.401,
+      "log": "/tmp/identifier281-merge363-seam-http-pg.log",
+      "sha256": "15b0ad1ef31dd473fe42e6880329ce52163db3a8f1a345cfc66b6aa1b57845b6"
+    },
+    {
+      "name": "frontend-lint",
+      "command": [
+        "pnpm",
+        "--dir",
+        "frontend",
+        "run",
+        "lint:check"
+      ],
+      "exit_code": 0,
+      "started_at": "2026-10-11T13:59:10.919093+00:00",
+      "finished_at": "2026-10-11T13:59:38.409028+00:00",
+      "elapsed_seconds": 27.49,
+      "log": "/tmp/identifier281-merge363-frontend-lint.log",
+      "sha256": "98332726725580cb736613fb74fd76946827ef38e5026c3c62a7d728b937167b"
+    },
+    {
+      "name": "frontend-types",
+      "command": [
+        "pnpm",
+        "--dir",
+        "frontend",
+        "run",
+        "typecheck"
+      ],
+      "exit_code": 0,
+      "started_at": "2026-10-11T13:59:38.409323+00:00",
+      "finished_at": "2026-10-11T14:00:11.171081+00:00",
+      "elapsed_seconds": 32.762,
+      "log": "/tmp/identifier281-merge363-frontend-types.log",
+      "sha256": "8b902af13bd517250f2906e6cb2f663d9a62587d41c093c574420f15ebb55a7a"
+    },
+    {
+      "name": "frontend-seam",
+      "command": [
+        "pnpm",
+        "--dir",
+        "frontend",
+        "exec",
+        "vitest",
+        "run",
+        "src/api/__tests__/requestLedger.spec.ts",
+        "src/api/__tests__/requestRouting.spec.ts",
+        "src/views/shared/__tests__/RequestLedgerView.spec.ts",
+        "src/views/shared/__tests__/RequestLedgerView.routing.http.spec.ts",
+        "src/views/shared/__tests__/RequestLedgerView.session.http.spec.ts"
+      ],
+      "exit_code": 0,
+      "started_at": "2026-10-11T14:00:11.171563+00:00",
+      "finished_at": "2026-10-11T14:00:31.464929+00:00",
+      "elapsed_seconds": 20.293,
+      "log": "/tmp/identifier281-merge363-frontend-seam.log",
+      "sha256": "832e7d69cbdca8f395b0f63d1a1e510328436dc098a56bfd0be77263d7842466"
+    },
+    {
+      "name": "frontend-build",
+      "command": [
+        "pnpm",
+        "--dir",
+        "frontend",
+        "run",
+        "build"
+      ],
+      "exit_code": 0,
+      "started_at": "2026-10-11T14:00:31.465194+00:00",
+      "finished_at": "2026-10-11T14:01:47.810459+00:00",
+      "elapsed_seconds": 76.345,
+      "log": "/tmp/identifier281-merge363-frontend-build.log",
+      "sha256": "ad0e3adfb769559764999911b36881582f58cb197d63d06a7970d681727a9a89"
+    },
+    {
+      "name": "embed-build",
+      "command": [
+        "go",
+        "build",
+        "-tags",
+        "embed",
+        "-buildvcs=false",
+        "-trimpath",
+        "-o",
+        "/tmp/identifier281-merge363-server-embed",
+        "./cmd/server"
+      ],
+      "exit_code": 0,
+      "started_at": "2026-10-11T14:01:47.811032+00:00",
+      "finished_at": "2026-10-11T14:01:58.437187+00:00",
+      "elapsed_seconds": 10.626,
+      "log": "/tmp/identifier281-merge363-embed-build.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "http_pg_test_events": [
+    {
+      "Time": "2026-10-11T13:58:48.649128914Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+      "Test": "TestLedgerPostgresIdentifierSnapshotWithRoutingFinish",
+      "Action": "pass",
+      "Elapsed": 2.18
+    },
+    {
+      "Time": "2026-10-11T13:59:00.069110825Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger/acceptance",
+      "Test": "TestRequestLedgerHTTPIdentifierSnapshotsAdminPagingAndFailure",
+      "Action": "pass",
+      "Elapsed": 5.13
+    },
+    {
+      "Time": "2026-10-11T13:59:05.272463767Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger/acceptance",
+      "Test": "TestRequestLedgerRoutingHTTPAdminIsolationAndDetailFailure",
+      "Action": "pass",
+      "Elapsed": 5.2
+    },
+    {
+      "Time": "2026-10-11T13:59:09.887192846Z",
+      "Package": "github.com/Wei-Shaw/sub2api/internal/server/routes",
+      "Test": "TestRequestLedgerIdentifierAdminRouteProtection",
+      "Action": "pass",
+      "Elapsed": 0.01
+    }
+  ],
+  "frontend_targeted": {
+    "files": 5,
+    "passed": 92,
+    "skipped": 0
+  },
+  "old_head_ci": "pre-merge363-ci.json:0c92 all9 passed naturally before newhead push",
+  "final_combined_head_ci": "pending after normal merge push",
+  "production": "not accessed, no new authoredUI;identifierUI remains absent",
+  "reviews": "reviews.json:spec P2 wording fixed/rechecked then qualityPASS,no remainingP1/P2"
+}

@@ -1,0 +1,132 @@
+{
+  "base_sha": "6ae024e6b732b64b2ce6f7ba56c5be4e20b88bdb",
+  "state": "historical6ae frozen ledger-race/core passed; fullmake backend+lint passed, frontend dependency failure preserved; see merge-validation.json for final8364 results when available",
+  "checked_at": "2026-10-11T12:46:43.577494+00:00",
+  "scope": "identifier281 backend and image namespace only; noUI/production/merge/deploy",
+  "reviews": "reviews.json",
+  "preservation": "preservation.json",
+  "source_manifest": "pre-main-tested-source-sha256.txt",
+  "contracts": {
+    "ledger": {
+      "required_passed": 76,
+      "required_total": 76,
+      "top_level_passed": 109,
+      "test_subtest_passed": 506,
+      "skipped": [
+        {
+          "Time": "2026-10-11T12:32:50.946041419Z",
+          "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+          "Test": "TestLedgerPostgresIdentifierSnapshotCrashChild",
+          "Action": "skip",
+          "Elapsed": 0
+        },
+        {
+          "Time": "2026-10-11T12:33:42.647475448Z",
+          "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger",
+          "Test": "TestLedgerKilledProcessChild",
+          "Action": "skip",
+          "Elapsed": 0
+        },
+        {
+          "Time": "2026-10-11T12:35:35.772292345Z",
+          "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger/acceptance",
+          "Test": "TestRequestLedgerDetailPagingBrowserFixture",
+          "Action": "skip",
+          "Elapsed": 0
+        },
+        {
+          "Time": "2026-10-11T12:36:15.499145355Z",
+          "Package": "github.com/Wei-Shaw/sub2api/internal/requestledger/acceptance",
+          "Test": "TestRequestLedgerBrowserFixture",
+          "Action": "skip",
+          "Elapsed": 0
+        }
+      ],
+      "scope": "frozen post-review code, actual full HTTP/PG/WS ledger selection with-race plus snapshot unit tests; 2 child-entry and2 opt-in browser fixtures skipped, no UI acceptance claim"
+    },
+    "core": {
+      "required_passed": 54,
+      "required_total": 54,
+      "test_subtest_passed": 203,
+      "skipped": []
+    }
+  },
+  "contract_gates": [
+    {
+      "name": "ledger-contract-race",
+      "command": [
+        "go",
+        "test",
+        "-race",
+        "-tags=integration",
+        "./internal/requestledger/...",
+        "./internal/handler",
+        "./internal/server/routes",
+        "./internal/repository",
+        "./internal/service",
+        "-run",
+        "RequestLedger|LedgerPostgres|LedgerKilledProcess|LedgerStorage|BatchImageHTTP|BatchImageReconciliation|BatchImageLedgerMigration|TestIdentifierSnapshot",
+        "-count=1",
+        "-timeout=12m",
+        "-json"
+      ],
+      "exit_code": 0,
+      "started_at": "2026-10-11T12:32:12.517398+00:00",
+      "finished_at": "2026-10-11T12:42:08.813329+00:00",
+      "elapsed_seconds": 596.296,
+      "log": "/tmp/identifier281-ledger-contract-race.log",
+      "log_sha256": "839f47fcd5b6028cea179c7a97c5d3d9d9764621e9ec5c593e1a84b08edbcd08"
+    },
+    {
+      "name": "core-contract",
+      "command": [
+        "go",
+        "test",
+        "./migrations",
+        "-count=1",
+        "-timeout=2m",
+        "-json",
+        "-run",
+        "^(TestAccountGroupAllowedModelsMigration|TestUsageLogBillingReconciliationMigrationIsForwardOnly)$"
+      ],
+      "exit_code": 0,
+      "started_at": "2026-10-11T12:42:08.817248+00:00",
+      "finished_at": "2026-10-11T12:42:44.003600+00:00",
+      "elapsed_seconds": 35.186,
+      "log": "/tmp/identifier281-core-contract.log",
+      "log_sha256": "2d554cb05729af263b101f4187c57472847d512fbeddab22287c2bc8b732127d"
+    },
+    {
+      "name": "core-repositories",
+      "command": [
+        "go",
+        "test",
+        "-tags=integration",
+        "./internal/repository",
+        "-count=1",
+        "-timeout=10m",
+        "-json",
+        "-run",
+        "^(TestCoreMigration.*|TestBillingLogReconciliation.*|TestAccountGroupAllowedModelsConcurrent.*|TestGroupCopyAccounts.*|TestAccountAdminUpdate.*|TestAccountRepoSuite|TestGroupRepoSuite|TestBillingCacheSuite|TestMigrationsRunner_ConcurrentInstancesSerializeOnSessionLock|TestUsageBillingRepositoryApply_(DeduplicatesBalanceBilling|WithLedgerWritesUsageCharge|RejectsCrossUserCharge|RejectsCrossUserSubscriptionCharge|DeduplicatesSubscriptionBilling|RequestFingerprintConflict|DeletedAPIKeyStillBillsBalance|UpdatesAccountQuota|EnqueuesSchedulerOutboxOnQuotaCrossing|DeduplicatesAgainstArchivedKey))$"
+      ],
+      "exit_code": 0,
+      "started_at": "2026-10-11T12:42:44.003874+00:00",
+      "finished_at": "2026-10-11T12:43:39.792776+00:00",
+      "elapsed_seconds": 55.789,
+      "log": "/tmp/identifier281-core-repositories.log",
+      "log_sha256": "1f970d0c6cffda1847a38c6f98873b898ce7f28c103b27eb8f8b94f3c74a444f"
+    }
+  ],
+  "prior_target": "first-target-results.json, first race began before review fixes;29 image behavior checks passed",
+  "prior_failures": "namespace-red.json, migration-red.json, initial-tests.json, reviews.json preserve RED/fixture failures and exact hashes",
+  "resources": [
+    "cache-cleanup.json",
+    "cache-cleanup-before-full.json"
+  ],
+  "new_main": "main-sync-pending.json",
+  "base_full_first_failure": {
+    "record": "base-full-first-failure.json",
+    "result": "make test backend full and lint0 passed; frontend design passed then eslint not found, node_modules absent in isolated worktree; no frontend tests/unit/build/Fork completion claimed",
+    "next": "install frozen dependencies; checkpoint uncommitted task and ordinary fast-forward latest formalmain before final combined gates; no failing code committed"
+  }
+}
