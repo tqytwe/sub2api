@@ -1,0 +1,17 @@
+{
+  "base_sha": "fb2c9747b58ed5d980a36ea6a2316ead2aa03b7e",
+  "resource_count": 356,
+  "all_resources_byte_identical": true,
+  "reference_manifest_sha256": "5f5b24f98d48591358ec04bfbfce8f3fb8308dc3b4f29c2a090c03bf894c042e",
+  "entry_files": {
+    "index.html": "d857e9c10632dea575af3420d1eba58187907873ca6b6d4c90479e138229c61c",
+    "logo.png": "9e1797358120e1befe66d3aa3bb9cc11f51d23394ee9da4649d67bed5436742d",
+    "assets/index-C-eRe7py.js": "2b5803891d2c905cf93a96e3520144d6878cdb9908beaaf0023e54876f81b345",
+    "assets/vendor-vue-BwKkW0ak.js": "58f89f8ad49ffae2ada19e21dd50944c9b75d1e818da2402feaa76e5c7c267aa",
+    "assets/vendor-i18n-BarTI4Qk.js": "2a9b31017321f27a7de5789e21127155cf0d61cfbd8f8f7e9478165c14f6b33b",
+    "assets/vendor-core-kU4zcnDl.js": "c4a03d885f5c08fe4047b1daefd4558bc1fc6e0f69a6d521bcf2542e34d82e40",
+    "assets/index-D0_JcZl7.css": "3c685ac16a474685ea220d6c6e6d2964f556de3b36ce493b7b8b736dafae86b8",
+    "assets/RequestLedgerView-UJMPrLPP.js": "5ea25894973409334023c00545bde57cc965ddd86d74379c9c2e4cc8c886179c"
+  },
+  "note": "Actual current make build output equals main reviewed resources; no new frontend implementation or claim of production/UI routing integration."
+}

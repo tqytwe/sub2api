@@ -33,6 +33,7 @@ func RegisterAdminRoutes(
 	if h.RequestLedger != nil {
 		admin.GET("/requests", h.RequestLedger.ListAdmin)
 		admin.GET("/requests/:id", h.RequestLedger.GetAdmin)
+		admin.GET("/requests/:id/routing", h.RequestLedger.RoutingAdmin)
 		admin.GET("/requests/:id/usage/:usage_id", h.RequestLedger.UsageAdmin)
 	}
 	{

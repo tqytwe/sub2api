@@ -11,6 +11,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -38,6 +39,37 @@ type admissionFixture struct {
 	channels       *service.ChannelService
 	workers        *service.UsageRecordWorkerPool
 	billingContext *admissionBillingContext
+	usageLogs      *admissionUsageLogs
+}
+
+type admissionUsageLogs struct {
+	service.UsageLogRepository
+	legacyWrites       atomic.Int64
+	rewriteObservation func(requestledger.SubscriptionObservation) requestledger.SubscriptionObservation
+}
+
+func (r *admissionUsageLogs) CreateBestEffort(ctx context.Context, log *service.UsageLog) error {
+	r.legacyWrites.Add(1)
+	writer, ok := r.UsageLogRepository.(interface {
+		CreateBestEffort(context.Context, *service.UsageLog) error
+	})
+	if !ok {
+		return fmt.Errorf("test fixture does not implement CreateBestEffort")
+	}
+	return writer.CreateBestEffort(ctx, log)
+}
+
+func (r *admissionUsageLogs) PersistSubscriptionUsage(ctx context.Context, in requestledger.SubscriptionObservation) error {
+	if r.rewriteObservation != nil {
+		in = r.rewriteObservation(in)
+	}
+	writer, ok := r.UsageLogRepository.(interface {
+		PersistSubscriptionUsage(context.Context, requestledger.SubscriptionObservation) error
+	})
+	if !ok {
+		return fmt.Errorf("test fixture does not implement PersistSubscriptionUsage")
+	}
+	return writer.PersistSubscriptionUsage(ctx, in)
 }
 
 type admissionBillingContext struct {
@@ -136,6 +168,7 @@ func newAdmissionFixture(t *testing.T, db *sql.DB, client *dbent.Client, package
 	workers := service.NewUsageRecordWorkerPoolWithOptions(service.UsageRecordWorkerPoolOptions{WorkerCount: 1, QueueSize: 16, TaskTimeout: 30 * time.Second, OverflowPolicy: config.UsageRecordOverflowPolicySync})
 	t.Cleanup(workers.Stop)
 	billingContext := &admissionBillingContext{UsageBillingRepository: f.billing}
+	usageLogs := &admissionUsageLogs{UsageLogRepository: repository.NewUsageLogRepository(client, db)}
 	upstream := gatedAdmissionUpstream{counterUpstream: counterUpstream{f.upstream.URL, f.upstream.Client()}}
 	if len(gates) > 0 {
 		upstream.gate = gates[0]
@@ -145,12 +178,12 @@ func newAdmissionFixture(t *testing.T, db *sql.DB, client *dbent.Client, package
 	}
 	channels := service.NewChannelService(repository.NewChannelRepository(db), groups, nil, nil, nil)
 	billing := service.NewBillingService(cfg, nil)
-	f.gateway = service.NewOpenAIGatewayService(repository.NewAccountRepository(client, db, nil), repository.NewUsageLogRepository(client, db), billingContext, users, subs, rates, nil, cfg, nil, concurrency, billing, nil, billingCache, upstream, &service.DeferredService{}, nil, nil, service.NewModelPricingResolver(channels, billing), channels, nil, nil, nil)
+	f.gateway = service.NewOpenAIGatewayService(repository.NewAccountRepository(client, db, nil), usageLogs, billingContext, users, subs, rates, nil, cfg, nil, concurrency, billing, nil, billingCache, upstream, &service.DeferredService{}, nil, nil, service.NewModelPricingResolver(channels, billing), channels, nil, nil, nil)
 	h := handler.NewOpenAIGatewayHandler(f.gateway, concurrency, billingCache, keyService, workers, nil, nil, nil, cfg)
 	router := gin.New()
 	router.Use(requestledger.Middleware(requestledger.New(db)))
 	routes.RegisterGatewayRoutes(router, &handler.Handlers{Gateway: &handler.GatewayHandler{}, OpenAIGateway: h}, middleware.NewAPIKeyAuthMiddleware(keyService, f.subscriptions, cfg), keyService, f.subscriptions, nil, nil, nil, cfg)
-	a := &admissionFixture{counterFixture: f, server: httptest.NewServer(router), workers: workers, billingContext: billingContext, channels: channels}
+	a := &admissionFixture{counterFixture: f, server: httptest.NewServer(router), workers: workers, billingContext: billingContext, channels: channels, usageLogs: usageLogs}
 	t.Cleanup(a.server.Close)
 	if upstream.gate != nil {
 		t.Cleanup(upstream.gate.open)
@@ -263,6 +296,7 @@ func TestSubscriptionInflightRevoke(t *testing.T) {
 	var migrations int
 	require.NoError(t, db.QueryRow(`SELECT COUNT(*) FROM schema_migrations`).Scan(&migrations))
 	t.Logf("full_migrations count=%d", migrations)
+	t.Run("routing_279_before_receipt_280", func(t *testing.T) { runInflightRoutingMigrationCoexistence(t, db, client) })
 	for _, packaged := range []bool{false, true} {
 		t.Run(fmt.Sprintf("active_positive_control_package_%t", packaged), func(t *testing.T) {
 			f := newAdmissionFixture(t, db, client, packaged)
@@ -398,6 +432,14 @@ func TestSubscriptionInflightRevoke(t *testing.T) {
 	}
 	runInflightBoundaries(t, db, client)
 	runInflightPricing(t, db, client)
+	t.Run("NativeScope", func(t *testing.T) { runInflightNativeScope(t, db, client) })
+	t.Run("ExpiryWait", func(t *testing.T) { runInflightExpiryWait(t, db, client) })
+	t.Run("LegacyScope", func(t *testing.T) { runInflightLegacyScope(t, db, client) })
+	t.Run("UnknownOutput", func(t *testing.T) { runInflightUnknownOutput(t, db, client) })
+	t.Run("ModelCase", func(t *testing.T) { runInflightModelCase(t, db, client) })
+	t.Run("ProjectionOwnership", func(t *testing.T) { runSubscriptionProjectionOwnership(t, db, client) })
+	t.Run("projection_single_owner", func(t *testing.T) { runSubscriptionProjectionOwner(t, db, client) })
+	t.Run("pending_projection_failure_atomic_rollback", func(t *testing.T) { runSubscriptionProjectionFailure(t, db, client) })
 }
 
 func configureInflightStream(f *admissionFixture, stream bool) {

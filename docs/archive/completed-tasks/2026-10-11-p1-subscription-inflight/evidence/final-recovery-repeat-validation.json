@@ -1,0 +1,20 @@
+{
+  "command": [
+    "./scripts/test-subscription-counters.sh",
+    "^TestSubscriptionRecoveryStress$/iteration_/cancel_after_durable_usage_production_worker_recovers$",
+    "-race"
+  ],
+  "exit_code": 0,
+  "repetitions": 40,
+  "passed_cases": 40,
+  "postgres_log_captured": true,
+  "postgres_deadlock": false,
+  "postgres_error": false,
+  "passed": true,
+  "sha256": {
+    "recovery-repeat.log": "1e5f878558ea966c8fa907f94de84195ce8aee5f0f908d80405e9f7565d2173d",
+    "recovery-repeat-postgres.log": "76f6c6b1c4e9995198ba8283ee893ff23b9953cf55d2b7d19c82ecdaa2b2f185",
+    "recovery-repeat-overlay.go": "aa07b0a4520bcce2bc7315d4a40f05364ea1d12e5e4288dd6dd48a66c40dc653",
+    "recovery-repeat-overlay.json": "a916ce1bb9a783c914501a03c7255cd0283178430541fdf0a6a21e74c6566700"
+  }
+}

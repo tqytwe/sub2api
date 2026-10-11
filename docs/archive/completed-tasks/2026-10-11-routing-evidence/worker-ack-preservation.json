@@ -1,0 +1,14 @@
+{
+  "prior_head": "add3fa4dbe8c59e0276e0043eb09270a4b630f89",
+  "source_diff": [
+    "backend/internal/repository/image_task_worker_integration_test.go"
+  ],
+  "existing_27_routing_inputs": "all unchanged, original manifest retained as tested-source-add3fa4.sha256",
+  "new_manifest_count": 28,
+  "unchanged_production_sha256": {
+    "backend/internal/service/image_task_worker.go": "a5189de98541d5fa260cacd31d0584f601837e1030c0c18b6fc670479acfe403",
+    "backend/internal/repository/image_task_queue.go": "2eaf791c79a45229e3d2c7f99771686a07c9990d7be0754b8a047c93b9721b36",
+    "backend/migrations/279_gateway_routing_evidence.sql": "48abb66e1d91478513d87973e750d802a330cf15cde4fd9764b3866d2ea96fd4"
+  },
+  "nonrouting_handoff_and_top_fields": "exactly preserved"
+}

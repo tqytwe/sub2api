@@ -51,6 +51,10 @@ type subscriptionFrozenPricing struct {
 type subscriptionFrozenKey struct{}
 type subscriptionObservedKey struct{}
 
+type subscriptionUsagePersister interface {
+	PersistSubscriptionUsage(context.Context, requestledger.SubscriptionObservation) error
+}
+
 // PrepareSubscriptionAdmission opts in only native HTTP text subscriptions.
 // Unsupported tools/media retain their existing path and receive no revocation
 // exception. Every actual transport attempt commits its own receipt.
@@ -60,8 +64,7 @@ func (s *OpenAIGatewayService) PrepareSubscriptionAdmission(ctx context.Context,
 		!key.Group.IsSubscriptionType() || IsImageStudioManagedBilling(ctx) || (s.cfg != nil && s.cfg.RunMode == config.RunModeSimple) {
 		return ctx, nil
 	}
-	if len(gjson.GetBytes(body, "tools").Array()) > 0 || gjson.GetBytes(body, "modalities").Exists() || gjson.GetBytes(body, "audio").Exists() ||
-		!subscriptionTextInput(gjson.GetBytes(body, "input")) {
+	if shouldForwardOpenAIResponsesViaRawChatCompletions(account) || !subscriptionNativeTextRequest(body) {
 		return ctx, nil
 	}
 	model := strings.TrimSpace(gjson.GetBytes(body, "model").String())
@@ -103,12 +106,12 @@ func (s *OpenAIGatewayService) PrepareSubscriptionAdmission(ctx context.Context,
 	for _, candidate := range customerModels {
 		p := resolver.Resolve(ctx, PricingInput{Model: candidate, GroupID: key.GroupID, Group: key.Group})
 		if p == nil || (p.Mode != BillingModeToken && p.Mode != BillingModePerRequest) || (p.Mode == BillingModeToken && p.BasePricing == nil) {
-			snap.Models[candidate] = subscriptionResolvedPricing{}
+			snap.Models[subscriptionPricingModelKey(candidate)] = subscriptionResolvedPricing{}
 			continue
 		}
 		card := freezeResolvedPricing(p)
 		card.Identified, card.ChannelPriced = s.hasIdentifiedOpenAIResponsePricing(ctx, candidate, key)
-		snap.Models[candidate] = card
+		snap.Models[subscriptionPricingModelKey(candidate)] = card
 	}
 	// Statistics follow the actual outbound model, including compact mappings
 	// and a same-account compatibility fallback. Freeze those independently so
@@ -120,7 +123,7 @@ func (s *OpenAIGatewayService) PrepareSubscriptionAdmission(ctx context.Context,
 		stats := NewModelPricingResolver(nil, s.billingService).Resolve(ctx, PricingInput{Model: candidate})
 		if stats != nil {
 			stats.longContextPricingEnabled = snap.LongContext
-			snap.StatsModels[candidate] = freezeResolvedPricing(stats)
+			snap.StatsModels[subscriptionPricingModelKey(candidate)] = freezeResolvedPricing(stats)
 		}
 	}
 	payload, err := json.Marshal(snap)
@@ -164,7 +167,7 @@ func loadSubscriptionPricing(ctx context.Context, input *OpenAIRecordUsageInput)
 	input.ChannelUsageFields = snap.UsageFields
 	input.ModelMappingChain = chain
 	unsupported := result.OpenAIWSMode || result.ImageCount > 0 || result.VideoCount > 0 || result.AudioUsage != nil || result.WebSearchCalls > 0 || result.SearchCount > 0 || result.StarframeVideoBilling != nil ||
-		result.Usage.InputAudioTokens > 0 || result.Usage.OutputAudioTokens > 0 || result.Usage.ImageInputTokens > 0 || result.Usage.ImageOutputTokens > 0
+		result.Usage.InputAudioTokens > 0 || result.Usage.OutputAudioTokens > 0 || result.Usage.ImageInputTokens > 0 || result.Usage.ImageOutputTokens > 0 || result.Usage.UnpricedOutputUsage != nil
 	if _, known := serviceTierCostRank(optionalStringValue(result.ServiceTier)); !known {
 		unsupported = true
 	}
@@ -175,12 +178,12 @@ func loadSubscriptionPricing(ctx context.Context, input *OpenAIRecordUsageInput)
 	// Unknown response-model pricing is pending, never silently re-resolved at
 	// today's price. The first implementation admits only the frozen model set.
 	if model := strings.TrimSpace(result.UpstreamResponseModel); snap.UsageFields.BillingModelSource == BillingModelSourceResponse && model != "" {
-		_, known := snap.Models[model]
+		_, known := snap.Models[subscriptionPricingModelKey(model)]
 		unsupported = unsupported || !known || result.UpstreamResponseModelConflict
 	}
 	if unsupported || !result.HasObservedUsage() {
-		if result.HasObservedUsage() {
-			if err := requestledger.PersistSubscriptionUsage(ctx, requestledger.SubscriptionObservation{Usage: string(usage), PendingReason: "unsupported_usage"}); err != nil {
+		if result.HasObservedUsage() || result.Usage.UnpricedOutputUsage != nil {
+			if err := requestledger.PersistSubscriptionUsage(ctx, requestledger.SubscriptionObservation{Usage: string(usage), PendingReason: "unsupported_usage"}, nil); err != nil {
 				return ctx, nil, err
 			}
 		}
@@ -190,7 +193,7 @@ func loadSubscriptionPricing(ctx context.Context, input *OpenAIRecordUsageInput)
 }
 
 func (p *subscriptionFrozenPricing) calculate(s *BillingService, ctx context.Context, model string, tokens UsageTokens, tier, effort string) (*CostBreakdown, error) {
-	card, ok := p.Models[model]
+	card, ok := p.Models[subscriptionPricingModelKey(model)]
 	if !ok {
 		return nil, ErrSubscriptionAdmissionUnsupported
 	}
@@ -206,7 +209,7 @@ func (p *subscriptionFrozenPricing) calculate(s *BillingService, ctx context.Con
 // cannot yield a command. Recovery never guesses a replacement price.
 func pendingSubscriptionPricing(ctx context.Context, reason string, cause error) error {
 	if usage, ok := ctx.Value(subscriptionObservedKey{}).(string); ok {
-		if err := requestledger.PersistSubscriptionUsage(ctx, requestledger.SubscriptionObservation{Usage: usage, PendingReason: reason}); err != nil {
+		if err := requestledger.PersistSubscriptionUsage(ctx, requestledger.SubscriptionObservation{Usage: usage, PendingReason: reason}, nil); err != nil {
 			return err
 		}
 	}
@@ -226,7 +229,7 @@ func (p *subscriptionFrozenPricing) accountStats(s *BillingService, accountID, g
 		}
 		return &total
 	}
-	card, ok := p.StatsModels[model]
+	card, ok := p.StatsModels[subscriptionPricingModelKey(model)]
 	if !ok {
 		return nil
 	}
@@ -237,10 +240,24 @@ func (p *subscriptionFrozenPricing) accountStats(s *BillingService, accountID, g
 	return &cost.TotalCost
 }
 
-// Only native textual message content receives the in-flight exception. Unknown
-// content types, file/audio/image inputs and tool results keep the legacy path.
+func subscriptionPricingModelKey(model string) string {
+	return strings.ToLower(strings.TrimSpace(model))
+}
+
+// Legacy aliases and reusable prompts can hide media or tools until later
+// normalization. Leave their original billing path intact in this first scope.
+func subscriptionNativeTextRequest(body []byte) bool {
+	for _, field := range []string{"messages", "functions", "prompt", "modalities", "audio"} {
+		if gjson.GetBytes(body, field).Exists() {
+			return false
+		}
+	}
+	tools := gjson.GetBytes(body, "tools")
+	return (!tools.Exists() || (tools.IsArray() && len(tools.Array()) == 0)) && subscriptionTextInput(gjson.GetBytes(body, "input"))
+}
+
 func subscriptionTextInput(v gjson.Result) bool {
-	if !v.Exists() || v.Type == gjson.String {
+	if v.Type == gjson.String {
 		return true
 	}
 	if !v.IsArray() {

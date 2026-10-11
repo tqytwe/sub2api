@@ -1,0 +1,13 @@
+{
+  "status": "local_combination_passed",
+  "updated_at": "2026-10-11T11:36:17.643109+00:00",
+  "base_sha": "6ae024e6b732b64b2ce6f7ba56c5be4e20b88bdb",
+  "prior_validated_merge": "75069704437c99783530015f13cf11ed2748bbf7",
+  "current_stage": "All local composition gates and sequential incremental reviews passed; ordinary commit/push now",
+  "backend_reuse": "merge-360-validation.json: full tests/lint/unit, HTTP/PG23/47, build/embed/fullFork passed",
+  "frontend_reuse": "latest main #362 full3789/8,293+4HTTP,36native and 356 resource evidence; rebuilt comparison pending",
+  "remaining": [
+    "ordinary commit/push",
+    "exact-head CI and root review"
+  ]
+}

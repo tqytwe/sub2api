@@ -1,0 +1,78 @@
+[
+  {
+    "suite": "NativeScope",
+    "command": [
+      "./scripts/test-subscription-counters.sh",
+      "^TestSubscriptionRootReviewNativeScope$",
+      "-race"
+    ],
+    "started_at": "2026-10-11T12:14:56.136021+00:00",
+    "exit_code": 1,
+    "finished_at": "2026-10-11T12:15:17.354164+00:00",
+    "log": "/workspace/p1-inflight-evidence/root-review-NativeScope-red.log",
+    "sha256": "58afbb81e8e909d5e285030d2a17574031fb7885160218f32749717beb0dd1ae",
+    "head": "88cdf3395288723f305e18fbe4a4352d58670efc",
+    "overlay_sha256": "18e293c1db48333f97df346524d798e887c4670111540bc6ab366c1fb81e56fe"
+  },
+  {
+    "suite": "ExpiryWait",
+    "command": [
+      "./scripts/test-subscription-counters.sh",
+      "^TestSubscriptionRootReviewExpiryWait$",
+      "-race"
+    ],
+    "started_at": "2026-10-11T12:15:17.355064+00:00",
+    "exit_code": 1,
+    "finished_at": "2026-10-11T12:15:46.894427+00:00",
+    "log": "/workspace/p1-inflight-evidence/root-review-ExpiryWait-red.log",
+    "sha256": "b3b39d5d2f4b273e50266e0f68997b2683c677afbf3fd256b431b6f580eacf5a",
+    "head": "88cdf3395288723f305e18fbe4a4352d58670efc",
+    "overlay_sha256": "18e293c1db48333f97df346524d798e887c4670111540bc6ab366c1fb81e56fe"
+  },
+  {
+    "suite": "LegacyScope",
+    "command": [
+      "./scripts/test-subscription-counters.sh",
+      "^TestSubscriptionRootReviewLegacyScope$",
+      "-race"
+    ],
+    "started_at": "2026-10-11T12:15:46.895608+00:00",
+    "exit_code": 1,
+    "finished_at": "2026-10-11T12:16:04.674191+00:00",
+    "log": "/workspace/p1-inflight-evidence/root-review-LegacyScope-corrected-red.log",
+    "sha256": "90d8484fb599abcc1743157e27ea0d44884c6ed7450c2210ec127dbd9b7a88f8",
+    "head": "88cdf3395288723f305e18fbe4a4352d58670efc",
+    "overlay_sha256": "069ed3bcbdf28bc8cbca07c6e97e8d8fec4218a1bdde9c719dce2beb968f215c",
+    "note": "Canonical tool history corrected to include required item_reference; 8 positive controls pass, 8 legacy scope cases fail."
+  },
+  {
+    "suite": "UnknownOutput",
+    "command": [
+      "./scripts/test-subscription-counters.sh",
+      "^TestSubscriptionRootReviewUnknownOutput$",
+      "-race"
+    ],
+    "started_at": "2026-10-11T12:16:04.675755+00:00",
+    "exit_code": 1,
+    "finished_at": "2026-10-11T12:16:26.890595+00:00",
+    "log": "/workspace/p1-inflight-evidence/root-review-UnknownOutput-red.log",
+    "sha256": "bad1481230d8da9a9eaa4e3ea64aa94b8658f0c9b12feed759425a3fe16e83d4",
+    "head": "88cdf3395288723f305e18fbe4a4352d58670efc",
+    "overlay_sha256": "18e293c1db48333f97df346524d798e887c4670111540bc6ab366c1fb81e56fe"
+  },
+  {
+    "suite": "ModelCase",
+    "command": [
+      "./scripts/test-subscription-counters.sh",
+      "^TestSubscriptionRootReviewModelCase$",
+      "-race"
+    ],
+    "started_at": "2026-10-11T12:16:26.896086+00:00",
+    "exit_code": 1,
+    "finished_at": "2026-10-11T12:16:43.003752+00:00",
+    "log": "/workspace/p1-inflight-evidence/root-review-ModelCase-red.log",
+    "sha256": "669b04dcb7b115ddf58809fb0511bf2072863cced35c71db8d268600f555c746",
+    "head": "88cdf3395288723f305e18fbe4a4352d58670efc",
+    "overlay_sha256": "18e293c1db48333f97df346524d798e887c4670111540bc6ab366c1fb81e56fe"
+  }
+]

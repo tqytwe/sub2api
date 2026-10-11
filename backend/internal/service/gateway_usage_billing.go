@@ -151,17 +151,18 @@ type usageLogBestEffortWriter interface {
 
 // postUsageBillingParams 统一扣费所需的参数
 type postUsageBillingParams struct {
-	Cost                  *CostBreakdown
-	User                  *User
-	APIKey                *APIKey
-	Account               *Account
-	Subscription          *UserSubscription
-	RequestPayloadHash    string
-	IsSubscriptionBill    bool
-	AccountRateMultiplier float64
-	APIKeyService         APIKeyQuotaUpdater
-	Platform              string // 来自 APIKey 关联 Group 的平台标识
-	Surcharge             BillingSurchargeBreakdown
+	subscriptionUsageWriter subscriptionUsagePersister
+	Cost                    *CostBreakdown
+	User                    *User
+	APIKey                  *APIKey
+	Account                 *Account
+	Subscription            *UserSubscription
+	RequestPayloadHash      string
+	IsSubscriptionBill      bool
+	AccountRateMultiplier   float64
+	APIKeyService           APIKeyQuotaUpdater
+	Platform                string // 来自 APIKey 关联 Group 的平台标识
+	Surcharge               BillingSurchargeBreakdown
 	// SimpleModeKeyRateLimitOnly opts the request into the simple-mode billing
 	// path that records only API-key 5h/1d/7d window usage. It must not trigger
 	// balance, subscription, account, platform, or lifetime-key-quota effects.
@@ -537,7 +538,10 @@ func applyUsageBilling(ctx context.Context, requestID string, usageLog *UsageLog
 		if marshalErr != nil {
 			return false, marshalErr
 		}
-		if err := requestledger.PersistSubscriptionUsage(billingCtx, requestledger.SubscriptionObservation{Command: string(commandJSON), Usage: usage, Log: string(logJSON)}); err != nil {
+		if p.subscriptionUsageWriter == nil {
+			return false, requestledger.ErrUnavailable
+		}
+		if err := p.subscriptionUsageWriter.PersistSubscriptionUsage(billingCtx, requestledger.SubscriptionObservation{Command: string(commandJSON), Usage: usage, Log: string(logJSON)}); err != nil {
 			return false, err
 		}
 		claimed, claimErr := requestledger.ClaimCurrentSubscriptionOutbox(billingCtx)

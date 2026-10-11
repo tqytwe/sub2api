@@ -501,7 +501,7 @@ func (s *OpenAIGatewayService) forwardOpenAIPassthrough(
 			if handleErr != nil {
 				// Even a pre-output error can contain billable upstream usage. Stop
 				// before compact fallback or account replay and retain the exact error.
-				if account != nil && account.IsOpenAI() && hasObservedOpenAIUsage(usage, imageCount) {
+				if account != nil && account.IsOpenAI() && (hasObservedOpenAIUsage(usage, imageCount) || hasSubscriptionOutputEvidence(ctx, usage)) {
 					forwardErr = handleErr
 					break
 				}
@@ -533,7 +533,7 @@ func (s *OpenAIGatewayService) forwardOpenAIPassthrough(
 				imageOutputSizes = result.imageOutputSizes
 			}
 			if handleErr != nil {
-				if account != nil && account.IsOpenAI() && hasObservedOpenAIUsage(usage, imageCount) {
+				if account != nil && account.IsOpenAI() && (hasObservedOpenAIUsage(usage, imageCount) || hasSubscriptionOutputEvidence(ctx, usage)) {
 					forwardErr = handleErr
 					break
 				}
@@ -601,6 +601,10 @@ func (s *OpenAIGatewayService) forwardOpenAIPassthrough(
 		forwardResult.ImageInputSize = imageInputSize
 		forwardResult.ImageOutputSizes = imageOutputSizes
 		forwardResult.BillingModel = imageBillingModel
+	}
+	// Unpriced output observations belong only to an admitted subscription send.
+	if requestledger.CurrentSubscriptionReceipt(ctx) == nil {
+		forwardResult.Usage.UnpricedOutputUsage = nil
 	}
 	return forwardResult, forwardErr
 }
@@ -2439,6 +2443,10 @@ func (s *OpenAIGatewayService) handleNonStreamingResponsePassthrough(
 			usageParsed = true
 		}
 	}
+	if !usageParsed && requestledger.CurrentSubscriptionReceipt(ctx) != nil {
+		observeOpenAIUnpricedOutput(usage, body)
+		usageParsed = usage.UnpricedOutputUsage != nil
+	}
 	if !usageParsed {
 		// 兜底：尝试从 SSE 文本中解析 usage
 		usage = s.parseSSEUsageFromBody(string(body))
@@ -2496,7 +2504,7 @@ func (s *OpenAIGatewayService) handlePassthroughSSEToJSON(resp *http.Response, c
 			imageCount:       countOpenAIImageOutputsFromSSEBody(bodyText, account != nil && account.IsOpenAI()),
 			imageOutputSizes: collectOpenAIImageOutputSizesFromSSEBody(bodyText, account != nil && account.IsOpenAI()),
 		}
-		if account == nil || !account.IsOpenAI() || !hasObservedOpenAIUsage(usage, result.imageCount) {
+		if account == nil || !account.IsOpenAI() || (!hasObservedOpenAIUsage(usage, result.imageCount) && !hasSubscriptionOutputEvidence(c.Request.Context(), usage)) {
 			result = nil
 		}
 		if account != nil && account.IsOpenAI() {
@@ -2518,6 +2526,7 @@ func (s *OpenAIGatewayService) handlePassthroughSSEToJSON(resp *http.Response, c
 
 	if ok {
 		if parsedUsage, parsed := extractOpenAIUsageFromJSONBytes(finalResponse); parsed {
+			mergeOpenAIUnpricedOutputUsage(&parsedUsage, usage.UnpricedOutputUsage)
 			if account == nil || !account.IsOpenAI() || hasObservedOpenAIUsage(&parsedUsage, 0) || !hasObservedOpenAIUsage(usage, 0) {
 				*usage = parsedUsage
 			}

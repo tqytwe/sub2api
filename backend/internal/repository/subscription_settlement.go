@@ -17,6 +17,38 @@ type subscriptionSettlementProof struct {
 }
 type subscriptionSettlementKey struct{}
 
+// PersistSubscriptionUsage makes the original pending projection visible in
+// the same transaction that publishes its recoverable command. It bypasses the
+// asynchronous usage batcher; only Apply may subsequently promote this row.
+func (r *usageLogRepository) PersistSubscriptionUsage(ctx context.Context, in requestledger.SubscriptionObservation) error {
+	var command service.UsageBillingCommand
+	var log service.UsageLog
+	receipt := requestledger.CurrentSubscriptionReceipt(ctx)
+	if receipt == nil || json.Unmarshal([]byte(in.Command), &command) != nil || json.Unmarshal([]byte(in.Log), &log) != nil ||
+		!subscriptionCommandMatchesReceipt(&command, receipt) || log.RequestID != command.RequestID || log.UserID != command.UserID ||
+		log.APIKeyID != command.APIKeyID || log.AccountID != command.AccountID || !sameSubscriptionID(log.SubscriptionID, command.SubscriptionID) || !sameSubscriptionID(log.GroupID, command.APIKeyGroupID) {
+		return service.ErrUsageBillingOwnershipMismatch
+	}
+	log.BillingRequestFingerprint = command.RequestFingerprint
+	log.BillingSettled = false
+	log.ActualCost, log.BilledCost, log.BillingSurchargeCost = 0, 0, 0
+	return requestledger.PersistSubscriptionUsage(ctx, in, func(ctx context.Context, tx *sql.Tx) error {
+		_, err := r.createSingle(ctx, tx, &log)
+		return err
+	})
+}
+
+// Both pending visibility and settled promotion use the original admission
+// identity. A command/log pair agreeing with each other is not sufficient.
+func subscriptionCommandMatchesReceipt(cmd *service.UsageBillingCommand, r *requestledger.SubscriptionReceipt) bool {
+	return cmd.SubscriptionReceiptID == r.ID && cmd.BalanceCost == 0 &&
+		cmd.UserID == r.UserID && cmd.APIKeyID == r.APIKeyID && cmd.AccountID == r.AccountID &&
+		cmd.RequestID == r.BillingRequestID && cmd.RequestPayloadHash == r.RequestPayloadHash &&
+		cmd.SubscriptionID != nil && *cmd.SubscriptionID == r.SubscriptionID &&
+		cmd.APIKeyGroupID != nil && *cmd.APIKeyGroupID == r.GroupID &&
+		sameSubscriptionID(cmd.PackageEntitlementID, r.PackageEntitlementID)
+}
+
 func validateSubscriptionSettlement(ctx context.Context, tx *sql.Tx, cmd *service.UsageBillingCommand, newCharge bool) (*subscriptionSettlementProof, error) {
 	if cmd.SubscriptionReceiptID == "" {
 		return nil, nil
@@ -31,10 +63,7 @@ func validateSubscriptionSettlement(ctx context.Context, tx *sql.Tx, cmd *servic
 	if err != nil {
 		return nil, err
 	}
-	if h == nil || h.ID != r.RequestID || o.Command == "" || requestledger.SubscriptionDigest(string(command)) != o.CommandHash || cmd.BalanceCost != 0 ||
-		cmd.UserID != r.UserID || cmd.APIKeyID != r.APIKeyID || cmd.AccountID != r.AccountID || cmd.RequestID != r.BillingRequestID || cmd.RequestPayloadHash != r.RequestPayloadHash ||
-		cmd.SubscriptionID == nil || *cmd.SubscriptionID != r.SubscriptionID || cmd.APIKeyGroupID == nil || *cmd.APIKeyGroupID != r.GroupID ||
-		!sameSubscriptionID(cmd.PackageEntitlementID, r.PackageEntitlementID) {
+	if h == nil || h.ID != r.RequestID || o.Command == "" || requestledger.SubscriptionDigest(string(command)) != o.CommandHash || !subscriptionCommandMatchesReceipt(cmd, r) {
 		return nil, service.ErrUsageBillingOwnershipMismatch
 	}
 	var deleted bool

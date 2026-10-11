@@ -1,0 +1,8 @@
+{
+  "resource_count": 356,
+  "actual_build_equals_latest_main_reviewed_build": true,
+  "reference": "docs/archive/completed-tasks/2026-10-interactive-auth/merge-fb2c9747/built-resources.json",
+  "reference_sha256": "b459b85b36403970f9f7228da2afcb0639b645a00d36d43a9eebe779ddd5c401",
+  "index_sha256": "f8a6040200b1468af3f553202cd2a0ba39461f8c61fbaf758b7154b150733b80",
+  "note": "Rebuilt actual final frontend+embed assets; no new native-browser/production/routing UI claim."
+}

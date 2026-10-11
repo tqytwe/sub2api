@@ -1,0 +1,978 @@
+[
+  {
+    "gate": "delayed-green",
+    "counts": {
+      "pass": 20
+    },
+    "tests": [
+      {
+        "Time": "2026-10-11T12:01:43.924645212Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.2
+      },
+      {
+        "Time": "2026-10-11T12:01:44.123086739Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.2
+      },
+      {
+        "Time": "2026-10-11T12:01:44.318688367Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.2
+      },
+      {
+        "Time": "2026-10-11T12:01:44.515986915Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.2
+      },
+      {
+        "Time": "2026-10-11T12:01:44.711969362Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.2
+      },
+      {
+        "Time": "2026-10-11T12:01:44.91065505Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.2
+      },
+      {
+        "Time": "2026-10-11T12:01:45.106191901Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.2
+      },
+      {
+        "Time": "2026-10-11T12:01:45.303774371Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.2
+      },
+      {
+        "Time": "2026-10-11T12:01:45.499888515Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.2
+      },
+      {
+        "Time": "2026-10-11T12:01:45.699328505Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.2
+      },
+      {
+        "Time": "2026-10-11T12:01:45.895962946Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.2
+      },
+      {
+        "Time": "2026-10-11T12:01:46.094720782Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.2
+      },
+      {
+        "Time": "2026-10-11T12:01:46.289951353Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.2
+      },
+      {
+        "Time": "2026-10-11T12:01:46.488056929Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.2
+      },
+      {
+        "Time": "2026-10-11T12:01:46.684636093Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.2
+      },
+      {
+        "Time": "2026-10-11T12:01:46.885861169Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.2
+      },
+      {
+        "Time": "2026-10-11T12:01:47.083609384Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.2
+      },
+      {
+        "Time": "2026-10-11T12:01:47.282513326Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.2
+      },
+      {
+        "Time": "2026-10-11T12:01:47.479248632Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.2
+      },
+      {
+        "Time": "2026-10-11T12:01:47.676218294Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.2
+      }
+    ]
+  },
+  {
+    "gate": "lost-ack-negative",
+    "counts": {
+      "fail": 1
+    },
+    "tests": [
+      {
+        "Time": "2026-10-11T12:02:04.711676343Z",
+        "Action": "fail",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 3.18
+      }
+    ]
+  },
+  {
+    "gate": "ordinary-repeat",
+    "counts": {
+      "pass": 100
+    },
+    "tests": [
+      {
+        "Time": "2026-10-11T12:02:18.555543066Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:18.733771716Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:18.909769247Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:19.086729964Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:19.262782717Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:19.438924883Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:19.614136052Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:19.791119326Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:19.966434634Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:20.142188203Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:20.317599508Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:20.495388347Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:20.670858621Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:20.847655928Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:21.023346885Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:21.20137983Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:21.378142946Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:21.55638803Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:21.732651669Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:21.913102888Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:22.090261185Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:22.267395597Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:22.44303985Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:22.619893329Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:22.797001103Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:22.973333179Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:23.150242978Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:23.325952018Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:23.504498804Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:23.679584219Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:23.857493112Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:24.033614055Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:24.210453682Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:24.386297598Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:24.563676216Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:24.739647639Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:24.917594189Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:25.092433024Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:25.270022502Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:25.447292712Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:25.624104746Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:25.800392667Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:25.979346013Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:26.15520346Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:26.332902758Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:26.509685588Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:26.687507839Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:26.863784617Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:27.041694343Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:27.217838299Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:27.394560201Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:27.571624995Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:27.747559513Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:27.925583128Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:28.103117005Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:28.281277274Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:28.460235922Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:28.638175047Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:28.816215037Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:28.993235747Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:29.170031504Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:29.347260468Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:29.52419165Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:29.700527263Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:29.877024088Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:30.052693533Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:30.229439669Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:30.405145119Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:30.583138682Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:30.758278694Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.17
+      },
+      {
+        "Time": "2026-10-11T12:02:30.933624596Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:31.109262478Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:31.286784393Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:31.465276866Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:31.641539004Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:31.817019951Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:31.993177536Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:32.168835047Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:32.345465426Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:32.522546485Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:32.700152432Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:32.877678815Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:33.053711091Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:33.233575698Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:33.410186793Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:33.58772803Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:33.767176206Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:33.945279057Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:34.124134125Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:34.300265079Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:34.47808667Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:34.654689233Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:34.832133882Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:35.009280345Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:35.187677849Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:35.365894135Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:35.541107685Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:35.717375613Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:35.89386244Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:02:36.070595342Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      }
+    ]
+  },
+  {
+    "gate": "delayed-race",
+    "counts": {
+      "pass": 10
+    },
+    "tests": [
+      {
+        "Time": "2026-10-11T12:03:54.631666916Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.21
+      },
+      {
+        "Time": "2026-10-11T12:03:54.84043607Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.21
+      },
+      {
+        "Time": "2026-10-11T12:03:55.045300761Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.2
+      },
+      {
+        "Time": "2026-10-11T12:03:55.249600756Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.2
+      },
+      {
+        "Time": "2026-10-11T12:03:55.454170078Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.2
+      },
+      {
+        "Time": "2026-10-11T12:03:55.660315126Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.21
+      },
+      {
+        "Time": "2026-10-11T12:03:55.864624916Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.2
+      },
+      {
+        "Time": "2026-10-11T12:03:56.070927913Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.21
+      },
+      {
+        "Time": "2026-10-11T12:03:56.276384901Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.2
+      },
+      {
+        "Time": "2026-10-11T12:03:56.481809487Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.2
+      }
+    ]
+  },
+  {
+    "gate": "worker-race",
+    "counts": {
+      "pass": 25
+    },
+    "tests": [
+      {
+        "Time": "2026-10-11T12:04:17.516169543Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.19
+      },
+      {
+        "Time": "2026-10-11T12:04:17.543734627Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeFailsRecoveredProcessingWithoutReplayingUpstream",
+        "Elapsed": 0.02
+      },
+      {
+        "Time": "2026-10-11T12:04:17.563694424Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeAcksDuplicateTerminalMessageWithoutReplayingUpstream",
+        "Elapsed": 0.02
+      },
+      {
+        "Time": "2026-10-11T12:04:17.57515313Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimePersistsHeartbeatWhileProcessing",
+        "Elapsed": 0.01
+      },
+      {
+        "Time": "2026-10-11T12:04:17.84817157Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeCancelsExecutionWhenLeaseIsLost",
+        "Elapsed": 0.27
+      },
+      {
+        "Time": "2026-10-11T12:04:18.03244649Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.18
+      },
+      {
+        "Time": "2026-10-11T12:04:18.055469418Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeFailsRecoveredProcessingWithoutReplayingUpstream",
+        "Elapsed": 0.02
+      },
+      {
+        "Time": "2026-10-11T12:04:18.078344777Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeAcksDuplicateTerminalMessageWithoutReplayingUpstream",
+        "Elapsed": 0.02
+      },
+      {
+        "Time": "2026-10-11T12:04:18.086850306Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimePersistsHeartbeatWhileProcessing",
+        "Elapsed": 0.01
+      },
+      {
+        "Time": "2026-10-11T12:04:18.356119216Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeCancelsExecutionWhenLeaseIsLost",
+        "Elapsed": 0.27
+      },
+      {
+        "Time": "2026-10-11T12:04:18.542693696Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.19
+      },
+      {
+        "Time": "2026-10-11T12:04:18.565276588Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeFailsRecoveredProcessingWithoutReplayingUpstream",
+        "Elapsed": 0.02
+      },
+      {
+        "Time": "2026-10-11T12:04:18.588035356Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeAcksDuplicateTerminalMessageWithoutReplayingUpstream",
+        "Elapsed": 0.02
+      },
+      {
+        "Time": "2026-10-11T12:04:18.596204507Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimePersistsHeartbeatWhileProcessing",
+        "Elapsed": 0.01
+      },
+      {
+        "Time": "2026-10-11T12:04:18.864677439Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeCancelsExecutionWhenLeaseIsLost",
+        "Elapsed": 0.27
+      },
+      {
+        "Time": "2026-10-11T12:04:19.060749148Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.19
+      },
+      {
+        "Time": "2026-10-11T12:04:19.084456326Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeFailsRecoveredProcessingWithoutReplayingUpstream",
+        "Elapsed": 0.02
+      },
+      {
+        "Time": "2026-10-11T12:04:19.089281522Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeAcksDuplicateTerminalMessageWithoutReplayingUpstream",
+        "Elapsed": 0
+      },
+      {
+        "Time": "2026-10-11T12:04:19.097274092Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimePersistsHeartbeatWhileProcessing",
+        "Elapsed": 0.01
+      },
+      {
+        "Time": "2026-10-11T12:04:19.366504989Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeCancelsExecutionWhenLeaseIsLost",
+        "Elapsed": 0.27
+      },
+      {
+        "Time": "2026-10-11T12:04:19.554497386Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+        "Elapsed": 0.19
+      },
+      {
+        "Time": "2026-10-11T12:04:19.576985883Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeFailsRecoveredProcessingWithoutReplayingUpstream",
+        "Elapsed": 0.02
+      },
+      {
+        "Time": "2026-10-11T12:04:19.60010209Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeAcksDuplicateTerminalMessageWithoutReplayingUpstream",
+        "Elapsed": 0.02
+      },
+      {
+        "Time": "2026-10-11T12:04:19.607250732Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimePersistsHeartbeatWhileProcessing",
+        "Elapsed": 0.01
+      },
+      {
+        "Time": "2026-10-11T12:04:19.877235165Z",
+        "Action": "pass",
+        "Test": "TestImageTaskWorkerRuntimeCancelsExecutionWhenLeaseIsLost",
+        "Elapsed": 0.27
+      }
+    ]
+  }
+]

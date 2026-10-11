@@ -31,11 +31,11 @@ func subscriptionPayloadHash(price string, in SubscriptionObservation) string {
 // PersistSubscriptionUsage is synchronous and must precede any worker enqueue
 // or Apply. The immutable numbers and known marker commit together. An empty
 // command is explicit pending evidence, never an inferred free settlement.
-func PersistSubscriptionUsage(ctx context.Context, in SubscriptionObservation) error {
+func PersistSubscriptionUsage(ctx context.Context, in SubscriptionObservation, project func(context.Context, *sql.Tx) error) error {
 	r := CurrentSubscriptionReceipt(ctx)
 	h := FromContext(ctx)
 	if r == nil || h == nil || h.ID != r.RequestID || !json.Valid([]byte(in.Usage)) ||
-		(in.Command != "" && (!json.Valid([]byte(in.Command)) || !json.Valid([]byte(in.Log)))) {
+		(in.Command != "" && (project == nil || !json.Valid([]byte(in.Command)) || !json.Valid([]byte(in.Log)))) {
 		return ErrUnavailable
 	}
 	ctx, cancel := detachedWrite(ctx)
@@ -45,14 +45,35 @@ func PersistSubscriptionUsage(ctx context.Context, in SubscriptionObservation) e
 		return ErrUnavailable
 	}
 	defer func() { _ = tx.Rollback() }()
+	// Pending usage has a subscription FK. Acquire its parent before the
+	// request, matching Apply/revoke, so its FK cannot reverse their lock order.
+	// These are ownership locks only: observed usage survives expiry/revocation.
+	var parentID int64
+	if err := tx.QueryRowContext(ctx, `SELECT id FROM user_subscriptions WHERE id=$1 AND user_id=$2 AND group_id=$3 FOR UPDATE`, r.SubscriptionID, r.UserID, r.GroupID).Scan(&parentID); err != nil {
+		return ErrUnavailable
+	}
+	if r.PackageEntitlementID != nil {
+		if err := tx.QueryRowContext(ctx, `SELECT id FROM subscription_package_entitlements WHERE id=$1 AND user_id=$2 AND group_id=$3 FOR UPDATE`, *r.PackageEntitlementID, r.UserID, r.GroupID).Scan(&parentID); err != nil {
+			return ErrUnavailable
+		}
+	}
 	var id string
 	if err := tx.QueryRowContext(ctx, `SELECT id FROM gateway_requests WHERE id=$1 AND user_id=$2 AND api_key_id=$3 FOR UPDATE`, h.ID, r.UserID, r.APIKeyID).Scan(&id); err != nil {
+		return ErrUnavailable
+	}
+	hash := subscriptionPayloadHash(r.PricingHash, in)
+	var existing string
+	if err := tx.QueryRowContext(ctx, `SELECT payload_hash FROM gateway_subscription_outbox WHERE receipt_id=$1`, r.ID).Scan(&existing); err == nil {
+		if existing != hash {
+			return ErrUnavailable
+		}
+		return nil // The first observation and pending projection already committed.
+	} else if !errors.Is(err, sql.ErrNoRows) {
 		return ErrUnavailable
 	}
 	if _, err := tx.ExecContext(ctx, `UPDATE gateway_request_attempts SET usage_state='known' WHERE request_id=$1 AND attempt_no=$2`, h.ID, r.AttemptNo); err != nil {
 		return ErrUnavailable
 	}
-	hash := subscriptionPayloadHash(r.PricingHash, in)
 	commandHash := ""
 	if in.Command != "" {
 		commandHash = SubscriptionDigest(in.Command)
@@ -66,6 +87,11 @@ func PersistSubscriptionUsage(ctx context.Context, in SubscriptionObservation) e
  RETURNING payload_hash`, r.ID, h.ID, r.APIKeyID, r.BillingRequestID, in.Command, commandHash, in.Usage, in.Log, hash, in.PendingReason).Scan(&stored)
 	if err != nil || stored != hash {
 		return ErrUnavailable
+	}
+	if project != nil {
+		if err := project(ctx, tx); err != nil {
+			return err
+		}
 	}
 	if _, err := tx.ExecContext(ctx, `UPDATE gateway_requests r SET usage_state=CASE WHEN EXISTS(SELECT 1 FROM gateway_request_attempts a WHERE a.request_id=r.id AND a.usage_state IN ('pending','usage_unknown')) THEN 'usage_unknown' ELSE 'known' END,settlement_state='settlement_pending' WHERE r.id=$1 AND settlement_state<>'settled'`, h.ID); err != nil {
 		return ErrUnavailable

@@ -1,0 +1,164 @@
+{
+  "updated_at": "2026-10-11T12:18:53.698902+00:00",
+  "state": "all targeted probes/repeats/race, sequential reviews and full mandatory local gates passed; final-head hosted CI and parent review pending",
+  "prior_head": "add3fa4dbe8c59e0276e0043eb09270a4b630f89",
+  "main_base": "6ae024e6b732b64b2ce6f7ba56c5be4e20b88bdb",
+  "ci_failure": {
+    "run": 38136192168,
+    "job": 114460430956,
+    "source": "parent report; direct signed log fetch403, contents not retrieved",
+    "test": "TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs",
+    "assertion": "image_task_worker_integration_test.go:190 Active must be0 but was1",
+    "metadata": "worker-ack-original-ci.json independently fetched: exact add3 head, backend default/Fork passed, tag-unit failed, later frontend skipped; assertion detail remains parent report"
+  },
+  "finding": "processor.completed signals task handler return; queue Stats.Active counts Redis leases removed only after processSafely returns, heartbeat goroutine joins and lock.Ack completes. Existing test can sample between these events. No production failure demonstrated.",
+  "scope": "six added test lines only, bounded Eventually(3s,20ms), preserve all prior concurrency/completion/final Ready/Active assertions. No production code, scheduler, migration, billing or CI gate changes.",
+  "baseline": "all3 relevant source blobs equal formal main; ordinary30 passes do not naturally reproduce; controlled delayed Ack3/3 fail original assertion Active2. See worker-ack-base-proof.json and worker-ack-base-tests.json.",
+  "probe": "worker-ack-probe.py uses go overlay only; wraps last2 locks, holds Ack until first Stats snapshot then releases; negative mode deliberately suppresses real Redis Ack. Processor and other queue methods remain unchanged.",
+  "remaining": [
+    "single normal draft push/final-head hosted CI",
+    "parent review/merge/deploy; no production access by this task"
+  ],
+  "deployment": "not performed; root thread owns merge/deploy; identifier281 remains paused",
+  "probe_results": "worker-ack-probe-results.json",
+  "test_events": "worker-ack-test-results.json",
+  "targeted_summary": {
+    "delayed_ack_green": 20,
+    "ordinary_pass": 100,
+    "delayed_ack_race_pass": 10,
+    "worker_race_pass": 25,
+    "worker_race_repetitions": 5,
+    "lost_ack_negative": "expected failure at Eventually after3.18s; no package setup or compilation failure"
+  },
+  "reviews": "worker-ack-reviews.json",
+  "preservation": "worker-ack-preservation.json",
+  "remote_base_recheck": {
+    "at": "2026-10-11T12:18:53.721831+00:00",
+    "command": "git fetch origin play/main; git rev-parse origin/play/main",
+    "sha": "6ae024e6b732b64b2ce6f7ba56c5be4e20b88bdb"
+  },
+  "frontend": {
+    "files_passed": 504,
+    "files_skipped": 3,
+    "tests_passed": 3825,
+    "tests_skipped": 8,
+    "duration_seconds": 152.28,
+    "scope": "fresh full make test frontend suite, existing skipped cases retained"
+  },
+  "backend_lint_issues": 0,
+  "gates": [
+    {
+      "gate": "make-test",
+      "command": [
+        "make",
+        "test"
+      ],
+      "expected_exit": 0,
+      "exit_code": 0,
+      "started_at": "2026-10-11T12:05:04.900509+00:00",
+      "finished_at": "2026-10-11T12:11:28.113469+00:00",
+      "elapsed_seconds": 383.213,
+      "log": "/tmp/routing-worker-make-test.log",
+      "log_sha256": "8fc650779798b2ddf117f934a709221e67d4dbe3d59606b19e197e66a9eee477"
+    },
+    {
+      "gate": "tag-unit",
+      "command": [
+        "make",
+        "test-backend-unit"
+      ],
+      "expected_exit": 0,
+      "exit_code": 0,
+      "started_at": "2026-10-11T12:11:28.114085+00:00",
+      "finished_at": "2026-10-11T12:15:08.541500+00:00",
+      "elapsed_seconds": 220.427,
+      "log": "/tmp/routing-worker-tag-unit.log",
+      "log_sha256": "edde46a18546b6d9a7101d77515cd6877b537af0702b1c2d39322d7c60567737"
+    },
+    {
+      "gate": "build",
+      "command": [
+        "make",
+        "build"
+      ],
+      "expected_exit": 0,
+      "exit_code": 0,
+      "started_at": "2026-10-11T12:15:08.541978+00:00",
+      "finished_at": "2026-10-11T12:16:25.117219+00:00",
+      "elapsed_seconds": 76.575,
+      "log": "/tmp/routing-worker-build.log",
+      "log_sha256": "fdb736bd452ebac1bab8d470859163cf69e6d5245d1432b05fff223ba9352835"
+    },
+    {
+      "gate": "embed",
+      "command": [
+        "go",
+        "build",
+        "-tags",
+        "embed",
+        "-buildvcs=false",
+        "-trimpath",
+        "-o",
+        "/tmp/routing-server-embed",
+        "./cmd/server"
+      ],
+      "expected_exit": 0,
+      "exit_code": 0,
+      "started_at": "2026-10-11T12:16:25.117583+00:00",
+      "finished_at": "2026-10-11T12:16:25.714232+00:00",
+      "elapsed_seconds": 0.597,
+      "log": "/tmp/routing-worker-embed.log",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "gate": "fork",
+      "command": [
+        "./scripts/check-fork-integrity.sh"
+      ],
+      "expected_exit": 0,
+      "exit_code": 0,
+      "started_at": "2026-10-11T12:16:25.714505+00:00",
+      "finished_at": "2026-10-11T12:18:37.814011+00:00",
+      "elapsed_seconds": 132.1,
+      "log": "/tmp/routing-worker-fork.log",
+      "log_sha256": "5022e62c1459c79055cf854eefde736f02606e4b38d15a99a94e833427226593"
+    }
+  ],
+  "environment": {
+    "GOMAXPROCS": "2",
+    "GOMEMLIMIT": "4GiB",
+    "GOFLAGS": "-p=1",
+    "no_parallel_heavy_checks": true,
+    "test_processes_manually_interrupted": false,
+    "source_or_historical_data_removed": false,
+    "production_access": false
+  },
+  "validation_scope": "Fresh make test includes ordinary backend, lint, frontend lint/typecheck and full Vitest; fresh tag-unit/build/embed/full Fork. Earlier HTTP/PG routing and migration evidence remains reusable unchanged27 inputs, not a new full75-contract run. Only source change is six worker test lines.",
+  "assets": "worker-ack-assets.json",
+  "docs_and_handoff": {
+    "links": "passed287 files",
+    "handoff_structure": "pass; existing pending entries retained",
+    "handoff_unit_tests": 8,
+    "source_manifest_files": 28,
+    "diff_check": "pass",
+    "logs": [
+      {
+        "name": "docs",
+        "sha256": "041a45cbd079be7036af94f80dcf8ae62b86df7aa716ef83215582cb3c3ed646"
+      },
+      {
+        "name": "handoff",
+        "sha256": "af1848cd99d6fa421097f172ae0c0b1d8f9f6917308b86a9b693f26fbb846f3d"
+      },
+      {
+        "name": "handoff-tests",
+        "sha256": "fc23540c8545d4075fe2f0420accd022e74e5566176c3bd4c597964ff02c2e14"
+      },
+      {
+        "name": "manifest",
+        "sha256": "7005872d43b4920832dd033b5d5c72407513a07dc69ee98d2d5df1d68ec2e050"
+      }
+    ]
+  },
+  "technical_commit": "0dcf99a3c5f786e41a8e2933dd025b1daea1c320"
+}

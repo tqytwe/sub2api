@@ -21,6 +21,8 @@ var ErrUnavailable = errors.New("request ledger unavailable")
 const writeTimeout = 3 * time.Second
 
 type Ledger struct {
+	routingQueue   chan routingBatch
+	routingStart   sync.Once
 	reconcileTasks bool
 	db             *sql.DB
 	instance       string
@@ -33,7 +35,7 @@ type Ledger struct {
 }
 
 func New(db *sql.DB) *Ledger {
-	return &Ledger{db: db, instance: uuid.NewString(), stop: make(chan struct{}), active: make(map[string]string)}
+	return &Ledger{routingQueue: make(chan routingBatch, 64), db: db, instance: uuid.NewString(), stop: make(chan struct{}), active: make(map[string]string)}
 }
 
 func NewStarted(db *sql.DB) *Ledger {
@@ -93,6 +95,7 @@ func (l *Ledger) rotateExpiredOwner(expired string) string {
 func (l *Ledger) Stop() { l.once.Do(func() { close(l.stop) }) }
 
 type Handle struct {
+	routing         routingCapture
 	ledger          *Ledger
 	owner           string
 	ID              string
@@ -190,8 +193,8 @@ func (l *Ledger) begin(ctx context.Context, route, method, kind string, parent *
 		return nil, ErrUnavailable
 	}
 	h.owner = owner
-	_, err = tx.ExecContext(ctx, `INSERT INTO gateway_requests(id,parent_id,kind,turn_no,route,method,user_id,api_key_id,instance_id)
- VALUES($1,$2,$3,NULLIF($4,0),$5,$6,NULLIF($7,0),NULLIF($8,0),$9)`, h.ID, parentID, kind, turn, route, method, h.userID, h.keyID, h.owner)
+	_, err = tx.ExecContext(ctx, `INSERT INTO gateway_requests(id,parent_id,kind,turn_no,route,method,user_id,api_key_id,instance_id,routing_coverage_version,routing_summary)
+ VALUES($1,$2,$3,NULLIF($4,0),$5,$6,NULLIF($7,0),NULLIF($8,0),$9,$10,'{"status":"pending"}'::jsonb)`, h.ID, parentID, kind, turn, route, method, h.userID, h.keyID, h.owner, RoutingCoverageVersion)
 	if err != nil {
 		return nil, ErrUnavailable
 	}
@@ -246,6 +249,7 @@ func (h *Handle) Finish(ctx context.Context, state string, status int, code stri
 	if h == nil {
 		return nil
 	}
+	defer h.releaseRouting()
 	defer h.ledger.forget(h.ID, h.kind == "ws_session" || h.kind == "async_execution")
 	ctx, cancel := detachedWrite(ctx)
 	defer cancel()
@@ -256,13 +260,13 @@ func (h *Handle) Finish(ctx context.Context, state string, status int, code stri
  (SELECT error_code FROM gateway_request_attempts a WHERE a.request_id=r.id AND a.phase<>'auxiliary' ORDER BY attempt_no DESC LIMIT 1) AS last_code
  FROM gateway_requests r WHERE id=$1 AND execution_state='inflight' FOR UPDATE
  ), finished AS (
- UPDATE gateway_requests r SET execution_state=c.state,ended_at=clock_timestamp(),http_status=NULLIF($3,0),
+ UPDATE gateway_requests r SET execution_state=c.state,ended_at=clock_timestamp(),http_status=NULLIF($3,0),routing_summary=$5::jsonb,
  error_code=CASE WHEN c.state='interrupted' THEN COALESCE(NULLIF(c.last_code,''),'interrupted') WHEN $4='' AND c.state<>'succeeded' THEN COALESCE(NULLIF(c.last_code,''),'upstream_error') ELSE $4 END,
  usage_state=CASE WHEN usage_state='pending' THEN 'usage_unknown' ELSE usage_state END
  FROM closing c WHERE r.id=c.id RETURNING r.id,r.execution_state)
  UPDATE gateway_request_attempts a SET usage_state=CASE WHEN a.usage_state='pending' THEN 'usage_unknown' ELSE a.usage_state END,execution_state=f.execution_state,ended_at=clock_timestamp(),
  error_code=CASE WHEN f.execution_state IN ('cancelled','timeout','interrupted') THEN f.execution_state ELSE 'upstream_error' END
- FROM finished f WHERE a.request_id=f.id AND a.execution_state='inflight'`, h.ID, state, status, code)
+ FROM finished f WHERE a.request_id=f.id AND a.execution_state='inflight'`, h.ID, state, status, code, h.freezeRouting())
 	if err != nil {
 		return ErrUnavailable
 	}

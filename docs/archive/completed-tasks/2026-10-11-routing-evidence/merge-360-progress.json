@@ -1,0 +1,122 @@
+{
+  "status": "local_gates_passed",
+  "updated_at": "2026-10-11T11:31:56.300865+00:00",
+  "base_sha": "fb2c9747b58ed5d980a36ea6a2316ead2aa03b7e",
+  "prior_head": "ae832b16b63139b2395008a1f2073d7cb15161f7",
+  "current_stage": "Final documentation checks then ordinary draft push; exact-head CI and parent review pending",
+  "conflicts": "CI required cases union plus one 278→279 composition regression (75); handoff keeps complete main content plus own routing feature",
+  "preservation": "24 nonshared routing inputs +95 nonshared main files preserved; frontend equals main; no API change; no 280/281 files included",
+  "remaining": [
+    "final handoff and draft push",
+    "exact-head CI and parent review"
+  ],
+  "reuse": "Main frontend source/dependencies unchanged: reuse reviewed 3680/8 suite and session/browser evidence; compare all 356 rebuilt assets. Old broad protocol results remain historical scope evidence; not new-head local full75 execution.",
+  "first_run": {
+    "status": "failed",
+    "details": "HTTP, requestledger and routing handlers passed; four repository migration fixture startups exited before assertions; docker --rm removed diagnostics, cause not established. Retain raw failure. Moved 1.21GB regenerable Go cache to /tmp preserving bytes; overlay free 2.5GiB; isolated startup probe passed."
+  },
+  "reviews": {
+    "spec": "pass",
+    "quality": "pass",
+    "note": "read-only composition review; gates pending"
+  },
+  "completed_gates": [
+    {
+      "gate": "http_pg_combination",
+      "command": [
+        "go",
+        "test",
+        "-tags=integration",
+        "./internal/requestledger/...",
+        "./internal/repository",
+        "./internal/handler",
+        "./internal/server/routes",
+        "-run",
+        "TestRequestLedgerHTTP|TestRequestLedgerRoutingHTTP|TestRequestLedgerRoutingAfterDetail|TestRequestLedgerRoutingMigration|TestRequestLedgerDetailPage|TestLedgerPostgresRouting",
+        "-count=1",
+        "-timeout=8m",
+        "-json"
+      ],
+      "started_at": "2026-10-11T11:03:22.004875+00:00",
+      "finished_at": "2026-10-11T11:08:18.785914+00:00",
+      "exit_code": 1,
+      "elapsed_seconds": 296.781,
+      "log": "/tmp/routing-merge360-http_pg_combination.log"
+    },
+    {
+      "gate": "migration_combination_retry",
+      "command": [
+        "go",
+        "test",
+        "-tags=integration",
+        "./internal/repository",
+        "-run",
+        "TestRequestLedgerRoutingAfterDetail|TestRequestLedgerRoutingMigration|TestRequestLedgerDetailPage",
+        "-count=1",
+        "-timeout=8m",
+        "-json"
+      ],
+      "started_at": "2026-10-11T11:10:01.159172+00:00",
+      "finished_at": "2026-10-11T11:10:19.131846+00:00",
+      "exit_code": 0,
+      "elapsed_seconds": 17.973,
+      "log": "/tmp/routing-merge360-migration_combination_retry.log"
+    },
+    {
+      "gate": "backend_test_lint",
+      "command": [
+        "make",
+        "test-backend"
+      ],
+      "started_at": "2026-10-11T11:10:19.132139+00:00",
+      "finished_at": "2026-10-11T11:18:34.776258+00:00",
+      "exit_code": 0,
+      "elapsed_seconds": 495.644,
+      "log": "/tmp/routing-merge360-backend_test_lint.log"
+    },
+    {
+      "gate": "backend_unit",
+      "command": [
+        "make",
+        "test-backend-unit"
+      ],
+      "started_at": "2026-10-11T11:18:34.776551+00:00",
+      "finished_at": "2026-10-11T11:26:39.719974+00:00",
+      "exit_code": 0,
+      "elapsed_seconds": 484.943,
+      "log": "/tmp/routing-merge360-backend_unit.log"
+    },
+    {
+      "gate": "build",
+      "command": [
+        "make",
+        "build"
+      ],
+      "started_at": "2026-10-11T11:26:39.720229+00:00",
+      "finished_at": "2026-10-11T11:28:35.213792+00:00",
+      "exit_code": 0,
+      "elapsed_seconds": 115.494,
+      "log": "/tmp/routing-merge360-build.log"
+    },
+    {
+      "gate": "embed",
+      "command": [
+        "go",
+        "build",
+        "-tags",
+        "embed",
+        "-buildvcs=false",
+        "-trimpath",
+        "-o",
+        "/tmp/routing-server-embed",
+        "./cmd/server"
+      ],
+      "started_at": "2026-10-11T11:28:35.214060+00:00",
+      "finished_at": "2026-10-11T11:29:19.465331+00:00",
+      "exit_code": 0,
+      "elapsed_seconds": 44.251,
+      "log": "/tmp/routing-merge360-embed.log"
+    }
+  ],
+  "live_process": "go test -tags=unit ./..."
+}

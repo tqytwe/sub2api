@@ -1,0 +1,330 @@
+[
+  {
+    "file": "root-review-NativeScope-red.log.gz",
+    "source": "root-review-NativeScope-red.log",
+    "note": "valid root RED/control",
+    "bytes": 20545,
+    "raw_sha256": "58afbb81e8e909d5e285030d2a17574031fb7885160218f32749717beb0dd1ae",
+    "gzip_sha256": "41547854fee25b2fdebfd9b0a8898a785a99f49dec2da682690b2192adb97a48"
+  },
+  {
+    "file": "root-review-ExpiryWait-red.log.gz",
+    "source": "root-review-ExpiryWait-red.log",
+    "note": "valid root RED",
+    "bytes": 20701,
+    "raw_sha256": "b3b39d5d2f4b273e50266e0f68997b2683c677afbf3fd256b431b6f580eacf5a",
+    "gzip_sha256": "01615f74848bcf7cd7b75765f597c240c9b68dacd7757de3260efcb26a85f9ed"
+  },
+  {
+    "file": "root-review-LegacyScope-corrected-red.log.gz",
+    "source": "root-review-LegacyScope-corrected-red.log",
+    "note": "valid root RED/control; canonical item_reference fixture",
+    "bytes": 35393,
+    "raw_sha256": "90d8484fb599abcc1743157e27ea0d44884c6ed7450c2210ec127dbd9b7a88f8",
+    "gzip_sha256": "fe2a49cec28f114ac5e3aaf0311394a7cf5edaf59b9b4103f59974420a027c85"
+  },
+  {
+    "file": "root-review-UnknownOutput-red.log.gz",
+    "source": "root-review-UnknownOutput-red.log",
+    "note": "valid root RED",
+    "bytes": 28000,
+    "raw_sha256": "bad1481230d8da9a9eaa4e3ea64aa94b8658f0c9b12feed759425a3fe16e83d4",
+    "gzip_sha256": "3659c66508478d4589981c2b04ab1f3e81ca253042f9feaf76beae8b4695a2b8"
+  },
+  {
+    "file": "root-review-ModelCase-red.log.gz",
+    "source": "root-review-ModelCase-red.log",
+    "note": "valid root RED/control",
+    "bytes": 7981,
+    "raw_sha256": "669b04dcb7b115ddf58809fb0511bf2072863cced35c71db8d268600f555c746",
+    "gzip_sha256": "f793463a1e571657fbd5b369fe8202dc9796eb633a76ab6258ca2823d064b047"
+  },
+  {
+    "file": "root-review-green-first.log.gz",
+    "source": "root-review-green-first.log",
+    "note": "first GREEN 94 pass, actual cancellation recovery failure",
+    "bytes": 127443,
+    "raw_sha256": "4d3fec768f24c26ea73fa34d72f08e0ae8297f001c11191c8d7ce66074e6d9cf",
+    "gzip_sha256": "54f2e6c4298e3582de9f05ab749825c52fbd42b178d7b3119d10c24bc8cd0ccb"
+  },
+  {
+    "file": "projection-controlled-red.log.gz",
+    "source": "projection-controlled-red.log",
+    "note": "controlled real PostgreSQL projection deadlock RED",
+    "bytes": 4646,
+    "raw_sha256": "228d3d94d667a1fef1462f58896fc6dd0840c910a9223a54c5b3459751cb0251",
+    "gzip_sha256": "8309fcb13bf175c3c1adca1c34d32e996292e80a1fa7f8b1546b04dfce67785a"
+  },
+  {
+    "file": "projection-controlled-postgres-red.log.gz",
+    "source": "projection-controlled-postgres-red.log",
+    "note": "controlled deadlock PostgreSQL wait graph",
+    "bytes": 13558,
+    "raw_sha256": "f7be47d8338473a141a4871409ac0045e18450f075be6dfcf29d160749c046f4",
+    "gzip_sha256": "1e0b8ad97586f8b422266d8ad504c74cbdae719915d9703febe0b8dd3e0b3870"
+  },
+  {
+    "file": "projection-owner-green.log.gz",
+    "source": "projection-owner-green.log",
+    "note": "single projection owner controlled GREEN",
+    "bytes": 1857,
+    "raw_sha256": "b06d434fe8752bee4fd4bb2598ab15b16224e79c3b7ff6ab903a8ff8705e6e6f",
+    "gzip_sha256": "10db7e656e05451be917977461c052703171524d3a25cff2950b780c2493ac7c"
+  },
+  {
+    "file": "output-evidence-spec-red.log.gz",
+    "source": "output-evidence-spec-red.log",
+    "note": "valid output RED19/control9",
+    "bytes": 113075,
+    "raw_sha256": "1fce14bd9e570ad82c4050528e0f6facd5d402e0387c6d650f0b33a7541fad39",
+    "gzip_sha256": "9c9f8a43323a97fb1736e33b41444f14fe4320a0798bc2b69a3a9c4d5a25ec14"
+  },
+  {
+    "file": "output-tools-valid-red.log.gz",
+    "source": "output-tools-valid-red.log",
+    "note": "valid generic tool RED28 with guard-only production overlay",
+    "bytes": 166234,
+    "raw_sha256": "4933ca312f3d3af4b8ef762dfadb7607354a68c484df53a2d1cd1c0e9bf51a50",
+    "gzip_sha256": "267bc8ed8fdf87a063869814dd28d5fc654b42997762fc1c3c94543898a6d2cb"
+  },
+  {
+    "file": "output-read-errors-red.log.gz",
+    "source": "output-read-errors-red.log",
+    "note": "valid JSON/read errors RED20",
+    "bytes": 35041,
+    "raw_sha256": "ecf9f77c37d2ed81550b09b1316f88438726f8b805aa5c5419ae1f929e6a48ac",
+    "gzip_sha256": "919563f8b43d49dbbc4545130809987469df7125f43c7a74c2f4e3db598eda4e"
+  },
+  {
+    "file": "quality-boundaries-red.log.gz",
+    "source": "quality-boundaries-red.log",
+    "note": "valid ownership and content-part RED13/control1",
+    "bytes": 71471,
+    "raw_sha256": "8eb30e22394a231cd3ab13df4c9be60b73866d446b9675516182dda6fc0eb8ce",
+    "gzip_sha256": "a2c429b7253bc79cbc5a7ec7da7697844ccef39fd707fb0567e0133ddf798d50"
+  },
+  {
+    "file": "inflight-quality-green.log.gz",
+    "source": "inflight-quality-green.log",
+    "note": "final184/407/race PASS",
+    "bytes": 261348,
+    "raw_sha256": "20825389ecb3dfb2952d5cd0d0b61545f05c18df3fe2fbf5a63ceccb3562335e",
+    "gzip_sha256": "7cad3231f66f8e6826e93332c67a78d3c088ca2bde76397363d8596955ed4eef"
+  },
+  {
+    "file": "inflight-main8364-first-fixture-failure.log.gz",
+    "source": "inflight-main8364-first-fixture-failure.log",
+    "note": "DIAGNOSTIC ONLY wrong active fixture display assertion, not business RED",
+    "bytes": 241012,
+    "raw_sha256": "86b4d1f89bde5d592566c064ddeed24ec9bcd701c729c3505a739da7e72ad319",
+    "gzip_sha256": "26c9f6071434d326e1b68dabbae4f67e0e351c36fb543ed3c28b000407f76f61"
+  },
+  {
+    "file": "output-tools-spec-red.log.gz",
+    "source": "output-tools-spec-red.log",
+    "note": "DIAGNOSTIC ONLY invalid generic tool fixture still sent audio",
+    "bytes": 120709,
+    "raw_sha256": "efc9c15afc4a348a40a30c0c1fe33f694b208363ea18d77dd515ff76a4f744fd",
+    "gzip_sha256": "d611437d2368766855fb01dfa19ca717d92f341e7610df45e7258aae170e3711"
+  },
+  {
+    "file": "final-recovery-repeat.log.gz",
+    "source": "final-recovery-repeat/recovery-repeat.log",
+    "note": "final40/407/race recovery PASS",
+    "bytes": 74311,
+    "raw_sha256": "1e5f878558ea966c8fa907f94de84195ce8aee5f0f908d80405e9f7565d2173d",
+    "gzip_sha256": "bf28a78add59e47df65fe345b7db46582bb9e509ac05acafaacfaca50ea2a974"
+  },
+  {
+    "file": "final-recovery-repeat-postgres.log.gz",
+    "source": "final-recovery-repeat/recovery-repeat-postgres.log",
+    "note": "final40 recovery PG log zero ERROR/deadlock",
+    "bytes": 4123,
+    "raw_sha256": "76f6c6b1c4e9995198ba8283ee893ff23b9953cf55d2b7d19c82ecdaa2b2f185",
+    "gzip_sha256": "5ef3cbdaeef3ac67d0f42d0fe8e38bd92a5788f4fb69e9c5c64c4c722525754b"
+  },
+  {
+    "file": "final-TestSubscriptionCounterHTTP.log.gz",
+    "source": "final-TestSubscriptionCounterHTTP.log",
+    "note": "final current-source compatibility266-total matrix constituent; 407/race",
+    "bytes": 49010,
+    "raw_sha256": "143fbf4838a4bfb431259e97855b1a9cb7b4f0d9ad73f33431e081b0d9950ffa",
+    "gzip_sha256": "9161d83f5529aefe92e9433d03934bfbb1af23f1366268bb5ed4a56b4dd4c1ed"
+  },
+  {
+    "file": "final-TestSubscriptionEntitlementBindingReproduction.log.gz",
+    "source": "final-TestSubscriptionEntitlementBindingReproduction.log",
+    "note": "final current-source compatibility266-total matrix constituent; 407/race",
+    "bytes": 6500,
+    "raw_sha256": "97d856bc6b0d11c8baa77ecf13ae3c8a5cc890eaffb9da4a449ca840896ecc40",
+    "gzip_sha256": "bafc252c0e84ce473db294e614024dffa872ffee681a91c40fe6a43e638a80b1"
+  },
+  {
+    "file": "final-TestSubscriptionBindingCompatibility.log.gz",
+    "source": "final-TestSubscriptionBindingCompatibility.log",
+    "note": "final current-source compatibility266-total matrix constituent; 407/race",
+    "bytes": 32119,
+    "raw_sha256": "915140bd86aaaa2a753ac6e80f8885684e75496c2a243fff871f26614a0da34e",
+    "gzip_sha256": "690463ae832a7ffc68980ea2d182f49b6a5e4d57e0ed16eba5764aee950fef39"
+  },
+  {
+    "file": "full-gate-legacy-image-red.log.gz",
+    "source": "full-gate-legacy-image-red.log",
+    "note": "final full-gate blocker: preserve old Images scalar contract and strict assertion",
+    "bytes": 2308715,
+    "raw_sha256": "2b31135e64c813584a1cfa5a88ef1d8c27b9b78f6502e9398163d16dceabd488",
+    "gzip_sha256": "11f52221c79423ce60f99f1474a8b31edce6fffa1191c37d251dd9377259eb7a"
+  },
+  {
+    "file": "legacy-image-wrapper-red.log.gz",
+    "source": "legacy-image-wrapper-red.log",
+    "note": "final full-gate blocker: preserve old Images scalar contract and strict assertion",
+    "bytes": 46248,
+    "raw_sha256": "913506fd42676aa09e83ce20a1b1247706c634df938d96faa93c531bdd32c604",
+    "gzip_sha256": "cb97b6528ee63b9f7418e6dbade1993d7638cb232ba03a606a2ac8532f936a7a"
+  },
+  {
+    "file": "legacy-image-wrapper-green.log.gz",
+    "source": "legacy-image-wrapper-green.log",
+    "note": "final full-gate blocker: preserve old Images scalar contract and strict assertion",
+    "bytes": 57,
+    "raw_sha256": "c259cf76e61a5d86ee865aa4a22f964b7b00ba48a0156be06f903b1b46c803bd",
+    "gzip_sha256": "85b5b96174a1327f11516b610ff2b346e063619d9b07e4fdff8ea2559f25fc88"
+  },
+  {
+    "file": "full-gate-frontend-timing-lint.log.gz",
+    "source": "full-gate-frontend-timing-lint.log",
+    "note": "mandatory gate diagnostic / unchanged main frontend isolated rerun, not business RED",
+    "bytes": 267555,
+    "raw_sha256": "4a5c230614905bc74b5e9c8c5e19e6eb5180940cc49c25e674977b3d78c47b02",
+    "gzip_sha256": "d931d82a93aabfc9d0de9b8b57c4c886eeb18c7553aee161edde38876cbd3ff3"
+  },
+  {
+    "file": "frontend-ledger-session-isolated.log.gz",
+    "source": "frontend-ledger-session-isolated.log",
+    "note": "mandatory gate diagnostic / unchanged main frontend isolated rerun, not business RED",
+    "bytes": 1750,
+    "raw_sha256": "8f2b248e797ff641643aee8f0c0d91a18bd25ac2eb0e35c53870c547b2d0530f",
+    "gzip_sha256": "f798f4dd81488e28217bb902421a18923cc538d0e017a3ec186c78c429626b5e"
+  },
+  {
+    "file": "full-frontend-isolated-retry.log.gz",
+    "source": "full-frontend-isolated-retry.log",
+    "note": "complete unchanged frontend isolated retry PASS504files/3825tests",
+    "bytes": 253449,
+    "raw_sha256": "786463726b0af4c89a23c4bf2adf107c246a5eac1746c93c2dc74ffe7e6dcda5",
+    "gzip_sha256": "59f9abf3a13a76569a27f2cb5ba580c1771c89b21966d59e04c2f4addb9f2de0"
+  },
+  {
+    "file": "receipt-evidence-scope-final.log.gz",
+    "source": "receipt-evidence-scope-final.log",
+    "note": "latest exact source de9cb full184/407/race PASS",
+    "bytes": 261348,
+    "raw_sha256": "28a80311e674f649e474c3671f9054aedf789ef9a1725719a53d19f5dda40503",
+    "gzip_sha256": "ae955f9a873fc9070870b8b2c368ae67a39347e06f8c356a972ea3c7fac33eb2"
+  },
+  {
+    "file": "legacy-response-image-evidence-red.log.gz",
+    "source": "legacy-response-image-evidence-red.log",
+    "note": "8 unchanged strict legacy image usage assertions fail on leaked evidence pointer",
+    "bytes": 2886990,
+    "raw_sha256": "c740bfafdc5bc28c7b138fd50fc103ee425f3684741b22e6cf405f36dfa843e0",
+    "gzip_sha256": "1a9bcce30473266858fe7e17fc89d8cd6deb31020fb01b9623673ac30a25ee97"
+  },
+  {
+    "file": "legacy-response-image-evidence-green.log.gz",
+    "source": "legacy-response-image-evidence-green.log",
+    "note": "same legacy assertions and related metered/parser targeted unit PASS",
+    "bytes": 57,
+    "raw_sha256": "e5e3be10aa8fb136a35eb3c5f1a7dacfdf9a0ea2d93b389707eb15aa7b7248a4",
+    "gzip_sha256": "088a71e9106e1d547028b848daf098e81a0cd41f4a18acf50a4c1978500d4e1c"
+  },
+  {
+    "file": "lint-fourth-expression-red.log.gz",
+    "source": "lint-fourth-expression-red.log",
+    "note": "fourth exact boolean equivalent issue exposed after linter same-issue cap3",
+    "bytes": 348,
+    "raw_sha256": "48a159ccd517db51bc5e97eb4f6bcadbc3e4ed61f6fbdd2c182be33f0d76bb85",
+    "gzip_sha256": "b1a514fc9d94d6af1b4fdbe43cbc1a86cadbec7f54600da46b93d1aa10e7b6c8"
+  },
+  {
+    "file": "tagged-assertion-lint-red.log.gz",
+    "source": "tagged-assertion-lint-red.log",
+    "note": "tag-only test fixture two unchecked type assertions",
+    "bytes": 382,
+    "raw_sha256": "6da1b56a13a3cbc6cca16db4b742cfed484c31b9590a33a0f501f2b762a80238",
+    "gzip_sha256": "5482aec85fc9422b9480a9e4417e821e975dbfc4ffb24d733afc2b4bdb5794c5"
+  },
+  {
+    "file": "test-interface-guard-green.log.gz",
+    "source": "test-interface-guard-green.log",
+    "note": "test-only checked assertion guard; real projection single-owner407/race GREEN",
+    "bytes": 2081,
+    "raw_sha256": "9784eb4b5ed2383e742312c5445936ec83bbf6a53340bfc10050a7feb2ee4886",
+    "gzip_sha256": "0374c1aaafa79bf6156c914c07105770ef69cba022aa6ca9a2a9c0b554ccabf6"
+  },
+  {
+    "file": "root-fix-full-test-final.log.gz",
+    "source": "root-fix-gates/full-test-final.log",
+    "note": "final source server gate full-test",
+    "bytes": 8065,
+    "raw_sha256": "d4a93dd48533e3d63ac2a7d2b117c52d8c3b72d3bf0105beecd254f411091445",
+    "gzip_sha256": "97873f15132d0f1fb30958db39dd572b847f8a3006a18a8c194a99d2b1b7f963"
+  },
+  {
+    "file": "root-fix-unit-tags-final.log.gz",
+    "source": "root-fix-gates/unit-tags-final.log",
+    "note": "final source server gate unit-tags",
+    "bytes": 8165,
+    "raw_sha256": "c53d3c840ab6b8a0295cb79584c34999c4698e0237075a99bf3211de79b35c7d",
+    "gzip_sha256": "b63943c191abba0c5e19cab5790b9a15fdcbb8c94282b9c77a706c1f90865470"
+  },
+  {
+    "file": "root-fix-ledger-integration-final.log.gz",
+    "source": "root-fix-gates/ledger-integration-final.log",
+    "note": "final source server gate ledger-integration",
+    "bytes": 1588677,
+    "raw_sha256": "e3c906c13a1d051a4e83980c7b5d4e5aa9571404d40449e347080f5df336bb86",
+    "gzip_sha256": "4da213d34138037d2c63af6d559a49ea83d6044a8a9dd89cd1ec37edd2bfd57a"
+  },
+  {
+    "file": "root-fix-full-build-final.log.gz",
+    "source": "root-fix-gates/full-build-final.log",
+    "note": "final source server gate full-build",
+    "bytes": 71310,
+    "raw_sha256": "508a79c7d1126696f8705df64484327bb2f3bbdd46815ac581bbe07565b8d733",
+    "gzip_sha256": "d7c6d062927acae91c1fd4bf6c39ab710e5cc51246be22388d478036083ebbc3"
+  },
+  {
+    "file": "root-fix-fork-integrity-final.log.gz",
+    "source": "root-fix-gates/fork-integrity-final.log",
+    "note": "final source server gate fork-integrity",
+    "bytes": 64410,
+    "raw_sha256": "8346ed0d3a25575e9dece938ef9dfdeeaebcded13ae3cc4b1db361024900becf",
+    "gzip_sha256": "cb985c370cd4c2ab09a859d238e706a4b4da6679ae658dc3c049492520622f1a"
+  },
+  {
+    "file": "root-fix-tagged-diff-lint-final.log.gz",
+    "source": "root-fix-gates/tagged-diff-lint-final.log",
+    "note": "final source server gate tagged-diff-lint",
+    "bytes": 10,
+    "raw_sha256": "e92606b0bf483111dff0a120c315ea165821348f31365020e2468a0059095c47",
+    "gzip_sha256": "ae7034bbac02a59e3837b03fecefe9d619f8d38f6ddd573b180069614180fe71"
+  },
+  {
+    "file": "root-fix-doc-links-final.log.gz",
+    "source": "root-fix-gates/doc-links-final.log",
+    "note": "final source server gate doc-links",
+    "bytes": 50,
+    "raw_sha256": "48fa04d3ac0814252c7b24ba8cdd0baeb9a912b6297dcdc2553e1188a7943645",
+    "gzip_sha256": "59682fa3faecfa43e7d54bd0f4cfc02db00344caae57f6992819baad776b82b6"
+  },
+  {
+    "file": "root-fix-diff-check-final.log.gz",
+    "source": "root-fix-gates/diff-check-final.log",
+    "note": "final source server gate diff-check",
+    "bytes": 0,
+    "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzip_sha256": "f61f27bd17de546264aa58f40f3aafaac7021e0ef69c17f6b1b4cd7664a037ec"
+  }
+]

@@ -39,6 +39,14 @@ func WithoutSubscriptionAdmission(ctx context.Context) context.Context {
 	return context.WithValue(ctx, subscriptionAdmissionKey{}, false)
 }
 
+func HasSubscriptionAdmission(ctx context.Context) bool {
+	if ctx == nil {
+		return false
+	}
+	_, ok := ctx.Value(subscriptionAdmissionKey{}).(SubscriptionAdmission)
+	return ok
+}
+
 func WithSubscriptionAdmission(ctx context.Context, in SubscriptionAdmission, check SubscriptionWindowValidator) context.Context {
 	ctx = context.WithValue(ctx, subscriptionWindowValidatorKey{}, check)
 	return context.WithValue(ctx, subscriptionAdmissionKey{}, in)
@@ -109,6 +117,14 @@ func lockSubscriptionAdmission(ctx context.Context, tx *sql.Tx, h *Handle, accou
 func insertSubscriptionReceipt(ctx context.Context, tx *sql.Tx, r *SubscriptionReceipt, a *Attempt) error {
 	if r == nil {
 		return nil
+	}
+	// SELECT ... FOR UPDATE may evaluate expiry before waiting on an unchanged
+	// row. Check again after the subscription, entitlement and request locks are
+	// all held, immediately before the durable admission is inserted.
+	var admittedAt time.Time
+	if err := tx.QueryRowContext(ctx, `SELECT clock_timestamp()`).Scan(&admittedAt); err != nil ||
+		!admittedAt.Before(r.SubscriptionExpiresAt) || (r.EntitlementExpiresAt.Valid && !admittedAt.Before(r.EntitlementExpiresAt.Time)) {
+		return ErrUnavailable
 	}
 	r.AttemptNo, r.AttemptID = a.Number, a.ID
 	_, err := tx.ExecContext(ctx, `INSERT INTO gateway_subscription_receipts

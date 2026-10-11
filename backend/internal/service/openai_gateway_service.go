@@ -237,6 +237,18 @@ type OpenAIUsage struct {
 	CacheReadInputTokens          int `json:"cache_read_input_tokens,omitempty"`
 	CacheReadInputAudioTokens     int `json:"cache_read_input_audio_tokens,omitempty"`
 	ImageOutputTokens             int `json:"image_output_tokens,omitempty"`
+	// Observed HTTP output outside text admission. These are evidence only;
+	// existing media/search pricing continues to use its original billing fields.
+	UnpricedOutputUsage *OpenAIUnpricedOutputUsage `json:"unpriced_output_usage,omitempty"`
+}
+
+type OpenAIUnpricedOutputUsage struct {
+	InputAudioTokens         int      `json:"input_audio_tokens,omitempty"`
+	OutputAudioTokens        int      `json:"output_audio_tokens,omitempty"`
+	CacheReadAudioTokens     int      `json:"cache_read_audio_tokens,omitempty"`
+	CacheCreationAudioTokens int      `json:"cache_creation_audio_tokens,omitempty"`
+	SearchCalls              int      `json:"search_calls,omitempty"`
+	OutputTypes              []string `json:"output_types,omitempty"`
 }
 
 // OpenAIForwardResult represents the result of forwarding

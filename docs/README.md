@@ -109,6 +109,7 @@
 - [冻结计费目标绑定修复](./archive/completed-tasks/2026-10-11-frozen-billing-binding/README.md) — `review`，Prepare/Verify 的 NULL 与历史证明兼容；完整 PG 回归与本地全门禁通过，待 PR CI/主线程审查，未部署。
 - [订阅撤销中的在途结算](./archive/completed-tasks/2026-10-11-p1-subscription-inflight/README.md) — `review`，文本请求逐次准入、冻结价格与持久恢复的隔离验收；本批提交者维护，未部署。
 
+- [HTTP 文本路由证据后端记录](./archive/completed-tasks/2026-10-11-routing-evidence/README.md) — `in-progress`，限定 coverage、279兼容与真实HTTP/PG验证；维护责任为本任务提交者，UI与发布另行协调。
 - [交互登录响应归属修复](./archive/completed-tasks/2026-10-interactive-auth/README.md) — `in-progress`，真实 HTTP 登录竞态回归，独立草稿交付。
 - [原生自动续期与福利登录态同步](./archive/completed-tasks/2026-10-auth-refresh/README.md) — `in-progress`，隔离 HTTP、构建资源与 PG 回归；草稿交付，不代表部署。
 - [答题续期保留选择视觉记录](./visual-reviews/2026-10-11-auth-refresh.md) — `in-progress`，保留现有控件及样式，实际构建证据。

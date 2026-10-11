@@ -573,8 +573,17 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 		surcharge = ApplyBillingSurcharge(cost, frozen.Surcharge)
 	}
 	applyUsageLogBillingSurchargeSnapshot(usageLog, surcharge)
+	var subscriptionWriter subscriptionUsagePersister
+	if frozen != nil {
+		var ok bool
+		subscriptionWriter, ok = s.usageLogRepo.(subscriptionUsagePersister)
+		if !ok {
+			return requestledger.ErrUnavailable
+		}
+	}
 
 	_, billingErr := applyUsageBilling(ctx, requestID, usageLog, &postUsageBillingParams{
+		subscriptionUsageWriter:    subscriptionWriter,
 		Cost:                       cost,
 		User:                       user,
 		APIKey:                     apiKey,
@@ -588,6 +597,11 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 		SimpleModeKeyRateLimitOnly: simpleModeKeyRateLimitOnly,
 		Surcharge:                  surcharge,
 	}, s.billingDeps(), s.usageBillingRepo)
+	if frozen != nil {
+		// The durable observation owns pending visibility; Apply owns the settled
+		// projection. A legacy tail INSERT would race recovery after lease release.
+		return billingErr
+	}
 
 	if billingErr != nil {
 		if errors.Is(billingErr, ErrUsageBillingRequestConflict) && !simpleModeKeyRateLimitOnly && !IsImageStudioManagedBilling(ctx) {
@@ -616,7 +630,7 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 func (s *OpenAIGatewayService) hasIdentifiedOpenAIResponsePricing(ctx context.Context, model string, apiKey *APIKey) (bool, bool) {
 	model = strings.TrimSpace(model)
 	if frozen := frozenSubscriptionPricing(ctx); frozen != nil {
-		card, ok := frozen.Models[model]
+		card, ok := frozen.Models[subscriptionPricingModelKey(model)]
 		return ok && card.Identified, ok && card.ChannelPriced
 	}
 	if model == "" {

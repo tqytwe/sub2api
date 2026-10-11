@@ -44,6 +44,17 @@ type blockedInflightBilling struct {
 	entered, release chan struct{}
 }
 
+type gatedInflightBilling struct {
+	service.UsageBillingRepository
+	gate *admissionResponseGate
+}
+
+func (r gatedInflightBilling) Apply(ctx context.Context, cmd *service.UsageBillingCommand) (*service.UsageBillingApplyResult, error) {
+	r.gate.enterOnce.Do(func() { close(r.gate.entered) })
+	<-r.gate.release
+	return r.UsageBillingRepository.Apply(ctx, cmd)
+}
+
 func (r blockedInflightBilling) Apply(ctx context.Context, cmd *service.UsageBillingCommand) (*service.UsageBillingApplyResult, error) {
 	close(r.entered)
 	<-r.release
@@ -115,7 +126,8 @@ func runInflightBoundaries(t *testing.T, db *sql.DB, client *dbent.Client) {
 		})
 		t.Run(fmt.Sprintf("real_pg_revoke_before_apply_package_%t", packaged), func(t *testing.T) {
 			gate := newAdmissionResponseGate(t)
-			f := newAdmissionFixture(t, db, client, packaged, gate)
+			f := newAdmissionFixture(t, db, client, packaged)
+			f.billing.UsageBillingRepository = gatedInflightBilling{UsageBillingRepository: f.billing.UsageBillingRepository, gate: gate}
 			before := f.readCounters(t)
 			response := startAdmissionRequest(f)
 			awaitResponseGate(t, gate)
@@ -123,6 +135,9 @@ func runInflightBoundaries(t *testing.T, db *sql.DB, client *dbent.Client) {
 			require.NoError(t, f.subscriptions.RevokeSubscription(ctx, f.sub.ID))
 			gate.open()
 			applyPID := awaitPGBlockedBy(t, db, pid)
+			var waitingQuery string
+			require.NoError(t, db.QueryRow(`SELECT query FROM pg_stat_activity WHERE pid=$1`, applyPID).Scan(&waitingQuery))
+			require.Contains(t, waitingQuery, "SELECT deleted_at IS NOT NULL,status,expires_at", "waiter must be Apply after durable projection, not observation persistence")
 			require.NoError(t, tx.Commit())
 			r := receiveAdmissionResponse(t, response)
 			require.NoError(t, r.err)

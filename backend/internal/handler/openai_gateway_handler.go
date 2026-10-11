@@ -568,6 +568,9 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 	// Codex 在所有请求中被动声明 image_gen namespace，宽泛检测会导致禁了生图的
 	// 分组中所有 Codex 请求被 403（#4447），并误占生图并发槽位。
 	imageIntent := service.IsExplicitImageGenerationIntent("/v1/responses", reqModel, body)
+	if imageIntent {
+		requestledger.RoutingUnsupported(c.Request.Context())
+	}
 	if imageIntent && !service.GroupAllowsImageGeneration(apiKey.Group) {
 		h.errorResponse(c, http.StatusForbidden, "permission_error", service.ImageGenerationPermissionMessage())
 		return
@@ -769,6 +772,7 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 		)
 		account := selection.Account
 		if previousResponseID != "" && requestPlatform == service.PlatformOpenAI && !account.IsOpenAIApiKey() {
+			requestledger.RoutingVeto(c.Request.Context(), "admission", account.ID, "previous_response_http_incompatible")
 			// The public Responses HTTP API supports previous_response_id on API-key
 			// accounts. OAuth/SetupToken upstreams do not, so keep searching instead
 			// of silently deleting continuation state from a mixed account pool.
@@ -836,7 +840,7 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 			}()
 			return h.gatewayService.Forward(c.Request.Context(), c, account, attemptBody)
 		}()
-		observedOpenAIUsage := account.IsOpenAI() && result.HasObservedUsage()
+		observedOpenAIUsage := account.IsOpenAI() && (result.HasObservedUsage() || result.HasSubscriptionOutputEvidence(c.Request.Context()))
 		var cyberBlockBodyHTTP []byte
 		if service.GetOpsCyberPolicy(c) != nil {
 			cyberBlockBodyHTTP = sessionHashBody
@@ -856,7 +860,7 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 		// One attempt owns one submission; unmetered errors never imply usage.
 		usageSubmitted := false
 		submitResponsesUsage := func(res *service.OpenAIForwardResult) {
-			if usageSubmitted || res == nil || (account.IsOpenAI() && err != nil && !res.HasObservedUsage()) {
+			if usageSubmitted || res == nil || (account.IsOpenAI() && err != nil && !res.HasObservedUsage() && !res.HasSubscriptionOutputEvidence(c.Request.Context())) {
 				return
 			}
 			usageSubmitted = true
@@ -2256,6 +2260,7 @@ func (h *OpenAIGatewayHandler) acquireOpenAIAccountSlot(
 		}
 	}
 	if selection == nil || selection.Account == nil {
+		requestledger.RoutingVeto(c.Request.Context(), "admission", 0, "selection_missing")
 		markOpsRoutingCapacityLimited(c)
 		writeError(http.StatusServiceUnavailable, "api_error", "", "No available accounts")
 		return nil, openAISlotAcquireFailed
@@ -2286,6 +2291,7 @@ func (h *OpenAIGatewayHandler) acquireOpenAIAccountSlot(
 		return wrapReleaseOnDone(ctx, selection.ReleaseFunc), openAISlotAcquireOK
 	}
 	if selection.WaitPlan == nil {
+		requestledger.RoutingVeto(ctx, "admission", account.ID, "wait_plan_missing")
 		markOpsRoutingCapacityLimited(c)
 		writeError(http.StatusServiceUnavailable, "api_error", "", "No available accounts")
 		return nil, openAISlotAcquireFailed
@@ -2297,6 +2303,7 @@ func (h *OpenAIGatewayHandler) acquireOpenAIAccountSlot(
 		selection.WaitPlan.MaxConcurrency,
 	)
 	if err != nil {
+		requestledger.RoutingVeto(ctx, "admission", account.ID, "acquire_failed")
 		reqLog.Warn("openai.account_slot_quick_acquire_failed", zap.Int64("account_id", account.ID), zap.Error(err))
 		status, errType, code, message := concurrencyErrorResponse(err, "account")
 		writeError(status, errType, code, message)
@@ -2321,10 +2328,13 @@ func (h *OpenAIGatewayHandler) acquireOpenAIAccountSlot(
 		return wrapReleaseOnDone(ctx, fastReleaseFunc), openAISlotAcquireOK
 	}
 
+	requestledger.RoutingVeto(ctx, "admission", account.ID, "acquire_busy")
 	canWait, waitErr := h.concurrencyHelper.IncrementAccountWaitCount(ctx, account.ID, selection.WaitPlan.MaxWaiting)
 	if waitErr != nil {
+		requestledger.RoutingObservation(ctx, "admission", account.ID, "wait_counter_failed")
 		reqLog.Warn("openai.account_wait_counter_increment_failed", zap.Int64("account_id", account.ID), zap.Error(waitErr))
 	} else if !canWait {
+		requestledger.RoutingVeto(ctx, "admission", account.ID, "wait_queue_full")
 		reqLog.Info("openai.account_wait_queue_full",
 			zap.Int64("account_id", account.ID),
 			zap.Int("max_waiting", selection.WaitPlan.MaxWaiting),
@@ -2351,6 +2361,7 @@ func (h *OpenAIGatewayHandler) acquireOpenAIAccountSlot(
 		streamStarted,
 	)
 	if err != nil {
+		requestledger.RoutingVeto(ctx, "admission", account.ID, "wait_failed")
 		reqLog.Warn("openai.account_slot_acquire_failed", zap.Int64("account_id", account.ID), zap.Error(err))
 		status, errType, code, message := concurrencyErrorResponse(err, "account")
 		writeError(status, errType, code, message)
