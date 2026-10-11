@@ -63,12 +63,12 @@ beforeEach(() => {
   pending = undefined; pendingRead = undefined; holdRead = false; submitted = false; profileFails = false; gets = 0; posts = 0; renewals = 0; profiles = 0
   pinia = createPinia(); setActivePinia(pinia); auth = useAuthStore()
 })
-afterEach(async () => { wrapper?.unmount(); wrapper = undefined; await auth.logout(); server.closeAllConnections() })
+afterEach(async () => { wrapper?.unmount(); wrapper = undefined; await auth.logout(); auth.$dispose(); server.closeAllConnections() })
 afterAll(async () => {
   Object.assign(apiClient.defaults, original); Object.assign(axios.defaults, rawOriginal)
   await new Promise<void>(resolve => server.close(() => resolve())); vi.unstubAllGlobals()
 })
-async function start(renew = false) {
+async function start(renew = false, submit = true) {
   localStorage.setItem('auth_token', 'fixture-initial'); localStorage.setItem('auth_user', JSON.stringify(user()))
   if (renew) {
     localStorage.setItem('refresh_token', 'fixture-refresh')
@@ -80,7 +80,9 @@ async function start(renew = false) {
     PublicPlayBackLink: true, SupportFloatingCard: true, RouterLink: { template: '<a><slot /></a>' },
   } } })
   await vi.waitFor(() => expect(wrapper!.find('input').exists()).toBe(true))
-  await wrapper.get('input').setValue(); await wrapper.get('button.play-btn-primary').trigger('click')
+  await wrapper.get('input').setValue()
+  if (!submit) return
+  await wrapper.get('button.play-btn-primary').trigger('click')
   await vi.waitFor(() => expect(pending).toBeDefined())
 }
 function commit() {
@@ -88,13 +90,25 @@ function commit() {
   reply(pending!, { score: 1, total: 1, reward_amount: .1, reward_type: 'balance' })
 }
 describe('quiz session ownership through real Pinia and HTTP', () => {
-  it.each(['submit', 'result-read'] as const)('reconciles pending %s after automatic token renewal and session restoration', async stage => {
+  it('preserves selected answers during native renewal before submission', async () => {
+    await start(true, false)
+    expect((wrapper!.get('input').element as HTMLInputElement).checked).toBe(true)
+    await vi.waitFor(() => expect(auth.token).toBe('fixture-renewed'), { timeout: 2500 })
+    await new Promise(resolve => setTimeout(resolve, 80))
+    expect((wrapper!.get('input').element as HTMLInputElement).checked).toBe(true)
+    expect(gets).toBe(1); expect(posts).toBe(0); expect(renewals).toBe(1)
+  })
+  it('clears selected answers when entering a different account before submission', async () => {
+    await start(false, false)
+    await auth.setToken('fixture-other')
+    await vi.waitFor(() => expect(auth.user?.id).toBe(2))
+    await vi.waitFor(() => expect(wrapper!.findAll('input:checked')).toHaveLength(0))
+    expect(posts).toBe(0)
+  })
+  it.each(['submit', 'result-read'] as const)('reconciles pending %s after native automatic token renewal', async stage => {
     await start(true)
     if (stage === 'result-read') { holdRead = true; commit(); await vi.waitFor(() => expect(pendingRead).toBeDefined()) }
     await vi.waitFor(() => expect(localStorage.getItem('auth_token')).toBe('fixture-renewed'), { timeout: 2500 })
-    // The shared store currently persists a rotation before its state guard. Restore
-    // through its public lifecycle, without mocking token refresh or assigning state.
-    auth.checkAuth()
     await vi.waitFor(() => expect(auth.token).toBe('fixture-renewed'))
     await new Promise(resolve => setTimeout(resolve, 80))
     expect(renewals).toBe(1)

@@ -163,5 +163,164 @@
   },
   "validated_at": "2026-10-11T08:48:06.061705+00:00",
   "technical_commit": "0702e5bf41018a1aef8b8f9ff4fcb931ddfc4160",
-  "ci": "pending independent draft PR creation; push/PR once after all local gates"
+  "ci": {
+    "original_head": "8665a7af963e4b2ff4d7537cdb1e9c19e3b38580",
+    "result": "9/9 checks passed; superseded for release because parent identified queued DDL risk",
+    "pr": "https://github.com/tqytwe/sub2api/pull/359",
+    "new_head": "pending explicit root-requested lock revision and new CI"
+  },
+  "migration_lock_revision": {
+    "state": "all local gates and independent incremental/combination reviews passed; new head CI pending push",
+    "runtime_changes": false,
+    "migration": "279_gateway_routing_evidence.sql",
+    "raw_file_sha256": "48abb66e1d91478513d87973e750d802a330cf15cde4fd9764b3866d2ea96fd4",
+    "runner_trimmed_sha256": "4db70ab30cae713b86f653010ee4f5c0ffe3fcddf1ba151a4bbe15b078dac715",
+    "policy": {
+      "parent_lock": "ACCESS EXCLUSIVE NOWAIT before any schema mutation",
+      "secondary_lock_timeout": "50ms",
+      "statement_timeout": "500ms",
+      "retry": "fail entire migration transaction, retain old application traffic, retry deployment after contention clears",
+      "rollback": "preserve additive columns/table after a successful migration; no historical deletion or backfill",
+      "limitation": "NOWAIT prevents parent lock queuing; actual held DDL/commit/storage IO and cancellation are not a zero-blocking or hard realtime guarantee"
+    },
+    "red": {
+      "reader_seconds": 5.01533609,
+      "writer_seconds": 5.015810604,
+      "legacy_begin_finish": "both cancelled at their original 3-second deadline in both blocker modes",
+      "slow_ddl_seconds": 2.031238644,
+      "slow_ddl_result": "incorrectly succeeded"
+    },
+    "green": {
+      "reader_seconds": 0.016807009,
+      "writer_seconds": 0.014991668,
+      "legacy_begin_finish": "both succeeded",
+      "slow_ddl_seconds": 0.526571066,
+      "slow_ddl_sqlstate": "57014",
+      "contention_sqlstate": "55P03",
+      "checks": [
+        "real migration runner",
+        "no partial columns or child table",
+        "no schema_migrations row on failure",
+        "retry and correct registered checksum",
+        "preserved historical row",
+        "new and legacy writer compatibility"
+      ]
+    },
+    "reviews": {
+      "specification": "passed; independent incremental review, no P1/P2",
+      "quality": "passed; independent incremental review after specification, no P1/P2",
+      "combination_specification": "passed; independently verified frontend and non-routing handoff preservation",
+      "combination_quality": "passed after combination specification; no P1/P2"
+    },
+    "gates": [
+      {
+        "gate": "migration_race",
+        "exit_code": 0,
+        "elapsed_seconds": 68.053,
+        "log": "/tmp/routing-nowait-migration_race.log"
+      },
+      {
+        "gate": "ledger_service_retry",
+        "exit_code": 0,
+        "elapsed_seconds": 154.322,
+        "log": "/tmp/routing-nowait-ledger_service_retry.log"
+      },
+      {
+        "gate": "core",
+        "exit_code": 0,
+        "elapsed_seconds": 41.745,
+        "log": "/tmp/routing-nowait-core.log"
+      },
+      {
+        "gate": "test",
+        "exit_code": 0,
+        "elapsed_seconds": 595.871,
+        "log": "/tmp/routing-nowait-test.log"
+      },
+      {
+        "gate": "unit",
+        "exit_code": 0,
+        "elapsed_seconds": 344.142,
+        "log": "/tmp/routing-nowait-unit.log"
+      },
+      {
+        "gate": "build",
+        "exit_code": 0,
+        "elapsed_seconds": 81.833,
+        "log": "/tmp/routing-nowait-build.log"
+      },
+      {
+        "gate": "embed",
+        "exit_code": 0,
+        "elapsed_seconds": 149.915,
+        "log": "/tmp/routing-nowait-embed.log"
+      },
+      {
+        "gate": "fork",
+        "exit_code": 0,
+        "elapsed_seconds": 131.869,
+        "log": "/tmp/routing-nowait-fork.log"
+      },
+      {
+        "gate": "docs",
+        "exit_code": 0,
+        "elapsed_seconds": 0.051,
+        "log": "/tmp/routing-nowait-docs.log"
+      }
+    ],
+    "deployment": "not performed; root owns merge/deploy",
+    "production_precheck": "Root supplied 10933 rows / 9.35MiB and no long lock transaction; not independently accessed and not a future contention guarantee",
+    "base_sha": "1b701237ec3ceb869c39d28ad11d32e4065a2471",
+    "merge": {
+      "method": "ordinary no-ff merge, no rebase/force",
+      "previous_head": "8665a7af963e4b2ff4d7537cdb1e9c19e3b38580",
+      "main_parent": "1b701237ec3ceb869c39d28ad11d32e4065a2471",
+      "frontend": "byte-identical to new main",
+      "conflict": "docs/README.md adjacent insertions, all three entries retained",
+      "handoff": "entire JSON except routing feature equals new main"
+    },
+    "ledger_contract": {
+      "required_passed": 66,
+      "required_total": 66,
+      "missing": [],
+      "failed": [],
+      "source_evidence": "All first-run packages except failed service; complete affected service rerun after disk recovery. Source identical for retained backend packages after frontend-only #358 merge. Original failing log retained."
+    },
+    "core_contract": {
+      "required_passed": 54,
+      "required_total": 54,
+      "test_subtest_passed": 203,
+      "failed_skipped": [],
+      "missing": []
+    },
+    "environment_retry": {
+      "failure": "PostgreSQL fixture initdb: No space left on device; 99% filesystem; full service contract failed",
+      "affected_tests": [
+        "TestRequestLedgerModelsCacheRefreshKeepsDurableChild",
+        "TestRequestLedgerModelsCacheStorageFailureNeverSends",
+        "TestRequestLedgerRealWebsocket1013AndEOFWithoutUsage"
+      ],
+      "resolution": "Removed 3160370724 bytes of regenerable old Go cache; subsequently removed only explicitly observed disposable ledger fixture volumes after their containers exited; unknown pre-existing volumes untouched",
+      "retry": "Full affected service contract passed in 154.322s; all other already-passing backend package inputs unchanged by frontend-only main merge; original failed run retained",
+      "checks_interrupted": false
+    },
+    "frontend": {
+      "files_passed": 500,
+      "files_skipped": 3,
+      "tests_passed": 3644,
+      "tests_skipped": 8,
+      "duration_seconds": 145.29
+    },
+    "backend_lint_issues": 0,
+    "docs_and_handoff": {
+      "handoff_tests_passed": 8,
+      "local_links": "pass",
+      "source_manifest_files": 26,
+      "diff_check": "pass"
+    },
+    "validated_at": "2026-10-11T09:55:04.350605+00:00",
+    "technical_commit": null
+  },
+  "gates_scope": "Original 0702 implementation; current migration279 + #358 revision results are separately recorded below.",
+  "current_validation": "migration_lock_revision"
 }

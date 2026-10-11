@@ -114,7 +114,7 @@ func TestLedgerPostgresRoutingMigrationOldWriterAndLock(t *testing.T) {
 	require.NoError(t, err)
 	start := time.Now()
 	_, err = tx.Exec(string(migration))
-	require.Less(t, time.Since(start), 6*time.Second)
+	require.Less(t, time.Since(start), 500*time.Millisecond)
 	var pgErr *pq.Error
 	require.ErrorAs(t, err, &pgErr)
 	require.Equal(t, pq.ErrorCode("55P03"), pgErr.Code)

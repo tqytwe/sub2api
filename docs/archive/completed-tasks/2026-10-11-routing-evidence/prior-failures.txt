@@ -40,3 +40,18 @@ The command is terminated due to an error: parallel golangci-lint is running
 routing-make-test-pass.log
 make[1]: *** [Makefile:16: test] Killed
 cgroup memory.events: oom_kill 1 (16 GiB limit); no manual signal sent.
+
+2026-10-11 migration279 release-lock RED (root explicitly required new head):
+- Existing 8665a7af CI: 9/9 pass, but not releasable after lock-risk discovery.
+- Real PostgreSQL reader: migration 5.01533609s; legacy Begin and Finish cancelled at 3s.
+- Real PostgreSQL writer: migration 5.015810604s; legacy Begin and Finish cancelled at 3s.
+- Slow CREATE after both ALTER columns: 2.031238644s, migration wrongly succeeded.
+- Tests used actual applyMigrationsFS, disposable loopback databases; no production access.
+
+2026-10-11 migration279 full ledger retry environment failure:
+- A full contract run failed in service fixtures because PostgreSQL initdb exited before readiness.
+- Isolated diagnostic container reproduced FATAL could not create directory base/5: No space left on device.
+- Workspace filesystem reached 99%; Docker contained 248 inactive anonymous volumes, left untouched because ownership was not established.
+- Removed only 3,160,370,724 bytes of old regenerable Go cache outputs and this task's named diagnostic container/volume; free space recovered to ~3.1GiB.
+- No repository source/history or unknown Docker volumes deleted; no running check terminated.
+- Preserve failing run; rerun the full affected service contract, with already passing unchanged backend packages retained as exact-source evidence.

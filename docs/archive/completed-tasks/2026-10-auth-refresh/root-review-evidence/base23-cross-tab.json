@@ -1,0 +1,121 @@
+{
+  "index_sha256": "579bc72b3b0776d623d1a4b66654d55b09ac1d5fa680f70a5327e2368935eb8e",
+  "reports": [
+    {
+      "case": "reading",
+      "initial": {
+        "user": 1,
+        "token": "fixture-1-access-login-1",
+        "storedUser": 1,
+        "storedToken": "fixture-1-access-login-1"
+      },
+      "selected": 2,
+      "after": {
+        "user": 1,
+        "token": "fixture-1-access-login-1",
+        "storedUser": 1,
+        "storedToken": "fixture-1-access-renewed-1"
+      },
+      "quiz_reads": 1,
+      "safe": true,
+      "profiles": [
+        1
+      ]
+    },
+    {
+      "case": "account",
+      "initial": {
+        "user": 1,
+        "token": "fixture-1-access-login-1",
+        "storedUser": 1,
+        "storedToken": "fixture-1-access-login-1"
+      },
+      "immediate": {
+        "user": 1,
+        "token": "fixture-1-access-login-1",
+        "storedUser": 2,
+        "storedToken": "fixture-2-access-login-2"
+      },
+      "after_timer": {
+        "user": 2,
+        "token": "fixture-1-access-login-1",
+        "storedUser": 2,
+        "storedToken": "fixture-2-access-login-2"
+      },
+      "before_new_request": {
+        "user": 2,
+        "token": "fixture-1-access-login-1",
+        "storedUser": 2,
+        "storedToken": "fixture-2-access-login-2"
+      },
+      "posts": [
+        {
+          "owner": 2,
+          "key": "blindbox-cc362230-5f0e-4f06-86ae-3edcb08aa508"
+        }
+      ],
+      "safe": true,
+      "profiles": [
+        1,
+        1,
+        2,
+        2,
+        2
+      ]
+    },
+    {
+      "case": "logout",
+      "initial": {
+        "user": 1,
+        "token": "fixture-1-access-login-1",
+        "storedUser": 1,
+        "storedToken": "fixture-1-access-login-1"
+      },
+      "immediate": {
+        "user": 1,
+        "token": "fixture-1-access-login-1",
+        "storedUser": null,
+        "storedToken": null
+      },
+      "before_new_request": {
+        "user": 1,
+        "token": "fixture-1-access-login-1",
+        "storedUser": null,
+        "storedToken": null
+      },
+      "posts": [
+        {
+          "owner": null,
+          "key": "blindbox-fa1bb815-0a39-48fa-a4af-4f2354046d7e"
+        }
+      ],
+      "safe": false,
+      "profiles": [
+        1,
+        1
+      ]
+    },
+    {
+      "case": "relogin",
+      "initial": {
+        "user": 1,
+        "token": "fixture-1-access-login-1",
+        "storedUser": 1,
+        "storedToken": "fixture-1-access-login-1"
+      },
+      "immediate": {
+        "user": 1,
+        "token": "fixture-1-access-login-1",
+        "storedUser": 1,
+        "storedToken": "fixture-1-access-login-2"
+      },
+      "old_result_visible": true,
+      "safe": false,
+      "profiles": [
+        1,
+        1,
+        1
+      ]
+    }
+  ]
+}

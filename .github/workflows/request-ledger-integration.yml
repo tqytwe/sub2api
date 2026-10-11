@@ -50,6 +50,8 @@ jobs:
           import json, os
           from pathlib import Path
           required = {
+              "TestRequestLedgerRoutingMigrationBusyKeepsAdmission",
+              "TestRequestLedgerRoutingMigrationExecutionTimeoutRollsBack",
               "TestLedgerPostgresRoutingKilledProcessIsIncomplete",
               "TestLedgerPostgresRoutingMigrationOldWriterAndLock",
               "TestLedgerPostgresRoutingStatesBoundsAndLoss",
