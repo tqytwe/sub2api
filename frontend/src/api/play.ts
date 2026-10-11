@@ -253,6 +253,7 @@ export interface PlayBlindboxPoolResponse {
   coupon_pool_ready?: boolean
   coupon_prizes?: PlayCouponPrizePreview[]
   coupon_weight_bp?: number
+  redeem_code_weight_bp?: number
   balance_weight_bp?: number
   pool?: PlayBlindboxPool
   current_pool?: PlayBlindboxPool

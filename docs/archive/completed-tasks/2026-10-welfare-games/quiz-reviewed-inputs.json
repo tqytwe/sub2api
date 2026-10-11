@@ -1,0 +1,7 @@
+{
+  "frontend/src/views/public/QuizQuestView.vue": "e6b3094759a261ba087429219f5781e9d6b39c657c2cd44d73398eac9072b3ad",
+  "frontend/src/views/public/__tests__/QuizQuestView.http.spec.ts": "929f414ded73be1539151d86efbd94787fbebc722bd949d09b450e47b52d0c3f",
+  "frontend/src/views/public/__tests__/QuizQuestView.pg.spec.ts": "e30924d505050ec2cc57118da71c2207c5d1a036870c002a7575f648b4f4a3a2",
+  "backend/internal/repository/play_welfare_http_integration_test.go": "5a8ad2579e7e53adaac187a58f2190ef65b1b05db0bc745abba34242e624a117",
+  "frontend/src/views/public/__tests__/QuizQuestView.session.http.spec.ts": "101dd2ff8280552b2eeec78db72d742e656cf11947075dbab03fd08734ae74b5"
+}

@@ -1,0 +1,10 @@
+{
+  "reports": [
+    {
+      "case": "redeem-shown-as-zero-cash",
+      "posts": 1,
+      "prototype": "DOM preview only"
+    }
+  ],
+  "index_sha256": "418551c4db978ef1040c8714e8b533bb13c3450e0eba0fa0c4d1bd28a0ca9ffb"
+}

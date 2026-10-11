@@ -117,6 +117,7 @@ jobs:
           cache-dependency-path: frontend/pnpm-lock.yaml
       - run: pnpm --dir frontend install --frozen-lockfile
       - run: ./scripts/test-checkin-contract.sh
+      - run: ./scripts/test-welfare-contract.sh
 
   documentation:
     name: Documentation
