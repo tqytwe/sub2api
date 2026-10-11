@@ -1,4 +1,5 @@
 import { apiClient } from './client'
+import { parseRoutingEvidence } from './requestRouting'
 
 export interface RequestRecord {
   id: string
@@ -70,6 +71,10 @@ export interface RequestPage { items: RequestRecord[]; total: number; page: numb
 export type RequestFilters = Record<string, string | number | undefined>
 const endpoint = (admin: boolean) => admin ? '/admin/requests' : '/requests'
 export const requestLedgerAPI = {
+  async routing(id: string, signal?: AbortSignal) {
+    const { data } = await apiClient.get<unknown>(`/admin/requests/${encodeURIComponent(id)}/routing`, { signal })
+    return parseRoutingEvidence(data, id)
+  },
   async usage(admin: boolean, id: string, usageID: number, signal?: AbortSignal) {
     return (await apiClient.get<LinkedUsage>(`${endpoint(admin)}/${encodeURIComponent(id)}/usage/${usageID}`, { signal })).data
   },
