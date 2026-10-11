@@ -1,11 +1,13 @@
 // Regression for late /auth/me responses: real Pinia store + Axios + HTTP.
 import { createServer, type Server, type ServerResponse } from 'node:http'
+import axios from 'axios'
 import { enableAutoUnmount, mount } from '@vue/test-utils'
 import { afterAll, afterEach, beforeAll, beforeEach, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { createI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import apiClient from '@/api/client'
+import { refreshAuthTokens } from '@/api/tokenRefresh'
 import CheckInView from '@/views/user/CheckInView.vue'
 import zh from '@/i18n/locales/zh'
 
@@ -26,11 +28,13 @@ let statusResponse: (res: ServerResponse) => void
 let postResponse: (res: ServerResponse) => void
 let statusGets = 0
 let posts = 0
+let renewals = 0
 let checkedIn = false
 let canMakeup = true
 const statusData = () => ({ enabled: true, checked_in_today: checkedIn, can_makeup: canMakeup,
   redeemable_reward_eligible: true, makeup_date: '2026-10-09', server_date: '2026-10-10' })
 const original = { baseURL: apiClient.defaults.baseURL, adapter: apiClient.defaults.adapter }
+const rawOriginal = { baseURL: axios.defaults.baseURL, adapter: axios.defaults.adapter }
 const json = (res: ServerResponse, code: number, data: unknown) => {
   res.writeHead(code, { 'Content-Type': 'application/json', Connection: 'close' })
   res.end(JSON.stringify({ code: code === 200 ? 0 : code, data }))
@@ -41,7 +45,10 @@ const mountView = () => mount(CheckInView, {
 })
 beforeAll(async () => {
   server = createServer((req, res) => {
-    if (req.method === 'POST') { posts++; postResponse(res) }
+    if (req.url === '/api/v1/auth/refresh') {
+      renewals++
+      json(res, 200, { access_token: 'renewed-fixture-only', refresh_token: 'renewed-fixture-refresh', expires_in: 3600, token_type: 'Bearer' })
+    } else if (req.method === 'POST') { posts++; postResponse(res) }
     else if (req.url?.startsWith('/api/v1/auth/me')) profileResponse(res)
     else { statusGets++; statusResponse(res) }
   })
@@ -50,6 +57,7 @@ beforeAll(async () => {
   if (!address || typeof address === 'string') throw new Error('Missing test server address')
   apiClient.defaults.baseURL = `http://127.0.0.1:${address.port}/api/v1`
   apiClient.defaults.adapter = 'http'
+  Object.assign(axios.defaults, { baseURL: `http://127.0.0.1:${address.port}`, adapter: 'http' })
 })
 beforeEach(async () => {
   balance = 1
@@ -61,12 +69,16 @@ beforeEach(async () => {
   canMakeup = true
   statusGets = 0
   posts = 0
+  renewals = 0
   showSuccess.mockClear()
-  auth.token = 'fixture-only'
-  await auth.refreshUser()
+  localStorage.setItem('refresh_token', 'fixture-only-refresh')
+  localStorage.setItem('token_expires_at', String(Date.now() + 3600000))
+  await auth.setToken('fixture-only')
 })
 afterAll(async () => {
+  auth.$dispose()
   Object.assign(apiClient.defaults, original)
+  Object.assign(axios.defaults, rawOriginal)
   server.closeAllConnections()
   await new Promise<void>(resolve => server.close(() => resolve()))
   vi.unstubAllGlobals()
@@ -97,8 +109,7 @@ it('discards a profile from the previous account and reads the new account', asy
   id = 2
   balance = 3
   profileResponse = success
-  auth.token = 'second-fixture-only'
-  await auth.refreshUser()
+  await auth.setToken('second-fixture-only')
   json(pending!, 200, { id: 1, balance: 1 })
   await vi.waitFor(() => expect(wrapper.get('.gw-balance-value').text()).toBe('$3.00'))
   expect(auth.user?.id).toBe(2)
@@ -126,7 +137,8 @@ it.each(['checkin', 'makeup'])('refreshes after %s even when token renewal start
   await vi.waitFor(() => expect(pendingPost).toBeDefined())
   const oldStatus = statusData()
   statusResponse = res => { pendingStatus = res }
-  auth.token = 'renewed-fixture-only'
+  await refreshAuthTokens()
+  expect(auth.token).toBe('renewed-fixture-only')
   await vi.waitFor(() => expect(pendingStatus).toBeDefined())
   checkedIn = action === 'checkin'
   canMakeup = false
@@ -140,4 +152,5 @@ it.each(['checkin', 'makeup'])('refreshes after %s even when token renewal start
   await vi.waitFor(() => expect(wrapper.findAll('button.gw-btn-primary')).toHaveLength(1))
   if (action === 'checkin') expect(wrapper.get('button.w-full').attributes('disabled')).toBeDefined()
   expect(posts).toBe(1)
+  expect(renewals).toBe(1)
 })

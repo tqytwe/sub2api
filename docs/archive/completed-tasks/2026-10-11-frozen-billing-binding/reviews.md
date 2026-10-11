@@ -34,3 +34,12 @@
 | `subscription_binding_reproduction_integration_test.go` | `714ca552ff0741266750e56fbe847904f4d9ee80ec064f433d77edf92f8a8296` |
 
 双审通过不替代完整 tests/build/integration/Fork/tagged lint/PR CI；最终状态见 [README](./README.md) 与 [定向运行清单](./targeted-evidence.json)。合并、部署及生产验收归主线程处理。
+
+
+## 3. 与 1b701237 组合后的顺序复审
+
+规格代理先 PASS，质量代理随后 PASS，无新增 P1/P2。受审父提交为63c0c31f与1b701237，工作树的后端4077、CI18、scripts13文件与63c完全一致；前端1298文件及handoff、#358归档/视觉证据与1b完全一致。仅 README/FORK 两个共享文档组合双方内容，无源码冲突或其他草稿。
+
+质量复核核对8项源码哈希及32项原日志哈希匹配，明确复用旧后端证据，不冒称组合 head 重跑。两位审查者仅只读核验，没有另行启动数据库或测试。之后新增的本小节、组合说明与日志清单只记录父提交、来源一致性和实际运行结果；生产及测试源码未改。
+
+组合后的完整测试、完整构建、Fork、文档与diff五项门禁实际重跑通过，见 [组合门禁](./merge-1b701237/gate-evidence.json)。最终 PR CI 仍须核对新的 merge head，不能用旧 head 的结果替代。

@@ -1,0 +1,40 @@
+{
+  "index_sha256": "bd29ac3697c23f3568ed2b2a0486e5bc4a8c8f6526488e48a5d0e5445f29e0c4",
+  "reports": [
+    {
+      "case": "pending-account-no-event",
+      "initial": {
+        "user": 1,
+        "token": "fixture-1-access-login-1",
+        "storedUser": 1,
+        "storedToken": "fixture-1-access-login-1"
+      },
+      "width": 1280,
+      "theme": "light",
+      "language": "zh",
+      "pending_key_before": "blindbox-15de73f6-b32d-4750-8cf8-52efc0a78e0a",
+      "immediate": {
+        "user": 1,
+        "token": "fixture-1-access-login-1",
+        "storedUser": 2,
+        "storedToken": "fixture-2-access-login-2"
+      },
+      "old_result_visible": false,
+      "pending_key_after": null,
+      "posts": [
+        {
+          "owner": 1,
+          "key": "blindbox-15de73f6-b32d-4750-8cf8-52efc0a78e0a"
+        }
+      ],
+      "safe": false,
+      "profiles": [
+        1,
+        1,
+        2
+      ],
+      "js_errors": [],
+      "overflow": false
+    }
+  ]
+}

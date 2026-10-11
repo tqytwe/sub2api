@@ -1,0 +1,35 @@
+
+ RUN  v2.1.9 /tmp/auth-rootfix-quality/e4
+
+ ❯ probe.spec.ts (2 tests | 2 failed) 235ms
+   × quality narrow login boundary > quality: late interactive login failure must preserve a newer account (401) 151ms
+     → expected undefined to be 2 // Object.is equality
+   × quality narrow login boundary > quality: late interactive login failure must preserve a newer account (503) 69ms
+     → expected undefined to be 2 // Object.is equality
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  probe.spec.ts > quality narrow login boundary > quality: late interactive login failure must preserve a newer account (401)
+ FAIL  probe.spec.ts > quality narrow login boundary > quality: late interactive login failure must preserve a newer account (503)
+AssertionError: expected undefined to be 2 // Object.is equality
+
+- Expected:
+2
+
++ Received:
+undefined
+
+ ❯ probe.spec.ts:117:27
+    115|     reply(heldLogin!, {}, status)
+    116|     await old
+    117|     expect(auth.user?.id).toBe(2)
+       |                           ^
+    118|     expect(auth.token).toBe(access)
+    119|     expect(localStorage.getItem('auth_session_id')).toBe(marker)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ Test Files  1 failed (1)
+      Tests  2 failed (2)
+   Start at  08:40:45
+   Duration  2.27s (transform 788ms, setup 178ms, collect 1.02s, tests 235ms, environment 504ms, prepare 90ms)

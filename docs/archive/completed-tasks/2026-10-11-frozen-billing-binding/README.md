@@ -48,3 +48,14 @@
 台账两项跳过为子进程专用 fixture 与可选浏览器 fixture；实际父进程 kill/recovery 等48项必需场景已执行。没有把跳过项写成通过。
 
 当前限定修复的本地代码与回归已验证，等待草稿 PR 对应 head 的完整 CI 及主线程审查。共享 handoff/Ops/迁移账本按并行约定由主线程关联本 PR/SHA，不在本分支修改。未合并、未部署，未访问生产或执行付费生成；本记录不代表用户本机三身份或生产对账验收完成。
+
+
+## 合入主线 1b701237 后的组合验证
+
+主线程将 #358 普通合入 `play/main`，新主线为 `1b701237ec3ceb869c39d28ad11d32e4065a2471`，父提交 `05b44bec`。本分支从已推送的 `63c0c31f12ab423f848216420c67948dfd122736` 普通合入该主线；未 rebase、未强推、未引入其他草稿。唯一冲突为 docs 索引，保留双方条目；Fork 登记保留双方定制。
+
+组合规格与质量顺序复审均 PASS。后端/CI/scripts 与63c逐字节相同，前端/handoff/#358证据与1b逐字节相同；详见 [合并证明](./merge-1b701237/merge-proof.json)。共享 handoff 仅继承主线内容，本任务没有覆盖主线程状态。
+
+组合工作树重新执行 `make test`、`make build`、Fork、docs links、diff check，五项全部通过；前端500文件/3644项通过，既有3文件/8项跳过。[组合门禁清单](./merge-1b701237/gate-evidence.json) 保留本轮时间及原始日志哈希。
+
+36/4/42套 PG/race、unit tags、445项台账集成与 tagged lint 复用上文相同后端源码的精确证据，不将其写成新合并 head 重跑。最终 merge SHA 和该 head 的 CI 结果以 PR #361 的 head/checks 为准；新主线到来前的旧 head 检查不替代组合后的 CI。未合并本 PR、未部署。

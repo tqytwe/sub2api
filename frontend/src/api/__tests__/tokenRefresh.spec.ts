@@ -69,11 +69,11 @@ describe('refreshAuthTokens', () => {
 
   it('adopts tokens refreshed by another tab after acquiring the Web Lock', async () => {
     seedSession()
-    const request = vi.fn(async (_name: string, callback: () => Promise<unknown>) => {
+    const request = vi.fn(async (_name: string, _options: unknown, callback: (lock: object) => Promise<unknown>) => {
       localStorage.setItem('auth_token', 'peer-access')
       localStorage.setItem('token_expires_at', String(Date.now() + 3600_000))
       localStorage.setItem('refresh_token', 'peer-refresh')
-      return callback()
+      return callback({ name: _name })
     })
     Object.defineProperty(navigator, 'locks', {
       configurable: true,
@@ -95,7 +95,7 @@ describe('refreshAuthTokens', () => {
     vi.useFakeTimers()
     seedSession({ token_expires_at: String(Date.now() + 120_001) })
     mockedPost.mockResolvedValueOnce(refreshedResponse())
-    const request = vi.fn(async (_name: string, callback: () => Promise<unknown>) => callback())
+    const request = vi.fn(async (_name: string, _options: unknown, callback: (lock: object) => Promise<unknown>) => callback({ name: _name }))
     Object.defineProperty(navigator, 'locks', {
       configurable: true,
       value: { request }

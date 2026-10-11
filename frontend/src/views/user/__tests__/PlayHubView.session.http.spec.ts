@@ -3,7 +3,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import axios from 'axios'
 import { enableAutoUnmount, mount } from '@vue/test-utils'
 import { afterAll, afterEach, beforeAll, beforeEach, expect, it, vi } from 'vitest'
-import { createPinia, setActivePinia } from 'pinia'
+import { createPinia, disposePinia, setActivePinia } from 'pinia'
 import { createI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import apiClient from '@/api/client'
@@ -90,6 +90,7 @@ beforeEach(async () => {
 })
 afterEach(async () => {
   await auth.logout()
+  disposePinia(pinia)
   server.closeAllConnections()
 })
 afterAll(async () => {
@@ -177,8 +178,6 @@ it('recovers when the store adopts a token rotated by its real automatic refresh
   await vi.waitFor(() => expect(waiting('fixture-a')).toHaveLength(2))
   await vi.waitFor(() => expect(refreshes).toBe(1), { timeout: 3000 })
   await vi.waitFor(() => expect(localStorage.getItem('auth_token')).toBe('fixture-renewed'))
-  // Production tokenRefresh persists first; checkAuth adopts that token pair.
-  auth.checkAuth()
   await vi.waitFor(() => expect(auth.token).toBe('fixture-renewed'))
   await vi.waitFor(() => expect(waiting('fixture-renewed')).toHaveLength(2))
   release('fixture-renewed', 'renewed', 3)

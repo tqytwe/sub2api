@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
+import { getAuthSessionIdentity, isAuthSessionCurrent } from '@/api/tokenRefresh'
 import AuthenticatedPlayShell from '@/components/layout/AuthenticatedPlayShell.vue'
 import { useAppStore } from '@/stores/app'
 import { extractApiErrorCode } from '@/utils/apiError'
@@ -25,6 +26,7 @@ const lastResult = ref<PlayQuizSubmitResult | null>(null)
 let quizLoadRequest = 0
 let quizSubmitRequest = 0
 let quizRefreshDeferred = false
+let quizAuthSession = getAuthSessionIdentity()
 
 const growthEnergyMode = computed(() => quiz.value?.growth_eligibility?.reward_mode === 'energy')
 const couponPoolReady = computed(() => growthEnergyMode.value || quiz.value?.coupon_pool_ready !== false)
@@ -232,12 +234,24 @@ onBeforeUnmount(() => {
 watch(
   [() => authStore.isAuthenticated, () => authStore.user?.id, () => authStore.token],
   ([authenticated, userID], [wasAuthenticated, previousUserID]) => {
-    if (authenticated && wasAuthenticated && userID === previousUserID && submitting.value) {
+    const sameSession = isAuthSessionCurrent(quizAuthSession)
+    quizAuthSession = getAuthSessionIdentity()
+    if (authenticated && wasAuthenticated && userID === previousUserID && sameSession && submitting.value) {
       // Defer the read until this account's POST settles, so a pre-commit GET
       // cannot replace the final result or re-enable the submit action.
       quizLoadRequest += 1
       quizRefreshDeferred = true
       loading.value = false
+      return
+    }
+    if (authenticated && wasAuthenticated && userID === previousUserID && sameSession) {
+      // A token rotation keeps this account's in-progress answers. Only restart an
+      // in-flight read whose token-bound response will now be discarded.
+      if (loading.value) {
+        quizLoadRequest += 1
+        loading.value = false
+        void loadQuiz()
+      }
       return
     }
     resetQuizState()
