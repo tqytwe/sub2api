@@ -16,10 +16,10 @@ var errTerminalFailure = errors.New("upstream reported failure")
 // Only terminal metadata is inspected, never retained. The bounded line buffer
 // is discarded after each SSE line. Oversized/unknown frames cannot prove success.
 type streamEvidence struct {
-	line      []byte
-	oversized bool
-	terminal  string
-	observeID func(string)
+	line              []byte
+	oversized         bool
+	terminal          string
+	observeIdentifier func(identifierObservation)
 }
 
 func (s *streamEvidence) observe(p []byte) {
@@ -49,9 +49,9 @@ func (s *streamEvidence) observe(p []byte) {
 }
 func (s *streamEvidence) observeLine(line string) {
 	if strings.HasPrefix(line, "data:") {
-		if id := ResponseIdentifier([]byte(strings.TrimSpace(strings.TrimPrefix(line, "data:")))); id != "" {
-			if s.observeID != nil {
-				s.observeID(id)
+		if observation := responseIdentifierObservation([]byte(strings.TrimSpace(strings.TrimPrefix(line, "data:"))), "http_sse"); observation.Value != "" {
+			if s.observeIdentifier != nil {
+				s.observeIdentifier(observation)
 			}
 		}
 	}

@@ -1,0 +1,52 @@
+{
+  "checked_at": "2026-10-11T14:58:17.961651+00:00",
+  "prior_tested_commit": "f0f08eb779520f235d6afa5de6c89b66fe13b5a3",
+  "merged_main": "16a11abd29b1f37f3be28820b948f2d8400e4e70",
+  "merge_method": "ordinary two-parent merge; remote PR head updated once only after all applicable gates and sequential reviews pass",
+  "source_manifest_sha256": "b1bc35e631f397ff7d64476edb936b4d3b026ae8665b12c75b9eff9b3e6d7f08",
+  "source_files": 34,
+  "full_migration_count": 408,
+  "migration_281_before_280_leaves": 2,
+  "subscription_identifier_leaves": 15,
+  "identifier_routing_image_leaves": 6,
+  "race": "PASS for all three integration groups",
+  "frontend_targeted": {
+    "files": 5,
+    "tests": 92,
+    "status": "PASS"
+  },
+  "local_gates": {
+    "count": 12,
+    "status": "PASS",
+    "record": "main16a-gates.json"
+  },
+  "incoming_fixture_compile": {
+    "status": "compile PASS; opt-in runtime SKIP",
+    "test": "TestRoutingUIRealPGFixture363",
+    "runtime_claim": false
+  },
+  "full_suite_reuse": {
+    "record": "root-fixes-gates.json",
+    "status": "prior eight gates PASS, explicitly reused; fresh12 combination gates cover incoming intersections"
+  },
+  "reviews": [
+    {
+      "stage": "spec",
+      "agent": "/root/p1_spec_review",
+      "status": "PASS",
+      "source_manifest_sha256": "b1bc35e631f397ff7d64476edb936b4d3b026ae8665b12c75b9eff9b3e6d7f08",
+      "method": "Independent read-only review; source and real runtime log hashes checked, no independent rerun",
+      "findings": "No P1/P2. Initial nonblocking P3 missing CI invocation resolved by dedicated fresh-DB/race step and reviewed PASS."
+    },
+    {
+      "stage": "quality",
+      "agent": "/root/p1_quality_review",
+      "status": "PASS",
+      "source_manifest_sha256": "b1bc35e631f397ff7d64476edb936b4d3b026ae8665b12c75b9eff9b3e6d7f08",
+      "method": "Independent read-only review after spec PASS; source preservation and real runtime log hashes checked, no independent rerun",
+      "findings": "No new P1/P2. All241 nonshared incoming files exact; attempt plus docs shared correctly. New migration281-before280 test and exact CI invocation valid."
+    }
+  ],
+  "ci": "pending exact final head; old88 CI is historical only",
+  "boundaries": "No production access, paid generation, merge to main, deployment or local-browser production acceptance"
+}

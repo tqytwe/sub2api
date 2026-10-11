@@ -1,0 +1,15 @@
+[
+  {
+    "name": "make-test",
+    "command": [
+      "make",
+      "test"
+    ],
+    "exit_code": 2,
+    "started_at": "2026-10-11T12:44:55.966355+00:00",
+    "finished_at": "2026-10-11T12:54:17.704260+00:00",
+    "elapsed_seconds": 561.738,
+    "log": "/tmp/identifier281-make-test.log",
+    "log_sha256": "a17b75be4cc6f804926972b9d4aa985ac1d697687ed4620b3d5293bf3899c0e2"
+  }
+]

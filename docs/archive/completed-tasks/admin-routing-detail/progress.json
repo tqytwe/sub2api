@@ -1,0 +1,17 @@
+{
+  "checked_at": "2026-10-11T13:32:48.481092+00:00",
+  "base": "8364b462feda15f3bf8f3bb2029314d2193b9dba",
+  "ui_source": "7cc5c016d409aaccec82ec6b222a4c54b620b6e3",
+  "branch": "codex/admin-routing-detail-20261011",
+  "pr": "https://github.com/tqytwe/sub2api/pull/363",
+  "reviews": "sequential specification PASS / code quality PASS; no P1/P2",
+  "full_tests": "backend default+lint(0 issues), tag-unit; frontend3869 pass/8 existing skips",
+  "ledger_contracts": "75 required executed and passed; names and counts in merge-8364b462/ledger-required.json",
+  "gates": "make test/build/tag-unit/ledger contract/embed build/embed test/Fork all passed",
+  "browser": "real recorder/async writer/PG/HTTP/compiled UI, JWT/AdminAuth/PG users; fixture-only issuance; six states and seven auth lifecycle cases; same-document late503; zero page errors; balance98.75 unchanged",
+  "dependency": "359 final0ceacb244 published in main8364b462; ordinary merge, no unpublished dependency",
+  "evidence": "merge-8364b462/validation.json",
+  "tested_combination_commit": "e43592e8d924b850153fde4d451747c25438832b",
+  "delivery": "Technical merge and all local gates completed; documentation-only final head reported on PR; single push, exact-head hosted CI and parent incremental review are next. No repeated full local tests for this metadata update.",
+  "production": "No merge/deploy/secret access/generation; historical loss not recovered"
+}

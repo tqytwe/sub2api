@@ -1,0 +1,16 @@
+{
+  "started_at": "2026-10-11T12:59:07.577021+00:00",
+  "main": "8364b462feda15f3bf8f3bb2029314d2193b9dba",
+  "ui": "7cc5c016d409aaccec82ec6b222a4c54b620b6e3",
+  "worktree": "/workspace/sub2api-routing363-pg-20261011T124516847659Z",
+  "passed": true,
+  "resource_count": 356,
+  "resource_hashes_unchanged": true,
+  "auth_scope": "real JWT/AdminAuth/PG user checks, fixture-only token issuance; no password/MFA/binding/refresh/prod proof",
+  "cleanup": {
+    "label": "sub2api.routing363.run=e8b1a82749a64599b1e133a2a58d11c0",
+    "leftover_containers_removed": [],
+    "status": "completed"
+  },
+  "finished_at": "2026-10-11T12:59:29.853385+00:00"
+}

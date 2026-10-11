@@ -117,3 +117,16 @@ unit-tag 全量随后发现另 8 个既有 `TestOpenAIResponsesTerminalImageExpe
 
 
 带标签 lint 随后要求测试代理检查两处接口类型断言。仅改为 comma-ok guard；成功路径仍调用同一 writer，接口缺失返回显式 fixture 错误，原计数/投影断言不变，没有生产修改。适用 `projection_single_owner` 再跑 **407 迁移/race PASS**，仍为 `pending_before_apply=1 / legacy_writes=0 / sends=1`。本轮 [33 文件清单](./final-reviewed-source.sha256) 摘要 `72275ca942199f9c3a78bdd16672138ca228b2957a5a1d7de2b9a62e41dfe43b`；此前184/82/40注明测试 guard 等价复核复用，默认/unit/ledger/build/Fork构建标签均不包含此测试文件。
+
+
+## 最新主线 16a11abd 的最终组合
+
+前轮八项全量门禁与独立双审通过后，先固化为可审阅提交 `f0f08eb779520f235d6afa5de6c89b66fe13b5a3`（父 `88cdf339` + `8364b462`），没有更新 PR 分支。随后普通 merge 主线 `16a11abd29b1f37f3be28820b948f2d8400e4e70`，包含 #363 路由展示及 #365 identifier 诊断/迁移 281。唯一生产冲突 `attempt.go` 同时保留 identifier 元数据采集与 P1 receipt 准入/插入；244 个主线传入文件除该文件和两个文档共享文件外字节不变。原 P1 33 文件中 31 个不变，另一个变化仅为 CI 增加新迁移测试步骤。没有新增生产修复或媒体/计价规则变化。
+
+最终 [34 文件清单](./main16a-reviewed-source.sha256) 摘要为 `b1bc35e631f397ff7d64476edb936b4d3b026ae8665b12c75b9eff9b3e6d7f08`。新组合运行 **408 条完整迁移**：新用例保留已应用的 281，仅回退全新测试库中空的 280 对象，验证按 filename 补应用 280、checksum 与幂等重启；普通/套餐两例随后各运行真实 HTTP，核六计数器、usage/ledger links、用户/admin API 与同一 receipt/attempt 的请求和响应 identifier。此步骤已加入独立 fresh-DB/race CI，日志随现有 artifact 上传。
+
+新组合门禁 **12/12 PASS**：迁移共存 2 叶子、P1/identifier 交集 15 叶子、identifier/routing/image 交集 6 叶子均启用 race；旧图片/usage unit、前端 5 文件/92 测试、lint/design、types、完整构建、带标签差异 lint、文档链接与 diff 通过。传入 `TestRoutingUIRealPGFixture363` 仅编译通过并按 opt-in 条件 **SKIP**，不声称其浏览器夹具在本批运行。
+
+此前 8364 组合的全量默认/unit/ledger/Fork 与 184/407/race、82 兼容及40次恢复保留各自原始 source/hash，按主线程授权和上述保全证明复用，**不描述为 16a 的全量重跑**。最新交叉测试与完整构建覆盖新增主线结合点。独立规格→质量顺序复核 PASS，详情见 [最终组合验证](./evidence/main16a-validation.json)、[组合保全证明](./evidence/main16a-combination-proof.json)、[运行日志哈希](./evidence/main16a-log-manifest.json)。
+
+最终提交将以普通双父 merge（父 f0f08eb7 + 16a11abd）更新草稿 PR #364 一次，随后等待该准确 head 的完整 CI；CI 状态以 PR 为准，不采用旧 88cdf339 的绿色结论。主线程最终根审、合并、部署及生产/本机浏览器验收仍由主线程协调，本批没有执行。

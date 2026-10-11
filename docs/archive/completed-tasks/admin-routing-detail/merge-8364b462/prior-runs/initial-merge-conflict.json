@@ -1,0 +1,20 @@
+{
+  "checked_at": "2026-10-11T12:45:16.223379+00:00",
+  "executed": true,
+  "fixture_started": false,
+  "routing_HTTP_PG_passed": false,
+  "production_authentication_proven": false,
+  "main_sha": "8364b462feda15f3bf8f3bb2029314d2193b9dba",
+  "ui_sha": "7cc5c016d409aaccec82ec6b222a4c54b620b6e3",
+  "reviewed_dependency_sha": "0ceacb2445f79c3e9ddd1dbe44c89210c8e7ffca",
+  "contract_sha256": {
+    "backend/internal/requestledger/routing.go": "b464a8489614817e0898dca44909183c24bc88a5de84356d479ae759054a9058",
+    "backend/internal/requestledger/routing_query.go": "39e5c5d43060103a69c1078995a14dd28cf8670d1272e7502f92e07a89132db5",
+    "backend/internal/handler/routing_handler.go": "3e6ae154bf6a3c75e7f0f63314464e54968630d99839b3ee7be946ffa0410964"
+  },
+  "worktree": "/workspace/sub2api-routing363-pg-20261011T124516847659Z",
+  "local_only_branch": "codex/routing363-pg-20261011T124516847659Z",
+  "status": "failed",
+  "reason": "Required git object/operation is unavailable: merge",
+  "failed_stage": "isolated_worktree_merge"
+}

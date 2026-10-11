@@ -1,0 +1,31 @@
+{
+  "prior_commit": "f0f08eb779520f235d6afa5de6c89b66fe13b5a3",
+  "prior_main": "8364b462feda15f3bf8f3bb2029314d2193b9dba",
+  "merged_main": "16a11abd29b1f37f3be28820b948f2d8400e4e70",
+  "path": "backend/internal/requestledger/attempt.go",
+  "prior_p1_changes": [
+    "+\tsubscriptionReceipt *SubscriptionReceipt",
+    "+\treceipt, err := lockSubscriptionAdmission(ctx, tx, h, accountID, phase)",
+    "+\tif err != nil {",
+    "+\t\treturn nil, err",
+    "+\t}",
+    "+\tif err := insertSubscriptionReceipt(ctx, tx, receipt, a); err != nil {",
+    "+\t\treturn nil, err",
+    "+\t}",
+    "+\t\ta.subscriptionReceipt = receipt"
+  ],
+  "merged_p1_changes": [
+    "+\tsubscriptionReceipt   *SubscriptionReceipt",
+    "+\treceipt, err := lockSubscriptionAdmission(ctx, tx, h, accountID, phase)",
+    "+\tif err != nil {",
+    "+\t\treturn nil, err",
+    "+\t}",
+    "+\tif err := insertSubscriptionReceipt(ctx, tx, receipt, a); err != nil {",
+    "+\t\treturn nil, err",
+    "+\t}",
+    "+\t\ta.subscriptionReceipt = receipt"
+  ],
+  "p1_changes_equal_after_whitespace_normalization": true,
+  "normalization_reason": "gofmt realigns struct fields after identifierDiagnostics is merged",
+  "sha256": "ebc05053d0ff465248bc372798f9cf9c2861f74d6c21a3fb27fc6a20ca9400a7"
+}

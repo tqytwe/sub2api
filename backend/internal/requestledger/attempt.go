@@ -14,20 +14,21 @@ import (
 )
 
 type Attempt struct {
-	ID                  string
-	evidenceMu          sync.Mutex
-	upstreamRequestID   string
-	upstreamResponseID  string
-	identifierConflict  bool
-	evidenceUnavailable bool
-	evidencePending     bool
-	evidenceVersion     uint64
-	outputObserved      atomic.Bool
-	streamTerminal      atomic.Int32
-	handle              *Handle
-	Number              int
-	accountID           int64
-	subscriptionReceipt *SubscriptionReceipt
+	ID                    string
+	evidenceMu            sync.Mutex
+	upstreamRequestID     string
+	upstreamResponseID    string
+	identifierConflict    bool
+	evidenceUnavailable   bool
+	evidencePending       bool
+	evidenceVersion       uint64
+	identifierDiagnostics identifierSnapshot
+	outputObserved        atomic.Bool
+	streamTerminal        atomic.Int32
+	handle                *Handle
+	Number                int
+	accountID             int64
+	subscriptionReceipt   *SubscriptionReceipt
 }
 
 // CurrentAttempt captures the precise model attempt before a parser or detached
@@ -284,10 +285,10 @@ func (t *auditTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 
 func newAttemptBody(ctx context.Context, resp *http.Response, attempt *Attempt, method string) *attemptBody {
 	attachResponseReceipt(ctx, resp, attempt.Receipt())
-	attempt.ObserveIdentifiers(ctx, UpstreamRequestID(resp.Header), "")
+	attempt.observeIdentifierMetadata(requestIdentifierObservation(resp.Header))
 	body := &attemptBody{ReadCloser: resp.Body, attempt: attempt, ctx: ctx, status: resp.StatusCode,
 		streaming: strings.Contains(strings.ToLower(resp.Header.Get("Content-Type")), "text/event-stream") && resp.StatusCode < 400}
-	body.evidence.observeID = func(id string) { attempt.ObserveIdentifiers(ctx, "", id) }
+	body.evidence.observeIdentifier = func(observation identifierObservation) { attempt.observeIdentifierMetadata(observation) }
 	// HEAD, 204 and 304 complete at their headers. Callers correctly skip Read.
 	if method == http.MethodHead || resp.StatusCode == http.StatusNoContent || resp.StatusCode == http.StatusNotModified || resp.Body == http.NoBody {
 		body.streaming = false
@@ -336,7 +337,7 @@ func (b *attemptBody) Read(p []byte) (int, error) {
 		}
 	}
 	if err == io.EOF && !b.streaming {
-		b.attempt.ObserveIdentifiers(b.ctx, "", ResponseIdentifier(b.identifierBody))
+		b.attempt.observeIdentifierMetadata(responseIdentifierObservation(b.identifierBody, "http_json"))
 		if b.status >= 200 && b.status < 300 {
 			switch gjson.GetBytes(b.identifierBody, "status").String() {
 			case "failed", "incomplete":

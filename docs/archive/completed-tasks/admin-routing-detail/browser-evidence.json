@@ -1,0 +1,118 @@
+{
+  "scope": "actual build + synthetic HTTP contract; routing PG integration pending #359",
+  "roles": [
+    {
+      "role": "admin",
+      "viewports": [
+        360,
+        768,
+        1280,
+        1920
+      ],
+      "routing_visible": true
+    },
+    {
+      "role": "user",
+      "viewports": [
+        360,
+        768,
+        1280,
+        1920
+      ],
+      "routing_visible": false
+    }
+  ],
+  "states": [
+    "complete",
+    "truncated",
+    "pending",
+    "incomplete",
+    "not_recorded",
+    "unsupported_coverage"
+  ],
+  "page_errors": [],
+  "viewport_measurements": [
+    {
+      "role": "admin",
+      "width": 360,
+      "document_width": 360,
+      "dialog_right": 360,
+      "dialog_width": 360,
+      "dialog_client": 360
+    },
+    {
+      "role": "admin",
+      "width": 768,
+      "document_width": 768,
+      "dialog_right": 768,
+      "dialog_width": 768,
+      "dialog_client": 768
+    },
+    {
+      "role": "admin",
+      "width": 1280,
+      "document_width": 1280,
+      "dialog_right": 1280,
+      "dialog_width": 1280,
+      "dialog_client": 1280
+    },
+    {
+      "role": "admin",
+      "width": 1920,
+      "document_width": 1920,
+      "dialog_right": 1920,
+      "dialog_width": 1920,
+      "dialog_client": 1920
+    },
+    {
+      "role": "user",
+      "width": 360,
+      "document_width": 466,
+      "dialog_right": 360,
+      "dialog_width": 360,
+      "dialog_client": 360
+    },
+    {
+      "role": "user",
+      "width": 768,
+      "document_width": 768,
+      "dialog_right": 768,
+      "dialog_width": 768,
+      "dialog_client": 768
+    },
+    {
+      "role": "user",
+      "width": 1280,
+      "document_width": 1280,
+      "dialog_right": 1280,
+      "dialog_width": 1280,
+      "dialog_client": 1280
+    },
+    {
+      "role": "user",
+      "width": 1920,
+      "document_width": 1920,
+      "dialog_right": 1920,
+      "dialog_width": 1920,
+      "dialog_client": 1920
+    }
+  ],
+  "user_360_document_overflow": 106,
+  "routing_contract_http": true,
+  "ledger_postgres": false,
+  "independent_error_retry": true,
+  "local_paging": true,
+  "closed_late_error": true,
+  "session_renewal": true,
+  "interactive_reverse_response": true,
+  "owned_publication_failure_and_recovery": true,
+  "same_account_relogin": true,
+  "switch_503_clear": true,
+  "keyboard": true,
+  "reduced_motion": true,
+  "zoom": "CSS200% simulation",
+  "fixture_permission_denials": [
+    401,
+    403
+  ]
+}

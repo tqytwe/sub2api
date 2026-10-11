@@ -1,0 +1,105 @@
+[
+  {
+    "name": "make-test",
+    "command": [
+      "make",
+      "test"
+    ],
+    "started_at": "2026-10-11T12:52:33.845718+00:00",
+    "finished_at": "2026-10-11T13:07:27.604438+00:00",
+    "exit_code": 0,
+    "log": "make-test.log",
+    "sha256": "cb26d2b1949c820d99c94f88bc7abfbd9bf36a9e456ce1c33da0630dbafa58e2"
+  },
+  {
+    "name": "tag-unit",
+    "command": [
+      "make",
+      "test-backend-unit"
+    ],
+    "started_at": "2026-10-11T13:07:27.605105+00:00",
+    "finished_at": "2026-10-11T13:16:14.433637+00:00",
+    "exit_code": 0,
+    "log": "tag-unit.log",
+    "sha256": "2aafe9930b510380503e9d62f522f7fd75927e8a94b6b3436f826561575bf0bd"
+  },
+  {
+    "name": "ledger-contracts",
+    "command": [
+      "go",
+      "-C",
+      "backend",
+      "test",
+      "-tags=integration",
+      "./internal/requestledger/...",
+      "./internal/handler",
+      "./internal/server/routes",
+      "./internal/repository",
+      "./internal/service",
+      "-run",
+      "RequestLedger|LedgerPostgres|LedgerKilledProcess|LedgerStorage|BatchImageHTTP|BatchImageReconciliation|BatchImageLedgerMigration",
+      "-count=1",
+      "-timeout=12m",
+      "-json"
+    ],
+    "started_at": "2026-10-11T13:16:14.434033+00:00",
+    "finished_at": "2026-10-11T13:24:52.224168+00:00",
+    "exit_code": 0,
+    "log": "ledger-contracts.log",
+    "sha256": "caf5e1cadddb5c923d6fc608f4c94d8a25ad7007069962db7b59239a7e0285b5"
+  },
+  {
+    "name": "embed-build",
+    "command": [
+      "env",
+      "GOTMPDIR=/tmp/routing363-embed-tmp",
+      "go",
+      "-C",
+      "backend",
+      "build",
+      "-tags=embed",
+      "-buildvcs=false",
+      "-trimpath",
+      "-o",
+      "/tmp/routing363-836-embed",
+      "./cmd/server"
+    ],
+    "started_at": "2026-10-11T13:29:33.910634+00:00",
+    "finished_at": "2026-10-11T13:29:59.510368+00:00",
+    "exit_code": 0,
+    "log": "embed-build.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "name": "embed-test",
+    "command": [
+      "env",
+      "GOTMPDIR=/tmp/routing363-embed-tmp",
+      "go",
+      "-C",
+      "backend",
+      "test",
+      "-tags=embed",
+      "./internal/web",
+      "./cmd/server"
+    ],
+    "started_at": "2026-10-11T13:29:59.510776+00:00",
+    "finished_at": "2026-10-11T13:30:13.760831+00:00",
+    "exit_code": 0,
+    "log": "embed-test.log",
+    "sha256": "b4b987a552bdb98a1100530939a342403ef3d2140fdec88803f2ee31f48a211d"
+  },
+  {
+    "name": "fork",
+    "command": [
+      "env",
+      "GOTMPDIR=/tmp/routing363-embed-tmp",
+      "./scripts/check-fork-integrity.sh"
+    ],
+    "started_at": "2026-10-11T13:30:13.761238+00:00",
+    "finished_at": "2026-10-11T13:32:35.116343+00:00",
+    "exit_code": 0,
+    "log": "fork.log",
+    "sha256": "b9cdfa0145b516d66c90526e4f3d21dccbed4869940a3f6b4b4a8bcb7404965b"
+  }
+]

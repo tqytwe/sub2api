@@ -68,6 +68,7 @@
             </div>
           </div>
           </RequestLedgerDetailSection>
+          <RequestLedgerRoutingSection v-if="admin && auth.isAdmin" :key="'routing:' + selectedId" :scope="detailScope" :load-evidence="loadRouting" />
           <RequestLedgerDetailSection v-if="admin" :key="'diagnostics:' + selectedId" :scope="detailScope" section="diagnostics" :title="t('requestLedger.diagnostics')" :load-page="loadDiagnostics" v-slot="{ page: diagnosticPage }">
               <ul v-if="diagnosticPage.items.length" class="space-y-2 text-sm">
                 <li v-for="ref in diagnosticPage.items" :key="`${ref.attempt_no}:${ref.ops_error_log_id}`" class="flex flex-wrap items-center gap-2">
@@ -124,6 +125,7 @@ import Select from '@/components/common/Select.vue'
 import Pagination from '@/components/common/Pagination.vue'
 import Icon from '@/components/icons/Icon.vue'
 import RequestLedgerDetailSection from './components/RequestLedgerDetailSection.vue'
+import RequestLedgerRoutingSection from './components/RequestLedgerRoutingSection.vue'
 import { requestLedgerAPI, type RequestDetail, type RequestFilters, type RequestPage, type LinkedUsage, type DetailSectionItems } from '@/api/requestLedger'
 
 const OpsErrorDetailModal = defineAsyncComponent(() => import('@/views/admin/ops/components/OpsErrorDetailModal.vue'))
@@ -217,6 +219,12 @@ async function loadSection<S extends keyof DetailSectionItems>(section: S, curso
   const current = () => !!scope && scope === detailScope.value && !signal.aborted && scope.isCurrent()
   if (!await waitForSessionReady(signal, current)) throw new Error('Read scope is no longer current')
   return requestLedgerAPI.sectionPage(adminAtStart, id, section, cursor, signal)
+}
+async function loadRouting(signal: AbortSignal) {
+  const scope = detailScope.value, id = selectedId.value
+  const current = () => !!scope && scope === detailScope.value && !signal.aborted && scope.isCurrent() && admin.value && auth.isAdmin
+  if (!await waitForSessionReady(signal, current)) throw new Error('Read scope is no longer current')
+  return requestLedgerAPI.routing(id, signal)
 }
 const loadAttempts = (cursor: string, signal: AbortSignal) => loadSection('attempts', cursor, signal)
 const loadBilling = (cursor: string, signal: AbortSignal) => loadSection('billing', cursor, signal)

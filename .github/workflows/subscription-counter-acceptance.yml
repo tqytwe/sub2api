@@ -48,6 +48,11 @@ jobs:
         run: |
           set -euo pipefail
           ./scripts/test-subscription-counters.sh '^TestSubscriptionInflightRevoke$' -race 2>&1 | tee "$RUNNER_TEMP/subscription-inflight.log"
+      - name: Lower-numbered admission migration after identifiers with a fresh database
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./scripts/test-subscription-counters.sh '^TestSubscriptionMigration280AfterIdentifier281$' -race 2>&1 | tee "$RUNNER_TEMP/subscription-identifier-coexistence.log"
       - name: Preserve strict acceptance evidence
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
