@@ -25,5 +25,11 @@
   "resource_manifest_serialization": "Python json.dumps(manifest, sort_keys=True), ensure_ascii=True and default separators; UTF-8; no trailing newline",
   "assets_json_sha256": "55a9da2330ad6ad8411d8209069590edb6078c9172e572e8c134c1ac7110afc6",
   "reviewable_frozen_tree": "49e2063bdad369044c40d0b19ff50c5c85bc9337",
-  "fixture_git_blob": "f9536df160461e1c55d2f8b7822716aaa63e06fc"
+  "fixture_git_blob": "f9536df160461e1c55d2f8b7822716aaa63e06fc",
+  "tested_technical_commit": "e43592e8d924b850153fde4d451747c25438832b",
+  "ordinary_merge_parents": [
+    "7cc5c016d409aaccec82ec6b222a4c54b620b6e3",
+    "8364b462feda15f3bf8f3bb2029314d2193b9dba"
+  ],
+  "code_unchanged_from_frozen_review_tree": true
 }

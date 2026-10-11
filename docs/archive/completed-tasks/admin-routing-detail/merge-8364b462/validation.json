@@ -4,7 +4,7 @@
   "main": "8364b462feda15f3bf8f3bb2029314d2193b9dba",
   "frozen_ui": "7cc5c016d409aaccec82ec6b222a4c54b620b6e3",
   "main_dependency_head": "0ceacb2445f79c3e9ddd1dbe44c89210c8e7ffca",
-  "technical_merge_commit": null,
+  "technical_merge_commit": "e43592e8d924b850153fde4d451747c25438832b",
   "gates": "gates.json",
   "initial_build": {
     "command": "/tmp/p0-run make build",
@@ -121,5 +121,6 @@
   "preservation": "source-proof.json",
   "earlier_visual_matrix": "retained unchanged source and 356 resource files; fresh actual-PG browser viewport 1280 only",
   "production": "not accessed, not merged/deployed; user-local-browser acceptance and complete provider/scheduler proof absent",
-  "history": "no historical gpt22 or 27 HTTP503 attribution or recovery claim"
+  "history": "no historical gpt22 or 27 HTTP503 attribution or recovery claim",
+  "source_unchanged_since_completed_gates": true
 }

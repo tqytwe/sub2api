@@ -11,7 +11,7 @@
   "browser": "real recorder/async writer/PG/HTTP/compiled UI, JWT/AdminAuth/PG users; fixture-only issuance; six states and seven auth lifecycle cases; same-document late503; zero page errors; balance98.75 unchanged",
   "dependency": "359 final0ceacb244 published in main8364b462; ordinary merge, no unpublished dependency",
   "evidence": "merge-8364b462/validation.json",
-  "tested_combination_commit": null,
-  "delivery": "local gates complete; pending technical commit, single push and exact-head hosted CI; parent incremental review required",
+  "tested_combination_commit": "e43592e8d924b850153fde4d451747c25438832b",
+  "delivery": "Technical merge and all local gates completed; documentation-only final head reported on PR; single push, exact-head hosted CI and parent incremental review are next. No repeated full local tests for this metadata update.",
   "production": "No merge/deploy/secret access/generation; historical loss not recovered"
 }
