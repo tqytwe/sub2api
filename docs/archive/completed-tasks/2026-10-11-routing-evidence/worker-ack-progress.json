@@ -9,7 +9,6 @@
   "ownership": "only root AGENTS applies, no deeper backend AGENTS/CODEOWNERS found; file untouched by current routing task or incoming main changes. Parent explicitly authorizes minimal test synchronization fix.",
   "current_stage": "all target/race/sequential reviews/make test/tag-unit/build/embed/Fork passed",
   "next": [
-    "record technical SHA and metadata",
     "single normal draft push/new CI",
     "parent review/merge/deploy"
   ],
@@ -19,5 +18,6 @@
     "delayed_ack_count": 3,
     "delayed_ack": "expected fail at line190 Active2",
     "log_sha256": "c8ed31d6e36a51bd7fa6aa7c5d7676decb043a54aa675ee749ed77300c86756c"
-  }
+  },
+  "technical_commit": "0dcf99a3c5f786e41a8e2933dd025b1daea1c320"
 }

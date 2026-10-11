@@ -16,7 +16,7 @@
   "baseline": "all3 relevant source blobs equal formal main; ordinary30 passes do not naturally reproduce; controlled delayed Ack3/3 fail original assertion Active2. See worker-ack-base-proof.json and worker-ack-base-tests.json.",
   "probe": "worker-ack-probe.py uses go overlay only; wraps last2 locks, holds Ack until first Stats snapshot then releases; negative mode deliberately suppresses real Redis Ack. Processor and other queue methods remain unchanged.",
   "remaining": [
-    "normal draft push/new-head CI",
+    "single normal draft push/final-head hosted CI",
     "parent review/merge/deploy; no production access by this task"
   ],
   "deployment": "not performed; root thread owns merge/deploy; identifier281 remains paused",
@@ -159,5 +159,6 @@
         "sha256": "7005872d43b4920832dd033b5d5c72407513a07dc69ee98d2d5df1d68ec2e050"
       }
     ]
-  }
+  },
+  "technical_commit": "0dcf99a3c5f786e41a8e2933dd025b1daea1c320"
 }

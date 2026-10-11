@@ -23,7 +23,7 @@
       "product_state": "实现中",
       "owner": "主线程协调",
       "pr": "https://github.com/tqytwe/sub2api/pull/359",
-      "sha": "c3f40d84280e454a0e0beedbab819b4e447a9b50",
+      "sha": "0dcf99a3c5f786e41a8e2933dd025b1daea1c320",
       "evidence": {
         "ui": {
           "status": "pending",
@@ -66,7 +66,7 @@
         }
       },
       "risks": "128条/32KiB、队列64，压力或崩溃可以丢明细但显示incomplete；source_population_complete恒false。非HTTP文本/媒体/WS未覆盖。原8665旧锁策略head禁止发布；279 NOWAIT+短时限不变，实际持锁DDL/提交开销仍不可消除。add3 CI失败保留，修复后本地全门禁通过，新head CI及主线程复核待完成。",
-      "next": "普通推送本次worker采样同步修复与交接证据，核对精确head新CI；不盲目重跑add3失败workflow。identifier281保持暂停；UI/合并部署由主线程协调；其他快照条目未重验、checked_at不前移。",
+      "next": "普通推送本次worker采样同步修复与交接证据，核对精确head新CI；不盲目重跑add3失败workflow。identifier281保持暂停；UI/合并部署由主线程协调；其他快照条目未重验、checked_at不前移。 技术验证提交0dcf99a3c5f786e41a8e2933dd025b1daea1c320，后继仅记录交接元数据。",
       "rollback": "279尚未发布，本次按主线程明确授权收紧其SQL并更新checksum；发布后不可改。争用/超时由运行器回滚且无279登记，保留旧应用流量后重试；成功后的应用回退保留新增列/表和证据，不删除/回填历史，不补扣。"
     },
     {

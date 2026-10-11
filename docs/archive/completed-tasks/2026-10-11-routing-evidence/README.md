@@ -247,3 +247,5 @@ heartbeat结束和Redis租约Ack，Stats.Active统计的是租约ZCARD。测试�
 [worker-ack-test-results.json](./worker-ack-test-results.json)，双审与保留证据见
 [worker-ack-reviews.json](./worker-ack-reviews.json)、
 [worker-ack-preservation.json](./worker-ack-preservation.json)。
+
+本次测试同步技术提交：`0dcf99a3c5f786e41a8e2933dd025b1daea1c320`；后继仅记录交接元数据，28项验证输入不变。
