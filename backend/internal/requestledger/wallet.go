@@ -30,26 +30,14 @@ const taskBillingCandidates = `SELECT r.id FROM gateway_requests r
  ORDER BY r.reconcile_checked_at NULLS FIRST,r.id LIMIT 1000 FOR UPDATE OF r SKIP LOCKED`
 
 func (l *Ledger) WalletReferences(ctx context.Context, viewer Viewer, id string) ([]WalletReference, error) {
-	if _, err := l.Get(ctx, viewer, id); err != nil {
-		return nil, err
-	}
-	ctx, cancel := context.WithTimeout(ctx, writeTimeout)
-	defer cancel()
-	rows, err := l.db.QueryContext(ctx, `SELECT DISTINCT wallet.id,wallet.source_type FROM gateway_requests r
- CROSS JOIN LATERAL (SELECT bt.id,bt.source_type `+taskWalletEvidence+`) wallet WHERE r.id=$1 ORDER BY wallet.id`, id)
+	page, err := l.WalletPage(ctx, viewer, id, "", MaxDetailPageSize)
 	if err != nil {
 		return nil, err
 	}
-	defer func() { _ = rows.Close() }()
-	result := []WalletReference{}
-	for rows.Next() {
-		var ref WalletReference
-		if err := rows.Scan(&ref.ID, &ref.Operation); err != nil {
-			return nil, err
-		}
-		result = append(result, ref)
+	if page.HasMore {
+		return nil, ErrDetailPaginationRequired
 	}
-	return result, rows.Err()
+	return page.Items, nil
 }
 
 // ReconcileTaskBilling annotates only requests already in this ledger, using

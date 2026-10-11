@@ -17,6 +17,111 @@
   },
   "features": [
     {
+      "id": "request-ledger-detail-pagination",
+      "title": "请求台账详情独立有界实时分页",
+      "backend_state": "可测",
+      "product_state": "可测",
+      "owner": "主线程协调",
+      "pr": null,
+      "sha": null,
+      "evidence": {
+        "ui": {
+          "status": "recorded",
+          "refs": [
+            "docs/visual-reviews/2026-10-11-ledger-detail-pagination.md",
+            "docs/archive/completed-tasks/ledger-detail-pagination/browser-evidence.json"
+          ],
+          "note": "最终实际构建资源与一次性HTTP/PG，两身份四宽度、浅深色/中英文、空页/加载/错误重试/刷新/取消；非生产用户本机验收。"
+        },
+        "api": {
+          "status": "recorded",
+          "refs": [
+            "docs/archive/completed-tasks/ledger-detail-pagination/README.md",
+            "backend/internal/handler/request_ledger_handler.go",
+            "backend/internal/requestledger/detail_page.go"
+          ],
+          "note": "summary与各section独立读取；先来源候选预算再认证，cursor重查权限。固定成员不漏不重；新记录/迟到证明/状态变化需刷新。旧大集合409/PAGINATION_REQUIRED，兼容timezone传输提示。"
+        },
+        "schema": {
+          "status": "recorded",
+          "refs": [
+            "backend/migrations/278_gateway_request_task_page_index_notx.sql",
+            "backend/internal/repository/migrations_runner_detail_page_integration_test.go"
+          ],
+          "note": "278只新增按request/task来源seek的并发索引并支持中断恢复；279留给并行路由审计，无历史SQL/数据改写。"
+        },
+        "tests": {
+          "status": "recorded",
+          "refs": [
+            "backend/internal/requestledger/acceptance/detail_pagination_integration_test.go",
+            "backend/internal/requestledger/detail_page_index_integration_test.go",
+            "frontend/src/views/shared/__tests__/RequestLedgerView.spec.ts",
+            "frontend/src/api/__tests__/requestLedger.spec.ts"
+          ],
+          "note": "TDD定向HTTP/PG、22项前端测试、22万task查询计划及中断索引恢复已通过；完整门禁与代码质量审查进行中。"
+        },
+        "deployment": {
+          "status": "pending",
+          "refs": [],
+          "note": "本任务仅交草稿PR；不合并部署，主线程核实准确SHA/CI后协调。"
+        },
+        "production": {
+          "status": "pending",
+          "refs": [],
+          "note": "未登录Zeabur或访问生产秘密，生产自然流量与用户本机三身份验收由主线程协调。"
+        }
+      },
+      "risks": "实时分页不是快照，迟到证明需要刷新；旧客户端大集合需升级。不修改计费写入/capture/原认证谓词/受限usage_billing_repo.go；unknown非免费，历史gpt22损失仍未归因。",
+      "next": "2026-10-11本项按23d06337cbc315cb92d3fc18e94902fe21e7342d（#356 merge）基线开发，仅复核本项与远端主线，保留整份checked_at及未重验条目。完成全量门禁/顺序独立审查，推送草稿PR；PR/SHA尚未生成，不声称部署。安全只读补证见独立工作项。",
+      "rollback": "若权限、分页归属、证据或迁移异常，由主线程协调经审查的源码回退；新UI与后端分页契约需配套。保留278及已有台账，不删数据、不改历史迁移。"
+    },
+    {
+      "id": "batch-image-readonly-evidence-recovery",
+      "title": "批量图片已完成任务的安全只读补证（独立后续）",
+      "backend_state": "设计",
+      "product_state": "设计",
+      "owner": "待分配",
+      "pr": null,
+      "sha": null,
+      "evidence": {
+        "ui": {
+          "status": "pending",
+          "refs": [],
+          "note": "独立后续，尚未设计实现或验证。"
+        },
+        "api": {
+          "status": "recorded",
+          "refs": [
+            "docs/archive/completed-tasks/ledger-detail-pagination/README.md"
+          ],
+          "note": "只登记缺口与禁止计费重放边界，不是已实现接口。"
+        },
+        "schema": {
+          "status": "pending",
+          "refs": [],
+          "note": "独立后续，尚未设计实现或验证。"
+        },
+        "tests": {
+          "status": "pending",
+          "refs": [],
+          "note": "独立后续，尚未设计实现或验证。"
+        },
+        "deployment": {
+          "status": "pending",
+          "refs": [],
+          "note": "独立后续，尚未设计实现或验证。"
+        },
+        "production": {
+          "status": "pending",
+          "refs": [],
+          "note": "独立后续，尚未设计实现或验证。"
+        }
+      },
+      "risks": "当前completed重试不会补齐暂时缺失的审计认证；不能把未知证明解释为免费或从金额重建指纹。不得触发capture、余额/订阅/冻结资金写入、上游生成或历史猜测。",
+      "next": "独立设计精确task/owner/key/capture冷热全部指纹核验、幂等补证和冲突拒绝；不并入请求详情分页。本条未实现，未复核其他功能或生产。",
+      "rollback": "设计项无运行变更；后续若归属、指纹或金额不一致应拒绝补证并交主线程，不修改账务和已有台账。"
+    },
+    {
       "id": "batch-image-ledger-usage",
       "title": "批量图片 capture/usage/请求台账精确钻取",
       "backend_state": "已验证",

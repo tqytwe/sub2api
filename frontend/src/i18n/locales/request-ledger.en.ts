@@ -1,4 +1,11 @@
 export default {
+  livePagingNotice: "Each section pages independently. Refresh a section to see new records, delayed links or evidence, and status changes. Pages are live, not a fixed snapshot.",
+  sectionError: "This section could not be loaded. Any displayed rows are from its last successful read. Retry or refresh this section.",
+  sectionPage: "Page {page} · {count} rows",
+  refreshSection: "Refresh section",
+  emptyPageMore: "No visible references on this page. More pages are available.",
+  emptyPage: "No visible references on this page.",
+
   imageCount: 'Image count', batchId: 'Batch ID', batchSettled: 'This batch is settled',
   exactEvidence: "Exact correlation evidence",
   evidenceNotice: "Identifiers are diagnostic evidence, not proof of usage or charges. Metadata is written asynchronously; history or diagnostic failures may leave gaps. Empty fields do not prove that the upstream omitted identifiers.",
