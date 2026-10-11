@@ -25,4 +25,3 @@ Browserslist: browsers data (caniuse-lite) is 10 months old. Please run:
       Tests  48 passed (48)
    Start at  09:46:26
    Duration  19.98s (transform 2.09s, setup 214ms, collect 3.52s, tests 17.33s, environment 1.06s, prepare 188ms)
-

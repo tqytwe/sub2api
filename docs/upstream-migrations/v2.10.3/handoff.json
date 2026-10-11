@@ -23,7 +23,7 @@
       "product_state": "可测",
       "owner": "主线程协调",
       "pr": "https://github.com/tqytwe/sub2api/pull/360",
-      "sha": "b3df928352b8f7ee3a0acaf93d8b14752a0664f2",
+      "sha": "72933acd164ce82d38813596d4294129b9d0edc5",
       "evidence": {
         "ui": {
           "status": "recorded",
@@ -79,7 +79,7 @@
         }
       },
       "risks": "实时分页不是快照，迟到证明需要刷新；旧客户端大集合需升级。分页自身不修改计费写入/capture/原认证谓词/受限usage_billing_repo.go；组合逐字承接#352主线，仍保留其同用户/组下冻结entitlement-ID绑定缺口。unknown非免费，历史gpt22损失仍未归因。",
-      "next": "#360维持草稿；#358主线1b701237ec3ceb869c39d28ad11d32e4065a2471已普通merge，官方auth四文件及另8个前端文件逐字保留。会话增量局部门禁与顺序双审已通过，当前sha暂为此前技术提交，最终技术merge及PR head将在证据收尾后补记。主线程需核实准确最终SHA/CI；本任务不合并部署。本项保留整份checked_at及所有未重验条目；生产/用户本机验收及安全只读补证仍为独立后续。",
+      "next": "#360维持草稿；技术merge 72933acd164ce82d38813596d4294129b9d0edc5，父节点e818db78b5e1f7b69b286f52944ccfd48ef7b44e与主线1b701237ec3ceb869c39d28ad11d32e4065a2471。会话增量48定向、完整make test/build/embed/Fork/design、顺序双审及双角色实际资源HTTP/PG均通过；证据见session-isolation-followup.json。其后仅文档交接/日志末尾空行规范化，不改变已测产品源码。主线程核实最终head/CI后协调；本任务不合并部署。不更新整份checked_at或未重验条目，生产/用户本机验收及安全只读补证仍独立待办。",
       "rollback": "若权限、分页归属、证据或迁移异常，由主线程协调经审查的源码回退；新UI与后端分页契约需配套。保留278及已有台账，不删数据、不改历史迁移。"
     },
     {

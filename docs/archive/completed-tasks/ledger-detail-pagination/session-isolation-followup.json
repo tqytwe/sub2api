@@ -1,8 +1,8 @@
 {
-  "checked_at": "2026-10-11T09:58:57.363099+00:00",
+  "checked_at": "2026-10-11T10:00:08.349638+00:00",
   "baseline_sha": "e818db78b5e1f7b69b286f52944ccfd48ef7b44e",
   "mainline_merge_parent": "1b701237ec3ceb869c39d28ad11d32e4065a2471",
-  "status": "Implementation, sequential reviews, full local gates and both-role actual built browser validation PASS; awaiting final commit/PR metadata.",
+  "status": "Local implementation, both reviews, full gates and actual built HTTP/PG browser validation PASS. Draft PR #360 ready for parent exact-head CI/review coordination; not merged/deployed.",
   "dependency": {
     "pr": 358,
     "merged": true,
@@ -40,10 +40,10 @@
     "log": "ledger-session-final-targeted.txt"
   },
   "evidence_log_sha256": {
-    "ledger-session-358-confirmed-red.txt": "cb1928d4950777c9ea83a3c2f0cd61a3aabd60421834d37e68401bdeebd80c9e",
-    "ledger-session-ready-red.txt": "6179dfcee4dac375fc83d1472e1a50a855214b5d61ced58694fe3ffa0200c7eb",
-    "ledger-session-timeout-red-confirmed.txt": "d1b0d968a0bc58c1c00d5c029401bb0ba0a1409d8895bfd33b6ed00d2dc7f0c5",
-    "ledger-session-final-targeted.txt": "0dcff18fe301ba7ee78f605c52999261e4ada931285830940b5833be5bba2296"
+    "ledger-session-358-confirmed-red.txt": "8ad249800eae2da129e6150dd3970320690e9078c6904fde2602798b03fa713e",
+    "ledger-session-ready-red.txt": "79caa1196314e2014685d87d9092ec0e4236d80b222cc3bee956d2655b3527e8",
+    "ledger-session-timeout-red-confirmed.txt": "da7264b00be10f5eab11beec80bec29c18d1f1358382b344455a1b972f3b7e51",
+    "ledger-session-final-targeted.txt": "2eee6b68a60a6f1e8417dec3c217b9700ada169d4b3c1b4824542d7849623492"
   },
   "implementation": [
     "Official session identity distinguishes normal rotation from fresh login, logout and account transitions.",
@@ -210,5 +210,17 @@
     "result": "Both roles rerun completely; exit 0, zero page errors.",
     "product_sources_changed": false,
     "additional_review": "Reviewer found logout request count began too late; moved baseline before logout after networkidle, then reran both roles completely. Script-only change, independently re-reviewed PASS."
-  }
+  },
+  "raw_log_sha256": {
+    "ledger-session-358-confirmed-red.txt": "cb1928d4950777c9ea83a3c2f0cd61a3aabd60421834d37e68401bdeebd80c9e",
+    "ledger-session-ready-red.txt": "6179dfcee4dac375fc83d1472e1a50a855214b5d61ced58694fe3ffa0200c7eb",
+    "ledger-session-timeout-red-confirmed.txt": "d1b0d968a0bc58c1c00d5c029401bb0ba0a1409d8895bfd33b6ed00d2dc7f0c5",
+    "ledger-session-final-targeted.txt": "0dcff18fe301ba7ee78f605c52999261e4ada931285830940b5833be5bba2296"
+  },
+  "evidence_normalization": "Archived logs have trailing blank lines removed; raw-log and archived checksums are both retained.",
+  "technical_merge_sha": "72933acd164ce82d38813596d4294129b9d0edc5",
+  "parents": [
+    "e818db78b5e1f7b69b286f52944ccfd48ef7b44e",
+    "1b701237ec3ceb869c39d28ad11d32e4065a2471"
+  ]
 }
