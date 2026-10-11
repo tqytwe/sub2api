@@ -1,6 +1,6 @@
 # HTTP 文本路由证据后端小批
 
-状态：已普通merge主线fb2c9747（#360）；本地组合门禁及顺序双审通过，精确新head CI以PR359为准。草稿未合并/部署。
+状态：已普通合入最新主线6ae024e6（#362）；#360完整本地门禁通过，后端原字节复用；最新构建与静态组合通过。最终head CI以PR359为准，未合并部署。
 维护责任：本任务提交者；生产发布由主线程协调。
 
 基线 `23d06337cbc315cb92d3fc18e94902fe21e7342d`；独立分支
@@ -194,3 +194,22 @@ UI接线、合并部署和用户本机生产验收仍由主线程协调，本任
 文件及新增组合测试，原26输入清单另存tested-source-ae832b16.sha256。
 
 UI已由主线程另派分页作者，现有GET合同保持稳定；本批未接线UI、访问生产或合并部署。
+
+### 合入纯前端主线 #362
+
+#360组合技术合并为 `75069704437c99783530015f13cf11ed2748bbf7`，未单独推送。随后主线程
+通知普通合入 `6ae024e6b732b64b2ce6f7ba56c5be4e20b88bdb`；唯一README邻接冲突保留双方。
+262个非共享传入文件逐字保留，非routing handoff与新主线相同；backend/迁移/CI/scripts
+完全等750，前端完全等6ae，27输入清单不变。按明确指示复用本目录刚完成的后端/PG全量
+门禁和#362已审前端3789通过/8既有跳过、293+4定向HTTP/组件及36原生认证检查。
+
+本次重新执行make build、embed build、Fork静态、文档与交接检查，实际全部356资源
+逐一等#362已审构建。Fork静态检查来自原脚本，只将run_check运行分组标记REUSED，
+全部静态断言仍执行；完整Fork结果来自750且后端/scripts无变化，前端运行检查复用
+主线原字节证据，不宣称最新组合又执行了完整Fork或完整make test。前端原证据关于
+auth.checkAuth、原生ledger/PG矩阵、永久Storage故障的边界继续保留。
+
+结果见[merge-362-validation.json](./merge-362-validation.json)、
+[merge-362-proof.json](./merge-362-proof.json)、[merge-362-assets.json](./merge-362-assets.json)、
+[merge-362-reviews.json](./merge-362-reviews.json)。没有新增后端实现、API或迁移变动，
+未触碰280/281；identifier保持独立暂停，routing UI由主线程另派作者。

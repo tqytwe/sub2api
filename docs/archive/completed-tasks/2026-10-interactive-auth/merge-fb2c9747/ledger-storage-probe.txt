@@ -1,0 +1,16 @@
+[33mThe CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.[39m
+
+ RUN  v2.1.9 /workspace/p1-interactive-auth/frontend
+
+Browserslist: browsers data (caniuse-lite) is 10 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+ ✓ ../../../tmp/p1-merge-ledger-storage-probe/probe.spec.ts (30 tests | 26 skipped) 1401ms
+   ✓ cleans loaded ledger on owned Storage failure admin=false phase='api' 512ms
+   ✓ cleans loaded ledger on owned Storage failure admin=false phase='store' 313ms
+   ✓ cleans loaded ledger on owned Storage failure admin=true phase='api' 310ms
+
+ Test Files  1 passed (1)
+      Tests  4 passed | 26 skipped (30)
+   Start at  11:04:26
+   Duration  4.29s (transform 1.83s, setup 72ms, collect 2.24s, tests 1.40s, environment 329ms, prepare 100ms)

@@ -1,0 +1,33 @@
+
+ RUN  v2.1.9 /workspace/p1-interactive-auth/frontend
+
+stderr | src/components/__tests__/LoginForm.spec.ts > LoginForm 核心逻辑 > 需要 2FA 时不跳转
+Error: Not implemented: navigation (except hash changes)
+    at module.exports (/workspace/p1-welfare-games/frontend/node_modules/.pnpm/jsdom@24.1.3/node_modules/jsdom/lib/jsdom/browser/not-implemented.js:9:17)
+    at navigateFetch (/workspace/p1-welfare-games/frontend/node_modules/.pnpm/jsdom@24.1.3/node_modules/jsdom/lib/jsdom/living/window/navigation.js:77:3)
+    at exports.navigate (/workspace/p1-welfare-games/frontend/node_modules/.pnpm/jsdom@24.1.3/node_modules/jsdom/lib/jsdom/living/window/navigation.js:55:3)
+    at LocationImpl.reload (/workspace/p1-welfare-games/frontend/node_modules/.pnpm/jsdom@24.1.3/node_modules/jsdom/lib/jsdom/living/window/Location-impl.js:226:5)
+    at Location.reload (/workspace/p1-welfare-games/frontend/node_modules/.pnpm/jsdom@24.1.3/node_modules/jsdom/lib/jsdom/living/generated/Location.js:102:36)
+    at reloadWhenSessionReady (/workspace/p1-interactive-auth/frontend/src/stores/auth.ts:103:23)
+    at syncStoredTokensBeforeRefresh (/workspace/p1-interactive-auth/frontend/src/stores/auth.ts:265:7)
+    at /workspace/p1-interactive-auth/frontend/src/stores/auth.ts:108:22
+    at /workspace/p1-interactive-auth/frontend/src/api/tokenRefresh.ts:158:40
+    at Set.forEach (<anonymous>) undefined
+Error: Not implemented: navigation (except hash changes)
+    at module.exports (/workspace/p1-welfare-games/frontend/node_modules/.pnpm/jsdom@24.1.3/node_modules/jsdom/lib/jsdom/browser/not-implemented.js:9:17)
+    at navigateFetch (/workspace/p1-welfare-games/frontend/node_modules/.pnpm/jsdom@24.1.3/node_modules/jsdom/lib/jsdom/living/window/navigation.js:77:3)
+    at exports.navigate (/workspace/p1-welfare-games/frontend/node_modules/.pnpm/jsdom@24.1.3/node_modules/jsdom/lib/jsdom/living/window/navigation.js:55:3)
+    at LocationImpl.reload (/workspace/p1-welfare-games/frontend/node_modules/.pnpm/jsdom@24.1.3/node_modules/jsdom/lib/jsdom/living/window/Location-impl.js:226:5)
+    at Location.reload (/workspace/p1-welfare-games/frontend/node_modules/.pnpm/jsdom@24.1.3/node_modules/jsdom/lib/jsdom/living/generated/Location.js:102:36)
+    at reloadWhenSessionReady (/workspace/p1-interactive-auth/frontend/src/stores/auth.ts:103:23)
+    at syncStoredTokensBeforeRefresh (/workspace/p1-interactive-auth/frontend/src/stores/auth.ts:255:7)
+    at /workspace/p1-interactive-auth/frontend/src/stores/auth.ts:108:22
+    at /workspace/p1-interactive-auth/frontend/src/api/tokenRefresh.ts:158:40
+    at Set.forEach (<anonymous>) undefined
+
+ ✓ src/components/__tests__/LoginForm.spec.ts (5 tests) 87ms
+
+ Test Files  1 passed (1)
+      Tests  5 passed (5)
+   Start at  10:11:54
+   Duration  1.25s (transform 137ms, setup 112ms, collect 165ms, tests 87ms, environment 412ms, prepare 62ms)

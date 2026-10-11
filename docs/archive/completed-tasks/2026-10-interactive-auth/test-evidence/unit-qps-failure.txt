@@ -1,0 +1,25 @@
+--- FAIL: TestTokenRefreshService_SaturatedProviderPreservesConcurrencyAndActualQPSStartSpacing (0.53s)
+    token_refresh_pool_health_test.go:662:
+            Error Trace:    /workspace/p1-interactive-auth/backend/internal/service/token_refresh_pool_health_test.go:662
+            Error:          "133.486µs" is not greater than or equal to "5ms"
+            Test:           TestTokenRefreshService_SaturatedProviderPreservesConcurrencyAndActualQPSStartSpacing
+            Messages:       upstream starts 4 and 5 violated configured QPS spacing
+{"level":"WARN","time":"2026-10-11T10:08:12.520Z","logger":"slog","caller":"logger/slog_handler.go:55","msg":"token_refresh.account_refresh_failed","service":"sub2api","env":"production","account_id":1,"platform":"grok","error":"provider OAuth configuration rejected"}
+{"level":"INFO","time":"2026-10-11T10:08:29.544Z","caller":"service/openai_ws_forwarder_logutil.go:534","msg":"[OpenAI WS Mode][openai_ws_mode=true] invalid_encrypted_lineage_capacity_overflow dropped_digests=10 capacity=512","service":"sub2api","env":"production","component":"service.openai_gateway","legacy_printf":true}
+FAIL
+FAIL    github.com/Wei-Shaw/sub2api/internal/service    244.235s
+ok      github.com/Wei-Shaw/sub2api/internal/service/openai_ws_v2   6.043s
+ok      github.com/Wei-Shaw/sub2api/internal/setup  0.129s
+?       github.com/Wei-Shaw/sub2api/internal/testutil   [no test files]
+?       github.com/Wei-Shaw/sub2api/internal/util/httputil  [no test files]
+ok      github.com/Wei-Shaw/sub2api/internal/util/logredact 0.003s
+ok      github.com/Wei-Shaw/sub2api/internal/util/responseheaders   0.006s
+ok      github.com/Wei-Shaw/sub2api/internal/util/urlvalidator  0.007s
+ok      github.com/Wei-Shaw/sub2api/internal/web    0.014s
+ok      github.com/Wei-Shaw/sub2api/migrations  0.132s
+ok      github.com/Wei-Shaw/sub2api/pkg/pluginapi/v1    0.007s
+ok      github.com/Wei-Shaw/sub2api/scripts 0.009s
+FAIL
+make[1]: *** [Makefile:19: test-unit] Error 1
+make[1]: Leaving directory '/workspace/p1-interactive-auth/backend'
+make: *** [Makefile:46: test-backend-unit] Error 2

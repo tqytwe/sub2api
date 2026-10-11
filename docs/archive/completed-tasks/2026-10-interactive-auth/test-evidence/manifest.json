@@ -1,0 +1,152 @@
+{
+  "red-matrix": {
+    "raw_sha256": "c7d2917f2a1fc7235e064ea76c6c9af0dc380cbe4a476bfd0a8c41396cc9c540",
+    "archived_sha256": "6782550ae36bafaf9e28e1c4409ebdc885c66640a6068b3c67ac4f91f7fd783d",
+    "normalization": "ANSI removed, line endings/trailing whitespace normalized; assertions unchanged; tabs expanded and terminal blank lines removed for git diff --check",
+    "archive_file": "red-matrix.txt"
+  },
+  "recovery-red": {
+    "raw_sha256": "82552f2f57dda82a84e8fdf9b043d14bcdb764d9ec401dcc75c4e0a7c7d793a7",
+    "archived_sha256": "ccc12f4ecb6ea8ec3a87ca2ff241b1dc89dc2861f8ad09e14a81bd4f07f4bfb8",
+    "normalization": "ANSI removed, line endings/trailing whitespace normalized; assertions unchanged; tabs expanded and terminal blank lines removed for git diff --check",
+    "archive_file": "recovery-red.txt"
+  },
+  "targeted-green": {
+    "raw_sha256": "3cc5bc775ae44ebe14b4fa1e5ae30460c668e2f2b3cc8c5a39780fa6970266cf",
+    "archived_sha256": "f214ca916ca8d888a81e34044d0446baa40e009a5b0e3e1ab749389b20303b57",
+    "normalization": "ANSI removed, line endings/trailing whitespace normalized; assertions unchanged; tabs expanded and terminal blank lines removed for git diff --check",
+    "archive_file": "targeted-green.txt"
+  },
+  "spec-probe": {
+    "raw_sha256": "cb0436d57dbc7509fffd8585657c0502eb7a03b088d7e05038365521156b4dcb",
+    "archived_sha256": "5187de54fbf8eddfed59130fcb035d168f1b91a3342fa4e04c2ee6fc43ce4dc8",
+    "normalization": "ANSI removed, line endings/trailing whitespace normalized; assertions unchanged; tabs expanded and terminal blank lines removed for git diff --check",
+    "archive_file": "spec-probe.txt"
+  },
+  "quality-probe": {
+    "raw_sha256": "145d2e8d847cec750b5bb28c2a1dc3306768909436b4079cefedd503fc4eead4",
+    "archived_sha256": "4e7eed9dd9fd6b6e50c24e14905578b82d04aa1cc3efcb90bd20ea416eb63fb7",
+    "normalization": "ANSI removed, line endings/trailing whitespace normalized; assertions unchanged; tabs expanded and terminal blank lines removed for git diff --check",
+    "archive_file": "quality-probe.txt"
+  },
+  "full-enospc": {
+    "raw_sha256": "f45ad8edac1a0ef6fcdd16d34f2804e4eedf37c94048625c3d3b3bcb444d48b3",
+    "archived_sha256": "4b1bf3c60618455543c37433008d65408a9bd2f7f7ddbdac42ee165bc415a71d",
+    "normalization": "ANSI removed, line endings/trailing whitespace normalized; assertions unchanged; tabs expanded and terminal blank lines removed for git diff --check",
+    "archive_file": "full-enospc.txt"
+  },
+  "browser-harness-routing-failure": {
+    "raw_sha256": "72b139dafa372771397bf923cfea23a88ebcaa166f3128c1ddc75be0990ba45e",
+    "archived_sha256": "72b139dafa372771397bf923cfea23a88ebcaa166f3128c1ddc75be0990ba45e",
+    "normalization": "ANSI removed, line endings/trailing whitespace normalized; assertions unchanged; tabs expanded and terminal blank lines removed for git diff --check",
+    "archive_file": "browser-harness-routing-failure.txt"
+  },
+  "browser-harness-syntax-failure": {
+    "raw_sha256": "6ad488924da87cada7acd7dd09318afe825cc808c49620dc595ec56a86483146",
+    "archived_sha256": "6ad488924da87cada7acd7dd09318afe825cc808c49620dc595ec56a86483146",
+    "normalization": "ANSI removed, line endings/trailing whitespace normalized; assertions unchanged; tabs expanded and terminal blank lines removed for git diff --check",
+    "archive_file": "browser-harness-syntax-failure.txt"
+  },
+  "browser-harness-mount-failure": {
+    "raw_sha256": "de03d2de69a6acd54f7ca020d87d93063d3686db9bd2bb74ce79de09d4fd5897",
+    "archived_sha256": "de03d2de69a6acd54f7ca020d87d93063d3686db9bd2bb74ce79de09d4fd5897",
+    "normalization": "ANSI removed, line endings/trailing whitespace normalized; assertions unchanged; tabs expanded and terminal blank lines removed for git diff --check",
+    "archive_file": "browser-harness-mount-failure.txt"
+  },
+  "fork-enospc": {
+    "raw_sha256": "7d498145abb3b0494dc59db311eb5ee9e881034393a71c864fbf73bca37a81d4",
+    "archived_sha256": "49082584c86ad8d78c658b0e76e21dfb264f3bd29de9896b2787d2eaeb23cb45",
+    "archive_file": "fork-enospc.txt",
+    "normalization": "ANSI removed, line endings/trailing whitespace normalized; assertions unchanged; tabs expanded and terminal blank lines removed for git diff --check"
+  },
+  "welfare-pg": {
+    "raw_sha256": "bbbfc185bed4a6db38ebfb45e3039954552900b9049edf9b3c8607d927ca2bc2",
+    "archived_sha256": "a8a65edb50fbb7b440d698f657c4cb2e761519b422e307d150aee5d4b6b44bed",
+    "archive_file": "welfare-pg.txt",
+    "normalization": "ANSI removed, line endings/trailing whitespace normalized; assertions unchanged; tabs expanded and terminal blank lines removed for git diff --check"
+  },
+  "checkin-pg": {
+    "raw_sha256": "63af1e6c36fdf29d5052090e379b81e12f9d9ff804e6b8db054b5d1485c61ef9",
+    "archived_sha256": "5bf46b06fc072d3bd9ad3532147eb03e6d7d53f6621d3da64e94ac1cc9aed39a",
+    "archive_file": "checkin-pg.txt",
+    "normalization": "ANSI removed, line endings/trailing whitespace normalized; assertions unchanged; tabs expanded and terminal blank lines removed for git diff --check"
+  },
+  "browser-transition": {
+    "raw_sha256": "c7252ca632e85c5456fcb6a5496fa3c8478cc50ba99cfd36988fe183b9c109a7",
+    "archived_sha256": "c7252ca632e85c5456fcb6a5496fa3c8478cc50ba99cfd36988fe183b9c109a7",
+    "archive_file": "browser-transition.txt",
+    "normalization": "ANSI removed, line endings/trailing whitespace normalized; assertions unchanged; tabs expanded and terminal blank lines removed for git diff --check"
+  },
+  "browser-refresh": {
+    "raw_sha256": "32203501d9c2428ba3cc99c9551df9d21664c42f99f622a097da11bd6ec772eb",
+    "archived_sha256": "32203501d9c2428ba3cc99c9551df9d21664c42f99f622a097da11bd6ec772eb",
+    "archive_file": "browser-refresh.txt",
+    "normalization": "ANSI removed, line endings/trailing whitespace normalized; assertions unchanged; tabs expanded and terminal blank lines removed for git diff --check"
+  },
+  "browser-cross-tab": {
+    "raw_sha256": "165c8164144f12c92b16d7892a40a8b25773e258f387fbf3567f8b818c49fa35",
+    "archived_sha256": "165c8164144f12c92b16d7892a40a8b25773e258f387fbf3567f8b818c49fa35",
+    "archive_file": "browser-cross-tab.txt",
+    "normalization": "ANSI removed, line endings/trailing whitespace normalized; assertions unchanged; tabs expanded and terminal blank lines removed for git diff --check"
+  },
+  "unit-qps-failure": {
+    "raw_sha256": "49cff5dcd9c9e399adbec73b2c68f636aecf942ee9937bd8d655fc1fa9351b56",
+    "archive_file": "unit-qps-failure.txt",
+    "archived_sha256": "5f885b2945a2b8b12f6bfdeb3ea3c1fd610de0d5ed235c4ec3f2a665b1b0df1a",
+    "raw_archive_file": "unit-qps-failure.raw.txt.gz",
+    "raw_archive_sha256": "1fe2638daff5530106fc215a2e9b7fc82183db42b578a0f0f96da5a98dc5fbe0",
+    "normalization": "Failure assertion and final exit excerpt; complete raw bytes retained as gzip; tabs expanded and terminal blank lines removed for git diff --check"
+  },
+  "full-loginform-failure": {
+    "raw_sha256": "9f3dffd50ed94ccbda2af956392fc8e65017513daf75ea6a160b7fa78be73ea8",
+    "archive_file": "full-loginform-failure.txt",
+    "archived_sha256": "224159755e0ce9ad1769560939c12b81e8c7c9efd47bf749ebbc61771ac837ef",
+    "raw_archive_file": "full-loginform-failure.raw.txt.gz",
+    "raw_archive_sha256": "0fffc5c0d9bb3cd661c794ad90a90ebedee34cff41d11935403169b79d08ec94",
+    "normalization": "Last90 lines, ANSI/trailing whitespace removed; complete raw bytes in gzip; tabs expanded and terminal blank lines removed for git diff --check"
+  },
+  "fork-green": {
+    "raw_sha256": "3f561867083645f19307819d73ee853ca45b14eeb1faa5903773abbdc4563ac9",
+    "archive_file": "fork-green.txt",
+    "archived_sha256": "b081a1238cc83d7050b75b0796b20f307c8090c62951ea84aa408c3225fb2f94",
+    "raw_archive_file": "fork-green.raw.txt.gz",
+    "raw_archive_sha256": "09684147479fd7cfb9392e4382a30c1fc58ee8af4aaf4560e1ce282afd62cf2f",
+    "normalization": "Last90 lines, ANSI/trailing whitespace removed; complete raw bytes in gzip; tabs expanded and terminal blank lines removed for git diff --check"
+  },
+  "loginform-green": {
+    "raw_sha256": "4943a5557e29f98eb4e422b38647e8233fe39f12863b714e5a479e4dd632d09d",
+    "archive_file": "loginform-green.txt",
+    "archived_sha256": "1aaa6d48d54e551575ab4c93bbf7bbf1279234df671e9cb9a858a17eefebb8cf",
+    "raw_archive_file": "loginform-green.raw.txt.gz",
+    "raw_archive_sha256": "a5c4979f50813c44f4bf5b87fb40d761bd98bf49a07257336b4b952e6cfad878",
+    "normalization": "Last90 lines, ANSI/trailing whitespace removed; complete raw bytes in gzip; tabs expanded and terminal blank lines removed for git diff --check"
+  },
+  "qps-probe": {
+    "raw_sha256": "4a0d8979ccc8a6414d21cbd8418e9a663fdfa692ca4f44a42625274380e8b573",
+    "archive_file": "qps-probe.txt",
+    "archived_sha256": "ac1eac3c4d38a2245e8dee0442e0bdd0b1b2859828e34476e85e5b02f93d6eac",
+    "raw_archive_file": "qps-probe.raw.txt.gz",
+    "raw_archive_sha256": "d05a841a935b40d2215ea0fc38c5cee77600bdfd2463b3c2bf91ce927771d8d1",
+    "normalization": "Last90 lines, ANSI/trailing whitespace removed; complete raw bytes in gzip; tabs expanded and terminal blank lines removed for git diff --check"
+  },
+  "build": {
+    "raw_sha256": "da4c9e5b16ac1c91dc496db01e97339b20fe6b90ba9f7bce3baf15511c73e8ed",
+    "archive_file": "build.txt",
+    "archived_sha256": "c770a6ca7504148803531d2a94b7d0cc5bc05638a20e3c646b5eb389036e76f5",
+    "raw_archive_file": "build.raw.txt.gz",
+    "raw_archive_sha256": "0843ef1e7dfd0e96110dbee09fba6bd62832788de44be00406b6d5c674f814d5",
+    "normalization": "Last90 lines, ANSI/trailing whitespace removed; complete raw bytes in gzip; tabs expanded and terminal blank lines removed for git diff --check"
+  },
+  "combined-unit": {
+    "raw_sha256": "e0cf9cdf1b7aaba01df7348deb4f21417df29ef9e6984d0224e843b1f57c53ea",
+    "archive_file": "combined-unit.txt",
+    "archived_sha256": "df088328c5af8efc7b62cc04faf3c0a7ee818b8a146db362af17dec2098c4912",
+    "normalization": "ANSI removed, tabs expanded, trailing whitespace/terminal blank lines removed; results unchanged"
+  },
+  "combined-build": {
+    "raw_sha256": "4e82f42c96d2619a7670f71f53f8cdcbe2a3d448ff0aca099208fe6d88ebe64d",
+    "archive_file": "combined-build.txt",
+    "archived_sha256": "4e82f42c96d2619a7670f71f53f8cdcbe2a3d448ff0aca099208fe6d88ebe64d",
+    "normalization": "ANSI removed, tabs expanded, trailing whitespace/terminal blank lines removed; results unchanged"
+  }
+}

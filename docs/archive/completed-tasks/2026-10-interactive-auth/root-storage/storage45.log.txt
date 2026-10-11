@@ -1,0 +1,9 @@
+
+ RUN  v2.1.9 /workspace/p1-interactive-auth/frontend
+
+ ✓ src/stores/__tests__/auth.storage.http.spec.ts (45 tests) 683ms
+
+ Test Files  1 passed (1)
+      Tests  45 passed (45)
+   Start at  10:34:48
+   Duration  1.98s (transform 405ms, setup 85ms, collect 512ms, tests 683ms, environment 317ms, prepare 60ms)

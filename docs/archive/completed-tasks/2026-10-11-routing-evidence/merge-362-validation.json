@@ -1,0 +1,119 @@
+{
+  "checked_at": "2026-10-11T11:35:18.479830+00:00",
+  "base_sha": "6ae024e6b732b64b2ce6f7ba56c5be4e20b88bdb",
+  "validated_backend_commit": "75069704437c99783530015f13cf11ed2748bbf7",
+  "status": "fresh build/embed/static/docs passed; exact-main frontend and unchanged backend gate reuse authorized; final-head CI and parent review pending",
+  "proof": "merge-362-proof.json",
+  "reviews": "merge-362-reviews.json",
+  "fresh_gates": [
+    {
+      "gate": "build",
+      "command": [
+        "make",
+        "build"
+      ],
+      "started_at": "2026-10-11T11:33:02.229739+00:00",
+      "finished_at": "2026-10-11T11:34:16.431809+00:00",
+      "exit_code": 0,
+      "elapsed_seconds": 74.202,
+      "log": "/tmp/routing-merge362-build.log",
+      "log_sha256": "82ff690bd3f2bef585e9e1166eefbbeb3cf89089182bb7c9034a1554daa6906c"
+    },
+    {
+      "gate": "embed",
+      "command": [
+        "go",
+        "build",
+        "-tags",
+        "embed",
+        "-buildvcs=false",
+        "-trimpath",
+        "-o",
+        "/tmp/routing-server-embed",
+        "./cmd/server"
+      ],
+      "started_at": "2026-10-11T11:34:16.432139+00:00",
+      "finished_at": "2026-10-11T11:34:27.027555+00:00",
+      "exit_code": 0,
+      "elapsed_seconds": 10.595,
+      "log": "/tmp/routing-merge362-embed.log",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "gate": "fork_static",
+      "command": [
+        "bash",
+        "/tmp/routing-merge362-static.sh"
+      ],
+      "started_at": "2026-10-11T11:34:27.027825+00:00",
+      "finished_at": "2026-10-11T11:34:27.497035+00:00",
+      "exit_code": 0,
+      "elapsed_seconds": 0.469,
+      "log": "/tmp/routing-merge362-fork_static.log",
+      "log_sha256": "82d8b5b0fb180464ffb1a0f28916a1a3da8b708f158be74336fa50fc40bf84a1"
+    },
+    {
+      "gate": "docs",
+      "command": [
+        "node",
+        "scripts/check-doc-links.mjs"
+      ],
+      "started_at": "2026-10-11T11:34:27.497276+00:00",
+      "finished_at": "2026-10-11T11:34:27.559162+00:00",
+      "exit_code": 0,
+      "elapsed_seconds": 0.062,
+      "log": "/tmp/routing-merge362-docs.log",
+      "log_sha256": "041a45cbd079be7036af94f80dcf8ae62b86df7aa716ef83215582cb3c3ed646"
+    },
+    {
+      "gate": "handoff",
+      "command": [
+        "python3",
+        "scripts/check_project_handoff.py"
+      ],
+      "started_at": "2026-10-11T11:34:27.559404+00:00",
+      "finished_at": "2026-10-11T11:34:27.591578+00:00",
+      "exit_code": 0,
+      "elapsed_seconds": 0.032,
+      "log": "/tmp/routing-merge362-handoff.log",
+      "log_sha256": "af1848cd99d6fa421097f172ae0c0b1d8f9f6917308b86a9b693f26fbb846f3d"
+    },
+    {
+      "gate": "handoff_tests",
+      "command": [
+        "python3",
+        "scripts/test_project_handoff.py"
+      ],
+      "started_at": "2026-10-11T11:34:27.591778+00:00",
+      "finished_at": "2026-10-11T11:34:27.657250+00:00",
+      "exit_code": 0,
+      "elapsed_seconds": 0.065,
+      "log": "/tmp/routing-merge362-handoff_tests.log",
+      "log_sha256": "322e9bec5d6bbde47d6476008f309469c1e42048ed96320a3bae52af8811e27a"
+    }
+  ],
+  "assets": "merge-362-assets.json",
+  "backend_reuse": {
+    "source": "merge-360-validation.json",
+    "checks": "full ordinary backend tests/lint zero issues; full tag-unit; real HTTP/PG23 top-level/47 tests+subtests; real 278→279 migration; full Fork",
+    "identity": "backend, migrations, CI and scripts byte-identical to 750697044, including all 27 routing manifest inputs",
+    "expected_skip": "subprocess crash-child helper requires its parent; real killed-process test passed",
+    "not_claimed": "75 is CI required name set, not a fresh local full75 run; prior broad race/core results remain their recorded historical scope"
+  },
+  "frontend_reuse": {
+    "identity": "all frontend files and dependencies byte-identical to latest main 6ae024e6",
+    "source": "docs/archive/completed-tasks/2026-10-interactive-auth/merge-fb2c9747/README.md",
+    "checks": "latest main reviewed 3789 tests passed/8 existing skips, lint/typecheck,293 targeted HTTP/component +4 intersection probes,36 native Storage/interactive checks",
+    "limitations": "Not rerun here; not entire native ledger HTTP/PG matrix or production acceptance; original main caveats retained"
+  },
+  "fork_contract": {
+    "complete_last_run": "merge-360-validation.json, exit0 before frontend-only merge",
+    "fresh": "All static checks from unchanged original script actually executed; run_check runtime groups deliberately labeled REUSED without execution, per parent no-repeat instruction",
+    "original_script_sha256": "78b0f52c87bee84075032fd58a511c3e78d807db411a87b1a5417d684580c7d0",
+    "derived_static_script_sha256": "732092335668fafd21fdfb3f42f0397f4d16bcda25dbb555b239c611b3fa7d9c",
+    "derivation": "Change ROOT to worktree, replace run_check invocation body with [REUSED] output, change success label to static-only. No other script changes. No full latest-head Fork invocation claimed."
+  },
+  "no_backend_rerun": "Parent explicitly directed reuse after pure frontend main update; no assertions relaxed, no rebase/force",
+  "migration": "279 raw/trim checksums unchanged; 278 from main retained; no280/281",
+  "deployment": "not performed; independent draft only, parent owns merge/deploy; identifier paused separately, UI independently assigned"
+}
