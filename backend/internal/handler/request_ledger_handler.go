@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"net/http"
+	"net/url"
 	"strconv"
 	"time"
 
@@ -102,6 +103,35 @@ func (h *RequestLedgerHandler) get(c *gin.Context, admin bool) {
 		response.BadRequest(c, "Invalid private request ID")
 		return
 	}
+	view, section, cursor, size, ok := detailReadOptions(c)
+	if !ok {
+		return
+	}
+	if section == "diagnostics" && !viewer.Admin {
+		response.Forbidden(c, "Administrator access required")
+		return
+	}
+	c.Header("Cache-Control", "no-store")
+	if section != "" {
+		var page any
+		var err error
+		switch section {
+		case "attempts":
+			page, err = h.Ledger.AttemptsPage(c.Request.Context(), viewer, id, cursor, size)
+		case "billing":
+			page, err = h.Ledger.BillingPage(c.Request.Context(), viewer, id, cursor, size)
+		case "wallet":
+			page, err = h.Ledger.WalletPage(c.Request.Context(), viewer, id, cursor, size)
+		case "diagnostics":
+			page, err = h.Ledger.DiagnosticsPage(c.Request.Context(), viewer, id, cursor, size)
+		}
+		if err != nil {
+			ledgerDetailError(c, err)
+			return
+		}
+		response.Success(c, page)
+		return
+	}
 	record, err := h.Ledger.Get(c.Request.Context(), viewer, id)
 	if errors.Is(err, sql.ErrNoRows) {
 		response.NotFound(c, "Request not found")
@@ -111,20 +141,24 @@ func (h *RequestLedgerHandler) get(c *gin.Context, admin bool) {
 		response.Error(c, 503, "Request ledger is temporarily unavailable")
 		return
 	}
+	if view == "summary" {
+		response.Success(c, gin.H{"request": record})
+		return
+	}
 	links, err := h.Ledger.BillingReferences(c.Request.Context(), viewer, id)
 	if err != nil {
-		response.Error(c, 503, "Request ledger is temporarily unavailable")
+		ledgerDetailError(c, err)
 		return
 	}
 	c.Header("Cache-Control", "no-store")
 	wallet, err := h.Ledger.WalletReferences(c.Request.Context(), viewer, id)
 	if err != nil {
-		response.Error(c, 503, "Request ledger is temporarily unavailable")
+		ledgerDetailError(c, err)
 		return
 	}
 	attempts, evidenceUnavailable, err := h.Ledger.AttemptsWithEvidence(c.Request.Context(), viewer, id)
 	if err != nil {
-		response.Error(c, 503, "Request ledger is temporarily unavailable")
+		ledgerDetailError(c, err)
 		return
 	}
 	result := gin.H{"request": record, "attempts": attempts, "billing": links, "wallet": wallet}
@@ -133,6 +167,10 @@ func (h *RequestLedgerHandler) get(c *gin.Context, admin bool) {
 	}
 	if viewer.Admin {
 		diagnostics, err := h.Ledger.Diagnostics(c.Request.Context(), viewer, id)
+		if errors.Is(err, requestledger.ErrDetailPaginationRequired) {
+			ledgerDetailError(c, err)
+			return
+		}
 		if err != nil {
 			result["diagnostics_unavailable"] = true
 		} else {
@@ -140,6 +178,69 @@ func (h *RequestLedgerHandler) get(c *gin.Context, admin bool) {
 		}
 	}
 	response.Success(c, result)
+}
+
+func detailReadOptions(c *gin.Context) (view, section, cursor string, size int, ok bool) {
+	bad := func() (string, string, string, int, bool) {
+		response.BadRequest(c, "Invalid detail pagination")
+		return "", "", "", 0, false
+	}
+	q, err := url.ParseQuery(c.Request.URL.RawQuery)
+	if err != nil {
+		return bad()
+	}
+	for key, values := range q {
+		if len(values) != 1 {
+			return bad()
+		}
+		switch key {
+		case "view", "section", "cursor", "page_size", "timezone":
+		default:
+			return bad()
+		}
+	}
+	// The shared browser HTTP client adds this to every GET. Detail timestamps
+	// are absolute; this transport hint does not select or alter a page.
+	q.Del("timezone")
+	view, section, cursor, size = q.Get("view"), q.Get("section"), q.Get("cursor"), 20
+	if len(q) == 0 {
+		return "", "", "", size, true
+	}
+	if view == "summary" && len(q) == 1 {
+		return view, "", "", size, true
+	}
+	if q.Has("view") || !q.Has("section") {
+		return bad()
+	}
+	switch section {
+	case "attempts", "billing", "wallet", "diagnostics":
+	default:
+		return bad()
+	}
+	if q.Has("page_size") {
+		var err error
+		size, err = strconv.Atoi(q.Get("page_size"))
+		if err != nil || size < 1 || size > requestledger.MaxDetailPageSize {
+			return bad()
+		}
+	}
+	if len(cursor) > 2048 {
+		return bad()
+	}
+	return "", section, cursor, size, true
+}
+
+func ledgerDetailError(c *gin.Context, err error) {
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		response.NotFound(c, "Request not found")
+	case errors.Is(err, requestledger.ErrDetailCursor):
+		response.BadRequest(c, "Invalid detail pagination")
+	case errors.Is(err, requestledger.ErrDetailPaginationRequired):
+		response.ErrorWithDetails(c, http.StatusConflict, "This request requires the paginated detail API. Refresh or update the client.", "PAGINATION_REQUIRED", map[string]string{"view": "summary", "sections": "attempts,billing,wallet,diagnostics"})
+	default:
+		response.Error(c, http.StatusServiceUnavailable, "Request ledger is temporarily unavailable")
+	}
 }
 
 func (h *RequestLedgerHandler) UsageUser(c *gin.Context)  { h.linkedUsage(c, false) }

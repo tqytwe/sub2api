@@ -1,0 +1,50 @@
+
+ RUN  v2.1.9 /workspace/sub2api-ledger-pagination/frontend
+
+Browserslist: browsers data (caniuse-lite) is 10 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+ ❯ src/views/shared/__tests__/RequestLedgerView.session.http.spec.ts (24 tests | 2 failed | 22 skipped) 1331ms
+   × resumes initial reads mounted during same-session peer publication when ready 1141ms
+     → expected 'Unknown usage is not a zero charge. M…' to contain 'private-fixture-a-attempt'
+   × resumes an explicit section cursor after peer readiness and cancels a closed waiting read 182ms
+     → expected 'false' to be 'true' // Object.is equality
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/views/shared/__tests__/RequestLedgerView.session.http.spec.ts > resumes initial reads mounted during same-session peer publication when ready
+AssertionError: expected 'Unknown usage is not a zero charge. M…' to contain 'private-fixture-a-attempt'
+
+Expected: "private-fixture-a-attempt"
+Received: "Unknown usage is not a zero charge. Missing history before rollout cannot be reconstructed here.Usage recordsPrivate request IDExecutionAll statesUsageAll statesSettlementAll statesKey IDFrom (local time)Until (exclusive)Apply filtersRefreshResetRequest / timeIdentityExecutionUsageSettlementAttemptsActionsNo requests match these filters."
+
+ ❯ src/views/shared/__tests__/RequestLedgerView.session.http.spec.ts:222:46
+    220|   await pause(); expect(reads).toHaveLength(0)
+    221|   finish()
+    222|   await vi.waitFor(() => expect(view.text()).toContain('private-fixtur…
+       |                                              ^
+    223|   expect(reads.filter(r => r.stage === 'list')).toHaveLength(1)
+    224|   expect(reads.filter(r => r.stage === 'summary')).toHaveLength(1)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/views/shared/__tests__/RequestLedgerView.session.http.spec.ts > resumes an explicit section cursor after peer readiness and cancels a closed waiting read
+AssertionError: expected 'false' to be 'true' // Object.is equality
+
+Expected: "true"
+Received: "false"
+
+ ❯ src/views/shared/__tests__/RequestLedgerView.session.http.spec.ts:232:54
+    230|   await view.get(`${selector} [data-action="next"]`).trigger('click')
+    231|   await pause(); expect(reads).toHaveLength(count)
+    232|   expect(view.get(selector).attributes('aria-busy')).toBe('true')
+       |                                                      ^
+    233|   finish()
+    234|   await vi.waitFor(() => expect(reads).toHaveLength(count + 1))
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 22 skipped (24)
+   Start at  09:42:42
+   Duration  4.08s (transform 1.55s, setup 72ms, collect 1.96s, tests 1.33s, environment 304ms, prepare 54ms)

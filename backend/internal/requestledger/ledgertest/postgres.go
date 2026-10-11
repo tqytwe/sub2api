@@ -34,7 +34,9 @@ func NewWithDSN(t *testing.T) (*sql.DB, string) {
 		"-e", "POSTGRES_HOST_AUTH_METHOD=trust", "-e", "POSTGRES_DB=ledger_test",
 		"-p", "127.0.0.1::5432", "postgres:18.1-alpine3.23").CombinedOutput()
 	require.NoError(t, err, "disposable postgres startup: %s", out)
-	t.Cleanup(func() { _ = exec.Command("docker", "rm", "-f", name).Run() })
+	// This container and its anonymous volume are disposable test fixtures.
+	// Explicit -v prevents repeated PG acceptance runs from retaining its data.
+	t.Cleanup(func() { _ = exec.Command("docker", "rm", "-f", "-v", name).Run() })
 	out, err = exec.CommandContext(ctx, "docker", "port", name, "5432/tcp").Output()
 	require.NoError(t, err)
 	address := strings.TrimSpace(string(out))

@@ -49,13 +49,22 @@ export interface BillingReference {
 }
 export interface LinkedUsage { id: number; model: string; input_tokens: number; output_tokens: number; image_count?: number | null; billing_mode?: string | null; batch_id?: string | null; created_at: string; billed_cost: number | null }
 export interface RequestDetail {
-  diagnostics?: { attempt_no: number; ops_error_log_id: number; available: boolean }[]
-  diagnostics_unavailable?: boolean
-  attempt_evidence_unavailable?: boolean
   request: RequestRecord
-  attempts: RequestAttempt[]
-  billing: BillingReference[]
-  wallet?: { id: number; operation: string }[]
+}
+export interface DetailSectionItems {
+  attempts: RequestAttempt
+  billing: BillingReference
+  wallet: { id: number; operation: string }
+  diagnostics: { attempt_no: number; ops_error_log_id: number; available: boolean }
+}
+export interface DetailSectionPage<T> {
+  items: T[]
+  page_size: number
+  has_more: boolean
+  next_cursor: string
+  consistency: 'live'
+  refresh_hint: string
+  attempt_evidence_unavailable?: boolean
 }
 export interface RequestPage { items: RequestRecord[]; total: number; page: number; page_size: number }
 export type RequestFilters = Record<string, string | number | undefined>
@@ -68,6 +77,9 @@ export const requestLedgerAPI = {
     return (await apiClient.get<RequestPage>(endpoint(admin), { params, signal })).data
   },
   async detail(admin: boolean, id: string, signal?: AbortSignal) {
-    return (await apiClient.get<RequestDetail>(`${endpoint(admin)}/${encodeURIComponent(id)}`, { signal })).data
+    return (await apiClient.get<RequestDetail>(`${endpoint(admin)}/${encodeURIComponent(id)}`, { params: { view: 'summary' }, signal })).data
+  },
+  async sectionPage<S extends keyof DetailSectionItems>(admin: boolean, id: string, section: S, cursor: string, signal?: AbortSignal) {
+    return (await apiClient.get<DetailSectionPage<DetailSectionItems[S]>>(`${endpoint(admin)}/${encodeURIComponent(id)}`, { params: { section, cursor, page_size: 20 }, signal })).data
   },
 }

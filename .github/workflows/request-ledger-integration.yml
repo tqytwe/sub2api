@@ -50,6 +50,15 @@ jobs:
           import json, os
           from pathlib import Path
           required = {
+              "TestRequestLedgerHTTPDetailPagingContract",
+              "TestRequestLedgerHTTPBillingWalletSourcePaging",
+              "TestRequestLedgerHTTPRefreshFindsLateProofBehindCursor",
+              "TestRequestLedgerHTTPLateCommitAndCursorIsolation",
+              "TestRequestLedgerHTTPPagedEvidenceIsolationAndFailure",
+              "TestRequestLedgerHTTPAttemptPageConcurrentAdmission",
+              "TestRequestLedgerDetailPageCandidatesUseBoundedIndex",
+              "TestRequestLedgerDetailPaginationMigrationRecoversInterruptedIndex",
+
               "TestBatchImageHTTPUsageDrillUsesCommittedCapture",
               "TestBatchImageHTTPRecoveryAndIsolation",
               "TestBatchImageHTTPDisconnectAfterCapture",
