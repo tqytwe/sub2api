@@ -214,10 +214,10 @@
       "docs/archive/completed-tasks/2026-10-auth-refresh/browser-evidence/quiz-proactive-360.png": "960a78e8a7dd226a9cb4c7744ecce473de0a57b6e537e7e06d04490a8fd1f8ee",
       "docs/archive/completed-tasks/2026-10-auth-refresh/browser-evidence/report.json": "8a1653b4580d75bb96943a17c0f1fc27426a9eb6068ac0392072489e572145e8",
       "docs/archive/completed-tasks/2026-10-auth-refresh/root-review-evidence/login-write-gap-final.json": "13b48cdedd3b4d810b2b275df9e2880f77005216e3a2e71f87f537d8d2b2c236",
-      "docs/archive/completed-tasks/2026-10-auth-refresh/root-review-evidence/known-late-login-base05.txt": "08161ff66fd9c05dff43b4f2c7132076762fc8f0ca779e4c08639b290840ffdb",
-      "docs/archive/completed-tasks/2026-10-auth-refresh/root-review-evidence/known-late-login-e4.txt": "517988daa82cf52f4e28791330a44f3d6afb5bbb23c91c6cb8039f8c29247431",
+      "docs/archive/completed-tasks/2026-10-auth-refresh/root-review-evidence/known-late-login-base05.txt": "2cc5b7040852e4ca32f06b91e99d64d753b537b9b2d7a2e4225f90eee3d57f42",
+      "docs/archive/completed-tasks/2026-10-auth-refresh/root-review-evidence/known-late-login-e4.txt": "097ac6db11f2920f60dbe60f50a6bfb77167e6f630c9f9aa30ee02868590b1bc",
       "docs/archive/completed-tasks/2026-10-auth-refresh/root-review-evidence/e4-cross-tab-red.json": "b8c2775037acc5836f60b5dd40b7ae070b558931099c1bb95aa6bfeb14d17d64",
-      "docs/archive/completed-tasks/2026-10-auth-refresh/root-review-evidence/known-late-login-current.txt": "a6e6451ddd5467a9a96e42fb3cee05d4a3a952635fc08b943557df16f529743d",
+      "docs/archive/completed-tasks/2026-10-auth-refresh/root-review-evidence/known-late-login-current.txt": "bcb1d5c1ee7c24ca9d4fea490ecdf059ad7e46e8fa0f8ce8a391f5e0c99cba2b",
       "docs/archive/completed-tasks/2026-10-auth-refresh/root-review-evidence/native-partial-pair-red.json": "1b1b4a001a13a3858427b497f3e913e4d838ee3dd163849c586745b64e9b6087",
       "docs/archive/completed-tasks/2026-10-auth-refresh/root-review-evidence/old-post-pending-key-red.json": "71534ff8590fafa3efd7f0232feb63a454a36b0d9fea40612de3360e807f9e8b",
       "docs/archive/completed-tasks/2026-10-auth-refresh/root-review-evidence/base23-cross-tab.json": "854597cbd619418b928a5c2e431d231e38ac084349d69bef5a85d7e0341fb465",
@@ -260,7 +260,22 @@
         "docs/archive/completed-tasks/2026-10-auth-refresh/root-review-evidence/known-late-login-base05.txt",
         "docs/archive/completed-tasks/2026-10-auth-refresh/root-review-evidence/known-late-login-e4.txt",
         "docs/archive/completed-tasks/2026-10-auth-refresh/root-review-evidence/known-late-login-current.txt"
-      ]
+      ],
+      "raw_logs": {
+        "/tmp/auth-rootfix-quality/result.log": {
+          "sha256": "a6e6451ddd5467a9a96e42fb3cee05d4a3a952635fc08b943557df16f529743d",
+          "result": "Original actualHTTP late-login failure; archived text normalizes trailing whitespace only"
+        },
+        "/tmp/auth-rootfix-quality/base05.log": {
+          "sha256": "08161ff66fd9c05dff43b4f2c7132076762fc8f0ca779e4c08639b290840ffdb",
+          "result": "Original actualHTTP late-login failure; archived text normalizes trailing whitespace only"
+        },
+        "/tmp/auth-rootfix-quality/e4.log": {
+          "sha256": "517988daa82cf52f4e28791330a44f3d6afb5bbb23c91c6cb8039f8c29247431",
+          "result": "Original actualHTTP late-login failure; archived text normalizes trailing whitespace only"
+        }
+      },
+      "archive_normalization": "Archived .txt removes trailing whitespace and extra EOF blank lines only; exact raw logs and SHA256 preserved above."
     },
     "scope_audit": {
       "base_sha": "05b44bec5c2d30ad58d009fbe5247ea363c6ee70",
@@ -313,7 +328,8 @@
         "exit_code": 0,
         "finished_at": "2026-10-11T08:58:47.283525+00:00"
       }
-    }
+    },
+    "delivery_note": "Local merge e23d4823dfd66de0190f586974f6a8f9cbd2c7fe was committed after a staged whitespace check failed on raw diagnostic text because the shell did not stop. No push occurred. A separate documentation-only commit normalizes those3 archives; production/test hashes, build and test evidence unchanged."
   },
   "initial_e4_history": {
     "base_sha": "1bfc7e2edb788ca11a23ff936f99db904c4b4199",

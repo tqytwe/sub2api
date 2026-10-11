@@ -4,7 +4,7 @@
 
 规格审查在两个发布时序阻塞及OAuth helper遗漏完成RED→GREEN后通过。11项冻结源码/相关测试hash见root-review-evidence/reviewed-inputs.json；5生产文件，138项定向通过。原独立OAuth真实HTTP探针与最终构建原login-gap探针均通过。最终构建index8cf9218f…下8场景/10次原生跨页运行与4视口均通过，既有原生提交/401四路径也通过。代码质量复审在规格源码通过后启动，最终PASS无新增阻塞，11哈希与20上游文件逐字节一致；清单SHA256 c6cb35c0e248a655341dc3c9bcb309e76cec0d3887716832a3cf9948eaca120a。全量及准确新head CI另记，不提前记为通过。隔离PG签到及福利合同随后实际通过，空间不足首轮记录保留。
 
-质量窄探针另发现已有迟到交互login失败会清除后来会话，当前/base05/E4三版本同一真实HTTP探针均2/2 RED，未见本批新增因果；这是单列后续，2FA/register同类catch未逐项执行，不能宣称全部认证并发已修。原始三份日志保存在root-review-evidence/known-late-login-*.txt。
+质量窄探针另发现已有迟到交互login失败会清除后来会话，当前/base05/E4三版本同一真实HTTP探针均2/2 RED，未见本批新增因果；这是单列后续，2FA/register同类catch未逐项执行，不能宣称全部认证并发已修。三份结果保存在root-review-evidence/known-late-login-*.txt（仅去行尾空白及末尾空行）；原始日志路径及SHA256见verification.json，不改失败内容或结论。
 
 完整回归发现PlayHub首例通过而后8例失败，旧Pinia的订阅在夹具间未清理。仅补disposePinia并删除续期后手工checkAuth，原断言未放宽，真实HTTP9/9通过。规格补审PASS：12项冻结hash、5生产文件不变、20个上游暂存文件逐字节一致；质量补审随后PASS无阻塞，再次核对原断言未放宽、12哈希及上游20文件；五个生产文件未漂移。最终清单SHA256 `1e1a21988098f090ebf7f62146a3f16a6f3bc9c5cf7971a50428396960777897`。
 

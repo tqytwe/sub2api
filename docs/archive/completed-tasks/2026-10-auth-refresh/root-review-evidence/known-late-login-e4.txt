@@ -13,10 +13,10 @@
  FAIL  probe.spec.ts > quality narrow login boundary > quality: late interactive login failure must preserve a newer account (503)
 AssertionError: expected undefined to be 2 // Object.is equality
 
-- Expected: 
+- Expected:
 2
 
-+ Received: 
++ Received:
 undefined
 
  ❯ probe.spec.ts:117:27
@@ -33,4 +33,3 @@ undefined
       Tests  2 failed (2)
    Start at  08:40:45
    Duration  2.27s (transform 788ms, setup 178ms, collect 1.02s, tests 235ms, environment 504ms, prepare 90ms)
-
