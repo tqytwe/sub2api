@@ -79,7 +79,7 @@
   "commands": [
     "/tmp/p0-run make build",
     "LEDGER_DETAIL_BROWSER_FIXTURE=1 LEDGER_BROWSER_DIST=/tmp/ledger-detail-built go test -tags=integration ./internal/requestledger/acceptance -run ^TestRequestLedgerDetailPagingBrowserFixture$ -count=1 -v",
-    "node docs/archive/completed-tasks/ledger-detail-pagination/capture.cjs /tmp/ledger-pagination-browser-fixture.log"
+    "node docs/archive/completed-tasks/ledger-detail-pagination/capture.cjs /tmp/ledger-pagination-combo-browser-fixture.log"
   ],
   "checks": {
     "keyboard": {
@@ -142,3 +142,11 @@ AppLayout、BaseDialog、DataTable、Ops浮层和原样式。新组件封装页�
 ## Residual Risk
 
 本地合成fixture不等于生产用户本机验收；本任务不合并或部署。
+
+## Combination revalidation
+
+2026-10-11 09:03:20–09:03:45 UTC，普通合入#352（05b44bec）后，完整构建资源重新运行
+同一双角色HTTP/PG浏览器脚本，所有断言通过，零pageerror；此页28张after/state截图来自本轮。
+分页及全部前端源码不变，7个既有入口/台账/共享资源指纹不变；完整356文件资源指纹见
+[组合验证](../archive/completed-tasks/ledger-detail-pagination/combination-validation.json)。
+本轮重新目视普通用户360px与管理员503错误画面，样式和信息关系保持一致。

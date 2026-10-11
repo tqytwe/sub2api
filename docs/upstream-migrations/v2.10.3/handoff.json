@@ -19,7 +19,7 @@
     {
       "id": "request-ledger-detail-pagination",
       "title": "请求台账详情独立有界实时分页",
-      "backend_state": "可测",
+      "backend_state": "已验证",
       "product_state": "可测",
       "owner": "主线程协调",
       "pr": null,
@@ -56,9 +56,12 @@
             "backend/internal/requestledger/acceptance/detail_pagination_integration_test.go",
             "backend/internal/requestledger/detail_page_index_integration_test.go",
             "frontend/src/views/shared/__tests__/RequestLedgerView.spec.ts",
-            "frontend/src/api/__tests__/requestLedger.spec.ts"
+            "frontend/src/api/__tests__/requestLedger.spec.ts",
+            "docs/archive/completed-tasks/ledger-detail-pagination/initial-validation.json",
+            "docs/archive/completed-tasks/ledger-detail-pagination/combination-validation.json",
+            "docs/archive/completed-tasks/ledger-detail-pagination/combination-protocol-validation.json"
           ],
-          "note": "TDD定向HTTP/PG、22项前端测试、22万task查询计划及中断索引恢复已通过；完整门禁与代码质量审查进行中。"
+          "note": "初始make test/build、完整unit、协议56/56、HTTP race、embed/Fork及顺序双审通过；#352组合再次通过后端完整test/lint/unit、协议56/56（94顶层）、13项分页/批量HTTP race、42个counter叶级race、build/embed/Fork及双角色实际资源浏览器。前端源码/依赖未变，沿用3611通过/8个既有opt-in跳过；分页22项均执行。"
         },
         "deployment": {
           "status": "pending",
@@ -71,8 +74,8 @@
           "note": "未登录Zeabur或访问生产秘密，生产自然流量与用户本机三身份验收由主线程协调。"
         }
       },
-      "risks": "实时分页不是快照，迟到证明需要刷新；旧客户端大集合需升级。不修改计费写入/capture/原认证谓词/受限usage_billing_repo.go；unknown非免费，历史gpt22损失仍未归因。",
-      "next": "2026-10-11本项按23d06337cbc315cb92d3fc18e94902fe21e7342d（#356 merge）基线开发，仅复核本项与远端主线，保留整份checked_at及未重验条目。完成全量门禁/顺序独立审查，推送草稿PR；PR/SHA尚未生成，不声称部署。安全只读补证见独立工作项。",
+      "risks": "实时分页不是快照，迟到证明需要刷新；旧客户端大集合需升级。分页自身不修改计费写入/capture/原认证谓词/受限usage_billing_repo.go；组合逐字承接#352主线，仍保留其同用户/组下冻结entitlement-ID绑定缺口。unknown非免费，历史gpt22损失仍未归因。",
+      "next": "2026-10-11 09:03:45 UTC本项组合本地门禁及双角色真实资源复验完成，顺序独立规格/代码复审均通过。初始候选8f427f0577bb47a391b98dfd77d264fe22783e14，普通合入主线05b44bec5c2d30ad58d009fbe5247ea363c6ee70（#352）；即将提交并推送草稿PR，PR/技术merge SHA待实际生成后填写。仅复核本项，保留整份checked_at及未重验条目。不合并部署；精确最终head/CI及生产验收由主线程协调；安全只读补证为独立后续。",
       "rollback": "若权限、分页归属、证据或迁移异常，由主线程协调经审查的源码回退；新UI与后端分页契约需配套。保留278及已有台账，不删数据、不改历史迁移。"
     },
     {

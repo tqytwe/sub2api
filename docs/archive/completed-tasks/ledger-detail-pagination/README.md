@@ -33,10 +33,15 @@ API明确返回 `consistency=live` 与 `refresh_hint`，UI提供就地提示和�
 
 ## 边界与验证
 
-不修改计费写入、capture、usage认证条件或
-`backend/internal/repository/usage_billing_repo.go`；不引入补扣、估算、TTL、
+分页自身不修改计费写入、capture、usage认证条件或
+`backend/internal/repository/usage_billing_repo.go`；组合逐字承接已审查的#352主线修复，
+不手工改写该文件。不引入补扣、估算、TTL、
 历史清理或猜测关联。历史 SQL/checksum 不变；新增278并发索引支持按request/task定位来源。
 固定上游仍为 ranxi v2.10.3。
+
+#352已记录的同用户/组下冻结entitlement-ID绑定缺口仍保留，分页没有修复该缺口，
+也不以本地counter测试宣称任意entitlement替换或生产完整鉴权/调度/worker路径已获验证。
+见[#352审查边界](../2026-10-10-subscription-counter-acceptance/2026-10-11-review.md)。
 
 独立规格审查已通过，并复审timezone兼容与翻页期间usage禁用；代码质量审查也已通过；初始候选完整门禁通过，主线组合另验。TDD 首轮真实HTTP/一次性PG失败已复现：旧接口
 忽略summary/section并返回105条尝试、无超界409、无参数校验/section权限。
@@ -53,7 +58,7 @@ task/owner/key/capture冷热全部指纹核验、幂等补证与冲突拒绝，�
 capture、余额或订阅写入、上游生成、估算或历史猜测。本批仅登记，不实现。
 该能力不能宣称恢复或归因历史gpt22损失。
 
-最终全量门禁、HTTP/PG与真实资源交互、顺序规格/代码复审、PR/SHA/CI待补。
+初始候选全量门禁、HTTP/PG与真实资源交互及顺序规格/代码复审已通过；#352组合结果见文末，PR/SHA/CI独立记录。
 本任务不合并或部署。
 
 ## 使用者/API迁移合同
@@ -157,4 +162,32 @@ helper包；本批浏览器fixture已另行实际执行。逐包耗时、精确r
 初始候选全部本地门禁已通过，见[逐项命令/耗时/摘要](./initial-validation.json)。
 13个分页/批量图片HTTP顶层用例通过race；embed构建/测试与Fork通过。
 父线程通知#352正常合入 `05b44bec5c2d30ad58d009fbe5247ea363c6ee70`，已经fetch确认；
-接下来普通合并、保留其repo修复与测试，并验证组合。此处不把初始结果当作组合已通过。
+已执行无冲突普通 `--no-ff --no-commit` 合并，20个主线文件逐字保留，分页源码及前端源码不变；
+组合验证使用该未提交merge，门禁与浏览器复验完成后才提交。见[组合来源核对](./combination-source.json)。
+此处不把初始结果当作组合已通过，最终组合SHA和验证在收尾后单独记录。
+
+## #352组合复审
+
+顺序执行组合规格复审、代码质量复审，两者均通过；20个主线文件及20个分页
+源码/工作流文件均经独立逐字核对。分页读取不获取订阅/entitlement行锁，
+未发现与#352 claim→subscription→entitlement锁序形成新增锁环；拒绝归属仍回滚
+claim/计数/结算，分页未将未提交或失败结算显示为已扣费。原capture与证明谓词不变。
+审查是只读检查，不代替组合门禁、最终SHA CI或生产验收；既有entitlement-ID缺口保留。
+
+## #352组合门禁
+
+2026-10-11组合后重新运行默认后端测试/lint、完整unit、完整协议、分页/批量HTTP race、
+#352 counter HTTP/PG race、完整build、embed build/test与Fork，九项命令均退出0。
+协议仍为56/56必需用例、94个顶层用例；分页/批量race为13个顶层用例，counter为
+42个叶级用例（连分组共44个子项）。无测试失败。
+
+#352没有前端修改，分页源码指纹及全部前端/依赖文件不变，故沿用初始完整前端
+3611通过/8个既有opt-in跳过的结果；组合重新typecheck/build/Fork，并另行真实资源浏览器复验。
+旧浏览器证据保留为[初始浏览器证据](./initial-browser-evidence.json)，不覆盖初始验证来历。
+组合来源、逐门禁时间/日志校验和、精确协议集合和最终资源指纹在组合验证JSON中记录。
+
+组合双角色浏览器于09:03:20–09:03:45 UTC通过：最终实际资源、四宽度、浅深色/中英文、
+权限/legacy409、独立翻页/空中间页/503重试/刷新/请求切换，以及旧usage禁用均通过。
+核对合成usage为6美元/3图，零pageerror；最新截图已替换为本次实际捕获，初始版本保留在8f427f0。
+见[组合门禁/全部资源指纹](./combination-validation.json)与[组合完整协议](./combination-protocol-validation.json)。
+09:01 UTC再次fetch确认远端主线仍为05b44bec；此结果不包含生产部署或用户本机验收。
