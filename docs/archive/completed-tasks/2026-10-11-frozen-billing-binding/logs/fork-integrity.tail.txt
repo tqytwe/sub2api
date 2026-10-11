@@ -1,0 +1,80 @@
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+  at <SettingsView ref="VTU_COMPONENT" >
+  at <VTUROOT>
+
+stderr | src/views/admin/__tests__/SettingsView.spec.ts > admin SettingsView wechat connect controls > links GitHub OAuth Apps guide to GitHub developer settings
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+  at <SettingsView ref="VTU_COMPONENT" >
+  at <VTUROOT>
+
+stderr | src/views/admin/__tests__/SettingsView.spec.ts > admin SettingsView wechat connect controls > saves WeChat Connect fields using the backend contract and clears the secret after save
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+  at <SettingsView ref="VTU_COMPONENT" >
+  at <VTUROOT>
+
+stderr | src/views/admin/__tests__/SettingsView.spec.ts > admin SettingsView wechat connect controls > collapses auth source defaults until the source is enabled
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+  at <SettingsView ref="VTU_COMPONENT" >
+  at <VTUROOT>
+
+ ✓ src/i18n/__tests__/routeLocaleRuntime.spec.ts (47 tests) 12247ms
+   ✓ route locale runtime scopes > keeps every route component static key available on a cold visit 11525ms
+stderr | src/views/admin/__tests__/SettingsView.spec.ts > admin SettingsView wechat connect controls > preserves optional OIDC compatibility flags instead of forcing them on save
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+  at <SettingsView ref="VTU_COMPONENT" >
+  at <VTUROOT>
+
+stderr | src/views/admin/__tests__/SettingsView.spec.ts > admin SettingsView platform quota matrix > 从 baseSettings 加载默认平台配额数据并在 Users tab 渲染 6 平台行
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+  at <SettingsView ref="VTU_COMPONENT" >
+  at <VTUROOT>
+
+stderr | src/views/admin/__tests__/SettingsView.spec.ts > admin SettingsView platform quota matrix > 保存时 updateSettings payload 应包含嵌套 default_platform_quotas 对象（含全 6 平台）
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+  at <SettingsView ref="VTU_COMPONENT" >
+  at <VTUROOT>
+
+stderr | src/views/admin/__tests__/SettingsView.spec.ts > admin SettingsView platform quota matrix > 加载后 form.default_platform_quotas 含全 6 平台，从嵌套 JSON 正确读取数值
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+  at <SettingsView ref="VTU_COMPONENT" >
+  at <VTUROOT>
+
+stderr | src/views/admin/__tests__/SettingsView.spec.ts > admin SettingsView platform quota matrix > 空输入（v-model.number 产出 ""）在提交时清洗为 null 而非空字符串
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+  at <SettingsView ref="VTU_COMPONENT" >
+  at <VTUROOT>
+
+ ✓ src/views/admin/__tests__/SettingsView.spec.ts (48 tests) 8338ms
+   ✓ admin SettingsView payment visible method controls > restores all system-setting controls and preserves read-only or secret fields 1692ms
+   ✓ admin SettingsView payment visible method controls > 人机验证切换到腾讯天御并保存四项配置 326ms
+   ✓ admin SettingsView payment visible method controls > 人机验证切换到阿里云并保存配置 305ms
+   ✓ admin SettingsView payment visible method controls > loads, edits, validates, and saves forwarded client-IP headers 354ms
+   ✓ admin SettingsView payment visible method controls > does not expose the upstream recharge bonus tier editor 330ms
+
+ Test Files  5 passed (5)
+      Tests  124 passed (124)
+   Start at  09:20:11
+   Duration  14.27s (transform 8.42s, setup 636ms, collect 8.32s, tests 21.35s, environment 3.18s, prepare 438ms)
+
+  [PASS] FORK-SETTINGS-019: system settings controls, API payload, secret masking and bilingual locale tests
+
+  [PASS] FORK-DEPLOY-006: fork source build guide
+  [PASS] FORK-DEPLOY-006: reviewed upstream source lock
+  [PASS] FORK-DEPLOY-006: read-only source verifier
+  [PASS] FORK-DEPLOY-006: PR CI exercises release source policy
+  [PASS] FORK-DEPLOY-006: ranxi release discovery
+  [PASS] FORK-DEPLOY-006: unverified in-place installation is rejected
+  [PASS] FORK-DEPLOY-006: cache is bound to source policy
+  [PASS] FORK-DEPLOY-006: publish only reviewed fork head
+  [PASS] FORK-DEPLOY-006: release workflow cannot push VERSION
+  [PASS] FORK-DEPLOY-006: no upstream installer in badge
+  [PASS] FORK-DEPLOY-006: no original image rollback in badge
+Fork integrity passed.

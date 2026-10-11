@@ -1,0 +1,95 @@
+=== RUN   TestSubscriptionEntitlementBindingReproduction
+2026/10/11 08:25:11 Timezone initialized: UTC (UTC offset: +00:00)
+    subscription_binding_reproduction_integration_test.go:26: full_migrations count=404 last=277_batch_image_ledger_reconcile_index_notx.sql
+=== RUN   TestSubscriptionEntitlementBindingReproduction/unchanged_entitlement_retry_recovers
+2026/10/11 08:25:17 [OpenAI WS Mode][openai_ws_mode=true] bootstrap enabled=false oauth_enabled=false apikey_enabled=false force_http=false responses_websockets_v2=false responses_websockets=false payload_log_sample_rate=0.000 event_flush_batch_size=0 event_flush_interval_ms=0 prewarm_cooldown_ms=0 retry_backoff_initial_ms=0 retry_backoff_max_ms=0 retry_jitter_ratio=0.000 retry_total_budget_ms=0 ws_read_limit_bytes=16777216
+2026/10/11 08:25:17 [Billing] Using fallback pricing for model: gpt-5.1
+    subscription_binding_reproduction_integration_test.go:77: internal_retry changed=false upstream_sends=1 prepared_A=1 retry_entitlement=1 link_entitlement=1 verified=true dedup=1 settled_usage=1 B_requests=0 B_amount=0.0000000000 B_tokens=0 A_delta={Daily:0.0002626299999999304 Weekly:0.0002626299999999304 Monthly:0.0002626299999999304 Requests:1 Amount:0.0002626250000004049 Tokens:120} error=<nil>
+    subscription_binding_reproduction_integration_test.go:79: legacy_fingerprint_same=true retry_applied=true
+2026/10/11 08:25:17 [Billing] Using fallback pricing for model: gpt-5.1
+    subscription_binding_reproduction_integration_test.go:96: counter_evidence kind_package=true requests=1 callbacks=3 before={Daily:1.125 Weekly:2.25 Monthly:3.5 Requests:7 Amount:4.75 Tokens:123} after={Daily:1.12526263 Weekly:2.25026263 Monthly:3.50026263 Requests:8 Amount:4.750262625 Tokens:243} delta={Daily:0.0002626299999999304 Weekly:0.0002626299999999304 Monthly:0.0002626299999999304 Requests:1 Amount:0.0002626250000004049 Tokens:120} total=0.0005252500 actual=0.0002626250 billed=0.0002626250 dedup=usage=links=1
+=== RUN   TestSubscriptionEntitlementBindingReproduction/retry_must_keep_prepared_entitlement
+2026/10/11 08:25:17 [OpenAI WS Mode][openai_ws_mode=true] bootstrap enabled=false oauth_enabled=false apikey_enabled=false force_http=false responses_websockets_v2=false responses_websockets=false payload_log_sample_rate=0.000 event_flush_batch_size=0 event_flush_interval_ms=0 prewarm_cooldown_ms=0 retry_backoff_initial_ms=0 retry_backoff_max_ms=0 retry_jitter_ratio=0.000 retry_total_budget_ms=0 ws_read_limit_bytes=16777216
+2026/10/11 08:25:17 [Billing] Using fallback pricing for model: gpt-5.1
+    subscription_binding_reproduction_integration_test.go:77: internal_retry changed=true upstream_sends=1 prepared_A=3 retry_entitlement=4 link_entitlement=3 verified=true dedup=1 settled_usage=1 B_requests=1 B_amount=0.0002626250 B_tokens=120 A_delta={Daily:0.0002626299999999304 Weekly:0.0002626299999999304 Monthly:0.0002626299999999304 Requests:0 Amount:0 Tokens:0} error=<nil>
+    subscription_binding_reproduction_integration_test.go:79: legacy_fingerprint_same=true retry_applied=true
+    subscription_binding_reproduction_integration_test.go:82:
+            Error Trace:    /workspace/sub2api-p1-binding/backend/internal/billingacceptance/subscription_binding_reproduction_integration_test.go:82
+            Error:          An error is expected but got nil.
+            Test:           TestSubscriptionEntitlementBindingReproduction/retry_must_keep_prepared_entitlement
+            Messages:       a retry must not substitute the entitlement frozen by Prepare
+    subscription_binding_reproduction_integration_test.go:83:
+            Error Trace:    /workspace/sub2api-p1-binding/backend/internal/billingacceptance/subscription_counters_integration_test.go:94
+                                        /workspace/sub2api-p1-binding/backend/internal/billingacceptance/subscription_binding_reproduction_integration_test.go:83
+            Error:          Max difference between 1.125 and 1.12526263 allowed is 1e-10, but difference was -0.0002626299999999304
+            Test:           TestSubscriptionEntitlementBindingReproduction/retry_must_keep_prepared_entitlement
+            Messages:       daily
+    subscription_binding_reproduction_integration_test.go:83:
+            Error Trace:    /workspace/sub2api-p1-binding/backend/internal/billingacceptance/subscription_counters_integration_test.go:95
+                                        /workspace/sub2api-p1-binding/backend/internal/billingacceptance/subscription_binding_reproduction_integration_test.go:83
+            Error:          Max difference between 2.25 and 2.25026263 allowed is 1e-10, but difference was -0.0002626299999999304
+            Test:           TestSubscriptionEntitlementBindingReproduction/retry_must_keep_prepared_entitlement
+            Messages:       weekly
+    subscription_binding_reproduction_integration_test.go:83:
+            Error Trace:    /workspace/sub2api-p1-binding/backend/internal/billingacceptance/subscription_counters_integration_test.go:96
+                                        /workspace/sub2api-p1-binding/backend/internal/billingacceptance/subscription_binding_reproduction_integration_test.go:83
+            Error:          Max difference between 3.5 and 3.50026263 allowed is 1e-10, but difference was -0.0002626299999999304
+            Test:           TestSubscriptionEntitlementBindingReproduction/retry_must_keep_prepared_entitlement
+            Messages:       monthly
+    subscription_binding_reproduction_integration_test.go:84:
+            Error Trace:    /workspace/sub2api-p1-binding/backend/internal/billingacceptance/subscription_binding_reproduction_integration_test.go:84
+            Error:          Should be zero, but was 1
+            Test:           TestSubscriptionEntitlementBindingReproduction/retry_must_keep_prepared_entitlement
+            Messages:       B must remain uncharged when link is bound to A
+    subscription_binding_reproduction_integration_test.go:85:
+            Error Trace:    /workspace/sub2api-p1-binding/backend/internal/billingacceptance/subscription_binding_reproduction_integration_test.go:85
+            Error:          Should be zero, but was 0.000262625
+            Test:           TestSubscriptionEntitlementBindingReproduction/retry_must_keep_prepared_entitlement
+    subscription_binding_reproduction_integration_test.go:86:
+            Error Trace:    /workspace/sub2api-p1-binding/backend/internal/billingacceptance/subscription_binding_reproduction_integration_test.go:86
+            Error:          Should be zero, but was 120
+            Test:           TestSubscriptionEntitlementBindingReproduction/retry_must_keep_prepared_entitlement
+    subscription_binding_reproduction_integration_test.go:87:
+            Error Trace:    /workspace/sub2api-p1-binding/backend/internal/billingacceptance/subscription_counter_ownership_integration_test.go:206
+                                        /workspace/sub2api-p1-binding/backend/internal/billingacceptance/subscription_binding_reproduction_integration_test.go:87
+            Error:          Not equal:
+                            expected: 0
+                            actual  : 1
+            Test:           TestSubscriptionEntitlementBindingReproduction/retry_must_keep_prepared_entitlement
+    subscription_binding_reproduction_integration_test.go:87:
+            Error Trace:    /workspace/sub2api-p1-binding/backend/internal/billingacceptance/subscription_counter_ownership_integration_test.go:208
+                                        /workspace/sub2api-p1-binding/backend/internal/billingacceptance/subscription_binding_reproduction_integration_test.go:87
+            Error:          Not equal:
+                            expected: 0
+                            actual  : 1
+            Test:           TestSubscriptionEntitlementBindingReproduction/retry_must_keep_prepared_entitlement
+=== RUN   TestSubscriptionEntitlementBindingReproduction/direct_verify_must_reject_changed_entitlement_archive_false
+2026/10/11 08:25:17 [OpenAI WS Mode][openai_ws_mode=true] bootstrap enabled=false oauth_enabled=false apikey_enabled=false force_http=false responses_websockets_v2=false responses_websockets=false payload_log_sample_rate=0.000 event_flush_batch_size=0 event_flush_interval_ms=0 prewarm_cooldown_ms=0 retry_backoff_initial_ms=0 retry_backoff_max_ms=0 retry_jitter_ratio=0.000 retry_total_budget_ms=0 ws_read_limit_bytes=16777216
+2026/10/11 08:25:17 [Billing] Using fallback pricing for model: gpt-5.1
+2026/10/11 08:25:17 [Billing] Using fallback pricing for model: gpt-5.1
+    subscription_binding_reproduction_integration_test.go:108: counter_evidence kind_package=true requests=1 callbacks=1 before={Daily:1.125 Weekly:2.25 Monthly:3.5 Requests:7 Amount:4.75 Tokens:123} after={Daily:1.12526263 Weekly:2.25026263 Monthly:3.50026263 Requests:8 Amount:4.750262625 Tokens:243} delta={Daily:0.0002626299999999304 Weekly:0.0002626299999999304 Monthly:0.0002626299999999304 Requests:1 Amount:0.0002626250000004049 Tokens:120} total=0.0005252500 actual=0.0002626250 billed=0.0002626250 dedup=usage=links=1
+    subscription_binding_reproduction_integration_test.go:135: direct_verify archive=false exact_A_control=accepted prepared_A=5 changed_B=6 changed_B_error=<nil> fingerprint_unchanged=true applied=false
+    subscription_binding_reproduction_integration_test.go:136:
+            Error Trace:    /workspace/sub2api-p1-binding/backend/internal/billingacceptance/subscription_binding_reproduction_integration_test.go:136
+            Error:          An error is expected but got nil.
+            Test:           TestSubscriptionEntitlementBindingReproduction/direct_verify_must_reject_changed_entitlement_archive_false
+            Messages:       Verify must reject a different entitlement despite matching live/archive fingerprint proof
+=== RUN   TestSubscriptionEntitlementBindingReproduction/direct_verify_must_reject_changed_entitlement_archive_true
+2026/10/11 08:25:17 [OpenAI WS Mode][openai_ws_mode=true] bootstrap enabled=false oauth_enabled=false apikey_enabled=false force_http=false responses_websockets_v2=false responses_websockets=false payload_log_sample_rate=0.000 event_flush_batch_size=0 event_flush_interval_ms=0 prewarm_cooldown_ms=0 retry_backoff_initial_ms=0 retry_backoff_max_ms=0 retry_jitter_ratio=0.000 retry_total_budget_ms=0 ws_read_limit_bytes=16777216
+2026/10/11 08:25:17 [Billing] Using fallback pricing for model: gpt-5.1
+2026/10/11 08:25:17 [Billing] Using fallback pricing for model: gpt-5.1
+    subscription_binding_reproduction_integration_test.go:108: counter_evidence kind_package=true requests=1 callbacks=1 before={Daily:1.125 Weekly:2.25 Monthly:3.5 Requests:7 Amount:4.75 Tokens:123} after={Daily:1.12526263 Weekly:2.25026263 Monthly:3.50026263 Requests:8 Amount:4.750262625 Tokens:243} delta={Daily:0.0002626299999999304 Weekly:0.0002626299999999304 Monthly:0.0002626299999999304 Requests:1 Amount:0.0002626250000004049 Tokens:120} total=0.0005252500 actual=0.0002626250 billed=0.0002626250 dedup=usage=links=1
+    subscription_binding_reproduction_integration_test.go:135: direct_verify archive=true exact_A_control=accepted prepared_A=7 changed_B=8 changed_B_error=<nil> fingerprint_unchanged=true applied=false
+    subscription_binding_reproduction_integration_test.go:136:
+            Error Trace:    /workspace/sub2api-p1-binding/backend/internal/billingacceptance/subscription_binding_reproduction_integration_test.go:136
+            Error:          An error is expected but got nil.
+            Test:           TestSubscriptionEntitlementBindingReproduction/direct_verify_must_reject_changed_entitlement_archive_true
+            Messages:       Verify must reject a different entitlement despite matching live/archive fingerprint proof
+--- FAIL: TestSubscriptionEntitlementBindingReproduction (6.96s)
+    --- PASS: TestSubscriptionEntitlementBindingReproduction/unchanged_entitlement_retry_recovers (0.40s)
+    --- FAIL: TestSubscriptionEntitlementBindingReproduction/retry_must_keep_prepared_entitlement (0.25s)
+    --- FAIL: TestSubscriptionEntitlementBindingReproduction/direct_verify_must_reject_changed_entitlement_archive_false (0.18s)
+    --- FAIL: TestSubscriptionEntitlementBindingReproduction/direct_verify_must_reject_changed_entitlement_archive_true (0.16s)
+FAIL
+FAIL    github.com/Wei-Shaw/sub2api/internal/billingacceptance  7.089s
+FAIL

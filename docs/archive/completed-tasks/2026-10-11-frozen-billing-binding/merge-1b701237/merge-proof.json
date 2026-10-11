@@ -1,0 +1,25 @@
+{
+  "checked_at": "2026-10-11T09:29:38.713209+00:00",
+  "first_parent": "63c0c31f12ab423f848216420c67948dfd122736",
+  "merge_parent": "1b701237ec3ceb869c39d28ad11d32e4065a2471",
+  "backend_and_ci_identical_to_first_parent": true,
+  "frontend_and_handoff_identical_to_main": true,
+  "source_sha256": {
+    "backend/internal/requestledger/billing.go": "a1b76fcc4e6f35c981202e95783bca68bca07481767490d7e7d9a0dde0e8a46f",
+    "backend/internal/billingacceptance/subscription_binding_reproduction_integration_test.go": "714ca552ff0741266750e56fbe847904f4d9ee80ec064f433d77edf92f8a8296",
+    "backend/internal/billingacceptance/subscription_binding_compatibility_integration_test.go": "90938aa1552ab3ca4fb3ef2d6f94a6d38de2d9184356edaa743720425e487210",
+    ".github/workflows/subscription-counter-acceptance.yml": "0bfec2ff5ccedb0f232590cd4e51eb40a6e599de399387ab2ffb8222d892457e"
+  },
+  "conflict_resolution": "docs/README.md preserves all entries from both parents; docs/FORK_CUSTOMIZATIONS.md auto-merge preserved both entries",
+  "reused_evidence": [
+    "targeted-evidence.json all PG/race suites",
+    "gate-evidence.json unit-tags, ledger-integration, tagged-diff-lint"
+  ],
+  "rerun_gates": [
+    "make test",
+    "make build",
+    "fork-integrity",
+    "doc-links",
+    "diff-check"
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "required_total": 48,
+  "required_passed": 48,
+  "required_missing": [],
+  "test_outcomes": {
+    "pass": 445,
+    "skip": 2
+  },
+  "expected_skips": [
+    "TestRequestLedgerBrowserFixture",
+    "TestLedgerKilledProcessChild"
+  ]
+}
