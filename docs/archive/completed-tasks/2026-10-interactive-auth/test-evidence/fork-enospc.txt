@@ -1,0 +1,987 @@
+Checking fork registry and static invariants...
+  [PASS] FORK-BRAND-001: registry entry exists
+  [PASS] FORK-NAV-002: registry entry exists
+  [PASS] FORK-PLAY-003: registry entry exists
+  [PASS] FORK-IMAGE-004: registry entry exists
+  [PASS] FORK-PRICING-005: registry entry exists
+  [PASS] FORK-DEPLOY-006: registry entry exists
+  [PASS] FORK-OAUTH-007: registry entry exists
+  [PASS] FORK-PUBLIC-008: registry entry exists
+  [PASS] FORK-MIGRATION-009: registry entry exists
+  [PASS] FORK-BILLING-010: registry entry exists
+  [PASS] FORK-IMAGE-011: registry entry exists
+  [PASS] FORK-UI-012: registry entry exists
+  [PASS] FORK-MARKETPLACE-013: registry entry exists
+  [PASS] FORK-RISK-013: registry entry exists
+  [PASS] FORK-ADMIN-014: registry entry exists
+  [PASS] FORK-REWARDS-015: registry entry exists
+  [PASS] FORK-MEMBERSHIP-016: registry entry exists
+  [PASS] FORK-MOBILE-017: registry entry exists
+  [PASS] FORK-LIVE-SETTLEMENT-018: registry entry exists
+  [PASS] FORK-SETTINGS-019: registry entry exists
+Checking jisudeng branding...
+  ✓ AuthLayout uses auth-page
+  ✓ AuthLayout imports jisudeng CSS
+  ✓ AuthLayout supports asideMode
+  ✓ AppSidebar has growth-group menu
+  ✓ AppSidebar has buildGrowthNavChildren
+  ✓ AppSidebar hides version badge from non-admin users
+  ✓ AppSidebar keeps available channels out and gates channel status
+  ✓ tailwind primary is ink (not teal)
+  ✓ auth-layout-jisudeng.css exists
+  ✓ home-view.css exists
+  ✓ HomeView has no LMSpeed homepage embedding
+  ✓ Home document shell has no LMSpeed claim badge
+
+All jisudeng branding checks passed.
+  [PASS] FORK-BRAND-001: branding protection script
+  [PASS] FORK-UI-012: frontend design system
+  [PASS] FORK-UI-012: frontend remediation plan
+  [PASS] FORK-UI-012: machine-readable frontend policy
+  [PASS] FORK-UI-012: frontend path-scoped agent rules
+  [PASS] FORK-UI-012: visual review instructions
+  [PASS] FORK-UI-012: visual review template
+  [PASS] FORK-UI-012: design governance script
+  [PASS] FORK-UI-012: design governance tests
+  [PASS] FORK-SETTINGS-019: domain quota control
+  [PASS] FORK-SETTINGS-019: account scheduling threshold panel
+  [PASS] FORK-SETTINGS-019: Codex version input
+  [PASS] FORK-SETTINGS-019: Codex auto-sync control
+  [PASS] FORK-SETTINGS-019: Codex synced version display
+  [PASS] FORK-SETTINGS-019: Tencent secret status
+  [PASS] FORK-SETTINGS-019: Aliyun secret status
+  [PASS] FORK-SETTINGS-019: admin sidebar settings entry
+  [PASS] FORK-SETTINGS-019: admin settings route
+  [PASS] FORK-SETTINGS-019: admin settings route permission
+  [PASS] FORK-SETTINGS-019: admin settings locale scope
+  [PASS] FORK-SETTINGS-019: admin settings cold locale mapping
+  [PASS] FORK-SETTINGS-019: settings response domain quota field
+  [PASS] FORK-SETTINGS-019: settings update domain quota field
+  [PASS] FORK-SETTINGS-019: settings response threshold field
+  [PASS] FORK-SETTINGS-019: settings update threshold field
+  [PASS] FORK-SETTINGS-019: Chinese Codex version locale
+  [PASS] FORK-SETTINGS-019: English Codex version locale
+  [PASS] FORK-SETTINGS-019: Chinese scheduling locale
+  [PASS] FORK-SETTINGS-019: English scheduling locale
+  [PASS] FORK-SETTINGS-019: Tencent app secret is never interpolated
+  [PASS] FORK-SETTINGS-019: Tencent cloud secret ID is never interpolated
+  [PASS] FORK-SETTINGS-019: Tencent cloud secret key is never interpolated
+  [PASS] FORK-SETTINGS-019: Aliyun access secret is never interpolated
+  [PASS] FORK-UI-012: root agent rules require rendered UI review
+  [PASS] FORK-UI-012: verified frontend build runs design governance
+  [PASS] FORK-UI-012: frontend lint runs design governance
+  [PASS] FORK-UI-012: frontend tests run design governance
+  [PASS] FORK-UI-012: frontend visual changes require prototype images
+  [PASS] FORK-UI-012: visual review template includes prototype artifacts
+  [PASS] FORK-UI-012: machine policy enforces prototype evidence
+  [PASS] FORK-UI-012: design governance validates prototype artifacts
+hint: Using 'master' as the name for the initial branch. This default branch name
+hint: will change to "main" in Git 3.0. To configure the initial branch name
+hint: to use in all of your new repositories, which will suppress this warning,
+hint: call:
+hint:
+hint:   git config --global init.defaultBranch <name>
+hint:
+hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+hint: 'development'. The just-created branch can be renamed via this command:
+hint:
+hint:   git branch -m <name>
+hint:
+hint: Disable this message with "git config set advice.defaultBranchName false"
+✔ governance rule set cannot silently shrink (1.452439ms)
+✔ invalid explicit base fails closed (59.805206ms)
+✔ diff parser preserves added file and line numbers (0.347373ms)
+✔ allowances require a comment and a concrete reason (0.604942ms)
+✔ each documented visual rule has an executable negative probe (2.151618ms)
+✔ binary public downloads are evidence-only and not source-rule scanned (0.261092ms)
+✔ visual evidence requires structured artifacts and file coverage (12.733175ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 191.234767
+  [PASS] FORK-UI-012: design governance self-tests
+[design-governance] passed (base: 1b701237ec3ceb869c39d28ad11d32e4065a2471; changed files: 12; checked files: 6; visual files: 0; evidence records: 0)
+  [PASS] FORK-UI-012: design governance command
+  [PASS] FORK-NAV-002: Growth navigation group
+  [PASS] FORK-NAV-002: legacy pricing navigation entry removed
+  [PASS] FORK-NAV-002: user sidebar excludes available channels
+  [PASS] FORK-NAV-002: user sidebar exposes monitor route behind feature flag
+  [PASS] FORK-PLAY-003: Play Hub API route
+  [PASS] FORK-PLAY-003: Play runtime is fail-closed
+  [PASS] FORK-PLAY-003: Play Hub view
+  [PASS] FORK-PLAY-003: admin team repair candidate route
+  [PASS] FORK-PLAY-003: admin team repair write route
+  [PASS] FORK-PLAY-003: admin team event route
+  [PASS] FORK-PLAY-003: admin team repair service
+  [PASS] FORK-PLAY-003: Chinese admin team repair locale
+  [PASS] FORK-PLAY-003: English admin team repair locale
+  [PASS] FORK-PLAY-003: daily arena reward summary route
+  [PASS] FORK-PLAY-003: daily arena reward summary service
+  [PASS] FORK-PLAY-003: daily arena summary API client
+  [PASS] FORK-PLAY-003: Chinese daily arena summary locale
+  [PASS] FORK-PLAY-003: English daily arena summary locale
+  [PASS] FORK-IMAGE-004: required prompt error
+  [PASS] FORK-IMAGE-004: prompt hash is private
+  [PASS] FORK-IMAGE-004: authenticated asset download
+  [PASS] FORK-IMAGE-004: mobile support overlay hidden
+  [PASS] FORK-IMAGE-004: template asset ecom-white-bg.webp
+  [PASS] FORK-IMAGE-004: template asset xhs-cover.webp
+  [PASS] FORK-IMAGE-004: template asset free-create.webp
+  [PASS] FORK-IMAGE-011: Gateway async Redis queue
+  [PASS] FORK-IMAGE-011: image task terminal CAS
+  [PASS] FORK-IMAGE-011: image task lease loss
+  [PASS] FORK-IMAGE-011: private Images result URL
+  [PASS] FORK-IMAGE-011: Batch runtime readiness error
+  [PASS] FORK-IMAGE-011: admin image runtimes route
+  [PASS] FORK-IMAGE-011: public Images API docs
+  [PASS] FORK-IMAGE-011: Zeabur Redis AOF persistence
+  [PASS] FORK-IMAGE-011: Zeabur persistent data path
+  [PASS] FORK-IMAGE-011: Zeabur stale app data path removed
+  [PASS] FORK-PRICING-005: model catalog service
+  [PASS] FORK-PRICING-005: explicit catalog group IDs
+  [PASS] FORK-PRICING-005: site catalog price is display-only
+  [PASS] FORK-DEPLOY-006: deployment defaults to play/main
+  [PASS] FORK-DEPLOY-006: deployment rejects main
+  [PASS] FORK-DEPLOY-006: production verification URL
+  [PASS] FORK-DEPLOY-006: repository delivery rules
+  [PASS] FORK-DEPLOY-006: canonical delivery workflow
+  [PASS] FORK-DEPLOY-006: delivery verification rule
+  [PASS] FORK-DEPLOY-006: isolated server worktree is mandatory
+  [PASS] FORK-DEPLOY-006: TDD and per-task reviews are mandatory
+  [PASS] FORK-DEPLOY-006: review branch precedes play/main
+  [PASS] FORK-DEPLOY-006: origin play/main remains production source
+  [PASS] FORK-DEPLOY-006: local workstation covers three roles
+  [PASS] FORK-DEPLOY-006: guest acceptance evidence is recorded
+  [PASS] FORK-DEPLOY-006: regular user acceptance evidence is recorded
+  [PASS] FORK-DEPLOY-006: admin acceptance evidence is recorded
+  [PASS] FORK-DEPLOY-006: credentials stay out of tracked artifacts and logs
+  [PASS] FORK-DEPLOY-006: legacy server-only completion wording removed
+  [PASS] FORK-DEPLOY-006: PRs to play/main trigger fork integrity CI
+  [PASS] FORK-DEPLOY-006: branch pushes do not duplicate fork integrity CI
+  [PASS] FORK-DEPLOY-006: codex branch pushes do not duplicate fork integrity CI
+  [PASS] FORK-DEPLOY-006: production pushes trigger security scan
+  [PASS] FORK-DEPLOY-006: PRs trigger security scan
+  [PASS] FORK-DEPLOY-006: fork CLA automation does not create skipped PR checks
+  [PASS] FORK-DEPLOY-006: legacy CI does not run on pushes
+  [PASS] FORK-DEPLOY-006: legacy CI does not run on PRs
+  [PASS] FORK-DEPLOY-006: full GitHub CI runs once on PR
+  [PASS] FORK-DEPLOY-006: active release playbook requires local workstation acceptance
+  [PASS] FORK-DEPLOY-006: legacy rollback plan is overridden by local workstation acceptance
+  [PASS] FORK-DEPLOY-006: make test runs the full frontend suite
+  [PASS] FORK-OAUTH-007: shared OAuth cookie domain
+  [PASS] FORK-OAUTH-007: OAuth domain behavior test
+  [PASS] FORK-RISK-013: IP risk scoring and privacy model
+  [PASS] FORK-RISK-013: IP risk runtime and automation gate
+  [PASS] FORK-RISK-013: IP risk raw SQL repository
+  [PASS] FORK-RISK-013: IP risk admin repository
+  [PASS] FORK-RISK-013: IP risk preview, action and rollback service
+  [PASS] FORK-RISK-013: IP risk management handler
+  [PASS] FORK-RISK-013: IP risk management migration
+  [PASS] FORK-RISK-013: IP risk workbench
+  [PASS] FORK-RISK-013: risk overview route
+  [PASS] FORK-RISK-013: risk action preview route
+  [PASS] FORK-RISK-013: risk action execution route
+  [PASS] FORK-RISK-013: risk rollback route
+  [PASS] FORK-RISK-013: migration defaults automatic blocking off
+  [PASS] FORK-RISK-013: automatic block is temporary
+  [PASS] FORK-RISK-013: automatic block targets exact IP
+  [PASS] FORK-RISK-013: registration policy checks are not disabled with automation
+  [PASS] FORK-RISK-013: preview tokens expire after five minutes
+  [PASS] FORK-RISK-013: risk actions protect administrators
+  [PASS] FORK-RISK-013: risk actions cap users at 500
+  [PASS] FORK-RISK-013: risk workbench default remains resource tab
+  [PASS] FORK-RISK-013: risk route exists
+  [PASS] FORK-RISK-013: risk action history route exists
+  [PASS] FORK-RISK-013: exact and inferred evidence are separated
+  [PASS] FORK-RISK-013: historical OAuth registration is excluded
+  [PASS] FORK-PUBLIC-008: model plaza route
+  [PASS] FORK-PUBLIC-008: legacy public model pricing route removed
+  [PASS] FORK-PUBLIC-008: public docs content
+  [PASS] FORK-PUBLIC-008: public model setting
+  [PASS] FORK-MARKETPLACE-013: marketplace fail-closed runtime
+  [PASS] FORK-MARKETPLACE-013: marketplace stable errors
+  [PASS] FORK-MARKETPLACE-013: marketplace setting key
+  [PASS] FORK-MARKETPLACE-013: marketplace default is disabled
+  [PASS] FORK-MARKETPLACE-013: public settings bulk reads marketplace key
+  [PASS] FORK-MARKETPLACE-013: public DTO exposes marketplace flag
+  [PASS] FORK-MARKETPLACE-013: public handler maps marketplace value
+  [PASS] FORK-MARKETPLACE-013: frontend public settings type
+  [PASS] FORK-MARKETPLACE-013: frontend opt-in marketplace flag
+  [PASS] FORK-MARKETPLACE-013: Chinese marketplace locale
+  [PASS] FORK-MARKETPLACE-013: English marketplace locale
+  [PASS] FORK-MARKETPLACE-013: generic settings update cannot write marketplace flag
+  [PASS] FORK-MARKETPLACE-013: admin settings DTO excludes marketplace flag
+  [PASS] FORK-MARKETPLACE-013: marketplace scope contract tests
+  [PASS] FORK-MARKETPLACE-013: global role allowlist is exact
+  [PASS] FORK-MARKETPLACE-013: user schema does not default to merchant
+  [PASS] FORK-MIGRATION-009: migration 170_play_foundation.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 170_play_foundation.sql
+  [PASS] FORK-MIGRATION-009: migration 171_play_extended.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 171_play_extended.sql
+  [PASS] FORK-MIGRATION-009: migration 172_play_retention.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 172_play_retention.sql
+  [PASS] FORK-MIGRATION-009: migration 173_play_vip.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 173_play_vip.sql
+  [PASS] FORK-MIGRATION-009: migration 174_play_team_affiliate.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 174_play_team_affiliate.sql
+  [PASS] FORK-MIGRATION-009: migration 175_play_campaigns.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 175_play_campaigns.sql
+  [PASS] FORK-MIGRATION-009: migration 176_play_campaign_name_i18n.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 176_play_campaign_name_i18n.sql
+  [PASS] FORK-MIGRATION-009: migration 177_marketing_fixes.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 177_marketing_fixes.sql
+  [PASS] FORK-MIGRATION-009: migration 177_play_quiz_i18n_and_pool.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 177_play_quiz_i18n_and_pool.sql
+  [PASS] FORK-MIGRATION-009: migration 178_phase1_growth_world.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 178_phase1_growth_world.sql
+  [PASS] FORK-MIGRATION-009: migration 179_play_sidebar_defaults.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 179_play_sidebar_defaults.sql
+  [PASS] FORK-MIGRATION-009: migration 180_site_subtitle_jisudeng.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 180_site_subtitle_jisudeng.sql
+  [PASS] FORK-MIGRATION-009: migration 181_jisudeng_public_model_pricing.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 181_jisudeng_public_model_pricing.sql
+  [PASS] FORK-MIGRATION-009: migration 182_image_studio_asset_storage.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 182_image_studio_asset_storage.sql
+  [PASS] FORK-MIGRATION-009: migration 183_model_catalog.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 183_model_catalog.sql
+  [PASS] FORK-MIGRATION-009: migration 184_image_studio_asset_url_nullable.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 184_image_studio_asset_url_nullable.sql
+  [PASS] FORK-MIGRATION-009: migration 185_model_catalog_official_prices.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 185_model_catalog_official_prices.sql
+  [PASS] FORK-MIGRATION-009: migration 186_model_catalog_billing_lookup.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 186_model_catalog_billing_lookup.sql
+  [PASS] FORK-MIGRATION-009: migration 186_model_sync_jobs_repair.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 186_model_sync_jobs_repair.sql
+  [PASS] FORK-MIGRATION-009: migration 187_model_catalog_group_scope.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 187_model_catalog_group_scope.sql
+  [PASS] FORK-MIGRATION-009: migration 189_restore_growth_rollback_defaults.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 189_restore_growth_rollback_defaults.sql
+  [PASS] FORK-MIGRATION-009: migration 192_image_studio_persistent_jobs.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 192_image_studio_persistent_jobs.sql
+  [PASS] FORK-MIGRATION-009: migration 192_image_studio_persistent_jobs_indexes_notx.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 192_image_studio_persistent_jobs_indexes_notx.sql
+  [PASS] FORK-MIGRATION-009: migration 193_image_studio_references.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 193_image_studio_references.sql
+  [PASS] FORK-MIGRATION-009: migration 194_image_studio_asset_derivatives.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 194_image_studio_asset_derivatives.sql
+  [PASS] FORK-MIGRATION-009: migration 194_image_studio_asset_derivatives_indexes_notx.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 194_image_studio_asset_derivatives_indexes_notx.sql
+  [PASS] FORK-MIGRATION-009: migration 195_image_studio_billing_reconciliation.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 195_image_studio_billing_reconciliation.sql
+  [PASS] FORK-MIGRATION-009: migration 196_image_studio_job_references.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 196_image_studio_job_references.sql
+  [PASS] FORK-MIGRATION-009: migration 197_image_studio_object_deletions.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 197_image_studio_object_deletions.sql
+  [PASS] FORK-MIGRATION-009: migration 198_image_studio_upload_slots.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 198_image_studio_upload_slots.sql
+  [PASS] FORK-MIGRATION-009: migration 199_prompt_library.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 199_prompt_library.sql
+  [PASS] FORK-MIGRATION-009: migration 200_prompt_library_seed.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 200_prompt_library_seed.sql
+  [PASS] FORK-MIGRATION-009: migration 201_prompt_library_public_seed.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 201_prompt_library_public_seed.sql
+  [PASS] FORK-MIGRATION-009: migration 202_prompt_library_generic_cover_cleanup.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 202_prompt_library_generic_cover_cleanup.sql
+  [PASS] FORK-MIGRATION-009: migration 203_batch_image_owner_idempotency.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 203_batch_image_owner_idempotency.sql
+  [PASS] FORK-MIGRATION-009: migration 205_vip_recharge_bonus_snapshot.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 205_vip_recharge_bonus_snapshot.sql
+  [PASS] FORK-MIGRATION-009: migration 206_vip_recharge_legacy_tiers_backfill.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 206_vip_recharge_legacy_tiers_backfill.sql
+  [PASS] FORK-MIGRATION-009: migration 207_balance_transactions.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 207_balance_transactions.sql
+  [PASS] FORK-MIGRATION-009: migration 207_subscription_plan_product_display.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 207_subscription_plan_product_display.sql
+  [PASS] FORK-MIGRATION-009: migration 208_image_studio_asset_lifecycle.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 208_image_studio_asset_lifecycle.sql
+  [PASS] FORK-MIGRATION-009: migration 208_image_studio_asset_lifecycle_indexes_notx.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 208_image_studio_asset_lifecycle_indexes_notx.sql
+  [PASS] FORK-MIGRATION-009: migration 209_play_arena_daily_reward_summary.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 209_play_arena_daily_reward_summary.sql
+  [PASS] FORK-MIGRATION-009: migration 210_subscription_plan_storefront.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 210_subscription_plan_storefront.sql
+  [PASS] FORK-MIGRATION-009: migration 210_withdrawable_entitlements.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 210_withdrawable_entitlements.sql
+  [PASS] FORK-MIGRATION-009: migration 211_withdrawals.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 211_withdrawals.sql
+  [PASS] FORK-MIGRATION-009: migration 212_withdrawals_integer_amounts.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 212_withdrawals_integer_amounts.sql
+  [PASS] FORK-MIGRATION-009: migration 213_fund_management_batches.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 213_fund_management_batches.sql
+  [PASS] FORK-MIGRATION-009: migration 214_ip_risk_foundation.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 214_ip_risk_foundation.sql
+  [PASS] FORK-MIGRATION-009: migration 215_ip_risk_management.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 215_ip_risk_management.sql
+  [PASS] FORK-MIGRATION-009: migration 216_mobile_feedback.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 216_mobile_feedback.sql
+  [PASS] FORK-MIGRATION-009: migration 217_billing_surcharge_layer.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 217_billing_surcharge_layer.sql
+  [PASS] FORK-MIGRATION-009: migration 234_play_membership_accounting_and_campaign_audience.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 234_play_membership_accounting_and_campaign_audience.sql
+  [PASS] FORK-MIGRATION-009: migration 235_mobile_feedback_context_and_admin_audit.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 235_mobile_feedback_context_and_admin_audit.sql
+  [PASS] FORK-MIGRATION-009: migration 236_referral_campaign_core.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 236_referral_campaign_core.sql
+  [PASS] FORK-MIGRATION-009: migration 237_mobile_attribution.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 237_mobile_attribution.sql
+  [PASS] FORK-MIGRATION-009: migration 238_play_membership_operations.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 238_play_membership_operations.sql
+  [PASS] FORK-MIGRATION-009: migration 239_membership_financial_fk_guard.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 239_membership_financial_fk_guard.sql
+  [PASS] FORK-MIGRATION-009: migration 240_mobile_attribution_referral_campaign_fk.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 240_mobile_attribution_referral_campaign_fk.sql
+  [PASS] FORK-MIGRATION-009: migration 241_play_daily_arena_budget.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 241_play_daily_arena_budget.sql
+  [PASS] FORK-MIGRATION-009: migration 241_play_growth_competition.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 241_play_growth_competition.sql
+  [PASS] FORK-MIGRATION-009: migration 241_referral_campaign_single_admin_review.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 241_referral_campaign_single_admin_review.sql
+  [PASS] FORK-MIGRATION-009: migration 243_play_team_competition.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 243_play_team_competition.sql
+  [PASS] FORK-MIGRATION-009: migration 244_play_arena_period_integrity.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 244_play_arena_period_integrity.sql
+  [PASS] FORK-MIGRATION-009: migration 245_referral_campaign_closure.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 245_referral_campaign_closure.sql
+  [PASS] FORK-MIGRATION-009: migration 246_new_user_growth_campaign.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 246_new_user_growth_campaign.sql
+  [PASS] FORK-MIGRATION-009: migration 248_restore_upstream_daily_subscription_usage.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 248_restore_upstream_daily_subscription_usage.sql
+  [PASS] FORK-MIGRATION-009: migration 248_usage_logs_audio_token_breakdown.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 248_usage_logs_audio_token_breakdown.sql
+  [PASS] FORK-MIGRATION-009: migration 249_live_usage_settlement_outbox.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 249_live_usage_settlement_outbox.sql
+  [PASS] FORK-MIGRATION-009: migration 250_model_catalog_tool_capabilities.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 250_model_catalog_tool_capabilities.sql
+  [PASS] FORK-MIGRATION-009: migration 251_model_catalog_official_field_sources.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 251_model_catalog_official_field_sources.sql
+  [PASS] FORK-MIGRATION-009: migration 251_vip_membership_qualification_review.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 251_vip_membership_qualification_review.sql
+  [PASS] FORK-MIGRATION-009: migration 252_bepusdt_payment_contract.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 252_bepusdt_payment_contract.sql
+  [PASS] FORK-MIGRATION-009: migration 253_mobile_app_releases.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 253_mobile_app_releases.sql
+  [PASS] FORK-MIGRATION-009: migration 255_payment_order_coupon_release_processed.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 255_payment_order_coupon_release_processed.sql
+  [PASS] FORK-MIGRATION-009: migration 256_payment_order_coupon_release_processed_index_notx.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 256_payment_order_coupon_release_processed_index_notx.sql
+  [PASS] FORK-MIGRATION-009: migration 259_mobile_video_jobs.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 259_mobile_video_jobs.sql
+  [PASS] FORK-MIGRATION-009: migration 260_model_catalog_media_capabilities.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 260_model_catalog_media_capabilities.sql
+  [PASS] FORK-MIGRATION-009: migration 262_play_growth_qualification.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 262_play_growth_qualification.sql
+  [PASS] FORK-MIGRATION-009: migration 263_public_status_snapshots.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 263_public_status_snapshots.sql
+  [PASS] FORK-MIGRATION-009: migration 264_public_status_ttft_window_index_notx.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 264_public_status_ttft_window_index_notx.sql
+  [PASS] FORK-MIGRATION-009: migration 265_play_growth_eligibility_orders_index_notx.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 265_play_growth_eligibility_orders_index_notx.sql
+  [PASS] FORK-MIGRATION-009: migration 266_play_growth_reward_snapshot_links.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 266_play_growth_reward_snapshot_links.sql
+  [PASS] FORK-MIGRATION-009: migration 267_public_status_ops_aggregation_watermark.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 267_public_status_ops_aggregation_watermark.sql
+  [PASS] FORK-MIGRATION-009: migration 268_play_growth_governance.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 268_play_growth_governance.sql
+  [PASS] FORK-MIGRATION-009: migration 269_play_membership_manual_contributions.sql
+  [PASS] FORK-MIGRATION-009: migration registered in canonical list: 269_play_membership_manual_contributions.sql
+  [PASS] FORK-BILLING-010: API key ownership validation
+  [PASS] FORK-BILLING-010: subscription ownership validation
+  [PASS] FORK-BILLING-010: sticky sessions are scoped by API key
+  [PASS] FORK-BILLING-010: recharge completion grants Play boost
+  [PASS] FORK-BILLING-010: group surcharge create control
+  [PASS] FORK-BILLING-010: group surcharge edit control
+  [PASS] FORK-BILLING-010: group surcharge frontend contract
+  [PASS] FORK-BILLING-010: group surcharge admin API contract
+  [PASS] FORK-BILLING-010: group surcharge database schema
+  [PASS] FORK-BILLING-010: group surcharge billing resolution
+  [PASS] FORK-BILLING-010: withdrawable entitlement recompute command
+  [PASS] FORK-BILLING-010: withdrawable entitlement recompute script
+  [PASS] FORK-BILLING-010: image release restores consumed entitlements
+  [PASS] FORK-BILLING-010: withdrawal service
+  [PASS] FORK-BILLING-010: user withdrawal create route
+  [PASS] FORK-BILLING-010: admin withdrawal payout route
+  [PASS] FORK-BILLING-010: admin withdrawal step-up route
+  [PASS] FORK-BILLING-010: admin withdrawals view
+  [PASS] FORK-BILLING-010: Chinese withdrawal management locale
+  [PASS] FORK-BILLING-010: English withdrawal management locale
+  [PASS] FORK-REWARDS-015: coupon service
+  [PASS] FORK-REWARDS-015: coupon wallet route
+  [PASS] FORK-REWARDS-015: coupon payment quote route
+  [PASS] FORK-REWARDS-015: daily card one-time quota guard
+  [PASS] FORK-MEMBERSHIP-016: membership reconciliation
+  [PASS] FORK-MEMBERSHIP-016: membership overview route
+  [PASS] FORK-MEMBERSHIP-016: VIP publish remains step-up guarded
+  [PASS] FORK-MEMBERSHIP-016: membership qualification migration
+  [PASS] FORK-MEMBERSHIP-016: admin user DTO maps membership amount
+  [PASS] FORK-MEMBERSHIP-016: admin user DTO maps VIP tier
+  [PASS] FORK-MEMBERSHIP-016: admin user DTO maps VIP label
+  [PASS] FORK-MEMBERSHIP-016: admin user DTO maps membership data state
+  [PASS] FORK-MOBILE-017: mobile login rate-limited route
+  [PASS] FORK-MOBILE-017: NextChat mobile bootstrap route
+  [PASS] FORK-MOBILE-017: mobile attribution service
+  [PASS] FORK-MOBILE-017: mobile feedback service
+  [PASS] FORK-MOBILE-017: mobile video capability resolver
+  [PASS] FORK-MOBILE-017: mobile video private job service
+  [PASS] FORK-MOBILE-017: mobile video bootstrap route
+  [PASS] FORK-MOBILE-017: video session is purpose scoped
+  [PASS] FORK-IMAGE-004/FORK-PRICING-005: media capability catalog field
+  [PASS] FORK-IMAGE-004/FORK-PRICING-005: media capability contract
+  [PASS] FORK-IMAGE-004/FORK-PRICING-005: media capability migration
+  [PASS] FORK-LIVE-SETTLEMENT-018: live settlement outbox repository
+  [PASS] FORK-LIVE-SETTLEMENT-018: live settlement recovery service
+  [PASS] FORK-LIVE-SETTLEMENT-018: live settlement migration
+Documentation integrity check passed (279 files).
+  [PASS] DOCS: local links and document index
+  [PASS] DOCS: active documents exclude obsolete references
+
+Running protected backend behaviors...
+ok      github.com/Wei-Shaw/sub2api/internal/handler    0.050s
+  [PASS] FORK-OAUTH-007: OAuth cookie domain unit test
+# github.com/Wei-Shaw/sub2api/internal/service.test
+/tmp/p1-tools/go/pkg/tool/linux_amd64/link: mapping output file failed: no space left on device
+FAIL    github.com/Wei-Shaw/sub2api/internal/service [build failed]
+ok      github.com/Wei-Shaw/sub2api/internal/repository 0.518s
+ok      github.com/Wei-Shaw/sub2api/internal/server/middleware  0.284s
+ok      github.com/Wei-Shaw/sub2api/internal/handler/admin  0.270s
+ok      github.com/Wei-Shaw/sub2api/internal/server/routes  0.162s
+ok      github.com/Wei-Shaw/sub2api/migrations  0.258s
+FAIL
+  [FAIL] FORK-RISK-013: IP risk privacy, auth capture, workbench actions and rollback tests
+ok      github.com/Wei-Shaw/sub2api/internal/service    0.036s
+  [PASS] FORK-IMAGE-004/FORK-PRICING-005: Image Studio and pricing unit tests
+ok      github.com/Wei-Shaw/sub2api/internal/repository 0.093s
+  [PASS] FORK-BILLING-010: billing ownership unit tests
+ok      github.com/Wei-Shaw/sub2api/internal/service    0.096s
+ok      github.com/Wei-Shaw/sub2api/migrations  0.131s
+  [PASS] FORK-BILLING-010: withdrawable ledger and recompute tests
+ok      github.com/Wei-Shaw/sub2api/internal/service    0.068s
+ok      github.com/Wei-Shaw/sub2api/internal/repository 0.035s
+  [PASS] FORK-REWARDS-015: coupon payment lifecycle and daily card quota tests
+ok      github.com/Wei-Shaw/sub2api/internal/service    0.043s
+ok      github.com/Wei-Shaw/sub2api/internal/repository 0.039s
+ok      github.com/Wei-Shaw/sub2api/internal/handler/dto    0.030s
+  [PASS] FORK-MEMBERSHIP-016: membership qualification and VIP tests
+ok      github.com/Wei-Shaw/sub2api/internal/server/routes  0.064s
+ok      github.com/Wei-Shaw/sub2api/internal/service    0.041s
+  [PASS] FORK-MOBILE-017: mobile protocol, attribution and feedback tests
+ok      github.com/Wei-Shaw/sub2api/internal/service    0.058s
+ok      github.com/Wei-Shaw/sub2api/internal/handler    0.178s
+ok      github.com/Wei-Shaw/sub2api/internal/server/routes  0.043s [no tests to run]
+ok      github.com/Wei-Shaw/sub2api/migrations  0.032s
+  [PASS] FORK-IMAGE-004/FORK-PRICING-005/FORK-MOBILE-017: catalog media and mobile video capability tests
+ok      github.com/Wei-Shaw/sub2api/internal/repository 0.051s
+ok      github.com/Wei-Shaw/sub2api/internal/service    0.040s
+  [PASS] FORK-LIVE-SETTLEMENT-018: live settlement outbox and recovery tests
+ok      github.com/Wei-Shaw/sub2api/internal/service    0.071s
+ok      github.com/Wei-Shaw/sub2api/internal/repository 0.050s
+ok      github.com/Wei-Shaw/sub2api/internal/handler/admin  0.084s
+ok      github.com/Wei-Shaw/sub2api/internal/server/routes  0.035s
+  [PASS] FORK-PLAY-003: admin team repair unit and route tests
+ok      github.com/Wei-Shaw/sub2api/internal/service    0.099s
+ok      github.com/Wei-Shaw/sub2api/internal/repository 0.044s
+ok      github.com/Wei-Shaw/sub2api/internal/handler    0.061s
+ok      github.com/Wei-Shaw/sub2api/migrations  0.074s
+  [PASS] FORK-PLAY-003: daily arena reward summary tests
+ok      github.com/Wei-Shaw/sub2api/internal/repository 0.918s
+ok      github.com/Wei-Shaw/sub2api/internal/service    0.998s
+ok      github.com/Wei-Shaw/sub2api/internal/handler    0.789s
+  [PASS] FORK-IMAGE-011: Images async, URL and Batch runtime unit tests
+ok      github.com/Wei-Shaw/sub2api/internal/service    0.494s
+ok      github.com/Wei-Shaw/sub2api/internal/handler    0.070s
+ok      github.com/Wei-Shaw/sub2api/internal/handler/dto    0.070s
+  [PASS] FORK-MARKETPLACE-013: marketplace runtime, settings and error unit tests
+
+Running protected frontend behaviors...
+
+ RUN  v2.1.9 /workspace/p1-interactive-auth/frontend
+
+ ✓ src/utils/__tests__/imageStudioWorkspace.spec.ts (10 tests) 51ms
+stdout | src/components/imageStudio/__tests__/ImageStudioGallery.spec.ts > ImageStudioGallery > downloads every completed job as a zip archive
+[growth] {
+  event: 'image_studio_download_click',
+  job_id: 'job-managed',
+  download_scope: 'job_zip',
+  ts: 1791712984498
+}
+[growth] {
+  event: 'image_studio_download_success',
+  job_id: 'job-managed',
+  download_scope: 'job_zip',
+  ts: 1791712984500
+}
+
+stdout | src/components/imageStudio/__tests__/ImageStudioGallery.spec.ts > ImageStudioGallery > downloads every partial job as a zip archive
+[growth] {
+  event: 'image_studio_download_click',
+  job_id: 'job-partial',
+  download_scope: 'job_zip',
+  ts: 1791712984520
+}
+[growth] {
+  event: 'image_studio_download_success',
+  job_id: 'job-partial',
+  download_scope: 'job_zip',
+  ts: 1791712984520
+}
+
+ ✓ src/components/imageStudio/__tests__/ImageStudioGallery.spec.ts (19 tests) 242ms
+ ✓ src/composables/__tests__/useImageStudioCapabilities.spec.ts (7 tests) 10ms
+ ✓ src/components/layout/__tests__/AppSidebar.spec.ts (10 tests) 9ms
+ ✓ src/components/imageStudio/__tests__/ImageStudioSizePicker.spec.ts (4 tests) 78ms
+
+ Test Files  5 passed (5)
+      Tests  50 passed (50)
+   Start at  10:02:59
+   Duration  6.49s (transform 1.81s, setup 704ms, collect 2.16s, tests 390ms, environment 3.78s, prepare 652ms)
+
+  [PASS] FORK-NAV-002/FORK-IMAGE-004: sidebar and Image Studio tests
+
+ RUN  v2.1.9 /workspace/p1-interactive-auth/frontend
+
+Browserslist: browsers data (caniuse-lite) is 10 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+ ✓ src/i18n/__tests__/bilingualProductUi.spec.ts (3 tests) 18ms
+ ✓ src/api/__tests__/admin.play.teamRepair.spec.ts (3 tests) 8ms
+ ✓ src/views/admin/__tests__/PlayOpsView.spec.ts (25 tests) 894ms
+ ✓ src/i18n/locales/adminPlayOpsParity.spec.ts (3 tests) 35ms
+
+ Test Files  4 passed (4)
+      Tests  34 passed (34)
+   Start at  10:03:07
+   Duration  8.48s (transform 4.70s, setup 523ms, collect 6.00s, tests 955ms, environment 2.57s, prepare 878ms)
+
+  [PASS] FORK-PLAY-003: admin team repair and bilingual Play Ops tests
+
+ RUN  v2.1.9 /workspace/p1-interactive-auth/frontend
+
+Browserslist: browsers data (caniuse-lite) is 10 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+ ✓ src/views/public/__tests__/ArenaView.competitive.spec.ts (7 tests) 433ms
+
+ Test Files  1 passed (1)
+      Tests  7 passed (7)
+   Start at  10:03:17
+   Duration  5.08s (transform 2.66s, setup 151ms, collect 3.26s, tests 433ms, environment 526ms, prepare 94ms)
+
+  [PASS] FORK-PLAY-003: daily arena reward summary frontend test
+
+ RUN  v2.1.9 /workspace/p1-interactive-auth/frontend
+
+ ✓ src/api/__tests__/wallet.spec.ts (2 tests) 7ms
+Browserslist: browsers data (caniuse-lite) is 10 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+stderr | src/views/user/__tests__/WalletView.spec.ts > WalletView > renders localized wallet balances and safe transaction rows
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+  at <CouponWalletPanel>
+  at <Anonymous>
+  at <WalletView ref="VTU_COMPONENT" >
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+  at <CouponWalletPanel>
+  at <Anonymous>
+  at <WalletView ref="VTU_COMPONENT" >
+  at <VTUROOT>
+
+stderr | src/views/user/__tests__/WalletView.spec.ts > WalletView > keeps the transaction ledger table full-width on desktop while scrollable on narrow screens
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+  at <CouponWalletPanel>
+  at <Anonymous>
+  at <WalletView ref="VTU_COMPONENT" >
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+  at <CouponWalletPanel>
+  at <Anonymous>
+  at <WalletView ref="VTU_COMPONENT" >
+  at <VTUROOT>
+
+ ✓ src/views/user/__tests__/WalletView.spec.ts (2 tests) 139ms
+
+ Test Files  2 passed (2)
+      Tests  4 passed (4)
+   Start at  10:03:23
+   Duration  5.19s (transform 3.04s, setup 310ms, collect 3.73s, tests 146ms, environment 1.37s, prepare 677ms)
+
+  [PASS] FORK-BILLING-010: wallet withdrawable transparency frontend tests
+
+ RUN  v2.1.9 /workspace/p1-interactive-auth/frontend
+
+ ✓ src/utils/__tests__/featureFlags.spec.ts (1 test) 9ms
+ ✓ src/i18n/__tests__/marketplaceLocales.spec.ts (1 test) 7ms
+
+ Test Files  2 passed (2)
+      Tests  2 passed (2)
+   Start at  10:03:29
+   Duration  4.19s (transform 1.91s, setup 532ms, collect 2.43s, tests 16ms, environment 1.75s, prepare 234ms)
+
+  [PASS] FORK-MARKETPLACE-013: marketplace feature flag and bilingual locale tests
+
+ RUN  v2.1.9 /workspace/p1-interactive-auth/frontend
+
+Browserslist: browsers data (caniuse-lite) is 10 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+ ✓ src/__tests__/ipRiskWorkbench.spec.ts (3 tests) 205ms
+ ✓ src/__tests__/ipRiskActions.spec.ts (4 tests) 239ms
+ ✓ src/__tests__/ipRiskRouting.spec.ts (1 test) 4ms
+
+ Test Files  3 passed (3)
+      Tests  8 passed (8)
+   Start at  10:03:35
+   Duration  3.81s (transform 2.20s, setup 267ms, collect 2.73s, tests 447ms, environment 1.70s, prepare 316ms)
+
+  [PASS] FORK-RISK-013: IP risk routes, scanning, preview, stale, partial and rollback frontend tests
+
+ RUN  v2.1.9 /workspace/p1-interactive-auth/frontend
+
+Browserslist: browsers data (caniuse-lite) is 10 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+stderr | src/views/admin/__tests__/SettingsView.spec.ts > admin SettingsView payment visible method controls > restores all system-setting controls and preserves read-only or secret fields
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+  at <SettingsView ref="VTU_COMPONENT" >
+  at <VTUROOT>
+
+stderr | src/views/admin/__tests__/SettingsView.spec.ts > admin SettingsView payment visible method controls > keeps the Features tab limited to feature toggles
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+  at <SettingsView ref="VTU_COMPONENT" >
+  at <VTUROOT>
+
+stderr | src/views/admin/__tests__/SettingsView.spec.ts > admin SettingsView payment visible method controls > submits the compact home page toggle
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+  at <SettingsView ref="VTU_COMPONENT" >
+  at <VTUROOT>
+
+stderr | src/views/admin/__tests__/SettingsView.spec.ts > admin SettingsView payment visible method controls > renders panel rate limit card and saves settings
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+  at <SettingsView ref="VTU_COMPONENT" >
+  at <VTUROOT>
+
+stderr | src/views/admin/__tests__/SettingsView.spec.ts > admin SettingsView payment visible method controls > does not render legacy visible payment method controls
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+  at <SettingsView ref="VTU_COMPONENT" >
+  at <VTUROOT>
+
+stderr | src/views/admin/__tests__/SettingsView.spec.ts > admin SettingsView payment visible method controls > keeps the canonical frontend URL editable while email verification and password reset are disabled
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+  at <SettingsView ref="VTU_COMPONENT" >
+  at <VTUROOT>
+
+stderr | src/views/admin/__tests__/SettingsView.spec.ts > admin SettingsView payment visible method controls > keeps an unsafe frontend URL visible and blocks the audited settings save
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+  at <SettingsView ref="VTU_COMPONENT" >
+  at <VTUROOT>
+
+stderr | src/views/admin/__tests__/SettingsView.spec.ts > admin SettingsView payment visible method controls > trims a canonical frontend URL before the audited settings save
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+  at <SettingsView ref="VTU_COMPONENT" >
+  at <VTUROOT>
+
+stderr | src/views/admin/__tests__/SettingsView.spec.ts > admin SettingsView payment visible method controls > shows valid passkey RP configuration and persists the sign-in toggle
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+  at <SettingsView ref="VTU_COMPONENT" >
+  at <VTUROOT>
+
+stderr | src/views/admin/__tests__/SettingsView.spec.ts > admin SettingsView payment visible method controls > 人机验证切换到腾讯天御并保存四项配置
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+  at <SettingsView ref="VTU_COMPONENT" >
+  at <VTUROOT>
+
+stderr | src/views/admin/__tests__/SettingsView.spec.ts > admin SettingsView payment visible method controls > 腾讯天御切换到国际站后保存站点并更新控制台入口
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+  at <SettingsView ref="VTU_COMPONENT" >
+  at <VTUROOT>
+
+stderr | src/views/admin/__tests__/SettingsView.spec.ts > admin SettingsView payment visible method controls > 人机验证切换到阿里云并保存配置
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+  at <SettingsView ref="VTU_COMPONENT" >
+  at <VTUROOT>
+
+stderr | src/views/admin/__tests__/SettingsView.spec.ts > admin SettingsView payment visible method controls > 关闭人机验证总开关会同时关闭所有服务商
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+  at <SettingsView ref="VTU_COMPONENT" >
+  at <VTUROOT>
+
+stderr | src/views/admin/__tests__/SettingsView.spec.ts > admin SettingsView payment visible method controls > disables passkey sign-in when the RP configuration is unavailable
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+  at <SettingsView ref="VTU_COMPONENT" >
+  at <VTUROOT>
+
+stderr | src/views/admin/__tests__/SettingsView.spec.ts > admin SettingsView payment visible method controls > loads, edits, validates, and saves forwarded client-IP headers
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+  at <SettingsView ref="VTU_COMPONENT" >
+  at <VTUROOT>
+
+stderr | src/views/admin/__tests__/SettingsView.spec.ts > admin SettingsView payment visible method controls > does not expose the upstream recharge bonus tier editor
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+  at <SettingsView ref="VTU_COMPONENT" >
+  at <VTUROOT>
+
+stderr | src/views/admin/__tests__/SettingsView.spec.ts > admin SettingsView payment visible method controls > links payment guidance to README sections instead of removed payment docs
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+  at <SettingsView ref="VTU_COMPONENT" >
+  at <VTUROOT>
+
+stderr | src/views/admin/__tests__/SettingsView.spec.ts > admin SettingsView payment visible method controls > does not submit legacy visible payment method settings
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+  at <SettingsView ref="VTU_COMPONENT" >
+  at <VTUROOT>
+
+stderr | src/views/admin/__tests__/SettingsView.spec.ts > admin SettingsView payment visible method controls > submits the admin recharge affiliate rebate setting
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+  at <SettingsView ref="VTU_COMPONENT" >
+  at <VTUROOT>
+
+stderr | src/views/admin/__tests__/SettingsView.spec.ts > admin SettingsView payment visible method controls > submits Anthropic cache TTL injection gateway setting
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+  at <SettingsView ref="VTU_COMPONENT" >
+  at <VTUROOT>
+
+stderr | src/views/admin/__tests__/SettingsView.spec.ts > admin SettingsView payment visible method controls > submits Anthropic cache TTL injection gateway setting
+Error: AggregateError
+    at Object.dispatchError (/workspace/p1-welfare-games/frontend/node_modules/.pnpm/jsdom@24.1.3/node_modules/jsdom/lib/jsdom/living/xhr/xhr-utils.js:63:19)
+    at Request.<anonymous> (/workspace/p1-welfare-games/frontend/node_modules/.pnpm/jsdom@24.1.3/node_modules/jsdom/lib/jsdom/living/xhr/XMLHttpRequest-impl.js:655:18)
+    at Request.emit (node:events:521:24)
+    at ClientRequest.<anonymous> (/workspace/p1-welfare-games/frontend/node_modules/.pnpm/jsdom@24.1.3/node_modules/jsdom/lib/jsdom/living/helpers/http-request.js:127:14)
+    at ClientRequest.emit (node:events:509:28)
+    at emitErrorEvent (node:_http_client:112:11)
+    at Socket.socketErrorListener (node:_http_client:745:5)
+    at Socket.emit (node:events:509:28)
+    at emitErrorNT (node:internal/streams/destroy:170:8)
+    at emitErrorCloseNT (node:internal/streams/destroy:129:3) undefined
+
+stderr | src/views/admin/__tests__/SettingsView.spec.ts > admin SettingsView payment visible method controls > submits message cache_control rewrite gateway setting
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+  at <SettingsView ref="VTU_COMPONENT" >
+  at <VTUROOT>
+
+ ✓ src/i18n/__tests__/routeLocaleRuntime.spec.ts (47 tests) 18498ms
+   ✓ route locale runtime scopes > keeps every route component static key available on a cold visit 17096ms
+   ✓ route locale runtime scopes > keeps the last requested locale when lazy locale work resolves out of order 950ms
+stderr | src/views/admin/__tests__/SettingsView.spec.ts > admin SettingsView payment visible method controls > submits Claude OAuth system prompt injection gateway settings
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+  at <SettingsView ref="VTU_COMPONENT" >
+  at <VTUROOT>
+
+stderr | src/views/admin/__tests__/SettingsView.spec.ts > admin SettingsView payment visible method controls > submits Antigravity user agent version gateway setting
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+  at <SettingsView ref="VTU_COMPONENT" >
+  at <VTUROOT>
+
+stderr | src/views/admin/__tests__/SettingsView.spec.ts > admin SettingsView payment visible method controls > updates provider enablement immediately and reloads providers
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+  at <SettingsView ref="VTU_COMPONENT" >
+  at <VTUROOT>
+
+stderr | src/views/admin/__tests__/SettingsView.spec.ts > admin SettingsView payment visible method controls > renders advanced scheduler copy as local experimental gateway policy
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+  at <SettingsView ref="VTU_COMPONENT" >
+  at <VTUROOT>
+
+stderr | src/views/admin/__tests__/SettingsView.spec.ts > admin SettingsView payment visible method controls > summarizes target and other-model actions, then switches to all models
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+  at <SettingsView ref="VTU_COMPONENT" >
+  at <VTUROOT>
+
+stderr | src/views/admin/__tests__/SettingsView.spec.ts > admin SettingsView payment visible method controls > loads and saves upstream billing probe settings from the gateway tab
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+  at <SettingsView ref="VTU_COMPONENT" >
+  at <VTUROOT>
+
+stderr | src/views/admin/__tests__/SettingsView.spec.ts > admin SettingsView payment visible method controls > loads and saves configurable Grok cross-client model mapping
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+  at <SettingsView ref="VTU_COMPONENT" >
+  at <VTUROOT>
+
+stderr | src/views/admin/__tests__/SettingsView.spec.ts > admin SettingsView payment visible method controls > loads and saves the OpenAI Responses first-token metric mode
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+  at <SettingsView ref="VTU_COMPONENT" >
+  at <VTUROOT>
+
+stderr | src/views/admin/__tests__/SettingsView.spec.ts > admin SettingsView payment visible method controls > loads fail-safe-off Ollama Cloud usage refresh settings and saves an explicit opt-in
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+  at <SettingsView ref="VTU_COMPONENT" >
+  at <VTUROOT>
+
+stderr | src/views/admin/__tests__/SettingsView.spec.ts > admin SettingsView payment visible method controls > clears the OAuth rate without losing zero (weighted=false)
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+  at <SettingsView ref="VTU_COMPONENT" >
+  at <VTUROOT>
+
+stderr | src/views/admin/__tests__/SettingsView.spec.ts > admin SettingsView payment visible method controls > clears the OAuth rate without losing zero (weighted=true)
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+  at <SettingsView ref="VTU_COMPONENT" >
+  at <VTUROOT>
+
+stderr | src/views/admin/__tests__/SettingsView.spec.ts > admin SettingsView payment visible method controls > loads and preserves an explicitly cleared OAuth rate
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+  at <SettingsView ref="VTU_COMPONENT" >
+  at <VTUROOT>
+
+ ✓ src/i18n/__tests__/lazyLocaleScope.spec.ts (26 tests) 20ms
+stderr | src/views/admin/__tests__/SettingsView.spec.ts > admin SettingsView payment visible method controls > places and explains rate controls for both scheduling modes
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+  at <SettingsView ref="VTU_COMPONENT" >
+  at <VTUROOT>
+
+stderr | src/views/admin/__tests__/SettingsView.spec.ts > admin SettingsView payment visible method controls > passes translated upload and remove labels to the payment help image uploader
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+  at <SettingsView ref="VTU_COMPONENT" >
+  at <VTUROOT>
+
+stderr | src/views/admin/__tests__/SettingsView.spec.ts > admin SettingsView payment visible method controls > normalizes null supported_types from API so provider card stays visible
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+  at <SettingsView ref="VTU_COMPONENT" >
+  at <VTUROOT>
+
+stderr | src/views/admin/__tests__/SettingsView.spec.ts > admin SettingsView wechat connect controls > loads and echoes WeChat Connect fields from the backend payload
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+  at <SettingsView ref="VTU_COMPONENT" >
+  at <VTUROOT>
+
+stderr | src/views/admin/__tests__/SettingsView.spec.ts > admin SettingsView wechat connect controls > links GitHub OAuth Apps guide to GitHub developer settings
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+  at <SettingsView ref="VTU_COMPONENT" >
+  at <VTUROOT>
+
+stderr | src/views/admin/__tests__/SettingsView.spec.ts > admin SettingsView wechat connect controls > saves WeChat Connect fields using the backend contract and clears the secret after save
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+  at <SettingsView ref="VTU_COMPONENT" >
+  at <VTUROOT>
+
+stderr | src/views/admin/__tests__/SettingsView.spec.ts > admin SettingsView wechat connect controls > collapses auth source defaults until the source is enabled
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+  at <SettingsView ref="VTU_COMPONENT" >
+  at <VTUROOT>
+
+stderr | src/views/admin/__tests__/SettingsView.spec.ts > admin SettingsView wechat connect controls > preserves optional OIDC compatibility flags instead of forcing them on save
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+  at <SettingsView ref="VTU_COMPONENT" >
+  at <VTUROOT>
+
+stderr | src/views/admin/__tests__/SettingsView.spec.ts > admin SettingsView platform quota matrix > 从 baseSettings 加载默认平台配额数据并在 Users tab 渲染 6 平台行
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+  at <SettingsView ref="VTU_COMPONENT" >
+  at <VTUROOT>
+
+stderr | src/views/admin/__tests__/SettingsView.spec.ts > admin SettingsView platform quota matrix > 保存时 updateSettings payload 应包含嵌套 default_platform_quotas 对象（含全 6 平台）
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+  at <SettingsView ref="VTU_COMPONENT" >
+  at <VTUROOT>
+
+ ✓ src/i18n/__tests__/adminManagementLocaleKeys.spec.ts (2 tests) 686ms
+   ✓ static locale keys > has runtime translations for every static en locale key 415ms
+stderr | src/views/admin/__tests__/SettingsView.spec.ts > admin SettingsView platform quota matrix > 加载后 form.default_platform_quotas 含全 6 平台，从嵌套 JSON 正确读取数值
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+  at <SettingsView ref="VTU_COMPONENT" >
+  at <VTUROOT>
+
+stderr | src/views/admin/__tests__/SettingsView.spec.ts > admin SettingsView platform quota matrix > 空输入（v-model.number 产出 ""）在提交时清洗为 null 而非空字符串
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+  at <SettingsView ref="VTU_COMPONENT" >
+  at <VTUROOT>
+
+ ✓ src/views/admin/__tests__/SettingsView.spec.ts (48 tests) 17718ms
+   ✓ admin SettingsView payment visible method controls > restores all system-setting controls and preserves read-only or secret fields 1601ms
+   ✓ admin SettingsView payment visible method controls > submits the compact home page toggle 367ms
+   ✓ admin SettingsView payment visible method controls > renders panel rate limit card and saves settings 341ms
+   ✓ admin SettingsView payment visible method controls > keeps an unsafe frontend URL visible and blocks the audited settings save 895ms
+   ✓ admin SettingsView payment visible method controls > trims a canonical frontend URL before the audited settings save 560ms
+   ✓ admin SettingsView payment visible method controls > shows valid passkey RP configuration and persists the sign-in toggle 680ms
+   ✓ admin SettingsView payment visible method controls > 人机验证切换到腾讯天御并保存四项配置 629ms
+   ✓ admin SettingsView payment visible method controls > 腾讯天御切换到国际站后保存站点并更新控制台入口 874ms
+   ✓ admin SettingsView payment visible method controls > 人机验证切换到阿里云并保存配置 416ms
+   ✓ admin SettingsView payment visible method controls > 关闭人机验证总开关会同时关闭所有服务商 488ms
+   ✓ admin SettingsView payment visible method controls > disables passkey sign-in when the RP configuration is unavailable 407ms
+   ✓ admin SettingsView payment visible method controls > loads, edits, validates, and saves forwarded client-IP headers 1074ms
+   ✓ admin SettingsView payment visible method controls > does not submit legacy visible payment method settings 565ms
+   ✓ admin SettingsView payment visible method controls > submits the admin recharge affiliate rebate setting 441ms
+   ✓ admin SettingsView payment visible method controls > loads and saves upstream billing probe settings from the gateway tab 314ms
+   ✓ admin SettingsView payment visible method controls > loads fail-safe-off Ollama Cloud usage refresh settings and saves an explicit opt-in 326ms
+   ✓ admin SettingsView payment visible method controls > clears the OAuth rate without losing zero (weighted=false) 390ms
+   ✓ admin SettingsView payment visible method controls > loads and preserves an explicitly cleared OAuth rate 719ms
+   ✓ admin SettingsView payment visible method controls > places and explains rate controls for both scheduling modes 319ms
+   ✓ admin SettingsView payment visible method controls > passes translated upload and remove labels to the payment help image uploader 333ms
+   ✓ admin SettingsView wechat connect controls > loads and echoes WeChat Connect fields from the backend payload 368ms
+   ✓ admin SettingsView wechat connect controls > saves WeChat Connect fields using the backend contract and clears the secret after save 320ms
+   ✓ admin SettingsView wechat connect controls > collapses auth source defaults until the source is enabled 391ms
+   ✓ admin SettingsView platform quota matrix > 从 baseSettings 加载默认平台配额数据并在 Users tab 渲染 6 平台行 323ms
+   ✓ admin SettingsView platform quota matrix > 保存时 updateSettings payload 应包含嵌套 default_platform_quotas 对象（含全 6 平台） 506ms
+   ✓ admin SettingsView platform quota matrix > 加载后 form.default_platform_quotas 含全 6 平台，从嵌套 JSON 正确读取数值 310ms
+   ✓ admin SettingsView platform quota matrix > 空输入（v-model.number 产出 ""）在提交时清洗为 null 而非空字符串 374ms
+ ✓ src/router/__tests__/adminSettingsRoute.spec.ts (1 test) 94ms
+
+ Test Files  5 passed (5)
+      Tests  124 passed (124)
+   Start at  10:03:39
+   Duration  28.71s (transform 17.14s, setup 648ms, collect 10.70s, tests 37.02s, environment 3.70s, prepare 746ms)
+
+  [PASS] FORK-SETTINGS-019: system settings controls, API payload, secret masking and bilingual locale tests
+
+  [PASS] FORK-DEPLOY-006: fork source build guide
+  [PASS] FORK-DEPLOY-006: reviewed upstream source lock
+  [PASS] FORK-DEPLOY-006: read-only source verifier
+  [PASS] FORK-DEPLOY-006: PR CI exercises release source policy
+  [PASS] FORK-DEPLOY-006: ranxi release discovery
+  [PASS] FORK-DEPLOY-006: unverified in-place installation is rejected
+  [PASS] FORK-DEPLOY-006: cache is bound to source policy
+  [PASS] FORK-DEPLOY-006: publish only reviewed fork head
+  [PASS] FORK-DEPLOY-006: release workflow cannot push VERSION
+  [PASS] FORK-DEPLOY-006: no upstream installer in badge
+  [PASS] FORK-DEPLOY-006: no original image rollback in badge
+Fork integrity FAILED. Review /workspace/p1-interactive-auth/docs/FORK_CUSTOMIZATIONS.md before merging upstream.

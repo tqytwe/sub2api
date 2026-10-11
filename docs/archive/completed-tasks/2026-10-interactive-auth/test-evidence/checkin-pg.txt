@@ -1,0 +1,86 @@
+2026/10/11 10:03:43 Timezone initialized: UTC (UTC offset: +00:00)
+2026/10/11 10:03:43 github.com/testcontainers/testcontainers-go - Connected to docker:
+  Server Version: 28.4.0
+  API Version: 1.51
+  Operating System: Debian GNU/Linux 13 (trixie) (containerized)
+  Total Memory: 18007 MB
+  Testcontainers for Go Version: v0.40.0
+  Resolved Docker Host: unix:///var/run/docker.sock
+  Resolved Docker Socket Path: /var/run/docker.sock
+  Test SessionID: 32d39529eb70fe4ebcee67fe3169aaa716a49de2e5b56b3154b8b339352eb23a
+  Test ProcessID: b2edc516-8eb0-4d7c-bd76-72ba564ab4e7
+2026/10/11 10:03:43 🐳 Creating container for image postgres:18.1-alpine3.23
+2026/10/11 10:03:45 🐳 Creating container for image testcontainers/ryuk:0.13.0
+2026/10/11 10:03:45 ✅ Container created: e21dc9236ce4
+2026/10/11 10:03:45 🐳 Starting container: e21dc9236ce4
+2026/10/11 10:03:46 ✅ Container started: e21dc9236ce4
+2026/10/11 10:03:46 ⏳ Waiting for container id e21dc9236ce4 image: testcontainers/ryuk:0.13.0. Waiting for: port 8080/tcp to be listening
+2026/10/11 10:03:46 Shell not found in container
+2026/10/11 10:03:46 🔔 Container is ready: e21dc9236ce4
+2026/10/11 10:03:46 ✅ Container created: 4d850ddafac1
+2026/10/11 10:03:46 🐳 Starting container: 4d850ddafac1
+2026/10/11 10:03:46 ✅ Container started: 4d850ddafac1
+2026/10/11 10:03:46 ⏳ Waiting for container id 4d850ddafac1 image: postgres:18.1-alpine3.23. Waiting for: all of: [log message "database system is ready to accept connections" (occurrence: 2), port 5432/tcp to be listening]
+2026/10/11 10:03:49 🔔 Container is ready: 4d850ddafac1
+2026/10/11 10:03:49 🐳 Creating container for image redis:8.4-alpine
+2026/10/11 10:03:50 ✅ Container created: 2bac72949b80
+2026/10/11 10:03:50 🐳 Starting container: 2bac72949b80
+2026/10/11 10:03:51 ✅ Container started: 2bac72949b80
+2026/10/11 10:03:51 ⏳ Waiting for container id 2bac72949b80 image: redis:8.4-alpine. Waiting for: all of: [port 6379/tcp to be listening, log message "* Ready to accept connections"]
+2026/10/11 10:03:52 🔔 Container is ready: 2bac72949b80
+=== RUN   TestCheckinHTTPDatabaseContract
+=== RUN   TestCheckinHTTPDatabaseContract/explorer
+    play_checkin_http_integration_test.go:316: DB reconciliation: checkins=1 snapshots=1 energy=1 cash=0 balance=1
+    play_checkin_http_integration_test.go:346: DB reconciliation: checkins=1 snapshots=1 energy=1 cash=0 balance=1
+=== RUN   TestCheckinHTTPDatabaseContract/unverified
+    play_checkin_http_integration_test.go:316: DB reconciliation: checkins=1 snapshots=1 energy=1 cash=0 balance=1
+    play_checkin_http_integration_test.go:346: DB reconciliation: checkins=1 snapshots=1 energy=1 cash=0 balance=1
+=== RUN   TestCheckinHTTPDatabaseContract/too_new
+    play_checkin_http_integration_test.go:316: DB reconciliation: checkins=1 snapshots=1 energy=1 cash=0 balance=1
+    play_checkin_http_integration_test.go:346: DB reconciliation: checkins=1 snapshots=1 energy=1 cash=0 balance=1
+=== RUN   TestCheckinHTTPDatabaseContract/cash
+    play_checkin_http_integration_test.go:316: DB reconciliation: checkins=1 snapshots=1 energy=0 cash=0.5 balance=1.5
+    play_checkin_http_integration_test.go:346: DB reconciliation: checkins=1 snapshots=1 energy=0 cash=0.5 balance=1.5
+=== RUN   TestCheckinHTTPDatabaseContract/disabled_and_unauthenticated
+    play_checkin_http_integration_test.go:359: DB reconciliation: checkins=0 snapshots=0 energy=0 cash=0 balance=1
+    play_checkin_http_integration_test.go:368: DB reconciliation: checkins=0 snapshots=0 energy=0 cash=0 balance=1
+=== RUN   TestCheckinHTTPDatabaseContract/milestone_makeup_false
+    play_checkin_http_integration_test.go:413: Milestone reconciliation: makeup=false checkins=2 snapshots=1 rewards=2 balances=2 reward=1.50 balance=2.50
+=== RUN   TestCheckinHTTPDatabaseContract/milestone_makeup_true
+    play_checkin_http_integration_test.go:413: Milestone reconciliation: makeup=true checkins=2 snapshots=1 rewards=1 balances=1 reward=1.50 balance=2.50
+=== RUN   TestCheckinHTTPDatabaseContract/frontend_live_http
+    play_checkin_http_integration_test.go:437:
+         RUN  v2.1.9 /workspace/p1-interactive-auth/frontend
+
+        Browserslist: browsers data (caniuse-lite) is 10 months old. Please run:
+          npx update-browserslist-db@latest
+          Why you should do it regularly: https://github.com/browserslist/update-db#readme
+         ✓ src/views/user/__tests__/CheckInView.http.spec.ts (5 tests) 5650ms
+           ✓ CheckInView with real check-in HTTP and PostgreSQL > recovers 503 and permission failures, then reads actual disabled and reopened service state without grants 1576ms
+           ✓ CheckInView with real check-in HTTP and PostgreSQL > renders the persisted explorer grant and reloads checked-in state 1396ms
+           ✓ CheckInView with real check-in HTTP and PostgreSQL > renders the persisted cash grant and reloads checked-in state 1330ms
+           ✓ CheckInView with real check-in HTTP and PostgreSQL > renders the persisted milestone grant and reloads checked-in state 895ms
+           ✓ CheckInView with real check-in HTTP and PostgreSQL > renders a persisted makeup milestone and refreshes a stale second tab after rejection 453ms
+
+         Test Files  1 passed (1)
+              Tests  5 passed (5)
+           Start at  10:04:06
+           Duration  13.65s (transform 4.42s, setup 119ms, collect 5.73s, tests 5.65s, environment 954ms, prepare 137ms)
+
+
+    play_checkin_http_integration_test.go:440: DB reconciliation: checkins=1 snapshots=1 energy=1 cash=0 balance=1
+    play_checkin_http_integration_test.go:441: DB reconciliation: checkins=1 snapshots=1 energy=0 cash=0.5 balance=1.5
+    play_checkin_http_integration_test.go:442: Milestone reconciliation: makeup=false checkins=2 snapshots=1 rewards=2 balances=2 reward=1.50 balance=2.50
+    play_checkin_http_integration_test.go:443: Milestone reconciliation: makeup=true checkins=2 snapshots=1 rewards=1 balances=1 reward=1.50 balance=2.50
+    play_checkin_http_integration_test.go:444: DB reconciliation: checkins=0 snapshots=0 energy=0 cash=0 balance=1
+--- PASS: TestCheckinHTTPDatabaseContract (18.16s)
+    --- PASS: TestCheckinHTTPDatabaseContract/explorer (0.16s)
+    --- PASS: TestCheckinHTTPDatabaseContract/unverified (0.06s)
+    --- PASS: TestCheckinHTTPDatabaseContract/too_new (0.09s)
+    --- PASS: TestCheckinHTTPDatabaseContract/cash (0.59s)
+    --- PASS: TestCheckinHTTPDatabaseContract/disabled_and_unauthenticated (0.01s)
+    --- PASS: TestCheckinHTTPDatabaseContract/milestone_makeup_false (0.39s)
+    --- PASS: TestCheckinHTTPDatabaseContract/milestone_makeup_true (0.10s)
+    --- PASS: TestCheckinHTTPDatabaseContract/frontend_live_http (16.71s)
+PASS
+ok      github.com/Wei-Shaw/sub2api/internal/repository 37.473s

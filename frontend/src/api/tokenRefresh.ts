@@ -45,6 +45,36 @@ let sessionBlocked = false
 let ownedPublication: string | null = null
 let pendingOAuthPublication: string | null = null
 const sessionListeners = new Set<() => void>()
+let interactiveAuthSequence = 0
+
+export interface InteractiveAuthAttempt {
+  readonly sequence: number
+  session: AuthSessionIdentity
+}
+
+// A newer interactive intent supersedes an older one even before either publishes.
+// Token rotation keeps the session identity, so it does not cancel that intent.
+export function beginInteractiveAuthAttempt(): InteractiveAuthAttempt {
+  // Reconcile a peer publication before capturing this new intent. The request
+  // interceptor otherwise retires stale Pinia state after the snapshot is taken.
+  notifyAuthSessionChanged()
+  return { sequence: ++interactiveAuthSequence, session: getAuthSessionIdentity() }
+}
+
+export function isInteractiveAuthAttemptCurrent(attempt: InteractiveAuthAttempt): boolean {
+  return attempt.sequence === interactiveAuthSequence && isAuthSessionCurrent(attempt.session)
+}
+
+export function commitInteractiveAuth<T>(attempt: InteractiveAuthAttempt, publish: () => T): T {
+  if (!isInteractiveAuthAttemptCurrent(attempt)) {
+    throw { status: 401, code: 'AUTH_SESSION_CHANGED', message: 'Authentication session changed while refreshing.' }
+  }
+  const result = publish()
+  // API helpers and Pinia both publish synchronously. Only this attempt may adopt
+  // its own completed publication across the await between those two layers.
+  attempt.session = getAuthSessionIdentity()
+  return result
+}
 
 export function getAuthSessionIdentity(): AuthSessionIdentity {
   const marker = localStorage.getItem(AUTH_SESSION_KEY)

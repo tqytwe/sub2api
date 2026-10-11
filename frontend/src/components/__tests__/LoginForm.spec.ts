@@ -105,7 +105,8 @@ describe('LoginForm 核心逻辑', () => {
     await wrapper.find('form').trigger('submit')
     await flushPromises()
 
-    expect(mockLogin).toHaveBeenCalledWith({
+    expect(mockLogin).toHaveBeenCalledTimes(1)
+    expect(mockLogin.mock.calls[0][0]).toEqual({
       email: 'test@example.com',
       password: 'password123',
     })

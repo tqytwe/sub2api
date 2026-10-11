@@ -10,7 +10,8 @@ import { authAPI, isTotp2FARequired, passkeyAPI, type LoginResponse } from '@/ap
 import {
   getAuthSessionIdentity, isAuthSessionCurrent, invalidateAuthSession, subscribeAuthSession,
   AUTH_SESSION_KEY, startAuthSession, finishAuthSession, isAuthSessionPublishing,
-  blockAuthSession, isAuthSessionBlocked, AuthRefreshPendingError, consumeOAuthPublication
+  blockAuthSession, isAuthSessionBlocked, AuthRefreshPendingError, consumeOAuthPublication,
+  beginInteractiveAuthAttempt, isInteractiveAuthAttemptCurrent, commitInteractiveAuth
 } from '@/api/tokenRefresh'
 import type {
   User,
@@ -375,21 +376,18 @@ export const useAuthStore = defineStore('auth', () => {
    * @throws Error if login fails
    */
   async function login(credentials: LoginRequest): Promise<LoginResponse> {
+    const attempt = beginInteractiveAuthAttempt()
     try {
-      const response = await authAPI.login(credentials)
-
-      // If 2FA is required, return the response without setting auth state
-      if (isTotp2FARequired(response)) {
+      const response = await authAPI.login(credentials, attempt)
+      return commitInteractiveAuth(attempt, () => {
+        // A current 2FA challenge is returned without publishing credentials.
+        if (!isTotp2FARequired(response)) setAuthFromResponse(response)
         return response
-      }
-
-      // Set auth state from the response
-      setAuthFromResponse(response)
-
-      return response
+      })
     } catch (error) {
-      // Clear any partial state on error
-      clearAuth({ preservePendingAuthSession: pendingAuthSession.value !== null })
+      if (isInteractiveAuthAttemptCurrent(attempt)) {
+        clearAuth({ preservePendingAuthSession: pendingAuthSession.value !== null })
+      }
       throw error
     }
   }
@@ -402,12 +400,17 @@ export const useAuthStore = defineStore('auth', () => {
    * @throws Error if 2FA verification fails
    */
   async function login2FA(tempToken: string, totpCode: string): Promise<User> {
+    const attempt = beginInteractiveAuthAttempt()
     try {
-      const response = await authAPI.login2FA({ temp_token: tempToken, totp_code: totpCode })
-      setAuthFromResponse(response)
-      return user.value!
+      const response = await authAPI.login2FA({ temp_token: tempToken, totp_code: totpCode }, attempt)
+      return commitInteractiveAuth(attempt, () => {
+        setAuthFromResponse(response)
+        return user.value!
+      })
     } catch (error) {
-      clearAuth({ preservePendingAuthSession: pendingAuthSession.value !== null })
+      if (isInteractiveAuthAttemptCurrent(attempt)) {
+        clearAuth({ preservePendingAuthSession: pendingAuthSession.value !== null })
+      }
       throw error
     }
   }
@@ -478,16 +481,17 @@ export const useAuthStore = defineStore('auth', () => {
    * @throws Error if registration fails
    */
   async function register(userData: RegisterRequest): Promise<User> {
+    const attempt = beginInteractiveAuthAttempt()
     try {
-      const response = await authAPI.register(userData)
-
-      // Use the common helper to set auth state
-      setAuthFromResponse(response)
-
-      return user.value!
+      const response = await authAPI.register(userData, attempt)
+      return commitInteractiveAuth(attempt, () => {
+        setAuthFromResponse(response)
+        return user.value!
+      })
     } catch (error) {
-      // Clear any partial state on error
-      clearAuth({ preservePendingAuthSession: pendingAuthSession.value !== null })
+      if (isInteractiveAuthAttemptCurrent(attempt)) {
+        clearAuth({ preservePendingAuthSession: pendingAuthSession.value !== null })
+      }
       throw error
     }
   }

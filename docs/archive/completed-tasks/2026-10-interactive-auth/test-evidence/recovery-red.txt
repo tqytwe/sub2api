@@ -1,0 +1,17 @@
+
+ RUN  v2.1.9 /workspace/p1-interactive-auth/frontend
+
+ ❯ src/stores/__tests__/auth.interactive.http.spec.ts (100 tests | 1 failed | 99 skipped) 42ms
+   × recovers an abandoned peer publication with an already initialized store 34ms
+     → Authentication session changed while refreshing.
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/stores/__tests__/auth.interactive.http.spec.ts > recovers an abandoned peer publication with an already initialized store
+Unknown Error: Authentication session changed while refreshing.
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 99 skipped (100)
+   Start at  09:42:06
+   Duration  1.86s (transform 551ms, setup 81ms, collect 789ms, tests 42ms, environment 368ms, prepare 125ms)

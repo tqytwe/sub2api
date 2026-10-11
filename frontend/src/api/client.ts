@@ -3,7 +3,7 @@
  * Base client with interceptors for authentication, token refresh, and error handling
  */
 
-import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig, AxiosResponse } from 'axios'
+import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig, AxiosResponse, type AxiosRequestConfig } from 'axios'
 import type { ApiResponse } from '@/types'
 import { getLocale } from '@/i18n'
 import {
@@ -15,7 +15,8 @@ import {
 import {
   refreshAuthTokens, getAuthSessionIdentity, isAuthSessionCurrent,
   notifyAuthSessionChanged, isAuthSessionBlocked, isAuthSessionPublishing,
-  isOwnAuthSessionPublication, AuthRefreshPendingError, type AuthSessionIdentity
+  isOwnAuthSessionPublication, AuthRefreshPendingError, type AuthSessionIdentity,
+  isInteractiveAuthAttemptCurrent, type InteractiveAuthAttempt
 } from './tokenRefresh'
 import { getAPIBaseURL } from './url'
 export { buildApiUrl, buildGatewayUrl } from './url'
@@ -23,6 +24,11 @@ export { buildApiUrl, buildGatewayUrl } from './url'
 type AuthRequestConfig = InternalAxiosRequestConfig & {
   _retry?: boolean
   _authSession?: AuthSessionIdentity
+  _interactiveAuthAttempt?: InteractiveAuthAttempt
+}
+
+export type InteractiveAuthRequestConfig = AxiosRequestConfig & {
+  _interactiveAuthAttempt: InteractiveAuthAttempt
 }
 
 const sessionChangedError = () => ({
@@ -182,7 +188,10 @@ apiClient.interceptors.response.use(
       // Validate `data` shape to avoid HTML error pages breaking our error handling.
       const apiData = (typeof data === 'object' && data !== null ? data : {}) as Record<string, any>
 
-      if (status === 401 && originalRequest._authSession && !isAuthSessionCurrent(originalRequest._authSession)) {
+      if (status === 401 && (
+        (originalRequest._authSession && !isAuthSessionCurrent(originalRequest._authSession)) ||
+        (originalRequest._interactiveAuthAttempt && !isInteractiveAuthAttemptCurrent(originalRequest._interactiveAuthAttempt))
+      )) {
         return Promise.reject(sessionChangedError())
       }
 
