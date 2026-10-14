@@ -1,0 +1,48 @@
+{
+  "source_freeze": "b7faef8f1f896b5113dee07278ce50e336d9ff99",
+  "main_parent": "16a11abd29b1f37f3be28820b948f2d8400e4e70",
+  "merge_strategy": "ordinary no-ff merge; docs/README index conflict resolved retaining both additions",
+  "paths": {
+    "backend": {
+      "merged": "75b25da6eae5fbaa9e45e134a273767a48399527",
+      "main": "75b25da6eae5fbaa9e45e134a273767a48399527",
+      "freeze": "fc7f355a7e4d556e9ad746b2a31eeac244c1ebd3"
+    },
+    ".github": {
+      "merged": "418927ad0ada5fd37db41a922d0298fc2375b440",
+      "main": "418927ad0ada5fd37db41a922d0298fc2375b440",
+      "freeze": "eff43a025c120d87bc9ce59649fdd1785f1df166"
+    },
+    "scripts": {
+      "merged": "f1ae233729dbeee16461f1f88d2f88824e59c1c6",
+      "main": "f1ae233729dbeee16461f1f88d2f88824e59c1c6",
+      "freeze": "f1ae233729dbeee16461f1f88d2f88824e59c1c6"
+    },
+    "frontend/package.json": {
+      "merged": "a8a4f6bb81f0520c9df43aa3d875979e55e34e15",
+      "main": "a8a4f6bb81f0520c9df43aa3d875979e55e34e15",
+      "freeze": "a8a4f6bb81f0520c9df43aa3d875979e55e34e15"
+    },
+    "frontend/pnpm-lock.yaml": {
+      "merged": "9c7799c2cab0ee052c89fcb8640c5900c2899dff",
+      "main": "9c7799c2cab0ee052c89fcb8640c5900c2899dff",
+      "freeze": "9c7799c2cab0ee052c89fcb8640c5900c2899dff"
+    },
+    "frontend/src/components/account/OpenAIQuotaResetCell.vue": {
+      "merged": "7199b135cdc297f32c59a5bb9c7be1627c5db61f",
+      "main": "60a8465634e73bee8d1a3ed1c1e7de517ec8f766",
+      "freeze": "7199b135cdc297f32c59a5bb9c7be1627c5db61f"
+    },
+    "frontend/src/components/account/__tests__/OpenAIQuotaResetCell.spark_shadow.spec.ts": {
+      "merged": "23c995b0dcda7969384213080239d08a5e2c7b4e",
+      "main": "53101d8f926771540e658540272542bce20e4d27",
+      "freeze": "23c995b0dcda7969384213080239d08a5e2c7b4e"
+    }
+  },
+  "business_diff_from_main": [
+    "frontend/src/components/account/OpenAIQuotaResetCell.vue",
+    "frontend/src/components/account/__tests__/OpenAIQuotaResetCell.spark_shadow.spec.ts"
+  ],
+  "targeted": "4 files, 116 tests passed: quota 46, routing HTTP 24, session HTTP 26, routing API 20",
+  "reuse": "Local gates on source freeze remain original evidence. Backend/CI/scripts exactly match main, whose identifier changes are inherited and not independently revalidated here. Final-head CI pending. Screenshot dependencies unchanged except unrelated request-ledger locale modules; quota translation keys unchanged. No repeat screenshots or full backend run."
+}
