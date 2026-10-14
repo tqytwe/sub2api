@@ -13,6 +13,8 @@ import (
 const (
 	openAITokenRefreshSkew    = 3 * time.Minute
 	openAITokenCacheSkew      = 5 * time.Minute
+	// 禁用账号的后台清理（SetError + 缓存失效）脱离请求 context，但仍需明确上界。
+	openAITokenDisableCleanupTimeout = 10 * time.Second
 	openAILockInitialWait     = 20 * time.Millisecond
 	openAILockMaxWait         = 120 * time.Millisecond
 	openAILockMaxAttempts     = 5
@@ -286,7 +288,9 @@ func (p *OpenAITokenProvider) disableAccountMissingRefreshToken(account *Account
 	if p.runtimeBlocker != nil {
 		p.runtimeBlocker.BlockAccountScheduling(account, time.Time{}, "missing_refresh_token")
 	}
-	bgCtx := context.Background()
+	// 后台清理必须有明确上界：缓存/数据库后端挂起时不能让禁用操作无限阻塞。
+	bgCtx, bgCancel := context.WithTimeout(context.Background(), openAITokenDisableCleanupTimeout)
+	defer bgCancel()
 	if err := p.accountRepo.SetError(bgCtx, account.ID, reason); err != nil {
 		slog.Warn("openai_token_provider.set_error_failed",
 			"account_id", account.ID,

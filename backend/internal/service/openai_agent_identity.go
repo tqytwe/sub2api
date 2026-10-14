@@ -239,6 +239,11 @@ func ensureAgentIdentityTaskForAccount(ctx context.Context, repo AccountReposito
 	if account == nil || !account.IsOpenAIAgentIdentity() {
 		return nil
 	}
+	// 已过期/已取消的工作 context 必须立即显式失败：否则调用方会误以为
+	// 恢复成功（静默跳过注册）或在注册客户端里等待远超工作期限的时间。
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	credAccount := account
 	if account.IsShadow() {
 		resolved, err := resolveCredentialAccount(ctx, repo, account)
@@ -268,7 +273,15 @@ func ensureAgentIdentityTaskForAccount(ctx context.Context, repo AccountReposito
 		sharedTaskMu = loadedTaskMu
 	}
 	sharedTaskMu.Lock()
-	defer sharedTaskMu.Unlock()
+	// WebSocket 失效清理解锁后执行：连接 close 可能阻塞，持锁同步执行会让
+	// 同一账号的下一次恢复排在自己上一次恢复的 close 之后。
+	var recoveredAccountID int64
+	defer func() {
+		sharedTaskMu.Unlock()
+		if recoveredAccountID > 0 && wsInvalidator != nil {
+			wsInvalidator.InvalidateAgentIdentityWSConnections(recoveredAccountID)
+		}
+	}()
 	// Re-read inside the shared lock. Different request paths often receive
 	// independent repository snapshots; checking only the caller's snapshot
 	// would allow sequential duplicate registrations after the first writer
@@ -307,9 +320,7 @@ func ensureAgentIdentityTaskForAccount(ctx context.Context, repo AccountReposito
 	if !account.IsShadow() && account != credAccount {
 		account.Credentials = shallowCopyMap(credAccount.Credentials)
 	}
-	if wsInvalidator != nil {
-		wsInvalidator.InvalidateAgentIdentityWSConnections(credAccount.ID)
-	}
+	recoveredAccountID = credAccount.ID
 	return nil
 }
 
