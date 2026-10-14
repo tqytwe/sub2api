@@ -1,0 +1,16 @@
+{
+  "base": "8d50ad5bb8e4e1e44728f3d0da230afc97728787",
+  "red": [
+    "mapping-red.log.gz",
+    "anthropic-red.log.gz"
+  ],
+  "green": "green.log.gz: service0.055s handler0.045s; context channel both directions, legacy/global compact, native-v2 false, Anthropic OAuth/setup/Vertex and existing diagnosis/classifier regressions",
+  "source_hashes": "../source.sha256",
+  "root_review": "corrected candidate pending",
+  "gate_status": "new byte race/full tests/lint/build pending; old byte gates continue independently",
+  "logs": {
+    "mapping-red.log.gz": "126cb9a5d7c029d728b58c13a0c367b440dca290d6379420a1c6d7c97f6718cd",
+    "anthropic-red.log.gz": "468cd3ff4c67b1201a04a5599c1a493632aef857cb9bfb835b8bfb4893b3796e",
+    "green.log.gz": "0e2bc4fbaaf013eeb76902d06c0b60edc84a25ebdf2b20d6e742603a67462e9b"
+  }
+}

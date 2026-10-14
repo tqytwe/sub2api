@@ -1,0 +1,14 @@
+# P3-2a 模型能力诊断
+
+基线：95c308f54e30fb6776b2215b6139fc25fa85b6d4。仅在已失败的账号选择之后，识别既有冷却记录中的明确模型不存在/套餐不支持。对外变化：当池内全部候选均不支持请求模型（包括有效能力拒绝）时，现有分类器由503改为404 model_not_found；普通容量冷却、未知原因、过期/畸形记录、读取失败、仍支持模型的备用账号保留原行为。现有后续容量分类产生的429也必须保留。
+
+来源固定ranxi2001/sub2api v2.10.5 d977e7a5e24e5536db6ce8b8478743e0c4b11f77：
+- a5cf23f38a6ba464d6dd93c4d1ff99b303459377 的模型拒绝诊断辅助函数与两个服务诊断条件。
+- 3e7316cda3e0d35e71201a9a1ce505d2cad116aa 的unit测试标签约束。
+- 前置cf418bcea1afabd0c60b7843ca7b470b365b66fa中只取modelRateLimitReason读取器；不引入Cline。
+
+生产范围仅model_rate_limit.go、gateway_model_availability.go、openai_gateway_model_availability.go；两个新增测试文件覆盖服务矩阵与真实隔离HTTP上的现有handler分类。无调度准入、重试、parser、receipt、token、额度期限、前端、SQL、DTO或配置变更。保留Fork诊断查询失败/适配器panic时回退503、分组成员限制、平台隔离和混合调度。
+
+这是features.json中model-capability包的部分吸收：admission拒绝原因、重试链与历史监控过滤等剩余部分仍未完成。正式来源锁和完整升级状态不修改。无需新迁移编号。回滚只revert本片应用代码，恢复既有错误分类；不删除冷却数据或改变历史SQL。
+
+状态：实现及验证进行中；未合并、未部署。根双审及最终CI证据待补。

@@ -10,7 +10,8 @@ import (
 // ModelAvailabilityDiagnosis describes whether the requested model can be
 // served by any persistently eligible account in the group (active with its
 // schedulable setting enabled), ignoring transient state such as rate limits,
-// overload, temporary unschedulability, and runtime blocks. Handlers use this
+// overload, temporary unschedulability, and runtime blocks. An unexpired explicit
+// model capability rejection is an exception. Handlers use this
 // on the "no available accounts" error path to distinguish 404
 // model_not_found from 503 service_unavailable.
 type ModelAvailabilityDiagnosis struct {
@@ -112,7 +113,8 @@ func (s *GatewayService) DiagnoseModelAvailabilityForPlatform(
 			continue
 		}
 		diag.HasAccountsInPool = true
-		if s.isModelSupportedByAccountInGroup(ctx, &accounts[i], groupID, requestedModel) {
+		if s.isModelSupportedByAccountInGroup(ctx, &accounts[i], groupID, requestedModel) &&
+			!accounts[i].modelCapabilityRejectedForRequest(ctx, requestedModel, s.cfg) {
 			diag.HasModelSupport = true
 			return diag
 		}
