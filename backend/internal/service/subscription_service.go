@@ -612,6 +612,9 @@ func (s *SubscriptionService) RevokeSubscription(ctx context.Context, subscripti
 			return err
 		}
 
+		if err := s.recordSubscriptionLifecycle(txCtx, sub, "revoke"); err != nil {
+			return err
+		}
 		if err := s.userSubRepo.Delete(txCtx, subscriptionID); err != nil {
 			return err
 		}
@@ -641,29 +644,35 @@ func (s *SubscriptionService) RevokeSubscription(ctx context.Context, subscripti
 
 // RestoreSubscription 恢复已撤销订阅
 func (s *SubscriptionService) RestoreSubscription(ctx context.Context, subscriptionID int64) (*UserSubscription, error) {
-	sub, err := s.userSubRepo.GetByIDIncludeDeleted(ctx, subscriptionID)
-	if err != nil {
-		return nil, err
-	}
-	if sub.DeletedAt == nil {
-		return nil, ErrSubscriptionNotRevoked
-	}
-
-	exists, err := s.userSubRepo.ExistsActiveByUserIDAndGroupID(ctx, sub.UserID, sub.GroupID)
-	if err != nil {
-		return nil, err
-	}
-	if exists {
-		return nil, ErrSubscriptionRestoreConflict
-	}
-
-	restoredStatus := sub.Status
-	now := time.Now()
-	if restoredStatus == SubscriptionStatusActive && !sub.ExpiresAt.After(now) {
-		restoredStatus = SubscriptionStatusExpired
-	}
-
-	restored, err := s.userSubRepo.Restore(ctx, subscriptionID, restoredStatus)
+	var restored *UserSubscription
+	err := s.withSubscriptionUpdateTx(ctx, func(txCtx context.Context) error {
+		if err := s.lockSubscriptionIncludingDeleted(txCtx, subscriptionID); err != nil {
+			return err
+		}
+		sub, err := s.userSubRepo.GetByIDIncludeDeleted(txCtx, subscriptionID)
+		if err != nil {
+			return err
+		}
+		if sub.DeletedAt == nil {
+			return ErrSubscriptionNotRevoked
+		}
+		exists, err := s.userSubRepo.ExistsActiveByUserIDAndGroupID(txCtx, sub.UserID, sub.GroupID)
+		if err != nil {
+			return err
+		}
+		if exists {
+			return ErrSubscriptionRestoreConflict
+		}
+		restoredStatus := sub.Status
+		if restoredStatus == SubscriptionStatusActive && !sub.ExpiresAt.After(time.Now()) {
+			restoredStatus = SubscriptionStatusExpired
+		}
+		if err := s.recordSubscriptionLifecycle(txCtx, sub, "restore"); err != nil {
+			return err
+		}
+		restored, err = s.userSubRepo.Restore(txCtx, subscriptionID, restoredStatus)
+		return err
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -723,6 +732,9 @@ func (s *SubscriptionService) ExtendSubscription(ctx context.Context, subscripti
 			return ErrAdjustWouldExpire
 		}
 
+		if err := s.recordSubscriptionLifecycle(txCtx, sub, "extend"); err != nil {
+			return err
+		}
 		if err := s.userSubRepo.ExtendExpiry(txCtx, subscriptionID, newExpiresAt); err != nil {
 			return err
 		}

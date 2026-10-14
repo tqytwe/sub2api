@@ -1249,13 +1249,23 @@ func (s *OpenAIGatewayService) parseSSEUsage(data string, usage *OpenAIUsage) {
 }
 
 func (s *OpenAIGatewayService) parseSSEUsageBytes(data []byte, usage *OpenAIUsage) {
-	s.parseSSEUsageBytesWithType(data, "", usage)
+	if usage == nil {
+		return
+	}
+	// Legacy callers (including Images) do not opt into subscription output
+	// observations. Preserve their usage contract while sharing token parsing.
+	parsed := *usage
+	parsed.UnpricedOutputUsage = nil
+	s.parseSSEUsageBytesWithType(data, "", &parsed)
+	parsed.UnpricedOutputUsage = usage.UnpricedOutputUsage
+	*usage = parsed
 }
 
 func (s *OpenAIGatewayService) parseSSEUsageBytesWithType(data []byte, eventType string, usage *OpenAIUsage, preserveAggregate ...bool) {
 	if usage == nil || len(data) == 0 || bytes.Equal(bytes.TrimSpace(data), []byte("[DONE]")) {
 		return
 	}
+	observeOpenAIUnpricedOutputEvent(usage, data, eventType)
 	// Usage is absent from nearly every delta event. Avoid full JSON validation
 	// and four gjson path scans on that hot path while retaining progressive
 	// usage from compatible upstreams on any event type.
@@ -1266,6 +1276,7 @@ func (s *OpenAIGatewayService) parseSSEUsageBytesWithType(data []byte, eventType
 	if !ok {
 		return
 	}
+	mergeOpenAIUnpricedOutputUsage(usage, parsedUsage.UnpricedOutputUsage)
 	if openAIStreamEventTypeIsTerminal(effectiveOpenAISSEEventType(data, eventType)) {
 		if len(preserveAggregate) > 0 && preserveAggregate[0] &&
 			!hasObservedOpenAIUsage(&parsedUsage, 0) && hasObservedOpenAIUsage(usage, 0) {
@@ -1274,6 +1285,7 @@ func (s *OpenAIGatewayService) parseSSEUsageBytesWithType(data []byte, eventType
 		if !openAIUsageHasTokens(&parsedUsage) && openAIUsageHasTokens(usage) {
 			return
 		}
+		parsedUsage.UnpricedOutputUsage = usage.UnpricedOutputUsage
 		*usage = parsedUsage
 		return
 	}
@@ -1285,6 +1297,7 @@ func (s *OpenAIGatewayService) parseSSEUsageBytesWithType(data []byte, eventType
 // tokens is authoritative as a whole; an all-zero terminal does not erase a
 // non-zero progressive observation from the same turn.
 func mergeOpenAIUsageNonZero(dst *OpenAIUsage, src OpenAIUsage) {
+	mergeOpenAIUnpricedOutputUsage(dst, src.UnpricedOutputUsage)
 	if dst == nil {
 		return
 	}
@@ -1398,6 +1411,7 @@ func extractOpenAIUsageFromJSONBytes(body []byte) (OpenAIUsage, bool) {
 	for _, candidate := range candidates {
 		if usage, ok := openAIUsageFromGJSON(gjson.GetBytes(body, candidate.usagePath)); ok {
 			mergeHostedImageGenToolUsage(gjson.GetBytes(body, candidate.imageUsagePath), &usage)
+			observeOpenAIUnpricedOutput(&usage, body)
 			return usage, true
 		}
 	}
@@ -1586,6 +1600,15 @@ func openAIUsageFromGJSON(value gjson.Result) (OpenAIUsage, bool) {
 		value.Get("input_tokens_details.image_tokens"),
 		value.Get("prompt_tokens_details.image_tokens"),
 	)
+	observedAudio := &OpenAIUnpricedOutputUsage{
+		InputAudioTokens:         firstPositiveGJSONInt(value.Get("input_tokens_details.audio_tokens"), value.Get("prompt_tokens_details.audio_tokens")),
+		OutputAudioTokens:        firstPositiveGJSONInt(value.Get("output_tokens_details.audio_tokens"), value.Get("completion_tokens_details.audio_tokens")),
+		CacheReadAudioTokens:     firstPositiveGJSONInt(value.Get("input_tokens_details.cached_tokens_details.audio_tokens"), value.Get("prompt_tokens_details.cached_tokens_details.audio_tokens")),
+		CacheCreationAudioTokens: firstPositiveGJSONInt(value.Get("input_tokens_details.cache_creation_tokens_details.audio_tokens"), value.Get("prompt_tokens_details.cache_creation_tokens_details.audio_tokens")),
+	}
+	if observedAudio.InputAudioTokens == 0 && observedAudio.OutputAudioTokens == 0 && observedAudio.CacheReadAudioTokens == 0 && observedAudio.CacheCreationAudioTokens == 0 {
+		observedAudio = nil
+	}
 	return OpenAIUsage{
 		InputTokens:              int(inputTokens),
 		ImageInputTokens:         imageInputTokens,
@@ -1593,6 +1616,7 @@ func openAIUsageFromGJSON(value gjson.Result) (OpenAIUsage, bool) {
 		CacheCreationInputTokens: cacheCreationTokens,
 		CacheReadInputTokens:     cacheReadTokens,
 		ImageOutputTokens:        int(imageOutputTokens),
+		UnpricedOutputUsage:      observedAudio,
 	}, true
 }
 
@@ -1681,6 +1705,10 @@ func (s *OpenAIGatewayService) handleNonStreamingResponse(ctx context.Context, r
 	}
 
 	usageValue, usageOK := extractOpenAIUsageFromJSONBytes(body)
+	if !usageOK && requestledger.CurrentSubscriptionReceipt(ctx) != nil {
+		observeOpenAIUnpricedOutput(&usageValue, body)
+		usageOK = usageValue.UnpricedOutputUsage != nil
+	}
 	if !usageOK {
 		if bodyLooksLikeSSE {
 			return s.handleSSEToJSON(resp, c, account, body, originalModel, mappedModel)
@@ -1750,6 +1778,7 @@ func (s *OpenAIGatewayService) observedOpenAIBufferedReadFailure(c *gin.Context,
 		if parsed, ok := extractOpenAIUsageFromJSONBytes(body); ok {
 			*usage = parsed
 		}
+		observeOpenAIUnpricedOutput(usage, body)
 		observer.ObserveOpenAI(body, strings.TrimSpace(gjson.GetBytes(body, "type").String()))
 		responseID = extractOpenAIResponseIDFromJSONBytes(body)
 		images.AddJSONResponse(body)
@@ -1778,7 +1807,7 @@ func (s *OpenAIGatewayService) observedOpenAIBufferedReadFailure(c *gin.Context,
 			markOpenAINonStreamingCyberPolicy(c, data, usage)
 		})
 	}
-	if !hasObservedOpenAIUsage(usage, images.Count()) {
+	if !hasObservedOpenAIUsage(usage, images.Count()) && !hasSubscriptionOutputEvidence(c.Request.Context(), usage) {
 		return nil
 	}
 	return &openaiNonStreamingResult{
@@ -1826,7 +1855,7 @@ func (s *OpenAIGatewayService) handleSSEToJSON(resp *http.Response, c *gin.Conte
 			imageOutputSizes: collectOpenAIImageOutputSizesFromSSEBody(bodyText, account != nil && account.IsOpenAI()),
 			searchCount:      countGrokNativeSearchCallsFromSSEBody(bodyText),
 		}
-		if account == nil || !account.IsOpenAI() || !hasObservedOpenAIUsage(usage, result.imageCount) {
+		if account == nil || !account.IsOpenAI() || (!hasObservedOpenAIUsage(usage, result.imageCount) && !hasSubscriptionOutputEvidence(c.Request.Context(), usage)) {
 			result = nil
 		}
 		if account != nil && account.IsOpenAI() {
@@ -1848,6 +1877,7 @@ func (s *OpenAIGatewayService) handleSSEToJSON(resp *http.Response, c *gin.Conte
 
 	if ok {
 		if parsedUsage, parsed := extractOpenAIUsageFromJSONBytes(finalResponse); parsed {
+			mergeOpenAIUnpricedOutputUsage(&parsedUsage, usage.UnpricedOutputUsage)
 			if account == nil || !account.IsOpenAI() || hasObservedOpenAIUsage(&parsedUsage, 0) || !hasObservedOpenAIUsage(usage, 0) {
 				*usage = parsedUsage
 			}

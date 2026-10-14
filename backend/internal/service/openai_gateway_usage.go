@@ -164,6 +164,10 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	if result == nil {
 		return errors.New("openai usage result is nil")
 	}
+	ctx, frozen, frozenErr := loadSubscriptionPricing(ctx, input)
+	if frozenErr != nil {
+		return frozenErr
+	}
 
 	if s.rateLimitService != nil && input.Account != nil && input.Account.Platform == PlatformOpenAI {
 		s.rateLimitService.ResetOpenAI403Counter(ctx, input.Account.ID)
@@ -179,16 +183,25 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	if subscription != nil && subscription.UserID > 0 && subscription.UserID != user.ID {
 		return ErrUsageBillingOwnershipMismatch
 	}
-	if result.HasObservedUsage() || result.ImageCount > 0 || result.VideoCount > 0 || result.WebSearchCalls > 0 {
+	if frozen == nil && (result.HasObservedUsage() || result.ImageCount > 0 || result.VideoCount > 0 || result.WebSearchCalls > 0) {
 		if err := requestledger.ObserveUsage(ctx, account.ID); err != nil {
 			// Admission and attempt evidence already exist. An audit annotation
 			// failure must not suppress the original idempotent settlement.
 			logger.LegacyPrintf("service.gateway", "request_ledger_usage_observation_failed")
 		}
 	}
-	billingAccount, err := resolveCredentialAccount(ctx, s.accountRepo, account)
-	if err != nil {
-		return err
+	var billingAccount *Account
+	var err error
+	if frozen != nil {
+		billingAccount = &Account{ID: account.ID, Platform: PlatformOpenAI, Type: AccountTypeAPIKey}
+		if frozen.OAuthLike {
+			billingAccount.Type = AccountTypeOAuth
+		}
+	} else {
+		billingAccount, err = resolveCredentialAccount(ctx, s.accountRepo, account)
+		if err != nil {
+			return err
+		}
 	}
 	if !isOpenAIVideoUsageResult(result, nil) {
 		ApplyOpenAIImageBillingResolution(result)
@@ -252,6 +265,9 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	pricingAt := openAIUsagePricingAt(input)
 	multiplier, imageMultiplier := computePeakAwareMultipliers(apiKey, baseMultiplier, pricingAt)
 	videoMultiplier := resolveVideoRateMultiplier(apiKey, baseMultiplier)
+	if frozen != nil {
+		multiplier, baseMultiplier, pricingAt = frozen.Multiplier, frozen.BaseMultiplier, frozen.PricingAt
+	}
 
 	var cost *CostBreakdown
 	billingModel := forwardResultBillingModel(result.Model, result.UpstreamModel)
@@ -299,6 +315,9 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 		pricingAt,
 	)
 	if err != nil {
+		if frozen != nil {
+			return pendingSubscriptionPricing(ctx, "frozen_pricing_unavailable", err)
+		}
 		if !isUsagePricingUnavailableError(err) {
 			return err
 		}
@@ -329,7 +348,7 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 			)
 			// 基线定价源以 baselineBillingModel 为准：它正是 calculateOpenAIRecordUsageCost
 			// 内部做渠道定价判断时使用的模型，且首候选有渠道价时即为实际定价基准。
-			baselineChannelPriced := s.resolveOpenAIChannelPricing(ctx, baselineBillingModel, apiKey) != nil
+			_, baselineChannelPriced := s.hasIdentifiedOpenAIResponsePricing(ctx, baselineBillingModel, apiKey)
 			if responseErr == nil && responseModelBillingAdoptable(cost, responseCost, baselineChannelPriced, responseChannelPriced) {
 				logResponseModelBillingApplied("service.openai_gateway", account, result.RequestID, baselineBillingModel, responseModel, cost, responseCost)
 				billingModels = responseModels
@@ -342,7 +361,11 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	// Free Fast changes only the customer charge. Keep priority TotalCost and
 	// service_tier for upstream accounting, but evaluate ActualCost once more at
 	// the Standard tier using the same channel, peak, and long-context policy.
-	if groupBillsOpenAIFastAtStandard(apiKey, billingAccount, serviceTier) {
+	freeFast := groupBillsOpenAIFastAtStandard(apiKey, billingAccount, serviceTier)
+	if frozen != nil {
+		freeFast = frozen.FreeFast && (normalizeBillingServiceTier(serviceTier) == "priority" || normalizeBillingServiceTier(serviceTier) == "fast")
+	}
+	if freeFast {
 		standardCost, standardErr := s.calculateOpenAIRecordUsageCost(
 			ctx,
 			result,
@@ -357,6 +380,9 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 			longContextBillingGate,
 			pricingAt,
 		)
+		if standardErr != nil && frozen != nil {
+			return pendingSubscriptionPricing(ctx, "frozen_standard_pricing_unavailable", standardErr)
+		}
 		if standardErr != nil && !isUsagePricingUnavailableError(standardErr) {
 			return standardErr
 		}
@@ -376,6 +402,9 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	// Create usage log
 	durationMs := int(result.Duration.Milliseconds())
 	accountRateMultiplier := account.BillingRateMultiplier()
+	if frozen != nil {
+		accountRateMultiplier = frozen.AccountMultiplier
+	}
 	requestID := resolveUsageBillingRequestID(ctx, result.RequestID)
 	if result.OpenAIWSMode {
 		if upstreamRequestID := strings.TrimSpace(result.RequestID); upstreamRequestID != "" {
@@ -506,7 +535,13 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	}
 
 	// 计算账号统计定价费用（使用最终上游模型匹配自定义规则）
-	if apiKey.GroupID != nil {
+	if apiKey.GroupID != nil && frozen != nil {
+		model := result.UpstreamModel
+		if model == "" {
+			model = result.Model
+		}
+		usageLog.AccountStatsCost = frozen.accountStats(s.billingService, account.ID, *apiKey.GroupID, model, tokens, cost.TotalCost, serviceTier, optionalStringValue(result.ReasoningEffort))
+	} else if apiKey.GroupID != nil {
 		applyAccountStatsCost(ctx, usageLog, s.channelService, s.billingService,
 			account.ID, *apiKey.GroupID, result.UpstreamModel, result.Model,
 			tokens, cost.TotalCost, pricingAt,
@@ -534,9 +569,21 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 		globalSurcharge = s.settingService.GetBillingSurchargeConfig(ctx)
 	}
 	surcharge := ApplyBillingSurcharge(cost, ResolveGroupBillingSurcharge(apiKey.Group, globalSurcharge))
+	if frozen != nil {
+		surcharge = ApplyBillingSurcharge(cost, frozen.Surcharge)
+	}
 	applyUsageLogBillingSurchargeSnapshot(usageLog, surcharge)
+	var subscriptionWriter subscriptionUsagePersister
+	if frozen != nil {
+		var ok bool
+		subscriptionWriter, ok = s.usageLogRepo.(subscriptionUsagePersister)
+		if !ok {
+			return requestledger.ErrUnavailable
+		}
+	}
 
 	_, billingErr := applyUsageBilling(ctx, requestID, usageLog, &postUsageBillingParams{
+		subscriptionUsageWriter:    subscriptionWriter,
 		Cost:                       cost,
 		User:                       user,
 		APIKey:                     apiKey,
@@ -550,6 +597,11 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 		SimpleModeKeyRateLimitOnly: simpleModeKeyRateLimitOnly,
 		Surcharge:                  surcharge,
 	}, s.billingDeps(), s.usageBillingRepo)
+	if frozen != nil {
+		// The durable observation owns pending visibility; Apply owns the settled
+		// projection. A legacy tail INSERT would race recovery after lease release.
+		return billingErr
+	}
 
 	if billingErr != nil {
 		if errors.Is(billingErr, ErrUsageBillingRequestConflict) && !simpleModeKeyRateLimitOnly && !IsImageStudioManagedBilling(ctx) {
@@ -577,6 +629,10 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 
 func (s *OpenAIGatewayService) hasIdentifiedOpenAIResponsePricing(ctx context.Context, model string, apiKey *APIKey) (bool, bool) {
 	model = strings.TrimSpace(model)
+	if frozen := frozenSubscriptionPricing(ctx); frozen != nil {
+		card, ok := frozen.Models[subscriptionPricingModelKey(model)]
+		return ok && card.Identified, ok && card.ChannelPriced
+	}
 	if model == "" {
 		return false, false
 	}
@@ -614,6 +670,20 @@ func (s *OpenAIGatewayService) calculateOpenAIRecordUsageCost(
 	pricingAt time.Time,
 ) (*CostBreakdown, error) {
 	billingModel := firstUsageBillingModel(billingModels)
+	if frozen := frozenSubscriptionPricing(ctx); frozen != nil {
+		var last error
+		for _, candidate := range billingModels {
+			cost, err := frozen.calculate(s.billingService, ctx, candidate, tokens, serviceTier, optionalStringValue(result.ReasoningEffort))
+			if err == nil {
+				return cost, nil
+			}
+			last = err
+		}
+		if last == nil {
+			last = ErrSubscriptionAdmissionUnsupported
+		}
+		return nil, last
+	}
 	if result != nil && result.StarframeVideoBilling != nil {
 		return s.calculatePinnedStarframeVideoCost(result, videoMultiplier)
 	}

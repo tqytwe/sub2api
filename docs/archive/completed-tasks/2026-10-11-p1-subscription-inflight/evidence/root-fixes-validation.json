@@ -1,0 +1,252 @@
+{
+  "checked_at": "2026-10-11T14:38:11.644822+00:00",
+  "base": "8364b462feda15f3bf8f3bb2029314d2193b9dba",
+  "prior_head": "88cdf3395288723f305e18fbe4a4352d58670efc",
+  "source_manifest_sha256": "82b11f37dff7084ce04db035d7428012cd977422ac02a6df5df7c5937f59ab06",
+  "root_red": {
+    "valid_red": 25,
+    "positive_controls": 14
+  },
+  "spec_output_red": {
+    "log": "output-evidence-spec-red.log",
+    "fail": 19,
+    "sha256": "1fce14bd9e570ad82c4050528e0f6facd5d402e0387c6d650f0b33a7541fad39",
+    "pass_count": 9
+  },
+  "generic_tool_valid_red": {
+    "log": "output-tools-valid-red.log",
+    "valid": true,
+    "fail": 28,
+    "sha256": "4933ca312f3d3af4b8ef762dfadb7607354a68c484df53a2d1cd1c0e9bf51a50",
+    "overlay": "generic-output-pre-guard-overlay.json",
+    "note": "Correct native tool payload. Overlay disables only newly added generic output recognition; audio preservation/receipt zero-evidence handling still present.",
+    "pass_count": 0
+  },
+  "read_errors_red": {
+    "log": "output-read-errors-red.log",
+    "fail": 20,
+    "pass_count": 0,
+    "sha256": "ecf9f77c37d2ed81550b09b1316f88438726f8b805aa5c5419ae1f929e6a48ac"
+  },
+  "quality_red": {
+    "valid_red": 13,
+    "positive_control": 1,
+    "log": "quality-boundaries-red.log",
+    "sha256": "8eb30e22394a231cd3ab13df4c9be60b73866d446b9675516182dda6fc0eb8ce",
+    "issues": [
+      "Visible pending projection must bind full receipt identity, including usage log group; old log_group variant could settle original counters while showing wrong group.",
+      "Complete SSE content_part nontext evidence must survive missing item.done/EOF."
+    ],
+    "fix": "One shared receipt identity predicate used before pending and at Apply; log group must match; collect nontext content_part added/done under full JSON validation."
+  },
+  "controlled_deadlock": {
+    "recovery_pid": 93,
+    "legacy_writer_pid": 94,
+    "recovery_holds": "user_subscriptions FOR UPDATE, then waits for same usage unique item",
+    "legacy_holds": "usage_logs same (request_id,api_key_id) unique item, then FK FOR KEY SHARE on user_subscriptions",
+    "waits": "legacy tx1336 ShareLock->recovery tx1335; recovery tx1335 ShareLock->legacy tx1336",
+    "postgres_context": "while locking tuple (0,2) in user_subscriptions; SELECT 1 ... FOR KEY SHARE",
+    "log_sha256": "228d3d94d667a1fef1462f58896fc6dd0840c910a9223a54c5b3459751cb0251",
+    "postgres_log_sha256": "f7be47d8338473a141a4871409ac0045e18450f075be6dfcf29d160749c046f4"
+  },
+  "final_green": {
+    "status": "PASS",
+    "leaf_pass": 184,
+    "fail": 0,
+    "migrations": 407,
+    "race": true,
+    "log": "inflight-quality-green.log",
+    "sha256": "20825389ecb3dfb2952d5cd0d0b61545f05c18df3fe2fbf5a63ceccb3562335e",
+    "source_manifest_sha256": "82b11f37dff7084ce04db035d7428012cd977422ac02a6df5df7c5937f59ab06"
+  },
+  "recovery_repeat": {
+    "command": [
+      "./scripts/test-subscription-counters.sh",
+      "^TestSubscriptionRecoveryStress$/iteration_/cancel_after_durable_usage_production_worker_recovers$",
+      "-race"
+    ],
+    "exit_code": 0,
+    "repetitions": 40,
+    "passed_cases": 40,
+    "postgres_log_captured": true,
+    "postgres_deadlock": false,
+    "postgres_error": false,
+    "passed": true,
+    "sha256": {
+      "recovery-repeat.log": "1e5f878558ea966c8fa907f94de84195ce8aee5f0f908d80405e9f7565d2173d",
+      "recovery-repeat-postgres.log": "76f6c6b1c4e9995198ba8283ee893ff23b9953cf55d2b7d19c82ecdaa2b2f185",
+      "recovery-repeat-overlay.go": "aa07b0a4520bcce2bc7315d4a40f05364ea1d12e5e4288dd6dd48a66c40dc653",
+      "recovery-repeat-overlay.json": "a916ce1bb9a783c914501a03c7255cd0283178430541fdf0a6a21e74c6566700"
+    }
+  },
+  "reviews": {
+    "spec": {
+      "status": "PASS",
+      "agent": "/root/p1_spec_review",
+      "scope": "root fixes, projection owner, unsupported output evidence, main8364 combination, final ownership/content-part additions",
+      "method": "independent read-only code and real runtime log/hash review; not independently rerun",
+      "source_manifest_sha256": "82b11f37dff7084ce04db035d7428012cd977422ac02a6df5df7c5937f59ab06",
+      "unclosed_p1_p2": 0
+    },
+    "quality": {
+      "status": "PASS",
+      "agent": "/root/p1_quality_review",
+      "method": "independent read-only final source, runtime logs, 40 recovery and 18 archive raw/gzip hash verification; not independently rerun",
+      "source_manifest_sha256": "82b11f37dff7084ce04db035d7428012cd977422ac02a6df5df7c5937f59ab06",
+      "unclosed_p1_p2": 0
+    },
+    "order": [
+      "spec",
+      "quality"
+    ]
+  },
+  "server_gates": {
+    "status": "PASS",
+    "count": 8,
+    "record": "root-fixes-gates.json"
+  },
+  "publish": {
+    "status": "eight gates passed; prepare intermediate ordinary merge commit, no branch update until latest16a combination gates pass",
+    "method": "intermediate parents88cdf339/8364b462, then ordinary merge16a11abd; one final PR head update"
+  },
+  "production": {
+    "accessed": false,
+    "paid_generation": false,
+    "merged": false,
+    "deployed": false,
+    "browser_acceptance": "not performed; outside delegated scope"
+  },
+  "compatibility": [
+    {
+      "name": "TestSubscriptionCounterHTTP",
+      "command": [
+        "./scripts/test-subscription-counters.sh",
+        "^TestSubscriptionCounterHTTP$",
+        "-race"
+      ],
+      "started_at": "2026-10-11T13:22:03.310816+00:00",
+      "exit_code": 0,
+      "leaf_pass": 42,
+      "expected_leaf": 42,
+      "migrations": 407,
+      "race": true,
+      "log": "final-TestSubscriptionCounterHTTP.log",
+      "sha256": "143fbf4838a4bfb431259e97855b1a9cb7b4f0d9ad73f33431e081b0d9950ffa",
+      "passed": true
+    },
+    {
+      "name": "TestSubscriptionEntitlementBindingReproduction",
+      "command": [
+        "./scripts/test-subscription-counters.sh",
+        "^TestSubscriptionEntitlementBindingReproduction$",
+        "-race"
+      ],
+      "started_at": "2026-10-11T13:22:41.095511+00:00",
+      "exit_code": 0,
+      "leaf_pass": 4,
+      "expected_leaf": 4,
+      "migrations": 407,
+      "race": true,
+      "log": "final-TestSubscriptionEntitlementBindingReproduction.log",
+      "sha256": "97d856bc6b0d11c8baa77ecf13ae3c8a5cc890eaffb9da4a449ca840896ecc40",
+      "passed": true
+    },
+    {
+      "name": "TestSubscriptionBindingCompatibility",
+      "command": [
+        "./scripts/test-subscription-counters.sh",
+        "^TestSubscriptionBindingCompatibility$",
+        "-race"
+      ],
+      "started_at": "2026-10-11T13:22:58.745840+00:00",
+      "exit_code": 0,
+      "leaf_pass": 36,
+      "expected_leaf": 36,
+      "migrations": 407,
+      "race": true,
+      "log": "final-TestSubscriptionBindingCompatibility.log",
+      "sha256": "915140bd86aaaa2a753ac6e80f8885684e75496c2a243fff871f26614a0da34e",
+      "passed": true
+    }
+  ],
+  "total_current_http_cases": 266,
+  "final_source_manifest_sha256": "72275ca942199f9c3a78bdd16672138ca228b2957a5a1d7de2b9a62e41dfe43b",
+  "legacy_wrapper_closure": {
+    "file": "backend/internal/service/openai_gateway_response_handling.go",
+    "sha256": "c9fd60dfa64020b9824b3c82b80d9e495351c49d2bb307c1ff0c1bd4918c9a74",
+    "scope": "only legacy parser wrapper; old strict equality assertion unchanged",
+    "red": [
+      "full-gate-legacy-image-red.log",
+      "legacy-image-wrapper-red.log"
+    ],
+    "green": {
+      "log": "legacy-image-wrapper-green.log",
+      "sha256": "c259cf76e61a5d86ee865aa4a22f964b7b00ba48a0156be06f903b1b46c803bd",
+      "command": "go test ./internal/service -run 'TestParseOpenAIImagesSSEUsageBytes|TestParseSSEUsage|TestOpenAI.*Usage' -count=1"
+    },
+    "review_order": [
+      {
+        "spec": "PASS"
+      },
+      {
+        "quality": "PASS"
+      }
+    ],
+    "evidence_reuse": "266/407/race+40 recovery were run before10-line legacy wrapper fix. Independent spec and quality confirmed native/compatibility call paths unchanged; not labelled rerun."
+  },
+  "mechanical_lint_closure": {
+    "files": [
+      "backend/internal/service/openai_gateway_forward.go",
+      "backend/internal/service/openai_gateway_passthrough.go"
+    ],
+    "change": "three exact !(A || B) -> (!A && !B) staticcheck QF1001 fixes, short-circuit order/count unchanged",
+    "reviews": [
+      {
+        "spec": "PASS",
+        "reverse_replacement_hash_match": true
+      },
+      {
+        "quality": "PASS",
+        "reverse_replacement_hash_match": true
+      }
+    ],
+    "reuse": "Prior default backend tests and266/407/race+40 recovery retained with explicit equivalence review; not described as final source rerun"
+  },
+  "frontend_timing": {
+    "changed_source": false,
+    "full_parallel_run": "503files PASS;5 of26 current-main RequestLedgerView.session.http cases failed fixed30ms destroyed check",
+    "isolated_case_run": "26/26 PASS",
+    "full_isolated_retry": {
+      "status": "PASS",
+      "files": 504,
+      "tests": 3825,
+      "skipped_files": 3,
+      "skipped_tests": 8,
+      "log": "full-frontend-isolated-retry.log",
+      "sha256": "786463726b0af4c89a23c4bf2adf107c246a5eac1746c93c2dc74ffe7e6dcda5"
+    },
+    "production_fix": false
+  },
+  "final_receipt_scope": {
+    "strict_legacy_red": 8,
+    "targeted_unit_green_seconds": 2.835,
+    "inflight_pass": 184,
+    "migrations": 407,
+    "race": true,
+    "log_sha256": "28a80311e674f649e474c3671f9054aedf789ef9a1725719a53d19f5dda40503",
+    "spec": "PASS, read-only, followed by quality",
+    "quality": "PASS, read-only; verified184pass actual log",
+    "reuse": "82 compatibility cases and40 recovery runs were on82b11f37; no binding/Apply/recovery changes afterward. Latest184rerun on de9cb retains admitted unknown outputs and legacy isolation. FourDeMorgan exact equivalence; wrapper onlylegacyImages.",
+    "gates": "PASS; complete final default/unit backend tests, lint, ledger, build, integrity, tagged lint, links and diff; see root-fixes-gates.json",
+    "runtime_source_manifest_sha256": "de9cb070b1a63d41af2a1fad3fea5145418edc9d11cb14cca77c26f93e5bf92b"
+  },
+  "test_interface_guard": {
+    "source_manifest_sha256": "72275ca942199f9c3a78bdd16672138ca228b2957a5a1d7de2b9a62e41dfe43b",
+    "scope": "two checked interface assertions in test wrapper, original success calls and assertions unchanged; no production change",
+    "projection_case": "PASS full407/race, pending_before_apply1 legacy_writes0 sends1",
+    "green_sha256": "9784eb4b5ed2383e742312c5445936ec83bbf6a53340bfc10050a7feb2ee4886",
+    "spec": "PASS",
+    "quality": "PASS, independent read-only after specification; reverse hash match and actual projection log confirmed",
+    "reuse": "184/82/40 retain own runtime source hashes; default/unit/ledger/build/Fork exclude this billing_acceptance-only test file"
+  }
+}

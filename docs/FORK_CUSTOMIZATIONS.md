@@ -253,10 +253,12 @@
 267_public_status_ops_aggregation_watermark.sql
 268_play_growth_governance.sql
 269_play_membership_manual_contributions.sql
+280_subscription_inflight_admission.sql
 ```
 
 ## FORK-BILLING-010 计费归属与充值联动
 
+- 审查中的在途订阅结算（未部署）：OpenAI 入站 Responses HTTP 文本逐次发送复核原订阅/套餐，已准入且已观测用量按原对象与冻结价结算；outbox 保存原命令，恢复不重发、不重定价。自然到期与并发耗尽不豁免，无透支/预约或历史补扣。迁移 280 与完整 PG/race 证据见[限定交付记录](./archive/completed-tasks/2026-10-11-p1-subscription-inflight/README.md)，自动保护为 `Subscription counter acceptance` CI。
 - 产品目的：防止 API Key、订阅或批量任务被错误归属到其他用户，保留可独立配置的分组内部手续费，同时让成功充值触发可选 Play boost。
 - WS 异常结算：ctx_pool/passthrough 在断流、客户端写失败、取消、容量租约丢失和会话抢占后保留当前未完成轮的已观测用量及归属；已完成轮不重复结算，已计量生成不得重放。缺少上游 response ID 时使用稳定的逐轮私有计费 ID；有输出但无 aggregate usage 不估算 token 或扣款。沿用 observed usage mandatory 队列和同步回退。行为测试：`openai_ws_observed_usage_test.go`、`openai_ws_v2/observed_usage_test.go`、`ws_observed_usage_integration_test.go`。
 - 不变量：分组创建和编辑必须显示、回填并提交手续费覆盖、启用、模式和数值四个字段；关闭分组覆盖时沿用全局配置，不能删除或清空已保存的分组值；实际扣款使用 `billed_cost = actual_cost + billing_surcharge_cost`，用户展示的原始用量成本不得被手续费污染。扣费前验证 API Key 与用户归属；订阅扣费验证订阅所有者；余额冻结同样验证归属；NextChat Web 和 Android 只能通过登录用户 JWT 换取该用户名下的受管 API Key，并按用户允许分组返回模型/余额/API Key 权限，不能暴露其他用户密钥；粘性会话种子按 API Key 隔离；模型目录参考价不能覆盖真实渠道计费；支付订单完成后再授予 recharge boost，boost 失败不得回滚已完成充值；`frozen_balance` 只代表图片/任务预留，提现冻结必须写入独立 `withdrawal_frozen_balance`；可提现权益通过 `withdrawable_entitlements` 和 immutable allocation 流水对账；用户提现默认关闭，只有 ready 用户可启用；提现申请必须锁定成熟权益批次，取消、拒绝和退款必须恢复原批次；提现金额和提现规则金额必须为整数；充值退回必须走独立 `balance_fund_batches` / `fund_refund_requests` 批次和审核流程，真实线上/线下充值可退未消费整数部分，赠送/首 30/兑换码赠送默认不可提现也不可退；管理员审批、读取完整收款资料和线下打款登记必须使用 JWT 管理员 TOTP step-up，管理员 API Key 禁止。

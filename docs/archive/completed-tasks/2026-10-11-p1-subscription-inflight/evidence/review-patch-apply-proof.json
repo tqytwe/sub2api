@@ -1,0 +1,9 @@
+{
+  "base": "8364b462feda15f3bf8f3bb2029314d2193b9dba",
+  "patch": "root-review-frozen-v4.patch",
+  "patch_sha256": "5caab0da598a1d0dee7119cbe0dfc8b77414e185437f18a0fedcd569e7c69f47",
+  "applies_cleanly": true,
+  "matches_all_33_manifest_files": true,
+  "patch_tree": "f6df34ceaf061a26298a0c68282780bfa0336205",
+  "actual_worktree_or_index_modified": false
+}

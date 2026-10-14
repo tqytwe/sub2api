@@ -1,0 +1,36 @@
+{
+  "checked_at": "2026-10-11T15:12:39.702890+00:00",
+  "prior_tested_commit": "2d65038dd30aeca3713609c88a5483b9693dbb98",
+  "merged_main": "95c308f54e30fb6776b2215b6139fc25fa85b6d4",
+  "source_manifest_sha256": "b1bc35e631f397ff7d64476edb936b4d3b026ae8665b12c75b9eff9b3e6d7f08",
+  "all34_p1_files_unchanged": true,
+  "all69_main_incoming_files_unchanged": true,
+  "local_gates": "7 PASS",
+  "default_account_race_leaves": 12,
+  "unit_account_race_leaves": 77,
+  "required_new_sse_top_level_tests": 8,
+  "p3_omission_tests": 3,
+  "reviews": [
+    {
+      "stage": "spec",
+      "agent": "/root/p1_spec_review",
+      "status": "PASS",
+      "source_manifest_sha256": "b1bc35e631f397ff7d64476edb936b4d3b026ae8665b12c75b9eff9b3e6d7f08",
+      "scope": "Main95 composition source preservation and explicit evidence reuse; all34 P1 files and69 incoming main files hash-verified; no P1/P2. Tagged-unit runtime verified separately in gates."
+    },
+    {
+      "stage": "quality",
+      "agent": "/root/p1_quality_review",
+      "status": "PASS",
+      "source_manifest_sha256": "b1bc35e631f397ff7d64476edb936b4d3b026ae8665b12c75b9eff9b3e6d7f08",
+      "scope": "Independent read-only review after spec PASS. All34 P1/69 incoming main files exact; keepalive sole production caller TestAccountConnection. Default account and3 omission-unit logs hash-verified. Tagged-unit/runtime gates separately required."
+    }
+  ],
+  "reused_evidence": [
+    "root-fixes-gates.json (8364 complete8 gates)",
+    "main16a-gates.json (408 migrations/race intersections and full build;12 gates)"
+  ],
+  "p3_checker_scope": "Fixed16a P3-only inventory rejects P1 protected mutations by design; its omission-detector units pass, whole inventory check not claimed applicable/passed",
+  "final_ci": "pending exact final PR head",
+  "boundary": "No production, paid generation, main merge, deployment or browser production acceptance"
+}

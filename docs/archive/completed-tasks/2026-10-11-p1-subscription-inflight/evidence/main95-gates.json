@@ -1,0 +1,142 @@
+[
+  {
+    "name": "account-sse-race",
+    "command": [
+      "go",
+      "test",
+      "-race",
+      "./internal/service",
+      "-run",
+      "^TestAccountTest",
+      "-count=1",
+      "-timeout=5m",
+      "-json"
+    ],
+    "cwd": "/workspace/sub2api-p1-inflight/backend",
+    "started_at": "2026-10-11T15:03:10.329195+00:00",
+    "status": "passed",
+    "exit_code": 0,
+    "completed_at": "2026-10-11T15:04:50.769433+00:00",
+    "log": "/workspace/p1-inflight-evidence/main95-gates/account-sse-race.log",
+    "sha256": "38ccd3460245fbb7a70efdeae8c3563a930836af8303e5b072356e2e74a07b06",
+    "scope": "Existing default-tag account tests:13 PASS nodes/12 leaves. This command does not compile the three new unit-tag SSE files; separate mandatory unit/race gate follows."
+  },
+  {
+    "name": "p3-omission-tests",
+    "command": [
+      "python",
+      "-m",
+      "unittest",
+      "discover",
+      "-s",
+      "scripts",
+      "-p",
+      "test_p3_upgrade.py",
+      "-v"
+    ],
+    "cwd": "/workspace/sub2api-p1-inflight",
+    "started_at": "2026-10-11T15:04:50.772227+00:00",
+    "status": "passed",
+    "exit_code": 0,
+    "completed_at": "2026-10-11T15:04:50.889037+00:00",
+    "log": "/workspace/p1-inflight-evidence/main95-gates/p3-omission-tests.log",
+    "sha256": "149b761cef78dd66c90e6e0871528ac021110f11246b55b6776a0e4832e9b658"
+  },
+  {
+    "name": "service-lint",
+    "command": [
+      "golangci-lint",
+      "run",
+      "--max-same-issues=0",
+      "./internal/service"
+    ],
+    "cwd": "/workspace/sub2api-p1-inflight/backend",
+    "started_at": "2026-10-11T15:04:50.889478+00:00",
+    "status": "passed",
+    "exit_code": 0,
+    "completed_at": "2026-10-11T15:08:24.068814+00:00",
+    "log": "/workspace/p1-inflight-evidence/main95-gates/service-lint.log",
+    "sha256": "e92606b0bf483111dff0a120c315ea165821348f31365020e2468a0059095c47"
+  },
+  {
+    "name": "backend-build",
+    "command": [
+      "make",
+      "build-backend"
+    ],
+    "cwd": "/workspace/sub2api-p1-inflight",
+    "started_at": "2026-10-11T15:08:24.084642+00:00",
+    "status": "passed",
+    "exit_code": 0,
+    "completed_at": "2026-10-11T15:09:19.210413+00:00",
+    "log": "/workspace/p1-inflight-evidence/main95-gates/backend-build.log",
+    "sha256": "0c9c421ad123ea6fb3b619863921c0dc2fc1d991fc404689bf56eb7e57db204a"
+  },
+  {
+    "name": "doc-links",
+    "command": [
+      "node",
+      "scripts/check-doc-links.mjs"
+    ],
+    "cwd": "/workspace/sub2api-p1-inflight",
+    "started_at": "2026-10-11T15:09:19.211242+00:00",
+    "status": "passed",
+    "exit_code": 0,
+    "completed_at": "2026-10-11T15:09:19.377011+00:00",
+    "log": "/workspace/p1-inflight-evidence/main95-gates/doc-links.log",
+    "sha256": "660dbc8647514dbc39b9b828bbba4ee527f8c72d6be63ed76858147a0c445f5c"
+  },
+  {
+    "name": "diff-check",
+    "command": [
+      "git",
+      "diff",
+      "--check",
+      "95c308f54e30fb6776b2215b6139fc25fa85b6d4"
+    ],
+    "cwd": "/workspace/sub2api-p1-inflight",
+    "started_at": "2026-10-11T15:09:19.377380+00:00",
+    "status": "passed",
+    "exit_code": 0,
+    "completed_at": "2026-10-11T15:09:19.444695+00:00",
+    "log": "/workspace/p1-inflight-evidence/main95-gates/diff-check.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "name": "account-unit-sse-race",
+    "command": [
+      "go",
+      "test",
+      "-tags=unit",
+      "-race",
+      "./internal/service",
+      "-run",
+      "^TestAccountTest",
+      "-count=1",
+      "-timeout=5m",
+      "-json"
+    ],
+    "cwd": "/workspace/sub2api-p1-inflight/backend",
+    "started_at": "2026-10-11T15:09:21.783949+00:00",
+    "status": "passed",
+    "exit_code": 0,
+    "required_test_names": [
+      "TestAccountTestConnectionKeepaliveHTTP",
+      "TestAccountTestKeepaliveAlreadyCanceledDoesNotWrite",
+      "TestAccountTestKeepaliveBeforeUpstreamHeaders",
+      "TestAccountTestKeepaliveCancellationReleasesReader",
+      "TestAccountTestKeepaliveCancelsOnWriteFailure",
+      "TestAccountTestKeepaliveContinuesAfterEventsAndHeaders",
+      "TestAccountTestKeepaliveStreamTerminalSemantics",
+      "TestAccountTestServerTimingHTTP"
+    ],
+    "missing_required_tests": [],
+    "skips": [],
+    "failures": [],
+    "pass_nodes": 81,
+    "pass_leaves": 77,
+    "completed_at": "2026-10-11T15:12:05.971679+00:00",
+    "log": "/workspace/p1-inflight-evidence/main95-gates/account-unit-sse-race.log",
+    "sha256": "af1afea108fd055d54d1ebe6687f69eb5cef2f26b932f235973c1c9458ce7db2"
+  }
+]

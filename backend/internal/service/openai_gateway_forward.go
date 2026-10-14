@@ -100,6 +100,11 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 	if legacyIngressChanged {
 		body = legacyIngressBody
 	}
+	// Reject legacy protocol conversion early. The final HTTP body is checked
+	// again after model/tool transforms when each actual request is built.
+	if requestledger.HasSubscriptionAdmission(ctx) && (shouldForwardOpenAIResponsesViaRawChatCompletions(account) || !subscriptionNativeTextRequest(body)) {
+		ctx = requestledger.WithoutSubscriptionAdmission(ctx)
+	}
 	// 在分流到 passthrough / Codex transform / 原生 ChatCompletions 之前统一修正
 	// 显式为 null 的工具 Schema type，否则 upstream 的 400 会被归一成可重试的 502，
 	// 同一份坏定义在账号池里反复重放。
@@ -1299,7 +1304,7 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 				imageOutputSizes = streamResult.imageOutputSizes
 				searchCount = streamResult.searchCount
 			}
-			if err != nil && (!account.IsOpenAI() || !hasObservedOpenAIUsage(usage, imageCount)) {
+			if err != nil && (!account.IsOpenAI() || (!hasObservedOpenAIUsage(usage, imageCount) && !hasSubscriptionOutputEvidence(ctx, usage))) {
 				if signal, ok := asOpenAICompactFallbackSignal(err); ok {
 					if retryBody, fallbackModel, retry := s.prepareOpenAICompactFallbackRetry(
 						c, account, requestedModel, body, http.StatusBadRequest, signal.message, signal.payload, compactModelFallbackRetried,
@@ -1349,7 +1354,7 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 				imageOutputSizes = nonStreamResult.imageOutputSizes
 				searchCount = nonStreamResult.searchCount
 			}
-			if err != nil && (!account.IsOpenAI() || !hasObservedOpenAIUsage(usage, imageCount)) {
+			if err != nil && (!account.IsOpenAI() || (!hasObservedOpenAIUsage(usage, imageCount) && !hasSubscriptionOutputEvidence(ctx, usage))) {
 				if signal, ok := asOpenAICompactFallbackSignal(err); ok {
 					if retryBody, fallbackModel, retry := s.prepareOpenAICompactFallbackRetry(
 						c, account, requestedModel, body, http.StatusBadRequest, signal.message, signal.payload, compactModelFallbackRetried,
@@ -1414,6 +1419,16 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 		// when search_price_per_1k is configured (nil price → $0 from CalculateSearchCost).
 		if searchCount > 0 && account != nil && account.IsGrok() {
 			forwardResult.SearchCount = searchCount
+		}
+		if searchCount > 0 {
+			if forwardResult.Usage.UnpricedOutputUsage == nil {
+				forwardResult.Usage.UnpricedOutputUsage = &OpenAIUnpricedOutputUsage{}
+			}
+			forwardResult.Usage.UnpricedOutputUsage.SearchCalls = searchCount
+		}
+		// Unpriced output observations belong only to an admitted subscription send.
+		if requestledger.CurrentSubscriptionReceipt(ctx) == nil {
+			forwardResult.Usage.UnpricedOutputUsage = nil
 		}
 		stampOpenAIResponsesUpstreamEndpoint(c, forwardResult)
 		return forwardResult, forwardErr
@@ -1480,6 +1495,12 @@ func (s *OpenAIGatewayService) buildUpstreamRequest(ctx context.Context, c *gin.
 	// DeepSeek / Kimi 原生 Responses 端点为无状态实现：强制 store=false、清除
 	// previous_response_id，避免携带状态字段被上游拒绝。
 	body = normalizeDeepSeekResponsesRequestBody(account, body)
+	// Image-only model conversion and the Codex bridge can add image_generation
+	// after the initial text price snapshot. Check this serialized send's body,
+	// including retries, before the transport can create a subscription receipt.
+	if requestledger.HasSubscriptionAdmission(ctx) && !subscriptionNativeTextRequest(body) {
+		ctx = requestledger.WithoutSubscriptionAdmission(ctx)
+	}
 
 	req, err := http.NewRequestWithContext(ctx, "POST", targetURL, bytes.NewReader(body))
 	if err != nil {

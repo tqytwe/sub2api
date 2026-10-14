@@ -1,0 +1,17 @@
+{
+  "name": "compact_stats_reviewed_red",
+  "command": [
+    "./scripts/test-subscription-counters.sh",
+    "^TestSubscriptionInflightRevoke$/compact_upstream_account_stats_frozen_separately$",
+    "-race",
+    "-overlay=/workspace/p1-inflight-evidence/stats-red-overlay.json"
+  ],
+  "exit_code": 1,
+  "expected_exit_code": 1,
+  "base_commit": "fb2c9747b58ed5d980a36ea6a2316ead2aa03b7e",
+  "overlay_source": "stats-before-fix.go",
+  "overlay_source_sha256": "996b4f49e218593f5cd9b5c526739fda69eece03ef1219d9c34785fcef96082a",
+  "log": "/workspace/p1-inflight-evidence/compact-stats-reviewed-red.log",
+  "sha256": "d145b99e703f7f5af8d7519357c5ecce2c7b3d6b1ec08a74097282d0dba9a7a6",
+  "assertion": "actual compact upstream model must retain its own statistics price: account_stats_cost was NULL; distinct gpt-5.1 customer and gpt-5.5 upstream prices; full migrations 406"
+}
