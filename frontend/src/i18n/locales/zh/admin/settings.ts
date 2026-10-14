@@ -568,6 +568,8 @@ export default {
         claudeCodeVersionAutoSyncHint: '每小时从官方发布渠道获取最新版本的 Claude Code 客户端版本号，无需为了跟版本而升级本服务。关闭后停止获取新版本，已同步的版本仍可使用；上方手填版本始终优先。',
         claudeCodeVersionSyncedValue: '当前同步到：{version}',
         codexHardeningTitle: 'Codex 设置',
+        requestTimezoneEnabled: '请求时区绑定',
+        requestTimezoneEnabledDesc: '开启后，按 OpenAI 账号配置替换环境上下文和网页搜索工具中已有的时区，默认 Asia/Singapore。保留日期和普通对话原文；关闭后不改写时区。此功能不保证改善模型表现。',
         codexClientRestrictionTitle: 'Codex 客户端限制',
         codexHardeningDesc:
           '仅对已开启「仅允许 Codex 官方客户端」的 OpenAI OAuth 账号生效（全局）。在 User-Agent/Originator 之外，用版本区间、引擎指纹门与黑/白名单巩固判定。',

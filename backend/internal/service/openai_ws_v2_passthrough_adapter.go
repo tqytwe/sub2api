@@ -769,6 +769,7 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 	if accountScoped {
 		firstClientMessage = accountScopedFirst
 	}
+	firstClientMessage = s.normalizeRequestTimezone(ctx, account, firstClientMessage, "ws")
 	usageMeta := newOpenAIWSPassthroughUsageMeta(initialRequestModel, firstClientMessage)
 	updatedFirst, blocked, policyErr := s.applyOpenAIFastPolicyToWSResponseCreate(ctx, account, capturedSessionModel, firstClientMessage)
 	if policyErr != nil {
@@ -1026,6 +1027,7 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 				if accountScoped {
 					payload = accountScopedPayload
 				}
+				payload = s.normalizeRequestTimezone(ctx, account, payload, "ws")
 			}
 			if isResponseCreate {
 				if responsesLite {

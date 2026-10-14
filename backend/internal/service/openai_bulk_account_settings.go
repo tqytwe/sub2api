@@ -9,6 +9,7 @@ import (
 )
 
 type bulkOpenAISettings struct {
+	requestTimezone         bool
 	longContextBilling      bool
 	endpointCapabilities    bool
 	responsesMode           bool
@@ -17,13 +18,20 @@ type bulkOpenAISettings struct {
 }
 
 func (s bulkOpenAISettings) any() bool {
-	return s.longContextBilling || s.endpointCapabilities || s.responsesMode
+	return s.requestTimezone || s.longContextBilling || s.endpointCapabilities || s.responsesMode
 }
 
 func normalizeBulkOpenAISettings(input *BulkUpdateAccountsInput) (bulkOpenAISettings, error) {
 	var settings bulkOpenAISettings
 	if input == nil {
 		return settings, nil
+	}
+
+	if _, exists := input.Extra[openAIRequestTimezoneExtraKey]; exists {
+		settings.requestTimezone = true
+		if err := ValidateOpenAIRequestTimezoneExtra(PlatformOpenAI, input.Extra); err != nil {
+			return settings, err
+		}
 	}
 
 	if _, exists := input.Extra[openAILongContextBillingEnabledKey]; exists {
@@ -161,6 +169,12 @@ func validateBulkOpenAISettingsTargets(
 		account, ok := targetsByID[accountID]
 		if !ok || account == nil {
 			return 0, invalidBulkOpenAITarget(accountID, "account does not exist")
+		}
+
+		if settings.requestTimezone {
+			if err := ValidateOpenAIRequestTimezoneExtra(account.Platform, input.Extra); err != nil {
+				return 0, err
+			}
 		}
 
 		if settings.longContextBilling {
