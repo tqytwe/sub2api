@@ -1,0 +1,24 @@
+{
+  "base": "8364b462feda15f3bf8f3bb2029314d2193b9dba",
+  "production_sha256": "1e88bcfbe3a79823872c7f1dedee01de07e13bb7005737e59e53753f819354c4",
+  "test_sha256": "caf633f5af0f8c712197a6ed1c17f0ebe162cb842cd55920af8c4036c73a7ee0",
+  "result": "PASS after split recovery; initial make test lint failure retained separately",
+  "default_backend": "Full go test ./... passed before two-line test-only checked type assertion; final race selector and full unit suite passed after correction",
+  "frontend": "504 files / 3825 tests passed, 3 files / 8 tests skipped",
+  "lint": "0 issues",
+  "race": "count=20 passed (17.959s)",
+  "unit": "Full -tags=unit passed (service 223.265s)",
+  "build_and_fork": "Passed; reused unchanged production source after test-only assertion/synchronization correction",
+  "reviews": "Independent sequential spec and quality passed, including final test-only correction",
+  "scope": "fake/local only; no production/accounts/secrets; no deployment",
+  "logs": {
+    "make-test-final.log": "99d85d483857c79f04646f3210ed6f1ae2432b2a953d7e76725a9e4c03a3d5eb",
+    "frontend-final.log": "ff421d7ee6f2d0850e26f4540d19bdb98c33f356a073277d73f802d25a400282",
+    "backend-unit-final.log": "60270ba7d9d3ea4e17d8c5d71fbdc8fe3165d4a848263dc6bf7898a6e4f6a60e",
+    "lint-final.log": "e92606b0bf483111dff0a120c315ea165821348f31365020e2468a0059095c47",
+    "make-build.log": "d9f54daa0aeab4c18d64fd85b5f73ac8cbd6e8e9ce568efa344e8c660e96ec9e",
+    "fork-integrity.log": "6786b9acf301badb8a4bacfaa353475705c99005baeef922c20fd6ebba3242b3",
+    "race-assertion-final.log": "e9744d016196d512d1e206efd1a96ca41c3a910d01ca0b5187caf9cf19287601",
+    "doc-links.log": "041a45cbd079be7036af94f80dcf8ae62b86df7aa716ef83215582cb3c3ed646"
+  }
+}

@@ -267,6 +267,7 @@
 - 验证：`GroupsView.surcharge.spec.ts`、usage billing unit/integration tests、session hash tests、model pricing tests、payment lifecycle tests、NextChat mobile bootstrap/group switch route tests；线上以管理员中英文分组页面核对回显/保存，并以测试订单检查余额到账和 boost 状态。
 
 - OpenAI 额度读取边界：普通 OAuth 用量、force、batch 和渠道 quota 监测复用只读 `/wham/usage`，不得发起 Responses 生成探针或通知自动消耗 reset credits；失败不回退生成，缺窗口保持未知。spendable credits 余额、5h/7d 使用率、reset 次数分别保存；后台读取不伪造用户收费 usage。显式手动模型测试仍是主动生成操作。
+- 额度并发边界：force 绕过已完成缓存，并在在途普通读取完成后启动共享后继刷新；同账号读取串行至持久化结束。等待者取消相互隔离，共享只读调用独立限时 20 秒（含准备/持久化）；调用方取消不负缓存，真实上游错误仍缓存 1 分钟，成功仍缓存 10 分钟。父/影子账号以各自 ID 隔离。`account_usage_concurrency_test.go` 以无网络 fake transport 和确定性并发验证。
 - 额度读取验证：`account_usage_readonly_test.go` 的隔离 fake upstream 覆盖入口、缓存、失败和零生成/重置请求；`openai_quota_readonly_contract_test.go` 防止查询 handler 重新通知 reset；`AccountUsageCell.spec.ts`、`AccountsView.lite.spec.ts` 防止被动快照强制刷新循环和本地缓存陈旧。`OpenAIQuotaResetCell.spark_shadow.spec.ts` 覆盖同 ID 点数快照同步、含未知值的新鲜度排序、切号/卸载迟到响应及零额外查询/重置。
 
 ## FORK-REWARDS-015 优惠券、日卡与支付结算

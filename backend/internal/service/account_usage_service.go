@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"log/slog"
@@ -115,14 +116,15 @@ const (
 
 // UsageCache 封装账户使用量相关的缓存
 type UsageCache struct {
-	apiCache          sync.Map           // accountID -> *apiUsageCache
-	windowStatsCache  sync.Map           // accountID -> *windowStatsCache
-	antigravityCache  sync.Map           // accountID -> *antigravityUsageCache
-	apiFlight         singleflight.Group // 防止同一账号的并发请求击穿缓存（Anthropic）
-	antigravityFlight singleflight.Group // 防止同一 Antigravity 账号的并发请求击穿缓存
-	openAIUsageCache  sync.Map           // accountID -> *openAIUsageCacheEntry
-	openAIUsageFlight singleflight.Group
-	grokProbeCache    sync.Map // accountID -> last billing probe attempt
+	apiCache           sync.Map           // accountID -> *apiUsageCache
+	windowStatsCache   sync.Map           // accountID -> *windowStatsCache
+	antigravityCache   sync.Map           // accountID -> *antigravityUsageCache
+	apiFlight          singleflight.Group // 防止同一账号的并发请求击穿缓存（Anthropic）
+	antigravityFlight  singleflight.Group // 防止同一 Antigravity 账号的并发请求击穿缓存
+	openAIUsageCache   sync.Map           // accountID -> *openAIUsageCacheEntry
+	openAIUsageMu      sync.Mutex
+	openAIUsageFlights map[int64]*openAIUsageFlight
+	grokProbeCache     sync.Map // accountID -> last billing probe attempt
 }
 
 // NewUsageCache 创建 UsageCache 实例
@@ -774,9 +776,30 @@ func (s *AccountUsageService) getOpenAIUsage(ctx context.Context, account *Accou
 	return usage, nil
 }
 
+// openAIUsageFlight contains only an upstream read, never a cached result.
+// Account IDs remain distinct for parent and Spark shadow snapshots.
+type openAIUsageFlight struct {
+	done    chan struct{}
+	force   bool
+	result  *openAIUsageCacheEntry
+	ctx     context.Context // values only; the bounded lifetime starts when launched
+	started bool
+	waiters int // queued force waiters only, protected by openAIUsageMu
+	next    *openAIUsageFlight
+}
+
+// Force bypasses completed cache entries. Callers arriving during an ordinary
+// read share its queued successor, even if that successor completes before all
+// waiters resume. Callers arriving during a force read join that read. Ordinary
+// cache misses join either kind. Reads are serialized through persistence.
 func (s *AccountUsageService) readOpenAICodexSnapshot(ctx context.Context, accountID int64, shadow, force bool) *openAIUsageCacheEntry {
-	read := func() *openAIUsageCacheEntry {
-		if !force && s.cache != nil {
+	if err := ctx.Err(); err != nil {
+		return &openAIUsageCacheEntry{err: err, timestamp: time.Now()}
+	}
+	var flight, predecessor *openAIUsageFlight
+	if s.cache != nil {
+		s.cache.openAIUsageMu.Lock()
+		if !force {
 			if cached, ok := s.cache.openAIUsageCache.Load(accountID); ok {
 				if entry, ok := cached.(*openAIUsageCacheEntry); ok && entry != nil {
 					ttl := openAIProbeCacheTTL
@@ -784,54 +807,120 @@ func (s *AccountUsageService) readOpenAICodexSnapshot(ctx context.Context, accou
 						ttl = apiErrorCacheTTL
 					}
 					if time.Since(entry.timestamp) < ttl {
+						s.cache.openAIUsageMu.Unlock()
 						return entry
 					}
 				}
 			}
 		}
-		started := time.Now()
-		result := &openAIUsageCacheEntry{}
-		quota, err := s.openAIQuotaService.QueryUsageSnapshot(ctx, accountID)
-		result.timestamp = time.Now()
-		result.err = err
-		if err == nil {
-			var updates map[string]any
-			if shadow {
-				updates = buildCodexSparkWindowExtraUpdates(quota, result.timestamp)
-			} else {
-				updates = buildCodexWindowExtraUpdates(quota.RateLimit, result.timestamp)
+		flight = s.cache.openAIUsageFlights[accountID]
+		if flight != nil && force && !flight.force {
+			predecessor = flight
+			if flight.next == nil {
+				flight.next = &openAIUsageFlight{done: make(chan struct{}), force: true, ctx: context.WithoutCancel(ctx)}
 			}
-			// /wham/usage is a complete observation. Explicit nulls replace any
-			// old canonical fields that are absent from the new response.
-			result.updates = make(map[string]any)
-			for _, window := range []string{"5h", "7d", "primary", "secondary"} {
-				for _, field := range []string{"used_percent", "reset_after_seconds", "reset_at", "window_minutes"} {
-					result.updates["codex_"+window+"_"+field] = nil
+			flight = flight.next
+			flight.waiters++
+		}
+	}
+	if flight == nil {
+		flight = &openAIUsageFlight{done: make(chan struct{}), force: force, ctx: context.WithoutCancel(ctx)}
+		if s.cache != nil {
+			if s.cache.openAIUsageFlights == nil {
+				s.cache.openAIUsageFlights = make(map[int64]*openAIUsageFlight)
+			}
+			s.cache.openAIUsageFlights[accountID] = flight
+		}
+		s.startOpenAIUsageFlight(flight, accountID, shadow)
+	}
+	if s.cache != nil {
+		s.cache.openAIUsageMu.Unlock()
+	}
+	select {
+	case <-ctx.Done():
+		if predecessor != nil {
+			s.cache.openAIUsageMu.Lock()
+			if !flight.started {
+				flight.waiters--
+				if flight.waiters == 0 && predecessor.next == flight {
+					predecessor.next = nil
 				}
 			}
-			result.updates["codex_primary_over_secondary_percent"] = nil
-			for key, value := range updates {
-				result.updates[key] = value
-			}
-			result.updates["codex_usage_updated_at"] = result.timestamp.UTC().Format(time.RFC3339Nano)
-			result.updates[openaiQuotaCreditsKey] = openAICreditsSnapshot{Credits: quota.Credits, FetchedAt: quota.FetchedAt}
-			s.persistOpenAICodexUsageSnapshot(ctx, accountID, result.updates)
+			s.cache.openAIUsageMu.Unlock()
 		}
-		// Classified operational telemetry, deliberately separate from billed usage.
-		slog.Info("openai_quota_snapshot_query", "account_id", accountID, "source", "account_usage", "method", "GET", "endpoint", "/wham/usage", "force", force, "success", err == nil, "status", infraerrors.Code(err), "duration_ms", time.Since(started).Milliseconds())
+		return &openAIUsageCacheEntry{err: ctx.Err(), timestamp: time.Now()}
+	case <-flight.done:
+		if err := ctx.Err(); err != nil {
+			return &openAIUsageCacheEntry{err: err, timestamp: time.Now()}
+		}
+		return flight.result
+	}
+}
+
+// Called with openAIUsageMu held when a cache exists. No caller owns the read's
+// cancellation. The 20-second bound includes preparation and persistence; even
+// if all active waiters leave, the read completes or times out and is removed.
+func (s *AccountUsageService) startOpenAIUsageFlight(flight *openAIUsageFlight, accountID int64, shadow bool) {
+	flight.started = true
+	readCtx, cancel := context.WithTimeout(flight.ctx, openaiQuotaUpstreamTimeout)
+	go func() {
+		defer cancel()
+		result := s.queryOpenAICodexSnapshot(readCtx, accountID, shadow, flight.force)
+		cancel() // release timers/context before publishing the result
 		if s.cache != nil {
-			s.cache.openAIUsageCache.Store(accountID, result)
+			s.cache.openAIUsageMu.Lock()
+			defer s.cache.openAIUsageMu.Unlock()
+			// Caller cancellation cannot reach this context; real upstream failures
+			// and the shared deadline retain the existing one-minute error backoff.
+			if !errors.Is(result.err, context.Canceled) {
+				s.cache.openAIUsageCache.Store(accountID, result)
+			}
+			if flight.next != nil {
+				s.cache.openAIUsageFlights[accountID] = flight.next
+				s.startOpenAIUsageFlight(flight.next, accountID, shadow)
+			} else {
+				delete(s.cache.openAIUsageFlights, accountID)
+			}
 		}
-		return result
+		flight.result = result
+		close(flight.done)
+	}()
+}
+
+func (s *AccountUsageService) queryOpenAICodexSnapshot(ctx context.Context, accountID int64, shadow, force bool) *openAIUsageCacheEntry {
+	started := time.Now()
+	result := &openAIUsageCacheEntry{}
+	quota, err := s.openAIQuotaService.QueryUsageSnapshot(ctx, accountID)
+	result.timestamp = time.Now()
+	result.err = err
+	if ctx.Err() != nil {
+		result.err = ctx.Err()
 	}
-	if s.cache == nil {
-		return read()
+	if result.err == nil {
+		var updates map[string]any
+		if shadow {
+			updates = buildCodexSparkWindowExtraUpdates(quota, result.timestamp)
+		} else {
+			updates = buildCodexWindowExtraUpdates(quota.RateLimit, result.timestamp)
+		}
+		// /wham/usage is a complete observation. Explicit nulls replace any
+		// old canonical fields that are absent from the new response.
+		result.updates = make(map[string]any)
+		for _, window := range []string{"5h", "7d", "primary", "secondary"} {
+			for _, field := range []string{"used_percent", "reset_after_seconds", "reset_at", "window_minutes"} {
+				result.updates["codex_"+window+"_"+field] = nil
+			}
+		}
+		result.updates["codex_primary_over_secondary_percent"] = nil
+		for key, value := range updates {
+			result.updates[key] = value
+		}
+		result.updates["codex_usage_updated_at"] = result.timestamp.UTC().Format(time.RFC3339Nano)
+		result.updates[openaiQuotaCreditsKey] = openAICreditsSnapshot{Credits: quota.Credits, FetchedAt: quota.FetchedAt}
+		s.persistOpenAICodexUsageSnapshot(ctx, accountID, result.updates)
 	}
-	value, _, _ := s.cache.openAIUsageFlight.Do(fmt.Sprint(accountID), func() (any, error) { return read(), nil })
-	result, ok := value.(*openAIUsageCacheEntry)
-	if !ok || result == nil {
-		return &openAIUsageCacheEntry{err: fmt.Errorf("invalid OpenAI quota snapshot"), timestamp: time.Now()}
-	}
+	// Classified operational telemetry, deliberately separate from billed usage.
+	slog.Info("openai_quota_snapshot_query", "account_id", accountID, "source", "account_usage", "method", "GET", "endpoint", "/wham/usage", "force", force, "success", result.err == nil, "status", infraerrors.Code(result.err), "duration_ms", time.Since(started).Milliseconds())
 	return result
 }
 

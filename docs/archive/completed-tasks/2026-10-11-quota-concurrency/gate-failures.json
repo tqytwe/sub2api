@@ -1,0 +1,37 @@
+{
+  "make_test_initial": {
+    "exit_code": 2,
+    "failure": "golangci-lint killed under concurrent compilation / cgroup memory pressure; raw log retained in workspace/evidence/quota/make-test.log",
+    "output_tail": [
+      "golangci-lint run ./...",
+      "make[1]: *** [Makefile:16: test] Killed",
+      "make[1]: Leaving directory '/workspace/quota-concurrency/backend'",
+      "make: *** [Makefile:41: test-backend] Error 2"
+    ]
+  },
+  "backend_final_initial": {
+    "exit_code": 1,
+    "failure": "untouched websocket handler test exceeded its 3s context during high resource pressure; cause not proven by failure alone, targeted and lower-concurrency full reruns required",
+    "failure_excerpt": "--- FAIL: TestOpenAIResponsesWebSocketSimpleModeRechecksKeyWindows (3.10s)\n    --- FAIL: TestOpenAIResponsesWebSocketSimpleModeRechecksKeyWindows/ctx_pool/followup-turn (3.10s)\n        openai_gateway_handler_test.go:3339: \n            \tError Trace:\t/workspace/quota-concurrency/backend/internal/handler/openai_gateway_handler_test.go:3178\n            \t            \t\t\t\t/workspace/quota-concurrency/backend/internal/handler/openai_gateway_handler_test.go:3339\n            \tError:      \tShould be in error chain:\n            \t            \texpected: websocket.CloseError\n            \t            \tin chain: \"failed to get reader: context deadline exceeded\" (*fmt.wrapError)\n            \t            \t\t\"context deadline exceeded\" (context.deadlineExceededError)\n            \tTest:       \tTestOpenAIResponsesWebSocketSimpleModeRechecksKeyWindows/ctx_pool/followup-turn"
+  },
+  "race_initial": {
+    "exit_code": 1,
+    "failure": "test fixture slice access had no happens-before edge across virtual timer expiry; registry now synchronized; production source unchanged",
+    "raw_output_gzip": "race-fixture-failure.log.gz"
+  },
+  "make_test_final_lint": {
+    "exit_code": 2,
+    "failure": "errcheck found unchecked type assertion in new ShadowIsolation fixture; replaced with comma-ok assertion and require.True; production source unchanged",
+    "output_tail": [
+      "golangci-lint run ./...",
+      "internal/service/account_usage_concurrency_test.go:290:11: Error return value is not checked (errcheck)",
+      "\t\trepo := s.accountRepo.(*readOnlyUsageRepo)",
+      "\t\t        ^",
+      "1 issues:",
+      "* errcheck: 1",
+      "make[1]: *** [Makefile:16: test] Error 1",
+      "make[1]: Leaving directory '/workspace/quota-concurrency/backend'",
+      "make: *** [Makefile:41: test-backend] Error 2"
+    ]
+  }
+}
