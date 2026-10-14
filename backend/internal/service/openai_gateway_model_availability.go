@@ -12,7 +12,8 @@ import (
 // account in the group for the given platform (e.g. PlatformOpenAI,
 // PlatformGrok). The platform scopes the candidate pool so distinct
 // OpenAI-compatible platforms do not cross-contaminate diagnosis results.
-// The query bypasses scheduler snapshots and ignores transient runtime state.
+// The query bypasses scheduler snapshots and ignores ordinary transient state.
+// Explicit model capability rejections remain unsupported until their observation expires.
 //
 // Safe to call on the error path: returns {true,true} on any internal
 // failure or when the inputs preclude meaningful diagnosis (empty model,
@@ -71,7 +72,8 @@ func (s *OpenAIGatewayService) DiagnoseModelAvailabilityForPlatform(
 		// (openai_account_scheduler.isAccountRequestCompatible): empty
 		// model_mapping accepts everything; otherwise the explicit / wildcard
 		// mapping must match.
-		if accounts[i].IsModelSupportedInGroup(groupID, requestedModel) {
+		if accounts[i].IsModelSupportedInGroup(groupID, requestedModel) &&
+			!accounts[i].modelCapabilityRejectedForRequest(ctx, requestedModel, s.cfg) {
 			diag.HasModelSupport = true
 			return diag
 		}

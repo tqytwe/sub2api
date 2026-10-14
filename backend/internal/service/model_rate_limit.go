@@ -5,6 +5,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/config"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/claude"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
 )
 
@@ -187,6 +189,67 @@ func (a *Account) modelRateLimitResetAt(scope string) *time.Time {
 		return nil
 	}
 	return &resetAt
+}
+
+// modelRateLimitReason 返回指定 scope 冷却记录中的原因；没有记录时为空。
+func (a *Account) modelRateLimitReason(scope string) string {
+	if a == nil || a.Extra == nil {
+		return ""
+	}
+	rawLimits, _ := a.Extra[modelRateLimitsKey].(map[string]any)
+	rawLimit, _ := rawLimits[scope].(map[string]any)
+	reason, _ := rawLimit["reason"].(string)
+	return reason
+}
+
+// modelCapabilityRejected reports only an unexpired, explicit upstream model
+// rejection. Ordinary quota/capacity cooldowns and unknown reasons stay faults.
+func (a *Account) modelCapabilityRejected(scope string) bool {
+	if !a.isRateLimitActiveForKey(scope) {
+		return false
+	}
+	switch a.modelRateLimitReason(scope) {
+	case upstreamModelNotFoundReason, upstreamModelNotFound401Reason, upstreamCodexPlanGatedModelReason:
+		return true
+	default:
+		return false
+	}
+}
+
+// Use the actual outbound model, including Codex alias normalization, so a
+// public alias cannot hide a previously observed model capability rejection.
+func (a *Account) modelCapabilityRejectedForRequest(ctx context.Context, model string, cfg *config.Config) bool {
+	scope := a.GetMappedModel(model)
+	if a.IsOpenAI() {
+		// Reuse the actual scheduling identity, including channel context, native-v2
+		// opt-out and configured legacy compact fallback. This does not schedule.
+		resolver := OpenAIGatewayService{cfg: cfg}
+		scope = resolver.resolveOpenAIRequestSchedulingModel(ctx, a, model, false)
+	} else if a.IsOpenAICompatible() {
+		scope = resolveOpenAIAccountUpstreamModelForRequest(a, model, false)
+	} else if a.Platform == PlatformAntigravity {
+		scope = resolveFinalAntigravityModelKey(ctx, a, model)
+	}
+	if a.Platform == PlatformAnthropic {
+		// Mirror gateway_forward's provider identity before the rate-limit writer
+		// resolves its storage key. OAuth/setup tokens normalize short IDs; Vertex
+		// gives explicit account mappings precedence over its dated-ID form.
+		outbound := model
+		switch a.Type {
+		case AccountTypeAPIKey:
+			outbound = a.GetMappedModel(model)
+		case AccountTypeServiceAccount:
+			if mapped, matched := a.ResolveMappedModel(model); matched {
+				outbound = mapped
+			} else {
+				outbound = normalizeVertexAnthropicModelID(claude.NormalizeModelID(model))
+			}
+		default:
+			outbound = claude.NormalizeModelID(model)
+		}
+		scope = modelRateLimitKeyForUpstreamModelNotFound(ctx, a, outbound)
+	}
+	return a.modelCapabilityRejected(scope)
 }
 
 func setAccountModelRateLimitSnapshot(account *Account, scope string, resetAt time.Time, reason string, now time.Time) {
