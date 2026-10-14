@@ -1,0 +1,463 @@
+{
+  "warning": "历史交接线索，原 checked_at 不前移；必须逐条通过 Git ancestor + 当前源码/测试复核，禁止视作当前上线状态。",
+  "checked_at": "2026-10-10T21:17:26Z",
+  "features": [
+    {
+      "id": "http-text-routing-evidence",
+      "title": "OpenAI-compatible HTTP 文本选路证据后端",
+      "sha": "0dcf99a3c5f786e41a8e2933dd025b1daea1c320",
+      "backend_state_recorded": "已验证",
+      "product_state_recorded": "实现中",
+      "ancestor_of_fixed_fork": true,
+      "risks": "128条/32KiB、队列64，压力或崩溃可以丢明细但显示incomplete；source_population_complete恒false。非HTTP文本/媒体/WS未覆盖。原8665旧锁策略head禁止发布；279 NOWAIT+短时限不变，实际持锁DDL/提交开销仍不可消除。add3 CI失败保留，修复后本地全门禁通过，新head CI及主线程复核待完成。",
+      "next": "普通推送本次worker采样同步修复与交接证据，核对精确head新CI；不盲目重跑add3失败workflow。identifier281保持暂停；UI/合并部署由主线程协调；其他快照条目未重验、checked_at不前移。 技术验证提交0dcf99a3c5f786e41a8e2933dd025b1daea1c320，后继仅记录交接元数据。",
+      "current_pr": {
+        "requested": "https://github.com/tqytwe/sub2api/pull/359",
+        "baseRefName": "play/main",
+        "headRefOid": "0ceacb2445f79c3e9ddd1dbe44c89210c8e7ffca",
+        "mergeCommit": {
+          "oid": "8364b462feda15f3bf8f3bb2029314d2193b9dba"
+        },
+        "mergedAt": "2026-10-11T12:43:46Z",
+        "number": 359,
+        "state": "MERGED",
+        "url": "https://github.com/tqytwe/sub2api/pull/359"
+      },
+      "current_source_status": "merged; verify runtime separately"
+    },
+    {
+      "id": "request-ledger-detail-pagination",
+      "title": "请求台账详情独立有界实时分页",
+      "sha": "c25d74eb1f0383c95c839ea2e31d7b92d1430008",
+      "backend_state_recorded": "已验证",
+      "product_state_recorded": "可测",
+      "ancestor_of_fixed_fork": true,
+      "risks": "实时分页不是快照，迟到证明需要刷新；旧客户端大集合需升级。分页自身不修改计费写入/capture/原认证谓词/受限usage_billing_repo.go；原样承接#352及#361主线NULL-safe冻结ID绑定防护。缺link历史proof不能反推目标，撤销/在途规则仍独立后续。unknown非免费，历史gpt22损失仍未归因。",
+      "next": "#360维持草稿；技术merge c25d74eb1f0383c95c839ea2e31d7b92d1430008，父48248352158fabaf691f582f4f31efba4ddf74d1和fdec971d2a01c25d93874b7688dffcff78f79088。组合顺序双审、八项本地门禁、双角色短实际资源/PG复验通过；356资源逐字一致，hash见merge-fdec971d。最后一笔仅记录本SHA的交接元数据，不改已测源码。最终推送head/CI由主线程核实；不合并部署，不更新整份checked_at或未重验条目。",
+      "current_pr": {
+        "requested": "https://github.com/tqytwe/sub2api/pull/360",
+        "baseRefName": "play/main",
+        "headRefOid": "6d37d1c0c2cdafb7bc9b5fd766ec157a151b15df",
+        "mergeCommit": {
+          "oid": "fb2c9747b58ed5d980a36ea6a2316ead2aa03b7e"
+        },
+        "mergedAt": "2026-10-11T10:59:19Z",
+        "number": 360,
+        "state": "MERGED",
+        "url": "https://github.com/tqytwe/sub2api/pull/360"
+      },
+      "current_source_status": "merged; verify runtime separately"
+    },
+    {
+      "id": "batch-image-readonly-evidence-recovery",
+      "title": "批量图片已完成任务的安全只读补证（独立后续）",
+      "sha": null,
+      "backend_state_recorded": "设计",
+      "product_state_recorded": "设计",
+      "ancestor_of_fixed_fork": false,
+      "risks": "当前completed重试不会补齐暂时缺失的审计认证；不能把未知证明解释为免费或从金额重建指纹。不得触发capture、余额/订阅/冻结资金写入、上游生成或历史猜测。",
+      "next": "独立设计精确task/owner/key/capture冷热全部指纹核验、幂等补证和冲突拒绝；不并入请求详情分页。本条未实现，未复核其他功能或生产。",
+      "current_pr": null
+    },
+    {
+      "id": "batch-image-ledger-usage",
+      "title": "批量图片 capture/usage/请求台账精确钻取",
+      "sha": "212da30003f7216e71181298ff58740861f9169f",
+      "backend_state_recorded": "已验证",
+      "product_state_recorded": "可测",
+      "ancestor_of_fixed_fork": true,
+      "risks": "不推断历史指纹、token、unknown零费用；只读证明失败不阻断capture/usage但completed重试不会补证，保留审计缺口。零capture无钱包用例只验证真实保留证明，不覆盖公共零价格跳过hold。受限usage_billing_repo.go未修改。",
+      "next": "组合技术merge SHA 212da30003f7216e71181298ff58740861f9169f，父节点0a2c51e130cf108ab51016643f0eba7bfa516646与1bfc7e2edb788ca11a23ff936f99db904c4b4199；后继提交仅补交接元数据。原修复fbc103a5a0b7fcc9b103536e47eb347cac0895d3及277未变，组合证据见merge-357-validation.json；等待精确最终head完整CI后交主线程，不合并部署。",
+      "current_pr": {
+        "requested": "https://github.com/tqytwe/sub2api/pull/356",
+        "baseRefName": "play/main",
+        "headRefOid": "775cd20a68c23df4c88b009563d6e48c9a43c6ca",
+        "mergeCommit": {
+          "oid": "23d06337cbc315cb92d3fc18e94902fe21e7342d"
+        },
+        "mergedAt": "2026-10-11T06:57:49Z",
+        "number": 356,
+        "state": "MERGED",
+        "url": "https://github.com/tqytwe/sub2api/pull/356"
+      },
+      "current_source_status": "merged; verify runtime separately"
+    },
+    {
+      "id": "request-ledger-exact-correlation",
+      "title": "P0 请求/尝试/Ops 精确关联",
+      "sha": "9b367c378b04db987a36175af0b8a3e02e22da24",
+      "backend_state_recorded": "已验证",
+      "product_state_recorded": "可测",
+      "ancestor_of_fixed_fork": true,
+      "risks": "诊断失败保留证据缺口，不影响真实usage原结算。unknown不是免费；上游ID不作计费去重。没有追溯关联或历史损失恢复。",
+      "next": "本批fetch已核实#354正常合并至9b367c；该SHA是主线merge，不代表本批核实部署。主线程继续协调运行态/用户本机验收。",
+      "current_pr": {
+        "requested": "https://github.com/tqytwe/sub2api/pull/354",
+        "baseRefName": "play/main",
+        "headRefOid": "295d5cec3767c73668a14a7ac12601e184333c9d",
+        "mergeCommit": {
+          "oid": "9b367c378b04db987a36175af0b8a3e02e22da24"
+        },
+        "mergedAt": "2026-10-10T22:33:26Z",
+        "number": 354,
+        "state": "MERGED",
+        "url": "https://github.com/tqytwe/sub2api/pull/354"
+      },
+      "current_source_status": "merged; verify runtime separately"
+    },
+    {
+      "id": "usage-tps",
+      "title": "使用记录逐条 TPS",
+      "sha": "96d202ce266a3858e34df10987ae906942be5f37",
+      "backend_state_recorded": "已部署",
+      "product_state_recorded": "已部署",
+      "ancestor_of_fixed_fork": true,
+      "risks": "逐条请求总耗时口径不能当纯生成速度或整版迁移完成。",
+      "next": "补生产用户/管理员记录与导出验收证据。",
+      "current_pr": {
+        "requested": "https://github.com/tqytwe/sub2api/pull/338",
+        "baseRefName": "play/main",
+        "headRefOid": "c73b4ca6633c6657dfa300726ef0bf739abfcf0e",
+        "mergeCommit": {
+          "oid": "96d202ce266a3858e34df10987ae906942be5f37"
+        },
+        "mergedAt": "2026-10-09T20:35:57Z",
+        "number": 338,
+        "state": "MERGED",
+        "url": "https://github.com/tqytwe/sub2api/pull/338"
+      },
+      "current_source_status": "merged; verify runtime separately"
+    },
+    {
+      "id": "fork-updater",
+      "title": "上游发现与 Fork 安装保护",
+      "sha": "a7e1c00330170754683216e3018cbd4279d7f733",
+      "backend_state_recorded": "已部署",
+      "product_state_recorded": "已部署",
+      "ancestor_of_fixed_fork": true,
+      "risks": "历史 tag 的旧 workflow 不受追溯保护；不得推外部 tag，不能恢复未知 backup。",
+      "next": "补用户本机三身份验收；旧在线安装路径的兼容/弃用跟踪见 deprecations。",
+      "current_pr": {
+        "requested": "https://github.com/tqytwe/sub2api/pull/339",
+        "baseRefName": "play/main",
+        "headRefOid": "0408bec3179e738ce91bf7bda72f23c401c089dd",
+        "mergeCommit": {
+          "oid": "a7e1c00330170754683216e3018cbd4279d7f733"
+        },
+        "mergedAt": "2026-10-09T21:16:40Z",
+        "number": 339,
+        "state": "MERGED",
+        "url": "https://github.com/tqytwe/sub2api/pull/339"
+      },
+      "current_source_status": "merged; verify runtime separately"
+    },
+    {
+      "id": "core-admission-settlement",
+      "title": "限定 OpenAI 准入、部分用量与结算恢复",
+      "sha": "4080e2ac7e93dc9f435e0c0a4652834635cba7be",
+      "backend_state_recorded": "已部署",
+      "product_state_recorded": "实现中",
+      "ancestor_of_fixed_fork": true,
+      "risks": "限定核心范围已部署，不是全供应商/全端点迁移。缓存、WS和compact/工具修复另列；台账#351最终82828e1已关闭五组阻断并部署d18d504，运行/健康与SQL275核验确认，固定窗口已有201条结算关联核对无差异。仍有4个unknown待核对，且无WS子轮/异步/其他协议样本、未验证订阅计数器窗口净增量，不能等同生产全请求闭环。",
+      "next": "按各条目补生产和用户本机验收；参考#351固定窗口的限定证据，继续核对4个unknown、订阅计数器净增量及未采样路径，不回填、估费或补扣，也不沿用13db历史阻断。",
+      "current_pr": {
+        "requested": "https://github.com/tqytwe/sub2api/pull/340",
+        "baseRefName": "play/main",
+        "headRefOid": "e583f5857794ee49d8ea2d784b2fc399eb2648ef",
+        "mergeCommit": {
+          "oid": "4080e2ac7e93dc9f435e0c0a4652834635cba7be"
+        },
+        "mergedAt": "2026-10-09T22:52:24Z",
+        "number": 340,
+        "state": "MERGED",
+        "url": "https://github.com/tqytwe/sub2api/pull/340"
+      },
+      "current_source_status": "merged; verify runtime separately"
+    },
+    {
+      "id": "group-allowed-models",
+      "title": "账号分组模型策略完整编辑闭环",
+      "sha": "2fbe13d90a2381a3bc8e7495a0c8b00abe2cfe3a",
+      "backend_state_recorded": "已部署",
+      "product_state_recorded": "已部署",
+      "ancestor_of_fixed_fork": true,
+      "risks": "省略策略保留存续成员限制；新加/移除后重加成员默认无限制。账号导出仍不含策略，不能当备份。原子更新已部署，不能以技术测试代替用户现场验收。",
+      "next": "补用户本机 UI→保存→数据库/GET→刷新一致性及异常态验收，维护人待分配；与 account-edit-recovery 合并看待编辑闭环。",
+      "current_pr": {
+        "requested": "https://github.com/tqytwe/sub2api/pull/343",
+        "number": 343,
+        "state": "MERGED",
+        "headRefOid": "02de416391322e995d2bbb4393b40d83a660ad64",
+        "mergeCommit": {
+          "oid": "2fbe13d90a2381a3bc8e7495a0c8b00abe2cfe3a"
+        },
+        "mergedAt": "2026-10-10T01:26:20Z",
+        "baseRefName": "play/main",
+        "url": "https://github.com/tqytwe/sub2api/pull/343",
+        "note": "GraphQL first read failed; REST retry verified"
+      },
+      "current_source_status": "merged; verify runtime separately"
+    },
+    {
+      "id": "account-lifetime-stats",
+      "title": "账号 lifetime_stats 展示",
+      "sha": "2fbe13d90a2381a3bc8e7495a0c8b00abe2cfe3a",
+      "backend_state_recorded": "已部署",
+      "product_state_recorded": "已部署",
+      "ancestor_of_fixed_fork": true,
+      "risks": "不能用零值冒充请求失败；用户实扣/账号成本/标准价口径须区分。",
+      "next": "补用户本机 UI→保存→数据库/GET→刷新一致性及异常态验收，维护人待分配；与 account-edit-recovery 合并看待编辑闭环。",
+      "current_pr": {
+        "requested": "https://github.com/tqytwe/sub2api/pull/343",
+        "number": 343,
+        "state": "MERGED",
+        "headRefOid": "02de416391322e995d2bbb4393b40d83a660ad64",
+        "mergeCommit": {
+          "oid": "2fbe13d90a2381a3bc8e7495a0c8b00abe2cfe3a"
+        },
+        "mergedAt": "2026-10-10T01:26:20Z",
+        "baseRefName": "play/main",
+        "url": "https://github.com/tqytwe/sub2api/pull/343",
+        "note": "GraphQL first read failed; REST retry verified"
+      },
+      "current_source_status": "merged; verify runtime separately"
+    },
+    {
+      "id": "copy-accounts-policy",
+      "title": "Copy Accounts 替换目标策略边界",
+      "sha": "2fbe13d90a2381a3bc8e7495a0c8b00abe2cfe3a",
+      "backend_state_recorded": "已部署",
+      "product_state_recorded": "已部署",
+      "ancestor_of_fixed_fork": true,
+      "risks": "复制应保留目标存续限制；新成员并集和超限回滚是明确合同，不是任意覆盖旧策略。用户生产验收仍待补，不自动修写历史策略。",
+      "next": "补用户本机 UI→保存→数据库/GET→刷新一致性及异常态验收，维护人待分配；与 account-edit-recovery 合并看待编辑闭环。",
+      "current_pr": {
+        "requested": "https://github.com/tqytwe/sub2api/pull/343",
+        "number": 343,
+        "state": "MERGED",
+        "headRefOid": "02de416391322e995d2bbb4393b40d83a660ad64",
+        "mergeCommit": {
+          "oid": "2fbe13d90a2381a3bc8e7495a0c8b00abe2cfe3a"
+        },
+        "mergedAt": "2026-10-10T01:26:20Z",
+        "baseRefName": "play/main",
+        "url": "https://github.com/tqytwe/sub2api/pull/343",
+        "note": "GraphQL first read failed; REST retry verified"
+      },
+      "current_source_status": "merged; verify runtime separately"
+    },
+    {
+      "id": "checkin-growth-response",
+      "title": "普通签到 response growth 字段修复",
+      "sha": "9e458b12db91d1c36402c288d61ef7a352beee1c",
+      "backend_state_recorded": "已部署",
+      "product_state_recorded": "实现中",
+      "ancestor_of_fixed_fork": true,
+      "risks": "普通签到 response 修复已部署但未完成生产验收；页面错误契约已在独立 P1 分支完成真实 PG/HTTP/Axios/Vue RED→GREEN，最终门禁和准确 SHA/CI 见该批 PR，不视为已上线。#355 已合并对应状态修复；答题/盲盒 #357 已合并并由主线程报告部署成功。已合并#358的根审、构建跨页、PG合同、本地门禁和准确head CI见原PR。基线已有迟到交互login清除后来会话的三版本RED证据保留；本轮独立小步修复login/login2FA/register归属，200项定向通过并顺序双审PASS，完整门禁、构建浏览器与新head CI另记新归档/PR。Passkey、直接OAuth及跨标签未发布意图全局排序未按本轮矩阵验证。新批不部署。组队、擂台、推广、券包及运营页尚未按本批标准验收。",
+      "next": "主线程补 #342 精确 SHA 健康与本机验收；协调 #353/#355/#357/#358 的生产本机验收；交互认证草稿#362已建立；根审发现c4d0e54c的一次Storage写入异常会遗留部分会话，禁止合并该head。最小增量登记本attempt的publication归属并限定清理，真实HTTP45项、顺序独立规格/质量审查已通过；新构建证据和新head/CI见docs/archive/completed-tasks/2026-10-interactive-auth/root-storage/及#362，不复用旧c4或#358 CI；本次只复核签到条目，未前移整份 checked_at 或其他功能状态。",
+      "current_pr": {
+        "requested": "https://github.com/tqytwe/sub2api/pull/342",
+        "number": 342,
+        "state": "MERGED",
+        "headRefOid": "e58642e426e900d4cc4c4fe079c9a418bd3d6c7a",
+        "mergeCommit": {
+          "oid": "9e458b12db91d1c36402c288d61ef7a352beee1c"
+        },
+        "mergedAt": "2026-10-10T00:05:22Z",
+        "baseRefName": "play/main",
+        "url": "https://github.com/tqytwe/sub2api/pull/342",
+        "note": "GraphQL first read failed; REST retry verified"
+      },
+      "current_source_status": "merged; verify runtime separately"
+    },
+    {
+      "id": "plan-admin-list",
+      "title": "套餐 admin list 字段回显/编辑丢值修复",
+      "sha": "b23e44625669a36a8f7ac10667e4b04b1904b7db",
+      "backend_state_recorded": "已部署",
+      "product_state_recorded": "已部署",
+      "ancestor_of_fixed_fork": true,
+      "risks": "不能以表单有控件或服务层有字段判定完整；避免覆盖已有套餐值。",
+      "next": "主线程补精确 b23e4462 SHA 健康与用户本机管理员 UI/API/DB 验收；具体负责人待分配。",
+      "current_pr": {
+        "requested": "https://github.com/tqytwe/sub2api/pull/341",
+        "baseRefName": "play/main",
+        "headRefOid": "3c53a6feae80d691afed15aae2cf468407f812cc",
+        "mergeCommit": {
+          "oid": "b23e44625669a36a8f7ac10667e4b04b1904b7db"
+        },
+        "mergedAt": "2026-10-10T00:42:39Z",
+        "number": 341,
+        "state": "MERGED",
+        "url": "https://github.com/tqytwe/sub2api/pull/341"
+      },
+      "current_source_status": "merged; verify runtime separately"
+    },
+    {
+      "id": "cache-field-compatibility",
+      "title": "Responses 缓存字段拒绝的有界兼容与诊断",
+      "sha": "1f37c7a8312f06218036fcbb0335842a6b23e50f",
+      "backend_state_recorded": "已部署",
+      "product_state_recorded": "已部署",
+      "ancestor_of_fixed_fork": true,
+      "risks": "未新增 HTTP 200 SSE、通用 502 或 native WS 字段重放。历史 12 次失败不能据此全部归因；无 usage 不代表没有消耗，不估算或补扣历史。",
+      "next": "按实际诊断核对兼容重试次数、输出/usage 边界，与 compact-tool-admission 和 ws-observed-usage 联合观察。",
+      "current_pr": {
+        "requested": "https://github.com/tqytwe/sub2api/pull/345",
+        "number": 345,
+        "state": "MERGED",
+        "headRefOid": "faed7a85d7286ddd0d277865c8112e334d8e675a",
+        "mergeCommit": {
+          "oid": "1f37c7a8312f06218036fcbb0335842a6b23e50f"
+        },
+        "mergedAt": "2026-10-10T03:15:11Z",
+        "baseRefName": "play/main",
+        "url": "https://github.com/tqytwe/sub2api/pull/345",
+        "note": "GraphQL first read failed; REST retry verified"
+      },
+      "current_source_status": "merged; verify runtime separately"
+    },
+    {
+      "id": "readonly-codex-quota",
+      "title": "Codex 额度查询只读及被动刷新",
+      "sha": "3843ff3e931349595b8793b52504b02a177f12c9",
+      "backend_state_recorded": "已部署",
+      "product_state_recorded": "已部署",
+      "ancestor_of_fixed_fork": true,
+      "risks": "不证明历史点数下降归因。并发 force 可能加入旧 non-force flight；首请求取消可能影响合并者并进入错误缓存，专门并发契约待补。同 id credits 同步/时间展示仍是独立剩余项。",
+      "next": "补用户现场额度读取与展示核对；单独验证并发 force/首请求取消及 credits 同步，不扩大为收费修复。",
+      "current_pr": {
+        "requested": "https://github.com/tqytwe/sub2api/pull/347",
+        "number": 347,
+        "state": "MERGED",
+        "headRefOid": "7df94dc9727916ad089ec3be917ea4d0293f3e52",
+        "mergeCommit": {
+          "oid": "3843ff3e931349595b8793b52504b02a177f12c9"
+        },
+        "mergedAt": "2026-10-10T04:24:16Z",
+        "baseRefName": "play/main",
+        "url": "https://github.com/tqytwe/sub2api/pull/347",
+        "note": "GraphQL first read failed; REST retry verified"
+      },
+      "current_source_status": "merged; verify runtime separately"
+    },
+    {
+      "id": "ws-observed-usage",
+      "title": "WS 中断轮已观察用量的归属与幂等结算",
+      "sha": "7291ae9a2be4db7d97b8b641d053f7822276dc23",
+      "backend_state_recorded": "已部署",
+      "product_state_recorded": "已部署",
+      "ancestor_of_fixed_fork": true,
+      "risks": "不追补历史、不解释全部旧点数差额；无aggregate usage的输出只作未知诊断。请求持久台账#351已随d18d504部署，但其固定自然窗口没有WS子轮/异步样本，仍须补真实WS结算、用户页面与余额对账，不能据台账上线认定WS全链路验收通过。",
+      "next": "补明确起止时间与脱敏证据引用，并等待真实成功/中断 WS 结算样本和用户页面/余额对账；不发付费请求凑样本。",
+      "current_pr": {
+        "requested": "https://github.com/tqytwe/sub2api/pull/346",
+        "number": 346,
+        "state": "MERGED",
+        "headRefOid": "edee1a0a57ccfaf0044c1c2edd4c1da6062854e6",
+        "mergeCommit": {
+          "oid": "7291ae9a2be4db7d97b8b641d053f7822276dc23"
+        },
+        "mergedAt": "2026-10-10T05:52:31Z",
+        "baseRefName": "play/main",
+        "url": "https://github.com/tqytwe/sub2api/pull/346",
+        "note": "GraphQL first read failed; REST retry verified"
+      },
+      "current_source_status": "merged; verify runtime separately"
+    },
+    {
+      "id": "account-edit-recovery",
+      "title": "账号编辑加载恢复、草稿保留与详情请求竞争",
+      "sha": "de3155f176426a975b227cbaebae4ff72a6658db",
+      "backend_state_recorded": "已部署",
+      "product_state_recorded": "已部署",
+      "ancestor_of_fixed_fork": true,
+      "risks": "局部合成环境复现不能证明生产故障唯一原因；账号导出仍不含策略。原自动刷新日志为历史失败证据，不是现行交互。",
+      "next": "等待用户本机编辑恢复、取消/重开、草稿保留和实际目标账号保存结果；按 UI/API/DB 一致性补证。",
+      "current_pr": {
+        "requested": "https://github.com/tqytwe/sub2api/pull/349",
+        "number": 349,
+        "state": "MERGED",
+        "headRefOid": "3d3ee0706e2c01d96ec496742688f54520ffa697",
+        "mergeCommit": {
+          "oid": "de3155f176426a975b227cbaebae4ff72a6658db"
+        },
+        "mergedAt": "2026-10-10T06:53:33Z",
+        "baseRefName": "play/main",
+        "url": "https://github.com/tqytwe/sub2api/pull/349",
+        "note": "GraphQL first read failed; REST retry verified"
+      },
+      "current_source_status": "merged; verify runtime separately"
+    },
+    {
+      "id": "oauth-refresh-deadline",
+      "title": "OAuth 刷新按实际 deadline 拒绝迟到凭据",
+      "sha": "63eabcb6a5384f64aaf26f043e73818b8220cbb1",
+      "backend_state_recorded": "已部署",
+      "product_state_recorded": "已部署",
+      "ancestor_of_fixed_fork": true,
+      "risks": "不是严格数据库提交 deadline，也不保证所有 provider 到期后零副作用。未改的 grok_credential_failure 仍可能在回调窗口按 transient 写 cooldown；旧 token fallback/Antigravity 策略不变。",
+      "next": "保留 Grok credential-failure/cooldown 后续项；观察真实失败分类，不放宽超时或断言。",
+      "current_pr": {
+        "requested": "https://github.com/tqytwe/sub2api/pull/350",
+        "baseRefName": "play/main",
+        "headRefOid": "994d97480dabd98c6a5b59e637a72a809a33c020",
+        "mergeCommit": {
+          "oid": "63eabcb6a5384f64aaf26f043e73818b8220cbb1"
+        },
+        "mergedAt": "2026-10-10T07:17:43Z",
+        "number": 350,
+        "state": "MERGED",
+        "url": "https://github.com/tqytwe/sub2api/pull/350"
+      },
+      "current_source_status": "merged; verify runtime separately"
+    },
+    {
+      "id": "compact-tool-admission",
+      "title": "compact 最终模型准入、工具选路及单次错误响应",
+      "sha": "a581d8db536157c6c325ea4729381ee8b83ed53d",
+      "backend_state_recorded": "已部署",
+      "product_state_recorded": "已部署",
+      "ancestor_of_fixed_fork": true,
+      "risks": "原两条 compact 503 缺拒绝原因，不能逐条归因；既有 WS→HTTP bridge 内部循环不保证逐次重新准入。协议快照与 DB 变化时仍可能安全返回通用503。",
+      "next": "补固定窗口起止时间/脱敏引用，并在有真实 compact/tool 样本时核对最终模型、协议过滤与单次错误响应；不改变准入或凑样本。",
+      "current_pr": {
+        "requested": "https://github.com/tqytwe/sub2api/pull/348",
+        "number": 348,
+        "state": "MERGED",
+        "headRefOid": "4376afeda1ba2e8841b1d350b2a0597c50b99ead",
+        "mergeCommit": {
+          "oid": "a581d8db536157c6c325ea4729381ee8b83ed53d"
+        },
+        "mergedAt": "2026-10-10T08:11:18Z",
+        "baseRefName": "play/main",
+        "url": "https://github.com/tqytwe/sub2api/pull/348",
+        "note": "GraphQL first read failed; REST retry verified"
+      },
+      "current_source_status": "merged; verify runtime separately"
+    },
+    {
+      "id": "durable-request-ledger",
+      "title": "受管请求持久台账与用户/管理员审计视图",
+      "sha": "d18d504ccf12adc9f299cdf14af6ea32c4efe59c",
+      "backend_state_recorded": "已部署",
+      "product_state_recorded": "可测",
+      "ancestor_of_fixed_fork": true,
+      "risks": "首批边界：batch仅钱包引用、无usage钻取；详情attempts/billing子集合未分页、生产容量/lease热点与匿名增长未验证；用户浏览器验收待反馈。窗口unknown总6中4个失败（1个400、3个已读正文的200）仍待核对，均缺上游逐请求计量/扣费证据，不能判免费或估算损失；订阅计数器净增量未验证。package引用差异经比较口径修正已关闭，不继续当当前缺陷。真实样本仅Responses/Messages/Chat Completions，不覆盖WS子轮/异步或全Live/Realtime/Grok/direct-image等模式；WebRTC媒体/插件内部重试不可完全观察，旧实例或应用回退窗口不新增台账。此前五组缺陷已在82828e1关闭。",
+      "next": "核对4个unknown与订阅计数器窗口净增量，补WS子轮/异步/其他协议、用户本机三身份和首批容量/分页/batch验收；不回填、不补扣、不将已有201条结算关联一致外推为100%闭环。治理PR的准确SHA/CI交主线程审核合并，本任务不合并或部署。",
+      "current_pr": {
+        "requested": "https://github.com/tqytwe/sub2api/pull/351",
+        "baseRefName": "play/main",
+        "headRefOid": "82828e121ae032201c50346b5052cd7c4915b590",
+        "mergeCommit": {
+          "oid": "d18d504ccf12adc9f299cdf14af6ea32c4efe59c"
+        },
+        "mergedAt": "2026-10-10T10:43:35Z",
+        "number": 351,
+        "state": "MERGED",
+        "url": "https://github.com/tqytwe/sub2api/pull/351"
+      },
+      "current_source_status": "merged; verify runtime separately"
+    }
+  ]
+}

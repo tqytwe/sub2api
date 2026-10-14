@@ -29,7 +29,7 @@ func TestStreamCorrelationIndependentOfReadBoundaries(t *testing.T) {
 	data := []byte("data: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_first\"}}\n\ndata: {\"type\":\"response.failed\",\"response\":{\"id\":\"resp_second\"}}\n\n")
 	for _, size := range []int{1, 7, len(data)} {
 		var ids []string
-		evidence := streamEvidence{observeID: func(id string) { ids = append(ids, id) }}
+		evidence := streamEvidence{observeIdentifier: func(observation identifierObservation) { ids = append(ids, observation.Value) }}
 		for pos := 0; pos < len(data); pos += size {
 			evidence.observe(data[pos:min(pos+size, len(data))])
 		}

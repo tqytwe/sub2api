@@ -1,0 +1,12 @@
+{
+  "exit_code": 1,
+  "elapsed": 38.130535120000786,
+  "red_mutation": "remove NOWAIT and local lock/statement bounds only",
+  "restored_original_sha256": "359768b018b700fd2cae179207e98cd84dbe8cc1b92365657182243ef724ec06",
+  "log_sha256": "cb3f75bf593314f58686f357873e144fcd73ca3dc4acf514226de0a710d0be94",
+  "observed": {
+    "reader_writer": "57014 cancellation instead of immediate55P03",
+    "slow_ddl": "unexpected success without500ms cap",
+    "source_restored": true
+  }
+}

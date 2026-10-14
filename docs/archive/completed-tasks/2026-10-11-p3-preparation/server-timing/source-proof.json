@@ -1,0 +1,34 @@
+{
+  "base": "50a580819949887551f6f99ffc02dd3c7785efa1",
+  "change_scope": "First synchronous heartbeat now precedes c.Writer publication; Header/Write locking unchanged. New external test uses real middleware and public service entry.",
+  "changed_tracked_backend_paths": [
+    "backend/internal/service/account_test_sse_keepalive.go"
+  ],
+  "added_backend_test": "backend/internal/service/account_test_sse_middleware_test.go",
+  "current_code_sha256": {
+    "backend/internal/service/account_test_sse_keepalive.go": "44023f5bc6c49c9d433d472b5ab614eeeb85861185289572baeca536d3584180",
+    "backend/internal/service/account_test_sse_middleware_test.go": "9598f3e8ae7b45cd69b373effde3721b2c0b593dc42c2749cdd43c97ee13ed36"
+  },
+  "unchanged_tree_roots": {
+    "frontend": "cadf09348e846bf456a99d934fb0626c32be0d09",
+    "backend/migrations": "8432dac0d44dbece89dd0c3e25edad5445d1597d",
+    ".github": "eff43a025c120d87bc9ce59649fdd1785f1df166",
+    "scripts": "9988a580c99041f74eb0b00ce3f40c91aaaca94d"
+  },
+  "unchanged_inventory_sha256": {
+    "docs/upstream-migrations/v2.10.5/routes.json": "b1926cf5c2dcfa3d82c04300baa45a4d76c75642fd1b189392e41e846e7e44d3",
+    "docs/upstream-migrations/v2.10.5/migrations.json": "1ca2a2addf7ab60c8b0af2b2d45209723094f9840ac5def9c0c2bea2048c6fa0",
+    "docs/upstream-migrations/v2.10.5/protected.json": "12ece17ebc8b319b47f95e0d12c6376655c294536705d30b7de24e3a38c6f1c0",
+    "docs/upstream-migrations/v2.10.5/baseline-feature-evidence.json": "956f00a1d06ffceccfd8d4a23c01b44755bdad13e5f6bf5413a995cc5d4365bb",
+    "docs/upstream-migrations/v2.10.5/verification.json": "9a69e1324282057b429f48233f0e0e0a0c900534436eb54b27dfd35809aad453",
+    "docs/upstream-migrations/v2.10.5/features.json": "c051b60f894ce2a706ce144e9def1fdcbc89cdba676d8f1996f9362fc6d1d40a",
+    "docs/upstream-migrations/v2.10.5/composition.json": "a78fe04116c6c5883ac08b243ddab9df0e36293783bd5da0c83be46512b5d10c",
+    "docs/upstream-migrations/v2.10.5/fork-target-diff.tsv": "4d83497c5c288ba03d4e4cbfd5328c7df880b6d7ae321f33cfe120c4ecce197c",
+    "docs/upstream-migrations/v2.10.5/coverage.json": "0191bc29ae764efa3fc3e205774411cedc27b4b0273ac7afb4d79dd548bc0a07",
+    "docs/upstream-migrations/v2.10.5/migration-decisions.json": "370e7f937cf977c9653bcc9be3205c5b967eb26ab64baa3d73e44aa0267fa15f",
+    "docs/upstream-migrations/v2.10.5/baseline-pr-status.json": "b0d49b32a25cff4a7b4dc15ac84752c18f4194c4e40489fd1af47c5f05e16b30",
+    "docs/upstream-migrations/v2.10.5/release-diff.tsv": "c721512e4672d7e5a59ce35e479acf20af274b073664827039b5e2c53a32283b",
+    "docs/upstream-migrations/v2.10.5/release-commits.tsv": "53e3138a4523fc834bb10beeabca393c29a8657ceefff785ddb3f613af018d78"
+  },
+  "reuse": "Only unchanged inventory/frontend/schema/CI/tooling and unrelated backend source gates reuse prior evidence; helper/real middleware interaction has new RED/GREEN/race and account regression evidence."
+}

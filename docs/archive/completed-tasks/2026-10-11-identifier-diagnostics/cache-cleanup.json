@@ -1,0 +1,8 @@
+{
+  "at": "2026-10-11T12:23:12.140876+00:00",
+  "scope": "regenerable Go cache data only, through known task-owned cache symlinks; no Go/compile process active",
+  "cutoff": "2026-10-11T10:00:00Z",
+  "files": 3203,
+  "removed_bytes": 3209286418,
+  "database_or_source_removed": false
+}

@@ -1,0 +1,604 @@
+[
+  {
+    "name": "prototype-zh-light-1280",
+    "balances": [
+      "点数 1234.50",
+      "点数 42.50",
+      "点数 0",
+      "点数 —",
+      "点数 42.50",
+      "点数 1234.50",
+      "点数 1234.50",
+      "点数 12345678901234567890.0123"
+    ],
+    "checks": {
+      "queryCalls": [
+        6,
+        7
+      ],
+      "resetCalls": 0,
+      "overflow": false,
+      "titles": [
+        "点击查询 Codex 点数余额和重置次数\n余额查询时间：2026/10/11 12:00:00",
+        "点击查询 Codex 点数余额和重置次数\n余额查询时间：2026/10/11 12:00:00",
+        "点击查询 Codex 点数余额和重置次数\n余额查询时间：2026/10/11 12:00:00",
+        "点击查询 Codex 点数余额和重置次数",
+        "点击查询 Codex 点数余额和重置次数\n余额查询时间：2026/10/11 12:00:00",
+        "点击查询 Codex 点数余额和重置次数\n余额查询时间：2026/10/11 12:00:00",
+        "点击查询 Codex 点数余额和重置次数\n余额查询时间：2026/10/11 12:00:00",
+        "点击查询 Codex 点数余额和重置次数\n余额查询时间：2026/10/11 12:00:00"
+      ],
+      "reducedMotion": true
+    },
+    "errors": [],
+    "external": []
+  },
+  {
+    "name": "before-zh-light-360",
+    "balances": [
+      "点数 1234.50",
+      "点数 1234.50",
+      "点数 1234.50",
+      "点数 1234.50",
+      "点数 1234.50",
+      "点数 1234.50",
+      "点数 1234.50",
+      "点数 12345678901234567890.0123"
+    ],
+    "checks": {
+      "queryCalls": [
+        5,
+        6,
+        7
+      ],
+      "resetCalls": 0,
+      "overflow": false,
+      "titles": [
+        "点击查询 Codex 点数余额和重置次数\n余额查询时间：2026/10/11 12:00:00",
+        "点击查询 Codex 点数余额和重置次数\n余额查询时间：2026/10/11 12:00:00",
+        "点击查询 Codex 点数余额和重置次数\n余额查询时间：2026/10/11 12:00:00",
+        "点击查询 Codex 点数余额和重置次数\n余额查询时间：2026/10/11 12:00:00",
+        "点击查询 Codex 点数余额和重置次数\n余额查询时间：2026/10/11 12:00:00",
+        "点击查询 Codex 点数余额和重置次数\n余额查询时间：2026/10/11 12:00:00",
+        "点击查询 Codex 点数余额和重置次数\n余额查询时间：2026/10/11 12:00:00",
+        "点击查询 Codex 点数余额和重置次数\n余额查询时间：2026/10/11 12:00:00"
+      ],
+      "reducedMotion": true
+    },
+    "errors": [],
+    "external": []
+  },
+  {
+    "name": "before-en-dark-360",
+    "balances": [
+      "Points 1234.50",
+      "Points 1234.50",
+      "Points 1234.50",
+      "Points 1234.50",
+      "Points 1234.50",
+      "Points 1234.50",
+      "Points 1234.50",
+      "Points 12345678901234567890.0123"
+    ],
+    "checks": {
+      "queryCalls": [
+        5,
+        6,
+        7
+      ],
+      "resetCalls": 0,
+      "overflow": false,
+      "titles": [
+        "Click to query Codex points and reset credits\nBalance checked: 10/11/2026, 12:00:00 PM",
+        "Click to query Codex points and reset credits\nBalance checked: 10/11/2026, 12:00:00 PM",
+        "Click to query Codex points and reset credits\nBalance checked: 10/11/2026, 12:00:00 PM",
+        "Click to query Codex points and reset credits\nBalance checked: 10/11/2026, 12:00:00 PM",
+        "Click to query Codex points and reset credits\nBalance checked: 10/11/2026, 12:00:00 PM",
+        "Click to query Codex points and reset credits\nBalance checked: 10/11/2026, 12:00:00 PM",
+        "Click to query Codex points and reset credits\nBalance checked: 10/11/2026, 12:00:00 PM",
+        "Click to query Codex points and reset credits\nBalance checked: 10/11/2026, 12:00:00 PM"
+      ],
+      "reducedMotion": true
+    },
+    "errors": [],
+    "external": []
+  },
+  {
+    "name": "before-zh-light-768",
+    "balances": [
+      "点数 1234.50",
+      "点数 1234.50",
+      "点数 1234.50",
+      "点数 1234.50",
+      "点数 1234.50",
+      "点数 1234.50",
+      "点数 1234.50",
+      "点数 12345678901234567890.0123"
+    ],
+    "checks": {
+      "queryCalls": [
+        5,
+        6,
+        7
+      ],
+      "resetCalls": 0,
+      "overflow": false,
+      "titles": [
+        "点击查询 Codex 点数余额和重置次数\n余额查询时间：2026/10/11 12:00:00",
+        "点击查询 Codex 点数余额和重置次数\n余额查询时间：2026/10/11 12:00:00",
+        "点击查询 Codex 点数余额和重置次数\n余额查询时间：2026/10/11 12:00:00",
+        "点击查询 Codex 点数余额和重置次数\n余额查询时间：2026/10/11 12:00:00",
+        "点击查询 Codex 点数余额和重置次数\n余额查询时间：2026/10/11 12:00:00",
+        "点击查询 Codex 点数余额和重置次数\n余额查询时间：2026/10/11 12:00:00",
+        "点击查询 Codex 点数余额和重置次数\n余额查询时间：2026/10/11 12:00:00",
+        "点击查询 Codex 点数余额和重置次数\n余额查询时间：2026/10/11 12:00:00"
+      ],
+      "reducedMotion": true
+    },
+    "errors": [],
+    "external": []
+  },
+  {
+    "name": "before-en-dark-768",
+    "balances": [
+      "Points 1234.50",
+      "Points 1234.50",
+      "Points 1234.50",
+      "Points 1234.50",
+      "Points 1234.50",
+      "Points 1234.50",
+      "Points 1234.50",
+      "Points 12345678901234567890.0123"
+    ],
+    "checks": {
+      "queryCalls": [
+        5,
+        6,
+        7
+      ],
+      "resetCalls": 0,
+      "overflow": false,
+      "titles": [
+        "Click to query Codex points and reset credits\nBalance checked: 10/11/2026, 12:00:00 PM",
+        "Click to query Codex points and reset credits\nBalance checked: 10/11/2026, 12:00:00 PM",
+        "Click to query Codex points and reset credits\nBalance checked: 10/11/2026, 12:00:00 PM",
+        "Click to query Codex points and reset credits\nBalance checked: 10/11/2026, 12:00:00 PM",
+        "Click to query Codex points and reset credits\nBalance checked: 10/11/2026, 12:00:00 PM",
+        "Click to query Codex points and reset credits\nBalance checked: 10/11/2026, 12:00:00 PM",
+        "Click to query Codex points and reset credits\nBalance checked: 10/11/2026, 12:00:00 PM",
+        "Click to query Codex points and reset credits\nBalance checked: 10/11/2026, 12:00:00 PM"
+      ],
+      "reducedMotion": true
+    },
+    "errors": [],
+    "external": []
+  },
+  {
+    "name": "before-zh-light-1280",
+    "balances": [
+      "点数 1234.50",
+      "点数 1234.50",
+      "点数 1234.50",
+      "点数 1234.50",
+      "点数 1234.50",
+      "点数 1234.50",
+      "点数 1234.50",
+      "点数 12345678901234567890.0123"
+    ],
+    "checks": {
+      "queryCalls": [
+        5,
+        6,
+        7
+      ],
+      "resetCalls": 0,
+      "overflow": false,
+      "titles": [
+        "点击查询 Codex 点数余额和重置次数\n余额查询时间：2026/10/11 12:00:00",
+        "点击查询 Codex 点数余额和重置次数\n余额查询时间：2026/10/11 12:00:00",
+        "点击查询 Codex 点数余额和重置次数\n余额查询时间：2026/10/11 12:00:00",
+        "点击查询 Codex 点数余额和重置次数\n余额查询时间：2026/10/11 12:00:00",
+        "点击查询 Codex 点数余额和重置次数\n余额查询时间：2026/10/11 12:00:00",
+        "点击查询 Codex 点数余额和重置次数\n余额查询时间：2026/10/11 12:00:00",
+        "点击查询 Codex 点数余额和重置次数\n余额查询时间：2026/10/11 12:00:00",
+        "点击查询 Codex 点数余额和重置次数\n余额查询时间：2026/10/11 12:00:00"
+      ],
+      "reducedMotion": true
+    },
+    "errors": [],
+    "external": []
+  },
+  {
+    "name": "before-en-dark-1280",
+    "balances": [
+      "Points 1234.50",
+      "Points 1234.50",
+      "Points 1234.50",
+      "Points 1234.50",
+      "Points 1234.50",
+      "Points 1234.50",
+      "Points 1234.50",
+      "Points 12345678901234567890.0123"
+    ],
+    "checks": {
+      "queryCalls": [
+        5,
+        6,
+        7
+      ],
+      "resetCalls": 0,
+      "overflow": false,
+      "titles": [
+        "Click to query Codex points and reset credits\nBalance checked: 10/11/2026, 12:00:00 PM",
+        "Click to query Codex points and reset credits\nBalance checked: 10/11/2026, 12:00:00 PM",
+        "Click to query Codex points and reset credits\nBalance checked: 10/11/2026, 12:00:00 PM",
+        "Click to query Codex points and reset credits\nBalance checked: 10/11/2026, 12:00:00 PM",
+        "Click to query Codex points and reset credits\nBalance checked: 10/11/2026, 12:00:00 PM",
+        "Click to query Codex points and reset credits\nBalance checked: 10/11/2026, 12:00:00 PM",
+        "Click to query Codex points and reset credits\nBalance checked: 10/11/2026, 12:00:00 PM",
+        "Click to query Codex points and reset credits\nBalance checked: 10/11/2026, 12:00:00 PM"
+      ],
+      "reducedMotion": true
+    },
+    "errors": [],
+    "external": []
+  },
+  {
+    "name": "before-zh-light-1920",
+    "balances": [
+      "点数 1234.50",
+      "点数 1234.50",
+      "点数 1234.50",
+      "点数 1234.50",
+      "点数 1234.50",
+      "点数 1234.50",
+      "点数 1234.50",
+      "点数 12345678901234567890.0123"
+    ],
+    "checks": {
+      "queryCalls": [
+        5,
+        6,
+        7
+      ],
+      "resetCalls": 0,
+      "overflow": false,
+      "titles": [
+        "点击查询 Codex 点数余额和重置次数\n余额查询时间：2026/10/11 12:00:00",
+        "点击查询 Codex 点数余额和重置次数\n余额查询时间：2026/10/11 12:00:00",
+        "点击查询 Codex 点数余额和重置次数\n余额查询时间：2026/10/11 12:00:00",
+        "点击查询 Codex 点数余额和重置次数\n余额查询时间：2026/10/11 12:00:00",
+        "点击查询 Codex 点数余额和重置次数\n余额查询时间：2026/10/11 12:00:00",
+        "点击查询 Codex 点数余额和重置次数\n余额查询时间：2026/10/11 12:00:00",
+        "点击查询 Codex 点数余额和重置次数\n余额查询时间：2026/10/11 12:00:00",
+        "点击查询 Codex 点数余额和重置次数\n余额查询时间：2026/10/11 12:00:00"
+      ],
+      "reducedMotion": true
+    },
+    "errors": [],
+    "external": []
+  },
+  {
+    "name": "before-en-dark-1920",
+    "balances": [
+      "Points 1234.50",
+      "Points 1234.50",
+      "Points 1234.50",
+      "Points 1234.50",
+      "Points 1234.50",
+      "Points 1234.50",
+      "Points 1234.50",
+      "Points 12345678901234567890.0123"
+    ],
+    "checks": {
+      "queryCalls": [
+        5,
+        6,
+        7
+      ],
+      "resetCalls": 0,
+      "overflow": false,
+      "titles": [
+        "Click to query Codex points and reset credits\nBalance checked: 10/11/2026, 12:00:00 PM",
+        "Click to query Codex points and reset credits\nBalance checked: 10/11/2026, 12:00:00 PM",
+        "Click to query Codex points and reset credits\nBalance checked: 10/11/2026, 12:00:00 PM",
+        "Click to query Codex points and reset credits\nBalance checked: 10/11/2026, 12:00:00 PM",
+        "Click to query Codex points and reset credits\nBalance checked: 10/11/2026, 12:00:00 PM",
+        "Click to query Codex points and reset credits\nBalance checked: 10/11/2026, 12:00:00 PM",
+        "Click to query Codex points and reset credits\nBalance checked: 10/11/2026, 12:00:00 PM",
+        "Click to query Codex points and reset credits\nBalance checked: 10/11/2026, 12:00:00 PM"
+      ],
+      "reducedMotion": true
+    },
+    "errors": [],
+    "external": []
+  },
+  {
+    "name": "after-zh-light-360",
+    "balances": [
+      "点数 1234.50",
+      "点数 42.50",
+      "点数 0",
+      "点数 —",
+      "点数 42.50",
+      "点数 1234.50",
+      "点数 1234.50",
+      "点数 12345678901234567890.0123"
+    ],
+    "checks": {
+      "queryCalls": [
+        5,
+        6,
+        7
+      ],
+      "resetCalls": 0,
+      "overflow": false,
+      "titles": [
+        "点击查询 Codex 点数余额和重置次数\n余额查询时间：2026/10/11 12:00:00",
+        "点击查询 Codex 点数余额和重置次数\n余额查询时间：2026/10/11 12:10:00",
+        "点击查询 Codex 点数余额和重置次数\n余额查询时间：2026/10/11 12:10:00",
+        "点击查询 Codex 点数余额和重置次数\n余额查询时间：2026/10/11 12:10:00",
+        "点击查询 Codex 点数余额和重置次数\n余额查询时间：2026/10/11 12:10:00",
+        "点击查询 Codex 点数余额和重置次数\n余额查询时间：2026/10/11 12:00:00",
+        "点击查询 Codex 点数余额和重置次数\n余额查询时间：2026/10/11 12:00:00",
+        "点击查询 Codex 点数余额和重置次数\n余额查询时间：2026/10/11 12:00:00"
+      ],
+      "reducedMotion": true
+    },
+    "errors": [],
+    "external": []
+  },
+  {
+    "name": "after-en-dark-360",
+    "balances": [
+      "Points 1234.50",
+      "Points 42.50",
+      "Points 0",
+      "Points —",
+      "Points 42.50",
+      "Points 1234.50",
+      "Points 1234.50",
+      "Points 12345678901234567890.0123"
+    ],
+    "checks": {
+      "queryCalls": [
+        5,
+        6,
+        7
+      ],
+      "resetCalls": 0,
+      "overflow": false,
+      "titles": [
+        "Click to query Codex points and reset credits\nBalance checked: 10/11/2026, 12:00:00 PM",
+        "Click to query Codex points and reset credits\nBalance checked: 10/11/2026, 12:10:00 PM",
+        "Click to query Codex points and reset credits\nBalance checked: 10/11/2026, 12:10:00 PM",
+        "Click to query Codex points and reset credits\nBalance checked: 10/11/2026, 12:10:00 PM",
+        "Click to query Codex points and reset credits\nBalance checked: 10/11/2026, 12:10:00 PM",
+        "Click to query Codex points and reset credits\nBalance checked: 10/11/2026, 12:00:00 PM",
+        "Click to query Codex points and reset credits\nBalance checked: 10/11/2026, 12:00:00 PM",
+        "Click to query Codex points and reset credits\nBalance checked: 10/11/2026, 12:00:00 PM"
+      ],
+      "reducedMotion": true
+    },
+    "errors": [],
+    "external": []
+  },
+  {
+    "name": "after-zh-light-768",
+    "balances": [
+      "点数 1234.50",
+      "点数 42.50",
+      "点数 0",
+      "点数 —",
+      "点数 42.50",
+      "点数 1234.50",
+      "点数 1234.50",
+      "点数 12345678901234567890.0123"
+    ],
+    "checks": {
+      "queryCalls": [
+        5,
+        6,
+        7
+      ],
+      "resetCalls": 0,
+      "overflow": false,
+      "titles": [
+        "点击查询 Codex 点数余额和重置次数\n余额查询时间：2026/10/11 12:00:00",
+        "点击查询 Codex 点数余额和重置次数\n余额查询时间：2026/10/11 12:10:00",
+        "点击查询 Codex 点数余额和重置次数\n余额查询时间：2026/10/11 12:10:00",
+        "点击查询 Codex 点数余额和重置次数\n余额查询时间：2026/10/11 12:10:00",
+        "点击查询 Codex 点数余额和重置次数\n余额查询时间：2026/10/11 12:10:00",
+        "点击查询 Codex 点数余额和重置次数\n余额查询时间：2026/10/11 12:00:00",
+        "点击查询 Codex 点数余额和重置次数\n余额查询时间：2026/10/11 12:00:00",
+        "点击查询 Codex 点数余额和重置次数\n余额查询时间：2026/10/11 12:00:00"
+      ],
+      "reducedMotion": true
+    },
+    "errors": [],
+    "external": []
+  },
+  {
+    "name": "after-en-dark-768",
+    "balances": [
+      "Points 1234.50",
+      "Points 42.50",
+      "Points 0",
+      "Points —",
+      "Points 42.50",
+      "Points 1234.50",
+      "Points 1234.50",
+      "Points 12345678901234567890.0123"
+    ],
+    "checks": {
+      "queryCalls": [
+        5,
+        6,
+        7
+      ],
+      "resetCalls": 0,
+      "overflow": false,
+      "titles": [
+        "Click to query Codex points and reset credits\nBalance checked: 10/11/2026, 12:00:00 PM",
+        "Click to query Codex points and reset credits\nBalance checked: 10/11/2026, 12:10:00 PM",
+        "Click to query Codex points and reset credits\nBalance checked: 10/11/2026, 12:10:00 PM",
+        "Click to query Codex points and reset credits\nBalance checked: 10/11/2026, 12:10:00 PM",
+        "Click to query Codex points and reset credits\nBalance checked: 10/11/2026, 12:10:00 PM",
+        "Click to query Codex points and reset credits\nBalance checked: 10/11/2026, 12:00:00 PM",
+        "Click to query Codex points and reset credits\nBalance checked: 10/11/2026, 12:00:00 PM",
+        "Click to query Codex points and reset credits\nBalance checked: 10/11/2026, 12:00:00 PM"
+      ],
+      "reducedMotion": true
+    },
+    "errors": [],
+    "external": []
+  },
+  {
+    "name": "after-zh-light-1280",
+    "balances": [
+      "点数 1234.50",
+      "点数 42.50",
+      "点数 0",
+      "点数 —",
+      "点数 42.50",
+      "点数 1234.50",
+      "点数 1234.50",
+      "点数 12345678901234567890.0123"
+    ],
+    "checks": {
+      "queryCalls": [
+        5,
+        6,
+        7
+      ],
+      "resetCalls": 0,
+      "overflow": false,
+      "titles": [
+        "点击查询 Codex 点数余额和重置次数\n余额查询时间：2026/10/11 12:00:00",
+        "点击查询 Codex 点数余额和重置次数\n余额查询时间：2026/10/11 12:10:00",
+        "点击查询 Codex 点数余额和重置次数\n余额查询时间：2026/10/11 12:10:00",
+        "点击查询 Codex 点数余额和重置次数\n余额查询时间：2026/10/11 12:10:00",
+        "点击查询 Codex 点数余额和重置次数\n余额查询时间：2026/10/11 12:10:00",
+        "点击查询 Codex 点数余额和重置次数\n余额查询时间：2026/10/11 12:00:00",
+        "点击查询 Codex 点数余额和重置次数\n余额查询时间：2026/10/11 12:00:00",
+        "点击查询 Codex 点数余额和重置次数\n余额查询时间：2026/10/11 12:00:00"
+      ],
+      "reducedMotion": true
+    },
+    "focus": {
+      "focused": "codex-credits",
+      "visible": true
+    },
+    "errors": [],
+    "external": []
+  },
+  {
+    "name": "after-en-dark-1280",
+    "balances": [
+      "Points 1234.50",
+      "Points 42.50",
+      "Points 0",
+      "Points —",
+      "Points 42.50",
+      "Points 1234.50",
+      "Points 1234.50",
+      "Points 12345678901234567890.0123"
+    ],
+    "checks": {
+      "queryCalls": [
+        5,
+        6,
+        7
+      ],
+      "resetCalls": 0,
+      "overflow": false,
+      "titles": [
+        "Click to query Codex points and reset credits\nBalance checked: 10/11/2026, 12:00:00 PM",
+        "Click to query Codex points and reset credits\nBalance checked: 10/11/2026, 12:10:00 PM",
+        "Click to query Codex points and reset credits\nBalance checked: 10/11/2026, 12:10:00 PM",
+        "Click to query Codex points and reset credits\nBalance checked: 10/11/2026, 12:10:00 PM",
+        "Click to query Codex points and reset credits\nBalance checked: 10/11/2026, 12:10:00 PM",
+        "Click to query Codex points and reset credits\nBalance checked: 10/11/2026, 12:00:00 PM",
+        "Click to query Codex points and reset credits\nBalance checked: 10/11/2026, 12:00:00 PM",
+        "Click to query Codex points and reset credits\nBalance checked: 10/11/2026, 12:00:00 PM"
+      ],
+      "reducedMotion": true
+    },
+    "focus": {
+      "focused": "codex-credits",
+      "visible": true
+    },
+    "errors": [],
+    "external": []
+  },
+  {
+    "name": "after-zh-light-1920",
+    "balances": [
+      "点数 1234.50",
+      "点数 42.50",
+      "点数 0",
+      "点数 —",
+      "点数 42.50",
+      "点数 1234.50",
+      "点数 1234.50",
+      "点数 12345678901234567890.0123"
+    ],
+    "checks": {
+      "queryCalls": [
+        5,
+        6,
+        7
+      ],
+      "resetCalls": 0,
+      "overflow": false,
+      "titles": [
+        "点击查询 Codex 点数余额和重置次数\n余额查询时间：2026/10/11 12:00:00",
+        "点击查询 Codex 点数余额和重置次数\n余额查询时间：2026/10/11 12:10:00",
+        "点击查询 Codex 点数余额和重置次数\n余额查询时间：2026/10/11 12:10:00",
+        "点击查询 Codex 点数余额和重置次数\n余额查询时间：2026/10/11 12:10:00",
+        "点击查询 Codex 点数余额和重置次数\n余额查询时间：2026/10/11 12:10:00",
+        "点击查询 Codex 点数余额和重置次数\n余额查询时间：2026/10/11 12:00:00",
+        "点击查询 Codex 点数余额和重置次数\n余额查询时间：2026/10/11 12:00:00",
+        "点击查询 Codex 点数余额和重置次数\n余额查询时间：2026/10/11 12:00:00"
+      ],
+      "reducedMotion": true
+    },
+    "errors": [],
+    "external": []
+  },
+  {
+    "name": "after-en-dark-1920",
+    "balances": [
+      "Points 1234.50",
+      "Points 42.50",
+      "Points 0",
+      "Points —",
+      "Points 42.50",
+      "Points 1234.50",
+      "Points 1234.50",
+      "Points 12345678901234567890.0123"
+    ],
+    "checks": {
+      "queryCalls": [
+        5,
+        6,
+        7
+      ],
+      "resetCalls": 0,
+      "overflow": false,
+      "titles": [
+        "Click to query Codex points and reset credits\nBalance checked: 10/11/2026, 12:00:00 PM",
+        "Click to query Codex points and reset credits\nBalance checked: 10/11/2026, 12:10:00 PM",
+        "Click to query Codex points and reset credits\nBalance checked: 10/11/2026, 12:10:00 PM",
+        "Click to query Codex points and reset credits\nBalance checked: 10/11/2026, 12:10:00 PM",
+        "Click to query Codex points and reset credits\nBalance checked: 10/11/2026, 12:10:00 PM",
+        "Click to query Codex points and reset credits\nBalance checked: 10/11/2026, 12:00:00 PM",
+        "Click to query Codex points and reset credits\nBalance checked: 10/11/2026, 12:00:00 PM",
+        "Click to query Codex points and reset credits\nBalance checked: 10/11/2026, 12:00:00 PM"
+      ],
+      "reducedMotion": true
+    },
+    "errors": [],
+    "external": []
+  }
+]

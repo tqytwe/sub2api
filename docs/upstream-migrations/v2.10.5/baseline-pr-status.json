@@ -1,0 +1,217 @@
+{
+  "checked_at": "2026-10-11T13:55:44.923505+00:00",
+  "scope": "Current GitHub PR metadata only; not deployment or product acceptance",
+  "pull_requests": [
+    {
+      "requested": "https://github.com/tqytwe/sub2api/pull/338",
+      "baseRefName": "play/main",
+      "headRefOid": "c73b4ca6633c6657dfa300726ef0bf739abfcf0e",
+      "mergeCommit": {
+        "oid": "96d202ce266a3858e34df10987ae906942be5f37"
+      },
+      "mergedAt": "2026-10-09T20:35:57Z",
+      "number": 338,
+      "state": "MERGED",
+      "url": "https://github.com/tqytwe/sub2api/pull/338"
+    },
+    {
+      "requested": "https://github.com/tqytwe/sub2api/pull/339",
+      "baseRefName": "play/main",
+      "headRefOid": "0408bec3179e738ce91bf7bda72f23c401c089dd",
+      "mergeCommit": {
+        "oid": "a7e1c00330170754683216e3018cbd4279d7f733"
+      },
+      "mergedAt": "2026-10-09T21:16:40Z",
+      "number": 339,
+      "state": "MERGED",
+      "url": "https://github.com/tqytwe/sub2api/pull/339"
+    },
+    {
+      "requested": "https://github.com/tqytwe/sub2api/pull/340",
+      "baseRefName": "play/main",
+      "headRefOid": "e583f5857794ee49d8ea2d784b2fc399eb2648ef",
+      "mergeCommit": {
+        "oid": "4080e2ac7e93dc9f435e0c0a4652834635cba7be"
+      },
+      "mergedAt": "2026-10-09T22:52:24Z",
+      "number": 340,
+      "state": "MERGED",
+      "url": "https://github.com/tqytwe/sub2api/pull/340"
+    },
+    {
+      "requested": "https://github.com/tqytwe/sub2api/pull/341",
+      "baseRefName": "play/main",
+      "headRefOid": "3c53a6feae80d691afed15aae2cf468407f812cc",
+      "mergeCommit": {
+        "oid": "b23e44625669a36a8f7ac10667e4b04b1904b7db"
+      },
+      "mergedAt": "2026-10-10T00:42:39Z",
+      "number": 341,
+      "state": "MERGED",
+      "url": "https://github.com/tqytwe/sub2api/pull/341"
+    },
+    {
+      "requested": "https://github.com/tqytwe/sub2api/pull/342",
+      "number": 342,
+      "state": "MERGED",
+      "headRefOid": "e58642e426e900d4cc4c4fe079c9a418bd3d6c7a",
+      "mergeCommit": {
+        "oid": "9e458b12db91d1c36402c288d61ef7a352beee1c"
+      },
+      "mergedAt": "2026-10-10T00:05:22Z",
+      "baseRefName": "play/main",
+      "url": "https://github.com/tqytwe/sub2api/pull/342",
+      "note": "GraphQL first read failed; REST retry verified"
+    },
+    {
+      "requested": "https://github.com/tqytwe/sub2api/pull/343",
+      "number": 343,
+      "state": "MERGED",
+      "headRefOid": "02de416391322e995d2bbb4393b40d83a660ad64",
+      "mergeCommit": {
+        "oid": "2fbe13d90a2381a3bc8e7495a0c8b00abe2cfe3a"
+      },
+      "mergedAt": "2026-10-10T01:26:20Z",
+      "baseRefName": "play/main",
+      "url": "https://github.com/tqytwe/sub2api/pull/343",
+      "note": "GraphQL first read failed; REST retry verified"
+    },
+    {
+      "requested": "https://github.com/tqytwe/sub2api/pull/345",
+      "number": 345,
+      "state": "MERGED",
+      "headRefOid": "faed7a85d7286ddd0d277865c8112e334d8e675a",
+      "mergeCommit": {
+        "oid": "1f37c7a8312f06218036fcbb0335842a6b23e50f"
+      },
+      "mergedAt": "2026-10-10T03:15:11Z",
+      "baseRefName": "play/main",
+      "url": "https://github.com/tqytwe/sub2api/pull/345",
+      "note": "GraphQL first read failed; REST retry verified"
+    },
+    {
+      "requested": "https://github.com/tqytwe/sub2api/pull/346",
+      "number": 346,
+      "state": "MERGED",
+      "headRefOid": "edee1a0a57ccfaf0044c1c2edd4c1da6062854e6",
+      "mergeCommit": {
+        "oid": "7291ae9a2be4db7d97b8b641d053f7822276dc23"
+      },
+      "mergedAt": "2026-10-10T05:52:31Z",
+      "baseRefName": "play/main",
+      "url": "https://github.com/tqytwe/sub2api/pull/346",
+      "note": "GraphQL first read failed; REST retry verified"
+    },
+    {
+      "requested": "https://github.com/tqytwe/sub2api/pull/347",
+      "number": 347,
+      "state": "MERGED",
+      "headRefOid": "7df94dc9727916ad089ec3be917ea4d0293f3e52",
+      "mergeCommit": {
+        "oid": "3843ff3e931349595b8793b52504b02a177f12c9"
+      },
+      "mergedAt": "2026-10-10T04:24:16Z",
+      "baseRefName": "play/main",
+      "url": "https://github.com/tqytwe/sub2api/pull/347",
+      "note": "GraphQL first read failed; REST retry verified"
+    },
+    {
+      "requested": "https://github.com/tqytwe/sub2api/pull/348",
+      "number": 348,
+      "state": "MERGED",
+      "headRefOid": "4376afeda1ba2e8841b1d350b2a0597c50b99ead",
+      "mergeCommit": {
+        "oid": "a581d8db536157c6c325ea4729381ee8b83ed53d"
+      },
+      "mergedAt": "2026-10-10T08:11:18Z",
+      "baseRefName": "play/main",
+      "url": "https://github.com/tqytwe/sub2api/pull/348",
+      "note": "GraphQL first read failed; REST retry verified"
+    },
+    {
+      "requested": "https://github.com/tqytwe/sub2api/pull/349",
+      "number": 349,
+      "state": "MERGED",
+      "headRefOid": "3d3ee0706e2c01d96ec496742688f54520ffa697",
+      "mergeCommit": {
+        "oid": "de3155f176426a975b227cbaebae4ff72a6658db"
+      },
+      "mergedAt": "2026-10-10T06:53:33Z",
+      "baseRefName": "play/main",
+      "url": "https://github.com/tqytwe/sub2api/pull/349",
+      "note": "GraphQL first read failed; REST retry verified"
+    },
+    {
+      "requested": "https://github.com/tqytwe/sub2api/pull/350",
+      "baseRefName": "play/main",
+      "headRefOid": "994d97480dabd98c6a5b59e637a72a809a33c020",
+      "mergeCommit": {
+        "oid": "63eabcb6a5384f64aaf26f043e73818b8220cbb1"
+      },
+      "mergedAt": "2026-10-10T07:17:43Z",
+      "number": 350,
+      "state": "MERGED",
+      "url": "https://github.com/tqytwe/sub2api/pull/350"
+    },
+    {
+      "requested": "https://github.com/tqytwe/sub2api/pull/351",
+      "baseRefName": "play/main",
+      "headRefOid": "82828e121ae032201c50346b5052cd7c4915b590",
+      "mergeCommit": {
+        "oid": "d18d504ccf12adc9f299cdf14af6ea32c4efe59c"
+      },
+      "mergedAt": "2026-10-10T10:43:35Z",
+      "number": 351,
+      "state": "MERGED",
+      "url": "https://github.com/tqytwe/sub2api/pull/351"
+    },
+    {
+      "requested": "https://github.com/tqytwe/sub2api/pull/354",
+      "baseRefName": "play/main",
+      "headRefOid": "295d5cec3767c73668a14a7ac12601e184333c9d",
+      "mergeCommit": {
+        "oid": "9b367c378b04db987a36175af0b8a3e02e22da24"
+      },
+      "mergedAt": "2026-10-10T22:33:26Z",
+      "number": 354,
+      "state": "MERGED",
+      "url": "https://github.com/tqytwe/sub2api/pull/354"
+    },
+    {
+      "requested": "https://github.com/tqytwe/sub2api/pull/356",
+      "baseRefName": "play/main",
+      "headRefOid": "775cd20a68c23df4c88b009563d6e48c9a43c6ca",
+      "mergeCommit": {
+        "oid": "23d06337cbc315cb92d3fc18e94902fe21e7342d"
+      },
+      "mergedAt": "2026-10-11T06:57:49Z",
+      "number": 356,
+      "state": "MERGED",
+      "url": "https://github.com/tqytwe/sub2api/pull/356"
+    },
+    {
+      "requested": "https://github.com/tqytwe/sub2api/pull/359",
+      "baseRefName": "play/main",
+      "headRefOid": "0ceacb2445f79c3e9ddd1dbe44c89210c8e7ffca",
+      "mergeCommit": {
+        "oid": "8364b462feda15f3bf8f3bb2029314d2193b9dba"
+      },
+      "mergedAt": "2026-10-11T12:43:46Z",
+      "number": 359,
+      "state": "MERGED",
+      "url": "https://github.com/tqytwe/sub2api/pull/359"
+    },
+    {
+      "requested": "https://github.com/tqytwe/sub2api/pull/360",
+      "baseRefName": "play/main",
+      "headRefOid": "6d37d1c0c2cdafb7bc9b5fd766ec157a151b15df",
+      "mergeCommit": {
+        "oid": "fb2c9747b58ed5d980a36ea6a2316ead2aa03b7e"
+      },
+      "mergedAt": "2026-10-11T10:59:19Z",
+      "number": 360,
+      "state": "MERGED",
+      "url": "https://github.com/tqytwe/sub2api/pull/360"
+    }
+  ]
+}

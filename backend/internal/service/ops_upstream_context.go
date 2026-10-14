@@ -505,7 +505,7 @@ func appendOpsUpstreamError(c *gin.Context, ev OpsUpstreamErrorEvent) {
 		ev.UpstreamResponseID = requestledger.ResponseIdentifier([]byte(ev.UpstreamResponseBody))
 	}
 	if c.Request != nil {
-		ev.LedgerReceipt.ObserveIdentifiers(c.Request.Context(), ev.UpstreamRequestID, ev.UpstreamResponseID)
+		ev.LedgerReceipt.ObserveOpsIdentifiers(c.Request.Context(), ev.UpstreamRequestID, ev.UpstreamResponseID, ev.Kind)
 	}
 	attachResponsesCacheDiagnostic(c, &ev)
 	if ev.AtUnixMs <= 0 {

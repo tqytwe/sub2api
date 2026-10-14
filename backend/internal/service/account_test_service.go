@@ -358,7 +358,15 @@ func createTestPayload(modelID string) (map[string]any, error) {
 // modelID is optional - if empty, defaults to claude.DefaultTestModel
 // mode is optional - "compact" routes OpenAI accounts to the /responses/compact probe path
 // opts is optional media (image/audio data URLs for real generation / STT).
-func (s *AccountTestService) TestAccountConnection(c *gin.Context, accountID int64, modelID string, prompt string, mode string, opts ...AccountTestOptions) error {
+func (s *AccountTestService) TestAccountConnection(c *gin.Context, accountID int64, modelID string, prompt string, mode string, opts ...AccountTestOptions) (testErr error) {
+	stopKeepalive := startAccountTestSSEKeepalive(c, 10*time.Second)
+	defer func() {
+		// A failed final write must not turn a disconnected probe into success.
+		if testErr == nil {
+			testErr = c.Request.Context().Err()
+		}
+		stopKeepalive()
+	}()
 	ctx := c.Request.Context()
 	testOpts := firstAccountTestOptions(opts)
 

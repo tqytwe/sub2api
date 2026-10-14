@@ -11,14 +11,16 @@ import apiClient from '@/api/client'
 import { AUTH_SESSION_KEY, finishAuthSession, getAuthSessionIdentity } from '@/api/tokenRefresh'
 import RequestLedgerView from '../RequestLedgerView.vue'
 import en from '@/i18n/locales/en'
+import { holdHttpBoundary } from './fixtures/sessionHttpBoundary'
 
 vi.hoisted(() => vi.stubGlobal('__INTLIFY_JIT_COMPILATION__', true))
 const endpoint = vi.hoisted(() => ({ base: '' }))
 vi.mock('@/api/url', () => ({ getAPIBaseURL: () => endpoint.base }))
 const id = '00000000-0000-4000-8000-000000000001'
-type Read = { token: string; stage: string; res: ServerResponse; cursor: string }
+type Read = { token: string; stage: string; res: ServerResponse; cursor: string; closed: boolean }
 let server: Server, router: Router, pinia: ReturnType<typeof createPinia>, auth: ReturnType<typeof useAuthStore>
 let wrapper: VueWrapper | undefined
+let boundary: ReturnType<typeof holdHttpBoundary> | undefined
 let role = 'user', hold = '', failB = false, renewSoon = false, unauthorizedOnce = false, refreshes = 0
 const reads: Read[] = []
 const saved = { baseURL: apiClient.defaults.baseURL, adapter: apiClient.defaults.adapter }
@@ -56,7 +58,8 @@ beforeAll(async () => {
     else if (url.pathname.endsWith('/auth/me')) reply(res, user(token === 'fixture-b' ? 'b' : 'a'))
     else if (url.pathname.includes('/requests')) {
       const stage = url.pathname.includes('/usage/') ? 'usage' : url.searchParams.get('section') || (url.searchParams.has('view') ? 'summary' : 'list')
-      const read = { token, stage, res, cursor: url.searchParams.get('cursor') || '' }; reads.push(read)
+      const read = { token, stage, res, cursor: url.searchParams.get('cursor') || '', closed: false }; reads.push(read)
+      res.once('close', () => { read.closed = true })
       if (unauthorizedOnce && stage === 'attempts') { unauthorizedOnce = false; reply(res, {}, 401) }
       else if (failB && token === 'fixture-b') reply(res, {}, 503)
       else if (stage !== hold && !(hold === 'sections' && ['attempts', 'billing', 'wallet', 'diagnostics'].includes(stage))) complete(read)
@@ -74,6 +77,8 @@ beforeEach(async () => {
   await router.push(`/requests?private_id=${id}&lang=en`); await router.isReady()
 })
 afterEach(async () => {
+  vi.useRealTimers()
+  boundary?.release(); boundary = undefined; apiClient.defaults.adapter = 'http'
   try { wrapper?.unmount(); await auth.logout() }
   finally { wrapper = undefined; auth.$dispose(); server.closeAllConnections() }
 })
@@ -88,11 +93,66 @@ function mountPage() {
   wrapper = mount(RequestLedgerView, { global: { plugins: [pinia, router, createI18n({ legacy: false, locale: 'en', messages: { en } })], stubs: { AppLayout: { template: '<main><slot /></main>' }, Teleport: true } } })
   return wrapper
 }
+// A response's server-side close is asynchronous even after the page aborts its read.
+// Keep the destruction assertion; a missing transport cancellation must still fail.
+async function waitForClosed(read: Read) {
+  await vi.waitFor(() => {
+    expect(read.closed).toBe(true)
+    expect(read.res.destroyed).toBe(true)
+  })
+}
+// A rendered attempt does not imply that sibling HTTP requests have arrived.
+// Require the entire initial user request set and finished UI reads before a count
+// snapshot. Exact membership also catches unexpected/duplicate initial requests.
+async function waitForInitialUserReads(view: VueWrapper) {
+  await vi.waitFor(() => {
+    expect(reads.map(read => read.stage).sort()).toEqual(['attempts', 'billing', 'list', 'summary', 'wallet'])
+    expect(reads.every(read => read.res.writableFinished)).toBe(true)
+    expect(view.find('[aria-busy="true"]').exists()).toBe(false)
+  })
+}
 async function ready(admin = false) {
   const view = await start(admin)
   await vi.waitFor(() => { expect(view.text()).toContain('private-fixture-a-attempt'); expect(view.text()).toContain('Usage record #42') })
+  if (!admin) await waitForInitialUserReads(view)
+  else await vi.waitFor(() => expect(view.find('[aria-busy="true"]').exists()).toBe(false))
   return view
 }
+it.each(['summary', 'billing'])('waits for server close after an already requested %s abort', async stage => {
+  boundary = holdHttpBoundary(stage, 'abort'); apiClient.defaults.adapter = boundary.adapter
+  hold = stage
+  const view = await start()
+  await vi.waitFor(() => expect(pending('fixture-a', stage)).toHaveLength(1))
+  const old = pending('fixture-a', stage)[0]!
+  hold = ''; failB = true; await login('b')
+  await vi.waitFor(() => expect(boundary!.state.reached).toBe(true))
+  expect(old.res.destroyed).toBe(false)
+  // Advance beyond the former 30ms observation deadline without sleeping or
+  // releasing the transport. Elapsed time alone must not finish this wait.
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+  let result = 'pending'
+  const closing = waitForClosed(old).then(() => { result = 'closed' }, () => { result = 'failed' })
+  await vi.advanceTimersByTimeAsync(30)
+  expect(result).toBe('pending')
+  vi.useRealTimers()
+  boundary.release(); await closing
+  expect(result).toBe('closed')
+  complete(old, 'obsolete-A'); await pause()
+  expect(view.text()).not.toContain('obsolete-A')
+  expect(view.text()).not.toContain('private-fixture-a')
+})
+it.each(['billing', 'wallet'])('waits for the initial request set while %s has not arrived', async stage => {
+  boundary = holdHttpBoundary(stage, 'arrival'); apiClient.defaults.adapter = boundary.adapter
+  const view = await start()
+  await vi.waitFor(() => expect(view.text()).toContain('private-fixture-a-attempt'))
+  expect(boundary.state.reached).toBe(true)
+  expect(reads.some(read => read.stage === stage)).toBe(false)
+  let ready = false
+  const settling = waitForInitialUserReads(view).then(() => { ready = true })
+  await flushPromises(); expect(ready).toBe(false)
+  boundary.release(); await settling
+  expect(reads).toHaveLength(5)
+})
 it.each([false, true])('clears loaded details/list on same-role account switch even when B fails (admin=%s)', async admin => {
   const view = await ready(admin)
   await view.findAll('button').find(b => b.text() === 'Usage record #42')!.trigger('click')
@@ -114,8 +174,8 @@ it.each(['list', 'summary', 'attempts', 'billing', 'wallet', 'diagnostics', 'usa
   }
   await vi.waitFor(() => expect(pending('fixture-a', stage)).toHaveLength(1))
   const old = pending('fixture-a', stage)[0]!
-  hold = ''; failB = true; await login('b'); await pause()
-  expect(old.res.destroyed).toBe(true)
+  hold = ''; failB = true; await login('b')
+  await waitForClosed(old)
   complete(old, 'obsolete-A'); await pause()
   expect(view.text()).not.toContain('obsolete-A')
   expect(view.text()).not.toContain('private-fixture-a')
@@ -164,7 +224,7 @@ it.each(['attempts', 'billing', 'wallet', 'diagnostics'].flatMap(section => [200
   const old = pending('fixture-a', section)[0]!
   await view.get('button[aria-label="Close"]').trigger('click')
   expect(view.find(selector).exists()).toBe(false)
-  await vi.waitFor(() => expect(old.res.destroyed).toBe(true))
+  await waitForClosed(old)
   await view.findAll('button').find(b => b.text() === 'Details')!.trigger('click')
   await vi.waitFor(() => expect(pending('fixture-a', section)).toHaveLength(2))
   const fresh = pending('fixture-a', section).find(r => r !== old)!
@@ -263,6 +323,7 @@ it('ends abandoned publication with retryable errors and resumes after ready', a
   await view.get('[data-testid="ledger-retry"]').trigger('click')
   await view.findAll('button').find(b => b.text() === 'Retry' && !b.attributes('data-testid'))!.trigger('click')
   await vi.waitFor(() => expect(view.text()).toContain('private-fixture-a-attempt'))
+  await waitForInitialUserReads(view)
   const finishAgain = beginPeerRotation(), selector = '[data-testid="ledger-section-attempts"]', count = reads.length
   await view.get(`${selector} [data-action="next"]`).trigger('click')
   await vi.waitFor(() => expect(view.find(`${selector} [data-action="retry"]`).exists()).toBe(true), { timeout: 6500 })
