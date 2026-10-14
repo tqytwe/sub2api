@@ -1,0 +1,10 @@
+{
+  "status": "PASS",
+  "leaf_pass": 184,
+  "fail": 0,
+  "migrations": 407,
+  "race": true,
+  "log": "inflight-quality-green.log",
+  "sha256": "20825389ecb3dfb2952d5cd0d0b61545f05c18df3fe2fbf5a63ceccb3562335e",
+  "source_manifest_sha256": "82b11f37dff7084ce04db035d7428012cd977422ac02a6df5df7c5937f59ab06"
+}

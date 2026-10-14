@@ -1,0 +1,167 @@
+[
+  {
+    "name": "full-test",
+    "command": [
+      "bash",
+      "-c",
+      "go test ./... && golangci-lint run --max-same-issues=0 ./..."
+    ],
+    "cwd": "/workspace/sub2api-p1-inflight/backend",
+    "started_at": "2026-10-11T14:09:56.613700+00:00",
+    "status": "passed",
+    "scope": "complete make test components, preserving prior failure and retry provenance; not claiming initial make -j2 test exited0",
+    "original_command": [
+      "make",
+      "-j2",
+      "test"
+    ],
+    "original_failed_log": "/workspace/p1-inflight-evidence/full-gate-frontend-timing-lint.log",
+    "completed_components": [
+      {
+        "command": [
+          "go",
+          "test",
+          "./..."
+        ],
+        "status": "PASS",
+        "service_seconds": 145.275,
+        "log": "/workspace/p1-inflight-evidence/full-gate-frontend-timing-lint.log",
+        "reuse": "superseded by fresh default backend tests in this gate; frontend remains byte-identical"
+      },
+      {
+        "command": [
+          "make",
+          "test-frontend"
+        ],
+        "status": "PASS",
+        "log": "/workspace/p1-inflight-evidence/full-frontend-isolated-retry.log",
+        "sha256": "786463726b0af4c89a23c4bf2adf107c246a5eac1746c93c2dc74ffe7e6dcda5",
+        "files": 504,
+        "tests": 3825,
+        "skipped_files": 3,
+        "skipped_tests": 8
+      }
+    ],
+    "retry_reason": "prior failure logs preserved; four exact DeMorgan lint adjustments plus receipt-only output evidence isolation after eight unchanged legacy image strict assertions failed; fresh default/unit backends, complete frontend pass reused byte-identical",
+    "exit_code": 0,
+    "completed_at": "2026-10-11T14:19:53.619034+00:00",
+    "log": "/workspace/p1-inflight-evidence/root-fix-gates/full-test-final.log",
+    "sha256": "d4a93dd48533e3d63ac2a7d2b117c52d8c3b72d3bf0105beecd254f411091445"
+  },
+  {
+    "name": "unit-tags",
+    "command": [
+      "make",
+      "test-backend-unit"
+    ],
+    "cwd": "/workspace/sub2api-p1-inflight",
+    "started_at": "2026-10-11T14:09:56.614132+00:00",
+    "status": "passed",
+    "exit_code": 0,
+    "completed_at": "2026-10-11T14:16:32.245678+00:00",
+    "log": "/workspace/p1-inflight-evidence/root-fix-gates/unit-tags-final.log",
+    "sha256": "c53d3c840ab6b8a0295cb79584c34999c4698e0237075a99bf3211de79b35c7d"
+  },
+  {
+    "name": "ledger-integration",
+    "command": [
+      "go",
+      "test",
+      "-tags=integration",
+      "./internal/requestledger/...",
+      "./internal/handler",
+      "./internal/server/routes",
+      "./internal/repository",
+      "./internal/service",
+      "-run",
+      "RequestLedger|LedgerPostgres|LedgerKilledProcess|LedgerStorage|BatchImageHTTP|BatchImageReconciliation|BatchImageLedgerMigration",
+      "-count=1",
+      "-timeout=12m",
+      "-json"
+    ],
+    "cwd": "/workspace/sub2api-p1-inflight/backend",
+    "started_at": "2026-10-11T14:19:53.628111+00:00",
+    "status": "passed",
+    "exit_code": 0,
+    "completed_at": "2026-10-11T14:29:11.034429+00:00",
+    "log": "/workspace/p1-inflight-evidence/root-fix-gates/ledger-integration-final.log",
+    "sha256": "e3c906c13a1d051a4e83980c7b5d4e5aa9571404d40449e347080f5df336bb86"
+  },
+  {
+    "name": "full-build",
+    "command": [
+      "make",
+      "-j2",
+      "build"
+    ],
+    "cwd": "/workspace/sub2api-p1-inflight",
+    "started_at": "2026-10-11T14:29:11.047536+00:00",
+    "status": "passed",
+    "exit_code": 0,
+    "completed_at": "2026-10-11T14:31:36.126240+00:00",
+    "log": "/workspace/p1-inflight-evidence/root-fix-gates/full-build-final.log",
+    "sha256": "508a79c7d1126696f8705df64484327bb2f3bbdd46815ac581bbe07565b8d733"
+  },
+  {
+    "name": "fork-integrity",
+    "command": [
+      "./scripts/check-fork-integrity.sh"
+    ],
+    "cwd": "/workspace/sub2api-p1-inflight",
+    "started_at": "2026-10-11T14:31:36.130921+00:00",
+    "status": "passed",
+    "exit_code": 0,
+    "completed_at": "2026-10-11T14:34:37.465163+00:00",
+    "log": "/workspace/p1-inflight-evidence/root-fix-gates/fork-integrity-final.log",
+    "sha256": "8346ed0d3a25575e9dece938ef9dfdeeaebcded13ae3cc4b1db361024900becf"
+  },
+  {
+    "name": "tagged-diff-lint",
+    "command": [
+      "golangci-lint",
+      "run",
+      "--max-same-issues=0",
+      "--build-tags=integration,billing_acceptance",
+      "--new-from-rev=8364b462feda15f3bf8f3bb2029314d2193b9dba",
+      "./internal/billingacceptance",
+      "./internal/requestledger"
+    ],
+    "cwd": "/workspace/sub2api-p1-inflight/backend",
+    "started_at": "2026-10-11T14:37:12.798606+00:00",
+    "status": "passed",
+    "exit_code": 0,
+    "completed_at": "2026-10-11T14:37:17.036691+00:00",
+    "log": "/workspace/p1-inflight-evidence/root-fix-gates/tagged-diff-lint-final.log",
+    "sha256": "e92606b0bf483111dff0a120c315ea165821348f31365020e2468a0059095c47"
+  },
+  {
+    "name": "doc-links",
+    "command": [
+      "node",
+      "scripts/check-doc-links.mjs"
+    ],
+    "cwd": "/workspace/sub2api-p1-inflight",
+    "started_at": "2026-10-11T14:37:17.037414+00:00",
+    "status": "passed",
+    "exit_code": 0,
+    "completed_at": "2026-10-11T14:37:17.253418+00:00",
+    "log": "/workspace/p1-inflight-evidence/root-fix-gates/doc-links-final.log",
+    "sha256": "48fa04d3ac0814252c7b24ba8cdd0baeb9a912b6297dcdc2553e1188a7943645"
+  },
+  {
+    "name": "diff-check",
+    "command": [
+      "git",
+      "diff",
+      "--check",
+      "origin/play/main"
+    ],
+    "cwd": "/workspace/sub2api-p1-inflight",
+    "started_at": "2026-10-11T14:37:17.256256+00:00",
+    "status": "passed",
+    "exit_code": 0,
+    "completed_at": "2026-10-11T14:37:17.292567+00:00",
+    "log": "/workspace/p1-inflight-evidence/root-fix-gates/diff-check-final.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+]

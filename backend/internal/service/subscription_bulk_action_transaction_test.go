@@ -122,6 +122,7 @@ func TestBulkSubscriptionAction_RollsBackPostWriteFailureBeforeRetry(t *testing.
 					}))
 			}
 			expectNoPackageEntitlementForTermUpdate := func() {
+				expectSubscriptionLifecycle(mock, 1, 10, 20, "extend")
 				expectPackageEntitlementsForTermUpdate(mock, 10, 20, sqlmock.NewRows(packageEntitlementTermColumns))
 			}
 

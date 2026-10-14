@@ -1,0 +1,130 @@
+[
+  {
+    "name": "full-test",
+    "command": [
+      "make",
+      "test"
+    ],
+    "cwd": "/workspace/sub2api-p1-inflight",
+    "started_at": "2026-10-11T11:14:25.178029+00:00",
+    "status": "passed",
+    "exit_code": 0,
+    "completed_at": "2026-10-11T11:29:10.559285+00:00",
+    "log": "/workspace/p1-inflight-evidence/full-test.log",
+    "sha256": "7565de9e92e999f54604c3b85cd466282dd7d5fcee442809a0ab4adceb4c3665"
+  },
+  {
+    "name": "unit-tags",
+    "command": [
+      "make",
+      "test-backend-unit"
+    ],
+    "cwd": "/workspace/sub2api-p1-inflight",
+    "started_at": "2026-10-11T11:29:10.566114+00:00",
+    "status": "passed",
+    "exit_code": 0,
+    "completed_at": "2026-10-11T11:36:17.713140+00:00",
+    "log": "/workspace/p1-inflight-evidence/unit-tags.log",
+    "sha256": "4c1602a3c7af07512bd018f42c76ec2a0ec8fd34e5a5d84338cda1c9af3f27e2"
+  },
+  {
+    "name": "ledger-integration",
+    "command": [
+      "go",
+      "test",
+      "-tags=integration",
+      "./internal/requestledger/...",
+      "./internal/handler",
+      "./internal/server/routes",
+      "./internal/repository",
+      "./internal/service",
+      "-run",
+      "RequestLedger|LedgerPostgres|LedgerKilledProcess|LedgerStorage|BatchImageHTTP|BatchImageReconciliation|BatchImageLedgerMigration",
+      "-count=1",
+      "-timeout=12m",
+      "-json"
+    ],
+    "cwd": "/workspace/sub2api-p1-inflight/backend",
+    "started_at": "2026-10-11T11:36:17.718896+00:00",
+    "status": "passed",
+    "exit_code": 0,
+    "completed_at": "2026-10-11T11:43:53.337398+00:00",
+    "log": "/workspace/p1-inflight-evidence/ledger-integration.log",
+    "sha256": "88c6794b8ba258396e0f7e7282e8266c4a6f3765951118cd6c7db6315da857f1"
+  },
+  {
+    "name": "full-build",
+    "command": [
+      "make",
+      "build"
+    ],
+    "cwd": "/workspace/sub2api-p1-inflight",
+    "started_at": "2026-10-11T11:43:53.346035+00:00",
+    "status": "passed",
+    "exit_code": 0,
+    "completed_at": "2026-10-11T11:48:25.960035+00:00",
+    "log": "/workspace/p1-inflight-evidence/full-build.log",
+    "sha256": "4308f00e7ccd145b9580ee58d1703eacada79893b0f317056548b48bd91f76a6"
+  },
+  {
+    "name": "fork-integrity",
+    "command": [
+      "./scripts/check-fork-integrity.sh"
+    ],
+    "cwd": "/workspace/sub2api-p1-inflight",
+    "started_at": "2026-10-11T11:48:25.964650+00:00",
+    "status": "passed",
+    "exit_code": 0,
+    "completed_at": "2026-10-11T11:50:39.116735+00:00",
+    "log": "/workspace/p1-inflight-evidence/fork-integrity.log",
+    "sha256": "8d10fec3b323a3c21e061bed7dbc23abc4500778907996a2e7fb7648a26846d3"
+  },
+  {
+    "name": "tagged-diff-lint",
+    "command": [
+      "golangci-lint",
+      "run",
+      "--build-tags=integration,billing_acceptance",
+      "--new-from-rev=fb2c9747b58ed5d980a36ea6a2316ead2aa03b7e",
+      "./internal/billingacceptance",
+      "./internal/requestledger"
+    ],
+    "cwd": "/workspace/sub2api-p1-inflight/backend",
+    "started_at": "2026-10-11T11:51:58.905867+00:00",
+    "status": "passed",
+    "exit_code": 0,
+    "completed_at": "2026-10-11T11:52:02.753147+00:00",
+    "log": "/workspace/p1-inflight-evidence/tagged-diff-lint.log",
+    "sha256": "e92606b0bf483111dff0a120c315ea165821348f31365020e2468a0059095c47"
+  },
+  {
+    "name": "doc-links",
+    "command": [
+      "node",
+      "scripts/check-doc-links.mjs"
+    ],
+    "cwd": "/workspace/sub2api-p1-inflight",
+    "started_at": "2026-10-11T11:52:02.753607+00:00",
+    "status": "passed",
+    "exit_code": 0,
+    "completed_at": "2026-10-11T11:52:02.868838+00:00",
+    "log": "/workspace/p1-inflight-evidence/doc-links.log",
+    "sha256": "041a45cbd079be7036af94f80dcf8ae62b86df7aa716ef83215582cb3c3ed646"
+  },
+  {
+    "name": "diff-check",
+    "command": [
+      "git",
+      "diff",
+      "--check",
+      "origin/play/main"
+    ],
+    "cwd": "/workspace/sub2api-p1-inflight",
+    "started_at": "2026-10-11T11:52:02.869178+00:00",
+    "status": "passed",
+    "exit_code": 0,
+    "completed_at": "2026-10-11T11:52:02.903162+00:00",
+    "log": "/workspace/p1-inflight-evidence/diff-check.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+]

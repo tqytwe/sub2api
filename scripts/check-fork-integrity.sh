@@ -365,6 +365,7 @@ MIGRATIONS=(
 	  267_public_status_ops_aggregation_watermark.sql
 	 268_play_growth_governance.sql
 	 269_play_membership_manual_contributions.sql
+  280_subscription_inflight_admission.sql
 )
 for migration in "${MIGRATIONS[@]}"; do
   check_file "FORK-MIGRATION-009" "migration $migration" "backend/migrations/$migration"

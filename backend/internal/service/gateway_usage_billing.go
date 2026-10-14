@@ -2,8 +2,8 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
-	"github.com/Wei-Shaw/sub2api/internal/requestledger"
 	"log/slog"
 	"strings"
 	"time"
@@ -12,6 +12,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/timezone"
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
 )
 
 func (s *GatewayService) getUserGroupRateMultiplier(ctx context.Context, userID, groupID int64, groupDefaultMultiplier float64) float64 {
@@ -150,17 +151,18 @@ type usageLogBestEffortWriter interface {
 
 // postUsageBillingParams 统一扣费所需的参数
 type postUsageBillingParams struct {
-	Cost                  *CostBreakdown
-	User                  *User
-	APIKey                *APIKey
-	Account               *Account
-	Subscription          *UserSubscription
-	RequestPayloadHash    string
-	IsSubscriptionBill    bool
-	AccountRateMultiplier float64
-	APIKeyService         APIKeyQuotaUpdater
-	Platform              string // 来自 APIKey 关联 Group 的平台标识
-	Surcharge             BillingSurchargeBreakdown
+	subscriptionUsageWriter subscriptionUsagePersister
+	Cost                    *CostBreakdown
+	User                    *User
+	APIKey                  *APIKey
+	Account                 *Account
+	Subscription            *UserSubscription
+	RequestPayloadHash      string
+	IsSubscriptionBill      bool
+	AccountRateMultiplier   float64
+	APIKeyService           APIKeyQuotaUpdater
+	Platform                string // 来自 APIKey 关联 Group 的平台标识
+	Surcharge               BillingSurchargeBreakdown
 	// SimpleModeKeyRateLimitOnly opts the request into the simple-mode billing
 	// path that records only API-key 5h/1d/7d window usage. It must not trigger
 	// balance, subscription, account, platform, or lifetime-key-quota effects.
@@ -521,6 +523,33 @@ func applyUsageBilling(ctx context.Context, requestID string, usageLog *UsageLog
 		// replaces displayed charges with zero.
 		cmd.Normalize()
 		usageLog.BillingRequestFingerprint = cmd.RequestFingerprint
+	}
+	if receipt := requestledger.CurrentSubscriptionReceipt(billingCtx); receipt != nil {
+		cmd.SubscriptionReceiptID = receipt.ID
+		usage, ok := ctx.Value(subscriptionObservedKey{}).(string)
+		if !ok || !trackSettlement {
+			return false, requestledger.ErrUnavailable
+		}
+		commandJSON, marshalErr := json.Marshal(cmd)
+		if marshalErr != nil {
+			return false, marshalErr
+		}
+		logJSON, marshalErr := json.Marshal(usageLog)
+		if marshalErr != nil {
+			return false, marshalErr
+		}
+		if p.subscriptionUsageWriter == nil {
+			return false, requestledger.ErrUnavailable
+		}
+		if err := p.subscriptionUsageWriter.PersistSubscriptionUsage(billingCtx, requestledger.SubscriptionObservation{Command: string(commandJSON), Usage: usage, Log: string(logJSON)}); err != nil {
+			return false, err
+		}
+		claimed, claimErr := requestledger.ClaimCurrentSubscriptionOutbox(billingCtx)
+		if claimErr != nil {
+			return false, claimErr
+		}
+		billingCtx = claimed
+		defer requestledger.ReleaseSubscriptionOutbox(billingCtx)
 	}
 	result, err := repo.Apply(billingCtx, cmd)
 	if err != nil {

@@ -21,10 +21,13 @@ var ErrImageStudioBillingReconciliationPersistence = errors.New("persist image s
 
 // UsageBillingCommand describes one billable request that must be applied at most once.
 type UsageBillingCommand struct {
-	RequestID          string
-	APIKeyID           int64
-	RequestFingerprint string
-	RequestPayloadHash string
+	// Separate from the unchanged legacy fingerprint; the outbox binds the
+	// complete command, observed usage and immutable per-attempt price.
+	SubscriptionReceiptID string
+	RequestID             string
+	APIKeyID              int64
+	RequestFingerprint    string
+	RequestPayloadHash    string
 
 	UserID                int64
 	AccountID             int64

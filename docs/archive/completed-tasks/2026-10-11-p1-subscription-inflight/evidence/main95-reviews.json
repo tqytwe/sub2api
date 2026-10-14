@@ -1,0 +1,16 @@
+[
+  {
+    "stage": "spec",
+    "agent": "/root/p1_spec_review",
+    "status": "PASS",
+    "source_manifest_sha256": "b1bc35e631f397ff7d64476edb936b4d3b026ae8665b12c75b9eff9b3e6d7f08",
+    "scope": "Main95 composition source preservation and explicit evidence reuse; all34 P1 files and69 incoming main files hash-verified; no P1/P2. Tagged-unit runtime verified separately in gates."
+  },
+  {
+    "stage": "quality",
+    "agent": "/root/p1_quality_review",
+    "status": "PASS",
+    "source_manifest_sha256": "b1bc35e631f397ff7d64476edb936b4d3b026ae8665b12c75b9eff9b3e6d7f08",
+    "scope": "Independent read-only review after spec PASS. All34 P1/69 incoming main files exact; keepalive sole production caller TestAccountConnection. Default account and3 omission-unit logs hash-verified. Tagged-unit/runtime gates separately required."
+  }
+]

@@ -1,0 +1,216 @@
+[
+  {
+    "name": "subscription-main-migration",
+    "command": [
+      "./scripts/test-subscription-counters.sh",
+      "^TestSubscriptionMigration280AfterIdentifier281$",
+      "-race"
+    ],
+    "cwd": "/workspace/sub2api-p1-inflight",
+    "started_at": "2026-10-11T14:46:45.529239+00:00",
+    "status": "passed",
+    "exit_code": 0,
+    "completed_at": "2026-10-11T14:48:15.534251+00:00",
+    "log": "/workspace/p1-inflight-evidence/main16a-gates/subscription-main-migration.log",
+    "sha256": "23771b6e98845915c228883621341b4ee07137cdf9f33cc6fcb0c657e4440b77"
+  },
+  {
+    "name": "subscription-identifier-seam",
+    "command": [
+      "./scripts/test-subscription-counters.sh",
+      "^TestSubscriptionInflightRevoke$/(routing_279_before_receipt_280|active_positive_control|admitted_before_revoke|revoke_between_auth|distinct_private_requests|cancel_after_durable|partial_failed_stream|revocation_stops_actual|revocation_stops_internal)",
+      "-race"
+    ],
+    "cwd": "/workspace/sub2api-p1-inflight",
+    "started_at": "2026-10-11T14:48:15.537300+00:00",
+    "status": "passed",
+    "exit_code": 0,
+    "completed_at": "2026-10-11T14:48:35.259706+00:00",
+    "log": "/workspace/p1-inflight-evidence/main16a-gates/subscription-identifier-seam.log",
+    "sha256": "fe244c34e392ab55c38b0aafcb21888d9301b5325ff3fd4b7bc356d75c252e0c"
+  },
+  {
+    "name": "identifier-routing-image-seam",
+    "command": [
+      "go",
+      "test",
+      "-race",
+      "-tags=integration",
+      "./internal/requestledger",
+      "./internal/requestledger/acceptance",
+      "./internal/service",
+      "./internal/server/routes",
+      "-run",
+      "^(TestLedgerPostgresIdentifierSnapshotWithRoutingFinish|TestRequestLedgerHTTPIdentifierSnapshotsAdminPagingAndFailure|TestRequestLedgerIdentifierAdminRouteProtection|TestRequestLedgerImageIdentifierNamespaces|TestRequestLedgerRoutingHTTPAdminIsolationAndDetailFailure)$",
+      "-count=1",
+      "-timeout=6m",
+      "-json"
+    ],
+    "cwd": "/workspace/sub2api-p1-inflight/backend",
+    "started_at": "2026-10-11T14:48:35.262301+00:00",
+    "status": "passed",
+    "exit_code": 0,
+    "completed_at": "2026-10-11T14:51:06.102912+00:00",
+    "log": "/workspace/p1-inflight-evidence/main16a-gates/identifier-routing-image-seam.log",
+    "sha256": "01c2836c3dcf0ad0ace3e4abe9e38336a8d8a1a4e38f9eddfcdc35cd6d839691"
+  },
+  {
+    "name": "legacy-image-unit",
+    "command": [
+      "go",
+      "test",
+      "-tags=unit",
+      "./internal/service",
+      "-run",
+      "TestOpenAIResponsesTerminalImageExpenseStopsReplay|TestOpenAIPassthroughRetainsMeteredFailureWithoutRetry|TestOpenAINativeResponsesRetainsMeteredFailureWithoutRetry|TestParseOpenAIImagesSSEUsageBytes|TestParseSSEUsage|TestOpenAI.*Usage",
+      "-count=1"
+    ],
+    "cwd": "/workspace/sub2api-p1-inflight/backend",
+    "started_at": "2026-10-11T14:51:06.105984+00:00",
+    "status": "passed",
+    "exit_code": 0,
+    "completed_at": "2026-10-11T14:52:41.602154+00:00",
+    "log": "/workspace/p1-inflight-evidence/main16a-gates/legacy-image-unit.log",
+    "sha256": "8c6197a2cdcb1f76e88fa6646e725e8a95424cea7983a6c1d6bbb8d31360f05a"
+  },
+  {
+    "name": "frontend-targeted",
+    "command": [
+      "pnpm",
+      "--dir",
+      "frontend",
+      "exec",
+      "vitest",
+      "run",
+      "src/api/__tests__/requestRouting.spec.ts",
+      "src/api/__tests__/requestLedger.spec.ts",
+      "src/views/shared/__tests__/RequestLedgerView.spec.ts",
+      "src/views/shared/__tests__/RequestLedgerView.session.http.spec.ts",
+      "src/views/shared/__tests__/RequestLedgerView.routing.http.spec.ts"
+    ],
+    "cwd": "/workspace/sub2api-p1-inflight",
+    "started_at": "2026-10-11T14:52:41.610915+00:00",
+    "status": "passed",
+    "exit_code": 0,
+    "completed_at": "2026-10-11T14:53:05.693937+00:00",
+    "log": "/workspace/p1-inflight-evidence/main16a-gates/frontend-targeted.log",
+    "sha256": "d8773dc0bb91abc5f2b2258ac0aec38845e97e32473996a53b2ad8d5cf0c0380"
+  },
+  {
+    "name": "frontend-lint",
+    "command": [
+      "pnpm",
+      "--dir",
+      "frontend",
+      "run",
+      "lint:check"
+    ],
+    "cwd": "/workspace/sub2api-p1-inflight",
+    "started_at": "2026-10-11T14:53:05.694792+00:00",
+    "status": "passed",
+    "exit_code": 0,
+    "completed_at": "2026-10-11T14:53:40.274696+00:00",
+    "log": "/workspace/p1-inflight-evidence/main16a-gates/frontend-lint.log",
+    "sha256": "7939c6c4dbac21060481c0e50117bb5e4316548e9dbc63aad832810c890af723"
+  },
+  {
+    "name": "frontend-types",
+    "command": [
+      "pnpm",
+      "--dir",
+      "frontend",
+      "run",
+      "typecheck"
+    ],
+    "cwd": "/workspace/sub2api-p1-inflight",
+    "started_at": "2026-10-11T14:53:40.275360+00:00",
+    "status": "passed",
+    "exit_code": 0,
+    "completed_at": "2026-10-11T14:54:24.601798+00:00",
+    "log": "/workspace/p1-inflight-evidence/main16a-gates/frontend-types.log",
+    "sha256": "bf5206907d186ddcbed1fa3f2bc2de63e7c8b72fba1e444b29950264a29cc79b"
+  },
+  {
+    "name": "full-build",
+    "command": [
+      "make",
+      "-j2",
+      "build"
+    ],
+    "cwd": "/workspace/sub2api-p1-inflight",
+    "started_at": "2026-10-11T14:54:24.603898+00:00",
+    "status": "passed",
+    "exit_code": 0,
+    "completed_at": "2026-10-11T14:56:42.659605+00:00",
+    "log": "/workspace/p1-inflight-evidence/main16a-gates/full-build.log",
+    "sha256": "48c507f52e975aeccfe4b313aab622ddac6e8f1a3d710d1a4d14c3de11c27cc6"
+  },
+  {
+    "name": "incoming-fixture-compile",
+    "command": [
+      "go",
+      "test",
+      "-tags=integration",
+      "./internal/requestledger/acceptance",
+      "-run",
+      "^TestRoutingUIRealPGFixture363$",
+      "-count=1",
+      "-v"
+    ],
+    "cwd": "/workspace/sub2api-p1-inflight/backend",
+    "started_at": "2026-10-11T14:56:42.663656+00:00",
+    "status": "passed",
+    "exit_code": 0,
+    "completed_at": "2026-10-11T14:57:25.293440+00:00",
+    "log": "/workspace/p1-inflight-evidence/main16a-gates/incoming-fixture-compile.log",
+    "sha256": "3c7ed125c58b099c3218b325648e23d12a5f9a8bf49c02bb9016f243626738fd"
+  },
+  {
+    "name": "tagged-diff-lint",
+    "command": [
+      "golangci-lint",
+      "run",
+      "--build-tags=integration,billing_acceptance",
+      "--new-from-rev=16a11abd29b1f37f3be28820b948f2d8400e4e70",
+      "./internal/billingacceptance",
+      "./internal/requestledger"
+    ],
+    "cwd": "/workspace/sub2api-p1-inflight/backend",
+    "started_at": "2026-10-11T14:57:25.294102+00:00",
+    "status": "passed",
+    "exit_code": 0,
+    "completed_at": "2026-10-11T14:57:37.882484+00:00",
+    "log": "/workspace/p1-inflight-evidence/main16a-gates/tagged-diff-lint.log",
+    "sha256": "e92606b0bf483111dff0a120c315ea165821348f31365020e2468a0059095c47"
+  },
+  {
+    "name": "doc-links",
+    "command": [
+      "node",
+      "scripts/check-doc-links.mjs"
+    ],
+    "cwd": "/workspace/sub2api-p1-inflight",
+    "started_at": "2026-10-11T14:57:37.883602+00:00",
+    "status": "passed",
+    "exit_code": 0,
+    "completed_at": "2026-10-11T14:57:38.048887+00:00",
+    "log": "/workspace/p1-inflight-evidence/main16a-gates/doc-links.log",
+    "sha256": "1060096f6c0aa1b77bb2ecb2598bbd0fc294f2f64cc64b38720558217a81ba58"
+  },
+  {
+    "name": "diff-check",
+    "command": [
+      "git",
+      "diff",
+      "--check",
+      "16a11abd29b1f37f3be28820b948f2d8400e4e70"
+    ],
+    "cwd": "/workspace/sub2api-p1-inflight",
+    "started_at": "2026-10-11T14:57:38.049492+00:00",
+    "status": "passed",
+    "exit_code": 0,
+    "completed_at": "2026-10-11T14:57:38.100902+00:00",
+    "log": "/workspace/p1-inflight-evidence/main16a-gates/diff-check.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+]

@@ -6,12 +6,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/Wei-Shaw/sub2api/internal/requestledger"
 	"strings"
 	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/Wei-Shaw/sub2api/internal/util/logredact"
 )
@@ -48,6 +48,9 @@ func NewUsageBillingRepositoryWithLedger(_ *dbent.Client, sqlDB *sql.DB, balance
 func (r *usageBillingRepository) Apply(ctx context.Context, cmd *service.UsageBillingCommand) (*service.UsageBillingApplyResult, error) {
 	if cmd != nil {
 		cmd.Normalize()
+		if receipt := requestledger.CurrentSubscriptionReceipt(ctx); receipt != nil && cmd.SubscriptionReceiptID != receipt.ID {
+			return nil, service.ErrUsageBillingOwnershipMismatch
+		}
 	}
 	if cmd != nil {
 		if err := requestledger.PrepareBilling(ctx, ledgerBillingIntent(cmd)); err != nil {
@@ -105,7 +108,7 @@ func (r *usageBillingRepository) applyUsageBillingTransaction(ctx context.Contex
 	} else if cmd.BalanceCost > 0 || cmd.SubscriptionCost > 0 {
 		return nil, service.ErrUsageBillingOwnershipMismatch
 	}
-	if cmd.SubscriptionCost > 0 && cmd.PackageEntitlementID == nil {
+	if cmd.SubscriptionCost > 0 && cmd.PackageEntitlementID == nil && cmd.SubscriptionReceiptID == "" {
 		if cmd.SubscriptionID == nil || *cmd.SubscriptionID <= 0 {
 			return nil, service.ErrUsageBillingOwnershipMismatch
 		}
@@ -117,7 +120,14 @@ func (r *usageBillingRepository) applyUsageBillingTransaction(ctx context.Contex
 	if err != nil {
 		return nil, err
 	}
-	if cmd.PackageEntitlementID != nil {
+	proof, err := validateSubscriptionSettlement(ctx, tx, cmd, applied)
+	if err != nil {
+		return nil, err
+	}
+	if proof != nil {
+		ctx = context.WithValue(ctx, subscriptionSettlementKey{}, proof)
+	}
+	if cmd.PackageEntitlementID != nil && proof == nil {
 		// A claim is still uncommitted here. Check ownership for new charges AND
 		// exact replays; invalid claims roll back. Lock only after the claim so a
 		// duplicate cannot block its first settlement while waiting on dedup.
@@ -128,6 +138,9 @@ func (r *usageBillingRepository) applyUsageBillingTransaction(ctx context.Contex
 	if !applied {
 		if requestledger.FromContext(ctx) != nil {
 			if err := requestledger.VerifyBillingTx(ctx, tx, ledgerBillingIntent(cmd), applied); err != nil {
+				return nil, err
+			}
+			if err := finishSubscriptionSettlement(ctx, tx, proof); err != nil {
 				return nil, err
 			}
 			if err := tx.Commit(); err != nil {
@@ -143,6 +156,9 @@ func (r *usageBillingRepository) applyUsageBillingTransaction(ctx context.Contex
 		return nil, err
 	}
 	if err := requestledger.VerifyBillingTx(ctx, tx, ledgerBillingIntent(cmd), applied); err != nil {
+		return nil, err
+	}
+	if err := finishSubscriptionSettlement(ctx, tx, proof); err != nil {
 		return nil, err
 	}
 
@@ -670,13 +686,26 @@ func lockBalanceHoldClaim(ctx context.Context, tx *sql.Tx, cmd *service.BatchIma
 }
 
 func (r *usageBillingRepository) applyUsageBillingEffects(ctx context.Context, tx *sql.Tx, cmd *service.UsageBillingCommand, result *service.UsageBillingApplyResult) error {
+	proof, _ := ctx.Value(subscriptionSettlementKey{}).(*subscriptionSettlementProof)
 	if cmd.PackageEntitlementID != nil {
-		if err := incrementPackageEntitlementUsage(ctx, tx, *cmd.PackageEntitlementID, cmd.UserID, cmd.BilledCost, packageEntitlementTokenCount(cmd)); err != nil {
+		var err error
+		if proof != nil && proof.revoked {
+			err = incrementRevokedEntitlement(ctx, tx, cmd)
+		} else {
+			err = incrementPackageEntitlementUsage(ctx, tx, *cmd.PackageEntitlementID, cmd.UserID, cmd.BilledCost, packageEntitlementTokenCount(cmd))
+		}
+		if err != nil {
 			return err
 		}
 	}
 	if cmd.SubscriptionCost > 0 && cmd.SubscriptionID != nil {
-		if err := incrementUsageBillingSubscription(ctx, tx, *cmd.SubscriptionID, cmd.UserID, cmd.SubscriptionCost); err != nil {
+		var err error
+		if proof != nil {
+			err = incrementAdmittedSubscription(ctx, tx, cmd)
+		} else {
+			err = incrementUsageBillingSubscription(ctx, tx, *cmd.SubscriptionID, cmd.UserID, cmd.SubscriptionCost)
+		}
+		if err != nil {
 			return err
 		}
 	}

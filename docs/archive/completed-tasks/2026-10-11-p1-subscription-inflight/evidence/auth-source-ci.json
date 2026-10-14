@@ -1,0 +1,69 @@
+{
+  "headRefOid": "df28f49d0c3c355a622cc753055f4b63da4e3e9e",
+  "mergeCommit": {
+    "oid": "6ae024e6b732b64b2ce6f7ba56c5be4e20b88bdb"
+  },
+  "statusCheckRollup": [
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-11T11:11:29Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/tqytwe/sub2api/actions/runs/38134631910/job/114455879589",
+      "name": "Release source policy",
+      "startedAt": "2026-10-11T11:11:10Z",
+      "status": "COMPLETED",
+      "workflowName": "Fork Integrity"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-11T11:11:53Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/tqytwe/sub2api/actions/runs/38134631969/job/114455879857",
+      "name": "backend-security",
+      "startedAt": "2026-10-11T11:11:10Z",
+      "status": "COMPLETED",
+      "workflowName": "Security Scan"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-11T11:26:37Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/tqytwe/sub2api/actions/runs/38134631910/job/114455879771",
+      "name": "Protected behavior",
+      "startedAt": "2026-10-11T11:11:09Z",
+      "status": "COMPLETED",
+      "workflowName": "Fork Integrity"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-11T11:11:40Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/tqytwe/sub2api/actions/runs/38134631969/job/114455879672",
+      "name": "frontend-security",
+      "startedAt": "2026-10-11T11:11:09Z",
+      "status": "COMPLETED",
+      "workflowName": "Security Scan"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-11T11:15:16Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/tqytwe/sub2api/actions/runs/38134631910/job/114455879740",
+      "name": "Check-in PostgreSQL HTTP and frontend contract",
+      "startedAt": "2026-10-11T11:11:10Z",
+      "status": "COMPLETED",
+      "workflowName": "Fork Integrity"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-11T11:11:24Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/tqytwe/sub2api/actions/runs/38134631910/job/114455879721",
+      "name": "Documentation",
+      "startedAt": "2026-10-11T11:11:10Z",
+      "status": "COMPLETED",
+      "workflowName": "Fork Integrity"
+    }
+  ],
+  "url": "https://github.com/tqytwe/sub2api/pull/362"
+}

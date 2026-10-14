@@ -1,0 +1,53 @@
+[
+  {
+    "name": "TestSubscriptionCounterHTTP",
+    "command": [
+      "./scripts/test-subscription-counters.sh",
+      "^TestSubscriptionCounterHTTP$",
+      "-race"
+    ],
+    "started_at": "2026-10-11T13:22:03.310816+00:00",
+    "exit_code": 0,
+    "leaf_pass": 42,
+    "expected_leaf": 42,
+    "migrations": 407,
+    "race": true,
+    "log": "final-TestSubscriptionCounterHTTP.log",
+    "sha256": "143fbf4838a4bfb431259e97855b1a9cb7b4f0d9ad73f33431e081b0d9950ffa",
+    "passed": true
+  },
+  {
+    "name": "TestSubscriptionEntitlementBindingReproduction",
+    "command": [
+      "./scripts/test-subscription-counters.sh",
+      "^TestSubscriptionEntitlementBindingReproduction$",
+      "-race"
+    ],
+    "started_at": "2026-10-11T13:22:41.095511+00:00",
+    "exit_code": 0,
+    "leaf_pass": 4,
+    "expected_leaf": 4,
+    "migrations": 407,
+    "race": true,
+    "log": "final-TestSubscriptionEntitlementBindingReproduction.log",
+    "sha256": "97d856bc6b0d11c8baa77ecf13ae3c8a5cc890eaffb9da4a449ca840896ecc40",
+    "passed": true
+  },
+  {
+    "name": "TestSubscriptionBindingCompatibility",
+    "command": [
+      "./scripts/test-subscription-counters.sh",
+      "^TestSubscriptionBindingCompatibility$",
+      "-race"
+    ],
+    "started_at": "2026-10-11T13:22:58.745840+00:00",
+    "exit_code": 0,
+    "leaf_pass": 36,
+    "expected_leaf": 36,
+    "migrations": 407,
+    "race": true,
+    "log": "final-TestSubscriptionBindingCompatibility.log",
+    "sha256": "915140bd86aaaa2a753ac6e80f8885684e75496c2a243fff871f26614a0da34e",
+    "passed": true
+  }
+]

@@ -1,0 +1,66 @@
+[
+  {
+    "log": "inflight-contract-reviewed-red.log",
+    "artifact": "inflight-contract-reviewed-red.log.gz",
+    "raw_sha256": "aa505645a321b5faf2bfee837803a0b83884d2418dfb36453bf3535ffd343f61",
+    "gzip_sha256": "f1f723dba4591684ca8b567123a52324081f078d9c6163eb882eddb58c14b76e",
+    "raw_bytes": 44500,
+    "gzip_bytes": 2179
+  },
+  {
+    "log": "compact-stats-reviewed-red.log",
+    "artifact": "compact-stats-reviewed-red.log.gz",
+    "raw_sha256": "d145b99e703f7f5af8d7519357c5ecce2c7b3d6b1ec08a74097282d0dba9a7a6",
+    "gzip_sha256": "b4262609b87246c30f7b1d186b5c90e411389ea7e2e5ec4bfe15427c8d39baf6",
+    "raw_bytes": 2236,
+    "gzip_bytes": 746
+  },
+  {
+    "log": "inflight-reviewed-green.log",
+    "artifact": "inflight-reviewed-green.log.gz",
+    "raw_sha256": "2acf8b98b2b200ab23796277f3a4c360d3b63d334e035148238d9fe116ec2c7d",
+    "gzip_sha256": "a79a8d4f816acff968389757f177a8df806b4f21860bb93bf46382c94559fb00",
+    "raw_bytes": 71154,
+    "gzip_bytes": 3028
+  },
+  {
+    "log": "counter-combination.log",
+    "artifact": "counter-combination.log.gz",
+    "raw_sha256": "2f4fe52d67dc8b9307c45e0f49adbc5af9b25ff0953d89759a18755d61a92a2f",
+    "gzip_sha256": "f89e72b13e66d9c3b7a1a419fb2cd41c6b7ee7b6e8cc64d6387f04cb16aaa78c",
+    "raw_bytes": 49010,
+    "gzip_bytes": 2734
+  },
+  {
+    "log": "binding-reproduction.log",
+    "artifact": "binding-reproduction.log.gz",
+    "raw_sha256": "bab791770d4857b457afe4795e926bd04c7b72b8a95dc8e63d63f34555d527f9",
+    "gzip_sha256": "cc3047f278a11d41985dbdf785743fb9b50322ae8d8140bac1fc91fdd7ef38ed",
+    "raw_bytes": 6502,
+    "gzip_bytes": 1154
+  },
+  {
+    "log": "binding-compatibility.log",
+    "artifact": "binding-compatibility.log.gz",
+    "raw_sha256": "7bd76b30a979c61fee0a73821b4a0c60041a1531c51764586672396be81f7264",
+    "gzip_sha256": "090a1326dff28e7090b22497e2c769eb66691fe7f31698bfc86aa57f9c1b0aa4",
+    "raw_bytes": 32117,
+    "gzip_bytes": 1426
+  },
+  {
+    "log": "auth-combination.log",
+    "artifact": "auth-combination.log.gz",
+    "raw_sha256": "6ef07744a354da9a50249da6e3f2c5f11411b1f7fe67f9048cb8437029d35573",
+    "gzip_sha256": "f9db24e4df0f30e7a07efd056da543abea2b7e22869a1db4bca518f834c93b66",
+    "raw_bytes": 9147,
+    "gzip_bytes": 1290
+  },
+  {
+    "log": "inflight-commit-green.log",
+    "artifact": "inflight-commit-green.log.gz",
+    "raw_sha256": "ac396fa68b8c4b49b1550d866bfd4699ec1af03878b319896481f1027cb9d33b",
+    "gzip_sha256": "8cbf12114a36f22026e0b32de602d8f408db172198e25f882ce20630b95096d0",
+    "raw_bytes": 71076,
+    "gzip_bytes": 2995
+  }
+]

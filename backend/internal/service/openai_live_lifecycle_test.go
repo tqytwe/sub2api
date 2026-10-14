@@ -863,6 +863,13 @@ func TestFinalizeLiveCallRetriesBillingBeforeReleasingLease(t *testing.T) {
 	billingRepo.mu.Lock()
 	require.Equal(t, 2, billingRepo.calls)
 	billingRepo.mu.Unlock()
+	// Apply signals success before RecordUsage returns and the retry goroutine
+	// releases the lease. Wait for that completion, not the earlier signal.
+	require.Eventually(t, func() bool {
+		concurrencyCache.mu.Lock()
+		defer concurrencyCache.mu.Unlock()
+		return concurrencyCache.releases == 1
+	}, time.Second, time.Millisecond)
 	concurrencyCache.mu.Lock()
 	require.Equal(t, 1, concurrencyCache.releases)
 	concurrencyCache.mu.Unlock()

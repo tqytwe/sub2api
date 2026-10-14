@@ -237,6 +237,18 @@ type OpenAIUsage struct {
 	CacheReadInputTokens          int `json:"cache_read_input_tokens,omitempty"`
 	CacheReadInputAudioTokens     int `json:"cache_read_input_audio_tokens,omitempty"`
 	ImageOutputTokens             int `json:"image_output_tokens,omitempty"`
+	// Observed HTTP output outside text admission. These are evidence only;
+	// existing media/search pricing continues to use its original billing fields.
+	UnpricedOutputUsage *OpenAIUnpricedOutputUsage `json:"unpriced_output_usage,omitempty"`
+}
+
+type OpenAIUnpricedOutputUsage struct {
+	InputAudioTokens         int      `json:"input_audio_tokens,omitempty"`
+	OutputAudioTokens        int      `json:"output_audio_tokens,omitempty"`
+	CacheReadAudioTokens     int      `json:"cache_read_audio_tokens,omitempty"`
+	CacheCreationAudioTokens int      `json:"cache_creation_audio_tokens,omitempty"`
+	SearchCalls              int      `json:"search_calls,omitempty"`
+	OutputTypes              []string `json:"output_types,omitempty"`
 }
 
 // OpenAIForwardResult represents the result of forwarding
@@ -448,34 +460,35 @@ var ErrNoAvailableCompactAccounts = errors.New("no available accounts support /r
 type OpenAIGatewayService struct {
 	// Set only by production constructors. Legacy direct-struct test fixtures may
 	// exercise supplied account state; the exported admission API stays strict.
-	requireLatestTurnAdmission bool
-	starframeVideos            StarframeVideoRepository
-	accountRepo                AccountRepository
-	usageLogRepo               UsageLogRepository
-	usageBillingRepo           UsageBillingRepository
-	userRepo                   UserRepository
-	userSubRepo                UserSubscriptionRepository
-	cache                      GatewayCache
-	cfg                        *config.Config
-	codexDetector              CodexClientRestrictionDetector
-	schedulerSnapshot          *SchedulerSnapshotService
-	concurrencyService         *ConcurrencyService
-	billingService             *BillingService
-	rateLimitService           *RateLimitService
-	billingCacheService        *BillingCacheService
-	userGroupRateResolver      *userGroupRateResolver
-	httpUpstream               HTTPUpstream
-	pluginManager              *PluginManager
-	deferredService            *DeferredService
-	openAITokenProvider        *OpenAITokenProvider
-	grokTokenProvider          *GrokTokenProvider
-	toolCorrector              *CodexToolCorrector
-	openaiWSResolver           OpenAIWSProtocolResolver
-	resolver                   *ModelPricingResolver
-	channelService             *ChannelService
-	balanceNotifyService       *BalanceNotifyService
-	settingService             *SettingService
-	userPlatformQuotaRepo      UserPlatformQuotaRepository
+	requireLatestTurnAdmission   bool
+	starframeVideos              StarframeVideoRepository
+	accountRepo                  AccountRepository
+	usageLogRepo                 UsageLogRepository
+	usageBillingRepo             UsageBillingRepository
+	userRepo                     UserRepository
+	userSubRepo                  UserSubscriptionRepository
+	cache                        GatewayCache
+	cfg                          *config.Config
+	codexDetector                CodexClientRestrictionDetector
+	schedulerSnapshot            *SchedulerSnapshotService
+	concurrencyService           *ConcurrencyService
+	billingService               *BillingService
+	rateLimitService             *RateLimitService
+	billingCacheService          *BillingCacheService
+	userGroupRateResolver        *userGroupRateResolver
+	subscriptionSettlementWorker *subscriptionSettlementWorker
+	httpUpstream                 HTTPUpstream
+	pluginManager                *PluginManager
+	deferredService              *DeferredService
+	openAITokenProvider          *OpenAITokenProvider
+	grokTokenProvider            *GrokTokenProvider
+	toolCorrector                *CodexToolCorrector
+	openaiWSResolver             OpenAIWSProtocolResolver
+	resolver                     *ModelPricingResolver
+	channelService               *ChannelService
+	balanceNotifyService         *BalanceNotifyService
+	settingService               *SettingService
+	userPlatformQuotaRepo        UserPlatformQuotaRepository
 	// Live settles asynchronously after the sideband ends. Reuse the existing
 	// API key service for both authoritative ownership lookup and quota updates.
 	requestLedger          *requestledger.Ledger
@@ -661,6 +674,7 @@ func NewOpenAIGatewayServiceWithLiveBilling(
 		userPlatformQuotaRepo,
 	)
 	svc.requestLedger = requestLedger
+	svc.subscriptionSettlementWorker = startSubscriptionSettlementWorker(usageBillingRepo)
 	svc.SetLiveBillingAPIKeyService(apiKeyService)
 	svc.SetLiveSettlementOutbox(liveSettlementOutbox)
 	svc.starframeVideos = starframeVideos
@@ -701,6 +715,9 @@ func (s *OpenAIGatewayService) SetLiveSettlementOutbox(outbox LiveSettlementOutb
 }
 
 func (s *OpenAIGatewayService) StopLiveSettlementWorker() {
+	if s != nil {
+		s.subscriptionSettlementWorker.Stop()
+	}
 	if s != nil && s.liveSettlementWorker != nil {
 		s.liveSettlementWorker.Stop()
 	}

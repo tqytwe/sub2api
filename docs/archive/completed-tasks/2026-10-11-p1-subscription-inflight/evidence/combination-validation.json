@@ -1,0 +1,30 @@
+[
+  {
+    "name": "inflight-combination",
+    "command": [
+      "./scripts/test-subscription-counters.sh",
+      "^TestSubscriptionInflightRevoke$",
+      "-race"
+    ],
+    "started_at": "2026-10-11T11:03:41.169714+00:00",
+    "finished_at": "2026-10-11T11:05:51.047338+00:00",
+    "exit_code": 0,
+    "expected_exit_code": 0,
+    "log": "/workspace/p1-inflight-evidence/inflight-combination.log",
+    "sha256": "a3f175df2832cef9e35b0b017918ffa016c8f116cbdab903edbedd07076094bd"
+  },
+  {
+    "name": "counter-combination",
+    "command": [
+      "./scripts/test-subscription-counters.sh",
+      "^TestSubscriptionCounterHTTP$",
+      "-race"
+    ],
+    "started_at": "2026-10-11T11:05:51.062920+00:00",
+    "finished_at": "2026-10-11T11:06:31.494878+00:00",
+    "exit_code": 0,
+    "expected_exit_code": 0,
+    "log": "/workspace/p1-inflight-evidence/counter-combination.log",
+    "sha256": "2f4fe52d67dc8b9307c45e0f49adbc5af9b25ff0953d89759a18755d61a92a2f"
+  }
+]

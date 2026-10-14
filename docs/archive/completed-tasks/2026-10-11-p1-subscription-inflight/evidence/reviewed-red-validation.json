@@ -1,0 +1,16 @@
+[
+  {
+    "name": "inflight-contract-reviewed-red",
+    "command": [
+      "./scripts/test-subscription-counters.sh",
+      "^TestSubscriptionInflightRevoke$",
+      "-race"
+    ],
+    "started_at": "2026-10-11T10:16:01.494553+00:00",
+    "finished_at": "2026-10-11T10:16:19.199694+00:00",
+    "exit_code": 1,
+    "expected_exit_code": 1,
+    "log": "/workspace/p1-inflight-evidence/inflight-contract-reviewed-red.log",
+    "sha256": "aa505645a321b5faf2bfee837803a0b83884d2418dfb36453bf3535ffd343f61"
+  }
+]

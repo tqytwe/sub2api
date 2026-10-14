@@ -1,0 +1,16 @@
+[
+  {
+    "name": "inflight-reviewed-green",
+    "command": [
+      "./scripts/test-subscription-counters.sh",
+      "^TestSubscriptionInflightRevoke$",
+      "-race"
+    ],
+    "started_at": "2026-10-11T11:19:01.401849+00:00",
+    "finished_at": "2026-10-11T11:19:32.126899+00:00",
+    "exit_code": 0,
+    "expected_exit_code": 0,
+    "log": "/workspace/p1-inflight-evidence/inflight-reviewed-green.log",
+    "sha256": "2acf8b98b2b200ab23796277f3a4c360d3b63d334e035148238d9fe116ec2c7d"
+  }
+]

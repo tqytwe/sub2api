@@ -66,6 +66,7 @@ func TestExtendSubscriptionAlignsSinglePackageEntitlementWithoutResettingQuota(t
 	service, mock := newSubscriptionTermEntitlementTestService(t, repo, now)
 
 	mock.ExpectBegin()
+	expectSubscriptionLifecycle(mock, 137, 451, 63, "extend")
 	expectPackageEntitlementsForTermUpdate(mock, 451, 63, sqlmock.NewRows(packageEntitlementTermColumns).
 		AddRow(14, 787, PackageEntitlementSourcePayment, nil, 22, 451, 63, now, oldExpiry, PackageEntitlementActive, "", nil, 0, amountLimit, 140.16, nil, 0))
 	expectPackageEntitlementExpiryUpdate(mock, 14, newExpiry, PackageEntitlementActive, "")
@@ -88,6 +89,7 @@ func TestExtendSubscriptionOnlyExtendsTerminalQueuedEntitlement(t *testing.T) {
 	service, mock := newSubscriptionTermEntitlementTestService(t, repo, now)
 
 	mock.ExpectBegin()
+	expectSubscriptionLifecycle(mock, 200, 88, 11, "extend")
 	expectPackageEntitlementsForTermUpdate(mock, 88, 11, sqlmock.NewRows(packageEntitlementTermColumns).
 		AddRow(21, 901, PackageEntitlementSourcePayment, nil, 2, 88, 11, now, firstExpiry, PackageEntitlementActive, "", nil, 0, 3000.0, 100.0, nil, 0).
 		AddRow(22, 902, PackageEntitlementSourcePayment, nil, 2, 88, 11, now, oldExpiry, PackageEntitlementActive, "", nil, 0, 3000.0, 0.0, nil, 0))
@@ -110,6 +112,7 @@ func TestShortenSubscriptionClampsEveryEntitlementPastNewEnd(t *testing.T) {
 	service, mock := newSubscriptionTermEntitlementTestService(t, repo, now)
 
 	mock.ExpectBegin()
+	expectSubscriptionLifecycle(mock, 201, 89, 12, "extend")
 	expectPackageEntitlementsForTermUpdate(mock, 89, 12, sqlmock.NewRows(packageEntitlementTermColumns).
 		AddRow(31, 911, PackageEntitlementSourcePayment, nil, 3, 89, 12, now, now.AddDate(0, 0, 60), PackageEntitlementActive, "", nil, 0, 3000.0, 100.0, nil, 0).
 		AddRow(32, 912, PackageEntitlementSourcePayment, nil, 3, 89, 12, now, oldExpiry, PackageEntitlementActive, "", nil, 0, 3000.0, 0.0, nil, 0))
@@ -134,6 +137,7 @@ func TestExtendSubscriptionRollsBackWhenPackageEntitlementUpdateFails(t *testing
 	service, mock := newSubscriptionTermEntitlementTestService(t, repo, now)
 
 	mock.ExpectBegin()
+	expectSubscriptionLifecycle(mock, 137, 451, 63, "extend")
 	expectPackageEntitlementsForTermUpdate(mock, 451, 63, sqlmock.NewRows(packageEntitlementTermColumns).
 		AddRow(14, 787, PackageEntitlementSourcePayment, nil, 22, 451, 63, now, oldExpiry, PackageEntitlementActive, "", nil, 0, 2000.0, 140.16, nil, 0))
 	mock.ExpectExec(regexp.QuoteMeta("UPDATE subscription_package_entitlements")).
@@ -157,6 +161,7 @@ func TestExtendExpiredSubscriptionReactivatesRemainingPackageQuota(t *testing.T)
 	service, mock := newSubscriptionTermEntitlementTestService(t, repo, now)
 
 	mock.ExpectBegin()
+	expectSubscriptionLifecycle(mock, 300, 90, 13, "extend")
 	expectPackageEntitlementsForTermUpdate(mock, 90, 13, sqlmock.NewRows(packageEntitlementTermColumns).
 		AddRow(41, 921, PackageEntitlementSourcePayment, nil, 4, 90, 13, now.AddDate(0, 0, -30), oldExpiry, PackageEntitlementExpired, "", nil, 0, 3000.0, 100.0, nil, 0))
 	expectPackageEntitlementExpiryUpdate(mock, 41, newExpiry, PackageEntitlementActive, "")
@@ -180,6 +185,7 @@ func TestExtendSubscriptionKeepsExhaustedPackageExhausted(t *testing.T) {
 	service, mock := newSubscriptionTermEntitlementTestService(t, repo, now)
 
 	mock.ExpectBegin()
+	expectSubscriptionLifecycle(mock, 302, 92, 15, "extend")
 	expectPackageEntitlementsForTermUpdate(mock, 92, 15, sqlmock.NewRows(packageEntitlementTermColumns).
 		AddRow(42, 922, PackageEntitlementSourcePayment, nil, 6, 92, 15, now, oldExpiry, PackageEntitlementExhausted, PackageExhaustedByRequest, requestLimit, requestLimit, nil, 0, nil, 0))
 	expectPackageEntitlementExpiryUpdate(mock, 42, newExpiry, PackageEntitlementExhausted, PackageExhaustedByRequest)
