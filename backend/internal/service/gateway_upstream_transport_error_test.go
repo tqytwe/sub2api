@@ -203,3 +203,122 @@ func TestHandleUpstreamTransportError_UpstreamDeadlineStillFailsOver(t *testing.
 		t.Fatalf("SetTempUnschedulable called %d times for upstream deadline, want 0", repo.calls)
 	}
 }
+
+// --- P3-2 transport-retry (v2.10.5 port, adapted to fork pool helpers) ---
+// Upstream contract: a direct pool-mode account that opted in by listing 503
+// in pool_mode_retry_status_codes treats a transport failure like an upstream
+// 503 — same-account retry with request-scoped backoff, no temp-unschedule.
+// Accounts behind a proxy and accounts that did not opt in keep the existing
+// eviction behavior.
+
+// TestHandleUpstreamTransportError_PoolMode503OptInSkipsEviction pins the
+// opt-in contract: pool mode + no proxy + 503 listed => 503 failover marked
+// retryable-on-same-account and request-scoped-transient, zero eviction calls.
+func TestHandleUpstreamTransportError_PoolMode503OptInSkipsEviction(t *testing.T) {
+	repo := &transportTempUnschedRepoStub{}
+	s := &GatewayService{accountRepo: repo}
+	c := newTransportErrorTestGin(t)
+	account := &Account{
+		ID:       149,
+		Name:     "acc",
+		Platform: PlatformAnthropic,
+		Type:     AccountTypeAPIKey,
+		Credentials: map[string]any{
+			"pool_mode":                    true,
+			"pool_mode_retry_status_codes": []any{float64(401), float64(403), float64(429), float64(503)},
+		},
+	}
+
+	err := s.handleUpstreamTransportError(context.Background(), c, account,
+		errors.New(`dial tcp 1.2.3.4:443: connect: connection refused`), OpsUpstreamErrorEvent{})
+
+	var failoverErr *UpstreamFailoverError
+	if !errors.As(err, &failoverErr) {
+		t.Fatalf("expected *UpstreamFailoverError, got %T: %v", err, err)
+	}
+	if failoverErr.StatusCode != http.StatusServiceUnavailable {
+		t.Fatalf("StatusCode = %d, want 503 for opted-in pool mode", failoverErr.StatusCode)
+	}
+	if !failoverErr.RetryableOnSameAccount {
+		t.Fatal("opted-in pool transport error must be retryable on the same account")
+	}
+	if !failoverErr.RequestScopedTransient {
+		t.Fatal("opted-in pool transport error must not trigger account eviction downstream")
+	}
+	if string(failoverErr.ResponseBody) != string(gatewayTransportFailoverBody) {
+		t.Fatalf("ResponseBody = %s, want legacy failover body", failoverErr.ResponseBody)
+	}
+	if repo.calls != 0 {
+		t.Fatalf("SetTempUnschedulable called %d times for opted-in pool mode, want 0", repo.calls)
+	}
+}
+
+// TestHandleUpstreamTransportError_PoolModeWithoutOptInKeepsEviction pins that
+// the default retry list (no 503) keeps the durable-fault eviction behavior.
+func TestHandleUpstreamTransportError_PoolModeWithoutOptInKeepsEviction(t *testing.T) {
+	repo := &transportTempUnschedRepoStub{}
+	s := &GatewayService{accountRepo: repo}
+	c := newTransportErrorTestGin(t)
+	account := &Account{
+		ID:       149,
+		Name:     "acc",
+		Platform: PlatformAnthropic,
+		Type:     AccountTypeAPIKey,
+		Credentials: map[string]any{
+			"pool_mode": true,
+		},
+	}
+
+	err := s.handleUpstreamTransportError(context.Background(), c, account,
+		errors.New(`dial tcp 1.2.3.4:443: connect: connection refused`), OpsUpstreamErrorEvent{})
+
+	var failoverErr *UpstreamFailoverError
+	if !errors.As(err, &failoverErr) {
+		t.Fatalf("expected *UpstreamFailoverError, got %T: %v", err, err)
+	}
+	if failoverErr.StatusCode != http.StatusBadGateway {
+		t.Fatalf("StatusCode = %d, want legacy 502 without opt-in", failoverErr.StatusCode)
+	}
+	if failoverErr.RetryableOnSameAccount {
+		t.Fatal("non-opted-in pool transport error must not be retryable on the same account")
+	}
+	if repo.calls != 1 {
+		t.Fatalf("SetTempUnschedulable called %d times for non-opted-in pool mode, want 1", repo.calls)
+	}
+}
+
+// TestHandleUpstreamTransportError_PoolMode503OptInBehindProxyKeepsEviction
+// pins that a refused dial behind a proxy is still attributed to the proxy —
+// a durable fault the temp-unschedule exists for — even with 503 opted in.
+func TestHandleUpstreamTransportError_PoolMode503OptInBehindProxyKeepsEviction(t *testing.T) {
+	repo := &transportTempUnschedRepoStub{}
+	s := &GatewayService{accountRepo: repo}
+	c := newTransportErrorTestGin(t)
+	proxyID := int64(10060)
+	account := &Account{
+		ID:       149,
+		Name:     "acc",
+		Platform: PlatformAnthropic,
+		Type:     AccountTypeAPIKey,
+		ProxyID:  &proxyID,
+		Proxy:    &Proxy{ID: proxyID, Name: "wldsg82-ipv6-10060"},
+		Credentials: map[string]any{
+			"pool_mode":                    true,
+			"pool_mode_retry_status_codes": []any{float64(401), float64(403), float64(429), float64(503)},
+		},
+	}
+
+	err := s.handleUpstreamTransportError(context.Background(), c, account,
+		errors.New(`dial tcp 1.2.3.4:443: connect: connection refused`), OpsUpstreamErrorEvent{})
+
+	var failoverErr *UpstreamFailoverError
+	if !errors.As(err, &failoverErr) {
+		t.Fatalf("expected *UpstreamFailoverError, got %T: %v", err, err)
+	}
+	if failoverErr.RetryableOnSameAccount {
+		t.Fatal("proxied pool transport error must not be retryable on the same account")
+	}
+	if repo.calls != 1 {
+		t.Fatalf("SetTempUnschedulable called %d times for proxied pool account, want 1", repo.calls)
+	}
+}
