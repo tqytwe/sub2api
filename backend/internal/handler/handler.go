@@ -24,6 +24,13 @@ type AdminHandlers struct {
 	Redeem                 *admin.RedeemHandler
 	Promo                  *admin.PromoHandler
 	Coupon                 *admin.CouponHandler
+	RequestCapture         *admin.RequestCaptureHandler
+	AccountOps             *admin.AccountOpsHandler
+	AccountTokenGuard      *admin.AccountTokenGuardHandler
+	AccountTokenGuardV2    *admin.AccountTokenGuardV2Handler
+	OpenAIOAuthReauth      *admin.OpenAIOAuthReauthHandler
+	PelicanGroupTest       *admin.PelicanGroupTestHandler
+	ControlledExperiment   *admin.ControlledExperimentHandler
 	Setting                *admin.SettingHandler
 	Ops                    *admin.OpsHandler
 	System                 *admin.SystemHandler
@@ -64,6 +71,7 @@ type Handlers struct {
 	Announcement      *AnnouncementHandler
 	ChannelMonitor    *ChannelMonitorUserHandler
 	ChannelMonitorV2  *ChannelMonitorV2Handler
+	PelicanShowcase   *PelicanShowcaseHandler
 	Admin             *AdminHandlers
 	Gateway           *GatewayHandler
 	OpenAIGateway     *OpenAIGatewayHandler

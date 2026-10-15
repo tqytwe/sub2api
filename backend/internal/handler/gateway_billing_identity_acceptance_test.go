@@ -108,7 +108,7 @@ func TestImageWorkerBillingIdentityPreservesExactSettlementKeys(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Default.RateMultiplier = 1
 	svc := service.NewOpenAIGatewayService(
-		nil, &durableWorkerIdentityUsageRepo{}, billing, nil, nil, nil, nil, cfg,
+		nil, nil, &durableWorkerIdentityUsageRepo{}, billing, nil, nil, nil, nil, cfg,
 		nil, nil, service.NewBillingService(cfg, nil), nil, &service.BillingCacheService{},
 		nil, &service.DeferredService{}, nil, nil, nil, nil, nil, nil, nil,
 	)

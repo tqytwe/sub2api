@@ -116,7 +116,7 @@ func TestHTTPUpstreamForwardDrainsUsageAfterClientDisconnect(t *testing.T) {
 	}
 	accountRepo := &lifecycleAdmissionAccountRepo{account: account}
 	svc := service.NewOpenAIGatewayService(
-		accountRepo, usageRepo, billingRepo, nil, nil, nil, nil, cfg, nil, nil,
+		accountRepo, nil, usageRepo, billingRepo, nil, nil, nil, nil, cfg, nil, nil,
 		service.NewBillingService(cfg, nil), nil, nil, upstream,
 		&service.DeferredService{}, nil, nil, nil, nil, nil, nil, nil,
 	)

@@ -1378,18 +1378,8 @@ checkSchedulability:
 	return true
 }
 
-// rpmPrefetchContextKey is the context key for prefetched RPM counts.
-type rpmPrefetchContextKeyType struct{}
-
-var rpmPrefetchContextKey = rpmPrefetchContextKeyType{}
-
-func rpmFromPrefetchContext(ctx context.Context, accountID int64) (int, bool) {
-	if v, ok := ctx.Value(rpmPrefetchContextKey).(map[int64]int); ok {
-		count, found := v[accountID]
-		return count, found
-	}
-	return 0, false
-}
+// rpmPrefetchContextKey / rpmFromPrefetchContext 已迁移至 account_rpm.go（上游 v2.10.5 同义定义），
+// 此处保留 withRPMPrefetch 批量预取逻辑。
 
 // withRPMPrefetch 批量预取所有候选账号的 RPM 计数
 func (s *GatewayService) withRPMPrefetch(ctx context.Context, accounts []Account) context.Context {
