@@ -186,8 +186,6 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingKeyAPIBaseURL,
 		SettingKeyContactInfo,
 		SettingKeyDocURL,
-		SettingKeySupportContactConfig,
-		SettingKeyAPIOnboardingConfig,
 		SettingKeyHomeContent,
 		SettingKeyCompactHomeEnabled,
 		SettingKeyHideCcsImportButton,
@@ -231,35 +229,30 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingKeyBalanceLowNotifyRechargeURL,
 		SettingKeyAccountQuotaNotifyEnabled,
 		SettingKeyChannelMonitorEnabled,
+		SettingKeyExcelBPSEnabled,
+		SettingKeyPrismBrowserEnabled,
 		SettingKeyChannelMonitorMode,
-		SettingKeyChannelMonitorHideThroughput,
 		SettingKeyChannelMonitorDefaultIntervalSeconds,
+		SettingKeyChannelMonitorHideThroughput,
 		SettingKeyChannelMonitorShowQuota,
 		SettingKeyChannelMonitorHideUserRanking,
 		SettingKeyAvailableChannelsEnabled,
+		SettingKeyPelicanShowcaseEnabled,
 		SettingKeySubscriptionEnabled,
-		SettingKeyMarketplaceEnabled,
 		SettingKeyModelPlazaEnabled,
 		SettingKeyModelPlazaRequireAuth,
-		SettingKeyPublicModelsEnabled,
-		SettingKeyPlayCheckinEnabled,
-		SettingKeyPlayArenaEnabled,
-		SettingKeyPlayBlindboxEnabled,
-		SettingKeyPlayQuizEnabled,
-		SettingKeyPlayAgentTeamEnabled,
-		SettingKeyImageStudioEnabled,
-		SettingKeyNextChatEnabled,
 		SettingKeyPluginManagementEnabled,
+		SettingKeySupportTicketEnabled,
 		SettingKeyAffiliateEnabled,
 		SettingKeyRiskControlEnabled,
 		SettingKeyAllowUserViewErrorRequests,
+		SettingKeyUsageShowLongContextBadge,
 	}
 
 	settings, err := s.settingRepo.GetMultiple(ctx, keys)
 	if err != nil {
 		return nil, fmt.Errorf("get public settings: %w", err)
 	}
-	marketplaceEnabled := settings[SettingKeyMarketplaceEnabled] == "true"
 
 	linuxDoEnabled := false
 	if raw, ok := settings[SettingKeyLinuxDoConnectEnabled]; ok {
@@ -342,8 +335,6 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		APIBaseURL:                          settings[SettingKeyAPIBaseURL],
 		ContactInfo:                         settings[SettingKeyContactInfo],
 		DocURL:                              settings[SettingKeyDocURL],
-		SupportContact:                      BuildPublicSupportContactConfig(settings[SettingKeySupportContactConfig], settings[SettingKeyContactInfo], settings[SettingKeyDocURL]),
-		APIOnboarding:                       BuildPublicAPIOnboardingConfig(settings[SettingKeyAPIOnboardingConfig]),
 		HomeContent:                         settings[SettingKeyHomeContent],
 		CompactHomeEnabled:                  settings[SettingKeyCompactHomeEnabled] == "true",
 		HideCcsImportButton:                 settings[SettingKeyHideCcsImportButton] == "true",
@@ -372,34 +363,31 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		BalanceLowNotifyRechargeURL:         settings[SettingKeyBalanceLowNotifyRechargeURL],
 
 		ChannelMonitorEnabled:                !isFalseSettingValue(settings[SettingKeyChannelMonitorEnabled]),
+		ExcelBPSEnabled:                      !isFalseSettingValue(settings[SettingKeyExcelBPSEnabled]),
+		PrismBrowserEnabled:                  settings[SettingKeyPrismBrowserEnabled] == "true",
 		ChannelMonitorMode:                   normalizeChannelMonitorMode(settings[SettingKeyChannelMonitorMode]),
-		ChannelMonitorHideThroughput:         !isFalseSettingValue(settings[SettingKeyChannelMonitorHideThroughput]),
 		ChannelMonitorDefaultIntervalSeconds: parseChannelMonitorInterval(settings[SettingKeyChannelMonitorDefaultIntervalSeconds]),
+		ChannelMonitorHideThroughput:         !isFalseSettingValue(settings[SettingKeyChannelMonitorHideThroughput]),
 		ChannelMonitorShowQuota:              settings[SettingKeyChannelMonitorShowQuota] == "true",
 		ChannelMonitorHideUserRanking:        isTrueSettingValue(settings[SettingKeyChannelMonitorHideUserRanking]),
 
 		AvailableChannelsEnabled: settings[SettingKeyAvailableChannelsEnabled] == "true",
-		SubscriptionEnabled:      !isFalseSettingValue(settings[SettingKeySubscriptionEnabled]),
-		MarketplaceEnabled:       marketplaceEnabled,
-		PublicModelsEnabled:      settings[SettingKeyPublicModelsEnabled] == "true",
-		PlayCheckinEnabled:       settings[SettingKeyPlayCheckinEnabled] == "true",
-		PlayArenaEnabled:         settings[SettingKeyPlayArenaEnabled] == "true",
-		PlayBlindboxEnabled:      settings[SettingKeyPlayBlindboxEnabled] == "true",
-		PlayQuizEnabled:          settings[SettingKeyPlayQuizEnabled] == "true",
-		PlayAgentTeamEnabled:     settings[SettingKeyPlayAgentTeamEnabled] == "true",
-		ImageStudioEnabled:       settings[SettingKeyImageStudioEnabled] == "true",
-		NextChatEnabled:          settings[SettingKeyNextChatEnabled] == "true",
-		SoraClientEnabled:        settings["sora_client_enabled"] == "true",
+		PelicanShowcaseEnabled:   settings[SettingKeyPelicanShowcaseEnabled] == "true",
+
+		SubscriptionEnabled: !isFalseSettingValue(settings[SettingKeySubscriptionEnabled]),
 
 		ModelPlazaEnabled:       settings[SettingKeyModelPlazaEnabled] == "true",
 		ModelPlazaRequireAuth:   settings[SettingKeyModelPlazaRequireAuth] == "true",
 		PluginManagementEnabled: settings[SettingKeyPluginManagementEnabled] == "true",
+		SupportTicketEnabled:    settings[SettingKeySupportTicketEnabled] == "true",
 
 		AffiliateEnabled: settings[SettingKeyAffiliateEnabled] == "true",
 
 		RiskControlEnabled: settings[SettingKeyRiskControlEnabled] == "true",
 
 		AllowUserViewErrorRequests: settings[SettingKeyAllowUserViewErrorRequests] == "true",
+
+		UsageShowLongContextBadge: settings[SettingKeyUsageShowLongContextBadge] != "false",
 	}, nil
 }
 
@@ -409,7 +397,22 @@ const (
 	channelMonitorIntervalMin      = 15
 	channelMonitorIntervalMax      = 3600
 	channelMonitorIntervalFallback = 60
+	defaultChannelMonitorMode      = ChannelMonitorModeV1
 )
+
+// normalizeChannelMonitorMode accepts only v1/v2/v3; empty/invalid → v1 (safe default).
+func normalizeChannelMonitorMode(raw string) string {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case ChannelMonitorModeV1, "":
+		return ChannelMonitorModeV1
+	case ChannelMonitorModeV2:
+		return ChannelMonitorModeV2
+	case ChannelMonitorModeV3:
+		return ChannelMonitorModeV3
+	default:
+		return defaultChannelMonitorMode
+	}
+}
 
 // parseChannelMonitorInterval parses the stored string and clamps to [15, 3600].
 // Empty / invalid input falls back to channelMonitorIntervalFallback.
@@ -435,18 +438,11 @@ func clampChannelMonitorInterval(v int) int {
 	return v
 }
 
-func normalizeChannelMonitorMode(raw string) string {
-	if strings.EqualFold(strings.TrimSpace(raw), ChannelMonitorModeV2) {
-		return ChannelMonitorModeV2
-	}
-	return ChannelMonitorModeV1
-}
-
 // ChannelMonitorRuntime is the lightweight view of the channel monitor feature
-// consumed by the runner and user-facing handlers.
+// consumed by the runner, V2 aggregator, and user-facing handlers.
 type ChannelMonitorRuntime struct {
 	Enabled                bool
-	Mode                   string
+	Mode                   string // ChannelMonitorModeV1, ChannelMonitorModeV2 or ChannelMonitorModeV3
 	DefaultIntervalSeconds int
 	// HideThroughput: when true, user-facing V2 APIs omit RPM/TPM scale signals.
 	HideThroughput bool
@@ -454,17 +450,19 @@ type ChannelMonitorRuntime struct {
 	// snapshots; otherwise the user handler strips them server-side.
 	// Parsed fail-closed (only literal "true" enables). Admin always sees them.
 	ShowQuota bool
-	// HideUserRanking hides user ranking data for non-admin monitor viewers.
+	// HideUserRanking: when true, user-facing V2 views hide the user ranking tab
+	// and the /users payload. Parsed fail-open (only literal "true" hides it).
 	HideUserRanking bool
 }
 
+// ActiveProbesAllowed reports whether V1 active provider probes may run.
 func (r ChannelMonitorRuntime) ActiveProbesAllowed() bool {
 	return r.Enabled && r.Mode == ChannelMonitorModeV1
 }
 
 // AllowsCheckMode reports whether a monitor check can run under the current
-// feature mode. V2 retires only LLM-backed probes; a quota-only check uses the
-// linked account's usage endpoint and remains safe to run while V2 is active.
+// mode. Quota snapshots are cheap reads and stay allowed in every mode;
+// active probes follow the V1 gate.
 func (r ChannelMonitorRuntime) AllowsCheckMode(checkMode string) bool {
 	if !r.Enabled {
 		return false
@@ -475,13 +473,33 @@ func (r ChannelMonitorRuntime) AllowsCheckMode(checkMode string) bool {
 	return r.ActiveProbesAllowed()
 }
 
+// PassiveAggregationAllowed reports whether the passive aggregation of real
+// traffic may run: V2 shows it directly and V3 builds its status page on it.
 func (r ChannelMonitorRuntime) PassiveAggregationAllowed() bool {
+	return r.Enabled && (r.Mode == ChannelMonitorModeV2 || r.Mode == ChannelMonitorModeV3)
+}
+
+// V2Active reports whether the V2 views (and its candy probes) are the site's monitor.
+func (r ChannelMonitorRuntime) V2Active() bool {
 	return r.Enabled && r.Mode == ChannelMonitorModeV2
 }
 
+// V3Active reports whether the V3 component status page is the site's monitor.
+func (r ChannelMonitorRuntime) V3Active() bool {
+	return r.Enabled && r.Mode == ChannelMonitorModeV3
+}
+
 // GetChannelMonitorRuntime reads the channel monitor feature flags directly from
-// the settings store. Fail-open: on error returns Enabled=true with the default interval.
+// the settings store. Fail-open: on error returns Enabled=true, Mode=v1, default interval.
 func (s *SettingService) GetChannelMonitorRuntime(ctx context.Context) ChannelMonitorRuntime {
+	if s == nil || s.settingRepo == nil {
+		return ChannelMonitorRuntime{
+			Enabled:                true,
+			Mode:                   defaultChannelMonitorMode,
+			DefaultIntervalSeconds: channelMonitorIntervalFallback,
+			HideThroughput:         true,
+		}
+	}
 	vals, err := s.settingRepo.GetMultiple(ctx, []string{
 		SettingKeyChannelMonitorEnabled,
 		SettingKeyChannelMonitorMode,
@@ -491,7 +509,12 @@ func (s *SettingService) GetChannelMonitorRuntime(ctx context.Context) ChannelMo
 		SettingKeyChannelMonitorHideUserRanking,
 	})
 	if err != nil {
-		return ChannelMonitorRuntime{Enabled: true, Mode: ChannelMonitorModeV1, DefaultIntervalSeconds: channelMonitorIntervalFallback, HideThroughput: true}
+		return ChannelMonitorRuntime{
+			Enabled:                true,
+			Mode:                   defaultChannelMonitorMode,
+			DefaultIntervalSeconds: channelMonitorIntervalFallback,
+			HideThroughput:         true,
+		}
 	}
 	return ChannelMonitorRuntime{
 		Enabled:                !isFalseSettingValue(vals[SettingKeyChannelMonitorEnabled]),
@@ -501,6 +524,25 @@ func (s *SettingService) GetChannelMonitorRuntime(ctx context.Context) ChannelMo
 		ShowQuota:              vals[SettingKeyChannelMonitorShowQuota] == "true",
 		HideUserRanking:        isTrueSettingValue(vals[SettingKeyChannelMonitorHideUserRanking]),
 	}
+}
+
+// SetChannelMonitorMode switches the exclusive monitor implementation and
+// nothing else, so the monitor page can flip it without a full settings save.
+func (s *SettingService) SetChannelMonitorMode(ctx context.Context, mode string) (string, error) {
+	normalized := strings.ToLower(strings.TrimSpace(mode))
+	switch normalized {
+	case ChannelMonitorModeV1, ChannelMonitorModeV2, ChannelMonitorModeV3:
+	default:
+		return "", ErrChannelMonitorInvalidMode
+	}
+	if err := s.settingRepo.Set(ctx, SettingKeyChannelMonitorMode, normalized); err != nil {
+		return "", fmt.Errorf("set channel monitor mode: %w", err)
+	}
+	if s.onUpdate != nil {
+		s.onUpdate() // injected public settings carry the mode
+	}
+	s.notifyChannelMonitorRuntimeListeners()
+	return normalized, nil
 }
 
 // AvailableChannelsRuntime is the lightweight view of the available-channels feature
@@ -576,8 +618,8 @@ func (s *SettingService) IsUserErrorViewAllowed(ctx context.Context) bool {
 type PublicSettingsInjectionPayload struct {
 	RegistrationEnabled                 bool                     `json:"registration_enabled"`
 	EmailVerifyEnabled                  bool                     `json:"email_verify_enabled"`
-	RegistrationEmailDomainQuotaEnabled bool                     `json:"registration_email_domain_quota_enabled"`
 	RegistrationEmailSuffixWhitelist    []string                 `json:"registration_email_suffix_whitelist"`
+	RegistrationEmailDomainQuotaEnabled bool                     `json:"registration_email_domain_quota_enabled"`
 	PromoCodeEnabled                    bool                     `json:"promo_code_enabled"`
 	PasswordResetEnabled                bool                     `json:"password_reset_enabled"`
 	InvitationCodeEnabled               bool                     `json:"invitation_code_enabled"`
@@ -624,6 +666,7 @@ type PublicSettingsInjectionPayload struct {
 	OIDCOAuthProviderName               string                   `json:"oidc_oauth_provider_name"`
 	GitHubOAuthEnabled                  bool                     `json:"github_oauth_enabled"`
 	GoogleOAuthEnabled                  bool                     `json:"google_oauth_enabled"`
+	SoraClientEnabled                   bool                     `json:"sora_client_enabled"`
 	BackendModeEnabled                  bool                     `json:"backend_mode_enabled"`
 	PaymentEnabled                      bool                     `json:"payment_enabled"`
 	PaymentBalanceDisabled              bool                     `json:"payment_balance_disabled"`
@@ -639,6 +682,8 @@ type PublicSettingsInjectionPayload struct {
 	// Feature flags — MUST match the opt-in/opt-out registry in
 	// frontend/src/utils/featureFlags.ts. Missing a field here is the bug
 	// that hid the "可用渠道" menu on page refresh.
+	ExcelBPSEnabled                      bool   `json:"excel_bps_enabled"`
+	PrismBrowserEnabled                  bool   `json:"prism_browser_enabled"`
 	ChannelMonitorEnabled                bool   `json:"channel_monitor_enabled"`
 	ChannelMonitorMode                   string `json:"channel_monitor_mode"`
 	ChannelMonitorDefaultIntervalSeconds int    `json:"channel_monitor_default_interval_seconds"`
@@ -647,26 +692,30 @@ type PublicSettingsInjectionPayload struct {
 	ChannelMonitorHideThroughput bool `json:"channel_monitor_hide_throughput"`
 	// ChannelMonitorShowQuota gates the user-facing quota/balance display on
 	// monitors; fail-closed (absent/false = hidden). Admin UI always shows it.
-	ChannelMonitorShowQuota       bool `json:"channel_monitor_show_quota"`
+	// ChannelMonitorHideUserRanking hides the user ranking tab and /users payload
+	// from non-admin channel-monitor v2 viewers; default false (visible).
 	ChannelMonitorHideUserRanking bool `json:"channel_monitor_hide_user_ranking"`
+	ChannelMonitorShowQuota       bool `json:"channel_monitor_show_quota"`
 	AvailableChannelsEnabled      bool `json:"available_channels_enabled"`
-	SubscriptionEnabled           bool `json:"subscription_enabled"`
 	MarketplaceEnabled            bool `json:"marketplace_enabled"`
+	PelicanShowcaseEnabled        bool `json:"pelican_showcase_enabled"`
+	SubscriptionEnabled           bool `json:"subscription_enabled"`
 	ModelPlazaEnabled             bool `json:"model_plaza_enabled"`
 	ModelPlazaRequireAuth         bool `json:"model_plaza_require_auth"`
 	PluginManagementEnabled       bool `json:"plugin_management_enabled"`
+	SupportTicketEnabled          bool `json:"support_ticket_enabled"`
 	AffiliateEnabled              bool `json:"affiliate_enabled"`
-	RiskControlEnabled            bool `json:"risk_control_enabled"`
-	AllowUserViewErrorRequests    bool `json:"allow_user_view_error_requests"`
 	PublicModelsEnabled           bool `json:"public_models_enabled"`
+	ImageStudioEnabled            bool `json:"image_studio_enabled"`
+	NextChatEnabled               bool `json:"nextchat_enabled"`
 	PlayCheckinEnabled            bool `json:"play_checkin_enabled"`
 	PlayArenaEnabled              bool `json:"play_arena_enabled"`
 	PlayBlindboxEnabled           bool `json:"play_blindbox_enabled"`
 	PlayQuizEnabled               bool `json:"play_quiz_enabled"`
 	PlayAgentTeamEnabled          bool `json:"play_agent_team_enabled"`
-	ImageStudioEnabled            bool `json:"image_studio_enabled"`
-	NextChatEnabled               bool `json:"nextchat_enabled"`
-	SoraClientEnabled             bool `json:"sora_client_enabled"`
+	RiskControlEnabled            bool `json:"risk_control_enabled"`
+	AllowUserViewErrorRequests    bool `json:"allow_user_view_error_requests"`
+	UsageShowLongContextBadge     bool `json:"usage_show_long_context_badge"`
 }
 
 // GetPublicSettingsForInjection returns public settings in a format suitable for HTML injection.
@@ -680,8 +729,8 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 	return &PublicSettingsInjectionPayload{
 		RegistrationEnabled:                 settings.RegistrationEnabled,
 		EmailVerifyEnabled:                  settings.EmailVerifyEnabled,
-		RegistrationEmailDomainQuotaEnabled: settings.RegistrationEmailDomainQuotaEnabled,
 		RegistrationEmailSuffixWhitelist:    settings.RegistrationEmailSuffixWhitelist,
+		RegistrationEmailDomainQuotaEnabled: settings.RegistrationEmailDomainQuotaEnabled,
 		PromoCodeEnabled:                    settings.PromoCodeEnabled,
 		PasswordResetEnabled:                settings.PasswordResetEnabled,
 		InvitationCodeEnabled:               settings.InvitationCodeEnabled,
@@ -707,7 +756,7 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		APIBaseURL:                          settings.APIBaseURL,
 		ContactInfo:                         settings.ContactInfo,
 		DocURL:                              settings.DocURL,
-		SupportContact:                      RewritePublicSupportContactQRImages(settings.SupportContact),
+		SupportContact:                      settings.SupportContact,
 		APIOnboarding:                       settings.APIOnboarding,
 		HomeContent:                         settings.HomeContent,
 		CompactHomeEnabled:                  settings.CompactHomeEnabled,
@@ -728,6 +777,7 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		OIDCOAuthProviderName:               settings.OIDCOAuthProviderName,
 		GitHubOAuthEnabled:                  settings.GitHubOAuthEnabled,
 		GoogleOAuthEnabled:                  settings.GoogleOAuthEnabled,
+		SoraClientEnabled:                   settings.SoraClientEnabled,
 		BackendModeEnabled:                  settings.BackendModeEnabled,
 		PaymentEnabled:                      settings.PaymentEnabled,
 		PaymentBalanceDisabled:              settings.PaymentBalanceDisabled,
@@ -740,29 +790,33 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		BalanceLowNotifyRechargeURL:         settings.BalanceLowNotifyRechargeURL,
 
 		ChannelMonitorEnabled:                settings.ChannelMonitorEnabled,
+		ExcelBPSEnabled:                      settings.ExcelBPSEnabled,
+		PrismBrowserEnabled:                  settings.PrismBrowserEnabled,
 		ChannelMonitorMode:                   settings.ChannelMonitorMode,
 		ChannelMonitorDefaultIntervalSeconds: settings.ChannelMonitorDefaultIntervalSeconds,
 		ChannelMonitorHideThroughput:         settings.ChannelMonitorHideThroughput,
 		ChannelMonitorShowQuota:              settings.ChannelMonitorShowQuota,
 		ChannelMonitorHideUserRanking:        settings.ChannelMonitorHideUserRanking,
 		AvailableChannelsEnabled:             settings.AvailableChannelsEnabled,
-		SubscriptionEnabled:                  settings.SubscriptionEnabled,
 		MarketplaceEnabled:                   settings.MarketplaceEnabled,
+		PelicanShowcaseEnabled:               settings.PelicanShowcaseEnabled,
+		SubscriptionEnabled:                  settings.SubscriptionEnabled,
 		ModelPlazaEnabled:                    settings.ModelPlazaEnabled,
 		ModelPlazaRequireAuth:                settings.ModelPlazaRequireAuth,
+		PluginManagementEnabled:              settings.PluginManagementEnabled,
+		SupportTicketEnabled:                 settings.SupportTicketEnabled,
+		AffiliateEnabled:                     settings.AffiliateEnabled,
 		PublicModelsEnabled:                  settings.PublicModelsEnabled,
+		ImageStudioEnabled:                   settings.ImageStudioEnabled,
+		NextChatEnabled:                      settings.NextChatEnabled,
 		PlayCheckinEnabled:                   settings.PlayCheckinEnabled,
 		PlayArenaEnabled:                     settings.PlayArenaEnabled,
 		PlayBlindboxEnabled:                  settings.PlayBlindboxEnabled,
 		PlayQuizEnabled:                      settings.PlayQuizEnabled,
 		PlayAgentTeamEnabled:                 settings.PlayAgentTeamEnabled,
-		ImageStudioEnabled:                   settings.ImageStudioEnabled,
-		NextChatEnabled:                      settings.NextChatEnabled,
-		SoraClientEnabled:                    settings.SoraClientEnabled,
-		PluginManagementEnabled:              settings.PluginManagementEnabled,
-		AffiliateEnabled:                     settings.AffiliateEnabled,
 		RiskControlEnabled:                   settings.RiskControlEnabled,
 		AllowUserViewErrorRequests:           settings.AllowUserViewErrorRequests,
+		UsageShowLongContextBadge:            settings.UsageShowLongContextBadge,
 	}, nil
 }
 

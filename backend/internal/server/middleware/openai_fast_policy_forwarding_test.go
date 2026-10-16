@@ -88,7 +88,7 @@ func TestAPIKeyAuthForwardsUserScopedOpenAIFastPolicyToUpstream(t *testing.T) {
 	}
 	accountRepo := &openAIFastPolicyForwardingAccountRepo{account: account}
 	gatewayService := service.NewOpenAIGatewayService(
-		accountRepo, nil, nil, nil, nil, nil, nil, cfg,
+		accountRepo, nil, nil, nil, nil, nil, nil, nil, cfg,
 		nil, nil, nil, nil, nil, &openAIFastPolicyForwardingHTTPUpstream{client: upstreamServer.Client()},
 		nil, nil, nil, nil, nil, nil, settingService, nil,
 	)

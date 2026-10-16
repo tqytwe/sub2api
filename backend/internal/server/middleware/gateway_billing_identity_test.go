@@ -100,7 +100,7 @@ func TestGatewayBillingIdentityHTTPRequestsSettleIndependentlyAndCallbacksDedupl
 			billing := &gatewayIdentityBillingRepo{fingerprints: map[string]string{}}
 			cfg := &config.Config{}
 			cfg.Default.RateMultiplier = 1
-			svc := service.NewOpenAIGatewayService(nil, &gatewayIdentityUsageRepo{}, billing, nil, nil, nil, nil, cfg, nil, nil, service.NewBillingService(cfg, nil), nil, &service.BillingCacheService{}, nil, &service.DeferredService{}, nil, nil, nil, nil, nil, nil, nil)
+			svc := service.NewOpenAIGatewayService(nil, nil, &gatewayIdentityUsageRepo{}, billing, nil, nil, nil, nil, cfg, nil, nil, service.NewBillingService(cfg, nil), nil, &service.BillingCacheService{}, nil, &service.DeferredService{}, nil, nil, nil, nil, nil, nil, nil)
 			router := gin.New()
 			router.Use(RequestLogger(), GatewayClientRequestID())
 			router.POST("/v1/responses", func(c *gin.Context) {

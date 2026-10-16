@@ -139,6 +139,18 @@ type AccountRepository interface {
 	ListShadowsByParent(ctx context.Context, parentID int64) ([]*Account, error)
 }
 
+// AccountExcelBPSRepository disables only BPS, provided the account credentials
+// and both opt-in switches still match at the time of the write.
+type AccountExcelBPSRepository interface {
+	DisableExcelBPSOn403(ctx context.Context, account *Account) (bool, error)
+}
+
+// AccountExcelBPSGroupRepository applies an opted-in group action atomically
+// after rechecking the account identity, policy and current memberships.
+type AccountExcelBPSGroupRepository interface {
+	MoveExcelBPSOn403(ctx context.Context, account *Account) (bool, error)
+}
+
 type AccountDuplicateRepository interface {
 	// CreateWithAccountGroups atomically persists an account, its exact group priorities,
 	// and the scheduler outbox event for the new routing snapshot.
@@ -190,12 +202,16 @@ type AccountBulkUpdate struct {
 	Concurrency    *int
 	Priority       *int
 	RateMultiplier *float64
-	LoadFactor     *int
-	Status         *string
-	Schedulable    *bool
-	Credentials    map[string]any
-	Extra          map[string]any
-	ProbeEnabled   *bool
+	// GroupRateMultiplier updates the account-level group billing multiplier.
+	GroupRateMultiplier *float64
+	LoadFactor          *int
+	Status              *string
+	Schedulable         *bool
+	Credentials         map[string]any
+	Extra               map[string]any
+	// Per-account preparation state is applied in the same bulk SQL update.
+	ExcelBPSAuthorizationPending map[int64]bool
+	ProbeEnabled                 *bool
 	// EnsureCodexFingerprintSeed asks the repository to atomically preserve an
 	// existing valid Codex fingerprint seed or create one for eligible rows.
 	EnsureCodexFingerprintSeed bool
