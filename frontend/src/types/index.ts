@@ -1253,14 +1253,6 @@ export interface OpenCodeGoUsageSettings {
   debounce_minutes: number
 }
 
-export interface ExcelBPSCredentialState {
- status: string
- expires_at?: string
- observed_at?: string
- error_code?: string
- requires_manual_resume?: boolean
-}
-
 export interface Account {
   id: number
   name: string
@@ -1274,7 +1266,6 @@ export interface Account {
   credentials?: Record<string, unknown>
   credentials_status?: Record<string, boolean>
   ollama_cloud_usage?: OllamaCloudUsageState
-  excel_bps_credential_state?: ExcelBPSCredentialState
   opencode_go_usage?: OpenCodeGoUsageState
   // Extra fields including Codex usage, OpenAI compact capability, and model-level rate limits.
   extra?: (CodexUsageSnapshot & OpenAICompactState & {
@@ -2578,70 +2569,7 @@ export interface TotpLogin2FARequest {
 
 // ==================== Scheduled Test Types ====================
 
-export interface QualityJudgeConfig {
-  group_id: number
-  model_id: string
-  prompt: string
-}
-
-export interface QualityJudgment {
-  verdict: 'correct' | 'incorrect' | 'unknown'
-  reason: string
-  account_id?: number
-  group_id?: number
-  model_id?: string
-}
-
-// 「降智开 BPS」规则：何时开（连续降智次数 / 用量百分比，0 = 不按该条件）和开成什么样（与账号 BPS 选项一一对应）。
-export interface QualityBPSPolicy {
-  failure_threshold: number
-  usage_percent: number
-  require_all: boolean
-  all_models: boolean
-  models: string[]
-  omit_unsupported_tools: boolean
-  ignore_encrypted_content: boolean
-  auto_disable_on_403: boolean
-  auto_recover_on_403?: boolean
-  recovery_interval_minutes?: number
-  auto_move_on_403: boolean
-  target_group_id: number
-  session_proxy: boolean
-  proxy_source: 'mihomo' | 'ip_pool' | ''
-  cache_creation_as_input: boolean
-  // 规则开了 auto_restore 时：连续满血几轮才关 BPS；按用量开启时用量仍高是否先不关。
-  pass_threshold: number
-  hold_on_usage: boolean
-}
-export interface QualityPolicy {
-  judge?: QualityJudgeConfig
-  expected_answer: string
-  action: 'remove_groups' | 'remove_models' | 'disable_scheduling' | 'enable_bps' | 'observe_only'
-  remove_group_ids: number[]
-  remove_models?: string[]
-  recovery_concurrency?: number
-  auto_restore: boolean
-  bps?: QualityBPSPolicy
-}
-
-export interface PelicanTestConfig {
-  quality_model_outcomes?: Record<string, 'passed' | 'failed' | 'inconclusive' | 'skipped'>
-  quality_model_actions?: Record<string, string>
-  trigger_source?: string
-  quality?: QualityPolicy
-  question_kind?: 'candy' | 'pelican' | 'state_probe'
-  test_channel?: 'account' | 'bps'
-  prompt: string
-  reasoning_effort: string
-  parallel_count: number
-  model_id?: string
-  model_ids?: string[]
-}
-
 export interface ScheduledTestPlan {
-  account_name?: string
-  pelican_config?: PelicanTestConfig
-  running_until?: string | null
   id: number
   account_id: number
   model_id: string
@@ -2656,10 +2584,6 @@ export interface ScheduledTestPlan {
 }
 
 export interface ScheduledTestResult {
-  quality_judgment?: QualityJudgment
-  quality_round_id?: string
-  quality_action?: string
-  pelican_config?: PelicanTestConfig
   id: number
   plan_id: number
   status: string
@@ -2672,7 +2596,6 @@ export interface ScheduledTestResult {
 }
 
 export interface CreateScheduledTestPlanRequest {
-  pelican_config?: PelicanTestConfig
   account_id: number
   model_id: string
   cron_expression: string
@@ -2682,7 +2605,6 @@ export interface CreateScheduledTestPlanRequest {
 }
 
 export interface UpdateScheduledTestPlanRequest {
-  pelican_config?: PelicanTestConfig
   model_id?: string
   cron_expression?: string
   enabled?: boolean

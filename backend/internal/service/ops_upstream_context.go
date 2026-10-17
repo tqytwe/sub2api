@@ -177,23 +177,6 @@ type OpsStreamError struct {
 
 const maxOpsStreamErrorsPerRequest = 64
 
-// OpsClientCanceledCode is a request outcome, not an upstream rejection.
-const OpsClientCanceledCode = "client_canceled"
-
-// MarkOpsClientCancellation records a logical 499 without writing to a closed
-// connection. Existing ignore-context-canceled settings still apply. Keeping it
-// request-scoped prevents earlier upstream attempts from changing its owner.
-func MarkOpsClientCancellation(c *gin.Context, stream bool) {
-	MarkOpsStreamErrorValue(c, OpsStreamError{
-		ErrType:        OpsClientCanceledCode,
-		Code:           OpsClientCanceledCode,
-		Message:        "Client disconnected: context canceled",
-		IntendedStatus: 499,
-		RequestScoped:  true,
-		NonStream:      !stream,
-	})
-}
-
 // BeginOpsStreamTurn scopes first-wins deduplication to one WebSocket turn.
 func BeginOpsStreamTurn(c *gin.Context, turn int) {
 	if c == nil || turn <= 0 {

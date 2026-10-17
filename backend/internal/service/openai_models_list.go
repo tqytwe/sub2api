@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"slices"
 	"sort"
 	"strings"
 
@@ -17,13 +16,6 @@ import (
 // API keys use the standard endpoint; OAuth reuses the authenticated, cached
 // Codex source. Account mappings and group policy are applied after this cache.
 func (s *OpenAIGatewayService) FetchOpenAIModelsList(ctx context.Context, account *Account) (*OpenAIModelsResponse, error) {
-	if account != nil && account.IsExcelBPSEnabled() {
-		return s.fetchExcelBPSAccountModels(ctx, account)
-	}
-	return s.fetchNativeOpenAIModelsList(ctx, account)
-}
-
-func (s *OpenAIGatewayService) fetchNativeOpenAIModelsList(ctx context.Context, account *Account) (*OpenAIModelsResponse, error) {
 	if s == nil || account == nil {
 		return nil, infraerrors.New(http.StatusInternalServerError, "OPENAI_MODELS_ACCOUNT_REQUIRED", "OpenAI account is required")
 	}
@@ -31,15 +23,12 @@ func (s *OpenAIGatewayService) fetchNativeOpenAIModelsList(ctx context.Context, 
 	if err != nil {
 		return nil, fmt.Errorf("resolve model list credentials: %w", err)
 	}
-	if credentialAccount.IsExcelOAuth() {
-		return nil, errExcelOAuthRouteUnavailable
-	}
 	if credentialAccount.IsOpenAIOAuth() {
 		clientVersion := CodexCanonicalClientVersion()
 		if s.settingService != nil {
 			clientVersion = s.settingService.GetOpenAICodexClientVersion(ctx)
 		}
-		response, err := s.fetchNativeCodexModelsManifest(ctx, account, clientVersion, "")
+		response, err := s.FetchCodexModelsManifest(ctx, account, clientVersion, "")
 		if err != nil {
 			return nil, err
 		}
@@ -187,7 +176,6 @@ func projectAccountModelsBody(body []byte, account *Account, group *Group, codex
 		if len(account.GroupAllowedModels(derefGroupID(groupID))) == 0 {
 			return body, nil
 		}
-		// 没有映射的账号原样公布上游列表；在本分组被限制时只保留允许的模型。
 		return filterModelsBodyForGroup(body, account, groupID, field, idField)
 	}
 	envelope, entries, err := modelCatalogEntries(body, field)
@@ -247,15 +235,10 @@ func projectAccountModelsBody(body []byte, account *Account, group *Group, codex
 		}
 		target, matched := account.ResolveMappedModel(id)
 		raw, available := byID[strings.TrimSpace(target)]
-		allowed := matched || (account.IsOpenAIModelMappingAliases() && account.IsModelSupported(id))
-		if !available || !allowed {
+		if !matched || !available {
 			continue
 		}
 		seen[id] = struct{}{}
-		if id == target {
-			projected = append(projected, raw)
-			continue
-		}
 		var entry map[string]json.RawMessage
 		if err := json.Unmarshal(raw, &entry); err != nil {
 			return nil, err
@@ -269,9 +252,6 @@ func projectAccountModelsBody(body []byte, account *Account, group *Group, codex
 			return nil, err
 		}
 		projected = append(projected, encoded)
-	}
-	if slices.EqualFunc(entries, projected, func(a, b json.RawMessage) bool { return bytes.Equal(a, b) }) {
-		return body, nil
 	}
 	envelope[field], err = json.Marshal(projected)
 	if err != nil {
@@ -308,21 +288,30 @@ func filterModelsBodyForGroup(body []byte, account *Account, groupID *int64, fie
 	return json.Marshal(envelope)
 }
 
-// ApplyPinnedCodexModelsMapping projects all remotely discovered Codex catalogs,
-// including ordinary discovery and pinned scheduler fallback. Locally generated
-// catalogs retain their existing policy and do not pass through this function.
+// ApplyPinnedCodexModelsMapping is used by pinned discovery and its scheduler
+// fallback. Ordinary remote discovery retains its existing mapping behavior and
+// applies only the account membership policy.
 func ApplyPinnedCodexModelsMapping(response *OpenAIModelsResponse, account *Account, group *Group) error {
 	if group == nil || group.Platform != PlatformOpenAI {
 		return nil
 	}
-	body, err := projectAccountModelsBody(response.Body, account, group, true)
+	var body []byte
+	var err error
+	if group.CodexModelsManifestConfig.Enabled {
+		body, err = projectAccountModelsBody(response.Body, account, group, true)
+	} else {
+		// Preserve ordinary discovery's existing mapping behavior while applying
+		// membership policy after the shared upstream catalog cache.
+		if len(account.GroupAllowedModels(group.ID)) == 0 {
+			return nil
+		}
+		body, err = filterModelsBodyForGroup(response.Body, account, &group.ID, "models", "slug")
+	}
 	if err != nil {
 		return err
 	}
-	if !bytes.Equal(response.Body, body) {
-		response.Body = body
-		response.ETag = codexModelsManifestBodyETag(body)
-	}
+	response.Body = body
+	response.ETag = codexModelsManifestBodyETag(body)
 	return nil
 }
 

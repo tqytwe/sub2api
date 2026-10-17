@@ -38,16 +38,16 @@ func TestPublicGrowthTeaserHandler(t *testing.T) {
 
 	repo := &settingHandlerPublicRepoStub{
 		values: map[string]string{
-			service.SettingKeyRegistrationEnabled:                 "true",
-			service.SettingPaymentEnabled:                         "true",
-			service.SettingKeyPublicModelsEnabled:                 "true",
-			service.SettingKeyPlayCheckinEnabled:                  "true",
-			service.SettingKeyPlayCheckinDailyReward:              "0.5",
-			service.SettingKeyAffiliateEnabled:                    "true",
-			service.SettingKeyAffiliateRebateRate:                 "10",
-			service.SettingKeyDefaultBalance:                      "0.2",
+			service.SettingKeyRegistrationEnabled:              "true",
+			service.SettingPaymentEnabled:                   "true",
+			service.SettingKeyPublicModelsEnabled:              "true",
+			service.SettingKeyPlayCheckinEnabled:               "true",
+			service.SettingKeyPlayCheckinDailyReward:           "0.5",
+			service.SettingKeyAffiliateEnabled:                 "true",
+			service.SettingKeyAffiliateRebateRate:              "10",
+			service.SettingKeyDefaultBalance:                   "0.2",
 			service.SettingKeyAuthSourceDefaultEmailGrantOnSignup: "true",
-			service.SettingKeyAuthSourceDefaultEmailBalance:       "0.2",
+			service.SettingKeyAuthSourceDefaultEmailBalance:    "0.2",
 		},
 	}
 	settingSvc := service.NewSettingService(repo, &config.Config{Default: config.DefaultConfig{UserBalance: 0}})

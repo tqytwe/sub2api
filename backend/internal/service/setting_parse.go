@@ -2,12 +2,9 @@ package service
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/Wei-Shaw/sub2api/internal/service/basispoints"
 	"log/slog"
 	"math"
 	"sort"
@@ -20,14 +17,6 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/pkg/openai"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/xai"
 )
-
-func defaultPrismBrowserAPIKey() string {
-	b := make([]byte, 32)
-	if _, err := rand.Read(b); err != nil {
-		return ""
-	}
-	return hex.EncodeToString(b)
-}
 
 // InitializeDefaultSettings 初始化默认设置
 func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
@@ -66,8 +55,6 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 
 	// 初始化默认设置
 	defaults := map[string]string{
-		SettingKeySupportContactConfig:                      "{}",
-		SettingKeyAPIOnboardingConfig:                       "{}",
 		SettingKeyRegistrationEnabled:                       "true",
 		SettingKeyEmailVerifyEnabled:                        "false",
 		SettingKeyRegistrationEmailSuffixWhitelist:          "[]",
@@ -82,6 +69,8 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		settingKeyForwardedClientIPModeV2:                   "true",
 		SettingKeySiteName:                                  "Sub2API",
 		SettingKeySiteLogo:                                  "",
+		SettingKeySupportContactConfig:                      "{}",
+		SettingKeyAPIOnboardingConfig:                       "{}",
 		SettingKeyPurchaseSubscriptionEnabled:               "false",
 		SettingKeyPurchaseSubscriptionURL:                   "",
 		SettingKeyTableDefaultPageSize:                      "20",
@@ -198,9 +187,6 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyOpsQueryModeDefault:          "auto",
 		SettingKeyOpsMetricsIntervalSeconds:    "60",
 
-		// Protocol feature defaults
-		SettingKeyExcelBPSEnabled: "true",
-
 		// Channel monitor defaults (enabled, 60s)
 		SettingKeyChannelMonitorEnabled:                "true",
 		SettingKeyChannelMonitorMode:                   ChannelMonitorModeV1,
@@ -208,25 +194,16 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyChannelMonitorHideThroughput:         "true",
 		SettingKeyChannelMonitorShowQuota:              "false",
 		SettingKeyChannelMonitorHideUserRanking:        "false",
-		SettingKeyPrismBrowserEnabled:                  "false",
-		SettingKeyPrismBrowserBaseURL:                  "http://127.0.0.1:8319/v1",
-		// Generate a disabled-by-default bridge key so enabling the feature does
-		// not require a fragile hand-written secret during first-run setup.
-		SettingKeyPrismBrowserAPIKey: defaultPrismBrowserAPIKey(),
 
 		// Grok compatibility defaults: cross-client mapping stays enabled unless
 		// operators explicitly disable it.
 		SettingKeyGrokDefaultTextModel:           "grok-4.6",
 		SettingKeyGrokCrossClientModelMapEnabled: "true",
 		SettingKeyGrokDefaultBaseURLMode:         GrokDefaultBaseURLModeCLI,
-		SettingKeyGrokVideoSourceURLEnabled:      "false",
 
 		// Available channels feature (default disabled; opt-in)
 		SettingKeyAvailableChannelsEnabled: "false",
-
-		// Pelican showcase (default disabled; opt-in). A missing config means the defaults.
-		SettingKeyPelicanShowcaseEnabled: "false",
-		SettingKeyMarketplaceEnabled:     "false",
+		SettingKeyMarketplaceEnabled:       "false",
 
 		// Subscription feature (default enabled; opt-out)
 		SettingKeySubscriptionEnabled: "true",
@@ -237,8 +214,9 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyModelPlazaDescription:   "",
 		SettingKeyPluginManagementEnabled: "false",
 
-		// Support tickets (default disabled; opt-in). A missing config means the defaults.
-		SettingKeySupportTicketEnabled: "false",
+		// Affiliate (邀请返利) feature (default disabled; opt-in)
+		SettingKeyAffiliateEnabled:              "false",
+		SettingKeyAffiliateAdminRechargeEnabled: strconv.FormatBool(AdminRechargeRebateEnabledDefault),
 
 		// Play growth user sidebar (Jisudeng Play ships enabled; admin can disable)
 		SettingKeyPublicModelsEnabled:          "true",
@@ -251,21 +229,13 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyPlayQuizEnabled:              "true",
 		SettingKeyPlayAgentTeamEnabled:         "true",
 
-		// Affiliate (邀请返利) feature (default disabled; opt-in)
-		SettingKeyAffiliateEnabled:              "false",
-		SettingKeyAffiliateAdminRechargeEnabled: strconv.FormatBool(AdminRechargeRebateEnabledDefault),
-
 		// 风控中心功能（默认关闭，显式启用）
 		SettingKeyRiskControlEnabled: "false",
 
 		// cyber 会话屏蔽（默认关闭，TTL 默认 3600s）
-		SettingKeyCyberSessionBlockEnabled:          "false",
-		SettingKeyCyberSessionBlockTTLSeconds:       "3600",
-		SettingKeyBillingSurchargeEnabled:           "false",
-		SettingKeyBillingSurchargeMode:              BillingSurchargeModeNone,
-		SettingKeyBillingSurchargeValue:             "0",
-		SettingKeyCyberSessionIdentityStrictEnabled: "false",
-		SettingKeyCyberPolicyUserAllowlist:          "",
+		SettingKeyCyberSessionBlockEnabled:    "false",
+		SettingKeyCyberPolicyUserAllowlist:    "",
+		SettingKeyCyberSessionBlockTTLSeconds: "3600",
 
 		// Claude Code version check (default: empty = disabled)
 		SettingKeyMinClaudeCodeVersion: "",
@@ -291,7 +261,6 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyOpenAICodexClientVersion:                           "",
 		SettingKeyOpenAICodexClientVersionSynced:                     "",
 		SettingKeyOpenAICodexVersionAutoSyncEnabled:                  "true",
-		SettingKeyOpenAICodexTicketHarvestProxyURL:                   "",
 		SettingKeyClaudeCodeClientVersion:                            "",
 		SettingKeyClaudeCodeClientVersionSynced:                      "",
 		SettingKeyClaudeCodeVersionAutoSyncEnabled:                   "true",
@@ -313,25 +282,11 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyOpenAIAdvancedSchedulerWeightUpstreamCost:          "",
 		SettingKeyOpenAIAdvancedSchedulerWeightPreviousResponse:      "",
 		SettingKeyOpenAIAdvancedSchedulerWeightSessionSticky:         "",
+		SettingKeyBillingSurchargeEnabled:                            "false",
+		SettingKeyBillingSurchargeMode:                               BillingSurchargeModeNone,
+		SettingKeyBillingSurchargeValue:                              "0",
 
 		SettingKeyAllowUserViewErrorRequests: "false",
-		SettingKeyExcelBPSImageMode:          ExcelBPSImageModeNative,
-		SettingKeyExcelBPSImageRelayEnabled:  "true",
-		SettingKeyExcelBPSImageBaseURL:       "",
-
-		SettingKeyUsageShowLongContextBadge:     "true",
-		SettingKeyExcelBPSImageBodyLimitMiB:     strconv.Itoa(DefaultExcelBPSImageBodyLimitMiB),
-		SettingKeyExcelBPSImageBudgetMiB:        strconv.Itoa(DefaultExcelBPSImageBudgetMiB),
-		SettingKeyExcelBPSImageMaxRequests:      strconv.Itoa(DefaultExcelBPSImageMaxRequests),
-		SettingKeyExcelBPSImageMaxImageMiB:      "20",
-		SettingKeyExcelBPSImageLimitPolicy:      "off",
-		SettingKeyExcelBPSImageWarningRemaining: "8",
-		SettingKeyExcelBPSImageCompactReserve:   "3",
-		SettingKeyExcelBPSImageMaxImages:        "20",
-		SettingKeyExcelBPSImageMaxTotalMiB:      "32",
-		SettingKeyExcelBPSImageStorageMiB:       "1024",
-		SettingKeyExcelBPSImageStorageEntries:   "512",
-		SettingKeyExcelBPSImageTTLMinutes:       "30",
 	}
 
 	return s.settingRepo.SetMultiple(ctx, defaults)
@@ -426,8 +381,8 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 		SiteSubtitle:                           s.getStringOrDefault(settings, SettingKeySiteSubtitle, "Subscription to API Conversion Platform"),
 		APIBaseURL:                             settings[SettingKeyAPIBaseURL],
 		ContactInfo:                            settings[SettingKeyContactInfo],
-		SupportContact:                         BuildAdminSupportContactConfig(settings[SettingKeySupportContactConfig], settings[SettingKeyContactInfo], settings[SettingKeyDocURL]),
 		DocURL:                                 settings[SettingKeyDocURL],
+		SupportContact:                         BuildAdminSupportContactConfig(settings[SettingKeySupportContactConfig], settings[SettingKeyContactInfo], settings[SettingKeyDocURL]),
 		HomeContent:                            settings[SettingKeyHomeContent],
 		CompactHomeEnabled:                     settings[SettingKeyCompactHomeEnabled] == "true",
 		HideCcsImportButton:                    settings[SettingKeyHideCcsImportButton] == "true",
@@ -864,7 +819,6 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 	}
 
 	// Channel monitor feature (default: enabled, 60s)
-	result.ExcelBPSEnabled = !isFalseSettingValue(settings[SettingKeyExcelBPSEnabled])
 	result.ChannelMonitorEnabled = !isFalseSettingValue(settings[SettingKeyChannelMonitorEnabled])
 	result.ChannelMonitorMode = normalizeChannelMonitorMode(settings[SettingKeyChannelMonitorMode])
 	result.ChannelMonitorDefaultIntervalSeconds = parseChannelMonitorInterval(
@@ -877,13 +831,6 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 	// （与 setting_public.go 公开读取路径保持一致）。
 	result.ChannelMonitorShowQuota = settings[SettingKeyChannelMonitorShowQuota] == "true"
 	result.ChannelMonitorHideUserRanking = isTrueSettingValue(settings[SettingKeyChannelMonitorHideUserRanking])
-	result.PrismBrowserEnabled = settings[SettingKeyPrismBrowserEnabled] == "true"
-	result.PrismBrowserBaseURL = strings.TrimSpace(settings[SettingKeyPrismBrowserBaseURL])
-	if result.PrismBrowserBaseURL == "" {
-		result.PrismBrowserBaseURL = "http://127.0.0.1:8319/v1"
-	}
-	result.PrismBrowserAPIKey = settings[SettingKeyPrismBrowserAPIKey]
-	result.PrismBrowserAPIKeyConfigured = strings.TrimSpace(result.PrismBrowserAPIKey) != ""
 
 	// Grok default mapping policy
 	result.GrokDefaultTextModel = strings.TrimSpace(settings[SettingKeyGrokDefaultTextModel])
@@ -894,18 +841,9 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 	// Operators can set false to disable silent cross-client rewrite.
 	result.GrokCrossClientModelMapEnabled = !isFalseSettingValue(settings[SettingKeyGrokCrossClientModelMapEnabled])
 	result.GrokDefaultBaseURLMode = normalizeGrokDefaultBaseURLMode(settings[SettingKeyGrokDefaultBaseURLMode])
-	result.GrokVideoSourceURLEnabled = settings[SettingKeyGrokVideoSourceURLEnabled] == "true"
 
 	// Available channels feature (default: disabled; strict true)
 	result.AvailableChannelsEnabled = settings[SettingKeyAvailableChannelsEnabled] == "true"
-
-	// Pelican showcase (default: disabled; strict true). A corrupt config is shown as the
-	// defaults so the admin page still loads; the runtime reader fails closed on it.
-	result.PelicanShowcaseEnabled = settings[SettingKeyPelicanShowcaseEnabled] == "true"
-	result.PelicanShowcase = DefaultPelicanShowcaseConfig()
-	if showcase, err := parsePelicanShowcaseConfig(settings[SettingKeyPelicanShowcaseConfig]); err == nil {
-		result.PelicanShowcase = showcase
-	}
 
 	// Subscription feature (default: enabled; only an explicit false disables)
 	result.SubscriptionEnabled = !isFalseSettingValue(settings[SettingKeySubscriptionEnabled])
@@ -916,13 +854,8 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 	result.ModelPlazaDescription = settings[SettingKeyModelPlazaDescription]
 	result.PluginManagementEnabled = settings[SettingKeyPluginManagementEnabled] == "true"
 
-	// Support tickets (default: disabled; strict true). A corrupt config is shown as the
-	// defaults so the admin page still loads; the runtime reader fails closed on it.
-	result.SupportTicketEnabled = settings[SettingKeySupportTicketEnabled] == "true"
-	result.SupportTicket = DefaultSupportTicketConfig()
-	if ticketConfig, err := parseSupportTicketConfig(settings[SettingKeySupportTicketConfig]); err == nil {
-		result.SupportTicket = ticketConfig
-	}
+	// Affiliate (邀请返利) feature (default: disabled; strict true)
+	result.AffiliateEnabled = settings[SettingKeyAffiliateEnabled] == "true"
 
 	result.PublicModelsEnabled = settings[SettingKeyPublicModelsEnabled] == "true"
 	result.ImageStudioEnabled = settings[SettingKeyImageStudioEnabled] == "true"
@@ -932,9 +865,6 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 	result.PlayBlindboxEnabled = settings[SettingKeyPlayBlindboxEnabled] == "true"
 	result.PlayQuizEnabled = settings[SettingKeyPlayQuizEnabled] == "true"
 	result.PlayAgentTeamEnabled = settings[SettingKeyPlayAgentTeamEnabled] == "true"
-
-	// Affiliate (邀请返利) feature (default: disabled; strict true)
-	result.AffiliateEnabled = settings[SettingKeyAffiliateEnabled] == "true"
 
 	// 风控中心功能（默认关闭，严格 true 才启用）
 	result.RiskControlEnabled = settings[SettingKeyRiskControlEnabled] == "true"
@@ -946,13 +876,6 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 		result.CyberSessionBlockTTLSeconds = v
 	} else {
 		result.CyberSessionBlockTTLSeconds = 3600
-	}
-	result.CyberSessionIdentityStrictEnabled = settings[SettingKeyCyberSessionIdentityStrictEnabled] == "true"
-	result.BillingSurchargeEnabled = settings[SettingKeyBillingSurchargeEnabled] == "true"
-	result.BillingSurchargeMode = NormalizeBillingSurchargeMode(settings[SettingKeyBillingSurchargeMode])
-	result.BillingSurchargeValue, _ = strconv.ParseFloat(strings.TrimSpace(settings[SettingKeyBillingSurchargeValue]), 64)
-	if result.BillingSurchargeValue < 0 || math.IsNaN(result.BillingSurchargeValue) || math.IsInf(result.BillingSurchargeValue, 0) {
-		result.BillingSurchargeValue = 0
 	}
 
 	// Claude Code version check
@@ -1001,37 +924,6 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 		result.OpenAICodexVersionAutoSyncEnabled = true
 	}
 	result.OpenAIRequestTimezoneEnabled = settings[SettingKeyOpenAIRequestTimezoneEnabled] == "true"
-	if v, ok := settings[SettingKeyOpenAICodexTicketEnabled]; ok && v != "" {
-		result.OpenAICodexTicketEnabled = v == "true"
-	} else if s != nil && s.cfg != nil {
-		result.OpenAICodexTicketEnabled = s.cfg.Gateway.OpenAICodexTicket.Enabled
-	}
-	// Missing values intentionally stay false. Ticket harvesting remains active,
-	// while scheduling is fail-open unless an administrator explicitly opts in.
-	result.OpenAICodexTicketFailClosed = settings[SettingKeyOpenAICodexTicketFailClosed] == "true"
-	result.OpenAICodexTicketHarvestProxyURL = strings.TrimSpace(settings[SettingKeyOpenAICodexTicketHarvestProxyURL])
-	harvestScope, harvestScopeErr := parseCodexTicketHarvestScope(settings[SettingKeyOpenAICodexTicketHarvestScope])
-	result.OpenAICodexTicketHarvestScope = harvestScope
-	if harvestScopeErr != nil {
-		result.OpenAICodexTicketHarvestScope = CodexTicketHarvestScope{Mode: "selected", GroupIDs: []int64{}}
-	}
-	result.OpenAICodexTicketStrategy = NormalizeCodexTicketStrategy(settings[SettingKeyOpenAICodexTicketStrategy])
-	result.OpenAICodexTicketStrictResponse = settings[SettingKeyOpenAICodexTicketStrict] == "true"
-	result.OpenAICodexTicketStaticProxyURL = strings.TrimSpace(settings[SettingKeyOpenAICodexTicketStaticProxyURL])
-	if raw, ok := settings[SettingKeyOpenAICodexTicketModels]; ok && strings.TrimSpace(raw) != "" {
-		var models []string
-		if err := json.Unmarshal([]byte(raw), &models); err == nil {
-			result.OpenAICodexTicketModels = NormalizeOpenAICodexTicketModels(models)
-		}
-	}
-	if result.OpenAICodexTicketModels == nil && s != nil && s.cfg != nil {
-		if len(s.cfg.Gateway.OpenAICodexTicket.Models) > 0 {
-			result.OpenAICodexTicketModels = NormalizeOpenAICodexTicketModels(s.cfg.Gateway.OpenAICodexTicket.Models)
-		}
-	}
-	if result.OpenAICodexTicketModels == nil {
-		result.OpenAICodexTicketModels = []string{openAICodexTicketDefaultModel, openAICodexTicketDefaultSolModel}
-	}
 	result.ClaudeCodeClientVersion = NormalizeClaudeCodeClientVersion(settings[SettingKeyClaudeCodeClientVersion])
 	result.ClaudeCodeClientVersionSynced = NormalizeClaudeCodeClientVersion(settings[SettingKeyClaudeCodeClientVersionSynced])
 	// 自动同步默认开启：缺失/空值一律视为开启，与 openai_codex_version_auto_sync_enabled 同一惯例。
@@ -1079,6 +971,12 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 	result.OpenAIAdvancedSchedulerWeightUpstreamCost = strings.TrimSpace(settings[SettingKeyOpenAIAdvancedSchedulerWeightUpstreamCost])
 	result.OpenAIAdvancedSchedulerWeightPreviousResponse = strings.TrimSpace(settings[SettingKeyOpenAIAdvancedSchedulerWeightPreviousResponse])
 	result.OpenAIAdvancedSchedulerWeightSessionSticky = strings.TrimSpace(settings[SettingKeyOpenAIAdvancedSchedulerWeightSessionSticky])
+	result.BillingSurchargeEnabled = settings[SettingKeyBillingSurchargeEnabled] == "true"
+	result.BillingSurchargeMode = NormalizeBillingSurchargeMode(settings[SettingKeyBillingSurchargeMode])
+	result.BillingSurchargeValue, _ = strconv.ParseFloat(strings.TrimSpace(settings[SettingKeyBillingSurchargeValue]), 64)
+	if result.BillingSurchargeValue < 0 || math.IsNaN(result.BillingSurchargeValue) || math.IsInf(result.BillingSurchargeValue, 0) {
+		result.BillingSurchargeValue = 0
+	}
 	result.OpenAIAdvancedSchedulerEffectiveLBTopK = s.openAIAdvancedSchedulerEffectiveLBTopK()
 	effectiveWeights := s.openAIAdvancedSchedulerEffectiveWeights()
 	result.OpenAIAdvancedSchedulerEffectiveWeightPriority = formatOpenAIAdvancedSchedulerFloat(effectiveWeights.Priority)
@@ -1128,47 +1026,6 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 	}
 
 	result.AllowUserViewErrorRequests = settings[SettingKeyAllowUserViewErrorRequests] == "true" // default false
-	result.UsageShowLongContextBadge = settings[SettingKeyUsageShowLongContextBadge] != "false"  // 默认开启
-	result.RequestCaptureEnabled = settings[SettingKeyRequestCaptureEnabled] == "true"
-	result.RequestCaptureQuotaMiB, _ = strconv.ParseInt(settings[SettingKeyRequestCaptureQuotaMiB], 10, 64)
-	if result.RequestCaptureQuotaMiB <= 0 {
-		result.RequestCaptureQuotaMiB = 1024
-	}
-	result.RequestCaptureRetentionDays, _ = strconv.Atoi(settings[SettingKeyRequestCaptureRetentionDays])
-	if result.RequestCaptureRetentionDays < 1 || result.RequestCaptureRetentionDays > 30 {
-		result.RequestCaptureRetentionDays = 7
-	}
-	result.ExcelBPSImageMode = settings[SettingKeyExcelBPSImageMode]
-	if result.ExcelBPSImageMode == "" {
-		result.ExcelBPSImageMode = ExcelBPSImageModeNative
-	}
-	result.ExcelBPSImageRelayEnabled = settings[SettingKeyExcelBPSImageRelayEnabled] == "" || settings[SettingKeyExcelBPSImageRelayEnabled] == "true"
-	result.ExcelBPSImageBaseURL = settings[SettingKeyExcelBPSImageBaseURL]
-	result.ExcelBPSImageBodyLimitMiB, _ = parseExcelBPSImageCapacity(settings[SettingKeyExcelBPSImageBodyLimitMiB], DefaultExcelBPSImageBodyLimitMiB)
-	result.ExcelBPSImageBudgetMiB, _ = parseExcelBPSImageCapacity(settings[SettingKeyExcelBPSImageBudgetMiB], DefaultExcelBPSImageBudgetMiB)
-	result.ExcelBPSImageMaxRequests, _ = parseExcelBPSImageCapacity(settings[SettingKeyExcelBPSImageMaxRequests], DefaultExcelBPSImageMaxRequests)
-	if validateExcelBPSImageCapacity(result.ExcelBPSImageBodyLimitMiB, result.ExcelBPSImageBudgetMiB, result.ExcelBPSImageMaxRequests) != nil {
-		result.ExcelBPSImageBodyLimitMiB = DefaultExcelBPSImageBodyLimitMiB
-		result.ExcelBPSImageBudgetMiB = DefaultExcelBPSImageBudgetMiB
-		result.ExcelBPSImageMaxRequests = DefaultExcelBPSImageMaxRequests
-	}
-
-	imageLimits, imageLimitsErr := parseExcelBPSImageLimits(settings)
-	if imageLimitsErr != nil {
-		imageLimits = basispoints.DefaultImageRelayLimits()
-	}
-	result.ExcelBPSImageMaxImageMiB = imageLimits.MaxImageMiB
-	result.ExcelBPSImageMaxImages = imageLimits.MaxImages
-	result.ExcelBPSImageLimitPolicy = settings[SettingKeyExcelBPSImageLimitPolicy]
-	if result.ExcelBPSImageLimitPolicy == "" {
-		result.ExcelBPSImageLimitPolicy = "off"
-	}
-	result.ExcelBPSImageWarningRemaining, _ = parseExcelBPSImageCapacity(settings[SettingKeyExcelBPSImageWarningRemaining], 8)
-	result.ExcelBPSImageCompactReserve, _ = parseExcelBPSImageCapacity(settings[SettingKeyExcelBPSImageCompactReserve], 3)
-	result.ExcelBPSImageMaxTotalMiB = imageLimits.MaxTotalMiB
-	result.ExcelBPSImageStorageMiB = imageLimits.StorageMiB
-	result.ExcelBPSImageStorageEntries = imageLimits.StorageEntries
-	result.ExcelBPSImageTTLMinutes = imageLimits.TTLMinutes
 
 	// Publish Grok default model_mapping options for accounts with empty mapping.
 	xai.SetRuntimeModelMappingOptions(xai.ModelMappingOptions{

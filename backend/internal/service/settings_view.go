@@ -12,10 +12,6 @@ func firstNonEmpty(values ...string) string {
 }
 
 type SystemSettings struct {
-	OpenAICodexTicketHarvestScope       CodexTicketHarvestScope
-	OpenAICodexTicketStrictResponse     bool
-	OpenAICodexTicketFailClosed         bool
-	OpenAICodexTicketStrategy           string
 	RegistrationEnabled                 bool
 	EmailVerifyEnabled                  bool
 	RegistrationEmailSuffixWhitelist    []string
@@ -335,52 +331,6 @@ type SystemSettings struct {
 
 	// 允许终端用户在用量页查看自己的失败请求
 	AllowUserViewErrorRequests bool
-
-	CyberSessionIdentityStrictEnabled bool
-
-	// Protocol feature switches, exposed so account editors follow global controls.
-	ExcelBPSEnabled              bool   `json:"excel_bps_enabled"`
-	PrismBrowserEnabled          bool   `json:"prism_browser_enabled"`
-	PrismBrowserBaseURL          string `json:"prism_browser_base_url"`
-	PrismBrowserAPIKeyConfigured bool   `json:"prism_browser_api_key_configured"`
-	PrismBrowserAPIKey           string `json:"-"`
-
-	GrokVideoSourceURLEnabled bool `json:"grok_video_source_url_enabled"`
-
-	// Pelican showcase (user-facing gallery of scheduled Pelican HTML results)
-	PelicanShowcaseEnabled bool                  `json:"pelican_showcase_enabled"`
-	PelicanShowcase        PelicanShowcaseConfig `json:"pelican_showcase_config"`
-
-	// Support tickets ("网站工单") switch + form config
-	SupportTicketEnabled bool                `json:"support_ticket_enabled"`
-	SupportTicket        SupportTicketConfig `json:"support_ticket_config"`
-	OpenAICodexTicketEnabled         bool   // Codex 292 打票总开关；关闭则不打票不注入
-	OpenAICodexTicketHarvestProxyURL string // Codex 292 打票代理 URL；空则回退 yaml/env
-	OpenAICodexTicketStaticProxyURL  string
-	OpenAICodexTicketModels          []string // Codex 292 打票模型列表；缺失时回退 yaml/env
-
-	RequestCaptureEnabled       bool
-	RequestCaptureQuotaMiB      int64
-	RequestCaptureRetentionDays int
-
-	// 使用详情中长上下文计费 x2 徽标的展示开关（默认开启）
-	UsageShowLongContextBadge bool
-
-	ExcelBPSImageMode             string
-	ExcelBPSImageRelayEnabled     bool
-	ExcelBPSImageBaseURL          string
-	ExcelBPSImageBodyLimitMiB     int
-	ExcelBPSImageBudgetMiB        int
-	ExcelBPSImageMaxRequests      int
-	ExcelBPSImageMaxImageMiB      int
-	ExcelBPSImageMaxImages        int
-	ExcelBPSImageLimitPolicy      string
-	ExcelBPSImageWarningRemaining int
-	ExcelBPSImageCompactReserve   int
-	ExcelBPSImageMaxTotalMiB      int
-	ExcelBPSImageStorageMiB       int
-	ExcelBPSImageStorageEntries   int
-	ExcelBPSImageTTLMinutes       int
 }
 
 type DefaultSubscriptionSetting struct {
@@ -491,24 +441,6 @@ type PublicSettings struct {
 
 	// 允许终端用户在用量页查看自己的失败请求
 	AllowUserViewErrorRequests bool `json:"allow_user_view_error_requests"`
-
-	// Protocol feature switches, exposed so account editors follow global controls.
-	ExcelBPSEnabled     bool `json:"excel_bps_enabled"`
-	PrismBrowserEnabled bool `json:"prism_browser_enabled"`
-
-	// Grok model mapping policy (admin settings).
-	GrokDefaultTextModel           string `json:"grok_default_text_model"`
-	GrokCrossClientModelMapEnabled bool   `json:"grok_cross_client_model_map_enabled"`
-	GrokDefaultBaseURLMode         string `json:"grok_default_base_url_mode"`
-
-	// Pelican showcase feature (user-facing gallery; limits stay admin-only)
-	PelicanShowcaseEnabled bool `json:"pelican_showcase_enabled"`
-
-	// Support tickets ("网站工单") feature switch
-	SupportTicketEnabled bool `json:"support_ticket_enabled"`
-
-	// 使用详情中长上下文计费 x2 徽标的展示开关（默认开启）
-	UsageShowLongContextBadge bool `json:"usage_show_long_context_badge"`
 }
 
 type LoginAgreementDocument struct {

@@ -217,8 +217,4 @@ var (
 		"CHANNEL_MONITOR_MODE_MISMATCH",
 		"channel monitor mode does not allow this operation",
 	)
-	ErrChannelMonitorInvalidMode = infraerrors.BadRequest(
-		"CHANNEL_MONITOR_INVALID_MODE",
-		"channel monitor mode must be v1, v2 or v3",
-	)
 )

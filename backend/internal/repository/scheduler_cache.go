@@ -1022,17 +1022,8 @@ func filterSchedulerExtra(extra map[string]any) map[string]any {
 		// 走网关报 no available accounts"。
 		"openai_passthrough",
 		"openai_oauth_passthrough",
-		"openai_excel_bps",
-		"openai_excel_bps_auto_disable_on_403",
-		service.ExcelBPSAutoRecoverOn403Key,
-		service.ExcelBPS403RecoveryIntervalMinutesKey,
-		service.ExcelBPSAutoMoveOn403Key,
-		service.ExcelBPS403TargetGroupIDKey,
-		"openai_excel_bps_mihomo",
-		"openai_excel_bps_models",
 		"codex_fingerprint_mode",
 		"codex_fingerprint_seed",
-		service.OpenAICodexSkipHarvestExtraKey,
 		"codex_5h_used_percent",
 		"codex_7d_used_percent",
 		"codex_5h_reset_at",
@@ -1058,7 +1049,7 @@ func filterSchedulerExtra(extra map[string]any) map[string]any {
 	}
 	filtered := make(map[string]any)
 	for _, key := range keys {
-		if value, ok := extra[key]; ok && (value != nil || key == "openai_excel_bps_models") {
+		if value, ok := extra[key]; ok && value != nil {
 			if key == service.UpstreamBillingProbeExtraKey {
 				filteredProbe := filterSchedulerUpstreamBillingProbe(value)
 				if filteredProbe == nil {
