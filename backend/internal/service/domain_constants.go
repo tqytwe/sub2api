@@ -755,9 +755,6 @@ const (
 	SettingKeyOpenAICodexClientVersionSynced = "openai_codex_client_version_synced"
 	// SettingKeyOpenAICodexVersionAutoSyncEnabled 是否启用 Codex 客户端版本号自动同步（默认 true）。
 	SettingKeyOpenAICodexVersionAutoSyncEnabled = "openai_codex_version_auto_sync_enabled"
-	// SettingKeyOpenAIRequestTimezoneEnabled OpenAI 请求时区改写总开关（默认关闭）；
-	// 开启后按账号 openai_request_timezone 绑定改写请求 environment_context 中的时区。
-	SettingKeyOpenAIRequestTimezoneEnabled = "openai_request_timezone_enabled"
 	SettingKeyBillingSurchargeEnabled           = "billing_surcharge_enabled"
 	SettingKeyBillingSurchargeMode              = "billing_surcharge_mode"
 	SettingKeyBillingSurchargeValue             = "billing_surcharge_value"

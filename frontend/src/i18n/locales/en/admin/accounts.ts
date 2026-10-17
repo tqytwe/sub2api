@@ -627,10 +627,6 @@ export default {
       },
       // OpenAI specific hints
       openai: {
-        requestTimezone: 'Request timezone',
-        requestTimezoneDesc: 'Applies when Bind request timezone is enabled in system settings. Defaults to Asia/Singapore.',
-        requestTimezoneLoadFailed: 'Could not load timezones. Please retry later.',
-
         baseUrlHint: 'Leave default for official OpenAI API',
         apiKeyHint: 'Your OpenAI API Key',
         oauthPassthrough: 'Auto passthrough (auth only)',
