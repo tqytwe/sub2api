@@ -21,6 +21,7 @@ import (
 
 // Forward forwards request to OpenAI API
 func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, account *Account, body []byte) (_ *OpenAIForwardResult, forwardErr error) {
+	body = s.normalizeRequestTimezone(ctx, account, body, "http")
 	// Cover both predicate and later credential/transport admission failures once.
 	ctx = context.WithValue(ctx, openAITurnAdmissionLogAtForwardBoundaryKey{}, true)
 	defer func() { logOpenAITurnAdmissionDenial(ctx, account, forwardErr) }()
