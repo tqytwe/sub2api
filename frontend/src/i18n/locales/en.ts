@@ -1,6 +1,8 @@
 import requestLedger from './request-ledger.en'
 import { jisudengHomeEn } from './jisudeng-home.en'
 import { jisudengPagesEn } from './jisudeng-pages.en'
+import autoConfigEn from './en/autoConfig'
+import qualityOpsEn from './en/qualityOps'
 import splitAdminEn from './en/admin'
 import splitBatchImageEn from './en/batchImage'
 import splitCommonEn from './en/common'
@@ -9579,5 +9581,7 @@ export default mergeLocaleMessages(messages, {
   ...splitChannelMonitorV2En,
   ...splitDashboardEn,
   ...splitBatchImageEn,
+  autoConfig: autoConfigEn,
+  qualityOps: qualityOpsEn,
   admin: splitAdminEn,
 })
