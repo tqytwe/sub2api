@@ -140,14 +140,6 @@ func (s *OpenAIGatewayService) nativeAnthropicTargetURL(account *Account) (strin
 	return strings.TrimRight(validatedURL, "/") + "/v1/messages", nil
 }
 
-func resolveMappedUpstreamModel(account *Account, body []byte, defaultMappedModel string) string {
-	original := strings.TrimSpace(gjson.GetBytes(body, "model").String())
-	billing := resolveOpenAIForwardModel(account, original, defaultMappedModel)
-	return normalizeOpenAIModelForUpstream(account, billing)
-}
-
-// resolveOpenCodeGoMappedModel 是 resolveMappedUpstreamModel 的旧名（v2.10.5 上游
-// 泛化为全部按模型分流供应商共用）；分叉旧调用点保留。
 func resolveOpenCodeGoMappedModel(account *Account, body []byte, defaultMappedModel string) string {
 	original := strings.TrimSpace(gjson.GetBytes(body, "model").String())
 	billing := resolveOpenAIForwardModel(account, original, defaultMappedModel)

@@ -10,6 +10,20 @@ import (
 	"github.com/tidwall/gjson"
 )
 
+// codexTicketLifecycleSettings is a fork-local stand-in for the upstream
+// shared test stub (defined in openai_codex_ticket_lifecycle_test.go there,
+// which the fork does not have). It overrides only GetValue; any other
+// repository method panics via the embedded nil interface, which keeps the
+// tests honest about what they actually read.
+type codexTicketLifecycleSettings struct {
+	SettingRepository
+	get func(context.Context, string) (string, error)
+}
+
+func (r *codexTicketLifecycleSettings) GetValue(ctx context.Context, key string) (string, error) {
+	return r.get(ctx, key)
+}
+
 type timezoneSettingsRepo struct{ SettingRepository }
 
 func (*timezoneSettingsRepo) GetValue(_ context.Context, key string) (string, error) {

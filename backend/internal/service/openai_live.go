@@ -283,7 +283,6 @@ func (s *OpenAIGatewayService) CreateLiveCall(
 			identity.UserID,
 			userMaxConcurrency,
 			identity.APIKeyID,
-			0, // apiKeyMax: Live 不启用 Key 级并发上限，沿用原有额度语义
 			leaseID,
 			true,
 		)

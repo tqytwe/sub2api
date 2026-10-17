@@ -8,7 +8,6 @@ import (
 	"log/slog"
 	"math"
 	"net/url"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -46,14 +45,10 @@ func (s *SettingService) UpdateSettingsOmitting(ctx context.Context, settings *S
 	}
 	omitted.dropFrom(updates)
 
-	wakeHarvest := s.codexHarvestSettingsChanged(ctx, updates)
 	if err := s.settingRepo.SetMultiple(ctx, updates); err != nil {
 		return err
 	}
 	s.refreshCachedSettingsAfterWrite(ctx, settings, omitted)
-	if wakeHarvest {
-		s.notifyCodexHarvestAfterSettingsWrite()
-	}
 	return nil
 }
 
@@ -80,14 +75,10 @@ func (s *SettingService) UpdateSettingsWithAuthSourceDefaultsOmitting(ctx contex
 	}
 	omitted.dropFrom(updates)
 
-	wakeHarvest := s.codexHarvestSettingsChanged(ctx, updates)
 	if err := s.settingRepo.SetMultiple(ctx, updates); err != nil {
 		return err
 	}
 	s.refreshCachedSettingsAfterWrite(ctx, settings, omitted)
-	if wakeHarvest {
-		s.notifyCodexHarvestAfterSettingsWrite()
-	}
 	return nil
 }
 
@@ -109,60 +100,6 @@ func (s *SettingService) refreshCachedSettingsAfterWrite(ctx context.Context, se
 }
 
 func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, settings *SystemSettings) (map[string]string, error) {
-	captureConfig := settings.requestCaptureConfig()
-	if err := captureConfig.Validate(); err != nil {
-		return nil, infraerrors.BadRequest("INVALID_REQUEST_CAPTURE_SETTINGS", err.Error())
-	}
-	imageRelay, err := normalizeExcelBPSImageRelaySettings(settings.ExcelBPSImageRelayEnabled, settings.ExcelBPSImageBaseURL, settings.ExcelBPSImageMode)
-	if err != nil {
-		return nil, err
-	}
-	settings.ExcelBPSImageBaseURL = imageRelay.BaseURL
-	if settings.ExcelBPSImageBodyLimitMiB == 0 {
-		settings.ExcelBPSImageBodyLimitMiB = DefaultExcelBPSImageBodyLimitMiB
-	}
-	if settings.ExcelBPSImageBudgetMiB == 0 {
-		settings.ExcelBPSImageBudgetMiB = DefaultExcelBPSImageBudgetMiB
-	}
-	if settings.ExcelBPSImageMaxRequests == 0 {
-		settings.ExcelBPSImageMaxRequests = DefaultExcelBPSImageMaxRequests
-	}
-	if settings.ExcelBPSImageMaxImageMiB == 0 {
-		settings.ExcelBPSImageMaxImageMiB = imageRelay.Limits.MaxImageMiB
-	}
-	if settings.ExcelBPSImageMaxImages == 0 {
-		settings.ExcelBPSImageMaxImages = imageRelay.Limits.MaxImages
-	}
-	if settings.ExcelBPSImageMaxTotalMiB == 0 {
-		settings.ExcelBPSImageMaxTotalMiB = imageRelay.Limits.MaxTotalMiB
-	}
-	if settings.ExcelBPSImageStorageMiB == 0 {
-		settings.ExcelBPSImageStorageMiB = imageRelay.Limits.StorageMiB
-	}
-	if settings.ExcelBPSImageStorageEntries == 0 {
-		settings.ExcelBPSImageStorageEntries = imageRelay.Limits.StorageEntries
-	}
-	if settings.ExcelBPSImageTTLMinutes == 0 {
-		settings.ExcelBPSImageTTLMinutes = imageRelay.Limits.TTLMinutes
-	}
-	if settings.ExcelBPSImageLimitPolicy == "" {
-		settings.ExcelBPSImageLimitPolicy = "off"
-	}
-	if settings.ExcelBPSImageWarningRemaining == 0 {
-		settings.ExcelBPSImageWarningRemaining = 8
-	}
-	if settings.ExcelBPSImageCompactReserve == 0 {
-		settings.ExcelBPSImageCompactReserve = 3
-	}
-	if err := validateExcelBPSImagePolicy(settings.ExcelBPSImageLimitPolicy, settings.ExcelBPSImageWarningRemaining, settings.ExcelBPSImageCompactReserve, settings.ExcelBPSImageMaxImages); err != nil {
-		return nil, infraerrors.BadRequest("INVALID_EXCEL_BPS_IMAGE_POLICY", err.Error())
-	}
-	if err := settings.imageRelayLimits().Validate(); err != nil {
-		return nil, infraerrors.BadRequest("INVALID_EXCEL_BPS_IMAGE_LIMITS", err.Error())
-	}
-	if err := validateExcelBPSImageCapacity(settings.ExcelBPSImageBodyLimitMiB, settings.ExcelBPSImageBudgetMiB, settings.ExcelBPSImageMaxRequests); err != nil {
-		return nil, err
-	}
 	if err := s.validateDefaultSubscriptionGroups(ctx, settings.DefaultSubscriptions); err != nil {
 		return nil, err
 	}
@@ -174,6 +111,11 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 		normalizedWhitelist = []string{}
 	}
 	settings.RegistrationEmailSuffixWhitelist = normalizedWhitelist
+	frontendURL, err := normalizeFrontendURLSetting(settings.FrontendURL)
+	if err != nil {
+		return nil, infraerrors.BadRequest("INVALID_FRONTEND_URL", err.Error())
+	}
+	settings.FrontendURL = frontendURL
 	normalizedForwardedClientIPHeaders, err := config.NormalizeForwardedClientIPHeaders(settings.ForwardedClientIPHeaders)
 	if err != nil {
 		return nil, infraerrors.BadRequest("INVALID_FORWARDED_CLIENT_IP_HEADERS", err.Error())
@@ -189,6 +131,13 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	}
 	if err := s.normalizeOpenAIAdvancedSchedulerOverrides(settings); err != nil {
 		return nil, err
+	}
+	if settings.BillingSurchargeValue < 0 || math.IsNaN(settings.BillingSurchargeValue) || math.IsInf(settings.BillingSurchargeValue, 0) {
+		return nil, infraerrors.BadRequest("INVALID_BILLING_SURCHARGE_VALUE", "billing_surcharge_value must be >= 0")
+	}
+	settings.BillingSurchargeMode = NormalizeBillingSurchargeMode(settings.BillingSurchargeMode)
+	if settings.BillingSurchargeEnabled && settings.BillingSurchargeMode == BillingSurchargeModeNone {
+		return nil, infraerrors.BadRequest("INVALID_BILLING_SURCHARGE_MODE", "billing_surcharge_mode must be percent_on_charged_cost or additive_multiplier when enabled")
 	}
 	settings.PaymentVisibleMethodAlipaySource = alipaySource
 	settings.PaymentVisibleMethodWxpaySource = wxpaySource
@@ -224,26 +173,6 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	}
 
 	updates := make(map[string]string)
-	frontendURL, err := normalizeFrontendURLSetting(settings.FrontendURL)
-	if err != nil {
-		return nil, infraerrors.BadRequest("INVALID_FRONTEND_URL", err.Error())
-	}
-	settings.FrontendURL = frontendURL
-	if settings.BillingSurchargeValue < 0 || math.IsNaN(settings.BillingSurchargeValue) || math.IsInf(settings.BillingSurchargeValue, 0) {
-		return nil, infraerrors.BadRequest("INVALID_BILLING_SURCHARGE_VALUE", "billing_surcharge_value must be >= 0")
-	}
-	settings.BillingSurchargeMode = NormalizeBillingSurchargeMode(settings.BillingSurchargeMode)
-	if settings.BillingSurchargeEnabled && settings.BillingSurchargeMode == BillingSurchargeModeNone {
-		return nil, infraerrors.BadRequest("INVALID_BILLING_SURCHARGE_MODE", "billing_surcharge_mode must be percent_on_charged_cost or additive_multiplier when enabled")
-	}
-	if settings.SupportContactProvided {
-		normalizedSupportContact, supportContactJSON, err := NormalizeSupportContactConfigForStorage(settings.SupportContact)
-		if err != nil {
-			return nil, infraerrors.BadRequest("INVALID_SUPPORT_CONTACT_CONFIG", err.Error())
-		}
-		settings.SupportContact = normalizedSupportContact
-		updates[SettingKeySupportContactConfig] = supportContactJSON
-	}
 
 	// 注册设置
 	updates[SettingKeyRegistrationEnabled] = strconv.FormatBool(settings.RegistrationEnabled)
@@ -426,6 +355,14 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	updates[SettingKeyAPIBaseURL] = settings.APIBaseURL
 	updates[SettingKeyContactInfo] = settings.ContactInfo
 	updates[SettingKeyDocURL] = settings.DocURL
+	if settings.SupportContactProvided {
+		normalizedSupportContact, supportContactJSON, err := NormalizeSupportContactConfigForStorage(settings.SupportContact)
+		if err != nil {
+			return nil, infraerrors.BadRequest("INVALID_SUPPORT_CONTACT_CONFIG", err.Error())
+		}
+		settings.SupportContact = normalizedSupportContact
+		updates[SettingKeySupportContactConfig] = supportContactJSON
+	}
 	updates[SettingKeyHomeContent] = settings.HomeContent
 	updates[SettingKeyCompactHomeEnabled] = strconv.FormatBool(settings.CompactHomeEnabled)
 	updates[SettingKeyHideCcsImportButton] = strconv.FormatBool(settings.HideCcsImportButton)
@@ -495,7 +432,6 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	}
 
 	// Channel monitor feature switch
-	updates[SettingKeyExcelBPSEnabled] = strconv.FormatBool(settings.ExcelBPSEnabled)
 	updates[SettingKeyChannelMonitorEnabled] = strconv.FormatBool(settings.ChannelMonitorEnabled)
 	updates[SettingKeyChannelMonitorMode] = normalizeChannelMonitorMode(settings.ChannelMonitorMode)
 	if v := clampChannelMonitorInterval(settings.ChannelMonitorDefaultIntervalSeconds); v > 0 {
@@ -504,15 +440,6 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	updates[SettingKeyChannelMonitorHideThroughput] = strconv.FormatBool(settings.ChannelMonitorHideThroughput)
 	updates[SettingKeyChannelMonitorShowQuota] = strconv.FormatBool(settings.ChannelMonitorShowQuota)
 	updates[SettingKeyChannelMonitorHideUserRanking] = strconv.FormatBool(settings.ChannelMonitorHideUserRanking)
-	updates[SettingKeyPrismBrowserEnabled] = strconv.FormatBool(settings.PrismBrowserEnabled)
-	baseURL := strings.TrimSpace(settings.PrismBrowserBaseURL)
-	if baseURL == "" {
-		baseURL = "http://127.0.0.1:8319/v1"
-	}
-	updates[SettingKeyPrismBrowserBaseURL] = baseURL
-	if strings.TrimSpace(settings.PrismBrowserAPIKey) != "" {
-		updates[SettingKeyPrismBrowserAPIKey] = strings.TrimSpace(settings.PrismBrowserAPIKey)
-	}
 
 	// Grok model mapping policy
 	if v := strings.TrimSpace(settings.GrokDefaultTextModel); v != "" {
@@ -522,19 +449,9 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	}
 	updates[SettingKeyGrokCrossClientModelMapEnabled] = strconv.FormatBool(settings.GrokCrossClientModelMapEnabled)
 	updates[SettingKeyGrokDefaultBaseURLMode] = normalizeGrokDefaultBaseURLMode(settings.GrokDefaultBaseURLMode)
-	updates[SettingKeyGrokVideoSourceURLEnabled] = strconv.FormatBool(settings.GrokVideoSourceURLEnabled)
 
 	// Available channels feature switch
 	updates[SettingKeyAvailableChannelsEnabled] = strconv.FormatBool(settings.AvailableChannelsEnabled)
-
-	// Pelican showcase switch + gallery limits
-	updates[SettingKeyPelicanShowcaseEnabled] = strconv.FormatBool(settings.PelicanShowcaseEnabled)
-	showcase, showcaseErr := NormalizePelicanShowcaseConfig(settings.PelicanShowcase)
-	if showcaseErr != nil {
-		return nil, infraerrors.BadRequest("INVALID_PELICAN_SHOWCASE", showcaseErr.Error())
-	}
-	showcaseJSON, _ := json.Marshal(showcase)
-	updates[SettingKeyPelicanShowcaseConfig] = string(showcaseJSON)
 
 	// Subscription feature switch
 	updates[SettingKeySubscriptionEnabled] = strconv.FormatBool(settings.SubscriptionEnabled)
@@ -544,15 +461,6 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	updates[SettingKeyModelPlazaRequireAuth] = strconv.FormatBool(settings.ModelPlazaRequireAuth)
 	updates[SettingKeyModelPlazaDescription] = settings.ModelPlazaDescription
 	updates[SettingKeyPluginManagementEnabled] = strconv.FormatBool(settings.PluginManagementEnabled)
-
-	// Support tickets switch + form config
-	updates[SettingKeySupportTicketEnabled] = strconv.FormatBool(settings.SupportTicketEnabled)
-	ticketConfig, ticketConfigErr := NormalizeSupportTicketConfig(settings.SupportTicket)
-	if ticketConfigErr != nil {
-		return nil, infraerrors.BadRequest("INVALID_SUPPORT_TICKET_CONFIG", ticketConfigErr.Error())
-	}
-	ticketConfigJSON, _ := json.Marshal(ticketConfig)
-	updates[SettingKeySupportTicketConfig] = string(ticketConfigJSON)
 
 	// Affiliate (邀请返利) feature switch
 	updates[SettingKeyAffiliateEnabled] = strconv.FormatBool(settings.AffiliateEnabled)
@@ -579,7 +487,6 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	if settings.CyberSessionBlockTTLSeconds > 0 {
 		updates[SettingKeyCyberSessionBlockTTLSeconds] = strconv.Itoa(settings.CyberSessionBlockTTLSeconds)
 	}
-	updates[SettingKeyCyberSessionIdentityStrictEnabled] = strconv.FormatBool(settings.CyberSessionIdentityStrictEnabled)
 
 	// Claude Code version check
 	updates[SettingKeyMinClaudeCodeVersion] = settings.MinClaudeCodeVersion
@@ -614,50 +521,6 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	updates[SettingKeyOpenAICodexClientVersion] = NormalizeCodexClientVersion(settings.OpenAICodexClientVersion)
 	updates[SettingKeyOpenAICodexVersionAutoSyncEnabled] = strconv.FormatBool(settings.OpenAICodexVersionAutoSyncEnabled)
 	updates[SettingKeyOpenAIRequestTimezoneEnabled] = strconv.FormatBool(settings.OpenAIRequestTimezoneEnabled)
-	updates[SettingKeyOpenAICodexTicketEnabled] = strconv.FormatBool(settings.OpenAICodexTicketEnabled)
-	updates[SettingKeyOpenAICodexTicketFailClosed] = strconv.FormatBool(settings.OpenAICodexTicketFailClosed)
-	if err := ValidateOpenAICodexTicketHarvestProxyURL(settings.OpenAICodexTicketHarvestProxyURL); err != nil {
-		return nil, infraerrors.BadRequest("INVALID_CODEX_HARVEST_PROXY", err.Error())
-	}
-	updates[SettingKeyOpenAICodexTicketHarvestProxyURL] = strings.TrimSpace(settings.OpenAICodexTicketHarvestProxyURL)
-	if value := settings.OpenAICodexTicketStrategy; value != "" && value != "fixed" && value != "standby" {
-		return nil, infraerrors.BadRequest("INVALID_TICKET_STRATEGY", "strategy must be fixed or standby")
-	}
-	scope, scopeErr := NormalizeCodexTicketHarvestScope(settings.OpenAICodexTicketHarvestScope)
-	if scopeErr != nil {
-		return nil, infraerrors.BadRequest("INVALID_TICKET_HARVEST_SCOPE", scopeErr.Error())
-	}
-	// Validate only a changed selection, so deleting a selected group does not
-	// prevent unrelated settings from being saved. Stale IDs match no accounts.
-	scopeJSON, _ := json.Marshal(scope)
-	if s.defaultSubGroupReader != nil && len(scope.GroupIDs) > 0 {
-		old, readErr := s.GetCodexTicketHarvestScope(ctx)
-		if readErr != nil || old.Mode != scope.Mode || !slices.Equal(old.GroupIDs, scope.GroupIDs) {
-			for _, id := range scope.GroupIDs {
-				group, err := s.defaultSubGroupReader.GetByID(ctx, id)
-				if err != nil && !errors.Is(err, ErrGroupNotFound) {
-					return nil, err
-				}
-				if err != nil || group == nil || group.Platform != PlatformOpenAI {
-					return nil, infraerrors.BadRequest("INVALID_TICKET_HARVEST_GROUP", "harvest groups must exist and use the OpenAI platform")
-				}
-			}
-		}
-	}
-	updates[SettingKeyOpenAICodexTicketHarvestScope] = string(scopeJSON)
-	updates[SettingKeyOpenAICodexTicketStrategy] = NormalizeCodexTicketStrategy(settings.OpenAICodexTicketStrategy)
-	updates[SettingKeyOpenAICodexTicketStrict] = strconv.FormatBool(settings.OpenAICodexTicketStrictResponse)
-	if settings.OpenAICodexTicketStaticProxyURL != "" {
-		updates[SettingKeyOpenAICodexTicketStaticProxyURL] = settings.OpenAICodexTicketStaticProxyURL
-	}
-	if proxy := strings.TrimSpace(settings.OpenAICodexTicketHarvestProxyURL); proxy != "" && proxy != "http://127.0.0.1:3101" && proxy != OpenAICodexTicketHarvestIPPoolURL {
-		updates[SettingKeyOpenAICodexTicketStaticProxyURL] = proxy
-	}
-	modelsJSON, err := json.Marshal(NormalizeOpenAICodexTicketModels(settings.OpenAICodexTicketModels))
-	if err != nil {
-		return nil, fmt.Errorf("marshal Codex ticket models: %w", err)
-	}
-	updates[SettingKeyOpenAICodexTicketModels] = string(modelsJSON)
 	// SettingKeyOpenAICodexClientVersionSynced 由自动同步任务独占写入，此处不得覆盖，
 	// 否则面板保存会把同步结果清空。
 	updates[SettingKeyClaudeCodeClientVersion] = NormalizeClaudeCodeClientVersion(settings.ClaudeCodeClientVersion)
@@ -694,6 +557,9 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	updates[SettingKeyOpenAIAdvancedSchedulerWeightUpstreamCost] = settings.OpenAIAdvancedSchedulerWeightUpstreamCost
 	updates[SettingKeyOpenAIAdvancedSchedulerWeightPreviousResponse] = settings.OpenAIAdvancedSchedulerWeightPreviousResponse
 	updates[SettingKeyOpenAIAdvancedSchedulerWeightSessionSticky] = settings.OpenAIAdvancedSchedulerWeightSessionSticky
+	updates[SettingKeyBillingSurchargeEnabled] = strconv.FormatBool(settings.BillingSurchargeEnabled)
+	updates[SettingKeyBillingSurchargeMode] = settings.BillingSurchargeMode
+	updates[SettingKeyBillingSurchargeValue] = strconv.FormatFloat(settings.BillingSurchargeValue, 'f', -1, 64)
 
 	// 余额、订阅到期与账号限额通知
 	updates[SettingKeyBalanceLowNotifyEnabled] = strconv.FormatBool(settings.BalanceLowNotifyEnabled)
@@ -727,30 +593,33 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	}
 
 	updates[SettingKeyAllowUserViewErrorRequests] = strconv.FormatBool(settings.AllowUserViewErrorRequests)
-	updates[SettingKeyUsageShowLongContextBadge] = strconv.FormatBool(settings.UsageShowLongContextBadge)
-	updates[SettingKeyBillingSurchargeEnabled] = strconv.FormatBool(settings.BillingSurchargeEnabled)
-	updates[SettingKeyBillingSurchargeMode] = settings.BillingSurchargeMode
-	updates[SettingKeyBillingSurchargeValue] = strconv.FormatFloat(settings.BillingSurchargeValue, 'f', -1, 64)
-	updates[SettingKeyRequestCaptureEnabled] = strconv.FormatBool(captureConfig.Enabled)
-	updates[SettingKeyRequestCaptureQuotaMiB] = strconv.FormatInt(captureConfig.QuotaMiB, 10)
-	updates[SettingKeyRequestCaptureRetentionDays] = strconv.Itoa(captureConfig.RetentionDays)
-	updates[SettingKeyExcelBPSImageMode] = imageRelay.Mode
-	updates[SettingKeyExcelBPSImageRelayEnabled] = strconv.FormatBool(imageRelay.Enabled)
-	updates[SettingKeyExcelBPSImageBaseURL] = imageRelay.BaseURL
-	updates[SettingKeyExcelBPSImageBodyLimitMiB] = strconv.Itoa(settings.ExcelBPSImageBodyLimitMiB)
-	updates[SettingKeyExcelBPSImageBudgetMiB] = strconv.Itoa(settings.ExcelBPSImageBudgetMiB)
-	updates[SettingKeyExcelBPSImageMaxRequests] = strconv.Itoa(settings.ExcelBPSImageMaxRequests)
-	updates[SettingKeyExcelBPSImageMaxImageMiB] = strconv.Itoa(settings.ExcelBPSImageMaxImageMiB)
-	updates[SettingKeyExcelBPSImageLimitPolicy] = settings.ExcelBPSImageLimitPolicy
-	updates[SettingKeyExcelBPSImageWarningRemaining] = strconv.Itoa(settings.ExcelBPSImageWarningRemaining)
-	updates[SettingKeyExcelBPSImageCompactReserve] = strconv.Itoa(settings.ExcelBPSImageCompactReserve)
-	updates[SettingKeyExcelBPSImageMaxImages] = strconv.Itoa(settings.ExcelBPSImageMaxImages)
-	updates[SettingKeyExcelBPSImageMaxTotalMiB] = strconv.Itoa(settings.ExcelBPSImageMaxTotalMiB)
-	updates[SettingKeyExcelBPSImageStorageMiB] = strconv.Itoa(settings.ExcelBPSImageStorageMiB)
-	updates[SettingKeyExcelBPSImageStorageEntries] = strconv.Itoa(settings.ExcelBPSImageStorageEntries)
-	updates[SettingKeyExcelBPSImageTTLMinutes] = strconv.Itoa(settings.ExcelBPSImageTTLMinutes)
 
 	return updates, nil
+}
+
+// normalizeFrontendURLSetting keeps the audited frontend_url setting suitable
+// for email and external redirect links. The server config validates the same
+// safety properties, but the admin Settings flow persists to the database and
+// must not rely on a later process restart to reject an unsafe value.
+func normalizeFrontendURLSetting(raw string) (string, error) {
+	value := strings.TrimSpace(raw)
+	if value == "" {
+		return "", nil
+	}
+	if err := config.ValidateAbsoluteHTTPURL(value); err != nil {
+		return "", fmt.Errorf("frontend_url invalid: %w", err)
+	}
+	parsed, err := url.Parse(value)
+	if err != nil {
+		return "", fmt.Errorf("frontend_url invalid: %w", err)
+	}
+	if parsed.RawQuery != "" || parsed.ForceQuery {
+		return "", fmt.Errorf("frontend_url invalid: must not include query")
+	}
+	if parsed.User != nil {
+		return "", fmt.Errorf("frontend_url invalid: must not include userinfo")
+	}
+	return value, nil
 }
 
 func defaultAccountSchedulingThresholds() map[string]int {
@@ -942,11 +811,6 @@ func (s *SettingService) refreshCachedSettings(settings *SystemSettings) {
 	// 这里没有它的最新值，重算会把同步结果覆盖成陈旧值。
 	s.InvalidateOpenAICodexClientVersionCache()
 	s.InvalidateOpenAIRequestTimezoneEnabledCache()
-	s.InvalidateOpenAICodexTicketEnabledCache()
-	s.InvalidateOpenAICodexTicketFailClosedCache()
-	s.InvalidateOpenAICodexTicketModelsCache()
-	s.InvalidateOpenAICodexTicketHarvestProxyCache()
-	s.InvalidateOpenAICodexTicketHarvestScopeCache()
 	s.InvalidateClaudeCodeClientVersionCache()
 	openAIAdvancedSchedulerSettingSF.Forget(openAIAdvancedSchedulerSettingKey)
 	openAIAdvancedSchedulerSettingCache.Store(&cachedOpenAIAdvancedSchedulerSetting{
@@ -1001,16 +865,11 @@ func (s *SettingService) refreshCachedSettings(settings *SystemSettings) {
 	// codex_cli_only 加固策略缓存：设置更新后强制下次重载（涉及 4 个键 + JSON 解析，直接置过期）。
 	s.codexRestrictionPolicySF.Forget("codex_restriction_policy")
 	s.codexRestrictionPolicyCache.Store(&cachedCodexRestrictionPolicy{expiresAt: 0})
-	// Cyber 会话屏蔽与严格身份门控必须在后台保存后立即生效，不能继续
-	// 使用最长 60 秒的旧开关快照。保留刚保存成功的白名单，下一次 DB 刷新失败时沿用。
-	s.cyberSessionBlockRuntimeSF.Forget("cyber_session_block_runtime")
+	// Retain the successfully saved allowlist if the next DB refresh fails.
 	s.cyberSessionBlockRuntimeMu.Lock()
 	allowlistedUsers, _ := ParseCyberPolicyUserAllowlist(settings.CyberPolicyUserAllowlist)
 	s.cyberSessionBlockRuntimeCache.Store(&cachedCyberSessionBlockRuntime{allowlistedUsers: allowlistedUsers})
 	s.cyberSessionBlockRuntimeMu.Unlock()
-	if s.requestCapture != nil {
-		s.requestCapture.ApplyConfig(settings.requestCaptureConfig())
-	}
 	if s.onUpdate != nil {
 		s.onUpdate() // Invalidate cache after settings update
 	}
@@ -1058,29 +917,4 @@ func (s *SettingService) validateDefaultSubscriptionGroups(ctx context.Context, 
 	}
 
 	return nil
-}
-
-// normalizeFrontendURLSetting keeps the audited frontend_url setting suitable
-// for email and external redirect links. The server config validates the same
-// safety properties, but the admin Settings flow persists to the database and
-// must not rely on a later process restart to reject an unsafe value.
-func normalizeFrontendURLSetting(raw string) (string, error) {
-	value := strings.TrimSpace(raw)
-	if value == "" {
-		return "", nil
-	}
-	if err := config.ValidateAbsoluteHTTPURL(value); err != nil {
-		return "", fmt.Errorf("frontend_url invalid: %w", err)
-	}
-	parsed, err := url.Parse(value)
-	if err != nil {
-		return "", fmt.Errorf("frontend_url invalid: %w", err)
-	}
-	if parsed.RawQuery != "" || parsed.ForceQuery {
-		return "", fmt.Errorf("frontend_url invalid: must not include query")
-	}
-	if parsed.User != nil {
-		return "", fmt.Errorf("frontend_url invalid: must not include userinfo")
-	}
-	return value, nil
 }

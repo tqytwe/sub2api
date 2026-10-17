@@ -88,46 +88,6 @@ func markGrokTeamModelRateLimit(account *Account, model string, until time.Time)
 	}
 }
 
-func clearGrokTeamModelRateLimitsForAccount(account *Account) {
-	if account == nil || !account.IsGrokOAuth() {
-		return
-	}
-	prefix := grokTeamFingerprint(accountGrokTeamID(account)) + "|"
-	if prefix == "|" {
-		return
-	}
-	globalGrokTeamModelRateLimits.mu.Lock()
-	defer globalGrokTeamModelRateLimits.mu.Unlock()
-	for key := range globalGrokTeamModelRateLimits.items {
-		if strings.HasPrefix(key, prefix) {
-			delete(globalGrokTeamModelRateLimits.items, key)
-		}
-	}
-}
-
-func hasGrokTeamModelRateLimitForAccount(account *Account) bool {
-	if account == nil || !account.IsGrokOAuth() {
-		return false
-	}
-	prefix := grokTeamFingerprint(accountGrokTeamID(account)) + "|"
-	if prefix == "|" {
-		return false
-	}
-	now := time.Now()
-	globalGrokTeamModelRateLimits.mu.Lock()
-	defer globalGrokTeamModelRateLimits.mu.Unlock()
-	for key, block := range globalGrokTeamModelRateLimits.items {
-		if !strings.HasPrefix(key, prefix) {
-			continue
-		}
-		if block.Until.After(now) {
-			return true
-		}
-		delete(globalGrokTeamModelRateLimits.items, key)
-	}
-	return false
-}
-
 // isGrokTeamModelRateLimited reports whether the account's team is currently
 // blocked for the requested model.
 func isGrokTeamModelRateLimited(account *Account, model string, now time.Time) bool {
