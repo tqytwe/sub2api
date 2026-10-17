@@ -258,6 +258,7 @@ type UpdateSettingsRequest struct {
 	OpenAICodexUserAgent                   *string `json:"openai_codex_user_agent"`
 	OpenAICodexClientVersion               *string `json:"openai_codex_client_version"`
 	OpenAICodexVersionAutoSyncEnabled      *bool   `json:"openai_codex_version_auto_sync_enabled"`
+	OpenAIRequestTimezoneEnabled           *bool   `json:"openai_request_timezone_enabled"`
 	ClaudeCodeClientVersion                *string `json:"claude_code_client_version"`
 	ClaudeCodeVersionAutoSyncEnabled       *bool   `json:"claude_code_version_auto_sync_enabled"`
 
@@ -1812,6 +1813,12 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			}
 			return previousSettings.OpenAICodexVersionAutoSyncEnabled
 		}(),
+		OpenAIRequestTimezoneEnabled: func() bool {
+			if req.OpenAIRequestTimezoneEnabled != nil {
+				return *req.OpenAIRequestTimezoneEnabled
+			}
+			return previousSettings.OpenAIRequestTimezoneEnabled
+		}(),
 		ClaudeCodeClientVersion: func() string {
 			if req.ClaudeCodeClientVersion != nil {
 				return *req.ClaudeCodeClientVersion
@@ -2440,6 +2447,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		OpenAICodexClientVersion:                               updatedSettings.OpenAICodexClientVersion,
 		OpenAICodexClientVersionSynced:                         updatedSettings.OpenAICodexClientVersionSynced,
 		OpenAICodexVersionAutoSyncEnabled:                      updatedSettings.OpenAICodexVersionAutoSyncEnabled,
+		OpenAIRequestTimezoneEnabled:                           updatedSettings.OpenAIRequestTimezoneEnabled,
 		ClaudeCodeClientVersion:                                updatedSettings.ClaudeCodeClientVersion,
 		ClaudeCodeClientVersionSynced:                          updatedSettings.ClaudeCodeClientVersionSynced,
 		ClaudeCodeVersionAutoSyncEnabled:                       updatedSettings.ClaudeCodeVersionAutoSyncEnabled,
