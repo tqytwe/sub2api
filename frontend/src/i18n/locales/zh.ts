@@ -1,6 +1,8 @@
 import requestLedger from './request-ledger.zh'
 import { jisudengHomeZh } from './jisudeng-home.zh'
 import { jisudengPagesZh } from './jisudeng-pages.zh'
+import autoConfigZh from './zh/autoConfig'
+import qualityOpsZh from './zh/qualityOps'
 import splitAdminZh from './zh/admin'
 import splitBatchImageZh from './zh/batchImage'
 import splitCommonZh from './zh/common'
@@ -9749,5 +9751,7 @@ export default mergeLocaleMessages(messages, {
   ...splitChannelMonitorV2Zh,
   ...splitDashboardZh,
   ...splitBatchImageZh,
+  autoConfig: autoConfigZh,
+  qualityOps: qualityOpsZh,
   admin: splitAdminZh,
 })
