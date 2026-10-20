@@ -234,7 +234,7 @@ func (a *Account) modelCapabilityRejectedForRequest(ctx context.Context, model s
 		// Mirror gateway_forward's provider identity before the rate-limit writer
 		// resolves its storage key. OAuth/setup tokens normalize short IDs; Vertex
 		// gives explicit account mappings precedence over its dated-ID form.
-		outbound := model
+		var outbound string
 		switch a.Type {
 		case AccountTypeAPIKey:
 			outbound = a.GetMappedModel(model)

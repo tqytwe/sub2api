@@ -72,7 +72,6 @@ export type LocaleRouteName =
   | 'KeySpeedTest'
   | 'BatchImageGuide'
   | 'Usage'
-  | 'RequestLedger'
   | 'AdminRequestLedger'
   | 'Wallet'
   | 'Redeem'
@@ -180,9 +179,6 @@ export const ROUTE_LOCALE_SCOPES = {
   Keys: [...WORKSPACE, 'user-dashboard'],
   KeySpeedTest: [...WORKSPACE, 'user-dashboard'],
   BatchImageGuide: [...WORKSPACE, 'user-dashboard', 'user-batch'],
-  // UsageTable is shared with admin usage and renders several admin resource
-  // labels. Its full dependency must be available before a cold user visit.
-  RequestLedger: [...WORKSPACE, 'user-dashboard'],
   AdminRequestLedger: [...ADMIN, 'user-dashboard', 'admin-ops'],
   Usage: [...WORKSPACE, 'user-dashboard', 'user-usage', 'admin-resources'],
   Wallet: [...WORKSPACE, 'user-dashboard', 'user-wallet', 'user-misc'],
