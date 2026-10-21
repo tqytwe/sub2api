@@ -42,6 +42,9 @@ func TestCleanPageImageRelativePath(t *testing.T) {
 
 func TestResolvePageImagePath(t *testing.T) {
 	root := t.TempDir()
+	if _, err := filepath.EvalSymlinks(root); err != nil {
+		t.Skipf("filesystem does not permit symlink resolution from test directory: %v", err)
+	}
 	pagesDir := filepath.Join(root, "pages")
 	base := filepath.Join(pagesDir, "guide")
 	if err := os.MkdirAll(filepath.Join(base, "images"), 0755); err != nil {
@@ -79,6 +82,9 @@ func TestResolvePageImagePath(t *testing.T) {
 
 func TestResolvePageImagePathRejectsSymlinkEscape(t *testing.T) {
 	root := t.TempDir()
+	if _, err := filepath.EvalSymlinks(root); err != nil {
+		t.Skipf("filesystem does not permit symlink resolution from test directory: %v", err)
+	}
 	pagesDir := filepath.Join(root, "pages")
 	base := filepath.Join(pagesDir, "guide")
 	outside := filepath.Join(root, "outside")

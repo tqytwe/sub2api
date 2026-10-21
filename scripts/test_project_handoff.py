@@ -2,6 +2,7 @@
 
 import copy
 import importlib.util
+import json
 import pathlib
 import tempfile
 import unittest
@@ -80,6 +81,18 @@ class HandoffTests(unittest.TestCase):
         errors, _ = self.validate()
         self.assertTrue(any("index" in item for item in errors))
         self.assertTrue(any("status_snapshot" in item for item in errors))
+
+    def test_windows_snapshot_path_matches_posix_repository_paths(self):
+        snapshot = pathlib.Path('docs/upstream-migrations/v2.10.3/handoff.json')
+        snapshot_path = self.root / snapshot
+        snapshot_path.parent.mkdir(parents=True)
+        snapshot_path.write_text('{}')
+        (self.root / 'docs/README.md').write_text(
+            '[entry](./PROJECT_HYGIENE.md) [snapshot](./upstream-migrations/v2.10.3/handoff.json)')
+        (self.root / 'docs/source-lock.json').write_text(
+            json.dumps({'status_snapshot': snapshot.as_posix()}))
+        errors, _ = check.validate(self.data, self.root, str(snapshot).replace('/', '\\'))
+        self.assertEqual(errors, [])
 
     def test_deprecation_cannot_disappear_or_claim_unapproved_removal(self):
         self.data["features"][0]["product_state"] = "已移除"

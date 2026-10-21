@@ -2,6 +2,7 @@ package migrations
 
 import (
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -12,7 +13,7 @@ func TestBalanceTransactionsMigrationKeepsLedgerConstraints(t *testing.T) {
 
 	sql, err := os.ReadFile("207_balance_transactions.sql")
 	require.NoError(t, err)
-	text := string(sql)
+	text := strings.ReplaceAll(string(sql), "\r\n", "\n")
 
 	require.Contains(t, text, "CREATE TABLE IF NOT EXISTS balance_transactions")
 	require.Contains(t, text, "balance_delta NUMERIC(20,8) NOT NULL DEFAULT 0")
@@ -31,7 +32,7 @@ func TestBalanceTransactionsBackfillSkipsAlreadyInsertedRowsBeforeBatchLimit(t *
 
 	sql, err := os.ReadFile("../scripts/backfill-balance-transactions.sql")
 	require.NoError(t, err)
-	text := string(sql)
+	text := strings.ReplaceAll(string(sql), "\r\n", "\n")
 
 	require.Contains(t, text, "ON CONFLICT (user_id, idempotency_key) DO NOTHING")
 	require.Contains(t, text, "NOT EXISTS (\n          SELECT 1\n          FROM balance_transactions bt")
