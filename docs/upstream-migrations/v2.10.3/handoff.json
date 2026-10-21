@@ -521,7 +521,7 @@
       "id": "core-admission-settlement",
       "title": "限定 OpenAI 准入、部分用量与结算恢复",
       "backend_state": "已部署",
-      "product_state": "实现中",
+      "product_state": "已验证",
       "owner": "待分配",
       "pr": "https://github.com/tqytwe/sub2api/pull/340",
       "sha": "4080e2ac7e93dc9f435e0c0a4652834635cba7be",
@@ -534,7 +534,8 @@
         "api": {
           "status": "recorded",
           "refs": [
-            "https://github.com/tqytwe/sub2api/blob/e583f5857794ee49d8ea2d784b2fc399eb2648ef/docs/CORE_MIGRATION_RANXI.md"
+            "https://github.com/tqytwe/sub2api/blob/e583f5857794ee49d8ea2d784b2fc399eb2648ef/docs/CORE_MIGRATION_RANXI.md",
+            "docs/CORE_MIGRATION_RANXI.md"
           ],
           "note": "Responses/Chat/共享 CC/Messages 边界实现见限定范围文档。"
         },
@@ -551,9 +552,10 @@
           "refs": [
             "https://github.com/tqytwe/sub2api/pull/340",
             "https://github.com/tqytwe/sub2api/actions/runs/37999474389",
-            "https://github.com/tqytwe/sub2api/actions/runs/37999474590"
+            "https://github.com/tqytwe/sub2api/actions/runs/37999474590",
+            "docs/archive/completed-tasks/2026-10-20-v2103-core-closure/README.md"
           ],
-          "note": "六项 hosted CI 成功；本地三个 UNIX socket 测试受限的失败记录仍保留，不冒充重跑通过。"
+          "note": "六项 hosted CI 成功；本地三个 UNIX socket 测试受限的失败记录仍保留，不冒充重跑通过。 2026-10-20 scoped review additionally passed the five-closure targeted unit run across service, handler and repository; evidence is recorded in the local archive."
         },
         "deployment": {
           "status": "recorded",
@@ -570,9 +572,15 @@
           "note": "已合并并取得精确部署成功 check；健康/迁移验收及用户本机验收仍待确认。"
         }
       },
-      "risks": "限定核心范围已部署，不是全供应商/全端点迁移。缓存、WS和compact/工具修复另列；台账#351最终82828e1已关闭五组阻断并部署d18d504，运行/健康与SQL275核验确认，固定窗口已有201条结算关联核对无差异。仍有4个unknown待核对，且无WS子轮/异步/其他协议样本、未验证订阅计数器窗口净增量，不能等同生产全请求闭环。",
-      "next": "按各条目补生产和用户本机验收；参考#351固定窗口的限定证据，继续核对4个unknown、订阅计数器净增量及未采样路径，不回填、估费或补扣，也不沿用13db历史阻断。",
-      "rollback": "若权限/计费/迁移异常停止推进；旧 binary 可能绕过新限制，回退须保留策略执行，不能清空限制/历史补扣。"
+      "risks": "限定核心范围已部署，不是全供应商/全端点迁移。缓存、WS和compact/工具修复另列；台账#351最终82828e1已关闭五组阻断并部署d18d504，运行/健康与SQL275核验确认，固定窗口已有201条结算关联核对无差异。仍有4个unknown待核对，且无WS子轮/异步/其他协议样本、未验证订阅计数器窗口净增量，不能等同生产全请求闭环。 本次只确认五项锁定闭环，不扩展到非 OpenAI 最新状态准入、其他可计费端点或整版 v2.10.3。",
+      "next": "五项核心闭环已完成限定范围源码与定向测试核对；生产健康、迁移状态和用户本机三身份验收仍待独立完成。整版上游迁移继续保持 fully_migrated=false，其他端点和后续 release 不在本次结论内。",
+      "rollback": "若权限/计费/迁移异常停止推进；旧 binary 可能绕过新限制，回退须保留策略执行，不能清空限制/历史补扣。",
+      "latest_scoped_review": {
+        "checked_at": "2026-10-20T19:04:29Z",
+        "scope": "v2.10.3 五项核心闭环：简单模式结算、allowed_models 最终准入、Chat/共享 CC、Responses 凭证刷新、passthrough result+error 用量结算。",
+        "result": "已实现并通过定向验证；不代表整版迁移或生产验收。",
+        "evidence": "docs/archive/completed-tasks/2026-10-20-v2103-core-closure/README.md"
+      }
     },
     {
       "id": "group-allowed-models",
