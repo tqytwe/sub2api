@@ -11,7 +11,7 @@ import (
 func TestPackageQuotaRetrofitScriptIsExplicitAndIdempotent(t *testing.T) {
 	contents, err := os.ReadFile("retrofit-package-entitlements.sql")
 	require.NoError(t, err)
-	script := string(contents)
+	script := strings.ReplaceAll(string(contents), "\r\n", "\n")
 
 	require.Contains(t, script, "\\set dry_run true")
 	require.Contains(t, script, "331")

@@ -82,6 +82,7 @@ def validate(data, root, snapshot=SNAPSHOT):
 
     data = obj(data, "snapshot")
     require(data.get("schema_version") == 1, "schema_version: expected 1")
+    snapshot = snapshot.replace('\\', '/')
     try:
         timestamp = data.get("checked_at")
         datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%SZ")
@@ -173,7 +174,8 @@ def validate(data, root, snapshot=SNAPSHOT):
 
     try:
         index = (root / "docs/README.md").read_text()
-        for path in ("./PROJECT_HYGIENE.md", "./" + str(Path(snapshot).relative_to("docs"))):
+        snapshot_path = Path(snapshot).relative_to("docs").as_posix()
+        for path in ("./PROJECT_HYGIENE.md", "./" + snapshot_path):
             require("](" + path + ")" in index, "docs index: missing " + path)
     except (OSError, ValueError):
         errors.append("docs index: unreadable index or invalid snapshot path")
