@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"strconv"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -12,6 +13,8 @@ import (
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/stretchr/testify/require"
 )
+
+var manualConfirmOrderSequence atomic.Uint64
 
 func TestManualConfirmPaymentDurablyRecordsPaidTransitionBeforeFulfillment(t *testing.T) {
 	ctx := context.Background()
@@ -146,7 +149,7 @@ func TestManualConfirmPaymentScopesReferenceToTheResolvedProviderIdentity(t *tes
 
 func createManualConfirmOrder(t *testing.T, ctx context.Context, client *dbent.Client, status, tradeNo string) *dbent.PaymentOrder {
 	t.Helper()
-	seed := strconv.FormatInt(time.Now().UnixNano(), 10)
+	seed := strconv.FormatInt(time.Now().UnixNano(), 10) + "-" + strconv.FormatUint(manualConfirmOrderSequence.Add(1), 10)
 	user, err := client.User.Create().
 		SetEmail("manual-confirm-" + seed + "@example.com").
 		SetPasswordHash("hash").
