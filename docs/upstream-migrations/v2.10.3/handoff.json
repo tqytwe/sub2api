@@ -1,19 +1,65 @@
 {
   "schema_version": 1,
   "checked_at": "2026-10-10T21:17:26Z",
-  "scope": "v2.10.3 迁移及关联后续修复的交接快照；非实时、非全站完成度。移动端/Canvas 排除。批量图片台账追加仅复核本批与远端基线；未重验其他条目，保留原整体验证时间。",
+  "scope": "v2.10.3 迁移及关联后续修复的交接快照；非全站完成度。checked_at 表示 22 个 feature/deprecation/route 条目的最近一次整体复核时间；release_verification 单独记录其后的发布核验，不代表这些条目已重新复核。移动端/Canvas 排除。批量图片台账追加仅复核本批与远端基线。",
   "source_lock": "docs/upstream-migrations/source-lock.json",
   "production": {
     "branch": "play/main",
-    "branch_sha": "c939d570aa1f01cadab465c38c36e0295703a9b7",
-    "last_verified_deployed_sha": "d18d504ccf12adc9f299cdf14af6ea32c4efe59c",
+    "branch_sha": "7662ed73df74ff5e62e0e7fa023d8c394f70f8f3",
+    "last_verified_deployed_sha": "7662ed73df74ff5e62e0e7fa023d8c394f70f8f3",
     "deployment_status": "recorded",
     "evidence": [
-      "https://github.com/tqytwe/sub2api/commit/d18d504ccf12adc9f299cdf14af6ea32c4efe59c",
-      "https://github.com/tqytwe/sub2api/pull/351",
-      "https://github.com/tqytwe/sub2api/runs/114196133288"
+      "https://github.com/tqytwe/sub2api/commit/7662ed73df74ff5e62e0e7fa023d8c394f70f8f3",
+      "https://github.com/tqytwe/sub2api/pull/382",
+      "https://github.com/tqytwe/sub2api/runs/119946891818",
+      "https://zeabur.com/projects/6a51de14c2881a93656fa4c5/services/6a51ee2df04125ac9a34c28c/deployments/6ada377924d8f4b41eb8aaa0?envID=6a51de14104975fcb46761c3",
+      "https://www.jisudeng.com/health",
+      "https://api.jisudeng.com/health"
     ],
-    "note": "#351于10:43:35Z普通合入d18d504，GitHub Zeabur check于10:48:42Z成功。主线程在恢复验收环境后，于11:09:15及11:30:56 UTC通过官方API确认d18为唯一RUNNING/READY、旧a581为REMOVED，同次curl health=200；11:13:29 UTC确认SQL275登记/checksum与catalog。固定自然窗口11:14:06.545570–11:29:06.545570 UTC，加2分钟缓冲后11:31:08查询exitCode=0并明确ROLLBACK，验收任务已停止。201条已有结算关联无差异不等于全验收完成；unknown、未采样协议/订阅计数器净增量与用户反馈仍待补。运行态、DB与窗口均为主线程交接转述，原始明细未公开；此前11:02执行通道故障已恢复，本任务未执行生产操作。 P0 关联任务于2026-10-10再次fetch确认origin/play/main=726289bdb757e572eac10ab5f12c689c4dc087b5（#344）；未重新核验运行部署，不改last_verified_deployed_sha。 21:40 UTC fetch确认#353已正常合入17b96a20c7e9d2e394b37c6c1b108340853c0169，本分支普通merge保留签到改动；本任务未核验其生产部署。 批量图片台账任务再次fetch确认play/main=9b367c378b04db987a36175af0b8a3e02e22da24（#354合并）；本任务未核验生产，不更新部署SHA。 父线程确认#355已合并；本批fetch并普通fast-forward到c939d570aa1f01cadab465c38c36e0295703a9b7，无生产操作，组合复核保留全部#355改动。"
+    "verified_at": "2026-10-22T17:15:10Z",
+    "note": "PR #382 于 2026-10-22T16:18:59Z 以普通 merge commit 合入，merge/deployment SHA 均为 7662ed73df74ff5e62e0e7fa023d8c394f70f8f3；实时 play/main 与 Zeabur production deployment 7257617237 的 SHA 一致，deployment state=success，Zeabur check 119946891818 completed/success。只读生产核验：www.jisudeng.com/health 与 api.jisudeng.com/health 均 HTTP 200 且返回 {\"status\":\"ok\"}；未带凭据 GET /v1/models 返回 401。PR 仅修改测试与 handoff 检查脚本，没有业务运行时代码，因此以上证明该提交已部署和服务健康，不证明任何新业务功能上线或通过端到端验收。该合并按用户明确授权例外执行：PR GitHub CI 未运行；Standard 计划 Support 工单 #4892185 被关闭且未修复 Actions。游客/普通用户/管理员本机浏览器验收仍 pending；未检查生产数据库或执行业务写操作。"
+  },
+  "release_verification": {
+    "checked_at": "2026-10-22T17:15:10Z",
+    "production_sha": "7662ed73df74ff5e62e0e7fa023d8c394f70f8f3",
+    "pr": "https://github.com/tqytwe/sub2api/pull/382",
+    "pr_ci": {
+      "status": "pending",
+      "refs": [
+        "https://github.com/tqytwe/sub2api/pull/382#issuecomment-6345591123",
+        "https://github.com/tqytwe/sub2api/pull/382#issuecomment-6342104314"
+      ],
+      "note": "按用户明确授权例外合并；PR GitHub CI 未运行。Support 工单 #4892185 被关闭，未恢复 Actions。不得将本地门禁记录表述为 GitHub CI 通过。"
+    },
+    "technical_deployment": {
+      "status": "recorded",
+      "refs": [
+        "https://github.com/tqytwe/sub2api/commit/7662ed73df74ff5e62e0e7fa023d8c394f70f8f3",
+        "https://github.com/tqytwe/sub2api/runs/119946891818",
+        "https://zeabur.com/projects/6a51de14c2881a93656fa4c5/services/6a51ee2df04125ac9a34c28c/deployments/6ada377924d8f4b41eb8aaa0?envID=6a51de14104975fcb46761c3",
+        "https://www.jisudeng.com/health",
+        "https://api.jisudeng.com/health"
+      ],
+      "note": "Zeabur production deployment 7257617237 与 play/main SHA 一致，deployment success，Zeabur check completed/success。两个 health endpoint HTTP 200，body={\"status\":\"ok\"}。未认证 GET /v1/models 返回 401。PR 仅改测试/检查脚本，无业务运行时代码。"
+    },
+    "user_acceptance": {
+      "status": "pending",
+      "refs": [],
+      "note": "尚无用户在本机浏览器以游客、普通用户、管理员三种身份完成验收的证据。健康检查不替代页面、权限、状态持久化和 UI/API/DB 闭环验收。"
+    },
+    "migration_scope": {
+      "fully_migrated": false,
+      "refs": [
+        "docs/upstream-migrations/source-lock.json",
+        "docs/upstream-migrations/v2.10.3/README.md"
+      ],
+      "note": "PR #382 不是 v2.10.3 业务迁移批次。五项核心闭环记录仅限定当前代码/定向技术证据，不表示整版迁移完成。账本 B2/B3/B4/B5 及各 feature 的生产/用户验收须按最新差异逐项复核；移动端/Canvas 按已确认范围排除。"
+    },
+    "next_steps": [
+      "用户本机浏览器按交付流程完成游客、普通用户、管理员验收；本次 PR 无业务 UI 变更，但这是交付记录要求。",
+      "接手 v2.10.3 前先重查 ranxi 正式来源、当前 play/main 与全部 PR/CI，重新对照账本；handoff.checked_at 仍是最后一次 22 项 feature 全量复核时间，不得据此直接认领旧 next 项。",
+      "根据复核后的业务差异决定是否开展 B2/B3/B4/B5；逐项执行 TDD、规格/代码质量审查、完整本地门禁及正常 PR CI。"
+    ]
   },
   "features": [
     {
