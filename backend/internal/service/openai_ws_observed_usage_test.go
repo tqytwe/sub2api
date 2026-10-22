@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -20,6 +21,9 @@ func TestWSObservedUsageSurvivesInterruptedTurn(t *testing.T) {
 	for _, mode := range []string{OpenAIWSIngressModeCtxPool, OpenAIWSIngressModePassthrough} {
 		for _, failure := range []string{"read", "cancel", "preempt", "lease_lost", "write_client", "no_usage", "completed"} {
 			t.Run(mode+"/"+failure, func(t *testing.T) {
+				if runtime.GOOS == "windows" && mode == OpenAIWSIngressModePassthrough && failure == "write_client" {
+					t.Skip("Windows loopback socket buffers do not deterministically exhaust the downstream write buffer")
+				}
 				ctx, cancel := context.WithCancelCause(context.Background())
 				defer cancel(context.Canceled)
 				upstream := newStagedPassthroughConn()

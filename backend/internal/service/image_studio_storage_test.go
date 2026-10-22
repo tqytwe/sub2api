@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
@@ -115,7 +116,9 @@ func TestImageStudioAssetStoreRootCreated(t *testing.T) {
 	info, err := os.Stat(filepath.Join(dir, imageStudioStorageDir))
 	require.NoError(t, err)
 	require.True(t, info.IsDir())
-	require.Equal(t, os.FileMode(0o700), info.Mode().Perm())
+	if runtime.GOOS != "windows" {
+		require.Equal(t, os.FileMode(0o700), info.Mode().Perm())
+	}
 	_ = store
 }
 
@@ -127,10 +130,14 @@ func TestImageStudioAssetStoreUsesPrivateFilePermissions(t *testing.T) {
 
 	userDir, err := os.Stat(filepath.Join(dir, imageStudioStorageDir, "42"))
 	require.NoError(t, err)
-	require.Equal(t, os.FileMode(0o700), userDir.Mode().Perm())
+	if runtime.GOOS != "windows" {
+		require.Equal(t, os.FileMode(0o700), userDir.Mode().Perm())
+	}
 	file, err := os.Stat(filepath.Join(dir, imageStudioStorageDir, filepath.FromSlash(key)))
 	require.NoError(t, err)
-	require.Equal(t, os.FileMode(0o600), file.Mode().Perm())
+	if runtime.GOOS != "windows" {
+		require.Equal(t, os.FileMode(0o600), file.Mode().Perm())
+	}
 }
 
 func TestImageStudioAssetStoreListsOnlyObjectsOlderThanCutoff(t *testing.T) {

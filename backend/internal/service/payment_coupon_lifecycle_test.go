@@ -6,7 +6,9 @@ import (
 	"context"
 	"errors"
 	"sort"
+	"strconv"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -15,6 +17,8 @@ import (
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/stretchr/testify/require"
 )
+
+var paymentCouponLifecycleSequence atomic.Uint64
 
 type paymentCouponLifecycleStub struct {
 	mu sync.Mutex
@@ -120,7 +124,8 @@ func couponLifecycleLockResult() *CouponLockResult {
 
 func createCouponLifecycleUser(t *testing.T, client *dbent.Client) *dbent.User {
 	t.Helper()
-	suffix := time.Now().UTC().Format("150405.000000000")
+	sequence := paymentCouponLifecycleSequence.Add(1)
+	suffix := time.Now().UTC().Format("150405.000000000") + "-" + strconv.FormatUint(sequence, 10)
 	user, err := client.User.Create().
 		SetEmail("coupon-lifecycle-" + suffix + "@example.com").
 		SetPasswordHash("coupon-lifecycle-test-password").
@@ -133,6 +138,8 @@ func createCouponLifecycleUser(t *testing.T, client *dbent.Client) *dbent.User {
 func createCouponLifecycleOrder(t *testing.T, client *dbent.Client, couponID int64, status string, updatedAt time.Time) *dbent.PaymentOrder {
 	t.Helper()
 	user := createCouponLifecycleUser(t, client)
+	orderSequence := paymentCouponLifecycleSequence.Add(1)
+	orderSuffix := time.Now().UTC().Format("150405.000000000") + "-" + strconv.FormatUint(orderSequence, 10)
 	order, err := client.PaymentOrder.Create().
 		SetUserID(user.ID).
 		SetUserEmail("coupon-lifecycle@example.com").
@@ -148,8 +155,8 @@ func createCouponLifecycleOrder(t *testing.T, client *dbent.Client, couponID int
 		SetFeeRate(2.5).
 		SetCouponID(couponID).
 		SetCouponTemplateID(9).
-		SetRechargeCode("COUPON-LIFECYCLE-" + time.Now().UTC().Format("150405.000000000")).
-		SetOutTradeNo("coupon-lifecycle-" + time.Now().UTC().Format("150405.000000000")).
+		SetRechargeCode("COUPON-LIFECYCLE-" + orderSuffix).
+		SetOutTradeNo("coupon-lifecycle-" + orderSuffix).
 		SetPaymentType(payment.TypeAlipay).
 		SetPaymentTradeNo("").
 		SetOrderType(payment.OrderTypeBalance).
