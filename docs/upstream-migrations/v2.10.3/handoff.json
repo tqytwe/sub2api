@@ -1,19 +1,27 @@
 {
   "schema_version": 1,
-  "checked_at": "2026-10-10T21:17:26Z",
+  "checked_at": "2026-10-27T14:31:54Z",
   "scope": "v2.10.3 迁移及关联后续修复的交接快照；非实时、非全站完成度。移动端/Canvas 排除。批量图片台账追加仅复核本批与远端基线；未重验其他条目，保留原整体验证时间。",
   "source_lock": "docs/upstream-migrations/source-lock.json",
   "production": {
     "branch": "play/main",
-    "branch_sha": "c939d570aa1f01cadab465c38c36e0295703a9b7",
+    "branch_sha": "0a3be9db58f788961aff88947239f3cc0b48f648",
     "last_verified_deployed_sha": "d18d504ccf12adc9f299cdf14af6ea32c4efe59c",
-    "deployment_status": "recorded",
+    "current_deployed_sha": "0a3be9db58f788961aff88947239f3cc0b48f648",
+    "user_confirmation": {
+      "date": "2026-10-27",
+      "health_url": "https://www.jisudeng.com/health",
+      "health_status": 200,
+      "note": "用户确认公开 health 返回 200；未提供可公开核验的 Zeabur deployment commit/run，因此 current_deployed_sha 仅表示当前 play/main 候选 SHA，不是平台部署证明。"
+    },
+    "deployment_status": "pending",
     "evidence": [
       "https://github.com/tqytwe/sub2api/commit/d18d504ccf12adc9f299cdf14af6ea32c4efe59c",
       "https://github.com/tqytwe/sub2api/pull/351",
-      "https://github.com/tqytwe/sub2api/runs/114196133288"
+      "https://github.com/tqytwe/sub2api/runs/114196133288",
+      "https://www.jisudeng.com/health"
     ],
-    "note": "#351于10:43:35Z普通合入d18d504，GitHub Zeabur check于10:48:42Z成功。主线程在恢复验收环境后，于11:09:15及11:30:56 UTC通过官方API确认d18为唯一RUNNING/READY、旧a581为REMOVED，同次curl health=200；11:13:29 UTC确认SQL275登记/checksum与catalog。固定自然窗口11:14:06.545570–11:29:06.545570 UTC，加2分钟缓冲后11:31:08查询exitCode=0并明确ROLLBACK，验收任务已停止。201条已有结算关联无差异不等于全验收完成；unknown、未采样协议/订阅计数器净增量与用户反馈仍待补。运行态、DB与窗口均为主线程交接转述，原始明细未公开；此前11:02执行通道故障已恢复，本任务未执行生产操作。 P0 关联任务于2026-10-10再次fetch确认origin/play/main=726289bdb757e572eac10ab5f12c689c4dc087b5（#344）；未重新核验运行部署，不改last_verified_deployed_sha。 21:40 UTC fetch确认#353已正常合入17b96a20c7e9d2e394b37c6c1b108340853c0169，本分支普通merge保留签到改动；本任务未核验其生产部署。 批量图片台账任务再次fetch确认play/main=9b367c378b04db987a36175af0b8a3e02e22da24（#354合并）；本任务未核验生产，不更新部署SHA。 父线程确认#355已合并；本批fetch并普通fast-forward到c939d570aa1f01cadab465c38c36e0295703a9b7，无生产操作，组合复核保留全部#355改动。"
+    "note": "历史公开可证实的部署为 d18d504（#351，Zeabur check/run 见 evidence），其后 play/main 已推进至 0a3be9db。2026-10-27 用户确认公开 health 返回 200，但本次没有可公开核验的 Zeabur deployment commit 或 run；因此 deployment_status 保持 pending，current_deployed_sha 不得解释为平台已部署 SHA。durable request ledger 与管理员台账访问的代码已进入当前主线，用户本机三身份和生产功能验收仍待补。"
   },
   "features": [
     {
@@ -1213,9 +1221,10 @@
           "status": "recorded",
           "refs": [
             "https://github.com/tqytwe/sub2api/blob/82828e121ae032201c50346b5052cd7c4915b590/docs/visual-reviews/2026-10-10-request-ledger.md",
-            "https://github.com/tqytwe/sub2api/pull/351"
+            "https://github.com/tqytwe/sub2api/pull/351",
+            "docs/visual-reviews/2026-10-27-admin-request-ledger-access.md"
           ],
-          "note": "最终head的生产资源+隔离PG浏览器10:19:03 UTC通过两角色、四视口、浅深色、权限/列表分页/刷新/键盘/503重试及普通请求原usage7/3和余额98.75核对。批次首批仅钱包引用、无usage钻取；服务器fixture不代替用户本机生产三身份验收，反馈待补。"
+          "note": "最终head的生产资源+隔离PG浏览器10:19:03 UTC通过两角色、四视口、浅深色、权限/列表分页/刷新/键盘/503重试及普通请求原usage7/3和余额98.75核对。2026-10-27管理员专属访问改动已合入当前主线，自动化测试确认普通用户入口/路由移除、管理员入口保留；本地视觉证据不代替用户本机生产三身份验收。"
         },
         "api": {
           "status": "recorded",
@@ -1248,18 +1257,18 @@
           "note": "准确head82828e1的8checks/4workflows全部成功，两个独立复审确认五组关闭。冻结源码38项PG/协议契约明确pass；本地完整unit09:47:08、make test10:03:43（前端492文件/3506 pass、既有1文件/2测试skip）、build10:07:46、Fork10:16:57 UTC退出0。Live真实WS/Redis/PG注记故障仍保留7/3 token，重复finalize仅一笔0.13，余额100→99.87，无重连；不冒充生产样本。13db当时五组阻断及09:20快照保留为历史，不能继续当当前阻断；旧失败/复验见审查记录。"
         },
         "deployment": {
-          "status": "recorded",
+          "status": "pending",
           "refs": [
             "https://github.com/tqytwe/sub2api/pull/351",
             "https://github.com/tqytwe/sub2api/commit/d18d504ccf12adc9f299cdf14af6ea32c4efe59c",
             "https://github.com/tqytwe/sub2api/runs/114196133288"
           ],
-          "note": "GitHub事实为MERGED：10:43:35Z普通merge d18d504，整树4c51f0fb3f96fac39c635a8c7c6ac256f35f2526与最终head82828e1一致；该SHA的Zeabur check于10:48:42Z成功。主线程在环境恢复后于11:09:15及11:30:56 UTC以官方API确认d18唯一RUNNING/READY、旧a581 REMOVED，同次curl health=200。运行态/健康为主线程转述，原始明细未公开；不等于所有自然流量或用户本机验收完成。"
+          "note": "历史 d18d504 的 GitHub merge/Zeabur check 证据保留；当前主线已推进至 0a3be9db，2026-10-27 仅有用户确认公开 health=200，未提供可公开核验的当前 Zeabur deployment commit/run，因此当前部署状态 pending。"
         },
         "production": {
           "status": "pending",
           "refs": [],
-          "note": "主线程提供固定自然窗口11:14:06.545570–11:29:06.545570 UTC，另加2分钟缓冲，11:31:08查询exitCode=0且明确ROLLBACK，任务已停止。233入口/207 attempts/201精确usage-billing links：169钱包、32订阅（含22套餐）；成功140、流中断44、取消24、失败25，缓冲后inflight=0。无计费关联32=匿名拒绝8+已鉴权拒绝10+非计量查询10+unknown失败4；另2次重试前次unknown、后次有usage并结算，故unknown总6、仍4待核对。201条已有证据无重复usage/扣款，dedup/fingerprint/归属无差异；2笔各1e-8为二次舍入，实际钱包与原结算命令一致。订阅package差异源于比较字段口径错误，改用billing link package_entitlement_id后归属/订阅/分组/套餐引用无差异，尚未验证订阅计数器窗口净增量。真实协议仅Responses、Messages、Chat Completions，无WS子轮/异步/其他协议样本。窗口内usage204=本窗口198+窗口外6，缓冲补本窗口3，不能直接比计数。以上为主线程转述，原始生产明细未公开；用户本机三身份反馈待补，不将unknown判免费、不声称修复历史损失或100%验收。 进一步核实6个unknown均不涉及gpt22/234；4失败均收到上游响应（1个HTTP400、3个HTTP200且已读正文但无usage/link），2次重试前次均HTTP502、后次已结算。台账直接关联的上游标识缺失；3个200请求的唯一近时Ops候选（同user/key/account、终止前约2ms）有上游request/response ID，但没有共享外键，尚不能精确关联。ledger无对应字段且usage头提取依赖账户配置，不能称上游未提供标识。候选response.failed终止帧为upstream_error/server_error且无usage；代码先解析usage再处理错误，尚未证明本地漏取。仍缺此前流事件观察及上游逐请求收费明细，不能判零费用或损失金额；有限诊断已停止，无猜测补丁或生产改动。"
+          "note": "历史窗口记录与未知项仍按原边界保留；2026-10-27 用户确认公开 health=200，不等于 durable ledger 当前版本已由 Zeabur 部署，也不等于用户本机三身份生产验收。当前部署 commit/run、unknown 对账、订阅计数器窗口及用户反馈仍待补；不将 unknown 判免费、不补扣、不声称 100% 验收。"
         }
       },
       "risks": "首批边界：batch仅钱包引用、无usage钻取；详情attempts/billing子集合未分页、生产容量/lease热点与匿名增长未验证；用户浏览器验收待反馈。窗口unknown总6中4个失败（1个400、3个已读正文的200）仍待核对，均缺上游逐请求计量/扣费证据，不能判免费或估算损失；订阅计数器净增量未验证。package引用差异经比较口径修正已关闭，不继续当当前缺陷。真实样本仅Responses/Messages/Chat Completions，不覆盖WS子轮/异步或全Live/Realtime/Grok/direct-image等模式；WebRTC媒体/插件内部重试不可完全观察，旧实例或应用回退窗口不新增台账。此前五组缺陷已在82828e1关闭。",
