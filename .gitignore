@@ -156,6 +156,7 @@ docs/*
 !docs/BATCH_IMAGE_API.md
 !docs/README.md
 !docs/PROJECT_HYGIENE.md
+!docs/PROJECT_REBASELINE_2026-10-28.md
 !docs/FORK_CUSTOMIZATIONS.md
 !docs/UPSTREAM_SYNC_PLAYBOOK.md
 !docs/upstream-migrations/
