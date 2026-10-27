@@ -1,7 +1,7 @@
 # 项目文档索引
 
 > 状态：active
-> 最后索引/本地链接核验：2026-10-10（不代表逐篇业务内容重新验收）
+> 最后索引/本地链接核验：2026-10-27（不代表逐篇业务内容重新验收）
 > 维护规则：当前实现以代码和测试为准；未登记在本索引中的 `docs/` 文档不得作为项目依据。
 
 ## 状态定义
@@ -70,6 +70,7 @@
 | [请求详情有界分页](./archive/completed-tasks/ledger-detail-pagination/README.md) | `active` | 实时游标与兼容合同、增量索引及验证范围；安全只读补证独立后续 | 本批提交者 | 2026-10-11 |
 | [请求详情分页视觉证据](./visual-reviews/2026-10-11-ledger-detail-pagination.md) | `historical` | 隔离HTTP/PG与实际构建资源，不替代生产验收 | 本批提交者 | 2026-10-11 |
 | [管理员请求台账访问视觉检查](./visual-reviews/2026-10-27-admin-request-ledger-access.md) | `historical` | 普通用户入口移除、管理员入口保留；复用既有组件证据，不替代生产验收 | 本任务提交者 | 2026-10-27 |
+| [2026-10-27 交接收口](./archive/completed-tasks/2026-10-27-handoff-closeout/README.md) | `historical` | 当前主线、用户确认健康状态与待平台部署证据的文档快照 | 本任务提交者 | 2026-10-27 |
 
 ## 仓库入口与上游参考
 
