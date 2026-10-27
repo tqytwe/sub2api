@@ -1,18 +1,18 @@
 {
   "schema_version": 1,
-  "checked_at": "2026-10-27T15:18:00Z",
+  "checked_at": "2026-10-27T15:54:47Z",
   "scope": "v2.10.3 迁移及关联后续修复的交接快照；非实时、非全站完成度。移动端/Canvas 排除。批量图片台账追加仅复核本批与远端基线；未重验其他条目，保留原整体验证时间。",
   "source_lock": "docs/upstream-migrations/source-lock.json",
   "production": {
     "branch": "play/main",
-    "branch_sha": "aa1ed426419392c5ddc872a99306a2889711143c",
-    "last_verified_deployed_sha": "aa1ed426419392c5ddc872a99306a2889711143c",
-    "current_deployed_sha": "aa1ed426419392c5ddc872a99306a2889711143c",
+    "branch_sha": "f3177fea898f582ec34a5404b0b04f2c549987f5",
+    "last_verified_deployed_sha": "f3177fea898f582ec34a5404b0b04f2c549987f5",
+    "current_deployed_sha": "f3177fea898f582ec34a5404b0b04f2c549987f5",
     "user_confirmation": {
       "date": "2026-10-27",
       "health_url": "https://www.jisudeng.com/health",
       "health_status": 200,
-      "note": "2026-10-27 15:17 UTC 主线程查询 https://www.jisudeng.com/health 返回 HTTP 200；GitHub Zeabur check 对应 aa1ed426 且结论 success。"
+      "note": "2026-10-27 15:54 UTC 主线程查询 https://www.jisudeng.com/health 返回 HTTP 200；GitHub Zeabur check 对应 f3177fea 且结论 success。"
     },
     "deployment_status": "recorded",
     "evidence": [
@@ -21,9 +21,11 @@
       "https://github.com/tqytwe/sub2api/runs/114196133288",
       "https://www.jisudeng.com/health",
       "https://github.com/tqytwe/sub2api/pull/385",
-      "https://zeabur.com/projects/6a51de14c2881a93656fa4c5/services/6a51ee2df04125ac9a34c28c/deployments/6ae0c36eea16512cf74170a7?envID=6a51de14104975fcb46761c3"
+      "https://zeabur.com/projects/6a51de14c2881a93656fa4c5/services/6a51ee2df04125ac9a34c28c/deployments/6ae0c36eea16512cf74170a7?envID=6a51de14104975fcb46761c3",
+      "https://github.com/tqytwe/sub2api/pull/386",
+      "https://zeabur.com/projects/6a51de14c2881a93656fa4c5/services/6a51ee2df04125ac9a34c28c/deployments/6ae0c794ea16512cf74170ed?envID=6a51de14104975fcb46761c3"
     ],
-    "note": "PR #384 的应用代码提交 0a3be9db 有 Zeabur success check；后续文档收口 PR #385 普通合并为 aa1ed426，Zeabur deployment 6ae0c36eea16512cf74170a7 对应 aa1ed426 且成功，health 于 2026-10-27 15:17 UTC 返回 200。用户本机游客/普通用户/管理员浏览器验收及请求台账完整业务验收仍待补。"
+    "note": "PR #384 的应用代码提交 0a3be9db 有 Zeabur success check；PR #385 文档收口合并为 aa1ed426，deployment 6ae0c36eea16512cf74170a7 成功；PR #386 部署核验文档合并为 f3177fea，deployment 6ae0c794ea16512cf74170ed 成功。2026-10-27 15:54 UTC health 返回 200。用户本机游客/普通用户/管理员浏览器验收及请求台账完整业务验收仍待补。"
   },
   "features": [
     {
