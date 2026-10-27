@@ -93,7 +93,9 @@ func TestAgentIdentityWSInvalidationOutsideTaskLock(t *testing.T) {
 
 	var taskMu sync.Mutex
 	done := make(chan error, 1)
-	go func() { done <- ensureAgentIdentityTaskForAccount(context.Background(), repo, invalidator, &taskMu, account, "") }()
+	go func() {
+		done <- ensureAgentIdentityTaskForAccount(context.Background(), repo, invalidator, &taskMu, account, "")
+	}()
 
 	// Wait until the first registration is inside the blocked WS close, then
 	// recover a second account. It must not queue behind the first close.
@@ -105,7 +107,9 @@ func TestAgentIdentityWSInvalidationOutsideTaskLock(t *testing.T) {
 	}}
 	repo.accounts[other.ID] = other
 	secondDone := make(chan error, 1)
-	go func() { secondDone <- ensureAgentIdentityTaskForAccount(context.Background(), repo, nil, &taskMu, other, "") }()
+	go func() {
+		secondDone <- ensureAgentIdentityTaskForAccount(context.Background(), repo, nil, &taskMu, other, "")
+	}()
 
 	secondCompleted := false
 	var secondErr error

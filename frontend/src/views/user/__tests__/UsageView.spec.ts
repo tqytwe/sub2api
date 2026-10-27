@@ -186,6 +186,15 @@ function mountUsageView(realTable = false) {
 }
 
 describe('user UsageView', () => {
+  it('does not expose the administrator request ledger from user usage records', async () => {
+    const wrapper = mountUsageView()
+    await flushPromises()
+
+    expect(wrapper.text()).not.toContain('requestLedger.title')
+    expect(wrapper.find('a[href="/requests"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
   it('shows no invented TPS while loading, after an empty response, or when the request fails', async () => {
     let resolveQuery!: (value: unknown) => void
     query.mockImplementationOnce(() => new Promise(resolve => { resolveQuery = resolve }))
