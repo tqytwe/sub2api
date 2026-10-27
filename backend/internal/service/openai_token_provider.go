@@ -11,15 +11,15 @@ import (
 )
 
 const (
-	openAITokenRefreshSkew    = 3 * time.Minute
-	openAITokenCacheSkew      = 5 * time.Minute
+	openAITokenRefreshSkew = 3 * time.Minute
+	openAITokenCacheSkew   = 5 * time.Minute
 	// 禁用账号的后台清理（SetError + 缓存失效）脱离请求 context，但仍需明确上界。
 	openAITokenDisableCleanupTimeout = 10 * time.Second
-	openAILockInitialWait     = 20 * time.Millisecond
-	openAILockMaxWait         = 120 * time.Millisecond
-	openAILockMaxAttempts     = 5
-	openAILockJitterRatio     = 0.2
-	openAILockWarnThresholdMs = 250
+	openAILockInitialWait            = 20 * time.Millisecond
+	openAILockMaxWait                = 120 * time.Millisecond
+	openAILockMaxAttempts            = 5
+	openAILockJitterRatio            = 0.2
+	openAILockWarnThresholdMs        = 250
 )
 
 // OpenAITokenRuntimeMetrics is a snapshot of refresh and lock contention metrics.

@@ -69,6 +69,7 @@
 | [上游标识冲突诊断](./archive/completed-tasks/2026-10-11-identifier-diagnostics/README.md) | `active` | 精确Receipt白名单快照、图片namespace修复与281兼容；草稿验证中、未部署 | 本批提交者 | 2026-10-11 |
 | [请求详情有界分页](./archive/completed-tasks/ledger-detail-pagination/README.md) | `active` | 实时游标与兼容合同、增量索引及验证范围；安全只读补证独立后续 | 本批提交者 | 2026-10-11 |
 | [请求详情分页视觉证据](./visual-reviews/2026-10-11-ledger-detail-pagination.md) | `historical` | 隔离HTTP/PG与实际构建资源，不替代生产验收 | 本批提交者 | 2026-10-11 |
+| [管理员请求台账访问视觉检查](./visual-reviews/2026-10-27-admin-request-ledger-access.md) | `historical` | 普通用户入口移除、管理员入口保留；复用既有组件证据，不替代生产验收 | 本任务提交者 | 2026-10-27 |
 
 ## 仓库入口与上游参考
 
