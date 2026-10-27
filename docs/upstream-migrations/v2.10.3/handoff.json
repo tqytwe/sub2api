@@ -1,27 +1,29 @@
 {
   "schema_version": 1,
-  "checked_at": "2026-10-27T14:31:54Z",
+  "checked_at": "2026-10-27T15:18:00Z",
   "scope": "v2.10.3 迁移及关联后续修复的交接快照；非实时、非全站完成度。移动端/Canvas 排除。批量图片台账追加仅复核本批与远端基线；未重验其他条目，保留原整体验证时间。",
   "source_lock": "docs/upstream-migrations/source-lock.json",
   "production": {
     "branch": "play/main",
-    "branch_sha": "0a3be9db58f788961aff88947239f3cc0b48f648",
-    "last_verified_deployed_sha": "d18d504ccf12adc9f299cdf14af6ea32c4efe59c",
-    "current_deployed_sha": "0a3be9db58f788961aff88947239f3cc0b48f648",
+    "branch_sha": "aa1ed426419392c5ddc872a99306a2889711143c",
+    "last_verified_deployed_sha": "aa1ed426419392c5ddc872a99306a2889711143c",
+    "current_deployed_sha": "aa1ed426419392c5ddc872a99306a2889711143c",
     "user_confirmation": {
       "date": "2026-10-27",
       "health_url": "https://www.jisudeng.com/health",
       "health_status": 200,
-      "note": "用户确认公开 health 返回 200；未提供可公开核验的 Zeabur deployment commit/run，因此 current_deployed_sha 仅表示当前 play/main 候选 SHA，不是平台部署证明。"
+      "note": "2026-10-27 15:17 UTC 主线程查询 https://www.jisudeng.com/health 返回 HTTP 200；GitHub Zeabur check 对应 aa1ed426 且结论 success。"
     },
-    "deployment_status": "pending",
+    "deployment_status": "recorded",
     "evidence": [
       "https://github.com/tqytwe/sub2api/commit/d18d504ccf12adc9f299cdf14af6ea32c4efe59c",
       "https://github.com/tqytwe/sub2api/pull/351",
       "https://github.com/tqytwe/sub2api/runs/114196133288",
-      "https://www.jisudeng.com/health"
+      "https://www.jisudeng.com/health",
+      "https://github.com/tqytwe/sub2api/pull/385",
+      "https://zeabur.com/projects/6a51de14c2881a93656fa4c5/services/6a51ee2df04125ac9a34c28c/deployments/6ae0c36eea16512cf74170a7?envID=6a51de14104975fcb46761c3"
     ],
-    "note": "历史公开可证实的部署为 d18d504（#351，Zeabur check/run 见 evidence），其后 play/main 已推进至 0a3be9db。2026-10-27 用户确认公开 health 返回 200，但本次没有可公开核验的 Zeabur deployment commit 或 run；因此 deployment_status 保持 pending，current_deployed_sha 不得解释为平台已部署 SHA。durable request ledger 与管理员台账访问的代码已进入当前主线，用户本机三身份和生产功能验收仍待补。"
+    "note": "PR #384 的应用代码提交 0a3be9db 有 Zeabur success check；后续文档收口 PR #385 普通合并为 aa1ed426，Zeabur deployment 6ae0c36eea16512cf74170a7 对应 aa1ed426 且成功，health 于 2026-10-27 15:17 UTC 返回 200。用户本机游客/普通用户/管理员浏览器验收及请求台账完整业务验收仍待补。"
   },
   "features": [
     {
@@ -1257,13 +1259,15 @@
           "note": "准确head82828e1的8checks/4workflows全部成功，两个独立复审确认五组关闭。冻结源码38项PG/协议契约明确pass；本地完整unit09:47:08、make test10:03:43（前端492文件/3506 pass、既有1文件/2测试skip）、build10:07:46、Fork10:16:57 UTC退出0。Live真实WS/Redis/PG注记故障仍保留7/3 token，重复finalize仅一笔0.13，余额100→99.87，无重连；不冒充生产样本。13db当时五组阻断及09:20快照保留为历史，不能继续当当前阻断；旧失败/复验见审查记录。"
         },
         "deployment": {
-          "status": "pending",
+          "status": "recorded",
           "refs": [
             "https://github.com/tqytwe/sub2api/pull/351",
             "https://github.com/tqytwe/sub2api/commit/d18d504ccf12adc9f299cdf14af6ea32c4efe59c",
-            "https://github.com/tqytwe/sub2api/runs/114196133288"
+            "https://github.com/tqytwe/sub2api/runs/114196133288",
+            "https://github.com/tqytwe/sub2api/pull/385",
+            "https://zeabur.com/projects/6a51de14c2881a93656fa4c5/services/6a51ee2df04125ac9a34c28c/deployments/6ae0c36eea16512cf74170a7?envID=6a51de14104975fcb46761c3"
           ],
-          "note": "历史 d18d504 的 GitHub merge/Zeabur check 证据保留；当前主线已推进至 0a3be9db，2026-10-27 仅有用户确认公开 health=200，未提供可公开核验的当前 Zeabur deployment commit/run，因此当前部署状态 pending。"
+          "note": "PR #384 应用代码 merge commit 0a3be9db 的 Zeabur check success 已核实；后续文档收口 PR #385 的部署 6ae0c36eea16512cf74170a7 对应 aa1ed426 并成功。当前生产分支快照为 aa1ed426，health=200。"
         },
         "production": {
           "status": "pending",
