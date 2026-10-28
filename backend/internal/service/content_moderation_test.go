@@ -1819,7 +1819,7 @@ func TestContentModerationUnbanUser_ActivatesUserAndInvalidatesAuthCache(t *test
 	repo := &contentModerationTestRepo{}
 	svc := NewContentModerationService(nil, repo, nil, nil, userRepo, nil, invalidator, nil)
 
-	result, err := svc.UnbanUser(context.Background(), 1001)
+	result, err := svc.UnbanUser(context.Background(), 1001, "reviewed moderation appeal", true)
 
 	require.NoError(t, err)
 	require.Equal(t, int64(1001), result.UserID)
@@ -1829,18 +1829,39 @@ func TestContentModerationUnbanUser_ActivatesUserAndInvalidatesAuthCache(t *test
 	require.Equal(t, []int64{1001}, invalidator.userIDs)
 }
 
-func TestContentModerationUnbanUser_ActiveUserOnlyInvalidatesAuthCache(t *testing.T) {
+func TestContentModerationUnbanUser_RejectsAlreadyActiveUser(t *testing.T) {
 	userRepo := &contentModerationTestUserRepo{user: &User{ID: 1001, Email: "user@example.com", Status: StatusActive}}
 	invalidator := &contentModerationTestAuthCacheInvalidator{}
 	repo := &contentModerationTestRepo{}
 	svc := NewContentModerationService(nil, repo, nil, nil, userRepo, nil, invalidator, nil)
 
-	result, err := svc.UnbanUser(context.Background(), 1001)
+	result, err := svc.UnbanUser(context.Background(), 1001, "duplicate review", true)
 
-	require.NoError(t, err)
-	require.Equal(t, StatusActive, result.Status)
+	require.Error(t, err)
+	require.Nil(t, result)
 	require.Empty(t, userRepo.updated)
-	require.Equal(t, []int64{1001}, invalidator.userIDs)
+	require.Empty(t, invalidator.userIDs)
+}
+
+func TestContentModerationUnbanUserRequiresReasonAndConfirmation(t *testing.T) {
+	userRepo := &contentModerationTestUserRepo{user: &User{ID: 1001, Status: StatusDisabled}}
+	svc := NewContentModerationService(nil, &contentModerationTestRepo{}, nil, nil, userRepo, nil, &contentModerationTestAuthCacheInvalidator{}, nil)
+
+	for _, tc := range []struct {
+		name, reason string
+		confirm      bool
+	}{
+		{name: "missing reason", confirm: true},
+		{name: "missing confirmation", reason: "reviewed", confirm: false},
+		{name: "reason too long", reason: strings.Repeat("x", 501), confirm: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := svc.UnbanUser(context.Background(), 1001, tc.reason, tc.confirm)
+			require.Error(t, err)
+			require.Nil(t, result)
+			require.Empty(t, userRepo.updated)
+		})
+	}
 }
 
 func contentModerationIntPtr(v int) *int {

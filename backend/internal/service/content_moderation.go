@@ -1331,12 +1331,19 @@ func (s *ContentModerationService) ListLogs(ctx context.Context, filter ContentM
 	return s.repo.ListLogs(ctx, filter)
 }
 
-func (s *ContentModerationService) UnbanUser(ctx context.Context, userID int64) (*ContentModerationUnbanUserResult, error) {
+func (s *ContentModerationService) UnbanUser(ctx context.Context, userID int64, reason string, confirm bool) (*ContentModerationUnbanUserResult, error) {
 	if s == nil || s.userRepo == nil {
 		return nil, infraerrors.InternalServer("CONTENT_MODERATION_USER_REPOSITORY_UNAVAILABLE", "用户仓储不可用")
 	}
 	if userID <= 0 {
 		return nil, infraerrors.BadRequest("INVALID_USER_ID", "用户 ID 无效")
+	}
+	reason = strings.TrimSpace(reason)
+	if reason == "" || len([]rune(reason)) > 500 {
+		return nil, infraerrors.BadRequest("CONTENT_MODERATION_UNBAN_REASON_REQUIRED", "解封原因必填且不得超过 500 个字符")
+	}
+	if !confirm {
+		return nil, infraerrors.BadRequest("CONTENT_MODERATION_UNBAN_CONFIRM_REQUIRED", "必须确认用户当前仍处于禁用状态")
 	}
 	user, err := s.userRepo.GetByID(ctx, userID)
 	if err != nil {
@@ -1345,11 +1352,19 @@ func (s *ContentModerationService) UnbanUser(ctx context.Context, userID int64) 
 		}
 		return nil, fmt.Errorf("get content moderation unban user: %w", err)
 	}
-	if user.Status != StatusActive {
-		user.Status = StatusActive
-		if err := s.userRepo.Update(ctx, user, UserUpdateFields{Status: true}); err != nil {
-			return nil, fmt.Errorf("update content moderation unban user: %w", err)
-		}
+	if user.Status != StatusDisabled {
+		return nil, infraerrors.Conflict("CONTENT_MODERATION_UNBAN_STATUS_CHANGED", "用户已不再处于禁用状态，请刷新后重试")
+	}
+	user.Status = StatusActive
+	if err := s.userRepo.Update(ctx, user, UserUpdateFields{Status: true}); err != nil {
+		return nil, fmt.Errorf("update content moderation unban user: %w", err)
+	}
+	verified, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("read back content moderation unban user: %w", err)
+	}
+	if verified.Status != StatusActive {
+		return nil, infraerrors.Conflict("CONTENT_MODERATION_UNBAN_READBACK_FAILED", "更新后无法确认用户已启用")
 	}
 	if s.authCacheInvalidator != nil {
 		s.authCacheInvalidator.InvalidateAuthCacheByUserID(ctx, userID)

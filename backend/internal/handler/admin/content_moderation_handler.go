@@ -75,6 +75,11 @@ type contentModerationHashRequest struct {
 	InputHash string `json:"input_hash"`
 }
 
+type contentModerationUnbanUserRequest struct {
+	Reason  string `json:"reason" binding:"required,max=500"`
+	Confirm bool   `json:"confirm" binding:"required"`
+}
+
 func (h *ContentModerationHandler) GetConfig(c *gin.Context) {
 	cfg, err := h.service.GetConfig(c.Request.Context())
 	if err != nil {
@@ -217,7 +222,12 @@ func (h *ContentModerationHandler) UnbanUser(c *gin.Context) {
 		response.BadRequest(c, "Invalid user_id")
 		return
 	}
-	result, err := h.service.UnbanUser(c.Request.Context(), userID)
+	var req contentModerationUnbanUserRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	result, err := h.service.UnbanUser(c.Request.Context(), userID, req.Reason, req.Confirm)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
