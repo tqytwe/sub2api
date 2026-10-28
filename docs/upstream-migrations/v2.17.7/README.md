@@ -1,6 +1,6 @@
 # v2.17.7 同步批次账本
 
-状态：`deployed-partial / migration-incomplete`。同步批次 PR #389 已于 2026-10-28 合并并部署，但这只证明本批候选上线，不代表完整 v2.17.7 功能审计或迁移完成。`fully_migrated=false` 继续有效。
+状态：`deployed-partial / migration-incomplete`。同步批次 PR #389 已于 2026-10-28 合并并部署，但这只证明本批候选上线，不代表完整 v2.17.7 功能审计或迁移完成。`fully_migrated=false` 继续有效。文末“最新生产复核覆盖”是当前生产数字的权威覆盖，早期采样仅保留审计历史。
 
 本目标是版本功能同步，不能以 v2.17.7 release notes 的末尾修复代替完整差异盘点。生产与上游源码的共同祖先为 `efe9aab1e4ec89a42ba45e8dac20e882c5409a6a`（上游 `0.2.5`）；上游从该点至目标 tag 有 2,155 个提交、446 个 first-parent merge，按共同祖先直接比较有 3,809 个路径变化。以上数字只界定审查范围，不表示需要照搬这些提交或文件。Fork 自有实现必须逐项保留/映射；仅纳入相关产品能力和必要安全兼容修复。
 
@@ -13,7 +13,7 @@
 | Tag object | `af9a09cf92c1cbfdcf793862122d46a5a29a6da1` |
 | Release commit | `9620d315f72a7dbf04fa10fca02970e1e410805e` |
 | 上游共同祖先 | `efe9aab1e4ec89a42ba45e8dac20e882c5409a6a` (`0.2.5`) |
-| 生产分析基线 | `origin/play/main@526f09d36fa4d0a69af823fec2fc5a9ed495193f` |
+| 生产分析基线 | `origin/play/main@5c16bc5b5965a7b0d7c38aa35671639f045f2dea` |
 | fully migrated | `false` |
 
 ## 已发布批次与整版状态
@@ -25,7 +25,7 @@
 | 运行态技术核对 | `origin/play/main` 为 merge SHA；首页和 `/health` 返回 200；部署 index 引用渠道运维/优先调度资源；两条新 admin snapshot API 未认证返回 401 | 技术证据通过，不能替代管理员业务验收 |
 | PR CI | PR head 没有 GitHub CI check run；手动 dispatch 返回 `Actions has been disabled for this repository` | 缺少远端 CI 证据；本地门禁不能伪写成 PR CI 通过 |
 | 管理员闭环 | 没有本机管理员浏览器操作、保存刷新、审计记录和调度效果的现场证据 | 待管理员验收 |
-| 数据库生产账本 | Zeabur PostgreSQL 只读查得 416 条；仓库当前 409 个迁移文件均已登记且 trim 后 SHA-256 一致，另 7 条已退役文件与 Git 历史原文件一致；当前文件无未应用项或 checksum 差异 | ledger/checksum 已核验；迁移锁耗时和全量数据业务不变量尚未全部核验 |
+| 数据库生产账本 | Zeabur PostgreSQL 只读查得 416 条；生产缺少候选 `293/296/298/301`，也不存在 moderation user state/hits/actions 与 security penalty 表 | 基础 ledger 已核验；候选迁移待单批部署后复核 |
 | 上游完整功能差异 | 共同祖先至 tag 的 446 个上游 PR merge 尚未逐项形成 Fork 等价实现/适配/排除结论 | 未完成，不能宣称整版迁移 |
 
 本批代码已部署与“上游整版同步完成”是两个不同状态。已知未完成或未证实项至少包括质量运维/Jev 与凭据失败安全分类、管理员精确滚动 24 小时用量候选的全批审查/部署、内容审查用户管理后端闭包、完整上游功能差异映射、PostgreSQL 更早部署窗口/平台重启原因、历史日卡审计语义、管理员真实交互验收及历史 gateway settlement 归因。生产只读确认有一条过期但仍标记 `active` 的旧日卡 entitlement，关联订阅已过期；另有 4 条到期套餐权益保留 `active` 状态，但代码动态过期判断和准入均会拒绝。当前没有证据表明这些记录仍放行用户请求；不改生产数据，历史审计/账务语义由业务负责人确认。v2.17.7 #492 security penalty 功能另有独立隐私阻断：会新增未加密 `full_prompt` 明文副本且无自动 TTL/保留清理，管理员详情可跨用户读取；生产已有相邻 prompt audit 全文能力但无自动 TTL。该项不依赖 #519 recovery，不能原样带入，须先完成原文访问/保留合同评审。按本表完成每项证据后，才可逐步更新状态；`fully_migrated` 只在整份功能矩阵清零且生产验收完成后改为 `true`。
@@ -41,10 +41,10 @@
 
 | 上游能力 | 生产基线证据 | 状态 | 必须交付的验证 |
 |---|---|---|---|
-| 质量运维 | 生产缺少上游新增 quality ownership/rule/preview/restore/delete 的完整后端合同。credential-failure 草稿在另一 worktree，writer、reader、API 和 #283 schema 尚未集成；错误分类目前基于错误文本匹配，需证明 allowlist 与安全输出 | 缺实现；渠道运维候选不可代替 | 按上游 #576 检查保存并发和隔离状态、规则 ownership/version；凭据错误 mock HTTP 和错误码 allowlist；writer/readback/API/权限测试 |
+| 质量运维 | 生产缺少上游新增 quality ownership/rule/preview/restore/delete 的完整后端合同；当前 Fork 的旧质量基础不能代替上游闭环 | 缺实现；渠道运维候选不可代替 | 按上游 #576 检查保存并发和隔离状态、规则 ownership/version；再接入 Jev 和 live regression |
 | GPT-6.1 Sol 计费 | 已部署代码覆盖 272000 长上下文、OAuth/Setup Token 不超过 500000 豁免、缓存 token、最终发送模型及 API key 边界（`openai_gateway_usage.go`；`openai_gpt61_sol_long_context_test.go`） | 代码/单测等价已证；生产账务样本待核 | 只读抽查部署前后长上下文样本及余额/冻结价格，不对无法归因请求补扣 |
 | 管理端滚动 24 小时用量 | 上游 #579 的后端合同已存在；本候选把精确 ISO 窗口接入真实管理员 Usage 页，默认/刷新生成 `[now-24h, now)`，筛选、分页、排序、导出沿用同一筛选快照，错误请求查询保留精确时间，清理拒绝非日历时间范围 | 本地候选实现；定向测试通过，尚未完成全批检查、合并或部署 | 补验 DST 行为并完成统一集成审查；累计到同一生产批次 |
-| 内容审查用户管理 | 已有日志行用户启用流程要求原因、确认并读回状态，但无法从 UID 独立查找；旧 moderation-owned unban 无原因/版本保护。v2.17.7 正式合同另有 generation/count reset、四类 exemption 和 ownership-aware unban | 前端 UID 列表/详情/动作候选已完成并测试；后端服务、API、迁移及前后端联调进行中；未合并/未部署 | 按 tag 实现 list/detail/action 状态、四类 exemption、generation/reset、自动 hit 幂等与 ownership/version guarded unban；旧日志启用流程保留，旧无合同 unban 按钮不再使用；覆盖历史 296 快照行、并发状态修改和安全副作用边界 |
+| 内容审查用户管理 | 已有日志行用户启用流程要求原因、确认并读回状态，但无法从 UID 独立查找；旧 moderation-owned unban 无原因/版本保护。v2.17.7 正式合同另有 generation/count reset、四类 exemption 和 ownership-aware unban | 候选前后端服务/API、迁移 296/298/301、CAS、原因确认、owned unban 与测试已完成；生产缺对应表和 migration ledger | 单批合并部署后核对 migration ledger、表、权限和审计；覆盖历史 296 快照行、并发状态修改和安全副作用边界 |
 
 以上按生产 `5c16bc5b` 代码及对应测试审查得出。尚未实现、测试或生产验收的项不计作完成；每项合入前要链接到本仓实现和测试证据。
 
@@ -122,3 +122,15 @@ PR #389 提交前的本地完整 `make test-backend`、前端 lint/typecheck/全
 | GPT-6.1 Sol 计费与用量 | 核对部署前后长上下文、余额、冻结价格和订阅样本；避免将 unknown usage 当作实际扣款 | 待业务数据只读抽样 |
 
 生产检查必须由具备相应权限的管理员/数据库维护者执行并把脱敏结果回填本表。禁止将生产 DSN、token、用户凭据或完整请求正文写入 issue、日志摘录或仓库。无证据的条目保持“待办”，不要用 `/health` 200、部署成功或单元测试代替。
+
+## 2026-10-28 最新生产复核覆盖
+
+以下结果覆盖本账本中较早的生产采样数字：
+
+本次状态修订：候选 moderation 用户管理的后端、API、迁移和本地联调测试已经完成；“正在实现/联调进行中”的历史描述仅保留为审计记录，当前生产仍未应用这些迁移。
+
+- Zeabur 当前服务 `sub2api-wortic` 与 PostgreSQL 均为 `RUNNING`；Git trigger 为 `refs/heads/play/main`，部署 SHA 为 `5c16bc5b5965a7b0d7c38aa35671639f045f2dea`，首页和 `/health` 返回 200。Deployment API 的 `status=RUNNING` 与 `finishedAt` 同时出现，不能单凭 status 字段宣称终态成功。
+- 应用最近滚动 100 条为 INFO 98、WARN 2、ERROR/FATAL 0；WARN 是 `content_moderation.skip_no_audit_api_keys`，对应 observe 模式无审核 API key 的配置行为，当前请求样本仍返回 200，暂不归因于代码故障。
+- PostgreSQL `schema_migrations` 为 416 条；`293/296/298/301` 均不存在。`content_moderation_logs` 存在，moderation user state/hits/actions 与 security penalty 表不存在。候选 moderation 路由在生产返回 404，证明候选尚未部署；应用启动迁移路径曾在已部署迁移写入后运行，缺失候选迁移是代码版本差异而非迁移器未运行证据。
+- 最新只读聚合有 19,613 条 `settlement_pending`，其中 19,609 条 `usage_unknown`、3 条 usage pending、1 条 usage known；精确 billing link 仅 1 条且未验证，usage log 精确 request link 和 `billing_settled` 均为 0。不得批量改状态、补扣或推断已扣款。
+- PostgreSQL 最近日志中的 ERROR/FATAL 来自本轮只读审计命令的列名/超时参数错误及管理员终止并行 worker，没有证据表明是应用迁移或业务写入故障；生产日志原文不进入仓库。
