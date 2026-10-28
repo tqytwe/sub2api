@@ -45,6 +45,9 @@ const (
 const (
 	OpenAIOAuthReauthModeEmailOTPURL  = "email_otp_url"
 	OpenAIOAuthReauthModePasswordTOTP = "password_totp"
+	// OpenAIOAuthReauthEngineSessionStudio is retained for safe diagnostics
+	// emitted by older workers. The current fork does not start that runtime.
+	OpenAIOAuthReauthEngineSessionStudio = "session_studio"
 )
 
 const (
@@ -1041,15 +1044,14 @@ func sanitizeReauthError(raw string) string {
 	if msg == "" {
 		return ""
 	}
-	// Do not let callback URLs, bearer-like strings, or long provider payloads
-	// become durable task logs.
-	if len(msg) > maxOpenAIOAuthReauthError {
-		msg = msg[:maxOpenAIOAuthReauthError]
+	// Only persist the canonical, allowlisted diagnostics emitted by our worker.
+	// Provider payloads and arbitrary worker errors can contain credentials,
+	// callback URLs, or account identifiers and must never become durable logs.
+	if canonical, _, recognized := localProtocolError(msg); recognized {
+		return canonical
 	}
-	for _, marker := range []string{"access_token", "refresh_token", "code=", "state=", "?key=", "&key="} {
-		if strings.Contains(strings.ToLower(msg), marker) {
-			return "re-login failed; sensitive provider details were omitted"
-		}
+	if canonical, _, recognized := sessionStudioError(msg); recognized {
+		return canonical
 	}
-	return msg
+	return "re-login failed; provider details were omitted"
 }

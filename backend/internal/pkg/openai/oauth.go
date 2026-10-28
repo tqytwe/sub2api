@@ -17,6 +17,8 @@ import (
 const (
 	// OAuth Client ID for OpenAI (Codex CLI official)
 	ClientID = "app_EMoamEEZ73f0CkXaXp7hrann"
+	// ExcelClientID is the client identifier used by the Excel OAuth flow.
+	ExcelClientID = "app_fnr0pYvVwwFDocDumLG3H2Bp"
 
 	// OAuth endpoints
 	AuthorizeURL = "https://auth.openai.com/oauth/authorize"

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"sync"
 	"testing"
@@ -28,6 +29,9 @@ func (r *accountTokenGuardV2TestRepo) UpsertAccount(_ context.Context, accountID
 	}
 	r.record.Enabled = enabled
 	r.record.AutoReloginEnabled = autoRelogin
+	return nil
+}
+func (r *accountTokenGuardV2TestRepo) RecordRefreshFailure(context.Context, int64, string, time.Time) error {
 	return nil
 }
 func (r *accountTokenGuardV2TestRepo) DeleteAccount(context.Context, int64) error {

@@ -443,6 +443,9 @@ func (s *AccountTokenGuardV2Service) runProbe(ctx context.Context, record Accoun
 	completion.ProbeState = state
 	completion.ProbeDetail = detail
 	completion.BlockedReason = ""
+	if state == AccountTokenGuardV2ProbeTransient && detail == accountTokenGuardV2PolicyBlocked {
+		completion.BlockedReason = detail
+	}
 	switch state {
 	case AccountTokenGuardV2ProbeOK:
 		completion.FailStreak = 0
@@ -451,7 +454,10 @@ func (s *AccountTokenGuardV2Service) runProbe(ctx context.Context, record Accoun
 		completion.FailStreak++
 		completion.NextProbeAt = now.Add(time.Duration(rules.RetryIntervalSeconds) * time.Second)
 		cooldownActive := record.CooldownUntil != nil && record.CooldownUntil.After(now)
-		if record.AutoReloginEnabled && completion.FailStreak >= rules.FailStreakThreshold && !cooldownActive {
+		if record.AutoReloginExhausted {
+			completion.BlockedReason = "automatic re-login budget exhausted"
+			completion.ProbeDetail = detail + "; " + completion.BlockedReason
+		} else if record.AutoReloginEnabled && completion.FailStreak >= rules.FailStreakThreshold && !cooldownActive {
 			task, taskErr := s.reauth.CreateTask(ctx, record.AccountID)
 			if taskErr == nil && task != nil {
 				completion.LastReauthAt = &now
@@ -489,7 +495,7 @@ func (s *AccountTokenGuardV2Service) probeAccount(ctx context.Context, account *
 	code := "unknown"
 	if errors.As(err, &upstreamErr) {
 		if upstreamErr.statusCode == http.StatusForbidden {
-			if hit, _, _ := detectOpenAICyberPolicy(upstreamErr.body); hit {
+			if hit, _, _ := detectOpenAICyberPolicy(upstreamErr.body); hit || explicitCredentialPolicyCode(upstreamErr.body) {
 				return AccountTokenGuardV2ProbeTransient, accountTokenGuardV2PolicyBlocked
 			}
 		}
@@ -515,4 +521,36 @@ func (s *AccountTokenGuardV2Service) probeAccount(ctx context.Context, account *
 		return AccountTokenGuardV2ProbeAuth, credentialOperationDetail(code)
 	}
 	return AccountTokenGuardV2ProbeTransient, credentialOperationDetail(code)
+}
+
+// explicitCredentialPolicyCode accepts only authoritative top-level error
+// codes/types. Provider messages and nested debug/input fields are ignored.
+func explicitCredentialPolicyCode(body []byte) bool {
+	root, ok := credentialOperationObject(body)
+	if !ok {
+		return false
+	}
+	var raw json.RawMessage
+	if raw = root["error"]; len(raw) == 0 {
+		return false
+	}
+	var fields map[string]json.RawMessage
+	if json.Unmarshal(raw, &fields) != nil {
+		return false
+	}
+	for _, key := range []string{"code", "type"} {
+		var value string
+		if json.Unmarshal(fields[key], &value) == nil {
+			switch strings.ToLower(strings.TrimSpace(value)) {
+			case "session_blocked_by_cyber_policy", "cyber_policy", "content_policy_violation":
+				return true
+			}
+		}
+	}
+	var message string
+	if json.Unmarshal(fields["message"], &message) == nil &&
+		strings.Contains(strings.ToLower(message), "expected handshake response status code 101 but got 403") {
+		return true
+	}
+	return false
 }

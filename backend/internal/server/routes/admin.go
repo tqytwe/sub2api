@@ -959,14 +959,11 @@ func registerUserAttributeRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 func registerScheduledTestRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	admin.GET("/account-ops/token-guard-v2/accounts", h.Admin.AccountTokenGuardV2.List)
 	admin.PUT("/account-ops/token-guard-v2/rules", h.Admin.AccountTokenGuardV2.SaveRules)
-	admin.PUT("/account-ops/token-guard-v2/runtime", h.Admin.AccountTokenGuardV2.SaveRuntime)
-	admin.PATCH("/account-ops/token-guard-v2/accounts/:id/switches", h.Admin.AccountTokenGuardV2.UpdateSwitches)
 	admin.POST("/account-ops/token-guard-v2/accounts", h.Admin.AccountTokenGuardV2.Create)
 	admin.PUT("/account-ops/token-guard-v2/accounts/:id", h.Admin.AccountTokenGuardV2.Update)
 	admin.DELETE("/account-ops/token-guard-v2/accounts/:id", h.Admin.AccountTokenGuardV2.Delete)
 	admin.POST("/account-ops/token-guard-v2/accounts/:id/probe", h.Admin.AccountTokenGuardV2.Probe)
 	admin.POST("/account-ops/token-guard-v2/accounts/:id/relogin", h.Admin.AccountTokenGuardV2.Relogin)
-	admin.POST("/account-ops/token-guard-v2/accounts/:id/resume-relogin-budget", h.Admin.AccountTokenGuardV2.ResumeReloginBudget)
 	plans := admin.Group("/scheduled-test-plans")
 	{
 		plans.POST("", h.Admin.ScheduledTest.Create)
