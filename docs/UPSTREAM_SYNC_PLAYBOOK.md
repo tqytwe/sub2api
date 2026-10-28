@@ -3,14 +3,14 @@
 > 状态：active
 > 适用分支：`play/main`
 > 生产环境：Zeabur / `https://www.jisudeng.com/`
-> 最后核验：2026-10-09
+> 最后核验：2026-10-28
 
 ## 分支模型
 
 - `upstream-ranxi`：`https://github.com/ranxi2001/sub2api.git`，当前直接功能上游，仅跟进正式发布。
 - `refs/remotes/upstream-ranxi/releases/<tag>`：本地只读 release ref，避免把外部 v* 标签推送到 Fork 触发发布。
 - `origin/play/main`：极速蹬生产分支。
-- `sync/upstream-YYYYMMDD`：一次上游同步的审查分支。
+- `sync/upstream-YYYYMMDD`：一次上游同步的集成审查分支；按来源/迁移、后端、前端、数据库与计费拆分内部工作包，最终汇总为一个生产发布批次。
 - 禁止 rebase 或强推 `play/main`；历史必须保留真实 merge 边界。
 
 旧版流程直接跟进 Wei-Shaw/sub2api 的历史记录保留，但不再用于未来同步。
@@ -19,10 +19,13 @@ Go module/import、LICENSE、作者归属和历史 issue 链接不是更新来�
 Fork 审查、测试和 CI 的 tqytwe 自研构建。不得把 UpdateService/VersionBadge
 中的原版二进制下载地址直接换为 ranxi 发布包。
 
-版本锁定信息：`docs/upstream-migrations/source-lock.json`。`release_commit` 表示
-分析目标，不能据此声称整版已迁移；实际批次证据写入版本目录账本。
+版本锁定信息：`docs/upstream-migrations/source-lock.json`。当前目标为已核实的
+`v2.17.7`；`release_commit` 表示
+分析目标，不能据此声称整版已迁移；实际批次证据写入版本目录账本。旧
+`v2.10.3` 迁移账本仅保留历史比较点，当前工作包及其先后关系以
+[项目推进基线](./PROJECT_REBASELINE_2026-10-28.md) 为准。
 
-日常交接只维护版本目录的 [交接快照](./upstream-migrations/v2.10.3/handoff.json)，
+旧版本交接快照保留历史批次证据；本次同步状态以当前项目推进基线和新的版本账本为准。
 字段及弃用规则见 [工程交接入口](./PROJECT_HYGIENE.md)。旧差异清单保留固定比较基线，不作为实时状态。
 
 ## 同步前
@@ -49,8 +52,8 @@ python3 -m unittest discover -s scripts -p test_upstream_release_check.py
 
 ## 合并与冲突处理
 
-先生成固定 commit 的差异与迁移冲突报告，按独立批次选择性迁入，不执行自动整树合并。
-完整功能来源清单、个性化保留项和验收计划见 `docs/upstream-migrations/v2.10.3/README.md`。
+先生成固定 commit 的差异与迁移冲突报告，在一个同步 PR 内按领域集成，不执行自动整树合并，也不将 B2/B3/B4/B5 作为重复的独立生产发布。
+历史 v2.10.3 差异记录见 `docs/upstream-migrations/v2.10.3/README.md`；本次范围和验收计划以当前项目基线及新版本账本为准。
 
 按以下顺序审查：
 

@@ -2149,6 +2149,7 @@ export interface ApiKeyUsageTrendPoint {
 // ==================== Admin User Management ====================
 
 export interface UpdateUserRequest {
+  reason?: string
   email?: string
   password?: string
   username?: string

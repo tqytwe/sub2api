@@ -237,6 +237,10 @@
           </div>
         </div>
 
+        <div v-if="enableStatusMessage" role="status" aria-live="polite" class="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-900/20 dark:text-emerald-200">
+          {{ enableStatusMessage }}
+        </div>
+
         <div class="card">
           <div class="flex flex-col gap-4 border-b border-gray-100 px-6 py-4 dark:border-dark-700">
             <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -343,6 +347,17 @@
                       >
                         <Icon name="checkCircle" size="xs" :class="unbanningUserID === row.user_id ? 'animate-spin' : ''" />
                         {{ unbanningUserID === row.user_id ? t('common.processing') : t('admin.riskControl.unbanUser') }}
+                      </button>
+                      <button
+                        v-if="canEnableRow(row)"
+                        type="button"
+                        class="ml-2 mt-2 inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700 transition-colors hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 disabled:cursor-not-allowed disabled:opacity-60 dark:border-emerald-900/60 dark:bg-emerald-900/20 dark:text-emerald-300 dark:hover:bg-emerald-900/30"
+                        :disabled="enableUserID !== null"
+                        :data-test="'enable-user'"
+                        @click="openEnableUser(row)"
+                      >
+                        <Icon name="checkCircle" size="xs" />
+                        {{ t('admin.riskControl.enableUser') }}
                       </button>
                     </td>
                     <td class="whitespace-nowrap px-5 py-4 text-sm text-gray-700 dark:text-gray-300">
@@ -1079,6 +1094,74 @@
       </BaseDialog>
 
       <BaseDialog
+        :show="enableUserRow !== null"
+        :title="t('admin.riskControl.enableTitle')"
+        width="normal"
+        :close-on-escape="enableUserID === null"
+        :close-on-click-outside="false"
+        :show-close-button="enableUserID === null"
+        @close="closeEnableUser"
+      >
+        <form v-if="enableUserRow" class="space-y-4" @submit.prevent="confirmEnableUser">
+          <p class="text-sm font-medium text-gray-900 dark:text-white">
+            {{ enableUserRow.user_email || '-' }} · UID {{ enableUserRow.user_id }}
+          </p>
+          <p class="text-sm text-gray-600 dark:text-gray-300">
+            {{ t('admin.riskControl.enableScope') }}
+          </p>
+          <div>
+            <label for="enable-user-reason" class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-200">
+              {{ t('admin.riskControl.enableReason') }}
+            </label>
+            <textarea
+              id="enable-user-reason"
+              v-model="enableReason"
+              class="input min-h-24 w-full resize-y"
+              rows="3"
+              maxlength="1000"
+              required
+              :disabled="enableUserID !== null"
+              :aria-invalid="Boolean(enableError)"
+              :aria-describedby="enableError ? 'enable-user-error' : 'enable-user-reason-hint'"
+              :placeholder="t('admin.riskControl.enableReasonPlaceholder')"
+              @input="enableError = ''"
+            />
+            <p id="enable-user-reason-hint" class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              {{ enableReasonLength }}/500
+            </p>
+          </div>
+          <label class="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-200">
+            <input
+              id="enable-user-confirmed"
+              v-model="enableConfirmed"
+              type="checkbox"
+              class="mt-0.5 rounded border-gray-300 text-primary-600 focus:ring-primary-600 dark:border-dark-600 dark:bg-dark-800"
+              :disabled="enableUserID !== null"
+            />
+            <span>{{ t('admin.riskControl.enableConfirmation', { userId: enableUserRow.user_id }) }}</span>
+          </label>
+          <p v-if="enableError" id="enable-user-error" role="alert" class="text-sm text-red-700 dark:text-red-300">
+            {{ enableError }}
+          </p>
+          <div class="flex justify-end gap-3 border-t border-gray-100 pt-4 dark:border-dark-700">
+            <button type="button" class="btn btn-secondary" :disabled="enableUserID !== null" @click="closeEnableUser">
+              {{ t('common.close') }}
+            </button>
+            <button
+              type="submit"
+              class="btn btn-primary"
+              data-test="confirm-enable-user"
+              :disabled="!canConfirmEnableUser || enableUserID !== null"
+              :aria-busy="enableUserID !== null"
+            >
+              <Icon v-if="enableUserID !== null" name="refresh" size="sm" />
+              {{ enableUserID !== null ? t('common.processing') : t('admin.riskControl.enableConfirmAction') }}
+            </button>
+          </div>
+        </form>
+      </BaseDialog>
+
+      <BaseDialog
         :show="inputDetailRow !== null"
         :title="t('admin.riskControl.inputDetailTitle')"
         width="wide"
@@ -1236,6 +1319,12 @@ const statusLoading = ref(false)
 const apiKeyTesting = ref(false)
 const hashActionLoading = ref(false)
 const unbanningUserID = ref<number | null>(null)
+const enableUserRow = ref<ContentModerationLog | null>(null)
+const enableUserID = ref<number | null>(null)
+const enableReason = ref('')
+const enableConfirmed = ref(false)
+const enableError = ref('')
+const enableStatusMessage = ref('')
 const settingsOpen = ref(false)
 const activeSettingsTab = ref<SettingsTab>('basic')
 const groupSearch = ref('')
@@ -1243,6 +1332,8 @@ const flaggedHashInput = ref('')
 const groups = ref<AdminGroup[]>([])
 const proxies = ref<Proxy[]>([])
 const logs = ref<ContentModerationLog[]>([])
+const enableReasonLength = computed(() => [...enableReason.value.trim()].length)
+const canConfirmEnableUser = computed(() => enableReasonLength.value > 0 && enableReasonLength.value <= 500 && enableConfirmed.value)
 const status = ref<ContentModerationRuntimeStatus | null>(null)
 const testedApiKeyStatuses = ref<ContentModerationAPIKeyStatus[]>([])
 const pendingDeleteApiKeyHashes = ref<string[]>([])
@@ -1971,6 +2062,86 @@ async function loadLogs() {
 
 function canUnbanRow(row: ContentModerationLog): boolean {
   return Boolean(row.auto_banned && row.user_id && row.user_status === 'disabled')
+}
+
+function canEnableRow(row: ContentModerationLog): boolean {
+  return Boolean(row.user_id && row.user_status === 'disabled')
+}
+
+function openEnableUser(row: ContentModerationLog) {
+  if (!canEnableRow(row) || enableUserID.value !== null) return
+  enableStatusMessage.value = ''
+  enableUserRow.value = row
+  enableReason.value = ''
+  enableConfirmed.value = false
+  enableError.value = ''
+}
+
+function closeEnableUser() {
+  if (enableUserID.value !== null) return
+  resetEnableUserDialog()
+}
+
+function resetEnableUserDialog() {
+  enableUserRow.value = null
+  enableReason.value = ''
+  enableConfirmed.value = false
+  enableError.value = ''
+}
+
+function setUserStatus(userID: number, userStatus: string) {
+  logs.value = logs.value.map((item) => item.user_id === userID ? { ...item, user_status: userStatus } : item)
+}
+
+async function confirmEnableUser() {
+  const row = enableUserRow.value
+  const userID = row?.user_id
+  const reason = enableReason.value.trim()
+  if (!userID || !canConfirmEnableUser.value || enableUserID.value !== null) return
+
+  enableUserID.value = userID
+  enableError.value = ''
+  try {
+    const current = await adminAPI.users.getById(userID)
+    if (current.status === 'active') {
+      setUserStatus(userID, current.status)
+      enableStatusMessage.value = t('admin.riskControl.enableAlreadyActive')
+      resetEnableUserDialog()
+      return
+    }
+    if (current.status !== 'disabled') {
+      throw new Error(t('admin.riskControl.enableUnavailable'))
+    }
+
+    let writeError: unknown
+    try {
+      await adminAPI.users.update(userID, { status: 'active', reason })
+    } catch (err: unknown) {
+      writeError = err
+    }
+
+    const verified = await adminAPI.users.getById(userID)
+    if (writeError) {
+      setUserStatus(userID, verified.status)
+      throw writeError
+    }
+    if (verified.status !== 'active') {
+      throw new Error(t('admin.riskControl.enableReadbackFailed'))
+    }
+
+    setUserStatus(userID, verified.status)
+    enableStatusMessage.value = t('admin.riskControl.enableSuccess')
+    appStore.showSuccess(enableStatusMessage.value)
+    resetEnableUserDialog()
+  } catch (err: unknown) {
+    enableError.value = err instanceof Error && err.message === t('admin.riskControl.enableUnavailable')
+      ? err.message
+      : err instanceof Error && err.message === t('admin.riskControl.enableReadbackFailed')
+        ? err.message
+        : extractApiErrorMessage(err, t('admin.riskControl.enableFailed'))
+  } finally {
+    enableUserID.value = null
+  }
 }
 
 function inputSummaryText(row: ContentModerationLog): string {
