@@ -21,7 +21,8 @@ WHERE account_id = ANY($1::bigint[])
   AND created_at >= $2 AND created_at <= NOW()
   AND COALESCE(NULLIF(BTRIM(requested_model), ''), model) = $3
   AND ($4::bigint IS NULL OR group_id = $4)
-GROUP BY account_id`, pq.Array(q.AccountIDs), q.Since, q.Model, nullablePriorityGroup(q.GroupID))
+  AND ($5 = '' OR COALESCE(NULLIF(BTRIM(inbound_endpoint), ''), '') = $5)
+GROUP BY account_id`, pq.Array(q.AccountIDs), q.Since, q.Model, nullablePriorityGroup(q.GroupID), q.InboundEndpoint)
 	if err != nil {
 		return nil, err
 	}
