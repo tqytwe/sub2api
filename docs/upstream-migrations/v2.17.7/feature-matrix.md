@@ -13,7 +13,7 @@
 | 滚动 24 小时 Usage | 精确窗口、筛选快照、日期边界 | 生产仍为 `5c16bc5`，未部署候选 | 候选有 UI/API、定向测试和构建证据 | 候选待发布 | 与后端合同联调、一次批次部署、管理员现场验收 |
 | 内容审查用户管理 | #580 / moderation user state/actions/exemptions | 生产仅有 `content_moderation_logs`；状态、hits、actions 表不存在 | 代码与迁移 `296/298/301` 已在候选；管理员 API、CAS、原因确认、owned unban 已测 | 候选待发布，生产迁移未应用 | 单批合并部署后核对 migration ledger、表、权限和审计 |
 | 请求台账 | Fork admin-only request ledger | 管理员入口已部署；普通用户入口和 user route 已移除 | 候选保留权限测试 | 已完成技术隔离；现场仍需抽查 | 管理员登录和普通用户直达/API 403 验收 |
-| 质量运维/Jev | #574/#575/#576 quality ownership、Jev、live regressions | 当前 Fork 有旧质量测试/规则基础，但缺上游新增 ownership/Jev 合同和完整 UI | 当前候选未实现上游增量闭环；已有 Fork 旧基础不计作完全等价 | 未完成，独立批次阻断 | 补 ownership/version/隔离、Jev judge、live regression、API/UI 和迁移依赖，再纳入发布批次 |
+| 质量运维/Jev | #574/#575/#576 quality ownership、Jev、live regressions | 当前 Fork 有旧质量测试/规则基础，但缺上游新增 ownership/Jev 合同和完整 UI | `316f05c41` 增加独立的 TypeSafe/Jev choice 严格解析与单次请求封装及协议测试；尚未接入质量规则执行器、ownership/API/UI 或迁移 | 未完成，独立批次阻断 | 先补 Pelican 质量配置/结果字段、ownership/version/隔离、live regression、API/UI 和迁移依赖，再接入 choice judge |
 | 凭证运营异常 | #574 safe error classification、token guard v2、refresh failure ledger | 当前 Fork 没有上游 `credential_operation_failure` 与 token-guard-v2 闭环 | 依赖 token guard v2、OAuth reauth/worker、writer/reader/API/UI；生产已有历史迁移编号冲突 | 未完成，独立全栈批次阻断 | 重新编号迁移，补齐前置链路、隔离 PG 预检、allowlist、不落原文、管理员读写和回退 |
 | Request capture | 上游 request-capture routes/UI | 当前 Fork 未发现对应页面和后端 session 实现 | 未迁移 | 未完成/待范围确认 | 先确认是否属于生产产品范围及隐私保留合同 |
 | Token guard/reauth | 上游 account token guard v2、reauth runtime | 当前 Fork 无对应 v2 文件 | 未迁移 | 未完成/依赖凭证异常闭环 | 与凭证异常一起审查，不单独接入自动重登录 |
