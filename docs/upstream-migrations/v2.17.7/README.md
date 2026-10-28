@@ -70,6 +70,16 @@
 3. 普通用户请求台账入口保持移除，任何新页面必须有真实管理员权限和后端合同。
 4. 代码、前端、数据库、文档和测试累计为一个生产发布批次；未通过统一审查前不得合并或部署。
 
+## 下一批次执行队列
+
+1. **发布候选批次**：完成 GitHub 写授权；推送本地 `2d6c3baba` 之后的候选提交，创建单一 PR；在 PR 前重跑统一门禁，合并到 `play/main` 后只触发一次 Zeabur 部署。
+2. **发布后闭环**：核对 deployment SHA、健康接口、迁移 ledger、296/298/301 checksum、moderation 表/索引/行数、管理员权限和审计；由管理员按交接清单完成 Usage、moderation、渠道运维、优先调度和请求台账现场验收。
+3. **priority 完整工作包**：先设计 `request_timing_details`、attempt identity、quality rounds、HTTP/WS admission、penalty clock 和新迁移编号，再实现 API/UI/测试；禁止局部 cherry-pick #572。
+4. **quality 完整工作包**：补 ownership/version/隔离、Jev judge、live regression、API/UI 和迁移依赖，完成真实管理员验收；旧 Fork 质量基础只作为兼容边界，不当作上游等价。
+5. **credential 完整工作包**：补 token guard v2、OAuth reauth/worker、refresh failure writer/reader/API/UI，重新编号迁移并做隔离 PG 预检；禁止单独接入错误分类器或直接使用上游 309。
+6. **范围阻断项**：request capture、support/harvest 先完成产品范围和隐私保留合同；security penalty 先完成全文访问、TTL、跨用户权限和审计设计，未通过前不迁入。
+7. **财务与历史数据**：对约 2 万条 `settlement_pending` 做只读业务/财务抽样归因；在证据不足前不补扣、不标记 settled、不清理历史数据。
+
 ## 全版本差异矩阵
 
 | 工作包 | 当前负责人 | 交付判据 | 状态 |
