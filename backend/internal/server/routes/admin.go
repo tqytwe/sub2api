@@ -769,6 +769,11 @@ func registerPromoCodeRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 }
 
 func registerSettingsRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	priorityScheduling := admin.Group("/priority-scheduling")
+	priorityScheduling.GET("/config", h.Admin.Setting.GetPriorityScheduling)
+	priorityScheduling.PUT("/config", h.Admin.Setting.SavePriorityScheduling)
+	priorityScheduling.GET("/snapshot", h.Admin.Setting.PrioritySchedulingSnapshot)
+
 	adminSettings := admin.Group("/settings")
 	{
 		adminSettings.GET("", h.Admin.Setting.GetSettings)

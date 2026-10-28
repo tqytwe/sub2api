@@ -2139,6 +2139,20 @@ func resetOpenAIAdvancedSchedulerSettingCacheForTest() {
 	openAIAdvancedSchedulerSettingSF = singleflight.Group{}
 }
 
+// InvalidateOpenAIAdvancedSchedulerSettingCache makes a settings write visible
+// to the scheduler on its next request instead of waiting for the five-second
+// runtime TTL. The existing value is retained as an expired fallback while a
+// singleflight reload reads the database.
+func InvalidateOpenAIAdvancedSchedulerSettingCache() {
+	cached, ok := openAIAdvancedSchedulerSettingCache.Load().(*cachedOpenAIAdvancedSchedulerSetting)
+	if !ok || cached == nil {
+		return
+	}
+	copy := *cached
+	copy.expiresAt = 0
+	openAIAdvancedSchedulerSettingCache.Store(&copy)
+}
+
 func (s *OpenAIGatewayService) SelectAccountWithScheduler(
 	ctx context.Context,
 	groupID *int64,
