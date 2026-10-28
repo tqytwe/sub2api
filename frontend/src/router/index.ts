@@ -893,6 +893,34 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/admin/channels/operations',
+    name: 'AdminChannelOperations',
+    component: () => import('@/views/admin/ChannelOperationsView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Channel Operations',
+      titleKey: 'admin.channelOperations.title',
+      descriptionKey: 'admin.channelOperations.description',
+      localeScopes: ['admin-channels'],
+      frame: 'workspace'
+    }
+  },
+  {
+    path: '/admin/priority-scheduling',
+    name: 'AdminPriorityScheduling',
+    component: () => import('@/views/admin/PrioritySchedulingView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Priority Scheduling',
+      titleKey: 'admin.priorityScheduling.title',
+      descriptionKey: 'admin.priorityScheduling.description',
+      localeScopes: ['admin-resources'],
+      frame: 'workspace'
+    }
+  },
+  {
     path: '/admin/channels/monitor',
     name: 'AdminChannelMonitor',
     component: () => import('@/views/admin/ChannelMonitorView.vue'),

@@ -2,6 +2,24 @@ export default {
     accounts: {
       title: '账号管理',
       description: '管理 AI 平台账号和 Cookie',
+      credentialFailure: {
+        details: '失败详情', code: '代码', time: '发生时间', unknownTime: '时间不可用',
+        reasons: {
+          phone_verification_required: '需要完成手机号验证', account_deactivated: '上游已停用该账号',
+          account_deleted: '上游已删除该账号', account_retired: '上游已退役该账号',
+          requires_relogin: '需要重新授权并刷新凭据', password_rejected: '上游拒绝了密码',
+          mfa_required: '需要额外验证', security_check: '需要完成上游安全检查',
+          authorization_denied: '授权被拒绝', rate_limited: '上游限制了操作频率',
+          timeout: '操作超时', transport_error: '连接中断，操作未完成',
+          service_error: '上游暂时无法完成操作', unknown: '凭据操作失败',
+        },
+        actions: {
+          phoneVerification: '请通过上游完成手机号验证。', contactProvider: '请向上游核实账号状态。',
+          reauthorize: '请重新授权账号并刷新凭据。', updatePassword: '请检查并更新已保存的密码。',
+          completeVerification: '请完成上游要求的验证步骤。', reviewAuthorization: '请检查上游授权与安全状态。',
+          tryLater: '请检查服务状态并稍后重试。', reviewDiagnostics: '请查看可用的操作详情。',
+        },
+      },
       createAccount: '添加账号',
       autoRefresh: '自动刷新',
       enableAutoRefresh: '启用自动刷新',

@@ -1312,6 +1312,7 @@ export interface Account {
   rate_multiplier?: number // Account billing multiplier (>=0, 0 means free)
   status: 'active' | 'inactive' | 'error'
   error_message: string | null
+  credential_operation_failure?: CredentialOperationFailure | null
   last_used_at: string | null
   expires_at: number | null
   auto_pause_on_expired: boolean
@@ -1398,6 +1399,11 @@ export interface Account {
   parent_privacy_mode?: string
   parent_subscription_expires_at?: string
   parent_chatgpt_account_id?: string
+}
+
+export interface CredentialOperationFailure {
+  code: 'phone_verification_required' | 'account_deactivated' | 'account_deleted' | 'account_retired' | 'requires_relogin' | 'password_rejected' | 'mfa_required' | 'security_check' | 'authorization_denied' | 'rate_limited' | 'timeout' | 'transport_error' | 'service_error' | 'unknown'
+  occurred_at?: string
 }
 
 // The admin account list may return this compact shape when lite=1. Detail

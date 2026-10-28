@@ -2,6 +2,24 @@ export default {
     accounts: {
       title: 'Account Management',
       description: 'Manage AI platform accounts and credentials',
+      credentialFailure: {
+        details: 'Failure details', code: 'Code', time: 'Occurred', unknownTime: 'Time unavailable',
+        reasons: {
+          phone_verification_required: 'Phone verification is required', account_deactivated: 'Provider deactivated this account',
+          account_deleted: 'Provider deleted this account', account_retired: 'Provider retired this account',
+          requires_relogin: 'Credentials need to be refreshed', password_rejected: 'Provider rejected the password',
+          mfa_required: 'Additional verification is required', security_check: 'Provider security check is required',
+          authorization_denied: 'Authorization was denied', rate_limited: 'Provider rate limited the operation',
+          timeout: 'The operation timed out', transport_error: 'A connection error interrupted the operation',
+          service_error: 'The provider could not complete the operation', unknown: 'Credential operation failed',
+        },
+        actions: {
+          phoneVerification: 'Complete phone verification with the provider.', contactProvider: 'Review the account status with the provider.',
+          reauthorize: 'Reauthorize the account and refresh its credentials.', updatePassword: 'Review and update the saved password.',
+          completeVerification: 'Complete the requested verification step.', reviewAuthorization: 'Review the provider authorization and security state.',
+          tryLater: 'Check the service and try again later.', reviewDiagnostics: 'Review the available operation details.',
+        },
+      },
       createAccount: 'Create Account',
       autoRefresh: 'Auto Refresh',
       enableAutoRefresh: 'Enable auto refresh',

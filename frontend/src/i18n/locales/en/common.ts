@@ -228,6 +228,8 @@ export default {
     paymentPlans: 'Plans',
     channelManagement: 'Channels',
     channelPricing: 'Channel Pricing',
+    channelOperations: 'Channel Operations',
+    priorityScheduling: 'Priority Scheduling',
     modelCatalog: 'Model Plaza',
     channelMonitor: 'Channel Monitor',
     channelStatus: 'Channel Status',
