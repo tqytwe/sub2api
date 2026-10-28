@@ -8,13 +8,13 @@
 |---|---|---|---|---|---|
 | 来源与版本 | v2.17.7 tag `9620d315f72a7dbf04fa10fca02970e1e410805e` | 生产分支为 `play/main`；`backend/cmd/server/VERSION` 仍为 `0.2.14` | 来源锁已固定，候选仍保留 Fork 版本标识 | 已锁定，版本标识策略待决定 | 明确是否只同步功能而保留 Fork 版本号 |
 | 渠道运维 | v2.17.7 admin channel operations | PR #389 已部署到生产；管理员路由/API 已有静态和未认证拒绝证据 | 候选保留已部署的 Fork 适配实现；上游 #573 增量尚未证明完全等价 | 技术部署已证，业务现场未验收 | 管理员浏览器保存、刷新、revision 冲突和审计回读，并完成上游增量对照 |
-| 优先调度 | v2.17.7 priority/scheduling | PR #389 已部署；硬准入和历史 unknown 需保持 Fork 合同 | 候选保留已部署的 Fork 适配页面/API；上游 #572 增量尚未证明完全等价 | 技术部署已证，真实调度效果未验收 | 管理员读写、unknown 状态、粘性/后备行为，并完成上游增量对照 |
+| 优先调度 | v2.17.7 priority/scheduling | PR #389 已部署；硬准入和历史 unknown 需保持 Fork 合同 | 候选保留已部署的 Fork 适配页面/API；上游 #572 增量尚未证明完全等价 | 部分等价，阻塞于数据合同 | 先补 `request_timing_details`、attempt identity、quality rounds、HTTP/WS admission、penalty clock 和隔离迁移 249，再做真实调度验收 |
 | GPT-6.1 Sol 计费 | 长上下文阈值与 OAuth/Setup Token 豁免 | Fork 已有实现和测试 | 候选保留并集成 | Fork 等价，生产样本未完成 | 只读抽样用量、余额、模型和 API key 边界 |
 | 滚动 24 小时 Usage | 精确窗口、筛选快照、日期边界 | 生产仍为 `5c16bc5`，未部署候选 | 候选有 UI/API、定向测试和构建证据 | 候选待发布 | 与后端合同联调、一次批次部署、管理员现场验收 |
 | 内容审查用户管理 | #580 / moderation user state/actions/exemptions | 生产仅有 `content_moderation_logs`；状态、hits、actions 表不存在 | 代码与迁移 `296/298/301` 已在候选；管理员 API、CAS、原因确认、owned unban 已测 | 候选待发布，生产迁移未应用 | 单批合并部署后核对 migration ledger、表、权限和审计 |
 | 请求台账 | Fork admin-only request ledger | 管理员入口已部署；普通用户入口和 user route 已移除 | 候选保留权限测试 | 已完成技术隔离；现场仍需抽查 | 管理员登录和普通用户直达/API 403 验收 |
-| 质量运维/Jev | #574/#575/#576 quality ownership、Jev、live regressions | 当前 Fork 有旧质量测试/规则基础，但缺上游新增 ownership/Jev 合同和完整 UI | 当前候选未实现上游增量闭环；已有 Fork 旧基础不计作完全等价 | 未完成 | 先完成后端/API/迁移/管理员页面和隔离状态回归，再纳入发布批次 |
-| 凭证运营异常 | #574 safe error classification、token guard v2、refresh failure ledger | 当前 Fork 没有上游 `credential_operation_failure` 与 token-guard-v2 闭环 | 独立实现工作包进行中 | 未完成 | 证明 allowlist、不落原文、迁移 writer/reader、管理员读写和回退 |
+| 质量运维/Jev | #574/#575/#576 quality ownership、Jev、live regressions | 当前 Fork 有旧质量测试/规则基础，但缺上游新增 ownership/Jev 合同和完整 UI | 当前候选未实现上游增量闭环；已有 Fork 旧基础不计作完全等价 | 未完成，独立批次阻断 | 补 ownership/version/隔离、Jev judge、live regression、API/UI 和迁移依赖，再纳入发布批次 |
+| 凭证运营异常 | #574 safe error classification、token guard v2、refresh failure ledger | 当前 Fork 没有上游 `credential_operation_failure` 与 token-guard-v2 闭环 | 依赖 token guard v2、OAuth reauth/worker、writer/reader/API/UI；生产已有历史迁移编号冲突 | 未完成，独立全栈批次阻断 | 重新编号迁移，补齐前置链路、隔离 PG 预检、allowlist、不落原文、管理员读写和回退 |
 | Request capture | 上游 request-capture routes/UI | 当前 Fork 未发现对应页面和后端 session 实现 | 未迁移 | 未完成/待范围确认 | 先确认是否属于生产产品范围及隐私保留合同 |
 | Token guard/reauth | 上游 account token guard v2、reauth runtime | 当前 Fork 无对应 v2 文件 | 未迁移 | 未完成/依赖凭证异常闭环 | 与凭证异常一起审查，不单独接入自动重登录 |
 | Safety prompt audit / #293 | security penalty 原文记录 | Fork 已有相邻 prompt audit 明文且无 TTL | 上游设计会新增最多 100,000 runes 明文、管理员跨用户读取 | 隐私阻断，明确不原样迁移 | 先定最小读取、保留期、自动清理和审计合同 |
