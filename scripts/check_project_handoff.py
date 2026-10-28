@@ -4,6 +4,7 @@
 import argparse
 from datetime import datetime
 import json
+import os
 from pathlib import Path
 import re
 import sys
@@ -13,6 +14,14 @@ ROOT = Path(__file__).resolve().parents[1]
 SNAPSHOT = "docs/upstream-migrations/v2.10.3/handoff.json"
 STATES = {"设计", "实现中", "可测", "已验证", "已部署", "弃用中", "已移除"}
 LAYERS = ("ui", "api", "schema", "tests", "deployment", "production")
+
+
+def is_within(path, root):
+    """Keep repository-local link checks compatible with the supported Python floor."""
+    try:
+        return os.path.commonpath([str(path), str(root)]) == str(root)
+    except ValueError:
+        return False
 
 
 def validate(data, root, snapshot=SNAPSHOT):
@@ -48,7 +57,7 @@ def validate(data, root, snapshot=SNAPSHOT):
                         label + ": expected HTTPS URL without credentials")
             else:
                 path = (root / unquote(url.path)).resolve()
-                require(path.is_relative_to(root) and path.is_file(),
+                require(is_within(path, root) and path.is_file(),
                         label + ": missing/non-repository local file " + value)
         except ValueError:
             errors.append(label + ": invalid link")
@@ -182,14 +191,61 @@ def validate(data, root, snapshot=SNAPSHOT):
     return errors, pending
 
 
+def current_snapshot(root):
+    """Resolve the active project record from the source lock when available."""
+    try:
+        lock = json.loads((root / "docs/upstream-migrations/source-lock.json").read_text())
+        pointer = lock.get("status_snapshot")
+        if isinstance(pointer, str) and pointer:
+            path = (root / pointer).resolve()
+            if is_within(path, root) and path.is_file():
+                return pointer
+    except (OSError, ValueError, TypeError):
+        pass
+    return SNAPSHOT
+
+
+def validate_markdown_snapshot(root, snapshot):
+    """Validate the current Markdown project baseline without pretending it is JSON."""
+    errors = []
+    path = (root / snapshot).resolve()
+    if not is_within(path, root) or not path.is_file():
+        errors.append("current snapshot: missing/non-repository local file " + snapshot)
+        return errors
+    try:
+        lock = json.loads((root / "docs/upstream-migrations/source-lock.json").read_text())
+        if lock.get("status_snapshot") != snapshot:
+            errors.append("source_lock.status_snapshot: wrong pointer")
+        index = (root / "docs/README.md").read_text()
+        snapshot_path = Path(snapshot).relative_to("docs").as_posix()
+        if "](" + "./" + snapshot_path + ")" not in index:
+            errors.append("docs index: missing ./" + snapshot_path)
+    except (OSError, ValueError, TypeError):
+        errors.append("current snapshot: unreadable source lock or docs index")
+    return errors
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--file", default=SNAPSHOT, help="repository-relative snapshot path")
+    parser.add_argument("--file", help="repository-relative snapshot path")
     args = parser.parse_args()
+    snapshot = args.file or current_snapshot(ROOT)
     try:
-        data = json.loads((ROOT / args.file).read_text())
-        errors, pending = validate(data, ROOT, args.file)
-    except (OSError, ValueError) as error:
+        raw = (ROOT / snapshot).read_text()
+        data = json.loads(raw)
+        errors, pending = validate(data, ROOT, snapshot)
+    except ValueError:
+        if snapshot.lower().endswith((".md", ".markdown")):
+            errors = validate_markdown_snapshot(ROOT, snapshot)
+            for error in errors:
+                print("ERROR " + error, file=sys.stderr)
+            if errors:
+                return 1
+            print("Current Markdown project baseline " + snapshot + " is registered and repository-local.")
+            return 0
+        print("Handoff record check failed: invalid JSON in " + snapshot, file=sys.stderr)
+        return 1
+    except OSError as error:
         print("Handoff record check failed: " + str(error), file=sys.stderr)
         return 1
     for error in errors:

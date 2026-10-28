@@ -278,9 +278,10 @@ func (s *defaultOpenAIAccountScheduler) applyPriorityScheduling(req OpenAIAccoun
 			// Tiers are disjoint so score cannot make an unqualified account outrank
 			// a candidate meeting the configured history thresholds.
 			offset := 0.0
-			if score.Tier == "eligible" {
+			switch score.Tier {
+			case "eligible":
 				offset = 200
-			} else if score.Tier == "insufficient" {
+			case "insufficient":
 				offset = 100
 			}
 			item.score = offset + score.Score

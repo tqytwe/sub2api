@@ -25,7 +25,7 @@ GROUP BY account_id`, pq.Array(q.AccountIDs), q.Since, q.Model, nullablePriority
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	out := make(map[int64]service.PrioritySchedulingSignal, len(q.AccountIDs))
 	for rows.Next() {
 		var id int64
