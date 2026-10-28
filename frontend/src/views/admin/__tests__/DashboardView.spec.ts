@@ -6,10 +6,11 @@ import type { DashboardStats } from '@/types'
 import DateRangePicker from '@/components/common/DateRangePicker.vue'
 import DashboardView from '../DashboardView.vue'
 
-const { getSnapshotV2, getUserUsageTrend, getUserSpendingRanking } = vi.hoisted(() => ({
+const { getSnapshotV2, getUserUsageTrend, getUserSpendingRanking, getBillingSurchargeReport } = vi.hoisted(() => ({
   getSnapshotV2: vi.fn(),
   getUserUsageTrend: vi.fn(),
-  getUserSpendingRanking: vi.fn()
+  getUserSpendingRanking: vi.fn(),
+  getBillingSurchargeReport: vi.fn()
 }))
 
 vi.mock('vue-chartjs', () => ({
@@ -21,7 +22,8 @@ vi.mock('@/api/admin', () => ({
     dashboard: {
       getSnapshotV2,
       getUserUsageTrend,
-      getUserSpendingRanking
+      getUserSpendingRanking,
+      getBillingSurchargeReport
     }
   }
 }))
@@ -132,6 +134,7 @@ describe('admin DashboardView', () => {
     getSnapshotV2.mockReset()
     getUserUsageTrend.mockReset()
     getUserSpendingRanking.mockReset()
+    getBillingSurchargeReport.mockReset().mockResolvedValue({ items: [], pagination: {}, summary: {} })
 
     getSnapshotV2.mockResolvedValue({
       stats: createDashboardStats(),
@@ -233,9 +236,7 @@ describe('admin DashboardView', () => {
 
     const refreshedNow = new Date(initialNow.getTime() + 3 * 60 * 60 * 1000)
     vi.setSystemTime(refreshedNow)
-    const refreshButton = wrapper.findAll('button').find(button => button.text() === 'common.refresh')
-    expect(refreshButton).toBeDefined()
-    await refreshButton!.trigger('click')
+    await wrapper.get('[data-testid="dashboard-refresh"]').trigger('click')
     await flushPromises()
 
     const startDate = new Date(refreshedNow.getTime() - 86_400_000).toISOString()
@@ -268,9 +269,7 @@ describe('admin DashboardView', () => {
     getUserSpendingRanking.mockClear()
 
     vi.setSystemTime(new Date(2026, 9, 1, 3, 15, 30, 123))
-    const todayRefreshButton = wrapper.findAll('button').find(button => button.text() === 'common.refresh')
-    expect(todayRefreshButton).toBeDefined()
-    await todayRefreshButton!.trigger('click')
+    await wrapper.get('[data-testid="dashboard-refresh"]').trigger('click')
     await flushPromises()
 
     expect(getSnapshotV2).toHaveBeenCalledTimes(1)
@@ -296,9 +295,7 @@ describe('admin DashboardView', () => {
     getUserSpendingRanking.mockClear()
 
     vi.setSystemTime(new Date(2026, 9, 1, 6, 15, 30, 123))
-    const refreshButton = wrapper.findAll('button').find(button => button.text() === 'common.refresh')
-    expect(refreshButton).toBeDefined()
-    await refreshButton!.trigger('click')
+    await wrapper.get('[data-testid="dashboard-refresh"]').trigger('click')
     await flushPromises()
 
     expect(getSnapshotV2).toHaveBeenCalledTimes(1)
