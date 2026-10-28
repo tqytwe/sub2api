@@ -7,13 +7,13 @@
 
 | 要查什么 | 唯一维护位置 |
 | --- | --- |
-| 当前工作项、缺口、PR/SHA、验证与弃用记录 | [交接快照](./upstream-migrations/v2.10.3/handoff.json)，以其中 `checked_at` 为准 |
+| 当前工作项、缺口、PR/SHA、验证与弃用记录 | [当前项目推进基线](./PROJECT_REBASELINE_2026-10-28.md) 与 [v2.17.7 同步批次账本](./upstream-migrations/v2.17.7/README.md) |
 | 固定上游来源、分析基线与完整迁移标志 | [来源锁](./upstream-migrations/source-lock.json) |
-| 固定版本差异、分批边界与路由分类 | [v2.10.3 迁移账本](./upstream-migrations/v2.10.3/README.md) |
+| 固定版本差异、分批边界与路由分类 | [v2.17.7 同步批次账本](./upstream-migrations/v2.17.7/README.md)；v2.10.3 仅作历史记录 |
 | 已落地 Fork 不变量及自动保护 | [Fork 定制登记](./FORK_CUSTOMIZATIONS.md)，不把待实现项登记为已生效 |
 | TDD、双审查、测试、合并、部署和最终验收 | [交付流程](./DELIVERY_WORKFLOW.md)；[上游同步手册](./UPSTREAM_SYNC_PLAYBOOK.md) |
 
-快照仅覆盖已核查的本轮工作，不是全站功能目录或百分比进度。历史审计、文件/路由计数、
+当前基线和版本账本仅覆盖已核查的同步批次，不是全站功能目录或百分比进度。历史审计、文件/路由计数、
 CI 成功、后端 DTO 或数据库测试均不能替代完整用户闭环。移动端/Canvas 排除在本轮之外。
 接手人先重查 GitHub PR、head/base、CI 和部署证据，再决定下一步；文档年龄不自动触发发布。
 

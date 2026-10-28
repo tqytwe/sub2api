@@ -769,6 +769,11 @@ func registerPromoCodeRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 }
 
 func registerSettingsRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	priorityScheduling := admin.Group("/priority-scheduling")
+	priorityScheduling.GET("/config", h.Admin.Setting.GetPriorityScheduling)
+	priorityScheduling.PUT("/config", h.Admin.Setting.SavePriorityScheduling)
+	priorityScheduling.GET("/snapshot", h.Admin.Setting.PrioritySchedulingSnapshot)
+
 	adminSettings := admin.Group("/settings")
 	{
 		adminSettings.GET("", h.Admin.Setting.GetSettings)
@@ -986,6 +991,9 @@ func registerChannelRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	channels := admin.Group("/channels")
 	{
 		channels.GET("", h.Admin.Channel.List)
+		channels.GET("/operations/snapshot", h.Admin.Channel.OperationsSnapshot)
+		channels.GET("/:id/operations", h.Admin.Channel.OperationsCatalog)
+		channels.POST("/:id/operations", h.Admin.Channel.MutateOperations)
 		channels.GET("/model-pricing", h.Admin.Channel.GetModelDefaultPricing)
 		channels.GET("/pricing/sync-models", h.Admin.Channel.SyncPricingModels)
 		channels.GET("/:id", h.Admin.Channel.GetByID)

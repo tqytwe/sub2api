@@ -227,6 +227,8 @@ export default {
     paymentPlans: '订阅套餐',
     channelManagement: '渠道管理',
     channelPricing: '渠道定价',
+    channelOperations: '渠道运维',
+    priorityScheduling: '优先调度',
     modelCatalog: '模型广场',
     channelMonitor: '渠道监控',
     channelStatus: '渠道状态',

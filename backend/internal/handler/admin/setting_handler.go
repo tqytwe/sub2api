@@ -52,6 +52,7 @@ func firstNonEmpty(values ...string) string {
 // SettingHandler 系统设置处理器
 type SettingHandler struct {
 	settingService           *service.SettingService
+	openAIGatewayService     *service.OpenAIGatewayService
 	emailService             *service.EmailService
 	turnstileService         *service.TurnstileService
 	aliyunCaptchaService     *service.AliyunCaptchaService
@@ -96,6 +97,80 @@ func (h *SettingHandler) SetAliyunCaptchaService(aliyunCaptchaService *service.A
 func (h *SettingHandler) SetStepUpDeps(totpService *service.TotpService, userService *service.UserService) {
 	h.totpService = totpService
 	h.userService = userService
+}
+
+// SetOpenAIGatewayService attaches the live scheduler source used by the
+// admin-only priority scheduling snapshot endpoint.
+func (h *SettingHandler) SetOpenAIGatewayService(gateway *service.OpenAIGatewayService) {
+	h.openAIGatewayService = gateway
+}
+
+func (h *SettingHandler) GetPriorityScheduling(c *gin.Context) {
+	cfg, err := h.settingService.GetPrioritySchedulingConfig(c.Request.Context())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, cfg)
+}
+
+func (h *SettingHandler) SavePriorityScheduling(c *gin.Context) {
+	payload, err := c.GetRawData()
+	if err != nil {
+		response.BadRequest(c, "invalid priority scheduling configuration")
+		return
+	}
+	cfg, err := h.settingService.GetPrioritySchedulingConfig(c.Request.Context())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	if err := json.Unmarshal(payload, &cfg); err != nil {
+		response.BadRequest(c, "invalid priority scheduling configuration")
+		return
+	}
+	if err := service.ValidatePrioritySchedulingConfig(cfg); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	if err := h.settingService.SavePrioritySchedulingConfig(c.Request.Context(), cfg); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, cfg)
+}
+
+func (h *SettingHandler) PrioritySchedulingSnapshot(c *gin.Context) {
+	cfg, err := h.settingService.GetPrioritySchedulingConfig(c.Request.Context())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	metrics := service.OpenAIAccountSchedulerMetricsSnapshot{}
+	if h.openAIGatewayService != nil {
+		metrics = h.openAIGatewayService.SnapshotOpenAIAccountSchedulerMetrics()
+	}
+	var history any
+	historyStatus := "unavailable"
+	historyReady := false
+	var candidates any
+	if h.openAIGatewayService != nil {
+		if observed := h.openAIGatewayService.PrioritySchedulingSnapshot(); observed != nil {
+			history = observed
+			historyStatus = observed.HistoryStatus
+			historyReady = observed.HistoryReady
+			candidates = observed.Candidates
+		}
+	}
+	snapshot := gin.H{
+		"config":         cfg,
+		"metrics":        metrics,
+		"history_status": historyStatus,
+		"history_ready":  historyReady,
+		"history":        history,
+		"candidates":     candidates,
+	}
+	response.Success(c, gin.H{"snapshot": snapshot})
 }
 
 // GetSettings 获取所有系统设置

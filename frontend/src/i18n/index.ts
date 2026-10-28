@@ -121,12 +121,13 @@ const localeLoaders: Record<LocaleCode, Record<LocaleLoadScope, LocaleLoader>> =
       return { default: mergeLocaleMessages(legacy.default, adminMessages(module.default)) }
     },
     'admin-resources': async () => {
-      const [overview, resources, legacy] = await Promise.all([
+      const [overview, resources, scheduling, legacy] = await Promise.all([
         import('./locales/en/admin/overview'),
         import('./locales/en/admin/resources'),
+        import('./locales/en/admin/scheduling'),
         import('./locales/en/legacy/admin-resources'),
       ])
-      return { default: mergeLocaleMessages(legacy.default, adminMessages(overview.default, resources.default)) }
+      return { default: mergeLocaleMessages(legacy.default, adminMessages(overview.default, resources.default, scheduling.default)) }
     },
     'admin-settings': async () => {
       const [module, legacy] = await Promise.all([
@@ -223,12 +224,13 @@ const localeLoaders: Record<LocaleCode, Record<LocaleLoadScope, LocaleLoader>> =
       return { default: mergeLocaleMessages(legacy.default, adminMessages(module.default)) }
     },
     'admin-resources': async () => {
-      const [overview, resources, legacy] = await Promise.all([
+      const [overview, resources, scheduling, legacy] = await Promise.all([
         import('./locales/zh/admin/overview'),
         import('./locales/zh/admin/resources'),
+        import('./locales/zh/admin/scheduling'),
         import('./locales/zh/legacy/admin-resources'),
       ])
-      return { default: mergeLocaleMessages(legacy.default, adminMessages(overview.default, resources.default)) }
+      return { default: mergeLocaleMessages(legacy.default, adminMessages(overview.default, resources.default, scheduling.default)) }
     },
     'admin-settings': async () => {
       const [module, legacy] = await Promise.all([
@@ -424,6 +426,8 @@ function routeNameForPath(path: string): LocaleRouteName | null {
   if (path === '/admin/audit-logs') return 'AdminAuditLogs'
   if (path === '/admin/users') return 'AdminUsers'
   if (path === '/admin/groups') return 'AdminGroups'
+  if (path === '/admin/channels/operations') return 'AdminChannelOperations'
+  if (path === '/admin/priority-scheduling') return 'AdminPriorityScheduling'
   if (path.startsWith('/admin/channels/monitor')) return 'AdminChannelMonitor'
   if (path.startsWith('/admin/channels')) return 'AdminChannels'
   if (path === '/admin/model-plaza') return 'AdminModelPlaza'

@@ -49,6 +49,7 @@ func (s *SettingService) UpdateSettingsOmitting(ctx context.Context, settings *S
 		return err
 	}
 	s.refreshCachedSettingsAfterWrite(ctx, settings, omitted)
+	InvalidateOpenAIAdvancedSchedulerSettingCache()
 	return nil
 }
 
@@ -79,6 +80,7 @@ func (s *SettingService) UpdateSettingsWithAuthSourceDefaultsOmitting(ctx contex
 		return err
 	}
 	s.refreshCachedSettingsAfterWrite(ctx, settings, omitted)
+	InvalidateOpenAIAdvancedSchedulerSettingCache()
 	return nil
 }
 

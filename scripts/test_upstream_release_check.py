@@ -3,6 +3,12 @@ import pathlib
 import unittest
 
 
+def merged(left, right):
+    result = dict(left)
+    result.update(right)
+    return result
+
+
 path = pathlib.Path(__file__).with_name("check_upstream_release.py")
 spec = importlib.util.spec_from_file_location("upstream_check", path)
 check = importlib.util.module_from_spec(spec)
@@ -22,6 +28,14 @@ class ReleaseContractTests(unittest.TestCase):
     def test_accepts_only_the_pinned_formal_release(self):
         check.validate_release(self.lock, self.release, "a" * 40, "b" * 40, "2.10.3")
 
+    def test_accepts_tag_resolved_version_when_static_file_is_previous_patch(self):
+        resolver = "git describe --tags --exact-match --match 'v[0-9]*'\nif [ -n \"$TAG\" ]; then\nprintf '%s\\n' \"${TAG#v}\""
+        lock = merged(self.lock, {"release_tag": "v2.17.6", "version_file": "2.17.6"})
+        release = merged(self.release, {"tag_name": "v2.17.6"})
+        check.validate_release(lock, release, "a" * 40, "b" * 40, "2.17.5", resolver)
+        with self.assertRaisesRegex(ValueError, "does not prove exact-tag versioning"):
+            check.validate_release(lock, release, "a" * 40, "b" * 40, "2.17.5")
+
     def test_rejects_wrong_source_unpublished_and_moved_tags(self):
         cases = [
             ({"source_repository": "Wei-Shaw/sub2api"}, {}, "a" * 40, "b" * 40, "2.10.3"),
@@ -36,7 +50,7 @@ class ReleaseContractTests(unittest.TestCase):
         for lock_patch, release_patch, tag, commit, version in cases:
             with self.subTest(lock=lock_patch, release=release_patch, tag=tag, commit=commit):
                 with self.assertRaises(ValueError):
-                    check.validate_release(self.lock | lock_patch, self.release | release_patch, tag, commit, version)
+                    check.validate_release(merged(self.lock, lock_patch), merged(self.release, release_patch), tag, commit, version)
 
     def test_reports_number_collision_and_changed_deployed_file_separately(self):
         before = {"270_fork.sql": "old", "100_existing.sql": "old", "271_fork.sql": "keep"}

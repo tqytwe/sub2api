@@ -14,6 +14,9 @@ const {
   getGroups,
   getProxies,
   testAPIKeys,
+  getUser,
+  updateUser,
+  unbanUser,
   showError,
   showSuccess,
 } = vi.hoisted(() => ({
@@ -24,6 +27,9 @@ const {
   getGroups: vi.fn(),
   getProxies: vi.fn(),
   testAPIKeys: vi.fn(),
+  getUser: vi.fn(),
+  updateUser: vi.fn(),
+  unbanUser: vi.fn(),
   showError: vi.fn(),
   showSuccess: vi.fn(),
 }))
@@ -38,8 +44,9 @@ vi.mock('@/api/admin', () => ({
       testAPIKeys,
       deleteFlaggedHash: vi.fn(),
       clearFlaggedHashes: vi.fn(),
-      unbanUser: vi.fn(),
+      unbanUser,
     },
+    users: { getById: getUser, update: updateUser },
     groups: {
       getAll: getGroups,
     },
@@ -153,6 +160,9 @@ const BaseDialogStub = defineComponent({
       type: Boolean,
       default: false,
     },
+    closeOnEscape: { type: Boolean, default: true },
+    closeOnClickOutside: { type: Boolean, default: false },
+    showCloseButton: { type: Boolean, default: true },
   },
   template: '<div v-if="show"><slot /><slot name="footer" /></div>',
 })
@@ -194,6 +204,9 @@ function findButtonByText(wrapper: VueWrapper, text: string): DOMWrapper<HTMLBut
 
 describe('admin RiskControlView', () => {
   beforeEach(() => {
+    getUser.mockReset()
+    updateUser.mockReset()
+    unbanUser.mockReset()
     getConfig.mockReset()
     updateConfig.mockReset()
     getStatus.mockReset()
@@ -218,6 +231,136 @@ describe('admin RiskControlView', () => {
       api_key_masks: [],
       api_key_statuses: [],
     }))
+  })
+
+
+  async function mountDisabledUser(status = 'disabled', userID: number | null = 42) {
+    const row = { id: 1, user_id: userID, user_email: 'reviewer@example.test', user_status: status,
+      created_at: '2026-10-28T00:00:00Z', action: 'blocked', flagged: true, violation_count: 10,
+      auto_banned: true, highest_score: 0.9 }
+    listLogs.mockResolvedValue({ items: [row, { ...row, id: 2 }], total: 2, page: 1, page_size: 20, pages: 1 })
+    getUser.mockResolvedValue({ id: 42, status: 'disabled' })
+    updateUser.mockResolvedValue({ id: 42, status: 'active' })
+    const wrapper = mount(RiskControlView, { global: { stubs: { AppLayout: AppLayoutStub,
+      BaseDialog: BaseDialogStub, Icon: true, Select: true, Toggle: true, Pagination: true,
+      ModelWhitelistSelector: ModelWhitelistSelectorStub, ProxySelector: true } } })
+    await flushPromises()
+    return wrapper
+  }
+
+  async function prepareEnable(wrapper: VueWrapper) {
+    await wrapper.findAll('[data-test="enable-user"]')[0].trigger('click')
+    await wrapper.get('#enable-user-reason').setValue('  Reviewed appeal  ')
+    await wrapper.get('#enable-user-confirmed').setValue(true)
+  }
+
+  it('requires a nonblank reason and explicit confirmation before enabling', async () => {
+    const wrapper = await mountDisabledUser()
+    await wrapper.findAll('[data-test="enable-user"]')[0].trigger('click')
+    const submit = () => wrapper.get<HTMLButtonElement>('[data-test="confirm-enable-user"]')
+    expect(submit().element.disabled).toBe(true)
+    await wrapper.get('#enable-user-confirmed').setValue(true)
+    await wrapper.get('#enable-user-reason').setValue('   ')
+    expect(submit().element.disabled).toBe(true)
+    await wrapper.get('#enable-user-reason').setValue('a'.repeat(501))
+    expect(submit().element.disabled).toBe(true)
+    await wrapper.get('#enable-user-reason').setValue('界'.repeat(500))
+    expect(submit().element.disabled).toBe(false)
+    await wrapper.get('#enable-user-reason').setValue('界'.repeat(501))
+    expect(submit().element.disabled).toBe(true)
+    await wrapper.get('#enable-user-reason').setValue('Reviewed appeal')
+    await wrapper.get('#enable-user-confirmed').setValue(false)
+    expect(submit().element.disabled).toBe(true)
+    expect(updateUser).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it.each([['active', 42], ['disabled', null]])('hides enable for status %s and user %s', async (status, id) => {
+    const wrapper = await mountDisabledUser(status as string, id as number | null)
+    expect(wrapper.find('[data-test="enable-user"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('reads status, updates with reason, verifies status and updates every log row without moderation writes', async () => {
+    const wrapper = await mountDisabledUser()
+    const before = wrapper.text().match(/admin.riskControl.violationCount/g)?.length
+    getUser.mockResolvedValueOnce({ id: 42, status: 'disabled' }).mockResolvedValueOnce({ id: 42, status: 'active' })
+    await prepareEnable(wrapper)
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(getUser).toHaveBeenCalledTimes(2)
+    expect(updateUser).toHaveBeenCalledWith(42, { status: 'active', reason: 'Reviewed appeal' })
+    expect(getUser.mock.invocationCallOrder[0]).toBeLessThan(updateUser.mock.invocationCallOrder[0])
+    expect(updateUser.mock.invocationCallOrder[0]).toBeLessThan(getUser.mock.invocationCallOrder[1])
+    expect(wrapper.find('[data-test="enable-user"]').exists()).toBe(false)
+    expect(wrapper.get('[role="status"][aria-live="polite"]').text()).toContain('admin.riskControl.enableSuccess')
+    expect(wrapper.text().match(/admin.riskControl.violationCount/g)?.length).toBe(before)
+    expect(updateConfig).not.toHaveBeenCalled()
+    expect(unbanUser).not.toHaveBeenCalled()
+    expect(showSuccess).toHaveBeenCalledWith('admin.riskControl.enableSuccess')
+    wrapper.unmount()
+  })
+
+  it('skips a stale enable request when the account is already active', async () => {
+    const wrapper = await mountDisabledUser()
+    getUser.mockResolvedValue({ id: 42, status: 'active' })
+    await prepareEnable(wrapper)
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(updateUser).not.toHaveBeenCalled()
+    expect(wrapper.get('[role="status"][aria-live="polite"]').text()).toContain('admin.riskControl.enableAlreadyActive')
+    expect(wrapper.find('[data-test="enable-user"]').exists()).toBe(false)
+    expect(showSuccess).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it.each(['preflight', 'unsupported', 'write', 'write-committed', 'readback', 'still-disabled'])('handles %s failure without success and retains the reason', async (failure) => {
+    const wrapper = await mountDisabledUser()
+    if (failure === 'preflight') getUser.mockRejectedValue(new Error('read failed'))
+    if (failure === 'unsupported') getUser.mockResolvedValue({ id: 42, status: 'deleted' })
+    if (failure === 'write') updateUser.mockRejectedValue(new Error('write failed'))
+    if (failure === 'write-committed') {
+      updateUser.mockRejectedValue(new Error('write response lost'))
+      getUser.mockResolvedValueOnce({ id: 42, status: 'disabled' }).mockResolvedValueOnce({ id: 42, status: 'active' })
+    }
+    if (failure === 'readback') getUser.mockResolvedValueOnce({ id: 42, status: 'disabled' }).mockRejectedValueOnce(new Error('readback failed'))
+    if (failure === 'still-disabled') getUser.mockResolvedValue({ id: 42, status: 'disabled' })
+    await prepareEnable(wrapper)
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(wrapper.get('[role="alert"]').text()).toContain('admin.riskControl.enable')
+    expect((wrapper.get('#enable-user-reason').element as HTMLTextAreaElement).value).toBe('  Reviewed appeal  ')
+    expect(showSuccess).not.toHaveBeenCalled()
+    expect(wrapper.find('[role="status"][aria-live="polite"]').exists()).toBe(false)
+    expect(unbanUser).not.toHaveBeenCalled()
+    expect(updateConfig).not.toHaveBeenCalled()
+    if (failure === 'preflight' || failure === 'unsupported') expect(updateUser).not.toHaveBeenCalled()
+    if (failure === 'readback' || failure === 'still-disabled' || failure === 'write-committed') expect(getUser).toHaveBeenCalledTimes(2)
+    if (failure === 'write-committed') {
+      expect(wrapper.find('[data-test="enable-user"]').exists()).toBe(false)
+      expect(wrapper.text()).toContain('admin.riskControl.enableFailed')
+    }
+    wrapper.unmount()
+  })
+
+  it('prevents duplicate writes and dialog dismissal while enabling', async () => {
+    const wrapper = await mountDisabledUser()
+    let resolveWrite!: (value: unknown) => void
+    updateUser.mockImplementation(() => new Promise((resolve) => { resolveWrite = resolve }))
+    await prepareEnable(wrapper)
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(wrapper.get<HTMLButtonElement>('[data-test="confirm-enable-user"]').element.disabled).toBe(true)
+    expect(wrapper.get<HTMLTextAreaElement>('#enable-user-reason').element.disabled).toBe(true)
+    const dialog = wrapper.findAllComponents(BaseDialogStub).find((item) => item.props('show'))!
+    dialog.vm.$emit('close')
+    await flushPromises()
+    expect(wrapper.find('#enable-user-reason').exists()).toBe(true)
+    await wrapper.get('form').trigger('submit')
+    expect(updateUser).toHaveBeenCalledTimes(1)
+    resolveWrite({ id: 42, status: 'active' })
+    await flushPromises()
+    wrapper.unmount()
   })
 
   it.each(['openai', 'typesafe'] as const)('shows the selected draft engine keys while %s remains active', async (activeEngine) => {

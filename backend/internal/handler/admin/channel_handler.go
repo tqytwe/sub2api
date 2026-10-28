@@ -4,10 +4,12 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
+	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 
 	"github.com/gin-gonic/gin"
@@ -23,6 +25,107 @@ type ChannelHandler struct {
 // NewChannelHandler creates a new admin channel handler
 func NewChannelHandler(channelService *service.ChannelService, billingService *service.BillingService, pricingService *service.PricingService) *ChannelHandler {
 	return &ChannelHandler{channelService: channelService, billingService: billingService, pricingService: pricingService}
+}
+
+func channelOperationsInt(c *gin.Context, key string, fallback int64) (int64, error) {
+	if c.Query(key) == "" {
+		return fallback, nil
+	}
+	return strconv.ParseInt(c.Query(key), 10, 64)
+}
+
+// OperationsCatalog exposes channel-scoped operational labels to administrators.
+func (h *ChannelHandler) OperationsCatalog(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.ErrorFrom(c, service.ErrChannelOperationsValidation)
+		return
+	}
+	page, pageErr := channelOperationsInt(c, "page", 1)
+	pageSize, pageSizeErr := channelOperationsInt(c, "page_size", 20)
+	upstreamPage, upstreamPageErr := channelOperationsInt(c, "upstream_page", 1)
+	upstreamID, upstreamIDErr := channelOperationsInt(c, "upstream_id", 0)
+	if pageErr != nil || pageSizeErr != nil || upstreamPageErr != nil || upstreamIDErr != nil {
+		response.ErrorFrom(c, service.ErrChannelOperationsValidation)
+		return
+	}
+	out, err := h.channelService.OperationsCatalog(c.Request.Context(), id, service.ChannelOperationsQuery{
+		Search:         c.Query("search"),
+		Page:           int(page),
+		PageSize:       int(pageSize),
+		UpstreamPage:   int(upstreamPage),
+		UpstreamSearch: c.Query("upstream_search"),
+		Membership:     c.DefaultQuery("membership", "all"),
+		UpstreamID:     upstreamID,
+	})
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, out)
+}
+
+// MutateOperations changes only channel-local operational labels and membership.
+func (h *ChannelHandler) MutateOperations(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.ErrorFrom(c, service.ErrChannelOperationsValidation)
+		return
+	}
+	var mutation service.ChannelOperationsMutation
+	if err := c.ShouldBindJSON(&mutation); err != nil {
+		response.ErrorFrom(c, service.ErrChannelOperationsValidation)
+		return
+	}
+	if err := service.ValidateChannelOperationsMutation(&mutation); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	middleware.SetAuditAction(c, "channel_operations."+mutation.Action)
+	middleware.SetAuditExtra(c, map[string]any{
+		"source":               "channel_operations",
+		"channel_id":           id,
+		"config_version":       *mutation.Revision,
+		"operation":            mutation.Action,
+		"confirm":              mutation.Confirm,
+		"target_upstream_id":   mutation.UpstreamID,
+		"target_account_id":    mutation.AccountID,
+		"expected_upstream_id": mutation.ExpectedUpstreamID,
+	})
+	revision, err := h.channelService.MutateOperations(c.Request.Context(), id, mutation)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, gin.H{"revision": revision})
+}
+
+// OperationsSnapshot returns independent read-only operational sections.
+func (h *ChannelHandler) OperationsSnapshot(c *gin.Context) {
+	channelID, e0 := channelOperationsInt(c, "channel_id", 0)
+	upstreamID, e1 := channelOperationsInt(c, "upstream_id", 0)
+	accountID, e2 := channelOperationsInt(c, "account_id", 0)
+	groupID, e3 := channelOperationsInt(c, "group_id", 0)
+	page, e4 := channelOperationsInt(c, "page", 1)
+	pageSize, e5 := channelOperationsInt(c, "page_size", 20)
+	qualityBefore, e6 := channelOperationsInt(c, "quality_before", 0)
+	from, e7 := time.Parse(time.RFC3339, c.Query("from"))
+	until, e8 := time.Parse(time.RFC3339, c.Query("until"))
+	if e0 != nil || e1 != nil || e2 != nil || e3 != nil || e4 != nil || e5 != nil || e6 != nil || e7 != nil || e8 != nil {
+		response.ErrorFrom(c, service.ErrChannelOperationsValidation)
+		return
+	}
+	snapshot, err := h.channelService.OperationsSnapshot(c.Request.Context(), service.ChannelOperationsFilter{
+		ChannelID: channelID, UpstreamID: upstreamID, AccountID: accountID, GroupID: groupID,
+		From: from, Until: until, Model: c.Query("model"),
+		ModelScope: c.DefaultQuery("model_scope", "public"), Dimension: c.DefaultQuery("dimension", "channel"),
+		Page: int(page), PageSize: int(pageSize), QualityBefore: qualityBefore,
+	})
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, snapshot)
 }
 
 // --- Request / Response types ---

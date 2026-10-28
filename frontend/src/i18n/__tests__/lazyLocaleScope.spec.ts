@@ -39,6 +39,7 @@ describe('lazy locale loading scopes', () => {
     ['/admin/dashboard', 'admin-overview'],
     ['/admin/accounts', 'admin-accounts'],
     ['/admin/channels', 'admin-channels'],
+    ['/admin/priority-scheduling', 'admin-resources'],
     ['/admin/ops', 'admin-ops'],
     ['/admin/play-ops', 'admin-play'],
     ['/admin/users', 'admin-resources'],

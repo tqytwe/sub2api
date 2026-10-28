@@ -1,16 +1,22 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { post } = vi.hoisted(() => ({
+const { post, get, put } = vi.hoisted(() => ({
   post: vi.fn(),
+  get: vi.fn(),
+  put: vi.fn(),
 }))
 
 vi.mock('@/api/client', () => ({
   apiClient: {
     post,
+    get,
+    put,
   },
 }))
 
 import {
+  getById,
+  update,
   executeBatchAction,
   batchUpdateLimits,
   bindUserAuthIdentity,
@@ -89,6 +95,20 @@ const batchResponseContractExact: Assert<
 describe('admin users api auth identity binding', () => {
   beforeEach(() => {
     post.mockReset()
+    get.mockReset()
+    put.mockReset()
+  })
+
+  it('reads current admin user state and sends status and reason through the admin update endpoint', async () => {
+    const user = { id: 42, status: 'active' }
+    get.mockResolvedValue({ data: { ...user, status: 'disabled' } })
+    put.mockResolvedValue({ data: user })
+    expect(await getById(42)).toEqual({ id: 42, status: 'disabled' })
+    const request: import('@/types').UpdateUserRequest = { status: 'active', reason: 'Reviewed appeal' }
+    expect(await update(42, request)).toEqual(user)
+    expect(get).toHaveBeenCalledWith('/admin/users/42')
+    expect(put).toHaveBeenCalledWith('/admin/users/42', { status: 'active', reason: 'Reviewed appeal' })
+    expect(post).not.toHaveBeenCalled()
   })
 
   it('posts the backend-compatible auth identity bind payload and returns the backend response shape', async () => {

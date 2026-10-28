@@ -1,5 +1,6 @@
 import overview from './overview'
 import channels from './channels'
+import scheduling from './scheduling'
 import accounts from './accounts'
 import resources from './resources'
 import ops from './ops'
@@ -12,6 +13,7 @@ import plugins from './plugins'
 export default {
   ...overview,
   ...channels,
+  ...scheduling,
   ...accounts,
   ...resources,
   ...ops,

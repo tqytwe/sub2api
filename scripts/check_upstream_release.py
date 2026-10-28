@@ -8,16 +8,41 @@ import pathlib
 import re
 import subprocess
 import sys
+import urllib.request
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 LOCK = ROOT / "docs/upstream-migrations/source-lock.json"
 
 
 def run(*args):
-    return subprocess.check_output(args, cwd=ROOT, text=True).strip()
+    return subprocess.check_output(args, cwd=ROOT, universal_newlines=True).strip()
 
 
-def validate_release(lock, release, tag, commit, version):
+def fetch_release(repository, tag):
+    url = "https://api.github.com/repos/{}/releases/tags/{}".format(repository, tag)
+    request = urllib.request.Request(url, headers={"Accept": "application/vnd.github+json", "User-Agent": "sub2api-upstream-check"})
+    with urllib.request.urlopen(request, timeout=20) as response:
+        return json.loads(response.read().decode("utf-8"))
+
+
+def fetch_json(url):
+    request = urllib.request.Request(url, headers={"Accept": "application/vnd.github+json", "User-Agent": "sub2api-upstream-check"})
+    with urllib.request.urlopen(request, timeout=20) as response:
+        return json.loads(response.read().decode("utf-8"))
+
+
+def fetch_remote_tag(repository, tag):
+    remote = "https://api.github.com/repos/{}/git/refs/tags/{}".format(repository, tag)
+    ref = fetch_json(remote)
+    target = ref["object"]
+    if target["type"] == "tag":
+        target = fetch_json("https://api.github.com/repos/{}/git/tags/{}".format(repository, target["sha"]))["object"]
+    if target["type"] != "commit":
+        raise ValueError("release tag does not resolve to a commit")
+    return ref["object"]["sha"], target["sha"]
+
+
+def validate_release(lock, release, tag, commit, version, resolver_script=""):
     if lock["source_repository"] != "ranxi2001/sub2api" or lock["source_remote"] != "https://github.com/ranxi2001/sub2api.git":
         raise ValueError("unexpected direct upstream repository")
     if release.get("draft") is not False or release.get("prerelease") is not False:
@@ -26,8 +51,18 @@ def validate_release(lock, release, tag, commit, version):
         raise ValueError("release tag does not match source lock")
     if tag != lock["tag_object"] or commit != lock["release_commit"]:
         raise ValueError("release tag moved or commit does not match source lock")
-    if version.strip() != lock["version_file"] or "v" + version.strip() != lock["release_tag"]:
-        raise ValueError("release VERSION does not match source lock; do not follow a later branch commit")
+    release_version = lock["release_tag"][1:] if lock["release_tag"].startswith("v") else lock["release_tag"]
+    locked_release_version = lock.get("resolved_version", lock["version_file"])
+    if release_version != locked_release_version:
+        raise ValueError("source lock resolved version does not match release tag")
+    if version.strip() != release_version:
+        resolves_exact_tag = (
+            "describe --tags --exact-match --match 'v[0-9]*'" in resolver_script
+            and '"${TAG#v}"' in resolver_script
+            and 'if [ -n "$TAG" ]; then' in resolver_script
+        )
+        if not resolves_exact_tag:
+            raise ValueError("release VERSION differs and source resolver does not prove exact-tag versioning")
 
 
 def migration_report(before, after):
@@ -62,16 +97,20 @@ def main():
     tag = run("git", "rev-parse", ref)
     commit = run("git", "rev-parse", ref + "^{commit}")
     version = run("git", "show", commit + ":backend/cmd/server/VERSION")
+    resolver_script = run("git", "show", commit + ":backend/scripts/resolve-version.sh")
     # Offline mode verifies recorded provenance, never claims live release validation.
     release = {"tag_name": lock["release_tag"], "draft": False, "prerelease": False}
-    validate_release(lock, release, tag, commit, version)
+    validate_release(lock, release, tag, commit, version, resolver_script)
     if not args.offline:
-        release = json.loads(run("gh", "api", "repos/" + lock["source_repository"] + "/releases/tags/" + lock["release_tag"]))
-        remote_refs = dict(line.split()[::-1] for line in run("git", "ls-remote", lock["source_remote"], "refs/tags/" + lock["release_tag"], "refs/tags/" + lock["release_tag"] + "^{}").splitlines())
-        remote_tag = remote_refs.get("refs/tags/" + lock["release_tag"])
-        remote_commit = remote_refs.get("refs/tags/" + lock["release_tag"] + "^{}", remote_tag)
-        validate_release(lock, release, remote_tag, remote_commit, version)
-    validate_release(lock, release, tag, commit, version)
+        release = fetch_release(lock["source_repository"], lock["release_tag"])
+        try:
+            remote_refs = dict(line.split()[::-1] for line in run("git", "ls-remote", lock["source_remote"], "refs/tags/" + lock["release_tag"], "refs/tags/" + lock["release_tag"] + "^{}").splitlines())
+            remote_tag = remote_refs.get("refs/tags/" + lock["release_tag"])
+            remote_commit = remote_refs.get("refs/tags/" + lock["release_tag"] + "^{}", remote_tag)
+        except subprocess.CalledProcessError:
+            remote_tag, remote_commit = fetch_remote_tag(lock["source_repository"], lock["release_tag"])
+        validate_release(lock, release, remote_tag, remote_commit, version, resolver_script)
+    validate_release(lock, release, tag, commit, version, resolver_script)
     base = lock["analysis_base"]
     branch = run("git", "branch", "--show-current")
     git_dir = pathlib.Path(run("git", "rev-parse", "--absolute-git-dir")).resolve()
