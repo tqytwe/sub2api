@@ -192,7 +192,7 @@ func loadSubscriptionPricing(ctx context.Context, input *OpenAIRecordUsageInput)
 	return context.WithValue(ctx, subscriptionFrozenKey{}, &snap), &snap, nil
 }
 
-func (p *subscriptionFrozenPricing) calculate(s *BillingService, ctx context.Context, model string, tokens UsageTokens, tier, effort string) (*CostBreakdown, error) {
+func (p *subscriptionFrozenPricing) calculate(s *BillingService, ctx context.Context, model string, tokens UsageTokens, tier, effort string, disableModelLongContextPricing ...bool) (*CostBreakdown, error) {
 	card, ok := p.Models[subscriptionPricingModelKey(model)]
 	if !ok {
 		return nil, ErrSubscriptionAdmissionUnsupported
@@ -201,8 +201,10 @@ func (p *subscriptionFrozenPricing) calculate(s *BillingService, ctx context.Con
 	if resolved == nil || (resolved.Mode != BillingModeToken && resolved.Mode != BillingModePerRequest) {
 		return nil, ErrSubscriptionAdmissionUnsupported
 	}
+	disableModelPricing := len(disableModelLongContextPricing) > 0 && disableModelLongContextPricing[0]
 	return s.CalculateCostUnified(CostInput{Ctx: ctx, Model: model, Tokens: tokens, RequestCount: 1, RateMultiplier: p.Multiplier, PricingAt: p.PricingAt,
-		ServiceTier: tier, ReasoningEffort: effort, Resolver: NewModelPricingResolver(nil, s), Resolved: resolved, LongContextBillingEnabled: &p.LongContext})
+		ServiceTier: tier, ReasoningEffort: effort, Resolver: NewModelPricingResolver(nil, s), Resolved: resolved, LongContextBillingEnabled: &p.LongContext,
+		DisableModelLongContextPricing: disableModelPricing})
 }
 
 // Keep the affirmative observation durable even when a frozen pricing decision
@@ -216,7 +218,7 @@ func pendingSubscriptionPricing(ctx context.Context, reason string, cause error)
 	return cause
 }
 
-func (p *subscriptionFrozenPricing) accountStats(s *BillingService, accountID, groupID int64, model string, tokens UsageTokens, total float64, tier, effort string) *float64 {
+func (p *subscriptionFrozenPricing) accountStats(s *BillingService, accountID, groupID int64, model string, tokens UsageTokens, total float64, tier, effort string, disableModelLongContextPricing ...bool) *float64 {
 	if p.StatsChannel == nil || model == "" {
 		return nil
 	}
@@ -233,7 +235,8 @@ func (p *subscriptionFrozenPricing) accountStats(s *BillingService, accountID, g
 	if !ok {
 		return nil
 	}
-	cost, err := s.CalculateCostUnified(CostInput{Ctx: context.Background(), Model: model, Tokens: tokens, RateMultiplier: 1, ServiceTier: normalizeBillingServiceTier(tier), ReasoningEffort: effort, PricingAt: p.PricingAt, Resolver: NewModelPricingResolver(nil, s), Resolved: card.resolved()})
+	disableModelPricing := len(disableModelLongContextPricing) > 0 && disableModelLongContextPricing[0]
+	cost, err := s.CalculateCostUnified(CostInput{Ctx: context.Background(), Model: model, Tokens: tokens, RateMultiplier: 1, ServiceTier: normalizeBillingServiceTier(tier), ReasoningEffort: effort, PricingAt: p.PricingAt, Resolver: NewModelPricingResolver(nil, s), Resolved: card.resolved(), DisableModelLongContextPricing: disableModelPricing})
 	if err != nil || cost == nil || cost.TotalCost <= 0 {
 		return nil
 	}
