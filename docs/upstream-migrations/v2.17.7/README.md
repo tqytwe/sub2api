@@ -37,6 +37,21 @@
 - 用量时间范围：精确滚动 24 小时窗口、筛选快照、清理日期范围和非 UTC 聚合回查。
 - 内容审查用户管理：管理员独立解除禁用入口、原因确认、写入前后状态回读，不改变白名单或其他安全限制。
 
+## 关键上游 PR 差异结论
+
+| 上游 PR | 当前候选结论 | 不能误判为已完成的增量 |
+|---|---|---|
+| #572 优先调度 | 部分等价 | observation、latency admission、penalty workflow 和完整回归缺失 |
+| #573 渠道运维 | Fork 适配已部署，部分等价 | 上游 309 迁移、metrics component、完整 handler/workflow 未证明等价；候选保留本 Fork 的 282 编号与结构 |
+| #574 凭证异常 | 未完成 | credential failure、token guard v2、refresh-failure writer/reader/API/worker/UI 缺失；上游 309 不能直接移植 |
+| #575/#576 质量运维/Jev | 未完成 | ownership/version/隔离、Jev judge、live regression 缺失；旧质量基础不计作完整同步 |
+| #577 GPT-6.1 Sol | Fork 等价/部分等价 | 仍需逐项上游差异和生产账务样本核对 |
+| #579 滚动 24 小时 | 本地候选已完成，生产待发布 | 生产尚未应用候选 UI/API |
+| #580 moderation | Fork 适配已完成，生产待发布 | 候选采用更强 CAS、generation、豁免和动作审计合同，不直接 cherry-pick 上游 |
+| #581 版本号 | 策略待定 | 当前仍保留 Fork `0.2.14`，不能声称已切换上游 `2.17.7` |
+| request capture / support / harvest | 未迁移 | 需先确认产品范围、隐私和保留合同 |
+| security penalty | 隐私阻断 | 上游会新增明文全文副本、跨用户管理员读取且无 TTL，禁止原样带入 |
+
 ## 后端差异审查
 
 | 上游能力 | 生产基线证据 | 状态 | 必须交付的验证 |
