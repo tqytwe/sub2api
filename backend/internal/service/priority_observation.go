@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
+	"github.com/gin-gonic/gin"
 )
 
 // WithPrioritySchedulingObservation records the public request identity before
@@ -29,4 +30,12 @@ type priorityObservationGroupKey struct{}
 func priorityObservationGroupFromContext(ctx context.Context) (int64, bool) {
 	group, ok := ctx.Value(priorityObservationGroupKey{}).(int64)
 	return group, ok
+}
+
+func priorityGroupID(c *gin.Context) *int64 {
+	id := getOpenAIGroupIDFromContext(c)
+	if id <= 0 {
+		return nil
+	}
+	return &id
 }

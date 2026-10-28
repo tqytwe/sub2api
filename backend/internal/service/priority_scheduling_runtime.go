@@ -14,11 +14,13 @@ type PrioritySchedulingSignalReader interface {
 }
 
 type PrioritySchedulingQuery struct {
-	AccountIDs      []int64
-	Model           string
-	InboundEndpoint string
-	GroupID         *int64
-	Since           time.Time
+	AccountIDs         []int64
+	Model              string
+	InboundEndpoint    string
+	GroupID            *int64
+	Since              time.Time
+	LatencyMeasurement string
+	LatencyPercentile  int
 }
 
 type PrioritySchedulingSignal struct {
@@ -152,7 +154,7 @@ func (s *OpenAIGatewayService) prioritySignals(req OpenAIAccountScheduleRequest,
 	}
 	if !entry.refreshing && time.Now().After(entry.expiresAt) {
 		entry.refreshing = true
-		query := PrioritySchedulingQuery{AccountIDs: ids, Model: model, InboundEndpoint: strings.TrimSpace(req.InboundEndpoint), GroupID: req.GroupID, Since: time.Now().Add(-time.Duration(cfg.WindowMinutes) * time.Minute)}
+		query := PrioritySchedulingQuery{AccountIDs: ids, Model: model, InboundEndpoint: strings.TrimSpace(req.InboundEndpoint), GroupID: req.GroupID, Since: time.Now().Add(-time.Duration(cfg.WindowMinutes) * time.Minute), LatencyMeasurement: cfg.LatencyMeasurement, LatencyPercentile: cfg.LatencyPercentile}
 		go func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 			defer cancel()
