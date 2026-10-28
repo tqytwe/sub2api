@@ -99,7 +99,7 @@
 
 ## 当前团队任务
 
-> **当前候选覆盖（2026-10-29）**：`f0bf08935` 包含 Priority、Quality、Credential 及前端门禁修复；前端全量 Vitest（516 个文件/3,989 项，8 项跳过）、typecheck、ESLint、设计治理和生产构建通过，Python worker 23 项通过。Go 定向门禁因当前环境缺少 `go` 尚未验证；Priority hard-stop/penalty、Quality Jev/live runner/真实恢复和生产管理员验收仍未完成。GitHub CLI 已在当前工作区重新授权，账号 `tqytwe` 有仓库 push 权限。候选尚未推送、创建 PR 或部署；不能发布为整版同步。
+> **当前候选覆盖（2026-10-29）**：`f0bf08935` 包含 Priority、Quality、Credential 及前端门禁修复；前端全量 Vitest（516 个文件/3,989 项，8 项跳过）、typecheck、ESLint、设计治理和生产构建通过，Python worker 23 项通过。Go 工具链位于 `/opt/go/bin/go`，但编译被候选 stale Wire provider 引用阻断；Credential 默认 Mihomo 依赖已移除，托管 Mihomo 仍需显式能力实现。Priority hard-stop/penalty、Quality Jev/live runner/真实恢复和生产管理员验收仍未完成。GitHub CLI 已在当前工作区重新授权，账号 `tqytwe` 有仓库 push 权限。候选尚未推送、创建 PR 或部署；不能发布为整版同步。
 
 - **集成/项目管理（主线程）**：已在线复核 v2.17.7 latest Release 和精确 tag；锁定生产基线、共同祖先、当前 `VERSION` 与双边差异规模；维护全版本功能矩阵并检查重复实现和工作包依赖。
 - **后端/API**：生产已覆盖 GPT-6.1 Sol 豁免和显式 last24h 后端合同。Priority 已加入按物理 attempt 精确记录的 `attributed_v1` 观测和读取聚合，但完整 hard-stop/penalty clock/quality round 联动仍缺。候选 moderation 用户管理后端的状态版本、generation/hit 与动作审计合同已完成代码和测试，尚未发布。#293 security penalty 源码已确认无 #519 DDL 依赖，但其全文明文访问/保留设计列为单独隐私阻断，不在本闭包原样迁入。质量运维/Jev 与凭据安全分类仍需继续。
@@ -111,7 +111,7 @@
 
 - 来源锁定：已完成。
 - 上游完整差异分类：未完成；446 个上游 PR merge 尚未逐项完成 Fork 等价/迁移/排除判定。已建立功能簇索引，但还缺每个相关 merge 的映射和最终分类。
-- 后端/API：本地候选 `f0bf08935` 已通过 Priority/Quality 定向门禁；Credential 的 Python worker 和前端门禁已通过，Go 尚未验证；生产尚未应用。Quality 的 Jev/live runner/真实恢复仍未完成；request capture、support/harvest 和 security penalty 仍未完成或被阻断。
+- 后端/API：本地候选 `f0bf08935` 已通过 Priority/Quality 定向门禁；Credential 的 Python worker 和前端门禁已通过，Go 被 stale Wire provider 装配阻断；生产尚未应用。Quality 的 Jev/live runner/真实恢复仍未完成；request capture、support/harvest 和 security penalty 仍未完成或被阻断。
 - 前端/交互：滚动用量和内容审查用户管理已在本地候选合并并通过全量门禁，未推送/未部署；已发布的渠道运维和调度页面仍需管理员本机验证真实操作、保存刷新、审计与普通用户无入口/无权访问。
 - 数据库/计费：生产 ledger 有 416 条；409 个当前迁移均已应用且 checksum 匹配，7 个额外历史记录也匹配 Git 中退役前原文件；0 个当前迁移未应用、0 个 checksum 不匹配。282 结构与 gateway 275–281 关键 schema/约束均核验通过；billing link/task 孤儿、settled+unverified link 和 stale inflight 均为 0。需单列高优先级核验：19,538 条 settlement_pending 请求中 19,537 条无精确 billing link，绝大多数 usage unknown；不能据此认定已扣款或再次扣费，需业务/财务只读抽样对照旧 usage、余额账本、订阅扣额和 dedup/archive 证据。另有历史日卡数据（4,136 replay、5,095 holds、21 entitlements），当前代码无对应读写引用；hold/replay 聚合一致性检查通过。唯一 `active` 但到期的日卡记录属于 `redeem_code`，其对应订阅也已 expired，无 payment order link。另有 4 条套餐权益记录状态 `active` 但已过期，均无有效订阅/替代权益；代码动态过期判定和准入 SQL 会拒绝它们。历史状态不自动修复；迁移锁耗时仍待办；283 不纳入本批。
 - CI 与本地门禁：此前候选 Go、前端全量 Vitest、ESLint、typecheck、设计治理、Fork integrity、构建均通过；本轮 Priority 定向 requestledger/repository/service 测试和 Quality 定向 service/repository/handler 测试通过。Credential 定向 Go 测试因耗时未完成，尚未合入主候选；尚未创建 PR，远端 CI 未运行。
