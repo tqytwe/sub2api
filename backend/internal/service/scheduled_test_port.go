@@ -99,11 +99,11 @@ type QualityOwnershipPreview struct {
 }
 
 type QualityOwnershipRequest struct {
-	Fence   string `json:"fence"`
-	Confirm bool   `json:"confirm"`
-	Reconcile bool  `json:"-"`
-	Restore bool   `json:"-"`
-	Delete  bool   `json:"-"`
+	Fence     string `json:"fence"`
+	Confirm   bool   `json:"confirm"`
+	Reconcile bool   `json:"-"`
+	Restore   bool   `json:"-"`
+	Delete    bool   `json:"-"`
 }
 
 type QualityOwnershipRepository interface {
