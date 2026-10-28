@@ -4,6 +4,14 @@ export type TokenGuardV2CredentialMode = 'email_otp_url' | 'password_totp'
 export type TokenGuardV2ProxySource = 'account' | 'managed_proxy' | 'mihomo'
 export type TokenGuardV2Engine = 'local_worker' | 'session_studio'
 
+export interface CredentialOperationFailure {
+  category?: string
+  code?: string
+  stage?: string
+  action?: string
+  occurred_at?: string
+}
+
 export interface TokenGuardV2LoginConfig {
   account_id: number
   login_email: string
@@ -19,7 +27,7 @@ export interface TokenGuardV2LoginConfig {
 }
 
 export interface TokenGuardV2Task {
-  diagnostic?: { stage: string; reason: string; elapsed_ms: number; exit_code: number }
+  diagnostic?: { stage: string; reason: string; elapsed_ms: number; exit_code: number; http_status?: number }
   id: number
   account_id: number
   status: string
@@ -29,6 +37,7 @@ export interface TokenGuardV2Task {
   created_at: string
   updated_at: string
   finished_at?: string
+  failure?: CredentialOperationFailure
 }
 
 export interface TokenGuardV2Account {
@@ -49,6 +58,8 @@ export interface TokenGuardV2Account {
   next_probe_at: string
   cooldown_until?: string
   blocked_reason?: string
+  probe_failure?: CredentialOperationFailure
+  refresh_failure?: CredentialOperationFailure
   login_config?: TokenGuardV2LoginConfig
   latest_task?: TokenGuardV2Task
 }

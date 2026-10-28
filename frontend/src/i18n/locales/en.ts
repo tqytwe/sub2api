@@ -8,9 +8,12 @@ import splitChannelMonitorV2En from './en/channelMonitorV2'
 import splitDashboardEn from './en/dashboard'
 import auditAdminEn from './en/admin/audit'
 import promptAuditAdminEn from './en/admin/promptAudit'
+import tokenGuardV2En from './en/tokenGuardV2'
 import { mergeLocaleMessages } from './merge'
 
 const messages = {
+  accountOps: { smartTitle: 'Account operations' },
+  tokenGuardV2: tokenGuardV2En,
   requestLedger,
   batchImageGuide: {
     title: 'Batch Image Generation',

@@ -8,9 +8,12 @@ import splitChannelMonitorV2Zh from './zh/channelMonitorV2'
 import splitDashboardZh from './zh/dashboard'
 import auditAdminZh from './zh/admin/audit'
 import promptAuditAdminZh from './zh/admin/promptAudit'
+import tokenGuardV2Zh from './zh/tokenGuardV2'
 import { mergeLocaleMessages } from './merge'
 
 const messages = {
+  accountOps: { smartTitle: '账号运营' },
+  tokenGuardV2: tokenGuardV2Zh,
   requestLedger,
   batchImageGuide: {
     title: '图片批量生成',

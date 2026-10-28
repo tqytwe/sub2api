@@ -140,6 +140,41 @@ sessionExport: {
     "loadFailed": "无法读取加密状态，请重试。若持久密钥损坏或遗失，请恢复原文件。",
     "editorHint": "请先关闭此窗口，在页面上方一键启用凭据加密，然后继续添加。"
 },
+  operationFailure: {
+    reasons: {
+      phone_verification_required: '需要手机号验证',
+      account_deactivated: '账号已被停用',
+      account_deleted: '账号已删除',
+      account_retired: '账号已删除或停用',
+      requires_relogin: '凭据已失效，需要重新登录',
+      password_rejected: '密码错误或被拒绝',
+      mfa_required: '需要多因素验证',
+      security_check: '需要完成安全验证',
+      authorization_denied: '授权被拒绝',
+      rate_limited: '请求受到限流',
+      timeout: '操作超时',
+      transport_error: '网络或代理连接失败',
+      service_error: '上游服务异常',
+      unknown: '未知异常'
+    },
+    actions: {
+      complete_phone_verification: '请在官方页面完成手机号验证',
+      contact_provider: '请通过官方渠道确认账号状态',
+      reauthorize: '请重新完成账号授权',
+      update_password: '请检查并更新登录密码',
+      complete_verification: '请完成官方多因素验证',
+      review_authorization: '请检查授权状态并完成安全验证',
+      check_service_later: '请稍后重试并检查网络或代理',
+      review_diagnostics: '请查看阶段信息并人工排查'
+    },
+    details: '查看安全诊断详情',
+    code: '机器码',
+    stage: '阶段',
+    time: '发生时间',
+    unknownTime: '时间未记录',
+    automationBlocked: '自动处理已阻止，请先人工处理',
+    refreshAttempt: '最近刷新失败尝试'
+  },
   totpOptionalHint: "未开启账号 2FA 时可留空；已开启则填写 2FA 密钥",
   title: '凭证运营',
   description: '为指定 OpenAI OAuth 母账号独立保存登录方式，自动巡检令牌并在连续鉴权失败后排队重登。',

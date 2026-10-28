@@ -74,6 +74,7 @@
 | [请求详情有界分页](./archive/completed-tasks/ledger-detail-pagination/README.md) | `active` | 实时游标与兼容合同、增量索引及验证范围；安全只读补证独立后续 | 本批提交者 | 2026-10-11 |
 | [请求详情分页视觉证据](./visual-reviews/2026-10-11-ledger-detail-pagination.md) | `historical` | 隔离HTTP/PG与实际构建资源，不替代生产验收 | 本批提交者 | 2026-10-11 |
 | [管理员请求台账访问视觉检查](./visual-reviews/2026-10-27-admin-request-ledger-access.md) | `historical` | 普通用户入口移除、管理员入口保留；复用既有组件证据，不替代生产验收 | 本任务提交者 | 2026-10-27 |
+| [凭证运营运行时视觉审查](./visual-reviews/2026-10-29-credential-operations-runtime.md) | `active` | 凭证运营运行时控件、安全失败展示、双语和无连续动画；不替代生产验收 | 本任务提交者 | 2026-10-29 |
 | [2026-10-27 交接收口](./archive/completed-tasks/2026-10-27-handoff-closeout/README.md) | `historical` | 当前主线、用户确认健康状态与待平台部署证据的文档快照 | 本任务提交者 | 2026-10-27 |
 
 ## 仓库入口与上游参考

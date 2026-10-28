@@ -1,6 +1,6 @@
 # v2.17.7 功能域矩阵
 
-核验基线：`origin/play/main@5c16bc5b5965a7b0d7c38aa35671639f045f2dea`；当前本地候选：`codex/v2.17.7-moderation-release-20261028@b81d3e6da`；上游：`ranxi2001/sub2api@v2.17.7`。
+核验基线：`origin/play/main@5c16bc5b5965a7b0d7c38aa35671639f045f2dea`；当前本地候选：`codex/v2.17.7-moderation-release-20261028@5e921e000`；上游：`ranxi2001/sub2api@v2.17.7`。
 
 本表按产品功能域记录同步结论。上游共同祖先到目标 tag 的大量路径变化只用于发现候选，不等于需要整树合并。`fully_migrated` 在所有纳入项具备代码、测试、生产和管理员验收证据前保持 `false`。
 
@@ -14,7 +14,7 @@
 | 内容审查用户管理 | #580 / moderation user state/actions/exemptions | 生产仅有 `content_moderation_logs`；状态、hits、actions 表不存在 | 代码与迁移 `296/298/301` 已在候选；管理员 API、CAS、原因确认、owned unban 已测 | 候选待发布，生产迁移未应用 | 单批合并部署后核对 migration ledger、表、权限和审计 |
 | 请求台账 | Fork admin-only request ledger | 管理员入口已部署；普通用户入口和 user route 已移除 | 候选保留权限测试 | 已完成技术隔离；现场仍需抽查 | 管理员登录和普通用户直达/API 403 验收 |
 | 质量运维/Jev | #51/#174/#437/#447/#522/#528/#548/#550/#565/#575/#576 quality ownership、Jev、live regressions | 当前 Fork 有旧质量测试/规则基础，生产尚无新增质量表 | `b81d3e6da` 新增 320 核心迁移、Pelican 配置/结果快照、opaque round、边界校验、ownership CAS 管理员 API 和前端类型/API；Jev judge、live regression、真实 restriction restore/reconcile、可见管理 UI 尚未实现 | 核心基础候选待发布，整包未完成 | 补 runner/judge、真实隔离恢复和管理员可见交互，再做生产迁移与验收 |
-| 凭证运营异常 | #574 safe error classification、token guard v2、refresh failure ledger | 当前 Fork 没有上游 `credential_operation_failure` 与 token-guard-v2 闭环 | 依赖 token guard v2、OAuth reauth/worker、writer/reader/API/UI；生产已有历史迁移编号冲突 | 未完成，独立全栈批次阻断 | 重新编号迁移，补齐前置链路、隔离 PG 预检、allowlist、不落原文、管理员读写和回退 |
+| 凭证运营异常 | #574 safe error classification、token guard v2、refresh failure ledger | 当前 Fork 没有上游 `credential_operation_failure` 与 token-guard-v2 闭环 | 候选 `49aad8722` 已合并 token guard/reauth、330–335 迁移、allowlist writer/reader、管理员 API/UI；Python worker 23 项与前端定向 32 项通过，Go 门禁因本环境缺少 `go` 尚未验证 | 未完成，生产未发布；不得宣称完整闭环 | 在具备 Go 工具链的 CI/工作区完成 Go 定向与全量门禁，核对迁移编号/生产只读预检、管理员验收后再纳入一次发布 |
 | Request capture | 上游 request-capture routes/UI | 当前 Fork 未发现对应页面和后端 session 实现 | 未迁移 | 未完成/待范围确认 | 先确认是否属于生产产品范围及隐私保留合同 |
 | Token guard/reauth | 上游 account token guard v2、reauth runtime | 当前 Fork 无对应 v2 文件 | 未迁移 | 未完成/依赖凭证异常闭环 | 与凭证异常一起审查，不单独接入自动重登录 |
 | Safety prompt audit / #293 | security penalty 原文记录 | Fork 已有相邻 prompt audit 明文且无 TTL | 上游设计会新增最多 100,000 runes 明文、管理员跨用户读取 | 隐私阻断，明确不原样迁移 | 先定最小读取、保留期、自动清理和审计合同 |

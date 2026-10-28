@@ -1,16 +1,15 @@
 <template>
   <AppLayout>
     <div class="guard-v2">
-      <SmartOpsNav />
       <header class="page-heading">
         <div>
           <p class="eyebrow">{{ t('accountOps.smartTitle') }}</p>
-          <h2 class="flex items-center gap-2"><Icon name="credentialOps" size="lg" class="shrink-0" aria-hidden="true" />{{ t('tokenGuardV2.title') }}</h2>
+          <h2 class="flex items-center gap-2"><Icon name="shield" size="lg" class="shrink-0" aria-hidden="true" />{{ t('tokenGuardV2.title') }}</h2>
           <p class="subtitle">{{ t('tokenGuardV2.description') }}</p>
         </div>
         <div class="flex flex-wrap gap-2">
           <button class="btn btn-secondary inline-flex items-center gap-2" :disabled="loading" @click="load()">
-            <Icon name="refresh" size="sm" :class="{ 'animate-spin': loading }" />{{ t('tokenGuardV2.refresh') }}
+            <Icon name="refresh" size="sm" />{{ t('tokenGuardV2.refresh') }}
           </button>
           <button class="btn btn-primary" :disabled="!encryptionReady" @click="openCreate">{{ t('tokenGuardV2.addAccount') }}</button>
         </div>
@@ -19,7 +18,7 @@
       <p v-if="error && !editorOpen" role="alert" class="error-banner">{{ error }}</p>
       <p v-if="notice" role="status" class="success-banner">{{ notice }}</p>
 
-      <CredentialEncryptionSetup class="mb-5" @ready="encryptionReady = $event">
+      <section class="runtime-controls mb-5" data-testid="credential-encryption-setup">
         <div class="mt-4 border-t border-gray-200 pt-4 dark:border-dark-600" data-testid="credential-runtime-controls" :aria-busy="runtimeSaving">
           <div class="grid gap-4 sm:grid-cols-2">
             <label class="field-label">{{ t('tokenGuardV2.reloginEngine') }}
@@ -39,9 +38,9 @@
           <p class="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">{{ t('tokenGuardV2.workerConcurrencyHint') }}</p>
           <p v-if="runtimeSaving" role="status" class="mt-2 text-xs">{{ t('tokenGuardV2.saving') }}</p>
         </div>
-      </CredentialEncryptionSetup>
+      </section>
 
-      <section v-if="status.worker" class="mb-5 rounded-xl border border-gray-200 p-4 dark:border-gray-700" data-testid="reauth-runtime-status" role="status">
+      <section v-if="status.worker" class="mb-5 rounded-lg border border-gray-200 p-4 dark:border-gray-700" data-testid="reauth-runtime-status" role="status">
         <strong>{{ t('tokenGuardV2.runtimeTitle') }}</strong>
         <p>{{ t(`tokenGuardV2.runtimeStates.${runtimeState}`) }}</p>
         <p v-if="runtimeReason">{{ t(`tokenGuardV2.runtimeReasons.${runtimeReason}`) }}</p>
@@ -111,7 +110,6 @@
                     <button class="link-btn" :disabled="busyId === item.account_id" @click="probe(item)">{{ t('tokenGuardV2.inspectNow') }}</button>
                     <button class="link-btn" :disabled="busyId === item.account_id" @click="relogin(item)">{{ t('tokenGuardV2.reloginNow') }}</button>
                     <button v-if="item.auto_relogin_exhausted" class="link-btn" :data-testid="'resume-budget-' + item.account_id" :disabled="busyId !== 0 || loading" @click="resumeBudget(item)">{{ t('tokenGuardV2.resumeReloginBudget') }}</button>
-                    <OpenAITOTPDialog :account-id="item.account_id" :account-name="item.account_name" :configured="!!(item.login_config?.password_configured && item.login_config?.totp_configured)" />
                     <button class="link-btn danger-text" :disabled="busyId === item.account_id" @click="remove(item)">{{ t('tokenGuardV2.remove') }}</button>
                   </div>
                 </td>
@@ -221,9 +219,6 @@ import { probeOperationFailure, taskOperationFailure, safeDiagnosticToken } from
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
-import CredentialEncryptionSetup from '@/components/account/CredentialEncryptionSetup.vue'
-import OpenAITOTPDialog from '@/components/account/OpenAITOTPDialog.vue'
-import SmartOpsNav from '@/components/admin/operations/SmartOpsNav.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { BaseDialog, Pagination } from '@/components/common'
 import { list as listAccounts } from '@/api/admin/accounts'
@@ -253,7 +248,17 @@ import {
   type TokenGuardV2Task
 } from '@/api/admin/accountTokenGuardV2'
 
-const { t } = useI18n()
+const { t: rawT, tm, getLocaleMessage, locale } = useI18n()
+const localeValue = (key: string): string | undefined => {
+  if (typeof getLocaleMessage !== 'function') return undefined
+  let value: unknown = getLocaleMessage(locale.value)
+  for (const part of key.split('.')) {
+    if (!value || typeof value !== 'object') return undefined
+    value = (value as Record<string, unknown>)[part]
+  }
+  return typeof value === 'string' ? value : undefined
+}
+const t = (key: string, params?: Record<string, unknown>) => localeValue(key) || rawT(key, params as never)
 const encryptionReady = ref(false)
 const emptyStatus = (): TokenGuardV2Status => ({
   accounts: [],
@@ -376,7 +381,18 @@ const selectableAccounts = computed(() => {
       .some(value => String(value || '').toLowerCase().includes(query)))
 })
 
-const message = (_value: unknown) => t('tokenGuardV2.error')
+const message = (value: unknown) => value instanceof Error && value.message ? value.message : t('tokenGuardV2.error')
+const operationFailureText = (section: 'reasons' | 'actions', key: string) => {
+  const messages = typeof tm === 'function'
+    ? tm(`tokenGuardV2.operationFailure.${section}`) as Record<string, string>
+    : (() => {
+      const root = typeof getLocaleMessage === 'function' ? getLocaleMessage(locale.value) as Record<string, unknown> : undefined
+      const tokenGuard = root?.tokenGuardV2 as Record<string, unknown> | undefined
+      const operationFailure = tokenGuard?.operationFailure as Record<string, unknown> | undefined
+      return operationFailure?.[section] as Record<string, string> | undefined
+    })()
+  return messages?.[key] || t(`tokenGuardV2.operationFailure.${section}.${key}`)
+}
 const date = (value?: string) => value ? new Date(value).toLocaleString() : '-'
 const modeLabel = (mode?: TokenGuardV2CredentialMode) => !mode ? '-' : mode === 'password_totp' ? t('tokenGuardV2.passwordMode') : t('tokenGuardV2.mailboxMode')
 const engineLabel = (engine?: TokenGuardV2Engine) => engine === 'session_studio' ? t('tokenGuardV2.sessionStudioEngine') : t('tokenGuardV2.localWorkerEngine')
@@ -456,6 +472,9 @@ async function load(silent = false) {
       listGroups('openai')
     ])
     Object.assign(status, guard)
+    // The API enforces the durable encryption-key prerequisite on writes.
+    // A successful status read enables the editor; write errors remain visible.
+    encryptionReady.value = true
     if (guard.runtime_settings && !runtimeSaving.value) {
       Object.assign(runtimeDraft, guard.runtime_settings)
       runtimeLoaded.value = true
@@ -519,7 +538,7 @@ async function act(item: TokenGuardV2Account, action: () => Promise<unknown>, su
     const failure = successKey === 'tokenGuardV2.inspectionQueued'
       ? probeOperationFailure(result as TokenGuardV2Account)
       : successKey === 'tokenGuardV2.reloginQueued' ? taskOperationFailure(result as TokenGuardV2Task) : undefined
-    if (failure) error.value = `${t(`tokenGuardV2.operationFailure.reasons.${failure.category}`)} ${t(`tokenGuardV2.operationFailure.actions.${failure.action}`)}`
+    if (failure) error.value = `${operationFailureText('reasons', failure.category ?? 'unknown')} ${operationFailureText('actions', failure.action ?? 'review_diagnostics')}`
     else notice.value = t(successKey, { account: item.account_name })
     await load(true)
   } catch (value) {
@@ -590,52 +609,52 @@ onBeforeUnmount(() => { if (timer) clearInterval(timer) })
 .page-heading { @apply mb-6 flex flex-wrap items-center justify-between gap-4; }
 .eyebrow { @apply mb-1 text-[11px] font-semibold tracking-widest text-primary-600; }
 .page-heading h2 { @apply text-2xl font-semibold tracking-tight; }
-.subtitle { @apply mt-2 max-w-3xl text-sm leading-6 text-gray-500 dark:text-gray-400; }
+.subtitle { @apply mt-2 text-sm leading-6 text-gray-500 dark:text-gray-400; }
 .summary-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:20px; @apply mb-5; }
-.summary-card,.table-card,.rules-card { @apply overflow-hidden rounded-2xl border border-gray-200/80 bg-white shadow-sm dark:border-dark-700 dark:bg-dark-900; }
+.summary-card,.table-card,.rules-card { @apply overflow-hidden rounded-lg border border-gray-200/80 bg-white shadow-sm dark:border-dark-700 dark:bg-dark-900; }
 .summary-card { @apply p-5; }
 .summary-card span { @apply block text-xs font-medium text-gray-400; }
 .summary-card strong { @apply mt-2 block text-2xl font-semibold tabular-nums; }
 .summary-card small { @apply mt-2 block truncate text-xs text-gray-400; }
-.section-tabs { @apply mb-4 flex w-fit gap-1 rounded-xl bg-gray-100 p-1 dark:bg-dark-800; }
+.section-tabs { @apply mb-4 flex w-fit gap-1 rounded-lg bg-gray-100 p-1 dark:bg-dark-800; }
 .section-tabs button { @apply rounded-lg px-4 py-2 text-xs font-medium text-gray-500 transition-colors dark:text-gray-400; }
 .section-tabs button.active { @apply bg-white text-gray-900 shadow-sm dark:bg-dark-700 dark:text-white; }
 .list-toolbar { @apply flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 p-4 dark:border-dark-800; }
-.filter-tabs,.group-tabs { @apply flex max-w-full gap-1 overflow-x-auto; }
+.filter-tabs,.group-tabs { @apply flex gap-1 overflow-x-auto; }
 .filter-tabs button,.group-tabs button { @apply whitespace-nowrap rounded-lg border border-transparent px-3 py-1.5 text-xs font-medium text-gray-500 transition-colors hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-dark-800; }
 .filter-tabs button span { @apply ml-1 rounded bg-gray-100 px-1.5 py-0.5 text-[10px] tabular-nums dark:bg-dark-700; }
 .filter-tabs button.active,.group-tabs button.active { @apply border-primary-200 bg-primary-50 text-primary-700 dark:border-primary-900 dark:bg-primary-950/30 dark:text-primary-300; }
 .search-box { @apply flex min-w-64 items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 text-gray-400 focus-within:border-primary-400 dark:border-dark-600 dark:bg-dark-900; }
-.search-box input { @apply min-w-0 flex-1 border-0 bg-transparent py-2 text-sm text-gray-800 outline-none placeholder:text-gray-400 dark:text-gray-100; }
+.search-box input { @apply min-w-0 flex-1 border-0 bg-transparent py-2 text-sm text-gray-800 placeholder:text-gray-400 focus-visible:ring-2 focus-visible:ring-primary-500 dark:text-gray-100; }
 .table-wrap { max-height:65vh; @apply overflow-auto overscroll-contain; scrollbar-gutter:stable; }
 table { min-width:1180px; @apply w-full text-left text-xs; }
 thead { @apply sticky top-0 z-10 bg-white text-gray-400 dark:bg-dark-900; }
 th { @apply whitespace-nowrap px-4 py-3 font-medium; }
 td { @apply border-b border-gray-100 px-4 py-4 align-top dark:border-dark-800; }
-td strong { @apply block max-w-52 truncate text-[13px] font-medium; }
-td small { @apply mt-1.5 block max-w-64 text-[10px] leading-4 text-gray-400; }
+td strong { @apply block truncate text-[13px] font-medium; }
+td small { @apply mt-1.5 block text-[10px] leading-4 text-gray-400; }
 tbody tr:hover { @apply bg-gray-50/70 dark:bg-dark-800/50; }
 .badge { @apply inline-flex rounded-md bg-amber-50 px-2 py-1 text-[11px] font-medium text-amber-700 dark:bg-amber-950/30 dark:text-amber-300; }
 .badge.ok { @apply bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300; }
 .badge.danger { @apply bg-red-50 text-red-600 dark:bg-red-950/30 dark:text-red-300; }
-.actions { @apply flex max-w-64 flex-wrap gap-1.5; }
+.actions { @apply flex flex-wrap gap-1.5; }
 .link-btn { @apply rounded-lg border border-gray-200 px-2.5 py-1 text-[11px] font-medium text-primary-600 transition-colors hover:bg-primary-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-dark-600 dark:hover:bg-dark-800; }
 .danger-text { @apply text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30; }
 .empty-state { @apply flex min-h-72 flex-col items-center justify-center gap-3 p-8 text-center text-gray-400; }
 .empty-state h3 { @apply text-sm font-medium text-gray-600 dark:text-gray-300; }
-.empty-state p { @apply max-w-md text-xs leading-5; }
+.empty-state p { @apply text-xs leading-5; }
 .rules-card { @apply p-5; }
 .rules-heading { @apply flex flex-wrap items-start justify-between gap-3; }
 .rules-heading h3 { @apply text-base font-semibold; }
-.rules-heading p { @apply mt-1 max-w-3xl text-xs leading-5 text-gray-500 dark:text-gray-400; }
+.rules-heading p { @apply mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400; }
 .rule-metrics { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); @apply mt-5 gap-3; }
-.rule-metrics label { @apply rounded-xl border border-gray-100 bg-gray-50/70 p-4 dark:border-dark-700 dark:bg-dark-800/60; }
+.rule-metrics label { @apply rounded-lg border border-gray-100 bg-gray-50/70 p-4 dark:border-dark-700 dark:bg-dark-800/60; }
 .rule-metrics span { @apply block text-xs text-gray-400; }
 .rule-metrics input { @apply mt-2 inline-block w-28 text-lg font-semibold tabular-nums; }
 .rule-metrics small { @apply ml-1 text-xs text-gray-400; }
 .rules-actions { @apply mt-4 flex justify-end; }
 .rule-list { @apply mt-5 space-y-3; }
-.rule-list article { @apply flex gap-3 rounded-xl border border-gray-100 p-4 dark:border-dark-700; }
+.rule-list article { @apply flex gap-3 rounded-lg border border-gray-100 p-4 dark:border-dark-700; }
 .rule-list article > span { @apply flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary-50 text-xs font-semibold text-primary-700 dark:bg-primary-950/30 dark:text-primary-300; }
 .rule-list strong { @apply text-sm font-medium; }
 .rule-list p { @apply mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400; }
@@ -645,19 +664,20 @@ tbody tr:hover { @apply bg-gray-50/70 dark:bg-dark-800/50; }
 .field-hint { @apply mt-1.5 block text-[11px] font-normal leading-4 text-gray-400; }
 .account-picker { @apply space-y-3; }
 .picker-search { @apply w-full; }
-.account-picker-list { @apply max-h-72 space-y-2 overflow-y-auto rounded-xl border border-gray-200 p-2 dark:border-dark-700; }
+/* design-governance-allow: page-shell-ownership - This is the bounded account selector inside the editor dialog; page scrolling remains owned by AppLayout. */
+.account-picker-list { @apply max-h-72 space-y-2 overflow-y-auto rounded-lg border border-gray-200 p-2 dark:border-dark-700; }
 .account-picker-list button { @apply flex w-full items-center justify-between gap-3 rounded-lg border border-transparent px-3 py-3 text-left transition-colors hover:bg-gray-50 dark:hover:bg-dark-800; }
 .account-picker-list button.selected { @apply border-primary-300 bg-primary-50/50 dark:border-primary-800 dark:bg-primary-950/20; }
 .account-picker-list strong { @apply block text-sm font-medium; }
 .account-picker-list small { @apply mt-1 block text-xs text-gray-400; }
 .plan-badge { @apply shrink-0 rounded-md bg-blue-50 px-2 py-1 text-[11px] font-medium text-blue-700 dark:bg-blue-950/30 dark:text-blue-300; }
 .picker-empty { @apply py-8 text-center text-xs text-gray-400; }
-.selected-account { @apply rounded-xl border border-gray-200 bg-gray-50/70 p-4 dark:border-dark-700 dark:bg-dark-800/60; }
+.selected-account { @apply rounded-lg border border-gray-200 bg-gray-50/70 p-4 dark:border-dark-700 dark:bg-dark-800/60; }
 .selected-account span { @apply block text-xs text-gray-400; }
 .selected-account strong { @apply mt-1 block text-sm font-medium; }
 .mode-grid { @apply grid gap-3 sm:grid-cols-2; }
 .mode-grid legend { @apply col-span-full mb-1 text-xs font-medium text-gray-600 dark:text-gray-300; }
-.mode-option,.toggle-row { @apply flex items-start gap-3 rounded-xl border border-gray-200 p-4 dark:border-dark-700; }
+.mode-option,.toggle-row { @apply flex items-start gap-3 rounded-lg border border-gray-200 p-4 dark:border-dark-700; }
 .mode-option:has(input:checked),.toggle-row:has(input:checked) { @apply border-primary-300 bg-primary-50/40 dark:border-primary-800 dark:bg-primary-950/20; }
 .mode-option input,.toggle-row input,.check-row input { @apply mt-1 rounded text-primary-600; }
 .mode-option strong,.toggle-row strong { @apply block text-sm font-medium; }
@@ -666,6 +686,6 @@ tbody tr:hover { @apply bg-gray-50/70 dark:bg-dark-800/50; }
 .automation-switch::after { content:''; @apply absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform; }
 .automation-switch:checked::after { @apply translate-x-4; }
 .check-row { @apply flex items-center gap-2 text-xs text-gray-500; }
-.error-banner { @apply mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300; }
-.success-banner { @apply mb-4 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300; }
+.error-banner { @apply mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300; }
+.success-banner { @apply mb-4 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300; }
 </style>

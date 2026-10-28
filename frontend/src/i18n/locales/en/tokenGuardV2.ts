@@ -140,6 +140,41 @@ sessionExport: {
     "loadFailed": "Could not read encryption status. Retry, or restore the original key file if it is damaged or missing.",
     "editorHint": "Close this dialog and enable credential encryption at the top of the page before continuing."
 },
+  operationFailure: {
+    reasons: {
+      phone_verification_required: 'Phone verification required',
+      account_deactivated: 'Account deactivated',
+      account_deleted: 'Account deleted',
+      account_retired: 'Account deleted or deactivated',
+      requires_relogin: 'Credentials expired; sign in again',
+      password_rejected: 'Password rejected',
+      mfa_required: 'Multi-factor verification required',
+      security_check: 'Security verification required',
+      authorization_denied: 'Authorization denied',
+      rate_limited: 'Request rate limited',
+      timeout: 'Operation timed out',
+      transport_error: 'Network or proxy connection failed',
+      service_error: 'Upstream service error',
+      unknown: 'Unknown error'
+    },
+    actions: {
+      complete_phone_verification: 'Complete phone verification on the official site',
+      contact_provider: 'Confirm the account status through the official provider',
+      reauthorize: 'Complete account authorization again',
+      update_password: 'Check and update the web login password',
+      complete_verification: 'Complete the official multi-factor verification',
+      review_authorization: 'Review authorization and complete the security check',
+      check_service_later: 'Retry later and check the network or proxy',
+      review_diagnostics: 'Review the operation stage and investigate manually'
+    },
+    details: 'View safe diagnostic details',
+    code: 'Code',
+    stage: 'Stage',
+    time: 'Occurred at',
+    unknownTime: 'Time not recorded',
+    automationBlocked: 'Automatic handling is blocked; manual action is required',
+    refreshAttempt: 'Latest refresh failure attempt'
+  },
   totpOptionalHint: "Optional only when account 2FA is disabled; otherwise enter its secret",
   title: 'Credential Operations',
   description: 'Stores a login method per OpenAI OAuth parent account, probes tokens automatically, and queues re-login after repeated authentication failures.',
