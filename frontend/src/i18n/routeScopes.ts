@@ -100,6 +100,8 @@ export type LocaleRouteName =
   | 'AdminUsers'
   | 'AdminGroups'
   | 'AdminChannels'
+  | 'AdminChannelOperations'
+  | 'AdminPriorityScheduling'
   | 'AdminChannelMonitor'
   | 'AdminModelPlaza'
   | 'ChannelStatus'
@@ -213,6 +215,8 @@ export const ROUTE_LOCALE_SCOPES = {
   // Groups reuse account status labels in their filters and tables.
   AdminGroups: [...ADMIN, 'admin-resources', 'admin-accounts', 'admin-channels'],
   AdminChannels: [...ADMIN, 'admin-channels'],
+  AdminChannelOperations: [...ADMIN, 'admin-channels'],
+  AdminPriorityScheduling: [...ADMIN, 'admin-resources'],
   // The monitor embeds UsageProgressBar, which reads account usage-window
   // labels. Keep admin accounts explicit for a cold direct visit.
   AdminChannelMonitor: [...ADMIN, 'admin-channels', 'channel-monitor', 'admin-settings', 'admin-accounts', 'user-dashboard'],
