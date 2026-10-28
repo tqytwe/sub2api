@@ -129,5 +129,8 @@ func TestChannelOperationsMutationAddsSafeAuditSummary(t *testing.T) {
 	router.ServeHTTP(response, request)
 	require.Equal(t, 200, response.Code)
 	require.Equal(t, "channel_operations.assign", action)
-	require.Equal(t, map[string]any{"config_version": int64(12), "operation": "assign", "confirm": false}, extra)
+	require.Equal(t, map[string]any{
+		"source": "channel_operations", "channel_id": int64(7), "config_version": int64(12), "operation": "assign", "confirm": false,
+		"target_upstream_id": int64(2), "target_account_id": int64(9), "expected_upstream_id": int64(0),
+	}, extra)
 }

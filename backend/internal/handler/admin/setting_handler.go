@@ -150,7 +150,27 @@ func (h *SettingHandler) PrioritySchedulingSnapshot(c *gin.Context) {
 	if h.openAIGatewayService != nil {
 		metrics = h.openAIGatewayService.SnapshotOpenAIAccountSchedulerMetrics()
 	}
-	response.Success(c, gin.H{"config": cfg, "metrics": metrics, "candidates": []any{}})
+	var history any
+	historyStatus := "unavailable"
+	historyReady := false
+	var candidates any
+	if h.openAIGatewayService != nil {
+		if observed := h.openAIGatewayService.PrioritySchedulingSnapshot(); observed != nil {
+			history = observed
+			historyStatus = observed.HistoryStatus
+			historyReady = observed.HistoryReady
+			candidates = observed.Candidates
+		}
+	}
+	snapshot := gin.H{
+		"config":         cfg,
+		"metrics":        metrics,
+		"history_status": historyStatus,
+		"history_ready":  historyReady,
+		"history":        history,
+		"candidates":     candidates,
+	}
+	response.Success(c, gin.H{"snapshot": snapshot})
 }
 
 // GetSettings 获取所有系统设置

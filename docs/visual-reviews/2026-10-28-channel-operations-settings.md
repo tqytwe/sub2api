@@ -6,28 +6,21 @@
   "changed_files": [
     "frontend/src/api/admin/channelOperations.ts",
     "frontend/src/api/admin/priorityScheduling.ts",
-    "frontend/src/components/account/CredentialOperationFailure.vue",
-    "frontend/src/components/account/__tests__/CredentialOperationFailure.spec.ts",
     "frontend/src/components/layout/AppSidebar.vue",
-    "frontend/src/i18n/locales/en/admin/accounts.ts",
     "frontend/src/i18n/locales/en/admin/channels.ts",
     "frontend/src/i18n/locales/en/admin/index.ts",
     "frontend/src/i18n/locales/en/admin/scheduling.ts",
     "frontend/src/i18n/locales/en/common.ts",
-    "frontend/src/i18n/locales/zh/admin/accounts.ts",
     "frontend/src/i18n/locales/zh/admin/channels.ts",
     "frontend/src/i18n/locales/zh/admin/index.ts",
     "frontend/src/i18n/locales/zh/admin/scheduling.ts",
     "frontend/src/i18n/locales/zh/common.ts",
     "frontend/src/router/index.ts",
-    "frontend/src/types/index.ts",
-    "frontend/src/utils/credentialOperationFailure.ts",
-    "frontend/src/views/admin/AccountsView.vue",
     "frontend/src/views/admin/ChannelOperationsView.vue",
     "frontend/src/views/admin/PrioritySchedulingView.vue",
     "frontend/src/views/admin/__tests__/ChannelOperationsView.spec.ts"
   ],
-  "routes_or_surfaces": ["/admin/channels/operations", "/admin/priority-scheduling", "/admin/accounts"],
+  "routes_or_surfaces": ["/admin/channels/operations", "/admin/priority-scheduling"],
   "languages_and_themes": ["zh/light", "zh/dark", "en/light", "en/dark"],
   "states": ["default", "hover", "active", "focus-visible", "loading", "disabled", "empty", "error", "success", "conflict"],
   "viewports": ["360x800", "768x900", "1280x900", "1920x900"],
@@ -36,10 +29,10 @@
   "baseline_artifacts": ["docs/visual-reviews/assets/admin-routing-detail/baseline-admin-1280.png"],
   "updated_artifacts": ["docs/visual-reviews/assets/admin-routing-detail/after-admin-1280.png"],
   "commands": [
-    "npm exec --yes pnpm@9.15.4 -- exec vitest run src/components/account/__tests__/CredentialOperationFailure.spec.ts src/views/admin/__tests__/ChannelOperationsView.spec.ts",
+    "npm exec --yes pnpm@9.15.4 -- exec vitest run src/views/admin/__tests__/ChannelOperationsView.spec.ts src/views/admin/__tests__/PrioritySchedulingView.spec.ts",
     "npm exec --yes pnpm@9.15.4 -- exec vue-tsc -b",
     "npm exec --yes pnpm@9.15.4 -- build",
-    "npm exec --yes pnpm@9.15.4 -- exec eslint src/views/admin/ChannelOperationsView.vue src/views/admin/PrioritySchedulingView.vue src/components/account/CredentialOperationFailure.vue src/utils/credentialOperationFailure.ts --no-fix"
+    "npm exec --yes pnpm@9.15.4 -- exec eslint src/views/admin/ChannelOperationsView.vue src/views/admin/PrioritySchedulingView.vue --no-fix"
   ],
   "checks": {
     "keyboard": {"status": "passed", "note": "Dialog and confirmation actions are native buttons/forms; component tests cover cancel and confirm paths."},
@@ -55,7 +48,7 @@
 
 ## Scope
 
-- Admin-only channel operations membership, statistics drilldown, priority scheduling settings, and account credential failure summaries.
+- Admin-only channel operations membership, statistics drilldown, and priority scheduling settings.
 - Ordinary user navigation has no new entries.
 
 ## Baseline
@@ -78,7 +71,6 @@
 - Membership: loading, empty, query error, success, destructive confirmation, stale revision conflict, and disabled actions.
 - Statistics: valid/invalid time windows, ready sections, query-failed sections, unsupported scopes, empty persisted data, lineage, quality, retained errors, capacity, and row drilldown.
 - Scheduling: config load/save failure, disabled state, refresh loading, stop/deprioritize modes, and snapshot empty/error state.
-- Credential failures: allowlisted reason/action/timestamp, unknown-code fallback, and no raw upstream error rendering.
 
 ## Viewport Coverage
 
@@ -92,5 +84,5 @@
 
 ## Residual Risk
 
-- Backend integration for #573 and #572 is pending; this commit does not deploy or claim production verification.
+- Backend integration for #573 and #572 is present in the candidate batch; this batch does not claim production deployment or browser acceptance.
 - #575 remains deferred until a real quality/Jev API and persistence contract exists.

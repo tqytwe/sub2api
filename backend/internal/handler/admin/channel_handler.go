@@ -83,9 +83,14 @@ func (h *ChannelHandler) MutateOperations(c *gin.Context) {
 	}
 	middleware.SetAuditAction(c, "channel_operations."+mutation.Action)
 	middleware.SetAuditExtra(c, map[string]any{
-		"config_version": *mutation.Revision,
-		"operation":      mutation.Action,
-		"confirm":        mutation.Confirm,
+		"source":               "channel_operations",
+		"channel_id":           id,
+		"config_version":       *mutation.Revision,
+		"operation":            mutation.Action,
+		"confirm":              mutation.Confirm,
+		"target_upstream_id":   mutation.UpstreamID,
+		"target_account_id":    mutation.AccountID,
+		"expected_upstream_id": mutation.ExpectedUpstreamID,
 	})
 	revision, err := h.channelService.MutateOperations(c.Request.Context(), id, mutation)
 	if err != nil {

@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"math"
+	"slices"
+	"time"
 )
 
 const prioritySchedulingSettingKey = "priority_scheduling_v1"
@@ -109,6 +111,31 @@ func ValidatePrioritySchedulingConfig(c PrioritySchedulingConfig) error {
 	return nil
 }
 
+func (c PrioritySchedulingConfig) applies(group *int64, model string) bool {
+	if !c.Enabled {
+		return false
+	}
+	if len(c.GroupIDs) > 0 {
+		if group == nil || !slices.Contains(c.GroupIDs, *group) {
+			return false
+		}
+	}
+	return len(c.Models) == 0 || slices.Contains(c.Models, model)
+}
+
+func (c PrioritySchedulingConfig) weights() [4]float64 {
+	switch c.Mode {
+	case "experience":
+		return [4]float64{40, 35, 20, 5}
+	case "profit":
+		return [4]float64{20, 15, 20, 45}
+	case "balanced":
+		return [4]float64{30, 25, 25, 20}
+	default:
+		return [4]float64{c.QualityWeight, c.LatencyWeight, c.LoadWeight, c.CostWeight}
+	}
+}
+
 func (s *SettingService) GetPrioritySchedulingConfig(ctx context.Context) (PrioritySchedulingConfig, error) {
 	cfg := DefaultPrioritySchedulingConfig()
 	raw, err := s.settingRepo.GetValue(ctx, prioritySchedulingSettingKey)
@@ -141,6 +168,10 @@ func (s *SettingService) SavePrioritySchedulingConfig(ctx context.Context, cfg P
 	if err := s.settingRepo.Set(ctx, prioritySchedulingSettingKey, string(raw)); err != nil {
 		return err
 	}
+	s.prioritySchedulingRuntimeMu.Lock()
+	s.prioritySchedulingRuntimeConfig = cfg
+	s.prioritySchedulingRuntimeExpires = time.Now().Add(5 * time.Second)
+	s.prioritySchedulingRuntimeMu.Unlock()
 	InvalidateOpenAIAdvancedSchedulerSettingCache()
 	return nil
 }

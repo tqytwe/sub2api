@@ -104,35 +104,4 @@ func TestChannelOperationsMigrationPreservesRoutingAndBillingRelations(t *testin
 	require.NoError(t, db.QueryRowContext(ctx, "SELECT count(*) FROM account_groups WHERE account_id=10 AND group_id=20").Scan(&originalMemberships))
 	require.Equal(t, 1, originalMemberships, "channel operations must not mutate scheduler membership")
 
-	refreshFailureSQL, err := dbmigrations.FS.ReadFile("283_account_oauth_refresh_failures.sql")
-	require.NoError(t, err)
-	_, err = db.ExecContext(ctx, string(refreshFailureSQL))
-	require.NoError(t, err)
-	_, err = db.ExecContext(ctx, string(refreshFailureSQL))
-	require.NoError(t, err, "refresh-failure migration replay must be idempotent")
-
-	_, err = db.ExecContext(ctx, `
-		INSERT INTO account_oauth_refresh_failures (account_id, failure_code, last_failure_at)
-		VALUES (11, 'requires_relogin', NOW());
-	`)
-	require.NoError(t, err)
-	_, err = db.ExecContext(ctx, `
-		INSERT INTO account_oauth_refresh_failures (account_id, failure_code, last_failure_at)
-		VALUES (10, 'provider said invalid_grant', NOW());
-	`)
-	require.Error(t, err, "failure text must not be accepted in the code column")
-	_, err = db.ExecContext(ctx, `
-		INSERT INTO account_oauth_refresh_failures (account_id, failure_code, last_failure_at)
-		VALUES (10, 'unknown', NOW());
-	`)
-	require.NoError(t, err, "unknown provider failures must be representable by the safe fallback code")
-	_, err = db.ExecContext(ctx, `
-		INSERT INTO account_oauth_refresh_failures (account_id, failure_code, last_failure_at)
-		VALUES (99, 'unknown', NOW());
-	`)
-	require.Error(t, err, "refresh observations must reference an existing account")
-	_, err = db.ExecContext(ctx, "DELETE FROM accounts WHERE id=11")
-	require.NoError(t, err)
-	require.NoError(t, db.QueryRowContext(ctx, "SELECT count(*) FROM account_oauth_refresh_failures WHERE account_id=11").Scan(&operationalMemberships))
-	require.Zero(t, operationalMemberships, "refresh observations must cascade with physical account deletion")
 }

@@ -69,6 +69,7 @@ type AccountHandler struct {
 	ollamaCloudUsage        *service.OllamaCloudUsageService
 	cfg                     *config.Config
 	opencodeGoUsage         *service.OpenCodeGoUsageService
+	openAIGatewayService    *service.OpenAIGatewayService
 }
 
 // SetUpstreamBillingProbeService attaches the optional remote billing probe service.
@@ -82,6 +83,21 @@ func (h *AccountHandler) SetOllamaCloudUsageService(usage *service.OllamaCloudUs
 
 func (h *AccountHandler) SetOpenCodeGoUsageService(usage *service.OpenCodeGoUsageService) {
 	h.opencodeGoUsage = usage
+}
+
+func (h *AccountHandler) SetOpenAIGatewayService(gateway *service.OpenAIGatewayService) {
+	h.openAIGatewayService = gateway
+}
+
+// PrioritySchedulingSnapshot returns the nullable latest candidate-pool
+// observation. It never invents an empty candidate list when no observation
+// has been recorded by this process.
+func (h *AccountHandler) PrioritySchedulingSnapshot(c *gin.Context) {
+	if h.openAIGatewayService == nil {
+		response.Success(c, gin.H{"snapshot": nil})
+		return
+	}
+	response.Success(c, gin.H{"snapshot": h.openAIGatewayService.PrioritySchedulingSnapshot()})
 }
 
 // NewAccountHandler creates a new admin account handler

@@ -1,5 +1,35 @@
 # Moderation Quick-Enable Visual Review
 
+<!-- visual-review-manifest
+{
+  "schema_version": 1,
+  "changed_files": [
+    "frontend/src/views/admin/RiskControlView.vue",
+    "frontend/src/views/admin/__tests__/RiskControlView.spec.ts",
+    "frontend/src/api/__tests__/admin.users.spec.ts",
+    "frontend/src/types/index.ts"
+  ],
+  "routes_or_surfaces": ["/admin/risk-control"],
+  "languages_and_themes": ["zh/light", "zh/dark", "en/light", "en/dark"],
+  "states": ["default", "loading", "error", "success", "disabled", "focus-visible"],
+  "viewports": ["360x800", "768x900", "1280x900", "1920x900"],
+  "artifact_mode": "static-review-board",
+  "prototype_artifacts": ["docs/visual-reviews/assets/admin-routing-detail/prototype-admin-1280.png"],
+  "baseline_artifacts": ["docs/visual-reviews/assets/admin-routing-detail/baseline-admin-1280.png"],
+  "updated_artifacts": ["docs/visual-reviews/assets/admin-routing-detail/after-admin-1280.png"],
+  "commands": [
+    "npm exec --yes pnpm@9.15.4 -- exec vitest run src/views/admin/__tests__/RiskControlView.spec.ts src/api/__tests__/admin.users.spec.ts",
+    "npm exec --yes pnpm@9.15.4 -- exec vue-tsc --noEmit",
+    "npm exec --yes pnpm@9.15.4 -- exec eslint src/views/admin/RiskControlView.vue src/views/admin/__tests__/RiskControlView.spec.ts src/api/__tests__/admin.users.spec.ts --no-fix"
+  ],
+  "checks": {
+    "keyboard": {"status": "not-applicable", "reason": "Authenticated browser review remains pending."},
+    "reduced_motion": {"status": "not-applicable", "reason": "Authenticated browser review remains pending."}
+  },
+  "residual_risks": ["The referenced PNGs are shared static review-board artifacts, not authenticated production screenshots; local browser acceptance remains required."]
+}
+-->
+
 ## Scope
 
 - Route: `/admin/risk-control`
