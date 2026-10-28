@@ -20,7 +20,7 @@
 
 | 检查项 | 当前证据 | 结论 |
 |---|---|---|
-| 合并 | PR [#389](https://github.com/tqytwe/sub2api/pull/389)，merge commit `5c16bc5b5965a7b0d7c38aa35671639f045f2dea`；本地累计候选 `b81d3e6da`（含 `4327df128`、`b81d3e6da`）尚未推送 | 历史批次已合并；当前全量同步工作未到 PR 阶段 |
+| 合并 | PR [#389](https://github.com/tqytwe/sub2api/pull/389)，merge commit `5c16bc5b5965a7b0d7c38aa35671639f045f2dea`；本地累计候选 `f0bf08935`（含 Priority、Quality、Credential 及前端门禁修复）尚未推送 | 历史批次已合并；当前全量同步工作未到 PR 阶段 |
 | 部署 | Zeabur deployment `6ae1a532ea16512cf741806a`，GitHub Zeabur check `122690278483` 对 merge SHA 报告 `success` | 已部署 |
 | 运行态技术核对 | `origin/play/main` 为 merge SHA；首页和 `/health` 返回 200；部署 index 引用渠道运维/优先调度资源；两条新 admin snapshot API 未认证返回 401 | 技术证据通过，不能替代管理员业务验收 |
 | PR CI | PR head 没有 GitHub CI check run；手动 dispatch 返回 `Actions has been disabled for this repository` | 缺少远端 CI 证据；本地门禁不能伪写成 PR CI 通过 |
@@ -44,7 +44,7 @@
 | #572 优先调度 | 部分等价 | observation、latency admission、penalty workflow 和完整回归缺失 |
 | #573 渠道运维 | Fork 适配已部署，部分等价 | 上游 309 迁移、metrics component、完整 handler/workflow 未证明等价；候选保留本 Fork 的 282 编号与结构 |
 | #574 凭证异常 | 未完成 | credential failure、token guard v2、refresh-failure writer/reader/API/worker/UI 缺失；上游 309 不能直接移植 |
-| #575/#576 质量运维/Jev | 核心基础候选 | `b81d3e6da` 已有 320 配置/结果快照、opaque round、ownership CAS/API；Jev judge、live regression、真实 restriction restore/reconcile 和可见管理 UI 仍缺 |
+| #575/#576 质量运维/Jev | 核心基础候选 | `f0bf08935` 已有 320 配置/结果快照、opaque round、ownership CAS/API；Jev judge、live regression、真实 restriction restore/reconcile 和可见管理 UI 仍缺 |
 | #577 GPT-6.1 Sol | Fork 等价/部分等价 | 仍需逐项上游差异和生产账务样本核对 |
 | #579 滚动 24 小时 | 本地候选已完成，生产待发布 | 生产尚未应用候选 UI/API |
 | #580 moderation | Fork 适配已完成，生产待发布 | 候选采用更强 CAS、generation、豁免和动作审计合同，不直接 cherry-pick 上游 |
@@ -56,7 +56,7 @@
 
 | 上游能力 | 生产基线证据 | 状态 | 必须交付的验证 |
 |---|---|---|---|
-| 质量运维 | 生产缺少上游新增 quality ownership/rule/preview/restore/delete 的完整后端合同；当前 Fork 的旧质量基础不能代替上游闭环 | 候选 `b81d3e6da` 已补核心配置、round/judgment 字段、ownership CAS/API；runner/judge、live regression、真实恢复和可见 UI 仍缺 | 先接入真实 Jev/live runner 和 restriction 恢复，再做管理员现场验收 |
+| 质量运维 | 生产缺少上游新增 quality ownership/rule/preview/restore/delete 的完整后端合同；当前 Fork 的旧质量基础不能代替上游闭环 | 候选 `f0bf08935` 已补核心配置、round/judgment 字段、ownership CAS/API；runner/judge、live regression、真实恢复和可见 UI 仍缺 | 先接入真实 Jev/live runner 和 restriction 恢复，再做管理员现场验收 |
 | GPT-6.1 Sol 计费 | 已部署代码覆盖 272000 长上下文、OAuth/Setup Token 不超过 500000 豁免、缓存 token、最终发送模型及 API key 边界（`openai_gateway_usage.go`；`openai_gpt61_sol_long_context_test.go`） | 代码/单测等价已证；生产账务样本待核 | 只读抽查部署前后长上下文样本及余额/冻结价格，不对无法归因请求补扣 |
 | 管理端滚动 24 小时用量 | 上游 #579 的后端合同已存在；本候选把精确 ISO 窗口接入真实管理员 Usage 页，默认/刷新生成 `[now-24h, now)`，筛选、分页、排序、导出沿用同一筛选快照，错误请求查询保留精确时间，清理拒绝非日历时间范围 | 代码在 `00b50ef83` 完成并由当前候选继承；定向与全量测试、类型检查、ESLint、构建均通过；尚未推送或部署 | 随累计批次发布后做生产权限/数据验收和 DST 证据 |
 | 内容审查用户管理 | 已有日志行用户启用流程要求原因、确认并读回状态，但无法从 UID 独立查找；旧 moderation-owned unban 无原因/版本保护。v2.17.7 正式合同另有 generation/count reset、四类 exemption 和 ownership-aware unban | 候选前后端服务/API、迁移 296/298/301、CAS、原因确认、owned unban 与测试已完成；生产缺对应表和 migration ledger | 单批合并部署后核对 migration ledger、表、权限和审计；覆盖历史 296 快照行、并发状态修改和安全副作用边界 |
@@ -99,7 +99,7 @@
 
 ## 当前团队任务
 
-> **当前候选覆盖（2026-10-29）**：`b81d3e6da` 包含当前已完成的局部候选切片；此前已验证 Go、前端全量 Vitest（513 个文件/3,957 项）、typecheck、ESLint、设计治理、Fork integrity 和生产构建通过。Priority 定向测试和 Quality 核心定向测试通过；Credential 新增代码尚未合入主候选。GitHub CLI 已在当前工作区重新授权，账号 `tqytwe` 有仓库 push 权限。候选尚未推送、创建 PR 或部署；整版映射与 priority、quality、credential 等核心闭环尚未完成，不能发布为整版同步。
+> **当前候选覆盖（2026-10-29）**：`f0bf08935` 包含 Priority、Quality、Credential 及前端门禁修复；前端全量 Vitest（516 个文件/3,989 项，8 项跳过）、typecheck、ESLint、设计治理和生产构建通过，Python worker 23 项通过。Go 定向门禁因当前环境缺少 `go` 尚未验证；Priority hard-stop/penalty、Quality Jev/live runner/真实恢复和生产管理员验收仍未完成。GitHub CLI 已在当前工作区重新授权，账号 `tqytwe` 有仓库 push 权限。候选尚未推送、创建 PR 或部署；不能发布为整版同步。
 
 - **集成/项目管理（主线程）**：已在线复核 v2.17.7 latest Release 和精确 tag；锁定生产基线、共同祖先、当前 `VERSION` 与双边差异规模；维护全版本功能矩阵并检查重复实现和工作包依赖。
 - **后端/API**：生产已覆盖 GPT-6.1 Sol 豁免和显式 last24h 后端合同。Priority 已加入按物理 attempt 精确记录的 `attributed_v1` 观测和读取聚合，但完整 hard-stop/penalty clock/quality round 联动仍缺。候选 moderation 用户管理后端的状态版本、generation/hit 与动作审计合同已完成代码和测试，尚未发布。#293 security penalty 源码已确认无 #519 DDL 依赖，但其全文明文访问/保留设计列为单独隐私阻断，不在本闭包原样迁入。质量运维/Jev 与凭据安全分类仍需继续。
@@ -111,11 +111,11 @@
 
 - 来源锁定：已完成。
 - 上游完整差异分类：未完成；446 个上游 PR merge 尚未逐项完成 Fork 等价/迁移/排除判定。已建立功能簇索引，但还缺每个相关 merge 的映射和最终分类。
-- 后端/API：本地候选 `b81d3e6da` 已通过 Priority/Quality 定向门禁；生产尚未应用。Quality 的 Jev/live runner/真实恢复仍未完成；凭据错误安全闭环/token guard v2、request capture、support/harvest 和 security penalty 仍未完成或被阻断。
+- 后端/API：本地候选 `f0bf08935` 已通过 Priority/Quality 定向门禁；Credential 的 Python worker 和前端门禁已通过，Go 尚未验证；生产尚未应用。Quality 的 Jev/live runner/真实恢复仍未完成；request capture、support/harvest 和 security penalty 仍未完成或被阻断。
 - 前端/交互：滚动用量和内容审查用户管理已在本地候选合并并通过全量门禁，未推送/未部署；已发布的渠道运维和调度页面仍需管理员本机验证真实操作、保存刷新、审计与普通用户无入口/无权访问。
 - 数据库/计费：生产 ledger 有 416 条；409 个当前迁移均已应用且 checksum 匹配，7 个额外历史记录也匹配 Git 中退役前原文件；0 个当前迁移未应用、0 个 checksum 不匹配。282 结构与 gateway 275–281 关键 schema/约束均核验通过；billing link/task 孤儿、settled+unverified link 和 stale inflight 均为 0。需单列高优先级核验：19,538 条 settlement_pending 请求中 19,537 条无精确 billing link，绝大多数 usage unknown；不能据此认定已扣款或再次扣费，需业务/财务只读抽样对照旧 usage、余额账本、订阅扣额和 dedup/archive 证据。另有历史日卡数据（4,136 replay、5,095 holds、21 entitlements），当前代码无对应读写引用；hold/replay 聚合一致性检查通过。唯一 `active` 但到期的日卡记录属于 `redeem_code`，其对应订阅也已 expired，无 payment order link。另有 4 条套餐权益记录状态 `active` 但已过期，均无有效订阅/替代权益；代码动态过期判定和准入 SQL 会拒绝它们。历史状态不自动修复；迁移锁耗时仍待办；283 不纳入本批。
 - CI 与本地门禁：此前候选 Go、前端全量 Vitest、ESLint、typecheck、设计治理、Fork integrity、构建均通过；本轮 Priority 定向 requestledger/repository/service 测试和 Quality 定向 service/repository/handler 测试通过。Credential 定向 Go 测试因耗时未完成，尚未合入主候选；尚未创建 PR，远端 CI 未运行。
-- PR、合并、生产部署：PR #389 已合并；merge/deploy SHA 为 `5c16bc5b5965a7b0d7c38aa35671639f045f2dea`；Zeabur deployment `6ae1a532ea16512cf741806a` 成功；首页/健康 200；本地候选 `b81d3e6da` 尚未推送，尚未达到整版同步或生产业务验收完成。
+- PR、合并、生产部署：PR #389 已合并；merge/deploy SHA 为 `5c16bc5b5965a7b0d7c38aa35671639f045f2dea`；Zeabur deployment `6ae1a532ea16512cf741806a` 成功；首页/健康 200；本地候选 `f0bf08935` 尚未推送，尚未达到整版同步或生产业务验收完成。
 
 PR #389 提交前的本地完整 `make test-backend`、前端 lint/typecheck/全量测试/生产构建、设计治理、Fork integrity 和交接检查均通过；该 PR 没有远端 CI checks。部署后验证了生产分支 SHA、首页/health、构建资源及新 admin API 的未认证拒绝；生产迁移账本和 282、gateway 相关结构已完成只读核验。当前生产 audit 的 Zeabur 日志只有滚动最近 100 行，不能代替完整部署窗；另发现 19,538 条历史 settlement_pending 记录待业务归因。日卡/套餐权益已聚合核对，未发现当前有效权益被过期记录放行；历史审计语义也待业务核验。本批已部署，但以上缺口和未分类上游功能阻止将 `fully_migrated` 改成 true。当前 Usage 候选门禁状态见团队任务记录，不等同于 PR #389 当时已通过的治理检查。
 
@@ -156,7 +156,7 @@ PR #389 提交前的本地完整 `make test-backend`、前端 lint/typecheck/全
 
 ### 2026-10-29 后续只读复核（覆盖本节较早统计）
 
-- 当前本地候选为 `codex/v2.17.7-moderation-release-20261028@b81d3e6da`；生产仍运行 `play/main@5c16bc5b5965a7b0d7c38aa35671639f045f2dea`，deployment `6ae1a532ea16512cf741806a`。候选未推送、未创建 PR、未合并、未部署；`fully_migrated=false`。
+- 当前本地候选为 `codex/v2.17.7-moderation-release-20261028@f0bf08935`；生产仍运行 `play/main@5c16bc5b5965a7b0d7c38aa35671639f045f2dea`，deployment `6ae1a532ea16512cf741806a`。候选未推送、未创建 PR、未合并、未部署；`fully_migrated=false`。
 - 本次应用服务滚动 100 条日志为 INFO 99、WARN 1、ERROR/FATAL 0。唯一 WARN 是 `account_select_failed`（模型 `gpt-5.6-sol`、pool 2、excluded 1、runtime_blocked 1）。这表明当前请求未从该池选出账号；手头证据尚不足以归因两个排除原因，也不能据此断定候选代码有问题。需从账号池状态、排除策略和 runtime block 指标继续只读追查。服务 API 仅提供最近滚动日志，不能证明整个部署窗口无异常。
 - 生产 PostgreSQL `schema_migrations=416`，最新为 `282_channel_operations.sql`；内容审查用户状态、命中、动作表及 security penalty 表仍不存在。`/api/v1/requests` 返回 404，未认证 `/api/v1/admin/requests` 返回 401；生产首页与 `/health` 为 200。
 - 最新只读聚合为 20,088 条 `gateway_requests.settlement_state=settlement_pending`，全部 `usage_unknown`；另见 4 条 pending 和 1 条 known 用量记录。该状态不证明扣款结果，必须按只读 usage、余额流水、订阅扣额及幂等证据抽样归因；不得批量标记 settled、补扣或清理记录。
