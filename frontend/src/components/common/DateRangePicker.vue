@@ -42,8 +42,8 @@
             <label class="date-picker-label">{{ t('dates.startDate') }}</label>
             <input
               type="date"
-              v-model="localStartDate"
-              :max="localEndDate || tomorrow()"
+              v-model="startDateInput"
+              :max="endDateInput || tomorrow()"
               class="date-picker-input"
               @change="onDateChange"
             />
@@ -55,8 +55,8 @@
             <label class="date-picker-label">{{ t('dates.endDate') }}</label>
             <input
               type="date"
-              v-model="localEndDate"
-              :min="localStartDate"
+              v-model="endDateInput"
+              :min="startDateInput"
               :max="tomorrow()"
               class="date-picker-input"
               @change="onDateChange"
@@ -89,6 +89,8 @@ interface DatePreset {
 interface Props {
   startDate: string
   endDate: string
+  rolling24Hours?: boolean
+  selectedPreset?: string | null
 }
 
 interface Emits {
@@ -106,7 +108,9 @@ const isOpen = ref(false)
 const containerRef = ref<HTMLElement | null>(null)
 const localStartDate = ref(props.startDate)
 const localEndDate = ref(props.endDate)
-const activePreset = ref<string | null>('last24Hours')
+const activePreset = ref<string | null>(
+  props.selectedPreset !== undefined ? props.selectedPreset : props.rolling24Hours ? null : 'last24Hours'
+)
 
 const today = () => formatDateToString(new Date())
 
@@ -125,6 +129,16 @@ const formatDateToString = (date: Date): string => {
   const day = String(date.getDate()).padStart(2, '0')
   return `${year}-${month}-${day}`
 }
+
+const calendarDate = (value: string) => value.includes('T') ? formatDateToString(new Date(value)) : value
+const startDateInput = computed({
+  get: () => calendarDate(localStartDate.value),
+  set: (value: string) => { localStartDate.value = value }
+})
+const endDateInput = computed({
+  get: () => calendarDate(localEndDate.value),
+  set: (value: string) => { localEndDate.value = value }
+})
 
 const presets: DatePreset[] = [
   {
@@ -152,8 +166,8 @@ const presets: DatePreset[] = [
       const end = new Date()
       const start = new Date(end.getTime() - 24 * 60 * 60 * 1000)
       return {
-        start: formatDateToString(start),
-        end: formatDateToString(end)
+        start: props.rolling24Hours ? start.toISOString() : formatDateToString(start),
+        end: props.rolling24Hours ? end.toISOString() : formatDateToString(end)
       }
     }
   },
@@ -228,7 +242,7 @@ const displayValue = computed(() => {
 })
 
 const formatDate = (dateStr: string): string => {
-  const date = new Date(dateStr + 'T00:00:00')
+  const date = new Date(dateStr.includes('T') ? dateStr : dateStr + 'T00:00:00')
   const dateLocale = locale.value === 'zh' ? 'zh-CN' : 'en-US'
   return date.toLocaleDateString(dateLocale, { month: 'short', day: 'numeric' })
 }
@@ -253,9 +267,16 @@ const selectPreset = (preset: DatePreset) => {
 }
 
 const onDateChange = () => {
+  localStartDate.value = calendarDate(localStartDate.value)
+  localEndDate.value = calendarDate(localEndDate.value)
+  if (props.selectedPreset !== undefined) {
+    activePreset.value = null
+    return
+  }
   // Check if current dates match any preset
   activePreset.value = null
   for (const preset of presets) {
+    if (props.rolling24Hours && preset.value === 'last24Hours') continue
     const range = preset.getRange()
     if (range.start === localStartDate.value && range.end === localEndDate.value) {
       activePreset.value = preset.value
@@ -269,6 +290,10 @@ const toggle = () => {
 }
 
 const apply = () => {
+  if (props.rolling24Hours && activePreset.value === 'last24Hours') {
+    selectPreset(presets.find(preset => preset.value === 'last24Hours')!)
+    return
+  }
   emit('update:startDate', localStartDate.value)
   emit('update:endDate', localEndDate.value)
   emit('change', {
@@ -314,6 +339,11 @@ watch(
     localEndDate.value = val
     onDateChange()
   }
+)
+
+watch(
+  () => props.selectedPreset,
+  (val) => { activePreset.value = val ?? null }
 )
 
 onMounted(() => {
