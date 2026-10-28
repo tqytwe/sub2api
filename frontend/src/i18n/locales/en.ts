@@ -8,9 +8,12 @@ import splitChannelMonitorV2En from './en/channelMonitorV2'
 import splitDashboardEn from './en/dashboard'
 import auditAdminEn from './en/admin/audit'
 import promptAuditAdminEn from './en/admin/promptAudit'
+import tokenGuardV2En from './en/tokenGuardV2'
 import { mergeLocaleMessages } from './merge'
 
 const messages = {
+  accountOps: { smartTitle: 'Account operations' },
+  tokenGuardV2: tokenGuardV2En,
   requestLedger,
   batchImageGuide: {
     title: 'Batch Image Generation',
@@ -4212,9 +4215,6 @@ const messages = {
       emailSent: 'Email sent',
       emailNotSent: 'No email',
       autoBanned: 'Banned',
-      unbanUser: 'Unban',
-      unbanSuccess: 'User has been unbanned',
-      unbanFailed: 'Failed to unban user',
       inputDetailTitle: 'Input Summary Detail',
       inputDetailContent: 'Full Content',
       matchedKeyword: 'Matched Keyword',
@@ -6473,6 +6473,7 @@ const messages = {
         range: 'Range',
         deletedRows: 'Deleted',
         missingRange: 'Please select a date range',
+        calendarRangeRequired: 'Choose calendar dates before cleaning up usage records.',
         submitSuccess: 'Cleanup task created',
         submitFailed: 'Failed to create cleanup task',
         loadFailed: 'Failed to load cleanup tasks',

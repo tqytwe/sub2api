@@ -122,6 +122,7 @@ type NotificationEmailPreviewInput struct {
 }
 
 type NotificationEmailSendInput struct {
+	beforeSend       func(context.Context) error
 	Event            string
 	Locale           string
 	RecipientEmail   string
@@ -425,6 +426,11 @@ func (s *NotificationEmailService) Send(ctx context.Context, input NotificationE
 
 	if s.emailService == nil {
 		return notificationEmailConfigErr(errors.New("email service is not configured"))
+	}
+	if input.beforeSend != nil {
+		if err := input.beforeSend(ctx); err != nil {
+			return err
+		}
 	}
 	if err := s.emailService.SendEmail(ctx, recipient, rendered.Subject, rendered.HTML); err != nil {
 		return notificationEmailDeliveryErr(err)
