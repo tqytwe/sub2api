@@ -160,8 +160,9 @@ type contentModerationTestHashCache struct {
 }
 
 type contentModerationTestUserRepo struct {
-	user    *User
-	updated []User
+	user              *User
+	updated           []User
+	preserveOnUpdate  bool
 }
 
 func (r *contentModerationTestUserRepo) Create(ctx context.Context, user *User) error {
@@ -194,7 +195,9 @@ func (r *contentModerationTestUserRepo) Update(ctx context.Context, user *User, 
 	}
 	clone := *user
 	r.updated = append(r.updated, clone)
-	r.user = &clone
+	if !r.preserveOnUpdate {
+		r.user = &clone
+	}
 	return nil
 }
 
@@ -1862,6 +1865,23 @@ func TestContentModerationUnbanUserRequiresReasonAndConfirmation(t *testing.T) {
 			require.Empty(t, userRepo.updated)
 		})
 	}
+}
+
+func TestContentModerationUnbanUserRejectsStaleReadback(t *testing.T) {
+	userRepo := &contentModerationTestUserRepo{
+		user:             &User{ID: 1001, Status: StatusDisabled},
+		preserveOnUpdate: true,
+	}
+	invalidator := &contentModerationTestAuthCacheInvalidator{}
+	svc := NewContentModerationService(nil, &contentModerationTestRepo{}, nil, nil, userRepo, nil, invalidator, nil)
+
+	result, err := svc.UnbanUser(context.Background(), 1001, "reviewed moderation appeal", true)
+
+	require.Error(t, err)
+	require.Nil(t, result)
+	require.Len(t, userRepo.updated, 1)
+	require.Equal(t, StatusActive, userRepo.updated[0].Status)
+	require.Empty(t, invalidator.userIDs)
 }
 
 func contentModerationIntPtr(v int) *int {
