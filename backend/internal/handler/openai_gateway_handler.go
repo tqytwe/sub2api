@@ -4441,6 +4441,10 @@ func (h *OpenAIGatewayHandler) recordCyberPolicyIfMarked(c *gin.Context, apiKey 
 		CreatedAt:       time.Now(),
 	}
 	cyberLogOnly := h.cyberPolicyLogOnly(c, apiKey)
+	var moderationVersion *int64
+	if value, ok := c.Get(contentModerationUserVersionContextKey); ok {
+		moderationVersion, _ = value.(*int64)
+	}
 	if gwSvc != nil && apiKey != nil && !cyberLogOnly {
 		plan := buildCyberSessionBlockWritePlan(apiKey.ID, c, cyberBlockBody)
 		if len(plan.keys) > 0 {
@@ -4454,21 +4458,22 @@ func (h *OpenAIGatewayHandler) recordCyberPolicyIfMarked(c *gin.Context, apiKey 
 		defer cancel()
 		if cmSvc != nil {
 			cmSvc.RecordCyberPolicyEvent(ctx, service.CyberPolicyRecordInput{
-				LogOnly:         cyberLogOnly,
-				RequestID:       requestID,
-				UserID:          userID,
-				UserEmail:       userEmail,
-				APIKeyID:        apiKeyID,
-				APIKeyName:      apiKeyName,
-				GroupID:         groupID,
-				GroupName:       groupName,
-				Endpoint:        inboundEndpoint,
-				Model:           model,
-				UpstreamMessage: mark.Message,
-				UpstreamBody:    mark.Body,
-				UpstreamStatus:  mark.UpstreamStatus,
-				UpstreamInTok:   mark.UpstreamInTok,
-				UpstreamOutTok:  mark.UpstreamOutTok,
+				ModerationVersion: moderationVersion,
+				LogOnly:           cyberLogOnly,
+				RequestID:         requestID,
+				UserID:            userID,
+				UserEmail:         userEmail,
+				APIKeyID:          apiKeyID,
+				APIKeyName:        apiKeyName,
+				GroupID:           groupID,
+				GroupName:         groupName,
+				Endpoint:          inboundEndpoint,
+				Model:             model,
+				UpstreamMessage:   mark.Message,
+				UpstreamBody:      mark.Body,
+				UpstreamStatus:    mark.UpstreamStatus,
+				UpstreamInTok:     mark.UpstreamInTok,
+				UpstreamOutTok:    mark.UpstreamOutTok,
 			})
 		}
 		if forwardErrored && gwSvc != nil {

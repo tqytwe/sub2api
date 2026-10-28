@@ -333,7 +333,10 @@ func registerContentModerationRoutes(admin *gin.RouterGroup, h *handler.Handlers
 		risk.POST("/api-keys/test", h.Admin.ContentModeration.TestAPIKeys)
 		risk.GET("/status", h.Admin.ContentModeration.GetStatus)
 		risk.GET("/logs", h.Admin.ContentModeration.ListLogs)
+		risk.GET("/users", h.Admin.ContentModeration.ListModerationUsers)
+		risk.GET("/users/:user_id", h.Admin.ContentModeration.GetModerationUser)
 		risk.POST("/users/:user_id/unban", h.Admin.ContentModeration.UnbanUser)
+		risk.POST("/users/:user_id/actions", h.Admin.ContentModeration.ManageUser)
 		risk.DELETE("/hashes", h.Admin.ContentModeration.DeleteFlaggedHash)
 		risk.DELETE("/hashes/all", h.Admin.ContentModeration.ClearFlaggedHashes)
 	}
