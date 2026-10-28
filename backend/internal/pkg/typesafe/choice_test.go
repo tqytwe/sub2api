@@ -20,6 +20,10 @@ func TestDecodeChoiceRejectsAmbiguousOrMalformedResponses(t *testing.T) {
 	got, err := decodeChoice([]byte(valid), criteria, "quality")
 	require.NoError(t, err)
 	require.Equal(t, "correct", got.Choice)
+	withMetadata := strings.Replace(valid, `,"usage"`, `,"id":"evt-1","provider":"typesafe","usage"`, 1)
+	got, err = decodeChoice([]byte(withMetadata), criteria, "quality")
+	require.NoError(t, err)
+	require.Equal(t, "correct", got.Choice)
 	for name, body := range map[string]string{
 		"missing answer":       `{"model":"jev-latest","answers":{}}`,
 		"wrong answer type":    strings.Replace(valid, `"type":"choice"`, `"type":"noul"`, 1),
@@ -31,6 +35,7 @@ func TestDecodeChoiceRejectsAmbiguousOrMalformedResponses(t *testing.T) {
 		"selected not highest": strings.Replace(valid, `"choice":"correct"`, `"choice":"incorrect"`, 1),
 		"duplicate key":        strings.Replace(valid, `"choice":"correct"`, `"choice":"incorrect","choice":"correct"`, 1),
 		"unknown field":        strings.Replace(valid, `"type":"choice"`, `"type":"choice","refusal":"cannot grade"`, 1),
+		"oversized provider":   strings.Replace(withMetadata, `"typesafe"`, `"`+strings.Repeat("x", 65)+`"`, 1),
 		"trailing data":        valid + `{}`,
 	} {
 		t.Run(name, func(t *testing.T) {
