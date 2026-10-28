@@ -89,7 +89,7 @@ type OpenAIAccountScheduleRequest struct {
 	RequestedModel          string
 	// HistoryModel is the client-facing identity used for scheduling evidence.
 	// It remains separate from RequestedModel, which may be channel-mapped.
-	HistoryModel            string
+	HistoryModel string
 	// InboundEndpoint scopes observations by the public API entry point.
 	InboundEndpoint         string
 	RequiredTransport       OpenAIUpstreamTransport

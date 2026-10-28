@@ -14,11 +14,11 @@ type PrioritySchedulingSignalReader interface {
 }
 
 type PrioritySchedulingQuery struct {
-	AccountIDs []int64
-	Model      string
+	AccountIDs      []int64
+	Model           string
 	InboundEndpoint string
-	GroupID    *int64
-	Since      time.Time
+	GroupID         *int64
+	Since           time.Time
 }
 
 type PrioritySchedulingSignal struct {
@@ -47,14 +47,14 @@ type PrioritySchedulingScore struct {
 }
 
 type PrioritySchedulingSnapshot struct {
-	At            time.Time                 `json:"at"`
-	Model         string                    `json:"model"`
-	InboundEndpoint string                  `json:"inbound_endpoint,omitempty"`
-	GroupID       *int64                    `json:"group_id,omitempty"`
-	Mode          string                    `json:"mode"`
-	HistoryReady  bool                      `json:"history_ready"`
-	HistoryStatus string                    `json:"history_status"`
-	Candidates    []PrioritySchedulingScore `json:"candidates"`
+	At              time.Time                 `json:"at"`
+	Model           string                    `json:"model"`
+	InboundEndpoint string                    `json:"inbound_endpoint,omitempty"`
+	GroupID         *int64                    `json:"group_id,omitempty"`
+	Mode            string                    `json:"mode"`
+	HistoryReady    bool                      `json:"history_ready"`
+	HistoryStatus   string                    `json:"history_status"`
+	Candidates      []PrioritySchedulingScore `json:"candidates"`
 }
 
 type prioritySignalEntry struct {
