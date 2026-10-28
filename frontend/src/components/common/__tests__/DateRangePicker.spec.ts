@@ -110,6 +110,7 @@ describe('DateRangePicker', () => {
       node.text().includes('Last 24 Hours')
     )
     await presetButton!.trigger('click')
+    await wrapper.find('.date-picker-apply').trigger('click')
 
     const range = wrapper.emitted('change')?.[0]?.[0] as {
       startDate: string

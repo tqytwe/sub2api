@@ -91,6 +91,7 @@ interface Props {
   endDate: string
   rolling24Hours?: boolean
   selectedPreset?: string | null
+  // Opt in where the consumer accepts RFC3339 instants as well as calendar dates.
 }
 
 interface Emits {
@@ -256,21 +257,30 @@ const selectPreset = (preset: DatePreset) => {
   localStartDate.value = range.start
   localEndDate.value = range.end
   activePreset.value = preset.value
-  emit('update:startDate', range.start)
-  emit('update:endDate', range.end)
-  emit('change', {
-    startDate: range.start,
-    endDate: range.end,
-    preset: preset.value
-  })
-  isOpen.value = false
+  // Keep the legacy immediate-apply contract for calendar-only consumers.
+  // Rolling windows stay open so Apply can anchor the exact instant range.
+  if (!props.rolling24Hours && preset.value !== 'last24Hours') {
+    emit('update:startDate', range.start)
+    emit('update:endDate', range.end)
+    emit('change', {
+      startDate: range.start,
+      endDate: range.end,
+      preset: preset.value
+    })
+    isOpen.value = false
+  }
 }
 
-const onDateChange = () => {
-  localStartDate.value = calendarDate(localStartDate.value)
-  localEndDate.value = calendarDate(localEndDate.value)
+const detectPreset = () => {
   if (props.selectedPreset !== undefined) {
-    activePreset.value = null
+    activePreset.value = props.selectedPreset
+    return
+  }
+  // Recognize an applied snapshot without requiring it to equal the current clock.
+  // Date-only pairs must never be mistaken for a rolling window.
+  if (props.rolling24Hours && localStartDate.value.includes('T') && localEndDate.value.includes('T') &&
+      Date.parse(localEndDate.value) - Date.parse(localStartDate.value) === 86_400_000) {
+    activePreset.value = 'last24Hours'
     return
   }
   // Check if current dates match any preset
@@ -285,6 +295,17 @@ const onDateChange = () => {
   }
 }
 
+const onDateChange = () => {
+  // Editing either date switches the entire range back to calendar-day semantics.
+  localStartDate.value = calendarDate(localStartDate.value)
+  localEndDate.value = calendarDate(localEndDate.value)
+  if (props.selectedPreset !== undefined) {
+    activePreset.value = null
+    return
+  }
+  detectPreset()
+}
+
 const toggle = () => {
   isOpen.value = !isOpen.value
 }
@@ -292,7 +313,9 @@ const toggle = () => {
 const apply = () => {
   if (props.rolling24Hours && activePreset.value === 'last24Hours') {
     selectPreset(presets.find(preset => preset.value === 'last24Hours')!)
-    return
+  } else if (props.rolling24Hours) {
+    localStartDate.value = calendarDate(localStartDate.value)
+    localEndDate.value = calendarDate(localEndDate.value)
   }
   emit('update:startDate', localStartDate.value)
   emit('update:endDate', localEndDate.value)
@@ -321,25 +344,18 @@ watch(isOpen, (open) => {
   if (open) return
   localStartDate.value = props.startDate
   localEndDate.value = props.endDate
-  onDateChange()
+  detectAppliedRange()
 }, { flush: 'post' })
 
 // Sync local state with props
-watch(
-  () => props.startDate,
-  (val) => {
-    localStartDate.value = val
-    onDateChange()
-  }
-)
+const detectAppliedRange = () => {
+  localStartDate.value = props.startDate
+  localEndDate.value = props.endDate
+  detectPreset()
+}
+watch(() => [props.startDate, props.endDate], detectAppliedRange)
 
-watch(
-  () => props.endDate,
-  (val) => {
-    localEndDate.value = val
-    onDateChange()
-  }
-)
+detectPreset()
 
 watch(
   () => props.selectedPreset,
@@ -349,8 +365,6 @@ watch(
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
   document.addEventListener('keydown', handleEscape)
-  // Initialize active preset detection
-  onDateChange()
 })
 
 onUnmounted(() => {
