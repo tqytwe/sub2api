@@ -1,0 +1,110 @@
+package repository
+
+import (
+	"context"
+	"encoding/json"
+	"log/slog"
+	"time"
+
+	"github.com/Wei-Shaw/sub2api/internal/service"
+	"github.com/Wei-Shaw/sub2api/internal/util/logredact"
+)
+
+const channelOperationsUsageBase = `WITH base AS (
+ SELECT u.account_id,u.channel_id,u.group_id,u.model,u.upstream_model,u.model_mapping_chain,u.stream,u.first_token_ms,u.duration_ms,u.created_at,
+        COALESCE(m.upstream_id,0) AS operation_upstream_id,
+        COALESCE(NULLIF(u.requested_model,''),u.model) AS public_model,
+        (u.actual_cost>0 OR u.total_cost>0 OR u.account_stats_cost>0 OR u.input_tokens>0 OR u.output_tokens>0 OR u.cache_read_tokens>0 OR u.cache_creation_tokens>0) AS measured
+ FROM usage_logs u LEFT JOIN channel_operation_members m ON m.channel_id=u.channel_id AND m.account_id=u.account_id
+ WHERE u.created_at >= $1 AND u.created_at < $2
+ AND ($3::bigint=0 OR u.channel_id=$3) AND ($4::bigint=0 OR m.upstream_id=$4 OR ($4=-1 AND m.upstream_id IS NULL))
+ AND ($5::bigint=0 OR u.account_id=$5) AND ($6::bigint=0 OR u.group_id=$6)
+ AND ($7='' OR CASE $8 WHEN 'public' THEN COALESCE(NULLIF(u.requested_model,''),u.model) WHEN 'recorded' THEN u.model WHEN 'upstream' THEN u.upstream_model END=$7)
+), measured AS (
+ SELECT *,CASE WHEN stream AND measured AND first_token_ms>0 THEN first_token_ms END AS ttft,
+        CASE WHEN measured AND duration_ms>0 THEN duration_ms END AS duration
+ FROM base
+)`
+
+const channelOperationsErrorQuery = `WITH scoped AS (
+ SELECT e.error_type,e.error_phase,COALESCE(e.status_code,0) AS status_code,e.upstream_status_code,e.created_at
+ FROM ops_error_logs e
+ WHERE e.created_at >= $1 AND e.created_at < $2 AND COALESCE(e.is_count_tokens,false)=false
+ AND ($3::bigint=0 OR EXISTS(SELECT 1 FROM account_groups ag JOIN channel_groups cg ON cg.group_id=ag.group_id WHERE ag.account_id=e.account_id AND cg.channel_id=$3) OR EXISTS(SELECT 1 FROM channel_operation_members m WHERE m.account_id=e.account_id AND m.channel_id=$3))
+ AND ($4::bigint=0 OR EXISTS(SELECT 1 FROM channel_operation_members m WHERE m.account_id=e.account_id AND m.channel_id=$3 AND m.upstream_id=$4) OR ($4=-1 AND NOT EXISTS(SELECT 1 FROM channel_operation_members m WHERE m.account_id=e.account_id AND m.channel_id=$3)))
+ AND ($5::bigint=0 OR e.account_id=$5) AND ($6::bigint=0 OR e.group_id=$6)
+ AND ($7='' OR CASE $8 WHEN 'public' THEN COALESCE(NULLIF(e.requested_model,''),e.model) WHEN 'recorded' THEN e.model WHEN 'upstream' THEN e.upstream_model END=$7)
+), buckets AS (SELECT error_type,error_phase,status_code,count(*) AS records FROM scoped GROUP BY error_type,error_phase,status_code)
+SELECT jsonb_build_object('source','ops_error_logs','scope','current account cohort; logs lack historical channel attribution; count_tokens excluded; no request error-rate denominator',
+ 'records',(SELECT count(*) FROM scoped),'upstream_5xx',(SELECT count(*) FROM scoped WHERE upstream_status_code>=500),
+ 'latest_sample_at',(SELECT max(created_at) FROM scoped),
+ 'rows',COALESCE((SELECT jsonb_agg(to_jsonb(x)) FROM (SELECT * FROM buckets ORDER BY records DESC,error_type,error_phase,status_code LIMIT 20)x),'[]'::jsonb),
+ 'bucket_total',(SELECT count(*) FROM buckets),'error_rate',NULL)`
+
+func (r *channelRepository) operationsSection(ctx context.Context, query string, args ...any) service.ChannelOperationsSection {
+	section := service.ChannelOperationsSection{Status: "query_failed", Data: json.RawMessage("null"), QueriedAt: time.Now().UTC()}
+	sectionCtx, cancel := context.WithTimeout(ctx, 8*time.Second)
+	defer cancel()
+	var raw []byte
+	if err := r.db.QueryRowContext(sectionCtx, query, args...).Scan(&raw); err != nil {
+		slog.WarnContext(sectionCtx, "channel operations query failed", "error", logredact.RedactText(err.Error()))
+		section.Error = "数据查询失败，请重试"
+		return section
+	}
+	section.Status = "ready"
+	section.Data = raw
+	return section
+}
+
+func (r *channelRepository) ReadChannelOperations(ctx context.Context, filter service.ChannelOperationsFilter) *service.ChannelOperationsSnapshot {
+	snapshot := &service.ChannelOperationsSnapshot{
+		From: filter.From, Until: filter.Until, ModelScope: filter.ModelScope,
+		Scope: service.ChannelOperationsScope{
+			ChannelID: filter.ChannelID, UpstreamID: filter.UpstreamID, AccountID: filter.AccountID,
+			GroupID: filter.GroupID, Model: filter.Model, ModelScope: filter.ModelScope, Dimension: filter.Dimension,
+		},
+	}
+	args := []any{filter.From, filter.Until, filter.ChannelID, filter.UpstreamID, filter.AccountID, filter.GroupID, filter.Model, filter.ModelScope, filter.PageSize, (filter.Page - 1) * filter.PageSize}
+	dimension := `COALESCE(channel_id,0)`
+	names := `COALESCE((SELECT name FROM channels WHERE id=b.dimension_id),'历史未归属渠道')`
+	switch filter.Dimension {
+	case "upstream":
+		dimension = `operation_upstream_id`
+		names = `COALESCE((SELECT name FROM channel_operation_upstreams WHERE id=b.dimension_id),'未分配上游')`
+	case "account":
+		dimension = `account_id`
+		names = `COALESCE((SELECT name FROM accounts WHERE id=b.dimension_id),'已删除账号')`
+	}
+	aggregate := `count(*) AS requests,count(*) FILTER(WHERE ttft IS NOT NULL) AS samples,
+ count(*) FILTER(WHERE stream AND measured AND ttft IS NULL) AS unknown_samples,count(*) FILTER(WHERE duration IS NOT NULL) AS duration_samples,
+ percentile_cont(.5) WITHIN GROUP(ORDER BY ttft) AS p50_ms,percentile_cont(.9) WITHIN GROUP(ORDER BY ttft) AS p90_ms,
+ percentile_cont(.95) WITHIN GROUP(ORDER BY ttft) AS p95_ms,percentile_cont(.9) WITHIN GROUP(ORDER BY duration) AS duration_p90_ms,max(created_at) AS latest_sample_at`
+	snapshot.Usage = r.operationsSection(ctx, channelOperationsUsageBase+`, buckets AS (
+ SELECT `+dimension+` AS dimension_id,`+aggregate+` FROM measured GROUP BY `+dimension+`
+), summary AS (SELECT `+aggregate+` FROM measured), lineage AS (
+ SELECT public_model,model AS recorded_model,upstream_model,model_mapping_chain,count(*) AS samples FROM measured GROUP BY public_model,model,upstream_model,model_mapping_chain
+) SELECT jsonb_build_object('source','usage_logs.channel_id / persisted first_token_ms','attribution','current operational membership',
+ 'latency_measurement','legacy forwarded-stream TTFT','summary',(SELECT to_jsonb(s) FROM summary s),'total',(SELECT count(*) FROM buckets),
+ 'rows',COALESCE((SELECT jsonb_agg(to_jsonb(x)) FROM (SELECT b.*,`+names+` AS name FROM buckets b ORDER BY b.requests DESC,b.dimension_id LIMIT $9 OFFSET $10)x),'[]'::jsonb),
+ 'lineage',COALESCE((SELECT jsonb_agg(to_jsonb(l)) FROM (SELECT * FROM lineage ORDER BY samples DESC,public_model,recorded_model,upstream_model,model_mapping_chain LIMIT 50)l),'[]'::jsonb),
+ 'lineage_total',(SELECT count(*) FROM lineage),'error_rate',NULL,'error_scope','no complete request failure denominator')`, args...)
+
+	// This fork does not yet persist immutable quality rounds or judge outcomes.
+	snapshot.Quality = service.ChannelOperationsSection{
+		Status: "unsupported_scope", Data: json.RawMessage("null"),
+		Error: "质量判题历史尚未迁入，不能将普通定时测试结果解释为质量结论", QueriedAt: time.Now().UTC(),
+	}
+	errorArgs := []any{filter.From, filter.Until, filter.ChannelID, filter.UpstreamID, filter.AccountID, filter.GroupID, filter.Model, filter.ModelScope}
+	snapshot.Errors = r.operationsSection(ctx, channelOperationsErrorQuery, errorArgs...)
+	capacityArgs := []any{filter.ChannelID, filter.UpstreamID, filter.AccountID, filter.GroupID}
+	snapshot.Capacity = r.operationsSection(ctx, `SELECT jsonb_build_object('source','accounts current configuration',
+ 'scope','current account group membership; model-independent; not live load','accounts',count(*),
+ 'schedulable',count(*) FILTER(WHERE a.schedulable AND a.status='active'),'configured_concurrency',COALESCE(sum(a.concurrency),0))
+ FROM accounts a WHERE a.deleted_at IS NULL
+ AND ($1::bigint=0 OR EXISTS(SELECT 1 FROM account_groups ag JOIN channel_groups cg ON cg.group_id=ag.group_id WHERE ag.account_id=a.id AND cg.channel_id=$1))
+ AND ($2::bigint=0 OR EXISTS(SELECT 1 FROM channel_operation_members m WHERE m.account_id=a.id AND m.channel_id=$1 AND m.upstream_id=$2) OR ($2=-1 AND NOT EXISTS(SELECT 1 FROM channel_operation_members m WHERE m.account_id=a.id AND m.channel_id=$1)))
+ AND ($3::bigint=0 OR a.id=$3) AND ($4::bigint=0 OR EXISTS(SELECT 1 FROM account_groups ag WHERE ag.account_id=a.id AND ag.group_id=$4))`, capacityArgs...)
+	return snapshot
+}
+
+var _ service.ChannelOperationsRepository = (*channelRepository)(nil)
