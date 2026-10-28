@@ -2582,6 +2582,33 @@ export interface ScheduledTestPlan {
   next_run_at: string | null
   created_at: string
   updated_at: string
+  pelican_config?: PelicanTestConfig | null
+  running_until?: string | null
+}
+
+export interface QualityJudgeConfig {
+  kind?: 'jev' | 'llm' | string
+  group_id?: number
+  model_id?: string
+  prompt?: string
+}
+
+export interface QualityPolicy {
+  action?: string
+  expected_answer?: string
+  judge?: QualityJudgeConfig | null
+}
+
+export interface PelicanTestConfig {
+  rule_name?: string
+  quality?: QualityPolicy | null
+  question_kind?: string
+  test_channel?: string
+  prompt?: string
+  reasoning_effort?: string
+  parallel_count?: number
+  model_id?: string
+  model_ids?: string[]
 }
 
 export interface ScheduledTestResult {
@@ -2594,6 +2621,20 @@ export interface ScheduledTestResult {
   started_at: string
   finished_at: string
   created_at: string
+  pelican_config?: PelicanTestConfig | null
+  quality_round_id?: string
+  quality_action?: string
+  quality_judgment?: Record<string, unknown> | null
+}
+
+export interface QualityOwnershipPreview {
+  plan_id: number
+  account_id: number
+  rule_version: string
+  fence: string
+  action?: string
+  state_present: boolean
+  restore_ready: boolean
 }
 
 export interface CreateScheduledTestPlanRequest {
@@ -2611,6 +2652,7 @@ export interface UpdateScheduledTestPlanRequest {
   enabled?: boolean
   max_results?: number
   auto_recover?: boolean
+  expected_updated_at?: string
 }
 
 // Payment types

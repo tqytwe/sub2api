@@ -946,6 +946,10 @@ func registerScheduledTestRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		plans.PUT("/:id", h.Admin.ScheduledTest.Update)
 		plans.DELETE("/:id", h.Admin.ScheduledTest.Delete)
 		plans.GET("/:id/results", h.Admin.ScheduledTest.ListResults)
+		plans.GET("/:id/ownership", h.Admin.ScheduledTest.QualityOwnershipPreview)
+		plans.POST("/:id/ownership/reconcile", h.Admin.ScheduledTest.QualityOwnershipReconcile)
+		plans.POST("/:id/ownership/restore", h.Admin.ScheduledTest.QualityOwnershipRestore)
+		plans.DELETE("/:id/ownership", h.Admin.ScheduledTest.QualityOwnershipDelete)
 	}
 	// Nested under accounts
 	admin.GET("/accounts/:id/scheduled-test-plans", h.Admin.ScheduledTest.ListByAccount)
