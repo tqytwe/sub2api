@@ -48,6 +48,16 @@ jobs:
           go-version-file: backend/go.mod
           cache-dependency-path: backend/go.sum
 
+      - name: Check Docker Go version matches module
+        shell: bash
+        run: |
+          module_go="$(awk '$1 == "go" { print $2; exit }' backend/go.mod)"
+          image_go="$(sed -n 's/^ARG GOLANG_IMAGE=golang:\([0-9][0-9.]*\)-alpine$/\1/p' Dockerfile)"
+          if [[ -z "$module_go" || -z "$image_go" || "$module_go" != "$image_go" ]]; then
+            printf 'Docker Go version (%s) must match backend/go.mod (%s)\n' "$image_go" "$module_go" >&2
+            exit 1
+          fi
+
       - name: Set up pnpm
         uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271
         with:
