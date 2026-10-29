@@ -32,3 +32,13 @@ func TestOpenAIOAuthReauthMigrationsUseForkNamespace(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, string(proxy), "openai_oauth_reauth_configs_proxy_source_check")
 }
+
+func TestAccountReloginBudgetMigrationDoesNotReferenceMissingOAuthProfile(t *testing.T) {
+	reauth, err := os.ReadFile(filepath.Join("330_openai_oauth_reauth.sql"))
+	require.NoError(t, err)
+	budget, err := os.ReadFile(filepath.Join("335_account_relogin_budget.sql"))
+	require.NoError(t, err)
+	require.NotContains(t, string(reauth), "oauth_profile")
+	require.NotContains(t, string(budget), "oauth_profile")
+	require.Contains(t, string(budget), "WHERE task.account_id = guard.account_id")
+}

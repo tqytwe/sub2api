@@ -81,7 +81,7 @@ jobs:
         run: |
           set -euo pipefail
           go test ./migrations -count=1 -timeout=2m -json \
-            -run '^(TestAccountGroupAllowedModelsMigration|TestUsageLogBillingReconciliationMigrationIsForwardOnly)$' \
+            -run '^(TestAccountGroupAllowedModelsMigration|TestAccountReloginBudgetMigrationDoesNotReferenceMissingOAuthProfile|TestUsageLogBillingReconciliationMigrationIsForwardOnly)$' \
             | tee "$RUNNER_TEMP/core-migration-contracts.json"
 
       - name: Exercise core repositories on PostgreSQL 18.1 and Redis 8.4
@@ -111,6 +111,7 @@ jobs:
           expected = {
               "core-migration-contracts.json": (f"{module}/migrations", {
                   "TestAccountGroupAllowedModelsMigration",
+                  "TestAccountReloginBudgetMigrationDoesNotReferenceMissingOAuthProfile",
                   "TestUsageLogBillingReconciliationMigrationIsForwardOnly",
               }),
               "core-migration-repositories.json": (f"{module}/internal/repository", {
