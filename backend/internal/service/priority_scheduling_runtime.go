@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"strings"
 	"sync"
 	"time"
 )
@@ -13,10 +14,13 @@ type PrioritySchedulingSignalReader interface {
 }
 
 type PrioritySchedulingQuery struct {
-	AccountIDs []int64
-	Model      string
-	GroupID    *int64
-	Since      time.Time
+	AccountIDs         []int64
+	Model              string
+	InboundEndpoint    string
+	GroupID            *int64
+	Since              time.Time
+	LatencyMeasurement string
+	LatencyPercentile  int
 }
 
 type PrioritySchedulingSignal struct {
@@ -45,13 +49,14 @@ type PrioritySchedulingScore struct {
 }
 
 type PrioritySchedulingSnapshot struct {
-	At            time.Time                 `json:"at"`
-	Model         string                    `json:"model"`
-	GroupID       *int64                    `json:"group_id,omitempty"`
-	Mode          string                    `json:"mode"`
-	HistoryReady  bool                      `json:"history_ready"`
-	HistoryStatus string                    `json:"history_status"`
-	Candidates    []PrioritySchedulingScore `json:"candidates"`
+	At              time.Time                 `json:"at"`
+	Model           string                    `json:"model"`
+	InboundEndpoint string                    `json:"inbound_endpoint,omitempty"`
+	GroupID         *int64                    `json:"group_id,omitempty"`
+	Mode            string                    `json:"mode"`
+	HistoryReady    bool                      `json:"history_ready"`
+	HistoryStatus   string                    `json:"history_status"`
+	Candidates      []PrioritySchedulingScore `json:"candidates"`
 }
 
 type prioritySignalEntry struct {
@@ -129,7 +134,11 @@ func (s *OpenAIGatewayService) prioritySignals(req OpenAIAccountScheduleRequest,
 	for _, item := range candidates {
 		ids = append(ids, item.account.ID)
 	}
-	key := req.RequestedModel
+	model := strings.TrimSpace(req.HistoryModel)
+	if model == "" {
+		model = strings.TrimSpace(req.RequestedModel)
+	}
+	key := model + "|" + strings.TrimSpace(req.InboundEndpoint)
 	if req.GroupID != nil {
 		key += ":" + formatPriorityGroup(*req.GroupID)
 	}
@@ -145,7 +154,7 @@ func (s *OpenAIGatewayService) prioritySignals(req OpenAIAccountScheduleRequest,
 	}
 	if !entry.refreshing && time.Now().After(entry.expiresAt) {
 		entry.refreshing = true
-		query := PrioritySchedulingQuery{AccountIDs: ids, Model: req.RequestedModel, GroupID: req.GroupID, Since: time.Now().Add(-time.Duration(cfg.WindowMinutes) * time.Minute)}
+		query := PrioritySchedulingQuery{AccountIDs: ids, Model: model, InboundEndpoint: strings.TrimSpace(req.InboundEndpoint), GroupID: req.GroupID, Since: time.Now().Add(-time.Duration(cfg.WindowMinutes) * time.Minute), LatencyMeasurement: cfg.LatencyMeasurement, LatencyPercentile: cfg.LatencyPercentile}
 		go func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 			defer cancel()
@@ -263,7 +272,11 @@ func scorePriorityCandidate(cfg PrioritySchedulingConfig, item openAIAccountCand
 
 func (s *defaultOpenAIAccountScheduler) applyPriorityScheduling(req OpenAIAccountScheduleRequest, plan *openAIAccountLoadPlan) {
 	cfg := s.service.prioritySchedulingRuntimeConfig()
-	snapshot := &PrioritySchedulingSnapshot{At: time.Now(), Model: req.RequestedModel, GroupID: req.GroupID, Mode: cfg.Mode, HistoryStatus: "unavailable", Candidates: []PrioritySchedulingScore{}}
+	model := strings.TrimSpace(req.HistoryModel)
+	if model == "" {
+		model = strings.TrimSpace(req.RequestedModel)
+	}
+	snapshot := &PrioritySchedulingSnapshot{At: time.Now(), Model: model, InboundEndpoint: strings.TrimSpace(req.InboundEndpoint), GroupID: req.GroupID, Mode: cfg.Mode, HistoryStatus: "unavailable", Candidates: []PrioritySchedulingScore{}}
 	if req.Platform != PlatformOpenAI || req.RequiredImageCapability != "" || !req.UseUpstreamTokenCost || !cfg.applies(req.GroupID, req.RequestedModel) {
 		s.service.publishPrioritySnapshot(snapshot)
 		return

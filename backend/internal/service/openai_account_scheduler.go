@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/Wei-Shaw/sub2api/internal/requestledger"
 	"hash/fnv"
 	"log/slog"
 	"math"
@@ -17,6 +16,8 @@ import (
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
 	"golang.org/x/sync/singleflight"
 )
 
@@ -86,6 +87,11 @@ type OpenAIAccountScheduleRequest struct {
 	PreviousResponseCanMove bool
 	UseUpstreamTokenCost    bool
 	RequestedModel          string
+	// HistoryModel is the client-facing identity used for scheduling evidence.
+	// It remains separate from RequestedModel, which may be channel-mapped.
+	HistoryModel string
+	// InboundEndpoint scopes observations by the public API entry point.
+	InboundEndpoint         string
 	RequiredTransport       OpenAIUpstreamTransport
 	RequiredCapability      OpenAIEndpointCapability
 	RequiredImageCapability OpenAIImagesCapability
@@ -2537,6 +2543,11 @@ func (s *OpenAIGatewayService) selectAccountWithSchedulerOnce(
 		stickyPreviousAccountID = s.ResolveAccountIDByPreviousResponseIDForScheduler(ctx, groupID, previousResponseID, requestedModel, excludedIDs, requiredCapability, requireCompact)
 	}
 
+	historyModel, _ := RequestedPublicModelFromContext(ctx)
+	if historyModel == "" {
+		historyModel = requestedModel
+	}
+	inboundEndpoint, _ := ctx.Value(ctxkey.InboundEndpoint).(string)
 	return scheduler.Select(ctx, OpenAIAccountScheduleRequest{
 		GroupID:                 groupID,
 		Platform:                platform,
@@ -2552,6 +2563,8 @@ func (s *OpenAIGatewayService) selectAccountWithSchedulerOnce(
 		PreviousResponseCanMove: previousResponseCanMove,
 		UseUpstreamTokenCost:    useUpstreamTokenCost,
 		RequestedModel:          requestedModel,
+		HistoryModel:            historyModel,
+		InboundEndpoint:         strings.TrimSpace(inboundEndpoint),
 		RequiredTransport:       requiredTransport,
 		RequiredCapability:      requiredCapability,
 		RequiredImageCapability: requiredImageCapability,

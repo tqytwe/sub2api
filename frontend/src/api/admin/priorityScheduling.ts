@@ -26,6 +26,7 @@ export interface PriorityCandidate {
 export interface PrioritySnapshot {
   at: string
   model: string
+  inbound_endpoint?: string
   group_id: number | null
   history_status?: string
   candidates: PriorityCandidate[]

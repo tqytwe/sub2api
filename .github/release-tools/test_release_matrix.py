@@ -36,7 +36,7 @@ class ReleaseMatrixTest(unittest.TestCase):
         self.pin = {
             'schema_version': 1, 'source_repository': 'ranxi2001/sub2api',
             'source_remote': 'https://github.com/ranxi2001/sub2api.git',
-            'release_tag': 'v2.10.3', 'version_file': '2.10.3',
+            'release_tag': 'v2.17.7', 'version_file': '2.17.7',
             'tag_object': 'b' * 40, 'release_commit': 'c' * 40,
             'production_repository': 'tqytwe/sub2api', 'production_branch': 'play/main',
             'analysis_base': 'd' * 40, 'fully_migrated': False,
@@ -234,7 +234,7 @@ class ReleaseMatrixTest(unittest.TestCase):
             for changed in [dict(self.pin, source_repository='Wei-Shaw/sub2api'),
                             dict(self.pin, production_branch='main'),
                             dict(self.pin, release_commit='c' * 7),
-                            dict(self.pin, release_tag='v2.11.0', version_file='2.11.0')]:
+                            dict(self.pin, release_tag='v2.18.0', version_file='2.18.0')]:
                 with self.subTest(pin=changed):
                     self.source_lock.write_text(json.dumps(changed))
                     with self.assertRaisesRegex(ValueError, 'source lock|runtime'):

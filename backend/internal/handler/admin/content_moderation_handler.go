@@ -7,6 +7,7 @@ import (
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
+	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
 )
@@ -73,6 +74,17 @@ type contentModerationAPIKeyTestRequest struct {
 
 type contentModerationHashRequest struct {
 	InputHash string `json:"input_hash"`
+}
+
+type moderationUserActionRequest struct {
+	Action         string `json:"action"`
+	Version        *int64 `json:"version" binding:"required"`
+	AutoBanExempt  *bool  `json:"auto_ban_exempt"`
+	KeywordExempt  *bool  `json:"keyword_exempt"`
+	APIAuditExempt *bool  `json:"api_audit_exempt"`
+	EmailExempt    *bool  `json:"email_exempt"`
+	Reason         string `json:"reason"`
+	Confirm        bool   `json:"confirm"`
 }
 
 func (h *ContentModerationHandler) GetConfig(c *gin.Context) {
@@ -211,18 +223,72 @@ func (h *ContentModerationHandler) ListLogs(c *gin.Context) {
 	response.Paginated(c, items, pageResult.Total, pageResult.Page, pageResult.PageSize)
 }
 
-func (h *ContentModerationHandler) UnbanUser(c *gin.Context) {
+func (h *ContentModerationHandler) UnbanUser(c *gin.Context) { h.manageUser(c, "unban") }
+
+func (h *ContentModerationHandler) ManageUser(c *gin.Context) { h.manageUser(c, "") }
+
+func (h *ContentModerationHandler) manageUser(c *gin.Context, fixedAction string) {
 	userID, err := strconv.ParseInt(strings.TrimSpace(c.Param("user_id")), 10, 64)
 	if err != nil || userID <= 0 {
 		response.BadRequest(c, "Invalid user_id")
 		return
 	}
-	result, err := h.service.UnbanUser(c.Request.Context(), userID)
+	var req moderationUserActionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Version, reason and confirmation are required")
+		return
+	}
+	if req.Version == nil {
+		response.BadRequest(c, "Version, reason and confirmation are required")
+		return
+	}
+	if fixedAction != "" {
+		req.Action = fixedAction
+	}
+	subject, ok := middleware.GetAuthSubjectFromContext(c)
+	if !ok || subject.UserID <= 0 {
+		response.Unauthorized(c, "Administrator identity required")
+		return
+	}
+	result, err := h.service.ManageModerationUser(c.Request.Context(), userID, service.ModerationUserAction{
+		Action: req.Action, Version: *req.Version, Reason: req.Reason, Confirm: req.Confirm, ActorID: subject.UserID,
+		Exempt: req.AutoBanExempt, KeywordExempt: req.KeywordExempt, APIAuditExempt: req.APIAuditExempt, EmailExempt: req.EmailExempt,
+	})
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
 	response.Success(c, result)
+}
+
+func (h *ContentModerationHandler) GetModerationUser(c *gin.Context) {
+	userID, err := strconv.ParseInt(strings.TrimSpace(c.Param("user_id")), 10, 64)
+	if err != nil || userID <= 0 {
+		response.BadRequest(c, "Invalid user_id")
+		return
+	}
+	state, err := h.service.GetModerationUser(c.Request.Context(), userID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, state)
+}
+
+func (h *ContentModerationHandler) ListModerationUsers(c *gin.Context) {
+	page, pageSize := response.ParsePagination(c)
+	userID, err := strconv.ParseInt(strings.TrimSpace(c.DefaultQuery("user_id", "0")), 10, 64)
+	if err != nil || userID < 0 {
+		response.BadRequest(c, "Invalid user_id")
+		return
+	}
+	state := c.DefaultQuery("state", "exempt")
+	items, total, err := h.service.ListModerationUsers(c.Request.Context(), page, pageSize, state, userID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Paginated(c, items, total, page, pageSize)
 }
 
 func (h *ContentModerationHandler) DeleteFlaggedHash(c *gin.Context) {

@@ -23,7 +23,7 @@ const (
 	upstreamRepository = "ranxi2001/sub2api"
 	forkRepository     = "tqytwe/sub2api"
 	// This is the reviewed source pin, not the installed fork's version number.
-	upstreamReviewVersion = "2.10.3"
+	upstreamReviewVersion = "2.17.7"
 	// Change this identity when source, review pin or installation policy changes.
 	UpdateSourceIdentity = upstreamRepository + ":stable:v" + upstreamReviewVersion + "|" + forkRepository + ":source-only:v1"
 )

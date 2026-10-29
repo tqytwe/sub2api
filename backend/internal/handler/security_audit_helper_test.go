@@ -6,9 +6,11 @@ import (
 	"net/http/httptest"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/securityaudit"
 	middleware2 "github.com/Wei-Shaw/sub2api/internal/server/middleware"
+	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
@@ -23,6 +25,52 @@ func TestCachesSecurityAuditCompletionSkipsWebSocketStages(t *testing.T) {
 	require.True(t, isSecurityAuditWebSocketStage("first_turn"))
 	require.True(t, isSecurityAuditWebSocketStage("subsequent_turn"))
 	require.False(t, isSecurityAuditWebSocketStage("http"))
+}
+
+type securityAuditModerationUserRepo struct {
+	service.ContentModerationRepository
+	version int64
+}
+
+func (r *securityAuditModerationUserRepo) GetModerationUser(context.Context, int64, time.Time, bool) (*service.ModerationUserState, error) {
+	return &service.ModerationUserState{Version: r.version}, nil
+}
+
+func (*securityAuditModerationUserRepo) ListModerationUsers(context.Context, int, int, string, int64, time.Time, bool) ([]service.ModerationUserState, int64, error) {
+	return nil, 0, nil
+}
+
+func (*securityAuditModerationUserRepo) ManageModerationUser(context.Context, int64, service.ModerationUserAction) error {
+	return nil
+}
+
+func (*securityAuditModerationUserRepo) ApplyModerationAutoBan(context.Context, int64) (service.ModerationAutoBanResult, error) {
+	return service.ModerationAutoBanResult{}, nil
+}
+
+func (*securityAuditModerationUserRepo) ApplyModerationHit(context.Context, service.ModerationHit) (service.ModerationHitResult, error) {
+	return service.ModerationHitResult{}, nil
+}
+
+func TestRunSecurityAuditCapturesModerationVersionAtRequestEntry(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	repo := &securityAuditModerationUserRepo{version: 4}
+	moderation := service.NewContentModerationService(nil, repo, nil, nil, nil, nil, nil, nil)
+	coordinator := securityaudit.NewCoordinator(nil, &turnCountingEngine{mode: securityaudit.ModeAsync})
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", nil)
+
+	decision := runSecurityAudit(c, nil, coordinator, moderation, nil, middleware2.AuthSubject{UserID: 7}, "openai_responses", "gpt-test", []byte(`{"input":"safe"}`), "http")
+	require.NotNil(t, decision)
+	repo.version = 9
+
+	value, exists := c.Get(contentModerationUserVersionContextKey)
+	require.True(t, exists)
+	version, ok := value.(*int64)
+	require.True(t, ok)
+	require.NotNil(t, version)
+	require.Equal(t, int64(4), *version, "post-upstream cyber-policy recording must use the request-entry version")
 }
 
 func TestRunSecurityAuditDoesNotSkipSubsequentWebSocketTurns(t *testing.T) {

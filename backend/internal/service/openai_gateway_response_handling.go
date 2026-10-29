@@ -720,6 +720,7 @@ func (s *OpenAIGatewayService) handleStreamingResponseWithReasoning(ctx context.
 			}
 			if startsClientOutput && !openAIStreamEventTypeIsTerminal(eventType) {
 				responsesSemanticOutputSeen = true
+				ledgerAttempt.ObservePrioritySemantic(originalModel, c.Request.URL.Path, priorityGroupID(c))
 			}
 			// OpenAI Responses streams that terminate with an empty
 			// response.completed (no output, no usage, no error, nothing sent

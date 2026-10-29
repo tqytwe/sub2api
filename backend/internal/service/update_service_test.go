@@ -39,7 +39,7 @@ func (c *sourcePolicyClient) FetchChecksumFile(context.Context, string) ([]byte,
 	panic("unverified checksum download")
 }
 func policyRelease() *GitHubRelease {
-	return &GitHubRelease{TagName: "v2.10.3", HTMLURL: "https://github.com/ranxi2001/sub2api/releases/tag/v2.10.3", Assets: []GitHubAsset{{Name: "sub2api_linux_amd64.tar.gz", BrowserDownloadURL: "https://github.com/ranxi2001/sub2api/releases/download/v2.10.3/sub2api_linux_amd64.tar.gz"}}}
+	return &GitHubRelease{TagName: "v2.17.7", HTMLURL: "https://github.com/ranxi2001/sub2api/releases/tag/v2.17.7", Assets: []GitHubAsset{{Name: "sub2api_linux_amd64.tar.gz", BrowserDownloadURL: "https://github.com/ranxi2001/sub2api/releases/download/v2.17.7/sub2api_linux_amd64.tar.gz"}}}
 }
 
 func TestUpdateSourcePolicyRejectsAllBinaryMutation(t *testing.T) {
@@ -68,7 +68,7 @@ func TestUpdateSourcePolicyCheckAndCache(t *testing.T) {
 	client := &sourcePolicyClient{release: policyRelease()}
 	svc := NewUpdateService(cache, client, "0.2.14", "release")
 	info, err := svc.CheckUpdate(context.Background(), false)
-	if err != nil || info.LatestVersion != "2.10.3" || info.Cached || client.repo != "ranxi2001/sub2api" {
+	if err != nil || info.LatestVersion != "2.17.7" || info.Cached || client.repo != "ranxi2001/sub2api" {
 		t.Fatalf("old cache/source reused: %+v %v %s", info, err, client.repo)
 	}
 	if len(info.ReleaseInfo.Assets) != 0 {
@@ -97,7 +97,7 @@ func TestUpdateSourcePolicyCheckAndCache(t *testing.T) {
 }
 
 func TestUpdateSourcePolicyRejectsUnofficialRelease(t *testing.T) {
-	for _, change := range []func(*GitHubRelease){func(r *GitHubRelease) { r.Draft = true }, func(r *GitHubRelease) { r.Prerelease = true }, func(r *GitHubRelease) { r.HTMLURL = "https://github.com/Wei-Shaw/sub2api/releases/tag/v2.10.3" }, func(r *GitHubRelease) { r.TagName = "v2.10.3-rc1" }} {
+	for _, change := range []func(*GitHubRelease){func(r *GitHubRelease) { r.Draft = true }, func(r *GitHubRelease) { r.Prerelease = true }, func(r *GitHubRelease) { r.HTMLURL = "https://github.com/Wei-Shaw/sub2api/releases/tag/v2.17.7" }, func(r *GitHubRelease) { r.TagName = "v2.17.7-rc1" }} {
 		release := policyRelease()
 		change(release)
 		svc := NewUpdateService(&sourcePolicyCache{}, &sourcePolicyClient{release: release}, "0.2.14", "release")
@@ -117,8 +117,8 @@ func TestUpdateSourcePolicyComparesUpstreamPinNotForkVersion(t *testing.T) {
 		if err != nil || info.HasUpdate {
 			t.Fatalf("the pinned upstream release is not a new fork update: %+v %v", info, err)
 		}
-		release.TagName = "v2.11.0"
-		release.HTMLURL = "https://github.com/ranxi2001/sub2api/releases/tag/v2.11.0"
+		release.TagName = "v2.18.0"
+		release.HTMLURL = "https://github.com/ranxi2001/sub2api/releases/tag/v2.18.0"
 		info, err = svc.CheckUpdate(context.Background(), true)
 		if err != nil || !info.HasUpdate {
 			t.Fatalf("new upstream should be compared to review pin: %+v %v", info, err)

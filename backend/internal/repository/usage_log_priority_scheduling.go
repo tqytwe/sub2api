@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/lib/pq"
@@ -10,6 +11,9 @@ import (
 // ReadPrioritySchedulingSignals is deliberately limited to persisted usage
 // aggregates. It never treats absent quality history as a passing result.
 func (r *usageLogRepository) ReadPrioritySchedulingSignals(ctx context.Context, q service.PrioritySchedulingQuery) (map[int64]service.PrioritySchedulingSignal, error) {
+	if q.LatencyMeasurement == "attributed_v1" {
+		return r.readAttributedPrioritySchedulingSignals(ctx, q)
+	}
 	rows, err := r.sql.QueryContext(ctx, `
 SELECT account_id,
        COUNT(*) FILTER (WHERE stream AND first_token_ms > 0) AS samples,
@@ -21,7 +25,49 @@ WHERE account_id = ANY($1::bigint[])
   AND created_at >= $2 AND created_at <= NOW()
   AND COALESCE(NULLIF(BTRIM(requested_model), ''), model) = $3
   AND ($4::bigint IS NULL OR group_id = $4)
-GROUP BY account_id`, pq.Array(q.AccountIDs), q.Since, q.Model, nullablePriorityGroup(q.GroupID))
+  AND ($5 = '' OR COALESCE(NULLIF(BTRIM(inbound_endpoint), ''), '') = $5)
+GROUP BY account_id`, pq.Array(q.AccountIDs), q.Since, q.Model, nullablePriorityGroup(q.GroupID), q.InboundEndpoint)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+	out := make(map[int64]service.PrioritySchedulingSignal, len(q.AccountIDs))
+	for rows.Next() {
+		var id int64
+		var signal service.PrioritySchedulingSignal
+		if err := rows.Scan(&id, &signal.Samples, &signal.P90TTFTMs, &signal.Revenue, &signal.TheoreticalCost); err != nil {
+			return nil, err
+		}
+		out[id] = signal
+	}
+	return out, rows.Err()
+}
+
+func (r *usageLogRepository) readAttributedPrioritySchedulingSignals(ctx context.Context, q service.PrioritySchedulingQuery) (map[int64]service.PrioritySchedulingSignal, error) {
+	percentile := 0.90
+	switch q.LatencyPercentile {
+	case 50:
+		percentile = 0.50
+	case 70:
+		percentile = 0.70
+	case 95:
+		percentile = 0.95
+	}
+	rows, err := r.sql.QueryContext(ctx, fmt.Sprintf(`
+SELECT a.account_id,
+       COUNT(*) AS samples,
+       COALESCE(percentile_cont(%0.2f) WITHIN GROUP (ORDER BY o.first_semantic_ms), 0),
+       0::double precision, 0::double precision
+FROM gateway_request_priority_observations o
+JOIN gateway_request_attempt_evidence e ON e.attempt_id=o.attempt_id
+JOIN gateway_request_attempts a ON a.request_id=e.request_id AND a.attempt_no=e.attempt_no
+JOIN gateway_requests r ON r.id=a.request_id
+WHERE a.account_id = ANY($1::bigint[])
+  AND o.created_at >= $2 AND o.created_at <= NOW()
+  AND o.model = $3
+  AND o.inbound_endpoint = $4
+  AND o.group_id IS NOT DISTINCT FROM $5::bigint
+GROUP BY a.account_id`, percentile), pq.Array(q.AccountIDs), q.Since, q.Model, q.InboundEndpoint, nullablePriorityGroup(q.GroupID))
 	if err != nil {
 		return nil, err
 	}

@@ -24,6 +24,7 @@ export const LOCALE_LOAD_SCOPES = [
   'admin-plugins',
   'admin-audit',
   'admin-prompt-audit',
+  'admin-token-guard-v2',
 ] as const
 
 export type LocaleLoadScope = typeof LOCALE_LOAD_SCOPES[number]
@@ -102,6 +103,7 @@ export type LocaleRouteName =
   | 'AdminChannels'
   | 'AdminChannelOperations'
   | 'AdminPriorityScheduling'
+  | 'AdminTokenGuardV2'
   | 'AdminChannelMonitor'
   | 'AdminModelPlaza'
   | 'ChannelStatus'
@@ -217,6 +219,7 @@ export const ROUTE_LOCALE_SCOPES = {
   AdminChannels: [...ADMIN, 'admin-channels'],
   AdminChannelOperations: [...ADMIN, 'admin-channels'],
   AdminPriorityScheduling: [...ADMIN, 'admin-resources'],
+  AdminTokenGuardV2: [...ADMIN, 'admin-token-guard-v2', 'admin-accounts'],
   // The monitor embeds UsageProgressBar, which reads account usage-window
   // labels. Keep admin accounts explicit for a cold direct visit.
   AdminChannelMonitor: [...ADMIN, 'admin-channels', 'channel-monitor', 'admin-settings', 'admin-accounts', 'user-dashboard'],
