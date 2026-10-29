@@ -33,7 +33,7 @@ describe('PrioritySchedulingView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     getPriorityConfig.mockResolvedValue({ enabled: true, latency_penalty_mode: 'deprioritize', latency_penalty_minutes: 10, latency_percentile: 90, latency_measurement: 'legacy_forward' })
-    getPrioritySnapshot.mockResolvedValue({ at: '2026-10-28T00:00:00Z', model: 'public-gpt-test', inbound_endpoint: '/v1/responses', group_id: 3, candidates: [{ account_id: 11, account_name: 'slow', tier: 'degraded', latency_stopped: true, latency_penalty_until: '2026-10-28T00:10:00Z', selected_ttft_ms: 900, samples: 20, reasons: ['latency_stopped'] }] })
+    getPrioritySnapshot.mockResolvedValue({ at: '2026-10-28T00:00:00Z', model: 'gpt-test', group_id: 3, candidates: [{ account_id: 11, account_name: 'slow', tier: 'degraded', latency_stopped: true, latency_penalty_until: '2026-10-28T00:10:00Z', selected_ttft_ms: 900, samples: 20, reasons: ['latency_stopped'] }] })
     savePriorityConfig.mockResolvedValue({ enabled: true, latency_penalty_mode: 'stop', latency_penalty_minutes: 10, latency_percentile: 90, latency_measurement: 'legacy_forward' })
   })
 
@@ -44,7 +44,6 @@ describe('PrioritySchedulingView', () => {
     expect(getPrioritySnapshot).toHaveBeenCalledOnce()
     expect(wrapper.text()).toContain('admin.priorityScheduling.stopped')
     expect(wrapper.text()).toContain('admin.priorityScheduling.penaltyUntil')
-    expect(wrapper.text()).toContain('/v1/responses')
   })
 
   it('saves the selected penalty mode without dropping the server config fields', async () => {

@@ -241,8 +241,6 @@
           {{ enableStatusMessage }}
         </div>
 
-        <ModerationUsersSummary />
-
         <div class="card">
           <div class="flex flex-col gap-4 border-b border-gray-100 px-6 py-4 dark:border-dark-700">
             <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -340,6 +338,16 @@
                         {{ row.email_sent ? t('admin.riskControl.emailSent') : t('admin.riskControl.emailNotSent') }}
                         <span v-if="row.auto_banned"> / {{ t('admin.riskControl.autoBanned') }}</span>
                       </div>
+                      <button
+                        v-if="canUnbanRow(row)"
+                        type="button"
+                        class="mt-2 inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700 transition-colors hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-emerald-900/60 dark:bg-emerald-900/20 dark:text-emerald-300 dark:hover:bg-emerald-900/30"
+                        :disabled="unbanningUserID === row.user_id"
+                        @click="unbanUser(row)"
+                      >
+                        <Icon name="checkCircle" size="xs" :class="unbanningUserID === row.user_id ? 'animate-spin' : ''" />
+                        {{ unbanningUserID === row.user_id ? t('common.processing') : t('admin.riskControl.unbanUser') }}
+                      </button>
                       <button
                         v-if="canEnableRow(row)"
                         type="button"
@@ -1232,7 +1240,6 @@ import Toggle from '@/components/common/Toggle.vue'
 import Pagination from '@/components/common/Pagination.vue'
 import ModelWhitelistSelector from '@/components/account/ModelWhitelistSelector.vue'
 import ProxySelector from '@/components/common/ProxySelector.vue'
-import ModerationUsersSummary from '@/components/admin/moderation/ModerationUsersSummary.vue'
 import { adminAPI } from '@/api/admin'
 import type {
   ContentModerationAPIKeyLoad,
@@ -1311,6 +1318,7 @@ const logsLoading = ref(false)
 const statusLoading = ref(false)
 const apiKeyTesting = ref(false)
 const hashActionLoading = ref(false)
+const unbanningUserID = ref<number | null>(null)
 const enableUserRow = ref<ContentModerationLog | null>(null)
 const enableUserID = ref<number | null>(null)
 const enableReason = ref('')
@@ -2052,6 +2060,10 @@ async function loadLogs() {
   }
 }
 
+function canUnbanRow(row: ContentModerationLog): boolean {
+  return Boolean(row.auto_banned && row.user_id && row.user_status === 'disabled')
+}
+
 function canEnableRow(row: ContentModerationLog): boolean {
   return Boolean(row.user_id && row.user_status === 'disabled')
 }
@@ -2142,6 +2154,23 @@ function openInputDetail(row: ContentModerationLog) {
 
 function closeInputDetail() {
   inputDetailRow.value = null
+}
+
+async function unbanUser(row: ContentModerationLog) {
+  if (!row.user_id || unbanningUserID.value !== null) return
+  unbanningUserID.value = row.user_id
+  try {
+    const result = await adminAPI.riskControl.unbanUser(row.user_id)
+    logs.value = logs.value.map((item) => {
+      if (item.user_id !== row.user_id) return item
+      return { ...item, user_status: result.status }
+    })
+    appStore.showSuccess(t('admin.riskControl.unbanSuccess'))
+  } catch (err: unknown) {
+    appStore.showError(extractApiErrorMessage(err, t('admin.riskControl.unbanFailed')))
+  } finally {
+    unbanningUserID.value = null
+  }
 }
 
 async function deleteFlaggedHash() {

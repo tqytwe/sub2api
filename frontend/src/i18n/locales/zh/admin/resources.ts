@@ -882,7 +882,6 @@ export default {
         range: '时间范围',
         deletedRows: '删除数量',
         missingRange: '请选择时间范围',
-        calendarRangeRequired: '清理使用记录前，请先选择日历日期范围。',
         submitSuccess: '清理任务已创建',
         submitFailed: '创建清理任务失败',
         loadFailed: '加载清理任务失败',

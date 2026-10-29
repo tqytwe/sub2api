@@ -885,7 +885,6 @@ export default {
         range: 'Range',
         deletedRows: 'Deleted',
         missingRange: 'Please select a date range',
-        calendarRangeRequired: 'Choose calendar dates before cleaning up usage records.',
         submitSuccess: 'Cleanup task created',
         submitFailed: 'Failed to create cleanup task',
         loadFailed: 'Failed to load cleanup tasks',

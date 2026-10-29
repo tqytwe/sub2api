@@ -973,20 +973,6 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
-    path: '/admin/token-guard-v2',
-    name: 'AdminTokenGuardV2',
-    component: () => import('@/views/admin/ops/TokenGuardV2View.vue'),
-    meta: {
-      requiresAuth: true,
-      requiresAdmin: true,
-      title: 'Credential Guard V2',
-      titleKey: 'tokenGuardV2.title',
-      descriptionKey: 'tokenGuardV2.description',
-      localeScopes: ['admin-token-guard-v2'],
-      frame: 'workspace'
-    }
-  },
-  {
     path: '/admin/accounts',
     name: 'AdminAccounts',
     component: () => import('@/views/admin/AccountsView.vue'),

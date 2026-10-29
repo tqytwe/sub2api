@@ -84,5 +84,5 @@
 
 ## Residual Risk
 
-- #572 public model and inbound endpoint identity now reach the priority history query and admin snapshot. Attributed physical-attempt latency evidence and admission behavior remain outside this slice; this batch does not claim full #572 migration, production deployment, or browser acceptance.
+- Backend integration for #573 and #572 is present in the candidate batch; this batch does not claim production deployment or browser acceptance.
 - #575 remains deferred until a real quality/Jev API and persistence contract exists.

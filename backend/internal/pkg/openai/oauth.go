@@ -17,8 +17,6 @@ import (
 const (
 	// OAuth Client ID for OpenAI (Codex CLI official)
 	ClientID = "app_EMoamEEZ73f0CkXaXp7hrann"
-	// ExcelClientID is the client identifier used by the Excel OAuth flow.
-	ExcelClientID = "app_fnr0pYvVwwFDocDumLG3H2Bp"
 
 	// OAuth endpoints
 	AuthorizeURL = "https://auth.openai.com/oauth/authorize"
@@ -244,7 +242,6 @@ type RefreshTokenRequest struct {
 type IDTokenClaims struct {
 	// Standard claims
 	Sub           string   `json:"sub"`
-	SID           string   `json:"sid"`
 	Email         string   `json:"email"`
 	EmailVerified bool     `json:"email_verified"`
 	Iss           string   `json:"iss"`
@@ -410,15 +407,6 @@ func (c *IDTokenClaims) GetUserInfo() *UserInfo {
 		if info.OrganizationID == "" && len(c.OpenAIAuth.Organizations) > 0 {
 			info.OrganizationID = c.OpenAIAuth.Organizations[0].ID
 		}
-		if info.ChatGPTUserID == "" {
-			info.ChatGPTUserID = c.OpenAIAuth.UserID
-		}
-	}
-	if info.ChatGPTAccountID == "" {
-		info.ChatGPTAccountID = c.SID
-	}
-	if info.ChatGPTUserID == "" {
-		info.ChatGPTUserID = c.Sub
 	}
 
 	return info

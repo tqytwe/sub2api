@@ -9,7 +9,6 @@ import audit from './audit'
 import playOps from './playOps'
 import promptAudit from './promptAudit'
 import plugins from './plugins'
-import moderationUsers from './moderationUsers'
 
 export default {
   ...overview,
@@ -23,5 +22,4 @@ export default {
   ...playOps,
   ...promptAudit,
   ...plugins,
-  ...moderationUsers,
 }

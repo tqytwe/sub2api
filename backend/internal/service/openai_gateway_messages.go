@@ -1073,9 +1073,6 @@ func (s *OpenAIGatewayService) handleAnthropicStreamingResponse(
 			)
 			return false
 		}
-		if openAIStreamDataStartsClientOutput(payload, event.Type) && !isOpenAICompatResponsesTerminalEvent(event.Type) {
-			ledgerAttempt.ObservePrioritySemantic(originalModel, c.Request.URL.Path, priorityGroupID(c))
-		}
 		observer.ObserveOpenAI([]byte(payload), event.Type)
 		s.parseSSEUsageBytesWithType([]byte(payload), event.Type, &usage, account.IsOpenAI())
 

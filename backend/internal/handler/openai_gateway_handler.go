@@ -690,7 +690,6 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 	// 生图意图只影响能力路由与图片计费，不关门：混合 /v1/responses 请求的
 	// token 计费部分仍受利润门保护，独立图片/视频端点才在门外。
 	pricingCtx, pricingAt := h.gatewayService.WithOpenAIRequestPricingContext(c.Request.Context(), apiKey.GroupID)
-	pricingCtx = service.WithPrioritySchedulingObservation(pricingCtx, apiKey.GroupID, reqModel, GetInboundEndpoint(c))
 	c.Request = c.Request.WithContext(pricingCtx)
 
 	for {
@@ -1354,7 +1353,6 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 
 	// 分组利润控制：Messages 文本入口同样请求级装门并固定 pricingAt。
 	msgPricingCtx, pricingAt := h.gatewayService.WithOpenAIRequestPricingContext(c.Request.Context(), apiKey.GroupID)
-	msgPricingCtx = service.WithPrioritySchedulingObservation(msgPricingCtx, apiKey.GroupID, reqModel, GetInboundEndpoint(c))
 	c.Request = c.Request.WithContext(msgPricingCtx)
 
 	for {
@@ -2772,7 +2770,6 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 	// 继续按建连时刻的谷价计费。生图意图只影响能力路由与图片计费，不关门。
 	// 建连时刻只用于选号/准入，不作为任何 turn 的计费定价时刻。
 	wsPricingCtx, _ := h.gatewayService.WithOpenAIRequestPricingContext(ctx, apiKey.GroupID)
-	wsPricingCtx = service.WithPrioritySchedulingObservation(wsPricingCtx, apiKey.GroupID, reqModel, GetInboundEndpoint(c))
 	ctx = wsPricingCtx
 
 	for {
@@ -4444,10 +4441,6 @@ func (h *OpenAIGatewayHandler) recordCyberPolicyIfMarked(c *gin.Context, apiKey 
 		CreatedAt:       time.Now(),
 	}
 	cyberLogOnly := h.cyberPolicyLogOnly(c, apiKey)
-	var moderationVersion *int64
-	if value, ok := c.Get(contentModerationUserVersionContextKey); ok {
-		moderationVersion, _ = value.(*int64)
-	}
 	if gwSvc != nil && apiKey != nil && !cyberLogOnly {
 		plan := buildCyberSessionBlockWritePlan(apiKey.ID, c, cyberBlockBody)
 		if len(plan.keys) > 0 {
@@ -4461,22 +4454,21 @@ func (h *OpenAIGatewayHandler) recordCyberPolicyIfMarked(c *gin.Context, apiKey 
 		defer cancel()
 		if cmSvc != nil {
 			cmSvc.RecordCyberPolicyEvent(ctx, service.CyberPolicyRecordInput{
-				ModerationVersion: moderationVersion,
-				LogOnly:           cyberLogOnly,
-				RequestID:         requestID,
-				UserID:            userID,
-				UserEmail:         userEmail,
-				APIKeyID:          apiKeyID,
-				APIKeyName:        apiKeyName,
-				GroupID:           groupID,
-				GroupName:         groupName,
-				Endpoint:          inboundEndpoint,
-				Model:             model,
-				UpstreamMessage:   mark.Message,
-				UpstreamBody:      mark.Body,
-				UpstreamStatus:    mark.UpstreamStatus,
-				UpstreamInTok:     mark.UpstreamInTok,
-				UpstreamOutTok:    mark.UpstreamOutTok,
+				LogOnly:         cyberLogOnly,
+				RequestID:       requestID,
+				UserID:          userID,
+				UserEmail:       userEmail,
+				APIKeyID:        apiKeyID,
+				APIKeyName:      apiKeyName,
+				GroupID:         groupID,
+				GroupName:       groupName,
+				Endpoint:        inboundEndpoint,
+				Model:           model,
+				UpstreamMessage: mark.Message,
+				UpstreamBody:    mark.Body,
+				UpstreamStatus:  mark.UpstreamStatus,
+				UpstreamInTok:   mark.UpstreamInTok,
+				UpstreamOutTok:  mark.UpstreamOutTok,
 			})
 		}
 		if forwardErrored && gwSvc != nil {

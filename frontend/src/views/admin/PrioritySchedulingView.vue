@@ -43,7 +43,7 @@
         <p v-if="snapshotError" role="alert" class="m-4 border border-red-300 bg-red-50 p-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-900/20 dark:text-red-200">{{ snapshotError }}</p>
         <p v-if="!snapshot && !refreshing" class="p-8 text-center text-sm text-gray-500">{{ t(snapshotError ? 'admin.priorityScheduling.snapshotFailed' : 'admin.priorityScheduling.empty') }}</p>
         <div v-if="snapshot" class="p-4">
-          <p class="mb-3 text-xs text-gray-500">{{ new Date(snapshot.at).toLocaleString() }} · {{ t('admin.priorityScheduling.model') }}: {{ snapshot.model }} · {{ t('admin.priorityScheduling.endpoint') }}: {{ snapshot.inbound_endpoint || '—' }} · {{ t('admin.priorityScheduling.group') }}: {{ snapshot.group_id ?? '—' }}</p>
+          <p class="mb-3 text-xs text-gray-500">{{ new Date(snapshot.at).toLocaleString() }} · {{ t('admin.priorityScheduling.model') }}: {{ snapshot.model }} · {{ t('admin.priorityScheduling.group') }}: {{ snapshot.group_id ?? '—' }}</p>
           <p v-if="snapshot.history_status && snapshot.history_status !== 'ready'" class="mb-3 text-sm text-amber-700 dark:text-amber-400">{{ t('admin.priorityScheduling.historyUnavailable', { status: snapshot.history_status }) }}</p>
           <DataTable :columns="columns" :data="snapshot.candidates" row-key="account_id">
             <template #cell-account="{ row }"><span class="font-medium text-gray-900 dark:text-white">{{ row.account_name }} <span class="font-normal text-gray-500">#{{ row.account_id }}</span></span></template>

@@ -92,31 +92,6 @@ func ProvideOpenAIOAuthService(
 	return svc
 }
 
-// ProvideOpenAIOAuthReauthService wires the durable credential re-login task
-// flow. The executable worker remains a separate process.
-func ProvideOpenAIOAuthReauthService(
-	repo OpenAIOAuthReauthRepository,
-	adminService AdminService,
-	accountRepo AccountRepository,
-	openaiOAuthService *OpenAIOAuthService,
-	secretEncryptor SecretEncryptor,
-	cfg *config.Config,
-	tokenCacheInvalidator TokenCacheInvalidator,
-	runtimeBlocker AccountRuntimeBlocker,
-) *OpenAIOAuthReauthService {
-	credentialUpdater, _ := accountRepo.(OpenAIOAuthReauthCredentialUpdater)
-	return NewOpenAIOAuthReauthService(
-		repo,
-		adminService,
-		credentialUpdater,
-		openaiOAuthService,
-		secretEncryptor,
-		cfg != nil && cfg.Totp.EncryptionKeyConfigured,
-		tokenCacheInvalidator,
-		runtimeBlocker,
-	)
-}
-
 // ProvideTokenRefreshService creates and starts TokenRefreshService
 func ProvideTokenRefreshService(
 	accountRepo AccountRepository,
@@ -1079,19 +1054,6 @@ func ProvideAPIKeyService(
 	return svc
 }
 
-// ProvideAccountTokenGuardV2Service starts the account credential probe loop.
-func ProvideAccountTokenGuardV2Service(
-	repo AccountTokenGuardV2Repository,
-	settings SettingRepository,
-	accounts AdminService,
-	prober *OpenAIGatewayService,
-	reauth *OpenAIOAuthReauthService,
-) *AccountTokenGuardV2Service {
-	svc := NewAccountTokenGuardV2Service(repo, settings, accounts, prober, reauth)
-	svc.Start()
-	return svc
-}
-
 // ProviderSet is the Wire provider set for all services
 var ProviderSet = wire.NewSet(
 	requestledger.NewStarted,
@@ -1151,7 +1113,6 @@ var ProviderSet = wire.NewSet(
 	NewOAuthService,
 	ProvideClaudeResetCreditService,
 	ProvideOpenAIOAuthService,
-	ProvideOpenAIOAuthReauthService,
 	ProvideGrokOAuthService,
 	wire.Bind(new(GrokOAuthTokenService), new(*GrokOAuthService)),
 	NewGeminiOAuthService,
@@ -1191,7 +1152,6 @@ var ProviderSet = wire.NewSet(
 	ProvideOpsAlertEvaluatorService,
 	ProvideOpsCleanupService,
 	ProvideOpsScheduledReportService,
-	ProvideAccountTokenGuardV2Service,
 	NewEmailService,
 	NewNotificationEmailService,
 	NewIPRiskAlertEmailNotifier,

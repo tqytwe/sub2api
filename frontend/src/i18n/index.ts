@@ -121,14 +121,13 @@ const localeLoaders: Record<LocaleCode, Record<LocaleLoadScope, LocaleLoader>> =
       return { default: mergeLocaleMessages(legacy.default, adminMessages(module.default)) }
     },
     'admin-resources': async () => {
-      const [overview, resources, scheduling, moderationUsers, legacy] = await Promise.all([
+      const [overview, resources, scheduling, legacy] = await Promise.all([
         import('./locales/en/admin/overview'),
         import('./locales/en/admin/resources'),
         import('./locales/en/admin/scheduling'),
-        import('./locales/en/admin/moderationUsers'),
         import('./locales/en/legacy/admin-resources'),
       ])
-      return { default: mergeLocaleMessages(legacy.default, adminMessages(overview.default, resources.default, scheduling.default, moderationUsers.default)) }
+      return { default: mergeLocaleMessages(legacy.default, adminMessages(overview.default, resources.default, scheduling.default)) }
     },
     'admin-settings': async () => {
       const [module, legacy] = await Promise.all([
@@ -149,7 +148,6 @@ const localeLoaders: Record<LocaleCode, Record<LocaleLoadScope, LocaleLoader>> =
       const module = await import('./locales/en/admin/promptAudit')
       return { default: adminMessages(module.default) }
     },
-    'admin-token-guard-v2': () => import('./locales/en/tokenGuardV2'),
   },
   zh: {
     core: async () => {
@@ -226,14 +224,13 @@ const localeLoaders: Record<LocaleCode, Record<LocaleLoadScope, LocaleLoader>> =
       return { default: mergeLocaleMessages(legacy.default, adminMessages(module.default)) }
     },
     'admin-resources': async () => {
-      const [overview, resources, scheduling, moderationUsers, legacy] = await Promise.all([
+      const [overview, resources, scheduling, legacy] = await Promise.all([
         import('./locales/zh/admin/overview'),
         import('./locales/zh/admin/resources'),
         import('./locales/zh/admin/scheduling'),
-        import('./locales/zh/admin/moderationUsers'),
         import('./locales/zh/legacy/admin-resources'),
       ])
-      return { default: mergeLocaleMessages(legacy.default, adminMessages(overview.default, resources.default, scheduling.default, moderationUsers.default)) }
+      return { default: mergeLocaleMessages(legacy.default, adminMessages(overview.default, resources.default, scheduling.default)) }
     },
     'admin-settings': async () => {
       const [module, legacy] = await Promise.all([
@@ -254,7 +251,6 @@ const localeLoaders: Record<LocaleCode, Record<LocaleLoadScope, LocaleLoader>> =
       const module = await import('./locales/zh/admin/promptAudit')
       return { default: adminMessages(module.default) }
     },
-    'admin-token-guard-v2': () => import('./locales/zh/tokenGuardV2'),
   },
 }
 

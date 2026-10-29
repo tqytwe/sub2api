@@ -20,9 +20,8 @@ const (
 )
 
 type Question struct {
-	Type         string            `json:"type"`
-	Instructions string            `json:"instructions"`
-	Criteria     map[string]string `json:"criteria,omitempty"`
+	Type         string `json:"type"`
+	Instructions string `json:"instructions"`
 }
 
 type Request struct {

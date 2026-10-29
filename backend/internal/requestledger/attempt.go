@@ -8,7 +8,6 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/tidwall/gjson"
@@ -28,11 +27,6 @@ type Attempt struct {
 	streamTerminal        atomic.Int32
 	handle                *Handle
 	Number                int
-	startedAt             time.Time
-	priorityModel         string
-	priorityEndpoint      string
-	priorityGroupID       *int64
-	priorityFirstSemantic int
 	accountID             int64
 	subscriptionReceipt   *SubscriptionReceipt
 }
@@ -161,7 +155,7 @@ func beginAttempt(ctx context.Context, accountID, credentialAccountID int64, pha
 	if err != nil {
 		return nil, err
 	}
-	a := &Attempt{handle: h, accountID: accountID, ID: uuid.NewString(), startedAt: time.Now()}
+	a := &Attempt{handle: h, accountID: accountID, ID: uuid.NewString()}
 	metered := (h.metered && phase == "request") || phase == "ws_input" || phase == "ws_observed" || phase == "external_search"
 	err = tx.QueryRowContext(ctx, `UPDATE gateway_requests r SET attempt_count=attempt_count+1,
  usage_state=CASE WHEN usage_state IN ('not_applicable','known') AND $3 THEN 'pending' ELSE usage_state END,
@@ -211,72 +205,7 @@ func (a *Attempt) Finish(ctx context.Context, status int, cause error) error {
 	if err != nil {
 		return ErrUnavailable
 	}
-	a.recordPriorityObservation(ctx, status, cause)
 	return nil
-}
-
-// ObservePrioritySemantic records the first parser-confirmed semantic output
-// for this exact physical attempt. Transport bytes and keepalives do not count.
-func (a *Attempt) ObservePrioritySemantic(model, endpoint string, groupID *int64) {
-	if a == nil || a.startedAt.IsZero() {
-		return
-	}
-	model = strings.TrimSpace(model)
-	endpoint = strings.TrimSpace(endpoint)
-	if model == "" || len(model) > 200 || len(endpoint) > 192 {
-		return
-	}
-	a.evidenceMu.Lock()
-	defer a.evidenceMu.Unlock()
-	if a.priorityFirstSemantic != 0 {
-		return
-	}
-	ms := time.Since(a.startedAt).Milliseconds()
-	if ms <= 0 || ms > int64((24*time.Hour)/time.Millisecond) {
-		return
-	}
-	a.priorityModel = model
-	a.priorityEndpoint = endpoint
-	if groupID != nil && *groupID > 0 {
-		v := *groupID
-		a.priorityGroupID = &v
-	}
-	a.priorityFirstSemantic = int(ms)
-}
-
-func (a *Attempt) recordPriorityObservation(ctx context.Context, status int, cause error) {
-	if a == nil || cause != nil || status < 200 || status >= 300 {
-		return
-	}
-	a.evidenceMu.Lock()
-	model, endpoint, groupID, firstSemantic := a.priorityModel, a.priorityEndpoint, a.priorityGroupID, a.priorityFirstSemantic
-	a.evidenceMu.Unlock()
-	if model == "" || firstSemantic <= 0 {
-		return
-	}
-	duration := time.Since(a.startedAt).Milliseconds()
-	if duration < int64(firstSemantic) || duration > int64((24*time.Hour)/time.Millisecond) {
-		return
-	}
-	writeCtx, cancel := detachedWrite(ctx)
-	defer cancel()
-	_, err := a.handle.ledger.db.ExecContext(writeCtx, `INSERT INTO gateway_request_priority_observations
- (attempt_id, schema_version, model, inbound_endpoint, group_id, first_semantic_ms, duration_ms, http_status, terminal_state, body_complete, truncated)
- SELECT attempt_id, 1, $2, $3, $4, $5, $6, $7, 'completed', TRUE, FALSE
- FROM gateway_request_attempt_evidence WHERE attempt_id=$1
- ON CONFLICT (attempt_id) DO NOTHING`, a.ID, model, endpoint, groupID, firstSemantic, int(duration), status)
-	if err != nil {
-		slog.Error("request_ledger_priority_observation_failed")
-	}
-	// Keep diagnostic observations bounded without putting a cleanup worker on
-	// the request path. Every hundredth attempt performs a small, indexed batch.
-	if a.Number > 0 && a.Number%100 == 0 {
-		_, _ = a.handle.ledger.db.ExecContext(writeCtx, `WITH expired AS (
- SELECT attempt_id FROM gateway_request_priority_observations
- WHERE created_at < clock_timestamp() - interval '30 days'
- ORDER BY created_at, attempt_id LIMIT 1000
-) DELETE FROM gateway_request_priority_observations o USING expired e WHERE o.attempt_id=e.attempt_id`)
-	}
 }
 
 type accountKey struct{}

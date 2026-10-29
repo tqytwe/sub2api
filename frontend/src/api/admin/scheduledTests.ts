@@ -8,8 +8,7 @@ import type {
   ScheduledTestPlan,
   ScheduledTestResult,
   CreateScheduledTestPlanRequest,
-  UpdateScheduledTestPlanRequest,
-  QualityOwnershipPreview
+  UpdateScheduledTestPlanRequest
 } from '@/types'
 
 /**
@@ -75,46 +74,12 @@ export async function listResults(planId: number, limit?: number): Promise<Sched
   return data ?? []
 }
 
-export async function ownershipPreview(planId: number): Promise<QualityOwnershipPreview> {
-  const { data } = await apiClient.get<QualityOwnershipPreview>(
-    `/admin/scheduled-test-plans/${planId}/ownership`
-  )
-  return data
-}
-
-export async function reconcileOwnership(planId: number, fence: string): Promise<QualityOwnershipPreview> {
-  const { data } = await apiClient.post<QualityOwnershipPreview>(
-    `/admin/scheduled-test-plans/${planId}/ownership/reconcile`,
-    { fence, confirm: true }
-  )
-  return data
-}
-
-export async function restoreOwnership(planId: number, fence: string): Promise<QualityOwnershipPreview> {
-  const { data } = await apiClient.post<QualityOwnershipPreview>(
-    `/admin/scheduled-test-plans/${planId}/ownership/restore`,
-    { fence, confirm: true }
-  )
-  return data
-}
-
-export async function deleteOwnedPlan(planId: number, fence: string): Promise<QualityOwnershipPreview> {
-  const { data } = await apiClient.delete<QualityOwnershipPreview>(
-    `/admin/scheduled-test-plans/${planId}/ownership`,
-    { data: { fence, confirm: true } }
-  )
-  return data
-}
-
 export const scheduledTestsAPI = {
   listByAccount,
   create,
   update,
   delete: deletePlan,
-  listResults,
-  reconcileOwnership,
-  restoreOwnership,
-  deleteOwnedPlan
+  listResults
 }
 
 export default scheduledTestsAPI

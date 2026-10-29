@@ -426,11 +426,10 @@
                 <DateRangePicker
                   v-model:start-date="startDate"
                   v-model:end-date="endDate"
-                  :rolling24-hours="true"
                   @change="onDateRangeChange"
                 />
               </div>
-              <button data-testid="dashboard-refresh" @click="loadDashboardStats" :disabled="chartsLoading" class="btn btn-secondary">
+              <button @click="loadDashboardStats" :disabled="chartsLoading" class="btn btn-secondary">
                 {{ t('common.refresh') }}
               </button>
               <div class="ml-auto flex items-center gap-2">
@@ -579,12 +578,17 @@ let surchargeLoadSeq = 0
 const rankingLimit = 12
 const surchargePageSize = 10
 
+// Helper function to format date in local timezone
+const formatLocalDate = (date: Date): string => {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+}
+
 const getLast24HoursRangeDates = (): { start: string; end: string } => {
   const end = new Date()
   const start = new Date(end.getTime() - 24 * 60 * 60 * 1000)
   return {
-    start: start.toISOString(),
-    end: end.toISOString()
+    start: formatLocalDate(start),
+    end: formatLocalDate(end)
   }
 }
 
@@ -593,7 +597,6 @@ const granularity = ref<'day' | 'hour'>('hour')
 const defaultRange = getLast24HoursRangeDates()
 const startDate = ref(defaultRange.start)
 const endDate = ref(defaultRange.end)
-const appliedPreset = ref<string | null>('last24Hours')
 
 // Granularity options for Select component
 const granularityOptions = computed(() => [
@@ -806,8 +809,6 @@ const onDateRangeChange = (range: {
   endDate: string
   preset: string | null
 }) => {
-  appliedPreset.value = range.preset
-
   // Auto-select granularity based on date range
   const start = new Date(range.startDate)
   const end = new Date(range.endDate)
@@ -955,12 +956,6 @@ const changeSurchargePage = (delta: number) => {
 }
 
 const loadDashboardStats = async () => {
-  if (appliedPreset.value === 'last24Hours') {
-    const range = getLast24HoursRangeDates()
-    startDate.value = range.start
-    endDate.value = range.end
-  }
-
   await Promise.all([
     loadDashboardSnapshot(true),
     loadUsersTrend(),

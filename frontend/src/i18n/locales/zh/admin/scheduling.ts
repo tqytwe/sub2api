@@ -22,7 +22,6 @@ export default {
     empty: '暂无调度快照。',
     snapshotFailed: '快照数据不可用。',
     model: '模型',
-    endpoint: '入口',
     group: '分组',
     historyUnavailable: '调度历史状态：{status}',
     account: '账号',

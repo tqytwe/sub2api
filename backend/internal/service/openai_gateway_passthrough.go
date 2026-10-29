@@ -2267,7 +2267,6 @@ func (s *OpenAIGatewayService) handleStreamingResponsePassthrough(
 			lineStartsClientOutput = forceFlushFailedEvent || openAIStreamDataStartsClientOutput(trimmedData, eventType)
 			if lineStartsClientOutput && trimmedData != "[DONE]" && !openAIStreamEventTypeIsTerminal(eventType) {
 				semanticOutputSeen = true
-				ledgerAttempt.ObservePrioritySemantic(originalModel, c.Request.URL.Path, priorityGroupID(c))
 			}
 			// OpenAI Responses streams that terminate with an empty
 			// response.completed (no output, no usage, no error, nothing sent

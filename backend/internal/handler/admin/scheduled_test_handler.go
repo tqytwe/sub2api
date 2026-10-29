@@ -1,15 +1,10 @@
 package admin
 
 import (
-	"database/sql"
-	"errors"
 	"net/http"
 	"strconv"
-	"time"
 
-	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
-	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
 )
@@ -19,96 +14,26 @@ type ScheduledTestHandler struct {
 	scheduledTestSvc *service.ScheduledTestService
 }
 
-type qualityOwnershipRequest struct {
-	Fence   string `json:"fence" binding:"required"`
-	Confirm bool   `json:"confirm"`
-}
-
-func (h *ScheduledTestHandler) QualityOwnershipPreview(c *gin.Context) {
-	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
-	if err != nil {
-		response.BadRequest(c, "invalid plan id")
-		return
-	}
-	out, err := h.scheduledTestSvc.QualityOwnership(c.Request.Context(), id, nil)
-	if err != nil {
-		response.ErrorFrom(c, err)
-		return
-	}
-	response.Success(c, out)
-}
-
-func (h *ScheduledTestHandler) QualityOwnershipReconcile(c *gin.Context) {
-	h.qualityOwnershipMutation(c, false)
-}
-
-func (h *ScheduledTestHandler) QualityOwnershipRestore(c *gin.Context) {
-	h.qualityOwnershipMutation(c, true)
-}
-
-func (h *ScheduledTestHandler) qualityOwnershipMutation(c *gin.Context, restore bool) {
-	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
-	if err != nil {
-		response.BadRequest(c, "invalid plan id")
-		return
-	}
-	var req qualityOwnershipRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
-		return
-	}
-	middleware.SetAuditAction(c, map[bool]string{true: "quality.restore", false: "quality.reconcile"}[restore])
-	out, err := h.scheduledTestSvc.QualityOwnership(c.Request.Context(), id, &service.QualityOwnershipRequest{Fence: req.Fence, Confirm: req.Confirm, Reconcile: !restore, Restore: restore})
-	if err != nil {
-		response.ErrorFrom(c, err)
-		return
-	}
-	response.Success(c, out)
-}
-
-func (h *ScheduledTestHandler) QualityOwnershipDelete(c *gin.Context) {
-	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
-	if err != nil {
-		response.BadRequest(c, "invalid plan id")
-		return
-	}
-	var req qualityOwnershipRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
-		return
-	}
-	middleware.SetAuditAction(c, "quality.delete")
-	out, err := h.scheduledTestSvc.QualityOwnership(c.Request.Context(), id, &service.QualityOwnershipRequest{Fence: req.Fence, Confirm: req.Confirm, Delete: true})
-	if err != nil {
-		response.ErrorFrom(c, err)
-		return
-	}
-	response.Success(c, out)
-}
-
 // NewScheduledTestHandler creates a new ScheduledTestHandler.
 func NewScheduledTestHandler(scheduledTestSvc *service.ScheduledTestService) *ScheduledTestHandler {
 	return &ScheduledTestHandler{scheduledTestSvc: scheduledTestSvc}
 }
 
 type createScheduledTestPlanRequest struct {
-	AccountID      int64                      `json:"account_id" binding:"required"`
-	ModelID        string                     `json:"model_id"`
-	CronExpression string                     `json:"cron_expression" binding:"required"`
-	Enabled        *bool                      `json:"enabled"`
-	MaxResults     int                        `json:"max_results"`
-	AutoRecover    *bool                      `json:"auto_recover"`
-	PelicanConfig  *service.PelicanTestConfig `json:"pelican_config"`
+	AccountID      int64  `json:"account_id" binding:"required"`
+	ModelID        string `json:"model_id"`
+	CronExpression string `json:"cron_expression" binding:"required"`
+	Enabled        *bool  `json:"enabled"`
+	MaxResults     int    `json:"max_results"`
+	AutoRecover    *bool  `json:"auto_recover"`
 }
 
 type updateScheduledTestPlanRequest struct {
-	ModelID           string                     `json:"model_id"`
-	CronExpression    string                     `json:"cron_expression"`
-	Enabled           *bool                      `json:"enabled"`
-	MaxResults        int                        `json:"max_results"`
-	AutoRecover       *bool                      `json:"auto_recover"`
-	ExpectedUpdatedAt *time.Time                 `json:"expected_updated_at"`
-	PelicanConfig     *service.PelicanTestConfig `json:"pelican_config"`
+	ModelID        string `json:"model_id"`
+	CronExpression string `json:"cron_expression"`
+	Enabled        *bool  `json:"enabled"`
+	MaxResults     int    `json:"max_results"`
+	AutoRecover    *bool  `json:"auto_recover"`
 }
 
 // ListByAccount GET /admin/accounts/:id/scheduled-test-plans
@@ -141,7 +66,6 @@ func (h *ScheduledTestHandler) Create(c *gin.Context) {
 		CronExpression: req.CronExpression,
 		Enabled:        true,
 		MaxResults:     req.MaxResults,
-		PelicanConfig:  req.PelicanConfig,
 	}
 	if req.Enabled != nil {
 		plan.Enabled = *req.Enabled
@@ -193,26 +117,10 @@ func (h *ScheduledTestHandler) Update(c *gin.Context) {
 	if req.AutoRecover != nil {
 		existing.AutoRecover = *req.AutoRecover
 	}
-	if req.PelicanConfig != nil {
-		existing.PelicanConfig = req.PelicanConfig
-	}
 
-	var updated *service.ScheduledTestPlan
-	if existing.PelicanConfig != nil {
-		if req.ExpectedUpdatedAt == nil {
-			response.ErrorFrom(c, infraerrors.BadRequest("QUALITY_VERSION_REQUIRED", "expected_updated_at is required when editing a quality rule"))
-			return
-		}
-		updated, err = h.scheduledTestSvc.UpdatePlanWithVersion(c.Request.Context(), existing, req.ExpectedUpdatedAt.UTC())
-	} else {
-		updated, err = h.scheduledTestSvc.UpdatePlan(c.Request.Context(), existing)
-	}
+	updated, err := h.scheduledTestSvc.UpdatePlan(c.Request.Context(), existing)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			response.ErrorFrom(c, infraerrors.Conflict("QUALITY_VERSION_CONFLICT", "quality rule changed; reload before saving"))
-		} else {
-			response.ErrorFrom(c, err)
-		}
+		response.BadRequest(c, err.Error())
 		return
 	}
 	c.JSON(http.StatusOK, updated)
@@ -223,10 +131,6 @@ func (h *ScheduledTestHandler) Delete(c *gin.Context) {
 	planID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		response.BadRequest(c, "invalid plan id")
-		return
-	}
-	if plan, getErr := h.scheduledTestSvc.GetPlan(c.Request.Context(), planID); getErr == nil && plan.PelicanConfig != nil {
-		response.ErrorFrom(c, infraerrors.Conflict("QUALITY_OWNERSHIP_REQUIRED", "quality rules must be previewed and deleted through the ownership endpoint"))
 		return
 	}
 

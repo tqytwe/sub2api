@@ -75,8 +75,6 @@ var ProviderSet = wire.NewSet(
 	NewCompositeModelRouteRepository,
 	NewAccountRepository,
 	NewAdminAccountRepository,
-	NewOpenAIOAuthReauthRepository,
-	NewAccountTokenGuardV2Repository,
 	NewScheduledTestPlanRepository,   // 定时测试计划仓储
 	NewScheduledTestResultRepository, // 定时测试结果仓储
 	NewProxyRepository,
