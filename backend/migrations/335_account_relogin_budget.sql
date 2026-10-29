@@ -12,5 +12,4 @@ SET last_counted_task_id = COALESCE((
     SELECT MAX(task.id) FROM openai_oauth_reauth_tasks AS task
     WHERE task.account_id = guard.account_id
       AND task.status IN ('failed', 'succeeded')
-      AND NOT EXISTS (SELECT 1 FROM openai_totp_rotations AS rotation WHERE rotation.task_id = task.id)
 ), 0);
