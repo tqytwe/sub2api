@@ -4,7 +4,7 @@ import { defineComponent, ref } from 'vue'
 
 import UsageView from '../UsageView.vue'
 
-const { list, exportList, getStats, getSnapshotV2, getById, getModelStats, listErrorLogs, routeQuery, aoaToSheet, sheetAddAoa, saveAs, xlsxWrite } = vi.hoisted(() => {
+const { list, exportList, getStats, getSnapshotV2, getById, getModelStats, listErrorLogs, routeQuery, aoaToSheet, sheetAddAoa, saveAs, xlsxWrite, showWarning } = vi.hoisted(() => {
   vi.stubGlobal('localStorage', {
     getItem: vi.fn(() => null),
     setItem: vi.fn(),
@@ -24,6 +24,7 @@ const { list, exportList, getStats, getSnapshotV2, getById, getModelStats, listE
 		sheetAddAoa: vi.fn(),
 		saveAs: vi.fn(),
 		xlsxWrite: vi.fn(() => new Uint8Array([1, 2, 3])),
+    showWarning: vi.fn(),
   }
 })
 
@@ -40,13 +41,6 @@ const messages: Record<string, string> = {
 	'usage.upstreamModelMismatch': 'Upstream model mismatch',
 	'common.yes': 'Yes',
 	'common.no': 'No',
-}
-
-const formatLocalDate = (date: Date): string => {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
 }
 
 vi.mock('@/api/admin', () => ({
@@ -90,7 +84,7 @@ vi.mock('@/api/admin/ops', () => ({
 vi.mock('@/stores/app', () => ({
   useAppStore: () => ({
     showError: vi.fn(),
-    showWarning: vi.fn(),
+    showWarning,
     showSuccess: vi.fn(),
     showInfo: vi.fn(),
   }),
@@ -232,6 +226,22 @@ describe('admin UsageView route filters', () => {
     expect(wrapper.find('[data-test="user-filter-label"]').text()).toBe('route-user@test.com')
   })
 
+  it('keeps calendar-date route filters fixed when refreshing', async () => {
+    routeQuery.start_date = '2026-10-01'
+    routeQuery.end_date = '2026-10-03'
+    const wrapper = mountRouteFilteredUsageView()
+    await flushPromises()
+
+    vi.setSystemTime(new Date('2026-10-28T13:00:00.000Z'))
+    ;(wrapper.vm as any).refreshData()
+
+    expect((wrapper.vm as any).filters.start_date).toBe('2026-10-01')
+    expect((wrapper.vm as any).filters.end_date).toBe('2026-10-03')
+    ;(wrapper.vm as any).openCleanupDialog()
+    expect((wrapper.vm as any).cleanupDialogVisible).toBe(true)
+    wrapper.unmount()
+  })
+
   it('does not apply a stale routed user label after user_id changes', async () => {
     routeQuery.user_id = '42'
     let resolveLookup!: (user: { id: number; email: string }) => void
@@ -311,6 +321,7 @@ describe('admin UsageView native compaction filter', () => {
   })
 
   afterEach(() => {
+    Object.keys(routeQuery).forEach((key) => delete routeQuery[key])
     vi.useRealTimers()
   })
 
@@ -425,6 +436,7 @@ describe('admin UsageView distribution metric toggles', () => {
   })
 
   it('keeps model and group metric toggles independent without refetching chart data', async () => {
+    vi.setSystemTime(new Date('2026-10-28T12:00:00.000Z'))
     const wrapper = mount(UsageView, {
       global: {
         stubs: {
@@ -451,11 +463,11 @@ describe('admin UsageView distribution metric toggles', () => {
     await flushPromises()
 
     expect(getSnapshotV2).toHaveBeenCalledTimes(1)
-    const now = new Date()
+    const now = new Date('2026-10-28T12:00:00.000Z')
     const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000)
     expect(getSnapshotV2).toHaveBeenCalledWith(expect.objectContaining({
-      start_date: formatLocalDate(yesterday),
-      end_date: formatLocalDate(now),
+      start_date: yesterday.toISOString(),
+      end_date: now.toISOString(),
       granularity: 'hour'
     }))
 
@@ -478,6 +490,64 @@ describe('admin UsageView distribution metric toggles', () => {
     expect(modelChart.find('.metric').text()).toBe('actual_cost')
     expect(groupChart.find('.metric').text()).toBe('actual_cost')
     expect(getSnapshotV2).toHaveBeenCalledTimes(1)
+  })
+
+  it('refreshes one exact rolling window and keeps it stable for paging and export', async () => {
+    vi.setSystemTime(new Date('2026-10-28T12:00:00.000Z'))
+    exportList.mockReset().mockResolvedValue({ items: [], total: 0, pages: 0 })
+    const wrapper = mountRouteFilteredUsageView()
+    vi.advanceTimersByTime(120)
+    await flushPromises()
+
+    expect((wrapper.vm as any).filters.start_date).toBe('2026-10-27T12:00:00.000Z')
+    expect((wrapper.vm as any).filters.end_date).toBe('2026-10-28T12:00:00.000Z')
+    expect(getStats).toHaveBeenLastCalledWith(expect.objectContaining({
+      start_date: '2026-10-27T12:00:00.000Z',
+      end_date: '2026-10-28T12:00:00.000Z',
+    }))
+
+    vi.setSystemTime(new Date('2026-10-28T13:00:00.000Z'))
+    ;(wrapper.vm as any).handlePageChange(2)
+    await flushPromises()
+    expect(list).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        start_date: '2026-10-27T12:00:00.000Z',
+        end_date: '2026-10-28T12:00:00.000Z',
+        page: 2,
+      }),
+      expect.anything(),
+    )
+
+    await (wrapper.vm as any).exportToExcel()
+    expect(exportList).toHaveBeenCalledWith(
+      expect.objectContaining({
+        start_date: '2026-10-27T12:00:00.000Z',
+        end_date: '2026-10-28T12:00:00.000Z',
+      }),
+      expect.anything(),
+    )
+
+    ;(wrapper.vm as any).handleSort('model', 'asc')
+    ;(wrapper.vm as any).filters.model = 'gpt-5.3-codex'
+    ;(wrapper.vm as any).applyFilters()
+    expect((wrapper.vm as any).filters.start_date).toBe('2026-10-27T12:00:00.000Z')
+    expect((wrapper.vm as any).filters.end_date).toBe('2026-10-28T12:00:00.000Z')
+
+    ;(wrapper.vm as any).refreshData()
+    expect((wrapper.vm as any).filters.start_date).toBe('2026-10-27T13:00:00.000Z')
+    expect((wrapper.vm as any).filters.end_date).toBe('2026-10-28T13:00:00.000Z')
+    wrapper.unmount()
+  })
+
+  it('does not open usage cleanup for an exact rolling timestamp range', () => {
+    vi.setSystemTime(new Date('2026-10-28T12:00:00.000Z'))
+    const wrapper = mountRouteFilteredUsageView()
+
+    ;(wrapper.vm as any).openCleanupDialog()
+
+    expect(showWarning).toHaveBeenCalledWith('admin.usage.cleanup.calendarRangeRequired')
+    expect((wrapper.vm as any).cleanupDialogVisible).toBe(false)
+    wrapper.unmount()
   })
 })
 
@@ -663,10 +733,12 @@ describe('admin UsageView errors tab filter forwarding', () => {
   })
 
   afterEach(() => {
+    Object.keys(routeQuery).forEach((key) => delete routeQuery[key])
     vi.useRealTimers()
   })
 
   it('forwards model/account_id/group_id to listErrorLogs on the errors tab', async () => {
+    vi.setSystemTime(new Date('2026-10-28T12:00:00.000Z'))
     const wrapper = mount(UsageView, {
       global: { stubs: {
         AppLayout: AppLayoutStub, UsageStatsCards: true, UsageFilters: UsageFiltersStub,
@@ -694,10 +766,39 @@ describe('admin UsageView errors tab filter forwarding', () => {
 
     expect(listErrorLogs).toHaveBeenCalledWith(expect.objectContaining({
       view: 'all',
+      start_time: '2026-10-27T12:00:00.000Z',
+      end_time: '2026-10-28T12:00:00.000Z',
       model: 'gpt-5.3-codex',
       account_id: 7,
       group_id: 3,
     }))
+  })
+
+  it('uses a half-open local calendar range for routed error-log dates', async () => {
+    routeQuery.start_date = '2026-10-20'
+    routeQuery.end_date = '2026-10-21'
+    const wrapper = mount(UsageView, {
+      global: { stubs: {
+        AppLayout: AppLayoutStub, UsageStatsCards: true, UsageFilters: UsageFiltersStub,
+        UsageTable: true, UsageExportProgress: true, UsageCleanupDialog: true,
+        UserBalanceHistoryModal: true, AuditLogModal: true, Pagination: true, Select: true,
+        DateRangePicker: true, Icon: true, TokenUsageTrend: true,
+        ModelDistributionChart: true, GroupDistributionChart: true, EndpointDistributionChart: true,
+        UserTokenRanking: true, OpsErrorLogTable: true, OpsErrorDetailModal: true,
+      } },
+    })
+    vi.advanceTimersByTime(120)
+    await flushPromises()
+    await wrapper.findAll('[data-testid="usage-detail-tab"]')[1].trigger('click')
+    await flushPromises()
+
+    const expectedStart = new Date('2026-10-20T00:00:00').toISOString()
+    const expectedEndExclusive = new Date('2026-10-22T00:00:00').toISOString()
+    expect(listErrorLogs).toHaveBeenCalledWith(expect.objectContaining({
+      start_time: expectedStart,
+      end_time: expectedEndExclusive,
+    }))
+    wrapper.unmount()
   })
 })
 

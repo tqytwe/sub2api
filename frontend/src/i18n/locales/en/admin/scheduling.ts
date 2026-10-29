@@ -22,6 +22,7 @@ export default {
     empty: 'No scheduler snapshot is available.',
     snapshotFailed: 'Snapshot data is unavailable.',
     model: 'Model',
+    endpoint: 'Endpoint',
     group: 'Group',
     historyUnavailable: 'Scheduler history status: {status}',
     account: 'Account',

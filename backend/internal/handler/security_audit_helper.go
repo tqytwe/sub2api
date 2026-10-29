@@ -15,6 +15,7 @@ import (
 const securityAuditCompletedContextKey = "sub2api.security_audit.completed"
 const securityAuditWSTurnContextKey = "sub2api.security_audit.ws_turn"
 const securityAuditWSDedupeContextKey = "sub2api.security_audit.ws_dedupe"
+const contentModerationUserVersionContextKey = "content_moderation.user_version"
 
 type securityAuditWSDedupeEntry struct {
 	stage    string
@@ -68,6 +69,9 @@ func (h *OpenAIGatewayHandler) checkSecurityAuditStage(c *gin.Context, reqLog *z
 func runSecurityAudit(c *gin.Context, reqLog *zap.Logger, coordinator *securityaudit.Coordinator, legacy *service.ContentModerationService, apiKey *service.APIKey, subject middleware2.AuthSubject, protocol, model string, body []byte, stage string) *securityaudit.Decision {
 	if c == nil || c.Request == nil {
 		return nil
+	}
+	if legacy != nil {
+		c.Set(contentModerationUserVersionContextKey, legacy.CaptureModerationUserVersion(c.Request.Context(), subject.UserID))
 	}
 	cacheCompletion := cachesSecurityAuditCompletion(stage)
 	if cacheCompletion {

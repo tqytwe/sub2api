@@ -8,9 +8,12 @@ import splitChannelMonitorV2Zh from './zh/channelMonitorV2'
 import splitDashboardZh from './zh/dashboard'
 import auditAdminZh from './zh/admin/audit'
 import promptAuditAdminZh from './zh/admin/promptAudit'
+import tokenGuardV2Zh from './zh/tokenGuardV2'
 import { mergeLocaleMessages } from './merge'
 
 const messages = {
+  accountOps: { smartTitle: '账号运营' },
+  tokenGuardV2: tokenGuardV2Zh,
   requestLedger,
   batchImageGuide: {
     title: '图片批量生成',
@@ -4287,9 +4290,6 @@ const messages = {
       emailSent: '已发邮件',
       emailNotSent: '未发邮件',
       autoBanned: '已封禁',
-      unbanUser: '解封',
-      unbanSuccess: '用户已解封',
-      unbanFailed: '解封用户失败',
       inputDetailTitle: '输入摘要详情',
       inputDetailContent: '完整内容',
       matchedKeyword: '命中关键词',
@@ -6623,6 +6623,7 @@ const messages = {
         range: '时间范围',
         deletedRows: '删除数量',
         missingRange: '请选择时间范围',
+        calendarRangeRequired: '清理使用记录前，请先选择日历日期范围。',
         submitSuccess: '清理任务已创建',
         submitFailed: '创建清理任务失败',
         loadFailed: '加载清理任务失败',

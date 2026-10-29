@@ -17,6 +17,10 @@ const (
 	// RequestedPublicModel 是客户端原始请求中的公开模型名。
 	RequestedPublicModel Key = "ctx_requested_public_model"
 
+	// InboundEndpoint 是客户端实际进入的规范化 API 路径。
+	// 调度历史必须按公开入口隔离，不能用渠道映射后的上游模型替代。
+	InboundEndpoint Key = "ctx_inbound_endpoint"
+
 	// CompositeRouteSource 标识 composite 解析结果来自显式路由还是内置模型探测。
 	CompositeRouteSource Key = "ctx_composite_route_source"
 

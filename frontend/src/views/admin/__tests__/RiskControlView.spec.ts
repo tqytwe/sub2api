@@ -6,6 +6,10 @@ import type { DOMWrapper, VueWrapper } from '@vue/test-utils'
 import RiskControlView from '../RiskControlView.vue'
 import type { ContentModerationAPIKeyStatus, ContentModerationConfig, UpdateContentModerationConfig } from '@/api/admin/riskControl'
 
+vi.mock('@/components/admin/moderation/ModerationUsersSummary.vue', () => ({
+  default: { template: '<div data-test="moderation-users-summary-stub" />' },
+}))
+
 const {
   getConfig,
   updateConfig,
@@ -16,7 +20,6 @@ const {
   testAPIKeys,
   getUser,
   updateUser,
-  unbanUser,
   showError,
   showSuccess,
 } = vi.hoisted(() => ({
@@ -29,7 +32,6 @@ const {
   testAPIKeys: vi.fn(),
   getUser: vi.fn(),
   updateUser: vi.fn(),
-  unbanUser: vi.fn(),
   showError: vi.fn(),
   showSuccess: vi.fn(),
 }))
@@ -44,7 +46,6 @@ vi.mock('@/api/admin', () => ({
       testAPIKeys,
       deleteFlaggedHash: vi.fn(),
       clearFlaggedHashes: vi.fn(),
-      unbanUser,
     },
     users: { getById: getUser, update: updateUser },
     groups: {
@@ -206,7 +207,6 @@ describe('admin RiskControlView', () => {
   beforeEach(() => {
     getUser.mockReset()
     updateUser.mockReset()
-    unbanUser.mockReset()
     getConfig.mockReset()
     updateConfig.mockReset()
     getStatus.mockReset()
@@ -296,7 +296,6 @@ describe('admin RiskControlView', () => {
     expect(wrapper.get('[role="status"][aria-live="polite"]').text()).toContain('admin.riskControl.enableSuccess')
     expect(wrapper.text().match(/admin.riskControl.violationCount/g)?.length).toBe(before)
     expect(updateConfig).not.toHaveBeenCalled()
-    expect(unbanUser).not.toHaveBeenCalled()
     expect(showSuccess).toHaveBeenCalledWith('admin.riskControl.enableSuccess')
     wrapper.unmount()
   })
@@ -332,7 +331,6 @@ describe('admin RiskControlView', () => {
     expect((wrapper.get('#enable-user-reason').element as HTMLTextAreaElement).value).toBe('  Reviewed appeal  ')
     expect(showSuccess).not.toHaveBeenCalled()
     expect(wrapper.find('[role="status"][aria-live="polite"]').exists()).toBe(false)
-    expect(unbanUser).not.toHaveBeenCalled()
     expect(updateConfig).not.toHaveBeenCalled()
     if (failure === 'preflight' || failure === 'unsupported') expect(updateUser).not.toHaveBeenCalled()
     if (failure === 'readback' || failure === 'still-disabled' || failure === 'write-committed') expect(getUser).toHaveBeenCalledTimes(2)

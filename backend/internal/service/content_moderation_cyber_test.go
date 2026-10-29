@@ -203,13 +203,13 @@ func TestRecordCyberPolicyEvent_RespectsContentModerationScope(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &banCountArgsTestRepo{}
-			userRepo := &contentModerationTestUserRepo{user: &User{ID: 1, Role: RoleUser, Status: StatusActive}}
+			repo.autoBanResult = ModerationAutoBanResult{Changed: tt.wantBanned, Disabled: tt.wantBanned}
 			svc := NewContentModerationService(
 				&contentModerationTestSettingRepo{values: map[string]string{
 					SettingKeyRiskControlEnabled:      "true",
 					SettingKeyContentModerationConfig: tt.config,
 				}},
-				repo, nil, nil, userRepo, nil, nil, nil,
+				repo, nil, nil, nil, nil, nil, nil,
 			)
 
 			svc.RecordCyberPolicyEvent(context.Background(), CyberPolicyRecordInput{
@@ -224,11 +224,8 @@ func TestRecordCyberPolicyEvent_RespectsContentModerationScope(t *testing.T) {
 				require.Equal(t, tt.wantCalls, repo.snapshotCountCalls())
 			}
 			require.Len(t, repo.snapshotLogs(), tt.wantLogs)
-			require.Equal(t, tt.wantBanned, userRepo.user.Status == StatusDisabled)
-			if tt.wantBanned {
-				require.Len(t, userRepo.updated, 1)
-			} else {
-				require.Empty(t, userRepo.updated)
+			if tt.wantLogs > 0 {
+				require.Equal(t, tt.wantBanned, repo.snapshotLogs()[0].AutoBanned)
 			}
 		})
 	}
@@ -355,6 +352,16 @@ func (r *banCountArgsTestRepo) CountFlaggedByUserSince(ctx context.Context, user
 	return r.contentModerationTestRepo.CountFlaggedByUserSince(ctx, userID, since, excludeCyberPolicy)
 }
 
+func (r *banCountArgsTestRepo) ApplyModerationHit(ctx context.Context, input ModerationHit) (ModerationHitResult, error) {
+	count, err := r.CountFlaggedByUserSince(ctx, input.UserID, input.Since, input.ExcludeCyber)
+	if err != nil {
+		return ModerationHitResult{}, err
+	}
+	count++
+	banApplied := input.AutoBan && input.Threshold > 0 && count >= input.Threshold && r.autoBanResult.Changed
+	return ModerationHitResult{Accepted: true, Count: count, BanApplied: banApplied, OwnedDisable: banApplied || r.autoBanResult.Disabled}, nil
+}
+
 func (r *banCountArgsTestRepo) snapshotCountCalls() []bool {
 	r.argsMu.Lock()
 	defer r.argsMu.Unlock()
@@ -373,10 +380,11 @@ func TestApplyFlaggedAccountSideEffects_PassesExcludeCyberFlag(t *testing.T) {
 
 	cfgExclude := defaultContentModerationConfig()
 	cfgExclude.CyberPolicyExcludeFromBanCount = true
-	svc.applyFlaggedAccountSideEffects(context.Background(), cfgExclude, &ContentModerationLog{Flagged: true, UserID: &userID})
+	version := int64(0)
+	svc.applyFlaggedAccountSideEffects(context.Background(), cfgExclude, &ContentModerationLog{Flagged: true, UserID: &userID, moderationVersion: &version})
 
 	cfgDefault := defaultContentModerationConfig() // 默认 false
-	svc.applyFlaggedAccountSideEffects(context.Background(), cfgDefault, &ContentModerationLog{Flagged: true, UserID: &userID})
+	svc.applyFlaggedAccountSideEffects(context.Background(), cfgDefault, &ContentModerationLog{Flagged: true, UserID: &userID, moderationVersion: &version})
 
 	require.Equal(t, []bool{true, false}, repo.snapshotCountCalls(),
 		"applyFlaggedAccountSideEffects 必须把 cfg.CyberPolicyExcludeFromBanCount 透传给 COUNT 查询")

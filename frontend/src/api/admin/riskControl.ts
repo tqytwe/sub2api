@@ -240,9 +240,48 @@ export interface ContentModerationLogsResponse {
   pages: number
 }
 
-export interface ContentModerationUnbanUserResponse {
+export interface ModerationUserState {
   user_id: number
+  version: number
+  generation: number
+  auto_ban_exempt: boolean
+  keyword_exempt: boolean
+  api_audit_exempt: boolean
+  email_exempt: boolean
+  owned_disable: boolean
   status: string
+  current_count: number
+  reason: string
+  actor_id: number | null
+  updated_at: string | null
+}
+
+export type ModerationUserFilter = 'all' | 'exempt' | 'enforced' | 'auto_ban_exempt' | 'keyword_exempt' | 'api_audit_exempt' | 'email_exempt'
+
+export interface ModerationUserAction {
+  action: 'unban' | 'reset' | 'exemption'
+  version: number
+  reason: string
+  confirm: boolean
+  auto_ban_exempt?: boolean
+  keyword_exempt?: boolean
+  api_audit_exempt?: boolean
+  email_exempt?: boolean
+}
+
+export interface ListModerationUsersParams {
+  page: number
+  page_size: number
+  state: ModerationUserFilter
+  user_id?: number
+}
+
+export interface ListModerationUsersResponse {
+  items: ModerationUserState[]
+  total: number
+  page: number
+  page_size: number
+  pages: number
 }
 
 export interface DeleteFlaggedHashResponse {
@@ -287,10 +326,18 @@ export async function listLogs(
   return data
 }
 
-export async function unbanUser(userID: number): Promise<ContentModerationUnbanUserResponse> {
-  const { data } = await apiClient.post<ContentModerationUnbanUserResponse>(
-    `/admin/risk-control/users/${userID}/unban`
-  )
+export async function listModerationUsers(params: ListModerationUsersParams): Promise<ListModerationUsersResponse> {
+  const { data } = await apiClient.get<ListModerationUsersResponse>('/admin/risk-control/users', { params })
+  return data
+}
+
+export async function getModerationUser(userID: number): Promise<ModerationUserState> {
+  const { data } = await apiClient.get<ModerationUserState>(`/admin/risk-control/users/${userID}`)
+  return data
+}
+
+export async function manageModerationUser(userID: number, payload: ModerationUserAction): Promise<ModerationUserState> {
+  const { data } = await apiClient.post<ModerationUserState>(`/admin/risk-control/users/${userID}/actions`, payload)
   return data
 }
 
@@ -312,7 +359,9 @@ export const riskControlAPI = {
   getStatus,
   testAPIKeys,
   listLogs,
-  unbanUser,
+  listModerationUsers,
+  getModerationUser,
+  manageModerationUser,
   deleteFlaggedHash,
   clearFlaggedHashes,
 }

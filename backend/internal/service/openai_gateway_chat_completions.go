@@ -832,6 +832,9 @@ func (s *OpenAIGatewayService) handleChatStreamingResponse(
 			)
 			return false
 		}
+		if openAIStreamDataStartsClientOutput(payload, event.Type) && !isOpenAICompatResponsesTerminalEvent(event.Type) {
+			ledgerAttempt.ObservePrioritySemantic(originalModel, c.Request.URL.Path, priorityGroupID(c))
+		}
 		observer.ObserveOpenAI([]byte(payload), event.Type)
 		refusalDetector.ObservePayload([]byte(payload))
 		s.parseSSEUsageBytesWithType([]byte(payload), event.Type, &usage, account.IsOpenAI())
