@@ -65,8 +65,7 @@ func TestReloginBudgetAtomicGatePersistenceAndExplicitResume(t *testing.T) {
 	stored, _, err = restarted.ReconcileReloginBudget(ctx, id, "budget-owner", rules, now.Add(30*time.Minute), service.AccountTokenGuardV2ProbeOK)
 	require.NoError(t, err)
 	require.True(t, stored.AutoReloginExhausted, "plain probe OK without a successful re-login cannot reset")
-	off := false
-	require.NoError(t, restarted.UpdateSwitches(ctx, id, nil, &off))
+	require.NoError(t, restarted.UpsertAccount(ctx, id, true, false))
 	stored, err = restarted.GetAccount(ctx, id)
 	require.NoError(t, err)
 	require.True(t, stored.AutoReloginExhausted, "switch changes must not erase the budget")
