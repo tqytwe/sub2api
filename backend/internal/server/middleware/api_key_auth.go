@@ -168,6 +168,10 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 			AbortWithError(c, 401, "USER_INACTIVE", "User account is not active")
 			return
 		}
+		apiKey, err = selectAPIKeyRequestGroup(c, apiKeyService, subscriptionService, cfg, apiKey, false)
+		if err != nil || c.IsAborted() {
+			return
+		}
 		if err := requestledger.BindIdentity(c.Request.Context(), apiKey.User.ID, apiKey.ID); err != nil {
 			requestledger.Reject(c)
 			return

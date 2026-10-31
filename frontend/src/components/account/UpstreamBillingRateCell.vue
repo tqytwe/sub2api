@@ -11,7 +11,12 @@
         </span>
       </template>
       <div class="space-y-1">
-        <template v-if="hasEffectiveRate && data">
+        <template v-if="isMultiGroup">
+          <p>{{ t('admin.accounts.upstreamBilling.multiGroupHint') }}</p>
+          <p>{{ t('admin.accounts.upstreamBilling.multiGroupSyncPaused') }}</p>
+          <p>{{ t('admin.accounts.upstreamBilling.updatedAt', { value: formatDate(snapshot?.received_at) }) }}</p>
+        </template>
+        <template v-else-if="hasEffectiveRate && data">
           <p>{{ t('admin.accounts.upstreamBilling.groupRate', { value: data.group_rate_multiplier }) }}</p>
           <p v-if="data.user_rate_multiplier != null">
             {{ t('admin.accounts.upstreamBilling.userRate', { value: data.user_rate_multiplier }) }}
@@ -79,6 +84,14 @@
     >
       <Icon name="refresh" size="xs" :class="{ 'animate-spin': probing }" />
     </button>
+    <details v-if="isMultiGroup" class="my-1 max-w-sm text-xs" data-testid="upstream-billing-groups">
+      <summary class="cursor-pointer text-blue-600 dark:text-blue-400">{{ t('admin.accounts.upstreamBilling.multiGroupCount', { count: declaredGroups.length }) }}</summary>
+      <p class="mt-1 text-gray-500">{{ t('admin.accounts.upstreamBilling.multiGroupSyncPaused') }}</p>
+      <div v-for="group in declaredGroups" :key="group.group_id" class="mt-2 rounded bg-gray-50 p-2 dark:bg-dark-800">
+        <p class="font-medium text-gray-800 dark:text-gray-200">{{ group.group_name || `#${group.group_id}` }}</p>
+        <p>{{ t('admin.accounts.upstreamBilling.effectiveRate', { value: formatGroupRate(group) }) }}</p>
+      </div>
+    </details>
   </div>
   <span v-else class="text-sm text-gray-400 dark:text-dark-500">-</span>
 </template>
@@ -89,7 +102,7 @@ import { useI18n } from 'vue-i18n'
 import HelpTooltip from '@/components/common/HelpTooltip.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { formatMultiplier } from '@/utils/formatters'
-import type { Account, UpstreamBillingProbeSnapshot } from '@/types'
+import type { Account, UpstreamBillingData, UpstreamBillingProbeSnapshot } from '@/types'
 
 const props = withDefaults(defineProps<{
   account: Account
@@ -110,6 +123,8 @@ const CLOCK_SKEW_TOLERANCE_MS = 5 * 60 * 1000
 const eligible = computed(() => props.account.type === 'apikey')
 const snapshot = computed<UpstreamBillingProbeSnapshot | undefined>(() => props.account.extra?.upstream_billing_probe)
 const data = computed(() => snapshot.value?.data)
+const isMultiGroup = computed(() => data.value?.schema_version === 2 && data.value.billing_mode === 'multi_group' && Array.isArray(data.value.groups))
+const declaredGroups = computed(() => isMultiGroup.value ? data.value?.groups ?? [] : [])
 const probeEnabled = computed(() => props.account.extra?.upstream_billing_probe_enabled === true)
 const nextProbeAt = computed(() => {
   const value = snapshot.value?.next_probe_at
@@ -174,6 +189,10 @@ const currentEffectiveRate = computed(() => {
   const value = minute >= start && minute < end ? base * peak : base
   return Number.isFinite(value) ? value : null
 })
+const formatGroupRate = (group: UpstreamBillingData & { group_id: number; group_name: string; platform: string; status: string }): string => {
+  const value = group.effective_rate_multiplier
+  return typeof value === 'number' && Number.isFinite(value) ? `${formatMultiplier(value)}x` : '-'
+}
 const lastDetectedRate = computed(() => {
   const value = data.value?.effective_rate_multiplier
   return typeof value === 'number' && Number.isFinite(value) && value >= 0
@@ -191,6 +210,11 @@ const elapsedSinceLastSuccess = computed(() => {
 })
 const effectiveRate = computed(() => {
   if (!validTimestamps.value || stale.value || !['ok', 'failed'].includes(snapshot.value?.status ?? '')) return '-'
+	if (isMultiGroup.value) {
+		const rates = declaredGroups.value.map(group => group.effective_rate_multiplier).filter((value): value is number => typeof value === 'number' && Number.isFinite(value))
+		if (rates.length === 0) return '-'
+		return `${formatMultiplier(Math.min(...rates))}x-${formatMultiplier(Math.max(...rates))}x`
+	}
   const value = currentEffectiveRate.value
   return value == null ? '-' : `${formatMultiplier(value)}x`
 })
