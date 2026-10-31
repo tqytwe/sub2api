@@ -13,13 +13,14 @@ const (
 )
 
 type ContentModerationEngineConfig struct {
-	BaseURL    string             `json:"base_url"`
-	Model      string             `json:"model"`
-	ProxyID    *int64             `json:"proxy_id,omitempty"`
-	APIKeys    []string           `json:"api_keys,omitempty"`
-	TimeoutMS  int                `json:"timeout_ms"`
-	RetryCount int                `json:"retry_count"`
-	Thresholds map[string]float64 `json:"thresholds"`
+	BaseURL        string             `json:"base_url"`
+	Model          string             `json:"model"`
+	ProxyID        *int64             `json:"proxy_id,omitempty"`
+	APIKeyBaseURLs map[string]string  `json:"api_key_base_urls,omitempty"`
+	APIKeys        []string           `json:"api_keys,omitempty"`
+	TimeoutMS      int                `json:"timeout_ms"`
+	RetryCount     int                `json:"retry_count"`
+	Thresholds     map[string]float64 `json:"thresholds"`
 }
 
 type UpdateContentModerationEngineInput struct {
@@ -73,6 +74,7 @@ func (cfg *ContentModerationConfig) engineProfile(engine string) *ContentModerat
 		p = ContentModerationEngineConfig{BaseURL: cfg.BaseURL, Model: cfg.Model, ProxyID: cfg.ProxyID, APIKeys: cfg.apiKeys(), TimeoutMS: cfg.TimeoutMS, RetryCount: cfg.RetryCount, Thresholds: cfg.Thresholds}
 	}
 	p.ProxyID = cloneInt64Ptr(p.ProxyID)
+	p.APIKeyBaseURLs = cloneModerationKeyURLs(p.APIKeyBaseURLs)
 	p.APIKeys = append([]string(nil), p.APIKeys...)
 	p.Thresholds = cloneFloatMap(p.Thresholds)
 	return &p
@@ -80,6 +82,7 @@ func (cfg *ContentModerationConfig) engineProfile(engine string) *ContentModerat
 
 func (cfg *ContentModerationConfig) applyEngineProfile(p *ContentModerationEngineConfig) {
 	cfg.BaseURL, cfg.Model, cfg.ProxyID = p.BaseURL, p.Model, cloneInt64Ptr(p.ProxyID)
+	cfg.APIKeyBaseURLs = cloneModerationKeyURLs(p.APIKeyBaseURLs)
 	cfg.APIKey, cfg.APIKeys = "", append([]string(nil), p.APIKeys...)
 	cfg.TimeoutMS, cfg.RetryCount = p.TimeoutMS, p.RetryCount
 	cfg.Thresholds = cloneFloatMap(p.Thresholds)
@@ -149,7 +152,7 @@ func (s *ContentModerationService) updateEngineProfile(ctx context.Context, cfg 
 	if err := s.validateConfig(ctx, check); err != nil {
 		return err
 	}
-	p = &ContentModerationEngineConfig{BaseURL: check.BaseURL, Model: check.Model, ProxyID: check.ProxyID, APIKeys: check.APIKeys, TimeoutMS: check.TimeoutMS, RetryCount: check.RetryCount, Thresholds: check.Thresholds}
+	p = &ContentModerationEngineConfig{BaseURL: check.BaseURL, Model: check.Model, ProxyID: check.ProxyID, APIKeyBaseURLs: check.APIKeyBaseURLs, APIKeys: check.APIKeys, TimeoutMS: check.TimeoutMS, RetryCount: check.RetryCount, Thresholds: check.Thresholds}
 	if engine == ContentModerationEngineTypeSafe {
 		cfg.TypeSafe = p
 	} else {
@@ -172,4 +175,27 @@ func scopedModerationKeyHash(key string, engine ...string) string {
 		return moderationAPIKeyHash("typesafe\x00" + key)
 	}
 	return moderationAPIKeyHash(key)
+}
+
+func (cfg *ContentModerationConfig) keyBaseURL(key string) string {
+	if cfg != nil && cfg.Engine == ContentModerationEngineTypeSafe {
+		if base := cfg.APIKeyBaseURLs[scopedModerationKeyHash(key, cfg.Engine)]; strings.TrimSpace(base) != "" {
+			return base
+		}
+	}
+	if cfg == nil {
+		return ""
+	}
+	return cfg.BaseURL
+}
+
+func cloneModerationKeyURLs(source map[string]string) map[string]string {
+	if source == nil {
+		return nil
+	}
+	out := make(map[string]string, len(source))
+	for key, value := range source {
+		out[key] = value
+	}
+	return out
 }

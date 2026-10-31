@@ -28,6 +28,7 @@ func TestGeneratedWireWiresChannelMonitorV2Handler(t *testing.T) {
 	source := string(generated)
 	require.Contains(t, source, "channelMonitorV2Handler := handler.NewChannelMonitorV2Handler(channelMonitorV2Service, apiKeyService)")
 	require.Contains(t, source, "channelMonitorUserHandler, channelMonitorV2Handler, adminHandlers")
+	require.Contains(t, source, "scheduledTestRunnerService := service.ProvideScheduledTestRunnerService(scheduledTestPlanRepository, scheduledTestService, accountTestService, rateLimitService, configConfig, contentModerationService)")
 }
 
 func TestProvideCleanup_WithMinimalDependencies_NoPanic(t *testing.T) {

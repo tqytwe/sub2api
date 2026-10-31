@@ -492,7 +492,7 @@ func (s *AccountTokenGuardV2Service) probeAccount(ctx context.Context, account *
 		return AccountTokenGuardV2ProbeOK, "credential accepted"
 	}
 	var upstreamErr *codexModelsManifestUpstreamError
-	code := "unknown"
+	var code string
 	if errors.As(err, &upstreamErr) {
 		if upstreamErr.statusCode == http.StatusForbidden {
 			if hit, _, _ := detectOpenAICyberPolicy(upstreamErr.body); hit || explicitCredentialPolicyCode(upstreamErr.body) {

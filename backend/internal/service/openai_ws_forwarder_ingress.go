@@ -962,6 +962,9 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 		if lease == nil {
 			return nil, errors.New("upstream websocket lease is nil")
 		}
+		if err := s.admitPriorityWSSend(ctx, c, account, originalModel, payload); err != nil {
+			return nil, err
+		}
 		turnStart := time.Now()
 		wroteDownstream := false
 		ledgerAttempt, ledgerErr := beginLedgerWSAttempt(ctx, account)
@@ -1882,8 +1885,8 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 				continue
 			}
 			finalErr := relayErr
-			if unwrapped := errors.Unwrap(relayErr); unwrapped != nil {
-				finalErr = unwrapped
+			if turnErr, ok := relayErr.(*openAIWSIngressTurnError); ok && turnErr.cause != nil {
+				finalErr = turnErr.cause
 			}
 			if hooks != nil && hooks.AfterTurn != nil {
 				hooks.AfterTurn(turn, result, finalErr)

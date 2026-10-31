@@ -202,6 +202,14 @@
               <!-- Actions -->
               <div class="flex items-center gap-1" @click.stop>
                 <button
+                  v-if="isQualityRule(plan)"
+                  @click="previewOwnership(plan)"
+                  class="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-900/20"
+                  :title="t('admin.scheduledTests.ownershipPreview')"
+                >
+                  <Icon name="shield" size="sm" :stroke-width="2" />
+                </button>
+                <button
                   @click="startEdit(plan)"
                   class="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-blue-50 hover:text-blue-500 dark:hover:bg-blue-900/20"
                   :title="t('admin.scheduledTests.editPlan')"
@@ -227,6 +235,45 @@
                 ]"
               />
             </div>
+          </div>
+
+          <div
+            v-if="ownershipPlanId === plan.id && isQualityRule(plan)"
+            class="border-t border-emerald-100 bg-emerald-50/40 px-4 py-3 dark:border-emerald-900/50 dark:bg-emerald-900/10"
+            @click.stop
+          >
+            <div v-if="ownershipLoading" class="text-xs text-gray-500">{{ t('common.loading') }}...</div>
+            <div v-else-if="ownershipPreview" class="space-y-2">
+              <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-600 dark:text-gray-300">
+                <span>{{ t('admin.scheduledTests.qualityAction') }}: {{ ownershipPreview.action || '-' }}</span>
+                <span>{{ t('admin.scheduledTests.ownedState') }}: {{ ownershipPreview.state_present ? t('admin.scheduledTests.statePresent') : t('admin.scheduledTests.stateEmpty') }}</span>
+                <span>{{ t('admin.scheduledTests.ruleVersion') }}: <code>{{ ownershipPreview.rule_version }}</code></span>
+              </div>
+              <div class="flex flex-wrap items-center gap-2">
+                <button
+                  v-if="ownershipPreview.reconcile_ready"
+                  class="btn btn-secondary text-xs"
+                  :disabled="ownershipBusy"
+                  @click="requestOwnershipAction('reconcile')"
+                >{{ t('admin.scheduledTests.reconcileOwnership') }}</button>
+                <button
+                  v-if="ownershipPreview.state_present && ownershipPreview.restore_ready"
+                  class="btn btn-secondary text-xs"
+                  :disabled="ownershipBusy"
+                  @click="requestOwnershipAction('restore')"
+                >{{ t('admin.scheduledTests.restoreOwnership') }}</button>
+                <button
+                  v-if="!ownershipPreview.state_present"
+                  class="btn btn-danger text-xs"
+                  :disabled="ownershipBusy"
+                  @click="requestOwnershipAction('delete')"
+                >{{ t('admin.scheduledTests.deleteQualityRule') }}</button>
+                <span v-if="ownershipPreview.state_present && !ownershipPreview.restore_ready && !ownershipPreview.reconcile_ready" class="text-xs text-red-600 dark:text-red-400">
+                  {{ t('admin.scheduledTests.ownershipConflict') }}
+                </span>
+              </div>
+            </div>
+            <p v-if="ownershipError" class="mt-2 text-xs text-red-600 dark:text-red-400">{{ ownershipError }}</p>
           </div>
 
           <!-- Edit Form -->
@@ -459,11 +506,21 @@
       @confirm="handleDelete"
       @cancel="showDeleteConfirm = false"
     />
+    <ConfirmDialog
+      :show="showOwnershipConfirm"
+      :title="ownershipConfirmTitle"
+      :message="ownershipConfirmMessage"
+      :confirm-text="ownershipConfirmButton"
+      :cancel-text="t('common.cancel')"
+      :danger="ownershipAction === 'delete'"
+      @confirm="handleOwnershipAction"
+      @cancel="showOwnershipConfirm = false"
+    />
   </BaseDialog>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, watch } from 'vue'
+import { ref, reactive, watch, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
@@ -475,7 +532,7 @@ import { Icon } from '@/components/icons'
 import { adminAPI } from '@/api/admin'
 import { useAppStore } from '@/stores/app'
 import { formatDateTime } from '@/utils/format'
-import type { ScheduledTestPlan, ScheduledTestResult } from '@/types'
+import type { QualityOwnershipPreview, ScheduledTestPlan, ScheduledTestResult } from '@/types'
 
 const { t } = useI18n()
 const appStore = useAppStore()
@@ -501,6 +558,14 @@ const expandedResultIds = reactive(new Set<number>())
 const showAddForm = ref(false)
 const showDeleteConfirm = ref(false)
 const deletingPlan = ref<ScheduledTestPlan | null>(null)
+const ownershipPlanId = ref<number | null>(null)
+const ownershipPreview = ref<QualityOwnershipPreview | null>(null)
+const ownershipLoading = ref(false)
+const ownershipBusy = ref(false)
+const ownershipError = ref('')
+const ownershipAction = ref<'reconcile' | 'restore' | 'delete' | null>(null)
+const showOwnershipConfirm = ref(false)
+const ownershipPlan = ref<ScheduledTestPlan | null>(null)
 const editingPlanId = ref<number | null>(null)
 const updating = ref(false)
 const editForm = reactive({
@@ -540,6 +605,10 @@ watch(
       expandedResultIds.clear()
       showAddForm.value = false
       showDeleteConfirm.value = false
+      ownershipPlanId.value = null
+      ownershipPreview.value = null
+      ownershipError.value = ''
+      showOwnershipConfirm.value = false
     }
   },
   { immediate: true }
@@ -583,7 +652,10 @@ const handleCreate = async () => {
 
 const handleToggleEnabled = async (plan: ScheduledTestPlan, enabled: boolean) => {
   try {
-    const updated = await adminAPI.scheduledTests.update(plan.id, { enabled })
+    const updated = await adminAPI.scheduledTests.update(plan.id, {
+      enabled,
+      ...(isQualityRule(plan) ? { expected_updated_at: plan.updated_at } : {})
+    })
     const index = plans.value.findIndex((p) => p.id === plan.id)
     if (index !== -1) {
       plans.value[index] = updated
@@ -611,12 +683,16 @@ const handleEdit = async () => {
   if (!editingPlanId.value || !editForm.model_id || !editForm.cron_expression) return
   updating.value = true
   try {
+    const editingPlan = plans.value.find((plan) => plan.id === editingPlanId.value)
     const updated = await adminAPI.scheduledTests.update(editingPlanId.value, {
       model_id: editForm.model_id,
       cron_expression: editForm.cron_expression,
       max_results: Number(editForm.max_results) || 100,
       enabled: editForm.enabled,
-      auto_recover: editForm.auto_recover
+      auto_recover: editForm.auto_recover,
+      ...(editingPlan && isQualityRule(editingPlan)
+        ? { expected_updated_at: editingPlan.updated_at }
+        : {})
     })
     const index = plans.value.findIndex((p) => p.id === editingPlanId.value)
     if (index !== -1) {
@@ -632,9 +708,82 @@ const handleEdit = async () => {
 }
 
 const confirmDeletePlan = (plan: ScheduledTestPlan) => {
+  if (isQualityRule(plan)) {
+    appStore.showError(t('admin.scheduledTests.ownershipPreviewRequired'))
+    return
+  }
   deletingPlan.value = plan
   showDeleteConfirm.value = true
 }
+
+const isQualityRule = (plan: ScheduledTestPlan) => Boolean(plan.pelican_config?.quality)
+
+const previewOwnership = async (plan: ScheduledTestPlan) => {
+  ownershipPlanId.value = plan.id
+  ownershipPreview.value = null
+  ownershipError.value = ''
+  ownershipLoading.value = true
+  try {
+    ownershipPreview.value = await adminAPI.scheduledTests.ownershipPreview(plan.id)
+  } catch (error: any) {
+    ownershipError.value = error?.message || t('admin.scheduledTests.ownershipPreviewFailed')
+  } finally {
+    ownershipLoading.value = false
+  }
+}
+
+const requestOwnershipAction = (action: 'reconcile' | 'restore' | 'delete') => {
+  const plan = plans.value.find((item) => item.id === ownershipPlanId.value)
+  if (!plan || !ownershipPreview.value?.fence) return
+  if (action === 'delete' && ownershipPreview.value.state_present) return
+  ownershipPlan.value = plan
+  ownershipAction.value = action
+  showOwnershipConfirm.value = true
+}
+
+const handleOwnershipAction = async () => {
+  const plan = ownershipPlan.value
+  const preview = ownershipPreview.value
+  const action = ownershipAction.value
+  if (!plan || !preview?.fence || !action) return
+  ownershipBusy.value = true
+  ownershipError.value = ''
+  try {
+    const api = adminAPI.scheduledTests
+    if (action === 'reconcile') {
+      await api.reconcileOwnership(plan.id, preview.fence)
+      ownershipPreview.value = await api.ownershipPreview(plan.id)
+    } else if (action === 'restore') {
+      await api.restoreOwnership(plan.id, preview.fence)
+      ownershipPreview.value = await api.ownershipPreview(plan.id)
+    }
+    else {
+      await api.deleteOwnedPlan(plan.id, preview.fence)
+      plans.value = plans.value.filter((item) => item.id !== plan.id)
+      ownershipPlanId.value = null
+      ownershipPreview.value = null
+    }
+    appStore.showSuccess(t(`admin.scheduledTests.${action === 'delete' ? 'qualityDeleteSuccess' : `${action}Success`}`))
+  } catch (error: any) {
+    ownershipError.value = error?.message || t('admin.scheduledTests.ownershipActionFailed')
+    if (error?.response?.status === 409) ownershipError.value = t('admin.scheduledTests.ownershipPreviewChanged')
+  } finally {
+    ownershipBusy.value = false
+    showOwnershipConfirm.value = false
+    ownershipPlan.value = null
+    ownershipAction.value = null
+  }
+}
+
+const ownershipConfirmTitle = computed(() => ownershipAction.value
+  ? t(`admin.scheduledTests.${ownershipAction.value}ConfirmTitle`)
+  : '')
+const ownershipConfirmMessage = computed(() => ownershipAction.value
+  ? t(`admin.scheduledTests.${ownershipAction.value}ConfirmMessage`)
+  : '')
+const ownershipConfirmButton = computed(() => ownershipAction.value
+  ? t(`admin.scheduledTests.${ownershipAction.value}ConfirmButton`)
+  : '')
 
 const handleDelete = async () => {
   if (!deletingPlan.value) return

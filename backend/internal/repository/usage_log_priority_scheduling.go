@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -14,19 +15,21 @@ func (r *usageLogRepository) ReadPrioritySchedulingSignals(ctx context.Context, 
 	if q.LatencyMeasurement == "attributed_v1" {
 		return r.readAttributedPrioritySchedulingSignals(ctx, q)
 	}
-	rows, err := r.sql.QueryContext(ctx, `
+	percentile := priorityLatencyPercentile(q.LatencyPercentile)
+	rows, err := r.sql.QueryContext(ctx, fmt.Sprintf(`
 SELECT account_id,
        COUNT(*) FILTER (WHERE stream AND first_token_ms > 0) AS samples,
-       COALESCE(percentile_cont(0.90) WITHIN GROUP (ORDER BY first_token_ms) FILTER (WHERE stream AND first_token_ms > 0), 0),
+       COALESCE(percentile_cont(%0.2f) WITHIN GROUP (ORDER BY first_token_ms) FILTER (WHERE stream AND first_token_ms > 0), 0),
+       MAX(created_at) FILTER (WHERE stream AND first_token_ms > $6),
        COALESCE(SUM(COALESCE(actual_cost, 0)), 0),
        COALESCE(SUM(COALESCE(account_stats_cost, total_cost, 0) * COALESCE(account_rate_multiplier, 1)), 0)
 FROM usage_logs
 WHERE account_id = ANY($1::bigint[])
-  AND created_at >= $2 AND created_at <= NOW()
+  AND created_at >= $2 AND created_at < NOW()
   AND COALESCE(NULLIF(BTRIM(requested_model), ''), model) = $3
   AND ($4::bigint IS NULL OR group_id = $4)
   AND ($5 = '' OR COALESCE(NULLIF(BTRIM(inbound_endpoint), ''), '') = $5)
-GROUP BY account_id`, pq.Array(q.AccountIDs), q.Since, q.Model, nullablePriorityGroup(q.GroupID), q.InboundEndpoint)
+GROUP BY account_id`, percentile), pq.Array(q.AccountIDs), q.Since, q.Model, nullablePriorityGroup(q.GroupID), q.InboundEndpoint, q.TargetTTFTMs)
 	if err != nil {
 		return nil, err
 	}
@@ -35,8 +38,12 @@ GROUP BY account_id`, pq.Array(q.AccountIDs), q.Since, q.Model, nullablePriority
 	for rows.Next() {
 		var id int64
 		var signal service.PrioritySchedulingSignal
-		if err := rows.Scan(&id, &signal.Samples, &signal.P90TTFTMs, &signal.Revenue, &signal.TheoreticalCost); err != nil {
+		var latestBad sql.NullTime
+		if err := rows.Scan(&id, &signal.Samples, &signal.P90TTFTMs, &latestBad, &signal.Revenue, &signal.TheoreticalCost); err != nil {
 			return nil, err
+		}
+		if latestBad.Valid {
+			signal.LatestBadLatencyAt = &latestBad.Time
 		}
 		out[id] = signal
 	}
@@ -44,19 +51,12 @@ GROUP BY account_id`, pq.Array(q.AccountIDs), q.Since, q.Model, nullablePriority
 }
 
 func (r *usageLogRepository) readAttributedPrioritySchedulingSignals(ctx context.Context, q service.PrioritySchedulingQuery) (map[int64]service.PrioritySchedulingSignal, error) {
-	percentile := 0.90
-	switch q.LatencyPercentile {
-	case 50:
-		percentile = 0.50
-	case 70:
-		percentile = 0.70
-	case 95:
-		percentile = 0.95
-	}
+	percentile := priorityLatencyPercentile(q.LatencyPercentile)
 	rows, err := r.sql.QueryContext(ctx, fmt.Sprintf(`
 SELECT a.account_id,
        COUNT(*) AS samples,
        COALESCE(percentile_cont(%0.2f) WITHIN GROUP (ORDER BY o.first_semantic_ms), 0),
+       MAX(o.created_at) FILTER (WHERE o.first_semantic_ms > $6),
        0::double precision, 0::double precision
 FROM gateway_request_priority_observations o
 JOIN gateway_request_attempt_evidence e ON e.attempt_id=o.attempt_id
@@ -67,7 +67,7 @@ WHERE a.account_id = ANY($1::bigint[])
   AND o.model = $3
   AND o.inbound_endpoint = $4
   AND o.group_id IS NOT DISTINCT FROM $5::bigint
-GROUP BY a.account_id`, percentile), pq.Array(q.AccountIDs), q.Since, q.Model, q.InboundEndpoint, nullablePriorityGroup(q.GroupID))
+GROUP BY a.account_id`, percentile), pq.Array(q.AccountIDs), q.Since, q.Model, q.InboundEndpoint, nullablePriorityGroup(q.GroupID), q.TargetTTFTMs)
 	if err != nil {
 		return nil, err
 	}
@@ -76,12 +76,29 @@ GROUP BY a.account_id`, percentile), pq.Array(q.AccountIDs), q.Since, q.Model, q
 	for rows.Next() {
 		var id int64
 		var signal service.PrioritySchedulingSignal
-		if err := rows.Scan(&id, &signal.Samples, &signal.P90TTFTMs, &signal.Revenue, &signal.TheoreticalCost); err != nil {
+		var latestBad sql.NullTime
+		if err := rows.Scan(&id, &signal.Samples, &signal.P90TTFTMs, &latestBad, &signal.Revenue, &signal.TheoreticalCost); err != nil {
 			return nil, err
+		}
+		if latestBad.Valid {
+			signal.LatestBadLatencyAt = &latestBad.Time
 		}
 		out[id] = signal
 	}
 	return out, rows.Err()
+}
+
+func priorityLatencyPercentile(value int) float64 {
+	switch value {
+	case 50:
+		return 0.50
+	case 70:
+		return 0.70
+	case 95:
+		return 0.95
+	default:
+		return 0.90
+	}
 }
 
 func nullablePriorityGroup(id *int64) any {

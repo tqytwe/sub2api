@@ -32,6 +32,10 @@ type accountTokenGuardV2SaveRequest struct {
 	AutoReloginEnabled *bool  `json:"auto_relogin_enabled"`
 }
 
+type accountTokenGuardV2ResumeBudgetRequest struct {
+	Confirm bool `json:"confirm"`
+}
+
 func (r accountTokenGuardV2SaveRequest) input() service.AccountTokenGuardV2AccountInput {
 	enabled := true
 	autoRelogin := true
@@ -161,4 +165,22 @@ func (h *AccountTokenGuardV2Handler) Relogin(c *gin.Context) {
 		return
 	}
 	response.Accepted(c, task)
+}
+
+func (h *AccountTokenGuardV2Handler) ResumeReloginBudget(c *gin.Context) {
+	accountID, ok := parseTokenGuardV2AccountID(c)
+	if !ok {
+		return
+	}
+	var req accountTokenGuardV2ResumeBudgetRequest
+	if err := c.ShouldBindJSON(&req); err != nil || !req.Confirm {
+		response.BadRequest(c, "Confirmation required")
+		return
+	}
+	account, err := h.service.ResumeReloginBudget(c.Request.Context(), accountID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, account)
 }

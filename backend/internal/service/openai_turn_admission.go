@@ -24,9 +24,13 @@ type OpenAITurnAdmissionReader interface {
 
 // OpenAITurnAdmissionError is a local pre-send rejection, never an upstream
 // failure. It must not cause account/proxy health penalties or replay a turn.
-type OpenAITurnAdmissionError struct{ Reason string }
+type OpenAITurnAdmissionError struct {
+	Reason string
+	cause  error
+}
 
 func (e *OpenAITurnAdmissionError) Error() string { return "request admission denied: " + e.Reason }
+func (e *OpenAITurnAdmissionError) Unwrap() error { return e.cause }
 func IsOpenAITurnAdmissionError(err error) bool {
 	var denied *OpenAITurnAdmissionError
 	return errors.As(err, &denied)
@@ -53,6 +57,27 @@ func openAITurnRequestModel(ctx context.Context, fallback string) string {
 		}
 	}
 	return fallback
+}
+
+func priorityGroupIDFromContext(c *gin.Context) *int64 {
+	if c == nil {
+		return nil
+	}
+	id := getOpenAIGroupIDFromContext(c)
+	if id <= 0 {
+		return nil
+	}
+	return &id
+}
+
+func priorityInboundEndpoint(c *gin.Context) string {
+	if c == nil || c.Request == nil {
+		return ""
+	}
+	if endpoint, ok := c.Request.Context().Value(ctxkey.InboundEndpoint).(string); ok {
+		return strings.TrimSpace(endpoint)
+	}
+	return ""
 }
 
 func (s *OpenAIGatewayService) admitOpenAITurnForRequest(ctx context.Context, c *gin.Context, selected *Account, requestModel, outboundModel string) (*Account, error) {
@@ -165,6 +190,20 @@ func (s *OpenAIGatewayService) admitOpenAITurnModels(ctx context.Context, c *gin
 	}
 	if openAITurnRouteFingerprint(latest) != openAITurnRouteFingerprint(selected) {
 		return nil, denyOpenAITurn("account_binding_changed")
+	}
+	priorityReq, hasPriorityReq := prioritySelectionRequestFromContext(ctx)
+	if !hasPriorityReq {
+		priorityReq = OpenAIAccountScheduleRequest{
+			GroupID:              priorityGroupIDFromContext(c),
+			Platform:             latest.Platform,
+			RequestedModel:       routedModel,
+			HistoryModel:         requestModel,
+			InboundEndpoint:      priorityInboundEndpoint(c),
+			UseUpstreamTokenCost: !strings.HasPrefix(priorityInboundEndpoint(c), "/v1/images") && !IsGPTImageGenerationModel(routedModel),
+		}
+	}
+	if err := s.priorityLatencyAdmission(priorityReq, latest); err != nil {
+		return nil, err
 	}
 	if !s.openAIResponsesToolsProtocolCompatible(ctx, latest, routedModel, false) {
 		return nil, denyOpenAITurn(openAIResponsesToolsProtocolMismatch)

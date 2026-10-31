@@ -6,6 +6,7 @@ import splitBatchImageEn from './en/batchImage'
 import splitCommonEn from './en/common'
 import splitChannelMonitorV2En from './en/channelMonitorV2'
 import splitDashboardEn from './en/dashboard'
+import splitWorkspaceShellEn from './en/workspaceShell'
 import auditAdminEn from './en/admin/audit'
 import promptAuditAdminEn from './en/admin/promptAudit'
 import tokenGuardV2En from './en/tokenGuardV2'
@@ -9575,10 +9576,10 @@ const messages = {
 
 }
 
-export default mergeLocaleMessages(messages, {
+export default mergeLocaleMessages(messages, mergeLocaleMessages({
   ...splitCommonEn,
   ...splitChannelMonitorV2En,
   ...splitDashboardEn,
   ...splitBatchImageEn,
   admin: splitAdminEn,
-})
+}, splitWorkspaceShellEn))

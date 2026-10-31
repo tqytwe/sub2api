@@ -4,6 +4,7 @@ vite.config.d.ts
 
 # 忽略依赖
 node_modules/
+tmp/sub2api-pnpm9-node-modules/
 
 # 忽略构建输出
 dist/

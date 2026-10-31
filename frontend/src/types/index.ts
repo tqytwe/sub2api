@@ -2587,7 +2587,7 @@ export interface ScheduledTestPlan {
 }
 
 export interface QualityJudgeConfig {
-  kind?: 'jev' | 'llm' | string
+  kind?: 'expected' | 'jev'
   group_id?: number
   model_id?: string
   prompt?: string
@@ -2627,6 +2627,20 @@ export interface ScheduledTestResult {
   quality_judgment?: Record<string, unknown> | null
 }
 
+export interface QualityHistoryResult extends ScheduledTestResult {
+  account_id: number
+  account_name: string
+  passed_count: number
+  skipped_count: number
+  total_count: number
+  result_ids: number[]
+}
+
+export interface QualityHistoryPage {
+  items: QualityHistoryResult[]
+  next_cursor: number
+}
+
 export interface QualityOwnershipPreview {
   plan_id: number
   account_id: number
@@ -2635,6 +2649,7 @@ export interface QualityOwnershipPreview {
   action?: string
   state_present: boolean
   restore_ready: boolean
+  reconcile_ready: boolean
 }
 
 export interface CreateScheduledTestPlanRequest {
@@ -2644,6 +2659,7 @@ export interface CreateScheduledTestPlanRequest {
   enabled?: boolean
   max_results?: number
   auto_recover?: boolean
+  pelican_config?: PelicanTestConfig | null
 }
 
 export interface UpdateScheduledTestPlanRequest {
@@ -2653,6 +2669,7 @@ export interface UpdateScheduledTestPlanRequest {
   max_results?: number
   auto_recover?: boolean
   expected_updated_at?: string
+  pelican_config?: PelicanTestConfig | null
 }
 
 // Payment types

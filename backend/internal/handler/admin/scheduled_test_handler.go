@@ -127,6 +127,47 @@ func (h *ScheduledTestHandler) ListByAccount(c *gin.Context) {
 	c.JSON(http.StatusOK, plans)
 }
 
+// ListQualityPlans returns quality rules for the administrator workspace.
+func (h *ScheduledTestHandler) ListQualityPlans(c *gin.Context) {
+	plans, err := h.scheduledTestSvc.ListQualityPlans(c.Request.Context())
+	if err != nil {
+		response.InternalError(c, err.Error())
+		return
+	}
+	c.JSON(http.StatusOK, plans)
+}
+
+// TriggerQuality schedules an enabled, idle quality rule for the next runner tick.
+func (h *ScheduledTestHandler) TriggerQuality(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "invalid plan id")
+		return
+	}
+	if err := h.scheduledTestSvc.TriggerQuality(c.Request.Context(), id); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	c.Status(http.StatusNoContent)
+}
+
+// ListQualityHistory returns the administrator-wide quality operation ledger.
+// Only sanitized result snapshots are returned; response bodies are never
+// loaded by this endpoint.
+func (h *ScheduledTestHandler) ListQualityHistory(c *gin.Context) {
+	beforeID, err := strconv.ParseInt(c.DefaultQuery("before_id", "0"), 10, 64)
+	if err != nil || beforeID < 0 {
+		response.BadRequest(c, "invalid before_id")
+		return
+	}
+	page, err := h.scheduledTestSvc.ListQualityHistory(c.Request.Context(), beforeID)
+	if err != nil {
+		response.InternalError(c, err.Error())
+		return
+	}
+	c.JSON(http.StatusOK, page)
+}
+
 // Create POST /admin/scheduled-test-plans
 func (h *ScheduledTestHandler) Create(c *gin.Context) {
 	var req createScheduledTestPlanRequest

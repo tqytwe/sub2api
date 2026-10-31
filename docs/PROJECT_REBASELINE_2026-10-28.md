@@ -1,6 +1,6 @@
 # 当前项目推进基线
 
-状态：`active`。核验日期：2026-10-28（Asia/Shanghai）。
+状态：`active`。核验日期：2026-10-30（Asia/Shanghai）。
 
 本项目从本文件开始采用“上游正式版本同步 + Fork 差异一次性批次交付”。旧迁移账本中的 B2/B3/B4/B5 不再作为脱离上游的独立开发路线；它们改为同步批次中的后端、数据库、前端和生产验收工作包。2026-10-28 已重新核实上游最新正式发布为 `v2.17.7`，本文件后续范围以该版本为准。
 
@@ -9,9 +9,9 @@
 | 项目 | 当前事实 |
 |------|----------|
 | 生产分支 | `origin/play/main` |
-| 当前生产 commit | `5c16bc5b5965a7b0d7c38aa35671639f045f2dea`（PR #389 merge） |
-| Zeabur | deployment `6ae1a532ea16512cf741806a`，对应 `5c16bc5b5`，状态 `success` |
-| 公开健康 | `https://www.jisudeng.com/` 与 `/health` 返回 HTTP 200 |
+| 当前生产 commit | `21dd9af2239c2c7f8259e41e31e21156131622b4`（PR #392 merge） |
+| Zeabur | deployment `6ae303acea16512cf7419a17`，GitHub Zeabur check `success` |
+| 公开健康 | 2026-10-30 `https://www.jisudeng.com/` 与 `/health` 均返回 HTTP 200 |
 | 直接上游 | `ranxi2001/sub2api` |
 | 上游候选发布 | GitHub release/tag `v2.17.7`；tag object `af9a09cf92c1cbfdcf793862122d46a5a29a6da1`；tag commit `9620d315f72a7dbf04fa10fca02970e1e410805e`；静态 `VERSION` 为 `2.17.7`；已在线核实 release/tag |
 | 生产源码版本标识 | `backend/cmd/server/VERSION` 为 `0.2.14`；这是 Fork 当前标识，不代表已同步上游 v2.17.7 |
