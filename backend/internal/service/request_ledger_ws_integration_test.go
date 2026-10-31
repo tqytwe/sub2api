@@ -128,9 +128,15 @@ func TestRequestLedgerNativeWebsocketTwoTurnsWithRealPostgres(t *testing.T) {
 	cfg.Gateway.OpenAIWS.QueueLimitPerConn = 8
 	cfg.Gateway.OpenAIWS.ReadTimeoutSeconds = 3
 	cfg.Gateway.OpenAIWS.WriteTimeoutSeconds = 3
-	// The second authoritative terminal deliberately has no response ID or usage.
-	// PR346 must bind it to the second turn without reusing the first turn's evidence.
-	upstream := &openAIWSCaptureConn{events: [][]byte{[]byte(`{"type":"response.completed","response":{"id":"fixture-first","usage":{"input_tokens":7,"output_tokens":3}}}`), []byte(`{"type":"response.completed","response":{}}`)}}
+	// Each turn emits semantic output before its terminal frame. The second
+	// authoritative terminal deliberately has no response ID or usage: PR346
+	// must bind it to the second turn without reusing the first turn's evidence.
+	upstream := &openAIWSCaptureConn{events: [][]byte{
+		[]byte(`{"type":"response.output_text.delta","delta":"first"}`),
+		[]byte(`{"type":"response.completed","response":{"id":"fixture-first","usage":{"input_tokens":7,"output_tokens":3}}}`),
+		[]byte(`{"type":"response.output_text.delta","delta":"second"}`),
+		[]byte(`{"type":"response.completed","response":{}}`),
+	}}
 	pool := newOpenAIWSConnPool(cfg)
 	defer pool.Close()
 	pool.setClientDialerForTest(&openAIWSQueueDialer{conns: []openAIWSClientConn{upstream}})
@@ -168,8 +174,14 @@ func TestRequestLedgerNativeWebsocketTwoTurnsWithRealPostgres(t *testing.T) {
 	defer client.CloseNow()
 	for range 2 {
 		require.NoError(t, client.Write(ctx, coderws.MessageText, []byte(`{"type":"response.create","model":"gpt-5.1","input":[]}`)))
-		_, _, err = client.Read(ctx)
-		require.NoError(t, err)
+		for {
+			msgType, payload, readErr := client.Read(ctx)
+			require.NoError(t, readErr)
+			require.Equal(t, coderws.MessageText, msgType)
+			if openAIWSPassthroughIsTerminalOutput(payload) {
+				break
+			}
+		}
 	}
 	require.NoError(t, client.Close(coderws.StatusNormalClosure, "done"))
 	select {
@@ -195,5 +207,12 @@ func TestRequestLedgerNativeWebsocketTwoTurnsWithRealPostgres(t *testing.T) {
 	require.NoError(t, db.QueryRow(`SELECT COALESCE(e.upstream_response_id,'') FROM gateway_request_attempt_evidence e JOIN gateway_requests r ON r.id=e.request_id WHERE r.parent_id=$1 AND r.turn_no=2 AND e.attempt_no=(SELECT max(attempt_no) FROM gateway_request_attempts WHERE request_id=r.id AND phase='request')`, session).Scan(&secondID))
 	require.Equal(t, "fixture-first", firstID)
 	require.Empty(t, secondID, "ID-less turn must not inherit the previous response ID")
+	var observations int
+	require.NoError(t, db.QueryRow(`SELECT count(*) FROM gateway_request_priority_observations`).Scan(&observations))
+	require.Equal(t, 2, observations, "each successful native websocket turn with semantic output should persist one observation")
+	var observedModel, observedEndpoint string
+	require.NoError(t, db.QueryRow(`SELECT model, inbound_endpoint FROM gateway_request_priority_observations ORDER BY created_at, attempt_id LIMIT 1`).Scan(&observedModel, &observedEndpoint))
+	require.Equal(t, "gpt-5.1", observedModel)
+	require.Equal(t, "/v1/responses", observedEndpoint)
 
 }

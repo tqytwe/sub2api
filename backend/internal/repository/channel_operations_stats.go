@@ -29,7 +29,17 @@ const channelOperationsUsageBase = `WITH base AS (
 // A quality round is complete only when every frozen model has the configured
 // probe count. Model filtering is applied after completeness is evaluated.
 const channelOperationsQualityBase = `WITH scoped AS (
- SELECT p.account_id,r.id,r.plan_id,r.status,r.created_at,r.pelican_config,r.quality_round_id,r.quality_action,r.quality_judgment,r.error_message,NULLIF(r.pelican_config->>'model_id','') AS measured_model
+ SELECT p.account_id,r.id,r.plan_id,r.status,r.created_at,r.pelican_config,r.quality_round_id,r.quality_action,r.quality_judgment,r.error_message,NULLIF(r.pelican_config->>'model_id','') AS measured_model,
+        CASE
+         WHEN NOT (r.pelican_config ? 'parallel_count') THEN 1
+         WHEN jsonb_typeof(r.pelican_config->'parallel_count')='number' AND (r.pelican_config->>'parallel_count') ~ '^[0-8]$'
+           THEN GREATEST((r.pelican_config->>'parallel_count')::int,1)
+        END AS expected_parallel_count,
+        CASE
+         WHEN NOT (r.pelican_config ? 'parallel_count') THEN true
+         WHEN jsonb_typeof(r.pelican_config->'parallel_count')='number' AND (r.pelican_config->>'parallel_count') ~ '^[0-8]$' THEN true
+         ELSE false
+        END AS valid_parallel_count
  FROM scheduled_test_results r JOIN scheduled_test_plans p ON p.id=r.plan_id
  WHERE r.created_at >= $1 AND r.created_at < $2
  AND ($3::bigint=0 OR EXISTS (SELECT 1 FROM account_groups ag JOIN channel_groups cg ON cg.group_id=ag.group_id WHERE ag.account_id=p.account_id AND cg.channel_id=$3) OR EXISTS(SELECT 1 FROM channel_operation_members m WHERE m.account_id=p.account_id AND m.channel_id=$3))
@@ -49,8 +59,8 @@ const channelOperationsQualityBase = `WITH scoped AS (
  count(*) FILTER(WHERE status='success' AND quality_judgment->>'verdict'='correct') AS passed_probes,
  bool_or(COALESCE(status='failed' AND quality_judgment->>'verdict'='incorrect' AND error_message IN ('answer_mismatch','state_degraded') AND quality_action NOT IN ('','stale_run') AND quality_round_id<>'',false)) AS degraded,
  bool_and(COALESCE(status='success' AND quality_judgment->>'verdict'='correct' AND quality_action NOT IN ('','stale_run') AND quality_round_id<>'',false)) AS passed,
- bool_and(COALESCE(jsonb_typeof(pelican_config->'parallel_count')='number' AND (pelican_config->>'parallel_count') ~ '^[1-8]$',false)) AS valid_count,
- max(CASE WHEN jsonb_typeof(pelican_config->'parallel_count')='number' AND (pelican_config->>'parallel_count') ~ '^[1-8]$' THEN (pelican_config->>'parallel_count')::int END) AS expected,
+ bool_and(valid_parallel_count) AS valid_count,
+ max(expected_parallel_count) AS expected,
  jsonb_agg(DISTINCT NULLIF(quality_action,'')) AS actions,
  bool_and(COALESCE(quality_round_id<>'',false)) AS valid_round,
  bool_and(COALESCE(expected_models ? measured_model,false) AND NOT EXISTS (

@@ -1,14 +1,14 @@
 # v2.17.7 功能域矩阵
 
-核验基线：生产 `play/main@f7193d639980840ae9fad66376355f4243d82a35`（PR #397），Zeabur deployment `6ae634e9ea16512cf741d3ca`；质量多模型批次已合并部署，管理员组合验收仍待完成；上游固定 `ranxi2001/sub2api@v2.17.7`。
+核验基线：生产 `play/main@db76a7e2a0a8c24818efad1fad6623fee28ab706`（PR #398），Zeabur deployment `6ae65455ea16512cf741d4c8`；应用、PostgreSQL、Redis 为 `RUNNING`，首页和 `/health` HTTP 200，运行日志 ERROR/FATAL/PANIC 为 0；生产只读账本为 431 条、最新 338、无效索引 0，关键迁移 checksum 抽查一致；管理员组合验收仍待完成；上游固定 `ranxi2001/sub2api@v2.17.7`。
 
-2026-11-01通过Zeabur CLI核对精确SHA、RUNNING和两域名health200。生产只读核验431条ledger，424个当前SQL无缺失/checksum差异，7条历史记录；本批无SQL/schema迁移。#395已部署质量恢复/unknown修复、单模型Priority quality round及凭证修复；#397已部署多模型/重复probe和整轮保存。#396 Key/倍率与#397质量组合验收仍待管理员完成。内容审查列表刷新已由用户确认正常；该页面验收不代表审核动作/审核API已启用。
+2026-11-01通过Zeabur CLI核对#398精确SHA、RUNNING、应用/PostgreSQL/Redis和两域名health200。运行日志 ERROR/FATAL/PANIC 为0，只有1条既有缺少审核API Key提示。#397的生产只读核验确认431条ledger，424个当前SQL无缺失/checksum差异，7条历史记录；#398不含SQL/schema迁移，未写生产数据库。#395已部署质量恢复/unknown修复、单模型Priority quality round及凭证修复；#397已部署多模型/重复probe和整轮保存；#398补质量历史查询、WebSocket优先调度归因与空delta语义修复。#396 Key/倍率与#397/#398质量组合验收仍待管理员完成。内容审查列表刷新已由用户确认正常；该页面验收不代表审核动作/审核API已启用。
 
 | 功能域 | 当前生产事实 | 本批与后续真实缺口 | 验收边界 |
 |---|---|---|---|
 | 来源/446 范围 | tag/commit 已锁定，446 merge SHA 唯一且覆盖准确；保留 Fork `0.2.14` 标识 | 持续关闭 split/evidence/product-scope，不重新生成相同清单 | `fully_migrated=false`；有代码不等于整版完成 |
-| 渠道运维 | #389 已上线且 #393 保留；管理员路由、API、revision CAS、审计已有；生产质量统计原为固定 `unsupported_scope` | 当前候选查询冻结质量结果并按 plan/round/model 校验完整性，复用既有表；存储/API单测及隔离 PostgreSQL 18.1 集成通过 | 不新增页面/入口/迁移；管理员保存/刷新/冲突/审计及新质量数据现场验收仍待完成，查询按当前成员范围而非历史请求归因 |
-| 优先调度 | HTTP/WS 最终 hard-stop、sticky/fallback/retry 重检、分位数与惩罚时钟、attempt 幂等/30天清理已部署 | 两种reader单模型quality round、稳定版本和有效期已随#395部署；本批补多模型完整round与逐模型归因，并接入原生WS首个解析确认语义事件的attempt观测；单测及隔离PostgreSQL回归通过 | 不将 admission 测试视为 latency observation 测试；unknown 不伪造为通过/处罚；生产需在下一批部署后核对观测行 |
+| 渠道运维 | #389 已上线且 #393 保留；管理员路由、API、revision CAS、审计已有；#398 已部署质量统计查询 | 当前累计修复补齐缺省/零值 `parallel_count` 按 1 次探测归一，复用既有表且无新增迁移；定向 Go 单测已通过；PostgreSQL 集成尝试因 Docker Hub 拉取镜像超时，待一次性数据库/PR CI | 不新增页面/入口；管理员保存/刷新/冲突/审计及新质量数据现场验收仍待完成，查询按当前成员范围而非历史请求归因；累计修复尚未部署 |
+| 优先调度 | HTTP/WS 最终 hard-stop、sticky/fallback/retry 重检、分位数与惩罚时钟、attempt 幂等/30天清理已部署 | 两种reader单模型quality round、稳定版本和有效期已随#395部署；#398已部署多模型完整round、逐模型归因和 passthrough 观测；当前工作区累计补原生WS（ctx_pool/shared/dedicated）及HTTP bridge首个解析确认语义事件的attempt观测，定向单测与隔离PostgreSQL回归通过，尚未部署 | 不将 admission 测试视为 latency observation 测试；unknown 不伪造为通过/处罚；累计修复部署后需核对原生WS真实观测行 |
 | GPT-6.1 Sol 计费 | Fork 已有长上下文阈值、OAuth/Setup Token 豁免及测试 | 保留只读价格/用量/账务抽样项 | 无真实抽样不计整包完成，不补扣 |
 | 滚动 Usage | #393 已部署，用户反馈正常；窗口/分页/导出快照与日历清理已有测试 | 本机精确窗口/导出/日期清理验收待补，不再开发另一套 | #579 部分生产验收通过 |
 | 内容审查 | #393 已部署状态/hits/actions 与296/298/301；#394修好列表，用户本机确认，5次生产请求200 | generation/reset/四类exemption/owned unban写动作与审计待验收 | 独立启用已在审核记录行，get→update(status+reason)→get，不重置moderation状态；42项相关回归重跑通过，不复制上游第二套入口 |
@@ -19,7 +19,7 @@
 | 请求采集/support/harvest | 未纳入本批；用户明确保留阻断 | 最小读取、摘要/哈希、按需限期加密原文与自动TTL合同先行 | 不为版本同步引入正文采集 |
 | 安全prompt审计 | Fork既有prompt审计与上游明文full_prompt合同不同 | #492全文/跨用户读取/无TTL保持阻断 | 不修改/清理生产历史原文 |
 | BPS/Excel、Pelican、Prism/Astra、Mihomo、Regional、额外provider媒体 | 范围/架构待确认；存在Fork相邻模块不代表上游整包等价 | 必须按产品合同单独界定，不能为“同步”自动扩新运行时/新服务 | 各自保留明确阻断/待决，不能静默排除或虚报完成 |
-| 发布交接 | #397精确部署、health、数据库和9项CI已核验；内容审查列表刷新由用户再次确认 | #397质量与#396 Key/倍率管理员验收仍待完成；下批累计后再PR/CI/部署 | 不以CI或合并代替部署监督，不因文档小变动单独重启生产 |
+| 发布交接 | #398精确部署、health、服务状态和未认证401权限回归已核验；数据库账本沿用#397只读证据 | #398质量与#396 Key/倍率管理员验收仍待完成；下批累计后再PR/CI/部署 | 不以CI或合并代替部署监督，不因文档小变动单独重启生产 |
 
 ## 状态定义
 

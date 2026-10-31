@@ -1088,6 +1088,7 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 				ledgerAttempt.ObserveOutput(ctx)
 				ledgerAttempt.ObserveIdentifiers(ctx, requestledger.UpstreamRequestID(lease.HandshakeHeaders()), requestledger.ResponseIdentifier(upstreamMessage))
 			}
+			observeOpenAIWSPrioritySemantic(ctx, ledgerAttempt, upstreamMessage, originalModel, c.Request.URL.Path, priorityGroupID(c))
 			responseModelObserver.ObserveOpenAI(upstreamMessage, eventType)
 			if ownedResponseID != "" && eventOwnershipID != "" && ownedResponseID != eventOwnershipID {
 				lease.conn.retireOnRelease.Store(true)

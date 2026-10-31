@@ -28,7 +28,8 @@ func TestChannelOperationsQualityRoundsUseFrozenModelsAndCurrentChannelScope(t *
 	_, err := integrationDB.ExecContext(ctx, `INSERT INTO account_groups(account_id,group_id) VALUES($1,$2)`, account.ID, groupID)
 	require.NoError(t, err)
 	baseConfig := &service.PelicanTestConfig{
-		ModelID: "model-a", ModelIDs: []string{"model-a", "model-b"}, ParallelCount: 1,
+		// An omitted/zero count is the persisted legacy representation of one probe.
+		ModelID: "model-a", ModelIDs: []string{"model-a", "model-b"}, ParallelCount: 0,
 		Quality: &service.QualityPolicy{Action: "observe_only"},
 	}
 	plan, err := plans.Create(ctx, &service.ScheduledTestPlan{

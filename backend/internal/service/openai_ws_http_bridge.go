@@ -787,6 +787,11 @@ func (s *OpenAIGatewayService) proxyOpenAIWSHTTPBridgeTurn(
 			upstreamMessage = normalized
 		}
 		eventType, eventResponseID, _ := parseOpenAIWSEventEnvelope(upstreamMessage)
+		endpoint := "/v1/responses"
+		if c != nil && c.Request != nil && c.Request.URL != nil && strings.TrimSpace(c.Request.URL.Path) != "" {
+			endpoint = c.Request.URL.Path
+		}
+		observeOpenAIWSPrioritySemantic(ctx, ledgerAttempt, upstreamMessage, originalModel, endpoint, priorityGroupID(c))
 		responseModelObserver.ObserveOpenAI(upstreamMessage, eventType)
 		if responseID == "" && eventResponseID != "" {
 			responseID = eventResponseID

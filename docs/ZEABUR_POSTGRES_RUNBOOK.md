@@ -20,6 +20,8 @@ ROLLBACK;
 
 每次查询都要显式 `ROLLBACK`。查询失败也要确认事务已回滚；不要在同一会话继续执行未知状态的语句。
 
+Zeabur `service exec` 的非交互式 `psql` 命令必须显式关闭标准输入，例如在命令末尾追加 `< /dev/null`；否则 CLI 可能持续等待终端输入而没有结果。若必须使用临时端口转发，完成查询后立即执行 `service port-forward --disable`，再用 `service port-forward` 查询并记录 `DISABLED` 状态。凭据只在进程环境变量中使用，不打印变量值。
+
 ## 发布后最低核验
 
 1. 记录生产分支、精确部署 SHA、deployment ID、服务状态和健康接口结果。

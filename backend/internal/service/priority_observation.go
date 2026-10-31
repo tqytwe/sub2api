@@ -33,6 +33,9 @@ func priorityObservationGroupFromContext(ctx context.Context) (int64, bool) {
 }
 
 func priorityGroupID(c *gin.Context) *int64 {
+	if c == nil {
+		return nil
+	}
 	id := getOpenAIGroupIDFromContext(c)
 	if id <= 0 {
 		return nil
