@@ -1,6 +1,6 @@
 # v2.17.7 功能域矩阵
 
-核验基线：生产 `play/main@db76a7e2a0a8c24818efad1fad6623fee28ab706`（PR #398），Zeabur deployment `6ae65455ea16512cf741d4c8`；应用、PostgreSQL、Redis 为 `RUNNING`，首页和 `/health` HTTP 200，运行日志 ERROR/FATAL/PANIC 为 0；管理员组合验收仍待完成；上游固定 `ranxi2001/sub2api@v2.17.7`。
+核验基线：生产 `play/main@db76a7e2a0a8c24818efad1fad6623fee28ab706`（PR #398），Zeabur deployment `6ae65455ea16512cf741d4c8`；应用、PostgreSQL、Redis 为 `RUNNING`，首页和 `/health` HTTP 200，运行日志 ERROR/FATAL/PANIC 为 0；生产只读账本为 431 条、最新 338、无效索引 0，关键迁移 checksum 抽查一致；管理员组合验收仍待完成；上游固定 `ranxi2001/sub2api@v2.17.7`。
 
 2026-11-01通过Zeabur CLI核对#398精确SHA、RUNNING、应用/PostgreSQL/Redis和两域名health200。运行日志 ERROR/FATAL/PANIC 为0，只有1条既有缺少审核API Key提示。#397的生产只读核验确认431条ledger，424个当前SQL无缺失/checksum差异，7条历史记录；#398不含SQL/schema迁移，未写生产数据库。#395已部署质量恢复/unknown修复、单模型Priority quality round及凭证修复；#397已部署多模型/重复probe和整轮保存；#398补质量历史查询、WebSocket优先调度归因与空delta语义修复。#396 Key/倍率与#397/#398质量组合验收仍待管理员完成。内容审查列表刷新已由用户确认正常；该页面验收不代表审核动作/审核API已启用。
 
