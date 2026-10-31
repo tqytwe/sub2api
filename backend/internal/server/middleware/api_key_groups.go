@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"strings"
 
@@ -88,7 +89,10 @@ func readAdmissionRequestBody(c *gin.Context) ([]byte, bool) {
 	if c == nil || c.Request == nil || c.Request.Body == nil { return nil, true }
 	body, err := httputil.ReadRequestBodyWithPrealloc(c.Request)
 	if err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": gin.H{"type": "invalid_request_error", "message": "Failed to read request body"}})
+		status := http.StatusBadRequest
+		var maxErr *http.MaxBytesError
+		if errors.As(err, &maxErr) { status = http.StatusRequestEntityTooLarge }
+		c.AbortWithStatusJSON(status, gin.H{"error": gin.H{"type": "invalid_request_error", "message": "Failed to read request body"}})
 		return nil, false
 	}
 	requestmodel.ResetRequestBody(c.Request, body)
