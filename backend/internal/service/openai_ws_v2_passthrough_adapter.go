@@ -588,6 +588,12 @@ func openAIWSPassthroughStartsSemanticOutput(payload []byte) bool {
 
 func openAIWSPassthroughIsPrioritySemanticOutput(payload []byte) bool {
 	eventType := strings.TrimSpace(gjson.GetBytes(payload, "type").String())
+	if strings.HasSuffix(eventType, ".delta") {
+		delta := gjson.GetBytes(payload, "delta")
+		if !delta.Exists() || (delta.Type == gjson.String && delta.String() == "") {
+			return false
+		}
+	}
 	return openAIStreamDataStartsClientOutput(string(payload), eventType) &&
 		!openAIStreamEventTypeIsTerminal(eventType)
 }
