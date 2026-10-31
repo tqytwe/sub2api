@@ -123,16 +123,16 @@ func (c PrioritySchedulingConfig) applies(group *int64, model string) bool {
 	return len(c.Models) == 0 || slices.Contains(c.Models, model)
 }
 
-func (c PrioritySchedulingConfig) weights() [4]float64 {
+func (c PrioritySchedulingConfig) weights() [5]float64 {
 	switch c.Mode {
 	case "experience":
-		return [4]float64{40, 35, 20, 5}
+		return [5]float64{40, 35, 20, 5, c.ErrorRateWeight}
 	case "profit":
-		return [4]float64{20, 15, 20, 45}
+		return [5]float64{20, 15, 20, 45, c.ErrorRateWeight}
 	case "balanced":
-		return [4]float64{30, 25, 25, 20}
+		return [5]float64{30, 25, 25, 20, c.ErrorRateWeight}
 	default:
-		return [4]float64{c.QualityWeight, c.LatencyWeight, c.LoadWeight, c.CostWeight}
+		return [5]float64{c.QualityWeight, c.LatencyWeight, c.LoadWeight, c.CostWeight, c.ErrorRateWeight}
 	}
 }
 

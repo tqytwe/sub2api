@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>Quality group rules prototype</title>
+<style>
+  body{margin:0;background:#f6f7f9;color:#20242b;font:14px/1.5 system-ui,sans-serif;padding:32px}
+  main{max-width:1100px;margin:auto}
+  section{background:#fff;border:1px solid #d9dde5;margin-top:20px}
+  header{padding:16px;border-bottom:1px solid #e7e9ee;display:flex;justify-content:space-between;gap:16px}
+  h1,h2,h3,p{margin:0} h1{font-size:24px} h2{font-size:18px}
+  .muted{color:#687180;margin-top:4px}.button{border:1px solid #b6bfce;background:#fff;padding:8px 12px;border-radius:6px}.primary{background:#2457d6;color:#fff;border-color:#2457d6}
+  .form,.row{padding:16px;display:grid;gap:12px}.form{grid-template-columns:repeat(2,minmax(0,1fr));border-bottom:1px solid #e7e9ee}.row{grid-template-columns:1fr auto;border-bottom:1px solid #e7e9ee}.span{grid-column:1/-1}.actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:flex-end}.status{color:#16734a;font-size:12px}
+  label{display:grid;gap:4px} input,select,textarea{border:1px solid #b6bfce;border-radius:6px;padding:9px;font:inherit} textarea{min-height:70px}
+  @media(max-width:700px){body{padding:16px}.form{grid-template-columns:1fr}.row{grid-template-columns:1fr}.actions{justify-content:flex-start}}
+</style>
+<main>
+  <h1>Quality rule operations</h1><p class="muted">Manage account quality checks and group rules.</p>
+  <section><header><div><h2>Group quality rules</h2><p class="muted">Enabled rules add plans for newly matching accounts each minute.</p></div><button class="button">New group rule</button></header>
+    <div class="form"><label>Group<input value="7"></label><label>Account type<input value="oauth"></label><label>Statuses<input value="active, disabled"></label><label>Account search<input value="production"></label><label>Model<input value="gpt-5.1"></label><label>Schedule<input value="*/30 * * * *"></label><label class="span">Probe prompt<textarea>Say 21</textarea></label><div class="span actions"><button class="button">Cancel</button><button class="button primary">Save</button></div></div>
+    <div class="row"><div><h3>Group 7 · oauth · active, disabled · production</h3><p class="muted">gpt-5.1 · */30 * * * * · 12 plans covered</p><p class="muted">Created Oct 31, 2026; updated Oct 31, 2026</p></div><div class="actions"><span class="status">Enabled</span><button class="button">Edit</button><button class="button">Pause following</button><button class="button">Delete rule, keep plans</button><button class="button">Delete rule and plans</button></div></div>
+  </section>
+</main>
+</html>

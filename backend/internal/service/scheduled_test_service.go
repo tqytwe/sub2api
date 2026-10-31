@@ -3,9 +3,11 @@ package service
 import (
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
@@ -17,28 +19,158 @@ func (s *ScheduledTestService) QualityOwnership(ctx context.Context, id int64, r
 	if !ok {
 		return nil, infraerrors.New(http.StatusServiceUnavailable, "QUALITY_OWNERSHIP_UNAVAILABLE", "quality ownership is unavailable")
 	}
-	if req != nil && (req.Restore || req.Delete) && (!req.Confirm || len(req.Fence) != 64) {
+	if req != nil && (req.Reconcile || req.Restore || req.Delete) && (!req.Confirm || len(req.Fence) != 64) {
 		return nil, infraerrors.BadRequest("QUALITY_OWNERSHIP_CONFIRM_REQUIRED", "preview and explicitly confirm ownership reconciliation")
 	}
 	return repo.QualityOwnership(ctx, id, req)
+}
+
+func (s *ScheduledTestService) ClaimQualityRun(ctx context.Context, plan *ScheduledTestPlan, until time.Time) (time.Time, bool, error) {
+	repo, ok := s.planRepo.(QualityRuntimeRepository)
+	if !ok {
+		return time.Time{}, false, infraerrors.New(http.StatusServiceUnavailable, "QUALITY_RUNNER_UNAVAILABLE", "quality runner is unavailable")
+	}
+	return repo.ClaimQualityRun(ctx, plan, until)
+}
+
+func (s *ScheduledTestService) CommitQualityRun(ctx context.Context, plan *ScheduledTestPlan, outcome string, result *ScheduledTestResult) (string, error) {
+	repo, ok := s.planRepo.(QualityRuntimeRepository)
+	if !ok {
+		return "action_error", infraerrors.New(http.StatusServiceUnavailable, "QUALITY_RUNNER_UNAVAILABLE", "quality runner is unavailable")
+	}
+	if err := validateQualityResult(result); err != nil {
+		return "action_error", err
+	}
+	result.PlanID = plan.ID
+	sanitizeQualityResult(result)
+	return repo.CommitQualityRun(ctx, plan, outcome, result, plan.MaxResults)
+}
+
+func sanitizeQualityResult(result *ScheduledTestResult) {
+	if result == nil || result.PelicanConfig == nil || result.PelicanConfig.Quality == nil {
+		return
+	}
+	result.ResponseText = ""
+	if result.ErrorMessage != "answer_mismatch" && result.ErrorMessage != "quality_config_unsupported" && result.ErrorMessage != "quality_judge_failed" && result.ErrorMessage != "" {
+		result.ErrorMessage = "probe_failed"
+	}
+	config := *result.PelicanConfig
+	config.Prompt = ""
+	quality := *config.Quality
+	quality.ExpectedAnswer = ""
+	if quality.Judge != nil {
+		judge := *quality.Judge
+		judge.Prompt = ""
+		quality.Judge = &judge
+	}
+	config.Quality = &quality
+	result.PelicanConfig = &config
+}
+
+func (s *ScheduledTestService) FinishQualityRun(ctx context.Context, id int64, until, lastRunAt, nextRunAt time.Time) error {
+	repo, ok := s.planRepo.(QualityRuntimeRepository)
+	if !ok {
+		return infraerrors.New(http.StatusServiceUnavailable, "QUALITY_RUNNER_UNAVAILABLE", "quality runner is unavailable")
+	}
+	return repo.FinishQualityRun(ctx, id, until, lastRunAt, nextRunAt)
+}
+
+func judgeQualityProbe(result *ScheduledTestResult, config *PelicanTestConfig) (map[string]any, string) {
+	if result == nil {
+		return map[string]any{"verdict": "unknown", "reason": "probe_missing"}, "inconclusive"
+	}
+	response := result.ResponseText
+	digest := sha256.Sum256([]byte(response))
+	judgment := map[string]any{"response_sha256": hex.EncodeToString(digest[:])}
+	if config == nil || config.Quality == nil || result.Status != "success" || strings.TrimSpace(response) == "" {
+		judgment["verdict"] = "unknown"
+		judgment["reason"] = "probe_inconclusive"
+		result.ResponseText = ""
+		return judgment, "inconclusive"
+	}
+	if strings.TrimSpace(response) == strings.TrimSpace(config.Quality.ExpectedAnswer) {
+		judgment["verdict"] = "correct"
+		judgment["reason"] = "expected_answer_match"
+		result.ResponseText = ""
+		return judgment, "passed"
+	}
+	judgment["verdict"] = "incorrect"
+	judgment["reason"] = "expected_answer_mismatch"
+	result.Status = "failed"
+	result.ErrorMessage = "answer_mismatch"
+	result.ResponseText = ""
+	return judgment, "failed"
+}
+
+func (s *ScheduledTestRunnerService) judgeQualityProbeWithJev(ctx context.Context, result *ScheduledTestResult, config *PelicanTestConfig) (map[string]any, string) {
+	if result == nil {
+		return map[string]any{"verdict": "unknown", "reason": "probe_missing"}, "inconclusive"
+	}
+	response := result.ResponseText
+	digest := sha256.Sum256([]byte(response))
+	judgment := map[string]any{
+		"response_sha256": hex.EncodeToString(digest[:]),
+		"kind":            "jev",
+		"model_id":        "jev-latest",
+		"rules_version":   qualityJevRulesVersion,
+	}
+	if config == nil || config.Quality == nil || result.Status != "success" {
+		judgment["verdict"] = "unknown"
+		judgment["reason"] = "probe_inconclusive"
+		result.ResponseText = ""
+		return judgment, "inconclusive"
+	}
+	var evaluated qualityJevJudgment
+	if s == nil || s.qualityJudge == nil {
+		evaluated = qualityJevJudgment{Verdict: "unknown", Reason: "judge_jev_not_configured"}
+	} else {
+		evaluated = s.qualityJudge.judge(ctx, config, response)
+	}
+	result.ResponseText = ""
+	judgment["latency_ms"] = evaluated.LatencyMS
+	judgment["verdict"] = evaluated.Verdict
+	judgment["reason"] = evaluated.Reason
+	result.LatencyMs += evaluated.LatencyMS
+	switch evaluated.Verdict {
+	case "correct":
+		return judgment, "passed"
+	case "incorrect":
+		result.Status = "failed"
+		result.ErrorMessage = "answer_mismatch"
+		return judgment, "failed"
+	default:
+		return judgment, "inconclusive"
+	}
+}
+
+func unsupportedQualityConfigResult(config *PelicanTestConfig, startedAt time.Time) (*ScheduledTestResult, map[string]any, string) {
+	return &ScheduledTestResult{
+		Status: "failed", ErrorMessage: "quality_config_unsupported", StartedAt: startedAt,
+		FinishedAt: time.Now(), PelicanConfig: config,
+	}, map[string]any{"verdict": "unknown", "reason": "quality_config_unsupported"}, "inconclusive"
 }
 
 var scheduledTestCronParser = cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
 
 // ScheduledTestService provides CRUD operations for scheduled test plans and results.
 type ScheduledTestService struct {
-	planRepo   ScheduledTestPlanRepository
-	resultRepo ScheduledTestResultRepository
+	planRepo     ScheduledTestPlanRepository
+	resultRepo   ScheduledTestResultRepository
+	templateRepo QualityRuleTemplateRepository
 }
 
 // NewScheduledTestService creates a new ScheduledTestService.
 func NewScheduledTestService(
 	planRepo ScheduledTestPlanRepository,
 	resultRepo ScheduledTestResultRepository,
+	templateRepo ...QualityRuleTemplateRepository,
 ) *ScheduledTestService {
+	var templates QualityRuleTemplateRepository
+	if len(templateRepo) > 0 {
+		templates = templateRepo[0]
+	}
 	return &ScheduledTestService{
-		planRepo:   planRepo,
-		resultRepo: resultRepo,
+		planRepo: planRepo, resultRepo: resultRepo, templateRepo: templates,
 	}
 }
 
@@ -68,6 +200,14 @@ func (s *ScheduledTestService) GetPlan(ctx context.Context, id int64) (*Schedule
 // ListPlansByAccount returns all plans for a given account.
 func (s *ScheduledTestService) ListPlansByAccount(ctx context.Context, accountID int64) ([]*ScheduledTestPlan, error) {
 	return s.planRepo.ListByAccountID(ctx, accountID)
+}
+
+func (s *ScheduledTestService) ListQualityPlans(ctx context.Context) ([]*ScheduledTestPlan, error) {
+	return s.planRepo.ListQualityPlans(ctx)
+}
+
+func (s *ScheduledTestService) TriggerQuality(ctx context.Context, id int64) error {
+	return s.planRepo.TriggerQuality(ctx, id)
 }
 
 // UpdatePlan validates cron and updates the plan.
@@ -109,13 +249,33 @@ func validateQualityConfig(config *PelicanTestConfig) error {
 	if config.ParallelCount < 0 || config.ParallelCount > 32 {
 		return infraerrors.BadRequest("QUALITY_PARALLEL_COUNT_INVALID", "parallel_count must be between 0 and 32")
 	}
-	if config.Quality != nil && config.Quality.Judge != nil {
-		if config.Quality.Judge.Kind != "" && config.Quality.Judge.Kind != "jev" && config.Quality.Judge.Kind != "llm" {
-			return infraerrors.BadRequest("QUALITY_JUDGE_KIND_INVALID", "unsupported quality judge kind")
-		}
-		if len(config.Quality.Judge.Prompt) > 8192 {
-			return infraerrors.BadRequest("QUALITY_JUDGE_PROMPT_TOO_LARGE", "judge prompt exceeds 8192 characters")
-		}
+	if config.Quality == nil {
+		return nil
+	}
+	if config.Quality.Action != "observe_only" && config.Quality.Action != "disable_scheduling" {
+		return infraerrors.BadRequest("QUALITY_ACTION_INVALID", "unsupported quality action")
+	}
+	if strings.TrimSpace(config.Prompt) == "" || len(strings.TrimSpace(config.Quality.ExpectedAnswer)) == 0 {
+		return infraerrors.BadRequest("QUALITY_ANSWER_REQUIRED", "quality probes require a prompt and expected answer")
+	}
+	if config.Quality.Judge == nil || (config.Quality.Judge.Kind != "expected" && config.Quality.Judge.Kind != "jev") || config.Quality.Judge.GroupID != 0 || config.Quality.Judge.ModelID != "" {
+		return infraerrors.BadRequest("QUALITY_JUDGE_KIND_INVALID", "unsupported quality judge")
+	}
+	if len(config.Quality.ExpectedAnswer) > 4000 {
+		return infraerrors.BadRequest("QUALITY_ANSWER_TOO_LARGE", "expected answer exceeds 4000 characters")
+	}
+	judgePromptLimit := 8192
+	if config.Quality.Judge.Kind == "jev" {
+		judgePromptLimit = 16000
+	}
+	if len(config.Quality.Judge.Prompt) > judgePromptLimit {
+		return infraerrors.BadRequest("QUALITY_JUDGE_PROMPT_TOO_LARGE", "judge prompt exceeds the supported limit")
+	}
+	if config.Quality.Judge.Kind == "expected" && strings.TrimSpace(config.Quality.Judge.Prompt) != "" {
+		return infraerrors.BadRequest("QUALITY_JUDGE_PROMPT_UNSUPPORTED", "custom judge prompts require Jev")
+	}
+	if config.Quality.Judge.Kind == "jev" && strings.TrimSpace(config.Quality.Judge.Prompt) == "" {
+		return infraerrors.BadRequest("QUALITY_JUDGE_PROMPT_REQUIRED", "Jev judging requires a rubric")
 	}
 	return nil
 }

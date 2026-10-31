@@ -976,6 +976,7 @@ const adminNavItems = computed((): NavItem[] => {
     },
     { path: '/admin/subscriptions', label: t('nav.subscriptions'), icon: CreditCardIcon, hideInSimpleMode: true, featureFlag: flagSubscription },
     { path: '/admin/accounts', label: t('nav.accounts'), icon: GlobeIcon },
+    { path: '/admin/account-quality', label: t('admin.qualityOps.nav'), icon: ShieldIcon },
     { path: '/admin/priority-scheduling', label: t('nav.priorityScheduling'), icon: ChannelIcon },
     { path: '/admin/token-guard-v2', label: t('tokenGuardV2.title'), icon: ShieldIcon, hideInSimpleMode: true },
     { path: '/admin/plugins', label: t('nav.plugins'), icon: PluginIcon, featureFlag: flagPluginManagement },

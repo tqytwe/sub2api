@@ -12,6 +12,29 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestSystemOneURLNormalizesBasePathsAndRejectsCredentialsOrQuery(t *testing.T) {
+	for input, expected := range map[string]string{
+		"":                                      "https://api.typesafe.ai/v1/systemone",
+		"https://typesafe.example":              "https://typesafe.example/v1/systemone",
+		"https://typesafe.example/v1":           "https://typesafe.example/v1/systemone",
+		"https://typesafe.example/v1/systemone": "https://typesafe.example/v1/systemone",
+		"https://typesafe.example/prefix/v1/":   "https://typesafe.example/prefix/v1/systemone",
+	} {
+		got, err := SystemOneURL(input)
+		require.NoError(t, err, input)
+		require.Equal(t, expected, got)
+	}
+	for _, input := range []string{
+		"https://user:pass@typesafe.example",
+		"https://typesafe.example?key=secret",
+		"https://typesafe.example/#fragment",
+		"not a URL",
+	} {
+		_, err := SystemOneURL(input)
+		require.Error(t, err, input)
+	}
+}
+
 func TestEvaluateContract(t *testing.T) {
 	questions := map[string]Question{"sexual": {Type: "noul", Instructions: "Evaluate sexual content"}, "illicit": {Type: "noul", Instructions: "Evaluate illegal assistance"}}
 	for _, tc := range []struct {

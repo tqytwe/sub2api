@@ -31,4 +31,12 @@ describe('request ledger access contract', () => {
     expect(adminRoute?.path).toBe('/admin/requests')
     expect(adminRoute?.meta.requiresAdmin).toBe(true)
   })
+
+  it('exposes quality operations only through the administrator route', async () => {
+    const { default: router } = await import('@/router')
+    const route = router.getRoutes().find((item) => item.name === 'AdminAccountQuality')
+
+    expect(route?.path).toBe('/admin/account-quality')
+    expect(route?.meta.requiresAdmin).toBe(true)
+  })
 })

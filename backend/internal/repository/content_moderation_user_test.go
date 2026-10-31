@@ -14,11 +14,13 @@ import (
 func TestManageModerationUserUnbanIsVersionedAndTransactional(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+	t.Cleanup(func() { _ = db.Close() })
 
-	repo := NewContentModerationRepository(db).(*contentModerationRepository)
+	repo, ok := NewContentModerationRepository(db).(*contentModerationRepository)
+	require.True(t, ok)
 	mock.ExpectBegin()
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT status, role, moderation_status_revision FROM users WHERE id=$1 AND deleted_at IS NULL FOR UPDATE")).WithArgs(int64(27)).WillReturnRows(sqlmock.NewRows([]string{"status", "role", "revision"}).AddRow("disabled", "user", int64(8)))
+	mock.ExpectExec(regexp.QuoteMeta("INSERT INTO content_moderation_user_state(user_id) VALUES($1) ON CONFLICT(user_id) DO NOTHING")).WithArgs(int64(27)).WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT version,generation,auto_ban_exempt,keyword_exempt,api_audit_exempt,email_exempt,owned_status_revision FROM content_moderation_user_state WHERE user_id=$1 FOR UPDATE")).WithArgs(int64(27)).WillReturnRows(sqlmock.NewRows([]string{"version", "generation", "auto_ban_exempt", "keyword_exempt", "api_audit_exempt", "email_exempt", "owned_status_revision"}).AddRow(int64(3), int64(2), false, false, false, false, int64(8)))
 	mock.ExpectQuery(regexp.QuoteMeta("UPDATE users SET status='active',updated_at=NOW() WHERE id=$1 AND status='disabled' AND moderation_status_revision=$2 RETURNING status")).WithArgs(int64(27), int64(8)).WillReturnRows(sqlmock.NewRows([]string{"status"}).AddRow("active"))
 	mock.ExpectExec(regexp.QuoteMeta("UPDATE content_moderation_user_state SET version=version+1,generation=$2,auto_ban_exempt=$3,owned_status_revision=$4,reason=$5,actor_id=$6,keyword_exempt=$7,api_audit_exempt=$8,email_exempt=$9,updated_at=NOW() WHERE user_id=$1 AND version=$10")).WithArgs(int64(27), int64(2), false, nil, "reviewed", int64(4), false, false, false, int64(3)).WillReturnResult(sqlmock.NewResult(0, 1))
@@ -36,11 +38,13 @@ func TestManageModerationUserUnbanIsVersionedAndTransactional(t *testing.T) {
 func TestManageModerationUserRejectsUnownedDisableBeforeStatusWrite(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+	t.Cleanup(func() { _ = db.Close() })
 
-	repo := NewContentModerationRepository(db).(*contentModerationRepository)
+	repo, ok := NewContentModerationRepository(db).(*contentModerationRepository)
+	require.True(t, ok)
 	mock.ExpectBegin()
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT status, role, moderation_status_revision FROM users WHERE id=$1 AND deleted_at IS NULL FOR UPDATE")).WithArgs(int64(27)).WillReturnRows(sqlmock.NewRows([]string{"status", "role", "revision"}).AddRow("disabled", "user", int64(8)))
+	mock.ExpectExec(regexp.QuoteMeta("INSERT INTO content_moderation_user_state(user_id) VALUES($1) ON CONFLICT(user_id) DO NOTHING")).WithArgs(int64(27)).WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT version,generation,auto_ban_exempt,keyword_exempt,api_audit_exempt,email_exempt,owned_status_revision FROM content_moderation_user_state WHERE user_id=$1 FOR UPDATE")).WithArgs(int64(27)).WillReturnRows(sqlmock.NewRows([]string{"version", "generation", "auto_ban_exempt", "keyword_exempt", "api_audit_exempt", "email_exempt", "owned_status_revision"}).AddRow(int64(3), int64(0), false, false, false, false, nil))
 	mock.ExpectRollback()
 
@@ -55,8 +59,9 @@ func TestManageModerationUserRejectsUnownedDisableBeforeStatusWrite(t *testing.T
 func TestListModerationUsersIncludesLegacyHistoryWithoutRecoveryState(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
-	repo := NewContentModerationRepository(db).(*contentModerationRepository)
+	t.Cleanup(func() { _ = db.Close() })
+	repo, ok := NewContentModerationRepository(db).(*contentModerationRepository)
+	require.True(t, ok)
 	since := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
 
 	countQuery := `SELECT COUNT\(\*\) FROM users u LEFT JOIN content_moderation_user_state s ON s.user_id=u.id WHERE .*u.deleted_at IS NULL.*content_moderation_user_hits.*generation=0.*`
@@ -97,11 +102,66 @@ func TestListModerationUsersIncludesLegacyHistoryWithoutRecoveryState(t *testing
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
+func TestListModerationUsersCanFindUnseenUserByUID(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+	repo, ok := NewContentModerationRepository(db).(*contentModerationRepository)
+	require.True(t, ok)
+	since := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
+
+	countQuery := `SELECT COUNT\(\*\) FROM users u LEFT JOIN content_moderation_user_state s ON s.user_id=u.id WHERE .*u.deleted_at IS NULL.*content_moderation_user_hits.*generation=0.*\$4::bigint<>0.*u.id=\$4`
+	listQuery := `SELECT u\.id, COALESCE\(s\.version,0\).*FROM users u LEFT JOIN content_moderation_user_state s ON s\.user_id=u\.id WHERE .*u.deleted_at IS NULL.*content_moderation_user_hits.*generation=0.*\$4::bigint<>0.*u.id=\$4.*LIMIT \$5 OFFSET \$6`
+	mock.ExpectQuery(countQuery).WithArgs(since, false, "all", int64(27)).WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+	mock.ExpectQuery(listQuery).WithArgs(since, false, "all", int64(27), 20, 0).WillReturnRows(sqlmock.NewRows([]string{
+		"user_id", "version", "generation", "auto_ban_exempt", "keyword_exempt", "api_audit_exempt", "email_exempt", "owned_disable", "status", "current_count", "reason", "actor_id", "updated_at",
+	}).AddRow(int64(27), int64(0), int64(0), false, false, false, false, false, "active", 0, "", nil, nil))
+
+	items, total, err := repo.ListModerationUsers(context.Background(), 1, 20, "all", 27, since, false)
+
+	require.NoError(t, err)
+	require.Equal(t, int64(1), total)
+	require.Len(t, items, 1)
+	require.Equal(t, int64(27), items[0].UserID)
+	require.Zero(t, items[0].Version)
+	require.False(t, items[0].AutoBanExempt)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestManageModerationUserCreatesFirstExemptionAtVersionZero(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+	repo, ok := NewContentModerationRepository(db).(*contentModerationRepository)
+	require.True(t, ok)
+	mock.ExpectBegin()
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT status, role, moderation_status_revision FROM users WHERE id=$1 AND deleted_at IS NULL FOR UPDATE")).
+		WithArgs(int64(27)).WillReturnRows(sqlmock.NewRows([]string{"status", "role", "revision"}).AddRow("active", "user", int64(0)))
+	mock.ExpectExec(regexp.QuoteMeta("INSERT INTO content_moderation_user_state(user_id) VALUES($1) ON CONFLICT(user_id) DO NOTHING")).
+		WithArgs(int64(27)).WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT version,generation,auto_ban_exempt,keyword_exempt,api_audit_exempt,email_exempt,owned_status_revision FROM content_moderation_user_state WHERE user_id=$1 FOR UPDATE")).
+		WithArgs(int64(27)).WillReturnRows(sqlmock.NewRows([]string{"version", "generation", "auto_ban_exempt", "keyword_exempt", "api_audit_exempt", "email_exempt", "owned_status_revision"}).AddRow(int64(0), int64(0), false, false, false, false, nil))
+	mock.ExpectExec(regexp.QuoteMeta("UPDATE content_moderation_user_state SET version=version+1,generation=$2,auto_ban_exempt=$3,owned_status_revision=$4,reason=$5,actor_id=$6,keyword_exempt=$7,api_audit_exempt=$8,email_exempt=$9,updated_at=NOW() WHERE user_id=$1 AND version=$10")).
+		WithArgs(int64(27), int64(0), true, nil, "reviewed", int64(4), false, false, false, int64(0)).WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec(regexp.QuoteMeta("INSERT INTO content_moderation_user_actions(user_id,actor_id,action,reason,version,auto_ban_exempt,keyword_exempt,api_audit_exempt,email_exempt) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)")).
+		WithArgs(int64(27), int64(4), "exemption", "reviewed", int64(1), true, false, false, false).WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectCommit()
+
+	exempt := true
+	err = repo.ManageModerationUser(context.Background(), 27, service.ModerationUserAction{
+		Action: "exemption", Version: 0, Reason: "reviewed", Confirm: true, ActorID: 4, Exempt: &exempt,
+	})
+
+	require.NoError(t, err)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
 func TestGetModerationUserReadsLegacyHistoryWithoutCreatingRecoveryState(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
-	repo := NewContentModerationRepository(db).(*contentModerationRepository)
+	t.Cleanup(func() { _ = db.Close() })
+	repo, ok := NewContentModerationRepository(db).(*contentModerationRepository)
+	require.True(t, ok)
 	since := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
 
 	mock.ExpectQuery(`SELECT u\.id, COALESCE\(s\.version,0\).*FROM users u LEFT JOIN content_moderation_user_state s ON s\.user_id=u\.id WHERE u\.id=\$3 AND u\.deleted_at IS NULL`).
@@ -124,8 +184,9 @@ func TestGetModerationUserReadsLegacyHistoryWithoutCreatingRecoveryState(t *test
 func TestApplyModerationHitDuplicateRequestIsNoOp(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
-	repo := NewContentModerationRepository(db).(*contentModerationRepository)
+	t.Cleanup(func() { _ = db.Close() })
+	repo, ok := NewContentModerationRepository(db).(*contentModerationRepository)
+	require.True(t, ok)
 
 	mock.ExpectBegin()
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT status, role, moderation_status_revision FROM users WHERE id=$1 AND deleted_at IS NULL FOR UPDATE")).WithArgs(int64(27)).WillReturnRows(sqlmock.NewRows([]string{"status", "role", "revision"}).AddRow("active", "user", int64(2)))

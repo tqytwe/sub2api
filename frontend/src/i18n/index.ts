@@ -432,6 +432,7 @@ function routeNameForPath(path: string): LocaleRouteName | null {
   if (path === '/admin/groups') return 'AdminGroups'
   if (path === '/admin/channels/operations') return 'AdminChannelOperations'
   if (path === '/admin/priority-scheduling') return 'AdminPriorityScheduling'
+  if (path === '/admin/account-quality') return 'AdminAccountQuality'
   if (path.startsWith('/admin/channels/monitor')) return 'AdminChannelMonitor'
   if (path.startsWith('/admin/channels')) return 'AdminChannels'
   if (path === '/admin/model-plaza') return 'AdminModelPlaza'

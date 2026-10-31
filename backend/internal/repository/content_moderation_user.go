@@ -44,7 +44,7 @@ func (r *contentModerationRepository) ListModerationUsers(ctx context.Context, p
 	where := `u.deleted_at IS NULL AND (s.user_id IS NOT NULL OR EXISTS (
  SELECT 1 FROM content_moderation_user_hits legacy
  WHERE legacy.user_id=u.id AND legacy.generation=0
-)) AND ` + moderationExemptionFilter("$3") + ` AND ($4::bigint=0 OR u.id=$4)`
+ ) OR $4::bigint<>0) AND ` + moderationExemptionFilter("$3") + ` AND ($4::bigint=0 OR u.id=$4)`
 	var total int64
 	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM users u LEFT JOIN content_moderation_user_state s ON s.user_id=u.id WHERE `+where, since, excludeCyber, status, userID).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count content moderation users: %w", err)
@@ -115,7 +115,10 @@ func (r *contentModerationRepository) ManageModerationUser(ctx context.Context, 
 		return err
 	}
 	defer func() { _ = tx.Rollback() }()
-	user, err := lockModerationUser(ctx, tx, id, false)
+	// Allow an administrator to configure exemptions before this user has a
+	// moderation hit. The users row is locked first, so concurrent first writes
+	// serialize; the version check below still rejects stale version-zero writes.
+	user, err := lockModerationUser(ctx, tx, id, true)
 	if err != nil {
 		return err
 	}

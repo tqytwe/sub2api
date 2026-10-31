@@ -112,6 +112,7 @@ export const scheduledTestsAPI = {
   update,
   delete: deletePlan,
   listResults,
+  ownershipPreview,
   reconcileOwnership,
   restoreOwnership,
   deleteOwnedPlan

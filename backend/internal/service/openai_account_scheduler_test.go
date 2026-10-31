@@ -97,6 +97,22 @@ type schedulerTestConcurrencyCache struct {
 	releasedIDs     *[]int64
 }
 
+type prioritySchedulingTestUsageRepo struct {
+	UsageLogRepository
+	signals map[int64]PrioritySchedulingSignal
+	ready   chan struct{}
+}
+
+func (r *prioritySchedulingTestUsageRepo) ReadPrioritySchedulingSignals(context.Context, PrioritySchedulingQuery) (map[int64]PrioritySchedulingSignal, error) {
+	if r.ready != nil {
+		select {
+		case r.ready <- struct{}{}:
+		default:
+		}
+	}
+	return r.signals, nil
+}
+
 func (c schedulerTestConcurrencyCache) AcquireAccountSlot(ctx context.Context, accountID int64, maxConcurrency int, requestID string) (bool, error) {
 	if c.acquiredIDs != nil {
 		*c.acquiredIDs = append(*c.acquiredIDs, accountID)
@@ -2554,6 +2570,95 @@ func TestOpenAIGatewayService_SelectAccountWithScheduler_SessionStickyEscapeByTT
 	require.Equal(t, int64(21101), cache.sessionBindings["openai:session_hash_sticky_ttft"])
 	if selection.ReleaseFunc != nil {
 		selection.ReleaseFunc()
+	}
+}
+
+func TestOpenAIGatewayService_SelectAccountWithScheduler_PriorityLatencyStopStickyAdmission(t *testing.T) {
+	for _, tt := range []struct {
+		name          string
+		samples       int
+		wantAccountID int64
+	}{
+		{name: "measured slow sticky account is excluded", samples: 5, wantAccountID: 21112},
+		{name: "insufficient history keeps sticky account eligible", samples: 4, wantAccountID: 21111},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := context.Background()
+			groupID := int64(10111)
+			accounts := []Account{
+				{ID: 21111, Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Status: StatusActive, Schedulable: true, Concurrency: 1, GroupIDs: []int64{groupID}},
+				{ID: 21112, Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Status: StatusActive, Schedulable: true, Concurrency: 1, GroupIDs: []int64{groupID}},
+			}
+			cache := &schedulerTestGatewayCache{sessionBindings: map[string]int64{"openai:priority_stop_sticky": 21111}}
+			priorityCfg := DefaultPrioritySchedulingConfig()
+			priorityCfg.Enabled = true
+			priorityCfg.GroupIDs = []int64{groupID}
+			priorityCfg.Models = []string{"gpt-priority-stop-test"}
+			priorityCfg.LatencyPenaltyMode = PriorityLatencyStop
+			priorityCfg.TargetTTFTMs = 1000
+			settingService := &SettingService{prioritySchedulingRuntimeConfig: priorityCfg, prioritySchedulingRuntimeExpires: time.Now().Add(time.Hour)}
+			usageRepo := &prioritySchedulingTestUsageRepo{
+				signals: map[int64]PrioritySchedulingSignal{
+					21111: {Samples: tt.samples, P90TTFTMs: 2000},
+					21112: {Samples: 5, P90TTFTMs: 500},
+				},
+				ready: make(chan struct{}, 1),
+			}
+			var releasedIDs []int64
+			concurrencyCache := schedulerTestConcurrencyCache{releasedIDs: &releasedIDs}
+			svc := &OpenAIGatewayService{
+				accountRepo:        schedulerTestOpenAIAccountRepo{accounts: accounts},
+				usageLogRepo:       usageRepo,
+				cache:              cache,
+				cfg:                &config.Config{},
+				settingService:     settingService,
+				rateLimitService:   newOpenAIAdvancedSchedulerRateLimitService("true"),
+				concurrencyService: NewConcurrencyService(concurrencyCache),
+			}
+
+			selection, _, err := svc.SelectAccountWithScheduler(ctx, &groupID, "", "priority_stop_sticky", "gpt-priority-stop-test", nil, OpenAIUpstreamTransportAny, false)
+			require.NoError(t, err)
+			require.NotNil(t, selection)
+			require.Equal(t, int64(21111), selection.Account.ID, "the initial read warms the priority history while allowing unknown history")
+			if selection.ReleaseFunc != nil {
+				selection.ReleaseFunc()
+			}
+			select {
+			case <-usageRepo.ready:
+			case <-time.After(time.Second):
+				t.Fatal("priority history read did not complete")
+			}
+			deadline := time.Now().Add(time.Second)
+			for {
+				svc.priorityScheduling.mu.Lock()
+				ready := false
+				for _, entry := range svc.priorityScheduling.entries {
+					if !entry.observedAt.IsZero() {
+						ready = true
+						break
+					}
+				}
+				svc.priorityScheduling.mu.Unlock()
+				if ready {
+					break
+				}
+				if time.Now().After(deadline) {
+					t.Fatal("priority history was not published to the cache")
+				}
+				time.Sleep(time.Millisecond)
+			}
+
+			selection, _, err = svc.SelectAccountWithScheduler(ctx, &groupID, "", "priority_stop_sticky", "gpt-priority-stop-test", nil, OpenAIUpstreamTransportAny, false)
+			require.NoError(t, err)
+			require.NotNil(t, selection)
+			require.Equal(t, tt.wantAccountID, selection.Account.ID)
+			if tt.samples >= priorityCfg.MinSamples {
+				require.Contains(t, releasedIDs, int64(21111), "a stopped sticky account must release its acquired slot")
+			}
+			if selection.ReleaseFunc != nil {
+				selection.ReleaseFunc()
+			}
+		})
 	}
 }
 

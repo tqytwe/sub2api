@@ -586,6 +586,9 @@ type AccountSelectionResult struct {
 	// 局部 ctx 上，handler 必须经 ContextWithSelectionProfitGate 重放后才能在
 	// 调度栈之外做抢槽后终检与准入后粘性绑定。
 	profitGate *openAIProfitControlGate
+	// priorityRequest preserves the exact scheduling scope through the slot
+	// acquisition and final pre-send admission boundary.
+	priorityRequest *OpenAIAccountScheduleRequest
 }
 
 // ProfitGateActive 报告本次选号是否处于利润门之下。

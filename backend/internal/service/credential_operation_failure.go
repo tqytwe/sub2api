@@ -254,16 +254,6 @@ func probeOperationFailure(state, detail string, at *time.Time) *CredentialOpera
 	return credentialOperationFailure(code, "inspection", at)
 }
 
-func safeProbeOperationDetail(state, detail string) string {
-	if state == AccountTokenGuardV2ProbeOK {
-		return "credential accepted"
-	}
-	if failure := probeOperationFailure(state, detail, nil); failure != nil {
-		return credentialOperationDetail(failure.Code)
-	}
-	return ""
-}
-
 func reauthOperationFailure(record *OpenAIOAuthReauthTaskRecord, diagnostic *ReauthDiagnostic) *CredentialOperationFailure {
 	if record.Status != OpenAIOAuthReauthStatusFailed && record.Error == "" {
 		return nil

@@ -39,6 +39,7 @@ type PelicanTestConfig struct {
 type QualityPolicy struct {
 	Action         string              `json:"action,omitempty"`
 	ExpectedAnswer string              `json:"expected_answer,omitempty"`
+	AutoRestore    bool                `json:"auto_restore,omitempty"`
 	Judge          *QualityJudgeConfig `json:"judge,omitempty"`
 }
 
@@ -66,11 +67,31 @@ type ScheduledTestResult struct {
 	CreatedAt       time.Time          `json:"created_at"`
 }
 
+// QualityHistoryResult is one cursor-addressable quality round. A round may
+// contain multiple probe results (for example, when parallel_count is used),
+// so the counts describe the complete round rather than a single row.
+type QualityHistoryResult struct {
+	ScheduledTestResult
+	AccountID    int64   `json:"account_id"`
+	AccountName  string  `json:"account_name"`
+	PassedCount  int     `json:"passed_count"`
+	SkippedCount int     `json:"skipped_count"`
+	TotalCount   int     `json:"total_count"`
+	ResultIDs    []int64 `json:"result_ids"`
+}
+
+type QualityHistoryPage struct {
+	Items      []*QualityHistoryResult `json:"items"`
+	NextCursor int64                   `json:"next_cursor"`
+}
+
 // ScheduledTestPlanRepository defines the data access interface for test plans.
 type ScheduledTestPlanRepository interface {
 	Create(ctx context.Context, plan *ScheduledTestPlan) (*ScheduledTestPlan, error)
 	GetByID(ctx context.Context, id int64) (*ScheduledTestPlan, error)
 	ListByAccountID(ctx context.Context, accountID int64) ([]*ScheduledTestPlan, error)
+	ListQualityPlans(ctx context.Context) ([]*ScheduledTestPlan, error)
+	TriggerQuality(ctx context.Context, id int64) error
 	ListDue(ctx context.Context, now time.Time) ([]*ScheduledTestPlan, error)
 	Update(ctx context.Context, plan *ScheduledTestPlan) (*ScheduledTestPlan, error)
 	Delete(ctx context.Context, id int64) error
@@ -85,17 +106,19 @@ type VersionedScheduledTestPlanRepository interface {
 type ScheduledTestResultRepository interface {
 	Create(ctx context.Context, result *ScheduledTestResult) (*ScheduledTestResult, error)
 	ListByPlanID(ctx context.Context, planID int64, limit int) ([]*ScheduledTestResult, error)
+	ListQualityHistory(ctx context.Context, beforeID int64, limit int) ([]*QualityHistoryResult, error)
 	PruneOldResults(ctx context.Context, planID int64, keepCount int) error
 }
 
 type QualityOwnershipPreview struct {
-	PlanID       int64  `json:"plan_id"`
-	AccountID    int64  `json:"account_id"`
-	RuleVersion  string `json:"rule_version"`
-	Fence        string `json:"fence"`
-	Action       string `json:"action,omitempty"`
-	StatePresent bool   `json:"state_present"`
-	RestoreReady bool   `json:"restore_ready"`
+	PlanID         int64  `json:"plan_id"`
+	AccountID      int64  `json:"account_id"`
+	RuleVersion    string `json:"rule_version"`
+	Fence          string `json:"fence"`
+	Action         string `json:"action,omitempty"`
+	StatePresent   bool   `json:"state_present"`
+	RestoreReady   bool   `json:"restore_ready"`
+	ReconcileReady bool   `json:"reconcile_ready"`
 }
 
 type QualityOwnershipRequest struct {
@@ -108,4 +131,10 @@ type QualityOwnershipRequest struct {
 
 type QualityOwnershipRepository interface {
 	QualityOwnership(context.Context, int64, *QualityOwnershipRequest) (*QualityOwnershipPreview, error)
+}
+
+type QualityRuntimeRepository interface {
+	ClaimQualityRun(context.Context, *ScheduledTestPlan, time.Time) (time.Time, bool, error)
+	CommitQualityRun(context.Context, *ScheduledTestPlan, string, *ScheduledTestResult, int) (string, error)
+	FinishQualityRun(context.Context, int64, time.Time, time.Time, time.Time) error
 }

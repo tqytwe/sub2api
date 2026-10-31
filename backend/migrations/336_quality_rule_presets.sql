@@ -1,0 +1,13 @@
+-- Reusable quality-rule configuration only. Presets are not scheduled plans
+-- and have no account, filter, or ownership relationships.
+CREATE TABLE IF NOT EXISTS quality_rule_presets (
+    id BIGSERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL CHECK (char_length(btrim(name)) BETWEEN 1 AND 100),
+    model_id VARCHAR(100) NOT NULL,
+    cron_expression TEXT NOT NULL,
+    enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    max_results INTEGER NOT NULL,
+    pelican_config JSONB NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);

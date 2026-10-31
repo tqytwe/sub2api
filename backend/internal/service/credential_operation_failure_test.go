@@ -64,7 +64,9 @@ func TestCredentialOperationWorkerFailurePersistsThroughSafeDTO(t *testing.T) {
 			require.Contains(t, string(encoded), `"failure"`)
 			var fields map[string]any
 			require.NoError(t, json.Unmarshal(encoded, &fields))
-			require.Len(t, fields["failure"].(map[string]any), 5)
+			failure, ok := fields["failure"].(map[string]any)
+			require.True(t, ok)
+			require.Len(t, failure, 5)
 		})
 	}
 }

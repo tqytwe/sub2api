@@ -152,6 +152,7 @@ type ContentModerationConfig struct {
 	// ProxyID 指定审计请求使用的代理服务器（IP管理-代理服务器），nil 表示直连。
 	ProxyID              *int64                       `json:"proxy_id,omitempty"`
 	APIKey               string                       `json:"api_key,omitempty"`
+	APIKeyBaseURLs       map[string]string            `json:"-"`
 	APIKeys              []string                     `json:"api_keys,omitempty"`
 	TimeoutMS            int                          `json:"timeout_ms"`
 	SampleRate           int                          `json:"sample_rate"`
@@ -2192,6 +2193,7 @@ func cloneContentModerationConfig(cfg *ContentModerationConfig) *ContentModerati
 		clone.TypeSafe = cfg.engineProfile(ContentModerationEngineTypeSafe)
 	}
 	clone.ProxyID = cloneInt64Ptr(cfg.ProxyID)
+	clone.APIKeyBaseURLs = cloneModerationKeyURLs(cfg.APIKeyBaseURLs)
 	clone.APIKeys = append([]string(nil), cfg.APIKeys...)
 	clone.GroupIDs = append([]int64(nil), cfg.GroupIDs...)
 	clone.BlockedKeywords = append([]string(nil), cfg.BlockedKeywords...)

@@ -103,6 +103,7 @@ export type LocaleRouteName =
   | 'AdminChannels'
   | 'AdminChannelOperations'
   | 'AdminPriorityScheduling'
+  | 'AdminAccountQuality'
   | 'AdminTokenGuardV2'
   | 'AdminChannelMonitor'
   | 'AdminModelPlaza'
@@ -219,6 +220,7 @@ export const ROUTE_LOCALE_SCOPES = {
   AdminChannels: [...ADMIN, 'admin-channels'],
   AdminChannelOperations: [...ADMIN, 'admin-channels'],
   AdminPriorityScheduling: [...ADMIN, 'admin-resources'],
+  AdminAccountQuality: [...ADMIN, 'admin-resources', 'admin-accounts'],
   AdminTokenGuardV2: [...ADMIN, 'admin-token-guard-v2', 'admin-accounts'],
   // The monitor embeds UsageProgressBar, which reads account usage-window
   // labels. Keep admin accounts explicit for a cold direct visit.

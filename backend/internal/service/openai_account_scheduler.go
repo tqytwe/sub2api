@@ -147,6 +147,7 @@ type openAIAccountSchedulerMetrics struct {
 
 type openAIAccountLoadPlan struct {
 	priorityScheduling        bool
+	priorityLatencyStopped    map[int64]struct{}
 	allCandidates             []openAIAccountCandidateScore
 	candidates                []openAIAccountCandidateScore
 	staleSnapshotCompactRetry []openAIAccountCandidateScore
@@ -158,14 +159,15 @@ type openAIAccountLoadPlan struct {
 }
 
 type openAIAccountLoadSelectionAttempt struct {
-	result              *AccountSelectionResult
-	selectionOrder      []openAIAccountCandidateScore
-	candidateCount      int
-	topK                int
-	loadSkew            float64
-	compactBlocked      bool
-	noCompactCandidates bool
-	err                 error
+	result                 *AccountSelectionResult
+	selectionOrder         []openAIAccountCandidateScore
+	priorityLatencyStopped map[int64]struct{}
+	candidateCount         int
+	topK                   int
+	loadSkew               float64
+	compactBlocked         bool
+	noCompactCandidates    bool
+	err                    error
 }
 
 func (m *openAIAccountSchedulerMetrics) recordSelect(decision OpenAIAccountScheduleDecision) {
@@ -395,6 +397,10 @@ func (s *defaultOpenAIAccountScheduler) Select(
 	if s != nil && s.service != nil && s.service.openAIGroupRequiresPrivacySet(ctx, req.GroupID) {
 		req.RequirePrivacySet = true
 	}
+	priorityCfg := DefaultPrioritySchedulingConfig()
+	if s != nil && s.service != nil {
+		priorityCfg = s.service.prioritySchedulingRuntimeConfig()
+	}
 	start := time.Now()
 	// 命名返回值保证 defer 写入的耗时同时返回给调用方。
 	defer func() {
@@ -416,6 +422,9 @@ func (s *defaultOpenAIAccountScheduler) Select(
 		)
 		if err != nil {
 			return nil, decision, err
+		}
+		if s.rejectPriorityStoppedStickyAccount(&req, priorityCfg, selection) {
+			selection = nil
 		}
 		if selection != nil && selection.Account != nil {
 			previousCtx := requestledger.RoutingStage(ctx, "previous_response")
@@ -453,6 +462,9 @@ func (s *defaultOpenAIAccountScheduler) Select(
 		if err != nil {
 			return nil, decision, err
 		}
+		if s.rejectPriorityStoppedStickyAccount(&req, priorityCfg, selection) {
+			selection = nil
+		}
 		if selection != nil && selection.Account != nil {
 			decision.Layer = openAIAccountScheduleLayerGuardianParent
 			decision.StickySessionHit = true
@@ -466,6 +478,9 @@ func (s *defaultOpenAIAccountScheduler) Select(
 		selection, escapedSticky, err := s.selectBySessionHash(ctx, req)
 		if err != nil {
 			return nil, decision, err
+		}
+		if s.rejectPriorityStoppedStickyAccount(&req, priorityCfg, selection) {
+			selection = nil
 		}
 		if selection != nil && selection.Account != nil {
 			decision.Layer = openAIAccountScheduleLayerSessionSticky
@@ -500,6 +515,23 @@ func (s *defaultOpenAIAccountScheduler) Select(
 		}
 	}
 	return selection, decision, nil
+}
+
+func (s *defaultOpenAIAccountScheduler) rejectPriorityStoppedStickyAccount(
+	req *OpenAIAccountScheduleRequest,
+	cfg PrioritySchedulingConfig,
+	selection *AccountSelectionResult,
+) bool {
+	if req == nil || selection == nil || selection.Account == nil || s == nil || s.service == nil ||
+		!s.service.priorityLatencyStopForStickyAccount(*req, cfg, selection.Account) {
+		return false
+	}
+	accountID := selection.Account.ID
+	if selection.ReleaseFunc != nil {
+		selection.ReleaseFunc()
+	}
+	req.ExcludedIDs = addExcludedPriorityAccount(req.ExcludedIDs, accountID)
+	return true
 }
 
 func (s *defaultOpenAIAccountScheduler) selectBySessionHash(
@@ -1303,6 +1335,7 @@ func (s *defaultOpenAIAccountScheduler) consumeOpenAISelectionDBRecheck(budget *
 func (s *defaultOpenAIAccountScheduler) tryFallbackToWeightedSticky(
 	ctx context.Context,
 	req OpenAIAccountScheduleRequest,
+	priorityLatencyStopped map[int64]struct{},
 ) (*AccountSelectionResult, error) {
 	ctx = requestledger.RoutingStage(ctx, "fallback")
 	if !req.StickyWeighted {
@@ -1310,6 +1343,10 @@ func (s *defaultOpenAIAccountScheduler) tryFallbackToWeightedSticky(
 	}
 	for _, accountID := range []int64{req.StickyPreviousAccountID, req.StickyAccountID} {
 		if accountID <= 0 {
+			continue
+		}
+		if priorityLatencyStopBlocksAccount(priorityLatencyStopped, accountID) {
+			requestledger.RoutingVeto(ctx, "", accountID, "priority_latency_stopped")
 			continue
 		}
 		if req.ExcludedIDs != nil {
@@ -1385,6 +1422,11 @@ func (s *defaultOpenAIAccountScheduler) tryFallbackToWeightedSticky(
 		}
 	}
 	return nil, nil
+}
+
+func priorityLatencyStopBlocksAccount(stopped map[int64]struct{}, accountID int64) bool {
+	_, ok := stopped[accountID]
+	return ok
 }
 
 // openAISelectionFilterStats counts why candidates were dropped by the
@@ -1610,10 +1652,11 @@ func (s *defaultOpenAIAccountScheduler) trySelectByLoadBalancePool(
 		budget.enableLimit()
 	}
 	attempt := openAIAccountLoadSelectionAttempt{
-		selectionOrder: plan.selectionOrder,
-		candidateCount: plan.candidateCount,
-		topK:           plan.topK,
-		loadSkew:       plan.loadSkew,
+		selectionOrder:         plan.selectionOrder,
+		priorityLatencyStopped: plan.priorityLatencyStopped,
+		candidateCount:         plan.candidateCount,
+		topK:                   plan.topK,
+		loadSkew:               plan.loadSkew,
 	}
 	if req.RequireCompact && len(plan.candidates) == 0 && len(plan.staleSnapshotCompactRetry) == 0 {
 		attempt.noCompactCandidates = true
@@ -1723,7 +1766,7 @@ func (s *defaultOpenAIAccountScheduler) finishLoadBalanceSelectionFallback(
 		return nil, candidateCount, topK, loadSkew, filterStats.noAvailableError(req.RequestedModel, attempt.compactBlocked, "selection_order_empty")
 	}
 
-	if stickyFallback, stickyErr := s.tryFallbackToWeightedSticky(ctx, req); stickyErr != nil {
+	if stickyFallback, stickyErr := s.tryFallbackToWeightedSticky(ctx, req, attempt.priorityLatencyStopped); stickyErr != nil {
 		return nil, candidateCount, topK, loadSkew, stickyErr
 	} else if stickyFallback != nil {
 		return stickyFallback, candidateCount, topK, loadSkew, nil
@@ -2548,7 +2591,7 @@ func (s *OpenAIGatewayService) selectAccountWithSchedulerOnce(
 		historyModel = requestedModel
 	}
 	inboundEndpoint, _ := ctx.Value(ctxkey.InboundEndpoint).(string)
-	return scheduler.Select(ctx, OpenAIAccountScheduleRequest{
+	scheduleRequest := OpenAIAccountScheduleRequest{
 		GroupID:                 groupID,
 		Platform:                platform,
 		SessionHash:             sessionHash,
@@ -2570,7 +2613,12 @@ func (s *OpenAIGatewayService) selectAccountWithSchedulerOnce(
 		RequiredImageCapability: requiredImageCapability,
 		RequireCompact:          requireCompact,
 		ExcludedIDs:             excludedIDs,
-	})
+	}
+	selection, decision, err := scheduler.Select(ctx, scheduleRequest)
+	if selection != nil {
+		selection.priorityRequest = &scheduleRequest
+	}
+	return selection, decision, err
 }
 
 func accountSupportsOpenAICapabilities(account *Account, requiredCapability OpenAIEndpointCapability, requiredImageCapability OpenAIImagesCapability) bool {

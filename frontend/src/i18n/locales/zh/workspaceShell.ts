@@ -1,5 +1,8 @@
 /** Messages rendered by the authenticated AppHeader and AppSidebar on every workspace route. */
 export default {
+  admin: {
+    qualityOps: { nav: '质量运维' },
+  },
   nav: {
     imageStudio: 'AI创作空间',
     aiCreationSpace: 'AI创作空间',

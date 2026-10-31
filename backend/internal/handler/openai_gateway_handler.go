@@ -2271,6 +2271,12 @@ func (h *OpenAIGatewayHandler) acquireOpenAIAccountSlot(
 	// 终检与准入后绑定使用选号结果携带的门：composite 等跨分组调度解析出的
 	// 门只存在于调度栈的局部 ctx，必须经选号结果重放到本函数的 ctx 上。
 	ctx := service.ContextWithSelectionProfitGate(c.Request.Context(), selection)
+	// Preserve the exact scheduling scope through the final pre-send admission
+	// check. This also lets every subsequent WebSocket turn re-evaluate it.
+	if c.Request != nil {
+		ctx = service.ContextWithSelectionPriorityRequest(ctx, selection)
+		c.Request = c.Request.WithContext(ctx)
+	}
 	account := selection.Account
 	if selection.Acquired {
 		latest, vetoed, reason := h.gatewayService.ProfitControlVetoLatest(ctx, account)

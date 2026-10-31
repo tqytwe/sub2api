@@ -48,6 +48,32 @@ const (
 	defaultAntigravityTestModel = "claude-sonnet-4-6"
 )
 
+type qualityProbePromptContextKey struct{}
+
+func qualityProbePrompt(ctx context.Context) string {
+	prompt, _ := ctx.Value(qualityProbePromptContextKey{}).(string)
+	return strings.TrimSpace(prompt)
+}
+
+func applyQualityProbePromptToOpenAIPayload(payload map[string]any, prompt string) {
+	prompt = strings.TrimSpace(prompt)
+	if prompt == "" {
+		return
+	}
+	payload["input"] = []map[string]any{{
+		"role":    "user",
+		"content": []map[string]any{{"type": "input_text", "text": prompt}},
+	}}
+}
+
+func buildQualityProbeGrokBody(model, prompt string) ([]byte, error) {
+	prompt = strings.TrimSpace(prompt)
+	if prompt == "" {
+		return buildGrokQuotaProbeBody(model)
+	}
+	return json.Marshal(map[string]any{"model": model, "input": prompt, "stream": true})
+}
+
 // TestEvent represents a SSE event for account testing
 type TestEvent struct {
 	Type     string `json:"type"`
@@ -313,12 +339,16 @@ func generateSessionString() (string, error) {
 }
 
 // createTestPayload creates a Claude Code style test request payload
-func createTestPayload(modelID string) (map[string]any, error) {
+func createTestPayload(modelID string, prompts ...string) (map[string]any, error) {
 	sessionID, err := generateSessionString()
 	if err != nil {
 		return nil, err
 	}
 
+	prompt := "hi"
+	if len(prompts) > 0 && strings.TrimSpace(prompts[0]) != "" {
+		prompt = strings.TrimSpace(prompts[0])
+	}
 	return map[string]any{
 		"model": modelID,
 		"messages": []map[string]any{
@@ -327,7 +357,7 @@ func createTestPayload(modelID string) (map[string]any, error) {
 				"content": []map[string]any{
 					{
 						"type": "text",
-						"text": "hi",
+						"text": prompt,
 						"cache_control": map[string]string{
 							"type": "ephemeral",
 						},
@@ -428,7 +458,7 @@ func (s *AccountTestService) TestAccountConnection(c *gin.Context, accountID int
 		return s.testTypeSafeAccountConnection(c, account, prompt)
 	}
 
-	return s.testClaudeAccountConnection(c, account, modelID)
+	return s.testClaudeAccountConnection(c, account, modelID, qualityProbePrompt(ctx))
 }
 
 // testOpenCodeGoAccountConnection probes the native endpoint for the selected
@@ -496,7 +526,7 @@ func (s *AccountTestService) testCNProviderChatCompletionsConnection(c *gin.Cont
 }
 
 // testClaudeAccountConnection tests an Anthropic Claude account's connection
-func (s *AccountTestService) testClaudeAccountConnection(c *gin.Context, account *Account, modelID string) error {
+func (s *AccountTestService) testClaudeAccountConnection(c *gin.Context, account *Account, modelID, prompt string) error {
 	ctx := c.Request.Context()
 
 	// Determine the model to use
@@ -555,7 +585,7 @@ func (s *AccountTestService) testClaudeAccountConnection(c *gin.Context, account
 	c.Writer.Flush()
 
 	// Create Claude Code style payload (same for all account types)
-	payload, err := createTestPayload(testModelID)
+	payload, err := createTestPayload(testModelID, prompt)
 	if err != nil {
 		return s.sendErrorAndEnd(c, "Failed to create test payload")
 	}
@@ -886,6 +916,7 @@ func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account
 		upstreamTestModelID = normalizeOpenAIModelForUpstream(credentialAccount, testModelID)
 	}
 	payload := createOpenAITestPayload(upstreamTestModelID, isOAuth)
+	applyQualityProbePromptToOpenAIPayload(payload, qualityProbePrompt(ctx))
 	payloadBytes, _ := json.Marshal(payload)
 
 	// Send test_start event once. A task-invalid Agent Identity response may
@@ -1248,7 +1279,7 @@ func (s *AccountTestService) testGrokResponsesConnection(c *gin.Context, ctx con
 
 	s.prepareGrokTestSSE(c)
 
-	payloadBytes, err := buildGrokQuotaProbeBody(testModelID)
+	payloadBytes, err := buildQualityProbeGrokBody(testModelID, qualityProbePrompt(ctx))
 	if err != nil {
 		return s.sendErrorAndEnd(c, "Failed to create Grok test payload")
 	}
@@ -2457,7 +2488,7 @@ func (s *AccountTestService) routeAntigravityTest(c *gin.Context, account *Accou
 		if strings.HasPrefix(modelID, "gemini-") {
 			return s.testGeminiAccountConnection(c, account, modelID, prompt)
 		}
-		return s.testClaudeAccountConnection(c, account, modelID)
+		return s.testClaudeAccountConnection(c, account, modelID, qualityProbePrompt(c.Request.Context()))
 	}
 	return s.testAntigravityAccountConnection(c, account, modelID)
 }
@@ -3328,6 +3359,33 @@ func (s *AccountTestService) RunTestBackground(ctx context.Context, accountID in
 		LatencyMs:    finishedAt.Sub(startedAt).Milliseconds(),
 		StartedAt:    startedAt,
 		FinishedAt:   finishedAt,
+	}, nil
+}
+
+// RunQualityProbeBackground reuses the existing account test path with an
+// administrator-configured prompt. The caller grades and discards the output
+// before persisting a result.
+func (s *AccountTestService) RunQualityProbeBackground(ctx context.Context, accountID int64, modelID, prompt string) (*ScheduledTestResult, error) {
+	startedAt := time.Now()
+	w := httptest.NewRecorder()
+	ginCtx, _ := gin.CreateTestContext(w)
+	ctx = context.WithValue(ctx, qualityProbePromptContextKey{}, prompt)
+	ginCtx.Request = (&http.Request{}).WithContext(ctx)
+	testErr := s.TestAccountConnection(ginCtx, accountID, modelID, prompt, AccountTestModeDefault)
+	finishedAt := time.Now()
+	responseText, errMsg := parseTestSSEOutput(w.Body.String())
+	if testErr != nil || errMsg != "" {
+		if errMsg == "" {
+			errMsg = testErr.Error()
+		}
+		return &ScheduledTestResult{
+			Status: "failed", ResponseText: responseText, ErrorMessage: errMsg,
+			LatencyMs: finishedAt.Sub(startedAt).Milliseconds(), StartedAt: startedAt, FinishedAt: finishedAt,
+		}, nil
+	}
+	return &ScheduledTestResult{
+		Status: "success", ResponseText: responseText,
+		LatencyMs: finishedAt.Sub(startedAt).Milliseconds(), StartedAt: startedAt, FinishedAt: finishedAt,
 	}, nil
 }
 

@@ -189,7 +189,7 @@ func TestRequestLedgerRoutingFirstVetoPoolAndPreviousResponse(t *testing.T) {
 				case "weighted_fallback":
 					req.StickyWeighted = true
 					req.ExcludedIDs = map[int64]struct{}{901: {}}
-					selection, err = scheduler.tryFallbackToWeightedSticky(ctx, req)
+					selection, err = scheduler.tryFallbackToWeightedSticky(ctx, req, nil)
 				}
 				require.NoError(t, err)
 				require.Nil(t, selection)

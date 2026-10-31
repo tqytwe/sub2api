@@ -51,6 +51,25 @@ func (r *moderationUserContractRepo) ManageModerationUser(_ context.Context, _ i
 	return nil
 }
 
+type moderationUserFirstExemptionRepo struct {
+	*moderationUserContractRepo
+	manageInput ModerationUserAction
+}
+
+func (r *moderationUserFirstExemptionRepo) ManageModerationUser(_ context.Context, _ int64, input ModerationUserAction) error {
+	if input.Action != "exemption" || input.Version != r.state.Version {
+		return errors.New("unexpected first exemption contract")
+	}
+	r.manageInput = input
+	r.manageCalls++
+	if input.Exempt != nil {
+		r.state.AutoBanExempt = *input.Exempt
+	}
+	r.state.Version++
+	r.state.Reason = input.Reason
+	return nil
+}
+
 func (r *moderationUserContractRepo) ApplyModerationAutoBan(context.Context, int64) (ModerationAutoBanResult, error) {
 	return r.autoBan, nil
 }
@@ -129,12 +148,31 @@ func TestListModerationUsersValidatesFilterAndReturnsUIDScopedState(t *testing.T
 	require.NoError(t, err)
 	require.Equal(t, int64(1), total)
 	require.Equal(t, int64(27), items[0].UserID)
+	require.Zero(t, items[0].Version, "a user without a moderation record is returned as version zero for first-time configuration")
 	require.Equal(t, "enforced", repo.listState)
 	require.Equal(t, int64(27), repo.listUserID)
 
 	_, _, err = svc.ListModerationUsers(context.Background(), 1, 20, "reset", 27)
 	require.Error(t, err)
 	require.Equal(t, 1, repo.listCalls)
+}
+
+func TestManageModerationUserAllowsFirstExemptionAtVersionZero(t *testing.T) {
+	repo := &moderationUserFirstExemptionRepo{moderationUserContractRepo: &moderationUserContractRepo{state: ModerationUserState{UserID: 27, Status: StatusActive}}}
+	cache := &moderationUserContractCache{}
+	svc := NewContentModerationService(&contentModerationTestSettingRepo{}, repo, nil, nil, nil, nil, cache, nil)
+	exempt := true
+
+	state, err := svc.ManageModerationUser(context.Background(), 27, ModerationUserAction{
+		Action: "exemption", Version: 0, Reason: "pre-approved account", Confirm: true, ActorID: 4, Exempt: &exempt,
+	})
+
+	require.NoError(t, err)
+	require.Equal(t, int64(1), state.Version)
+	require.True(t, state.AutoBanExempt)
+	require.Equal(t, "pre-approved account", state.Reason)
+	require.Equal(t, int64(4), repo.manageInput.ActorID)
+	require.Equal(t, []int64{27}, cache.userIDs)
 }
 
 func TestListModerationUsersPreservesConfiguredCountWindowAndCyberFilter(t *testing.T) {

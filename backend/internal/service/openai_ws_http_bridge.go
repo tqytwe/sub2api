@@ -551,6 +551,9 @@ func (s *OpenAIGatewayService) proxyOpenAIWSHTTPBridgeTurn(
 		if buildErr != nil {
 			return nil, buildErr
 		}
+		if admissionErr := s.admitPriorityWSSend(ctx, c, account, originalModel, body); admissionErr != nil {
+			return nil, admissionErr
+		}
 		resp, err = s.doOpenAIUpstream(upstreamReq, proxyURL, account)
 		ledgerAttempt = requestledger.ResponseAttempt(resp)
 		if err != nil {

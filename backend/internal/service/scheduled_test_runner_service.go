@@ -18,6 +18,7 @@ type ScheduledTestRunnerService struct {
 	scheduledSvc   *ScheduledTestService
 	accountTestSvc *AccountTestService
 	rateLimitSvc   *RateLimitService
+	qualityJudge   *qualityJevJudge
 	cfg            *config.Config
 
 	cron      *cron.Cron
@@ -32,12 +33,14 @@ func NewScheduledTestRunnerService(
 	accountTestSvc *AccountTestService,
 	rateLimitSvc *RateLimitService,
 	cfg *config.Config,
+	moderationSvc *ContentModerationService,
 ) *ScheduledTestRunnerService {
 	return &ScheduledTestRunnerService{
 		planRepo:       planRepo,
 		scheduledSvc:   scheduledSvc,
 		accountTestSvc: accountTestSvc,
 		rateLimitSvc:   rateLimitSvc,
+		qualityJudge:   newQualityJevJudge(moderationSvc, accountTestSvc),
 		cfg:            cfg,
 	}
 }
@@ -92,6 +95,13 @@ func (s *ScheduledTestRunnerService) runScheduled() {
 	defer cancel()
 
 	now := time.Now()
+	if s.scheduledSvc != nil {
+		if created, err := s.scheduledSvc.SyncQualityTemplates(ctx); err != nil {
+			logger.LegacyPrintf("service.scheduled_test_runner", "quality template sync error: %v", err)
+		} else if created > 0 {
+			logger.LegacyPrintf("service.scheduled_test_runner", "quality templates added %d rules", created)
+		}
+	}
 	plans, err := s.planRepo.ListDue(ctx, now)
 	if err != nil {
 		logger.LegacyPrintf("service.scheduled_test_runner", "[ScheduledTestRunner] ListDue error: %v", err)
@@ -120,6 +130,10 @@ func (s *ScheduledTestRunnerService) runScheduled() {
 }
 
 func (s *ScheduledTestRunnerService) runOnePlan(ctx context.Context, plan *ScheduledTestPlan) {
+	if plan.PelicanConfig != nil && plan.PelicanConfig.Quality != nil {
+		s.runQualityPlan(ctx, plan)
+		return
+	}
 	result, err := s.accountTestSvc.RunTestBackground(ctx, plan.AccountID, plan.ModelID)
 	if err != nil {
 		logger.LegacyPrintf("service.scheduled_test_runner", "[ScheduledTestRunner] plan=%d RunTestBackground error: %v", plan.ID, err)
@@ -143,6 +157,62 @@ func (s *ScheduledTestRunnerService) runOnePlan(ctx context.Context, plan *Sched
 
 	if err := s.planRepo.UpdateAfterRun(ctx, plan.ID, time.Now(), nextRun); err != nil {
 		logger.LegacyPrintf("service.scheduled_test_runner", "[ScheduledTestRunner] plan=%d UpdateAfterRun error: %v", plan.ID, err)
+	}
+}
+
+func (s *ScheduledTestRunnerService) runQualityPlan(ctx context.Context, plan *ScheduledTestPlan) {
+	now := time.Now()
+	leaseUntil := now.Add(15 * time.Minute).Truncate(time.Microsecond)
+	claimVersion, claimed, err := s.scheduledSvc.ClaimQualityRun(ctx, plan, leaseUntil)
+	if err != nil || !claimed {
+		if err != nil {
+			logger.LegacyPrintf("service.scheduled_test_runner", "quality plan=%d claim failed: %v", plan.ID, err)
+		}
+		return
+	}
+	plan.UpdatedAt = claimVersion
+	plan.RunningUntil = &leaseUntil
+
+	config := *plan.PelicanConfig
+	var result *ScheduledTestResult
+	var judgment map[string]any
+	var outcome string
+	if configErr := validateQualityConfig(&config); configErr != nil {
+		result, judgment, outcome = unsupportedQualityConfigResult(&config, now)
+	} else {
+		var probeErr error
+		result, probeErr = s.accountTestSvc.RunQualityProbeBackground(ctx, plan.AccountID, plan.ModelID, config.Prompt)
+		if probeErr != nil {
+			result = &ScheduledTestResult{Status: "failed", ErrorMessage: "probe_failed", StartedAt: now, FinishedAt: time.Now()}
+		}
+		result.PelicanConfig = &config
+		if config.Quality != nil && config.Quality.Judge != nil && config.Quality.Judge.Kind == "jev" {
+			judgment, outcome = s.judgeQualityProbeWithJev(ctx, result, &config)
+		} else {
+			judgment, outcome = judgeQualityProbe(result, &config)
+		}
+		if result.Status != "success" && result.ErrorMessage != "answer_mismatch" {
+			result.ErrorMessage = "probe_failed"
+		}
+	}
+	result.QualityJudgment = judgment
+	result.QualityRoundID = NewQualityRoundID()
+
+	saveCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	action, actionErr := s.scheduledSvc.CommitQualityRun(saveCtx, plan, outcome, result)
+	if actionErr != nil {
+		action = "action_error"
+		logger.LegacyPrintf("service.scheduled_test_runner", "quality plan=%d outcome apply failed: %v", plan.ID, actionErr)
+	}
+	result.QualityAction = action
+	nextRun, nextErr := computeNextRun(plan.CronExpression, time.Now())
+	if nextErr != nil {
+		logger.LegacyPrintf("service.scheduled_test_runner", "quality plan=%d computeNextRun failed: %v", plan.ID, nextErr)
+		return
+	}
+	if finishErr := s.scheduledSvc.FinishQualityRun(saveCtx, plan.ID, leaseUntil, time.Now(), nextRun); finishErr != nil {
+		logger.LegacyPrintf("service.scheduled_test_runner", "quality plan=%d finish failed: %v", plan.ID, finishErr)
 	}
 }
 
