@@ -75,6 +75,46 @@ func TestRequestLedgerWSLateUsageDoesNotMarkTheNextAttemptKnown(t *testing.T) {
 	require.Equal(t, []string{"known", "pending"}, []string{firstState, secondState})
 }
 
+func TestRequestLedgerWSPriorityObservationPersistsOnlySuccessfulSemanticTurns(t *testing.T) {
+	db := ledgertest.New(t)
+	ledger := requestledger.New(db)
+	ctx := context.Background()
+	session, err := ledger.Begin(ctx, "/v1/responses", "GET", "ws_session")
+	require.NoError(t, err)
+	ctx = requestledger.WithHandle(ctx, session)
+	require.NoError(t, requestledger.BindIdentity(ctx, 101, 201))
+	turn, err := requestledger.AcceptTurn(ctx)
+	require.NoError(t, err)
+	ctx = requestledger.WithHandle(ctx, turn)
+	upstream := newStagedPassthroughConn()
+	conn := &requestLedgerWSFrameConn{inner: upstream, account: &Account{ID: 234}}
+	groupID := int64(77)
+
+	require.NoError(t, conn.WriteFrame(ctx, coderws.MessageText, []byte(`{"type":"response.create","model":"gpt-5.1"}`)))
+	conn.observePrioritySemantic("gpt-5.1", "/v1/responses", &groupID)
+	conn.finishTurn(ctx, 1, &OpenAIForwardResult{UpstreamTerminalEvent: "response.completed"}, nil)
+
+	require.NoError(t, conn.WriteFrame(ctx, coderws.MessageText, []byte(`{"type":"response.create","model":"gpt-5.1"}`)))
+	conn.observePrioritySemantic("gpt-5.1", "/v1/responses", &groupID)
+	conn.finishTurn(ctx, 2, &OpenAIForwardResult{UpstreamTerminalEvent: "response.failed"}, nil)
+
+	var count int
+	require.NoError(t, db.QueryRow(`SELECT count(*) FROM gateway_request_priority_observations`).Scan(&count))
+	require.Equal(t, 1, count, "failed turns must not persist successful priority observations")
+	var model, endpoint, terminalState string
+	var observedGroupID int64
+	var firstSemanticMS, durationMS, status int
+	require.NoError(t, db.QueryRow(`SELECT model, inbound_endpoint, group_id, first_semantic_ms, duration_ms, http_status, terminal_state
+		FROM gateway_request_priority_observations`).Scan(&model, &endpoint, &observedGroupID, &firstSemanticMS, &durationMS, &status, &terminalState))
+	require.Equal(t, "gpt-5.1", model)
+	require.Equal(t, "/v1/responses", endpoint)
+	require.Equal(t, groupID, observedGroupID)
+	require.Greater(t, firstSemanticMS, 0)
+	require.GreaterOrEqual(t, durationMS, firstSemanticMS)
+	require.Equal(t, 200, status)
+	require.Equal(t, "completed", terminalState)
+}
+
 func TestRequestLedgerNativeWebsocketTwoTurnsWithRealPostgres(t *testing.T) {
 	db := ledgertest.New(t)
 	ledger := requestledger.New(db)

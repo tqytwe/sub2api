@@ -32,7 +32,9 @@ func (r *channelOperationsHTTPRepository) MutateChannelOperations(_ context.Cont
 
 func (r *channelOperationsHTTPRepository) ReadChannelOperations(context.Context, service.ChannelOperationsFilter) *service.ChannelOperationsSnapshot {
 	r.called = true
-	return &service.ChannelOperationsSnapshot{Quality: service.ChannelOperationsSection{Status: "unsupported_scope"}}
+	return &service.ChannelOperationsSnapshot{Quality: service.ChannelOperationsSection{
+		Status: "ready", Data: []byte(`{"summary":{"rounds":1,"passed":1,"degraded":0,"inconclusive":0},"rows":[],"has_more":false}`),
+	}}
 }
 
 func newChannelOperationsHTTP(t *testing.T, repo *channelOperationsHTTPRepository) *gin.Engine {
@@ -73,7 +75,7 @@ func TestChannelOperationsHTTPValidationBeforeRepository(t *testing.T) {
 	}
 }
 
-func TestChannelOperationsSnapshotHTTPReturnsUnsupportedQualityExplicitly(t *testing.T) {
+func TestChannelOperationsSnapshotHTTPReturnsQualityData(t *testing.T) {
 	repo := &channelOperationsHTTPRepository{}
 	router := newChannelOperationsHTTP(t, repo)
 	from := time.Now().Add(-time.Hour).UTC().Format(time.RFC3339)
@@ -83,7 +85,8 @@ func TestChannelOperationsSnapshotHTTPReturnsUnsupportedQualityExplicitly(t *tes
 	router.ServeHTTP(response, request)
 	require.Equal(t, 200, response.Code)
 	require.True(t, repo.called)
-	require.Contains(t, response.Body.String(), `"status":"unsupported_scope"`)
+	require.Contains(t, response.Body.String(), `"status":"ready"`)
+	require.Contains(t, response.Body.String(), `"rounds":1`)
 }
 
 func TestChannelOperationsHTTPConflictAndExplicitZeroRevision(t *testing.T) {

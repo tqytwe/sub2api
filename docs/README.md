@@ -30,9 +30,9 @@
 | [前端全链路体验与性能基线报告](./PERFORMANCE_BASELINE_20260723.md) | `active` | 首页、登录、钱包、Play、支付和管理员入口的加载性能基线与优化优先级 | 前端维护者 | 2026-07-23 |
 | [Fork 定制登记](./FORK_CUSTOMIZATIONS.md) | `active` | 极速蹬定制的唯一权威登记表 | Fork 维护者 | 2026-07-20 |
 | [上游同步手册](./UPSTREAM_SYNC_PLAYBOOK.md) | `active` | ranxi 正式版源码核验、单批次集成、Fork 部署和回滚 | 发布负责人 | 2026-10-28 |
-| [v2.17.7 同步批次账本](./upstream-migrations/v2.17.7/README.md) | `active` | 当前目标正式版本来源锁、功能验收合同及同步批次状态 | 主线程协调；工作包负责人待分配 | 2026-10-28 |
-| [v2.17.7 功能域矩阵](./upstream-migrations/v2.17.7/feature-matrix.md) | `active` | 按功能域区分已等价、已部署、候选待发布、未完成和隐私阻断 | 主线程协调 | 2026-10-28 |
-| [v2.17.7 开发清单指南](./upstream-migrations/v2.17.7/DEVELOPMENT_CHECKLIST.md) | `active` | 逐 merge 审计范围、功能工作包、验收和发布门禁；逐条处置见同目录清单 | 主线程协调 | 2026-10-31 |
+| [v2.17.7 同步批次账本](./upstream-migrations/v2.17.7/README.md) | `active` | 当前目标正式版本来源锁、功能验收合同及同步批次状态；当前生产为 PR #397 | 主线程协调；工作包负责人待分配 | 2026-11-01 |
+| [v2.17.7 功能域矩阵](./upstream-migrations/v2.17.7/feature-matrix.md) | `active` | 按功能域区分已等价、已部署、未完成和隐私阻断 | 主线程协调 | 2026-11-01 |
+| [v2.17.7 开发清单指南](./upstream-migrations/v2.17.7/DEVELOPMENT_CHECKLIST.md) | `active` | 逐 merge 审计范围、功能工作包、验收和发布门禁；生产账务复核见首段 | 主线程协调 | 2026-11-01 |
 | [凭证运营](./account-token-guard-v2.md) | `active` | 凭证运营页面、巡检和重登运行时的当前行为及限制 | 凭证运营维护者 | 2026-10-29 |
 | [凭证运营异常识别](./credential-operation-errors.md) | `active` | 凭证巡检与重登异常的安全分类、兼容及记录边界 | 凭证运营维护者 | 2026-10-29 |
 | [Zeabur PostgreSQL 生产只读核验手册](./ZEABUR_POSTGRES_RUNBOOK.md) | `reference` | 生产数据库、日志和部署后证据的只读操作边界 | 发布负责人 | 2026-10-28 |

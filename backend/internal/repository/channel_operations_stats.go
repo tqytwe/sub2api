@@ -26,6 +26,53 @@ const channelOperationsUsageBase = `WITH base AS (
  FROM base
 )`
 
+// A quality round is complete only when every frozen model has the configured
+// probe count. Model filtering is applied after completeness is evaluated.
+const channelOperationsQualityBase = `WITH scoped AS (
+ SELECT p.account_id,r.id,r.plan_id,r.status,r.created_at,r.pelican_config,r.quality_round_id,r.quality_action,r.quality_judgment,r.error_message,NULLIF(r.pelican_config->>'model_id','') AS measured_model
+ FROM scheduled_test_results r JOIN scheduled_test_plans p ON p.id=r.plan_id
+ WHERE r.created_at >= $1 AND r.created_at < $2
+ AND ($3::bigint=0 OR EXISTS (SELECT 1 FROM account_groups ag JOIN channel_groups cg ON cg.group_id=ag.group_id WHERE ag.account_id=p.account_id AND cg.channel_id=$3) OR EXISTS(SELECT 1 FROM channel_operation_members m WHERE m.account_id=p.account_id AND m.channel_id=$3))
+ AND ($4::bigint=0 OR EXISTS (SELECT 1 FROM channel_operation_members m WHERE m.account_id=p.account_id AND m.channel_id=$3 AND m.upstream_id=$4) OR ($4=-1 AND NOT EXISTS (SELECT 1 FROM channel_operation_members m WHERE m.account_id=p.account_id AND m.channel_id=$3)))
+ AND ($5::bigint=0 OR p.account_id=$5)
+ AND ($6::bigint=0 OR EXISTS (SELECT 1 FROM account_groups ag WHERE ag.account_id=p.account_id AND ag.group_id=$6))
+ AND jsonb_typeof(r.pelican_config->'quality')='object'
+), model_sets AS (
+ SELECT scoped.*,CASE WHEN NOT (pelican_config ? 'model_ids') THEN jsonb_build_array(measured_model)
+  WHEN jsonb_typeof(pelican_config->'model_ids')='array' THEN
+   CASE WHEN jsonb_array_length(pelican_config->'model_ids') BETWEEN 1 AND 50 THEN pelican_config->'model_ids' END
+  END AS expected_models
+ FROM scoped
+), rounds AS (
+ SELECT account_id,plan_id,COALESCE(NULLIF(quality_round_id,''),'legacy-'||id::text) AS round_key,measured_model,
+ max(id) AS id,max(created_at) AS observed_at,count(*) AS probes,
+ count(*) FILTER(WHERE status='success' AND quality_judgment->>'verdict'='correct') AS passed_probes,
+ bool_or(COALESCE(status='failed' AND quality_judgment->>'verdict'='incorrect' AND error_message IN ('answer_mismatch','state_degraded') AND quality_action NOT IN ('','stale_run') AND quality_round_id<>'',false)) AS degraded,
+ bool_and(COALESCE(status='success' AND quality_judgment->>'verdict'='correct' AND quality_action NOT IN ('','stale_run') AND quality_round_id<>'',false)) AS passed,
+ bool_and(COALESCE(jsonb_typeof(pelican_config->'parallel_count')='number' AND (pelican_config->>'parallel_count') ~ '^[1-8]$',false)) AS valid_count,
+ max(CASE WHEN jsonb_typeof(pelican_config->'parallel_count')='number' AND (pelican_config->>'parallel_count') ~ '^[1-8]$' THEN (pelican_config->>'parallel_count')::int END) AS expected,
+ jsonb_agg(DISTINCT NULLIF(quality_action,'')) AS actions,
+ bool_and(COALESCE(quality_round_id<>'',false)) AS valid_round,
+ bool_and(COALESCE(expected_models ? measured_model,false) AND NOT EXISTS (
+  SELECT 1 FROM jsonb_array_elements(COALESCE(expected_models,'[]'::jsonb)) m(value)
+  WHERE jsonb_typeof(value)<>'string' OR btrim(value#>>'{}')=''
+ )) AS valid_models,
+ min(expected_models::text) AS model_set_min,max(expected_models::text) AS model_set_max,
+ max(jsonb_array_length(expected_models)) AS expected_model_count
+ FROM model_sets GROUP BY account_id,plan_id,COALESCE(NULLIF(quality_round_id,''),'legacy-'||id::text),measured_model
+), round_integrity AS (
+ SELECT account_id,plan_id,round_key,sum(probes) AS round_probes,max(expected_model_count*expected) AS round_expected,
+ bool_and(valid_round AND valid_count AND valid_models AND probes=expected)
+  AND count(*)=max(expected_model_count) AND min(expected_model_count)=max(expected_model_count)
+  AND min(model_set_min)=max(model_set_max) AND min(expected)=max(expected) AS complete
+ FROM rounds GROUP BY account_id,plan_id,round_key
+), classified AS (
+ SELECT b.*,COALESCE(i.complete,false) AS round_complete,i.round_probes,i.round_expected,
+ CASE WHEN NOT COALESCE(i.complete,false) THEN 'inconclusive' WHEN b.degraded THEN 'degraded' WHEN b.passed THEN 'passed' ELSE 'inconclusive' END AS outcome
+ FROM rounds b JOIN round_integrity i USING(account_id,plan_id,round_key)
+ WHERE ($7='' OR b.measured_model=$7)
+)`
+
 const channelOperationsErrorQuery = `WITH scoped AS (
  SELECT e.error_type,e.error_phase,COALESCE(e.status_code,0) AS status_code,e.upstream_status_code,e.created_at
  FROM ops_error_logs e
@@ -89,10 +136,11 @@ func (r *channelRepository) ReadChannelOperations(ctx context.Context, filter se
  'lineage',COALESCE((SELECT jsonb_agg(to_jsonb(l)) FROM (SELECT * FROM lineage ORDER BY samples DESC,public_model,recorded_model,upstream_model,model_mapping_chain LIMIT 50)l),'[]'::jsonb),
  'lineage_total',(SELECT count(*) FROM lineage),'error_rate',NULL,'error_scope','no complete request failure denominator')`, args...)
 
-	// This fork does not yet persist immutable quality rounds or judge outcomes.
-	snapshot.Quality = service.ChannelOperationsSection{
-		Status: "unsupported_scope", Data: json.RawMessage("null"),
-		Error: "质量判题历史尚未迁入，不能将普通定时测试结果解释为质量结论", QueriedAt: time.Now().UTC(),
+	if filter.Model != "" && filter.ModelScope != "upstream" {
+		snapshot.Quality = service.ChannelOperationsSection{Status: "unsupported_scope", Data: json.RawMessage("null"), Error: "质量模型是探测模型，不能推断公开或已记录模型别名", QueriedAt: time.Now().UTC()}
+	} else {
+		qualityArgs := []any{filter.From, filter.Until, filter.ChannelID, filter.UpstreamID, filter.AccountID, filter.GroupID, filter.Model, filter.QualityBefore, filter.PageSize}
+		snapshot.Quality = r.operationsSection(ctx, channelOperationsQualityBase+` SELECT jsonb_build_object('source','scheduled_test_results: frozen config / judgment / plan+round+model','scope','current operational members or canonical group accounts; group filter uses current account groups; not historical request attribution','summary',(SELECT jsonb_build_object('rounds',count(*),'passed',count(*) FILTER(WHERE outcome='passed'),'degraded',count(*) FILTER(WHERE outcome='degraded'),'inconclusive',count(*) FILTER(WHERE outcome='inconclusive'),'latest_sample_at',max(observed_at)) FROM classified),'rows',COALESCE((SELECT jsonb_agg(to_jsonb(x)) FROM (SELECT id,account_id,plan_id,measured_model,observed_at,probes,passed_probes,expected,outcome,actions,round_complete,round_probes,round_expected FROM classified WHERE ($8::bigint=0 OR id<$8) ORDER BY id DESC LIMIT $9)x),'[]'::jsonb),'has_more',(SELECT count(*)>$9 FROM classified WHERE ($8::bigint=0 OR id<$8)))`, qualityArgs...)
 	}
 	errorArgs := []any{filter.From, filter.Until, filter.ChannelID, filter.UpstreamID, filter.AccountID, filter.GroupID, filter.Model, filter.ModelScope}
 	snapshot.Errors = r.operationsSection(ctx, channelOperationsErrorQuery, errorArgs...)

@@ -94,6 +94,17 @@ func (c *requestLedgerWSFrameConn) receiptForWrite() requestledger.Receipt {
 	}
 	return requestledger.Receipt{}
 }
+
+func (c *requestLedgerWSFrameConn) observePrioritySemantic(model, endpoint string, groupID *int64) {
+	if c == nil {
+		return
+	}
+	c.mu.Lock()
+	attempt := c.attempts[c.turn]
+	c.mu.Unlock()
+	attempt.ObservePrioritySemantic(model, endpoint, groupID)
+}
+
 func (c *requestLedgerWSFrameConn) finishTurn(ctx context.Context, turn int, result *OpenAIForwardResult, cause error) {
 	c.mu.Lock()
 	attempt := c.attempts[turn]
@@ -153,5 +164,11 @@ func finishLedgerWSResult(ctx context.Context, attempt *requestledger.Attempt, r
 			cause = context.Canceled
 		}
 	}
-	finishLedgerWSAttempt(ctx, attempt, cause)
+	status := 0
+	if cause == nil && result != nil && (result.UpstreamTerminalEvent == "response.completed" || result.UpstreamTerminalEvent == "response.done") {
+		status = http.StatusOK
+	}
+	if err := attempt.Finish(ctx, status, cause); err != nil {
+		slog.Error("request_ledger_ws_attempt_finish_failed")
+	}
 }
