@@ -321,8 +321,10 @@ func (s *AccountTokenGuardV2Service) ListAccounts(ctx context.Context) ([]Accoun
 		view, viewErr := s.recordView(ctx, record)
 		if viewErr != nil {
 			view = &AccountTokenGuardV2Account{
+				RefreshFailure: storedRefreshFailure(record), ProbeFailure: probeOperationFailure(record.ProbeState, record.ProbeDetail, record.LastProbeAt),
+				ReloginFailStreak: record.ReloginFailStreak, LastCountedTaskID: record.LastCountedTaskID, AutoReloginExhausted: record.AutoReloginExhausted,
 				AccountID: record.AccountID, Enabled: record.Enabled, AutoReloginEnabled: record.AutoReloginEnabled,
-				ProbeState: record.ProbeState, ProbeDetail: record.ProbeDetail, FailStreak: record.FailStreak,
+				ProbeState: record.ProbeState, ProbeDetail: safeProbeOperationDetail(record.ProbeState, record.ProbeDetail), FailStreak: record.FailStreak,
 				LastProbeAt: record.LastProbeAt, LastReauthAt: record.LastReauthAt, NextProbeAt: record.NextProbeAt,
 				CooldownUntil: record.CooldownUntil, BlockedReason: "account or login configuration is unavailable",
 			}
@@ -361,7 +363,7 @@ func (s *AccountTokenGuardV2Service) recordView(ctx context.Context, record Acco
 		ReloginFailStreak: record.ReloginFailStreak, LastCountedTaskID: record.LastCountedTaskID, AutoReloginExhausted: record.AutoReloginExhausted,
 		AccountID: record.AccountID, AccountName: account.Name, AccountStatus: account.Status, Schedulable: account.Schedulable,
 		Enabled: record.Enabled, AutoReloginEnabled: record.AutoReloginEnabled,
-		ProbeState: record.ProbeState, ProbeDetail: record.ProbeDetail, FailStreak: record.FailStreak,
+		ProbeState: record.ProbeState, ProbeDetail: safeProbeOperationDetail(record.ProbeState, record.ProbeDetail), FailStreak: record.FailStreak,
 		LastProbeAt: record.LastProbeAt, LastReauthAt: lastReauthAt, NextProbeAt: record.NextProbeAt,
 		CooldownUntil: record.CooldownUntil, BlockedReason: record.BlockedReason,
 		LoginConfig: reauthStatus.Config, LatestTask: reauthStatus.Task,

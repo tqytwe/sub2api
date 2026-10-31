@@ -1,6 +1,25 @@
 # v2.17.7 同步批次账本
 
-> **2026-10-31 生产验收更正（内容审查用户列表）**：PR [#393](https://github.com/tqytwe/sub2api/pull/393)
+> **2026-10-31 修复部署复核（UTC+8）**：PR [#394](https://github.com/tqytwe/sub2api/pull/394)
+> 全部 9 项 CI 检查通过，修复提交 `d99f2c8a2` 已合并至
+> `play/main@3da3cb0e953fe751b50a2f6f446e8c24a62c80b2`。
+> Zeabur deployment `6ae5a1eaea16512cf741c89b` 的实际 SHA 与合并 SHA 一致，
+> `finishedAt=2026-10-31T08:13:36.402Z`、当前状态 `RUNNING`；构建日志有镜像导出完成证据。
+> 应用、PostgreSQL、Redis 均为 `RUNNING`，首页和 `/health` HTTP 200，
+> 未认证访问 `/api/v1/admin/risk-control/users` HTTP 401。
+> 用户在本机刷新后确认“加载正常，没有 internal error”；18:17:56–18:18:09 的
+> 5 次该接口请求全部 HTTP 200，18:17:40–18:18:43 的应用最近 100 行无 ERROR 或原 SQL 参数错误。
+> PostgreSQL 最近 100 行中，部署完成之后的 51 行无 ERROR/FATAL/PANIC；旧参数错误发生在部署前。
+> 较早应用采样有 1 条上游转发 `context canceled`，不归为本次 SQL 缺陷，不能据有限窗口宣称全站无异常。
+> 本次未新增数据库迁移或执行数据修复。补充 SQL 只读复核最初超时；关闭 psql 分页器并禁止交互密码提示后，
+> 在 `BEGIN READ ONLY`、7 秒 statement timeout 和 2 秒 lock timeout 下成功完成实际参数推断的
+> PREPARE/EXECUTE：7 种筛选的统计与列表一致（all/enforced 为 2/2，其他筛选均 0/0），
+> 不存在用户的定向统计为 0。两条 PREPARE 均已 DEALLOCATE，已取得显式 `ROLLBACK` 回执；CLI 返回 0。
+> 此次列表刷新故障已有生产请求与用户本机确认；整版同步仍保持 `fully_migrated=false`，
+> 游客/普通用户完整浏览器验收、既有批次其他业务验收和数据库独立跟进项不因此关闭。
+> 本段为发布后本地交付补记，待后续累计交付纳入仓库，不单独触发生产部署。
+
+> **2026-10-31 故障定位历史（内容审查用户列表；由上方复核覆盖）**：PR [#393](https://github.com/tqytwe/sub2api/pull/393)
 > 已部署到 `play/main@e11c3166945d01012a104b5f5157cb34eb98b611`，Zeabur deployment
 > `6ae58008ea16512cf741c5b4` 已完成构建并运行；此前“候选未部署/生产 #392”的描述是历史记录。
 > 管理员反馈 Usage 正常；内容审查用户管理刷新返回 500，15:08:31（UTC+8）应用日志定位为
@@ -10,6 +29,20 @@
 > 原查询已在生产只读事务内通过 PREPARE 复现并显式 ROLLBACK；回归测试先失败、修复后通过。
 > 完整测试、构建、PR CI、修复部署和管理员刷新复验仍在进行，**不能宣称生产缺陷已解决**。
 > 整版同步仍保持 `fully_migrated=false`；本次修复不改变正文采集/harvest 的既有阻断边界。
+
+## #394 后当前工作队列（2026-10-31）
+
+- 生产基线为上述 #394；#393 的质量/Usage/moderation/凭证能力已上线，不沿用下方“候选未部署”的历史叙述。
+- 数据库新证据：生产 ledger **429** 条、当前源码 SQL **422** 个，缺失 **0**、checksum 差异 **0**，历史额外记录 **7**；296/298/301/320/334 与目标表/索引均在；只读事务显式 ROLLBACK。
+- 账务独立只读观察：本轮 `settlement_pending=21,326`，其中部署前21,284、部署后42；21,325条无精确billing link。按执行状态为failed18,682、cancelled2,426、interrupted195、succeeded19、inflight4；usage_unknown21,321。`settled`但存在未验证link的计数为0。此为聚合证据，不足以判断欠扣/重复扣费；历史归因继续待办，未补扣、未改状态、未清理，事务ROLLBACK。
+- 本地累计分支 `codex/v2177-post394-20261031`：AutoRestore 显式配置/执行、质量历史 unknown、不安全历史 ProbeDetail 读出、structured invalid_grant 分类、Priority quality round 与337稳定配置 revision 已完成；后端完整测试/unit/lint/build、前端全量测试/类型/lint/build、Fork integrity 和文档检查通过，尚未提交/部署，真实 PostgreSQL 集成执行待 PR CI。
+- 本地尝试编译并执行 PostgreSQL integration suite 时，Docker 拉取 `postgres` 镜像因 Docker Hub 网络超时未启动容器；该失败不代表测试逻辑通过，必须由 PR CI 的 disposable PostgreSQL 作最终执行证据。
+- 优先调度质量信号为本批后端实际缺口：两种reader没有填质量字段；运行器updated_at每次claim/finish变化，不能直接抄上游时间过滤。实现需独立稳定配置时间、quality有效期与完整round聚合，不引入额外provider/区域运行时。
+- 已取消重复开发：审核记录行独立启用用户、跨计划历史、真实ownership恢复、最终HTTP/WS准入已存在；moderation相关现有前端/API回归重跑42/42。
+- 上述本地修复将统一检查、审查、一个PR和一次生产发布；发布后立即查Zeabur实际SHA、日志、迁移、权限/API，再做受影响管理员本机验收。不能用本段替代尚未执行的发布。
+- 后续剩余范围见 [开发清单](./DEVELOPMENT_CHECKLIST.md) 与 [功能矩阵](./feature-matrix.md)。446条范围准确不等于446条行为已迁移；保持`fully_migrated=false`。
+
+以下均为较早批次的历史记录；当与本节及首段冲突时，以上方明确标注的生产证据为准。
 
 状态：`deployed-partial / migration-incomplete`。同步批次 PR #389 已于 2026-10-28 合并并部署，但这只证明本批候选上线，不代表完整 v2.17.7 功能审计或迁移完成。`fully_migrated=false` 继续有效。文末“最新生产复核覆盖”是当前生产数字的权威覆盖，早期采样仅保留审计历史。
 

@@ -306,7 +306,7 @@ func TestQualityJevTimeoutAndConcurrencyLimit(t *testing.T) {
 	var calls atomic.Int32
 	entered := make(chan struct{}, 4)
 	release := make(chan struct{})
-	runner, cfg, _, settings := qualityJevFixture(t, func(req *http.Request) (*http.Response, error) {
+	runner, cfg, _, _ := qualityJevFixture(t, func(req *http.Request) (*http.Response, error) {
 		calls.Add(1)
 		entered <- struct{}{}
 		select {
@@ -336,7 +336,7 @@ func TestQualityJevTimeoutAndConcurrencyLimit(t *testing.T) {
 	require.Empty(t, runner.qualityJudge.slots)
 	require.Equal(t, int32(4), calls.Load())
 
-	runner, cfg, _, settings = qualityJevFixture(t, func(req *http.Request) (*http.Response, error) {
+	runner, cfg, _, settings := qualityJevFixture(t, func(req *http.Request) (*http.Response, error) {
 		<-req.Context().Done()
 		return nil, req.Context().Err()
 	})

@@ -98,6 +98,6 @@ node scripts/check-doc-links.mjs
 
 新文档登记 [docs 索引](./README.md)。根目录和 `frontend/` 不留任务 patch、临时测试 JSON 或任务报告；
 完成记录放入 `docs/archive/completed-tasks/` 并由关联 PR/账本链接，当前规范不复制到归档。
-审查清单复用 [PR 模板](../.github/pull_request_template.md)。`AGENTS.md` 引用的
-`docs/ZEABUR_POSTGRES_RUNBOOK.md` 在本基线缺失；生产数据库操作前须补齐并审查该手册，
+审查清单复用 [PR 模板](../.github/pull_request_template.md)。生产数据库操作遵循
+[Zeabur PostgreSQL 只读核验手册](./ZEABUR_POSTGRES_RUNBOOK.md)，
 不能拿本交接规范替代操作授权或备份/恢复方案。

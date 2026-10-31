@@ -62,6 +62,9 @@
           <label class="block text-sm sm:col-span-2"><span class="field-title">{{ t('admin.qualityOps.prompt') }}</span><textarea v-model="templateForm.prompt" class="input min-h-20 w-full font-mono text-sm" required maxlength="32768" /></label>
           <label class="block text-sm"><span class="field-title">{{ t('admin.qualityOps.expectedAnswer') }}</span><input v-model.trim="templateForm.expected_answer" class="input w-full" required maxlength="4000" /></label>
           <label class="block text-sm"><span class="field-title">{{ t('admin.qualityOps.action') }}</span><select v-model="templateForm.action" class="input w-full"><option value="observe_only">{{ t('admin.qualityOps.observeOnly') }}</option><option value="disable_scheduling">{{ t('admin.qualityOps.disableScheduling') }}</option></select></label>
+          <div class="sm:col-span-2">
+            <Toggle v-model="templateForm.auto_restore" data-testid="quality-template-auto-restore" :label="t('admin.qualityOps.autoRestore')" :description="t('admin.qualityOps.autoRestoreHelp')" :disabled="templateSaving" />
+          </div>
           <label class="flex items-center gap-2 text-sm sm:col-span-2"><input v-model="templateForm.enabled" type="checkbox" />{{ t('admin.qualityOps.enabled') }}</label>
           <div class="flex justify-end gap-2 sm:col-span-2"><button class="btn btn-secondary" type="button" @click="closeTemplateForm">{{ t('common.cancel') }}</button><button class="btn btn-primary" type="submit" :disabled="templateSaving">{{ templateSaving ? t('common.saving') : t('common.save') }}</button></div>
         </form>
@@ -160,6 +163,9 @@
               <option value="disable_scheduling">{{ t('admin.qualityOps.disableScheduling') }}</option>
             </select>
           </label>
+          <div class="sm:col-span-2">
+            <Toggle v-model="form.auto_restore" data-testid="quality-auto-restore" :label="t('admin.qualityOps.autoRestore')" :description="t('admin.qualityOps.autoRestoreHelp')" :disabled="saving || presetSaving" />
+          </div>
           <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 sm:col-span-2">
             <input v-model="form.enabled" type="checkbox" />
             {{ t('admin.qualityOps.enabled') }}
@@ -247,6 +253,7 @@ import { onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import Icon from '@/components/icons/Icon.vue'
+import Toggle from '@/components/common/Toggle.vue'
 import { adminAPI } from '@/api/admin'
 import * as accountQualityAPI from '@/api/admin/accountQuality'
 import type { QualityRulePreset, QualityRulePresetRequest, QualityRuleTemplate, QualityRuleTemplateRequest } from '@/api/admin/accountQuality'
@@ -287,9 +294,9 @@ const templateSaving = ref(false)
 const templateBusyId = ref<number | null>(null)
 const templateFormOpen = ref(false)
 const editingTemplateId = ref<number | null>(null)
-const templateForm = reactive({ group: '', type: '', statuses: '', search: '', model_id: '', cron_expression: '*/30 * * * *', max_results: 100, prompt: '', expected_answer: '', action: 'observe_only', enabled: true })
+const templateForm = reactive({ group: '', type: '', statuses: '', search: '', model_id: '', cron_expression: '*/30 * * * *', max_results: 100, prompt: '', expected_answer: '', action: 'observe_only', auto_restore: false, enabled: true })
 
-const form = reactive({ account_id: 0, model_id: '', cron_expression: '*/30 * * * *', max_results: 100, rule_name: '', prompt: '', expected_answer: '', judge_kind: 'expected' as 'expected' | 'jev', judge_prompt: '', action: 'observe_only', enabled: true })
+const form = reactive({ account_id: 0, model_id: '', cron_expression: '*/30 * * * *', max_results: 100, rule_name: '', prompt: '', expected_answer: '', judge_kind: 'expected' as 'expected' | 'jev', judge_prompt: '', action: 'observe_only', auto_restore: false, enabled: true })
 
 function resetForm() {
   editingId.value = null
@@ -297,7 +304,7 @@ function resetForm() {
   presetName.value = ''
   showPresetSave.value = false
   presetSaveError.value = ''
-  Object.assign(form, { account_id: 0, model_id: '', cron_expression: '*/30 * * * *', max_results: 100, rule_name: '', prompt: '', expected_answer: '', judge_kind: 'expected', judge_prompt: '', action: 'observe_only', enabled: true })
+  Object.assign(form, { account_id: 0, model_id: '', cron_expression: '*/30 * * * *', max_results: 100, rule_name: '', prompt: '', expected_answer: '', judge_kind: 'expected', judge_prompt: '', action: 'observe_only', auto_restore: false, enabled: true })
 }
 
 function accountName(id: number) {
@@ -310,7 +317,7 @@ function formatDate(value?: string | null) {
 
 function resetTemplateForm() {
   editingTemplateId.value = null
-  Object.assign(templateForm, { group: '', type: '', statuses: '', search: '', model_id: '', cron_expression: '*/30 * * * *', max_results: 100, prompt: '', expected_answer: '', action: 'observe_only', enabled: true })
+  Object.assign(templateForm, { group: '', type: '', statuses: '', search: '', model_id: '', cron_expression: '*/30 * * * *', max_results: 100, prompt: '', expected_answer: '', action: 'observe_only', auto_restore: false, enabled: true })
 }
 
 function newTemplate() {
@@ -324,7 +331,7 @@ function closeTemplateForm() {
 }
 
 function templatePelicanConfig(): PelicanTestConfig {
-  return { question_kind: 'text', prompt: templateForm.prompt, quality: { action: templateForm.action, expected_answer: templateForm.expected_answer, judge: { kind: 'expected' } } }
+  return { question_kind: 'text', prompt: templateForm.prompt, quality: { action: templateForm.action, expected_answer: templateForm.expected_answer, auto_restore: templateForm.auto_restore, judge: { kind: 'expected' } } }
 }
 
 function templateRequest(): QualityRuleTemplateRequest {
@@ -343,7 +350,7 @@ function templateFilterSummary(template: QualityRuleTemplate) {
 function editTemplate(template: QualityRuleTemplate) {
   editingTemplateId.value = template.id
   const filter = template.account_filter || {}
-  Object.assign(templateForm, { group: filter.group || '', type: filter.type || '', statuses: filter.statuses?.join(', ') || '', search: filter.search || '', model_id: template.model_id, cron_expression: template.cron_expression, max_results: template.max_results, prompt: template.pelican_config?.prompt || '', expected_answer: template.pelican_config?.quality?.expected_answer || '', action: template.pelican_config?.quality?.action || 'observe_only', enabled: template.enabled })
+  Object.assign(templateForm, { group: filter.group || '', type: filter.type || '', statuses: filter.statuses?.join(', ') || '', search: filter.search || '', model_id: template.model_id, cron_expression: template.cron_expression, max_results: template.max_results, prompt: template.pelican_config?.prompt || '', expected_answer: template.pelican_config?.quality?.expected_answer || '', action: template.pelican_config?.quality?.action || 'observe_only', auto_restore: template.pelican_config?.quality?.auto_restore === true, enabled: template.enabled })
   templateFormOpen.value = true
 }
 
@@ -436,6 +443,7 @@ function applyPreset() {
   form.judge_kind = config.quality?.judge?.kind === 'jev' ? 'jev' : 'expected'
   form.judge_prompt = config.quality?.judge?.prompt || ''
   form.action = config.quality?.action || 'observe_only'
+  form.auto_restore = config.quality?.auto_restore === true
   form.enabled = preset.enabled
   notice.value = t('admin.qualityOps.presetApplied')
 }
@@ -447,6 +455,7 @@ function pelicanConfig() {
     prompt: form.prompt,
     quality: {
       action: form.action,
+      auto_restore: form.auto_restore,
       expected_answer: form.expected_answer,
       judge: { kind: form.judge_kind, prompt: form.judge_kind === 'jev' ? form.judge_prompt || undefined : undefined }
     }
@@ -512,6 +521,7 @@ function edit(plan: ScheduledTestPlan) {
   form.judge_kind = plan.pelican_config?.quality?.judge?.kind === 'jev' ? 'jev' : 'expected'
   form.judge_prompt = plan.pelican_config?.quality?.judge?.prompt || ''
   form.action = plan.pelican_config?.quality?.action || 'observe_only'
+  form.auto_restore = plan.pelican_config?.quality?.auto_restore === true
   form.enabled = plan.enabled
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }

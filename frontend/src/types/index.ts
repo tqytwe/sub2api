@@ -2596,6 +2596,7 @@ export interface QualityJudgeConfig {
 export interface QualityPolicy {
   action?: string
   expected_answer?: string
+  auto_restore?: boolean
   judge?: QualityJudgeConfig | null
 }
 

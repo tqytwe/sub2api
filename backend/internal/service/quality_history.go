@@ -30,8 +30,8 @@ func (s *ScheduledTestService) ListQualityHistory(ctx context.Context, beforeID 
 			item.Status = "skipped"
 		} else if item.PassedCount == item.TotalCount {
 			item.Status = "success"
-		} else {
-			item.Status = "failed"
+		} else if item.Status != "failed" {
+			item.Status = "inconclusive"
 		}
 	}
 	page := &QualityHistoryPage{Items: items}

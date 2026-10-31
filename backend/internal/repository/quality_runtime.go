@@ -133,7 +133,7 @@ func (r *scheduledTestPlanRepository) CommitQualityRun(ctx context.Context, plan
 		}
 		return commitQualityResult(ctx, tx, result, maxResults, "scheduling_disabled")
 	}
-	if outcome == "passed" && state.Action != "" {
+	if outcome == "passed" && state.Action != "" && plan.PelicanConfig.Quality.AutoRestore {
 		action, err := restoreQualityRuntimeState(ctx, tx, plan, state, schedulable, accountUpdatedAt)
 		if err != nil {
 			return "", err

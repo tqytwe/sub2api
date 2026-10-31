@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -125,4 +126,54 @@ func TestCredentialOperationUnknownAndSecretOmission(t *testing.T) {
 	}
 	require.NotNil(t, safeReauthTask(&OpenAIOAuthReauthTaskRecord{Status: "failed"}).Failure)
 	require.Nil(t, safeReauthTask(&OpenAIOAuthReauthTaskRecord{Status: "succeeded"}).Failure)
+}
+
+func TestCredentialOperationGuardReadRedactsLegacyProbeDetails(t *testing.T) {
+	ctx := context.Background()
+	for _, fallback := range []bool{false, true} {
+		for _, tc := range []struct {
+			name, state, detail, wantDetail, wantCode string
+		}{
+			{"legacy error", AccountTokenGuardV2ProbeTransient, "Bearer synthetic-private password=synthetic-private", "credential_operation_failed stage=inspection code=unknown", "unknown"},
+			{"safe classified error", AccountTokenGuardV2ProbeAuth, "credential_operation_failed stage=inspection code=requires_relogin; synthetic-private", "credential_operation_failed stage=inspection code=requires_relogin", "requires_relogin"},
+			{"legacy accepted", AccountTokenGuardV2ProbeOK, "credential accepted token=synthetic-private", "credential accepted", ""},
+			{"legacy pending", AccountTokenGuardV2ProbePending, "https://example.test/?token=synthetic-private", "", ""},
+		} {
+			t.Run(fmt.Sprintf("fallback=%t/%s", fallback, tc.name), func(t *testing.T) {
+				reauth, reader, _, _, _, _ := newReauthTestService("acct-1")
+				at := time.Date(2026, 10, 31, 1, 2, 3, 0, time.UTC)
+				repo := &accountTokenGuardV2TestRepo{record: &AccountTokenGuardV2Record{
+					AccountID: 42, ProbeState: tc.state, ProbeDetail: tc.detail, LastProbeAt: &at,
+					RefreshFailureCode: "account_retired", LastRefreshFailureAt: &at,
+					ReloginFailStreak: 3, LastCountedTaskID: 17, AutoReloginExhausted: true,
+				}}
+				if fallback {
+					reader.account = nil
+				}
+				svc := NewAccountTokenGuardV2Service(repo, nil, reader, nil, reauth)
+				views, err := svc.ListAccounts(ctx)
+				require.NoError(t, err)
+				require.Len(t, views, 1)
+				view := views[0]
+				raw, err := json.Marshal(view)
+				require.NoError(t, err)
+				require.NotContains(t, string(raw), "synthetic-private")
+				require.Equal(t, tc.wantDetail, view.ProbeDetail)
+				if tc.wantCode == "" {
+					require.Nil(t, view.ProbeFailure)
+				} else {
+					require.NotNil(t, view.ProbeFailure)
+					require.Equal(t, tc.wantCode, view.ProbeFailure.Code)
+					require.Equal(t, &at, view.ProbeFailure.OccurredAt)
+				}
+				require.NotNil(t, view.RefreshFailure)
+				require.Equal(t, "account_retired", view.RefreshFailure.Code)
+				require.Equal(t, &at, view.RefreshFailure.OccurredAt)
+				require.Equal(t, 3, view.ReloginFailStreak)
+				require.EqualValues(t, 17, view.LastCountedTaskID)
+				require.True(t, view.AutoReloginExhausted)
+				require.Equal(t, tc.detail, repo.record.ProbeDetail, "read projection must not mutate historical data")
+			})
+		}
+	}
 }

@@ -1,6 +1,6 @@
 # 当前项目推进基线
 
-状态：`active`。核验日期：2026-10-30（Asia/Shanghai）。
+状态：`active`。核验日期：2026-10-31（Asia/Shanghai）。
 
 本项目从本文件开始采用“上游正式版本同步 + Fork 差异一次性批次交付”。旧迁移账本中的 B2/B3/B4/B5 不再作为脱离上游的独立开发路线；它们改为同步批次中的后端、数据库、前端和生产验收工作包。2026-10-28 已重新核实上游最新正式发布为 `v2.17.7`，本文件后续范围以该版本为准。
 
@@ -9,9 +9,9 @@
 | 项目 | 当前事实 |
 |------|----------|
 | 生产分支 | `origin/play/main` |
-| 当前生产 commit | `21dd9af2239c2c7f8259e41e31e21156131622b4`（PR #392 merge） |
-| Zeabur | deployment `6ae303acea16512cf7419a17`，GitHub Zeabur check `success` |
-| 公开健康 | 2026-10-30 `https://www.jisudeng.com/` 与 `/health` 均返回 HTTP 200 |
+| 当前生产 commit | `3da3cb0e953fe751b50a2f6f446e8c24a62c80b2`（PR #394 merge） |
+| Zeabur | deployment `6ae5a1eaea16512cf741c89b`；CLI确认精确SHA、构建完成与RUNNING |
+| 公开健康 | 2026-10-31 首页和 `/health` HTTP 200，内容审查列表5次HTTP 200且用户本机确认正常 |
 | 直接上游 | `ranxi2001/sub2api` |
 | 上游候选发布 | GitHub release/tag `v2.17.7`；tag object `af9a09cf92c1cbfdcf793862122d46a5a29a6da1`；tag commit `9620d315f72a7dbf04fa10fca02970e1e410805e`；静态 `VERSION` 为 `2.17.7`；已在线核实 release/tag |
 | 生产源码版本标识 | `backend/cmd/server/VERSION` 为 `0.2.14`；这是 Fork 当前标识，不代表已同步上游 v2.17.7 |
@@ -34,15 +34,15 @@
 ### 0. 来源与差异锁定（已完成初核）
 
 - 已修正 `check_upstream_release.py`，校验 release/tag object/commit 及上游 exact-tag version resolver；v2.17.7 release/tag 在线身份已核验，版本检查器需按新版来源锁重新跑定向测试。
-- 已锁定共同祖先 `efe9aab1` (`0.2.5`) 与生产基线 `526f09d36` (`0.2.14`)；上游共同祖先至 `v2.17.7` 有 2,155 个提交、446 个 first-parent merge、3,809 个路径变化；生产到目标 tag 的直接 `git diff --name-status` 有 7,474 条状态记录。生产与 release 的直接文件差异还包含双方各自演进，需按功能分类，不可整树合并。
+- 已锁定共同祖先 `efe9aab1` (`0.2.5`) 与差异分析基线 `526f09d36` (`0.2.14`，不是当前生产SHA)；上游共同祖先至 `v2.17.7` 有 2,155 个提交、446 个 first-parent merge、3,809 个路径变化；生产到目标 tag 的直接 `git diff --name-status` 有 7,474 条状态记录。生产与 release 的直接文件差异还包含双方各自演进，需按功能分类，不可整树合并。
 - 已有历史迁移编号/同名冲突审查可作为输入，但不能替代完整范围迁移审查；每项实际迁移重新核对完整文件名、checksum、依赖和生产状态。
-- 该来源锁是候选状态，未合并、未部署；最终 CI 前须在干净同步 worktree 运行 strict 检查。
+- 来源锁已随现有批次合并；当前生产为上表 #394。新累计候选提交后须在干净隔离 worktree 重新运行 strict 检查，不能把历史来源核验当作新代码的门禁。
 
 ### 1. 固定范围和逐项决策
 
 - 从共同祖先到 v2.17.7，按上游 PR/功能域检查后端/API、前端路由/交互、迁移/数据库、计费和构建部署；release notes 中 #576–#581 是末段增量检查点，不是全部同步范围。
 - 每个能力记录“当前生产等价实现、Fork 必须保留、候选适配/缺口、明确排除”及测试和回退影响；不得依据整树文件差异直接搬运。
-- 上游本版没有支付、结算或业务账本变更，因此 B3 不新增同步代码；只保留账务观察项与本批影响面的回归。
+- 共同祖先到目标tag的完整范围包含账务/网关相关演进，不能用末段release notes断言整版没有结算变化。保留Fork账务合同，逐行为判断等价、适配或架构阻断；当前累计批次不改支付、扣费或历史结算，只保留只读归因及受影响回归。
 
 ### 2. 后端与数据库候选
 
@@ -50,7 +50,7 @@
 - 凭证异常历史：保留现有 refresh race、超时、credential-generation 保护；结构化错误分类须用 allowlist 和 mock HTTP 验证，不保存原始凭证/响应，不能仅加迁移而缺少 writer/reader。
 - 渠道运维：仅作为管理员运维分类；不得改变渠道路由、价格、group 或历史归属。保留 revision CAS、权限与审计，并区分历史 channel_id 与当前人工归属。
 - Jev：仅作为显式管理员 opt-in 的质量判题；配置/请求/低置信度都返回 unknown，不调用普通业务账号，不改变账号健康、计费或自动恢复状态。
-- 两份 `309_*.sql` 按完整文件名与 checksum 分别审查。迁移器依据 filename 排序、逐文件 SHA256 校验；不得按数字前缀合并。凭证异常迁移依赖被回滚的 token guard 表，不能单独接入；相关 writer/reader/API 是否进入范围先做明确决定。
+- 上游两份 `309_*.sql` 按完整文件名与checksum分别审查，不能按数字前缀合并。Fork渠道/凭证已用282/334等编号适配；token guard及writer/reader/API已在#394生产祖先，334已核验。新337质量revision单独向前迁移，不重做既有凭证表。
 - 同名迁移 `226_channel_monitor_quota_mode.sql` 上游和 Fork 字节不同，必须保留已部署 Fork 文件且不能直接覆盖；如证明上游修复必要，使用单独向前迁移并补 schema/checksum 兼容测试。
 - 部署前须由数据库工作包只读确认生产 `schema_migrations` 状态、SQL 锁表和执行时长，并提供向前兼容策略；禁止执行 down 或删除历史数据。
 
@@ -70,7 +70,15 @@
 - PR 合并后只触发一次生产部署；核对 Zeabur 精确 SHA、健康接口和关键 API，再由用户对本批实际受影响的页面与业务路径做回归验收。此前已完成的生产用户验收不重复列为门槛。
 - 生产异常、权限放宽、账务/迁移不一致或部署 SHA 不符时停止批次并 revert 合并提交，不继续叠加新改动。
 
-## 当前执行状态（2026-10-28）
+## 当前执行状态（2026-10-31，#394 后）
+
+- #393 的质量/Usage/moderation/凭证累计功能已部署，#394列表参数错误已修复并完成真实管理员刷新复验。
+- 生产只读账本429条；422个当前SQL全部存在且checksum一致，另7条历史记录；296/298/301/320/334表与索引核验通过，事务明确ROLLBACK。
+- 已有独立启用、跨计划历史、真实恢复、最终hard-stop/重试准入等不再重复开发；旧清单条目以[开发清单](./upstream-migrations/v2.17.7/DEVELOPMENT_CHECKLIST.md)和[功能矩阵](./upstream-migrations/v2.17.7/feature-matrix.md)为准。
+- 当前累计分支 `codex/v2177-post394-20261031` 从生产隔离：修质量AutoRestore/历史unknown、凭证旧详情安全读出/invalid_grant结构化分类，接入优先调度quality round。统一测试、双审查后一个PR和一次发布；当前尚未部署这些新改动。
+- 446 merge覆盖核对正确，但逐行为等价、产品范围、账务抽样和管理员写动作验收仍未全部关闭；`fully_migrated=false`。
+
+## 历史执行状态（2026-10-28，以下不代表当前线上）
 
 本节取代此前仍指向旧生产 SHA 的快照。PR #389 已合并并完成一次 Zeabur 部署；这代表同步批次部分能力上线，不代表 v2.17.7 全量迁移完成。完整收口证据和管理员/数据库操作清单见 [v2.17.7 同步账本](./upstream-migrations/v2.17.7/README.md)。
 

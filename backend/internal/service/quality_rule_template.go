@@ -140,15 +140,6 @@ func qualityRuleScope(cfg *PelicanTestConfig) string {
 	return "quarantine"
 }
 
-// Same rule as the quality-ops account picker: probes only run on real OpenAI OAuth accounts.
-func qualityProbeSupportsAccount(account QualityTemplateAccount) bool {
-	if account.Platform != PlatformOpenAI || (account.Type != AccountTypeOAuth && account.Type != AccountTypeSetupToken) {
-		return false
-	}
-	synthetic, _ := account.Extra["synthetic_ui_test"].(bool)
-	return !synthetic
-}
-
 // Every plan gets its own copy: validation writes the model into the config.
 func cloneQualityPelicanConfig(cfg *PelicanTestConfig) *PelicanTestConfig {
 	if cfg == nil {

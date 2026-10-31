@@ -109,6 +109,11 @@ func TestPrioritySignalCacheKeySeparatesCandidateSetsAndQuerySettings(t *testing
 	if base == prioritySignalCacheKey(req, changedWindow, ids) {
 		t.Fatal("different observation windows must not share signal cache entries")
 	}
+	changedQualityWindow := cfg
+	changedQualityWindow.QualityMaxAgeHours++
+	if base == prioritySignalCacheKey(req, changedQualityWindow, ids) {
+		t.Fatal("different quality evidence windows must not share signal cache entries")
+	}
 	changedPercentile := cfg
 	changedPercentile.LatencyPercentile++
 	if base == prioritySignalCacheKey(req, changedPercentile, ids) {
@@ -271,5 +276,24 @@ func TestPriorityLatencyStopAdmissionScope(t *testing.T) {
 	req.UseUpstreamTokenCost = false
 	if shouldApplyPriorityLatencyStop(req, cfg) {
 		t.Fatal("priority stop policy must follow the same upstream-token-cost scope as scoring")
+	}
+}
+
+func TestPrioritySchedulingUsesIndependentQualityFreshnessWindow(t *testing.T) {
+	queries := make(chan PrioritySchedulingQuery, 1)
+	gateway := &OpenAIGatewayService{usageLogRepo: priorityHistoryReaderFunc{read: func(_ context.Context, q PrioritySchedulingQuery) (map[int64]PrioritySchedulingSignal, error) {
+		queries <- q
+		return map[int64]PrioritySchedulingSignal{}, nil
+	}}}
+	cfg := DefaultPrioritySchedulingConfig()
+	cfg.WindowMinutes, cfg.QualityMaxAgeHours = 5, 24
+	gateway.prioritySignals(OpenAIAccountScheduleRequest{RequestedModel: "m"}, cfg, []openAIAccountCandidateScore{{account: &Account{ID: 1}}})
+	select {
+	case q := <-queries:
+		if got := q.Since.Sub(q.QualitySince); got != 24*time.Hour-5*time.Minute {
+			t.Fatalf("quality window must be independent of the latency window: %s", got)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("priority signal refresh did not run")
 	}
 }

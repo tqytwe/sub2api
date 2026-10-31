@@ -16,6 +16,12 @@ on:
       - backend/ent/**
       - backend/internal/repository/integration_*test.go
       - backend/internal/repository/content_moderation_user*.go
+      - backend/internal/repository/quality_history_integration_test.go
+      - backend/internal/repository/priority_quality_round_integration_test.go
+      - backend/internal/repository/usage_log_priority_scheduling*.go
+      - backend/internal/repository/scheduled_test_repo.go
+      - backend/internal/service/quality_history*.go
+      - backend/internal/service/priority_scheduling*.go
       - backend/internal/repository/migrations_runner*.go
       - backend/internal/repository/migrations_schema_integration_test.go
       - backend/internal/repository/core_migration*test.go
@@ -90,7 +96,7 @@ jobs:
           set -euo pipefail
           # One repository TestMain provisions both isolated service containers.
           # Run the three bounded suites in full so their subtests remain visible.
-          core_tests='^(TestCoreMigration.*|TestModerationUsersPostgreSQLFiltersAndPagination|TestReloginBudgetMigrationSeedsOnlyOldTerminalTasks|TestBillingLogReconciliation.*|TestAccountGroupAllowedModelsConcurrent.*|TestGroupCopyAccounts.*|TestAccountAdminUpdate.*|'
+          core_tests='^(TestCoreMigration.*|TestModerationUsersPostgreSQLFiltersAndPagination|TestQualityHistoryPostgreSQLJudgmentAndRoundCompleteness|TestPriorityQuality.*|TestReloginBudgetMigrationSeedsOnlyOldTerminalTasks|TestBillingLogReconciliation.*|TestAccountGroupAllowedModelsConcurrent.*|TestGroupCopyAccounts.*|TestAccountAdminUpdate.*|'
           core_tests+='TestAccountRepoSuite|TestGroupRepoSuite|TestBillingCacheSuite|'
           core_tests+='TestMigrationsRunner_ConcurrentInstancesSerializeOnSessionLock|'
           core_tests+='TestUsageBillingRepositoryApply_(DeduplicatesBalanceBilling|WithLedgerWritesUsageCharge|'
@@ -118,6 +124,12 @@ jobs:
               "core-migration-repositories.json": (f"{module}/internal/repository", {
                   "TestCoreMigrationUpgradePreservesDeployedDataAndOldWriter",
                   "TestModerationUsersPostgreSQLFiltersAndPagination",
+                  "TestQualityHistoryPostgreSQLJudgmentAndRoundCompleteness",
+                  "TestPriorityQualityRoundsPostgreSQLAttributionAndCompleteness",
+                  "TestPriorityQualityRoundsPostgreSQLRuleRevisionAndAccountScope",
+                  "TestPriorityQualityRoundsPostgreSQLKnownMismatchAndSingleProbeDefaults",
+                  "TestPriorityQualityRuleRevisionMigrationPreservesOldWriters",
+                  "TestPriorityQualityRuleRevisionMigrationLockTimeoutAndRollback",
                   "TestCoreMigrationsBoundLockWaitAndRollback",
                   "TestReloginBudgetMigrationSeedsOnlyOldTerminalTasks",
                   "TestCoreMigrationsBoundLockWaitAndRollback/273_account_group_allowed_models.sql/target_table",

@@ -43,6 +43,7 @@ type PrioritySchedulingQuery struct {
 	InboundEndpoint    string
 	GroupID            *int64
 	Since              time.Time
+	QualitySince       time.Time
 	LatencyMeasurement string
 	LatencyPercentile  int
 	TargetTTFTMs       int
@@ -231,7 +232,7 @@ func (s *OpenAIGatewayService) prioritySignals(req OpenAIAccountScheduleRequest,
 		state.launches[state.launchNext] = now
 		state.launchNext = (state.launchNext + 1) % len(state.launches)
 		queryGroup := clonePriorityGroupID(req.GroupID)
-		query := PrioritySchedulingQuery{AccountIDs: append([]int64(nil), ids...), Model: model, InboundEndpoint: strings.TrimSpace(req.InboundEndpoint), GroupID: queryGroup, Since: now.Add(-time.Duration(cfg.WindowMinutes) * time.Minute), LatencyMeasurement: cfg.LatencyMeasurement, LatencyPercentile: cfg.LatencyPercentile, TargetTTFTMs: cfg.TargetTTFTMs}
+		query := PrioritySchedulingQuery{AccountIDs: append([]int64(nil), ids...), Model: model, InboundEndpoint: strings.TrimSpace(req.InboundEndpoint), GroupID: queryGroup, Since: now.Add(-time.Duration(cfg.WindowMinutes) * time.Minute), QualitySince: now.Add(-time.Duration(cfg.QualityMaxAgeHours) * time.Hour), LatencyMeasurement: cfg.LatencyMeasurement, LatencyPercentile: cfg.LatencyPercentile, TargetTTFTMs: cfg.TargetTTFTMs}
 		go func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 			defer cancel()
@@ -321,6 +322,7 @@ func prioritySignalCacheKey(req OpenAIAccountScheduleRequest, cfg PrioritySchedu
 		writePart(strconv.FormatInt(*req.GroupID, 10))
 	}
 	writePart(strconv.Itoa(cfg.WindowMinutes))
+	writePart(strconv.Itoa(cfg.QualityMaxAgeHours))
 	writePart(strconv.Itoa(cfg.TargetTTFTMs))
 	writePart(strings.TrimSpace(cfg.LatencyMeasurement))
 	writePart(strconv.Itoa(cfg.LatencyPercentile))
@@ -500,8 +502,8 @@ func scorePriorityCandidateAt(cfg PrioritySchedulingConfig, item openAIAccountCa
 	cost := 0.5
 	errorRate := 1 - clamp01(item.errorRate)
 	unknown := false
-	// This fork has no persisted quality-judgement outcome. Keep the signal
-	// explicit so unknown quality cannot be interpreted as a passing result.
+	// Only complete, recent, conclusive quality rounds supply this signal.
+	// Missing history remains neutral and cannot imply a passing result.
 	if signal.QualitySamples == 0 {
 		unknown = true
 		out.QualityStatus = "unavailable"

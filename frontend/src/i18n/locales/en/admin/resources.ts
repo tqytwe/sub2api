@@ -34,6 +34,8 @@ export default {
       action: 'Failure action',
       observeOnly: 'Observe only',
       disableScheduling: 'Pause account scheduling',
+      autoRestore: 'Automatically restore scheduling paused by this rule after passing',
+      autoRestoreHelp: 'Off by default. Restore only after a conclusive pass when ownership still matches; never override manual changes.',
       enabled: 'Enabled',
       paused: 'Paused',
       rules: 'Quality rules',

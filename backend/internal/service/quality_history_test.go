@@ -39,11 +39,36 @@ func TestListQualityHistoryNormalizesRoundsAndCursor(t *testing.T) {
 	require.Len(t, page.Items, 100)
 	require.Equal(t, int64(901), page.NextCursor)
 	require.Equal(t, 4, page.Items[0].TotalCount)
-	require.Equal(t, "failed", page.Items[0].Status)
+	require.Equal(t, "inconclusive", page.Items[0].Status)
 }
 
 func TestListQualityHistoryPropagatesRepositoryError(t *testing.T) {
 	want := errors.New("history unavailable")
 	_, err := (&ScheduledTestService{resultRepo: &qualityHistoryResultRepoStub{err: want}}).ListQualityHistory(context.Background(), 0)
 	require.ErrorIs(t, err, want)
+}
+
+func TestListQualityHistoryPreservesInconclusiveRounds(t *testing.T) {
+	for _, tc := range []struct {
+		name, storedStatus, want string
+		passed, skipped, total   int
+	}{
+		{"unknown judge", "inconclusive", "inconclusive", 0, 0, 1},
+		{"correct and unknown", "inconclusive", "inconclusive", 1, 0, 2},
+		{"incorrect and unknown", "failed", "failed", 0, 0, 2},
+		{"correct round", "success", "success", 2, 0, 2},
+		{"all skipped", "inconclusive", "skipped", 0, 2, 2},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			item := &QualityHistoryResult{
+				ScheduledTestResult: ScheduledTestResult{Status: tc.storedStatus},
+				PassedCount:         tc.passed, SkippedCount: tc.skipped, TotalCount: tc.total,
+			}
+			page, err := (&ScheduledTestService{resultRepo: &qualityHistoryResultRepoStub{
+				items: []*QualityHistoryResult{item},
+			}}).ListQualityHistory(context.Background(), 0)
+			require.NoError(t, err)
+			require.Equal(t, tc.want, page.Items[0].Status)
+		})
+	}
 }

@@ -14,8 +14,8 @@
 | 共同祖先 | `efe9aab1e4ec89a42ba45e8dac20e882c5409a6a` | 上游共同祖先源码版本为 `0.2.5` |
 | 本地差异分析基线 | `526f09d36fa4d0a69af823fec2fc5a9ed495193f` | `source-lock.json.analysis_base`；供 Fork 对目标 tag 的差异报告使用，不替代上游共同祖先 |
 | 上游范围 | 2,155 commits、446 个 first-parent merge、3,809 个路径变化 | 这是审查范围，不是待搬运文件数 |
-| 已核实生产部署 | `play/main@21dd9af2239c2c7f8259e41e31e21156131622b4` | PR #392 对应 Zeabur deployment `6ae303acea16512cf7419a17`，成功；生产源码标识为 Fork `0.2.14` |
-| 当前候选分支 | `codex/v2177-cumulative-integration-20261029` | 基于生产 `21dd9af2239c2c7f8259e41e31e21156131622b4`，未提交/未推送；本地候选不计为线上版本 |
+| 已核实生产部署 | `play/main@3da3cb0e953fe751b50a2f6f446e8c24a62c80b2` | PR #394；Zeabur deployment `6ae5a1eaea16512cf741c89b`，构建完成且 RUNNING；首页/health 200；源码仍为 Fork `0.2.14` |
+| 当前候选分支 | `codex/v2177-post394-20261031` | 从当前生产 #394 隔离；质量恢复/历史与凭证安全读出修复累计开发中，未提交/未推送；#393 的累计功能已部署，不能重复列为未发布 |
 | 当前整版状态 | `fully_migrated=false` | 不能用健康检查、单元测试或一次部署成功替代功能闭环 |
 
 生产基线、上游 tag、候选分支和本地远端引用必须在每次发布前分别记录。若线上实际部署 SHA 已变化，先更新本表和证据，再重新计算下面所有状态。
@@ -33,14 +33,14 @@
 
 | 优先级 | 功能域 | 上游证据 | 生产状态 | 开发结论 |
 |---|---|---|---|---|
-| P0 | 来源、版本和 446 merge 覆盖 | v2.17.7 tag；共同祖先至 tag 的完整提交范围 | 已锁来源；整版覆盖未逐条关闭 | 生成 446 行 `merge -> 功能域 -> 处置` 清单；每行必须是等价、适配、缺失、排除或阻断 |
+| P0 | 来源、版本和 446 merge 覆盖 | v2.17.7 tag；共同祖先至 tag 的完整提交范围 | 446 行清单与 SHA 范围核对通过；整版证据未逐条关闭 | 继续按具体行为补证和拆分跨域提交；每行必须明确等价、适配、缺失、排除或阻断，不重复生成清单 |
 | P0 | 渠道运维 | #573，channel operations | #389 已部署，生产 API/页面技术证据已有 | 完成管理员保存、刷新、CAS 冲突、审计和上游增量回归；保留 Fork 的 `282_channel_operations.sql` |
 | P0 | 优先调度与 admission | #315/#422/#508/#520/#572 | #389 已部署基础合同；完整 penalty/admission 未证明 | 补 attempt identity、质量 round、HTTP/WS hard-stop、penalty clock、sticky/fallback 和观察数据回归 |
-| P0 | 质量运维/Jev | #51/#174/#437/#447/#522/#528/#548/#550/#565/#575/#576 | 生产尚未应用本候选质量表；候选已有 ownership、Jev choice judge、模板/预设、管理员 API/UI 和本地测试 | 补 live regression、跨计划历史、分组/模型动作、真实 restriction restore/reconcile 验收和生产迁移 |
-| P0 | 凭证失败、token guard、reauth | #138/#178/#185/#192/#199/#224/#238/#440/#557/#560/#574 | 生产已有 Fork token guard v2、reauth、refresh-failure reader/writer/API/UI；当前候选已通过 Go/前端全量门禁 | 完成与上游逐字段行为复审、迁移账本核验和生产动作验收；不把 tag 外 Fork 功能冒充 v2.17.7 增量 |
-| P0 | 内容审查用户管理 | #519/#558/#580；迁移 296/298/301 | 生产只有日志表；用户状态/hits/actions 表不存在 | 发布候选迁移和 API；验收 generation、原因、四类 exemption、owned unban、权限和审计 |
-| P0 | 精确滚动 24 小时用量 | #579 | 生产尚未应用候选 | 发布 API/UI；固定 `[now-24h, now)`、筛选快照、分页/导出、时区/DST 和清理范围合同 |
-| P0 | 迁移与账务安全 | 上游新增 89 个迁移、Fork 自有 173 个、同名异内容 2 个 | 生产 ledger 已核验；历史 `settlement_pending` 待归因 | 每个 SQL 按完整文件名、checksum、依赖和锁耗时预检；禁止 down、补扣或批量改结算状态 |
+| P0 | 质量运维/Jev | #51/#174/#437/#447/#522/#528/#548/#550/#565/#575/#576 | #393 已部署 quality runtime、ownership、Jev、模板/预设、跨计划历史和恢复接口；320 迁移已应用 | 修复 AutoRestore 开关不生效和 unknown 被历史计为通过；多模型/parallel_count 执行、分组动作和模型隔离仍有真实缺口；现有恢复动作待管理员验收 |
+| P0 | 凭证失败、token guard、reauth | #138/#178/#185/#192/#199/#224/#238/#440/#557/#560/#574 | 生产已有Fork token guard v2、reauth、refresh-failure reader/writer/API/UI；本批凭证定向回归通过，累计全量门禁见第5节 | 完成与上游逐字段行为复审、迁移账本核验和生产动作验收；不把 tag 外 Fork 功能冒充 v2.17.7 增量 |
+| P0 | 内容审查用户管理 | #519/#558/#580；迁移 296/298/301 | #393 已部署；296/298/301 和状态/hits/actions 表及索引已核实；#394 列表修复已由管理员本机与生产 200 日志验证 | 继续验收 generation/reset、四类 exemption、owned unban、审计；独立启用已在审核记录行实现，不新增重复入口 |
+| P0 | 精确滚动 24 小时用量 | #579 | #393 已部署 API/UI；用户确认 Usage 正常 | 保留已实现 `[now-24h, now)`；补分页/导出同窗、时区/DST 与日历清理实际验收，不重做运行时 |
+| P0 | 迁移与账务安全 | 上游/Fork迁移按完整文件名和checksum处理；旧差异统计为分析基线快照 | 生产429 ledger，422当前SQL无缺失或checksum差异，另7历史记录；`settlement_pending`待归因 | 每个 SQL 按完整文件名、checksum、依赖和锁耗时预检；禁止 down、补扣或批量改结算状态 |
 | P1 | BPS/Excel OAuth 与附件协议 | #58/#62/#64/#68/#73/#74/#78/#79/#83/#86/#87/#89/#91/#96/#97/#98/#99/#102/#104/#105/#107/#110/#111/#118/#121/#122/#124/#125/#128/#131/#133/#134/#138/#142/#149/#151/#154/#156/#161/#173/#178/#183/#184/#185/#192/#197/#204/#207/#210/#217/#219/#220/#221/#224/#229/#231/#232/#242/#249/#358/#360/#361/#362/#363/#364/#368/#371/#373/#374/#375/#379/#460/#461/#473/#486/#506/#541 | 生产仅有 Fork 自有协议/图片/计费合同，未证明等价于上游 BPS runtime | 先定支持 provider 和流量范围；再按认证、能力发现、附件、重试、额度、计费和前端权限整体交付 |
 | P1 | Pelican 质量、展示和测试 | #104/#166/#168/#174/#176/#188/#236/#253/#262/#263/#268/#271/#356/#378/#391/#392/#394/#396/#399/#400/#402/#404/#407/#409/#448/#449/#542 | Fork 有独立模型目录/质量基础；未证明完整 Pelican 闭环 | 先完成质量合同，再决定展示页、测试成本、历史分页和 group tests；禁止只搬页面 |
 | P1 | Prism / Astra / 多轮工具 | #250/#251/#258/#260/#267/#269/#277/#278/#281/#284/#286/#287/#289/#292/#293/#294/#299/#300/#301/#304/#305/#306/#307/#310/#313/#314/#354/#399/#423/#424/#425/#426/#427/#428 | 生产没有统一上游 Prism/Astra 运行时证据 | 明确是否部署多实例/守护进程；完成 session、并发、工具、图片、预算、lease、缓存、计费和故障恢复合同 |
@@ -59,19 +59,19 @@
 
 ### P0-A：范围锁定和逐 merge 覆盖
 
-- [ ] 在干净隔离 worktree 固定 `analysis_base`、生产部署 SHA、上游 tag object/commit 和 `VERSION`。
+- [x] 已在从 #394 创建的隔离 worktree 固定分析基线、生产 SHA、上游 tag/commit 与 Fork VERSION；下一发布前重新确认实际 SHA。
 - [x] 生成并核对 446 行结构化清单：[merge-inventory.tsv](./merge-inventory.tsv)，当前 13 列包括 `merge_sha`、`pr_number`、主题、变更路径、自动功能域、人工复核状态、处置、生产证据、负责人、依赖、测试和回滚字段；446 个 SHA 唯一且与来源范围一致。
 - [x] 完成功能域和初步处置分流：`reviewed=121`、`triaged=325`、`unreviewed=0`。`triaged` 仅表示按 merge/路径证据归域并分派后续，不代表代码等价、测试通过或生产已部署。
-- [ ] 关闭 `needs_product_scope`、`needs_evidence`、`needs_split`、`scope_unresolved`、隐私和架构阻断项；全部 `production_evidence` 当前仍是 `unverified`，不得计为迁移完成。
+- [ ] 关闭 `needs_product_scope`、`needs_evidence`、`needs_split`、`scope_unresolved`、隐私和架构阻断项；目前已对 #519/#558/#579/#580 补上生产部署与限定验收证据，其余仍有 `unverified`，不得据局部证据计整版迁移完成。
 - [ ] 所有 `out-of-scope` 必须写产品理由；所有 `equivalent` 必须链接生产代码和测试；所有 `missing` 必须进入本文件任务表。
 - [ ] 清单生成后把 `fully_migrated` 继续保持 `false`，直到所有纳入项和发布验收关闭。
 
-当前分流的主要待办量：
+下表为 #393 前分流数量快照；当前精确处置以 TSV 为准，本批按生产证据更新已覆盖条目，不以这些旧计数推断剩余开发量：
 
 | 处置 | 行数 | 下一步 |
 |---|---:|---|
 | `needs_product_scope` | 136 | 按现有 Fork 产品边界逐项决定纳入、排除或暂缓；不因上游存在就自动扩展产品 |
-| `needs_evidence` | 69 | 对照生产代码、迁移账本、实际 API/UI 和测试补证 |
+| `needs_evidence` | 67 | 对照生产代码、迁移账本、实际 API/UI 和测试补证 |
 | `needs_split` | 35 | 按具体 hunk/路径拆分跨域提交，保留可独立纳入的修复 |
 | `adaptation_required` | 74 | 按 Fork 路由、权限、数据和计费合同实现适配 |
 | `partial_equivalent` | 34 | 补缺失行为和证据，不能计作完整等价 |
@@ -84,34 +84,39 @@
 
 - [ ] 渠道运维：确认管理员 route/API、revision CAS、成员归属、只读 upstream URL、审计字段和凭证脱敏。
 - [ ] 优先调度：确认评分只影响排序，硬准入不可被评分绕过；历史 unknown 显示 unknown，不当作惩罚。
-- [ ] 保存物理 attempt identity（model、endpoint、group、provider、request/attempt）并限制清理窗口；同一请求的 HTTP、SSE、WS 不能重复计数。
-- [ ] 覆盖 stop-availability、sticky/fallback、HTTP/WS admission、latency quantile、penalty clock 和 quality round 关联。
+- [x] 已部署按 attempt_id 幂等的物理 attempt 存储与 30 天清理；model/endpoint/group/provider 路由字段及 HTTP 语义观测已有测试。WS 原生 latency/语义观测仍待单独补证，不能用 WS admission 测试替代。
+- [x] stop-availability、sticky/fallback、HTTP/WS 最终 admission、retry send 重检、配置化分位数和惩罚时钟已有部署代码/回归；不重新实现。
+- [ ] 生产两种 reader 在 #394 仍未填 QualitySamples/QualityPassed；累计候选已接入 account/model 完整 quality round、独立 QualitySince/cache 与337稳定配置revision。本地全量门禁已通过，真实 PostgreSQL CI 和生产验证仍待完成。
 - [ ] 完成管理员真实浏览器保存/刷新/冲突回读；普通用户侧栏、直达路由和 API 均拒绝。
 
 ### P0-C：质量运维/Jev
 
 - [x] 迁移和模型：已补质量模板/预设、quality round/judgment、ownership/version、隔离状态；Pelican/provider 扩展仍按范围阻断。
-- [x] 运行器基础：已接入 scheduled runner、Jev choice 严格解析、低置信度 `unknown`、超时/取消/限定重试和幂等结果写入；live regression 仍缺。
+- [x] 运行器基础：已接入 scheduled runner、Jev choice 严格解析、低置信度 `unknown`、超时/取消/限定重试和幂等结果写入；模型发现/凭据替换等live regression具体缺口见下项。
 - [x] 恢复基础：已实现 ownership reconcile/restore、冲突检测、孤儿状态保护、删除确认和审计；真实 restriction 恢复仍需生产验收。
 - [x] API/UI：管理员列表、筛选、模板/预设切换、运行详情、历史、ownership 操作和空/错/禁用态已接入，中英文资源与组件测试通过。
-- [ ] 测试：隔离 PostgreSQL migration、fake upstream live runner、真实浏览器和回滚测试仍待完成。
+- [x] 已有 Anthropic/OpenAI/Grok fake provider prompt 发送测试与 Jev HTTP 低置信度/重试/取消测试；#394 生产迁移逐文件校验通过，不将这些重新列为全缺。
+- [x] 本累计批次实现 AutoRestore 显式开关、历史 unknown/incomplete 不标为通过；定向回归与一次统一发布门禁已完成，生产发布仍待完成。
+- [ ] 后续完整包：ModelIDs/ParallelCount 实际执行、按模型限制/分组动作、live 模型发现与替换；保留隔离 PG ownership 全链和真实管理员恢复验收缺口。
 
 ### P0-D：凭证失败、token guard 和 reauth
 
-- [x] 已修复 Wire/provider 与当前 Fork 实际源文件一致性，Go 全量测试通过；不得以旧生成文件掩盖缺依赖。
-- [ ] 设计 token guard v2 状态机：generation、并发刷新、超时、撤销、重登预算和 reauth worker 生命周期。
-- [ ] 只允许 allowlist 错误分类落库；禁止保存 token、Authorization、原始响应和 prompt；定义清理期限和管理员最小读取范围。
-- [ ] 提供 refresh-failure writer/reader、admin API/UI、重试/人工重登动作、审计和无破坏回退。
-- [ ] 重新规划与 Fork 现有迁移冲突的编号；对每个 `309_*.sql` 记录完整文件名和 SHA-256，不能按数字前缀合并。
+- [x] #393既有Wire/provider一致性修复及当时Go全量通过证据保留；本批统一门禁见第5节；不得以旧生成文件掩盖缺依赖。
+- [x] Fork 已部署 token guard v2 的 generation、并发刷新、超时、撤销、重登预算及 reauth worker；不从零重做。
+- [x] 已修复历史 ProbeDetail 读取安全投影，并核对 structured error.type/code 对 invalid_grant refresh race 的影响；运行时清理期限、管理员最小读取/动作仍须逐项验收。
+- [x] writer 已有 allowlist 安全分类，本批补齐历史 reader 安全投影与 structured refresh marker；禁止保存 token/Authorization/原始响应。
+- [x] writer/reader、admin API/UI、重试与人工重登已有代码与测试，334 已在生产应用；历史详情安全读出正修复，管理员真实动作验收仍待完成。
+- [x] 渠道/凭证等迁移已按Fork编号适配（282/334等），生产按完整文件名与checksum核对；不覆盖同号上游迁移。当前新337质量规则revision仍待预检/CI/发布后核验。
 - [x] mock HTTP、并发刷新、worker 重启、网络超时、上游 401/403/429/5xx 和旧 token generation 定向测试已通过；仍需生产迁移和管理员动作验收。
 
 ### P0-E：内容审查用户管理和滚动 Usage
 
-- [x] 迁移 296/298/301 的向前兼容实现、唯一约束、索引、CAS 和权限已在候选完成，生产 ledger 尚未应用。
+- [x] 296/298/301 已部署，当前生产 ledger/checksum、三张目标表和两项索引只读核验通过；CAS 和权限回归已有，不再列待部署。
 - [x] moderation 已支持按 UID 查找、状态 generation/count reset、四类 exemption、原因确认、owned unban、审计回读；不能放宽白名单或安全策略。
 - [x] Usage 默认使用 `[now-24h, now)`，前后端传递同一 ISO 窗口；筛选、排序、分页、导出和错误请求沿用同一快照。
 - [x] 日期范围清理只接受明确日历范围，UTC/东八区/DST/空数据已有测试；生产权限和数据验收仍待完成。
-- [ ] 发布后验证 migration ledger、表/索引/行数、401/403、管理员浏览器操作和回滚前后数据一致性。
+- [x] #394 的 migration ledger/表/索引、未认证 API 401、管理员列表刷新及修复 SQL 7 类筛选只读复核通过。
+- [ ] 管理员真实写动作、普通用户 403、回滚前后数据一致性仍须按受影响范围逐项验证。
 
 ### P0-F：数据库、计费和历史数据
 
@@ -122,6 +127,9 @@
 - [ ] GPT-6.1 Sol 只读抽查长上下文阈值、OAuth/Setup Token 豁免、API key 边界、模型映射、冻结价格和最终扣费。
 
 ### P1：按产品范围立项的整包功能
+
+- [x] 只读差异核对：#562 token rotation 已由 Fork 的 session generation、跨标签页刷新协调和成对持久化等价实现，不重复开发；#504 是连接诊断，不是分组倍率。
+- [ ] 后续真实缺口已定位但未纳入本批：#479 API key 多组绑定/择组/计费快照；#567 用户与 Key 的上传/下载字节计量、游标报表和异步汇总；#504 连接诊断查询与可选 edge collector；#570 model/group-scoped multiplier。均需产品范围、保留期限和计费兼容评审后立项。
 
 - [ ] **BPS/Excel OAuth**：认证、能力发现、工具目录、图片/附件限制、proxy、rate-limit、history、worker、重登、错误分类、计费和前端开关。
 - [ ] **Pelican**：账号/模型 eligibility、scheduled/group tests、结果 API、成本、展示、历史分页、CSP/nonce 和失败恢复。
@@ -137,9 +145,10 @@
 
 ### 代码和测试
 
-- [x] 后端定向测试、`go test ./...` 和生成代码检查通过；race/静态检查仍待发布环境门禁。
-- [x] 前端 Vitest（519 文件/4,005 项通过，3 文件/8 项跳过）、ESLint、`vue-tsc --noEmit`、i18n 完整性、设计治理和生产构建通过。
-- [ ] migration checksum、隔离 PostgreSQL、API contract、权限矩阵、并发/CAS、mock upstream 和回滚测试通过。
+- [x] 当前累计候选后端完整测试、unit、静态检查与生产构建通过；各修复已有定向 RED→GREEN 和双审查。真实 PostgreSQL 集成测试仍由 PR CI 执行。
+- [x] 当前累计候选前端Vitest：519文件/4,009项通过，3文件/8项跳过；ESLint、vue-tsc与设计治理通过，i18n已通过。
+- [x] 当前累计候选前端生产构建通过（`vite build`）。
+- [ ] migration checksum、真实 PostgreSQL 集成执行、API contract、权限矩阵、并发/CAS、mock upstream 和回滚测试：本地适用定向测试通过，真实 PostgreSQL 执行待 PR CI。
 - [ ] 所有管理员页面检查 loading、empty、error、disabled、save/refresh、mobile/desktop、light/dark、zh/en；不得用假 API 或静态原型替代真实路由。
 
 ### 发布前
@@ -150,6 +159,8 @@
 - [ ] 只创建一个目标 `play/main` 的同步 PR；PR head、CI 状态、合并 SHA 和镜像 SHA 分开记录。
 
 ### 发布后
+
+以下门禁对当前未发布累计候选继续待办；#394 的既有部署证据见批次账本，不重复列为未部署。
 
 - [ ] 记录 Zeabur deployment ID、精确 Git SHA、容器/worker 版本、`/health`、首页和关键 admin API 响应。
 - [ ] 核对 migration ledger、表/索引/约束/行数、启动锁耗时和应用完整部署窗口日志；滚动 100 行不能代替完整窗口。
@@ -165,7 +176,7 @@
 cd /data/projects/sub2api-zeabur-go-toolchain
 BASE=efe9aab1e4ec89a42ba45e8dac20e882c5409a6a  # merge coverage / common ancestor
 TAG=refs/remotes/upstream-ranxi/releases/v2.17.7
-PROD=21dd9af2239c2c7f8259e41e31e21156131622b4
+PROD=3da3cb0e953fe751b50a2f6f446e8c24a62c80b2
 
 git log --first-parent --merges --format='%H%x09%h%x09%s' "$BASE..$TAG" \
   > /tmp/sub2api-v2177-merge-inventory.tsv
@@ -179,12 +190,12 @@ git diff --no-renames --name-status "$PROD" "$TAG" \
 python3 scripts/check_upstream_release.py --offline
 ```
 
-每个 inventory 行保留：`path_domains_auto`、`review_status`、`disposition`、`production_evidence`、`owner`、`dependencies`、`tests` 和 `rollback`。当前 `reviewed=121`、`triaged=325`，但生产证据全为 `unverified`，owner/tests/rollback 仍有未映射项；分流完成不等于功能迁移完成。
+每个 inventory 行保留：`path_domains_auto`、`review_status`、`disposition`、`production_evidence`、`owner`、`dependencies`、`tests` 和 `rollback`。当前 `reviewed=121`、`triaged=325`，#519/#558/#579/#580 已补限定生产证据、owner、测试和回退，其余仍有 `unverified` 或未映射项；分流完成不等于功能迁移完成。
 
 ## 7. 当前结论
 
 - 已部署且应保留：Fork 的支付/权益/图片/增长/模型目录等产品能力、管理员专属请求台账，以及 #389 已上线的渠道运维、优先调度基础和 GPT-6.1 Sol 计费合同。
-- 候选但未证明上线：精确滚动 24 小时 Usage、moderation 用户管理、质量 ownership/Jev/template/preset 及其管理员页面、凭证失败安全分类及其前端门禁；候选分支仍未提交、推送或部署，生产 `21dd9af22` 不能替代候选部署证据。
-- 必须继续开发或取证：Quality live regression/真实恢复、Priority 完整 attempt evidence/quality round、Credential 上游逐字段等价、446 merge 的 split/evidence/product-scope 项、隔离迁移/账务只读归因和管理员真实验收。
+- #393/#394 已上线：精确滚动 24 小时 Usage、moderation 用户管理、质量 ownership/Jev/template/preset/跨计划历史与管理员页面、凭证失败安全分类。#394 列表刷新已由生产 5 次 HTTP 200 与用户本机反馈确认；这不替代其他写动作验收。
+- 本批真实修复：质量 AutoRestore 开关与历史 unknown 判断、凭证历史详情安全读出及 invalid_grant 结构化错误差异。后续仍有质量多模型/并发/live/分组动作、Priority quality round/WS 观测、446 merge split/evidence/product-scope、账务只读归因与管理员真实验收。
 - 明确阻断：上游 #492 security penalty 的明文 `full_prompt` 副本、跨用户管理员读取和无 TTL 合同；在最小读取、自动清理、保留期限、审计和回滚确定前不迁移。
 - 未决范围：BPS/Excel、Pelican、Prism/Astra、Mihomo、区域运行时、request/support/harvest 和供应商媒体能力；每项必须先通过产品范围、隐私和基础设施评审，再进入 P1 开发包。
