@@ -1,5 +1,7 @@
 # v2.17.7 上游功能差异与开发清单
 
+> **#398 发布后复核（2026-11-01 UTC+8）**：PR #398 已合并为 `play/main@db76a7e2a0a8c24818efad1fad6623fee28ab706`；Zeabur deployment `6ae65455ea16512cf741d4c8` SHA 一致，`finishedAt=2026-10-31T20:53:58.935Z`，状态 `RUNNING`。构建以 `build completed` 结束，无失败/failed/panic；应用、PostgreSQL、Redis 均 `RUNNING`，域名 `PROVISIONED`，首页与 `/health` 均 HTTP 200。运行日志筛查 ERROR/FATAL/PANIC 为 0，仅 1 条既有 `content_moderation.skip_no_audit_api_keys` WARN。#398 不含 SQL migration，沿用 #397 已核验的 431 条 migration ledger（424 个当前 SQL checksum 匹配、7 条历史）；本批无生产写入。质量管理员组合验收、Key/倍率验收、账务逐笔归因和其他业务写动作仍待完成，`fully_migrated=false`。
+
 > **#396 发布后复核（2026-11-01 UTC+8）**：新 head `f09b7230fce899370db56f4e98350e15ed1ee8a6` 的9项CI全部通过，已普通merge至 `play/main@73f9ba38b4d61ad5a0e0ac05ab2004d4c9775444`，与受测head源码一致。Zeabur deployment `6ae61c6cea16512cf741d279` 的SHA一致，构建镜像导出完成、`finishedAt=2026-10-31T16:56:01.268Z`、RUNNING，主站/API health200。数据库只读复核431条ledger，424个当前SQL全部匹配、7条历史；338表/主键/2外键/索引存在，invalid indexes=0，事务ROLLBACK。最近100行应用日志ERROR/FATAL/PANIC为0，WARN为缺少审核API Key；CLI有限窗口不证明全启动日志无异常。Keys接口一次探测超时后主站/API重查均401，其余未认证接口401。技术部署核验通过，本批Key与管理员倍率的本机浏览器验收仍待完成；内容审查刷新已由用户确认，不重验。完整正文/harvest继续阻断，`fully_migrated=false`。详细证据和剩余验收见 [PR #396](https://github.com/tqytwe/sub2api/pull/396)。本段为发布后本地补记，随下一批累计提交，不为文档再次部署。
 
 > **#397 发布后复核（2026-11-01 UTC+8）**：PR head `70524682fd0b27de9fb7fd2dbc474906a86a362f` 的9项CI全部通过，普通merge至 `play/main@f7193d639980840ae9fad66376355f4243d82a35`。Zeabur deployment `6ae634e9ea16512cf741d3ca` SHA一致、`finishedAt=2026-10-31T18:41:14.032Z`、状态RUNNING；主站/API health均200，部署启动日志74行无ERROR/WARN/FATAL/PANIC。只读事务核对431条migration ledger：本地424条全部存在且checksum匹配、7条历史记录；本批无SQL/schema migration；数据库现有索引有效。生产质量配置仍为1条启用的`observe_only`单模型单次规则；部署后尚无质量轮次样本，未产生正文。最近100条运行日志只有2条审核API Key未配置提示，无服务错误。生产内容审查用户管理刷新已由用户确认正常；#397多模型/重复轮次和历史结果的管理员本机验收仍待完成，`fully_migrated=false`。上一正常deployment `6ae61c6cea16512cf741d279` 保留为故障回滚目标。详细实现与门禁见 [PR #397](https://github.com/tqytwe/sub2api/pull/397)。本段为发布后本地补记，随下一批累计提交，不为文档再次部署。
@@ -20,8 +22,8 @@
 | 共同祖先 | `efe9aab1e4ec89a42ba45e8dac20e882c5409a6a` | 上游共同祖先源码版本为 `0.2.5` |
 | 本地差异分析基线 | `526f09d36fa4d0a69af823fec2fc5a9ed495193f` | `source-lock.json.analysis_base`；供 Fork 对目标 tag 的差异报告使用，不替代上游共同祖先 |
 | 上游范围 | 2,155 commits、446 个 first-parent merge、3,809 个路径变化 | 这是审查范围，不是待搬运文件数 |
-| 已核实生产部署 | `play/main@f7193d639980840ae9fad66376355f4243d82a35` | PR #397；Zeabur deployment `6ae634e9ea16512cf741d3ca` RUNNING；主站/API health 200；源码仍为 Fork `0.2.14` |
-| 当前批次验收 | PR #397 已合并并部署 | 多模型/重复probe、整轮事务/历史与Priority模型归因的实现及CI已通过；剩生产管理员本机验收，详细组合证据见第5节 |
+| 已核实生产部署 | `play/main@db76a7e2a0a8c24818efad1fad6623fee28ab706` | PR #398；Zeabur deployment `6ae65455ea16512cf741d4c8` RUNNING；应用/PostgreSQL/Redis RUNNING；主站/API health 200；源码仍为 Fork `0.2.14` |
+| 当前批次验收 | PR #398 已合并并部署 | 质量历史查询、WebSocket优先调度归因和空 delta 语义修复已部署；继承#397多模型/重复probe、整轮事务/历史与Priority模型归因；管理员本机验收仍待完成，详细组合证据见第5节 |
 | 当前整版状态 | `fully_migrated=false` | 不能用健康检查、单元测试或一次部署成功替代功能闭环 |
 
 生产基线、上游 tag、候选分支和本地远端引用必须在每次发布前分别记录。若线上实际部署 SHA 已变化，先更新本表和证据，再重新计算下面所有状态。
@@ -176,7 +178,7 @@
 
 以下门禁按批次更新；#397已完成的技术部署证据见本节顶部，未完成的管理员现场验收继续保留。
 
-- [x] #397记录Zeabur deployment `6ae634e9ea16512cf741d3ca`、Git SHA `f7193d639980840ae9fad66376355f4243d82a35`、RUNNING与两域名`/health` 200；启动日志74行无ERROR/WARN/FATAL/PANIC。
+- [x] #398记录Zeabur deployment `6ae65455ea16512cf741d4c8`、Git SHA `db76a7e2a0a8c24818efad1fad6623fee28ab706`、RUNNING与两域名`/health` 200；应用/PostgreSQL/Redis均RUNNING，运行日志ERROR/FATAL/PANIC为0，仅1条既有审核API Key提示。
 - [x] #397只读核对migration ledger、相关现有表/索引及有效性；本批无SQL/schema migration，事务显式ROLLBACK。
 - [ ] 对本批受影响的质量配置/运行/历史及Priority质量信号做管理员现场验收，并回归普通用户无越权入口和API访问。既有内容审查列表刷新已验收不重做；其他批次未完成的写动作继续保留在账本。
 - [ ] 对账本/账务只读抽样只记录脱敏证据；出现权限放宽、迁移不一致、5xx 或 SHA 不符立即停止批次并按预案回滚。

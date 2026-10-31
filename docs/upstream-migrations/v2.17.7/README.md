@@ -1,5 +1,7 @@
 # v2.17.7 同步批次账本
 
+> **#398 发布后复核（2026-11-01 UTC+8）**：PR head 已普通 merge 为 `play/main@db76a7e2a0a8c24818efad1fad6623fee28ab706`；Zeabur deployment `6ae65455ea16512cf741d4c8` 的 commit SHA 一致，`finishedAt=2026-10-31T20:53:58.935Z`，状态 `RUNNING`。构建日志以 `build completed` 结束，无失败/failed/panic；应用、PostgreSQL、Redis 服务均为 `RUNNING`，域名为 `PROVISIONED`，首页和 `/health` 均 HTTP 200（`{"status":"ok"}`）。部署后运行日志筛查为 ERROR/FATAL/PANIC 0 条，只有 1 条既有 `content_moderation.skip_no_audit_api_keys` WARN；该提示表示审核 API Key 未配置，不是本批启动失败。此次提交不含新的 SQL migration，沿用 #397 已核验的 431 条 migration ledger（424 个当前 SQL checksum 匹配、7 条历史记录）；本批生产数据库未写入。管理员多模型质量轮次、Key/倍率和其他业务动作仍待现场验收，`fully_migrated=false`。本段是发布后交付证据，不为文档单独触发部署。
+
 > **#397 当前生产状态（2026-11-01 UTC+8）**：PR head `70524682fd0b27de9fb7fd2dbc474906a86a362f` 已通过9项CI并合并为 `play/main@f7193d639980840ae9fad66376355f4243d82a35`；Zeabur deployment `6ae634e9ea16512cf741d3ca` SHA一致、RUNNING，主站/API health 200。生产 migration ledger 431条，424个当前SQL checksum匹配、7条历史记录，本批无schema迁移。用户确认内容审查用户管理刷新正常；#397多模型/重复probe管理员验收、#396 Key/倍率验收和账务历史归因仍待完成。账务只读聚合与匹配证据见[开发清单](./DEVELOPMENT_CHECKLIST.md)；无生产写操作。`fully_migrated=false`，正文采集/harvest和#492全文审计继续阻断。
 
 > **#396 历史发布复核（由 #397 覆盖）**：新 head `f09b7230fce899370db56f4e98350e15ed1ee8a6` 的9项CI全部通过，已普通merge至 `play/main@73f9ba38b4d61ad5a0e0ac05ab2004d4c9775444`，与受测head源码一致。Zeabur deployment `6ae61c6cea16512cf741d279` 的SHA一致，构建镜像导出完成、`finishedAt=2026-10-31T16:56:01.268Z`、RUNNING，主站/API health200。数据库只读复核431条ledger，424个当前SQL全部匹配、7条历史；338表/主键/2外键/索引存在，invalid indexes=0，事务ROLLBACK。最近100行应用日志ERROR/FATAL/PANIC为0，WARN为缺少审核API Key；CLI有限窗口不证明全启动日志无异常。Keys接口一次探测超时后主站/API重查均401，其余未认证接口401。技术部署核验通过，本批Key与管理员倍率的本机浏览器验收仍待完成；内容审查刷新已由用户确认，不重验。完整正文/harvest继续阻断，`fully_migrated=false`。详细证据和剩余验收见 [PR #396](https://github.com/tqytwe/sub2api/pull/396)。本段为发布后本地补记，随下一批累计提交，不为文档再次部署。
@@ -67,19 +69,19 @@
 | Release commit | `9620d315f72a7dbf04fa10fca02970e1e410805e` |
 | 上游共同祖先 | `efe9aab1e4ec89a42ba45e8dac20e882c5409a6a` (`0.2.5`) |
 | 历史生产分析基线 | `origin/play/main@21dd9af2239c2c7f8259e41e31e21156131622b4`（PR #392；不代表当前线上） |
-| 当前已核实生产 | `play/main@f7193d639980840ae9fad66376355f4243d82a35`（PR #397；2026-11-01复核） |
+| 当前已核实生产 | `play/main@db76a7e2a0a8c24818efad1fad6623fee28ab706`（PR #398；Zeabur deployment `6ae65455ea16512cf741d4c8`；2026-11-01复核） |
 | fully migrated | `false` |
 
 ## 已发布批次与整版状态
 
 | 检查项 | 当前证据 | 结论 |
 |---|---|---|
-| 合并/部署 | #397 merge `f7193d639980840ae9fad66376355f4243d82a35`；Zeabur deployment `6ae634e9ea16512cf741d3ca` SHA一致、RUNNING | 当前生产，详情见首段 |
-| 运行态/CI | 主站/API health200；#397受测head九项CI通过，部署启动日志74行无ERROR/WARN/FATAL/PANIC | 不替代管理员功能验收或完整长期日志审计 |
+| 合并/部署 | #398 merge `db76a7e2a0a8c24818efad1fad6623fee28ab706`；Zeabur deployment `6ae65455ea16512cf741d4c8` SHA一致、RUNNING | 当前生产，详情见首段 |
+| 运行态/CI | 主站/API health200；#398构建完成，运行日志ERROR/FATAL/PANIC为0，仅1条既有审核API Key提示 | 不替代管理员功能验收或完整长期日志审计 |
 | 管理员闭环 | 内容审查列表刷新由用户再次确认正常；Usage反馈正常 | #397质量多probe、#396 Key/倍率写动作验收及其他管理动作仍待完成 |
 | 数据库生产账本 | 431条ledger，424个当前SQL均已应用且checksum一致，7条历史；本批无迁移 | 已部署迁移核验；21,433条历史结算待逐笔归因 |
 | #397 质量发布前预检 | 部署前只读：规则1条，enabled1、observe_only1，多模型0、重复probe0、max_samples1、超过候选上限0；显式ROLLBACK | 部署没有自动把现有规则升级为多模型/高频检测；管理员组合验收仍待完成 |
-| 当前质量批次 | PR #397 已合并部署：多模型/重复probe、整轮事务/保留/历史及Priority归因 | 生产运行核验通过；管理员本机组合验收待完成，见开发清单第5节 |
+| 当前质量批次 | PR #398 已合并部署：质量历史查询、WebSocket优先调度归因及空 delta 语义修复；继承#397的多模型/重复probe与整轮持久化 | 生产运行核验通过；管理员本机组合验收待完成，见开发清单第5节 |
 | 整版差异 | 446个merge初步分流：122 reviewed、324 triaged；仍有scope/evidence/split及阻断项 | `fully_migrated=false` |
 
 #393已部署质量runtime/ownership/Jev/模板/预设/跨计划历史、滚动Usage和moderation；#394修好moderation列表；#395已部署AutoRestore/unknown、凭证安全历史/structured invalid_grant及单模型Priority round；#396已部署API Key多组；#397已部署质量多模型/重复probe。后续只补实际缺口，不重开这些基础开发。历史settlement、权益审计、完整部署窗口和上游#492全文/跨用户读取/无TTL阻断继续独立跟踪；不补扣、不改历史数据、不新增正文采集。
