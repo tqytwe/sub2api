@@ -2,6 +2,8 @@
 
 > **#398 发布后复核（2026-11-01 UTC+8）**：PR #398 已合并为 `play/main@db76a7e2a0a8c24818efad1fad6623fee28ab706`；Zeabur deployment `6ae65455ea16512cf741d4c8` SHA 一致，`finishedAt=2026-10-31T20:53:58.935Z`，状态 `RUNNING`。构建以 `build completed` 结束，无失败/failed/panic；应用、PostgreSQL、Redis 均 `RUNNING`，域名 `PROVISIONED`，首页与 `/health` 均 HTTP 200。运行日志筛查 ERROR/FATAL/PANIC 为 0，仅 1 条既有 `content_moderation.skip_no_audit_api_keys` WARN。未认证访问质量、渠道、内容审查用户、请求台账和 Usage 管理接口均返回 `401 application/json`。生产 PostgreSQL 只读事务已显式 `ROLLBACK`：`schema_migrations=431`、最新 `338_api_key_groups.sql`、无效索引 `0`，抽查 15 个关键迁移 checksum 全部匹配；#398 不含 SQL migration，本批无生产写入。质量管理员组合验收、Key/倍率验收、账务逐笔归因和其他业务写动作仍待完成，`fully_migrated=false`。
 
+> **当前累计工作区修复（未部署，2026-11-01 UTC+8）**：已补齐渠道运维质量查询的缺省/零值 `parallel_count` 按 1 次探测归一；原生 WS（ctx_pool/shared/dedicated）及 HTTP bridge 已接入首个解析确认语义事件的 Priority attempt 观测，过滤 metadata、终止帧和空 delta，并保留公开模型、入口和分组归因。原生 WS 定向单测和隔离 PostgreSQL 两轮回归通过；无新增迁移、无生产写入。渠道运维 PostgreSQL 集成尝试因 testcontainers 拉取 Docker Hub 镜像超时，待一次性数据库或 PR CI 补跑；本段不构成部署证据。
+
 > **#396 发布后复核（2026-11-01 UTC+8）**：新 head `f09b7230fce899370db56f4e98350e15ed1ee8a6` 的9项CI全部通过，已普通merge至 `play/main@73f9ba38b4d61ad5a0e0ac05ab2004d4c9775444`，与受测head源码一致。Zeabur deployment `6ae61c6cea16512cf741d279` 的SHA一致，构建镜像导出完成、`finishedAt=2026-10-31T16:56:01.268Z`、RUNNING，主站/API health200。数据库只读复核431条ledger，424个当前SQL全部匹配、7条历史；338表/主键/2外键/索引存在，invalid indexes=0，事务ROLLBACK。最近100行应用日志ERROR/FATAL/PANIC为0，WARN为缺少审核API Key；CLI有限窗口不证明全启动日志无异常。Keys接口一次探测超时后主站/API重查均401，其余未认证接口401。技术部署核验通过，本批Key与管理员倍率的本机浏览器验收仍待完成；内容审查刷新已由用户确认，不重验。完整正文/harvest继续阻断，`fully_migrated=false`。详细证据和剩余验收见 [PR #396](https://github.com/tqytwe/sub2api/pull/396)。本段为发布后本地补记，随下一批累计提交，不为文档再次部署。
 
 > **#397 发布后复核（2026-11-01 UTC+8）**：PR head `70524682fd0b27de9fb7fd2dbc474906a86a362f` 的9项CI全部通过，普通merge至 `play/main@f7193d639980840ae9fad66376355f4243d82a35`。Zeabur deployment `6ae634e9ea16512cf741d3ca` SHA一致、`finishedAt=2026-10-31T18:41:14.032Z`、状态RUNNING；主站/API health均200，部署启动日志74行无ERROR/WARN/FATAL/PANIC。只读事务核对431条migration ledger：本地424条全部存在且checksum匹配、7条历史记录；本批无SQL/schema migration；数据库现有索引有效。生产质量配置仍为1条启用的`observe_only`单模型单次规则；部署后尚无质量轮次样本，未产生正文。最近100条运行日志只有2条审核API Key未配置提示，无服务错误。生产内容审查用户管理刷新已由用户确认正常；#397多模型/重复轮次和历史结果的管理员本机验收仍待完成，`fully_migrated=false`。上一正常deployment `6ae61c6cea16512cf741d279` 保留为故障回滚目标。详细实现与门禁见 [PR #397](https://github.com/tqytwe/sub2api/pull/397)。本段为发布后本地补记，随下一批累计提交，不为文档再次部署。
@@ -91,7 +93,7 @@
 ### P0-B：渠道运维和优先调度
 
 - [x] 源码差异已核实：管理员 route/API、revision CAS、成员归属、只读 upstream URL、审计字段和凭证脱敏已有；质量范围此前固定返回 `unsupported_scope`。上游读取冻结 `scheduled_test_results` 按 plan/round/model 判定完整度，生产质量面板因此缺少实测轮次。
-- [ ] 累计修复：渠道质量查询将缺省/零值 `parallel_count` 按全局质量历史语义归一为 1；无新增迁移，尚未提交/部署。渠道运维定向 Go 单测已通过；PostgreSQL 集成测试待一次性数据库或 PR CI 补跑。
+- [ ] 累计修复：渠道质量查询将缺省/零值 `parallel_count` 按全局质量历史语义归一为 1；无新增迁移，尚未提交/部署。渠道运维定向 Go 单测已通过；PostgreSQL 集成已尝试但因 testcontainers 拉取 Docker Hub 镜像超时，待一次性数据库或 PR CI 重跑。
 - [x] 当前候选补齐质量历史查询：使用冻结模型/并发数和判题结果分类完整、降级、无法判断轮次；过滤按当前渠道成员/分组归属，不声称历史请求归因；游标分页只影响行，不缩小 summary 范围。管理员 UI/API 契约已存在，无新增迁移或前端入口。
 - [x] 存储层和管理员 HTTP 透传单测、隔离 PostgreSQL 18.1 集成通过；覆盖双模型完整/降级/部分轮次、模型过滤、渠道/分组/账号范围和历史游标。PR CI 与管理员页面验收仍待完成。
 - [x] 优先调度实现：原生WS仅对重复帧过滤后的解析确认语义事件记录当前attempt首观测；成功 completed/done 才持久化，失败、取消和中断不写成功观测。单测及隔离PostgreSQL回归通过。
@@ -161,7 +163,7 @@
 
 - [x] 定向RED→GREEN：多模型/整轮service与真实PostgreSQL集成通过；最后复审另发现目标处理误作用普通连通性规则，失败回归确认后，将validator置于Quality nil返回之后，且`prepareQualityPlan`对无Quality规则保留原primary。最终service定向退出0：`/data/tmp/quality-multiprobe-service-final2.log`。
 - [x] `make test`退出0：其后端首轮在上述最后guard修正之前；前端已是最终冻结源码，519文件/4,026项通过，3文件/8项既有skip。最终ESLint、typecheck、设计检查通过；组件定向21项/i18n3项及11张修改后组件截图已有记录。旧批次4,009项不作为本批证据。
-- [x] 最后guard修正后，完整`make test-backend`（普通测试及golangci-lint 0 issues）和完整`make test-backend-unit`均退出0，分别见`/data/tmp/quality-multiprobe-backend-final.log`、`/data/tmp/quality-multiprobe-backend-unit-final.log`；不把首轮组合命令描述为最终后端源码重跑。
+- [x] 最后guard修正后，完整`make test-backend`（普通测试及golangci-lint 0 issues）和完整`make test-backend-unit`均退出0，分别见`/data/tmp/quality-multiprobe-backend-final.log`、`/data/tmp/quality-multiprobe-backend-unit-final.log`；本轮累计修复后再次以 `/opt/go/bin` 工具链执行 `make test-backend-unit` 退出0；不把首轮组合命令描述为最终后端源码重跑。
 - [x] `make build`退出0；最后后端修正后又完成embed构建，退出0，见`/data/tmp/quality-multiprobe-embed-build-final.log`。真实PG沿用行为相关仓库源码的既有实测；最后机械sort由最终普通测试覆盖，PR CI仍须运行。
 - [x] 冻结源码后的最终Fork integrity退出0，`/data/tmp/quality-multiprobe-fork-final.log`末尾为`Fork integrity passed`；本轮四份文档12个本地链接、3个第5节锚点和diff复核通过。首轮Fork不代替该最终结果。
 - [ ] 本批API contract、权限矩阵、并发/CAS、mock upstream与回滚覆盖完成最终汇总；已有真实PG定向结果不代替完整PR CI。

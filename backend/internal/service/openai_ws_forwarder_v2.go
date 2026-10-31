@@ -636,6 +636,7 @@ readLoop:
 		if eventType == "" {
 			continue
 		}
+		observeOpenAIWSPrioritySemantic(ctx, ledgerAttempt, message, originalModel, c.Request.URL.Path, priorityGroupID(c))
 		responseModelObserver.ObserveOpenAI(message, eventType)
 		eventCount++
 		if firstEventType == "" {

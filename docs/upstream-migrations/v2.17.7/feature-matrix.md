@@ -7,8 +7,8 @@
 | 功能域 | 当前生产事实 | 本批与后续真实缺口 | 验收边界 |
 |---|---|---|---|
 | 来源/446 范围 | tag/commit 已锁定，446 merge SHA 唯一且覆盖准确；保留 Fork `0.2.14` 标识 | 持续关闭 split/evidence/product-scope，不重新生成相同清单 | `fully_migrated=false`；有代码不等于整版完成 |
-| 渠道运维 | #389 已上线且 #393 保留；管理员路由、API、revision CAS、审计已有；#398 已部署质量统计查询 | 当前累计修复补齐缺省/零值 `parallel_count` 按 1 次探测归一，复用既有表且无新增迁移；定向 Go 单测已通过，PostgreSQL 集成待一次性数据库/CI | 不新增页面/入口；管理员保存/刷新/冲突/审计及新质量数据现场验收仍待完成，查询按当前成员范围而非历史请求归因；累计修复尚未部署 |
-| 优先调度 | HTTP/WS 最终 hard-stop、sticky/fallback/retry 重检、分位数与惩罚时钟、attempt 幂等/30天清理已部署 | 两种reader单模型quality round、稳定版本和有效期已随#395部署；本批补多模型完整round与逐模型归因，并接入原生WS首个解析确认语义事件的attempt观测；单测及隔离PostgreSQL回归通过 | 不将 admission 测试视为 latency observation 测试；unknown 不伪造为通过/处罚；生产需在下一批部署后核对观测行 |
+| 渠道运维 | #389 已上线且 #393 保留；管理员路由、API、revision CAS、审计已有；#398 已部署质量统计查询 | 当前累计修复补齐缺省/零值 `parallel_count` 按 1 次探测归一，复用既有表且无新增迁移；定向 Go 单测已通过；PostgreSQL 集成尝试因 Docker Hub 拉取镜像超时，待一次性数据库/PR CI | 不新增页面/入口；管理员保存/刷新/冲突/审计及新质量数据现场验收仍待完成，查询按当前成员范围而非历史请求归因；累计修复尚未部署 |
+| 优先调度 | HTTP/WS 最终 hard-stop、sticky/fallback/retry 重检、分位数与惩罚时钟、attempt 幂等/30天清理已部署 | 两种reader单模型quality round、稳定版本和有效期已随#395部署；#398已部署多模型完整round、逐模型归因和 passthrough 观测；当前工作区累计补原生WS（ctx_pool/shared/dedicated）及HTTP bridge首个解析确认语义事件的attempt观测，定向单测与隔离PostgreSQL回归通过，尚未部署 | 不将 admission 测试视为 latency observation 测试；unknown 不伪造为通过/处罚；累计修复部署后需核对原生WS真实观测行 |
 | GPT-6.1 Sol 计费 | Fork 已有长上下文阈值、OAuth/Setup Token 豁免及测试 | 保留只读价格/用量/账务抽样项 | 无真实抽样不计整包完成，不补扣 |
 | 滚动 Usage | #393 已部署，用户反馈正常；窗口/分页/导出快照与日历清理已有测试 | 本机精确窗口/导出/日期清理验收待补，不再开发另一套 | #579 部分生产验收通过 |
 | 内容审查 | #393 已部署状态/hits/actions 与296/298/301；#394修好列表，用户本机确认，5次生产请求200 | generation/reset/四类exemption/owned unban写动作与审计待验收 | 独立启用已在审核记录行，get→update(status+reason)→get，不重置moderation状态；42项相关回归重跑通过，不复制上游第二套入口 |

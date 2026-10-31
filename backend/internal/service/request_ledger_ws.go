@@ -5,8 +5,10 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"strings"
 	"sync"
 
+	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
 	"github.com/Wei-Shaw/sub2api/internal/requestledger"
 	openaiwsv2 "github.com/Wei-Shaw/sub2api/internal/service/openai_ws_v2"
 	coderws "github.com/coder/websocket"
@@ -102,6 +104,32 @@ func (c *requestLedgerWSFrameConn) observePrioritySemantic(model, endpoint strin
 	c.mu.Lock()
 	attempt := c.attempts[c.turn]
 	c.mu.Unlock()
+	attempt.ObservePrioritySemantic(model, endpoint, groupID)
+}
+
+// observeOpenAIWSPrioritySemantic records the first parser-confirmed semantic
+// output for native WS and HTTP-bridge turns. It shares the passthrough
+// detector so metadata, terminal events, and empty deltas never become latency
+// observations.
+func observeOpenAIWSPrioritySemantic(ctx context.Context, attempt *requestledger.Attempt, payload []byte, fallbackModel, fallbackEndpoint string, groupID *int64) {
+	if attempt == nil || !openAIWSPassthroughIsPrioritySemanticOutput(payload) {
+		return
+	}
+	model := strings.TrimSpace(fallbackModel)
+	endpoint := strings.TrimSpace(fallbackEndpoint)
+	if ctx != nil {
+		if value, ok := ctx.Value(ctxkey.RequestedPublicModel).(string); ok && strings.TrimSpace(value) != "" {
+			model = strings.TrimSpace(value)
+		}
+		if value, ok := ctx.Value(ctxkey.InboundEndpoint).(string); ok && strings.TrimSpace(value) != "" {
+			endpoint = strings.TrimSpace(value)
+		}
+		if groupID == nil {
+			if value, ok := priorityObservationGroupFromContext(ctx); ok {
+				groupID = &value
+			}
+		}
+	}
 	attempt.ObservePrioritySemantic(model, endpoint, groupID)
 }
 
