@@ -14,7 +14,7 @@ import (
 func TestQualityRulePresetRepositoryCreateAndList(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	planRepo := NewScheduledTestPlanRepository(db)
 	presetRepo, ok := planRepo.(service.QualityRulePresetRepository)

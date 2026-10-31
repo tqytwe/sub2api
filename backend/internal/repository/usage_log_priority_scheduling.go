@@ -9,12 +9,26 @@ import (
 	"github.com/lib/pq"
 )
 
-// ReadPrioritySchedulingSignals is deliberately limited to persisted usage
-// aggregates. It never treats absent quality history as a passing result.
+// ReadPrioritySchedulingSignals combines scoped latency history with account/model
+// quality rounds. Missing or inconclusive quality history never implies a pass.
 func (r *usageLogRepository) ReadPrioritySchedulingSignals(ctx context.Context, q service.PrioritySchedulingQuery) (map[int64]service.PrioritySchedulingSignal, error) {
+	var out map[int64]service.PrioritySchedulingSignal
+	var err error
 	if q.LatencyMeasurement == "attributed_v1" {
-		return r.readAttributedPrioritySchedulingSignals(ctx, q)
+		out, err = r.readAttributedPrioritySchedulingSignals(ctx, q)
+	} else {
+		out, err = r.readLegacyPrioritySchedulingSignals(ctx, q)
 	}
+	if err != nil {
+		return nil, err
+	}
+	if err := r.readPriorityQualitySignals(ctx, q, out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (r *usageLogRepository) readLegacyPrioritySchedulingSignals(ctx context.Context, q service.PrioritySchedulingQuery) (map[int64]service.PrioritySchedulingSignal, error) {
 	percentile := priorityLatencyPercentile(q.LatencyPercentile)
 	rows, err := r.sql.QueryContext(ctx, fmt.Sprintf(`
 SELECT account_id,
@@ -86,6 +100,78 @@ GROUP BY a.account_id`, percentile), pq.Array(q.AccountIDs), q.Since, q.Model, q
 		out[id] = signal
 	}
 	return out, rows.Err()
+}
+
+// Quality probes have account/model attribution; their judge group is not the
+// request group. Keep this independent of the latency endpoint/group scope.
+func (r *usageLogRepository) readPriorityQualitySignals(ctx context.Context, q service.PrioritySchedulingQuery, out map[int64]service.PrioritySchedulingSignal) error {
+	since := q.QualitySince
+	if since.IsZero() {
+		since = q.Since
+	}
+	rows, err := r.sql.QueryContext(ctx, `
+WITH quality_rounds AS (
+ SELECT p.account_id, p.id AS plan_id, r.quality_round_id,
+        bool_or(r.quality_judgment->>'verdict' = 'incorrect'
+          AND r.status = 'failed' AND r.error_message = 'answer_mismatch') AS failed,
+        bool_and(COALESCE(r.quality_judgment->>'verdict' = 'correct'
+          AND r.status = 'success', false)) AS passed
+ FROM scheduled_test_plans p
+ JOIN accounts a ON a.id = p.account_id
+ JOIN scheduled_test_results r ON r.plan_id = p.id
+ CROSS JOIN LATERAL (
+   SELECT CASE
+     WHEN r.pelican_config->'parallel_count' IS NULL OR r.pelican_config->'parallel_count' = '0'::jsonb THEN 1
+     WHEN jsonb_typeof(r.pelican_config->'parallel_count') = 'number'
+       AND r.pelican_config->>'parallel_count' ~ '^([1-9]|[12][0-9]|3[0-2])$'
+       THEN (r.pelican_config->>'parallel_count')::int
+   END AS expected
+ ) parallel
+ WHERE p.account_id = ANY($1::bigint[]) AND p.enabled AND p.model_id = $2
+   AND a.platform = 'openai' AND a.deleted_at IS NULL
+   AND jsonb_typeof(p.pelican_config->'quality') = 'object'
+   AND (p.pelican_config->'model_ids' IS NULL
+     OR CASE WHEN jsonb_typeof(p.pelican_config->'model_ids') = 'array'
+        THEN jsonb_array_length(p.pelican_config->'model_ids') = 0
+          OR (jsonb_array_length(p.pelican_config->'model_ids') = 1
+            AND p.pelican_config->'model_ids'->>0 = p.model_id) ELSE false END)
+   AND BTRIM(r.quality_round_id) <> ''
+ GROUP BY p.account_id, p.id, r.quality_round_id
+ HAVING bool_and(COALESCE(jsonb_typeof(r.pelican_config) = 'object'
+          AND COALESCE(NULLIF(r.pelican_config->>'model_id', ''), p.model_id) = p.model_id
+          AND r.started_at >= p.quality_rule_updated_at
+          AND r.created_at >= p.quality_rule_updated_at
+          AND r.created_at >= $3 AND r.created_at <= NOW()
+          AND r.started_at <= NOW()
+          AND r.quality_action <> '' AND r.quality_action <> 'stale_run'
+          AND (r.pelican_config->'model_ids' IS NULL
+            OR CASE WHEN jsonb_typeof(r.pelican_config->'model_ids') = 'array'
+               THEN jsonb_array_length(r.pelican_config->'model_ids') = 0
+                 OR (jsonb_array_length(r.pelican_config->'model_ids') = 1
+                   AND r.pelican_config->'model_ids'->>0 = p.model_id) ELSE false END), false))
+    AND bool_and(parallel.expected IS NOT NULL)
+    AND MIN(parallel.expected) = MAX(parallel.expected)
+    AND COUNT(*) = MAX(parallel.expected)
+)
+SELECT account_id, COUNT(*) FILTER (WHERE passed OR failed),
+       COUNT(*) FILTER (WHERE passed AND NOT COALESCE(failed, false))
+FROM quality_rounds
+GROUP BY account_id`, pq.Array(q.AccountIDs), q.Model, since)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = rows.Close() }()
+	for rows.Next() {
+		var id int64
+		var samples, passed int
+		if err := rows.Scan(&id, &samples, &passed); err != nil {
+			return err
+		}
+		signal := out[id]
+		signal.QualitySamples, signal.QualityPassed = samples, passed
+		out[id] = signal
+	}
+	return rows.Err()
 }
 
 func priorityLatencyPercentile(value int) float64 {

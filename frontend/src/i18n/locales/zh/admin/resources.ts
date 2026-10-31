@@ -34,6 +34,8 @@ export default {
       action: '失败动作',
       observeOnly: '仅观察',
       disableScheduling: '暂停账号调度',
+      autoRestore: '通过后自动恢复本规则暂停的调度',
+      autoRestoreHelp: '默认关闭。开启后，仅在明确通过且归属状态仍匹配时恢复；不会覆盖人工修改。',
       enabled: '已启用',
       paused: '已暂停',
       rules: '质量规则',

@@ -280,10 +280,11 @@ func (r *scheduledTestResultRepository) ListQualityHistory(ctx context.Context, 
 			       r.quality_round_id, r.quality_action, r.quality_judgment,
 			       a.id AS account_id, a.name AS account_name,
 			       row_number() OVER quality_round AS row_in_round,
-			       count(*) FILTER (WHERE r.status='success') OVER quality_round AS passed_count,
+		       count(*) FILTER (WHERE r.status='success' AND r.quality_judgment->>'verdict'='correct'
+		         AND r.quality_action NOT IN ('', 'stale_run')) OVER quality_round AS passed_count,
 			       count(*) FILTER (WHERE r.status='skipped') OVER quality_round AS skipped_count,
 			       GREATEST(count(*) OVER quality_round, COALESCE((r.pelican_config->>'parallel_count')::int, 0)) AS total_count,
-			       bool_or(r.error_message='answer_mismatch') OVER quality_round AS any_wrong,
+		       bool_or(r.quality_judgment->>'verdict'='incorrect' OR r.error_message='answer_mismatch') OVER quality_round AS any_wrong,
 			       array_agg(r.id) OVER quality_round AS result_ids
 			FROM scheduled_test_results r
 			JOIN scheduled_test_plans p ON p.id=r.plan_id
@@ -295,7 +296,9 @@ func (r *scheduledTestResultRepository) ListQualityHistory(ctx context.Context, 
 			)
 		)
 		SELECT id, plan_id,
-		       CASE WHEN passed_count = total_count AND skipped_count = 0 THEN 'success' ELSE 'failed' END,
+		       CASE WHEN any_wrong THEN 'failed'
+		         WHEN passed_count = total_count AND skipped_count = 0 THEN 'success'
+		         ELSE 'inconclusive' END,
 		       CASE WHEN any_wrong THEN 'answer_mismatch' ELSE error_message END,
 		       latency_ms, started_at, finished_at, created_at, pelican_config, quality_round_id, quality_action, quality_judgment,
 		       account_id, account_name, passed_count, skipped_count, total_count, result_ids

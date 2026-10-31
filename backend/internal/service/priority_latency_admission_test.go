@@ -246,7 +246,7 @@ func TestPriorityHistoryRefreshUsesColdTTLAndKeepsRecentSignalsOnFailure(t *test
 	if entry.signals[7] != before || entry.observedAt.IsZero() {
 		t.Fatalf("failed refresh must preserve recent signal evidence: %+v", entry)
 	}
-	if retry := entry.expiresAt.Sub(time.Now()); retry <= 0 || retry > priorityHistoryRetry {
+	if retry := time.Until(entry.expiresAt); retry <= 0 || retry > priorityHistoryRetry {
 		t.Fatalf("failed refresh retry must be bounded by %v, got %v", priorityHistoryRetry, retry)
 	}
 }

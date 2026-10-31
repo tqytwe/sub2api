@@ -125,10 +125,90 @@ describe('admin account quality operations view', () => {
       pelican_config: expect.objectContaining({
         quality: expect.objectContaining({
           expected_answer: '21',
+          auto_restore: false,
           judge: { kind: 'jev', prompt: 'accept equivalent wording' }
         })
       })
     }))
+  })
+
+  it('requires an explicit automatic restore choice and sends it on create', async () => {
+    api.create.mockResolvedValue({ id: 5 })
+    const wrapper = mount(AccountQualityView, { global: { stubs } })
+    await flushPromises()
+    const control = wrapper.find('[data-testid="quality-auto-restore"]')
+    expect(control.attributes('aria-checked')).toBe('false')
+    await control.trigger('click')
+    await wrapper.findAll('select')[1].setValue(7)
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+    expect(api.create).toHaveBeenCalledWith(expect.objectContaining({
+      pelican_config: expect.objectContaining({ quality: expect.objectContaining({ auto_restore: true }) })
+    }))
+    expect(wrapper.find('[data-testid="quality-auto-restore"]').attributes('aria-checked')).toBe('false')
+  })
+
+  it('reads and preserves an existing rule automatic restore choice on edit', async () => {
+    const scroll = vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
+    api.listPlans.mockResolvedValue([{
+      id: 9, account_id: 7, model_id: 'm', cron_expression: '*/30 * * * *', enabled: true, max_results: 10,
+      updated_at: '2026-10-31T00:00:00Z', pelican_config: { prompt: 'say 21', quality: { action: 'disable_scheduling', expected_answer: '21', auto_restore: true, judge: { kind: 'expected' } } }
+    }])
+    api.update.mockResolvedValue({ id: 9 })
+    const wrapper = mount(AccountQualityView, { global: { stubs } })
+    await flushPromises()
+    await wrapper.find('article').findAll('button').find((button) => button.text() === 'admin.qualityOps.editShort')!.trigger('click')
+    expect(wrapper.find('[data-testid="quality-auto-restore"]').attributes('aria-checked')).toBe('true')
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+    expect(api.update).toHaveBeenCalledWith(9, expect.objectContaining({
+      expected_updated_at: '2026-10-31T00:00:00Z',
+      pelican_config: expect.objectContaining({ quality: expect.objectContaining({ auto_restore: true }) })
+    }))
+    scroll.mockRestore()
+  })
+
+  it('loads the selected preset restore choice and saves it without carrying an older preset value', async () => {
+    const preset = { name: 'check', model_id: 'm', cron_expression: '*/30 * * * *', enabled: true, max_results: 10, created_at: '', updated_at: '' }
+    api.listPresets.mockResolvedValue([
+      { ...preset, id: 1, pelican_config: { prompt: 'say 21', quality: { action: 'disable_scheduling', expected_answer: '21', auto_restore: true, judge: { kind: 'expected' } } } },
+      { ...preset, id: 2, pelican_config: { prompt: 'say 21', quality: { action: 'disable_scheduling', expected_answer: '21', judge: { kind: 'expected' } } } }
+    ])
+    api.createPreset.mockResolvedValue({ ...preset, id: 3 })
+    const wrapper = mount(AccountQualityView, { global: { stubs } })
+    await flushPromises()
+    await wrapper.find('[data-testid="quality-preset-select"]').setValue(1)
+    await wrapper.find('[data-testid="quality-apply-preset"]').trigger('click')
+    expect(wrapper.find('[data-testid="quality-auto-restore"]').attributes('aria-checked')).toBe('true')
+    await wrapper.find('[data-testid="quality-toggle-save-preset"]').trigger('click')
+    await wrapper.find('[data-testid="quality-preset-name"]').setValue('saved choice')
+    await wrapper.find('[data-testid="quality-save-preset"]').trigger('click')
+    await flushPromises()
+    expect(api.createPreset).toHaveBeenCalledWith(expect.objectContaining({
+      pelican_config: expect.objectContaining({ quality: expect.objectContaining({ auto_restore: true }) })
+    }))
+    await wrapper.find('[data-testid="quality-preset-select"]').setValue(2)
+    await wrapper.find('[data-testid="quality-apply-preset"]').trigger('click')
+    expect(wrapper.find('[data-testid="quality-auto-restore"]').attributes('aria-checked')).toBe('false')
+  })
+
+  it('preserves an existing template restore choice and defaults new templates to off', async () => {
+    api.listTemplates.mockResolvedValue([{
+      id: 8, account_filter: {}, model_id: 'm', cron_expression: '*/30 * * * *', enabled: true, max_results: 10, plan_ids: [], created_at: '', updated_at: '',
+      pelican_config: { prompt: 'say 21', quality: { action: 'disable_scheduling', expected_answer: '21', auto_restore: true, judge: { kind: 'expected' } } }
+    }])
+    api.updateTemplate.mockResolvedValue({ updated: 0, created: 0, failed: 0 })
+    const wrapper = mount(AccountQualityView, { global: { stubs } })
+    await flushPromises()
+    await wrapper.find('[data-testid="quality-template-row"]').findAll('button')[0].trigger('click')
+    expect(wrapper.find('[data-testid="quality-template-auto-restore"]').attributes('aria-checked')).toBe('true')
+    await wrapper.find('[data-testid="quality-template-form"]').trigger('submit')
+    await flushPromises()
+    expect(api.updateTemplate).toHaveBeenCalledWith(8, expect.objectContaining({
+      pelican_config: expect.objectContaining({ quality: expect.objectContaining({ auto_restore: true }) })
+    }))
+    await wrapper.find('[data-testid="quality-template-new"]').trigger('click')
+    expect(wrapper.find('[data-testid="quality-template-auto-restore"]').attributes('aria-checked')).toBe('false')
   })
 
   it('applies a saved preset to a new rule without creating a plan until the form is saved', async () => {
