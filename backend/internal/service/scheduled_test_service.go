@@ -34,16 +34,39 @@ func (s *ScheduledTestService) ClaimQualityRun(ctx context.Context, plan *Schedu
 }
 
 func (s *ScheduledTestService) CommitQualityRun(ctx context.Context, plan *ScheduledTestPlan, outcome string, result *ScheduledTestResult) (string, error) {
+	return s.CommitQualityRound(ctx, plan, outcome, []*ScheduledTestResult{result})
+}
+
+// CommitQualityRound grades scheduling ownership once and saves all probe
+// samples atomically. Validate the complete batch before clearing sensitive data.
+func (s *ScheduledTestService) CommitQualityRound(ctx context.Context, plan *ScheduledTestPlan, outcome string, results []*ScheduledTestResult) (string, error) {
 	repo, ok := s.planRepo.(QualityRuntimeRepository)
 	if !ok {
 		return "action_error", infraerrors.New(http.StatusServiceUnavailable, "QUALITY_RUNNER_UNAVAILABLE", "quality runner is unavailable")
 	}
-	if err := validateQualityResult(result); err != nil {
-		return "action_error", err
+	if plan == nil || len(results) == 0 {
+		return "action_error", infraerrors.BadRequest("QUALITY_RESULT_INVALID", "quality round requires a plan and results")
 	}
-	result.PlanID = plan.ID
-	sanitizeQualityResult(result)
-	return repo.CommitQualityRun(ctx, plan, outcome, result, plan.MaxResults)
+	var round string
+	for i, result := range results {
+		if err := validateQualityResult(result); err != nil {
+			return "action_error", err
+		}
+		if i == 0 {
+			round = result.QualityRoundID
+		} else if result.QualityRoundID != round {
+			return "action_error", infraerrors.BadRequest("QUALITY_ROUND_INVALID", "quality samples must share a round id")
+		}
+	}
+	if strings.TrimSpace(round) == "" {
+		return "action_error", infraerrors.BadRequest("QUALITY_ROUND_REQUIRED", "quality results require an opaque round id")
+	}
+
+	for _, result := range results {
+		result.PlanID = plan.ID
+		sanitizeQualityResult(result)
+	}
+	return repo.CommitQualityRound(ctx, plan, outcome, results, plan.MaxResults)
 }
 
 func sanitizeQualityResult(result *ScheduledTestResult) {
@@ -176,7 +199,7 @@ func NewScheduledTestService(
 
 // CreatePlan validates the cron expression, computes next_run_at, and persists the plan.
 func (s *ScheduledTestService) CreatePlan(ctx context.Context, plan *ScheduledTestPlan) (*ScheduledTestPlan, error) {
-	if err := validateQualityConfig(plan.PelicanConfig); err != nil {
+	if err := prepareQualityPlan(plan); err != nil {
 		return nil, err
 	}
 	nextRun, err := computeNextRun(plan.CronExpression, time.Now())
@@ -212,7 +235,7 @@ func (s *ScheduledTestService) TriggerQuality(ctx context.Context, id int64) err
 
 // UpdatePlan validates cron and updates the plan.
 func (s *ScheduledTestService) UpdatePlan(ctx context.Context, plan *ScheduledTestPlan) (*ScheduledTestPlan, error) {
-	if err := validateQualityConfig(plan.PelicanConfig); err != nil {
+	if err := prepareQualityPlan(plan); err != nil {
 		return nil, err
 	}
 	nextRun, err := computeNextRun(plan.CronExpression, time.Now())
@@ -225,7 +248,7 @@ func (s *ScheduledTestService) UpdatePlan(ctx context.Context, plan *ScheduledTe
 }
 
 func (s *ScheduledTestService) UpdatePlanWithVersion(ctx context.Context, plan *ScheduledTestPlan, expected time.Time) (*ScheduledTestPlan, error) {
-	if err := validateQualityConfig(plan.PelicanConfig); err != nil {
+	if err := prepareQualityPlan(plan); err != nil {
 		return nil, err
 	}
 	nextRun, err := computeNextRun(plan.CronExpression, time.Now())
@@ -251,6 +274,9 @@ func validateQualityConfig(config *PelicanTestConfig) error {
 	}
 	if config.Quality == nil {
 		return nil
+	}
+	if err := validateQualityProbeTargets(config); err != nil {
+		return err
 	}
 	if config.Quality.Action != "observe_only" && config.Quality.Action != "disable_scheduling" {
 		return infraerrors.BadRequest("QUALITY_ACTION_INVALID", "unsupported quality action")

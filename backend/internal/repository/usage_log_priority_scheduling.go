@@ -111,52 +111,88 @@ func (r *usageLogRepository) readPriorityQualitySignals(ctx context.Context, q s
 	}
 	rows, err := r.sql.QueryContext(ctx, `
 WITH quality_rounds AS (
- SELECT p.account_id, p.id AS plan_id, r.quality_round_id,
+ SELECT p.account_id, p.id AS plan_id, r.quality_round_id, probe.model_id,
+        jsonb_array_length(targets.models) AS model_count,
+        COUNT(*) AS sample_count, MAX(parallel.expected) AS expected,
         bool_or(r.quality_judgment->>'verdict' = 'incorrect'
           AND r.status = 'failed' AND r.error_message = 'answer_mismatch') AS failed,
         bool_and(COALESCE(r.quality_judgment->>'verdict' = 'correct'
-          AND r.status = 'success', false)) AS passed
+          AND r.status = 'success', false)) AS passed,
+        bool_and(COALESCE(jsonb_typeof(r.pelican_config) = 'object'
+          AND probe.model_id IS NOT NULL
+          AND targets.models @> jsonb_build_array(probe.model_id)
+          AND r.started_at >= p.quality_rule_updated_at
+          AND r.created_at >= p.quality_rule_updated_at
+          AND r.created_at >= $3 AND r.created_at <= NOW()
+          AND r.started_at <= NOW()
+          AND r.quality_action <> '' AND r.quality_action <> 'stale_run'
+          AND parallel.expected IS NOT NULL AND parallel.expected = parallel.planned
+          AND CASE WHEN jsonb_array_length(targets.models) > 1
+            THEN jsonb_typeof(r.pelican_config->'model_id') = 'string'
+              AND r.pelican_config->'model_ids' = targets.models
+            ELSE (r.pelican_config->'model_id' IS NULL
+                OR r.pelican_config->'model_id' = 'null'::jsonb
+                OR jsonb_typeof(r.pelican_config->'model_id') = 'string')
+              AND (r.pelican_config->'model_ids' IS NULL
+                OR r.pelican_config->'model_ids' = '[]'::jsonb
+                OR r.pelican_config->'model_ids' = targets.models)
+            END, false)) AS valid
  FROM scheduled_test_plans p
  JOIN accounts a ON a.id = p.account_id
  JOIN scheduled_test_results r ON r.plan_id = p.id
+ CROSS JOIN LATERAL (
+   SELECT CASE
+     WHEN p.pelican_config->'model_ids' IS NULL OR p.pelican_config->'model_ids' = '[]'::jsonb
+       THEN jsonb_build_array(p.model_id)
+     WHEN jsonb_typeof(p.pelican_config->'model_ids') = 'array'
+       THEN p.pelican_config->'model_ids'
+     ELSE '[]'::jsonb END AS models
+ ) targets
  CROSS JOIN LATERAL (
    SELECT CASE
      WHEN r.pelican_config->'parallel_count' IS NULL OR r.pelican_config->'parallel_count' = '0'::jsonb THEN 1
      WHEN jsonb_typeof(r.pelican_config->'parallel_count') = 'number'
        AND r.pelican_config->>'parallel_count' ~ '^([1-9]|[12][0-9]|3[0-2])$'
        THEN (r.pelican_config->>'parallel_count')::int
-   END AS expected
+   END AS expected,
+   CASE
+     WHEN p.pelican_config->'parallel_count' IS NULL OR p.pelican_config->'parallel_count' = '0'::jsonb THEN 1
+     WHEN jsonb_typeof(p.pelican_config->'parallel_count') = 'number'
+       AND p.pelican_config->>'parallel_count' ~ '^([1-9]|[12][0-9]|3[0-2])$'
+       THEN (p.pelican_config->>'parallel_count')::int
+   END AS planned
  ) parallel
- WHERE p.account_id = ANY($1::bigint[]) AND p.enabled AND p.model_id = $2
+ CROSS JOIN LATERAL (
+   SELECT CASE WHEN jsonb_array_length(targets.models) = 1
+     THEN COALESCE(NULLIF(r.pelican_config->>'model_id', ''), p.model_id)
+     ELSE NULLIF(r.pelican_config->>'model_id', '') END AS model_id
+ ) probe
+ WHERE p.account_id = ANY($1::bigint[]) AND p.enabled
    AND a.platform = 'openai' AND a.deleted_at IS NULL
    AND jsonb_typeof(p.pelican_config->'quality') = 'object'
-   AND (p.pelican_config->'model_ids' IS NULL
-     OR CASE WHEN jsonb_typeof(p.pelican_config->'model_ids') = 'array'
-        THEN jsonb_array_length(p.pelican_config->'model_ids') = 0
-          OR (jsonb_array_length(p.pelican_config->'model_ids') = 1
-            AND p.pelican_config->'model_ids'->>0 = p.model_id) ELSE false END)
+   AND targets.models @> jsonb_build_array($2::text)
+   AND jsonb_array_length(targets.models) BETWEEN 1 AND 50
+   AND NOT EXISTS (SELECT 1 FROM jsonb_array_elements(targets.models) model
+     WHERE jsonb_typeof(model.value) <> 'string' OR BTRIM(model.value#>>'{}') = ''
+       OR octet_length(model.value#>>'{}') > 100)
+   AND (SELECT COUNT(DISTINCT model.value) FROM jsonb_array_elements(targets.models) model)
+     = jsonb_array_length(targets.models)
+   AND jsonb_array_length(targets.models) * parallel.planned <= 100
    AND BTRIM(r.quality_round_id) <> ''
- GROUP BY p.account_id, p.id, r.quality_round_id
- HAVING bool_and(COALESCE(jsonb_typeof(r.pelican_config) = 'object'
-          AND COALESCE(NULLIF(r.pelican_config->>'model_id', ''), p.model_id) = p.model_id
-          AND r.started_at >= p.quality_rule_updated_at
-          AND r.created_at >= p.quality_rule_updated_at
-          AND r.created_at >= $3 AND r.created_at <= NOW()
-          AND r.started_at <= NOW()
-          AND r.quality_action <> '' AND r.quality_action <> 'stale_run'
-          AND (r.pelican_config->'model_ids' IS NULL
-            OR CASE WHEN jsonb_typeof(r.pelican_config->'model_ids') = 'array'
-               THEN jsonb_array_length(r.pelican_config->'model_ids') = 0
-                 OR (jsonb_array_length(r.pelican_config->'model_ids') = 1
-                   AND r.pelican_config->'model_ids'->>0 = p.model_id) ELSE false END), false))
-    AND bool_and(parallel.expected IS NOT NULL)
-    AND MIN(parallel.expected) = MAX(parallel.expected)
-    AND COUNT(*) = MAX(parallel.expected)
+ GROUP BY p.account_id, p.id, r.quality_round_id, probe.model_id, targets.models
+), complete_rounds AS (
+ SELECT account_id, plan_id, quality_round_id
+ FROM quality_rounds
+ GROUP BY account_id, plan_id, quality_round_id
+ HAVING bool_and(valid) AND bool_and(sample_count = expected)
+   AND MIN(expected) = MAX(expected) AND COUNT(*) = MAX(model_count)
 )
-SELECT account_id, COUNT(*) FILTER (WHERE passed OR failed),
-       COUNT(*) FILTER (WHERE passed AND NOT COALESCE(failed, false))
-FROM quality_rounds
-GROUP BY account_id`, pq.Array(q.AccountIDs), q.Model, since)
+SELECT q.account_id, COUNT(*) FILTER (WHERE q.passed OR q.failed),
+       COUNT(*) FILTER (WHERE q.passed AND NOT COALESCE(q.failed, false))
+FROM quality_rounds q
+JOIN complete_rounds c USING (account_id, plan_id, quality_round_id)
+WHERE q.model_id = $2
+GROUP BY q.account_id`, pq.Array(q.AccountIDs), q.Model, since)
 	if err != nil {
 		return err
 	}

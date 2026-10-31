@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -45,6 +46,13 @@ func (r *scheduledTestPlanRepository) FinishQualityRun(ctx context.Context, id i
 }
 
 func (r *scheduledTestPlanRepository) CommitQualityRun(ctx context.Context, plan *service.ScheduledTestPlan, outcome string, result *service.ScheduledTestResult, maxResults int) (string, error) {
+	return r.CommitQualityRound(ctx, plan, outcome, []*service.ScheduledTestResult{result}, maxResults)
+}
+
+func (r *scheduledTestPlanRepository) CommitQualityRound(ctx context.Context, plan *service.ScheduledTestPlan, outcome string, results []*service.ScheduledTestResult, maxResults int) (string, error) {
+	if len(results) == 0 {
+		return "", errors.New("quality round requires results")
+	}
 	if plan == nil || plan.PelicanConfig == nil || plan.PelicanConfig.Quality == nil || plan.RunningUntil == nil {
 		return "stale_run", nil
 	}
@@ -100,20 +108,20 @@ func (r *scheduledTestPlanRepository) CommitQualityRun(ctx context.Context, plan
 		}
 	}
 	if outcome == "inconclusive" {
-		return commitQualityResult(ctx, tx, result, maxResults, "inconclusive")
+		return commitQualityResults(ctx, tx, results, maxResults, "inconclusive")
 	}
 	if plan.PelicanConfig.Quality.Action == "observe_only" {
-		return commitQualityResult(ctx, tx, result, maxResults, "observed")
+		return commitQualityResults(ctx, tx, results, maxResults, "observed")
 	}
 	if state.Action != "" && state.Action != "disable_scheduling" {
-		return commitQualityResult(ctx, tx, result, maxResults, "action_conflict")
+		return commitQualityResults(ctx, tx, results, maxResults, "action_conflict")
 	}
 	if outcome == "failed" {
 		if state.Action == "disable_scheduling" {
-			return commitQualityResult(ctx, tx, result, maxResults, "already_disabled")
+			return commitQualityResults(ctx, tx, results, maxResults, "already_disabled")
 		}
 		if status != service.StatusActive || !schedulable {
-			return commitQualityResult(ctx, tx, result, maxResults, "account_not_schedulable")
+			return commitQualityResults(ctx, tx, results, maxResults, "account_not_schedulable")
 		}
 		if err := tx.QueryRowContext(ctx, `UPDATE accounts SET schedulable=false, updated_at=clock_timestamp() WHERE id=$1 RETURNING updated_at`, plan.AccountID).Scan(&accountUpdatedAt); err != nil {
 			return "", err
@@ -131,24 +139,26 @@ func (r *scheduledTestPlanRepository) CommitQualityRun(ctx context.Context, plan
 			ON CONFLICT(plan_id) DO UPDATE SET state=EXCLUDED.state, updated_at=EXCLUDED.updated_at`, plan.ID, encoded); err != nil {
 			return "", err
 		}
-		return commitQualityResult(ctx, tx, result, maxResults, "scheduling_disabled")
+		return commitQualityResults(ctx, tx, results, maxResults, "scheduling_disabled")
 	}
 	if outcome == "passed" && state.Action != "" && plan.PelicanConfig.Quality.AutoRestore {
 		action, err := restoreQualityRuntimeState(ctx, tx, plan, state, schedulable, accountUpdatedAt)
 		if err != nil {
 			return "", err
 		}
-		return commitQualityResult(ctx, tx, result, maxResults, action)
+		return commitQualityResults(ctx, tx, results, maxResults, action)
 	}
-	return commitQualityResult(ctx, tx, result, maxResults, "no_change")
+	return commitQualityResults(ctx, tx, results, maxResults, "no_change")
 }
 
-func commitQualityResult(ctx context.Context, tx *sql.Tx, result *service.ScheduledTestResult, maxResults int, action string) (string, error) {
-	result.QualityAction = action
-	if _, err := insertScheduledTestResult(ctx, tx, result); err != nil {
-		return "", err
+func commitQualityResults(ctx context.Context, tx *sql.Tx, results []*service.ScheduledTestResult, maxResults int, action string) (string, error) {
+	for _, result := range results {
+		result.QualityAction = action
+		if _, err := insertScheduledTestResult(ctx, tx, result); err != nil {
+			return "", err
+		}
 	}
-	if err := pruneScheduledTestResults(ctx, tx, result.PlanID, maxResults); err != nil {
+	if err := pruneScheduledTestResults(ctx, tx, results[0].PlanID, maxResults); err != nil {
 		return "", err
 	}
 	return action, tx.Commit()

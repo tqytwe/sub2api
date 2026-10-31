@@ -98,6 +98,10 @@ func (s *ScheduledTestService) CreateQualityPreset(ctx context.Context, input *Q
 	if err != nil {
 		return nil, err
 	}
+	config.ModelIDs = qualityProbeModelIDs(config.ModelIDs)
+	if len(config.ModelIDs) > 0 {
+		modelID = config.ModelIDs[0]
+	}
 	cronExpression := strings.TrimSpace(input.CronExpression)
 	if _, err := computeNextRun(cronExpression, time.Now()); err != nil {
 		return nil, infraerrors.BadRequest("QUALITY_PRESET_CRON_INVALID", "invalid cron expression")

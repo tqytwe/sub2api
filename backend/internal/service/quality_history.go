@@ -18,17 +18,14 @@ func (s *ScheduledTestService) ListQualityHistory(ctx context.Context, beforeID 
 			continue
 		}
 		expected := item.TotalCount
-		if cfg := item.PelicanConfig; cfg != nil && len(cfg.ModelIDs) > 1 {
-			planned := len(cfg.ModelIDs) * cfg.ParallelCount
-			if planned > expected {
-				expected = planned
-			}
+		if planned := QualityProbeExpectedCount(item.PelicanConfig); planned > expected {
+			expected = planned
 		}
 		item.TotalCount = expected - item.SkippedCount
 		if item.TotalCount <= 0 {
 			item.TotalCount = 0
 			item.Status = "skipped"
-		} else if item.PassedCount == item.TotalCount {
+		} else if item.PassedCount == expected && item.SkippedCount == 0 && item.Status != "inconclusive" && item.Status != "failed" {
 			item.Status = "success"
 		} else if item.Status != "failed" {
 			item.Status = "inconclusive"

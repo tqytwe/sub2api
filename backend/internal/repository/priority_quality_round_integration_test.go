@@ -201,6 +201,113 @@ func TestPriorityQualityRoundsPostgreSQLKnownMismatchAndSingleProbeDefaults(t *t
 	require.Zero(t, signals[accountID].QualitySamples)
 }
 
+func TestPriorityQualityRoundsPostgreSQLMultiModelAttribution(t *testing.T) {
+	type probe struct {
+		model, verdict, action string
+		parallel               int
+		omitTargets, omitModel bool
+		omitParallel           bool
+		targets                []string
+	}
+	pair := func(a, b string) []probe {
+		return []probe{{model: "public-model", verdict: a, parallel: 2},
+			{model: "other-model", verdict: b, parallel: 2},
+			{model: "public-model", verdict: a, parallel: 2},
+			{model: "other-model", verdict: b, parallel: 2}}
+	}
+	for _, tc := range []struct {
+		name            string
+		probes          []probe
+		zeroDefault     bool
+		legacyPrimary   bool
+		samples, passed [2]int
+	}{
+		{name: "all_correct", probes: pair("correct", "correct"), samples: [2]int{1, 1}, passed: [2]int{1, 1}},
+		{name: "declared_targets_override_legacy_primary", legacyPrimary: true, probes: pair("correct", "correct"), samples: [2]int{1, 1}, passed: [2]int{1, 1}},
+		{name: "zero_and_omitted_defaults", zeroDefault: true, probes: []probe{{model: "public-model", verdict: "correct"},
+			{model: "other-model", verdict: "correct", omitParallel: true}}, samples: [2]int{1, 1}, passed: [2]int{1, 1}},
+		{name: "other_model_unknown", probes: pair("correct", "unknown"), samples: [2]int{1, 0}, passed: [2]int{1, 0}},
+		{name: "other_model_incorrect", probes: pair("correct", "incorrect"), samples: [2]int{1, 1}, passed: [2]int{1, 0}},
+		{name: "primary_unknown", probes: pair("unknown", "correct"), samples: [2]int{0, 1}, passed: [2]int{0, 1}},
+		{name: "missing_member", probes: pair("correct", "correct")[:3]},
+		{name: "duplicate_replaces_missing", probes: []probe{{model: "public-model", verdict: "correct", parallel: 2},
+			{model: "public-model", verdict: "correct", parallel: 2},
+			{model: "public-model", verdict: "correct", parallel: 2},
+			{model: "other-model", verdict: "correct", parallel: 2}}},
+		{name: "undeclared_member", probes: append(pair("correct", "correct"), probe{model: "undeclared-model", verdict: "correct", parallel: 2})},
+		{name: "legacy_no_targets", probes: []probe{{model: "public-model", verdict: "correct", parallel: 2, omitTargets: true},
+			{model: "other-model", verdict: "correct", parallel: 2, omitTargets: true},
+			{model: "public-model", verdict: "correct", parallel: 2, omitTargets: true},
+			{model: "other-model", verdict: "correct", parallel: 2, omitTargets: true}}},
+		{name: "missing_explicit_model", probes: []probe{{model: "public-model", verdict: "correct", parallel: 2, omitModel: true},
+			{model: "other-model", verdict: "correct", parallel: 2},
+			{model: "public-model", verdict: "correct", parallel: 2},
+			{model: "other-model", verdict: "correct", parallel: 2}}},
+		{name: "inconsistent_targets", probes: []probe{{model: "public-model", verdict: "correct", parallel: 2, targets: []string{"public-model", "different-model"}},
+			{model: "other-model", verdict: "correct", parallel: 2},
+			{model: "public-model", verdict: "correct", parallel: 2},
+			{model: "other-model", verdict: "correct", parallel: 2}}},
+		{name: "stale_member", probes: []probe{{model: "public-model", verdict: "correct", parallel: 2, action: "stale_run"},
+			{model: "other-model", verdict: "correct", parallel: 2},
+			{model: "public-model", verdict: "correct", parallel: 2},
+			{model: "other-model", verdict: "correct", parallel: 2}}},
+		{name: "inconsistent_parallel", probes: []probe{{model: "public-model", verdict: "correct", parallel: 1},
+			{model: "other-model", verdict: "correct", parallel: 2},
+			{model: "public-model", verdict: "correct", parallel: 2},
+			{model: "other-model", verdict: "correct", parallel: 2}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			repo, accountID, now := priorityQualityFixture(t)
+			planID := priorityQualityPlan(t, accountID, "observe_only", now.Add(-time.Hour))
+			targets := []string{"public-model", "other-model"}
+			_, err := integrationDB.ExecContext(context.Background(), `UPDATE scheduled_test_plans SET pelican_config=jsonb_set(pelican_config,'{model_ids}',$2::jsonb) WHERE id=$1`, planID, `["public-model","other-model"]`)
+			require.NoError(t, err)
+			if tc.legacyPrimary {
+				_, err = integrationDB.ExecContext(context.Background(), `UPDATE scheduled_test_plans SET model_id='legacy-primary' WHERE id=$1`, planID)
+				require.NoError(t, err)
+			}
+			if tc.zeroDefault {
+				_, err = integrationDB.ExecContext(context.Background(), `UPDATE scheduled_test_plans SET pelican_config=jsonb_set(pelican_config,'{parallel_count}','0') WHERE id=$1`, planID)
+				require.NoError(t, err)
+			}
+			at := time.Now().Add(-time.Microsecond)
+			for _, p := range tc.probes {
+				action := p.action
+				if action == "" {
+					action = "observed"
+				}
+				priorityQualityResult(t, planID, tc.name, p.verdict, action, p.model, p.parallel, at)
+				cfg := map[string]any{}
+				if !p.omitParallel {
+					cfg["parallel_count"] = p.parallel
+				}
+				if !p.omitModel {
+					cfg["model_id"] = p.model
+				}
+				if !p.omitTargets {
+					cfg["model_ids"] = targets
+					if p.targets != nil {
+						cfg["model_ids"] = p.targets
+					}
+				}
+				body, err := json.Marshal(cfg)
+				require.NoError(t, err)
+				_, err = integrationDB.ExecContext(context.Background(), `UPDATE scheduled_test_results SET pelican_config=$2 WHERE id=(SELECT MAX(id) FROM scheduled_test_results WHERE plan_id=$1)`, planID, string(body))
+				require.NoError(t, err)
+			}
+			for _, measurement := range []string{"legacy_forward", "attributed_v1"} {
+				for i, model := range targets {
+					got, err := repo.ReadPrioritySchedulingSignals(context.Background(), service.PrioritySchedulingQuery{AccountIDs: []int64{accountID}, Model: model, Since: now.Add(-time.Hour), LatencyMeasurement: measurement, InboundEndpoint: "/v1/responses"})
+					require.NoError(t, err)
+					require.Equal(t, tc.samples[i], got[accountID].QualitySamples, "%s %s", measurement, model)
+					require.Equal(t, tc.passed[i], got[accountID].QualityPassed, "%s %s", measurement, model)
+					require.Zero(t, got[accountID].Samples)
+				}
+			}
+		})
+	}
+}
+
 func TestPriorityQualityRuleRevisionMigrationPreservesOldWriters(t *testing.T) {
 	ctx := context.Background()
 	tx, err := integrationDB.BeginTx(ctx, &sql.TxOptions{})

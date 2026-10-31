@@ -227,7 +227,7 @@ func (r *scheduledTestResultRepository) ListByPlanID(ctx context.Context, planID
 		SELECT id, plan_id, status, response_text, error_message, latency_ms, started_at, finished_at, created_at, pelican_config, quality_round_id, quality_action, quality_judgment
 		FROM scheduled_test_results
 		WHERE plan_id = $1
-		ORDER BY created_at DESC
+		ORDER BY created_at DESC, id DESC
 		LIMIT $2
 	`, planID, limit)
 	if err != nil {
@@ -266,7 +266,24 @@ func (r *scheduledTestResultRepository) ListByPlanID(ctx context.Context, planID
 // omits response_text and strips prompt/answer fields from stored snapshots.
 func (r *scheduledTestResultRepository) ListQualityHistory(ctx context.Context, beforeID int64, limit int) ([]*service.QualityHistoryResult, error) {
 	rows, err := r.db.QueryContext(ctx, `
-		WITH rounds AS (
+		WITH probe_counts AS (
+            SELECT r.*, p.model_id AS primary_model,
+                   a.id AS account_id, a.name AS account_name,
+                   GREATEST(COALESCE((r.pelican_config->>'parallel_count')::int, 0), 1) AS probe_parallel_count,
+                   CASE WHEN jsonb_typeof(r.pelican_config->'model_ids')='array' THEN
+                     ARRAY(SELECT DISTINCT btrim(model #>> '{}')
+                           FROM jsonb_array_elements(r.pelican_config->'model_ids') model
+                           WHERE jsonb_typeof(model)='string' AND btrim(model #>> '{}') <> '' ORDER BY 1)
+                     ELSE ARRAY[]::text[] END AS round_models,
+                   count(*) OVER (
+                     PARTITION BY r.plan_id, COALESCE(NULLIF(r.quality_round_id, ''), r.id::text),
+                       COALESCE(NULLIF(btrim(r.pelican_config->>'model_id'), ''), btrim(p.model_id))
+                   ) AS model_probe_count
+            FROM scheduled_test_results r
+            JOIN scheduled_test_plans p ON p.id=r.plan_id
+            JOIN accounts a ON a.id=p.account_id
+            WHERE r.pelican_config->'quality' IS NOT NULL AND a.deleted_at IS NULL
+        ), rounds AS (
 			SELECT r.id, r.plan_id, r.status, r.error_message, r.latency_ms,
 			       min(r.started_at) OVER quality_round AS started_at,
 			       max(r.finished_at) OVER quality_round AS finished_at,
@@ -278,18 +295,23 @@ func (r *scheduledTestResultRepository) ListQualityHistory(ctx context.Context, 
 			         )
 			       END AS pelican_config,
 			       r.quality_round_id, r.quality_action, r.quality_judgment,
-			       a.id AS account_id, a.name AS account_name,
+			       r.account_id, r.account_name,
 			       row_number() OVER quality_round AS row_in_round,
 		       count(*) FILTER (WHERE r.status='success' AND r.quality_judgment->>'verdict'='correct'
 		         AND r.quality_action NOT IN ('', 'stale_run')) OVER quality_round AS passed_count,
 			       count(*) FILTER (WHERE r.status='skipped') OVER quality_round AS skipped_count,
-			       GREATEST(count(*) OVER quality_round, COALESCE((r.pelican_config->>'parallel_count')::int, 0)) AS total_count,
+			       GREATEST(count(*) OVER quality_round,
+                 r.probe_parallel_count * GREATEST(cardinality(r.round_models), 1)) AS total_count,
+               bool_and(r.model_probe_count = r.probe_parallel_count AND
+                 CASE WHEN cardinality(r.round_models) > 0 THEN
+                   COALESCE(NULLIF(btrim(r.pelican_config->>'model_id'), ''), btrim(r.primary_model)) = ANY(r.round_models)
+                 ELSE COALESCE(NULLIF(btrim(r.pelican_config->>'model_id'), ''), btrim(r.primary_model)) = btrim(r.primary_model) END
+               ) OVER quality_round
+                 AND min(r.round_models::text) OVER quality_round = max(r.round_models::text) OVER quality_round
+                 AND min(r.probe_parallel_count) OVER quality_round = max(r.probe_parallel_count) OVER quality_round AS members_complete,
 		       bool_or(r.quality_judgment->>'verdict'='incorrect' OR r.error_message='answer_mismatch') OVER quality_round AS any_wrong,
 			       array_agg(r.id) OVER quality_round AS result_ids
-			FROM scheduled_test_results r
-			JOIN scheduled_test_plans p ON p.id=r.plan_id
-			JOIN accounts a ON a.id=p.account_id
-			WHERE r.pelican_config->'quality' IS NOT NULL AND a.deleted_at IS NULL
+			FROM probe_counts r
 			WINDOW quality_round AS (
 				PARTITION BY r.plan_id, COALESCE(NULLIF(r.quality_round_id, ''), r.id::text)
 				ORDER BY r.id DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
@@ -297,7 +319,7 @@ func (r *scheduledTestResultRepository) ListQualityHistory(ctx context.Context, 
 		)
 		SELECT id, plan_id,
 		       CASE WHEN any_wrong THEN 'failed'
-		         WHEN passed_count = total_count AND skipped_count = 0 THEN 'success'
+		         WHEN passed_count = total_count AND skipped_count = 0 AND members_complete THEN 'success'
 		         ELSE 'inconclusive' END,
 		       CASE WHEN any_wrong THEN 'answer_mismatch' ELSE error_message END,
 		       latency_ms, started_at, finished_at, created_at, pelican_config, quality_round_id, quality_action, quality_judgment,
@@ -340,18 +362,31 @@ func (r *scheduledTestResultRepository) PruneOldResults(ctx context.Context, pla
 	return pruneScheduledTestResults(ctx, r.db, planID, keepCount)
 }
 
+// maxResults remains a row budget. A quality round is one retention unit, so
+// the boundary round (and at least the newest unit) survives in full. Legacy
+// connectivity results each remain an individual unit.
 func pruneScheduledTestResults(ctx context.Context, db scheduledTestResultSQL, planID int64, keepCount int) error {
 	_, err := db.ExecContext(ctx, `
-		DELETE FROM scheduled_test_results
-		WHERE id IN (
-			SELECT id FROM (
-				SELECT id, ROW_NUMBER() OVER (PARTITION BY plan_id ORDER BY created_at DESC) AS rn
-				FROM scheduled_test_results
-				WHERE plan_id = $1
-			) ranked
-			WHERE rn > $2
-		)
-	`, planID, keepCount)
+  DELETE FROM scheduled_test_results
+  WHERE plan_id = $1 AND id IN (
+   WITH units AS (
+    SELECT CASE WHEN pelican_config->'quality' IS NOT NULL AND quality_round_id <> ''
+                THEN 'round:' || quality_round_id ELSE 'result:' || id::text END AS unit,
+           MAX(created_at) AS created_at, MAX(id) AS latest_id, COUNT(*) AS size
+    FROM scheduled_test_results WHERE plan_id=$1
+    GROUP BY unit
+   ), ranked AS (
+    SELECT unit, COALESCE(SUM(size) OVER (
+     ORDER BY created_at DESC, latest_id DESC
+     ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING), 0) AS newer_rows
+    FROM units
+   )
+   SELECT r.id FROM scheduled_test_results r JOIN ranked ON ranked.unit =
+     CASE WHEN r.pelican_config->'quality' IS NOT NULL AND r.quality_round_id <> ''
+          THEN 'round:' || r.quality_round_id ELSE 'result:' || r.id::text END
+   WHERE r.plan_id=$1 AND ranked.newer_rows >= GREATEST($2, 1)
+  )
+ `, planID, keepCount)
 	return err
 }
 

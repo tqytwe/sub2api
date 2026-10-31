@@ -163,7 +163,7 @@
 
 ## FORK-MIGRATION-009 自定义数据库迁移
 
-- PR #396 候选向前迁移 `338_api_key_groups.sql` 仅增加额外绑定表/索引，保留旧 `api_keys.group_id` 和全部历史迁移。独立 PostgreSQL 18.1 空库迁移、仓库及并发替换实测36项通过；候选尚未部署。
+- PR #396 已部署向前迁移 `338_api_key_groups.sql` 仅增加额外绑定表/索引，保留旧 `api_keys.group_id` 和全部历史迁移。独立 PostgreSQL 18.1 空库迁移、仓库及并发替换实测36项通过；生产338/schema/checksum已核验。
 
 - 产品目的：保留 Play、品牌默认值、图像工作室、提示词库和模型目录的数据库结构与数据修复。
 - 不变量：下列文件名完整存在且已应用文件不可改写；上游出现同数字前缀时允许并存，不能按编号覆盖，例如上游 `181_prompt_audit.sql` / `182_prompt_audit_full_prompt.sql` 与 Fork `181_jisudeng_public_model_pricing.sql` / `182_image_studio_asset_storage.sql` 必须同时保留。上游 `229_plugins.sql`、`230_plugin_artifacts.sql` 与 Fork 同编号迁移按完整文件名并存，插件管理和绑定默认关闭。`259_mobile_video_jobs.sql` 只新增私有视频任务状态，`260_model_catalog_media_capabilities.sql` 只新增可空媒体合同与经过审查的精确模型声明，绝不改写分组、价格、白名单或账号映射。runner 在固定的同一 PostgreSQL session 上获取 advisory lock、执行迁移并校验解锁结果；192/194 的表变更按 runner 白名单分成可恢复短事务阶段，长 backfill/constraint validation 不携带前置 `ALTER TABLE` 强锁；对应 `_notx.sql` 索引继续使用 `CONCURRENTLY`。

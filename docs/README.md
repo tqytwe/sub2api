@@ -131,3 +131,5 @@
 - [管理员选路详情视觉审查](./visual-reviews/2026-10-11-admin-routing-detail.md)（基线/原型/实际资源、360px既有英文header边界）
 
 - [API Key 多分组与上游渠道声明](./api-key-multi-group.md)：绑定合同、择组计费与 schema v2 声明。
+
+- [质量多模型/重复探测视觉记录](./visual-reviews/2026-11-01-quality-multiprobe.md)：现有质量页面配置、结果标识和真实组件截图；不替代生产验收。
