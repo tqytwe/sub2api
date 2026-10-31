@@ -1,5 +1,6 @@
 <template>
-  <div v-if="eligible" class="flex h-6 min-w-[7rem] items-center gap-1">
+  <div v-if="eligible" class="min-w-[7rem]">
+    <div class="flex h-6 items-center gap-1">
     <HelpTooltip class="-ml-1" width-class="w-max max-w-[calc(100vw-2rem)]" data-testid="upstream-billing-details">
       <template #trigger>
         <span
@@ -11,19 +12,24 @@
         </span>
       </template>
       <div class="space-y-1">
-        <template v-if="hasEffectiveRate && data">
-          <p>{{ t('admin.accounts.upstreamBilling.groupRate', { value: data.group_rate_multiplier }) }}</p>
-          <p v-if="data.user_rate_multiplier != null">
-            {{ t('admin.accounts.upstreamBilling.userRate', { value: data.user_rate_multiplier }) }}
+        <template v-if="isMultiGroup">
+          <p>{{ t('admin.accounts.upstreamBilling.multiGroupHint') }}</p>
+          <p>{{ t('admin.accounts.upstreamBilling.multiGroupSyncPaused') }}</p>
+          <p>{{ t('admin.accounts.upstreamBilling.updatedAt', { value: formatDate(snapshot?.received_at) }) }}</p>
+        </template>
+        <template v-else-if="hasEffectiveRate && singleData">
+          <p>{{ t('admin.accounts.upstreamBilling.groupRate', { value: singleData.group_rate_multiplier }) }}</p>
+          <p v-if="singleData.user_rate_multiplier != null">
+            {{ t('admin.accounts.upstreamBilling.userRate', { value: singleData.user_rate_multiplier }) }}
           </p>
           <p>
             {{
-              data.peak_rate_enabled
+              singleData.peak_rate_enabled
                 ? t('admin.accounts.upstreamBilling.peakRate', {
-                    start: data.peak_start,
-                    end: data.peak_end,
-                    value: data.peak_rate_multiplier,
-                    timezone: data.timezone
+                    start: singleData.peak_start,
+                    end: singleData.peak_end,
+                    value: singleData.peak_rate_multiplier,
+                    timezone: singleData.timezone
                   })
                 : t('admin.accounts.upstreamBilling.noPeakRate')
             }}
@@ -79,6 +85,21 @@
     >
       <Icon name="refresh" size="xs" :class="{ 'animate-spin': probing }" />
     </button>
+    </div>
+    <details v-if="isMultiGroup" class="my-1 max-w-sm text-xs" data-testid="upstream-billing-groups">
+      <summary class="cursor-pointer text-blue-600 dark:text-blue-400">{{ t('admin.accounts.upstreamBilling.multiGroupCount', { count: declaredGroups.length }) }}</summary>
+      <p class="mt-1 text-gray-500">{{ t('admin.accounts.upstreamBilling.multiGroupSyncPaused') }}</p>
+      <div v-for="group in declaredGroups" :key="group.group_id" class="mt-2 rounded bg-gray-50 p-2 dark:bg-dark-800">
+        <p class="font-medium text-gray-800 dark:text-gray-200">{{ group.group_name || `#${group.group_id}` }}</p>
+        <p v-if="group.status !== 'active'" class="text-amber-600 dark:text-amber-400">{{ t('admin.accounts.upstreamBilling.groupInactive') }}</p>
+        <p>{{ t(stale ? 'admin.accounts.upstreamBilling.lastDetectedRate' : 'admin.accounts.upstreamBilling.effectiveRate', { value: formatGroupRate(group) }) }}</p>
+        <p>{{ t('admin.accounts.upstreamBilling.groupRate', { value: group.group_rate_multiplier }) }}</p>
+        <p v-if="group.user_rate_multiplier != null">{{ t('admin.accounts.upstreamBilling.userRate', { value: group.user_rate_multiplier }) }}</p>
+        <p>{{ group.peak_rate_enabled
+          ? t('admin.accounts.upstreamBilling.peakRate', { start: group.peak_start, end: group.peak_end, value: group.peak_rate_multiplier, timezone: group.timezone })
+          : t('admin.accounts.upstreamBilling.noPeakRate') }}</p>
+      </div>
+    </details>
   </div>
   <span v-else class="text-sm text-gray-400 dark:text-dark-500">-</span>
 </template>
@@ -89,7 +110,7 @@ import { useI18n } from 'vue-i18n'
 import HelpTooltip from '@/components/common/HelpTooltip.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { formatMultiplier } from '@/utils/formatters'
-import type { Account, UpstreamBillingProbeSnapshot } from '@/types'
+import type { Account, UpstreamBillingRateData, UpstreamBillingProbeSnapshot } from '@/types'
 
 const props = withDefaults(defineProps<{
   account: Account
@@ -110,6 +131,9 @@ const CLOCK_SKEW_TOLERANCE_MS = 5 * 60 * 1000
 const eligible = computed(() => props.account.type === 'apikey')
 const snapshot = computed<UpstreamBillingProbeSnapshot | undefined>(() => props.account.extra?.upstream_billing_probe)
 const data = computed(() => snapshot.value?.data)
+const isMultiGroup = computed(() => data.value?.schema_version === 2)
+const singleData = computed(() => data.value?.schema_version === 1 ? data.value : undefined)
+const declaredGroups = computed(() => data.value?.schema_version === 2 ? data.value.groups : [])
 const probeEnabled = computed(() => props.account.extra?.upstream_billing_probe_enabled === true)
 const nextProbeAt = computed(() => {
   const value = snapshot.value?.next_probe_at
@@ -158,8 +182,7 @@ const minuteInTimeZone = (timestamp: number, timeZone?: string) => {
     return null
   }
 }
-const currentEffectiveRate = computed(() => {
-  const billing = data.value
+const effectiveMultiplier = (billing?: UpstreamBillingRateData) => {
   if (!billing) return null
   if (billing.billing_scope !== 'token') return null
   const base = billing.resolved_rate_multiplier
@@ -173,9 +196,14 @@ const currentEffectiveRate = computed(() => {
   if (start == null || end == null || minute == null || start >= end || typeof peak !== 'number' || !Number.isFinite(peak) || peak < 0) return null
   const value = minute >= start && minute < end ? base * peak : base
   return Number.isFinite(value) ? value : null
-})
+}
+const currentEffectiveRate = computed(() => effectiveMultiplier(singleData.value))
+const formatGroupRate = (group: UpstreamBillingRateData): string => {
+  const value = stale.value ? group.effective_rate_multiplier : effectiveMultiplier(group)
+  return typeof value === 'number' && Number.isFinite(value) ? `${formatMultiplier(value)}x` : '-'
+}
 const lastDetectedRate = computed(() => {
-  const value = data.value?.effective_rate_multiplier
+  const value = singleData.value?.effective_rate_multiplier
   return typeof value === 'number' && Number.isFinite(value) && value >= 0
     ? Number(value.toPrecision(12))
     : null
@@ -191,6 +219,14 @@ const elapsedSinceLastSuccess = computed(() => {
 })
 const effectiveRate = computed(() => {
   if (!validTimestamps.value || stale.value || !['ok', 'failed'].includes(snapshot.value?.status ?? '')) return '-'
+  if (isMultiGroup.value) {
+    const rates = declaredGroups.value.filter(group => group.status === 'active')
+      .map(effectiveMultiplier).filter((value): value is number => value != null)
+    if (rates.length === 0) return '-'
+    const min = Math.min(...rates)
+    const max = Math.max(...rates)
+    return min === max ? `${formatMultiplier(min)}x` : `${formatMultiplier(min)}x–${formatMultiplier(max)}x`
+  }
   const value = currentEffectiveRate.value
   return value == null ? '-' : `${formatMultiplier(value)}x`
 })

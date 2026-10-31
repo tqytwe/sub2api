@@ -715,7 +715,7 @@ func (s *UpstreamBillingProbeService) probeLoadedAccount(ctx context.Context, ac
 	// 指数退避——探测本身成功了，原始声明照常存进快照供展示。
 	var syncRate *float64
 	previousRate := account.BillingRateMultiplier()
-	if upstreamBillingRateSyncEnabled(account) {
+	if upstreamBillingRateSyncEnabled(account) && data["billing_mode"] != "multi_group" {
 		if value, valid := upstreamBillingProbeSyncRate(data); valid {
 			syncRate = &value
 			snapshot.SyncedRateMultiplier = &value
@@ -806,6 +806,9 @@ func parseUpstreamBillingProbeResponse(body []byte) (map[string]any, error) {
 	if err := json.Unmarshal(body, &response); err != nil {
 		return nil, err
 	}
+	if response.SchemaVersion == 2 {
+		return parseMultiGroupUpstreamBillingResponse(body)
+	}
 	if response.Object != "sub2api.key_billing" || response.SchemaVersion != 1 || response.BillingScope != "token" {
 		return nil, fmt.Errorf("unexpected billing response schema")
 	}
@@ -882,6 +885,9 @@ func parseUpstreamBillingProbeResponse(body []byte) (map[string]any, error) {
 }
 
 func upstreamBillingRateAt(data map[string]any, now time.Time) (float64, bool) {
+	if data["billing_mode"] == "multi_group" {
+		return 0, false
+	}
 	if scope, _ := data["billing_scope"].(string); scope != "token" {
 		return 0, false
 	}
@@ -920,6 +926,9 @@ func upstreamBillingRateAt(data map[string]any, now time.Time) (float64, bool) {
 // A rejected declaration leaves the current multiplier untouched; the probe
 // still records an OK snapshot carrying the raw declaration for display.
 func upstreamBillingProbeSyncRate(data map[string]any) (float64, bool) {
+	if data["billing_mode"] == "multi_group" {
+		return 0, false
+	}
 	value, ok := resolveAccountExtraNumber(data, "resolved_rate_multiplier")
 	if !ok || math.IsNaN(value) || math.IsInf(value, 0) {
 		return 0, false

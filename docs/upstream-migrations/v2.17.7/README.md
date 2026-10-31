@@ -1,5 +1,10 @@
 # v2.17.7 同步批次账本
 
+> **当前覆盖（2026-11-01，#395 后）**：生产为 `play/main@aea9be1e6508c5c319cc763c5fe058bc8d4b4aed`（PR [#395](https://github.com/tqytwe/sub2api/pull/395)），Zeabur deployment `6ae5dc8eea16512cf741cda0` 状态 `RUNNING`、实际 SHA 一致；主站和 API `/health` 均 HTTP 200。用户再次确认内容审查用户管理刷新正常，原 internal error 故障验收已通过。#395 的质量恢复、优先调度 quality round 和凭证修复已部署，不重复开发。
+> PR [#396](https://github.com/tqytwe/sub2api/pull/396) 对应上游 #479 API Key 多组，当前仍在实现/验证，**未合并、未部署**；新增迁移为 `338_api_key_groups.sql`。当前修复包括请求选组权限、WS 首帧模型/会话固定归因、分组撤销/事务回滚及前端默认组/倍率状态。PostgreSQL18.1 空库迁移及仓库/并发实测36项通过；前端全量4016通过/8跳过。完整后端普通测试/unit、最终lint（0 issues）及前后端构建已分段通过；旧失败已修复复验，新 head CI、合并与部署仍待完成；生产只读预检430条迁移，424个候选SQL中仅新338未应用、既有423个checksum全部匹配、另7条历史记录；`api_key_groups`尚不存在，事务显式ROLLBACK；本地组件截图不替代生产用户验收。正文采集/harvest、其他运行时和历史账务修数不纳入本批，`fully_migrated=false`。
+
+以下较早状态在冲突时由本段覆盖。
+
 > **2026-10-31 修复部署复核（UTC+8）**：PR [#394](https://github.com/tqytwe/sub2api/pull/394)
 > 全部 9 项 CI 检查通过，修复提交 `d99f2c8a2` 已合并至
 > `play/main@3da3cb0e953fe751b50a2f6f446e8c24a62c80b2`。
@@ -30,7 +35,7 @@
 > 完整测试、构建、PR CI、修复部署和管理员刷新复验仍在进行，**不能宣称生产缺陷已解决**。
 > 整版同步仍保持 `fully_migrated=false`；本次修复不改变正文采集/harvest 的既有阻断边界。
 
-## #394 后当前工作队列（2026-10-31）
+## #394 后工作队列（历史，已由 #395 部署覆盖）
 
 - 生产基线为上述 #394；#393 的质量/Usage/moderation/凭证能力已上线，不沿用下方“候选未部署”的历史叙述。
 - 数据库新证据：生产 ledger **429** 条、当前源码 SQL **422** 个，缺失 **0**、checksum 差异 **0**，历史额外记录 **7**；296/298/301/320/334 与目标表/索引均在；只读事务显式 ROLLBACK。

@@ -7,6 +7,8 @@ import KeysView from '../KeysView.vue'
 
 const {
   listKeys,
+  createKey,
+  updateKey,
   getPublicSettings,
   getDashboardApiKeysUsage,
   getAvailableGroups,
@@ -21,6 +23,8 @@ const {
   authUser,
 } = vi.hoisted(() => ({
   listKeys: vi.fn(),
+  createKey: vi.fn(),
+  updateKey: vi.fn(),
   getPublicSettings: vi.fn(),
   getDashboardApiKeysUsage: vi.fn(),
   getAvailableGroups: vi.fn(),
@@ -80,8 +84,8 @@ const messages: Record<string, string> = {
 vi.mock('@/api', () => ({
   keysAPI: {
     list: listKeys,
-    create: vi.fn(),
-    update: vi.fn(),
+    create: createKey,
+    update: updateKey,
     delete: vi.fn(),
     toggleStatus: vi.fn(),
   },
@@ -209,6 +213,8 @@ const DataTableStub = {
           <slot name="cell-id" :value="row.id" :row="row" />
         </div>
         <slot name="cell-name" :value="row.name" :row="row" />
+        <slot name="cell-group" :row="row" />
+        <slot name="cell-actions" :row="row" />
         <div data-test="current-concurrency">
           <slot name="cell-current_concurrency" :value="row.current_concurrency" :row="row" />
         </div>
@@ -263,7 +269,10 @@ const mountView = async () => {
         TablePageLayout: TablePageLayoutStub,
         DataTable: DataTableStub,
         Pagination: PaginationStub,
-        BaseDialog: true,
+        BaseDialog: {
+          props: ['show'],
+          template: '<div v-if="show"><slot /><slot name="footer" /></div>',
+        },
         ConfirmDialog: true,
         EmptyState: true,
         Select: SelectStub,
@@ -300,6 +309,8 @@ describe('user KeysView column settings', () => {
   beforeEach(() => {
     localStorage.clear()
 
+    createKey.mockReset().mockResolvedValue(createApiKey())
+    updateKey.mockReset().mockResolvedValue(createApiKey())
     listKeys.mockReset()
     getPublicSettings.mockReset()
     getDashboardApiKeysUsage.mockReset()
@@ -327,6 +338,67 @@ describe('user KeysView column settings', () => {
     getUserGroupRates.mockResolvedValue({})
     getCheckoutInfo.mockResolvedValue({ data: { plans: [] } })
     isCurrentStep.mockReturnValue(false)
+  })
+
+  const availableGroups = (count = 3) => Array.from({ length: count }, (_, index) => ({
+    id: index + 1, name: `Group ${index + 1}`, platform: 'openai', rate_multiplier: 1,
+    subscription_type: 'standard', status: 'active',
+  }))
+
+  it('creates a key with the default group first and the checked additional groups', async () => {
+    getAvailableGroups.mockResolvedValue(availableGroups())
+    const wrapper = await mountView()
+    await getButtonByText(wrapper, 'Create API Key').trigger('click')
+    await wrapper.get('[data-tour="key-form-name"]').setValue('multi')
+    wrapper.getComponent('[data-tour="key-form-group"]').vm.$emit('update:modelValue', 1)
+    await nextTick()
+    await wrapper.get('[data-testid="key-additional-groups"] input[value="2"]').setValue(true)
+    await wrapper.get('#key-form').trigger('submit')
+    await flushPromises()
+    expect(createKey).toHaveBeenCalledOnce()
+    expect(createKey.mock.calls[0]?.[1]).toBe(1)
+    expect(createKey.mock.calls[0]?.[8]).toEqual([1, 2])
+  })
+
+  it('preserves bindings when changing the default group and avoids double counting the new default', async () => {
+    getAvailableGroups.mockResolvedValue(availableGroups(21))
+    listKeys.mockResolvedValue({ items: [{ ...createApiKey(), group_id: 1, group_ids: Array.from({ length: 20 }, (_, i) => i + 1) }], total: 1 })
+    const wrapper = await mountView()
+    await getButtonByText(wrapper, 'keys.multiGroupCount').trigger('click')
+    wrapper.getComponent('[data-tour="key-form-group"]').vm.$emit('update:modelValue', 2)
+    await nextTick()
+    // The former default stays bound and can be removed to make room for another group.
+    const formerDefault = wrapper.get('[data-testid="key-additional-groups"] input[value="1"]')
+    expect((formerDefault.element as HTMLInputElement).checked).toBe(true)
+    await formerDefault.setValue(false)
+    const lastGroup = wrapper.get('[data-testid="key-additional-groups"] input[value="21"]')
+    expect((lastGroup.element as HTMLInputElement).disabled).toBe(false)
+    await lastGroup.setValue(true)
+    await wrapper.get('#key-form').trigger('submit')
+    await flushPromises()
+    expect(updateKey).toHaveBeenCalledOnce()
+    expect(updateKey.mock.calls[0]?.[1].group_ids).toEqual([2, ...Array.from({ length: 18 }, (_, i) => i + 3), 21])
+  })
+
+  it('replaces the default at the twenty-group limit when choosing an unbound group', async () => {
+    getAvailableGroups.mockResolvedValue(availableGroups(21))
+    listKeys.mockResolvedValue({ items: [{ ...createApiKey(), group_id: 1, group_ids: Array.from({ length: 20 }, (_, i) => i + 1) }], total: 1 })
+    const wrapper = await mountView()
+    await getButtonByText(wrapper, 'keys.multiGroupCount').trigger('click')
+    wrapper.getComponent('[data-tour="key-form-group"]').vm.$emit('update:modelValue', 21)
+    await nextTick()
+    await wrapper.get('#key-form').trigger('submit')
+    await flushPromises()
+    expect(updateKey.mock.calls[0]?.[1].group_ids).toEqual([21, ...Array.from({ length: 19 }, (_, i) => i + 2)])
+  })
+
+  it('disables a twenty-first group while allowing existing selections to be removed', async () => {
+    getAvailableGroups.mockResolvedValue(availableGroups(21))
+    listKeys.mockResolvedValue({ items: [{ ...createApiKey(), group_id: 1, group_ids: Array.from({ length: 20 }, (_, i) => i + 1) }], total: 1 })
+    const wrapper = await mountView()
+    await getButtonByText(wrapper, 'keys.multiGroupCount').trigger('click')
+    expect((wrapper.get('[data-testid="key-additional-groups"] input[value="21"]').element as HTMLInputElement).disabled).toBe(true)
+    expect((wrapper.get('[data-testid="key-additional-groups"] input[value="20"]').element as HTMLInputElement).disabled).toBe(false)
   })
 
   it('uses the default API key columns with low-frequency columns hidden', async () => {

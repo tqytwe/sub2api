@@ -213,6 +213,7 @@ type APIKeyAuthCacheInvalidator interface {
 // CreateAPIKeyRequest 创建API Key请求
 type CreateAPIKeyRequest struct {
 	Name        string   `json:"name"`
+	GroupIDs    []int64  `json:"group_ids"`
 	GroupID     *int64   `json:"group_id"`
 	CustomKey   *string  `json:"custom_key"`   // 可选的自定义key
 	IPWhitelist []string `json:"ip_whitelist"` // IP 白名单
@@ -231,6 +232,7 @@ type CreateAPIKeyRequest struct {
 // UpdateAPIKeyRequest 更新API Key请求
 type UpdateAPIKeyRequest struct {
 	Name        *string   `json:"name"`
+	GroupIDs    *[]int64  `json:"group_ids"`
 	GroupID     *int64    `json:"group_id"`
 	Status      *string   `json:"status"`
 	IPWhitelist *[]string `json:"ip_whitelist"` // IP 白名单（nil 不修改，空数组清空）
@@ -288,6 +290,7 @@ type RateLimitCacheInvalidator interface {
 type APIKeyService struct {
 	apiKeyRepo                APIKeyRepository
 	userRepo                  UserRepository
+	groupRouter               APIKeyGroupRouter
 	groupRepo                 GroupRepository
 	userSubRepo               UserSubscriptionRepository
 	userGroupRateRepo         UserGroupRateRepository
@@ -481,6 +484,9 @@ func (s *APIKeyService) incrementAPIKeyErrorCount(ctx context.Context, userID in
 func (s *APIKeyService) canUserBindGroup(ctx context.Context, user *User, group *Group) bool {
 	// 订阅类型分组：需要有效订阅
 	if group.IsSubscriptionType() {
+		if s.userSubRepo == nil {
+			return false
+		}
 		_, err := s.userSubRepo.GetActiveByUserIDAndGroupID(ctx, user.ID, group.ID)
 		return err == nil // 有有效订阅则允许
 	}
@@ -492,6 +498,11 @@ func (s *APIKeyService) canUserBindGroup(ctx context.Context, user *User, group 
 // This protects keys that were bound before an administrator narrowed the user's
 // public-group access. Subscription groups keep their existing entitlement flow.
 func validateAPIKeyBoundGroupAccess(apiKey *APIKey) error {
+	// Multi-group credentials authenticate identity here; every candidate grant
+	// is checked by SelectRequestGroup before a model request is admitted.
+	if len(apiKey.ConfiguredGroupIDs()) > 1 {
+		return nil
+	}
 	if apiKey == nil || apiKey.GroupID == nil || *apiKey.GroupID <= 0 {
 		return nil
 	}
@@ -532,19 +543,16 @@ func (s *APIKeyService) Create(ctx context.Context, userID int64, req CreateAPIK
 		}
 	}
 
-	// 验证分组权限（如果指定了分组）
-	if req.GroupID != nil {
-		group, err := s.groupRepo.GetByID(ctx, *req.GroupID)
-		if err != nil {
-			return nil, fmt.Errorf("get group: %w", err)
-		}
-
-		// 检查用户是否可以绑定该分组
-		if !s.canUserBindGroup(ctx, user, group) {
-			return nil, ErrGroupNotAllowed
-		}
+	groupIDs, err := normalizeAPIKeyGroupIDs(req.GroupID, req.GroupIDs)
+	if err != nil {
+		return nil, err
 	}
-
+	if err := s.validateAPIKeyGroups(ctx, user, groupIDs); err != nil {
+		return nil, err
+	}
+	if len(groupIDs) > 0 {
+		req.GroupID = &groupIDs[0]
+	}
 	var key string
 
 	// 判断是否使用自定义Key
@@ -589,6 +597,7 @@ func (s *APIKeyService) Create(ctx context.Context, userID int64, req CreateAPIK
 		UserID:      userID,
 		Key:         key,
 		Name:        html.EscapeString(req.Name),
+		GroupIDs:    groupIDs,
 		GroupID:     req.GroupID,
 		Status:      StatusActive,
 		IPWhitelist: req.IPWhitelist,
@@ -857,23 +866,28 @@ func (s *APIKeyService) Update(ctx context.Context, id int64, userID int64, req 
 		fields.Name = true
 	}
 
-	if req.GroupID != nil {
-		// 验证分组权限
+	if req.GroupID != nil || req.GroupIDs != nil {
 		user, err := s.userRepo.GetByID(ctx, userID)
 		if err != nil {
 			return nil, fmt.Errorf("get user: %w", err)
 		}
-
-		group, err := s.groupRepo.GetByID(ctx, *req.GroupID)
+		var requested []int64
+		if req.GroupIDs != nil {
+			requested = *req.GroupIDs
+		}
+		ids, err := normalizeAPIKeyGroupIDs(req.GroupID, requested)
 		if err != nil {
-			return nil, fmt.Errorf("get group: %w", err)
+			return nil, err
 		}
-
-		if !s.canUserBindGroup(ctx, user, group) {
-			return nil, ErrGroupNotAllowed
+		if err := s.validateAPIKeyGroups(ctx, user, ids); err != nil {
+			return nil, err
 		}
-
-		apiKey.GroupID = req.GroupID
+		apiKey.GroupIDs = ids
+		apiKey.GroupID = nil
+		apiKey.Group = nil
+		if len(ids) > 0 {
+			apiKey.GroupID = &ids[0]
+		}
 		fields.GroupID = true
 	}
 

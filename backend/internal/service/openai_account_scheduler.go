@@ -2641,17 +2641,24 @@ func cloneExcludedAccountIDs(excludedIDs map[int64]struct{}) map[int64]struct{} 
 }
 
 func (s *OpenAIGatewayService) isOpenAIAccountTransportCompatible(account *Account, requiredTransport OpenAIUpstreamTransport) bool {
+	if s == nil {
+		return requiredTransport == OpenAIUpstreamTransportAny || requiredTransport == OpenAIUpstreamTransportHTTPSSE
+	}
+	return openAIAccountTransportCompatible(s.cfg, s.getOpenAIWSProtocolResolver(), account, requiredTransport)
+}
+
+func openAIAccountTransportCompatible(cfg *config.Config, resolver OpenAIWSProtocolResolver, account *Account, requiredTransport OpenAIUpstreamTransport) bool {
 	if requiredTransport == OpenAIUpstreamTransportAny || requiredTransport == OpenAIUpstreamTransportHTTPSSE {
 		return true
 	}
-	if s == nil || account == nil {
+	if account == nil {
 		return false
 	}
 	if requiredTransport == OpenAIUpstreamTransportResponsesWebsocketV2Ingress {
-		if s.cfg == nil || !s.cfg.Gateway.OpenAIWS.ModeRouterV2Enabled {
-			return s.getOpenAIWSProtocolResolver().Resolve(account).Transport == OpenAIUpstreamTransportResponsesWebsocketV2
+		if cfg == nil || !cfg.Gateway.OpenAIWS.ModeRouterV2Enabled {
+			return resolver.Resolve(account).Transport == OpenAIUpstreamTransportResponsesWebsocketV2
 		}
-		mode := account.ResolveOpenAIResponsesWebSocketV2Mode(s.cfg.Gateway.OpenAIWS.IngressModeDefault)
+		mode := account.ResolveOpenAIResponsesWebSocketV2Mode(cfg.Gateway.OpenAIWS.IngressModeDefault)
 		switch mode {
 		case OpenAIWSIngressModeCtxPool, OpenAIWSIngressModePassthrough, OpenAIWSIngressModeHTTPBridge, OpenAIWSIngressModeShared, OpenAIWSIngressModeDedicated:
 			return true
@@ -2659,7 +2666,7 @@ func (s *OpenAIGatewayService) isOpenAIAccountTransportCompatible(account *Accou
 			return false
 		}
 	}
-	return s.getOpenAIWSProtocolResolver().Resolve(account).Transport == requiredTransport
+	return resolver.Resolve(account).Transport == requiredTransport
 }
 
 func (s *OpenAIGatewayService) ReportOpenAIAccountScheduleResult(account *Account, model string, success bool, firstTokenMs *int, observedErr ...error) bool {

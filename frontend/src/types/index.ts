@@ -791,6 +791,7 @@ export interface ApiKey {
   user_id: number
   key: string
   name: string
+  group_ids?: number[]
   group_id: number | null
   status: 'active' | 'inactive' | 'quota_exhausted' | 'expired'
   ip_whitelist: string[]
@@ -820,6 +821,7 @@ export interface ApiKey {
 
 export interface CreateApiKeyRequest {
   name: string
+  group_ids?: number[]
   group_id?: number | null
   custom_key?: string // Optional custom API Key
   ip_whitelist?: string[]
@@ -833,6 +835,7 @@ export interface CreateApiKeyRequest {
 
 export interface UpdateApiKeyRequest {
   name?: string
+  group_ids?: number[]
   group_id?: number | null
   status?: 'active' | 'inactive'
   ip_whitelist?: string[]
@@ -1106,7 +1109,7 @@ export interface TempUnschedulableStatus {
   state?: TempUnschedulableState
 }
 
-export interface UpstreamBillingData {
+export interface UpstreamBillingRateData {
   object: 'sub2api.key_billing'
   schema_version: 1
   billing_scope: 'token'
@@ -1122,6 +1125,26 @@ export interface UpstreamBillingData {
   timezone?: string
   observed_at: string
 }
+
+export interface UpstreamBillingGroupData extends UpstreamBillingRateData {
+  group_id: number
+  group_name: string
+  platform: string
+  status: 'active' | 'disabled' | 'inactive'
+}
+
+export interface UpstreamBillingMultiGroupData {
+  object: 'sub2api.key_billing'
+  schema_version: 2
+  billing_scope: 'token'
+  billing_mode: 'multi_group'
+  min_rate_multiplier: number
+  max_rate_multiplier: number
+  groups: UpstreamBillingGroupData[]
+  observed_at: string
+}
+
+export type UpstreamBillingData = UpstreamBillingRateData | UpstreamBillingMultiGroupData
 
 export type UpstreamBillingProbeStatus = 'ok' | 'unsupported' | 'failed'
 

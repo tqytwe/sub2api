@@ -168,14 +168,18 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 			AbortWithError(c, 401, "USER_INACTIVE", "User account is not active")
 			return
 		}
+		apiKey, err = selectAPIKeyRequestGroup(c, apiKeyService, subscriptionService, cfg, apiKey, false)
+		if err != nil || c.IsAborted() {
+			return
+		}
 		if err := requestledger.BindIdentity(c.Request.Context(), apiKey.User.ID, apiKey.ID); err != nil {
 			requestledger.Reject(c)
 			return
 		}
-		if abortIfAPIKeyGroupUnavailable(c, apiKey) {
+		if !hasDeferredAPIKeyRequestGroup(c) && !isMultiGroupBillingInfoRequest(c, apiKey) && abortIfAPIKeyGroupUnavailable(c, apiKey) {
 			return
 		}
-		if abortIfAPIKeyGroupNotAllowed(c, apiKey) {
+		if !hasDeferredAPIKeyRequestGroup(c) && !isMultiGroupBillingInfoRequest(c, apiKey) && abortIfAPIKeyGroupNotAllowed(c, apiKey) {
 			return
 		}
 		ctx := context.WithValue(c.Request.Context(), ctxkey.UserID, apiKey.User.ID)
@@ -209,7 +213,7 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 		isSubscriptionType := apiKey.Group != nil && apiKey.Group.IsSubscriptionType()
 
 		// 倍率自省不需要订阅数据；/v1/usage 仍保留原有订阅读取行为。
-		if isSubscriptionType && subscriptionService != nil && !billingInfoRequest {
+		if isSubscriptionType && subscriptionService != nil && !billingInfoRequest && !hasDeferredAPIKeyRequestGroup(c) {
 			sub, subErr := subscriptionService.GetActiveSubscription(
 				c.Request.Context(),
 				apiKey.User.ID,
@@ -258,7 +262,9 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 			}
 
 			// 订阅模式：验证订阅限额
-			if subscription != nil {
+			if hasDeferredAPIKeyRequestGroup(c) {
+				// Group billing admission runs after the first WS model is known.
+			} else if subscription != nil {
 				needsMaintenance, validateErr := subscriptionService.ValidateAndCheckLimits(subscription, apiKey.Group)
 				if needsMaintenance {
 					refreshed, maintenanceErr := subscriptionService.EnsureWindowMaintenance(c.Request.Context(), subscription)

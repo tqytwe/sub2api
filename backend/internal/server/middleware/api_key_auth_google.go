@@ -125,6 +125,10 @@ func APIKeyAuthWithSubscriptionGoogle(apiKeyService *service.APIKeyService, subs
 			abortWithGoogleError(c, 401, "User account is not active")
 			return
 		}
+		apiKey, err = selectAPIKeyRequestGroup(c, apiKeyService, subscriptionService, cfg, apiKey, true)
+		if err != nil || c.IsAborted() {
+			return
+		}
 		if err := requestledger.BindIdentity(c.Request.Context(), apiKey.User.ID, apiKey.ID); err != nil {
 			requestledger.Reject(c)
 			return

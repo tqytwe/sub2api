@@ -14,8 +14,8 @@
 | 共同祖先 | `efe9aab1e4ec89a42ba45e8dac20e882c5409a6a` | 上游共同祖先源码版本为 `0.2.5` |
 | 本地差异分析基线 | `526f09d36fa4d0a69af823fec2fc5a9ed495193f` | `source-lock.json.analysis_base`；供 Fork 对目标 tag 的差异报告使用，不替代上游共同祖先 |
 | 上游范围 | 2,155 commits、446 个 first-parent merge、3,809 个路径变化 | 这是审查范围，不是待搬运文件数 |
-| 已核实生产部署 | `play/main@3da3cb0e953fe751b50a2f6f446e8c24a62c80b2` | PR #394；Zeabur deployment `6ae5a1eaea16512cf741c89b`，构建完成且 RUNNING；首页/health 200；源码仍为 Fork `0.2.14` |
-| 当前候选分支 | `codex/v2177-post394-20261031` | 从当前生产 #394 隔离；质量恢复/历史与凭证安全读出修复累计开发中，未提交/未推送；#393 的累计功能已部署，不能重复列为未发布 |
+| 已核实生产部署 | `play/main@aea9be1e6508c5c319cc763c5fe058bc8d4b4aed` | PR #395；Zeabur deployment `6ae5dc8eea16512cf741cda0`，构建完成且 RUNNING；首页/health 200；源码仍为 Fork `0.2.14` |
+| 当前候选分支 | `codex/api-key-multi-group-20261031` / PR #396 | 从已部署 #395 隔离，API Key 多组本地测试/lint/build及PostgreSQL实测已通过；新head CI、合并/部署待完成 |
 | 当前整版状态 | `fully_migrated=false` | 不能用健康检查、单元测试或一次部署成功替代功能闭环 |
 
 生产基线、上游 tag、候选分支和本地远端引用必须在每次发布前分别记录。若线上实际部署 SHA 已变化，先更新本表和证据，再重新计算下面所有状态。
@@ -129,7 +129,7 @@
 ### P1：按产品范围立项的整包功能
 
 - [x] 只读差异核对：#562 token rotation 已由 Fork 的 session generation、跨标签页刷新协调和成对持久化等价实现，不重复开发；#504 是连接诊断，不是分组倍率。
-- [ ] 后续真实缺口已定位但未纳入本批：#479 API key 多组绑定/择组/计费快照；#567 用户与 Key 的上传/下载字节计量、游标报表和异步汇总；#504 连接诊断查询与可选 edge collector；#570 model/group-scoped multiplier。均需产品范围、保留期限和计费兼容评审后立项。
+- [ ] 本批 #479 API key 多组绑定/择组/计费快照已进入 PR #396，迁移338，测试/发布待完成。其余未纳入本批：#567 用户与 Key 的上传/下载字节计量、游标报表和异步汇总；#504 连接诊断查询与可选 edge collector；#570 model/group-scoped multiplier。均需产品范围、保留期限和计费兼容评审后立项。
 
 - [ ] **BPS/Excel OAuth**：认证、能力发现、工具目录、图片/附件限制、proxy、rate-limit、history、worker、重登、错误分类、计费和前端开关。
 - [ ] **Pelican**：账号/模型 eligibility、scheduled/group tests、结果 API、成本、展示、历史分页、CSP/nonce 和失败恢复。

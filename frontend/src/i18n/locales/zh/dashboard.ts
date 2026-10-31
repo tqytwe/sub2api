@@ -132,6 +132,9 @@ export default {
       other: '包含 Gemini、Grok、Antigravity、OpenCode 和混合分组'
     },
     selectGroup: '选择分组',
+    additionalGroups: '附加分组',
+    multiGroupHint: '可为同一个 API Key 绑定多个分组，系统按请求选择可用分组。最多 20 个。',
+    multiGroupCount: '已绑定 {count} 个分组',
     statusLabel: '状态',
     selectStatus: '选择状态',
     saving: '保存中...',

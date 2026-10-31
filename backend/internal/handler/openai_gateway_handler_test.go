@@ -1930,6 +1930,7 @@ func newOpenAIWSHandlerTestServer(t *testing.T, h *OpenAIGatewayHandler, subject
 }
 
 type openAIResponsesWSUsageLogCase struct {
+	setupContext            func(*gin.Context)
 	upstreamEvent           func(turn int, model string) string
 	allowUpstreamRetirement bool
 	httpUpstream            service.HTTPUpstream
@@ -3090,6 +3091,9 @@ func runOpenAIResponsesWebSocketUsageLogCase(t *testing.T, tc openAIResponsesWSU
 	router.Use(func(c *gin.Context) {
 		c.Set(string(middleware.ContextKeyAPIKey), apiKey)
 		c.Set(string(middleware.ContextKeyUser), middleware.AuthSubject{UserID: apiKey.User.ID, Concurrency: 1})
+		if tc.setupContext != nil {
+			tc.setupContext(c)
+		}
 		c.Next()
 	})
 	router.GET("/openai/v1/responses", h.ResponsesWebSocket)
