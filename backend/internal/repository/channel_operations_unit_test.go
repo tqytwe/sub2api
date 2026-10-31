@@ -54,7 +54,7 @@ func TestChannelOperationsCatalogReturnsEligibleAndRetiredMembership(t *testing.
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
-func TestReadChannelOperationsUsesPersistedSourcesAndMarksQualityUnsupported(t *testing.T) {
+func TestReadChannelOperationsUsesPersistedQualityHistory(t *testing.T) {
 	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherRegexp))
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = db.Close() })
@@ -64,6 +64,9 @@ func TestReadChannelOperationsUsesPersistedSourcesAndMarksQualityUnsupported(t *
 	mock.ExpectQuery(`(?s)WITH base AS .*usage_logs u.*first_token_ms.*model_mapping_chain.*`+regexp.QuoteMeta(`'error_rate',NULL`)).
 		WithArgs(from, until, int64(7), int64(0), int64(0), int64(0), "", "public", 20, 0).
 		WillReturnRows(sqlmock.NewRows([]string{"jsonb_build_object"}).AddRow([]byte(`{"source":"usage_logs.channel_id / persisted first_token_ms","summary":{}}`)))
+	mock.ExpectQuery(`(?s)WITH scoped AS .*scheduled_test_results.*quality_judgment.*round_integrity.*'has_more'`).
+		WithArgs(from, until, int64(7), int64(0), int64(0), int64(0), "", int64(0), 20).
+		WillReturnRows(sqlmock.NewRows([]string{"jsonb_build_object"}).AddRow([]byte(`{"source":"scheduled_test_results: frozen config / judgment / plan+round+model","summary":{"rounds":0}}`)))
 	mock.ExpectQuery(`(?s)WITH scoped AS .*FROM ops_error_logs e.*is_count_tokens.*'error_rate',NULL`).
 		WithArgs(from, until, int64(7), int64(0), int64(0), int64(0), "", "public").
 		WillReturnRows(sqlmock.NewRows([]string{"jsonb_build_object"}).AddRow([]byte(`{"source":"ops_error_logs","error_rate":null}`)))
@@ -77,12 +80,38 @@ func TestReadChannelOperationsUsesPersistedSourcesAndMarksQualityUnsupported(t *
 	})
 	require.Equal(t, "ready", got.Usage.Status)
 	require.Contains(t, string(got.Usage.Data), "first_token_ms")
-	require.Equal(t, "unsupported_scope", got.Quality.Status)
-	require.Contains(t, got.Quality.Error, "不能将普通定时测试结果解释为质量结论")
+	require.Equal(t, "ready", got.Quality.Status)
+	require.Contains(t, string(got.Quality.Data), "scheduled_test_results")
 	require.Equal(t, "ready", got.Errors.Status)
 	require.Contains(t, string(got.Errors.Data), `"error_rate":null`)
 	require.Equal(t, "ready", got.Capacity.Status)
 	require.Contains(t, string(got.Capacity.Data), "configured_concurrency")
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestReadChannelOperationsRejectsUnsupportedQualityModelScope(t *testing.T) {
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherRegexp))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+
+	from := time.Now().Add(-time.Hour).UTC().Truncate(time.Second)
+	until := from.Add(time.Hour)
+	mock.ExpectQuery(`(?s)WITH base AS .*usage_logs u.*first_token_ms.*model_mapping_chain.*`+regexp.QuoteMeta(`'error_rate',NULL`)).
+		WithArgs(from, until, int64(7), int64(0), int64(0), int64(0), "public-model", "public", 20, 0).
+		WillReturnRows(sqlmock.NewRows([]string{"jsonb_build_object"}).AddRow([]byte(`{"summary":{}}`)))
+	mock.ExpectQuery(`(?s)WITH scoped AS .*FROM ops_error_logs e.*is_count_tokens.*'error_rate',NULL`).
+		WithArgs(from, until, int64(7), int64(0), int64(0), int64(0), "public-model", "public").
+		WillReturnRows(sqlmock.NewRows([]string{"jsonb_build_object"}).AddRow([]byte(`{"error_rate":null}`)))
+	mock.ExpectQuery(`(?s)SELECT jsonb_build_object\('source','accounts current configuration'.*configured_concurrency.*FROM accounts a`).
+		WithArgs(int64(7), int64(0), int64(0), int64(0)).
+		WillReturnRows(sqlmock.NewRows([]string{"jsonb_build_object"}).AddRow([]byte(`{"configured_concurrency":0}`)))
+
+	got := (&channelRepository{db: db}).ReadChannelOperations(context.Background(), service.ChannelOperationsFilter{
+		ChannelID: 7, From: from, Until: until, Model: "public-model", ModelScope: "public", Dimension: "channel", Page: 1, PageSize: 20,
+	})
+	require.Equal(t, "unsupported_scope", got.Quality.Status)
+	require.JSONEq(t, "null", string(got.Quality.Data))
+	require.Contains(t, got.Quality.Error, "不能推断公开或已记录模型别名")
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 

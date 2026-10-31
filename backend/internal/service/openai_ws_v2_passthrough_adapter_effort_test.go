@@ -44,3 +44,23 @@ func TestWSPassthroughUsageMeta_UpdateFromResponseCreate_MappedModelCandidate(t 
 	require.NotNil(t, got)
 	require.Equal(t, "max", *got, "mapped model should preserve max on multi-turn update")
 }
+
+func TestOpenAIWSPassthroughIsPrioritySemanticOutput(t *testing.T) {
+	tests := []struct {
+		name    string
+		payload string
+		want    bool
+	}{
+		{name: "content delta", payload: `{"type":"response.output_text.delta","delta":"hello"}`, want: true},
+		{name: "useful added item", payload: `{"type":"response.output_item.added","item":{"type":"message","content":[{"type":"output_text","text":"hello"}]}}`, want: true},
+		{name: "created metadata", payload: `{"type":"response.created"}`},
+		{name: "empty delta", payload: `{"type":"response.output_text.delta","delta":""}`},
+		{name: "terminal completion", payload: `{"type":"response.completed"}`},
+		{name: "terminal failure", payload: `{"type":"response.failed"}`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.want, openAIWSPassthroughIsPrioritySemanticOutput([]byte(tt.payload)))
+		})
+	}
+}

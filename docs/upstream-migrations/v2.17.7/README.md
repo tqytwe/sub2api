@@ -1,11 +1,13 @@
 # v2.17.7 同步批次账本
 
-> **#396 发布后复核（2026-11-01 UTC+8）**：新 head `f09b7230fce899370db56f4e98350e15ed1ee8a6` 的9项CI全部通过，已普通merge至 `play/main@73f9ba38b4d61ad5a0e0ac05ab2004d4c9775444`，与受测head源码一致。Zeabur deployment `6ae61c6cea16512cf741d279` 的SHA一致，构建镜像导出完成、`finishedAt=2026-10-31T16:56:01.268Z`、RUNNING，主站/API health200。数据库只读复核431条ledger，424个当前SQL全部匹配、7条历史；338表/主键/2外键/索引存在，invalid indexes=0，事务ROLLBACK。最近100行应用日志ERROR/FATAL/PANIC为0，WARN为缺少审核API Key；CLI有限窗口不证明全启动日志无异常。Keys接口一次探测超时后主站/API重查均401，其余未认证接口401。技术部署核验通过，本批Key与管理员倍率的本机浏览器验收仍待完成；内容审查刷新已由用户确认，不重验。完整正文/harvest继续阻断，`fully_migrated=false`。详细证据和剩余验收见 [PR #396](https://github.com/tqytwe/sub2api/pull/396)。本段为发布后本地补记，随下一批累计提交，不为文档再次部署。
+> **#397 当前生产状态（2026-11-01 UTC+8）**：PR head `70524682fd0b27de9fb7fd2dbc474906a86a362f` 已通过9项CI并合并为 `play/main@f7193d639980840ae9fad66376355f4243d82a35`；Zeabur deployment `6ae634e9ea16512cf741d3ca` SHA一致、RUNNING，主站/API health 200。生产 migration ledger 431条，424个当前SQL checksum匹配、7条历史记录，本批无schema迁移。用户确认内容审查用户管理刷新正常；#397多模型/重复probe管理员验收、#396 Key/倍率验收和账务历史归因仍待完成。账务只读聚合与匹配证据见[开发清单](./DEVELOPMENT_CHECKLIST.md)；无生产写操作。`fully_migrated=false`，正文采集/harvest和#492全文审计继续阻断。
+
+> **#396 历史发布复核（由 #397 覆盖）**：新 head `f09b7230fce899370db56f4e98350e15ed1ee8a6` 的9项CI全部通过，已普通merge至 `play/main@73f9ba38b4d61ad5a0e0ac05ab2004d4c9775444`，与受测head源码一致。Zeabur deployment `6ae61c6cea16512cf741d279` 的SHA一致，构建镜像导出完成、`finishedAt=2026-10-31T16:56:01.268Z`、RUNNING，主站/API health200。数据库只读复核431条ledger，424个当前SQL全部匹配、7条历史；338表/主键/2外键/索引存在，invalid indexes=0，事务ROLLBACK。最近100行应用日志ERROR/FATAL/PANIC为0，WARN为缺少审核API Key；CLI有限窗口不证明全启动日志无异常。Keys接口一次探测超时后主站/API重查均401，其余未认证接口401。技术部署核验通过，本批Key与管理员倍率的本机浏览器验收仍待完成；内容审查刷新已由用户确认，不重验。完整正文/harvest继续阻断，`fully_migrated=false`。详细证据和剩余验收见 [PR #396](https://github.com/tqytwe/sub2api/pull/396)。本段为发布后本地补记，随下一批累计提交，不为文档再次部署。
 
 > **#395 历史部署记录（由首段#396覆盖）**：生产为 `play/main@aea9be1e6508c5c319cc763c5fe058bc8d4b4aed`（PR [#395](https://github.com/tqytwe/sub2api/pull/395)），Zeabur deployment `6ae5dc8eea16512cf741cda0` 状态 `RUNNING`、实际 SHA 一致；主站和 API `/health` 均 HTTP 200。用户再次确认内容审查用户管理刷新正常，原 internal error 故障验收已通过。#395 的质量恢复、优先调度 quality round 和凭证修复已部署，不重复开发。
 > PR [#396](https://github.com/tqytwe/sub2api/pull/396) 对应上游 #479 API Key多组，现已合并、部署并完成338表/约束/索引核验；当时“338未应用、候选待CI”的预发布记录已由首段生产证据覆盖。Key/倍率本机验收仍待完成。
 
-当前新增候选为 `codex/quality-multiprobe-20261101`，质量多模型/重复probe与整轮持久化/历史/Priority归因已完成适用定向/全量测试和构建；最后guard修正后完整后端普通测试/lint、unit与embed构建再次通过，普通连通性规则保持原模型语义。组合证据及源码轮次以[开发清单第5节](./DEVELOPMENT_CHECKLIST.md#5-统一验收和发布门禁)为准；最终Fork已通过，提交后strict、PR CI、部署与本机验收待办。以下历史段落不代表当前状态。
+当前生产已包含质量多模型/重复probe、整轮持久化/历史和Priority逐模型归因（PR #397）。开发分支 `codex/quality-multiprobe-20261101` 是已合并的交付分支，不是候选；剩真实管理员验收。下一批按下方工作矩阵和[开发清单](./DEVELOPMENT_CHECKLIST.md)继续，不单独发布文档更新。以下历史段落不代表当前状态。
 
 > **2026-10-31 #394 历史修复部署复核（UTC+8，当前生产见首段）**：PR [#394](https://github.com/tqytwe/sub2api/pull/394)
 > 全部 9 项 CI 检查通过，修复提交 `d99f2c8a2` 已合并至
@@ -51,7 +53,7 @@
 
 下方明确标注“历史”的段落只保留审计过程；当前状态以首段及当前表为准。
 
-状态：`deployed-partial / migration-incomplete`。截至#396已部署部分同步能力，`fully_migrated=false`继续有效。当前生产以首段及下表为准；文末10月29日采样仅保留审计历史，不覆盖新部署。
+状态：`deployed-partial / migration-incomplete`。截至#397已部署部分同步能力，`fully_migrated=false`继续有效。当前生产以首段及下表为准；文末10月29日采样仅保留审计历史，不覆盖新部署。
 
 本目标是版本功能同步，不能以 v2.17.7 release notes 的末尾修复代替完整差异盘点。生产与上游源码的共同祖先为 `efe9aab1e4ec89a42ba45e8dac20e882c5409a6a`（上游 `0.2.5`）；上游从该点至目标 tag 有 2,155 个提交、446 个 first-parent merge，按共同祖先直接比较有 3,809 个路径变化。以上数字只界定审查范围，不表示需要照搬这些提交或文件。Fork 自有实现必须逐项保留/映射；仅纳入相关产品能力和必要安全兼容修复。
 
@@ -65,22 +67,22 @@
 | Release commit | `9620d315f72a7dbf04fa10fca02970e1e410805e` |
 | 上游共同祖先 | `efe9aab1e4ec89a42ba45e8dac20e882c5409a6a` (`0.2.5`) |
 | 历史生产分析基线 | `origin/play/main@21dd9af2239c2c7f8259e41e31e21156131622b4`（PR #392；不代表当前线上） |
-| 当前已核实生产 | `play/main@73f9ba38b4d61ad5a0e0ac05ab2004d4c9775444`（PR #396；2026-11-01复核） |
+| 当前已核实生产 | `play/main@f7193d639980840ae9fad66376355f4243d82a35`（PR #397；2026-11-01复核） |
 | fully migrated | `false` |
 
 ## 已发布批次与整版状态
 
 | 检查项 | 当前证据 | 结论 |
 |---|---|---|
-| 合并/部署 | #396 merge `73f9ba38b4d61ad5a0e0ac05ab2004d4c9775444`；Zeabur deployment `6ae61c6cea16512cf741d279` SHA一致、构建完成、RUNNING | 当前生产，详情见首段 |
-| 运行态/CI | 主站/API health200；#396受测head九项CI通过，最近100行无ERROR/FATAL/PANIC | 不覆盖当前多模型候选或完整部署窗口 |
-| 管理员闭环 | 内容审查列表刷新再次由用户确认正常；Usage反馈正常 | 其他真实写动作、Key/倍率验收保留待办，不重复已确认项 |
-| 数据库生产账本 | 431条ledger，424个当前SQL均已应用且checksum一致，7条历史；337/338已应用，338表/主键/2外键/索引存在，ROLLBACK | 已部署迁移核验，不重做；历史账务/锁耗时另跟踪 |
-| 质量发布前预检 | 生产只读：规则1条，enabled1、observe_only1，多模型0、重复probe0、max_samples1、超过候选上限0；显式ROLLBACK | 现有规则不会因本批部署激活大批量检测或隔离；不代表真实多模型验收 |
-| 当前质量候选 | `codex/quality-multiprobe-20261101`：多模型/重复probe、整轮事务/保留/历史及Priority归因；service和真实PG定向通过 | 适用定向/全量测试及构建通过，组合证据见开发清单第5节；最终Fork通过；提交后strict、CI/部署待办 |
-| 整版差异 | 446个merge初步分流：121 reviewed、325 triaged；#519/#558/#579/#580已有限定生产证据，其余仍有scope/evidence/split及阻断项 | `fully_migrated=false` |
+| 合并/部署 | #397 merge `f7193d639980840ae9fad66376355f4243d82a35`；Zeabur deployment `6ae634e9ea16512cf741d3ca` SHA一致、RUNNING | 当前生产，详情见首段 |
+| 运行态/CI | 主站/API health200；#397受测head九项CI通过，部署启动日志74行无ERROR/WARN/FATAL/PANIC | 不替代管理员功能验收或完整长期日志审计 |
+| 管理员闭环 | 内容审查列表刷新由用户再次确认正常；Usage反馈正常 | #397质量多probe、#396 Key/倍率写动作验收及其他管理动作仍待完成 |
+| 数据库生产账本 | 431条ledger，424个当前SQL均已应用且checksum一致，7条历史；本批无迁移 | 已部署迁移核验；21,433条历史结算待逐笔归因 |
+| #397 质量发布前预检 | 部署前只读：规则1条，enabled1、observe_only1，多模型0、重复probe0、max_samples1、超过候选上限0；显式ROLLBACK | 部署没有自动把现有规则升级为多模型/高频检测；管理员组合验收仍待完成 |
+| 当前质量批次 | PR #397 已合并部署：多模型/重复probe、整轮事务/保留/历史及Priority归因 | 生产运行核验通过；管理员本机组合验收待完成，见开发清单第5节 |
+| 整版差异 | 446个merge初步分流：122 reviewed、324 triaged；仍有scope/evidence/split及阻断项 | `fully_migrated=false` |
 
-#393已部署质量runtime/ownership/Jev/模板/预设/跨计划历史、滚动Usage和moderation；#394修好moderation列表；#395已部署AutoRestore/unknown、凭证安全历史/structured invalid_grant及单模型Priority round；#396已部署API Key多组。后续只补实际缺口，不重开这些基础开发。历史settlement、权益审计、完整部署窗口和上游#492全文/跨用户读取/无TTL阻断继续独立跟踪；不补扣、不改历史数据、不新增正文采集。
+#393已部署质量runtime/ownership/Jev/模板/预设/跨计划历史、滚动Usage和moderation；#394修好moderation列表；#395已部署AutoRestore/unknown、凭证安全历史/structured invalid_grant及单模型Priority round；#396已部署API Key多组；#397已部署质量多模型/重复probe。后续只补实际缺口，不重开这些基础开发。历史settlement、权益审计、完整部署窗口和上游#492全文/跨用户读取/无TTL阻断继续独立跟踪；不补扣、不改历史数据、不新增正文采集。
 
 ## 必审正式变更
 
@@ -93,10 +95,10 @@
 
 | 上游 PR | 当前结论 | 剩余边界 |
 |---|---|---|
-| #572 优先调度 | hard-stop、attempt持久化、分位数/惩罚时钟及单模型quality round已部署 | 本批补多模型完整round/逐模型归因；原生WS语义观测待证 |
-| #573 渠道运维 | Fork适配已部署，保留282迁移/CAS/审计 | 增量等价与管理员真实写动作待补证 |
+| #572 优先调度 | hard-stop、attempt持久化、分位数/惩罚时钟及多模型quality round已部署 | 本批已接入原生WS首个解析确认语义事件的attempt观测，单测及隔离PostgreSQL回归通过；管理员验收调度与质量配置联动，部署后需核对真实观测行 |
+| #573 渠道运维 | Fork适配已部署，保留282迁移/CAS/审计；生产质量统计此前固定返回 `unsupported_scope` | 当前候选复用已存质量轮次实现查询与完整性判定；存储/API单测与隔离PostgreSQL 18.1集成通过，PR CI和管理员页面验收待完成；无新增迁移 |
 | #574 凭证异常 | guard v2/reauth/writer-reader/API/UI及334已部署；#395修历史安全详情/structured invalid_grant | timeout分类和管理员动作逐项复核，不重造worker或迁移 |
-| #575/#576 质量/Jev | runtime、ownership、Jev、模板/预设、跨计划历史及AutoRestore已部署 | 本批多模型/重复probe与整轮闭环；模型/分组动作、额外judge和live替换后续定范围 |
+| #575/#576 质量/Jev | runtime、ownership、Jev、模板/预设、跨计划历史、AutoRestore及多模型/重复probe整轮闭环已部署 | 管理员验收；模型/分组动作、额外judge和live替换后续定范围 |
 | #577 GPT-6.1 Sol | Fork等价/部分等价 | 生产账务样本只读核对待办 |
 | #579 滚动24小时 | #393已部署API/UI，用户反馈正常 | 精确窗口/导出/日期清理本机数据验收待补 |
 | #580 moderation | #393部署296/298/301及CAS/generation/exemption/owned unban，#394修好列表且已验收 | 真实写动作与审计待验收，不新增重复入口 |
@@ -108,12 +110,12 @@
 
 | 上游能力 | 当前生产证据 | 本批/后续验证 |
 |---|---|---|
-| 质量运维 | #393/#395已部署API/UI、expected/Jev、模板/预设、ownership与恢复接口 | 多模型/重复probe、整轮保留/历史和逐模型Priority定向service/真实PG通过；统一门禁、部署及真实恢复验收待完成 |
+| 质量运维 | #393/#395基础能力及#397多模型/重复probe、整轮保留/历史和逐模型Priority归因均已部署 | 管理员本机组合验收、真实恢复动作验收待完成 |
 | GPT-6.1 Sol计费 | 272000阈值、OAuth/Setup Token不超过500000豁免、缓存token、最终模型和API key边界已有代码/测试 | 只读抽查长上下文、余额/冻结价格；不补扣未知请求 |
 | 管理端滚动24小时 | #393已部署精确ISO窗口、同快照筛选/分页/导出及日历清理保护，已有时区/DST测试 | 精确数据/导出/清理本机验收待补，不重做API/UI |
 | 内容审查用户管理 | 296/298/301、state/hits/actions与索引已核验；UID查找/CAS/generation/reset/exemption/原因/owned unban已有实现；列表刷新已验收 | 其他管理员真实写动作、审计和普通用户拒绝按受影响范围补证 |
 
-以上当前状态以#396部署证据为准；历史候选和旧表缺失记录见下方历史区，不作为新开发任务。
+以上当前状态以#397部署证据为准；历史候选和旧表缺失记录见下方历史区，不作为新开发任务。
 
 ## 当前集成规则
 
@@ -124,20 +126,21 @@
 
 ## 下一批次执行队列
 
-1. **当前质量批次**：沿用#396基线，完成多模型/重复probe、整轮原子持久化/保留/历史、Priority模型归因和现有表单配置保留；适用定向/全量测试与构建通过，显式模型集合和普通连通性规则边界均已回归；详细组合证据统一见开发清单第5节，最终Fork已通过。
-2. **统一交付**：规格/质量审查、完整测试/构建、Fork/设计/文档和生产只读预检完成后，只提交一个目标play/main的PR，等待新head CI后一次合并部署；立即监督Zeabur SHA/日志/数据库/健康/API，再做本批本机验收。
-3. **后续差异**：按开发清单关闭446范围中的split/evidence/product-scope；原生WS观测、质量模型/分组动作和live替换、凭证timeout与管理员动作分批推进，不重复已部署基础。
-4. **独立跟进**：Key/倍率及其他未完成的真实管理员写动作继续验收；历史settlement/权益只读归因、完整部署日志和锁耗时保持独立待办。正文/harvest/#492及新运行时范围保持既有阻断，不补扣、不清理历史。
+1. **#397 生产验收**：管理员在 `/admin/account-quality` 以低成本测试规则和 `observe_only` 跑2模型×2次，确认保存刷新、同轮4条结果和跨计划历史；必要时核对单模型规则语义。
+2. **#396 管理员验收**：完成 API Key 多组与倍率保存/刷新/冲突回读，并确认普通用户入口/API 仍拒绝。
+3. **账务历史归因**：对21,433条 `settlement_pending` 先做脱敏只读分层；唯一有 link 的记录缺 dedup/归档证明，usage 未 settled 且 entitlement ID 不一致，需由业务/财务确认，不补扣、不改状态。
+4. **P0 渠道/调度验收**：对照 #573、#572 逐项核对管理员保存、CAS、审计、普通用户拒绝及调度 hard-stop/unknown 语义；不重复已部署的运行时基础。
+5. **整版收口**：关闭446范围中的 split/evidence/product-scope；原生WS观测、质量分组动作/live替换、凭证timeout和管理员动作按边界分批推进。正文/harvest/#492及新运行时范围继续阻断。
 
 ## 全版本差异矩阵
 
 | 工作包 | 负责人 | 当前状态/剩余门槛 |
 |---|---|---|
-| 来源/覆盖 | 集成负责人 | 446个SHA唯一，121 reviewed/325 triaged；已补#519/#558/#579/#580限定生产证据，其他split/范围/证据继续关闭 |
-| 后端/API | 后端负责人 | 已部署基础见上表；本批质量多模型/整轮与模型归因及普通规则边界已回归；定向/全量测试与构建通过，最终Fork已通过，详见开发清单第5节 |
-| 前端 | 前端负责人 | 沿用真实AccountQualityView、既有组件/API；11张修改后组件截图为开发证据；最终前端全量测试/lint/typecheck/设计检查通过，详见开发清单第5节；生产本机验收另列 |
-| 数据库/计费 | 数据库/计费负责人 | #396的431 ledger/424当前SQL及337/338已核验；本批真实PG定向通过；历史账务归因、锁耗时/完整日志仍待办 |
-| 集成/发布 | 主线程/发布负责人 | 当前质量批次未提交/未部署；适用定向/全量测试与构建通过，最终Fork已通过，提交后strict/新head CI及一次部署监督待完成 |
+| 来源/覆盖 | 集成负责人 | 446个SHA唯一，122 reviewed/324 triaged；继续关闭split/范围/证据项 |
+| 后端/API | 后端负责人 | #397多模型/整轮与模型归因已部署；管理员组合验收、原生WS观测等缺口按清单推进 |
+| 前端 | 前端负责人 | #397沿用真实AccountQualityView/组件/API；生产管理员多模型组合验收仍待完成 |
+| 数据库/计费 | 数据库/计费负责人 | 431 ledger/424当前SQL及337/338已核验；21,433条账务待归因，含一条缺失精确dedup且权益关联不一致的记录 |
+| 集成/发布 | 主线程/发布负责人 | #397已合并部署；下一批累计改动后再提一个PR并完整监督CI/部署，不为文档单独发布 |
 
 具体功能域采用[功能矩阵](./feature-matrix.md)和[开发清单](./DEVELOPMENT_CHECKLIST.md)，不再把旧候选条目复制为新开发工作。保留Fork的066/070定时测试、outbox、273模型范围及已部署282/334/337/338；同名异内容迁移不可覆盖，不按上游数字前缀直接搬运。request-capture与Fork自有管理员请求台账不是同一功能，额外运行时/页面仍按范围合同评审。
 
@@ -151,7 +154,7 @@
 4. **Credential**：继续核清凭证失败 allowlist、安全展示、writer/reader/API/worker 和上游 OAuth reauth 的完整合同；候选测试通过不等于整条上游能力已迁完。
 5. **迁移和生产预检**：隔离 PostgreSQL 验证候选迁移、完整文件名/checksum/顺序/锁耗时；部署前用 Zeabur 只读核实迁移账本和兼容影响。当前环境没有 Zeabur CLI，未做本轮生产数据库读取。
 6. **统一交付门禁**：`check-fork-integrity.sh`、Go/前端全量测试、lint、类型检查、生产构建、i18n、设计治理和文档检查均已通过；视觉记录明确静态评审板不是生产浏览器验收截图。候选可进入逐文件复核和一次性提交，但生产管理员浏览器验收仍必须由用户本机完成，不能用静态图替代。
-7. **部署后验收**：用户本机管理员按本账本核验 Quality、Usage、moderation、渠道运维、优先调度和请求台账权限/读写/刷新/审计；再核对实际部署 SHA、数据库迁移、日志和关键 API。
+7. **部署后验收**：管理员继续验收 Quality、moderation 写动作、渠道运维和优先调度；Usage 正常及 #384 请求台账 admin-only 已确认，不重复排队，未来仅在相关权限代码变更时回归。每个生产批次仍核对实际部署 SHA、数据库迁移、日志和关键 API。
 8. **独立风险跟进，不扩入本批功能开发**：对约 2 万条 `settlement_pending` 做脱敏只读业务/财务抽样；复核部署日志窗口、PostgreSQL crash recovery 原因及历史日卡审计语义。不得补扣、批量改状态或清理历史数据。
 9. **明确排除/阻断**：request capture、support/harvest 等正文采集先完成隐私范围合同；security penalty 在全文访问、保留期限、自动 TTL 和审计约束明确前不迁入。
 
@@ -178,7 +181,7 @@
 
 PR #389 提交前的本地完整 `make test-backend`、前端 lint/typecheck/全量测试/生产构建、设计治理、Fork integrity 和交接检查均通过；该 PR 没有远端 CI checks。部署后验证了生产分支 SHA、首页/health、构建资源及新 admin API 的未认证拒绝；生产迁移账本和 282、gateway 相关结构已完成只读核验。当前生产 audit 的 Zeabur 日志只有滚动最近 100 行，不能代替完整部署窗；另发现 19,538 条历史 settlement_pending 记录待业务归因。日卡/套餐权益已聚合核对，未发现当前有效权益被过期记录放行；历史审计语义也待业务核验。本批已部署，但以上缺口和未分类上游功能阻止将 `fully_migrated` 改成 true。当前 Usage 候选门禁状态见团队任务记录，不等同于 PR #389 当时已通过的治理检查。
 
-## 生产交接验收清单（截至#396）
+## 生产交接验收清单（截至#397）
 
 ### 管理员现场检查
 
@@ -190,17 +193,18 @@ PR #389 提交前的本地完整 `make test-backend`、前端 lint/typecheck/全
 | 渠道运维读写 | 查询渠道目录和运维快照；对一项无生产影响的配置做经批准的测试变更，保存后刷新仍一致；冲突 revision 返回可理解错误 | 等管理员现场确认；不要用真实流量开关做未经批准的试验 |
 | 审计 | 对上述测试变更确认审计记录含操作者、目标 ID、结果和版本，不含凭证、token、原始上游响应 | 等管理员现场确认 |
 | 优先调度 | 管理员打开 `/admin/priority-scheduling`；确认读取/保存/刷新一致、状态明确；候选不得绕过硬准入；无历史/质量数据时显示 unknown/unavailable 而非伪造通过 | 等管理员现场确认 |
+| 质量多模型轮次 | 管理员在 `/admin/account-quality` 用低成本规则设 `observe_only`，跑2模型×2次；保存刷新后确认同一轮4条结果、跨计划历史和Priority逐模型归因 | 等管理员现场确认；模型请求会产生少量上游用量 |
 | 内容审查快捷启用 | 仅对获准的测试对象核对管理员可见、普通用户不可见、启用前确认和状态回读；不得改变白名单或其他安全限制 | 等管理员现场确认 |
 | 请求台账边界 | #384管理员专属入口已经用户验收；本批受影响时回归直达页面/API拒绝 | 已完成旧批验收，不重复列旧用户验收门槛 |
 
 ### 日志与数据库跟踪
 
-前两行为#396新证据；其余业务聚合/282结构是2026-10-29历史采样，未在本批重新读取，不据旧数量推断当前数据库。历史风险尚未关闭。
+上表中的生产SHA、迁移账本和结算归因更新至#397后复核；历史日卡权益、282锁耗时及完整部署日志仍为较早采样，未在本轮重新读取，不据旧数量推断当前状态。历史风险尚未关闭。
 
 | 检查 | 必须取得的证据 | 状态 |
 |---|---|---|
-| Zeabur 应用/数据库日志 | #396实际SHA/构建完成/RUNNING及主站/API health200已核验；最近100行ERROR/FATAL/PANIC为0，WARN为缺少审核API Key | 有限采样通过，完整部署窗口与历史PostgreSQL恢复外因仍待补证 |
-| 生产迁移账本 | #396只读复核431 ledger，424当前SQL无缺失/checksum差异，7历史；337/338均已应用，338表/主键/2外键/索引存在，invalid indexes=0，ROLLBACK | 已核验；本批部署后再次对照候选，不把旧416条作为当前值 |
+| Zeabur 应用/数据库日志 | #397实际SHA/RUNNING及主站/API health200已核验；启动日志74行无ERROR/WARN/FATAL/PANIC | 有限采样通过，完整部署窗口与历史PostgreSQL恢复外因仍待补证 |
+| 生产迁移账本 | #397只读复核431 ledger，424当前SQL无缺失/checksum差异，7历史；337/338均已应用，338表/主键/2外键/索引存在，invalid indexes=0，ROLLBACK | 已核验；本批无schema迁移 |
 | 282 schema 结果 | 两张目标表、`channels.operations_revision NOT NULL DEFAULT 0`、索引、唯一/检查约束及外键均存在；upstream/member 行数为 0/0，revision 空值/负数和成员孤儿均为 0。只读检查未改业务数据；迁移锁等待/耗时未从完整启动日志证实 | 表结构/不变量已核验；运行时锁/耗时待日志 |
 | 历史日卡权益/账务 | 日卡相关历史表：replay 4,136、hold 5,095（captured 4,135 / released 960）、entitlement 21（active 1 / exhausted 5 / expired 15）。captured hold 缺 replay=0、completed replay 缺完成时间=0、pending/forwarding/retryable=0；2,547 replay 有 usage log 对应。唯一 `active` 但已过期的记录来源为 `redeem_code`，关联订阅已 expired，无 payment order link；未发现同一账户组的当前有效套餐权益，当前代码树也未读取旧表 | 未见当前有效权益或请求放行风险；历史兑换审计语义由业务负责人确认，不改状态、不清理 |
 | 当前套餐权益状态卫生 | 生产有 4 条 `subscription_package_entitlements.status=active` 但 `expires_at` 已过期的记录；均无当前有效订阅、其他有效套餐权益或有效历史日卡权益 | 代码按时间动态判为 expired，准入 SQL 同时要求 `expires_at > now()`；未见当前权益放行风险，不自动修复状态 |

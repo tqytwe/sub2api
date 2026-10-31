@@ -11,6 +11,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/openai"
 	"github.com/Wei-Shaw/sub2api/internal/requestledger"
@@ -583,6 +584,12 @@ func openAIWSPassthroughStartsSemanticOutput(payload []byte) bool {
 	return strings.Contains(eventType, ".delta") ||
 		strings.HasPrefix(eventType, "response.output_text") ||
 		strings.HasPrefix(eventType, "response.output")
+}
+
+func openAIWSPassthroughIsPrioritySemanticOutput(payload []byte) bool {
+	eventType := strings.TrimSpace(gjson.GetBytes(payload, "type").String())
+	return openAIStreamDataStartsClientOutput(string(payload), eventType) &&
+		!openAIStreamEventTypeIsTerminal(eventType)
 }
 
 func openAIWSPassthroughIsTerminalOutput(payload []byte) bool {
@@ -1274,6 +1281,18 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 				writeReceipt.ObserveIdentifiers(ctx, requestledger.UpstreamRequestID(handshakeHeaders), requestledger.ResponseIdentifier(payload))
 				if len(payload) > 0 {
 					writeReceipt.ObserveOutput(ctx)
+				}
+				if msgType == coderws.MessageText && openAIWSPassthroughIsPrioritySemanticOutput(payload) {
+					publicModel, _ := usageMeta.turnModels("")
+					if publicModel == "" {
+						publicModel, _ = RequestedPublicModelFromContext(ctx)
+					}
+					endpoint, _ := ctx.Value(ctxkey.InboundEndpoint).(string)
+					var groupID *int64
+					if id, ok := priorityObservationGroupFromContext(ctx); ok {
+						groupID = &id
+					}
+					ledgerUpstream.observePrioritySemantic(publicModel, endpoint, groupID)
 				}
 			},
 			BeforeClientWrite: func(msgType coderws.MessageType, payload []byte) {
