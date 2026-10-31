@@ -18,7 +18,9 @@ func TestNormalizeAPIKeyGroupIDs(t *testing.T) {
 	_, err = normalizeAPIKeyGroupIDs(nil, []int64{11, 11})
 	require.Error(t, err)
 	tooMany := make([]int64, maxAPIKeyGroups+1)
-	for i := range tooMany { tooMany[i] = int64(i + 1) }
+	for i := range tooMany {
+		tooMany[i] = int64(i + 1)
+	}
 	_, err = normalizeAPIKeyGroupIDs(nil, tooMany)
 	require.Error(t, err)
 }

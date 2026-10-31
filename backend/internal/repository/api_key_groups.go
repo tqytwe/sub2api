@@ -42,10 +42,6 @@ func (r *apiKeyRepository) attachGroupIDs(ctx context.Context, keys []service.AP
 	rows, err := clientFromContext(ctx, r.client).QueryContext(ctx,
 		`SELECT api_key_id, group_id FROM api_key_groups WHERE api_key_id IN (`+strings.Join(placeholders, ",")+`) ORDER BY group_id`, ids...)
 	if err != nil {
-		// SQLite/unit-test schemas and rolling upgrades may not have the additive table yet.
-		if strings.Contains(strings.ToLower(err.Error()), "no such table") || strings.Contains(strings.ToLower(err.Error()), "relation \"api_key_groups\" does not exist") {
-			return nil
-		}
 		return err
 	}
 	defer func() { _ = rows.Close() }()

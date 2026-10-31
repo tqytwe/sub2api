@@ -501,7 +501,9 @@ func (r *apiKeyRepository) ListByUserID(ctx context.Context, userID int64, param
 	for i := range keys {
 		outKeys = append(outKeys, *apiKeyEntityToService(keys[i]))
 	}
-	if err := r.attachGroupIDs(ctx, outKeys); err != nil { return nil, nil, err }
+	if err := r.attachGroupIDs(ctx, outKeys); err != nil {
+		return nil, nil, err
+	}
 	if err := r.attachLastUsedIPs(ctx, outKeys); err != nil {
 		return nil, nil, err
 	}
@@ -522,7 +524,9 @@ func (r *apiKeyRepository) ListAllByUserID(ctx context.Context, userID int64, fi
 	for i := range keys {
 		outKeys = append(outKeys, *apiKeyEntityToService(keys[i]))
 	}
-	if err := r.attachGroupIDs(ctx, outKeys); err != nil { return nil, err }
+	if err := r.attachGroupIDs(ctx, outKeys); err != nil {
+		return nil, err
+	}
 	if err := r.attachLastUsedIPs(ctx, outKeys); err != nil {
 		return nil, err
 	}
@@ -667,7 +671,9 @@ func (r *apiKeyRepository) ListByGroupID(ctx context.Context, groupID int64, par
 	for i := range keys {
 		outKeys = append(outKeys, *apiKeyEntityToService(keys[i]))
 	}
-	if err := r.attachGroupIDs(ctx, outKeys); err != nil { return nil, nil, err }
+	if err := r.attachGroupIDs(ctx, outKeys); err != nil {
+		return nil, nil, err
+	}
 
 	return outKeys, paginationResultFromTotal(int64(total), params), nil
 }
@@ -739,7 +745,9 @@ func (r *apiKeyRepository) SearchAPIKeys(ctx context.Context, userID int64, keyw
 	for i := range keys {
 		outKeys = append(outKeys, *apiKeyEntityToService(keys[i]))
 	}
-	if err := r.attachGroupIDs(ctx, outKeys); err != nil { return nil, err }
+	if err := r.attachGroupIDs(ctx, outKeys); err != nil {
+		return nil, err
+	}
 	return outKeys, nil
 }
 
@@ -748,9 +756,11 @@ func (r *apiKeyRepository) ClearGroupIDByGroupID(ctx context.Context, groupID in
 	client := clientFromContext(ctx, r.client)
 	res, err := client.ExecContext(ctx, `
 		WITH removed AS (DELETE FROM api_key_groups WHERE group_id = $1)
-		UPDATE api_keys k SET group_id = (SELECT MIN(g.group_id) FROM api_key_groups g WHERE g.api_key_id = k.id), updated_at = NOW()
+		UPDATE api_keys k SET group_id = (SELECT MIN(g.group_id) FROM api_key_groups g WHERE g.api_key_id = k.id AND g.group_id <> $1), updated_at = NOW()
 		WHERE k.group_id = $1 AND k.deleted_at IS NULL`, groupID)
-	if err != nil { return 0, err }
+	if err != nil {
+		return 0, err
+	}
 	return res.RowsAffected()
 }
 
@@ -766,7 +776,9 @@ func (r *apiKeyRepository) UpdateGroupIDByUserAndGroup(ctx context.Context, user
 		inserted AS (INSERT INTO api_key_groups (api_key_id, group_id) SELECT id, $3 FROM candidates WHERE group_id IS DISTINCT FROM $2 AND group_id IS DISTINCT FROM $3 ON CONFLICT DO NOTHING)
 		UPDATE api_keys k SET group_id = CASE WHEN k.group_id = $2 THEN $3 ELSE k.group_id END, updated_at = NOW()
 		WHERE k.id IN (SELECT id FROM candidates)`, userID, oldGroupID, newGroupID)
-	if err != nil { return 0, err }
+	if err != nil {
+		return 0, err
+	}
 	return res.RowsAffected()
 }
 

@@ -2513,6 +2513,20 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 		closeOpenAIClientWS(wsConn, coderws.StatusPolicyViolation, "model is required in first response.create payload")
 		return
 	}
+	// A Responses WebSocket declares its model in the first frame. Resolve a
+	// multi-group key now, before any group policy or billing reservation, then
+	// retain that group's identity for the session and every usage record.
+	if service.IsExplicitImageGenerationIntent("/v1/responses", reqModel, firstMessage) {
+		c.Request = c.Request.WithContext(service.WithOpenAIImageGenerationIntent(c.Request.Context()))
+	}
+	apiKey, err = middleware2.ResolveDeferredAPIKeyRequestGroup(c, requestmodel.FromBodyCandidates("", "application/json", firstMessage))
+	if err != nil {
+		reqLog.Info("openai.websocket_group_selection_failed", zap.Error(err))
+		closeOpenAIClientWS(wsConn, coderws.StatusPolicyViolation, "No selected group is available for this request")
+		return
+	}
+	subject, _ = middleware2.GetAuthSubjectFromContext(c)
+	reqLog = reqLog.With(zap.Any("group_id", apiKey.GroupID))
 	// 分组级模型白名单：首帧校验客户端模型，不通过则关闭连接并标记运维原因。
 	// 必须在合成路由解析和上游模型映射之前执行。
 	// 与 HTTP 准入一致：帧内重复 model 键/大小写变体可能被上游按末值绑定，

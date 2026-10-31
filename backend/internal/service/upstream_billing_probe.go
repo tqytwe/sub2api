@@ -885,7 +885,9 @@ func parseUpstreamBillingProbeResponse(body []byte) (map[string]any, error) {
 }
 
 func upstreamBillingRateAt(data map[string]any, now time.Time) (float64, bool) {
-	if data["billing_mode"] == "multi_group" { return 0, false }
+	if data["billing_mode"] == "multi_group" {
+		return 0, false
+	}
 	if scope, _ := data["billing_scope"].(string); scope != "token" {
 		return 0, false
 	}
@@ -924,7 +926,9 @@ func upstreamBillingRateAt(data map[string]any, now time.Time) (float64, bool) {
 // A rejected declaration leaves the current multiplier untouched; the probe
 // still records an OK snapshot carrying the raw declaration for display.
 func upstreamBillingProbeSyncRate(data map[string]any) (float64, bool) {
-	if data["billing_mode"] == "multi_group" { return 0, false }
+	if data["billing_mode"] == "multi_group" {
+		return 0, false
+	}
 	value, ok := resolveAccountExtraNumber(data, "resolved_rate_multiplier")
 	if !ok || math.IsNaN(value) || math.IsInf(value, 0) {
 		return 0, false

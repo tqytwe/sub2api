@@ -12,6 +12,17 @@ import (
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 )
 
+type apiKeyGroupEndpointKey struct{}
+type apiKeyGroupWebSocketKey struct{}
+
+func WithAPIKeyGroupEndpoint(ctx context.Context, endpoint string) context.Context {
+	return context.WithValue(ctx, apiKeyGroupEndpointKey{}, endpoint)
+}
+
+func WithAPIKeyGroupWebSocket(ctx context.Context) context.Context {
+	return context.WithValue(ctx, apiKeyGroupWebSocketKey{}, true)
+}
+
 const maxAPIKeyGroups = 20
 
 // APIKeyGroupAvailability describes a snapshot, not a reservation. The selected
@@ -63,7 +74,9 @@ func normalizeAPIKeyGroupIDs(primary *int64, ids []int64) ([]int64, error) {
 }
 
 func (s *APIKeyService) validateAPIKeyGroups(ctx context.Context, user *User, ids []int64) error {
-	if len(ids) > 0 && user == nil { return ErrGroupNotAllowed }
+	if len(ids) > 0 && user == nil {
+		return ErrGroupNotAllowed
+	}
 	for _, id := range ids {
 		group, err := s.groupRepo.GetByID(ctx, id)
 		if err != nil {
@@ -76,8 +89,8 @@ func (s *APIKeyService) validateAPIKeyGroups(ctx context.Context, user *User, id
 	return nil
 }
 
-// PinAPIKeyGroup preserves a request's chosen billing identity across queue/WS
-// revalidation. Never reselect underneath a request that already reserved funds.
+// PinAPIKeyGroup keeps an existing call's billing identity while rechecking its
+// current binding and permission. It never probes or ranks another group.
 func (s *APIKeyService) PinAPIKeyGroup(ctx context.Context, key *APIKey, id int64) (*APIKey, error) {
 	bound := false
 	for _, candidate := range key.ConfiguredGroupIDs() {
@@ -87,7 +100,7 @@ func (s *APIKeyService) PinAPIKeyGroup(ctx context.Context, key *APIKey, id int6
 		}
 	}
 	if !bound {
-		return nil, infraerrors.ServiceUnavailable("API_KEY_GROUP_CHANGED", "API key groups changed; please retry")
+		return nil, infraerrors.Forbidden("API_KEY_GROUP_CHANGED", "API key is no longer bound to this call's group")
 	}
 	group, err := s.groupRepo.GetByIDLite(ctx, id)
 	if err != nil {
@@ -119,7 +132,9 @@ func (s *APIKeyService) apiKeyWithGroup(ctx context.Context, key *APIKey, group 
 // BillingGroups exposes only groups bound to this key and still permitted for
 // its owner. Inactive groups remain visible with their status in the declaration.
 func (s *APIKeyService) BillingGroups(ctx context.Context, key *APIKey) ([]*APIKey, error) {
-	if key == nil || key.User == nil { return nil, ErrGroupNotAllowed }
+	if key == nil || key.User == nil {
+		return nil, ErrGroupNotAllowed
+	}
 	var out []*APIKey
 	for _, id := range key.ConfiguredGroupIDs() {
 		group, err := s.groupRepo.GetByIDLite(ctx, id)
@@ -152,7 +167,9 @@ func (s *APIKeyService) SelectRequestGroup(ctx context.Context, key *APIKey, mod
 	if key == nil || len(key.ConfiguredGroupIDs()) < 2 {
 		return key, nil
 	}
-	if key.User == nil { return nil, ErrGroupNotAllowed }
+	if key.User == nil {
+		return nil, ErrGroupNotAllowed
+	}
 	if s.groupRouter == nil {
 		return nil, infraerrors.ServiceUnavailable("MULTI_GROUP_ROUTING_UNAVAILABLE", "Multi-group routing is unavailable on this gateway")
 	}
@@ -174,11 +191,20 @@ func (s *APIKeyService) SelectRequestGroup(ctx context.Context, key *APIKey, mod
 			if s.userSubRepo == nil {
 				continue
 			}
-			sub, subErr := s.userSubRepo.GetActiveByUserIDAndGroupID(ctx, key.UserID, id)
+			var sub *UserSubscription
+			var subErr error
+			if checkBilling && subscriptions != nil {
+				// Use auth's entitlement-enriched view so package hard caps take
+				// precedence over the legacy subscription's active status.
+				sub, subErr = subscriptions.GetActiveSubscription(ctx, key.UserID, id)
+			} else {
+				sub, subErr = s.userSubRepo.GetActiveByUserIDAndGroupID(ctx, key.UserID, id)
+			}
 			if subErr != nil {
-				if !errors.Is(subErr, ErrSubscriptionNotFound) && !errors.Is(subErr, ErrSubscriptionExpired) {
+				if !errors.Is(subErr, ErrSubscriptionNotFound) && !errors.Is(subErr, ErrSubscriptionExpired) && !errors.Is(subErr, ErrPackageQuotaExhausted) && !errors.Is(subErr, ErrPackageEntitlementExpired) {
 					return nil, subErr
 				}
+				lastErr = subErr
 				continue
 			}
 			if checkBilling && subscriptions != nil {

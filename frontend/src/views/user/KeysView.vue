@@ -482,7 +482,8 @@
         <div>
           <label class="input-label">{{ t('keys.groupLabel') }}</label>
           <Select
-            v-model="formData.group_id"
+            :model-value="formData.group_id"
+            @update:model-value="changePrimaryGroup"
             :options="groupOptions"
             :placeholder="t('keys.selectGroup')"
             :searchable="true"
@@ -523,9 +524,9 @@
           <fieldset class="mt-3 space-y-2" data-testid="key-additional-groups">
             <legend class="input-label">{{ t('keys.additionalGroups') }}</legend>
             <p class="input-hint">{{ t('keys.multiGroupHint') }}</p>
-            <div class="max-h-48 space-y-2 overflow-y-auto">
-              <label v-for="option in groupOptions.filter(item => item.value !== null && item.value !== formData.group_id)" :key="String(option.value)" class="flex items-center gap-2 text-sm">
-                <input v-model="formData.group_ids" type="checkbox" :value="Number(option.value)" :disabled="!formData.group_ids.includes(Number(option.value)) && formData.group_ids.length >= 19" />
+            <div class="space-y-2">
+              <label v-for="option in additionalGroupOptions" :key="String(option.value)" class="flex min-h-10 items-center gap-2 text-sm">
+                <input v-model="formData.group_ids" class="checkbox" type="checkbox" :value="Number(option.value)" :disabled="!formData.group_ids.includes(Number(option.value)) && selectedGroupIds.length >= 20" />
                 <span>{{ option.label }}</span>
               </label>
             </div>
@@ -1392,6 +1393,23 @@ const createDefaultFormData = (groupId: number | null = null) => ({
 })
 
 const formData = ref(createDefaultFormData())
+const selectedGroupIds = computed(() => formData.value.group_id === null
+  ? []
+  : [...new Set([formData.value.group_id, ...formData.value.group_ids])])
+
+// Switching the default changes ordering, while explicit checkboxes control membership.
+const changePrimaryGroup = (value: string | number | boolean | null) => {
+  const previous = formData.value.group_id
+  const next = value === null ? null : Number(value)
+  const selected = selectedGroupIds.value
+  // At capacity, choosing an unbound default replaces the former default.
+  const keepPrevious = previous !== null && (selected.includes(next as number) || selected.length < 20)
+  formData.value.group_ids = [...new Set([
+    ...formData.value.group_ids,
+    ...(keepPrevious ? [previous] : [])
+  ])].filter(id => id !== next)
+  formData.value.group_id = next
+}
 
 // 自定义Key验证
 const customKeyError = computed(() => {
@@ -1470,6 +1488,8 @@ const groupOptions = computed(() =>
     platform: group.platform
   }))
 )
+
+const additionalGroupOptions = computed(() => groupOptions.value.filter(option => option.value !== formData.value.group_id))
 
 // Group dropdown search
 const groupSearchQuery = ref('')
@@ -1816,7 +1836,7 @@ const handleSubmit = async () => {
       const updates: UpdateApiKeyRequest = {
         name: formData.value.name,
         group_id: formData.value.group_id,
-        group_ids: formData.value.group_id === null ? [] : [formData.value.group_id, ...formData.value.group_ids.filter(id => id !== formData.value.group_id)],
+        group_ids: selectedGroupIds.value,
         ip_whitelist: ipWhitelist,
         ip_blacklist: ipBlacklist,
         quota: quota,
@@ -1841,7 +1861,7 @@ const handleSubmit = async () => {
         quota,
         expiresInDays,
         rateLimitData,
-        formData.value.group_id === null ? [] : [formData.value.group_id, ...formData.value.group_ids.filter(id => id !== formData.value.group_id)]
+        selectedGroupIds.value
       )
       appStore.showSuccess(t('keys.keyCreatedSuccess'))
       // Only advance tour if active, on submit step, and creation succeeded

@@ -498,6 +498,11 @@ func (s *APIKeyService) canUserBindGroup(ctx context.Context, user *User, group 
 // This protects keys that were bound before an administrator narrowed the user's
 // public-group access. Subscription groups keep their existing entitlement flow.
 func validateAPIKeyBoundGroupAccess(apiKey *APIKey) error {
+	// Multi-group credentials authenticate identity here; every candidate grant
+	// is checked by SelectRequestGroup before a model request is admitted.
+	if len(apiKey.ConfiguredGroupIDs()) > 1 {
+		return nil
+	}
 	if apiKey == nil || apiKey.GroupID == nil || *apiKey.GroupID <= 0 {
 		return nil
 	}

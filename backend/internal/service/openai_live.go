@@ -594,6 +594,20 @@ func (s *OpenAIGatewayService) GetLiveCallForIdentity(
 	callID string,
 	identity LiveCallIdentity,
 ) (*LiveCallRecord, error) {
+	record, err := s.GetLiveCallForAPIKey(ctx, callID, identity.APIKeyID, identity.UserID)
+	if err != nil {
+		return nil, err
+	}
+	if record.GroupID != liveGroupID(identity.GroupID) {
+		return nil, ErrLiveIdentityMismatch
+	}
+	return record, nil
+}
+
+// GetLiveCallForAPIKey restores the call's original group only after checking
+// its key and user owner. Multi-group callers must then validate that binding
+// and its current permission before using the record for a sideband connection.
+func (s *OpenAIGatewayService) GetLiveCallForAPIKey(ctx context.Context, callID string, apiKeyID, userID int64) (*LiveCallRecord, error) {
 	store, err := s.liveStore()
 	if err != nil {
 		return nil, err
@@ -603,9 +617,8 @@ func (s *OpenAIGatewayService) GetLiveCallForIdentity(
 		return nil, err
 	}
 	if record.CallID != callID ||
-		record.APIKeyID != identity.APIKeyID ||
-		record.UserID != identity.UserID ||
-		record.GroupID != liveGroupID(identity.GroupID) {
+		record.APIKeyID != apiKeyID ||
+		record.UserID != userID {
 		return nil, ErrLiveIdentityMismatch
 	}
 	if record.Controller == LiveControllerClosed {

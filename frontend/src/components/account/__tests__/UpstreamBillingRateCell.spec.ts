@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import UpstreamBillingRateCell from '../UpstreamBillingRateCell.vue'
 import HelpTooltip from '@/components/common/HelpTooltip.vue'
-import type { Account } from '@/types'
+import type { Account, UpstreamBillingMultiGroupData } from '@/types'
 
 vi.mock('vue-i18n', async () => {
   const actual = await vi.importActual<typeof import('vue-i18n')>('vue-i18n')
@@ -66,6 +66,54 @@ describe('UpstreamBillingRateCell', () => {
 
   afterEach(() => {
     vi.useRealTimers()
+  })
+
+  const multiGroupAccount = () => makeAccount({
+    extra: { upstream_billing_probe_enabled: true, upstream_billing_probe: {
+      status: 'ok', received_at: '2026-07-13T00:00:00Z', fresh_until: '2026-07-14T00:00:00Z',
+      last_attempt_at: '2026-07-13T00:00:00Z',
+      data: { object: 'sub2api.key_billing', schema_version: 2, billing_scope: 'token', billing_mode: 'multi_group', min_rate_multiplier: 0.1, max_rate_multiplier: 1, observed_at: billingData.observed_at, groups: [
+        { ...billingData, group_id: 1, group_name: 'Primary', platform: 'openai', status: 'active' },
+        { ...billingData, group_id: 2, group_name: 'Second', platform: 'openai', status: 'active', resolved_rate_multiplier: 1, peak_rate_enabled: false, effective_rate_multiplier: 1 },
+        { ...billingData, group_id: 3, group_name: 'Disabled', platform: 'openai', status: 'disabled', resolved_rate_multiplier: 0.1, effective_rate_multiplier: 0.1 },
+      ] } satisfies UpstreamBillingMultiGroupData,
+    } },
+  })
+
+  it('recalculates active multi-group rates across peak boundaries and shows inactive groups separately', async () => {
+    const wrapper = mount(UpstreamBillingRateCell, { props: { account: multiGroupAccount(), now: Date.now() } })
+    expect(wrapper.get('[data-testid="upstream-billing-rate"]').text()).toBe('0.60x–1.00x')
+    expect(wrapper.get('[data-testid="upstream-billing-groups"]').text()).toContain('admin.accounts.upstreamBilling.groupInactive')
+    await wrapper.setProps({ now: Date.parse('2026-07-13T01:00:00Z') })
+    expect(wrapper.get('[data-testid="upstream-billing-rate"]').text()).toBe('0.90x–1.00x')
+    expect(wrapper.get('[data-testid="upstream-billing-groups"]').text()).toContain('admin.accounts.upstreamBilling.effectiveRate:0.90x')
+    expect(wrapper.get('[data-testid="upstream-billing-groups"]').text()).toContain('admin.accounts.upstreamBilling.groupRate:0.8')
+    await wrapper.get('[data-testid="upstream-billing-probe"]').trigger('click')
+    expect(wrapper.emitted('probe')).toHaveLength(1)
+  })
+
+  it('shows one rate for equal active groups and no current rate when every group is disabled', async () => {
+    const account = multiGroupAccount()
+    const data = account.extra!.upstream_billing_probe!.data! as UpstreamBillingMultiGroupData
+    data.groups = data.groups!.map(group => ({ ...group, peak_rate_enabled: false, resolved_rate_multiplier: 1 }))
+    const wrapper = mount(UpstreamBillingRateCell, { props: { account, now: Date.now(), probing: true } })
+    expect(wrapper.get('[data-testid="upstream-billing-rate"]').text()).toBe('1.00x')
+    expect((wrapper.get('[data-testid="upstream-billing-probe"]').element as HTMLButtonElement).disabled).toBe(true)
+    await wrapper.get('[data-testid="upstream-billing-probe"]').trigger('click')
+    expect(wrapper.emitted('probe')).toBeUndefined()
+    const disabledAccount = multiGroupAccount()
+    const disabledData = disabledAccount.extra!.upstream_billing_probe!.data! as UpstreamBillingMultiGroupData
+    disabledData.groups.forEach(group => { group.status = 'disabled' })
+    await wrapper.setProps({ account: disabledAccount })
+    expect(wrapper.get('[data-testid="upstream-billing-rate"]').text()).toBe('-')
+  })
+
+  it('labels expired multi-group details as historical observations rather than current rates', () => {
+    const wrapper = mount(UpstreamBillingRateCell, { props: { account: multiGroupAccount(), now: Date.parse('2026-07-15T00:00:00Z') } })
+    expect(wrapper.get('[data-testid="upstream-billing-rate"]').text()).toBe('admin.accounts.upstreamBilling.stale')
+    const details = wrapper.get('[data-testid="upstream-billing-groups"]').text()
+    expect(details).toContain('admin.accounts.upstreamBilling.lastDetectedRate:0.90x')
+    expect(details).not.toContain('admin.accounts.upstreamBilling.effectiveRate:')
   })
 
   it('recomputes the current effective rate and keeps the icon-only probe action', async () => {

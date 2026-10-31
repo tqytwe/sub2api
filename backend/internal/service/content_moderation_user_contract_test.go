@@ -88,9 +88,18 @@ func (c *moderationUserContractCache) InvalidateAuthCacheByUserID(_ context.Cont
 
 func (c *moderationUserContractCache) InvalidateAuthCacheByGroupID(context.Context, int64) {}
 
+// These synchronous user-management contracts do not exercise async moderation.
+// Leave the repository unset during construction so the unrelated permanent
+// cleanup worker cannot outlive the test and call methods absent from the stub.
+func newModerationUserContractService(settings SettingRepository, repo ContentModerationRepository, cache APIKeyAuthCacheInvalidator) *ContentModerationService {
+	svc := NewContentModerationService(settings, nil, nil, nil, nil, nil, cache, nil)
+	svc.repo = repo
+	return svc
+}
+
 func TestManageModerationUserRequiresVersionReasonAndConfirmation(t *testing.T) {
 	repo := &moderationUserContractRepo{state: ModerationUserState{UserID: 27, Status: StatusDisabled, Version: 3, OwnedDisable: true}}
-	svc := NewContentModerationService(&contentModerationTestSettingRepo{}, repo, nil, nil, nil, nil, nil, nil)
+	svc := newModerationUserContractService(&contentModerationTestSettingRepo{}, repo, nil)
 
 	for _, input := range []ModerationUserAction{
 		{Action: "unban", Version: 2, Reason: "reviewed", Confirm: true, ActorID: 4},
@@ -109,7 +118,7 @@ func TestManageModerationUserUnbanReturnsPersistedStateWithoutResettingCount(t *
 		UserID: 27, Version: 3, Status: StatusDisabled, CurrentCount: 8, OwnedDisable: true,
 	}}
 	cache := &moderationUserContractCache{}
-	svc := NewContentModerationService(&contentModerationTestSettingRepo{}, repo, nil, nil, nil, nil, cache, nil)
+	svc := newModerationUserContractService(&contentModerationTestSettingRepo{}, repo, cache)
 
 	state, err := svc.ManageModerationUser(context.Background(), 27, ModerationUserAction{
 		Action: "unban", Version: 3, Reason: "Reviewed moderation source", Confirm: true, ActorID: 4,
@@ -130,7 +139,7 @@ func TestManageModerationUserDoesNotReportSuccessOnOwnershipConflict(t *testing.
 		manageErr: errors.New("MODERATION_DISABLE_NOT_OWNED"),
 	}
 	cache := &moderationUserContractCache{}
-	svc := NewContentModerationService(nil, repo, nil, nil, nil, nil, cache, nil)
+	svc := newModerationUserContractService(nil, repo, cache)
 
 	_, err := svc.ManageModerationUser(context.Background(), 27, ModerationUserAction{
 		Action: "unban", Version: 3, Reason: "reviewed", Confirm: true, ActorID: 4,
@@ -142,7 +151,7 @@ func TestManageModerationUserDoesNotReportSuccessOnOwnershipConflict(t *testing.
 
 func TestListModerationUsersValidatesFilterAndReturnsUIDScopedState(t *testing.T) {
 	repo := &moderationUserContractRepo{state: ModerationUserState{UserID: 27, Status: StatusDisabled}}
-	svc := NewContentModerationService(&contentModerationTestSettingRepo{}, repo, nil, nil, nil, nil, nil, nil)
+	svc := newModerationUserContractService(&contentModerationTestSettingRepo{}, repo, nil)
 
 	items, total, err := svc.ListModerationUsers(context.Background(), 1, 20, "enforced", 27)
 	require.NoError(t, err)
@@ -160,7 +169,7 @@ func TestListModerationUsersValidatesFilterAndReturnsUIDScopedState(t *testing.T
 func TestManageModerationUserAllowsFirstExemptionAtVersionZero(t *testing.T) {
 	repo := &moderationUserFirstExemptionRepo{moderationUserContractRepo: &moderationUserContractRepo{state: ModerationUserState{UserID: 27, Status: StatusActive}}}
 	cache := &moderationUserContractCache{}
-	svc := NewContentModerationService(&contentModerationTestSettingRepo{}, repo, nil, nil, nil, nil, cache, nil)
+	svc := newModerationUserContractService(&contentModerationTestSettingRepo{}, repo, cache)
 	exempt := true
 
 	state, err := svc.ManageModerationUser(context.Background(), 27, ModerationUserAction{
@@ -180,7 +189,7 @@ func TestListModerationUsersPreservesConfiguredCountWindowAndCyberFilter(t *test
 		SettingKeyContentModerationConfig: `{"violation_window_hours":36,"cyber_policy_exclude_from_ban_count":true}`,
 	}}
 	repo := &moderationUserContractRepo{state: ModerationUserState{UserID: 27, Status: StatusDisabled}}
-	svc := NewContentModerationService(settings, repo, nil, nil, nil, nil, nil, nil)
+	svc := newModerationUserContractService(settings, repo, nil)
 	started := time.Now()
 
 	_, _, err := svc.ListModerationUsers(context.Background(), 2, 25, "auto_ban_exempt", 27)
@@ -196,7 +205,7 @@ func TestListModerationUsersPreservesConfiguredCountWindowAndCyberFilter(t *test
 func TestApplyModerationAutoBanUsesOwnershipRepository(t *testing.T) {
 	repo := &moderationUserContractRepo{autoBan: ModerationAutoBanResult{Changed: true, Disabled: true}}
 	cache := &moderationUserContractCache{}
-	svc := NewContentModerationService(&contentModerationTestSettingRepo{}, repo, nil, nil, nil, nil, cache, nil)
+	svc := newModerationUserContractService(&contentModerationTestSettingRepo{}, repo, cache)
 
 	changed, disabled, err := svc.ApplyModerationAutoBan(context.Background(), 27)
 

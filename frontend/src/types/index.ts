@@ -1109,9 +1109,9 @@ export interface TempUnschedulableStatus {
   state?: TempUnschedulableState
 }
 
-export interface UpstreamBillingData {
+export interface UpstreamBillingRateData {
   object: 'sub2api.key_billing'
-  schema_version: 1 | 2
+  schema_version: 1
   billing_scope: 'token'
   group_rate_multiplier: number
   user_rate_multiplier?: number
@@ -1124,16 +1124,27 @@ export interface UpstreamBillingData {
   effective_rate_multiplier: number
   timezone?: string
   observed_at: string
-  billing_mode?: 'multi_group'
-  min_rate_multiplier?: number
-  max_rate_multiplier?: number
-  groups?: Array<UpstreamBillingData & {
-    group_id: number
-    group_name: string
-    platform: string
-    status: 'active' | 'disabled' | 'inactive'
-  }>
 }
+
+export interface UpstreamBillingGroupData extends UpstreamBillingRateData {
+  group_id: number
+  group_name: string
+  platform: string
+  status: 'active' | 'disabled' | 'inactive'
+}
+
+export interface UpstreamBillingMultiGroupData {
+  object: 'sub2api.key_billing'
+  schema_version: 2
+  billing_scope: 'token'
+  billing_mode: 'multi_group'
+  min_rate_multiplier: number
+  max_rate_multiplier: number
+  groups: UpstreamBillingGroupData[]
+  observed_at: string
+}
+
+export type UpstreamBillingData = UpstreamBillingRateData | UpstreamBillingMultiGroupData
 
 export type UpstreamBillingProbeStatus = 'ok' | 'unsupported' | 'failed'
 

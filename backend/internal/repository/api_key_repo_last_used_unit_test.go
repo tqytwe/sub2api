@@ -31,6 +31,12 @@ func newAPIKeyRepoSQLite(t *testing.T) (*apiKeyRepository, *dbent.Client) {
 	drv := entsql.OpenDB(dialect.SQLite, db)
 	client := enttest.NewClient(t, enttest.WithOptions(dbent.Driver(drv)))
 	t.Cleanup(func() { _ = client.Close() })
+	_, err = db.Exec(`CREATE TABLE api_key_groups (
+		api_key_id BIGINT NOT NULL REFERENCES api_keys(id) ON DELETE CASCADE,
+		group_id BIGINT NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+		PRIMARY KEY (api_key_id, group_id)
+	)`)
+	require.NoError(t, err)
 
 	return &apiKeyRepository{client: client, sql: db}, client
 }

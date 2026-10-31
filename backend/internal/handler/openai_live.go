@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ip"
 	middleware2 "github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -209,6 +210,24 @@ func (h *OpenAIGatewayHandler) LiveSideband(c *gin.Context) {
 	if !ok {
 		h.errorResponse(c, http.StatusInternalServerError, "api_error", "User context not found")
 		return
+	}
+	if len(apiKey.ConfiguredGroupIDs()) > 1 {
+		// A sideband belongs to the group's existing call, irrespective of
+		// today's relative group prices or available scheduler capacity.
+		record, err := h.gatewayService.GetLiveCallForAPIKey(c.Request.Context(), c.Param("call_id"), apiKey.ID, subject.UserID)
+		if err != nil {
+			if errors.Is(err, service.ErrLiveIdentityMismatch) {
+				h.errorResponse(c, http.StatusForbidden, "permission_error", "Live call belongs to another identity")
+			} else {
+				h.errorResponse(c, http.StatusNotFound, "not_found_error", "Live call not found")
+			}
+			return
+		}
+		apiKey, err = middleware2.ResolveDeferredAPIKeyRequestGroupByID(c, record.GroupID)
+		if err != nil {
+			h.errorResponse(c, infraerrors.Code(err), "permission_error", "Live call group is no longer available")
+			return
+		}
 	}
 	if !h.liveEnabledForAPIKey(apiKey) {
 		h.errorResponse(c, http.StatusForbidden, "permission_error", "Live is not enabled for this group")

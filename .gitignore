@@ -145,6 +145,7 @@ deploy/docker-compose.override.yml
 .gocache/
 vite.config.js
 docs/*
+!docs/api-key-multi-group.md
 !docs/ZEABUR_POSTGRES_RUNBOOK.md
 !docs/ANTIGRAVITY_ATTRIBUTION_429.md
 !docs/CHANNEL_MONITOR_API.md

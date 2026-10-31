@@ -9,8 +9,8 @@
 | 项目 | 当前事实 |
 |------|----------|
 | 生产分支 | `origin/play/main` |
-| 当前生产 commit | `3da3cb0e953fe751b50a2f6f446e8c24a62c80b2`（PR #394 merge） |
-| Zeabur | deployment `6ae5a1eaea16512cf741c89b`；CLI确认精确SHA、构建完成与RUNNING |
+| 当前生产 commit | `aea9be1e6508c5c319cc763c5fe058bc8d4b4aed`（PR #395 merge） |
+| Zeabur | deployment `6ae5dc8eea16512cf741cda0`；CLI确认精确SHA、构建完成与RUNNING |
 | 公开健康 | 2026-10-31 首页和 `/health` HTTP 200，内容审查列表5次HTTP 200且用户本机确认正常 |
 | 直接上游 | `ranxi2001/sub2api` |
 | 上游候选发布 | GitHub release/tag `v2.17.7`；tag object `af9a09cf92c1cbfdcf793862122d46a5a29a6da1`；tag commit `9620d315f72a7dbf04fa10fca02970e1e410805e`；静态 `VERSION` 为 `2.17.7`；已在线核实 release/tag |
@@ -70,13 +70,13 @@
 - PR 合并后只触发一次生产部署；核对 Zeabur 精确 SHA、健康接口和关键 API，再由用户对本批实际受影响的页面与业务路径做回归验收。此前已完成的生产用户验收不重复列为门槛。
 - 生产异常、权限放宽、账务/迁移不一致或部署 SHA 不符时停止批次并 revert 合并提交，不继续叠加新改动。
 
-## 当前执行状态（2026-10-31，#394 后）
+## 当前执行状态（2026-11-01，#395 后）
 
-- #393 的质量/Usage/moderation/凭证累计功能已部署，#394列表参数错误已修复并完成真实管理员刷新复验。
-- 生产只读账本429条；422个当前SQL全部存在且checksum一致，另7条历史记录；296/298/301/320/334表与索引核验通过，事务明确ROLLBACK。
-- 已有独立启用、跨计划历史、真实恢复、最终hard-stop/重试准入等不再重复开发；旧清单条目以[开发清单](./upstream-migrations/v2.17.7/DEVELOPMENT_CHECKLIST.md)和[功能矩阵](./upstream-migrations/v2.17.7/feature-matrix.md)为准。
-- 当前累计分支 `codex/v2177-post394-20261031` 从生产隔离：修质量AutoRestore/历史unknown、凭证旧详情安全读出/invalid_grant结构化分类，接入优先调度quality round。统一测试、双审查后一个PR和一次发布；当前尚未部署这些新改动。
-- 446 merge覆盖核对正确，但逐行为等价、产品范围、账务抽样和管理员写动作验收仍未全部关闭；`fully_migrated=false`。
+- 生产 #395：`play/main@aea9be1e6508c5c319cc763c5fe058bc8d4b4aed`，Zeabur deployment `6ae5dc8eea16512cf741cda0` 为 `RUNNING` 且 SHA 一致；主站/API health 200。#393–#395 累计能力已部署，内容审查刷新错误已由用户本机再次确认恢复。
+- PR [#396](https://github.com/tqytwe/sub2api/pull/396) 从 #395 隔离，迁移上游 #479 API Key 多组。工作树为 `codex/api-key-multi-group-20261031`，当前仍有未提交修复；未合并、未部署。新增迁移338，旧291上游编号不覆盖Fork历史迁移。
+- 已补默认组权限撤销后择组、WS首帧模型选择/同组Usage、事务回滚/连续撤组、默认组切换和倍率明细等回归。完整本地后端普通测试/unit、前端测试、lint（0 issues）、构建及真实PostgreSQL实测已分段通过；首次失败已修复并复验，不能写成原失败命令通过。新head CI、合并/部署仍待完成，不能复用旧head的通过结论。
+- 既有独立启用、跨计划历史、真实恢复和最终准入不重复开发。正文采集/harvest保持阻断，历史账务仅只读观察，不补扣、不改状态、不清理。`fully_migrated=false`。
+- 逐项证据与剩余范围见[开发清单](./upstream-migrations/v2.17.7/DEVELOPMENT_CHECKLIST.md)及[功能矩阵](./upstream-migrations/v2.17.7/feature-matrix.md)。发布后立即核对Zeabur实际SHA、日志、迁移、权限/API和本批用户/管理员浏览器验收。
 
 ## 历史执行状态（2026-10-28，以下不代表当前线上）
 
