@@ -1,5 +1,16 @@
 # v2.17.7 同步批次账本
 
+> **2026-10-31 生产验收更正（内容审查用户列表）**：PR [#393](https://github.com/tqytwe/sub2api/pull/393)
+> 已部署到 `play/main@e11c3166945d01012a104b5f5157cb34eb98b611`，Zeabur deployment
+> `6ae58008ea16512cf741c5b4` 已完成构建并运行；此前“候选未部署/生产 #392”的描述是历史记录。
+> 管理员反馈 Usage 正常；内容审查用户管理刷新返回 500，15:08:31（UTC+8）应用日志定位为
+> `count content moderation users: pq: could not determine data type of parameter $1`。
+> 原因是总数 SQL 使用 `$3/$4` 却绑定了未使用的 `$1/$2` 时间窗口参数。
+> 修复分支 `fix/moderation-users-count-20261031` 仅修正统计参数并复用同一筛选条件；不改数据库、前端、权限或审核处罚规则。
+> 原查询已在生产只读事务内通过 PREPARE 复现并显式 ROLLBACK；回归测试先失败、修复后通过。
+> 完整测试、构建、PR CI、修复部署和管理员刷新复验仍在进行，**不能宣称生产缺陷已解决**。
+> 整版同步仍保持 `fully_migrated=false`；本次修复不改变正文采集/harvest 的既有阻断边界。
+
 状态：`deployed-partial / migration-incomplete`。同步批次 PR #389 已于 2026-10-28 合并并部署，但这只证明本批候选上线，不代表完整 v2.17.7 功能审计或迁移完成。`fully_migrated=false` 继续有效。文末“最新生产复核覆盖”是当前生产数字的权威覆盖，早期采样仅保留审计历史。
 
 本目标是版本功能同步，不能以 v2.17.7 release notes 的末尾修复代替完整差异盘点。生产与上游源码的共同祖先为 `efe9aab1e4ec89a42ba45e8dac20e882c5409a6a`（上游 `0.2.5`）；上游从该点至目标 tag 有 2,155 个提交、446 个 first-parent merge，按共同祖先直接比较有 3,809 个路径变化。以上数字只界定审查范围，不表示需要照搬这些提交或文件。Fork 自有实现必须逐项保留/映射；仅纳入相关产品能力和必要安全兼容修复。

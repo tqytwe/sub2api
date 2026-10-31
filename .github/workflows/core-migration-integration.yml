@@ -15,6 +15,7 @@ on:
       - backend/migrations/usage_log_billing_reconciliation_test.go
       - backend/ent/**
       - backend/internal/repository/integration_*test.go
+      - backend/internal/repository/content_moderation_user*.go
       - backend/internal/repository/migrations_runner*.go
       - backend/internal/repository/migrations_schema_integration_test.go
       - backend/internal/repository/core_migration*test.go
@@ -89,7 +90,7 @@ jobs:
           set -euo pipefail
           # One repository TestMain provisions both isolated service containers.
           # Run the three bounded suites in full so their subtests remain visible.
-          core_tests='^(TestCoreMigration.*|TestReloginBudgetMigrationSeedsOnlyOldTerminalTasks|TestBillingLogReconciliation.*|TestAccountGroupAllowedModelsConcurrent.*|TestGroupCopyAccounts.*|TestAccountAdminUpdate.*|'
+          core_tests='^(TestCoreMigration.*|TestModerationUsersPostgreSQLFiltersAndPagination|TestReloginBudgetMigrationSeedsOnlyOldTerminalTasks|TestBillingLogReconciliation.*|TestAccountGroupAllowedModelsConcurrent.*|TestGroupCopyAccounts.*|TestAccountAdminUpdate.*|'
           core_tests+='TestAccountRepoSuite|TestGroupRepoSuite|TestBillingCacheSuite|'
           core_tests+='TestMigrationsRunner_ConcurrentInstancesSerializeOnSessionLock|'
           core_tests+='TestUsageBillingRepositoryApply_(DeduplicatesBalanceBilling|WithLedgerWritesUsageCharge|'
@@ -116,6 +117,7 @@ jobs:
               }),
               "core-migration-repositories.json": (f"{module}/internal/repository", {
                   "TestCoreMigrationUpgradePreservesDeployedDataAndOldWriter",
+                  "TestModerationUsersPostgreSQLFiltersAndPagination",
                   "TestCoreMigrationsBoundLockWaitAndRollback",
                   "TestReloginBudgetMigrationSeedsOnlyOldTerminalTasks",
                   "TestCoreMigrationsBoundLockWaitAndRollback/273_account_group_allowed_models.sql/target_table",

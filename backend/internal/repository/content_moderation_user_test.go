@@ -64,10 +64,10 @@ func TestListModerationUsersIncludesLegacyHistoryWithoutRecoveryState(t *testing
 	require.True(t, ok)
 	since := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
 
-	countQuery := `SELECT COUNT\(\*\) FROM users u LEFT JOIN content_moderation_user_state s ON s.user_id=u.id WHERE .*u.deleted_at IS NULL.*content_moderation_user_hits.*generation=0.*`
+	countQuery := `SELECT COUNT\(\*\) FROM users u LEFT JOIN content_moderation_user_state s ON s.user_id=u.id WHERE .*u.deleted_at IS NULL.*content_moderation_user_hits.*generation=0.*\$2::bigint<>0.*\$1='all'.*u.id=\$2\)$`
 	listQuery := `SELECT u\.id, COALESCE\(s\.version,0\).*FROM users u LEFT JOIN content_moderation_user_state s ON s\.user_id=u\.id WHERE .*u.deleted_at IS NULL.*content_moderation_user_hits.*generation=0.*ORDER BY .*LIMIT \$5 OFFSET \$6`
 	for _, filter := range []string{"all", "enforced"} {
-		mock.ExpectQuery(countQuery).WithArgs(since, true, filter, int64(0)).WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+		mock.ExpectQuery(countQuery).WithArgs(filter, int64(0)).WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
 		mock.ExpectQuery(listQuery).WithArgs(since, true, filter, int64(0), 20, 0).WillReturnRows(sqlmock.NewRows([]string{
 			"user_id", "version", "generation", "auto_ban_exempt", "keyword_exempt", "api_audit_exempt", "email_exempt", "owned_disable", "status", "current_count", "reason", "actor_id", "updated_at",
 		}).AddRow(int64(27), int64(0), int64(0), false, false, false, false, false, "disabled", 2, "", nil, nil))
@@ -91,7 +91,7 @@ func TestListModerationUsersIncludesLegacyHistoryWithoutRecoveryState(t *testing
 
 	// An old hit without recovery state has no recorded exemptions and must not
 	// leak into exemption-specific lists.
-	mock.ExpectQuery(countQuery).WithArgs(since, true, "exempt", int64(0)).WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))
+	mock.ExpectQuery(countQuery).WithArgs("exempt", int64(0)).WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))
 	mock.ExpectQuery(listQuery).WithArgs(since, true, "exempt", int64(0), 20, 0).WillReturnRows(sqlmock.NewRows([]string{
 		"user_id", "version", "generation", "auto_ban_exempt", "keyword_exempt", "api_audit_exempt", "email_exempt", "owned_disable", "status", "current_count", "reason", "actor_id", "updated_at",
 	}))
@@ -110,9 +110,9 @@ func TestListModerationUsersCanFindUnseenUserByUID(t *testing.T) {
 	require.True(t, ok)
 	since := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
 
-	countQuery := `SELECT COUNT\(\*\) FROM users u LEFT JOIN content_moderation_user_state s ON s.user_id=u.id WHERE .*u.deleted_at IS NULL.*content_moderation_user_hits.*generation=0.*\$4::bigint<>0.*u.id=\$4`
+	countQuery := `SELECT COUNT\(\*\) FROM users u LEFT JOIN content_moderation_user_state s ON s.user_id=u.id WHERE .*u.deleted_at IS NULL.*content_moderation_user_hits.*generation=0.*\$2::bigint<>0.*\$1='all'.*u.id=\$2\)$`
 	listQuery := `SELECT u\.id, COALESCE\(s\.version,0\).*FROM users u LEFT JOIN content_moderation_user_state s ON s\.user_id=u\.id WHERE .*u.deleted_at IS NULL.*content_moderation_user_hits.*generation=0.*\$4::bigint<>0.*u.id=\$4.*LIMIT \$5 OFFSET \$6`
-	mock.ExpectQuery(countQuery).WithArgs(since, false, "all", int64(27)).WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+	mock.ExpectQuery(countQuery).WithArgs("all", int64(27)).WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
 	mock.ExpectQuery(listQuery).WithArgs(since, false, "all", int64(27), 20, 0).WillReturnRows(sqlmock.NewRows([]string{
 		"user_id", "version", "generation", "auto_ban_exempt", "keyword_exempt", "api_audit_exempt", "email_exempt", "owned_disable", "status", "current_count", "reason", "actor_id", "updated_at",
 	}).AddRow(int64(27), int64(0), int64(0), false, false, false, false, false, "active", 0, "", nil, nil))

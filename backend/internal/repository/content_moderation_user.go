@@ -41,12 +41,12 @@ func (r *contentModerationRepository) GetModerationUser(ctx context.Context, id 
 }
 
 func (r *contentModerationRepository) ListModerationUsers(ctx context.Context, page, size int, status string, userID int64, since time.Time, excludeCyber bool) ([]service.ModerationUserState, int64, error) {
-	where := `u.deleted_at IS NULL AND (s.user_id IS NOT NULL OR EXISTS (
- SELECT 1 FROM content_moderation_user_hits legacy
- WHERE legacy.user_id=u.id AND legacy.generation=0
- ) OR $4::bigint<>0) AND ` + moderationExemptionFilter("$3") + ` AND ($4::bigint=0 OR u.id=$4)`
+	// The count has no window projection: use only its filter parameters so
+	// PostgreSQL never has to infer the types of unused $1/$2 placeholders.
+	countWhere := moderationUserWhere("$1", "$2")
+	where := moderationUserWhere("$3", "$4")
 	var total int64
-	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM users u LEFT JOIN content_moderation_user_state s ON s.user_id=u.id WHERE `+where, since, excludeCyber, status, userID).Scan(&total); err != nil {
+	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM users u LEFT JOIN content_moderation_user_state s ON s.user_id=u.id WHERE `+countWhere, status, userID).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count content moderation users: %w", err)
 	}
 	rows, err := r.db.QueryContext(ctx, moderationUserProjection+`WHERE `+where+` ORDER BY s.updated_at DESC NULLS LAST,u.id DESC LIMIT $5 OFFSET $6`, since, excludeCyber, status, userID, size, (page-1)*size)
@@ -66,6 +66,14 @@ func (r *contentModerationRepository) ListModerationUsers(ctx context.Context, p
 		return nil, 0, fmt.Errorf("iterate content moderation users: %w", err)
 	}
 	return items, total, nil
+}
+
+func moderationUserWhere(stateParameter, userIDParameter string) string {
+	return `u.deleted_at IS NULL AND (s.user_id IS NOT NULL OR EXISTS (
+ SELECT 1 FROM content_moderation_user_hits legacy
+ WHERE legacy.user_id=u.id AND legacy.generation=0
+ ) OR ` + userIDParameter + `::bigint<>0) AND ` + moderationExemptionFilter(stateParameter) +
+		` AND (` + userIDParameter + `::bigint=0 OR u.id=` + userIDParameter + `)`
 }
 
 func moderationExemptionFilter(parameter string) string {
