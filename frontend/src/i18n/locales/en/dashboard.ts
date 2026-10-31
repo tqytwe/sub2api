@@ -132,6 +132,9 @@ export default {
       other: 'Includes Gemini, Grok, Antigravity, OpenCode and mixed groups'
     },
     selectGroup: 'Select a group',
+    additionalGroups: 'Additional groups',
+    multiGroupHint: 'Bind multiple groups to one API key. The gateway selects an eligible group per request, up to 20.',
+    multiGroupCount: '{count} groups bound',
     statusLabel: 'Status',
     selectStatus: 'Select status',
     saving: 'Saving...',
