@@ -14,12 +14,13 @@ const scheduledTestDefaultMaxWorkers = 10
 
 // ScheduledTestRunnerService periodically scans due test plans and executes them.
 type ScheduledTestRunnerService struct {
-	planRepo       ScheduledTestPlanRepository
-	scheduledSvc   *ScheduledTestService
-	accountTestSvc *AccountTestService
-	rateLimitSvc   *RateLimitService
-	qualityJudge   *qualityJevJudge
-	cfg            *config.Config
+	planRepo        ScheduledTestPlanRepository
+	scheduledSvc    *ScheduledTestService
+	accountTestSvc  *AccountTestService
+	rateLimitSvc    *RateLimitService
+	qualityJudge    *qualityJevJudge
+	runQualityProbe func(context.Context, int64, string, string) (*ScheduledTestResult, error)
+	cfg             *config.Config
 
 	cron      *cron.Cron
 	startOnce sync.Once
@@ -36,12 +37,13 @@ func NewScheduledTestRunnerService(
 	moderationSvc *ContentModerationService,
 ) *ScheduledTestRunnerService {
 	return &ScheduledTestRunnerService{
-		planRepo:       planRepo,
-		scheduledSvc:   scheduledSvc,
-		accountTestSvc: accountTestSvc,
-		rateLimitSvc:   rateLimitSvc,
-		qualityJudge:   newQualityJevJudge(moderationSvc, accountTestSvc),
-		cfg:            cfg,
+		planRepo:        planRepo,
+		scheduledSvc:    scheduledSvc,
+		accountTestSvc:  accountTestSvc,
+		rateLimitSvc:    rateLimitSvc,
+		qualityJudge:    newQualityJevJudge(moderationSvc, accountTestSvc),
+		runQualityProbe: accountTestSvc.RunQualityProbeBackground,
+		cfg:             cfg,
 	}
 }
 
@@ -173,39 +175,18 @@ func (s *ScheduledTestRunnerService) runQualityPlan(ctx context.Context, plan *S
 	plan.UpdatedAt = claimVersion
 	plan.RunningUntil = &leaseUntil
 
-	config := *plan.PelicanConfig
-	var result *ScheduledTestResult
-	var judgment map[string]any
-	var outcome string
-	if configErr := validateQualityConfig(&config); configErr != nil {
-		result, judgment, outcome = unsupportedQualityConfigResult(&config, now)
-	} else {
-		var probeErr error
-		result, probeErr = s.accountTestSvc.RunQualityProbeBackground(ctx, plan.AccountID, plan.ModelID, config.Prompt)
-		if probeErr != nil {
-			result = &ScheduledTestResult{Status: "failed", ErrorMessage: "probe_failed", StartedAt: now, FinishedAt: time.Now()}
-		}
-		result.PelicanConfig = &config
-		if config.Quality != nil && config.Quality.Judge != nil && config.Quality.Judge.Kind == "jev" {
-			judgment, outcome = s.judgeQualityProbeWithJev(ctx, result, &config)
-		} else {
-			judgment, outcome = judgeQualityProbe(result, &config)
-		}
-		if result.Status != "success" && result.ErrorMessage != "answer_mismatch" {
-			result.ErrorMessage = "probe_failed"
-		}
-	}
-	result.QualityJudgment = judgment
-	result.QualityRoundID = NewQualityRoundID()
+	results, outcome := s.runQualityRound(ctx, plan, now)
 
 	saveCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	action, actionErr := s.scheduledSvc.CommitQualityRun(saveCtx, plan, outcome, result)
+	action, actionErr := s.scheduledSvc.CommitQualityRound(saveCtx, plan, outcome, results)
 	if actionErr != nil {
 		action = "action_error"
 		logger.LegacyPrintf("service.scheduled_test_runner", "quality plan=%d outcome apply failed: %v", plan.ID, actionErr)
 	}
-	result.QualityAction = action
+	for _, result := range results {
+		result.QualityAction = action
+	}
 	nextRun, nextErr := computeNextRun(plan.CronExpression, time.Now())
 	if nextErr != nil {
 		logger.LegacyPrintf("service.scheduled_test_runner", "quality plan=%d computeNextRun failed: %v", plan.ID, nextErr)
@@ -214,6 +195,75 @@ func (s *ScheduledTestRunnerService) runQualityPlan(ctx context.Context, plan *S
 	if finishErr := s.scheduledSvc.FinishQualityRun(saveCtx, plan.ID, leaseUntil, time.Now(), nextRun); finishErr != nil {
 		logger.LegacyPrintf("service.scheduled_test_runner", "quality plan=%d finish failed: %v", plan.ID, finishErr)
 	}
+}
+
+// runQualityRound runs the frozen target set without changing rule identity.
+// Model jobs are interleaved so a slow target cannot monopolize all workers.
+func (s *ScheduledTestRunnerService) runQualityRound(ctx context.Context, plan *ScheduledTestPlan, startedAt time.Time) ([]*ScheduledTestResult, string) {
+	config := cloneQualityPelicanConfig(plan.PelicanConfig)
+	round := NewQualityRoundID()
+	if err := validateQualityConfig(config); err != nil {
+		result, judgment, outcome := unsupportedQualityConfigResult(config, startedAt)
+		result.QualityJudgment = judgment
+		result.QualityRoundID = round
+		return []*ScheduledTestResult{result}, outcome
+	}
+	models := QualityProbeModels(plan)
+	config.ModelIDs = qualityProbeModelIDs(models)
+	count := len(models) * QualityProbeParallelCount(config)
+	results := make([]*ScheduledTestResult, count)
+	outcomes := make([]string, count)
+	jobs := make(chan int, count)
+	for i := 0; i < count; i++ {
+		jobs <- i
+	}
+	close(jobs)
+	workers := min(count, qualityProbeMaxWorkers)
+	if config.Quality.Judge.Kind == "jev" && s.qualityJudge != nil {
+		workers = min(workers, cap(s.qualityJudge.slots))
+	}
+	var probes sync.WaitGroup
+	for i := 0; i < workers; i++ {
+		probes.Add(1)
+		go func() {
+			defer probes.Done()
+			for index := range jobs {
+				sampleConfig := cloneQualityPelicanConfig(config)
+				sampleConfig.ModelID = models[index%len(models)]
+				probeStart := time.Now()
+				var result *ScheduledTestResult
+				err := ctx.Err()
+				if err == nil {
+					result, err = s.runQualityProbe(ctx, plan.AccountID, sampleConfig.ModelID, sampleConfig.Prompt)
+				}
+				if err != nil {
+					result = &ScheduledTestResult{Status: "failed", ErrorMessage: "probe_failed", StartedAt: probeStart, FinishedAt: time.Now()}
+				}
+				result.PelicanConfig = sampleConfig
+				if sampleConfig.Quality.Judge.Kind == "jev" {
+					result.QualityJudgment, outcomes[index] = s.judgeQualityProbeWithJev(ctx, result, sampleConfig)
+				} else {
+					result.QualityJudgment, outcomes[index] = judgeQualityProbe(result, sampleConfig)
+				}
+				if result.Status != "success" && result.ErrorMessage != "answer_mismatch" {
+					result.ErrorMessage = "probe_failed"
+				}
+				result.QualityRoundID = round
+				results[index] = result
+			}
+		}()
+	}
+	probes.Wait()
+	outcome := "passed"
+	for _, probeOutcome := range outcomes {
+		if probeOutcome == "failed" {
+			return results, "failed"
+		}
+		if probeOutcome != "passed" {
+			outcome = "inconclusive"
+		}
+	}
+	return results, outcome
 }
 
 // tryRecoverAccount attempts to recover an account from recoverable runtime state.

@@ -140,6 +140,7 @@ describe('admin account quality operations view', () => {
     expect(control.attributes('aria-checked')).toBe('false')
     await control.trigger('click')
     await wrapper.findAll('select')[1].setValue(7)
+    await wrapper.find('[data-testid="quality-model-id"]').setValue('primary')
     await wrapper.find('form').trigger('submit')
     await flushPromises()
     expect(api.create).toHaveBeenCalledWith(expect.objectContaining({
@@ -269,9 +270,9 @@ describe('admin account quality operations view', () => {
     await form.findAll('input')[1].setValue('oauth')
     await form.findAll('input')[2].setValue('active, disabled')
     await form.findAll('input')[3].setValue('prod')
-    await form.findAll('input')[4].setValue('gpt-5.1')
+    await form.find('[data-testid="quality-template-model-id"]').setValue('gpt-5.1')
     await form.findAll('textarea')[0].setValue('say 21')
-    await form.findAll('input')[7].setValue('21')
+    await form.find('[data-testid="quality-template-expected-answer"]').setValue('21')
     await form.trigger('submit')
     await flushPromises()
     expect(api.createTemplate).toHaveBeenCalledWith(expect.objectContaining({ account_filter: { group: '7', type: 'oauth', search: 'prod', statuses: ['active', 'disabled'] }, model_id: 'gpt-5.1' }))
@@ -294,4 +295,192 @@ describe('admin account quality operations view', () => {
     expect(api.deleteTemplate).toHaveBeenNthCalledWith(2, 8, true)
     confirm.mockRestore()
   })
+
+  it('preserves all configured models and repeated probes when an existing rule is edited', async () => {
+    const scroll = vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
+    api.listPlans.mockResolvedValue([{
+      id: 9, account_id: 7, model_id: 'primary', cron_expression: '*/30 * * * *', enabled: true, max_results: 10,
+      updated_at: '2026-10-31T00:00:00Z',
+      pelican_config: { model_ids: ['primary', 'secondary'], parallel_count: 3, prompt: 'say 21', quality: { action: 'observe_only', expected_answer: '21', judge: { kind: 'expected' } } }
+    }])
+    api.update.mockResolvedValue({ id: 9 })
+    const wrapper = mount(AccountQualityView, { global: { stubs } })
+    await flushPromises()
+    await wrapper.find('article').findAll('button').find((button) => button.text() === 'admin.qualityOps.editShort')!.trigger('click')
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+    expect(api.update).toHaveBeenCalledWith(9, expect.objectContaining({
+      expected_updated_at: '2026-10-31T00:00:00Z',
+      pelican_config: expect.objectContaining({ model_ids: ['primary', 'secondary'], parallel_count: 3 })
+    }))
+    scroll.mockRestore()
+  })
+
+  it('loads and saves preset probe models without carrying values from a previous preset', async () => {
+    const preset = { name: 'check', model_id: 'primary', cron_expression: '*/30 * * * *', enabled: true, max_results: 10, created_at: '', updated_at: '' }
+    api.listPresets.mockResolvedValue([
+      { ...preset, id: 1, pelican_config: { model_ids: ['primary', 'secondary'], parallel_count: 2, prompt: 'say 21', quality: { action: 'observe_only', expected_answer: '21', judge: { kind: 'expected' } } } },
+      { ...preset, id: 2, pelican_config: { prompt: 'say 21', quality: { action: 'observe_only', expected_answer: '21', judge: { kind: 'expected' } } } }
+    ])
+    api.createPreset.mockResolvedValue({ ...preset, id: 3 })
+    api.create.mockResolvedValue({ id: 8 })
+    const wrapper = mount(AccountQualityView, { global: { stubs } })
+    await flushPromises()
+    await wrapper.find('[data-testid="quality-preset-select"]').setValue(1)
+    await wrapper.find('[data-testid="quality-apply-preset"]').trigger('click')
+    await wrapper.find('[data-testid="quality-toggle-save-preset"]').trigger('click')
+    await wrapper.find('[data-testid="quality-preset-name"]').setValue('saved models')
+    await wrapper.find('[data-testid="quality-save-preset"]').trigger('click')
+    await flushPromises()
+    expect(api.createPreset).toHaveBeenCalledWith(expect.objectContaining({
+      pelican_config: expect.objectContaining({ model_ids: ['primary', 'secondary'], parallel_count: 2 })
+    }))
+    await wrapper.find('[data-testid="quality-preset-select"]').setValue(2)
+    await wrapper.find('[data-testid="quality-apply-preset"]').trigger('click')
+    await wrapper.findAll('select')[1].setValue(7)
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+    expect(api.create).toHaveBeenCalledWith(expect.objectContaining({
+      pelican_config: expect.objectContaining({ model_ids: ['primary'], parallel_count: 1 })
+    }))
+  })
+
+  it('preserves a template model set and repeated probes when saving edits', async () => {
+    api.listTemplates.mockResolvedValue([{
+      id: 8, account_filter: {}, model_id: 'primary', cron_expression: '*/30 * * * *', enabled: true, max_results: 10, plan_ids: [], created_at: '', updated_at: '',
+      pelican_config: { model_ids: ['primary', 'secondary'], parallel_count: 3, prompt: 'say 21', quality: { action: 'observe_only', expected_answer: '21', judge: { kind: 'expected' } } }
+    }])
+    api.updateTemplate.mockResolvedValue({ updated: 0, created: 0, failed: 0 })
+    const wrapper = mount(AccountQualityView, { global: { stubs } })
+    await flushPromises()
+    await wrapper.find('[data-testid="quality-template-row"]').findAll('button')[0].trigger('click')
+    await wrapper.find('[data-testid="quality-template-form"]').trigger('submit')
+    await flushPromises()
+    expect(api.updateTemplate).toHaveBeenCalledWith(8, expect.objectContaining({
+      pelican_config: expect.objectContaining({ model_ids: ['primary', 'secondary'], parallel_count: 3 })
+    }))
+  })
+
+  it('identifies each model and round in probe history and shows skipped samples', async () => {
+    api.listHistory.mockResolvedValue({ items: [{ ...historyItem(100), total_count: 3, passed_count: 2, skipped_count: 1 }], next_cursor: 0 })
+    api.listPlans.mockResolvedValue([{ id: 9, account_id: 7, model_id: 'primary', cron_expression: '*/30 * * * *', enabled: true, pelican_config: { model_ids: ['primary', 'secondary'], parallel_count: 2, quality: { action: 'observe_only' } } }])
+    api.listResults.mockResolvedValue([
+      { ...historyItem(99), quality_round_id: 'round-shared', pelican_config: { model_id: 'primary' } },
+      { ...historyItem(98), quality_round_id: 'round-shared', pelican_config: { model_id: 'secondary' } }
+    ])
+    const wrapper = mount(AccountQualityView, { global: { stubs } })
+    await flushPromises()
+    expect(wrapper.text()).toContain('admin.qualityOps.skippedCount')
+    await wrapper.find('article').findAll('button').find((button) => button.text() === 'admin.qualityOps.history')!.trigger('click')
+    await flushPromises()
+    const resultRows = wrapper.findAll('[data-testid="quality-probe-result"]')
+    expect(resultRows).toHaveLength(2)
+    expect(resultRows[0].text()).toContain('primary')
+    expect(resultRows[1].text()).toContain('secondary')
+    expect(resultRows.every((row) => row.text().includes('round-shared'))).toBe(true)
+  })
+
+  it('creates a canonical model set from the primary and additional fields and resets after save', async () => {
+    api.create.mockResolvedValue({ id: 5 })
+    const wrapper = mount(AccountQualityView, { global: { stubs } })
+    await flushPromises()
+    await wrapper.findAll('select')[1].setValue(7)
+    await wrapper.find('[data-testid="quality-model-id"]').setValue(' primary ')
+    for (const model of [' secondary ', 'primary', 'secondary']) {
+      await wrapper.find('[data-testid="quality-add-model"]').trigger('click')
+      await wrapper.findAll('[data-testid="quality-extra-model"]').slice(-1)[0].setValue(model)
+    }
+    await wrapper.find('[data-testid="quality-parallel-count"]').setValue(3)
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+    expect(api.create).toHaveBeenCalledWith(expect.objectContaining({
+      model_id: 'primary',
+      pelican_config: expect.objectContaining({ model_ids: ['primary', 'secondary'], parallel_count: 3 })
+    }))
+    expect(wrapper.findAll('[data-testid="quality-extra-model"]')).toHaveLength(0)
+    expect((wrapper.find('[data-testid="quality-parallel-count"]').element as HTMLInputElement).value).toBe('1')
+  })
+
+  it('rejects an excessive sample round without clamping input and permits a corrected save', async () => {
+    api.create.mockResolvedValue({ id: 5 })
+    const wrapper = mount(AccountQualityView, { global: { stubs } })
+    await flushPromises()
+    await wrapper.findAll('select')[1].setValue(7)
+    await wrapper.find('[data-testid="quality-model-id"]').setValue('primary')
+    for (const model of ['second', 'third', 'fourth']) {
+      await wrapper.find('[data-testid="quality-add-model"]').trigger('click')
+      await wrapper.findAll('[data-testid="quality-extra-model"]').slice(-1)[0].setValue(model)
+    }
+    await wrapper.find('[data-testid="quality-parallel-count"]').setValue(32)
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+    expect(api.create).not.toHaveBeenCalled()
+    expect(wrapper.find('[role="alert"]').text()).toContain('admin.qualityOps.probeSamplesInvalid')
+    expect((wrapper.find('[data-testid="quality-parallel-count"]').element as HTMLInputElement).value).toBe('32')
+    expect(wrapper.findAll('[data-testid="quality-extra-model"]')).toHaveLength(3)
+    await wrapper.find('[data-testid="quality-parallel-count"]').setValue(25)
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+    expect(api.create).toHaveBeenCalledWith(expect.objectContaining({
+      pelican_config: expect.objectContaining({ model_ids: ['primary', 'second', 'third', 'fourth'], parallel_count: 25 })
+    }))
+  })
+
+  it('shows the legacy zero probe count as one and allows removing an additional model', async () => {
+    const scroll = vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
+    api.listPlans.mockResolvedValue([{
+      id: 9, account_id: 7, model_id: 'primary', cron_expression: '*/30 * * * *', enabled: true, max_results: 10,
+      updated_at: '2026-10-31T00:00:00Z',
+      pelican_config: { model_ids: ['primary', 'secondary'], parallel_count: 0, prompt: 'say 21', quality: { action: 'observe_only', expected_answer: '21', judge: { kind: 'expected' } } }
+    }])
+    api.update.mockResolvedValue({ id: 9 })
+    const wrapper = mount(AccountQualityView, { global: { stubs } })
+    await flushPromises()
+    await wrapper.find('article').findAll('button')[0].trigger('click')
+    expect((wrapper.find('[data-testid="quality-parallel-count"]').element as HTMLInputElement).value).toBe('1')
+    await wrapper.find('[data-testid="quality-extra-models"] button[aria-label]').trigger('click')
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+    expect(api.update).toHaveBeenCalledWith(9, expect.objectContaining({
+      pelican_config: expect.objectContaining({ model_ids: ['primary'], parallel_count: 1 })
+    }))
+    scroll.mockRestore()
+  })
+
+  it.each(['rule', 'preset', 'template'])('preserves explicit model targets instead of adding a stale primary when editing a %s', async (kind) => {
+    const config = { model_ids: ['actual-a', 'actual-b'], parallel_count: 2, prompt: 'say 21', quality: { action: 'observe_only', expected_answer: '21', judge: { kind: 'expected' } } }
+    const common = { model_id: 'legacy', cron_expression: '*/30 * * * *', enabled: true, max_results: 10, pelican_config: config }
+    const scroll = vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
+    if (kind === 'rule') api.listPlans.mockResolvedValue([{ ...common, id: 9, account_id: 7, updated_at: '2026-10-31T00:00:00Z' }])
+    if (kind === 'preset') api.listPresets.mockResolvedValue([{ ...common, id: 1, name: 'explicit models', created_at: '', updated_at: '' }])
+    if (kind === 'template') api.listTemplates.mockResolvedValue([{ ...common, id: 8, account_filter: {}, plan_ids: [], created_at: '', updated_at: '' }])
+    api.update.mockResolvedValue({ id: 9 })
+    api.create.mockResolvedValue({ id: 10 })
+    api.updateTemplate.mockResolvedValue({ created: 0, updated: 1, failed: 0 })
+    const wrapper = mount(AccountQualityView, { global: { stubs } })
+    await flushPromises()
+    if (kind === 'rule') {
+      expect(wrapper.find('article').text()).toContain('actual-a / actual-b')
+      expect(wrapper.find('article').text()).not.toContain('legacy')
+      await wrapper.find('article').findAll('button')[0].trigger('click')
+    } else if (kind === 'preset') {
+      await wrapper.find('[data-testid="quality-preset-select"]').setValue(1)
+      await wrapper.find('[data-testid="quality-apply-preset"]').trigger('click')
+      await wrapper.findAll('select')[1].setValue(7)
+    } else {
+      const row = wrapper.find('[data-testid="quality-template-row"]')
+      expect(row.text()).toContain('actual-a / actual-b')
+      expect(row.text()).not.toContain('legacy')
+      await row.findAll('button')[0].trigger('click')
+    }
+    const primary = kind === 'template' ? '[data-testid="quality-template-model-id"]' : '[data-testid="quality-model-id"]'
+    expect((wrapper.find(primary).element as HTMLInputElement).value).toBe('actual-a')
+    const form = kind === 'template' ? wrapper.find('[data-testid="quality-template-form"]') : wrapper.find('form')
+    await form.trigger('submit')
+    await flushPromises()
+    const request = kind === 'template' ? api.updateTemplate.mock.calls[0][1] : kind === 'rule' ? api.update.mock.calls[0][1] : api.create.mock.calls[0][0]
+    expect(request).toEqual(expect.objectContaining({ model_id: 'actual-a', pelican_config: expect.objectContaining({ model_ids: ['actual-a', 'actual-b'], parallel_count: 2 }) }))
+    scroll.mockRestore()
+  })
+
 })

@@ -178,6 +178,9 @@ func prepareQualityTemplate(t *QualityRuleTemplate) error {
 		return fmt.Errorf("group rules must be quality rules")
 	}
 	sample := t.planFor(0)
+	if err := prepareQualityPlan(sample); err != nil {
+		return err
+	}
 	if _, err := computeNextRun(sample.CronExpression, time.Now()); err != nil {
 		return fmt.Errorf("invalid test schedule: %w", err)
 	}

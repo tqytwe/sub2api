@@ -136,5 +136,6 @@ type QualityOwnershipRepository interface {
 type QualityRuntimeRepository interface {
 	ClaimQualityRun(context.Context, *ScheduledTestPlan, time.Time) (time.Time, bool, error)
 	CommitQualityRun(context.Context, *ScheduledTestPlan, string, *ScheduledTestResult, int) (string, error)
+	CommitQualityRound(context.Context, *ScheduledTestPlan, string, []*ScheduledTestResult, int) (string, error)
 	FinishQualityRun(context.Context, int64, time.Time, time.Time, time.Time) error
 }

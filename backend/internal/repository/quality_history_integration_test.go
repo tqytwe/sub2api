@@ -87,3 +87,51 @@ func TestQualityHistoryPostgreSQLJudgmentAndRoundCompleteness(t *testing.T) {
 		})
 	}
 }
+
+func TestQualityHistoryPostgreSQLMultiModelDefaultCountAndRoundRetention(t *testing.T) {
+	ctx := context.Background()
+	account := mustCreateAccount(t, integrationEntClient, &service.Account{Name: "quality-multimodel-history"})
+	t.Cleanup(func() {
+		_, err := integrationDB.ExecContext(ctx, "DELETE FROM accounts WHERE id=$1", account.ID)
+		require.NoError(t, err)
+	})
+	plans := NewScheduledTestPlanRepository(integrationDB)
+	results := NewScheduledTestResultRepository(integrationDB)
+	config := &service.PelicanTestConfig{ModelIDs: []string{"first", "second"}, Quality: &service.QualityPolicy{Action: "observe_only"}}
+	plan, err := plans.Create(ctx, &service.ScheduledTestPlan{AccountID: account.ID, ModelID: "first", CronExpression: "*/30 * * * *", Enabled: true, MaxResults: 1, PelicanConfig: config})
+	require.NoError(t, err)
+	add := func(round, model string) {
+		t.Helper()
+		snapshot := *config
+		snapshot.ModelID = model
+		_, err := results.Create(ctx, &service.ScheduledTestResult{PlanID: plan.ID, Status: "success", StartedAt: time.Now(), FinishedAt: time.Now(), PelicanConfig: &snapshot, QualityRoundID: round, QualityAction: "observed", QualityJudgment: map[string]any{"verdict": "correct"}})
+		require.NoError(t, err)
+	}
+	add("old", "first")
+	add("old", "second")
+	add("duplicate", "first")
+	add("duplicate", "first")
+	add("partial", "first")
+	page, err := service.NewScheduledTestService(plans, results).ListQualityHistory(ctx, 0)
+	require.NoError(t, err)
+	require.Equal(t, "partial", page.Items[0].QualityRoundID)
+	require.Equal(t, "inconclusive", page.Items[0].Status)
+	require.Equal(t, 2, page.Items[0].TotalCount)
+	var duplicate *service.QualityHistoryResult
+	for _, item := range page.Items {
+		if item.PlanID == plan.ID && item.QualityRoundID == "duplicate" {
+			duplicate = item
+		}
+	}
+	require.NotNil(t, duplicate)
+	require.Equal(t, "inconclusive", duplicate.Status, "duplicate probes of one model cannot cover the missing model")
+	add("latest", "first")
+	add("latest", "second")
+	require.NoError(t, results.PruneOldResults(ctx, plan.ID, 1))
+	stored, err := results.ListByPlanID(ctx, plan.ID, 100)
+	require.NoError(t, err)
+	require.Len(t, stored, 2, "newest complete round must survive a smaller row retention budget")
+	for _, result := range stored {
+		require.Equal(t, "latest", result.QualityRoundID)
+	}
+}

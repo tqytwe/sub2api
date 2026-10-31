@@ -55,8 +55,10 @@ func TestListQualityHistoryPreservesInconclusiveRounds(t *testing.T) {
 	}{
 		{"unknown judge", "inconclusive", "inconclusive", 0, 0, 1},
 		{"correct and unknown", "inconclusive", "inconclusive", 1, 0, 2},
+		{"correct and skipped", "inconclusive", "inconclusive", 1, 1, 2},
 		{"incorrect and unknown", "failed", "failed", 0, 0, 2},
 		{"correct round", "success", "success", 2, 0, 2},
+		{"invalid complete model distribution", "inconclusive", "inconclusive", 2, 0, 2},
 		{"all skipped", "inconclusive", "skipped", 0, 2, 2},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -69,6 +71,25 @@ func TestListQualityHistoryPreservesInconclusiveRounds(t *testing.T) {
 			}}).ListQualityHistory(context.Background(), 0)
 			require.NoError(t, err)
 			require.Equal(t, tc.want, page.Items[0].Status)
+		})
+	}
+}
+
+func TestListQualityHistoryMultiModelDefaultsAndCanonicalModelsCannotFakeCompletion(t *testing.T) {
+	for _, tc := range []struct {
+		name                          string
+		models                        []string
+		parallel, passed, total, want int
+	}{
+		{"omitted count", []string{"first", "second"}, 0, 1, 1, 2},
+		{"duplicate and whitespace models", []string{" first ", "first", "second", " "}, 2, 2, 2, 4},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			item := &QualityHistoryResult{ScheduledTestResult: ScheduledTestResult{Status: "success", PelicanConfig: &PelicanTestConfig{ModelIDs: tc.models, ParallelCount: tc.parallel}}, PassedCount: tc.passed, TotalCount: tc.total}
+			page, err := (&ScheduledTestService{resultRepo: &qualityHistoryResultRepoStub{items: []*QualityHistoryResult{item}}}).ListQualityHistory(context.Background(), 0)
+			require.NoError(t, err)
+			require.Equal(t, tc.want, page.Items[0].TotalCount)
+			require.Equal(t, "inconclusive", page.Items[0].Status)
 		})
 	}
 }

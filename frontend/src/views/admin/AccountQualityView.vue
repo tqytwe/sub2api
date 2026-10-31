@@ -31,7 +31,7 @@
           <div v-for="item in globalHistory" :key="item.id" class="flex flex-wrap items-center justify-between gap-3 p-4 text-sm">
             <div>
               <p class="font-medium text-gray-900 dark:text-white">{{ item.account_name }} #{{ item.account_id }} · {{ item.pelican_config?.rule_name || t('admin.qualityOps.unnamed') }}</p>
-              <p class="mt-1 text-xs text-gray-500">{{ item.status }} · {{ item.passed_count }}/{{ item.total_count }} {{ t('admin.qualityOps.passedCount') }} · {{ formatDate(item.started_at) }}</p>
+              <p class="mt-1 text-xs text-gray-500">{{ item.status }} · {{ item.passed_count }}/{{ item.total_count }} {{ t('admin.qualityOps.passedCount') }}<template v-if="item.skipped_count"> · {{ t('admin.qualityOps.skippedCount', { count: item.skipped_count }) }}</template> · {{ formatDate(item.started_at) }}</p>
             </div>
             <span v-if="item.error_message" class="text-xs text-red-700 dark:text-red-300">{{ item.error_message }}</span>
           </div>
@@ -56,11 +56,21 @@
           <label class="block text-sm"><span class="field-title">{{ t('admin.qualityOps.templates.type') }}</span><input v-model.trim="templateForm.type" class="input w-full" placeholder="oauth" /></label>
           <label class="block text-sm"><span class="field-title">{{ t('admin.qualityOps.templates.statuses') }}</span><input v-model.trim="templateForm.statuses" class="input w-full" placeholder="active, disabled" /></label>
           <label class="block text-sm"><span class="field-title">{{ t('admin.qualityOps.templates.search') }}</span><input v-model.trim="templateForm.search" class="input w-full" /></label>
-          <label class="block text-sm"><span class="field-title">{{ t('admin.qualityOps.model') }}</span><input v-model.trim="templateForm.model_id" class="input w-full" required maxlength="100" /></label>
+          <label class="block text-sm"><span class="field-title">{{ t('admin.qualityOps.model') }}</span><input v-model.trim="templateForm.model_id" class="input w-full" data-testid="quality-template-model-id" required maxlength="100" /></label>
           <label class="block text-sm"><span class="field-title">{{ t('admin.qualityOps.schedule') }}</span><input v-model.trim="templateForm.cron_expression" class="input w-full" required /></label>
+          <fieldset class="min-w-0 space-y-2 sm:col-span-2" data-testid="quality-template-extra-models">
+            <legend class="field-title">{{ t('admin.qualityOps.additionalModels') }}</legend>
+            <div v-for="(_, index) in templateForm.extra_models" :key="index" class="flex min-w-0 gap-2">
+              <input v-model.trim="templateForm.extra_models[index]" class="input min-w-0 flex-1" data-testid="quality-template-extra-model" :aria-label="t('admin.qualityOps.modelNumber', { number: index + 2 })" required maxlength="100" />
+              <button class="btn btn-secondary" type="button" :aria-label="t('admin.qualityOps.removeModel', { number: index + 2 })" :disabled="templateSaving" @click="templateForm.extra_models.splice(index, 1)"><Icon name="x" size="sm" /></button>
+            </div>
+            <button class="btn btn-secondary btn-sm" type="button" data-testid="quality-template-add-model" :disabled="templateSaving || templateForm.extra_models.length >= 49" @click="templateForm.extra_models.push('')"><Icon name="plus" size="sm" />{{ t('admin.qualityOps.addModel') }}</button>
+            <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('admin.qualityOps.modelsHelp') }}</p>
+          </fieldset>
           <label class="block text-sm"><span class="field-title">{{ t('admin.qualityOps.maxResults') }}</span><input v-model.number="templateForm.max_results" class="input w-full" type="number" min="1" required /></label>
+          <label class="block text-sm"><span class="field-title">{{ t('admin.qualityOps.probesPerModel') }}</span><input v-model.number="templateForm.parallel_count" class="input w-full" data-testid="quality-template-parallel-count" type="number" min="1" max="32" step="1" required /><span class="mt-1 block text-xs text-gray-500 dark:text-gray-400">{{ t('admin.qualityOps.probesHelp') }}</span></label>
           <label class="block text-sm sm:col-span-2"><span class="field-title">{{ t('admin.qualityOps.prompt') }}</span><textarea v-model="templateForm.prompt" class="input min-h-20 w-full font-mono text-sm" required maxlength="32768" /></label>
-          <label class="block text-sm"><span class="field-title">{{ t('admin.qualityOps.expectedAnswer') }}</span><input v-model.trim="templateForm.expected_answer" class="input w-full" required maxlength="4000" /></label>
+          <label class="block text-sm"><span class="field-title">{{ t('admin.qualityOps.expectedAnswer') }}</span><input v-model.trim="templateForm.expected_answer" class="input w-full" data-testid="quality-template-expected-answer" required maxlength="4000" /></label>
           <label class="block text-sm"><span class="field-title">{{ t('admin.qualityOps.action') }}</span><select v-model="templateForm.action" class="input w-full"><option value="observe_only">{{ t('admin.qualityOps.observeOnly') }}</option><option value="disable_scheduling">{{ t('admin.qualityOps.disableScheduling') }}</option></select></label>
           <div class="sm:col-span-2">
             <Toggle v-model="templateForm.auto_restore" data-testid="quality-template-auto-restore" :label="t('admin.qualityOps.autoRestore')" :description="t('admin.qualityOps.autoRestoreHelp')" :disabled="templateSaving" />
@@ -75,7 +85,7 @@
             <div class="flex flex-wrap items-start justify-between gap-3">
               <div class="min-w-0">
                 <h3 class="font-medium text-gray-900 dark:text-white">{{ templateFilterSummary(template) }}</h3>
-                <p class="mt-1 text-xs text-gray-500">{{ template.model_id }} · {{ template.cron_expression }} · {{ t('admin.qualityOps.templates.covered', { count: template.plan_ids.length }) }}</p>
+                <p class="mt-1 break-words text-xs text-gray-500">{{ modelSummary(template.model_id, template.pelican_config) }} · {{ template.cron_expression }} · {{ t('admin.qualityOps.templates.covered', { count: template.plan_ids.length }) }}</p>
                 <p class="mt-1 text-xs text-gray-500">{{ t('admin.qualityOps.templates.createdUpdated', { created: formatDate(template.created_at), updated: formatDate(template.updated_at) }) }}</p>
               </div>
               <div class="flex flex-wrap items-center gap-2">
@@ -128,9 +138,23 @@
             <span class="field-title">{{ t('admin.qualityOps.schedule') }}</span>
             <input v-model.trim="form.cron_expression" class="input w-full" data-testid="quality-cron-expression" required placeholder="*/30 * * * *" />
           </label>
+          <fieldset class="min-w-0 space-y-2 sm:col-span-2" data-testid="quality-extra-models">
+            <legend class="field-title">{{ t('admin.qualityOps.additionalModels') }}</legend>
+            <div v-for="(_, index) in form.extra_models" :key="index" class="flex min-w-0 gap-2">
+              <input v-model.trim="form.extra_models[index]" class="input min-w-0 flex-1" data-testid="quality-extra-model" :aria-label="t('admin.qualityOps.modelNumber', { number: index + 2 })" required maxlength="100" />
+              <button class="btn btn-secondary" type="button" :aria-label="t('admin.qualityOps.removeModel', { number: index + 2 })" :disabled="saving || presetSaving" @click="form.extra_models.splice(index, 1)"><Icon name="x" size="sm" /></button>
+            </div>
+            <button class="btn btn-secondary btn-sm" type="button" data-testid="quality-add-model" :disabled="saving || presetSaving || form.extra_models.length >= 49" @click="form.extra_models.push('')"><Icon name="plus" size="sm" />{{ t('admin.qualityOps.addModel') }}</button>
+            <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('admin.qualityOps.modelsHelp') }}</p>
+          </fieldset>
           <label class="block text-sm">
             <span class="field-title">{{ t('admin.qualityOps.maxResults') }}</span>
             <input v-model.number="form.max_results" class="input w-full" data-testid="quality-max-results" type="number" min="1" required />
+          </label>
+          <label class="block text-sm">
+            <span class="field-title">{{ t('admin.qualityOps.probesPerModel') }}</span>
+            <input v-model.number="form.parallel_count" class="input w-full" data-testid="quality-parallel-count" type="number" min="1" max="32" step="1" required />
+            <span class="mt-1 block text-xs text-gray-500 dark:text-gray-400">{{ t('admin.qualityOps.probesHelp') }}</span>
           </label>
           <label class="block text-sm sm:col-span-2">
             <span class="field-title">{{ t('admin.qualityOps.ruleName') }}</span>
@@ -205,7 +229,7 @@
               <div class="min-w-0">
                 <h3 class="font-medium text-gray-900 dark:text-white">{{ accountName(plan.account_id) }} #{{ plan.account_id }}</h3>
                 <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">{{ plan.pelican_config?.rule_name || t('admin.qualityOps.unnamed') }}</p>
-                <p class="mt-1 text-xs text-gray-500">{{ plan.model_id }} · {{ plan.cron_expression }} · {{ plan.enabled ? t('admin.qualityOps.enabled') : t('admin.qualityOps.paused') }}</p>
+                <p class="mt-1 break-words text-xs text-gray-500">{{ modelSummary(plan.model_id, plan.pelican_config) }} · {{ plan.cron_expression }} · {{ plan.enabled ? t('admin.qualityOps.enabled') : t('admin.qualityOps.paused') }}</p>
               </div>
               <div class="flex flex-wrap items-center gap-2">
                 <button class="btn btn-secondary btn-sm" :disabled="busyPlan === plan.id" @click="edit(plan)">{{ t('admin.qualityOps.editShort') }}</button>
@@ -234,8 +258,9 @@
               <p v-if="historyLoading" class="text-sm text-gray-500">{{ t('common.loading') }}...</p>
               <p v-else-if="!history.length" class="text-sm text-gray-500">{{ t('admin.qualityOps.noHistory') }}</p>
               <div v-else class="space-y-2">
-                <div v-for="result in history" :key="result.id" class="border border-gray-100 p-3 text-sm dark:border-dark-700">
+                <div v-for="result in history" :key="result.id" data-testid="quality-probe-result" class="min-w-0 border border-gray-100 p-3 text-sm dark:border-dark-700">
                   <div class="flex flex-wrap justify-between gap-2"><span>{{ result.status }}</span><span>{{ result.quality_action || '-' }}</span><time>{{ formatDate(result.started_at) }}</time></div>
+                  <p class="mt-1 break-words text-xs text-gray-500">{{ t('admin.qualityOps.model') }}: {{ result.pelican_config?.model_id || plan.model_id }}<template v-if="result.quality_round_id"> · {{ t('admin.qualityOps.round') }}: {{ result.quality_round_id }}</template></p>
                   <p v-if="result.error_message" class="mt-1 text-xs text-red-700 dark:text-red-300">{{ result.error_message }}</p>
                   <p v-if="result.quality_judgment" class="mt-1 text-xs text-gray-500">{{ JSON.stringify(result.quality_judgment) }}</p>
                 </div>
@@ -294,9 +319,9 @@ const templateSaving = ref(false)
 const templateBusyId = ref<number | null>(null)
 const templateFormOpen = ref(false)
 const editingTemplateId = ref<number | null>(null)
-const templateForm = reactive({ group: '', type: '', statuses: '', search: '', model_id: '', cron_expression: '*/30 * * * *', max_results: 100, prompt: '', expected_answer: '', action: 'observe_only', auto_restore: false, enabled: true })
+const templateForm = reactive({ group: '', type: '', statuses: '', search: '', model_id: '', extra_models: [] as string[], parallel_count: 1, cron_expression: '*/30 * * * *', max_results: 100, prompt: '', expected_answer: '', action: 'observe_only', auto_restore: false, enabled: true })
 
-const form = reactive({ account_id: 0, model_id: '', cron_expression: '*/30 * * * *', max_results: 100, rule_name: '', prompt: '', expected_answer: '', judge_kind: 'expected' as 'expected' | 'jev', judge_prompt: '', action: 'observe_only', auto_restore: false, enabled: true })
+const form = reactive({ account_id: 0, model_id: '', extra_models: [] as string[], parallel_count: 1, cron_expression: '*/30 * * * *', max_results: 100, rule_name: '', prompt: '', expected_answer: '', judge_kind: 'expected' as 'expected' | 'jev', judge_prompt: '', action: 'observe_only', auto_restore: false, enabled: true })
 
 function resetForm() {
   editingId.value = null
@@ -304,7 +329,28 @@ function resetForm() {
   presetName.value = ''
   showPresetSave.value = false
   presetSaveError.value = ''
-  Object.assign(form, { account_id: 0, model_id: '', cron_expression: '*/30 * * * *', max_results: 100, rule_name: '', prompt: '', expected_answer: '', judge_kind: 'expected', judge_prompt: '', action: 'observe_only', auto_restore: false, enabled: true })
+  Object.assign(form, { account_id: 0, model_id: '', extra_models: [] as string[], parallel_count: 1, cron_expression: '*/30 * * * *', max_results: 100, rule_name: '', prompt: '', expected_answer: '', judge_kind: 'expected', judge_prompt: '', action: 'observe_only', auto_restore: false, enabled: true })
+}
+
+function configuredModels(primary: string, config?: PelicanTestConfig | null): string[] {
+  const models = [...new Set((config?.model_ids || []).map((model) => model.trim()).filter(Boolean))]
+  return models.length ? models : [primary.trim()]
+}
+
+function probeConfig(primary: string, extra: string[], count: number): Pick<PelicanTestConfig, 'model_ids' | 'parallel_count'> {
+  const models = [...new Set([primary, ...extra].map((model) => model.trim()))]
+  if (models.some((model) => !model || model.length > 100) || models.length > 50) {
+    throw new Error(t('admin.qualityOps.probeModelsInvalid'))
+  }
+  if (!Number.isInteger(count) || count < 1 || count > 32) {
+    throw new Error(t('admin.qualityOps.probeCountInvalid'))
+  }
+  if (models.length * count > 100) throw new Error(t('admin.qualityOps.probeSamplesInvalid'))
+  return { model_ids: models, parallel_count: count }
+}
+
+function modelSummary(primary: string, config?: PelicanTestConfig | null): string {
+  return configuredModels(primary, config).join(' / ')
 }
 
 function accountName(id: number) {
@@ -317,7 +363,7 @@ function formatDate(value?: string | null) {
 
 function resetTemplateForm() {
   editingTemplateId.value = null
-  Object.assign(templateForm, { group: '', type: '', statuses: '', search: '', model_id: '', cron_expression: '*/30 * * * *', max_results: 100, prompt: '', expected_answer: '', action: 'observe_only', auto_restore: false, enabled: true })
+  Object.assign(templateForm, { group: '', type: '', statuses: '', search: '', model_id: '', extra_models: [] as string[], parallel_count: 1, cron_expression: '*/30 * * * *', max_results: 100, prompt: '', expected_answer: '', action: 'observe_only', auto_restore: false, enabled: true })
 }
 
 function newTemplate() {
@@ -331,7 +377,7 @@ function closeTemplateForm() {
 }
 
 function templatePelicanConfig(): PelicanTestConfig {
-  return { question_kind: 'text', prompt: templateForm.prompt, quality: { action: templateForm.action, expected_answer: templateForm.expected_answer, auto_restore: templateForm.auto_restore, judge: { kind: 'expected' } } }
+  return { ...probeConfig(templateForm.model_id, templateForm.extra_models, templateForm.parallel_count), question_kind: 'text', prompt: templateForm.prompt, quality: { action: templateForm.action, expected_answer: templateForm.expected_answer, auto_restore: templateForm.auto_restore, judge: { kind: 'expected' } } }
 }
 
 function templateRequest(): QualityRuleTemplateRequest {
@@ -350,7 +396,8 @@ function templateFilterSummary(template: QualityRuleTemplate) {
 function editTemplate(template: QualityRuleTemplate) {
   editingTemplateId.value = template.id
   const filter = template.account_filter || {}
-  Object.assign(templateForm, { group: filter.group || '', type: filter.type || '', statuses: filter.statuses?.join(', ') || '', search: filter.search || '', model_id: template.model_id, cron_expression: template.cron_expression, max_results: template.max_results, prompt: template.pelican_config?.prompt || '', expected_answer: template.pelican_config?.quality?.expected_answer || '', action: template.pelican_config?.quality?.action || 'observe_only', auto_restore: template.pelican_config?.quality?.auto_restore === true, enabled: template.enabled })
+  const [model_id, ...extra_models] = configuredModels(template.model_id, template.pelican_config)
+  Object.assign(templateForm, { group: filter.group || '', type: filter.type || '', statuses: filter.statuses?.join(', ') || '', search: filter.search || '', model_id, extra_models, parallel_count: template.pelican_config?.parallel_count || 1, cron_expression: template.cron_expression, max_results: template.max_results, prompt: template.pelican_config?.prompt || '', expected_answer: template.pelican_config?.quality?.expected_answer || '', action: template.pelican_config?.quality?.action || 'observe_only', auto_restore: template.pelican_config?.quality?.auto_restore === true, enabled: template.enabled })
   templateFormOpen.value = true
 }
 
@@ -434,7 +481,10 @@ function applyPreset() {
   const preset = presets.value.find((item) => item.id === selectedPresetId.value)
   if (!preset) return
   const config = preset.pelican_config
-  form.model_id = preset.model_id
+  const [primary, ...extra] = configuredModels(preset.model_id, config)
+  form.model_id = primary
+  form.extra_models = extra
+  form.parallel_count = config.parallel_count || 1
   form.cron_expression = preset.cron_expression
   form.max_results = preset.max_results
   form.rule_name = config.rule_name || preset.name
@@ -448,8 +498,9 @@ function applyPreset() {
   notice.value = t('admin.qualityOps.presetApplied')
 }
 
-function pelicanConfig() {
+function pelicanConfig(): PelicanTestConfig {
   return {
+    ...probeConfig(form.model_id, form.extra_models, form.parallel_count),
     rule_name: form.rule_name || undefined,
     question_kind: 'text',
     prompt: form.prompt,
@@ -512,7 +563,10 @@ async function loadMoreGlobalHistory() {
 function edit(plan: ScheduledTestPlan) {
   editingId.value = plan.id
   form.account_id = plan.account_id
-  form.model_id = plan.model_id
+  const [primary, ...extra] = configuredModels(plan.model_id, plan.pelican_config)
+  form.model_id = primary
+  form.extra_models = extra
+  form.parallel_count = plan.pelican_config?.parallel_count || 1
   form.cron_expression = plan.cron_expression
   form.max_results = plan.max_results
   form.rule_name = plan.pelican_config?.rule_name || ''
@@ -531,14 +585,14 @@ async function save() {
   saving.value = true
   error.value = ''
   notice.value = ''
-  const pelican_config = pelicanConfig()
   try {
+    const pelican_config = pelicanConfig()
     if (editingId.value) {
       const current = plans.value.find((plan) => plan.id === editingId.value)
-      await adminAPI.scheduledTests.update(editingId.value, { model_id: form.model_id, cron_expression: form.cron_expression, max_results: form.max_results, enabled: form.enabled, pelican_config, expected_updated_at: current?.updated_at })
+      await adminAPI.scheduledTests.update(editingId.value, { model_id: form.model_id.trim(), cron_expression: form.cron_expression, max_results: form.max_results, enabled: form.enabled, pelican_config, expected_updated_at: current?.updated_at })
       notice.value = t('admin.qualityOps.saved')
     } else {
-      await adminAPI.scheduledTests.create({ account_id: form.account_id, model_id: form.model_id, cron_expression: form.cron_expression, enabled: form.enabled, max_results: form.max_results, pelican_config })
+      await adminAPI.scheduledTests.create({ account_id: form.account_id, model_id: form.model_id.trim(), cron_expression: form.cron_expression, enabled: form.enabled, max_results: form.max_results, pelican_config })
       notice.value = t('admin.qualityOps.created')
     }
     resetForm()
