@@ -1,6 +1,6 @@
 # v2.17.7 同步批次账本
 
-> **#398 发布后复核（2026-11-01 UTC+8）**：PR head 已普通 merge 为 `play/main@db76a7e2a0a8c24818efad1fad6623fee28ab706`；Zeabur deployment `6ae65455ea16512cf741d4c8` 的 commit SHA 一致，`finishedAt=2026-10-31T20:53:58.935Z`，状态 `RUNNING`。构建日志以 `build completed` 结束，无失败/failed/panic；应用、PostgreSQL、Redis 服务均为 `RUNNING`，域名为 `PROVISIONED`，首页和 `/health` 均 HTTP 200（`{"status":"ok"}`）。部署后运行日志筛查为 ERROR/FATAL/PANIC 0 条，只有 1 条既有 `content_moderation.skip_no_audit_api_keys` WARN；该提示表示审核 API Key 未配置，不是本批启动失败。此次提交不含新的 SQL migration，沿用 #397 已核验的 431 条 migration ledger（424 个当前 SQL checksum 匹配、7 条历史记录）；本批生产数据库未写入。管理员多模型质量轮次、Key/倍率和其他业务动作仍待现场验收，`fully_migrated=false`。本段是发布后交付证据，不为文档单独触发部署。
+> **#398 发布后复核（2026-11-01 UTC+8）**：PR head 已普通 merge 为 `play/main@db76a7e2a0a8c24818efad1fad6623fee28ab706`；Zeabur deployment `6ae65455ea16512cf741d4c8` 的 commit SHA 一致，`finishedAt=2026-10-31T20:53:58.935Z`，状态 `RUNNING`。构建日志以 `build completed` 结束，无失败/failed/panic；应用、PostgreSQL、Redis 服务均为 `RUNNING`，域名为 `PROVISIONED`，首页和 `/health` 均 HTTP 200（`{"status":"ok"}`）。部署后运行日志筛查为 ERROR/FATAL/PANIC 0 条，只有 1 条既有 `content_moderation.skip_no_audit_api_keys` WARN；该提示表示审核 API Key 未配置，不是本批启动失败。未认证访问质量计划/历史、渠道运维、内容审查用户、请求台账和管理员 Usage 接口均返回 `401 application/json`。此次提交不含新的 SQL migration，沿用 #397 已核验的 431 条 migration ledger（424 个当前 SQL checksum 匹配、7 条历史记录）；本批生产数据库未写入。管理员多模型质量轮次、Key/倍率和其他业务动作仍待现场验收，`fully_migrated=false`。本段是发布后交付证据，不为文档单独触发部署。
 
 > **#397 当前生产状态（2026-11-01 UTC+8）**：PR head `70524682fd0b27de9fb7fd2dbc474906a86a362f` 已通过9项CI并合并为 `play/main@f7193d639980840ae9fad66376355f4243d82a35`；Zeabur deployment `6ae634e9ea16512cf741d3ca` SHA一致、RUNNING，主站/API health 200。生产 migration ledger 431条，424个当前SQL checksum匹配、7条历史记录，本批无schema迁移。用户确认内容审查用户管理刷新正常；#397多模型/重复probe管理员验收、#396 Key/倍率验收和账务历史归因仍待完成。账务只读聚合与匹配证据见[开发清单](./DEVELOPMENT_CHECKLIST.md)；无生产写操作。`fully_migrated=false`，正文采集/harvest和#492全文审计继续阻断。
 
@@ -9,7 +9,7 @@
 > **#395 历史部署记录（由首段#396覆盖）**：生产为 `play/main@aea9be1e6508c5c319cc763c5fe058bc8d4b4aed`（PR [#395](https://github.com/tqytwe/sub2api/pull/395)），Zeabur deployment `6ae5dc8eea16512cf741cda0` 状态 `RUNNING`、实际 SHA 一致；主站和 API `/health` 均 HTTP 200。用户再次确认内容审查用户管理刷新正常，原 internal error 故障验收已通过。#395 的质量恢复、优先调度 quality round 和凭证修复已部署，不重复开发。
 > PR [#396](https://github.com/tqytwe/sub2api/pull/396) 对应上游 #479 API Key多组，现已合并、部署并完成338表/约束/索引核验；当时“338未应用、候选待CI”的预发布记录已由首段生产证据覆盖。Key/倍率本机验收仍待完成。
 
-当前生产已包含质量多模型/重复probe、整轮持久化/历史和Priority逐模型归因（PR #397）。开发分支 `codex/quality-multiprobe-20261101` 是已合并的交付分支，不是候选；剩真实管理员验收。下一批按下方工作矩阵和[开发清单](./DEVELOPMENT_CHECKLIST.md)继续，不单独发布文档更新。以下历史段落不代表当前状态。
+当前生产已包含质量多模型/重复probe、整轮持久化/历史和Priority逐模型归因，并由 PR #398 补充质量历史查询、WebSocket 优先调度归因和空 delta 语义修复。开发分支 `codex/quality-multiprobe-20261101` 是已合并的交付分支，不是候选；剩真实管理员验收。下一批按下方工作矩阵和[开发清单](./DEVELOPMENT_CHECKLIST.md)继续，不单独发布文档更新。以下历史段落不代表当前状态。
 
 > **2026-10-31 #394 历史修复部署复核（UTC+8，当前生产见首段）**：PR [#394](https://github.com/tqytwe/sub2api/pull/394)
 > 全部 9 项 CI 检查通过，修复提交 `d99f2c8a2` 已合并至
