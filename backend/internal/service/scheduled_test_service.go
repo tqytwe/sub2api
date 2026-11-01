@@ -365,7 +365,34 @@ func (s *ScheduledTestService) ListResults(ctx context.Context, planID int64, li
 	if limit <= 0 {
 		limit = 50
 	}
-	return s.resultRepo.ListByPlanID(ctx, planID, limit)
+	results, err := s.resultRepo.ListByPlanID(ctx, planID, limit)
+	if err != nil {
+		return nil, err
+	}
+	for _, result := range results {
+		sanitizeQualityHistoryResult(result)
+	}
+	return results, nil
+}
+
+// sanitizeQualityHistoryResult keeps the existing result-history shape while
+// ensuring an admin quality-history read cannot expose prompt, expected-answer,
+// judge-rubric, or response content. Quality writes already sanitize current
+// samples; this read-side projection also protects legacy rows.
+func sanitizeQualityHistoryResult(result *ScheduledTestResult) {
+	if result == nil || result.PelicanConfig == nil || result.PelicanConfig.Quality == nil {
+		return
+	}
+	result.ResponseText = ""
+	config := cloneQualityPelicanConfig(result.PelicanConfig)
+	config.Prompt = ""
+	if config.Quality != nil {
+		config.Quality.ExpectedAnswer = ""
+		if config.Quality.Judge != nil {
+			config.Quality.Judge.Prompt = ""
+		}
+	}
+	result.PelicanConfig = config
 }
 
 // SaveResult inserts a result and prunes old entries beyond maxResults.
