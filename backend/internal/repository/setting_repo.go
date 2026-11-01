@@ -41,6 +41,65 @@ func (r *settingRepository) GetValue(ctx context.Context, key string) (string, e
 	return setting.Value, nil
 }
 
+// GetValueWithRevision is the narrow compare-and-set read used by settings
+// whose writes must not silently overwrite another administrator. The existing
+// updated_at column is the revision; no schema migration is required.
+func (r *settingRepository) GetValueWithRevision(ctx context.Context, key string) (string, string, error) {
+	m, err := r.client.Setting.Query().Where(setting.KeyEQ(key)).Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return "", "", service.ErrSettingNotFound
+		}
+		return "", "", err
+	}
+	return m.Value, m.UpdatedAt.UTC().Format(time.RFC3339Nano), nil
+}
+
+// CompareAndSet atomically updates a setting only when both its previous value
+// and revision still match. The missing-key branch uses INSERT ... DO NOTHING,
+// so two first writers cannot both claim the initial revision.
+func (r *settingRepository) CompareAndSet(ctx context.Context, key, expectedRevision, expectedValue, value string) (string, error) {
+	now := time.Now()
+	if expectedRevision == "" && expectedValue == "" {
+		created, err := r.client.Setting.Create().
+			SetKey(key).
+			SetValue(value).
+			SetUpdatedAt(now).
+			Save(ctx)
+		if err != nil {
+			if ent.IsConstraintError(err) {
+				return "", service.ErrModelBillingRevisionConflict
+			}
+			return "", err
+		}
+		return created.UpdatedAt.UTC().Format(time.RFC3339Nano), nil
+	}
+
+	n, err := r.client.Setting.Update().
+		Where(setting.KeyEQ(key), setting.ValueEQ(expectedValue), setting.UpdatedAt(parseSettingRevision(expectedRevision))).
+		SetValue(value).
+		SetUpdatedAt(now).
+		Save(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return "", service.ErrModelBillingRevisionConflict
+		}
+		return "", err
+	}
+	if n != 1 {
+		return "", service.ErrModelBillingRevisionConflict
+	}
+	return now.UTC().Format(time.RFC3339Nano), nil
+}
+
+func parseSettingRevision(revision string) time.Time {
+	parsed, err := time.Parse(time.RFC3339Nano, revision)
+	if err != nil {
+		return time.Time{}
+	}
+	return parsed
+}
+
 func (r *settingRepository) Set(ctx context.Context, key, value string) error {
 	now := time.Now()
 	return r.client.Setting.

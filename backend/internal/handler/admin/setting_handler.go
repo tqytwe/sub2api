@@ -105,6 +105,39 @@ func (h *SettingHandler) SetOpenAIGatewayService(gateway *service.OpenAIGatewayS
 	h.openAIGatewayService = gateway
 }
 
+// GetModelBillingConfig exposes the dedicated, admin-only policy contract.
+// The storage revision is returned separately so callers must use CAS when
+// saving; no billing behavior is applied by this endpoint.
+func (h *SettingHandler) GetModelBillingConfig(c *gin.Context) {
+	snapshot, err := h.settingService.GetModelBillingConfig(c.Request.Context())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, snapshot)
+}
+
+type modelBillingConfigUpdateRequest struct {
+	Config   *service.ModelBillingConfig `json:"config"`
+	Revision *string                     `json:"revision"`
+}
+
+// SaveModelBillingConfig validates model/group scope and performs a revisioned
+// write. It intentionally does not run request billing or mutate usage data.
+func (h *SettingHandler) SaveModelBillingConfig(c *gin.Context) {
+	var req modelBillingConfigUpdateRequest
+	if err := c.ShouldBindJSON(&req); err != nil || req.Config == nil || req.Revision == nil {
+		response.BadRequest(c, "config and revision are required")
+		return
+	}
+	snapshot, err := h.settingService.SaveModelBillingConfig(c.Request.Context(), *req.Config, *req.Revision)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, snapshot)
+}
+
 func (h *SettingHandler) GetPriorityScheduling(c *gin.Context) {
 	cfg, err := h.settingService.GetPrioritySchedulingConfig(c.Request.Context())
 	if err != nil {
