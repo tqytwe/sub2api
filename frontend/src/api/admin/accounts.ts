@@ -776,6 +776,62 @@ export async function createOpenAICodexPAT(payload: OpenAICodexPATCreateRequest)
   return data
 }
 
+export interface OpenAIExcelOAuthStatus {
+  account_id: number
+  authorized: boolean
+  revision: number
+  expires_at?: string
+  updated_at?: string
+}
+
+export interface OpenAIExcelOAuthAuthURL {
+  auth_url: string
+  session_id: string
+}
+
+export interface ExcelBPSCapability {
+  id: string
+  display_name?: string
+  reasoning_efforts?: string[]
+}
+
+export interface ExcelBPSCapabilities {
+  allowed: boolean
+  models: ExcelBPSCapability[]
+}
+
+export async function getOpenAIExcelOAuthStatus(accountId: number): Promise<OpenAIExcelOAuthStatus> {
+  const { data } = await apiClient.get<OpenAIExcelOAuthStatus>(
+    `/admin/openai/accounts/${accountId}/excel-oauth`
+  )
+  return data
+}
+
+export async function generateOpenAIExcelOAuthAuthURL(accountId: number): Promise<OpenAIExcelOAuthAuthURL> {
+  const { data } = await apiClient.post<OpenAIExcelOAuthAuthURL>(
+    `/admin/openai/accounts/${accountId}/excel-oauth/auth-url`
+  )
+  return data
+}
+
+export async function bindOpenAIExcelOAuth(
+  accountId: number,
+  input: { session_id: string; code: string; state: string; redirect_uri?: string; expected_revision: number }
+): Promise<OpenAIExcelOAuthStatus> {
+  const { data } = await apiClient.post<OpenAIExcelOAuthStatus>(
+    `/admin/openai/accounts/${accountId}/excel-oauth/bind`,
+    input
+  )
+  return data
+}
+
+export async function discoverOpenAIExcelOAuthCapabilities(accountId: number): Promise<ExcelBPSCapabilities> {
+  const { data } = await apiClient.get<ExcelBPSCapabilities>(
+    `/admin/openai/accounts/${accountId}/excel-oauth/capabilities`
+  )
+  return data
+}
+
 /**
  * Get Antigravity default model mapping from backend
  * @returns Default model mapping (from -> to)
@@ -1180,6 +1236,10 @@ export const accountsAPI = {
   importData,
   importCodexSession,
   createOpenAICodexPAT,
+  getOpenAIExcelOAuthStatus,
+  generateOpenAIExcelOAuthAuthURL,
+  bindOpenAIExcelOAuth,
+  discoverOpenAIExcelOAuthCapabilities,
   getAntigravityDefaultModelMapping,
   batchDelete,
   batchClearError,

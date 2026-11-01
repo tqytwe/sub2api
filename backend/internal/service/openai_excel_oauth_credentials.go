@@ -14,7 +14,7 @@ import (
 	"golang.org/x/sync/singleflight"
 )
 
-var ErrOpenAIExcelOAuthRevisionConflict = errors.New("Excel OAuth credentials changed; reload status and retry")
+var ErrOpenAIExcelOAuthRevisionConflict = errors.New("excel OAuth credentials changed; reload status and retry")
 
 type OpenAIExcelOAuthCredentialRecord struct {
 	AccountID            int64
@@ -145,7 +145,7 @@ func (s *OpenAIExcelOAuthService) DiscoverCapabilities(ctx context.Context, acco
 		return nil, infraerrors.New(http.StatusInternalServerError, "OPENAI_EXCEL_OAUTH_DECRYPT_FAILED", "Excel OAuth credentials could not be decrypted")
 	}
 	if payload.ExpiresAt > 0 && payload.ExpiresAt <= s.clock().Add(2*time.Minute).Unix() {
-		payload, record, err = s.refreshPayloadSingleflight(ctx, account, record, payload)
+		payload, _, err = s.refreshPayloadSingleflight(ctx, account, record, payload)
 		if err != nil {
 			return nil, infraerrors.New(http.StatusUnauthorized, "OPENAI_EXCEL_OAUTH_REAUTH_REQUIRED", "Excel OAuth authorization has expired; reconnect this account")
 		}
@@ -161,9 +161,10 @@ func (s *OpenAIExcelOAuthService) DiscoverCapabilities(ctx context.Context, acco
 	if status != http.StatusOK {
 		code := "OPENAI_EXCEL_BPS_DISCOVERY_FAILED"
 		httpStatus := http.StatusBadGateway
-		if status == http.StatusUnauthorized || status == http.StatusForbidden {
+		switch status {
+		case http.StatusUnauthorized, http.StatusForbidden:
 			code, httpStatus = "OPENAI_EXCEL_OAUTH_REAUTH_REQUIRED", http.StatusUnauthorized
-		} else if status == http.StatusTooManyRequests {
+		case http.StatusTooManyRequests:
 			code, httpStatus = "OPENAI_EXCEL_BPS_RATE_LIMITED", http.StatusBadGateway
 		}
 		return nil, infraerrors.New(httpStatus, code, "Excel model capability discovery was rejected by the provider")
@@ -187,7 +188,7 @@ func (s *OpenAIExcelOAuthService) refreshPayloadSingleflight(ctx context.Context
 			return nil, err
 		}
 		if latest == nil || strings.TrimSpace(latest.CredentialsEncrypted) == "" {
-			return nil, errors.New("Excel OAuth credentials are missing")
+			return nil, errors.New("excel OAuth credentials are missing")
 		}
 		latestPayload := payload
 		if latest.Revision != record.Revision || latest.CredentialsEncrypted != record.CredentialsEncrypted {
@@ -276,7 +277,7 @@ func (s *OpenAIExcelOAuthService) decryptPayload(ciphertext string) (openAIExcel
 
 func (s *OpenAIExcelOAuthService) refreshPayload(ctx context.Context, account *Account, record *OpenAIExcelOAuthCredentialRecord, payload openAIExcelOAuthCredentialPayload) (openAIExcelOAuthCredentialPayload, *OpenAIExcelOAuthCredentialRecord, error) {
 	if strings.TrimSpace(payload.RefreshToken) == "" {
-		return payload, record, errors.New("Excel OAuth refresh token is missing")
+		return payload, record, errors.New("excel OAuth refresh token is missing")
 	}
 	proxyURL, err := s.accountProxyURL(ctx, account)
 	if err != nil {
@@ -284,7 +285,7 @@ func (s *OpenAIExcelOAuthService) refreshPayload(ctx context.Context, account *A
 	}
 	refreshed, err := s.oauth.RefreshTokenWithClientID(ctx, payload.RefreshToken, proxyURL, openai.ExcelClientID)
 	if err != nil || refreshed == nil || strings.TrimSpace(refreshed.AccessToken) == "" {
-		return payload, record, errors.New("Excel OAuth refresh failed")
+		return payload, record, errors.New("excel OAuth refresh failed")
 	}
 	payload.AccessToken = refreshed.AccessToken
 	if strings.TrimSpace(refreshed.RefreshToken) != "" {

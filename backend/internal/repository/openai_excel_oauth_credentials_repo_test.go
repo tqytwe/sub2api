@@ -16,8 +16,11 @@ import (
 func TestOpenAIExcelOAuthCredentialRepositoryUsesRevisionCAS(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
-	repo := NewOpenAIExcelOAuthCredentialRepository(db).(*openAIExcelOAuthCredentialRepository)
+	t.Cleanup(func() {
+		require.NoError(t, db.Close())
+		require.NoError(t, mock.ExpectationsWereMet())
+	})
+	repo := NewOpenAIExcelOAuthCredentialRepository(db)
 	expires := time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC)
 
 	mock.ExpectQuery("INSERT INTO openai_excel_oauth_credentials").
@@ -39,13 +42,17 @@ func TestOpenAIExcelOAuthCredentialRepositoryUsesRevisionCAS(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"revision"}))
 	_, err = repo.SaveExcelOAuthCredentials(context.Background(), 42, 1, "ciphertext-stale", &expires)
 	require.ErrorIs(t, err, service.ErrOpenAIExcelOAuthRevisionConflict)
-	require.NoError(t, mock.ExpectationsWereMet())
+	mock.ExpectClose()
 }
 
 func TestOpenAIExcelOAuthCredentialRepositoryRejectsPlaintextPayload(t *testing.T) {
-	db, _, err := sqlmock.New()
+	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+	mock.ExpectClose()
+	t.Cleanup(func() {
+		require.NoError(t, db.Close())
+		require.NoError(t, mock.ExpectationsWereMet())
+	})
 	repo := NewOpenAIExcelOAuthCredentialRepository(db)
 	_, err = repo.SaveExcelOAuthCredentials(context.Background(), 42, 0, `{"access_token":"plaintext"}`, nil)
 	require.Error(t, err)
@@ -76,5 +83,5 @@ func TestOpenAIExcelOAuthAccessClientRejectsOversizedBody(t *testing.T) {
 	defer server.Close()
 	client := &openAIExcelOAuthAccessClient{endpoint: server.URL}
 	_, _, err := client.FetchAccessModels(context.Background(), "test-access", "acct-42", "")
-	require.ErrorContains(t, err, "exceeds size limit")
+	require.ErrorContains(t, err, "excel capability response exceeds size limit")
 }
