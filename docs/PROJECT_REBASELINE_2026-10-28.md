@@ -1,6 +1,6 @@
 # 当前项目推进基线
 
-> **#396 发布后复核（2026-11-01 UTC+8）**：新 head `f09b7230fce899370db56f4e98350e15ed1ee8a6` 的9项CI全部通过，已普通merge至 `play/main@73f9ba38b4d61ad5a0e0ac05ab2004d4c9775444`，与受测head源码一致。Zeabur deployment `6ae61c6cea16512cf741d279` 的SHA一致，构建镜像导出完成、`finishedAt=2026-10-31T16:56:01.268Z`、RUNNING，主站/API health200。数据库只读复核431条ledger，424个当前SQL全部匹配、7条历史；338表/主键/2外键/索引存在，invalid indexes=0，事务ROLLBACK。最近100行应用日志ERROR/FATAL/PANIC为0，WARN为缺少审核API Key；CLI有限窗口不证明全启动日志无异常。Keys接口一次探测超时后主站/API重查均401，其余未认证接口401。技术部署核验通过，本批Key与管理员倍率的本机浏览器验收仍待完成；内容审查刷新已由用户确认，不重验。完整正文/harvest继续阻断，`fully_migrated=false`。详细证据和剩余验收见 [PR #396](https://github.com/tqytwe/sub2api/pull/396)。本段为发布后本地补记，随下一批累计提交，不为文档再次部署。
+> **#399 发布后复核（2026-11-01 UTC+8）**：PR #399 已通过全部 8 项 CI 并合并为 `play/main@80131c818b1d1917c75a73bb61becc1930efd550`；Zeabur deployment `6ae66d6eea16512cf741d587` SHA 一致、状态 `RUNNING`，应用/PostgreSQL/Redis 均 `RUNNING`，主站/API `/health` HTTP 200。部署后运行日志未发现 `ERROR/FATAL/PANIC`；未认证管理员 API 均返回 `401`。#399 无 SQL migration 或生产写入；内容审查用户管理刷新已由用户确认正常。#397 质量多模型配置保存/刷新、同轮 4 条结果和跨计划历史已由管理员本机验收通过；#396 API Key 多组、默认组切换、保存刷新和管理员倍率明细也已验收通过。Priority 真实 WS 观测行、渠道运维写动作和历史账务只读归因仍待完成，`fully_migrated=false`。本段为当前基线证据，旧批次段落保留为历史记录。
 
 状态：`active`。核验日期：2026-11-01（Asia/Shanghai）。
 
@@ -11,14 +11,14 @@
 | 项目 | 当前事实 |
 |------|----------|
 | 生产分支 | `origin/play/main` |
-| 当前生产 commit | `73f9ba38b4d61ad5a0e0ac05ab2004d4c9775444`（PR #396 merge） |
-| Zeabur | deployment `6ae61c6cea16512cf741d279`；CLI确认精确SHA、构建完成与RUNNING |
+| 当前生产 commit | `80131c818b1d1917c75a73bb61becc1930efd550`（PR #399 merge） |
+| Zeabur | deployment `6ae66d6eea16512cf741d587`；CLI确认精确SHA与RUNNING |
 | 公开健康 | 2026-11-01 主站/API `/health` HTTP 200；内容审查列表已有5次HTTP 200，用户再次确认刷新正常 |
 | 直接上游 | `ranxi2001/sub2api` |
 | 上游候选发布 | GitHub release/tag `v2.17.7`；tag object `af9a09cf92c1cbfdcf793862122d46a5a29a6da1`；tag commit `9620d315f72a7dbf04fa10fca02970e1e410805e`；静态 `VERSION` 为 `2.17.7`；已在线核实 release/tag |
 | 生产源码版本标识 | `backend/cmd/server/VERSION` 为 `0.2.14`；这是 Fork 当前标识，不代表已同步上游 v2.17.7 |
 | 生产与上游共同祖先 | `efe9aab1e4ec89a42ba45e8dac20e882c5409a6a`，上游源码 `VERSION=0.2.5` |
-| 上游同步状态 | 来源锁指向 v2.17.7，`fully_migrated=false`；PR #389 已部署部分批次，整版功能差异尚未全部分类/迁移 |
+| 上游同步状态 | 来源锁指向 v2.17.7，`fully_migrated=false`；PR #399 已部署当前累计批次，整版功能差异尚未全部分类/迁移 |
 | 权限不变量 | PR #384 已部署；请求台账普通用户入口移除，仅管理员入口保留 |
 
 用户已确认此前生产用户验收完成，PR #384 的管理员专属请求台账入口也已部署并验收。该批次不再列为待办；上游同步发布后只对本批受影响的功能做回归验收。请求台账的历史 unknown、订阅计数器和协议覆盖对账是独立的业务证据，不等同于用户界面验收。
@@ -38,13 +38,13 @@
 - 已修正 `check_upstream_release.py`，校验 release/tag object/commit 及上游 exact-tag version resolver；v2.17.7 release/tag 在线身份已核验，版本检查器需按新版来源锁重新跑定向测试。
 - 已锁定共同祖先 `efe9aab1` (`0.2.5`) 与差异分析基线 `526f09d36` (`0.2.14`，不是当前生产SHA)；上游共同祖先至 `v2.17.7` 有 2,155 个提交、446 个 first-parent merge、3,809 个路径变化；历史分析基线到目标 tag 的直接 `git diff --name-status` 曾有 7,474 条状态记录（不是#396重新计数）。生产与 release 的直接文件差异还包含双方各自演进，需按功能分类，不可整树合并。
 - 已有历史迁移编号/同名冲突审查可作为输入，但不能替代完整范围迁移审查；每项实际迁移重新核对完整文件名、checksum、依赖和生产状态。
-- 来源锁已随现有批次合并；当前生产为上表 #396。新累计候选提交后须在干净隔离 worktree 重新运行 strict 检查，不能把历史来源核验当作新代码的门禁。
+- 来源锁已随现有批次合并；当前生产为上表 #399。新累计候选提交后须在干净隔离 worktree 重新运行 strict 检查，不能把历史来源核验当作新代码的门禁。
 
 ### 1. 固定范围和逐项决策
 
 - 从共同祖先到 v2.17.7，按上游 PR/功能域检查后端/API、前端路由/交互、迁移/数据库、计费和构建部署；release notes 中 #576–#581 是末段增量检查点，不是全部同步范围。
 - 每个能力记录“当前生产等价实现、Fork 必须保留、候选适配/缺口、明确排除”及测试和回退影响；不得依据整树文件差异直接搬运。
-- 共同祖先到目标tag的完整范围包含账务/网关相关演进，不能用末段release notes断言整版没有结算变化。保留Fork账务合同，逐行为判断等价、适配或架构阻断；当前累计批次不改支付、扣费或历史结算，只保留只读归因及受影响回归。
+- 共同祖先到目标tag的完整范围包含账务/网关相关演进，不能用末段release notes断言整版没有结算变化。保留Fork账务合同，逐行为判断等价、适配或架构阻断；新批次只在管理员显式启用模型倍率时改变后续 token 用户费用；不改支付或历史结算，历史仅做只读归因。
 
 ### 2. 后端与数据库候选
 
@@ -72,27 +72,14 @@
 - PR 合并后只触发一次生产部署；核对 Zeabur 精确 SHA、健康接口和关键 API，再由用户对本批实际受影响的页面与业务路径做回归验收。此前已完成的生产用户验收不重复列为门槛。
 - 生产异常、权限放宽、账务/迁移不一致或部署 SHA 不符时停止批次并 revert 合并提交，不继续叠加新改动。
 
-## 当前执行状态（2026-11-01，#396 后）
+## 当前执行状态（2026-11-01）
 
-- 生产 #396：`play/main@73f9ba38b4d61ad5a0e0ac05ab2004d4c9775444`，部署/数据库证据见首段和PR。#395质量恢复、凭证修复与Priority单模型round已经上线，不重复开发。
-- 当前隔离工作树 `/data/projects/sub2api-quality-multiprobe-20261101`，分支 `codex/quality-multiprobe-20261101`，尚未提交/创建PR/部署。下一累计批次只补质量多模型/重复probe实际执行、整轮原子保存和保留、历史完整性、Priority逐模型质量信号，以及既有页面配置保存与结果辨认。
-- 已复现质量配置虽保存却只运行一次、表单编辑丢字段、清理裁切round和Priority拒收多模型的缺口；按TDD修复，适用定向/全量测试及构建已通过，最后guard修正后又完成完整后端普通测试/lint、unit与embed构建；普通连通性规则不受质量目标处理影响。组合验证及各轮源码范围见[开发清单第5节](./upstream-migrations/v2.17.7/DEVELOPMENT_CHECKLIST.md#5-统一验收和发布门禁)。最终冻结源码Fork已通过，提交后strict、新head CI及发布监督尚待完成，不能以开发截图代替生产验收。
-- #396 Key/倍率本机验收已向用户发起，等待反馈；内容审查刷新已验收不重做。审核API Key缺失属于现网配置待办，本批不擅自启用或录入凭据。
-- 既有独立启用、跨计划历史、真实恢复和最终准入不重复开发。正文采集/harvest保持阻断，历史账务只读，不补扣/改状态/清理。模型发现替换、模型/分组隔离、额外judge和provider/区域运行时仍在后续范围清单，`fully_migrated=false`。
-- 具体证据和后续范围使用[开发清单](./upstream-migrations/v2.17.7/DEVELOPMENT_CHECKLIST.md)与[功能矩阵](./upstream-migrations/v2.17.7/feature-matrix.md)。每次合并立即查Zeabur精确SHA、日志、迁移、健康/API，然后完成本批管理员本机验收。
-
-## 历史执行状态（2026-10-28，以下不代表当前线上）
-
-本节仅保留当时快照；当前部署以首段#396为准。PR #389 已合并并完成一次 Zeabur 部署；这代表同步批次部分能力上线，不代表 v2.17.7 全量迁移完成。完整收口证据和管理员/数据库操作清单见 [v2.17.7 同步账本](./upstream-migrations/v2.17.7/README.md)。
-
-| 工作包 | 当前事实 | 后续门槛 |
-|---|---|---|
-| 上游范围 | tag `v2.17.7` / commit `9620d315f72a7dbf04fa10fca02970e1e410805e` 已锁定；共同祖先至目标有 446 个 upstream merge；并未逐条完成产品功能映射 | 按功能域给每项标 Fork 等价、纳入迁移、重复/不适用或阻断，并附代码/测试证据 |
-| 已部署批次 | PR #389；merge/deploy SHA `5c16bc5b5965a7b0d7c38aa35671639f045f2dea`；Zeabur deployment `6ae1a532ea16512cf741806a` 成功 | 已完成技术部署核验；不据此把整版标完成 |
-| PR CI | head 没有 GitHub CI check run；Actions dispatch 返回仓库 Actions disabled | 保留缺证；本地检查结果不冒充远端 CI |
-| 管理员体验 | 渠道运维、优先调度页面和 admin API 已部署；生产 API 未认证返回 401 | 用户本机管理员登录后按同步账本验收路由、真实读写、刷新、审计、普通用户权限和调度效果 |
-| 数据库/日志 | 生产 ledger 416 条：409 个当前迁移逐项 checksum 匹配、7 个历史迁移匹配；282 和 gateway 275–281 关键 schema/孤儿约束已只读核验。当前应用最近 100 条日志没有 ERROR/WARN/FATAL，但较早样本有 11 条 ERROR/WARN marker，Zeabur 仅提供滚动最近 100 条，无法证明完整部署窗口。新增高优先级账务信号：19,538 条 `settlement_pending` 请求，其中 19,537 条缺少精确 billing link，绝大多数 usage unknown；不能据此判断已扣款或补扣，必须由管理员/财务只读对照 usage、余额流水、订阅扣额与幂等证据。另有一次约 0.42 秒 crash recovery；触发原因待查 | 管理员现场验收、完整部署窗口/重启原因、历史权益语义及 settlement 归责待办；生产保持只读，不修数、不清理、不补扣 |
-| 整版迁移 | source-lock `fully_migrated=false`；质量运维/Jev、凭据错误闭环、用量边界、内容审查独立解禁及其他上游差异仍有缺项或缺证 | 继续按 v2.17.7 账本逐项清零，再作为累计批次推进，不重复已部署功能 |
+- 生产仍以首段 #399 SHA 为最后核验基线；#396 多组 Key 与 #397 多模型质量组合均已由管理员验收，不重复开发。
+- 当前累计任务为 #570 模型/分组倍率的 Fork 适配，以及质量规则模型合同校验和旧质量历史脱敏。后端配置、管理员 API、倍率运行时、冻结订阅快照、真实设置页与数据库 CAS 已通过交叉审查，最终组合门禁进行中，尚未发布，不能标记功能交付完成。
+- 不引入整套上游 OAuth auto-config 来承载独立模型倍率；复用本项目管理员设置，默认关闭，仅作用于明确启用后的 token 用户费用，不修改上游账号成本或历史账务。
+- Excel/BPS、SIWC/2FA、供应商媒体及区域运行时按依赖继续推进，不把文件缺失或审计完成当成实现。正文采集/harvest 保持既定阻断；历史结算仅做只读归因。
+- 每批完成统一测试、构建、Fork 检查、CI 后才合并；合并后立即查 Zeabur 精确 SHA、日志、数据库与健康/API，再做受影响管理员本机验收。整版仍为 `fully_migrated=false`。
+- 具体范围与证据使用[开发清单](./upstream-migrations/v2.17.7/DEVELOPMENT_CHECKLIST.md)和[当前同步账本](./upstream-migrations/v2.17.7/README.md)。旧候选与审计快照由账本的不可变 Git 历史链接保存，不再复制为当前待办。
 
 ## v2.17.7 必须逐项验收的行为
 

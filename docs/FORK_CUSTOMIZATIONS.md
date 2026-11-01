@@ -274,6 +274,8 @@
 - 额度并发边界：force 绕过已完成缓存，并在在途普通读取完成后启动共享后继刷新；同账号读取串行至持久化结束。等待者取消相互隔离，共享只读调用独立限时 20 秒（含准备/持久化）；调用方取消不负缓存，真实上游错误仍缓存 1 分钟，成功仍缓存 10 分钟。父/影子账号以各自 ID 隔离。`account_usage_concurrency_test.go` 以无网络 fake transport 和确定性并发验证。
 - 额度读取验证：`account_usage_readonly_test.go` 的隔离 fake upstream 覆盖入口、缓存、失败和零生成/重置请求；`openai_quota_readonly_contract_test.go` 防止查询 handler 重新通知 reset；`AccountUsageCell.spec.ts`、`AccountsView.lite.spec.ts` 防止被动快照强制刷新循环和本地缓存陈旧。`OpenAIQuotaResetCell.spark_shadow.spec.ts` 覆盖同 ID 点数快照同步、含未知值的新鲜度排序、切号/卸载迟到响应及零额外查询/重置。
 
+模型/分组倍率通过专用管理员设置合同 `model_billing_config_v1` 适配上游 #570，默认关闭。匹配计费 API Key 的分组，token 用户费用、余额/订阅及 Key 配额采用同一冻结倍率；发布价格、账号成本、非 Token 媒体/搜索附加费和历史账务保持各自原有合同。设置保存使用 revision CAS；旧客户端省略分组范围不得静默改成全局。对应覆盖见 `model_billing_*test.go`；开发候选不代表已部署。
+
 ## FORK-REWARDS-015 优惠券、日卡与支付结算
 
 - 产品目的：让 Play 奖励可安全发放优惠券，并让日卡保持一次性日额度语义，不因支付回调、重试或跨日重置重复发奖或重复扣费。

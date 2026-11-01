@@ -16,7 +16,7 @@ export default {
       },
       modelBilling: {
         title: 'Model and group billing multipliers',
-        description: 'Adjusts user token charges only. Upstream account costs and image, audio, or video charges are unchanged.',
+        description: 'Adjusts user token charges, including media priced by token. Upstream account costs, search add-ons, and other billing modes are unchanged.',
         enabled: 'Enable model billing multipliers',
         enabledHint: 'Disabled by default. Disabling keeps the rules and uses a multiplier of 1.',
         matchingHint: 'Model names are case-insensitive. Exact matches take priority, then the longest prefix. Only one rule applies per request; rule multipliers do not stack.',

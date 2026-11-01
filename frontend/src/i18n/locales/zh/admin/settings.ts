@@ -16,7 +16,7 @@ export default {
       },
       modelBilling: {
         title: '模型与分组计费倍率',
-        description: '仅调整用户的 Token 计费，不改变上游账号成本、图片、音频或视频费用。',
+        description: '调整用户的 Token 费用，包含以 Token 计价的媒体。上游账号成本、搜索附加费及其他计费方式不变。',
         enabled: '启用模型计费倍率',
         enabledHint: '默认关闭；关闭后保留规则，计费倍率为 1。',
         matchingHint: '模型名不区分大小写。精确匹配优先，其次为最长前缀匹配；每次只应用一条规则，规则倍率不叠加。',
