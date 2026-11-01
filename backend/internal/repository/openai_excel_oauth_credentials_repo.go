@@ -82,7 +82,7 @@ func (c *openAIExcelOAuthAccessClient) FetchAccessModels(ctx context.Context, ac
 	accessToken = strings.TrimSpace(accessToken)
 	accountID = strings.TrimSpace(accountID)
 	if accessToken == "" || accountID == "" {
-		return nil, 0, errors.New("Excel OAuth access token and account identity are required")
+		return nil, 0, errors.New("excel OAuth access token and account identity are required")
 	}
 	endpointURL, err := url.Parse(c.endpoint)
 	if err != nil {
@@ -112,15 +112,15 @@ func (c *openAIExcelOAuthAccessClient) FetchAccessModels(ctx context.Context, ac
 		return nil, 0, err
 	}
 	if resp == nil || resp.Response == nil || resp.Body == nil {
-		return nil, 0, errors.New("Excel capability response body is unavailable")
+		return nil, 0, errors.New("excel capability response body is unavailable")
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	body, readErr := io.ReadAll(io.LimitReader(resp.Body, 2<<20+1))
 	if readErr != nil {
 		return nil, resp.StatusCode, readErr
 	}
 	if len(body) > 2<<20 {
-		return nil, resp.StatusCode, errors.New("Excel capability response exceeds size limit")
+		return nil, resp.StatusCode, errors.New("excel capability response exceeds size limit")
 	}
 	return body, resp.StatusCode, nil
 }
