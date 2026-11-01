@@ -90,3 +90,16 @@ func TestModelBillingSettingsSaveUsesRevisionCAS(t *testing.T) {
 		t.Fatalf("stale save error = %v, want revision conflict", err)
 	}
 }
+
+func TestModelBillingSettingsCanDisableAfterGroupRemoved(t *testing.T) {
+	repo := &modelBillingCASRepo{value: `{"enabled":true,"rules":[{"model":"gpt-5","multiplier":2,"group_ids":[7]}]}`, revision: "r1"}
+	svc := NewSettingService(repo, nil)
+	svc.SetModelBillingGroupReader(modelBillingGroupReader{groups: map[int64]*Group{}})
+	saved, err := svc.SaveModelBillingConfig(context.Background(), ModelBillingConfig{Enabled: false, Rules: []ModelBillingRule{{Model: "gpt-5", Multiplier: 2, GroupIDs: []int64{7}}}}, "r1")
+	if err != nil {
+		t.Fatalf("must allow emergency disable after referenced group removed: %v", err)
+	}
+	if saved.Config.Enabled {
+		t.Fatal("must remain disabled")
+	}
+}

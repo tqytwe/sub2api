@@ -56,10 +56,10 @@ func (r *settingRepository) GetValueWithRevision(ctx context.Context, key string
 }
 
 // CompareAndSet atomically updates a setting only when both its previous value
-// and revision still match. The missing-key branch uses INSERT ... DO NOTHING,
-// so two first writers cannot both claim the initial revision.
+// and revision still match. The unique key rejects competing initial inserts.
+// Revisions use PostgreSQL microsecond precision and always advance on CAS.
 func (r *settingRepository) CompareAndSet(ctx context.Context, key, expectedRevision, expectedValue, value string) (string, error) {
-	now := time.Now()
+	now := time.Now().UTC().Truncate(time.Microsecond)
 	if expectedRevision == "" && expectedValue == "" {
 		created, err := r.client.Setting.Create().
 			SetKey(key).
@@ -75,8 +75,12 @@ func (r *settingRepository) CompareAndSet(ctx context.Context, key, expectedRevi
 		return created.UpdatedAt.UTC().Format(time.RFC3339Nano), nil
 	}
 
+	previous := parseSettingRevision(expectedRevision)
+	if !now.After(previous) {
+		now = previous.Add(time.Microsecond)
+	}
 	n, err := r.client.Setting.Update().
-		Where(setting.KeyEQ(key), setting.ValueEQ(expectedValue), setting.UpdatedAt(parseSettingRevision(expectedRevision))).
+		Where(setting.KeyEQ(key), setting.ValueEQ(expectedValue), setting.UpdatedAt(previous)).
 		SetValue(value).
 		SetUpdatedAt(now).
 		Save(ctx)

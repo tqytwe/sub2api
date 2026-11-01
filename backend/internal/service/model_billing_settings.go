@@ -82,12 +82,15 @@ func (s *SettingService) GetModelBillingConfig(ctx context.Context) (ModelBillin
 }
 
 // ValidateModelBillingConfigForAdmin validates policy fields and every scoped
-// group against the current active group row. A scoped rule is rejected when
-// its reader is absent, the group is missing, or the group is inactive.
+// group against the current active group row when the policy is enabled.
+// Disabling remains possible after a referenced group is removed or paused.
 func (s *SettingService) ValidateModelBillingConfigForAdmin(ctx context.Context, cfg ModelBillingConfig) error {
 	cfg = NormalizeModelBillingConfig(cfg)
 	if err := ValidateModelBillingConfig(cfg); err != nil {
-		return err
+		return infraerrors.BadRequest("MODEL_BILLING_CONFIG_INVALID", err.Error())
+	}
+	if !cfg.Enabled {
+		return nil
 	}
 	needsGroups := false
 	for _, rule := range cfg.Rules {
@@ -107,11 +110,14 @@ func (s *SettingService) ValidateModelBillingConfigForAdmin(ctx context.Context,
 			}
 			seen[id] = struct{}{}
 			group, err := s.modelBillingGroupReader.GetByIDLite(ctx, id)
+			if errors.Is(err, ErrGroupNotFound) {
+				return infraerrors.BadRequest("MODEL_BILLING_GROUP_INVALID", fmt.Sprintf("model billing group %d does not exist", id))
+			}
 			if err != nil {
 				return fmt.Errorf("validate model billing group %d: %w", id, err)
 			}
 			if group == nil || !group.IsActive() {
-				return fmt.Errorf("model billing group %d must be active", id)
+				return infraerrors.BadRequest("MODEL_BILLING_GROUP_INVALID", fmt.Sprintf("model billing group %d must be active", id))
 			}
 		}
 	}
@@ -122,12 +128,18 @@ func (s *SettingService) ValidateModelBillingConfigForAdmin(ctx context.Context,
 // must be the value returned by GetModelBillingConfig; an empty revision is only
 // valid when the setting key does not exist yet.
 func (s *SettingService) SaveModelBillingConfig(ctx context.Context, cfg ModelBillingConfig, expectedRevision string) (ModelBillingConfigSnapshot, error) {
+	return s.saveModelBillingConfig(ctx, cfg, expectedRevision, nil)
+}
+
+// SaveModelBillingConfigJSON applies the admin payload to the current revision.
+// Decoding into the saved config preserves scopes omitted by legacy clients.
+func (s *SettingService) SaveModelBillingConfigJSON(ctx context.Context, data json.RawMessage, expectedRevision string) (ModelBillingConfigSnapshot, error) {
+	return s.saveModelBillingConfig(ctx, ModelBillingConfig{}, expectedRevision, data)
+}
+
+func (s *SettingService) saveModelBillingConfig(ctx context.Context, cfg ModelBillingConfig, expectedRevision string, data json.RawMessage) (ModelBillingConfigSnapshot, error) {
 	if s == nil || s.settingRepo == nil {
 		return ModelBillingConfigSnapshot{}, ErrModelBillingSettingsUnavailable
-	}
-	cfg = NormalizeModelBillingConfig(cfg)
-	if err := s.ValidateModelBillingConfigForAdmin(ctx, cfg); err != nil {
-		return ModelBillingConfigSnapshot{}, err
 	}
 	repo, ok := s.settingRepo.(ModelBillingSettingsRepository)
 	if !ok {
@@ -142,15 +154,26 @@ func (s *SettingService) SaveModelBillingConfig(ctx context.Context, cfg ModelBi
 	if currentRevision != expectedRevision {
 		return ModelBillingConfigSnapshot{}, ErrModelBillingRevisionConflict
 	}
+	if data != nil {
+		if currentRaw != "" {
+			if err := json.Unmarshal([]byte(currentRaw), &cfg); err != nil {
+				return ModelBillingConfigSnapshot{}, fmt.Errorf("decode model billing settings: %w", err)
+			}
+		}
+		if err := json.Unmarshal(data, &cfg); err != nil {
+			return ModelBillingConfigSnapshot{}, infraerrors.BadRequest("MODEL_BILLING_CONFIG_INVALID", err.Error())
+		}
+	}
+	cfg = NormalizeModelBillingConfig(cfg)
+	if err := s.ValidateModelBillingConfigForAdmin(ctx, cfg); err != nil {
+		return ModelBillingConfigSnapshot{}, err
+	}
 	raw, err := json.Marshal(cfg)
 	if err != nil {
 		return ModelBillingConfigSnapshot{}, fmt.Errorf("encode model billing settings: %w", err)
 	}
 	revision, err := repo.CompareAndSet(ctx, ModelBillingSettingKey, expectedRevision, currentRaw, string(raw))
 	if err != nil {
-		if errors.Is(err, ErrModelBillingRevisionConflict) {
-			return ModelBillingConfigSnapshot{}, ErrModelBillingRevisionConflict
-		}
 		return ModelBillingConfigSnapshot{}, err
 	}
 	return ModelBillingConfigSnapshot{Config: cfg, Revision: revision}, nil

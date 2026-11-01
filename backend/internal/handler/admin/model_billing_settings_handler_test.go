@@ -68,3 +68,77 @@ func TestModelBillingHandlerReturnsRevisionConflict(t *testing.T) {
 		t.Fatalf("status = %d, want 409", recorder.Code)
 	}
 }
+
+func TestModelBillingHandlerPreservesOmittedLegacyScope(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	for _, body := range []string{
+		`{"revision":"r1","config":{"enabled":true,"rules":[{"model":"gpt-5","multiplier":3}]}}`,
+		`{"revision":"r1","config":{"enabled":true,"rules":[{"model":"new-model","multiplier":3}]}}`,
+	} {
+		repo := &modelBillingHandlerRepo{value: `{"enabled":true,"rules":[{"model":"gpt-5","multiplier":2,"group_ids":[7]}]}`, revision: "r1"}
+		svc := service.NewSettingService(repo, nil)
+		svc.SetModelBillingGroupReader(modelBillingHandlerGroups{})
+		h := NewSettingHandler(svc, nil, nil, nil, nil, nil, nil)
+		rec := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(rec)
+		c.Request = httptest.NewRequest(http.MethodPut, "/api/v1/admin/model-billing/config", strings.NewReader(body))
+		c.Request.Header.Set("Content-Type", "application/json")
+		h.SaveModelBillingConfig(c)
+		if strings.Contains(body, "new-model") {
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("new model without explicit scope: status=%d", rec.Code)
+			}
+		} else {
+			if rec.Code != http.StatusOK || !strings.Contains(repo.value, `"group_ids":[7]`) {
+				t.Fatalf("legacy save widened scope: status=%d stored=%s", rec.Code, repo.value)
+			}
+		}
+	}
+}
+
+type modelBillingHandlerGroups struct{}
+
+func (modelBillingHandlerGroups) GetByIDLite(_ context.Context, id int64) (*service.Group, error) {
+	if id == 7 {
+		return &service.Group{ID: 7, Status: service.StatusActive}, nil
+	}
+	if id == 8 {
+		return &service.Group{ID: 8, Status: service.StatusDisabled}, nil
+	}
+	return nil, service.ErrGroupNotFound
+}
+
+func TestModelBillingHandlerValidationIsClientError(t *testing.T) {
+	for _, config := range []string{
+		`{"enabled":true,"rules":[{"model":"gpt-5","multiplier":0}]}`,
+		`{"enabled":true,"rules":[{"model":"gpt-5","multiplier":2,"group_ids":[999]}]}`,
+		`{"enabled":true,"rules":[{"model":"gpt-5","multiplier":2,"group_ids":[8]}]}`,
+	} {
+		repo := &modelBillingHandlerRepo{value: `{"enabled":false,"rules":[]}`, revision: "r1"}
+		svc := service.NewSettingService(repo, nil)
+		svc.SetModelBillingGroupReader(modelBillingHandlerGroups{})
+		h := NewSettingHandler(svc, nil, nil, nil, nil, nil, nil)
+		rec := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(rec)
+		c.Request = httptest.NewRequest(http.MethodPut, "/api/v1/admin/model-billing/config", strings.NewReader(`{"revision":"r1","config":`+config+`}`))
+		c.Request.Header.Set("Content-Type", "application/json")
+		h.SaveModelBillingConfig(c)
+		if rec.Code != http.StatusBadRequest {
+			t.Fatalf("validation status=%d body=%s", rec.Code, rec.Body.String())
+		}
+	}
+}
+
+func TestModelBillingHandlerAllowsExplicitGlobalScope(t *testing.T) {
+	repo := &modelBillingHandlerRepo{value: `{"enabled":true,"rules":[{"model":"gpt-5","multiplier":2,"group_ids":[7]}]}`, revision: "r1"}
+	svc := service.NewSettingService(repo, nil)
+	h := NewSettingHandler(svc, nil, nil, nil, nil, nil, nil)
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodPut, "/api/v1/admin/model-billing/config", strings.NewReader(`{"revision":"r1","config":{"enabled":true,"rules":[{"model":"gpt-5","multiplier":3,"group_ids":[]}]}}`))
+	c.Request.Header.Set("Content-Type", "application/json")
+	h.SaveModelBillingConfig(c)
+	if rec.Code != http.StatusOK || strings.Contains(repo.value, `[7]`) {
+		t.Fatalf("explicit global scope must be allowed: %d %s", rec.Code, repo.value)
+	}
+}

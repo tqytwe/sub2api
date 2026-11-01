@@ -118,8 +118,8 @@ func (h *SettingHandler) GetModelBillingConfig(c *gin.Context) {
 }
 
 type modelBillingConfigUpdateRequest struct {
-	Config   *service.ModelBillingConfig `json:"config"`
-	Revision *string                     `json:"revision"`
+	Config   *json.RawMessage `json:"config"`
+	Revision *string          `json:"revision"`
 }
 
 // SaveModelBillingConfig validates model/group scope and performs a revisioned
@@ -130,7 +130,7 @@ func (h *SettingHandler) SaveModelBillingConfig(c *gin.Context) {
 		response.BadRequest(c, "config and revision are required")
 		return
 	}
-	snapshot, err := h.settingService.SaveModelBillingConfig(c.Request.Context(), *req.Config, *req.Revision)
+	snapshot, err := h.settingService.SaveModelBillingConfigJSON(c.Request.Context(), *req.Config, *req.Revision)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
