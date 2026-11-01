@@ -284,7 +284,7 @@ func (s *ScheduledTestService) validateQualityAccountModels(ctx context.Context,
 	}
 	for _, model := range QualityProbeModels(plan) {
 		model = strings.TrimSpace(model)
-		if model == "" || !account.IsModelSupported(model) {
+		if model != "" && !account.IsModelSupported(model) {
 			return infraerrors.BadRequest("QUALITY_MODEL_NOT_ALLOWED", "quality rule model is not allowed for this account")
 		}
 	}
