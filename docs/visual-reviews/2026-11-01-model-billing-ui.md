@@ -89,6 +89,12 @@ stylesheet by Chromium CDP. It is static source rendering, not a hydrated or pro
 capture. Temporary capture specs and generated HTML were removed from the worktree.
 No standalone prototype or development server was added.
 
+After the final billing-boundary review, all four updated images were regenerated
+from the corrected Chinese/English description: token-priced media is included;
+upstream account costs, search add-ons and other billing modes are unchanged. The
+same 360/768/1280 pixel cases were checked again with no horizontal overflow or
+controls outside the viewport. The reuse baseline is unchanged.
+
 ## Residual Risk
 
 Final production acceptance remains the administrator's real save/refresh flow, full
