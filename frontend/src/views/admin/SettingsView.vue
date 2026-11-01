@@ -8864,7 +8864,7 @@
         </div>
 
         <!-- Save Button -->
-        <div v-show="activeTab !== 'backup'" class="flex justify-end">
+        <div v-show="activeTab !== 'backup' && activeTab !== 'modelBilling'" class="flex justify-end">
           <button
             type="submit"
             :disabled="saving || loadFailed"
@@ -8898,6 +8898,11 @@
           </button>
         </div>
       </form>
+
+      <!-- Dedicated revisioned config has its own form and save operation. -->
+      <div v-if="modelBillingVisited" v-show="activeTab === 'modelBilling'" role="tabpanel" aria-labelledby="settings-tab-modelBilling">
+        <ModelBillingSettings />
+      </div>
 
       <!-- Provider dialogs placed outside the settings form to prevent form submission bubbling -->
       <PaymentProviderDialog
@@ -8991,6 +8996,7 @@ import ImageUpload from "@/components/common/ImageUpload.vue";
 import BackupSettings from "@/views/admin/BackupView.vue";
 import EmailTemplateEditor from "@/views/admin/settings/EmailTemplateEditor.vue";
 import OpenAIFastPolicyUserSelector from "@/views/admin/settings/OpenAIFastPolicyUserSelector.vue";
+import ModelBillingSettings from "@/components/admin/ModelBillingSettings.vue";
 import { useClipboard } from "@/composables/useClipboard";
 import {
   useStepUp,
@@ -9049,9 +9055,14 @@ type SettingsTab =
   | "users"
   | "gateway"
   | "payment"
+  | "modelBilling"
   | "email"
   | "backup";
 const activeTab = ref<SettingsTab>("general");
+const modelBillingVisited = ref(false);
+watch(activeTab, (tab) => {
+  if (tab === "modelBilling") modelBillingVisited.value = true;
+});
 const settingsTabs = [
   { key: "general" as SettingsTab, icon: "home" as const },
   { key: "agreement" as SettingsTab, icon: "document" as const },
@@ -9060,6 +9071,7 @@ const settingsTabs = [
   { key: "users" as SettingsTab, icon: "user" as const },
   { key: "gateway" as SettingsTab, icon: "server" as const },
   { key: "payment" as SettingsTab, icon: "creditCard" as const },
+  { key: "modelBilling" as SettingsTab, icon: "calculator" as const },
   { key: "email" as SettingsTab, icon: "mail" as const },
   { key: "backup" as SettingsTab, icon: "database" as const },
 ];
