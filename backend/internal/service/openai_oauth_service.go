@@ -51,7 +51,7 @@ type OpenAIAuthURLResult struct {
 }
 
 // GenerateAuthURL generates an OpenAI OAuth authorization URL
-func (s *OpenAIOAuthService) GenerateAuthURL(ctx context.Context, proxyID *int64, redirectURI, platform string) (*OpenAIAuthURLResult, error) {
+func (s *OpenAIOAuthService) GenerateAuthURL(ctx context.Context, proxyID *int64, redirectURI, platform string, oauthClient ...string) (*OpenAIAuthURLResult, error) {
 	var proxyURL string
 	if proxyID != nil {
 		proxy, err := s.proxyRepo.GetByID(ctx, *proxyID)
@@ -62,11 +62,21 @@ func (s *OpenAIOAuthService) GenerateAuthURL(ctx context.Context, proxyID *int64
 			proxyURL = proxy.URL()
 		}
 	}
-	return s.GenerateAuthURLWithProxyURL(ctx, proxyURL, redirectURI, platform)
+	return s.GenerateAuthURLWithProxyURL(ctx, proxyURL, redirectURI, platform, oauthClient...)
 }
 
 // GenerateAuthURLWithProxyURL creates a session with an already resolved egress URL.
-func (s *OpenAIOAuthService) GenerateAuthURLWithProxyURL(ctx context.Context, proxyURL, redirectURI, platform string) (*OpenAIAuthURLResult, error) {
+func (s *OpenAIOAuthService) GenerateAuthURLWithProxyURL(ctx context.Context, proxyURL, redirectURI, platform string, oauthClient ...string) (*OpenAIAuthURLResult, error) {
+	profile := "codex"
+	if len(oauthClient) > 0 && strings.TrimSpace(oauthClient[0]) != "" {
+		profile = strings.TrimSpace(oauthClient[0])
+	}
+	if profile != "codex" && profile != "excel" {
+		return nil, infraerrors.New(http.StatusBadRequest, "OPENAI_OAUTH_INVALID_CLIENT", "unsupported OAuth client")
+	}
+	if profile == "excel" && redirectURI != "" && redirectURI != openai.ExcelRedirectURI {
+		return nil, infraerrors.New(http.StatusBadRequest, "OPENAI_OAUTH_INVALID_REDIRECT", "Excel OAuth requires the official callback URI")
+	}
 	// Generate PKCE values
 	state, err := openai.GenerateState()
 	if err != nil {
@@ -92,6 +102,11 @@ func (s *OpenAIOAuthService) GenerateAuthURLWithProxyURL(ctx context.Context, pr
 	}
 	normalizedPlatform := normalizeOpenAIOAuthPlatform(platform)
 	clientID, _ := openai.OAuthClientConfigByPlatform(normalizedPlatform)
+	if profile == "excel" {
+		clientID = openai.ExcelClientID
+		redirectURI = openai.ExcelRedirectURI
+		state = "bps." + state + ".PC"
+	}
 
 	// Store session
 	session := &openai.OAuthSession{
@@ -106,6 +121,9 @@ func (s *OpenAIOAuthService) GenerateAuthURLWithProxyURL(ctx context.Context, pr
 
 	// Build authorization URL
 	authURL := openai.BuildAuthorizationURLForPlatform(state, codeChallenge, redirectURI, normalizedPlatform)
+	if profile == "excel" {
+		authURL = openai.BuildExcelAuthorizationURL(state, codeChallenge)
+	}
 
 	return &OpenAIAuthURLResult{
 		AuthURL:   authURL,
@@ -170,6 +188,9 @@ func (s *OpenAIOAuthService) ExchangeCode(ctx context.Context, input *OpenAIExch
 	// Use redirect URI from session or input
 	redirectURI := session.RedirectURI
 	if input.RedirectURI != "" {
+		if session.ClientID == openai.ExcelClientID && input.RedirectURI != session.RedirectURI {
+			return nil, infraerrors.New(http.StatusBadRequest, "OPENAI_OAUTH_INVALID_REDIRECT", "callback URI does not match the OAuth session")
+		}
 		redirectURI = input.RedirectURI
 	}
 	clientID := strings.TrimSpace(session.ClientID)
@@ -226,7 +247,11 @@ func (s *OpenAIOAuthService) RefreshToken(ctx context.Context, refreshToken stri
 
 // RefreshTokenWithClientID refreshes an OpenAI OAuth token with optional client_id.
 func (s *OpenAIOAuthService) RefreshTokenWithClientID(ctx context.Context, refreshToken string, proxyURL string, clientID string) (*OpenAITokenInfo, error) {
-	tokenResp, err := s.oauthClient.RefreshTokenWithClientID(ctx, refreshToken, proxyURL, clientID)
+	validatedClientID, err := ValidateOpenAIOAuthClientID(clientID)
+	if err != nil {
+		return nil, err
+	}
+	tokenResp, err := s.oauthClient.RefreshTokenWithClientID(ctx, refreshToken, proxyURL, validatedClientID)
 	if err != nil {
 		return nil, err
 	}
@@ -249,7 +274,7 @@ func (s *OpenAIOAuthService) RefreshTokenWithClientID(ctx context.Context, refre
 		ExpiresIn:    int64(tokenResp.ExpiresIn),
 		ExpiresAt:    time.Now().Unix() + int64(tokenResp.ExpiresIn),
 	}
-	if trimmed := strings.TrimSpace(clientID); trimmed != "" {
+	if trimmed := strings.TrimSpace(validatedClientID); trimmed != "" {
 		tokenInfo.ClientID = trimmed
 	}
 
@@ -264,6 +289,21 @@ func (s *OpenAIOAuthService) RefreshTokenWithClientID(ctx context.Context, refre
 	s.enrichTokenInfo(ctx, tokenInfo, proxyURL)
 
 	return tokenInfo, nil
+}
+
+// ValidateOpenAIOAuthClientID keeps the two supported OAuth credential
+// namespaces separate. Empty is the legacy Codex default; arbitrary client IDs
+// are rejected so an Excel refresh token cannot be sent through another OAuth
+// contract by an admin request or a malformed imported account.
+func ValidateOpenAIOAuthClientID(clientID string) (string, error) {
+	clientID = strings.TrimSpace(clientID)
+	if clientID == "" {
+		return openai.ClientID, nil
+	}
+	if clientID != openai.ClientID && clientID != openai.ExcelClientID {
+		return "", infraerrors.New(http.StatusBadRequest, "OPENAI_OAUTH_INVALID_CLIENT", "unsupported OAuth client")
+	}
+	return clientID, nil
 }
 
 // enrichTokenInfo 通过 ChatGPT backend-api 补全 tokenInfo 并设置隐私（best-effort）。
