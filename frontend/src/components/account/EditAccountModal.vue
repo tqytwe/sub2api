@@ -2377,6 +2377,13 @@
       </div>
 
       <div
+        v-if="account?.platform === 'openai' && account?.type === 'oauth' && !isSparkShadow && !isOpenAIPersonalAccessToken"
+        class="border-t border-gray-200 pt-4 dark:border-dark-600"
+      >
+        <ExcelOAuthBinding :key="account.id" :account-id="account.id" />
+      </div>
+
+      <div
         v-if="account?.platform === 'openai' && (account?.type === 'oauth' || account?.type === 'setup-token' || account?.type === 'apikey')"
         class="border-t border-gray-200 pt-4 dark:border-dark-600 space-y-4"
       >
@@ -3116,6 +3123,7 @@
 
 <script setup lang="ts">
 import OpenAIRequestTimezoneField from '@/components/account/OpenAIRequestTimezoneField.vue'
+import ExcelOAuthBinding from '@/components/account/ExcelOAuthBinding.vue'
 import { ref, reactive, computed, watch, nextTick, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
@@ -3248,6 +3256,15 @@ const selectableGroups = computed(() => {
 // Spark 影子账号(parent_account_id 非空):代理恒继承母账号,不可独立编辑(外审 B/P1),
 // 故隐藏代理选择器。
 const isSparkShadow = computed(() => props.account?.parent_account_id != null)
+
+const isOpenAIPersonalAccessToken = computed(() => {
+  if (props.account?.platform !== 'openai' || props.account.type !== 'oauth') return false
+  const credentials = props.account.credentials as Record<string, unknown> | undefined
+  return [credentials?.openai_auth_mode, credentials?.auth_mode].some(value =>
+    typeof value === 'string' && ['personalaccesstoken', 'personal_access_token']
+      .includes(value.trim().toLowerCase())
+  )
+})
 
 const hideAccountLongContextBilling = computed(() => {
   return allSelectedGroupsEnableLongContextPricing(form.group_ids, props.groups)

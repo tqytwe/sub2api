@@ -2,10 +2,22 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent } from 'vue'
 import { flushPromises, mount } from '@vue/test-utils'
 
-const { updateAccountMock, checkMixedChannelRiskMock, authIsSimpleMode } = vi.hoisted(() => ({
+const {
+  updateAccountMock,
+  checkMixedChannelRiskMock,
+  authIsSimpleMode,
+  getExcelOAuthStatusMock,
+  generateExcelOAuthAuthURLMock,
+  bindExcelOAuthMock,
+  discoverExcelOAuthCapabilitiesMock
+} = vi.hoisted(() => ({
   updateAccountMock: vi.fn(),
   checkMixedChannelRiskMock: vi.fn(),
-  authIsSimpleMode: { value: true }
+  authIsSimpleMode: { value: true },
+  getExcelOAuthStatusMock: vi.fn(),
+  generateExcelOAuthAuthURLMock: vi.fn(),
+  bindExcelOAuthMock: vi.fn(),
+  discoverExcelOAuthCapabilitiesMock: vi.fn()
 }))
 
 vi.mock('@/stores/app', () => ({
@@ -28,7 +40,11 @@ vi.mock('@/api/admin', () => ({
   adminAPI: {
     accounts: {
       update: updateAccountMock,
-      checkMixedChannelRisk: checkMixedChannelRiskMock
+      checkMixedChannelRisk: checkMixedChannelRiskMock,
+      getOpenAIExcelOAuthStatus: getExcelOAuthStatusMock,
+      generateOpenAIExcelOAuthAuthURL: generateExcelOAuthAuthURLMock,
+      bindOpenAIExcelOAuth: bindExcelOAuthMock,
+      discoverOpenAIExcelOAuthCapabilities: discoverExcelOAuthCapabilitiesMock
     },
     settings: {
       getWebSearchEmulationConfig: vi.fn().mockResolvedValue({ enabled: false, providers: [] }),
@@ -55,6 +71,13 @@ vi.mock('vue-i18n', async () => {
 })
 
 import EditAccountModal from '../EditAccountModal.vue'
+
+beforeEach(() => {
+  getExcelOAuthStatusMock.mockResolvedValue({ account_id: 7, authorized: false, revision: 0 })
+  generateExcelOAuthAuthURLMock.mockResolvedValue({ auth_url: 'https://auth.example.test', session_id: 'session' })
+  bindExcelOAuthMock.mockResolvedValue({ account_id: 7, authorized: true, revision: 1 })
+  discoverExcelOAuthCapabilitiesMock.mockResolvedValue({ allowed: true, models: [] })
+})
 
 const BaseDialogStub = defineComponent({
   name: 'BaseDialog',
@@ -1729,6 +1752,26 @@ describe('EditAccountModal OpenAI 自动使用重置卡', () => {
     await wrapper.get('form#edit-account-form').trigger('submit.prevent')
     expect(updateAccountMock).not.toHaveBeenCalled()
     wrapper.unmount()
+  })
+})
+
+describe('EditAccountModal Excel OAuth binding', () => {
+  it('仅为非影子 OpenAI OAuth 普通账号显示 Excel 授权区', () => {
+    const eligible = mountModal(buildOpenAIOAuthParentAccount())
+    expect(eligible.find('[data-testid="excel-oauth-binding"]').exists()).toBe(true)
+    eligible.unmount()
+
+    const personalToken = buildOpenAIOAuthParentAccount()
+    personalToken.credentials = { auth_mode: 'personal_access_token' }
+    const pat = mountModal(personalToken)
+    expect(pat.find('[data-testid="excel-oauth-binding"]').exists()).toBe(false)
+    pat.unmount()
+
+    for (const excluded of [buildOpenAISetupTokenAccount(), buildOpenAISparkShadowAccount(), buildAccount()]) {
+      const wrapper = mountModal(excluded)
+      expect(wrapper.find('[data-testid="excel-oauth-binding"]').exists()).toBe(false)
+      wrapper.unmount()
+    }
   })
 })
 
