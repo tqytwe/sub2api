@@ -92,6 +92,16 @@ func ProvideOpenAIOAuthService(
 	return svc
 }
 
+func ProvideOpenAIExcelOAuthService(
+	repo OpenAIExcelOAuthCredentialRepository,
+	accounts AdminService,
+	oauth *OpenAIOAuthService,
+	encryptor SecretEncryptor,
+	access OpenAIExcelOAuthAccessClient,
+) *OpenAIExcelOAuthService {
+	return NewOpenAIExcelOAuthService(repo, accounts, oauth, encryptor, access)
+}
+
 // ProvideOpenAIOAuthReauthService wires the durable credential re-login task
 // flow. The executable worker remains a separate process.
 func ProvideOpenAIOAuthReauthService(
@@ -1157,6 +1167,7 @@ var ProviderSet = wire.NewSet(
 	NewOAuthService,
 	ProvideClaudeResetCreditService,
 	ProvideOpenAIOAuthService,
+	ProvideOpenAIExcelOAuthService,
 	ProvideOpenAIOAuthReauthService,
 	ProvideGrokOAuthService,
 	wire.Bind(new(GrokOAuthTokenService), new(*GrokOAuthService)),
