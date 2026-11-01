@@ -221,6 +221,10 @@ type CostBreakdown struct {
 	ActualCost                float64 // 应用倍率后的实际费用
 	BillingMode               string  // 计费模式（"token"/"per_request"/"image"），由 CalculateCostUnified 填充
 	LongContextBillingApplied bool
+	// modelBillingMultiplier is the customer-side model rule applied to this
+	// token charge. It is intentionally private: usage logs keep the existing
+	// schema and the multiplier must not alter published/actual upstream cost.
+	modelBillingMultiplier float64
 }
 
 func applyCostBreakdownMultiplier(cost *CostBreakdown, multiplier float64) {

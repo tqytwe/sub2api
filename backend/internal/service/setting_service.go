@@ -120,6 +120,7 @@ type WebSearchManagerBuilder func(cfg *WebSearchEmulationConfig, proxyURLs map[i
 type SettingService struct {
 	settingRepo               SettingRepository
 	defaultSubGroupReader     DefaultSubscriptionGroupReader
+	modelBillingGroupReader   ModelBillingGroupReader
 	proxyRepo                 ProxyRepository // for resolving websearch provider proxy URLs
 	cfg                       *config.Config
 	onUpdate                  func() // Callback when settings are updated (for cache invalidation)
@@ -165,6 +166,7 @@ type SettingService struct {
 
 	channelMonitorRuntimeListenersMu sync.Mutex
 	channelMonitorRuntimeListeners   []func()
+	modelBillingRuntimeCache         modelBillingRuntimeCache
 }
 
 // DefaultPlatformQuotaSetting 单 platform 三档限额（nil = 沿用上层；0 = 显式禁用；>0 = 上限）

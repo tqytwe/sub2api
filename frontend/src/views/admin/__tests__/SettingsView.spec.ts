@@ -600,6 +600,9 @@ function mountView() {
         ProxySelector: true,
         ImageUpload: ImageUploadStub,
         BackupSettings: true,
+        ModelBillingSettings: {
+          template: '<form data-testid="model-billing-form" @submit.prevent><input aria-label="Model billing draft" /></form>',
+        },
         BlindboxPoolEditor: {
           template: '<section data-testid="blindbox-pool-editor-stub" />',
         },
@@ -785,6 +788,25 @@ describe("admin SettingsView payment visible method controls", () => {
     });
     fetchPublicSettings.mockResolvedValue(undefined);
     adminSettingsFetch.mockResolvedValue(undefined);
+  });
+
+  it("mounts model billing only in its admin tab, outside the general settings form, and retains its draft across tabs", async () => {
+    const wrapper = mountView();
+    await flushPromises();
+    expect(wrapper.find('[data-testid="model-billing-form"]').exists()).toBe(false);
+    await wrapper.get('#settings-tab-modelBilling').trigger('click');
+    await flushPromises();
+    const billingForm = wrapper.get('[data-testid="model-billing-form"]');
+    expect(billingForm.element.parentElement?.closest('form')).toBeNull();
+    expect(billingForm.isVisible()).toBe(true);
+    await billingForm.get('input').setValue('gpt-6*');
+    await billingForm.trigger('submit');
+    expect(updateSettings).not.toHaveBeenCalled();
+    await wrapper.get('#settings-tab-general').trigger('click');
+    expect(billingForm.element.parentElement?.style.display).toBe('none');
+    await wrapper.get('#settings-tab-modelBilling').trigger('click');
+    expect((billingForm.get('input').element as HTMLInputElement).value).toBe('gpt-6*');
+    expect(wrapper.findAll('form').filter(form => form.element.parentElement?.closest('form')).length).toBe(0);
   });
 
   it("restores all system-setting controls and preserves read-only or secret fields", async () => {

@@ -47,6 +47,8 @@ type subscriptionFrozenPricing struct {
 	StatsChannel                                  *Channel
 	StatsPlatform                                 string
 	StatsModels                                   map[string]subscriptionResolvedPricing
+	ModelBilling                                  ModelBillingConfig
+	BillingGroupID                                int64
 }
 type subscriptionFrozenKey struct{}
 type subscriptionObservedKey struct{}
@@ -83,6 +85,8 @@ func (s *OpenAIGatewayService) PrepareSubscriptionAdmission(ctx context.Context,
 	multiplier, _ := computePeakAwareMultipliers(key, base, pricingAt)
 	snap := subscriptionFrozenPricing{Version: 1, UsageFields: fields, Models: make(map[string]subscriptionResolvedPricing), StatsModels: make(map[string]subscriptionResolvedPricing), BaseMultiplier: base, Multiplier: multiplier,
 		AccountMultiplier: account.BillingRateMultiplier(), PricingAt: pricingAt, FreeFast: groupBillsOpenAIFastAtStandard(key, credential, "priority"), OAuthLike: credential.IsOpenAIOAuthLike()}
+	snap.ModelBilling = NormalizeModelBillingConfig(s.settingService.modelBillingConfigForUsage(ctx))
+	snap.BillingGroupID = *key.GroupID
 	if gate := openAILongContextBillingGate(credential); gate != nil {
 		snap.LongContext = *gate
 	}
@@ -202,9 +206,13 @@ func (p *subscriptionFrozenPricing) calculate(s *BillingService, ctx context.Con
 		return nil, ErrSubscriptionAdmissionUnsupported
 	}
 	disableModelPricing := len(disableModelLongContextPricing) > 0 && disableModelLongContextPricing[0]
-	return s.CalculateCostUnified(CostInput{Ctx: ctx, Model: model, Tokens: tokens, RequestCount: 1, RateMultiplier: p.Multiplier, PricingAt: p.PricingAt,
+	cost, err := s.CalculateCostUnified(CostInput{Ctx: ctx, Model: model, Tokens: tokens, RequestCount: 1, RateMultiplier: p.Multiplier, PricingAt: p.PricingAt,
 		ServiceTier: tier, ReasoningEffort: effort, Resolver: NewModelPricingResolver(nil, s), Resolved: resolved, LongContextBillingEnabled: &p.LongContext,
 		DisableModelLongContextPricing: disableModelPricing})
+	if err == nil {
+		applyModelBillingMultiplier(cost, p.ModelBilling, model, &p.BillingGroupID)
+	}
+	return cost, err
 }
 
 // Keep the affirmative observation durable even when a frozen pricing decision

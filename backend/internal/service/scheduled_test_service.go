@@ -180,6 +180,7 @@ type ScheduledTestService struct {
 	planRepo     ScheduledTestPlanRepository
 	resultRepo   ScheduledTestResultRepository
 	templateRepo QualityRuleTemplateRepository
+	accountTests *AccountTestService
 }
 
 // NewScheduledTestService creates a new ScheduledTestService.
@@ -197,6 +198,16 @@ func NewScheduledTestService(
 	}
 }
 
+// SetAccountTestService wires the account model eligibility reader used by
+// quality plans.  Keeping this as a setter preserves the lightweight
+// constructor used by repository and service tests while production wiring
+// supplies the account-backed validator.
+func (s *ScheduledTestService) SetAccountTestService(accountTests *AccountTestService) {
+	if s != nil {
+		s.accountTests = accountTests
+	}
+}
+
 // CreatePlan validates the cron expression, computes next_run_at, and persists the plan.
 func (s *ScheduledTestService) CreatePlan(ctx context.Context, plan *ScheduledTestPlan) (*ScheduledTestPlan, error) {
 	if err := prepareQualityPlan(plan); err != nil {
@@ -205,6 +216,9 @@ func (s *ScheduledTestService) CreatePlan(ctx context.Context, plan *ScheduledTe
 	nextRun, err := computeNextRun(plan.CronExpression, time.Now())
 	if err != nil {
 		return nil, fmt.Errorf("invalid cron expression: %w", err)
+	}
+	if err := s.validateQualityAccountModels(ctx, plan); err != nil {
+		return nil, err
 	}
 	plan.NextRunAt = &nextRun
 
@@ -242,9 +256,39 @@ func (s *ScheduledTestService) UpdatePlan(ctx context.Context, plan *ScheduledTe
 	if err != nil {
 		return nil, fmt.Errorf("invalid cron expression: %w", err)
 	}
+	if plan.Enabled {
+		if err := s.validateQualityAccountModels(ctx, plan); err != nil {
+			return nil, err
+		}
+	}
 	plan.NextRunAt = &nextRun
 
 	return s.planRepo.Update(ctx, plan)
+}
+
+// validateQualityAccountModels rejects an enabled quality rule that asks an
+// account to probe a model outside that account's configured model contract.
+// It intentionally uses only the persisted account mapping and does not call
+// an upstream catalog: catalog failure must never be treated as proof that a
+// model is unsupported.
+func (s *ScheduledTestService) validateQualityAccountModels(ctx context.Context, plan *ScheduledTestPlan) error {
+	if s == nil || s.accountTests == nil || s.accountTests.accountRepo == nil || plan == nil || plan.PelicanConfig == nil || plan.PelicanConfig.Quality == nil {
+		return nil
+	}
+	account, err := s.accountTests.accountRepo.GetByID(ctx, plan.AccountID)
+	if err != nil {
+		return err
+	}
+	if account == nil {
+		return ErrAccountNotFound
+	}
+	for _, model := range QualityProbeModels(plan) {
+		model = strings.TrimSpace(model)
+		if model != "" && !account.IsModelSupported(model) {
+			return infraerrors.BadRequest("QUALITY_MODEL_NOT_ALLOWED", "quality rule model is not allowed for this account")
+		}
+	}
+	return nil
 }
 
 func (s *ScheduledTestService) UpdatePlanWithVersion(ctx context.Context, plan *ScheduledTestPlan, expected time.Time) (*ScheduledTestPlan, error) {
@@ -254,6 +298,11 @@ func (s *ScheduledTestService) UpdatePlanWithVersion(ctx context.Context, plan *
 	nextRun, err := computeNextRun(plan.CronExpression, time.Now())
 	if err != nil {
 		return nil, fmt.Errorf("invalid cron expression: %w", err)
+	}
+	if plan.Enabled {
+		if err := s.validateQualityAccountModels(ctx, plan); err != nil {
+			return nil, err
+		}
 	}
 	plan.NextRunAt = &nextRun
 	if repo, ok := s.planRepo.(VersionedScheduledTestPlanRepository); ok {
@@ -316,7 +365,34 @@ func (s *ScheduledTestService) ListResults(ctx context.Context, planID int64, li
 	if limit <= 0 {
 		limit = 50
 	}
-	return s.resultRepo.ListByPlanID(ctx, planID, limit)
+	results, err := s.resultRepo.ListByPlanID(ctx, planID, limit)
+	if err != nil {
+		return nil, err
+	}
+	for _, result := range results {
+		sanitizeQualityHistoryResult(result)
+	}
+	return results, nil
+}
+
+// sanitizeQualityHistoryResult keeps the existing result-history shape while
+// ensuring an admin quality-history read cannot expose prompt, expected-answer,
+// judge-rubric, or response content. Quality writes already sanitize current
+// samples; this read-side projection also protects legacy rows.
+func sanitizeQualityHistoryResult(result *ScheduledTestResult) {
+	if result == nil || result.PelicanConfig == nil || result.PelicanConfig.Quality == nil {
+		return
+	}
+	result.ResponseText = ""
+	config := cloneQualityPelicanConfig(result.PelicanConfig)
+	config.Prompt = ""
+	if config.Quality != nil {
+		config.Quality.ExpectedAnswer = ""
+		if config.Quality.Judge != nil {
+			config.Quality.Judge.Prompt = ""
+		}
+	}
+	result.PelicanConfig = config
 }
 
 // SaveResult inserts a result and prunes old entries beyond maxResults.

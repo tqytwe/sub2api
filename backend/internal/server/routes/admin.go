@@ -789,6 +789,10 @@ func registerPromoCodeRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 }
 
 func registerSettingsRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	modelBilling := admin.Group("/model-billing")
+	modelBilling.GET("/config", h.Admin.Setting.GetModelBillingConfig)
+	modelBilling.PUT("/config", h.Admin.Setting.SaveModelBillingConfig)
+
 	priorityScheduling := admin.Group("/priority-scheduling")
 	priorityScheduling.GET("/config", h.Admin.Setting.GetPriorityScheduling)
 	priorityScheduling.PUT("/config", h.Admin.Setting.SavePriorityScheduling)

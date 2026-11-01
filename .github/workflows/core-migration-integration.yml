@@ -16,6 +16,8 @@ on:
       - backend/migrations/usage_log_billing_reconciliation_test.go
       - backend/ent/**
       - backend/internal/repository/integration_*test.go
+      - backend/internal/repository/setting_repo.go
+      - backend/internal/repository/model_billing_settings_integration_test.go
       - backend/internal/repository/content_moderation_user*.go
       - backend/internal/repository/quality_history_integration_test.go
       - backend/internal/repository/quality_runtime.go
@@ -105,6 +107,7 @@ jobs:
           # One repository TestMain provisions both isolated service containers.
           # Run the bounded suites in full so their subtests remain visible.
           core_tests='^(TestCoreMigration.*|TestModerationUsersPostgreSQLFiltersAndPagination|TestQualityHistoryPostgreSQL.*|TestCommitQualityRoundPostgreSQLAtomicityAndFencing|TestPriorityQuality.*|TestReloginBudgetMigrationSeedsOnlyOldTerminalTasks|TestBillingLogReconciliation.*|TestAccountGroupAllowedModelsConcurrent.*|TestGroupCopyAccounts.*|TestAccountAdminUpdate.*|'
+          core_tests+='TestModelBillingPostgres.*|TestSettingRepoSuite|'
           core_tests+='TestAccountRepoSuite|TestAPIKeyRepoSuite|TestAPIKeyGroupsConcurrentReplacementIsAtomic|TestGroupRepoSuite|TestBillingCacheSuite|'
           core_tests+='TestMigrationsRunner_ConcurrentInstancesSerializeOnSessionLock|'
           core_tests+='TestUsageBillingRepositoryApply_(DeduplicatesBalanceBilling|WithLedgerWritesUsageCharge|'
@@ -131,6 +134,10 @@ jobs:
                   "TestUsageLogBillingReconciliationMigrationIsForwardOnly",
               }),
               "core-migration-repositories.json": (f"{module}/internal/repository", {
+                  "TestModelBillingPostgresRevisionRoundTrip",
+                  "TestModelBillingPostgresConcurrentWriters",
+                  "TestModelBillingPostgresServiceCreateAndSave",
+                  "TestSettingRepoSuite",
                   "TestCoreMigrationUpgradePreservesDeployedDataAndOldWriter",
                   "TestModerationUsersPostgreSQLFiltersAndPagination",
                   "TestQualityHistoryPostgreSQLJudgmentAndRoundCompleteness",

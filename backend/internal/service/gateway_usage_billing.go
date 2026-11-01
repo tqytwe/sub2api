@@ -380,6 +380,11 @@ func responseModelBillingAdoptable(baseline, response *CostBreakdown, baselineCh
 	if response.TotalCost > baseline.TotalCost+responseModelBillingCostEpsilon {
 		return false
 	}
+	// A cheaper base model can have a higher customer-side model multiplier.
+	// Response-model attribution must never increase the admitted baseline charge.
+	if response.ActualCost > baseline.ActualCost+responseModelBillingCostEpsilon {
+		return false
+	}
 	if response.TotalCost <= 0 && baseline.TotalCost > 0 {
 		return false
 	}
@@ -933,6 +938,9 @@ type recordUsageOpts struct {
 // recordUsageCore 是 RecordUsage 和 RecordUsageWithLongContext 的统一实现。
 // LongContextThreshold > 0 时 Token 计费回退走 CalculateCostWithLongContext。
 func (s *GatewayService) recordUsageCore(ctx context.Context, input *recordUsageCoreInput, opts ...*recordUsageOpts) error {
+	// Capture the model billing policy once for this request. The context is
+	// passed through every pricing/repricing path so an admin save cannot alter
+	// one request midway through settlement.
 	result := input.Result
 	apiKey := input.APIKey
 	user := input.User
@@ -941,6 +949,7 @@ func (s *GatewayService) recordUsageCore(ctx context.Context, input *recordUsage
 	if err := validateUsageInputOwnership(apiKey, user); err != nil {
 		return err
 	}
+	ctx = withModelBillingConfig(ctx, s.settingService, apiKey.GroupID)
 	if subscription != nil && subscription.UserID > 0 && subscription.UserID != user.ID {
 		return ErrUsageBillingOwnershipMismatch
 	}
@@ -1346,6 +1355,7 @@ func (s *GatewayService) calculateTokenCost(
 		logger.LegacyPrintf("service.gateway", "Calculate cost failed: %v", err)
 		return &CostBreakdown{ActualCost: 0}
 	}
+	applyModelBillingMultiplier(cost, s.settingService.modelBillingConfigForUsage(ctx), billingModel, modelBillingGroupIDForUsage(ctx, apiKey.GroupID))
 	return cost
 }
 
@@ -1461,6 +1471,8 @@ func (s *GatewayService) buildRecordUsageLog(
 	}
 	if result.ImageCount > 0 && (cost == nil || cost.BillingMode != string(BillingModeToken)) {
 		usageLog.RateMultiplier = imageMultiplier
+	} else {
+		usageLog.RateMultiplier *= costModelBillingMultiplier(cost)
 	}
 	if cost != nil {
 		usageLog.InputCost = cost.InputCost
