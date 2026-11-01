@@ -431,6 +431,21 @@ func ProvideMobileAttributionAdminService(svc *service.MobileAttributionService)
 	return svc
 }
 
+// ProvideOpenAIOAuthHandler wires the account-scoped Excel OAuth service into
+// the shared OpenAI admin handler. Keeping this adapter here lets the existing
+// constructor remain compatible with focused handler tests while production
+// receives the capability through the normal provider graph.
+func ProvideOpenAIOAuthHandler(
+	openaiOAuthService *service.OpenAIOAuthService,
+	adminService service.AdminService,
+	quotaService *service.OpenAIQuotaService,
+	rateLimitService *service.RateLimitService,
+	excelOAuthService *service.OpenAIExcelOAuthService,
+) *admin.OpenAIOAuthHandler {
+	return admin.NewOpenAIOAuthHandler(openaiOAuthService, adminService, quotaService, rateLimitService).
+		WithExcelOAuthService(excelOAuthService)
+}
+
 // ProviderSet is the Wire provider set for all handlers
 var ProviderSet = wire.NewSet(
 	// Top-level handlers
@@ -487,7 +502,7 @@ var ProviderSet = wire.NewSet(
 	admin.NewDataManagementHandler,
 	admin.NewBackupHandler,
 	admin.NewOAuthHandler,
-	admin.NewOpenAIOAuthHandler,
+	ProvideOpenAIOAuthHandler,
 	admin.NewOpenAIOAuthReauthHandler,
 	admin.NewGeminiOAuthHandler,
 	admin.NewAntigravityOAuthHandler,

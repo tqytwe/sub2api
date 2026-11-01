@@ -44,10 +44,13 @@ func TestOpenAIOAuthService_GenerateAuthURL_OpenAIKeepsCodexFlow(t *testing.T) {
 	require.Equal(t, openai.ClientID, session.ClientID)
 }
 
-func TestOpenAIOAuthService_GenerateAuthURL_ExcelBindsClientAndCallback(t *testing.T) {
+func TestOpenAIOAuthService_GenerateExcelAuthURLRequiresAccountBinding(t *testing.T) {
 	svc := NewOpenAIOAuthService(nil, &openaiOAuthClientAuthURLStub{})
 	defer svc.Stop()
-	result, err := svc.GenerateAuthURL(context.Background(), nil, "", PlatformOpenAI, "excel")
+	_, err := svc.GenerateAuthURL(context.Background(), nil, "", PlatformOpenAI, "excel")
+	require.ErrorContains(t, err, "must target an existing account")
+
+	result, err := svc.GenerateExcelAuthURL(context.Background(), nil, 42)
 	require.NoError(t, err)
 	parsed, err := url.Parse(result.AuthURL)
 	require.NoError(t, err)
@@ -64,11 +67,12 @@ func TestOpenAIOAuthService_GenerateAuthURL_ExcelBindsClientAndCallback(t *testi
 	session, ok := svc.sessionStore.Get(result.SessionID)
 	require.True(t, ok)
 	require.Equal(t, openai.ExcelClientID, session.ClientID)
+	require.EqualValues(t, 42, session.TargetAccountID)
 	require.Equal(t, openai.ExcelRedirectURI, session.RedirectURI)
 	require.Equal(t, session.State, q.Get("state"))
 	require.Equal(t, openai.GenerateCodeChallenge(session.CodeVerifier), q.Get("code_challenge"))
 	_, err = svc.ExchangeCode(context.Background(), &OpenAIExchangeCodeInput{
-		SessionID: result.SessionID, Code: "test-code", State: session.State, RedirectURI: "http://localhost:1455/auth/callback",
+		SessionID: result.SessionID, Code: "test-code", State: session.State, RedirectURI: "http://localhost:1455/auth/callback", TargetAccountID: 42,
 	})
 	require.ErrorContains(t, err, "callback URI does not match")
 }
@@ -79,5 +83,5 @@ func TestOpenAIOAuthService_GenerateAuthURL_RejectsUnknownClientAndExcelRedirect
 	_, err := svc.GenerateAuthURL(context.Background(), nil, "", PlatformOpenAI, "unknown")
 	require.ErrorContains(t, err, "unsupported OAuth client")
 	_, err = svc.GenerateAuthURL(context.Background(), nil, "https://untrusted.invalid/callback", PlatformOpenAI, "excel")
-	require.ErrorContains(t, err, "official callback")
+	require.ErrorContains(t, err, "must target an existing account")
 }

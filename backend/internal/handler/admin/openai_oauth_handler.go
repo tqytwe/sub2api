@@ -21,6 +21,7 @@ import (
 // OpenAIOAuthHandler handles OpenAI OAuth-related operations
 type OpenAIOAuthHandler struct {
 	openaiOAuthService *service.OpenAIOAuthService
+	excelOAuthService  *service.OpenAIExcelOAuthService
 	adminService       service.AdminService
 	quotaService       openAIQuotaService
 	referralService    openAIReferralService
@@ -123,12 +124,14 @@ func (h *OpenAIOAuthHandler) GenerateAuthURL(c *gin.Context) {
 		}
 	}
 
-	result, err := h.openaiOAuthService.GenerateAuthURL(
-		c.Request.Context(),
-		req.ProxyID,
-		req.RedirectURI,
-		oauthPlatformFromPath(c),
-		req.OAuthClient,
+	var result *service.OpenAIAuthURLResult
+	var err error
+	if strings.TrimSpace(req.OAuthClient) == "excel" {
+		response.BadRequest(c, "Use the account-scoped Excel OAuth authorization route")
+		return
+	}
+	result, err = h.openaiOAuthService.GenerateAuthURL(
+		c.Request.Context(), req.ProxyID, req.RedirectURI, oauthPlatformFromPath(c), req.OAuthClient,
 	)
 	if err != nil {
 		response.ErrorFrom(c, err)
@@ -136,6 +139,98 @@ func (h *OpenAIOAuthHandler) GenerateAuthURL(c *gin.Context) {
 	}
 
 	response.Success(c, result)
+}
+
+func (h *OpenAIOAuthHandler) GenerateExcelOAuthAuthURL(c *gin.Context) {
+	accountID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid account ID")
+		return
+	}
+	if h.excelOAuthService == nil {
+		response.Error(c, http.StatusServiceUnavailable, "Excel OAuth is unavailable")
+		return
+	}
+	result, err := h.excelOAuthService.GenerateAuthURL(c.Request.Context(), accountID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, result)
+}
+
+func (h *OpenAIOAuthHandler) WithExcelOAuthService(excelOAuthService *service.OpenAIExcelOAuthService) *OpenAIOAuthHandler {
+	h.excelOAuthService = excelOAuthService
+	return h
+}
+
+type OpenAIExcelOAuthBindRequest struct {
+	SessionID        string `json:"session_id" binding:"required"`
+	Code             string `json:"code" binding:"required"`
+	State            string `json:"state" binding:"required"`
+	RedirectURI      string `json:"redirect_uri"`
+	ExpectedRevision int64  `json:"expected_revision"`
+}
+
+func (h *OpenAIOAuthHandler) GetExcelOAuthStatus(c *gin.Context) {
+	accountID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid account ID")
+		return
+	}
+	if h.excelOAuthService == nil {
+		response.Error(c, http.StatusServiceUnavailable, "Excel OAuth is unavailable")
+		return
+	}
+	status, err := h.excelOAuthService.GetStatus(c.Request.Context(), accountID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, status)
+}
+
+func (h *OpenAIOAuthHandler) BindExcelOAuth(c *gin.Context) {
+	accountID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid account ID")
+		return
+	}
+	var req OpenAIExcelOAuthBindRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid Excel OAuth callback")
+		return
+	}
+	if h.excelOAuthService == nil {
+		response.Error(c, http.StatusServiceUnavailable, "Excel OAuth is unavailable")
+		return
+	}
+	status, err := h.excelOAuthService.BindAuthorization(c.Request.Context(), accountID, &service.OpenAIExchangeCodeInput{
+		SessionID: req.SessionID, Code: req.Code, State: req.State, RedirectURI: req.RedirectURI,
+	}, req.ExpectedRevision)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, status)
+}
+
+func (h *OpenAIOAuthHandler) DiscoverExcelOAuthCapabilities(c *gin.Context) {
+	accountID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid account ID")
+		return
+	}
+	if h.excelOAuthService == nil {
+		response.Error(c, http.StatusServiceUnavailable, "Excel OAuth is unavailable")
+		return
+	}
+	capabilities, err := h.excelOAuthService.DiscoverCapabilities(c.Request.Context(), accountID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, capabilities)
 }
 
 // OpenAIExchangeCodeRequest represents the request for exchanging OpenAI auth code
