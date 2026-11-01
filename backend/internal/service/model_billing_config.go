@@ -11,10 +11,10 @@ import (
 )
 
 // ModelBillingConfig contains optional customer-side token multipliers selected
-// by the requested model and the API key's billing group. It is deliberately
-// independent from published prices, account cost multipliers, channel pricing,
-// and usage-log persistence. The runtime billing integration is a follow-up
-// task that must carry this policy in the same request snapshot as the cost.
+// by the resolved billing model and the API key's billing group. It is deliberately
+// independent from published prices, account cost multipliers and channel
+// pricing. Gateway settlement carries this policy in an immutable snapshot;
+// only token customer charges receive the selected multiplier.
 type ModelBillingConfig struct {
 	Enabled bool               `json:"enabled"`
 	Rules   []ModelBillingRule `json:"rules"`

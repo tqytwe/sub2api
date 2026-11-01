@@ -161,6 +161,8 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	if input == nil {
 		return errors.New("openai usage input is nil")
 	}
+	// Freeze the policy for the full request, including response-model and
+	// standard-tier repricing paths.
 	result := input.Result
 	if result == nil {
 		return errors.New("openai usage result is nil")
@@ -181,6 +183,7 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	if err := validateUsageInputOwnership(apiKey, user); err != nil {
 		return err
 	}
+	ctx = withModelBillingConfig(ctx, s.settingService, apiKey.GroupID)
 	if subscription != nil && subscription.UserID > 0 && subscription.UserID != user.ID {
 		return ErrUsageBillingOwnershipMismatch
 	}
@@ -488,7 +491,7 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	} else if result.ImageCount > 0 && (cost == nil || cost.BillingMode != string(BillingModeToken)) {
 		usageLog.RateMultiplier = imageMultiplier
 	} else {
-		usageLog.RateMultiplier = multiplier
+		usageLog.RateMultiplier = multiplier * costModelBillingMultiplier(cost)
 	}
 	usageLog.AccountRateMultiplier = &accountRateMultiplier
 	usageLog.BillingType = billingType
@@ -772,6 +775,7 @@ func (s *OpenAIGatewayService) calculateOpenAIRecordUsageCost(
 				modelLongContextExempt,
 			)
 			if err == nil {
+				applyModelBillingMultiplier(cost, s.settingService.modelBillingConfigForUsage(ctx), candidate, modelBillingGroupIDForUsage(ctx, apiKey.GroupID))
 				tokenCost = cost
 				break
 			}

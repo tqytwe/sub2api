@@ -43,8 +43,8 @@ type ModelBillingGroupReader interface {
 }
 
 // ModelBillingConfigSnapshot is the immutable policy plus storage revision
-// returned to callers. Runtime billing is a later task and must carry this
-// snapshot through one request; this contract does not apply any multiplier.
+// returned to admin callers. Gateway runtime copies the policy into its request
+// snapshot; reading or saving this API does not modify historical usage.
 type ModelBillingConfigSnapshot struct {
 	Config   ModelBillingConfig `json:"config"`
 	Revision string             `json:"revision"`

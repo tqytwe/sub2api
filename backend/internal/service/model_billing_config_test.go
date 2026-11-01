@@ -20,9 +20,9 @@ func TestModelBillingConfigMultiplierForModel(t *testing.T) {
 		groupID *int64
 		want    float64
 	}{
-		{name: "scoped longest prefix", model: " GPT-6-LUNA-LOW ", groupID: ptrInt64(5), want: 10},
-		{name: "scoped exact rule", model: "gpt-6-luna-low", groupID: ptrInt64(7), want: 3},
-		{name: "global fallback", model: "gpt-6-luna-low", groupID: ptrInt64(8), want: 2},
+		{name: "scoped longest prefix", model: " GPT-6-LUNA-LOW ", groupID: modelBillingPtrInt64(5), want: 10},
+		{name: "scoped exact rule", model: "gpt-6-luna-low", groupID: modelBillingPtrInt64(7), want: 3},
+		{name: "global fallback", model: "gpt-6-luna-low", groupID: modelBillingPtrInt64(8), want: 2},
 		{name: "unknown group does not match scoped rule", model: "gpt-6-luna-low", want: 2},
 		{name: "nil group does not match scoped rule", model: "gpt-6-luna", want: 2},
 	} {
@@ -32,7 +32,7 @@ func TestModelBillingConfigMultiplierForModel(t *testing.T) {
 	}
 
 	cfg.Enabled = false
-	require.Equal(t, 1.0, cfg.MultiplierForModel("gpt-6-luna", ptrInt64(5)))
+	require.Equal(t, 1.0, cfg.MultiplierForModel("gpt-6-luna", modelBillingPtrInt64(5)))
 }
 
 func TestModelBillingConfigValidation(t *testing.T) {
@@ -80,4 +80,4 @@ func TestModelBillingConfigJSONRejectsImplicitNewScopedRule(t *testing.T) {
 	require.Error(t, json.Unmarshal([]byte(`{"rules":[{"model":"new","multiplier":3}]}`), &cfg))
 }
 
-func ptrInt64(value int64) *int64 { return &value }
+func modelBillingPtrInt64(value int64) *int64 { return &value }
