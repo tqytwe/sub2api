@@ -1773,6 +1773,27 @@ describe('EditAccountModal Excel OAuth binding', () => {
       wrapper.unmount()
     }
   })
+
+  it('BPS 文本 Responses 开关只保存明确启用值，并随关闭移除', async () => {
+    const account = buildOpenAIOAuthParentAccount()
+    const wrapper = mountModal(account)
+    const toggle = wrapper.get('[data-testid="excel-bps-toggle"]')
+    expect(toggle.attributes('aria-checked')).toBe('false')
+
+    await toggle.trigger('click')
+    await wrapper.get('form#edit-account-form').trigger('submit.prevent')
+    expect(updateAccountMock.mock.calls.at(-1)?.[1]?.extra).toHaveProperty('openai_excel_bps', true)
+
+    updateAccountMock.mockClear()
+    const enabled = { ...account, extra: { ...account.extra, openai_excel_bps: true } }
+    wrapper.unmount()
+    const enabledWrapper = mountModal(enabled)
+    expect(enabledWrapper.get('[data-testid="excel-bps-toggle"]').attributes('aria-checked')).toBe('true')
+    await enabledWrapper.get('[data-testid="excel-bps-toggle"]').trigger('click')
+    await enabledWrapper.get('form#edit-account-form').trigger('submit.prevent')
+    expect(updateAccountMock.mock.calls[0]?.[1]?.extra).not.toHaveProperty('openai_excel_bps')
+    enabledWrapper.unmount()
+  })
 })
 
 

@@ -481,6 +481,7 @@ type OpenAIGatewayService struct {
 	pluginManager                *PluginManager
 	deferredService              *DeferredService
 	openAITokenProvider          *OpenAITokenProvider
+	excelOAuthService            *OpenAIExcelOAuthService
 	grokTokenProvider            *GrokTokenProvider
 	toolCorrector                *CodexToolCorrector
 	openaiWSResolver             OpenAIWSProtocolResolver
@@ -685,6 +686,15 @@ func NewOpenAIGatewayServiceWithLiveBilling(
 func (s *OpenAIGatewayService) SetOpenAIImageResultService(results *OpenAIImageResultService) {
 	if s != nil {
 		s.openAIImageResults = results
+	}
+}
+
+// SetOpenAIExcelOAuthService supplies the independent grant store used by the
+// opt-in Excel/BPS text transport. Keeping this setter preserves the existing
+// constructor signature used by focused gateway tests.
+func (s *OpenAIGatewayService) SetOpenAIExcelOAuthService(service *OpenAIExcelOAuthService) {
+	if s != nil {
+		s.excelOAuthService = service
 	}
 }
 

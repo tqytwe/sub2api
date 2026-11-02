@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
@@ -48,6 +49,15 @@ type OpenAIExcelOAuthStatus struct {
 	UpdatedAt  *time.Time `json:"updated_at,omitempty"`
 }
 
+// OpenAIExcelOAuthRuntimeCredential is the narrow credential projection used
+// by the BPS text transport. It intentionally cannot be serialized to an
+// account or returned by an HTTP handler.
+type OpenAIExcelOAuthRuntimeCredential struct {
+	AccessToken      string
+	ChatGPTAccountID string
+	Revision         int64
+}
+
 type openAIExcelOAuthCredentialPayload struct {
 	AccessToken      string `json:"access_token"`
 	RefreshToken     string `json:"refresh_token,omitempty"`
@@ -65,7 +75,17 @@ type OpenAIExcelOAuthService struct {
 	access    OpenAIExcelOAuthAccessClient
 	clock     func() time.Time
 	refresh   singleflight.Group
+	capMu     sync.Mutex
+	capCache  map[int64]excelOAuthCapabilityCacheEntry
 }
+
+type excelOAuthCapabilityCacheEntry struct {
+	capabilities ExcelBPSCapabilities
+	revision     int64
+	loadedAt     time.Time
+}
+
+const excelOAuthCapabilityCacheTTL = time.Minute
 
 func NewOpenAIExcelOAuthService(
 	repo OpenAIExcelOAuthCredentialRepository,
@@ -74,7 +94,7 @@ func NewOpenAIExcelOAuthService(
 	encryptor SecretEncryptor,
 	access OpenAIExcelOAuthAccessClient,
 ) *OpenAIExcelOAuthService {
-	return &OpenAIExcelOAuthService{repo: repo, accounts: accounts, oauth: oauth, encryptor: encryptor, access: access, clock: time.Now}
+	return &OpenAIExcelOAuthService{repo: repo, accounts: accounts, oauth: oauth, encryptor: encryptor, access: access, clock: time.Now, capCache: make(map[int64]excelOAuthCapabilityCacheEntry)}
 }
 
 func (s *OpenAIExcelOAuthService) GenerateAuthURL(ctx context.Context, accountID int64) (*OpenAIAuthURLResult, error) {
@@ -111,7 +131,13 @@ func (s *OpenAIExcelOAuthService) BindAuthorization(ctx context.Context, account
 	if payload.AccessToken == "" || payload.ChatGPTAccountID == "" {
 		return nil, infraerrors.New(http.StatusBadGateway, "OPENAI_EXCEL_OAUTH_ACCOUNT_ID_MISSING", "Excel OAuth did not provide an account identity")
 	}
-	return s.encryptAndSave(ctx, accountID, expectedRevision, payload)
+	status, err := s.encryptAndSave(ctx, accountID, expectedRevision, payload)
+	if err == nil {
+		s.capMu.Lock()
+		delete(s.capCache, accountID)
+		s.capMu.Unlock()
+	}
+	return status, err
 }
 
 func (s *OpenAIExcelOAuthService) GetStatus(ctx context.Context, accountID int64) (*OpenAIExcelOAuthStatus, error) {
@@ -129,32 +155,26 @@ func (s *OpenAIExcelOAuthService) GetStatus(ctx context.Context, accountID int64
 }
 
 func (s *OpenAIExcelOAuthService) DiscoverCapabilities(ctx context.Context, accountID int64) (*ExcelBPSCapabilities, error) {
+	credential, err := s.RuntimeCredential(ctx, accountID)
+	if err != nil {
+		return nil, err
+	}
+	return s.discoverCapabilitiesWithCredential(ctx, accountID, credential)
+}
+
+func (s *OpenAIExcelOAuthService) discoverCapabilitiesWithCredential(ctx context.Context, accountID int64, credential *OpenAIExcelOAuthRuntimeCredential) (*ExcelBPSCapabilities, error) {
 	account, err := s.openAIOAuthAccount(ctx, accountID)
 	if err != nil {
 		return nil, err
 	}
-	record, err := s.repo.GetExcelOAuthCredentials(ctx, accountID)
-	if err != nil {
-		return nil, infraerrors.New(http.StatusInternalServerError, "OPENAI_EXCEL_OAUTH_READ_FAILED", "could not read Excel OAuth credentials")
-	}
-	if record == nil || strings.TrimSpace(record.CredentialsEncrypted) == "" {
-		return nil, infraerrors.New(http.StatusConflict, "OPENAI_EXCEL_OAUTH_NOT_BOUND", "Excel OAuth is not connected to this account")
-	}
-	payload, err := s.decryptPayload(record.CredentialsEncrypted)
-	if err != nil {
-		return nil, infraerrors.New(http.StatusInternalServerError, "OPENAI_EXCEL_OAUTH_DECRYPT_FAILED", "Excel OAuth credentials could not be decrypted")
-	}
-	if payload.ExpiresAt > 0 && payload.ExpiresAt <= s.clock().Add(2*time.Minute).Unix() {
-		payload, _, err = s.refreshPayloadSingleflight(ctx, account, record, payload)
-		if err != nil {
-			return nil, infraerrors.New(http.StatusUnauthorized, "OPENAI_EXCEL_OAUTH_REAUTH_REQUIRED", "Excel OAuth authorization has expired; reconnect this account")
-		}
+	if credential == nil || credential.Revision <= 0 || strings.TrimSpace(credential.AccessToken) == "" || strings.TrimSpace(credential.ChatGPTAccountID) == "" {
+		return nil, infraerrors.New(http.StatusUnauthorized, "OPENAI_EXCEL_OAUTH_ACCOUNT_ID_MISSING", "Excel OAuth authorization is incomplete; reconnect this account")
 	}
 	proxyURL, err := s.accountProxyURL(ctx, account)
 	if err != nil {
 		return nil, err
 	}
-	body, status, err := s.access.FetchAccessModels(ctx, payload.AccessToken, payload.ChatGPTAccountID, proxyURL)
+	body, status, err := s.access.FetchAccessModels(ctx, credential.AccessToken, credential.ChatGPTAccountID, proxyURL)
 	if err != nil {
 		return nil, infraerrors.New(http.StatusBadGateway, "OPENAI_EXCEL_BPS_DISCOVERY_FAILED", "Excel model capability discovery failed")
 	}
@@ -173,7 +193,72 @@ func (s *OpenAIExcelOAuthService) DiscoverCapabilities(ctx context.Context, acco
 	if err != nil {
 		return nil, infraerrors.New(http.StatusBadGateway, "OPENAI_EXCEL_BPS_DISCOVERY_INVALID", "provider returned an invalid capability catalog")
 	}
+	s.capMu.Lock()
+	s.capCache[accountID] = excelOAuthCapabilityCacheEntry{capabilities: capabilities, revision: credential.Revision, loadedAt: s.clock()}
+	s.capMu.Unlock()
 	return &capabilities, nil
+}
+
+// EnsureModelAllowed applies the explicit upstream model allowlist before a
+// request is submitted. The short cache prevents a discovery call per turn
+// while still reflecting provider access changes promptly.
+func (s *OpenAIExcelOAuthService) EnsureModelAllowed(ctx context.Context, accountID int64, model string, credential *OpenAIExcelOAuthRuntimeCredential) error {
+	model = strings.TrimSpace(model)
+	if model == "" {
+		return infraerrors.New(http.StatusBadRequest, "OPENAI_EXCEL_BPS_MODEL_REQUIRED", "Excel BPS requires a model")
+	}
+	if credential == nil || credential.Revision <= 0 {
+		return infraerrors.New(http.StatusUnauthorized, "OPENAI_EXCEL_OAUTH_NOT_BOUND", "Excel OAuth is not connected to this account")
+	}
+	now := s.clock()
+	s.capMu.Lock()
+	entry, ok := s.capCache[accountID]
+	s.capMu.Unlock()
+	if !ok || entry.revision != credential.Revision || now.Sub(entry.loadedAt) >= excelOAuthCapabilityCacheTTL {
+		capabilities, err := s.discoverCapabilitiesWithCredential(ctx, accountID, credential)
+		if err != nil {
+			return err
+		}
+		entry = excelOAuthCapabilityCacheEntry{capabilities: *capabilities, revision: credential.Revision, loadedAt: now}
+	}
+	if !entry.capabilities.AllowsModel(model) {
+		return infraerrors.New(http.StatusForbidden, "OPENAI_EXCEL_BPS_MODEL_NOT_ALLOWED", "the requested model is not allowed for this Excel BPS account")
+	}
+	return nil
+}
+
+// RuntimeCredential loads the separately authorized Excel grant, refreshing it
+// through the existing CAS/singleflight path when it is near expiry.
+func (s *OpenAIExcelOAuthService) RuntimeCredential(ctx context.Context, accountID int64) (*OpenAIExcelOAuthRuntimeCredential, error) {
+	account, err := s.openAIOAuthAccount(ctx, accountID)
+	if err != nil {
+		return nil, err
+	}
+	record, err := s.repo.GetExcelOAuthCredentials(ctx, accountID)
+	if err != nil {
+		return nil, infraerrors.New(http.StatusInternalServerError, "OPENAI_EXCEL_OAUTH_READ_FAILED", "could not read Excel OAuth credentials")
+	}
+	if record == nil || strings.TrimSpace(record.CredentialsEncrypted) == "" {
+		return nil, infraerrors.New(http.StatusConflict, "OPENAI_EXCEL_OAUTH_NOT_BOUND", "Excel OAuth is not connected to this account")
+	}
+	payload, err := s.decryptPayload(record.CredentialsEncrypted)
+	if err != nil {
+		return nil, infraerrors.New(http.StatusInternalServerError, "OPENAI_EXCEL_OAUTH_DECRYPT_FAILED", "Excel OAuth credentials could not be decrypted")
+	}
+	if payload.ExpiresAt > 0 && payload.ExpiresAt <= s.clock().Add(2*time.Minute).Unix() {
+		payload, record, err = s.refreshPayloadSingleflight(ctx, account, record, payload)
+		if err != nil {
+			return nil, infraerrors.New(http.StatusUnauthorized, "OPENAI_EXCEL_OAUTH_REAUTH_REQUIRED", "Excel OAuth authorization has expired; reconnect this account")
+		}
+	}
+	if strings.TrimSpace(payload.AccessToken) == "" || strings.TrimSpace(payload.ChatGPTAccountID) == "" {
+		return nil, infraerrors.New(http.StatusUnauthorized, "OPENAI_EXCEL_OAUTH_ACCOUNT_ID_MISSING", "Excel OAuth authorization is incomplete; reconnect this account")
+	}
+	return &OpenAIExcelOAuthRuntimeCredential{
+		AccessToken:      strings.TrimSpace(payload.AccessToken),
+		ChatGPTAccountID: strings.TrimSpace(payload.ChatGPTAccountID),
+		Revision:         record.Revision,
+	}, nil
 }
 
 // refreshPayloadSingleflight serializes refresh-token consumption per account

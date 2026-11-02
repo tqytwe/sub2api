@@ -18,7 +18,7 @@
 | 迁移与生产数据 | 424个当前SQL无缺失/漂移，431 ledger；#397无SQL/schema变更 | 21,433条待结算；1条link缺精确dedup/归档、usage未settled且权益关联不一致，逐笔归因继续 | 生产只读，禁止down/补扣/批量改状态 |
 | 请求采集/support/harvest | 未纳入本批；用户明确保留阻断 | 最小读取、摘要/哈希、按需限期加密原文与自动TTL合同先行 | 不为版本同步引入正文采集 |
 | 安全prompt审计 | Fork既有prompt审计与上游明文full_prompt合同不同 | #492全文/跨用户读取/无TTL保持阻断 | 不修改/清理生产历史原文 |
-| BPS/Excel、Pelican、Prism/Astra、Mihomo、Regional、额外provider媒体 | 范围/架构待确认；存在Fork相邻模块不代表上游整包等价 | 必须按产品合同单独界定，不能为“同步”自动扩新运行时/新服务 | 各自保留明确阻断/待决，不能静默排除或虚报完成 |
+| BPS/Excel、Pelican、Prism/Astra、Mihomo、Regional、额外provider媒体 | BPS 文本 Responses 已定本批范围；其余独立功能仍待确认，Fork 相邻模块不代表上游整包等价 | 当前候选实现只覆盖独立 Excel OAuth 的文本 Responses、模型准入和现有网关 usage/SSE；附件/媒体与其他功能仍需单独立项 | 候选未合并、未部署；不得宣称 BPS 完整迁移或其余功能已完成 |
 | 模型/分组倍率 #570 | 生产没有该模型规则；已有分组/用户/渠道倍率不等价 | 本地候选适配专用设置、CAS、管理员设置页及 token/冻结订阅快照；默认关闭，不新增迁移 | 统一测试、PR/CI、生产部署及管理员验收仍需完成 |
 | 发布交接 | #399精确部署、health、服务状态和未认证401权限回归已核验；数据库账本沿用#397只读证据 | #397质量组合和#396 Key/倍率管理员验收已完成；Priority真实WS观测、渠道运维写动作及其他范围仍待完成；下批累计后再PR/CI/部署 | 不以CI或合并代替部署监督，不因文档小变动单独重启生产 |
 
@@ -35,7 +35,7 @@
 
 | 上游功能簇 / 关键 PR | 上游证据锚点 | Fork 当前证据 | 分类与后续 |
 |---|---|---|---|
-| BPS/Excel OAuth：#346/#373/#374/#379/#506/#541 | Excel OAuth、BPS runtime/reauth、Excel account capability | production 未发现同一 OAuth provider/runtime 链 | 需先定产品范围；若纳入，作为 OAuth、网关、刷新恢复和能力权限的完整工作包 |
+| BPS/Excel OAuth：#346/#373/#374/#379/#506/#541 | Excel OAuth、BPS runtime/reauth、Excel account capability | production 未发现同一 OAuth provider/runtime 链；当前候选补独立凭据、revision 绑定模型目录、文本 Responses 网关和管理员开关 | 图片/附件、其他媒体、完整上游能力仍未纳入；候选需经 PR、部署和管理员本机验收 |
 | Token guard/自动重登/凭证失败：#185/#440/#557/#560/#574 | `account_token_guard_v2.go`、reauth runtime、迁移 254-257/262/300/309 | Fork 已有 v2 guard、reauth worker、failure reader/writer/API/UI 与对应候选测试；生产迁移和行为差异仍需逐项复核 | 主要能力已有但未完整等价；历史reader/structured marker已随#395修复，网络timeout分类与管理员动作继续核验 |
 | 质量隔离/恢复/Jev：#51/#174/#437/#447/#522/#528/#548/#550/#565/#575/#576 | quality ownership、rule template、judge、live regression 与恢复审计 | 已部署scheduled tests/outbox/ownership/Jev/API/UI；具体缺口见上表，不再笼统列为全缺 | 部分等价；避免平行重造，按缺失合同扩展现有模块 |
 | Priority/latency admission：#315/#422/#508/#520/#572 | timing details、physical attempt identity、HTTP/WS latency admission、penalty clock | Fork 已部署优先调度页/API、硬准入和attempt持久化；#395已接入单模型quality round；本批补多模型完整round、逐模型归因及原生WS首语义观测 | 最终admission与attempt持久化已部署；生产管理员验收及部署后真实WS观测行核对仍待完成 |

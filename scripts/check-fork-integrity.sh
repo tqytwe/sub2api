@@ -99,7 +99,7 @@ for id in \
   FORK-DEPLOY-006 FORK-OAUTH-007 FORK-PUBLIC-008 FORK-MIGRATION-009 FORK-BILLING-010 \
   FORK-IMAGE-011 FORK-UI-012 FORK-MARKETPLACE-013 FORK-RISK-013 FORK-ADMIN-014 \
   FORK-REWARDS-015 FORK-MEMBERSHIP-016 FORK-MOBILE-017 FORK-LIVE-SETTLEMENT-018 \
-  FORK-SETTINGS-019; do
+  FORK-SETTINGS-019 FORK-BPS-021; do
   check_contains "$id" "registry entry exists" "docs/FORK_CUSTOMIZATIONS.md" "## $id"
 done
 
@@ -231,6 +231,11 @@ check_contains "FORK-DEPLOY-006" "make test runs the full frontend suite" "Makef
 
 check_contains "FORK-OAUTH-007" "shared OAuth cookie domain" "backend/internal/handler/auth_linuxdo_oauth.go" 'return ".jisudeng.com"'
 check_contains "FORK-OAUTH-007" "OAuth domain behavior test" "backend/internal/handler/auth_linuxdo_oauth_test.go" "TestOAuthCookieDomain"
+
+check_file "FORK-BPS-021" "BPS text-only protocol adapter" "backend/internal/service/basispoints/request.go"
+check_file "FORK-BPS-021" "BPS runtime uses independent Excel OAuth grant" "backend/internal/service/openai_excel_bps.go"
+check_contains "FORK-BPS-021" "text-only runtime uses input allowlist" "backend/internal/service/basispoints/tools.go" 'basispoints text runtime does not support input item type'
+check_contains "FORK-BPS-021" "OAuth capability cache is credential revision scoped" "backend/internal/service/openai_excel_oauth_credentials.go" 'entry.revision != credential.Revision'
 
 check_file "FORK-RISK-013" "IP risk scoring and privacy model" "backend/internal/service/ip_risk.go"
 check_file "FORK-RISK-013" "IP risk runtime and automation gate" "backend/internal/service/ip_risk_service.go"
@@ -436,6 +441,8 @@ echo
 echo "Running protected backend behaviors..."
 run_check "FORK-OAUTH-007" "OAuth cookie domain unit test" \
   bash -c "cd '$ROOT/backend' && go test -count=1 ./internal/handler -run '^TestOAuthCookieDomain$'"
+run_check "FORK-BPS-021" "BPS text transport and credential-bound model allowlist tests" \
+  bash -c "cd '$ROOT/backend' && go test -count=1 ./internal/service/basispoints ./internal/service -run 'TestPrepareTextRejectsNonTextInputItems|TestReplayCacheSeparatesConversationsWithoutExplicitSessionID|TestReplayCacheBindsReusedCallIDToRandomClientItemID|TestForwardExcelBPS|TestOpenAIExcelOAuth(RuntimeCredential|EnsureModelAllowed)'"
 run_check "FORK-RISK-013" "IP risk privacy, auth capture, workbench actions and rollback tests" \
   bash -c "cd '$ROOT/backend' && go test -tags=unit -count=1 ./internal/service ./internal/repository ./internal/server/middleware ./internal/handler/admin ./internal/server/routes ./migrations -run 'IPRisk|RiskMetadata|RiskEvent|SuccessfulLoginForwardsRiskEvent'"
 run_check "FORK-IMAGE-004/FORK-PRICING-005" "Image Studio and pricing unit tests" \

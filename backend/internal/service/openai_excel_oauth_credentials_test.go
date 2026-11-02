@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/openai"
 	"github.com/imroc/req/v3"
 	"github.com/stretchr/testify/require"
@@ -187,6 +188,70 @@ func TestOpenAIExcelOAuthDiscoverCapabilitiesUsesStoredTokenAndProjectsSafeModel
 	require.NotContains(t, string(encoded), "excel-access-only")
 	require.NotContains(t, string(encoded), "must-not-echo")
 	require.NotContains(t, string(encoded), "gpt-secret")
+}
+
+func TestOpenAIExcelOAuthRuntimeCredentialUsesIndependentGrant(t *testing.T) {
+	account := testExcelAccount()
+	payload, err := json.Marshal(openAIExcelOAuthCredentialPayload{
+		AccessToken: "excel-runtime-access", ChatGPTAccountID: "acct-excel-42",
+		ExpiresAt: time.Now().Add(time.Hour).Unix(),
+	})
+	require.NoError(t, err)
+	ciphertext, err := (excelOAuthEncryptorStub{}).Encrypt(string(payload))
+	require.NoError(t, err)
+	repo := &excelOAuthCredentialRepoStub{record: &OpenAIExcelOAuthCredentialRecord{
+		AccountID: account.ID, CredentialsEncrypted: ciphertext, Revision: 1,
+	}}
+	oauth := NewOpenAIOAuthService(nil, &excelOAuthClientStub{})
+	defer oauth.Stop()
+	svc := NewOpenAIExcelOAuthService(repo, &excelOAuthAccountReaderStub{account: account}, oauth, excelOAuthEncryptorStub{}, &excelOAuthAccessStub{})
+
+	runtime, err := svc.RuntimeCredential(context.Background(), account.ID)
+	require.NoError(t, err)
+	require.Equal(t, "excel-runtime-access", runtime.AccessToken)
+	require.Equal(t, "acct-excel-42", runtime.ChatGPTAccountID)
+	require.EqualValues(t, 1, runtime.Revision)
+}
+
+func TestOpenAIExcelOAuthEnsureModelAllowedUsesExplicitCatalog(t *testing.T) {
+	account := testExcelAccount()
+	payload, err := json.Marshal(openAIExcelOAuthCredentialPayload{AccessToken: "excel-access", ChatGPTAccountID: "acct-excel-42", ExpiresAt: time.Now().Add(time.Hour).Unix()})
+	require.NoError(t, err)
+	ciphertext, err := (excelOAuthEncryptorStub{}).Encrypt(string(payload))
+	require.NoError(t, err)
+	access := &excelOAuthAccessStub{body: []byte(`{"allowed":true,"model_catalog":{"models":[{"id":"gpt-5","available":true}]}}`)}
+	oauth := NewOpenAIOAuthService(nil, &excelOAuthClientStub{})
+	defer oauth.Stop()
+	repo := &excelOAuthCredentialRepoStub{record: &OpenAIExcelOAuthCredentialRecord{AccountID: account.ID, CredentialsEncrypted: ciphertext, Revision: 1}}
+	svc := NewOpenAIExcelOAuthService(repo, &excelOAuthAccountReaderStub{account: account}, oauth, excelOAuthEncryptorStub{}, access)
+	runtime, err := svc.RuntimeCredential(context.Background(), account.ID)
+	require.NoError(t, err)
+	require.NoError(t, svc.EnsureModelAllowed(context.Background(), account.ID, "gpt-5", runtime))
+	err = svc.EnsureModelAllowed(context.Background(), account.ID, "gpt-5-mini", runtime)
+	require.Error(t, err)
+	require.Equal(t, "OPENAI_EXCEL_BPS_MODEL_NOT_ALLOWED", errorsReason(err))
+
+	// A rebind changes the credential revision. A request carrying the newer
+	// snapshot must not reuse the old grant's cached model catalog.
+	newPayload, err := json.Marshal(openAIExcelOAuthCredentialPayload{AccessToken: "new-excel-access", ChatGPTAccountID: "acct-excel-42", ExpiresAt: time.Now().Add(time.Hour).Unix()})
+	require.NoError(t, err)
+	newCiphertext, err := (excelOAuthEncryptorStub{}).Encrypt(string(newPayload))
+	require.NoError(t, err)
+	repo.mu.Lock()
+	repo.record = &OpenAIExcelOAuthCredentialRecord{AccountID: account.ID, CredentialsEncrypted: newCiphertext, Revision: 2}
+	repo.mu.Unlock()
+	access.mu.Lock()
+	access.body = []byte(`{"allowed":true,"model_catalog":{"models":[{"id":"gpt-5-mini","available":true}]}}`)
+	access.mu.Unlock()
+	newRuntime, err := svc.RuntimeCredential(context.Background(), account.ID)
+	require.NoError(t, err)
+	require.EqualValues(t, 2, newRuntime.Revision)
+	require.Error(t, svc.EnsureModelAllowed(context.Background(), account.ID, "gpt-5", newRuntime))
+	require.Equal(t, 2, access.calls)
+}
+
+func errorsReason(err error) string {
+	return infraerrors.Reason(err)
 }
 
 func TestOpenAIOAuthServiceExcelExchangeAndRefreshSkipCodexEnrichment(t *testing.T) {

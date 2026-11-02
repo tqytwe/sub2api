@@ -1,0 +1,18 @@
+# Source attribution
+
+This package is adapted from hloolx/codex2api, whose README declares the MIT License.
+The original Basispoints changes are by hloolx; the MIT notice is in `LICENSE-MIT`.
+Source: https://github.com/hloolx/codex2api
+
+Requested commits and required intervening fixes, in order:
+
+- 9d02d3f5e5d69632ebb9590082a833c0a0916356 — initial Basispoints routing.
+- c125e560eefb5fd15c995943eb1e111795b0635f — tool-loop identity and replay.
+- 20ff3e860d9a149e2df731e37ba1d9b56ae053fc — envelope formatting and model access errors.
+- d39f7e3697aab342e303bf4be0142e39b6a58515 — tool catalog and complete terminal items.
+Only the protocol package is imported; Sub2API supplies its own account setting,
+OAuth credential lifecycle, proxy transport, usage recording and frontend.
+The image-reference protocol change is intentionally excluded; this runtime
+rejects media input and is text-only.
+The repositories have different layouts; this is a source port, not a Git merge
+of the other application's deployment, database or account pool implementation.
