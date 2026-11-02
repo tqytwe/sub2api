@@ -280,7 +280,7 @@ export async function getSnapshot(filter: MonitorFilter, admin = false, signal?:
 export async function getMatrix(filter: MonitorFilter, groupBy: MonitorMatrixGroupBy, admin = false, signal?: AbortSignal, options?: { recentSamples?: boolean }) {
   const { data } = await apiClient.get<MonitorMatrixResponse>(`${base(admin)}/matrix`, requestConfig(filter, signal, {
     group_by: groupBy,
-    recent_samples: options?.recentSamples ? 1 : undefined,
+    recent_samples: options?.recentSamples ? 'true' : undefined,
   }))
   return data
 }
