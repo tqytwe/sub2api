@@ -59,7 +59,7 @@ func (r *channelMonitorV2Repository) attachRecentSampleBuckets(ctx context.Conte
 	if err != nil {
 		return fmt.Errorf("load recent monitor samples: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	loaded := map[[2]string][]service.ChannelMonitorV2TrendPoint{}
 	accumulators := map[sampleBucketKey]*metricAccumulator{}
 	for rows.Next() {
@@ -131,7 +131,7 @@ func (r *channelMonitorV2Repository) attachRecentSampleHistograms(ctx context.Co
 	if err != nil {
 		return fmt.Errorf("load recent monitor sample latency: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	for rows.Next() {
 		var bucket time.Time
 		var platform, metric string

@@ -178,6 +178,7 @@ type AccountTestService struct {
 	httpUpstream              HTTPUpstream
 	cfg                       *config.Config
 	settingService            *SettingService
+	billingService            *BillingService
 	tlsFPProfileService       *TLSFingerprintProfileService
 	modelMetadataRegistryMu   sync.Mutex
 	modelMetadataRegistry     map[string]modelsDevProvider
@@ -194,6 +195,12 @@ type AccountTestService struct {
 func (s *AccountTestService) SetSettingService(settingService *SettingService) {
 	if s != nil {
 		s.settingService = settingService
+	}
+}
+
+func (s *AccountTestService) SetBillingService(billingService *BillingService) {
+	if s != nil {
+		s.billingService = billingService
 	}
 }
 
@@ -2728,6 +2735,7 @@ func createGeminiTestPayload(modelID string, prompt string) []byte {
 // processGeminiStream processes SSE stream from Gemini API
 func (s *AccountTestService) processGeminiStream(c *gin.Context, body io.Reader) error {
 	reader := bufio.NewReader(body)
+	usage := startAccountTestUsageStream(c.Request.Context(), "gemini")
 
 	for {
 		line, err := reader.ReadString('\n')
@@ -2754,6 +2762,7 @@ func (s *AccountTestService) processGeminiStream(c *gin.Context, body io.Reader)
 		if err := json.Unmarshal([]byte(jsonStr), &data); err != nil {
 			continue
 		}
+		usage.read(jsonStr)
 
 		// Support two Gemini response formats:
 		// - AI Studio: {"candidates": [...]}
@@ -2856,6 +2865,7 @@ func createOpenAIChatCompletionsTestPayload(modelID string, prompt string) map[s
 // processClaudeStream processes the SSE stream from Claude API
 func (s *AccountTestService) processClaudeStream(c *gin.Context, body io.Reader) error {
 	reader := bufio.NewReader(body)
+	usage := startAccountTestUsageStream(c.Request.Context(), "anthropic")
 
 	for {
 		line, err := reader.ReadString('\n')
@@ -2882,6 +2892,7 @@ func (s *AccountTestService) processClaudeStream(c *gin.Context, body io.Reader)
 		if err := json.Unmarshal([]byte(jsonStr), &data); err != nil {
 			continue
 		}
+		usage.read(jsonStr)
 
 		eventType, _ := data["type"].(string)
 
@@ -2911,6 +2922,7 @@ func (s *AccountTestService) processClaudeStream(c *gin.Context, body io.Reader)
 // OpenAI-compatible Chat Completions API.
 func (s *AccountTestService) processOpenAIChatCompletionsStream(c *gin.Context, body io.Reader) error {
 	reader := bufio.NewReader(body)
+	usage := startAccountTestUsageStream(c.Request.Context(), "chat")
 	seenJSON := false
 	seenFinish := false
 
@@ -2947,6 +2959,7 @@ func (s *AccountTestService) processOpenAIChatCompletionsStream(c *gin.Context, 
 		if err := json.Unmarshal([]byte(jsonStr), &data); err != nil {
 			return s.sendErrorAndEnd(c, "Invalid Chat Completions response from /v1/chat/completions: expected JSON data")
 		}
+		usage.read(jsonStr)
 		seenJSON = true
 
 		if errData, ok := data["error"].(map[string]any); ok {
@@ -2986,6 +2999,7 @@ func (s *AccountTestService) processOpenAIChatCompletionsStream(c *gin.Context, 
 // processOpenAIStream processes the SSE stream from OpenAI Responses API
 func (s *AccountTestService) processOpenAIStream(c *gin.Context, body io.Reader) error {
 	reader := bufio.NewReader(body)
+	usage := startAccountTestUsageStream(c.Request.Context(), "responses")
 	seenCompleted := false
 
 	for {
@@ -3019,6 +3033,7 @@ func (s *AccountTestService) processOpenAIStream(c *gin.Context, body io.Reader)
 		if err := json.Unmarshal([]byte(jsonStr), &data); err != nil {
 			continue
 		}
+		usage.read(jsonStr)
 
 		eventType, _ := data["type"].(string)
 
@@ -3380,6 +3395,8 @@ func (s *AccountTestService) RunQualityProbeBackground(ctx context.Context, acco
 
 func (s *AccountTestService) RunQualityProbeWithEffortBackground(ctx context.Context, accountID int64, modelID, prompt, effort string) (*ScheduledTestResult, error) {
 	startedAt := time.Now()
+	usage := &accountTestUsageCollector{model: modelID}
+	ctx = context.WithValue(ctx, accountTestUsageKey{}, usage)
 	w := httptest.NewRecorder()
 	ginCtx, _ := gin.CreateTestContext(w)
 	ctx = context.WithValue(ctx, qualityProbePromptContextKey{}, prompt)
@@ -3389,6 +3406,12 @@ func (s *AccountTestService) RunQualityProbeWithEffortBackground(ctx context.Con
 	ginCtx.Request = (&http.Request{}).WithContext(ctx)
 	testErr := s.TestAccountConnection(ginCtx, accountID, modelID, prompt, AccountTestModeDefault)
 	finishedAt := time.Now()
+	account, accountErr := s.accountRepo.GetByID(ctx, accountID)
+	multiplier := 0.1
+	if accountErr == nil && account != nil {
+		multiplier = account.CostMultiplier()
+	}
+	cost, costIncomplete := usage.cost(s.billingService, multiplier)
 	responseText, errMsg := parseTestSSEOutput(w.Body.String())
 	if testErr != nil || errMsg != "" {
 		if errMsg == "" {
@@ -3397,11 +3420,13 @@ func (s *AccountTestService) RunQualityProbeWithEffortBackground(ctx context.Con
 		return &ScheduledTestResult{
 			Status: "failed", ResponseText: responseText, ErrorMessage: errMsg,
 			LatencyMs: finishedAt.Sub(startedAt).Milliseconds(), StartedAt: startedAt, FinishedAt: finishedAt,
+			CostUSD: cost, CostIncomplete: costIncomplete || accountErr != nil,
 		}, nil
 	}
 	return &ScheduledTestResult{
 		Status: "success", ResponseText: responseText,
 		LatencyMs: finishedAt.Sub(startedAt).Milliseconds(), StartedAt: startedAt, FinishedAt: finishedAt,
+		CostUSD: cost, CostIncomplete: costIncomplete || accountErr != nil,
 	}, nil
 }
 

@@ -435,6 +435,19 @@ func (s *AntigravityGatewayService) TestConnection(ctx context.Context, account 
 	}
 
 	text := extractTextFromSSEResponse(respBody)
+	if collector, _ := ctx.Value(accountTestUsageKey{}).(*accountTestUsageCollector); collector != nil {
+		usage := startAccountTestUsageStream(ctx, "antigravity")
+		usage.model = mappedModel
+		for _, line := range bytes.Split(respBody, []byte("\n")) {
+			line = bytes.TrimSpace(line)
+			if data, ok := bytes.CutPrefix(line, []byte("data:")); ok {
+				line = bytes.TrimSpace(data)
+			}
+			if len(line) > 0 && line[0] == '{' {
+				usage.read(string(line))
+			}
+		}
+	}
 	return &TestConnectionResult{Text: text, MappedModel: mappedModel}, nil
 }
 

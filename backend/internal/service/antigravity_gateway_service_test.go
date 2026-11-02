@@ -131,6 +131,87 @@ func TestIsPromptTooLongError(t *testing.T) {
 	require.False(t, isPromptTooLongError([]byte(`{"error":{"message":"other"}}`)))
 }
 
+func TestAntigravityTestConnectionCollectsNativeGeminiUsage(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	body := strings.Join([]string{
+		`data: {"response":{"candidates":[{"content":{"parts":[{"text":"part"}]}}],"usageMetadata":{"promptTokenCount":8,"candidatesTokenCount":2,"cachedContentTokenCount":1}}}`,
+		`data: {"response":{"modelVersion":"gemini-upstream","candidates":[{"finishReason":"STOP"}],"usageMetadata":{"promptTokenCount":10,"candidatesTokenCount":4,"thoughtsTokenCount":2,"cachedContentTokenCount":3}}}`,
+	}, "\n") + "\n\n"
+	collector := &accountTestUsageCollector{model: "gemini-3.1-pro"}
+	ctx := context.WithValue(context.Background(), accountTestUsageKey{}, collector)
+	service, account := newAntigravityTestConnectionFixture(body, "gemini-3.1-pro")
+
+	_, err := service.TestConnection(ctx, account, "gemini-probe")
+	require.NoError(t, err)
+	require.Len(t, collector.requests, 1)
+	usage := collector.requests[0]
+	require.Equal(t, "gemini", usage.protocol)
+	require.Equal(t, "gemini-3.1-pro", usage.model)
+	require.Equal(t, 7, usage.tokens.InputTokens)
+	require.Equal(t, 6, usage.tokens.OutputTokens)
+	require.Equal(t, 3, usage.tokens.CacheReadTokens)
+	require.True(t, usage.complete)
+
+	billing := &BillingService{fallbackPrices: map[string]*ModelPricing{
+		"gemini-3.1-pro": {InputPricePerToken: 0.01, OutputPricePerToken: 0.02},
+	}}
+	cost, incomplete := collector.cost(billing, 1)
+	require.NotNil(t, cost)
+	require.False(t, incomplete)
+}
+
+func TestAntigravityTestConnectionCollectsClaudeUsageAndMarksTruncatedStream(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	body := strings.Join([]string{
+		`data: {"type":"message_start","message":{"usage":{"input_tokens":12,"output_tokens":1,"cache_read_input_tokens":3}}}`,
+		`data: {"type":"message_delta","usage":{"output_tokens":7}}`,
+	}, "\n") + "\n\n"
+	collector := &accountTestUsageCollector{model: "claude-sonnet-4"}
+	ctx := context.WithValue(context.Background(), accountTestUsageKey{}, collector)
+	service, account := newAntigravityTestConnectionFixture(body, "claude-sonnet-4")
+
+	_, err := service.TestConnection(ctx, account, "claude-probe")
+	require.NoError(t, err)
+	require.Len(t, collector.requests, 1)
+	usage := collector.requests[0]
+	require.Equal(t, "anthropic", usage.protocol)
+	require.Equal(t, "claude-sonnet-4", usage.model)
+	require.Equal(t, 12, usage.tokens.InputTokens)
+	require.Equal(t, 7, usage.tokens.OutputTokens)
+	require.Equal(t, 3, usage.tokens.CacheReadTokens)
+	require.False(t, usage.complete)
+
+	billing := &BillingService{fallbackPrices: map[string]*ModelPricing{
+		"claude-sonnet-4": {InputPricePerToken: 0.01, OutputPricePerToken: 0.02},
+	}}
+	cost, incomplete := collector.cost(billing, 1)
+	require.NotNil(t, cost)
+	require.True(t, incomplete)
+}
+
+func newAntigravityTestConnectionFixture(body, mappedModel string) (*AntigravityGatewayService, *Account) {
+	upstream := &queuedHTTPUpstreamStub{responses: []*http.Response{{
+		StatusCode: http.StatusOK,
+		Header:     http.Header{"Content-Type": []string{"text/event-stream"}},
+		Body:       io.NopCloser(strings.NewReader(body)),
+	}}}
+	return &AntigravityGatewayService{
+		settingService: NewSettingService(&antigravitySettingRepoStub{}, &config.Config{Gateway: config.GatewayConfig{MaxLineSize: defaultMaxLineSize}}),
+		tokenProvider:  &AntigravityTokenProvider{},
+		httpUpstream:   upstream,
+	}, &Account{
+		ID: 991, Name: "account-test-probe", Platform: PlatformAntigravity, Type: AccountTypeOAuth,
+		Credentials: map[string]any{
+			"access_token": "test-token",
+			"project_id":   "test-project",
+			"model_mapping": map[string]any{
+				"gemini-probe": mappedModel,
+				"claude-probe": mappedModel,
+			},
+		},
+	}
+}
+
 type httpUpstreamStub struct {
 	resp *http.Response
 	err  error
