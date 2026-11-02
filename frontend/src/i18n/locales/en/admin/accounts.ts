@@ -631,6 +631,9 @@ export default {
       },
       // OpenAI specific hints
       openai: {
+        excelBPS: 'Excel / BPS text Responses',
+        excelBPSDesc: 'Use the separately authorized Excel grant for text Responses requests. It does not replace Codex credentials or enable media forwarding.',
+        excelBPSNotice: 'Save, then start a new conversation. This route is text-only and uses the independent Excel OAuth grant.',
         excelOAuth: {
           title: 'Excel / BPS authorization',
           description: 'Connect Excel/BPS separately for this OpenAI OAuth account. Its credentials are encrypted independently and do not replace Codex credentials.',

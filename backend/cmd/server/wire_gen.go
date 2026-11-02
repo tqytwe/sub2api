@@ -237,6 +237,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	openAIExcelOAuthCredentialRepository := repository.NewOpenAIExcelOAuthCredentialRepository(db)
 	openAIExcelOAuthAccessClient := repository.NewOpenAIExcelOAuthAccessClient()
 	openAIExcelOAuthService := service.ProvideOpenAIExcelOAuthService(openAIExcelOAuthCredentialRepository, adminService, openAIOAuthService, secretEncryptor, openAIExcelOAuthAccessClient)
+	openAIGatewayService.SetOpenAIExcelOAuthService(openAIExcelOAuthService)
 	openAIOAuthHandler := handler.ProvideOpenAIOAuthHandler(openAIOAuthService, adminService, openAIQuotaService, rateLimitService, openAIExcelOAuthService)
 	openAIOAuthReauthRepository := repository.NewOpenAIOAuthReauthRepository(db)
 	openAIOAuthReauthService := service.ProvideOpenAIOAuthReauthService(openAIOAuthReauthRepository, adminService, accountRepository, openAIOAuthService, secretEncryptor, configConfig, compositeTokenCacheInvalidator, openAIGatewayService)

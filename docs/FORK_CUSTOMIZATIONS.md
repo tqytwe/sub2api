@@ -39,6 +39,7 @@
 | `FORK-MOBILE-017` | NextChat 移动协议与归因反馈 | active | integrity 脚本 + Go 测试 |
 | `FORK-LIVE-SETTLEMENT-018` | 实时用量结算 outbox | active | integrity 脚本 + Go/PostgreSQL 集成测试 |
 | `FORK-SETTINGS-019` | 管理系统设置完整性 | active | integrity 静态检查 + SettingsView/Vitest 测试 |
+| `FORK-BPS-021` | BPS/Excel 独立授权的文本 Responses 运行时 | active | integrity 静态检查 + Go/Vitest 测试 |
 
 所有条目的上游冲突都必须逐段审查，禁止对整个文件直接使用 `ours` 或 `theirs`。
 
@@ -122,6 +123,14 @@
 - 关键位置：`backend/internal/handler/auth_linuxdo_oauth.go`、`backend/internal/handler/auth_linuxdo_oauth_test.go`。
 - 冲突策略：可以吸收上游 OAuth 安全修复，但必须保留域共享函数及测试。
 - 验证：`TestOAuthCookieDomain`，线上分别从 apex 与 `www` 发起/完成 OAuth。
+
+## FORK-BPS-021 BPS/Excel 独立授权的文本 Responses 运行时
+
+- 产品目的：复用已绑定 Excel OAuth 的独立授权，仅为显式开启的 OpenAI OAuth 账号提供 BPS 文本 Responses 转发。
+- 不变量：只允许该账号独立授权的 bearer 与 ChatGPT account ID；模型必须通过同凭据 revision 的能力目录；运行时仅接受文本和声明的客户端工具协议，不执行 OfficeJS、不抓取图片，也不转发文件、音频、视频等媒体输入；工具回放按随机客户端 item ID 精确绑定，重用 call_id 不会跨会话拿到其他原生工具内容；缺失 item ID 的 output-only 续接仅在显式 prompt cache/session key 下允许；未绑定授权、模型不在目录或非文本输入必须在上游调用前拒绝；未开启时沿用原有 OpenAI 路由。
+- 关键位置：`backend/internal/service/basispoints/`、`backend/internal/service/openai_excel_bps.go`、`backend/internal/service/openai_excel_oauth_credentials.go`、`frontend/src/components/account/EditAccountModal.vue`。
+- 冲突策略：上游协议变化先更新 allowlist 与兼容测试；不能把图片、附件或其他供应商运行时顺带纳入本批。
+- 验证：BPS adapter、gateway、OAuth revision/model catalog、账号开关测试；完整 backend/frontend 测试、lint、build、Fork integrity；生产部署后由管理员在本地浏览器按账号授权和模型资格验收。
 
 ## FORK-RISK-013 IP 风险检测与批量注册发现
 

@@ -747,6 +747,9 @@ export default {
       },
       // OpenAI specific hints
       openai: {
+        excelBPS: 'Excel / BPS 文本 Responses',
+        excelBPSDesc: '使用独立授权的 Excel 凭据转发文本 Responses 请求，不会替换 Codex 凭据，也不会启用媒体转发。',
+        excelBPSNotice: '保存后请新建会话。该路径仅支持文本，并使用独立的 Excel OAuth 授权。',
         excelOAuth: {
           title: 'Excel / BPS 授权',
           description: '为此 OpenAI OAuth 账号单独连接 Excel/BPS。授权凭据独立加密保存，不会替换 Codex 凭据。',
