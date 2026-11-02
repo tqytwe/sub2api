@@ -151,6 +151,12 @@ func TestChannelMonitorModeV2Guard(t *testing.T) {
 			svc:        newChannelMonitorModeSettings(true, service.ChannelMonitorModeV2),
 			wantStatus: http.StatusOK,
 		},
+		{
+			name:       "mode v3 blocks v2 routes",
+			svc:        newChannelMonitorModeSettings(true, service.ChannelMonitorModeV3),
+			wantStatus: http.StatusForbidden,
+			wantCode:   "CHANNEL_MONITOR_MODE_MISMATCH",
+		},
 	}
 
 	for _, tt := range tests {

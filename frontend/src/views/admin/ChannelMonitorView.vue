@@ -14,7 +14,9 @@
           {{
             isV1Mode
               ? t('channelMonitorV2.admin.descriptionV1')
-              : t('channelMonitorV2.admin.descriptionV2')
+              : isV3Mode
+                ? t('channelMonitorV3.admin.description.v3')
+                : t('channelMonitorV2.admin.descriptionV2')
           }}
         </p>
         <div class="mt-4 border-t border-gray-100 pt-4 dark:border-dark-700">
@@ -23,6 +25,16 @@
             role="tablist"
             :aria-label="t('channelMonitorV2.admin.tabAria')"
           >
+            <button
+              type="button"
+              role="tab"
+              class="tab flex-1 sm:flex-none"
+              :class="adminMonitorTab === 'v3' ? 'tab-active' : ''"
+              :aria-selected="adminMonitorTab === 'v3'"
+              @click="adminMonitorTab = 'v3'"
+            >
+              {{ t('channelMonitorV3.admin.tab') }}
+            </button>
             <button
               type="button"
               role="tab"
@@ -47,6 +59,7 @@
         </div>
       </header>
 
+      <V3SettingsPanel v-if="adminMonitorTab === 'v3'" />
       <MonitorSettingsPanel v-if="adminMonitorTab === 'v2'" />
 
       <TablePageLayout v-else>
@@ -199,12 +212,15 @@ import MonitorActionsCell from '@/components/admin/monitor/MonitorActionsCell.vu
 import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
 import { useChannelMonitorFormat } from '@/composables/useChannelMonitorFormat'
 import MonitorSettingsPanel from '@/features/channel-monitor-v2/MonitorSettingsPanel.vue'
-import { isChannelMonitorV1Mode } from '@/utils/featureFlags'
+import V3SettingsPanel from '@/features/channel-monitor-v3/V3SettingsPanel.vue'
+import { getChannelMonitorMode, isChannelMonitorV1Mode } from '@/utils/featureFlags'
 
 const { t } = useI18n()
 const appStore = useAppStore()
 const isV1Mode = computed(() => isChannelMonitorV1Mode())
-const adminMonitorTab = ref<'v2' | 'legacy'>(isChannelMonitorV1Mode() ? 'legacy' : 'v2')
+const isV3Mode = computed(() => getChannelMonitorMode() === 'v3')
+const initialMode = getChannelMonitorMode()
+const adminMonitorTab = ref<'v3' | 'v2' | 'legacy'>(initialMode === 'v1' ? 'legacy' : initialMode)
 const {
   providerLabel,
   providerBadgeClass,

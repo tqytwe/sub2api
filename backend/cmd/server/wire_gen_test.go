@@ -27,8 +27,8 @@ func TestGeneratedWireWiresChannelMonitorV2Handler(t *testing.T) {
 
 	source := string(generated)
 	require.Contains(t, source, "channelMonitorV2Handler := handler.NewChannelMonitorV2Handler(channelMonitorV2Service, apiKeyService)")
-	require.Contains(t, source, "channelMonitorUserHandler, channelMonitorV2Handler, adminHandlers")
-	require.Contains(t, source, "scheduledTestRunnerService := service.ProvideScheduledTestRunnerService(scheduledTestPlanRepository, scheduledTestService, accountTestService, rateLimitService, configConfig, contentModerationService)")
+	require.Contains(t, source, "channelMonitorUserHandler, channelMonitorV2Handler, channelMonitorV3Handler, adminHandlers")
+	require.Contains(t, source, "scheduledTestRunnerService := service.ProvideScheduledTestRunnerService(scheduledTestPlanRepository, scheduledTestService, accountTestService, rateLimitService, configConfig, contentModerationService, channelMonitorV2Repository, settingService)")
 }
 
 func TestProvideCleanup_WithMinimalDependencies_NoPanic(t *testing.T) {
@@ -108,6 +108,7 @@ func TestProvideCleanup_WithMinimalDependencies_NoPanic(t *testing.T) {
 		nil, // paymentOrderExpiry
 		nil, // channelMonitorRunner
 		nil, // channelMonitorV2Aggregator
+		nil, // channelMonitorV3Prober
 		nil, // quotaFlusher
 		nil, // playGrowthRunner
 		nil, // publicHomeStatsService

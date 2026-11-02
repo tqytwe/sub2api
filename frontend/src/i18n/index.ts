@@ -86,7 +86,13 @@ const localeLoaders: Record<LocaleCode, Record<LocaleLoadScope, LocaleLoader>> =
         }),
       }
     },
-    'channel-monitor': () => import('./locales/en/channelMonitorV2'),
+    'channel-monitor': async () => {
+      const [v2, v3] = await Promise.all([
+        import('./locales/en/channelMonitorV2'),
+        import('./locales/en/channelMonitorV3'),
+      ])
+      return { default: mergeLocaleMessages(v2.default, v3.default) }
+    },
     'admin-overview': async () => {
       const module = await import('./locales/en/admin/overview')
       return { default: adminMessages(module.default) }
@@ -191,7 +197,13 @@ const localeLoaders: Record<LocaleCode, Record<LocaleLoadScope, LocaleLoader>> =
         }),
       }
     },
-    'channel-monitor': () => import('./locales/zh/channelMonitorV2'),
+    'channel-monitor': async () => {
+      const [v2, v3] = await Promise.all([
+        import('./locales/zh/channelMonitorV2'),
+        import('./locales/zh/channelMonitorV3'),
+      ])
+      return { default: mergeLocaleMessages(v2.default, v3.default) }
+    },
     'admin-overview': async () => {
       const module = await import('./locales/zh/admin/overview')
       return { default: adminMessages(module.default) }

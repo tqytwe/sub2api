@@ -5,12 +5,49 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 )
+
+type channelMonitorV2MatrixRepoStub struct {
+	filter service.ChannelMonitorV2Filter
+}
+
+func (s *channelMonitorV2MatrixRepoStub) GetConfig(context.Context) (*service.ChannelMonitorV2Config, error) {
+	return &service.ChannelMonitorV2Config{Enabled: true}, nil
+}
+func (s *channelMonitorV2MatrixRepoStub) UpdateConfig(context.Context, service.ChannelMonitorV2Config, int) (*service.ChannelMonitorV2Config, error) {
+	return nil, nil
+}
+func (s *channelMonitorV2MatrixRepoStub) GetDimensions(context.Context, service.ChannelMonitorV2Filter, service.ChannelMonitorV2Config) (*service.ChannelMonitorV2Dimensions, error) {
+	return nil, nil
+}
+func (s *channelMonitorV2MatrixRepoStub) GetSnapshot(context.Context, service.ChannelMonitorV2Filter, service.ChannelMonitorV2Config, bool) (*service.ChannelMonitorV2Snapshot, error) {
+	return nil, nil
+}
+func (s *channelMonitorV2MatrixRepoStub) GetModels(context.Context, service.ChannelMonitorV2Filter, service.ChannelMonitorV2Config, bool) (*service.ChannelMonitorV2List[service.ChannelMonitorV2ModelRow], error) {
+	return nil, nil
+}
+func (s *channelMonitorV2MatrixRepoStub) GetMatrix(_ context.Context, filter service.ChannelMonitorV2Filter, _ service.ChannelMonitorV2Config, groupBy service.ChannelMonitorV2GroupBy, _ bool) (*service.ChannelMonitorV2Matrix, error) {
+	s.filter = filter
+	return &service.ChannelMonitorV2Matrix{GroupBy: groupBy, Items: []service.ChannelMonitorV2MatrixRow{}}, nil
+}
+func (s *channelMonitorV2MatrixRepoStub) GetErrors(context.Context, service.ChannelMonitorV2Filter, service.ChannelMonitorV2Config, bool) (*service.ChannelMonitorV2List[service.ChannelMonitorV2ErrorRow], error) {
+	return nil, nil
+}
+func (s *channelMonitorV2MatrixRepoStub) GetUsers(context.Context, service.ChannelMonitorV2Filter, service.ChannelMonitorV2Config, bool) (*service.ChannelMonitorV2List[service.ChannelMonitorV2UserRow], error) {
+	return nil, nil
+}
+func (s *channelMonitorV2MatrixRepoStub) GetAggregationWatermark(context.Context) (*service.ChannelMonitorV2AggregationWatermark, error) {
+	return nil, nil
+}
+func (s *channelMonitorV2MatrixRepoStub) RecomputeRange(context.Context, time.Time, time.Time) error {
+	return nil
+}
 
 type channelMonitorV2GroupAuthorizerStub struct {
 	groups []service.Group
@@ -45,6 +82,24 @@ func TestChannelMonitorV2MatrixHandlerRejectsInvalidGroupBy(t *testing.T) {
 	h := NewChannelMonitorV2Handler(service.NewChannelMonitorV2Service(nil), nil)
 	h.Matrix(c)
 	require.Equal(t, http.StatusBadRequest, recorder.Code)
+}
+
+func TestChannelMonitorV2MatrixHandlerParsesRecentSamplesBoolean(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	for _, value := range []string{"true", "1"} {
+		t.Run(value, func(t *testing.T) {
+			recorder := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(recorder)
+			c.Request = httptest.NewRequest(http.MethodGet, "/admin/channel-monitor-v2/matrix?recent_samples="+value, nil)
+			repo := &channelMonitorV2MatrixRepoStub{}
+			h := NewChannelMonitorV2Handler(service.NewChannelMonitorV2Service(repo), nil)
+
+			h.AdminMatrix(c)
+
+			require.Equal(t, http.StatusOK, recorder.Code)
+			require.True(t, repo.filter.IncludeRecentSamples)
+		})
+	}
 }
 
 func TestChannelMonitorV2ScopeFilterUsesAvailableGroupsForOrdinaryUser(t *testing.T) {

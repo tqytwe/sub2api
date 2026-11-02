@@ -140,4 +140,26 @@ describe('MonitorSettingsPanel loading boundaries', () => {
     expect(wrapper.text()).not.toContain('1 min')
     expect(wrapper.text()).not.toContain('5 min')
   })
+
+  it('adds Candy checks disabled by default and persists settings without dropping them', async () => {
+    getGroupsMock.mockResolvedValueOnce([{ id: 7, name: '默认组', platform: 'openai', status: 'active' }])
+    getConfigMock.mockResolvedValueOnce({ ...structuredClone(config), candy_probes: [{ group_id: 7, enabled: false, model: 'gpt-5', reasoning_effort: 'medium', interval_minutes: 5 }], candy_history_limit: 30 })
+    updateConfigMock.mockImplementationOnce(async (value) => value)
+    const wrapper = mountPanel()
+    await flushPromises()
+
+    expect((wrapper.vm as any).draft.candy_probes).toEqual([{ group_id: 7, enabled: false, model: 'gpt-5', reasoning_effort: 'medium', interval_minutes: 5 }])
+    expect((wrapper.vm as any).draft.candy_history_limit).toBe(30)
+    ;(wrapper.vm as any).draft.group_order = [7]
+    await wrapper.vm.$nextTick()
+    await wrapper.find('button.btn-primary').trigger('click')
+    await flushPromises()
+
+    expect(updateConfigMock).toHaveBeenCalledWith(expect.objectContaining({
+      candy_probes: [{ group_id: 7, enabled: false, model: 'gpt-5', reasoning_effort: 'medium', interval_minutes: 5 }],
+      candy_history_limit: 30,
+      group_order: [7],
+      card_timeline_mode: 'windows',
+    }))
+  })
 })

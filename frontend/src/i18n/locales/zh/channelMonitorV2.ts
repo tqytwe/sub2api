@@ -23,6 +23,22 @@ export default {
     ignored: '忽略',
     currentUser: '当前用户',
     ranges: { '90m': '90m', '24h': '24h', '7d': '7d', '30d': '30d' },
+    cards: {
+      layout: '监控视图', showCards: '卡片', showAnalytics: '分析', empty: '当前筛选范围没有渠道分组',
+      availability: '可用率', cache: '缓存率', latency: '延迟 P50', timeline: '所选时间范围', samples: '最近有效样本',
+      historyCount: '{count} 个样本', trafficHistory: '流量历史', noSamples: '没有达到最小样本要求的近期记录',
+      health: { healthy: '健康', warning: '需关注', critical: '异常', unknown: '未知' },
+      timelineMode: { windows: '时间分段', samples: '最近样本' },
+    },
+    candy: {
+      title: '模型智力测试', settingsTitle: 'Candy 模型测试', settingsHint: '仅执行已启用规则；调用可能产生上游模型费用。',
+      costHint: '启用后会向所配置分组和模型发送真实请求。确认配置前请保持规则关闭。',
+      historyLimit: '每个模型保留历史（15–100）', model: '模型', modelHint: '填写上游精确模型名', effort: '推理强度', interval: '间隔（分钟）',
+      selectGroup: '选择渠道分组', addModel: '添加测试', duplicateModel: '该分组、模型和推理强度组合已存在。',
+      invalidConfig: '请检查 Candy 规则：分组须启用，模型不能为空且组合不能重复，间隔为 1–1440 分钟；历史范围为 15–100。',
+      cadence: '每 {minutes} 分钟', historyCount: '{count} / {limit} 次测试', notChecked: '暂无测试记录', waiting: '等待首次计划测试', disabledHint: '该分组没有配置模型测试。',
+      states: { correct: '正确', incorrect: '错误', error: '失败', unknown: '等待中', stale: '已过期' },
+    },
     filters: {
       platform: '平台', allPlatforms: '全部', group: '分组', groupId: '分组 {id}', allGroups: '全部', model: '模型', allModels: '全部',
       empty: '暂无可选项', selectedCount: '{count} 项', labelValue: '{label}：{value}'
@@ -101,7 +117,10 @@ export default {
       refreshHint: '影响矩阵时间粒度与刷新节奏',
       refreshAria: '汇总频率',
       refreshIntervalMinutes: '{minutes} 分钟',
+      cardTimelineTitle: '卡片流量时间线', cardTimelineHint: '选择展示所选时间范围分段，或近期达到样本门槛的记录。',
+      groupOrderTitle: '卡片分组顺序', groupOrderHint: '未列出的分组按名称排序。', moveUp: '上移', moveDown: '下移',
       platformsTitle: '平台与模型',
+      selectPlatform: '添加平台', customPlatform: '自定义平台 ID', addPlatform: '添加平台', deleteDisabled: '请先停用平台再删除', deletePlatform: '删除平台',
       platformsHint: '留空 = 展示全部真实模型名；填写后仅名单内单独成行，其余归入「其他」',
       modelsPlaceholder: '留空=全部真实模型；或填写主流模型名单（其余归其他）',
       badgeAllModels: '全部模型',

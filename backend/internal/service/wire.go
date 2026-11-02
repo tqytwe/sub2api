@@ -682,8 +682,11 @@ func ProvideScheduledTestRunnerService(
 	rateLimitSvc *RateLimitService,
 	cfg *config.Config,
 	qualityJudge *ContentModerationService,
+	monitorV2Repo ChannelMonitorV2Repository,
+	settingService *SettingService,
 ) *ScheduledTestRunnerService {
 	svc := NewScheduledTestRunnerService(planRepo, scheduledSvc, accountTestSvc, rateLimitSvc, cfg, qualityJudge)
+	svc.SetChannelMonitorV2CandyService(NewChannelMonitorV2CandyService(monitorV2Repo, accountTestSvc, settingService))
 	svc.Start()
 	return svc
 }
@@ -1267,6 +1270,8 @@ var ProviderSet = wire.NewSet(
 	NewChannelMonitorQuotaFetcher,
 	ProvideChannelMonitorV2Service,
 	ProvideChannelMonitorV2Aggregator,
+	ProvideChannelMonitorV3Service,
+	ProvideChannelMonitorV3Prober,
 	NewChannelMonitorRequestTemplateService,
 	ProvideUserPlatformQuotaUsageFlusher,
 	ProvidePlayService,
@@ -1389,6 +1394,16 @@ func ProvideChannelMonitorV2Aggregator(repo ChannelMonitorV2Repository, db *sql.
 	}
 	aggregator.Start()
 	return aggregator
+}
+
+func ProvideChannelMonitorV3Service(repo ChannelMonitorV3Repository, groupRepo GroupRepository) *ChannelMonitorV3Service {
+	return NewChannelMonitorV3Service(repo, groupRepo)
+}
+
+func ProvideChannelMonitorV3Prober(repo ChannelMonitorV3Repository, groupRepo GroupRepository, accounts AccountRepository, tests *AccountTestService, settings *SettingService) *ChannelMonitorV3Prober {
+	prober := NewChannelMonitorV3Prober(repo, groupRepo, accounts, tests, settings)
+	prober.Start()
+	return prober
 }
 
 // ProvideClaudeResetCreditService wires the Claude reset query and, with the

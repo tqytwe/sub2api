@@ -5,6 +5,7 @@ import splitAdminEn from './en/admin'
 import splitBatchImageEn from './en/batchImage'
 import splitCommonEn from './en/common'
 import splitChannelMonitorV2En from './en/channelMonitorV2'
+import splitChannelMonitorV3En from './en/channelMonitorV3'
 import splitDashboardEn from './en/dashboard'
 import splitWorkspaceShellEn from './en/workspaceShell'
 import auditAdminEn from './en/admin/audit'
@@ -9579,6 +9580,7 @@ const messages = {
 export default mergeLocaleMessages(messages, mergeLocaleMessages({
   ...splitCommonEn,
   ...splitChannelMonitorV2En,
+  ...splitChannelMonitorV3En,
   ...splitDashboardEn,
   ...splitBatchImageEn,
   admin: splitAdminEn,

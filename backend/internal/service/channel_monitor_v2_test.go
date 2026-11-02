@@ -10,13 +10,14 @@ import (
 )
 
 type channelMonitorV2RepoStub struct {
-	config serviceChannelMonitorV2ConfigAlias
-	users  *ChannelMonitorV2List[ChannelMonitorV2UserRow]
-	matrix *ChannelMonitorV2Matrix
-	errors *ChannelMonitorV2List[ChannelMonitorV2ErrorRow]
-	snap   *ChannelMonitorV2Snapshot
-	group  ChannelMonitorV2GroupBy
-	admin  bool
+	config  serviceChannelMonitorV2ConfigAlias
+	updated *ChannelMonitorV2Config
+	users   *ChannelMonitorV2List[ChannelMonitorV2UserRow]
+	matrix  *ChannelMonitorV2Matrix
+	errors  *ChannelMonitorV2List[ChannelMonitorV2ErrorRow]
+	snap    *ChannelMonitorV2Snapshot
+	group   ChannelMonitorV2GroupBy
+	admin   bool
 }
 
 // Alias keeps composite literals readable without introducing another package.
@@ -26,8 +27,9 @@ func (s *channelMonitorV2RepoStub) GetConfig(context.Context) (*ChannelMonitorV2
 	cfg := ChannelMonitorV2Config(s.config)
 	return &cfg, nil
 }
-func (s *channelMonitorV2RepoStub) UpdateConfig(context.Context, ChannelMonitorV2Config, int) (*ChannelMonitorV2Config, error) {
-	return nil, nil
+func (s *channelMonitorV2RepoStub) UpdateConfig(_ context.Context, cfg ChannelMonitorV2Config, _ int) (*ChannelMonitorV2Config, error) {
+	s.updated = &cfg
+	return &cfg, nil
 }
 func (s *channelMonitorV2RepoStub) GetDimensions(context.Context, ChannelMonitorV2Filter, ChannelMonitorV2Config) (*ChannelMonitorV2Dimensions, error) {
 	return nil, nil
@@ -170,7 +172,7 @@ func TestChannelMonitorV2ConfigValidation(t *testing.T) {
 	}
 	require.NoError(t, normalizeChannelMonitorV2Config(&cfg))
 	require.Equal(t, 300, cfg.RefreshIntervalSeconds)
-	require.Equal(t, "anthropic", cfg.Platforms[0].Platform)
+	require.Equal(t, "openai", cfg.Platforms[0].Platform)
 	require.Equal(t, []int64{1, 3}, cfg.GroupIDs)
 
 	cfg.RefreshIntervalSeconds = 120
@@ -179,6 +181,70 @@ func TestChannelMonitorV2ConfigValidation(t *testing.T) {
 	cfg.RefreshIntervalSeconds = 60
 	cfg.GroupIDs = []int64{0}
 	require.ErrorIs(t, normalizeChannelMonitorV2Config(&cfg), ErrChannelMonitorV2InvalidConfig)
+}
+
+func TestChannelMonitorV2ConfigUpdatePreservesOmittedCandyAndCardSettings(t *testing.T) {
+	current := ChannelMonitorV2Config{
+		Enabled: true, Version: 4, RefreshIntervalSeconds: 300,
+		Platforms:         []ChannelMonitorV2PlatformConfig{{Platform: "openai", Enabled: true}},
+		CandyProbes:       []ChannelMonitorV2CandyProbe{{GroupID: 7, Model: "gpt-5", Enabled: true, ReasoningEffort: "medium", IntervalMinutes: 15}},
+		CandyHistoryLimit: 40, CardTimelineMode: ChannelMonitorV2CardTimelineSamples, GroupOrder: []int64{7, 3},
+	}
+	repo := &channelMonitorV2RepoStub{config: current}
+	svc := NewChannelMonitorV2Service(repo)
+	_, err := svc.UpdateConfig(context.Background(), ChannelMonitorV2Config{Version: 4, Enabled: true, RefreshIntervalSeconds: 300, GroupIDs: []int64{7}}, 4, 1)
+	require.NoError(t, err)
+	require.Equal(t, current.CandyProbes, repo.updated.CandyProbes)
+	require.Equal(t, 40, repo.updated.CandyHistoryLimit)
+	require.Equal(t, ChannelMonitorV2CardTimelineSamples, repo.updated.CardTimelineMode)
+	require.Equal(t, []int64{7, 3}, repo.updated.GroupOrder)
+}
+
+func TestChannelMonitorV2CandyConfigValidation(t *testing.T) {
+	valid := ChannelMonitorV2CandyProbe{GroupID: 7, Model: "gpt-5", ReasoningEffort: "high", Enabled: true, IntervalMinutes: 15}
+	cfg := ChannelMonitorV2Config{GroupIDs: []int64{7}, CandyProbes: []ChannelMonitorV2CandyProbe{valid}, CandyHistoryLimit: 100}
+	require.NoError(t, normalizeChannelMonitorV2Config(&cfg))
+	require.Equal(t, 100, cfg.CandyHistoryLimit)
+
+	cases := []struct {
+		name string
+		edit func(*ChannelMonitorV2Config)
+	}{
+		{"unknown group", func(c *ChannelMonitorV2Config) { c.CandyProbes[0].GroupID = 8 }},
+		{"empty model", func(c *ChannelMonitorV2Config) { c.CandyProbes[0].Model = " " }},
+		{"interval below minimum", func(c *ChannelMonitorV2Config) { c.CandyProbes[0].IntervalMinutes = -1 }},
+		{"interval above maximum", func(c *ChannelMonitorV2Config) { c.CandyProbes[0].IntervalMinutes = 1441 }},
+		{"unsupported effort", func(c *ChannelMonitorV2Config) { c.CandyProbes[0].ReasoningEffort = "turbo" }},
+		{"history below minimum", func(c *ChannelMonitorV2Config) { c.CandyHistoryLimit = 14 }},
+		{"history above maximum", func(c *ChannelMonitorV2Config) { c.CandyHistoryLimit = 101 }},
+		{"duplicate identity", func(c *ChannelMonitorV2Config) { c.CandyProbes = append(c.CandyProbes, c.CandyProbes[0]) }},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			candidate := cfg
+			candidate.CandyProbes = append([]ChannelMonitorV2CandyProbe(nil), cfg.CandyProbes...)
+			tc.edit(&candidate)
+			require.ErrorIs(t, normalizeChannelMonitorV2Config(&candidate), ErrChannelMonitorV2InvalidConfig)
+		})
+	}
+}
+
+func TestChannelMonitorV2CandyRedactsUserDiagnostics(t *testing.T) {
+	rows := []ChannelMonitorV2MatrixRow{{GroupID: int64Ptr(7)}}
+	probe := ChannelMonitorV2CandyProbe{GroupID: 7, Model: "gpt-5", Enabled: true}
+	result := ChannelMonitorV2CandyResult{GroupID: 7, ConfigKey: probe.ConfigKey(), Verdict: "failed", AnswerPreview: "secret answer", Reason: "private upstream token error"}
+	AttachCandyHistory(rows, []ChannelMonitorV2CandyProbe{probe}, []ChannelMonitorV2CandyResult{result}, 100, false)
+	require.Empty(t, rows[0].CandyChecks[0].Results[0].AnswerPreview)
+	require.Empty(t, rows[0].CandyChecks[0].Results[0].Reason)
+}
+
+func TestChannelMonitorV2CandyRowsUseOnlyAuthorizedMatrixGroups(t *testing.T) {
+	rows := []ChannelMonitorV2MatrixRow{{GroupID: int64Ptr(7), Model: "gpt-5"}}
+	checks := []ChannelMonitorV2CandyProbe{{GroupID: 7, Model: "gpt-5", Enabled: true}}
+	result := ChannelMonitorV2CandyResult{GroupID: 7, ConfigKey: checks[0].ConfigKey(), Verdict: "correct"}
+	AttachCandyHistory(rows, checks, []ChannelMonitorV2CandyResult{result}, 100, false)
+	require.Len(t, rows[0].CandyChecks, 1)
+	require.Equal(t, "gpt-5", rows[0].CandyChecks[0].Model)
 }
 
 func TestChannelMonitorV2ErrorTaxonomyPriority(t *testing.T) {

@@ -40,6 +40,23 @@ func TestChannelMonitorV2DisplayModelIsPlatformScoped(t *testing.T) {
 	require.True(t, channelMonitorV2ModelSelected(service.ChannelMonitorV2Filter{Models: []string{service.ChannelMonitorV2OtherModel}}, cfg, "grok", "shared"))
 }
 
+func TestChannelMonitorV2RecentSampleModelClauseMatchesDisplayFilter(t *testing.T) {
+	cfg := service.ChannelMonitorV2Config{Platforms: []service.ChannelMonitorV2PlatformConfig{
+		{Platform: "openai", Enabled: true, Models: []string{"gpt-5", "gpt-4.1"}},
+	}}
+	clause, args := channelMonitorV2SampleModelClause(service.ChannelMonitorV2Filter{Models: []string{"gpt-5"}}, cfg, "m", 6)
+	require.Contains(t, clause, "m.platform=$6")
+	require.Contains(t, clause, "m.model=ANY($7)")
+	require.Len(t, args, 2)
+	require.Equal(t, "openai", args[0])
+
+	clause, args = channelMonitorV2SampleModelClause(service.ChannelMonitorV2Filter{Models: []string{service.ChannelMonitorV2OtherModel}}, cfg, "h", 5)
+	require.Contains(t, clause, "h.platform=$5")
+	require.Contains(t, clause, "NOT (h.model=ANY($6))")
+	require.Len(t, args, 2)
+	require.Equal(t, "openai", args[0])
+}
+
 func TestChannelMonitorV2MatrixDimensionKey(t *testing.T) {
 	cfg := service.ChannelMonitorV2Config{Platforms: []service.ChannelMonitorV2PlatformConfig{{Platform: "openai", Enabled: true, Models: []string{"gpt-5"}}}}
 	key := channelMonitorV2MatrixDimensionKey(service.ChannelMonitorV2GroupByPlatformGroupModel, cfg, "openai", 7, "gpt-5")
