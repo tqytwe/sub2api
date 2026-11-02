@@ -34,6 +34,7 @@ export interface LatencyMetric {
 }
 
 export interface MonitorMetric {
+  has_samples?: boolean
   success_requests: number
   error_requests: number
   request_count: number
@@ -104,6 +105,10 @@ export interface MonitorConfig {
   refresh_interval_seconds: 60 | 300
   platforms: Array<{ platform: string; enabled: boolean; models: string[] }>
   group_ids: number[]
+  candy_probes?: MonitorCandyProbe[]
+  candy_history_limit?: number
+  card_timeline_mode?: 'windows' | 'samples'
+  group_order?: number[]
   health_thresholds: {
     minimum_sample: number
     warning_error_rate: number
@@ -159,6 +164,9 @@ export interface MonitorMatrixBucket {
 }
 
 export interface MonitorMatrixRow {
+  candy?: MonitorCandyHistory
+  candy_checks?: MonitorCandyHistory[]
+  sample_buckets?: MonitorMatrixBucket[]
   platform: string
   group_id?: number
   group_name?: string
@@ -166,6 +174,30 @@ export interface MonitorMatrixRow {
   metrics: MonitorMetric
   health: MonitorHealth
   buckets: MonitorMatrixBucket[]
+}
+
+export interface MonitorCandyProbe {
+  group_id: number
+  enabled: boolean
+  model: string
+  reasoning_effort: string
+  interval_minutes: number
+}
+
+export interface MonitorCandyResult {
+  checked_at: string
+  verdict: 'correct' | 'incorrect' | 'error'
+  latency_ms: number
+  answer_preview?: string
+  reason?: string
+}
+
+export interface MonitorCandyHistory {
+  model: string
+  reasoning_effort: string
+  interval_minutes: number
+  history_limit?: number
+  results: MonitorCandyResult[]
 }
 
 export interface MonitorMatrixResponse {
@@ -245,8 +277,11 @@ export async function getSnapshot(filter: MonitorFilter, admin = false, signal?:
   const { data } = await apiClient.get<MonitorSnapshot>(`${base(admin)}/snapshot`, requestConfig(filter, signal))
   return data
 }
-export async function getMatrix(filter: MonitorFilter, groupBy: MonitorMatrixGroupBy, admin = false, signal?: AbortSignal) {
-  const { data } = await apiClient.get<MonitorMatrixResponse>(`${base(admin)}/matrix`, requestConfig(filter, signal, { group_by: groupBy }))
+export async function getMatrix(filter: MonitorFilter, groupBy: MonitorMatrixGroupBy, admin = false, signal?: AbortSignal, options?: { recentSamples?: boolean }) {
+  const { data } = await apiClient.get<MonitorMatrixResponse>(`${base(admin)}/matrix`, requestConfig(filter, signal, {
+    group_by: groupBy,
+    recent_samples: options?.recentSamples ? 1 : undefined,
+  }))
   return data
 }
 export async function getModels(filter: MonitorFilter, admin = false, signal?: AbortSignal) {

@@ -101,6 +101,17 @@ describe('channel-monitor-v2 design system structure', () => {
     expect(src).toMatch(/max-h-\[min\(40vh/)
   })
 
+  it('V2 cards and Candy controls have stable visual contracts', () => {
+    const cards = read('features/channel-monitor-v2/MonitorStatusCards.vue')
+    expect(cards).toContain('data-testid="monitor-status-cards"')
+    expect(cards).toContain('data-testid="monitor-group-card"')
+    expect(cards).toContain('data-testid="candy-history"')
+    const candy = read('features/channel-monitor-v2/MonitorCandySettings.vue')
+    expect(candy).toContain('data-testid="monitor-candy-settings"')
+    expect(candy).toContain('data-testid="add-candy-probe"')
+    expect(read('features/channel-monitor-v2/monitorCards.ts')).toContain('MONITOR_CARD_SLOT_COUNT')
+  })
+
   it('admin ChannelMonitorView V2 tab chrome uses project tabs', () => {
     const src = read('views/admin/ChannelMonitorView.vue')
     expect(src).toContain('page-header')

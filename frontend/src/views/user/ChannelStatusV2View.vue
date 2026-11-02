@@ -92,6 +92,13 @@
 
         <!-- Single compact toolbar row: range · filters · view controls -->
         <div class="monitor-toolbar flex flex-nowrap items-center gap-1.5 overflow-x-auto px-4 py-3 sm:gap-2 sm:px-5">
+          <div class="tabs inline-flex shrink-0" role="group" :aria-label="t('channelMonitorV2.cards.layout')" data-testid="monitor-layout-toggle">
+            <button type="button" class="tab !px-2 !py-1 text-xs" :class="showCards ? 'tab-active' : ''" data-testid="monitor-layout-cards" @click="layoutMode = 'cards'">{{ t('channelMonitorV2.cards.showCards') }}</button>
+            <button type="button" class="tab !px-2 !py-1 text-xs" :class="!showCards ? 'tab-active' : ''" data-testid="monitor-layout-analytics" @click="layoutMode = 'analytics'">{{ t('channelMonitorV2.cards.showAnalytics') }}</button>
+          </div>
+
+          <span class="mx-0.5 hidden h-5 w-px shrink-0 bg-gray-200 dark:bg-dark-700 sm:block" aria-hidden="true"></span>
+
           <div
             class="tabs inline-flex shrink-0"
             role="group"
@@ -145,6 +152,7 @@
           <span class="mx-0.5 hidden h-5 w-px shrink-0 bg-gray-200 dark:bg-dark-700 md:block" aria-hidden="true"></span>
 
           <Select
+            v-if="!showCards"
             v-model="matrixGroupBy"
             :options="matrixGroupOptions"
             :placeholder="t('channelMonitorV2.groupBy.label')"
@@ -152,6 +160,7 @@
           />
 
           <div
+            v-if="!showCards"
             class="tabs inline-flex shrink-0"
             role="group"
             :aria-label="t('channelMonitorV2.trendView.label')"
@@ -175,7 +184,7 @@
           </div>
 
           <div
-            v-if="trendView === 'pulse'"
+            v-if="!showCards && trendView === 'pulse'"
             class="tabs inline-flex shrink-0"
             role="group"
             :aria-label="t('channelMonitorV2.healthMode.label')"
@@ -196,7 +205,7 @@
 
       <!-- Overview KPI: success · TTFT · tokens/s(optional) · cache · (+ RPM when throughput visible) -->
       <section
-        v-if="snapshot"
+        v-if="snapshot && !showCards"
         class="grid grid-cols-2 gap-3 sm:grid-cols-3"
         :class="showThroughput ? 'xl:grid-cols-5' : 'xl:grid-cols-4'"
         :aria-label="t('channelMonitorV2.summaryAria')"
@@ -236,7 +245,7 @@
         />
       </section>
       <section
-        v-else-if="loading"
+        v-else-if="loading && !showCards"
         class="grid grid-cols-2 gap-3 sm:grid-cols-3"
         :class="showThroughput ? 'xl:grid-cols-5' : 'xl:grid-cols-4'"
         aria-hidden="true"
@@ -248,6 +257,19 @@
         />
       </section>
 
+      <MonitorStatusCards
+        v-if="showCards"
+        :items="cardRows"
+        :coverage="matrix?.coverage"
+        :loading="loading"
+        :now="now"
+        :timeline-mode="snapshot?.config.card_timeline_mode"
+        :platform-order="snapshot?.config.platforms.filter((item) => item.enabled).map((item) => item.platform)"
+        :group-order="snapshot?.config.group_order"
+        :admin="isAdmin"
+      />
+
+      <template v-else>
       <div class="relative min-h-[320px]">
         <MonitorTrendChart
           v-if="trendView === 'line'"
@@ -454,6 +476,7 @@
           </div>
         </div>
       </section>
+      </template>
     </div>
   </AppLayout>
 </template>
@@ -471,6 +494,8 @@ import MetricCell from '@/features/channel-monitor-v2/MetricCell.vue'
 import MonitorRankBadge from '@/features/channel-monitor-v2/MonitorRankBadge.vue'
 import MonitorTrendChart from '@/features/channel-monitor-v2/MonitorTrendChart.vue'
 import RelayPulseMatrix from '@/features/channel-monitor-v2/RelayPulseMatrix.vue'
+import MonitorStatusCards from '@/features/channel-monitor-v2/MonitorStatusCards.vue'
+import { monitorRefreshSeconds } from '@/features/channel-monitor-v2/monitorCards'
 import { useAuthStore } from '@/stores/auth'
 import { useAppStore } from '@/stores/app'
 import { extractApiErrorMessage } from '@/utils/apiError'
@@ -506,6 +531,7 @@ import {
 type Tab = 'models' | 'errors' | 'users'
 type HealthMode = 'overall' | 'success' | 'ttft' | 'cache'
 type TrendView = 'pulse' | 'line'
+type LayoutMode = 'cards' | 'analytics'
 
 const route = useRoute()
 const router = useRouter()
@@ -557,6 +583,9 @@ const activeTab = ref<Tab>(parseTab(route.query.tab, showUserRanking.value))
 const matrixGroupBy = ref<MonitorMatrixGroupBy>(parseMatrixGroupBy(route.query.group_by))
 const healthMode = ref<HealthMode>(parseHealthMode(route.query.health_mode))
 const trendView = ref<TrendView>(parseTrendView(route.query.trend_view))
+const layoutMode = ref<LayoutMode>(parseLayoutMode(route.query.layout))
+const showCards = computed(() => layoutMode.value === 'cards')
+const now = ref(Date.now())
 const dimensions = ref<MonitorDimensions>({ platforms: [], groups: [], models: [] })
 const snapshot = ref<MonitorSnapshot | null>(null)
 const matrix = ref<MonitorMatrixResponse | null>(null)
@@ -570,6 +599,7 @@ const expandedErrors = ref(new Set<string>())
 let controller: AbortController | null = null
 let sequence = 0
 let autoRefreshTimer: number | null = null
+let clockTimer: number | null = null
 
 const hasDimensionFilter = computed(
   () => filter.value.platforms.length + filter.value.groupIds.length + filter.value.models.length > 0
@@ -664,6 +694,7 @@ const matrixRows = computed(() => {
   }
   return items
 })
+const cardRows = computed(() => (matrix.value?.items || []).filter((row) => row.group_id != null && Number(row.group_id) > 0))
 
 function csv(value: unknown) {
   return typeof value === 'string' ? value.split(',').filter(Boolean) : []
@@ -693,6 +724,9 @@ function parseHealthMode(value: unknown): HealthMode {
 function parseTrendView(value: unknown): TrendView {
   return value === 'line' ? 'line' : 'pulse'
 }
+function parseLayoutMode(value: unknown): LayoutMode {
+  return value === 'analytics' ? 'analytics' : 'cards'
+}
 function syncQuery() {
   void router.replace({
     query: {
@@ -703,6 +737,7 @@ function syncQuery() {
       group_by: matrixGroupBy.value,
       health_mode: healthMode.value,
       trend_view: trendView.value === 'line' ? 'line' : undefined,
+      layout: layoutMode.value === 'analytics' ? 'analytics' : undefined,
       tab: activeTab.value,
     },
   })
@@ -723,13 +758,13 @@ async function loadDimensions(signal?: AbortSignal, id = sequence) {
 async function loadMetrics(signal?: AbortSignal, id = sequence) {
   const [nextSnapshot, nextMatrix] = await Promise.all([
     api.getSnapshot(filter.value, isAdmin.value, signal),
-    api.getMatrix(filter.value, matrixGroupBy.value, isAdmin.value, signal),
+    api.getMatrix(filter.value, showCards.value ? 'platform_group' : matrixGroupBy.value, isAdmin.value, signal, { recentSamples: showCards.value }),
   ])
   if (id !== sequence) return
   snapshot.value = nextSnapshot
   matrix.value = nextMatrix
   scheduleAutoRefresh()
-  await loadTab(signal, id)
+  if (!showCards.value) await loadTab(signal, id)
 }
 
 async function reload(silent = true) {
@@ -818,9 +853,7 @@ function scheduleAutoRefresh() {
     autoRefreshTimer = null
   }
   // Poll faster while first-upgrade bootstrap is filling 90m→30d so the progress bar moves.
-  const seconds = bootstrapActive.value
-    ? 10
-    : snapshot.value?.config?.refresh_interval_seconds || 300
+  const seconds = monitorRefreshSeconds(snapshot.value?.config?.refresh_interval_seconds, cardRows.value, bootstrapActive.value)
   autoRefreshTimer = window.setInterval(() => {
     if (!loading.value && !refreshing.value) {
       void reload(true)
@@ -919,6 +952,10 @@ watch(matrixGroupBy, () => {
 })
 watch(healthMode, syncQuery)
 watch(trendView, syncQuery)
+watch(layoutMode, () => {
+  syncQuery()
+  void reloadMetricsOnly(true)
+})
 watch(activeTab, () => {
   syncQuery()
   void loadTab()
@@ -929,9 +966,13 @@ watch(showUserRanking, (allowed) => {
   }
 })
 onMounted(() => void reload(false))
+onMounted(() => {
+  clockTimer = window.setInterval(() => { now.value = Date.now() }, 30_000)
+})
 onBeforeUnmount(() => {
   controller?.abort()
   if (autoRefreshTimer) window.clearInterval(autoRefreshTimer)
+  if (clockTimer) window.clearInterval(clockTimer)
 })
 </script>
 

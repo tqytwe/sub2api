@@ -23,6 +23,22 @@ export default {
     ignored: 'Ignored',
     currentUser: 'Current user',
     ranges: { '90m': '90m', '24h': '24h', '7d': '7d', '30d': '30d' },
+    cards: {
+      layout: 'Monitor view', showCards: 'Cards', showAnalytics: 'Analytics', empty: 'No channel groups in this filter',
+      availability: 'Available', cache: 'Cache', latency: 'Latency P50', timeline: 'Selected-window timeline', samples: 'Recent qualified samples',
+      historyCount: '{count} samples', trafficHistory: 'Traffic history', noSamples: 'No recent samples meet the configured minimum',
+      health: { healthy: 'Healthy', warning: 'Watch', critical: 'Critical', unknown: 'Unknown' },
+      timelineMode: { windows: 'Time windows', samples: 'Recent samples' },
+    },
+    candy: {
+      title: 'Model intelligence checks', settingsTitle: 'Candy model checks', settingsHint: 'Checks run only for enabled rules and can incur upstream model charges.',
+      costHint: 'Enabled checks send real requests to the configured group and model. Leave rules disabled until ready.',
+      historyLimit: 'History per model (15–100)', model: 'Model', modelHint: 'Exact upstream model name', effort: 'Reasoning effort', interval: 'Interval (minutes)',
+      selectGroup: 'Select a channel group', addModel: 'Add check', duplicateModel: 'This group, model and effort combination already exists.',
+      invalidConfig: 'Review Candy rules: each rule needs an active group, model, unique group/model/effort, and an interval from 1 to 1440 minutes. History must be 15–100.',
+      cadence: 'every {minutes}m', historyCount: '{count} of {limit} checks', notChecked: 'No check recorded', waiting: 'Waiting for first scheduled check', disabledHint: 'No model checks are configured for this group.',
+      states: { correct: 'Correct', incorrect: 'Incorrect', error: 'Failed', unknown: 'Waiting', stale: 'Stale' },
+    },
     filters: {
       platform: 'Platform', allPlatforms: 'All', group: 'Group', groupId: 'Group {id}', allGroups: 'All', model: 'Model', allModels: 'All',
       empty: 'No options', selectedCount: '{count}', labelValue: '{label}: {value}'
@@ -102,7 +118,10 @@ export default {
       refreshHint: 'Affects matrix time granularity and refresh cadence',
       refreshAria: 'Aggregation interval',
       refreshIntervalMinutes: '{minutes} min',
+      cardTimelineTitle: 'Card traffic timeline', cardTimelineHint: 'Choose whether cards show selected-window segments or recent qualified samples.',
+      groupOrderTitle: 'Card group order', groupOrderHint: 'Groups not listed here follow alphabetically.', moveUp: 'Move up', moveDown: 'Move down',
       platformsTitle: 'Platforms and models',
+      selectPlatform: 'Add a platform', customPlatform: 'Custom platform id', addPlatform: 'Add platform', deleteDisabled: 'Disable a platform before removing it', deletePlatform: 'Remove platform',
       platformsHint:
         'Leave empty = show all real model names; when filled, only listed models get their own rows and the rest roll into “Other”',
       modelsPlaceholder: 'Empty = all real models; or list popular models (rest → Other)',

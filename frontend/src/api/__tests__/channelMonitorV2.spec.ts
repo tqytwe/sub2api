@@ -18,12 +18,12 @@ describe('channel monitor V2 query serialization', () => {
     expect(query).not.toContain('%5B%5D')
   })
 
-  it('sends the matrix grouping with the shared filters', async () => {
+  it('sends the matrix grouping and recent-sample flag with the shared filters', async () => {
     const get = vi.spyOn(apiClient, 'get').mockResolvedValue({
       data: { coverage: {}, group_by: 'platform_group', items: [] },
     })
 
-    await getMatrix({ range: '24h', platforms: ['openai'], groupIds: [7], models: [] }, 'platform_group', true)
+    await getMatrix({ range: '24h', platforms: ['openai'], groupIds: [7], models: [] }, 'platform_group', true, undefined, { recentSamples: true })
 
     expect(get).toHaveBeenCalledWith('/admin/channel-monitor-v2/matrix', expect.objectContaining({
       params: {
@@ -32,6 +32,7 @@ describe('channel monitor V2 query serialization', () => {
         group_id: [7],
         model: undefined,
         group_by: 'platform_group',
+        recent_samples: 1,
       },
     }))
   })

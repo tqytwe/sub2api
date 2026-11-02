@@ -18,7 +18,7 @@
         v-if="draft"
         type="button"
         class="btn btn-primary"
-        :disabled="saving || !dirty"
+        :disabled="saving || !dirty || !configValid"
         @click="save"
       >
         <Icon name="check" size="sm" />
@@ -100,6 +100,16 @@
             </button>
           </div>
         </div>
+        <div class="flex flex-wrap items-center justify-between gap-4 px-5 py-4">
+          <div>
+            <strong class="text-sm font-semibold text-gray-900 dark:text-white">{{ t('channelMonitorV2.settings.cardTimelineTitle') }}</strong>
+            <p class="mt-0.5 text-xs text-gray-500 dark:text-dark-400">{{ t('channelMonitorV2.settings.cardTimelineHint') }}</p>
+          </div>
+          <div class="tabs inline-flex w-auto" role="group" :aria-label="t('channelMonitorV2.settings.cardTimelineTitle')" data-testid="monitor-v2-card-timeline">
+            <button type="button" class="tab" :class="draft.card_timeline_mode !== 'samples' ? 'tab-active' : ''" data-testid="monitor-v2-timeline-windows" @click="draft.card_timeline_mode = 'windows'">{{ t('channelMonitorV2.cards.timelineMode.windows') }}</button>
+            <button type="button" class="tab" :class="draft.card_timeline_mode === 'samples' ? 'tab-active' : ''" data-testid="monitor-v2-timeline-samples" @click="draft.card_timeline_mode = 'samples'">{{ t('channelMonitorV2.cards.timelineMode.samples') }}</button>
+          </div>
+        </div>
       </div>
 
       <div class="card overflow-hidden !rounded-lg !border-0 shadow-sm ring-1 ring-gray-900/5 dark:!bg-dark-800 dark:ring-dark-700">
@@ -109,30 +119,70 @@
             {{ t('channelMonitorV2.settings.platformsHint') }}
           </p>
         </div>
+        <div class="flex flex-wrap items-center gap-2 border-b border-gray-100 px-5 py-3 dark:border-dark-700">
+          <select v-model="selectedCandidate" class="input min-w-[12rem] flex-1" data-testid="monitor-v2-platform-select"><option value="">{{ t('channelMonitorV2.settings.selectPlatform') }}</option><option v-for="option in addCandidates" :key="option.value" :value="option.value">{{ option.label }}</option></select>
+          <input v-model="customPlatform" class="input min-w-[12rem] flex-1" maxlength="64" data-testid="monitor-v2-platform-custom" :placeholder="t('channelMonitorV2.settings.customPlatform')" @keydown.enter.prevent="addPlatform" />
+          <button type="button" class="btn btn-secondary btn-sm" data-testid="monitor-v2-add-platform" @click="addPlatform"><Icon name="plus" size="xs" />{{ t('channelMonitorV2.settings.addPlatform') }}</button>
+        </div>
         <div class="divide-y divide-gray-100 dark:divide-dark-700">
           <div
-            v-for="platform in draft.platforms"
+            v-for="(platform, index) in draft.platforms"
             :key="platform.platform"
-            class="grid grid-cols-1 items-center gap-3 px-5 py-3 sm:grid-cols-[auto_7rem_minmax(0,1fr)_auto]"
+            class="flex flex-wrap items-center gap-3 px-5 py-3"
+            data-testid="monitor-v2-platform-row"
+            :data-platform="platform.platform"
           >
             <Toggle v-model="platform.enabled" />
-            <strong class="text-sm font-medium text-gray-900 dark:text-white">{{ platformLabel(platform.platform) }}</strong>
+            <div class="w-36 min-w-0">
+              <strong class="block truncate text-sm font-medium text-gray-900 dark:text-white">{{ platformLabel(platform.platform) }}</strong>
+              <small class="block truncate font-mono text-[10px] text-gray-400">{{ platform.platform }}</small>
+            </div>
             <input
-              class="input"
+              class="input min-w-[12rem] flex-1"
               :value="platform.models.join(', ')"
               type="text"
               :placeholder="t('channelMonitorV2.settings.modelsPlaceholder')"
               @change="setModels(platform, $event)"
             />
             <span
-              class="badge justify-self-start sm:justify-self-end"
+              class="badge shrink-0"
               :class="platform.models.length ? 'badge-gray' : 'badge badge-primary'"
             >
               {{ platform.models.length ? t('channelMonitorV2.settings.badgeOther') : t('channelMonitorV2.settings.badgeAllModels') }}
             </span>
+            <button v-if="!isFactoryPlatform(platform.platform)" type="button" class="icon-btn hover:text-red-500" :disabled="platform.enabled" :title="platform.enabled ? t('channelMonitorV2.settings.deleteDisabled') : t('channelMonitorV2.settings.deletePlatform')" data-testid="monitor-v2-delete-platform" @click="removePlatform(platform.platform)"><Icon name="trash" size="xs" /></button>
+            <div class="flex shrink-0 items-center gap-1">
+              <button type="button" class="icon-btn" :disabled="index === 0" :title="t('channelMonitorV2.settings.moveUp')" data-testid="monitor-v2-platform-up" @click="movePlatform(index, -1)"><Icon name="arrowUp" size="xs" /></button>
+              <button type="button" class="icon-btn" :disabled="index === draft.platforms.length - 1" :title="t('channelMonitorV2.settings.moveDown')" data-testid="monitor-v2-platform-down" @click="movePlatform(index, 1)"><Icon name="arrowDown" size="xs" /></button>
+            </div>
           </div>
         </div>
       </div>
+
+      <div class="card overflow-hidden !rounded-lg !border-0 shadow-sm ring-1 ring-gray-900/5 dark:!bg-dark-800 dark:ring-dark-700" data-testid="monitor-v2-group-order">
+        <div class="card-header !py-3">
+          <h3 class="text-sm font-semibold text-gray-900 dark:text-white">{{ t('channelMonitorV2.settings.groupOrderTitle') }}</h3>
+          <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t('channelMonitorV2.settings.groupOrderHint') }}</p>
+        </div>
+        <ol class="divide-y divide-gray-100 dark:divide-dark-700">
+          <li v-for="(group, index) in orderedGroups" :key="group.id" class="flex items-center gap-3 px-5 py-2.5 text-sm">
+            <span class="w-8 text-right tabular-nums text-gray-400">{{ index + 1 }}</span>
+            <span class="min-w-0 flex-1 truncate text-gray-800 dark:text-gray-100">{{ group.name }} <small class="text-gray-400">{{ group.platform }}</small></span>
+            <button type="button" class="icon-btn" :disabled="index === 0" :title="t('channelMonitorV2.settings.moveUp')" @click="moveGroup(index, -1)"><Icon name="arrowUp" size="xs" /></button>
+            <button type="button" class="icon-btn" :disabled="index === orderedGroups.length - 1" :title="t('channelMonitorV2.settings.moveDown')" @click="moveGroup(index, 1)"><Icon name="arrowDown" size="xs" /></button>
+          </li>
+          <li v-if="!orderedGroups.length" class="px-5 py-4 text-sm text-gray-400">{{ t('channelMonitorV2.settings.groupsLoading') }}</li>
+        </ol>
+      </div>
+
+      <MonitorCandySettings
+        v-model="draft.candy_probes"
+        v-model:history-limit="draft.candy_history_limit"
+        :groups="candyGroups"
+      />
+      <p v-if="!configValid" class="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800 dark:border-red-800 dark:bg-red-900/20 dark:text-red-200" role="alert">
+        {{ t('channelMonitorV2.candy.invalidConfig') }}
+      </p>
 
       <div class="card overflow-hidden !rounded-lg !border-0 shadow-sm ring-1 ring-gray-900/5 dark:!bg-dark-800 dark:ring-dark-700">
         <div class="card-header flex flex-wrap items-center justify-between gap-2 !py-3">
@@ -307,11 +357,13 @@ import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Toggle from '@/components/common/Toggle.vue'
 import Icon from '@/components/icons/Icon.vue'
+import MonitorCandySettings from './MonitorCandySettings.vue'
 import { useAppStore } from '@/stores/app'
 import { extractApiErrorMessage } from '@/utils/apiError'
 import { getChannelMonitorMode, isChannelMonitorV2Mode } from '@/utils/featureFlags'
 import { localizedEnumOrUnknown } from '@/utils/localizedEnum'
 import { platformLabel as localizedPlatformLabel } from '@/utils/platformColors'
+import { GROUP_PLATFORM_OPTIONS } from '@/constants/platforms'
 import {
   getConfig,
   updateConfig,
@@ -331,11 +383,53 @@ const groups = ref<AdminGroup[]>([])
 const configLoadError = ref<string | null>(null)
 const groupsLoadError = ref<string | null>(null)
 const groupsLoading = ref(false)
+const selectedCandidate = ref('')
+const customPlatform = ref('')
+const factoryPlatforms = ['anthropic', 'openai', 'grok', 'kiro', 'gemini', 'antigravity']
+const platformPattern = /^[a-z0-9][a-z0-9_-]{0,63}$/
+const candyGroups = computed(() => groups.value.filter((group) => group.status === 'active').map((group) => ({ id: group.id, name: group.name, platform: group.platform || '' })))
+const orderedGroups = computed(() => {
+  const order = draft.value?.group_order || []
+  const byId = new Map(groups.value.map((group) => [group.id, group]))
+  const listed = order.map((id) => byId.get(id)).filter((group): group is AdminGroup => Boolean(group))
+  const seen = new Set(listed.map((group) => group.id))
+  return [...listed, ...groups.value.filter((group) => !seen.has(group.id)).sort((a, b) => a.name.localeCompare(b.name))]
+})
 
 const dirty = computed(() => (draft.value ? JSON.stringify(draft.value) !== original.value : false))
+const configValid = computed(() => {
+  const probes = draft.value?.candy_probes || []
+  if (!draft.value || probes.length > 64) return false
+  if (draft.value.candy_history_limit != null && (!Number.isInteger(draft.value.candy_history_limit) || draft.value.candy_history_limit < 15 || draft.value.candy_history_limit > 100)) return false
+  const knownGroups = new Map(groups.value.map((group) => [group.id, group]))
+  const seen = new Set<string>()
+  for (const probe of probes) {
+    const group = knownGroups.get(probe.group_id)
+    if (!group || (probe.enabled && group.status !== 'active') || !probe.model.trim() || !Number.isInteger(probe.interval_minutes) || probe.interval_minutes < 1 || probe.interval_minutes > 1440) return false
+    const id = `${probe.group_id}\0${probe.model.trim().toLowerCase()}\0${(probe.reasoning_effort || 'medium').trim().toLowerCase()}`
+    if (seen.has(id)) return false
+    seen.add(id)
+  }
+  return true
+})
 const namedModelCount = computed(
   () => draft.value?.platforms.filter((p) => p.enabled).reduce((sum, p) => sum + p.models.length, 0) || 0
 )
+const addCandidates = computed(() => {
+  const configured = new Set(draft.value?.platforms.map((item) => item.platform.trim().toLowerCase()) || [])
+  const seen = new Set<string>()
+  const options: Array<{ value: string; label: string }> = []
+  const add = (value: string, label?: string) => {
+    const id = value.trim().toLowerCase()
+    if (!id || configured.has(id) || seen.has(id) || !platformPattern.test(id)) return
+    seen.add(id)
+    options.push({ value: id, label: label || platformLabel(id) })
+  }
+  for (const item of GROUP_PLATFORM_OPTIONS) add(item.value, item.label)
+  for (const id of factoryPlatforms) add(id)
+  for (const group of groups.value) add(group.platform)
+  return options
+})
 const errorCategories = MONITOR_ERROR_CATEGORIES
 const countedErrorCategoryCount = computed(
   () => errorCategories.length - (draft.value?.ignored_error_categories?.length || 0)
@@ -408,6 +502,40 @@ function toggleGroup(id: number) {
     : [...draft.value.group_ids, id].sort((a, b) => a - b)
 }
 
+function moveGroup(index: number, direction: -1 | 1) {
+  if (!draft.value) return
+  const ids = orderedGroups.value.map((group) => group.id)
+  const target = index + direction
+  if (target < 0 || target >= ids.length) return
+  ;[ids[index], ids[target]] = [ids[target], ids[index]]
+  draft.value.group_order = ids
+}
+
+function movePlatform(index: number, direction: -1 | 1) {
+  if (!draft.value) return
+  const target = index + direction
+  if (target < 0 || target >= draft.value.platforms.length) return
+  const platforms = [...draft.value.platforms]
+  ;[platforms[index], platforms[target]] = [platforms[target], platforms[index]]
+  draft.value.platforms = platforms
+}
+
+function isFactoryPlatform(value: string) { return factoryPlatforms.includes(value.trim().toLowerCase()) }
+function addPlatform() {
+  if (!draft.value) return
+  const id = (customPlatform.value.trim() || selectedCandidate.value).trim().toLowerCase()
+  if (!platformPattern.test(id) || draft.value.platforms.length >= 64 || draft.value.platforms.some((item) => item.platform.toLowerCase() === id)) return
+  draft.value.platforms.push({ platform: id, enabled: true, models: [] })
+  selectedCandidate.value = ''
+  customPlatform.value = ''
+}
+function removePlatform(id: string) {
+  if (!draft.value || isFactoryPlatform(id)) return
+  const item = draft.value.platforms.find((platform) => platform.platform === id)
+  if (!item || item.enabled) return
+  draft.value.platforms = draft.value.platforms.filter((platform) => platform.platform !== id)
+}
+
 function isCategoryIgnored(category: string): boolean {
   return Boolean(draft.value?.ignored_error_categories?.includes(category))
 }
@@ -432,6 +560,10 @@ function normalizeConfig(value: MonitorConfig): MonitorConfig {
   const ignored = value.ignored_error_categories
   return {
     ...value,
+    card_timeline_mode: value.card_timeline_mode === 'samples' ? 'samples' : 'windows',
+    candy_probes: value.candy_probes ?? [],
+    candy_history_limit: Math.min(100, Math.max(15, Math.trunc(value.candy_history_limit || 100))),
+    group_order: value.group_order ?? [],
     health_thresholds: { ...defaultThresholds, ...(value.health_thresholds || {}) },
     // Preserve explicit empty arrays from the server (operator cleared all).
     ignored_error_categories: [
