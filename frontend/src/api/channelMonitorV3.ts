@@ -185,7 +185,7 @@ export interface MonitorV3IdleProbeStat {
   group_id: number
   probes: number
   failures: number
-  cost_usd: number
+  cost_usd: number | null
   last_at: string | null
   last_model?: string
   last_outcome?: MonitorV3ProbeOutcome

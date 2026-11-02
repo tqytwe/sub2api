@@ -78,7 +78,7 @@
           <div class="mt-2 space-y-0.5 text-[11px] text-gray-500 dark:text-gray-400" data-testid="monitor-v3-idle-probe-stats">
             <template v-if="statOf(row.groupId)?.last_at">
               <p>{{ t('channelMonitorV3.admin.idleProbe.lastProbe', { time: formatMonitorV3Short(statOf(row.groupId)!.last_at!), result: lastResult(statOf(row.groupId)!) }) }}</p>
-              <p>{{ t('channelMonitorV3.admin.idleProbe.last24h', { probes: statOf(row.groupId)!.probes, failures: statOf(row.groupId)!.failures }) }}</p>
+              <p>{{ t('channelMonitorV3.admin.idleProbe.last24h', { probes: statOf(row.groupId)!.probes, failures: statOf(row.groupId)!.failures, cost: formatCost(statOf(row.groupId)!.cost_usd) }) }}</p>
               <p v-if="configIssue(statOf(row.groupId)!)" class="text-amber-600 dark:text-amber-400" data-testid="monitor-v3-idle-probe-issue">
                 {{ t('channelMonitorV3.admin.idleProbe.configIssue', { error: statOf(row.groupId)!.last_error }) }}
               </p>
@@ -182,6 +182,11 @@ const invalid = computed(() => rows.value.some(missingModel))
 
 function statOf(groupId: number) {
   return props.stats.find((stat) => stat.group_id === groupId)
+}
+
+function formatCost(value: number | null) {
+  if (value === null || !Number.isFinite(value)) return t('channelMonitorV3.admin.idleProbe.costUnknown')
+  return new Intl.NumberFormat(undefined, { style: 'currency', currency: 'USD', maximumFractionDigits: 6 }).format(value)
 }
 
 function reason(category: string | undefined) {

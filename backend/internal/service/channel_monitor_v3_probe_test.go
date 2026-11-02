@@ -137,6 +137,20 @@ func TestChannelMonitorV3ProberRecordsUnavailableAccountPool(t *testing.T) {
 	require.Equal(t, "account_pool_unavailable", repo.finished[0].Category)
 }
 
+func TestChannelMonitorV3ProberRespectsAccountGroupModelAllowlist(t *testing.T) {
+	runner := &channelMonitorV3ProbeRunnerFake{}
+	prober, repo := channelMonitorV3ProbeFixture(runner)
+	prober.accounts = channelMonitorV3ProbeAccountFake{accounts: []Account{{
+		ID: 77, Platform: PlatformOpenAI, Status: StatusActive, Schedulable: true,
+		AccountGroups: []AccountGroup{{GroupID: 4, AllowedModels: []string{"gpt-5.4"}}},
+	}}}
+	prober.RunDue(context.Background(), prober.now())
+	require.Zero(t, runner.called)
+	require.Len(t, repo.finished, 1)
+	require.Equal(t, "account_pool_unavailable", repo.finished[0].Category)
+	require.Nil(t, repo.finished[0].CostUSD, "cost is unknown when no upstream request ran")
+}
+
 func TestChannelMonitorV3ProberAbandonsOnShutdown(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	runner := &channelMonitorV3ProbeRunnerFake{result: &ScheduledTestResult{Status: "failed", ErrorMessage: "context canceled"}}

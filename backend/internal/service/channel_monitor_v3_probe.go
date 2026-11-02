@@ -17,10 +17,9 @@ import (
 // Idle probes keep quiet groups from turning grey on the V3 page. For the
 // groups an admin checks, a slot that is about to end with fewer real successes
 // than the page minimum gets one short request: V1's arithmetic challenge,
-// sent through the same group scheduler a user request reaches (the path V2's
-// candy checks use). Probes are not billed to users, are not written to usage
-// logs and never enter the passive facts; the page reads them separately and
-// only for slots whose real traffic is too thin to judge.
+// sent through the existing account-test path. Probes are not billed to users,
+// are not written to usage logs and never enter the passive facts. The page
+// reads them separately and only for slots whose real traffic is too thin.
 
 const (
 	ChannelMonitorV3ProbeSuccess = "success"
@@ -104,10 +103,10 @@ type ChannelMonitorV3ProbeResult struct {
 
 // ChannelMonitorV3IdleProbeStat summarises one group's recent probes for the admin.
 type ChannelMonitorV3IdleProbeStat struct {
-	GroupID  int64   `json:"group_id"`
-	Probes   int64   `json:"probes"`
-	Failures int64   `json:"failures"`
-	CostUSD  float64 `json:"cost_usd"`
+	GroupID  int64    `json:"group_id"`
+	Probes   int64    `json:"probes"`
+	Failures int64    `json:"failures"`
+	CostUSD  *float64 `json:"cost_usd"`
 	// Last* describe the newest finished probe, which may be older than a day.
 	LastAt        *time.Time `json:"last_at"`
 	LastModel     string     `json:"last_model,omitempty"`
@@ -383,7 +382,7 @@ func (p *ChannelMonitorV3Prober) runOne(ctx context.Context, target channelMonit
 	var selected *Account
 	for i := range accounts {
 		candidate := &accounts[i]
-		if candidate.IsSchedulable() && candidate.IsModelSupported(target.Model) {
+		if candidate.IsSchedulable() && candidate.IsModelSupportedInGroup(&group.ID, target.Model) {
 			selected = candidate
 			break
 		}

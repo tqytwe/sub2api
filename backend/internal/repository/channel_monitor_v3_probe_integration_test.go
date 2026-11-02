@@ -52,10 +52,11 @@ func TestChannelMonitorV3RepositoryIdleProbes(t *testing.T) {
 	hourly, err := repo.ClaimProbe(ctx, other.ID, "gpt-probe", slot.Truncate(time.Hour), 60)
 	require.NoError(t, err)
 	cost := 0.0012
+	otherCost := 0.0024
 	require.NoError(t, repo.FinishProbe(ctx, service.ChannelMonitorV3ProbeResult{ID: first, Outcome: service.ChannelMonitorV3ProbeSuccess, LatencyMs: 1800, AccountID: 77, CostUSD: &cost}))
 	require.NoError(t, repo.FinishProbe(ctx, service.ChannelMonitorV3ProbeResult{ID: second, Outcome: service.ChannelMonitorV3ProbeFailure, LatencyMs: 90000,
 		Category: "timeout", ErrorMessage: "timeout: no answer within 90 seconds"}))
-	require.NoError(t, repo.FinishProbe(ctx, service.ChannelMonitorV3ProbeResult{ID: hourly, Outcome: service.ChannelMonitorV3ProbeSuccess, LatencyMs: 900}))
+	require.NoError(t, repo.FinishProbe(ctx, service.ChannelMonitorV3ProbeResult{ID: hourly, Outcome: service.ChannelMonitorV3ProbeSuccess, LatencyMs: 900, CostUSD: &otherCost}))
 	require.Positive(t, running, "an unfinished claim is never read")
 
 	facts, err := repo.ProbeFacts(ctx, []int64{group.ID}, slot.Add(-time.Hour), slot.Add(time.Hour), 5*time.Minute)
@@ -99,9 +100,18 @@ func TestChannelMonitorV3RepositoryIdleProbes(t *testing.T) {
 	require.NotNil(t, mine)
 	require.Equal(t, int64(2), mine.Probes)
 	require.Equal(t, int64(1), mine.Failures)
-	require.InDelta(t, cost, mine.CostUSD, 1e-12)
+	require.Nil(t, mine.CostUSD, "a partial total is misleading while any probe cost is unknown")
 	require.NotNil(t, mine.LastAt)
 	require.Contains(t, []string{"gpt-probe", "gpt-other"}, mine.LastModel)
+	var otherStats *service.ChannelMonitorV3IdleProbeStat
+	for i := range stats {
+		if stats[i].GroupID == other.ID {
+			otherStats = &stats[i]
+		}
+	}
+	require.NotNil(t, otherStats)
+	require.NotNil(t, otherStats.CostUSD)
+	require.InDelta(t, otherCost, *otherStats.CostUSD, 1e-12)
 
 	require.NoError(t, repo.PruneProbes(ctx, slot.Add(time.Minute)))
 	left, err := repo.ProbeFacts(ctx, []int64{group.ID}, slot.Add(-time.Hour), slot.Add(time.Hour), 5*time.Minute)

@@ -90,7 +90,7 @@ describe('idle probe settings', () => {
       { enabled: true, groups: [{ group_id: 7, model: 'gpt-5.5', reasoning_effort: 'medium' }, { group_id: 8, model: '', reasoning_effort: '' }] },
       [
         { group_id: 7, probes: 12, failures: 1, cost_usd: 0.0042, last_at: '2026-10-11T09:34:30Z', last_model: 'gpt-5.5', last_outcome: 'success', last_latency_ms: 1834 },
-        { group_id: 8, probes: 3, failures: 3, cost_usd: 0, last_at: '2026-10-11T09:34:30Z', last_model: 'claude-opus-5-5', last_outcome: 'failure', last_category: 'not_found', last_error: 'API returned 404: no such model' },
+        { group_id: 8, probes: 3, failures: 3, cost_usd: null, last_at: '2026-10-11T09:34:30Z', last_model: 'claude-opus-5-5', last_outcome: 'failure', last_category: 'not_found', last_error: 'API returned 404: no such model' },
       ],
     )
     expect(wrapper.get('[data-testid="monitor-v3-idle-probe-enabled"]').attributes('data-on')).toBe('true')
@@ -98,9 +98,11 @@ describe('idle probe settings', () => {
     expect((rows(wrapper)[0].get('[data-testid="monitor-v3-idle-probe-effort"]').element as HTMLSelectElement).value).toBe('medium')
     const first = rows(wrapper)[0].get('[data-testid="monitor-v3-idle-probe-stats"]').text()
     expect(first).toContain('channelMonitorV3.admin.idleProbe.lastSuccess:{\\"seconds\\":\\"1.8\\"}')
-    expect(first).toContain('"probes":12,"failures":1')
+    expect(first).toContain('"probes":12,"failures":1,"cost":"$0.0042"')
+    expect(first).not.toContain('costUnknown')
     const second = rows(wrapper)[1].get('[data-testid="monitor-v3-idle-probe-stats"]').text()
     expect(second).toContain('channelMonitorV3.admin.idleProbe.lastFailure:{\\"reason\\":\\"channelMonitorV3.errors.not_found\\"}')
+    expect(second).toContain('"cost":"channelMonitorV3.admin.idleProbe.costUnknown"')
     expect(rows(wrapper)[1].get('[data-testid="monitor-v3-idle-probe-issue"]').text()).toContain('API returned 404: no such model')
     expect(rows(wrapper)[2].text()).toContain('channelMonitorV3.admin.idleProbe.noProbes')
     expect(wrapper.get('[data-testid="monitor-v3-idle-probe-save"]').attributes('disabled')).toBeDefined()

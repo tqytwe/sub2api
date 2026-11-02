@@ -138,12 +138,12 @@ func (r *channelMonitorV3Repository) ProbeStats(ctx context.Context, since time.
 			ORDER BY group_id, slot_start DESC, id DESC
 		), recent AS (
 			SELECT group_id, COUNT(*) AS probes, COUNT(*) FILTER (WHERE outcome = 'failure') AS failures,
-			       COALESCE(SUM(cost_usd), 0)::float8 AS cost
+			       CASE WHEN BOOL_OR(cost_usd IS NULL) THEN NULL ELSE SUM(cost_usd)::float8 END AS cost
 			FROM channel_monitor_v3_probe_results
 			WHERE outcome <> 'running' AND started_at >= $1
 			GROUP BY group_id
 		)
-		SELECT l.group_id, COALESCE(r.probes, 0), COALESCE(r.failures, 0), COALESCE(r.cost, 0),
+		SELECT l.group_id, COALESCE(r.probes, 0), COALESCE(r.failures, 0), r.cost,
 		       l.started_at, l.model, l.outcome, l.latency_ms, l.error_category, l.error_message
 		FROM latest l LEFT JOIN recent r ON r.group_id = l.group_id
 		ORDER BY l.group_id`, since)
@@ -155,9 +155,14 @@ func (r *channelMonitorV3Repository) ProbeStats(ctx context.Context, since time.
 		var stat service.ChannelMonitorV3IdleProbeStat
 		var at time.Time
 		var latency sql.NullInt64
-		if err := rows.Scan(&stat.GroupID, &stat.Probes, &stat.Failures, &stat.CostUSD, &at, &stat.LastModel,
+		var cost sql.NullFloat64
+		if err := rows.Scan(&stat.GroupID, &stat.Probes, &stat.Failures, &cost, &at, &stat.LastModel,
 			&stat.LastOutcome, &latency, &stat.LastCategory, &stat.LastError); err != nil {
 			return err
+		}
+		if cost.Valid {
+			value := cost.Float64
+			stat.CostUSD = &value
 		}
 		at = at.UTC()
 		stat.LastAt = &at
