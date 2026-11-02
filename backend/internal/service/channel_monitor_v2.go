@@ -10,8 +10,12 @@ import (
 )
 
 const (
-	ChannelMonitorV2OtherModel      = "__other__"
-	ChannelMonitorV2TaxonomyVersion = 1
+	ChannelMonitorV2OtherModel          = "__other__"
+	ChannelMonitorV2TaxonomyVersion     = 1
+	ChannelMonitorV2RecentSampleLimit   = 18
+	ChannelMonitorV2RecentSampleBucket  = 5 * time.Minute
+	ChannelMonitorV2CardTimelineWindows = "windows"
+	ChannelMonitorV2CardTimelineSamples = "samples"
 )
 
 var (
@@ -42,6 +46,10 @@ type ChannelMonitorV2Config struct {
 	RefreshIntervalSeconds int                              `json:"refresh_interval_seconds"`
 	Platforms              []ChannelMonitorV2PlatformConfig `json:"platforms"`
 	GroupIDs               []int64                          `json:"group_ids"`
+	CandyProbes            []ChannelMonitorV2CandyProbe     `json:"candy_probes,omitempty"`
+	CandyHistoryLimit      int                              `json:"candy_history_limit"`
+	CardTimelineMode       string                           `json:"card_timeline_mode"`
+	GroupOrder             []int64                          `json:"group_order"`
 	HealthThresholds       ChannelMonitorV2HealthThresholds `json:"health_thresholds"`
 	// IgnoredErrorCategories are excluded from error_rate / health scoring.
 	// They still appear in the error breakdown with ignored=true (greyed in UI).
@@ -80,15 +88,17 @@ type ChannelMonitorV2Filter struct {
 	// AllowedGroupIDs is the authenticated viewer's server-derived group scope.
 	// RestrictGroups distinguishes an ordinary user with no allowed groups from
 	// the unrestricted admin/configured scope represented by an empty slice.
-	AllowedGroupIDs []int64
-	RestrictGroups  bool
-	Models          []string
-	Start           time.Time
-	End             time.Time
-	Bucket          time.Duration
+	AllowedGroupIDs      []int64
+	RestrictGroups       bool
+	Models               []string
+	Start                time.Time
+	End                  time.Time
+	Bucket               time.Duration
+	IncludeRecentSamples bool
 }
 
 type ChannelMonitorV2Metric struct {
+	HasSamples               bool                    `json:"has_samples"`
 	SuccessRequests          int64                   `json:"success_requests"`
 	ErrorRequests            int64                   `json:"error_requests"`
 	RequestCount             int64                   `json:"request_count"`
@@ -244,13 +254,16 @@ type ChannelMonitorV2ModelRow struct {
 }
 
 type ChannelMonitorV2MatrixRow struct {
-	Platform  string                       `json:"platform"`
-	GroupID   *int64                       `json:"group_id,omitempty"`
-	GroupName string                       `json:"group_name,omitempty"`
-	Model     string                       `json:"model,omitempty"`
-	Metrics   ChannelMonitorV2Metric       `json:"metrics"`
-	Health    ChannelMonitorV2Health       `json:"health"`
-	Buckets   []ChannelMonitorV2TrendPoint `json:"buckets"`
+	Platform      string                         `json:"platform"`
+	GroupID       *int64                         `json:"group_id,omitempty"`
+	GroupName     string                         `json:"group_name,omitempty"`
+	Model         string                         `json:"model,omitempty"`
+	Metrics       ChannelMonitorV2Metric         `json:"metrics"`
+	Health        ChannelMonitorV2Health         `json:"health"`
+	Buckets       []ChannelMonitorV2TrendPoint   `json:"buckets"`
+	SampleBuckets *[]ChannelMonitorV2TrendPoint  `json:"sample_buckets,omitempty"`
+	Candy         *ChannelMonitorV2CandyHistory  `json:"candy,omitempty"`
+	CandyChecks   []ChannelMonitorV2CandyHistory `json:"candy_checks,omitempty"`
 }
 
 type ChannelMonitorV2Matrix struct {
@@ -433,8 +446,41 @@ func (s *ChannelMonitorV2Service) getEnabledConfig(ctx context.Context) (*Channe
 }
 
 func (s *ChannelMonitorV2Service) UpdateConfig(ctx context.Context, cfg ChannelMonitorV2Config, expectedVersion int, actorID int64) (*ChannelMonitorV2Config, error) {
+	var current *ChannelMonitorV2Config
+	if cfg.CandyProbes == nil || cfg.CandyHistoryLimit == 0 || cfg.Platforms == nil || cfg.CardTimelineMode == "" || cfg.GroupOrder == nil {
+		loaded, err := s.repo.GetConfig(ctx)
+		if err != nil {
+			return nil, err
+		}
+		current = loaded
+	}
+	if cfg.CandyProbes == nil && current != nil {
+		cfg.CandyProbes = append([]ChannelMonitorV2CandyProbe(nil), current.CandyProbes...)
+	}
+	if cfg.CandyHistoryLimit == 0 && current != nil {
+		cfg.CandyHistoryLimit = current.CandyHistoryLimit
+	}
+	if cfg.Platforms == nil && current != nil {
+		cfg.Platforms = append([]ChannelMonitorV2PlatformConfig(nil), current.Platforms...)
+	}
+	if cfg.CardTimelineMode == "" && current != nil {
+		cfg.CardTimelineMode = current.CardTimelineMode
+	}
+	if cfg.GroupOrder == nil && current != nil {
+		cfg.GroupOrder = append([]int64(nil), current.GroupOrder...)
+	}
 	if err := normalizeChannelMonitorV2Config(&cfg); err != nil {
 		return nil, err
+	}
+	if candyRepo, ok := s.repo.(ChannelMonitorV2CandyRepository); ok {
+		groupIDs := make([]int64, 0, len(cfg.CandyProbes))
+		for _, probe := range cfg.CandyProbes {
+			groupIDs = append(groupIDs, probe.GroupID)
+		}
+		groupIDs = normalizeInt64Set(groupIDs)
+		if err := candyRepo.ValidateCandyGroups(ctx, groupIDs); err != nil {
+			return nil, err
+		}
 	}
 	cfg.UpdatedBy = &actorID
 	return s.repo.UpdateConfig(ctx, cfg, expectedVersion)
@@ -529,6 +575,13 @@ func (s *ChannelMonitorV2Service) Matrix(ctx context.Context, filter ChannelMoni
 	if err != nil {
 		return nil, err
 	}
+	if matrix != nil && groupBy == ChannelMonitorV2GroupByPlatformGroup {
+		if candyRepo, ok := s.repo.(ChannelMonitorV2CandyRepository); ok {
+			if err := attachCandyHistory(ctx, candyRepo, matrix, *cfg, admin, s.now()); err != nil {
+				return nil, err
+			}
+		}
+	}
 	if !admin && matrix != nil {
 		hideTP := s.hideThroughputForViewer(ctx, admin)
 		for i := range matrix.Items {
@@ -539,6 +592,32 @@ func (s *ChannelMonitorV2Service) Matrix(ctx context.Context, filter ChannelMoni
 		}
 	}
 	return matrix, nil
+}
+
+func attachCandyHistory(ctx context.Context, repo ChannelMonitorV2CandyRepository, matrix *ChannelMonitorV2Matrix, cfg ChannelMonitorV2Config, admin bool, now time.Time) error {
+	probes := make([]ChannelMonitorV2CandyProbe, 0, len(cfg.CandyProbes))
+	scopes := make([]ChannelMonitorV2CandyScope, 0, len(cfg.CandyProbes))
+	allowedGroups := make(map[int64]bool, len(matrix.Items))
+	for _, row := range matrix.Items {
+		if row.GroupID != nil {
+			allowedGroups[*row.GroupID] = true
+		}
+	}
+	for _, probe := range cfg.CandyProbes {
+		if probe.Enabled && allowedGroups[probe.GroupID] {
+			probes = append(probes, probe)
+			scopes = append(scopes, ChannelMonitorV2CandyScope{GroupID: probe.GroupID, ConfigKey: probe.ConfigKey()})
+		}
+	}
+	if len(scopes) == 0 {
+		return nil
+	}
+	results, err := repo.CandyHistory(ctx, scopes, now.Add(-ChannelMonitorV2CandyRetention), cfg.CandyHistoryLimit)
+	if err != nil {
+		return err
+	}
+	AttachCandyHistory(matrix.Items, probes, results, cfg.CandyHistoryLimit, admin)
+	return nil
 }
 
 func ParseChannelMonitorV2GroupBy(value string) (ChannelMonitorV2GroupBy, error) {
@@ -624,6 +703,7 @@ func redactChannelMonitorV2PublicConfig(cfg *ChannelMonitorV2Config) {
 	}
 	cfg.GroupIDs = nil
 	cfg.IgnoredErrorCategories = nil
+	cfg.CandyProbes = nil
 	cfg.UpdatedBy = nil
 	for i := range cfg.Platforms {
 		cfg.Platforms[i].Models = nil
@@ -761,6 +841,32 @@ func normalizeChannelMonitorV2Config(cfg *ChannelMonitorV2Config) error {
 	}
 	cfg.IgnoredErrorCategories = normalizeChannelMonitorV2IgnoredCategories(cfg.IgnoredErrorCategories)
 	cfg.HealthThresholds = NormalizeChannelMonitorV2HealthThresholds(cfg.HealthThresholds)
+	if err := normalizeChannelMonitorV2CandyProbes(cfg.CandyProbes); err != nil {
+		return err
+	}
+	if len(cfg.GroupIDs) > 0 {
+		for _, probe := range cfg.CandyProbes {
+			if !containsInt64(cfg.GroupIDs, probe.GroupID) {
+				return fmt.Errorf("%w: candy group must be enabled in group_ids", ErrChannelMonitorV2InvalidConfig)
+			}
+		}
+	}
+	if cfg.CandyHistoryLimit == 0 {
+		cfg.CandyHistoryLimit = ChannelMonitorV2CandyHistoryDefault
+	}
+	if cfg.CandyHistoryLimit < ChannelMonitorV2CandyHistoryMin || cfg.CandyHistoryLimit > ChannelMonitorV2CandyHistoryMax {
+		return fmt.Errorf("%w: candy history limit must be %d-%d", ErrChannelMonitorV2InvalidConfig, ChannelMonitorV2CandyHistoryMin, ChannelMonitorV2CandyHistoryMax)
+	}
+	if cfg.CardTimelineMode == "" {
+		cfg.CardTimelineMode = ChannelMonitorV2CardTimelineWindows
+	}
+	if cfg.CardTimelineMode != ChannelMonitorV2CardTimelineWindows && cfg.CardTimelineMode != ChannelMonitorV2CardTimelineSamples {
+		return fmt.Errorf("%w: invalid card_timeline_mode", ErrChannelMonitorV2InvalidConfig)
+	}
+	cfg.GroupOrder, err = normalizeChannelMonitorV2GroupOrder(cfg.GroupOrder)
+	if err != nil {
+		return err
+	}
 	seen := make(map[string]struct{}, len(cfg.Platforms))
 	for i := range cfg.Platforms {
 		p := &cfg.Platforms[i]
@@ -774,8 +880,23 @@ func normalizeChannelMonitorV2Config(cfg *ChannelMonitorV2Config) error {
 		seen[p.Platform] = struct{}{}
 		p.Models = normalizeStringSet(p.Models)
 	}
-	sort.Slice(cfg.Platforms, func(i, j int) bool { return cfg.Platforms[i].Platform < cfg.Platforms[j].Platform })
 	return nil
+}
+
+func normalizeChannelMonitorV2GroupOrder(values []int64) ([]int64, error) {
+	seen := make(map[int64]struct{}, len(values))
+	out := make([]int64, 0, len(values))
+	for _, value := range values {
+		if value <= 0 {
+			return nil, fmt.Errorf("%w: group_order must be positive", ErrChannelMonitorV2InvalidConfig)
+		}
+		if _, exists := seen[value]; exists {
+			continue
+		}
+		seen[value] = struct{}{}
+		out = append(out, value)
+	}
+	return out, nil
 }
 
 // DefaultChannelMonitorV2IgnoredErrorCategories are factory defaults for

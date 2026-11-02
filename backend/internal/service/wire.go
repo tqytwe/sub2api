@@ -682,8 +682,11 @@ func ProvideScheduledTestRunnerService(
 	rateLimitSvc *RateLimitService,
 	cfg *config.Config,
 	qualityJudge *ContentModerationService,
+	monitorV2Repo ChannelMonitorV2Repository,
+	settingService *SettingService,
 ) *ScheduledTestRunnerService {
 	svc := NewScheduledTestRunnerService(planRepo, scheduledSvc, accountTestSvc, rateLimitSvc, cfg, qualityJudge)
+	svc.SetChannelMonitorV2CandyService(NewChannelMonitorV2CandyService(monitorV2Repo, accountTestSvc, settingService))
 	svc.Start()
 	return svc
 }

@@ -144,6 +144,7 @@ func (h *ChannelMonitorV2Handler) matrix(c *gin.Context, admin bool) {
 	if !h.scopeFilter(c, &filter, admin) {
 		return
 	}
+	filter.IncludeRecentSamples = strings.EqualFold(strings.TrimSpace(c.Query("recent_samples")), "true")
 	result, err := h.service.Matrix(c.Request.Context(), filter, groupBy, admin)
 	if err != nil {
 		response.ErrorFrom(c, err)

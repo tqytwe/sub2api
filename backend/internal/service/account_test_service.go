@@ -49,10 +49,16 @@ const (
 )
 
 type qualityProbePromptContextKey struct{}
+type qualityProbeEffortContextKey struct{}
 
 func qualityProbePrompt(ctx context.Context) string {
 	prompt, _ := ctx.Value(qualityProbePromptContextKey{}).(string)
 	return strings.TrimSpace(prompt)
+}
+
+func qualityProbeEffort(ctx context.Context) string {
+	effort, _ := ctx.Value(qualityProbeEffortContextKey{}).(string)
+	return strings.TrimSpace(effort)
 }
 
 func applyQualityProbePromptToOpenAIPayload(payload map[string]any, prompt string) {
@@ -917,6 +923,9 @@ func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account
 	}
 	payload := createOpenAITestPayload(upstreamTestModelID, isOAuth)
 	applyQualityProbePromptToOpenAIPayload(payload, qualityProbePrompt(ctx))
+	if effort := qualityProbeEffort(ctx); effort != "" {
+		payload["reasoning"] = map[string]string{"effort": effort}
+	}
 	payloadBytes, _ := json.Marshal(payload)
 
 	// Send test_start event once. A task-invalid Agent Identity response may
@@ -3366,10 +3375,17 @@ func (s *AccountTestService) RunTestBackground(ctx context.Context, accountID in
 // administrator-configured prompt. The caller grades and discards the output
 // before persisting a result.
 func (s *AccountTestService) RunQualityProbeBackground(ctx context.Context, accountID int64, modelID, prompt string) (*ScheduledTestResult, error) {
+	return s.RunQualityProbeWithEffortBackground(ctx, accountID, modelID, prompt, "")
+}
+
+func (s *AccountTestService) RunQualityProbeWithEffortBackground(ctx context.Context, accountID int64, modelID, prompt, effort string) (*ScheduledTestResult, error) {
 	startedAt := time.Now()
 	w := httptest.NewRecorder()
 	ginCtx, _ := gin.CreateTestContext(w)
 	ctx = context.WithValue(ctx, qualityProbePromptContextKey{}, prompt)
+	if effort = strings.TrimSpace(effort); effort != "" {
+		ctx = context.WithValue(ctx, qualityProbeEffortContextKey{}, effort)
+	}
 	ginCtx.Request = (&http.Request{}).WithContext(ctx)
 	testErr := s.TestAccountConnection(ginCtx, accountID, modelID, prompt, AccountTestModeDefault)
 	finishedAt := time.Now()

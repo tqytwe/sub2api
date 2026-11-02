@@ -21,16 +21,18 @@ func NewChannelMonitorV2Repository(db *sql.DB) service.ChannelMonitorV2Repositor
 
 func (r *channelMonitorV2Repository) GetConfig(ctx context.Context) (*service.ChannelMonitorV2Config, error) {
 	var cfg service.ChannelMonitorV2Config
-	var platforms, thresholds []byte
+	var platforms, thresholds, candyProbes []byte
 	err := r.db.QueryRowContext(ctx, `
 		SELECT version, enabled, refresh_interval_seconds, platforms, group_ids,
 		       COALESCE(ignored_error_categories, '{}'),
 		       COALESCE(health_thresholds, '{}'::jsonb),
+		       COALESCE(candy_probes, '[]'::jsonb), candy_history_limit,
+		       card_timeline_mode, group_order,
 		       updated_at, updated_by
 		FROM channel_monitor_v2_config WHERE id = 1`).Scan(
 		&cfg.Version, &cfg.Enabled, &cfg.RefreshIntervalSeconds, &platforms,
 		pq.Array(&cfg.GroupIDs), pq.Array(&cfg.IgnoredErrorCategories),
-		&thresholds,
+		&thresholds, &candyProbes, &cfg.CandyHistoryLimit, &cfg.CardTimelineMode, pq.Array(&cfg.GroupOrder),
 		&cfg.UpdatedAt, &cfg.UpdatedBy,
 	)
 	if err != nil {
@@ -38,6 +40,9 @@ func (r *channelMonitorV2Repository) GetConfig(ctx context.Context) (*service.Ch
 	}
 	if err := json.Unmarshal(platforms, &cfg.Platforms); err != nil {
 		return nil, fmt.Errorf("decode channel monitor v2 platforms: %w", err)
+	}
+	if err := json.Unmarshal(candyProbes, &cfg.CandyProbes); err != nil {
+		return nil, fmt.Errorf("decode channel monitor v2 candy probes: %w", err)
 	}
 	if cfg.IgnoredErrorCategories == nil {
 		cfg.IgnoredErrorCategories = []string{}
@@ -63,23 +68,31 @@ func (r *channelMonitorV2Repository) UpdateConfig(ctx context.Context, cfg servi
 	if err != nil {
 		return nil, err
 	}
+	candyProbes, err := json.Marshal(cfg.CandyProbes)
+	if err != nil {
+		return nil, err
+	}
 	var updated service.ChannelMonitorV2Config
-	var raw, rawThresholds []byte
+	var raw, rawThresholds, rawCandyProbes []byte
 	err = r.db.QueryRowContext(ctx, `
 		UPDATE channel_monitor_v2_config
 		SET version = version + 1, enabled = $1, refresh_interval_seconds = $2,
 		    platforms = $3, group_ids = $4, ignored_error_categories = $5,
-		    health_thresholds = $6, updated_by = $7, updated_at = NOW()
-		WHERE id = 1 AND version = $8
+		    health_thresholds = $6, candy_probes = $7, candy_history_limit = $8,
+		    card_timeline_mode = $9, group_order = $10,
+		    updated_by = $11, updated_at = NOW()
+		WHERE id = 1 AND version = $12
 		RETURNING version, enabled, refresh_interval_seconds, platforms, group_ids,
 		          COALESCE(ignored_error_categories, '{}'),
 		          COALESCE(health_thresholds, '{}'::jsonb),
+		          COALESCE(candy_probes, '[]'::jsonb), candy_history_limit,
+		          card_timeline_mode, group_order,
 		          updated_at, updated_by`,
 		cfg.Enabled, cfg.RefreshIntervalSeconds, platforms, pq.Array(cfg.GroupIDs),
-		pq.Array(cfg.IgnoredErrorCategories), thresholds, cfg.UpdatedBy, expectedVersion,
+		pq.Array(cfg.IgnoredErrorCategories), thresholds, candyProbes, cfg.CandyHistoryLimit, cfg.CardTimelineMode, pq.Array(cfg.GroupOrder), cfg.UpdatedBy, expectedVersion,
 	).Scan(&updated.Version, &updated.Enabled, &updated.RefreshIntervalSeconds, &raw,
 		pq.Array(&updated.GroupIDs), pq.Array(&updated.IgnoredErrorCategories),
-		&rawThresholds,
+		&rawThresholds, &rawCandyProbes, &updated.CandyHistoryLimit, &updated.CardTimelineMode, pq.Array(&updated.GroupOrder),
 		&updated.UpdatedAt, &updated.UpdatedBy)
 	if err == sql.ErrNoRows {
 		return nil, service.ErrChannelMonitorV2ConfigConflict
@@ -88,6 +101,9 @@ func (r *channelMonitorV2Repository) UpdateConfig(ctx context.Context, cfg servi
 		return nil, fmt.Errorf("update channel monitor v2 config: %w", err)
 	}
 	if err := json.Unmarshal(raw, &updated.Platforms); err != nil {
+		return nil, err
+	}
+	if err := json.Unmarshal(rawCandyProbes, &updated.CandyProbes); err != nil {
 		return nil, err
 	}
 	if updated.IgnoredErrorCategories == nil {
@@ -492,6 +508,11 @@ func (r *channelMonitorV2Repository) GetMatrix(ctx context.Context, filter servi
 		}
 		return a.Model < b.Model
 	})
+	if filter.IncludeRecentSamples && groupBy == service.ChannelMonitorV2GroupByPlatformGroup {
+		if err := r.attachRecentSampleBuckets(ctx, result, filter, cfg, admin); err != nil {
+			return nil, err
+		}
+	}
 	return result, nil
 }
 

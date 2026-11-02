@@ -20,6 +20,7 @@ type ScheduledTestRunnerService struct {
 	rateLimitSvc    *RateLimitService
 	qualityJudge    *qualityJevJudge
 	runQualityProbe func(context.Context, int64, string, string) (*ScheduledTestResult, error)
+	candyService    *ChannelMonitorV2CandyService
 	cfg             *config.Config
 
 	cron      *cron.Cron
@@ -97,6 +98,9 @@ func (s *ScheduledTestRunnerService) runScheduled() {
 	defer cancel()
 
 	now := time.Now()
+	if s.candyService != nil {
+		s.candyService.RunDue(ctx, now)
+	}
 	if s.scheduledSvc != nil {
 		if created, err := s.scheduledSvc.SyncQualityTemplates(ctx); err != nil {
 			logger.LegacyPrintf("service.scheduled_test_runner", "quality template sync error: %v", err)
@@ -129,6 +133,12 @@ func (s *ScheduledTestRunnerService) runScheduled() {
 	}
 
 	wg.Wait()
+}
+
+func (s *ScheduledTestRunnerService) SetChannelMonitorV2CandyService(candy *ChannelMonitorV2CandyService) {
+	if s != nil {
+		s.candyService = candy
+	}
 }
 
 func (s *ScheduledTestRunnerService) runOnePlan(ctx context.Context, plan *ScheduledTestPlan) {
