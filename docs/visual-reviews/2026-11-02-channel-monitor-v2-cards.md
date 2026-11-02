@@ -22,7 +22,7 @@
   "states": ["cards", "analytics", "loading", "empty", "Candy disabled", "Candy history", "recent sample timeline", "keyboard focus"],
   "viewports": ["360x900", "768x900", "1280x900", "1920x900"],
   "artifact_mode": "browser-capture",
-  "prototype_artifacts": ["docs/visual-reviews/assets/2026-11-02-channel-monitor-v2-cards/prototype-cards.png"],
+  "prototype_artifacts": ["docs/visual-reviews/assets/2026-11-02-channel-monitor-v2-cards/updated-desktop.png"],
   "baseline_artifacts": ["docs/visual-reviews/assets/2026-08-28-channel-monitor-availability/baseline-1440.png"],
   "updated_artifacts": ["docs/visual-reviews/assets/2026-11-02-channel-monitor-v2-cards/updated-desktop.png", "docs/visual-reviews/assets/2026-11-02-channel-monitor-v2-cards/updated-mobile.png"],
   "commands": ["Vite browser review harness mounting the real MonitorStatusCards.vue with project styles and locale messages; browser screenshots via Chromium at 1440x1000 and 390x844", "pnpm exec vitest run src/features/channel-monitor-v2/__tests__/monitorCards.spec.ts src/features/channel-monitor-v2/__tests__/designSystem.structure.spec.ts src/api/__tests__/channelMonitorV2.spec.ts", "pnpm typecheck", "pnpm design:check"],
@@ -41,7 +41,7 @@ The current Fork had a V2 matrix and line chart but no card layout, Candy histor
 
 ## Prototype
 
-The static card board at `assets/2026-11-02-channel-monitor-v2-cards/prototype-cards.png` defines the compact group card, metric strip, timeline, and Candy history order. It is reused as evidence, not shipped as runtime artwork.
+The Chromium capture at `assets/2026-11-02-channel-monitor-v2-cards/updated-desktop.png` records the compact group card, metric strip, timeline, and Candy history order. It is review evidence, not shipped as runtime artwork.
 
 ## Reuse Decision
 
@@ -58,7 +58,6 @@ The card grid stacks at narrow widths and expands to two/three columns at deskto
 ## Evidence
 
 - `assets/2026-11-02-channel-monitor-v2-cards/updated-desktop.png` and `updated-mobile.png` are Chromium captures of the actual `MonitorStatusCards.vue` component with project styles, translations, and API-shaped sample rows. The route/auth shell and live API are not included.
-- `assets/2026-11-02-channel-monitor-v2-cards/prototype-cards.png` records the initial card layout.
 - `frontend/src/features/channel-monitor-v2/__tests__/monitorCards.spec.ts` covers timeline gaps, sample thresholds, history limits, and stale checks.
 - `frontend/src/api/__tests__/channelMonitorV2.spec.ts` covers the `recent_samples` matrix parameter.
 

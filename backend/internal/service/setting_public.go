@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/timezone"
 )
 
@@ -436,10 +437,14 @@ func clampChannelMonitorInterval(v int) int {
 }
 
 func normalizeChannelMonitorMode(raw string) string {
-	if strings.EqualFold(strings.TrimSpace(raw), ChannelMonitorModeV2) {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case ChannelMonitorModeV2:
 		return ChannelMonitorModeV2
+	case ChannelMonitorModeV3:
+		return ChannelMonitorModeV3
+	default:
+		return ChannelMonitorModeV1
 	}
-	return ChannelMonitorModeV1
 }
 
 // ChannelMonitorRuntime is the lightweight view of the channel monitor feature
@@ -476,6 +481,14 @@ func (r ChannelMonitorRuntime) AllowsCheckMode(checkMode string) bool {
 }
 
 func (r ChannelMonitorRuntime) PassiveAggregationAllowed() bool {
+	return r.Enabled && (r.Mode == ChannelMonitorModeV2 || r.Mode == ChannelMonitorModeV3)
+}
+
+func (r ChannelMonitorRuntime) V3Active() bool {
+	return r.Enabled && r.Mode == ChannelMonitorModeV3
+}
+
+func (r ChannelMonitorRuntime) V2Active() bool {
 	return r.Enabled && r.Mode == ChannelMonitorModeV2
 }
 
@@ -501,6 +514,18 @@ func (s *SettingService) GetChannelMonitorRuntime(ctx context.Context) ChannelMo
 		ShowQuota:              vals[SettingKeyChannelMonitorShowQuota] == "true",
 		HideUserRanking:        isTrueSettingValue(vals[SettingKeyChannelMonitorHideUserRanking]),
 	}
+}
+
+func (s *SettingService) SetChannelMonitorMode(ctx context.Context, mode string) (string, error) {
+	mode = strings.ToLower(strings.TrimSpace(mode))
+	if mode != ChannelMonitorModeV1 && mode != ChannelMonitorModeV2 && mode != ChannelMonitorModeV3 {
+		return "", infraerrors.BadRequest("CHANNEL_MONITOR_INVALID_MODE", "mode must be v1, v2 or v3")
+	}
+	if err := s.settingRepo.Set(ctx, SettingKeyChannelMonitorMode, mode); err != nil {
+		return "", err
+	}
+	s.notifyChannelMonitorRuntimeListeners()
+	return mode, nil
 }
 
 // AvailableChannelsRuntime is the lightweight view of the available-channels feature

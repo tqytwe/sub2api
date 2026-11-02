@@ -157,16 +157,18 @@ func (s *ChannelMonitorV2Aggregator) loop() {
 			}
 			continue
 		}
-		if cfg, err := s.repo.GetConfig(ctx); err == nil {
-			if !cfg.Enabled {
-				cancel()
-				if !s.wait(interval) {
-					return
+		if !s.v3Active(ctx) {
+			if cfg, err := s.repo.GetConfig(ctx); err == nil {
+				if !cfg.Enabled {
+					cancel()
+					if !s.wait(interval) {
+						return
+					}
+					continue
 				}
-				continue
-			}
-			if cfg.RefreshIntervalSeconds > 0 {
-				interval = time.Duration(cfg.RefreshIntervalSeconds) * time.Second
+				if cfg.RefreshIntervalSeconds > 0 {
+					interval = time.Duration(cfg.RefreshIntervalSeconds) * time.Second
+				}
 			}
 		}
 		cancel()
@@ -183,6 +185,10 @@ func (s *ChannelMonitorV2Aggregator) loop() {
 			return
 		}
 	}
+}
+
+func (s *ChannelMonitorV2Aggregator) v3Active(ctx context.Context) bool {
+	return s != nil && s.settings != nil && s.settings.GetChannelMonitorRuntime(ctx).V3Active()
 }
 
 func (s *ChannelMonitorV2Aggregator) passiveAggregationAllowed(ctx context.Context) bool {
