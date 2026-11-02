@@ -71,7 +71,7 @@ func (r *channelMonitorV2Repository) CandyHistory(ctx context.Context, scopes []
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	results := []service.ChannelMonitorV2CandyResult{}
 	for rows.Next() {
 		var result service.ChannelMonitorV2CandyResult

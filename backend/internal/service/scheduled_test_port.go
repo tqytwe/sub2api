@@ -62,6 +62,8 @@ type ScheduledTestResult struct {
 	ResponseText    string             `json:"response_text"`
 	ErrorMessage    string             `json:"error_message"`
 	LatencyMs       int64              `json:"latency_ms"`
+	CostUSD         *float64           `json:"cost_usd,omitempty"`
+	CostIncomplete  bool               `json:"cost_incomplete,omitempty"`
 	StartedAt       time.Time          `json:"started_at"`
 	FinishedAt      time.Time          `json:"finished_at"`
 	CreatedAt       time.Time          `json:"created_at"`

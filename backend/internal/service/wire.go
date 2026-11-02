@@ -279,6 +279,7 @@ func ProvideAccountTestService(
 	openAIGatewayService *OpenAIGatewayService,
 	settingService *SettingService,
 	pluginManager *PluginManager,
+	billingService *BillingService,
 ) *AccountTestService {
 	service := NewAccountTestService(
 		accountRepo,
@@ -293,6 +294,7 @@ func ProvideAccountTestService(
 	service.agentIdentityWS = openAIGatewayService
 	service.SetOpenAIGatewayService(openAIGatewayService)
 	service.SetSettingService(settingService)
+	service.SetBillingService(billingService)
 	service.SetPluginManager(pluginManager)
 	return service
 }
@@ -1400,8 +1402,9 @@ func ProvideChannelMonitorV3Service(repo ChannelMonitorV3Repository, groupRepo G
 	return NewChannelMonitorV3Service(repo, groupRepo)
 }
 
-func ProvideChannelMonitorV3Prober(repo ChannelMonitorV3Repository, groupRepo GroupRepository, accounts AccountRepository, tests *AccountTestService, settings *SettingService) *ChannelMonitorV3Prober {
-	prober := NewChannelMonitorV3Prober(repo, groupRepo, accounts, tests, settings)
+func ProvideChannelMonitorV3Prober(repo ChannelMonitorV3Repository, groupRepo GroupRepository, tests *AccountTestService, settings *SettingService, gateway *GatewayService, openai *OpenAIGatewayService, concurrency *ConcurrencyService) *ChannelMonitorV3Prober {
+	prober := NewChannelMonitorV3Prober(repo, groupRepo, tests, settings,
+		&gatewayChannelMonitorV3ProbeRouter{gateway: gateway, openai: openai, concurrency: concurrency}, concurrency)
 	prober.Start()
 	return prober
 }

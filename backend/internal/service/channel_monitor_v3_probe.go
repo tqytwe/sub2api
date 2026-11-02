@@ -32,10 +32,12 @@ const (
 	ChannelMonitorV3ProbeWrongAnswer = "wrong_answer"
 
 	// channelMonitorV3ProbeLead is how long before a slot ends it is probed.
-	channelMonitorV3ProbeLead    = 30 * time.Second
-	channelMonitorV3ProbeTimeout = 90 * time.Second
-	channelMonitorV3ProbeWorkers = 4
-	channelMonitorV3ProbeMessage = 300
+	channelMonitorV3ProbeLead        = 30 * time.Second
+	channelMonitorV3ProbeTimeout     = 90 * time.Second
+	channelMonitorV3ProbeWorkers     = 4
+	channelMonitorV3ProbeMessage     = 300
+	channelMonitorV3ProbeMaxAttempts = 3
+	channelMonitorV3ProbeSlotWait    = time.Minute
 
 	channelMonitorV3WrongAnswerPrefix = "answer_mismatch:"
 )
@@ -196,12 +198,13 @@ func channelMonitorV3ProbeRetention(availabilityRange string) time.Duration {
 // background jobs. It wakes 30 seconds into every minute and acts only in the
 // last minute of a slot; several instances share the work through the claim.
 type ChannelMonitorV3Prober struct {
-	repo     ChannelMonitorV3Repository
-	groups   GroupRepository
-	accounts AccountRepository
-	probes   channelMonitorV3ProbeRunner
-	settings channelMonitorRuntimeReader
-	now      func() time.Time
+	repo        ChannelMonitorV3Repository
+	groups      GroupRepository
+	probes      channelMonitorV3ProbeRunner
+	router      channelMonitorV3ProbeRouter
+	concurrency *ConcurrencyService
+	settings    channelMonitorRuntimeReader
+	now         func() time.Time
 
 	tick     sync.Mutex
 	prunedAt time.Time
@@ -212,6 +215,69 @@ type ChannelMonitorV3Prober struct {
 	stopOnce  sync.Once
 }
 
+type channelMonitorV3ProbeRoute struct {
+	account  *Account
+	model    string
+	acquired bool
+	release  func()
+	wait     *AccountWaitPlan
+}
+
+type channelMonitorV3ProbeRouter interface {
+	route(ctx context.Context, group *Group, model string, excluded map[int64]struct{}) (*channelMonitorV3ProbeRoute, error)
+}
+
+type gatewayChannelMonitorV3ProbeRouter struct {
+	gateway     *GatewayService
+	openai      *OpenAIGatewayService
+	concurrency *ConcurrencyService
+}
+
+// isOpenAIResponsesGatewayPlatform mirrors the gateway route table: these
+// platforms use the OpenAI-compatible scheduler.
+func isOpenAIResponsesGatewayPlatform(platform string) bool {
+	switch platform {
+	case PlatformOpenAI, PlatformGrok, PlatformKimi, PlatformZhipu, PlatformDeepseek, PlatformMiniMax, PlatformOpenCodeGo:
+		return true
+	default:
+		return false
+	}
+}
+
+func (r *gatewayChannelMonitorV3ProbeRouter) route(ctx context.Context, group *Group, model string, excluded map[int64]struct{}) (*channelMonitorV3ProbeRoute, error) {
+	platform, upstreamModel := group.Platform, model
+	if platform == PlatformComposite {
+		decision, matched, err := r.gateway.resolveCompositeRouteDecision(ctx, group, model, CompositeRouteEndpointAny)
+		if err != nil {
+			return nil, err
+		}
+		if !matched {
+			return nil, fmt.Errorf("%w supporting model: %s (composite target platform unknown)", ErrNoAvailableAccounts, model)
+		}
+		ctx = WithCompositeRouteDecision(ctx, decision)
+		platform = decision.TargetPlatform
+		if rewritten := strings.TrimSpace(decision.UpstreamModel); rewritten != "" {
+			upstreamModel = rewritten
+		}
+	}
+	groupID := group.ID
+	var selection *AccountSelectionResult
+	var err error
+	if isOpenAIResponsesGatewayPlatform(platform) {
+		selection, _, err = r.openai.SelectAccountWithSchedulerForCapability(ctx, &groupID, "", "", upstreamModel, excluded,
+			OpenAIUpstreamTransportAny, OpenAIEndpointCapabilityChatCompletions, false, false, true, NormalizeOpenAICompatiblePlatform(platform))
+	} else {
+		selection, err = r.gateway.SelectAccountWithLoadAwareness(ctx, &groupID, "", upstreamModel, excluded, "", 0)
+	}
+	if err != nil {
+		return nil, err
+	}
+	if selection == nil || selection.Account == nil {
+		return nil, ErrNoAvailableAccounts
+	}
+	return &channelMonitorV3ProbeRoute{account: selection.Account, model: upstreamModel, acquired: selection.Acquired, release: selection.ReleaseFunc, wait: selection.WaitPlan}, nil
+}
+
 type channelMonitorV3ProbeRunner interface {
 	RunQualityProbeBackground(ctx context.Context, accountID int64, modelID, prompt string) (*ScheduledTestResult, error)
 }
@@ -220,13 +286,13 @@ type channelMonitorV3EffortProbeRunner interface {
 	RunQualityProbeWithEffortBackground(ctx context.Context, accountID int64, modelID, prompt, effort string) (*ScheduledTestResult, error)
 }
 
-func NewChannelMonitorV3Prober(repo ChannelMonitorV3Repository, groups GroupRepository, accounts AccountRepository, probes channelMonitorV3ProbeRunner, settings channelMonitorRuntimeReader) *ChannelMonitorV3Prober {
+func NewChannelMonitorV3Prober(repo ChannelMonitorV3Repository, groups GroupRepository, probes channelMonitorV3ProbeRunner, settings channelMonitorRuntimeReader, router channelMonitorV3ProbeRouter, concurrency *ConcurrencyService) *ChannelMonitorV3Prober {
 	ctx, cancel := context.WithCancel(context.Background())
-	return &ChannelMonitorV3Prober{repo: repo, groups: groups, accounts: accounts, probes: probes, settings: settings, now: time.Now, ctx: ctx, cancel: cancel}
+	return &ChannelMonitorV3Prober{repo: repo, groups: groups, probes: probes, settings: settings, router: router, concurrency: concurrency, now: time.Now, ctx: ctx, cancel: cancel}
 }
 
 func (p *ChannelMonitorV3Prober) Start() {
-	if p == nil || p.repo == nil || p.groups == nil || p.accounts == nil || p.probes == nil {
+	if p == nil || p.repo == nil || p.groups == nil || p.router == nil || p.probes == nil {
 		return
 	}
 	p.startOnce.Do(func() { go p.loop() })
@@ -351,8 +417,12 @@ func (p *ChannelMonitorV3Prober) runOne(ctx context.Context, target channelMonit
 	started := p.now()
 	result := ChannelMonitorV3ProbeResult{ID: id, Outcome: ChannelMonitorV3ProbeFailure, ErrorMessage: "probe_failed: interrupted"}
 	abandoned := false
+	probeAttempts := 0
+	costComplete := true
+	totalCostUSD := 0.0
 	defer func() {
 		if recover() != nil {
+			costComplete = false
 			result.Outcome, result.ErrorMessage, abandoned = ChannelMonitorV3ProbeFailure, "probe_failed: panic", false
 		}
 		if abandoned {
@@ -361,6 +431,9 @@ func (p *ChannelMonitorV3Prober) runOne(ctx context.Context, target channelMonit
 			return
 		}
 		result.LatencyMs = p.now().Sub(started).Milliseconds()
+		if probeAttempts > 0 && costComplete {
+			result.CostUSD = &totalCostUSD
+		}
 		result.ErrorMessage = channelMonitorV3Truncate(result.ErrorMessage, channelMonitorV3ProbeMessage)
 		if result.Outcome != ChannelMonitorV3ProbeSuccess {
 			result.Category = channelMonitorV3ProbeCategory(result.ErrorMessage)
@@ -374,44 +447,156 @@ func (p *ChannelMonitorV3Prober) runOne(ctx context.Context, target channelMonit
 	challenge := generateChallenge()
 	runCtx, cancel := context.WithTimeout(ctx, channelMonitorV3ProbeTimeout)
 	defer cancel()
-	accounts, err := p.accounts.ListSchedulableByGroupIDAndPlatform(runCtx, target.GroupID, group.Platform)
-	if err != nil {
-		result.ErrorMessage = err.Error()
-		return
-	}
-	var selected *Account
-	for i := range accounts {
-		candidate := &accounts[i]
-		if candidate.IsSchedulable() && candidate.IsModelSupportedInGroup(&group.ID, target.Model) {
-			selected = candidate
-			break
-		}
-	}
-	if selected == nil {
-		result.ErrorMessage = "account pool unavailable: no schedulable account in group"
-		return
-	}
-	var sample *ScheduledTestResult
-	if target.ReasoningEffort != "" {
-		runner, ok := p.probes.(channelMonitorV3EffortProbeRunner)
-		if !ok {
-			result.ErrorMessage = "probe_failed: reasoning effort is unsupported by the account test service"
+	excluded := make(map[int64]struct{})
+	for attempt := 0; attempt < channelMonitorV3ProbeMaxAttempts; attempt++ {
+		route, routeErr := p.router.route(runCtx, group, target.Model, excluded)
+		if routeErr != nil {
+			if ctx.Err() != nil {
+				abandoned = true
+				return
+			}
+			if result.ErrorMessage == "probe_failed: interrupted" {
+				result.ErrorMessage = routeErr.Error()
+			}
 			return
 		}
-		sample, err = runner.RunQualityProbeWithEffortBackground(runCtx, selected.ID, target.Model, challenge.Prompt, target.ReasoningEffort)
-	} else {
-		sample, err = p.probes.RunQualityProbeBackground(runCtx, selected.ID, target.Model, challenge.Prompt)
+		if route == nil || route.account == nil {
+			result.ErrorMessage = "account pool unavailable: no schedulable account in group"
+			return
+		}
+		account := route.account
+		if !account.IsModelSupportedInGroup(&group.ID, target.Model) {
+			excluded[account.ID] = struct{}{}
+			if route.release != nil {
+				route.release()
+			}
+			continue
+		}
+		release, waitErr := p.holdProbeSlot(runCtx, route)
+		if waitErr != nil {
+			if ctx.Err() != nil {
+				abandoned = true
+				return
+			}
+			result.ErrorMessage = waitErr.Error()
+			return
+		}
+		probeAttempts++
+		var sample *ScheduledTestResult
+		var probeErr error
+		func() {
+			if release != nil {
+				defer release()
+			}
+			sample, probeErr = p.runProbeAttempt(runCtx, account.ID, route.model, challenge.Prompt, target.ReasoningEffort)
+		}()
+		if sample == nil || sample.CostUSD == nil || sample.CostIncomplete {
+			costComplete = false
+		} else {
+			totalCostUSD += *sample.CostUSD
+		}
+		if ctx.Err() != nil {
+			abandoned = true
+			return
+		}
+		if probeErr != nil && sample == nil {
+			result.AccountID = account.ID
+			result.ErrorMessage = probeErr.Error()
+			return
+		}
+		outcome, message := channelMonitorV3ProbeVerdict(runCtx.Err(), sample, challenge.Expected)
+		result.AccountID = account.ID
+		if !channelMonitorV3ProbeRetryable(sample) || attempt == channelMonitorV3ProbeMaxAttempts-1 {
+			result.Outcome, result.ErrorMessage = outcome, message
+			return
+		}
+		excluded[account.ID] = struct{}{}
+		result.ErrorMessage = message
 	}
-	if err != nil && sample == nil {
-		result.ErrorMessage = err.Error()
-		return
+}
+
+func (p *ChannelMonitorV3Prober) holdProbeSlot(ctx context.Context, route *channelMonitorV3ProbeRoute) (func(), error) {
+	if route.acquired || route.wait == nil || p.concurrency == nil {
+		return releaseChannelMonitorV3ProbeSlot(route.release), nil
 	}
-	if ctx.Err() != nil {
-		abandoned = true
-		return
+	wait := route.wait.Timeout
+	if wait <= 0 || wait > channelMonitorV3ProbeSlotWait {
+		wait = channelMonitorV3ProbeSlotWait
 	}
-	result.AccountID = selected.ID
-	result.Outcome, result.ErrorMessage = channelMonitorV3ProbeVerdict(runCtx.Err(), sample, challenge.Expected)
+	deadline := time.Now().Add(wait)
+	for {
+		acquired, err := p.concurrency.AcquireAccountSlot(ctx, route.wait.AccountID, route.wait.MaxConcurrency)
+		if err == nil && acquired != nil && acquired.Acquired {
+			if route.release != nil {
+				route.release()
+			}
+			return releaseChannelMonitorV3ProbeSlot(acquired.ReleaseFunc), nil
+		}
+		if err != nil && ctx.Err() != nil {
+			if route.release != nil {
+				route.release()
+			}
+			return nil, ctx.Err()
+		}
+		if err != nil {
+			if route.release != nil {
+				route.release()
+			}
+			return nil, err
+		}
+		remaining := time.Until(deadline)
+		if remaining <= 0 {
+			if route.release != nil {
+				route.release()
+			}
+			return nil, fmt.Errorf("account concurrency slot unavailable")
+		}
+		if remaining > 500*time.Millisecond {
+			remaining = 500 * time.Millisecond
+		}
+		select {
+		case <-ctx.Done():
+			if route.release != nil {
+				route.release()
+			}
+			return nil, ctx.Err()
+		case <-time.After(remaining):
+		}
+	}
+}
+
+func releaseChannelMonitorV3ProbeSlot(release func()) func() {
+	var once sync.Once
+	return func() {
+		once.Do(func() {
+			if release != nil {
+				release()
+			}
+		})
+	}
+}
+
+func (p *ChannelMonitorV3Prober) runProbeAttempt(ctx context.Context, accountID int64, model, prompt, effort string) (*ScheduledTestResult, error) {
+	if effort != "" {
+		runner, ok := p.probes.(channelMonitorV3EffortProbeRunner)
+		if !ok {
+			return nil, fmt.Errorf("probe_failed: reasoning effort is unsupported by the account test service")
+		}
+		return runner.RunQualityProbeWithEffortBackground(ctx, accountID, model, prompt, effort)
+	}
+	return p.probes.RunQualityProbeBackground(ctx, accountID, model, prompt)
+}
+
+func channelMonitorV3ProbeRetryable(sample *ScheduledTestResult) bool {
+	if sample == nil || sample.Status != "failed" || sample.ResponseText != "" {
+		return false
+	}
+	switch channelMonitorV3ProbeCategory(sample.ErrorMessage) {
+	case "authentication", "quota_or_balance", "rate_or_capacity", "timeout", "transport_or_stream", "upstream_forbidden", "upstream_5xx":
+		return true
+	default:
+		return false
+	}
 }
 
 // channelMonitorV3ProbeVerdict judges a probe the way V1 judges a check: the
@@ -436,7 +621,7 @@ func channelMonitorV3ProbeVerdict(deadline error, sample *ScheduledTestResult, e
 
 // channelMonitorV3ProbeStatus picks the HTTP status out of account-test errors
 // such as "API returned 503: ..." so the V2 taxonomy can classify them.
-var channelMonitorV3ProbeStatus = regexp.MustCompile(`(?i)(?:returned|http)\s*\(?\s*([1-5]\d\d)\b`)
+var channelMonitorV3ProbeStatus = regexp.MustCompile(`(?i)(?:returned|返回|http)\s*\(?\s*([1-5]\d\d)\b`)
 
 func channelMonitorV3ProbeCategory(message string) string {
 	if strings.HasPrefix(message, channelMonitorV3WrongAnswerPrefix) {
