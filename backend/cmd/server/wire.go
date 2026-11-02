@@ -127,6 +127,7 @@ func provideCleanup(
 	paymentOrderExpiry *service.PaymentOrderExpiryService,
 	channelMonitorRunner *service.ChannelMonitorRunner,
 	channelMonitorV2Aggregator *service.ChannelMonitorV2Aggregator,
+	channelMonitorV3Prober *service.ChannelMonitorV3Prober,
 	quotaFlusher *service.UserPlatformQuotaUsageFlusher,
 	playGrowthRunner *service.PlayGrowthRunner,
 	publicHomeStatsService *service.PublicHomeStatsService,
@@ -156,6 +157,12 @@ func provideCleanup(
 
 		// 应用层清理步骤可并行执行，基础设施资源（Redis/Ent）最后按顺序关闭。
 		parallelSteps := []cleanupStep{
+			{"ChannelMonitorV3Prober", func() error {
+				if channelMonitorV3Prober != nil {
+					channelMonitorV3Prober.Stop()
+				}
+				return nil
+			}},
 			{"RequestLedger", func() error {
 				if requestLedgerHandler != nil && requestLedgerHandler.Ledger != nil {
 					requestLedgerHandler.Ledger.Stop()
