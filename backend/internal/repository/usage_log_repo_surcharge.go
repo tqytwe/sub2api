@@ -3,13 +3,16 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/usagestats"
 )
 
-func (r *usageLogRepository) GetBillingSurchargeReport(ctx context.Context, startTime, endTime, todayStart time.Time, params pagination.PaginationParams) (*usagestats.BillingSurchargeReport, error) {
+func (r *usageLogRepository) GetBillingSurchargeReport(ctx context.Context, startTime, endTime, todayStart time.Time, reportParams usagestats.BillingSurchargeReportParams) (*usagestats.BillingSurchargeReport, error) {
+	params := reportParams.Pagination
 	if params.Page < 1 {
 		params.Page = 1
 	}
@@ -18,6 +21,7 @@ func (r *usageLogRepository) GetBillingSurchargeReport(ctx context.Context, star
 	}
 	limit := params.Limit()
 	todayEnd := todayStart.AddDate(0, 0, 1)
+	search := strings.TrimSpace(reportParams.Search)
 
 	summary := usagestats.BillingSurchargeSummary{}
 	summaryQuery := `
@@ -52,16 +56,21 @@ func (r *usageLogRepository) GetBillingSurchargeReport(ctx context.Context, star
 	}
 
 	var total int64
+	where, whereArgs := billingSurchargeReportWhere(startTime, endTime, search)
 	countQuery := `
 		SELECT COUNT(*)
-		FROM usage_logs
-		WHERE billing_surcharge_cost > 0
-		  AND created_at >= $1
-		  AND created_at < $2
-	`
-	if err := scanSingleRow(ctx, r.sql, countQuery, []any{startTime, endTime}, &total); err != nil {
+		FROM usage_logs ul
+		LEFT JOIN users u ON u.id = ul.user_id
+		LEFT JOIN api_keys ak ON ak.id = ul.api_key_id
+		LEFT JOIN groups g ON g.id = ul.group_id
+		WHERE ` + where
+	if err := scanSingleRow(ctx, r.sql, countQuery, whereArgs, &total); err != nil {
 		return nil, err
 	}
+	sortColumn := billingSurchargeSortColumn(params.SortBy)
+	sortOrder := params.NormalizedSortOrder("desc")
+	whereArgs = append(whereArgs, limit, params.Offset())
+	limitPlaceholder, offsetPlaceholder := len(whereArgs)-1, len(whereArgs)
 
 	detailQuery := `
 		SELECT
@@ -85,13 +94,8 @@ func (r *usageLogRepository) GetBillingSurchargeReport(ctx context.Context, star
 		LEFT JOIN users u ON u.id = ul.user_id
 		LEFT JOIN api_keys ak ON ak.id = ul.api_key_id
 		LEFT JOIN groups g ON g.id = ul.group_id
-		WHERE ul.billing_surcharge_cost > 0
-		  AND ul.created_at >= $1
-		  AND ul.created_at < $2
-		ORDER BY ul.created_at DESC, ul.id DESC
-		LIMIT $3 OFFSET $4
-	`
-	rows, err := r.sql.QueryContext(ctx, detailQuery, startTime, endTime, limit, params.Offset())
+		WHERE ` + where + fmt.Sprintf(" ORDER BY %s %s, ul.id DESC LIMIT $%d OFFSET $%d", sortColumn, sortOrder, limitPlaceholder, offsetPlaceholder)
+	rows, err := r.sql.QueryContext(ctx, detailQuery, whereArgs...)
 	if err != nil {
 		return nil, err
 	}
@@ -160,4 +164,36 @@ func (r *usageLogRepository) GetBillingSurchargeReport(ctx context.Context, star
 			Pages:    pages,
 		},
 	}, nil
+}
+
+func billingSurchargeReportWhere(startTime, endTime time.Time, search string) (string, []any) {
+	where := "ul.billing_surcharge_cost > 0 AND ul.created_at >= $1 AND ul.created_at < $2"
+	args := []any{startTime, endTime}
+	if search != "" {
+		args = append(args, "%"+strings.TrimSpace(search)+"%")
+		where += " AND " + billingSurchargeSearchClause("ul", len(args))
+	}
+	return where, args
+}
+
+func billingSurchargeSearchClause(alias string, placeholder int) string {
+	value := fmt.Sprintf("$%d", placeholder)
+	return fmt.Sprintf("(u.email ILIKE %[1]s OR ak.name ILIKE %[1]s OR %[2]s.model ILIKE %[1]s OR COALESCE(g.name, '') ILIKE %[1]s OR %[2]s.request_id ILIKE %[1]s OR %[2]s.id::text ILIKE %[1]s)", value, alias)
+}
+
+func billingSurchargeSortColumn(value string) string {
+	switch value {
+	case "user":
+		return "COALESCE(u.email, '')"
+	case "model":
+		return "ul.model"
+	case "actual_cost":
+		return "ul.actual_cost"
+	case "billing_surcharge_cost":
+		return "ul.billing_surcharge_cost"
+	case "billed_cost":
+		return usageLogChargedCostExprUL
+	default:
+		return "ul.created_at"
+	}
 }

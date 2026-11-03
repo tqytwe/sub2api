@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
@@ -793,20 +794,20 @@ func (h *DashboardHandler) GetBillingSurchargeReport(c *gin.Context) {
 	endTime := todayStart.AddDate(0, 0, 1)
 
 	if raw := strings.TrimSpace(c.Query("start_date")); raw != "" {
-		parsed, err := timezone.ParseInUserLocation("2006-01-02", raw, userTZ)
+		parsed, err := parseUsageDateBoundary(raw, userTZ, false)
 		if err != nil {
-			response.BadRequest(c, "Invalid start_date format, use YYYY-MM-DD")
+			response.BadRequest(c, "Invalid start_date format, use YYYY-MM-DD or RFC3339")
 			return
 		}
 		startTime = parsed
 	}
 	if raw := strings.TrimSpace(c.Query("end_date")); raw != "" {
-		parsed, err := timezone.ParseInUserLocation("2006-01-02", raw, userTZ)
+		parsed, err := parseUsageDateBoundary(raw, userTZ, true)
 		if err != nil {
-			response.BadRequest(c, "Invalid end_date format, use YYYY-MM-DD")
+			response.BadRequest(c, "Invalid end_date format, use YYYY-MM-DD or RFC3339")
 			return
 		}
-		endTime = parsed.AddDate(0, 0, 1)
+		endTime = parsed
 	}
 	if !endTime.After(startTime) {
 		response.BadRequest(c, "end_date must be on or after start_date")
@@ -831,13 +832,39 @@ func (h *DashboardHandler) GetBillingSurchargeReport(c *gin.Context) {
 		}
 		pageSize = parsed
 	}
+	search := strings.TrimSpace(c.Query("search"))
+	if utf8.RuneCountInString(search) > 120 {
+		response.BadRequest(c, "search must be 120 characters or fewer")
+		return
+	}
+	sortBy := strings.TrimSpace(c.Query("sort_by"))
+	if sortBy == "" {
+		sortBy = "created_at"
+	}
+	switch sortBy {
+	case "created_at", "user", "model", "actual_cost", "billing_surcharge_cost", "billed_cost":
+	default:
+		response.BadRequest(c, "Invalid sort_by")
+		return
+	}
+	sortOrder := strings.ToLower(strings.TrimSpace(c.Query("sort_order")))
+	if sortOrder == "" {
+		sortOrder = "desc"
+	}
+	if sortOrder != "asc" && sortOrder != "desc" {
+		response.BadRequest(c, "Invalid sort_order")
+		return
+	}
 
 	report, err := h.dashboardService.GetBillingSurchargeReport(
 		c.Request.Context(),
 		startTime,
 		endTime,
 		todayStart,
-		pagination.PaginationParams{Page: page, PageSize: pageSize},
+		usagestats.BillingSurchargeReportParams{
+			Pagination: pagination.PaginationParams{Page: page, PageSize: pageSize, SortBy: sortBy, SortOrder: sortOrder},
+			Search:     search,
+		},
 	)
 	if err != nil {
 		response.Error(c, 500, "Failed to get billing surcharge report")
@@ -849,6 +876,6 @@ func (h *DashboardHandler) GetBillingSurchargeReport(c *gin.Context) {
 		"items":      report.Items,
 		"pagination": report.Pagination,
 		"start_date": startTime.Format("2006-01-02"),
-		"end_date":   endTime.AddDate(0, 0, -1).Format("2006-01-02"),
+		"end_date":   endTime.Add(-time.Nanosecond).Format("2006-01-02"),
 	})
 }

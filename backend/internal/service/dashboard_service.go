@@ -10,7 +10,6 @@ import (
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
-	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/usagestats"
 )
 
@@ -35,7 +34,7 @@ type dashboardStatsRangeFetcher interface {
 }
 
 type billingSurchargeReportFetcher interface {
-	GetBillingSurchargeReport(ctx context.Context, startTime, endTime, todayStart time.Time, params pagination.PaginationParams) (*usagestats.BillingSurchargeReport, error)
+	GetBillingSurchargeReport(ctx context.Context, startTime, endTime, todayStart time.Time, params usagestats.BillingSurchargeReportParams) (*usagestats.BillingSurchargeReport, error)
 }
 
 type dashboardStatsCacheEntry struct {
@@ -437,7 +436,7 @@ func (s *DashboardService) GetBatchAPIKeyUsageStats(ctx context.Context, apiKeyI
 	return stats, nil
 }
 
-func (s *DashboardService) GetBillingSurchargeReport(ctx context.Context, startTime, endTime, todayStart time.Time, params pagination.PaginationParams) (*usagestats.BillingSurchargeReport, error) {
+func (s *DashboardService) GetBillingSurchargeReport(ctx context.Context, startTime, endTime, todayStart time.Time, params usagestats.BillingSurchargeReportParams) (*usagestats.BillingSurchargeReport, error) {
 	fetcher, ok := s.usageRepo.(billingSurchargeReportFetcher)
 	if !ok {
 		return nil, errors.New("billing surcharge report repository unavailable")

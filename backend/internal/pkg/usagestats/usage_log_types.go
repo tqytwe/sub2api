@@ -374,6 +374,11 @@ type BillingSurchargeReport struct {
 	Pagination *pagination.PaginationResult `json:"pagination,omitempty"`
 }
 
+type BillingSurchargeReportParams struct {
+	Pagination pagination.PaginationParams
+	Search     string
+}
+
 // AccountUsageHistory represents daily usage history for an account
 type AccountUsageHistory struct {
 	Date       string  `json:"date"`
