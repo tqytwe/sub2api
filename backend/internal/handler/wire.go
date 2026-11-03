@@ -62,6 +62,7 @@ func ProvideAdminHandlers(
 	opencodeGoUsage *service.OpenCodeGoUsageService,
 	claudeResetCredits *service.ClaudeResetCreditService,
 	openAIGatewayService *service.OpenAIGatewayService,
+	pelicanGroupTestHandler *admin.PelicanGroupTestHandler,
 ) *AdminHandlers {
 	accountHandler.SetUpstreamBillingProbeService(upstreamBillingProbe)
 	accountHandler.SetOllamaCloudUsageService(ollamaCloudUsage)
@@ -99,6 +100,7 @@ func ProvideAdminHandlers(
 		APIKey:                 apiKeyHandler,
 		AccountTokenGuardV2:    accountTokenGuardV2Handler,
 		ScheduledTest:          scheduledTestHandler,
+		PelicanGroupTest:       pelicanGroupTestHandler,
 		Channel:                channelHandler,
 		ChannelMonitor:         channelMonitorHandler,
 		ChannelMonitorTemplate: channelMonitorTemplateHandler,
@@ -115,6 +117,12 @@ func ProvideAdminHandlers(
 		AuditLog:               auditLogHandler,
 		MobileAttribution:      mobileAttributionAdminHandler,
 	}
+}
+
+func ProvidePelicanShowcaseHandler(showcase *service.PelicanShowcaseService, access *service.APIKeyService) *PelicanShowcaseHandler {
+	h := NewPelicanShowcaseHandler(showcase)
+	h.access = access
+	return h
 }
 
 func ProvideAnnouncementHandler(
@@ -260,6 +268,7 @@ func ProvideHandlers(
 	channelMonitorUserHandler *ChannelMonitorUserHandler,
 	channelMonitorV2Handler *ChannelMonitorV2Handler,
 	channelMonitorV3Handler *ChannelMonitorV3Handler,
+	pelicanShowcaseHandler *PelicanShowcaseHandler,
 	adminHandlers *AdminHandlers,
 	gatewayHandler *GatewayHandler,
 	openaiGatewayHandler *OpenAIGatewayHandler,
@@ -305,6 +314,7 @@ func ProvideHandlers(
 		ChannelMonitor:    channelMonitorUserHandler,
 		ChannelMonitorV2:  channelMonitorV2Handler,
 		ChannelMonitorV3:  channelMonitorV3Handler,
+		PelicanShowcase:   pelicanShowcaseHandler,
 		Admin:             adminHandlers,
 		Gateway:           gatewayHandler,
 		OpenAIGateway:     openaiGatewayHandler,
@@ -462,6 +472,7 @@ var ProviderSet = wire.NewSet(
 	NewChannelMonitorUserHandler,
 	NewChannelMonitorV2Handler,
 	NewChannelMonitorV3Handler,
+	ProvidePelicanShowcaseHandler,
 	ProvideGatewayHandler,
 	ProvideOpenAIGatewayHandler,
 	NewTotpHandler,
@@ -526,6 +537,7 @@ var ProviderSet = wire.NewSet(
 	admin.NewPluginHandler,
 	admin.NewAdminAPIKeyHandler,
 	admin.NewScheduledTestHandler,
+	admin.NewPelicanGroupTestHandler,
 	admin.NewAccountTokenGuardV2Handler,
 	admin.NewChannelHandler,
 	admin.NewChannelMonitorHandler,

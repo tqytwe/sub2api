@@ -2,6 +2,8 @@ import tokenGuardV2 from './tokenGuardV2'
 import landing from './landing'
 import common from './common'
 import dashboard from './dashboard'
+import pelicanShowcase from './pelicanShowcase'
+import pelicanTests from './pelicanTests'
 import channelMonitorV2 from './channelMonitorV2'
 import channelMonitorV3 from './channelMonitorV3'
 import batchImage from './batchImage'
@@ -13,6 +15,8 @@ export default {
   ...landing,
   ...common,
   ...dashboard,
+  ...pelicanShowcase,
+  pelicanTests,
   ...channelMonitorV2,
   ...channelMonitorV3,
   ...batchImage,

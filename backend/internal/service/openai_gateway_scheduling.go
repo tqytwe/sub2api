@@ -396,6 +396,10 @@ func (s *OpenAIGatewayService) openAICompatibleAccountEligibilityFailureReasonBe
 	if account == nil {
 		return "account_nil"
 	}
+	if pelicanTest, _ := ctx.Value(pelicanGroupTestRoutingKey{}).(bool); pelicanTest &&
+		requestedModel != "" && !pelicanGroupTestModelAllowed(ctx, account, requestedModel) {
+		return "model_not_selected_for_pelican"
+	}
 	// account_model composite routes publish an alias that only accounts with an
 	// explicit model mapping own. Both scheduler modes (advanced and legacy) must
 	// enforce ownership before any priority/sticky/transport consideration; a

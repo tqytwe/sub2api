@@ -25,6 +25,7 @@ export const LOCALE_LOAD_SCOPES = [
   'admin-audit',
   'admin-prompt-audit',
   'admin-token-guard-v2',
+  'admin-pelican-tests',
 ] as const
 
 export type LocaleLoadScope = typeof LOCALE_LOAD_SCOPES[number]
@@ -104,6 +105,8 @@ export type LocaleRouteName =
   | 'AdminChannelOperations'
   | 'AdminPriorityScheduling'
   | 'AdminAccountQuality'
+  | 'AdminPelicanTests'
+  | 'PelicanShowcase'
   | 'AdminTokenGuardV2'
   | 'AdminChannelMonitor'
   | 'AdminModelPlaza'
@@ -221,6 +224,7 @@ export const ROUTE_LOCALE_SCOPES = {
   AdminChannelOperations: [...ADMIN, 'admin-channels'],
   AdminPriorityScheduling: [...ADMIN, 'admin-resources'],
   AdminAccountQuality: [...ADMIN, 'admin-resources', 'admin-accounts'],
+  AdminPelicanTests: [...ADMIN, 'admin-resources', 'user-dashboard', 'admin-pelican-tests'],
   AdminTokenGuardV2: [...ADMIN, 'admin-token-guard-v2', 'admin-accounts'],
   // The monitor embeds UsageProgressBar, which reads account usage-window
   // labels. Keep admin accounts explicit for a cold direct visit.
@@ -229,6 +233,7 @@ export const ROUTE_LOCALE_SCOPES = {
   // ChannelStatus also renders UsageProgressBar and therefore needs the
   // account usage-window labels before a cold visit can paint the rows.
   ChannelStatus: [...WORKSPACE, 'user-dashboard', 'channel-monitor', 'admin-accounts'],
+  PelicanShowcase: [...WORKSPACE, 'user-dashboard'],
   AdminSubscriptions: [...ADMIN, 'admin-channels', 'admin-resources'],
   AdminAccounts: [...ADMIN, 'admin-accounts', 'admin-settings', 'admin-overview'],
   AdminPlugins: [...ADMIN, 'admin-settings', 'admin-plugins'],

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { MonitorCoverage, MonitorMatrixRow } from '@/api/channelMonitorV2'
-import { candyDisplayState, candyHistoryLimit, candyHistorySlots, monitorCardTimeline, monitorRefreshSeconds } from '../monitorCards'
+import { candyDisplayState, candyHistoryLimit, candyHistorySlots, hasMonitorSamples, monitorCardTimeline, monitorRefreshSeconds } from '../monitorCards'
 
 function row(): MonitorMatrixRow {
   return {
@@ -13,6 +13,11 @@ function row(): MonitorMatrixRow {
 }
 
 describe('V2 card timeline and Candy presentation', () => {
+  it('does not treat empty traffic metrics as a measured sample', () => {
+    expect(hasMonitorSamples({ request_count: 0 } as MonitorMatrixRow['metrics'])).toBe(false)
+    expect(hasMonitorSamples({ request_count: 1 } as MonitorMatrixRow['metrics'])).toBe(true)
+  })
+
   it('keeps time-window gaps and filters recent samples by configured minimum', () => {
     const coverage = { requested_start: '2026-11-02T00:00:00Z', requested_end: '2026-11-02T00:10:00Z', bucket_seconds: 300 } as MonitorCoverage
     const value = row()

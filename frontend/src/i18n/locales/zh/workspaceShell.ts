@@ -23,5 +23,6 @@ export default {
     historicalGiftReview: '历史赠送核查',
     rechargeOrders: '充值订单',
     playBilling: 'Google Play 计费',
+    pelicanShowcase: '鹈鹕测智',
   },
 }

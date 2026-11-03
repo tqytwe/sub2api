@@ -61,20 +61,41 @@
               </template>
               <p v-else class="mt-1 text-[10px] text-gray-500 dark:text-gray-400">{{ t('channelMonitorV2.candy.disabledHint') }}</p>
             </div>
+
+            <div v-if="showcaseGroupIds.has(row.group_id || 0)" class="mt-3 flex justify-end">
+              <button
+                type="button"
+                class="inline-flex min-h-8 items-center gap-1.5 rounded-md border border-primary-200 px-2.5 text-xs font-medium text-primary-700 hover:bg-primary-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 dark:border-primary-800 dark:text-primary-300 dark:hover:bg-primary-900/20"
+                :aria-label="t('channelMonitorV2.pelican.openHistory', { group: row.group_name || row.group_id })"
+                :data-testid="`pelican-history-open-${row.group_id}`"
+                @click="selectedShowcaseGroup = { id: row.group_id || 0, name: row.group_name || `#${row.group_id}` }"
+              >
+                <Icon name="play" size="xs" />{{ t('channelMonitorV2.pelican.open') }}
+              </button>
+            </div>
           </article>
         </div>
       </section>
     </div>
+    <PelicanGroupHistoryDialog
+      :show="selectedShowcaseGroup !== null"
+      :group-id="selectedShowcaseGroup?.id || 0"
+      :group-name="selectedShowcaseGroup?.name || ''"
+      @close="selectedShowcaseGroup = null"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { MonitorCandyResult, MonitorCoverage, MonitorMatrixRow } from '@/api/channelMonitorV2'
+import type { PelicanShowcaseGroup } from '@/api/pelicanShowcase'
+import Icon from '@/components/icons/Icon.vue'
+import PelicanGroupHistoryDialog from '@/components/user/pelican/PelicanGroupHistoryDialog.vue'
 import { platformLabel } from '@/utils/platformColors'
 import { formatMonitorMs, formatMonitorPercent } from './monitorFormat'
-import { candyDisplayState, candyHistoryLimit, candyHistorySlots, monitorCandyHistories, monitorCardTimeline, monitorCardTimelineMode } from './monitorCards'
+import { candyDisplayState, candyHistoryLimit, candyHistorySlots, hasMonitorSamples, monitorCandyHistories, monitorCardTimeline, monitorCardTimelineMode } from './monitorCards'
 
 const props = defineProps<{
   items: MonitorMatrixRow[]
@@ -85,10 +106,13 @@ const props = defineProps<{
   platformOrder?: string[]
   groupOrder?: number[]
   admin?: boolean
+  showcaseGroups?: PelicanShowcaseGroup[]
 }>()
 const { t, locale } = useI18n()
 const timelineMode = computed(() => monitorCardTimelineMode(props.timelineMode))
 const candyHistories = monitorCandyHistories
+const showcaseGroupIds = computed(() => new Set((props.showcaseGroups || []).map((group) => group.id)))
+const selectedShowcaseGroup = ref<{ id: number; name: string } | null>(null)
 const healthBadge = { healthy: 'badge-success', warning: 'badge-warning', critical: 'badge-danger', unknown: 'badge-gray' }
 const healthBar = { healthy: 'bg-emerald-500', warning: 'bg-amber-400', critical: 'bg-red-500', unknown: 'bg-gray-200 dark:bg-dark-600' }
 const candyColor = { correct: 'bg-emerald-500', incorrect: 'bg-red-500', error: 'bg-amber-500' }
@@ -107,9 +131,10 @@ const platforms = computed(() => {
     .sort((a, b) => (order.get(a.name) ?? Number.MAX_SAFE_INTEGER) - (order.get(b.name) ?? Number.MAX_SAFE_INTEGER) || a.name.localeCompare(b.name))
 })
 function metrics(row: MonitorMatrixRow) {
+  const hasRequests = hasMonitorSamples(row.metrics)
   return [
-    { key: 'availability', value: formatMonitorPercent(1 - row.metrics.error_rate), title: t('channelMonitorV2.metrics.errorRateValue', { value: formatMonitorPercent(row.metrics.error_rate) }) },
-    { key: 'cache', value: formatMonitorPercent(row.metrics.cache_rate) },
+    { key: 'availability', value: hasRequests ? formatMonitorPercent(1 - row.metrics.error_rate) : '-', title: hasRequests ? t('channelMonitorV2.metrics.errorRateValue', { value: formatMonitorPercent(row.metrics.error_rate) }) : '' },
+    { key: 'cache', value: row.metrics.cache_rate_denominator > 0 ? formatMonitorPercent(row.metrics.cache_rate) : '-' },
     { key: 'latency', value: formatMonitorMs(row.metrics.ttft.p50_ms), title: t('channelMonitorV2.metrics.ttftP50') },
   ]
 }

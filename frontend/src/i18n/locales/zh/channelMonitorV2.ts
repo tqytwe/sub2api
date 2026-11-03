@@ -39,6 +39,7 @@ export default {
       cadence: '每 {minutes} 分钟', historyCount: '{count} / {limit} 次测试', notChecked: '暂无测试记录', waiting: '等待首次计划测试', disabledHint: '该分组没有配置模型测试。',
       states: { correct: '正确', incorrect: '错误', error: '失败', unknown: '等待中', stale: '已过期' },
     },
+    pelican: { open: '降智检测', openHistory: '查看 {group} 的降智检测记录', title: '降智检测 · {group}', model: '检测模型', hint: '按模型查看最近生成结果。作品内容由模型生成，请谨慎打开。', runs: '检测记录', empty: '该分组暂无生成记录', loadFailed: '加载检测记录失败。', retry: '重试', selected: '检测模型：{model}', duration: '耗时 {duration}', previewLoading: '正在加载作品…', previewFailed: '作品加载失败。', invalidArtwork: '该记录没有可预览的 HTML/SVG 作品。', previewTitle: '{model} 生成的作品', chooseRun: '选择一次检测记录预览作品。' },
     filters: {
       platform: '平台', allPlatforms: '全部', group: '分组', groupId: '分组 {id}', allGroups: '全部', model: '模型', allModels: '全部',
       empty: '暂无可选项', selectedCount: '{count} 项', labelValue: '{label}：{value}'
