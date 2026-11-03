@@ -366,6 +366,9 @@ export interface BillingSurchargeReportParams {
   end_date?: string
   page?: number
   page_size?: number
+  search?: string
+  sort_by?: 'created_at' | 'user' | 'model' | 'actual_cost' | 'billing_surcharge_cost' | 'billed_cost'
+  sort_order?: 'asc' | 'desc'
 }
 
 /**

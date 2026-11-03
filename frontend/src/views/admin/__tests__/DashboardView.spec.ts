@@ -303,4 +303,44 @@ describe('admin DashboardView', () => {
     expect(getUserSpendingRanking).toHaveBeenCalledTimes(1)
     expectDashboardRange('2026-09-28', '2026-09-29')
   })
+
+  it('searches surcharge records and sorts by the selected column', async () => {
+    const wrapper = mountDashboard()
+    await flushPromises()
+
+    const search = wrapper.get('input[placeholder="admin.dashboard.surchargeSearchPlaceholder"]')
+    await search.setValue('alice@example.com')
+    const searchButton = wrapper.findAll('button').find(button => button.text() === 'admin.dashboard.surchargeSearch')
+    expect(searchButton).toBeDefined()
+    await searchButton!.trigger('click')
+    await flushPromises()
+    expect(getBillingSurchargeReport).toHaveBeenLastCalledWith(expect.objectContaining({
+      search: 'alice@example.com',
+      page: 1,
+      sort_by: 'created_at',
+      sort_order: 'desc'
+    }))
+
+    const feeSort = wrapper.findAll('thead button').find(button => button.text().includes('admin.dashboard.surchargeFee'))
+    expect(feeSort).toBeDefined()
+    await feeSort!.trigger('click')
+    await flushPromises()
+    expect(getBillingSurchargeReport).toHaveBeenLastCalledWith(expect.objectContaining({
+      search: 'alice@example.com',
+      sort_by: 'billing_surcharge_cost',
+      sort_order: 'desc',
+      page: 1
+    }))
+  })
+
+  it('shows a load error instead of displaying failed report data as zero', async () => {
+    getBillingSurchargeReport.mockRejectedValueOnce(new Error('bad request'))
+    const wrapper = mountDashboard()
+    await flushPromises()
+
+    expect(wrapper.find('[role="alert"]').text()).toBe('admin.dashboard.surchargeLoadFailed')
+    const surchargePanel = wrapper.find('[role="alert"]').element.parentElement!
+    expect(surchargePanel.textContent).toContain('—')
+    expect(surchargePanel.textContent).not.toContain('$0.00')
+  })
 })

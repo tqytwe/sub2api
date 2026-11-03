@@ -227,16 +227,37 @@
                 {{ t('admin.dashboard.surchargeIncome') }}
               </h2>
             </div>
-            <button
-              type="button"
-              class="btn btn-secondary inline-flex items-center gap-2"
-              :disabled="surchargeLoading"
-              @click="loadBillingSurchargeReport(surchargePage)"
-            >
-              <Icon name="refresh" size="sm" />
-              {{ t('common.refresh') }}
-            </button>
+            <div class="flex flex-wrap items-center gap-2">
+              <label class="relative block w-full sm:w-72">
+                <span class="sr-only">{{ t('admin.dashboard.surchargeSearchPlaceholder') }}</span>
+                <Icon name="search" size="sm" class="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  v-model="surchargeSearchInput"
+                  class="input min-h-9 w-full pl-8 pr-2 text-sm"
+                  :placeholder="t('admin.dashboard.surchargeSearchPlaceholder')"
+                  :disabled="surchargeLoading"
+                  @keydown.enter.prevent="applySurchargeSearch"
+                />
+              </label>
+              <button type="button" class="btn btn-primary min-h-9" :disabled="surchargeLoading" @click="applySurchargeSearch">
+                {{ t('admin.dashboard.surchargeSearch') }}
+              </button>
+              <button
+                type="button"
+                class="btn btn-secondary inline-flex min-h-9 items-center gap-2"
+                :disabled="surchargeLoading"
+                :aria-label="t('common.refresh')"
+                @click="loadBillingSurchargeReport(surchargePage)"
+              >
+                <Icon name="refresh" size="sm" />
+                <span class="hidden sm:inline">{{ t('common.refresh') }}</span>
+              </button>
+            </div>
           </div>
+
+          <p v-if="surchargeError" role="alert" class="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/20 dark:text-red-300">
+            {{ t('admin.dashboard.surchargeLoadFailed') }}
+          </p>
 
           <div class="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
             <div class="rounded-lg bg-gray-50 p-3 dark:bg-dark-800/50">
@@ -244,7 +265,7 @@
                 {{ t('admin.dashboard.todaySurcharge') }}
               </p>
               <p class="mt-1 text-lg font-bold text-emerald-600 dark:text-emerald-400">
-                ${{ formatCost(surchargeSummary?.today_surcharge_cost) }}
+                {{ surchargeSummary ? `$${formatCost(surchargeSummary.today_surcharge_cost)}` : '—' }}
               </p>
             </div>
             <div class="rounded-lg bg-gray-50 p-3 dark:bg-dark-800/50">
@@ -252,7 +273,7 @@
                 {{ t('admin.dashboard.rangeSurcharge') }}
               </p>
               <p class="mt-1 text-lg font-bold text-gray-900 dark:text-white">
-                ${{ formatCost(surchargeSummary?.range_surcharge_cost) }}
+                {{ surchargeSummary ? `$${formatCost(surchargeSummary.range_surcharge_cost)}` : '—' }}
               </p>
             </div>
             <div class="rounded-lg bg-gray-50 p-3 dark:bg-dark-800/50">
@@ -260,7 +281,7 @@
                 {{ t('admin.dashboard.totalSurcharge') }}
               </p>
               <p class="mt-1 text-lg font-bold text-gray-900 dark:text-white">
-                ${{ formatCost(surchargeSummary?.total_surcharge_cost) }}
+                {{ surchargeSummary ? `$${formatCost(surchargeSummary.total_surcharge_cost)}` : '—' }}
               </p>
             </div>
             <div class="rounded-lg bg-gray-50 p-3 dark:bg-dark-800/50">
@@ -268,32 +289,44 @@
                 {{ t('admin.dashboard.surchargeRequests') }}
               </p>
               <p class="mt-1 text-lg font-bold text-gray-900 dark:text-white">
-                {{ formatNumber(surchargeSummary?.range_requests) }}
+                {{ surchargeSummary ? formatNumber(surchargeSummary.range_requests) : '—' }}
               </p>
             </div>
           </div>
 
-          <div class="overflow-x-auto">
+          <div class="overflow-x-auto" :aria-busy="surchargeLoading">
             <table class="min-w-full divide-y divide-gray-200 dark:divide-dark-700">
               <thead>
                 <tr>
-                  <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">
-                    {{ t('admin.dashboard.surchargeTime') }}
+                  <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400" :aria-sort="surchargeAriaSort('created_at')">
+                    <button type="button" class="inline-flex items-center gap-1 hover:text-gray-900 dark:hover:text-white" @click="toggleSurchargeSort('created_at')">
+                      {{ t('admin.dashboard.surchargeTime') }}<Icon name="chevronDown" size="xs" :class="surchargeSortIconClass('created_at')" />
+                    </button>
                   </th>
-                  <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">
-                    {{ t('admin.dashboard.surchargeUser') }}
+                  <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400" :aria-sort="surchargeAriaSort('user')">
+                    <button type="button" class="inline-flex items-center gap-1 hover:text-gray-900 dark:hover:text-white" @click="toggleSurchargeSort('user')">
+                      {{ t('admin.dashboard.surchargeUser') }}<Icon name="chevronDown" size="xs" :class="surchargeSortIconClass('user')" />
+                    </button>
                   </th>
-                  <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">
-                    {{ t('admin.dashboard.model') }}
+                  <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400" :aria-sort="surchargeAriaSort('model')">
+                    <button type="button" class="inline-flex items-center gap-1 hover:text-gray-900 dark:hover:text-white" @click="toggleSurchargeSort('model')">
+                      {{ t('admin.dashboard.model') }}<Icon name="chevronDown" size="xs" :class="surchargeSortIconClass('model')" />
+                    </button>
                   </th>
-                  <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400">
-                    {{ t('admin.dashboard.surchargeBase') }}
+                  <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400" :aria-sort="surchargeAriaSort('actual_cost')">
+                    <button type="button" class="inline-flex items-center gap-1 hover:text-gray-900 dark:hover:text-white" @click="toggleSurchargeSort('actual_cost')">
+                      {{ t('admin.dashboard.surchargeBase') }}<Icon name="chevronDown" size="xs" :class="surchargeSortIconClass('actual_cost')" />
+                    </button>
                   </th>
-                  <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400">
-                    {{ t('admin.dashboard.surchargeFee') }}
+                  <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400" :aria-sort="surchargeAriaSort('billing_surcharge_cost')">
+                    <button type="button" class="inline-flex items-center gap-1 hover:text-gray-900 dark:hover:text-white" @click="toggleSurchargeSort('billing_surcharge_cost')">
+                      {{ t('admin.dashboard.surchargeFee') }}<Icon name="chevronDown" size="xs" :class="surchargeSortIconClass('billing_surcharge_cost')" />
+                    </button>
                   </th>
-                  <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400">
-                    {{ t('admin.dashboard.surchargeBilled') }}
+                  <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400" :aria-sort="surchargeAriaSort('billed_cost')">
+                    <button type="button" class="inline-flex items-center gap-1 hover:text-gray-900 dark:hover:text-white" @click="toggleSurchargeSort('billed_cost')">
+                      {{ t('admin.dashboard.surchargeBilled') }}<Icon name="chevronDown" size="xs" :class="surchargeSortIconClass('billed_cost')" />
+                    </button>
                   </th>
                 </tr>
               </thead>
@@ -331,7 +364,7 @@
                     </td>
                   </tr>
                 </template>
-                <tr v-if="!surchargeLoading && !surchargeItems.length">
+                <tr v-if="!surchargeLoading && !surchargeError && !surchargeItems.length">
                   <td colspan="6" class="px-3 py-6 text-center text-sm text-gray-500 dark:text-gray-400">
                     {{ t('admin.dashboard.noSurchargeRecords') }}
                   </td>
@@ -344,7 +377,16 @@
             <span class="text-xs text-gray-500 dark:text-gray-400">
               {{ t('admin.dashboard.surchargePageInfo', { page: surchargePagination?.page || 1, pages: surchargePagination?.pages || 1 }) }}
             </span>
-            <div class="flex items-center gap-2">
+            <div class="flex flex-wrap items-center justify-end gap-2">
+              <label class="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                <span>{{ t('admin.dashboard.surchargePageSize') }}</span>
+                <select v-model.number="surchargePageSize" class="input min-h-8 py-1 text-xs" :disabled="surchargeLoading" @change="loadBillingSurchargeReport(1)">
+                  <option :value="10">10</option>
+                  <option :value="25">25</option>
+                  <option :value="50">50</option>
+                  <option :value="100">100</option>
+                </select>
+              </label>
               <button
                 type="button"
                 class="btn btn-secondary inline-flex items-center gap-1"
@@ -571,13 +613,19 @@ const rankingTotalRequests = ref(0)
 const rankingTotalTokens = ref(0)
 const surchargeReport = ref<BillingSurchargeReportResponse | null>(null)
 const surchargeLoading = ref(false)
+const surchargeError = ref(false)
 const surchargePage = ref(1)
+const surchargeSearchInput = ref('')
+const surchargeSearch = ref('')
+type SurchargeSortBy = NonNullable<Parameters<typeof adminAPI.dashboard.getBillingSurchargeReport>[0]>['sort_by']
+const surchargeSortBy = ref<NonNullable<SurchargeSortBy>>('created_at')
+const surchargeSortOrder = ref<'asc' | 'desc'>('desc')
 let chartLoadSeq = 0
 let usersTrendLoadSeq = 0
 let rankingLoadSeq = 0
 let surchargeLoadSeq = 0
 const rankingLimit = 12
-const surchargePageSize = 10
+const surchargePageSize = ref(10)
 
 const getLast24HoursRangeDates = (): { start: string; end: string } => {
   const end = new Date()
@@ -604,6 +652,23 @@ const granularityOptions = computed(() => [
 const surchargeSummary = computed<BillingSurchargeSummary | null>(() => surchargeReport.value?.summary || null)
 const surchargeItems = computed<BillingSurchargeDetail[]>(() => surchargeReport.value?.items || [])
 const surchargePagination = computed(() => surchargeReport.value?.pagination || null)
+
+const surchargeAriaSort = (key: NonNullable<SurchargeSortBy>) => surchargeSortBy.value !== key
+  ? 'none'
+  : surchargeSortOrder.value === 'asc' ? 'ascending' : 'descending'
+const surchargeSortIconClass = (key: NonNullable<SurchargeSortBy>) => [
+  surchargeSortBy.value === key && surchargeSortOrder.value === 'asc' ? 'rotate-180 text-primary-600' : '',
+  surchargeSortBy.value === key ? 'text-primary-600' : 'text-gray-400'
+]
+const toggleSurchargeSort = (key: NonNullable<SurchargeSortBy>) => {
+  if (surchargeSortBy.value === key) {
+    surchargeSortOrder.value = surchargeSortOrder.value === 'asc' ? 'desc' : 'asc'
+  } else {
+    surchargeSortBy.value = key
+    surchargeSortOrder.value = 'desc'
+  }
+  void loadBillingSurchargeReport(1)
+}
 
 // Dark mode detection
 const isDarkMode = computed(() => {
@@ -923,12 +988,16 @@ const loadUserSpendingRanking = async () => {
 const loadBillingSurchargeReport = async (page = surchargePage.value) => {
   const currentSeq = ++surchargeLoadSeq
   surchargeLoading.value = true
+  surchargeError.value = false
   try {
     const response = await adminAPI.dashboard.getBillingSurchargeReport({
       start_date: startDate.value,
       end_date: endDate.value,
       page,
-      page_size: surchargePageSize
+      page_size: surchargePageSize.value,
+      search: surchargeSearch.value || undefined,
+      sort_by: surchargeSortBy.value,
+      sort_order: surchargeSortOrder.value
     })
     if (currentSeq !== surchargeLoadSeq) return
     surchargeReport.value = response
@@ -937,11 +1006,17 @@ const loadBillingSurchargeReport = async (page = surchargePage.value) => {
     if (currentSeq !== surchargeLoadSeq) return
     console.error('Error loading billing surcharge report:', error)
     surchargeReport.value = null
+    surchargeError.value = true
   } finally {
     if (currentSeq === surchargeLoadSeq) {
       surchargeLoading.value = false
     }
   }
+}
+
+const applySurchargeSearch = () => {
+  surchargeSearch.value = surchargeSearchInput.value.trim()
+  void loadBillingSurchargeReport(1)
 }
 
 const changeSurchargePage = (delta: number) => {
