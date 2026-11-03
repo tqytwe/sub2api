@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
@@ -60,15 +61,28 @@ func (r *showcaseHandlerRepo) GetItem(context.Context, int64, int, time.Time) (*
 	return r.item, nil
 }
 func (r *showcaseHandlerRepo) Delete(context.Context, int64) (bool, error) { return r.deleted, nil }
+func (r *showcaseHandlerRepo) GetAvailableGroups(context.Context, int64) ([]service.Group, error) {
+	groups := make([]service.Group, 0, len(r.groups))
+	for _, group := range r.groups {
+		groups = append(groups, service.Group{ID: group.ID, Name: group.Name, Platform: group.Platform})
+	}
+	return groups, nil
+}
 
 func newShowcaseHandler(values map[string]string, repo *showcaseHandlerRepo) *PelicanShowcaseHandler {
 	settings := service.NewSettingService(&showcaseSettingRepo{toggleSettingRepo{values: values}}, &config.Config{})
-	return NewPelicanShowcaseHandler(service.NewPelicanShowcaseService(repo, settings))
+	h := NewPelicanShowcaseHandler(service.NewPelicanShowcaseService(repo, settings))
+	h.access = repo
+	return h
 }
 
 func serveShowcase(method, path string, handle gin.HandlerFunc) *httptest.ResponseRecorder {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set(string(middleware.ContextKeyUser), middleware.AuthSubject{UserID: 1})
+		c.Next()
+	})
 	r.Handle(method, path, handle)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, httptest.NewRequest(method, path[:len(path)-len(":id")]+"7", nil))
@@ -81,6 +95,7 @@ func TestPelicanShowcaseHandler_DisabledGalleryIsEmpty(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
+	c.Set(string(middleware.ContextKeyUser), middleware.AuthSubject{UserID: 1})
 	c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/pelican-showcase", nil)
 	h.List(c)
 	require.Equal(t, http.StatusOK, w.Code)
@@ -102,6 +117,7 @@ func TestPelicanShowcaseHandler_ListExposesNoAccountIdentity(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
+	c.Set(string(middleware.ContextKeyUser), middleware.AuthSubject{UserID: 1})
 	c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/pelican-showcase", nil)
 	h.List(c)
 	require.Equal(t, http.StatusOK, w.Code)
@@ -112,7 +128,7 @@ func TestPelicanShowcaseHandler_ListExposesNoAccountIdentity(t *testing.T) {
 }
 
 func TestPelicanShowcaseHandler_ItemAndAdminDelete(t *testing.T) {
-	repo := &showcaseHandlerRepo{}
+	repo := &showcaseHandlerRepo{groups: []*service.PelicanShowcaseGroup{{ID: 3, Name: "VIP"}}}
 	h := newShowcaseHandler(map[string]string{
 		service.SettingKeyPelicanShowcaseEnabled: "true",
 		service.SettingKeyPelicanShowcaseConfig:  `{}`,
@@ -120,6 +136,7 @@ func TestPelicanShowcaseHandler_ItemAndAdminDelete(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
+	c.Set(string(middleware.ContextKeyUser), middleware.AuthSubject{UserID: 1})
 	c.Params = gin.Params{{Key: "id", Value: "abc"}}
 	c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/pelican-showcase/items/abc", nil)
 	h.GetItem(c)
@@ -197,6 +214,7 @@ func TestPelicanShowcaseHandler_APIDisabledPreservesJWTGallery(t *testing.T) {
 	}, repo)
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
+	c.Set(string(middleware.ContextKeyUser), middleware.AuthSubject{UserID: 1})
 	c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/pelican-showcase", nil)
 	h.List(c)
 	require.Equal(t, http.StatusOK, w.Code)
