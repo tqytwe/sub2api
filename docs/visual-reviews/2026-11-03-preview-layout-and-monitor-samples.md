@@ -6,11 +6,12 @@
   "changed_files": [
     "frontend/src/components/common/BaseDialog.vue",
     "frontend/src/components/user/pelican/PelicanGroupHistoryDialog.vue",
-    "frontend/src/features/channel-monitor-v2/monitorCards.ts"
+    "frontend/src/features/channel-monitor-v2/monitorCards.ts",
+    "frontend/src/features/channel-monitor-v2/MonitorStatusCards.vue"
   ],
   "routes_or_surfaces": ["/monitor group artwork history dialog and recent sample timeline"],
   "languages_and_themes": ["zh-CN/light"],
-  "states": ["selected artwork", "history loading", "history empty", "history error", "low-volume request bucket", "unscored bucket", "meets sample threshold"],
+  "states": ["selected artwork", "history loading", "history empty", "history error", "low-volume request bucket", "unscored bucket", "meets sample threshold", "user metrics with hidden request counts"],
   "viewports": ["1280x900", "1920x1055"],
   "artifact_mode": "static-review-board",
   "prototype_artifacts": ["docs/visual-reviews/assets/pelican-group-showcase/prototype-result-preview.png"],
@@ -21,7 +22,7 @@
   ],
   "commands": [
     "Chromium headless screenshot of a static layout review board based on the existing Pelican dialog prototype and caller-provided 90dvh/flex layout contract",
-    "pnpm exec vitest run src/components/common/__tests__/BaseDialog.spec.ts src/components/user/pelican/__tests__/PelicanGroupHistoryDialog.spec.ts src/features/channel-monitor-v2/__tests__/monitorCards.spec.ts",
+    "pnpm exec vitest run src/components/common/__tests__/BaseDialog.spec.ts src/components/user/pelican/__tests__/PelicanGroupHistoryDialog.spec.ts src/features/channel-monitor-v2/__tests__/monitorCards.spec.ts src/features/channel-monitor-v2/__tests__/MonitorStatusCards.pelican.spec.ts",
     "go test ./internal/repository -run 'TestChannelMonitorV2(RecentSampleBucketsDoNotFilterByHealthThreshold|RecentSampleModelFilterUsesFirstAvailableParameter|RecentSampleModelClauseMatchesDisplayFilter)'"
   ],
   "checks": {
@@ -34,7 +35,7 @@
 
 ## Scope
 
-The existing `/monitor` group history dialog keeps its model selector and run list while the artwork stage fills the available dialog height. Recent sample bars retain buckets that have traffic below the health threshold and mark those buckets unscored.
+The existing `/monitor` group history dialog keeps its model selector and run list while the artwork stage fills the available dialog height. Recent sample bars retain buckets that have traffic below the health threshold and mark those buckets unscored. User cards preserve availability/cache indicators and sample-bucket presence when absolute request counts are redacted.
 
 ## Baseline
 
@@ -50,7 +51,7 @@ The fix uses the existing `BaseDialog` class contract, current model history lis
 
 ## State Coverage
 
-The component tests cover history selection and artwork loading. The `BaseDialog` test verifies that content and body classes reach the panel and body. Timeline tests cover actual low-volume buckets as `unknown` while qualified buckets keep their health state. No interaction or animation behavior changes.
+The component tests cover history selection and artwork loading. The `BaseDialog` test verifies that content and body classes reach the panel and body. Timeline tests cover actual low-volume buckets as `unknown` while qualified buckets keep their health state. A user-shaped response with `has_samples=true` and redacted `request_count=0` retains percentage indicators and sample bars. No interaction or animation behavior changes.
 
 ## Viewport Coverage
 

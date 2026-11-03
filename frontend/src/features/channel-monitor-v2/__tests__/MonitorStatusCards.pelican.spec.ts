@@ -15,6 +15,28 @@ const rows = [7, 8].map((id) => ({
 })) as unknown as MonitorMatrixRow[]
 
 describe('V2 Pelican group-card entry', () => {
+  it('shows health and traffic indicators when volume counts are hidden from users', () => {
+    const wrapper = mount(MonitorStatusCards, {
+      props: {
+        items: [{
+          ...rows[0],
+          metrics: { has_samples: true, request_count: 0, error_rate: 0.1, cache_rate: 0.4, cache_rate_denominator: 0, ttft: { p50_ms: 120 } },
+          buckets: [{ bucket_start: '2026-11-03T10:00:00Z', metrics: { has_samples: true, request_count: 0 }, health: { overall: 'unknown', minimum_sample: 50 } }],
+          sample_buckets: [{ bucket_start: '2026-11-03T10:00:00Z', metrics: { has_samples: true, request_count: 0 }, health: { overall: 'unknown', minimum_sample: 50 } }],
+        } as unknown as MonitorMatrixRow],
+        loading: false,
+        now: Date.now(),
+        timelineMode: 'samples',
+      },
+      global: { stubs: { Icon: true, PelicanGroupHistoryDialog: true } },
+    })
+
+    expect(wrapper.text()).toContain('90.0%')
+    expect(wrapper.text()).toContain('40.0%')
+    expect(wrapper.find('[role="img"]').exists()).toBe(true)
+    expect(wrapper.text()).not.toContain('channelMonitorV2.cards.noSamples')
+  })
+
   it('shows the action only for configured groups and opens that group’s history', async () => {
     getShowcaseMock.mockReset().mockResolvedValue({ enabled: true, groups: [{ id: 7, name: 'Group 7', platform: 'openai', items: [] }] })
     // design-governance-allow: inline-svg - model artwork fixture verifies the group preview response, not a UI icon.
