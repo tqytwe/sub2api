@@ -42,7 +42,7 @@ describe('PelicanGroupHistoryDialog', () => {
       props: { show: true, groupId: 7, groupName: 'OpenAI Pro' },
       global: {
         stubs: {
-          BaseDialog: { props: ['show'], template: '<div v-if="show"><slot /></div>' },
+          BaseDialog: { props: ['show', 'width', 'contentClass', 'bodyClass'], template: '<div v-if="show"><section data-testid="dialog-content" :class="contentClass"><main data-testid="dialog-body" :class="bodyClass"><slot /></main></section></div>' },
           Icon: true,
           PelicanArtworkPreview: { props: ['html'], template: '<div data-testid="artwork-preview">{{ html }}</div>' },
         },
@@ -51,6 +51,8 @@ describe('PelicanGroupHistoryDialog', () => {
     await flushPromises()
 
     expect(getShowcaseMock).toHaveBeenCalledWith({ groupId: 7 })
+    expect(wrapper.get('[data-testid="dialog-content"]').classes()).toContain('h-[90dvh]')
+    expect(wrapper.get('[data-testid="dialog-body"]').classes()).toContain('min-h-0')
     expect(wrapper.text()).toContain('gpt-6-astra')
     expect(wrapper.text()).toContain('12.47 s')
     expect(getShowcaseItemMock).toHaveBeenCalledTimes(1)

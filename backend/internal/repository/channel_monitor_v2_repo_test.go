@@ -57,6 +57,25 @@ func TestChannelMonitorV2RecentSampleModelClauseMatchesDisplayFilter(t *testing.
 	require.Equal(t, "openai", args[0])
 }
 
+func TestChannelMonitorV2RecentSampleBucketsDoNotFilterByHealthThreshold(t *testing.T) {
+	query := strings.ToLower(channelMonitorV2RecentSampleBucketsQuery(""))
+	require.Contains(t, query, "sum(m.success_requests)::bigint as success_requests")
+	require.Contains(t, query, "sum(m.error_requests)::bigint as error_requests")
+	require.NotContains(t, query, "having")
+	require.Contains(t, query, "order by m.bucket_start desc limit 18")
+}
+
+func TestChannelMonitorV2RecentSampleModelFilterUsesFirstAvailableParameter(t *testing.T) {
+	cfg := service.ChannelMonitorV2Config{Platforms: []service.ChannelMonitorV2PlatformConfig{
+		{Platform: "openai", Enabled: true, Models: []string{"gpt-5"}},
+	}}
+	clause, args := channelMonitorV2SampleModelClause(service.ChannelMonitorV2Filter{Models: []string{"gpt-5"}}, cfg, "m", 5)
+	query := strings.ToLower(channelMonitorV2RecentSampleBucketsQuery(" AND " + clause))
+	require.Contains(t, query, "m.platform=$5")
+	require.Contains(t, query, "m.model=any($6)")
+	require.Len(t, args, 2)
+}
+
 func TestChannelMonitorV2MatrixDimensionKey(t *testing.T) {
 	cfg := service.ChannelMonitorV2Config{Platforms: []service.ChannelMonitorV2PlatformConfig{{Platform: "openai", Enabled: true, Models: []string{"gpt-5"}}}}
 	key := channelMonitorV2MatrixDimensionKey(service.ChannelMonitorV2GroupByPlatformGroupModel, cfg, "openai", 7, "gpt-5")

@@ -46,6 +46,21 @@ describe('BaseDialog locale labels', () => {
     wrapper.unmount()
   })
 
+  it('applies content and body classes to their layout containers', () => {
+    const wrapper = mount(BaseDialog, {
+      props: { show: true, title: 'Preview', contentClass: 'h-[90dvh]', bodyClass: 'flex min-h-0 !overflow-hidden' },
+      global: {
+        plugins: [createI18n({ legacy: false, locale: 'en', messages: { en: { common: { close: () => 'Close' } } } })],
+        stubs: { Teleport: true, Transition: false, Icon: true },
+      },
+    })
+
+    expect(wrapper.find('.modal-content').classes()).toContain('h-[90dvh]')
+    expect(wrapper.find('.modal-body').classes()).toContain('flex')
+    expect(wrapper.find('.modal-body').classes()).toContain('min-h-0')
+    wrapper.unmount()
+  })
+
   it('traps forward and backward Tab navigation inside the dialog', async () => {
     const wrapper = mountDialog('en', false, document.body)
     await flushPromises()

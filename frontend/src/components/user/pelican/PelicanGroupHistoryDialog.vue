@@ -1,7 +1,7 @@
 <template>
   <BaseDialog :show="show" :title="t('pelicanShowcase.history.title', { group: groupName })" width="full" content-class="h-[90dvh]" body-class="flex min-h-0 flex-col !overflow-hidden" @close="emit('close')">
     <div class="grid min-h-0 flex-1 gap-4 lg:grid-cols-[18rem_minmax(0,1fr)]" data-testid="pelican-group-history">
-      <section class="flex min-h-0 flex-col gap-3 border-b border-gray-200 pb-3 lg:border-b-0 lg:border-r lg:pb-0 lg:pr-4 dark:border-dark-700">
+      <section class="flex min-h-0 min-w-0 flex-col gap-3 border-b border-gray-200 pb-3 lg:border-b-0 lg:border-r lg:pb-0 lg:pr-4 dark:border-dark-700">
         <label class="field-label mt-0" for="pelican-history-model">{{ t('pelicanShowcase.history.model') }}</label>
         <select id="pelican-history-model" v-model="selectedModel" class="input w-full" :disabled="loading || !models.length" data-testid="pelican-history-model">
           <option v-for="model in models" :key="model" :value="model">{{ model }}</option>
@@ -16,7 +16,7 @@
           <li v-for="item in filteredItems" :key="item.id">
             <button
               type="button"
-              class="w-full rounded-md border px-3 py-2 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500"
+              class="w-full min-w-0 rounded-md border px-3 py-2 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500"
               :class="selectedItem?.id === item.id ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20' : 'border-gray-200 hover:bg-gray-50 dark:border-dark-700 dark:hover:bg-dark-800'"
               :data-result-id="item.id"
               @click="selectItem(item)"

@@ -11,7 +11,7 @@
         @click.self="handleClose"
       >
         <!-- Modal panel -->
-        <div ref="dialogRef" :class="['modal-content', widthClasses]" tabindex="-1" @click.stop>
+        <div ref="dialogRef" :class="['modal-content', widthClasses, contentClass]" tabindex="-1" @click.stop>
           <!-- Header -->
           <div class="modal-header">
             <h3 :id="dialogId" class="modal-title">
@@ -28,7 +28,7 @@
           </div>
 
           <!-- Body -->
-          <div ref="modalBodyRef" class="modal-body">
+          <div ref="modalBodyRef" :class="['modal-body', bodyClass]">
             <slot></slot>
           </div>
 
@@ -68,6 +68,8 @@ interface Props {
   showCloseButton?: boolean
   closeLabel?: string
   zIndex?: number
+  contentClass?: string
+  bodyClass?: string
 }
 
 interface Emits {
@@ -85,6 +87,8 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<Emits>()
 const { t } = useI18n()
 const resolvedCloseLabel = computed(() => props.closeLabel || t('common.close'))
+const contentClass = computed(() => props.contentClass)
+const bodyClass = computed(() => props.bodyClass)
 
 // Custom z-index style (overrides the default z-50 from CSS)
 const zIndexStyle = computed(() => {
