@@ -718,6 +718,8 @@ func redactChannelMonitorV2Metric(m *ChannelMonitorV2Metric, hideThroughput bool
 	if m == nil {
 		return
 	}
+	// Keep the non-volume presence signal so users can distinguish no traffic
+	// from traffic whose exact request count is hidden.
 	m.SuccessRequests = 0
 	m.ErrorRequests = 0
 	m.RequestCount = 0

@@ -534,6 +534,7 @@ func TestSnapshotRedactsPublicConfigPolicyFields(t *testing.T) {
 func TestRedactChannelMonitorV2MetricKeepsRates(t *testing.T) {
 	p50 := int64(100)
 	m := ChannelMonitorV2Metric{
+		HasSamples: true,
 		SuccessRequests: 90, ErrorRequests: 10, RequestCount: 100,
 		InputTokens: 1, OutputTokens: 2, CacheCreationTokens: 3, CacheReadTokens: 4,
 		TokenCount: 10, RPM: 12, TPM: 34, ErrorRate: 0.1, SuccessRate: 0.9,
@@ -543,6 +544,7 @@ func TestRedactChannelMonitorV2MetricKeepsRates(t *testing.T) {
 	upstream := int64(3)
 	m.UpstreamAffectedRequests = &upstream
 	redactChannelMonitorV2Metric(&m, false)
+	require.True(t, m.HasSamples)
 	require.Zero(t, m.RequestCount)
 	require.Zero(t, m.ErrorRequests)
 	require.Zero(t, m.TokenCount)

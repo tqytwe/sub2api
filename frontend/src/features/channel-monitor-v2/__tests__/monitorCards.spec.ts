@@ -16,6 +16,7 @@ describe('V2 card timeline and Candy presentation', () => {
   it('does not treat empty traffic metrics as a measured sample', () => {
     expect(hasMonitorSamples({ request_count: 0 } as MonitorMatrixRow['metrics'])).toBe(false)
     expect(hasMonitorSamples({ request_count: 1 } as MonitorMatrixRow['metrics'])).toBe(true)
+    expect(hasMonitorSamples({ has_samples: true, request_count: 0 } as MonitorMatrixRow['metrics'])).toBe(true)
   })
 
   it('keeps time-window gaps and shows low-volume recent request buckets as unjudged', () => {

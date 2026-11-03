@@ -134,7 +134,7 @@ function metrics(row: MonitorMatrixRow) {
   const hasRequests = hasMonitorSamples(row.metrics)
   return [
     { key: 'availability', value: hasRequests ? formatMonitorPercent(1 - row.metrics.error_rate) : '-', title: hasRequests ? t('channelMonitorV2.metrics.errorRateValue', { value: formatMonitorPercent(row.metrics.error_rate) }) : '' },
-    { key: 'cache', value: row.metrics.cache_rate_denominator > 0 ? formatMonitorPercent(row.metrics.cache_rate) : '-' },
+    { key: 'cache', value: hasRequests ? formatMonitorPercent(row.metrics.cache_rate) : '-' },
     { key: 'latency', value: formatMonitorMs(row.metrics.ttft.p50_ms), title: t('channelMonitorV2.metrics.ttftP50') },
   ]
 }

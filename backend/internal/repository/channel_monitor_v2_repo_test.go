@@ -111,12 +111,15 @@ func TestChannelMonitorV2MetricIncludesSuccessRate(t *testing.T) {
 	acc.success, acc.errors = 80, 20
 	metric := acc.metric(1, false)
 	require.Equal(t, int64(100), metric.RequestCount)
+	require.True(t, metric.HasSamples)
 	require.InDelta(t, 0.8, metric.SuccessRate, 0.0001)
 	require.InDelta(t, 0.2, metric.ErrorRate, 0.0001)
 	require.Nil(t, metric.UpstreamAffectedRequests)
 
 	adminMetric := acc.metric(1, true)
 	require.NotNil(t, adminMetric.UpstreamAffectedRequests)
+	emptyMetric := newMetricAccumulator().metric(1, false)
+	require.False(t, emptyMetric.HasSamples)
 }
 
 func TestChannelMonitorV2WhereUsesConfiguredScopeAndEmptyFilterMeansAllConfigured(t *testing.T) {
