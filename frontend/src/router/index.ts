@@ -980,12 +980,6 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
-    path: '/pelican-showcase',
-    name: 'PelicanShowcase',
-    component: () => import('@/views/user/PelicanShowcaseView.vue'),
-    meta: { requiresAuth: true, requiresAdmin: false, titleKey: 'pelicanShowcase.title', descriptionKey: 'pelicanShowcase.description', localeScopes: ['user-dashboard'], frame: 'workspace' },
-  },
-  {
     path: '/admin/subscriptions',
     name: 'AdminSubscriptions',
     component: () => import('@/views/admin/SubscriptionsView.vue'),

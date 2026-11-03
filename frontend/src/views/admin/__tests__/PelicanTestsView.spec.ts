@@ -136,7 +136,7 @@ describe('PelicanTestsView', () => {
     expect(failed.text()).toContain('pelicanTests.plans.noAccount')
     expect(failed.text()).toContain('no_available_account')
     expect(failed.find('[data-testid="pelican-result-view-89"]').exists()).toBe(false)
-    expect(wrapper.findComponent(RouterLinkStub).props('to')).toBe('/pelican-showcase')
+    expect(wrapper.findComponent(RouterLinkStub).props('to')).toBe('/monitor')
   })
 
   it('saves the showcase switch and limits, then refreshes the public flags', async () => {

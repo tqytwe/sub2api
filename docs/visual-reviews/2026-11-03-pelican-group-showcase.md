@@ -29,7 +29,7 @@
     "frontend/src/views/user/PelicanShowcaseView.vue",
     "frontend/src/views/user/ChannelStatusV2View.vue"
   ],
-  "routes_or_surfaces": ["/admin/pelican-tests", "/pelican-showcase", "/channel-status-v2 group card history dialog"],
+  "routes_or_surfaces": ["/admin/pelican-tests", "/monitor group cards and history dialog"],
   "languages_and_themes": ["zh-CN/light"],
   "states": ["default", "loading", "empty", "error", "success", "disabled", "focus-visible", "keyboard navigation", "reduced motion"],
   "viewports": ["390x844", "1280x1360"],
@@ -43,14 +43,12 @@
   ],
   "updated_artifacts": [
     "docs/visual-reviews/assets/pelican-group-showcase/updated-admin-1280.png",
-    "docs/visual-reviews/assets/pelican-group-showcase/showcase-user-1280.png",
-    "docs/visual-reviews/assets/pelican-group-showcase/showcase-user-390.png",
     "docs/visual-reviews/assets/pelican-group-showcase/updated-monitor-pelican-modal-1280.png"
   ],
   "commands": [
     "Playwright browser screenshot on Vite preview with fixed mock API responses; baseline from b0f52cda5 and updated routes from this worktree",
     "cd frontend && pnpm typecheck",
-    "cd frontend && pnpm vitest run src/views/admin/__tests__/PelicanTestsView.spec.ts src/views/user/__tests__/PelicanShowcaseView.spec.ts src/features/channel-monitor-v2/__tests__/MonitorStatusCards.pelican.spec.ts"
+    "cd frontend && pnpm vitest run src/router/__tests__/pelicanChannelStatusRouting.spec.ts src/views/admin/__tests__/PelicanTestsView.spec.ts src/features/channel-monitor-v2/__tests__/MonitorStatusCards.pelican.spec.ts"
   ],
   "checks": {
     "keyboard": { "status": "passed" },
@@ -64,18 +62,23 @@
 
 ## Scope
 
-- Routes: `/admin/pelican-tests`, `/pelican-showcase`, and the Pelican history dialog opened from a V2 channel group card.
-- Role: administrator configures scheduled tests; users see permitted groups and published artwork.
-- Screenshots use Chinese light theme at 390px and 1280px.
+- Admin route: `/admin/pelican-tests`. User results stay in the existing `/monitor` group cards; Candy summaries are inline and Pelican artwork history opens from its group card.
+- Role: administrator configures scheduled tests; users see permitted group results without a separate showcase route or sidebar item.
+- Screenshots use Chinese light theme at 1280px. The earlier standalone gallery screenshots document the discarded intermediate implementation and are not part of the final surface.
+
+## Scope Correction
+
+- The standalone `/pelican-showcase` user page and its sidebar entry were removed after review. They split the result from Channel Status and were not the requested user workflow.
+- The administrator's view action opens `/monitor`; scheduled configuration and the per-group history dialog remain.
 
 ## Baseline
 
 - `baseline-monitor-v2-1280.png` is the prior V2 Candy card implementation from `b0f52cda5`, before the Pelican history entry was added.
-- The admin scheduler and user artwork gallery did not exist in that baseline.
+- The admin scheduler and inline group-card history dialog did not exist in that baseline.
 
 ## Prototype
 
-- The two prototype images are the supplied V2 group-card and artwork-preview references.
+- The group-card prototype defines the user-facing result location; the artwork-preview prototype defines the history dialog content.
 - They define the feature boundary; the screenshots below show rendered implementation, not prototype mockups.
 
 ## Reuse Decision
@@ -85,21 +88,19 @@
 
 ## State Coverage
 
-- Default and success: admin group plan/history, user gallery cards, and V2 group-card history dialog are captured.
+- Default and success: admin group plan/history and V2 group-card history dialog are captured.
 - Loading, empty, error, disabled, and save/run states are covered by focused Vue tests.
-- Keyboard: native buttons plus the gallery row's tested arrow/Home/End controls; focus indicators are present.
-- Reduced motion: horizontal gallery movement respects `prefers-reduced-motion`.
+- Keyboard: native buttons and dialog controls retain visible focus indicators.
 
 ## Viewport Coverage
 
-- Mobile: the user gallery is captured at 390px; admin configuration is covered by responsive component tests.
-- Desktop: 1280px admin, user, and V2 card-dialog views are captured.
-- The gallery row keeps a visible keyboard/pointer slider when content overflows; the card preview is constrained to its viewport.
+- Desktop: 1280px admin and V2 card-dialog views are captured.
+- Artwork remains in the selected group history dialog and sandboxed preview.
 
 ## Evidence
 
 - Baseline: `baseline-monitor-v2-1280.png`.
-- Updated: admin, user gallery, and V2 card-dialog captures listed in the manifest.
+- Updated: admin and V2 card-dialog captures listed in the manifest.
 - Browser captures use fixed mock API responses and do not access production accounts or data.
 
 ## Residual Risk
