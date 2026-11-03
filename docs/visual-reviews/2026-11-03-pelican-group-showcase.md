@@ -6,6 +6,7 @@
   "changed_files": [
     "frontend/src/components/layout/AppSidebar.vue",
     "frontend/src/router/index.ts",
+    "frontend/src/features/channel-monitor-v2/MonitorStatusCards.vue",
     "frontend/src/components/user/pelican/PelicanArtworkPreview.vue",
     "frontend/src/components/user/pelican/PelicanGroupHistoryDialog.vue",
     "frontend/src/components/user/pelican/PelicanShowcaseApiDialog.vue",
@@ -14,12 +15,19 @@
     "frontend/src/components/user/pelican/pelicanShowcaseFormat.ts",
     "frontend/src/i18n/locales/en/pelicanShowcase.ts",
     "frontend/src/i18n/locales/en/pelicanTests.ts",
+    "frontend/src/i18n/locales/en.ts",
+    "frontend/src/i18n/locales/en/channelMonitorV2.ts",
+    "frontend/src/i18n/locales/en/index.ts",
     "frontend/src/i18n/locales/en/workspaceShell.ts",
     "frontend/src/i18n/locales/zh/pelicanShowcase.ts",
     "frontend/src/i18n/locales/zh/pelicanTests.ts",
+    "frontend/src/i18n/locales/zh.ts",
+    "frontend/src/i18n/locales/zh/channelMonitorV2.ts",
+    "frontend/src/i18n/locales/zh/index.ts",
     "frontend/src/i18n/locales/zh/workspaceShell.ts",
     "frontend/src/views/admin/PelicanTestsView.vue",
-    "frontend/src/views/user/PelicanShowcaseView.vue"
+    "frontend/src/views/user/PelicanShowcaseView.vue",
+    "frontend/src/views/user/ChannelStatusV2View.vue"
   ],
   "routes_or_surfaces": ["/admin/pelican-tests", "/pelican-showcase", "/channel-status-v2 group card history dialog"],
   "languages_and_themes": ["zh-CN/light"],
