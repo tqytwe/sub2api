@@ -686,11 +686,26 @@ func ProvideScheduledTestRunnerService(
 	qualityJudge *ContentModerationService,
 	monitorV2Repo ChannelMonitorV2Repository,
 	settingService *SettingService,
+	pelicanGroupTests *PelicanGroupTestService,
 ) *ScheduledTestRunnerService {
 	svc := NewScheduledTestRunnerService(planRepo, scheduledSvc, accountTestSvc, rateLimitSvc, cfg, qualityJudge)
 	svc.SetChannelMonitorV2CandyService(NewChannelMonitorV2CandyService(monitorV2Repo, accountTestSvc, settingService))
+	svc.SetPelicanGroupTestService(pelicanGroupTests)
 	svc.Start()
 	return svc
+}
+
+func ProvidePelicanGroupTestService(
+	repo PelicanGroupTestRepository,
+	groups GroupRepository,
+	gateway *GatewayService,
+	openai *OpenAIGatewayService,
+	concurrency *ConcurrencyService,
+	accountTest *AccountTestService,
+	showcase *PelicanShowcaseService,
+	billing *BillingService,
+) *PelicanGroupTestService {
+	return NewPelicanGroupTestService(repo, groups, gateway, openai, concurrency, accountTest, showcase, billing)
 }
 
 // ProvideOpsScheduledReportService creates and starts OpsScheduledReportService.
@@ -1257,6 +1272,8 @@ var ProviderSet = wire.NewSet(
 	ProvideIdempotencyCleanupService,
 	ProvideScheduledTestService,
 	ProvideScheduledTestRunnerService,
+	NewPelicanShowcaseService,
+	ProvidePelicanGroupTestService,
 	NewGroupCapacityService,
 	NewChannelService,
 	NewModelPricingResolver,

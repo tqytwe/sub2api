@@ -23,5 +23,6 @@ export default {
     historicalGiftReview: 'Historical Gift Review',
     rechargeOrders: 'Recharge Orders',
     playBilling: 'Google Play Billing',
+    pelicanShowcase: 'Pelican Showcase',
   },
 }

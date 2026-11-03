@@ -935,6 +935,12 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/admin/pelican-tests',
+    name: 'AdminPelicanTests',
+    component: () => import('@/views/admin/PelicanTestsView.vue'),
+    meta: { requiresAuth: true, requiresAdmin: true, titleKey: 'pelicanTests.title', descriptionKey: 'pelicanTests.description', localeScopes: ['admin-resources', 'user-dashboard'], frame: 'workspace' },
+  },
+  {
     path: '/admin/channels/monitor',
     name: 'AdminChannelMonitor',
     component: () => import('@/views/admin/ChannelMonitorView.vue'),
@@ -972,6 +978,12 @@ const routes: RouteRecordRaw[] = [
       titleKey: 'nav.channelStatus',
       frame: 'workspace'
     }
+  },
+  {
+    path: '/pelican-showcase',
+    name: 'PelicanShowcase',
+    component: () => import('@/views/user/PelicanShowcaseView.vue'),
+    meta: { requiresAuth: true, requiresAdmin: false, titleKey: 'pelicanShowcase.title', descriptionKey: 'pelicanShowcase.description', localeScopes: ['user-dashboard'], frame: 'workspace' },
   },
   {
     path: '/admin/subscriptions',

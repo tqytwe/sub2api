@@ -602,6 +602,12 @@ func (s *AccountTestService) testClaudeAccountConnection(c *gin.Context, account
 	if err != nil {
 		return s.sendErrorAndEnd(c, "Failed to create test payload")
 	}
+	if pelican, _ := ctx.Value(pelicanAccountTestContextKey{}).(bool); pelican {
+		payload, err = createPelicanClaudePayload(testModelID, qualityProbePrompt(ctx), qualityProbeEffort(ctx))
+		if err != nil {
+			return s.sendErrorAndEnd(c, "Failed to create Pelican test payload")
+		}
+	}
 	payloadBytes, _ := json.Marshal(payload)
 
 	// Send test_start event
@@ -763,6 +769,10 @@ func (s *AccountTestService) testBedrockAccountConnection(c *gin.Context, ctx co
 		},
 		"max_tokens":  256,
 		"temperature": 1,
+	}
+	if pelican, _ := ctx.Value(pelicanAccountTestContextKey{}).(bool); pelican {
+		bedrockPayload["max_tokens"] = 32000
+		bedrockPayload["messages"].([]map[string]any)[0]["content"].([]map[string]any)[0]["text"] = qualityProbePrompt(ctx)
 	}
 	bedrockBody, _ := json.Marshal(bedrockPayload)
 
@@ -932,6 +942,9 @@ func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account
 	applyQualityProbePromptToOpenAIPayload(payload, qualityProbePrompt(ctx))
 	if effort := qualityProbeEffort(ctx); effort != "" {
 		payload["reasoning"] = map[string]string{"effort": effort}
+	}
+	if pelican, _ := ctx.Value(pelicanAccountTestContextKey{}).(bool); pelican {
+		payload = createPelicanOpenAIPayload(upstreamTestModelID, isOAuth, qualityProbePrompt(ctx), qualityProbeEffort(ctx))
 	}
 	payloadBytes, _ := json.Marshal(payload)
 
@@ -2175,6 +2188,12 @@ func (s *AccountTestService) testOpenAIChatCompletionsConnection(
 	c.Writer.Flush()
 
 	payload := createOpenAIChatCompletionsTestPayload(testModelID, prompt)
+	if pelican, _ := ctx.Value(pelicanAccountTestContextKey{}).(bool); pelican {
+		payload["max_tokens"] = 32000
+		if effort := qualityProbeEffort(ctx); effort != "" {
+			payload["reasoning_effort"] = effort
+		}
+	}
 	payloadBytes, _ := json.Marshal(payload)
 
 	s.sendEvent(c, TestEvent{Type: "test_start", Model: testModelID})

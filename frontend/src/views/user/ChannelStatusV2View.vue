@@ -267,6 +267,7 @@
         :platform-order="snapshot?.config.platforms.filter((item) => item.enabled).map((item) => item.platform)"
         :group-order="snapshot?.config.group_order"
         :admin="isAdmin"
+        :showcase-groups="pelicanShowcaseGroups"
       />
 
       <template v-else>
@@ -502,6 +503,7 @@ import { extractApiErrorMessage } from '@/utils/apiError'
 import { isChannelMonitorThroughputHidden, isChannelMonitorUserRankingHidden } from '@/utils/featureFlags'
 import { platformLabel } from '@/utils/platformColors'
 import * as api from '@/api/channelMonitorV2'
+import { getShowcase, type PelicanShowcaseGroup } from '@/api/pelicanShowcase'
 import type {
   HealthState,
   MonitorDimensions,
@@ -589,6 +591,7 @@ const now = ref(Date.now())
 const dimensions = ref<MonitorDimensions>({ platforms: [], groups: [], models: [] })
 const snapshot = ref<MonitorSnapshot | null>(null)
 const matrix = ref<MonitorMatrixResponse | null>(null)
+const pelicanShowcaseGroups = ref<PelicanShowcaseGroup[]>([])
 const modelRows = ref<MonitorModelRow[]>([])
 const errorRows = ref<MonitorErrorRow[]>([])
 const userRows = ref<MonitorUserRow[]>([])
@@ -965,7 +968,10 @@ watch(showUserRanking, (allowed) => {
     activeTab.value = 'models'
   }
 })
-onMounted(() => void reload(false))
+onMounted(() => {
+  void reload(false)
+  void getShowcase().then((view) => { pelicanShowcaseGroups.value = view.enabled ? view.groups : [] }).catch(() => { pelicanShowcaseGroups.value = [] })
+})
 onMounted(() => {
   clockTimer = window.setInterval(() => { now.value = Date.now() }, 30_000)
 })

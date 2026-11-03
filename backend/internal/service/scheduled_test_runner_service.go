@@ -14,14 +14,15 @@ const scheduledTestDefaultMaxWorkers = 10
 
 // ScheduledTestRunnerService periodically scans due test plans and executes them.
 type ScheduledTestRunnerService struct {
-	planRepo        ScheduledTestPlanRepository
-	scheduledSvc    *ScheduledTestService
-	accountTestSvc  *AccountTestService
-	rateLimitSvc    *RateLimitService
-	qualityJudge    *qualityJevJudge
-	runQualityProbe func(context.Context, int64, string, string) (*ScheduledTestResult, error)
-	candyService    *ChannelMonitorV2CandyService
-	cfg             *config.Config
+	planRepo          ScheduledTestPlanRepository
+	scheduledSvc      *ScheduledTestService
+	accountTestSvc    *AccountTestService
+	rateLimitSvc      *RateLimitService
+	qualityJudge      *qualityJevJudge
+	runQualityProbe   func(context.Context, int64, string, string) (*ScheduledTestResult, error)
+	candyService      *ChannelMonitorV2CandyService
+	pelicanGroupTests *PelicanGroupTestService
+	cfg               *config.Config
 
 	cron      *cron.Cron
 	startOnce sync.Once
@@ -101,6 +102,10 @@ func (s *ScheduledTestRunnerService) runScheduled() {
 	if s.candyService != nil {
 		s.candyService.RunDue(ctx, now)
 	}
+	if s.pelicanGroupTests != nil {
+		s.pelicanGroupTests.RunDue(ctx, now)
+		s.pelicanGroupTests.Cleanup(ctx, now)
+	}
 	if s.scheduledSvc != nil {
 		if created, err := s.scheduledSvc.SyncQualityTemplates(ctx); err != nil {
 			logger.LegacyPrintf("service.scheduled_test_runner", "quality template sync error: %v", err)
@@ -138,6 +143,12 @@ func (s *ScheduledTestRunnerService) runScheduled() {
 func (s *ScheduledTestRunnerService) SetChannelMonitorV2CandyService(candy *ChannelMonitorV2CandyService) {
 	if s != nil {
 		s.candyService = candy
+	}
+}
+
+func (s *ScheduledTestRunnerService) SetPelicanGroupTestService(pelican *PelicanGroupTestService) {
+	if s != nil {
+		s.pelicanGroupTests = pelican
 	}
 }
 

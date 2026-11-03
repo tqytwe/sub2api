@@ -7,6 +7,8 @@ import splitCommonEn from './en/common'
 import splitChannelMonitorV2En from './en/channelMonitorV2'
 import splitChannelMonitorV3En from './en/channelMonitorV3'
 import splitDashboardEn from './en/dashboard'
+import splitPelicanShowcaseEn from './en/pelicanShowcase'
+import splitPelicanTestsEn from './en/pelicanTests'
 import splitWorkspaceShellEn from './en/workspaceShell'
 import auditAdminEn from './en/admin/audit'
 import promptAuditAdminEn from './en/admin/promptAudit'
@@ -9582,6 +9584,8 @@ export default mergeLocaleMessages(messages, mergeLocaleMessages({
   ...splitChannelMonitorV2En,
   ...splitChannelMonitorV3En,
   ...splitDashboardEn,
+  ...splitPelicanShowcaseEn,
+  pelicanTests: splitPelicanTestsEn,
   ...splitBatchImageEn,
   admin: splitAdminEn,
 }, splitWorkspaceShellEn))

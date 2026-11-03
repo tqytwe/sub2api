@@ -28,6 +28,10 @@ func RegisterUserRoutes(
 		authenticated.GET("/coupons/me", h.Coupon.ListMine)
 
 		// 用户接口
+		if h.PelicanShowcase != nil {
+			authenticated.GET("/pelican-showcase", h.PelicanShowcase.List)
+			authenticated.GET("/pelican-showcase/items/:id", h.PelicanShowcase.GetItem)
+		}
 		user := authenticated.Group("/user")
 		{
 			user.GET("/profile", h.User.GetProfile)

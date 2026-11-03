@@ -7,6 +7,8 @@ import splitCommonZh from './zh/common'
 import splitChannelMonitorV2Zh from './zh/channelMonitorV2'
 import splitChannelMonitorV3Zh from './zh/channelMonitorV3'
 import splitDashboardZh from './zh/dashboard'
+import splitPelicanShowcaseZh from './zh/pelicanShowcase'
+import splitPelicanTestsZh from './zh/pelicanTests'
 import splitWorkspaceShellZh from './zh/workspaceShell'
 import auditAdminZh from './zh/admin/audit'
 import promptAuditAdminZh from './zh/admin/promptAudit'
@@ -9752,6 +9754,8 @@ export default mergeLocaleMessages(messages, mergeLocaleMessages({
   ...splitChannelMonitorV2Zh,
   ...splitChannelMonitorV3Zh,
   ...splitDashboardZh,
+  ...splitPelicanShowcaseZh,
+  pelicanTests: splitPelicanTestsZh,
   ...splitBatchImageZh,
   admin: splitAdminZh,
 }, splitWorkspaceShellZh))

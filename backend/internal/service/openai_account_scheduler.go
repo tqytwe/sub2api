@@ -1909,8 +1909,14 @@ func (s *defaultOpenAIAccountScheduler) isAccountRequestCompatibleReason(ctx con
 	}) {
 		return false, "shadow_parent_unhealthy"
 	}
-	if req.RequestedModel != "" && !account.IsModelSupported(req.RequestedModel) {
-		return false, "model_not_supported"
+	if req.RequestedModel != "" {
+		if pelicanTest, _ := ctx.Value(pelicanGroupTestRoutingKey{}).(bool); pelicanTest {
+			if !pelicanGroupTestModelAllowed(ctx, account, req.RequestedModel) {
+				return false, "model_not_selected_for_pelican"
+			}
+		} else if !account.IsModelSupported(req.RequestedModel) {
+			return false, "model_not_supported"
+		}
 	}
 	if req.RequestedModel != "" && !account.IsModelAllowedInGroup(req.GroupID, req.RequestedModel) {
 		return false, "model_not_allowed_in_group"

@@ -41,6 +41,9 @@ func RegisterAdminRoutes(
 		admin.GET("/requests/:id/usage/:usage_id", h.RequestLedger.UsageAdmin)
 	}
 	{
+		if h.PelicanShowcase != nil && h.Admin != nil && h.Admin.PelicanGroupTest != nil {
+			registerPelicanShowcaseRoutes(admin, h)
+		}
 		// 部署与运营合规确认
 		registerAdminComplianceRoutes(admin, h)
 
@@ -162,6 +165,19 @@ func registerMobileAttributionRoutes(admin *gin.RouterGroup, h *handler.Handlers
 		attribution.GET("/installations", h.Admin.MobileAttribution.Installations)
 		attribution.GET("/funnel", h.Admin.MobileAttribution.Funnel)
 	}
+}
+
+func registerPelicanShowcaseRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	admin.GET("/pelican-showcase/settings", h.PelicanShowcase.GetSettings)
+	admin.PUT("/pelican-showcase/settings", h.PelicanShowcase.UpdateSettings)
+	admin.DELETE("/pelican-showcase/items/:id", h.PelicanShowcase.DeleteItem)
+	admin.GET("/pelican-group-tests", h.Admin.PelicanGroupTest.ListPlans)
+	admin.POST("/pelican-group-tests", h.Admin.PelicanGroupTest.CreatePlan)
+	admin.PUT("/pelican-group-tests/:id", h.Admin.PelicanGroupTest.UpdatePlan)
+	admin.DELETE("/pelican-group-tests/:id", h.Admin.PelicanGroupTest.DeletePlan)
+	admin.POST("/pelican-group-tests/:id/run", h.Admin.PelicanGroupTest.RunPlan)
+	admin.GET("/pelican-group-test-results", h.Admin.PelicanGroupTest.ListResults)
+	admin.GET("/pelican-group-test-results/:id", h.Admin.PelicanGroupTest.GetResult)
 }
 
 func registerIPRiskRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
