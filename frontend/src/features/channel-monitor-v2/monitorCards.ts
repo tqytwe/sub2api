@@ -57,10 +57,15 @@ export function monitorCardSampleTimeline(row: MonitorMatrixRow, coverage?: Moni
   const width = row.sample_buckets ? MONITOR_CARD_SAMPLE_BUCKET_MS : (coverage?.bucket_seconds || 0) * 1000
   return source
     .map((bucket) => ({ bucket, start: Date.parse(bucket.bucket_start) }))
-    .filter(({ bucket, start }) => Number.isFinite(start) && meetsMonitorSampleMinimum(bucket) && (!bounds || (start >= bounds.start && start < bounds.end)))
+    .filter(({ bucket, start }) => Number.isFinite(start) && hasMonitorSamples(bucket.metrics) && (!bounds || (start >= bounds.start && start < bounds.end)))
     .sort((a, b) => a.start - b.start)
     .slice(-MONITOR_CARD_SLOT_COUNT)
-    .map(({ bucket, start }) => ({ start, end: width > 0 ? start + width : start, state: bucket.health.overall, buckets: [bucket] }))
+    .map(({ bucket, start }) => ({
+      start,
+      end: width > 0 ? start + width : start,
+      state: meetsMonitorSampleMinimum(bucket) ? bucket.health.overall : 'unknown',
+      buckets: [bucket],
+    }))
 }
 
 export function monitorCardWindowTimeline(row: MonitorMatrixRow, coverage?: MonitorCoverage): MonitorCardBar[] {

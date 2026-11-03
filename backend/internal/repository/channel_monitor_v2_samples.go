@@ -29,31 +29,13 @@ func (r *channelMonitorV2Repository) attachRecentSampleBuckets(ctx context.Conte
 		return nil
 	}
 	start, end := time.Now().UTC().Add(-7*24*time.Hour), time.Now().UTC().Add(time.Minute)
-	modelSQL, modelArgs := channelMonitorV2SampleModelClause(filter, cfg, "m", 6)
+	modelSQL, modelArgs := channelMonitorV2SampleModelClause(filter, cfg, "m", 5)
 	modelFilter := ""
 	if modelSQL != "" {
 		modelFilter = " AND " + modelSQL
 	}
-	query := `SELECT s.bucket_start, s.platform, s.group_id, s.success_requests, s.error_requests, s.input_tokens, s.output_tokens, s.cache_creation_tokens, s.cache_read_tokens, s.ttft_sum_ms, s.ttft_count, s.duration_sum_ms, s.duration_count
-	FROM unnest($1::text[], $2::bigint[]) AS keys(platform, group_id)
-	CROSS JOIN LATERAL (
-	 SELECT m.bucket_start, m.platform, m.group_id,
-	        SUM(m.success_requests)::bigint AS success_requests, SUM(m.error_requests)::bigint AS error_requests,
-	        SUM(m.input_tokens)::bigint AS input_tokens, SUM(m.output_tokens)::bigint AS output_tokens,
-	        SUM(m.cache_creation_tokens)::bigint AS cache_creation_tokens, SUM(m.cache_read_tokens)::bigint AS cache_read_tokens,
-	        SUM(m.ttft_sum_ms)::bigint AS ttft_sum_ms, SUM(m.ttft_count)::bigint AS ttft_count,
-	        SUM(m.duration_sum_ms)::bigint AS duration_sum_ms, SUM(m.duration_count)::bigint AS duration_count
-	 FROM channel_monitor_v2_metrics_rollup m
-	 WHERE m.bucket_seconds=300 AND m.platform=keys.platform AND m.group_id=keys.group_id AND m.bucket_start >= $3 AND m.bucket_start < $4` + modelFilter + `
-	 GROUP BY m.bucket_start,m.platform,m.group_id
-	 HAVING SUM(m.success_requests + m.error_requests) >= $5
-	 ORDER BY m.bucket_start DESC LIMIT 18
-	) s ORDER BY s.bucket_start`
-	minimum := cfg.HealthThresholds.MinimumSample
-	if minimum <= 0 {
-		minimum = 50
-	}
-	args := []any{pq.Array(platforms), pq.Array(ids), start, end, minimum}
+	query := channelMonitorV2RecentSampleBucketsQuery(modelFilter)
+	args := []any{pq.Array(platforms), pq.Array(ids), start, end}
 	args = append(args, modelArgs...)
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
@@ -105,6 +87,23 @@ func (r *channelMonitorV2Repository) attachRecentSampleBuckets(ctx context.Conte
 		}
 	}
 	return nil
+}
+
+func channelMonitorV2RecentSampleBucketsQuery(modelFilter string) string {
+	return `SELECT s.bucket_start, s.platform, s.group_id, s.success_requests, s.error_requests, s.input_tokens, s.output_tokens, s.cache_creation_tokens, s.cache_read_tokens, s.ttft_sum_ms, s.ttft_count, s.duration_sum_ms, s.duration_count
+	FROM unnest($1::text[], $2::bigint[]) AS keys(platform, group_id)
+	CROSS JOIN LATERAL (
+	 SELECT m.bucket_start, m.platform, m.group_id,
+	        SUM(m.success_requests)::bigint AS success_requests, SUM(m.error_requests)::bigint AS error_requests,
+	        SUM(m.input_tokens)::bigint AS input_tokens, SUM(m.output_tokens)::bigint AS output_tokens,
+	        SUM(m.cache_creation_tokens)::bigint AS cache_creation_tokens, SUM(m.cache_read_tokens)::bigint AS cache_read_tokens,
+	        SUM(m.ttft_sum_ms)::bigint AS ttft_sum_ms, SUM(m.ttft_count)::bigint AS ttft_count,
+	        SUM(m.duration_sum_ms)::bigint AS duration_sum_ms, SUM(m.duration_count)::bigint AS duration_count
+	 FROM channel_monitor_v2_metrics_rollup m
+	 WHERE m.bucket_seconds=300 AND m.platform=keys.platform AND m.group_id=keys.group_id AND m.bucket_start >= $3 AND m.bucket_start < $4` + modelFilter + `
+	 GROUP BY m.bucket_start,m.platform,m.group_id
+	 ORDER BY m.bucket_start DESC LIMIT 18
+	) s ORDER BY s.bucket_start`
 }
 
 type sampleBucketKey struct {

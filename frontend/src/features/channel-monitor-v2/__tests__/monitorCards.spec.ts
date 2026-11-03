@@ -18,14 +18,14 @@ describe('V2 card timeline and Candy presentation', () => {
     expect(hasMonitorSamples({ request_count: 1 } as MonitorMatrixRow['metrics'])).toBe(true)
   })
 
-  it('keeps time-window gaps and filters recent samples by configured minimum', () => {
+  it('keeps time-window gaps and shows low-volume recent request buckets as unjudged', () => {
     const coverage = { requested_start: '2026-11-02T00:00:00Z', requested_end: '2026-11-02T00:10:00Z', bucket_seconds: 300 } as MonitorCoverage
     const value = row()
     expect(monitorCardTimeline(value, coverage, 'windows')).toHaveLength(18)
     expect(monitorCardTimeline(value, coverage, 'windows')[0].state).toBe('critical')
-    expect(monitorCardTimeline(value, coverage, 'samples')).toHaveLength(1)
+    expect(monitorCardTimeline(value, coverage, 'samples').map((bar) => bar.state)).toEqual(['unknown', 'warning'])
     value.sample_buckets = value.buckets
-    expect(monitorCardTimeline(value, undefined, 'samples').map((bar) => bar.state)).toEqual(['warning'])
+    expect(monitorCardTimeline(value, undefined, 'samples').map((bar) => bar.state)).toEqual(['unknown', 'warning'])
   })
 
   it('caps Candy history to the configured limit and identifies stale checks', () => {
