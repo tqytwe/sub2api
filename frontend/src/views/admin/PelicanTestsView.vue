@@ -8,7 +8,7 @@
           <p class="subtitle">{{ t('pelicanTests.description') }}</p>
         </div>
         <div class="flex flex-wrap items-center gap-2">
-          <RouterLink to="/pelican-showcase" class="btn btn-secondary inline-flex items-center gap-2">
+          <RouterLink to="/monitor" class="btn btn-secondary inline-flex items-center gap-2">
             <Icon name="eye" size="sm" />{{ t('pelicanTests.viewShowcase') }}
           </RouterLink>
           <button class="btn btn-secondary inline-flex items-center gap-2" :disabled="loading" @click="load">

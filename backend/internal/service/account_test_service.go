@@ -754,25 +754,19 @@ func (s *AccountTestService) testBedrockAccountConnection(c *gin.Context, ctx co
 	c.Writer.Flush()
 
 	// Create a minimal Bedrock-compatible payload (no stream, no cache_control)
+	messages := []map[string]any{{
+		"role":    "user",
+		"content": []map[string]any{{"type": "text", "text": "hi"}},
+	}}
 	bedrockPayload := map[string]any{
 		"anthropic_version": "bedrock-2023-05-31",
-		"messages": []map[string]any{
-			{
-				"role": "user",
-				"content": []map[string]any{
-					{
-						"type": "text",
-						"text": "hi",
-					},
-				},
-			},
-		},
-		"max_tokens":  256,
-		"temperature": 1,
+		"messages":          messages,
+		"max_tokens":        256,
+		"temperature":       1,
 	}
 	if pelican, _ := ctx.Value(pelicanAccountTestContextKey{}).(bool); pelican {
 		bedrockPayload["max_tokens"] = 32000
-		bedrockPayload["messages"].([]map[string]any)[0]["content"].([]map[string]any)[0]["text"] = qualityProbePrompt(ctx)
+		messages[0]["content"] = []map[string]any{{"type": "text", "text": qualityProbePrompt(ctx)}}
 	}
 	bedrockBody, _ := json.Marshal(bedrockPayload)
 

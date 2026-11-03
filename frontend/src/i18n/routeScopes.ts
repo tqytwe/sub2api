@@ -106,7 +106,6 @@ export type LocaleRouteName =
   | 'AdminPriorityScheduling'
   | 'AdminAccountQuality'
   | 'AdminPelicanTests'
-  | 'PelicanShowcase'
   | 'AdminTokenGuardV2'
   | 'AdminChannelMonitor'
   | 'AdminModelPlaza'
@@ -233,7 +232,6 @@ export const ROUTE_LOCALE_SCOPES = {
   // ChannelStatus also renders UsageProgressBar and therefore needs the
   // account usage-window labels before a cold visit can paint the rows.
   ChannelStatus: [...WORKSPACE, 'user-dashboard', 'channel-monitor', 'admin-accounts'],
-  PelicanShowcase: [...WORKSPACE, 'user-dashboard'],
   AdminSubscriptions: [...ADMIN, 'admin-channels', 'admin-resources'],
   AdminAccounts: [...ADMIN, 'admin-accounts', 'admin-settings', 'admin-overview'],
   AdminPlugins: [...ADMIN, 'admin-settings', 'admin-plugins'],
