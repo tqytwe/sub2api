@@ -59,3 +59,7 @@
 ## 提交前最终结论
 
 2026-11-06：`make test` 完整退出 0（Go 默认测试、golangci-lint 0 issues、frontend lint/typecheck/design 与 4,179 测试通过）。`make build`、全量 unit、Fork integrity 均通过。本次影响的真实数据库与 HTTP/Vue 专项通过。规格与质量复审完成；生产预检通过，代码提交/PR CI/部署与用户本机验收按后续实证补录。
+
+## PR 发布门禁补丁
+
+PR #411 首次安全扫描发现既有压缩依赖漏洞 GO-2026-6888（brotli crafted streams 过量分配）和 GO-2026-6865（zstd 两块帧 panic），均存在业务可达路径。仅将 brotli 1.2.0→1.2.7、compress 1.18.2→1.20.2，不修改玩法、路由、奖励或上游功能。依赖升级后的安全扫描、解压/上游 body 生命周期及玩法回归、后端全量默认测试和后端构建单独补验；前端源码与已通过的 4,179 项全量测试/构建完全相同，复用对应证据。修复提交会更新同一 PR，必须以最终 head 的 CI 为准。
