@@ -23957,8 +23957,8 @@
         "documentation",
         "frontend"
       ],
-      "classification": "待核验",
-      "reason": "来源覆盖已核验；未逐行为关闭，不继承旧生产结论",
+      "classification": "明确差异",
+      "reason": "Fork 有 channel_operations CAS；未有 upstream_channel_entities/显式上游实体绑定的数据链，不能用 URL 相同推断历史归属。",
       "prior_disposition": null,
       "prior_evidence": null,
       "paths": [
@@ -23991,7 +23991,12 @@
       "backend_state": "待核验",
       "product_state": "待本机验收",
       "owner": "待分配",
-      "next": "对应功能包独立对照、测试和交付；旧范围排除仅作历史记录"
+      "next": "实体→绑定→revision→目录/API/UI/审计→删除冲突测试；312/313 同号迁移另编号",
+      "feature_id": "U01",
+      "fork_refs": [
+        "backend/internal/repository/channel_operations.go",
+        "backend/internal/server/routes/admin.go"
+      ]
     },
     {
       "id": "5c035675aa891568ad312ec6ce81d2e1d1fc221b",
@@ -24004,8 +24009,8 @@
         "documentation",
         "frontend"
       ],
-      "classification": "待核验",
-      "reason": "来源覆盖已核验；未逐行为关闭，不继承旧生产结论",
+      "classification": "部分已有",
+      "reason": "Fork 已修复管理员附加费统计，未有上游 ProfitOperations 整套 URL/entity 归因。",
       "prior_disposition": null,
       "prior_evidence": null,
       "paths": [
@@ -24037,7 +24042,11 @@
       "backend_state": "待核验",
       "product_state": "待本机验收",
       "owner": "待分配",
-      "next": "对应功能包独立对照、测试和交付；旧范围排除仅作历史记录"
+      "next": "成本/收入/倍率/未知值一致；筛选后与使用流水只读对账，依赖 U01",
+      "feature_id": "U02",
+      "fork_refs": [
+        "backend/internal/repository/dashboard_aggregation_repo.go"
+      ]
     },
     {
       "id": "e6b30da8f75b382a20b56b712a209e9f7d8c72fb",
@@ -24050,8 +24059,8 @@
         "documentation",
         "frontend"
       ],
-      "classification": "待核验",
-      "reason": "来源覆盖已核验；未逐行为关闭，不继承旧生产结论",
+      "classification": "明确差异",
+      "reason": "Fork ownership 具备计划恢复/删除与版本保护；上游模型移除和隔离范围缩小合同未见对应字段。",
       "prior_disposition": null,
       "prior_evidence": null,
       "paths": [
@@ -24098,7 +24107,13 @@
       "backend_state": "待核验",
       "product_state": "待本机验收",
       "owner": "待分配",
-      "next": "对应功能包独立对照、测试和交付；旧范围排除仅作历史记录"
+      "next": "预览→版本/owner 栅栏→单模型确认→恢复/保留其他限制→刷新回读；不改变福利",
+      "feature_id": "U03",
+      "fork_refs": [
+        "backend/internal/repository/quality_ownership_core.go",
+        "backend/internal/service/quality_probe_targets.go",
+        "frontend/src/views/admin/AccountQualityView.vue"
+      ]
     },
     {
       "id": "dcc5b9dd7b282e0f665755a75d96f46f3bd67570",
@@ -24108,8 +24123,8 @@
       "domains": [
         "frontend"
       ],
-      "classification": "待核验",
-      "reason": "来源覆盖已核验；未逐行为关闭，不继承旧生产结论",
+      "classification": "部分已有",
+      "reason": "Dashboard 与 Usage 已传 rolling24-hours；不能据此证明所有查询/导出/分页窗口一致。",
       "prior_disposition": null,
       "prior_evidence": null,
       "paths": [
@@ -24119,7 +24134,12 @@
       "backend_state": "待核验",
       "product_state": "待本机验收",
       "owner": "待分配",
-      "next": "对应功能包独立对照、测试和交付；旧范围排除仅作历史记录"
+      "next": "同一时间窗查询、汇总、分页、导出与非 UTC/DST",
+      "feature_id": "U04",
+      "fork_refs": [
+        "frontend/src/views/admin/DashboardView.vue",
+        "frontend/src/views/admin/UsageView.vue"
+      ]
     },
     {
       "id": "5dcd0d09e0bdfb8dcd13ad5512bc282d25ce05f4",
@@ -24132,8 +24152,8 @@
         "documentation",
         "frontend"
       ],
-      "classification": "待核验",
-      "reason": "来源覆盖已核验；未逐行为关闭，不继承旧生产结论",
+      "classification": "明确差异",
+      "reason": "Fork 有 stop/deprioritize、恢复探索、attempt/质量归因；配置中未有上游 latency_sticky 完整合同。",
       "prior_disposition": null,
       "prior_evidence": null,
       "paths": [
@@ -24160,7 +24180,13 @@
       "backend_state": "待核验",
       "product_state": "待本机验收",
       "owner": "待分配",
-      "next": "对应功能包独立对照、测试和交付；旧范围排除仅作历史记录"
+      "next": "HTTP/WS admission、鉴权/配额不绕过、sticky 稳定性、unknown、公平恢复与降级计费",
+      "feature_id": "U05",
+      "fork_refs": [
+        "backend/internal/service/priority_scheduling_config.go",
+        "backend/internal/service/priority_scheduling_runtime.go",
+        "backend/internal/repository/usage_log_priority_scheduling.go"
+      ]
     },
     {
       "id": "da7abe522f78a1420361f8c8bb92c72e3626f951",
@@ -24175,7 +24201,7 @@
         "frontend"
       ],
       "classification": "待核验",
-      "reason": "来源覆盖已核验；未逐行为关闭，不继承旧生产结论",
+      "reason": "聚合 PR 必须拆开审查；不能把 cherry-pick 视为一个已完成能力。",
       "prior_disposition": null,
       "prior_evidence": null,
       "paths": [
@@ -24439,7 +24465,12 @@
       "backend_state": "待核验",
       "product_state": "待本机验收",
       "owner": "待分配",
-      "next": "对应功能包独立对照、测试和交付；旧范围排除仅作历史记录"
+      "next": "拆 scoped admin keys、图片按张计费、Gemini/Antigravity/协议/导出等子项；完整路径已在提交账本",
+      "feature_id": "U06",
+      "fork_refs": [
+        "backend/internal/server/routes/admin.go",
+        "backend/internal/handler/admin/account_handler.go"
+      ]
     },
     {
       "id": "08d69a522c79a182fd681ead8fa4d848d9e1554e",
@@ -24471,8 +24502,8 @@
         "build-release-other",
         "documentation"
       ],
-      "classification": "待核验",
-      "reason": "来源覆盖已核验；未逐行为关闭，不继承旧生产结论",
+      "classification": "明确差异",
+      "reason": "Fork passkey session 仍直接 GETDEL；当前生产 Redis 8.4，不代表向下兼容。",
       "prior_disposition": null,
       "prior_evidence": null,
       "paths": [
@@ -24502,7 +24533,12 @@
       "backend_state": "待核验",
       "product_state": "待本机验收",
       "owner": "待分配",
-      "next": "对应功能包独立对照、测试和交付；旧范围排除仅作历史记录"
+      "next": "一次性消费原子性、固定窗 TTL、ZSET 命令在真实旧 Redis 验证；原子 Lua 禁止替换成分开 GET/DEL",
+      "feature_id": "U07",
+      "fork_refs": [
+        "backend/internal/repository/passkey_session_store.go",
+        "backend/internal/repository/user_msg_queue_cache.go"
+      ]
     },
     {
       "id": "76b54ea02b3cd3ed8dbfb8865d1aa46c19799a5a",
@@ -24514,7 +24550,7 @@
         "build-release-other"
       ],
       "classification": "待核验",
-      "reason": "来源覆盖已核验；未逐行为关闭，不继承旧生产结论",
+      "reason": "Fork BPS runtime 已存在；上游三方用量快照/来源/冻结时点需按 writer-reader 对照。",
       "prior_disposition": null,
       "prior_evidence": null,
       "paths": [
@@ -24546,7 +24582,12 @@
       "backend_state": "待核验",
       "product_state": "待本机验收",
       "owner": "待分配",
-      "next": "对应功能包独立对照、测试和交付；旧范围排除仅作历史记录"
+      "next": "真实 token 来源、模型、刷新稳定性、unknown 与费用快照，不重算历史账单",
+      "feature_id": "U08",
+      "fork_refs": [
+        "backend/internal/service/billing_service.go",
+        "backend/internal/service/openai_gateway_usage.go"
+      ]
     },
     {
       "id": "146c4ed23b6c44c8f394e135f7e6a881fc0c26c2",
@@ -24560,8 +24601,8 @@
         "documentation",
         "frontend"
       ],
-      "classification": "待核验",
-      "reason": "来源覆盖已核验；未逐行为关闭，不继承旧生产结论",
+      "classification": "明确差异",
+      "reason": "Fork 有 channel_operations CAS；未有 upstream_channel_entities/显式上游实体绑定的数据链，不能用 URL 相同推断历史归属。",
       "prior_disposition": null,
       "prior_evidence": null,
       "paths": [
@@ -24627,7 +24668,12 @@
       "backend_state": "待核验",
       "product_state": "待本机验收",
       "owner": "待分配",
-      "next": "对应功能包独立对照、测试和交付；旧范围排除仅作历史记录"
+      "next": "实体→绑定→revision→目录/API/UI/审计→删除冲突测试；312/313 同号迁移另编号",
+      "feature_id": "U01",
+      "fork_refs": [
+        "backend/internal/repository/channel_operations.go",
+        "backend/internal/server/routes/admin.go"
+      ]
     },
     {
       "id": "99f25942738ff12056ac82d97ee6b74cb07cd163",
@@ -24640,8 +24686,8 @@
         "documentation",
         "frontend"
       ],
-      "classification": "待核验",
-      "reason": "来源覆盖已核验；未逐行为关闭，不继承旧生产结论",
+      "classification": "部分已有",
+      "reason": "前端有 STATE_PROBE_QUESTION 和判定工具，质量探测目标已有；运行 worker/允许模型与判定证据待核。",
       "prior_disposition": null,
       "prior_evidence": null,
       "paths": [
@@ -24684,7 +24730,12 @@
       "backend_state": "待核验",
       "product_state": "待本机验收",
       "owner": "待分配",
-      "next": "对应功能包独立对照、测试和交付；旧范围排除仅作历史记录"
+      "next": "规则编辑→目标解析→执行→状态判定→历史；不把前端枚举当实现",
+      "feature_id": "U09",
+      "fork_refs": [
+        "frontend/src/utils/intelligenceTest.ts",
+        "backend/internal/service/quality_probe_targets.go"
+      ]
     },
     {
       "id": "fdf41928023449d9c9c8725868589ea1ba96677a",
@@ -24697,8 +24748,8 @@
         "documentation",
         "frontend"
       ],
-      "classification": "待核验",
-      "reason": "来源覆盖已核验；未逐行为关闭，不继承旧生产结论",
+      "classification": "明确差异",
+      "reason": "Fork 有 ops histogram 和 priority attempt；未有 ops_network_minutes、queue_wait/queue_timing 的完整存储合同。最终 #643 已撤回主表 timing 列。",
       "prior_disposition": null,
       "prior_evidence": null,
       "paths": [
@@ -24729,7 +24780,12 @@
       "backend_state": "待核验",
       "product_state": "待本机验收",
       "owner": "待分配",
-      "next": "对应功能包独立对照、测试和交付；旧范围排除仅作历史记录"
+      "next": "按最终版本实现连接/队列分段来源、NULL、分页/筛选、保留期；不把已撤回的列重新加回",
+      "feature_id": "U10",
+      "fork_refs": [
+        "backend/internal/repository/ops_repo_latency_histogram_buckets.go",
+        "backend/internal/repository/usage_log_priority_scheduling.go"
+      ]
     },
     {
       "id": "5c3af7b1f25e75c327fb231f0eab85e4d650fb6d",
@@ -24743,8 +24799,8 @@
         "documentation",
         "frontend"
       ],
-      "classification": "待核验",
-      "reason": "来源覆盖已核验；未逐行为关闭，不继承旧生产结论",
+      "classification": "明确差异",
+      "reason": "当前树未见 auth_connections、connection_affinity、refresh fencing 表与服务；API Key 和单凭据不是等价物。",
       "prior_disposition": null,
       "prior_evidence": null,
       "paths": [
@@ -24833,7 +24889,12 @@
       "backend_state": "待核验",
       "product_state": "待本机验收",
       "owner": "待分配",
-      "next": "对应功能包独立对照、测试和交付；旧范围排除仅作历史记录"
+      "next": "上游 312–318 作为一项闭环：CRUD/OAuth/lease/route/usage attribution/affinity/refresh unknown/回退",
+      "feature_id": "U11",
+      "fork_refs": [
+        "backend/internal/service/openai_gateway_service.go",
+        "backend/internal/server/routes/admin.go"
+      ]
     },
     {
       "id": "eb68bc4fd38e6b91ba8a14cf1c66d5fc837141d9",
@@ -24845,8 +24906,8 @@
         "build-release-other",
         "frontend"
       ],
-      "classification": "待核验",
-      "reason": "来源覆盖已核验；未逐行为关闭，不继承旧生产结论",
+      "classification": "明确差异",
+      "reason": "Fork 有 stop/deprioritize、恢复探索、attempt/质量归因；配置中未有上游 latency_sticky 完整合同。",
       "prior_disposition": null,
       "prior_evidence": null,
       "paths": [
@@ -24881,7 +24942,13 @@
       "backend_state": "待核验",
       "product_state": "待本机验收",
       "owner": "待分配",
-      "next": "对应功能包独立对照、测试和交付；旧范围排除仅作历史记录"
+      "next": "HTTP/WS admission、鉴权/配额不绕过、sticky 稳定性、unknown、公平恢复与降级计费",
+      "feature_id": "U05",
+      "fork_refs": [
+        "backend/internal/service/priority_scheduling_config.go",
+        "backend/internal/service/priority_scheduling_runtime.go",
+        "backend/internal/repository/usage_log_priority_scheduling.go"
+      ]
     },
     {
       "id": "cf3d30c69ea997d15a5d714805d5b6ad2901463f",
@@ -24913,8 +24980,8 @@
         "build-release-other",
         "frontend"
       ],
-      "classification": "待核验",
-      "reason": "来源覆盖已核验；未逐行为关闭，不继承旧生产结论",
+      "classification": "明确差异",
+      "reason": "当前树未见 auth_connections、connection_affinity、refresh fencing 表与服务；API Key 和单凭据不是等价物。",
       "prior_disposition": null,
       "prior_evidence": null,
       "paths": [
@@ -24941,7 +25008,12 @@
       "backend_state": "待核验",
       "product_state": "待本机验收",
       "owner": "待分配",
-      "next": "对应功能包独立对照、测试和交付；旧范围排除仅作历史记录"
+      "next": "上游 312–318 作为一项闭环：CRUD/OAuth/lease/route/usage attribution/affinity/refresh unknown/回退",
+      "feature_id": "U11",
+      "fork_refs": [
+        "backend/internal/service/openai_gateway_service.go",
+        "backend/internal/server/routes/admin.go"
+      ]
     },
     {
       "id": "dc3d41441ba914b25d7f26c49618c25a1df99e77",
@@ -24954,8 +25026,8 @@
         "documentation",
         "frontend"
       ],
-      "classification": "待核验",
-      "reason": "来源覆盖已核验；未逐行为关闭，不继承旧生产结论",
+      "classification": "明确差异",
+      "reason": "Fork 有 ops histogram 和 priority attempt；未有 ops_network_minutes、queue_wait/queue_timing 的完整存储合同。最终 #643 已撤回主表 timing 列。",
       "prior_disposition": null,
       "prior_evidence": null,
       "paths": [
@@ -24992,7 +25064,12 @@
       "backend_state": "待核验",
       "product_state": "待本机验收",
       "owner": "待分配",
-      "next": "对应功能包独立对照、测试和交付；旧范围排除仅作历史记录"
+      "next": "按最终版本实现连接/队列分段来源、NULL、分页/筛选、保留期；不把已撤回的列重新加回",
+      "feature_id": "U10",
+      "fork_refs": [
+        "backend/internal/repository/ops_repo_latency_histogram_buckets.go",
+        "backend/internal/repository/usage_log_priority_scheduling.go"
+      ]
     },
     {
       "id": "c81e2a9e735c5fc53c7175448d29441cb777a143",
@@ -25003,8 +25080,8 @@
         "build-release-other",
         "documentation"
       ],
-      "classification": "待核验",
-      "reason": "来源覆盖已核验；未逐行为关闭，不继承旧生产结论",
+      "classification": "明确差异",
+      "reason": "Fork 有 passthrough/WS；未见 upstream smart protocol 服务，文档 #608 依赖实现。",
       "prior_disposition": null,
       "prior_evidence": null,
       "paths": [
@@ -25015,7 +25092,11 @@
       "backend_state": "待核验",
       "product_state": "待本机验收",
       "owner": "待分配",
-      "next": "对应功能包独立对照、测试和交付；旧范围排除仅作历史记录"
+      "next": "连接能力选择→复用→回退→usage/取消→会话边界；和 U11 的连接依赖先确认",
+      "feature_id": "U15",
+      "fork_refs": [
+        "backend/internal/service/openai_gateway_service.go"
+      ]
     },
     {
       "id": "ec007920de042797299fc7cf2c034ad24c136462",
@@ -25027,7 +25108,7 @@
         "build-release-other"
       ],
       "classification": "待核验",
-      "reason": "来源覆盖已核验；未逐行为关闭，不继承旧生产结论",
+      "reason": "Fork 有 WS 路径；必须区分客户端/连接/账号身份和 session 作用域。",
       "prior_disposition": null,
       "prior_evidence": null,
       "paths": [
@@ -25049,7 +25130,11 @@
       "backend_state": "待核验",
       "product_state": "待本机验收",
       "owner": "待分配",
-      "next": "对应功能包独立对照、测试和交付；旧范围排除仅作历史记录"
+      "next": "多用户同 session、连接复用、cookie/header、租户隔离与重连回归",
+      "feature_id": "U12",
+      "fork_refs": [
+        "backend/internal/service/openai_gateway_service.go"
+      ]
     },
     {
       "id": "611d317bf258f0cfc5a7f519f0130dd11cef7f8f",
@@ -25063,8 +25148,8 @@
         "documentation",
         "frontend"
       ],
-      "classification": "待核验",
-      "reason": "来源覆盖已核验；未逐行为关闭，不继承旧生产结论",
+      "classification": "明确差异",
+      "reason": "Fork 有 ops histogram 和 priority attempt；未有 ops_network_minutes、queue_wait/queue_timing 的完整存储合同。最终 #643 已撤回主表 timing 列。",
       "prior_disposition": null,
       "prior_evidence": null,
       "paths": [
@@ -25167,7 +25252,12 @@
       "backend_state": "待核验",
       "product_state": "待本机验收",
       "owner": "待分配",
-      "next": "对应功能包独立对照、测试和交付；旧范围排除仅作历史记录"
+      "next": "按最终版本实现连接/队列分段来源、NULL、分页/筛选、保留期；不把已撤回的列重新加回",
+      "feature_id": "U10",
+      "fork_refs": [
+        "backend/internal/repository/ops_repo_latency_histogram_buckets.go",
+        "backend/internal/repository/usage_log_priority_scheduling.go"
+      ]
     },
     {
       "id": "4bb07445747613f8d2805c48315cd6222cc365c2",
@@ -25181,8 +25271,8 @@
         "documentation",
         "frontend"
       ],
-      "classification": "待核验",
-      "reason": "来源覆盖已核验；未逐行为关闭，不继承旧生产结论",
+      "classification": "明确差异",
+      "reason": "Fork 有 ops histogram 和 priority attempt；未有 ops_network_minutes、queue_wait/queue_timing 的完整存储合同。最终 #643 已撤回主表 timing 列。",
       "prior_disposition": null,
       "prior_evidence": null,
       "paths": [
@@ -25252,7 +25342,12 @@
       "backend_state": "待核验",
       "product_state": "待本机验收",
       "owner": "待分配",
-      "next": "对应功能包独立对照、测试和交付；旧范围排除仅作历史记录"
+      "next": "按最终版本实现连接/队列分段来源、NULL、分页/筛选、保留期；不把已撤回的列重新加回",
+      "feature_id": "U10",
+      "fork_refs": [
+        "backend/internal/repository/ops_repo_latency_histogram_buckets.go",
+        "backend/internal/repository/usage_log_priority_scheduling.go"
+      ]
     },
     {
       "id": "d14ed1807bdfe43aabed1739c0e062c1f4512ddf",
@@ -25264,8 +25359,8 @@
         "build-release-other",
         "frontend"
       ],
-      "classification": "待核验",
-      "reason": "来源覆盖已核验；未逐行为关闭，不继承旧生产结论",
+      "classification": "部分已有",
+      "reason": "Fork OpenAI transport 强制默认 0，显式静态配置生效；缺少上游动态 DB 设置接口。",
       "prior_disposition": null,
       "prior_evidence": null,
       "paths": [
@@ -25307,7 +25402,13 @@
       "backend_state": "待核验",
       "product_state": "待本机验收",
       "owner": "待分配",
-      "next": "对应功能包独立对照、测试和交付；旧范围排除仅作历史记录"
+      "next": "默认/显式设置、缓存刷新与旧配置兼容；动态配置单独补闭环",
+      "feature_id": "U13",
+      "fork_refs": [
+        "backend/internal/repository/http_upstream.go",
+        "backend/internal/config/config.go",
+        "backend/internal/repository/http_upstream_test.go"
+      ]
     },
     {
       "id": "8d7dcf142d524280994f9e46c757a82b7a760a5a",
@@ -25318,8 +25419,8 @@
         "backend",
         "frontend"
       ],
-      "classification": "待核验",
-      "reason": "来源覆盖已核验；未逐行为关闭，不继承旧生产结论",
+      "classification": "明确差异",
+      "reason": "Fork 有 stop/deprioritize、恢复探索、attempt/质量归因；配置中未有上游 latency_sticky 完整合同。",
       "prior_disposition": null,
       "prior_evidence": null,
       "paths": [
@@ -25338,7 +25439,13 @@
       "backend_state": "待核验",
       "product_state": "待本机验收",
       "owner": "待分配",
-      "next": "对应功能包独立对照、测试和交付；旧范围排除仅作历史记录"
+      "next": "HTTP/WS admission、鉴权/配额不绕过、sticky 稳定性、unknown、公平恢复与降级计费",
+      "feature_id": "U05",
+      "fork_refs": [
+        "backend/internal/service/priority_scheduling_config.go",
+        "backend/internal/service/priority_scheduling_runtime.go",
+        "backend/internal/repository/usage_log_priority_scheduling.go"
+      ]
     },
     {
       "id": "5909f3fec59c5caae335a77c89b63e6464819532",
@@ -25350,7 +25457,7 @@
         "frontend"
       ],
       "classification": "待核验",
-      "reason": "来源覆盖已核验；未逐行为关闭，不继承旧生产结论",
+      "reason": "Fork request ledger/usage settlement 已有自研幂等；不能按上游 handler 文件覆盖。",
       "prior_disposition": null,
       "prior_evidence": null,
       "paths": [
@@ -25368,7 +25475,12 @@
       "backend_state": "待核验",
       "product_state": "待本机验收",
       "owner": "待分配",
-      "next": "对应功能包独立对照、测试和交付；旧范围排除仅作历史记录"
+      "next": "请求已发出/未发出故障注入、不得重复执行/计费、取消/重试/迟到响应一致",
+      "feature_id": "U14",
+      "fork_refs": [
+        "backend/internal/service/usage_billing.go",
+        "backend/internal/service/openai_gateway_service.go"
+      ]
     },
     {
       "id": "1adbacf2b0c920dfecfcfbd2686585a32ae5af53",
@@ -25380,7 +25492,7 @@
         "build-release-other"
       ],
       "classification": "待核验",
-      "reason": "来源覆盖已核验；未逐行为关闭，不继承旧生产结论",
+      "reason": "Fork request ledger/usage settlement 已有自研幂等；不能按上游 handler 文件覆盖。",
       "prior_disposition": null,
       "prior_evidence": null,
       "paths": [
@@ -25392,7 +25504,12 @@
       "backend_state": "待核验",
       "product_state": "待本机验收",
       "owner": "待分配",
-      "next": "对应功能包独立对照、测试和交付；旧范围排除仅作历史记录"
+      "next": "请求已发出/未发出故障注入、不得重复执行/计费、取消/重试/迟到响应一致",
+      "feature_id": "U14",
+      "fork_refs": [
+        "backend/internal/service/usage_billing.go",
+        "backend/internal/service/openai_gateway_service.go"
+      ]
     },
     {
       "id": "6ac5e1c51f503ab76ddf6a5f4607809022b8437c",
@@ -25404,8 +25521,8 @@
         "build-release-other",
         "documentation"
       ],
-      "classification": "待核验",
-      "reason": "来源覆盖已核验；未逐行为关闭，不继承旧生产结论",
+      "classification": "明确差异",
+      "reason": "Fork 有 passthrough/WS；未见 upstream smart protocol 服务，文档 #608 依赖实现。",
       "prior_disposition": null,
       "prior_evidence": null,
       "paths": [
@@ -25441,7 +25558,11 @@
       "backend_state": "待核验",
       "product_state": "待本机验收",
       "owner": "待分配",
-      "next": "对应功能包独立对照、测试和交付；旧范围排除仅作历史记录"
+      "next": "连接能力选择→复用→回退→usage/取消→会话边界；和 U11 的连接依赖先确认",
+      "feature_id": "U15",
+      "fork_refs": [
+        "backend/internal/service/openai_gateway_service.go"
+      ]
     },
     {
       "id": "55da3ead72ce6f6126a977c75abf72cb4ad3f394",
@@ -25471,8 +25592,8 @@
       "domains": [
         "frontend"
       ],
-      "classification": "待核验",
-      "reason": "来源覆盖已核验；未逐行为关闭，不继承旧生产结论",
+      "classification": "明确差异",
+      "reason": "Fork 有 ops histogram 和 priority attempt；未有 ops_network_minutes、queue_wait/queue_timing 的完整存储合同。最终 #643 已撤回主表 timing 列。",
       "prior_disposition": null,
       "prior_evidence": null,
       "paths": [
@@ -25492,7 +25613,12 @@
       "backend_state": "待核验",
       "product_state": "待本机验收",
       "owner": "待分配",
-      "next": "对应功能包独立对照、测试和交付；旧范围排除仅作历史记录"
+      "next": "按最终版本实现连接/队列分段来源、NULL、分页/筛选、保留期；不把已撤回的列重新加回",
+      "feature_id": "U10",
+      "fork_refs": [
+        "backend/internal/repository/ops_repo_latency_histogram_buckets.go",
+        "backend/internal/repository/usage_log_priority_scheduling.go"
+      ]
     },
     {
       "id": "3c88bd92e569bd697e8ee77b4315f17d4f24e3fb",
@@ -25505,7 +25631,7 @@
         "frontend"
       ],
       "classification": "待核验",
-      "reason": "来源覆盖已核验；未逐行为关闭，不继承旧生产结论",
+      "reason": "Fork Anthropic gateway 有兼容层；未见上游专门 mimic 实现，需核 header/body/计费。",
       "prior_disposition": null,
       "prior_evidence": null,
       "paths": [
@@ -25534,7 +25660,11 @@
       "backend_state": "待核验",
       "product_state": "待本机验收",
       "owner": "待分配",
-      "next": "对应功能包独立对照、测试和交付；旧范围排除仅作历史记录"
+      "next": "API Key 权限、开关、User-Agent/headers、工具/多轮/stream、失败恢复",
+      "feature_id": "U16",
+      "fork_refs": [
+        "backend/internal/service/gateway_service.go"
+      ]
     },
     {
       "id": "5fa0ecdd0ef792acbd03f5850375dba4e133b67a",
@@ -25545,7 +25675,7 @@
         "frontend"
       ],
       "classification": "待核验",
-      "reason": "来源覆盖已核验；未逐行为关闭，不继承旧生产结论",
+      "reason": "不把现有公告当新功能提示等价。",
       "prior_disposition": null,
       "prior_evidence": null,
       "paths": [
@@ -25567,7 +25697,11 @@
       "backend_state": "待核验",
       "product_state": "待本机验收",
       "owner": "待分配",
-      "next": "对应功能包独立对照、测试和交付；旧范围排除仅作历史记录"
+      "next": "仅管理员、关闭/持久化、版本提示去重、双语/主题；沿用 UI 组件",
+      "feature_id": "U17",
+      "fork_refs": [
+        "frontend/src/components/layout/AppSidebar.vue"
+      ]
     },
     {
       "id": "4deea9b9657e67bb766744f2c19f443e7ace961d",
@@ -25580,8 +25714,8 @@
         "documentation",
         "frontend"
       ],
-      "classification": "待核验",
-      "reason": "来源覆盖已核验；未逐行为关闭，不继承旧生产结论",
+      "classification": "明确保留二开，待接入决策",
+      "reason": "上游新彩票/票数/邀请账本与 Fork 福利/盲盒/邀请返佣不同；不覆盖既有玩法。",
       "prior_disposition": null,
       "prior_evidence": null,
       "paths": [
@@ -25702,7 +25836,12 @@
       "backend_state": "待核验",
       "product_state": "待本机验收",
       "owner": "待分配",
-      "next": "对应功能包独立对照、测试和交付；旧范围排除仅作历史记录"
+      "next": "先独立定义纳入边界；323/324/325、充值归因、风控、概率、幂等奖励和管理页面一起交付",
+      "feature_id": "U18",
+      "fork_refs": [
+        "backend/internal/server/routes/play.go",
+        "frontend/src/views/admin/PlayOpsView.vue"
+      ]
     },
     {
       "id": "6de829fa2efa801dcf3071c4efe842198c7724be",
@@ -25712,8 +25851,8 @@
       "domains": [
         "frontend"
       ],
-      "classification": "待核验",
-      "reason": "来源覆盖已核验；未逐行为关闭，不继承旧生产结论",
+      "classification": "明确差异",
+      "reason": "Fork 有 ops histogram 和 priority attempt；未有 ops_network_minutes、queue_wait/queue_timing 的完整存储合同。最终 #643 已撤回主表 timing 列。",
       "prior_disposition": null,
       "prior_evidence": null,
       "paths": [
@@ -25727,7 +25866,12 @@
       "backend_state": "待核验",
       "product_state": "待本机验收",
       "owner": "待分配",
-      "next": "对应功能包独立对照、测试和交付；旧范围排除仅作历史记录"
+      "next": "按最终版本实现连接/队列分段来源、NULL、分页/筛选、保留期；不把已撤回的列重新加回",
+      "feature_id": "U10",
+      "fork_refs": [
+        "backend/internal/repository/ops_repo_latency_histogram_buckets.go",
+        "backend/internal/repository/usage_log_priority_scheduling.go"
+      ]
     },
     {
       "id": "b5e84d6659b89f5474295c2e7bdec30000ecd9eb",
@@ -25737,8 +25881,8 @@
       "domains": [
         "frontend"
       ],
-      "classification": "待核验",
-      "reason": "来源覆盖已核验；未逐行为关闭，不继承旧生产结论",
+      "classification": "明确差异",
+      "reason": "Fork 有 ops histogram 和 priority attempt；未有 ops_network_minutes、queue_wait/queue_timing 的完整存储合同。最终 #643 已撤回主表 timing 列。",
       "prior_disposition": null,
       "prior_evidence": null,
       "paths": [
@@ -25753,7 +25897,12 @@
       "backend_state": "待核验",
       "product_state": "待本机验收",
       "owner": "待分配",
-      "next": "对应功能包独立对照、测试和交付；旧范围排除仅作历史记录"
+      "next": "按最终版本实现连接/队列分段来源、NULL、分页/筛选、保留期；不把已撤回的列重新加回",
+      "feature_id": "U10",
+      "fork_refs": [
+        "backend/internal/repository/ops_repo_latency_histogram_buckets.go",
+        "backend/internal/repository/usage_log_priority_scheduling.go"
+      ]
     },
     {
       "id": "c760a11d4161f982b1d62776ecaeb1a8d461781f",
@@ -25785,8 +25934,8 @@
         "database",
         "frontend"
       ],
-      "classification": "待核验",
-      "reason": "来源覆盖已核验；未逐行为关闭，不继承旧生产结论",
+      "classification": "明确差异",
+      "reason": "当前未见 account_performance 存储/服务；质量规则与 token guard 的状态所有权不同。",
       "prior_disposition": null,
       "prior_evidence": null,
       "paths": [
@@ -25825,7 +25974,12 @@
       "backend_state": "待核验",
       "product_state": "待本机验收",
       "owner": "待分配",
-      "next": "对应功能包独立对照、测试和交付；旧范围排除仅作历史记录"
+      "next": "窗口/阈值→公平扫描→独立暂停 generation→恢复/删除→区域/并发→审计",
+      "feature_id": "U19",
+      "fork_refs": [
+        "backend/internal/server/routes/admin.go",
+        "backend/internal/service/priority_scheduling_config.go"
+      ]
     },
     {
       "id": "b192c735fa2f536cc87a4a511bfcda59233d5596",
@@ -25837,8 +25991,8 @@
         "build-release-other",
         "frontend"
       ],
-      "classification": "待核验",
-      "reason": "来源覆盖已核验；未逐行为关闭，不继承旧生产结论",
+      "classification": "部分已有",
+      "reason": "Fork OpenAI transport 强制默认 0，显式静态配置生效；缺少上游动态 DB 设置接口。",
       "prior_disposition": null,
       "prior_evidence": null,
       "paths": [
@@ -25858,7 +26012,13 @@
       "backend_state": "待核验",
       "product_state": "待本机验收",
       "owner": "待分配",
-      "next": "对应功能包独立对照、测试和交付；旧范围排除仅作历史记录"
+      "next": "默认/显式设置、缓存刷新与旧配置兼容；动态配置单独补闭环",
+      "feature_id": "U13",
+      "fork_refs": [
+        "backend/internal/repository/http_upstream.go",
+        "backend/internal/config/config.go",
+        "backend/internal/repository/http_upstream_test.go"
+      ]
     },
     {
       "id": "f0020cc41ecb5513014c993d20978fc59856807d",
@@ -25868,8 +26028,8 @@
       "domains": [
         "backend"
       ],
-      "classification": "待核验",
-      "reason": "来源覆盖已核验；未逐行为关闭，不继承旧生产结论",
+      "classification": "依赖前置，待核验",
+      "reason": "Fork 未见上游 safety_prompt_response 基础链；只搬两文件无法闭环。",
       "prior_disposition": null,
       "prior_evidence": null,
       "paths": [
@@ -25879,7 +26039,11 @@
       "backend_state": "待核验",
       "product_state": "待本机验收",
       "owner": "待分配",
-      "next": "对应功能包独立对照、测试和交付；旧范围排除仅作历史记录"
+      "next": "先决定安全提示注入/retention 基础模块，再验证错误/缺失 Content-Type 的增量识别、缓冲上限与取消",
+      "feature_id": "U20",
+      "fork_refs": [
+        "backend/internal/service/openai_gateway_response_handling.go"
+      ]
     },
     {
       "id": "5eb89ca77c7bee5b73dbac4927078458612a169d",
@@ -25891,8 +26055,8 @@
         "build-release-other",
         "documentation"
       ],
-      "classification": "待核验",
-      "reason": "来源覆盖已核验；未逐行为关闭，不继承旧生产结论",
+      "classification": "明确差异",
+      "reason": "当前未见 account_performance 存储/服务；质量规则与 token guard 的状态所有权不同。",
       "prior_disposition": null,
       "prior_evidence": null,
       "paths": [
@@ -25915,7 +26079,12 @@
       "backend_state": "待核验",
       "product_state": "待本机验收",
       "owner": "待分配",
-      "next": "对应功能包独立对照、测试和交付；旧范围排除仅作历史记录"
+      "next": "窗口/阈值→公平扫描→独立暂停 generation→恢复/删除→区域/并发→审计",
+      "feature_id": "U19",
+      "fork_refs": [
+        "backend/internal/server/routes/admin.go",
+        "backend/internal/service/priority_scheduling_config.go"
+      ]
     },
     {
       "id": "07efd347253b3e084f41525b1e68dd64c359fefc",
@@ -25928,8 +26097,8 @@
         "documentation",
         "frontend"
       ],
-      "classification": "待核验",
-      "reason": "来源覆盖已核验；未逐行为关闭，不继承旧生产结论",
+      "classification": "明确差异",
+      "reason": "当前未见 account_performance 存储/服务；质量规则与 token guard 的状态所有权不同。",
       "prior_disposition": null,
       "prior_evidence": null,
       "paths": [
@@ -25961,7 +26130,12 @@
       "backend_state": "待核验",
       "product_state": "待本机验收",
       "owner": "待分配",
-      "next": "对应功能包独立对照、测试和交付；旧范围排除仅作历史记录"
+      "next": "窗口/阈值→公平扫描→独立暂停 generation→恢复/删除→区域/并发→审计",
+      "feature_id": "U19",
+      "fork_refs": [
+        "backend/internal/server/routes/admin.go",
+        "backend/internal/service/priority_scheduling_config.go"
+      ]
     },
     {
       "id": "c0de6149ebcfd43002f7540e192f2e5d9bd8b03f",
@@ -25972,8 +26146,8 @@
         "build-release-other",
         "frontend"
       ],
-      "classification": "待核验",
-      "reason": "来源覆盖已核验；未逐行为关闭，不继承旧生产结论",
+      "classification": "明确差异",
+      "reason": "Fork 有 ops histogram 和 priority attempt；未有 ops_network_minutes、queue_wait/queue_timing 的完整存储合同。最终 #643 已撤回主表 timing 列。",
       "prior_disposition": null,
       "prior_evidence": null,
       "paths": [
@@ -25987,7 +26161,12 @@
       "backend_state": "待核验",
       "product_state": "待本机验收",
       "owner": "待分配",
-      "next": "对应功能包独立对照、测试和交付；旧范围排除仅作历史记录"
+      "next": "按最终版本实现连接/队列分段来源、NULL、分页/筛选、保留期；不把已撤回的列重新加回",
+      "feature_id": "U10",
+      "fork_refs": [
+        "backend/internal/repository/ops_repo_latency_histogram_buckets.go",
+        "backend/internal/repository/usage_log_priority_scheduling.go"
+      ]
     },
     {
       "id": "9039070968a2d233e832ca3eaa7f58633cf55691",
@@ -26000,8 +26179,8 @@
         "documentation",
         "frontend"
       ],
-      "classification": "待核验",
-      "reason": "来源覆盖已核验；未逐行为关闭，不继承旧生产结论",
+      "classification": "明确保留二开，待接入决策",
+      "reason": "上游新彩票/票数/邀请账本与 Fork 福利/盲盒/邀请返佣不同；不覆盖既有玩法。",
       "prior_disposition": null,
       "prior_evidence": null,
       "paths": [
@@ -26081,7 +26260,12 @@
       "backend_state": "待核验",
       "product_state": "待本机验收",
       "owner": "待分配",
-      "next": "对应功能包独立对照、测试和交付；旧范围排除仅作历史记录"
+      "next": "先独立定义纳入边界；323/324/325、充值归因、风控、概率、幂等奖励和管理页面一起交付",
+      "feature_id": "U18",
+      "fork_refs": [
+        "backend/internal/server/routes/play.go",
+        "frontend/src/views/admin/PlayOpsView.vue"
+      ]
     },
     {
       "id": "08d65a9081417a1ac0993fc513b3ad334f3e2a34",
@@ -26091,8 +26275,8 @@
       "domains": [
         "frontend"
       ],
-      "classification": "待核验",
-      "reason": "来源覆盖已核验；未逐行为关闭，不继承旧生产结论",
+      "classification": "明确差异",
+      "reason": "Fork 有 ops histogram 和 priority attempt；未有 ops_network_minutes、queue_wait/queue_timing 的完整存储合同。最终 #643 已撤回主表 timing 列。",
       "prior_disposition": null,
       "prior_evidence": null,
       "paths": [
@@ -26104,7 +26288,12 @@
       "backend_state": "待核验",
       "product_state": "待本机验收",
       "owner": "待分配",
-      "next": "对应功能包独立对照、测试和交付；旧范围排除仅作历史记录"
+      "next": "按最终版本实现连接/队列分段来源、NULL、分页/筛选、保留期；不把已撤回的列重新加回",
+      "feature_id": "U10",
+      "fork_refs": [
+        "backend/internal/repository/ops_repo_latency_histogram_buckets.go",
+        "backend/internal/repository/usage_log_priority_scheduling.go"
+      ]
     },
     {
       "id": "42a8676b44db0e6a161ce55ab8b685c363dab28a",
@@ -26117,8 +26306,8 @@
         "documentation",
         "frontend"
       ],
-      "classification": "待核验",
-      "reason": "来源覆盖已核验；未逐行为关闭，不继承旧生产结论",
+      "classification": "明确差异",
+      "reason": "Fork 有多模型重复探测和整轮保存；没有共享 batch 表/lease，非同一功能。",
       "prior_disposition": null,
       "prior_evidence": null,
       "paths": [
@@ -26151,7 +26340,12 @@
       "backend_state": "待核验",
       "product_state": "待本机验收",
       "owner": "待分配",
-      "next": "对应功能包独立对照、测试和交付；旧范围排除仅作历史记录"
+      "next": "随机题→跨账号同批→截止/租约→对照通过才处置→混合版本与回滚暂停，不能拆成 UI 占位",
+      "feature_id": "U21",
+      "fork_refs": [
+        "backend/internal/service/quality_probe_targets.go",
+        "backend/internal/repository/quality_round_integration_test.go"
+      ]
     },
     {
       "id": "b5e678cec1d8645160c910ce40d5007a3cc4d02f",
@@ -26164,8 +26358,8 @@
         "documentation",
         "frontend"
       ],
-      "classification": "待核验",
-      "reason": "来源覆盖已核验；未逐行为关闭，不继承旧生产结论",
+      "classification": "部分已有",
+      "reason": "Fork 已有 ultrafast 透传和配置 multiplier ×6 测试；不是全缺，但完整账号策略/回退待核。",
       "prior_disposition": null,
       "prior_evidence": null,
       "paths": [
@@ -26192,7 +26386,13 @@
       "backend_state": "待核验",
       "product_state": "待本机验收",
       "owner": "待分配",
-      "next": "对应功能包独立对照、测试和交付；旧范围排除仅作历史记录"
+      "next": "账号开关/上游响应档位/模型费率/冻结价格/降级/余额订阅 Key 额度同笔一致",
+      "feature_id": "U22",
+      "fork_refs": [
+        "backend/internal/service/openai_gateway_request_body.go",
+        "backend/internal/service/billing_service_test.go",
+        "frontend/src/utils/usageServiceTier.ts"
+      ]
     },
     {
       "id": "6f813426b61b8eeba77f374059205cc34d2fa993",
@@ -26204,8 +26404,8 @@
         "documentation",
         "frontend"
       ],
-      "classification": "待核验",
-      "reason": "来源覆盖已核验；未逐行为关闭，不继承旧生产结论",
+      "classification": "明确差异",
+      "reason": "Fork 有模型名/图标识别，但未有 Mistral 专门协议 adapter/供应商合同。",
       "prior_disposition": null,
       "prior_evidence": null,
       "paths": [
@@ -26268,7 +26468,12 @@
       "backend_state": "待核验",
       "product_state": "待本机验收",
       "owner": "待分配",
-      "next": "对应功能包独立对照、测试和交付；旧范围排除仅作历史记录"
+      "next": "API Key CRUD→模型目录/图片→Chat stream accumulator→Composite→真实 SDK/计费",
+      "feature_id": "U23",
+      "fork_refs": [
+        "backend/internal/service/openai_model_mapping.go",
+        "frontend/src/components/common/ModelIcon.vue"
+      ]
     }
   ]
 }

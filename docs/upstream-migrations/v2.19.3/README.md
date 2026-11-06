@@ -27,7 +27,7 @@
 
 按依赖和风险排序，每阶段只开一个可审查 PR，完成测试、规格/质量复审、部署和用户验收后才进入下一阶段：
 
-1. **已完成独立迁移：鹈鹕旧题干**。PR #412 使用 Fork migration 349 迁入上游 #293；5 项真实 PostgreSQL/Redis 专项、完整本地门禁已通过，生产预检待 PR 合并后复核。
+1. **独立交付中：鹈鹕旧题干**。PR #412 使用 Fork migration 349 迁入上游 #293；5 项真实 PostgreSQL/Redis 专项、完整本地门禁已通过，生产预检待 PR 合并后复核。
 2. **质量与优先调度补差异**。先核对质量 ownership 的逐模型释放、恢复、孤立状态，以及 priority 的 hard-stop、attempt、WS/HTTP 观测、失败回退和配置联动；复用已有 `quality_ownership`、`priority_scheduling`、`usage_log_priority_scheduling`，不重造入口。需要真实管理员写后读回和至少一次生产只读观测。
 3. **渠道/利润/延迟运维**。逐项核对 URL channel entity、revision/CAS、利润叠加公式、滚动 24 小时、延迟 histogram、queue wait/timing 和空值语义；已有 Fork 渠道运维、dashboard、rolling view 只能算候选。
 4. **认证连接与凭证生命周期**。多 OpenAI auth connection、连接快照、affinity、refresh fencing、API Key 无认证连接、凭证超时分类按完整 writer/reader/lease/回退闭环处理；不得用单账号 OAuth 或 Excel OAuth 代替。
@@ -41,7 +41,7 @@
 
 - **部分已有**：Fork 已有 UltraFast service tier 解析、请求透传和账务 multiplier 测试；上游账号开关、回退策略、冻结价格及历史兼容仍待核验。
 - **部分已有**：Fork 已有质量 ownership/恢复和 priority scheduling 配置、attempt/quality round；上游最新孤立释放、共享 batch 和完整 WS/HTTP 语义仍待核验。
-- **候选已有**：Fork 已有渠道运维 CAS、质量 dashboard、rolling 24h 与 OpenAI header timeout DB 配置；上游 URL entity、利润叠加、精确 timing/queue wait 的字段来源和写后读回仍需逐项确认。
+- **候选已有**：Fork 已有渠道运维 CAS、质量 dashboard、rolling 24h 与 OpenAI header timeout 静态配置；上游 URL entity、利润叠加、精确 timing/queue wait 的字段来源和写后读回仍需逐项确认。
 - **明确阻断**：上游 security penalty 的明文 `full_prompt`、跨用户管理员读取和无 TTL 持久化不原样迁入；Fork 现有 prompt audit 也不自动等价，需单独隐私合同。
 - **明确保留**：玩法福利、签到/农场/玩法运营入口以及 PR #411 的 Fork 导航安排继续保留；上游 lottery/invitations 不覆盖这些能力。
 
