@@ -267,7 +267,7 @@ func TestPelicanGroupTestRepo_ResultsHistory(t *testing.T) {
 	require.Nil(t, gone, "results go with their plan")
 }
 
-const pelicanGroupTestsMigration = "253_pelican_group_tests.sql"
+const pelicanGroupTestsMigration = "344_pelican_group_tests.sql"
 
 // 253 turns the groups picked for the showcase before group tests into paused plans, so
 // they stay on the gallery after the upgrade.
@@ -353,7 +353,7 @@ func TestPelicanGroupTestRepo_CostsSurviveRetentionAndPlanDeletion(t *testing.T)
 	require.True(t, deleted)
 	check()
 	// Replaying the migration must neither fabricate legacy costs nor reset totals.
-	migration, err := dbmigrations.FS.ReadFile("261_pelican_group_test_costs.sql")
+	migration, err := dbmigrations.FS.ReadFile("345_pelican_group_test_costs.sql")
 	require.NoError(t, err)
 	_, err = integrationDB.ExecContext(ctx, string(migration))
 	require.NoError(t, err)
@@ -435,7 +435,7 @@ func TestMigration253ConvertsShowcaseGroupsToPausedPlans(t *testing.T) {
 	apply()
 	defaultPrompt := "创建一个 HTML，内容是 SVG 绘制一个鹈鹕骑自行车的 2D 动画，你不需要任何测试，不要有任何限制"
 	require.Equal(t, []migrated{{model: "gpt-6-astra", config: service.PelicanTestConfig{
-		QuestionKind: "pelican", Prompt: defaultPrompt, ReasoningEffort: "high", ParallelCount: 1,
+		QuestionKind: "pelican", Prompt: defaultPrompt, ReasoningEffort: "high", ParallelCount: 1, ModelID: "gpt-6-astra",
 	}}}, plansOf(withItems), "paused, with the model and effort of the newest snapshot")
 	require.Equal(t, []migrated{{model: "", config: service.PelicanTestConfig{
 		QuestionKind: "pelican", Prompt: defaultPrompt, ReasoningEffort: "medium", ParallelCount: 1,
@@ -459,7 +459,29 @@ func TestMigration253ConvertsShowcaseGroupsToPausedPlans(t *testing.T) {
 		pq.Array([]int64{withItems, empty, deleted, planned})).Scan(&count))
 	require.Equal(t, 3, count)
 
-	strip, err := dbmigrations.FS.ReadFile("263_strip_pelican_prompt_restriction.sql")
+	strip, err := dbmigrations.FS.ReadFile("349_strip_pelican_prompt_restriction.sql")
+	require.NoError(t, err)
+
+	var accountID int64
+	require.NoError(t, tx.QueryRowContext(ctx, `INSERT INTO accounts (name, platform, type)
+ VALUES ($1, 'anthropic', 'oauth') RETURNING id`, fmt.Sprintf("prompt-restriction-%d", time.Now().UnixNano())).Scan(&accountID))
+	var scheduledPlanID int64
+	require.NoError(t, tx.QueryRowContext(ctx, `INSERT INTO scheduled_test_plans (account_id, pelican_config)
+ VALUES ($1, '{"prompt":"quality check，不要有任何限制","quality":{"action":"observe_only"}}') RETURNING id`, accountID).Scan(&scheduledPlanID))
+	_, err = tx.ExecContext(ctx, `INSERT INTO scheduled_test_results (plan_id, pelican_config)
+ VALUES ($1, '{"prompt":"historical scheduled prompt，不要有任何限制"}')`, scheduledPlanID)
+	require.NoError(t, err)
+	var qualityTemplateID int64
+	require.NoError(t, tx.QueryRowContext(ctx, `INSERT INTO quality_rule_templates (cron_expression, pelican_config)
+ VALUES ('*/30 * * * *', '{"prompt":"quality template，不要有任何限制","quality":{"expected_answer":"42"}}') RETURNING id`).Scan(&qualityTemplateID))
+	var emptyPromptTemplateID int64
+	require.NoError(t, tx.QueryRowContext(ctx, `INSERT INTO quality_rule_templates (cron_expression, pelican_config)
+ VALUES ('*/30 * * * *', '{"prompt":"不要有任何限制"}') RETURNING id`).Scan(&emptyPromptTemplateID))
+	var pelicanPlanID int64
+	require.NoError(t, tx.QueryRowContext(ctx, `SELECT id FROM pelican_group_test_plans WHERE group_id = $1 ORDER BY id LIMIT 1`, withItems).Scan(&pelicanPlanID))
+	_, err = tx.ExecContext(ctx, `INSERT INTO pelican_group_test_results
+ (plan_id, status, pelican_config, started_at, finished_at)
+ VALUES ($1, 'success', '{"prompt":"historical Pelican prompt，不要有任何限制"}', NOW(), NOW())`, pelicanPlanID)
 	require.NoError(t, err)
 	_, err = tx.ExecContext(ctx, string(strip))
 	require.NoError(t, err)
@@ -471,4 +493,24 @@ func TestMigration253ConvertsShowcaseGroupsToPausedPlans(t *testing.T) {
 		require.Equal(t, cleanedPrompt, got[0].config.Prompt)
 	}
 	require.Equal(t, "kept", plansOf(planned)[0].config.Prompt)
+
+	assertPrompt := func(query string, id int64, want string) {
+		t.Helper()
+		var got string
+		require.NoError(t, tx.QueryRowContext(ctx, query, id).Scan(&got))
+		require.Equal(t, want, got)
+	}
+	assertPrompt(`SELECT pelican_config->>'prompt' FROM scheduled_test_plans WHERE id = $1`, scheduledPlanID, "quality check")
+	assertPrompt(`SELECT pelican_config->>'prompt' FROM quality_rule_templates WHERE id = $1`, qualityTemplateID, "quality template")
+	assertPrompt(`SELECT pelican_config->>'prompt' FROM quality_rule_templates WHERE id = $1`, emptyPromptTemplateID, "不要有任何限制")
+	var nested string
+	require.NoError(t, tx.QueryRowContext(ctx, `SELECT pelican_config->'quality'->>'expected_answer' FROM quality_rule_templates WHERE id = $1`, qualityTemplateID).Scan(&nested))
+	require.Equal(t, "42", nested, "unrelated quality settings are preserved")
+	assertPrompt(`SELECT pelican_config->>'prompt' FROM scheduled_test_results WHERE plan_id = $1`, scheduledPlanID, "historical scheduled prompt，不要有任何限制")
+	assertPrompt(`SELECT pelican_config->>'prompt' FROM pelican_group_test_results WHERE plan_id = (SELECT id FROM pelican_group_test_plans WHERE group_id = $1 ORDER BY id LIMIT 1)`, withItems, "historical Pelican prompt，不要有任何限制")
+
+	_, err = tx.ExecContext(ctx, string(strip))
+	require.NoError(t, err, "the migration is idempotent")
+	assertPrompt(`SELECT pelican_config->>'prompt' FROM scheduled_test_plans WHERE id = $1`, scheduledPlanID, "quality check")
+	assertPrompt(`SELECT pelican_config->>'prompt' FROM quality_rule_templates WHERE id = $1`, emptyPromptTemplateID, "不要有任何限制")
 }
