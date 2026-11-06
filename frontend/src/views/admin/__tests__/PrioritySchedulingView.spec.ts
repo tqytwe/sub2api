@@ -47,6 +47,17 @@ describe('PrioritySchedulingView', () => {
     expect(wrapper.text()).toContain('/v1/responses')
   })
 
+  it('shows the no-snapshot state for a cold scheduler without invalid dates or unavailable history', async () => {
+    getPrioritySnapshot.mockResolvedValue(null)
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('admin.priorityScheduling.empty')
+    expect(wrapper.text()).not.toContain('Invalid Date')
+    expect(wrapper.text()).not.toContain('admin.priorityScheduling.historyUnavailable')
+  })
+
   it('saves the selected penalty mode without dropping the server config fields', async () => {
     const wrapper = mountView()
     await flushPromises()
