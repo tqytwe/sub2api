@@ -32,6 +32,11 @@ export interface PrioritySnapshot {
   candidates: PriorityCandidate[]
 }
 
+interface PrioritySnapshotEnvelope {
+  history?: PrioritySnapshot | null
+  candidates?: PriorityCandidate[] | null
+}
+
 export async function getPriorityConfig(): Promise<PrioritySchedulingConfig> {
   return (await apiClient.get<PrioritySchedulingConfig>('/admin/priority-scheduling/config')).data
 }
@@ -41,6 +46,17 @@ export async function savePriorityConfig(config: PrioritySchedulingConfig): Prom
 }
 
 export async function getPrioritySnapshot(): Promise<PrioritySnapshot | null> {
-  const { data } = await apiClient.get<{ snapshot: PrioritySnapshot | null }>('/admin/priority-scheduling/snapshot')
-  return data.snapshot
+  const { data } = await apiClient.get<{ snapshot: PrioritySnapshot | PrioritySnapshotEnvelope | null }>('/admin/priority-scheduling/snapshot')
+  const payload = data.snapshot
+  if (!payload) return null
+
+  // The scheduler endpoint may return an envelope with the latest observation
+  // nested under `history`. A cold scheduler has no observation yet; do not
+  // mistake the envelope itself for a snapshot (it has no timestamp and its
+  // candidate list may be null).
+  const snapshot = 'history' in payload ? payload.history : payload
+  if (!snapshot) return null
+
+  // Keep older or partially populated server responses safe for table callers.
+  return { ...snapshot, candidates: Array.isArray(snapshot.candidates) ? snapshot.candidates : [] } as PrioritySnapshot
 }
