@@ -135,3 +135,5 @@
 - [质量多模型/重复探测视觉记录](./visual-reviews/2026-11-01-quality-multiprobe.md)：现有质量页面配置、结果标识和真实组件截图；不替代生产验收。
 - [模型与分组倍率设置视觉记录](./visual-reviews/2026-11-01-model-billing-ui.md)：管理员独立配置表单、CAS 冲突保留编辑和现有组件渲染；不替代生产计费验收。
 - [BPS 文本 Responses 账号开关视觉审查](./visual-reviews/2026-11-02-bps-text-runtime.md)：复用管理员 OpenAI OAuth 账号编辑项，仅添加文本 Responses 运行时开关；不替代生产验收。
+
+- [2026-11-06 签到、农场与智能运维菜单限定交付](./archive/completed-tasks/2026-11-06-play-ops/README.md)

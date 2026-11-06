@@ -1,0 +1,12 @@
+[
+  {
+    "surface": "farm",
+    "zoom": "200%",
+    "pageOverflow": false
+  },
+  {
+    "surface": "checkin",
+    "zoom": "200%",
+    "pageOverflow": false
+  }
+]

@@ -211,8 +211,10 @@ func newCheckinMilestoneUser(t *testing.T, makeup bool) int64 {
 		 VALUES ($1, 1, 1, NOW() + INTERVAL '1 hour', 'COMPLETED', 'balance', NOW())`, id)
 		require.NoError(t, err)
 	}
-	require.NoError(t, NewPlayRepository(integrationEntClient, integrationDB).InsertCheckin(
-		context.Background(), id, time.Now().UTC().AddDate(0, 0, daysAgo), 0, 6))
+	for i := 0; i < 6; i++ {
+		require.NoError(t, NewPlayRepository(integrationEntClient, integrationDB).InsertCheckin(
+			context.Background(), id, time.Now().UTC().AddDate(0, 0, daysAgo-i), 0, 6-i))
+	}
 	return id
 }
 
@@ -236,7 +238,7 @@ func assertCheckinMilestoneDatabase(t *testing.T, id int64, makeup bool) {
 	 (SELECT SUM(amount) FROM play_reward_ledger WHERE user_id=$1),
 	 balance FROM users WHERE id=$1`, id).Scan(&checkins, &snapshots, &rewards, &balances, &energy, &reward, &delta, &balance)
 	require.NoError(t, err)
-	require.Equal(t, 2, checkins, "one zero-reward seed plus one actual grant")
+	require.Equal(t, 7, checkins, "six actual prior dates plus one actual grant")
 	require.Equal(t, 1, snapshots)
 	require.Equal(t, entries, rewards)
 	require.Equal(t, entries, balances)
@@ -444,4 +446,88 @@ func TestCheckinHTTPDatabaseContract(t *testing.T) {
 		assertCheckinDatabase(t, readOnlyID, 0, 0, 0)
 		require.NoError(t, err)
 	})
+}
+
+func TestCheckinSeventhDayAfterEarlierMilestoneDoesNotReuseOldKey(t *testing.T) {
+	seedCheckinCashPool(t)
+	id := newCheckinMilestoneUser(t, false)
+	oldDate := time.Now().UTC().AddDate(0, 0, -20).Format("2006-01-02")
+	_, err := integrationDB.Exec(`INSERT INTO play_reward_ledger(user_id,source,amount,idempotency_key,detail)
+        VALUES ($1,'checkin_milestone',1,$2,jsonb_build_object('checkin_date',$3::text,'streak_count',7))`, id, fmt.Sprintf("checkin_milestone:%d:7", id), oldDate)
+	require.NoError(t, err)
+	server := newCheckinContractServer(t, true, id)
+	status, result, err := checkinContractRequest(server, id, http.MethodPost, "")
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, status, "%+v", result)
+	require.JSONEq(t, "7", string(result.Data["streak_count"]))
+	var milestones int
+	require.NoError(t, integrationDB.QueryRow(`SELECT COUNT(*) FROM play_reward_ledger WHERE user_id=$1 AND source='checkin_milestone'`, id).Scan(&milestones))
+	require.Equal(t, 2, milestones)
+	status, _, err = checkinContractRequest(server, id, http.MethodPost, "")
+	require.NoError(t, err)
+	require.Equal(t, http.StatusConflict, status)
+	require.NoError(t, integrationDB.QueryRow(`SELECT COUNT(*) FROM play_reward_ledger WHERE user_id=$1 AND source='checkin_milestone'`, id).Scan(&milestones))
+	require.Equal(t, 2, milestones)
+}
+
+func TestCheckinLegacySameDateMilestoneIsNotPaidAgain(t *testing.T) {
+	seedCheckinCashPool(t)
+	id := newCheckinMilestoneUser(t, false)
+	loc, err := time.LoadLocation("Asia/Shanghai")
+	require.NoError(t, err)
+	today := time.Now().In(loc).Format("2006-01-02")
+	_, err = integrationDB.Exec(`INSERT INTO play_reward_ledger(user_id,source,amount,idempotency_key,detail)
+		VALUES ($1,'checkin_milestone',1,$2,jsonb_build_object('checkin_date',$3::text,'streak_count',7))`, id, fmt.Sprintf("checkin_milestone:%d:7", id), today)
+	require.NoError(t, err)
+	server := newCheckinContractServer(t, true, id)
+	status, result, err := checkinContractRequest(server, id, http.MethodPost, "")
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, status, "%+v", result)
+	require.JSONEq(t, "0.5", string(result.Data["balance_added"]))
+	var count int
+	require.NoError(t, integrationDB.QueryRow(`SELECT COUNT(*) FROM play_reward_ledger WHERE user_id=$1 AND source='checkin_milestone'`, id).Scan(&count))
+	require.Equal(t, 1, count)
+}
+
+func TestCheckinMakeupAfterTodayCompletesSeventhDayMilestone(t *testing.T) {
+	seedCheckinCashPool(t)
+	id := newCheckinMilestoneUser(t, true)
+	// Five days before the missing yesterday: makeup makes yesterday day 6,
+	// and today's already completed check-in becomes day 7.
+	_, err := integrationDB.Exec(`DELETE FROM play_checkins WHERE user_id=$1 AND checkin_date=$2::date`, id, time.Now().UTC().AddDate(0, 0, -7).Format("2006-01-02"))
+	require.NoError(t, err)
+	server := newCheckinContractServer(t, true, id)
+	status, result, err := checkinContractRequest(server, id, http.MethodPost, "")
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, status, "%+v", result)
+	require.JSONEq(t, "1", string(result.Data["streak_count"]))
+	status, result, err = checkinContractRequest(server, id, http.MethodGet, "/status")
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, status)
+	require.JSONEq(t, "true", string(result.Data["can_makeup"]))
+	status, result, err = checkinContractRequest(server, id, http.MethodPost, "/makeup")
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, status, "%+v", result)
+	require.JSONEq(t, "1.5", string(result.Data["balance_added"]))
+	var total float64
+	require.NoError(t, integrationDB.QueryRow(`SELECT SUM(amount) FROM play_reward_ledger WHERE user_id=$1`, id).Scan(&total))
+	require.Equal(t, 2.0, total)
+	status, result, err = checkinContractRequest(server, id, http.MethodGet, "/status")
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, status)
+	require.JSONEq(t, "7", string(result.Data["streak_count"]))
+	status, _, err = checkinContractRequest(server, id, http.MethodPost, "/makeup")
+	require.NoError(t, err)
+	require.NotEqual(t, http.StatusOK, status)
+	require.NoError(t, integrationDB.QueryRow(`SELECT SUM(amount) FROM play_reward_ledger WHERE user_id=$1`, id).Scan(&total))
+	require.Equal(t, 2.0, total)
+	repo := &playRepository{client: integrationEntClient, sql: integrationDB}
+	today := time.Now().UTC().Format("2006-01-02")
+	report, err := repo.ListAdminCheckins(context.Background(), service.PlayAdminCheckinFilter{UserID: id, StartDate: today, EndDate: today, Page: 1, PageSize: 20, AsOf: time.Now().UTC().Format(time.RFC3339Nano)})
+	require.NoError(t, err)
+	require.Len(t, report.Items, 1)
+	require.Equal(t, "reconciled", report.Items[0].EvidenceStatus)
+	require.NotNil(t, report.Items[0].ReconciliationID)
+	require.Equal(t, "1.00000000", report.Items[0].AdjustmentAmount)
+	require.Equal(t, 1, report.Items[0].StoredStreak, "original evidence remains unchanged")
 }

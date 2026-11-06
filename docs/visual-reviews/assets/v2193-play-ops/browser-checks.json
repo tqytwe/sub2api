@@ -1,0 +1,193 @@
+[
+  {
+    "surface": "checkin",
+    "width": 360,
+    "documentOverflow": false,
+    "focused": {
+      "tag": "INPUT",
+      "outline": "solid",
+      "tabIndex": 0
+    },
+    "pageErrors": []
+  },
+  {
+    "surface": "farm",
+    "width": 360,
+    "documentOverflow": false,
+    "focused": {
+      "tag": "DIV",
+      "outline": "auto",
+      "tabIndex": 0
+    },
+    "pageErrors": []
+  },
+  {
+    "surface": "checkin",
+    "width": 768,
+    "documentOverflow": false,
+    "focused": {
+      "tag": "INPUT",
+      "outline": "solid",
+      "tabIndex": 0
+    },
+    "pageErrors": []
+  },
+  {
+    "surface": "farm",
+    "width": 768,
+    "documentOverflow": false,
+    "focused": {
+      "tag": "DIV",
+      "outline": "auto",
+      "tabIndex": 0
+    },
+    "pageErrors": []
+  },
+  {
+    "surface": "checkin",
+    "width": 1280,
+    "documentOverflow": false,
+    "focused": {
+      "tag": "INPUT",
+      "outline": "solid",
+      "tabIndex": 0
+    },
+    "pageErrors": []
+  },
+  {
+    "surface": "farm",
+    "width": 1280,
+    "documentOverflow": false,
+    "focused": {
+      "tag": "DIV",
+      "outline": "auto",
+      "tabIndex": 0
+    },
+    "pageErrors": []
+  },
+  {
+    "surface": "checkin",
+    "width": 1920,
+    "documentOverflow": false,
+    "focused": {
+      "tag": "INPUT",
+      "outline": "solid",
+      "tabIndex": 0
+    },
+    "pageErrors": []
+  },
+  {
+    "surface": "farm",
+    "width": 1920,
+    "documentOverflow": false,
+    "focused": {
+      "tag": "DIV",
+      "outline": "auto",
+      "tabIndex": 0
+    },
+    "pageErrors": []
+  },
+  {
+    "surface": "checkin",
+    "state": "empty",
+    "passed": true
+  },
+  {
+    "surface": "checkin",
+    "state": "error",
+    "passed": true
+  },
+  {
+    "surface": "checkin",
+    "state": "loading",
+    "passed": true
+  },
+  {
+    "surface": "farm",
+    "state": "success",
+    "language": "en",
+    "theme": "dark",
+    "passed": true,
+    "note": "Synthetic write only; authentication dialog not exercised"
+  },
+  {
+    "surface": "sidebar",
+    "width": 360,
+    "keyboardExpand": true,
+    "pageErrors": []
+  },
+  {
+    "surface": "sidebar",
+    "width": 768,
+    "keyboardExpand": true,
+    "pageErrors": []
+  },
+  {
+    "surface": "sidebar",
+    "width": 1280,
+    "keyboardExpand": true,
+    "pageErrors": []
+  },
+  {
+    "surface": "sidebar",
+    "width": 1920,
+    "keyboardExpand": true,
+    "pageErrors": []
+  },
+  {
+    "surface": "settled-ops",
+    "width": 1280,
+    "language": "zh",
+    "pageErrors": [],
+    "note": "Other tab components stubbed; no production services"
+  },
+  {
+    "surface": "settled-ops",
+    "width": 1280,
+    "language": "en",
+    "pageErrors": [],
+    "note": "Other tab components stubbed; no production services"
+  },
+  {
+    "surface": "settled-ops-history",
+    "width": 360,
+    "language": "zh",
+    "documentOverflow": false
+  },
+  {
+    "surface": "public-farm",
+    "width": 360,
+    "breakdown": "今日任务 10 + 本月 Token 能量 2 = 当前能量 12",
+    "pageErrors": []
+  },
+  {
+    "surface": "public-farm",
+    "width": 768,
+    "breakdown": "今日任务 10 + 本月 Token 能量 2 = 当前能量 12",
+    "pageErrors": []
+  },
+  {
+    "surface": "public-farm",
+    "width": 1280,
+    "breakdown": "今日任务 10 + 本月 Token 能量 2 = 当前能量 12",
+    "pageErrors": []
+  },
+  {
+    "surface": "public-farm",
+    "width": 1920,
+    "breakdown": "今日任务 10 + 本月 Token 能量 2 = 当前能量 12",
+    "pageErrors": []
+  },
+  {
+    "surface": "checkin-repair",
+    "width": 360,
+    "passed": true,
+    "note": "Synthetic API and step-up; actual payment tested separately in PostgreSQL"
+  },
+  {
+    "surface": "checkin-repair",
+    "width": 1280,
+    "passed": true,
+    "note": "Synthetic API and step-up; actual payment tested separately in PostgreSQL"
+  }
+]

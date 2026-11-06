@@ -59,9 +59,11 @@
       </div>
 
       <AdminQuizQuestionBank v-if="activeTab === 'quiz'" />
+      <AdminArenaAccounting v-if="activeTab === 'arena'" :period-id="arena?.period?.id" @activated="load" />
       <ArenaRewardSettings v-if="activeTab === 'arena'" />
       <BlindboxPoolEditor v-if="activeTab === 'blindbox'" />
       <TeamRewardSettings v-if="activeTab === 'team-rewards'" />
+      <AdminCheckinRecords v-if="activeTab === 'checkin'" />
       <CheckinMilestoneEditor v-if="activeTab === 'checkin'" />
 
       <section v-if="activeTab === 'feedback'" class="card">
@@ -755,7 +757,7 @@
                   {{ t("admin.playOps.arenaTitle") }}
                 </h2>
                 <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                  {{ t("admin.playOps.arenaHint") }}
+                  {{ t(arena?.period?.status === "settled" ? "admin.playOps.arenaSettledHint" : "admin.playOps.arenaHint") }}
                 </p>
               </div>
               <div
@@ -785,6 +787,18 @@
                 </button>
               </div>
             </div>
+            <div class="flex flex-wrap items-center gap-2 border-b border-gray-100 px-5 py-3 dark:border-dark-700">
+              <label class="text-sm">{{ t("admin.playOps.periodHistory") }}
+                <select v-model.number="selectedArenaPeriodId" data-testid="arena-period-history" class="input ml-2" :disabled="loading" @change="loadArenaPeriod">
+                  <option :value="0">{{ t("admin.playOps.currentPeriod") }}</option>
+                  <option v-for="period in arenaPeriods.items" :key="period.id" :value="period.id">{{ period.name }} · {{ period.status }} · {{ period.paid_users }} {{ t("admin.playOps.paidUsers") }}</option>
+                </select>
+              </label>
+              <button type="button" class="btn btn-secondary" data-testid="arena-period-previous" :disabled="arenaPeriods.page <= 1 || loading" @click="loadArenaPeriods(arenaPeriods.page - 1)">{{ t("admin.playOps.previousPeriods") }}</button>
+              <span class="text-xs text-gray-500">{{ arenaPeriods.total }}</span>
+              <button type="button" class="btn btn-secondary" data-testid="arena-period-next" :disabled="arenaPeriods.page * arenaPeriods.page_size >= arenaPeriods.total || loading" @click="loadArenaPeriods(arenaPeriods.page + 1)">{{ t("admin.playOps.nextPeriods") }}</button>
+            </div>
+            <p v-if="selectedArenaPeriod" class="px-5 py-3 text-sm text-gray-500">{{ t("admin.playOps.policySource") }}: {{ selectedArenaPeriod.reward_policy_source }} · {{ t("admin.playOps.accountingVersion") }}: {{ selectedArenaPeriod.accounting_version }} · {{ t("admin.playOps.paidAmount") }}: {{ selectedArenaPeriod.paid_amount }} USD</p>
             <div class="overflow-x-auto">
               <table
                 class="min-w-full divide-y divide-gray-100 text-sm dark:divide-dark-700"
@@ -799,13 +813,13 @@
                       {{ t("admin.playOps.tokens") }}
                     </th>
                     <th class="px-4 py-3 text-right">
-                      {{ t("admin.playOps.estimatedReward") }}
+                      {{ t(arena?.period?.status === "settled" ? "admin.playOps.actualReward" : "admin.playOps.estimatedReward") }}
                     </th>
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100 dark:divide-dark-700">
                   <tr v-for="row in arena?.rows || []" :key="row.user_id">
-                    <td class="px-4 py-3 font-medium">#{{ row.rank }}</td>
+                    <td class="px-4 py-3 font-medium">{{ row.rank > 0 ? `#${row.rank}` : "—" }}</td>
                     <td class="px-4 py-3">
                       <div>{{ row.display_name }}</div>
                       <div v-if="row.email" class="text-xs text-gray-500">
@@ -813,10 +827,11 @@
                       </div>
                     </td>
                     <td class="px-4 py-3 text-right tabular-nums">
-                      {{ formatNumber(row.token_sum) }}
+                      {{ row.evidence_status === "historical_evidence_missing" ? "—" : formatNumber(row.token_sum) }}
+                      <p v-if="row.evidence_status === 'historical_evidence_missing'" class="text-xs text-gray-500">{{ t("admin.playOps.historicalEvidenceMissing") }}</p>
                     </td>
                     <td class="px-4 py-3 text-right tabular-nums">
-                      {{ formatMoney(row.estimated_reward) }}
+                      {{ formatMoney(arena?.period?.status === "settled" ? row.paid_reward ?? 0 : row.estimated_reward) }}
                     </td>
                   </tr>
                 </tbody>
@@ -1506,6 +1521,8 @@ import AdminAppAnalyticsOperations from "@/components/admin/play/AdminAppAnalyti
 import BlindboxPoolEditor from "@/components/admin/play/BlindboxPoolEditor.vue";
 import TeamRewardSettings from "@/components/admin/play/TeamRewardSettings.vue";
 import ArenaRewardSettings from "@/components/admin/play/ArenaRewardSettings.vue";
+import AdminArenaAccounting from "@/components/admin/play/AdminArenaAccounting.vue";
+import AdminCheckinRecords from "@/components/admin/play/AdminCheckinRecords.vue";
 import CheckinMilestoneEditor from "@/components/admin/play/CheckinMilestoneEditor.vue";
 import MobileReleaseManager from "@/components/admin/play/MobileReleaseManager.vue";
 import Icon from "@/components/icons/Icon.vue";
@@ -1627,6 +1644,9 @@ const campaignDeletingId = ref<number | null>(null);
 const campaignFormOpen = ref(false);
 const arenaPeriodType = ref<"daily" | "monthly">("monthly");
 const arena = ref<AdminArenaLeaderboard | null>(null);
+const arenaPeriods = ref({ items: [], total: 0, page: 1, page_size: 20 } as Awaited<ReturnType<typeof adminPlayAPI.listArenaPeriods>>);
+const selectedArenaPeriodId = ref(0);
+const selectedArenaPeriod = computed(() => arenaPeriods.value.items.find(item => item.id === selectedArenaPeriodId.value));
 const campaigns = ref<AdminPlayCampaign[]>([]);
 const referralCampaigns = ref<AdminReferralCampaign[]>([]);
 const teams = ref<AdminPlayTeamList>({
@@ -1785,6 +1805,7 @@ async function loadForTab(tab: PlayOpsTab) {
       campaigns.value = limited;
       referralCampaigns.value = referrals.items;
     } else if (tab === "arena") {
+      await loadArenaPeriods(1)
       arena.value = await adminPlayAPI.getArenaLeaderboard({
         period_type: arenaPeriodType.value,
         limit: 20,
@@ -2179,16 +2200,34 @@ async function loadTeams() {
   }
 }
 
+
+async function loadArenaPeriods(page = 1) {
+  const data = await adminPlayAPI.listArenaPeriods(arenaPeriodType.value, page, 20)
+  arenaPeriods.value = data
+}
+async function loadArenaPeriod() {
+  const id = selectedArenaPeriodId.value
+  try {
+    arena.value = await adminPlayAPI.getArenaLeaderboard(id ? { period_id: id, limit: 20 } : { period_type: arenaPeriodType.value, limit: 20 })
+    await loadArenaPeriods(arenaPeriods.value.page)
+  } catch (error) {
+    appStore.showError(localizedPlayOpsError(error, t("admin.playOps.loadFailed")))
+  }
+}
+
 async function switchArena(periodType: "daily" | "monthly") {
   const previousPeriodType = arenaPeriodType.value;
   arenaPeriodType.value = periodType;
+  selectedArenaPeriodId.value = 0;
   try {
+    await loadArenaPeriods(1);
     arena.value = await adminPlayAPI.getArenaLeaderboard({
       period_type: periodType,
       limit: 20,
     });
   } catch (error) {
     arenaPeriodType.value = previousPeriodType;
+    selectedArenaPeriodId.value = 0;
     appStore.showError(
       localizedPlayOpsError(error, t("admin.playOps.loadFailed")),
     );

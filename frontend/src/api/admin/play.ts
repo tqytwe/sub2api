@@ -1,6 +1,7 @@
 import { apiClient } from "../client";
 import type {
   PlayArenaPeriod,
+  PlayQuestToday,
   PlayBlindboxPool,
   PlayCampaignRules,
   PlayCampaignAudience,
@@ -10,6 +11,94 @@ import type {
 } from "../play";
 
 export type { PlayBlindboxPool, PlayBlindboxPoolTier } from "../play";
+
+export interface AdminUsageTokenBreakdown {
+  input: number; output: number; cache_creation: number; cache_read: number; total: number;
+}
+export interface AdminArenaUserReport {
+  current_farm?: PlayQuestToday;
+  user_id: number; day_start: string; day_end: string; month_start: string; month_end: string; as_of: string;
+  daily: AdminUsageTokenBreakdown; monthly: AdminUsageTokenBreakdown;
+  monthly_actual_token_energy: number; monthly_legacy_token_energy: number; qualification_growth_energy: number;
+}
+export interface AdminArenaAccountingPreview {
+  reward_policy_source: "frozen" | "legacy_live" | "missing";
+  period_id: number; version: number; status: string; start_at: string; end_at: string;
+  has_payout: boolean; can_activate: boolean; digest: string; total_users: number; truncated: boolean;
+  changes: { user_id: number; old_tokens: number; new_tokens: number; old_rank: number; new_rank: number; old_reward: number; new_reward: number }[];
+}
+export async function getArenaUserReport(userId: number, date?: string): Promise<AdminArenaUserReport> {
+  const { data } = await apiClient.get<AdminArenaUserReport>(`/admin/play/arena/users/${userId}/report`, { params: { date } });
+  return data;
+}
+export async function previewArenaAccounting(periodId: number): Promise<AdminArenaAccountingPreview> {
+  const { data } = await apiClient.get<AdminArenaAccountingPreview>(`/admin/play/arena/periods/${periodId}/accounting-preview`);
+  return data;
+}
+export async function activateArenaAccounting(periodId: number, expectedDigest: string, reason: string, idempotencyKey: string): Promise<AdminArenaAccountingPreview> {
+  const { data } = await apiClient.post<AdminArenaAccountingPreview>(`/admin/play/arena/periods/${periodId}/accounting-activate`, { expected_digest: expectedDigest, reason }, { headers: { 'Idempotency-Key': idempotencyKey } });
+  return data;
+}
+
+export interface AdminCheckinRecord {
+  id: number;
+  user_id: number;
+  email: string;
+  date: string;
+  stored_streak: number;
+  observed_streak: number;
+  reward_amount: string;
+  ledger_amount: string;
+  adjustment_amount?: string;
+  reconciliation_id?: number | null;
+  growth_energy: number;
+  reward_mode: "energy" | "redeemable" | "unknown";
+  eligibility_reason: string;
+  snapshot_id: number | null;
+  evidence_status: string;
+  created_at: string;
+}
+
+export interface AdminCheckinPage {
+  items: AdminCheckinRecord[];
+  total: number;
+  page: number;
+  page_size: number;
+  start_date: string;
+  end_date: string;
+  as_of: string;
+}
+
+export interface AdminCheckinQuery {
+  user_id?: number;
+  start_date?: string;
+  end_date?: string;
+  reward_mode?: string;
+  page?: number;
+  page_size?: number;
+  as_of?: string;
+}
+
+export async function listCheckinRecords(params: AdminCheckinQuery = {}): Promise<AdminCheckinPage> {
+  const { data } = await apiClient.get<AdminCheckinPage>("/admin/play/checkin/records", { params });
+  return data;
+}
+
+export interface AdminCheckinRepairTarget { user_id: number; date: string; }
+export interface AdminCheckinRepairPreview {
+  target: AdminCheckinRepairTarget;
+  checkin_id: number; snapshot_id: number;
+  original_streak: number; effective_streak: number; observed_streak: number;
+  reward_mode: string; bonus: number; can_repair: boolean; status: string; digest: string;
+}
+export async function previewCheckinRepair(target: AdminCheckinRepairTarget): Promise<AdminCheckinRepairPreview> {
+  const { data } = await apiClient.post<AdminCheckinRepairPreview>("/admin/play/checkin/repair-preview", target);
+  return data;
+}
+export async function repairCheckins(items: { target: AdminCheckinRepairTarget; digest: string }[], reason: string, idempotencyKey: string): Promise<AdminCheckinRepairPreview[]> {
+  const { data } = await apiClient.post<AdminCheckinRepairPreview[]>("/admin/play/checkin/repair", { items, reason }, { headers: { 'Idempotency-Key': idempotencyKey } });
+  return data;
+}
 
 export interface AdminCheckinMilestone {
   days: number;
@@ -47,6 +136,8 @@ export interface TeamRewardSettings {
 }
 
 export interface AdminArenaScore {
+  paid_reward?: number;
+  evidence_status?: "payout_recorded" | "historical_evidence_missing";
   rank: number;
   user_id: number;
   display_name: string;
@@ -836,6 +927,18 @@ export async function retryTeamRewardSettlement(id: number): Promise<void> {
   await apiClient.post(`/admin/play/team-rewards/settlements/${id}/retry`);
 }
 
+export interface AdminArenaPeriodHistory {
+  id: number; name: string; period_type: 'daily' | 'monthly'; status: string;
+  start_at: string; end_at: string; settled_at?: string | null;
+  accounting_version: number; reward_policy_source: 'frozen' | 'legacy_live' | 'missing';
+  paid_users: number; paid_amount: string;
+}
+export interface AdminArenaPeriodPage { items: AdminArenaPeriodHistory[]; total: number; page: number; page_size: number; }
+export async function listArenaPeriods(periodType: 'daily' | 'monthly', page = 1, pageSize = 20): Promise<AdminArenaPeriodPage> {
+  const { data } = await apiClient.get<AdminArenaPeriodPage>('/admin/play/arena/periods', { params: { period_type: periodType, page, page_size: pageSize } });
+  return data;
+}
+
 export async function getArenaLeaderboard(
   params: {
     period_type?: "daily" | "monthly";
@@ -1333,6 +1436,7 @@ export const adminPlayAPI = {
   updateCampaign,
   deleteCampaign,
   getArenaLeaderboard,
+  listArenaPeriods,
   getArenaRewardSettings,
   updateArenaRewardSettings,
   listTeams,
@@ -1373,6 +1477,12 @@ export const adminPlayAPI = {
   publishMobileRelease,
   pauseMobileRelease,
   retireMobileRelease,
+  getArenaUserReport,
+  previewArenaAccounting,
+  activateArenaAccounting,
+  listCheckinRecords,
+  previewCheckinRepair,
+  repairCheckins,
   getCheckinMilestoneSettings,
   updateCheckinMilestoneSettings,
 };

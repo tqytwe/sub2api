@@ -26,6 +26,9 @@ func (s *PlayService) SettleArenaPeriod(ctx context.Context, periodID int64) (*P
 	if period == nil {
 		return nil, ErrPlayArenaNoPeriod
 	}
+	if period.PeriodType == "daily" {
+		return s.SettleDailyArenaPeriod(ctx, period.ID)
+	}
 	if period.Status != "active" {
 		return nil, ErrPlayArenaPeriodNotSettleable
 	}
@@ -39,6 +42,11 @@ func (s *PlayService) SettleArenaPeriod(ctx context.Context, periodID int64) (*P
 		}
 	} else if now.Before(period.EndAt) {
 		return nil, ErrPlayArenaPeriodNotSettleable
+	}
+	if result, err, handled := s.atomicArenaSettlement(ctx, period.ID, func(txCtx context.Context) (*PlayArenaSettlementResult, error) {
+		return s.SettleArenaPeriod(txCtx, period.ID)
+	}); handled {
+		return result, err
 	}
 	rewards, err := s.arenaRewardTiersForPeriod(ctx, period)
 	if err != nil {

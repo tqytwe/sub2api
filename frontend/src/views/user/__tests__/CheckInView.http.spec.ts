@@ -136,7 +136,7 @@ describe.skipIf(!baseURL)('CheckInView with real check-in HTTP and PostgreSQL', 
       expect(after.checkin?.checked_in_today).toBe(true)
       const committedStatus = await playAPI.getCheckinStatus()
       expect(after.checkin?.streak_count ?? 0).toBe(committedStatus.streak_count ?? 0)
-      expect(after.checkin?.streak_count ?? 0).toBe(mode === 'EXPLORER' ? 0 : mode === 'MILESTONE' ? 7 : 1)
+      expect(after.checkin?.streak_count ?? 0).toBe(mode === 'MILESTONE' ? 7 : 1)
       expect(after.pending_actions).toBe(0)
       expect(after.growth.balance).toBe(mode === 'EXPLORER' ? 1 : mode === 'MILESTONE' ? 2.5 : 1.5)
       // Equivalent to a separate tab: this store keeps the pre-grant balance.

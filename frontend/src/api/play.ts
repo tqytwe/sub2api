@@ -55,6 +55,7 @@ export interface PlayGrowthEligibility {
 }
 
 export interface PlayCheckinResult {
+  reconciled_milestone_amount?: number
   reward_amount: number
   balance_added: number
   reward_type?: PlayRewardType
@@ -683,6 +684,10 @@ export interface PlayQuestTask {
 }
 
 export interface PlayQuestToday {
+  task_energy?: number
+  monthly_token_energy?: number
+  monthly_scored_tokens?: number
+  energy_formula?: string
   enabled: boolean
   energy: number
   level: number

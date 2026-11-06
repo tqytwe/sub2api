@@ -61,19 +61,20 @@ type playCheckinStatusDTO struct {
 }
 
 type playCheckinResultDTO struct {
-	RewardAmount      float64                       `json:"reward_amount"`
-	BalanceAdded      float64                       `json:"balance_added"`
-	DailyRewardAmount float64                       `json:"daily_reward_amount"`
-	MilestoneAmount   float64                       `json:"milestone_amount"`
-	RewardType        service.PlayRewardType        `json:"reward_type"`
-	Coupon            *playCouponRewardDTO          `json:"coupon,omitempty"`
-	RedeemCode        *playRedeemCodeRewardDTO      `json:"redeem_code,omitempty"`
-	CouponPoolVersion string                        `json:"coupon_pool_version,omitempty"`
-	ServerDate        string                        `json:"server_date"`
-	StreakCount       int                           `json:"streak_count,omitempty"`
-	MilestoneBonus    float64                       `json:"milestone_bonus,omitempty"`
-	GrowthEnergy      int64                         `json:"growth_energy,omitempty"`
-	GrowthEligibility service.PlayGrowthEligibility `json:"growth_eligibility"`
+	ReconciledMilestoneAmount float64                       `json:"reconciled_milestone_amount,omitempty"`
+	RewardAmount              float64                       `json:"reward_amount"`
+	BalanceAdded              float64                       `json:"balance_added"`
+	DailyRewardAmount         float64                       `json:"daily_reward_amount"`
+	MilestoneAmount           float64                       `json:"milestone_amount"`
+	RewardType                service.PlayRewardType        `json:"reward_type"`
+	Coupon                    *playCouponRewardDTO          `json:"coupon,omitempty"`
+	RedeemCode                *playRedeemCodeRewardDTO      `json:"redeem_code,omitempty"`
+	CouponPoolVersion         string                        `json:"coupon_pool_version,omitempty"`
+	ServerDate                string                        `json:"server_date"`
+	StreakCount               int                           `json:"streak_count,omitempty"`
+	MilestoneBonus            float64                       `json:"milestone_bonus,omitempty"`
+	GrowthEnergy              int64                         `json:"growth_energy,omitempty"`
+	GrowthEligibility         service.PlayGrowthEligibility `json:"growth_eligibility"`
 }
 
 type playArenaPeriodDTO struct {
@@ -348,19 +349,20 @@ func (h *PlayHandler) CheckinMakeup(c *gin.Context) {
 		return
 	}
 	response.Success(c, playCheckinResultDTO{
-		RewardAmount:      result.RewardAmount,
-		BalanceAdded:      result.BalanceAdded,
-		DailyRewardAmount: result.DailyRewardAmount,
-		MilestoneAmount:   result.MilestoneAmount,
-		RewardType:        result.RewardType,
-		Coupon:            toPlayCouponRewardDTO(result.Coupon),
-		RedeemCode:        toPlayRedeemCodeRewardDTO(result.RedeemCode),
-		CouponPoolVersion: result.CouponPoolVersion,
-		ServerDate:        result.ServerDate,
-		StreakCount:       result.StreakCount,
-		MilestoneBonus:    result.MilestoneBonus,
-		GrowthEnergy:      result.GrowthEnergy,
-		GrowthEligibility: result.GrowthEligibility,
+		ReconciledMilestoneAmount: result.ReconciledMilestoneAmount,
+		RewardAmount:              result.RewardAmount,
+		BalanceAdded:              result.BalanceAdded,
+		DailyRewardAmount:         result.DailyRewardAmount,
+		MilestoneAmount:           result.MilestoneAmount,
+		RewardType:                result.RewardType,
+		Coupon:                    toPlayCouponRewardDTO(result.Coupon),
+		RedeemCode:                toPlayRedeemCodeRewardDTO(result.RedeemCode),
+		CouponPoolVersion:         result.CouponPoolVersion,
+		ServerDate:                result.ServerDate,
+		StreakCount:               result.StreakCount,
+		MilestoneBonus:            result.MilestoneBonus,
+		GrowthEnergy:              result.GrowthEnergy,
+		GrowthEligibility:         result.GrowthEligibility,
 	})
 }
 
@@ -379,19 +381,20 @@ func (h *PlayHandler) Checkin(c *gin.Context) {
 		return
 	}
 	response.Success(c, playCheckinResultDTO{
-		RewardAmount:      result.RewardAmount,
-		BalanceAdded:      result.BalanceAdded,
-		DailyRewardAmount: result.DailyRewardAmount,
-		MilestoneAmount:   result.MilestoneAmount,
-		RewardType:        result.RewardType,
-		Coupon:            toPlayCouponRewardDTO(result.Coupon),
-		RedeemCode:        toPlayRedeemCodeRewardDTO(result.RedeemCode),
-		CouponPoolVersion: result.CouponPoolVersion,
-		ServerDate:        result.ServerDate,
-		StreakCount:       result.StreakCount,
-		MilestoneBonus:    result.MilestoneBonus,
-		GrowthEnergy:      result.GrowthEnergy,
-		GrowthEligibility: result.GrowthEligibility,
+		ReconciledMilestoneAmount: result.ReconciledMilestoneAmount,
+		RewardAmount:              result.RewardAmount,
+		BalanceAdded:              result.BalanceAdded,
+		DailyRewardAmount:         result.DailyRewardAmount,
+		MilestoneAmount:           result.MilestoneAmount,
+		RewardType:                result.RewardType,
+		Coupon:                    toPlayCouponRewardDTO(result.Coupon),
+		RedeemCode:                toPlayRedeemCodeRewardDTO(result.RedeemCode),
+		CouponPoolVersion:         result.CouponPoolVersion,
+		ServerDate:                result.ServerDate,
+		StreakCount:               result.StreakCount,
+		MilestoneBonus:            result.MilestoneBonus,
+		GrowthEnergy:              result.GrowthEnergy,
+		GrowthEligibility:         result.GrowthEligibility,
 	})
 }
 

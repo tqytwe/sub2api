@@ -180,6 +180,8 @@ export default {
 
   // Navigation
   nav: {
+    smartOps: 'Smart operations',
+    pelicanTests: 'Pelican tests',
     dashboard: 'Dashboard',
     modelsAndPricing: 'Models & Pricing',
     announcements: 'Announcements',

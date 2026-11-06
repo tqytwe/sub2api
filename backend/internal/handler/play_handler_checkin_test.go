@@ -23,6 +23,10 @@ type checkinHandlerRepo struct {
 	energy int64
 }
 
+func (*checkinHandlerRepo) GetCheckinStreakOnDate(context.Context, int64, time.Time) (int, bool, error) {
+	return 0, false, nil
+}
+
 func (*checkinHandlerRepo) InsertCheckin(context.Context, int64, time.Time, float64, int) error {
 	return nil
 }
@@ -64,6 +68,7 @@ func TestCheckinHTTPProjectsGrowthReward(t *testing.T) {
 	require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &response))
 	require.Zero(t, response.Code)
 	require.JSONEq(t, "1", string(response.Data["growth_energy"]))
+	require.JSONEq(t, "1", string(response.Data["streak_count"]))
 	var eligibility service.PlayGrowthEligibility
 	require.NoError(t, json.Unmarshal(response.Data["growth_eligibility"], &eligibility))
 	require.Equal(t, service.PlayGrowthTierExplorer, eligibility.Tier)

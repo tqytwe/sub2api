@@ -293,7 +293,7 @@ onMounted(load)
                 <p v-if="latestHistory.period?.name" class="arena-season-copy">{{ latestHistory.period.name }}</p>
                 <div v-if="latestHistory.winners.length" class="arena-summary-list">
                   <div v-for="winner in latestHistory.winners" :key="`${winner.rank}-${winner.display_name}-${winner.paid_at}`" class="arena-summary-row">
-                    <span class="arena-rank-number">#{{ winner.rank }}</span>
+                    <span class="arena-rank-number" :title="winner.rank > 0 ? undefined : t('arena.historyRankUnknown')">{{ winner.rank > 0 ? `#${winner.rank}` : '—' }}<span v-if="winner.rank <= 0" class="sr-only">{{ t('arena.historyRankUnknown') }}</span></span>
                     <PlayUserAvatar :name="publicName(winner)" :avatar-url="winner.avatar_url" />
                     <span class="arena-rank-tokens">{{ t('arena.monthlySummary.actualPayout') }}</span>
                     <strong>{{ t('arena.monthlySummary.winnerReward', { amount: formatMoney(winner.reward_amount) }) }}</strong>
@@ -359,6 +359,10 @@ onMounted(load)
                     {{ t('arena.rpg.energyGap', { gap: quests.energy_to_next_level.toLocaleString() }) }}
                   </p>
                 </div>
+                <p v-if="quests.task_energy != null && quests.monthly_token_energy != null" class="text-sm text-gray-600 dark:text-dark-300" data-testid="arena-energy-breakdown">
+                  {{ t('arena.energyBreakdown', { task: quests.task_energy, token: quests.monthly_token_energy, total: quests.energy }) }}
+                </p>
+                <p v-if="quests.monthly_scored_tokens != null" class="text-xs text-gray-500">{{ t('arena.energyFormula', { tokens: quests.monthly_scored_tokens.toLocaleString() }) }}</p>
                 <div class="arena-rpg-xp-bar">
                   <div class="arena-rpg-xp-fill" :style="{ width: `${xpPercent}%` }" />
                 </div>

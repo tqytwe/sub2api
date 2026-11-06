@@ -50,6 +50,8 @@
                   'sidebar-link-collapsed': sidebarCollapsed
                 }"
                 :title="sidebarCollapsed ? item.label : undefined"
+                :aria-label="item.label"
+                :aria-expanded="!sidebarCollapsed && isGroupExpanded(item)"
                 @click="handleGroupClick(item)"
               >
                 <component :is="item.icon" class="h-5 w-5 flex-shrink-0" />
@@ -129,6 +131,8 @@
                   'sidebar-link-collapsed': sidebarCollapsed
                 }"
                 :title="sidebarCollapsed ? item.label : undefined"
+                :aria-label="item.label"
+                :aria-expanded="!sidebarCollapsed && isGroupExpanded(item)"
                 @click="handleGroupClick(item)"
               >
                 <component :is="item.icon" class="h-5 w-5 flex-shrink-0" />
@@ -194,6 +198,8 @@
                   'sidebar-link-collapsed': sidebarCollapsed
                 }"
                 :title="sidebarCollapsed ? item.label : undefined"
+                :aria-label="item.label"
+                :aria-expanded="!sidebarCollapsed && isGroupExpanded(item)"
                 @click="handleGroupClick(item)"
               >
                 <component :is="item.icon" class="h-5 w-5 flex-shrink-0" />
@@ -976,10 +982,18 @@ const adminNavItems = computed((): NavItem[] => {
     },
     { path: '/admin/subscriptions', label: t('nav.subscriptions'), icon: CreditCardIcon, hideInSimpleMode: true, featureFlag: flagSubscription },
     { path: '/admin/accounts', label: t('nav.accounts'), icon: GlobeIcon },
-    { path: '/admin/account-quality', label: t('admin.qualityOps.nav'), icon: ShieldIcon },
-    { path: '/admin/pelican-tests', label: t('nav.pelicanShowcase'), icon: ShieldIcon },
-    { path: '/admin/priority-scheduling', label: t('nav.priorityScheduling'), icon: ChannelIcon },
-    { path: '/admin/token-guard-v2', label: t('tokenGuardV2.title'), icon: ShieldIcon, hideInSimpleMode: true },
+    {
+      path: '/admin/smart-ops',
+      label: t('nav.smartOps'),
+      icon: ShieldIcon,
+      expandOnly: true,
+      children: [
+        { path: '/admin/priority-scheduling', label: t('nav.priorityScheduling'), icon: ChannelIcon },
+        { path: '/admin/account-quality', label: t('admin.qualityOps.nav'), icon: ShieldIcon },
+        { path: '/admin/token-guard-v2', label: t('tokenGuardV2.title'), icon: ShieldIcon },
+        { path: '/admin/pelican-tests', label: t('nav.pelicanTests'), icon: ShieldIcon },
+      ],
+    },
     { path: '/admin/plugins', label: t('nav.plugins'), icon: PluginIcon, featureFlag: flagPluginManagement },
     { path: '/admin/announcements', label: t('nav.announcements'), icon: BellIcon },
     { path: '/admin/proxies', label: t('nav.proxies'), icon: ServerIcon },
@@ -1102,13 +1116,17 @@ function toggleGroup(item: NavItem) {
 
 /**
  * Click handler for collapsible parent items.
- * - When sidebar is collapsed: do nothing (children are not visible).
+ * - When sidebar is collapsed: expand it and reveal this group.
  * - When `expandOnly` is true: only toggle expand state.
  * - Otherwise (default, e.g. /admin/orders): navigate to the parent path
  *   (router-link semantics) and ensure the group is expanded.
  */
 function handleGroupClick(item: NavItem) {
-  if (sidebarCollapsed.value) return
+  if (sidebarCollapsed.value) {
+    appStore.toggleSidebar()
+    groupExpandOverrides.value.set(item.path, true)
+    return
+  }
   if (item.expandOnly) {
     toggleGroup(item)
     return
@@ -1289,5 +1307,14 @@ onBeforeUnmount(() => {
   display: block;
   width: 1.25rem;
   height: 1.25rem;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sidebar,
+  .sidebar *,
+  .sidebar *::before,
+  .sidebar *::after {
+    transition: none !important;
+    animation: none !important;
+  }
 }
 </style>

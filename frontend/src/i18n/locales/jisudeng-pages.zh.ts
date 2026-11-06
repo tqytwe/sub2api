@@ -283,6 +283,9 @@ export const jisudengPagesZh = {
     rechargeCta: '去充值',
   },
   arena: {
+    historyRankUnknown: '历史排名证据缺失',
+    energyBreakdown: '今日任务 {task} + 本月 Token 能量 {token} = 当前能量 {total}',
+    energyFormula: '本月计分 Token {tokens} ÷ 10000 向下取整；任务能量每日重置。',
     disabled: 'Token 农场暂未开启',
     period: '当前周期：{name}',
     myRank: '我的排名',
@@ -1176,6 +1179,7 @@ export const jisudengPagesZh = {
       ctaAuth: '进入控制台',
     },
     arena: {
+    historyRankUnknown: '历史排名证据缺失',
       eyebrow: '玩法 · Token 农场',
       title: 'Token 农场 · 消耗也有回报',
       subtitle: '按周期统计 API 消耗排行，上榜用户获得额外奖励。',

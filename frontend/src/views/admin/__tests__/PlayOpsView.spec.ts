@@ -5,6 +5,7 @@ import PlayOpsView from '@/views/admin/PlayOpsView.vue'
 const {
   getSummary,
   getArenaLeaderboard,
+  listArenaPeriods,
   listCampaigns,
   createCampaign,
 	updateCampaign,
@@ -24,6 +25,7 @@ const {
 } = vi.hoisted(() => ({
   getSummary: vi.fn(),
   getArenaLeaderboard: vi.fn(),
+  listArenaPeriods: vi.fn(),
   listCampaigns: vi.fn(),
   createCampaign: vi.fn(),
 	updateCampaign: vi.fn(),
@@ -46,6 +48,7 @@ vi.mock('@/api/admin/play', () => ({
   default: {
     getSummary,
     getArenaLeaderboard,
+    listArenaPeriods,
     listCampaigns,
     createCampaign,
     updateCampaign,
@@ -287,6 +290,7 @@ describe('PlayOpsView campaigns', () => {
       daily_arena_reward_budget: 0,
     })
     getArenaLeaderboard.mockReset().mockResolvedValue({ rewards: [], rows: [] })
+    listArenaPeriods.mockReset().mockResolvedValue({ items: [], total: 0, page: 1, page_size: 20 })
     listCampaigns.mockReset().mockResolvedValue([
       {
         id: 7,
@@ -334,6 +338,20 @@ describe('PlayOpsView campaigns', () => {
     })
   })
 
+  it('shows actual credited rewards and missing historical evidence on settled farm periods', async () => {
+    getArenaLeaderboard.mockResolvedValue({ period: { id: 71, status: 'settled' }, rewards: [], rows: [
+      { user_id: 42, display_name: 'Historical winner', rank: 0, token_sum: 0, estimated_reward: 99, paid_reward: 1.25, evidence_status: 'historical_evidence_missing' },
+    ] })
+    const wrapper = mountView('arena')
+    await flushPromises()
+    expect(wrapper.text()).toContain('admin.playOps.actualReward')
+    expect(wrapper.text()).toContain('admin.playOps.historicalEvidenceMissing')
+    expect(wrapper.text()).toContain('1.25')
+    expect(wrapper.text()).not.toContain('99.00')
+    expect(wrapper.text()).not.toContain('#0')
+    wrapper.unmount()
+  })
+
   it('persists the selected top-level tab and does not load inactive domains', async () => {
     routeState.query = { tab: 'app-analytics' }
     const wrapper = mountView()
@@ -353,6 +371,28 @@ describe('PlayOpsView campaigns', () => {
 
     expect(getArenaLeaderboard).toHaveBeenCalledWith({ period_type: 'monthly', limit: 20 })
     expect(listCampaigns).not.toHaveBeenCalled()
+  })
+
+  it('pages farm history, selects an immutable period and refreshes its payout evidence', async () => {
+    const page1 = { items: [{ id: 71, name: '2048-01-02', period_type: 'daily', status: 'settled', start_at: '', end_at: '', accounting_version: 2, reward_policy_source: 'frozen', paid_users: 1, paid_amount: '1.25' }], total: 2, page: 1, page_size: 1 }
+    const page2 = { items: [{ id: 70, name: '2048-01-01', period_type: 'daily', status: 'settled', start_at: '', end_at: '', accounting_version: 1, reward_policy_source: 'legacy_live', paid_users: 1, paid_amount: '0.50' }], total: 2, page: 2, page_size: 1 }
+    listArenaPeriods.mockResolvedValueOnce(page1).mockResolvedValueOnce(page2).mockResolvedValueOnce(page2)
+    getArenaLeaderboard.mockResolvedValue({ period: { id: 70, status: 'settled' }, rewards: [], rows: [{ user_id: 42, rank: 0, token_sum: 0, estimated_reward: 99, paid_reward: 0.5, evidence_status: 'historical_evidence_missing' }] })
+    const wrapper = mountView('arena')
+    await flushPromises()
+    expect(listArenaPeriods).toHaveBeenCalledWith('monthly', 1, 20)
+    await wrapper.get('[data-testid="arena-period-next"]').trigger('click')
+    await flushPromises()
+    expect(listArenaPeriods).toHaveBeenLastCalledWith('monthly', 2, 20)
+    await wrapper.get('[data-testid="arena-period-history"]').setValue(70)
+    expect((wrapper.get('[data-testid="arena-period-history"]').element as HTMLSelectElement).value).toBe('70')
+    await flushPromises()
+    expect(getArenaLeaderboard).toHaveBeenLastCalledWith({ period_id: 70, limit: 20 })
+    expect(wrapper.text()).toContain('admin.playOps.policySource')
+    expect(wrapper.text()).toContain('admin.playOps.historicalEvidenceMissing')
+    expect(wrapper.text()).not.toContain('99.00')
+    expect(wrapper.text()).not.toContain('#0')
+    wrapper.unmount()
   })
 
   it('routes the server-owned growth governance workbench through its own Play Ops tab', async () => {

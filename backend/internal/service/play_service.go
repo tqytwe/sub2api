@@ -435,6 +435,9 @@ func (s *PlayService) GetCheckinStatus(ctx context.Context, userID int64) (*Play
 }
 
 func (s *PlayService) Checkin(ctx context.Context, userID int64) (*PlayCheckinResult, error) {
+	if result, err, handled := s.checkinTransaction(ctx, userID, func(txCtx context.Context) (*PlayCheckinResult, error) { return s.Checkin(txCtx, userID) }); handled {
+		return result, err
+	}
 	rt := s.GetRuntime(ctx)
 	if !rt.CheckinEnabled {
 		return nil, ErrPlayFeatureDisabled
@@ -462,9 +465,16 @@ func (s *PlayService) Checkin(ctx context.Context, userID int64) (*PlayCheckinRe
 	dateKey := date.Format("2006-01-02")
 	idempotencyKey := fmt.Sprintf("checkin:%d:%s", userID, dateKey)
 	if growthEligibility.RewardMode == PlayGrowthRewardEnergy {
+		streak, err := s.computeNextStreak(ctx, userID, date)
+		if err != nil {
+			return nil, err
+		}
 		var snapshotID int64
-		err := s.withPlayTx(ctx, func(txCtx context.Context) error {
-			if err := s.repo.InsertCheckin(txCtx, userID, date, 0, 0); err != nil {
+		err = s.withPlayTx(ctx, func(txCtx context.Context) error {
+			if err := s.repo.InsertCheckin(txCtx, userID, date, 0, streak); err != nil {
+				return err
+			}
+			if err := s.saveCheckinMilestoneRules(txCtx, userID, date, rt); err != nil {
 				return err
 			}
 			var snapshotErr error
@@ -487,13 +497,13 @@ func (s *PlayService) Checkin(ctx context.Context, userID int64) (*PlayCheckinRe
 			return nil
 		})
 		if err != nil {
-			if errors.Is(err, ErrPlayCheckinAlreadyDone) || errors.Is(err, ErrPlayRewardDuplicate) {
+			if errors.Is(err, ErrPlayCheckinAlreadyDone) {
 				return nil, ErrPlayCheckinAlreadyDone
 			}
 			return nil, err
 		}
 		_ = s.MarkQuestCompleted(ctx, userID, PlayQuestKeyCheckin)
-		return &PlayCheckinResult{RewardType: PlayRewardTypeNone, ServerDate: dateKey, GrowthEnergy: 1, GrowthEligibility: growthEligibility}, nil
+		return &PlayCheckinResult{RewardType: PlayRewardTypeNone, ServerDate: dateKey, StreakCount: streak, GrowthEnergy: 1, GrowthEligibility: growthEligibility}, nil
 	}
 
 	streak, err := s.computeNextStreak(ctx, userID, date)
@@ -521,12 +531,16 @@ func (s *PlayService) Checkin(ctx context.Context, userID int64) (*PlayCheckinRe
 		reward *= boost.CheckinMultiplier
 	}
 	milestoneBonus := s.resolveStreakMilestoneBonus(streak, rt.StreakMilestones)
+	milestoneBonus, err = s.unpaidCheckinMilestone(ctx, userID, date, milestoneBonus)
+	if err != nil {
+		return nil, err
+	}
 	dailyBalance := 0.0
 	if rewardType == PlayRewardTypeBalance {
 		dailyBalance = reward
 	}
 	totalReward := dailyBalance + milestoneBonus
-	milestoneKey := fmt.Sprintf("checkin_milestone:%d:%d", userID, streak)
+	milestoneKey := fmt.Sprintf("checkin_milestone:%d:%s:%d", userID, dateKey, streak)
 
 	var couponIssue *CouponRewardIssueResult
 	var redeemCode *RedeemCode
@@ -536,6 +550,9 @@ func (s *PlayService) Checkin(ctx context.Context, userID int64) (*PlayCheckinRe
 		// is issued. This unique insert is the concurrency boundary: a second
 		// request loses before it can draw a coupon or reserve a redeem code.
 		if err := s.repo.InsertCheckin(txCtx, userID, date, totalReward, streak); err != nil {
+			return err
+		}
+		if err := s.saveCheckinMilestoneRules(txCtx, userID, date, rt); err != nil {
 			return err
 		}
 		var snapshotErr error
@@ -604,7 +621,7 @@ func (s *PlayService) Checkin(ctx context.Context, userID int64) (*PlayCheckinRe
 		}
 		return nil
 	}); err != nil {
-		if errors.Is(err, ErrPlayCheckinAlreadyDone) || errors.Is(err, ErrPlayRewardDuplicate) {
+		if errors.Is(err, ErrPlayCheckinAlreadyDone) {
 			return nil, ErrPlayCheckinAlreadyDone
 		}
 		return nil, err
@@ -733,6 +750,9 @@ func (s *PlayService) grantBalanceWithGrowthSnapshot(
 	growthSnapshotID *int64,
 	beforeLedger func(txCtx context.Context) error,
 ) error {
+	if dbent.TxFromContext(ctx) != nil {
+		return s.grantBalanceInTx(ctx, userID, amount, source, idempotencyKey, detail, growthSnapshotID, beforeLedger)
+	}
 	if s.entClient == nil {
 		return fmt.Errorf("play service: ent client missing")
 	}
@@ -762,6 +782,9 @@ func growthRuleVersionForSnapshot(snapshotID int64) string {
 }
 
 func (s *PlayService) withPlayTx(ctx context.Context, fn func(txCtx context.Context) error) error {
+	if dbent.TxFromContext(ctx) != nil {
+		return fn(ctx)
+	}
 	if s.entClient == nil {
 		return fmt.Errorf("play service: ent client missing")
 	}

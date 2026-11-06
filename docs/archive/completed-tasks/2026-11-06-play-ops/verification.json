@@ -1,0 +1,55 @@
+{
+  "frontend_full": {
+    "log": "/tmp/play-closeout-final-front-test.log",
+    "sha256": "cbd3a7c686da86efd4ded6a3fb3e6b620375e7f072a0453bd4d5909bd9de5819",
+    "status": "passed"
+  },
+  "backend_unit": {
+    "log": "/tmp/play-closeout-release-unit.log",
+    "sha256": "885e60206a6b83766e871756b8b96c4e5404661d35cb0c1fdacb7910da3ede64",
+    "status": "passed"
+  },
+  "build": {
+    "log": "/tmp/play-closeout-final-build.log",
+    "sha256": "15813a60fc01bd1e83caaec2862eb4e5576ad3ea4b16c9fdbc755f0c784d93aa",
+    "status": "passed"
+  },
+  "fork_integrity": {
+    "log": "/tmp/play-closeout-release-integrity.log",
+    "sha256": "5dc197508dd7011de1ba4cc941a2f7c4c7faa9701fa32ac290bd0369fcbd7406",
+    "status": "passed"
+  },
+  "play_postgres_http": {
+    "log": "/tmp/play-closeout-scope-final.log",
+    "sha256": "9650dd1a66ee6097f06208cbe3a8c18ab8226854713221780fb8357fa14526eb",
+    "status": "passed"
+  },
+  "frontend_lint": {
+    "log": "/tmp/play-closeout-final-front-lint.log",
+    "sha256": "b7d66fdffe3f6fc5a679ebb7e1df06a204420032a4fc38a0f5de9bc3c59f81b8",
+    "status": "passed"
+  },
+  "frontend_types": {
+    "log": "/tmp/play-closeout-final-front-types.log",
+    "sha256": "b178db863ccb7d66240f23faee5de8931220526d01257b6825bef0fe5805b31e",
+    "status": "passed"
+  },
+  "design_verify": {
+    "log": "/tmp/play-closeout-final-design.log",
+    "sha256": "cff0ebd78876c4c03d4b701d39d3a33387e23cdb9113326d8b9b29ec7c9b695d",
+    "status": "passed"
+  },
+  "additional_integration_audit_failed": {
+    "log": "/tmp/play-closeout-final-integration.log",
+    "sha256": "a2e513cc79f14b8adae9a9913dbba495d38880e818345923a1c81f93808cc22d",
+    "status": "failed-baseline-and-environment",
+    "note": "Extra full tagged audit is not a passing gate: missing preexisting Pelican upstream migration tests and image download/port errors. Relevant play cases passed separately; full unit/default are separate release gates."
+  },
+  "make_test": {
+    "log": "/tmp/play-closeout-delivery-test.log",
+    "sha256": "6f1c00954a341ff60ba0f5c52f152428bda18f8ac98e94a9d0c4f79ef81c4093",
+    "status": "passed",
+    "exit_code": 0,
+    "note": "Full default Go tests, golangci-lint 0 issues, frontend lint/design/typecheck and 4179 tests passed; 8 environment-gated tests skipped with live checkin contract separately passed."
+  }
+}

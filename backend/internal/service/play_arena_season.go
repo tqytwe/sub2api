@@ -124,7 +124,11 @@ func (s *PlayService) GetArenaSeasonOverview(ctx context.Context, userID int64, 
 			return nil, err
 		}
 		rows, period, err = s.ListDailyArenaLeaderboard(ctx, 50)
-		out.RewardTiers = append([]PlayArenaSettlementTier(nil), rt.DailyArenaTopRewards...)
+		if err == nil {
+			policy, policyErr := s.dailyArenaPolicyForPeriod(ctx, period)
+			err = policyErr
+			out.RewardTiers = policy.Rewards
+		}
 	} else {
 		out.Enabled = rt.ArenaEnabled
 		if !out.Enabled {

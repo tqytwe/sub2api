@@ -135,6 +135,10 @@ func seedWelfarePool(t *testing.T, activity service.CouponRewardActivity, kind s
 	t.Cleanup(func() {
 		_, err := integrationDB.Exec(`UPDATE coupon_reward_pool_versions SET status='retired' WHERE id=$1`, saved.ID)
 		require.NoError(t, err)
+		// Remove only this test's redeem-code inventory after its HTTP/ledger
+		// assertions. Otherwise later unfiltered repository list tests see it.
+		_, err = integrationDB.Exec(`DELETE FROM redeem_codes WHERE batch_name=$1`, version)
+		require.NoError(t, err)
 	})
 	return saved
 }
