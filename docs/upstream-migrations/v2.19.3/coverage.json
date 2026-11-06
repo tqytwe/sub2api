@@ -1,0 +1,20 @@
+{
+  "target": "6f813426b61b8eeba77f374059205cc34d2fa993",
+  "fork_base": "c302cce4f07b071417d0f42320cc4dde7428c7e9",
+  "first_parent_changes": 728,
+  "batches": {
+    "legacy-direct": 237,
+    "legacy-merge": 446,
+    "v2177-to-v2193": 45
+  },
+  "path_counts": {
+    "upstream_only": 2709,
+    "fork_only": 3890,
+    "different": 1700,
+    "identical": 2688
+  },
+  "upstream_sql": 396,
+  "new_sql_since_v2177": 20,
+  "full_behavior_review_complete": false,
+  "fully_migrated": false
+}

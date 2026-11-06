@@ -137,3 +137,4 @@
 - [BPS 文本 Responses 账号开关视觉审查](./visual-reviews/2026-11-02-bps-text-runtime.md)：复用管理员 OpenAI OAuth 账号编辑项，仅添加文本 Responses 运行时开关；不替代生产验收。
 
 - [2026-11-06 签到、农场与智能运维菜单限定交付](./archive/completed-tasks/2026-11-06-play-ops/README.md)
+- [v2.19.3 PR #411 后完整差异清单](./upstream-migrations/v2.19.3/README.md)：`review`，728 条来源变更、路径/迁移底表与分阶段执行队列；`fully_migrated=false`。
