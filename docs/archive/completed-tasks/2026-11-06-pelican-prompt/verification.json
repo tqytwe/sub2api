@@ -1,0 +1,31 @@
+{
+  "base_sha": "c302cce4f07b071417d0f42320cc4dde7428c7e9",
+  "checks": [
+    {
+      "check": "integration",
+      "exit_code": 0,
+      "log_sha256": "7ded4f71e9cb569ffe27589ebd3b755cdcc1f4ec27ab3f7b96de52f19eb1db5d"
+    },
+    {
+      "check": "test",
+      "exit_code": 0,
+      "log_sha256": "b42cf0eae98a0c6071f333a13ceb44fdede1d724575f38f36c07d00bb38a2505"
+    },
+    {
+      "check": "test-backend-unit",
+      "exit_code": 0,
+      "log_sha256": "1c83a7f452bfa46e585e040c6b3e05af0a6d644da6f22be5916e76c536bcc85f"
+    },
+    {
+      "check": "build",
+      "exit_code": 0,
+      "log_sha256": "a39cb5ad82c233faea394994ee1c695601a9fc1958707a5ab7ad1cb396357d58"
+    },
+    {
+      "check": "integrity",
+      "exit_code": 0,
+      "log_sha256": "983eff60379d237cb97b881f359a196eb3133466138cee4bea35a2d59e3456b6"
+    }
+  ],
+  "browser_acceptance": "pending_user_local_browser"
+}
