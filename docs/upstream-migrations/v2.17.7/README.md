@@ -1,5 +1,7 @@
 # v2.17.7 同步批次账本
 
+> 2026-11-06 单项跟进：上游 #293 旧题干迁移按用户要求独立收尾，见[349 交付记录](../../archive/completed-tasks/2026-11-06-pelican-prompt/README.md)。#411 后开发基线为 `c302cce4f07b071417d0f42320cc4dde7428c7e9`；以下 #399 记录是历史采样，未重新验证的领域不能据此推断当前状态。全版差异清单在单项部署后另行复核，`fully_migrated=false`。
+
 > **#399 发布后复核（2026-11-01 UTC+8）**：PR #399 已通过全部 8 项 CI 并合并为 `play/main@80131c818b1d1917c75a73bb61becc1930efd550`；Zeabur deployment `6ae66d6eea16512cf741d587` 的实际 commit SHA 一致，`finishedAt=2026-10-31T22:41:24.068Z`，状态 `RUNNING`。应用、PostgreSQL、Redis 均为 `RUNNING`，`www.jisudeng.com` 与 `/health` 均 HTTP 200（`{"status":"ok"}`）。部署后运行日志未发现 `ERROR/FATAL/PANIC`；可见 WARN 为既有配置提示（审核 API Key、trusted proxy、URL allowlist、JWT 持久化密钥和价格 fallback），不构成启动失败。未认证访问 `/api/v1/admin/accounts`、`/api/v1/admin/requests`、`/api/v1/admin/usage` 均返回 `401 application/json`。#399 无新增 SQL migration，未执行生产写入；内容审查用户管理刷新已由用户确认正常。#397 管理员已验收质量规则保存/刷新、2 模型×2 次产生同一轮 4 条结果及跨计划历史；#396 管理员已验收多组 Key、默认组切换、保存刷新和倍率明细。Priority 真实 WS 观测行、渠道运维写动作和历史账务只读归因仍待完成，`fully_migrated=false`。本段是发布后交付证据，不为文档单独触发部署。
 
 状态：`deployed-partial / migration-incomplete`；整版仍为 `fully_migrated=false`。当前生产以 #399 精确部署记录为准。
