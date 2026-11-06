@@ -20,10 +20,12 @@ type growthCheckinSnapshotLink struct {
 // recording the qualification evidence that the check-in flows persist.
 type growthCheckinRepo struct {
 	PlayRepository
-	streak      int
-	streakFound bool
-	checkins    map[string]bool
-	signals     PlayGrowthEligibilitySignals
+	streak        int
+	streakFound   bool
+	rebuiltStreak int
+	rebuildCalls  int
+	checkins      map[string]bool
+	signals       PlayGrowthEligibilitySignals
 
 	snapshots []PlayGrowthEligibilitySnapshot
 	links     []growthCheckinSnapshotLink
@@ -145,6 +147,14 @@ func (r *growthCheckinRepo) GetCheckinStreakOnDate(_ context.Context, _ int64, _
 	return r.streak, r.streakFound, nil
 }
 
+func (r *growthCheckinRepo) CountConsecutiveCheckinsEndingAt(context.Context, int64, time.Time) (int, error) {
+	r.rebuildCalls++
+	if r.rebuiltStreak > 0 {
+		return r.rebuiltStreak, nil
+	}
+	return r.streak, nil
+}
+
 func (r *growthCheckinRepo) HasCheckin(_ context.Context, _ int64, date time.Time) (bool, error) {
 	return r.checkins[date.Format("2006-01-02")], nil
 }
@@ -244,17 +254,21 @@ func TestQualifiedCouponCheckinCreditsMilestoneSeparately(t *testing.T) {
 	require.InDelta(t, 1, result.BalanceAdded, 1e-12)
 	require.Len(t, repo.ledgerEntries, 1)
 	require.Equal(t, PlayRewardSourceCheckinMilestone, repo.ledgerEntries[0].Source)
-	require.Equal(t, "checkin_milestone:42:7", repo.ledgerEntries[0].IdempotencyKey)
+	require.Equal(t, "checkin_milestone:42:2026-08-29:7", repo.ledgerEntries[0].IdempotencyKey)
 	require.Equal(t, []float64{1}, repo.balanceUpdates)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
 func TestExplorerCheckinRecordsGrowthEnergyWithoutCashReward(t *testing.T) {
 	now := time.Date(2026, time.August, 29, 12, 0, 0, 0, time.UTC)
-	repo := &growthCheckinRepo{signals: PlayGrowthEligibilitySignals{
-		EmailVerified: true,
-		CreatedAt:     now.AddDate(0, 0, -8),
-	}}
+	repo := &growthCheckinRepo{
+		streak:      6,
+		streakFound: true,
+		signals: PlayGrowthEligibilitySignals{
+			EmailVerified: true,
+			CreatedAt:     now.AddDate(0, 0, -8),
+		},
+	}
 	client, mock := newCouponRewardEntClient(t)
 	svc := NewPlayService(repo, nil, nil, newGrowthCheckinSettingService(false), nil, client)
 	svc.now = func() time.Time { return now }
@@ -268,8 +282,10 @@ func TestExplorerCheckinRecordsGrowthEnergyWithoutCashReward(t *testing.T) {
 	require.Equal(t, PlayGrowthRewardEnergy, result.GrowthEligibility.RewardMode)
 	require.EqualValues(t, 1, result.GrowthEnergy)
 	require.Equal(t, PlayRewardTypeNone, result.RewardType)
+	require.Equal(t, 7, result.StreakCount)
 	require.Zero(t, result.BalanceAdded)
 	require.Len(t, repo.inserted, 1)
+	require.Equal(t, 7, repo.inserted[0].streak)
 	require.Len(t, repo.snapshots, 1)
 	require.Equal(t, PlayGrowthTierExplorer, repo.snapshots[0].Eligibility.Tier)
 	require.Len(t, repo.energyEntries, 1)
@@ -279,6 +295,33 @@ func TestExplorerCheckinRecordsGrowthEnergyWithoutCashReward(t *testing.T) {
 	require.Equal(t, int64(901), repo.energyEntries[0].EligibilitySnapshotID)
 	require.Empty(t, repo.ledgerEntries)
 	require.Empty(t, repo.balanceUpdates)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestEnergyCheckinRebuildsLegacyZeroStreakWithoutChangingRewardMode(t *testing.T) {
+	now := time.Date(2026, time.August, 29, 12, 0, 0, 0, time.UTC)
+	repo := &growthCheckinRepo{
+		streakFound:   true,
+		rebuiltStreak: 6,
+		signals: PlayGrowthEligibilitySignals{
+			EmailVerified: true,
+			CreatedAt:     now.AddDate(0, 0, -8),
+		},
+	}
+	client, mock := newCouponRewardEntClient(t)
+	svc := NewPlayService(repo, nil, nil, newGrowthCheckinSettingService(false), nil, client)
+	svc.now = func() time.Time { return now }
+
+	mock.ExpectBegin()
+	mock.ExpectCommit()
+	result, err := svc.Checkin(context.Background(), 42)
+	require.NoError(t, err)
+	require.Equal(t, 7, result.StreakCount)
+	require.Equal(t, 1, repo.rebuildCalls)
+	require.Equal(t, 7, repo.inserted[0].streak)
+	require.Equal(t, PlayRewardTypeNone, result.RewardType)
+	require.EqualValues(t, 1, result.GrowthEnergy)
+	require.Empty(t, repo.ledgerEntries)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
@@ -419,4 +462,12 @@ func TestQualifiedCheckinStatusUsesPublishedPoolWithoutLegacyApproval(t *testing
 	require.True(t, status.GrowthGovernanceAvailable)
 	require.Empty(t, status.GrowthGovernanceReason)
 	require.True(t, status.CouponPoolReady)
+}
+
+func TestCheckinStreakRebuildsNonzeroCachedCountAfterMakeup(t *testing.T) {
+	repo := &growthCheckinRepo{streak: 1, streakFound: true, rebuiltStreak: 7}
+	svc := NewPlayService(repo, nil, nil, nil, nil, nil)
+	count, err := svc.computeNextStreak(context.Background(), 42, time.Date(2026, 11, 4, 0, 0, 0, 0, time.UTC))
+	require.NoError(t, err)
+	require.Equal(t, 8, count)
 }

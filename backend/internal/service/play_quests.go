@@ -16,15 +16,16 @@ func (s *PlayService) MarkQuestCompleted(ctx context.Context, userID int64, ques
 	return s.repo.UpsertQuestProgress(ctx, userID, s.serverDate(now), questKey, true)
 }
 
-func (s *PlayService) syncQuestAutoProgress(ctx context.Context, userID int64, defs []PlayDailyQuestDef, progress map[string]PlayQuestProgressRow) error {
-	now := s.serverNow()
+// Evaluate the same task evidence for user and operator views. Operator reads
+// never write progress; user requests retain the existing persistence contract.
+func (s *PlayService) syncQuestAutoProgress(ctx context.Context, userID int64, defs []PlayDailyQuestDef, progress map[string]PlayQuestProgressRow, now time.Time, persist bool) error {
 	day := s.serverDate(now)
 	dayEnd := day.AddDate(0, 0, 1)
-
 	for _, def := range defs {
 		if progress[def.Key].Completed {
 			continue
 		}
+		completed := false
 		switch def.Key {
 		case PlayQuestKeyCheckin:
 			if s.GetRuntime(ctx).CheckinEnabled {
@@ -32,11 +33,7 @@ func (s *PlayService) syncQuestAutoProgress(ctx context.Context, userID int64, d
 				if err != nil {
 					return err
 				}
-				if done {
-					if err := s.repo.UpsertQuestProgress(ctx, userID, day, def.Key, true); err != nil {
-						return err
-					}
-				}
+				completed = done
 			}
 		case PlayQuestKeyAPICall:
 			minTokens := def.MinTokens
@@ -47,20 +44,27 @@ func (s *PlayService) syncQuestAutoProgress(ctx context.Context, userID int64, d
 			if err != nil {
 				return err
 			}
-			if tokens >= minTokens {
+			completed = tokens >= minTokens
+		}
+		if completed {
+			if persist {
 				if err := s.repo.UpsertQuestProgress(ctx, userID, day, def.Key, true); err != nil {
 					return err
 				}
 			}
+			progress[def.Key] = PlayQuestProgressRow{QuestKey: def.Key, Completed: true}
 		}
 	}
 	return nil
 }
 
 func (s *PlayService) GetQuestsToday(ctx context.Context, userID int64) (*PlayQuestToday, error) {
+	return s.getQuestsToday(ctx, userID, s.serverNow(), true)
+}
+
+func (s *PlayService) getQuestsToday(ctx context.Context, userID int64, now time.Time, persist bool) (*PlayQuestToday, error) {
 	rt := s.GetRuntime(ctx)
 	out := &PlayQuestToday{Enabled: rt.DailyQuestsEnabled}
-	now := s.serverNow()
 	out.ServerDate = s.serverDate(now).Format("2006-01-02")
 	if !out.Enabled || userID <= 0 {
 		return out, nil
@@ -77,16 +81,8 @@ func (s *PlayService) GetQuestsToday(ctx context.Context, userID int64) (*PlayQu
 	for _, row := range rows {
 		progress[row.QuestKey] = row
 	}
-	if err := s.syncQuestAutoProgress(ctx, userID, defs, progress); err != nil {
+	if err := s.syncQuestAutoProgress(ctx, userID, defs, progress, now, persist); err != nil {
 		return nil, err
-	}
-	rows, err = s.repo.ListQuestProgress(ctx, userID, s.serverDate(now))
-	if err != nil {
-		return nil, err
-	}
-	progress = make(map[string]PlayQuestProgressRow, len(rows))
-	for _, row := range rows {
-		progress[row.QuestKey] = row
 	}
 	energy := 0
 	out.Tasks = make([]PlayQuestTask, 0, len(defs))
@@ -103,7 +99,11 @@ func (s *PlayService) GetQuestsToday(ctx context.Context, userID int64) (*PlayQu
 			}
 			if count >= minCount {
 				completed = true
-				_ = s.repo.UpsertQuestProgress(ctx, userID, s.serverDate(now), def.Key, true)
+				if persist {
+					if err := s.repo.UpsertQuestProgress(ctx, userID, s.serverDate(now), def.Key, true); err != nil {
+						return nil, err
+					}
+				}
 			}
 		}
 		if completed {
@@ -121,10 +121,18 @@ func (s *PlayService) GetQuestsToday(ctx context.Context, userID int64) (*PlayQu
 		})
 	}
 	monthlyTokens := int64(0)
-	if cur, err := s.GetArenaCurrent(ctx, userID); err == nil && cur != nil {
+	cur, err := s.GetArenaCurrent(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	if cur != nil {
 		monthlyTokens = cur.TokenSum
 	}
-	energy += int(monthlyTokens / 10000)
+	out.TaskEnergy = energy
+	out.MonthlyScoredTokens = monthlyTokens
+	out.MonthlyTokenEnergy = monthlyTokens / 10000
+	out.EnergyFormula = "today_tasks_plus_floor_monthly_scored_tokens_div_10000"
+	energy += int(out.MonthlyTokenEnergy)
 	out.Energy = energy
 	out.Level, out.EnergyToNextLevel = computeQuestLevel(energy)
 	return out, nil
@@ -137,7 +145,7 @@ func (s *PlayService) GetDailyArenaCurrent(ctx context.Context, userID int64) (*
 		return out, nil
 	}
 	now := s.serverNow()
-	period, err := s.repo.EnsureDailyArenaPeriod(ctx, now)
+	period, err := s.ensureDailyArenaPeriod(ctx, now, rt)
 	if err != nil {
 		return nil, err
 	}
@@ -154,7 +162,11 @@ func (s *PlayService) GetDailyArenaCurrent(ctx context.Context, userID int64) (*
 	}
 	out.TokenSum = tokenSum
 	out.Rank = rank
-	out.EstimatedReward = arenaRewardForRank(rank, rt.DailyArenaTopRewards)
+	policy, err := s.dailyArenaPolicyForPeriod(ctx, period)
+	if err != nil {
+		return nil, err
+	}
+	out.EstimatedReward = dailyArenaRewardForRank(rank, policy)
 	out.DisplayTokenSum = tokenSum
 	if rank > 1 {
 		gap, err := s.repo.GetArenaTokensToPrevRank(ctx, userID, period.StartAt, period.EndAt, rank, tokenSum)
@@ -172,7 +184,7 @@ func (s *PlayService) ListDailyArenaLeaderboard(ctx context.Context, limit int) 
 		return nil, nil, ErrPlayFeatureDisabled
 	}
 	now := s.serverNow()
-	period, err := s.repo.EnsureDailyArenaPeriod(ctx, now)
+	period, err := s.ensureDailyArenaPeriod(ctx, now, rt)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -187,20 +199,31 @@ func (s *PlayService) ListDailyArenaLeaderboard(ctx context.Context, limit int) 
 }
 
 func (s *PlayService) SettleDailyArenaPeriod(ctx context.Context, periodID int64) (*PlayArenaSettlementResult, error) {
-	rt := s.GetRuntime(ctx)
-	rewards := rt.DailyArenaTopRewards
-	if len(rewards) == 0 {
-		rewards = parsePlayDailyArenaRewards("")
-	}
-	if len(rewards) == 0 {
-		return nil, fmt.Errorf("daily arena settlement rewards not configured")
-	}
 	period, err := s.repo.GetArenaPeriodByID(ctx, periodID)
-	if err != nil || period == nil {
+	if err != nil {
+		return nil, err
+	}
+	if period == nil {
 		return nil, ErrPlayArenaNoPeriod
 	}
 	if period.Status != "active" {
 		return nil, ErrPlayArenaPeriodNotSettleable
+	}
+	if period.PeriodType != "daily" || s.serverNow().Before(period.EndAt) {
+		return nil, ErrPlayArenaPeriodNotSettleable
+	}
+	if result, err, handled := s.atomicArenaSettlement(ctx, period.ID, func(txCtx context.Context) (*PlayArenaSettlementResult, error) {
+		return s.SettleDailyArenaPeriod(txCtx, period.ID)
+	}); handled {
+		return result, err
+	}
+	policy, err := s.dailyArenaPolicyForPeriod(ctx, period)
+	if err != nil {
+		return nil, err
+	}
+	rewards := policy.Rewards
+	if len(rewards) == 0 {
+		return nil, fmt.Errorf("daily arena settlement rewards not configured")
 	}
 	maxRank := rewards[len(rewards)-1].RankMax
 	if maxRank <= 0 {
@@ -215,16 +238,9 @@ func (s *PlayService) SettleDailyArenaPeriod(ctx context.Context, periodID int64
 		PeriodName: period.Name,
 	}
 	for _, row := range rows {
-		amount := arenaRewardForRank(row.Rank, rewards)
+		amount := dailyArenaRewardForRank(row.Rank, policy)
 		if amount <= 0 {
 			continue
-		}
-		dailyBudget := rt.DailyArenaDailyBudget
-		if dailyBudget <= 0 {
-			dailyBudget = defaultPlayDailyArenaDailyBudgetUSD
-		}
-		if result.TotalAwarded+amount > dailyBudget {
-			break
 		}
 		idempotencyKey := "arena_daily_settlement:" + strconv.FormatInt(period.ID, 10) + ":" + strconv.FormatInt(row.UserID, 10)
 		if err := s.grantBalance(ctx, row.UserID, amount, PlayRewardSourceArenaDaily, idempotencyKey, map[string]any{
@@ -255,7 +271,6 @@ func (s *PlayService) SettleDailyArenaPeriod(ctx context.Context, periodID int64
 	if err := s.repo.MarkArenaPeriodSettled(ctx, period.ID); err != nil {
 		return nil, err
 	}
-	_ = rt
 	return result, nil
 }
 

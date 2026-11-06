@@ -55,6 +55,8 @@ func TestAdminPlayFinancialWritesRequireStepUp(t *testing.T) {
 		{http.MethodPut, "/api/v1/admin/play/campaigns/12"},
 		{http.MethodDelete, "/api/v1/admin/play/campaigns/12"},
 		{http.MethodPut, "/api/v1/admin/play/membership/vip-config"},
+		{http.MethodPost, "/api/v1/admin/play/checkin/repair"},
+		{http.MethodPost, "/api/v1/admin/play/arena/periods/12/accounting-activate"},
 	} {
 		recorder := httptest.NewRecorder()
 		request := httptest.NewRequest(tc.method, tc.path, nil)

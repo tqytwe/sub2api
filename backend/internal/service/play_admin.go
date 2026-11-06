@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -129,7 +130,7 @@ func (s *PlayService) ListAdminArenaLeaderboard(
 	if periodID > 0 {
 		period, err = s.repo.GetArenaPeriodByID(ctx, periodID)
 	} else if periodType == "daily" {
-		period, err = s.repo.EnsureDailyArenaPeriod(ctx, s.serverNow())
+		period, err = s.ensureDailyArenaPeriod(ctx, s.serverNow(), rt)
 	} else {
 		period, err = s.getExistingMonthlyArenaPeriod(ctx, s.serverNow())
 	}
@@ -139,17 +140,35 @@ func (s *PlayService) ListAdminArenaLeaderboard(
 	if period == nil {
 		return []PlayArenaScoreRow{}, nil, nil, nil
 	}
+	if period.Status == "settled" {
+		history, ok := s.repo.(PlayArenaPaidLeaderboardRepository)
+		if !ok {
+			return nil, nil, nil, fmt.Errorf("arena payout evidence repository unavailable")
+		}
+		rows, err := history.ListArenaPaidLeaderboard(ctx, period.ID, limit)
+		return rows, period, []PlayArenaSettlementTier{}, err
+	}
 	rows, err := s.repo.ListArenaLeaderboard(ctx, period.StartAt, period.EndAt, limit)
 	if err != nil {
 		return nil, nil, nil, err
 	}
 	var rewards []PlayArenaSettlementTier
 	if period.PeriodType == "daily" {
-		rewards = rt.DailyArenaTopRewards
+		policy, policyErr := s.dailyArenaPolicyForPeriod(ctx, period)
+		if policyErr != nil {
+			return nil, nil, nil, policyErr
+		}
+		rewards = policy.Rewards
+		for i := range rows {
+			rows[i].EstimatedReward = dailyArenaRewardForRank(rows[i].Rank, policy)
+		}
 	} else {
 		rewards, err = s.arenaRewardTiersForPeriod(ctx, period)
 		if err != nil {
 			return nil, nil, nil, err
+		}
+		for i := range rows {
+			rows[i].EstimatedReward = arenaRewardForRank(rows[i].Rank, rewards)
 		}
 	}
 	return rows, period, rewards, nil
@@ -185,4 +204,10 @@ func sumArenaRewardBudget(tiers []PlayArenaSettlementTier) float64 {
 		previousRankMax = tier.RankMax
 	}
 	return total
+}
+
+// Settled periods are explained exclusively by payment evidence. Live usage
+// and the current settings cannot reconstruct a historical winner list.
+type PlayArenaPaidLeaderboardRepository interface {
+	ListArenaPaidLeaderboard(context.Context, int64, int) ([]PlayArenaScoreRow, error)
 }

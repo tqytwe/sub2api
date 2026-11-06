@@ -27,6 +27,26 @@ func (r *playRepository) GetCheckinStreakOnDate(ctx context.Context, userID int6
 	return streak, true, nil
 }
 
+func (r *playRepository) CountConsecutiveCheckinsEndingAt(ctx context.Context, userID int64, date time.Time) (int, error) {
+	exec := r.sqlExec(ctx)
+	var streak int
+	err := scanSingleRow(ctx, exec, `
+		WITH RECURSIVE consecutive AS (
+			SELECT checkin_date FROM play_checkins
+			WHERE user_id = $1 AND checkin_date = $2::date
+			UNION ALL
+			SELECT c.checkin_date FROM play_checkins c
+			JOIN consecutive previous ON c.checkin_date = previous.checkin_date - 1
+			WHERE c.user_id = $1
+		)
+		SELECT COUNT(*)::int FROM consecutive`,
+		[]any{userID, date.Format("2006-01-02")}, &streak)
+	if err != nil {
+		return 0, fmt.Errorf("rebuild checkin streak: %w", err)
+	}
+	return streak, nil
+}
+
 func (r *playRepository) GetArenaPeriodByID(ctx context.Context, periodID int64) (*service.PlayArenaPeriod, error) {
 	exec := r.sqlExec(ctx)
 	var p service.PlayArenaPeriod

@@ -276,6 +276,9 @@ export const jisudengPagesEn = {
     rechargeCta: 'Recharge',
   },
   arena: {
+    historyRankUnknown: 'Historical rank evidence unavailable',
+    energyBreakdown: 'Today’s tasks {task} + monthly token energy {token} = current energy {total}',
+    energyFormula: 'Monthly scored tokens {tokens} ÷ 10000, rounded down; task energy resets daily.',
     disabled: 'Token farm is not available right now',
     period: 'Current period: {name}',
     myRank: 'Your rank',
@@ -1169,6 +1172,7 @@ export const jisudengPagesEn = {
       ctaAuth: 'Open console',
     },
     arena: {
+    historyRankUnknown: 'Historical rank evidence unavailable',
       eyebrow: 'PLAY · TOKEN FARM',
       title: 'Token farm — usage pays back',
       subtitle: 'Periodic leaderboards by API token usage with extra rewards for top users.',

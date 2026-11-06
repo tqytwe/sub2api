@@ -126,9 +126,10 @@ func TestDailyArenaRewardSummaryCombinesSettledLedgerAndCurrentEstimate(t *testi
 	require.Equal(t, 2, summary.Recent.WinnersCount)
 	require.InDelta(t, 0.7, summary.Recent.TotalAmount, 0.00000001)
 	require.Len(t, summary.Recent.Winners, 2)
-	require.Equal(t, 1, summary.Recent.Winners[0].Rank)
-	require.Equal(t, int64(12000), summary.Recent.Winners[0].TokenSum)
-	require.Equal(t, "星河工作流", summary.Recent.Winners[0].DisplayName)
+	require.Equal(t, 2, summary.Recent.Winners[0].Rank)
+	require.Zero(t, summary.Recent.Winners[1].Rank, "missing historical rank must not be reconstructed from live usage")
+	require.Zero(t, summary.Recent.Winners[1].TokenSum)
+	require.Equal(t, "星河工作流", summary.Recent.Winners[1].DisplayName)
 
 	require.NotNil(t, summary.Current)
 	require.Equal(t, currentPeriod.ID, summary.Current.Period.ID)

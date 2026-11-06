@@ -32,12 +32,16 @@ type PlayQuestTask struct {
 }
 
 type PlayQuestToday struct {
-	Enabled           bool            `json:"enabled"`
-	Energy            int             `json:"energy"`
-	Level             int             `json:"level"`
-	EnergyToNextLevel int             `json:"energy_to_next_level"`
-	Tasks             []PlayQuestTask `json:"tasks"`
-	ServerDate        string          `json:"server_date"`
+	TaskEnergy          int             `json:"task_energy"`
+	MonthlyTokenEnergy  int64           `json:"monthly_token_energy"`
+	MonthlyScoredTokens int64           `json:"monthly_scored_tokens"`
+	EnergyFormula       string          `json:"energy_formula"`
+	Enabled             bool            `json:"enabled"`
+	Energy              int             `json:"energy"`
+	Level               int             `json:"level"`
+	EnergyToNextLevel   int             `json:"energy_to_next_level"`
+	Tasks               []PlayQuestTask `json:"tasks"`
+	ServerDate          string          `json:"server_date"`
 }
 
 type PlayQuestProgressRow struct {

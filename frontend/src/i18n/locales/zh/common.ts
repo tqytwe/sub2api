@@ -180,6 +180,8 @@ export default {
 
   // Navigation
   nav: {
+    smartOps: '智能运维',
+    pelicanTests: '鹈鹕测试',
     dashboard: '仪表盘',
     modelsAndPricing: '模型与价格',
     announcements: '公告',

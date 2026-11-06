@@ -8,20 +8,23 @@ func TestArenaBillableTokens(t *testing.T) {
 		input         int
 		output        int
 		cacheCreation int
+		cacheRead     int
 		want          int64
 	}{
 		{
-			name:   "excludes cache read by design",
-			input:  100,
-			output: 50,
-			want:   150,
+			name:      "includes all token categories",
+			input:     100,
+			output:    50,
+			cacheRead: 70,
+			want:      220,
 		},
 		{
 			name:          "includes cache creation",
 			input:         10,
 			output:        20,
 			cacheCreation: 5,
-			want:          35,
+			cacheRead:     7,
+			want:          42,
 		},
 		{
 			name:   "negative sum clamped to zero",
@@ -33,7 +36,7 @@ func TestArenaBillableTokens(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := ArenaBillableTokens(tt.input, tt.output, tt.cacheCreation)
+			got := ArenaBillableTokens(tt.input, tt.output, tt.cacheCreation, tt.cacheRead)
 			if got != tt.want {
 				t.Fatalf("ArenaBillableTokens() = %d, want %d", got, tt.want)
 			}
@@ -48,7 +51,7 @@ func TestArenaBillableTokensFromUsageLog(t *testing.T) {
 		CacheCreationTokens: 30,
 		CacheReadTokens:     999,
 	}
-	if got := ArenaBillableTokensFromUsageLog(log); got != 330 {
-		t.Fatalf("ArenaBillableTokensFromUsageLog() = %d, want 330", got)
+	if got := ArenaBillableTokensFromUsageLog(log); got != 1329 {
+		t.Fatalf("ArenaBillableTokensFromUsageLog() = %d, want 1329", got)
 	}
 }

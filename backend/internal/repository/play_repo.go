@@ -142,30 +142,34 @@ func (r *playRepository) EnsureMonthlyArenaPeriod(ctx context.Context, now time.
 	return r.GetActiveArenaPeriod(ctx, now)
 }
 
+// Keep ranking, personal score and predecessor order on the same accounting
+// version and deterministic tie breaker. Cast before adding to avoid INT overflow.
+const arenaScoresCTE = `WITH policy AS (
+    SELECT COALESCE((SELECT token_accounting_version FROM play_arena_periods
+        WHERE start_at=$1 AND end_at=$2 ORDER BY (status='active') DESC,id DESC LIMIT 1),1) AS version
+), scores AS (
+    SELECT user_id,
+           SUM(input_tokens::bigint + output_tokens + cache_creation_tokens +
+               CASE WHEN policy.version=2 THEN cache_read_tokens ELSE 0 END)::bigint AS token_sum,
+           MIN(created_at) AS first_at
+    FROM usage_logs CROSS JOIN policy
+    WHERE created_at >= $1 AND created_at < $2
+    GROUP BY user_id
+    HAVING SUM(input_tokens::bigint + output_tokens + cache_creation_tokens +
+               CASE WHEN policy.version=2 THEN cache_read_tokens ELSE 0 END)>0
+) `
+
 func (r *playRepository) ListArenaLeaderboard(ctx context.Context, start, end time.Time, limit int) (result []service.PlayArenaScoreRow, err error) {
 	if limit <= 0 {
 		limit = 50
 	}
 	exec := r.sqlExec(ctx)
-	rows, err := exec.QueryContext(ctx, `
-		SELECT s.user_id,
-		       COALESCE(u.username, '') AS username,
-		       COALESCE(u.email, '') AS email,
-		       COALESCE(NULLIF(TRIM(ua.url), ''), '') AS avatar_url,
-		       s.token_sum
-		FROM (
-			SELECT user_id,
-			       SUM(input_tokens + output_tokens + cache_creation_tokens)::bigint AS token_sum,
-			       MIN(created_at) AS first_at
-			FROM usage_logs
-			WHERE created_at >= $1 AND created_at < $2
-			GROUP BY user_id
-			HAVING SUM(input_tokens + output_tokens + cache_creation_tokens) > 0
-		) s
-		JOIN users u ON u.id = s.user_id
-		LEFT JOIN user_avatars ua ON ua.user_id = s.user_id
-		ORDER BY s.token_sum DESC, s.first_at ASC
-		LIMIT $3`, start, end, limit)
+	rows, err := exec.QueryContext(ctx, arenaScoresCTE+`
+        SELECT s.user_id, COALESCE(u.username, ''), COALESCE(u.email, ''),
+               COALESCE(NULLIF(TRIM(ua.url), ''), ''), s.token_sum
+        FROM scores s JOIN users u ON u.id=s.user_id
+        LEFT JOIN user_avatars ua ON ua.user_id=s.user_id
+        ORDER BY s.token_sum DESC,s.first_at ASC,s.user_id ASC LIMIT $3`, start, end, limit)
 	if err != nil {
 		return nil, fmt.Errorf("list arena leaderboard: %w", err)
 	}
@@ -197,45 +201,21 @@ func (r *playRepository) ListArenaLeaderboard(ctx context.Context, start, end ti
 }
 
 func (r *playRepository) GetUserArenaScore(ctx context.Context, userID int64, start, end time.Time) (int64, int, error) {
-	exec := r.sqlExec(ctx)
-	var tokenSum int64
-	err := scanSingleRow(ctx, exec, `
-		SELECT COALESCE(SUM(input_tokens + output_tokens + cache_creation_tokens), 0)::bigint
-		FROM usage_logs
-		WHERE user_id = $1 AND created_at >= $2 AND created_at < $3`,
-		[]any{userID, start, end}, &tokenSum)
+	var tokens int64
+	var rank int
+	err := scanSingleRow(ctx, r.sqlExec(ctx), arenaScoresCTE+`
+        SELECT m.token_sum, 1 + (SELECT COUNT(*)::int FROM scores s
+            WHERE s.token_sum > m.token_sum
+               OR (s.token_sum=m.token_sum AND s.first_at<m.first_at)
+               OR (s.token_sum=m.token_sum AND s.first_at=m.first_at AND s.user_id<m.user_id))
+        FROM scores m WHERE m.user_id=$3`, []any{start, end, userID}, &tokens, &rank)
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, 0, nil
+	}
 	if err != nil {
 		return 0, 0, fmt.Errorf("get user arena score: %w", err)
 	}
-	if tokenSum <= 0 {
-		return 0, 0, nil
-	}
-
-	var rank int
-	err = scanSingleRow(ctx, exec, `
-		WITH scores AS (
-			SELECT user_id,
-			       SUM(input_tokens + output_tokens + cache_creation_tokens)::bigint AS token_sum,
-			       MIN(created_at) AS first_at
-			FROM usage_logs
-			WHERE created_at >= $1 AND created_at < $2
-			GROUP BY user_id
-			HAVING SUM(input_tokens + output_tokens + cache_creation_tokens) > 0
-		), mine AS (
-			SELECT token_sum, first_at FROM scores WHERE user_id = $3
-		)
-		SELECT 1 + COUNT(*)::int
-		FROM scores s, mine m
-		WHERE s.token_sum > m.token_sum
-		   OR (s.token_sum = m.token_sum AND s.first_at < m.first_at)`,
-		[]any{start, end, userID}, &rank)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return tokenSum, 0, nil
-		}
-		return tokenSum, 0, fmt.Errorf("get user arena rank: %w", err)
-	}
-	return tokenSum, rank, nil
+	return tokens, rank, nil
 }
 
 func (r *playRepository) GetArenaTokensToPrevRank(ctx context.Context, userID int64, start, end time.Time, rank int, tokenSum int64) (int64, error) {
@@ -244,22 +224,10 @@ func (r *playRepository) GetArenaTokensToPrevRank(ctx context.Context, userID in
 	}
 	exec := r.sqlExec(ctx)
 	var prevTokens int64
-	err := scanSingleRow(ctx, exec, `
-		WITH scores AS (
-			SELECT user_id,
-			       SUM(input_tokens + output_tokens + cache_creation_tokens)::bigint AS token_sum,
-			       MIN(created_at) AS first_at
-			FROM usage_logs
-			WHERE created_at >= $1 AND created_at < $2
-			GROUP BY user_id
-			HAVING SUM(input_tokens + output_tokens + cache_creation_tokens) > 0
-		), ranked AS (
-			SELECT user_id, token_sum,
-			       ROW_NUMBER() OVER (ORDER BY token_sum DESC, first_at ASC) AS rn
-			FROM scores
-		)
-		SELECT token_sum FROM ranked WHERE rn = $3`,
-		[]any{start, end, rank - 1}, &prevTokens)
+	err := scanSingleRow(ctx, exec, arenaScoresCTE+`
+        SELECT token_sum FROM scores ORDER BY token_sum DESC,first_at ASC,user_id ASC
+        LIMIT 1 OFFSET $3`,
+		[]any{start, end, rank - 2}, &prevTokens)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return 0, nil

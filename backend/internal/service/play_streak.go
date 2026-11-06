@@ -13,12 +13,28 @@ import (
 
 func (s *PlayService) computeNextStreak(ctx context.Context, userID int64, today time.Time) (int, error) {
 	yesterday := today.AddDate(0, 0, -1)
-	if streak, found, err := s.repo.GetCheckinStreakOnDate(ctx, userID, yesterday); err != nil {
+	if streak, found, err := s.checkinStreakOnDate(ctx, userID, yesterday); err != nil {
 		return 0, err
 	} else if found {
 		return streak + 1, nil
 	}
 	return 1, nil
+}
+
+func (s *PlayService) checkinStreakOnDate(ctx context.Context, userID int64, date time.Time) (int, bool, error) {
+	streak, found, err := s.repo.GetCheckinStreakOnDate(ctx, userID, date)
+	if err != nil || !found {
+		return streak, found, err
+	}
+	rebuilder, ok := s.repo.(PlayCheckinStreakRebuilder)
+	if !ok {
+		return streak, found, nil
+	}
+	streak, err = rebuilder.CountConsecutiveCheckinsEndingAt(ctx, userID, date)
+	if err != nil {
+		return 0, false, err
+	}
+	return streak, true, nil
 }
 
 func (s *PlayService) resolveStreakMilestoneBonus(streak int, milestones []PlayStreakMilestone) float64 {
@@ -57,12 +73,12 @@ func (s *PlayService) enrichCheckinStatus(ctx context.Context, userID int64, sta
 	yesterday := today.AddDate(0, 0, -1)
 
 	if status.CheckedInToday {
-		if streak, found, err := s.repo.GetCheckinStreakOnDate(ctx, userID, today); err != nil {
+		if streak, found, err := s.checkinStreakOnDate(ctx, userID, today); err != nil {
 			return err
 		} else if found {
 			status.StreakCount = streak
 		}
-	} else if streak, found, err := s.repo.GetCheckinStreakOnDate(ctx, userID, yesterday); err != nil {
+	} else if streak, found, err := s.checkinStreakOnDate(ctx, userID, yesterday); err != nil {
 		return err
 	} else if found {
 		status.StreakCount = streak
@@ -84,7 +100,7 @@ func (s *PlayService) enrichCheckinStatus(ctx context.Context, userID int64, sta
 		}
 	}
 
-	if rt.CheckinMakeupEnabled && !status.CheckedInToday {
+	if rt.CheckinMakeupEnabled && status.RedeemableRewardEligible {
 		missed, err := s.evaluateMakeupEligibility(ctx, userID, today, yesterday)
 		if err != nil {
 			return err
@@ -116,6 +132,9 @@ func (s *PlayService) evaluateMakeupEligibility(ctx context.Context, userID int6
 }
 
 func (s *PlayService) CheckinMakeup(ctx context.Context, userID int64) (*PlayCheckinResult, error) {
+	if result, err, handled := s.checkinTransaction(ctx, userID, func(txCtx context.Context) (*PlayCheckinResult, error) { return s.CheckinMakeup(txCtx, userID) }); handled {
+		return result, err
+	}
 	rt := s.GetRuntime(ctx)
 	if !rt.CheckinEnabled {
 		return nil, ErrPlayFeatureDisabled
@@ -156,7 +175,7 @@ func (s *PlayService) CheckinMakeup(ctx context.Context, userID int64) (*PlayChe
 	}
 
 	dayBefore := yesterday.AddDate(0, 0, -1)
-	prevStreak, found, err := s.repo.GetCheckinStreakOnDate(ctx, userID, dayBefore)
+	prevStreak, found, err := s.checkinStreakOnDate(ctx, userID, dayBefore)
 	if err != nil {
 		return nil, err
 	}
@@ -174,6 +193,10 @@ func (s *PlayService) CheckinMakeup(ctx context.Context, userID int64) (*PlayChe
 		reward *= boost.CheckinMultiplier
 	}
 	milestoneBonus := s.resolveStreakMilestoneBonus(streak, rt.StreakMilestones)
+	milestoneBonus, err = s.unpaidCheckinMilestone(ctx, userID, yesterday, milestoneBonus)
+	if err != nil {
+		return nil, err
+	}
 	totalReward := reward + milestoneBonus
 
 	idempotencyKey := fmt.Sprintf("checkin_makeup:%d:%s", userID, dateKey)
@@ -186,6 +209,9 @@ func (s *PlayService) CheckinMakeup(ctx context.Context, userID int64) (*PlayChe
 	var growthSnapshotID int64
 	if err := s.grantBalanceWithGrowthSnapshot(ctx, userID, totalReward, PlayRewardSourceCheckinMakeup, idempotencyKey, detail, &growthSnapshotID, func(txCtx context.Context) error {
 		if err := s.repo.InsertCheckin(txCtx, userID, yesterday, totalReward, streak); err != nil {
+			return err
+		}
+		if err := s.saveCheckinMilestoneRules(txCtx, userID, yesterday, rt); err != nil {
 			return err
 		}
 		var snapshotErr error
@@ -226,13 +252,18 @@ func (s *PlayService) CheckinMakeup(ctx context.Context, userID int64) (*PlayChe
 		return nil, err
 	}
 
+	reconciledBonus, err := s.reconcileCheckinAfterMakeup(ctx, userID, today, growthGovernance)
+	if err != nil {
+		return nil, err
+	}
 	return &PlayCheckinResult{
-		RewardAmount:      totalReward,
-		BalanceAdded:      totalReward,
-		ServerDate:        dateKey,
-		StreakCount:       streak,
-		MilestoneBonus:    milestoneBonus,
-		GrowthEligibility: growthEligibility,
+		RewardAmount:              totalReward,
+		BalanceAdded:              totalReward + reconciledBonus,
+		ReconciledMilestoneAmount: reconciledBonus,
+		ServerDate:                dateKey,
+		StreakCount:               streak,
+		MilestoneBonus:            milestoneBonus,
+		GrowthEligibility:         growthEligibility,
 	}, nil
 }
 

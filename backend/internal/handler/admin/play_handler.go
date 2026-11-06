@@ -138,6 +138,8 @@ type adminArenaPeriodDTO struct {
 }
 
 type adminArenaScoreDTO struct {
+	PaidReward      float64 `json:"paid_reward"`
+	EvidenceStatus  string  `json:"evidence_status,omitempty"`
 	Rank            int     `json:"rank"`
 	UserID          int64   `json:"user_id"`
 	DisplayName     string  `json:"display_name"`
@@ -397,7 +399,9 @@ func (h *AdminPlayHandler) ArenaLeaderboard(c *gin.Context) {
 			Email:           row.Email,
 			AvatarURL:       row.AvatarURL,
 			TokenSum:        row.TokenSum,
-			EstimatedReward: arenaRewardForRankAdmin(row.Rank, rewards),
+			EstimatedReward: row.EstimatedReward,
+			PaidReward:      row.PaidReward,
+			EvidenceStatus:  row.EvidenceStatus,
 		})
 	}
 	response.Success(c, out)
@@ -1121,15 +1125,6 @@ func parsePositiveInt(raw string, fallback int) int {
 func parsePositiveInt64(raw string) int64 {
 	if n, err := strconv.ParseInt(strings.TrimSpace(raw), 10, 64); err == nil && n > 0 {
 		return n
-	}
-	return 0
-}
-
-func arenaRewardForRankAdmin(rank int, tiers []service.PlayArenaSettlementTier) float64 {
-	for _, tier := range tiers {
-		if rank <= tier.RankMax {
-			return tier.Amount
-		}
 	}
 	return 0
 }

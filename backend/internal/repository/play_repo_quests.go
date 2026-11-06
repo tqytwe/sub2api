@@ -64,7 +64,7 @@ func (r *playRepository) GetUserDailyTokenSum(ctx context.Context, userID int64,
 	exec := r.sqlExec(ctx)
 	var tokenSum int64
 	err := scanSingleRow(ctx, exec, `
-		SELECT COALESCE(SUM(input_tokens + output_tokens + cache_creation_tokens), 0)::bigint
+		SELECT COALESCE(SUM(input_tokens::bigint + output_tokens + cache_creation_tokens + cache_read_tokens), 0)::bigint
 		FROM usage_logs
 		WHERE user_id = $1 AND created_at >= $2 AND created_at < $3`,
 		[]any{userID, start, end}, &tokenSum)

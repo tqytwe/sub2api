@@ -92,14 +92,17 @@ type PlayArenaPeriod struct {
 }
 
 type PlayArenaScoreRow struct {
-	Rank        int
-	UserID      int64
-	DisplayName string
-	Anonymous   bool
-	Email       string
-	AvatarURL   string
-	TokenSum    int64
-	IsMine      bool
+	PaidReward      float64
+	EvidenceStatus  string
+	EstimatedReward float64
+	Rank            int
+	UserID          int64
+	DisplayName     string
+	Anonymous       bool
+	Email           string
+	AvatarURL       string
+	TokenSum        int64
+	IsMine          bool
 }
 
 type PlayArenaDailyRewardLedgerRow struct {
@@ -169,19 +172,20 @@ type PlayCheckinStatus struct {
 }
 
 type PlayCheckinResult struct {
-	RewardAmount      float64
-	BalanceAdded      float64
-	DailyRewardAmount float64
-	MilestoneAmount   float64
-	RewardType        PlayRewardType
-	Coupon            *PlayCouponRewardSummary
-	RedeemCode        *PlayRedeemCodeRewardSummary
-	CouponPoolVersion string
-	ServerDate        string
-	StreakCount       int
-	MilestoneBonus    float64
-	GrowthEnergy      int64
-	GrowthEligibility PlayGrowthEligibility
+	ReconciledMilestoneAmount float64
+	RewardAmount              float64
+	BalanceAdded              float64
+	DailyRewardAmount         float64
+	MilestoneAmount           float64
+	RewardType                PlayRewardType
+	Coupon                    *PlayCouponRewardSummary
+	RedeemCode                *PlayRedeemCodeRewardSummary
+	CouponPoolVersion         string
+	ServerDate                string
+	StreakCount               int
+	MilestoneBonus            float64
+	GrowthEnergy              int64
+	GrowthEligibility         PlayGrowthEligibility
 }
 
 type PlayBlindboxStatus struct {
@@ -966,6 +970,13 @@ type PlayRepository interface {
 	ListMobileFeedbackMessages(ctx context.Context, userID, feedbackID int64) ([]MobileFeedbackMessage, error)
 	CreateUserMobileFeedbackMessage(ctx context.Context, userID, feedbackID int64, content string) (*MobileFeedbackMessage, error)
 	CloseUserMobileFeedback(ctx context.Context, userID, id int64) (*MobileFeedbackRecord, error)
+}
+
+// PlayCheckinStreakRebuilder is optional so lightweight repositories remain
+// compatible. Production uses it to recover streaks written as zero by older
+// energy-mode check-ins without mutating historical records.
+type PlayCheckinStreakRebuilder interface {
+	CountConsecutiveCheckinsEndingAt(ctx context.Context, userID int64, date time.Time) (int, error)
 }
 
 // PlayNewUserGrowthRepository is optional so existing lightweight PlayRepository

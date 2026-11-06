@@ -3,7 +3,7 @@
     <div class="flex flex-col gap-3 border-b border-gray-100 px-5 py-4 dark:border-dark-700 sm:flex-row sm:items-center sm:justify-between">
       <div>
         <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ text('农场奖励规则', 'Farm reward rules') }}</h2>
-        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ text('按名次区间设置单人奖励；修改仅用于后续尚未结算的周期。', 'Set the per-user reward for each rank range. Changes apply only to future, unsettled periods.') }}</p>
+        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ text('按名次区间设置单人奖励。已冻结的本期规则不变，修改在新周期生效；升级前未冻结的日榜请先核对周期预览。', 'Set rewards by rank. Frozen periods keep their rules; changes apply to new periods. Review the period preview for legacy daily periods without frozen rules.') }}</p>
       </div>
       <div class="inline-flex rounded border border-gray-200 p-1 text-sm dark:border-dark-700">
         <button type="button" class="rounded px-3 py-1" :class="mode === 'monthly' ? activeClass : idleClass" @click="mode = 'monthly'">{{ text('月榜', 'Monthly') }}</button>

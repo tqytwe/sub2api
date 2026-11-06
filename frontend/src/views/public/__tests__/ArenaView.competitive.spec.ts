@@ -207,6 +207,16 @@ describe('ArenaView competitive layout', () => {
     expect(wrapper.text()).toContain('当前名次预计 API 余额奖励：$5.00')
   })
 
+  it('does not invent rank zero for historical payouts without rank evidence', async () => {
+    const data = overview('daily', true)
+    data.history[0].winners[0].rank = 0
+    getArenaSeasonOverviewMock.mockResolvedValueOnce(data)
+    const wrapper = mountView(); await flushPromises()
+    expect(wrapper.text()).not.toContain('#0')
+    expect(wrapper.text()).toContain('arena.historyRankUnknown')
+    expect(wrapper.text()).toContain('到账 $0.50')
+  })
+
   it('defers historical payout proof until the user expands it', async () => {
     const wrapper = mountView()
     await flushPromises()

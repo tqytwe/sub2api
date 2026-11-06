@@ -15,11 +15,6 @@ func (s *PlayService) GetDailyArenaRewardSummary(ctx context.Context) (*PlayAren
 		return out, nil
 	}
 
-	rewards := rt.DailyArenaTopRewards
-	if len(rewards) == 0 {
-		rewards = parsePlayDailyArenaRewards("")
-	}
-
 	latest, err := s.repo.GetLatestSettledDailyArenaPeriod(ctx)
 	if err != nil {
 		return nil, err
@@ -32,11 +27,16 @@ func (s *PlayService) GetDailyArenaRewardSummary(ctx context.Context) (*PlayAren
 		out.Recent = recent
 	}
 
-	current, err := s.repo.EnsureDailyArenaPeriod(ctx, s.serverNow())
+	current, err := s.ensureDailyArenaPeriod(ctx, s.serverNow(), rt)
 	if err != nil {
 		return nil, err
 	}
 	if current != nil {
+		policy, err := s.dailyArenaPolicyForPeriod(ctx, current)
+		if err != nil {
+			return nil, err
+		}
+		rewards := policy.Rewards
 		limit := rewardTierMaxRank(rewards)
 		if limit <= 0 || limit > maxPublicDailyRewardRows {
 			limit = maxPublicDailyRewardRows
@@ -56,7 +56,7 @@ func (s *PlayService) GetDailyArenaRewardSummary(ctx context.Context) (*PlayAren
 				Anonymous:       row.Anonymous,
 				AvatarURL:       row.AvatarURL,
 				TokenSum:        row.TokenSum,
-				EstimatedReward: arenaRewardForRank(row.Rank, rewards),
+				EstimatedReward: dailyArenaRewardForRank(row.Rank, policy),
 			})
 		}
 	}
@@ -72,13 +72,8 @@ func (s *PlayService) buildDailyArenaRecentRewardSummary(
 	if err != nil {
 		return nil, err
 	}
-	if needsDailyRewardLeaderboardFallback(rows) {
-		leaderboard, err := s.repo.ListArenaLeaderboard(ctx, period.StartAt, period.EndAt, max(len(rows), maxPublicDailyRewardRows))
-		if err != nil {
-			return nil, err
-		}
-		fillDailyRewardLedgerFallback(rows, leaderboard)
-	}
+	// Missing historical rank/token evidence stays unknown. Current usage may
+	// have been cleaned or backfilled after payout and cannot prove that rank.
 
 	sort.SliceStable(rows, func(i, j int) bool {
 		if rows[i].Rank > 0 && rows[j].Rank > 0 && rows[i].Rank != rows[j].Rank {
@@ -118,43 +113,6 @@ func (s *PlayService) buildDailyArenaRecentRewardSummary(
 		})
 	}
 	return recent, nil
-}
-
-func needsDailyRewardLeaderboardFallback(rows []PlayArenaDailyRewardLedgerRow) bool {
-	for _, row := range rows {
-		if row.Rank <= 0 || row.TokenSum <= 0 {
-			return true
-		}
-	}
-	return false
-}
-
-func fillDailyRewardLedgerFallback(rows []PlayArenaDailyRewardLedgerRow, leaderboard []PlayArenaScoreRow) {
-	byUser := make(map[int64]PlayArenaScoreRow, len(leaderboard))
-	for _, row := range leaderboard {
-		byUser[row.UserID] = row
-	}
-	for i := range rows {
-		score, ok := byUser[rows[i].UserID]
-		if !ok {
-			continue
-		}
-		if rows[i].Rank <= 0 {
-			rows[i].Rank = score.Rank
-		}
-		if rows[i].TokenSum <= 0 {
-			rows[i].TokenSum = score.TokenSum
-		}
-		if rows[i].DisplayName == "" {
-			rows[i].DisplayName = score.DisplayName
-		}
-		if score.Anonymous {
-			rows[i].Anonymous = true
-		}
-		if rows[i].AvatarURL == "" {
-			rows[i].AvatarURL = score.AvatarURL
-		}
-	}
 }
 
 func rewardTierMaxRank(tiers []PlayArenaSettlementTier) int {

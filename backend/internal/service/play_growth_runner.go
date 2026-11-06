@@ -114,6 +114,9 @@ func (r *PlayGrowthRunner) runOnce(ctx context.Context) {
 		if _, err := r.playService.PrepareCurrentArenaMonthlySeason(ctx, now); err != nil {
 			logger.LegacyPrintf("play.growth_runner", "[PlayGrowthRunner] prepare monthly arena season: %v", err)
 		}
+		if _, err := r.playService.PrepareCurrentArenaDailySeason(ctx, now); err != nil {
+			logger.LegacyPrintf("play.growth_runner", "[PlayGrowthRunner] prepare daily arena season: %v", err)
+		}
 		if n, err := r.playService.SettleExpiredDailyArenaPeriods(ctx, now); err != nil {
 			logger.LegacyPrintf("play.growth_runner", "[PlayGrowthRunner] settle daily periods: %v", err)
 		} else if n > 0 {
