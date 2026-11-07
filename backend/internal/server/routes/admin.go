@@ -1015,6 +1015,7 @@ func registerScheduledTestRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		plans.GET("/:id/ownership", h.Admin.ScheduledTest.QualityOwnershipPreview)
 		plans.POST("/:id/ownership/reconcile", h.Admin.ScheduledTest.QualityOwnershipReconcile)
 		plans.POST("/:id/ownership/restore", h.Admin.ScheduledTest.QualityOwnershipRestore)
+		plans.POST("/:id/ownership/remove-model", h.Admin.ScheduledTest.QualityOwnershipRemoveModel)
 		plans.DELETE("/:id/ownership", h.Admin.ScheduledTest.QualityOwnershipDelete)
 	}
 	// Nested under accounts

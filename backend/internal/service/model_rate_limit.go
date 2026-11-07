@@ -40,6 +40,9 @@ func (a *Account) getRateLimitRemainingForKey(key string) time.Duration {
 }
 
 func (a *Account) isModelRateLimitedWithContext(ctx context.Context, requestedModel string) bool {
+	if a.qualityModelBlocked(ctx, requestedModel) {
+		return true
+	}
 	for _, key := range a.modelRateLimitKeysForRequest(ctx, requestedModel) {
 		if a.isRateLimitActiveForKey(key) {
 			return true

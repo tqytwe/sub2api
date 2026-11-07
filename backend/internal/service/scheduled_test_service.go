@@ -19,8 +19,16 @@ func (s *ScheduledTestService) QualityOwnership(ctx context.Context, id int64, r
 	if !ok {
 		return nil, infraerrors.New(http.StatusServiceUnavailable, "QUALITY_OWNERSHIP_UNAVAILABLE", "quality ownership is unavailable")
 	}
-	if req != nil && (req.Reconcile || req.Restore || req.Delete) && (!req.Confirm || len(req.Fence) != 64) {
+	if req != nil && (req.Reconcile || req.Restore || req.Delete || req.RemoveModel) && (!req.Confirm || len(req.Fence) != 64) {
 		return nil, infraerrors.BadRequest("QUALITY_OWNERSHIP_CONFIRM_REQUIRED", "preview and explicitly confirm ownership reconciliation")
+	}
+	if req != nil {
+		if _, err := hex.DecodeString(req.Fence); err != nil {
+			return nil, infraerrors.BadRequest("QUALITY_OWNERSHIP_CONFIRM_REQUIRED", "preview digest is invalid")
+		}
+		if req.RemoveModel && (strings.TrimSpace(req.Model) == "" || len(req.Model) > 100 || (req.ReasonCode != "orphan_marker_recovery" && req.ReasonCode != "retire_model")) {
+			return nil, infraerrors.BadRequest("QUALITY_MODEL_REMOVAL_REASON_REQUIRED", "select one model and an explicit removal reason")
+		}
 	}
 	return repo.QualityOwnership(ctx, id, req)
 }
@@ -327,8 +335,25 @@ func validateQualityConfig(config *PelicanTestConfig) error {
 	if err := validateQualityProbeTargets(config); err != nil {
 		return err
 	}
-	if config.Quality.Action != "observe_only" && config.Quality.Action != "disable_scheduling" {
+	if config.Quality.Action != "observe_only" && config.Quality.Action != "disable_scheduling" && config.Quality.Action != QualityActionIsolateModels {
 		return infraerrors.BadRequest("QUALITY_ACTION_INVALID", "unsupported quality action")
+	}
+	if config.Quality.Action == QualityActionIsolateModels {
+		if len(config.ModelIDs) == 0 || len(config.Quality.RemoveGroupIDs) == 0 || len(config.Quality.RemoveGroupIDs) > 100 {
+			return infraerrors.BadRequest("QUALITY_ISOLATION_SCOPE_INVALID", "model isolation requires explicit tested models and 1-100 quarantine groups")
+		}
+		seen := map[int64]bool{}
+		for _, id := range config.Quality.RemoveGroupIDs {
+			if id <= 0 || seen[id] {
+				return infraerrors.BadRequest("QUALITY_ISOLATION_SCOPE_INVALID", "quarantine group IDs must be positive and unique")
+			}
+			seen[id] = true
+		}
+		for _, model := range config.ModelIDs {
+			if strings.TrimSpace(model) == "" || strings.ContainsAny(model, "*\r\n\t") {
+				return infraerrors.BadRequest("QUALITY_MODEL_INVALID", "model isolation requires explicit model identifiers")
+			}
+		}
 	}
 	if strings.TrimSpace(config.Prompt) == "" || len(strings.TrimSpace(config.Quality.ExpectedAnswer)) == 0 {
 		return infraerrors.BadRequest("QUALITY_ANSWER_REQUIRED", "quality probes require a prompt and expected answer")

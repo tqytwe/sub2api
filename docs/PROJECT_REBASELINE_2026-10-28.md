@@ -1,5 +1,7 @@
 # 当前项目推进基线
 
+> **2026-11-07 U03 限定更新**：当前核验的生产基线为 PR #415 merge `e91add553d8665b44d054f8e9c3562f3f16cb289`（Zeabur success，渠道状态色条独立交付）。质量孤立隔离/单模型释放在独立分支 `feat/quality-model-release-20261107` 可测，沿用质量运维入口；隔离、调度、恢复、确认释放、账号普通写入保护与页面回读属于同一项。规格和代码质量复审已覆盖软删除组、原限制、版本/租约/owner、并发模板更新和事务回滚；最终服务器完整门禁全部通过，待 PR CI 和部署，尚未上线。范围、测试和发布状态维护在 [U03 交付记录](./archive/completed-tasks/2026-11-07-quality-model-release/README.md)。下方 #399 段落保留历史，不据其旧状态推断当前上线能力；未重核其他工作项，`fully_migrated=false`。
+
 > **#399 发布后复核（2026-11-01 UTC+8）**：PR #399 已通过全部 8 项 CI 并合并为 `play/main@80131c818b1d1917c75a73bb61becc1930efd550`；Zeabur deployment `6ae66d6eea16512cf741d587` SHA 一致、状态 `RUNNING`，应用/PostgreSQL/Redis 均 `RUNNING`，主站/API `/health` HTTP 200。部署后运行日志未发现 `ERROR/FATAL/PANIC`；未认证管理员 API 均返回 `401`。#399 无 SQL migration 或生产写入；内容审查用户管理刷新已由用户确认正常。#397 质量多模型配置保存/刷新、同轮 4 条结果和跨计划历史已由管理员本机验收通过；#396 API Key 多组、默认组切换、保存刷新和管理员倍率明细也已验收通过。Priority 真实 WS 观测行、渠道运维写动作和历史账务只读归因仍待完成，`fully_migrated=false`。本段为当前基线证据，旧批次段落保留为历史记录。
 
 状态：`active`。核验日期：2026-11-01（Asia/Shanghai）。

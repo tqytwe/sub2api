@@ -77,6 +77,12 @@ func (r *scheduledTestPlanRepository) QualityOwnership(ctx context.Context, id i
 	var owned qualityRuntimeState
 	var accountSnapshot any
 	preview := &service.QualityOwnershipPreview{PlanID: id, AccountID: accountID, RuleVersion: version.UTC().Format(time.RFC3339Nano), StatePresent: statePresent}
+	var isolationConfig service.PelicanTestConfig
+	_ = json.Unmarshal(config, &isolationConfig)
+	_ = json.Unmarshal(state, &owned)
+	if isolationConfig.Quality != nil && isolationConfig.Quality.Action == service.QualityActionIsolateModels || owned.Action == service.QualityActionIsolateModels {
+		return r.qualityIsolationOwnership(ctx, tx, id, accountID, version, config, state, preview, req)
+	}
 	if statePresent {
 		if err := json.Unmarshal(state, &owned); err == nil && owned.Action == "disable_scheduling" {
 			var schedulable bool

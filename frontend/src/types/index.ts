@@ -2617,6 +2617,7 @@ export interface QualityJudgeConfig {
 }
 
 export interface QualityPolicy {
+  remove_group_ids?: number[]
   action?: string
   expected_answer?: string
   auto_restore?: boolean
@@ -2665,7 +2666,17 @@ export interface QualityHistoryPage {
   next_cursor: number
 }
 
+export interface QualityModelRemoval {
+  model: string
+  isolation_model: string
+  ready: boolean
+  effect: string
+  blocked_reason?: string
+}
+
 export interface QualityOwnershipPreview {
+  model_removals?: QualityModelRemoval[]
+  restore_blocked_reason?: string
   plan_id: number
   account_id: number
   rule_version: string

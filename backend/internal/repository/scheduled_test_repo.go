@@ -114,24 +114,61 @@ func (r *scheduledTestPlanRepository) ListDue(ctx context.Context, now time.Time
 }
 
 func (r *scheduledTestPlanRepository) Update(ctx context.Context, plan *service.ScheduledTestPlan) (*service.ScheduledTestPlan, error) {
-	row := r.db.QueryRowContext(ctx, `
-		UPDATE scheduled_test_plans
-		SET model_id = $2, cron_expression = $3, enabled = $4, max_results = $5, auto_recover = $6, next_run_at = $7, pelican_config = $8, running_until = $9, updated_at = NOW()
-		WHERE id = $1
-		RETURNING id, account_id, model_id, cron_expression, enabled, max_results, auto_recover, last_run_at, next_run_at, created_at, updated_at, pelican_config, running_until
-	`, plan.ID, plan.ModelID, plan.CronExpression, plan.Enabled, plan.MaxResults, plan.AutoRecover, plan.NextRunAt, qualityJSONArg(plan.PelicanConfig), plan.RunningUntil)
-	return scanPlan(row)
+	// Template and legacy callers must use the same CAS/ownership guard as the
+	// explicit quality editor. A stale writer cannot expand a contracted scope.
+	return r.UpdateWithVersion(ctx, plan, plan.UpdatedAt)
 }
 
 func (r *scheduledTestPlanRepository) UpdateWithVersion(ctx context.Context, plan *service.ScheduledTestPlan, expected time.Time) (*service.ScheduledTestPlan, error) {
-	row := r.db.QueryRowContext(ctx, `
+	// Take the runner's account lock before evaluating NOT EXISTS. A predicate
+	// evaluated before waiting on the plan lock can see an obsolete MVCC snapshot
+	// and miss ownership inserted by the transaction we just waited for.
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = tx.Rollback() }()
+	var accountID int64
+	if err = tx.QueryRowContext(ctx, `SELECT account_id FROM scheduled_test_plans WHERE id=$1`, plan.ID).Scan(&accountID); err != nil {
+		return nil, err
+	}
+	var lockedID int64
+	if err = tx.QueryRowContext(ctx, `SELECT id FROM accounts WHERE id=$1 FOR NO KEY UPDATE`, accountID).Scan(&lockedID); err != nil {
+		return nil, err
+	}
+	var lockedAccountID int64
+	var lockedVersion time.Time
+	if err = tx.QueryRowContext(ctx, `SELECT account_id,updated_at FROM scheduled_test_plans WHERE id=$1 FOR UPDATE`, plan.ID).Scan(&lockedAccountID, &lockedVersion); err != nil {
+		return nil, err
+	}
+	if lockedAccountID != accountID || !lockedVersion.Equal(expected) {
+		return nil, sql.ErrNoRows
+	}
+	var rawState []byte
+	err = tx.QueryRowContext(ctx, `SELECT state FROM account_quality_states WHERE plan_id=$1 FOR UPDATE`, plan.ID).Scan(&rawState)
+	if err != nil && err != sql.ErrNoRows {
+		return nil, err
+	}
+	allowOwnedIsolation := false
+	if err == nil {
+		owned, valid := decodeQualityIsolationState(rawState, plan)
+		allowOwnedIsolation = valid && owned.Action == service.QualityActionIsolateModels
+		if !allowOwnedIsolation {
+			return nil, sql.ErrNoRows
+		}
+	}
+	row := tx.QueryRowContext(ctx, `
 		UPDATE scheduled_test_plans
 		SET model_id = $2, cron_expression = $3, enabled = $4, max_results = $5, auto_recover = $6, next_run_at = $7, pelican_config = $8, running_until = $9, updated_at = NOW()
-		WHERE id = $1 AND updated_at = $10
-			AND NOT EXISTS (SELECT 1 FROM account_quality_states WHERE plan_id = $1)
+		WHERE id = $1 AND updated_at = $10 AND account_id = $11
+			AND ($12 OR NOT EXISTS (SELECT 1 FROM account_quality_states WHERE plan_id = $1))
 		RETURNING id, account_id, model_id, cron_expression, enabled, max_results, auto_recover, last_run_at, next_run_at, created_at, updated_at, pelican_config, running_until
-	`, plan.ID, plan.ModelID, plan.CronExpression, plan.Enabled, plan.MaxResults, plan.AutoRecover, plan.NextRunAt, qualityJSONArg(plan.PelicanConfig), plan.RunningUntil, expected)
-	return scanPlan(row)
+	`, plan.ID, plan.ModelID, plan.CronExpression, plan.Enabled, plan.MaxResults, plan.AutoRecover, plan.NextRunAt, qualityJSONArg(plan.PelicanConfig), plan.RunningUntil, expected, accountID, allowOwnedIsolation)
+	out, err := scanPlan(row)
+	if err != nil {
+		return nil, err
+	}
+	return out, tx.Commit()
 }
 
 func (r *scheduledTestPlanRepository) Delete(ctx context.Context, id int64) error {

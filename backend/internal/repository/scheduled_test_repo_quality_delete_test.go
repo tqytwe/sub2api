@@ -33,11 +33,18 @@ func TestVersionedPlanUpdateCannotDropRuleWhileOwnedStateExists(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = db.Close() })
 
+	mock.ExpectBegin()
+	mock.ExpectQuery(`SELECT account_id FROM scheduled_test_plans`).WithArgs(int64(7)).WillReturnRows(sqlmock.NewRows([]string{"account_id"}).AddRow(9))
+	mock.ExpectQuery(`SELECT id FROM accounts`).WithArgs(int64(9)).WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(9))
+	version := time.Now()
+	mock.ExpectQuery(`SELECT account_id,updated_at FROM scheduled_test_plans`).WithArgs(int64(7)).WillReturnRows(sqlmock.NewRows([]string{"account_id", "updated_at"}).AddRow(9, version))
+	mock.ExpectQuery(`SELECT state FROM account_quality_states`).WithArgs(int64(7)).WillReturnError(sql.ErrNoRows)
 	mock.ExpectQuery(`(?s)UPDATE scheduled_test_plans.*NOT EXISTS \(SELECT 1 FROM account_quality_states`).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "account_id", "model_id", "cron_expression", "enabled", "max_results", "auto_recover", "last_run_at", "next_run_at", "created_at", "updated_at", "pelican_config", "running_until"}))
+	mock.ExpectRollback()
 	plan := &service.ScheduledTestPlan{ID: 7, PelicanConfig: &service.PelicanTestConfig{Quality: &service.QualityPolicy{Action: "disable_scheduling"}}}
 	repo := &scheduledTestPlanRepository{db: db}
-	_, err = repo.UpdateWithVersion(context.Background(), plan, time.Now())
+	_, err = repo.UpdateWithVersion(context.Background(), plan, version)
 	require.ErrorIs(t, err, sql.ErrNoRows)
 	require.NoError(t, mock.ExpectationsWereMet())
 }

@@ -249,7 +249,8 @@
                 <span>{{ t('admin.scheduledTests.ownedState') }}: {{ ownershipPreview.state_present ? t('admin.scheduledTests.statePresent') : t('admin.scheduledTests.stateEmpty') }}</span>
                 <span>{{ t('admin.scheduledTests.ruleVersion') }}: <code>{{ ownershipPreview.rule_version }}</code></span>
               </div>
-              <div class="flex flex-wrap items-center gap-2">
+              <a v-if="ownershipPreview.action === 'isolate_models'" href="/admin/account-quality" class="inline-flex min-h-11 items-center text-sm text-primary-600 underline dark:text-primary-400">{{ t('admin.qualityOps.isolation.manage') }}</a>
+              <div v-else class="flex flex-wrap items-center gap-2">
                 <button
                   v-if="ownershipPreview.reconcile_ready"
                   class="btn btn-secondary text-xs"

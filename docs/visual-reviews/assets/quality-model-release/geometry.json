@@ -1,0 +1,141 @@
+{
+  "source": "real compiled Vue + production Tailwind; mocked API and layout; offline fixture only",
+  "scenarios": [
+    {
+      "width": 360,
+      "theme": "light",
+      "locale": "zh",
+      "overflow": false,
+      "keyboard": true,
+      "reducedMotion": true
+    },
+    {
+      "width": 360,
+      "theme": "light",
+      "locale": "en",
+      "overflow": false,
+      "keyboard": true,
+      "reducedMotion": true
+    },
+    {
+      "width": 360,
+      "theme": "dark",
+      "locale": "zh",
+      "overflow": false,
+      "keyboard": true,
+      "reducedMotion": true
+    },
+    {
+      "width": 360,
+      "theme": "dark",
+      "locale": "en",
+      "overflow": false,
+      "keyboard": true,
+      "reducedMotion": true
+    },
+    {
+      "width": 768,
+      "theme": "light",
+      "locale": "zh",
+      "overflow": false,
+      "keyboard": true,
+      "reducedMotion": true
+    },
+    {
+      "width": 768,
+      "theme": "light",
+      "locale": "en",
+      "overflow": false,
+      "keyboard": true,
+      "reducedMotion": true
+    },
+    {
+      "width": 768,
+      "theme": "dark",
+      "locale": "zh",
+      "overflow": false,
+      "keyboard": true,
+      "reducedMotion": true
+    },
+    {
+      "width": 768,
+      "theme": "dark",
+      "locale": "en",
+      "overflow": false,
+      "keyboard": true,
+      "reducedMotion": true
+    },
+    {
+      "width": 1280,
+      "theme": "light",
+      "locale": "zh",
+      "overflow": false,
+      "keyboard": true,
+      "reducedMotion": true
+    },
+    {
+      "width": 1280,
+      "theme": "light",
+      "locale": "en",
+      "overflow": false,
+      "keyboard": true,
+      "reducedMotion": true
+    },
+    {
+      "width": 1280,
+      "theme": "dark",
+      "locale": "zh",
+      "overflow": false,
+      "keyboard": true,
+      "reducedMotion": true
+    },
+    {
+      "width": 1280,
+      "theme": "dark",
+      "locale": "en",
+      "overflow": false,
+      "keyboard": true,
+      "reducedMotion": true
+    },
+    {
+      "width": 1920,
+      "theme": "light",
+      "locale": "zh",
+      "overflow": false,
+      "keyboard": true,
+      "reducedMotion": true
+    },
+    {
+      "width": 1920,
+      "theme": "light",
+      "locale": "en",
+      "overflow": false,
+      "keyboard": true,
+      "reducedMotion": true
+    },
+    {
+      "width": 1920,
+      "theme": "dark",
+      "locale": "zh",
+      "overflow": false,
+      "keyboard": true,
+      "reducedMotion": true
+    },
+    {
+      "width": 1920,
+      "theme": "dark",
+      "locale": "en",
+      "overflow": false,
+      "keyboard": true,
+      "reducedMotion": true
+    }
+  ],
+  "interactive": [
+    "reason required",
+    "blocked action disabled",
+    "keyboard order",
+    "conflict preserves error and refreshes preview",
+    "confirmed release reloads scope and preview"
+  ],
+  "errors": []
+}
