@@ -1,6 +1,6 @@
 # 鹈鹕旧题干迁移：PR #411 后首项交付
 
-状态：本地验证通过，待 PR CI/部署。维护责任：本任务提交者；长期负责人待分配。
+状态：已部署，用户本机验收待完成。维护责任：本任务提交者；长期负责人待分配。
 
 ## 范围与来源
 
@@ -26,7 +26,7 @@
 - 规格审查：三表范围、历史保护、空值边界和新默认题干对齐通过；未将目录差异当作整版完成。
 - 代码质量审查：固定表名、JSONB 字段更新、幂等、事务/超时及旧读取者兼容通过；迁移失败会回滚，本项不修改运行时授权。
 - `make test` 退出 0：Go 默认全量测试、golangci-lint 0 issues、前端 design/lint/typecheck 与 540 文件、4,179 项通过（3 文件/8 环境条件项跳过）。
-- `make test-backend-unit`、`make build`、`./scripts/check-fork-integrity.sh` 全部退出 0；文档链接检查 334 文件通过。PR CI/部署待核。
+- `make test-backend-unit`、`make build`、`./scripts/check-fork-integrity.sh` 全部退出 0；文档链接检查 334 文件通过。PR #412 最终 head `1201ad615b4b1ebe1e258ccd9015e05918642bf8` 的全部 9 项 CI 通过。
 
 ## 生产预检与回退
 
@@ -36,4 +36,12 @@
 
 代码 revert 不会恢复被移除的句子；如未来确需还原个别自定义题干，应由管理员根据原记录核实后单独修改，不能给全部计划盲目追加旧句子。本次不改变历史结果、金额或已部署迁移。
 
-生产部署：待 PR CI 后执行。用户本机游客/普通用户/管理员验收：待完成，服务器测试不替代该项。
+生产部署：PR #412 已于 2026-11-06 07:03:34 UTC 以 merge commit `e1626d760cf92349bb68fee5c6537a66e1dcbdc6` 合入 `play/main`；Zeabur `6aed7bc803a5d91147655138` SHA 一致，07:09:16 UTC 构建完成，状态 RUNNING。用户本机游客/普通用户/管理员验收：待完成，服务器测试不替代该项。
+
+## 发布后核验
+
+2026-11-06 07:11–07:14 UTC：`schema_migrations` 为 442 条，最高迁移 349；349 的 trimmed SHA-256 为 `ab2c0fe0819360c3b1387effb23a3d494152bd512126835b458354fe2f7edab6`，与源码一致。鹈鹕计划/账号定时计划/质量模板总数分别 3/0/0，可清理行数均 0；只读事务显式 ROLLBACK。
+
+首页和 `/health` 200；未认证访问 `/api/v1/admin/pelican-group-tests`、`/api/v1/admin/pelican-group-test-results`、`/api/v1/admin/account-quality-templates` 和 `/api/v1/pelican-showcase` 均 401。最近 100 条日志采样窗口 07:10:25–07:12:05 UTC 无 ERROR/WARN/FATAL/PANIC；这只证明该窗口，不代表长期流量或生产管理员写动作。首次误用不存在的 `/admin/pelican-tests/plans` 得到 404，已依据路由代码纠正；Python urllib 的全部请求返回 403，curl 同一域名正常，客户端差异保留，不把 403 当作应用权限验收。
+
+此项技术部署已核验。游客/普通用户/管理员本机页面验证仍待用户完成；不替代或伪造该证据。发布后记录随独立文档 PR #413 留存，不为文档更新单独部署生产。

@@ -1,0 +1,524 @@
+{
+  "features": [
+    {
+      "id": "U01",
+      "name": "渠道实体/URL 归属与备注",
+      "upstream_prs": [
+        585,
+        593
+      ],
+      "commits": [
+        "d5e2e7d9b6b94609626f99a893da53ba00498063",
+        "146c4ed23b6c44c8f394e135f7e6a881fc0c26c2"
+      ],
+      "classification": "明确差异",
+      "finding": "Fork 有 channel_operations CAS；未有 upstream_channel_entities/显式上游实体绑定的数据链，不能用 URL 相同推断历史归属。",
+      "fork_refs": [
+        "backend/internal/repository/channel_operations.go",
+        "backend/internal/server/routes/admin.go"
+      ],
+      "acceptance": "实体→绑定→revision→目录/API/UI/审计→删除冲突测试；312/313 同号迁移另编号",
+      "owner": "待分配",
+      "backend_state": "待逐项实施/验证",
+      "product_state": "未验收",
+      "implementation_pr": null
+    },
+    {
+      "id": "U02",
+      "name": "利润叠加统计",
+      "upstream_prs": [
+        586
+      ],
+      "commits": [
+        "5c035675aa891568ad312ec6ce81d2e1d1fc221b"
+      ],
+      "classification": "部分已有",
+      "finding": "Fork 已修复管理员附加费统计，未有上游 ProfitOperations 整套 URL/entity 归因。",
+      "fork_refs": [
+        "backend/internal/repository/dashboard_aggregation_repo.go"
+      ],
+      "acceptance": "成本/收入/倍率/未知值一致；筛选后与使用流水只读对账，依赖 U01",
+      "owner": "待分配",
+      "backend_state": "待逐项实施/验证",
+      "product_state": "未验收",
+      "implementation_pr": null
+    },
+    {
+      "id": "U03",
+      "name": "质量孤立隔离与单模型释放",
+      "upstream_prs": [
+        587
+      ],
+      "commits": [
+        "e6b30da8f75b382a20b56b712a209e9f7d8c72fb"
+      ],
+      "classification": "明确差异",
+      "finding": "Fork ownership 具备计划恢复/删除与版本保护；上游模型移除和隔离范围缩小合同未见对应字段。",
+      "fork_refs": [
+        "backend/internal/repository/quality_ownership_core.go",
+        "backend/internal/service/quality_probe_targets.go",
+        "frontend/src/views/admin/AccountQualityView.vue"
+      ],
+      "acceptance": "预览→版本/owner 栅栏→单模型确认→恢复/保留其他限制→刷新回读；不改变福利",
+      "owner": "待分配",
+      "backend_state": "待逐项实施/验证",
+      "product_state": "未验收",
+      "implementation_pr": null
+    },
+    {
+      "id": "U04",
+      "name": "管理员滚动 24 小时",
+      "upstream_prs": [
+        588
+      ],
+      "commits": [
+        "dcc5b9dd7b282e0f665755a75d96f46f3bd67570"
+      ],
+      "classification": "部分已有",
+      "finding": "Dashboard 与 Usage 已传 rolling24-hours；不能据此证明所有查询/导出/分页窗口一致。",
+      "fork_refs": [
+        "frontend/src/views/admin/DashboardView.vue",
+        "frontend/src/views/admin/UsageView.vue"
+      ],
+      "acceptance": "同一时间窗查询、汇总、分页、导出与非 UTC/DST",
+      "owner": "待分配",
+      "backend_state": "待逐项实施/验证",
+      "product_state": "未验收",
+      "implementation_pr": null
+    },
+    {
+      "id": "U05",
+      "name": "优先调度延迟、sticky、恢复降级",
+      "upstream_prs": [
+        583,
+        598,
+        615
+      ],
+      "commits": [
+        "5dcd0d09e0bdfb8dcd13ad5512bc282d25ce05f4",
+        "eb68bc4fd38e6b91ba8a14cf1c66d5fc837141d9",
+        "8d7dcf142d524280994f9e46c757a82b7a760a5a"
+      ],
+      "classification": "明确差异",
+      "finding": "Fork 有 stop/deprioritize、恢复探索、attempt/质量归因；配置中未有上游 latency_sticky 完整合同。",
+      "fork_refs": [
+        "backend/internal/service/priority_scheduling_config.go",
+        "backend/internal/service/priority_scheduling_runtime.go",
+        "backend/internal/repository/usage_log_priority_scheduling.go"
+      ],
+      "acceptance": "HTTP/WS admission、鉴权/配额不绕过、sticky 稳定性、unknown、公平恢复与降级计费",
+      "owner": "待分配",
+      "backend_state": "待逐项实施/验证",
+      "product_state": "未验收",
+      "implementation_pr": null
+    },
+    {
+      "id": "U06",
+      "name": "v0.2.19 聚合更新",
+      "upstream_prs": [
+        590
+      ],
+      "commits": [
+        "da7abe522f78a1420361f8c8bb92c72e3626f951"
+      ],
+      "classification": "待核验",
+      "finding": "聚合 PR 必须拆开审查；不能把 cherry-pick 视为一个已完成能力。",
+      "fork_refs": [
+        "backend/internal/server/routes/admin.go",
+        "backend/internal/handler/admin/account_handler.go"
+      ],
+      "acceptance": "拆 scoped admin keys、图片按张计费、Gemini/Antigravity/协议/导出等子项；完整路径已在提交账本",
+      "owner": "待分配",
+      "backend_state": "待逐项实施/验证",
+      "product_state": "未验收",
+      "implementation_pr": null
+    },
+    {
+      "id": "U07",
+      "name": "Redis 6 兼容",
+      "upstream_prs": [
+        592
+      ],
+      "commits": [
+        "12a49ef4ef6a2f116389701ac8f1fe620f27bbf5"
+      ],
+      "classification": "明确差异",
+      "finding": "Fork passkey session 仍直接 GETDEL；当前生产 Redis 8.4，不代表向下兼容。",
+      "fork_refs": [
+        "backend/internal/repository/passkey_session_store.go",
+        "backend/internal/repository/user_msg_queue_cache.go"
+      ],
+      "acceptance": "一次性消费原子性、固定窗 TTL、ZSET 命令在真实旧 Redis 验证；原子 Lua 禁止替换成分开 GET/DEL",
+      "owner": "待分配",
+      "backend_state": "待逐项实施/验证",
+      "product_state": "未验收",
+      "implementation_pr": null
+    },
+    {
+      "id": "U08",
+      "name": "BPS 用量快照",
+      "upstream_prs": [
+        591
+      ],
+      "commits": [
+        "76b54ea02b3cd3ed8dbfb8865d1aa46c19799a5a"
+      ],
+      "classification": "待核验",
+      "finding": "Fork BPS runtime 已存在；上游三方用量快照/来源/冻结时点需按 writer-reader 对照。",
+      "fork_refs": [
+        "backend/internal/service/billing_service.go",
+        "backend/internal/service/openai_gateway_usage.go"
+      ],
+      "acceptance": "真实 token 来源、模型、刷新稳定性、unknown 与费用快照，不重算历史账单",
+      "owner": "待分配",
+      "backend_state": "待逐项实施/验证",
+      "product_state": "未验收",
+      "implementation_pr": null
+    },
+    {
+      "id": "U09",
+      "name": "质量 state probe 目标与模型输入",
+      "upstream_prs": [
+        596
+      ],
+      "commits": [
+        "99f25942738ff12056ac82d97ee6b74cb07cd163"
+      ],
+      "classification": "部分已有",
+      "finding": "前端有 STATE_PROBE_QUESTION 和判定工具，质量探测目标已有；运行 worker/允许模型与判定证据待核。",
+      "fork_refs": [
+        "frontend/src/utils/intelligenceTest.ts",
+        "backend/internal/service/quality_probe_targets.go"
+      ],
+      "acceptance": "规则编辑→目标解析→执行→状态判定→历史；不把前端枚举当实现",
+      "owner": "待分配",
+      "backend_state": "待逐项实施/验证",
+      "product_state": "未验收",
+      "implementation_pr": null
+    },
+    {
+      "id": "U10",
+      "name": "服务端延迟/队列/连接观测",
+      "upstream_prs": [
+        599,
+        602,
+        604,
+        610,
+        620,
+        626,
+        628,
+        635,
+        643
+      ],
+      "commits": [
+        "fdf41928023449d9c9c8725868589ea1ba96677a",
+        "dc3d41441ba914b25d7f26c49618c25a1df99e77",
+        "611d317bf258f0cfc5a7f519f0130dd11cef7f8f",
+        "4bb07445747613f8d2805c48315cd6222cc365c2",
+        "76991f99263cc7fa45256a09d5f69e847aef2b06",
+        "6de829fa2efa801dcf3071c4efe842198c7724be",
+        "b5e84d6659b89f5474295c2e7bdec30000ecd9eb",
+        "c0de6149ebcfd43002f7540e192f2e5d9bd8b03f",
+        "08d65a9081417a1ac0993fc513b3ad334f3e2a34"
+      ],
+      "classification": "明确差异",
+      "finding": "Fork 有 ops histogram 和 priority attempt；未有 ops_network_minutes、queue_wait/queue_timing 的完整存储合同。最终 #643 已撤回主表 timing 列。",
+      "fork_refs": [
+        "backend/internal/repository/ops_repo_latency_histogram_buckets.go",
+        "backend/internal/repository/usage_log_priority_scheduling.go"
+      ],
+      "acceptance": "按最终版本实现连接/队列分段来源、NULL、分页/筛选、保留期；不把已撤回的列重新加回",
+      "owner": "待分配",
+      "backend_state": "待逐项实施/验证",
+      "product_state": "未验收",
+      "implementation_pr": null
+    },
+    {
+      "id": "U11",
+      "name": "OpenAI 多授权连接",
+      "upstream_prs": [
+        595,
+        601
+      ],
+      "commits": [
+        "5c3af7b1f25e75c327fb231f0eab85e4d650fb6d",
+        "77455cf755fa0f119367b911704f11df88e7917e"
+      ],
+      "classification": "明确差异",
+      "finding": "当前树未见 auth_connections、connection_affinity、refresh fencing 表与服务；API Key 和单凭据不是等价物。",
+      "fork_refs": [
+        "backend/internal/service/openai_gateway_service.go",
+        "backend/internal/server/routes/admin.go"
+      ],
+      "acceptance": "上游 312–318 作为一项闭环：CRUD/OAuth/lease/route/usage attribution/affinity/refresh unknown/回退",
+      "owner": "待分配",
+      "backend_state": "待逐项实施/验证",
+      "product_state": "未验收",
+      "implementation_pr": null
+    },
+    {
+      "id": "U12",
+      "name": "WS 客户端身份",
+      "upstream_prs": [
+        607
+      ],
+      "commits": [
+        "ec007920de042797299fc7cf2c034ad24c136462"
+      ],
+      "classification": "待核验",
+      "finding": "Fork 有 WS 路径；必须区分客户端/连接/账号身份和 session 作用域。",
+      "fork_refs": [
+        "backend/internal/service/openai_gateway_service.go"
+      ],
+      "acceptance": "多用户同 session、连接复用、cookie/header、租户隔离与重连回归",
+      "owner": "待分配",
+      "backend_state": "待逐项实施/验证",
+      "product_state": "未验收",
+      "implementation_pr": null
+    },
+    {
+      "id": "U13",
+      "name": "OpenAI header timeout 默认关闭与设置",
+      "upstream_prs": [
+        612,
+        632
+      ],
+      "commits": [
+        "d14ed1807bdfe43aabed1739c0e062c1f4512ddf",
+        "b192c735fa2f536cc87a4a511bfcda59233d5596"
+      ],
+      "classification": "部分已有",
+      "finding": "Fork OpenAI transport 强制默认 0，显式静态配置生效；缺少上游动态 DB 设置接口。",
+      "fork_refs": [
+        "backend/internal/repository/http_upstream.go",
+        "backend/internal/config/config.go",
+        "backend/internal/repository/http_upstream_test.go"
+      ],
+      "acceptance": "默认/显式设置、缓存刷新与旧配置兼容；动态配置单独补闭环",
+      "owner": "待分配",
+      "backend_state": "待逐项实施/验证",
+      "product_state": "未验收",
+      "implementation_pr": null
+    },
+    {
+      "id": "U14",
+      "name": "超时故障转移与发出前栅栏",
+      "upstream_prs": [
+        613,
+        617
+      ],
+      "commits": [
+        "5909f3fec59c5caae335a77c89b63e6464819532",
+        "1adbacf2b0c920dfecfcfbd2686585a32ae5af53"
+      ],
+      "classification": "待核验",
+      "finding": "Fork request ledger/usage settlement 已有自研幂等；不能按上游 handler 文件覆盖。",
+      "fork_refs": [
+        "backend/internal/service/usage_billing.go",
+        "backend/internal/service/openai_gateway_service.go"
+      ],
+      "acceptance": "请求已发出/未发出故障注入、不得重复执行/计费、取消/重试/迟到响应一致",
+      "owner": "待分配",
+      "backend_state": "待逐项实施/验证",
+      "product_state": "未验收",
+      "implementation_pr": null
+    },
+    {
+      "id": "U15",
+      "name": "智能上游协议与 WS 模式",
+      "upstream_prs": [
+        606,
+        608
+      ],
+      "commits": [
+        "c81e2a9e735c5fc53c7175448d29441cb777a143",
+        "6ac5e1c51f503ab76ddf6a5f4607809022b8437c"
+      ],
+      "classification": "明确差异",
+      "finding": "Fork 有 passthrough/WS；未见 upstream smart protocol 服务，文档 #608 依赖实现。",
+      "fork_refs": [
+        "backend/internal/service/openai_gateway_service.go"
+      ],
+      "acceptance": "连接能力选择→复用→回退→usage/取消→会话边界；和 U11 的连接依赖先确认",
+      "owner": "待分配",
+      "backend_state": "待逐项实施/验证",
+      "product_state": "未验收",
+      "implementation_pr": null
+    },
+    {
+      "id": "U16",
+      "name": "Anthropic API Key 模拟 Claude Code",
+      "upstream_prs": [
+        621
+      ],
+      "commits": [
+        "3c88bd92e569bd697e8ee77b4315f17d4f24e3fb"
+      ],
+      "classification": "待核验",
+      "finding": "Fork Anthropic gateway 有兼容层；未见上游专门 mimic 实现，需核 header/body/计费。",
+      "fork_refs": [
+        "backend/internal/service/gateway_service.go"
+      ],
+      "acceptance": "API Key 权限、开关、User-Agent/headers、工具/多轮/stream、失败恢复",
+      "owner": "待分配",
+      "backend_state": "待逐项实施/验证",
+      "product_state": "未验收",
+      "implementation_pr": null
+    },
+    {
+      "id": "U17",
+      "name": "管理员新功能提示",
+      "upstream_prs": [
+        622
+      ],
+      "commits": [
+        "5fa0ecdd0ef792acbd03f5850375dba4e133b67a"
+      ],
+      "classification": "待核验",
+      "finding": "不把现有公告当新功能提示等价。",
+      "fork_refs": [
+        "frontend/src/components/layout/AppSidebar.vue"
+      ],
+      "acceptance": "仅管理员、关闭/持久化、版本提示去重、双语/主题；沿用 UI 组件",
+      "owner": "待分配",
+      "backend_state": "待逐项实施/验证",
+      "product_state": "未验收",
+      "implementation_pr": null
+    },
+    {
+      "id": "U18",
+      "name": "充值抽奖/邀请/连抽",
+      "upstream_prs": [
+        623,
+        636
+      ],
+      "commits": [
+        "4deea9b9657e67bb766744f2c19f443e7ace961d",
+        "9039070968a2d233e832ca3eaa7f58633cf55691"
+      ],
+      "classification": "明确保留二开，待接入决策",
+      "finding": "上游新彩票/票数/邀请账本与 Fork 福利/盲盒/邀请返佣不同；不覆盖既有玩法。",
+      "fork_refs": [
+        "backend/internal/server/routes/play.go",
+        "frontend/src/views/admin/PlayOpsView.vue"
+      ],
+      "acceptance": "先独立定义纳入边界；323/324/325、充值归因、风控、概率、幂等奖励和管理页面一起交付",
+      "owner": "待分配",
+      "backend_state": "待逐项实施/验证",
+      "product_state": "未验收",
+      "implementation_pr": null
+    },
+    {
+      "id": "U19",
+      "name": "账号性能监控",
+      "upstream_prs": [
+        631,
+        634,
+        637
+      ],
+      "commits": [
+        "d25edeb4c9df2bce411460d9b4281a9108b79447",
+        "5eb89ca77c7bee5b73dbac4927078458612a169d",
+        "07efd347253b3e084f41525b1e68dd64c359fefc"
+      ],
+      "classification": "明确差异",
+      "finding": "当前未见 account_performance 存储/服务；质量规则与 token guard 的状态所有权不同。",
+      "fork_refs": [
+        "backend/internal/server/routes/admin.go",
+        "backend/internal/service/priority_scheduling_config.go"
+      ],
+      "acceptance": "窗口/阈值→公平扫描→独立暂停 generation→恢复/删除→区域/并发→审计",
+      "owner": "待分配",
+      "backend_state": "待逐项实施/验证",
+      "product_state": "未验收",
+      "implementation_pr": null
+    },
+    {
+      "id": "U20",
+      "name": "安全提示 SSE 类型识别",
+      "upstream_prs": [
+        633
+      ],
+      "commits": [
+        "f0020cc41ecb5513014c993d20978fc59856807d"
+      ],
+      "classification": "依赖前置，待核验",
+      "finding": "Fork 未见上游 safety_prompt_response 基础链；只搬两文件无法闭环。",
+      "fork_refs": [
+        "backend/internal/service/openai_gateway_response_handling.go"
+      ],
+      "acceptance": "先决定安全提示注入/retention 基础模块，再验证错误/缺失 Content-Type 的增量识别、缓冲上限与取消",
+      "owner": "待分配",
+      "backend_state": "待逐项实施/验证",
+      "product_state": "未验收",
+      "implementation_pr": null
+    },
+    {
+      "id": "U21",
+      "name": "质量共享题批次",
+      "upstream_prs": [
+        642
+      ],
+      "commits": [
+        "42a8676b44db0e6a161ce55ab8b685c363dab28a"
+      ],
+      "classification": "明确差异",
+      "finding": "Fork 有多模型重复探测和整轮保存；没有共享 batch 表/lease，非同一功能。",
+      "fork_refs": [
+        "backend/internal/service/quality_probe_targets.go",
+        "backend/internal/repository/quality_round_integration_test.go"
+      ],
+      "acceptance": "随机题→跨账号同批→截止/租约→对照通过才处置→混合版本与回滚暂停，不能拆成 UI 占位",
+      "owner": "待分配",
+      "backend_state": "待逐项实施/验证",
+      "product_state": "未验收",
+      "implementation_pr": null
+    },
+    {
+      "id": "U22",
+      "name": "UltraFast 账号与计费",
+      "upstream_prs": [
+        641
+      ],
+      "commits": [
+        "b5e678cec1d8645160c910ce40d5007a3cc4d02f"
+      ],
+      "classification": "部分已有",
+      "finding": "Fork 已有 ultrafast 透传和配置 multiplier ×6 测试；不是全缺，但完整账号策略/回退待核。",
+      "fork_refs": [
+        "backend/internal/service/openai_gateway_request_body.go",
+        "backend/internal/service/billing_service_test.go",
+        "frontend/src/utils/usageServiceTier.ts"
+      ],
+      "acceptance": "账号开关/上游响应档位/模型费率/冻结价格/降级/余额订阅 Key 额度同笔一致",
+      "owner": "待分配",
+      "backend_state": "待逐项实施/验证",
+      "product_state": "未验收",
+      "implementation_pr": null
+    },
+    {
+      "id": "U23",
+      "name": "Mistral 账号/Chat",
+      "upstream_prs": [
+        640
+      ],
+      "commits": [
+        "6f813426b61b8eeba77f374059205cc34d2fa993"
+      ],
+      "classification": "明确差异",
+      "finding": "Fork 有模型名/图标识别，但未有 Mistral 专门协议 adapter/供应商合同。",
+      "fork_refs": [
+        "backend/internal/service/openai_model_mapping.go",
+        "frontend/src/components/common/ModelIcon.vue"
+      ],
+      "acceptance": "API Key CRUD→模型目录/图片→Chat stream accumulator→Composite→真实 SDK/计费",
+      "owner": "待分配",
+      "backend_state": "待逐项实施/验证",
+      "product_state": "未验收",
+      "implementation_pr": null
+    }
+  ],
+  "incremental_pr_coverage": 41,
+  "version_changes": 4,
+  "legacy_note": "446 merges and 237 direct commits retain individual pending entries; historical exclusions are review input, not new user approvals."
+}
