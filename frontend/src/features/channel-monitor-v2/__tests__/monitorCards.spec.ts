@@ -19,6 +19,20 @@ describe('V2 card timeline and Candy presentation', () => {
     expect(hasMonitorSamples({ has_samples: true, request_count: 0 } as MonitorMatrixRow['metrics'])).toBe(true)
   })
 
+  it.each(['healthy', 'warning', 'critical', 'unknown'] as const)('preserves server-scored %s history when request counts are redacted', (state) => {
+    const value = row()
+    value.sample_buckets = [{
+      ...value.buckets[0],
+      metrics: { has_samples: true, request_count: 0 } as MonitorMatrixRow['metrics'],
+      health: { overall: state, minimum_sample: 50 } as MonitorMatrixRow['health'],
+    }]
+    expect(monitorCardTimeline(value, undefined, 'samples').map((bar) => bar.state)).toEqual([state])
+    // Older responses without sample_buckets use the same scoring contract.
+    value.buckets = value.sample_buckets
+    delete value.sample_buckets
+    expect(monitorCardTimeline(value, undefined, 'samples').map((bar) => bar.state)).toEqual([state])
+  })
+
   it('keeps time-window gaps and shows low-volume recent request buckets as unjudged', () => {
     const coverage = { requested_start: '2026-11-02T00:00:00Z', requested_end: '2026-11-02T00:10:00Z', bucket_seconds: 300 } as MonitorCoverage
     const value = row()
