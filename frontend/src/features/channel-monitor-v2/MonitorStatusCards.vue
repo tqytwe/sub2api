@@ -38,7 +38,7 @@
               </div>
               <p v-if="timelineMode === 'samples' && !timeline(row).length" class="text-xs text-gray-400">{{ t('channelMonitorV2.cards.noSamples') }}</p>
               <div v-else class="flex h-5 items-end gap-1" role="img" :aria-label="t('channelMonitorV2.cards.trafficHistory')">
-                <span v-for="(bar, index) in timeline(row)" :key="index" class="min-w-0 flex-1 rounded-sm" :class="healthBar[bar.state]" :title="barTitle(row, bar)" />
+                <span v-for="(bar, index) in timeline(row)" :key="index" class="h-full min-w-0 flex-1 rounded-sm" :class="healthBar[bar.state]" :title="barTitle(row, bar)" />
               </div>
             </div>
 
@@ -153,6 +153,6 @@ function candyTitle(result: MonitorCandyResult, model: string, effort: string) {
 .status-dot { display: inline-block; height: .625rem; width: .625rem; flex: none; border-radius: 9999px; }
 .health-healthy { background: var(--status-success); }
 .health-warning { background: var(--status-warning); }
-.health-critical { background: var(--status-danger); }
-.health-unknown { background: var(--status-neutral); }
+.health-critical { background: var(--monitor-health-0); }
+.health-unknown { background: var(--border-strong); }
 </style>

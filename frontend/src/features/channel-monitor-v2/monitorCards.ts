@@ -34,6 +34,9 @@ export function hasMonitorSamples(metric: MonitorMatrixBucket['metrics']): boole
 
 export function meetsMonitorSampleMinimum(bucket: MonitorMatrixBucket): boolean {
   if (!hasMonitorSamples(bucket.metrics)) return false
+  // Public responses hide absolute counts after the server has scored health.
+  // Keep that verdict (including unknown); a redacted zero is not low volume.
+  if (bucket.metrics.has_samples === true && bucket.metrics.request_count === 0) return true
   const minimum = bucket.health?.minimum_sample
   return typeof minimum !== 'number' || minimum <= 0 || bucket.metrics.request_count >= minimum
 }
