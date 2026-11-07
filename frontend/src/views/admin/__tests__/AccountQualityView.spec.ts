@@ -4,6 +4,8 @@ import AccountQualityView from '../AccountQualityView.vue'
 
 const api = vi.hoisted(() => ({
   accountsList: vi.fn(),
+  groupsAll: vi.fn(),
+  removeOwnedModel: vi.fn(),
   listPlans: vi.fn(),
   listHistory: vi.fn(),
   listPresets: vi.fn(),
@@ -25,13 +27,15 @@ const api = vi.hoisted(() => ({
 vi.mock('@/api/admin', () => ({
   adminAPI: {
     accounts: { list: api.accountsList },
+    groups: { getAllIncludingInactive: api.groupsAll },
     scheduledTests: {
       create: api.create,
       update: api.update,
       ownershipPreview: api.ownershipPreview,
       reconcileOwnership: api.reconcileOwnership,
       restoreOwnership: api.restoreOwnership,
-      deleteOwnedPlan: api.deleteOwnedPlan
+      deleteOwnedPlan: api.deleteOwnedPlan,
+      removeOwnedModel: api.removeOwnedModel
     }
   }
 }))
@@ -69,6 +73,7 @@ describe('admin account quality operations view', () => {
   beforeEach(() => {
     Object.values(api).forEach((mock) => mock.mockReset())
     api.accountsList.mockResolvedValue({ items: [{ id: 7, name: 'account' }] })
+    api.groupsAll.mockResolvedValue([{ id: 10, name: "quarantine" }])
     api.listPlans.mockResolvedValue([])
     api.listHistory.mockResolvedValue({ items: [historyItem(100)], next_cursor: 100 })
     api.listPresets.mockResolvedValue([])
@@ -481,6 +486,118 @@ describe('admin account quality operations view', () => {
     const request = kind === 'template' ? api.updateTemplate.mock.calls[0][1] : kind === 'rule' ? api.update.mock.calls[0][1] : api.create.mock.calls[0][0]
     expect(request).toEqual(expect.objectContaining({ model_id: 'actual-a', pelican_config: expect.objectContaining({ model_ids: ['actual-a', 'actual-b'], parallel_count: 2 }) }))
     scroll.mockRestore()
+  })
+
+  it('preserves isolation group scope when editing and refuses to save it without groups', async () => {
+    vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
+    api.listPlans.mockResolvedValue([{ id:9,account_id:7,model_id:'sol',cron_expression:'*/30 * * * *',enabled:true,max_results:100,updated_at:'2026-11-07T00:00:00Z',pelican_config:{model_ids:['sol','astra'],prompt:'probe',quality:{action:'isolate_models',remove_group_ids:[10],expected_answer:'ok',judge:{kind:'expected'}}} }])
+    const wrapper=mount(AccountQualityView,{global:{stubs}})
+    await flushPromises()
+    await wrapper.find('article').findAll('button').find(b=>b.text()==='admin.qualityOps.editShort')!.trigger('click')
+    await wrapper.find('form').trigger('submit');await flushPromises()
+    expect(api.update).toHaveBeenCalledWith(9,expect.objectContaining({pelican_config:expect.objectContaining({quality:expect.objectContaining({action:'isolate_models',remove_group_ids:[10]})})}))
+    await wrapper.find('article').findAll('button').find(b=>b.text()==='admin.qualityOps.editShort')!.trigger('click')
+    await wrapper.find('[data-testid="quality-isolation-groups"] input').setValue(false)
+    api.update.mockClear()
+    await wrapper.find('form').trigger('submit');await flushPromises()
+    expect(api.update).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain('admin.qualityOps.isolation.groupsRequired')
+  })
+
+  it('re-reads both rule scope and ownership after a single explicit model release', async () => {
+    const plan={id:9,account_id:7,model_id:'sol',cron_expression:'*/30 * * * *',enabled:true,max_results:100,pelican_config:{model_ids:['sol','astra'],quality:{action:'isolate_models'}}}
+    api.listPlans.mockResolvedValueOnce([plan]).mockResolvedValue([{...plan,model_id:'astra',pelican_config:{...plan.pelican_config,model_ids:['astra']}}])
+    const view={plan_id:9,account_id:7,fence:'a'.repeat(64),state_present:true,action:'isolate_models',model_removals:[{model:'sol',isolation_model:'sol',ready:true,effect:'remove_orphan_marker_only'},{model:'astra',isolation_model:'astra',ready:false,effect:'remove_matching_marker',blocked_reason:'changed_same_owner'}]}
+    api.ownershipPreview.mockResolvedValueOnce(view).mockResolvedValue({...view,model_removals:[view.model_removals[1]]})
+    const confirm=vi.spyOn(window,'confirm').mockReturnValue(true)
+    const scroll=vi.spyOn(window,'scrollTo').mockImplementation(()=>{})
+    const wrapper=mount(AccountQualityView,{global:{stubs}});await flushPromises()
+    await wrapper.find('article').findAll('button').find(b=>b.text()==='admin.qualityOps.editShort')!.trigger('click')
+    await wrapper.find('[data-testid="quality-cron-expression"]').setValue('0 * * * *')
+    await wrapper.findAll('button').find(b=>b.text()==='admin.qualityOps.ownership')!.trigger('click');await flushPromises()
+    expect(wrapper.text()).toContain('admin.qualityOps.isolation.blocked.changed_same_owner')
+    expect(wrapper.findAll('[data-testid="quality-remove-owned-model"]')[1].attributes('disabled')).toBeDefined()
+    await wrapper.find('[data-testid="quality-remove-owned-model"]').trigger('click');await flushPromises()
+    expect(api.removeOwnedModel).not.toHaveBeenCalled()
+    await wrapper.find('[data-testid="quality-removal-reason"]').setValue('orphan_marker_recovery')
+    await wrapper.find('[data-testid="quality-remove-owned-model"]').trigger('click');await flushPromises()
+    expect(confirm).toHaveBeenCalledOnce()
+    expect(api.removeOwnedModel).toHaveBeenCalledWith(9,{fence:'a'.repeat(64),confirm:true,model:'sol',reason_code:'orphan_marker_recovery'})
+    expect(api.listPlans).toHaveBeenCalledTimes(2)
+    expect(api.ownershipPreview).toHaveBeenCalledTimes(2)
+    expect(wrapper.findAll('[data-testid="quality-remove-owned-model"]')).toHaveLength(1)
+    expect((wrapper.find('[data-testid="quality-model-id"]').element as HTMLInputElement).value).toBe('astra')
+    expect((wrapper.find('[data-testid="quality-cron-expression"]').element as HTMLInputElement).value).toBe('0 * * * *')
+    confirm.mockRestore()
+    scroll.mockRestore()
+  })
+
+  it.each(['rule-read-error', 'preview-read-error', 'stale-rule-read'])('keeps drafts and reports an unverified committed release on %s', async (failure) => {
+    const plan={id:9,account_id:7,model_id:'sol',cron_expression:'*/30 * * * *',enabled:true,max_results:100,pelican_config:{model_ids:['sol','astra'],quality:{action:'isolate_models'}}}
+    const view={plan_id:9,account_id:7,fence:'a'.repeat(64),state_present:true,action:'isolate_models',model_removals:[{model:'sol',isolation_model:'sol',ready:true,effect:'remove_orphan_marker_only'}]}
+    api.listPlans.mockResolvedValueOnce([plan])
+    if(failure==='rule-read-error') api.listPlans.mockRejectedValue(new Error('read unavailable'))
+    else api.listPlans.mockResolvedValue([failure==='stale-rule-read'?plan:{...plan,model_id:'astra',pelican_config:{...plan.pelican_config,model_ids:['astra']}}])
+    api.ownershipPreview.mockResolvedValueOnce(view)
+    if(failure==='preview-read-error') api.ownershipPreview.mockRejectedValue(new Error('preview unavailable'))
+    else api.ownershipPreview.mockResolvedValue({...view,model_removals:[]})
+    const confirm=vi.spyOn(window,'confirm').mockReturnValue(true)
+    const scroll=vi.spyOn(window,'scrollTo').mockImplementation(()=>{})
+    const wrapper=mount(AccountQualityView,{global:{stubs}});await flushPromises()
+    await wrapper.find('article').findAll('button').find(b=>b.text()==='admin.qualityOps.editShort')!.trigger('click')
+    await wrapper.findAll('button').find(b=>b.text()==='admin.qualityOps.ownership')!.trigger('click');await flushPromises()
+    await wrapper.find('[data-testid="quality-removal-reason"]').setValue('retire_model')
+    await wrapper.find('[data-testid="quality-remove-owned-model"]').trigger('click');await flushPromises()
+    expect(api.removeOwnedModel).toHaveBeenCalledOnce()
+    expect(wrapper.text()).toContain('admin.qualityOps.isolation.readbackFailed')
+    expect(wrapper.text()).not.toContain('admin.qualityOps.operationDone')
+    expect((wrapper.find('[data-testid="quality-model-id"]').element as HTMLInputElement).value).toBe('sol')
+    confirm.mockRestore();scroll.mockRestore()
+  })
+
+  it('refreshes stale previews on conflict and shows the original error without retrying a mutation', async () => {
+    api.listPlans.mockResolvedValue([{id:9,account_id:7,model_id:'sol',pelican_config:{quality:{action:'isolate_models'}}}])
+    const view={plan_id:9,fence:'b'.repeat(64),state_present:true,model_removals:[{model:'sol',isolation_model:'sol',ready:true,effect:'remove_orphan_marker_only'}]}
+    api.ownershipPreview.mockResolvedValue(view)
+    api.removeOwnedModel.mockRejectedValue(new Error('preview changed'))
+    const confirm=vi.spyOn(window,'confirm').mockReturnValue(true)
+    const wrapper=mount(AccountQualityView,{global:{stubs}});await flushPromises()
+    await wrapper.findAll('button').find(b=>b.text()==='admin.qualityOps.ownership')!.trigger('click');await flushPromises()
+    await wrapper.find('[data-testid="quality-removal-reason"]').setValue('retire_model')
+    await wrapper.find('[data-testid="quality-remove-owned-model"]').trigger('click');await flushPromises()
+    expect(api.removeOwnedModel).toHaveBeenCalledOnce()
+    expect(api.ownershipPreview).toHaveBeenCalledTimes(2)
+    expect(wrapper.text()).toContain('preview changed')
+    expect(wrapper.find('[data-testid="quality-removal-reason"]').element.value).toBe('')
+    confirm.mockRestore()
+  })
+
+  it('retains saved isolation scopes in presets and group templates', async () => {
+    const config={model_ids:['sol','astra'],prompt:'probe',quality:{action:'isolate_models',remove_group_ids:[10],expected_answer:'ok',judge:{kind:'expected'}}}
+    api.listPresets.mockResolvedValue([{id:5,name:'isolation preset',model_id:'sol',cron_expression:'*/30 * * * *',max_results:100,enabled:true,pelican_config:config}])
+    api.listTemplates.mockResolvedValue([{id:6,model_id:'sol',cron_expression:'*/30 * * * *',max_results:100,enabled:true,account_filter:{},plan_ids:[],pelican_config:config}])
+    const wrapper=mount(AccountQualityView,{global:{stubs}});await flushPromises()
+    await wrapper.find('[data-testid="quality-preset-select"]').setValue(5)
+    await wrapper.find('[data-testid="quality-apply-preset"]').trigger('click')
+    await wrapper.findAll('select')[1].setValue(7)
+    await wrapper.find('form').trigger('submit');await flushPromises()
+    expect(api.create).toHaveBeenCalledWith(expect.objectContaining({pelican_config:expect.objectContaining({quality:expect.objectContaining({remove_group_ids:[10],action:'isolate_models'})})}))
+    await wrapper.find('[data-testid="quality-template-row"]').findAll('button')[0].trigger('click')
+    await wrapper.find('[data-testid="quality-template-form"]').trigger('submit');await flushPromises()
+    expect(api.updateTemplate).toHaveBeenCalledWith(6,expect.objectContaining({pelican_config:expect.objectContaining({quality:expect.objectContaining({remove_group_ids:[10],action:'isolate_models'})})}))
+  })
+
+  it('retains selected groups on a load failure and blocks isolation writes until groups can be loaded', async () => {
+    api.groupsAll.mockRejectedValue(new Error('group network error'))
+    api.listPresets.mockResolvedValue([{id:5,name:'saved',model_id:'sol',cron_expression:'*/30 * * * *',max_results:100,enabled:true,pelican_config:{model_ids:['sol'],prompt:'probe',quality:{action:'isolate_models',remove_group_ids:[10],expected_answer:'ok'}}}])
+    const wrapper=mount(AccountQualityView,{global:{stubs}});await flushPromises()
+    await wrapper.find('[data-testid="quality-preset-select"]').setValue(5)
+    await wrapper.find('[data-testid="quality-apply-preset"]').trigger('click')
+    expect(wrapper.text()).toContain('group network error')
+    expect(wrapper.find('[data-testid="quality-isolation-groups"] input').element.checked).toBe(true)
+    await wrapper.findAll('select')[1].setValue(7)
+    await wrapper.find('form').trigger('submit');await flushPromises()
+    expect(api.create).not.toHaveBeenCalled()
   })
 
 })

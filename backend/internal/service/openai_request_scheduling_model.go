@@ -40,7 +40,7 @@ func withOpenAIForwardModelDefault(ctx context.Context, requestedModel string, r
 }
 
 func openAIAccountOutboundModelRateLimited(ctx context.Context, account *Account, requestModel, outboundModel string) bool {
-	return account.isRateLimitActiveForKey(outboundModel) ||
+	return account.qualityOutboundModelBlocked(ctx, requestModel, outboundModel) || account.isRateLimitActiveForKey(outboundModel) ||
 		(openAIImageGenerationRateLimitApplies(ctx, requestModel, outboundModel) && account.isRateLimitActiveForKey(openAIImageGenerationRateLimitKey))
 }
 

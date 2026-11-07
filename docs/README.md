@@ -13,6 +13,8 @@
 | `historical` | 只用于追溯历史决策，不得作为当前实现依据 |
 | `superseded` | 已被其他文档替代，只在归档索引中保留说明 |
 
+本轮 U03 实现与验证记录：[质量模型隔离与释放](./archive/completed-tasks/2026-11-07-quality-model-release/README.md)，[视觉记录](./visual-reviews/2026-11-07-quality-model-release.md)。
+
 ## 当前文档
 
 接手当前任务先看 [当前项目推进基线](./PROJECT_REBASELINE_2026-10-28.md) 与

@@ -71,7 +71,8 @@
           <label class="block text-sm"><span class="field-title">{{ t('admin.qualityOps.probesPerModel') }}</span><input v-model.number="templateForm.parallel_count" class="input w-full" data-testid="quality-template-parallel-count" type="number" min="1" max="32" step="1" required /><span class="mt-1 block text-xs text-gray-500 dark:text-gray-400">{{ t('admin.qualityOps.probesHelp') }}</span></label>
           <label class="block text-sm sm:col-span-2"><span class="field-title">{{ t('admin.qualityOps.prompt') }}</span><textarea v-model="templateForm.prompt" class="input min-h-20 w-full font-mono text-sm" required maxlength="32768" /></label>
           <label class="block text-sm"><span class="field-title">{{ t('admin.qualityOps.expectedAnswer') }}</span><input v-model.trim="templateForm.expected_answer" class="input w-full" data-testid="quality-template-expected-answer" required maxlength="4000" /></label>
-          <label class="block text-sm"><span class="field-title">{{ t('admin.qualityOps.action') }}</span><select v-model="templateForm.action" class="input w-full"><option value="observe_only">{{ t('admin.qualityOps.observeOnly') }}</option><option value="disable_scheduling">{{ t('admin.qualityOps.disableScheduling') }}</option></select></label>
+          <label class="block text-sm"><span class="field-title">{{ t('admin.qualityOps.action') }}</span><select v-model="templateForm.action" class="input w-full"><option value="observe_only">{{ t('admin.qualityOps.observeOnly') }}</option><option value="disable_scheduling">{{ t('admin.qualityOps.disableScheduling') }}</option><option value="isolate_models">{{ t('admin.qualityOps.isolation.action') }}</option></select></label>
+          <QualityIsolationGroups v-if="templateForm.action === 'isolate_models'" v-model="templateForm.remove_group_ids" class="sm:col-span-2" data-testid="quality-template-isolation-groups" :groups="groups" :loading="groupsLoading" :error="groupsError" :disabled="templateSaving" />
           <div class="sm:col-span-2">
             <Toggle v-model="templateForm.auto_restore" data-testid="quality-template-auto-restore" :label="t('admin.qualityOps.autoRestore')" :description="t('admin.qualityOps.autoRestoreHelp')" :disabled="templateSaving" />
           </div>
@@ -184,9 +185,10 @@
             <span class="field-title">{{ t('admin.qualityOps.action') }}</span>
             <select v-model="form.action" class="input w-full">
               <option value="observe_only">{{ t('admin.qualityOps.observeOnly') }}</option>
-              <option value="disable_scheduling">{{ t('admin.qualityOps.disableScheduling') }}</option>
+              <option value="disable_scheduling">{{ t('admin.qualityOps.disableScheduling') }}</option><option value="isolate_models">{{ t('admin.qualityOps.isolation.action') }}</option>
             </select>
           </label>
+          <QualityIsolationGroups v-if="form.action === 'isolate_models'" v-model="form.remove_group_ids" class="sm:col-span-2" data-testid="quality-isolation-groups" :groups="groups" :loading="groupsLoading" :error="groupsError" :disabled="saving || presetSaving" />
           <div class="sm:col-span-2">
             <Toggle v-model="form.auto_restore" data-testid="quality-auto-restore" :label="t('admin.qualityOps.autoRestore')" :description="t('admin.qualityOps.autoRestoreHelp')" :disabled="saving || presetSaving" />
           </div>
@@ -242,14 +244,32 @@
               <p v-if="ownershipLoading" class="text-gray-500">{{ t('common.loading') }}...</p>
               <template v-else-if="ownership">
                 <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-700 dark:text-gray-300">
-                  <span>{{ t('admin.qualityOps.action') }}: {{ ownership.action || '-' }}</span>
+                  <span>{{ t('admin.qualityOps.action') }}: {{ ownership.action === 'isolate_models' ? t('admin.qualityOps.isolation.action') : ownership.action || '-' }}</span>
                   <span>{{ t('admin.qualityOps.ownedState') }}: {{ ownership.state_present ? t('admin.qualityOps.present') : t('admin.qualityOps.emptyState') }}</span>
                   <code>{{ ownership.rule_version }}</code>
                 </div>
+                <p v-if="ownership.restore_blocked_reason" class="mt-2 text-xs text-amber-800 dark:text-amber-300">{{ t(`admin.qualityOps.isolation.blocked.${ownership.restore_blocked_reason}`) }}</p>
+                <div v-if="ownership.model_removals?.length" class="mt-3 divide-y divide-gray-200 dark:divide-dark-600" data-testid="quality-model-removals">
+                  <p class="py-2 text-xs text-gray-600 dark:text-gray-400">{{ t('admin.qualityOps.isolation.removalHelp') }}</p>
+                  <div v-for="item in ownership.model_removals" :key="item.model" class="flex flex-wrap items-center justify-between gap-3 py-3">
+                    <div class="min-w-0 flex-1">
+                      <p class="break-all font-medium">{{ item.model }} → {{ item.isolation_model }}</p>
+                      <p class="mt-1 text-xs" :class="item.ready ? 'text-gray-600 dark:text-gray-400' : 'text-amber-800 dark:text-amber-300'">{{ item.ready ? t(`admin.qualityOps.isolation.effects.${item.effect}`) : t(`admin.qualityOps.isolation.blocked.${item.blocked_reason}`) }}</p>
+                    </div>
+                    <div class="flex w-full flex-wrap gap-2 sm:w-auto">
+                      <select v-if="item.ready" v-model="removalReasons[item.model]" class="input min-w-0 flex-1 sm:w-auto sm:flex-none" data-testid="quality-removal-reason" :aria-label="t('admin.qualityOps.isolation.reasonFor', { model: item.model })" :disabled="busyPlan !== null">
+                        <option value="">{{ t('admin.qualityOps.isolation.selectReason') }}</option>
+                        <option value="orphan_marker_recovery">{{ t('admin.qualityOps.isolation.orphanReason') }}</option>
+                        <option value="retire_model">{{ t('admin.qualityOps.isolation.retireReason') }}</option>
+                      </select>
+                      <button class="btn btn-danger btn-sm" data-testid="quality-remove-owned-model" :disabled="!item.ready || !removalReasons[item.model] || busyPlan !== null" @click="removeOwnedModel(plan, item)">{{ t('admin.qualityOps.isolation.remove') }}</button>
+                    </div>
+                  </div>
+                </div>
                 <div class="mt-3 flex flex-wrap gap-2">
-                  <button v-if="ownership.reconcile_ready" class="btn btn-secondary btn-sm" @click="applyOwnership('reconcile', plan)">{{ t('admin.qualityOps.reconcile') }}</button>
-                  <button v-if="ownership.restore_ready" class="btn btn-secondary btn-sm" @click="applyOwnership('restore', plan)">{{ t('admin.qualityOps.restore') }}</button>
-                  <button v-if="!ownership.state_present" class="btn btn-danger btn-sm" @click="applyOwnership('delete', plan)">{{ t('admin.qualityOps.delete') }}</button>
+                  <button v-if="ownership.reconcile_ready" class="btn btn-secondary btn-sm" :disabled="busyPlan !== null" @click="applyOwnership('reconcile', plan)">{{ t('admin.qualityOps.reconcile') }}</button>
+                  <button v-if="ownership.restore_ready" class="btn btn-secondary btn-sm" :disabled="busyPlan !== null" @click="applyOwnership('restore', plan)">{{ t('admin.qualityOps.restore') }}</button>
+                  <button v-if="!ownership.state_present" class="btn btn-danger btn-sm" :disabled="busyPlan !== null" @click="applyOwnership('delete', plan)">{{ t('admin.qualityOps.delete') }}</button>
                 </div>
               </template>
               <p v-if="ownershipError" class="mt-2 text-xs text-red-700 dark:text-red-300">{{ ownershipError }}</p>
@@ -279,10 +299,11 @@ import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import Icon from '@/components/icons/Icon.vue'
 import Toggle from '@/components/common/Toggle.vue'
+import QualityIsolationGroups from '@/components/admin/account/QualityIsolationGroups.vue'
 import { adminAPI } from '@/api/admin'
 import * as accountQualityAPI from '@/api/admin/accountQuality'
 import type { QualityRulePreset, QualityRulePresetRequest, QualityRuleTemplate, QualityRuleTemplateRequest } from '@/api/admin/accountQuality'
-import type { AccountListItem, PelicanTestConfig, QualityHistoryResult, QualityOwnershipPreview, ScheduledTestPlan, ScheduledTestResult } from '@/types'
+import type { AccountListItem, PelicanTestConfig, QualityHistoryResult, QualityModelRemoval, QualityOwnershipPreview, ScheduledTestPlan, ScheduledTestResult } from '@/types'
 
 const { t } = useI18n()
 const plans = ref<ScheduledTestPlan[]>([])
@@ -300,6 +321,11 @@ const ownershipPlanId = ref<number | null>(null)
 const ownership = ref<QualityOwnershipPreview | null>(null)
 const ownershipLoading = ref(false)
 const ownershipError = ref('')
+const removalReasons = ref<Record<string, string>>({})
+let ownershipSequence = 0
+const groups = ref<{ id: number; name: string }[]>([])
+const groupsLoading = ref(false)
+const groupsError = ref('')
 const globalHistory = ref<QualityHistoryResult[]>([])
 const globalHistoryLoading = ref(false)
 const globalHistoryError = ref('')
@@ -319,9 +345,9 @@ const templateSaving = ref(false)
 const templateBusyId = ref<number | null>(null)
 const templateFormOpen = ref(false)
 const editingTemplateId = ref<number | null>(null)
-const templateForm = reactive({ group: '', type: '', statuses: '', search: '', model_id: '', extra_models: [] as string[], parallel_count: 1, cron_expression: '*/30 * * * *', max_results: 100, prompt: '', expected_answer: '', action: 'observe_only', auto_restore: false, enabled: true })
+const templateForm = reactive({ group: '', type: '', statuses: '', search: '', model_id: '', extra_models: [] as string[], parallel_count: 1, cron_expression: '*/30 * * * *', max_results: 100, prompt: '', expected_answer: '', action: 'observe_only', remove_group_ids: [] as number[], auto_restore: false, enabled: true })
 
-const form = reactive({ account_id: 0, model_id: '', extra_models: [] as string[], parallel_count: 1, cron_expression: '*/30 * * * *', max_results: 100, rule_name: '', prompt: '', expected_answer: '', judge_kind: 'expected' as 'expected' | 'jev', judge_prompt: '', action: 'observe_only', auto_restore: false, enabled: true })
+const form = reactive({ account_id: 0, model_id: '', extra_models: [] as string[], parallel_count: 1, cron_expression: '*/30 * * * *', max_results: 100, rule_name: '', prompt: '', expected_answer: '', judge_kind: 'expected' as 'expected' | 'jev', judge_prompt: '', action: 'observe_only', remove_group_ids: [] as number[], auto_restore: false, enabled: true })
 
 function resetForm() {
   editingId.value = null
@@ -329,7 +355,7 @@ function resetForm() {
   presetName.value = ''
   showPresetSave.value = false
   presetSaveError.value = ''
-  Object.assign(form, { account_id: 0, model_id: '', extra_models: [] as string[], parallel_count: 1, cron_expression: '*/30 * * * *', max_results: 100, rule_name: '', prompt: '', expected_answer: '', judge_kind: 'expected', judge_prompt: '', action: 'observe_only', auto_restore: false, enabled: true })
+  Object.assign(form, { account_id: 0, model_id: '', extra_models: [] as string[], parallel_count: 1, cron_expression: '*/30 * * * *', max_results: 100, rule_name: '', prompt: '', expected_answer: '', judge_kind: 'expected', judge_prompt: '', action: 'observe_only', remove_group_ids: [] as number[], auto_restore: false, enabled: true })
 }
 
 function configuredModels(primary: string, config?: PelicanTestConfig | null): string[] {
@@ -363,7 +389,7 @@ function formatDate(value?: string | null) {
 
 function resetTemplateForm() {
   editingTemplateId.value = null
-  Object.assign(templateForm, { group: '', type: '', statuses: '', search: '', model_id: '', extra_models: [] as string[], parallel_count: 1, cron_expression: '*/30 * * * *', max_results: 100, prompt: '', expected_answer: '', action: 'observe_only', auto_restore: false, enabled: true })
+  Object.assign(templateForm, { group: '', type: '', statuses: '', search: '', model_id: '', extra_models: [] as string[], parallel_count: 1, cron_expression: '*/30 * * * *', max_results: 100, prompt: '', expected_answer: '', action: 'observe_only', remove_group_ids: [] as number[], auto_restore: false, enabled: true })
 }
 
 function newTemplate() {
@@ -377,7 +403,7 @@ function closeTemplateForm() {
 }
 
 function templatePelicanConfig(): PelicanTestConfig {
-  return { ...probeConfig(templateForm.model_id, templateForm.extra_models, templateForm.parallel_count), question_kind: 'text', prompt: templateForm.prompt, quality: { action: templateForm.action, expected_answer: templateForm.expected_answer, auto_restore: templateForm.auto_restore, judge: { kind: 'expected' } } }
+  return { ...probeConfig(templateForm.model_id, templateForm.extra_models, templateForm.parallel_count), question_kind: 'text', prompt: templateForm.prompt, quality: { action: templateForm.action, remove_group_ids: isolationGroups(templateForm.action, templateForm.remove_group_ids), expected_answer: templateForm.expected_answer, auto_restore: templateForm.auto_restore, judge: { kind: 'expected' } } }
 }
 
 function templateRequest(): QualityRuleTemplateRequest {
@@ -397,7 +423,7 @@ function editTemplate(template: QualityRuleTemplate) {
   editingTemplateId.value = template.id
   const filter = template.account_filter || {}
   const [model_id, ...extra_models] = configuredModels(template.model_id, template.pelican_config)
-  Object.assign(templateForm, { group: filter.group || '', type: filter.type || '', statuses: filter.statuses?.join(', ') || '', search: filter.search || '', model_id, extra_models, parallel_count: template.pelican_config?.parallel_count || 1, cron_expression: template.cron_expression, max_results: template.max_results, prompt: template.pelican_config?.prompt || '', expected_answer: template.pelican_config?.quality?.expected_answer || '', action: template.pelican_config?.quality?.action || 'observe_only', auto_restore: template.pelican_config?.quality?.auto_restore === true, enabled: template.enabled })
+  Object.assign(templateForm, { group: filter.group || '', type: filter.type || '', statuses: filter.statuses?.join(', ') || '', search: filter.search || '', model_id, extra_models, parallel_count: template.pelican_config?.parallel_count || 1, cron_expression: template.cron_expression, max_results: template.max_results, prompt: template.pelican_config?.prompt || '', expected_answer: template.pelican_config?.quality?.expected_answer || '', action: template.pelican_config?.quality?.action || 'observe_only', remove_group_ids: [...(template.pelican_config?.quality?.remove_group_ids || [])], auto_restore: template.pelican_config?.quality?.auto_restore === true, enabled: template.enabled })
   templateFormOpen.value = true
 }
 
@@ -446,7 +472,7 @@ async function load() {
     ])
     plans.value = nextPlans
     accounts.value = accountPage.items
-    await Promise.all([loadPresets(), loadTemplates()])
+    await Promise.all([loadPresets(), loadTemplates(), loadGroups()])
     try {
       const page = await accountQualityAPI.listHistory()
       globalHistory.value = page.items
@@ -456,12 +482,29 @@ async function load() {
       globalHistory.value = []
       globalHistoryCursor.value = 0
     }
+    return true
   } catch (err: any) {
     error.value = err?.message || t('admin.qualityOps.loadFailed')
+    return false
   } finally {
     loading.value = false
     globalHistoryLoading.value = false
   }
+}
+
+async function loadGroups() {
+  groupsLoading.value = true
+  groupsError.value = ''
+  try { groups.value = await adminAPI.groups.getAllIncludingInactive() }
+  catch (err: any) { groupsError.value = err?.message || t('admin.qualityOps.isolation.groupsLoadFailed') }
+  finally { groupsLoading.value = false }
+}
+
+function isolationGroups(action: string, ids: number[]): number[] | undefined {
+  if (action !== 'isolate_models') return undefined
+  if (groupsLoading.value || groupsError.value) throw new Error(t('admin.qualityOps.isolation.groupsLoadFailed'))
+  if (!ids.length) throw new Error(t('admin.qualityOps.isolation.groupsRequired'))
+  return [...ids]
 }
 
 async function loadPresets() {
@@ -493,6 +536,7 @@ function applyPreset() {
   form.judge_kind = config.quality?.judge?.kind === 'jev' ? 'jev' : 'expected'
   form.judge_prompt = config.quality?.judge?.prompt || ''
   form.action = config.quality?.action || 'observe_only'
+  form.remove_group_ids = [...(config.quality?.remove_group_ids || [])]
   form.auto_restore = config.quality?.auto_restore === true
   form.enabled = preset.enabled
   notice.value = t('admin.qualityOps.presetApplied')
@@ -506,6 +550,7 @@ function pelicanConfig(): PelicanTestConfig {
     prompt: form.prompt,
     quality: {
       action: form.action,
+      remove_group_ids: isolationGroups(form.action, form.remove_group_ids),
       auto_restore: form.auto_restore,
       expected_answer: form.expected_answer,
       judge: { kind: form.judge_kind, prompt: form.judge_kind === 'jev' ? form.judge_prompt || undefined : undefined }
@@ -575,13 +620,14 @@ function edit(plan: ScheduledTestPlan) {
   form.judge_kind = plan.pelican_config?.quality?.judge?.kind === 'jev' ? 'jev' : 'expected'
   form.judge_prompt = plan.pelican_config?.quality?.judge?.prompt || ''
   form.action = plan.pelican_config?.quality?.action || 'observe_only'
+  form.remove_group_ids = [...(plan.pelican_config?.quality?.remove_group_ids || [])]
   form.auto_restore = plan.pelican_config?.quality?.auto_restore === true
   form.enabled = plan.enabled
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
 async function save() {
-  if (!form.account_id || saving.value) return
+  if (!form.account_id || saving.value || busyPlan.value !== null) return
   saving.value = true
   error.value = ''
   notice.value = ''
@@ -626,15 +672,58 @@ async function toggleHistory(plan: ScheduledTestPlan) {
 }
 
 async function preview(plan: ScheduledTestPlan) {
+  const sequence = ++ownershipSequence
   ownershipPlanId.value = plan.id
   ownership.value = null
+  removalReasons.value = {}
   ownershipError.value = ''
   ownershipLoading.value = true
-  try { ownership.value = await adminAPI.scheduledTests.ownershipPreview(plan.id) } catch (err: any) { ownershipError.value = err?.message || t('admin.qualityOps.ownershipFailed') } finally { ownershipLoading.value = false }
+  try {
+    const result = await adminAPI.scheduledTests.ownershipPreview(plan.id)
+    if (sequence !== ownershipSequence) return
+    ownership.value = result
+    removalReasons.value = Object.fromEntries((result.model_removals || []).map(item => [item.model, '']))
+    return true
+  } catch (err: any) {
+    if (sequence === ownershipSequence) ownershipError.value = err?.message || t('admin.qualityOps.ownershipFailed')
+  } finally { if (sequence === ownershipSequence) ownershipLoading.value = false }
+  return false
+}
+
+async function removeOwnedModel(plan: ScheduledTestPlan, item: QualityModelRemoval) {
+  const fence = ownership.value?.fence
+  const reason = removalReasons.value[item.model]
+  if (!fence || !item.ready || busyPlan.value !== null || (reason !== 'orphan_marker_recovery' && reason !== 'retire_model')) return
+  if (!window.confirm(t('admin.qualityOps.isolation.confirm', { model: item.model, effect: t(`admin.qualityOps.isolation.effects.${item.effect}`), reason: t(reason === 'retire_model' ? 'admin.qualityOps.isolation.retireReason' : 'admin.qualityOps.isolation.orphanReason') }))) return
+  busyPlan.value = plan.id
+  ownershipError.value = ''
+  notice.value = ''
+  let committed = false
+  try {
+    await adminAPI.scheduledTests.removeOwnedModel(plan.id, { fence, confirm: true, model: item.model, reason_code: reason })
+    committed = true
+    const rulesLoaded = await load()
+    const previewLoaded = await preview(plan)
+    const current = plans.value.find(rule => rule.id === plan.id)
+    if (!rulesLoaded || !previewLoaded || !current || configuredModels(current.model_id, current.pelican_config).includes(item.model) || ownership.value?.model_removals?.some(row => row.model === item.model)) {
+      throw new Error(t('admin.qualityOps.isolation.readbackFailed'))
+    }
+    if (editingId.value === plan.id) {
+      const remaining = [form.model_id, ...form.extra_models].filter(model => model.trim() !== item.model)
+      if (form.model_id.trim() === item.model) form.model_id = remaining.shift() || current.model_id
+      else remaining.shift()
+      form.extra_models = remaining
+    }
+    notice.value = t('admin.qualityOps.operationDone')
+  } catch (err: any) {
+    const message = committed ? t('admin.qualityOps.isolation.readbackFailed') : err?.message || t('admin.qualityOps.operationFailed')
+    if (!committed) await preview(plan)
+    ownershipError.value = message
+  } finally { busyPlan.value = null }
 }
 
 async function applyOwnership(action: 'reconcile' | 'restore' | 'delete', plan: ScheduledTestPlan) {
-  if (!ownership.value?.fence || !window.confirm(t(`admin.qualityOps.confirm.${action}`))) return
+  if (busyPlan.value !== null || !ownership.value?.fence || !window.confirm(t(`admin.qualityOps.confirm.${action}`))) return
   busyPlan.value = plan.id
   try {
     if (action === 'reconcile') await adminAPI.scheduledTests.reconcileOwnership(plan.id, ownership.value.fence)

@@ -38,6 +38,7 @@ type PelicanTestConfig struct {
 
 type QualityPolicy struct {
 	Action         string              `json:"action,omitempty"`
+	RemoveGroupIDs []int64             `json:"remove_group_ids,omitempty"`
 	ExpectedAnswer string              `json:"expected_answer,omitempty"`
 	AutoRestore    bool                `json:"auto_restore,omitempty"`
 	Judge          *QualityJudgeConfig `json:"judge,omitempty"`
@@ -113,22 +114,35 @@ type ScheduledTestResultRepository interface {
 }
 
 type QualityOwnershipPreview struct {
-	PlanID         int64  `json:"plan_id"`
-	AccountID      int64  `json:"account_id"`
-	RuleVersion    string `json:"rule_version"`
-	Fence          string `json:"fence"`
-	Action         string `json:"action,omitempty"`
-	StatePresent   bool   `json:"state_present"`
-	RestoreReady   bool   `json:"restore_ready"`
-	ReconcileReady bool   `json:"reconcile_ready"`
+	ModelRemovals        []QualityModelRemoval `json:"model_removals"`
+	RestoreBlockedReason string                `json:"restore_blocked_reason,omitempty"`
+	PlanID               int64                 `json:"plan_id"`
+	AccountID            int64                 `json:"account_id"`
+	RuleVersion          string                `json:"rule_version"`
+	Fence                string                `json:"fence"`
+	Action               string                `json:"action,omitempty"`
+	StatePresent         bool                  `json:"state_present"`
+	RestoreReady         bool                  `json:"restore_ready"`
+	ReconcileReady       bool                  `json:"reconcile_ready"`
+}
+
+type QualityModelRemoval struct {
+	Model          string `json:"model"`
+	IsolationModel string `json:"isolation_model"`
+	Ready          bool   `json:"ready"`
+	Effect         string `json:"effect"`
+	BlockedReason  string `json:"blocked_reason,omitempty"`
 }
 
 type QualityOwnershipRequest struct {
-	Fence     string `json:"fence"`
-	Confirm   bool   `json:"confirm"`
-	Reconcile bool   `json:"-"`
-	Restore   bool   `json:"-"`
-	Delete    bool   `json:"-"`
+	RemoveModel bool   `json:"-"`
+	Model       string `json:"model"`
+	ReasonCode  string `json:"reason_code"`
+	Fence       string `json:"fence"`
+	Confirm     bool   `json:"confirm"`
+	Reconcile   bool   `json:"-"`
+	Restore     bool   `json:"-"`
+	Delete      bool   `json:"-"`
 }
 
 type QualityOwnershipRepository interface {

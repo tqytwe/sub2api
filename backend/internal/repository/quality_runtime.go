@@ -11,10 +11,17 @@ import (
 )
 
 type qualityRuntimeState struct {
-	Action              string    `json:"action"`
-	PreviousSchedulable bool      `json:"previous_schedulable"`
-	AppliedSchedulable  bool      `json:"applied_schedulable"`
-	AccountUpdatedAt    time.Time `json:"account_updated_at"`
+	Action              string                  `json:"action"`
+	PreviousSchedulable bool                    `json:"previous_schedulable"`
+	AppliedSchedulable  bool                    `json:"applied_schedulable"`
+	AccountUpdatedAt    time.Time               `json:"account_updated_at"`
+	Models              *qualityIsolationModels `json:"models,omitempty"`
+	Groups              *qualityIsolationGroups `json:"groups,omitempty"`
+	IsolationModels     []string                `json:"isolation_models,omitempty"`
+	IsolationGroupIDs   []int64                 `json:"isolation_group_ids,omitempty"`
+	FailureStreak       int                     `json:"failure_streak,omitempty"`
+	PassStreak          int                     `json:"pass_streak,omitempty"`
+	Quality5xxEpisode   int64                   `json:"quality_5xx_episode,omitempty"`
 }
 
 func (r *scheduledTestPlanRepository) ClaimQualityRun(ctx context.Context, plan *service.ScheduledTestPlan, until time.Time) (time.Time, bool, error) {
@@ -106,6 +113,13 @@ func (r *scheduledTestPlanRepository) CommitQualityRound(ctx context.Context, pl
 		if err := json.Unmarshal(stateBytes, &state); err != nil {
 			return "", err
 		}
+	}
+	if plan.PelicanConfig.Quality.Action == service.QualityActionIsolateModels {
+		action, err := applyQualityIsolationRound(ctx, tx, plan, &state, stateBytes, results, status)
+		if err != nil {
+			return "", err
+		}
+		return commitQualityResults(ctx, tx, results, maxResults, action)
 	}
 	if outcome == "inconclusive" {
 		return commitQualityResults(ctx, tx, results, maxResults, "inconclusive")

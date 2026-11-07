@@ -38,6 +38,30 @@ func (h *ScheduledTestHandler) QualityOwnershipPreview(c *gin.Context) {
 	response.Success(c, out)
 }
 
+func (h *ScheduledTestHandler) QualityOwnershipRemoveModel(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || id <= 0 {
+		response.BadRequest(c, "invalid plan id")
+		return
+	}
+	var req struct {
+		qualityOwnershipRequest
+		Model      string `json:"model" binding:"required,max=100"`
+		ReasonCode string `json:"reason_code" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+	middleware.SetAuditAction(c, "quality.remove_model")
+	out, err := h.scheduledTestSvc.QualityOwnership(c.Request.Context(), id, &service.QualityOwnershipRequest{Fence: req.Fence, Confirm: req.Confirm, RemoveModel: true, Model: req.Model, ReasonCode: req.ReasonCode})
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, out)
+}
+
 func (h *ScheduledTestHandler) QualityOwnershipReconcile(c *gin.Context) {
 	h.qualityOwnershipMutation(c, false)
 }

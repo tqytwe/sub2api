@@ -1,0 +1,51 @@
+{
+  "reviewed_source_manifest_sha256": "0e244a1dfcd46c5a2ee04fdd93028f9fa3d2cc62ddc1f88fcc7afcb1174f3da8",
+  "base_sha": "e91add553d8665b44d054f8e9c3562f3f16cb289",
+  "source_branch": "feat/quality-model-release-20261107",
+  "server_gates": [
+    {
+      "command": "make test",
+      "exit_code": 0,
+      "log_sha256": "96798ce87340697142e0c1bd00b36abac79bfe382600bcab3e723c4795c3dec5"
+    },
+    {
+      "command": "make test-backend-unit",
+      "exit_code": 0,
+      "log_sha256": "ee12c5b4d913b0f3e7fe419192e8633c1325edad071dadffd5cc5579ec536515"
+    },
+    {
+      "command": "make build",
+      "exit_code": 0,
+      "log_sha256": "c4b6ab115734cfa528673038aa960352f45ed8b246e9c0f68dea5f727036686f"
+    },
+    {
+      "command": "./scripts/check-fork-integrity.sh",
+      "exit_code": 0,
+      "log_sha256": "644c34fb986ccf6ee39705941022ad569e9547d5b98fc56148528e0ba8cc1b41"
+    }
+  ],
+  "frontend_tests": {
+    "passed_files": 541,
+    "passed_tests": 4196,
+    "environment_skips": 8
+  },
+  "targeted_integration": {
+    "command": "go test -tags=integration ./internal/repository -run TestQuality(Isolation|ModelRemoval) (plus adjacent account/group lock regressions) -count=1",
+    "exit_code": 0,
+    "log_sha256": "b1420bd9844175a178ac13282dd7a1f32ae2cafd9e1caf17fd861edc53da5159"
+  },
+  "visual": {
+    "scenarios": 16,
+    "interactive": "passed",
+    "errors": [],
+    "production_acceptance": false
+  },
+  "production": {
+    "deployment": "pending",
+    "local_browser_acceptance": "pending"
+  },
+  "built_quality_chunk": {
+    "file": "AccountQualityView-D9cLL4lG.js",
+    "sha256": "d214c86608bb5c312985f663e58e63603b1cb761150a8444e100f0ae0f0c0a11"
+  }
+}

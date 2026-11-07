@@ -402,6 +402,9 @@ func createTestPayload(modelID string, prompts ...string) (map[string]any, error
 // mode is optional - "compact" routes OpenAI accounts to the /responses/compact probe path
 // opts is optional media (image/audio data URLs for real generation / STT).
 func (s *AccountTestService) TestAccountConnection(c *gin.Context, accountID int64, modelID string, prompt string, mode string, opts ...AccountTestOptions) (testErr error) {
+	// This authenticated probe must be able to verify an isolated model. Only
+	// the quality marker is bypassed; ordinary cooldown/account checks remain.
+	c.Request = c.Request.WithContext(context.WithValue(c.Request.Context(), qualityIsolationProbeKey{}, true))
 	stopKeepalive := startAccountTestSSEKeepalive(c, 10*time.Second)
 	defer func() {
 		// A failed final write must not turn a disconnected probe into success.
@@ -3408,6 +3411,7 @@ func (s *AccountTestService) RunQualityProbeBackground(ctx context.Context, acco
 
 func (s *AccountTestService) RunQualityProbeWithEffortBackground(ctx context.Context, accountID int64, modelID, prompt, effort string) (*ScheduledTestResult, error) {
 	startedAt := time.Now()
+	ctx = context.WithValue(ctx, qualityIsolationProbeKey{}, true)
 	usage := &accountTestUsageCollector{model: modelID}
 	ctx = context.WithValue(ctx, accountTestUsageKey{}, usage)
 	w := httptest.NewRecorder()

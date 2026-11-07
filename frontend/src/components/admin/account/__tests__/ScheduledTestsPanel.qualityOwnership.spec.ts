@@ -150,4 +150,13 @@ describe('scheduled quality rule ownership lifecycle', () => {
     expect(api.delete).toHaveBeenCalledWith(11)
     expect(api.ownershipPreview).not.toHaveBeenCalled()
   })
+  it('directs isolated-model rules to the existing central Quality Operations page', async () => {
+    api.ownershipPreview.mockResolvedValue({ ...ownedState, action: 'isolate_models' })
+    const wrapper = await mountPanel(plan(true))
+    await wrapper.find('button[title="admin.scheduledTests.ownershipPreview"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('a[href="/admin/account-quality"]').text()).toBe('admin.qualityOps.isolation.manage')
+    expect(wrapper.text()).not.toContain('admin.scheduledTests.restoreOwnership')
+  })
+
 })

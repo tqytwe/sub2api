@@ -106,6 +106,13 @@ export async function deleteOwnedPlan(planId: number, fence: string): Promise<Qu
   return data
 }
 
+export async function removeOwnedModel(planId: number, request: { fence: string; confirm: true; model: string; reason_code: 'orphan_marker_recovery' | 'retire_model' }): Promise<QualityOwnershipPreview> {
+  const { data } = await apiClient.post<QualityOwnershipPreview>(
+    `/admin/scheduled-test-plans/${planId}/ownership/remove-model`, request
+  )
+  return data
+}
+
 export const scheduledTestsAPI = {
   listByAccount,
   create,
@@ -115,7 +122,8 @@ export const scheduledTestsAPI = {
   ownershipPreview,
   reconcileOwnership,
   restoreOwnership,
-  deleteOwnedPlan
+  deleteOwnedPlan,
+  removeOwnedModel
 }
 
 export default scheduledTestsAPI
