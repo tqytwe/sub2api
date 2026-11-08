@@ -8,7 +8,7 @@ export default {
   monthEarnings: '本月净入账 · 按来源与币种', allEarnings: '全部入账 · 按来源与币种', currency: '币种', effectivePaidTotal: '有效付费邀请（全部）',
   dailyTrend: '每日新增邀请与首次付费趋势', trendTable: '查看趋势数据表', date: '时间', noData: '当前条件下暂无数据',
   monthlyTop10: '有效付费邀请月榜 · 前10名', honorOnly: '按有效付费邀请人数排行，仅荣誉展示，不发放榜单奖励。退款及风险变化会更新榜单。',
-  rank: '名次', promoter: '推广用户', invitee: '受邀用户', exceptions: '需要处理', viewPending: '查看待办', inspect: '核查详情',
+  rank: '名次', promoter: '推广用户', invitee: '受邀用户', exceptions: '需要处理', exceptionsCount: '共 {total} 条，当前预览 {preview} 条', viewPending: '查看待办', inspect: '核查详情',
   reason: '原因', actions: '操作', action: '动作', updatedAt: '最近更新', loadFailed: '加载失败，请重试。', saveFailed: '保存失败，输入已保留。',
   inviteView: '邀请管理视图', relations: '邀请关系', promoters: '推广用户',
   exactUserId: '推广用户 ID（精确）', exactInviteeId: '受邀用户 ID（精确）', exactOrderId: '订单 ID（精确）',

@@ -54,6 +54,45 @@ func TestAffiliateOperationsLeaderboardKeepsMyRankOutsidePublicTopTen(t *testing
 	require.Nil(t, board.MyRank)
 }
 
+func TestAffiliateOperationsProductionAugustCohortMatchesAdminAndUserViews(t *testing.T) {
+	tx := testEntTx(t)
+	ctx := dbent.NewTxContext(context.Background(), tx)
+	client := tx.Client()
+	r := &affiliateRepository{client: client}
+	inviter := mustCreateUser(t, client, &service.User{Email: "guolingzheng@gmail.com", PasswordHash: "hash", Role: service.RoleUser, Status: service.StatusActive, Concurrency: 5})
+	for i := 0; i < 4; i++ {
+		invitee := mustCreateUser(t, client, &service.User{Email: fmt.Sprintf("august-invitee-%d-%d@example.com", time.Now().UnixNano(), i), PasswordHash: "hash", Role: service.RoleUser, Status: service.StatusActive, Concurrency: 5})
+		if i == 0 {
+			_, err := client.ExecContext(ctx, `INSERT INTO affiliate_paid_invite_facts(invitee_id,inviter_id,bound_at,evidence_status,evidence_source,first_paid_at,first_paid_month,net_paid) VALUES($1,$2,'2026-08-01','verified','live_binding','2026-08-05T00:00:00Z','2026-08',10)`, invitee.ID, inviter.ID)
+			require.NoError(t, err)
+			continue
+		}
+		_, err := client.ExecContext(ctx, `INSERT INTO affiliate_paid_invite_facts(invitee_id,inviter_id,bound_at,evidence_status,evidence_source) VALUES($1,$2,'2026-08-01','verified','live_binding')`, invitee.ID, inviter.ID)
+		require.NoError(t, err)
+	}
+
+	adminQuery := service.AffiliateOperationsQuery{Month: "2026-08", Admin: true, Page: 1, PageSize: 20}
+	adminSummary, err := r.GetAffiliateOperationsSummary(ctx, adminQuery)
+	require.NoError(t, err)
+	require.EqualValues(t, 4, adminSummary.InvitedCount)
+	require.EqualValues(t, 1, adminSummary.EffectivePaidCount)
+	require.InDelta(t, 0.25, adminSummary.ConversionRate, 0.000001)
+
+	adminBoard, err := r.GetAffiliateOperationsLeaderboard(ctx, adminQuery)
+	require.NoError(t, err)
+	require.Len(t, adminBoard.Items, 1)
+	require.Equal(t, "guolingzheng@gmail.com", adminBoard.Items[0].Email)
+	require.EqualValues(t, 1, adminBoard.Items[0].EffectivePaidCount)
+
+	userQuery := service.AffiliateOperationsQuery{Month: "2026-08", UserID: inviter.ID, Page: 1, PageSize: 20}
+	userBoard, err := r.GetAffiliateOperationsLeaderboard(ctx, userQuery)
+	require.NoError(t, err)
+	require.Len(t, userBoard.Items, 1)
+	require.Equal(t, "gu***@g***.com", userBoard.Items[0].DisplayName)
+	require.Empty(t, userBoard.Items[0].Email)
+	require.EqualValues(t, 1, userBoard.Items[0].EffectivePaidCount)
+}
+
 func TestAffiliateOperationsPaginationAndUnknownHistoryRemainHonest(t *testing.T) {
 	tx := testEntTx(t)
 	ctx := dbent.NewTxContext(context.Background(), tx)
