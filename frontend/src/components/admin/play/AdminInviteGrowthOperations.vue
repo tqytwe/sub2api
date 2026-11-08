@@ -47,6 +47,7 @@ const campaignStatus = ref('')
 const detailTab = ref<DetailTab>('participants')
 const ledgerSearch = ref('')
 const ledgerStatus = ref('')
+const ledgerRiskStatus = ref('')
 const participants = ref<AdminReferralPage<AdminReferralCampaignParticipant>>(emptyPage())
 const invites = ref<AdminReferralPage<AdminReferralCampaignInvite>>(emptyPage())
 const rewards = ref<AdminReferralPage<AdminReferralCampaignReward>>(emptyPage())
@@ -66,7 +67,8 @@ const statuses: AdminReferralCampaignStatus[] = [
   'draft', 'review', 'approved', 'scheduled', 'running', 'paused', 'settling', 'closed', 'cancelled',
 ]
 const reviewTypes: AdminReferralReviewType[] = ['ops', 'finance', 'risk', 'ux']
-const inviteStatuses = ['pending', 'approved', 'rejected', 'revoked']
+const inviteStatuses = ['pending', 'qualified', 'revoked']
+const riskStatuses = ['pending', 'approved', 'rejected']
 const rewardStatuses = ['claimable', 'claimed_frozen', 'available', 'expired', 'revoked', 'debt_review', 'resolved']
 
 const stats = computed(() => [
@@ -159,9 +161,9 @@ function toLocalInput(value: string): string {
   return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16)
 }
 
-function formatMoney(value: string | number): string {
+function formatMoney(value: string | number, currency = 'CNY'): string {
   const amount = Number(value) || 0
-  return new Intl.NumberFormat(locale.value, { style: 'currency', currency: 'CNY', maximumFractionDigits: 2 }).format(amount)
+  return new Intl.NumberFormat(locale.value, { style: 'currency', currency: /^[A-Z]{3}$/.test(currency) ? currency : 'CNY', maximumFractionDigits: 2 }).format(amount)
 }
 
 function formatDate(value?: string): string {
@@ -240,6 +242,7 @@ async function setDetailTab(tab: DetailTab): Promise<void> {
   detailTab.value = tab
   ledgerSearch.value = ''
   ledgerStatus.value = ''
+  ledgerRiskStatus.value = ''
   await loadLedger(1)
 }
 
@@ -251,7 +254,7 @@ async function loadLedger(page = 1): Promise<void> {
     if (detailTab.value === 'participants') {
       participants.value = await adminPlayAPI.listReferralCampaignParticipants(selectedID.value, params)
     } else if (detailTab.value === 'invites') {
-      invites.value = await adminPlayAPI.listReferralCampaignInvites(selectedID.value, { ...params, status: ledgerStatus.value || undefined })
+      invites.value = await adminPlayAPI.listReferralCampaignInvites(selectedID.value, { ...params, status: ledgerStatus.value || undefined, risk_status: ledgerRiskStatus.value || undefined })
     } else {
       rewards.value = await adminPlayAPI.listReferralCampaignRewards(selectedID.value, { ...params, status: ledgerStatus.value || undefined })
     }
@@ -626,7 +629,7 @@ defineExpose({ selectCampaign })
               <td class="px-4 py-3 font-semibold tabular-nums">{{ item.rank }}</td>
               <td class="px-4 py-3"><span>{{ item.email_masked }}</span><span v-if="item.is_me" class="ml-2 rounded bg-primary-50 px-2 py-0.5 text-xs text-primary-700 dark:bg-primary-900/30 dark:text-primary-200">{{ t('admin.playOps.inviteGrowth.me') }}</span></td>
               <td class="px-4 py-3 text-right tabular-nums">{{ item.qualified_count }}</td>
-              <td class="px-4 py-3 text-right font-medium tabular-nums">{{ formatMoney(item.reward_amount) }}</td>
+              <td class="px-4 py-3 text-right font-medium tabular-nums">{{ formatMoney(item.reward_amount, item.currency || 'CNY') }}</td>
             </tr>
           </tbody>
         </table>
@@ -709,7 +712,7 @@ defineExpose({ selectCampaign })
 
       <section class="card overflow-hidden" aria-labelledby="campaign-ledger-title">
         <div class="border-b border-gray-100 px-5 pt-4 dark:border-dark-700">
-          <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"><h3 id="campaign-ledger-title" class="font-semibold text-gray-900 dark:text-white">{{ t('admin.playOps.inviteGrowth.linkedLedger') }}</h3><div class="flex flex-col gap-2 sm:flex-row"><input v-model="ledgerSearch" type="search" class="input sm:w-64" :placeholder="t('admin.playOps.inviteGrowth.searchLedger')" @keyup.enter="loadLedger(1)" /><select v-if="detailTab !== 'participants'" v-model="ledgerStatus" class="input sm:w-44" @change="loadLedger(1)"><option value="">{{ t('admin.playOps.inviteGrowth.allStatuses') }}</option><option v-for="status in detailTab === 'invites' ? inviteStatuses : rewardStatuses" :key="status" :value="status">{{ localizedLabel(`admin.playOps.inviteGrowth.${detailTab === 'invites' ? 'inviteStatuses' : 'rewardStatuses'}`, status) }}</option></select><button type="button" class="btn btn-secondary" :disabled="ledgerLoading" @click="loadLedger(1)"><Icon name="refresh" size="sm" />{{ t('admin.playOps.refresh') }}</button></div></div>
+          <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"><h3 id="campaign-ledger-title" class="font-semibold text-gray-900 dark:text-white">{{ t('admin.playOps.inviteGrowth.linkedLedger') }}</h3><div class="flex flex-wrap gap-2"><input v-model="ledgerSearch" type="search" class="input w-full sm:w-64" :placeholder="t('admin.playOps.inviteGrowth.searchLedger')" @keyup.enter="loadLedger(1)" /><label v-if="detailTab !== 'participants'" class="text-xs text-gray-500">{{ t(detailTab === 'invites' ? 'admin.playOps.inviteGrowth.qualification' : 'admin.playOps.inviteGrowth.rewardStatus') }}<select v-model="ledgerStatus" data-testid="qualification-filter" class="input mt-1 w-full sm:w-44" @change="loadLedger(1)"><option value="">{{ t('admin.playOps.inviteGrowth.allStatuses') }}</option><option v-for="status in detailTab === 'invites' ? inviteStatuses : rewardStatuses" :key="status" :value="status">{{ localizedLabel(`admin.playOps.inviteGrowth.${detailTab === 'invites' ? 'qualificationStatuses' : 'rewardStatuses'}`, status) }}</option></select></label><label v-if="detailTab === 'invites'" class="text-xs text-gray-500">{{ t('admin.playOps.inviteGrowth.risk') }}<select v-model="ledgerRiskStatus" data-testid="risk-filter" class="input mt-1 w-full sm:w-44" @change="loadLedger(1)"><option value="">{{ t('admin.playOps.inviteGrowth.allStatuses') }}</option><option v-for="status in riskStatuses" :key="status" :value="status">{{ localizedLabel('admin.playOps.inviteGrowth.inviteStatuses', status) }}</option></select></label><button type="button" class="btn btn-secondary" :disabled="ledgerLoading" @click="loadLedger(1)"><Icon name="refresh" size="sm" />{{ t('admin.playOps.refresh') }}</button></div></div>
           <div class="mt-3 flex gap-1 overflow-x-auto" role="tablist"><button v-for="tab in (['participants','invites','rewards'] as DetailTab[])" :key="tab" type="button" role="tab" class="shrink-0 border-b-2 px-3 py-3 text-sm font-medium" :class="detailTab === tab ? 'border-primary-600 text-primary-700 dark:text-primary-300' : 'border-transparent text-gray-500'" :aria-selected="detailTab === tab" :data-testid="`detail-tab-${tab}`" @click="setDetailTab(tab)">{{ t(`admin.playOps.inviteGrowth.tabs.${tab}`) }}</button></div>
         </div>
         <div v-if="ledgerLoading" class="p-8 text-center text-sm text-gray-500">{{ t('admin.playOps.loading') }}</div>
@@ -717,7 +720,7 @@ defineExpose({ selectCampaign })
         <div v-else class="overflow-x-auto">
           <table v-if="detailTab === 'participants'" class="min-w-[760px] divide-y divide-gray-100 text-sm dark:divide-dark-700"><thead class="bg-gray-50 text-left text-xs text-gray-500 dark:bg-dark-800"><tr><th class="px-4 py-3">{{ t('admin.playOps.inviteGrowth.user') }}</th><th class="px-4 py-3">{{ t('admin.playOps.inviteGrowth.enrolledAt') }}</th><th class="px-4 py-3 text-right">{{ t('admin.playOps.inviteGrowth.invited') }}</th><th class="px-4 py-3 text-right">{{ t('admin.playOps.inviteGrowth.qualified') }}</th><th class="px-4 py-3 text-right">{{ t('admin.playOps.inviteGrowth.unlocked') }}</th><th class="px-4 py-3 text-right">{{ t('admin.playOps.inviteGrowth.claimed') }}</th></tr></thead><tbody class="divide-y divide-gray-100 dark:divide-dark-700"><tr v-for="item in participants.items" :key="item.user_id"><td class="px-4 py-3"><div>{{ item.email }}</div><div class="text-xs text-gray-500">{{ item.username || `#${item.user_id}` }}</div></td><td class="px-4 py-3">{{ formatDate(item.enrolled_at) }}</td><td class="px-4 py-3 text-right">{{ item.invited_count }}</td><td class="px-4 py-3 text-right">{{ item.qualified_count }}</td><td class="px-4 py-3 text-right">{{ formatMoney(item.reward_unlocked) }}</td><td class="px-4 py-3 text-right">{{ formatMoney(item.reward_claimed) }}</td></tr></tbody></table>
           <table v-else-if="detailTab === 'invites'" class="min-w-[980px] divide-y divide-gray-100 text-sm dark:divide-dark-700"><thead class="bg-gray-50 text-left text-xs text-gray-500 dark:bg-dark-800"><tr><th class="px-4 py-3">{{ t('admin.playOps.inviteGrowth.inviter') }}</th><th class="px-4 py-3">{{ t('admin.playOps.inviteGrowth.invitee') }}</th><th class="px-4 py-3">{{ t('admin.playOps.inviteGrowth.registeredAt') }}</th><th class="px-4 py-3 text-right">{{ t('admin.playOps.inviteGrowth.netPaid') }}</th><th class="px-4 py-3 text-right">{{ t('admin.playOps.inviteGrowth.actualCost') }}</th><th class="px-4 py-3">{{ t('admin.playOps.inviteGrowth.risk') }}</th><th class="px-4 py-3">{{ t('admin.playOps.inviteGrowth.qualification') }}</th></tr></thead><tbody class="divide-y divide-gray-100 dark:divide-dark-700"><tr v-for="item in invites.items" :key="item.attribution_id"><td class="px-4 py-3">{{ item.inviter_email }}<div class="text-xs text-gray-500">#{{ item.inviter_id }}</div></td><td class="px-4 py-3">{{ item.invitee_email }}<div class="text-xs text-gray-500">#{{ item.invitee_id }}</div></td><td class="px-4 py-3">{{ formatDate(item.registered_at) }}</td><td class="px-4 py-3 text-right">{{ formatMoney(item.net_paid) }}</td><td class="px-4 py-3 text-right">{{ formatMoney(item.actual_cost) }}</td><td class="px-4 py-3"><span class="rounded px-2 py-1 text-xs" :class="statusClass(item.risk_status)">{{ localizedLabel('admin.playOps.inviteGrowth.inviteStatuses', item.risk_status) }}</span></td><td class="px-4 py-3"><span class="rounded px-2 py-1 text-xs" :class="statusClass(item.qualification_status)">{{ localizedLabel('admin.playOps.inviteGrowth.qualificationStatuses', item.qualification_status) }}</span></td></tr></tbody></table>
-          <table v-else class="min-w-[900px] divide-y divide-gray-100 text-sm dark:divide-dark-700"><thead class="bg-gray-50 text-left text-xs text-gray-500 dark:bg-dark-800"><tr><th class="px-4 py-3">{{ t('admin.playOps.inviteGrowth.user') }}</th><th class="px-4 py-3">{{ t('admin.playOps.inviteGrowth.tier') }}</th><th class="px-4 py-3 text-right">{{ t('admin.playOps.inviteGrowth.amount') }}</th><th class="px-4 py-3">{{ t('admin.playOps.inviteGrowth.rewardStatus') }}</th><th class="px-4 py-3">{{ t('admin.playOps.inviteGrowth.claimDeadline') }}</th><th class="px-4 py-3 text-right">{{ t('admin.playOps.inviteGrowth.action') }}</th></tr></thead><tbody class="divide-y divide-gray-100 dark:divide-dark-700"><tr v-for="item in rewards.items" :key="item.id"><td class="px-4 py-3">{{ item.email }}<div class="text-xs text-gray-500">{{ item.username || `#${item.user_id}` }}</div></td><td class="px-4 py-3">V{{ item.tier }}</td><td class="px-4 py-3 text-right font-medium">{{ formatMoney(item.amount) }}</td><td class="px-4 py-3"><span class="rounded px-2 py-1 text-xs" :class="statusClass(item.status)">{{ localizedLabel('admin.playOps.inviteGrowth.rewardStatuses', item.status) }}</span></td><td class="px-4 py-3">{{ formatDate(item.claim_deadline) }}</td><td class="px-4 py-3 text-right"><button v-if="item.status === 'debt_review'" type="button" class="btn btn-secondary" :data-testid="`resolve-debt-${item.id}`" @click="openDebtResolution(item)">{{ t('admin.playOps.inviteGrowth.resolveDebt') }}</button><span v-else>—</span></td></tr></tbody></table>
+          <table v-else class="min-w-[900px] divide-y divide-gray-100 text-sm dark:divide-dark-700"><thead class="bg-gray-50 text-left text-xs text-gray-500 dark:bg-dark-800"><tr><th class="px-4 py-3">{{ t('admin.playOps.inviteGrowth.user') }}</th><th class="px-4 py-3">{{ t('admin.playOps.inviteGrowth.tier') }}</th><th class="px-4 py-3 text-right">{{ t('admin.playOps.inviteGrowth.amount') }}</th><th class="px-4 py-3">{{ t('admin.playOps.inviteGrowth.rewardStatus') }}</th><th class="px-4 py-3">{{ t('admin.playOps.inviteGrowth.claimDeadline') }}</th><th class="px-4 py-3 text-right">{{ t('admin.playOps.inviteGrowth.action') }}</th></tr></thead><tbody class="divide-y divide-gray-100 dark:divide-dark-700"><tr v-for="item in rewards.items" :key="item.id"><td class="px-4 py-3">{{ item.email }}<div class="text-xs text-gray-500">{{ item.username || `#${item.user_id}` }}</div></td><td class="px-4 py-3">V{{ item.tier }}</td><td class="px-4 py-3 text-right font-medium">{{ formatMoney(item.amount, item.currency) }}</td><td class="px-4 py-3"><span class="rounded px-2 py-1 text-xs" :class="statusClass(item.status)">{{ localizedLabel('admin.playOps.inviteGrowth.rewardStatuses', item.status) }}</span></td><td class="px-4 py-3">{{ formatDate(item.claim_deadline) }}</td><td class="px-4 py-3 text-right"><button v-if="item.status === 'debt_review'" type="button" class="btn btn-secondary" :data-testid="`resolve-debt-${item.id}`" @click="openDebtResolution(item)">{{ t('admin.playOps.inviteGrowth.resolveDebt') }}</button><span v-else>—</span></td></tr></tbody></table>
         </div>
         <div class="flex items-center justify-between border-t border-gray-100 px-4 py-3 text-sm dark:border-dark-700"><span class="text-gray-500">{{ t('admin.playOps.inviteGrowth.totalRecords', { count: currentLedger.total }) }}</span><div class="flex gap-2"><button type="button" class="btn btn-secondary" :disabled="currentLedger.page <= 1 || ledgerLoading" @click="loadLedger(currentLedger.page - 1)">{{ t('admin.playOps.membership.previous') }}</button><button type="button" class="btn btn-secondary" :disabled="currentLedger.page * currentLedger.page_size >= currentLedger.total || ledgerLoading" @click="loadLedger(currentLedger.page + 1)">{{ t('admin.playOps.membership.next') }}</button></div></div>
       </section>

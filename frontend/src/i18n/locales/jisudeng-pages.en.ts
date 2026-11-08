@@ -276,6 +276,9 @@ export const jisudengPagesEn = {
     rechargeCta: 'Recharge',
   },
   arena: {
+    liveRefreshHint: 'Only the top 10 are displayed; your position is shown separately. Visible leaderboards refresh every 5 seconds.',
+    lastSynced: 'Last synced: {time}',
+    refreshFailed: 'Refresh failed; showing the last successful result. Retrying in 10, 20 or 30 seconds.',
     historyRankUnknown: 'Historical rank evidence unavailable',
     energyBreakdown: 'Today’s tasks {task} + monthly token energy {token} = current energy {total}',
     energyFormula: 'Monthly scored tokens {tokens} ÷ 10000, rounded down; task energy resets daily.',

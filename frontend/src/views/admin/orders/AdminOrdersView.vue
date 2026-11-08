@@ -152,7 +152,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import { adminPaymentAPI } from '@/api/admin/payment'
@@ -181,6 +182,8 @@ interface AuditLog {
 
 const { t } = useI18n()
 const appStore = useAppStore()
+const route = useRoute()
+let linkedOrderSequence = 0
 
 const ordersLoading = ref(false)
 const orders = ref<PaymentOrder[]>([])
@@ -406,4 +409,18 @@ async function handleQueryRefund(order: PaymentOrder) {
 function formatDateTime(dateStr: string): string { return formatOrderDateTime(dateStr) }
 
 onMounted(() => loadOrders())
+watch(() => route?.query.order_id, async raw => {
+  const seq = ++linkedOrderSequence
+  const id = Number(raw)
+  if (!Number.isSafeInteger(id) || id <= 0) return
+  try {
+    const response = await adminPaymentAPI.getOrder(id)
+    if (seq !== linkedOrderSequence) return
+    const data = response.data as unknown as { order?: PaymentOrder; auditLogs?: AuditLog[]; audit_logs?: AuditLog[] }
+    if (!data.order) throw new Error(t('common.error'))
+    selectedOrder.value = data.order
+    orderAuditLogs.value = data.auditLogs || data.audit_logs || []
+    showDetailDialog.value = true
+  } catch (error) { if (seq === linkedOrderSequence) appStore.showError(extractI18nErrorMessage(error, t, 'payment.errors', t('common.error'))) }
+}, { immediate: true })
 </script>

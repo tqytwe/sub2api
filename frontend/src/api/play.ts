@@ -772,12 +772,14 @@ export async function getArenaCurrent(): Promise<PlayArenaCurrent> {
 export async function getArenaSeasonOverview(
   period: 'daily' | 'monthly',
   includeHistory = false,
+  signal?: AbortSignal,
 ): Promise<PlayArenaSeasonOverview> {
   const { data } = await apiClient.get<PlayArenaSeasonOverview>('/play/arena/overview', {
     params: {
       period,
       include_history: includeHistory ? '1' : '0',
     },
+    ...(signal ? { signal } : {}),
   })
   return data
 }
@@ -787,9 +789,13 @@ export async function getArenaDailyCurrent(): Promise<PlayArenaCurrent> {
   return data
 }
 
-export async function getArenaDailyLeaderboard(limit = 50): Promise<PlayArenaLeaderboard> {
+function publicArenaLimit(limit: number): number {
+  return Number.isFinite(limit) ? Math.max(1, Math.min(10, Math.floor(limit))) : 10
+}
+
+export async function getArenaDailyLeaderboard(limit = 10): Promise<PlayArenaLeaderboard> {
   const { data } = await apiClient.get<PlayArenaLeaderboard>('/play/arena/daily/leaderboard', {
-    params: { limit },
+    params: { limit: publicArenaLimit(limit) },
   })
   return data
 }
@@ -809,9 +815,9 @@ export async function getQuestsToday(): Promise<PlayQuestToday> {
   return data
 }
 
-export async function getArenaLeaderboard(limit = 50): Promise<PlayArenaLeaderboard> {
+export async function getArenaLeaderboard(limit = 10): Promise<PlayArenaLeaderboard> {
   const { data } = await apiClient.get<PlayArenaLeaderboard>('/play/arena/leaderboard', {
-    params: { limit },
+    params: { limit: publicArenaLimit(limit) },
   })
   return data
 }

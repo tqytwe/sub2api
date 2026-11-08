@@ -3,6 +3,7 @@ package routes
 
 import (
 	"github.com/Wei-Shaw/sub2api/internal/handler"
+	adminhandler "github.com/Wei-Shaw/sub2api/internal/handler/admin"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -1109,6 +1110,10 @@ func registerChannelMonitorRoutes(admin *gin.RouterGroup, h *handler.Handlers, s
 func registerAffiliateRoutes(admin *gin.RouterGroup, h *handler.Handlers, stepUpAuth middleware.StepUpAuthMiddleware) {
 	affiliates := admin.Group("/affiliates")
 	{
+		adminhandler.RegisterAffiliateRecordOperationsRoutes(affiliates, h.Admin.Affiliate)
+		for _, operation := range []string{"overview", "promoters", "invitees", "earnings", "leaderboard", "audits", "exceptions"} {
+			affiliates.GET("/operations/"+operation, h.Admin.Affiliate.OperationsRead)
+		}
 		affiliates.GET("/invites", h.Admin.Affiliate.ListInviteRecords)
 		affiliates.GET("/rebates", h.Admin.Affiliate.ListRebateRecords)
 		affiliates.GET("/transfers", h.Admin.Affiliate.ListTransferRecords)
@@ -1131,11 +1136,11 @@ func registerAffiliateRoutes(admin *gin.RouterGroup, h *handler.Handlers, stepUp
 		{
 			users.GET("", h.Admin.Affiliate.ListUsers)
 			users.GET("/lookup", h.Admin.Affiliate.LookupUsers)
-			users.POST("/batch-rate", h.Admin.Affiliate.BatchSetRate)
+			users.POST("/batch-rate", gin.HandlerFunc(stepUpAuth), h.Admin.Affiliate.BatchSetRate)
 			users.GET("/:user_id/overview", h.Admin.Affiliate.GetUserOverview)
-			users.POST("/:user_id/withdraw", h.Admin.Affiliate.WithdrawQuota)
-			users.PUT("/:user_id", h.Admin.Affiliate.UpdateUserSettings)
-			users.DELETE("/:user_id", h.Admin.Affiliate.ClearUserSettings)
+			users.POST("/:user_id/withdraw", gin.HandlerFunc(stepUpAuth), h.Admin.Affiliate.WithdrawQuota)
+			users.PUT("/:user_id", gin.HandlerFunc(stepUpAuth), h.Admin.Affiliate.UpdateUserSettings)
+			users.DELETE("/:user_id", gin.HandlerFunc(stepUpAuth), h.Admin.Affiliate.ClearUserSettings)
 		}
 	}
 }

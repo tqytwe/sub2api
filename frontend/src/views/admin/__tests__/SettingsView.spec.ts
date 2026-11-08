@@ -80,6 +80,17 @@ const {
 }));
 
 const localeRef = vi.hoisted(() => ({ value: "zh-CN" }));
+const affiliateMutations = vi.hoisted(() => ({
+  listUsers: vi.fn().mockResolvedValue({ items: [], total: 0 }), lookupUsers: vi.fn(),
+  updateUserSettings: vi.fn(), clearUserSettings: vi.fn(), batchSetRate: vi.fn(),
+  run: vi.fn().mockImplementation((fn: () => unknown) => fn()),
+}));
+vi.mock('@/api/admin/affiliates', () => ({ affiliatesAPI: affiliateMutations, default: affiliateMutations }));
+vi.mock('@/composables/useStepUp', () => ({
+  useStepUp: () => ({ run: affiliateMutations.run, visible: { value: false }, blockedReason: { value: '' }, onCancel: vi.fn(), onVerified: vi.fn() }),
+  isStepUpCancelled: (error: unknown) => (error as { code?: string })?.code === 'STEP_UP_CANCELLED',
+  isStepUpBlocked: () => false, stepUpBlockReason: () => '',
+}));
 
 vi.mock("@/api", () => ({
   adminAPI: {
@@ -1385,6 +1396,23 @@ describe("admin SettingsView payment visible method controls", () => {
         affiliate_admin_recharge_enabled: true,
       }),
     );
+  });
+
+  it('does not mutate exclusive affiliate settings when step-up is cancelled in the legacy settings page', async () => {
+    affiliateMutations.run.mockRejectedValueOnce({ code: 'STEP_UP_CANCELLED' });
+    affiliateMutations.updateUserSettings.mockClear();
+    const wrapper = mountView();
+    await flushPromises();
+    const vm = wrapper.vm as unknown as {
+      openAffiliateModal: (entry: unknown) => void;
+      affiliateModal: { code: string; rate: string };
+      submitAffiliateModal: () => Promise<void>;
+    };
+    vm.openAffiliateModal({ user_id: 17, aff_code: 'INVITE', aff_code_custom: true, aff_rebate_rate_percent: 20 });
+    vm.affiliateModal.rate = '25';
+    await vm.submitAffiliateModal();
+    expect(affiliateMutations.updateUserSettings).not.toHaveBeenCalled();
+    expect(affiliateMutations.run).toHaveBeenCalled();
   });
 
   it("submits Anthropic cache TTL injection gateway setting", async () => {

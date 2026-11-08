@@ -572,7 +572,7 @@ export interface AdminInviteGrowthOverview {
     display_name?: string
     email_masked: string
     qualified_count: number
-    net_paid_amount: string
+    currency?: string
     reward_amount: string
     is_me?: boolean
   }>
@@ -1341,7 +1341,7 @@ export async function listReferralCampaignParticipants(
 
 export async function listReferralCampaignInvites(
   id: number,
-  params: { page?: number; page_size?: number; search?: string; status?: string } = {},
+  params: { page?: number; page_size?: number; search?: string; status?: string; risk_status?: string } = {},
 ): Promise<AdminReferralPage<AdminReferralCampaignInvite>> {
   const { data } = await apiClient.get<AdminReferralPage<AdminReferralCampaignInvite>>(
     `/admin/affiliates/campaigns/${id}/invites`,

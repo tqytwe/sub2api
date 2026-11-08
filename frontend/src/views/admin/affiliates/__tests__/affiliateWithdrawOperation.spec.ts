@@ -47,4 +47,12 @@ describe('affiliate offline withdrawal operation identity', () => {
     expect(sessionStorage.getItem(scope)).toBeNull()
     expect(prepareAffiliateWithdrawOperation(42, 12.5).key).not.toBe('saved-withdraw-key')
   })
+
+  it('retains the original payment evidence when reopening an uncertain registration', () => {
+    const proof = { external_reference: 'wire-17', paid_at: '2026-11-08T01:00:00Z', note: 'Verified payout' }
+    const first = prepareAffiliateWithdrawOperation(42, 10, proof)
+    const resumed = prepareAffiliateWithdrawOperation(42, 10, { ...proof, external_reference: 'changed-reference' })
+    expect(resumed.key).toBe(first.key)
+    expect(resumed.proof).toEqual(proof)
+  })
 })

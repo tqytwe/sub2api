@@ -143,7 +143,10 @@ func (h *PlayHandler) ArenaSeasonOverview(c *gin.Context) {
 }
 
 func (h *PlayHandler) ArenaDailyLeaderboard(c *gin.Context) {
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+	if limit < 1 || limit > 10 {
+		limit = 10
+	}
 	rows, period, err := h.playService.ListDailyArenaLeaderboard(c.Request.Context(), limit)
 	if err != nil {
 		response.ErrorFrom(c, err)

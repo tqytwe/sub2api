@@ -44,7 +44,7 @@ func TestDailyArenaRewardSummaryRepositoryUsesSettledAtAndMasksLedgerWinners(t *
 	require.NoError(t, err)
 	require.Len(t, rows, 1)
 	require.Equal(t, int64(501), rows[0].UserID)
-	require.Equal(t, "wi***@example.com", rows[0].DisplayName)
+	require.Equal(t, "wi***@e***.com", rows[0].DisplayName)
 	require.Equal(t, 1, rows[0].Rank)
 	require.Equal(t, int64(12000), rows[0].TokenSum)
 	require.InDelta(t, 0.5, rows[0].Amount, 0.00000001)

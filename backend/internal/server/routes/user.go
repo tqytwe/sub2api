@@ -39,6 +39,9 @@ func RegisterUserRoutes(
 			user.PUT("", h.User.UpdateProfile)
 			user.GET("/aff", h.User.GetAffiliate)
 			user.POST("/aff/transfer", h.User.TransferAffiliateQuota)
+			for _, operation := range []string{"summary", "invitees", "earnings", "leaderboard", "campaigns"} {
+				user.GET("/aff/operations/"+operation, h.User.AffiliateOperationsRead)
+			}
 			referrals := user.Group("/aff/campaigns")
 			{
 				referrals.GET("", h.User.ListReferralCampaigns)

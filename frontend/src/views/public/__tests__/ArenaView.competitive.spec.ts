@@ -103,6 +103,7 @@ vi.mock('vue-i18n', async (importOriginal) => {
 })
 
 enableAutoUnmount(afterEach)
+afterEach(() => vi.useRealTimers())
 
 function period(name: string, id: number) {
   return {
@@ -167,8 +168,8 @@ function mountView() {
 describe('ArenaView competitive layout', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    getArenaSeasonOverviewMock.mockImplementation((kind: 'daily' | 'monthly', includeHistory = false) => Promise.resolve(overview(kind, includeHistory)))
-    getQuestsTodayMock.mockResolvedValue({
+    getArenaSeasonOverviewMock.mockReset().mockImplementation((kind: 'daily' | 'monthly', includeHistory = false) => Promise.resolve(overview(kind, includeHistory)))
+    getQuestsTodayMock.mockReset().mockResolvedValue({
       enabled: true,
       energy: 30,
       level: 2,
@@ -183,7 +184,7 @@ describe('ArenaView competitive layout', () => {
     await flushPromises()
 
     expect(getArenaSeasonOverviewMock).toHaveBeenCalledTimes(1)
-    expect(getArenaSeasonOverviewMock).toHaveBeenCalledWith('daily', false)
+    expect(getArenaSeasonOverviewMock).toHaveBeenCalledWith('daily', false, expect.any(AbortSignal))
     expect(wrapper.find('.arena-rpg-tab.active').text()).toContain('日榜')
     expect(wrapper.findAll('.arena-podium-card')).toHaveLength(3)
     expect(wrapper.find('.arena-podium-card.tone-gold').text()).toContain('da***@example.com')
@@ -201,7 +202,7 @@ describe('ArenaView competitive layout', () => {
     await wrapper.findAll('.arena-rpg-tab')[1].trigger('click')
     await flushPromises()
 
-    expect(getArenaSeasonOverviewMock).toHaveBeenCalledWith('monthly', false)
+    expect(getArenaSeasonOverviewMock).toHaveBeenCalledWith('monthly', false, expect.any(AbortSignal))
     expect(wrapper.find('.arena-rpg-tab.active').text()).toContain('月榜')
     expect(wrapper.find('.arena-podium-card.tone-gold').text()).toContain('mi***@example.com')
     expect(wrapper.text()).toContain('当前名次预计 API 余额奖励：$5.00')
@@ -283,8 +284,58 @@ describe('ArenaView competitive layout', () => {
     await wrapper.findAll('.arena-rpg-tab')[0].trigger('click')
     await flushPromises()
     expect(wrapper.text()).toContain('到账 $0.50')
-    expect(getArenaSeasonOverviewMock).toHaveBeenCalledTimes(3)
+    expect(getArenaSeasonOverviewMock).toHaveBeenCalledTimes(4)
     expect(wrapper.find('[data-testid="arena-history-load"]').exists()).toBe(false)
+  })
+
+  it('limits podium and list together to top ten while keeping my lower rank separate', async () => {
+    const data = overview('daily')
+    data.current.rank = 26
+    data.rows = Array.from({ length: 26 }, (_, i) => ({ rank: i + 1, display_name: `masked-${i}`, token_sum: 999 - i }))
+    getArenaSeasonOverviewMock.mockResolvedValueOnce(data)
+    const wrapper = mountView(); await flushPromises()
+    expect(wrapper.findAll('.arena-podium-card')).toHaveLength(3)
+    expect(wrapper.findAll('.arena-rank-row')).toHaveLength(7)
+    expect(wrapper.get('.arena-season-rank').text()).toBe('#26')
+    expect(wrapper.find('.arena-rank-list').text()).not.toContain('#26')
+  })
+
+  it('refreshes only the selected live board every five seconds without reloading immutable history or quests', async () => {
+    vi.useFakeTimers()
+    const wrapper = mountView(); await flushPromises()
+    await wrapper.get('[data-testid="arena-history-load"]').trigger('click'); await flushPromises()
+    await vi.advanceTimersByTimeAsync(5000); await flushPromises()
+    expect(getArenaSeasonOverviewMock).toHaveBeenCalledTimes(3)
+    expect(getArenaSeasonOverviewMock.mock.calls.map(call => call[1])).toEqual([false, true, false])
+    expect(getQuestsTodayMock).toHaveBeenCalledTimes(1)
+    expect(wrapper.text()).toContain('到账 $0.50')
+    expect(wrapper.text()).toContain('arena.liveRefreshHint')
+    wrapper.unmount()
+  })
+
+  it('retains the last successful board on automatic refresh failure', async () => {
+    vi.useFakeTimers()
+    const wrapper = mountView(); await flushPromises()
+    getArenaSeasonOverviewMock.mockRejectedValueOnce(new Error('offline'))
+    await vi.advanceTimersByTimeAsync(5000); await flushPromises()
+    expect(wrapper.findAll('.arena-podium-card')).toHaveLength(3)
+    expect(wrapper.get('[data-testid="arena-refresh-error"]').text()).toContain('arena.refreshFailed')
+    wrapper.unmount()
+  })
+
+  it('never overwrites a newer live ranking with a late history response', async () => {
+    vi.useFakeTimers()
+    const wrapper = mountView(); await flushPromises()
+    let resolve!: (value: ReturnType<typeof overview>) => void
+    getArenaSeasonOverviewMock.mockImplementationOnce(() => new Promise(done => { resolve = done }))
+    await wrapper.get('[data-testid="arena-history-load"]').trigger('click')
+    const live = overview('daily'); live.current.rank = 8
+    getArenaSeasonOverviewMock.mockResolvedValueOnce(live)
+    await vi.advanceTimersByTimeAsync(5000); await flushPromises()
+    resolve(overview('daily', true)); await flushPromises()
+    expect(wrapper.get('.arena-season-rank').text()).toBe('#8')
+    expect(wrapper.text()).toContain('到账 $0.50')
+    wrapper.unmount()
   })
 
 })

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import AuthenticatedPlayShell from '@/components/layout/AuthenticatedPlayShell.vue'
@@ -17,6 +17,8 @@ import playAPI, {
 import '@/styles/public-pages.css'
 import '@/styles/arena-rpg.css'
 import { trackGrowthEvent, trackQuestCompleteOnce } from '@/utils/growthAnalytics'
+import { useLeaderboardLiveRefresh } from '@/composables/useLeaderboardLiveRefresh'
+import { formatDateTime } from '@/utils/format'
 
 const { t, te, locale: currentLocaleRef } = useI18n()
 const authStore = useAuthStore()
@@ -31,7 +33,6 @@ function readStringList(key: string): string[] {
 }
 
 const loading = ref(true)
-const boardLoading = ref(false)
 const historyLoading = ref(false)
 const loadError = ref('')
 const historyError = ref('')
@@ -39,15 +40,38 @@ const tab = ref<BoardTab>('daily')
 const boards = ref<Record<BoardTab, PlayArenaSeasonOverview | null>>({ daily: null, monthly: null })
 const historyLoaded = ref<Record<BoardTab, boolean>>({ daily: false, monthly: false })
 const quests = ref<PlayQuestToday | null>(null)
+const syncedAtByPeriod = ref<Record<BoardTab, string>>({ daily: '', monthly: '' })
+const lastSyncedAt = computed(() => syncedAtByPeriod.value[tab.value])
+const liveBoard = useLeaderboardLiveRefresh({
+  fetch: async signal => {
+    const period = tab.value
+    return { period, overview: await playAPI.getArenaSeasonOverview(period, false, signal) }
+  },
+  key: tab,
+})
+const boardLoading = liveBoard.isRefreshing
+watch(liveBoard.data, result => {
+  if (!result) return
+  const { period, overview } = result
+  const savedHistory = boards.value[period]?.history
+  boards.value = { ...boards.value, [period]: { ...overview, history: historyLoaded.value[period] && savedHistory ? savedHistory : overview.history } }
+  syncedAtByPeriod.value = { ...syncedAtByPeriod.value, [period]: new Date().toISOString() }
+  loadError.value = ''
+  loading.value = false
+})
+watch(liveBoard.error, error => {
+  loadError.value = error ? t('arena.loadFailed') : ''
+  if (error) loading.value = false
+})
 
 const selectedOverview = computed(() => boards.value[tab.value])
 const current = computed<PlayArenaCurrent | null>(() => selectedOverview.value?.current ?? null)
 const periodLabel = computed(() => current.value?.period?.name || selectedOverview.value?.period?.name || '')
 const steps = computed(() => readStringList('play.arena.steps'))
 const rules = computed(() => readStringList('play.arena.rules'))
-const leaderboardRows = computed(() => selectedOverview.value?.rows ?? [])
+const leaderboardRows = computed(() => (selectedOverview.value?.rows ?? []).filter(row => row.rank >= 1 && row.rank <= 10).slice(0, 10))
 const rewardTiers = computed(() => selectedOverview.value?.reward_tiers ?? [])
-const history = computed(() => selectedOverview.value?.history ?? [])
+const history = computed(() => (selectedOverview.value?.history ?? []).map(item => ({ ...item, winners: item.winners.slice(0, 10) })))
 const latestHistory = computed(() => history.value[0] ?? null)
 const podiumRows = computed(() => {
   const byRank = new Map(leaderboardRows.value.map(row => [row.rank, row]))
@@ -109,14 +133,14 @@ function isCurrentRank(row: PlayArenaScore) {
 }
 
 function switchTab(next: BoardTab) {
-  if (tab.value === next || boardLoading.value || historyLoading.value) return
+  if (tab.value === next) return
   loadError.value = ''
   historyError.value = ''
   tab.value = next
   if (next === 'daily') {
     trackGrowthEvent('farm_daily_tab_view')
   }
-  void loadBoard(next)
+  if (!boards.value[next]) loading.value = true
 }
 
 function publicName(row: Pick<PlayArenaScore, 'display_name' | 'anonymous'> | PlayArenaSeasonHistoryWinner) {
@@ -130,32 +154,13 @@ function rewardForRank(rank: number): number {
   return 0
 }
 
-async function loadBoard(period: BoardTab, includeHistory = false) {
-  if (boardLoading.value || historyLoading.value) return
-  if (boards.value[period] && (!includeHistory || historyLoaded.value[period])) return
-  if (includeHistory) historyLoading.value = true
-  else boardLoading.value = true
-  if (!boards.value[period]) loading.value = true
-  if (includeHistory) historyError.value = ''
-  else loadError.value = ''
-  try {
-    const overview = await playAPI.getArenaSeasonOverview(period, includeHistory)
-    boards.value = { ...boards.value, [period]: overview }
-    if (includeHistory) historyLoaded.value = { ...historyLoaded.value, [period]: true }
-  } catch {
-    if (includeHistory) historyError.value = t('arena.loadFailed')
-    else loadError.value = t('arena.loadFailed')
-  } finally {
-    boardLoading.value = false
-    historyLoading.value = false
-    loading.value = false
-  }
+async function loadBoard(period: BoardTab) {
+  if (tab.value !== period) switchTab(period)
+  else await liveBoard.refresh()
 }
 
 async function load() {
-  loading.value = true
   await Promise.all([
-    loadBoard(tab.value),
     authStore.isAuthenticated
       ? playAPI.getQuestsToday().then((result) => {
           quests.value = result
@@ -165,11 +170,22 @@ async function load() {
         }).catch(() => { quests.value = null })
       : Promise.resolve(),
   ])
-  loading.value = false
 }
 
 async function loadHistory() {
-  await loadBoard(tab.value, true)
+  const period = tab.value
+  if (historyLoading.value || historyLoaded.value[period]) return
+  historyLoading.value = true
+  historyError.value = ''
+  try {
+    const overview = await playAPI.getArenaSeasonOverview(period, true)
+    // History is immutable proof: it must not replace a newer live ranking.
+    const latest = boards.value[period] ?? overview
+    boards.value = { ...boards.value, [period]: { ...latest, history: overview.history } }
+    historyLoaded.value = { ...historyLoaded.value, [period]: true }
+  } catch {
+    if (period === tab.value) historyError.value = t('arena.loadFailed')
+  } finally { historyLoading.value = false }
 }
 
 onMounted(load)
@@ -196,10 +212,10 @@ onMounted(load)
 
             <div class="play-action-panel">
               <div class="arena-rpg-tabs">
-                <button type="button" class="arena-rpg-tab" :class="{ active: tab === 'daily' }" :disabled="boardLoading || historyLoading" @click="switchTab('daily')">
+                <button type="button" class="arena-rpg-tab" :class="{ active: tab === 'daily' }" @click="switchTab('daily')">
                   {{ t('arena.rpg.tabDaily') }}
                 </button>
-                <button type="button" class="arena-rpg-tab" :class="{ active: tab === 'monthly' }" :disabled="boardLoading || historyLoading" @click="switchTab('monthly')">
+                <button type="button" class="arena-rpg-tab" :class="{ active: tab === 'monthly' }" @click="switchTab('monthly')">
                   {{ t('arena.rpg.tabMonthly') }}
                 </button>
               </div>
@@ -208,13 +224,14 @@ onMounted(load)
           </div>
         </section>
 
-        <div v-if="loading" class="play-note">{{ t('models.loading') }}</div>
-        <div v-else-if="loadError" class="play-note" role="alert">
+        <div v-if="loading && !selectedOverview" class="play-note">{{ t('models.loading') }}</div>
+        <div v-else-if="loadError && !selectedOverview" class="play-note" role="alert">
           <p>{{ loadError }}</p>
           <button type="button" class="play-btn play-btn-secondary mt-3" @click="loadBoard(tab)">{{ t('common.retry') }}</button>
         </div>
         <div v-else-if="!selectedOverview?.enabled" class="play-note">{{ t('arena.disabled') }}</div>
         <template v-else>
+          <div class="play-note" data-testid="arena-live-status" :aria-busy="boardLoading"><p>{{ t('arena.liveRefreshHint') }}</p><p v-if="lastSyncedAt" class="text-xs">{{ t('arena.lastSynced', { time: formatDateTime(lastSyncedAt) }) }}</p><p v-if="loadError" data-testid="arena-refresh-error" role="alert">{{ t('arena.refreshFailed') }} <button type="button" class="play-btn play-btn-secondary mt-3" :disabled="boardLoading" @click="loadBoard(tab)">{{ t('common.retry') }}</button></p></div>
           <section class="arena-hero-grid">
             <div class="arena-season-panel">
               <p class="arena-panel-label">{{ t('arena.competitive.mySeason') }}</p>

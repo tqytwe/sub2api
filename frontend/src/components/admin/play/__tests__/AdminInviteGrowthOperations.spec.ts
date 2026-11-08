@@ -193,6 +193,20 @@ describe('AdminInviteGrowthOperations', () => {
     expect(wrapper.text()).toContain('own***@example.com')
   })
 
+  it('filters campaign qualification separately from risk approval', async () => {
+    const wrapper = mountComponent()
+    await flushPromises()
+    await wrapper.get('[data-testid="detail-tab-invites"]').trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-testid="qualification-filter"]').setValue('qualified')
+    await flushPromises()
+    await wrapper.get('[data-testid="risk-filter"]').setValue('approved')
+    await flushPromises()
+    expect(api.listReferralCampaignInvites).toHaveBeenLastCalledWith(7, expect.objectContaining({ status: 'qualified', risk_status: 'approved' }))
+    const values = wrapper.get('[data-testid="qualification-filter"]').findAll('option').map(option => option.attributes('value'))
+    expect(values).toEqual(['', 'pending', 'qualified', 'revoked'])
+  })
+
   it('shows additive maximum liability and creates a structured draft', async () => {
     api.createReferralCampaign.mockResolvedValue({ ...campaign, id: 8, version: 1 })
     const wrapper = mountComponent()

@@ -4,6 +4,7 @@ export default {
     qualityOps: { nav: '质量运维' },
   },
   nav: {
+    affiliateOperations: '运营概览',
     imageStudio: 'AI创作空间',
     aiCreationSpace: 'AI创作空间',
     playHub: '玩法中心',

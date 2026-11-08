@@ -1168,7 +1168,20 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: '/admin/affiliates',
-    redirect: '/admin/affiliates/invites'
+    redirect: to => ({ path: '/admin/affiliates/overview', query: to.query, hash: to.hash })
+  },
+  {
+    path: '/admin/affiliates/overview',
+    name: 'AdminAffiliateOverview',
+    component: () => import('@/views/admin/affiliates/AdminAffiliateOverviewView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Affiliate Operations',
+      titleKey: 'admin.affiliateOperations.title',
+      descriptionKey: 'admin.affiliateOperations.description',
+      frame: 'workspace'
+    }
   },
   {
     path: '/admin/affiliates/invites',

@@ -4,7 +4,7 @@ const { get } = vi.hoisted(() => ({ get: vi.fn() }))
 
 vi.mock('@/api/client', () => ({ apiClient: { get } }))
 
-import { getArenaSeasonOverview } from '@/api/play'
+import { getArenaSeasonOverview, getArenaLeaderboard, getArenaDailyLeaderboard } from '@/api/play'
 
 describe('Farm season overview API', () => {
   beforeEach(() => get.mockReset())
@@ -35,5 +35,13 @@ describe('Farm season overview API', () => {
     expect(get).toHaveBeenCalledWith('/play/arena/overview', {
       params: { period: 'daily', include_history: '1' },
     })
+  })
+
+  it('never requests more than ten public Farm ranking rows from legacy board helpers', async () => {
+    get.mockResolvedValue({ data: { rows: [] } })
+    await getArenaDailyLeaderboard()
+    await getArenaLeaderboard(100)
+    expect(get).toHaveBeenCalledWith('/play/arena/daily/leaderboard', { params: { limit: 10 } })
+    expect(get).toHaveBeenCalledWith('/play/arena/leaderboard', { params: { limit: 10 } })
   })
 })

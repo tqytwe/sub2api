@@ -221,7 +221,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Pagination from '@/components/common/Pagination.vue'
@@ -259,6 +260,12 @@ const runtime = ref<RiskRuntime | null>(null)
 const cases = ref<RiskCase[]>([])
 const detail = ref<RiskCaseDetail | null>(null)
 const selectedCaseId = ref<number | null>(null)
+const route = useRoute()
+const linkedCaseId = computed(() => {
+  const id = Number(route?.query.case_id)
+  return Number.isSafeInteger(id) && id > 0 ? id : null
+})
+const openedLinkedCase = ref<number | null>(null)
 const selectedUserIds = ref<number[]>([])
 const loadingCases = ref(false)
 const loadingDetail = ref(false)
@@ -413,9 +420,14 @@ async function loadCases() {
     })
     cases.value = response.items
     total.value = response.total
-    if (cases.value.length && !selectedCaseId.value) {
+    if (linkedCaseId.value && openedLinkedCase.value !== linkedCaseId.value) {
+      openedLinkedCase.value = linkedCaseId.value
+      selectedCaseId.value = linkedCaseId.value
+      if (viewportWidth.value < 1536) showDetailDialog.value = true
+      await reloadSelectedCase()
+    } else if (cases.value.length && !selectedCaseId.value) {
       await selectCase(cases.value[0], false)
-    } else if (selectedCaseId.value && !cases.value.some((item) => item.id === selectedCaseId.value)) {
+    } else if (selectedCaseId.value && selectedCaseId.value !== linkedCaseId.value && !cases.value.some((item) => item.id === selectedCaseId.value)) {
       selectedCaseId.value = null
       detail.value = null
       selectedUserIds.value = []
@@ -426,6 +438,14 @@ async function loadCases() {
     loadingCases.value = false
   }
 }
+
+watch(linkedCaseId, async value => {
+  if (!value || value === openedLinkedCase.value) return
+  openedLinkedCase.value = value
+  selectedCaseId.value = value
+  if (viewportWidth.value < 1536) showDetailDialog.value = true
+  await reloadSelectedCase()
+})
 
 async function selectCase(riskCase: RiskCase, openDialog = true) {
   selectedCaseId.value = riskCase.id

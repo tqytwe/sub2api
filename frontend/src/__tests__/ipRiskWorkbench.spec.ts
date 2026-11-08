@@ -4,6 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import IPRiskWorkbench from '@/features/ip-risk/IPRiskWorkbench.vue'
 import type { RiskCaseDetail } from '@/features/ip-risk/types'
+const linkedRoute = vi.hoisted(() => ({ query: {} as Record<string, string> }))
+vi.mock('vue-router', () => ({ useRoute: () => linkedRoute }))
 
 const {
   getCase,
@@ -182,6 +184,7 @@ function mountWorkbench() {
 
 describe('IPRiskWorkbench', () => {
   beforeEach(() => {
+    Object.keys(linkedRoute.query).forEach(key => delete linkedRoute.query[key])
     getCase.mockReset().mockResolvedValue(detail())
     getOverview.mockReset().mockResolvedValue({
       open_cases: 12,
@@ -210,6 +213,15 @@ describe('IPRiskWorkbench', () => {
     startScan.mockReset()
     showError.mockReset()
     showSuccess.mockReset()
+  })
+
+  it('opens an exact linked case even when it is absent from the first list page', async () => {
+    linkedRoute.query.case_id = '99'
+    getCase.mockResolvedValue({ ...detail(), case: { ...detail().case, id: 99 } })
+    const wrapper = mountWorkbench()
+    await flushPromises()
+    expect(getCase).toHaveBeenLastCalledWith(99)
+    expect(wrapper.findComponent(CaseDetailStub).exists()).toBe(true)
   })
 
   afterEach(() => {

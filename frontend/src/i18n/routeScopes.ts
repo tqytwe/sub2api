@@ -124,6 +124,7 @@ export type LocaleRouteName =
   | 'AdminPromptAudit'
   | 'AdminUsage'
   | 'AdminAffiliateInvites'
+  | 'AdminAffiliateOverview'
   | 'AdminAffiliateRebates'
   | 'AdminAffiliateTransfers'
   | 'AdminPaymentDashboard'
@@ -250,9 +251,10 @@ export const ROUTE_LOCALE_SCOPES = {
   AdminPromptAudit: [...ADMIN, 'admin-channels', 'admin-prompt-audit'],
   // Usage also mounts shared operational error-log controls.
   AdminUsage: [...ADMIN, 'admin-resources', 'user-dashboard', 'admin-ops'],
-  AdminAffiliateInvites: [...ADMIN, 'admin-resources'],
-  AdminAffiliateRebates: [...ADMIN, 'admin-resources'],
-  AdminAffiliateTransfers: [...ADMIN, 'admin-resources'],
+  AdminAffiliateOverview: [...ADMIN, 'admin-resources', 'admin-overview'],
+  AdminAffiliateInvites: [...ADMIN, 'admin-resources', 'admin-overview'],
+  AdminAffiliateRebates: [...ADMIN, 'admin-resources', 'admin-overview'],
+  AdminAffiliateTransfers: [...ADMIN, 'admin-resources', 'admin-overview'],
   AdminPaymentDashboard: [...ADMIN, 'admin-resources'],
   AdminOrders: [...ADMIN, 'admin-resources', 'user-misc'],
   AdminPaymentPlans: [...ADMIN, 'admin-resources'],

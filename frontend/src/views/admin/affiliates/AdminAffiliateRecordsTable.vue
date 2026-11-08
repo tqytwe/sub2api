@@ -1,6 +1,10 @@
 <template>
   <AppLayout>
-    <TablePageLayout>
+    <div v-if="props.type === 'invites'" class="mb-4 flex flex-wrap gap-2" role="group" :aria-label="t('admin.affiliateOperations.inviteView')">
+      <button v-for="view in (['relations', 'promoters'] as const)" :key="view" type="button" class="btn" :class="mode === view ? 'btn-primary' : 'btn-secondary'" :aria-pressed="mode === view" @click="setMode(view)">{{ t(`admin.affiliateOperations.${view}`) }}</button>
+    </div>
+    <AdminAffiliatePromoters v-if="props.type === 'invites' && mode === 'promoters'" :key="promotersVersion" @open="openUserOverview" />
+    <TablePageLayout v-else>
       <template #filters>
         <div class="flex flex-wrap items-center gap-3">
           <div class="relative w-full md:w-80">
@@ -9,9 +13,15 @@
           </div>
           <input v-model="filters.start_at" type="date" class="input w-full sm:w-44" :title="t('admin.affiliates.records.startAt')" @change="reloadFromFirstPage" />
           <input v-model="filters.end_at" type="date" class="input w-full sm:w-44" :title="t('admin.affiliates.records.endAt')" @change="reloadFromFirstPage" />
+          <label class="text-xs text-gray-500">{{ t('admin.affiliateOperations.exactUserId') }}<input v-model="filters.user_id" type="number" min="1" step="1" class="input w-full sm:w-36" data-test="exact-user-id" @change="reloadFromFirstPage" /></label>
+          <label v-if="props.type !== 'transfers'" class="text-xs text-gray-500">{{ t('admin.affiliateOperations.exactInviteeId') }}<input v-model="filters.invitee_id" type="number" min="1" step="1" class="input w-full sm:w-36" @change="reloadFromFirstPage" /></label>
+          <label v-if="props.type === 'rebates'" class="text-xs text-gray-500">{{ t('admin.affiliateOperations.exactOrderId') }}<input v-model="filters.source_order_id" type="number" min="1" step="1" class="input w-full sm:w-36" @change="reloadFromFirstPage" /></label>
+          <select v-if="props.type === 'transfers'" v-model="filters.action" class="input w-full sm:w-44" :aria-label="t('admin.affiliates.records.outflowType')" @change="reloadFromFirstPage"><option value="">{{ t('admin.affiliateOperations.allTypes') }}</option><option value="transfer">{{ t('admin.affiliates.outflowTypes.transfer') }}</option><option value="withdraw">{{ t('admin.affiliates.outflowTypes.withdraw') }}</option></select>
+          <template v-if="props.type === 'rebates'"><label class="text-xs text-gray-500">{{ t('admin.affiliateOperations.source') }}<select v-model="filters.source_type" class="input mt-1" @change="reloadFromFirstPage"><option value="">{{ t('admin.affiliateOperations.allTypes') }}</option><option v-for="source in ['regular','campaign','other']" :key="source" :value="source">{{ t(`admin.affiliateOperations.sources.${source}`) }}</option></select></label><label class="text-xs text-gray-500">{{ t('admin.affiliateOperations.currency') }}<select v-model="filters.currency" class="input mt-1" @change="reloadFromFirstPage"><option value="">{{ t('admin.affiliateOperations.allTypes') }}</option><option value="USD">USD</option><option value="CNY">CNY</option></select></label><label class="text-xs text-gray-500">{{ t('admin.affiliateOperations.status') }}<select v-model="filters.status" class="input mt-1" @change="reloadFromFirstPage"><option value="">{{ t('admin.affiliateOperations.allStatuses') }}</option><option v-for="status in ['frozen','available','revoked']" :key="status" :value="status">{{ t(`admin.affiliateOperations.fundStatuses.${status}`) }}</option></select></label></template>
           <button class="btn btn-secondary px-2 md:px-3" :disabled="loading" :title="t('common.refresh')" @click="loadRecords">
             <Icon name="refresh" size="md" :class="loading ? 'animate-spin' : ''" />
           </button>
+          <button type="button" class="btn btn-secondary" data-test="affiliate-export" :disabled="loading || exporting || loadError || !summary || summary.record_count > 10000" @click="exportSelection"><Icon name="download" size="sm" />{{ t('admin.affiliateOperations.export') }}</button>
           <button
             v-if="props.type === 'transfers'"
             type="button"
@@ -22,6 +32,11 @@
             {{ t('admin.affiliates.withdraw.button') }}
           </button>
         </div>
+        <p class="mt-2 text-xs text-gray-500">{{ t('admin.affiliateOperations.exportLimit') }}</p>
+        <div v-if="loadError" class="mt-3 text-sm text-red-600" role="alert">{{ t(invalidIds ? 'admin.affiliateOperations.invalidId' : 'admin.affiliateOperations.loadFailed') }} <button type="button" class="btn btn-secondary" @click="loadRecords">{{ t('common.retry') }}</button></div>
+        <div v-if="summary" class="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm" data-test="affiliate-summary"><span>{{ t('admin.affiliateOperations.filteredRecords') }}: {{ summary.record_count }}</span><span v-for="amount in summary.amounts" :key="`${amount.source_type}-${amount.currency}`" class="tabular-nums">{{ t(`admin.affiliateOperations.sources.${amount.source_type}`) }} · {{ amount.currency }} {{ formatPreciseAmount(amount.total_amount) }}<template v-if="amount.frozen_amount != null"> · {{ t('admin.affiliateOperations.frozen') }} {{ formatPreciseAmount(amount.frozen_amount) }}</template></span><span v-if="!summary.amounts?.length && summary.total_amount != null">{{ summary.currency }} {{ formatPreciseAmount(summary.total_amount) }}</span></div>
+        <p v-if="props.type === 'invites'" class="mt-2 text-xs text-gray-500">{{ t('admin.affiliateOperations.inviteSummaryScope') }}</p>
+        <p v-if="summaryError" class="mt-2 text-sm text-red-600" role="alert">{{ t('admin.affiliateOperations.summaryFailed') }}</p>
       </template>
 
       <template #table>
@@ -93,8 +108,11 @@
             <span v-else class="text-sm text-gray-900 dark:text-white">¥{{ formatAmount(row.pay_amount) }}</span>
           </template>
           <template #cell-rebate_amount="{ row }">
-            <AmountText :value="row.rebate_amount" strong />
+            <span class="font-semibold tabular-nums">{{ row.currency || 'USD' }} {{ formatPreciseAmount(row.rebate_amount) }}</span>
           </template>
+          <template #cell-source="{ row }"><span>{{ t(`admin.affiliateOperations.sources.${row.source_type || 'regular'}`) }}</span><div v-if="row.campaign_id" class="text-xs text-gray-500">#{{ row.campaign_id }}</div></template>
+          <template #cell-status="{ row }"><span>{{ t(`admin.affiliateOperations.fundStatuses.${row.status || 'available'}`) }}</span><div v-if="row.frozen_until" class="text-xs text-gray-500">{{ formatDateTime(row.frozen_until) }}</div></template>
+          <template #cell-proof="{ row }"><span>{{ row.external_reference || '-' }}</span><div v-if="row.paid_at" class="text-xs text-gray-500">{{ formatDateTime(row.paid_at) }}</div><div v-if="row.note" class="whitespace-normal text-xs text-gray-500">{{ row.note }}</div></template>
           <template #cell-action="{ row }">
             <span :class="['badge whitespace-nowrap', row.action === 'withdraw' ? 'badge-warning' : 'badge-primary']">
               {{ outflowTypeLabel(row.action) }}
@@ -140,48 +158,27 @@
       @success="handleWithdrawSuccess"
     />
 
-    <BaseDialog
-      :show="overviewDialog"
-      :title="t('admin.affiliates.overview.title')"
-      width="normal"
-      @close="overviewDialog = false"
-    >
-      <div v-if="overviewLoading" class="flex justify-center py-8">
-        <div class="h-6 w-6 animate-spin rounded-full border-2 border-primary-500 border-t-transparent"></div>
-      </div>
-      <div v-else-if="selectedOverview" class="space-y-4">
-        <div class="rounded-lg border border-gray-100 bg-gray-50 p-4 dark:border-dark-700 dark:bg-dark-800">
-          <div class="font-mono text-sm text-gray-900 dark:text-white">#{{ selectedOverview.user_id }}</div>
-          <div class="mt-1 text-sm font-medium text-gray-900 dark:text-white">{{ selectedOverview.email || '-' }}</div>
-          <div class="mt-0.5 text-sm text-gray-500 dark:text-dark-400">{{ selectedOverview.username || '-' }}</div>
-        </div>
-        <div class="grid gap-3 sm:grid-cols-2">
-          <OverviewStat :label="t('admin.affiliates.overview.affCode')" :value="selectedOverview.aff_code || '-'" mono />
-          <OverviewStat :label="t('admin.affiliates.overview.rebateRate')" :value="formatPercent(selectedOverview.rebate_rate_percent)" />
-          <OverviewStat :label="t('admin.affiliates.overview.invitedCount')" :value="String(selectedOverview.invited_count)" />
-          <OverviewStat :label="t('admin.affiliates.overview.rebatedInviteeCount')" :value="String(selectedOverview.rebated_invitee_count)" />
-          <OverviewStat :label="t('admin.affiliates.overview.availableQuota')" :value="'$' + formatAmount(selectedOverview.available_quota)" />
-          <OverviewStat :label="t('admin.affiliates.overview.historyQuota')" :value="'$' + formatAmount(selectedOverview.history_quota)" />
-        </div>
-      </div>
-    </BaseDialog>
+    <AdminAffiliateUserDialog v-if="selectedUserId" :show="userDetailDialog" :user-id="selectedUserId" :invitee-id="selectedInviteeId" :initial-tab="String(route.query.detail || 'invites')" @close="userDetailDialog = false" @changed="handleSettingsChanged" />
   </AppLayout>
 </template>
 
 <script setup lang="ts">
-import { computed, defineComponent, h, onMounted, reactive, ref, type PropType } from 'vue'
+import { computed, defineComponent, h, onMounted, reactive, ref, watch, type PropType } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRoute, useRouter } from 'vue-router'
+import { saveAs } from 'file-saver'
+import AdminAffiliatePromoters from './AdminAffiliatePromoters.vue'
+import AdminAffiliateUserDialog from './AdminAffiliateUserDialog.vue'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import TablePageLayout from '@/components/layout/TablePageLayout.vue'
 import DataTable from '@/components/common/DataTable.vue'
 import Pagination from '@/components/common/Pagination.vue'
-import BaseDialog from '@/components/common/BaseDialog.vue'
 import Icon from '@/components/icons/Icon.vue'
 import OrderStatusBadge from '@/components/payment/OrderStatusBadge.vue'
 import AffiliateOfflineWithdrawDialog from './AffiliateOfflineWithdrawDialog.vue'
 import type { Column } from '@/components/common/types'
 import { useAppStore } from '@/stores/app'
-import { affiliatesAPI, type AffiliateInviteRecord, type AffiliateRebateRecord, type AffiliateTransferRecord, type AffiliateUserOverview, type ListAffiliateRecordsParams } from '@/api/admin/affiliates'
+import { affiliatesAPI, type AffiliateInviteRecord, type AffiliateRebateRecord, type AffiliateTransferRecord, type ListAffiliateRecordsParams, type AffiliateRecordsSummary } from '@/api/admin/affiliates'
 import type { PaginatedResponse } from '@/types'
 import { extractI18nErrorMessage } from '@/utils/apiError'
 import { formatDateTime as formatDisplayDateTime } from '@/utils/format'
@@ -195,13 +192,24 @@ const props = defineProps<{
 
 const { t } = useI18n()
 const appStore = useAppStore()
+const route = useRoute()
+const router = useRouter()
+const mode = computed(() => route.query.mode === 'promoters' ? 'promoters' : 'relations')
+function setMode(value: string) { void router.replace({ query: { ...route.query, mode: value } }) }
 const loading = ref(false)
 const records = ref<AffiliateRecord[]>([])
-const filters = reactive({ search: '', start_at: '', end_at: '' })
+const filters = reactive({ search: '', start_at: '', end_at: '', user_id: String(route.query.user_id || route.query.inviter_id || ''), invitee_id: String(route.query.invitee_id || ''), source_order_id: String(route.query.source_order_id || ''), action: String(route.query.action || ''), source_type: String(route.query.source_type || ''), status: String(route.query.status || ''), currency: String(route.query.currency || '') })
+const summary = ref<AffiliateRecordsSummary | null>(null)
+const summaryError = ref(false)
+const loadError = ref(false)
+const exporting = ref(false)
+const promotersVersion = ref(0)
+const invalidIds = computed(() => [filters.user_id, ...(props.type !== 'transfers' ? [filters.invitee_id] : []), ...(props.type === 'rebates' ? [filters.source_order_id] : [])].some(value => value !== '' && !positiveId(value)))
+let loadSequence = 0
 const pagination = reactive({ page: 1, page_size: 20, total: 0 })
-const overviewDialog = ref(false)
-const overviewLoading = ref(false)
-const selectedOverview = ref<AffiliateUserOverview | null>(null)
+const selectedUserId = ref<number | null>(null)
+const selectedInviteeId = ref<number | undefined>()
+const userDetailDialog = ref(false)
 const withdrawDialog = ref(false)
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -211,7 +219,7 @@ const columns = computed<Column[]>(() => {
       { key: 'inviter', label: t('admin.affiliates.records.inviter'), sortable: true },
       { key: 'invitee', label: t('admin.affiliates.records.invitee'), sortable: true },
       { key: 'aff_code', label: t('admin.affiliates.records.affCode'), sortable: true },
-      { key: 'total_rebate', label: t('admin.affiliates.records.totalRebate'), sortable: true },
+      { key: 'total_rebate', label: t('admin.affiliateOperations.regularRebateTotal'), sortable: true },
       { key: 'created_at', label: t('admin.affiliates.records.invitedAt'), sortable: true },
     ]
   }
@@ -223,6 +231,8 @@ const columns = computed<Column[]>(() => {
       { key: 'order_amount', label: t('admin.affiliates.records.orderAmount'), sortable: true },
       { key: 'pay_amount', label: t('admin.affiliates.records.payAmount'), sortable: true },
       { key: 'rebate_amount', label: t('admin.affiliates.records.rebateAmount') },
+      { key: 'source', label: t('admin.affiliateOperations.source') },
+      { key: 'status', label: t('admin.affiliateOperations.status') },
       { key: 'payment_type', label: t('admin.affiliates.records.paymentType'), sortable: true },
       { key: 'order_status', label: t('admin.affiliates.records.orderStatus'), sortable: true },
       { key: 'created_at', label: t('admin.affiliates.records.rebatedAt'), sortable: true },
@@ -232,6 +242,7 @@ const columns = computed<Column[]>(() => {
     { key: 'user', label: t('admin.affiliates.records.user'), sortable: true },
     { key: 'action', label: t('admin.affiliates.records.outflowType'), sortable: true },
     { key: 'amount', label: t('admin.affiliates.records.transferAmount'), sortable: true },
+    { key: 'proof', label: t('admin.affiliateOperations.paymentProof') },
     { key: 'balance_after', label: t('admin.affiliates.records.balanceAfter'), sortable: true },
     { key: 'available_quota_after', label: t('admin.affiliates.records.availableQuotaAfter'), sortable: true },
     { key: 'frozen_quota_after', label: t('admin.affiliates.records.frozenQuotaAfter'), sortable: true },
@@ -279,8 +290,15 @@ function buildParams(): ListAffiliateRecordsParams {
     sort_by: sortState.sort_by,
     sort_order: sortState.sort_order,
     timezone: userTimezone(),
+    ...(props.type === 'transfers' ? { user_id: positiveId(filters.user_id) } : { inviter_id: positiveId(filters.user_id), invitee_id: positiveId(filters.invitee_id) }),
+    source_order_id: props.type === 'rebates' ? positiveId(filters.source_order_id) : undefined,
+    action: props.type === 'transfers' && ['transfer', 'withdraw'].includes(filters.action) ? filters.action as 'transfer' | 'withdraw' : undefined,
+    source_type: props.type === 'rebates' ? filters.source_type || undefined : undefined,
+    currency: props.type === 'rebates' ? filters.currency || undefined : undefined,
+    status: props.type === 'rebates' ? filters.status || undefined : undefined,
   }
 }
+function positiveId(value: string) { const id = Number(value); return Number.isSafeInteger(id) && id > 0 ? id : undefined }
 
 async function fetchRecords(params: ListAffiliateRecordsParams): Promise<PaginatedResponse<AffiliateRecord>> {
   if (props.type === 'invites') {
@@ -293,17 +311,40 @@ async function fetchRecords(params: ListAffiliateRecordsParams): Promise<Paginat
 }
 
 async function loadRecords() {
+  const seq = ++loadSequence
   loading.value = true
+  loadError.value = false
+  summaryError.value = false
+  summary.value = null
+  if (invalidIds.value) { loadError.value = true; records.value = []; pagination.total = 0; loading.value = false; return }
+  const params = buildParams()
   try {
-    const res = await fetchRecords(buildParams())
+    const [res] = await Promise.all([fetchRecords(params), affiliatesAPI.getRecordsSummary(props.type, params).then(value => { if (seq === loadSequence) summary.value = value }).catch(() => { if (seq === loadSequence) summaryError.value = true })])
+    if (seq !== loadSequence) return
     records.value = res.items || []
     pagination.total = res.total || 0
   } catch (error) {
+    if (seq !== loadSequence) return
+    records.value = []
+    pagination.total = 0
+    loadError.value = true
     appStore.showError(extractI18nErrorMessage(error, t, 'admin.affiliates.errors', t('common.error')))
   } finally {
-    loading.value = false
+    if (seq === loadSequence) loading.value = false
   }
 }
+async function exportSelection() {
+  if (exporting.value || !summary.value || summary.value.record_count > 10000) return
+  exporting.value = true
+  try {
+    const blob = await affiliatesAPI.exportRecords(props.type, buildParams())
+    saveAs(blob, `affiliate-${props.type}-${new Date().toISOString().slice(0, 10)}.csv`)
+  } catch (error) {
+    const status = (error as { response?: { status?: number } }).response?.status
+    appStore.showError(t(status === 422 ? 'admin.affiliateOperations.exportLimit' : 'admin.affiliateOperations.exportFailed'))
+  } finally { exporting.value = false }
+}
+function formatPreciseAmount(value: number) { return new Intl.NumberFormat(undefined, { maximumFractionDigits: 8 }).format(value) }
 
 function debounceLoad() {
   if (debounceTimer) clearTimeout(debounceTimer)
@@ -337,6 +378,10 @@ function handleWithdrawSuccess() {
   withdrawDialog.value = false
   reloadFromFirstPage()
 }
+function handleSettingsChanged() {
+  promotersVersion.value++
+  if (props.type !== 'invites' || mode.value !== 'promoters') void loadRecords()
+}
 
 function outflowTypeLabel(action: string | null | undefined): string {
   return action === 'withdraw'
@@ -348,28 +393,16 @@ function formatAmount(value: number | null | undefined): string {
   return Number(value || 0).toFixed(2)
 }
 
-function formatPercent(value: number | null | undefined): string {
-  const rounded = Math.round(Number(value || 0) * 100) / 100
-  return `${Number.isInteger(rounded) ? rounded.toString() : rounded.toString()}%`
-}
 
 function formatDateTime(value: string | null | undefined): string {
   return value ? formatDisplayDateTime(value) : '-'
 }
 
-async function openUserOverview(userId: number) {
+async function openUserOverview(userId: number, inviteeId?: number) {
   if (!userId) return
-  overviewDialog.value = true
-  overviewLoading.value = true
-  selectedOverview.value = null
-  try {
-    selectedOverview.value = await affiliatesAPI.getUserOverview(userId)
-  } catch (error) {
-    overviewDialog.value = false
-    appStore.showError(extractI18nErrorMessage(error, t, 'admin.affiliates.errors', t('common.error')))
-  } finally {
-    overviewLoading.value = false
-  }
+  selectedUserId.value = userId
+  selectedInviteeId.value = inviteeId
+  userDetailDialog.value = true
 }
 
 const UserCell = defineComponent({
@@ -424,25 +457,18 @@ const NullableAmountText = defineComponent({
   },
 })
 
-const OverviewStat = defineComponent({
-  props: {
-    label: { type: String, required: true },
-    value: { type: String, required: true },
-    mono: { type: Boolean, default: false },
-  },
-  setup(statProps) {
-    return () => h('div', { class: 'rounded-lg border border-gray-100 bg-white p-3 dark:border-dark-700 dark:bg-dark-900' }, [
-      h('div', { class: 'text-sm text-gray-500 dark:text-dark-400' }, statProps.label),
-      h('div', {
-        class: statProps.mono
-          ? 'mt-1 font-mono text-base font-semibold text-gray-900 dark:text-white'
-          : 'mt-1 text-base font-semibold text-gray-900 dark:text-white',
-      }, statProps.value),
-    ])
-  },
-})
-
 onMounted(() => {
-  void loadRecords()
+  if (props.type !== 'invites' || mode.value !== 'promoters') void loadRecords()
+  if (route.query.mode === 'promoters' && positiveId(String(route.query.user_id || ''))) void openUserOverview(Number(route.query.user_id), positiveId(String(route.query.invitee_id || '')))
+})
+watch(() => [route.query.user_id, route.query.inviter_id, route.query.invitee_id, route.query.source_order_id, route.query.action, route.query.source_type, route.query.status, route.query.currency], () => {
+  filters.user_id = String(route.query.user_id || route.query.inviter_id || '')
+  filters.invitee_id = String(route.query.invitee_id || '')
+  filters.source_order_id = String(route.query.source_order_id || '')
+  filters.action = String(route.query.action || '')
+  filters.source_type = String(route.query.source_type || '')
+  filters.status = String(route.query.status || '')
+  filters.currency = String(route.query.currency || '')
+  reloadFromFirstPage()
 })
 </script>

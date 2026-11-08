@@ -166,6 +166,7 @@ type ReferralGrowthRanking struct {
 	EmailMasked    string  `json:"email_masked"`
 	QualifiedCount int64   `json:"qualified_count"`
 	RewardAmount   float64 `json:"reward_amount"`
+	Currency       string  `json:"currency"`
 	IsMe           bool    `json:"is_me,omitempty"`
 }
 
@@ -900,9 +901,31 @@ func (s *ReferralCampaignService) Participants(ctx context.Context, campaignID i
 	return s.repo.ListReferralCampaignParticipants(ctx, campaignID, page, pageSize, search)
 }
 
-func (s *ReferralCampaignService) Invites(ctx context.Context, campaignID int64, page, pageSize int, search, status string) (*ReferralCampaignInvitePage, error) {
+func (s *ReferralCampaignService) Invites(ctx context.Context, campaignID int64, page, pageSize int, search, status string, riskFilters ...string) (*ReferralCampaignInvitePage, error) {
 	if s == nil || s.repo == nil {
 		return nil, errors.New("referral campaign service unavailable")
+	}
+	risk := ""
+	if len(riskFilters) > 0 {
+		risk = strings.TrimSpace(riskFilters[0])
+	}
+	switch status {
+	case "", "pending", "qualified", "revoked":
+	default:
+		return nil, infraerrors.BadRequest("REFERRAL_CAMPAIGN_INVALID_INPUT", "invalid qualification status")
+	}
+	switch risk {
+	case "", "pending", "approved", "rejected":
+	default:
+		return nil, infraerrors.BadRequest("REFERRAL_CAMPAIGN_INVALID_INPUT", "invalid risk status")
+	}
+	if repo, ok := s.repo.(interface {
+		ListReferralCampaignInvitesFiltered(context.Context, int64, int, int, string, string, string) (*ReferralCampaignInvitePage, error)
+	}); ok {
+		return repo.ListReferralCampaignInvitesFiltered(ctx, campaignID, page, pageSize, search, status, risk)
+	}
+	if risk != "" {
+		return nil, infraerrors.ServiceUnavailable("REFERRAL_CAMPAIGN_FILTER_UNAVAILABLE", "risk filtering unavailable")
 	}
 	return s.repo.ListReferralCampaignInvites(ctx, campaignID, page, pageSize, search, status)
 }

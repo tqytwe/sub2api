@@ -51,7 +51,7 @@ func (h *AffiliateHandler) ListUsers(c *gin.Context) {
 // UpdateUserSettings updates a user's affiliate settings.
 // PUT /api/v1/admin/affiliates/users/:user_id
 //
-// Both fields are optional and applied independently.
+// Optional fields are validated and committed atomically with business audit.
 type UpdateAffiliateUserRequest struct {
 	AffCode              *string  `json:"aff_code"`
 	AffRebateRatePercent *float64 `json:"aff_rebate_rate_percent"`
@@ -73,23 +73,11 @@ func (h *AffiliateHandler) UpdateUserSettings(c *gin.Context) {
 		return
 	}
 
-	if req.AffCode != nil {
-		if err := h.affiliateService.AdminUpdateUserAffCode(c.Request.Context(), userID, *req.AffCode); err != nil {
-			response.ErrorFrom(c, err)
-			return
-		}
-	}
-
-	if req.ClearRebateRate {
-		if err := h.affiliateService.AdminSetUserRebateRate(c.Request.Context(), userID, nil); err != nil {
-			response.ErrorFrom(c, err)
-			return
-		}
-	} else if req.AffRebateRatePercent != nil {
-		if err := h.affiliateService.AdminSetUserRebateRate(c.Request.Context(), userID, req.AffRebateRatePercent); err != nil {
-			response.ErrorFrom(c, err)
-			return
-		}
+	if err := h.affiliateService.AdminUpdateSettings(c.Request.Context(), userID, service.AffiliateSettingsChange{
+		Code: req.AffCode, Rate: req.AffRebateRatePercent, ClearRate: req.ClearRebateRate, ActorID: currentAdminActorID(c),
+	}); err != nil {
+		response.ErrorFrom(c, err)
+		return
 	}
 
 	response.Success(c, gin.H{"user_id": userID})
@@ -99,8 +87,7 @@ func (h *AffiliateHandler) UpdateUserSettings(c *gin.Context) {
 // the exclusive rebate rate AND regenerates the invite code as a new system
 // random one. Conceptually this "removes the user from the custom list".
 //
-// Both writes happen in this handler; failure of one leaves the other applied,
-// but the operation is idempotent so the admin can re-run it safely.
+// Both writes and their audit commit in the same transaction.
 // DELETE /api/v1/admin/affiliates/users/:user_id
 func (h *AffiliateHandler) ClearUserSettings(c *gin.Context) {
 	userID, err := strconv.ParseInt(c.Param("user_id"), 10, 64)
@@ -108,14 +95,11 @@ func (h *AffiliateHandler) ClearUserSettings(c *gin.Context) {
 		response.BadRequest(c, "Invalid user_id")
 		return
 	}
-	if err := h.affiliateService.AdminSetUserRebateRate(c.Request.Context(), userID, nil); err != nil {
+	if err := h.affiliateService.AdminUpdateSettings(c.Request.Context(), userID, service.AffiliateSettingsChange{Reset: true, ActorID: currentAdminActorID(c)}); err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
-	if _, err := h.affiliateService.AdminResetUserAffCode(c.Request.Context(), userID); err != nil {
-		response.ErrorFrom(c, err)
-		return
-	}
+
 	response.Success(c, gin.H{"user_id": userID})
 }
 
@@ -206,6 +190,7 @@ func (h *AffiliateHandler) GetUserOverview(c *gin.Context) {
 // WithdrawQuotaRequest 是登记线下提现的请求体。Amount 是已在站外打款给
 // 用户的金额，由 AffiliateService 校验。
 type WithdrawQuotaRequest struct {
+	service.AffiliateWithdrawalEvidence
 	Amount float64 `json:"amount"`
 }
 
@@ -228,7 +213,15 @@ func (h *AffiliateHandler) WithdrawQuota(c *gin.Context) {
 		return
 	}
 
-	result, err := h.affiliateService.AdminWithdrawQuota(c.Request.Context(), userID, req.Amount, c.GetHeader("Idempotency-Key"))
+	var result *service.AffiliateWithdrawResult
+	// Preserve amount-only legacy callers; the current admin form always
+	// submits complete evidence. Partial evidence is never accepted.
+	if req.ExternalReference != "" || req.PaidAt != "" || req.Note != "" {
+		req.ActorID = currentAdminActorID(c)
+		result, err = h.affiliateService.AdminWithdrawWithEvidence(c.Request.Context(), userID, req.Amount, c.GetHeader("Idempotency-Key"), req.AffiliateWithdrawalEvidence)
+	} else {
+		result, err = h.affiliateService.AdminWithdrawQuota(c.Request.Context(), userID, req.Amount, c.GetHeader("Idempotency-Key"))
+	}
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
@@ -242,6 +235,9 @@ func (h *AffiliateHandler) WithdrawQuota(c *gin.Context) {
 // ListInviteRecords returns all inviter-invitee relationships.
 // GET /api/v1/admin/affiliates/invites
 func (h *AffiliateHandler) ListInviteRecords(c *gin.Context) {
+	if !validateAffiliateExactFilter(c) {
+		return
+	}
 	page, pageSize := response.ParsePagination(c)
 	filter := parseAffiliateRecordFilter(c, page, pageSize)
 	items, total, err := h.affiliateService.AdminListInviteRecords(c.Request.Context(), filter)
@@ -256,6 +252,9 @@ func (h *AffiliateHandler) ListInviteRecords(c *gin.Context) {
 // when the rebate came from a payment order.
 // GET /api/v1/admin/affiliates/rebates
 func (h *AffiliateHandler) ListRebateRecords(c *gin.Context) {
+	if !validateAffiliateExactFilter(c) {
+		return
+	}
 	page, pageSize := response.ParsePagination(c)
 	filter := parseAffiliateRecordFilter(c, page, pageSize)
 	items, total, err := h.affiliateService.AdminListRebateRecords(c.Request.Context(), filter)
@@ -270,6 +269,9 @@ func (h *AffiliateHandler) ListRebateRecords(c *gin.Context) {
 // balance and admin-recorded offline withdrawals.
 // GET /api/v1/admin/affiliates/transfers
 func (h *AffiliateHandler) ListTransferRecords(c *gin.Context) {
+	if !validateAffiliateExactFilter(c) {
+		return
+	}
 	page, pageSize := response.ParsePagination(c)
 	filter := parseAffiliateRecordFilter(c, page, pageSize)
 	items, total, err := h.affiliateService.AdminListTransferRecords(c.Request.Context(), filter)
@@ -291,7 +293,20 @@ func parseAffiliateRecordFilter(c *gin.Context, page, pageSize int) service.Affi
 	if filter.PageSize > 100 {
 		filter.PageSize = 100
 	}
+	filter.UserID, _ = strconv.ParseInt(c.Query("user_id"), 10, 64)
+	filter.InviterID, _ = strconv.ParseInt(c.Query("inviter_id"), 10, 64)
+	filter.InviteeID, _ = strconv.ParseInt(c.Query("invitee_id"), 10, 64)
+	filter.SourceOrderID, _ = strconv.ParseInt(c.Query("source_order_id"), 10, 64)
+	filter.CampaignID, _ = strconv.ParseInt(c.Query("campaign_id"), 10, 64)
+	filter.Action = c.Query("action")
+	filter.SourceType = c.Query("source_type")
+	filter.Currency = c.Query("currency")
+	filter.Status = c.Query("status")
 	userTZ := c.Query("timezone")
+	filter.Timezone = timezone.Name()
+	if loc, err := time.LoadLocation(userTZ); userTZ != "" && err == nil {
+		filter.Timezone = loc.String()
+	}
 	if t := parseAffiliateRecordStartTime(c.Query("start_at"), userTZ); t != nil {
 		filter.StartAt = t
 	}
@@ -456,7 +471,7 @@ func (h *AffiliateHandler) ReferralCampaignInvites(c *gin.Context) {
 		return
 	}
 	page, pageSize := response.ParsePagination(c)
-	result, err := svc.Invites(c.Request.Context(), id, page, pageSize, c.Query("search"), c.Query("status"))
+	result, err := svc.Invites(c.Request.Context(), id, page, pageSize, c.Query("search"), c.Query("status"), c.Query("risk_status"))
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return

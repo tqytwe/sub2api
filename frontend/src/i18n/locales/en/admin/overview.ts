@@ -1,4 +1,6 @@
+import affiliateOperations from './affiliateOperations'
 export default {
+    affiliateOperations,
     // Dashboard
     dashboard: {
       title: 'Admin Dashboard',
