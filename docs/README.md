@@ -141,3 +141,5 @@
 - [2026-11-06 签到、农场与智能运维菜单限定交付](./archive/completed-tasks/2026-11-06-play-ops/README.md)
 - [2026-11-06 鹈鹕旧题干增量迁移](./archive/completed-tasks/2026-11-06-pelican-prompt/README.md)：`review`，上游 263 → Fork 349 的专项数据库回归与交付记录；本任务提交者维护。
 - [2026-11-07 渠道状态色条修复](./archive/completed-tasks/2026-11-07-monitor-status-bars/README.md)：独立卡片修复、回归与交付证据；[视觉记录](./visual-reviews/2026-11-07-monitor-status-bars.md)。
+
+- [邀请返利运营与农场前十榜交付记录](./archive/completed-tasks/2026-11-08-affiliate-operations/README.md)：实现、检查及发布证据，尚待最终生产验收。

@@ -3,15 +3,18 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import AdminAffiliateRecordsTable from '../AdminAffiliateRecordsTable.vue'
 
-const { listInviteRecords, listRebateRecords, listTransferRecords, getUserOverview } = vi.hoisted(() => ({
+const { listInviteRecords, listRebateRecords, listTransferRecords, getUserOverview, getRecordsSummary, exportRecords, routeQuery, saveAs } = vi.hoisted(() => ({
   listInviteRecords: vi.fn(),
   listRebateRecords: vi.fn(),
   listTransferRecords: vi.fn(),
   getUserOverview: vi.fn(),
+  getRecordsSummary: vi.fn(), exportRecords: vi.fn(), routeQuery: {} as Record<string, string>, saveAs: vi.fn(),
 }))
+vi.mock('vue-router', () => ({ useRoute: () => ({ query: routeQuery }), useRouter: () => ({ replace: vi.fn() }), RouterLink: { template: '<a><slot /></a>' } }))
+vi.mock('file-saver', () => ({ saveAs }))
 
 vi.mock('@/api/admin/affiliates', () => {
-  const affiliatesAPI = { listInviteRecords, listRebateRecords, listTransferRecords, getUserOverview }
+  const affiliatesAPI = { listInviteRecords, listRebateRecords, listTransferRecords, getUserOverview, getRecordsSummary, exportRecords }
   return { affiliatesAPI, default: affiliatesAPI }
 })
 
@@ -79,6 +82,35 @@ describe('AdminAffiliateRecordsTable', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     localStorage.clear()
+    Object.keys(routeQuery).forEach(key => delete routeQuery[key])
+    getRecordsSummary.mockResolvedValue({ record_count: 2, total_amount: 5, currency: 'USD', amounts: [] })
+  })
+
+  it('keeps exact linked-user filters in the list, summary and complete export', async () => {
+    routeQuery.user_id = '17'
+    listTransferRecords.mockResolvedValue(page([]))
+    const blob = new Blob(['csv'])
+    exportRecords.mockResolvedValue(blob)
+    const wrapper = mountTable('transfers')
+    await flushPromises()
+    expect(listTransferRecords).toHaveBeenCalledWith(expect.objectContaining({ user_id: 17 }))
+    expect(getRecordsSummary).toHaveBeenCalledWith('transfers', expect.objectContaining({ user_id: 17 }))
+    await wrapper.get('[data-test="affiliate-export"]').trigger('click')
+    await flushPromises()
+    expect(exportRecords).toHaveBeenCalledWith('transfers', expect.objectContaining({ user_id: 17 }))
+    expect(saveAs).toHaveBeenCalledWith(blob, expect.stringContaining('transfers'))
+  })
+
+  it('shows grouped currencies and blocks export above the server limit', async () => {
+    listRebateRecords.mockResolvedValue(page([]))
+    getRecordsSummary.mockResolvedValue({ record_count: 10001, total_amount: null, currency: 'mixed', amounts: [
+      { source_type: 'regular', currency: 'USD', total_amount: 12 }, { source_type: 'campaign', currency: 'CNY', total_amount: 8 },
+    ] })
+    const wrapper = mountTable('rebates')
+    await flushPromises()
+    expect(wrapper.get('[data-test="affiliate-summary"]').text()).toContain('USD')
+    expect(wrapper.get('[data-test="affiliate-summary"]').text()).toContain('CNY')
+    expect(wrapper.get('[data-test="affiliate-export"]').attributes('disabled')).toBeDefined()
   })
 
   it('renders non-order rebate accruals with empty order fields', async () => {
@@ -110,7 +142,7 @@ describe('AdminAffiliateRecordsTable', () => {
     expect(row.get('[data-test="cell-pay_amount"]').text()).toBe('-')
     expect(row.get('[data-test="cell-payment_type"]').text()).toBe('-')
     expect(row.get('[data-test="cell-order_status"]').text()).toBe('-')
-    expect(row.get('[data-test="cell-rebate_amount"]').text()).toBe('$2.00')
+    expect(row.get('[data-test="cell-rebate_amount"]').text()).toBe('USD 2')
     expect(wrapper.find('[data-test="affiliate-withdraw-open"]').exists()).toBe(false)
   })
 

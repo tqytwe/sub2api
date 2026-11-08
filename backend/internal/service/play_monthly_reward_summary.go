@@ -2,7 +2,7 @@ package service
 
 import "context"
 
-const maxPublicMonthlyRewardRows = 20
+const maxPublicMonthlyRewardRows = 10
 
 func (s *PlayService) GetMonthlyArenaRewardSummary(ctx context.Context) (*PlayArenaMonthlyRewardSummary, error) {
 	rt := s.GetRuntime(ctx)

@@ -12,17 +12,18 @@ import (
 type arenaSeasonRepo struct {
 	PlayRepository
 
-	monthly      *PlayArenaPeriod
-	daily        *PlayArenaPeriod
-	rows         []PlayArenaScoreRow
-	history      []PlayArenaSeasonHistory
-	rules        string
-	historyCalls int
-	frozenRules  string
-	frozenID     int64
-	ensureCalls  int
-	dailyHistory *PlayArenaPeriod
-	dailyLedger  []PlayArenaDailyRewardLedgerRow
+	monthly         *PlayArenaPeriod
+	daily           *PlayArenaPeriod
+	rows            []PlayArenaScoreRow
+	requestedLimits []int
+	history         []PlayArenaSeasonHistory
+	rules           string
+	historyCalls    int
+	frozenRules     string
+	frozenID        int64
+	ensureCalls     int
+	dailyHistory    *PlayArenaPeriod
+	dailyLedger     []PlayArenaDailyRewardLedgerRow
 }
 
 func (r *arenaSeasonRepo) GetActiveArenaPeriod(context.Context, time.Time) (*PlayArenaPeriod, error) {
@@ -38,8 +39,36 @@ func (r *arenaSeasonRepo) EnsureDailyArenaPeriod(context.Context, time.Time) (*P
 	return r.daily, nil
 }
 
-func (r *arenaSeasonRepo) ListArenaLeaderboard(context.Context, time.Time, time.Time, int) ([]PlayArenaScoreRow, error) {
+func (r *arenaSeasonRepo) ListArenaLeaderboard(_ context.Context, _ time.Time, _ time.Time, limit int) ([]PlayArenaScoreRow, error) {
+	r.requestedLimits = append(r.requestedLimits, limit)
 	return append([]PlayArenaScoreRow(nil), r.rows...), nil
+}
+
+func TestArenaOverviewTopTenDoesNotLimitPrivateRankOrSettlement(t *testing.T) {
+	for _, kind := range []string{"daily", "monthly"} {
+		t.Run(kind, func(t *testing.T) {
+			period := &PlayArenaPeriod{ID: 99, PeriodType: kind, Status: "active", StartAt: time.Now().Add(-time.Hour), EndAt: time.Now().Add(time.Hour)}
+			repo := &arenaSeasonRepo{daily: period, monthly: period, rules: "[]"}
+			for n := 1; n <= 14; n++ {
+				repo.rows = append(repo.rows, PlayArenaScoreRow{Rank: n, UserID: int64(n), TokenSum: int64(100 - n)})
+			}
+			settings := NewSettingService(&dailyRewardSummarySettingRepo{values: map[string]string{SettingKeyPlayArenaEnabled: "true", SettingKeyPlayDailyArenaEnabled: "true"}}, nil)
+			svc := NewPlayService(repo, nil, nil, settings, nil, nil)
+			out, err := svc.GetArenaSeasonOverview(context.Background(), 12, kind, false)
+			require.NoError(t, err)
+			require.Len(t, out.Rows, 10)
+			require.Equal(t, 12, out.Current.Rank)
+			require.Equal(t, 10, repo.requestedLimits[len(repo.requestedLimits)-1])
+			// The internal service still accepts the reward rule's full rank limit.
+			if kind == "monthly" {
+				_, _, err = svc.ListArenaLeaderboard(context.Background(), 50)
+			} else {
+				_, _, err = svc.ListDailyArenaLeaderboard(context.Background(), 50)
+			}
+			require.NoError(t, err)
+			require.Equal(t, 50, repo.requestedLimits[len(repo.requestedLimits)-1])
+		})
+	}
 }
 
 func (r *arenaSeasonRepo) GetUserArenaScore(_ context.Context, userID int64, _ time.Time, _ time.Time) (int64, int, error) {

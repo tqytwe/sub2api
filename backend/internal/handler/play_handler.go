@@ -431,9 +431,9 @@ func (h *PlayHandler) ArenaCurrent(c *gin.Context) {
 // ArenaLeaderboard returns ranked token usage for the active period.
 // GET /api/v1/play/arena/leaderboard
 func (h *PlayHandler) ArenaLeaderboard(c *gin.Context) {
-	limit := 50
+	limit := 10
 	if raw := c.Query("limit"); raw != "" {
-		if n, err := strconv.Atoi(raw); err == nil && n > 0 {
+		if n, err := strconv.Atoi(raw); err == nil && n > 0 && n <= 10 {
 			limit = n
 		}
 	}

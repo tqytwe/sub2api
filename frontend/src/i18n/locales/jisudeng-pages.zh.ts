@@ -283,6 +283,9 @@ export const jisudengPagesZh = {
     rechargeCta: '去充值',
   },
   arena: {
+    liveRefreshHint: '仅展示前 10 名，我的名次单独列出；页面可见时每 5 秒自动刷新。',
+    lastSynced: '最近同步：{time}',
+    refreshFailed: '刷新失败，保留上次成功数据，将按 10、20、30 秒间隔重试。',
     historyRankUnknown: '历史排名证据缺失',
     energyBreakdown: '今日任务 {task} + 本月 Token 能量 {token} = 当前能量 {total}',
     energyFormula: '本月计分 Token {tokens} ÷ 10000 向下取整；任务能量每日重置。',

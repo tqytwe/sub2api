@@ -46,7 +46,7 @@ func MaskPlayEmail(email string) string {
 // team/member display helper: public leaderboards never reveal usernames or
 // database-shaped fallback IDs. UI clients localize an empty anonymous label.
 func PublicPlayLeaderboardIdentity(email string) (label string, anonymous bool) {
-	if masked := MaskPlayEmail(email); masked != "" {
+	if masked := MaskLeaderboardEmail(email); masked != "" {
 		return masked, false
 	}
 	return "", true

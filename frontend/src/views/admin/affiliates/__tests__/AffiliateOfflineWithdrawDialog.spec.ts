@@ -3,16 +3,19 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import AffiliateOfflineWithdrawDialog from '../AffiliateOfflineWithdrawDialog.vue'
 
-const { lookupUsers, getUserOverview, withdrawUserQuota, showError, showSuccess } = vi.hoisted(() => ({
+const { lookupUsers, getUserOverview, withdrawUserQuota, showError, showSuccess, stepUpRun } = vi.hoisted(() => ({
   lookupUsers: vi.fn(),
   getUserOverview: vi.fn(),
   withdrawUserQuota: vi.fn(),
   showError: vi.fn(),
   showSuccess: vi.fn(),
+  stepUpRun: vi.fn().mockImplementation((fn: () => unknown) => fn()),
 }))
+vi.mock('@/composables/useStepUp', () => ({ useStepUp: () => ({ run: stepUpRun, visible: { value: false }, blockedReason: { value: '' }, onCancel: vi.fn(), onVerified: vi.fn() }), isStepUpCancelled: () => false, isStepUpBlocked: () => false }))
 
 vi.mock('@/api/admin/affiliates', () => ({
   affiliatesAPI: { lookupUsers, getUserOverview, withdrawUserQuota },
+  default: { lookupUsers, getUserOverview, withdrawUserQuota },
 }))
 
 vi.mock('@/stores/app', () => ({
@@ -79,6 +82,9 @@ async function pickUser(wrapper: VueWrapper, availableQuota: number) {
   await flushPromises()
   await wrapper.get('[data-test="withdraw-user-option"]').trigger('click')
   await flushPromises()
+  await wrapper.get('[data-test="withdraw-reference"]').setValue('bank-reference-17')
+  await wrapper.get('[data-test="withdraw-paid-at"]').setValue('2026-11-08T12:00')
+  await wrapper.get('[data-test="withdraw-note"]').setValue('Verified offline payout')
 }
 
 describe('AffiliateOfflineWithdrawDialog', () => {
@@ -106,7 +112,8 @@ describe('AffiliateOfflineWithdrawDialog', () => {
     await wrapper.get('[data-test="withdraw-submit"]').trigger('click')
     await flushPromises()
 
-    expect(withdrawUserQuota).toHaveBeenCalledWith(42, { amount: 12.34567891 }, expect.stringMatching(/^affiliate-withdraw-/))
+    expect(withdrawUserQuota).toHaveBeenCalledWith(42, expect.objectContaining({ amount: 12.34567891, external_reference: 'bank-reference-17', note: 'Verified offline payout', paid_at: expect.any(String) }), expect.stringMatching(/^affiliate-withdraw-/))
+    expect(stepUpRun).toHaveBeenCalled()
     expect(showSuccess).toHaveBeenCalledWith(
       'admin.affiliates.withdraw.success {"amount":"$12.34567891","remaining":"$0.00"}',
     )
@@ -191,7 +198,7 @@ describe('AffiliateOfflineWithdrawDialog', () => {
 
     expect(withdrawUserQuota).toHaveBeenCalledTimes(2)
     const [firstCall, retryCall] = withdrawUserQuota.mock.calls
-    expect(firstCall).toEqual([42, { amount: 10 }, expect.stringMatching(/^affiliate-withdraw-/)])
+    expect(firstCall).toEqual([42, expect.objectContaining({ amount: 10 }), expect.stringMatching(/^affiliate-withdraw-/)])
     expect(retryCall).toEqual(firstCall)
     expect(showSuccess).toHaveBeenCalledWith(
       'admin.affiliates.withdraw.replayed {"amount":"$10.00","remaining":"$0.00"}',
@@ -218,8 +225,22 @@ describe('AffiliateOfflineWithdrawDialog', () => {
 
     expect(withdrawUserQuota).toHaveBeenCalledTimes(2)
     const [rejectedCall, nextCall] = withdrawUserQuota.mock.calls
-    expect(nextCall[1]).toEqual({ amount: 5 })
+    expect(nextCall[1]).toMatchObject({ amount: 5, external_reference: 'bank-reference-17' })
     expect(nextCall[2]).not.toBe(rejectedCall[2])
     expect(showSuccess).toHaveBeenCalledWith('admin.affiliates.withdraw.success {"amount":"$5.00","remaining":"$5.00"}')
+  })
+
+  it('requires payment evidence and freezes it together with uncertain retries', async () => {
+    const wrapper = mountDialog()
+    await pickUser(wrapper, 10)
+    await wrapper.get('[data-test="withdraw-amount"]').setValue('5')
+    await wrapper.get('[data-test="withdraw-reference"]').setValue('')
+    expect(wrapper.get('[data-test="withdraw-submit"]').attributes('disabled')).toBeDefined()
+    await wrapper.get('[data-test="withdraw-reference"]').setValue('bank-reference-17')
+    withdrawUserQuota.mockRejectedValueOnce({ status: 502 })
+    await wrapper.get('[data-test="withdraw-submit"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.get('[data-test="withdraw-reference"]').attributes('disabled')).toBeDefined()
+    expect(wrapper.get('[data-test="withdraw-note"]').attributes('disabled')).toBeDefined()
   })
 })

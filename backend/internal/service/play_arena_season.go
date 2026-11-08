@@ -123,7 +123,7 @@ func (s *PlayService) GetArenaSeasonOverview(ctx context.Context, userID int64, 
 		if err != nil {
 			return nil, err
 		}
-		rows, period, err = s.ListDailyArenaLeaderboard(ctx, 50)
+		rows, period, err = s.ListDailyArenaLeaderboard(ctx, 10)
 		if err == nil {
 			policy, policyErr := s.dailyArenaPolicyForPeriod(ctx, period)
 			err = policyErr
@@ -138,7 +138,7 @@ func (s *PlayService) GetArenaSeasonOverview(ctx context.Context, userID int64, 
 		if err != nil {
 			return nil, err
 		}
-		rows, period, err = s.ListArenaLeaderboard(ctx, 50)
+		rows, period, err = s.ListArenaLeaderboard(ctx, 10)
 		if err == nil {
 			out.RewardTiers, err = s.arenaRewardTiersForPeriod(ctx, period)
 		}
@@ -150,6 +150,9 @@ func (s *PlayService) GetArenaSeasonOverview(ctx context.Context, userID int64, 
 	out.Current = current
 	out.Rows = make([]PlayArenaScoreRow, 0, len(rows))
 	for _, row := range rows {
+		if row.Rank < 1 || row.Rank > 10 || len(out.Rows) >= 10 {
+			continue
+		}
 		row.IsMine = userID > 0 && row.UserID == userID
 		row.UserID = 0
 		row.Email = ""

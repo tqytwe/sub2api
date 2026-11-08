@@ -37,3 +37,18 @@ func TestAdminReferralCampaignFinancialActionsRequireStepUp(t *testing.T) {
 		require.Equal(t, http.StatusPreconditionRequired, recorder.Code, path)
 	}
 }
+
+func TestAffiliateSettingsAndWithdrawalCannotBypassStepUp(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	handlers := &handler.Handlers{Admin: &handler.AdminHandlers{Affiliate: adminhandler.NewAffiliateHandler(nil, nil)}}
+	stepUp := servermiddleware.StepUpAuthMiddleware(func(c *gin.Context) {
+		servermiddleware.AbortWithError(c, http.StatusPreconditionRequired, "STEP_UP_REQUIRED", "step-up required")
+	})
+	registerAffiliateRoutes(router.Group("/api/v1/admin"), handlers, stepUp)
+	for _, tc := range []struct{ method, path string }{{http.MethodPut, "/users/42"}, {http.MethodDelete, "/users/42"}, {http.MethodPost, "/users/batch-rate"}, {http.MethodPost, "/users/42/withdraw"}} {
+		recorder := httptest.NewRecorder()
+		router.ServeHTTP(recorder, httptest.NewRequest(tc.method, "/api/v1/admin/affiliates"+tc.path, nil))
+		require.Equal(t, http.StatusPreconditionRequired, recorder.Code, tc.path)
+	}
+}

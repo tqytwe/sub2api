@@ -13228,10 +13228,11 @@ async function handleAffiliateConfirm() {
   affiliateConfirmDialog.pending = null;
   if (!fn) return;
   try {
-    await fn();
+    await settingsStepUp.run(fn);
     appStore.showSuccess(t("common.saved"));
     await loadAffiliateUsers();
   } catch (err) {
+    if (isStepUpCancelled(err)) return;
     appStore.showError(extractApiErrorMessage(err, t("common.error")));
   }
 }
@@ -13411,12 +13412,13 @@ async function submitAffiliateModal() {
 
   affiliateModal.saving = true;
   try {
-    await affiliatesAPI.updateUserSettings(userId, payload);
+    await settingsStepUp.run(() => affiliatesAPI.updateUserSettings(userId, payload));
     appStore.showSuccess(t("common.saved"));
     closeAffiliateModal();
     affiliateState.page = 1;
     await loadAffiliateUsers();
   } catch (err) {
+    if (isStepUpCancelled(err)) return;
     appStore.showError(extractApiErrorMessage(err, t("common.error")));
   } finally {
     affiliateModal.saving = false;
@@ -13454,12 +13456,13 @@ async function submitAffiliateBatchModal() {
 
   affiliateBatchModal.saving = true;
   try {
-    await affiliatesAPI.batchSetRate(payload);
+    await settingsStepUp.run(() => affiliatesAPI.batchSetRate(payload));
     appStore.showSuccess(t("common.saved"));
     affiliateBatchModal.open = false;
     affiliateState.selected = [];
     await loadAffiliateUsers();
   } catch (err) {
+    if (isStepUpCancelled(err)) return;
     appStore.showError(extractApiErrorMessage(err, t("common.error")));
   } finally {
     affiliateBatchModal.saving = false;

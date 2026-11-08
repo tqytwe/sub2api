@@ -1,3 +1,4 @@
+import affiliateOperations from './en/affiliateOperations'
 import requestLedger from './request-ledger.en'
 import { jisudengHomeEn } from './jisudeng-home.en'
 import { jisudengPagesEn } from './jisudeng-pages.en'
@@ -16,6 +17,7 @@ import tokenGuardV2En from './en/tokenGuardV2'
 import { mergeLocaleMessages } from './merge'
 
 const messages = {
+  affiliateOperations,
   accountOps: { smartTitle: 'Account operations' },
   tokenGuardV2: tokenGuardV2En,
   requestLedger,

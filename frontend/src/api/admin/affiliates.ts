@@ -32,6 +32,25 @@ export interface ListAffiliateRecordsParams {
   sort_by?: string
   sort_order?: 'asc' | 'desc'
   timezone?: string
+  inviter_id?: number
+  invitee_id?: number
+  user_id?: number
+  source_order_id?: number
+  action?: 'accrue' | 'revoke' | 'transfer' | 'withdraw'
+  source_type?: string
+  status?: string
+  currency?: string
+  campaign_id?: number
+}
+
+export type AffiliateRecordType = 'invites' | 'rebates' | 'transfers'
+export interface AffiliateRecordsSummary {
+  record_count: number
+  total_amount: number | null
+  currency: 'USD' | 'mixed' | 'n/a'
+  available_amount?: number
+  frozen_amount?: number
+  amounts: Array<{ source_type: 'regular' | 'campaign' | 'other' | 'wallet'; currency: string; total_amount: number; available_amount?: number; frozen_amount?: number }>
 }
 
 export interface AffiliateInviteRecord {
@@ -52,6 +71,13 @@ export interface AffiliateInviteRecord {
  * was deleted.
  */
 export interface AffiliateRebateRecord {
+  ledger_id?: number
+  currency?: string
+  source_type?: string
+  action?: string
+  status?: string
+  frozen_until?: string
+  campaign_id?: number
   order_id: number | null
   out_trade_no: string
   inviter_id: number
@@ -85,11 +111,18 @@ export interface AffiliateTransferRecord {
   history_quota_after?: number | null
   snapshot_available: boolean
   created_at: string
+  external_reference?: string
+  paid_at?: string
+  note?: string
+  actor_id?: number
 }
 
 export interface WithdrawAffiliateQuotaRequest {
   /** Amount already paid to the user outside the site (USD). */
   amount: number
+  external_reference?: string
+  paid_at?: string
+  note?: string
 }
 
 export interface AffiliateWithdrawResult {
@@ -99,6 +132,10 @@ export interface AffiliateWithdrawResult {
   available_quota_after: number
   frozen_quota_after: number
   history_quota_after: number
+  external_reference?: string
+  paid_at?: string
+  note?: string
+  actor_id?: number
 }
 
 export interface AffiliateWithdrawResponse {
@@ -113,6 +150,7 @@ export interface AffiliateUserOverview {
   username: string
   aff_code: string
   rebate_rate_percent: number
+  rebate_rate_custom?: boolean
   invited_count: number
   rebated_invitee_count: number
   available_quota: number
@@ -203,7 +241,32 @@ function recordParams(params: ListAffiliateRecordsParams = {}) {
     sort_by: params.sort_by || undefined,
     sort_order: params.sort_order || undefined,
     timezone: params.timezone || undefined,
+    inviter_id: params.inviter_id,
+    invitee_id: params.invitee_id,
+    user_id: params.user_id,
+    source_order_id: params.source_order_id,
+    action: params.action,
+    source_type: params.source_type,
+    status: params.status,
+    currency: params.currency,
+    campaign_id: params.campaign_id,
   }
+}
+
+function unpagedParams(params: ListAffiliateRecordsParams) {
+  const { page: _page, page_size: _pageSize, ...filters } = params
+  return filters
+}
+
+export async function getRecordsSummary(type: AffiliateRecordType, params: ListAffiliateRecordsParams = {}): Promise<AffiliateRecordsSummary> {
+  const { data } = await apiClient.get<AffiliateRecordsSummary>(`/admin/affiliates/${type}/summary`, { params: unpagedParams(params) })
+  return data
+}
+
+/** The server enforces the 10,000-row bound and returns 422 for larger selections. */
+export async function exportRecords(type: AffiliateRecordType, params: ListAffiliateRecordsParams = {}): Promise<Blob> {
+  const { data } = await apiClient.get<Blob>(`/admin/affiliates/${type}/export`, { params: unpagedParams(params), responseType: 'blob' })
+  return data
 }
 
 export async function listInviteRecords(
@@ -277,6 +340,8 @@ export const affiliatesAPI = {
   listTransferRecords,
   getUserOverview,
   withdrawUserQuota,
+  getRecordsSummary,
+  exportRecords,
 }
 
 export default affiliatesAPI

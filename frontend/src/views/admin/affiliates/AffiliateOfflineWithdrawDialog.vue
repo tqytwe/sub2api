@@ -109,6 +109,11 @@
         {{ t('admin.affiliates.withdraw.uncertainHint') }}
       </div>
 
+      <label class="block text-sm">{{ t('admin.affiliateOperations.externalReference') }}<input v-model="externalReference" data-test="withdraw-reference" class="input mt-1" maxlength="200" :disabled="!selectedUser || submitting || outcomeUncertain" required /></label>
+      <label class="block text-sm">{{ t('admin.affiliateOperations.paidAt') }}<input v-model="paidAt" data-test="withdraw-paid-at" type="datetime-local" class="input mt-1" :disabled="!selectedUser || submitting || outcomeUncertain" required /></label>
+      <label class="block text-sm">{{ t('admin.affiliateOperations.paymentNote') }}<textarea v-model="paymentNote" data-test="withdraw-note" class="input mt-1" maxlength="500" rows="3" :disabled="!selectedUser || submitting || outcomeUncertain" required /></label>
+      <p v-if="selectedUser && !proofValid && !outcomeUncertain" class="text-xs text-gray-500">{{ t('admin.affiliateOperations.proofRequired') }}</p>
+
       <div class="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-700/50 dark:bg-amber-900/20 dark:text-amber-300">
         {{ t('admin.affiliates.withdraw.warning') }}
       </div>
@@ -131,12 +136,15 @@
       </div>
     </template>
   </BaseDialog>
+  <TotpStepUpDialog :controller="stepUp" />
 </template>
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import BaseDialog from '@/components/common/BaseDialog.vue'
+import TotpStepUpDialog from '@/components/auth/TotpStepUpDialog.vue'
+import { useStepUp, isStepUpCancelled, isStepUpBlocked } from '@/composables/useStepUp'
 import { useAppStore } from '@/stores/app'
 import { affiliatesAPI, type AffiliateWithdrawResult, type SimpleUser } from '@/api/admin/affiliates'
 import { extractApiErrorCode, extractI18nErrorMessage } from '@/utils/apiError'
@@ -160,6 +168,7 @@ const LEDGER_SCALE = 1e8
 
 const { t } = useI18n()
 const appStore = useAppStore()
+const stepUp = useStepUp()
 
 const userQuery = ref('')
 const userResults = ref<SimpleUser[]>([])
@@ -168,6 +177,10 @@ const selectedUser = ref<SimpleUser | null>(null)
 const availableQuota = ref(0)
 const overviewLoading = ref(false)
 const amount = ref<number | string>('')
+const externalReference = ref('')
+const paidAt = ref('')
+const paymentNote = ref('')
+const proofValid = computed(() => !!externalReference.value.trim() && !!paymentNote.value.trim() && !!paidAt.value && Number.isFinite(new Date(paidAt.value).getTime()))
 const submitting = ref(false)
 // 已提交、尚未拿到确定结果的登记。结果未知时锁定用户与金额，重试沿用它的幂等键。
 const pendingOperation = ref<AffiliateWithdrawOperation | null>(null)
@@ -196,7 +209,7 @@ const amountError = computed(() => {
 const canSubmit = computed(() => {
   if (selectedUser.value === null || submitting.value) return false
   if (outcomeUncertain.value) return true
-  return !overviewLoading.value && amountText.value !== '' && amountError.value === ''
+  return !overviewLoading.value && amountText.value !== '' && amountError.value === '' && proofValid.value
 })
 
 function formatPreciseAmount(value: number): string {
@@ -297,6 +310,9 @@ function resetForm() {
   overviewLoading.value = false
   amount.value = ''
   submitting.value = false
+  externalReference.value = ''
+  paidAt.value = ''
+  paymentNote.value = ''
   pendingOperation.value = null
 }
 
@@ -309,16 +325,24 @@ async function submit() {
   const user = selectedUser.value
   if (!user || !canSubmit.value) return
   if (!pendingOperation.value) {
-    pendingOperation.value = prepareAffiliateWithdrawOperation(user.id, parsedAmount.value)
+    pendingOperation.value = prepareAffiliateWithdrawOperation(user.id, parsedAmount.value, {
+      external_reference: externalReference.value.trim(), paid_at: new Date(paidAt.value).toISOString(), note: paymentNote.value.trim(),
+    })
   }
   const operation = pendingOperation.value
+  if (operation.proof) {
+    externalReference.value = operation.proof.external_reference
+    paymentNote.value = operation.proof.note
+    const date = new Date(operation.proof.paid_at)
+    paidAt.value = new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16)
+  }
   submitting.value = true
   try {
-    const { result, replayed } = await affiliatesAPI.withdrawUserQuota(
+    const { result, replayed } = await stepUp.run(() => affiliatesAPI.withdrawUserQuota(
       operation.userId,
-      { amount: operation.amount },
+      { amount: operation.amount, ...operation.proof },
       operation.key,
-    )
+    ))
     completeAffiliateWithdrawOperation(operation)
     pendingOperation.value = null
     appStore.showSuccess(
@@ -329,6 +353,11 @@ async function submit() {
     )
     emit('success', result)
   } catch (error) {
+    if (isStepUpCancelled(error) || isStepUpBlocked(error)) {
+      if (!operation.outcomeUncertain) { completeAffiliateWithdrawOperation(operation); pendingOperation.value = null }
+      if (isStepUpBlocked(error)) appStore.showError(t('stepUp.notEnabled'))
+      return
+    }
     showError(error)
     // 网络错误、超时、5xx 与 408/409 时服务端可能已经登记：保留这笔登记，
     // 重试沿用同一请求与幂等键，直到拿到确定结果。

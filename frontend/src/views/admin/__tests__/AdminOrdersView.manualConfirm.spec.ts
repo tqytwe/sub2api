@@ -10,6 +10,8 @@ const {
   showSuccess,
   runStepUp,
   stepUpCancelled,
+  getOrder,
+  linkedRoute,
 } = vi.hoisted(() => ({
   getOrders: vi.fn(),
   manualConfirm: vi.fn(),
@@ -17,12 +19,15 @@ const {
   showSuccess: vi.fn(),
   runStepUp: vi.fn(),
   stepUpCancelled: new Error('step-up cancelled'),
+  getOrder: vi.fn(),
+  linkedRoute: { query: {} as Record<string, string> },
 }))
+vi.mock('vue-router', () => ({ useRoute: () => linkedRoute }))
 
 vi.mock('@/api/admin/payment', () => {
   const paymentAPI = {
     getOrders,
-    getOrder: vi.fn(),
+    getOrder,
     cancelOrder: vi.fn(),
     retryRecharge: vi.fn(),
     manualConfirm,
@@ -93,7 +98,16 @@ function mountView() {
 describe('AdminOrdersView manual payment confirmation', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    Object.keys(linkedRoute.query).forEach(key => delete linkedRoute.query[key])
     getOrders.mockResolvedValue({ data: { items: [pendingOrder], total: 1 } })
+  })
+
+  it('opens the exact linked order through the existing detail endpoint', async () => {
+    linkedRoute.query.order_id = '187'
+    getOrder.mockResolvedValue({ data: { order: { ...pendingOrder, id: 187 }, audit_logs: [] } })
+    mountView()
+    await flushPromises()
+    expect(getOrder).toHaveBeenCalledWith(187)
   })
 
   it('retries only the original confirmation after STEP_UP_REQUIRED', async () => {

@@ -1,4 +1,7 @@
+import affiliateOperations from './affiliateOperations'
+
 export default {
+  affiliateOperations,
 
   // Subscription Progress (Header component)
   subscriptionProgress: {

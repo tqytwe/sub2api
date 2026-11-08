@@ -155,13 +155,23 @@ type AffiliateAdminEntry struct {
 }
 
 type AffiliateRecordFilter struct {
-	Search   string
-	Page     int
-	PageSize int
-	StartAt  *time.Time
-	EndAt    *time.Time
-	SortBy   string
-	SortDesc bool
+	Timezone      string
+	UserID        int64
+	InviterID     int64
+	InviteeID     int64
+	SourceOrderID int64
+	CampaignID    int64
+	Action        string
+	SourceType    string
+	Currency      string
+	Status        string
+	Search        string
+	Page          int
+	PageSize      int
+	StartAt       *time.Time
+	EndAt         *time.Time
+	SortBy        string
+	SortDesc      bool
 }
 
 type AffiliateInviteRecord struct {
@@ -180,25 +190,33 @@ type AffiliateInviteRecord struct {
 // 的流水没有订单信息，OrderID/OrderAmount/PayAmount 为 nil；被邀请人账号被删除时
 // InviteeID 为 nil。
 type AffiliateRebateRecord struct {
-	OrderID         *int64    `json:"order_id"`
-	OutTradeNo      string    `json:"out_trade_no"`
-	InviterID       int64     `json:"inviter_id"`
-	InviterEmail    string    `json:"inviter_email"`
-	InviterUsername string    `json:"inviter_username"`
-	InviteeID       *int64    `json:"invitee_id"`
-	InviteeEmail    string    `json:"invitee_email"`
-	InviteeUsername string    `json:"invitee_username"`
-	OrderAmount     *float64  `json:"order_amount"`
-	PayAmount       *float64  `json:"pay_amount"`
-	RebateAmount    float64   `json:"rebate_amount"`
-	PaymentType     string    `json:"payment_type"`
-	OrderStatus     string    `json:"order_status"`
-	CreatedAt       time.Time `json:"created_at"`
+	LedgerID        int64      `json:"ledger_id"`
+	Action          string     `json:"action"`
+	SourceType      string     `json:"source_type"`
+	Currency        string     `json:"currency"`
+	Status          string     `json:"status"`
+	FrozenUntil     *time.Time `json:"frozen_until,omitempty"`
+	CampaignID      *int64     `json:"campaign_id,omitempty"`
+	OrderID         *int64     `json:"order_id"`
+	OutTradeNo      string     `json:"out_trade_no"`
+	InviterID       int64      `json:"inviter_id"`
+	InviterEmail    string     `json:"inviter_email"`
+	InviterUsername string     `json:"inviter_username"`
+	InviteeID       *int64     `json:"invitee_id"`
+	InviteeEmail    string     `json:"invitee_email"`
+	InviteeUsername string     `json:"invitee_username"`
+	OrderAmount     *float64   `json:"order_amount"`
+	PayAmount       *float64   `json:"pay_amount"`
+	RebateAmount    float64    `json:"rebate_amount"`
+	PaymentType     string     `json:"payment_type"`
+	OrderStatus     string     `json:"order_status"`
+	CreatedAt       time.Time  `json:"created_at"`
 }
 
 // AffiliateTransferRecord 是一笔返利额度流出：Action 为 transfer（用户转入余额）
 // 或 withdraw（管理员登记的线下提现）。
 type AffiliateTransferRecord struct {
+	AffiliateWithdrawalEvidence
 	LedgerID            int64     `json:"ledger_id"`
 	Action              string    `json:"action"`
 	UserID              int64     `json:"user_id"`
@@ -220,6 +238,7 @@ type AffiliateTransferRecord struct {
 // AffiliateWithdrawResult 是线下提现登记完成后的流水 ID 与额度快照。
 // Replayed 表示本次请求命中了同一幂等标识的已有登记，返回的是首次登记的结果。
 type AffiliateWithdrawResult struct {
+	AffiliateWithdrawalEvidence
 	LedgerID            int64   `json:"ledger_id"`
 	UserID              int64   `json:"user_id"`
 	Amount              float64 `json:"amount"`
@@ -235,7 +254,7 @@ type AffiliateUserOverview struct {
 	Username            string  `json:"username"`
 	AffCode             string  `json:"aff_code"`
 	RebateRatePercent   float64 `json:"rebate_rate_percent"`
-	RebateRateCustom    bool    `json:"-"`
+	RebateRateCustom    bool    `json:"rebate_rate_custom"`
 	InvitedCount        int     `json:"invited_count"`
 	RebatedInviteeCount int     `json:"rebated_invitee_count"`
 	AvailableQuota      float64 `json:"available_quota"`

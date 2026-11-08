@@ -662,6 +662,8 @@ func (r *affiliateRepository) ListAffiliateInviteRecords(ctx context.Context, fi
 		"ua.inviter_id::text", "ua.user_id::text", "inviter_aff.aff_code",
 	})
 
+	where, args = affiliateExactRecordWhere(filter, "invites", where, args)
+
 	total, err := queryAffiliateRecordCount(ctx, client, `
 SELECT COUNT(*)
 FROM user_affiliates ua
@@ -679,7 +681,7 @@ JOIN user_affiliates inviter_aff ON inviter_aff.user_id = ua.inviter_id
 		"aff_code":     "inviter_aff.aff_code",
 		"total_rebate": "total_rebate",
 		"created_at":   "ua.created_at",
-	}, "ua.created_at")
+	}, "ua.created_at") + ", ua.user_id DESC"
 	args = append(args, filter.PageSize, (filter.Page-1)*filter.PageSize)
 	rows, err := client.QueryContext(ctx, `
 SELECT ua.inviter_id,
@@ -699,6 +701,7 @@ LEFT JOIN user_affiliate_ledger ual
        ON ual.user_id = ua.inviter_id
       AND ual.source_user_id = ua.user_id
       AND ual.action = 'accrue'
+      AND ual.referral_reward_id IS NULL
 `+where+`
 GROUP BY ua.inviter_id, inviter.email, inviter.username, ua.user_id, invitee.email, invitee.username, inviter_aff.aff_code, ua.created_at
 `+orderBy+`
@@ -745,7 +748,9 @@ FROM user_affiliate_ledger ual
 JOIN users inviter ON inviter.id = ual.user_id
 LEFT JOIN users invitee ON invitee.id = ual.source_user_id
 LEFT JOIN payment_orders po ON po.id = ual.source_order_id
-WHERE ual.action = 'accrue'`
+LEFT JOIN referral_campaign_rewards rr ON rr.id = ual.referral_reward_id
+WHERE ual.action IN ('accrue','revoke')`
+	where, args = affiliateExactRecordWhere(filter, "rebates", where, args)
 	if where != "" {
 		where = strings.Replace(where, "WHERE ", " AND ", 1)
 	}
@@ -765,7 +770,7 @@ WHERE ual.action = 'accrue'`
 		"payment_type":  "po.payment_type",
 		"order_status":  "po.status",
 		"created_at":    "ual.created_at",
-	}, "ual.created_at")
+	}, "ual.created_at") + ", ual.id DESC"
 	args = append(args, filter.PageSize, (filter.Page-1)*filter.PageSize)
 	rows, err := client.QueryContext(ctx, `
 SELECT po.id,
@@ -781,7 +786,11 @@ SELECT po.id,
        ual.amount::double precision,
        COALESCE(po.payment_type, ''),
        COALESCE(po.status, ''),
-       ual.created_at
+       ual.created_at, ual.id, ual.action,
+       CASE WHEN rr.id IS NOT NULL THEN 'campaign' WHEN ual.source_order_id IS NOT NULL THEN 'regular' ELSE 'other' END,
+       COALESCE(rr.currency,'USD'),
+       CASE WHEN ual.action='revoke' OR rr.status='revoked' THEN 'revoked' WHEN ual.frozen_until>NOW() THEN 'frozen' ELSE 'available' END,
+       ual.frozen_until, rr.campaign_id
 `+baseJoin+where+`
 `+orderBy+`
 LIMIT $`+fmt.Sprint(len(args)-1)+` OFFSET $`+fmt.Sprint(len(args)), args...)
@@ -811,7 +820,7 @@ LIMIT $`+fmt.Sprint(len(args)-1)+` OFFSET $`+fmt.Sprint(len(args)), args...)
 			&item.RebateAmount,
 			&item.PaymentType,
 			&item.OrderStatus,
-			&item.CreatedAt,
+			&item.CreatedAt, &item.LedgerID, &item.Action, &item.SourceType, &item.Currency, &item.Status, &item.FrozenUntil, &item.CampaignID,
 		); err != nil {
 			return nil, 0, err
 		}
@@ -835,7 +844,9 @@ func (r *affiliateRepository) ListAffiliateTransferRecords(ctx context.Context, 
 	baseJoin := `
 FROM user_affiliate_ledger ual
 JOIN users u ON u.id = ual.user_id
+LEFT JOIN referral_campaign_rewards rr ON rr.id = ual.referral_reward_id
 WHERE ual.action IN ('transfer', 'withdraw')`
+	where, args = affiliateExactRecordWhere(filter, "transfers", where, args)
 	if where != "" {
 		where = strings.Replace(where, "WHERE ", " AND ", 1)
 	}
@@ -854,7 +865,7 @@ WHERE ual.action IN ('transfer', 'withdraw')`
 		"frozen_quota_after":    "ual.aff_frozen_quota_after",
 		"history_quota_after":   "ual.aff_history_quota_after",
 		"created_at":            "ual.created_at",
-	}, "ual.created_at")
+	}, "ual.created_at") + ", ual.id DESC"
 	args = append(args, filter.PageSize, (filter.Page-1)*filter.PageSize)
 	rows, err := client.QueryContext(ctx, `
 SELECT ual.id,
@@ -867,7 +878,9 @@ SELECT ual.id,
        ual.aff_quota_after::double precision,
        ual.aff_frozen_quota_after::double precision,
        ual.aff_history_quota_after::double precision,
-       ual.created_at
+       ual.created_at, COALESCE(ual.external_reference,''),
+       ual.paid_at,
+       COALESCE(ual.operation_note,''), COALESCE(ual.actor_id,0)
 `+baseJoin+where+`
 `+orderBy+`
 LIMIT $`+fmt.Sprint(len(args)-1)+` OFFSET $`+fmt.Sprint(len(args)), args...)
@@ -879,6 +892,7 @@ LIMIT $`+fmt.Sprint(len(args)-1)+` OFFSET $`+fmt.Sprint(len(args)), args...)
 	items := make([]service.AffiliateTransferRecord, 0)
 	for rows.Next() {
 		var item service.AffiliateTransferRecord
+		var paidAt sql.NullTime
 		var balanceAfter sql.NullFloat64
 		var availableQuotaAfter sql.NullFloat64
 		var frozenQuotaAfter sql.NullFloat64
@@ -894,9 +908,12 @@ LIMIT $`+fmt.Sprint(len(args)-1)+` OFFSET $`+fmt.Sprint(len(args)), args...)
 			&availableQuotaAfter,
 			&frozenQuotaAfter,
 			&historyQuotaAfter,
-			&item.CreatedAt,
+			&item.CreatedAt, &item.ExternalReference, &paidAt, &item.Note, &item.ActorID,
 		); err != nil {
 			return nil, 0, err
+		}
+		if paidAt.Valid {
+			item.PaidAt = paidAt.Time.UTC().Format(time.RFC3339Nano)
 		}
 		item.BalanceAfter = nullableFloat64Ptr(balanceAfter)
 		item.AvailableQuotaAfter = nullableFloat64Ptr(availableQuotaAfter)
@@ -2101,16 +2118,20 @@ ORDER BY e.enrolled_at DESC,e.id DESC LIMIT $3 OFFSET $4`, campaignID, like, pag
 }
 
 func (r *affiliateRepository) ListReferralCampaignInvites(ctx context.Context, campaignID int64, page, pageSize int, search, status string) (*service.ReferralCampaignInvitePage, error) {
+	return r.ListReferralCampaignInvitesFiltered(ctx, campaignID, page, pageSize, search, status, "")
+}
+
+func (r *affiliateRepository) ListReferralCampaignInvitesFiltered(ctx context.Context, campaignID int64, page, pageSize int, search, status, risk string) (*service.ReferralCampaignInvitePage, error) {
 	page, pageSize, offset := normalizeReferralPage(page, pageSize)
 	client := clientFromContext(ctx, r.client)
 	like := "%" + strings.TrimSpace(search) + "%"
 	status = strings.TrimSpace(status)
-	from := ` FROM referral_campaign_attributions a JOIN users inviter ON inviter.id=a.inviter_id JOIN users invitee ON invitee.id=a.invitee_id LEFT JOIN referral_campaign_qualifications q ON q.campaign_id=a.campaign_id AND q.invitee_id=a.invitee_id WHERE a.campaign_id=$1 AND ($2='%%' OR inviter.email ILIKE $2 OR inviter.username ILIKE $2 OR invitee.email ILIKE $2 OR invitee.username ILIKE $2) AND ($3='' OR COALESCE(q.status,'pending')=$3)`
-	total, err := scanInt64(ctx, client, `SELECT COUNT(*)`+from, campaignID, like, status)
+	from := ` FROM referral_campaign_attributions a JOIN users inviter ON inviter.id=a.inviter_id JOIN users invitee ON invitee.id=a.invitee_id LEFT JOIN referral_campaign_qualifications q ON q.campaign_id=a.campaign_id AND q.invitee_id=a.invitee_id WHERE a.campaign_id=$1 AND ($2='%%' OR inviter.email ILIKE $2 OR inviter.username ILIKE $2 OR invitee.email ILIKE $2 OR invitee.username ILIKE $2) AND ($3='' OR COALESCE(q.status,'pending')=$3) AND ($4='' OR COALESCE(q.risk_status,'pending')=$4)`
+	total, err := scanInt64(ctx, client, `SELECT COUNT(*)`+from, campaignID, like, status, risk)
 	if err != nil {
 		return nil, err
 	}
-	rows, err := client.QueryContext(ctx, `SELECT a.id,a.inviter_id,COALESCE(inviter.email,''),a.invitee_id,COALESCE(invitee.email,''),a.registered_at,a.status,COALESCE(q.net_paid,0)::double precision,COALESCE(q.actual_cost,0)::double precision,COALESCE(q.risk_status,'pending'),COALESCE(q.status,'pending'),q.qualified_at`+from+` ORDER BY a.registered_at DESC,a.id DESC LIMIT $4 OFFSET $5`, campaignID, like, status, pageSize, offset)
+	rows, err := client.QueryContext(ctx, `SELECT a.id,a.inviter_id,COALESCE(inviter.email,''),a.invitee_id,COALESCE(invitee.email,''),a.registered_at,a.status,COALESCE(q.net_paid,0)::double precision,COALESCE(q.actual_cost,0)::double precision,COALESCE(q.risk_status,'pending'),COALESCE(q.status,'pending'),q.qualified_at`+from+` ORDER BY a.registered_at DESC,a.id DESC LIMIT $5 OFFSET $6`, campaignID, like, status, risk, pageSize, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -2917,9 +2938,14 @@ func (r *affiliateRepository) GetReferralGrowthOverview(ctx context.Context, cam
 	}
 	rows, err := client.QueryContext(ctx, `
 WITH qualified AS (
- SELECT q.inviter_id,COUNT(*)::bigint AS qualified_count,COALESCE(SUM(q.net_paid),0)::double precision AS paid
+ SELECT q.inviter_id,COUNT(DISTINCT q.invitee_id)::bigint AS qualified_count,COALESCE(SUM(q.net_paid),0)::double precision AS paid
  FROM referral_campaign_qualifications q
- WHERE ($1::bigint IS NULL OR q.campaign_id=$1) AND q.status='qualified'
+ JOIN users invitee ON invitee.id=q.invitee_id
+ JOIN users inviter ON inviter.id=q.inviter_id
+ JOIN referral_campaign_attributions a ON a.campaign_id=q.campaign_id AND a.invitee_id=q.invitee_id AND a.inviter_id=q.inviter_id
+ WHERE ($1::bigint IS NULL OR q.campaign_id=$1) AND q.status='qualified' AND q.risk_status='approved' AND a.status='approved'
+ AND invitee.status='active' AND invitee.deleted_at IS NULL AND inviter.status='active' AND inviter.deleted_at IS NULL
+ AND NOT EXISTS(SELECT 1 FROM ip_risk_case_users cu JOIN ip_risk_cases rc ON rc.id=cu.case_id WHERE cu.user_id IN(q.inviter_id,q.invitee_id) AND rc.status IN('open','observing','processing') AND rc.level IN('high','severe','critical'))
  GROUP BY q.inviter_id
 ), rewards AS (
  SELECT r.user_id,COALESCE(SUM(r.amount) FILTER (WHERE r.status IN ('claimable','claimed_frozen','available','resolved')),0)::double precision AS reward
@@ -2944,7 +2970,7 @@ WHERE rank<=50 OR inviter_id=$2 ORDER BY rank`, nullableInt64Arg(campaignID), nu
 		if err := rows.Scan(&userID, &email, &qualified, &paid, &reward, &rank); err != nil {
 			return nil, err
 		}
-		out.Ranking = append(out.Ranking, service.ReferralGrowthRanking{Rank: int(rank), EmailMasked: maskReferralEmail(email), QualifiedCount: qualified, RewardAmount: reward, IsMe: currentUserID != nil && userID == *currentUserID})
+		out.Ranking = append(out.Ranking, service.ReferralGrowthRanking{Rank: int(rank), EmailMasked: maskReferralEmail(email), QualifiedCount: qualified, RewardAmount: reward, Currency: "CNY", IsMe: currentUserID != nil && userID == *currentUserID})
 	}
 	if out.Ranking == nil {
 		out.Ranking = []service.ReferralGrowthRanking{}
@@ -3014,6 +3040,9 @@ func (r *affiliateRepository) GetReferralCampaignProgress(ctx context.Context, c
 		return nil, err
 	}
 	progress.Leaderboard = overview.Ranking
+	if len(progress.Leaderboard) > 10 {
+		progress.Leaderboard = progress.Leaderboard[:10]
+	}
 	for i := range overview.Ranking {
 		if overview.Ranking[i].IsMe {
 			item := overview.Ranking[i]
@@ -3025,20 +3054,7 @@ func (r *affiliateRepository) GetReferralCampaignProgress(ctx context.Context, c
 }
 
 func maskReferralEmail(value string) string {
-	parts := strings.SplitN(strings.TrimSpace(value), "@", 2)
-	if len(parts) != 2 || parts[0] == "" {
-		return "***"
-	}
-	localRunes := []rune(parts[0])
-	local := ""
-	if len(localRunes) == 1 {
-		local = string(localRunes[0]) + "*"
-	} else if len(localRunes) == 2 {
-		local = string(localRunes[0]) + "*"
-	} else {
-		local = string(localRunes[0]) + "***" + string(localRunes[len(localRunes)-1])
-	}
-	return local + "@" + parts[1]
+	return service.MaskLeaderboardEmail(value)
 }
 
 func adjustAffiliateTransferTotalRecharged(ctx context.Context, client affiliateQueryExecer, userID int64, amount float64) error {
