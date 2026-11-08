@@ -185,6 +185,26 @@ describe('AffiliateView', () => {
     wrapper.unmount()
   })
 
+  it('keeps the current 2026-11 empty leaderboard explicit', async () => {
+    state.leaderboard.mockResolvedValue({ month: '2026-11', timezone: 'Asia/Shanghai', items: [], my_rank: null, updated_at: '2026-11-08T10:00:00Z' })
+    const wrapper = mountView()
+    await flushPromises()
+    await openTab(wrapper, 'leaderboard')
+
+    expect(wrapper.findAll('[data-test="leaderboard-row"]')).toHaveLength(0)
+    expect(wrapper.text()).toContain('affiliateOperations.rankingEmpty')
+  })
+
+  it('renders the 2026-08 user leaderboard with the masked production identity', async () => {
+    state.leaderboard.mockResolvedValue({ month: '2026-08', timezone: 'Asia/Shanghai', items: [{ rank: 1, display_name: 'gu***@g***.com', effective_paid_count: 1, is_me: false }], my_rank: null, updated_at: '2026-11-08T10:00:00Z' })
+    const wrapper = mountView()
+    await flushPromises()
+    await openTab(wrapper, 'leaderboard')
+
+    expect(wrapper.get('[data-test="leaderboard-row"]').text()).toContain('gu***@g***.com')
+    expect(wrapper.text()).not.toContain('guolingzheng@gmail.com')
+  })
+
   it('rolls the live monthly selection across Shanghai midnight without refreshing activity details', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-11-30T15:59:58Z'))

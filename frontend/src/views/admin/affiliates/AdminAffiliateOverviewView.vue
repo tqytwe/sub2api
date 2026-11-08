@@ -20,6 +20,7 @@ const overview = ref<AffiliateOperationsOverview | null>(null)
 const rankingLive = useLeaderboardLiveRefresh({ key: month, fetch: signal => operations.getLeaderboard({ month: month.value }, signal) })
 const ranking = rankingLive.data
 const exceptions = ref<AffiliateOperationsInvite[]>([])
+const exceptionTotal = ref(0)
 const loading = ref(false)
 const errors = ref({ overview: false, exceptions: false })
 let requestSequence = 0
@@ -55,9 +56,10 @@ async function load() {
   // Clear stale month data; each failed section has its own retry state.
   overview.value = null
   exceptions.value = []
+  exceptionTotal.value = 0
   await Promise.allSettled([
     operations.getOverview({ month: month.value }).then(value => { if (seq === requestSequence) overview.value = value }).catch(() => { if (seq === requestSequence) errors.value.overview = true }),
-    operations.listExceptions({ page: 1, page_size: 5 }).then(value => { if (seq === requestSequence) exceptions.value = value.items }).catch(() => { if (seq === requestSequence) errors.value.exceptions = true }),
+    operations.listExceptions({ page: 1, page_size: 5 }).then(value => { if (seq === requestSequence) { exceptions.value = value.items; exceptionTotal.value = value.total } }).catch(() => { if (seq === requestSequence) errors.value.exceptions = true }),
   ])
   if (seq === requestSequence) loading.value = false
 }
@@ -95,7 +97,7 @@ watch(() => route.query.month, value => {
         </DataTable>
       </section>
       <section class="space-y-3">
-        <div class="flex flex-wrap items-center justify-between gap-2"><h3 class="text-base font-semibold">{{ t('admin.affiliateOperations.exceptions') }} <span v-if="overview" class="text-gray-500">({{ overview.exceptions_count }})</span></h3><RouterLink :to="{ path: '/admin/affiliates/invites', query: { mode: 'promoters', exceptions: '1' } }" class="text-sm text-primary-600 hover:underline dark:text-primary-400">{{ t('admin.affiliateOperations.viewPending') }}</RouterLink></div>
+        <div class="flex flex-wrap items-center justify-between gap-2"><h3 class="text-base font-semibold">{{ t('admin.affiliateOperations.exceptions') }} <span v-if="overview && !errors.exceptions" data-test="exceptions-count" class="text-gray-500" :data-total="exceptionTotal" :data-preview="exceptions.length">({{ t('admin.affiliateOperations.exceptionsCount', { total: exceptionTotal, preview: exceptions.length }) }})</span></h3><RouterLink :to="{ path: '/admin/affiliates/invites', query: { mode: 'promoters', exceptions: '1' } }" class="text-sm text-primary-600 hover:underline dark:text-primary-400">{{ t('admin.affiliateOperations.viewPending') }}</RouterLink></div>
         <div v-if="errors.exceptions" role="alert" class="text-sm text-red-600">{{ t('admin.affiliateOperations.loadFailed') }} <button type="button" class="btn btn-secondary" @click="load">{{ t('common.retry') }}</button></div>
         <DataTable v-else :columns="exceptionColumns" :data="exceptions" :loading="loading"><template #cell-invitee="{ row }">{{ row.invitee_email || `#${row.invitee_id}` }}</template><template #cell-reason="{ row }">{{ t(`admin.affiliateOperations.reasons.${row.reason}`) }}</template><template #cell-actions="{ row }"><RouterLink :data-test="`exception-user-${row.invitee_id}`" :to="{ path: '/admin/affiliates/invites', query: { mode: 'promoters', user_id: row.inviter_id, invitee_id: row.invitee_id, detail: 'invites' } }" class="text-primary-600 hover:underline dark:text-primary-400">{{ t('admin.affiliateOperations.inspect') }}</RouterLink></template></DataTable>
       </section>

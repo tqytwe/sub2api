@@ -8,7 +8,7 @@ export default {
   monthEarnings: 'Monthly credits · By source and currency', allEarnings: 'All credits · By source and currency', currency: 'Currency', effectivePaidTotal: 'Effective paid invitees (all time)',
   dailyTrend: 'Daily new invitations and first payments', trendTable: 'View trend data table', date: 'Time', noData: 'No data matches these filters',
   monthlyTop10: 'Effective paid invitation leaderboard · Top 10', honorOnly: 'Ranked by effective paid invitees. Recognition only; no leaderboard prizes. Refunds and risk changes update rankings.',
-  rank: 'Rank', promoter: 'Promoter', invitee: 'Invitee', exceptions: 'Needs attention', viewPending: 'View outstanding items', inspect: 'Investigate',
+  rank: 'Rank', promoter: 'Promoter', invitee: 'Invitee', exceptions: 'Needs attention', exceptionsCount: '{total} total, {preview} previewed', viewPending: 'View outstanding items', inspect: 'Investigate',
   reason: 'Reason', actions: 'Actions', action: 'Action', updatedAt: 'Last updated', loadFailed: 'Could not load this section. Please retry.', saveFailed: 'Could not save. Your input is retained.',
   inviteView: 'Invitation management view', relations: 'Invitation relationships', promoters: 'Promoters',
   exactUserId: 'Promoter ID (exact)', exactInviteeId: 'Invitee ID (exact)', exactOrderId: 'Order ID (exact)',
