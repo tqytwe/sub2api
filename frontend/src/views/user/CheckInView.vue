@@ -33,10 +33,13 @@ const remainingMilestoneDays = computed(() =>
 
 const growthEligibility = computed(() => status.value?.growth_eligibility)
 const growthEnergyMode = computed(
-  () => status.value?.growth_energy_enabled || growthEligibility.value?.reward_mode === 'energy',
+  () => status.value?.growth_energy_enabled ?? (growthEligibility.value?.reward_mode === 'energy'),
+)
+const participationOnlyMode = computed(
+  () => !growthEnergyMode.value && growthEligibility.value?.reward_mode === 'energy',
 )
 const governanceBlocked = computed(
-  () => !growthEnergyMode.value && status.value?.growth_governance_available === false,
+  () => !growthEnergyMode.value && !participationOnlyMode.value && status.value?.growth_governance_available === false,
 )
 const canCheckIn = computed(
   () =>
@@ -101,6 +104,7 @@ function successMessage(result: PlayCheckinResult) {
   if (result.growth_energy && result.growth_energy > 0) {
     return t('checkin.energySuccess', { amount: result.growth_energy })
   }
+  if (result.reward_type === 'none') return t('checkin.participationOnlySuccess')
   if (result.reward_type === 'coupon' && result.coupon) {
     return t('checkin.couponSuccess', { name: result.coupon.name })
   }
@@ -235,7 +239,7 @@ watch([() => authStore.user?.id, () => authStore.token], () => { void loadStatus
             <p class="gw-eyebrow">{{ t('checkin.eyebrow') }}</p>
             <h1 class="gw-title">{{ t('checkin.title') }}</h1>
             <p v-if="status?.enabled" class="gw-subtitle">
-              {{ growthEnergyMode ? t('checkin.energyHint') : t('checkin.randomRewardHint') }}
+              {{ participationOnlyMode ? t('checkin.participationOnlyHint') : growthEnergyMode ? t('checkin.energyHint') : t('checkin.randomRewardHint') }}
             </p>
             <button type="button" data-testid="refresh-status" class="gw-btn gw-btn-secondary mt-3" :disabled="loading || submitting || makingUp" @click="refreshStatus">
               {{ t('common.refresh') }}
@@ -274,8 +278,8 @@ watch([() => authStore.user?.id, () => authStore.token], () => { void loadStatus
             <p v-if="status.checked_in_today" class="text-sm font-medium" style="color: var(--gw-ok)">
               {{ t('checkin.alreadyDone') }}
             </p>
-            <div v-else-if="growthEnergyMode" class="gw-quest-banner gw-quest-banner--warn" role="status">
-              <p class="gw-quest-banner-title">{{ t('checkin.energyTitle') }}</p>
+            <div v-else-if="participationOnlyMode || growthEnergyMode" class="gw-quest-banner gw-quest-banner--warn" role="status">
+              <p class="gw-quest-banner-title">{{ participationOnlyMode ? t('checkin.participationOnlyTitle') : t('checkin.energyTitle') }}</p>
               <p class="gw-subtitle">{{ growthReasonMessage(growthEligibility?.primary_reason) }}</p>
               <p class="gw-subtitle">{{ growthProgressMessage(growthEligibility) }}</p>
             </div>
@@ -304,7 +308,7 @@ watch([() => authStore.user?.id, () => authStore.token], () => { void loadStatus
             <p class="gw-quest-banner-title">{{ t('checkin.redeemableTitle') }}</p>
             <p class="gw-subtitle">{{ t('checkin.redeemableHint') }}</p>
           </div>
-          <div v-if="remainingMilestoneDays" class="gw-quest-banner">
+          <div v-if="remainingMilestoneDays && !participationOnlyMode" class="gw-quest-banner">
             {{ t('checkin.nextMilestone', { days: remainingMilestoneDays, bonus: (status?.next_milestone_bonus || 0).toFixed(2) }) }}
           </div>
 

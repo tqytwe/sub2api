@@ -38,7 +38,7 @@ func (r *checkinHandlerRepo) InsertGrowthEnergyLedger(_ context.Context, entry s
 
 // Exercise the ordinary HTTP handler and real service, rather than manually
 // constructing a DTO that could hide a missing service-to-handler projection.
-func TestCheckinHTTPProjectsGrowthReward(t *testing.T) {
+func TestCheckinHTTPRecordsParticipationWithoutGrowthReward(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
@@ -60,14 +60,14 @@ func TestCheckinHTTPProjectsGrowthReward(t *testing.T) {
 	router.ServeHTTP(recorder, httptest.NewRequest(http.MethodPost, "/api/v1/play/checkin", nil))
 	require.Equal(t, http.StatusOK, recorder.Code, recorder.Body.String())
 	require.NoError(t, mock.ExpectationsWereMet())
-	require.EqualValues(t, 1, repo.energy)
+	require.Zero(t, repo.energy)
 	var response struct {
 		Code int                        `json:"code"`
 		Data map[string]json.RawMessage `json:"data"`
 	}
 	require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &response))
 	require.Zero(t, response.Code)
-	require.JSONEq(t, "1", string(response.Data["growth_energy"]))
+	require.NotContains(t, response.Data, "growth_energy")
 	require.JSONEq(t, "1", string(response.Data["streak_count"]))
 	var eligibility service.PlayGrowthEligibility
 	require.NoError(t, json.Unmarshal(response.Data["growth_eligibility"], &eligibility))

@@ -11,6 +11,18 @@ const result = { items: [{ id: 1, user_id: 42, email: 'fixture@example.test', da
 function createView() { return mount(AdminCheckinRecords, { global: { plugins: [createI18n({ legacy: false, locale: 'zh' })] } }) }
 beforeEach(() => { vi.clearAllMocks(); api.listCheckinRecords.mockResolvedValue(result) })
 describe('AdminCheckinRecords', () => {
+  it('distinguishes no-reward participation from historical energy grants', async () => {
+    api.listCheckinRecords.mockResolvedValue({ ...result, items: [
+      { ...result.items[0], id: 2, growth_energy: 0, evidence_status: 'recorded' },
+      { ...result.items[0], id: 3, growth_energy: 1, evidence_status: 'recorded' },
+    ] })
+    const view = createView(); await flushPromises()
+    const rows = view.findAll('tbody tr')
+    expect(rows[0].text()).toContain('仅签到（未达领奖资格）')
+    expect(rows[0].text()).not.toContain('历史成长能量')
+    expect(rows[1].text()).toContain('历史成长能量')
+  })
+
   it('loads persisted reward evidence and preserves the as-of fence while paging', async () => {
     const view = createView(); await flushPromises()
     expect(view.text()).toContain('fixture@example.test')

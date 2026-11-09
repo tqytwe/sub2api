@@ -392,7 +392,8 @@ func (s *PlayService) GetCheckinStatus(ctx context.Context, userID int64) (*Play
 	}
 	status.GrowthEligibility = eligibility
 	status.Eligible = true
-	status.GrowthEnergyEnabled = eligibility.RewardMode == PlayGrowthRewardEnergy
+	// Qualification snapshots retain their shared v1 classification; check-in no longer grants energy.
+	status.GrowthEnergyEnabled = false
 	status.RedeemableRewardEligible = eligibility.RewardMode == PlayGrowthRewardRedeemable
 	if eligibility.RewardMode == PlayGrowthRewardRedeemable {
 		_, governanceAvailable, governanceReason := s.growthGovernanceForStatus(ctx, userID, now)
@@ -404,7 +405,7 @@ func (s *PlayService) GetCheckinStatus(ctx context.Context, userID int64) (*Play
 			status.CouponPoolReady = false
 		}
 	}
-	if status.GrowthEnergyEnabled {
+	if eligibility.RewardMode == PlayGrowthRewardEnergy {
 		status.IneligibleReason = eligibility.PrimaryReason
 	}
 	if status.GrowthGovernanceAvailable || eligibility.RewardMode == PlayGrowthRewardRedeemable {
@@ -430,6 +431,13 @@ func (s *PlayService) GetCheckinStatus(ctx context.Context, userID int64) (*Play
 	status.CheckedInToday = done
 	if err := s.enrichCheckinStatus(ctx, userID, status, rt); err != nil {
 		return nil, err
+	}
+	if eligibility.RewardMode != PlayGrowthRewardRedeemable {
+		status.RewardAmount = 0
+		status.NextMilestoneDays = 0
+		status.NextMilestoneBonus = 0
+		status.RechargeBoostActive = false
+		status.BoostCheckinMultiplier = 0
 	}
 	return status, nil
 }
@@ -490,9 +498,6 @@ func (s *PlayService) Checkin(ctx context.Context, userID int64) (*PlayCheckinRe
 				if err := repo.LinkGrowthEligibilitySnapshot(txCtx, PlayRewardSourceCheckin, userID, date, snapshotID); err != nil {
 					return err
 				}
-				if err := s.insertGrowthEnergy(txCtx, PlayGrowthEnergyLedgerEntry{UserID: userID, Source: PlayRewardSourceCheckin, ActionID: idempotencyKey, Amount: 1, EligibilitySnapshotID: snapshotID}); err != nil {
-					return err
-				}
 			}
 			return nil
 		})
@@ -503,7 +508,7 @@ func (s *PlayService) Checkin(ctx context.Context, userID int64) (*PlayCheckinRe
 			return nil, err
 		}
 		_ = s.MarkQuestCompleted(ctx, userID, PlayQuestKeyCheckin)
-		return &PlayCheckinResult{RewardType: PlayRewardTypeNone, ServerDate: dateKey, StreakCount: streak, GrowthEnergy: 1, GrowthEligibility: growthEligibility}, nil
+		return &PlayCheckinResult{RewardType: PlayRewardTypeNone, ServerDate: dateKey, StreakCount: streak, GrowthEligibility: growthEligibility}, nil
 	}
 
 	streak, err := s.computeNextStreak(ctx, userID, date)

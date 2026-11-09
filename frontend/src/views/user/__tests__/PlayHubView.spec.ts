@@ -234,7 +234,7 @@ describe('PlayHubView layout', () => {
     const explorerHub = hubFixture()
     explorerHub.checkin = {
       ...explorerHub.checkin!,
-      growth_energy_enabled: true,
+      growth_energy_enabled: false,
       redeemable_reward_eligible: false,
       growth_eligibility: {
         tier: 'explorer',
@@ -279,7 +279,7 @@ describe('PlayHubView layout', () => {
     const wrapper = mountView()
     await flushPromises()
 
-    expect(wrapper.text()).toContain('checkin.energyHint')
+    expect(wrapper.text()).toContain('checkin.participationOnlyHint')
     expect(wrapper.text()).toContain('quiz.energyHint')
     expect(wrapper.text()).not.toContain('playHub.checkinPending')
     expect(wrapper.text()).not.toContain('playHub.quizPending')

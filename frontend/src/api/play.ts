@@ -19,6 +19,7 @@ export interface PlayCheckinStatus {
   recharge_boost_active?: boolean
   boost_checkin_multiplier?: number
   growth_eligibility?: PlayGrowthEligibility
+  // Explicit activity grant switch; false overrides the shared qualification mode.
   growth_energy_enabled?: boolean
   redeemable_reward_eligible?: boolean
   growth_governance_available?: boolean

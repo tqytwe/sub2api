@@ -174,6 +174,7 @@ func assertCheckinDatabase(t *testing.T, userID int64, count int, energy int64, 
     AND s.rule_version='v1'
     AND (($2::bigint > 0 AND EXISTS (SELECT 1 FROM play_growth_energy_ledger e
       WHERE e.eligibility_snapshot_id=s.id AND e.user_id=c.user_id AND e.action_id=s.action_id AND e.amount=$2))
+     OR ($2::bigint=0 AND $3::numeric=0 AND s.reward_mode='energy' AND c.reward_amount=0)
      OR ($3::numeric > 0 AND EXISTS (SELECT 1 FROM play_reward_ledger r
       WHERE r.growth_eligibility_snapshot_id=s.id AND r.user_id=c.user_id AND r.amount=$3)))`, userID, energy, cash).Scan(&linked))
 		require.Equal(t, 1, linked, "activity, immutable snapshot and ledger must identify the same grant")
@@ -278,6 +279,7 @@ func TestCheckinHTTPDatabaseContract(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, http.StatusOK, status)
 			require.JSONEq(t, "false", string(before.Data["checked_in_today"]))
+			require.JSONEq(t, "false", string(before.Data["growth_energy_enabled"]))
 			// A racing retry must lose the unique daily claim before a second reward.
 			var wg sync.WaitGroup
 			codes := make([]int, 2)
@@ -307,7 +309,7 @@ func TestCheckinHTTPDatabaseContract(t *testing.T) {
 				}
 			}
 			require.Equal(t, 1, successes)
-			energy := int64(1)
+			energy := int64(0)
 			cash := 0.0
 			rewardType := "none"
 			if tc.cash {
@@ -333,7 +335,7 @@ func TestCheckinHTTPDatabaseContract(t *testing.T) {
 				require.NotContains(t, result.Data, "growth_energy")
 				require.JSONEq(t, "1", string(result.Data["streak_count"]))
 			} else {
-				require.JSONEq(t, "1", string(result.Data["growth_energy"]))
+				require.NotContains(t, result.Data, "growth_energy")
 			}
 			require.NotContains(t, result.Data, "coupon")
 			require.NotContains(t, result.Data, "redeem_code")
@@ -438,8 +440,8 @@ func TestCheckinHTTPDatabaseContract(t *testing.T) {
 		output, err := cmd.CombinedOutput()
 		t.Log(string(output))
 		// Reconcile even on a frontend assertion failure: this is the regression
-		// where a committed energy grant used to be rendered as a zero-cash reward.
-		assertCheckinDatabase(t, explorer, 1, 1, 0)
+		// where participation-only check-ins must not be rendered as a zero-cash reward.
+		assertCheckinDatabase(t, explorer, 1, 0, 0)
 		assertCheckinDatabase(t, cashID, 1, 0, 0.5)
 		assertCheckinMilestoneDatabase(t, milestoneID, false)
 		assertCheckinMilestoneDatabase(t, makeupID, true)
