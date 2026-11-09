@@ -2,6 +2,7 @@ import { apiClient } from './client'
 import type { ReferralCampaignProgress } from './referralCampaign'
 
 export interface AffiliateOperationsSummary {
+  reconciliation: AffiliateOperationsReconciliation
   month: string
   month_net_earned: number | null
   currency: string
@@ -18,6 +19,22 @@ export interface AffiliateOperationsSummary {
   transferred_amount: number
   withdrawn_amount: number
   updated_at: string
+}
+
+export interface AffiliateOperationsReconciliation {
+  relationship_count: number
+  registered_month_count: number
+  registered_effective_paid_count: number
+  known_binding_count: number
+  unknown_binding_count: number
+  effective_paid_count: number
+  unpaid_count: number
+  refunded_count: number
+  risk_excluded_count: number
+  disabled_count: number
+  pending_count: number
+  missing_fact_count: number
+  pending_payment_count: number
 }
 
 export interface AffiliateEarningAmounts {

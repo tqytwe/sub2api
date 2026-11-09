@@ -1,7 +1,8 @@
-import { flushPromises, mount } from '@vue/test-utils'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import AdminAffiliateOverviewView from '../AdminAffiliateOverviewView.vue'
+enableAutoUnmount(afterEach)
 
 const api = vi.hoisted(() => ({ getOverview: vi.fn(), getLeaderboard: vi.fn(), listExceptions: vi.fn() }))
 vi.mock('@/api/admin/affiliateOperations', () => ({ default: api }))
@@ -71,6 +72,28 @@ describe('administrator affiliate overview', () => {
     const count = wrapper.get('[data-test="exceptions-count"]')
     expect(count.attributes('data-total')).toBe('404')
     expect(count.attributes('data-preview')).toBe('5')
+  })
+
+  it('explains a zero monthly binding count using raw registrations and all-time qualification counts', async () => {
+    api.getOverview.mockResolvedValue({ ...(await api.getOverview()), invited_count: 0, effective_paid_count: 0, conversion_rate: 0,
+      reconciliation: { relationship_count: 170, registered_month_count: 6, effective_paid_count: 1, unpaid_count: 3, refunded_count: 0,
+        disabled_count: 0, risk_excluded_count: 0, pending_count: 166, unknown_binding_count: 166, known_binding_count: 4, missing_fact_count: 0, pending_payment_count: 8 } })
+    const { wrapper } = await render('2026-11')
+    const section = wrapper.get('[data-test="invitation-reconciliation"]')
+    expect(section.text()).toContain('170')
+    expect(section.text()).toContain('166')
+    expect(section.get('[data-test="registered-month-count"]').text()).toBe('6')
+    expect(section.text()).toContain('admin.affiliateOperations.registrationExplanation')
+    expect(section.get('a').attributes('href')).toContain('/admin/affiliates/invites')
+  })
+
+  it('refreshes overview statistics alongside a manual refresh and on returning to the tab', async () => {
+    const { wrapper } = await render()
+    const before = api.getOverview.mock.calls.length
+    document.dispatchEvent(new Event('visibilitychange'))
+    await flushPromises()
+    expect(api.getOverview.mock.calls.length).toBeGreaterThan(before)
+    wrapper.unmount()
   })
 
   it('keeps the 2026-08 administrator leaderboard identity complete for investigation', async () => {

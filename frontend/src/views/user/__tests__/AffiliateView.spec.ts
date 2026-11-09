@@ -193,6 +193,11 @@ describe('AffiliateView', () => {
 
     expect(wrapper.findAll('[data-test="leaderboard-row"]')).toHaveLength(0)
     expect(wrapper.text()).toContain('affiliateOperations.rankingEmpty')
+    expect(wrapper.text()).toContain('affiliateOperations.paidRankingExplanation')
+    await wrapper.get('[data-test="ranking-invitations-link"]').trigger('click')
+    await flushPromises()
+    expect(state.invitees).toHaveBeenCalled()
+    expect(wrapper.get('#affiliate-tab-invitees').attributes('aria-selected')).toBe('true')
   })
 
   it('renders the 2026-08 user leaderboard with the masked production identity', async () => {
@@ -203,6 +208,25 @@ describe('AffiliateView', () => {
 
     expect(wrapper.get('[data-test="leaderboard-row"]').text()).toContain('gu***@g***.com')
     expect(wrapper.text()).not.toContain('guolingzheng@gmail.com')
+  })
+
+  it('replaces an empty month with newly verified paid invitees on the next five-second refresh', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    try {
+      const wrapper = mountView()
+      await flushPromises()
+      await openTab(wrapper, 'leaderboard')
+      expect(wrapper.findAll('[data-test="leaderboard-row"]')).toHaveLength(0)
+      state.leaderboard.mockResolvedValue({ month: '2026-11', timezone: 'Asia/Shanghai', items: [{ rank: 1, display_name: 'al***@g***.com', effective_paid_count: 4, is_me: true }], my_rank: { rank: 1, display_name: 'al***@g***.com', effective_paid_count: 4, is_me: true }, updated_at: '2026-11-09T02:00:00Z' })
+      await vi.advanceTimersByTimeAsync(5000)
+      await flushPromises()
+      expect(wrapper.get('[data-test="leaderboard-row"]').text()).toContain('al***@g***.com')
+      expect(wrapper.get('[data-test="my-rank"]').text()).toContain('#1')
+      expect(wrapper.text()).not.toContain('affiliateOperations.rankingEmpty')
+      wrapper.unmount()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('rolls the live monthly selection across Shanghai midnight without refreshing activity details', async () => {

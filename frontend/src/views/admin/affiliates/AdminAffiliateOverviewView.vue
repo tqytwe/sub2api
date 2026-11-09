@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
@@ -31,6 +31,13 @@ const stats = computed(() => overview.value ? [
   { title: t('admin.affiliateOperations.cohortConversion'), value: `${(overview.value.conversion_rate * 100).toFixed(1)}%` },
   { title: t('admin.affiliateOperations.pending'), value: overview.value.pending_count },
 ] : [])
+const reconciliation = computed(() => overview.value?.reconciliation)
+const reconciliationStats = computed(() => reconciliation.value ? [
+  ['relationship_count', 'relationshipsTotal'], ['registered_month_count', 'registeredThisMonth'],
+  ['effective_paid_count', 'effectivePaidTotal'], ['unpaid_count', 'unpaidTotal'],
+  ['refunded_count', 'refundedTotal'], ['disabled_count', 'disabledTotal'],
+  ['risk_excluded_count', 'riskExcludedTotal'], ['pending_count', 'pending'],
+].map(([key, label]) => ({ key, label, value: reconciliation.value![key as keyof typeof reconciliation.value] })) : [])
 const funds = computed(() => overview.value ? [
   ['available', overview.value.available_quota], ['frozen', overview.value.frozen_quota],
   ['transferred', overview.value.transferred_amount], ['withdrawn', overview.value.withdrawn_amount],
@@ -63,6 +70,11 @@ async function load() {
   ])
   if (seq === requestSequence) loading.value = false
 }
+function onVisibilityChange() {
+  if (document.visibilityState !== 'hidden') void load()
+}
+onMounted(() => document.addEventListener('visibilitychange', onVisibilityChange))
+onBeforeUnmount(() => { requestSequence++; document.removeEventListener('visibilitychange', onVisibilityChange) })
 function changeMonth() {
   if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month.value)) return
   void router.replace({ query: { ...route.query, month: month.value } })
@@ -84,6 +96,13 @@ watch(() => route.query.month, value => {
       <p v-else-if="loading && !overview" role="status">{{ t('common.loading') }}</p>
       <template v-if="overview">
         <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" data-test="overview-stats"><StatCard v-for="stat in stats" :key="stat.title" :title="stat.title" :value="stat.value" /></div>
+        <section v-if="reconciliation" class="space-y-3" data-test="invitation-reconciliation">
+          <h3 class="text-base font-semibold">{{ t('admin.affiliateOperations.reconciliation') }}</h3>
+          <p class="text-sm text-gray-500">{{ t('admin.affiliateOperations.registrationExplanation') }}</p>
+          <dl class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><div v-for="stat in reconciliationStats" :key="stat.key" class="border-b border-gray-200 py-3 dark:border-dark-700"><dt class="text-xs text-gray-500">{{ t(`admin.affiliateOperations.${stat.label}`) }}</dt><dd class="mt-1 font-semibold tabular-nums" :data-test="stat.key === 'registered_month_count' ? 'registered-month-count' : undefined">{{ stat.value }}</dd></div></dl>
+          <p class="text-xs text-gray-500">{{ t('admin.affiliateOperations.evidenceBreakdown', { unknown: reconciliation.unknown_binding_count, paid: reconciliation.pending_payment_count, missing: reconciliation.missing_fact_count }) }}</p>
+          <RouterLink :to="{ path: '/admin/affiliates/invites', query: { mode: 'promoters', exceptions: '1' } }" class="text-sm text-primary-600 hover:underline dark:text-primary-400">{{ t('admin.affiliateOperations.viewPending') }}</RouterLink>
+        </section>
         <section class="space-y-3"><h3 class="text-base font-semibold">{{ t('admin.affiliateOperations.allTimeFunds') }}</h3><p class="text-xs text-gray-500">{{ t('admin.affiliateOperations.fundScope') }}</p><dl class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><div v-for="[key, amount] in funds" :key="key" class="border-b border-gray-200 py-3 dark:border-dark-700"><dt class="text-xs text-gray-500">{{ t(`admin.affiliateOperations.${key}`) }}</dt><dd class="mt-1 font-semibold tabular-nums">{{ money(amount) }}</dd></div></dl></section>
         <section v-for="scope in (['period', 'all'] as const)" :key="scope" class="space-y-3"><h3 class="text-base font-semibold">{{ t(`admin.affiliateOperations.${scope === 'period' ? 'monthEarnings' : 'allEarnings'}`) }}</h3><DataTable :columns="amountColumns" :data="scope === 'period' ? overview.period_amounts || [] : overview.amounts || []"><template #cell-source="{ row }">{{ t(`admin.affiliateOperations.sources.${row.source_type}`) }}</template><template v-for="key in ['gross_earned','revoked_amount','net_earned']" :key="key" #[`cell-${key}`]="{ row }"><span class="tabular-nums">{{ new Intl.NumberFormat(locale, { maximumFractionDigits: 8 }).format(row[key]) }}</span></template></DataTable></section>
         <section class="space-y-3"><h3 class="text-base font-semibold">{{ t('admin.affiliateOperations.dailyTrend') }}</h3><AffiliateTrendChart :rows="overview.trend" /></section>

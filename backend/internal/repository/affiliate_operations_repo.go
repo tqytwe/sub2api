@@ -209,6 +209,18 @@ func (r *affiliateRepository) GetAffiliateOperationsSummary(ctx context.Context,
 	if err := r.affiliateOperationsJSON(ctx, query, b.args, &out); err != nil {
 		return nil, err
 	}
+	if err := r.affiliateOperationsReconciliation(ctx, q, &out.Reconciliation); err != nil {
+		return nil, err
+	}
+	if q.Admin {
+		// Cohort conversion uses actual registration dates, independently of
+		// whether the historical binding timestamp can be reconstructed.
+		out.CohortEffectivePaidCount = out.Reconciliation.RegisteredEffectivePaidCount
+		out.ConversionRate = 0
+		if out.Reconciliation.RegisteredMonthCount > 0 {
+			out.ConversionRate = float64(out.CohortEffectivePaidCount) / float64(out.Reconciliation.RegisteredMonthCount)
+		}
+	}
 	if err := r.affiliateOperationsMoney(ctx, q, &out); err != nil {
 		return nil, err
 	}
@@ -219,6 +231,28 @@ func (r *affiliateRepository) GetAffiliateOperationsSummary(ctx context.Context,
 		}
 	}
 	return &out, nil
+}
+
+func (r *affiliateRepository) affiliateOperationsReconciliation(ctx context.Context, q service.AffiliateOperationsQuery, out *service.AffiliateOperationsReconciliation) error {
+	// Start from canonical relationships so a missing read-model row is visible.
+	// UNION deduplicates a person invited through several campaigns. The same
+	// state precedence as the leaderboard keeps the qualification buckets disjoint.
+	query := affiliateOperationsStateCTE + `,relationships AS(
+ SELECT user_id AS invitee_id FROM user_affiliates WHERE inviter_id IS NOT NULL AND ($1::bigint=0 OR inviter_id=$1)
+ UNION SELECT invitee_id FROM referral_campaign_attributions WHERE ($1::bigint=0 OR inviter_id=$1)
+),reconciled AS(
+ SELECT u.created_at,s.bound_at,s.first_paid_at,s.invitee_id IS NULL AS missing_fact,COALESCE(s.status,'pending_evidence') AS status
+ FROM relationships r JOIN users u ON u.id=r.invitee_id LEFT JOIN states s ON s.invitee_id=r.invitee_id
+)
+ SELECT jsonb_build_object('relationship_count',COUNT(*),
+ 'registered_month_count',COUNT(*) FILTER(WHERE to_char(created_at AT TIME ZONE 'Asia/Shanghai','YYYY-MM')=$2),
+ 'registered_effective_paid_count',COUNT(*) FILTER(WHERE to_char(created_at AT TIME ZONE 'Asia/Shanghai','YYYY-MM')=$2 AND status='effective'),
+ 'known_binding_count',COUNT(bound_at),'unknown_binding_count',COUNT(*) FILTER(WHERE bound_at IS NULL),
+ 'effective_paid_count',COUNT(*) FILTER(WHERE status='effective'),'unpaid_count',COUNT(*) FILTER(WHERE status='unpaid'),
+ 'refunded_count',COUNT(*) FILTER(WHERE status='refunded'),'risk_excluded_count',COUNT(*) FILTER(WHERE status='risk_excluded'),
+ 'disabled_count',COUNT(*) FILTER(WHERE status='disabled'),'pending_count',COUNT(*) FILTER(WHERE status='pending_evidence'),
+ 'missing_fact_count',COUNT(*) FILTER(WHERE missing_fact),'pending_payment_count',COUNT(*) FILTER(WHERE status='pending_evidence' AND first_paid_at IS NOT NULL)) FROM reconciled`
+	return r.affiliateOperationsJSON(ctx, query, []any{q.UserID, q.Month}, out)
 }
 
 func (r *affiliateRepository) affiliateOperationsMoney(ctx context.Context, q service.AffiliateOperationsQuery, out *service.AffiliateOperationsSummary) error {

@@ -143,3 +143,5 @@
 - [2026-11-07 渠道状态色条修复](./archive/completed-tasks/2026-11-07-monitor-status-bars/README.md)：独立卡片修复、回归与交付证据；[视觉记录](./visual-reviews/2026-11-07-monitor-status-bars.md)。
 
 - [邀请返利运营与农场前十榜交付记录](./archive/completed-tasks/2026-11-08-affiliate-operations/README.md)：实现、检查及发布证据，尚待最终生产验收。
+
+- [Invitation registration/payment reconciliation correction](archive/completed-tasks/2026-11-09-affiliate-reconciliation/README.md)

@@ -1,7 +1,11 @@
 export default {
   title: '邀请返利运营概览', description: '统一查看邀请增长、推广用户与返利资金',
-  month: '统计月份（上海时区）', newInvites: '本月新增邀请', effectivePaid: '本月有效首付人数',
-  cohortConversion: '同期邀请转化率', cohortExplanation: '有效人数按首次有效付费的原归属月统计；转化率仅比较所选月份受邀用户，跨月付费不会重复入榜。',
+  month: '统计月份（上海时区）', newInvites: '本月已确认绑定邀请', effectivePaid: '本月有效首付人数',
+  reconciliation: '邀请数据对账', relationshipsTotal: '邀请关系总数（全部）', registeredThisMonth: '本月注册受邀人数',
+  unpaidTotal: '尚未付费（全部）', refundedTotal: '全额退款（全部）', disabledTotal: '账号停用（全部）', riskExcludedTotal: '风险排除（全部）',
+  registrationExplanation: '除本月注册人数外，以下为全部时间的去重邀请关系及当前资格拆分。注册时间与邀请绑定时间分别统计；未知绑定日期不猜算。已有首单返利与匹配付款审计的历史邀请可核验首付归属，绑定日期仍保留未知。',
+  evidenceBreakdown: '未知绑定日期 {unknown} 人；待核验且已有付款记录 {paid} 人；缺少统计事实 {missing} 人。后三项为核查线索，可能与上述资格人数重叠，不可相加。',
+  cohortConversion: '本月注册受邀转化率', cohortExplanation: '有效首付人数按首次有效付费的原归属月统计；转化率为所选月份注册受邀用户中当前有效付费的人数比例。跨月付费不会重复入榜。',
   pending: '待核验（全部）', allTimeFunds: '账户额度（全部时间）',
   fundScope: '可用、冻结与转出沿用既有钱包账户额度，不代表按汇率折算后的现金；下方入账按来源与币种分别汇总，禁止跨币种相加。活动预算仍在玩法运营管理。',
   available: '可用账户额度', frozen: '冻结账户额度', grossEarned: '累计入账', revoked: '已撤销', netEarned: '净入账', transferred: '累计转入余额', withdrawn: '累计线下登记',
