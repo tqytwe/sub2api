@@ -259,7 +259,7 @@ func TestQualifiedCouponCheckinCreditsMilestoneSeparately(t *testing.T) {
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
-func TestExplorerCheckinRecordsGrowthEnergyWithoutCashReward(t *testing.T) {
+func TestExplorerCheckinRecordsParticipationWithoutAnyReward(t *testing.T) {
 	now := time.Date(2026, time.August, 29, 12, 0, 0, 0, time.UTC)
 	repo := &growthCheckinRepo{
 		streak:      6,
@@ -280,7 +280,7 @@ func TestExplorerCheckinRecordsGrowthEnergyWithoutCashReward(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, PlayGrowthTierExplorer, result.GrowthEligibility.Tier)
 	require.Equal(t, PlayGrowthRewardEnergy, result.GrowthEligibility.RewardMode)
-	require.EqualValues(t, 1, result.GrowthEnergy)
+	require.Zero(t, result.GrowthEnergy)
 	require.Equal(t, PlayRewardTypeNone, result.RewardType)
 	require.Equal(t, 7, result.StreakCount)
 	require.Zero(t, result.BalanceAdded)
@@ -288,17 +288,13 @@ func TestExplorerCheckinRecordsGrowthEnergyWithoutCashReward(t *testing.T) {
 	require.Equal(t, 7, repo.inserted[0].streak)
 	require.Len(t, repo.snapshots, 1)
 	require.Equal(t, PlayGrowthTierExplorer, repo.snapshots[0].Eligibility.Tier)
-	require.Len(t, repo.energyEntries, 1)
-	require.Equal(t, PlayRewardSourceCheckin, repo.energyEntries[0].Source)
-	require.Equal(t, "checkin:42:2026-08-29", repo.energyEntries[0].ActionID)
-	require.EqualValues(t, 1, repo.energyEntries[0].Amount)
-	require.Equal(t, int64(901), repo.energyEntries[0].EligibilitySnapshotID)
+	require.Empty(t, repo.energyEntries)
 	require.Empty(t, repo.ledgerEntries)
 	require.Empty(t, repo.balanceUpdates)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
-func TestEnergyCheckinRebuildsLegacyZeroStreakWithoutChangingRewardMode(t *testing.T) {
+func TestParticipationCheckinRebuildsLegacyZeroStreakWithoutRewards(t *testing.T) {
 	now := time.Date(2026, time.August, 29, 12, 0, 0, 0, time.UTC)
 	repo := &growthCheckinRepo{
 		streakFound:   true,
@@ -320,7 +316,7 @@ func TestEnergyCheckinRebuildsLegacyZeroStreakWithoutChangingRewardMode(t *testi
 	require.Equal(t, 1, repo.rebuildCalls)
 	require.Equal(t, 7, repo.inserted[0].streak)
 	require.Equal(t, PlayRewardTypeNone, result.RewardType)
-	require.EqualValues(t, 1, result.GrowthEnergy)
+	require.Zero(t, result.GrowthEnergy)
 	require.Empty(t, repo.ledgerEntries)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
@@ -470,4 +466,64 @@ func TestCheckinStreakRebuildsNonzeroCachedCountAfterMakeup(t *testing.T) {
 	count, err := svc.computeNextStreak(context.Background(), 42, time.Date(2026, 11, 4, 0, 0, 0, 0, time.UTC))
 	require.NoError(t, err)
 	require.Equal(t, 8, count)
+}
+
+func TestExplorerCheckinStatusDoesNotAdvertiseEnergyOrMilestoneRewards(t *testing.T) {
+	now := time.Date(2026, 11, 9, 12, 0, 0, 0, time.UTC)
+	repo := &growthCheckinRepo{streak: 6, streakFound: true, signals: PlayGrowthEligibilitySignals{EmailVerified: true, CreatedAt: now.AddDate(0, 0, -8)}}
+	svc := NewPlayService(repo, nil, nil, newGrowthCheckinSettingService(true), nil, nil)
+	svc.now = func() time.Time { return now }
+	status, err := svc.GetCheckinStatus(context.Background(), 42)
+	require.NoError(t, err)
+	require.True(t, status.Eligible)
+	require.False(t, status.GrowthEnergyEnabled)
+	require.False(t, status.RedeemableRewardEligible)
+	require.Equal(t, PlayGrowthEligibilityReasonNoRecentActivity, status.IneligibleReason)
+	require.Equal(t, 6, status.StreakCount)
+	require.Zero(t, status.RewardAmount)
+	require.Zero(t, status.NextMilestoneBonus)
+	require.Zero(t, status.NextMilestoneDays)
+	require.False(t, status.CanMakeup)
+	require.Empty(t, repo.energyEntries)
+}
+
+func TestParticipationCheckinQualificationChangeDoesNotRetroactivelyGrantRewards(t *testing.T) {
+	now := time.Date(2026, 11, 9, 12, 0, 0, 0, time.UTC)
+	repo := &growthCheckinRepo{streak: 6, streakFound: true, signals: PlayGrowthEligibilitySignals{EmailVerified: true, CreatedAt: now.AddDate(0, 0, -8)}}
+	client, mock := newCouponRewardEntClient(t)
+	issuer := &growthCheckinRewardIssuer{playCouponRewardIssuer: &playCouponRewardIssuer{result: newPlayCouponRewardIssueResult(now, "configured-pool")}}
+	svc := NewPlayService(repo, nil, nil, newGrowthCheckinSettingService(true), nil, client)
+	svc.now = func() time.Time { return now }
+	svc.SetCouponRewardIssuer(issuer)
+	svc.rewardDrawSource = func(int64) (int64, error) { return 0, nil }
+	mock.ExpectBegin()
+	mock.ExpectCommit()
+	result, err := svc.Checkin(context.Background(), 42)
+	require.NoError(t, err)
+	require.Equal(t, 7, result.StreakCount)
+	require.Equal(t, PlayRewardTypeNone, result.RewardType)
+	require.Zero(t, result.MilestoneAmount)
+	require.Zero(t, result.GrowthEnergy)
+	repo.signals.HasRecentUsage = true
+	mock.ExpectBegin()
+	mock.ExpectRollback()
+	_, err = svc.Checkin(context.Background(), 42)
+	require.ErrorIs(t, err, ErrPlayCheckinAlreadyDone)
+	require.Len(t, repo.inserted, 1)
+	require.Len(t, repo.snapshots, 1)
+	require.Equal(t, PlayGrowthRewardEnergy, repo.snapshots[0].Eligibility.RewardMode)
+	now = now.AddDate(0, 0, 1)
+	repo.streak = 7
+	mock.ExpectBegin()
+	mock.ExpectCommit()
+	result, err = svc.Checkin(context.Background(), 42)
+	require.NoError(t, err)
+	require.Equal(t, 8, result.StreakCount)
+	require.Equal(t, PlayRewardTypeCoupon, result.RewardType)
+	require.Equal(t, PlayGrowthRewardRedeemable, result.GrowthEligibility.RewardMode)
+	require.Zero(t, result.MilestoneAmount, "previously ineligible seventh day is not paid retroactively")
+	require.Len(t, repo.snapshots, 2)
+	require.Empty(t, repo.energyEntries)
+	require.Empty(t, repo.balanceUpdates)
+	require.NoError(t, mock.ExpectationsWereMet())
 }

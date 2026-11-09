@@ -77,7 +77,7 @@ const explorerStatus = {
   redeem_code_weight_bp: 2000,
   balance_weight_bp: 0,
   server_date: '2026-08-29',
-  growth_energy_enabled: true,
+  growth_energy_enabled: false,
   redeemable_reward_eligible: false,
   growth_eligibility: {
     tier: 'explorer',
@@ -124,12 +124,12 @@ describe('CheckInView', () => {
     trackQuestCompleteOnce.mockReset()
   })
 
-  it('keeps explorer check-in available and confirms only growth energy', async () => {
+  it('keeps unqualified check-in available without promising or reporting rewards', async () => {
     checkin.mockResolvedValue({
       reward_amount: 0,
       balance_added: 0,
       reward_type: 'none',
-      growth_energy: 1,
+      growth_energy: 0,
       server_date: '2026-08-29',
       growth_eligibility: explorerStatus.growth_eligibility,
     })
@@ -137,9 +137,11 @@ describe('CheckInView', () => {
     const wrapper = mountView()
     await flushPromises()
 
-    expect(wrapper.text()).toContain('checkin.energyHint')
-    expect(wrapper.text()).toContain('checkin.energyTitle')
+    expect(wrapper.text()).toContain('checkin.participationOnlyHint')
+    expect(wrapper.text()).toContain('checkin.participationOnlyTitle')
     expect(wrapper.text()).not.toContain('checkin.randomRewardHint')
+    expect(wrapper.text()).not.toContain('checkin.energyHint')
+    expect(wrapper.text()).not.toContain('checkin.energyTitle')
     const button = wrapper.get('button.gw-btn-primary')
     expect(button.attributes('disabled')).toBeUndefined()
 
@@ -147,7 +149,7 @@ describe('CheckInView', () => {
     await flushPromises()
 
     expect(checkin).toHaveBeenCalledOnce()
-    expect(showSuccess).toHaveBeenCalledWith('checkin.energySuccess:{"amount":1}')
+    expect(showSuccess).toHaveBeenCalledWith('checkin.participationOnlySuccess')
     expect(showSuccess).not.toHaveBeenCalledWith(expect.stringContaining('checkin.success'))
     expect(trackQuestCompleteOnce).toHaveBeenCalledWith('checkin')
     expect(refreshUser).toHaveBeenCalledOnce()

@@ -104,7 +104,7 @@ describe.skipIf(!baseURL)('CheckInView with real check-in HTTP and PostgreSQL', 
       expect(wrapper.get('button.gw-btn-primary').attributes('disabled')).toBeUndefined()
       await wrapper.get('button.gw-btn-primary').trigger('click')
       const expected = mode === 'EXPLORER'
-        ? i18n.global.t('checkin.energySuccess', { amount: 1 })
+        ? i18n.global.t('checkin.participationOnlySuccess')
         : mode === 'MILESTONE'
           ? `${i18n.global.t('checkin.success', { amount: '1.50' })} · ${i18n.global.t('checkin.streak', { days: 7 })} · ${i18n.global.t('checkin.milestoneBonus', { amount: '1.00' })}`
           : i18n.global.t('checkin.success', { amount: '0.50' })

@@ -1,5 +1,7 @@
 # 当前项目推进基线
 
+> **2026-11-09 PLAY-CHECKIN-PARTICIPATION-20261109**：#422 治理页修复已部署精确 SHA `4cce2a54d33c8063100cf8aea2f77e46964714b7`（完成于 11:53:41 UTC、健康/新资源 HTTP 200）。用户随后明确取消额外签到能量，未达资格仅签到；独立分支验证中，[同一交付记录](./archive/completed-tasks/2026-11-09-checkin-participation/README.md)维护本项 UI/API/测试/发布状态。本项尚未部署，不据此扩大其他玩法范围。
+
 > **2026-11-09 PLAY-GOVERNANCE-20261109**：增长福利治理空白页在隔离分支修复验证中；来源 `play/main@010b5f5e764a92bb1f6c5bf3810aa9a96e3990dd`，尚未发布。本项进度、UI/API/测试关联及签到能量政策待定范围维护在[同一交付记录](./archive/completed-tasks/2026-11-09-growth-governance/README.md)，不推断其他工作项状态。
 
 > **2026-11-07 U03 限定更新**：当前核验的生产基线为 PR #415 merge `e91add553d8665b44d054f8e9c3562f3f16cb289`（Zeabur success，渠道状态色条独立交付）。质量孤立隔离/单模型释放在独立分支 `feat/quality-model-release-20261107` 可测，沿用质量运维入口；隔离、调度、恢复、确认释放、账号普通写入保护与页面回读属于同一项。规格和代码质量复审已覆盖软删除组、原限制、版本/租约/owner、并发模板更新和事务回滚；最终服务器完整门禁全部通过，待 PR CI 和部署，尚未上线。范围、测试和发布状态维护在 [U03 交付记录](./archive/completed-tasks/2026-11-07-quality-model-release/README.md)。下方 #399 段落保留历史，不据其旧状态推断当前上线能力；未重核其他工作项，`fully_migrated=false`。

@@ -44,7 +44,7 @@ const quizCompletionReward = computed(() => {
 })
 
 function isGrowthEnergyMode(status?: { growth_eligibility?: { reward_mode?: string }; growth_energy_enabled?: boolean }) {
-  return status?.growth_eligibility?.reward_mode === 'energy' || status?.growth_energy_enabled === true
+  return status?.growth_energy_enabled ?? (status?.growth_eligibility?.reward_mode === 'energy')
 }
 
 const campaignPerkLinesFor = (campaign: PlayCampaignSummary) => {
@@ -96,7 +96,9 @@ const playCards = computed(() => {
       title: t('nav.checkIn'),
       subtitle: c?.checked_in_today
         ? t('playHub.checkinDone', { streak: c.streak_count || 0 })
-        : isGrowthEnergyMode(c)
+        : c?.growth_energy_enabled === false && c?.growth_eligibility?.reward_mode === 'energy'
+          ? t('checkin.participationOnlyHint')
+          : isGrowthEnergyMode(c)
           ? t('checkin.energyHint')
           : t('playHub.checkinPending', { amount: (c?.reward_amount ?? 0).toFixed(2), streak: c?.streak_count || 0 }),
       route: '/check-in',

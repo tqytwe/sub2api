@@ -72,6 +72,8 @@
 
 ## FORK-PLAY-003 Growth / Play 系统
 
+- 2026-11-09 签到额外能量取消（用户明确选择）：[交付记录](./archive/completed-tasks/2026-11-09-checkin-participation/README.md)。未达资格仅记录签到与连续天数，不写成长能量或资金奖励；达标后的签到继续走现有奖池。资格快照和历史能量保留，管理员按实际流水区分；不改变答题、盲盒及农场配置。
+
 - 2026-11-09 增长福利治理空白修复：[调查与交付记录](./archive/completed-tasks/2026-11-09-growth-governance/README.md)。奖励就绪接口无阻断时返回空数组；页面兼容旧 null 响应，统计暂无数据时仍显示独立奖池诊断。签到资格降级的成长能量是既有独立规则，本修复不改发奖政策或历史数据。
 
 - 2026-11-09 邀请统计回归：[生产对账与修复记录](./archive/completed-tasks/2026-11-09-affiliate-reconciliation/README.md)。注册日期与确认绑定日期分开；仅以唯一首单返利、同邀请人与受邀人及金额匹配的付款审计恢复历史首付资格，不猜算绑定日期、不改资金。退款、风险、停用和历史证据缺失继续独立过滤；前十与脱敏规则保留。PostgreSQL 回归在 Fork Integrity 的邀请对账契约中执行。
@@ -81,7 +83,7 @@
 - 2026-11-06 限定修复：[签到、农场与管理闭环](./archive/completed-tasks/2026-11-06-play-ops/README.md)。签到按业务日期防重复里程碑、连续天数按实际日序列重建；运营修复沿用原签到 Tab、冻结资格规则、step-up、全事务和独立审计。农场新周期四项 Token、旧周期预览确认切换、日榜规则冻结、全事务结算；管理与用户共享能量计算，管理查询不写任务进度。
 
 - 产品目的：以签到、Arena、盲盒、答题、Agent Team、任务、活动和 Hub 提升激活与留存，并为管理员提供受控、可审计的战队成员关系修复能力。
-- 不变量：`/api/v1/play/*`、`/play`、`/check-in`、`/arena`、`/blindbox`、`/quiz-quest`、`/agent-team` 路由存在；功能按 `play_*` 设置 fail-closed；Hub 聚合待办、余额、活动和图像工作室状态。管理员战队修复必须通过 `/api/v1/admin/play/teams/:id/member-candidates` 预检、`/members` 幂等写入和 `/events` 追踪；移动或显式历史生效时间必须使用 JWT 管理员 TOTP step-up，管理员 API Key 禁止；写入在同一事务锁定用户、来源/目标战队和成员关系，并与结算快照共用战队锁；移动的旧 `left_at` 与新 `joined_at` 完全一致；源/目标事件和审计动作不得保存邀请码或令牌。Token 农场日榜公开汇总必须从已结算日榜 period 和 `play_reward_ledger` 读取，最近发放不暴露邮箱，历史缺失的 rank/token 标记证据不足，不以实时用量推算已结算名次，不能改写旧奖励流水；当前预估不能把昨日已结算榜标为今日排名。签到、答题和盲盒奖励由服务端统一评估邮箱验证、账号年龄、真实调用/充值/订阅信号；不满足条件的参与只产生不可变成长能量，符合条件的奖励由既有功能开关、已发布奖池、次数/余额约束及事务发放控制，不再要求额外 cohort 审批、灰度或预算预留。历史审批数据保留只读追溯，不作为当前发放门槛。中文和英文运行时资源必须保持 key 对称，中文 Play Ops 和 Token 农场不显示英文操作状态或标签。
+- 不变量：`/api/v1/play/*`、`/play`、`/check-in`、`/arena`、`/blindbox`、`/quiz-quest`、`/agent-team` 路由存在；功能按 `play_*` 设置 fail-closed；Hub 聚合待办、余额、活动和图像工作室状态。管理员战队修复必须通过 `/api/v1/admin/play/teams/:id/member-candidates` 预检、`/members` 幂等写入和 `/events` 追踪；移动或显式历史生效时间必须使用 JWT 管理员 TOTP step-up，管理员 API Key 禁止；写入在同一事务锁定用户、来源/目标战队和成员关系，并与结算快照共用战队锁；移动的旧 `left_at` 与新 `joined_at` 完全一致；源/目标事件和审计动作不得保存邀请码或令牌。Token 农场日榜公开汇总必须从已结算日榜 period 和 `play_reward_ledger` 读取，最近发放不暴露邮箱，历史缺失的 rank/token 标记证据不足，不以实时用量推算已结算名次，不能改写旧奖励流水；当前预估不能把昨日已结算榜标为今日排名。签到、答题和盲盒奖励由服务端统一评估邮箱验证、账号年龄、真实调用/充值/订阅信号；未达资格的签到只记录参与、答题和盲盒仍按既有规则产生不可变成长能量，符合条件的奖励由既有功能开关、已发布奖池、次数/余额约束及事务发放控制，不再要求额外 cohort 审批、灰度或预算预留。历史审批数据保留只读追溯，不作为当前发放门槛。中文和英文运行时资源必须保持 key 对称，中文 Play Ops 和 Token 农场不显示英文操作状态或标签。
 - 关键位置：`backend/internal/server/routes/play.go`、`backend/internal/server/routes/admin.go`、`backend/internal/service/setting_play_runtime.go`、`backend/internal/service/play_hub.go`、`backend/internal/service/play_admin_team_repair.go`、`backend/internal/service/play_growth_eligibility.go`、`backend/internal/service/play_growth_governance.go`、`backend/internal/repository/play_repo_admin_team_repair.go`、`backend/internal/repository/play_repo_growth_eligibility.go`、`backend/internal/repository/play_repo_growth_governance.go`、`frontend/src/views/user/PlayHubView.vue`、`frontend/src/views/admin/PlayOpsView.vue`、`frontend/src/content/play-features.ts`。
 - 冲突策略：保留上游共享支付、用户与用量修复；Play 表、路由、设置和奖励账本不得被移除或绕过。
 - 验证：Play service tests、`play_admin_team_repair_test.go`、真实 PostgreSQL `play_repo_team_integration_test.go`、`play_handler_team_repair_test.go`、`play_admin_routes_test.go`、`PlayOpsView.spec.ts`、`admin.play.teamRepair.spec.ts`、`adminPlayOpsParity.spec.ts`、`public_growth_teaser_test.go` 和相关前端 utils tests；线上逐项检查开关关闭和开启状态，并由本地管理员浏览器完成中英文、浅色和深色战队修复验收。
