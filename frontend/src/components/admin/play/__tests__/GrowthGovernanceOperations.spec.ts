@@ -5,6 +5,7 @@ import GrowthGovernanceOperations from '@/components/admin/play/GrowthGovernance
 const {
   getGrowthCohort,
   getGrowthGovernance,
+  getRewardReadiness,
   approveGrowthGovernance,
   revokeGrowthGovernance,
   showError,
@@ -13,6 +14,7 @@ const {
 } = vi.hoisted(() => ({
   getGrowthCohort: vi.fn(),
   getGrowthGovernance: vi.fn(),
+  getRewardReadiness: vi.fn(),
   approveGrowthGovernance: vi.fn(),
   revokeGrowthGovernance: vi.fn(),
   showError: vi.fn(),
@@ -24,6 +26,7 @@ vi.mock('@/api/admin/play', () => ({
   default: {
     getGrowthCohort,
     getGrowthGovernance,
+    getRewardReadiness,
     approveGrowthGovernance,
     revokeGrowthGovernance,
   },
@@ -157,11 +160,56 @@ describe('GrowthGovernanceOperations', () => {
   beforeEach(() => {
     getGrowthCohort.mockReset().mockResolvedValue(cohortWith(false))
     getGrowthGovernance.mockReset().mockResolvedValue(governance())
+    getRewardReadiness.mockReset().mockResolvedValue([])
     approveGrowthGovernance.mockReset().mockResolvedValue(governance('approved', cohortWith(true)))
     revokeGrowthGovernance.mockReset().mockResolvedValue(governance('revoked', cohortWith(true)))
     showError.mockReset()
     showSuccess.mockReset()
     stepUpRun.mockReset().mockImplementation((action: () => Promise<unknown>) => action())
+  })
+
+  it('renders ready rewards when an older server returns null blocking reasons', async () => {
+    getRewardReadiness.mockResolvedValue([
+      { activity: 'checkin', ready: true, coupon_pool_ready: true, blocking_reasons: null },
+      { activity: 'blindbox', ready: false, coupon_pool_ready: false, blocking_reasons: ['coupon_pool_unavailable'] },
+    ])
+    const wrapper = mountView()
+    await flushPromises()
+
+    const readiness = wrapper.get('[aria-labelledby="growth-reward-readiness-title"]')
+    expect(readiness.findAll('article')).toHaveLength(2)
+    expect(readiness.text()).toContain('admin.playOps.growthGovernance.readiness.ready')
+    expect(readiness.findAll('li').map(item => item.text())).toEqual([
+      'coupon_pool_unavailable',
+    ])
+    expect(wrapper.text()).toContain('当前治理状态')
+  })
+
+  it('keeps reward readiness visible when cohort evidence is absent', async () => {
+    getGrowthCohort.mockResolvedValue(null)
+    getRewardReadiness.mockResolvedValue([
+      { activity: 'checkin', ready: true, coupon_pool_ready: true, blocking_reasons: [] },
+    ])
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(wrapper.get('[aria-labelledby="growth-reward-readiness-title"]').text())
+      .toContain('admin.playOps.growthGovernance.readiness.ready')
+    expect(wrapper.get('[data-testid="growth-governance-approval-open"]').attributes('disabled')).toBeDefined()
+  })
+
+  it('shows request errors and retries all data without leaving the tab blank', async () => {
+    getRewardReadiness.mockRejectedValueOnce(new Error('Readiness temporarily unavailable'))
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="growth-governance-error"]').text()).toBeTruthy()
+    await wrapper.get('[data-testid="growth-governance-retry"]').trigger('click')
+    await flushPromises()
+
+    expect(getRewardReadiness).toHaveBeenCalledTimes(2)
+    expect(wrapper.find('[data-testid="growth-governance-error"]').exists()).toBe(false)
+    expect(wrapper.text()).toContain('当前治理状态')
   })
 
   it('renders server cohort evidence and never turns unavailable risk metrics into zero', async () => {

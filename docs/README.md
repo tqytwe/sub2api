@@ -148,3 +148,5 @@
 - [阿里云语音中转适配与验收](./archive/completed-tasks/2026-11-09-aliyun-audio/README.md)：`review`，四模型协议适配、上游实测与发布证据；本任务提交者维护，用户 Agents 验收待完成。
 
 - [统计卡片数字裁切修复](archive/completed-tasks/2026-11-09-stat-card-readability/README.md)：首页样式隔离、回归与[视觉记录](visual-reviews/2026-11-09-stat-card-readability.md)。
+
+- [增长福利治理空白与签到能量调查](./archive/completed-tasks/2026-11-09-growth-governance/README.md)：`verification`，空值契约与独立状态修复；[视觉记录](./visual-reviews/2026-11-09-growth-governance.md)。签到发奖政策待用户选择。

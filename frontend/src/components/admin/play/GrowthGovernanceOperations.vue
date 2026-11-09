@@ -68,8 +68,16 @@
             <p class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ item.label }}</p>
             <p class="mt-2 text-xl font-semibold tabular-nums text-gray-900 dark:text-white">{{ item.value }}</p>
             <p v-if="item.detail" class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ item.detail }}</p>
+          </div>
+        </div>
+        <p class="mt-3 text-xs text-gray-500 dark:text-gray-400">
+          {{ t('admin.playOps.growthGovernance.cohort.lagHint') }}
+        </p>
       </div>
-    </div>
+      <div v-else class="px-5 py-8 text-sm text-gray-500 dark:text-gray-400">
+        {{ t('admin.playOps.growthGovernance.empty.cohort') }}
+      </div>
+    </section>
 
     <section class="card overflow-hidden" aria-labelledby="growth-reward-readiness-title">
       <div class="border-b border-gray-100 px-5 py-4 dark:border-dark-700">
@@ -94,20 +102,12 @@
             <div class="flex justify-between gap-3"><dt class="text-gray-500 dark:text-gray-400">{{ t('admin.playOps.growthGovernance.readiness.pool') }}</dt><dd class="font-medium text-gray-900 dark:text-white">{{ item.coupon_pool_ready ? t('admin.playOps.growthGovernance.readiness.available') : t('admin.playOps.growthGovernance.readiness.unavailable') }}</dd></div>
             <div v-if="item.activity === 'blindbox'" class="flex justify-between gap-3"><dt class="text-gray-500 dark:text-gray-400">{{ t('admin.playOps.growthGovernance.readiness.limit') }}</dt><dd class="font-medium tabular-nums text-gray-900 dark:text-white">{{ item.blindbox_daily_limit }} · ${{ item.blindbox_cost?.toFixed(2) }}</dd></div>
           </dl>
-          <ul v-if="item.blocking_reasons.length" class="mt-3 list-disc space-y-1 pl-5 text-xs text-amber-800 dark:text-amber-100">
+          <ul v-if="item.blocking_reasons?.length" class="mt-3 list-disc space-y-1 pl-5 text-xs text-amber-800 dark:text-amber-100">
             <li v-for="reason in item.blocking_reasons" :key="reason">{{ readinessReasonLabel(reason) }}</li>
           </ul>
         </article>
       </div>
       <p v-else class="px-5 py-6 text-sm text-gray-500 dark:text-gray-400">{{ t('admin.playOps.growthGovernance.readiness.empty') }}</p>
-    </section>
-        <p class="mt-3 text-xs text-gray-500 dark:text-gray-400">
-          {{ t('admin.playOps.growthGovernance.cohort.lagHint') }}
-        </p>
-      </div>
-      <div v-else class="px-5 py-8 text-sm text-gray-500 dark:text-gray-400">
-        {{ t('admin.playOps.growthGovernance.empty.cohort') }}
-      </div>
     </section>
 
     <div class="grid gap-4 xl:grid-cols-2">
@@ -617,7 +617,7 @@ async function load() {
     const [nextCohort, nextGovernance, nextReadiness] = await Promise.all([
       adminPlayAPI.getGrowthCohort(),
       adminPlayAPI.getGrowthGovernance(),
-      adminPlayAPI.getRewardReadiness?.() ?? Promise.resolve([]),
+      adminPlayAPI.getRewardReadiness(),
     ])
     if (generation !== loadGeneration) return
     cohort.value = nextCohort
