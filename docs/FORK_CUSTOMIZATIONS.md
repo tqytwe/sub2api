@@ -51,6 +51,8 @@
 - 冲突策略：吸收上游可访问性和业务修复，视觉结构、品牌资源及色板保留 Fork 语义。
 - 验证：`scripts/check-jisudeng-branding.sh`、`HeroSphere.spec.ts`、`HomeView.spec.ts`、`homePerformance.spec.ts`、`frontend/src/components/layout/__tests__/AppSidebar.spec.ts` 和 `docs/visual-reviews/2026-08-25-upstream-v0182-performance.md`；线上检查首页、登录、注册、浅色和深色主题。
 
+- 2026-11-09 统计卡片可读性：后台 StatCard 数字和标签使用独立类名，避免首页同名艺术样式造成字号污染及裁切；回归 `StatCard.styleIsolation.spec.ts`，详见[交付记录](./archive/completed-tasks/2026-11-09-stat-card-readability/README.md)。
+
 ## FORK-UI-012 前端设计系统与视觉治理
 
 - 产品目的：让公共页、认证页、用户控制台和管理员后台使用稳定的页面框架、功能图标、视觉 token、圆角、间距、交互状态与可访问性规则，防止新增页面继续复制平行组件和局部风格。

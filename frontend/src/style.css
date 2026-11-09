@@ -384,11 +384,13 @@
     @apply bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400;
   }
 
-  .stat-value {
+  .stat-value,
+  .stat-card-value {
     @apply text-2xl font-bold text-gray-900 dark:text-white truncate;
   }
 
-  .stat-label {
+  .stat-label,
+  .stat-card-label {
     @apply text-sm text-gray-500 dark:text-dark-400;
   }
 

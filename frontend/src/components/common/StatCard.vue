@@ -4,9 +4,9 @@
       <component v-if="icon" :is="icon" class="h-6 w-6" aria-hidden="true" />
     </div>
     <div class="min-w-0 flex-1">
-      <p class="stat-label truncate">{{ title }}</p>
+      <p class="stat-card-label truncate">{{ title }}</p>
       <div class="mt-1 flex items-baseline gap-2">
-        <p class="stat-value" :title="String(formattedValue)">{{ formattedValue }}</p>
+        <p class="stat-card-value" :title="String(formattedValue)">{{ formattedValue }}</p>
         <span v-if="change !== undefined" :class="['stat-trend', trendClass]">
           <Icon
             v-if="changeType !== 'neutral'"
