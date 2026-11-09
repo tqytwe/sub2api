@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -206,6 +207,9 @@ func TestRewardReadinessDoesNotBlockConfiguredPoolOnLegacyApproval(t *testing.T)
 	require.NoError(t, err)
 	require.Len(t, items, 2)
 	require.True(t, items[1].Ready)
+	encoded, err := json.Marshal(items[1])
+	require.NoError(t, err)
+	require.Contains(t, string(encoded), `"blocking_reasons":[]`)
 	require.True(t, items[1].GovernanceAvailable)
 	require.Empty(t, items[1].GovernanceReason)
 	require.NotContains(t, items[1].BlockingReasons, "governance_not_approved")

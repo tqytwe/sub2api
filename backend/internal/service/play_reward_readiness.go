@@ -67,6 +67,7 @@ func (s *PlayService) GetRewardReadiness(ctx context.Context) ([]PlayRewardReadi
 		}
 		item := PlayRewardReadiness{
 			Activity:             string(activity),
+			BlockingReasons:      []string{},
 			Enabled:              enabled,
 			CouponPoolReady:      ready,
 			GovernanceAvailable:  governanceOK,
