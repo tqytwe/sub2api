@@ -40,6 +40,7 @@
 | `FORK-LIVE-SETTLEMENT-018` | 实时用量结算 outbox | active | integrity 脚本 + Go/PostgreSQL 集成测试 |
 | `FORK-SETTINGS-019` | 管理系统设置完整性 | active | integrity 静态检查 + SettingsView/Vitest 测试 |
 | `FORK-BPS-021` | BPS/Excel 独立授权的文本 Responses 运行时 | active | integrity 静态检查 + Go/Vitest 测试 |
+| `FORK-AUDIO-022` | 阿里云语音协议适配 | active | Go 语音、上传、Realtime 与采样率回归 |
 
 所有条目的上游冲突都必须逐段审查，禁止对整个文件直接使用 `ours` 或 `theirs`。
 
@@ -376,6 +377,15 @@
 - 详情会话隔离：使用共享auth的稳定身份，退出/换号/同账号重登同步清除私有内容并取消旧读取；正常续期保留页面与游标。同身份publishing有界等待5秒，ready恢复原操作，超时可重试；不同区域与关闭重开使用独立序号守卫。保护见真实HTTP会话测试及分页归档中的实际构建浏览器证据。
 - 管理员选路详情接线（#359已正式合入，UI草稿待审）：独立只读routing区域使用既有详情会话守卫；六种完整性状态、候选范围/覆盖版本/省略数均保留，首个已记录veto只按已知版本白名单和返回顺序识别，观察事件不升级为拒绝。0候选不证明分组无账号，selected不证明forward；20事件本地分页不冒充API游标，失败不拖垮账单/用量。普通用户不挂载或调用此管理员资源；无计费/迁移/历史回填。保护见 `RequestLedgerView.routing.http.spec.ts`、`requestRouting.spec.ts`；依赖状态与验证边界见[接线记录](./archive/completed-tasks/admin-routing-detail/README.md)。
 - 验证：`requestledger` 真实 PG/进程终止测试、真实注册路由拒绝矩阵、HTTP API 角色/分页测试、Responses 多轮 WS、billing rollback/dedup、前端未知消费/刷新测试；范围和未覆盖协议见归档规格。补充 `correlation_integration_test.go`、`request_ledger_ops_integration_test.go` 与 WS late/drain/重试隔离测试。保留策略仅新增、不自动删除。
+
+## FORK-AUDIO-022 阿里云语音协议适配
+
+- 产品目的：阿里云 API Key 账号使用既有 OpenAI 语音入口服务用户；填写兼容模式地址即可按官方域名识别适配，不依赖账号显示名称。
+- 不变量：保留鉴权、分组模型限制、账号调度、并发与分组语音计费；非阿里云上游继续原样转发。`qwen-audio-3.1-tts-plus/next` 转换到 SpeechSynthesizer，返回音频字节；Filetrans 支持文件上传或 `file_url`，提交、限时轮询并转换最终结果；Realtime 转到 `/api-ws/v1/realtime`，适配 Agents 会话/事件、工具与 24→16kHz 输入 PCM。
+- 安全边界：上传与下载不携带账号密钥；签名上传禁止重定向，结果下载逐跳拒绝私网；原生 API 禁止携密钥重定向。已受理的识别任务不因轮询/下载失败再次提交，客户端断线后继续有界收集用量。沿用分组语音价格，不把官方 Token 定价直接作为平台售价。
+- 关键位置：`backend/internal/service/aliyun_audio.go`、`aliyun_realtime.go`、`openai_audio.go`；保护：`aliyun_audio_test.go` 和既有 OpenAI 音频回归。
+- 边界：同步适配最长等待 5 分钟，结果文件最大 64 MiB；不提供完整 DashScope 原生任务 API、WebRTC/AOQ 或 OpenAI 所有可选音频格式。`tts-next` 是声音生成模型，使用文本描述，不支持系统音色 ID。
+- 发布与用户真实 Agents 验收状态见[本次交付记录](./archive/completed-tasks/2026-11-09-aliyun-audio/README.md)，不得据实现或上游探测宣布用户链路已完成。
 
 ## 更新规则
 

@@ -137,6 +137,9 @@ func (s *OpenAIGatewayService) ForwardOpenAIAudio(
 	if err != nil {
 		return nil, fmt.Errorf("invalid base_url: %w", err)
 	}
+	if isAliyunAudioBase(validatedURL) && strings.HasPrefix(upstreamModel, "qwen-audio-") {
+		return s.forwardAliyunAudio(ctx, c, account, op, body, contentType, validatedURL, originalModel, billingModel, upstreamModel)
+	}
 	targetURL := buildOpenAIEndpointURL(validatedURL, op.Endpoint())
 
 	upstreamCtx, releaseUpstreamCtx := detachUpstreamContext(ctx)
@@ -337,7 +340,11 @@ func (s *OpenAIGatewayService) OpenOpenAIRealtime(ctx context.Context, account *
 	if err != nil {
 		return nil, fmt.Errorf("invalid base_url: %w", err)
 	}
-	u, err := url.Parse(buildOpenAIEndpointURL(validatedURL, "/v1/realtime"))
+	realtimeURL := buildOpenAIEndpointURL(validatedURL, "/v1/realtime")
+	if isAliyunAudioBase(validatedURL) {
+		realtimeURL = aliyunAudioURL(validatedURL, "/api-ws/v1/realtime")
+	}
+	u, err := url.Parse(realtimeURL)
 	if err != nil {
 		return nil, fmt.Errorf("parse realtime url: %w", err)
 	}
@@ -375,6 +382,9 @@ func (s *OpenAIGatewayService) OpenOpenAIRealtime(ctx context.Context, account *
 	conn, status, _, err := dialWSWithLedger(ctx, s.getOpenAIWSPassthroughDialer(), account, u.String(), headers, proxyURL)
 	if err != nil {
 		return nil, &GrokRealtimeDialError{StatusCode: status, Err: err}
+	}
+	if isAliyunAudioBase(validatedURL) && strings.HasPrefix(upstreamModel, "qwen-audio-") {
+		conn = &aliyunRealtimeConn{openAIWSClientConn: conn}
 	}
 	return &GrokRealtimeUpstream{conn: conn, account: account}, nil
 }
