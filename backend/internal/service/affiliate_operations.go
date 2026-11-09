@@ -34,27 +34,46 @@ type AffiliateOperationsTrend struct {
 }
 
 type AffiliateOperationsSummary struct {
-	Month                    string                     `json:"month"`
-	InvitedCount             int64                      `json:"invited_count"`
-	EffectivePaidCount       int64                      `json:"effective_paid_count"`
-	PendingCount             int64                      `json:"pending_count"`
-	ExceptionsCount          int64                      `json:"exceptions_count"`
-	ConversionRate           float64                    `json:"conversion_rate"`
-	CohortEffectivePaidCount int64                      `json:"cohort_effective_paid_count"`
-	AvailableQuota           float64                    `json:"available_quota"`
-	FrozenQuota              float64                    `json:"frozen_quota"`
-	GrossEarned              *float64                   `json:"gross_earned"`
-	RevokedAmount            *float64                   `json:"revoked_amount"`
-	NetEarned                *float64                   `json:"net_earned"`
-	MonthNetEarned           *float64                   `json:"month_net_earned"`
-	Amounts                  []AffiliateOperationsMoney `json:"amounts"`
-	PeriodAmounts            []AffiliateOperationsMoney `json:"period_amounts"`
-	TransferredAmount        float64                    `json:"transferred_amount"`
-	WithdrawnAmount          float64                    `json:"withdrawn_amount"`
-	Currency                 string                     `json:"currency"`
-	MonetaryScope            string                     `json:"monetary_scope"`
-	Trend                    []AffiliateOperationsTrend `json:"trend"`
-	UpdatedAt                time.Time                  `json:"updated_at"`
+	Reconciliation           AffiliateOperationsReconciliation `json:"reconciliation"`
+	Month                    string                            `json:"month"`
+	InvitedCount             int64                             `json:"invited_count"`
+	EffectivePaidCount       int64                             `json:"effective_paid_count"`
+	PendingCount             int64                             `json:"pending_count"`
+	ExceptionsCount          int64                             `json:"exceptions_count"`
+	ConversionRate           float64                           `json:"conversion_rate"`
+	CohortEffectivePaidCount int64                             `json:"cohort_effective_paid_count"`
+	AvailableQuota           float64                           `json:"available_quota"`
+	FrozenQuota              float64                           `json:"frozen_quota"`
+	GrossEarned              *float64                          `json:"gross_earned"`
+	RevokedAmount            *float64                          `json:"revoked_amount"`
+	NetEarned                *float64                          `json:"net_earned"`
+	MonthNetEarned           *float64                          `json:"month_net_earned"`
+	Amounts                  []AffiliateOperationsMoney        `json:"amounts"`
+	PeriodAmounts            []AffiliateOperationsMoney        `json:"period_amounts"`
+	TransferredAmount        float64                           `json:"transferred_amount"`
+	WithdrawnAmount          float64                           `json:"withdrawn_amount"`
+	Currency                 string                            `json:"currency"`
+	MonetaryScope            string                            `json:"monetary_scope"`
+	Trend                    []AffiliateOperationsTrend        `json:"trend"`
+	UpdatedAt                time.Time                         `json:"updated_at"`
+}
+
+// Registration is independently observable; it must never stand in for a
+// missing historical binding timestamp or establish paid-invite eligibility.
+type AffiliateOperationsReconciliation struct {
+	RelationshipCount            int64 `json:"relationship_count"`
+	RegisteredMonthCount         int64 `json:"registered_month_count"`
+	RegisteredEffectivePaidCount int64 `json:"registered_effective_paid_count"`
+	KnownBindingCount            int64 `json:"known_binding_count"`
+	UnknownBindingCount          int64 `json:"unknown_binding_count"`
+	EffectivePaidCount           int64 `json:"effective_paid_count"`
+	UnpaidCount                  int64 `json:"unpaid_count"`
+	RefundedCount                int64 `json:"refunded_count"`
+	RiskExcludedCount            int64 `json:"risk_excluded_count"`
+	DisabledCount                int64 `json:"disabled_count"`
+	PendingCount                 int64 `json:"pending_count"`
+	MissingFactCount             int64 `json:"missing_fact_count"`
+	PendingPaymentCount          int64 `json:"pending_payment_count"`
 }
 
 type AffiliateOperationsMoney struct {

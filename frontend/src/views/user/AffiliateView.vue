@@ -511,7 +511,11 @@ onMounted(() => {
           <p v-if="leaderboardRefreshing && !leaderboard" role="status" class="py-8">{{ t('models.loading') }}</p>
           <template v-if="leaderboard && (leaderboardMode !== 'monthly' || monthlySelectionValid)">
             <div class="mt-4 overflow-x-auto"><table class="gw-leaderboard w-full"><thead><tr><th>{{ t('affiliate.campaign.rank') }}</th><th>{{ t('affiliateOperations.invitee') }}</th><th class="text-right">{{ leaderboardMetric }}</th></tr></thead><tbody><tr v-for="row in leaderboard.items.slice(0, 10)" :key="row.rank" data-test="leaderboard-row"><td class="tabular-nums">#{{ row.rank }}</td><td>{{ row.display_name }}<span v-if="row.is_me" class="ml-2">{{ t('affiliate.campaign.me') }}</span></td><td class="text-right tabular-nums">{{ formatCount(row.effective_paid_count) }}</td></tr></tbody></table></div>
-            <p v-if="!leaderboard.items.length" class="py-8 gw-subtitle">{{ t('affiliateOperations.rankingEmpty') }}</p>
+            <div v-if="!leaderboard.items.length" class="py-8">
+              <p class="gw-subtitle">{{ t('affiliateOperations.rankingEmpty') }}</p>
+              <p v-if="leaderboardMode === 'monthly'" class="mt-2 text-sm gw-subtitle">{{ t('affiliateOperations.paidRankingExplanation') }}</p>
+              <button type="button" data-test="ranking-invitations-link" class="mt-3 gw-btn gw-btn-secondary" @click="activeTab = 'invitees'">{{ t('affiliateOperations.tabs.invitees') }}</button>
+            </div>
             <div data-test="my-rank" class="mt-4 border-t pt-4" style="border-color: var(--gw-line)"><p class="font-medium">{{ t('affiliateOperations.myRank') }}</p><p v-if="leaderboard.my_rank" class="mt-1 tabular-nums">#{{ leaderboard.my_rank.rank }} · {{ formatCount(leaderboard.my_rank.effective_paid_count) }} {{ leaderboardMetric }}</p><p v-else class="mt-1 gw-subtitle">{{ t('affiliateOperations.notRanked') }}</p></div>
             <p class="mt-4 text-xs gw-subtitle">{{ t('affiliateOperations.updatedAt', { date: formatDateTime(leaderboard.updated_at) }) }}</p>
           </template>

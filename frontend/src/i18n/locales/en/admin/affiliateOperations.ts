@@ -1,7 +1,11 @@
 export default {
   title: 'Affiliate operations', description: 'Invitation growth, promoters and affiliate funds in one workflow',
-  month: 'Month (Asia/Shanghai)', newInvites: 'New invitations this month', effectivePaid: 'Effective first payments this month',
-  cohortConversion: 'Invitation cohort conversion', cohortExplanation: 'Effective invitees belong to their original first-payment month. Conversion uses only invitees invited in the selected month; later payments do not create duplicate rankings.',
+  month: 'Month (Asia/Shanghai)', newInvites: 'Confirmed bindings this month', effectivePaid: 'Effective first payments this month',
+  reconciliation: 'Invitation reconciliation', relationshipsTotal: 'Invitation relationships (all time)', registeredThisMonth: 'Invitees registered this month',
+  unpaidTotal: 'Unpaid (all time)', refundedTotal: 'Fully refunded (all time)', disabledTotal: 'Disabled accounts (all time)', riskExcludedTotal: 'Risk exclusions (all time)',
+  registrationExplanation: 'Except for monthly registrations, these are deduplicated lifetime relationships and current qualification counts. Registration and binding dates are separate; unknown binding dates are never guessed. Matching first-order rebates and payment audits can verify historical paid attribution while leaving the binding date unknown.',
+  evidenceBreakdown: 'Unknown binding dates: {unknown}; pending with payment records: {paid}; missing fact projections: {missing}. These investigation counts may overlap the qualification buckets and must not be added together.',
+  cohortConversion: 'Registered invitee conversion', cohortExplanation: 'Effective first payments belong to their original first-payment month. Conversion is the proportion of invitees registered in the selected month who are currently effective payers. Later payments do not create duplicate rankings.',
   pending: 'Needs verification (all time)', allTimeFunds: 'Account quota (all time)',
   fundScope: 'Available, frozen and outflow values use existing wallet account quota and do not imply cash conversion. Credits below are separated by source and currency; currencies are never added together. Campaign budgets remain in Play Operations.',
   available: 'Available account quota', frozen: 'Frozen account quota', grossEarned: 'Credits', revoked: 'Revoked', netEarned: 'Net credits', transferred: 'Transferred to balance', withdrawn: 'Offline payouts recorded',

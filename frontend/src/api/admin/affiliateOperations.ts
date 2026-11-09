@@ -1,5 +1,6 @@
 import { apiClient } from '@/api/client'
 import type { PaginatedResponse } from '@/types'
+import type { AffiliateOperationsReconciliation } from '@/api/affiliateOperations'
 
 export type InviteQualificationStatus = 'pending_evidence' | 'unpaid' | 'effective' | 'refunded' | 'risk_excluded' | 'disabled'
 export interface OperationsQuery {
@@ -14,6 +15,7 @@ export interface OperationsQuery {
   action?: string
 }
 export interface AffiliateOperationsOverview {
+  reconciliation: AffiliateOperationsReconciliation
   month: string
   currency: 'USD' | 'CNY' | 'mixed'
   monetary_scope: 'all_time'

@@ -16,6 +16,7 @@ export default {
   chooseActivityHint: 'Choose an available campaign, or open a past campaign from Invitation campaigns to view its leaderboard.',
   honorOnly: 'Monthly rankings are for recognition only and award no extra bonus. The list shows the top 10; your position appears separately. Visible leaderboards refresh every 5 seconds.',
   rankingRules: 'Ranked by effective paid invitees in their original first-payment month; ties use the earliest qualifying time, then a stable account order. Refunds and exclusions can update historical rankings.',
+  paidRankingExplanation: 'This ranking counts verified paid invitees. New registrations, unpaid invitees and records awaiting verification appear in My invitations. Eligible posted payments automatically update the ranking.',
   activityRankingRules: 'Campaign qualification and ranking follow the published campaign rules. Any campaign rewards follow their existing claim process.',
   invalidMonth: 'Choose a valid month that is not in the future.', refreshFailed: 'Refresh failed. Any displayed data is the last successful result. Automatic retries use 10, 20 and 30 second intervals; you can also retry.',
   rankingEmpty: 'No eligible users in this period.', myRank: 'My position', notRanked: 'Not ranked in this period yet.', updatedAt: 'Last updated: {date}',

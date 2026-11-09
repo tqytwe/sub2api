@@ -129,6 +129,20 @@ jobs:
       - run: ./scripts/test-checkin-contract.sh
       - run: ./scripts/test-welfare-contract.sh
 
+  affiliate-contract:
+    name: Affiliate attribution and reconciliation PostgreSQL contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+      - name: Verify historical evidence and shared monthly statistics
+        working-directory: backend
+        run: go test -tags=integration -count=1 -timeout=10m ./migrations ./internal/repository -run '^TestAffiliate(HistoricalFirstPayment|Operations)'
+
   documentation:
     name: Documentation
     runs-on: ubuntu-latest

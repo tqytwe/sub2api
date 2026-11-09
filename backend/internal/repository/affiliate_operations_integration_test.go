@@ -4,6 +4,7 @@ package repository
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"testing"
 	"time"
@@ -62,12 +63,17 @@ func TestAffiliateOperationsProductionAugustCohortMatchesAdminAndUserViews(t *te
 	inviter := mustCreateUser(t, client, &service.User{Email: "guolingzheng@gmail.com", PasswordHash: "hash", Role: service.RoleUser, Status: service.StatusActive, Concurrency: 5})
 	for i := 0; i < 4; i++ {
 		invitee := mustCreateUser(t, client, &service.User{Email: fmt.Sprintf("august-invitee-%d-%d@example.com", time.Now().UnixNano(), i), PasswordHash: "hash", Role: service.RoleUser, Status: service.StatusActive, Concurrency: 5})
+		bound, bindErr := r.BindInviter(ctx, invitee.ID, inviter.ID)
+		require.NoError(t, bindErr)
+		require.True(t, bound)
+		_, err := client.ExecContext(ctx, `UPDATE users SET created_at='2026-08-01' WHERE id=$1`, invitee.ID)
+		require.NoError(t, err)
 		if i == 0 {
-			_, err := client.ExecContext(ctx, `INSERT INTO affiliate_paid_invite_facts(invitee_id,inviter_id,bound_at,evidence_status,evidence_source,first_paid_at,first_paid_month,net_paid) VALUES($1,$2,'2026-08-01','verified','live_binding','2026-08-05T00:00:00Z','2026-08',10)`, invitee.ID, inviter.ID)
+			_, err := client.ExecContext(ctx, `UPDATE affiliate_paid_invite_facts SET bound_at='2026-08-01',evidence_status='verified',evidence_source='live_binding',first_paid_at='2026-08-05T00:00:00Z',first_paid_month='2026-08',net_paid=10 WHERE invitee_id=$1`, invitee.ID)
 			require.NoError(t, err)
 			continue
 		}
-		_, err := client.ExecContext(ctx, `INSERT INTO affiliate_paid_invite_facts(invitee_id,inviter_id,bound_at,evidence_status,evidence_source) VALUES($1,$2,'2026-08-01','verified','live_binding')`, invitee.ID, inviter.ID)
+		_, err = client.ExecContext(ctx, `UPDATE affiliate_paid_invite_facts SET bound_at='2026-08-01',evidence_status='verified',evidence_source='live_binding' WHERE invitee_id=$1`, invitee.ID)
 		require.NoError(t, err)
 	}
 
@@ -91,6 +97,67 @@ func TestAffiliateOperationsProductionAugustCohortMatchesAdminAndUserViews(t *te
 	require.Equal(t, "gu***@g***.com", userBoard.Items[0].DisplayName)
 	require.Empty(t, userBoard.Items[0].Email)
 	require.EqualValues(t, 1, userBoard.Items[0].EffectivePaidCount)
+}
+
+func TestAffiliateOperationsReconcilesRegistrationWithoutInventingHistoricalBinding(t *testing.T) {
+	tx := testEntTx(t)
+	ctx := dbent.NewTxContext(context.Background(), tx)
+	client := tx.Client()
+	r := &affiliateRepository{client: client}
+	inviter := mustCreateUser(t, client, &service.User{Email: fmt.Sprintf("reconcile-%d@example.com", time.Now().UnixNano()), PasswordHash: "hash", Role: service.RoleUser, Status: service.StatusActive, Concurrency: 5})
+	for i := 0; i < 4; i++ {
+		invitee := mustCreateUser(t, client, &service.User{Email: fmt.Sprintf("reconcile-invite-%d-%d@example.com", time.Now().UnixNano(), i), PasswordHash: "hash", Role: service.RoleUser, Status: service.StatusActive, Concurrency: 5})
+		bound, err := r.BindInviter(ctx, invitee.ID, inviter.ID)
+		require.NoError(t, err)
+		require.True(t, bound)
+		registered := "2026-10-31T16:00:00Z" // November starts at 16:00 UTC.
+		if i == 1 {
+			registered = "2026-10-31T15:59:59Z"
+		}
+		_, err = client.ExecContext(ctx, `UPDATE users SET created_at=$2 WHERE id=$1`, invitee.ID, registered)
+		require.NoError(t, err)
+		if i == 2 {
+			_, err = client.ExecContext(ctx, `UPDATE affiliate_paid_invite_facts SET bound_at='2026-11-01',evidence_status='verified',first_paid_at='2026-11-02',first_paid_month='2026-11',net_paid=10 WHERE invitee_id=$1`, invitee.ID)
+		} else {
+			_, err = client.ExecContext(ctx, `UPDATE user_affiliates SET bound_at=NULL WHERE user_id=$1`, invitee.ID)
+			require.NoError(t, err)
+			_, err = client.ExecContext(ctx, `UPDATE affiliate_paid_invite_facts SET bound_at=NULL WHERE invitee_id=$1`, invitee.ID)
+		}
+		require.NoError(t, err)
+		if i == 0 {
+			_, err = client.ExecContext(ctx, `UPDATE affiliate_paid_invite_facts SET first_paid_at='2026-11-02',first_paid_month='2026-11' WHERE invitee_id=$1`, invitee.ID)
+			require.NoError(t, err)
+		}
+		if i == 3 {
+			_, err = client.ExecContext(ctx, `DELETE FROM affiliate_paid_invite_facts WHERE invitee_id=$1`, invitee.ID)
+			require.NoError(t, err)
+		}
+	}
+	q := service.AffiliateOperationsQuery{Month: "2026-11", UserID: inviter.ID, Admin: true, Page: 1, PageSize: 20}
+	summary, err := r.GetAffiliateOperationsSummary(ctx, q)
+	require.NoError(t, err)
+	require.EqualValues(t, 1, summary.InvitedCount, "registration is not evidence of the historical binding date")
+	require.EqualValues(t, 1, summary.EffectivePaidCount)
+	require.InDelta(t, 1.0/3.0, summary.ConversionRate, 0.000001, "conversion compares the registered cohort, including historical bindings")
+	raw, err := json.Marshal(summary)
+	require.NoError(t, err)
+	var response map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(raw, &response))
+	var reconciliation map[string]int64
+	require.NoError(t, json.Unmarshal(response["reconciliation"], &reconciliation))
+	require.Equal(t, map[string]int64{
+		"relationship_count": 4, "registered_month_count": 3, "registered_effective_paid_count": 1,
+		"known_binding_count": 1, "unknown_binding_count": 3,
+		"effective_paid_count": 1, "unpaid_count": 0, "refunded_count": 0,
+		"risk_excluded_count": 0, "disabled_count": 0, "pending_count": 3,
+		"missing_fact_count": 1, "pending_payment_count": 1,
+	}, reconciliation)
+	board, err := r.GetAffiliateOperationsLeaderboard(ctx, q)
+	require.NoError(t, err)
+	require.Len(t, board.Items, 1, "unverified bindings cannot enter the paid leaderboard")
+	var unknown int
+	require.NoError(t, scanAffiliateRow(ctx, client, `SELECT COUNT(*) FROM user_affiliates WHERE inviter_id=$1 AND bound_at IS NULL`, []any{inviter.ID}, &unknown))
+	require.Equal(t, 3, unknown, "read-side reconciliation must not repair production evidence")
 }
 
 func TestAffiliateOperationsPaginationAndUnknownHistoryRemainHonest(t *testing.T) {
