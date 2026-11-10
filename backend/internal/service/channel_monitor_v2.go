@@ -589,6 +589,11 @@ func (s *ChannelMonitorV2Service) Matrix(ctx context.Context, filter ChannelMoni
 			for j := range matrix.Items[i].Buckets {
 				redactChannelMonitorV2Metric(&matrix.Items[i].Buckets[j].Metrics, hideTP)
 			}
+			if samples := matrix.Items[i].SampleBuckets; samples != nil {
+				for j := range *samples {
+					redactChannelMonitorV2Metric(&(*samples)[j].Metrics, hideTP)
+				}
+			}
 		}
 	}
 	return matrix, nil

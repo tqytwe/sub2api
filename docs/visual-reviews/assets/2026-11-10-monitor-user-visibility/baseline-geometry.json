@@ -1,0 +1,87 @@
+{
+  "source": "compiled Vue component + production Tailwind CSS; synthetic data; closed dialog stub only",
+  "report": [
+    {
+      "width": 1280,
+      "theme": "light",
+      "locale": "zh-CN",
+      "mode": "samples",
+      "overflow": false,
+      "cards": [
+        {
+          "dot": "rgb(18, 183, 106)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 17,
+          "colors": [
+            "rgb(229, 231, 235)"
+          ],
+          "firstTitle": "1 / healthy / 渠道状态示例 · 2026/11/7 00:00 · 未知 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(247, 144, 9)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 17,
+          "colors": [
+            "rgb(229, 231, 235)"
+          ],
+          "firstTitle": "2 / warning / 渠道状态示例 · 2026/11/7 00:00 · 未知 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(239, 68, 68)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 17,
+          "colors": [
+            "rgb(229, 231, 235)"
+          ],
+          "firstTitle": "3 / critical / 渠道状态示例 · 2026/11/7 00:00 · 未知 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(152, 162, 179)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 17,
+          "colors": [
+            "rgb(229, 231, 235)"
+          ],
+          "firstTitle": "4 / unknown / 渠道状态示例 · 2026/11/7 00:00 · 未知 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(239, 68, 68)",
+          "barCount": 1,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 374,
+          "colors": [
+            "rgb(229, 231, 235)"
+          ],
+          "firstTitle": "5 / 样本不足 / low volume · 2026/11/7 00:00 · 未知 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(152, 162, 179)",
+          "barCount": 0,
+          "heights": [],
+          "minBarWidth": null,
+          "colors": [],
+          "hasNoSamples": true
+        }
+      ]
+    }
+  ]
+}
