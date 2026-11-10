@@ -32,15 +32,6 @@ export function hasMonitorSamples(metric: MonitorMatrixBucket['metrics']): boole
   return metric.has_samples === true || metric.request_count > 0
 }
 
-export function meetsMonitorSampleMinimum(bucket: MonitorMatrixBucket): boolean {
-  if (!hasMonitorSamples(bucket.metrics)) return false
-  // Public responses hide absolute counts after the server has scored health.
-  // Keep that verdict (including unknown); a redacted zero is not low volume.
-  if (bucket.metrics.has_samples === true && bucket.metrics.request_count === 0) return true
-  const minimum = bucket.health?.minimum_sample
-  return typeof minimum !== 'number' || minimum <= 0 || bucket.metrics.request_count >= minimum
-}
-
 export interface MonitorCardBar {
   start: number
   end: number
@@ -66,7 +57,9 @@ export function monitorCardSampleTimeline(row: MonitorMatrixRow, coverage?: Moni
     .map(({ bucket, start }) => ({
       start,
       end: width > 0 ? start + width : start,
-      state: meetsMonitorSampleMinimum(bucket) ? bucket.health.overall : 'unknown',
+      // Health also scores latency/cache evidence; request volume alone cannot
+      // override the server verdict. Truly insufficient evidence stays unknown.
+      state: bucket.health.overall,
       buckets: [bucket],
     }))
 }

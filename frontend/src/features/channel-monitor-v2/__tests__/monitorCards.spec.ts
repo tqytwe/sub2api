@@ -6,7 +6,7 @@ function row(): MonitorMatrixRow {
   return {
     platform: 'openai', group_id: 3, metrics: { request_count: 4, error_rate: 0.1, cache_rate: 0.2, ttft: { p50_ms: 30 } } as MonitorMatrixRow['metrics'],
     health: { overall: 'healthy', minimum_sample: 2 } as MonitorMatrixRow['health'], buckets: [
-      { bucket_start: '2026-11-02T00:00:00Z', metrics: { request_count: 1 } as MonitorMatrixRow['metrics'], health: { overall: 'critical', minimum_sample: 2 } as MonitorMatrixRow['health'] },
+      { bucket_start: '2026-11-02T00:00:00Z', metrics: { request_count: 1 } as MonitorMatrixRow['metrics'], health: { overall: 'unknown', minimum_sample: 2 } as MonitorMatrixRow['health'] },
       { bucket_start: '2026-11-02T00:05:00Z', metrics: { request_count: 3 } as MonitorMatrixRow['metrics'], health: { overall: 'warning', minimum_sample: 2 } as MonitorMatrixRow['health'] },
     ],
   }
@@ -33,11 +33,21 @@ describe('V2 card timeline and Candy presentation', () => {
     expect(monitorCardTimeline(value, undefined, 'samples').map((bar) => bar.state)).toEqual([state])
   })
 
+  it.each(['healthy', 'warning', 'critical', 'unknown'] as const)('preserves server-scored %s history with low request volume and enough cache samples', (state) => {
+    const value = row()
+    value.sample_buckets = [{
+      ...value.buckets[0],
+      metrics: { has_samples: true, request_count: 4, cache_rate_denominator: 1000 } as MonitorMatrixRow['metrics'],
+      health: { overall: state, minimum_sample: 50 } as MonitorMatrixRow['health'],
+    }]
+    expect(monitorCardTimeline(value, undefined, 'samples').map((bar) => bar.state)).toEqual([state])
+  })
+
   it('keeps time-window gaps and shows low-volume recent request buckets as unjudged', () => {
     const coverage = { requested_start: '2026-11-02T00:00:00Z', requested_end: '2026-11-02T00:10:00Z', bucket_seconds: 300 } as MonitorCoverage
     const value = row()
     expect(monitorCardTimeline(value, coverage, 'windows')).toHaveLength(18)
-    expect(monitorCardTimeline(value, coverage, 'windows')[0].state).toBe('critical')
+    expect(monitorCardTimeline(value, coverage, 'windows')[0].state).toBe('unknown')
     expect(monitorCardTimeline(value, coverage, 'samples').map((bar) => bar.state)).toEqual(['unknown', 'warning'])
     value.sample_buckets = value.buckets
     expect(monitorCardTimeline(value, undefined, 'samples').map((bar) => bar.state)).toEqual(['unknown', 'warning'])

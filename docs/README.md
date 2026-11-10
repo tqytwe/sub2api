@@ -17,6 +17,8 @@
 
 ## 当前文档
 
+本次渠道监控修复：[样本颜色与权限核对视觉记录](./visual-reviews/2026-11-10-monitor-user-visibility.md)。
+
 接手当前任务先看 [当前项目推进基线](./PROJECT_REBASELINE_2026-10-28.md) 与
 [工程状态与交接入口](./PROJECT_HYGIENE.md)。`v2.10.3/handoff.json` 是上一轮迁移的历史快照，不能代表当前生产状态或当前任务队列。文档状态 `active`
 表示维护中的规范，不等于其中每个功能已上线；功能、部署与验收分层记录。

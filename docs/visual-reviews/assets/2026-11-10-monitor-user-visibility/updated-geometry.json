@@ -1,0 +1,2709 @@
+{
+  "source": "compiled Vue component + production Tailwind CSS; synthetic data; closed dialog stub only",
+  "report": [
+    {
+      "width": 360,
+      "theme": "light",
+      "locale": "zh-CN",
+      "mode": "samples",
+      "overflow": false,
+      "cards": [
+        {
+          "dot": "rgb(18, 183, 106)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 12.5625,
+          "colors": [
+            "rgb(16, 185, 129)"
+          ],
+          "firstTitle": "1 / healthy / 渠道状态示例 · 2026/11/7 00:00 · 健康 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(247, 144, 9)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 12.5625,
+          "colors": [
+            "rgb(251, 191, 36)"
+          ],
+          "firstTitle": "2 / warning / 渠道状态示例 · 2026/11/7 00:00 · 需关注 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(239, 68, 68)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 12.5625,
+          "colors": [
+            "rgb(239, 68, 68)"
+          ],
+          "firstTitle": "3 / critical / 渠道状态示例 · 2026/11/7 00:00 · 异常 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(152, 162, 179)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 12.5625,
+          "colors": [
+            "rgb(229, 231, 235)"
+          ],
+          "firstTitle": "4 / unknown / 渠道状态示例 · 2026/11/7 00:00 · 未知 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(239, 68, 68)",
+          "barCount": 1,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 294,
+          "colors": [
+            "rgb(229, 231, 235)"
+          ],
+          "firstTitle": "5 / 样本不足 / low volume · 2026/11/7 00:00 · 未知 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(152, 162, 179)",
+          "barCount": 0,
+          "heights": [],
+          "minBarWidth": null,
+          "colors": [],
+          "hasNoSamples": true
+        }
+      ]
+    },
+    {
+      "width": 360,
+      "theme": "light",
+      "locale": "zh-CN",
+      "mode": "windows",
+      "overflow": false,
+      "cards": [
+        {
+          "dot": "rgb(18, 183, 106)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 12.5625,
+          "colors": [
+            "rgb(16, 185, 129)"
+          ],
+          "firstTitle": "1 / healthy / 渠道状态示例 · 2026/11/7 00:00 · 健康 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(247, 144, 9)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 12.5625,
+          "colors": [
+            "rgb(251, 191, 36)"
+          ],
+          "firstTitle": "2 / warning / 渠道状态示例 · 2026/11/7 00:00 · 需关注 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(239, 68, 68)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 12.5625,
+          "colors": [
+            "rgb(239, 68, 68)"
+          ],
+          "firstTitle": "3 / critical / 渠道状态示例 · 2026/11/7 00:00 · 异常 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(152, 162, 179)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 12.5625,
+          "colors": [
+            "rgb(229, 231, 235)"
+          ],
+          "firstTitle": "4 / unknown / 渠道状态示例 · 2026/11/7 00:00 · 未知 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(239, 68, 68)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 12.5625,
+          "colors": [
+            "rgb(229, 231, 235)"
+          ],
+          "firstTitle": "5 / 样本不足 / low volume · 2026/11/7 00:00 · 未知 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(152, 162, 179)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 12.5625,
+          "colors": [
+            "rgb(229, 231, 235)"
+          ],
+          "firstTitle": "6 / 无样本 / no samples · 2026/11/7 00:00 · 未知 · 0 最近有效样本",
+          "hasNoSamples": false
+        }
+      ]
+    },
+    {
+      "width": 360,
+      "theme": "light",
+      "locale": "en",
+      "mode": "samples",
+      "overflow": false,
+      "cards": [
+        {
+          "dot": "rgb(18, 183, 106)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 12.5625,
+          "colors": [
+            "rgb(16, 185, 129)"
+          ],
+          "firstTitle": "1 / healthy / 渠道状态示例 · 11/7/26, 12:00 AM · Healthy · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(247, 144, 9)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 12.5625,
+          "colors": [
+            "rgb(251, 191, 36)"
+          ],
+          "firstTitle": "2 / warning / 渠道状态示例 · 11/7/26, 12:00 AM · Watch · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(239, 68, 68)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 12.5625,
+          "colors": [
+            "rgb(239, 68, 68)"
+          ],
+          "firstTitle": "3 / critical / 渠道状态示例 · 11/7/26, 12:00 AM · Critical · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(152, 162, 179)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 12.5625,
+          "colors": [
+            "rgb(229, 231, 235)"
+          ],
+          "firstTitle": "4 / unknown / 渠道状态示例 · 11/7/26, 12:00 AM · Unknown · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(239, 68, 68)",
+          "barCount": 1,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 294,
+          "colors": [
+            "rgb(229, 231, 235)"
+          ],
+          "firstTitle": "5 / 样本不足 / low volume · 11/7/26, 12:00 AM · Unknown · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(152, 162, 179)",
+          "barCount": 0,
+          "heights": [],
+          "minBarWidth": null,
+          "colors": [],
+          "hasNoSamples": true
+        }
+      ]
+    },
+    {
+      "width": 360,
+      "theme": "light",
+      "locale": "en",
+      "mode": "windows",
+      "overflow": false,
+      "cards": [
+        {
+          "dot": "rgb(18, 183, 106)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 12.5625,
+          "colors": [
+            "rgb(16, 185, 129)"
+          ],
+          "firstTitle": "1 / healthy / 渠道状态示例 · 11/7/26, 12:00 AM · Healthy · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(247, 144, 9)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 12.5625,
+          "colors": [
+            "rgb(251, 191, 36)"
+          ],
+          "firstTitle": "2 / warning / 渠道状态示例 · 11/7/26, 12:00 AM · Watch · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(239, 68, 68)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 12.5625,
+          "colors": [
+            "rgb(239, 68, 68)"
+          ],
+          "firstTitle": "3 / critical / 渠道状态示例 · 11/7/26, 12:00 AM · Critical · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(152, 162, 179)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 12.5625,
+          "colors": [
+            "rgb(229, 231, 235)"
+          ],
+          "firstTitle": "4 / unknown / 渠道状态示例 · 11/7/26, 12:00 AM · Unknown · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(239, 68, 68)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 12.5625,
+          "colors": [
+            "rgb(229, 231, 235)"
+          ],
+          "firstTitle": "5 / 样本不足 / low volume · 11/7/26, 12:00 AM · Unknown · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(152, 162, 179)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 12.5625,
+          "colors": [
+            "rgb(229, 231, 235)"
+          ],
+          "firstTitle": "6 / 无样本 / no samples · 11/7/26, 12:00 AM · Unknown · 0 recent qualified samples",
+          "hasNoSamples": false
+        }
+      ]
+    },
+    {
+      "width": 360,
+      "theme": "dark",
+      "locale": "zh-CN",
+      "mode": "samples",
+      "overflow": false,
+      "cards": [
+        {
+          "dot": "rgb(50, 213, 131)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 12.5625,
+          "colors": [
+            "rgb(16, 185, 129)"
+          ],
+          "firstTitle": "1 / healthy / 渠道状态示例 · 2026/11/7 00:00 · 健康 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(253, 176, 34)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 12.5625,
+          "colors": [
+            "rgb(251, 191, 36)"
+          ],
+          "firstTitle": "2 / warning / 渠道状态示例 · 2026/11/7 00:00 · 需关注 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(239, 68, 68)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 12.5625,
+          "colors": [
+            "rgb(239, 68, 68)"
+          ],
+          "firstTitle": "3 / critical / 渠道状态示例 · 2026/11/7 00:00 · 异常 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(100, 116, 139)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 12.5625,
+          "colors": [
+            "rgb(71, 85, 105)"
+          ],
+          "firstTitle": "4 / unknown / 渠道状态示例 · 2026/11/7 00:00 · 未知 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(239, 68, 68)",
+          "barCount": 1,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 294,
+          "colors": [
+            "rgb(71, 85, 105)"
+          ],
+          "firstTitle": "5 / 样本不足 / low volume · 2026/11/7 00:00 · 未知 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(100, 116, 139)",
+          "barCount": 0,
+          "heights": [],
+          "minBarWidth": null,
+          "colors": [],
+          "hasNoSamples": true
+        }
+      ]
+    },
+    {
+      "width": 360,
+      "theme": "dark",
+      "locale": "zh-CN",
+      "mode": "windows",
+      "overflow": false,
+      "cards": [
+        {
+          "dot": "rgb(50, 213, 131)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 12.5625,
+          "colors": [
+            "rgb(16, 185, 129)"
+          ],
+          "firstTitle": "1 / healthy / 渠道状态示例 · 2026/11/7 00:00 · 健康 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(253, 176, 34)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 12.5625,
+          "colors": [
+            "rgb(251, 191, 36)"
+          ],
+          "firstTitle": "2 / warning / 渠道状态示例 · 2026/11/7 00:00 · 需关注 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(239, 68, 68)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 12.5625,
+          "colors": [
+            "rgb(239, 68, 68)"
+          ],
+          "firstTitle": "3 / critical / 渠道状态示例 · 2026/11/7 00:00 · 异常 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(100, 116, 139)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 12.5625,
+          "colors": [
+            "rgb(71, 85, 105)"
+          ],
+          "firstTitle": "4 / unknown / 渠道状态示例 · 2026/11/7 00:00 · 未知 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(239, 68, 68)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 12.5625,
+          "colors": [
+            "rgb(71, 85, 105)"
+          ],
+          "firstTitle": "5 / 样本不足 / low volume · 2026/11/7 00:00 · 未知 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(100, 116, 139)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 12.5625,
+          "colors": [
+            "rgb(71, 85, 105)"
+          ],
+          "firstTitle": "6 / 无样本 / no samples · 2026/11/7 00:00 · 未知 · 0 最近有效样本",
+          "hasNoSamples": false
+        }
+      ]
+    },
+    {
+      "width": 360,
+      "theme": "dark",
+      "locale": "en",
+      "mode": "samples",
+      "overflow": false,
+      "cards": [
+        {
+          "dot": "rgb(50, 213, 131)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 12.5625,
+          "colors": [
+            "rgb(16, 185, 129)"
+          ],
+          "firstTitle": "1 / healthy / 渠道状态示例 · 11/7/26, 12:00 AM · Healthy · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(253, 176, 34)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 12.5625,
+          "colors": [
+            "rgb(251, 191, 36)"
+          ],
+          "firstTitle": "2 / warning / 渠道状态示例 · 11/7/26, 12:00 AM · Watch · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(239, 68, 68)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 12.5625,
+          "colors": [
+            "rgb(239, 68, 68)"
+          ],
+          "firstTitle": "3 / critical / 渠道状态示例 · 11/7/26, 12:00 AM · Critical · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(100, 116, 139)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 12.5625,
+          "colors": [
+            "rgb(71, 85, 105)"
+          ],
+          "firstTitle": "4 / unknown / 渠道状态示例 · 11/7/26, 12:00 AM · Unknown · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(239, 68, 68)",
+          "barCount": 1,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 294,
+          "colors": [
+            "rgb(71, 85, 105)"
+          ],
+          "firstTitle": "5 / 样本不足 / low volume · 11/7/26, 12:00 AM · Unknown · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(100, 116, 139)",
+          "barCount": 0,
+          "heights": [],
+          "minBarWidth": null,
+          "colors": [],
+          "hasNoSamples": true
+        }
+      ]
+    },
+    {
+      "width": 360,
+      "theme": "dark",
+      "locale": "en",
+      "mode": "windows",
+      "overflow": false,
+      "cards": [
+        {
+          "dot": "rgb(50, 213, 131)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 12.5625,
+          "colors": [
+            "rgb(16, 185, 129)"
+          ],
+          "firstTitle": "1 / healthy / 渠道状态示例 · 11/7/26, 12:00 AM · Healthy · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(253, 176, 34)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 12.5625,
+          "colors": [
+            "rgb(251, 191, 36)"
+          ],
+          "firstTitle": "2 / warning / 渠道状态示例 · 11/7/26, 12:00 AM · Watch · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(239, 68, 68)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 12.5625,
+          "colors": [
+            "rgb(239, 68, 68)"
+          ],
+          "firstTitle": "3 / critical / 渠道状态示例 · 11/7/26, 12:00 AM · Critical · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(100, 116, 139)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 12.5625,
+          "colors": [
+            "rgb(71, 85, 105)"
+          ],
+          "firstTitle": "4 / unknown / 渠道状态示例 · 11/7/26, 12:00 AM · Unknown · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(239, 68, 68)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 12.5625,
+          "colors": [
+            "rgb(71, 85, 105)"
+          ],
+          "firstTitle": "5 / 样本不足 / low volume · 11/7/26, 12:00 AM · Unknown · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(100, 116, 139)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 12.5625,
+          "colors": [
+            "rgb(71, 85, 105)"
+          ],
+          "firstTitle": "6 / 无样本 / no samples · 11/7/26, 12:00 AM · Unknown · 0 recent qualified samples",
+          "hasNoSamples": false
+        }
+      ]
+    },
+    {
+      "width": 768,
+      "theme": "light",
+      "locale": "zh-CN",
+      "mode": "samples",
+      "overflow": false,
+      "cards": [
+        {
+          "dot": "rgb(18, 183, 106)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 14.4375,
+          "colors": [
+            "rgb(16, 185, 129)"
+          ],
+          "firstTitle": "1 / healthy / 渠道状态示例 · 2026/11/7 00:00 · 健康 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(247, 144, 9)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 14.4375,
+          "colors": [
+            "rgb(251, 191, 36)"
+          ],
+          "firstTitle": "2 / warning / 渠道状态示例 · 2026/11/7 00:00 · 需关注 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(239, 68, 68)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 14.4375,
+          "colors": [
+            "rgb(239, 68, 68)"
+          ],
+          "firstTitle": "3 / critical / 渠道状态示例 · 2026/11/7 00:00 · 异常 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(152, 162, 179)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 14.4375,
+          "colors": [
+            "rgb(229, 231, 235)"
+          ],
+          "firstTitle": "4 / unknown / 渠道状态示例 · 2026/11/7 00:00 · 未知 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(239, 68, 68)",
+          "barCount": 1,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 328,
+          "colors": [
+            "rgb(229, 231, 235)"
+          ],
+          "firstTitle": "5 / 样本不足 / low volume · 2026/11/7 00:00 · 未知 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(152, 162, 179)",
+          "barCount": 0,
+          "heights": [],
+          "minBarWidth": null,
+          "colors": [],
+          "hasNoSamples": true
+        }
+      ]
+    },
+    {
+      "width": 768,
+      "theme": "light",
+      "locale": "zh-CN",
+      "mode": "windows",
+      "overflow": false,
+      "cards": [
+        {
+          "dot": "rgb(18, 183, 106)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 14.4375,
+          "colors": [
+            "rgb(16, 185, 129)"
+          ],
+          "firstTitle": "1 / healthy / 渠道状态示例 · 2026/11/7 00:00 · 健康 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(247, 144, 9)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 14.4375,
+          "colors": [
+            "rgb(251, 191, 36)"
+          ],
+          "firstTitle": "2 / warning / 渠道状态示例 · 2026/11/7 00:00 · 需关注 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(239, 68, 68)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 14.4375,
+          "colors": [
+            "rgb(239, 68, 68)"
+          ],
+          "firstTitle": "3 / critical / 渠道状态示例 · 2026/11/7 00:00 · 异常 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(152, 162, 179)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 14.4375,
+          "colors": [
+            "rgb(229, 231, 235)"
+          ],
+          "firstTitle": "4 / unknown / 渠道状态示例 · 2026/11/7 00:00 · 未知 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(239, 68, 68)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 14.4375,
+          "colors": [
+            "rgb(229, 231, 235)"
+          ],
+          "firstTitle": "5 / 样本不足 / low volume · 2026/11/7 00:00 · 未知 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(152, 162, 179)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 14.4375,
+          "colors": [
+            "rgb(229, 231, 235)"
+          ],
+          "firstTitle": "6 / 无样本 / no samples · 2026/11/7 00:00 · 未知 · 0 最近有效样本",
+          "hasNoSamples": false
+        }
+      ]
+    },
+    {
+      "width": 768,
+      "theme": "light",
+      "locale": "en",
+      "mode": "samples",
+      "overflow": false,
+      "cards": [
+        {
+          "dot": "rgb(18, 183, 106)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 14.4375,
+          "colors": [
+            "rgb(16, 185, 129)"
+          ],
+          "firstTitle": "1 / healthy / 渠道状态示例 · 11/7/26, 12:00 AM · Healthy · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(247, 144, 9)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 14.4375,
+          "colors": [
+            "rgb(251, 191, 36)"
+          ],
+          "firstTitle": "2 / warning / 渠道状态示例 · 11/7/26, 12:00 AM · Watch · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(239, 68, 68)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 14.4375,
+          "colors": [
+            "rgb(239, 68, 68)"
+          ],
+          "firstTitle": "3 / critical / 渠道状态示例 · 11/7/26, 12:00 AM · Critical · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(152, 162, 179)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 14.4375,
+          "colors": [
+            "rgb(229, 231, 235)"
+          ],
+          "firstTitle": "4 / unknown / 渠道状态示例 · 11/7/26, 12:00 AM · Unknown · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(239, 68, 68)",
+          "barCount": 1,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 328,
+          "colors": [
+            "rgb(229, 231, 235)"
+          ],
+          "firstTitle": "5 / 样本不足 / low volume · 11/7/26, 12:00 AM · Unknown · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(152, 162, 179)",
+          "barCount": 0,
+          "heights": [],
+          "minBarWidth": null,
+          "colors": [],
+          "hasNoSamples": true
+        }
+      ]
+    },
+    {
+      "width": 768,
+      "theme": "light",
+      "locale": "en",
+      "mode": "windows",
+      "overflow": false,
+      "cards": [
+        {
+          "dot": "rgb(18, 183, 106)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 14.4375,
+          "colors": [
+            "rgb(16, 185, 129)"
+          ],
+          "firstTitle": "1 / healthy / 渠道状态示例 · 11/7/26, 12:00 AM · Healthy · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(247, 144, 9)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 14.4375,
+          "colors": [
+            "rgb(251, 191, 36)"
+          ],
+          "firstTitle": "2 / warning / 渠道状态示例 · 11/7/26, 12:00 AM · Watch · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(239, 68, 68)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 14.4375,
+          "colors": [
+            "rgb(239, 68, 68)"
+          ],
+          "firstTitle": "3 / critical / 渠道状态示例 · 11/7/26, 12:00 AM · Critical · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(152, 162, 179)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 14.4375,
+          "colors": [
+            "rgb(229, 231, 235)"
+          ],
+          "firstTitle": "4 / unknown / 渠道状态示例 · 11/7/26, 12:00 AM · Unknown · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(239, 68, 68)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 14.4375,
+          "colors": [
+            "rgb(229, 231, 235)"
+          ],
+          "firstTitle": "5 / 样本不足 / low volume · 11/7/26, 12:00 AM · Unknown · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(152, 162, 179)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 14.4375,
+          "colors": [
+            "rgb(229, 231, 235)"
+          ],
+          "firstTitle": "6 / 无样本 / no samples · 11/7/26, 12:00 AM · Unknown · 0 recent qualified samples",
+          "hasNoSamples": false
+        }
+      ]
+    },
+    {
+      "width": 768,
+      "theme": "dark",
+      "locale": "zh-CN",
+      "mode": "samples",
+      "overflow": false,
+      "cards": [
+        {
+          "dot": "rgb(50, 213, 131)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 14.4375,
+          "colors": [
+            "rgb(16, 185, 129)"
+          ],
+          "firstTitle": "1 / healthy / 渠道状态示例 · 2026/11/7 00:00 · 健康 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(253, 176, 34)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 14.4375,
+          "colors": [
+            "rgb(251, 191, 36)"
+          ],
+          "firstTitle": "2 / warning / 渠道状态示例 · 2026/11/7 00:00 · 需关注 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(239, 68, 68)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 14.4375,
+          "colors": [
+            "rgb(239, 68, 68)"
+          ],
+          "firstTitle": "3 / critical / 渠道状态示例 · 2026/11/7 00:00 · 异常 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(100, 116, 139)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 14.4375,
+          "colors": [
+            "rgb(71, 85, 105)"
+          ],
+          "firstTitle": "4 / unknown / 渠道状态示例 · 2026/11/7 00:00 · 未知 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(239, 68, 68)",
+          "barCount": 1,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 328,
+          "colors": [
+            "rgb(71, 85, 105)"
+          ],
+          "firstTitle": "5 / 样本不足 / low volume · 2026/11/7 00:00 · 未知 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(100, 116, 139)",
+          "barCount": 0,
+          "heights": [],
+          "minBarWidth": null,
+          "colors": [],
+          "hasNoSamples": true
+        }
+      ]
+    },
+    {
+      "width": 768,
+      "theme": "dark",
+      "locale": "zh-CN",
+      "mode": "windows",
+      "overflow": false,
+      "cards": [
+        {
+          "dot": "rgb(50, 213, 131)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 14.4375,
+          "colors": [
+            "rgb(16, 185, 129)"
+          ],
+          "firstTitle": "1 / healthy / 渠道状态示例 · 2026/11/7 00:00 · 健康 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(253, 176, 34)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 14.4375,
+          "colors": [
+            "rgb(251, 191, 36)"
+          ],
+          "firstTitle": "2 / warning / 渠道状态示例 · 2026/11/7 00:00 · 需关注 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(239, 68, 68)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 14.4375,
+          "colors": [
+            "rgb(239, 68, 68)"
+          ],
+          "firstTitle": "3 / critical / 渠道状态示例 · 2026/11/7 00:00 · 异常 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(100, 116, 139)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 14.4375,
+          "colors": [
+            "rgb(71, 85, 105)"
+          ],
+          "firstTitle": "4 / unknown / 渠道状态示例 · 2026/11/7 00:00 · 未知 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(239, 68, 68)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 14.4375,
+          "colors": [
+            "rgb(71, 85, 105)"
+          ],
+          "firstTitle": "5 / 样本不足 / low volume · 2026/11/7 00:00 · 未知 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(100, 116, 139)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 14.4375,
+          "colors": [
+            "rgb(71, 85, 105)"
+          ],
+          "firstTitle": "6 / 无样本 / no samples · 2026/11/7 00:00 · 未知 · 0 最近有效样本",
+          "hasNoSamples": false
+        }
+      ]
+    },
+    {
+      "width": 768,
+      "theme": "dark",
+      "locale": "en",
+      "mode": "samples",
+      "overflow": false,
+      "cards": [
+        {
+          "dot": "rgb(50, 213, 131)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 14.4375,
+          "colors": [
+            "rgb(16, 185, 129)"
+          ],
+          "firstTitle": "1 / healthy / 渠道状态示例 · 11/7/26, 12:00 AM · Healthy · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(253, 176, 34)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 14.4375,
+          "colors": [
+            "rgb(251, 191, 36)"
+          ],
+          "firstTitle": "2 / warning / 渠道状态示例 · 11/7/26, 12:00 AM · Watch · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(239, 68, 68)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 14.4375,
+          "colors": [
+            "rgb(239, 68, 68)"
+          ],
+          "firstTitle": "3 / critical / 渠道状态示例 · 11/7/26, 12:00 AM · Critical · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(100, 116, 139)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 14.4375,
+          "colors": [
+            "rgb(71, 85, 105)"
+          ],
+          "firstTitle": "4 / unknown / 渠道状态示例 · 11/7/26, 12:00 AM · Unknown · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(239, 68, 68)",
+          "barCount": 1,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 328,
+          "colors": [
+            "rgb(71, 85, 105)"
+          ],
+          "firstTitle": "5 / 样本不足 / low volume · 11/7/26, 12:00 AM · Unknown · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(100, 116, 139)",
+          "barCount": 0,
+          "heights": [],
+          "minBarWidth": null,
+          "colors": [],
+          "hasNoSamples": true
+        }
+      ]
+    },
+    {
+      "width": 768,
+      "theme": "dark",
+      "locale": "en",
+      "mode": "windows",
+      "overflow": false,
+      "cards": [
+        {
+          "dot": "rgb(50, 213, 131)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 14.4375,
+          "colors": [
+            "rgb(16, 185, 129)"
+          ],
+          "firstTitle": "1 / healthy / 渠道状态示例 · 11/7/26, 12:00 AM · Healthy · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(253, 176, 34)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 14.4375,
+          "colors": [
+            "rgb(251, 191, 36)"
+          ],
+          "firstTitle": "2 / warning / 渠道状态示例 · 11/7/26, 12:00 AM · Watch · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(239, 68, 68)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 14.4375,
+          "colors": [
+            "rgb(239, 68, 68)"
+          ],
+          "firstTitle": "3 / critical / 渠道状态示例 · 11/7/26, 12:00 AM · Critical · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(100, 116, 139)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 14.4375,
+          "colors": [
+            "rgb(71, 85, 105)"
+          ],
+          "firstTitle": "4 / unknown / 渠道状态示例 · 11/7/26, 12:00 AM · Unknown · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(239, 68, 68)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 14.4375,
+          "colors": [
+            "rgb(71, 85, 105)"
+          ],
+          "firstTitle": "5 / 样本不足 / low volume · 11/7/26, 12:00 AM · Unknown · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(100, 116, 139)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 14.4375,
+          "colors": [
+            "rgb(71, 85, 105)"
+          ],
+          "firstTitle": "6 / 无样本 / no samples · 11/7/26, 12:00 AM · Unknown · 0 recent qualified samples",
+          "hasNoSamples": false
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "theme": "light",
+      "locale": "zh-CN",
+      "mode": "samples",
+      "overflow": false,
+      "cards": [
+        {
+          "dot": "rgb(18, 183, 106)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 17,
+          "colors": [
+            "rgb(16, 185, 129)"
+          ],
+          "firstTitle": "1 / healthy / 渠道状态示例 · 2026/11/7 00:00 · 健康 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(247, 144, 9)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 17,
+          "colors": [
+            "rgb(251, 191, 36)"
+          ],
+          "firstTitle": "2 / warning / 渠道状态示例 · 2026/11/7 00:00 · 需关注 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(239, 68, 68)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 17,
+          "colors": [
+            "rgb(239, 68, 68)"
+          ],
+          "firstTitle": "3 / critical / 渠道状态示例 · 2026/11/7 00:00 · 异常 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(152, 162, 179)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 17,
+          "colors": [
+            "rgb(229, 231, 235)"
+          ],
+          "firstTitle": "4 / unknown / 渠道状态示例 · 2026/11/7 00:00 · 未知 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(239, 68, 68)",
+          "barCount": 1,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 374,
+          "colors": [
+            "rgb(229, 231, 235)"
+          ],
+          "firstTitle": "5 / 样本不足 / low volume · 2026/11/7 00:00 · 未知 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(152, 162, 179)",
+          "barCount": 0,
+          "heights": [],
+          "minBarWidth": null,
+          "colors": [],
+          "hasNoSamples": true
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "theme": "light",
+      "locale": "zh-CN",
+      "mode": "windows",
+      "overflow": false,
+      "cards": [
+        {
+          "dot": "rgb(18, 183, 106)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 17,
+          "colors": [
+            "rgb(16, 185, 129)"
+          ],
+          "firstTitle": "1 / healthy / 渠道状态示例 · 2026/11/7 00:00 · 健康 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(247, 144, 9)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 17,
+          "colors": [
+            "rgb(251, 191, 36)"
+          ],
+          "firstTitle": "2 / warning / 渠道状态示例 · 2026/11/7 00:00 · 需关注 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(239, 68, 68)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 17,
+          "colors": [
+            "rgb(239, 68, 68)"
+          ],
+          "firstTitle": "3 / critical / 渠道状态示例 · 2026/11/7 00:00 · 异常 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(152, 162, 179)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 17,
+          "colors": [
+            "rgb(229, 231, 235)"
+          ],
+          "firstTitle": "4 / unknown / 渠道状态示例 · 2026/11/7 00:00 · 未知 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(239, 68, 68)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 17,
+          "colors": [
+            "rgb(229, 231, 235)"
+          ],
+          "firstTitle": "5 / 样本不足 / low volume · 2026/11/7 00:00 · 未知 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(152, 162, 179)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 17,
+          "colors": [
+            "rgb(229, 231, 235)"
+          ],
+          "firstTitle": "6 / 无样本 / no samples · 2026/11/7 00:00 · 未知 · 0 最近有效样本",
+          "hasNoSamples": false
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "theme": "light",
+      "locale": "en",
+      "mode": "samples",
+      "overflow": false,
+      "cards": [
+        {
+          "dot": "rgb(18, 183, 106)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 17,
+          "colors": [
+            "rgb(16, 185, 129)"
+          ],
+          "firstTitle": "1 / healthy / 渠道状态示例 · 11/7/26, 12:00 AM · Healthy · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(247, 144, 9)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 17,
+          "colors": [
+            "rgb(251, 191, 36)"
+          ],
+          "firstTitle": "2 / warning / 渠道状态示例 · 11/7/26, 12:00 AM · Watch · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(239, 68, 68)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 17,
+          "colors": [
+            "rgb(239, 68, 68)"
+          ],
+          "firstTitle": "3 / critical / 渠道状态示例 · 11/7/26, 12:00 AM · Critical · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(152, 162, 179)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 17,
+          "colors": [
+            "rgb(229, 231, 235)"
+          ],
+          "firstTitle": "4 / unknown / 渠道状态示例 · 11/7/26, 12:00 AM · Unknown · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(239, 68, 68)",
+          "barCount": 1,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 374,
+          "colors": [
+            "rgb(229, 231, 235)"
+          ],
+          "firstTitle": "5 / 样本不足 / low volume · 11/7/26, 12:00 AM · Unknown · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(152, 162, 179)",
+          "barCount": 0,
+          "heights": [],
+          "minBarWidth": null,
+          "colors": [],
+          "hasNoSamples": true
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "theme": "light",
+      "locale": "en",
+      "mode": "windows",
+      "overflow": false,
+      "cards": [
+        {
+          "dot": "rgb(18, 183, 106)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 17,
+          "colors": [
+            "rgb(16, 185, 129)"
+          ],
+          "firstTitle": "1 / healthy / 渠道状态示例 · 11/7/26, 12:00 AM · Healthy · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(247, 144, 9)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 17,
+          "colors": [
+            "rgb(251, 191, 36)"
+          ],
+          "firstTitle": "2 / warning / 渠道状态示例 · 11/7/26, 12:00 AM · Watch · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(239, 68, 68)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 17,
+          "colors": [
+            "rgb(239, 68, 68)"
+          ],
+          "firstTitle": "3 / critical / 渠道状态示例 · 11/7/26, 12:00 AM · Critical · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(152, 162, 179)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 17,
+          "colors": [
+            "rgb(229, 231, 235)"
+          ],
+          "firstTitle": "4 / unknown / 渠道状态示例 · 11/7/26, 12:00 AM · Unknown · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(239, 68, 68)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 17,
+          "colors": [
+            "rgb(229, 231, 235)"
+          ],
+          "firstTitle": "5 / 样本不足 / low volume · 11/7/26, 12:00 AM · Unknown · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(152, 162, 179)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 17,
+          "colors": [
+            "rgb(229, 231, 235)"
+          ],
+          "firstTitle": "6 / 无样本 / no samples · 11/7/26, 12:00 AM · Unknown · 0 recent qualified samples",
+          "hasNoSamples": false
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "theme": "dark",
+      "locale": "zh-CN",
+      "mode": "samples",
+      "overflow": false,
+      "cards": [
+        {
+          "dot": "rgb(50, 213, 131)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 17,
+          "colors": [
+            "rgb(16, 185, 129)"
+          ],
+          "firstTitle": "1 / healthy / 渠道状态示例 · 2026/11/7 00:00 · 健康 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(253, 176, 34)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 17,
+          "colors": [
+            "rgb(251, 191, 36)"
+          ],
+          "firstTitle": "2 / warning / 渠道状态示例 · 2026/11/7 00:00 · 需关注 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(239, 68, 68)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 17,
+          "colors": [
+            "rgb(239, 68, 68)"
+          ],
+          "firstTitle": "3 / critical / 渠道状态示例 · 2026/11/7 00:00 · 异常 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(100, 116, 139)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 17,
+          "colors": [
+            "rgb(71, 85, 105)"
+          ],
+          "firstTitle": "4 / unknown / 渠道状态示例 · 2026/11/7 00:00 · 未知 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(239, 68, 68)",
+          "barCount": 1,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 374,
+          "colors": [
+            "rgb(71, 85, 105)"
+          ],
+          "firstTitle": "5 / 样本不足 / low volume · 2026/11/7 00:00 · 未知 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(100, 116, 139)",
+          "barCount": 0,
+          "heights": [],
+          "minBarWidth": null,
+          "colors": [],
+          "hasNoSamples": true
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "theme": "dark",
+      "locale": "zh-CN",
+      "mode": "windows",
+      "overflow": false,
+      "cards": [
+        {
+          "dot": "rgb(50, 213, 131)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 17,
+          "colors": [
+            "rgb(16, 185, 129)"
+          ],
+          "firstTitle": "1 / healthy / 渠道状态示例 · 2026/11/7 00:00 · 健康 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(253, 176, 34)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 17,
+          "colors": [
+            "rgb(251, 191, 36)"
+          ],
+          "firstTitle": "2 / warning / 渠道状态示例 · 2026/11/7 00:00 · 需关注 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(239, 68, 68)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 17,
+          "colors": [
+            "rgb(239, 68, 68)"
+          ],
+          "firstTitle": "3 / critical / 渠道状态示例 · 2026/11/7 00:00 · 异常 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(100, 116, 139)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 17,
+          "colors": [
+            "rgb(71, 85, 105)"
+          ],
+          "firstTitle": "4 / unknown / 渠道状态示例 · 2026/11/7 00:00 · 未知 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(239, 68, 68)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 17,
+          "colors": [
+            "rgb(71, 85, 105)"
+          ],
+          "firstTitle": "5 / 样本不足 / low volume · 2026/11/7 00:00 · 未知 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(100, 116, 139)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 17,
+          "colors": [
+            "rgb(71, 85, 105)"
+          ],
+          "firstTitle": "6 / 无样本 / no samples · 2026/11/7 00:00 · 未知 · 0 最近有效样本",
+          "hasNoSamples": false
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "theme": "dark",
+      "locale": "en",
+      "mode": "samples",
+      "overflow": false,
+      "cards": [
+        {
+          "dot": "rgb(50, 213, 131)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 17,
+          "colors": [
+            "rgb(16, 185, 129)"
+          ],
+          "firstTitle": "1 / healthy / 渠道状态示例 · 11/7/26, 12:00 AM · Healthy · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(253, 176, 34)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 17,
+          "colors": [
+            "rgb(251, 191, 36)"
+          ],
+          "firstTitle": "2 / warning / 渠道状态示例 · 11/7/26, 12:00 AM · Watch · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(239, 68, 68)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 17,
+          "colors": [
+            "rgb(239, 68, 68)"
+          ],
+          "firstTitle": "3 / critical / 渠道状态示例 · 11/7/26, 12:00 AM · Critical · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(100, 116, 139)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 17,
+          "colors": [
+            "rgb(71, 85, 105)"
+          ],
+          "firstTitle": "4 / unknown / 渠道状态示例 · 11/7/26, 12:00 AM · Unknown · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(239, 68, 68)",
+          "barCount": 1,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 374,
+          "colors": [
+            "rgb(71, 85, 105)"
+          ],
+          "firstTitle": "5 / 样本不足 / low volume · 11/7/26, 12:00 AM · Unknown · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(100, 116, 139)",
+          "barCount": 0,
+          "heights": [],
+          "minBarWidth": null,
+          "colors": [],
+          "hasNoSamples": true
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "theme": "dark",
+      "locale": "en",
+      "mode": "windows",
+      "overflow": false,
+      "cards": [
+        {
+          "dot": "rgb(50, 213, 131)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 17,
+          "colors": [
+            "rgb(16, 185, 129)"
+          ],
+          "firstTitle": "1 / healthy / 渠道状态示例 · 11/7/26, 12:00 AM · Healthy · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(253, 176, 34)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 17,
+          "colors": [
+            "rgb(251, 191, 36)"
+          ],
+          "firstTitle": "2 / warning / 渠道状态示例 · 11/7/26, 12:00 AM · Watch · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(239, 68, 68)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 17,
+          "colors": [
+            "rgb(239, 68, 68)"
+          ],
+          "firstTitle": "3 / critical / 渠道状态示例 · 11/7/26, 12:00 AM · Critical · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(100, 116, 139)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 17,
+          "colors": [
+            "rgb(71, 85, 105)"
+          ],
+          "firstTitle": "4 / unknown / 渠道状态示例 · 11/7/26, 12:00 AM · Unknown · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(239, 68, 68)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 17,
+          "colors": [
+            "rgb(71, 85, 105)"
+          ],
+          "firstTitle": "5 / 样本不足 / low volume · 11/7/26, 12:00 AM · Unknown · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(100, 116, 139)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 17,
+          "colors": [
+            "rgb(71, 85, 105)"
+          ],
+          "firstTitle": "6 / 无样本 / no samples · 11/7/26, 12:00 AM · Unknown · 0 recent qualified samples",
+          "hasNoSamples": false
+        }
+      ]
+    },
+    {
+      "width": 1920,
+      "theme": "light",
+      "locale": "zh-CN",
+      "mode": "samples",
+      "overflow": false,
+      "cards": [
+        {
+          "dot": "rgb(18, 183, 106)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 28.859375,
+          "colors": [
+            "rgb(16, 185, 129)"
+          ],
+          "firstTitle": "1 / healthy / 渠道状态示例 · 2026/11/7 00:00 · 健康 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(247, 144, 9)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 28.859375,
+          "colors": [
+            "rgb(251, 191, 36)"
+          ],
+          "firstTitle": "2 / warning / 渠道状态示例 · 2026/11/7 00:00 · 需关注 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(239, 68, 68)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 28.859375,
+          "colors": [
+            "rgb(239, 68, 68)"
+          ],
+          "firstTitle": "3 / critical / 渠道状态示例 · 2026/11/7 00:00 · 异常 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(152, 162, 179)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 28.859375,
+          "colors": [
+            "rgb(229, 231, 235)"
+          ],
+          "firstTitle": "4 / unknown / 渠道状态示例 · 2026/11/7 00:00 · 未知 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(239, 68, 68)",
+          "barCount": 1,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 587.328125,
+          "colors": [
+            "rgb(229, 231, 235)"
+          ],
+          "firstTitle": "5 / 样本不足 / low volume · 2026/11/7 00:00 · 未知 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(152, 162, 179)",
+          "barCount": 0,
+          "heights": [],
+          "minBarWidth": null,
+          "colors": [],
+          "hasNoSamples": true
+        }
+      ]
+    },
+    {
+      "width": 1920,
+      "theme": "light",
+      "locale": "zh-CN",
+      "mode": "windows",
+      "overflow": false,
+      "cards": [
+        {
+          "dot": "rgb(18, 183, 106)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 28.859375,
+          "colors": [
+            "rgb(16, 185, 129)"
+          ],
+          "firstTitle": "1 / healthy / 渠道状态示例 · 2026/11/7 00:00 · 健康 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(247, 144, 9)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 28.859375,
+          "colors": [
+            "rgb(251, 191, 36)"
+          ],
+          "firstTitle": "2 / warning / 渠道状态示例 · 2026/11/7 00:00 · 需关注 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(239, 68, 68)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 28.859375,
+          "colors": [
+            "rgb(239, 68, 68)"
+          ],
+          "firstTitle": "3 / critical / 渠道状态示例 · 2026/11/7 00:00 · 异常 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(152, 162, 179)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 28.859375,
+          "colors": [
+            "rgb(229, 231, 235)"
+          ],
+          "firstTitle": "4 / unknown / 渠道状态示例 · 2026/11/7 00:00 · 未知 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(239, 68, 68)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 28.859375,
+          "colors": [
+            "rgb(229, 231, 235)"
+          ],
+          "firstTitle": "5 / 样本不足 / low volume · 2026/11/7 00:00 · 未知 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(152, 162, 179)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 28.859375,
+          "colors": [
+            "rgb(229, 231, 235)"
+          ],
+          "firstTitle": "6 / 无样本 / no samples · 2026/11/7 00:00 · 未知 · 0 最近有效样本",
+          "hasNoSamples": false
+        }
+      ]
+    },
+    {
+      "width": 1920,
+      "theme": "light",
+      "locale": "en",
+      "mode": "samples",
+      "overflow": false,
+      "cards": [
+        {
+          "dot": "rgb(18, 183, 106)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 28.859375,
+          "colors": [
+            "rgb(16, 185, 129)"
+          ],
+          "firstTitle": "1 / healthy / 渠道状态示例 · 11/7/26, 12:00 AM · Healthy · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(247, 144, 9)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 28.859375,
+          "colors": [
+            "rgb(251, 191, 36)"
+          ],
+          "firstTitle": "2 / warning / 渠道状态示例 · 11/7/26, 12:00 AM · Watch · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(239, 68, 68)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 28.859375,
+          "colors": [
+            "rgb(239, 68, 68)"
+          ],
+          "firstTitle": "3 / critical / 渠道状态示例 · 11/7/26, 12:00 AM · Critical · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(152, 162, 179)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 28.859375,
+          "colors": [
+            "rgb(229, 231, 235)"
+          ],
+          "firstTitle": "4 / unknown / 渠道状态示例 · 11/7/26, 12:00 AM · Unknown · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(239, 68, 68)",
+          "barCount": 1,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 587.328125,
+          "colors": [
+            "rgb(229, 231, 235)"
+          ],
+          "firstTitle": "5 / 样本不足 / low volume · 11/7/26, 12:00 AM · Unknown · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(152, 162, 179)",
+          "barCount": 0,
+          "heights": [],
+          "minBarWidth": null,
+          "colors": [],
+          "hasNoSamples": true
+        }
+      ]
+    },
+    {
+      "width": 1920,
+      "theme": "light",
+      "locale": "en",
+      "mode": "windows",
+      "overflow": false,
+      "cards": [
+        {
+          "dot": "rgb(18, 183, 106)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 28.859375,
+          "colors": [
+            "rgb(16, 185, 129)"
+          ],
+          "firstTitle": "1 / healthy / 渠道状态示例 · 11/7/26, 12:00 AM · Healthy · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(247, 144, 9)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 28.859375,
+          "colors": [
+            "rgb(251, 191, 36)"
+          ],
+          "firstTitle": "2 / warning / 渠道状态示例 · 11/7/26, 12:00 AM · Watch · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(239, 68, 68)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 28.859375,
+          "colors": [
+            "rgb(239, 68, 68)"
+          ],
+          "firstTitle": "3 / critical / 渠道状态示例 · 11/7/26, 12:00 AM · Critical · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(152, 162, 179)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 28.859375,
+          "colors": [
+            "rgb(229, 231, 235)"
+          ],
+          "firstTitle": "4 / unknown / 渠道状态示例 · 11/7/26, 12:00 AM · Unknown · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(239, 68, 68)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 28.859375,
+          "colors": [
+            "rgb(229, 231, 235)"
+          ],
+          "firstTitle": "5 / 样本不足 / low volume · 11/7/26, 12:00 AM · Unknown · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(152, 162, 179)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 28.859375,
+          "colors": [
+            "rgb(229, 231, 235)"
+          ],
+          "firstTitle": "6 / 无样本 / no samples · 11/7/26, 12:00 AM · Unknown · 0 recent qualified samples",
+          "hasNoSamples": false
+        }
+      ]
+    },
+    {
+      "width": 1920,
+      "theme": "dark",
+      "locale": "zh-CN",
+      "mode": "samples",
+      "overflow": false,
+      "cards": [
+        {
+          "dot": "rgb(50, 213, 131)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 28.859375,
+          "colors": [
+            "rgb(16, 185, 129)"
+          ],
+          "firstTitle": "1 / healthy / 渠道状态示例 · 2026/11/7 00:00 · 健康 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(253, 176, 34)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 28.859375,
+          "colors": [
+            "rgb(251, 191, 36)"
+          ],
+          "firstTitle": "2 / warning / 渠道状态示例 · 2026/11/7 00:00 · 需关注 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(239, 68, 68)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 28.859375,
+          "colors": [
+            "rgb(239, 68, 68)"
+          ],
+          "firstTitle": "3 / critical / 渠道状态示例 · 2026/11/7 00:00 · 异常 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(100, 116, 139)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 28.859375,
+          "colors": [
+            "rgb(71, 85, 105)"
+          ],
+          "firstTitle": "4 / unknown / 渠道状态示例 · 2026/11/7 00:00 · 未知 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(239, 68, 68)",
+          "barCount": 1,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 587.328125,
+          "colors": [
+            "rgb(71, 85, 105)"
+          ],
+          "firstTitle": "5 / 样本不足 / low volume · 2026/11/7 00:00 · 未知 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(100, 116, 139)",
+          "barCount": 0,
+          "heights": [],
+          "minBarWidth": null,
+          "colors": [],
+          "hasNoSamples": true
+        }
+      ]
+    },
+    {
+      "width": 1920,
+      "theme": "dark",
+      "locale": "zh-CN",
+      "mode": "windows",
+      "overflow": false,
+      "cards": [
+        {
+          "dot": "rgb(50, 213, 131)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 28.859375,
+          "colors": [
+            "rgb(16, 185, 129)"
+          ],
+          "firstTitle": "1 / healthy / 渠道状态示例 · 2026/11/7 00:00 · 健康 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(253, 176, 34)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 28.859375,
+          "colors": [
+            "rgb(251, 191, 36)"
+          ],
+          "firstTitle": "2 / warning / 渠道状态示例 · 2026/11/7 00:00 · 需关注 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(239, 68, 68)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 28.859375,
+          "colors": [
+            "rgb(239, 68, 68)"
+          ],
+          "firstTitle": "3 / critical / 渠道状态示例 · 2026/11/7 00:00 · 异常 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(100, 116, 139)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 28.859375,
+          "colors": [
+            "rgb(71, 85, 105)"
+          ],
+          "firstTitle": "4 / unknown / 渠道状态示例 · 2026/11/7 00:00 · 未知 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(239, 68, 68)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 28.859375,
+          "colors": [
+            "rgb(71, 85, 105)"
+          ],
+          "firstTitle": "5 / 样本不足 / low volume · 2026/11/7 00:00 · 未知 · 1 最近有效样本",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(100, 116, 139)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 28.859375,
+          "colors": [
+            "rgb(71, 85, 105)"
+          ],
+          "firstTitle": "6 / 无样本 / no samples · 2026/11/7 00:00 · 未知 · 0 最近有效样本",
+          "hasNoSamples": false
+        }
+      ]
+    },
+    {
+      "width": 1920,
+      "theme": "dark",
+      "locale": "en",
+      "mode": "samples",
+      "overflow": false,
+      "cards": [
+        {
+          "dot": "rgb(50, 213, 131)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 28.859375,
+          "colors": [
+            "rgb(16, 185, 129)"
+          ],
+          "firstTitle": "1 / healthy / 渠道状态示例 · 11/7/26, 12:00 AM · Healthy · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(253, 176, 34)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 28.859375,
+          "colors": [
+            "rgb(251, 191, 36)"
+          ],
+          "firstTitle": "2 / warning / 渠道状态示例 · 11/7/26, 12:00 AM · Watch · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(239, 68, 68)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 28.859375,
+          "colors": [
+            "rgb(239, 68, 68)"
+          ],
+          "firstTitle": "3 / critical / 渠道状态示例 · 11/7/26, 12:00 AM · Critical · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(100, 116, 139)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 28.859375,
+          "colors": [
+            "rgb(71, 85, 105)"
+          ],
+          "firstTitle": "4 / unknown / 渠道状态示例 · 11/7/26, 12:00 AM · Unknown · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(239, 68, 68)",
+          "barCount": 1,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 587.328125,
+          "colors": [
+            "rgb(71, 85, 105)"
+          ],
+          "firstTitle": "5 / 样本不足 / low volume · 11/7/26, 12:00 AM · Unknown · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(100, 116, 139)",
+          "barCount": 0,
+          "heights": [],
+          "minBarWidth": null,
+          "colors": [],
+          "hasNoSamples": true
+        }
+      ]
+    },
+    {
+      "width": 1920,
+      "theme": "dark",
+      "locale": "en",
+      "mode": "windows",
+      "overflow": false,
+      "cards": [
+        {
+          "dot": "rgb(50, 213, 131)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 28.859375,
+          "colors": [
+            "rgb(16, 185, 129)"
+          ],
+          "firstTitle": "1 / healthy / 渠道状态示例 · 11/7/26, 12:00 AM · Healthy · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(253, 176, 34)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 28.859375,
+          "colors": [
+            "rgb(251, 191, 36)"
+          ],
+          "firstTitle": "2 / warning / 渠道状态示例 · 11/7/26, 12:00 AM · Watch · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(239, 68, 68)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 28.859375,
+          "colors": [
+            "rgb(239, 68, 68)"
+          ],
+          "firstTitle": "3 / critical / 渠道状态示例 · 11/7/26, 12:00 AM · Critical · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(100, 116, 139)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 28.859375,
+          "colors": [
+            "rgb(71, 85, 105)"
+          ],
+          "firstTitle": "4 / unknown / 渠道状态示例 · 11/7/26, 12:00 AM · Unknown · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(239, 68, 68)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 28.859375,
+          "colors": [
+            "rgb(71, 85, 105)"
+          ],
+          "firstTitle": "5 / 样本不足 / low volume · 11/7/26, 12:00 AM · Unknown · 1 recent qualified samples",
+          "hasNoSamples": false
+        },
+        {
+          "dot": "rgb(100, 116, 139)",
+          "barCount": 18,
+          "heights": [
+            20
+          ],
+          "minBarWidth": 28.859375,
+          "colors": [
+            "rgb(71, 85, 105)"
+          ],
+          "firstTitle": "6 / 无样本 / no samples · 11/7/26, 12:00 AM · Unknown · 0 recent qualified samples",
+          "hasNoSamples": false
+        }
+      ]
+    }
+  ]
+}

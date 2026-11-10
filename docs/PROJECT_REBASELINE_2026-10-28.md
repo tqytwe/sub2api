@@ -1,5 +1,7 @@
 # 当前项目推进基线
 
+> **2026-11-10 MONITOR-USER-VISIBILITY-20261110**：生产已只读核对为 #423 merge `2ce32e25b88cf491d1b2df946811af46cce1636b`。近期样本颜色被前端请求数阈值错误覆盖的问题及样本脱敏遗漏已在隔离分支修复，服务器完整门禁通过；尚未发布。[本项证据与剩余问题](./visual-reviews/2026-11-10-monitor-user-visibility.md)记录 UI/API/测试关联。管理员新增分组已保存，授权空分组生成测试通过；用户所指具体分组名称待补，未放宽订阅或独占分组权限，不宣称该问题已解决。其他条目未重新核验。
+
 > **2026-11-09 PLAY-CHECKIN-PARTICIPATION-20261109**：#422 治理页修复已部署精确 SHA `4cce2a54d33c8063100cf8aea2f77e46964714b7`（完成于 11:53:41 UTC、健康/新资源 HTTP 200）。用户随后明确取消额外签到能量，未达资格仅签到；独立分支验证中，[同一交付记录](./archive/completed-tasks/2026-11-09-checkin-participation/README.md)维护本项 UI/API/测试/发布状态。本项尚未部署，不据此扩大其他玩法范围。
 
 > **2026-11-09 PLAY-GOVERNANCE-20261109**：增长福利治理空白页在隔离分支修复验证中；来源 `play/main@010b5f5e764a92bb1f6c5bf3810aa9a96e3990dd`，尚未发布。本项进度、UI/API/测试关联及签到能量政策待定范围维护在[同一交付记录](./archive/completed-tasks/2026-11-09-growth-governance/README.md)，不推断其他工作项状态。
