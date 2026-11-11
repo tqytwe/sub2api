@@ -307,6 +307,13 @@ export default {
       clear: '不使用优惠券',
     },
     wallet: {
+      status: {
+        available: '可用',
+        locked: '订单处理中',
+        used: '已使用',
+        expired: '已失效',
+        voided: '已作废',
+      },
       tabs: {
         available: '可用',
         locked: '订单处理中',

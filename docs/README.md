@@ -156,3 +156,5 @@
 - [签到额外成长能量取消](./archive/completed-tasks/2026-11-09-checkin-participation/README.md)：用户明确选择的仅签到规则、历史兼容及 PostgreSQL/HTTP/Vue 联合对账；[视觉记录](./visual-reviews/2026-11-09-checkin-participation.md)。
 
 - [Coupon claim and batch issuance visual review](visual-reviews/2026-11-11-coupon-closed-loop.md) — existing administration, wallet and checkout surfaces; synthetic browser evidence, production acceptance pending.
+
+- [优惠券状态与上限说明修正](visual-reviews/2026-11-12-coupon-status-limits.md)：冷启动状态回归、两类上限说明及签到/答题定向只读核对；生产验收待补。

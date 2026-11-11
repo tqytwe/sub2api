@@ -209,7 +209,7 @@ export default {
       validityDays: 'Valid days',
       fixedExpiry: 'Fixed expiry',
       validFrom: 'Valid from (empty means immediately)',
-      totalIssueLimit: 'Total issue limit',
+      totalIssueLimit: 'Template issuance limit (all sources)',
       status: 'Status',
       templateStatus: {
         draft: 'Draft',

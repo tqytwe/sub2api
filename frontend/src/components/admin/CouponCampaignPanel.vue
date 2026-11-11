@@ -151,7 +151,9 @@ async function execute() {
             <label class="grid gap-1 text-sm"
               ><span class="input-label">{{ t('couponCampaign.claimLimit') }}</span
               ><input v-model.number="policy.claim_limit" type="number" min="0" class="input" required
-            /></label>
+            /><span class="text-xs text-gray-500 dark:text-gray-400">{{
+                t('couponCampaign.claimLimitHint')
+              }}</span></label>
             <label class="grid gap-1 text-sm"
               ><span class="input-label">{{ t('couponCampaign.perUserLimit') }}</span
               ><input

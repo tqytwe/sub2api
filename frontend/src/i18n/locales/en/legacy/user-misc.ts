@@ -307,6 +307,13 @@ export default {
       clear: 'Do not use a coupon',
     },
     wallet: {
+      status: {
+        available: 'Available',
+        locked: 'Order pending',
+        used: 'Used',
+        expired: 'Expired',
+        voided: 'Voided',
+      },
       tabs: {
         available: 'Available',
         locked: 'Order pending',
