@@ -21,7 +21,7 @@ vi.mock('vue-i18n', async () => {
   }
   return {
     ...actual,
-    useI18n: () => ({ t: (key: string) => labels[key] ?? key, locale: 'en' }),
+    useI18n: () => ({ t: (key: string, params?: Record<string, unknown>) => labels[key] ?? `${key}${params ? JSON.stringify(params) : ''}`, locale: 'en' }),
   }
 })
 
@@ -79,11 +79,26 @@ const lockedCoupon = {
 }
 
 describe('CouponWalletPanel', () => {
+  it('navigates to the claimed coupon status instead of refreshing an unrelated tab', async () => {
+    const wrapper = mount(CouponWalletPanel, { global: { stubs: { CouponCodeClaim: true, RouterLink: true } } })
+    await flushPromises()
+    await wrapper.findAll('[role="tab"]')[2].trigger('click')
+    await flushPromises()
+    wrapper.getComponent({ name: 'CouponCodeClaim' }).vm.$emit('claimed', { ...coupon, status: 'available' })
+    await flushPromises()
+    expect(getMyCoupons).toHaveBeenLastCalledWith({ page: 1, page_size: 10, status: 'available' })
+  })
   beforeEach(() => {
     authState.isAuthenticated = true
     authState.user = { id: 9 }
     authState.token = 'wallet-account-a'
     getMyCoupons.mockReset().mockResolvedValue({ data: { items: [coupon], total: 1, page: 1, page_size: 10, pages: 1 } })
+  })
+
+  it('shows both the reduction and payable percentage in the wallet', async () => {
+    const wrapper = mount(CouponWalletPanel, { global: { stubs: { CouponCodeClaim: true, RouterLink: true } } })
+    await flushPromises()
+    expect(wrapper.text()).toContain('couponCampaign.benefit{"off":20,"pay":80}')
   })
 
   it('loads the available wallet tab and requests the selected status when switching', async () => {

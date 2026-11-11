@@ -1,3 +1,4 @@
+import couponCampaign from './couponCampaign'
 import requestLedger from '../request-ledger.en'
 import { jisudengHomeEn } from '../jisudeng-home.en'
 import { jisudengAuthAsideEn } from '../jisudeng-auth-aside.en'
@@ -9,6 +10,7 @@ import tokenGuardV2 from '../en/tokenGuardV2'
 
 export default mergeLocaleMessages(landing, mergeLocaleMessages(common, {
   requestLedger,
+  couponCampaign,
   accountOps: { smartTitle: 'Account operations' },
   tokenGuardV2,
   platform: platformLabels.en,

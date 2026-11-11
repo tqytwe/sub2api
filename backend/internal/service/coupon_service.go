@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"reflect"
@@ -31,6 +33,13 @@ func (s *CouponService) CreateTemplate(ctx context.Context, input CouponTemplate
 		return nil, ErrCouponRepositoryUnavailable
 	}
 	template := normalizeCouponTemplate(input.Template())
+	if template.Key == "" {
+		b := make([]byte, 12)
+		if _, err := rand.Read(b); err != nil {
+			return nil, err
+		}
+		template.Key = "coupon-" + hex.EncodeToString(b)
+	}
 	if template.Status == "" {
 		template.Status = CouponTemplateStatusDraft
 	}

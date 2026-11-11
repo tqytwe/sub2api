@@ -4,7 +4,6 @@ import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import { adminAPI } from '@/api/admin'
 import type {
-  CouponBatchIssueInput,
   CouponRewardActivity,
   CouponRewardPoolInput,
   CouponRewardPoolVersion,
@@ -12,6 +11,7 @@ import type {
   CouponTemplate,
   CouponTemplateStatus,
   CouponTemplateInput,
+  CouponIssueBatch,
   UserCoupon,
   UserCouponStatus,
 } from '@/types/coupon'
@@ -22,6 +22,45 @@ import DataTable from '@/components/common/DataTable.vue'
 import Pagination from '@/components/common/Pagination.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { formatCurrency, formatDateTime } from '@/utils/format'
+import CouponCampaignPanel from './CouponCampaignPanel.vue'
+import { couponErrorKey } from '@/utils/couponErrors'
+import type { CouponSummary, CouponEvent, CouponClaimPolicy } from '@/types/couponCampaign'
+const policies = ref<Record<number, CouponClaimPolicy>>({})
+const claimTemplate = ref<CouponTemplate | null>(null)
+const batches = ref<CouponIssueBatch[]>([])
+const batchPage = ref(1)
+const batchTotal = ref(0)
+const batchLoading = ref(false)
+const events = ref<CouponEvent[] | null>(null)
+const eventCoupon = ref(0)
+const summary = ref<CouponSummary>({ issued: 0, available: 0, used: 0, amounts: [] })
+
+async function loadBatches() {
+  batchLoading.value = true
+  try {
+    const { data } = await adminAPI.coupon.listBatches({ page: batchPage.value, page_size: 20 })
+    batches.value = data.items
+    batchTotal.value = data.total
+  } catch (error) {
+    appStore.showError(t(couponErrorKey(error)))
+  } finally {
+    batchLoading.value = false
+  }
+}
+
+async function showEvents(id: number) {
+  eventCoupon.value = id
+  events.value = []
+  try {
+    events.value = (await adminAPI.coupon.events(id)).data
+  } catch (error) {
+    appStore.showError(t(couponErrorKey(error)))
+  }
+}
+
+async function issued() {
+  await Promise.all([loadUserCoupons(), loadBatches(), loadSelectableTemplates()])
+}
 
 export type CouponOperationsTab = 'templates' | 'issue' | 'blindbox' | 'quiz' | 'checkin'
 
@@ -104,12 +143,6 @@ function emptyTemplateForm(): CouponTemplateForm {
 }
 
 const templateForm = reactive<CouponTemplateForm>(emptyTemplateForm())
-const batchForm = reactive({
-  template_id: 0,
-  user_ids_text: '',
-  idempotency_key: createCouponBatchIdempotencyKey(),
-})
-
 type EditablePool = CouponRewardPoolInput & { id?: number }
 const poolForm = ref<EditablePool>(emptyPool())
 
@@ -233,11 +266,6 @@ function parseIDs(input: string): number[] {
   return Array.from(new Set(input.split(/[\s,，]+/).map((value) => Number(value)).filter((value) => Number.isInteger(value) && value > 0)))
 }
 
-function createCouponBatchIdempotencyKey(): string {
-  const requestID = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`
-  return `coupon-batch-${requestID}`
-}
-
 function toISO(value: string | null | undefined): string | null {
   if (!value) return null
   const date = new Date(value)
@@ -253,7 +281,7 @@ function localDate(value: string | null | undefined): string {
 }
 
 function templateBenefit(template: CouponTemplate): string {
-  if (template.benefit_type === 'percentage') return `${template.benefit_value}%`
+  if (template.benefit_type === 'percentage') return t('couponCampaign.benefit',{off:template.benefit_value,pay:100-template.benefit_value})
   return `${template.currency} ${template.benefit_value.toFixed(2)}`
 }
 
@@ -290,6 +318,7 @@ function poolStatusLabel(status: string): string {
 }
 
 function issueSourceLabel(source: string): string {
+ if(source==='code_claim')return t('couponCampaign.codeSource')
   const key = `coupon.admin.issueSource.${source}`
   const translated = t(key)
   return translated === key ? source : translated
@@ -330,17 +359,6 @@ function userCouponConversion(coupon: UserCoupon): string {
   })
 }
 
-const userCouponDashboard = computed(() => {
-  const rows = userCoupons.value
-  return {
-    issued: rows.length,
-    available: rows.filter((coupon) => coupon.status === 'available').length,
-    used: rows.filter((coupon) => coupon.status === 'used').length,
-    converted: rows.reduce((total, coupon) => total + (coupon.used_order_pay_amount || 0), 0),
-    currency: rows.find((coupon) => coupon.used_order_currency)?.used_order_currency || 'CNY',
-  }
-})
-
 async function loadTemplates() {
   const requestID = ++templateLoadRequest
   templateLoading.value = true
@@ -351,7 +369,11 @@ async function loadTemplates() {
       search: templateSearch.value.trim() || undefined,
     })
     if (requestID !== templateLoadRequest) return
-    templates.value = response.data.items || []
+    const rows = response.data.items || []
+    const claimRows = rows.length ? (await adminAPI.coupon.listClaimPolicies(rows.map(v => v.id))).data : []
+    if (requestID !== templateLoadRequest) return
+    policies.value = Object.fromEntries(claimRows.map(v => [v.template_id, v]))
+    templates.value = rows
     templatePagination.total = response.data.total || 0
     templatePagination.page = response.data.page || templatePagination.page
     templatePagination.page_size = response.data.page_size || templatePagination.page_size
@@ -428,7 +450,7 @@ async function loadUserCoupons() {
   userCouponLoading.value = true
   try {
     const templateID = Number(userCouponFilters.template_id)
-    const response = await adminAPI.coupon.listUserCoupons({
+    const filters = {
       page: userCouponPagination.page,
       page_size: userCouponPagination.page_size,
       user: userCouponFilters.user.trim() || undefined,
@@ -437,8 +459,10 @@ async function loadUserCoupons() {
       status: userCouponFilters.status || undefined,
       issued_from: toISO(userCouponFilters.issued_from) || undefined,
       issued_to: toISO(userCouponFilters.issued_to) || undefined,
-    })
+    }
+    const [response,stats]=await Promise.all([adminAPI.coupon.listUserCoupons(filters),adminAPI.coupon.summary(filters)])
     if (requestID !== userCouponLoadRequest) return
+    summary.value=stats.data
     userCoupons.value = response.data.items || []
     userCouponPagination.total = response.data.total || 0
     userCouponPagination.page = response.data.page || userCouponPagination.page
@@ -447,6 +471,7 @@ async function loadUserCoupons() {
   } catch {
     if (requestID !== userCouponLoadRequest) return
     userCoupons.value = []
+    summary.value = { issued: 0, available: 0, used: 0, amounts: [] }
     userCouponPagination.total = 0
     userCouponPagination.pages = 1
     appStore.showError(t('coupon.admin.loadFailed'))
@@ -503,7 +528,7 @@ async function loadActiveTab() {
     return
   }
   if (props.activeTab === 'issue') {
-    await Promise.all([loadSelectableTemplates(), loadUserCoupons()])
+    await Promise.all([loadSelectableTemplates(), loadUserCoupons(),loadBatches()])
     return
   }
   await Promise.all([loadSelectableTemplates(), loadPools()])
@@ -519,6 +544,12 @@ function openCreateTemplate() {
   showTemplateDialog.value = true
 }
 
+function copyTemplate(template: CouponTemplate) {
+  openEditTemplate(template)
+  editingTemplateID.value = null
+  templateForm.key = ''
+  templateForm.name = template.name + ' ' + t('common.copy')
+}
 function openEditTemplate(template: CouponTemplate) {
   Object.assign(templateForm, {
     ...template,
@@ -545,7 +576,7 @@ function updateScopeFromEvent(scope: CouponScope, event: Event) {
 }
 
 async function saveTemplate() {
-  if (!templateForm.name.trim() || !templateForm.key.trim() || templateForm.applicable_scopes.length === 0) return
+  if (!templateForm.name.trim() || templateForm.applicable_scopes.length === 0) return
   saving.value = true
   try {
     const validityMode = templateForm.validity_mode
@@ -567,8 +598,8 @@ async function saveTemplate() {
     showTemplateDialog.value = false
     appStore.showSuccess(t('coupon.admin.saved'))
     await Promise.all([loadTemplates(), loadSelectableTemplates()])
-  } catch {
-    appStore.showError(t('coupon.admin.saveFailed'))
+  } catch (e) {
+    appStore.showError(t(couponErrorKey(e)))
   } finally {
     saving.value = false
   }
@@ -582,8 +613,8 @@ async function deleteTemplate() {
     deletingTemplate.value = null
     appStore.showSuccess(t('coupon.admin.deleted'))
     await Promise.all([loadTemplates(), loadSelectableTemplates()])
-  } catch {
-    appStore.showError(t('coupon.admin.deleteFailed'))
+  } catch (e) {
+    appStore.showError(t(couponErrorKey(e)))
   } finally {
     saving.value = false
   }
@@ -614,29 +645,6 @@ async function voidUserCoupon() {
     await loadUserCoupons()
   } catch {
     appStore.showError(t('coupon.admin.voidFailed'))
-  } finally {
-    saving.value = false
-  }
-}
-
-async function issueBatch() {
-  const userIDs = parseIDs(batchForm.user_ids_text)
-  if (!batchForm.template_id || userIDs.length === 0) return
-  saving.value = true
-  try {
-    const payload: CouponBatchIssueInput = {
-      template_id: batchForm.template_id,
-      user_ids: userIDs,
-      source: 'admin_batch',
-      idempotency_key: batchForm.idempotency_key,
-    }
-    await adminAPI.coupon.issueBatch(payload)
-    batchForm.user_ids_text = ''
-    batchForm.idempotency_key = createCouponBatchIdempotencyKey()
-    appStore.showSuccess(t('coupon.admin.batchIssued', { count: userIDs.length }))
-    await loadUserCoupons()
-  } catch {
-    appStore.showError(t('coupon.admin.batchFailed'))
   } finally {
     saving.value = false
   }
@@ -797,8 +805,8 @@ async function savePool() {
     showPoolDialog.value = false
     appStore.showSuccess(t('coupon.admin.saved'))
     await loadPools()
-  } catch {
-    appStore.showError(t('coupon.admin.saveFailed'))
+  } catch (e) {
+    appStore.showError(t(couponErrorKey(e)))
   } finally {
     saving.value = false
   }
@@ -835,10 +843,6 @@ async function deletePool() {
 
 watch(() => props.activeTab, () => { void loadActiveTab() }, { immediate: true })
 watch(
-  () => [batchForm.template_id, batchForm.user_ids_text] as const,
-  () => { batchForm.idempotency_key = createCouponBatchIdempotencyKey() },
-)
-watch(
   () => [poolForm.value.fallback_template_id, ...poolForm.value.entries.map((entry) => entry.template_id)],
   normalizeFallbackEntryConstraints,
 )
@@ -865,13 +869,13 @@ watch(
       </div>
     </div>
     <DataTable :columns="templateColumns" :data="templates" :loading="templateLoading">
-      <template #cell-name="{ row }"><div><p class="font-medium text-gray-900 dark:text-white">{{ row.name }}</p><code class="text-xs text-gray-500 dark:text-gray-400">{{ row.key }}</code></div></template>
+      <template #cell-name="{ row }"><div><p class="font-medium text-gray-900 dark:text-white">{{ row.name }}</p><code class="text-xs text-gray-500 dark:text-gray-400">{{ policies[row.id]?.code || row.key }}</code><p v-if="policies[row.id]" class="text-xs text-gray-500 dark:text-gray-400">{{ t(policies[row.id].enabled?'couponCampaign.open':'couponCampaign.closed') }} · {{ t('couponCampaign.policyCounts',{issued:policies[row.id].issued_count,manual:policies[row.id].manual_count,claimed:policies[row.id].claimed_count,used:policies[row.id].used_count}) }}</p></div></template>
       <template #cell-benefit="{ row }"><span class="tabular-nums">{{ templateBenefit(row) }}</span></template>
       <template #cell-scope="{ row }"><span>{{ templateScope(row) }}</span></template>
       <template #cell-validity="{ row }"><span class="text-sm text-gray-600 dark:text-gray-300">{{ templateValidity(row) }}</span></template>
       <template #cell-issued_count="{ row }"><span class="tabular-nums">{{ row.issued_count }} / {{ row.total_issue_limit ?? '∞' }}</span></template>
       <template #cell-status="{ row }"><span class="badge" :class="statusClass(row.status)">{{ templateStatusLabel(row.status) }}</span></template>
-      <template #cell-actions="{ row }"><div class="flex gap-1"><button type="button" class="btn btn-secondary btn-sm" @click="openEditTemplate(row)">{{ t('common.edit') }}</button><button type="button" class="btn btn-danger btn-sm" @click="deletingTemplate = row">{{ t('common.delete') }}</button></div></template>
+      <template #cell-actions="{ row }"><div class="flex flex-wrap gap-1"><button type="button" class="btn btn-secondary btn-sm" @click="claimTemplate=row">{{ t('couponCampaign.codeSettings') }}</button><button type="button" class="btn btn-secondary btn-sm" @click="openEditTemplate(row)">{{ t('common.edit') }}</button><button type="button" class="btn btn-secondary btn-sm" @click="copyTemplate(row)">{{ t('common.copy') }}</button><button type="button" class="btn btn-danger btn-sm" @click="deletingTemplate = row">{{ t('common.delete') }}</button></div></template>
     </DataTable>
     <Pagination
       v-if="templatePagination.total > 0"
@@ -888,15 +892,11 @@ watch(
       <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t('coupon.admin.issueTitle') }}</h2>
       <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ t('coupon.admin.issueDescription') }}</p>
     </div>
-    <form class="card grid gap-4 p-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_auto] lg:items-end" @submit.prevent="issueBatch">
-      <label class="grid gap-1 text-sm"><span class="input-label">{{ t('coupon.admin.template') }}</span><select v-model.number="batchForm.template_id" class="input" :disabled="selectableTemplatesLoading" required><option :value="0" disabled>{{ t('coupon.admin.selectTemplate') }}</option><option v-for="template in activeSelectableTemplates" :key="template.id" :value="template.id">{{ template.name }}</option></select></label>
-      <label class="grid gap-1 text-sm"><span class="input-label">{{ t('coupon.admin.userIDs') }}</span><input v-model.trim="batchForm.user_ids_text" class="input" :placeholder="t('coupon.admin.userIDsPlaceholder')" required /></label>
-      <button type="submit" class="btn btn-primary" :disabled="saving || selectableTemplatesLoading"><Icon name="check" size="sm" class="mr-1" />{{ saving ? t('common.processing') : t('coupon.admin.issueBatch') }}</button>
-    </form>
-    <form class="grid gap-3 rounded-lg border border-gray-200 p-4 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto_auto] xl:items-end dark:border-dark-700" @submit.prevent="applyUserCouponFilters">
+    <CouponCampaignPanel :templates="selectableTemplates" @issued="issued" />
+    <form class="grid gap-3 rounded-lg border border-gray-200 p-4 sm:grid-cols-2 xl:grid-cols-4 xl:items-end dark:border-dark-700" @submit.prevent="applyUserCouponFilters">
       <label class="grid gap-1 text-sm"><span class="input-label">{{ t('coupon.admin.filterUserID') }}</span><input v-model.trim="userCouponFilters.user" data-test="coupon-user-filter" class="input" /></label>
       <label class="grid gap-1 text-sm"><span class="input-label">{{ t('coupon.admin.filterTemplate') }}</span><select v-model.number="userCouponFilters.template_id" data-test="coupon-template-filter" class="input" :disabled="selectableTemplatesLoading"><option :value="0">{{ t('coupon.admin.allTemplates') }}</option><option v-for="template in selectableTemplates" :key="template.id" :value="template.id">{{ template.name }}</option></select></label>
-      <label class="grid gap-1 text-sm"><span class="input-label">{{ t('coupon.admin.filterSource') }}</span><select v-model="userCouponFilters.source" data-test="coupon-source-filter" class="input"><option value="">{{ t('coupon.admin.allSources') }}</option><option value="blindbox">{{ t('coupon.admin.issueSource.blindbox') }}</option><option value="quiz">{{ t('coupon.admin.issueSource.quiz') }}</option><option value="checkin">{{ t('coupon.admin.issueSource.checkin') }}</option><option value="admin_batch">{{ t('coupon.admin.issueSource.admin_batch') }}</option><option value="manual">{{ t('coupon.admin.issueSource.manual') }}</option><option value="compensation">{{ t('coupon.admin.issueSource.compensation') }}</option></select></label>
+      <label class="grid gap-1 text-sm"><span class="input-label">{{ t('coupon.admin.filterSource') }}</span><select v-model="userCouponFilters.source" data-test="coupon-source-filter" class="input"><option value="">{{ t('coupon.admin.allSources') }}</option><option value="blindbox">{{ t('coupon.admin.issueSource.blindbox') }}</option><option value="quiz">{{ t('coupon.admin.issueSource.quiz') }}</option><option value="checkin">{{ t('coupon.admin.issueSource.checkin') }}</option><option value="admin_batch">{{ t('coupon.admin.issueSource.admin_batch') }}</option><option value="manual">{{ t('coupon.admin.issueSource.manual') }}</option><option value="code_claim">{{ t('couponCampaign.codeSource') }}</option><option value="compensation">{{ t('coupon.admin.issueSource.compensation') }}</option></select></label>
       <label class="grid gap-1 text-sm"><span class="input-label">{{ t('coupon.admin.filterStatus') }}</span><select v-model="userCouponFilters.status" data-test="coupon-status-filter" class="input"><option value="">{{ t('coupon.admin.allStatuses') }}</option><option value="available">{{ t('coupon.wallet.status.available') }}</option><option value="locked">{{ t('coupon.wallet.status.locked') }}</option><option value="used">{{ t('coupon.wallet.status.used') }}</option><option value="expired">{{ t('coupon.wallet.status.expired') }}</option><option value="voided">{{ t('coupon.wallet.status.voided') }}</option></select></label>
       <label class="grid gap-1 text-sm"><span class="input-label">{{ t('coupon.admin.issuedFrom') }}</span><input v-model="userCouponFilters.issued_from" data-test="coupon-issued-from-filter" type="datetime-local" class="input" /></label>
       <label class="grid gap-1 text-sm"><span class="input-label">{{ t('coupon.admin.issuedTo') }}</span><input v-model="userCouponFilters.issued_to" data-test="coupon-issued-to-filter" type="datetime-local" class="input" /></label>
@@ -904,10 +904,10 @@ watch(
       <button type="button" class="btn btn-ghost" data-test="clear-coupon-user-filters" :disabled="userCouponLoading" @click="clearUserCouponFilters"><Icon name="x" size="sm" class="mr-1" />{{ t('coupon.admin.clearFilters') }}</button>
     </form>
     <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-      <div class="card p-4"><p class="text-xs text-gray-500 dark:text-gray-400">{{ t('coupon.admin.dashboardIssued') }}</p><p class="mt-1 text-xl font-semibold text-gray-900 dark:text-white">{{ userCouponDashboard.issued }}</p></div>
-      <div class="card p-4"><p class="text-xs text-gray-500 dark:text-gray-400">{{ t('coupon.admin.dashboardAvailable') }}</p><p class="mt-1 text-xl font-semibold text-gray-900 dark:text-white">{{ userCouponDashboard.available }}</p></div>
-      <div class="card p-4"><p class="text-xs text-gray-500 dark:text-gray-400">{{ t('coupon.admin.dashboardUsed') }}</p><p class="mt-1 text-xl font-semibold text-gray-900 dark:text-white">{{ userCouponDashboard.used }}</p></div>
-      <div class="card p-4"><p class="text-xs text-gray-500 dark:text-gray-400">{{ t('coupon.admin.dashboardConverted') }}</p><p class="mt-1 text-xl font-semibold text-gray-900 dark:text-white">{{ formatCurrency(userCouponDashboard.converted, userCouponDashboard.currency) }}</p></div>
+      <div class="card p-4"><p class="text-xs text-gray-500 dark:text-gray-400">{{ t('couponCampaign.totalIssued') }}</p><p class="mt-1 text-xl font-semibold text-gray-900 dark:text-white">{{ summary.issued }}</p></div>
+      <div class="card p-4"><p class="text-xs text-gray-500 dark:text-gray-400">{{ t('coupon.admin.dashboardAvailable') }}</p><p class="mt-1 text-xl font-semibold text-gray-900 dark:text-white">{{ summary.available }}</p></div>
+      <div class="card p-4"><p class="text-xs text-gray-500 dark:text-gray-400">{{ t('coupon.admin.dashboardUsed') }}</p><p class="mt-1 text-xl font-semibold text-gray-900 dark:text-white">{{ summary.used }}</p></div>
+      <div class="card p-4"><p class="text-xs text-gray-500 dark:text-gray-400">{{ t('couponCampaign.netPaid') }}</p><p class="mt-1 text-xl font-semibold text-gray-900 dark:text-white"><span v-if="!summary.amounts.length">—</span><span v-for="a in summary.amounts" :key="a.currency" class="block">{{ formatCurrency(a.net_paid,a.currency) }}<span class="block text-xs font-normal">{{ t('couponCampaign.amounts',{paid:formatCurrency(a.paid,a.currency),discount:formatCurrency(a.discount,a.currency),refund:formatCurrency(a.refunded,a.currency)}) }}</span></span></p></div>
     </div>
     <DataTable :columns="userCouponColumns" :data="userCoupons" :loading="userCouponLoading">
       <template #cell-id="{ row }"><code>#{{ row.id }}</code></template>
@@ -918,7 +918,7 @@ watch(
       <template #cell-status="{ row }"><span class="badge" :class="statusClass(row.status)">{{ userCouponStatusLabel(row.status) }}</span></template>
       <template #cell-used_order="{ row }"><span>{{ userCouponOrderLabel(row) }}</span></template>
       <template #cell-conversion="{ row }"><span>{{ userCouponConversion(row) }}</span></template>
-      <template #cell-actions="{ row }"><button v-if="row.status === 'available'" type="button" class="btn btn-danger btn-sm" data-test="void-user-coupon" @click="openVoidUserCoupon(row)">{{ t('coupon.admin.voidCoupon') }}</button></template>
+      <template #cell-actions="{ row }"><button type="button" class="btn btn-secondary btn-sm" @click="showEvents(row.id)">{{ t('couponCampaign.history') }}</button><button v-if="row.status === 'available'" type="button" class="btn btn-danger btn-sm" data-test="void-user-coupon" @click="openVoidUserCoupon(row)">{{ t('coupon.admin.voidCoupon') }}</button></template>
     </DataTable>
     <Pagination
       v-if="userCouponPagination.total > 0"
@@ -928,6 +928,7 @@ watch(
       @update:page="changeUserCouponPage"
       @update:pageSize="changeUserCouponPageSize"
     />
+    <div class="space-y-3 border-t border-gray-200 pt-4 dark:border-dark-700"><h3 class="text-base font-semibold">{{ t('couponCampaign.batches') }}</h3><button type="button" class="btn btn-secondary btn-sm" :disabled="batchLoading" @click="loadBatches">{{ t('common.refresh') }}</button><ul class="divide-y divide-gray-100 dark:divide-dark-700"><li v-for="b in batches" :key="b.id" class="py-3 text-sm"><button type="button" class="btn btn-secondary btn-sm" @click="userCouponFilters.template_id=b.template_id;applyUserCouponFilters()">#{{ b.id }} · {{ b.template_name }}</button> {{ t('couponCampaign.batchCounts',{requested:b.requested_count,issued:b.issued_count,skipped:b.requested_count-b.issued_count}) }} · {{ formatDateTime(b.created_at) }}<details v-if="b.input_snapshot"><summary>{{ t('couponCampaign.details') }}</summary><p class="break-all">{{ t('couponCampaign.ids') }}: {{ b.input_snapshot.user_ids?.join(', ') }}</p><ul><li v-for="v in b.input_snapshot.skipped" :key="v.user_id">#{{ v.user_id }} · {{ t('couponCampaign.reasons.'+v.reason) }}</li></ul></details></li></ul><Pagination v-if="batchTotal>20" :page="batchPage" :total="batchTotal" :page-size="20" @update:page="batchPage=$event;loadBatches()" /></div>
   </section>
 
   <section v-else class="space-y-4">
@@ -949,7 +950,7 @@ watch(
 
   <BaseDialog :show="showTemplateDialog" :title="editingTemplateID ? t('coupon.admin.editTemplate') : t('coupon.admin.newTemplate')" width="wide" @close="showTemplateDialog = false">
     <form id="coupon-template-form" class="grid gap-4 md:grid-cols-2" @submit.prevent="saveTemplate">
-      <label class="grid gap-1 text-sm"><span class="input-label">{{ t('coupon.admin.key') }}</span><input v-model.trim="templateForm.key" class="input" required /></label>
+      <p class="text-sm text-gray-500 dark:text-gray-400 md:col-span-2">{{ t('couponCampaign.autoCode') }}</p>
       <label class="grid gap-1 text-sm"><span class="input-label">{{ t('coupon.admin.name') }}</span><input v-model.trim="templateForm.name" class="input" required /></label>
       <label class="grid gap-1 text-sm"><span class="input-label">{{ t('coupon.admin.benefitType') }}</span><select v-model="templateForm.benefit_type" class="input"><option value="fixed_amount">{{ t('coupon.admin.fixedAmount') }}</option><option value="percentage">{{ t('coupon.admin.percentage') }}</option></select></label>
       <label class="grid gap-1 text-sm"><span class="input-label">{{ t('coupon.admin.benefitValue') }}</span><input v-model.number="templateForm.benefit_value" type="number" min="0.01" step="0.01" class="input" required /></label>
@@ -969,6 +970,8 @@ watch(
     <template #footer><div class="flex justify-end gap-3"><button type="button" class="btn btn-secondary" @click="showTemplateDialog = false">{{ t('common.cancel') }}</button><button type="submit" form="coupon-template-form" class="btn btn-primary" :disabled="saving">{{ saving ? t('common.saving') : t('common.save') }}</button></div></template>
   </BaseDialog>
 
+  <BaseDialog :show="!!claimTemplate" :title="t('couponCampaign.codeSettings')" width="wide" @close="claimTemplate=null;loadTemplates()"><CouponCampaignPanel v-if="claimTemplate" :templates="selectableTemplates" :template-id="claimTemplate.id" policy-mode /></BaseDialog>
+  <BaseDialog :show="events!==null" :title="t('couponCampaign.history')+' #'+eventCoupon" width="wide" @close="events=null"><ol class="space-y-3"><li v-for="e in events" :key="e.id" class="text-sm">{{ formatDateTime(e.created_at) }} · {{ t('couponCampaign.events.'+e.event_type) }} · {{ e.order_id?'#'+e.order_id:'' }}</li></ol><p v-if="!events?.length">{{ t('common.noData') }}</p><p class="mt-4 text-xs text-gray-500 dark:text-gray-400">{{ t('couponCampaign.refundHint') }}</p></BaseDialog>
   <BaseDialog :show="showPoolDialog" :title="editingPoolID ? t('coupon.admin.editPool') : copyingPool ? t('coupon.admin.copyPool') : t('coupon.admin.newPool')" width="wide" @close="showPoolDialog = false">
     <form id="coupon-pool-form" class="space-y-4" @submit.prevent="savePool">
       <p class="rounded-lg border border-primary-200 bg-primary-50 px-3 py-2 text-sm text-primary-800 dark:border-primary-500/30 dark:bg-primary-500/10 dark:text-primary-200">{{ outerSplit }}</p>

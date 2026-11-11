@@ -3,10 +3,17 @@ import type {
   CouponPaymentQuote,
   CouponPaymentQuoteRequest,
   UserCouponPage,
+  UserCoupon,
   UserCouponStatus,
 } from '@/types/coupon'
 
 export const couponAPI = {
+  getMyCoupon(id: number) {
+    return apiClient.get<UserCoupon>(`/coupons/me/${id}`)
+  },
+  claimCode(code: string) {
+    return apiClient.post<UserCoupon>('/coupons/claim', { code })
+  },
   getMyCoupons(params: { page?: number; page_size?: number; status?: UserCouponStatus } = {}) {
     return apiClient.get<UserCouponPage>('/coupons/me', { params })
   },

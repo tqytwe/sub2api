@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -15,7 +16,43 @@ import (
 
 type couponWalletRepositoryStub struct {
 	service.CouponRepository
-	filter service.UserCouponListFilter
+	service.CouponCampaignRepository
+	filter      service.UserCouponListFilter
+	claimedUser int64
+}
+
+func (r *couponWalletRepositoryStub) ClaimCouponCode(_ context.Context, _ string, id int64, _ time.Time) (*service.UserCoupon, error) {
+	r.claimedUser = id
+	return &service.UserCoupon{ID: 41, UserID: id}, nil
+}
+func (r *couponWalletRepositoryStub) GetUserCoupon(context.Context, int64) (*service.UserCoupon, error) {
+	return &service.UserCoupon{ID: 41, UserID: 77}, nil
+}
+
+func TestCouponWalletClaimIgnoresClientRecipientAndGetMineHidesOthers(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	repo := &couponWalletRepositoryStub{}
+	h := NewCouponWalletHandler(service.NewCouponService(repo))
+	for _, test := range []struct {
+		user   int64
+		status int
+	}{{77, http.StatusOK}, {88, http.StatusNotFound}} {
+		rec := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(rec)
+		c.Request = httptest.NewRequest(http.MethodGet, "/coupons/me/41", nil)
+		c.Params = gin.Params{{Key: "id", Value: "41"}}
+		c.Set(string(middleware.ContextKeyUser), middleware.AuthSubject{UserID: test.user})
+		h.GetMine(c)
+		require.Equal(t, test.status, rec.Code)
+	}
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodPost, "/coupons/claim", strings.NewReader(`{"code":"SAVE-TEST","user_id":88}`))
+	c.Request.Header.Set("Content-Type", "application/json")
+	c.Set(string(middleware.ContextKeyUser), middleware.AuthSubject{UserID: 77})
+	h.Claim(c)
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Equal(t, int64(77), repo.claimedUser)
 }
 
 func (r *couponWalletRepositoryStub) ExpireAvailableUserCoupons(context.Context, int64, time.Time) error {

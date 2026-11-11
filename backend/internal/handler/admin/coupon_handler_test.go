@@ -49,6 +49,18 @@ func TestCouponHandlerRejectsInvalidTemplatePayloadBeforeService(t *testing.T) {
 	require.Equal(t, http.StatusBadRequest, recorder.Code)
 }
 
+func TestCouponHandlerManualIssuanceCannotPretendToBeRewardDraw(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	h := NewCouponHandler(nil)
+	router.POST("/batches", h.IssueUserCouponBatch)
+	req := httptest.NewRequest(http.MethodPost, "/batches", strings.NewReader(`{"template_id":1,"user_ids":[9],"source":"blindbox","idempotency_key":"manual-reward-bypass"}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusBadRequest, rec.Code)
+}
+
 func TestCouponHandlerCreatesCheckinRewardPoolWithRedeemAndBalanceConfig(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	repo := &couponHandlerRewardPoolRepo{}

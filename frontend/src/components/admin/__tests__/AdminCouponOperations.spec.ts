@@ -5,7 +5,9 @@ import AdminCouponOperations from '../AdminCouponOperations.vue'
 const listTemplates = vi.hoisted(() => vi.fn())
 const listUserCoupons = vi.hoisted(() => vi.fn())
 const listPools = vi.hoisted(() => vi.fn())
-const issueBatch = vi.hoisted(() => vi.fn())
+const summary = vi.hoisted(() => vi.fn())
+const listClaimPolicies=vi.hoisted(()=>vi.fn())
+const listBatches=vi.hoisted(()=>vi.fn())
 const voidUserCoupon = vi.hoisted(() => vi.fn())
 const createTemplate = vi.hoisted(() => vi.fn())
 const createPool = vi.hoisted(() => vi.fn())
@@ -19,7 +21,9 @@ vi.mock('@/api/admin', () => ({
       listTemplates,
       listUserCoupons,
       listPools,
-      issueBatch,
+      summary,
+      listClaimPolicies,
+      listBatches,
       voidUserCoupon,
       createTemplate,
       createPool,
@@ -47,6 +51,7 @@ function mountIssuePanel() {
       stubs: {
         BaseDialog: { template: '<div><slot /><slot name="footer" /></div>' },
         ConfirmDialog: true,
+        CouponCampaignPanel: true,
         DataTable: {
           props: ['data'],
           template: '<div><template v-for="row in data" :key="row.id"><slot name="cell-actions" :row="row" /></template></div>',
@@ -69,6 +74,7 @@ function mountTemplatePanel() {
       stubs: {
         BaseDialog: { template: '<div><slot /><slot name="footer" /></div>' },
         ConfirmDialog: true,
+        CouponCampaignPanel: true,
         DataTable: { template: '<div><slot /></div>' },
         Pagination: {
           name: 'Pagination',
@@ -115,7 +121,9 @@ describe('AdminCouponOperations', () => {
     })
     listUserCoupons.mockReset().mockResolvedValue({ data: { items: [], total: 0 } })
     listPools.mockReset().mockResolvedValue({ data: [] })
-    issueBatch.mockReset().mockResolvedValue({ data: { id: 11 } })
+    listClaimPolicies.mockReset().mockResolvedValue({data:[]})
+    summary.mockReset().mockResolvedValue({data:{issued:100,available:80,used:20,amounts:[]}})
+    listBatches.mockReset().mockResolvedValue({data:{items:[],total:0}})
     voidUserCoupon.mockReset().mockResolvedValue({ data: { id: 31, status: 'voided' } })
     createTemplate.mockReset().mockResolvedValue({ data: { id: 41 } })
     createPool.mockReset().mockResolvedValue({ data: { id: 91 } })
@@ -125,21 +133,23 @@ describe('AdminCouponOperations', () => {
     vi.spyOn(globalThis.crypto, 'randomUUID').mockReturnValue('11111111-1111-4111-8111-111111111111')
   })
 
-  it('sends a stable idempotency key required by the batch issue endpoint', async () => {
+  it('uses the shared campaign panel and server-wide summary', async () => {
+    const wrapper=mountIssuePanel();await flushPromises()
+    expect(wrapper.findComponent({name:'CouponCampaignPanel'}).exists()).toBe(true)
+    expect(summary).toHaveBeenCalled()
+    expect(wrapper.text()).toContain('100')
+  })
+
+  it('clears statistics when reloading a new filter fails', async () => {
     const wrapper = mountIssuePanel()
     await flushPromises()
-
-    await wrapper.find('select').setValue('3')
-    await wrapper.find('input').setValue('7, 8, 7')
-    await wrapper.find('form').trigger('submit')
+    expect(wrapper.text()).toContain('100')
+    summary.mockRejectedValueOnce(new Error('unavailable'))
+    await wrapper.get('[data-test="coupon-user-filter"]').setValue('9')
+    await wrapper.get('[data-test="apply-coupon-user-filters"]').trigger('submit')
     await flushPromises()
-
-    expect(issueBatch).toHaveBeenCalledWith({
-      template_id: 3,
-      user_ids: [7, 8],
-      source: 'admin_batch',
-      idempotency_key: 'coupon-batch-11111111-1111-4111-8111-111111111111',
-    })
+    expect(wrapper.text()).not.toContain('100')
+    expect(showError).toHaveBeenCalled()
   })
 
   it('uses CNY as the default currency for a new coupon template', async () => {
@@ -154,8 +164,7 @@ describe('AdminCouponOperations', () => {
     await flushPromises()
 
     const inputs = wrapper.findAll('#coupon-template-form input')
-    await inputs[0].setValue('same-day-recharge')
-    await inputs[1].setValue('Same-day recharge')
+    await inputs[0].setValue('Same-day recharge')
     await wrapper.get('[data-test="coupon-template-validity-mode"]').setValue('end_of_day')
     await wrapper.get('#coupon-template-form').trigger('submit')
     await flushPromises()
@@ -315,7 +324,7 @@ describe('AdminCouponOperations', () => {
     await wrapper.get('[data-test="coupon-user-filter"]').setValue('9')
     await wrapper.get('[data-test="coupon-template-filter"]').setValue('3')
     await wrapper.get('[data-test="coupon-status-filter"]').setValue('locked')
-    await wrapper.findAll('form')[1].trigger('submit')
+    await wrapper.get('[data-test="apply-coupon-user-filters"]').trigger('submit')
     await flushPromises()
 
     expect(listUserCoupons).toHaveBeenLastCalledWith({

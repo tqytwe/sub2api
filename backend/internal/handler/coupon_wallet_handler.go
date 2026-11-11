@@ -1,11 +1,12 @@
 package handler
 
 import (
+	"strconv"
+
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
-
 	"github.com/gin-gonic/gin"
 )
 
@@ -42,4 +43,45 @@ func (h *CouponWalletHandler) ListMine(c *gin.Context) {
 		return
 	}
 	response.Paginated(c, rows, result.Total, result.Page, result.PageSize)
+}
+
+// Claim uses only the authenticated subject; clients cannot select a recipient.
+func (h *CouponWalletHandler) Claim(c *gin.Context) {
+	subject, ok := middleware.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+	var input struct {
+		Code string `json:"code" binding:"required,max=64"`
+	}
+	if err := c.ShouldBindJSON(&input); err != nil {
+		response.BadRequest(c, "invalid coupon code")
+		return
+	}
+	coupon, err := h.couponService.ClaimCode(c.Request.Context(), input.Code, subject.UserID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, coupon)
+}
+
+func (h *CouponWalletHandler) GetMine(c *gin.Context) {
+	subject, ok := middleware.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || id <= 0 {
+		response.BadRequest(c, "invalid coupon id")
+		return
+	}
+	coupon, err := h.couponService.GetUserCouponForUser(c.Request.Context(), id, subject.UserID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, coupon)
 }
