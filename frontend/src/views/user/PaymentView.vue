@@ -68,6 +68,7 @@
                   </div>
                   <div class="card p-6">
                     <CouponSelector
+                      :initial-coupon-id="Number(route.query.coupon_id) || undefined"
                       :model-value="rechargeCouponID"
                       :amount="validAmount"
                       order-type="balance"
@@ -204,6 +205,7 @@
               </div>
               <div class="card p-6">
                 <CouponSelector
+                  :initial-coupon-id="Number(route.query.coupon_id) || undefined"
                   :model-value="subscriptionCouponID"
                   :amount="selectedPlan.price"
                   order-type="subscription"

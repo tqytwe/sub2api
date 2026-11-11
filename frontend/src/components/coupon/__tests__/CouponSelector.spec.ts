@@ -4,10 +4,11 @@ import CouponSelector from '../CouponSelector.vue'
 import { useAuthStore } from '@/stores/auth'
 
 const getMyCoupons = vi.hoisted(() => vi.fn())
+const getMyCoupon = vi.hoisted(() => vi.fn())
 const quotePaymentCoupon = vi.hoisted(() => vi.fn())
 
 vi.mock('@/api/coupon', () => ({
-  default: { getMyCoupons, quotePaymentCoupon },
+  default: { getMyCoupons, getMyCoupon, quotePaymentCoupon },
 }))
 
 vi.mock('vue-i18n', async () => {
@@ -99,6 +100,40 @@ describe('CouponSelector', () => {
         qualifying_recharge_amount: 30,
       },
     })
+  })
+
+  it.each([undefined, 10])('explains a 30 percent reduction as paying 70 percent, preserving cap %s', async (cap) => {
+    getMyCoupons.mockResolvedValue({ data: { items: [{ ...coupon, terms_snapshot: { ...coupon.terms_snapshot, benefit_type: 'percentage', benefit_value: 30, max_discount_amount: cap } }], total: 1 } })
+    const wrapper = mountSelector()
+    await flushPromises()
+    expect(wrapper.text()).toContain(cap ? 'couponCampaign.benefitCapped' : 'couponCampaign.benefit')
+    expect(wrapper.text()).toContain('"off":30,"pay":70')
+    if (cap) expect(wrapper.text()).toContain('"cap":')
+  })
+
+  it('loads the wallet-selected coupon even when absent from the first page', async () => {
+    getMyCoupon.mockResolvedValue({ data: { ...coupon, id: 999 } })
+    const wrapper = mountSelector({ initialCouponId: 999 })
+    await flushPromises()
+    expect(getMyCoupon).toHaveBeenCalledWith(999)
+    expect(quotePaymentCoupon).toHaveBeenCalledWith(expect.objectContaining({ coupon_id: 999 }))
+    expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual([999])
+  })
+
+  it('does not insert a claimed coupon after the authenticated account changes during reload', async () => {
+    const wrapper = mountSelector()
+    await flushPromises()
+    let finish!: (value: unknown) => void
+    getMyCoupons.mockReturnValueOnce(new Promise(resolve => { finish = resolve }))
+    wrapper.getComponent({name:'CouponCodeClaim'}).vm.$emit('claimed', {...coupon,id:999})
+    await flushPromises()
+    authState.user={id:10}
+    authState.token='coupon-account-b'
+    await flushPromises()
+    finish({data:{items:[],total:0}})
+    await flushPromises()
+    expect(quotePaymentCoupon).not.toHaveBeenCalled()
+    expect(wrapper.emitted('update:modelValue')?.flat() ?? []).not.toContain(999)
   })
 
   it('loads available coupons, quotes the selected coupon, and emits the server result', async () => {

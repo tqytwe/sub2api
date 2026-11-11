@@ -2,6 +2,8 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import couponAPI from '@/api/coupon'
+import CouponCodeClaim from './CouponCodeClaim.vue'
+import {couponErrorKey} from '@/utils/couponErrors'
 import { useAuthStore } from '@/stores/auth'
 import type { CouponPaymentQuote, UserCoupon } from '@/types/coupon'
 import { formatCurrency, formatDateTime } from '@/utils/format'
@@ -12,6 +14,7 @@ const props = defineProps<{
   orderType: 'balance' | 'subscription'
   planId?: number
   paymentType: string
+  initialCouponId?: number
   disabled?: boolean
 }>()
 
@@ -34,6 +37,7 @@ const currentQuote = ref<CouponPaymentQuote | null>(null)
 const activeQuoteCouponID = ref<number | null>(null)
 let quoteRequest = 0
 let couponLoadRequest = 0
+let initialLoaded=false
 
 const selectedCoupon = computed(() => coupons.value.find((coupon) => coupon.id === props.modelValue) ?? null)
 const canQuote = computed(() => props.amount > 0 && !!props.paymentType)
@@ -50,6 +54,7 @@ function isCurrentCouponSession(sessionKey: string): boolean {
 
 function resetCouponState() {
   couponLoadRequest += 1
+  initialLoaded=false
   quoteRequest += 1
   coupons.value = []
   total.value = 0
@@ -71,13 +76,10 @@ function termsOf(coupon: UserCoupon) {
 function benefitLabel(coupon: UserCoupon): string {
   const terms = termsOf(coupon)
   if (terms.benefit_type === 'percentage') {
-    const cap = terms.max_discount_amount
-      ? t('coupon.selector.percentCapped', {
-          percent: terms.benefit_value,
-          cap: formatCurrency(terms.max_discount_amount, terms.currency),
-        })
-      : t('coupon.selector.percent', { percent: terms.benefit_value })
-    return cap
+    const benefit = { off: terms.benefit_value, pay: 100 - terms.benefit_value }
+    return terms.max_discount_amount
+      ? t('couponCampaign.benefitCapped', { ...benefit, cap: formatCurrency(terms.max_discount_amount, terms.currency) })
+      : t('couponCampaign.benefit', benefit)
   }
   return t('coupon.selector.fixed', { amount: formatCurrency(terms.benefit_value, terms.currency) })
 }
@@ -116,6 +118,17 @@ async function loadCoupons() {
     const response = await couponAPI.getMyCoupons({ page: page.value, page_size: pageSize, status: 'available' })
     if (request !== couponLoadRequest || !isCurrentCouponSession(sessionKey)) return
     coupons.value = response.data.items || []
+    if (props.initialCouponId && !initialLoaded) {
+      initialLoaded = true
+      let initial = coupons.value.find(c => c.id === props.initialCouponId)
+      if (!initial) {
+        initial = (await couponAPI.getMyCoupon(props.initialCouponId)).data
+        if (request !== couponLoadRequest || !isCurrentCouponSession(sessionKey)) return
+        if (initial.status === 'available') coupons.value.unshift(initial)
+      }
+      if (initial.status === 'available') void quoteCoupon(initial)
+      else quoteError.value = t('couponCampaign.existingState', { status: t('coupon.wallet.status.' + initial.status) })
+    }
     total.value = response.data.total || 0
     if (page.value > pages.value) {
       page.value = pages.value
@@ -185,9 +198,9 @@ async function quoteCoupon(coupon: UserCoupon) {
     if (request !== quoteRequest || !isCurrentCouponSession(sessionKey)) return
     currentQuote.value = response.data
     emit('quote', response.data)
-  } catch {
+  } catch (error) {
     if (request !== quoteRequest || !isCurrentCouponSession(sessionKey)) return
-    quoteError.value = t('coupon.selector.quoteFailed')
+    quoteError.value = t(couponErrorKey(error))
     currentQuote.value = null
     emit('quote', null)
   } finally {
@@ -210,6 +223,17 @@ watch(
   },
 )
 
+async function handleClaim(coupon: UserCoupon) {
+  const sessionKey = couponSessionKey()
+  if (coupon.status !== 'available') {
+    quoteError.value = t('couponCampaign.existingState', { status: t('coupon.wallet.status.' + coupon.status) })
+    return
+  }
+  await loadCoupons()
+  if (!isCurrentCouponSession(sessionKey)) return
+  if (!coupons.value.some(c => c.id === coupon.id)) coupons.value.unshift(coupon)
+  await quoteCoupon(coupon)
+}
 onMounted(() => { void loadCoupons() })
 
 onBeforeUnmount(() => {
@@ -238,6 +262,7 @@ watch(
       </router-link>
     </div>
 
+    <CouponCodeClaim :disabled="disabled || quoting" @claimed="handleClaim" />
     <p v-if="!canQuote" class="mt-4 text-sm text-gray-500 dark:text-gray-400">
       {{ t('coupon.selector.enterAmount') }}
     </p>

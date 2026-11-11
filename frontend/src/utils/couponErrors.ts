@@ -1,0 +1,33 @@
+import { extractApiErrorCode } from './apiError'
+export function couponErrorKey(error: unknown): string {
+  const code = extractApiErrorCode(error) || ''
+  const known = [
+    'INVALID_COUPON_CODE',
+    'INVALID_COUPON_AUDIENCE',
+    'COUPON_PREVIEW_NOT_FOUND',
+    'COUPON_PER_USER_LIMIT',
+    'COUPON_CODE_NOT_FOUND',
+    'COUPON_CODE_EXHAUSTED',
+    'COUPON_CLAIM_NOT_OPEN',
+    'COUPON_AUDIENCE_MISMATCH',
+    'COUPON_TEMPLATE_STOCK_EXHAUSTED',
+    'COUPON_TEMPLATE_INACTIVE',
+    'COUPON_TEMPLATE_TERMS_LOCKED',
+    'COUPON_TEMPLATE_ISSUED',
+    'COUPON_POLICY_STALE',
+    'COUPON_PREVIEW_STALE',
+    'COUPON_PREVIEW_EXPIRED',
+    'COUPON_AUDIENCE_TOO_LARGE',
+    'COUPON_AUDIENCE_EMPTY',
+    'COUPON_SCOPE_MISMATCH',
+    'COUPON_MINIMUM_NOT_MET',
+    'COUPON_PLAN_MISMATCH',
+    'COUPON_CURRENCY_MISMATCH',
+    'COUPON_EXPIRED',
+    'COUPON_NOT_AVAILABLE',
+    'COUPON_CLAIM_LIMIT_BELOW_ISSUED',
+    'INVALID_COUPON_CLAIM_POLICY',
+    'COUPON_TEMPLATE_NOT_ISSUABLE',
+  ]
+  return `couponCampaign.errors.${known.includes(code) ? code : 'unknown'}`
+}

@@ -21,7 +21,7 @@ func NewCouponHandler(couponService *service.CouponService) *CouponHandler {
 }
 
 type couponTemplateRequest struct {
-	Key                string                       `json:"key" binding:"required,max=64"`
+	Key                string                       `json:"key" binding:"max=64"`
 	Name               string                       `json:"name" binding:"required,max=120"`
 	Description        string                       `json:"description" binding:"max=4000"`
 	Status             service.CouponTemplateStatus `json:"status" binding:"omitempty,oneof=draft active paused archived"`
@@ -165,7 +165,7 @@ func (h *CouponHandler) ListUserCoupons(c *gin.Context) {
 type couponIssueRequest struct {
 	TemplateID     int64                     `json:"template_id" binding:"required,gt=0"`
 	UserID         int64                     `json:"user_id" binding:"required,gt=0"`
-	Source         service.CouponIssueSource `json:"source" binding:"omitempty,oneof=blindbox quiz admin_batch manual compensation"`
+	Source         service.CouponIssueSource `json:"source" binding:"omitempty,oneof=admin_batch manual compensation"`
 	SourceRef      string                    `json:"source_ref" binding:"max=256"`
 	IdempotencyKey string                    `json:"idempotency_key" binding:"required,max=200"`
 }
@@ -198,7 +198,7 @@ func (h *CouponHandler) IssueUserCoupon(c *gin.Context) {
 type couponBatchIssueRequest struct {
 	TemplateID     int64                     `json:"template_id" binding:"required,gt=0"`
 	UserIDs        []int64                   `json:"user_ids" binding:"required,min=1,max=10000"`
-	Source         service.CouponIssueSource `json:"source" binding:"omitempty,oneof=blindbox quiz admin_batch manual compensation"`
+	Source         service.CouponIssueSource `json:"source" binding:"omitempty,oneof=admin_batch manual compensation"`
 	IdempotencyKey string                    `json:"idempotency_key" binding:"required,max=200"`
 	Metadata       map[string]any            `json:"metadata"`
 }

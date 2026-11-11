@@ -66,6 +66,7 @@ const (
 	CouponIssueSourceAdminBatch CouponIssueSource = "admin_batch"
 	CouponIssueSourceManual     CouponIssueSource = "manual"
 	CouponIssueSourceCompensate CouponIssueSource = "compensation"
+	CouponIssueSourceCodeClaim  CouponIssueSource = "code_claim"
 )
 
 type CouponIssueBatchStatus string
@@ -734,7 +735,7 @@ func isCouponValidityMode(mode CouponValidityMode) bool {
 
 func isCouponIssueSource(source CouponIssueSource) bool {
 	switch source {
-	case CouponIssueSourceBlindbox, CouponIssueSourceQuiz, CouponIssueSourceCheckin, CouponIssueSourceAdminBatch, CouponIssueSourceManual, CouponIssueSourceCompensate:
+	case CouponIssueSourceBlindbox, CouponIssueSourceQuiz, CouponIssueSourceCheckin, CouponIssueSourceAdminBatch, CouponIssueSourceManual, CouponIssueSourceCompensate, CouponIssueSourceCodeClaim:
 		return true
 	default:
 		return false

@@ -154,3 +154,5 @@
 - [增长福利治理空白与签到能量调查](./archive/completed-tasks/2026-11-09-growth-governance/README.md)：`verification`，空值契约与独立状态修复；[视觉记录](./visual-reviews/2026-11-09-growth-governance.md)。签到发奖政策待用户选择。
 
 - [签到额外成长能量取消](./archive/completed-tasks/2026-11-09-checkin-participation/README.md)：用户明确选择的仅签到规则、历史兼容及 PostgreSQL/HTTP/Vue 联合对账；[视觉记录](./visual-reviews/2026-11-09-checkin-participation.md)。
+
+- [Coupon claim and batch issuance visual review](visual-reviews/2026-11-11-coupon-closed-loop.md) — existing administration, wallet and checkout surfaces; synthetic browser evidence, production acceptance pending.

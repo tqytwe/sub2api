@@ -5,7 +5,7 @@ export type CouponScope = 'balance' | 'subscription'
 export type CouponValidityMode = 'relative_days' | 'end_of_day' | 'end_of_month' | 'fixed'
 export type CouponTemplateStatus = 'draft' | 'active' | 'paused' | 'archived'
 export type UserCouponStatus = 'available' | 'locked' | 'used' | 'expired' | 'voided'
-export type CouponIssueSource = 'blindbox' | 'quiz' | 'checkin' | 'admin_batch' | 'manual' | 'compensation'
+export type CouponIssueSource = 'blindbox' | 'quiz' | 'checkin' | 'admin_batch' | 'manual' | 'compensation' | 'code_claim'
 export type CouponRewardActivity = 'blindbox' | 'quiz' | 'checkin'
 export type CouponRewardPoolStatus = 'draft' | 'published' | 'retired'
 
@@ -120,6 +120,8 @@ export interface CouponPaymentQuote {
 export type UserCouponPage = BasePaginationResponse<UserCoupon>
 
 export interface CouponIssueBatch {
+  input_snapshot?: {user_ids?:number[];skipped?:Array<{user_id:number;reason:string}>}
+
   id: number
   template_id: number
   template_name?: string

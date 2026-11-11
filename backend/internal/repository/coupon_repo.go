@@ -441,6 +441,9 @@ func (r *couponRepository) IssueCoupon(ctx context.Context, request service.Coup
 		if template == nil {
 			return infraerrors.NotFound("COUPON_TEMPLATE_NOT_FOUND", "coupon template not found")
 		}
+		if err = couponManualIssueAllowed(ctx, exec, template.ID, []int64{request.UserID}, request.Source, issuedAt); err != nil {
+			return err
+		}
 		issued, err = issueCouponWithTemplate(ctx, exec, template, request, issuedAt)
 		return err
 	})
@@ -515,12 +518,16 @@ func issueCouponWithTemplate(
 		return nil, infraerrors.Conflict("COUPON_TEMPLATE_STOCK_EXHAUSTED", "coupon template issue limit is exhausted")
 	}
 	template.IssuedCount++
+	actorType := couponActorType(request.ActorID)
+	if request.Source == service.CouponIssueSourceCodeClaim {
+		actorType = "user"
+	}
 	if err := insertCouponEvent(ctx, exec, couponEventInput{
 		CouponID:     &issued.ID,
 		TemplateID:   &template.ID,
 		IssueBatchID: request.IssueBatchID,
 		EventType:    "issued",
-		ActorType:    couponActorType(request.ActorID),
+		ActorType:    actorType,
 		ActorUserID:  couponActorID(request.ActorID),
 		Metadata: map[string]any{
 			"source":          request.Source,
@@ -563,6 +570,9 @@ func (r *couponRepository) IssueCouponBatch(ctx context.Context, request service
 		}
 		if template.TotalIssueLimit != nil && *template.TotalIssueLimit-template.IssuedCount < int64(len(request.UserIDs)) {
 			return infraerrors.Conflict("COUPON_TEMPLATE_STOCK_EXHAUSTED", "coupon template issue limit cannot satisfy this batch")
+		}
+		if err = couponManualIssueAllowed(ctx, exec, template.ID, request.UserIDs, request.Source, issuedAt); err != nil {
+			return err
 		}
 		var created couponIssueBatchRow
 		err = scanSingleRow(ctx, exec, `
@@ -693,45 +703,7 @@ func (r *couponRepository) ListUserCoupons(ctx context.Context, filter service.U
 	if err != nil {
 		return nil, 0, err
 	}
-	where := make([]string, 0, 3)
-	args := make([]any, 0, 5)
-	if filter.UserID > 0 {
-		args = append(args, filter.UserID)
-		where = append(where, fmt.Sprintf("uc.user_id = $%d", len(args)))
-	}
-	if query := strings.TrimSpace(filter.UserQuery); query != "" {
-		args = append(args, "%"+query+"%")
-		placeholder := fmt.Sprintf("$%d", len(args))
-		where = append(where, "(u.email ILIKE "+placeholder+" OR u.username ILIKE "+placeholder+" OR uc.user_id::text = "+placeholder+")")
-	}
-	if filter.TemplateID > 0 {
-		args = append(args, filter.TemplateID)
-		where = append(where, fmt.Sprintf("uc.template_id = $%d", len(args)))
-	}
-	if filter.Source != "" {
-		args = append(args, filter.Source)
-		where = append(where, fmt.Sprintf("uc.source = $%d", len(args)))
-	}
-	if filter.Status != "" {
-		args = append(args, filter.Status)
-		where = append(where, fmt.Sprintf("uc.status = $%d", len(args)))
-	}
-	if filter.IssuedFrom != nil {
-		args = append(args, *filter.IssuedFrom)
-		where = append(where, fmt.Sprintf("uc.issued_at >= $%d", len(args)))
-	}
-	if filter.IssuedTo != nil {
-		args = append(args, *filter.IssuedTo)
-		where = append(where, fmt.Sprintf("uc.issued_at < $%d", len(args)))
-	}
-	// The service persists expiry before listing. Keep this read-side guard as
-	// well so a coupon that expires between that sweep and this query cannot
-	// briefly reappear in an available wallet response.
-	where = append(where, "(uc.status <> 'available' OR uc.expires_at > NOW())")
-	clause := ""
-	if len(where) > 0 {
-		clause = " WHERE " + strings.Join(where, " AND ")
-	}
+	clause, args := couponUserFilter(filter)
 	var total int64
 	if err := scanSingleRow(ctx, exec, `SELECT COUNT(*) FROM user_coupons uc LEFT JOIN users u ON u.id = uc.user_id`+clause, args, &total); err != nil {
 		return nil, 0, fmt.Errorf("count user coupons: %w", err)
@@ -779,9 +751,12 @@ func (r *couponRepository) ExpireAvailableUserCoupons(ctx context.Context, userI
 			args = append(args, userID)
 			where = append(where, "user_id = $2")
 		}
-		if _, err := exec.ExecContext(ctx, `UPDATE user_coupons
+		if _, err := exec.ExecContext(ctx, `WITH expired AS (UPDATE user_coupons
 			SET status = 'expired', updated_at = $1
-			WHERE `+strings.Join(where, " AND "), args...); err != nil {
+			WHERE `+strings.Join(where, " AND ")+`
+            RETURNING id, template_id)
+            INSERT INTO coupon_events(coupon_id,template_id,event_type,actor_type)
+            SELECT id,template_id,'expired','system' FROM expired`, args...); err != nil {
 			return fmt.Errorf("persist expired user coupons: %w", err)
 		}
 		return nil
@@ -2166,4 +2141,48 @@ func (row *couponRewardDrawRow) value() (*service.CouponRewardIssueResult, error
 	row.result.ValidFrom = coupon.ValidFrom
 	row.result.ExpiresAt = coupon.ExpiresAt
 	return &row.result, nil
+}
+
+func couponUserFilter(filter service.UserCouponListFilter) (string, []any) {
+	where := make([]string, 0, 3)
+	args := make([]any, 0, 5)
+	if filter.UserID > 0 {
+		args = append(args, filter.UserID)
+		where = append(where, fmt.Sprintf("uc.user_id = $%d", len(args)))
+	}
+	if query := strings.TrimSpace(filter.UserQuery); query != "" {
+		args = append(args, "%"+query+"%")
+		placeholder := fmt.Sprintf("$%d", len(args))
+		args = append(args, query)
+		where = append(where, "(u.email ILIKE "+placeholder+" OR u.username ILIKE "+placeholder+" OR uc.user_id::text = "+fmt.Sprintf("$%d", len(args))+")")
+	}
+	if filter.TemplateID > 0 {
+		args = append(args, filter.TemplateID)
+		where = append(where, fmt.Sprintf("uc.template_id = $%d", len(args)))
+	}
+	if filter.Source != "" {
+		args = append(args, filter.Source)
+		where = append(where, fmt.Sprintf("uc.source = $%d", len(args)))
+	}
+	if filter.Status != "" {
+		args = append(args, filter.Status)
+		where = append(where, fmt.Sprintf("uc.status = $%d", len(args)))
+	}
+	if filter.IssuedFrom != nil {
+		args = append(args, *filter.IssuedFrom)
+		where = append(where, fmt.Sprintf("uc.issued_at >= $%d", len(args)))
+	}
+	if filter.IssuedTo != nil {
+		args = append(args, *filter.IssuedTo)
+		where = append(where, fmt.Sprintf("uc.issued_at < $%d", len(args)))
+	}
+	// The service persists expiry before listing. Keep this read-side guard as
+	// well so a coupon that expires between that sweep and this query cannot
+	// briefly reappear in an available wallet response.
+	where = append(where, "(uc.status <> 'available' OR uc.expires_at > NOW())")
+	clause := ""
+	if len(where) > 0 {
+		clause = " WHERE " + strings.Join(where, " AND ")
+	}
+	return clause, args
 }

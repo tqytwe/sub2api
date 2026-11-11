@@ -36,6 +36,8 @@ func TestUserWalletRoutesContract(t *testing.T) {
 	}
 	for _, route := range []string{
 		"GET /api/v1/coupons/me",
+		"GET /api/v1/coupons/me/:id",
+		"POST /api/v1/coupons/claim",
 		"GET /api/v1/user/wallet/summary",
 		"GET /api/v1/user/wallet/transactions",
 		"GET /api/v1/user/wallet/withdrawals/availability",
@@ -56,6 +58,7 @@ func TestUserWalletRoutesContract(t *testing.T) {
 
 	for _, path := range []string{
 		"/api/v1/coupons/me",
+		"/api/v1/coupons/me/41",
 		"/api/v1/user/wallet/summary",
 		"/api/v1/user/wallet/transactions",
 		"/api/v1/user/wallet/withdrawals/availability",
@@ -68,4 +71,7 @@ func TestUserWalletRoutesContract(t *testing.T) {
 		router.ServeHTTP(recorder, request)
 		require.Equal(t, http.StatusUnauthorized, recorder.Code, path)
 	}
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, httptest.NewRequest(http.MethodPost, "/api/v1/coupons/claim", nil))
+	require.Equal(t, http.StatusUnauthorized, recorder.Code)
 }

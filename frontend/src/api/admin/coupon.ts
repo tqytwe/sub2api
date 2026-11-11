@@ -1,3 +1,4 @@
+import type { CouponAudience, CouponClaimPolicy, CouponCampaignPreview, CouponCampaignResult, CouponSummary, CouponEvent } from '@/types/couponCampaign'
 import { apiClient } from '../client'
 import type {
   CouponBatchIssueInput,
@@ -14,6 +15,28 @@ import type { BasePaginationResponse } from '@/types'
 const basePath = '/admin/promo-codes/coupons'
 
 export const adminCouponAPI = {
+  listClaimPolicies(ids: number[]) {
+    return apiClient.get<CouponClaimPolicy[]>(`${basePath}/claim-policies`, { params: { ids: ids.join(',') } })
+  },
+  getClaimPolicy(id: number) {
+    return apiClient.get<CouponClaimPolicy>(`${basePath}/templates/${id}/claim-policy`)
+  },
+  saveClaimPolicy(id: number, policy: CouponClaimPolicy) {
+    return apiClient.put<CouponClaimPolicy>(`${basePath}/templates/${id}/claim-policy`, policy)
+  },
+  previewCampaign(template_id: number, audience: CouponAudience) {
+    return apiClient.post<CouponCampaignPreview>(`${basePath}/campaigns/preview`, { template_id, audience })
+  },
+  executeCampaign(token: string) {
+    return apiClient.post<CouponCampaignResult>(`${basePath}/campaigns/execute`, { token })
+  },
+  summary(params: Record<string, unknown>) {
+    return apiClient.get<CouponSummary>(`${basePath}/summary`, { params })
+  },
+  events(id: number) {
+    return apiClient.get<CouponEvent[]>(`${basePath}/user-coupons/${id}/events`)
+  },
+
   listTemplates(params: { page?: number; page_size?: number; status?: string; search?: string } = {}) {
     return apiClient.get<BasePaginationResponse<CouponTemplate>>(`${basePath}/templates`, { params })
   },

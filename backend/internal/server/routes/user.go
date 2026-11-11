@@ -4,7 +4,6 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/handler"
 	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
-
 	"github.com/gin-gonic/gin"
 )
 
@@ -26,6 +25,8 @@ func RegisterUserRoutes(
 	authenticated.Use(gin.HandlerFunc(auditLog))
 	{
 		authenticated.GET("/coupons/me", h.Coupon.ListMine)
+		authenticated.GET("/coupons/me/:id", h.Coupon.GetMine)
+		authenticated.POST("/coupons/claim", panelRateLimiter.Heavy(), h.Coupon.Claim)
 
 		// 用户接口
 		if h.PelicanShowcase != nil {

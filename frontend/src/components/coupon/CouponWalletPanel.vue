@@ -2,6 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import couponAPI from '@/api/coupon'
+import CouponCodeClaim from './CouponCodeClaim.vue'
 import { useAuthStore } from '@/stores/auth'
 import type { UserCoupon, UserCouponStatus } from '@/types/coupon'
 import { formatCurrency, formatDateTime } from '@/utils/format'
@@ -62,9 +63,10 @@ function termsOf(coupon: UserCoupon) {
 function benefitLabel(coupon: UserCoupon): string {
   const terms = termsOf(coupon)
   if (terms.benefit_type === 'percentage') {
+    const benefit = { off: terms.benefit_value, pay: 100 - terms.benefit_value }
     return terms.max_discount_amount
-      ? t('coupon.wallet.percentCapped', { percent: terms.benefit_value, cap: formatCurrency(terms.max_discount_amount, terms.currency) })
-      : t('coupon.wallet.percent', { percent: terms.benefit_value })
+      ? t('couponCampaign.benefitCapped', { ...benefit, cap: formatCurrency(terms.max_discount_amount, terms.currency) })
+      : t('couponCampaign.benefit', benefit)
   }
   return t('coupon.wallet.fixed', { amount: formatCurrency(terms.benefit_value, terms.currency) })
 }
@@ -137,6 +139,13 @@ function changePage(next: number) {
   page.value = next
 }
 
+function handleClaim(coupon: UserCoupon) {
+  const changed = activeTab.value !== coupon.status || page.value !== 1
+  activeTab.value = coupon.status
+  page.value = 1
+  if (!changed) void loadCoupons()
+}
+
 watch([activeTab, page], () => {
   if (!suppressCouponReload) void loadCoupons()
 })
@@ -167,6 +176,7 @@ watch(
       </button>
     </div>
 
+    <div class="px-5"><CouponCodeClaim @claimed="handleClaim" /></div>
     <div class="border-b border-gray-100 px-5 pt-3 dark:border-dark-700">
       <div class="flex gap-1 overflow-x-auto" role="tablist" :aria-label="t('coupon.wallet.title')">
         <button
@@ -219,14 +229,14 @@ watch(
         <div v-if="canUseCoupon(coupon)" class="flex flex-wrap gap-2 sm:justify-end">
           <router-link
             v-if="coupon.terms_snapshot.applicable_scopes.includes('balance')"
-            :to="{ path: '/purchase', query: { tab: 'recharge' } }"
+            :to="{ path: '/purchase', query: { tab: 'recharge', coupon_id: coupon.id } }"
             class="btn btn-secondary btn-sm"
           >
             {{ t('coupon.wallet.useRecharge') }}
           </router-link>
           <router-link
             v-if="coupon.terms_snapshot.applicable_scopes.includes('subscription')"
-            :to="{ path: '/purchase', query: { tab: 'subscription' } }"
+            :to="{ path: '/purchase', query: { tab: 'subscription', coupon_id: coupon.id } }"
             class="btn btn-primary btn-sm"
           >
             {{ t('coupon.wallet.useSubscription') }}

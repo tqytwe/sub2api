@@ -1,3 +1,4 @@
+import couponCampaign from './zh/couponCampaign'
 import affiliateOperations from './zh/affiliateOperations'
 import requestLedger from './request-ledger.zh'
 import { jisudengHomeZh } from './jisudeng-home.zh'
@@ -17,6 +18,7 @@ import tokenGuardV2Zh from './zh/tokenGuardV2'
 import { mergeLocaleMessages } from './merge'
 
 const messages = {
+  couponCampaign,
   affiliateOperations,
   accountOps: { smartTitle: '账号运营' },
   tokenGuardV2: tokenGuardV2Zh,

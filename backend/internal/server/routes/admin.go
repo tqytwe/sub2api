@@ -7,7 +7,6 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
-
 	"github.com/gin-gonic/gin"
 )
 
@@ -783,6 +782,8 @@ func registerPromoCodeRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 				templates.GET("", h.Admin.Coupon.ListTemplates)
 				templates.POST("", h.Admin.Coupon.CreateTemplate)
 				templates.GET("/:id", h.Admin.Coupon.GetTemplate)
+				templates.GET("/:id/claim-policy", h.Admin.Coupon.ClaimPolicy)
+				templates.PUT("/:id/claim-policy", h.Admin.Coupon.ClaimPolicy)
 				templates.PUT("/:id", h.Admin.Coupon.UpdateTemplate)
 				templates.DELETE("/:id", h.Admin.Coupon.DeleteTemplate)
 			}
@@ -795,6 +796,11 @@ func registerPromoCodeRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 				userCoupons.POST("/:id/void", h.Admin.Coupon.VoidUserCoupon)
 			}
 			coupons.GET("/batches", h.Admin.Coupon.ListIssueBatches)
+			coupons.POST("/campaigns/preview", h.Admin.Coupon.PreviewCampaign)
+			coupons.POST("/campaigns/execute", h.Admin.Coupon.ExecuteCampaign)
+			coupons.GET("/summary", h.Admin.Coupon.Summary)
+			coupons.GET("/claim-policies", h.Admin.Coupon.ClaimPolicies)
+			userCoupons.GET("/:id/events", h.Admin.Coupon.Events)
 
 			pools := coupons.Group("/pools")
 			{
