@@ -142,3 +142,9 @@ Code-quality review covers template/policy locks, transaction rollback, fixed pr
 ## Residual Risk
 
 Prototype is a static review board; updated artifacts are real Chromium captures of compiled components. Server gates are verified on this isolated publication candidate. The local preview/DB data and generated build outputs are removed after checks. PR CI, deployment, production reconciliation and user-local three-role production acceptance remain pending at commit time; no production completion is claimed.
+
+## Publication Gate Follow-up
+
+The first PR security scan on candidate `c33a74119ace2433206217e52a965c39def8a3e6` found standard-library advisory `GO-2026-6859` in Go 1.27.3 (`net/http`), fixed by Go 1.27.4. That candidate is not merged or deployed. Obsolete in-progress CI runs are canceled to avoid duplicated work. The same PR upgrades only the Go module minimum, Docker Go base and security version assertion to 1.27.4; no business scope changes. Toolchain verification, affected backend gates and production-equivalent build are rerun before publishing the correction. Final commit/CI/deployment evidence remains in the PR.
+
+Go 1.27.4 follow-up gates passed before the correction commit: `govulncheck ./...` reports 0 callable vulnerabilities; complete ordinary backend tests and golangci-lint (`0 issues`), full `-tags=unit` suite, Fork integrity, `make build`, and the `CGO_ENABLED=0 -tags=embed` production-equivalent build all pass. Existing full frontend and PostgreSQL integration results above remain applicable because business, frontend and migration sources did not change. Official Docker library catalog SHA `8fd07b0ea5154a2ce4653a5d60033ac8230063c8` lists `1.27.4-alpine` including amd64/arm64; direct registry access from this server is unavailable, so actual image pull remains a deployment check. Documentation links, handoff checks and diff whitespace checks pass.
