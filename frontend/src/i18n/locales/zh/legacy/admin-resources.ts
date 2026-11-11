@@ -209,7 +209,7 @@ export default {
       validityDays: '有效天数',
       fixedExpiry: '固定失效时间',
       validFrom: '开始生效时间（留空即刻生效）',
-      totalIssueLimit: '总发放上限',
+      totalIssueLimit: '模板总发放上限（全部来源）',
       status: '状态',
       templateStatus: {
         draft: '草稿',

@@ -304,6 +304,7 @@
 - 不变量：优惠券钱包、奖池和模板按用户隔离；订单创建在同一事务锁定优惠券并固化结算快照；重复支付回调最多消费一次，晚到的取消/失败回调不能逆转已完成订单；旧的未支付终态优惠券订单只按最旧优先分批对账一次，订单条件认领、优惠券释放和 `coupon_lock_release_processed_at` 标记在同一事务提交并保留原 `updated_at`；lock mismatch、已使用和优惠券不存在只标记旧订单，不改变优惠券当前状态，也不计入实际释放数；其他错误回滚并保留下轮重试资格；日卡在有效期内只拥有一次日额度，跨零点、手动窗口逻辑和请求重放都不得再发放额度。
 - 关键位置：`backend/internal/service/coupon_service.go`、`backend/internal/service/payment_coupon.go`、`backend/internal/service/payment_order_lifecycle.go`、`backend/internal/service/play_coupon_rewards.go`、`backend/internal/service/user_subscription.go`、`backend/internal/service/subscription_service.go`、`backend/migrations/255_payment_order_coupon_release_processed.sql`、`backend/migrations/256_payment_order_coupon_release_processed_index_notx.sql`、`frontend/src/components/coupon/`。
 - 优惠码扩展：模板自动生成默认关闭的共享领取码；人工与领码共用每人上限，玩法奖励保持独立规则。管理员按固定预览名单事务发放，重复确认返回原批次；用户领取和单券查询只使用登录主体。旧模板回填不改已有券/订单，关闭领取不作废券，退款统计复用支付币种舍入且优惠不退现金。实现与回归见 `coupon_campaign.go`、`coupon_campaign_integration_test.go`、`coupon_campaign_routes_test.go` 和现有券包/结算组件；开发候选不表示已上线。
+- 界面合同：模板总发放上限覆盖全部来源，优惠码上限仅统计领码且仍受模板库存约束；用户券包及结算冷启动须独立加载五种券状态文案，不依赖管理员语言包。回归：`frontend/src/i18n/__tests__/couponColdLocale.spec.ts`。
 - 冲突策略：可吸收上游支付状态机、订阅和用量修复，但不得绕过优惠券锁、结算快照、支付幂等或日卡一次性额度判断。
 - 验证：coupon wallet/reward/payment lifecycle tests、`payment_order_coupon_release_processed_migration_test.go`、`user_subscription_daily_quota_test.go`，以及用户支付页、钱包、盲盒和答题的本地浏览器验收。
 

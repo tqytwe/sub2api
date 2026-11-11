@@ -1,0 +1,459 @@
+{
+  "source": "compiled Vue/Tailwind components with synthetic API responses; not production",
+  "report": [
+    {
+      "surface": "templates",
+      "width": 360,
+      "theme": "light",
+      "locale": "zh",
+      "overflow": false
+    },
+    {
+      "surface": "templates",
+      "width": 360,
+      "theme": "light",
+      "locale": "en",
+      "overflow": false
+    },
+    {
+      "surface": "templates",
+      "width": 360,
+      "theme": "dark",
+      "locale": "zh",
+      "overflow": false
+    },
+    {
+      "surface": "templates",
+      "width": 360,
+      "theme": "dark",
+      "locale": "en",
+      "overflow": false
+    },
+    {
+      "surface": "templates",
+      "width": 768,
+      "theme": "light",
+      "locale": "zh",
+      "overflow": false
+    },
+    {
+      "surface": "templates",
+      "width": 768,
+      "theme": "light",
+      "locale": "en",
+      "overflow": false
+    },
+    {
+      "surface": "templates",
+      "width": 768,
+      "theme": "dark",
+      "locale": "zh",
+      "overflow": false
+    },
+    {
+      "surface": "templates",
+      "width": 768,
+      "theme": "dark",
+      "locale": "en",
+      "overflow": false
+    },
+    {
+      "surface": "templates",
+      "width": 1280,
+      "theme": "light",
+      "locale": "zh",
+      "overflow": false
+    },
+    {
+      "surface": "templates",
+      "width": 1280,
+      "theme": "light",
+      "locale": "en",
+      "overflow": false
+    },
+    {
+      "surface": "templates",
+      "width": 1280,
+      "theme": "dark",
+      "locale": "zh",
+      "overflow": false
+    },
+    {
+      "surface": "templates",
+      "width": 1280,
+      "theme": "dark",
+      "locale": "en",
+      "overflow": false
+    },
+    {
+      "surface": "templates",
+      "width": 1920,
+      "theme": "light",
+      "locale": "zh",
+      "overflow": false
+    },
+    {
+      "surface": "templates",
+      "width": 1920,
+      "theme": "light",
+      "locale": "en",
+      "overflow": false
+    },
+    {
+      "surface": "templates",
+      "width": 1920,
+      "theme": "dark",
+      "locale": "zh",
+      "overflow": false
+    },
+    {
+      "surface": "templates",
+      "width": 1920,
+      "theme": "dark",
+      "locale": "en",
+      "overflow": false
+    },
+    {
+      "surface": "policy",
+      "width": 360,
+      "theme": "light",
+      "locale": "zh",
+      "overflow": false
+    },
+    {
+      "surface": "policy",
+      "width": 360,
+      "theme": "light",
+      "locale": "en",
+      "overflow": false
+    },
+    {
+      "surface": "policy",
+      "width": 360,
+      "theme": "dark",
+      "locale": "zh",
+      "overflow": false
+    },
+    {
+      "surface": "policy",
+      "width": 360,
+      "theme": "dark",
+      "locale": "en",
+      "overflow": false
+    },
+    {
+      "surface": "policy",
+      "width": 768,
+      "theme": "light",
+      "locale": "zh",
+      "overflow": false
+    },
+    {
+      "surface": "policy",
+      "width": 768,
+      "theme": "light",
+      "locale": "en",
+      "overflow": false
+    },
+    {
+      "surface": "policy",
+      "width": 768,
+      "theme": "dark",
+      "locale": "zh",
+      "overflow": false
+    },
+    {
+      "surface": "policy",
+      "width": 768,
+      "theme": "dark",
+      "locale": "en",
+      "overflow": false
+    },
+    {
+      "surface": "policy",
+      "width": 1280,
+      "theme": "light",
+      "locale": "zh",
+      "overflow": false
+    },
+    {
+      "surface": "policy",
+      "width": 1280,
+      "theme": "light",
+      "locale": "en",
+      "overflow": false
+    },
+    {
+      "surface": "policy",
+      "width": 1280,
+      "theme": "dark",
+      "locale": "zh",
+      "overflow": false
+    },
+    {
+      "surface": "policy",
+      "width": 1280,
+      "theme": "dark",
+      "locale": "en",
+      "overflow": false
+    },
+    {
+      "surface": "policy",
+      "width": 1920,
+      "theme": "light",
+      "locale": "zh",
+      "overflow": false
+    },
+    {
+      "surface": "policy",
+      "width": 1920,
+      "theme": "light",
+      "locale": "en",
+      "overflow": false
+    },
+    {
+      "surface": "policy",
+      "width": 1920,
+      "theme": "dark",
+      "locale": "zh",
+      "overflow": false
+    },
+    {
+      "surface": "policy",
+      "width": 1920,
+      "theme": "dark",
+      "locale": "en",
+      "overflow": false
+    },
+    {
+      "surface": "wallet",
+      "width": 360,
+      "theme": "light",
+      "locale": "zh",
+      "overflow": false
+    },
+    {
+      "surface": "wallet",
+      "width": 360,
+      "theme": "light",
+      "locale": "en",
+      "overflow": false
+    },
+    {
+      "surface": "wallet",
+      "width": 360,
+      "theme": "dark",
+      "locale": "zh",
+      "overflow": false
+    },
+    {
+      "surface": "wallet",
+      "width": 360,
+      "theme": "dark",
+      "locale": "en",
+      "overflow": false
+    },
+    {
+      "surface": "wallet",
+      "width": 768,
+      "theme": "light",
+      "locale": "zh",
+      "overflow": false
+    },
+    {
+      "surface": "wallet",
+      "width": 768,
+      "theme": "light",
+      "locale": "en",
+      "overflow": false
+    },
+    {
+      "surface": "wallet",
+      "width": 768,
+      "theme": "dark",
+      "locale": "zh",
+      "overflow": false
+    },
+    {
+      "surface": "wallet",
+      "width": 768,
+      "theme": "dark",
+      "locale": "en",
+      "overflow": false
+    },
+    {
+      "surface": "wallet",
+      "width": 1280,
+      "theme": "light",
+      "locale": "zh",
+      "overflow": false
+    },
+    {
+      "surface": "wallet",
+      "width": 1280,
+      "theme": "light",
+      "locale": "en",
+      "overflow": false
+    },
+    {
+      "surface": "wallet",
+      "width": 1280,
+      "theme": "dark",
+      "locale": "zh",
+      "overflow": false
+    },
+    {
+      "surface": "wallet",
+      "width": 1280,
+      "theme": "dark",
+      "locale": "en",
+      "overflow": false
+    },
+    {
+      "surface": "wallet",
+      "width": 1920,
+      "theme": "light",
+      "locale": "zh",
+      "overflow": false
+    },
+    {
+      "surface": "wallet",
+      "width": 1920,
+      "theme": "light",
+      "locale": "en",
+      "overflow": false
+    },
+    {
+      "surface": "wallet",
+      "width": 1920,
+      "theme": "dark",
+      "locale": "zh",
+      "overflow": false
+    },
+    {
+      "surface": "wallet",
+      "width": 1920,
+      "theme": "dark",
+      "locale": "en",
+      "overflow": false
+    },
+    {
+      "surface": "checkout",
+      "width": 360,
+      "theme": "light",
+      "locale": "zh",
+      "overflow": false
+    },
+    {
+      "surface": "checkout",
+      "width": 360,
+      "theme": "light",
+      "locale": "en",
+      "overflow": false
+    },
+    {
+      "surface": "checkout",
+      "width": 360,
+      "theme": "dark",
+      "locale": "zh",
+      "overflow": false
+    },
+    {
+      "surface": "checkout",
+      "width": 360,
+      "theme": "dark",
+      "locale": "en",
+      "overflow": false
+    },
+    {
+      "surface": "checkout",
+      "width": 768,
+      "theme": "light",
+      "locale": "zh",
+      "overflow": false
+    },
+    {
+      "surface": "checkout",
+      "width": 768,
+      "theme": "light",
+      "locale": "en",
+      "overflow": false
+    },
+    {
+      "surface": "checkout",
+      "width": 768,
+      "theme": "dark",
+      "locale": "zh",
+      "overflow": false
+    },
+    {
+      "surface": "checkout",
+      "width": 768,
+      "theme": "dark",
+      "locale": "en",
+      "overflow": false
+    },
+    {
+      "surface": "checkout",
+      "width": 1280,
+      "theme": "light",
+      "locale": "zh",
+      "overflow": false
+    },
+    {
+      "surface": "checkout",
+      "width": 1280,
+      "theme": "light",
+      "locale": "en",
+      "overflow": false
+    },
+    {
+      "surface": "checkout",
+      "width": 1280,
+      "theme": "dark",
+      "locale": "zh",
+      "overflow": false
+    },
+    {
+      "surface": "checkout",
+      "width": 1280,
+      "theme": "dark",
+      "locale": "en",
+      "overflow": false
+    },
+    {
+      "surface": "checkout",
+      "width": 1920,
+      "theme": "light",
+      "locale": "zh",
+      "overflow": false
+    },
+    {
+      "surface": "checkout",
+      "width": 1920,
+      "theme": "light",
+      "locale": "en",
+      "overflow": false
+    },
+    {
+      "surface": "checkout",
+      "width": 1920,
+      "theme": "dark",
+      "locale": "zh",
+      "overflow": false
+    },
+    {
+      "surface": "checkout",
+      "width": 1920,
+      "theme": "dark",
+      "locale": "en",
+      "overflow": false
+    }
+  ],
+  "interactions": [
+    "five valid statuses in zh/en without admin locale",
+    "unknown future status fallback",
+    "keyboard limit input focus"
+  ],
+  "pageErrors": []
+}
