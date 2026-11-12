@@ -3,10 +3,13 @@ package service
 import (
 	"context"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
+	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 type PlayAdminCheckinFilter struct {
+	Account    string `json:"account"`
 	UserID     int64  `json:"user_id"`
 	StartDate  string `json:"start_date"`
 	EndDate    string `json:"end_date"`
@@ -16,7 +19,23 @@ type PlayAdminCheckinFilter struct {
 	AsOf       string `json:"as_of"`
 }
 
+type PlayAdminCheckinDay struct {
+	Date      string    `json:"date"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
 type PlayAdminCheckinRecord struct {
+	Username              string                `json:"username"`
+	StreakStartDate       string                `json:"streak_start_date"`
+	StreakAtCheckin       int                   `json:"streak_at_checkin"`
+	PreviousCheckinDate   *string               `json:"previous_checkin_date"`
+	GapStartDate          *string               `json:"gap_start_date"`
+	GapEndDate            *string               `json:"gap_end_date"`
+	LateRecordedDays      int                   `json:"late_recorded_days"`
+	Continuity            []PlayAdminCheckinDay `json:"continuity"`
+	DailyLedgerAmount     string                `json:"daily_ledger_amount"`
+	MilestoneLedgerAmount string                `json:"milestone_ledger_amount"`
+
 	ID                int64     `json:"id"`
 	UserID            int64     `json:"user_id"`
 	Email             string    `json:"email"`
@@ -51,6 +70,10 @@ type PlayAdminCheckinRepository interface {
 
 func (s *PlayService) ListAdminCheckins(ctx context.Context, filter PlayAdminCheckinFilter) (*PlayAdminCheckinPage, error) {
 	invalid := infraerrors.BadRequest("PLAY_CHECKIN_QUERY_INVALID", "invalid check-in filters; use a date range of at most 366 days")
+	filter.Account = strings.TrimSpace(filter.Account)
+	if utf8.RuneCountInString(filter.Account) > 254 {
+		return nil, invalid
+	}
 	now := s.serverNow()
 	today := s.serverDate(now)
 	if filter.StartDate == "" {

@@ -40,7 +40,18 @@ export async function activateArenaAccounting(periodId: number, expectedDigest: 
   return data;
 }
 
+export interface AdminCheckinDay { date: string; created_at: string; }
 export interface AdminCheckinRecord {
+  username?: string;
+  streak_start_date?: string;
+  streak_at_checkin?: number;
+  previous_checkin_date?: string | null;
+  gap_start_date?: string | null;
+  gap_end_date?: string | null;
+  late_recorded_days?: number;
+  continuity?: AdminCheckinDay[];
+  daily_ledger_amount?: string;
+  milestone_ledger_amount?: string;
   id: number;
   user_id: number;
   email: string;
@@ -70,6 +81,7 @@ export interface AdminCheckinPage {
 }
 
 export interface AdminCheckinQuery {
+  account?: string;
   user_id?: number;
   start_date?: string;
   end_date?: string;

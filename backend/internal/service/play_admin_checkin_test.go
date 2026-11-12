@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"github.com/stretchr/testify/require"
+	"strings"
 	"testing"
 	"time"
 )
@@ -41,4 +42,15 @@ func TestAdminCheckinQueryValidatesBoundedWindowAndPagination(t *testing.T) {
 		require.Error(t, err)
 	}
 	require.Equal(t, 1, repo.calls, "invalid queries never reach storage")
+}
+
+func TestAdminCheckinAccountSearchIsTrimmedAndBounded(t *testing.T) {
+	repo := &adminCheckinRepo{}
+	svc := NewPlayService(repo, nil, nil, nil, nil, nil)
+	_, err := svc.ListAdminCheckins(context.Background(), PlayAdminCheckinFilter{Account: "  Example@Example.test  "})
+	require.NoError(t, err)
+	require.Equal(t, "Example@Example.test", repo.filter.Account)
+	_, err = svc.ListAdminCheckins(context.Background(), PlayAdminCheckinFilter{Account: strings.Repeat("a", 255)})
+	require.Error(t, err)
+	require.Equal(t, 1, repo.calls)
 }

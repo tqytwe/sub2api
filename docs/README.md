@@ -157,4 +157,6 @@
 
 - [Coupon claim and batch issuance visual review](visual-reviews/2026-11-11-coupon-closed-loop.md) — existing administration, wallet and checkout surfaces; synthetic browser evidence, production acceptance pending.
 
-- [优惠券状态与上限说明修正](visual-reviews/2026-11-12-coupon-status-limits.md)：冷启动状态回归、两类上限说明及签到/答题定向只读核对；生产验收待补。
+- [优惠券状态与上限说明修正](visual-reviews/2026-11-12-coupon-status-limits.md)：冷启动状态回归、两类上限说明及签到/答题定向只读核对；PR #426 已上线，用户确认两处正常。
+
+- [签到账号查询与连续日期证据](visual-reviews/2026-11-12-checkin-account-evidence.md)：现有管理页账号查询、逐日依据、补录区分与奖励流水拆分；部署与本机验收以关联 PR 为准。
