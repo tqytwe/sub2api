@@ -40,9 +40,9 @@ describe('AdminCheckinRecords', () => {
   })
   it('does not claim records are current after filters change until the query completes', async () => {
     const view = createView(); await flushPromises()
-    await view.get('#checkin-user-id').setValue('55')
+    await view.get('#checkin-account').setValue('  fixture@example.test  ')
     await view.get('form').trigger('submit'); await flushPromises()
-    expect(api.listCheckinRecords).toHaveBeenLastCalledWith(expect.objectContaining({ user_id: 55, page: 1, as_of: undefined }))
+    expect(api.listCheckinRecords).toHaveBeenLastCalledWith(expect.objectContaining({ account: 'fixture@example.test', page: 1, as_of: undefined }))
   })
   it('previews selected evidence, requires confirmation and refreshes after an audited repair', async () => {
     const preview = { target: { user_id: 42, date: '2026-11-04' }, checkin_id: 1, snapshot_id: 901, original_streak: 0, effective_streak: 0, observed_streak: 7, reward_mode: 'energy', bonus: 0, can_repair: true, status: 'ready', digest: 'a'.repeat(64) }
@@ -70,4 +70,36 @@ describe('AdminCheckinRecords', () => {
     expect(api.repairCheckins).not.toHaveBeenCalled()
   })
 
+})
+
+it('explains a real continuous date sequence, earlier gap, reward split and late makeup', async () => {
+ api.listCheckinRecords.mockResolvedValue({ ...result, items: [{ ...result.items[0],
+  username: 'fixture-user', observed_streak: 3, streak_at_checkin: 1, streak_start_date: '2026-11-02',
+  previous_checkin_date: '2026-10-31', gap_start_date: '2026-11-01', gap_end_date: '2026-11-01',
+  late_recorded_days: 1, daily_ledger_amount: '2.00000000', milestone_ledger_amount: '5.00000000',
+  continuity: [{date:'2026-11-02',created_at:'2026-11-02T01:00:00Z'},
+   {date:'2026-11-03',created_at:'2026-11-05T01:00:00Z'},
+   {date:'2026-11-04',created_at:'2026-11-04T00:00:00Z'}]
+ }] })
+ const view = createView(); await flushPromises()
+ expect(view.text()).toContain('fixture-user')
+ expect(view.text()).toContain('当时连签 1 天')
+ expect(view.text()).toContain('当前核对 3 天')
+ expect(view.text()).toContain('2026-11-02 → 2026-11-04')
+ expect(view.text()).toContain('之前中断：2026-11-01 → 2026-11-01')
+ expect(view.text()).toContain('后续补录 1 天')
+ expect(view.text()).toContain('日常奖励流水 2.00000000')
+ expect(view.text()).toContain('连签奖励流水 5.00000000')
+ expect(view.find('details summary').exists()).toBe(true)
+ const days = view.findAll('[data-testid="checkin-evidence-day"]')
+ expect(days).toHaveLength(3)
+ expect(days[1].text()).toContain('后续补录')
+})
+it('does not invent a missed day before the earliest known check-in', async () => {
+ api.listCheckinRecords.mockResolvedValue({ ...result, items: [{...result.items[0],
+  streak_start_date:'2026-10-29', streak_at_checkin:7, late_recorded_days:0, continuity:[]
+ }] })
+ const view=createView(); await flushPromises()
+ expect(view.text()).not.toContain('之前中断：')
+ expect(view.text()).toContain('此前没有签到记录，不据此判定断签')
 })

@@ -12,7 +12,7 @@ import (
 )
 
 func (h *AdminPlayHandler) ListCheckinRecords(c *gin.Context) {
-	filter := service.PlayAdminCheckinFilter{StartDate: c.Query("start_date"), EndDate: c.Query("end_date"), RewardMode: c.Query("reward_mode"), AsOf: c.Query("as_of")}
+	filter := service.PlayAdminCheckinFilter{Account: c.Query("account"), StartDate: c.Query("start_date"), EndDate: c.Query("end_date"), RewardMode: c.Query("reward_mode"), AsOf: c.Query("as_of")}
 	values := []struct {
 		key    string
 		target *int
