@@ -115,6 +115,9 @@ func (s *AuthService) loginOrRegisterVerifiedEmailOAuth(
 			}
 		}
 	}
+	if (providerType == "google" || providerType == "github") && identityUser == nil && user != nil && !emailOAuthCanAutoLinkExistingUser(user) {
+		return nil, nil, ErrOAuthExistingAccountBindRequired
+	}
 
 	if !user.IsActive() {
 		return nil, nil, ErrUserNotActive
@@ -300,4 +303,16 @@ func (s *AuthService) ensureEmailOAuthIdentity(ctx context.Context, userID int64
 		SetMetadata(metadata).
 		Save(ctx)
 	return err
+}
+
+func emailOAuthCanAutoLinkExistingUser(user *User) bool {
+	if user == nil {
+		return false
+	}
+	switch normalizeOAuthSignupSource(user.SignupSource) {
+	case "google", "github":
+		return true
+	default:
+		return false
+	}
 }
