@@ -402,6 +402,7 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 
 		// 发送请求
 		resp, err = s.httpUpstream.DoWithTLS(upstreamReq, proxyURL, account.ID, account.Concurrency, tlsProfile)
+		s.rateLimitService.observeQualityResponse(upstreamReq.Context(), account, resp, err)
 		if err != nil {
 			if resp != nil && resp.Body != nil {
 				_ = resp.Body.Close()
@@ -409,6 +410,10 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 			return nil, s.handleUpstreamTransportError(ctx, c, account, err, OpsUpstreamErrorEvent{
 				UpstreamURL: safeUpstreamURL(upstreamReq.URL.String()),
 			})
+		}
+
+		if isAnthropicRequestTooLarge(account, resp) {
+			return handleAnthropicRequestTooLarge(c, resp)
 		}
 
 		// 优先检测thinking block签名错误（400）并重试一次
@@ -466,7 +471,11 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 					releaseRetryCtx()
 					if buildErr == nil {
 						retryResp, retryErr := s.httpUpstream.DoWithTLS(retryReq, proxyURL, account.ID, account.Concurrency, tlsProfile)
+						s.rateLimitService.observeQualityResponse(retryReq.Context(), account, retryResp, retryErr)
 						if retryErr == nil {
+							if isAnthropicRequestTooLarge(account, retryResp) {
+								return handleAnthropicRequestTooLarge(c, retryResp)
+							}
 							if retryResp.StatusCode < 400 {
 								// 重试请求被上游接受后同步 ParsedRequest，保证 usage/日志看到真实请求体。
 								lastWireBody = retryWireBody
@@ -510,6 +519,7 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 									releaseRetryCtx2()
 									if buildErr2 == nil {
 										retryResp2, retryErr2 := s.httpUpstream.DoWithTLS(retryReq2, proxyURL, account.ID, account.Concurrency, tlsProfile)
+										s.rateLimitService.observeQualityResponse(retryReq2.Context(), account, retryResp2, retryErr2)
 										if retryErr2 == nil {
 											if retryResp2.StatusCode < 400 {
 												// 二阶段工具块降级成功时也必须更新当前 body。
@@ -596,6 +606,7 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 						releaseBudgetRetryCtx()
 						if buildErr == nil {
 							budgetRetryResp, retryErr := s.httpUpstream.DoWithTLS(budgetRetryReq, proxyURL, account.ID, account.Concurrency, tlsProfile)
+							s.rateLimitService.observeQualityResponse(budgetRetryReq.Context(), account, budgetRetryResp, retryErr)
 							if retryErr == nil {
 								if budgetRetryResp.StatusCode < 400 {
 									// budget 修正请求成功后，ParsedRequest 也要描述被接受的修正版。
@@ -680,6 +691,10 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 			}
 		}
 		break
+	}
+	// A repaired request can also be rejected before the normal retry loop resumes.
+	if isAnthropicRequestTooLarge(account, resp) {
+		return handleAnthropicRequestTooLarge(c, resp)
 	}
 	if resp == nil || resp.Body == nil {
 		return nil, errors.New("upstream request failed: empty response")

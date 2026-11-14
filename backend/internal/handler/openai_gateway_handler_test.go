@@ -1915,9 +1915,10 @@ func newOpenAIWSHandlerTestServer(t *testing.T, h *OpenAIGatewayHandler, subject
 	t.Helper()
 	groupID := int64(2)
 	apiKey := &service.APIKey{
-		ID:      101,
-		GroupID: &groupID,
-		User:    &service.User{ID: subject.UserID},
+		ID:               101,
+		GroupID:          &groupID,
+		User:             &service.User{ID: subject.UserID},
+		AllowLongContext: true,
 	}
 	router := gin.New()
 	router.Use(func(c *gin.Context) {
@@ -3077,9 +3078,10 @@ func runOpenAIResponsesWebSocketUsageLogCase(t *testing.T, tc openAIResponsesWSU
 	}
 
 	apiKey := &service.APIKey{
-		ID:      1801,
-		GroupID: &groupID,
-		User:    &service.User{ID: 1701, Status: service.StatusActive},
+		ID:               1801,
+		GroupID:          &groupID,
+		User:             &service.User{ID: 1701, Status: service.StatusActive},
+		AllowLongContext: true,
 	}
 	if tc.simpleModeRejectAtRead > 0 {
 		apiKey.RateLimit5h = 1

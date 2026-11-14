@@ -362,6 +362,7 @@ func (s *OpenAIGatewayService) handleOpenAIWSErrorEventTransientFailure(ctx cont
 	}
 	status := openAIWSPayloadTransientStatus(payload)
 	if status != 0 {
+		s.rateLimitService.observeQualityStatus(ctx, account, status)
 		if status == http.StatusTooManyRequests {
 			headers = openAIWSSemantic429Headers(account, canonicalModel, headers)
 		}
@@ -377,16 +378,17 @@ func (s *OpenAIGatewayService) handleOpenAIWSFailureAccountSideEffects(ctx conte
 	status := openAIStreamFailureStatus(payload, message)
 	switch status {
 	case http.StatusUnauthorized, http.StatusTooManyRequests, 529:
-		s.handleOpenAIStreamTerminalAccountSideEffects(nil, account, payload, message, headers, canonicalModel)
+		s.handleOpenAIStreamTerminalAccountSideEffectsContext(ctx, account, payload, message, headers, canonicalModel)
 		return true
 	case http.StatusForbidden:
 		if !openAIStream403AccountFailure(payload, message) {
 			return false
 		}
-		s.handleOpenAIStreamTerminalAccountSideEffects(nil, account, payload, message, headers, canonicalModel)
+		s.handleOpenAIStreamTerminalAccountSideEffectsContext(ctx, account, payload, message, headers, canonicalModel)
 		return true
 	}
 
+	s.rateLimitService.observeQualityStatus(ctx, account, status)
 	status = openAIWSPayloadTransientStatus(payload)
 	if status == 0 {
 		return false
@@ -397,6 +399,9 @@ func (s *OpenAIGatewayService) handleOpenAIWSFailureAccountSideEffects(ctx conte
 
 func (s *OpenAIGatewayService) handleOpenAIWSDialTransientFailure(ctx context.Context, account *Account, canonicalModel string, err error) {
 	var dialErr *openAIWSDialError
+	if errors.As(err, &dialErr) && dialErr != nil {
+		s.rateLimitService.observeQualityStatus(ctx, account, dialErr.StatusCode)
+	}
 	if !errors.As(err, &dialErr) || dialErr == nil || !shouldCooldownOpenAITransientUpstreamError(dialErr.StatusCode, dialErr.ResponseBody) {
 		return
 	}

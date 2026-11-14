@@ -12,6 +12,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
 	coderws "github.com/coder/websocket"
 	"github.com/gin-gonic/gin"
+	"github.com/tidwall/gjson"
 )
 
 const (
@@ -421,6 +422,9 @@ func (s *OpenAIGatewayService) priorityLatencyAdmissionWithConfig(req OpenAIAcco
 // The public model scopes observations; only channel routing scopes the policy
 // (account-level aliases in the final payload must not change that scope).
 func (s *OpenAIGatewayService) admitPriorityWSSend(ctx context.Context, c *gin.Context, account *Account, publicModel string, payload []byte) error {
+	if err := s.checkAPIKeyLongContextBeforeSend(ctx, c, payload, gjson.GetBytes(payload, "model").String()); err != nil {
+		return err
+	}
 	cfg := s.prioritySchedulingRuntimeConfig()
 	if account == nil || account.Platform != PlatformOpenAI || !cfg.Enabled || cfg.LatencyPenaltyMode != PriorityLatencyStop {
 		return nil

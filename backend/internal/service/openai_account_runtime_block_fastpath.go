@@ -99,6 +99,29 @@ func isOpenAIAccount(account *Account) bool {
 // handleOpenAIAccountUpstreamError expects canonicalModel to be the model used
 // for scheduling after applying account mapping exactly once.
 func (s *OpenAIGatewayService) handleOpenAIAccountUpstreamError(ctx context.Context, account *Account, statusCode int, headers http.Header, responseBody []byte, canonicalModel ...string) bool {
+	// Every intervening HTTP response breaks the consecutive IP-policy streak,
+	// including request-scoped early returns below.
+	if s != nil && s.rateLimitService != nil && !isOpenAIIPUnauthorizedResponse(statusCode, responseBody) {
+		s.rateLimitService.resetOpenAIIPUnauthorizedStreak(account)
+	}
+	return s.handleOpenAIAccountUpstreamErrorAfterStreakReset(ctx, account, statusCode, headers, responseBody, canonicalModel...)
+}
+
+// Response writers observe the HTTP response before their terminal policies.
+// Keep the remaining side effects shared without a second concurrent reset.
+func (s *OpenAIGatewayService) handleOpenAIAccountUpstreamErrorAfterStreakReset(ctx context.Context, account *Account, statusCode int, headers http.Header, responseBody []byte, canonicalModel ...string) bool {
+	if isOpenAIUpstreamSessionBlocked(responseBody) {
+		return false
+	}
+	// The fastpath applies custom cooldowns before the shared rate-limit handler.
+	if statusCode == http.StatusForbidden && isCloudflareBotBlockResponse(responseBody) {
+		return false
+	}
+	// Apply the upstream request-level exemption before access-state and
+	// custom cooldown paths can mutate this credential's scheduling state.
+	if isOpenAIRequestScoped403(account, statusCode, responseBody) {
+		return false
+	}
 	if account != nil && account.Platform == PlatformGrok && isGrokContentPolicyRejection(statusCode, responseBody) {
 		return false
 	}
@@ -178,7 +201,7 @@ func (s *OpenAIGatewayService) handleOpenAIAccountUpstreamError(ctx context.Cont
 	if s.rateLimitService == nil {
 		return false
 	}
-	shouldDisable := s.rateLimitService.HandleUpstreamError(stateCtx, account, statusCode, headers, responseBody)
+	shouldDisable := s.rateLimitService.handleUpstreamErrorAfterStreakReset(stateCtx, account, statusCode, headers, responseBody)
 	modelTempMatched := statusCode != http.StatusUnauthorized && tempUnschedulableModel(stateCtx, nil) != "" &&
 		len(matchTempUnschedulableRules(account, statusCode, responseBody)) > 0
 	if shouldDisable && !modelTempMatched {

@@ -2250,6 +2250,9 @@ func (s *OpenAIGatewayService) handleOpenAIImagesOAuthResponseError(receipt requ
 	if !errors.As(err, &upstreamErr) {
 		return err
 	}
+	if !upstreamErr.SynthesizedFromModelText && resp != nil && resp.StatusCode >= 200 && resp.StatusCode < 300 {
+		s.rateLimitService.observeQualityStatus(ctx, account, upstreamErr.StatusCode)
+	}
 
 	retryable := IsOpenAIImagesRetryableUpstreamError(upstreamErr)
 	kind := "http_error"

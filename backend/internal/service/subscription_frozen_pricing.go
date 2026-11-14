@@ -106,7 +106,15 @@ func (s *OpenAIGatewayService) PrepareSubscriptionAdmission(ctx context.Context,
 		}
 		snap.StatsPlatform = s.channelService.GetGroupPlatform(ctx, *key.GroupID)
 	}
-	customerModels := usageBillingModelCandidates(fields.OriginalModel, fields.ChannelMappedModel, model, account.GetMappedModel(model))
+	requestedBillingModel := fields.OriginalModel
+	if fields.APIKeyMappedModel != "" {
+		requestedBillingModel = fields.APIKeyMappedModel
+	}
+	channelBillingModel := fields.ChannelMappedModel
+	if !fields.ChannelMappingApplied && channelBillingModel == fields.OriginalModel {
+		channelBillingModel = requestedBillingModel
+	}
+	customerModels := usageBillingModelCandidates(requestedBillingModel, channelBillingModel, model, account.GetMappedModel(model))
 	for _, candidate := range customerModels {
 		p := resolver.Resolve(ctx, PricingInput{Model: candidate, GroupID: key.GroupID, Group: key.Group})
 		if p == nil || (p.Mode != BillingModeToken && p.Mode != BillingModePerRequest) || (p.Mode == BillingModeToken && p.BasePricing == nil) {

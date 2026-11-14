@@ -1,3 +1,4 @@
+import apiKeyModelPolicy from './zh/apiKeyModelPolicy'
 import couponCampaign from './zh/couponCampaign'
 import affiliateOperations from './zh/affiliateOperations'
 import requestLedger from './request-ledger.zh'
@@ -18,6 +19,7 @@ import tokenGuardV2Zh from './zh/tokenGuardV2'
 import { mergeLocaleMessages } from './merge'
 
 const messages = {
+  apiKeyModelPolicy,
   couponCampaign,
   affiliateOperations,
   accountOps: { smartTitle: '账号运营' },
@@ -1222,6 +1224,10 @@ const messages = {
     failedToChangeGroup: '更换分组失败',
     groupRequired: '请选择分组',
     usage: '用量',
+    usageDateRange: '消费日期',
+    selectedPeriod: '所选期间',
+    invalidUsageDateRange: '请选择有效的消费日期范围',
+    failedToLoadUsage: '消费数据加载失败，请刷新重试',
     today: '今日',
     total: '近30天',
     quota: '额度',
@@ -9197,6 +9203,9 @@ const messages = {
     enterAmount: '输入金额',
     paymentMethod: '支付方式',
     fee: '手续费',
+    estimatedPay: '预计实付',
+    feeRangeHint: '不同支付通道的手续费可能不同，最终手续费及实付金额以下单结果为准。',
+    stripePaymentMethod: 'Stripe 支付方式',
     actualPay: '实付金额',
     createOrder: '确认支付',
     methods: {

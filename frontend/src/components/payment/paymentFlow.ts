@@ -81,6 +81,7 @@ export interface PaymentLaunchDecision {
 export interface BuildCreateOrderPayloadInput {
   amount: number
   paymentType: string
+  paymentSubtype?: string
   orderType: OrderType
   planId?: number
   origin?: string
@@ -138,6 +139,9 @@ export function buildCreateOrderPayload(input: BuildCreateOrderPayloadInput): Cr
       : 'hosted_redirect',
   }
 
+  if (visibleMethod === 'stripe' && input.paymentSubtype?.trim()) {
+    payload.payment_subtype = input.paymentSubtype.trim()
+  }
   if (input.planId) {
     payload.plan_id = input.planId
   }

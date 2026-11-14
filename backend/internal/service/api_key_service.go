@@ -64,11 +64,15 @@ const (
 // 若编辑 Key 时无条件整行回写，并发累计的配额与限流计数就会被旧快照覆盖。
 // 因此调用方必须显式声明要改的列。
 type APIKeyUpdateFields struct {
-	Name      bool
-	Status    bool
-	Quota     bool
-	GroupID   bool
-	ExpiresAt bool
+	ModelMapping      bool
+	ReasoningEffort   bool
+	AllowLongContext  bool
+	ContextTokenLimit bool
+	Name              bool
+	Status            bool
+	Quota             bool
+	GroupID           bool
+	ExpiresAt         bool
 	// QuotaUsed 仅供"重置配额用量"路径声明；常规计费走 IncrementQuotaUsed。
 	QuotaUsed bool
 	// RateLimits 覆盖 rate_limit_5h / _1d / _7d 三个阈值。
@@ -594,19 +598,20 @@ func (s *APIKeyService) Create(ctx context.Context, userID int64, req CreateAPIK
 
 	// 创建API Key记录
 	apiKey := &APIKey{
-		UserID:      userID,
-		Key:         key,
-		Name:        html.EscapeString(req.Name),
-		GroupIDs:    groupIDs,
-		GroupID:     req.GroupID,
-		Status:      StatusActive,
-		IPWhitelist: req.IPWhitelist,
-		IPBlacklist: req.IPBlacklist,
-		Quota:       req.Quota,
-		QuotaUsed:   0,
-		RateLimit5h: req.RateLimit5h,
-		RateLimit1d: req.RateLimit1d,
-		RateLimit7d: req.RateLimit7d,
+		AllowLongContext: true,
+		UserID:           userID,
+		Key:              key,
+		Name:             html.EscapeString(req.Name),
+		GroupIDs:         groupIDs,
+		GroupID:          req.GroupID,
+		Status:           StatusActive,
+		IPWhitelist:      req.IPWhitelist,
+		IPBlacklist:      req.IPBlacklist,
+		Quota:            req.Quota,
+		QuotaUsed:        0,
+		RateLimit5h:      req.RateLimit5h,
+		RateLimit1d:      req.RateLimit1d,
+		RateLimit7d:      req.RateLimit7d,
 	}
 
 	// Set expiration time if specified

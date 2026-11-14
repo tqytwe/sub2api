@@ -1633,6 +1633,9 @@ func (s *OpenAIGatewayService) buildUpstreamRequest(ctx context.Context, c *gin.
 	if err := applyMappedGPT55LiteCompatibility(req, account, body); err != nil {
 		return nil, err
 	}
+	if err := s.checkAPIKeyLongContextRequestBeforeSend(ctx, c, req); err != nil {
+		return nil, err
+	}
 	return req, nil
 }
 

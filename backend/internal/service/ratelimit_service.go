@@ -20,6 +20,7 @@ import (
 
 // RateLimitService 处理限流和过载状态管理
 type RateLimitService struct {
+	qualityTrigger        *quality5xxTrigger
 	accountRepo           AccountRepository
 	usageRepo             UsageLogRepository
 	cfg                   *config.Config
@@ -28,6 +29,7 @@ type RateLimitService struct {
 	openAIAPIKeyHealth    OpenAIAPIKeyHealthCache
 	timeoutCounterCache   TimeoutCounterCache
 	openAI403CounterCache OpenAI403CounterCache
+	openAIIPUnauthorized  openAIIPUnauthorizedStreak
 	settingService        *SettingService
 	tokenCacheInvalidator TokenCacheInvalidator
 	runtimeBlocker        AccountRuntimeBlocker
@@ -300,6 +302,16 @@ const (
 // CheckErrorPolicy 检查自定义错误码和临时不可调度规则。
 // 自定义错误码开启时覆盖后续所有逻辑（包括临时不可调度）。
 func (s *RateLimitService) CheckErrorPolicy(ctx context.Context, account *Account, statusCode int, responseBody []byte, requestedModel ...string) ErrorPolicyResult {
+	// Edge refusals and frozen conversations must not reach custom account policies.
+	if statusCode == http.StatusForbidden && isCloudflareBotBlockResponse(responseBody) {
+		return ErrorPolicySkipped
+	}
+	if account.IsOpenAICompatible() && isOpenAIUpstreamSessionBlocked(responseBody) {
+		return ErrorPolicySkipped
+	}
+	if isOpenAIRequestScoped403(account, statusCode, responseBody) {
+		return ErrorPolicySkipped
+	}
 	ctx = withTempUnschedulableModel(ctx, requestedModel)
 	if account.IsCustomErrorCodesEnabled() {
 		if account.ShouldHandleErrorCode(statusCode) {
@@ -330,6 +342,30 @@ func (s *RateLimitService) CheckErrorPolicy(ctx context.Context, account *Accoun
 // HandleUpstreamError 处理上游错误响应，标记账号状态
 // 返回是否应该停止该账号的调度
 func (s *RateLimitService) HandleUpstreamError(ctx context.Context, account *Account, statusCode int, headers http.Header, responseBody []byte, requestedModel ...string) (shouldDisable bool) {
+	if !isOpenAIIPUnauthorizedResponse(statusCode, responseBody) {
+		s.resetOpenAIIPUnauthorizedStreak(account)
+	}
+	return s.handleUpstreamErrorAfterStreakReset(ctx, account, statusCode, headers, responseBody, requestedModel...)
+}
+
+// The gateway observes the response before its own request/model policy returns.
+// Do not reset again here: that could erase a later concurrent IP-401 failure.
+func (s *RateLimitService) handleUpstreamErrorAfterStreakReset(ctx context.Context, account *Account, statusCode int, headers http.Header, responseBody []byte, requestedModel ...string) (shouldDisable bool) {
+	if statusCode == http.StatusForbidden && isCloudflareBotBlockResponse(responseBody) {
+		return false
+	}
+	if account.IsOpenAICompatible() && isOpenAIUpstreamSessionBlocked(responseBody) {
+		return false
+	}
+	if isAnthropicSafeguardPolicy403(account, statusCode, responseBody) {
+		slog.Info("anthropic_safeguard_policy_403_skips_account_penalty", "account_id", account.ID)
+		return false
+	}
+	// Request-level relay refusals are not credential failures and must precede
+	// linked-account handling, custom policies and account-wide 403 strikes.
+	if isOpenAIRequestScoped403(account, statusCode, responseBody) {
+		return false
+	}
 	ctx = withTempUnschedulableModel(ctx, requestedModel)
 	// Team 联动熔断必须先于池模式/自定义错误码/临时不可调度的各类早退；
 	// 同请求内与 fastpath 调用点的重复触发由方法内去重吸收。
@@ -467,6 +503,15 @@ func (s *RateLimitService) HandleUpstreamError(ctx context.Context, account *Acc
 				s.handleAuthError(ctx, authAccount, msg)
 				shouldDisable = true
 				break
+			}
+			// An isolated IP-policy rejection is not evidence that this OAuth
+			// account should be parked. Require two consecutive responses within
+			// five seconds; credential revocation/missing refresh tokens above
+			// retain their existing handling.
+			if authAccount.Platform == PlatformOpenAI && isOpenAIIPUnauthorizedResponse(statusCode, responseBody) &&
+				!s.openAIIPUnauthorized.observe(authAccount.ID, headers.Get("x-request-id"), time.Now()) {
+				slog.Info("openai_ip_unauthorized_below_threshold", "account_id", authAccount.ID, "window_seconds", 5, "threshold", 2)
+				return false
 			}
 			// 2. 临时不可调度，替代 SetError（保持 status=active 让刷新服务能拾取）
 			// 注意：此处不再写回 account.Credentials/expires_at。
@@ -982,6 +1027,9 @@ func buildForbiddenErrorMessage(prefix string, upstreamMsg string, responseBody 
 // Antigravity 平台区分 validation/violation/generic 三种类型，均 SetError 永久禁用；
 // 其他平台保持原有 SetError 行为。
 func (s *RateLimitService) handle403(ctx context.Context, account *Account, upstreamMsg string, responseBody []byte) (shouldDisable bool) {
+	if isCloudflareBotBlockResponse(responseBody) {
+		return false
+	}
 	if account.Platform == PlatformAntigravity {
 		return s.handleAntigravity403(ctx, account, upstreamMsg, responseBody)
 	}
@@ -1098,7 +1146,72 @@ func (s *RateLimitService) handleOpenAI403(ctx context.Context, account *Account
 // request/edge-level failure and must not consume the account 403 strike budget.
 func isCloudflareBotBlockResponse(body []byte) bool {
 	normalized := strings.ToLower(strings.TrimSpace(string(body)))
+	var payload any
+	if json.Unmarshal(body, &payload) == nil {
+		return containsCloudflareBotBlockCode(payload)
+	}
 	return strings.Contains(normalized, "error code: 1010")
+}
+
+// isAnthropicSafeguardPolicy403 identifies a request-level safety rejection.
+// Keep this deliberately narrow: other Anthropic 403 responses can still
+// indicate an account access or entitlement problem.
+func isAnthropicSafeguardPolicy403(account *Account, statusCode int, body []byte) bool {
+	if account == nil || account.Platform != PlatformAnthropic || statusCode != http.StatusForbidden {
+		return false
+	}
+	normalized := strings.ToLower(string(body))
+	return strings.Contains(normalized, "this request was blocked by safe guard policy") ||
+		strings.Contains(normalized, "this request was blocked by safeguard policy")
+}
+
+func containsCloudflareBotBlockCode(value any) bool {
+	switch node := value.(type) {
+	case map[string]any:
+		cloudflareError := false
+		for key, child := range node {
+			if strings.EqualFold(key, "cloudflare_error") {
+				if is, ok := child.(bool); ok && is {
+					cloudflareError = true
+				}
+			}
+		}
+		for key, child := range node {
+			if strings.EqualFold(key, "error_name") {
+				if name, ok := child.(string); ok && strings.EqualFold(strings.TrimSpace(name), "browser_signature_banned") {
+					return true
+				}
+			}
+			if cloudflareError && (strings.EqualFold(key, "code") || strings.EqualFold(key, "error_code")) {
+				if isCloudflareBotBlockCode(child) {
+					return true
+				}
+			}
+			if containsCloudflareBotBlockCode(child) {
+				return true
+			}
+		}
+	case []any:
+		for _, child := range node {
+			if containsCloudflareBotBlockCode(child) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func isCloudflareBotBlockCode(value any) bool {
+	switch code := value.(type) {
+	case float64:
+		return code == 1010
+	case json.Number:
+		return code == "1010"
+	case string:
+		return strings.TrimSpace(code) == "1010"
+	default:
+		return false
+	}
 }
 
 // handleAntigravity403 处理 Antigravity 平台的 403 错误

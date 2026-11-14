@@ -14,6 +14,7 @@ const props = defineProps<{
   orderType: 'balance' | 'subscription'
   planId?: number
   paymentType: string
+  paymentSubtype?: string
   initialCouponId?: number
   disabled?: boolean
 }>()
@@ -191,6 +192,7 @@ async function quoteCoupon(coupon: UserCoupon) {
     const response = await couponAPI.quotePaymentCoupon({
       coupon_id: coupon.id,
       payment_type: props.paymentType,
+      ...(props.paymentType === 'stripe' && props.paymentSubtype ? { payment_subtype: props.paymentSubtype } : {}),
       order_type: props.orderType,
       amount: props.amount,
       plan_id: props.planId,
@@ -209,7 +211,7 @@ async function quoteCoupon(coupon: UserCoupon) {
 }
 
 watch(
-  () => [props.amount, props.orderType, props.planId, props.paymentType] as const,
+  () => [props.amount, props.orderType, props.planId, props.paymentType, props.paymentSubtype] as const,
   () => {
     if (!selectedCoupon.value) return
     void quoteCoupon(selectedCoupon.value)
@@ -324,6 +326,10 @@ watch(
       <span class="text-gray-600 dark:text-gray-300">{{ t('coupon.selector.quoteDiscount') }}</span>
       <strong class="text-primary-700 dark:text-primary-300">-{{ formatCurrency(currentQuote.discount_amount, currentQuote.payment_currency) }}</strong>
     </div>
+    <p v-if="currentQuote?.estimated" class="mt-3 text-sm text-gray-500 dark:text-gray-400" data-testid="coupon-fee-estimate">
+      {{ t('payment.estimatedPay') }} {{ formatCurrency(currentQuote.pay_amount, currentQuote.payment_currency) }} – {{ formatCurrency(currentQuote.pay_amount_max ?? currentQuote.pay_amount, currentQuote.payment_currency) }}.
+      {{ t('payment.feeRangeHint') }}
+    </p>
     <p v-if="quoting" class="mt-3 text-sm text-gray-500 dark:text-gray-400">{{ t('coupon.selector.quoting') }}</p>
     <p v-else-if="quoteError" class="mt-3 text-sm text-rose-600 dark:text-rose-300">{{ quoteError }}</p>
     <button v-if="modelValue" type="button" class="btn btn-ghost btn-sm mt-3" :disabled="quoting || disabled" @click="clearSelection">

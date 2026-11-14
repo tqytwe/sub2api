@@ -58,6 +58,21 @@ func (APIKey) Fields() []ent.Field {
 			Optional().
 			Comment("Blocked IPs/CIDRs"),
 
+		field.JSON("model_mapping", map[string]string{}).
+			Default(map[string]string{}).
+			Comment("Administrator-managed exact model aliases for this API key"),
+		field.String("reasoning_effort").
+			MaxLen(16).
+			Default("").
+			Comment("Administrator-managed reasoning effort override; empty follows the request"),
+		field.Bool("allow_long_context").
+			Default(true).
+			Comment("Administrator-managed permission to use long context requests"),
+		field.Int("context_token_limit").
+			Default(0).
+			NonNegative().
+			Comment("Administrator-managed input token ceiling; zero inherits the long context policy"),
+
 		// ========== Quota fields ==========
 		// Quota limit in USD (0 = unlimited)
 		field.Float("quota").

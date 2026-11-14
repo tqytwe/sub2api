@@ -26,11 +26,11 @@ func TestAccountTokenGuardV2RepositoryLeasesAndReauth(t *testing.T) {
 	})
 	guard := NewAccountTokenGuardV2Repository(integrationDB)
 	require.NoError(t, guard.UpsertAccount(ctx, account.ID, false, false))
-	claimed, err := guard.ClaimDue(ctx, "instance-a", time.Minute, 10)
+	claimed, err := guard.ClaimDue(ctx, "instance-a", time.Minute, 10, time.Now())
 	require.NoError(t, err)
 	require.Empty(t, claimed, "paused accounts must not be scheduled")
 	require.NoError(t, guard.UpsertAccount(ctx, account.ID, true, true))
-	claimed, err = guard.ClaimDue(ctx, "instance-a", time.Minute, 10)
+	claimed, err = guard.ClaimDue(ctx, "instance-a", time.Minute, 10, time.Now())
 	require.NoError(t, err)
 	require.Len(t, claimed, 1)
 	other, err := guard.ClaimAccount(ctx, account.ID, "instance-b", time.Minute)
@@ -47,11 +47,11 @@ func TestAccountTokenGuardV2RepositoryLeasesAndReauth(t *testing.T) {
 	require.Empty(t, stored.LeaseOwner)
 	require.Nil(t, stored.LeaseUntil)
 	require.Equal(t, service.AccountTokenGuardV2ProbeOK, stored.ProbeState)
-	claimed, err = guard.ClaimDue(ctx, "instance-b", time.Minute, 10)
+	claimed, err = guard.ClaimDue(ctx, "instance-b", time.Minute, 10, time.Now())
 	require.NoError(t, err)
 	require.Empty(t, claimed)
 	require.NoError(t, guard.RescheduleEnabled(ctx))
-	claimed, err = guard.ClaimDue(ctx, "instance-b", time.Minute, 10)
+	claimed, err = guard.ClaimDue(ctx, "instance-b", time.Minute, 10, time.Now())
 	require.NoError(t, err)
 	require.Len(t, claimed, 1)
 	_, err = integrationDB.ExecContext(ctx, `UPDATE account_token_guard_v2_accounts SET lease_until = NOW() - INTERVAL '1 second' WHERE account_id = $1`, account.ID)
@@ -96,4 +96,56 @@ func TestAccountTokenGuardV2RepositoryLeasesAndReauth(t *testing.T) {
 	done, err := reauth.GetTask(ctx, task.ID)
 	require.NoError(t, err)
 	require.Equal(t, service.OpenAIOAuthReauthStatusSucceeded, done.Status)
+}
+
+func TestAccountTokenGuardV2PruneDeletedAccounts(t *testing.T) {
+	ctx := context.Background()
+	guard := NewAccountTokenGuardV2Repository(integrationDB)
+	for _, tc := range []struct {
+		name    string
+		deleted bool
+		enabled bool
+	}{
+		{"deleted-enabled", true, true},
+		{"deleted-paused", true, false},
+		{"live-auth-failure", false, true},
+		{"live-paused", false, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			account := mustCreateAccount(t, testEntClient(t), &service.Account{
+				Name: tc.name, Platform: service.PlatformOpenAI, Type: service.AccountTypeOAuth,
+				Credentials: map[string]any{"access_token": "synthetic"},
+			})
+			t.Cleanup(func() {
+				_, err := integrationDB.ExecContext(context.Background(), `DELETE FROM accounts WHERE id = $1`, account.ID)
+				require.NoError(t, err)
+			})
+			require.NoError(t, guard.UpsertAccount(ctx, account.ID, tc.enabled, true))
+			// Even repeated authentication failures and missing login configs must
+			// not remove live accounts; future schedules must not delay cleanup.
+			_, err := integrationDB.ExecContext(ctx, `UPDATE account_token_guard_v2_accounts
+				SET probe_state = 'auth', fail_streak = 50, next_probe_at = NOW() + INTERVAL '1 day'
+				WHERE account_id = $1`, account.ID)
+			require.NoError(t, err)
+			if tc.deleted {
+				_, err = integrationDB.ExecContext(ctx, `UPDATE accounts SET deleted_at = NOW() WHERE id = $1`, account.ID)
+				require.NoError(t, err)
+			}
+			removed, err := guard.PruneDeletedAccounts(ctx)
+			require.NoError(t, err)
+			record, err := guard.GetAccount(ctx, account.ID)
+			require.NoError(t, err)
+			if tc.deleted {
+				require.EqualValues(t, 1, removed)
+				require.Nil(t, record)
+			} else {
+				require.Zero(t, removed)
+				require.NotNil(t, record)
+				require.Equal(t, 50, record.FailStreak)
+			}
+			removed, err = guard.PruneDeletedAccounts(ctx)
+			require.NoError(t, err)
+			require.Zero(t, removed)
+		})
+	}
 }

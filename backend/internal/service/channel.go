@@ -439,11 +439,13 @@ func formatMaxTokensLabel(max *int) string {
 
 // ChannelUsageFields 渠道相关的使用记录字段（嵌入到各平台的 RecordUsageInput 中）
 type ChannelUsageFields struct {
-	ChannelID          int64  // 渠道 ID（0 = 无渠道）
-	OriginalModel      string // 用户原始请求模型（渠道映射前）
-	ChannelMappedModel string // 渠道映射后的模型名（无映射时等于 OriginalModel）
-	BillingModelSource string // 计费模型来源："requested" / "upstream" / "channel_mapped"
-	ModelMappingChain  string // 映射链描述，如 "a→b→c"
+	APIKeyMappedModel     string // The key alias target actually applied at admission.
+	ChannelMappingApplied bool   // Distinguishes explicit channel mapping back to the original alias.
+	ChannelID             int64  // 渠道 ID（0 = 无渠道）
+	OriginalModel         string // 用户原始请求模型（渠道映射前）
+	ChannelMappedModel    string // 渠道映射后的模型名（无映射时等于 OriginalModel）
+	BillingModelSource    string // 计费模型来源："requested" / "upstream" / "channel_mapped"
+	ModelMappingChain     string // 映射链描述，如 "a→b→c"
 }
 
 // SupportedModel 渠道的一个支持模型条目（无通配符、可直接展示给用户）

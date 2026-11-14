@@ -8434,6 +8434,7 @@
           <PaymentProviderList
             v-if="form.payment_enabled"
             :providers="providers"
+            :global-fee-rate="savedPaymentFeeRate"
             :loading="providersLoading"
             :can-create="hasAnyPaymentTypeEnabled"
             :enabled-payment-types="form.payment_enabled_types"
@@ -8921,6 +8922,7 @@
         ref="providerDialogRef"
         :show="showProviderDialog"
         :saving="providerSaving"
+        :global-fee-rate="savedPaymentFeeRate"
         :editing="editingProvider"
         :all-key-options="providerKeyOptions"
         :enabled-key-options="enabledProviderKeyOptions"
@@ -11193,6 +11195,7 @@ async function loadSettings() {
   frontendUrlError.value = "";
   try {
     const settings = await adminAPI.settings.getSettings();
+    savedPaymentFeeRate.value = Number(settings.payment_recharge_fee_rate) || 0;
     settings.payment_load_balance_strategy =
       settings.payment_load_balance_strategy || "round-robin";
     // Only assign non-null values from backend (null means unconfigured, keep defaults)
@@ -12030,6 +12033,7 @@ async function saveSettings() {
     const updated = await settingsStepUp.run(() =>
       adminAPI.settings.updateSettings(payload),
     );
+    savedPaymentFeeRate.value = Number(updated.payment_recharge_fee_rate) || 0;
     for (const [key, value] of Object.entries(updated)) {
       if (key === "openai_fast_policy_settings") continue;
       if (value !== null && value !== undefined) {
@@ -12797,6 +12801,7 @@ function slog(...args: unknown[]) {
   console.warn("[payment]", ...args);
 }
 
+const savedPaymentFeeRate = ref<number>();
 const providersLoading = ref(false);
 const providerSaving = ref(false);
 const providers = ref<ProviderInstance[]>([]);

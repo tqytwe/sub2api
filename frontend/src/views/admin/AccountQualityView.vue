@@ -73,6 +73,8 @@
           <label class="block text-sm"><span class="field-title">{{ t('admin.qualityOps.expectedAnswer') }}</span><input v-model.trim="templateForm.expected_answer" class="input w-full" data-testid="quality-template-expected-answer" required maxlength="4000" /></label>
           <label class="block text-sm"><span class="field-title">{{ t('admin.qualityOps.action') }}</span><select v-model="templateForm.action" class="input w-full"><option value="observe_only">{{ t('admin.qualityOps.observeOnly') }}</option><option value="disable_scheduling">{{ t('admin.qualityOps.disableScheduling') }}</option><option value="isolate_models">{{ t('admin.qualityOps.isolation.action') }}</option></select></label>
           <QualityIsolationGroups v-if="templateForm.action === 'isolate_models'" v-model="templateForm.remove_group_ids" class="sm:col-span-2" data-testid="quality-template-isolation-groups" :groups="groups" :loading="groupsLoading" :error="groupsError" :disabled="templateSaving" />
+          <label v-if="qualityUsesRetestRest(templateForm.action)" class="block text-sm sm:col-span-2"><span class="field-title">{{ t('admin.qualityOps.retestRest') }}</span><input v-model.number="templateForm.retest_rest_minutes" class="input w-full" data-testid="quality-template-retest-rest" type="number" min="0" max="10080" step="1" required :disabled="templateSaving" /><span class="mt-1 block text-xs text-gray-500 dark:text-gray-400">{{ t('admin.qualityOps.retestRestHint') }}</span></label>
+          <label class="block text-sm sm:col-span-2"><span class="flex items-center gap-2"><input v-model="templateForm.trigger_on_upstream_5xx" data-testid="quality-template-trigger-5xx" type="checkbox" :disabled="templateSaving" />{{ t('admin.qualityOps.trigger5xx') }}</span><span class="mt-1 block text-xs text-gray-500 dark:text-gray-400">{{ t('admin.qualityOps.trigger5xxHint') }}</span></label>
           <div class="sm:col-span-2">
             <Toggle v-model="templateForm.auto_restore" data-testid="quality-template-auto-restore" :label="t('admin.qualityOps.autoRestore')" :description="t('admin.qualityOps.autoRestoreHelp')" :disabled="templateSaving" />
           </div>
@@ -104,13 +106,19 @@
       <section class="border border-gray-200 bg-white p-5 dark:border-dark-700 dark:bg-dark-800">
         <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ editingId ? t('admin.qualityOps.edit') : t('admin.qualityOps.create') }}</h2>
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t(bulkEditing ? 'admin.qualityOps.bulkEdit' : editingId ? 'admin.qualityOps.edit' : 'admin.qualityOps.create') }}</h2>
             <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ t('admin.qualityOps.scope') }}</p>
           </div>
-          <button v-if="editingId" class="btn btn-secondary" type="button" @click="resetForm">{{ t('common.cancel') }}</button>
+          <button v-if="editingId || bulkEditing" class="btn btn-secondary" type="button" :disabled="saving" @click="resetForm">{{ t('common.cancel') }}</button>
         </div>
-        <form class="grid gap-4 sm:grid-cols-2" @submit.prevent="save">
-          <div v-if="!editingId" class="grid gap-2 border border-gray-200 p-3 dark:border-dark-600 sm:col-span-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+        <form class="grid gap-4 sm:grid-cols-2" :novalidate="bulkEditing" @submit.prevent="save">
+          <fieldset v-if="bulkEditing" class="min-w-0 space-y-2 border-b border-gray-100 pb-3 dark:border-dark-700 sm:col-span-2" :disabled="saving">
+            <legend class="field-title">{{ t('admin.qualityOps.bulkFieldsTitle', { count: bulkRuleIds.length }) }}</legend>
+            <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('admin.qualityOps.bulkFieldsHelp') }}</p>
+            <div class="flex flex-wrap gap-x-4 gap-y-1"><label v-for="field in qualityRuleFields" :key="field" class="flex min-h-11 items-center gap-2 text-sm"><input v-model="bulkFields" type="checkbox" :value="field" :data-testid="`quality-bulk-field-${field}`" />{{ t(`admin.qualityOps.bulkFields.${field}`) }}</label></div>
+            <ul v-if="bulkFailures.length" class="space-y-1 text-sm text-red-700 dark:text-red-300" role="alert"><li v-for="failure in bulkFailures" :key="failure.id">#{{ failure.id }} · {{ failure.message }}</li></ul>
+          </fieldset>
+          <div v-if="!editingId && !bulkEditing" class="grid gap-2 border border-gray-200 p-3 dark:border-dark-600 sm:col-span-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
             <label class="block text-sm">
               <span class="field-title">{{ t('admin.qualityOps.savedPresets') }}</span>
               <select v-model.number="selectedPresetId" class="input w-full" data-testid="quality-preset-select" :disabled="presetLoading || !presets.length">
@@ -124,7 +132,7 @@
               <button type="button" class="underline" @click="loadPresets">{{ t('admin.qualityOps.retryPresets') }}</button>
             </p>
           </div>
-          <label class="block text-sm sm:col-span-2">
+          <label v-if="!bulkEditing" class="block text-sm sm:col-span-2">
             <span class="field-title">{{ t('admin.qualityOps.account') }}</span>
             <select v-model.number="form.account_id" class="input w-full" :disabled="!!editingId" required>
               <option :value="0" disabled>{{ t('admin.qualityOps.selectAccount') }}</option>
@@ -189,6 +197,8 @@
             </select>
           </label>
           <QualityIsolationGroups v-if="form.action === 'isolate_models'" v-model="form.remove_group_ids" class="sm:col-span-2" data-testid="quality-isolation-groups" :groups="groups" :loading="groupsLoading" :error="groupsError" :disabled="saving || presetSaving" />
+          <label v-if="qualityUsesRetestRest(form.action)" class="block text-sm sm:col-span-2"><span class="field-title">{{ t('admin.qualityOps.retestRest') }}</span><input v-model.number="form.retest_rest_minutes" class="input w-full" data-testid="quality-retest-rest" type="number" min="0" max="10080" step="1" required :disabled="saving || presetSaving" /><span class="mt-1 block text-xs text-gray-500 dark:text-gray-400">{{ t('admin.qualityOps.retestRestHint') }}</span></label>
+          <label class="block text-sm sm:col-span-2"><span class="flex items-center gap-2"><input v-model="form.trigger_on_upstream_5xx" data-testid="quality-trigger-5xx" type="checkbox" :disabled="saving || presetSaving" />{{ t('admin.qualityOps.trigger5xx') }}</span><span class="mt-1 block text-xs text-gray-500 dark:text-gray-400">{{ t('admin.qualityOps.trigger5xxHint') }}</span></label>
           <div class="sm:col-span-2">
             <Toggle v-model="form.auto_restore" data-testid="quality-auto-restore" :label="t('admin.qualityOps.autoRestore')" :description="t('admin.qualityOps.autoRestoreHelp')" :disabled="saving || presetSaving" />
           </div>
@@ -212,7 +222,7 @@
             <p v-if="presetSaveError" class="mt-2 text-xs text-red-700 dark:text-red-300" role="alert">{{ presetSaveError }}</p>
           </div>
           <div class="flex justify-end sm:col-span-2">
-            <button class="btn btn-primary" type="submit" :disabled="saving || !form.account_id">
+            <button class="btn btn-primary" type="submit" :disabled="saving || (!bulkEditing && !form.account_id)">
               {{ saving ? t('common.saving') : t('common.save') }}
             </button>
           </div>
@@ -220,8 +230,9 @@
       </section>
 
       <section class="border border-gray-200 bg-white dark:border-dark-700 dark:bg-dark-800">
-        <header class="border-b border-gray-100 p-4 dark:border-dark-700">
+        <header class="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 p-4 dark:border-dark-700">
           <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t('admin.qualityOps.rules') }}</h2>
+          <button class="btn btn-secondary" type="button" data-testid="quality-bulk-edit" :disabled="!selectedRuleIds.length || saving || loading || busyPlan !== null" @click="editSelectedRules">{{ t('admin.qualityOps.bulkEdit') }} ({{ selectedRuleIds.length }})</button>
         </header>
         <div v-if="loading" class="p-8 text-center text-sm text-gray-500">{{ t('common.loading') }}...</div>
         <div v-else-if="!plans.length" class="p-8 text-center text-sm text-gray-500">{{ t('admin.qualityOps.empty') }}</div>
@@ -229,12 +240,14 @@
           <article v-for="plan in plans" :key="plan.id" class="p-4">
             <div class="flex flex-wrap items-start justify-between gap-3">
               <div class="min-w-0">
+                <label class="mb-1 flex min-h-11 items-center gap-2 text-sm"><input v-model="selectedRuleIds" type="checkbox" :value="plan.id" :data-testid="`quality-select-rule-${plan.id}`" :disabled="saving || bulkEditing" />{{ t('admin.qualityOps.selectRule', { id: plan.id }) }}</label>
                 <h3 class="font-medium text-gray-900 dark:text-white">{{ accountName(plan.account_id) }} #{{ plan.account_id }}</h3>
                 <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">{{ plan.pelican_config?.rule_name || t('admin.qualityOps.unnamed') }}</p>
                 <p class="mt-1 break-words text-xs text-gray-500">{{ modelSummary(plan.model_id, plan.pelican_config) }} · {{ plan.cron_expression }} · {{ plan.enabled ? t('admin.qualityOps.enabled') : t('admin.qualityOps.paused') }}</p>
               </div>
               <div class="flex flex-wrap items-center gap-2">
                 <button class="btn btn-secondary btn-sm" :disabled="busyPlan === plan.id" @click="edit(plan)">{{ t('admin.qualityOps.editShort') }}</button>
+                <button class="btn btn-secondary btn-sm" type="button" :data-testid="`quality-clone-${plan.id}`" :disabled="saving || busyPlan !== null" @click="cloneRule(plan)">{{ t('admin.qualityOps.clone') }}</button>
                 <button class="btn btn-secondary btn-sm" :disabled="busyPlan === plan.id || !plan.enabled" @click="run(plan)">{{ busyPlan === plan.id ? t('admin.qualityOps.running') : t('admin.qualityOps.run') }}</button>
                 <button class="btn btn-secondary btn-sm" :disabled="busyPlan === plan.id" @click="toggleHistory(plan)">{{ t('admin.qualityOps.history') }}</button>
                 <button class="btn btn-secondary btn-sm" :disabled="busyPlan === plan.id" @click="preview(plan)">{{ t('admin.qualityOps.ownership') }}</button>
@@ -303,7 +316,9 @@ import QualityIsolationGroups from '@/components/admin/account/QualityIsolationG
 import { adminAPI } from '@/api/admin'
 import * as accountQualityAPI from '@/api/admin/accountQuality'
 import type { QualityRulePreset, QualityRulePresetRequest, QualityRuleTemplate, QualityRuleTemplateRequest } from '@/api/admin/accountQuality'
-import type { AccountListItem, PelicanTestConfig, QualityHistoryResult, QualityModelRemoval, QualityOwnershipPreview, ScheduledTestPlan, ScheduledTestResult } from '@/types'
+import { buildQualityRulePatch, copyQualityRuleConfig, qualityActionPayload, qualityRuleFields, qualityRuleFieldValue, qualityUsesRetestRest } from '@/utils/qualityRulePatch'
+import type { QualityRuleField } from '@/utils/qualityRulePatch'
+import type { AccountListItem, PelicanTestConfig, QualityPolicy, QualityHistoryResult, QualityModelRemoval, QualityOwnershipPreview, ScheduledTestPlan, ScheduledTestResult } from '@/types'
 
 const { t } = useI18n()
 const plans = ref<ScheduledTestPlan[]>([])
@@ -313,6 +328,11 @@ const saving = ref(false)
 const error = ref('')
 const notice = ref('')
 const editingId = ref<number | null>(null)
+const selectedRuleIds = ref<number[]>([])
+const bulkEditing = ref(false)
+const bulkRuleIds = ref<number[]>([])
+const bulkFields = ref<QualityRuleField[]>([])
+const bulkFailures = ref<{ id: number; message: string }[]>([])
 const busyPlan = ref<number | null>(null)
 const historyPlanId = ref<number | null>(null)
 const history = ref<ScheduledTestResult[]>([])
@@ -345,17 +365,25 @@ const templateSaving = ref(false)
 const templateBusyId = ref<number | null>(null)
 const templateFormOpen = ref(false)
 const editingTemplateId = ref<number | null>(null)
-const templateForm = reactive({ group: '', type: '', statuses: '', search: '', model_id: '', extra_models: [] as string[], parallel_count: 1, cron_expression: '*/30 * * * *', max_results: 100, prompt: '', expected_answer: '', action: 'observe_only', remove_group_ids: [] as number[], auto_restore: false, enabled: true })
+const templateSourceConfig = ref<PelicanTestConfig>({})
+const sourceConfig = ref<PelicanTestConfig>({})
+const templateForm = reactive({ group: '', type: '', statuses: '', search: '', model_id: '', extra_models: [] as string[], parallel_count: 1, cron_expression: '*/30 * * * *', max_results: 100, prompt: '', expected_answer: '', action: 'observe_only', remove_group_ids: [] as number[], auto_restore: false, trigger_on_upstream_5xx: false, retest_rest_minutes: 0, enabled: true })
 
-const form = reactive({ account_id: 0, model_id: '', extra_models: [] as string[], parallel_count: 1, cron_expression: '*/30 * * * *', max_results: 100, rule_name: '', prompt: '', expected_answer: '', judge_kind: 'expected' as 'expected' | 'jev', judge_prompt: '', action: 'observe_only', remove_group_ids: [] as number[], auto_restore: false, enabled: true })
+const form = reactive({ account_id: 0, model_id: '', extra_models: [] as string[], parallel_count: 1, cron_expression: '*/30 * * * *', max_results: 100, rule_name: '', prompt: '', expected_answer: '', judge_kind: 'expected' as 'expected' | 'jev', judge_prompt: '', action: 'observe_only', remove_group_ids: [] as number[], auto_restore: false, trigger_on_upstream_5xx: false, retest_rest_minutes: 0, enabled: true })
 
 function resetForm() {
   editingId.value = null
+  bulkEditing.value = false
+  bulkRuleIds.value = []
+  bulkFields.value = []
+  bulkFailures.value = []
+  selectedRuleIds.value = []
   selectedPresetId.value = 0
   presetName.value = ''
   showPresetSave.value = false
   presetSaveError.value = ''
-  Object.assign(form, { account_id: 0, model_id: '', extra_models: [] as string[], parallel_count: 1, cron_expression: '*/30 * * * *', max_results: 100, rule_name: '', prompt: '', expected_answer: '', judge_kind: 'expected', judge_prompt: '', action: 'observe_only', remove_group_ids: [] as number[], auto_restore: false, enabled: true })
+  sourceConfig.value = {}
+  Object.assign(form, { account_id: 0, model_id: '', extra_models: [] as string[], parallel_count: 1, cron_expression: '*/30 * * * *', max_results: 100, rule_name: '', prompt: '', expected_answer: '', judge_kind: 'expected', judge_prompt: '', action: 'observe_only', remove_group_ids: [] as number[], auto_restore: false, trigger_on_upstream_5xx: false, retest_rest_minutes: 0, enabled: true })
 }
 
 function configuredModels(primary: string, config?: PelicanTestConfig | null): string[] {
@@ -389,7 +417,8 @@ function formatDate(value?: string | null) {
 
 function resetTemplateForm() {
   editingTemplateId.value = null
-  Object.assign(templateForm, { group: '', type: '', statuses: '', search: '', model_id: '', extra_models: [] as string[], parallel_count: 1, cron_expression: '*/30 * * * *', max_results: 100, prompt: '', expected_answer: '', action: 'observe_only', remove_group_ids: [] as number[], auto_restore: false, enabled: true })
+  templateSourceConfig.value = {}
+  Object.assign(templateForm, { group: '', type: '', statuses: '', search: '', model_id: '', extra_models: [] as string[], parallel_count: 1, cron_expression: '*/30 * * * *', max_results: 100, prompt: '', expected_answer: '', action: 'observe_only', remove_group_ids: [] as number[], auto_restore: false, trigger_on_upstream_5xx: false, retest_rest_minutes: 0, enabled: true })
 }
 
 function newTemplate() {
@@ -402,8 +431,14 @@ function closeTemplateForm() {
   resetTemplateForm()
 }
 
+function policyPayload(policy: QualityPolicy): QualityPolicy {
+  try { return qualityActionPayload(policy) }
+  catch (cause) { throw new Error(t(cause instanceof Error ? cause.message : 'admin.qualityOps.saveFailed')) }
+}
+
 function templatePelicanConfig(): PelicanTestConfig {
-  return { ...probeConfig(templateForm.model_id, templateForm.extra_models, templateForm.parallel_count), question_kind: 'text', prompt: templateForm.prompt, quality: { action: templateForm.action, remove_group_ids: isolationGroups(templateForm.action, templateForm.remove_group_ids), expected_answer: templateForm.expected_answer, auto_restore: templateForm.auto_restore, judge: { kind: 'expected' } } }
+  const source = templateSourceConfig.value
+  return { ...source, ...probeConfig(templateForm.model_id, templateForm.extra_models, templateForm.parallel_count), question_kind: source.question_kind || 'text', prompt: templateForm.prompt, quality: policyPayload({ ...source.quality, action: templateForm.action, remove_group_ids: isolationGroups(templateForm.action, templateForm.remove_group_ids), expected_answer: templateForm.expected_answer, auto_restore: templateForm.auto_restore, trigger_on_upstream_5xx: templateForm.trigger_on_upstream_5xx, retest_rest_minutes: templateForm.retest_rest_minutes, judge: source.quality?.judge || { kind: 'expected' } }) }
 }
 
 function templateRequest(): QualityRuleTemplateRequest {
@@ -421,10 +456,13 @@ function templateFilterSummary(template: QualityRuleTemplate) {
 
 function editTemplate(template: QualityRuleTemplate) {
   editingTemplateId.value = template.id
+  templateSourceConfig.value = copyQualityRuleConfig(template.pelican_config || {})
   const filter = template.account_filter || {}
   const [model_id, ...extra_models] = configuredModels(template.model_id, template.pelican_config)
   Object.assign(templateForm, { group: filter.group || '', type: filter.type || '', statuses: filter.statuses?.join(', ') || '', search: filter.search || '', model_id, extra_models, parallel_count: template.pelican_config?.parallel_count || 1, cron_expression: template.cron_expression, max_results: template.max_results, prompt: template.pelican_config?.prompt || '', expected_answer: template.pelican_config?.quality?.expected_answer || '', action: template.pelican_config?.quality?.action || 'observe_only', remove_group_ids: [...(template.pelican_config?.quality?.remove_group_ids || [])], auto_restore: template.pelican_config?.quality?.auto_restore === true, enabled: template.enabled })
   templateFormOpen.value = true
+  templateForm.trigger_on_upstream_5xx = template.pelican_config?.quality?.trigger_on_upstream_5xx ?? false
+  templateForm.retest_rest_minutes = template.pelican_config?.quality?.retest_rest_minutes ?? 0
 }
 
 async function loadTemplates() {
@@ -524,6 +562,7 @@ function applyPreset() {
   const preset = presets.value.find((item) => item.id === selectedPresetId.value)
   if (!preset) return
   const config = preset.pelican_config
+  sourceConfig.value = copyQualityRuleConfig(config)
   const [primary, ...extra] = configuredModels(preset.model_id, config)
   form.model_id = primary
   form.extra_models = extra
@@ -538,23 +577,30 @@ function applyPreset() {
   form.action = config.quality?.action || 'observe_only'
   form.remove_group_ids = [...(config.quality?.remove_group_ids || [])]
   form.auto_restore = config.quality?.auto_restore === true
+  form.trigger_on_upstream_5xx = config.quality?.trigger_on_upstream_5xx ?? false
+  form.retest_rest_minutes = config.quality?.retest_rest_minutes ?? 0
   form.enabled = preset.enabled
   notice.value = t('admin.qualityOps.presetApplied')
 }
 
-function pelicanConfig(): PelicanTestConfig {
+function pelicanConfig(validate = true): PelicanTestConfig & { quality: QualityPolicy } {
+  const policy: QualityPolicy = {
+    ...sourceConfig.value.quality,
+    action: form.action,
+    remove_group_ids: validate ? isolationGroups(form.action, form.remove_group_ids) : form.action === 'isolate_models' ? [...form.remove_group_ids] : undefined,
+    auto_restore: form.auto_restore,
+    expected_answer: form.expected_answer,
+    trigger_on_upstream_5xx: form.trigger_on_upstream_5xx,
+    retest_rest_minutes: form.retest_rest_minutes,
+    judge: { ...sourceConfig.value.quality?.judge, kind: form.judge_kind, prompt: form.judge_kind === 'jev' ? form.judge_prompt || undefined : undefined }
+  }
   return {
-    ...probeConfig(form.model_id, form.extra_models, form.parallel_count),
+    ...sourceConfig.value,
+    ...(validate ? probeConfig(form.model_id, form.extra_models, form.parallel_count) : { model_ids: [form.model_id, ...form.extra_models], parallel_count: form.parallel_count }),
     rule_name: form.rule_name || undefined,
-    question_kind: 'text',
+    question_kind: sourceConfig.value.question_kind || 'text',
     prompt: form.prompt,
-    quality: {
-      action: form.action,
-      remove_group_ids: isolationGroups(form.action, form.remove_group_ids),
-      auto_restore: form.auto_restore,
-      expected_answer: form.expected_answer,
-      judge: { kind: form.judge_kind, prompt: form.judge_kind === 'jev' ? form.judge_prompt || undefined : undefined }
-    }
+    quality: validate ? policyPayload(policy) : policy
   }
 }
 
@@ -606,7 +652,12 @@ async function loadMoreGlobalHistory() {
 }
 
 function edit(plan: ScheduledTestPlan) {
+  if (saving.value) return
+  bulkEditing.value = false
+  bulkFields.value = []
+  bulkFailures.value = []
   editingId.value = plan.id
+  sourceConfig.value = copyQualityRuleConfig(plan.pelican_config || {})
   form.account_id = plan.account_id
   const [primary, ...extra] = configuredModels(plan.model_id, plan.pelican_config)
   form.model_id = primary
@@ -622,11 +673,83 @@ function edit(plan: ScheduledTestPlan) {
   form.action = plan.pelican_config?.quality?.action || 'observe_only'
   form.remove_group_ids = [...(plan.pelican_config?.quality?.remove_group_ids || [])]
   form.auto_restore = plan.pelican_config?.quality?.auto_restore === true
+  form.trigger_on_upstream_5xx = plan.pelican_config?.quality?.trigger_on_upstream_5xx ?? false
+  form.retest_rest_minutes = plan.pelican_config?.quality?.retest_rest_minutes ?? 0
   form.enabled = plan.enabled
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
+function cloneRule(plan: ScheduledTestPlan) {
+  edit(plan)
+  editingId.value = null
+  form.account_id = 0
+  notice.value = t('admin.qualityOps.cloneReady')
+}
+
+function editSelectedRules() {
+  const selected = plans.value.filter(plan => selectedRuleIds.value.includes(plan.id))
+  if (!selected.length || saving.value) return
+  edit(selected[0])
+  editingId.value = null
+  bulkEditing.value = true
+  bulkRuleIds.value = selected.map(plan => plan.id)
+  notice.value = ''
+  error.value = ''
+}
+
+async function saveBulkRules() {
+  if (saving.value) return
+  error.value = notice.value = ''
+  bulkFailures.value = []
+  if (!bulkFields.value.length) { error.value = t('admin.qualityOps.selectBulkFields'); return }
+  saving.value = true
+  try {
+    const latest = await accountQualityAPI.listPlans()
+    plans.value = latest
+    const draft = { model_id: form.model_id, cron_expression: form.cron_expression, max_results: form.max_results, enabled: form.enabled, pelican_config: pelicanConfig(false) }
+    if (bulkFields.value.includes('action')) isolationGroups(form.action, form.remove_group_ids)
+    // Validate the entire batch before the first write; each request starts
+    // from its own fresh nested config and current optimistic-lock version.
+    const updates = bulkRuleIds.value.map(id => {
+      const plan = latest.find(item => item.id === id)
+      if (!plan) throw new Error(t('admin.qualityOps.bulkRuleUnavailable', { id }))
+      return { plan, body: buildQualityRulePatch(plan, draft, bulkFields.value) }
+    })
+    const committed: typeof updates = []
+    for (const update of updates) {
+      try { await adminAPI.scheduledTests.update(update.plan.id, update.body); committed.push(update) }
+      catch (cause: any) { bulkFailures.value.push({ id: update.plan.id, message: cause?.message || t('admin.qualityOps.saveFailed') }) }
+    }
+    if (committed.length) {
+      try {
+        const readback = await accountQualityAPI.listPlans()
+        plans.value = readback
+        for (const { plan, body } of committed) {
+          const actual = readback.find(item => item.id === plan.id)
+          const expected = { ...plan, ...body }
+          if (!actual || bulkFields.value.some(field => JSON.stringify(qualityRuleFieldValue(actual, field)) !== JSON.stringify(qualityRuleFieldValue(expected, field)))) {
+            bulkFailures.value.push({ id: plan.id, message: t('admin.qualityOps.bulkReadbackFailed') })
+          }
+        }
+      } catch {
+        for (const { plan } of committed) bulkFailures.value.push({ id: plan.id, message: t('admin.qualityOps.bulkReadbackFailed') })
+      }
+    }
+    if (bulkFailures.value.length) {
+      selectedRuleIds.value = bulkFailures.value.map(item => item.id)
+      bulkRuleIds.value = [...selectedRuleIds.value]
+      error.value = t('admin.qualityOps.bulkIncomplete')
+    } else {
+      notice.value = t('admin.qualityOps.bulkSaved', { count: updates.length })
+      resetForm()
+    }
+  } catch (cause: any) {
+    error.value = cause?.message?.startsWith('admin.qualityOps.') ? t(cause.message) : cause?.message || t('admin.qualityOps.saveFailed')
+  } finally { saving.value = false }
+}
+
 async function save() {
+  if (bulkEditing.value) { await saveBulkRules(); return }
   if (!form.account_id || saving.value || busyPlan.value !== null) return
   saving.value = true
   error.value = ''

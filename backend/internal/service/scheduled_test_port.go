@@ -7,24 +7,28 @@ import (
 
 // ScheduledTestPlan represents a scheduled test plan domain model.
 type ScheduledTestPlan struct {
-	PelicanConfig  *PelicanTestConfig `json:"pelican_config,omitempty"`
-	RunningUntil   *time.Time         `json:"running_until,omitempty"`
-	ID             int64              `json:"id"`
-	AccountID      int64              `json:"account_id"`
-	ModelID        string             `json:"model_id"`
-	CronExpression string             `json:"cron_expression"`
-	Enabled        bool               `json:"enabled"`
-	MaxResults     int                `json:"max_results"`
-	AutoRecover    bool               `json:"auto_recover"`
-	LastRunAt      *time.Time         `json:"last_run_at"`
-	NextRunAt      *time.Time         `json:"next_run_at"`
-	CreatedAt      time.Time          `json:"created_at"`
-	UpdatedAt      time.Time          `json:"updated_at"`
+	ManualQualityRun  bool               `json:"-"`
+	TriggerSource     string             `json:"-"`
+	TriggerObservedAt *time.Time         `json:"-"`
+	PelicanConfig     *PelicanTestConfig `json:"pelican_config,omitempty"`
+	RunningUntil      *time.Time         `json:"running_until,omitempty"`
+	ID                int64              `json:"id"`
+	AccountID         int64              `json:"account_id"`
+	ModelID           string             `json:"model_id"`
+	CronExpression    string             `json:"cron_expression"`
+	Enabled           bool               `json:"enabled"`
+	MaxResults        int                `json:"max_results"`
+	AutoRecover       bool               `json:"auto_recover"`
+	LastRunAt         *time.Time         `json:"last_run_at"`
+	NextRunAt         *time.Time         `json:"next_run_at"`
+	CreatedAt         time.Time          `json:"created_at"`
+	UpdatedAt         time.Time          `json:"updated_at"`
 }
 
 // PelicanTestConfig is an optional quality probe configuration. A nil value
 // preserves the legacy account connectivity test contract.
 type PelicanTestConfig struct {
+	TriggerSource   string         `json:"trigger_source,omitempty"`
 	RuleName        string         `json:"rule_name,omitempty"`
 	Quality         *QualityPolicy `json:"quality,omitempty"`
 	QuestionKind    string         `json:"question_kind,omitempty"`
@@ -37,11 +41,13 @@ type PelicanTestConfig struct {
 }
 
 type QualityPolicy struct {
-	Action         string              `json:"action,omitempty"`
-	RemoveGroupIDs []int64             `json:"remove_group_ids,omitempty"`
-	ExpectedAnswer string              `json:"expected_answer,omitempty"`
-	AutoRestore    bool                `json:"auto_restore,omitempty"`
-	Judge          *QualityJudgeConfig `json:"judge,omitempty"`
+	TriggerOnUpstream5xx bool                `json:"trigger_on_upstream_5xx"`
+	RetestRestMinutes    int                 `json:"retest_rest_minutes,omitempty"`
+	Action               string              `json:"action,omitempty"`
+	RemoveGroupIDs       []int64             `json:"remove_group_ids,omitempty"`
+	ExpectedAnswer       string              `json:"expected_answer,omitempty"`
+	AutoRestore          bool                `json:"auto_restore,omitempty"`
+	Judge                *QualityJudgeConfig `json:"judge,omitempty"`
 }
 
 type QualityJudgeConfig struct {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"math"
 	"math/rand/v2"
 	"sort"
@@ -114,6 +115,7 @@ func (s *APIKeyService) PinAPIKeyGroup(ctx context.Context, key *APIKey, id int6
 
 func (s *APIKeyService) apiKeyWithGroup(ctx context.Context, key *APIKey, group *Group) (*APIKey, error) {
 	copyKey := *key
+	copyKey.ModelMapping = maps.Clone(key.ModelMapping)
 	copyUser := *key.User
 	copyKey.User = &copyUser
 	id := group.ID
@@ -148,6 +150,7 @@ func (s *APIKeyService) BillingGroups(ctx context.Context, key *APIKey) ([]*APIK
 			continue
 		}
 		copyKey := *key
+		copyKey.ModelMapping = maps.Clone(key.ModelMapping)
 		copyKey.GroupID, copyKey.Group = &group.ID, group
 		out = append(out, &copyKey)
 	}

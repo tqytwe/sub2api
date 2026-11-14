@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/accounttimer"
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
@@ -578,6 +579,9 @@ func (s *adminServiceImpl) CreateAccount(ctx context.Context, input *CreateAccou
 }
 
 func (s *adminServiceImpl) UpdateAccount(ctx context.Context, id int64, input *UpdateAccountInput) (*Account, error) {
+	// Ordinary edits do not own the scheduling switch. Keep a timer's committed
+	// value and strip inherited manual intent before account/shadow writes.
+	ctx = accounttimer.WithPreservedSchedulable(accounttimer.WithoutManualIntent(ctx))
 	if err := ValidateGroupAllowedModels(input.GroupAllowedModels); err != nil {
 		return nil, err
 	}
@@ -1214,6 +1218,8 @@ func (s *adminServiceImpl) BulkUpdateAccounts(ctx context.Context, input *BulkUp
 	if _, err := s.accountRepo.BulkUpdate(ctx, input.AccountIDs, repoUpdates); err != nil {
 		return nil, err
 	}
+
+	ctx = accounttimer.WithoutManualIntent(ctx)
 
 	// 将 proxy 变更传播到每个目标账号的 spark 影子账号
 	if repoUpdates.ProxyID != nil {

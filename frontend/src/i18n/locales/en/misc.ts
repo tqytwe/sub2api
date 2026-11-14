@@ -324,6 +324,9 @@ export default {
     enterAmount: 'Enter amount',
     paymentMethod: 'Payment Method',
     fee: 'Fee',
+    estimatedPay: 'Estimated total',
+    feeRangeHint: 'Fees vary between payment providers. The order determines the final fee and total.',
+    stripePaymentMethod: 'Stripe payment method',
     actualPay: 'Actual Payment',
     createOrder: 'Confirm Payment',
     methods: {

@@ -800,6 +800,9 @@ func (s *OpenAIGatewayService) buildUpstreamRequestOpenAIPassthrough(
 	if err := applyMappedGPT55LiteCompatibility(req, account, body); err != nil {
 		return nil, err
 	}
+	if err := s.checkAPIKeyLongContextRequestBeforeSend(ctx, c, req); err != nil {
+		return nil, err
+	}
 	return req, nil
 }
 
@@ -1704,7 +1707,23 @@ func (s *OpenAIGatewayService) handleOpenAIStreamTerminalAccountSideEffects(
 	headers http.Header,
 	canonicalModel ...string,
 ) (int, bool) {
+	ctx := context.Background()
+	if c != nil && c.Request != nil {
+		ctx = c.Request.Context()
+	}
+	return s.handleOpenAIStreamTerminalAccountSideEffectsContext(ctx, account, payload, message, headers, canonicalModel...)
+}
+
+func (s *OpenAIGatewayService) handleOpenAIStreamTerminalAccountSideEffectsContext(
+	ctx context.Context,
+	account *Account,
+	payload []byte,
+	message string,
+	headers http.Header,
+	canonicalModel ...string,
+) (int, bool) {
 	statusCode := openAIStreamFailureStatus(payload, message)
+	s.rateLimitService.observeQualityStatus(ctx, account, statusCode)
 	switch statusCode {
 	case http.StatusForbidden:
 		if !openAIStream403AccountFailure(payload, message) {
@@ -1712,10 +1731,6 @@ func (s *OpenAIGatewayService) handleOpenAIStreamTerminalAccountSideEffects(
 		}
 		fallthrough
 	case http.StatusUnauthorized, http.StatusTooManyRequests, 529:
-		ctx := context.Background()
-		if c != nil && c.Request != nil {
-			ctx = c.Request.Context()
-		}
 		model := firstNonEmpty(canonicalModel...)
 		if model == "" {
 			model = firstNonEmpty(gjson.GetBytes(payload, "model").String(), gjson.GetBytes(payload, "response.model").String())

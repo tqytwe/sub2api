@@ -102,6 +102,21 @@ describe('CouponSelector', () => {
     })
   })
 
+  it('re-quotes when Stripe subtype changes and clears the old quote while waiting', async () => {
+    const wrapper = mountSelector({modelValue:12,paymentSubtype:'card'})
+    await flushPromises()
+    expect(quotePaymentCoupon).toHaveBeenLastCalledWith(expect.objectContaining({payment_subtype:'card'}))
+    let finish!: (value: unknown) => void
+    quotePaymentCoupon.mockReturnValueOnce(new Promise(resolve=>{finish=resolve}))
+    await wrapper.setProps({paymentSubtype:'link'})
+    await flushPromises()
+    expect(quotePaymentCoupon).toHaveBeenLastCalledWith(expect.objectContaining({payment_subtype:'link'}))
+    expect(wrapper.emitted('quote')?.at(-1)).toEqual([null])
+    finish({data:{user_coupon_id:12,discount_amount:5,pay_amount:25.75,pay_amount_max:26.25,estimated:true,payment_currency:'USD'}})
+    await flushPromises()
+    expect(wrapper.emitted('quote')?.at(-1)?.[0]).toMatchObject({pay_amount:25.75,estimated:true})
+  })
+
   it.each([undefined, 10])('explains a 30 percent reduction as paying 70 percent, preserving cap %s', async (cap) => {
     getMyCoupons.mockResolvedValue({ data: { items: [{ ...coupon, terms_snapshot: { ...coupon.terms_snapshot, benefit_type: 'percentage', benefit_value: 30, max_discount_amount: cap } }], total: 1 } })
     const wrapper = mountSelector()

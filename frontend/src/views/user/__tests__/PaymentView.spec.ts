@@ -880,3 +880,41 @@ describe('PaymentView subscription feature flag', () => {
     wrapper.unmount()
   })
 })
+
+describe('PaymentView provider fee checkout wiring', () => {
+  it.each(['balance','subscription'] as const)('keeps Stripe subtype, coupon and actual order amount connected for %s', async orderType => {
+    translate.mockImplementation(key=>key)
+    const wrapper = await mountSubscriptionConfirm({checkout:{recharge_fee_rate:9,methods:{
+      stripe:{...checkoutInfoFixture().data.methods.wxpay,fee_rate:0,fee_rate_min:0,fee_rate_max:5,sub_methods:{card:{fee_rate:0,fee_rate_min:0,fee_rate_max:0},link:{fee_rate:3,fee_rate_min:3,fee_rate_max:5}}},
+    }}})
+    if(orderType==='balance') {
+      const cancel=wrapper.findAll('button').find(b=>b.text()==='common.cancel')
+      expect(cancel).toBeDefined();await cancel!.trigger('click');await flushPromises()
+      const tab=wrapper.findAll('button').find(b=>b.text()==='payment.tabTopUp')
+      expect(tab).toBeDefined();await tab!.trigger('click');await flushPromises()
+      wrapper.findComponent(AmountInput).vm.$emit('update:modelValue',80)
+    }
+    const methods=wrapper.findComponent({name:'PaymentMethodSelector'})
+    methods.vm.$emit('select','stripe');await flushPromises()
+    const subtype=wrapper.findComponent({name:'StripeSubtypeSelector'})
+    expect(subtype.exists()).toBe(true)
+    expect(subtype.props('modelValue')).toBe('card')
+    subtype.vm.$emit('update:modelValue','link');await flushPromises()
+    const coupon=wrapper.findComponent({name:'CouponSelector'})
+    expect(coupon.props('paymentSubtype')).toBe('link')
+    coupon.vm.$emit('update:modelValue',12);await flushPromises()
+    coupon.vm.$emit('quote',{user_coupon_id:12,template_id:3,list_amount:orderType==='balance'?80:128,
+      gateway_base_amount:80,discount_amount:orderType==='balance'?0:48,fee_amount:2.4,fee_amount_max:4,
+      pay_amount:82.4,pay_amount_max:84,payment_currency:'CNY',fee_rate_min:3,fee_rate_max:5,estimated:true,
+      qualifying_recharge_amount:80})
+    await flushPromises()
+    expect(wrapper.find('[data-testid="fee-range-hint"]').exists()).toBe(true)
+    createOrder.mockResolvedValue({order_id:91,amount:80,pay_amount:83.2,fee_rate:4,payment_subtype:'link',qr_code:'fixture-qr',expires_at:'2099-01-01T00:00:00Z'})
+    const submit=wrapper.findAll('button').find(b=>b.text().includes('payment.createOrder'))
+    expect(submit).toBeDefined();expect(submit!.attributes('disabled')).toBeUndefined()
+    await submit!.trigger('click');await flushPromises()
+    expect(createOrder).toHaveBeenLastCalledWith(expect.objectContaining({payment_type:'stripe',payment_subtype:'link',order_type:orderType,coupon_id:12}))
+    expect(wrapper.findComponent({name:'PaymentStatusPanel'}).props('payAmount')).toBe(83.2)
+    wrapper.unmount()
+  })
+})

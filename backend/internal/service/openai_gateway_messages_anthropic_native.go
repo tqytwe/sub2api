@@ -218,6 +218,9 @@ func (s *OpenAIGatewayService) buildNativeAnthropicUpstreamRequest(
 	payloads := append([][]byte{body}, sessionBodies...)
 	applyOpenCodeSessionHeader(c, account, targetURL, req.Header, payloads...)
 
+	if err := s.checkAPIKeyLongContextBeforeSend(ctx, c, body, gjson.GetBytes(body, "model").String()); err != nil {
+		return nil, nil, err
+	}
 	return req, body, nil
 }
 

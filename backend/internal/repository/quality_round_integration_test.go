@@ -25,7 +25,7 @@ func TestCommitQualityRoundPostgreSQLAtomicityAndFencing(t *testing.T) {
 			})
 			plans := NewScheduledTestPlanRepository(integrationDB)
 			resultsRepo := NewScheduledTestResultRepository(integrationDB)
-			config := &service.PelicanTestConfig{ModelIDs: []string{"first", "second"}, Quality: &service.QualityPolicy{Action: "disable_scheduling"}}
+			config := &service.PelicanTestConfig{ModelIDs: []string{"first", "second"}, Quality: &service.QualityPolicy{Action: "disable_scheduling", RetestRestMinutes: 60}}
 			plan, err := plans.Create(ctx, &service.ScheduledTestPlan{AccountID: account.ID, ModelID: "first", CronExpression: "*/30 * * * *", Enabled: true, MaxResults: 1, PelicanConfig: config})
 			require.NoError(t, err)
 			svc := service.NewScheduledTestService(plans, resultsRepo)

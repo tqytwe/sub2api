@@ -33,22 +33,44 @@ func (s *PaymentConfigService) validateProviderConfig(providerKey string, config
 // --- Provider Instance CRUD ---
 
 func (s *PaymentConfigService) ListProviderInstances(ctx context.Context) ([]*dbent.PaymentProviderInstance, error) {
-	return s.entClient.PaymentProviderInstance.Query().Order(paymentproviderinstance.BySortOrder()).All(ctx)
+	instances, err := s.entClient.PaymentProviderInstance.Query().Order(paymentproviderinstance.BySortOrder()).All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, inst := range instances {
+		normalizeProviderInstanceFees(inst)
+	}
+	return instances, nil
+}
+
+func normalizeProviderInstanceFees(inst *dbent.PaymentProviderInstance) {
+	if inst == nil {
+		return
+	}
+	if inst.FeeRate != nil {
+		normalized := payment.NormalizeFeeRate(*inst.FeeRate)
+		inst.FeeRate = &normalized
+	}
+	for method, rate := range inst.MethodFeeRates {
+		inst.MethodFeeRates[method] = payment.NormalizeFeeRate(rate)
+	}
 }
 
 // ProviderInstanceResponse is the API response for a provider instance.
 type ProviderInstanceResponse struct {
-	ID              int64             `json:"id"`
-	ProviderKey     string            `json:"provider_key"`
-	Name            string            `json:"name"`
-	Config          map[string]string `json:"config"`
-	SupportedTypes  []string          `json:"supported_types"`
-	Limits          string            `json:"limits"`
-	Enabled         bool              `json:"enabled"`
-	RefundEnabled   bool              `json:"refund_enabled"`
-	AllowUserRefund bool              `json:"allow_user_refund"`
-	SortOrder       int               `json:"sort_order"`
-	PaymentMode     string            `json:"payment_mode"`
+	ID              int64              `json:"id"`
+	ProviderKey     string             `json:"provider_key"`
+	Name            string             `json:"name"`
+	Config          map[string]string  `json:"config"`
+	SupportedTypes  []string           `json:"supported_types"`
+	Limits          string             `json:"limits"`
+	Enabled         bool               `json:"enabled"`
+	RefundEnabled   bool               `json:"refund_enabled"`
+	AllowUserRefund bool               `json:"allow_user_refund"`
+	SortOrder       int                `json:"sort_order"`
+	PaymentMode     string             `json:"payment_mode"`
+	FeeRate         *float64           `json:"fee_rate"`
+	MethodFeeRates  map[string]float64 `json:"method_fee_rates"`
 }
 
 // ListProviderInstancesWithConfig returns provider instances with decrypted config.
@@ -60,11 +82,13 @@ func (s *PaymentConfigService) ListProviderInstancesWithConfig(ctx context.Conte
 	}
 	result := make([]ProviderInstanceResponse, 0, len(instances))
 	for _, inst := range instances {
+		normalizeProviderInstanceFees(inst)
 		resp := ProviderInstanceResponse{
 			ID: int64(inst.ID), ProviderKey: inst.ProviderKey, Name: inst.Name,
 			SupportedTypes: splitTypes(inst.SupportedTypes), Limits: inst.Limits,
 			Enabled: inst.Enabled, RefundEnabled: inst.RefundEnabled, AllowUserRefund: inst.AllowUserRefund,
 			SortOrder: inst.SortOrder, PaymentMode: inst.PaymentMode,
+			FeeRate: inst.FeeRate, MethodFeeRates: inst.MethodFeeRates,
 		}
 		resp.Config, err = s.decryptAndMaskConfig(inst.ProviderKey, inst.Config)
 		if err != nil {
@@ -208,6 +232,12 @@ func (s *PaymentConfigService) CreateProviderInstance(ctx context.Context, req C
 			return nil, err
 		}
 	}
+	if err := validateProviderFeeRate(req.FeeRate); err != nil {
+		return nil, err
+	}
+	if err := validateProviderMethodFeeRates(req.ProviderKey, typesStr, req.MethodFeeRates); err != nil {
+		return nil, err
+	}
 	if err := s.validateVisibleMethodEnablementConflicts(ctx, 0, req.ProviderKey, typesStr, req.Enabled); err != nil {
 		return nil, err
 	}
@@ -221,7 +251,12 @@ func (s *PaymentConfigService) CreateProviderInstance(ctx context.Context, req C
 		return nil, err
 	}
 	allowUserRefund := req.AllowUserRefund && req.RefundEnabled
+	methodFees := map[string]float64(req.MethodFeeRates)
+	if methodFees == nil {
+		methodFees = map[string]float64{}
+	}
 	return s.entClient.PaymentProviderInstance.Create().
+		SetNillableFeeRate(req.FeeRate).SetMethodFeeRates(methodFees).
 		SetProviderKey(req.ProviderKey).SetName(req.Name).SetConfig(enc).
 		SetSupportedTypes(typesStr).SetEnabled(req.Enabled).SetPaymentMode(req.PaymentMode).
 		SetSortOrder(req.SortOrder).SetLimits(req.Limits).SetRefundEnabled(req.RefundEnabled).
@@ -354,6 +389,17 @@ func (s *PaymentConfigService) UpdateProviderInstance(ctx context.Context, id in
 	if req.SupportedTypes != nil {
 		nextSupportedTypes = joinTypes(req.SupportedTypes)
 	}
+	if req.FeeRate.Set {
+		if err := validateProviderFeeRate(req.FeeRate.Value); err != nil {
+			return nil, err
+		}
+	}
+	if req.MethodFeeRates != nil {
+		if err := validateProviderMethodFeeRatesUpdate(current.ProviderKey, nextSupportedTypes, req.MethodFeeRates, current.MethodFeeRates); err != nil {
+			return nil, err
+		}
+	}
+
 	nextPaymentMode := current.PaymentMode
 	if req.PaymentMode != nil {
 		nextPaymentMode = *req.PaymentMode
@@ -434,6 +480,16 @@ func (s *PaymentConfigService) UpdateProviderInstance(ctx context.Context, id in
 		}
 	}
 	u := s.entClient.PaymentProviderInstance.UpdateOneID(id)
+	if req.FeeRate.Set {
+		if req.FeeRate.Value == nil {
+			u.ClearFeeRate()
+		} else {
+			u.SetFeeRate(*req.FeeRate.Value)
+		}
+	}
+	if req.MethodFeeRates != nil {
+		u.SetMethodFeeRates(map[string]float64(req.MethodFeeRates))
+	}
 	if req.Name != nil {
 		u.SetName(*req.Name)
 	}

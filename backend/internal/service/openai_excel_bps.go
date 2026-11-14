@@ -74,6 +74,9 @@ func (s *OpenAIGatewayService) forwardExcelBPS(ctx context.Context, c *gin.Conte
 	if err != nil {
 		return fail(400, "basispoints_request_invalid", err.Error())
 	}
+	if err := s.checkAPIKeyLongContextBeforeSend(ctx, c, upstreamBody, model); err != nil {
+		return nil, err
+	}
 	runtimeCredential, err := s.excelOAuthService.RuntimeCredential(ctx, account.ID)
 	if err != nil {
 		if infraErr, ok := err.(*infraerrors.Error); ok {
@@ -109,6 +112,7 @@ func (s *OpenAIGatewayService) forwardExcelBPS(ctx context.Context, c *gin.Conte
 	SetOpsUpstreamModel(c, model)
 	sent := time.Now()
 	resp, err := s.httpUpstream.Do(req, proxyURL, account.ID, account.Concurrency)
+	s.rateLimitService.observeQualityResponse(req.Context(), account, resp, err)
 	SetOpsLatencyMs(c, OpsUpstreamLatencyMsKey, time.Since(sent).Milliseconds())
 	if err != nil {
 		return fail(502, "basispoints_transport_error", "Excel BPS connection failed; request was not replayed")

@@ -404,6 +404,9 @@ func (s *OpenAIGatewayService) forwardAsChatCompletions(
 		return nil, fmt.Errorf("get access token: %w", err)
 	}
 
+	if err := s.checkAPIKeyLongContextBeforeSend(ctx, c, responsesBody, upstreamModel); err != nil {
+		return nil, err
+	}
 	// 6. Build upstream request
 	upstreamCtx, releaseUpstreamCtx := detachUpstreamContext(ctx)
 	cancelUpstream := func() {}

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { nextTick } from 'vue'
+import { formatDateLocalInput, getBrowserTimeZone } from '@/utils/format'
 
 import type { ApiKey } from '@/types'
 import KeysView from '../KeysView.vue'
@@ -21,6 +22,7 @@ const {
   nextStep,
   routerPush,
   authUser,
+  authRole,
 } = vi.hoisted(() => ({
   listKeys: vi.fn(),
   createKey: vi.fn(),
@@ -37,6 +39,7 @@ const {
   nextStep: vi.fn(),
   routerPush: vi.fn(),
   authUser: { value: { balance: 0 } as { balance: number } | null },
+  authRole: { isAdmin: false },
 }))
 
 const messages: Record<string, string> = {
@@ -79,6 +82,8 @@ const messages: Record<string, string> = {
   'keys.status.inactive': 'Inactive',
   'keys.status.quota_exhausted': 'Quota exhausted',
   'keys.usage': 'Usage',
+  'keys.failedToLoadUsage': 'Usage unavailable',
+  'keys.invalidUsageDateRange': 'Invalid date range',
 }
 
 vi.mock('@/api', () => ({
@@ -120,6 +125,7 @@ vi.mock('@/stores/onboarding', () => ({
 
 vi.mock('@/stores/auth', () => ({
   useAuthStore: () => ({
+    get isAdmin() { return authRole.isAdmin },
     get user() {
       return authUser.value
     },
@@ -214,6 +220,7 @@ const DataTableStub = {
         </div>
         <slot name="cell-name" :value="row.name" :row="row" />
         <slot name="cell-group" :row="row" />
+        <div data-test="key-usage"><slot name="cell-usage" :row="row" /></div>
         <slot name="cell-actions" :row="row" />
         <div data-test="current-concurrency">
           <slot name="cell-current_concurrency" :value="row.current_concurrency" :row="row" />
@@ -282,6 +289,13 @@ const mountView = async () => {
         EndpointPopover: true,
         GroupBadge: true,
         GroupOptionItem: true,
+        ApiKeyModelPolicyDialog: true,
+        DateRangePicker: {
+          name: 'DateRangePicker',
+          props: ['startDate', 'endDate', 'showLast24Hours', 'selectedPreset'],
+          emits: ['change'],
+          template: '<button data-test="date-range">{{ startDate }} ~ {{ endDate }}</button>',
+        },
         Teleport: true,
       },
     },
@@ -324,6 +338,7 @@ describe('user KeysView column settings', () => {
     nextStep.mockReset()
     routerPush.mockReset()
     authUser.value = { balance: 0 }
+    authRole.isAdmin = false
 
     listKeys.mockResolvedValue({
       items: [createApiKey()],
@@ -344,6 +359,100 @@ describe('user KeysView column settings', () => {
     id: index + 1, name: `Group ${index + 1}`, platform: 'openai', rate_multiplier: 1,
     subscription_type: 'standard', status: 'active',
   }))
+
+  it('queries 30 calendar days and keeps the selected range across paging', async () => {
+    const wrapper = await mountView()
+    const end = new Date()
+    const start = new Date(end)
+    start.setDate(start.getDate() - 29)
+    expect(getDashboardApiKeysUsage).toHaveBeenLastCalledWith([1], expect.objectContaining({
+      start_date: formatDateLocalInput(start), end_date: formatDateLocalInput(end),
+      timezone: getBrowserTimeZone(), signal: expect.any(AbortSignal),
+    }))
+    const picker = wrapper.findComponent({ name: 'DateRangePicker' })
+    expect(picker.exists()).toBe(true)
+    expect(picker.props('showLast24Hours')).toBe(false)
+    await picker.vm.$emit('change', { startDate: '2026-11-01', endDate: '2026-11-08', preset: null })
+    await flushPromises()
+    await wrapper.get('[data-test="page-2"]').trigger('click')
+    await flushPromises()
+    expect(getDashboardApiKeysUsage).toHaveBeenLastCalledWith([1], expect.objectContaining({
+      start_date: '2026-11-01', end_date: '2026-11-08', timezone: getBrowserTimeZone(),
+    }))
+    wrapper.unmount()
+  })
+
+  it('rejects an invalid range without replacing the selected dates', async () => {
+    const wrapper = await mountView()
+    const picker = wrapper.findComponent({ name: 'DateRangePicker' })
+    const previous = picker.props('startDate')
+    getDashboardApiKeysUsage.mockClear()
+    await picker.vm.$emit('change', { startDate: '2026-11-09', endDate: '2026-11-08', preset: null })
+    await flushPromises()
+    expect(showError).toHaveBeenCalledWith('Invalid date range')
+    expect(picker.props('startDate')).toBe(previous)
+    expect(getDashboardApiKeysUsage).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('shows unknown during loading and failure, and ignores a stale success', async () => {
+    let resolveOld!: (value: unknown) => void
+    getDashboardApiKeysUsage.mockImplementationOnce(() => new Promise(resolve => { resolveOld = resolve }))
+    const wrapper = await mountView()
+    expect(wrapper.get('[data-test="key-usage"]').text()).not.toContain('$0.0000')
+    const firstSignal = getDashboardApiKeysUsage.mock.calls[0][1].signal as AbortSignal
+    getDashboardApiKeysUsage.mockRejectedValueOnce(new Error('unavailable'))
+    const picker = wrapper.findComponent({ name: 'DateRangePicker' })
+    await picker.vm.$emit('change', { startDate: '2026-11-01', endDate: '2026-11-08', preset: null })
+    await flushPromises()
+    expect(firstSignal.aborted).toBe(true)
+    expect(showError).toHaveBeenCalledWith('Usage unavailable')
+    resolveOld({ stats: { 1: { api_key_id: 1, today_actual_cost: 99, total_actual_cost: 99 } } })
+    await flushPromises()
+    expect(wrapper.get('[data-test="key-usage"]').text()).not.toContain('$99.0000')
+    expect(wrapper.get('[data-test="key-usage"]').text()).not.toContain('$0.0000')
+    getDashboardApiKeysUsage.mockResolvedValueOnce({ stats: { 1: { api_key_id: 1, today_actual_cost: 0, total_actual_cost: 1.25 } } })
+    await wrapper.get('button[title="Refresh"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.get('[data-test="key-usage"]').text()).toContain('$1.2500')
+    expect(wrapper.get('[data-test="key-usage"]').text()).toContain('$0.0000')
+    wrapper.unmount()
+    expect((getDashboardApiKeysUsage.mock.calls.at(-1)![1].signal as AbortSignal).aborted).toBe(true)
+  })
+
+  it('exposes model policy editing to administrators only', async () => {
+    const ordinaryView = await mountView()
+    await getButtonByText(ordinaryView, 'common.edit').trigger('click')
+    expect(ordinaryView.find('[data-test="edit-key-model-policy"]').exists()).toBe(false)
+    expect(ordinaryView.findComponent({ name: 'ApiKeyModelPolicyDialog' }).exists()).toBe(false)
+    ordinaryView.unmount()
+    authRole.isAdmin = true
+    const adminView = await mountView()
+    await getButtonByText(adminView, 'common.edit').trigger('click')
+    await adminView.get('[data-test="edit-key-model-policy"]').trigger('click')
+    const dialog = adminView.getComponent({ name: 'ApiKeyModelPolicyDialog' })
+    expect(dialog.props('show')).toBe(true)
+    expect(dialog.props('apiKey').id).toBe(1)
+  })
+
+  it('keeps unsaved key details when policy saves separately and omits all policy fields from the user endpoint', async () => {
+    authRole.isAdmin = true
+    listKeys.mockResolvedValueOnce({ items: [{ ...createApiKey(), group_id: 42 }], total: 1 })
+    const wrapper = await mountView()
+    await getButtonByText(wrapper, 'common.edit').trigger('click')
+    await wrapper.get('[data-tour="key-form-name"]').setValue('Unsaved name')
+    wrapper.getComponent({ name: 'ApiKeyModelPolicyDialog' }).vm.$emit('updated', {
+      ...createApiKey(), group_id: 42, model_mapping: { public: 'target' }, reasoning_effort: 'high', allow_long_context: false, context_token_limit: 16000,
+    })
+    await nextTick()
+    expect((wrapper.get('[data-tour="key-form-name"]').element as HTMLInputElement).value).toBe('Unsaved name')
+    await wrapper.get('#key-form').trigger('submit')
+    await flushPromises()
+    expect(updateKey).toHaveBeenCalledWith(1, expect.objectContaining({ name: 'Unsaved name' }))
+    for (const field of ['model_mapping', 'reasoning_effort', 'allow_long_context', 'context_token_limit']) {
+      expect(updateKey.mock.calls[0][1]).not.toHaveProperty(field)
+    }
+  })
 
   it('creates a key with the default group first and the checked additional groups', async () => {
     getAvailableGroups.mockResolvedValue(availableGroups())

@@ -41,6 +41,7 @@ func TestQualityIsolationPostgreSQLAppliesAndRecoversPerModel(t *testing.T) {
 	svc := service.NewScheduledTestService(plans, results)
 	round := func(first, second string) string {
 		t.Helper()
+		require.NoError(t, plans.TriggerQuality(ctx, plan.ID))
 		current, err := plans.GetByID(ctx, plan.ID)
 		require.NoError(t, err)
 		until := time.Now().Add(time.Minute).UTC().Truncate(time.Microsecond)

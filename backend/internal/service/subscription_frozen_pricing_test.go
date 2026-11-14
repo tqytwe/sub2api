@@ -80,3 +80,23 @@ func TestSubscriptionFrozenResponseEligibility(t *testing.T) {
 	require.False(t, identified)
 	require.False(t, channel)
 }
+
+func TestSubscriptionFrozenPricingPreservesAppliedKeyRewrite(t *testing.T) {
+	key := &APIKey{ModelMapping: map[string]string{"public-alias": "old-target"}}
+	fields := ChannelUsageFields{OriginalModel: "public-alias", APIKeyMappedModel: "old-target", ChannelMappedModel: "public-alias", BillingModelSource: BillingModelSourceRequested}
+	snap := subscriptionFrozenPricing{Version: 1, UsageFields: fields}
+	payload, err := json.Marshal(snap)
+	require.NoError(t, err)
+	key.ModelMapping["public-alias"] = "new-target"
+	var restored subscriptionFrozenPricing
+	require.NoError(t, json.Unmarshal(payload, &restored))
+	require.Equal(t, "old-target", restored.UsageFields.APIKeyMappedModel)
+	svc := &GatewayService{}
+	require.Equal(t, "old-target", svc.recordUsageBillingModel(context.Background(), key, &ForwardResult{Model: "old-target", UpstreamModel: "old-target"}, restored.UsageFields))
+	// Existing receipts predate these facts; configuration alone must never invent a rewrite.
+	var legacy subscriptionFrozenPricing
+	require.NoError(t, json.Unmarshal([]byte(`{"Version":1,"UsageFields":{"OriginalModel":"gpt-5.1","ChannelMappedModel":"gpt-5.1","BillingModelSource":"requested"}}`), &legacy))
+	require.Empty(t, legacy.UsageFields.APIKeyMappedModel)
+	require.False(t, legacy.UsageFields.ChannelMappingApplied)
+	require.Equal(t, "gpt-5.1", svc.recordUsageBillingModel(context.Background(), key, &ForwardResult{Model: "gpt-5.1", UpstreamModel: "gpt-5.1"}, legacy.UsageFields))
+}

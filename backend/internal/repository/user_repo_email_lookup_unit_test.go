@@ -36,6 +36,25 @@ func newUserEntRepo(t *testing.T) (*userRepository, *dbent.Client) {
 	return newUserRepositoryWithSQL(client, db), client
 }
 
+func TestUserRepositoryCreatePreservesEmailOAuthSignupSource(t *testing.T) {
+	for _, provider := range []string{"github", "google"} {
+		t.Run(provider, func(t *testing.T) {
+			repo, _ := newUserEntRepo(t)
+			ctx := context.Background()
+			user := &service.User{
+				Email: provider + "@example.com", PasswordHash: "hash",
+				Role: service.RoleUser, Status: service.StatusActive,
+				SignupSource: provider,
+			}
+			require.NoError(t, repo.Create(ctx, user))
+			require.Equal(t, provider, user.SignupSource, "create must return the real OAuth source")
+			stored, err := repo.GetByID(ctx, user.ID)
+			require.NoError(t, err)
+			require.Equal(t, provider, stored.SignupSource)
+		})
+	}
+}
+
 func TestUserRepositoryGetByEmailNormalizesLegacySpacingAndCase(t *testing.T) {
 	repo, _ := newUserEntRepo(t)
 	ctx := context.Background()

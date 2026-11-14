@@ -337,3 +337,68 @@ describe('PaymentProviderDialog BEpusdt safeguards', () => {
     expect(payload.allow_user_refund).toBe(false)
   })
 })
+
+
+describe('Payment provider fee inheritance contract', () => {
+  it.each([null, 0, 2.35])('round-trips provider fee %s and method override zero', async rate => {
+    const provider = providerFactory({config:{clientId:'fixture-client'},fee_rate:rate, method_fee_rates:{airwallex:0}} as Partial<ProviderInstance>)
+    const wrapper = mountDialog({editing:provider})
+    ;(wrapper.vm as unknown as {loadProvider:(p:ProviderInstance)=>void}).loadProvider(provider)
+    await nextTick()
+    await wrapper.get('form').trigger('submit')
+    const payload = wrapper.emitted('save')?.[0]?.[0]
+    expect(payload).toBeDefined()
+    expect(payload).toMatchObject({fee_rate:rate,method_fee_rates:{airwallex:0}})
+    wrapper.unmount()
+  })
+})
+
+
+describe('PaymentProviderDialog fee editing', () => {
+  function openStripe(overrides: Partial<ProviderInstance> = {}) {
+    const provider=providerFactory({provider_key:'stripe',name:'Stripe',config:{publishableKey:'pk_fixture'},supported_types:['card','link'],...overrides})
+    const wrapper=mountDialog({editing:provider})
+    ;(wrapper.vm as unknown as {loadProvider:(p:ProviderInstance)=>void}).loadProvider(provider)
+    return wrapper
+  }
+
+  it('clears overrides by explicit inheritance and retains disabled method rates', async () => {
+    const wrapper=openStripe({fee_rate:2,method_fee_rates:{card:0,link:3}})
+    await nextTick()
+    await wrapper.get('[data-testid="provider-fee-mode"]').setValue('inherit')
+    await wrapper.get('[data-testid="method-fee-mode-card"]').setValue('inherit')
+    const toggle=wrapper.findAll('button').find(button=>button.text()==='payment.methods.link')!
+    expect(toggle).toBeDefined()
+    await toggle.trigger('click')
+    await wrapper.get('form').trigger('submit')
+    expect(wrapper.emitted('save')?.at(-1)?.[0]).toMatchObject({fee_rate:null,supported_types:['card'],method_fee_rates:{link:3}})
+    wrapper.unmount()
+  })
+
+  it.each(['','-1','100.01','1.234'])('rejects invalid default or per-method fee %s without saving', async value => {
+    const wrapper=openStripe()
+    await nextTick()
+    await wrapper.get('[data-testid="provider-fee-mode"]').setValue('custom')
+    await wrapper.get('[data-testid="provider-fee-rate"]').setValue(value)
+    await wrapper.get('form').trigger('submit')
+    expect(wrapper.emitted('save')).toBeUndefined()
+    expect(wrapper.get('[role="alert"]').text()).toBe('admin.settings.payment.feeValidation')
+    await wrapper.get('[data-testid="provider-fee-mode"]').setValue('inherit')
+    await wrapper.get('[data-testid="method-fee-mode-card"]').setValue('custom')
+    await wrapper.get('[data-testid="method-fee-rate-card"]').setValue(value)
+    await wrapper.get('form').trigger('submit')
+    expect(wrapper.emitted('save')).toBeUndefined()
+    wrapper.unmount()
+  })
+
+  it('clears stale drafts when loading a different provider', async () => {
+    const wrapper=openStripe({fee_rate:5,method_fee_rates:{card:0}})
+    await nextTick()
+    const second=providerFactory({provider_key:'stripe',name:'Another Stripe',config:{},supported_types:['card']})
+    ;(wrapper.vm as unknown as {loadProvider:(p:ProviderInstance)=>void}).loadProvider(second)
+    await nextTick()
+    expect(wrapper.get('[data-testid="provider-fee-mode"]').element).toHaveProperty('value','inherit')
+    expect(wrapper.find('[data-testid="method-fee-rate-card"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+})

@@ -52,7 +52,10 @@ const (
 	// but should be excluded from SLA/error-rate calculations.
 	// ResponseCommittedKey 由 handleErrorResponse 系列函数在写完 HTTP 错误响应后设置。
 	// ensureForwardErrorResponse 检查此 key，为 true 时跳过兜底写入，避免在已完成的 JSON 后追加 SSE。
-	ResponseCommittedKey = "response_committed"
+	ResponseCommittedKey     = "response_committed"
+	OpsLocalErrorTypeKey     = "ops_local_error_type"
+	OpsLocalErrorCodeKey     = "ops_local_error_code"
+	OpsRequestScopedErrorKey = "ops_request_scoped_error"
 
 	OpsClientBusinessLimitedKey                           = "ops_client_business_limited"
 	OpsClientBusinessLimitedReasonKey                     = "ops_client_business_limited_reason"
@@ -134,6 +137,40 @@ func OpsClientBusinessLimitedReason(c *gin.Context) string {
 	}
 	reason, _ := v.(string)
 	return strings.TrimSpace(reason)
+}
+
+// SetOpsLocalErrorType records a local error type for responses without a type field.
+func SetOpsLocalErrorType(c *gin.Context, errType, code string) {
+	if c == nil {
+		return
+	}
+	c.Set(OpsLocalErrorTypeKey, strings.TrimSpace(errType))
+	c.Set(OpsLocalErrorCodeKey, strings.TrimSpace(code))
+	c.Set(OpsRequestScopedErrorKey, false)
+}
+
+func OpsLocalErrorType(c *gin.Context) (errType, code string) {
+	if c == nil {
+		return "", ""
+	}
+	errType = c.GetString(OpsLocalErrorTypeKey)
+	if errType == "" {
+		return "", ""
+	}
+	return errType, c.GetString(OpsLocalErrorCodeKey)
+}
+
+// MarkOpsRequestScopedError keeps request-content rejections out of account health.
+func MarkOpsRequestScopedError(c *gin.Context, errType string) {
+	if c == nil {
+		return
+	}
+	SetOpsLocalErrorType(c, errType, "")
+	c.Set(OpsRequestScopedErrorKey, true)
+}
+
+func IsOpsRequestScopedError(c *gin.Context) bool {
+	return c != nil && c.GetBool(OpsRequestScopedErrorKey)
 }
 
 // OpsStreamError 描述承载在 2xx 响应上的带内错误：网关在响应状态已固化为 200 之后

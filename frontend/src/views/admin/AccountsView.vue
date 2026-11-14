@@ -284,6 +284,12 @@
               </div>
             </div>
           </template>
+          <template #header-capacity="{ column }">
+            <span class="flex items-center">
+              <span>{{ column.label }}</span>
+              <HelpTooltip :content="t('admin.accounts.capacitySortHint')" width-class="w-80" />
+            </span>
+          </template>
           <template #cell-capacity="{ row }">
             <AccountCapacityCell :account="row" />
           </template>
@@ -293,9 +299,22 @@
             </div>
           </template>
           <template #cell-schedulable="{ row }">
-            <button @click="handleToggleSchedulable(row)" :disabled="togglingSchedulable === row.id" class="relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:focus:ring-offset-dark-800" :class="[row.schedulable ? 'bg-primary-500 hover:bg-primary-600' : 'bg-gray-200 hover:bg-gray-300 dark:bg-dark-600 dark:hover:bg-dark-500']" :title="row.schedulable ? t('admin.accounts.schedulableEnabled') : t('admin.accounts.schedulableDisabled')">
-              <span class="pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out" :class="[row.schedulable ? 'translate-x-4' : 'translate-x-0']" />
-            </button>
+            <div class="flex min-w-0 flex-col items-start">
+              <SchedulableTimerControl
+                v-if="authStore.isAdmin"
+                :account-id="row.id"
+                :account-name="row.name"
+                :schedulable="row.schedulable"
+                :switching="togglingSchedulable === row.id"
+                :can-manage-timers="authStore.isAdmin"
+                :refresh-key="timerRefreshKey"
+                @executed="handleTimerExecuted"
+                @toggle="handleToggleSchedulable(row)"
+              />
+              <button role="switch" :aria-checked="row.schedulable" @click="handleToggleSchedulable(row)" :disabled="togglingSchedulable === row.id" class="relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:focus-visible:ring-offset-dark-800" :class="[row.schedulable ? 'bg-primary-500 hover:bg-primary-600' : 'bg-gray-200 hover:bg-gray-300 dark:bg-dark-600 dark:hover:bg-dark-500']" :title="row.schedulable ? t('admin.accounts.schedulableEnabled') : t('admin.accounts.schedulableDisabled')">
+                <span class="pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out" :class="[row.schedulable ? 'translate-x-4' : 'translate-x-0']" />
+              </button>
+            </div>
           </template>
           <template #cell-today_stats="{ row }">
             <AccountTodayStatsCell
@@ -519,6 +538,7 @@ import AccountUsageCell from '@/components/account/AccountUsageCell.vue'
 import AccountTodayStatsCell from '@/components/account/AccountTodayStatsCell.vue'
 import AccountGroupsCell from '@/components/account/AccountGroupsCell.vue'
 import AccountCapacityCell from '@/components/account/AccountCapacityCell.vue'
+import SchedulableTimerControl from '@/components/account/SchedulableTimerControl.vue'
 import UpstreamBillingRateCell from '@/components/account/UpstreamBillingRateCell.vue'
 import AccountPriorityCell from '@/components/account/AccountPriorityCell.vue'
 import PlatformTypeBadge from '@/components/common/PlatformTypeBadge.vue'
@@ -640,6 +660,15 @@ const showSchedulePanel = ref(false)
 const scheduleAcc = ref<Account | null>(null)
 const scheduleModelOptions = ref<SelectOption[]>([])
 const togglingSchedulable = ref<number | null>(null)
+const timerRefreshKey = ref(0)
+let timerListRefresh: ReturnType<typeof setTimeout> | undefined
+const handleTimerExecuted = () => {
+  if (timerListRefresh !== undefined) return
+  timerListRefresh = setTimeout(() => {
+    timerListRefresh = undefined
+    void load({ refreshTodayStats: false })
+  }, 150)
+}
 const menu = reactive<{show:boolean, acc:Account|null, anchorRect:DOMRect|null}>({ show: false, acc: null, anchorRect: null })
 const exportingData = ref(false)
 const probingUpstreamBilling = reactive(new Set<number>())
@@ -686,6 +715,7 @@ const ACCOUNT_SORTABLE_KEYS = new Set([
   'name',
   'status',
   'schedulable',
+  'capacity',
   'priority',
   'rate_multiplier',
   'upstream_billing_rate',
@@ -702,7 +732,7 @@ const loadInitialAccountSortState = (): AccountSortState => {
     const key = typeof parsed.key === 'string' ? parsed.key : ''
     if (!ACCOUNT_SORTABLE_KEYS.has(key)) return fallback
     return {
-      sort_by: key,
+      sort_by: key === 'capacity' ? 'current_concurrency' : key,
       sort_order: parsed.order === 'desc' ? 'desc' : 'asc'
     }
   } catch {
@@ -721,6 +751,7 @@ const autoRefreshIntervalSeconds = ref<(typeof autoRefreshIntervals)[number]>(30
 const autoRefreshCountdown = ref(0)
 const autoRefreshETag = ref<string | null>(null)
 const autoRefreshFetching = ref(false)
+let autoRefreshListGeneration = 0
 const AUTO_REFRESH_SILENT_WINDOW_MS = 15000
 const autoRefreshSilentUntil = ref(0)
 const hasPendingListSync = ref(false)
@@ -1171,6 +1202,7 @@ useSwipeSelect(accountTableRef, {
 }, swipeVirtualContext)
 
 const resetAutoRefreshCache = () => {
+  autoRefreshListGeneration += 1
   autoRefreshETag.value = null
   upstreamBillingRateETag.value = null
 }
@@ -1228,9 +1260,9 @@ const applyUpstreamBillingRateSnapshots = async (
   const nextIDs = result.items.map(item => item.account_id)
   const currentIDs = accounts.value.map(account => account.id)
 
-  // The compact response cannot fill a row that crossed a page boundary.
-  // Only that case needs the expensive, full account-list request.
-  if (result.total !== pagination.total || !sameAccountIDOrder(nextIDs, currentIDs)) {
+  // Billing snapshots omit live counts; concurrency order and displayed counts
+  // must be reconciled from the same list response.
+  if (sortState.sort_by === 'current_concurrency' || result.total !== pagination.total || !sameAccountIDOrder(nextIDs, currentIDs)) {
     try {
       await load({ refreshTodayStats: false })
     } catch (error) {
@@ -1339,10 +1371,11 @@ const handlePageSizeChange = (size: number) => {
 }
 
 const handleSort = (key: string, order: AccountSortOrder) => {
-  sortState.sort_by = key
+  const sortBy = key === 'capacity' ? 'current_concurrency' : key
+  sortState.sort_by = sortBy
   sortState.sort_order = order
   const requestParams = params as any
-  requestParams.sort_by = key
+  requestParams.sort_by = sortBy
   requestParams.sort_order = order
   syncAccountListDerivedParams()
   pagination.page = 1
@@ -1467,10 +1500,12 @@ const refreshAccountsIncrementally = async () => {
   syncAccountListDerivedParams()
   autoRefreshFetching.value = true
   try {
+    const requestGeneration = autoRefreshListGeneration
+    const requestContextKey = upstreamBillingRateContextKey()
     const result = await adminAPI.accounts.listWithEtag(
       pagination.page,
       pagination.page_size,
-      toRaw(params) as {
+      { ...toRaw(params) } as {
         platform?: string
         type?: string
         status?: string
@@ -1484,6 +1519,7 @@ const refreshAccountsIncrementally = async () => {
       { etag: autoRefreshETag.value }
     )
 
+    if (accountViewDisposed || loading.value || requestGeneration !== autoRefreshListGeneration || requestContextKey !== upstreamBillingRateContextKey()) return
     if (result.etag) {
       autoRefreshETag.value = result.etag
     }
@@ -1811,7 +1847,7 @@ const allColumns = computed(() => {
     { key: 'name', label: t('admin.accounts.columns.name'), sortable: true },
     { key: 'id', label: t('admin.accounts.columns.id'), sortable: true },
     { key: 'platform_type', label: t('admin.accounts.columns.platformType'), sortable: false },
-    { key: 'capacity', label: t('admin.accounts.columns.capacity'), sortable: false },
+    { key: 'capacity', label: t('admin.accounts.columns.capacity'), sortable: true },
     { key: 'status', label: t('admin.accounts.columns.status'), sortable: true },
     { key: 'schedulable', label: t('admin.accounts.columns.schedulable'), sortable: true },
     { key: 'today_stats', label: t('admin.accounts.columns.todayStats'), sortable: false }
@@ -2063,6 +2099,7 @@ const handleBulkToggleSchedulable = async (schedulable: boolean) => {
   const accountIds = [...selIds.value]
   try {
     const result = await adminAPI.accounts.bulkUpdate(accountIds, { schedulable })
+    timerRefreshKey.value++
     const { successIds, failedIds, successCount, failedCount, hasIds, hasCounts } = normalizeBulkSchedulableResult(result, accountIds)
     if (!hasIds && !hasCounts) {
       appStore.showError(t('admin.accounts.bulkSchedulableResultUnknown'))
@@ -2506,6 +2543,7 @@ const handleToggleSchedulable = async (a: Account) => {
   togglingSchedulable.value = a.id
   try {
     const updated = await adminAPI.accounts.setSchedulable(a.id, nextSchedulable)
+    timerRefreshKey.value++
     updateSchedulableInList([a.id], updated?.schedulable ?? nextSchedulable)
     enterAutoRefreshSilentWindow()
   } catch (error) {
@@ -2615,6 +2653,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   accountViewDisposed = true
+  clearTimeout(timerListRefresh)
   closeEdit()
   upstreamBillingRateAbortController?.abort()
   if (usageBatchFlushTimer !== null) {

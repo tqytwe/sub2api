@@ -348,6 +348,9 @@ export default {
     enterAmount: '输入金额',
     paymentMethod: '支付方式',
     fee: '手续费',
+    estimatedPay: '预计实付',
+    feeRangeHint: '不同支付通道的手续费可能不同，最终手续费及实付金额以下单结果为准。',
+    stripePaymentMethod: 'Stripe 支付方式',
     actualPay: '实付金额',
     createOrder: '确认支付',
     methods: {

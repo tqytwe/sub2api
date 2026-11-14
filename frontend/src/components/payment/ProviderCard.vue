@@ -7,11 +7,11 @@
     :title="!enabled ? t('admin.settings.payment.typeDisabled') + ' — ' + t('admin.settings.payment.enableTypesFirst') : undefined"
   >
     <div :class="[
-      'flex items-center justify-between px-4 py-2.5',
+      'flex flex-wrap items-center justify-between gap-3 px-4 py-2.5',
       !enabled && 'pointer-events-none',
     ]">
       <!-- Left: icon + name + key badge + type badges -->
-      <div class="flex items-center gap-3">
+      <div class="flex w-full min-w-0 flex-wrap items-center gap-3 sm:w-auto sm:flex-1">
         <div :class="[
           'rounded-md p-1.5',
           provider.enabled && enabled ? 'bg-green-100 dark:bg-green-900/30' : 'bg-gray-100 dark:bg-dark-700',
@@ -24,9 +24,17 @@
         </div>
         <span class="text-sm font-medium text-gray-900 dark:text-white">{{ provider.name }}</span>
         <span class="text-xs text-gray-400 dark:text-gray-500">{{ keyLabel }}</span>
+        <span class="text-xs text-gray-500 dark:text-gray-400" data-testid="provider-card-fee">
+          {{ provider.fee_rate == null
+            ? (globalFeeRate == null ? t('admin.settings.payment.feeInheritGlobal') : t('admin.settings.payment.feeGlobalSummary', { rate: globalFeeRate }))
+            : t('admin.settings.payment.feeCustomSummary', { rate: provider.fee_rate }) }}
+        </span>
+        <span v-if="Object.keys(provider.method_fee_rates || {}).length" class="text-xs text-gray-500 dark:text-gray-400">
+          {{ t('admin.settings.payment.feeMethodOverrides', { count: Object.keys(provider.method_fee_rates || {}).length }) }}
+        </span>
         <span v-if="provider.payment_mode" class="text-xs text-gray-400 dark:text-gray-500">· {{ modeLabel }}</span>
         <span v-if="enabled && availableTypes.length" class="text-xs text-gray-300 dark:text-gray-600">|</span>
-        <div v-if="enabled" class="flex items-center gap-1">
+        <div v-if="enabled" class="flex flex-wrap items-center gap-1">
           <button
             v-for="pt in availableTypes"
             :key="pt.value"
@@ -43,7 +51,7 @@
       </div>
 
       <!-- Right: toggles + actions -->
-      <div class="flex items-center gap-4">
+      <div class="flex max-w-full flex-wrap items-center gap-4">
         <ToggleSwitch :label="t('common.enabled')" :checked="provider.enabled" @toggle="emit('toggleField', 'enabled')" />
         <ToggleSwitch v-if="supportsRefunds" :label="t('admin.settings.payment.refundEnabled')" :checked="provider.refund_enabled" @toggle="emit('toggleField', 'refund_enabled')" />
         <ToggleSwitch v-if="supportsRefunds && provider.refund_enabled" :label="t('admin.settings.payment.allowUserRefund')" :checked="provider.allow_user_refund" @toggle="emit('toggleField', 'allow_user_refund')" />
@@ -84,6 +92,7 @@ const props = defineProps<{
   provider: ProviderInstance
   enabled: boolean
   availableTypes: TypeOption[]
+  globalFeeRate?: number
 }>()
 
 const emit = defineEmits<{

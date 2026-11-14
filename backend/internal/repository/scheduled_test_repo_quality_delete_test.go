@@ -3,10 +3,12 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"net/http"
 	"testing"
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/stretchr/testify/require"
 )
@@ -73,6 +75,11 @@ func TestTriggerQualityRequiresEnabledIdleRule(t *testing.T) {
 
 	repo := &scheduledTestPlanRepository{db: db}
 	err = repo.TriggerQuality(context.Background(), 7)
-	require.ErrorContains(t, err, "quality rule must be enabled and idle")
+	var appError *infraerrors.ApplicationError
+	require.ErrorAs(t, err, &appError)
+	require.EqualValues(t, http.StatusConflict, appError.Code)
+	require.Equal(t, "QUALITY_PLAN_NOT_RUNNABLE", appError.Reason)
+	require.Contains(t, appError.Message, "enabled, idle")
+	require.Contains(t, appError.Message, "retest rest period")
 	require.NoError(t, mock.ExpectationsWereMet())
 }

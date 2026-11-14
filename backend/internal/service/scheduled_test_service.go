@@ -106,6 +106,17 @@ func (s *ScheduledTestService) FinishQualityRun(ctx context.Context, id int64, u
 	return repo.FinishQualityRun(ctx, id, until, lastRunAt, nextRunAt)
 }
 
+type qualityRunCompletionRepository interface {
+	FinishQualityPlan(context.Context, *ScheduledTestPlan, time.Time, time.Time) error
+}
+
+func (s *ScheduledTestService) finishQualityPlan(ctx context.Context, plan *ScheduledTestPlan, started, next time.Time) error {
+	if repo, ok := s.planRepo.(qualityRunCompletionRepository); ok {
+		return repo.FinishQualityPlan(ctx, plan, started, next)
+	}
+	return s.FinishQualityRun(ctx, plan.ID, *plan.RunningUntil, started, next)
+}
+
 func judgeQualityProbe(result *ScheduledTestResult, config *PelicanTestConfig) (map[string]any, string) {
 	if result == nil {
 		return map[string]any{"verdict": "unknown", "reason": "probe_missing"}, "inconclusive"
@@ -331,6 +342,12 @@ func validateQualityConfig(config *PelicanTestConfig) error {
 	}
 	if config.Quality == nil {
 		return nil
+	}
+	if config.Quality.RetestRestMinutes < 0 || config.Quality.RetestRestMinutes > 10080 {
+		return infraerrors.BadRequest("QUALITY_RETEST_REST_INVALID", "quality retest rest must be 0-10080 minutes")
+	}
+	if config.Quality.Action == "observe_only" {
+		config.Quality.RetestRestMinutes = 0
 	}
 	if err := validateQualityProbeTargets(config); err != nil {
 		return err

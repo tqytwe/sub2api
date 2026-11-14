@@ -526,6 +526,14 @@ func (s *OpenAIOAuthReauthService) GetStatus(ctx context.Context, accountID int6
 }
 
 func (s *OpenAIOAuthReauthService) CreateTask(ctx context.Context, accountID int64) (*OpenAIOAuthReauthTask, error) {
+	return s.createTask(ctx, accountID, func(createCtx context.Context, id int64, hash string) (*OpenAIOAuthReauthTaskRecord, error) {
+		return s.repo.CreateTask(createCtx, id, hash)
+	})
+}
+
+// Automatic and manual tasks share credential validation. Automatic callers
+// insert through the durable budget transaction instead of the manual writer.
+func (s *OpenAIOAuthReauthService) createTask(ctx context.Context, accountID int64, creator func(context.Context, int64, string) (*OpenAIOAuthReauthTaskRecord, error)) (*OpenAIOAuthReauthTask, error) {
 	if err := s.ensureReady(); err != nil {
 		return nil, err
 	}
@@ -554,7 +562,7 @@ func (s *OpenAIOAuthReauthService) CreateTask(ctx context.Context, accountID int
 	if err != nil {
 		return nil, infraerrors.New(http.StatusInternalServerError, "OPENAI_REAUTH_CREDENTIAL_SNAPSHOT_FAILED", "failed to snapshot account credentials")
 	}
-	record, err := s.repo.CreateTask(ctx, accountID, expectedCredentialsHash)
+	record, err := creator(ctx, accountID, expectedCredentialsHash)
 	if err != nil {
 		if infraerrors.Code(err) == http.StatusConflict {
 			return nil, err

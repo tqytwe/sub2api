@@ -190,6 +190,61 @@ func (_u *APIKeyUpdate) ClearIPBlacklist() *APIKeyUpdate {
 	return _u
 }
 
+// SetModelMapping sets the "model_mapping" field.
+func (_u *APIKeyUpdate) SetModelMapping(v map[string]string) *APIKeyUpdate {
+	_u.mutation.SetModelMapping(v)
+	return _u
+}
+
+// SetReasoningEffort sets the "reasoning_effort" field.
+func (_u *APIKeyUpdate) SetReasoningEffort(v string) *APIKeyUpdate {
+	_u.mutation.SetReasoningEffort(v)
+	return _u
+}
+
+// SetNillableReasoningEffort sets the "reasoning_effort" field if the given value is not nil.
+func (_u *APIKeyUpdate) SetNillableReasoningEffort(v *string) *APIKeyUpdate {
+	if v != nil {
+		_u.SetReasoningEffort(*v)
+	}
+	return _u
+}
+
+// SetAllowLongContext sets the "allow_long_context" field.
+func (_u *APIKeyUpdate) SetAllowLongContext(v bool) *APIKeyUpdate {
+	_u.mutation.SetAllowLongContext(v)
+	return _u
+}
+
+// SetNillableAllowLongContext sets the "allow_long_context" field if the given value is not nil.
+func (_u *APIKeyUpdate) SetNillableAllowLongContext(v *bool) *APIKeyUpdate {
+	if v != nil {
+		_u.SetAllowLongContext(*v)
+	}
+	return _u
+}
+
+// SetContextTokenLimit sets the "context_token_limit" field.
+func (_u *APIKeyUpdate) SetContextTokenLimit(v int) *APIKeyUpdate {
+	_u.mutation.ResetContextTokenLimit()
+	_u.mutation.SetContextTokenLimit(v)
+	return _u
+}
+
+// SetNillableContextTokenLimit sets the "context_token_limit" field if the given value is not nil.
+func (_u *APIKeyUpdate) SetNillableContextTokenLimit(v *int) *APIKeyUpdate {
+	if v != nil {
+		_u.SetContextTokenLimit(*v)
+	}
+	return _u
+}
+
+// AddContextTokenLimit adds value to the "context_token_limit" field.
+func (_u *APIKeyUpdate) AddContextTokenLimit(v int) *APIKeyUpdate {
+	_u.mutation.AddContextTokenLimit(v)
+	return _u
+}
+
 // SetQuota sets the "quota" field.
 func (_u *APIKeyUpdate) SetQuota(v float64) *APIKeyUpdate {
 	_u.mutation.ResetQuota()
@@ -560,6 +615,16 @@ func (_u *APIKeyUpdate) check() error {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "APIKey.status": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.ReasoningEffort(); ok {
+		if err := apikey.ReasoningEffortValidator(v); err != nil {
+			return &ValidationError{Name: "reasoning_effort", err: fmt.Errorf(`ent: validator failed for field "APIKey.reasoning_effort": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.ContextTokenLimit(); ok {
+		if err := apikey.ContextTokenLimitValidator(v); err != nil {
+			return &ValidationError{Name: "context_token_limit", err: fmt.Errorf(`ent: validator failed for field "APIKey.context_token_limit": %w`, err)}
+		}
+	}
 	if _u.mutation.UserCleared() && len(_u.mutation.UserIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "APIKey.user"`)
 	}
@@ -623,6 +688,21 @@ func (_u *APIKeyUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.IPBlacklistCleared() {
 		_spec.ClearField(apikey.FieldIPBlacklist, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.ModelMapping(); ok {
+		_spec.SetField(apikey.FieldModelMapping, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.ReasoningEffort(); ok {
+		_spec.SetField(apikey.FieldReasoningEffort, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.AllowLongContext(); ok {
+		_spec.SetField(apikey.FieldAllowLongContext, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.ContextTokenLimit(); ok {
+		_spec.SetField(apikey.FieldContextTokenLimit, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedContextTokenLimit(); ok {
+		_spec.AddField(apikey.FieldContextTokenLimit, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.Quota(); ok {
 		_spec.SetField(apikey.FieldQuota, field.TypeFloat64, value)
@@ -974,6 +1054,61 @@ func (_u *APIKeyUpdateOne) AppendIPBlacklist(v []string) *APIKeyUpdateOne {
 // ClearIPBlacklist clears the value of the "ip_blacklist" field.
 func (_u *APIKeyUpdateOne) ClearIPBlacklist() *APIKeyUpdateOne {
 	_u.mutation.ClearIPBlacklist()
+	return _u
+}
+
+// SetModelMapping sets the "model_mapping" field.
+func (_u *APIKeyUpdateOne) SetModelMapping(v map[string]string) *APIKeyUpdateOne {
+	_u.mutation.SetModelMapping(v)
+	return _u
+}
+
+// SetReasoningEffort sets the "reasoning_effort" field.
+func (_u *APIKeyUpdateOne) SetReasoningEffort(v string) *APIKeyUpdateOne {
+	_u.mutation.SetReasoningEffort(v)
+	return _u
+}
+
+// SetNillableReasoningEffort sets the "reasoning_effort" field if the given value is not nil.
+func (_u *APIKeyUpdateOne) SetNillableReasoningEffort(v *string) *APIKeyUpdateOne {
+	if v != nil {
+		_u.SetReasoningEffort(*v)
+	}
+	return _u
+}
+
+// SetAllowLongContext sets the "allow_long_context" field.
+func (_u *APIKeyUpdateOne) SetAllowLongContext(v bool) *APIKeyUpdateOne {
+	_u.mutation.SetAllowLongContext(v)
+	return _u
+}
+
+// SetNillableAllowLongContext sets the "allow_long_context" field if the given value is not nil.
+func (_u *APIKeyUpdateOne) SetNillableAllowLongContext(v *bool) *APIKeyUpdateOne {
+	if v != nil {
+		_u.SetAllowLongContext(*v)
+	}
+	return _u
+}
+
+// SetContextTokenLimit sets the "context_token_limit" field.
+func (_u *APIKeyUpdateOne) SetContextTokenLimit(v int) *APIKeyUpdateOne {
+	_u.mutation.ResetContextTokenLimit()
+	_u.mutation.SetContextTokenLimit(v)
+	return _u
+}
+
+// SetNillableContextTokenLimit sets the "context_token_limit" field if the given value is not nil.
+func (_u *APIKeyUpdateOne) SetNillableContextTokenLimit(v *int) *APIKeyUpdateOne {
+	if v != nil {
+		_u.SetContextTokenLimit(*v)
+	}
+	return _u
+}
+
+// AddContextTokenLimit adds value to the "context_token_limit" field.
+func (_u *APIKeyUpdateOne) AddContextTokenLimit(v int) *APIKeyUpdateOne {
+	_u.mutation.AddContextTokenLimit(v)
 	return _u
 }
 
@@ -1360,6 +1495,16 @@ func (_u *APIKeyUpdateOne) check() error {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "APIKey.status": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.ReasoningEffort(); ok {
+		if err := apikey.ReasoningEffortValidator(v); err != nil {
+			return &ValidationError{Name: "reasoning_effort", err: fmt.Errorf(`ent: validator failed for field "APIKey.reasoning_effort": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.ContextTokenLimit(); ok {
+		if err := apikey.ContextTokenLimitValidator(v); err != nil {
+			return &ValidationError{Name: "context_token_limit", err: fmt.Errorf(`ent: validator failed for field "APIKey.context_token_limit": %w`, err)}
+		}
+	}
 	if _u.mutation.UserCleared() && len(_u.mutation.UserIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "APIKey.user"`)
 	}
@@ -1440,6 +1585,21 @@ func (_u *APIKeyUpdateOne) sqlSave(ctx context.Context) (_node *APIKey, err erro
 	}
 	if _u.mutation.IPBlacklistCleared() {
 		_spec.ClearField(apikey.FieldIPBlacklist, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.ModelMapping(); ok {
+		_spec.SetField(apikey.FieldModelMapping, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.ReasoningEffort(); ok {
+		_spec.SetField(apikey.FieldReasoningEffort, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.AllowLongContext(); ok {
+		_spec.SetField(apikey.FieldAllowLongContext, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.ContextTokenLimit(); ok {
+		_spec.SetField(apikey.FieldContextTokenLimit, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedContextTokenLimit(); ok {
+		_spec.AddField(apikey.FieldContextTokenLimit, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.Quota(); ok {
 		_spec.SetField(apikey.FieldQuota, field.TypeFloat64, value)

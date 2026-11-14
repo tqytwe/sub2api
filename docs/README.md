@@ -17,6 +17,10 @@
 
 ## 当前文档
 
+- [单密钥模型与上下文策略视觉记录](./visual-reviews/2026-11-14-key-model-policy.md)：`review`，既有管理员入口、真实组件开发截图、权限与冷启动文案测试；维护责任为本批提交者，整批门禁和生产验收待完成。
+
+- [支付供应商费率与 Stripe 子方式视觉记录](./visual-reviews/2026-11-14-payment-provider-fees.md)：`review`，真实组件开发截图、支付领域测试；维护责任为本批提交者，完整路由与生产验收待集成后完成。
+
 本次渠道监控修复：[样本颜色与权限核对视觉记录](./visual-reviews/2026-11-10-monitor-user-visibility.md)。
 
 接手当前任务先看 [当前项目推进基线](./PROJECT_REBASELINE_2026-10-28.md) 与
@@ -137,6 +141,7 @@
 - [API Key 多分组与上游渠道声明](./api-key-multi-group.md)：绑定合同、择组计费与 schema v2 声明。
 
 - [质量多模型/重复探测视觉记录](./visual-reviews/2026-11-01-quality-multiprobe.md)：现有质量页面配置、结果标识和真实组件截图；不替代生产验收。
+- [质量规则运行时与复用视觉记录](./visual-reviews/2026-11-14-quality-runtime.md)：5xx 触发、复测静置、复制与选字段批量修改；开发证据不替代生产验收。
 - [模型与分组倍率设置视觉记录](./visual-reviews/2026-11-01-model-billing-ui.md)：管理员独立配置表单、CAS 冲突保留编辑和现有组件渲染；不替代生产计费验收。
 - [BPS 文本 Responses 账号开关视觉审查](./visual-reviews/2026-11-02-bps-text-runtime.md)：复用管理员 OpenAI OAuth 账号编辑项，仅添加文本 Responses 运行时开关；不替代生产验收。
 
@@ -158,3 +163,5 @@
 - [Coupon claim and batch issuance visual review](visual-reviews/2026-11-11-coupon-closed-loop.md) — existing administration, wallet and checkout surfaces; synthetic browser evidence, production acceptance pending.
 
 - [优惠券状态与上限说明修正](visual-reviews/2026-11-12-coupon-status-limits.md)：冷启动状态回归、两类上限说明及签到/答题定向只读核对；生产验收待补。
+- [账号实时并发排序视觉记录](visual-reviews/2026-11-14-account-concurrency.md)：既有容量列排序、持久化与刷新闭环；合成 API 组件证据，最终生产验收待补。
+- [账号定时调度视觉记录](visual-reviews/2026-11-14-account-schedule.md)：既有调度列的一次性与每日计划；组件开发检查、权限及迟到请求回归，后端集成和生产验收待完成。

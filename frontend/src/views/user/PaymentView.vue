@@ -65,6 +65,12 @@
                       :disabled="submitting"
                       @select="selectPaymentMethod"
                     />
+                    <StripeSubtypeSelector
+                      v-if="selectedMethod === 'stripe' && Object.keys(stripeSubMethods).length"
+                      v-model="selectedSubtype"
+                      :methods="stripeSubMethods"
+                      :disabled="submitting"
+                    />
                   </div>
                   <div class="card p-6">
                     <CouponSelector
@@ -73,6 +79,7 @@
                       :amount="validAmount"
                       order-type="balance"
                       :payment-type="selectedMethod"
+                      :payment-subtype="selectedMethod === 'stripe' ? selectedSubtype : undefined"
                       :disabled="submitting"
                       @update:model-value="handleCouponSelection('balance', $event)"
                       @quote="handleCouponQuote('balance', $event)"
@@ -91,14 +98,15 @@
                       <span class="text-gray-500 dark:text-gray-400">{{ t('coupon.payment.discount') }}</span>
                       <span class="font-medium text-primary-700 dark:text-primary-300">-{{ formatRechargePaymentAmount(rechargeCouponQuote.discount_amount) }}</span>
                     </div>
-                    <div v-if="feeRate > 0" class="flex justify-between">
-                      <span class="text-gray-500 dark:text-gray-400">{{ t('payment.fee') }} ({{ feeRate }}%)</span>
-                      <span class="text-gray-900 dark:text-white">{{ formatRechargePaymentAmount(feeAmount) }}</span>
+                    <div v-if="hasFee" class="flex justify-between">
+                      <span class="text-gray-500 dark:text-gray-400">{{ t('payment.fee') }} ({{ feeRateLabel }}%)</span>
+                      <span class="text-gray-900 dark:text-white">{{ formatQuoteRange(rechargeFeeQuote, 'fee', rechargePaymentCurrency) }}</span>
                     </div>
-                    <div v-if="feeRate > 0 || rechargeCouponQuote" class="flex justify-between border-t border-gray-200 pt-2 dark:border-dark-600">
-                      <span class="font-medium text-gray-700 dark:text-gray-300">{{ t('payment.actualPay') }}</span>
-                      <span class="text-lg font-bold text-primary-600 dark:text-primary-400">{{ formatRechargePaymentAmount(totalAmount) }}</span>
+                    <div v-if="hasFee || rechargeCouponQuote" class="flex justify-between border-t border-gray-200 pt-2 dark:border-dark-600">
+                      <span class="font-medium text-gray-700 dark:text-gray-300">{{ t(feeRangeVaries ? 'payment.estimatedPay' : 'payment.actualPay') }}</span>
+                      <span class="text-lg font-bold text-primary-600 dark:text-primary-400">{{ formatQuoteRange(rechargeFeeQuote, 'total', rechargePaymentCurrency) }}</span>
                     </div>
+                    <p v-if="feeRangeVaries" class="text-xs text-gray-500 dark:text-gray-400" data-testid="fee-range-hint">{{ t('payment.feeRangeHint') }}</p>
                     <div class="flex justify-between border-t border-gray-200 pt-2 dark:border-dark-600">
                       <span class="text-gray-500 dark:text-gray-400">{{ t('payment.baseCredited') }}</span>
                       <span class="text-gray-900 dark:text-white">${{ baseCreditedAmount.toFixed(2) }}</span>
@@ -131,7 +139,7 @@
                     <LoadingSpinner size="sm" color="white" />
                     {{ t('common.processing') }}
                   </span>
-                  <span v-else>{{ t('payment.createOrder') }} {{ formatRechargePaymentAmount(totalAmount) }}</span>
+                  <span v-else>{{ t('payment.createOrder') }} {{ formatQuoteRange(rechargeFeeQuote, 'total', rechargePaymentCurrency) }}</span>
                 </button>
                 <p v-if="balanceRechargeMultiplier !== 1" class="border-t border-gray-200 pt-2 text-xs text-gray-500 dark:border-dark-600 dark:text-gray-400">
                   {{ t('payment.rechargeRatePreview', { currency: selectedCurrency, usd: balanceRechargeMultiplier.toFixed(2) }) }}
@@ -202,6 +210,12 @@
                   :disabled="submitting"
                   @select="selectPaymentMethod"
                 />
+                <StripeSubtypeSelector
+                  v-if="selectedMethod === 'stripe' && Object.keys(stripeSubMethods).length"
+                  v-model="selectedSubtype"
+                  :methods="stripeSubMethods"
+                  :disabled="submitting"
+                />
               </div>
               <div class="card p-6">
                 <CouponSelector
@@ -211,12 +225,13 @@
                   order-type="subscription"
                   :plan-id="selectedPlan.id"
                   :payment-type="selectedMethod"
+                  :payment-subtype="selectedMethod === 'stripe' ? selectedSubtype : undefined"
                   :disabled="submitting"
                   @update:model-value="handleCouponSelection('subscription', $event)"
                   @quote="handleCouponQuote('subscription', $event)"
                 />
               </div>
-              <div v-if="(feeRate > 0 || subscriptionCouponQuote) && selectedPlan.price > 0" class="card p-6">
+              <div v-if="(hasFee || subscriptionCouponQuote) && selectedPlan.price > 0" class="card p-6">
                 <div class="space-y-2 text-sm">
                   <div class="flex justify-between">
                     <span class="text-gray-500 dark:text-gray-400">{{ t('payment.amountLabel') }}</span>
@@ -226,22 +241,23 @@
                     <span class="text-gray-500 dark:text-gray-400">{{ t('coupon.payment.discount') }}</span>
                     <span class="font-medium text-primary-700 dark:text-primary-300">-{{ formatSelectedPaymentAmount(subscriptionCouponQuote.discount_amount) }}</span>
                   </div>
-                  <div v-if="feeRate > 0" class="flex justify-between">
-                    <span class="text-gray-500 dark:text-gray-400">{{ t('payment.fee') }} ({{ feeRate }}%)</span>
-                    <span class="text-gray-900 dark:text-white">{{ formatSelectedPaymentAmount(subFeeAmount) }}</span>
+                  <div v-if="hasFee" class="flex justify-between">
+                    <span class="text-gray-500 dark:text-gray-400">{{ t('payment.fee') }} ({{ feeRateLabel }}%)</span>
+                    <span class="text-gray-900 dark:text-white">{{ formatQuoteRange(subscriptionFeeQuote, 'fee', subscriptionPaymentCurrency) }}</span>
                   </div>
                   <div class="flex justify-between border-t border-gray-200 pt-2 dark:border-dark-600">
-                    <span class="font-medium text-gray-700 dark:text-gray-300">{{ t('payment.actualPay') }}</span>
-                    <span class="text-lg font-bold text-primary-600 dark:text-primary-400">{{ formatSelectedPaymentAmount(subTotalAmount) }}</span>
+                    <span class="font-medium text-gray-700 dark:text-gray-300">{{ t(feeRangeVaries ? 'payment.estimatedPay' : 'payment.actualPay') }}</span>
+                    <span class="text-lg font-bold text-primary-600 dark:text-primary-400">{{ formatQuoteRange(subscriptionFeeQuote, 'total', subscriptionPaymentCurrency) }}</span>
                   </div>
                 </div>
               </div>
+              <p v-if="feeRangeVaries" class="text-xs text-gray-500 dark:text-gray-400" data-testid="fee-range-hint">{{ t('payment.feeRangeHint') }}</p>
               <button :class="['btn w-full py-3 text-base font-medium', paymentButtonClass]" :disabled="!canSubmitSubscription || submitting" @click="confirmSubscribe">
                 <span v-if="submitting" class="flex items-center justify-center gap-2">
                   <LoadingSpinner size="sm" color="white" />
                   {{ t('common.processing') }}
                 </span>
-                <span v-else>{{ t('payment.createOrder') }} {{ formatSelectedPaymentAmount(subTotalAmount) }}</span>
+                <span v-else>{{ t('payment.createOrder') }} {{ formatQuoteRange(subscriptionFeeQuote, 'total', subscriptionPaymentCurrency) }}</span>
               </button>
               <button class="btn btn-secondary w-full" @click="selectedPlan = null">{{ t('common.cancel') }}</button>
             </template>
@@ -462,6 +478,8 @@ import type { CouponPaymentQuote } from '@/types/coupon'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import AmountInput from '@/components/payment/AmountInput.vue'
 import PaymentMethodSelector from '@/components/payment/PaymentMethodSelector.vue'
+import StripeSubtypeSelector from '@/components/payment/StripeSubtypeSelector.vue'
+import { paymentFeeRange, quotePaymentFee, paymentRangeFitsLimits } from '@/components/payment/fees'
 import { METHOD_ORDER, getPaymentPopupFeatures, isBuiltInAlipayMethod, isBuiltInWxpayMethod } from '@/components/payment/providerConfig'
 import {
   PAYMENT_RECOVERY_STORAGE_KEY,
@@ -520,6 +538,7 @@ const errorHintMessage = ref('')
 const activeTab = ref<'recharge' | 'subscription'>('recharge')
 const amount = ref<number | null>(null)
 const selectedMethod = ref('')
+const selectedSubtype = ref('')
 const selectedPlan = ref<SubscriptionPlan | null>(null)
 const selectedPlanDetails = ref<SubscriptionPlan | null>(null)
 const previewImage = ref('')
@@ -1075,14 +1094,65 @@ watch(selectedStorefrontShelfID, () => {
   syncPlanShelfQuery()
 })
 
-// Check if an amount fits a method's [min, max]. 0 = no limit.
-function amountFitsMethod(amt: number, methodType: string): boolean {
-  if (amt <= 0) return true
-  const ml = visibleMethods.value[methodType]
-  if (!ml) return false
-  if (ml.single_min > 0 && amt < ml.single_min) return false
-  if (ml.single_max > 0 && amt > ml.single_max) return false
-  return true
+const stripeSubMethods = computed(() => visibleMethods.value.stripe?.sub_methods ?? {})
+watch(stripeSubMethods, (methods) => {
+  if (!Object.prototype.hasOwnProperty.call(methods, selectedSubtype.value)) {
+    selectedSubtype.value = Object.keys(methods)[0] ?? ''
+  }
+}, { immediate: true })
+
+function methodFeeRange(method: string) {
+  const limits = visibleMethods.value[method]
+  const rates = method === 'stripe' && selectedSubtype.value
+    ? limits?.sub_methods?.[selectedSubtype.value] ?? limits
+    : limits
+  return paymentFeeRange(rates, checkout.value.recharge_fee_rate)
+}
+
+function methodQuote(base: number, method: string) {
+  const currency = normalizePaymentCurrency(visibleMethods.value[method]?.currency)
+  const rates = methodFeeRange(method)
+  return {
+    min: quotePaymentFee(base, rates.min, currencyFractionDigits(currency)),
+    max: quotePaymentFee(base, rates.max, currencyFractionDigits(currency)),
+  }
+}
+
+function amountFitsMethod(base: number, method: string): boolean {
+  if (base <= 0) return true
+  const limits = visibleMethods.value[method]
+  if (!limits) return false
+  const quote = methodQuote(base, method)
+  return paymentRangeFitsLimits(quote.min.total, quote.max.total, limits.single_min, limits.single_max)
+}
+
+function methodAvailableForAmount(base: number, method: string): boolean {
+  const limits = visibleMethods.value[method]
+  if (!limits || limits.available === false) return false
+  if (base <= 0) return true
+  if (method !== 'stripe' || !limits.sub_methods) return amountFitsMethod(base, method)
+  const digits = currencyFractionDigits(normalizePaymentCurrency(limits.currency))
+  return Object.values(limits.sub_methods).some(rates => {
+    const range = paymentFeeRange(rates, checkout.value.recharge_fee_rate)
+    return paymentRangeFitsLimits(
+      quotePaymentFee(base, range.min, digits).total,
+      quotePaymentFee(base, range.max, digits).total,
+      limits.single_min, limits.single_max,
+    )
+  })
+}
+
+// Only reuse a coupon quote for the payment method it was requested for.
+// Changing the method invalidates it and CouponSelector fetches a new quote.
+function rechargeBaseForMethod(method: string): number {
+  return method === selectedMethod.value && rechargeCouponQuote.value
+    ? rechargeCouponQuote.value.gateway_base_amount : validAmount.value
+}
+
+function subscriptionBaseForMethod(method: string): number {
+  if (method === selectedMethod.value && subscriptionCouponQuote.value) return subscriptionCouponQuote.value.gateway_base_amount
+  return subscriptionPaymentAmountForCurrency(selectedPlan.value?.price ?? 0,
+    normalizePaymentCurrency(visibleMethods.value[method]?.currency))
 }
 
 // Visible methods decide the amount range shown to users.
@@ -1147,12 +1217,6 @@ function formatPct(value: number): string {
   return Number.isInteger(value) ? String(value) : value.toFixed(2)
 }
 
-function ceilPaymentAmount(value: number, currency: string): number {
-  if (!Number.isFinite(value)) return 0
-  const factor = 10 ** currencyFractionDigits(currency)
-  return Math.ceil(value * factor) / factor
-}
-
 function subscriptionPaymentAmountForCurrency(value: number, currency: string): number {
   const rate = subscriptionUsdToCnyRate.value
   if (rate <= 0 || currency !== DEFAULT_PAYMENT_CURRENCY) return roundPaymentAmount(value, currency)
@@ -1171,121 +1235,127 @@ function formatRechargePaymentAmount(value: number): string {
   return formatPaymentAmount(value, rechargePaymentCurrency.value, localeCode.value)
 }
 
-const methodOptions = computed<PaymentMethodOption[]>(() =>
-  enabledMethods.value.map((type) => {
-    const ml = visibleMethods.value[type]
-    return {
-      type,
-      display_name: ml?.display_name,
-      fee_rate: ml?.fee_rate ?? 0,
-      available: ml?.available !== false && amountFitsMethod(totalAmount.value, type),
-    }
-  })
-)
+const methodOptions = computed<PaymentMethodOption[]>(() => enabledMethods.value.map(type => {
+  const limit = visibleMethods.value[type]
+  const rates = methodFeeRange(type)
+  return {
+    type,
+    display_name: limit?.display_name,
+    fee_rate: rates.min,
+    fee_rate_min: rates.min,
+    fee_rate_max: rates.max,
+    available: methodAvailableForAmount(rechargeBaseForMethod(type), type),
+  }
+}))
 
-const feeRate = computed(() => checkout.value?.recharge_fee_rate ?? 0)
+const activeCouponQuote = computed(() => selectedPlan.value
+  ? subscriptionCouponQuote.value : rechargeCouponQuote.value)
+const selectedFeeRange = computed(() => {
+  const rates = methodFeeRange(selectedMethod.value)
+  return {
+    min: activeCouponQuote.value?.fee_rate_min ?? rates.min,
+    max: activeCouponQuote.value?.fee_rate_max ?? rates.max,
+  }
+})
+const feeRateLabel = computed(() => selectedFeeRange.value.min === selectedFeeRange.value.max
+  ? String(selectedFeeRange.value.min) : `${selectedFeeRange.value.min}–${selectedFeeRange.value.max}`)
+const hasFee = computed(() => selectedFeeRange.value.max > 0)
 const rechargeListAmount = computed(() => rechargeCouponQuote.value?.list_amount ?? validAmount.value)
 const rechargePaymentCurrency = computed(() => rechargeCouponQuote.value?.payment_currency || selectedCurrency.value)
 const rechargeGatewayBaseAmount = computed(() => rechargeCouponQuote.value?.gateway_base_amount ?? validAmount.value)
-const feeAmount = computed(() => {
-  if (rechargeCouponQuote.value) return rechargeCouponQuote.value.fee_amount
-  if (feeRate.value <= 0 || rechargeGatewayBaseAmount.value <= 0) return 0
-  return Math.ceil(((rechargeGatewayBaseAmount.value * feeRate.value) / 100) * 100) / 100
-})
-const totalAmount = computed(() => {
-  if (rechargeCouponQuote.value) return rechargeCouponQuote.value.pay_amount
-  if (feeRate.value <= 0 || rechargeGatewayBaseAmount.value <= 0) return rechargeGatewayBaseAmount.value
-  return Math.round((rechargeGatewayBaseAmount.value + feeAmount.value) * 100) / 100
-})
+
+function checkoutFeeQuote(base: number, coupon: CouponPaymentQuote | null) {
+  if (!coupon) return methodQuote(base, selectedMethod.value)
+  return {
+    min: { fee: coupon.fee_amount, total: coupon.pay_amount },
+    max: {
+      fee: coupon.fee_amount_max ?? coupon.fee_amount,
+      total: coupon.pay_amount_max ?? coupon.pay_amount,
+    },
+  }
+}
+
+const rechargeFeeQuote = computed(() => checkoutFeeQuote(rechargeGatewayBaseAmount.value, rechargeCouponQuote.value))
+const totalAmount = computed(() => rechargeFeeQuote.value.min.total)
 const rechargeCouponAwaitingQuote = computed(() => rechargeCouponID.value !== null && rechargeCouponQuote.value === null)
+const subPaymentAmount = computed(() => subscriptionCouponQuote.value?.gateway_base_amount
+  ?? subscriptionPaymentAmountForCurrency(selectedPlan.value?.price ?? 0, selectedCurrency.value))
+const subscriptionPaymentCurrency = computed(() => subscriptionCouponQuote.value?.payment_currency || selectedCurrency.value)
+const subscriptionFeeQuote = computed(() => checkoutFeeQuote(subPaymentAmount.value, subscriptionCouponQuote.value))
+const subTotalAmount = computed(() => subscriptionFeeQuote.value.min.total)
+const subscriptionCouponAwaitingQuote = computed(() => subscriptionCouponID.value !== null && subscriptionCouponQuote.value === null)
+const activeFeeQuote = computed(() => selectedPlan.value ? subscriptionFeeQuote.value : rechargeFeeQuote.value)
+const feeRangeVaries = computed(() => Boolean(activeCouponQuote.value?.estimated)
+  || activeFeeQuote.value.min.total !== activeFeeQuote.value.max.total)
+
+function formatQuoteRange(quote: ReturnType<typeof methodQuote>, field: 'fee' | 'total', currency: string): string {
+  const min = formatPaymentAmount(quote.min[field], currency, localeCode.value)
+  const max = formatPaymentAmount(quote.max[field], currency, localeCode.value)
+  return min === max ? min : `${min} – ${max}`
+}
+
+const stripeSubtypeReady = computed(() => selectedMethod.value !== 'stripe'
+  || !selectedLimit.value?.sub_methods
+  || Object.prototype.hasOwnProperty.call(stripeSubMethods.value, selectedSubtype.value))
 
 const amountError = computed(() => {
-  if (validAmount.value <= 0) return ''
-  const amountForMethod = rechargeCouponQuote.value ? totalAmount.value : validAmount.value
-  // A fully discounted order is completed by the backend without reaching a
-  // payment gateway, so gateway minimums and maximums do not apply.
-  if (amountForMethod <= 0) return ''
-  // No method can handle this amount
-  if (!enabledMethods.value.some((m) => amountFitsMethod(amountForMethod, m))) {
+  if (validAmount.value <= 0 || totalAmount.value <= 0 || rechargeCouponAwaitingQuote.value) return ''
+  if (!enabledMethods.value.some(method => methodAvailableForAmount(rechargeBaseForMethod(method), method))) {
     return t('payment.amountNoMethod')
   }
-  // Selected method can't handle this amount (but others can)
-  const ml = selectedLimit.value
-  if (ml) {
-    if (ml.single_min > 0 && amountForMethod < ml.single_min) return t('payment.amountTooLow', { min: formatRechargePaymentAmount(ml.single_min) })
-    if (ml.single_max > 0 && amountForMethod > ml.single_max) return t('payment.amountTooHigh', { max: formatRechargePaymentAmount(ml.single_max) })
+  const limit = selectedLimit.value
+  if (limit) {
+    if (limit.single_min > 0 && rechargeFeeQuote.value.max.total < limit.single_min) {
+      return t('payment.amountTooLow', { min: formatRechargePaymentAmount(limit.single_min) })
+    }
+    if (limit.single_max > 0 && rechargeFeeQuote.value.min.total > limit.single_max) {
+      return t('payment.amountTooHigh', { max: formatRechargePaymentAmount(limit.single_max) })
+    }
   }
   return ''
 })
 
-const canSubmit = computed(() =>
-  validAmount.value > 0
-    && amountFitsMethod(totalAmount.value, selectedMethod.value)
-    && hasSelectedAvailableMethod.value
-    && !rechargeCouponAwaitingQuote.value
+const canSubmit = computed(() => validAmount.value > 0
+  && hasSelectedAvailableMethod.value
+  && (totalAmount.value <= 0 || (stripeSubtypeReady.value
+    && amountFitsMethod(rechargeGatewayBaseAmount.value, selectedMethod.value)))
+  && !rechargeCouponAwaitingQuote.value)
+
+const subMethodOptions = computed<PaymentMethodOption[]>(() => enabledMethods.value.map(type => {
+  const limit = visibleMethods.value[type]
+  const rates = methodFeeRange(type)
+  return {
+    type,
+    display_name: limit?.display_name,
+    fee_rate: rates.min,
+    fee_rate_min: rates.min,
+    fee_rate_max: rates.max,
+    available: methodAvailableForAmount(subscriptionBaseForMethod(type), type),
+  }
+}))
+
+const canSubmitSubscription = computed(() => selectedPlan.value !== null
+  && hasSelectedAvailableMethod.value
+  && (subTotalAmount.value <= 0 || (stripeSubtypeReady.value
+    && amountFitsMethod(subPaymentAmount.value, selectedMethod.value)))
+  && !subscriptionCouponAwaitingQuote.value)
+
+// Retained coupons must finish re-quoting before another method is auto-selected.
+watch(
+  () => [selectedPlan.value ? subPaymentAmount.value : rechargeGatewayBaseAmount.value, selectedMethod.value] as const,
+  ([base, method]) => {
+    if (base <= 0 || rechargeCouponAwaitingQuote.value || subscriptionCouponAwaitingQuote.value
+      || methodAvailableForAmount(base, method)) return
+    const available = enabledMethods.value.find(candidate => methodAvailableForAmount(
+      selectedPlan.value ? subscriptionBaseForMethod(candidate) : rechargeBaseForMethod(candidate), candidate))
+    if (available) selectedMethod.value = available
+  },
 )
 
-const subPaymentAmount = computed(() => {
-  if (subscriptionCouponQuote.value) return subscriptionCouponQuote.value.gateway_base_amount
-  const price = selectedPlan.value?.price ?? 0
-  return subscriptionPaymentAmountForCurrency(price, selectedCurrency.value)
-})
-
-const subFeeAmount = computed(() => {
-  if (subscriptionCouponQuote.value) return subscriptionCouponQuote.value.fee_amount
-  if (feeRate.value <= 0 || subPaymentAmount.value <= 0) return 0
-  return ceilPaymentAmount((subPaymentAmount.value * feeRate.value) / 100, selectedCurrency.value)
-})
-
-const subTotalAmount = computed(() => {
-  if (subscriptionCouponQuote.value) return subscriptionCouponQuote.value.pay_amount
-  if (feeRate.value <= 0 || subPaymentAmount.value <= 0) return subPaymentAmount.value
-  return roundPaymentAmount(subPaymentAmount.value + subFeeAmount.value, selectedCurrency.value)
-})
-const subscriptionCouponAwaitingQuote = computed(() => subscriptionCouponID.value !== null && subscriptionCouponQuote.value === null)
-
-// Subscription-specific: method options based on gateway pay amount
-const subMethodOptions = computed<PaymentMethodOption[]>(() => {
-  return enabledMethods.value.map((type) => {
-    const ml = visibleMethods.value[type]
-    return {
-      type,
-      display_name: ml?.display_name,
-      fee_rate: ml?.fee_rate ?? 0,
-      available: ml?.available !== false && amountFitsMethod(subTotalAmount.value, type),
-    }
-  })
-})
-
-const canSubmitSubscription = computed(() =>
-  selectedPlan.value !== null
-    && amountFitsMethod(subTotalAmount.value, selectedMethod.value)
-    && hasSelectedAvailableMethod.value
-    && !subscriptionCouponAwaitingQuote.value
-)
-
-const selectedCheckoutPayableAmount = computed(() => selectedPlan.value
-  ? subTotalAmount.value
-  : totalAmount.value)
-
-// A coupon re-quotes after the amount or payment method changes. Keep both
-// recharge and subscription flows on a method that can accept that new quote.
-watch(() => [selectedCheckoutPayableAmount.value, selectedMethod.value] as const, ([payable, method]) => {
-  if (payable <= 0 || amountFitsMethod(payable, method)) return
-  const available = enabledMethods.value.find((m) => amountFitsMethod(payable, m))
-  if (available) selectedMethod.value = available
-})
-
-// A server quote is tied to the current checkout context. The selector will
-// request a replacement for any retained coupon; until then no quote is valid.
-watch(selectedMethod, (method, previousMethod) => {
-  if (method !== previousMethod) invalidateCouponQuotes()
-})
-
+watch([selectedMethod, selectedSubtype], () => invalidateCouponQuotes())
 watch(activeTab, (tab, previousTab) => {
   if (tab !== previousTab) invalidateCouponQuotes()
 })
-
 watch(
   () => [authStore.isAuthenticated, authStore.user?.id, authStore.token] as const,
   () => {
@@ -1408,6 +1478,7 @@ async function createOrder(orderAmount: number, orderType: OrderType, planId?: n
     const payload = buildCreateOrderPayload({
       amount: orderAmount,
       paymentType: requestType,
+      paymentSubtype: requestType === 'stripe' ? selectedSubtype.value : undefined,
       orderType,
       planId,
       origin: typeof window !== 'undefined' ? window.location.origin : '',

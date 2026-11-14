@@ -1,6 +1,7 @@
 import tokenGuardV2 from './tokenGuardV2'
 import landing from './landing'
 import common from './common'
+import apiKeyModelPolicy from './apiKeyModelPolicy'
 import dashboard from './dashboard'
 import pelicanShowcase from './pelicanShowcase'
 import pelicanTests from './pelicanTests'
@@ -11,6 +12,7 @@ import admin from './admin'
 import misc from './misc'
 
 export default {
+  apiKeyModelPolicy,
   tokenGuardV2,
   ...landing,
   ...common,

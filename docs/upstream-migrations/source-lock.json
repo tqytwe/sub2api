@@ -11,5 +11,21 @@
   "production_branch": "play/main",
   "analysis_base": "526f09d36fa4d0a69af823fec2fc5a9ed495193f",
   "fully_migrated": false,
-  "status_snapshot": "docs/PROJECT_REBASELINE_2026-10-28.md"
+  "status_snapshot": "docs/PROJECT_REBASELINE_2026-10-28.md",
+  "pending_sync": {
+    "release_tag": "v2.21.2",
+    "tag_object": "45b9d194e9e26062717aa7d9590383801f1a9e7e",
+    "release_commit": "dbed7697aa56e76c6eb48c4914fa441496b67bdd",
+    "latest_upstream_ref": "production",
+    "latest_upstream_commit": "0bde0ea69024018c0060db34f807aa5291ee5d64",
+    "latest_upstream_checked_at": "2026-11-14",
+    "post_tag_merge_count": 10,
+    "version_file": "2.21.1",
+    "resolved_version": "2.21.2",
+    "analysis_base": "79a778b6de38660468fb3daa8f7ba313bf5000f1",
+    "branch": "sync/ranxi-v2.21.2-20261114",
+    "minimum_new_migration": 354,
+    "state": "in_progress",
+    "fully_migrated": false
+  }
 }
