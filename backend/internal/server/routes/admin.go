@@ -91,6 +91,7 @@ func RegisterAdminRoutes(
 
 		// 系统设置
 		registerSettingsRoutes(admin, h)
+		registerKeyRiskRoutes(admin, h)
 
 		// 数据管理
 		registerDataManagementRoutes(admin, h, stepUpAuth)
@@ -157,6 +158,16 @@ func RegisterAdminRoutes(
 		// 操作审计日志
 		registerAuditLogRoutes(admin, h, stepUpAuth)
 	}
+}
+
+func registerKeyRiskRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	if h == nil || h.Admin == nil || h.Admin.Setting == nil {
+		return
+	}
+	settings := admin.Group("/settings")
+	settings.GET("/key-risk", h.Admin.Setting.GetKeyRisk)
+	settings.PUT("/key-risk", h.Admin.Setting.SaveKeyRisk)
+	settings.POST("/key-risk/:id", h.Admin.Setting.ActOnKeyRisk)
 }
 
 func registerMobileAttributionRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
@@ -594,6 +605,8 @@ func registerAccountRoutes(admin *gin.RouterGroup, h *handler.Handlers, stepUpAu
 		accounts.POST("/:id/opencode-go-usage/refresh", h.Admin.Account.RefreshOpenCodeGoUsage)
 		accounts.DELETE("/:id", h.Admin.Account.Delete)
 		accounts.POST("/:id/test", h.Admin.Account.Test)
+		accounts.GET("/pelican-question", h.Admin.Account.PreparePelicanQuestion)
+		accounts.POST("/:id/pelican-test", h.Admin.Account.PelicanTest)
 		accounts.POST("/:id/recover-state", h.Admin.Account.RecoverState)
 		accounts.POST("/:id/refresh", h.Admin.Account.Refresh)
 		accounts.POST("/:id/apply-oauth-credentials", h.Admin.Account.ApplyOAuthCredentials)

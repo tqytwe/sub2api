@@ -97,6 +97,35 @@ afterEach(() => {
 })
 
 describe('PelicanTestsView', () => {
+  it('creates a random SVG rule without requiring a custom prompt', async () => {
+    api.createPlan.mockResolvedValue(plan())
+    wrapper = mountView()
+    await flushPromises()
+    await wrapper.get('[data-testid="pelican-tests-create"]').trigger('click')
+    await flushPromises()
+    const editor = wrapper.get('[data-testid="pelican-test-editor"]')
+    await editor.findAll('select')[0].setValue('4')
+    await editor.get('[data-testid="pelican-test-model"]').setValue('gpt-6-astra')
+    const mode = editor.get('[data-testid="pelican-prompt-mode"] select')
+    await mode.setValue('random')
+    expect(editor.find('[data-testid="pelican-test-prompt"]').exists()).toBe(false)
+    await editor.trigger('submit')
+    await flushPromises()
+    expect(api.createPlan).toHaveBeenCalledWith(expect.objectContaining({ prompt_mode: 'random', model_id: 'gpt-6-astra' }))
+  })
+
+  it('keeps random SVG mode when pausing and editing an existing rule', async () => {
+    api.listPlans.mockResolvedValue([plan({ pelican_config: { question_kind: 'pelican', prompt: '', reasoning_effort: 'high', parallel_count: 2, prompt_mode: 'random' } as any })])
+    api.updatePlan.mockResolvedValue(plan())
+    wrapper = mountView()
+    await flushPromises()
+    await wrapper.get('[data-testid="pelican-plan-toggle-7"]').trigger('click')
+    await flushPromises()
+    expect(api.updatePlan).toHaveBeenCalledWith(7, expect.objectContaining({ prompt_mode: 'random', enabled: false }))
+    await wrapper.get('[data-testid="pelican-plan-edit-7"]').trigger('click')
+    expect(wrapper.find('[data-testid="pelican-test-prompt"]').exists()).toBe(false)
+  })
+
   it('shows USD totals beside group names and preserves unknown, zero and partial costs', async () => {
     api.listPlans.mockResolvedValue([plan(), plan({ id: 8, today_cost_usd: 0, total_cost_usd: 0.4, total_cost_incomplete: true })])
     api.listResults.mockResolvedValue({ items: [result(), result({ id: 89, cost_usd: null }), result({ id: 88, cost_usd: 0 }), result({ id: 87, cost_usd: 0.0000001 }), result({ id: 86, cost_usd: 0.2, cost_incomplete: true })], total: 5 })
@@ -192,7 +221,7 @@ describe('PelicanTestsView', () => {
     expect(selects[0].findAll('option').map((option) => option.text())).toEqual(['GPT PRO号池 · OpenAI', 'Claude Max · Claude'])
     await selects[0].setValue('6')
     await editor.get('[data-testid="pelican-test-model"]').setValue('claude-opus-5-5')
-    await selects[2].setValue('0 * * * *')
+    await selects[3].setValue('0 * * * *')
     expect(editor.find('[data-testid="pelican-test-cron"]').exists()).toBe(false)
     await editor.trigger('submit')
     await flushPromises()
@@ -253,7 +282,7 @@ describe('PelicanTestsView', () => {
     await flushPromises()
     expect(api.updatePlan).toHaveBeenCalledWith(7, {
       group_id: 4, model_id: 'gpt-6-astra', cron_expression: '*/30 * * * *', enabled: false,
-      prompt: 'draw a pelican', reasoning_effort: 'high', parallel_count: 2,
+      prompt: 'draw a pelican', prompt_mode: 'custom', reasoning_effort: 'high', parallel_count: 2,
     })
 
     api.updatePlan.mockClear()

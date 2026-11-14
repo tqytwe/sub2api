@@ -19,7 +19,10 @@ on:
       - backend/internal/repository/setting_repo.go
       - backend/internal/repository/model_billing_settings_integration_test.go
       - backend/internal/repository/content_moderation_user*.go
-      - backend/internal/repository/pelican_group_tests_repo_integration_test.go
+      - backend/internal/repository/pelican_group_tests_repo*.go
+      - backend/internal/repository/pelican_account_scheduled*.go
+      - backend/internal/repository/pelican_showcase_repo*.go
+      - backend/internal/repository/account_repo_upstream_model_sync*.go
       - backend/internal/repository/quality_history_integration_test.go
       - backend/internal/repository/quality_runtime.go
       - backend/internal/repository/quality_round*.go
@@ -108,7 +111,7 @@ jobs:
           # One repository TestMain provisions both isolated service containers.
           # Run the bounded suites in full so their subtests remain visible.
           core_tests='^(TestCoreMigration.*|TestModerationUsersPostgreSQLFiltersAndPagination|TestQualityHistoryPostgreSQL.*|TestCommitQualityRoundPostgreSQLAtomicityAndFencing|TestPriorityQuality.*|TestReloginBudgetMigrationSeedsOnlyOldTerminalTasks|TestBillingLogReconciliation.*|TestAccountGroupAllowedModelsConcurrent.*|TestGroupCopyAccounts.*|TestAccountAdminUpdate.*|'
-          core_tests+='TestMigration253ConvertsShowcaseGroupsToPausedPlans|TestPelicanGroupTestRepo_.*|'
+          core_tests+='TestMigration253ConvertsShowcaseGroupsToPausedPlans|TestPelicanGroupTestRepo_.*|TestPelicanAccountRoundLeaseAndAtomicSnapshots|TestPelicanShowcaseRepo_PublishListGetPrune|TestAutomaticModelSyncClaim.*|TestApplyUpstreamModelsPreservesCredentials.*|TestOAuthDegradationNativeModelSyncFences.*|TestApplyUpstreamModelsAtomicOutbox.*|TestAPIKeyUpdatePreservesConcurrentOppositeACL|'
           core_tests+='TestModelBillingPostgres.*|TestSettingRepoSuite|'
           core_tests+='TestAccountRepoSuite|TestAPIKeyRepoSuite|TestAPIKeyGroupsConcurrentReplacementIsAtomic|TestGroupRepoSuite|TestBillingCacheSuite|'
           core_tests+='TestMigrationsRunner_ConcurrentInstancesSerializeOnSessionLock|'
@@ -139,6 +142,12 @@ jobs:
                   "TestMigration253ConvertsShowcaseGroupsToPausedPlans",
                   "TestPelicanGroupTestRepo_PlansDueAndLease",
                   "TestPelicanGroupTestRepo_ResultsHistory",
+                  "TestPelicanGroupTestRepo_StaleNominalRoundCannotClaimLaterRound",
+                  "TestPelicanAccountRoundLeaseAndAtomicSnapshots",
+                  "TestPelicanShowcaseRepo_PublishListGetPrune",
+                  "TestAutomaticModelSyncClaimIsSharedAndSurvivesStaleAccountEdit",
+                  "TestApplyUpstreamModelsAtomicOutboxFailureAndCancellation",
+                  "TestAPIKeyUpdatePreservesConcurrentOppositeACL",
                   "TestPelicanGroupTestRepo_CostsSurviveRetentionAndPlanDeletion",
                   "TestModelBillingPostgresRevisionRoundTrip",
                   "TestModelBillingPostgresConcurrentWriters",

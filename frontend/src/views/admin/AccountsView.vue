@@ -20,10 +20,8 @@
               <!-- Auto Refresh Dropdown -->
               <div class="relative" ref="autoRefreshDropdownRef">
                 <button
-                  @click="
-                    showAutoRefreshDropdown = !showAutoRefreshDropdown;
-                    showAccountToolsDropdown = false
-                  "
+                  ref="autoRefreshTriggerRef"
+                  @click="toggleAutoRefreshDropdown"
                   class="btn btn-secondary px-2 md:px-3"
                   :title="t('admin.accounts.autoRefresh')"
                 >
@@ -36,9 +34,10 @@
                     }}
                   </span>
                 </button>
-                <div
+                <!-- design-governance-allow: page-shell-ownership - viewport-bounded existing refresh popover; scrolling belongs to the floating menu, not the page frame. -->
+                <div class="fixed z-50 overflow-y-auto origin-top-right rounded-lg border border-gray-200 bg-white shadow-lg dark:border-dark-700 dark:bg-dark-800"
                   v-if="showAutoRefreshDropdown"
-                  class="absolute right-0 z-50 mt-2 w-56 origin-top-right rounded-lg border border-gray-200 bg-white shadow-lg dark:border-dark-700 dark:bg-dark-800"
+                  :style="autoRefreshDropdownStyle"
                 >
                   <div class="p-2">
                     <button
@@ -58,6 +57,32 @@
                       <span>{{ autoRefreshIntervalLabel(sec) }}</span>
                       <Icon v-if="autoRefreshIntervalSeconds === sec" name="check" size="sm" class="text-primary-500" />
                     </button>
+                    <template v-if="authStore.isAdmin">
+                      <div class="my-1 border-t border-gray-100 dark:border-dark-700"></div>
+                      <div class="flex items-center gap-1 px-3 py-2 text-sm text-gray-700 dark:text-gray-200">
+                        <span>{{ t('admin.accounts.autoRefreshUpstreamModels') }}</span>
+                      </div>
+                      <label
+                        v-for="accountType in upstreamModelSyncAccountTypes"
+                        :key="accountType"
+                        class="flex cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-dark-700"
+                      >
+                        <input
+                          type="checkbox"
+                          :data-testid="`auto-refresh-upstream-models-${accountType}`"
+                          :checked="autoRefreshUpstreamModels[accountType]"
+                          @change="setAutoRefreshUpstreamModels(accountType, ($event.target as HTMLInputElement).checked)"
+                          class="h-4 w-4 shrink-0 rounded border-gray-300 text-primary-600 focus:ring-primary-500 dark:border-dark-600 dark:bg-dark-700"
+                        />
+                        <span>{{ t(`admin.accounts.autoRefreshUpstreamModelsAccountTypes.${accountType}`) }}</span>
+                      </label>
+                      <p class="px-3 pb-2 text-xs text-gray-500 dark:text-gray-400">
+                        {{ t('admin.accounts.autoRefreshUpstreamModelsHint') }}
+                      </p>
+                      <p v-if="upstreamModelSyncSummary" class="px-3 pb-2 text-xs text-gray-500 dark:text-gray-400" role="status">
+                        {{ t('admin.accounts.autoRefreshUpstreamModelsResult', { changed: upstreamModelSyncSummary.changed, failed: upstreamModelSyncSummary.failed, skipped: upstreamModelSyncSummary.skipped }) }}
+                      </p>
+                    </template>
                   </div>
                 </div>
               </div>
@@ -511,6 +536,7 @@
 </template>
 
 <script setup lang="ts">
+import { createAccountUpstreamModelAutoSync, type UpstreamModelSyncSummary } from '@/utils/accountUpstreamModelAutoSync'
 import { ref, reactive, computed, defineAsyncComponent, onMounted, onUnmounted, toRaw, watch } from 'vue'
 import { useIntervalFn } from '@vueuse/core'
 import { useI18n } from 'vue-i18n'
@@ -744,9 +770,30 @@ const sortState = reactive<AccountSortState>(loadInitialAccountSortState())
 // Auto refresh settings
 const showAutoRefreshDropdown = ref(false)
 const autoRefreshDropdownRef = ref<HTMLElement | null>(null)
+const autoRefreshTriggerRef = ref<HTMLElement | null>(null)
+const autoRefreshDropdownPosition = reactive({
+  top: null as number | null,
+  bottom: null as number | null,
+  left: 16,
+  width: 320,
+  maxHeight: 0
+})
+const autoRefreshDropdownStyle = computed(() => ({
+  top: autoRefreshDropdownPosition.top == null ? 'auto' : `${autoRefreshDropdownPosition.top}px`,
+  bottom: autoRefreshDropdownPosition.bottom == null ? 'auto' : `${autoRefreshDropdownPosition.bottom}px`,
+  left: `${autoRefreshDropdownPosition.left}px`,
+  width: `${autoRefreshDropdownPosition.width}px`,
+  maxHeight: `${autoRefreshDropdownPosition.maxHeight}px`
+}))
 const AUTO_REFRESH_STORAGE_KEY = 'account-auto-refresh'
 const autoRefreshIntervals = [5, 10, 15, 30] as const
 const autoRefreshEnabled = ref(false)
+const upstreamModelSyncAccountTypes = ['oauth', 'apikey'] as const
+const autoRefreshUpstreamModels = reactive({ oauth: false, apikey: false })
+const upstreamModelSyncSummary = ref<UpstreamModelSyncSummary | null>(null)
+const upstreamModelAutoSync = createAccountUpstreamModelAutoSync({
+  sync: (id, signal) => adminAPI.accounts.syncUpstreamModels(id, { apply: true, automatic: true }, { signal })
+})
 const autoRefreshIntervalSeconds = ref<(typeof autoRefreshIntervals)[number]>(30)
 const autoRefreshCountdown = ref(0)
 const autoRefreshETag = ref<string | null>(null)
@@ -1043,8 +1090,10 @@ const loadSavedAutoRefresh = () => {
   try {
     const saved = localStorage.getItem(AUTO_REFRESH_STORAGE_KEY)
     if (!saved) return
-    const parsed = JSON.parse(saved) as { enabled?: boolean; interval_seconds?: number }
+    const parsed = JSON.parse(saved) as { enabled?: boolean; interval_seconds?: number; upstream_models?: { oauth?: boolean; apikey?: boolean } }
     autoRefreshEnabled.value = parsed.enabled === true
+    autoRefreshUpstreamModels.oauth = parsed.upstream_models?.oauth === true
+    autoRefreshUpstreamModels.apikey = parsed.upstream_models?.apikey === true
     const interval = Number(parsed.interval_seconds)
     if (autoRefreshIntervals.includes(interval as any)) {
       autoRefreshIntervalSeconds.value = interval as any
@@ -1060,7 +1109,8 @@ const saveAutoRefreshToStorage = () => {
       AUTO_REFRESH_STORAGE_KEY,
       JSON.stringify({
         enabled: autoRefreshEnabled.value,
-        interval_seconds: autoRefreshIntervalSeconds.value
+        interval_seconds: autoRefreshIntervalSeconds.value,
+        upstream_models: { ...autoRefreshUpstreamModels }
       })
     )
   } catch (e) {
@@ -1080,6 +1130,7 @@ const setAutoRefreshEnabled = (enabled: boolean) => {
     autoRefreshCountdown.value = autoRefreshIntervalSeconds.value
     resumeAutoRefresh()
   } else {
+    upstreamModelAutoSync.cancel()
     pauseAutoRefresh()
     autoRefreshCountdown.value = 0
   }
@@ -1091,6 +1142,13 @@ const setAutoRefreshInterval = (seconds: (typeof autoRefreshIntervals)[number]) 
   if (autoRefreshEnabled.value) {
     autoRefreshCountdown.value = seconds
   }
+}
+
+const setAutoRefreshUpstreamModels = (accountType: (typeof upstreamModelSyncAccountTypes)[number], enabled: boolean) => {
+  autoRefreshUpstreamModels[accountType] = enabled
+  saveAutoRefreshToStorage()
+  upstreamModelAutoSync.cancel()
+  upstreamModelSyncSummary.value = null
 }
 
 const toggleColumn = (key: string) => {
@@ -1202,6 +1260,7 @@ useSwipeSelect(accountTableRef, {
 }, swipeVirtualContext)
 
 const resetAutoRefreshCache = () => {
+  upstreamModelAutoSync.cancel()
   autoRefreshListGeneration += 1
   autoRefreshETag.value = null
   upstreamBillingRateETag.value = null
@@ -1577,6 +1636,23 @@ const toggleAccountToolsDropdown = () => {
   showAccountToolsDropdown.value = nextVisible
 }
 
+const updateAutoRefreshDropdownPosition = () => {
+  const trigger = autoRefreshTriggerRef.value
+  if (!trigger) return
+  Object.assign(autoRefreshDropdownPosition, getFloatingPanelPosition(
+    trigger.getBoundingClientRect(),
+    document.documentElement.clientWidth || window.innerWidth,
+    window.innerHeight
+  ))
+}
+
+const toggleAutoRefreshDropdown = () => {
+  const nextVisible = !showAutoRefreshDropdown.value
+  showAccountToolsDropdown.value = false
+  if (nextVisible) updateAutoRefreshDropdownPosition()
+  showAutoRefreshDropdown.value = nextVisible
+}
+
 const openSyncFromCrs = () => {
   closeAccountToolsDropdown()
   showSync.value = true
@@ -1609,6 +1685,28 @@ const syncPendingListChanges = async () => {
   usageManualRefreshToken.value += 1
 }
 
+const refreshCurrentPageUpstreamModels = async () => {
+  const contextVersion = autoRefreshListGeneration
+  const canContinue = () => authStore.isAdmin && autoRefreshEnabled.value &&
+    (autoRefreshUpstreamModels.oauth || autoRefreshUpstreamModels.apikey) &&
+    !accountViewDisposed && contextVersion === autoRefreshListGeneration && !document.hidden &&
+    !loading.value && !isAnyModalOpen.value && !menu.show && !showAccountToolsDropdown.value &&
+    !showAutoRefreshDropdown.value && !inAutoRefreshSilentWindow()
+  const candidates = accounts.value.filter(account =>
+    autoRefreshUpstreamModels[account.type === 'apikey' ? 'apikey' : 'oauth'])
+  const summary = await upstreamModelAutoSync.run(candidates, canContinue)
+  if (!summary || !canContinue()) return
+  upstreamModelSyncSummary.value = summary
+  if (summary.changed) {
+    autoRefreshETag.value = null
+    await refreshAccountsIncrementally()
+  }
+}
+
+const handleModelSyncVisibilityChange = () => {
+  if (document.hidden) upstreamModelAutoSync.cancel()
+}
+
 const { pause: pauseAutoRefresh, resume: resumeAutoRefresh } = useIntervalFn(
   async () => {
     if (!autoRefreshEnabled.value) return
@@ -1623,6 +1721,8 @@ const { pause: pauseAutoRefresh, resume: resumeAutoRefresh } = useIntervalFn(
       )
       return
     }
+
+    void refreshCurrentPageUpstreamModels()
 
     if (autoRefreshCountdown.value <= 0) {
       autoRefreshCountdown.value = autoRefreshIntervalSeconds.value
@@ -2592,10 +2692,12 @@ const handleScroll = (event: Event) => {
   if (target instanceof Element && target.closest('.action-menu-content')) return
   menu.show = false
   if (showAccountToolsDropdown.value) updateAccountToolsDropdownPosition()
+  if (showAutoRefreshDropdown.value) updateAutoRefreshDropdownPosition()
 }
 
 const handleViewportResize = () => {
   if (showAccountToolsDropdown.value) updateAccountToolsDropdownPosition()
+  if (showAutoRefreshDropdown.value) updateAutoRefreshDropdownPosition()
 }
 
 // 点击外部关闭顶部下拉菜单
@@ -2642,6 +2744,7 @@ onMounted(async () => {
   window.addEventListener('scroll', handleScroll, true)
   window.addEventListener('resize', handleViewportResize)
   document.addEventListener('click', handleClickOutside)
+  document.addEventListener('visibilitychange', handleModelSyncVisibilityChange)
 
   if (autoRefreshEnabled.value) {
     autoRefreshCountdown.value = autoRefreshIntervalSeconds.value
@@ -2653,6 +2756,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   accountViewDisposed = true
+  upstreamModelAutoSync.cancel()
   clearTimeout(timerListRefresh)
   closeEdit()
   upstreamBillingRateAbortController?.abort()
@@ -2664,6 +2768,7 @@ onUnmounted(() => {
   window.removeEventListener('scroll', handleScroll, true)
   window.removeEventListener('resize', handleViewportResize)
   document.removeEventListener('click', handleClickOutside)
+  document.removeEventListener('visibilitychange', handleModelSyncVisibilityChange)
   if (desktopViewportMediaQuery && desktopViewportListener) {
     if (typeof desktopViewportMediaQuery.removeEventListener === 'function') {
       desktopViewportMediaQuery.removeEventListener('change', desktopViewportListener)

@@ -426,6 +426,7 @@ export default {
     cacheTtlOverriddenLabel: 'TTL Override',
     cacheTtlOverridden5m: 'Billed as 5m',
     cacheTtlOverridden1h: 'Billed as 1h',
+    rateCardHint: 'Per-minute averages over the selected range: RPM = total requests ÷ minutes, TPM = total tokens ÷ minutes; a range that includes now counts only up to now',
     totalRequests: 'Total Requests',
     totalTokens: 'Total Tokens',
     cacheTotal: 'Cache',

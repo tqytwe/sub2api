@@ -20,7 +20,8 @@ type PelicanShowcaseItem struct {
 	LatencyMs       int64     `json:"latency_ms"`
 	GeneratedAt     time.Time `json:"generated_at"`
 	// ResponseText is the raw model output; only the single-item read fills it.
-	ResponseText string `json:"response_text,omitempty"`
+	ResponseText    string           `json:"response_text,omitempty"`
+	PelicanQuestion *PelicanQuestion `json:"pelican_question,omitempty"`
 }
 
 type PelicanShowcaseGroup struct {
@@ -46,6 +47,7 @@ type PelicanShowcaseSnapshot struct {
 	ModelID         string
 	ReasoningEffort string
 	ResponseText    string
+	PelicanQuestion *PelicanQuestion
 	LatencyMs       int64
 	GeneratedAt     time.Time
 }
@@ -108,6 +110,7 @@ func (s *PelicanShowcaseService) PublishGroupResult(ctx context.Context, groupID
 	}
 	if cfg := result.PelicanConfig; cfg != nil {
 		snapshot.ModelID, snapshot.ReasoningEffort = cfg.ModelID, cfg.ReasoningEffort
+		snapshot.PelicanQuestion = clonePelicanQuestion(cfg.PelicanQuestion)
 	}
 	if snapshot.GeneratedAt.IsZero() {
 		snapshot.GeneratedAt = result.CreatedAt
@@ -115,6 +118,15 @@ func (s *PelicanShowcaseService) PublishGroupResult(ctx context.Context, groupID
 	if err := s.repo.Publish(ctx, snapshot, runtime.Config.MaxItems); err != nil {
 		logger.LegacyPrintf("service.pelican_showcase", "publish result=%d failed: %v", result.ID, err)
 	}
+}
+
+func clonePelicanQuestion(question *PelicanQuestion) *PelicanQuestion {
+	if question == nil {
+		return nil
+	}
+	clone := *question
+	clone.Criteria = append([]string(nil), question.Criteria...)
+	return &clone
 }
 
 // Settings returns the gallery switch and limits for the admin page.

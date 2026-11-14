@@ -96,6 +96,15 @@
               {{ t('admin.scheduledTests.enabled') }}
             </label>
           </div>
+          <div class="sm:col-span-2">
+            <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300"><Toggle v-model="newPlan.svg_test" />{{ t('pelicanTests.accountSchedule.enable') }}</label>
+            <div v-if="newPlan.svg_test" class="mt-3 grid gap-3 sm:grid-cols-2">
+              <Select v-model="newPlan.prompt_mode" :options="pelicanModeOptions" :aria-label="t('pelicanTests.questionBank.mode')" />
+              <Select v-model="newPlan.reasoning_effort" :options="pelicanEffortOptions" :aria-label="t('pelicanTests.editor.effort')" />
+              <TextArea v-if="newPlan.prompt_mode !== 'random'" v-model="newPlan.prompt" class="sm:col-span-2" :label="t('pelicanTests.editor.prompt')" rows="3" />
+              <Input v-model="newPlan.parallel_count" type="number" min="1" max="32" :label="t('pelicanTests.accountSchedule.samples')" />
+            </div>
+          </div>
           <div class="flex items-end">
             <div>
               <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
@@ -354,6 +363,15 @@
                   {{ t('admin.scheduledTests.enabled') }}
                 </label>
               </div>
+              <div v-if="!isQualityRule(plan)" class="sm:col-span-2">
+                <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300"><Toggle v-model="editForm.svg_test" />{{ t('pelicanTests.accountSchedule.enable') }}</label>
+                <div v-if="editForm.svg_test" class="mt-3 grid gap-3 sm:grid-cols-2">
+                  <Select v-model="editForm.prompt_mode" :options="pelicanModeOptions" :aria-label="t('pelicanTests.questionBank.mode')" />
+                  <Select v-model="editForm.reasoning_effort" :options="pelicanEffortOptions" :aria-label="t('pelicanTests.editor.effort')" />
+                  <TextArea v-if="editForm.prompt_mode !== 'random'" v-model="editForm.prompt" class="sm:col-span-2" :label="t('pelicanTests.editor.prompt')" rows="3" />
+                  <Input v-model="editForm.parallel_count" type="number" min="1" max="32" :label="t('pelicanTests.accountSchedule.samples')" />
+                </div>
+              </div>
               <div class="flex items-end">
                 <div>
                   <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
@@ -469,7 +487,8 @@
                     class="mt-1 max-h-32 overflow-auto whitespace-pre-wrap rounded bg-red-50 p-2 text-xs text-red-700 dark:bg-red-900/20 dark:text-red-300"
                   >{{ result.error_message }}</pre>
                 </div>
-                <div v-else-if="result.response_text" class="mt-2">
+                <PelicanQuestionSnapshot v-if="result.pelican_config?.pelican_question || result.pelican_config?.prompt_mode" class="mt-2" :question="result.pelican_config?.pelican_question" :actual-prompt="result.pelican_config?.actual_prompt" />
+                <div v-if="result.response_text" class="mt-2">
                   <div
                     class="cursor-pointer text-xs font-medium text-gray-600 dark:text-gray-400"
                     @click="toggleResultDetail(result.id)"
@@ -528,15 +547,19 @@ import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import HelpTooltip from '@/components/common/HelpTooltip.vue'
 import Select, { type SelectOption } from '@/components/common/Select.vue'
 import Input from '@/components/common/Input.vue'
+import TextArea from '@/components/common/TextArea.vue'
 import Toggle from '@/components/common/Toggle.vue'
 import { Icon } from '@/components/icons'
 import { adminAPI } from '@/api/admin'
 import { useAppStore } from '@/stores/app'
 import { formatDateTime } from '@/utils/format'
-import type { QualityOwnershipPreview, ScheduledTestPlan, ScheduledTestResult } from '@/types'
+import type { QualityOwnershipPreview, ScheduledTestPlan, ScheduledTestResult, UpdateScheduledTestPlanRequest } from '@/types'
+import PelicanQuestionSnapshot from './PelicanQuestionSnapshot.vue'
 
 const { t } = useI18n()
 const appStore = useAppStore()
+const pelicanModeOptions = ['random', 'custom'].map((value) => ({ value, label: t(`pelicanTests.questionBank.${value}`) }))
+const pelicanEffortOptions = ['low', 'medium', 'high', 'xhigh'].map((value) => ({ value, label: value }))
 
 const props = defineProps<{
   show: boolean
@@ -574,7 +597,12 @@ const editForm = reactive({
   cron_expression: '' as string,
   max_results: '100' as string,
   enabled: true,
-  auto_recover: false
+  auto_recover: false,
+  svg_test: false,
+  prompt_mode: 'random',
+  prompt: '',
+  reasoning_effort: 'medium',
+  parallel_count: '1'
 })
 
 const newPlan = reactive({
@@ -582,7 +610,12 @@ const newPlan = reactive({
   cron_expression: '' as string,
   max_results: '100' as string,
   enabled: true,
-  auto_recover: false
+  auto_recover: false,
+  svg_test: false,
+  prompt_mode: 'random',
+  prompt: '',
+  reasoning_effort: 'medium',
+  parallel_count: '1'
 })
 
 const resetNewPlan = () => {
@@ -591,6 +624,11 @@ const resetNewPlan = () => {
   newPlan.max_results = '100'
   newPlan.enabled = true
   newPlan.auto_recover = false
+  newPlan.svg_test = false
+  newPlan.prompt_mode = 'random'
+  newPlan.prompt = ''
+  newPlan.reasoning_effort = 'medium'
+  newPlan.parallel_count = '1'
 }
 
 // Load plans when dialog opens
@@ -638,7 +676,11 @@ const handleCreate = async () => {
       cron_expression: newPlan.cron_expression,
       enabled: newPlan.enabled,
       max_results: maxResults,
-      auto_recover: newPlan.auto_recover
+      auto_recover: newPlan.auto_recover,
+      pelican_config: newPlan.svg_test ? {
+        question_kind: 'pelican', prompt_mode: newPlan.prompt_mode, prompt: newPlan.prompt,
+        reasoning_effort: newPlan.reasoning_effort, parallel_count: Number(newPlan.parallel_count) || 1
+      } : undefined
     })
     appStore.showSuccess(t('admin.scheduledTests.createSuccess'))
     showAddForm.value = false
@@ -655,7 +697,7 @@ const handleToggleEnabled = async (plan: ScheduledTestPlan, enabled: boolean) =>
   try {
     const updated = await adminAPI.scheduledTests.update(plan.id, {
       enabled,
-      ...(isQualityRule(plan) ? { expected_updated_at: plan.updated_at } : {})
+      ...(plan.pelican_config ? { expected_updated_at: plan.updated_at } : {})
     })
     const index = plans.value.findIndex((p) => p.id === plan.id)
     if (index !== -1) {
@@ -674,6 +716,11 @@ const startEdit = (plan: ScheduledTestPlan) => {
   editForm.max_results = String(plan.max_results)
   editForm.enabled = plan.enabled
   editForm.auto_recover = plan.auto_recover
+  editForm.svg_test = plan.pelican_config?.question_kind === 'pelican'
+  editForm.prompt_mode = plan.pelican_config?.prompt_mode || 'custom'
+  editForm.prompt = plan.pelican_config?.prompt || ''
+  editForm.reasoning_effort = plan.pelican_config?.reasoning_effort || 'medium'
+  editForm.parallel_count = String(plan.pelican_config?.parallel_count || 1)
 }
 
 const cancelEdit = () => {
@@ -685,16 +732,24 @@ const handleEdit = async () => {
   updating.value = true
   try {
     const editingPlan = plans.value.find((plan) => plan.id === editingPlanId.value)
-    const updated = await adminAPI.scheduledTests.update(editingPlanId.value, {
+    const update: UpdateScheduledTestPlanRequest = {
       model_id: editForm.model_id,
       cron_expression: editForm.cron_expression,
       max_results: Number(editForm.max_results) || 100,
       enabled: editForm.enabled,
       auto_recover: editForm.auto_recover,
-      ...(editingPlan && isQualityRule(editingPlan)
+      ...(editingPlan && (editingPlan.pelican_config || editForm.svg_test)
         ? { expected_updated_at: editingPlan.updated_at }
         : {})
-    })
+    }
+    const wantsPelican = editForm.svg_test
+    const hadPelican = editingPlan?.pelican_config?.question_kind === 'pelican'
+    if (wantsPelican) update.pelican_config = {
+      ...(editingPlan?.pelican_config || {}), question_kind: 'pelican', prompt_mode: editForm.prompt_mode,
+      prompt: editForm.prompt, reasoning_effort: editForm.reasoning_effort, parallel_count: Number(editForm.parallel_count) || 1
+    }
+    else if (hadPelican) update.pelican_config = null
+    const updated = await adminAPI.scheduledTests.update(editingPlanId.value, update)
     const index = plans.value.findIndex((p) => p.id === editingPlanId.value)
     if (index !== -1) {
       plans.value[index] = updated

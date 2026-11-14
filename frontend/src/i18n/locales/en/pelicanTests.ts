@@ -1,4 +1,7 @@
 export default {
+  accountSchedule: { enable: 'Generate an SVG animation on this schedule', samples: 'Samples per round' },
+  questionBank: { mode: 'SVG prompt mode', random: 'Random bank (shared round)', custom: 'Custom prompt', hint: 'All samples in a round share one question. Review manually using its criteria; there is no automatic visual score.', next: 'Prepare next round', snapshot: 'Question and review criteria', legacy: 'Older records and custom prompts have no fixed question version.', error: 'Could not prepare the question. Please retry.' },
+  manual: { testKind: 'Test type', testKindConnection: 'Connection test', testKindSvg: 'SVG animation generation', prepare: 'Prepare shared question', preview: 'SVG animation preview' },
   cost: {
     today: 'Today {amount}',
     total: 'Total {amount}',

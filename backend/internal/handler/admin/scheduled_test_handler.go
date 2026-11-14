@@ -2,6 +2,7 @@ package admin
 
 import (
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"strconv"
@@ -126,13 +127,13 @@ type createScheduledTestPlanRequest struct {
 }
 
 type updateScheduledTestPlanRequest struct {
-	ModelID           string                     `json:"model_id"`
-	CronExpression    string                     `json:"cron_expression"`
-	Enabled           *bool                      `json:"enabled"`
-	MaxResults        int                        `json:"max_results"`
-	AutoRecover       *bool                      `json:"auto_recover"`
-	ExpectedUpdatedAt *time.Time                 `json:"expected_updated_at"`
-	PelicanConfig     *service.PelicanTestConfig `json:"pelican_config"`
+	ModelID           string          `json:"model_id"`
+	CronExpression    string          `json:"cron_expression"`
+	Enabled           *bool           `json:"enabled"`
+	MaxResults        int             `json:"max_results"`
+	AutoRecover       *bool           `json:"auto_recover"`
+	ExpectedUpdatedAt *time.Time      `json:"expected_updated_at"`
+	PelicanConfig     json.RawMessage `json:"pelican_config"`
 }
 
 // ListByAccount GET /admin/accounts/:id/scheduled-test-plans
@@ -258,12 +259,21 @@ func (h *ScheduledTestHandler) Update(c *gin.Context) {
 	if req.AutoRecover != nil {
 		existing.AutoRecover = *req.AutoRecover
 	}
-	if req.PelicanConfig != nil {
-		existing.PelicanConfig = req.PelicanConfig
+	hadConfig := existing.PelicanConfig != nil
+	if len(req.PelicanConfig) > 0 {
+		var config *service.PelicanTestConfig
+		if err := json.Unmarshal(req.PelicanConfig, &config); err != nil {
+			response.BadRequest(c, "invalid pelican_config")
+			return
+		}
+		if config != nil && config.PromptMode == "" && existing.PelicanConfig != nil {
+			config.PromptMode = existing.PelicanConfig.PromptMode
+		}
+		existing.PelicanConfig = config
 	}
 
 	var updated *service.ScheduledTestPlan
-	if existing.PelicanConfig != nil {
+	if hadConfig || existing.PelicanConfig != nil {
 		if req.ExpectedUpdatedAt == nil {
 			response.ErrorFrom(c, infraerrors.BadRequest("QUALITY_VERSION_REQUIRED", "expected_updated_at is required when editing a quality rule"))
 			return
@@ -290,7 +300,7 @@ func (h *ScheduledTestHandler) Delete(c *gin.Context) {
 		response.BadRequest(c, "invalid plan id")
 		return
 	}
-	if plan, getErr := h.scheduledTestSvc.GetPlan(c.Request.Context(), planID); getErr == nil && plan.PelicanConfig != nil {
+	if plan, getErr := h.scheduledTestSvc.GetPlan(c.Request.Context(), planID); getErr == nil && plan.PelicanConfig != nil && plan.PelicanConfig.Quality != nil {
 		response.ErrorFrom(c, infraerrors.Conflict("QUALITY_OWNERSHIP_REQUIRED", "quality rules must be previewed and deleted through the ownership endpoint"))
 		return
 	}

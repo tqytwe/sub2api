@@ -28,16 +28,19 @@ type ScheduledTestPlan struct {
 // PelicanTestConfig is an optional quality probe configuration. A nil value
 // preserves the legacy account connectivity test contract.
 type PelicanTestConfig struct {
-	TriggerSource   string         `json:"trigger_source,omitempty"`
-	RuleName        string         `json:"rule_name,omitempty"`
-	Quality         *QualityPolicy `json:"quality,omitempty"`
-	QuestionKind    string         `json:"question_kind,omitempty"`
-	TestChannel     string         `json:"test_channel,omitempty"`
-	Prompt          string         `json:"prompt,omitempty"`
-	ReasoningEffort string         `json:"reasoning_effort,omitempty"`
-	ParallelCount   int            `json:"parallel_count,omitempty"`
-	ModelID         string         `json:"model_id,omitempty"`
-	ModelIDs        []string       `json:"model_ids,omitempty"`
+	TriggerSource   string           `json:"trigger_source,omitempty"`
+	RuleName        string           `json:"rule_name,omitempty"`
+	Quality         *QualityPolicy   `json:"quality,omitempty"`
+	QuestionKind    string           `json:"question_kind,omitempty"`
+	TestChannel     string           `json:"test_channel,omitempty"`
+	Prompt          string           `json:"prompt,omitempty"`
+	PromptMode      string           `json:"prompt_mode,omitempty"`
+	PelicanQuestion *PelicanQuestion `json:"pelican_question,omitempty"`
+	ActualPrompt    string           `json:"actual_prompt,omitempty"`
+	ReasoningEffort string           `json:"reasoning_effort,omitempty"`
+	ParallelCount   int              `json:"parallel_count,omitempty"`
+	ModelID         string           `json:"model_id,omitempty"`
+	ModelIDs        []string         `json:"model_ids,omitempty"`
 }
 
 type QualityPolicy struct {
@@ -109,6 +112,12 @@ type ScheduledTestPlanRepository interface {
 
 type VersionedScheduledTestPlanRepository interface {
 	UpdateWithVersion(context.Context, *ScheduledTestPlan, time.Time) (*ScheduledTestPlan, error)
+}
+
+// PelicanRuntimeRepository stores account SVG rounds with a lease and atomic history.
+type PelicanRuntimeRepository interface {
+	ClaimPelicanRun(context.Context, *ScheduledTestPlan, time.Time, time.Time, time.Time) (time.Time, bool, error)
+	CommitPelicanRound(context.Context, *ScheduledTestPlan, []*ScheduledTestResult, time.Time) (bool, error)
 }
 
 // ScheduledTestResultRepository defines the data access interface for test results.

@@ -243,6 +243,9 @@
           <p class="field-hint">{{ t('pelicanTests.editor.modelHint') }}</p>
         </div>
         <div>
+          <PelicanPromptMode v-model="editor.form.prompt_mode" :disabled="savingPlan" />
+        </div>
+        <div v-if="editor.form.prompt_mode !== 'random'">
           <div class="flex items-center justify-between">
             <label class="field-label mt-0" for="pelican-test-prompt">{{ t('pelicanTests.editor.prompt') }}</label>
             <button type="button" class="link-button text-xs" @click="editor.form.prompt = PELICAN_PROMPT">{{ t('pelicanTests.editor.resetPrompt') }}</button>
@@ -295,6 +298,7 @@
       @close="preview = null"
     >
       <div v-if="preview" class="flex min-h-0 flex-1 flex-col gap-3" data-testid="pelican-result-preview">
+        <PelicanQuestionSnapshot v-if="preview.result.pelican_config?.pelican_question || preview.result.pelican_config?.prompt_mode" :question="preview.result.pelican_config?.pelican_question" :actual-prompt="preview.result.pelican_config?.actual_prompt" />
         <div class="min-h-0 flex-1 overflow-hidden rounded-lg border border-gray-200 bg-gray-100 dark:border-dark-700 dark:bg-dark-900">
           <PelicanArtworkPreview v-if="preview.status === 'ready'" :html="preview.html" :title="previewTitle" />
           <div v-else class="flex h-full items-center justify-center p-6 text-sm text-gray-500">
@@ -343,6 +347,8 @@ import Select from '@/components/common/Select.vue'
 import Toggle from '@/components/common/Toggle.vue'
 import Icon from '@/components/icons/Icon.vue'
 import PelicanArtworkPreview from '@/components/user/pelican/PelicanArtworkPreview.vue'
+import PelicanPromptMode from '@/components/admin/account/PelicanPromptMode.vue'
+import PelicanQuestionSnapshot from '@/components/admin/account/PelicanQuestionSnapshot.vue'
 import PelicanShowcaseApiDialog from '@/components/user/pelican/PelicanShowcaseApiDialog.vue'
 import { pelicanDurationLabel } from '@/components/user/pelican/pelicanShowcaseFormat'
 import { adminAPI } from '@/api'
@@ -583,6 +589,7 @@ function inputFrom(plan: PelicanGroupTestPlan): PelicanGroupTestPlanInput {
     cron_expression: plan.cron_expression,
     enabled: plan.enabled,
     prompt: plan.pelican_config?.prompt || PELICAN_PROMPT,
+    prompt_mode: plan.pelican_config?.prompt_mode || 'custom',
     reasoning_effort: plan.pelican_config?.reasoning_effort || 'medium',
     parallel_count: plan.pelican_config?.parallel_count || 1,
   }
@@ -591,7 +598,7 @@ function inputFrom(plan: PelicanGroupTestPlan): PelicanGroupTestPlanInput {
 function openEditor(plan?: PelicanGroupTestPlan) {
   const form: PelicanGroupTestPlanInput = plan
     ? inputFrom(plan)
-    : { group_id: 0, model_id: '', cron_expression: SCHEDULES[1].cron, enabled: true, prompt: PELICAN_PROMPT, reasoning_effort: 'medium', parallel_count: 1 }
+    : { group_id: 0, model_id: '', cron_expression: SCHEDULES[1].cron, enabled: true, prompt: PELICAN_PROMPT, prompt_mode: 'custom', reasoning_effort: 'medium', parallel_count: 1 }
   const schedule = SCHEDULES.some((preset) => preset.cron === form.cron_expression) ? form.cron_expression : 'custom'
   editor.value = { id: plan?.id ?? null, groupName: plan?.group_name ?? '', form, schedule }
   void loadGroups()
@@ -601,7 +608,7 @@ async function savePlan() {
   const current = editor.value
   if (!current || savingPlan.value) return
   const form = current.form
-  if (!form.group_id || !form.model_id.trim() || !form.prompt.trim() || !form.cron_expression.trim()) {
+  if (!form.group_id || !form.model_id.trim() || (form.prompt_mode !== 'random' && !form.prompt.trim()) || !form.cron_expression.trim()) {
     fail(null, t('pelicanTests.editor.required'))
     return
   }

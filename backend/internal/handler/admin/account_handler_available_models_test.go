@@ -559,3 +559,22 @@ func TestAccountHandlerGetAvailableModels_TypeSafeOnlyReturnsJev(t *testing.T) {
 		require.Equal(t, "jev-latest", resp.Data[0].ID)
 	}
 }
+
+func TestAccountHandlerSyncUpstreamModelsRejectsInvalidOptions(t *testing.T) {
+	svc := &availableModelsAdminService{stubAdminService: newStubAdminService()}
+	router := setupSyncUpstreamModelsRouter(svc, &syncUpstreamHTTPUpstream{})
+	for _, body := range []string{`{"automatic":true}`, `{"apply":"yes"}`, `{`} {
+		t.Run(body, func(t *testing.T) {
+			rec := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/accounts/42/models/sync-upstream", strings.NewReader(body))
+			req.Header.Set("Content-Type", "application/json")
+			router.ServeHTTP(rec, req)
+			require.Equal(t, http.StatusBadRequest, rec.Code, rec.Body.String())
+			if body == `{"automatic":true}` {
+				require.Contains(t, rec.Body.String(), "Automatic model sync requires apply=true")
+			} else {
+				require.Contains(t, rec.Body.String(), "Invalid upstream model sync options")
+			}
+		})
+	}
+}

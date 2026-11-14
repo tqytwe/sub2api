@@ -89,6 +89,11 @@ func ProvideRouter(
 		}
 		service.SetWebSearchManager(websearch.NewManager(configs, redisClient))
 	})
+	if handlers.Admin != nil && handlers.Admin.Setting != nil {
+		if _, err := handlers.Admin.Setting.StartKeyRisk(cfg.Database.DSN()); err != nil {
+			slog.Warn("key risk initialization failed", "error", err)
+		}
+	}
 
 	return SetupRouter(r, handlers, jwtAuth, optionalJWTAuth, adminAuth, apiKeyAuth, auditLog, stepUpAuth, apiKeyService, subscriptionService, opsService, settingService, dashboardService, modelCatalogService, promptLibraryService, compositeResolver, cfg, redisClient)
 }

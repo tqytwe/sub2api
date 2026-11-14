@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"log/slog"
 	"net/http"
@@ -3026,6 +3027,15 @@ func (h *AccountHandler) GetAvailableModels(c *gin.Context) {
 // SyncUpstreamModels handles syncing live supported models from an account's upstream.
 // POST /api/v1/admin/accounts/:id/models/sync-upstream
 func (h *AccountHandler) SyncUpstreamModels(c *gin.Context) {
+	var options service.UpstreamModelSyncOptions
+	if err := c.ShouldBindJSON(&options); err != nil && !errors.Is(err, io.EOF) {
+		response.BadRequest(c, "Invalid upstream model sync options")
+		return
+	}
+	if options.Automatic && !options.Apply {
+		response.BadRequest(c, "Automatic model sync requires apply=true")
+		return
+	}
 	accountID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		response.BadRequest(c, "Invalid account ID")
@@ -3043,7 +3053,7 @@ func (h *AccountHandler) SyncUpstreamModels(c *gin.Context) {
 		return
 	}
 
-	catalog, err := h.accountTestService.SyncUpstreamModelCatalog(c.Request.Context(), account)
+	catalog, err := h.accountTestService.SyncUpstreamModelCatalogWithOptions(c.Request.Context(), account, options)
 	if err != nil {
 		var syncErr *service.UpstreamModelSyncError
 		if errors.As(err, &syncErr) {
