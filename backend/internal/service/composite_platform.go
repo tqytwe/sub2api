@@ -90,13 +90,22 @@ func WithCompositeRouteDecision(ctx context.Context, decision CompositeRouteDeci
 	if model := strings.TrimSpace(decision.UpstreamModel); model != "" {
 		ctx = context.WithValue(ctx, ctxkey.ResolvedUpstreamModel, model)
 	}
-	if model := strings.TrimSpace(decision.PublicModel); model != "" {
+	if model := strings.TrimSpace(decision.PublicModel); model != "" && APIKeyMappedModelFromContext(ctx) == "" {
 		ctx = context.WithValue(ctx, ctxkey.RequestedPublicModel, model)
 	}
 	if source := strings.TrimSpace(decision.Source); source != "" {
 		ctx = context.WithValue(ctx, ctxkey.CompositeRouteSource, source)
 	}
 	return ctx
+}
+
+// Account-owned composite routes use the alias after the key rewrite, while
+// request attribution retains the original client model.
+func accountModelRoutePublicModelFromContext(ctx context.Context) (string, bool) {
+	if target := APIKeyMappedModelFromContext(ctx); target != "" {
+		return target, true
+	}
+	return RequestedPublicModelFromContext(ctx)
 }
 
 func ResolvedUpstreamModelFromContext(ctx context.Context) (string, bool) {

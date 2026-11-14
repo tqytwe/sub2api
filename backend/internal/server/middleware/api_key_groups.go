@@ -70,6 +70,16 @@ func selectAPIKeyRequestGroup(c *gin.Context, keys *service.APIKeyService, subsc
 	if len(key.ConfiguredGroupIDs()) < 2 || isMultiGroupBillingInfoRequest(c, key) || c.Request.URL.Path == "/v1/usage" || isAsyncImageTaskRead(c.Request.Method, c.Request.URL.Path) {
 		return key, nil
 	}
+	if isMultiGroupModelListing(c, key) {
+		groups, err := keys.ModelListingGroups(c.Request.Context(), key)
+		if err != nil {
+			AbortWithError(c, infraerrors.Code(err), infraerrors.Reason(err), infraerrors.Message(err))
+			return nil, err
+		}
+		c.Set(modelListingGroupsKey, groups)
+		SetOpsFallbackAPIKey(c, groups[0])
+		return groups[0], nil
+	}
 	if c.Request.Method == http.MethodGet && c.Param("call_id") != "" && (strings.Contains(c.FullPath(), "/live/") || strings.Contains(c.FullPath(), "/realtime/calls/") || c.FullPath() == "/backend-api/codex/:call_id") {
 		c.Set(deferredAPIKeyRequestGroupByID, func(id int64) (*service.APIKey, error) {
 			selected, err := keys.PinAPIKeyGroup(c.Request.Context(), key, id)
@@ -118,7 +128,7 @@ func selectAPIKeyRequestGroup(c *gin.Context, keys *service.APIKeyService, subsc
 	}
 	if isAPIKeyResponsesWebSocket(c) {
 		SetDeferredAPIKeyRequestGroup(c, func(models []string) (*service.APIKey, error) {
-			selected, err := resolveAPIKeyRequestGroup(c, keys, subscriptions, cfg, key, google, models, cfg.RunMode != config.RunModeSimple)
+			selected, err := resolveAPIKeyRequestGroup(c, keys, subscriptions, cfg, key, google, service.APIKeyModelCandidates(key, models), cfg.RunMode != config.RunModeSimple)
 			if err != nil {
 				return nil, err
 			}
@@ -143,6 +153,9 @@ func selectAPIKeyRequestGroup(c *gin.Context, keys *service.APIKeyService, subsc
 	}
 	if len(models) == 0 && c.Query("model") != "" {
 		models = []string{c.Query("model")}
+	}
+	if service.IsAPIKeyModelPolicyPath(c.Request.URL.Path) {
+		models = service.APIKeyModelCandidates(key, models)
 	}
 	checkBilling := cfg.RunMode != config.RunModeSimple && c.Request.Method != http.MethodGet && !strings.HasSuffix(c.Request.URL.Path, "/count_tokens")
 	selected, err := resolveAPIKeyRequestGroup(c, keys, subscriptions, cfg, key, google, models, checkBilling)

@@ -15,15 +15,34 @@ import (
 )
 
 type accountTokenGuardV2TestRepo struct {
+	mu          sync.Mutex
 	createTask  func(context.Context, int64, string) (*OpenAIOAuthReauthTaskRecord, error)
 	outcomes    []AccountReloginOutcome
 	record      *AccountTokenGuardV2Record
 	claimBusy   bool
 	completion  *AccountTokenGuardV2ProbeCompletion
 	rescheduled bool
+	pruneErr    error
+	pruneOrphan bool
+	claimed     bool
+}
+
+func (r *accountTokenGuardV2TestRepo) PruneDeletedAccounts(context.Context) (int64, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.pruneErr != nil {
+		return 0, r.pruneErr
+	}
+	if r.pruneOrphan && r.record != nil {
+		r.record = nil
+		return 1, nil
+	}
+	return 0, nil
 }
 
 func (r *accountTokenGuardV2TestRepo) UpsertAccount(_ context.Context, accountID int64, enabled, autoRelogin bool) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	if r.record == nil {
 		r.record = &AccountTokenGuardV2Record{AccountID: accountID, NextProbeAt: time.Now()}
 	}
@@ -31,14 +50,18 @@ func (r *accountTokenGuardV2TestRepo) UpsertAccount(_ context.Context, accountID
 	r.record.AutoReloginEnabled = autoRelogin
 	return nil
 }
-func (r *accountTokenGuardV2TestRepo) RecordRefreshFailure(context.Context, int64, string, time.Time) error {
-	return nil
-}
 func (r *accountTokenGuardV2TestRepo) DeleteAccount(context.Context, int64) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	r.record = nil
 	return nil
 }
+func (r *accountTokenGuardV2TestRepo) RecordRefreshFailure(context.Context, int64, string, time.Time) error {
+	return nil
+}
 func (r *accountTokenGuardV2TestRepo) GetAccount(context.Context, int64) (*AccountTokenGuardV2Record, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	if r.record == nil {
 		return nil, nil
 	}
@@ -46,25 +69,46 @@ func (r *accountTokenGuardV2TestRepo) GetAccount(context.Context, int64) (*Accou
 	return &copy, nil
 }
 func (r *accountTokenGuardV2TestRepo) ListAccounts(context.Context) ([]AccountTokenGuardV2Record, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	if r.record == nil {
 		return nil, nil
 	}
 	return []AccountTokenGuardV2Record{*r.record}, nil
 }
-func (r *accountTokenGuardV2TestRepo) ClaimDue(context.Context, string, time.Duration, int) ([]AccountTokenGuardV2Record, error) {
-	if r.record == nil || r.claimBusy {
+func (r *accountTokenGuardV2TestRepo) ClaimDue(_ context.Context, owner string, duration time.Duration, _ int, dueBefore time.Time) ([]AccountTokenGuardV2Record, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.claimed = true
+	if r.record == nil || r.claimBusy || !r.record.Enabled || r.record.NextProbeAt.After(dueBefore) || (r.record.LeaseUntil != nil && r.record.LeaseUntil.After(time.Now())) {
 		return nil, nil
 	}
+	until := time.Now().Add(duration)
+	r.record.LeaseOwner, r.record.LeaseUntil = owner, &until
 	return []AccountTokenGuardV2Record{*r.record}, nil
 }
-func (r *accountTokenGuardV2TestRepo) ClaimAccount(context.Context, int64, string, time.Duration) (*AccountTokenGuardV2Record, error) {
+func (r *accountTokenGuardV2TestRepo) ClaimAccount(_ context.Context, _ int64, owner string, duration time.Duration) (*AccountTokenGuardV2Record, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	if r.record == nil || r.claimBusy {
 		return nil, nil
 	}
+	until := time.Now().Add(duration)
+	r.record.LeaseOwner, r.record.LeaseUntil = owner, &until
 	copy := *r.record
 	return &copy, nil
 }
+func (r *accountTokenGuardV2TestRepo) ReleaseProbe(_ context.Context, _ int64, owner string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.record != nil && r.record.LeaseOwner == owner {
+		r.record.LeaseOwner, r.record.LeaseUntil = "", nil
+	}
+	return nil
+}
 func (r *accountTokenGuardV2TestRepo) CompleteProbe(_ context.Context, _ int64, _ string, result AccountTokenGuardV2ProbeCompletion) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	r.completion = &result
 	if r.record != nil {
 		r.record.ProbeState = result.ProbeState
@@ -75,6 +119,7 @@ func (r *accountTokenGuardV2TestRepo) CompleteProbe(_ context.Context, _ int64, 
 		r.record.NextProbeAt = result.NextProbeAt
 		r.record.CooldownUntil = result.CooldownUntil
 		r.record.BlockedReason = result.BlockedReason
+		r.record.LeaseOwner, r.record.LeaseUntil = "", nil
 	}
 	return nil
 }
@@ -82,6 +127,8 @@ func (r *accountTokenGuardV2TestRepo) MarkReauthRequested(context.Context, int64
 	return nil
 }
 func (r *accountTokenGuardV2TestRepo) RescheduleEnabled(context.Context) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	r.rescheduled = true
 	return nil
 }
@@ -103,15 +150,16 @@ type accountTokenGuardV2TestProber struct{ err error }
 
 type accountTokenGuardV2BlockingRepo struct {
 	accountTokenGuardV2TestRepo
-	started  chan struct{}
-	finished chan struct{}
-	once     sync.Once
+	started      chan struct{}
+	finished     chan struct{}
+	once         sync.Once
+	finishedOnce sync.Once
 }
 
-func (r *accountTokenGuardV2BlockingRepo) ClaimDue(ctx context.Context, _ string, _ time.Duration, _ int) ([]AccountTokenGuardV2Record, error) {
+func (r *accountTokenGuardV2BlockingRepo) ClaimDue(ctx context.Context, _ string, _ time.Duration, _ int, _ time.Time) ([]AccountTokenGuardV2Record, error) {
 	r.once.Do(func() { close(r.started) })
 	<-ctx.Done()
-	close(r.finished)
+	r.finishedOnce.Do(func() { close(r.finished) })
 	return nil, ctx.Err()
 }
 
@@ -135,12 +183,13 @@ func TestAccountTokenGuardV2StopCancelsCycle(t *testing.T) {
 	svc.Stop()
 }
 
-func (p accountTokenGuardV2TestProber) FetchOpenAIModelsList(context.Context, *Account) (*OpenAIModelsResponse, error) {
+func (p accountTokenGuardV2TestProber) FetchOpenAIModelsListFresh(context.Context, *Account) (*OpenAIModelsResponse, error) {
 	return nil, p.err
 }
 
 func TestAccountTokenGuardV2Explicit403PolicyDoesNotQueueRelogin(t *testing.T) {
 	for _, body := range []string{
+		`{"error":{"code":"permission_denied","message":"The requested Cyber access program is not authorized for this model."}}`,
 		`{"error":{"code":"session_blocked_by_cyber_policy","message":"synthetic-private"}}`,
 		`{"error":{"code":"cyber_policy","message":"synthetic-private"}}`,
 		`{"error":{"type":"content_policy_violation","message":"synthetic-private"}}`,
@@ -163,7 +212,10 @@ func TestAccountTokenGuardV2Explicit403PolicyDoesNotQueueRelogin(t *testing.T) {
 				svc := NewAccountTokenGuardV2Service(guardRepo, nil, reader, accountTokenGuardV2TestProber{err: fmt.Errorf("wrapped: %w", &codexModelsManifestUpstreamError{
 					err: errors.New("unauthorized synthetic-private"), statusCode: http.StatusForbidden, body: []byte(body),
 				})}, reauth)
-				svc.runProbe(context.Background(), *guardRepo.record)
+				record, err := guardRepo.ClaimAccount(context.Background(), 42, svc.leaseOwner+"/policy-test", time.Minute)
+				require.NoError(t, err)
+				require.NotNil(t, record)
+				require.NoError(t, svc.runProbe(context.Background(), *record))
 				require.NotNil(t, guardRepo.completion)
 				require.Equal(t, AccountTokenGuardV2ProbeTransient, guardRepo.completion.ProbeState)
 				require.Equal(t, accountTokenGuardV2PolicyBlocked, guardRepo.completion.BlockedReason)
@@ -205,10 +257,11 @@ func TestAccountTokenGuardV2SecondAuthFailureQueuesRelogin(t *testing.T) {
 	svc := NewAccountTokenGuardV2Service(guardRepo, nil, reader, accountTokenGuardV2TestProber{err: &codexModelsManifestUpstreamError{
 		err: errors.New("unauthorized"), statusCode: http.StatusUnauthorized,
 	}}, reauth)
-	record, err := guardRepo.GetAccount(context.Background(), 42)
+	record, err := guardRepo.ClaimAccount(context.Background(), 42, svc.leaseOwner+"/test", time.Minute)
 	require.NoError(t, err)
 
-	svc.runProbe(context.Background(), *record)
+	require.NotNil(t, record)
+	require.NoError(t, svc.runProbe(context.Background(), *record))
 
 	require.NotNil(t, guardRepo.completion)
 	require.Equal(t, AccountTokenGuardV2ProbeAuth, guardRepo.completion.ProbeState)
@@ -231,10 +284,11 @@ func TestAccountTokenGuardV2ActiveReloginTaskIsNotDuplicated(t *testing.T) {
 	}}
 	guardRepo.createTask = reauthRepo.CreateTask
 	svc := NewAccountTokenGuardV2Service(guardRepo, nil, reader, accountTokenGuardV2TestProber{err: errors.New("invalid token")}, reauth)
-	record, err := guardRepo.GetAccount(context.Background(), 42)
+	record, err := guardRepo.ClaimAccount(context.Background(), 42, svc.leaseOwner+"/test", time.Minute)
 	require.NoError(t, err)
 
-	svc.runProbe(context.Background(), *record)
+	require.NotNil(t, record)
+	require.NoError(t, svc.runProbe(context.Background(), *record))
 
 	require.Same(t, existing, reauthRepo.task)
 	require.Equal(t, 1, reauthRepo.createCalls)
@@ -306,7 +360,10 @@ func TestAccountTokenGuardV2InvalidSavedRulesDoNotQueueRelogin(t *testing.T) {
 	repo := &accountTokenGuardV2TestRepo{record: &record}
 	settings := &accountTokenGuardV2TestSettings{raw: "invalid-json"}
 	svc := NewAccountTokenGuardV2Service(repo, settings, reader, accountTokenGuardV2TestProber{err: errors.New("invalid token")}, reauth)
-	svc.runProbe(context.Background(), record)
+	claimed, err := repo.ClaimAccount(context.Background(), record.AccountID, svc.leaseOwner+"/invalid-rules-test", time.Minute)
+	require.NoError(t, err)
+	require.NotNil(t, claimed)
+	require.Error(t, svc.runProbe(context.Background(), *claimed))
 	require.Zero(t, reauthRepo.createCalls)
 	require.Nil(t, repo.completion)
 }
@@ -325,13 +382,50 @@ func TestAccountTokenGuardV2CustomRulesDriveProbe(t *testing.T) {
 		ReloginCooldownSeconds: 7200, FailStreakThreshold: 1,
 	})
 	require.NoError(t, err)
-	record, err := guardRepo.GetAccount(context.Background(), 42)
+	record, err := guardRepo.ClaimAccount(context.Background(), 42, svc.leaseOwner+"/test", time.Minute)
 	require.NoError(t, err)
 
-	svc.runProbe(context.Background(), *record)
+	require.NotNil(t, record)
+	require.NoError(t, svc.runProbe(context.Background(), *record))
 
 	require.Equal(t, 1, reauthRepo.createCalls)
 	require.WithinDuration(t, guardRepo.completion.LastProbeAt.Add(45*time.Second), guardRepo.completion.NextProbeAt, time.Second)
 	require.NotNil(t, guardRepo.completion.CooldownUntil)
 	require.WithinDuration(t, guardRepo.completion.LastProbeAt.Add(2*time.Hour), *guardRepo.completion.CooldownUntil, time.Second)
+}
+
+func TestAccountTokenGuardV2RunDuePrunesBeforeClaim(t *testing.T) {
+	for _, enabled := range []bool{true, false} {
+		t.Run(fmt.Sprintf("enabled=%t", enabled), func(t *testing.T) {
+			repo := &accountTokenGuardV2TestRepo{
+				record:      &AccountTokenGuardV2Record{AccountID: 42, Enabled: enabled, NextProbeAt: time.Now().Add(time.Hour)},
+				pruneOrphan: true,
+			}
+			// No account reader/prober: orphaned records must never reach probing.
+			svc := NewAccountTokenGuardV2Service(repo, nil, nil, nil, nil)
+			defer svc.cancel()
+			n, err := svc.RunDue(context.Background())
+			require.NoError(t, err)
+			require.Zero(t, n)
+			require.Nil(t, repo.record)
+			require.True(t, repo.claimed)
+			n, err = svc.RunDue(context.Background())
+			require.NoError(t, err)
+			require.Zero(t, n, "cleanup must be idempotent")
+		})
+	}
+}
+
+func TestAccountTokenGuardV2RunDuePruneFailurePreservesRecords(t *testing.T) {
+	repo := &accountTokenGuardV2TestRepo{
+		record:   &AccountTokenGuardV2Record{AccountID: 42},
+		pruneErr: errors.New("database unavailable"),
+	}
+	svc := NewAccountTokenGuardV2Service(repo, nil, nil, nil, nil)
+	defer svc.cancel()
+	n, err := svc.RunDue(context.Background())
+	require.ErrorIs(t, err, repo.pruneErr)
+	require.Zero(t, n)
+	require.NotNil(t, repo.record)
+	require.False(t, repo.claimed)
 }

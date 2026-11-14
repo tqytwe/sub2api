@@ -25,7 +25,7 @@
         <!-- Quick presets -->
         <div class="date-picker-presets">
           <button
-            v-for="preset in presets"
+            v-for="preset in visiblePresets"
             :key="preset.value"
             @click="selectPreset(preset)"
             :class="['date-picker-preset', isPresetActive(preset) && 'date-picker-preset-active']"
@@ -91,6 +91,7 @@ interface Props {
   endDate: string
   rolling24Hours?: boolean
   selectedPreset?: string | null
+  showLast24Hours?: boolean
   // Opt in where the consumer accepts RFC3339 instants as well as calendar dates.
 }
 
@@ -100,7 +101,7 @@ interface Emits {
   (e: 'change', range: { startDate: string; endDate: string; preset: string | null }): void
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), { showLast24Hours: true })
 const emit = defineEmits<Emits>()
 
 const { t, locale } = useI18n()
@@ -225,6 +226,10 @@ const presets: DatePreset[] = [
     }
   }
 ]
+
+const visiblePresets = computed(() => props.showLast24Hours === false
+  ? presets.filter(preset => preset.value !== 'last24Hours')
+  : presets)
 
 const displayValue = computed(() => {
   if (activePreset.value) {

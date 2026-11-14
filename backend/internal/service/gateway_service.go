@@ -1379,6 +1379,7 @@ func (s *GatewayService) DoGrokNativeResponsesJSON(ctx context.Context, account 
 		proxyURL = account.Proxy.URL()
 	}
 	resp, err := s.httpUpstream.Do(upstreamReq, proxyURL, account.ID, account.Concurrency)
+	s.rateLimitService.observeQualityResponse(upstreamReq.Context(), account, resp, err)
 	if err != nil {
 		return nil, &UpstreamFailoverError{StatusCode: http.StatusBadGateway, Reason: GatewayFailureReason("grok_search_transport")}
 	}
@@ -1459,6 +1460,16 @@ func (s *GatewayService) GetAvailableModels(ctx context.Context, groupID *int64,
 		return nil
 	}
 
+	models := s.availableModelsFromAccounts(ctx, accounts, groupID, platform, routes)
+	if s.modelsListCache != nil {
+		s.modelsListCache.Set(cacheKey, cloneStringSlice(models), s.modelsListCacheTTL)
+		modelsListCacheStoreTotal.Add(1)
+	}
+	return cloneStringSlice(models)
+}
+
+// Shared account mapping and membership policy; callers own their snapshot and cache.
+func (s *GatewayService) availableModelsFromAccounts(ctx context.Context, accounts []Account, groupID *int64, platform string, routes []CompositeModelRoute) []string {
 	// Collect unique models from all accounts
 	modelSet := make(map[string]struct{})
 	hasAnyMapping := false
@@ -1500,12 +1511,8 @@ func (s *GatewayService) GetAvailableModels(ctx context.Context, groupID *int64,
 		}
 	}
 
-	// If no account has model_mapping, return nil (use default)
+	// nil retains the legacy caller's default-catalog sentinel.
 	if !hasAnyMapping {
-		if s.modelsListCache != nil {
-			s.modelsListCache.Set(cacheKey, []string(nil), s.modelsListCacheTTL)
-			modelsListCacheStoreTotal.Add(1)
-		}
 		return nil
 	}
 
@@ -1520,11 +1527,7 @@ func (s *GatewayService) GetAvailableModels(ctx context.Context, groupID *int64,
 		models = supplementUnmappedOpenAIModels(accounts, groupID, models)
 	}
 
-	if s.modelsListCache != nil {
-		s.modelsListCache.Set(cacheKey, cloneStringSlice(models), s.modelsListCacheTTL)
-		modelsListCacheStoreTotal.Add(1)
-	}
-	return cloneStringSlice(models)
+	return models
 }
 
 func (s *GatewayService) resolveCompositeModelOwnership(ctx context.Context, groupID int64, model string) (CompositeModelOwnership, error) {

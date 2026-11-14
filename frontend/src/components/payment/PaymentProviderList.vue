@@ -60,6 +60,7 @@
           <div class="min-w-0 flex-1">
             <ProviderCard
               :provider="p"
+              :global-fee-rate="globalFeeRate"
               :enabled="isEnabled(p.provider_key)"
               :available-types="getTypes(p.provider_key)"
               @toggle-field="(field) => emit('toggleField', p, field)"
@@ -108,6 +109,7 @@ const props = defineProps<{
   enabledPaymentTypes: string[]
   allPaymentTypes: TypeOption[]
   redirectLabel: string
+  globalFeeRate?: number
 }>()
 
 const emit = defineEmits<{

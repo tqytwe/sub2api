@@ -22,6 +22,16 @@
               :options="statusFilterOptions"
               @update:model-value="onStatusFilterChange"
             />
+            <div class="flex w-full flex-wrap items-center gap-2 sm:w-auto" data-test="key-usage-date-range">
+              <span class="w-full text-sm text-gray-600 dark:text-gray-300 sm:w-auto">{{ t('keys.usageDateRange') }}</span>
+              <DateRangePicker
+                :start-date="usageStartDate"
+                :end-date="usageEndDate"
+                :selected-preset="usagePreset"
+                :show-last24-hours="false"
+                @change="onUsageDateRangeChange"
+              />
+            </div>
           </div>
           <EndpointPopover
             v-if="publicSettings?.api_base_url || (publicSettings?.custom_endpoints?.length ?? 0) > 0"
@@ -189,17 +199,17 @@
           </template>
 
           <template #cell-usage="{ row }">
-            <div class="text-sm">
+            <div class="text-sm" :aria-busy="usageLoading">
               <div class="flex items-center gap-1.5">
                 <span class="text-gray-500 dark:text-gray-400">{{ t('keys.today') }}:</span>
                 <span class="font-medium text-gray-900 dark:text-white">
-                  ${{ (usageStats[row.id]?.today_actual_cost ?? 0).toFixed(4) }}
+                  {{ formatUsageCost(row.id, 'today_actual_cost') }}
                 </span>
               </div>
               <div class="mt-0.5 flex items-center gap-1.5">
-                <span class="text-gray-500 dark:text-gray-400">{{ t('keys.total') }}:</span>
-                <span class="font-medium text-gray-900 dark:text-white">
-                  ${{ (usageStats[row.id]?.total_actual_cost ?? 0).toFixed(4) }}
+                <span class="text-gray-500 dark:text-gray-400">{{ t('keys.selectedPeriod') }}:</span>
+                <span class="font-medium text-gray-900 dark:text-white" :title="`${usageStartDate} ~ ${usageEndDate}`">
+                  {{ formatUsageCost(row.id, 'total_actual_cost') }}
                 </span>
               </div>
               <!-- Quota progress (if quota is set) -->
@@ -573,6 +583,13 @@
             :options="statusOptions"
             :placeholder="t('keys.selectStatus')"
           />
+        </div>
+
+        <div v-if="showEditModal && authStore.isAdmin" class="border-t border-gray-200 pt-4 dark:border-dark-600">
+          <button type="button" class="btn btn-secondary" data-test="edit-key-model-policy" @click="showModelPolicy = true">
+            {{ t('apiKeyModelPolicy.title') }}
+          </button>
+          <p class="mt-2 text-sm text-gray-500 dark:text-dark-300">{{ t('apiKeyModelPolicy.scopeHint') }}</p>
         </div>
 
         <!-- IP Restriction Section -->
@@ -990,6 +1007,14 @@
       @cancel="showDeleteDialog = false"
     />
 
+    <ApiKeyModelPolicyDialog
+      v-if="authStore.isAdmin"
+      :show="showModelPolicy && showEditModal"
+      :api-key="selectedKey"
+      @close="showModelPolicy = false"
+      @updated="handleModelPolicyUpdated"
+    />
+
     <!-- Reset Quota Confirmation Dialog -->
     <ConfirmDialog
       :show="showResetQuotaDialog"
@@ -1158,7 +1183,9 @@ import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
 const { t } = useI18n()
 import { keysAPI, authAPI, usageAPI, userGroupsAPI, paymentAPI } from '@/api'
 import AppLayout from '@/components/layout/AppLayout.vue'
+import ApiKeyModelPolicyDialog from '@/components/admin/user/ApiKeyModelPolicyDialog.vue'
 import TablePageLayout from '@/components/layout/TablePageLayout.vue'
+import DateRangePicker from '@/components/common/DateRangePicker.vue'
 	import DataTable from '@/components/common/DataTable.vue'
 	import Pagination from '@/components/common/Pagination.vue'
 	import BaseDialog from '@/components/common/BaseDialog.vue'
@@ -1176,7 +1203,7 @@ import APIOnboardingPanel from '@/components/keys/APIOnboardingPanel.vue'
 import type { Column } from '@/components/common/types'
 import type { BatchApiKeyUsageStats } from '@/api/usage'
 import type { SubscriptionPlan } from '@/types/payment'
-import { formatDateTime } from '@/utils/format'
+import { formatDateTime, formatDateLocalInput, getBrowserTimeZone } from '@/utils/format'
 import { localizedEnumOrUnknown } from '@/utils/localizedEnum'
 import { maskApiKey } from '@/utils/maskApiKey'
 import { resolveCustomMenuRoute } from '@/router/customMenuTarget'
@@ -1317,6 +1344,28 @@ const submitting = ref(false)
 const now = ref(new Date())
 let resetTimer: ReturnType<typeof setInterval> | null = null
 const usageStats = ref<Record<string, BatchApiKeyUsageStats>>({})
+const defaultUsageEnd = new Date()
+const defaultUsageStart = new Date(defaultUsageEnd)
+defaultUsageStart.setDate(defaultUsageStart.getDate() - 29)
+const usageStartDate = ref(formatDateLocalInput(defaultUsageStart))
+const usageEndDate = ref(formatDateLocalInput(defaultUsageEnd))
+const usagePreset = ref<string | null>('30days')
+const usageLoading = ref(false)
+const usageFailed = ref(false)
+const formatUsageCost = (keyID: number, field: 'today_actual_cost' | 'total_actual_cost') => {
+  if (usageLoading.value || usageFailed.value || !usageStats.value[keyID]) return '\u2014'
+  return `$${usageStats.value[keyID][field].toFixed(4)}`
+}
+const onUsageDateRangeChange = (range: { startDate: string; endDate: string; preset: string | null }) => {
+  if (!range.startDate || !range.endDate || range.startDate > range.endDate) {
+    appStore.showError(t('keys.invalidUsageDateRange'))
+    return
+  }
+  usageStartDate.value = range.startDate
+  usageEndDate.value = range.endDate
+  usagePreset.value = range.preset
+  void loadApiKeys()
+}
 const userGroupRates = ref<Record<number, number>>({})
 const userBalance = computed(() => authStore.user?.balance ?? 0)
 
@@ -1338,6 +1387,7 @@ const filterGroupId = ref<string | number>('')
 
 const showCreateModal = ref(false)
 const showEditModal = ref(false)
+const showModelPolicy = ref(false)
 const showDeleteDialog = ref(false)
 const showResetQuotaDialog = ref(false)
 const showResetRateLimitDialog = ref(false)
@@ -1354,6 +1404,7 @@ const columnDropdownRef = ref<HTMLElement | null>(null)
 const dropdownPosition = ref<{ top?: number; bottom?: number; left: number } | null>(null)
 const groupButtonRefs = ref<Map<number, HTMLElement>>(new Map())
 let abortController: AbortController | null = null
+let disposed = false
 
 // Get the currently selected key for group change
 const selectedKeyForGroup = computed(() => {
@@ -1524,6 +1575,8 @@ const loadApiKeys = async () => {
   abortController = controller
   const { signal } = controller
   loading.value = true
+  usageLoading.value = true
+  usageFailed.value = false
   try {
     // Build filters
     const filters: {
@@ -1542,32 +1595,42 @@ const loadApiKeys = async () => {
     const response = await keysAPI.list(pagination.value.page, pagination.value.page_size, filters, {
       signal
     })
-    if (signal.aborted) return
+    if (signal.aborted || disposed) return
     apiKeys.value = response.items
     pagination.value.total = response.total
     pagination.value.pages = response.pages
 
-    // Load usage stats for all API keys in the list
+    usageStats.value = {}
+    usageLoading.value = response.items.length > 0
     if (response.items.length > 0) {
       const keyIds = response.items.map((k) => k.id)
       try {
-        const usageResponse = await usageAPI.getDashboardApiKeysUsage(keyIds, { signal })
-        if (signal.aborted) return
+        const usageResponse = await usageAPI.getDashboardApiKeysUsage(keyIds, {
+          signal,
+          start_date: usageStartDate.value,
+          end_date: usageEndDate.value,
+          timezone: getBrowserTimeZone(),
+        })
+        if (signal.aborted || disposed) return
         usageStats.value = usageResponse.stats
       } catch (e) {
+        if (signal.aborted || disposed) return
         if (!isAbortError(e)) {
-          console.error('Failed to load usage stats:', e)
+          usageFailed.value = true
+          appStore.showError(t('keys.failedToLoadUsage'))
         }
       }
     }
   } catch (error) {
-    if (isAbortError(error)) {
+    if (signal.aborted || disposed || isAbortError(error)) {
       return
     }
+    usageFailed.value = true
     appStore.showError(t('keys.failedToLoad'))
   } finally {
     if (abortController === controller) {
       loading.value = false
+      usageLoading.value = false
     }
   }
 }
@@ -1900,9 +1963,17 @@ const handleDelete = async () => {
   }
 }
 
+const handleModelPolicyUpdated = (key: ApiKey) => {
+  // Keep unsaved name/group edits in the main form while updating saved policy.
+  if (selectedKey.value?.id === key.id) selectedKey.value = key
+  const index = apiKeys.value.findIndex(item => item.id === key.id)
+  if (index !== -1) apiKeys.value[index] = key
+}
+
 const closeModals = () => {
   showCreateModal.value = false
   showEditModal.value = false
+  showModelPolicy.value = false
   selectedKey.value = null
   formData.value = createDefaultFormData()
 }
@@ -2052,6 +2123,8 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  disposed = true
+  abortController?.abort()
   document.removeEventListener('click', closeGroupSelector)
   if (resetTimer) clearInterval(resetTimer)
 })

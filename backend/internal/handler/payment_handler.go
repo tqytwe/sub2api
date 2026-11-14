@@ -328,6 +328,13 @@ func cloneMethodLimitsMap(in map[string]service.MethodLimits) map[string]service
 	}
 	out := make(map[string]service.MethodLimits, len(in))
 	for k, v := range in {
+		if v.SubMethods != nil {
+			methods := make(map[string]service.MethodFeeRates, len(v.SubMethods))
+			for method, rates := range v.SubMethods {
+				methods[method] = rates
+			}
+			v.SubMethods = methods
+		}
 		out[k] = v
 	}
 	return out
@@ -457,6 +464,7 @@ func (h *PaymentHandler) GetLimits(c *gin.Context) {
 
 // CreateOrderRequest is the request body for creating a payment order.
 type CreateOrderRequest struct {
+	PaymentSubtype    string  `json:"payment_subtype,omitempty"`
 	Amount            float64 `json:"amount"`
 	CouponID          int64   `json:"coupon_id,omitempty"`
 	PaymentType       string  `json:"payment_type" binding:"required"`
@@ -475,16 +483,17 @@ type CreateOrderRequest struct {
 // QuoteCouponPaymentRequest previews a selected coupon before an order is
 // created. The authenticated user is supplied by the handler, never by JSON.
 type QuoteCouponPaymentRequest struct {
-	CouponID    int64   `json:"coupon_id" binding:"required"`
-	Amount      float64 `json:"amount"`
-	PaymentType string  `json:"payment_type" binding:"required"`
-	OrderType   string  `json:"order_type"`
-	PlanID      int64   `json:"plan_id"`
+	PaymentSubtype string  `json:"payment_subtype,omitempty"`
+	CouponID       int64   `json:"coupon_id" binding:"required"`
+	Amount         float64 `json:"amount"`
+	PaymentType    string  `json:"payment_type" binding:"required"`
+	OrderType      string  `json:"order_type"`
+	PlanID         int64   `json:"plan_id"`
 }
 
-// QuoteCouponPayment returns the same settlement calculation CreateOrder will
-// use. It does not reserve the coupon; reservation happens atomically with the
-// order so an abandoned quote never makes a coupon unavailable.
+// QuoteCouponPayment previews the coupon settlement and effective fee range.
+// It does not reserve a provider or coupon; CreateOrder selects a provider and
+// freezes the final amount while atomically reserving the coupon.
 // POST /api/v1/payment/coupons/quote
 func (h *PaymentHandler) QuoteCouponPayment(c *gin.Context) {
 	subject, ok := requireAuth(c)
@@ -497,12 +506,13 @@ func (h *PaymentHandler) QuoteCouponPayment(c *gin.Context) {
 		return
 	}
 	quote, err := h.paymentService.QuoteCouponPayment(c.Request.Context(), service.CouponPaymentQuoteRequest{
-		UserID:      subject.UserID,
-		CouponID:    req.CouponID,
-		Amount:      req.Amount,
-		PaymentType: req.PaymentType,
-		OrderType:   req.OrderType,
-		PlanID:      req.PlanID,
+		PaymentSubtype: req.PaymentSubtype,
+		UserID:         subject.UserID,
+		CouponID:       req.CouponID,
+		Amount:         req.Amount,
+		PaymentType:    req.PaymentType,
+		OrderType:      req.OrderType,
+		PlanID:         req.PlanID,
 	})
 	if err != nil {
 		response.ErrorFrom(c, err)
@@ -541,6 +551,7 @@ func (h *PaymentHandler) CreateOrder(c *gin.Context) {
 		mobile = *req.IsMobile
 	}
 	result, err := h.paymentService.CreateOrder(c.Request.Context(), service.CreateOrderRequest{
+		PaymentSubtype:  req.PaymentSubtype,
 		UserID:          subject.UserID,
 		Amount:          req.Amount,
 		CouponID:        req.CouponID,
@@ -604,7 +615,8 @@ func (h *PaymentHandler) MobileCreate(c *gin.Context) {
 		}
 	}
 	result, err := h.paymentService.CreateOrder(c.Request.Context(), service.CreateOrderRequest{
-		UserID: subject.UserID, Amount: req.Amount, PaymentType: req.PaymentType, OpenID: req.OpenID,
+		PaymentSubtype: req.PaymentSubtype,
+		UserID:         subject.UserID, Amount: req.Amount, PaymentType: req.PaymentType, OpenID: req.OpenID,
 		ClientIP: c.ClientIP(), IsMobile: true, IsWeChatBrowser: isWeChatBrowser(c),
 		SrcHost: c.Request.Host, SrcURL: c.Request.Referer(), ReturnURL: req.ReturnURL,
 		PaymentSource: firstNonEmptyPaymentSource(req.PaymentSource, "android_app"),
@@ -701,7 +713,7 @@ func sanitizeMobilePaymentCreateOrder(result *service.CreateOrderResponse, order
 	return gin.H{
 		"id": result.OrderID, "order_id": result.OrderID, "amount": result.Amount,
 		"pay_amount": result.PayAmount, "fee_rate": result.FeeRate, "status": result.Status,
-		"payment_type": result.PaymentType, "out_trade_no": result.OutTradeNo,
+		"payment_type": result.PaymentType, "payment_subtype": result.PaymentSubtype, "out_trade_no": result.OutTradeNo,
 		"currency": result.Currency, "country_code": result.CountryCode,
 		"payment_env": result.PaymentEnv, "payment_mode": result.PaymentMode,
 		"order_type": strings.TrimSpace(orderType), "expires_at": result.ExpiresAt,
@@ -936,6 +948,7 @@ func (h *PaymentHandler) VerifyOrder(c *gin.Context) {
 // proves possession of the checkout session, so the result keeps the legacy
 // frontend contract needed by payment result pages.
 type PublicOrderResult struct {
+	PaymentSubtype           string         `json:"payment_subtype,omitempty"`
 	ID                       int64          `json:"id"`
 	OutTradeNo               string         `json:"out_trade_no"`
 	Amount                   float64        `json:"amount"`
@@ -983,6 +996,7 @@ type PublicOrderVerifyResult struct {
 
 func buildPublicOrderResult(order *dbent.PaymentOrder) PublicOrderResult {
 	return PublicOrderResult{
+		PaymentSubtype:           service.PaymentOrderSubtype(order),
 		ID:                       order.ID,
 		OutTradeNo:               order.OutTradeNo,
 		Amount:                   order.Amount,
@@ -1103,6 +1117,7 @@ func isMobile(c *gin.Context) bool {
 }
 
 type PaymentOrderResult struct {
+	PaymentSubtype           string         `json:"payment_subtype,omitempty"`
 	ID                       int64          `json:"id"`
 	UserID                   int64          `json:"user_id"`
 	Amount                   float64        `json:"amount"`
@@ -1153,6 +1168,7 @@ func sanitizePaymentOrderForResponse(order *dbent.PaymentOrder) *PaymentOrderRes
 		return nil
 	}
 	return &PaymentOrderResult{
+		PaymentSubtype:           service.PaymentOrderSubtype(order),
 		ID:                       order.ID,
 		UserID:                   order.UserID,
 		Amount:                   order.Amount,

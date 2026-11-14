@@ -17,6 +17,20 @@ type ColdRouteCase = {
 }
 
 const COLD_ROUTE_CASES: readonly ColdRouteCase[] = [
+  {
+    routeName: 'Keys', requiredScope: 'user-dashboard',
+    literals: [
+      { source: 'src/components/admin/user/ApiKeyModelPolicyDialog.vue', key: 'apiKeyModelPolicy.title' },
+      { source: 'src/components/admin/user/ApiKeyModelPolicyDialog.vue', key: 'apiKeyModelPolicy.contextTokenLimitHint' },
+    ],
+  },
+  {
+    routeName: 'AdminUsers', requiredScope: 'admin-resources',
+    literals: [
+      { source: 'src/components/admin/user/UserApiKeysModal.vue', key: 'apiKeyModelPolicy.title' },
+      { source: 'src/components/admin/user/ApiKeyModelPolicyDialog.vue', key: 'apiKeyModelPolicy.longContextRestrictions' },
+    ],
+  },
   { routeName: 'AdminRequestLedger', requiredScope: 'admin-ops', literals: [{ source: 'src/views/admin/ops/components/OpsErrorDetailModal.vue', key: 'admin.ops.errorDetail.title' }] },
   {
     routeName: 'Dashboard',

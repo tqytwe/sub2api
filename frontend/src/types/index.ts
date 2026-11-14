@@ -817,6 +817,11 @@ export interface ApiKey {
   reset_5h_at: string | null
   reset_1d_at: string | null
   reset_7d_at: string | null
+  /** Administrator-managed policy; ordinary key update requests omit these fields. */
+  model_mapping?: Record<string, string>
+  reasoning_effort?: string
+  allow_long_context?: boolean
+  context_token_limit?: number
 }
 
 export interface CreateApiKeyRequest {
@@ -2617,6 +2622,9 @@ export interface QualityJudgeConfig {
 }
 
 export interface QualityPolicy {
+  trigger_on_upstream_5xx?: boolean
+  retest_rest_minutes?: number
+  oauth_401_max_rounds?: number
   remove_group_ids?: number[]
   action?: string
   expected_answer?: string

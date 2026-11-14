@@ -100,6 +100,7 @@ export interface CouponEligibilityRequest {
 export interface CouponPaymentQuoteRequest {
   coupon_id: number
   payment_type: string
+  payment_subtype?: string
   order_type: 'balance' | 'subscription'
   amount: number
   plan_id?: number
@@ -115,6 +116,11 @@ export interface CouponPaymentQuote {
   pay_amount: number
   payment_currency: string
   qualifying_recharge_amount: number
+  fee_rate_min?: number
+  fee_rate_max?: number
+  fee_amount_max?: number
+  pay_amount_max?: number
+  estimated?: boolean
 }
 
 export type UserCouponPage = BasePaginationResponse<UserCoupon>

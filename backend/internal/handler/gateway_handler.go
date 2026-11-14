@@ -1154,6 +1154,10 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 // Falls back to default models if no whitelist is configured
 func (h *GatewayHandler) Models(c *gin.Context) {
 	apiKey, _ := middleware2.GetAPIKeyFromContext(c)
+	if groups, ok := middleware2.GetModelListingGroups(c); ok {
+		h.multiGroupModels(c, groups)
+		return
+	}
 
 	var groupID *int64
 	var platform string
@@ -1429,13 +1433,15 @@ func (h *GatewayHandler) applyGatewayExecutableVideoContracts(ctx context.Contex
 }
 
 func writeModelsListWithMediaContracts(c *gin.Context, platform string, modelIDs []string, mediaContracts map[string]service.GatewayModelContract) {
+	writeModelsListResponse(c, modelsListEntriesWithMediaContracts(platform, modelIDs, mediaContracts))
+}
+
+func modelsListEntriesWithMediaContracts(platform string, modelIDs []string, mediaContracts map[string]service.GatewayModelContract) any {
 	if platform == service.PlatformOpenAI {
-		writeOpenAIModelsListWithMediaContracts(c, modelIDs, mediaContracts)
-		return
+		return openAIModelsListEntries(modelIDs, mediaContracts)
 	}
 	if platform == service.PlatformGrok {
-		writeGrokModelsListWithMediaContracts(c, modelIDs, mediaContracts)
-		return
+		return grokModelsListEntries(modelIDs, mediaContracts)
 	}
 	models := make([]claude.Model, 0, len(modelIDs))
 	for _, modelID := range modelIDs {
@@ -1446,7 +1452,7 @@ func writeModelsListWithMediaContracts(c *gin.Context, platform string, modelIDs
 			CreatedAt:   "2024-01-01T00:00:00Z",
 		})
 	}
-	writeModelsListResponse(c, decorateGatewayModelsWithMediaContracts(models, mediaContracts))
+	return decorateGatewayModelsWithMediaContracts(models, mediaContracts)
 }
 
 func writeAllowlistedModelsList(c *gin.Context, platform string, modelIDs []string, mediaContracts map[string]service.GatewayModelContract) {
@@ -1475,6 +1481,10 @@ func writeGrokModelsList(c *gin.Context, modelIDs []string) {
 }
 
 func writeGrokModelsListWithMediaContracts(c *gin.Context, modelIDs []string, mediaContracts map[string]service.GatewayModelContract) {
+	writeModelsListResponse(c, grokModelsListEntries(modelIDs, mediaContracts))
+}
+
+func grokModelsListEntries(modelIDs []string, mediaContracts map[string]service.GatewayModelContract) any {
 	defaults := xai.DefaultModels()
 	defaultsByID := make(map[string]xai.Model, len(defaults))
 	for _, model := range defaults {
@@ -1509,7 +1519,7 @@ func writeGrokModelsListWithMediaContracts(c *gin.Context, modelIDs []string, me
 		models = append(models, item)
 	}
 
-	writeModelsListResponse(c, decorateGatewayModelsWithMediaContracts(models, mediaContracts))
+	return decorateGatewayModelsWithMediaContracts(models, mediaContracts)
 }
 
 func grokModelSupportsConfigurableReasoning(modelID string) bool {
@@ -1522,6 +1532,10 @@ func grokModelSupportsConfigurableReasoning(modelID string) bool {
 }
 
 func writeOpenAIModelsListWithMediaContracts(c *gin.Context, modelIDs []string, mediaContracts map[string]service.GatewayModelContract) {
+	writeModelsListResponse(c, openAIModelsListEntries(modelIDs, mediaContracts))
+}
+
+func openAIModelsListEntries(modelIDs []string, mediaContracts map[string]service.GatewayModelContract) any {
 	defaultsByID := make(map[string]openai.Model, len(openai.DefaultModels))
 	for _, model := range openai.DefaultModels {
 		defaultsByID[model.ID] = model
@@ -1542,7 +1556,7 @@ func writeOpenAIModelsListWithMediaContracts(c *gin.Context, modelIDs []string, 
 			DisplayName: modelID,
 		})
 	}
-	writeModelsListResponse(c, decorateGatewayModelsWithMediaContracts(models, mediaContracts))
+	return decorateGatewayModelsWithMediaContracts(models, mediaContracts)
 }
 
 func decorateGatewayModelsWithMediaContracts(models any, mediaContracts map[string]service.GatewayModelContract) any {
@@ -1626,53 +1640,7 @@ func defaultCodexModelIDsForPlatform(platform string) []string {
 }
 
 func defaultModelIDsForPlatform(platform string) []string {
-	switch platform {
-	case service.PlatformOpenAI:
-		return openai.DefaultModelIDs()
-	case service.PlatformGemini:
-		ids := make([]string, 0, len(geminicli.DefaultModels))
-		for _, model := range geminicli.DefaultModels {
-			ids = append(ids, model.ID)
-		}
-		return ids
-	case service.PlatformAntigravity:
-		models := antigravity.DefaultModels()
-		ids := make([]string, 0, len(models))
-		for _, model := range models {
-			ids = append(ids, model.ID)
-		}
-		return ids
-	case service.PlatformAnthropic:
-		return claude.DefaultModelIDs()
-	case service.PlatformGrok:
-		return xai.DefaultModelIDs()
-	case service.PlatformOpenCodeGo:
-		return service.DefaultOpenCodeGoModelIDs()
-	case service.PlatformTypeSafe:
-		return []string{"jev-latest"}
-	case service.PlatformComposite:
-		ids := make([]string, 0)
-		seen := make(map[string]struct{})
-		// TypeSafe is deliberately absent: jev-latest only works through
-		// /v1/systemone, so the static fallback never advertises it to LLM
-		// clients. compositeAvailableModels lists it when the group can serve it.
-		for _, concretePlatform := range []string{service.PlatformAnthropic, service.PlatformGemini, service.PlatformOpenAI, service.PlatformAntigravity, service.PlatformGrok, service.PlatformKimi, service.PlatformZhipu, service.PlatformDeepseek, service.PlatformMiniMax, service.PlatformOpenCodeGo} {
-			for _, id := range defaultModelIDsForPlatform(concretePlatform) {
-				if _, ok := seen[id]; ok {
-					continue
-				}
-				seen[id] = struct{}{}
-				ids = append(ids, id)
-			}
-		}
-		return ids
-	default:
-		ids := make([]string, 0, len(claude.DefaultModels))
-		for _, model := range claude.DefaultModels {
-			ids = append(ids, model.ID)
-		}
-		return ids
-	}
+	return service.DefaultModelIDsForPlatform(platform)
 }
 
 func mergeModelIDs(primary, secondary []string) []string {

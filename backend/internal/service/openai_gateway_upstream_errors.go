@@ -253,6 +253,9 @@ func (s *OpenAIGatewayService) shouldFailoverUpstreamError(statusCode int) bool 
 }
 
 func (s *OpenAIGatewayService) shouldFailoverOpenAIUpstreamResponse(account *Account, statusCode int, upstreamMsg string, upstreamBody []byte) bool {
+	if isOpenAIUpstreamSessionBlocked(upstreamBody) {
+		return false
+	}
 	// cyber_policy is request-scoped even when an intermediary wraps the
 	// provider response in a retryable 5xx status. Never punish or rotate the
 	// selected credential for it.
@@ -528,6 +531,22 @@ func (s *OpenAIGatewayService) handleErrorResponse(
 ) (*OpenAIForwardResult, error) {
 	body := s.readUpstreamErrorBody(resp)
 	body = s.redactAgentIdentitySensitiveBody(ctx, account, body)
+	// Observe once, including terminal and passthrough responses below.
+	if s.rateLimitService != nil && !isOpenAIIPUnauthorizedResponse(resp.StatusCode, body) {
+		s.rateLimitService.resetOpenAIIPUnauthorizedStreak(account)
+	}
+
+	// This conversation is blocked by the upstream, not the selected credential.
+	// Preserve the actionable error without retrying accounts or recording a new
+	// cyber-policy violation against the local user.
+	if isOpenAIUpstreamSessionBlocked(body) {
+		message := sanitizeUpstreamErrorMessage(extractUpstreamErrorMessage(body))
+		setOpsUpstreamError(c, resp.StatusCode, message, truncateString(string(body), 2048))
+		writeOpenAIPassthroughResponseHeaders(c.Writer.Header(), resp.Header, s.responseHeaderFilter)
+		MarkResponseCommitted(c)
+		writeOpenAIUpstreamClientError(c, resp.StatusCode, body, message)
+		return nil, fmt.Errorf("upstream response failed: %s", message)
+	}
 
 	// cyber_policy 硬阻断：透传上游原始错误体给客户端（不重包成通用 502），不冷却账号。
 	// 当前请求恒透传（需求1）；标记供 handler 事后写风控/邮件。400 cyber 不可 failover
@@ -603,7 +622,7 @@ func (s *OpenAIGatewayService) handleErrorResponse(
 			Message:            upstreamMsg,
 			Detail:             upstreamDetail,
 		})
-		s.handleOpenAIAccountUpstreamError(ctx, account, resp.StatusCode, resp.Header, body, requestedModel...)
+		s.handleOpenAIAccountUpstreamErrorAfterStreakReset(ctx, account, resp.StatusCode, resp.Header, body, requestedModel...)
 		return nil, newOpenAIUpstreamFailoverError(
 			resp.StatusCode,
 			resp.Header,
@@ -675,7 +694,7 @@ func (s *OpenAIGatewayService) handleErrorResponse(
 		reqModel, _, _ = extractOpenAIRequestMetaFromBody(requestBody)
 		reqModel = canonicalOpenAIAccountSchedulingModel(account, reqModel)
 	}
-	shouldDisable := s.handleOpenAIAccountUpstreamError(ctx, account, resp.StatusCode, resp.Header, body, reqModel)
+	shouldDisable := s.handleOpenAIAccountUpstreamErrorAfterStreakReset(ctx, account, resp.StatusCode, resp.Header, body, reqModel)
 	kind := "http_error"
 	if shouldDisable {
 		kind = "failover"
@@ -782,6 +801,18 @@ func (s *OpenAIGatewayService) handleCompatErrorResponse(
 ) (*OpenAIForwardResult, error) {
 	body := s.readUpstreamErrorBody(resp)
 	body = s.redactAgentIdentitySensitiveBody(context.Background(), account, body)
+	// Observe once, including terminal and passthrough responses below.
+	if s.rateLimitService != nil && !isOpenAIIPUnauthorizedResponse(resp.StatusCode, body) {
+		s.rateLimitService.resetOpenAIIPUnauthorizedStreak(account)
+	}
+
+	if isOpenAIUpstreamSessionBlocked(body) {
+		message := sanitizeUpstreamErrorMessage(extractUpstreamErrorMessage(body))
+		setOpsUpstreamError(c, resp.StatusCode, message, truncateString(string(body), 2048))
+		MarkResponseCommitted(c)
+		writeError(c, resp.StatusCode, "permission_error", message)
+		return nil, fmt.Errorf("upstream response failed: %s", message)
+	}
 
 	// cyber_policy：兼容路径（Chat Completions / Anthropic）以各自格式回写错误，
 	// 不原样透传 responses 格式的 cyber body（否则对下游格式不合法）。cyber 是上游网络
@@ -874,7 +905,7 @@ func (s *OpenAIGatewayService) handleCompatErrorResponse(
 	if len(requestedModel) > 0 {
 		modelForCooldown = requestedModel[0]
 	}
-	shouldDisable := s.handleOpenAIAccountUpstreamError(
+	shouldDisable := s.handleOpenAIAccountUpstreamErrorAfterStreakReset(
 		c.Request.Context(), account, resp.StatusCode, resp.Header, body, modelForCooldown,
 	)
 	kind := "http_error"

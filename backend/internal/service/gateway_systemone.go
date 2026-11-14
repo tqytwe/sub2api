@@ -54,7 +54,11 @@ func (s *GatewayService) ForwardSystemOne(ctx context.Context, c *gin.Context, a
 	if account.ProxyID != nil && account.Proxy != nil {
 		proxyURL = account.Proxy.URL()
 	}
+	if err := checkAPIKeyLongContextBeforeForward(ctx, c, s.billingService, body); err != nil {
+		return nil, err
+	}
 	resp, err := s.httpUpstream.Do(req, proxyURL, account.ID, account.Concurrency)
+	s.rateLimitService.observeQualityResponse(ctx, account, resp, err)
 	if err != nil {
 		return nil, s.handleUpstreamTransportError(ctx, c, account, err, OpsUpstreamErrorEvent{
 			Passthrough: true,

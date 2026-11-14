@@ -34,6 +34,17 @@ const formatLocalDate = (date: Date): string => {
 }
 
 describe('DateRangePicker', () => {
+  it('can hide rolling-hour choices for calendar-only consumers', async () => {
+    const wrapper = mount(DateRangePicker, {
+      props: { startDate: '2026-11-01', endDate: '2026-11-14', selectedPreset: '30days', showLast24Hours: false },
+      global: { stubs: { Icon: true } },
+    })
+    await wrapper.find('.date-picker-trigger').trigger('click')
+    expect(wrapper.findAll('.date-picker-preset').some(button => button.text() === 'Last 24 Hours')).toBe(false)
+    expect(wrapper.findAll('.date-picker-preset').some(button => button.text() === 'Today')).toBe(true)
+    wrapper.unmount()
+  })
+
   it('uses last 24 hours as the default recognized preset', () => {
     const now = new Date()
     const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000)

@@ -24,8 +24,12 @@ func NewAdminAPIKeyHandler(adminService service.AdminService) *AdminAPIKeyHandle
 
 // AdminUpdateAPIKeyGroupRequest represents the request to update an API key.
 type AdminUpdateAPIKeyGroupRequest struct {
-	GroupID             *int64 `json:"group_id"`               // nil=不修改, 0=解绑, >0=绑定到目标分组
-	ResetRateLimitUsage *bool  `json:"reset_rate_limit_usage"` // true=重置 5h/1d/7d 限速用量
+	ModelMapping        *map[string]string `json:"model_mapping"`
+	ReasoningEffort     *string            `json:"reasoning_effort"`
+	AllowLongContext    *bool              `json:"allow_long_context"`
+	ContextTokenLimit   *int               `json:"context_token_limit"`
+	GroupID             *int64             `json:"group_id"`               // nil=不修改, 0=解绑, >0=绑定到目标分组
+	ResetRateLimitUsage *bool              `json:"reset_rate_limit_usage"` // true=重置 5h/1d/7d 限速用量
 }
 
 // UpdateGroup handles updating an API key's admin-managed fields.
@@ -43,22 +47,15 @@ func (h *AdminAPIKeyHandler) UpdateGroup(c *gin.Context) {
 		return
 	}
 
-	var resetKey *service.APIKey
-	if req.ResetRateLimitUsage != nil && *req.ResetRateLimitUsage {
-		resetKey, err = h.adminService.AdminResetAPIKeyRateLimitUsage(c.Request.Context(), keyID)
-		if err != nil {
-			response.ErrorFrom(c, err)
-			return
-		}
-	}
-
-	result, err := h.adminService.AdminUpdateAPIKeyGroupID(c.Request.Context(), keyID, req.GroupID)
-	if err != nil {
+	input := service.AdminUpdateAPIKeySettingsInput{GroupID: req.GroupID, ModelMapping: req.ModelMapping, ReasoningEffort: req.ReasoningEffort, AllowLongContext: req.AllowLongContext, ContextTokenLimit: req.ContextTokenLimit, ResetRateLimitUsage: req.ResetRateLimitUsage != nil && *req.ResetRateLimitUsage}
+	if err := input.Validate(); err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
-	if resetKey != nil && req.GroupID == nil {
-		result.APIKey = resetKey
+	result, err := h.adminService.AdminUpdateAPIKeySettings(c.Request.Context(), keyID, input)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
 	}
 
 	resp := struct {

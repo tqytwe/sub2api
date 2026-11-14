@@ -35,7 +35,11 @@ func clientRequestedModel(c *gin.Context, fallback string) string {
 }
 
 func clientRequestedUsageFields(c *gin.Context, mapping service.ChannelMappingResult, fallbackModel, upstreamModel string) service.ChannelUsageFields {
-	return mapping.ToUsageFields(clientRequestedModel(c, fallbackModel), upstreamModel)
+	fields := mapping.ToUsageFields(clientRequestedModel(c, fallbackModel), upstreamModel)
+	if c != nil && c.Request != nil {
+		fields.APIKeyMappedModel = service.APIKeyMappedModelFromContext(c.Request.Context())
+	}
+	return fields
 }
 
 func runContentModeration(c *gin.Context, reqLog *zap.Logger, svc *service.ContentModerationService, apiKey *service.APIKey, subject middleware2.AuthSubject, protocol string, model string, body []byte) *service.ContentModerationDecision {

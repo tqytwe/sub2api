@@ -61,12 +61,13 @@ const localeLoaders: Record<LocaleCode, Record<LocaleLoadScope, LocaleLoader>> =
     'workspace-shell': () => import('./locales/en/workspaceShell'),
     'admin-shell': () => import('./locales/en/adminShell'),
     'user-dashboard': async () => {
-      const [dashboard, pelican, legacy] = await Promise.all([
+      const [dashboard, pelican, policy, legacy] = await Promise.all([
         import('./locales/en/dashboard'),
         import('./locales/en/pelicanShowcase'),
+        import('./locales/en/apiKeyModelPolicy'),
         import('./locales/en/legacy/user-dashboard'),
       ])
-      return { default: mergeLocaleMessages(mergeLocaleMessages(legacy.default, dashboard.default), pelican.default) }
+      return { default: mergeLocaleMessages(mergeLocaleMessages(mergeLocaleMessages(legacy.default, dashboard.default), pelican.default), { apiKeyModelPolicy: policy.default }) }
     },
     'user-usage': () => import('./locales/en/userUsage'),
     'user-wallet': () => import('./locales/en/wallet'),
@@ -128,15 +129,16 @@ const localeLoaders: Record<LocaleCode, Record<LocaleLoadScope, LocaleLoader>> =
       return { default: mergeLocaleMessages(legacy.default, adminMessages(module.default)) }
     },
     'admin-resources': async () => {
-      const [overview, resources, scheduling, moderationUsers, pelican, legacy] = await Promise.all([
+      const [overview, resources, scheduling, moderationUsers, pelican, policy, legacy] = await Promise.all([
         import('./locales/en/admin/overview'),
         import('./locales/en/admin/resources'),
         import('./locales/en/admin/scheduling'),
         import('./locales/en/admin/moderationUsers'),
         import('./locales/en/pelicanTests'),
+        import('./locales/en/apiKeyModelPolicy'),
         import('./locales/en/legacy/admin-resources'),
       ])
-      return { default: mergeLocaleMessages(mergeLocaleMessages(legacy.default, adminMessages(overview.default, resources.default, scheduling.default, moderationUsers.default)), { pelicanTests: pelican.default }) }
+      return { default: mergeLocaleMessages(mergeLocaleMessages(legacy.default, adminMessages(overview.default, resources.default, scheduling.default, moderationUsers.default)), { pelicanTests: pelican.default, apiKeyModelPolicy: policy.default }) }
     },
     'admin-settings': async () => {
       const [module, legacy] = await Promise.all([
@@ -175,12 +177,13 @@ const localeLoaders: Record<LocaleCode, Record<LocaleLoadScope, LocaleLoader>> =
     'workspace-shell': () => import('./locales/zh/workspaceShell'),
     'admin-shell': () => import('./locales/zh/adminShell'),
     'user-dashboard': async () => {
-      const [dashboard, pelican, legacy] = await Promise.all([
+      const [dashboard, pelican, policy, legacy] = await Promise.all([
         import('./locales/zh/dashboard'),
         import('./locales/zh/pelicanShowcase'),
+        import('./locales/zh/apiKeyModelPolicy'),
         import('./locales/zh/legacy/user-dashboard'),
       ])
-      return { default: mergeLocaleMessages(mergeLocaleMessages(legacy.default, dashboard.default), pelican.default) }
+      return { default: mergeLocaleMessages(mergeLocaleMessages(mergeLocaleMessages(legacy.default, dashboard.default), pelican.default), { apiKeyModelPolicy: policy.default }) }
     },
     'user-usage': () => import('./locales/zh/userUsage'),
     'user-wallet': () => import('./locales/zh/wallet'),
@@ -242,15 +245,16 @@ const localeLoaders: Record<LocaleCode, Record<LocaleLoadScope, LocaleLoader>> =
       return { default: mergeLocaleMessages(legacy.default, adminMessages(module.default)) }
     },
     'admin-resources': async () => {
-      const [overview, resources, scheduling, moderationUsers, pelican, legacy] = await Promise.all([
+      const [overview, resources, scheduling, moderationUsers, pelican, policy, legacy] = await Promise.all([
         import('./locales/zh/admin/overview'),
         import('./locales/zh/admin/resources'),
         import('./locales/zh/admin/scheduling'),
         import('./locales/zh/admin/moderationUsers'),
         import('./locales/zh/pelicanTests'),
+        import('./locales/zh/apiKeyModelPolicy'),
         import('./locales/zh/legacy/admin-resources'),
       ])
-      return { default: mergeLocaleMessages(mergeLocaleMessages(legacy.default, adminMessages(overview.default, resources.default, scheduling.default, moderationUsers.default)), { pelicanTests: pelican.default }) }
+      return { default: mergeLocaleMessages(mergeLocaleMessages(legacy.default, adminMessages(overview.default, resources.default, scheduling.default, moderationUsers.default)), { pelicanTests: pelican.default, apiKeyModelPolicy: policy.default }) }
     },
     'admin-settings': async () => {
       const [module, legacy] = await Promise.all([

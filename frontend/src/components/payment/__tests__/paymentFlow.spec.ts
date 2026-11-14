@@ -558,3 +558,14 @@ describe('readPaymentRecoverySnapshot', () => {
     expect(restored?.paymentEnv).toBe('')
   })
 })
+
+
+describe('Stripe subtype fee contract', () => {
+  it.each(['balance', 'subscription'] as const)('sends the chosen fee-bearing subtype for %s', orderType => {
+    const payload = buildCreateOrderPayload({
+      amount: 80, paymentType: 'stripe', paymentSubtype: 'link', orderType,
+      isMobile: false, isWechatBrowser: false,
+    } as Parameters<typeof buildCreateOrderPayload>[0])
+    expect(payload).toHaveProperty('payment_subtype', 'link')
+  })
+})

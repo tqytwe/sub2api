@@ -52,8 +52,9 @@ type OpenAIGatewayHandler struct {
 }
 
 type openAIWSTurnChannelMappingSnapshot struct {
-	turn    int
-	mapping service.ChannelMappingResult
+	turn              int
+	mapping           service.ChannelMappingResult
+	apiKeyMappedModel string
 }
 
 func advanceOpenAIWSCyberBlockState(blocked, pending, marked bool, turnErr error) (bool, bool) {
@@ -1518,6 +1519,9 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 			if account.IsOpenAI() {
 				submitMessagesUsage(result)
 			}
+			if h.handleAnthropicAPIKeyLongContextError(c, err, streamStarted || c.Writer.Written()) {
+				return
+			}
 			if service.IsOpenAITurnAdmissionError(err) {
 				h.anthropicStreamingAwareError(c, http.StatusServiceUnavailable, "admission_unavailable", "Account eligibility changed; please retry with complete context", streamStarted || c.Writer.Written())
 				return
@@ -2531,7 +2535,7 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 	// 必须在合成路由解析和上游模型映射之前执行。
 	// 与 HTTP 准入一致：帧内重复 model 键/大小写变体可能被上游按末值绑定，
 	// 全部候选值逐一校验，任一未命中即拒绝。
-	if blocked := blockedModelAllowlistCandidate(apiKey.Group, requestmodel.FromBodyCandidates("", "application/json", firstMessage)); blocked != "" {
+	if blocked := blockedModelAllowlistCandidate(apiKey.Group, service.APIKeyModelCandidates(apiKey, requestmodel.FromBodyCandidates("", "application/json", firstMessage))); blocked != "" {
 		service.MarkOpsClientBusinessLimited(c, service.OpsClientBusinessLimitedReasonLocalModelConfiguration)
 		middleware2.MarkIngressRejected(c, middleware2.IngressRejectModelNotAllowed)
 		closeOpenAIClientWS(wsConn, coderws.StatusPolicyViolation, fmt.Sprintf("Model %q is not available for this group", blocked))
@@ -2539,9 +2543,18 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 	}
 	// Keep the client model in the frame for admission, response identity and usage.
 	// Apply the resolved upstream model through MapRequestModel on every turn.
-	wsRouteModel := reqModel
+	wsRouteModel := service.MapAPIKeyModel(apiKey, reqModel)
+	firstKeyMappedModel := ""
+	if wsRouteModel != reqModel {
+		firstKeyMappedModel = wsRouteModel
+	}
+	if err := h.gatewayService.CheckAPIKeyLongContext(c.Request.Context(), apiKey, firstMessage, reqModel, wsRouteModel); err != nil {
+		service.WriteAPIKeyLongContextWSFailure(wsConn, err)
+		closeOpenAIClientWS(wsConn, coderws.StatusPolicyViolation, service.APIKeyContextLengthExceededMessage)
+		return
+	}
 	if apiKey.Group != nil && apiKey.Group.Platform == service.PlatformComposite {
-		decision, resolveErr := h.compositeResolver.Resolve(c.Request.Context(), apiKey.Group.ID, reqModel, service.CompositeRouteEndpointResponses)
+		decision, resolveErr := h.compositeResolver.Resolve(c.Request.Context(), apiKey.Group.ID, wsRouteModel, service.CompositeRouteEndpointResponses)
 		if resolveErr != nil {
 			reqLog.Error("openai.websocket_composite_route_failed", zap.Error(resolveErr))
 			closeOpenAIClientWS(wsConn, coderws.StatusInternalError, "Failed to resolve composite model route")
@@ -2956,7 +2969,7 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 		// Passthrough rejects overlapping response.create frames, so one immutable
 		// turn-tagged slot preserves the exact mapping used for the in-flight request.
 		var turnChannelMapping atomic.Pointer[openAIWSTurnChannelMappingSnapshot]
-		turnChannelMapping.Store(&openAIWSTurnChannelMappingSnapshot{turn: 1, mapping: channelMappingWS})
+		turnChannelMapping.Store(&openAIWSTurnChannelMappingSnapshot{turn: 1, mapping: channelMappingWS, apiKeyMappedModel: firstKeyMappedModel})
 		// turn 级定价：首轮回退到 TurnStarted 的所属 turn 时刻；后续 turn 由
 		// BeforeTurn 重新冻结 pricingAt 并按最新门复核当前账号。
 		var turnPricing openAIWSTurnPricing
@@ -2967,7 +2980,13 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 			return
 		}
 		ledgerTurns := requestledger.NewTurnBindings(ctx)
+		forcedReasoningEffort := ""
+		if effectiveAPIKeyPlatform(c, apiKey) == service.PlatformOpenAI {
+			forcedReasoningEffort = apiKey.ReasoningEffort
+		}
 		hooks := &service.OpenAIWSIngressHooks{
+			ForcedReasoningEffort:       forcedReasoningEffort,
+			APIKeyModelMapping:          len(apiKey.ModelMapping) > 0,
 			ClientLifecycleContext:      clientLifecycleCtx,
 			InitialRequestModel:         reqModel,
 			InitialTurnStartedAt:        firstTurnStartedAt,
@@ -2980,6 +2999,14 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 				c.Set(securityAuditWSTurnContextKey, turn)
 				service.BeginOpsStreamTurn(c, turn)
 				setCyberTurnBody(turn, payload)
+				effectiveModel := strings.TrimSpace(originalModel)
+				if effectiveModel == "" {
+					effectiveModel = reqModel
+				}
+				if err := h.gatewayService.CheckAPIKeyLongContext(c.Request.Context(), apiKey, payload, effectiveModel, service.MapAPIKeyModel(apiKey, effectiveModel)); err != nil {
+					service.WriteAPIKeyLongContextWSFailure(wsConn, err)
+					return service.NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, service.APIKeyContextLengthExceededMessage, err)
+				}
 				// 连接级 cyber session gate 也在 BeforeRequest 先执行，使 native 与
 				// passthrough ingress 都能在 BeforeTurn 及上游写入前无副作用地拒绝。
 				// BeforeTurn 中保留同一检查作为防御式兜底。
@@ -3004,7 +3031,7 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 				// 则关闭整条连接，与推理强度 deny 一致。实际生效模型始终参与校验；
 				// 帧内重复 model 键/大小写变体/嵌套 session.model 额外逐一校验，
 				// 防止候选集非空时掩盖被轮换掉的禁用模型。
-				candidates := append([]string{model}, requestmodel.FromBodyCandidates("", "application/json", payload)...)
+				candidates := service.APIKeyModelCandidates(apiKey, append([]string{model}, requestmodel.FromBodyCandidates("", "application/json", payload)...))
 				if blocked := blockedModelAllowlistCandidate(apiKey.Group, candidates); blocked != "" {
 					service.MarkOpsClientBusinessLimited(c, service.OpsClientBusinessLimitedReasonLocalModelConfiguration)
 					middleware2.MarkIngressRejected(c, middleware2.IngressRejectModelNotAllowed)
@@ -3022,7 +3049,11 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 					model = reqModel
 				}
 				setOpsRequestContext(c, model, true)
-				routeModel := model
+				routeModel := service.MapAPIKeyModel(apiKey, model)
+				keyMappedModel := ""
+				if routeModel != model {
+					keyMappedModel = routeModel
+				}
 				if apiKey.Group != nil && apiKey.Group.Platform == service.PlatformComposite {
 					// The account, target platform and route context are connection-scoped.
 					// A different public model needs a new connection and fresh resolution.
@@ -3039,7 +3070,7 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 				if turn > 1 && !mappedModelUnchanged && !account.IsModelSupported(model) && !account.IsModelSupported(mapping.MappedModel) {
 					return "", newOpenAIWSUnsupportedModelSwitchError(mapping.MappedModel)
 				}
-				turnChannelMapping.Store(&openAIWSTurnChannelMappingSnapshot{turn: turn, mapping: mapping})
+				turnChannelMapping.Store(&openAIWSTurnChannelMappingSnapshot{turn: turn, mapping: mapping, apiKeyMappedModel: keyMappedModel})
 				return mapping.MappedModel, nil
 			},
 			BeforeTurn: func(turn int) error {
@@ -3121,8 +3152,10 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 					turnUpstreamModel = strings.TrimSpace(result.UpstreamModel)
 				}
 				var turnMapping service.ChannelMappingResult
+				var turnKeyMappedModel string
 				if snapshot := turnChannelMapping.Load(); snapshot != nil && snapshot.turn == turn {
 					turnMapping = snapshot.mapping
+					turnKeyMappedModel = snapshot.apiKeyMappedModel
 				} else {
 					turnMapping, _ = h.gatewayService.ResolveChannelMappingAndRestrict(ctx, apiKey.GroupID, turnRequestedModel)
 				}
@@ -3130,6 +3163,7 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 					turnUpstreamModel = turnRequestedModel
 				}
 				turnUsageFields := turnMapping.ToUsageFields(turnRequestedModel, turnUpstreamModel)
+				turnUsageFields.APIKeyMappedModel = turnKeyMappedModel
 				cyberMarked := service.GetOpsCyberPolicy(c) != nil
 				h.recordCyberPolicyIfMarked(c, apiKey, account, subscription, turnRequestedModel, turnErr != nil, cyberBlockBody, turnUsageFields, requestPayloadHash)
 				cyberBlockedThisConn, cyberBlockPendingAfterFailover = advanceOpenAIWSCyberBlockState(
@@ -3303,6 +3337,7 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 				return
 			}
 
+			service.WriteAPIKeyLongContextWSFailure(wsConn, err)
 			var closeErr *service.OpenAIWSClientCloseError
 			hasClientCloseErr := errors.As(err, &closeErr)
 			if openAIWSIngressEndedByClient(err) {

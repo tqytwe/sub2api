@@ -146,3 +146,22 @@ func TestForwardExcelBPSRejectsUnboundGrantAndImagesBeforeTransport(t *testing.T
 		require.Nil(t, upstream.request)
 	})
 }
+
+// BPS adds a protocol prologue and can expand tool history. A small ingress body
+// cannot bypass a key ceiling by using this Fork-specific transport.
+func TestForwardExcelBPSRechecksActualExpandedContext(t *testing.T) {
+	account := testExcelAccount()
+	upstream := &excelBPSHTTPUpstreamStub{}
+	svc := newExcelBPSRuntime(t, account, `{"models":[]}`, false, upstream)
+	c, _ := newExcelBPSContext()
+	key := &APIKey{AllowLongContext: true, ContextTokenLimit: 10}
+	c.Set("api_key", key)
+	body := []byte(`{"model":"gpt-5","input":"hi"}`)
+	require.NoError(t, svc.CheckAPIKeyLongContext(context.Background(), key, body, "gpt-5"))
+	_, err := svc.forwardExcelBPS(context.Background(), c, account, body, time.Now())
+	var policyErr *APIKeyLongContextError
+	require.ErrorAs(t, err, &policyErr)
+	require.Equal(t, "context_length_exceeded", policyErr.Code)
+	require.True(t, IsOpenAITurnAdmissionError(err))
+	require.Nil(t, upstream.request, "no credential/network work may bypass the expanded-body policy")
+}

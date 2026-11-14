@@ -17,7 +17,9 @@ func WithPrioritySchedulingObservation(ctx context.Context, group *int64, public
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	ctx = context.WithValue(ctx, ctxkey.RequestedPublicModel, strings.TrimSpace(publicModel))
+	if original, ok := RequestedPublicModelFromContext(ctx); APIKeyMappedModelFromContext(ctx) == "" || !ok || original == "" {
+		ctx = context.WithValue(ctx, ctxkey.RequestedPublicModel, strings.TrimSpace(publicModel))
+	}
 	ctx = context.WithValue(ctx, ctxkey.InboundEndpoint, strings.TrimSpace(endpoint))
 	if group != nil {
 		ctx = context.WithValue(ctx, priorityObservationGroupKey{}, *group)

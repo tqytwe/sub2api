@@ -209,9 +209,13 @@ func (s *AntigravityGatewayService) ForwardGemini(ctx context.Context, c *gin.Co
 
 				fallbackWrapped, err := s.wrapV1InternalRequest(projectID, fallbackModel, injectedBody)
 				if err == nil {
+					if err := checkAPIKeyLongContextBeforeForward(ctx, c, nil, fallbackWrapped, fallbackModel); err != nil {
+						return nil, err
+					}
 					fallbackReq, err := antigravity.NewAPIRequest(ctx, upstreamAction, accessToken, fallbackWrapped)
 					if err == nil {
 						fallbackResp, err := s.httpUpstream.Do(fallbackReq, proxyURL, account.ID, account.Concurrency)
+						s.rateLimitService.observeQualityResponse(fallbackReq.Context(), account, fallbackResp, err)
 						if err == nil && fallbackResp.StatusCode < 400 {
 							_ = resp.Body.Close()
 							resp = fallbackResp

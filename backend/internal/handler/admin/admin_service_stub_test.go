@@ -882,3 +882,31 @@ func (s *stubAdminService) CreateShadow(ctx context.Context, parentID int64, opt
 
 // Ensure stub implements interface.
 var _ service.AdminService = (*stubAdminService)(nil)
+
+func (s *stubAdminService) AdminUpdateAPIKeySettings(ctx context.Context, keyID int64, input service.AdminUpdateAPIKeySettingsInput) (*service.AdminUpdateAPIKeyGroupIDResult, error) {
+	if err := input.Validate(); err != nil {
+		return nil, err
+	}
+	if input.ResetRateLimitUsage {
+		if _, err := s.AdminResetAPIKeyRateLimitUsage(ctx, keyID); err != nil {
+			return nil, err
+		}
+	}
+	result, err := s.AdminUpdateAPIKeyGroupID(ctx, keyID, input.GroupID)
+	if err != nil {
+		return nil, err
+	}
+	if input.ModelMapping != nil {
+		result.APIKey.ModelMapping = *input.ModelMapping
+	}
+	if input.ReasoningEffort != nil {
+		result.APIKey.ReasoningEffort = *input.ReasoningEffort
+	}
+	if input.AllowLongContext != nil {
+		result.APIKey.AllowLongContext = *input.AllowLongContext
+	}
+	if input.ContextTokenLimit != nil {
+		result.APIKey.ContextTokenLimit = *input.ContextTokenLimit
+	}
+	return result, nil
+}

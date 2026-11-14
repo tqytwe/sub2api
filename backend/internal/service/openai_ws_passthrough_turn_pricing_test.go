@@ -23,6 +23,7 @@ func startPassthroughHookRecordingServer(
 	svc *OpenAIGatewayService,
 	account *Account,
 	hooks *OpenAIWSIngressHooks,
+	keys ...*APIKey,
 ) (*httptest.Server, <-chan error) {
 	t.Helper()
 	serverErr := make(chan error, 1)
@@ -55,6 +56,10 @@ func startPassthroughHookRecordingServer(
 		req := r.Clone(controlCtx)
 		req.Header = req.Header.Clone()
 		ginCtx.Request = req
+		if len(keys) > 0 {
+			ginCtx.Set("api_key", keys[0])
+			SetOpenAIClientTransport(ginCtx, OpenAIClientTransportWS)
+		}
 		serverErr <- svc.ProxyResponsesWebSocketFromClient(controlCtx, ginCtx, conn, account, "sk-test", firstMessage, hooks)
 	}))
 	return server, serverErr

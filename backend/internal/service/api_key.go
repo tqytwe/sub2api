@@ -31,15 +31,19 @@ func IsWindowExpired(windowStart *time.Time, duration time.Duration) bool {
 }
 
 type APIKey struct {
-	ID          int64
-	UserID      int64
-	Key         string
-	Name        string
-	GroupIDs    []int64
-	GroupID     *int64
-	Status      string
-	IPWhitelist []string
-	IPBlacklist []string
+	ModelMapping      map[string]string
+	ReasoningEffort   string
+	AllowLongContext  bool
+	ContextTokenLimit int
+	ID                int64
+	UserID            int64
+	Key               string
+	Name              string
+	GroupIDs          []int64
+	GroupID           *int64
+	Status            string
+	IPWhitelist       []string
+	IPBlacklist       []string
 	// 预编译的 IP 规则，用于认证热路径避免重复 ParseIP/ParseCIDR。
 	CompiledIPWhitelist *ip.CompiledIPRules `json:"-"`
 	CompiledIPBlacklist *ip.CompiledIPRules `json:"-"`
@@ -94,6 +98,10 @@ func validateUsageInputOwnership(apiKey *APIKey, user *User) error {
 		return nil
 	}
 	return ValidateAPIKeyUserOwnership(apiKey, user)
+}
+
+func (k *APIKey) RequiresContextCheck() bool {
+	return k != nil && (k.ContextTokenLimit > 0 || !k.AllowLongContext)
 }
 
 func (k *APIKey) IsActive() bool {

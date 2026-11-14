@@ -81,10 +81,14 @@ func (r *scheduledTestPlanRepository) ListQualityPlans(ctx context.Context) ([]*
 func (r *scheduledTestPlanRepository) TriggerQuality(ctx context.Context, id int64) error {
 	result, err := r.db.ExecContext(ctx, `
 		UPDATE scheduled_test_plans
-		SET next_run_at = NOW(), updated_at = NOW()
+		SET next_run_at = NOW(), updated_at = clock_timestamp(),
+		 pelican_config=jsonb_set(pelican_config,'{_manual_quality_run}','true'::jsonb)
 		WHERE id = $1 AND enabled
 		  AND pelican_config->'quality' IS NOT NULL
 		  AND (running_until IS NULL OR running_until < NOW())
+		  AND NOT EXISTS(SELECT 1 FROM account_quality_states rest WHERE rest.plan_id=scheduled_test_plans.id
+		    AND COALESCE((pelican_config->'quality'->>'retest_rest_minutes')::int,0)>0
+		    AND (rest.state->>'retest_after')::timestamptz>NOW())
 	`, id)
 	if err != nil {
 		return err
@@ -94,7 +98,7 @@ func (r *scheduledTestPlanRepository) TriggerQuality(ctx context.Context, id int
 		return err
 	}
 	if changed != 1 {
-		return infraerrors.Conflict("QUALITY_PLAN_NOT_RUNNABLE", "quality rule must be enabled and idle")
+		return infraerrors.Conflict("QUALITY_PLAN_NOT_RUNNABLE", "quality rule must be enabled, idle and outside its retest rest period")
 	}
 	return nil
 }
@@ -443,6 +447,13 @@ func scanPlan(row scannable) (*service.ScheduledTestPlan, error) {
 		return nil, err
 	}
 	if len(config) > 0 {
+		var marker struct {
+			Manual bool `json:"_manual_quality_run"`
+		}
+		if err := json.Unmarshal(config, &marker); err != nil {
+			return nil, err
+		}
+		p.ManualQualityRun = marker.Manual
 		p.PelicanConfig = &service.PelicanTestConfig{}
 		if err := json.Unmarshal(config, p.PelicanConfig); err != nil {
 			return nil, err

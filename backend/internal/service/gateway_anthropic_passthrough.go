@@ -112,6 +112,7 @@ func (s *GatewayService) forwardAnthropicAPIKeyPassthroughWithInput(
 		}
 
 		resp, err = s.httpUpstream.DoWithTLS(upstreamReq, proxyURL, account.ID, account.Concurrency, s.tlsFPProfileService.ResolveTLSProfile(account))
+		s.rateLimitService.observeQualityResponse(upstreamReq.Context(), account, resp, err)
 		if err != nil {
 			if resp != nil && resp.Body != nil {
 				_ = resp.Body.Close()
@@ -120,6 +121,10 @@ func (s *GatewayService) forwardAnthropicAPIKeyPassthroughWithInput(
 				UpstreamURL: safeUpstreamURL(upstreamReq.URL.String()),
 				Passthrough: true,
 			})
+		}
+
+		if isAnthropicRequestTooLarge(account, resp) {
+			return handleAnthropicRequestTooLarge(c, resp)
 		}
 
 		// 透传分支禁止 400 请求体降级重试（该重试会改写请求体）
@@ -372,6 +377,9 @@ func (s *GatewayService) buildUpstreamRequestAnthropicAPIKeyPassthrough(
 	account.ApplyHeaderOverrides(req.Header)
 	filterSonnet55ToolsetBetaHeader(req.Header, body, gjson.GetBytes(body, "model").String())
 
+	if err := checkAPIKeyLongContextBeforeForward(ctx, c, s.billingService, body, gjson.GetBytes(body, "model").String()); err != nil {
+		return nil, nil, err
+	}
 	return req, body, nil
 }
 

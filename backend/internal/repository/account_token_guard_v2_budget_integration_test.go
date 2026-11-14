@@ -163,6 +163,47 @@ func TestReloginBudgetSavedCredentialsMustPassASeparateFreshProbe(t *testing.T) 
 	require.False(t, stored.AutoReloginExhausted)
 }
 
+func TestReloginBudgetSuccessfulHistoryPagesAdvanceWithoutPrematureReset(t *testing.T) {
+	ctx := context.Background()
+	guard, tasks, id, rules := newBudgetFixture(t)
+	now := time.Now().UTC().Truncate(time.Microsecond)
+	until := now.Add(time.Hour)
+	_, err := integrationDB.ExecContext(ctx, `UPDATE account_token_guard_v2_accounts
+        SET relogin_fail_streak=2,auto_relogin_exhausted=TRUE,cooldown_until=$2
+        WHERE account_id=$1`, id, until)
+	require.NoError(t, err)
+	// More than one page of terminal successes must advance the durable cursor,
+	// without treating a partial page as proof of the latest overall outcome.
+	ids := make([]int64, reloginBudgetBatch+1)
+	for i := range ids {
+		task, err := tasks.CreateTask(ctx, id, "synthetic-paged-success")
+		require.NoError(t, err)
+		ids[i] = task.ID
+		finishBudgetTask(t, task.ID, service.OpenAIOAuthReauthStatusSucceeded, now.Add(-time.Minute))
+	}
+	stored, pending, err := guard.ReconcileReloginBudget(ctx, id, "budget-owner", rules, now, service.AccountTokenGuardV2ProbeOK)
+	require.NoError(t, err)
+	require.True(t, pending, "the remaining history still needs reconciliation")
+	require.Equal(t, ids[reloginBudgetBatch-1], stored.LastCountedTaskID, "verified successes must not pin the first page")
+	require.Equal(t, 2, stored.ReloginFailStreak, "a partial page must retain the failure budget")
+	require.True(t, stored.AutoReloginExhausted)
+	require.Equal(t, &until, stored.CooldownUntil)
+	persisted, err := guard.GetAccount(ctx, id)
+	require.NoError(t, err)
+	require.Equal(t, stored.LastCountedTaskID, persisted.LastCountedTaskID)
+	require.Equal(t, stored.ReloginFailStreak, persisted.ReloginFailStreak)
+	require.True(t, persisted.AutoReloginExhausted)
+	require.Equal(t, &until, persisted.CooldownUntil)
+
+	stored, pending, err = guard.ReconcileReloginBudget(ctx, id, "budget-owner", rules, now.Add(time.Second), service.AccountTokenGuardV2ProbeOK)
+	require.NoError(t, err)
+	require.False(t, pending, "the final page confirms there is no later task")
+	require.Equal(t, ids[len(ids)-1], stored.LastCountedTaskID)
+	require.Zero(t, stored.ReloginFailStreak)
+	require.False(t, stored.AutoReloginExhausted)
+	require.Nil(t, stored.CooldownUntil, "only complete history and a fresh post-success probe reset the budget")
+}
+
 func TestReloginBudgetMigrationSeedsOnlyOldTerminalTasks(t *testing.T) {
 	ctx := context.Background()
 	tx, err := integrationDB.BeginTx(ctx, nil)

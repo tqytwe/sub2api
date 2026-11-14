@@ -693,7 +693,15 @@ func (h *AccountHandler) List(c *gin.Context) {
 		}
 	}
 
-	accounts, total, err := h.adminService.ListAccounts(c.Request.Context(), page, pageSize, platform, accountType, status, search, groupID, privacyMode, sortBy, sortOrder)
+	var accounts []service.Account
+	var total int64
+	var err error
+	var concurrencyCounts map[int64]int
+	if strings.EqualFold(strings.TrimSpace(sortBy), "current_concurrency") {
+		accounts, total, concurrencyCounts, err = h.listAccountsByCurrentConcurrency(c.Request.Context(), page, pageSize, platform, accountType, status, search, groupID, privacyMode, sortOrder)
+	} else {
+		accounts, total, err = h.adminService.ListAccounts(c.Request.Context(), page, pageSize, platform, accountType, status, search, groupID, privacyMode, sortBy, sortOrder)
+	}
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
@@ -723,7 +731,6 @@ func (h *AccountHandler) List(c *gin.Context) {
 		accountIDs[i] = acc.ID
 	}
 
-	concurrencyCounts := make(map[int64]int)
 	var windowCosts map[int64]float64
 	var activeSessions map[int64]int
 	var rpmCounts map[int64]int
@@ -743,7 +750,7 @@ func (h *AccountHandler) List(c *gin.Context) {
 	}
 
 	// 始终获取并发数（Redis ZCARD，极低开销）
-	if h.concurrencyService != nil {
+	if concurrencyCounts == nil && h.concurrencyService != nil {
 		if cc, ccErr := h.concurrencyService.GetAccountConcurrencyBatch(c.Request.Context(), accountIDs); ccErr == nil && cc != nil {
 			concurrencyCounts = cc
 		}
@@ -2361,7 +2368,7 @@ func (h *AccountHandler) BulkUpdate(c *gin.Context) {
 		return
 	}
 
-	result, err := h.adminService.BulkUpdateAccounts(c.Request.Context(), &service.BulkUpdateAccountsInput{
+	result, err := h.adminService.BulkUpdateAccounts(accountManualSchedulingContext(c, req.Schedulable != nil), &service.BulkUpdateAccountsInput{
 		AccountIDs:            req.AccountIDs,
 		Filters:               toServiceBulkUpdateAccountFilters(req.Filters),
 		Name:                  req.Name,
@@ -2798,7 +2805,7 @@ func (h *AccountHandler) SetSchedulable(c *gin.Context) {
 		return
 	}
 
-	account, err := h.adminService.SetAccountSchedulable(c.Request.Context(), accountID, req.Schedulable)
+	account, err := h.adminService.SetAccountSchedulable(accountManualSchedulingContext(c, true), accountID, req.Schedulable)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return

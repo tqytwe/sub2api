@@ -801,6 +801,32 @@ describe("admin SettingsView payment visible method controls", () => {
     adminSettingsFetch.mockResolvedValue(undefined);
   });
 
+  it("uses only the saved global fee in provider summaries until settings save succeeds", async () => {
+    getSettings.mockResolvedValueOnce({...baseSettingsResponse,payment_recharge_fee_rate:2.5});
+    const wrapper=mountView();
+    await flushPromises();
+    await openPaymentTab(wrapper);
+    const summary=wrapper.getComponent({name:'PaymentProviderList'});
+    const dialog=wrapper.getComponent({name:'PaymentProviderDialog'});
+    expect(summary.props('globalFeeRate')).toBe(2.5);
+    expect(dialog.props('globalFeeRate')).toBe(2.5);
+    const label=wrapper.findAll('label').find(node=>node.text()==='admin.settings.payment.rechargeFeeRate');
+    expect(label).toBeDefined();
+    const input=label!.element.parentElement!.querySelector('input')!;
+    input.value='4';input.dispatchEvent(new Event('input',{bubbles:true}));
+    await flushPromises();
+    expect(summary.props('globalFeeRate')).toBe(2.5);
+    expect(dialog.props('globalFeeRate')).toBe(2.5);
+    updateSettings.mockRejectedValueOnce(new Error('synthetic save failure'));
+    await wrapper.find('form').trigger('submit.prevent');await flushPromises();
+    expect(summary.props('globalFeeRate')).toBe(2.5);
+    await wrapper.find('form').trigger('submit.prevent');await flushPromises();
+    expect(updateSettings).toHaveBeenLastCalledWith(expect.objectContaining({payment_recharge_fee_rate:4}));
+    expect(summary.props('globalFeeRate')).toBe(4);
+    expect(dialog.props('globalFeeRate')).toBe(4);
+    wrapper.unmount();
+  });
+
   it("mounts model billing only in its admin tab, outside the general settings form, and retains its draft across tabs", async () => {
     const wrapper = mountView();
     await flushPromises();

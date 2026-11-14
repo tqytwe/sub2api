@@ -19,6 +19,9 @@ type ScheduledTestRunnerService struct {
 	accountTestSvc    *AccountTestService
 	rateLimitSvc      *RateLimitService
 	qualityJudge      *qualityJevJudge
+	qualityTrigger    *quality5xxTrigger
+	triggerCancel     context.CancelFunc
+	triggerWG         sync.WaitGroup
 	runQualityProbe   func(context.Context, int64, string, string) (*ScheduledTestResult, error)
 	candyService      *ChannelMonitorV2CandyService
 	pelicanGroupTests *PelicanGroupTestService
@@ -38,7 +41,7 @@ func NewScheduledTestRunnerService(
 	cfg *config.Config,
 	moderationSvc *ContentModerationService,
 ) *ScheduledTestRunnerService {
-	return &ScheduledTestRunnerService{
+	s := &ScheduledTestRunnerService{
 		planRepo:        planRepo,
 		scheduledSvc:    scheduledSvc,
 		accountTestSvc:  accountTestSvc,
@@ -47,6 +50,10 @@ func NewScheduledTestRunnerService(
 		runQualityProbe: accountTestSvc.RunQualityProbeBackground,
 		cfg:             cfg,
 	}
+	if rateLimitSvc != nil {
+		s.qualityTrigger = rateLimitSvc.qualityTrigger
+	}
+	return s
 }
 
 // Start begins the cron ticker (every minute).
@@ -70,6 +77,7 @@ func (s *ScheduledTestRunnerService) Start() {
 		}
 		s.cron = c
 		s.cron.Start()
+		s.startQualityTriggers()
 		logger.LegacyPrintf("service.scheduled_test_runner", "[ScheduledTestRunner] started (tick=every minute)")
 	})
 }
@@ -80,6 +88,9 @@ func (s *ScheduledTestRunnerService) Stop() {
 		return
 	}
 	s.stopOnce.Do(func() {
+		if s.triggerCancel != nil {
+			s.triggerCancel()
+		}
 		if s.cron != nil {
 			ctx := s.cron.Stop()
 			select {
@@ -87,6 +98,10 @@ func (s *ScheduledTestRunnerService) Stop() {
 			case <-time.After(3 * time.Second):
 				logger.LegacyPrintf("service.scheduled_test_runner", "[ScheduledTestRunner] cron stop timed out")
 			}
+		}
+		s.triggerWG.Wait()
+		if s.qualityTrigger != nil && s.qualityTrigger.queue != nil {
+			_ = s.qualityTrigger.queue.Close()
 		}
 	})
 }
@@ -183,7 +198,7 @@ func (s *ScheduledTestRunnerService) runOnePlan(ctx context.Context, plan *Sched
 	}
 }
 
-func (s *ScheduledTestRunnerService) runQualityPlan(ctx context.Context, plan *ScheduledTestPlan) {
+func (s *ScheduledTestRunnerService) runQualityPlan(ctx context.Context, plan *ScheduledTestPlan) bool {
 	now := time.Now()
 	leaseUntil := now.Add(15 * time.Minute).Truncate(time.Microsecond)
 	claimVersion, claimed, err := s.scheduledSvc.ClaimQualityRun(ctx, plan, leaseUntil)
@@ -191,19 +206,52 @@ func (s *ScheduledTestRunnerService) runQualityPlan(ctx context.Context, plan *S
 		if err != nil {
 			logger.LegacyPrintf("service.scheduled_test_runner", "quality plan=%d claim failed: %v", plan.ID, err)
 		}
-		return
+		return false
 	}
 	plan.UpdatedAt = claimVersion
 	plan.RunningUntil = &leaseUntil
+	available, quotaErr := s.qualityTemplateQuotaAvailable(ctx, plan)
+	if quotaErr != nil || !available {
+		next, nextErr := computeNextRun(plan.CronExpression, time.Now())
+		if repo, ok := s.planRepoForQuality().(QualityQuotaSkipRepository); ok && nextErr == nil {
+			finishCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+			if err := repo.FinishQuotaSkippedQuality(finishCtx, plan, next); err != nil {
+				logger.LegacyPrintf("service.scheduled_test_runner", "quality plan=%d quota-skip release failed: %v", plan.ID, err)
+			}
+		}
+		return false
+	}
+	snapshot := cloneQualityPelicanConfig(plan.PelicanConfig)
+	snapshot.TriggerSource = plan.TriggerSource
+	if snapshot.TriggerSource == "" {
+		snapshot.TriggerSource = "scheduled"
+		if plan.ManualQualityRun {
+			snapshot.TriggerSource = "manual"
+		}
+	}
+	plan.PelicanConfig = snapshot
+	ctx = context.WithValue(ctx, qualityIsolationProbeKey{}, true)
 
 	results, outcome := s.runQualityRound(ctx, plan, now)
+	if plan.TriggerObservedAt != nil && s.qualityTrigger != nil && !s.qualityTrigger.signalIsCurrent(ctx, plan.AccountID, *plan.TriggerObservedAt) {
+		// A newer real failure cannot be cleared by this older probe. Completed
+		// incorrect answers may still isolate; correct samples cannot restore.
+		plan.PelicanConfig.Quality.AutoRestore = false
+		if outcome == "passed" {
+			outcome = "inconclusive"
+		}
+	}
 
 	saveCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	action, actionErr := s.scheduledSvc.CommitQualityRound(saveCtx, plan, outcome, results)
 	if actionErr != nil {
-		action = "action_error"
 		logger.LegacyPrintf("service.scheduled_test_runner", "quality plan=%d outcome apply failed: %v", plan.ID, actionErr)
+		return false
+	}
+	if action == "stale_run" || action == "account_deleted" {
+		return false
 	}
 	for _, result := range results {
 		result.QualityAction = action
@@ -211,11 +259,20 @@ func (s *ScheduledTestRunnerService) runQualityPlan(ctx context.Context, plan *S
 	nextRun, nextErr := computeNextRun(plan.CronExpression, time.Now())
 	if nextErr != nil {
 		logger.LegacyPrintf("service.scheduled_test_runner", "quality plan=%d computeNextRun failed: %v", plan.ID, nextErr)
-		return
+		return false
 	}
-	if finishErr := s.scheduledSvc.FinishQualityRun(saveCtx, plan.ID, leaseUntil, time.Now(), nextRun); finishErr != nil {
+	if finishErr := s.scheduledSvc.finishQualityPlan(saveCtx, plan, now, nextRun); finishErr != nil {
 		logger.LegacyPrintf("service.scheduled_test_runner", "quality plan=%d finish failed: %v", plan.ID, finishErr)
+		return false
 	}
+	return true
+}
+
+func (s *ScheduledTestRunnerService) planRepoForQuality() ScheduledTestPlanRepository {
+	if s.planRepo != nil {
+		return s.planRepo
+	}
+	return s.scheduledSvc.planRepo
 }
 
 // runQualityRound runs the frozen target set without changing rule identity.

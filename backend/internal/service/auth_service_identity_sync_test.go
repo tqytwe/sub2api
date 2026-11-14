@@ -176,10 +176,8 @@ func TestAuthServiceVerifiedOAuthEmailPersistsIdentityTimestamp(t *testing.T) {
 	}, nil)
 	ctx := context.Background()
 
-	_, user, err := svc.Register(ctx, "oauth@example.com", "password")
-	require.NoError(t, err)
-	require.NotNil(t, user)
-
+	// Exercise a new OAuth registration. Linking an existing password account
+	// by matching email is intentionally rejected by the account-link guard.
 	_, oauthUser, err := svc.LoginOrRegisterVerifiedEmailOAuth(ctx, service.EmailOAuthIdentityInput{
 		ProviderType:    "github",
 		ProviderKey:     "github",

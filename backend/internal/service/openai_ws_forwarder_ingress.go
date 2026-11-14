@@ -391,12 +391,15 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 			}
 		}
 		upstreamModel := normalizeOpenAIModelForUpstream(account, account.GetMappedModel(requestModel))
-		if modelMissing || upstreamModel != originalModel {
+		if modelMissing || upstreamModel != originalModel || (hooks != nil && hooks.APIKeyModelMapping) {
 			next, setErr := applyPayloadMutation(normalized, "model", upstreamModel)
 			if setErr != nil {
 				return openAIWSClientPayload{}, NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, "invalid websocket request payload", setErr)
 			}
 			normalized = next
+		}
+		if hooks != nil && hooks.APIKeyModelMapping {
+			normalized = canonicalizeAPIKeyRequestModel(normalized, upstreamModel)
 		}
 		SetOpsUpstreamModel(c, upstreamModel)
 		if isCodexCLI && codexImageGenerationExplicitToolPolicy == codexImageGenerationExplicitToolPolicyStrip {

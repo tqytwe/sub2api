@@ -137,6 +137,108 @@ describe('admin account quality operations view', () => {
     }))
   })
 
+  it('saves and reads back 5xx-triggered multi-model rules with rest and the existing 401 setting preserved', async () => {
+    const source = {
+      id: 9, account_id: 7, model_id: 'a', cron_expression: '*/30 * * * *', enabled: true, max_results: 100, updated_at: 'version-1',
+      pelican_config: { model_ids: ['a', 'b'], parallel_count: 2, prompt: 'say 21', quality: { action: 'disable_scheduling', expected_answer: '21', auto_restore: true, judge: { kind: 'expected' }, trigger_on_upstream_5xx: true, retest_rest_minutes: 60, oauth_401_max_rounds: 6 } }
+    }
+    api.listPlans.mockResolvedValue([source])
+    api.update.mockImplementation(async (_id, body) => {
+      Object.assign(source, body)
+      return source
+    })
+    vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
+    const wrapper = mount(AccountQualityView, { global: { stubs } })
+    await flushPromises()
+    await wrapper.find('article').findAll('button').find(b => b.text() === 'admin.qualityOps.editShort')!.trigger('click')
+    expect(wrapper.get('[data-testid="quality-trigger-5xx"]').element).toHaveProperty('checked', true)
+    expect(wrapper.get('[data-testid="quality-retest-rest"]').element).toHaveProperty('value', '60')
+    await wrapper.get('[data-testid="quality-retest-rest"]').setValue(90)
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+    expect(api.update).toHaveBeenCalledWith(9, expect.objectContaining({ expected_updated_at: 'version-1', pelican_config: expect.objectContaining({ model_ids: ['a', 'b'], parallel_count: 2, quality: expect.objectContaining({ trigger_on_upstream_5xx: true, retest_rest_minutes: 90, oauth_401_max_rounds: 6 }) }) }))
+    await wrapper.find('article').findAll('button').find(b => b.text() === 'admin.qualityOps.editShort')!.trigger('click')
+    expect(wrapper.get('[data-testid="quality-retest-rest"]').element).toHaveProperty('value', '90')
+    await wrapper.get('[data-testid="quality-trigger-5xx"]').setValue(false)
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+    expect(api.update).toHaveBeenLastCalledWith(9, expect.objectContaining({ pelican_config: expect.objectContaining({ quality: expect.objectContaining({ trigger_on_upstream_5xx: false, retest_rest_minutes: 90 }) }) }))
+    wrapper.unmount()
+  })
+
+  it('roundtrips both runtime fields through reusable presets and resets legacy presets to safe defaults', async () => {
+    const base = { name: 'runtime', model_id: 'a', cron_expression: '*/30 * * * *', enabled: true, max_results: 100, created_at: '', updated_at: '' }
+    const config = { prompt: 'say 21', model_ids: ['a', 'b'], parallel_count: 2, quality: { action: 'disable_scheduling', expected_answer: '21', auto_restore: false, judge: { kind: 'expected' }, trigger_on_upstream_5xx: true, retest_rest_minutes: 10080 } }
+    api.listPresets.mockResolvedValue([{ ...base, id: 1, pelican_config: config }, { ...base, id: 2, pelican_config: { prompt: 'say 21', quality: { action: 'disable_scheduling', expected_answer: '21', judge: { kind: 'expected' } } } }])
+    api.createPreset.mockResolvedValue({ ...base, id: 3, pelican_config: config })
+    const wrapper = mount(AccountQualityView, { global: { stubs } })
+    await flushPromises()
+    await wrapper.get('[data-testid="quality-preset-select"]').setValue(1)
+    await wrapper.get('[data-testid="quality-apply-preset"]').trigger('click')
+    expect(wrapper.get('[data-testid="quality-retest-rest"]').element).toHaveProperty('value', '10080')
+    await wrapper.get('[data-testid="quality-toggle-save-preset"]').trigger('click')
+    await wrapper.get('[data-testid="quality-preset-name"]').setValue('runtime copy')
+    await wrapper.get('[data-testid="quality-save-preset"]').trigger('click')
+    await flushPromises()
+    expect(api.createPreset).toHaveBeenCalledWith(expect.objectContaining({ pelican_config: expect.objectContaining({ quality: expect.objectContaining({ trigger_on_upstream_5xx: true, retest_rest_minutes: 10080 }) }) }))
+    await wrapper.get('[data-testid="quality-preset-select"]').setValue(2)
+    await wrapper.get('[data-testid="quality-apply-preset"]').trigger('click')
+    expect(wrapper.get('[data-testid="quality-trigger-5xx"]').element).toHaveProperty('checked', false)
+    expect(wrapper.get('[data-testid="quality-retest-rest"]').element).toHaveProperty('value', '0')
+    wrapper.unmount()
+  })
+
+  it('reads edits and submits runtime fields in templates without losing multi-model settings', async () => {
+    api.listTemplates.mockResolvedValue([{ id: 8, account_filter: {}, model_id: 'a', cron_expression: '*/30 * * * *', enabled: true, max_results: 100, plan_ids: [], created_at: '', updated_at: '', pelican_config: { model_ids: ['a', 'b'], parallel_count: 2, prompt: 'say 21', quality: { action: 'disable_scheduling', expected_answer: '21', judge: { kind: 'expected' }, trigger_on_upstream_5xx: true, retest_rest_minutes: 30 } } }])
+    api.updateTemplate.mockResolvedValue({ updated: 0, created: 0, failed: 0 })
+    const wrapper = mount(AccountQualityView, { global: { stubs } })
+    await flushPromises()
+    await wrapper.get('[data-testid="quality-template-row"]').findAll('button')[0].trigger('click')
+    expect(wrapper.get('[data-testid="quality-template-trigger-5xx"]').element).toHaveProperty('checked', true)
+    await wrapper.get('[data-testid="quality-template-retest-rest"]').setValue(120)
+    await wrapper.get('[data-testid="quality-template-form"]').trigger('submit')
+    await flushPromises()
+    expect(api.updateTemplate).toHaveBeenCalledWith(8, expect.objectContaining({ pelican_config: expect.objectContaining({ model_ids: ['a', 'b'], parallel_count: 2, quality: expect.objectContaining({ trigger_on_upstream_5xx: true, retest_rest_minutes: 120 }) }) }))
+    await wrapper.get('[data-testid="quality-template-new"]').trigger('click')
+    expect(wrapper.get('[data-testid="quality-template-trigger-5xx"]').element).toHaveProperty('checked', false)
+    expect(wrapper.find('[data-testid="quality-template-retest-rest"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it.each([-1, 1.5, 10081])('rejects invalid rest %s on actual rule save and retains its draft', async value => {
+    const wrapper = mount(AccountQualityView, { global: { stubs } })
+    await flushPromises()
+    await wrapper.findAll('select')[1].setValue(7)
+    await wrapper.get('[data-testid="quality-model-id"]').setValue('a')
+    await wrapper.findAll('select').find(s => s.find('option[value="disable_scheduling"]').exists())!.setValue('disable_scheduling')
+    await wrapper.get('[data-testid="quality-retest-rest"]').setValue(value)
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+    expect(api.create).not.toHaveBeenCalled()
+    expect(wrapper.get('[role="alert"]').text()).toContain('admin.qualityOps.invalidRetestRest')
+    expect(wrapper.get('[data-testid="quality-model-id"]').element).toHaveProperty('value', 'a')
+    wrapper.unmount()
+  })
+
+  it('omits a stale rest when switching to observation while keeping the 5xx trigger explicit', async () => {
+    const wrapper = mount(AccountQualityView, { global: { stubs } })
+    await flushPromises()
+    await wrapper.findAll('select')[1].setValue(7)
+    await wrapper.get('[data-testid="quality-model-id"]').setValue('a')
+    const action = wrapper.findAll('select').find(s => s.find('option[value="disable_scheduling"]').exists())!
+    await action.setValue('disable_scheduling')
+    await wrapper.get('[data-testid="quality-retest-rest"]').setValue(90)
+    await wrapper.get('[data-testid="quality-trigger-5xx"]').setValue(true)
+    await action.setValue('observe_only')
+    expect(wrapper.find('[data-testid="quality-retest-rest"]').exists()).toBe(false)
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+    const policy = api.create.mock.calls[0][0].pelican_config.quality
+    expect(policy.trigger_on_upstream_5xx).toBe(true)
+    expect(policy.retest_rest_minutes).toBeUndefined()
+    wrapper.unmount()
+  })
+
   it('requires an explicit automatic restore choice and sends it on create', async () => {
     api.create.mockResolvedValue({ id: 5 })
     const wrapper = mount(AccountQualityView, { global: { stubs } })
@@ -600,4 +702,129 @@ describe('admin account quality operations view', () => {
     expect(api.create).not.toHaveBeenCalled()
   })
 
+  it('clones only reusable configuration into an explicitly selected account and never updates the source', async () => {
+    vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
+    const source = reusePlan(9, 7)
+    api.listPlans.mockResolvedValue([source])
+    api.accountsList.mockResolvedValue({ items: [{ id: 7, name: 'first' }, { id: 8, name: 'second' }] })
+    api.create.mockResolvedValue({ id: 11 })
+    const wrapper = mount(AccountQualityView, { global: { stubs } })
+    await flushPromises()
+    await wrapper.get('[data-testid="quality-clone-9"]').trigger('click')
+    const account = wrapper.findAll('select').find(s => s.find('option[value="8"]').exists())!
+    expect(account.element).toHaveProperty('value', '0')
+    await wrapper.find('form').trigger('submit')
+    expect(api.create).not.toHaveBeenCalled()
+    await account.setValue(8)
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+    expect(api.update).not.toHaveBeenCalled()
+    const request = api.create.mock.calls[0][0]
+    expect(request).toMatchObject({ account_id: 8, pelican_config: { model_ids: ['model-9', 'extra-9'], parallel_count: 2, reasoning_effort: 'high', test_channel: 'account', quality: { trigger_on_upstream_5xx: true, retest_rest_minutes: 90, oauth_401_max_rounds: 6 } } })
+    expect(request.pelican_config).not.toHaveProperty('quality_state')
+    expect(request.pelican_config).not.toHaveProperty('response_text')
+    wrapper.unmount()
+  })
+
+  it('requires selected bulk fields and updates only those fields against fresh target-specific CAS versions', async () => {
+    vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
+    const rules = [reusePlan(9, 7), reusePlan(10, 8)]
+    api.listPlans.mockResolvedValueOnce(rules).mockImplementation(async () => rules.map(rule => ({ ...rule, updated_at: `fresh-${rule.id}` })))
+    api.update.mockImplementation(async (id, body) => {
+      const target = rules.find(rule => rule.id === id)!
+      Object.assign(target, body)
+      return target
+    })
+    const wrapper = mount(AccountQualityView, { global: { stubs } })
+    await flushPromises()
+    for (const rule of rules) await wrapper.get(`[data-testid="quality-select-rule-${rule.id}"]`).setValue(true)
+    await wrapper.get('[data-testid="quality-bulk-edit"]').trigger('click')
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+    expect(api.update).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain('admin.qualityOps.selectBulkFields')
+    await wrapper.get('[data-testid="quality-bulk-field-trigger"]').setValue(true)
+    await wrapper.get('[data-testid="quality-trigger-5xx"]').setValue(false)
+    await wrapper.get('[data-testid="quality-retest-rest"]').setValue(-1)
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+    expect(api.update).toHaveBeenCalledTimes(2)
+    for (const [id, body] of api.update.mock.calls) {
+      expect(body).toMatchObject({ expected_updated_at: `fresh-${id}`, pelican_config: { model_ids: [`model-${id}`, `extra-${id}`], quality: { trigger_on_upstream_5xx: false, retest_rest_minutes: 90, oauth_401_max_rounds: 6 } } })
+      expect(body).not.toHaveProperty('model_id')
+      expect(body).not.toHaveProperty('enabled')
+      expect(body).not.toHaveProperty('preserve_quality_state')
+    }
+    expect(api.listPlans.mock.calls.length).toBeGreaterThanOrEqual(3)
+    expect(wrapper.find('[data-testid="quality-bulk-field-trigger"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('prevalidates all bulk targets and rejects an action rest without sending any writes', async () => {
+    vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
+    api.listPlans.mockResolvedValue([reusePlan(9, 7), reusePlan(10, 8)])
+    const wrapper = mount(AccountQualityView, { global: { stubs } })
+    await flushPromises()
+    await wrapper.get('[data-testid="quality-select-rule-9"]').setValue(true)
+    await wrapper.get('[data-testid="quality-select-rule-10"]').setValue(true)
+    await wrapper.get('[data-testid="quality-bulk-edit"]').trigger('click')
+    await wrapper.get('[data-testid="quality-bulk-field-action"]').setValue(true)
+    await wrapper.get('[data-testid="quality-retest-rest"]').setValue(10081)
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+    expect(api.update).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain('admin.qualityOps.invalidRetestRest')
+    expect(wrapper.get('[data-testid="quality-retest-rest"]').element).toHaveProperty('value', '10081')
+    wrapper.unmount()
+  })
+
+  it('keeps failed bulk targets selected with draft and a per-rule reason after partial failure', async () => {
+    vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
+    const rules = [reusePlan(9, 7), reusePlan(10, 8)]
+    api.listPlans.mockResolvedValue(rules)
+    api.update.mockImplementation(async (id, body) => {
+      if (id === 10) throw new Error('version changed')
+      Object.assign(rules[0], body)
+      return rules[0]
+    })
+    const wrapper = mount(AccountQualityView, { global: { stubs } })
+    await flushPromises()
+    for (const rule of rules) await wrapper.get(`[data-testid="quality-select-rule-${rule.id}"]`).setValue(true)
+    await wrapper.get('[data-testid="quality-bulk-edit"]').trigger('click')
+    await wrapper.get('[data-testid="quality-bulk-field-trigger"]').setValue(true)
+    await wrapper.get('[data-testid="quality-trigger-5xx"]').setValue(false)
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+    expect(api.update).toHaveBeenCalledTimes(2)
+    expect(wrapper.get('[data-testid="quality-select-rule-9"]').element).toHaveProperty('checked', false)
+    expect(wrapper.get('[data-testid="quality-select-rule-10"]').element).toHaveProperty('checked', true)
+    expect(wrapper.get('[data-testid="quality-trigger-5xx"]').element).toHaveProperty('checked', false)
+    expect(wrapper.text()).toContain('#10')
+    expect(wrapper.text()).toContain('version changed')
+    expect(wrapper.text()).not.toContain('admin.qualityOps.saved')
+    wrapper.unmount()
+  })
+
+  it('does not report bulk success when the committed values cannot be confirmed by readback', async () => {
+    vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
+    api.listPlans.mockResolvedValue([reusePlan(9, 7)])
+    api.update.mockResolvedValue({ id: 9 })
+    const wrapper = mount(AccountQualityView, { global: { stubs } })
+    await flushPromises()
+    await wrapper.get('[data-testid="quality-select-rule-9"]').setValue(true)
+    await wrapper.get('[data-testid="quality-bulk-edit"]').trigger('click')
+    await wrapper.get('[data-testid="quality-bulk-field-trigger"]').setValue(true)
+    await wrapper.get('[data-testid="quality-trigger-5xx"]').setValue(false)
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+    expect(api.update).toHaveBeenCalledOnce()
+    expect(wrapper.text()).toContain('admin.qualityOps.bulkReadbackFailed')
+    expect(wrapper.find('[data-testid="quality-bulk-field-trigger"]').exists()).toBe(true)
+    wrapper.unmount()
+  })
+
 })
+
+function reusePlan(id: number, account_id: number) {
+  return { id, account_id, model_id: `model-${id}`, cron_expression: '*/30 * * * *', enabled: true, max_results: 100, updated_at: `old-${id}`, pelican_config: { rule_name: `rule-${id}`, model_ids: [`model-${id}`, `extra-${id}`], parallel_count: 2, question_kind: 'text', test_channel: 'account', reasoning_effort: 'high', prompt: 'say 21', quality_state: { owner: 99 }, response_text: 'not reusable', quality: { action: 'disable_scheduling', expected_answer: '21', auto_restore: true, judge: { kind: 'expected' }, trigger_on_upstream_5xx: true, retest_rest_minutes: 90, oauth_401_max_rounds: 6 } } }
+}

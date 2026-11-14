@@ -42,6 +42,14 @@ type APIKey struct {
 	IPWhitelist []string `json:"ip_whitelist,omitempty"`
 	// Blocked IPs/CIDRs
 	IPBlacklist []string `json:"ip_blacklist,omitempty"`
+	// Administrator-managed exact model aliases for this API key
+	ModelMapping map[string]string `json:"model_mapping,omitempty"`
+	// Administrator-managed reasoning effort override; empty follows the request
+	ReasoningEffort string `json:"reasoning_effort,omitempty"`
+	// Administrator-managed permission to use long context requests
+	AllowLongContext bool `json:"allow_long_context,omitempty"`
+	// Administrator-managed input token ceiling; zero inherits the long context policy
+	ContextTokenLimit int `json:"context_token_limit,omitempty"`
 	// Quota limit in USD for this API key (0 = unlimited)
 	Quota float64 `json:"quota,omitempty"`
 	// Used quota amount in USD
@@ -121,13 +129,15 @@ func (*APIKey) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case apikey.FieldIPWhitelist, apikey.FieldIPBlacklist:
+		case apikey.FieldIPWhitelist, apikey.FieldIPBlacklist, apikey.FieldModelMapping:
 			values[i] = new([]byte)
+		case apikey.FieldAllowLongContext:
+			values[i] = new(sql.NullBool)
 		case apikey.FieldQuota, apikey.FieldQuotaUsed, apikey.FieldRateLimit5h, apikey.FieldRateLimit1d, apikey.FieldRateLimit7d, apikey.FieldUsage5h, apikey.FieldUsage1d, apikey.FieldUsage7d:
 			values[i] = new(sql.NullFloat64)
-		case apikey.FieldID, apikey.FieldUserID, apikey.FieldGroupID:
+		case apikey.FieldID, apikey.FieldUserID, apikey.FieldGroupID, apikey.FieldContextTokenLimit:
 			values[i] = new(sql.NullInt64)
-		case apikey.FieldKey, apikey.FieldName, apikey.FieldStatus:
+		case apikey.FieldKey, apikey.FieldName, apikey.FieldStatus, apikey.FieldReasoningEffort:
 			values[i] = new(sql.NullString)
 		case apikey.FieldCreatedAt, apikey.FieldUpdatedAt, apikey.FieldDeletedAt, apikey.FieldLastUsedAt, apikey.FieldExpiresAt, apikey.FieldWindow5hStart, apikey.FieldWindow1dStart, apikey.FieldWindow7dStart:
 			values[i] = new(sql.NullTime)
@@ -224,6 +234,32 @@ func (_m *APIKey) assignValues(columns []string, values []any) error {
 				if err := json.Unmarshal(*value, &_m.IPBlacklist); err != nil {
 					return fmt.Errorf("unmarshal field ip_blacklist: %w", err)
 				}
+			}
+		case apikey.FieldModelMapping:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field model_mapping", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.ModelMapping); err != nil {
+					return fmt.Errorf("unmarshal field model_mapping: %w", err)
+				}
+			}
+		case apikey.FieldReasoningEffort:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field reasoning_effort", values[i])
+			} else if value.Valid {
+				_m.ReasoningEffort = value.String
+			}
+		case apikey.FieldAllowLongContext:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field allow_long_context", values[i])
+			} else if value.Valid {
+				_m.AllowLongContext = value.Bool
+			}
+		case apikey.FieldContextTokenLimit:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field context_token_limit", values[i])
+			} else if value.Valid {
+				_m.ContextTokenLimit = int(value.Int64)
 			}
 		case apikey.FieldQuota:
 			if value, ok := values[i].(*sql.NullFloat64); !ok {
@@ -390,6 +426,18 @@ func (_m *APIKey) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("ip_blacklist=")
 	builder.WriteString(fmt.Sprintf("%v", _m.IPBlacklist))
+	builder.WriteString(", ")
+	builder.WriteString("model_mapping=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ModelMapping))
+	builder.WriteString(", ")
+	builder.WriteString("reasoning_effort=")
+	builder.WriteString(_m.ReasoningEffort)
+	builder.WriteString(", ")
+	builder.WriteString("allow_long_context=")
+	builder.WriteString(fmt.Sprintf("%v", _m.AllowLongContext))
+	builder.WriteString(", ")
+	builder.WriteString("context_token_limit=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ContextTokenLimit))
 	builder.WriteString(", ")
 	builder.WriteString("quota=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Quota))

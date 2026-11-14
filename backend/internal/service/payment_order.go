@@ -29,6 +29,9 @@ func (s *PaymentService) CreateOrder(ctx context.Context, req CreateOrderRequest
 	if normalized := NormalizeVisibleMethod(req.PaymentType); normalized != "" {
 		req.PaymentType = normalized
 	}
+	if req.PaymentSubtype != "" && (req.PaymentType != payment.TypeStripe || !payment.IsStripePaymentSubtype(req.PaymentSubtype)) {
+		return nil, infraerrors.BadRequest("INVALID_PAYMENT_SUBTYPE", "payment_subtype must be a supported Stripe method")
+	}
 	cfg, err := s.configService.GetPaymentConfig(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("get payment config: %w", err)
@@ -95,7 +98,37 @@ func (s *PaymentService) CreateOrder(ctx context.Context, req CreateOrderRequest
 
 	var sel *payment.InstanceSelection
 	if settlement.PayAmount > 0 {
-		sel, err = s.selectCreateOrderInstance(ctx, req, cfg, settlement.PayAmount)
+		if err := s.validateStripeFeeSelection(ctx, req); err != nil {
+			return nil, err
+		}
+		quoteCtx := payment.WithInstanceQuote(ctx, req.PaymentSubtype, func(inst *dbent.PaymentProviderInstance) (*payment.InstanceQuote, error) {
+			rate, source, resolveErr := payment.ResolveOrderInstanceFee(inst, req.PaymentType, req.PaymentSubtype, cfg.RechargeFeeRate)
+			if resolveErr != nil {
+				return nil, infraerrors.BadRequest("PAYMENT_SUBTYPE_REQUIRED", resolveErr.Error())
+			}
+			currency := s.configService.pcInstancePaymentCurrency(inst)
+			candidateList, candidateCoupon := listAmount, couponQuote
+			if currency != methodCurrency {
+				candidateList = paymentGatewayListAmount(limitAmount, req.OrderType, currency, cfg.SubscriptionUSDToCNYRate)
+				var quoteErr error
+				candidateCoupon, quoteErr = s.quoteCouponForCheckout(ctx, req.CouponID, req.UserID, req.PlanID, req.OrderType, candidateList, currency)
+				if quoteErr != nil {
+					return nil, quoteErr
+				}
+			}
+			candidate, calculateErr := calculateCouponAdjustedPaymentSettlement(paymentCouponSettlementInput{
+				ListAmount: candidateList, FeeRate: rate, Currency: currency, CouponQuote: candidateCoupon,
+			})
+			if calculateErr != nil {
+				return nil, calculateErr
+			}
+			subtype := req.PaymentSubtype
+			if inst.ProviderKey == payment.TypeStripe && subtype == "" && payment.IsStripePaymentSubtype(req.PaymentType) {
+				subtype = req.PaymentType
+			}
+			return &payment.InstanceQuote{FeeRate: rate, FeeSource: source, PaymentSubtype: subtype, PayAmount: candidate.PayAmount, PayAmountText: candidate.PayAmountText}, nil
+		})
+		sel, err = s.selectCreateOrderInstance(quoteCtx, req, cfg, settlement.PayAmount)
 		if err != nil {
 			return nil, err
 		}
@@ -103,21 +136,22 @@ func (s *PaymentService) CreateOrder(ctx context.Context, req CreateOrderRequest
 		if sel != nil {
 			selectedCurrency = paymentProviderConfigCurrency(sel.ProviderKey, sel.Config)
 		}
+		if sel != nil && sel.Quote != nil {
+			feeRate = sel.Quote.FeeRate
+			req.PaymentSubtype = sel.Quote.PaymentSubtype
+		}
 		if selectedCurrency != methodCurrency {
 			listAmount = paymentGatewayListAmount(limitAmount, req.OrderType, selectedCurrency, cfg.SubscriptionUSDToCNYRate)
 			couponQuote, err = s.quoteCouponForCheckout(ctx, req.CouponID, req.UserID, req.PlanID, req.OrderType, listAmount, selectedCurrency)
 			if err != nil {
 				return nil, err
 			}
-			settlement, err = calculateCouponAdjustedPaymentSettlement(paymentCouponSettlementInput{
-				ListAmount:  listAmount,
-				FeeRate:     feeRate,
-				Currency:    selectedCurrency,
-				CouponQuote: couponQuote,
-			})
-			if err != nil {
-				return nil, infraerrors.BadRequest("INVALID_COUPON_SETTLEMENT", err.Error())
-			}
+		}
+		settlement, err = calculateCouponAdjustedPaymentSettlement(paymentCouponSettlementInput{
+			ListAmount: listAmount, FeeRate: feeRate, Currency: selectedCurrency, CouponQuote: couponQuote,
+		})
+		if err != nil {
+			return nil, infraerrors.BadRequest("INVALID_COUPON_SETTLEMENT", err.Error())
 		}
 		if err := s.validateSelectedCreateOrderInstance(ctx, req, sel); err != nil {
 			return nil, err
@@ -392,6 +426,12 @@ func buildPaymentOrderProviderSnapshot(sel *payment.InstanceSelection, req Creat
 
 	snapshot := map[string]any{}
 	snapshot["schema_version"] = 2
+	if req.PaymentSubtype != "" {
+		snapshot["payment_subtype"] = req.PaymentSubtype
+	}
+	if sel.Quote != nil {
+		snapshot["fee_source"] = sel.Quote.FeeSource
+	}
 
 	instanceID := strings.TrimSpace(sel.InstanceID)
 	if instanceID != "" {
@@ -603,11 +643,12 @@ func (s *PaymentService) invokeProvider(ctx context.Context, order *dbent.Paymen
 		return nil, err
 	}
 	providerReq := buildProviderCreatePaymentRequest(CreateOrderRequest{
-		PaymentType: req.PaymentType,
-		OpenID:      req.OpenID,
-		ClientIP:    req.ClientIP,
-		IsMobile:    req.IsMobile,
-		ReturnURL:   providerReturnURL,
+		PaymentType:    req.PaymentType,
+		PaymentSubtype: req.PaymentSubtype,
+		OpenID:         req.OpenID,
+		ClientIP:       req.ClientIP,
+		IsMobile:       req.IsMobile,
+		ReturnURL:      providerReturnURL,
 	}, sel, outTradeNo, payAmountStr, subject, order.ExpiresAt)
 	providerReq.AlipayMobilePrecreate = shouldUseAlipayMobilePrecreate(req, cfg, sel)
 	finishProviderCall := servertiming.ObserveDependency(ctx, "payment")
@@ -703,6 +744,7 @@ func removePostgresTextNUL(value string) string {
 
 func buildProviderCreatePaymentRequest(req CreateOrderRequest, sel *payment.InstanceSelection, orderID, amount, subject string, expiresAt time.Time) payment.CreatePaymentRequest {
 	return payment.CreatePaymentRequest{
+		PaymentSubtype:     req.PaymentSubtype,
 		OrderID:            orderID,
 		Amount:             amount,
 		PaymentType:        req.PaymentType,
@@ -923,6 +965,7 @@ func classifyCreatePaymentError(req CreateOrderRequest, providerKey string, err 
 
 func buildCreateOrderResponse(order *dbent.PaymentOrder, req CreateOrderRequest, payAmount float64, sel *payment.InstanceSelection, pr *payment.CreatePaymentResponse, resultType payment.CreatePaymentResultType) *CreateOrderResponse {
 	response := &CreateOrderResponse{
+		PaymentSubtype:   PaymentOrderSubtype(order),
 		OrderID:          order.ID,
 		Amount:           order.Amount,
 		PayAmount:        payAmount,

@@ -753,6 +753,9 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 		}
 		if mappedModel = strings.TrimSpace(mappedModel); mappedModel != "" {
 			firstClientMessage = s.ReplaceModelInBody(firstClientMessage, mappedModel)
+			if hooks.APIKeyModelMapping {
+				firstClientMessage = canonicalizeAPIKeyRequestModel(firstClientMessage, mappedModel)
+			}
 		}
 	}
 	capturedSessionModel := openAIWSPassthroughPolicyModelForFrame(account, firstClientMessage)
@@ -1085,6 +1088,9 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 					}
 					if upstreamModel = strings.TrimSpace(upstreamModel); upstreamModel != "" {
 						payload = s.ReplaceModelInBody(payload, upstreamModel)
+						if hooks.APIKeyModelMapping {
+							payload = canonicalizeAPIKeyRequestModel(payload, upstreamModel)
+						}
 					}
 				}
 			}
@@ -1113,6 +1119,11 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 			}
 			if isResponseCreate && model != "" && model != strings.TrimSpace(gjson.GetBytes(payload, "model").String()) {
 				payload = s.ReplaceModelInBody(payload, model)
+			}
+			if eventType == "session.update" || strings.HasPrefix(eventType, "conversation.item.") {
+				if err := s.checkAPIKeyLongContextBeforeSend(ctx, c, payload, model); err != nil {
+					return payload, nil, err
+				}
 			}
 			out, blocked, policyErr := s.applyOpenAIFastPolicyToWSResponseCreate(ctx, account, model, payload)
 			// 多轮 passthrough usage：仅在成功（non-block / non-err）
@@ -1316,6 +1327,7 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 				}
 			},
 			BeforeRelayCancel: func(exit openaiwsv2.RelayExit) {
+				WriteAPIKeyLongContextWSFailure(clientConn, exit.Err)
 				if context.Cause(ctx) != nil {
 					return
 				}
@@ -1473,6 +1485,7 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 	)
 
 	relayErr := relayExit.Err
+	WriteAPIKeyLongContextWSFailure(clientConn, relayErr)
 	var firstOutputTimeoutErr *openAIWSPassthroughFirstOutputTimeoutError
 	if errors.As(relayErr, &firstOutputTimeoutErr) {
 		deadline := firstOutputTimeoutErr.deadline

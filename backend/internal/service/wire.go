@@ -17,6 +17,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/pkg/antigravity"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/claude"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/qualityqueue"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/xai"
 	"github.com/google/wire"
 	"github.com/redis/go-redis/v9"
@@ -86,9 +87,11 @@ func ProvideOpenAIOAuthService(
 	proxyRepo ProxyRepository,
 	oauthClient OpenAIOAuthClient,
 	privacyClientFactory PrivacyClientFactory,
+	refreshFailures AccountTokenGuardV2Repository,
 ) *OpenAIOAuthService {
 	svc := NewOpenAIOAuthService(proxyRepo, oauthClient)
 	svc.SetPrivacyClientFactory(privacyClientFactory)
+	svc.SetRefreshFailureRecorder(refreshFailures)
 	return svc
 }
 
@@ -98,8 +101,11 @@ func ProvideOpenAIExcelOAuthService(
 	oauth *OpenAIOAuthService,
 	encryptor SecretEncryptor,
 	access OpenAIExcelOAuthAccessClient,
+	gateway *OpenAIGatewayService,
 ) *OpenAIExcelOAuthService {
-	return NewOpenAIExcelOAuthService(repo, accounts, oauth, encryptor, access)
+	svc := NewOpenAIExcelOAuthService(repo, accounts, oauth, encryptor, access)
+	gateway.SetOpenAIExcelOAuthService(svc)
+	return svc
 }
 
 // ProvideOpenAIOAuthReauthService wires the durable credential re-login task
@@ -522,8 +528,12 @@ func ProvideRateLimitService(
 	settingService *SettingService,
 	tokenCacheInvalidator TokenCacheInvalidator,
 	ollamaCloudUsage *OllamaCloudUsageService,
+	redisClient *redis.Client,
 ) *RateLimitService {
 	svc := NewRateLimitService(accountRepo, usageRepo, cfg, geminiQuotaService, tempUnschedCache)
+	if queue := qualityqueue.NewRedis(redisClient); queue != nil {
+		svc.qualityTrigger = &quality5xxTrigger{queue: queue}
+	}
 	if healthCache, ok := tempUnschedCache.(OpenAIAPIKeyHealthCache); ok {
 		svc.SetOpenAIAPIKeyHealthCache(healthCache)
 	}
@@ -669,9 +679,9 @@ func ProvideScheduledTestService(
 	planRepo ScheduledTestPlanRepository,
 	resultRepo ScheduledTestResultRepository,
 	accountTests *AccountTestService,
-	templateRepo ...QualityRuleTemplateRepository,
+	templateRepo QualityRuleTemplateRepository,
 ) *ScheduledTestService {
-	svc := NewScheduledTestService(planRepo, resultRepo, templateRepo...)
+	svc := NewScheduledTestService(planRepo, resultRepo, templateRepo)
 	svc.SetAccountTestService(accountTests)
 	return svc
 }

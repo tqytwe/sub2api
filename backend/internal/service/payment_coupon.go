@@ -33,17 +33,25 @@ const couponLockReleaseBatchSize = 100
 // preview a selected coupon. It deliberately mirrors the relevant fields of
 // CreateOrderRequest so quote and order creation share the same calculation.
 type CouponPaymentQuoteRequest struct {
-	UserID      int64
-	CouponID    int64
-	Amount      float64
-	PaymentType string
-	OrderType   string
-	PlanID      int64
+	PaymentSubtype string
+	UserID         int64
+	CouponID       int64
+	Amount         float64
+	PaymentType    string
+	OrderType      string
+	PlanID         int64
 }
 
 // CouponPaymentQuoteResponse contains the final payable quote in the payment
 // gateway currency. The coupon stays unlocked until CreateOrder succeeds.
 type CouponPaymentQuoteResponse struct {
+	// Existing fee_amount/pay_amount are the lower estimate. Only CreateOrder
+	// selects a provider and freezes a definite amount for payment.
+	FeeRateMin               float64 `json:"fee_rate_min"`
+	FeeRateMax               float64 `json:"fee_rate_max"`
+	FeeAmountMax             float64 `json:"fee_amount_max"`
+	PayAmountMax             float64 `json:"pay_amount_max"`
+	Estimated                bool    `json:"estimated"`
 	UserCouponID             int64   `json:"user_coupon_id"`
 	TemplateID               int64   `json:"template_id"`
 	ListAmount               float64 `json:"list_amount"`
@@ -215,6 +223,10 @@ func (s *PaymentService) QuoteCouponPayment(ctx context.Context, req CouponPayme
 		req.PaymentType = normalized
 	}
 
+	if req.PaymentSubtype != "" && (req.PaymentType != payment.TypeStripe || !payment.IsStripePaymentSubtype(req.PaymentSubtype)) {
+		return nil, infraerrors.BadRequest("INVALID_PAYMENT_SUBTYPE", "payment_subtype must be a supported Stripe method")
+	}
+
 	cfg, err := s.configService.GetPaymentConfig(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("get payment config: %w", err)
@@ -263,6 +275,27 @@ func (s *PaymentService) QuoteCouponPayment(ctx context.Context, req CouponPayme
 		return nil, infraerrors.BadRequest("INVALID_COUPON_SETTLEMENT", err.Error())
 	}
 
+	feeRates := MethodFeeRates{}
+	maximum := settlement
+	if settlement.GatewayBaseAmount > 0 {
+		feeRates, err = s.couponPaymentFeeRates(ctx, req)
+		if err != nil {
+			return nil, err
+		}
+		settlement, err = calculateCouponAdjustedPaymentSettlement(paymentCouponSettlementInput{
+			ListAmount: listAmount, FeeRate: feeRates.FeeRateMin, Currency: methodCurrency, CouponQuote: couponQuote,
+		})
+		if err != nil {
+			return nil, infraerrors.BadRequest("INVALID_COUPON_SETTLEMENT", err.Error())
+		}
+		maximum, err = calculateCouponAdjustedPaymentSettlement(paymentCouponSettlementInput{
+			ListAmount: listAmount, FeeRate: feeRates.FeeRateMax, Currency: methodCurrency, CouponQuote: couponQuote,
+		})
+		if err != nil {
+			return nil, infraerrors.BadRequest("INVALID_COUPON_SETTLEMENT", err.Error())
+		}
+	}
+
 	// QuoteUserCoupon already asserts ownership. Read the owned wallet item only
 	// to make the response self-consistent for clients that keep the selection.
 	coupon, err := s.couponService.GetUserCouponForUser(ctx, req.CouponID, req.UserID)
@@ -270,6 +303,11 @@ func (s *PaymentService) QuoteCouponPayment(ctx context.Context, req CouponPayme
 		return nil, err
 	}
 	return &CouponPaymentQuoteResponse{
+		FeeRateMin:               feeRates.FeeRateMin,
+		FeeRateMax:               feeRates.FeeRateMax,
+		FeeAmountMax:             maximum.FeeAmount,
+		PayAmountMax:             maximum.PayAmount,
+		Estimated:                feeRates.FeeRateMin != feeRates.FeeRateMax,
 		UserCouponID:             coupon.ID,
 		TemplateID:               coupon.TemplateID,
 		ListAmount:               settlement.ListAmount,

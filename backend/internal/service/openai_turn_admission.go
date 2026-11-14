@@ -174,6 +174,9 @@ func (s *OpenAIGatewayService) admitOpenAITurnModels(ctx context.Context, c *gin
 			if !group.ModelAllowlist.Allows(requestModel) {
 				return nil, denyOpenAITurn("model_not_allowed_in_group")
 			}
+			if target := APIKeyMappedModelFromContext(ctx); target != "" && !group.ModelAllowlist.Allows(target) {
+				return nil, denyOpenAITurn("model_not_allowed_in_group")
+			}
 		}
 	}
 	// Simple mode skips group binding, but the source still applies a present

@@ -227,6 +227,23 @@ func TestOpenAITurnAdmissionPreservesPricingAndSimpleMode(t *testing.T) {
 	require.NoError(t, err, "simple mode intentionally schedules across groups")
 }
 
+func TestAPIKeyPolicyAdmissionRechecksAppliedTargetPermission(t *testing.T) {
+	selected := turnAdmissionAccount()
+	selected.GroupIDs = []int64{9}
+	group := &Group{ID: 9, Status: StatusActive, ModelAllowlist: GroupModelAllowlist{Enabled: true, Models: []string{"public-model"}}}
+	selected.Groups = []*Group{group}
+	svc := newTurnAdmissionGateway(&turnAdmissionRepo{account: selected}, false)
+	gid := int64(9)
+	c := adaptiveProtocolTestContext("/v1/responses", nil)
+	c.Set("api_key", &APIKey{GroupID: &gid, AllowLongContext: true})
+	ctx := WithAPIKeyMappedModel(context.Background(), "key-target")
+	_, err := svc.admitOpenAITurnForRequest(ctx, c, selected, "public-model", "account-target")
+	require.True(t, IsOpenAITurnAdmissionError(err), "a target removed after ingress must not be sent")
+	group.ModelAllowlist.Models = append(group.ModelAllowlist.Models, "key-target")
+	_, err = svc.admitOpenAITurnForRequest(ctx, c, selected, "public-model", "account-target")
+	require.NoError(t, err, "account mappings are independent from key policy authorization")
+}
+
 func TestOpenAITurnAdmissionCancellationAndDeadline(t *testing.T) {
 	for _, expired := range []bool{false, true} {
 		ctx, cancel := context.WithCancel(context.Background())

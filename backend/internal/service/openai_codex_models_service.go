@@ -1688,6 +1688,11 @@ func (c *openAIModelsCache) set(key string, manifest *OpenAIModelsResponse, now 
 // passed through verbatim. Custom API key manifests receive only the narrowly
 // scoped compatibility adjustments required by custom-provider Codex clients.
 func (s *OpenAIGatewayService) FetchCodexModelsManifest(ctx context.Context, account *Account, clientVersion, ifNoneMatch string) (*OpenAIModelsResponse, error) {
+	return s.fetchNativeCodexModelsManifest(ctx, account, clientVersion, ifNoneMatch)
+}
+
+func (s *OpenAIGatewayService) fetchNativeCodexModelsManifest(ctx context.Context, account *Account, clientVersion, ifNoneMatch string) (*OpenAIModelsResponse, error) {
+	useCache := !isFreshOpenAICredentialProbe(ctx)
 	if account == nil {
 		return nil, infraerrors.New(http.StatusInternalServerError, "OPENAI_CODEX_MODELS_ACCOUNT_REQUIRED", "account is required")
 	}
@@ -1785,7 +1790,14 @@ func (s *OpenAIGatewayService) FetchCodexModelsManifest(ctx context.Context, acc
 		accountConcurrency:  account.Concurrency,
 		useAPIKeyUpstream:   useAPIKeyUpstream,
 	}
+	if !useCache {
+		request.headers.Del("If-None-Match")
+		request.headers.Set("Cache-Control", "no-cache")
+	}
 	if useAPIKeyUpstream {
+		if !useCache {
+			return s.fetchCodexModelsManifestUpstream(ctx, request, "")
+		}
 		return s.fetchCachedOpenAIModels(ctx, request, s.fetchCodexModelsManifestUpstreamForRequest(request), ifNoneMatch)
 	}
 	// OAuth 账号同样经过账号级缓存；闭包保留 agent identity 任务恢复逻辑，
@@ -1813,6 +1825,11 @@ func (s *OpenAIGatewayService) FetchCodexModelsManifest(ctx context.Context, acc
 		}
 		setOpenAIChatGPTAccountHeaders(request.headers, credAccount)
 		return s.fetchCodexModelsManifestUpstream(fetchCtx, request, ifNoneMatch)
+	}
+	if !useCache {
+		// Credential inspections must wait for their own response and follow
+		// caller cancellation rather than the shared background cache refresh.
+		return oauthFetch(ctx, "")
 	}
 	return s.fetchCachedOpenAIModels(ctx, request, oauthFetch, ifNoneMatch)
 }
@@ -1982,6 +1999,7 @@ func (s *OpenAIGatewayService) fetchOpenAIModelsUpstream(ctx context.Context, re
 			resp, err = requestledger.Do(req, audited.Do)
 		}
 	}
+	s.rateLimitService.observeQualityResponse(reqCtx, request.credentialAccount, resp, err)
 	if err != nil {
 		return nil, &codexModelsManifestUpstreamError{
 			err:       infraerrors.Newf(http.StatusBadGateway, "OPENAI_CODEX_MODELS_UPSTREAM_FAILED", "codex models manifest request failed: %v", err),

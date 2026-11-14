@@ -82,7 +82,13 @@ export interface PlayBillingPublicProduct {
   offer_token?: string
 }
 
-export interface MethodLimit {
+export interface MethodFeeRates {
+  fee_rate: number
+  fee_rate_min?: number
+  fee_rate_max?: number
+}
+
+export interface MethodLimit extends MethodFeeRates {
   currency?: string
   display_name?: string
   daily_limit: number
@@ -90,8 +96,8 @@ export interface MethodLimit {
   daily_remaining: number
   single_min: number
   single_max: number
-  fee_rate: number
   available: boolean
+  sub_methods?: Record<string, MethodFeeRates>
 }
 
 /** Response from /payment/limits API */
@@ -280,6 +286,10 @@ export interface ProviderInstance {
   payment_mode: string
   refund_enabled: boolean
   allow_user_refund: boolean
+  /** null / absent inherits the global fee; zero explicitly disables fees. */
+  fee_rate?: number | null
+  /** Missing method keys inherit the instance default. */
+  method_fee_rates?: Record<string, number>
   limits: string
   sort_order: number
 }
@@ -289,6 +299,7 @@ export interface ProviderInstance {
 export interface CreateOrderRequest {
   amount: number
   payment_type: string
+  payment_subtype?: string
   order_type: string
   plan_id?: number
   coupon_id?: number
@@ -336,6 +347,7 @@ export interface CreateOrderResult {
   status?: string
   result_type?: CreateOrderResultType
   payment_type?: string
+  payment_subtype?: string
   out_trade_no?: string
   payment_mode?: string
   resume_token?: string

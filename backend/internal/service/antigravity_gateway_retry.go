@@ -2,6 +2,7 @@ package service
 
 import (
 	"github.com/Wei-Shaw/sub2api/internal/requestledger"
+	"github.com/tidwall/gjson"
 
 	"bytes"
 	"context"
@@ -233,6 +234,7 @@ func (s *AntigravityGatewayService) handleSmartRetry(p antigravityRetryLoopParam
 			}
 
 			retryResp, retryErr := p.httpUpstream.Do(retryReq, p.proxyURL, p.account.ID, p.account.Concurrency)
+			s.rateLimitService.observeQualityResponse(retryReq.Context(), p.account, retryResp, retryErr)
 			if retryErr != nil || (retryResp != nil && retryResp.StatusCode >= 400) {
 				recordOpsTransferFailure(p.c, retryResp, retryErr, "smart_retry_failed")
 			}
@@ -419,6 +421,7 @@ func (s *AntigravityGatewayService) handleSingleAccountRetryInPlace(
 		}
 
 		retryResp, retryErr := p.httpUpstream.Do(retryReq, p.proxyURL, p.account.ID, p.account.Concurrency)
+		s.rateLimitService.observeQualityResponse(retryReq.Context(), p.account, retryResp, retryErr)
 		if retryErr != nil || (retryResp != nil && retryResp.StatusCode >= 400) {
 			recordOpsTransferFailure(p.c, retryResp, retryErr, "smart_retry_failed")
 		}
@@ -566,7 +569,11 @@ urlFallbackLoop:
 				return nil, err
 			}
 
+			if err := checkAPIKeyLongContextBeforeForward(p.ctx, p.c, nil, p.body, gjson.GetBytes(p.body, "model").String()); err != nil {
+				return nil, err
+			}
 			resp, err = p.httpUpstream.Do(upstreamReq, p.proxyURL, p.account.ID, p.account.Concurrency)
+			s.rateLimitService.observeQualityResponse(upstreamReq.Context(), p.account, resp, err)
 			if err == nil && resp == nil {
 				err = errors.New("upstream returned nil response")
 			}

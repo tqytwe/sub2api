@@ -1,3 +1,4 @@
+import apiKeyModelPolicy from './en/apiKeyModelPolicy'
 import couponCampaign from './en/couponCampaign'
 import affiliateOperations from './en/affiliateOperations'
 import requestLedger from './request-ledger.en'
@@ -18,6 +19,7 @@ import tokenGuardV2En from './en/tokenGuardV2'
 import { mergeLocaleMessages } from './merge'
 
 const messages = {
+  apiKeyModelPolicy,
   couponCampaign,
   affiliateOperations,
   accountOps: { smartTitle: 'Account operations' },
@@ -1225,6 +1227,10 @@ const messages = {
     failedToChangeGroup: 'Failed to change group',
     groupRequired: 'Please select a group',
     usage: 'Usage',
+    usageDateRange: 'Consumption Dates',
+    selectedPeriod: 'Selected Period',
+    invalidUsageDateRange: 'Select a valid consumption date range',
+    failedToLoadUsage: 'Failed to load consumption. Refresh to retry.',
     today: 'Today',
     total: 'Last 30d',
     quota: 'Quota',
@@ -9027,6 +9033,9 @@ const messages = {
     enterAmount: 'Enter amount',
     paymentMethod: 'Payment Method',
     fee: 'Fee',
+    estimatedPay: 'Estimated total',
+    feeRangeHint: 'Fees vary between payment providers. The order determines the final fee and total.',
+    stripePaymentMethod: 'Stripe payment method',
     actualPay: 'Actual Payment',
     createOrder: 'Confirm Payment',
     methods: {

@@ -134,12 +134,17 @@ func stampForwardRequestedReasoningEffort(result *service.ForwardResult, request
 }
 
 func applyOpenAIReasoningEffortPolicyForRequest(c *gin.Context, apiKey *service.APIKey, body []byte) ([]byte, bool, error) {
-	bindRequestedReasoningEffort(c, body, strings.TrimSpace(gjson.GetBytes(body, "model").String()))
+	requestModel := clientRequestedModel(c, gjson.GetBytes(body, "model").String())
+	bindRequestedReasoningEffort(c, body, requestModel)
 	maxEffort, mappings, overLimit, ok := openAIReasoningEffortPolicyForRequest(c, apiKey)
 	if !ok {
 		return body, false, nil
 	}
-	return service.ApplyOpenAIReasoningEffortPolicy(body, maxEffort, mappings, overLimit)
+	forced := ""
+	if apiKey != nil && effectiveAPIKeyPlatform(c, apiKey) == service.PlatformOpenAI {
+		forced = apiKey.ReasoningEffort
+	}
+	return service.ApplyAPIKeyOpenAIReasoningEffortPolicy(body, forced, maxEffort, mappings, overLimit, requestModel)
 }
 
 func respondOpenAIReasoningEffortPolicyError(c *gin.Context, err error, write func(*gin.Context, int, string, string)) {
@@ -162,7 +167,13 @@ func bindOpenAIReasoningEffortPolicyForMessagesRequest(c *gin.Context, apiKey *s
 	if c == nil || c.Request == nil {
 		return
 	}
-	bindRequestedReasoningEffort(c, body, strings.TrimSpace(gjson.GetBytes(body, "model").String()))
+	requestModel := clientRequestedModel(c, gjson.GetBytes(body, "model").String())
+	bindRequestedReasoningEffort(c, body, requestModel)
+	maxEffort, mappings, overLimit, ok := openAIReasoningEffortPolicyForRequest(c, apiKey)
+	if ok && apiKey != nil && apiKey.ReasoningEffort != "" && effectiveAPIKeyPlatform(c, apiKey) == service.PlatformOpenAI {
+		c.Request = c.Request.WithContext(service.WithAPIKeyOpenAIReasoningEffortPolicy(c.Request.Context(), apiKey.ReasoningEffort, maxEffort, mappings, overLimit, requestModel))
+		return
+	}
 	// The Messages bridge synthesizes a default OpenAI effort when
 	// output_config.effort is omitted. Bind the group policy only for an
 	// explicit client value so the ceiling does not alter that default.
@@ -170,9 +181,9 @@ func bindOpenAIReasoningEffortPolicyForMessagesRequest(c *gin.Context, apiKey *s
 	if !effort.Exists() || effort.Type != gjson.String || strings.TrimSpace(effort.String()) == "" {
 		return
 	}
-	maxEffort, mappings, overLimit, ok := openAIReasoningEffortPolicyForRequest(c, apiKey)
+	maxEffort, mappings, overLimit, ok = openAIReasoningEffortPolicyForRequest(c, apiKey)
 	if !ok {
 		return
 	}
-	c.Request = c.Request.WithContext(service.WithOpenAIReasoningEffortPolicy(c.Request.Context(), maxEffort, mappings, overLimit))
+	c.Request = c.Request.WithContext(service.WithOpenAIReasoningEffortPolicy(c.Request.Context(), maxEffort, mappings, overLimit, requestModel))
 }

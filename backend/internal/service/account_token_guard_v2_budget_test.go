@@ -11,6 +11,8 @@ import (
 )
 
 func (r *accountTokenGuardV2TestRepo) ReconcileReloginBudget(_ context.Context, _ int64, _ string, rules AccountTokenGuardV2Rules, at time.Time, state string) (*AccountTokenGuardV2Record, bool, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	if r.record == nil {
 		return nil, false, errors.New("missing record")
 	}
@@ -31,6 +33,8 @@ func (r *accountTokenGuardV2TestRepo) CreateAutomaticRelogin(ctx context.Context
 }
 
 func (r *accountTokenGuardV2TestRepo) ResumeReloginBudget(_ context.Context, _ int64, rules AccountTokenGuardV2Rules, now time.Time) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	if r.record == nil {
 		return errors.New("missing record")
 	}
@@ -89,6 +93,21 @@ func TestReloginBudgetRequiresPostSuccessProbeAndRejectsLateSuccess(t *testing.T
 	require.Equal(t, 3, newFailure.ReloginFailStreak, "a late older success cannot erase a newer failed task")
 }
 
+func TestRestoredBudgetCannotReuseAHistoricalSuccessToClearCooldown(t *testing.T) {
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	until := now.Add(time.Minute)
+	restored := AccountTokenGuardV2Record{LastCountedTaskID: 7, CooldownUntil: &until}
+	oldSuccess := AccountReloginOutcome{ID: 7, Status: OpenAIOAuthReauthStatusSucceeded, FinishedAt: &now}
+	plain, pending := AdvanceAccountReloginBudget(restored, []AccountReloginOutcome{oldSuccess}, budgetTestRules(), now.Add(time.Second), AccountTokenGuardV2ProbeOK)
+	require.False(t, pending)
+	require.Equal(t, &until, plain.CooldownUntil, "explicit recovery's old watermark is not a new successful login")
+	newSuccess := oldSuccess
+	newSuccess.ID = 8
+	verified, pending := AdvanceAccountReloginBudget(restored, []AccountReloginOutcome{oldSuccess, newSuccess}, budgetTestRules(), now.Add(time.Second), AccountTokenGuardV2ProbeOK)
+	require.False(t, pending)
+	require.Nil(t, verified.CooldownUntil, "a new successful task and fresh OK still clear the cooldown")
+}
+
 func TestReloginBudgetWatermarkWaitsForOutOfOrderTask(t *testing.T) {
 	now := time.Now()
 	later := AccountReloginOutcome{ID: 2, Status: OpenAIOAuthReauthStatusFailed, FinishedAt: &now}
@@ -125,7 +144,10 @@ func TestExhaustedReloginStillProbesAndManualFailureDoesNotRestartAutomation(t *
 		AccountID: 42, Enabled: true, AutoReloginEnabled: true, ReloginFailStreak: 3, AutoReloginExhausted: true,
 	}}
 	svc := NewAccountTokenGuardV2Service(repo, nil, reader, accountTokenGuardV2TestProber{err: errors.New("invalid token")}, reauth)
-	svc.runProbe(context.Background(), *repo.record)
+	record, err := repo.ClaimAccount(context.Background(), 42, svc.leaseOwner+"/test-1", time.Minute)
+	require.NoError(t, err)
+	require.NotNil(t, record)
+	require.NoError(t, svc.runProbe(context.Background(), *record))
 	require.NotNil(t, repo.completion)
 	require.Equal(t, AccountTokenGuardV2ProbeAuth, repo.completion.ProbeState)
 	require.Contains(t, repo.completion.BlockedReason, "exhausted")
@@ -134,7 +156,10 @@ func TestExhaustedReloginStillProbesAndManualFailureDoesNotRestartAutomation(t *
 	// A manually initiated failure is accounted too; observing it cannot resume.
 	now := time.Now()
 	repo.outcomes = []AccountReloginOutcome{{ID: 9, Status: OpenAIOAuthReauthStatusFailed, FinishedAt: &now}}
-	svc.runProbe(context.Background(), *repo.record)
+	record, err = repo.ClaimAccount(context.Background(), 42, svc.leaseOwner+"/test-2", time.Minute)
+	require.NoError(t, err)
+	require.NotNil(t, record)
+	require.NoError(t, svc.runProbe(context.Background(), *record))
 	require.True(t, repo.record.AutoReloginExhausted)
 	require.Zero(t, tasks.createCalls)
 }

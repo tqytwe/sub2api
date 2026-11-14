@@ -61,3 +61,11 @@ describe('PaymentMethodSelector', () => {
     expect(button.classes()).not.toContain('border-[#02A9F1]')
   })
 })
+
+
+it('shows an explicit zero-to-positive fee range rather than the legacy placeholder', () => {
+  const wrapper = mount(PaymentMethodSelector, {
+    props: {selected: 'stripe', methods: [{type:'stripe',fee_rate:0,fee_rate_min:0,fee_rate_max:3,available:true}]},
+  })
+  expect(wrapper.text()).toContain('0–3%')
+})
