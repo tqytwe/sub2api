@@ -2,10 +2,33 @@
   <BaseDialog
     :show="show"
     :title="t('admin.accounts.testAccountConnection')"
-    width="normal"
+    :width="isSVGTest ? 'full' : 'normal'"
+    :content-class="isSVGTest ? 'h-[90dvh]' : undefined"
+    :body-class="isSVGTest ? 'flex min-h-0 flex-col !overflow-hidden' : undefined"
     @close="handleClose"
   >
-    <div class="space-y-4">
+    <div :class="isSVGTest ? 'flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto' : 'space-y-4'">
+      <div v-if="!isGrokAccount" class="space-y-1.5">
+        <label class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('pelicanTests.manual.testKind') }}</label>
+        <Select v-model="manualTestKind" :options="manualTestKindOptions" :disabled="status === 'connecting'" />
+      </div>
+
+      <template v-if="isSVGTest">
+        <PelicanPromptMode v-model="pelicanPromptMode" :disabled="status === 'connecting'" />
+        <div v-if="pelicanPromptMode === 'random'" class="flex flex-wrap items-center gap-2">
+          <button type="button" class="btn btn-secondary" :disabled="preparingQuestion || status === 'connecting'" @click="prepareQuestion">
+            {{ preparingQuestion ? t('common.loading') : questionConfig ? t('pelicanTests.questionBank.next') : t('pelicanTests.manual.prepare') }}
+          </button>
+          <span v-if="questionError" class="text-xs text-red-600 dark:text-red-400" role="alert">{{ questionError }}</span>
+        </div>
+        <PelicanQuestionSnapshot v-if="pelicanPromptMode === 'random' && questionConfig" :question="questionConfig.pelican_question" :actual-prompt="questionConfig.actual_prompt" />
+        <TextArea v-if="pelicanPromptMode !== 'random'" v-model="testPrompt" :label="t('pelicanTests.editor.prompt')" :placeholder="t('pelicanTests.editor.promptHint')" :disabled="status === 'connecting'" rows="3" />
+        <div class="max-w-xs space-y-1.5">
+          <label class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('pelicanTests.editor.effort') }}</label>
+          <Select v-model="pelicanEffort" :options="pelicanEffortOptions" :disabled="status === 'connecting'" />
+        </div>
+      </template>
+
       <!-- Account Info Card -->
       <div
         v-if="account"
@@ -42,7 +65,7 @@
       </div>
 
       <!-- Grok: mode first, then optional model / mode params -->
-      <div v-if="isGrokAccount" class="space-y-1.5">
+      <div v-if="isGrokAccount && !isSVGTest" class="space-y-1.5">
         <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
           {{ t('admin.accounts.grok.testMode') }}
         </label>
@@ -81,7 +104,7 @@
         </div>
       </div>
 
-      <div v-if="isOpenAIAccount" class="space-y-1.5">
+      <div v-if="isOpenAIAccount && !isSVGTest" class="space-y-1.5">
         <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
           {{ t('admin.accounts.openai.testMode') }}
         </label>
@@ -92,7 +115,7 @@
         />
       </div>
 
-      <div v-if="supportsPromptInput" class="space-y-1.5">
+      <div v-if="supportsPromptInput && !isSVGTest" class="space-y-1.5">
         <TextArea
           v-model="testPrompt"
           :label="promptInputLabel"
@@ -102,8 +125,10 @@
           rows="3"
         />
       </div>
+
+      <PelicanArtworkPreview v-if="isSVGTest && svgAnswer" :html="svgAnswer" :title="t('pelicanTests.manual.preview')" class="min-h-[280px] flex-1" />
       <p
-        v-else-if="isGrokAccount && promptInputHint"
+        v-if="isGrokAccount && promptInputHint && !isSVGTest"
         class="text-xs text-gray-500 dark:text-gray-400"
       >
         {{ promptInputHint }}
@@ -386,11 +411,46 @@ import { useClipboard } from '@/composables/useClipboard'
 import { buildApiUrl } from '@/api/client'
 import { ADMIN_UI_REQUEST_HEADER } from '@/api/adminUIRequest'
 import { adminAPI } from '@/api/admin'
-import type { Account, ClaudeModel } from '@/types'
+import type { Account, ClaudeModel, PelicanTestConfig } from '@/types'
 import { accountStatusTranslationKey } from '@/utils/accountStatus'
+import PelicanPromptMode from './PelicanPromptMode.vue'
+import PelicanQuestionSnapshot from './PelicanQuestionSnapshot.vue'
+import PelicanArtworkPreview from '@/components/user/pelican/PelicanArtworkPreview.vue'
+import { currentPelicanQuestionRound, preparePelicanQuestionRound } from '@/utils/pelicanQuestionRound'
 
 const { t } = useI18n()
 const { copyToClipboard } = useClipboard()
+const manualTestKind = ref<'connection' | 'svg'>('connection')
+const pelicanPromptMode = ref<'custom' | 'random'>('random')
+const pelicanEffort = ref('medium')
+const questionConfig = ref<PelicanTestConfig | null>(null)
+const preparingQuestion = ref(false)
+const questionError = ref('')
+const svgAnswer = ref('')
+const isSVGTest = computed(() => manualTestKind.value === 'svg')
+const manualTestKindOptions = computed(() => [
+  { value: 'connection', label: t('pelicanTests.manual.testKindConnection') },
+  { value: 'svg', label: t('pelicanTests.manual.testKindSvg') },
+])
+const pelicanEffortOptions = ['low', 'medium', 'high', 'xhigh'].map((value) => ({ value, label: value }))
+
+function currentAdminQuestion() {
+  const user = JSON.parse(localStorage.getItem('auth_user') || 'null') as { id?: number } | null
+  return currentPelicanQuestionRound(user?.id ?? null)
+}
+
+async function prepareQuestion() {
+  questionError.value = ''
+  preparingQuestion.value = true
+  try {
+    const user = JSON.parse(localStorage.getItem('auth_user') || 'null') as { id?: number } | null
+    questionConfig.value = await preparePelicanQuestionRound(user?.id ?? null, abortController?.signal)
+  } catch {
+    questionError.value = t('pelicanTests.questionBank.error')
+  } finally {
+    preparingQuestion.value = false
+  }
+}
 
 interface OutputLine {
   text: string
@@ -498,11 +558,13 @@ const supportsImageTest = computed(
 
 // Model select only when the mode needs a model.
 const showModelSelect = computed(() => {
+  if (isSVGTest.value) return true
   if (!isGrokAccount.value) return true
   return grokTestMode.value === 'text' || grokTestMode.value === 'image' || grokTestMode.value === 'video'
 })
 
 const modelOptionsForMode = computed(() => {
+  if (isSVGTest.value) return availableModels.value
   if (!isGrokAccount.value) return availableModels.value
   if (grokTestMode.value === 'image') {
     return availableModels.value.filter((m) => isGrokImageModel(m.id))
@@ -517,6 +579,7 @@ const modelOptionsForMode = computed(() => {
 })
 
 const supportsPromptInput = computed(() => {
+  if (isSVGTest.value) return pelicanPromptMode.value !== 'random'
   if (!isGrokAccount.value) {
     return supportsImageTest.value
   }
@@ -671,6 +734,7 @@ const promptInputHint = computed(() => {
 })
 
 const testModeSummary = computed(() => {
+  if (isSVGTest.value) return t('pelicanTests.manual.testKindSvg')
   if (isGrokAccount.value) {
     switch (grokTestMode.value) {
       case 'video':
@@ -694,7 +758,9 @@ const testModeSummary = computed(() => {
 })
 
 const canStartTest = computed(() => {
-  if (status.value === 'connecting') return false
+  if (status.value === 'connecting' || preparingQuestion.value) return false
+  if (isSVGTest.value && pelicanPromptMode.value === 'random' && !(questionConfig.value || currentAdminQuestion())?.pelican_question) return false
+  if (isSVGTest.value && pelicanPromptMode.value === 'custom' && !testPrompt.value.trim()) return false
   if (isGrokAccount.value) {
     if (
       grokTestMode.value === 'search' ||
@@ -763,6 +829,12 @@ watch(
       testMode.value = 'default'
       grokTestMode.value = 'text'
       resetState()
+      manualTestKind.value = 'connection'
+      pelicanPromptMode.value = 'random'
+      pelicanEffort.value = 'medium'
+      questionConfig.value = currentAdminQuestion()
+      questionError.value = ''
+      svgAnswer.value = ''
       availableModels.value = []
       selectedModelId.value = ''
       modelLoadError.value = ''
@@ -778,6 +850,7 @@ watch(
       selectedModelId.value = ''
       modelLoadError.value = ''
       abortStream()
+      questionConfig.value = null
     }
   },
   { immediate: true }
@@ -837,6 +910,7 @@ function resetState() {
   generatedAudios.value = []
   generatedVideos.value = []
   previewImageUrl.value = ''
+  svgAnswer.value = ''
 }
 
 const handleClose = () => {
@@ -885,14 +959,27 @@ const startTest = async () => {
     const requestBody: {
       model_id: string
       prompt: string
+      prompt_mode?: string
+      pelican_question?: PelicanTestConfig['pelican_question']
+      reasoning_effort?: string
       mode?: string
       image_data_url?: string
       audio_data_url?: string
     } = {
       model_id: showModelSelect.value ? selectedModelId.value : '',
-      prompt: supportsPromptInput.value ? testPrompt.value.trim() : ''
+      prompt: supportsPromptInput.value && !isSVGTest.value ? testPrompt.value.trim() : ''
     }
-    if (isOpenAIAccount.value) {
+    if (isSVGTest.value) {
+      requestBody.prompt_mode = pelicanPromptMode.value
+      requestBody.reasoning_effort = pelicanEffort.value
+      if (pelicanPromptMode.value === 'random') {
+        const snapshot = questionConfig.value || currentAdminQuestion()
+        requestBody.pelican_question = snapshot?.pelican_question
+        requestBody.prompt = snapshot?.prompt || ''
+      } else {
+        requestBody.prompt = testPrompt.value.trim()
+      }
+    } else if (isOpenAIAccount.value) {
       requestBody.mode = testMode.value
     }
     if (isGrokAccount.value) {
@@ -916,7 +1003,7 @@ const startTest = async () => {
     }
 
     // Use the configured API base; EventSource does not support POST.
-    const url = buildApiUrl(`/admin/accounts/${props.account.id}/test`)
+    const url = buildApiUrl(isSVGTest.value ? `/admin/accounts/${props.account.id}/pelican-test` : `/admin/accounts/${props.account.id}/test`)
 
     // Use fetch with streaming for SSE since EventSource doesn't support POST
     const response = await fetch(url, {
@@ -1063,6 +1150,7 @@ const handleEvent = (event: {
     case 'test_complete':
       // Move streaming content to output lines
       if (streamingContent.value) {
+        if (isSVGTest.value && event.success) svgAnswer.value = streamingContent.value
         addLine(streamingContent.value, 'text-green-300')
         streamingContent.value = ''
       }

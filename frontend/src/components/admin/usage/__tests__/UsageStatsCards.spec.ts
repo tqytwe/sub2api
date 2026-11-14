@@ -136,4 +136,38 @@ describe('UsageStatsCards', () => {
 
     expect(wrapper.text()).not.toContain('Saved')
   })
+  it('averages request and token counts over the response window without changing billing totals', () => {
+    const wrapper = mount(UsageStatsCards, {
+      props: {
+        stats: { ...stats, total_requests: 120, total_tokens: 6000 },
+        showRate: true,
+        rateWindow: { start: '2026-11-10T00:00:00Z', end: '2026-11-10T01:00:00Z', now: Date.parse('2026-11-10T01:00:00Z') },
+      },
+      global: { stubs: { Icon: true, NewFeatureBadge: true } },
+    })
+    expect(wrapper.get('[data-testid="usage-rpm"]').text()).toBe('2.00')
+    expect(wrapper.get('[data-testid="usage-tpm"]').text()).toBe('100.0')
+    expect(wrapper.text()).toContain('$0.0010')
+  })
+
+  it('keeps the user shared cards unchanged unless the administrator explicitly enables rates', () => {
+    const wrapper = mount(UsageStatsCards, { props: { stats }, global: { stubs: { Icon: true } } })
+    expect(wrapper.find('[data-testid="usage-rate-card"]').exists()).toBe(false)
+  })
+
+  it('shows unknown for a loading response and zero only for an actual zero result', async () => {
+    const wrapper = mount(UsageStatsCards, {
+      props: {
+        stats: null,
+        showRate: true,
+        rateWindow: { start: '2026-11-10T00:00:00Z', end: '2026-11-10T01:00:00Z', now: Date.parse('2026-11-10T01:00:00Z') },
+      },
+      global: { stubs: { Icon: true, NewFeatureBadge: true } },
+    })
+    expect(wrapper.get('[data-testid="usage-rpm"]').text()).toBe('—')
+    await wrapper.setProps({ stats: { ...stats, total_requests: 0, total_tokens: 0 } })
+    expect(wrapper.get('[data-testid="usage-rpm"]').text()).toBe('0')
+    expect(wrapper.get('[data-testid="usage-tpm"]').text()).toBe('0')
+  })
+
 })

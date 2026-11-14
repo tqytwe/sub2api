@@ -87,6 +87,8 @@ func sanitizeQualityResult(result *ScheduledTestResult) {
 	}
 	config := *result.PelicanConfig
 	config.Prompt = ""
+	config.ActualPrompt = ""
+	config.PelicanQuestion = nil
 	quality := *config.Quality
 	quality.ExpectedAnswer = ""
 	if quality.Judge != nil {
@@ -428,6 +430,8 @@ func sanitizeQualityHistoryResult(result *ScheduledTestResult) {
 	result.ResponseText = ""
 	config := cloneQualityPelicanConfig(result.PelicanConfig)
 	config.Prompt = ""
+	config.ActualPrompt = ""
+	config.PelicanQuestion = nil
 	if config.Quality != nil {
 		config.Quality.ExpectedAnswer = ""
 		if config.Quality.Judge != nil {

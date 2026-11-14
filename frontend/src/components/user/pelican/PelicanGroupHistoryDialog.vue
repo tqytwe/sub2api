@@ -36,6 +36,7 @@
           <span>{{ t('pelicanShowcase.history.selected', { model: selectedItem.model_id }) }} · {{ dateLabel(selectedItem.generated_at) }}</span>
           <span>{{ t('pelicanShowcase.history.duration', { duration: durationLabel(selectedItem.latency_ms) }) }}</span>
         </div>
+        <PelicanQuestionSnapshot v-if="selectedItem?.pelican_question" class="mb-3 shrink-0" :question="selectedItem.pelican_question" />
         <div class="min-h-0 flex-1 overflow-hidden rounded-md border border-gray-200 bg-gray-50 dark:border-dark-700 dark:bg-dark-900" data-testid="pelican-preview-stage">
           <div v-if="previewLoading" class="flex h-full items-center justify-center text-sm text-gray-500" role="status">{{ t('pelicanShowcase.history.previewLoading') }}</div>
           <p v-else-if="previewError" role="alert" class="p-4 text-sm text-red-600 dark:text-red-400">{{ previewError }}</p>
@@ -53,6 +54,7 @@ import { useI18n } from 'vue-i18n'
 import { getShowcase, getShowcaseItem, type PelicanShowcaseItem } from '@/api/pelicanShowcase'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import PelicanArtworkPreview from './PelicanArtworkPreview.vue'
+import PelicanQuestionSnapshot from '@/components/admin/account/PelicanQuestionSnapshot.vue'
 
 const props = defineProps<{ show: boolean; groupId: number; groupName: string }>()
 const emit = defineEmits<{ close: [] }>()

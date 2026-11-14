@@ -8,6 +8,9 @@ import type { PaginatedResponse } from '@/types'
 
 export interface PelicanGroupTestConfig {
   question_kind?: string
+  prompt_mode?: 'custom' | 'random' | string
+  pelican_question?: import('@/types').PelicanQuestion
+  actual_prompt?: string
   prompt: string
   reasoning_effort: string
   parallel_count: number
@@ -74,6 +77,7 @@ export interface PelicanGroupTestPlanInput {
   cron_expression: string
   enabled: boolean
   prompt: string
+  prompt_mode?: 'custom' | 'random' | string
   reasoning_effort: string
   parallel_count: number
 }

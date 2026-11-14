@@ -23,7 +23,15 @@ describe('PelicanGroupHistoryDialog', () => {
         name: 'OpenAI Pro',
         platform: 'openai',
         items: [
-          { id: 21, group_id: 7, model_id: 'gpt-6-astra', reasoning_effort: 'high', latency_ms: 12466, generated_at: '2026-11-03T10:17:57Z' },
+          {
+            id: 21, group_id: 7, model_id: 'gpt-6-astra', reasoning_effort: 'high', latency_ms: 12466,
+            generated_at: '2026-11-03T10:17:57Z',
+            pelican_question: {
+              id: 'pelican-bicycle', version: 'svg-motion-v1', round_id: 'scheduled:2026-11-03T10:00:00Z',
+              source: 'builtin:svg-motion', prompt: 'Draw a pelican riding a bicycle.',
+              criteria: ['visible rider', 'coordinated wheel motion'],
+            },
+          },
           { id: 20, group_id: 7, model_id: 'gpt-6-astra', reasoning_effort: 'high', latency_ms: 10519, generated_at: '2026-11-03T10:03:18Z' },
           { id: 19, group_id: 7, model_id: 'gpt-5', reasoning_effort: 'medium', latency_ms: 9400, generated_at: '2026-11-03T09:48:58Z' },
         ],
@@ -55,6 +63,8 @@ describe('PelicanGroupHistoryDialog', () => {
     expect(wrapper.get('[data-testid="dialog-body"]').classes()).toContain('min-h-0')
     expect(wrapper.text()).toContain('gpt-6-astra')
     expect(wrapper.text()).toContain('12.47 s')
+    expect(wrapper.text()).toContain('pelican-bicycle')
+    expect(wrapper.text()).toContain('coordinated wheel motion')
     expect(getShowcaseItemMock).toHaveBeenCalledTimes(1)
     expect(getShowcaseItemMock).toHaveBeenCalledWith(21)
 

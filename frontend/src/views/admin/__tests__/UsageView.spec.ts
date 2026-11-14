@@ -214,6 +214,47 @@ describe('admin UsageView route filters', () => {
     vi.useRealTimers()
   })
 
+  it('sends the same resolved default window used to calculate per-minute rates', async () => {
+    const wrapper = mountRouteFilteredUsageView()
+    await flushPromises()
+    const vm = wrapper.vm as any
+    vm.filters.start_date = ''
+    vm.filters.end_date = ''
+    const now = Date.now()
+    await vm.loadStats()
+    const request = getStats.mock.calls.at(-1)?.[0]
+    expect(request.end_date).toBe(new Date(now).toISOString())
+    const cards = wrapper.findComponent({ name: 'UsageStatsCards' })
+    expect(cards.props('showRate')).toBe(true)
+    expect(cards.props('rateWindow')).toEqual({ start: request.start_date, end: request.end_date, now })
+    wrapper.unmount()
+  })
+
+  it('keeps a newer stats response paired with its own date range after an older response arrives', async () => {
+    const wrapper = mountRouteFilteredUsageView()
+    await flushPromises()
+    const vm = wrapper.vm as any
+    let finishOlder!: (value: unknown) => void
+    let finishNewer!: (value: unknown) => void
+    getStats.mockImplementationOnce(() => new Promise(resolve => { finishOlder = resolve }))
+    getStats.mockImplementationOnce(() => new Promise(resolve => { finishNewer = resolve }))
+    vm.filters.start_date = '2026-11-01'
+    vm.filters.end_date = '2026-11-02'
+    const older = vm.loadStats()
+    vm.filters.start_date = '2026-11-05'
+    vm.filters.end_date = '2026-11-06'
+    const newer = vm.loadStats()
+    finishNewer({ total_requests: 240, total_tokens: 6000 })
+    await newer
+    const cards = wrapper.findComponent({ name: 'UsageStatsCards' })
+    expect(cards.props('rateWindow').start).toBe('2026-11-05')
+    finishOlder({ total_requests: 999, total_tokens: 99999 })
+    await older
+    expect(cards.props('stats').total_requests).toBe(240)
+    expect(cards.props('rateWindow').start).toBe('2026-11-05')
+    wrapper.unmount()
+  })
+
   it('shows the routed user while applying user_id to usage requests', async () => {
     routeQuery.user_id = '42'
     getById.mockResolvedValue({ id: 42, email: 'route-user@test.com' })

@@ -36,6 +36,10 @@ func RegisterUserRoutes(
 		user := authenticated.Group("/user")
 		{
 			user.GET("/profile", h.User.GetProfile)
+			if h.Admin != nil && h.Admin.Setting != nil {
+				user.GET("/key-risks", h.Admin.Setting.GetMyKeyRisks)
+				user.POST("/key-risks/:id/acknowledge", h.Admin.Setting.AcknowledgeMyKeyRisk)
+			}
 			user.PUT("/password", h.User.ChangePassword)
 			user.PUT("", h.User.UpdateProfile)
 			user.GET("/aff", h.User.GetAffiliate)

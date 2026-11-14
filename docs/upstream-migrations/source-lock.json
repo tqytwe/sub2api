@@ -25,7 +25,14 @@
     "analysis_base": "79a778b6de38660468fb3daa8f7ba313bf5000f1",
     "branch": "sync/ranxi-v2.21.2-20261114",
     "minimum_new_migration": 354,
-    "state": "in_progress",
-    "fully_migrated": false
+    "state": "deployed_partial_accepted",
+    "fully_migrated": false,
+    "delivery_pr": "https://github.com/tqytwe/sub2api/pull/429",
+    "candidate_commit": "ae7c027a801c46cee5e060c99d54d0c171c01ef5",
+    "deployed_commit": "2a457bedf0e4bfb867342a18d1c41645bb834a46",
+    "deployment_id": "6af8564d03a5d91147663cc2",
+    "applied_migration_maximum": 358,
+    "ci_state": "platform_disabled_dispatch_422",
+    "local_browser_acceptance": "passed_guest_user_admin_user_confirmation_2026-11-14"
   }
 }

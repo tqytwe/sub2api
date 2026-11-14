@@ -86,6 +86,10 @@ function mountModal(
           emits: ['update:modelValue'],
           template: '<textarea class="textarea-stub" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />'
         },
+        PelicanArtworkPreview: {
+          props: ['html'],
+          template: '<div data-testid="pelican-artwork">{{ html }}</div>'
+        },
         Icon: true
       }
     }
@@ -290,5 +294,51 @@ describe('AccountTestModal', () => {
       prompt: '生成一张水彩风格的小猫贴纸',
       mode: 'default'
     })
+  })
+
+  it('管理员 SVG 测试提交同轮题目快照并显示一次作品预览', async () => {
+    const questionConfig = {
+      prompt: 'Draw the configured bicycle animation.',
+      actual_prompt: 'Draw the configured bicycle animation. Return HTML only.',
+      pelican_question: {
+        id: 'pelican-bicycle',
+        version: 'svg-motion-v1',
+        round_id: 'manual:0123456789abcdef0123456789abcdef',
+        source: 'builtin:svg-motion',
+        prompt: 'Draw the configured bicycle animation.',
+        criteria: ['visible rider', 'coordinated wheel motion']
+      }
+    }
+    // design-governance-allow: inline-svg - this generated HTML fixture exercises the artwork preview, not a UI icon.
+    global.fetch = vi.fn().mockResolvedValue(
+      createStreamResponse([
+        // design-governance-allow: inline-svg - generated SVG model output fixture, not a functional icon.
+        'data: {"type":"content","text":"<!doctype html><html><svg viewBox=\\"0 0 1200 600\\"></svg></html>"}\n',
+        'data: {"type":"test_complete","success":true}\n'
+      ])
+    ) as any
+
+    const wrapper = mountModal(undefined, true)
+    await flushPromises()
+    ;(wrapper.vm as any).manualTestKind = 'svg'
+    ;(wrapper.vm as any).pelicanPromptMode = 'random'
+    ;(wrapper.vm as any).questionConfig = questionConfig
+    ;(wrapper.vm as any).selectedModelId = 'gemini-2.0-flash'
+
+    await (wrapper.vm as any).startTest()
+    await flushPromises()
+
+    expect(global.fetch).toHaveBeenCalledTimes(1)
+    const [url, request] = (global.fetch as any).mock.calls[0]
+    expect(String(url)).toContain('/admin/accounts/42/pelican-test')
+    expect(JSON.parse(request.body)).toMatchObject({
+      model_id: 'gemini-2.0-flash',
+      prompt_mode: 'random',
+      prompt: questionConfig.prompt,
+      pelican_question: questionConfig.pelican_question,
+      reasoning_effort: 'medium'
+    })
+    expect(wrapper.findAll('[data-testid="pelican-artwork"]')).toHaveLength(1)
+    expect(wrapper.find('[data-testid="pelican-artwork"]').text()).toContain('<!doctype html>')
   })
 })

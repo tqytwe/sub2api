@@ -431,6 +431,7 @@ export default {
     cacheTtlOverriddenLabel: 'TTL 替换',
     cacheTtlOverridden5m: '按 5m 计费',
     cacheTtlOverridden1h: '按 1h 计费',
+    rateCardHint: '所选时间范围内每分钟的平均值：RPM = 总请求数 ÷ 分钟数，TPM = 总 Token ÷ 分钟数；范围包含当前时刻时只算到现在',
     totalRequests: '总请求数',
     totalTokens: '总 Token',
     cacheTotal: '缓存',

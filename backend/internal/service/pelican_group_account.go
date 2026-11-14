@@ -13,12 +13,13 @@ import (
 )
 
 const (
-	pelicanErrEmptyOutput  = "Model returned empty output"
-	pelicanErrCaptureLimit = "Response exceeds 4 MiB capture limit"
-	pelicanErrHistoryLimit = "Output exceeds 2 MiB history limit"
-	pelicanErrMaxTokens    = "Model output hit max_tokens before finishing"
-	pelicanErrRefused      = "Model refused the request"
-	pelicanDefaultPrompt   = "创建一个 HTML，内容是 SVG 绘制一个鹈鹕骑自行车的 2D 动画。只输出 HTML，不要使用 Markdown 代码块或外部依赖。"
+	pelicanErrEmptyOutput   = "Model returned empty output"
+	pelicanErrCaptureLimit  = "Response exceeds 4 MiB capture limit"
+	pelicanErrHistoryLimit  = "Output exceeds 2 MiB history limit"
+	pelicanErrMaxTokens     = "Model output hit max_tokens before finishing"
+	pelicanErrRefused       = "Model refused the request"
+	pelicanDefaultPrompt    = "创建一个 HTML，内容是 SVG 绘制一个鹈鹕骑自行车的 2D 动画。只输出 HTML，不要使用 Markdown 代码块或外部依赖。"
+	PelicanDeliveryContract = "所有账号使用相同交付约定：直接返回独立 HTML，不使用 Markdown 代码块或外部依赖。只输出 HTML，不要解释。"
 )
 
 type pelicanAccountTestContextKey struct{}
@@ -78,26 +79,36 @@ func promptOrDefault(prompt string) string {
 
 var pelicanHTMLPattern = regexp.MustCompile(`(?i)<(?:!doctype\s+html|html|svg)[\s>]`)
 
+func intelligenceTestPrompt(cfg *PelicanTestConfig) string {
+	prompt := strings.TrimSpace(cfg.Prompt)
+	if prompt == "" {
+		prompt = pelicanDefaultPrompt
+	}
+	return prompt + "\n\n" + PelicanDeliveryContract
+}
+
+func (s *AccountTestService) TestPelicanAccountConnection(c *gin.Context, accountID int64, model, prompt, effort string) error {
+	ctx := context.WithValue(c.Request.Context(), qualityProbePromptContextKey{}, prompt)
+	ctx = context.WithValue(ctx, qualityProbeEffortContextKey{}, effort)
+	ctx = context.WithValue(ctx, pelicanAccountTestContextKey{}, true)
+	c.Request = c.Request.WithContext(ctx)
+	return s.TestAccountConnection(c, accountID, model, prompt, AccountTestModeDefault)
+}
+
 // RunPelicanBackground reuses the Fork's metered quality probe transport, but
 // keeps the generated document as the result used by group-test/showcase.
 func (s *AccountTestService) RunPelicanBackground(ctx context.Context, accountID int64, model string, cfg *PelicanTestConfig) (*ScheduledTestResult, error) {
 	if cfg == nil {
 		return nil, ErrChannelMonitorV2InvalidConfig
 	}
-	prompt := strings.TrimSpace(cfg.Prompt)
-	if prompt == "" {
-		prompt = pelicanDefaultPrompt
-	}
+	prompt := intelligenceTestPrompt(cfg)
 	started := time.Now()
-	ctx = context.WithValue(ctx, qualityProbePromptContextKey{}, prompt)
-	ctx = context.WithValue(ctx, qualityProbeEffortContextKey{}, cfg.ReasoningEffort)
-	ctx = context.WithValue(ctx, pelicanAccountTestContextKey{}, true)
 	usage := &accountTestUsageCollector{model: model}
 	ctx = context.WithValue(ctx, accountTestUsageKey{}, usage)
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
 	c.Request = (&http.Request{Header: make(http.Header)}).WithContext(ctx)
-	testErr := s.TestAccountConnection(c, accountID, model, prompt, AccountTestModeDefault)
+	testErr := s.TestPelicanAccountConnection(c, accountID, model, prompt, cfg.ReasoningEffort)
 	finished := time.Now()
 	account, accountErr := s.accountRepo.GetByID(ctx, accountID)
 	multiplier := 0.1
@@ -117,6 +128,10 @@ func (s *AccountTestService) RunPelicanBackground(ctx context.Context, accountID
 		result.Status = "failed"
 		result.ErrorMessage = pelicanErrEmptyOutput
 	}
+	if result.Status == "success" && !pelicanHTMLPattern.MatchString(result.ResponseText) {
+		result.Status = "failed"
+		result.ErrorMessage = "Model did not return HTML or SVG"
+	}
 	if len(result.ResponseText) > 2<<20 {
 		result.Status = "failed"
 		result.ResponseText = ""
@@ -130,6 +145,7 @@ func (s *AccountTestService) RunPelicanBackground(ctx context.Context, accountID
 	}
 	snapshot := *cfg
 	snapshot.ModelID = model
+	snapshot.ActualPrompt = prompt
 	result.PelicanConfig = &snapshot
 	return result, nil
 }

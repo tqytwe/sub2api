@@ -2,7 +2,7 @@
   <AppLayout>
     <div class="space-y-6">
       <div class="flex justify-end"><RouterLink :to="{ name: 'AdminRequestLedger' }" class="btn btn-secondary">{{ t('requestLedger.title') }}</RouterLink></div>
-      <UsageStatsCards :stats="usageStats" />
+      <UsageStatsCards :stats="usageStats" show-rate :rate-window="usageStatsWindow" />
       <!-- Charts Section -->
       <div class="space-y-4">
         <div class="card p-4">
@@ -204,6 +204,7 @@ import UserBalanceHistoryModal from '@/components/admin/user/UserBalanceHistoryM
 import OpsErrorLogTable from '@/views/admin/ops/components/OpsErrorLogTable.vue'
 import OpsErrorDetailModal from '@/views/admin/ops/components/OpsErrorDetailModal.vue'
 import { listErrorLogs } from '@/api/admin/ops'
+import { resolveUsageStatsWindow, type UsageRateWindow } from '@/utils/usageRate'
 import type { OpsErrorLog } from '@/api/admin/ops'
 import ModelDistributionChart from '@/components/charts/ModelDistributionChart.vue'; import GroupDistributionChart from '@/components/charts/GroupDistributionChart.vue'; import TokenUsageTrend from '@/components/charts/TokenUsageTrend.vue'
 import EndpointDistributionChart from '@/components/charts/EndpointDistributionChart.vue'
@@ -217,7 +218,7 @@ type DistributionMetric = 'tokens' | 'actual_cost'
 type EndpointSource = 'inbound' | 'upstream' | 'path'
 type ModelDistributionSource = 'requested' | 'upstream' | 'mapping'
 const route = useRoute()
-const usageStats = ref<AdminUsageStatsResponse | null>(null); const usageLogs = ref<AdminUsageLog[]>([]); const loading = ref(false); const exporting = ref(false)
+const usageStats = ref<AdminUsageStatsResponse | null>(null); const usageStatsWindow = ref<UsageRateWindow | null>(null); const usageLogs = ref<AdminUsageLog[]>([]); const loading = ref(false); const exporting = ref(false)
 const trendData = ref<TrendDataPoint[]>([]); const requestedModelStats = ref<ModelStat[]>([]); const upstreamModelStats = ref<ModelStat[]>([]); const mappingModelStats = ref<ModelStat[]>([]); const groupStats = ref<GroupStat[]>([]); const chartsLoading = ref(false); const modelStatsLoading = ref(false); const granularity = ref<'day' | 'hour'>('hour')
 const modelDistributionMetric = ref<DistributionMetric>('tokens')
 const modelDistributionSource = ref<ModelDistributionSource>('requested')
@@ -423,17 +424,21 @@ const loadLogs = async () => {
 }
 const loadStats = async (force = false) => {
   const seq = ++statsReqSeq
+  const rateWindow = resolveUsageStatsWindow({ start: filters.value.start_date, end: filters.value.end_date, now: Date.now() }, 'admin')
   endpointStatsLoading.value = true
   try {
     const requestType = filters.value.request_type
     const legacyStream = requestType ? requestTypeToLegacyStream(requestType) : filters.value.stream
     const s = await adminAPI.usage.getStats({
       ...filters.value,
+      start_date: rateWindow.start,
+      end_date: rateWindow.end,
       stream: legacyStream === null ? undefined : legacyStream,
       ...(force ? { nocache: 1 } : {}),
     })
     if (seq !== statsReqSeq) return
     usageStats.value = s
+    usageStatsWindow.value = rateWindow
     inboundEndpointStats.value = s.endpoints || []
     upstreamEndpointStats.value = s.upstream_endpoints || []
     endpointPathStats.value = s.endpoint_paths || []
