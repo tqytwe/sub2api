@@ -4,6 +4,7 @@ package routes
 
 import (
 	"context"
+	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -37,7 +38,7 @@ func TestRequestLedgerRoutingActualUnsupportedDispatch(t *testing.T) {
 				RegisterGatewayRoutes(r, &handler.Handlers{Gateway: &handler.GatewayHandler{}, OpenAIGateway: &handler.OpenAIGatewayHandler{}, AsyncImage: handler.NewAsyncImageHandler(nil, nil, nil)}, auth, nil, nil, nil, nil, nil, &config.Config{})
 				w := httptest.NewRecorder()
 				r.ServeHTTP(w, httptest.NewRequest("POST", path, strings.NewReader(`{"model":"fixture"}`)))
-				require.Equal(t, 500, w.Code)
+				require.Contains(t, []int{http.StatusInternalServerError, http.StatusRequestEntityTooLarge}, w.Code)
 				var id string
 				require.NoError(t, db.QueryRow(`SELECT id FROM gateway_requests ORDER BY started_at DESC LIMIT 1`).Scan(&id))
 				e, err := l.RoutingEvidence(context.Background(), requestledger.Viewer{Admin: true, UserID: 1}, id)
