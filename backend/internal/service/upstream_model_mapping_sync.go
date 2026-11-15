@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"reflect"
 	"strings"
@@ -45,10 +47,10 @@ func (s *AccountTestService) SyncUpstreamModelCatalogWithOptions(ctx context.Con
 	if account.IsCredentialShadow() || (account.Platform == PlatformOpenAI && account.Type == AccountTypeOAuth && account.GetCredential("model_mapping_mode") == "aliases") {
 		return skippedUpstreamModelSync("account_policy", nil), nil
 	}
-	// Fork OAuth model mappings are existing explicit allowlists, including legacy accounts without a mode marker.
-	// Automatic catalog refresh must not broaden those allowlists.
-	// An administrator can still deliberately replace it with an explicit apply.
-	if options.Automatic && account.Type == AccountTypeOAuth && len(rawUpstreamModelMapping(account)) > 0 {
+	// Legacy or administrator-edited OAuth mappings are explicit allowlists.
+	// Continue refreshing only a catalog-owned mapping that is still unchanged.
+	existingMapping := rawUpstreamModelMapping(account)
+	if options.Automatic && account.Type == AccountTypeOAuth && len(existingMapping) > 0 && !hasManagedUpstreamModelMapping(account, existingMapping) {
 		return skippedUpstreamModelSync("account_policy", nil), nil
 	}
 	if options.Automatic && (account.Status != StatusActive || !account.Schedulable) {
@@ -103,7 +105,8 @@ func (s *AccountTestService) SyncUpstreamModelCatalogWithOptions(ctx context.Con
 		catalog.Skipped = "empty"
 		return catalog, nil
 	}
-	if reflect.DeepEqual(rawUpstreamModelMapping(account), mapping) {
+	changed := !reflect.DeepEqual(existingMapping, mapping)
+	if !changed && hasManagedUpstreamModelMapping(account, mapping) {
 		catalog.Applied = true
 		return catalog, nil
 	}
@@ -116,8 +119,22 @@ func (s *AccountTestService) SyncUpstreamModelCatalogWithOptions(ctx context.Con
 		return catalog, nil
 	}
 	catalog.Applied = true
-	catalog.Changed = true
+	catalog.Changed = changed
 	return catalog, nil
+}
+
+// UpstreamModelMappingDigest binds catalog ownership to the exact persisted
+// mapping. map[string]string has a canonical JSON encoding with sorted keys.
+func UpstreamModelMappingDigest(mapping map[string]string) string {
+	raw, _ := json.Marshal(mapping)
+	digest := sha256.Sum256(raw)
+	return hex.EncodeToString(digest[:])
+}
+
+func hasManagedUpstreamModelMapping(account *Account, mapping map[string]string) bool {
+	state, _ := account.Extra[UpstreamModelSyncExtraKey].(map[string]any)
+	digest, _ := state["managed_mapping_sha256"].(string)
+	return digest != "" && digest == UpstreamModelMappingDigest(mapping)
 }
 
 func skippedUpstreamModelSync(reason string, next *time.Time) *UpstreamModelCatalog {

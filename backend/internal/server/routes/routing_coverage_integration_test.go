@@ -35,10 +35,13 @@ func TestRequestLedgerRoutingActualUnsupportedDispatch(t *testing.T) {
 					// after dispatch but before attempting any upstream operation.
 					c.Next()
 				})
-				RegisterGatewayRoutes(r, &handler.Handlers{Gateway: &handler.GatewayHandler{}, OpenAIGateway: &handler.OpenAIGatewayHandler{}, AsyncImage: handler.NewAsyncImageHandler(nil, nil, nil)}, auth, nil, nil, nil, nil, nil, &config.Config{})
+				// A zero limit rejects the fixture before provider dispatch, so set
+				// an explicit limit and exercise the routing coverage boundary.
+				cfg := &config.Config{Gateway: config.GatewayConfig{MaxBodySize: 1 << 20}}
+				RegisterGatewayRoutes(r, &handler.Handlers{Gateway: &handler.GatewayHandler{}, OpenAIGateway: &handler.OpenAIGatewayHandler{}, AsyncImage: handler.NewAsyncImageHandler(nil, nil, nil)}, auth, nil, nil, nil, nil, nil, cfg)
 				w := httptest.NewRecorder()
 				r.ServeHTTP(w, httptest.NewRequest("POST", path, strings.NewReader(`{"model":"fixture"}`)))
-				require.Contains(t, []int{http.StatusInternalServerError, http.StatusRequestEntityTooLarge}, w.Code)
+				require.Equal(t, http.StatusInternalServerError, w.Code, w.Body.String())
 				var id string
 				require.NoError(t, db.QueryRow(`SELECT id FROM gateway_requests ORDER BY started_at DESC LIMIT 1`).Scan(&id))
 				e, err := l.RoutingEvidence(context.Background(), requestledger.Viewer{Admin: true, UserID: 1}, id)

@@ -152,16 +152,54 @@ func TestApplyUpstreamModelsAtomicOutboxFailureAndCancellation(t *testing.T) {
 			}
 			cache := &schedulerCacheRecorder{}
 			repo := newAccountRepositoryWithSQL(client, executor, cache)
+			before, err := repo.GetByID(context.Background(), account.ID)
+			require.NoError(t, err)
 			applied, err := repo.UpdateUpstreamModelMappingIfUnchanged(ctx, account, map[string]string{"new": "new"})
 			require.Error(t, err)
 			require.False(t, applied)
 			latest, err := repo.GetByID(context.Background(), account.ID)
 			require.NoError(t, err)
 			require.Equal(t, account.Credentials, latest.Credentials, "failed atomic statement cannot leave model mapping changed")
+			require.Equal(t, before.Extra, latest.Extra, "failed atomic statement cannot leave ownership metadata changed")
 			require.Empty(t, cache.setAccounts)
 			var count int
 			require.NoError(t, integrationDB.QueryRowContext(context.Background(), "SELECT COUNT(*) FROM scheduler_outbox WHERE account_id=$1", account.ID).Scan(&count))
 			require.Zero(t, count)
 		})
 	}
+}
+
+func TestAutomaticModelSyncPreservesManagedMappingOwnership(t *testing.T) {
+	ctx := t.Context()
+	tx := testEntTx(t)
+	repo := newAccountRepositoryWithSQL(tx.Client(), tx, nil)
+	account := mustCreateAccount(t, tx.Client(), &service.Account{
+		Name: "oauth-model-sync-ownership", Platform: service.PlatformOpenAI, Type: service.AccountTypeOAuth,
+		Status: service.StatusActive, Schedulable: true,
+		Credentials: map[string]any{"access_token": "fixture-token"},
+		Extra:       map[string]any{"unrelated": "keep"},
+	})
+	var lastHash string
+	for _, model := range []string{"first", "next"} {
+		applied, err := repo.UpdateUpstreamModelMappingIfUnchanged(ctx, account, map[string]string{model: model})
+		require.NoError(t, err)
+		require.True(t, applied)
+		account, err = repo.GetByID(ctx, account.ID)
+		require.NoError(t, err)
+		state, ok := account.Extra[service.UpstreamModelSyncExtraKey].(map[string]any)
+		require.True(t, ok, "mapping ownership must be committed with the mapping")
+		hash, ok := state["managed_mapping_sha256"].(string)
+		require.True(t, ok)
+		require.Len(t, hash, 64)
+		require.NotEqual(t, lastHash, hash)
+		lastHash = hash
+		require.Equal(t, "keep", account.Extra["unrelated"])
+	}
+	now := time.Now().UTC().Truncate(time.Second)
+	claimed, err := repo.ClaimAutomaticUpstreamModelSync(ctx, account.ID, now, now.Add(5*time.Minute))
+	require.NoError(t, err)
+	require.True(t, claimed)
+	account, err = repo.GetByID(ctx, account.ID)
+	require.NoError(t, err)
+	require.Equal(t, lastHash, account.Extra[service.UpstreamModelSyncExtraKey].(map[string]any)["managed_mapping_sha256"], "claim must preserve automatic mapping ownership")
 }

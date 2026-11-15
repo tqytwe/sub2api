@@ -21,6 +21,7 @@ func (r *accountRepository) ClaimAutomaticUpstreamModelSync(ctx context.Context,
 	result, err := r.sql.ExecContext(ctx, `
 		UPDATE accounts
 		SET extra = jsonb_set(COALESCE(extra, '{}'::jsonb), '{upstream_model_sync}',
+			COALESCE(extra->'upstream_model_sync', '{}'::jsonb) ||
 			jsonb_build_object('last_attempt_unix', $2::bigint, 'next_attempt_unix', $3::bigint), true)
 		WHERE id = $1 AND deleted_at IS NULL AND status = 'active' AND schedulable = TRUE
 			AND CASE WHEN jsonb_typeof(extra->'upstream_model_sync'->'next_attempt_unix') = 'number'
@@ -34,8 +35,8 @@ func (r *accountRepository) ClaimAutomaticUpstreamModelSync(ctx context.Context,
 	return changed > 0, err
 }
 
-// UpdateUpstreamModelMappingIfUnchanged updates only model_mapping and commits
-// its scheduler invalidation atomically. Credential, proxy or availability
+// UpdateUpstreamModelMappingIfUnchanged commits model_mapping, its ownership
+// digest, and scheduler invalidation atomically. Credential, proxy or availability
 // changes after discovery cause a harmless skip.
 func (r *accountRepository) UpdateUpstreamModelMappingIfUnchanged(ctx context.Context, expected *service.Account, mapping map[string]string) (bool, error) {
 	if r == nil || r.sql == nil || expected == nil {
@@ -56,6 +57,9 @@ func (r *accountRepository) UpdateUpstreamModelMappingIfUnchanged(ctx context.Co
 		WITH updated AS (
 		UPDATE accounts AS a
 		SET credentials = jsonb_set(COALESCE(a.credentials, '{}'::jsonb), '{model_mapping}', $2::jsonb, true),
+			extra = jsonb_set(COALESCE(a.extra, '{}'::jsonb), '{upstream_model_sync}',
+				COALESCE(a.extra->'upstream_model_sync', '{}'::jsonb) ||
+				jsonb_build_object('managed_mapping_sha256', $10::text), true),
 			updated_at = NOW()
 		WHERE a.id = $1 AND a.deleted_at IS NULL
 			AND a.platform = $3 AND a.type = $4
@@ -67,7 +71,7 @@ func (r *accountRepository) UpdateUpstreamModelMappingIfUnchanged(ctx context.Co
 		INSERT INTO scheduler_outbox (event_type, account_id, group_id, payload)
 		SELECT $9, updated.id, NULL, NULL FROM updated
 	`, expected.ID, string(mappingJSON), expected.Platform, expected.Type,
-		string(expectedJSON), expected.ProxyID, expected.Status, expected.Schedulable, service.SchedulerOutboxEventAccountChanged)
+		string(expectedJSON), expected.ProxyID, expected.Status, expected.Schedulable, service.SchedulerOutboxEventAccountChanged, service.UpstreamModelMappingDigest(mapping))
 	if err != nil {
 		return false, err
 	}

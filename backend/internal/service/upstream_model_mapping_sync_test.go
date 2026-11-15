@@ -2,7 +2,10 @@ package service
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"reflect"
@@ -193,4 +196,49 @@ func TestApplyUpstreamModelsCancellationDoesNotWriteMapping(t *testing.T) {
 	_, err := svc.SyncUpstreamModelCatalogWithOptions(context.Background(), repo.account, UpstreamModelSyncOptions{Apply: true})
 	require.True(t, errors.Is(err, context.Canceled))
 	require.Zero(t, repo.applyCalls)
+}
+
+func TestAutomaticUpstreamModelsRefreshesManagedOAuthMapping(t *testing.T) {
+	svc, repo, upstream := modelMappingSyncFixture(http.StatusOK, `{"models":[{"slug":"next"}]}`)
+	repo.account.Type = AccountTypeOAuth
+	repo.account.Credentials = map[string]any{"access_token": "fixture-token"}
+	options := UpstreamModelSyncOptions{Apply: true, Automatic: true}
+	for _, model := range []string{"first", "next"} {
+		upstream.resp.Body = io.NopCloser(strings.NewReader(`{"models":[{"slug":"` + model + `"}]}`))
+		repo.next = time.Time{} // The next refresh window has elapsed.
+		catalog, err := svc.SyncUpstreamModelCatalogWithOptions(context.Background(), repo.account, options)
+		require.NoError(t, err)
+		require.True(t, catalog.Applied, "each automatic refresh must apply the live catalog")
+		require.True(t, catalog.Changed)
+		require.Equal(t, map[string]string{model: model}, repo.mapping)
+		// Model the repository's atomic persistence; its integration test checks
+		// that the actual database writes this ownership marker with the mapping.
+		repo.account.Credentials["model_mapping"] = repo.mapping
+		raw, err := json.Marshal(repo.mapping)
+		require.NoError(t, err)
+		repo.account.Extra = map[string]any{UpstreamModelSyncExtraKey: map[string]any{
+			"managed_mapping_sha256": fmt.Sprintf("%x", sha256.Sum256(raw)),
+		}}
+	}
+	require.Len(t, upstream.requests, 2)
+	// An administrator's edited allowlist is no longer managed by auto-sync.
+	repo.account.Credentials["model_mapping"] = map[string]string{"chosen": "chosen"}
+	repo.next = time.Time{}
+	catalog, err := svc.SyncUpstreamModelCatalogWithOptions(context.Background(), repo.account, options)
+	require.NoError(t, err)
+	require.Equal(t, "account_policy", catalog.Skipped)
+	require.Len(t, upstream.requests, 2, "a manual allowlist must not trigger a discovery or replacement")
+}
+
+func TestExplicitUpstreamModelsApplyAdoptsIdenticalOAuthCatalog(t *testing.T) {
+	svc, repo, _ := modelMappingSyncFixture(http.StatusOK, `{"models":[{"slug":"new"}]}`)
+	repo.account.Type = AccountTypeOAuth
+	repo.account.Credentials = map[string]any{
+		"access_token": "fixture-token", "model_mapping": map[string]string{"new": "new"},
+	}
+	catalog, err := svc.SyncUpstreamModelCatalogWithOptions(context.Background(), repo.account, UpstreamModelSyncOptions{Apply: true})
+	require.NoError(t, err)
+	require.True(t, catalog.Applied)
+	require.False(t, catalog.Changed, "adopting ownership does not change the model mapping")
+	require.Equal(t, 1, repo.applyCalls, "explicit adoption must persist the catalog ownership even when model IDs match")
 }

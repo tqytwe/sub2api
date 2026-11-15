@@ -111,7 +111,7 @@ jobs:
           # One repository TestMain provisions both isolated service containers.
           # Run the bounded suites in full so their subtests remain visible.
           core_tests='^(TestCoreMigration.*|TestModerationUsersPostgreSQLFiltersAndPagination|TestQualityHistoryPostgreSQL.*|TestCommitQualityRoundPostgreSQLAtomicityAndFencing|TestPriorityQuality.*|TestReloginBudgetMigrationSeedsOnlyOldTerminalTasks|TestBillingLogReconciliation.*|TestAccountGroupAllowedModelsConcurrent.*|TestGroupCopyAccounts.*|TestAccountAdminUpdate.*|'
-          core_tests+='TestMigration253ConvertsShowcaseGroupsToPausedPlans|TestPelicanGroupTestRepo_.*|TestPelicanAccountRoundLeaseAndAtomicSnapshots|TestPelicanShowcaseRepo_PublishListGetPrune|TestAutomaticModelSyncClaim.*|TestApplyUpstreamModelsPreservesCredentials.*|TestOAuthDegradationNativeModelSyncFences.*|TestApplyUpstreamModelsAtomicOutbox.*|TestAPIKeyUpdatePreservesConcurrentOppositeACL|'
+          core_tests+='TestMigration253ConvertsShowcaseGroupsToPausedPlans|TestPelicanGroupTestRepo_.*|TestPelicanAccountRoundLeaseAndAtomicSnapshots|TestPelicanShowcaseRepo_PublishListGetPrune|TestAutomaticModelSync.*|TestApplyUpstreamModelsPreservesCredentials.*|TestOAuthDegradationNativeModelSyncFences.*|TestApplyUpstreamModelsAtomicOutbox.*|TestAPIKeyUpdatePreservesConcurrentOppositeACL|'
           core_tests+='TestModelBillingPostgres.*|TestSettingRepoSuite|'
           core_tests+='TestAccountRepoSuite|TestAPIKeyRepoSuite|TestAPIKeyGroupsConcurrentReplacementIsAtomic|TestGroupRepoSuite|TestBillingCacheSuite|'
           core_tests+='TestMigrationsRunner_ConcurrentInstancesSerializeOnSessionLock|'
@@ -146,6 +146,7 @@ jobs:
                   "TestPelicanAccountRoundLeaseAndAtomicSnapshots",
                   "TestPelicanShowcaseRepo_PublishListGetPrune",
                   "TestAutomaticModelSyncClaimIsSharedAndSurvivesStaleAccountEdit",
+                  "TestAutomaticModelSyncPreservesManagedMappingOwnership",
                   "TestApplyUpstreamModelsAtomicOutboxFailureAndCancellation",
                   "TestAPIKeyUpdatePreservesConcurrentOppositeACL",
                   "TestPelicanGroupTestRepo_CostsSurviveRetentionAndPlanDeletion",

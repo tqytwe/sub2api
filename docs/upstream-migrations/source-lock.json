@@ -33,6 +33,24 @@
     "deployment_id": "6af8564d03a5d91147663cc2",
     "applied_migration_maximum": 358,
     "ci_state": "platform_disabled_dispatch_422",
-    "local_browser_acceptance": "passed_guest_user_admin_user_confirmation_2026-11-14"
+    "local_browser_acceptance": "passed_guest_user_admin_user_confirmation_2026-11-14",
+    "ci_recovery": {
+      "state": "enabled_and_pr_workflows_executed",
+      "verified_at": "2026-11-15",
+      "pr": "https://github.com/tqytwe/sub2api/pull/430",
+      "note": "PR430 first CI exposed a route integration fixture defect; fix and final PR gates pending."
+    },
+    "followup_batch": {
+      "branch": "sync/ranxi-v2.21.2-batch2-20261114",
+      "delivery_pr": "https://github.com/tqytwe/sub2api/pull/430",
+      "state": "ci_pending",
+      "validation": "backend_default_unit_integration_lint_embed_build_fork_integrity_documentation_passed_2026-11-15",
+      "migrations": [
+        "359_pelican_showcase_question.sql",
+        "360_key_risk_system.sql"
+      ],
+      "fully_migrated": false,
+      "local_browser_acceptance": "pending_after_exact_sha_deployment"
+    }
   }
 }
