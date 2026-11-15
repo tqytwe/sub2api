@@ -1,0 +1,244 @@
+package service
+
+import (
+	"context"
+	"crypto/sha256"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"net/http"
+	"reflect"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/require"
+)
+
+type upstreamModelMappingRepoStub struct {
+	AccountRepository
+	account    *Account
+	next       time.Time
+	claimCalls int
+	applyCalls int
+	mapping    map[string]string
+	changed    bool
+}
+
+func (r *upstreamModelMappingRepoStub) GetByID(context.Context, int64) (*Account, error) {
+	return r.account, nil
+}
+
+func (r *upstreamModelMappingRepoStub) UpdateExtra(context.Context, int64, map[string]any) error {
+	return nil
+}
+
+func (r *upstreamModelMappingRepoStub) ClaimAutomaticUpstreamModelSync(_ context.Context, _ int64, now, next time.Time) (bool, error) {
+	r.claimCalls++
+	if now.Before(r.next) {
+		return false, nil
+	}
+	r.next = next
+	r.account.Extra = map[string]any{UpstreamModelSyncExtraKey: map[string]any{"next_attempt_unix": next.Unix()}}
+	return true, nil
+}
+
+func (r *upstreamModelMappingRepoStub) UpdateUpstreamModelMappingIfUnchanged(_ context.Context, expected *Account, mapping map[string]string) (bool, error) {
+	r.applyCalls++
+	if r.changed || !reflect.DeepEqual(expected.Credentials, r.account.Credentials) {
+		return false, nil
+	}
+	r.mapping = mapping
+	return true, nil
+}
+
+func modelMappingSyncFixture(status int, body string) (*AccountTestService, *upstreamModelMappingRepoStub, *httpUpstreamRecorder) {
+	account := &Account{
+		ID: 42, Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Status: StatusActive, Schedulable: true,
+		Credentials: map[string]any{
+			"api_key": "test-key", "base_url": "https://provider.example/v1",
+			"model_mapping": map[string]any{"old": "old", "public-new": "new", "public-old": "old"},
+		},
+	}
+	repo := &upstreamModelMappingRepoStub{account: account}
+	upstream := &httpUpstreamRecorder{resp: &http.Response{
+		StatusCode: status, Header: http.Header{"Content-Type": []string{"application/json"}},
+		Body: io.NopCloser(strings.NewReader(body)),
+	}}
+	svc := &AccountTestService{
+		accountRepo: repo, httpUpstream: upstream, cfg: upstreamModelSyncTestConfig(),
+		modelMetadataRegistry:   map[string]modelsDevProvider{"test": {API: "https://provider.example/v1"}},
+		modelMetadataRegistryAt: time.Now(),
+	}
+	return svc, repo, upstream
+}
+
+func TestApplyUpstreamModelsReplacesStaleModelsAndPreservesLiveRedirects(t *testing.T) {
+	svc, repo, upstream := modelMappingSyncFixture(http.StatusOK, `{"data":[{"id":"new"}]}`)
+	catalog, err := svc.SyncUpstreamModelCatalogWithOptions(context.Background(), repo.account, UpstreamModelSyncOptions{Apply: true})
+	require.NoError(t, err)
+	require.True(t, catalog.Applied)
+	require.True(t, catalog.Changed)
+	require.Equal(t, "upstream", catalog.DiscoverySource)
+	require.Equal(t, map[string]string{"new": "new", "public-new": "new"}, repo.mapping)
+	require.Equal(t, 0, repo.claimCalls, "explicit apply is not subject to the automatic interval")
+	require.Len(t, upstream.requests, 1, "model sync must not send a generation/probe request")
+	require.Equal(t, "/v1/models", upstream.requests[0].URL.Path)
+}
+
+func TestAutomaticUpstreamModelsFailureConsumesRefreshWindow(t *testing.T) {
+	svc, repo, upstream := modelMappingSyncFixture(http.StatusBadGateway, `{"error":"upstream failed"}`)
+	options := UpstreamModelSyncOptions{Apply: true, Automatic: true}
+	_, err := svc.SyncUpstreamModelCatalogWithOptions(context.Background(), repo.account, options)
+	require.Error(t, err)
+	catalog, err := svc.SyncUpstreamModelCatalogWithOptions(context.Background(), repo.account, options)
+	require.NoError(t, err)
+	require.Equal(t, "throttled", catalog.Skipped)
+	require.NotNil(t, catalog.NextSyncAt)
+	require.WithinDuration(t, repo.next, *catalog.NextSyncAt, time.Second)
+	require.Len(t, upstream.requests, 1, "the next page poll must not retry a failed upstream")
+	require.Zero(t, repo.applyCalls)
+}
+
+func TestApplyUpstreamModelsDoesNotTrustConfiguredFallbackOrEmptyList(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		status int
+		body   string
+	}{
+		{"unsupported_list", http.StatusNotFound, `{"error":"missing list endpoint"}`},
+		{"empty_list", http.StatusOK, `{"data":[]}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			svc, repo, _ := modelMappingSyncFixture(tc.status, tc.body)
+			catalog, err := svc.SyncUpstreamModelCatalogWithOptions(context.Background(), repo.account, UpstreamModelSyncOptions{Apply: true})
+			if tc.status == http.StatusNotFound {
+				require.NoError(t, err)
+				require.Equal(t, "configured_fallback", catalog.DiscoverySource)
+				require.Equal(t, "unverified_catalog", catalog.Skipped)
+			} else {
+				require.Error(t, err)
+			}
+			require.Zero(t, repo.applyCalls)
+			require.Nil(t, repo.mapping)
+		})
+	}
+}
+
+func TestApplyUpstreamModelsSkipsConcurrentAccountChange(t *testing.T) {
+	svc, repo, _ := modelMappingSyncFixture(http.StatusOK, `{"data":[{"id":"new"}]}`)
+	repo.changed = true
+	catalog, err := svc.SyncUpstreamModelCatalogWithOptions(context.Background(), repo.account, UpstreamModelSyncOptions{Apply: true})
+	require.NoError(t, err)
+	require.False(t, catalog.Applied)
+	require.False(t, catalog.Changed)
+	require.Equal(t, "account_changed", catalog.Skipped)
+	require.Nil(t, repo.mapping)
+}
+
+func TestApplyUpstreamModelsDoesNotApplyWildcardOnlyCatalog(t *testing.T) {
+	svc, repo, _ := modelMappingSyncFixture(http.StatusOK, `{"data":[{"id":"*"}]}`)
+	catalog, err := svc.SyncUpstreamModelCatalogWithOptions(context.Background(), repo.account, UpstreamModelSyncOptions{Apply: true})
+	require.NoError(t, err)
+	require.False(t, catalog.Applied)
+	require.Equal(t, "empty", catalog.Skipped)
+	require.Zero(t, repo.applyCalls)
+}
+
+func TestAutomaticUpstreamModelsPreservesShadowAndAliasPolicies(t *testing.T) {
+	for _, policy := range []string{"shadow", "aliases", "inactive"} {
+		t.Run(policy, func(t *testing.T) {
+			svc, repo, upstream := modelMappingSyncFixture(http.StatusOK, `{"data":[{"id":"new"}]}`)
+			ctx := context.Background()
+			switch policy {
+			case "shadow":
+				parent := int64(10)
+				repo.account.ParentAccountID = &parent
+			case "aliases":
+				repo.account.Type = AccountTypeOAuth
+				repo.account.Credentials["model_mapping_mode"] = "aliases"
+			case "inactive":
+				repo.account.Schedulable = false
+			}
+			catalog, err := svc.SyncUpstreamModelCatalogWithOptions(ctx, repo.account, UpstreamModelSyncOptions{Apply: true, Automatic: true})
+			require.NoError(t, err)
+			require.NotEmpty(t, catalog.Skipped)
+			require.Empty(t, upstream.requests)
+			require.Zero(t, repo.claimCalls)
+		})
+	}
+}
+
+func TestReconciledUpstreamModelsDoesNotRetainChainedOrWildcardIdentityTargets(t *testing.T) {
+	existing := map[string]string{
+		"new": "new", "old": "old", "gpt-*": "gpt-*",
+		"alias": "new", "chain": "alias", "alias-*": "new", "stale": "old",
+	}
+	for i := 0; i < 20; i++ {
+		mapping := reconciledUpstreamModelMapping(existing, []string{"new", "next"})
+		require.Equal(t, map[string]string{"new": "new", "next": "next", "alias": "new", "alias-*": "new"}, mapping)
+	}
+}
+
+func TestAutomaticUpstreamModelsPreservesForkLegacyOAuthAllowlist(t *testing.T) {
+	svc, repo, upstream := modelMappingSyncFixture(http.StatusOK, `{"models":[{"slug":"new"}]}`)
+	repo.account.Type = AccountTypeOAuth
+	_, err := svc.SyncUpstreamModelCatalogWithOptions(context.Background(), repo.account, UpstreamModelSyncOptions{Apply: true, Automatic: true})
+	require.NoError(t, err)
+	require.Empty(t, upstream.requests)
+	require.Zero(t, repo.applyCalls)
+}
+
+func TestApplyUpstreamModelsCancellationDoesNotWriteMapping(t *testing.T) {
+	svc, repo, upstream := modelMappingSyncFixture(http.StatusOK, `{"data":[{"id":"new"}]}`)
+	upstream.err = context.Canceled
+	_, err := svc.SyncUpstreamModelCatalogWithOptions(context.Background(), repo.account, UpstreamModelSyncOptions{Apply: true})
+	require.True(t, errors.Is(err, context.Canceled))
+	require.Zero(t, repo.applyCalls)
+}
+
+func TestAutomaticUpstreamModelsRefreshesManagedOAuthMapping(t *testing.T) {
+	svc, repo, upstream := modelMappingSyncFixture(http.StatusOK, `{"models":[{"slug":"next"}]}`)
+	repo.account.Type = AccountTypeOAuth
+	repo.account.Credentials = map[string]any{"access_token": "fixture-token"}
+	options := UpstreamModelSyncOptions{Apply: true, Automatic: true}
+	for _, model := range []string{"first", "next"} {
+		upstream.resp.Body = io.NopCloser(strings.NewReader(`{"models":[{"slug":"` + model + `"}]}`))
+		repo.next = time.Time{} // The next refresh window has elapsed.
+		catalog, err := svc.SyncUpstreamModelCatalogWithOptions(context.Background(), repo.account, options)
+		require.NoError(t, err)
+		require.True(t, catalog.Applied, "each automatic refresh must apply the live catalog")
+		require.True(t, catalog.Changed)
+		require.Equal(t, map[string]string{model: model}, repo.mapping)
+		// Model the repository's atomic persistence; its integration test checks
+		// that the actual database writes this ownership marker with the mapping.
+		repo.account.Credentials["model_mapping"] = repo.mapping
+		raw, err := json.Marshal(repo.mapping)
+		require.NoError(t, err)
+		repo.account.Extra = map[string]any{UpstreamModelSyncExtraKey: map[string]any{
+			"managed_mapping_sha256": fmt.Sprintf("%x", sha256.Sum256(raw)),
+		}}
+	}
+	require.Len(t, upstream.requests, 2)
+	// An administrator's edited allowlist is no longer managed by auto-sync.
+	repo.account.Credentials["model_mapping"] = map[string]string{"chosen": "chosen"}
+	repo.next = time.Time{}
+	catalog, err := svc.SyncUpstreamModelCatalogWithOptions(context.Background(), repo.account, options)
+	require.NoError(t, err)
+	require.Equal(t, "account_policy", catalog.Skipped)
+	require.Len(t, upstream.requests, 2, "a manual allowlist must not trigger a discovery or replacement")
+}
+
+func TestExplicitUpstreamModelsApplyAdoptsIdenticalOAuthCatalog(t *testing.T) {
+	svc, repo, _ := modelMappingSyncFixture(http.StatusOK, `{"models":[{"slug":"new"}]}`)
+	repo.account.Type = AccountTypeOAuth
+	repo.account.Credentials = map[string]any{
+		"access_token": "fixture-token", "model_mapping": map[string]string{"new": "new"},
+	}
+	catalog, err := svc.SyncUpstreamModelCatalogWithOptions(context.Background(), repo.account, UpstreamModelSyncOptions{Apply: true})
+	require.NoError(t, err)
+	require.True(t, catalog.Applied)
+	require.False(t, catalog.Changed, "adopting ownership does not change the model mapping")
+	require.Equal(t, 1, repo.applyCalls, "explicit adoption must persist the catalog ownership even when model IDs match")
+}

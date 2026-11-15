@@ -48,9 +48,14 @@ type UpstreamModelMetadataSnapshot struct {
 }
 
 type UpstreamModelCatalog struct {
-	Models   []string                         `json:"models"`
-	Metadata map[string]UpstreamModelMetadata `json:"metadata,omitempty"`
-	Warnings []UpstreamModelSyncWarning       `json:"warnings,omitempty"`
+	DiscoverySource string                           `json:"discovery_source,omitempty"`
+	Applied         bool                             `json:"applied,omitempty"`
+	Changed         bool                             `json:"changed,omitempty"`
+	Skipped         string                           `json:"skipped,omitempty"`
+	NextSyncAt      *time.Time                       `json:"next_sync_at,omitempty"`
+	Models          []string                         `json:"models"`
+	Metadata        map[string]UpstreamModelMetadata `json:"metadata,omitempty"`
+	Warnings        []UpstreamModelSyncWarning       `json:"warnings,omitempty"`
 }
 
 type UpstreamModelSyncWarning struct {
@@ -224,7 +229,10 @@ func (s *AccountTestService) SyncUpstreamModelCatalog(ctx context.Context, accou
 			"model_count", len(models),
 		)
 	}
-	catalog := &UpstreamModelCatalog{Models: models, Metadata: make(map[string]UpstreamModelMetadata)}
+	catalog := &UpstreamModelCatalog{Models: models, Metadata: make(map[string]UpstreamModelMetadata), DiscoverySource: "upstream"}
+	if !liveListAvailable {
+		catalog.DiscoverySource = "configured_fallback"
+	}
 	if len(body) > 0 {
 		_, directMetadata, parseErr := extractUpstreamModelCatalog(body, account != nil && account.IsGrok())
 		if parseErr == nil {

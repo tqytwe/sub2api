@@ -21,7 +21,9 @@ func TestListResultsRedactsQualityHistoryContent(t *testing.T) {
 		Status:       "success",
 		ResponseText: "private response",
 		PelicanConfig: &PelicanTestConfig{
-			Prompt: "private prompt",
+			Prompt:          "private prompt",
+			ActualPrompt:    "private actual prompt",
+			PelicanQuestion: &PelicanQuestion{Prompt: "private snapshot prompt"},
 			Quality: &QualityPolicy{
 				ExpectedAnswer: "private answer",
 				Judge:          &QualityJudgeConfig{Kind: "jev", Prompt: "private rubric"},
@@ -36,6 +38,8 @@ func TestListResultsRedactsQualityHistoryContent(t *testing.T) {
 	require.Len(t, results, 1)
 	require.Empty(t, results[0].ResponseText)
 	require.Empty(t, results[0].PelicanConfig.Prompt)
+	require.Empty(t, results[0].PelicanConfig.ActualPrompt)
+	require.Nil(t, results[0].PelicanConfig.PelicanQuestion)
 	require.Empty(t, results[0].PelicanConfig.Quality.ExpectedAnswer)
 	require.Empty(t, results[0].PelicanConfig.Quality.Judge.Prompt)
 }

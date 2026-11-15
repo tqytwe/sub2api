@@ -1,4 +1,7 @@
 export default {
+  accountSchedule: { enable: '按此计划生成 SVG 动画', samples: '每轮样本数' },
+  questionBank: { mode: 'SVG 题面模式', random: '随机题库（同轮共用）', custom: '自定义题面', hint: '同轮所有账号和样本使用同一道题；结果提供本题判据供人工复核，不自动评分。', next: '准备下一轮', snapshot: '题目与人工复核标准', legacy: '旧记录或自定义题面没有固定题目版本。', error: '准备题目失败，请重试。' },
+  manual: { testKind: '测试类型', testKindConnection: '连接测试', testKindSvg: 'SVG 动画生成测试', prepare: '准备共同题目', preview: 'SVG 动画预览' },
   title: '鹈鹕测智',
   description: '按分组定时运行绘图测试，由 sub2api 的调度器像真实请求一样挑选账号作答；启用用户展示后，结果会出现在「渠道状态」对应分组卡片中。',
   viewShowcase: '查看渠道状态',

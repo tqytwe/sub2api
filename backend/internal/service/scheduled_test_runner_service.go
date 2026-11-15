@@ -23,6 +23,7 @@ type ScheduledTestRunnerService struct {
 	triggerCancel     context.CancelFunc
 	triggerWG         sync.WaitGroup
 	runQualityProbe   func(context.Context, int64, string, string) (*ScheduledTestResult, error)
+	runPelican        func(context.Context, int64, string, *PelicanTestConfig) (*ScheduledTestResult, error)
 	candyService      *ChannelMonitorV2CandyService
 	pelicanGroupTests *PelicanGroupTestService
 	cfg               *config.Config
@@ -48,6 +49,7 @@ func NewScheduledTestRunnerService(
 		rateLimitSvc:    rateLimitSvc,
 		qualityJudge:    newQualityJevJudge(moderationSvc, accountTestSvc),
 		runQualityProbe: accountTestSvc.RunQualityProbeBackground,
+		runPelican:      accountTestSvc.RunPelicanBackground,
 		cfg:             cfg,
 	}
 	if rateLimitSvc != nil {
@@ -170,6 +172,10 @@ func (s *ScheduledTestRunnerService) SetPelicanGroupTestService(pelican *Pelican
 func (s *ScheduledTestRunnerService) runOnePlan(ctx context.Context, plan *ScheduledTestPlan) {
 	if plan.PelicanConfig != nil && plan.PelicanConfig.Quality != nil {
 		s.runQualityPlan(ctx, plan)
+		return
+	}
+	if isPelicanSVGConfig(plan.PelicanConfig) {
+		s.runPelicanPlan(ctx, plan)
 		return
 	}
 	result, err := s.accountTestSvc.RunTestBackground(ctx, plan.AccountID, plan.ModelID)

@@ -92,6 +92,10 @@ const COLD_ROUTE_CASES: readonly ColdRouteCase[] = [
     routeName: 'AdminAccounts',
     requiredScope: 'admin-accounts',
     literals: [
+      { source: 'src/components/admin/account/ScheduledTestsPanel.vue', key: 'pelicanTests.accountSchedule.enable' },
+      { source: 'src/components/admin/account/ScheduledTestsPanel.vue', key: 'pelicanTests.accountSchedule.samples' },
+      { source: 'src/components/admin/account/PelicanPromptMode.vue', key: 'pelicanTests.questionBank.mode' },
+      { source: 'src/components/admin/account/PelicanQuestionSnapshot.vue', key: 'pelicanShowcase.questionSnapshot.title' },
       {
         source: 'src/components/admin/account/AccountTestModal.vue',
         key: 'admin.accounts.testAccountConnection',

@@ -608,6 +608,11 @@ export async function getAvailableModels(id: number): Promise<ClaudeModel[]> {
 }
 
 export interface SyncUpstreamModelsResult {
+  discovery_source?: string
+  applied?: boolean
+  changed?: boolean
+  skipped?: string
+  next_sync_at?: string
   models: string[]
   metadata?: Record<string, UpstreamModelMetadata>
   warnings?: UpstreamModelSyncWarning[]
@@ -636,8 +641,12 @@ export interface UpstreamModelMetadata {
  * @param id - Account ID
  * @returns List of model IDs returned by the upstream
  */
-export async function syncUpstreamModels(id: number): Promise<SyncUpstreamModelsResult> {
-  const { data } = await apiClient.post<SyncUpstreamModelsResult>(`/admin/accounts/${id}/models/sync-upstream`)
+export async function syncUpstreamModels(
+  id: number,
+  options?: { apply?: boolean; automatic?: boolean },
+  request?: { signal?: AbortSignal }
+): Promise<SyncUpstreamModelsResult> {
+  const { data } = await apiClient.post<SyncUpstreamModelsResult>(`/admin/accounts/${id}/models/sync-upstream`, options, request)
   return data
 }
 

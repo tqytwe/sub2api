@@ -63,7 +63,9 @@ func ProvideAdminHandlers(
 	claudeResetCredits *service.ClaudeResetCreditService,
 	openAIGatewayService *service.OpenAIGatewayService,
 	pelicanGroupTestHandler *admin.PelicanGroupTestHandler,
+	apiKeyService *service.APIKeyService,
 ) *AdminHandlers {
+	settingHandler.SetKeyRiskAPIKeys(apiKeyService)
 	accountHandler.SetUpstreamBillingProbeService(upstreamBillingProbe)
 	accountHandler.SetOllamaCloudUsageService(ollamaCloudUsage)
 	accountHandler.SetOpenCodeGoUsageService(opencodeGoUsage)

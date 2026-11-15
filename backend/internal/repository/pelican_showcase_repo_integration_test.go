@@ -45,12 +45,21 @@ func TestPelicanShowcaseRepo_PublishListGetPrune(t *testing.T) {
 	require.NoError(t, err)
 
 	base := time.Date(2026, 9, 20, 8, 0, 0, 0, time.UTC)
+	question := &service.PelicanQuestion{
+		ID: "pelican-bicycle", Version: "svg-motion-v1", RoundID: "scheduled:2026-09-20T08:00:00Z",
+		Source: "builtin:svg-motion", Prompt: "Draw a pelican riding a bicycle.",
+		Criteria: []string{"visible rider", "coordinated wheel motion"},
+	}
 	publish := func(resultID, groupID int64, maxItems int) {
 		t.Helper()
+		var snapshot *service.PelicanQuestion
+		if groupID == groupA.ID {
+			snapshot = question
+		}
 		require.NoError(t, repo.Publish(ctx, service.PelicanShowcaseSnapshot{
 			GroupID: groupID, SourceResultID: resultID, ModelID: "gpt-6-astra", ReasoningEffort: "high",
 			ResponseText: fmt.Sprintf(`<svg data-result="%d"></svg>`, resultID), LatencyMs: resultID * 100,
-			GeneratedAt: base.Add(time.Duration(resultID) * time.Hour),
+			GeneratedAt: base.Add(time.Duration(resultID) * time.Hour), PelicanQuestion: snapshot,
 		}, maxItems))
 	}
 	sourcesOf := func(groupID int64) []int64 {
@@ -102,6 +111,11 @@ func TestPelicanShowcaseRepo_PublishListGetPrune(t *testing.T) {
 		require.Empty(t, item.ResponseText, "the list never carries HTML")
 		require.Equal(t, "gpt-6-astra", item.ModelID)
 		require.Equal(t, "high", item.ReasoningEffort)
+		if item.GroupID == groupA.ID {
+			require.Equal(t, question, item.PelicanQuestion)
+		} else {
+			require.Nil(t, item.PelicanQuestion)
+		}
 	}
 	require.Equal(t, base.Add(5*time.Hour), items[0].GeneratedAt.UTC())
 	require.EqualValues(t, 500, items[0].LatencyMs)
@@ -121,6 +135,7 @@ func TestPelicanShowcaseRepo_PublishListGetPrune(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, item)
 	require.Equal(t, `<svg data-result="3"></svg>`, item.ResponseText)
+	require.Equal(t, question, item.PelicanQuestion)
 	for _, hidden := range []struct {
 		id       int64
 		maxItems int
@@ -142,6 +157,9 @@ func TestPelicanShowcaseRepo_PublishListGetPrune(t *testing.T) {
 	require.Empty(t, sourcesOf(untested.ID))
 	require.NoError(t, repo.Prune(ctx, 2, base.Add(5*time.Hour)))
 	require.Equal(t, []int64{5}, sourcesOf(groupA.ID))
+	item, err = repo.GetItem(ctx, itemID(groupA.ID, 5), 2, time.Time{})
+	require.NoError(t, err)
+	require.Equal(t, question, item.PelicanQuestion, "the public item keeps its question snapshot through cleanup")
 
 	// Deleting a group's plans takes it off the gallery at the next cleanup.
 	_, err = integrationDB.ExecContext(ctx, `DELETE FROM pelican_group_test_plans WHERE group_id = $1`, groupB.ID)

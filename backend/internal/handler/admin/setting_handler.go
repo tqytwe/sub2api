@@ -8,8 +8,10 @@ import (
 	"log/slog"
 	"regexp"
 	"strings"
+	"sync"
 
 	"github.com/Wei-Shaw/sub2api/internal/handler/dto"
+	"github.com/Wei-Shaw/sub2api/internal/keyrisk"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 
@@ -51,6 +53,10 @@ func firstNonEmpty(values ...string) string {
 
 // SettingHandler 系统设置处理器
 type SettingHandler struct {
+	keyRiskMu                sync.Mutex
+	keyRisk                  *keyrisk.Service
+	keyRiskStop              func()
+	keyRiskKeys              keyRiskAPIKeys
 	settingService           *service.SettingService
 	openAIGatewayService     *service.OpenAIGatewayService
 	emailService             *service.EmailService

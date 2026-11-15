@@ -1,3 +1,4 @@
+import ipAudit from './en/ipAudit'
 import apiKeyModelPolicy from './en/apiKeyModelPolicy'
 import couponCampaign from './en/couponCampaign'
 import affiliateOperations from './en/affiliateOperations'
@@ -19,6 +20,7 @@ import tokenGuardV2En from './en/tokenGuardV2'
 import { mergeLocaleMessages } from './merge'
 
 const messages = {
+  ipAudit,
   apiKeyModelPolicy,
   couponCampaign,
   affiliateOperations,

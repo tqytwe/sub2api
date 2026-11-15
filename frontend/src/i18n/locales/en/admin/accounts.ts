@@ -90,6 +90,13 @@ export default {
       autoRefresh: 'Auto Refresh',
       capacitySortHint: 'Sorts all filtered accounts by current concurrency (the numerator), independent of limits or utilization. Ties follow account ID order. Each refresh reads and sorts again, so accounts may move between pages. If the read fails, previous results remain; retry or choose another sort order.',
       enableAutoRefresh: 'Enable auto refresh',
+      autoRefreshUpstreamModels: 'Sync upstream models',
+      autoRefreshUpstreamModelsAccountTypes: {
+        oauth: 'OAuth accounts (including Setup Token and service accounts)',
+        apikey: 'API Key accounts'
+      },
+      autoRefreshUpstreamModelsHint: 'While auto refresh is enabled, sync schedulable accounts of the selected types on the current page at most once per account every 5 minutes. Remove delisted models and retain valid aliases; keep existing settings if discovery fails. Existing OAuth model whitelists are not broadened automatically.',
+      autoRefreshUpstreamModelsResult: 'Last sync: {changed} updated, {failed} failed, {skipped} skipped',
       refreshInterval5s: '5 seconds',
       refreshInterval10s: '10 seconds',
       refreshInterval15s: '15 seconds',

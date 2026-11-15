@@ -98,6 +98,7 @@ type PelicanGroupTestPlanInput struct {
 	CronExpression  string `json:"cron_expression"`
 	Enabled         bool   `json:"enabled"`
 	Prompt          string `json:"prompt"`
+	PromptMode      string `json:"prompt_mode,omitempty"`
 	ReasoningEffort string `json:"reasoning_effort"`
 	ParallelCount   int    `json:"parallel_count"`
 }
@@ -245,8 +246,13 @@ func (s *PelicanGroupTestService) planFromInput(ctx context.Context, input Pelic
 	if plan.ModelID == "" || len(plan.ModelID) > 100 {
 		return nil, infraerrors.BadRequest("INVALID_PELICAN_GROUP_TEST", "model is required (maximum 100 bytes)")
 	}
+	// Older editors omit the new mode. Preserve a saved random plan unless
+	// the caller explicitly selects custom mode.
+	if current != nil && current.PelicanConfig != nil && input.PromptMode == "" {
+		input.PromptMode = current.PelicanConfig.PromptMode
+	}
 	prompt := strings.TrimSpace(input.Prompt)
-	if prompt == "" || len(prompt) > 32000 {
+	if (prompt == "" && input.PromptMode != PelicanPromptModeRandom) || len(prompt) > 32000 {
 		return nil, infraerrors.BadRequest("INVALID_PELICAN_GROUP_TEST", "prompt is required (maximum 32000 bytes)")
 	}
 	effort := strings.ToLower(strings.TrimSpace(input.ReasoningEffort))
@@ -273,6 +279,10 @@ func (s *PelicanGroupTestService) planFromInput(ctx context.Context, input Pelic
 	plan.NextRunAt = &next
 	plan.Enabled = input.Enabled
 	plan.PelicanConfig = &PelicanTestConfig{QuestionKind: "pelican", Prompt: prompt, ReasoningEffort: effort, ParallelCount: parallel, ModelID: plan.ModelID}
+	plan.PelicanConfig.PromptMode = input.PromptMode
+	if err := validatePelicanPromptMode(plan.PelicanConfig); err != nil {
+		return nil, infraerrors.BadRequest("INVALID_PELICAN_GROUP_TEST", err.Error())
+	}
 	return plan, nil
 }
 
@@ -297,10 +307,12 @@ func (s *PelicanGroupTestService) RunNow(ctx context.Context, id int64) error {
 	if !claimed {
 		return ErrPelicanGroupTestPlanRunning
 	}
+	snapshot := *plan
+	snapshot.PelicanConfig = freezePelicanQuestion(plan.PelicanConfig, "manual-group:"+now.UTC().Format(time.RFC3339Nano), nil)
 	s.runs.Add(1)
 	go func() {
 		defer s.runs.Done()
-		s.execute(plan, until)
+		s.execute(&snapshot, until)
 	}()
 	return nil
 }
@@ -339,6 +351,10 @@ func (s *PelicanGroupTestService) runScheduled(ctx context.Context, plan *Pelica
 		logger.LegacyPrintf("service.pelican_group_test", "plan=%d skipped: no model", plan.ID)
 		return
 	}
+	roundTime := now
+	if plan.NextRunAt != nil {
+		roundTime = *plan.NextRunAt
+	}
 	next, err := computeNextRun(plan.CronExpression, now)
 	if err != nil {
 		logger.LegacyPrintf("service.pelican_group_test", "plan=%d invalid schedule: %v", plan.ID, err)
@@ -354,7 +370,9 @@ func (s *PelicanGroupTestService) runScheduled(ctx context.Context, plan *Pelica
 	if err != nil || !claimed {
 		return
 	}
-	s.execute(plan, until)
+	snapshot := *plan
+	snapshot.PelicanConfig = freezePelicanQuestion(plan.PelicanConfig, "scheduled:"+roundTime.UTC().Format(time.RFC3339Nano), nil)
+	s.execute(&snapshot, until)
 }
 
 // execute runs the plan's samples and stores them. It owns its contexts: a run started

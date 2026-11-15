@@ -23,6 +23,8 @@
           </div>
         </div>
 
+        <KeyRiskPanel />
+
         <p class="text-sm text-gray-600 dark:text-gray-300" data-test="active-audit-engine">
           {{ t('admin.riskControl.activeEngine', { engine: engineLabel(status?.engine ?? savedEngine) }) }}
         </p>
@@ -1222,6 +1224,7 @@
 </template>
 
 <script setup lang="ts">
+import KeyRiskPanel from '@/features/ip-audit/KeyRiskPanel.vue'
 import { computed, onMounted, onUnmounted, reactive, ref, toRaw } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'

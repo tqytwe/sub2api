@@ -1,5 +1,5 @@
 <template>
-  <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
+  <div :class="showRate ? 'grid grid-cols-2 gap-4 lg:grid-cols-3 2xl:grid-cols-5' : 'grid grid-cols-2 gap-4 lg:grid-cols-4'">
     <div class="card p-4 flex items-center gap-3">
       <div class="rounded-lg bg-blue-100 p-2 dark:bg-blue-900/30 text-blue-600">
         <Icon name="document" size="md" />
@@ -58,6 +58,21 @@
         </p>
       </div>
     </div>
+    <div
+      v-if="showRate"
+      class="card flex flex-col justify-center gap-1 p-4"
+      data-testid="usage-rate-card"
+      :title="t('usage.rateCardHint')"
+    >
+      <p class="flex items-baseline justify-between gap-3">
+        <span class="text-xs font-medium text-gray-500">RPM</span>
+        <span class="text-lg font-bold tabular-nums" data-testid="usage-rpm">{{ formatUsageRate(rpm) }}</span>
+      </p>
+      <p class="flex items-baseline justify-between gap-3">
+        <span class="text-xs font-medium text-gray-500">TPM</span>
+        <span class="text-lg font-bold tabular-nums" data-testid="usage-tpm">{{ formatUsageRate(tpm) }}</span>
+      </p>
+    </div>
     <div class="card p-4 flex items-center gap-3">
       <div class="rounded-lg bg-green-100 p-2 dark:bg-green-900/30 text-green-600">
         <Icon name="dollar" size="md" />
@@ -96,20 +111,29 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { AdminUsageStatsResponse } from '@/api/admin/usage'
 import type { UsageStatsResponse } from '@/types'
+import { formatUsageRate, usagePerMinute, type UsageRateWindow } from '@/utils/usageRate'
 import Icon from '@/components/icons/Icon.vue'
 
 const props = withDefaults(defineProps<{
   stats: (AdminUsageStatsResponse | UsageStatsResponse) | null
+  showRate?: boolean
+  rateWindow?: UsageRateWindow | null
   showAccountCost?: boolean
   strikeStandardCost?: boolean
   savingsLabel?: 'range' | 'month' | null
 }>(), {
+  showRate: false,
+  rateWindow: null,
   showAccountCost: true,
   strikeStandardCost: false,
   savingsLabel: null,
 })
 
 const { t } = useI18n()
+
+// Pair counts only with the window captured for the same successful response.
+const rpm = computed(() => props.stats ? usagePerMinute(props.stats.total_requests, props.rateWindow) : null)
+const tpm = computed(() => props.stats ? usagePerMinute(props.stats.total_tokens, props.rateWindow) : null)
 
 const totalAccountCost = computed(() => {
   const stats = props.stats as (AdminUsageStatsResponse & { total_account_cost?: number }) | null

@@ -90,6 +90,13 @@ export default {
       autoRefresh: '自动刷新',
       capacitySortHint: '按当前筛选结果中所有账号的实时并发使用量（分子）排序，不参考并发上限或占用比例。同值按账号 ID 排序。每次刷新重新读取并排序，账号可能跨页移动；读取失败时保留上次结果，请重试或选择其他排序。',
       enableAutoRefresh: '启用自动刷新',
+      autoRefreshUpstreamModels: '同步上游模型',
+      autoRefreshUpstreamModelsAccountTypes: {
+        oauth: 'OAuth 账号（含 Setup Token 和服务账号）',
+        apikey: 'API Key 账号'
+      },
+      autoRefreshUpstreamModelsHint: '开启自动刷新后，仅同步当前页已勾选类型的可调度账号，每个账号最多每 5 分钟一次。移除已下架模型，保留有效别名；同步失败时保留原配置；已有 OAuth 模型白名单不会自动扩大。',
+      autoRefreshUpstreamModelsResult: '上次同步：{changed} 个更新，{failed} 个失败，{skipped} 个跳过',
       refreshInterval5s: '5 秒',
       refreshInterval10s: '10 秒',
       refreshInterval15s: '15 秒',

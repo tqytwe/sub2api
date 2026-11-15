@@ -165,3 +165,11 @@
 - [优惠券状态与上限说明修正](visual-reviews/2026-11-12-coupon-status-limits.md)：冷启动状态回归、两类上限说明及签到/答题定向只读核对；生产验收待补。
 - [账号实时并发排序视觉记录](visual-reviews/2026-11-14-account-concurrency.md)：既有容量列排序、持久化与刷新闭环；合成 API 组件证据，最终生产验收待补。
 - [账号定时调度视觉记录](visual-reviews/2026-11-14-account-schedule.md)：既有调度列的一次性与每日计划；组件开发检查、权限及迟到请求回归，后端集成和生产验收待完成。
+
+- [单 Key 来源风险与用户确认迁移视觉记录](./visual-reviews/2026-11-14-v2212-key-risk.md)：既有风控页与 Keys 页闭环；组件/隔离数据库检查不替代生产验收。
+
+- [管理员 Usage RPM/TPM](./visual-reviews/2026-11-14-v2212-usage-rate.md)：当前累计候选的实现与开发验证；尚未部署，最终生产验收待完成。
+
+- [模型自动同步与原子更新](./visual-reviews/2026-11-14-v2212-model-sync.md)：当前累计候选的实现与开发验证；尚未部署，最终生产验收待完成。
+
+- [SVG随机题与轮次历史](./visual-reviews/2026-11-14-v2212-svg-round.md)：当前累计候选的实现与开发验证；尚未部署，最终生产验收待完成。

@@ -4,6 +4,8 @@ import ScheduledTestsPanel from '../ScheduledTestsPanel.vue'
 
 const api = vi.hoisted(() => ({
   listByAccount: vi.fn(),
+  create: vi.fn(),
+  update: vi.fn(),
   ownershipPreview: vi.fn(),
   reconcileOwnership: vi.fn(),
   restoreOwnership: vi.fn(),
@@ -149,6 +151,54 @@ describe('scheduled quality rule ownership lifecycle', () => {
 
     expect(api.delete).toHaveBeenCalledWith(11)
     expect(api.ownershipPreview).not.toHaveBeenCalled()
+  })
+
+  it('creates a scheduled random SVG test without a custom prompt', async () => {
+    api.create.mockResolvedValue(plan(false))
+    const wrapper = await mountPanel(plan(false))
+    ;(wrapper.vm as any).showAddForm = true
+    Object.assign((wrapper.vm as any).newPlan, {
+      model_id: 'gpt-6-astra', cron_expression: '*/30 * * * *', svg_test: true,
+      prompt_mode: 'random', prompt: '', reasoning_effort: 'high', parallel_count: '2'
+    })
+    await flushPromises()
+
+    await wrapper.findAll('button').find((button) => button.text() === 'common.save')!.trigger('click')
+    await flushPromises()
+
+    expect(api.create).toHaveBeenCalledWith(expect.objectContaining({
+      account_id: 7,
+      model_id: 'gpt-6-astra',
+      pelican_config: {
+        question_kind: 'pelican', prompt_mode: 'random', prompt: '', reasoning_effort: 'high', parallel_count: 2
+      }
+    }))
+  })
+
+  it('keeps a saved random mode and treats legacy SVG plans as custom', async () => {
+    const randomPlan = {
+      ...plan(false),
+      pelican_config: { question_kind: 'pelican', prompt: '', prompt_mode: 'random', reasoning_effort: 'high', parallel_count: 2 }
+    }
+    api.listByAccount.mockResolvedValue([randomPlan])
+    api.update.mockResolvedValue(randomPlan)
+    const wrapper = await mountPanel(randomPlan)
+    await wrapper.find('button[title="admin.scheduledTests.editPlan"]').trigger('click')
+    await wrapper.findAll('button').find((button) => button.text() === 'common.save')!.trigger('click')
+    await flushPromises()
+    expect(api.update).toHaveBeenCalledWith(11, expect.objectContaining({
+      expected_updated_at: randomPlan.updated_at,
+      pelican_config: expect.objectContaining({ prompt_mode: 'random', prompt: '' })
+    }))
+
+    const legacyPlan = {
+      ...plan(false),
+      pelican_config: { question_kind: 'pelican', prompt: 'legacy prompt', reasoning_effort: 'medium', parallel_count: 1 }
+    }
+    api.listByAccount.mockResolvedValue([legacyPlan])
+    const legacyWrapper = await mountPanel(legacyPlan)
+    await legacyWrapper.find('button[title="admin.scheduledTests.editPlan"]').trigger('click')
+    expect((legacyWrapper.vm as any).editForm.prompt_mode).toBe('custom')
   })
   it('directs isolated-model rules to the existing central Quality Operations page', async () => {
     api.ownershipPreview.mockResolvedValue({ ...ownedState, action: 'isolate_models' })

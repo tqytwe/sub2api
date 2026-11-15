@@ -14,6 +14,7 @@ export interface PelicanShowcaseItem {
   generated_at: string
   /** Raw model output; only returned by getItem. Render through extractPelicanHtml. */
   response_text?: string
+  pelican_question?: import('@/types').PelicanQuestion
 }
 
 export interface PelicanShowcaseGroup {

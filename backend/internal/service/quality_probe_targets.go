@@ -73,10 +73,21 @@ func validateQualityProbeTargets(cfg *PelicanTestConfig) error {
 }
 
 func prepareQualityPlan(plan *ScheduledTestPlan) error {
+	if plan.PelicanConfig != nil {
+		if err := validatePelicanPromptMode(plan.PelicanConfig); err != nil {
+			return infraerrors.BadRequest("INVALID_PELICAN_PROMPT_MODE", err.Error())
+		}
+		cfg := *plan.PelicanConfig
+		cfg.PelicanQuestion, cfg.ActualPrompt = nil, ""
+		plan.PelicanConfig = &cfg
+	}
 	if err := validateQualityConfig(plan.PelicanConfig); err != nil {
 		return err
 	}
 	if plan.PelicanConfig == nil || plan.PelicanConfig.Quality == nil {
+		if isPelicanSVGConfig(plan.PelicanConfig) {
+			return validateQualityProbeTargets(plan.PelicanConfig)
+		}
 		return nil
 	}
 	cfg := cloneQualityPelicanConfig(plan.PelicanConfig)

@@ -252,3 +252,17 @@ func TestScheduledSaveResultNoLongerFeedsTheShowcase(t *testing.T) {
 	require.NoError(t, svc.SaveResult(context.Background(), 7, 50, result))
 	require.Equal(t, 50, results.pruned, "account plans keep their admin history; only group tests publish")
 }
+
+func TestPelicanShowcaseFreezesQuestionWithoutAccountIdentity(t *testing.T) {
+	repo := &showcaseRepoStub{}
+	svc := &PelicanShowcaseService{repo: repo, settings: enabledShowcase()}
+	result := groupTestSuccess(55, "<svg></svg>")
+	cfg, err := NewPelicanQuestion()
+	require.NoError(t, err)
+	result.PelicanConfig.PelicanQuestion = cfg.PelicanQuestion
+	svc.PublishGroupResult(context.Background(), 4, result)
+	require.Len(t, repo.published, 1)
+	require.Equal(t, cfg.PelicanQuestion, repo.published[0].snapshot.PelicanQuestion)
+	cfg.PelicanQuestion.Criteria[0] = "mutated after publication"
+	require.NotEqual(t, cfg.PelicanQuestion.Criteria, repo.published[0].snapshot.PelicanQuestion.Criteria)
+}

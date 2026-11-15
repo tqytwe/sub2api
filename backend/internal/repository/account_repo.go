@@ -682,7 +682,8 @@ func lockAndMergeAccountProbeExtra(
 			),
 			extra -> 'opencode_go_usage_auto_refresh',
 			extra -> 'opencode_go_usage_snapshot',
-			extra -> 'quality_model_isolation'
+			extra -> 'quality_model_isolation',
+			extra -> 'upstream_model_sync'
 		FROM accounts
 		WHERE id = $1 AND deleted_at IS NULL
 		FOR NO KEY UPDATE
@@ -712,6 +713,7 @@ func lockAndMergeAccountProbeExtra(
 		currentOpenCodeAutoRefresh     []byte
 		currentOpenCodeSnapshot        []byte
 		currentQualityIsolation        []byte
+		currentUpstreamModelSync       []byte
 	)
 	if err := rows.Scan(
 		&identityUnchanged,
@@ -727,6 +729,7 @@ func lockAndMergeAccountProbeExtra(
 		&currentOpenCodeAutoRefresh,
 		&currentOpenCodeSnapshot,
 		&currentQualityIsolation,
+		&currentUpstreamModelSync,
 	); err != nil {
 		return nil, err
 	}
@@ -735,6 +738,12 @@ func lockAndMergeAccountProbeExtra(
 	}
 
 	extra := copyJSONMap(normalizeJSONMap(stripQualityIsolationFromExtra(account.Extra)))
+	delete(extra, service.UpstreamModelSyncExtraKey)
+	if state, present, err := decodeAccountExtraJSON(currentUpstreamModelSync); err != nil {
+		return nil, err
+	} else if present {
+		extra[service.UpstreamModelSyncExtraKey] = state
+	}
 	if isolation, present, err := decodeAccountExtraJSON(currentQualityIsolation); err != nil {
 		return nil, err
 	} else if present {

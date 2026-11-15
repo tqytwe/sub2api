@@ -45,6 +45,8 @@ func TestAPIKeyUpdate_OnlyDeclaresRequestedColumns(t *testing.T) {
 	quota := 500.0
 	rateLimit := 42.0
 	whitelist := []string{"10.0.0.1"}
+	blacklist := []string{"10.0.0.2"}
+	empty := []string{}
 
 	tests := []struct {
 		name string
@@ -69,8 +71,13 @@ func TestAPIKeyUpdate_OnlyDeclaresRequestedColumns(t *testing.T) {
 		{
 			name: "ip whitelist only",
 			req:  UpdateAPIKeyRequest{IPWhitelist: &whitelist},
-			want: APIKeyUpdateFields{IPRules: true},
+			want: APIKeyUpdateFields{IPWhitelist: true},
 		},
+		{name: "ip blacklist only", req: UpdateAPIKeyRequest{IPBlacklist: &blacklist}, want: APIKeyUpdateFields{IPBlacklist: true}},
+		{name: "both ip lists", req: UpdateAPIKeyRequest{IPWhitelist: &whitelist, IPBlacklist: &blacklist}, want: APIKeyUpdateFields{IPWhitelist: true, IPBlacklist: true}},
+		{name: "clear whitelist only", req: UpdateAPIKeyRequest{IPWhitelist: &empty}, want: APIKeyUpdateFields{IPWhitelist: true}},
+		{name: "clear blacklist only", req: UpdateAPIKeyRequest{IPBlacklist: &empty}, want: APIKeyUpdateFields{IPBlacklist: true}},
+		{name: "neither ip list", req: UpdateAPIKeyRequest{}, want: APIKeyUpdateFields{}},
 	}
 
 	for _, tt := range tests {

@@ -2642,6 +2642,18 @@ export interface PelicanTestConfig {
   parallel_count?: number
   model_id?: string
   model_ids?: string[]
+  prompt_mode?: 'custom' | 'random' | string
+  pelican_question?: PelicanQuestion
+  actual_prompt?: string
+}
+
+export interface PelicanQuestion {
+  id: string
+  version: string
+  round_id: string
+  source: string
+  prompt: string
+  criteria: string[]
 }
 
 export interface ScheduledTestResult {
