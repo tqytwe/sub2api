@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/Wei-Shaw/sub2api/internal/pkg/requesttiming"
 )
 
 const (
@@ -102,11 +104,13 @@ func ApplyLegacyRequestFields(requestType RequestType, fallbackStream bool, fall
 }
 
 type UsageLog struct {
-	ID        int64
-	UserID    int64
-	APIKeyID  int64
-	AccountID int64
-	RequestID string
+	ContentTiming *requesttiming.ContentObservation `json:"-"`
+	QueueTiming   *requesttiming.QueueObservation   `json:"-"`
+	ID            int64
+	UserID        int64
+	APIKeyID      int64
+	AccountID     int64
+	RequestID     string
 	// Internal, forward-only settlement identity; never exposed through JSON.
 	BillingRequestFingerprint string `json:"-"`
 	BillingSettled            bool   `json:"-"`

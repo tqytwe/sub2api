@@ -489,6 +489,7 @@ export default {
     duration: 'Duration',
     latency: 'Latency',
     outputTps: 'Average TPS',
+    timingDetails: 'Request timing details',
     outputTpsHelp: 'Explain average TPS',
     latencyCacheRate: 'Cache rate',
     latencyCacheRateHint: 'Cache rate = cache read {read} ÷ (input {input} + cache read {read} + cache write {write}). Uses the same basis as channel monitoring and usage trends.',

@@ -1,4 +1,7 @@
 import ipAudit from './zh/ipAudit'
+import requestTiming from './zh/requestTiming'
+import connections from './zh/connections'
+import latencyObservability from './zh/latencyObservability'
 import apiKeyModelPolicy from './zh/apiKeyModelPolicy'
 import couponCampaign from './zh/couponCampaign'
 import affiliateOperations from './zh/affiliateOperations'
@@ -20,6 +23,9 @@ import tokenGuardV2Zh from './zh/tokenGuardV2'
 import { mergeLocaleMessages } from './merge'
 
 const messages = {
+  requestTiming,
+  connections,
+  latencyObservability,
   ipAudit,
   apiKeyModelPolicy,
   couponCampaign,

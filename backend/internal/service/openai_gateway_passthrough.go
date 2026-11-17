@@ -18,6 +18,8 @@ import (
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/apicompat"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/openai"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/requesttiming"
 	"github.com/Wei-Shaw/sub2api/internal/requestledger"
 	"github.com/Wei-Shaw/sub2api/internal/util/responseheaders"
 	"github.com/gin-gonic/gin"
@@ -357,6 +359,7 @@ func (s *OpenAIGatewayService) forwardOpenAIPassthrough(
 	var resp *http.Response
 	var usage *OpenAIUsage
 	var firstTokenMs *int
+	clientDisconnected := false
 	var forwardErr error
 	responseID := ""
 	imageCount := 0
@@ -400,7 +403,9 @@ func (s *OpenAIGatewayService) forwardOpenAIPassthrough(
 				}
 			}
 		}
+		credentialsDone := requesttiming.Observe(ctx, "upstream_credentials")
 		token, _, err := s.GetAccessToken(ctx, account)
+		credentialsDone()
 		if err != nil {
 			return nil, err
 		}
@@ -475,11 +480,12 @@ func (s *OpenAIGatewayService) forwardOpenAIPassthrough(
 		}
 
 		if mapping, ok := openAIResponsesClientToolMapping(c); ok && isEventStreamResponse(resp.Header) {
+			ctx = requesttiming.ResponseContext(ctx, resp)
 			maxLineSize := defaultMaxLineSize
 			if s.cfg != nil && s.cfg.Gateway.MaxLineSize > 0 {
 				maxLineSize = s.cfg.Gateway.MaxLineSize
 			}
-			resp.Body = newGrokResponsesClientToolStreamBody(resp.Body, mapping, maxLineSize)
+			resp.Body = newGrokResponsesClientToolStreamBody(resp.Body, mapping, maxLineSize, ctx)
 		}
 
 		// x-codex-turn-state 溯源：下游回传由 writeOpenAIPassthroughResponseHeaders
@@ -492,6 +498,7 @@ func (s *OpenAIGatewayService) forwardOpenAIPassthrough(
 		if reqStream {
 			result, handleErr := s.handleStreamingResponsePassthrough(ctx, resp, c, account, startTime, reqModel, upstreamPassthroughModel)
 			if result != nil {
+				clientDisconnected = result.clientDisconnect
 				usage = result.usage
 				firstTokenMs = result.firstTokenMs
 				responseID = strings.TrimSpace(result.responseID)
@@ -594,6 +601,7 @@ func (s *OpenAIGatewayService) forwardOpenAIPassthrough(
 		OpenAIWSMode:                  false,
 		Duration:                      time.Since(startTime),
 		FirstTokenMs:                  firstTokenMs,
+		ClientDisconnect:              clientDisconnected,
 	}
 	if imageCount > 0 {
 		forwardResult.ImageCount = imageCount
@@ -647,6 +655,7 @@ func (s *OpenAIGatewayService) buildUpstreamRequestOpenAIPassthrough(
 	body []byte,
 	token string,
 ) (*http.Request, error) {
+	defer requesttiming.Observe(ctx, "build_upstream_request")()
 	targetURL := openaiPlatformAPIURL
 	switch account.Type {
 	case AccountTypeOAuth:
@@ -1109,6 +1118,7 @@ func collectOpenAIPassthroughTimeoutHeaders(h http.Header) []string {
 }
 
 type openaiStreamingResultPassthrough struct {
+	clientDisconnect bool
 	usage            *OpenAIUsage
 	firstTokenMs     *int
 	responseID       string
@@ -1964,7 +1974,7 @@ func (s *OpenAIGatewayService) handleStreamingResponsePassthrough(
 	}
 
 	w := c.Writer
-	flusher, ok := w.(http.Flusher)
+	_, ok := w.(http.Flusher)
 	if !ok {
 		return nil, errors.New("streaming not supported")
 	}
@@ -1973,8 +1983,20 @@ func (s *OpenAIGatewayService) handleStreamingResponsePassthrough(
 	imageCounter := newOpenAIImageOutputCounter()
 	var firstTokenMs *int
 	responseID := ""
+	ctx = requesttiming.ResponseContext(ctx, resp)
 	ttftMode := s.openAITTFTMode(ctx)
+	requesttiming.Mode(ctx, ttftMode)
 	clientDisconnected := false
+	defer func() {
+		outcome := "success"
+		if responseErr != nil {
+			outcome = "failed"
+		}
+		if clientDisconnected {
+			outcome = "client_disconnected"
+		}
+		requesttiming.Outcome(ctx, outcome, clientDisconnected)
+	}()
 	sawDone := false
 	sawTerminalEvent := false
 	sawFailedEvent := false
@@ -2051,14 +2073,26 @@ func (s *OpenAIGatewayService) handleStreamingResponsePassthrough(
 	// flushPending 表示已写入但未到 SSE 空行边界的脏状态；defer 兜底函数退出前的残留，断连后不再 Flush。
 	flushPending := false
 	pendingSSEEventType := ""
+	var metricEvent openAISSEMetricEvent
+	var deliveryObservation openAISSEDeliveryObservation
 	flushPendingOutput := func() {
 		if clientDisconnected || !flushPending {
 			return
 		}
-		flusher.Flush()
+		if err := FlushGatewayResponse(w); err != nil {
+			clientDisconnected = true
+			return
+		}
+		requesttiming.OutputFlushed(ctx)
+		deliveryObservation.flushed(ctx)
 		flushPending = false
 	}
-	defer flushPendingOutput()
+	defer func() {
+		flushPendingOutput()
+		if resultOut != nil {
+			resultOut.clientDisconnect = clientDisconnected
+		}
+	}()
 	writePendingLines := func() bool {
 		for _, pending := range pendingLines {
 			if _, err := fmt.Fprintln(w, pending); err != nil {
@@ -2100,10 +2134,14 @@ func (s *OpenAIGatewayService) handleStreamingResponsePassthrough(
 	scanner.Buffer(scanBuf[:0], maxLineSize)
 	defer putSSEScannerBuf64K(scanBuf)
 	documentScanner := newOpenAISSEJSONDocumentScanner(scanner)
+	if requesttiming.From(ctx) != nil {
+		documentScanner.ctx = ctx
+	}
 
 	needModelReplace := strings.TrimSpace(originalModel) != "" && strings.TrimSpace(mappedModel) != "" && strings.TrimSpace(originalModel) != strings.TrimSpace(mappedModel)
 	resultWithUsage := func() *openaiStreamingResultPassthrough {
 		return &openaiStreamingResultPassthrough{
+			clientDisconnect: clientDisconnected,
 			usage:            usage,
 			firstTokenMs:     firstTokenMs,
 			responseID:       responseID,
@@ -2114,6 +2152,7 @@ func (s *OpenAIGatewayService) handleStreamingResponsePassthrough(
 
 	for documentScanner.Scan() {
 		line := documentScanner.Text()
+		metricPayload, metricType := metricEvent.observeLine(line)
 		if eventType, ok := extractOpenAISSEEventLine(line); ok {
 			pendingSSEEventType = eventType
 			eventType = strings.TrimSpace(eventType)
@@ -2280,6 +2319,9 @@ func (s *OpenAIGatewayService) handleStreamingResponsePassthrough(
 				line = "data: " + string(sanitizedData)
 			}
 			lineStartsClientOutput = forceFlushFailedEvent || openAIStreamDataStartsClientOutput(trimmedData, eventType)
+			deliveryObservation.data(metricPayload, metricType)
+			requesttiming.Content(ctx, metricPayload, metricType)
+			requesttiming.Output(ctx, openai.ResponseStartsSemanticOutput(metricPayload, metricType), openAIStreamDataStartsVisibleOutput(trimmedData, eventType), timingTerminal(eventType))
 			if lineStartsClientOutput && trimmedData != "[DONE]" && !openAIStreamEventTypeIsTerminal(eventType) {
 				semanticOutputSeen = true
 				ledgerAttempt.ObservePrioritySemantic(originalModel, c.Request.URL.Path, priorityGroupID(c))
@@ -2302,10 +2344,12 @@ func (s *OpenAIGatewayService) handleStreamingResponsePassthrough(
 		if line == "" {
 			pendingSSEEventType = ""
 			if suppressCurrentEvent {
+				deliveryObservation.discard()
 				suppressCurrentEvent = false
 				responseFailedPending = false
 				continue
 			}
+			deliveryObservation.boundary()
 		}
 
 		if !clientDisconnected && !failureDelivered && !suppressCurrentEvent {
@@ -2408,6 +2452,10 @@ func (s *OpenAIGatewayService) handleStreamingResponsePassthrough(
 		s.clearOpenAIProxyStreamDisconnect(account)
 	}
 	logOpenAISuccessMissingUsage(ctx, c, account, resp, usage, terminalEventType, clientDisconnected)
+	flushPendingOutput()
+	if !clientDisconnected && (sawDone || sawTerminalEvent) {
+		requesttiming.TerminalFlushed(ctx, terminalEventType)
+	}
 
 	return resultWithUsage(), nil
 }

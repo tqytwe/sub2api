@@ -820,3 +820,4 @@ const SettingKeyAllowUserViewErrorRequests = "allow_user_view_error_requests"
 // Cache rate is enabled by default; end-user visibility is opt-in.
 const SettingKeyUsageShowCacheRate = "usage_show_cache_rate"
 const SettingKeyUsageShowCacheRateToUsers = "usage_show_cache_rate_to_users"
+const SettingKeyUsageShowLongContextBadge = "usage_show_long_context_badge"

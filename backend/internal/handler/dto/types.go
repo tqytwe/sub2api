@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/domain"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/requesttiming"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 )
 
@@ -703,6 +704,8 @@ type UsageLog struct {
 
 // AdminUsageLog 是管理员接口使用的 usage log DTO（包含管理员字段）。
 type AdminUsageLog struct {
+	ContentTiming *requesttiming.ContentObservation `json:"content_timing,omitempty"`
+	QueueTiming   *requesttiming.QueueObservation   `json:"queue_timing,omitempty"`
 	UsageLog
 
 	// UpstreamModel is the actual model sent to the upstream provider after mapping.

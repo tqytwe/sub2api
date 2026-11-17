@@ -1,5 +1,9 @@
 # 当前项目推进基线
 
+> **2026-11-17 使用记录补齐批次**：固定目标仍为 `v2.21.2@dbed7697aa56e76c6eb48c4914fa441496b67bdd`，`fully_migrated=false`。当前已验收生产为 [PR #431](https://github.com/tqytwe/sub2api/pull/431)，merge/Zeabur SHA `a7429fb7e44a684d0e2fdb1b0067e6fb6c1abcf3`，deployment `6afbd99a03a5d9114766780d`；用户已确认缓存率位于 Token 列、平均 TPS、设置与导出及三身份回归全部通过。以下带日期的批次段落为历史记录，不代表当前线上 SHA 或待办。
+>
+> 本次候选分支 `sync/usage-observability-v2212-20261117` 补齐请求时序采集/详情、延迟分析、连接诊断、TPS 健康配色、长上下文倍率标记开关、Token/费用手机与键盘操作、长 Key 名称展开。服务器验证和统一发布进行中，尚不标为已部署。新增迁移仅 `361_request_timing_details.sql`、`362_request_connection_traces.sql`；生产只读预检确认 453 条迁移，历史校验和一致、编号无冲突、无无效索引。采集仅保存有界诊断元数据，HTTP Responses 新请求可形成采集/持久化/查询链；旧记录、未采集协议与客户端收件证据明确缺测，不补零或回填。保留 Fork 账务、Token 列缓存率和导出，不引入正文采集、harvest 或自动协议切换。页面证据集中于[本批视觉检查](./visual-reviews/2026-11-17-usage-observability.md)，最终 PR 维护 CI、部署和用户本机验收证据。生产既有“无可用账号”错误仍需区别于本批回归，不宣称全站零异常。
+
 > **2026-11-14 #429 发布后核验（UTC+8，21:10 更新）**：本批已合并并部署，整版同步仍未完成，`fully_migrated=false`。固定目标仍是 `v2.21.2@dbed7697aa56e76c6eb48c4914fa441496b67bdd`；上游后续 `production@0bde0ea69024018c0060db34f807aa5291ee5d64` 仅作差异盘点，不把其后未发布提交混入本批完成声明。
 >
 > **精确发布证据**：[PR #429](https://github.com/tqytwe/sub2api/pull/429)，候选 `ae7c027a801c46cee5e060c99d54d0c171c01ef5`；`play/main` merge 与 Zeabur 实际部署均为 `2a457bedf0e4bfb867342a18d1c41645bb834a46`。Deployment `6af8564d03a5d91147663cc2` 于 20:45:17 结束并 RUNNING，PostgreSQL/Redis 均 RUNNING。首页与 `/health` HTTP 200，health 为 `{"status":"ok"}`；未认证 accounts/usage/requests 管理员接口均 401。部署后抽查运行日志可见真实 Responses 请求 200，有限观察窗口内未发现 ERROR/FATAL/PANIC，不据此保证其他业务无问题。

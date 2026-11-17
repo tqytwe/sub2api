@@ -139,6 +139,11 @@ func appendUsageLogModelQueryFilter(query string, args []any, model string, sour
 }
 
 type usageLogRepository struct {
+	connectionOnce  sync.Once
+	connectionQueue chan service.ConnectionTrace
+	timingOnce      sync.Once
+	timingQueue     chan timingWrite
+
 	client *dbent.Client
 	sql    sqlExecutor
 	db     *sql.DB

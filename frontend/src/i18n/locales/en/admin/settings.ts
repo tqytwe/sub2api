@@ -1374,6 +1374,10 @@ export default {
         label: 'Show cache rate to users',
         description: 'Allow users to view cache rate in their own usage records and exports.',
       },
+      long_context_badge: {
+        label: 'Show long-context billing badge',
+        description: 'Show the long-context multiplier beside usage costs. This only affects display, not billing.',
+      },
       saveSettings: 'Save Settings',
       saving: 'Saving...',
       settingsSaved: 'Settings saved successfully',

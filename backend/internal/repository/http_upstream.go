@@ -30,6 +30,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/proxyurl"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/proxyutil"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/requesttiming"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/servertiming"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/tlsfingerprint"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/xai"
@@ -304,14 +305,24 @@ func (s *httpUpstreamService) DoWithTLS(req *http.Request, proxyURL string, acco
 
 // doUpstreamRequest owns cancellation for one attempt, without cancelling the
 // caller's context (which may be detached for billing or reused for retries).
-func doUpstreamRequest(client *http.Client, req *http.Request) (*http.Response, error) {
+func doUpstreamRequest(client *http.Client, req *http.Request) (result *http.Response, resultErr error) {
+	req, timingTrace := requesttiming.StartTransport(req)
+	defer func() { timingTrace.Response(result, resultErr) }()
 	ctx, cancel := context.WithCancel(req.Context())
 	resp, err := requestledger.Do(req.WithContext(ctx), func(r *http.Request) (*http.Response, error) { return servertiming.Do(client, r) })
 	if err != nil {
 		cancel()
 		return resp, err
 	}
+	timingTrace.Headers(resp)
+	requesttiming.Encoding(req.Context(), resp)
+	if !resp.Uncompressed {
+		resp.Body = requesttiming.WrapStage(req.Context(), resp.Body, "raw_body_first")
+	}
 	decompressResponseBody(resp)
+	if encoding := strings.TrimSpace(resp.Header.Get("Content-Encoding")); encoding == "" || strings.EqualFold(encoding, "identity") {
+		resp.Body = requesttiming.WrapStage(req.Context(), resp.Body, "decoded_body_first")
+	}
 	resp.Body = &cancelOnCloseBody{ReadCloser: resp.Body, cancel: cancel}
 	return resp, nil
 }

@@ -1064,7 +1064,8 @@ func TestAPIContracts(t *testing.T) {
 					"wechat_connect_scopes": "snsapi_login",
 					"allow_user_view_error_requests": false,
 					"usage_show_cache_rate": true,
-					"usage_show_cache_rate_to_users": false
+					"usage_show_cache_rate_to_users": false,
+					"usage_show_long_context_badge": true
 				}
 			}`,
 		},
@@ -1442,7 +1443,8 @@ func TestAPIContracts(t *testing.T) {
 					"force_email_on_third_party_signup": false,
 					"allow_user_view_error_requests": false,
 					"usage_show_cache_rate": true,
-					"usage_show_cache_rate_to_users": false
+					"usage_show_cache_rate_to_users": false,
+					"usage_show_long_context_badge": true
 				}
 			}`,
 		},

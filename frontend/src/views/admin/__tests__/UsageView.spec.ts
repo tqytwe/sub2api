@@ -867,6 +867,36 @@ describe('admin UsageView ranking tab', () => {
     vi.useRealTimers()
   })
 
+  it('connects both diagnostic tabs to shared identity and date filters and refreshes them', async () => {
+    const wrapper = mount(UsageView, {
+      global: { stubs: {
+        AppLayout: AppLayoutStub, UsageStatsCards: true, UsageFilters: UsageFiltersStub,
+        UsageTable: true, UsageExportProgress: true, UsageCleanupDialog: true,
+        UserBalanceHistoryModal: true, Pagination: true, Select: true,
+        DateRangePicker: true, Icon: true, TokenUsageTrend: true,
+        ModelDistributionChart: true, GroupDistributionChart: true, EndpointDistributionChart: true,
+        UserTokenRanking: true, OpsErrorLogTable: true, OpsErrorDetailModal: true,
+        UsageConnections: { name: 'UsageConnections', props: ['filters', 'refreshKey'], template: '<div data-test="connections" />' },
+        LatencyObservabilityPanel: { name: 'LatencyObservabilityPanel', props: ['startDate', 'endDate', 'model', 'userId', 'apiKeyId', 'accountId', 'groupId', 'refreshToken'], template: '<div data-test="latency-report" />' },
+      } },
+    })
+    try {
+      await flushPromises()
+      const vm = wrapper.vm as any
+      vm.filters = { start_date: '2026-11-16T00:00:00Z', end_date: '2026-11-17T00:00:00Z', user_id: 7, api_key_id: 8, account_id: 9, group_id: 10, model: 'synthetic' }
+      await wrapper.findAll('[data-testid="usage-detail-tab"]').find(tab => tab.text() === 'connections.title')!.trigger('click')
+      await flushPromises()
+      const diagnostics = wrapper.findComponent({ name: 'UsageConnections' })
+      expect(diagnostics.props('filters')).toEqual({ start_time: '2026-11-16T00:00:00.000Z', end_time: '2026-11-17T00:00:00.000Z', user_id: 7, api_key_id: 8, account_id: 9, group_id: 10, model: 'synthetic' })
+      const priorRefresh = diagnostics.props('refreshKey')
+      vm.refreshData(); await flushPromises()
+      expect(diagnostics.props('refreshKey')).toBe(priorRefresh + 1)
+      await wrapper.findAll('[data-testid="usage-detail-tab"]').find(tab => tab.text() === 'latencyObservability.title')!.trigger('click')
+      await flushPromises()
+      expect(wrapper.findComponent({ name: 'LatencyObservabilityPanel' }).props()).toMatchObject({ userId: 7, apiKeyId: 8, accountId: 9, groupId: 10, model: 'synthetic', refreshToken: priorRefresh + 1 })
+    } finally { wrapper.unmount() }
+  })
+
   it('mounts ranking lazily and drill-down sets user filter then jumps back to usage tab', async () => {
     const wrapper = mount(UsageView, {
       global: { stubs: {
@@ -885,8 +915,8 @@ describe('admin UsageView ranking tab', () => {
     expect(wrapper.find('[data-test="ranking"]').exists()).toBe(false)
 
     const tabs = wrapper.findAll('[data-testid="usage-detail-tab"]')
-    expect(tabs).toHaveLength(3)
-    await tabs[2].trigger('click')
+    expect(tabs).toHaveLength(5)
+    await tabs.find(tab => tab.text() === 'usage.tabs.ranking')!.trigger('click')
     await flushPromises()
     expect(wrapper.find('[data-test="ranking"]').exists()).toBe(true)
 

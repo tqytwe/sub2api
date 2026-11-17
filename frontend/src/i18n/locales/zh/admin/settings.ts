@@ -1368,6 +1368,10 @@ export default {
         label: '向用户展示缓存率',
         description: '开启后，用户可在自己的使用记录和导出中查看缓存率。',
       },
+      long_context_badge: {
+        label: '显示长上下文计费标记',
+        description: '在使用记录的费用旁显示长上下文倍率标记；仅控制展示，不改变实际计费。',
+      },
       saveSettings: '保存设置',
       saving: '保存中...',
       settingsSaved: '设置保存成功',

@@ -770,6 +770,7 @@ export interface SystemSettings {
   allow_user_view_error_requests: boolean;
   usage_show_cache_rate: boolean;
   usage_show_cache_rate_to_users: boolean;
+  usage_show_long_context_badge: boolean;
 }
 
 export interface UpdateSettingsRequest {
@@ -1095,6 +1096,7 @@ export interface UpdateSettingsRequest {
   allow_user_view_error_requests?: boolean;
   usage_show_cache_rate?: boolean;
   usage_show_cache_rate_to_users?: boolean;
+  usage_show_long_context_badge?: boolean;
 }
 
 /**

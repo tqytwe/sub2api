@@ -4,9 +4,23 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/Wei-Shaw/sub2api/internal/pkg/requesttiming"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/stretchr/testify/require"
 )
+
+func TestUsageContentTimingRemainsAdminOnly(t *testing.T) {
+	observation := requesttiming.UnknownContentObservation()
+	log := &service.UsageLog{ContentTiming: &observation, QueueTiming: &requesttiming.QueueObservation{Status: "measured"}}
+	user, err := json.Marshal(UsageLogFromService(log))
+	require.NoError(t, err)
+	require.NotContains(t, string(user), "content_timing")
+	require.NotContains(t, string(user), "queue_timing")
+	admin, err := json.Marshal(UsageLogFromServiceAdmin(log))
+	require.NoError(t, err)
+	require.Contains(t, string(admin), "\"content_timing\"")
+	require.Contains(t, string(admin), "\"queue_timing\"")
+}
 
 func TestUsageLogFromService_IncludesOpenAIWSMode(t *testing.T) {
 	t.Parallel()

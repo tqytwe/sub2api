@@ -120,11 +120,14 @@ const localeLoaders: Record<LocaleCode, Record<LocaleLoadScope, LocaleLoader>> =
       return { default: mergeLocaleMessages(legacy.default, adminMessages(module.default)) }
     },
     'admin-ops': async () => {
-      const [module, legacy] = await Promise.all([
+      const [module, legacy, requestTiming, connections, latencyObservability] = await Promise.all([
         import('./locales/en/admin/ops'),
         import('./locales/en/legacy/admin-ops'),
+        import('./locales/en/requestTiming'),
+        import('./locales/en/connections'),
+        import('./locales/en/latencyObservability'),
       ])
-      return { default: mergeLocaleMessages(legacy.default, adminMessages(module.default)) }
+      return { default: mergeLocaleMessages(mergeLocaleMessages(legacy.default, adminMessages(module.default)), { requestTiming: requestTiming.default, connections: connections.default, latencyObservability: latencyObservability.default }) }
     },
     'admin-play': async () => {
       const [module, legacy] = await Promise.all([
@@ -242,11 +245,14 @@ const localeLoaders: Record<LocaleCode, Record<LocaleLoadScope, LocaleLoader>> =
       return { default: mergeLocaleMessages(legacy.default, adminMessages(module.default)) }
     },
     'admin-ops': async () => {
-      const [module, legacy] = await Promise.all([
+      const [module, legacy, requestTiming, connections, latencyObservability] = await Promise.all([
         import('./locales/zh/admin/ops'),
         import('./locales/zh/legacy/admin-ops'),
+        import('./locales/zh/requestTiming'),
+        import('./locales/zh/connections'),
+        import('./locales/zh/latencyObservability'),
       ])
-      return { default: mergeLocaleMessages(legacy.default, adminMessages(module.default)) }
+      return { default: mergeLocaleMessages(mergeLocaleMessages(legacy.default, adminMessages(module.default)), { requestTiming: requestTiming.default, connections: connections.default, latencyObservability: latencyObservability.default }) }
     },
     'admin-play': async () => {
       const [module, legacy] = await Promise.all([

@@ -4,6 +4,7 @@ import vue from '@vitejs/plugin-vue'
 
 export default defineConfig({
   plugins: [vue()],
+  define: { __INTLIFY_JIT_COMPILATION__: true },
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src'),

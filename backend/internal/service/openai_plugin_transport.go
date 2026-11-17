@@ -1,8 +1,11 @@
 package service
 
 import (
-	"github.com/Wei-Shaw/sub2api/internal/requestledger"
 	"net/http"
+
+	"github.com/Wei-Shaw/sub2api/internal/pkg/requesttiming"
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
+	"github.com/Wei-Shaw/sub2api/internal/util/transportdiag"
 )
 
 func (s *OpenAIGatewayService) SetPluginManager(manager *PluginManager) {
@@ -12,11 +15,21 @@ func (s *OpenAIGatewayService) SetPluginManager(manager *PluginManager) {
 // doOpenAIUpstream 只在 OpenAI OAuth 能力绑定已启用时把真实请求交给插件。
 // 插件返回标准 http.Response，响应解析、错误映射、SSE 和计费仍由现有核心链处理。
 func (s *OpenAIGatewayService) doOpenAIUpstream(request *http.Request, proxyURL string, account *Account) (response *http.Response, err error) {
+	proxyID := int64(0)
+	if account.ProxyID != nil {
+		proxyID = *account.ProxyID
+	}
+	request, trace := requesttiming.StartAttempt(request, account.ID, proxyID)
+	defer func() { trace.Response(response, err) }()
 	defer func() { s.rateLimitService.observeQualityResponse(request.Context(), account, response, err) }()
 	request = request.WithContext(requestledger.WithAccount(request.Context(), account.ID, ledgerCredentialAccountID(account)))
 	if s.pluginManager != nil {
 		response, handled, err := s.pluginManager.RoundTripOpenAIOAuth(request.Context(), request, proxyURL, account)
 		if handled {
+			// The host can observe the plugin boundary, but cannot measure the
+			// network calls performed inside the plugin process.
+			requesttiming.SetRoute(request.Context(), transportdiag.Route{Downstream: "http", Upstream: "plugin", Mode: "plugin", Endpoint: transportdiag.EndpointCategory(request.URL.Path)})
+			trace.Headers(response)
 			return response, err
 		}
 	}

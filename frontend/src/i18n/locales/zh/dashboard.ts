@@ -494,6 +494,7 @@ export default {
     duration: '耗时',
     latency: '延迟',
     outputTps: '平均 TPS',
+    timingDetails: '请求耗时详情',
     outputTpsHelp: '查看平均 TPS 口径',
     latencyCacheRate: '缓存率',
     latencyCacheRateHint: '缓存率 = 缓存读取 {read} ÷（输入 {input} + 缓存读取 {read} + 缓存写入 {write}）。与渠道监控和用量趋势同一口径。',
