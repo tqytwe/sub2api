@@ -124,8 +124,8 @@ describe('SubscriptionPlanDecisionShelf', () => {
 			props: { plans: [planFixture(1, { request_limit: 10000, amount_limit_usd: 700, token_limit: 100000000 })] },
 			global: { plugins: [i18n] },
 		})
-		expect(wrapper.text()).toContain('payment.planCard.requestLimit')
-		expect(wrapper.text()).toContain('payment.planCard.amountLimit')
-		expect(wrapper.text()).toContain('payment.planCard.tokenLimit')
+		expect(wrapper.text()).toContain('Requests')
+		expect(wrapper.text()).toContain('Amount')
+		expect(wrapper.text()).toContain('Tokens')
 	})
 })

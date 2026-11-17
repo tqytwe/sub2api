@@ -45,7 +45,7 @@
         </template>
 
         <template #cell-api_key="{ row }">
-          <span class="text-sm text-gray-900 dark:text-white">{{ row.api_key?.name || '-' }}</span>
+          <UsageApiKeyName :name="row.api_key?.name" />
         </template>
 
         <template #cell-account="{ row }">
@@ -203,15 +203,22 @@
               </div>
             </div>
             <!-- Token Detail Tooltip -->
-            <div
-              class="group relative"
-              @mouseenter="showTokenTooltip($event, row)"
-              @mouseleave="hideTokenTooltip"
+            <button
+              type="button"
+              data-testid="usage-token-help"
+              class="group inline-flex h-11 w-11 shrink-0 items-center justify-center rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 md:h-8 md:w-8"
+              :aria-label="t('usage.tokenDetails')"
+              :aria-expanded="tokenTooltipVisible && tokenTooltipData?.id === row.id"
+              @mouseenter="!isMobile && showTokenTooltip($event, row)"
+              @mouseleave="!isMobile && scheduleTokenClose()"
+              @focus="!isMobile && showTokenTooltip($event, row)"
+              @blur="!isMobile && scheduleTokenClose()"
+              @click="showTokenTooltip($event, row)"
             >
               <div class="flex h-4 w-4 cursor-help items-center justify-center rounded-full bg-gray-100 transition-colors group-hover:bg-blue-100 dark:bg-gray-700 dark:group-hover:bg-blue-900/50">
                 <Icon name="infoCircle" size="xs" class="text-gray-400 group-hover:text-blue-500 dark:text-gray-500 dark:group-hover:text-blue-400" />
               </div>
-            </div>
+            </button>
           </div>
         </template>
 
@@ -220,21 +227,27 @@
             <div class="flex items-center gap-1.5">
               <span class="font-medium text-green-600 dark:text-green-400">${{ row.actual_cost?.toFixed(6) || '0.000000' }}</span>
               <span
-                v-if="row.long_context_billing_applied"
+                v-if="showLongContextBadge && row.long_context_billing_applied"
                 data-testid="long-context-billing-marker"
                 class="inline-flex items-center rounded px-1 py-px text-[10px] font-semibold leading-tight bg-amber-100 text-amber-700 ring-1 ring-inset ring-amber-200 dark:bg-amber-500/20 dark:text-amber-300 dark:ring-amber-500/30"
               >x2</span>
               <!-- Cost Detail Tooltip -->
-              <div
-                class="group relative"
+              <button
+                type="button"
+                class="group inline-flex h-11 w-11 shrink-0 items-center justify-center rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 md:h-8 md:w-8"
                 data-testid="usage-cost-help"
-                @mouseenter="showTooltip($event, row)"
-                @mouseleave="hideTooltip"
+                :aria-label="t('usage.costDetails')"
+                :aria-expanded="tooltipVisible && tooltipData?.id === row.id"
+                @mouseenter="!isMobile && showTooltip($event, row)"
+                @mouseleave="!isMobile && scheduleCostClose()"
+                @focus="!isMobile && showTooltip($event, row)"
+                @blur="!isMobile && scheduleCostClose()"
+                @click="showTooltip($event, row)"
               >
                 <div class="flex h-4 w-4 cursor-help items-center justify-center rounded-full bg-gray-100 transition-colors group-hover:bg-blue-100 dark:bg-gray-700 dark:group-hover:bg-blue-900/50">
                   <Icon name="infoCircle" size="xs" class="text-gray-400 group-hover:text-blue-500 dark:text-gray-500 dark:group-hover:text-blue-400" />
                 </div>
-              </div>
+              </button>
             </div>
             <div v-if="showAccountBilling && row.account_rate_multiplier != null" class="mt-0.5 text-[11px] text-orange-500 dark:text-orange-400">
               A ${{ accountBilled(row).toFixed(6) }}
@@ -245,11 +258,9 @@
         <!-- 合并首字/总耗时的健康度列：左侧色条上端随首字档、下端随总耗时档，中段(40%-60%)短渐变过渡，便于纵向扫视整体健康状况 -->
         <template #cell-latency="{ row }">
           <div class="flex items-stretch gap-2">
-            <span
-              class="w-1 shrink-0 rounded-full"
-              :class="row.first_token_ms != null
-                ? ['bg-gradient-to-b from-40% to-60%', LATENCY_BAR_FROM_CLASSES[firstTokenSeverity(row.first_token_ms)], LATENCY_BAR_TO_CLASSES[durationSeverity(row.duration_ms ?? 0)]]
-                : LATENCY_BAR_CLASSES[durationSeverity(row.duration_ms ?? 0)]"
+            <!-- design-governance-allow: decorative-gradient - existing latency health chart uses three measured severity segments, not decoration. -->
+            <span class="w-1 shrink-0 rounded-full bg-gradient-to-b from-20% via-50% to-80%"
+              :class="latencyBarClasses(row)"
               aria-hidden="true"
             ></span>
             <div class="grid grid-cols-[max-content_max-content] items-baseline gap-x-2 gap-y-0.5 text-xs">
@@ -271,7 +282,10 @@
                   </template>
                 </HelpTooltip>
               </span>
-              <span data-testid="usage-output-tps" class="font-medium tabular-nums text-gray-600 dark:text-gray-300">{{ formatUsageOutputTps(row) ?? '—' }}</span>
+              <span data-testid="usage-output-tps" class="font-medium tabular-nums" :class="usageOutputTps(row) == null ? 'text-gray-400 dark:text-gray-500' : LATENCY_TEXT_CLASSES[tpsSeverity(usageOutputTps(row)!)]">{{ formatUsageOutputTps(row) ?? '—' }}</span>
+              <button v-if="enableTimingDetails" type="button" data-testid="usage-timing-details" class="col-span-2 mt-1 inline-flex min-h-8 items-center gap-1 rounded text-primary-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 dark:text-primary-400" @click="timingRecord = row">
+                <Icon name="chart" size="xs" />{{ t('usage.timingDetails') }}
+              </button>
             </div>
           </div>
         </template>
@@ -335,16 +349,8 @@
   </div>
 
   <!-- Token Tooltip Portal -->
-  <Teleport to="body">
-    <div
-      v-if="tokenTooltipVisible"
-      class="fixed z-[9999] pointer-events-none -translate-y-1/2"
-      :style="{
-        left: tokenTooltipPosition.x + 'px',
-        top: tokenTooltipPosition.y + 'px'
-      }"
-    >
-      <div class="whitespace-nowrap rounded-lg border border-gray-700 bg-gray-900 px-3 py-2.5 text-xs text-white shadow-xl dark:border-gray-600 dark:bg-gray-800">
+  <UsageDetailPopover :show="tokenTooltipVisible" :anchor="tokenAnchor" :title="t('usage.tokenDetails')" @close="hideTokenTooltip" @mouseenter="cancelTokenClose" @mouseleave="scheduleTokenClose">
+      <div ref="tokenPanel" data-testid="usage-token-tooltip" class="w-max max-w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2.5 text-xs text-white shadow-xl dark:border-gray-600 dark:bg-gray-800">
         <div class="space-y-1.5">
           <div>
             <div class="text-xs font-semibold text-gray-300 mb-1">{{ t('usage.tokenDetails') }}</div>
@@ -413,23 +419,12 @@
             <span class="font-semibold text-blue-400">{{ ((tokenTooltipData?.input_tokens || 0) + (tokenTooltipData?.output_tokens || 0) + (tokenTooltipData?.cache_creation_tokens || 0) + (tokenTooltipData?.cache_read_tokens || 0)).toLocaleString() }}</span>
           </div>
         </div>
-        <div class="absolute right-full top-1/2 h-0 w-0 -translate-y-1/2 border-b-[6px] border-r-[6px] border-t-[6px] border-b-transparent border-r-gray-900 border-t-transparent dark:border-r-gray-800"></div>
       </div>
-    </div>
-  </Teleport>
+  </UsageDetailPopover>
 
   <!-- Cost Tooltip Portal -->
-  <Teleport to="body">
-    <div
-      v-if="tooltipVisible"
-      data-testid="usage-cost-tooltip"
-      class="fixed z-[9999] pointer-events-none -translate-y-1/2"
-      :style="{
-        left: tooltipPosition.x + 'px',
-        top: tooltipPosition.y + 'px'
-      }"
-    >
-      <div class="whitespace-nowrap rounded-lg border border-gray-700 bg-gray-900 px-3 py-2.5 text-xs text-white shadow-xl dark:border-gray-600 dark:bg-gray-800">
+  <UsageDetailPopover :show="tooltipVisible" :anchor="costAnchor" :title="t('usage.costDetails')" @close="hideTooltip" @mouseenter="cancelCostClose" @mouseleave="scheduleCostClose">
+      <div ref="costPanel" data-testid="usage-cost-tooltip" class="w-max max-w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2.5 text-xs text-white shadow-xl dark:border-gray-600 dark:bg-gray-800">
         <div class="space-y-1.5">
           <!-- Cost Breakdown -->
           <div class="mb-2 border-b border-gray-700 pb-1.5">
@@ -575,30 +570,31 @@
             </div>
           </template>
         </div>
-        <div class="absolute right-full top-1/2 h-0 w-0 -translate-y-1/2 border-b-[6px] border-r-[6px] border-t-[6px] border-b-transparent border-r-gray-900 border-t-transparent dark:border-r-gray-800"></div>
       </div>
-    </div>
-  </Teleport>
+  </UsageDetailPopover>
+  <UsageTimingDialog v-if="enableTimingDetails" :record="timingRecord" @close="timingRecord = null" />
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, defineAsyncComponent, ref } from 'vue'
+import { onClickOutside, onKeyStroke, useEventListener, useTimeoutFn, useWindowSize } from '@vueuse/core'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import { formatDateTime, formatReasoningEffort, reasoningEffortValuesEqual } from '@/utils/format'
 import { formatCacheTokens, formatMultiplier } from '@/utils/formatters'
 import { formatTokenPricePerMillion } from '@/utils/usagePricing'
 import { getUsageServiceTierLabel } from '@/utils/usageServiceTier'
-import { formatUsageOutputTps } from '@/utils/usageTps'
+import { formatUsageOutputTps, usageOutputTps } from '@/utils/usageTps'
 import { formatUsageCacheRate, showUsageCacheRate, usageCacheRateParts, type UsageCacheRateAudience } from '@/utils/usageCacheRate'
 import { resolveUsageRequestType } from '@/utils/usageRequestType'
 import {
-  LATENCY_BAR_CLASSES,
   LATENCY_BAR_FROM_CLASSES,
+  LATENCY_BAR_VIA_CLASSES,
   LATENCY_BAR_TO_CLASSES,
   LATENCY_TEXT_CLASSES,
   durationSeverity,
   firstTokenSeverity,
+  tpsSeverity,
 } from '@/utils/latencyHealth'
 import {
   BILLING_MODE_TOKEN,
@@ -641,6 +637,9 @@ function videoBillingUnits(row: Pick<AdminUsageLog, 'video_count' | 'video_durat
 
 
 import DataTable from '@/components/common/DataTable.vue'
+import UsageApiKeyName from './UsageApiKeyName.vue'
+import UsageDetailPopover from './UsageDetailPopover.vue'
+const UsageTimingDialog = defineAsyncComponent(() => import('./UsageTimingDialog.vue'))
 import HelpTooltip from '@/components/common/HelpTooltip.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import IpGeoCell from '@/components/common/IpGeoCell.vue'
@@ -659,6 +658,7 @@ interface Props {
   showAccountBilling?: boolean
   showUpstreamEndpoint?: boolean
   cacheRateAudience?: UsageCacheRateAudience
+  enableTimingDetails?: boolean
   /** 嵌入统一卡片内使用：去掉自身卡片外观 */
   flat?: boolean
 }
@@ -671,6 +671,7 @@ const props = withDefaults(defineProps<Props>(), {
   showAccountBilling: true,
   showUpstreamEndpoint: true,
   cacheRateAudience: 'admin',
+  enableTimingDetails: false,
   flat: false
 })
 const emit = defineEmits<{
@@ -681,6 +682,13 @@ const emit = defineEmits<{
 const { t } = useI18n()
 const appStore = useAppStore()
 const showCacheRate = computed(() => showUsageCacheRate(appStore.cachedPublicSettings, props.cacheRateAudience))
+const showLongContextBadge = computed(() => appStore.cachedPublicSettings?.usage_show_long_context_badge !== false)
+const timingRecord = ref<AdminUsageLog | null>(null)
+function latencyBarClasses(row: AdminUsageLog) {
+  const total = durationSeverity(row.duration_ms ?? 0)
+  const tps = usageOutputTps(row)
+  return [LATENCY_BAR_FROM_CLASSES[row.first_token_ms != null ? firstTokenSeverity(row.first_token_ms) : total], LATENCY_BAR_VIA_CLASSES[total], LATENCY_BAR_TO_CLASSES[tps == null ? total : tpsSeverity(tps)]]
+}
 
 function cacheRateTitle(row: AdminUsageLog): string {
   const parts = usageCacheRateParts(row)
@@ -765,13 +773,30 @@ const copyUpstreamRequestId = (upstreamRequestId: string) =>
 
 // Tooltip state - cost
 const tooltipVisible = ref(false)
-const tooltipPosition = ref({ x: 0, y: 0 })
 const tooltipData = ref<AdminUsageLog | null>(null)
+const costAnchor = ref<DOMRect | null>(null)
+const costTrigger = ref<HTMLElement | null>(null)
+const costPanel = ref<HTMLElement | null>(null)
 
 // Tooltip state - token
 const tokenTooltipVisible = ref(false)
-const tokenTooltipPosition = ref({ x: 0, y: 0 })
 const tokenTooltipData = ref<AdminUsageLog | null>(null)
+const tokenAnchor = ref<DOMRect | null>(null)
+const tokenTrigger = ref<HTMLElement | null>(null)
+const tokenPanel = ref<HTMLElement | null>(null)
+const { width } = useWindowSize()
+const isMobile = computed(() => width.value < 768)
+const { start: scheduleCostClose, stop: cancelCostClose } = useTimeoutFn(hideTooltip, 120, { immediate: false })
+const { start: scheduleTokenClose, stop: cancelTokenClose } = useTimeoutFn(hideTokenTooltip, 120, { immediate: false })
+onClickOutside(costTrigger, hideTooltip, { ignore: [costPanel] })
+onClickOutside(tokenTrigger, hideTokenTooltip, { ignore: [tokenPanel] })
+onKeyStroke('Escape', () => { hideTooltip(); hideTokenTooltip() })
+function updateAnchors() {
+  if (tooltipVisible.value && costTrigger.value) costAnchor.value = costTrigger.value.getBoundingClientRect()
+  if (tokenTooltipVisible.value && tokenTrigger.value) tokenAnchor.value = tokenTrigger.value.getBoundingClientRect()
+}
+useEventListener(window, 'scroll', updateAnchors, { capture: true, passive: true })
+useEventListener(window, 'resize', updateAnchors)
 
 const getRequestTypeLabel = (row: AdminUsageLog): string => {
   const requestType = resolveUsageRequestType(row)
@@ -810,32 +835,32 @@ const formatDuration = (ms: number | null | undefined): string => {
 }
 
 // Cost tooltip functions
-const showTooltip = (event: MouseEvent, row: AdminUsageLog) => {
-  const target = event.currentTarget as HTMLElement
-  const rect = target.getBoundingClientRect()
+const showTooltip = (event: Event, row: AdminUsageLog) => {
+  cancelCostClose()
+  hideTokenTooltip()
+  costTrigger.value = event.currentTarget as HTMLElement
   tooltipData.value = row
-  tooltipPosition.value.x = rect.right + 8
-  tooltipPosition.value.y = rect.top + rect.height / 2
   tooltipVisible.value = true
+  updateAnchors()
 }
 
-const hideTooltip = () => {
+function hideTooltip() {
+  cancelCostClose()
   tooltipVisible.value = false
-  tooltipData.value = null
 }
 
 // Token tooltip functions
-const showTokenTooltip = (event: MouseEvent, row: AdminUsageLog) => {
-  const target = event.currentTarget as HTMLElement
-  const rect = target.getBoundingClientRect()
+const showTokenTooltip = (event: Event, row: AdminUsageLog) => {
+  cancelTokenClose()
+  hideTooltip()
+  tokenTrigger.value = event.currentTarget as HTMLElement
   tokenTooltipData.value = row
-  tokenTooltipPosition.value.x = rect.right + 8
-  tokenTooltipPosition.value.y = rect.top + rect.height / 2
   tokenTooltipVisible.value = true
+  updateAnchors()
 }
 
-const hideTokenTooltip = () => {
+function hideTokenTooltip() {
+  cancelTokenClose()
   tokenTooltipVisible.value = false
-  tokenTooltipData.value = null
 }
 </script>

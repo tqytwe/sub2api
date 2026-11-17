@@ -119,7 +119,7 @@ describe("SubscriptionPlanCard", () => {
     });
 
     const badges = wrapper.findAll('[data-test="plan-storefront-badge"]').map(node => node.text());
-    expect(badges).toContain("payment.planCard.featured");
+    expect(badges).toContain("Recommended");
     expect(badges).toContain("Hot");
     expect(wrapper.text()).toContain("Image");
   });
@@ -152,18 +152,17 @@ describe("SubscriptionPlanCard", () => {
   });
 
   // Issue 4607：管理端保存的单位是复数（months/weeks），此前用户侧只匹配单数
-  // 'month'，「1 个月」的套餐卡片被显示成「1天」。测试环境的 vue-i18n 为
-  // runtime-only 构建，t() 原样返回 key，故按 key 断言单位分支。
+  // 'month'，「1 个月」的套餐卡片被显示成「1天」。按真实翻译后的单位断言。
   it("renders plural admin-form validity units instead of mislabeled days (issue 4607)", () => {
-    expect(mountPlanCard("openai", { validity_days: 1, validity_unit: "months" }).text()).toContain("/ payment.perMonth");
-    expect(mountPlanCard("openai", { validity_days: 3, validity_unit: "months" }).text()).toContain("/ 3payment.months");
-    expect(mountPlanCard("openai", { validity_days: 2, validity_unit: "weeks" }).text()).toContain("/ 2payment.weeks");
-    expect(mountPlanCard("openai", { validity_days: 30, validity_unit: "day" }).text()).toContain("/ 30payment.days");
+    expect(mountPlanCard("openai", { validity_days: 1, validity_unit: "months" }).text()).toContain("/ month");
+    expect(mountPlanCard("openai", { validity_days: 3, validity_unit: "months" }).text()).toContain("/ 3months");
+    expect(mountPlanCard("openai", { validity_days: 2, validity_unit: "weeks" }).text()).toContain("/ 2weeks");
+    expect(mountPlanCard("openai", { validity_days: 30, validity_unit: "day" }).text()).toContain("/ 30days");
   });
 
   it("preserves legacy yearly validity labels", () => {
-    expect(mountPlanCard("openai", { validity_days: 1, validity_unit: "year" }).text()).toContain("/ payment.perYear");
-    expect(mountPlanCard("openai", { validity_days: 2, validity_unit: "years" }).text()).toContain("/ 2payment.years");
+    expect(mountPlanCard("openai", { validity_days: 1, validity_unit: "year" }).text()).toContain("/ year");
+    expect(mountPlanCard("openai", { validity_days: 2, validity_unit: "years" }).text()).toContain("/ 2years");
   });
 
   it("uses the configured currency symbol while preserving USD for legacy plans", () => {
@@ -182,7 +181,7 @@ describe("SubscriptionPlanCard", () => {
       monthly_limit_usd: 249,
     }).text();
 
-    expect(text).toContain("payment.planCard.monthlyLimit");
+    expect(text).toContain("Monthly limit");
     expect(text).toContain("$249");
     expect(text).not.toContain("Daily limit$0");
     expect(text).not.toContain("Weekly limit$0");
@@ -229,11 +228,11 @@ describe("SubscriptionPlanCard", () => {
       "items-center",
       "justify-end",
     ]));
-    expect(badge?.element.parentElement?.textContent).toContain("/ 30payment.days");
+    expect(badge?.element.parentElement?.textContent).toContain("/ 30days");
     expect(badge?.element.parentElement?.parentElement?.classList).toContain("shrink-0");
     expect(price?.element.parentElement?.parentElement?.classList).toContain("shrink-0");
     expect(wrapper.get("p").text()).toBe("Includes advanced models and priority support.");
-    expect(wrapper.get("button").text()).toBe("payment.subscribeNow");
+    expect(wrapper.get("button").text()).toBe("Subscribe now");
   });
 
   it("keeps short plan titles compact and aligned", () => {
@@ -249,6 +248,6 @@ describe("SubscriptionPlanCard", () => {
       "items-center",
       "justify-end",
     ]));
-    expect(badge?.element.parentElement?.textContent).toContain("/ 30payment.days");
+    expect(badge?.element.parentElement?.textContent).toContain("/ 30days");
   });
 });

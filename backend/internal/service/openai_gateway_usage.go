@@ -623,6 +623,11 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	if frozen != nil {
 		// The durable observation owns pending visibility; Apply owns the settled
 		// projection. A legacy tail INSERT would race recovery after lease release.
+		if recorder, ok := s.usageLogRepo.(interface {
+			RecordRequestTiming(context.Context, string, int64)
+		}); ok {
+			recorder.RecordRequestTiming(ctx, requestID, apiKey.ID)
+		}
 		return billingErr
 	}
 

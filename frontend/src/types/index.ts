@@ -348,6 +348,7 @@ export interface PublicSettings {
   /** Per-record cache rate defaults on; end-user visibility defaults off. */
   usage_show_cache_rate?: boolean
   usage_show_cache_rate_to_users?: boolean
+  usage_show_long_context_badge?: boolean
 }
 
 export interface AuthResponse {
@@ -1909,6 +1910,16 @@ export interface UsageLogAccountSummary {
 }
 
 export interface AdminUsageLog extends UsageLog {
+  queue_timing?: {
+    status: string; source: string; scope: string; queue_clamped: boolean
+    server_first_token_ms: number | null; server_duration_ms: number
+    forward_first_token_ms: number | null; forward_duration_ms: number
+  } | null
+  content_timing?: {
+    sse_event_first_ms?: number | null; semantic_first_ms?: number | null
+    reasoning_first_ms: number | null; visible_text_first_ms: number | null; response_byte_first_ms: number | null
+    status: string; source: string; scope: string; reasoning_streaming_capability: string; capability_source: string
+  }
   upstream_model?: string | null
   upstream_reasoning_effort?: string | null
   upstream_response_model?: string | null

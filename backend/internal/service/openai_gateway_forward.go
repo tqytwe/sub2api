@@ -15,12 +15,26 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/openai"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/openai_compat"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/requesttiming"
 	"github.com/gin-gonic/gin"
 	"github.com/tidwall/gjson"
 )
 
 // Forward forwards request to OpenAI API
-func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, account *Account, body []byte) (_ *OpenAIForwardResult, forwardErr error) {
+func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, account *Account, body []byte) (result *OpenAIForwardResult, forwardErr error) {
+	requesttiming.Mark(ctx, "forward_start")
+	defer func() {
+		outcome := "success"
+		if forwardErr != nil {
+			outcome = "failed"
+		}
+		disconnected := result != nil && result.ClientDisconnect
+		if disconnected {
+			outcome = "client_disconnected"
+		}
+		requesttiming.Outcome(ctx, outcome, disconnected)
+	}()
+	defer requesttiming.Observe(ctx, "forward_attempt")()
 	body = s.normalizeRequestTimezone(ctx, account, body, "http")
 	// Cover both predicate and later credential/transport admission failures once.
 	ctx = context.WithValue(ctx, openAITurnAdmissionLogAtForwardBoundaryKey{}, true)
@@ -822,7 +836,9 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 
 	// 命中 WS 时仅走 WebSocket Mode；不再自动回退 HTTP。
 	if wsDecision.Transport == OpenAIUpstreamTransportResponsesWebsocketV2 {
+		credentialsDone := requesttiming.Observe(ctx, "upstream_credentials")
 		token, _, err := s.GetAccessToken(ctx, account)
+		credentialsDone()
 		if err != nil {
 			return nil, err
 		}
@@ -1086,7 +1102,9 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 		if _, err := s.prepareCodexAccountIdentitySource(ctx, c, account); err != nil {
 			return nil, err
 		}
+		credentialsDone := requesttiming.Observe(ctx, "upstream_credentials")
 		token, _, err := s.GetAccessToken(ctx, account)
+		credentialsDone()
 		if err != nil {
 			return nil, err
 		}
@@ -1281,11 +1299,12 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 		defer func() { _ = resp.Body.Close() }()
 
 		if mapping, ok := openAIResponsesClientToolMapping(c); ok && isEventStreamResponse(resp.Header) {
+			ctx = requesttiming.ResponseContext(ctx, resp)
 			maxLineSize := defaultMaxLineSize
 			if s.cfg != nil && s.cfg.Gateway.MaxLineSize > 0 {
 				maxLineSize = s.cfg.Gateway.MaxLineSize
 			}
-			resp.Body = newResponsesClientToolStreamBody(resp.Body, mapping, maxLineSize)
+			resp.Body = newResponsesClientToolStreamBody(resp.Body, mapping, maxLineSize, ctx)
 		}
 
 		serviceTier := extractOpenAIServiceTierFromBody(body)
@@ -1297,6 +1316,7 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 		// Preserve the first metered attempt and its exact error before compact replay.
 		var forwardErr error
 		var firstTokenMs *int
+		clientDisconnected := false
 		responseID := ""
 		imageCount := 0
 		searchCount := 0
@@ -1305,6 +1325,7 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 			streamResult, err := s.handleStreamingResponseWithReasoning(ctx, resp, c, account, startTime, originalModel, upstreamModel, reasoningEffortValue)
 			forwardErr = err
 			if streamResult != nil {
+				clientDisconnected = streamResult.clientDisconnect
 				usage = streamResult.usage
 				firstTokenMs = streamResult.firstTokenMs
 				responseID = strings.TrimSpace(streamResult.responseID)
@@ -1414,6 +1435,7 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 			OpenAIWSMode:                  false,
 			Duration:                      time.Since(startTime),
 			FirstTokenMs:                  firstTokenMs,
+			ClientDisconnect:              clientDisconnected,
 		}
 		if imageCount > 0 {
 			forwardResult.ImageCount = imageCount
@@ -1468,6 +1490,7 @@ func shouldForwardOpenAIResponsesViaRawChatCompletions(account *Account) bool {
 }
 
 func (s *OpenAIGatewayService) buildUpstreamRequest(ctx context.Context, c *gin.Context, account *Account, body []byte, token string, isStream bool, promptCacheKey string, isCodexCLI bool) (*http.Request, error) {
+	defer requesttiming.Observe(ctx, "build_upstream_request")()
 	// Determine target URL based on account type
 	var targetURL string
 	switch account.Type {

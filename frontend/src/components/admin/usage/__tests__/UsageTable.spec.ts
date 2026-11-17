@@ -18,7 +18,7 @@ vi.mock('@/stores/app', async () => {
 })
 
 import { describe, expect, it, vi, beforeEach } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 
 import UsageTable from '../UsageTable.vue'
@@ -139,6 +139,62 @@ const baseImageRow = {
 }
 
 describe('admin UsageTable tooltip', () => {
+  it('colors TPS from the authoritative value and leaves unavailable TPS neutral', () => {
+    const wrapper = mount(UsageTable, {
+      props: { data: [20, 15, 9, null].map((output_tps, i) => ({ ...baseImageRow, request_id: `health-${i}`, output_tps })) as any, columns: [] },
+      global: { stubs: { DataTable: DataTableStub } },
+    })
+    const cells = wrapper.findAll('[data-testid="usage-output-tps"]')
+    expect(cells[0].classes()).toContain('text-emerald-600')
+    expect(cells[1].classes()).toContain('text-amber-600')
+    expect(cells[2].classes()).toContain('text-red-600')
+    expect(cells[3].text()).toBe('—')
+    expect(cells[3].classes()).toContain('text-gray-400')
+    wrapper.unmount()
+  })
+
+  it('hides the long-context badge without changing cost when its public flag is off', async () => {
+    const store = useAppStore()
+    store.cachedPublicSettings = { usage_show_long_context_badge: false } as any
+    const wrapper = mount(UsageTable, {
+      props: { data: [{ ...baseImageRow, long_context_billing_applied: true }] as any, columns: [] },
+      global: { stubs: { DataTable: DataTableStub } },
+    })
+    try {
+      expect(wrapper.find('[data-testid="long-context-billing-marker"]').exists()).toBe(false)
+      expect(wrapper.text()).toContain('$0.400000')
+      store.cachedPublicSettings = { usage_show_long_context_badge: true } as any
+      await nextTick()
+      expect(wrapper.get('[data-testid="long-context-billing-marker"]').text()).toBe('x2')
+    } finally { wrapper.unmount(); store.cachedPublicSettings = {} as any }
+  })
+
+  it('opens token and cost details by keyboard and keeps touch details open until dismissed', async () => {
+    const resize = async (width: number) => {
+      Object.defineProperty(window, 'innerWidth', { value: width, configurable: true })
+      window.dispatchEvent(new Event('resize'))
+      await flushPromises()
+    }
+    await resize(1024)
+    const wrapper = mount(UsageTable, {
+      attachTo: document.body,
+      props: { data: [{ ...baseImageRow, id: 7, billing_mode: 'token', image_count: 0, input_tokens: 55, output_tokens: 22 }] as any, columns: [] },
+      global: { stubs: { DataTable: DataTableStub, transition: true } },
+    })
+    try {
+      const token = wrapper.get('[data-testid="usage-token-help"]')
+      await token.trigger('focus'); await flushPromises()
+      expect(document.body.querySelector('[data-testid="usage-token-tooltip"]')?.textContent).toContain('55')
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); await flushPromises()
+      expect(document.body.querySelector('[data-testid="usage-token-tooltip"]')).toBeNull()
+      await resize(360)
+      const cost = wrapper.get('[data-testid="usage-cost-help"]')
+      await cost.trigger('mouseenter'); await cost.trigger('click'); await cost.trigger('mouseleave'); await flushPromises()
+      expect(document.body.querySelector('[role="dialog"]')?.textContent).toContain('Cost Breakdown')
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); await flushPromises()
+      expect(document.body.querySelector('[role="dialog"]')).toBeNull()
+    } finally { wrapper.unmount(); await resize(1024) }
+  })
   it('applies admin and user cache visibility and distinguishes zero hits from unavailable prompt tokens', async () => {
     const store = useAppStore()
     store.cachedPublicSettings = {} as any

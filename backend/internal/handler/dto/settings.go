@@ -368,6 +368,7 @@ type SystemSettings struct {
 	AllowUserViewErrorRequests bool `json:"allow_user_view_error_requests"`
 	UsageShowCacheRate         bool `json:"usage_show_cache_rate"`
 	UsageShowCacheRateToUsers  bool `json:"usage_show_cache_rate_to_users"`
+	UsageShowLongContextBadge  bool `json:"usage_show_long_context_badge"`
 }
 
 type DefaultSubscriptionSetting struct {
@@ -472,6 +473,7 @@ type PublicSettings struct {
 	AllowUserViewErrorRequests bool `json:"allow_user_view_error_requests"`
 	UsageShowCacheRate         bool `json:"usage_show_cache_rate"`
 	UsageShowCacheRateToUsers  bool `json:"usage_show_cache_rate_to_users"`
+	UsageShowLongContextBadge  bool `json:"usage_show_long_context_badge"`
 }
 
 type LoginAgreementDocument struct {

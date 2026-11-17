@@ -408,6 +408,7 @@ type UpdateSettingsRequest struct {
 	AllowUserViewErrorRequests *bool `json:"allow_user_view_error_requests"`
 	UsageShowCacheRate         *bool `json:"usage_show_cache_rate"`
 	UsageShowCacheRateToUsers  *bool `json:"usage_show_cache_rate_to_users"`
+	UsageShowLongContextBadge  *bool `json:"usage_show_long_context_badge"`
 }
 
 // UpdateSettings 更新系统设置
@@ -1711,6 +1712,12 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			}
 			return previousSettings.UsageShowCacheRate
 		}(),
+		UsageShowLongContextBadge: func() bool {
+			if req.UsageShowLongContextBadge != nil {
+				return *req.UsageShowLongContextBadge
+			}
+			return previousSettings.UsageShowLongContextBadge
+		}(),
 		UsageShowCacheRateToUsers: func() bool {
 			if req.UsageShowCacheRateToUsers != nil {
 				return *req.UsageShowCacheRateToUsers
@@ -2576,6 +2583,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		AllowUserViewErrorRequests:  updatedSettings.AllowUserViewErrorRequests,
 		UsageShowCacheRate:          updatedSettings.UsageShowCacheRate,
 		UsageShowCacheRateToUsers:   updatedSettings.UsageShowCacheRateToUsers,
+		UsageShowLongContextBadge:   updatedSettings.UsageShowLongContextBadge,
 	}
 	if fastPolicy, err := h.settingService.GetOpenAIFastPolicySettings(c.Request.Context()); err != nil {
 		slog.Error("openai_fast_policy_settings_get_failed", "error", err)

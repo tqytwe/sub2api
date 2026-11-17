@@ -4,14 +4,18 @@ import (
 	"context"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/requesttiming"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/stretchr/testify/require"
 )
 
 func TestGatewayBillingIdentitySurvivesDetachedUsageCallbacks(t *testing.T) {
 	parent := context.WithValue(context.Background(), ctxkey.UsageBillingRequestID, "server-request")
+	collector := requesttiming.New(time.Now(), 0)
+	parent = requesttiming.With(parent, collector)
 	parent, cancel := context.WithCancel(parent)
 	cancel()
 	for _, submit := range []func(context.Context, service.UsageRecordTask){
@@ -22,6 +26,7 @@ func TestGatewayBillingIdentitySurvivesDetachedUsageCallbacks(t *testing.T) {
 			submit(parent, func(ctx context.Context) {
 				require.NoError(t, ctx.Err())
 				require.Equal(t, "server-request", ctx.Value(ctxkey.UsageBillingRequestID))
+				require.Same(t, collector, requesttiming.From(ctx))
 			})
 		}
 	}

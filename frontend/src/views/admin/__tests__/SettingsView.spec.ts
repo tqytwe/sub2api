@@ -802,23 +802,27 @@ describe("admin SettingsView payment visible method controls", () => {
   });
 
   it("loads, saves and reloads cache rate visibility, disabling user visibility with the main switch", async () => {
-    getSettings.mockResolvedValueOnce({ ...baseSettingsResponse, usage_show_cache_rate: true, usage_show_cache_rate_to_users: false });
+    getSettings.mockResolvedValueOnce({ ...baseSettingsResponse, usage_show_cache_rate: true, usage_show_cache_rate_to_users: false, usage_show_long_context_badge: true });
     const wrapper = mountView();
     await flushPromises();
     await openGatewayTab(wrapper);
     const main = wrapper.get('[data-testid="usage-show-cache-rate"]');
     const users = wrapper.get('[data-testid="usage-show-cache-rate-to-users"]');
+    const longContext = wrapper.get('[data-testid="usage-show-long-context-badge"]');
+    expect((longContext.element as HTMLInputElement).checked).toBe(true);
+    await longContext.setValue(false);
     expect((main.element as HTMLInputElement).checked).toBe(true);
     expect((users.element as HTMLInputElement).checked).toBe(false);
     await users.setValue(true);
     await wrapper.find('form').trigger('submit.prevent');
     await flushPromises();
-    expect(updateSettings).toHaveBeenLastCalledWith(expect.objectContaining({ usage_show_cache_rate: true, usage_show_cache_rate_to_users: true }));
+    expect(updateSettings).toHaveBeenLastCalledWith(expect.objectContaining({ usage_show_cache_rate: true, usage_show_cache_rate_to_users: true, usage_show_long_context_badge: false }));
     getSettings.mockResolvedValueOnce(updateSettings.mock.calls.at(-1)![0]);
     const reloaded = mountView();
     await flushPromises();
     await openGatewayTab(reloaded);
     expect((reloaded.get('[data-testid="usage-show-cache-rate-to-users"]').element as HTMLInputElement).checked).toBe(true);
+    expect((reloaded.get('[data-testid="usage-show-long-context-badge"]').element as HTMLInputElement).checked).toBe(false);
     await reloaded.get('[data-testid="usage-show-cache-rate"]').setValue(false);
     expect(reloaded.get('[data-testid="usage-show-cache-rate-to-users"]').attributes('disabled')).toBeDefined();
     expect((reloaded.get('[data-testid="usage-show-cache-rate-to-users"]').element as HTMLInputElement).checked).toBe(false);

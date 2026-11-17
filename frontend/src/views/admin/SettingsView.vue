@@ -6111,6 +6111,16 @@
                 <span class="toggle-slider"></span>
               </label>
             </div>
+            <div class="flex items-center justify-between gap-4">
+              <div class="min-w-0">
+                <label for="usage-show-long-context-badge" class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('admin.settings.long_context_badge.label') }}</label>
+                <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('admin.settings.long_context_badge.description') }}</p>
+              </div>
+              <label class="toggle shrink-0">
+                <input id="usage-show-long-context-badge" v-model="form.usage_show_long_context_badge" data-testid="usage-show-long-context-badge" type="checkbox" />
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
           </div>
         </div>
         </div>
@@ -10074,6 +10084,7 @@ const form = reactive<SettingsForm>({
   allow_user_view_error_requests: false,
   usage_show_cache_rate: true,
   usage_show_cache_rate_to_users: false,
+  usage_show_long_context_badge: true,
 });
 
 type CaptchaProviderSelection = "turnstile" | "tencent" | "aliyun";
@@ -12014,6 +12025,7 @@ async function saveSettings() {
       allow_user_view_error_requests: form.allow_user_view_error_requests,
       usage_show_cache_rate: form.usage_show_cache_rate,
       usage_show_cache_rate_to_users: form.usage_show_cache_rate_to_users,
+      usage_show_long_context_badge: form.usage_show_long_context_badge,
     };
 
     // 仅当 openai_fast_policy_settings 已成功从后端加载时才回写，

@@ -532,6 +532,7 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		AllowUserViewErrorRequests: settings.AllowUserViewErrorRequests,
 		UsageShowCacheRate:         settings.UsageShowCacheRate,
 		UsageShowCacheRateToUsers:  settings.UsageShowCacheRateToUsers,
+		UsageShowLongContextBadge:  settings.UsageShowLongContextBadge,
 	}
 
 	// OpenAI fast policy (stored under a dedicated setting key)
