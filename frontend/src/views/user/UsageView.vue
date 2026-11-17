@@ -238,6 +238,7 @@
           :server-side-sort="true"
           :show-account-billing="false"
           :show-upstream-endpoint="false"
+          cache-rate-audience="user"
           default-sort-key="created_at"
           default-sort-order="desc"
           @sort="handleSort"
@@ -286,6 +287,7 @@ import SupportContactPanel from '@/components/common/SupportContactPanel.vue'
 import UsageStatsCards from '@/components/admin/usage/UsageStatsCards.vue'
 import UsageTable from '@/components/admin/usage/UsageTable.vue'
 import { usageOutputTps } from '@/utils/usageTps'
+import { formatUsageCacheRate, showUsageCacheRate } from '@/utils/usageCacheRate'
 import ModelDistributionChart from '@/components/charts/ModelDistributionChart.vue'
 import GroupDistributionChart from '@/components/charts/GroupDistributionChart.vue'
 import EndpointDistributionChart from '@/components/charts/EndpointDistributionChart.vue'
@@ -723,6 +725,7 @@ const exportToCSV = async () => {
     const allLogs: UsageLog[] = []
     const pageSize = 100
     const exportParams = buildUsageListParams(1, pageSize)
+    const includeCacheRate = showUsageCacheRate(appStore.cachedPublicSettings, 'user')
     const totalPages = Math.ceil(pagination.total / pageSize)
     for (let page = 1; page <= totalPages; page++) {
       const response = await usageAPI.query({ ...exportParams, page })
@@ -745,6 +748,7 @@ const exportToCSV = async () => {
       t('admin.usage.outputTokens'),
       t('admin.usage.cacheReadTokens'),
       t('admin.usage.cacheCreationTokens'),
+      ...(includeCacheRate ? [t('usage.latencyCacheRate')] : []),
       t('usage.rate'),
       t('usage.userBilled'),
       t('usage.original'),
@@ -765,6 +769,7 @@ const exportToCSV = async () => {
       log.output_tokens,
       log.cache_read_tokens,
       log.cache_creation_tokens,
+      ...(includeCacheRate ? [formatUsageCacheRate(log) ?? ''] : []),
       log.rate_multiplier,
       log.actual_cost.toFixed(8),
       log.total_cost.toFixed(8),

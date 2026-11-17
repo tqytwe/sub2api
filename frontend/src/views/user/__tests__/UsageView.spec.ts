@@ -214,6 +214,15 @@ describe('user UsageView', () => {
     failed.unmount()
   })
 
+  it.each([false, true])('keeps user cache display consistent with public visibility %s', async (enabled) => {
+    appStoreState.cachedPublicSettings = { usage_show_cache_rate: true, usage_show_cache_rate_to_users: enabled }
+    const wrapper = mountUsageView(true)
+    await flushPromises()
+    expect(wrapper.findComponent(UsageTable).props('cacheRateAudience')).toBe('user')
+    expect(wrapper.findAll('[data-testid="usage-cache-rate"]').map(node => node.text())).toEqual(enabled ? ['98.6%'] : [])
+    wrapper.unmount()
+  })
+
   it('renders per-record TPS from the API in the real shared table', async () => {
     query.mockResolvedValueOnce({ items: [
       usageLog,
@@ -233,6 +242,7 @@ describe('user UsageView', () => {
   })
 
   beforeEach(() => {
+    appStoreState.cachedPublicSettings = { allow_user_view_error_requests: true }
     query.mockReset()
     getStats.mockReset()
     getDashboardModels.mockReset()
@@ -425,7 +435,8 @@ describe('user UsageView', () => {
     expect(getDashboardSnapshotV2).toHaveBeenCalledWith(expect.objectContaining({ native_compaction_v2: null }))
   })
 
-  it('exports csv with current filters and without admin-only fields', async () => {
+  it.each([false, true])('exports csv with current filters, user cache visibility %s and without admin-only fields', async (showCacheRate) => {
+    appStoreState.cachedPublicSettings = { usage_show_cache_rate: true, usage_show_cache_rate_to_users: showCacheRate }
     const wrapper = mountUsageView()
     await flushPromises()
     ;(wrapper.vm as any).filters.native_compaction_v2 = true
@@ -459,8 +470,8 @@ describe('user UsageView', () => {
     expect(showSuccess).toHaveBeenCalled()
     expect(csvContent.startsWith('\uFEFF')).toBe(true)
     expect(csvContent.slice(1)).toBe([
-      'Time,API Key,Model,Reasoning Effort,Inbound Endpoint,IP Address,Type,Billing Mode,Input Tokens,Output Tokens,Cache Read Tokens,Cache Creation Tokens,Rate Multiplier,Billed Cost,Original Cost,First Token (ms),Duration (ms),Output TPS',
-      '2026-03-08T00:00:00Z,demo-key,gpt-5.4,-,,203.0.113.10,Sync,Token,4057,101,278272,4,1,0.09288300,0.09288300,12,345,292.75',
+      `Time,API Key,Model,Reasoning Effort,Inbound Endpoint,IP Address,Type,Billing Mode,Input Tokens,Output Tokens,Cache Read Tokens,Cache Creation Tokens,${showCacheRate ? 'usage.latencyCacheRate,' : ''}Rate Multiplier,Billed Cost,Original Cost,First Token (ms),Duration (ms),Output TPS`,
+      `2026-03-08T00:00:00Z,demo-key,gpt-5.4,-,,203.0.113.10,Sync,Token,4057,101,278272,4,${showCacheRate ? '98.6%,' : ''}1,0.09288300,0.09288300,12,345,292.75`,
     ].join('\n'))
     expect(csvContent).toContain('IP Address')
     expect(csvContent).toContain('203.0.113.10')

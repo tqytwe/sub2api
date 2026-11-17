@@ -4,6 +4,8 @@ import { defineComponent, ref } from 'vue'
 
 import UsageView from '../UsageView.vue'
 
+const settingsState = vi.hoisted(() => ({ cachedPublicSettings: {} as Record<string, unknown> }))
+
 const { list, exportList, getStats, getSnapshotV2, getById, getModelStats, listErrorLogs, routeQuery, aoaToSheet, sheetAddAoa, saveAs, xlsxWrite, showWarning } = vi.hoisted(() => {
   vi.stubGlobal('localStorage', {
     getItem: vi.fn(() => null),
@@ -83,6 +85,7 @@ vi.mock('@/api/admin/ops', () => ({
 
 vi.mock('@/stores/app', () => ({
   useAppStore: () => ({
+    get cachedPublicSettings() { return settingsState.cachedPublicSettings },
     showError: vi.fn(),
     showWarning,
     showSuccess: vi.fn(),
@@ -900,6 +903,7 @@ describe('admin UsageView ranking tab', () => {
 
 describe('admin UsageView model audit export', () => {
 	beforeEach(() => {
+		settingsState.cachedPublicSettings = {}
 		vi.useFakeTimers()
 		list.mockReset().mockResolvedValue({ items: [], total: 0, pages: 0 })
 		exportList.mockReset().mockResolvedValue({
@@ -937,7 +941,8 @@ describe('admin UsageView model audit export', () => {
 		vi.useRealTimers()
 	})
 
-	it('exports requested, sent, response, and mismatch as separate admin columns', async () => {
+	it.each([false, true])('exports model audit and cache rate according to admin visibility %s', async (showCacheRate) => {
+		settingsState.cachedPublicSettings = { usage_show_cache_rate: showCacheRate }
 		const wrapper = mountRouteFilteredUsageView()
 		vi.advanceTimersByTime(120)
 		await flushPromises()
@@ -959,6 +964,8 @@ describe('admin UsageView model audit export', () => {
 			'Upstream model mismatch',
 		])
 		const row = sheetAddAoa.mock.calls[0][1][0]
+		expect(headers.includes('usage.latencyCacheRate')).toBe(showCacheRate)
+		if (showCacheRate) expect(row[headers.indexOf('usage.latencyCacheRate')]).toBe('0%')
 		expect(row.slice(4, 8)).toEqual(['gpt-5.6-sol', 'gpt-5.5', 'gpt-5.4', 'Yes'])
 		expect(headers.at(-1)).toBe('usage.outputTps')
 		expect(row.at(-1)).toBe(20)

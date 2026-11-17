@@ -530,6 +530,8 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		PlayAgentTeamEnabled: settings.PlayAgentTeamEnabled,
 
 		AllowUserViewErrorRequests: settings.AllowUserViewErrorRequests,
+		UsageShowCacheRate:         settings.UsageShowCacheRate,
+		UsageShowCacheRateToUsers:  settings.UsageShowCacheRateToUsers,
 	}
 
 	// OpenAI fast policy (stored under a dedicated setting key)

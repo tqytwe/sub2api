@@ -17,6 +17,8 @@
 
 ## 当前文档
 
+- [使用记录缓存率与平均 TPS](./visual-reviews/2026-11-17-usage-cache-rate.md)：Token 列、管理员/用户展示开关与导出；实现与视觉验证记录，部署及本机验收见关联 PR。
+
 - [单密钥模型与上下文策略视觉记录](./visual-reviews/2026-11-14-key-model-policy.md)：`review`，既有管理员入口、真实组件开发截图、权限与冷启动文案测试；维护责任为本批提交者，整批门禁和生产验收待完成。
 
 - [支付供应商费率与 Stripe 子方式视觉记录](./visual-reviews/2026-11-14-payment-provider-fees.md)：`review`，真实组件开发截图、支付领域测试；维护责任为本批提交者，完整路由与生产验收待集成后完成。
