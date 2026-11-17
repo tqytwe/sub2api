@@ -595,6 +595,8 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	}
 
 	updates[SettingKeyAllowUserViewErrorRequests] = strconv.FormatBool(settings.AllowUserViewErrorRequests)
+	updates[SettingKeyUsageShowCacheRate] = strconv.FormatBool(settings.UsageShowCacheRate)
+	updates[SettingKeyUsageShowCacheRateToUsers] = strconv.FormatBool(settings.UsageShowCacheRateToUsers)
 
 	return updates, nil
 }

@@ -287,6 +287,8 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyBillingSurchargeValue:                              "0",
 
 		SettingKeyAllowUserViewErrorRequests: "false",
+		SettingKeyUsageShowCacheRate:         "true",
+		SettingKeyUsageShowCacheRateToUsers:  "false",
 	}
 
 	return s.settingRepo.SetMultiple(ctx, defaults)
@@ -1026,6 +1028,8 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 	}
 
 	result.AllowUserViewErrorRequests = settings[SettingKeyAllowUserViewErrorRequests] == "true" // default false
+	result.UsageShowCacheRate = settings[SettingKeyUsageShowCacheRate] != "false"
+	result.UsageShowCacheRateToUsers = settings[SettingKeyUsageShowCacheRateToUsers] == "true"
 
 	// Publish Grok default model_mapping options for accounts with empty mapping.
 	xai.SetRuntimeModelMappingOptions(xai.ModelMappingOptions{

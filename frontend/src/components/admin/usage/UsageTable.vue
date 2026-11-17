@@ -167,7 +167,7 @@
                   <span class="font-medium text-gray-900 dark:text-white">{{ row.output_tokens?.toLocaleString() || 0 }}</span>
                 </div>
               </div>
-              <div v-if="row.cache_read_tokens > 0 || row.cache_creation_tokens > 0" class="flex items-center gap-2">
+              <div v-if="showCacheRate || row.cache_read_tokens > 0 || row.cache_creation_tokens > 0" class="flex flex-wrap items-center gap-2">
                 <div v-if="row.cache_read_tokens > 0" class="inline-flex items-center gap-1">
                   <svg class="h-3.5 w-3.5 text-sky-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" /></svg>
                   <span class="font-medium text-sky-600 dark:text-sky-400">{{ formatCacheTokens(row.cache_read_tokens) }}</span>
@@ -178,6 +178,16 @@
                   <span v-if="row.cache_creation_1h_tokens > 0" class="inline-flex items-center rounded px-1 py-px text-[10px] font-medium leading-tight bg-orange-100 text-orange-600 ring-1 ring-inset ring-orange-200 dark:bg-orange-500/20 dark:text-orange-400 dark:ring-orange-500/30">1h</span>
                   <span v-if="row.cache_ttl_overridden" :title="t('usage.cacheTtlOverriddenHint')" class="inline-flex items-center rounded px-1 py-px text-[10px] font-medium leading-tight bg-rose-100 text-rose-600 ring-1 ring-inset ring-rose-200 dark:bg-rose-500/20 dark:text-rose-400 dark:ring-rose-500/30 cursor-help">R</span>
                 </div>
+                <HelpTooltip v-if="showCacheRate" trigger="click" :content="cacheRateTitle(row)">
+                  <template #trigger>
+                    <button
+                      type="button"
+                      data-testid="usage-cache-rate-help"
+                      class="rounded font-medium tabular-nums text-green-600 transition-colors hover:text-green-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 dark:text-green-400 dark:hover:text-green-300"
+                      :aria-label="t('usage.latencyCacheRate')"
+                    ><span data-testid="usage-cache-rate">{{ formatUsageCacheRate(row) ?? '—' }}</span></button>
+                  </template>
+                </HelpTooltip>
               </div>
               <div v-if="hasImageInputTokens(row)" class="flex items-center gap-2">
                 <div class="inline-flex items-center gap-1">
@@ -580,6 +590,7 @@ import { formatCacheTokens, formatMultiplier } from '@/utils/formatters'
 import { formatTokenPricePerMillion } from '@/utils/usagePricing'
 import { getUsageServiceTierLabel } from '@/utils/usageServiceTier'
 import { formatUsageOutputTps } from '@/utils/usageTps'
+import { formatUsageCacheRate, showUsageCacheRate, usageCacheRateParts, type UsageCacheRateAudience } from '@/utils/usageCacheRate'
 import { resolveUsageRequestType } from '@/utils/usageRequestType'
 import {
   LATENCY_BAR_CLASSES,
@@ -647,6 +658,7 @@ interface Props {
   defaultSortOrder?: 'asc' | 'desc'
   showAccountBilling?: boolean
   showUpstreamEndpoint?: boolean
+  cacheRateAudience?: UsageCacheRateAudience
   /** 嵌入统一卡片内使用：去掉自身卡片外观 */
   flat?: boolean
 }
@@ -658,6 +670,7 @@ const props = withDefaults(defineProps<Props>(), {
   defaultSortOrder: 'asc',
   showAccountBilling: true,
   showUpstreamEndpoint: true,
+  cacheRateAudience: 'admin',
   flat: false
 })
 const emit = defineEmits<{
@@ -667,6 +680,16 @@ const emit = defineEmits<{
 }>()
 const { t } = useI18n()
 const appStore = useAppStore()
+const showCacheRate = computed(() => showUsageCacheRate(appStore.cachedPublicSettings, props.cacheRateAudience))
+
+function cacheRateTitle(row: AdminUsageLog): string {
+  const parts = usageCacheRateParts(row)
+  return t('usage.latencyCacheRateHint', {
+    input: (parts?.input ?? 0).toLocaleString(),
+    read: (parts?.read ?? 0).toLocaleString(),
+    write: (parts?.write ?? 0).toLocaleString(),
+  })
+}
 const copiedRequestId = ref<string | null>(null)
 const showAccountBilling = props.showAccountBilling
 const showUpstreamEndpoint = props.showUpstreamEndpoint

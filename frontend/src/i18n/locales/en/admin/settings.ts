@@ -1366,6 +1366,14 @@ export default {
         label: 'Allow users to view their own error requests',
         description: 'When enabled, users can see a redacted view of their failed requests on the usage page (no internal/upstream details). Requires ops monitoring enabled to have data.',
       },
+      cache_rate: {
+        label: 'Show per-request cache rate',
+        description: 'Show cache-read share of prompt tokens in usage records and exports. Disabling hides it for admins and users.',
+      },
+      cache_rate_to_users: {
+        label: 'Show cache rate to users',
+        description: 'Allow users to view cache rate in their own usage records and exports.',
+      },
       saveSettings: 'Save Settings',
       saving: 'Saving...',
       settingsSaved: 'Settings saved successfully',

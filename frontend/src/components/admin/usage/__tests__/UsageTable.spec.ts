@@ -7,16 +7,22 @@ const ipGeoMocks = vi.hoisted(() => ({
 const appStoreMocks = vi.hoisted(() => ({
   showSuccess: vi.fn(),
   showError: vi.fn(),
+  cachedPublicSettings: {} as Record<string, unknown>,
 }))
 
 vi.mock('@/utils/ipGeoLookup', () => ipGeoMocks)
-vi.mock('@/stores/app', () => ({ useAppStore: () => appStoreMocks }))
+vi.mock('@/stores/app', async () => {
+  const { reactive } = await import('vue')
+  const store = reactive(appStoreMocks)
+  return { useAppStore: () => store }
+})
 
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 
 import UsageTable from '../UsageTable.vue'
+import { useAppStore } from '@/stores/app'
 
 const messages: Record<string, string> = {
   'admin.usage.userDeletedBadge': 'Deleted',
@@ -94,9 +100,9 @@ const DataTableStub = {
       <div v-for="row in data" :key="row.request_id">
         <slot name="cell-model" :row="row" :value="row.model" />
         <slot name="cell-billing_mode" :row="row" />
-        <slot name="cell-tokens" :row="row" />
+        <div data-testid="tokens-cell"><slot name="cell-tokens" :row="row" /></div>
         <slot name="cell-cost" :row="row" />
-        <slot name="cell-latency" :row="row" />
+        <div data-testid="latency-cell"><slot name="cell-latency" :row="row" /></div>
         <slot name="cell-request_id" :row="row" />
         <slot name="cell-upstream_request_id" :row="row" />
       </div>
@@ -133,6 +139,35 @@ const baseImageRow = {
 }
 
 describe('admin UsageTable tooltip', () => {
+  it('applies admin and user cache visibility and distinguishes zero hits from unavailable prompt tokens', async () => {
+    const store = useAppStore()
+    store.cachedPublicSettings = {} as any
+    const wrapper = mount(UsageTable, {
+      props: { data: [
+        { ...baseImageRow, billing_mode: 'token', image_count: 0, input_tokens: 100, cache_read_tokens: 100, cache_creation_tokens: 100 },
+        { ...baseImageRow, billing_mode: 'token', image_count: 0, request_id: 'zero', input_tokens: 100 },
+        { ...baseImageRow, billing_mode: 'token', image_count: 0, request_id: 'empty' },
+      ] as any, columns: [{ key: 'tokens', label: 'Tokens' }] },
+      global: { stubs: { DataTable: DataTableStub } },
+    })
+    const rates = () => wrapper.findAll('[data-testid="usage-cache-rate"]').map(node => node.text())
+    expect(rates()).toEqual(['33.3%', '0%', '—'])
+    expect(wrapper.get('[data-testid="tokens-cell"] [data-testid="usage-cache-rate"]').text()).toBe('33.3%')
+    expect(wrapper.find('[data-testid="latency-cell"] [data-testid="usage-cache-rate"]').exists()).toBe(false)
+    await wrapper.get('[data-testid="usage-cache-rate-help"]').trigger('click')
+    expect(document.body.textContent).toContain('usage.latencyCacheRateHint')
+    await wrapper.setProps({ cacheRateAudience: 'user' })
+    expect(rates()).toEqual([])
+    store.cachedPublicSettings = { usage_show_cache_rate_to_users: true } as any
+    await nextTick()
+    expect(rates()).toEqual(['33.3%', '0%', '—'])
+    store.cachedPublicSettings = { usage_show_cache_rate: false, usage_show_cache_rate_to_users: true } as any
+    await nextTick()
+    expect(rates()).toEqual([])
+    wrapper.unmount()
+    store.cachedPublicSettings = {} as any
+  })
+
   it('shows each record TPS for admin and user surfaces, and opens its definition by keyboard-accessible control', async () => {
     for (const showAccountBilling of [true, false]) {
       const wrapper = mount(UsageTable, {

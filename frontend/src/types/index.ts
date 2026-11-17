@@ -345,6 +345,9 @@ export interface PublicSettings {
   service_quota_enabled: boolean
   affiliate_enabled: boolean
   allow_user_view_error_requests?: boolean
+  /** Per-record cache rate defaults on; end-user visibility defaults off. */
+  usage_show_cache_rate?: boolean
+  usage_show_cache_rate_to_users?: boolean
 }
 
 export interface AuthResponse {

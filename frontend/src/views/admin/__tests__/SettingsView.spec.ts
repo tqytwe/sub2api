@@ -801,6 +801,33 @@ describe("admin SettingsView payment visible method controls", () => {
     adminSettingsFetch.mockResolvedValue(undefined);
   });
 
+  it("loads, saves and reloads cache rate visibility, disabling user visibility with the main switch", async () => {
+    getSettings.mockResolvedValueOnce({ ...baseSettingsResponse, usage_show_cache_rate: true, usage_show_cache_rate_to_users: false });
+    const wrapper = mountView();
+    await flushPromises();
+    await openGatewayTab(wrapper);
+    const main = wrapper.get('[data-testid="usage-show-cache-rate"]');
+    const users = wrapper.get('[data-testid="usage-show-cache-rate-to-users"]');
+    expect((main.element as HTMLInputElement).checked).toBe(true);
+    expect((users.element as HTMLInputElement).checked).toBe(false);
+    await users.setValue(true);
+    await wrapper.find('form').trigger('submit.prevent');
+    await flushPromises();
+    expect(updateSettings).toHaveBeenLastCalledWith(expect.objectContaining({ usage_show_cache_rate: true, usage_show_cache_rate_to_users: true }));
+    getSettings.mockResolvedValueOnce(updateSettings.mock.calls.at(-1)![0]);
+    const reloaded = mountView();
+    await flushPromises();
+    await openGatewayTab(reloaded);
+    expect((reloaded.get('[data-testid="usage-show-cache-rate-to-users"]').element as HTMLInputElement).checked).toBe(true);
+    await reloaded.get('[data-testid="usage-show-cache-rate"]').setValue(false);
+    expect(reloaded.get('[data-testid="usage-show-cache-rate-to-users"]').attributes('disabled')).toBeDefined();
+    expect((reloaded.get('[data-testid="usage-show-cache-rate-to-users"]').element as HTMLInputElement).checked).toBe(false);
+    await reloaded.find('form').trigger('submit.prevent');
+    await flushPromises();
+    expect(updateSettings).toHaveBeenLastCalledWith(expect.objectContaining({ usage_show_cache_rate: false, usage_show_cache_rate_to_users: false }));
+    wrapper.unmount(); reloaded.unmount();
+  });
+
   it("uses only the saved global fee in provider summaries until settings save succeeds", async () => {
     getSettings.mockResolvedValueOnce({...baseSettingsResponse,payment_recharge_fee_rate:2.5});
     const wrapper=mountView();
