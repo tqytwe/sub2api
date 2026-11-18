@@ -2,10 +2,13 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import AccountTestModal from '../AccountTestModal.vue'
 
-const { getAvailableModels, copyToClipboard } = vi.hoisted(() => ({
+const { getAvailableModels, copyToClipboard, probeOpenAICodexState } = vi.hoisted(() => ({
   getAvailableModels: vi.fn(),
-  copyToClipboard: vi.fn()
+  copyToClipboard: vi.fn(),
+  probeOpenAICodexState: vi.fn()
 }))
+
+vi.mock('@/api/admin/accounts', () => ({ probeOpenAICodexState }))
 
 vi.mock('@/api/admin', () => ({
   adminAPI: {
@@ -56,7 +59,9 @@ function createStreamResponse(lines: string[]) {
             return { done: false, value: chunks[index++] }
           }
           return { done: true, value: undefined }
-        })
+        }),
+        cancel: vi.fn().mockResolvedValue(undefined),
+        releaseLock: vi.fn()
       })
     }
   } as Response
@@ -80,7 +85,11 @@ function mountModal(
     global: {
       stubs: {
         BaseDialog: { template: '<div><slot /><slot name="footer" /></div>' },
-        Select: { template: '<div class="select-stub"></div>' },
+        Select: {
+          props: ['options', 'modelValue'],
+          emits: ['update:modelValue'],
+          template: '<div class="select-stub"><button v-for="option in options" :key="option.value" type="button" @click="$emit(\'update:modelValue\', option.value)">{{ option.label }}</button></div>'
+        },
         TextArea: {
           props: ['modelValue'],
           emits: ['update:modelValue'],
@@ -340,5 +349,38 @@ describe('AccountTestModal', () => {
     })
     expect(wrapper.findAll('[data-testid="pelican-artwork"]')).toHaveLength(1)
     expect(wrapper.find('[data-testid="pelican-artwork"]').text()).toContain('<!doctype html>')
+  })
+
+  it('Codex ticket probe shows loading, result, and a retryable error in its own diagnostic mode', async () => {
+    let resolveProbe!: (value: any) => void
+    probeOpenAICodexState.mockImplementationOnce(() => new Promise((resolve) => { resolveProbe = resolve }))
+    const wrapper = mountModal({ id: 77, name: 'Codex', platform: 'openai', type: 'oauth', status: 'active' }, true)
+    await flushPromises()
+    await wrapper.get('.select-stub button:nth-child(4)').trigger('click')
+    await wrapper.vm.$nextTick()
+    ;(wrapper.vm as any).selectedModelId = 'gpt-6-astra'
+    await wrapper.get('[data-testid="codex-state-probe"] button').trigger('click')
+    expect(wrapper.get('[data-testid="codex-state-probe"] button').text()).toBe('modelTrace.stateProbeRunning')
+    resolveProbe({ verdict: 'healthy', reason: 'stable synthetic result', ticket_length: 780, continue_ticket_length: 780, latency_ms: 12 })
+    await flushPromises()
+    expect(wrapper.get('[data-testid="codex-state-probe"]').text()).toContain('stable synthetic result')
+    expect(probeOpenAICodexState).toHaveBeenCalledWith(77, 'gpt-6-astra')
+
+    probeOpenAICodexState.mockRejectedValueOnce(new Error('synthetic failure'))
+    await wrapper.get('[data-testid="codex-state-probe"] button').trigger('click')
+    await flushPromises()
+    expect(wrapper.get('[role="alert"]').text()).toBe('modelTrace.stateProbeError')
+  })
+
+  it('ModelTrace mode is separate from and does not replace the Pelican test modes', async () => {
+    const wrapper = mountModal({ id: 42, name: 'OpenAI', platform: 'openai', type: 'apikey', status: 'active' }, true)
+    await flushPromises()
+    const kinds = (wrapper.vm as any).manualTestKindOptions.map((option: { value: string }) => option.value)
+    expect(kinds).toContain('svg')
+    expect(kinds).toContain('modeltrace')
+    await wrapper.get('.select-stub button:nth-child(3)').trigger('click')
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('[data-testid="modeltrace-panel"]').exists()).toBe(true)
+    expect((wrapper.vm as any).isSVGTest).toBe(false)
   })
 })

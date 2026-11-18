@@ -29,6 +29,16 @@
         </div>
       </template>
 
+      <ModelTracePanel
+        v-if="isModelTraceTest && account"
+        :account="account"
+        :model-id="selectedModelId"
+        :model-options="diagnosticModelOptions"
+        :reasoning-levels="diagnosticReasoningLevels"
+        @update:model-id="selectedModelId = $event"
+        @running="modelTraceRunning = $event"
+      />
+
       <!-- Account Info Card -->
       <div
         v-if="account"
@@ -206,6 +216,22 @@
         <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('admin.accounts.grok.audioUploadHint') }}</p>
       </div>
 
+      <section v-if="isCodexStateProbe && account" class="space-y-3 rounded-lg border border-gray-200 p-3 dark:border-dark-500" data-testid="codex-state-probe">
+        <p class="text-sm text-gray-600 dark:text-gray-300">{{ t('modelTrace.stateProbeHint') }}</p>
+        <button type="button" class="btn btn-secondary" :disabled="stateProbeStatus === 'loading' || !selectedModelId" @click="runStateProbe">
+          {{ stateProbeStatus === 'loading' ? t('modelTrace.stateProbeRunning') : t('modelTrace.stateProbeStart') }}
+        </button>
+        <p v-if="stateProbeStatus === 'error'" role="alert" class="text-sm text-red-600 dark:text-red-400">{{ t('modelTrace.stateProbeError') }}</p>
+        <dl v-if="stateProbeResult" class="grid min-w-0 grid-cols-1 gap-2 text-sm sm:grid-cols-2" aria-live="polite">
+          <div class="min-w-0"><dt class="text-xs text-gray-500">{{ t('modelTrace.stateProbe') }}</dt><dd class="break-words">{{ t(`modelTrace.stateProbe${stateProbeResult.verdict[0].toUpperCase()}${stateProbeResult.verdict.slice(1)}`) }}</dd></div>
+          <div class="min-w-0"><dt class="text-xs text-gray-500">{{ t('modelTrace.stateProbeReason') }}</dt><dd class="break-words">{{ stateProbeResult.reason }}</dd></div>
+          <div><dt class="text-xs text-gray-500">{{ t('modelTrace.stateProbeLength') }}</dt><dd>{{ stateProbeResult.ticket_length }} / {{ stateProbeResult.continue_ticket_length }}</dd></div>
+          <div><dt class="text-xs text-gray-500">{{ t('modelTrace.stateProbeStatuses') }}</dt><dd>{{ stateProbeResult.mint_status }} / {{ stateProbeResult.continue_status }}</dd></div>
+          <div><dt class="text-xs text-gray-500">{{ t('modelTrace.stateProbeLatency') }}</dt><dd>{{ stateProbeResult.latency_ms }} ms</dd></div>
+        </dl>
+      </section>
+      <AccountTestTiming :timing="timingState.timing.value" :delivery="timingState.delivery.value" />
+
       <!-- Terminal Output -->
       <div class="group relative">
         <div
@@ -363,6 +389,7 @@
           {{ t('common.close') }}
         </button>
         <button
+          v-if="!isDiagnosticTest"
           @click="startTest"
           :disabled="!canStartTest"
           :class="[
@@ -401,7 +428,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch, nextTick } from 'vue'
+import { computed, ref, watch, nextTick, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Select from '@/components/common/Select.vue'
@@ -411,6 +438,10 @@ import { useClipboard } from '@/composables/useClipboard'
 import { buildApiUrl } from '@/api/client'
 import { ADMIN_UI_REQUEST_HEADER } from '@/api/adminUIRequest'
 import { adminAPI } from '@/api/admin'
+import { probeOpenAICodexState, type OpenAICodexStateProbeResult } from '@/api/admin/accounts'
+import ModelTracePanel from './ModelTracePanel.vue'
+import AccountTestTiming from '@/components/account/AccountTestTiming.vue'
+import { useAccountTestTiming } from '@/composables/useAccountTestTiming'
 import type { Account, ClaudeModel, PelicanTestConfig } from '@/types'
 import { accountStatusTranslationKey } from '@/utils/accountStatus'
 import PelicanPromptMode from './PelicanPromptMode.vue'
@@ -420,7 +451,7 @@ import { currentPelicanQuestionRound, preparePelicanQuestionRound } from '@/util
 
 const { t } = useI18n()
 const { copyToClipboard } = useClipboard()
-const manualTestKind = ref<'connection' | 'svg'>('connection')
+const manualTestKind = ref<'connection' | 'svg' | 'modeltrace' | 'state-probe'>('connection')
 const pelicanPromptMode = ref<'custom' | 'random'>('random')
 const pelicanEffort = ref('medium')
 const questionConfig = ref<PelicanTestConfig | null>(null)
@@ -428,9 +459,20 @@ const preparingQuestion = ref(false)
 const questionError = ref('')
 const svgAnswer = ref('')
 const isSVGTest = computed(() => manualTestKind.value === 'svg')
+const isModelTraceTest = computed(() => manualTestKind.value === 'modeltrace')
+const isCodexStateProbe = computed(() => manualTestKind.value === 'state-probe')
+const isDiagnosticTest = computed(() => isModelTraceTest.value || isCodexStateProbe.value)
+const modelTraceRunning = ref(false)
+const diagnosticModelOptions = computed(() => availableModels.value.map((model) => ({ value: model.id, label: model.display_name || model.id })))
+const diagnosticReasoningLevels = ['minimal', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra']
+const stateProbeStatus = ref<'idle' | 'loading' | 'error'>('idle')
+const stateProbeResult = ref<OpenAICodexStateProbeResult | null>(null)
+const timingState = useAccountTestTiming()
 const manualTestKindOptions = computed(() => [
   { value: 'connection', label: t('pelicanTests.manual.testKindConnection') },
   { value: 'svg', label: t('pelicanTests.manual.testKindSvg') },
+  ...(props.account?.platform === 'openai' || props.account?.platform === 'anthropic' ? [{ value: 'modeltrace', label: t('modelTrace.modelTraceKind') }] : []),
+  ...(props.account?.platform === 'openai' && ['oauth', 'setup-token'].includes(props.account?.type || '') ? [{ value: 'state-probe', label: t('modelTrace.stateProbe') }] : []),
 ])
 const pelicanEffortOptions = ['low', 'medium', 'high', 'xhigh'].map((value) => ({ value, label: value }))
 
@@ -449,6 +491,18 @@ async function prepareQuestion() {
     questionError.value = t('pelicanTests.questionBank.error')
   } finally {
     preparingQuestion.value = false
+  }
+}
+
+async function runStateProbe() {
+  if (!props.account || stateProbeStatus.value === 'loading') return
+  stateProbeStatus.value = 'loading'
+  stateProbeResult.value = null
+  try {
+    stateProbeResult.value = await probeOpenAICodexState(props.account.id, selectedModelId.value)
+    stateProbeStatus.value = 'idle'
+  } catch {
+    stateProbeStatus.value = 'error'
   }
 }
 
@@ -483,6 +537,8 @@ const loadingModels = ref(false)
 const modelLoadError = ref('')
 let modelLoadRequestId = 0
 let abortController: AbortController | null = null
+let activeReader: ReadableStreamDefaultReader<Uint8Array> | null = null
+let streamRunId = 0
 const generatedImages = ref<PreviewMedia[]>([])
 const generatedAudios = ref<PreviewMedia[]>([])
 const generatedVideos = ref<PreviewMedia[]>([])
@@ -919,11 +975,19 @@ const handleClose = () => {
 }
 
 function abortStream() {
+  streamRunId += 1
+  timingState.cancel()
   if (abortController) {
     abortController.abort()
     abortController = null
   }
+  if (activeReader) {
+    void activeReader.cancel().catch(() => {})
+    activeReader = null
+  }
 }
+
+onBeforeUnmount(abortStream)
 
 const addLine = (text: string, className: string = 'text-gray-300') => {
   outputLines.value.push({ text, class: className })
@@ -938,6 +1002,7 @@ const scrollToBottom = async () => {
 }
 
 const startTest = async () => {
+  if (isDiagnosticTest.value) return
   if (!props.account || !canStartTest.value) return
 
   resetState()
@@ -953,7 +1018,11 @@ const startTest = async () => {
 
   abortStream()
 
-  abortController = new AbortController()
+  const runId = streamRunId
+  const controller = new AbortController()
+  abortController = controller
+  timingState.begin()
+  let reader: ReadableStreamDefaultReader<Uint8Array> | null = null
 
   try {
     const requestBody: {
@@ -1014,23 +1083,31 @@ const startTest = async () => {
         [ADMIN_UI_REQUEST_HEADER]: '1'
       },
       body: JSON.stringify(requestBody),
-      signal: abortController.signal
+      signal: controller.signal
     })
 
     if (!response.ok) {
       throw new Error(t('admin.accounts.testRequestFailed', { status: response.status }))
     }
 
-    const reader = response.body?.getReader()
+    reader = response.body?.getReader() || null
     if (!reader) {
       throw new Error(t('admin.accounts.grok.noResponseBody'))
     }
+    if (runId !== streamRunId) {
+      await reader.cancel()
+      reader.releaseLock()
+      reader = null
+      return
+    }
+    activeReader = reader
 
     const decoder = new TextDecoder()
     let buffer = ''
 
     while (true) {
       const { done, value } = await reader.read()
+      if (runId !== streamRunId) return
       if (done) break
 
       buffer += decoder.decode(value, { stream: true })
@@ -1043,7 +1120,7 @@ const startTest = async () => {
           if (jsonStr) {
             try {
               const event = JSON.parse(jsonStr)
-              handleEvent(event)
+              if (runId === streamRunId) handleEvent(event)
             } catch (e) {
               console.error('Failed to parse SSE event:', e)
             }
@@ -1051,15 +1128,25 @@ const startTest = async () => {
         }
       }
     }
+    if (runId === streamRunId) timingState.finish()
   } catch (error: unknown) {
+    if (runId !== streamRunId) return
     if (error instanceof DOMException && error.name === 'AbortError') {
+      timingState.cancel()
       status.value = 'idle'
       return
     }
+    timingState.fail()
     status.value = 'error'
     const msg = error instanceof Error ? error.message : t('common.unknownError')
     errorMessage.value = msg
     addLine(t('admin.accounts.errorPrefix', { message: msg }), 'text-red-400')
+  } finally {
+    if (reader) {
+      if (activeReader === reader) activeReader = null
+      reader.releaseLock()
+    }
+    if (abortController === controller) abortController = null
   }
 }
 
@@ -1073,7 +1160,9 @@ const handleEvent = (event: {
   audio_url?: string
   video_url?: string
   mime_type?: string
+  timing?: import('@/composables/useAccountTestTiming').AccountTestTiming
 }) => {
+  timingState.accept(event)
   switch (event.type) {
     case 'test_start':
       addLine(t('admin.accounts.connectedToApi'), 'text-green-400')

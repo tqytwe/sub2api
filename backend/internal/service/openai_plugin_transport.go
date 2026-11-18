@@ -76,7 +76,7 @@ func (s *AccountTestService) doOpenAIAccountTestUpstream(
 		evidence.NativeOAuth = account.IsOAuth() && !account.IsCredentialShadow() && !account.IsOpenAIAgentIdentity() && !account.IsExcelBPSEnabled()
 	}
 	if useTLSFallback {
-		return s.httpUpstream.DoWithTLS(
+		return timedAccountTestUpstream(s.httpUpstream).DoWithTLS(
 			request,
 			proxyURL,
 			account.ID,
@@ -84,5 +84,5 @@ func (s *AccountTestService) doOpenAIAccountTestUpstream(
 			s.tlsFPProfileService.ResolveTLSProfile(account),
 		)
 	}
-	return s.httpUpstream.Do(request, proxyURL, account.ID, account.Concurrency)
+	return timedAccountTestUpstream(s.httpUpstream).Do(request, proxyURL, account.ID, account.Concurrency)
 }

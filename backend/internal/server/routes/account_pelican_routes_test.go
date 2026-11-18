@@ -25,6 +25,8 @@ func TestAdminAccountPelicanRoutesAreRegistered(t *testing.T) {
 	}
 	require.True(t, paths["GET /api/v1/admin/accounts/pelican-question"])
 	require.True(t, paths["POST /api/v1/admin/accounts/:id/pelican-test"])
+	require.True(t, paths["POST /api/v1/admin/accounts/:id/modeltrace-test"])
+	require.True(t, paths["POST /api/v1/admin/accounts/:id/state-probe"])
 
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, "/api/v1/admin/accounts/pelican-question", nil)

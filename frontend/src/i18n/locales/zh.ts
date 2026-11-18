@@ -21,6 +21,8 @@ import splitChannelMonitorV3Zh from './zh/channelMonitorV3'
 import splitDashboardZh from './zh/dashboard'
 import splitPelicanShowcaseZh from './zh/pelicanShowcase'
 import splitPelicanTestsZh from './zh/pelicanTests'
+import modelTraceZh from './zh/modelTrace'
+import accountTestTimingZh from './zh/accountTestTiming'
 import splitWorkspaceShellZh from './zh/workspaceShell'
 import auditAdminZh from './zh/admin/audit'
 import promptAuditAdminZh from './zh/admin/promptAudit'
@@ -9802,6 +9804,8 @@ export default mergeLocaleMessages(messages, mergeLocaleMessages({
   ...splitDashboardZh,
   ...splitPelicanShowcaseZh,
   pelicanTests: splitPelicanTestsZh,
+  modelTrace: modelTraceZh,
+  accountTestTiming: accountTestTimingZh,
   ...splitBatchImageZh,
   admin: splitAdminZh,
 }, splitWorkspaceShellZh))
