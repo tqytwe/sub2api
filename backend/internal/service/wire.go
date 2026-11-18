@@ -17,7 +17,9 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/pkg/antigravity"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/claude"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/openai"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/qualityqueue"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/redissession"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/xai"
 	"github.com/google/wire"
 	"github.com/redis/go-redis/v9"
@@ -119,9 +121,10 @@ func ProvideOpenAIOAuthReauthService(
 	cfg *config.Config,
 	tokenCacheInvalidator TokenCacheInvalidator,
 	runtimeBlocker AccountRuntimeBlocker,
+	redisClient *redis.Client,
 ) *OpenAIOAuthReauthService {
 	credentialUpdater, _ := accountRepo.(OpenAIOAuthReauthCredentialUpdater)
-	return NewOpenAIOAuthReauthService(
+	svc := NewOpenAIOAuthReauthService(
 		repo,
 		adminService,
 		credentialUpdater,
@@ -131,6 +134,13 @@ func ProvideOpenAIOAuthReauthService(
 		tokenCacheInvalidator,
 		runtimeBlocker,
 	)
+	if redisClient != nil {
+		svc.siwcSessionStore = redissession.New(redisClient, siwcSessionPrefix, openai.SessionTTL)
+	}
+	if gateway, ok := runtimeBlocker.(*OpenAIGatewayService); ok {
+		gateway.SetOpenAIAuthConnectionService(svc)
+	}
+	return svc
 }
 
 // ProvideTokenRefreshService creates and starts TokenRefreshService
@@ -484,6 +494,9 @@ func ProvideDeferredService(accountRepo AccountRepository, timingWheel *TimingWh
 // ProvideConcurrencyService creates ConcurrencyService and starts slot cleanup worker.
 func ProvideConcurrencyService(cache ConcurrencyCache, accountRepo AccountRepository, cfg *config.Config) *ConcurrencyService {
 	svc := NewConcurrencyService(cache)
+	if reader, ok := accountRepo.(PerformancePauseReader); ok {
+		svc.performancePauses = reader
+	}
 	if err := svc.CleanupStaleProcessSlots(context.Background()); err != nil {
 		logger.LegacyPrintf("service.concurrency", "Warning: startup cleanup stale process slots failed: %v", err)
 	}
@@ -1138,6 +1151,12 @@ func ProvideAccountTokenGuardV2Service(
 	return svc
 }
 
+func ProvideAccountPerformanceService(repo AccountPerformanceRepository) *AccountPerformanceService {
+	svc := NewAccountPerformanceService(repo)
+	svc.Start()
+	return svc
+}
+
 // ProviderSet is the Wire provider set for all services
 var ProviderSet = wire.NewSet(
 	requestledger.NewStarted,
@@ -1239,6 +1258,7 @@ var ProviderSet = wire.NewSet(
 	ProvideOpsCleanupService,
 	ProvideOpsScheduledReportService,
 	ProvideAccountTokenGuardV2Service,
+	ProvideAccountPerformanceService,
 	NewEmailService,
 	NewNotificationEmailService,
 	NewIPRiskAlertEmailNotifier,

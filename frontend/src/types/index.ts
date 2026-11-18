@@ -2716,7 +2716,24 @@ export interface QualityPolicy {
   judge?: QualityJudgeConfig | null
 }
 
+export interface QualityBatchEvidence {
+  id: string
+  decision: 'pending' | 'passed' | 'peer_passed' | 'no_passing_peer' | 'inconclusive' | 'outside_window'
+  peer_accounts: number
+  peer_passed: number
+  peer_failed: number
+  peer_inconclusive: number
+  started_at: string
+  start_deadline: string
+  closes_at: string
+  route: string
+  mapped_model: string
+  comparison_key: string
+}
+
 export interface PelicanTestConfig {
+  random_question?: { id: string; family: string; version: string }
+  quality_batch?: QualityBatchEvidence
   rule_name?: string
   quality?: QualityPolicy | null
   question_kind?: string

@@ -78,7 +78,7 @@ func prepareQualityPlan(plan *ScheduledTestPlan) error {
 			return infraerrors.BadRequest("INVALID_PELICAN_PROMPT_MODE", err.Error())
 		}
 		cfg := *plan.PelicanConfig
-		cfg.PelicanQuestion, cfg.ActualPrompt = nil, ""
+		cfg.PelicanQuestion, cfg.ActualPrompt, cfg.RandomQuestion, cfg.QualityBatch = nil, "", nil, nil
 		plan.PelicanConfig = &cfg
 	}
 	if err := validateQualityConfig(plan.PelicanConfig); err != nil {

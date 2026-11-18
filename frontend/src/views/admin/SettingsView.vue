@@ -203,6 +203,14 @@
 
         <!-- Tab: Gateway -->
         <div v-show="activeTab === 'gateway'" class="space-y-6">
+          <div class="card" data-testid="account-performance-settings">
+            <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
+              <h2 id="settings-section-account-performance" class="text-lg font-semibold text-gray-900 dark:text-white">{{ t("accountPerformance.settings.title") }}</h2>
+              <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ t("accountPerformance.settings.description") }}</p>
+            </div>
+            <AccountPerformanceSettings />
+          </div>
+
           <!-- Overload Cooldown (529) Settings -->
           <div class="card">
             <div
@@ -9040,6 +9048,7 @@ import ImageUpload from "@/components/common/ImageUpload.vue";
 import BackupSettings from "@/views/admin/BackupView.vue";
 import EmailTemplateEditor from "@/views/admin/settings/EmailTemplateEditor.vue";
 import OpenAIFastPolicyUserSelector from "@/views/admin/settings/OpenAIFastPolicyUserSelector.vue";
+import AccountPerformanceSettings from "@/components/settings/AccountPerformanceSettings.vue";
 import ModelBillingSettings from "@/components/admin/ModelBillingSettings.vue";
 import { useClipboard } from "@/composables/useClipboard";
 import {

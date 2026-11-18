@@ -96,6 +96,19 @@ func (s *OpenAIGatewayService) admitOpenAITurnModels(ctx context.Context, c *gin
 	if selected == nil {
 		return nil, denyOpenAITurn("account_unavailable")
 	}
+	// Reused connections already own a slot. Recheck the independent pause
+	// authority at each new turn rather than relying on the initial acquisition.
+	if s != nil {
+		if reader, ok := s.accountRepo.(PerformancePauseReader); ok {
+			paused, err := reader.PerformancePaused(ctx, []int64{selected.ID})
+			if err != nil {
+				return nil, denyOpenAITurn("performance_state_unavailable")
+			}
+			if paused[selected.ID] {
+				return nil, denyOpenAITurn("performance_paused")
+			}
+		}
+	}
 	if !selected.IsOpenAI() {
 		// Source parity: compatible providers share the membership guard, but
 		// retain their supplied snapshot rather than using the OpenAI DB reader.
@@ -130,7 +143,7 @@ func (s *OpenAIGatewayService) admitOpenAITurnModels(ctx context.Context, c *gin
 	} else if requireLatest {
 		return nil, denyOpenAITurn("latest_state_unavailable")
 	}
-	if latest.Platform != selected.Platform || latest.Type != selected.Type {
+	if latest.Platform != selected.Platform || (latest.Type != selected.Type && selected.AuthConnectionID == "") {
 		return nil, denyOpenAITurn("account_binding_changed")
 	}
 	if authoritative {
@@ -191,7 +204,7 @@ func (s *OpenAIGatewayService) admitOpenAITurnModels(ctx context.Context, c *gin
 			return nil, denyOpenAITurn("model_not_allowed_in_group")
 		}
 	}
-	if openAITurnRouteFingerprint(latest) != openAITurnRouteFingerprint(selected) {
+	if openAITurnRouteFingerprint(latest) != openAITurnRouteFingerprint(selected) && (!latest.HasManagedOpenAIConnections() || selected.AuthConnectionID == "") {
 		return nil, denyOpenAITurn("account_binding_changed")
 	}
 	priorityReq, hasPriorityReq := prioritySelectionRequestFromContext(ctx)
@@ -229,9 +242,9 @@ func (s *OpenAIGatewayService) admitOpenAITurnModels(ctx context.Context, c *gin
 		if admitted == nil {
 			return nil, denyOpenAITurn("credential_snapshot_unavailable")
 		}
-		return admitted, nil
+		return s.prepareAuthConnection(ctx, c, admitted, selected, outboundModel)
 	}
-	return latest, nil
+	return s.prepareAuthConnection(ctx, c, latest, selected, outboundModel)
 }
 
 // Routing identity deliberately excludes refreshable authentication secrets.

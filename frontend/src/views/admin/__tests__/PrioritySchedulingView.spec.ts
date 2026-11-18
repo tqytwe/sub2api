@@ -9,6 +9,7 @@ const { getPriorityConfig, savePriorityConfig, getPrioritySnapshot } = vi.hoiste
 }))
 
 vi.mock('@/api/admin/priorityScheduling', () => ({ getPriorityConfig, savePriorityConfig, getPrioritySnapshot }))
+vi.mock('@/api/admin/groups', () => ({ getAll: vi.fn().mockResolvedValue([]), default: { getAll: vi.fn().mockResolvedValue([]) } }))
 vi.mock('vue-i18n', async (importOriginal) => {
   const actual = await importOriginal<typeof import('vue-i18n')>()
   return { ...actual, useI18n: () => ({ t: (key: string) => key }) }

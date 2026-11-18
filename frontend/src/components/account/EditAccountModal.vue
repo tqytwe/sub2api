@@ -2418,6 +2418,7 @@
         class="border-t border-gray-200 pt-4 dark:border-dark-600"
       >
         <ExcelOAuthBinding :key="account.id" :account-id="account.id" />
+        <OpenAIAuthConnections :account-id="account.id" :account-type="account.type" :active="show" />
       </div>
 
       <div
@@ -3161,6 +3162,7 @@
 <script setup lang="ts">
 import OpenAIRequestTimezoneField from '@/components/account/OpenAIRequestTimezoneField.vue'
 import ExcelOAuthBinding from '@/components/account/ExcelOAuthBinding.vue'
+import OpenAIAuthConnections from '@/components/account/OpenAIAuthConnections.vue'
 import { ref, reactive, computed, watch, nextTick, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'

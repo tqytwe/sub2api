@@ -253,8 +253,9 @@ type OpenAIUnpricedOutputUsage struct {
 
 // OpenAIForwardResult represents the result of forwarding
 type OpenAIForwardResult struct {
-	RequestID  string
-	ResponseID string
+	AuthConnectionID string
+	RequestID        string
+	ResponseID       string
 	// UpstreamHeaders 是直接上游的响应头，用于按账户配置解析上游请求标识。
 	UpstreamHeaders http.Header
 	Usage           OpenAIUsage
@@ -482,6 +483,7 @@ type OpenAIGatewayService struct {
 	deferredService              *DeferredService
 	openAITokenProvider          *OpenAITokenProvider
 	excelOAuthService            *OpenAIExcelOAuthService
+	excelOAuthReauth             *OpenAIOAuthReauthService
 	grokTokenProvider            *GrokTokenProvider
 	toolCorrector                *CodexToolCorrector
 	openaiWSResolver             OpenAIWSProtocolResolver
@@ -539,6 +541,7 @@ type OpenAIGatewayService struct {
 	openaiCodexTurnStateOrigins sync.Map
 	openaiCodexTurnStateWrites  atomic.Uint64
 	priorityScheduling          prioritySchedulingState
+	priorityAnalysis            priorityAnalysisFlights
 }
 
 // NewOpenAIGatewayService creates a new OpenAIGatewayService
@@ -850,6 +853,9 @@ func (s *OpenAIGatewayService) billingDeps() *billingDeps {
 // CloseOpenAIWSPool 关闭 OpenAI WebSocket 连接池的后台 worker 和空闲连接。
 // 应在应用优雅关闭时调用。
 func (s *OpenAIGatewayService) CloseOpenAIWSPool() {
+	if s != nil {
+		s.priorityAnalysis.close()
+	}
 	if s != nil && s.openaiWSPool != nil {
 		s.openaiWSPool.Close()
 	}
@@ -1355,6 +1361,31 @@ func hashSensitiveValueForLog(raw string) string {
 
 // GetAccessToken gets the access token for an OpenAI account
 func (s *OpenAIGatewayService) GetAccessToken(ctx context.Context, account *Account) (string, string, error) {
+	if err := validateOpenAIConnectionKind(account); err != nil {
+		return "", "", err
+	}
+	if s.excelOAuthReauth != nil {
+		if err := s.excelOAuthReauth.validateAuthConnectionPolicy(ctx, account); err != nil {
+			return "", "", err
+		}
+	}
+	if account != nil && account.AuthConnectionID != "" {
+		if s.excelOAuthReauth == nil {
+			return "", "", errors.New("authorization connection service unavailable")
+		}
+		token, err := s.excelOAuthReauth.ConnectionAccessToken(ctx, account.ID, account.AuthConnectionID)
+		switch account.GetExtraString("openai_connection_kind") {
+		case "siwc":
+			return token, "siwc", err
+		case "api_key":
+			return token, "apikey", err
+		default:
+			return token, "oauth", err
+		}
+	}
+	if account.HasManagedOpenAIConnections() {
+		return "", "", errors.New("select a capable authorization connection before requesting credentials")
+	}
 	if account.IsShadow() {
 		credAccount, err := resolveCredentialAccount(ctx, s.accountRepo, account)
 		if err != nil {
@@ -1422,6 +1453,10 @@ func (s *OpenAIGatewayService) GetAccessToken(ctx context.Context, account *Acco
 	default:
 		return "", "", fmt.Errorf("unsupported account type: %s", account.Type)
 	}
+}
+
+func (s *OpenAIGatewayService) SetOpenAIAuthConnectionService(service *OpenAIOAuthReauthService) {
+	s.excelOAuthReauth = service
 }
 
 func (s *OpenAIGatewayService) liveEgressEnabled() bool {

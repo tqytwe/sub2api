@@ -20,6 +20,7 @@ const (
 // scheduler. The fields are intentionally scoped to scheduling signals and do
 // not include credentials, account bodies, or request content.
 type PrioritySchedulingConfig struct {
+	CacheWeight                float64  `json:"cache_weight"`
 	ErrorRateWeight            float64  `json:"error_rate_weight"`
 	ErrorRateWindowMinutes     int      `json:"error_rate_window_minutes"`
 	ErrorRatePriorSamples      int      `json:"error_rate_prior_samples"`
@@ -36,6 +37,7 @@ type PrioritySchedulingConfig struct {
 	LatencyMeasurement         string   `json:"latency_measurement"`
 	RecoveryExplorationPercent int      `json:"recovery_exploration_percent"`
 	TargetTTFTMs               int      `json:"target_ttft_ms"`
+	TargetTPS                  float64  `json:"target_tps"`
 	LatencyPenaltyMode         string   `json:"latency_penalty_mode"`
 	LatencyPenaltyMinutes      int      `json:"latency_penalty_minutes"`
 	MaxLoadPercent             int      `json:"max_load_percent"`
@@ -53,14 +55,17 @@ func DefaultPrioritySchedulingConfig() PrioritySchedulingConfig {
 		OAuthQuotaThreshold: 90, BalanceProtocols: true, Mode: "balanced",
 		GroupIDs: []int64{}, Models: []string{}, WindowMinutes: 60, MinSamples: 5,
 		LatencyPercentile: 90, LatencyMeasurement: "legacy_forward",
-		RecoveryExplorationPercent: 10, TargetTTFTMs: 15000,
+		RecoveryExplorationPercent: 10, TargetTTFTMs: 15000, TargetTPS: 30,
 		LatencyPenaltyMode: PriorityLatencyDeprioritize, LatencyPenaltyMinutes: 10,
 		MaxLoadPercent: 80, MinQualityPercent: 90, QualityMaxAgeHours: 24,
-		QualityWeight: 30, LatencyWeight: 25, LoadWeight: 25, CostWeight: 20,
+		QualityWeight: 30, LatencyWeight: 25, LoadWeight: 25, CostWeight: 20, CacheWeight: 0,
 	}
 }
 
 func ValidatePrioritySchedulingConfig(c PrioritySchedulingConfig) error {
+	if math.IsNaN(c.TargetTPS) || math.IsInf(c.TargetTPS, 0) || c.TargetTPS < 0 || c.TargetTPS > 1e6 {
+		return errors.New("target TPS outside allowed range")
+	}
 	if math.IsNaN(c.ErrorRateWeight) || math.IsInf(c.ErrorRateWeight, 0) || c.ErrorRateWeight < 0 || c.ErrorRateWeight > 100 || c.ErrorRateWindowMinutes < 1 || c.ErrorRateWindowMinutes > 60 || c.ErrorRatePriorSamples < 1 || c.ErrorRatePriorSamples > 1000 {
 		return errors.New("error rate parameters outside allowed range")
 	}
@@ -99,7 +104,7 @@ func ValidatePrioritySchedulingConfig(c PrioritySchedulingConfig) error {
 		}
 	}
 	sum := 0.0
-	for _, weight := range []float64{c.QualityWeight, c.LatencyWeight, c.LoadWeight, c.CostWeight} {
+	for _, weight := range []float64{c.QualityWeight, c.LatencyWeight, c.LoadWeight, c.CostWeight, c.CacheWeight} {
 		if math.IsNaN(weight) || math.IsInf(weight, 0) || weight < 0 || weight > 100 {
 			return errors.New("weights must be between 0 and 100")
 		}

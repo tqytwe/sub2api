@@ -79,6 +79,11 @@ export async function createPreset(body: QualityRulePresetRequest): Promise<Qual
   return data
 }
 
+export async function updatePreset(id: number, body: QualityRulePresetRequest): Promise<QualityRulePreset> {
+  const { data } = await apiClient.put<QualityRulePreset>(`/admin/account-quality-presets/${id}`, body)
+  return data
+}
+
 export async function listTemplates(): Promise<QualityRuleTemplate[]> {
   const { data } = await apiClient.get<QualityRuleTemplate[]>('/admin/account-quality-templates')
   return data ?? []

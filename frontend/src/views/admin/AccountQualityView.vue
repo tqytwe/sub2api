@@ -33,7 +33,7 @@
               <p class="font-medium text-gray-900 dark:text-white">{{ item.account_name }} #{{ item.account_id }} · {{ item.pelican_config?.rule_name || t('admin.qualityOps.unnamed') }}</p>
               <p class="mt-1 text-xs text-gray-500">{{ item.status }} · {{ item.passed_count }}/{{ item.total_count }} {{ t('admin.qualityOps.passedCount') }}<template v-if="item.skipped_count"> · {{ t('admin.qualityOps.skippedCount', { count: item.skipped_count }) }}</template> · {{ formatDate(item.started_at) }}</p>
             </div>
-            <span v-if="item.error_message" class="text-xs text-red-700 dark:text-red-300">{{ item.error_message }}</span>
+            <p v-if="item.pelican_config?.quality_batch" class="w-full break-all text-xs text-gray-500">{{ batchSummary(item.pelican_config.quality_batch) }}</p><span v-if="item.error_message" class="text-xs text-red-700 dark:text-red-300">{{ item.error_message }}</span>
           </div>
           <div v-if="globalHistoryCursor > 0" class="p-4 text-center">
             <button class="btn btn-secondary" :disabled="globalHistoryMoreLoading" @click="loadMoreGlobalHistory">
@@ -69,8 +69,14 @@
           </fieldset>
           <label class="block text-sm"><span class="field-title">{{ t('admin.qualityOps.maxResults') }}</span><input v-model.number="templateForm.max_results" class="input w-full" type="number" min="1" required /></label>
           <label class="block text-sm"><span class="field-title">{{ t('admin.qualityOps.probesPerModel') }}</span><input v-model.number="templateForm.parallel_count" class="input w-full" data-testid="quality-template-parallel-count" type="number" min="1" max="32" step="1" required /><span class="mt-1 block text-xs text-gray-500 dark:text-gray-400">{{ t('admin.qualityOps.probesHelp') }}</span></label>
-          <label class="block text-sm sm:col-span-2"><span class="field-title">{{ t('admin.qualityOps.prompt') }}</span><textarea v-model="templateForm.prompt" class="input min-h-20 w-full font-mono text-sm" required maxlength="32768" /></label>
-          <label class="block text-sm"><span class="field-title">{{ t('admin.qualityOps.expectedAnswer') }}</span><input v-model.trim="templateForm.expected_answer" class="input w-full" data-testid="quality-template-expected-answer" required maxlength="4000" /></label>
+          <label v-if="templateForm.question_kind !== 'random_reasoning'" class="block text-sm sm:col-span-2"><span class="field-title">{{ t('admin.qualityOps.prompt') }}</span><textarea v-model="templateForm.prompt" class="input min-h-20 w-full font-mono text-sm" required maxlength="32768" /></label>
+          <label v-if="templateForm.question_kind !== 'random_reasoning'" class="block text-sm"><span class="field-title">{{ t('admin.qualityOps.expectedAnswer') }}</span><input v-model.trim="templateForm.expected_answer" class="input w-full" data-testid="quality-template-expected-answer" required maxlength="4000" /></label>
+          <div class="grid gap-4 sm:col-span-2 sm:grid-cols-2">
+            <label class="block text-sm"><span class="field-title">{{ t('admin.qualityOps.questionKind') }}</span><select v-model="templateForm.question_kind" class="input w-full" data-testid="quality-template-question-kind" :disabled="templateSaving"><option value="text">{{ t('admin.qualityOps.fixedQuestion') }}</option><option value="random_reasoning">{{ t('admin.qualityOps.randomQuestion') }}</option></select></label>
+            <label class="block text-sm"><span class="field-title">{{ t('admin.qualityOps.reasoningEffort') }}</span><select v-model="templateForm.reasoning_effort" class="input w-full" data-testid="quality-template-reasoning-effort" :disabled="templateSaving"><option value="">{{ t('admin.qualityOps.defaultEffort') }}</option><option v-for="effort in ['none', 'minimal', 'low', 'medium', 'high', 'xhigh']" :key="effort" :value="effort">{{ effort }}</option></select></label>
+            <p v-if="templateForm.question_kind === 'random_reasoning'" class="text-xs text-gray-500 dark:text-gray-400 sm:col-span-2">{{ t('admin.qualityOps.randomHelp') }}</p>
+            <label class="block text-sm sm:col-span-2"><span class="field-title">{{ t('admin.qualityOps.oauth401Rounds') }}</span><input v-model.number="templateForm.oauth_401_max_rounds" class="input w-full" data-testid="quality-template-oauth-401-max-rounds" type="number" min="0" max="100" step="1" :disabled="templateSaving" required /><span class="mt-1 block text-xs text-gray-500 dark:text-gray-400">{{ t('admin.qualityOps.oauth401Help') }}</span></label>
+          </div>
           <label class="block text-sm"><span class="field-title">{{ t('admin.qualityOps.action') }}</span><select v-model="templateForm.action" class="input w-full"><option value="observe_only">{{ t('admin.qualityOps.observeOnly') }}</option><option value="disable_scheduling">{{ t('admin.qualityOps.disableScheduling') }}</option><option value="isolate_models">{{ t('admin.qualityOps.isolation.action') }}</option></select></label>
           <QualityIsolationGroups v-if="templateForm.action === 'isolate_models'" v-model="templateForm.remove_group_ids" class="sm:col-span-2" data-testid="quality-template-isolation-groups" :groups="groups" :loading="groupsLoading" :error="groupsError" :disabled="templateSaving" />
           <label v-if="qualityUsesRetestRest(templateForm.action)" class="block text-sm sm:col-span-2"><span class="field-title">{{ t('admin.qualityOps.retestRest') }}</span><input v-model.number="templateForm.retest_rest_minutes" class="input w-full" data-testid="quality-template-retest-rest" type="number" min="0" max="10080" step="1" required :disabled="templateSaving" /><span class="mt-1 block text-xs text-gray-500 dark:text-gray-400">{{ t('admin.qualityOps.retestRestHint') }}</span></label>
@@ -109,7 +115,7 @@
             <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t(bulkEditing ? 'admin.qualityOps.bulkEdit' : editingId ? 'admin.qualityOps.edit' : 'admin.qualityOps.create') }}</h2>
             <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ t('admin.qualityOps.scope') }}</p>
           </div>
-          <button v-if="editingId || bulkEditing" class="btn btn-secondary" type="button" :disabled="saving" @click="resetForm">{{ t('common.cancel') }}</button>
+          <button v-if="editingId || bulkEditing || editingPresetId" class="btn btn-secondary" type="button" :disabled="saving" @click="resetForm">{{ t('common.cancel') }}</button>
         </div>
         <form class="grid gap-4 sm:grid-cols-2" :novalidate="bulkEditing" @submit.prevent="save">
           <fieldset v-if="bulkEditing" class="min-w-0 space-y-2 border-b border-gray-100 pb-3 dark:border-dark-700 sm:col-span-2" :disabled="saving">
@@ -126,7 +132,7 @@
                 <option v-for="preset in presets" :key="preset.id" :value="preset.id">{{ preset.name }}</option>
               </select>
             </label>
-            <button class="btn btn-secondary" type="button" data-testid="quality-apply-preset" :disabled="!selectedPresetId" @click="applyPreset">{{ t('admin.qualityOps.applyPreset') }}</button>
+            <button class="btn btn-secondary" type="button" data-testid="quality-apply-preset" :disabled="!selectedPresetId" @click="applyPreset">{{ t('admin.qualityOps.applyPreset') }}</button><button class="btn btn-secondary" type="button" data-testid="quality-edit-preset" :disabled="!selectedPresetId || presetSaving" @click="editPreset">{{ t('admin.qualityOps.editPreset') }}</button>
             <p v-if="presetError" class="text-xs text-red-700 dark:text-red-300 sm:col-span-2" role="alert">
               {{ presetError }}
               <button type="button" class="underline" @click="loadPresets">{{ t('admin.qualityOps.retryPresets') }}</button>
@@ -169,11 +175,11 @@
             <span class="field-title">{{ t('admin.qualityOps.ruleName') }}</span>
             <input v-model.trim="form.rule_name" class="input w-full" data-testid="quality-rule-name-input" maxlength="120" />
           </label>
-          <label class="block text-sm sm:col-span-2">
+          <label v-if="form.question_kind !== 'random_reasoning'" class="block text-sm sm:col-span-2">
             <span class="field-title">{{ t('admin.qualityOps.prompt') }}</span>
             <textarea v-model="form.prompt" class="input min-h-24 w-full font-mono text-sm" maxlength="32768" required />
           </label>
-          <label class="block text-sm">
+          <label v-if="form.question_kind !== 'random_reasoning'" class="block text-sm">
             <span class="field-title">{{ t('admin.qualityOps.expectedAnswer') }}</span>
             <input v-model.trim="form.expected_answer" class="input w-full" data-testid="quality-expected-answer" maxlength="4000" required />
           </label>
@@ -184,6 +190,12 @@
               <option value="jev">{{ t('admin.qualityOps.jevJudge') }}</option>
             </select>
           </label>
+          <div class="grid gap-4 sm:col-span-2 sm:grid-cols-2">
+            <label class="block text-sm"><span class="field-title">{{ t('admin.qualityOps.questionKind') }}</span><select v-model="form.question_kind" class="input w-full" data-testid="quality-question-kind" :disabled="saving || presetSaving"><option value="text">{{ t('admin.qualityOps.fixedQuestion') }}</option><option value="random_reasoning">{{ t('admin.qualityOps.randomQuestion') }}</option></select></label>
+            <label class="block text-sm"><span class="field-title">{{ t('admin.qualityOps.reasoningEffort') }}</span><select v-model="form.reasoning_effort" class="input w-full" data-testid="quality-reasoning-effort" :disabled="saving || presetSaving"><option value="">{{ t('admin.qualityOps.defaultEffort') }}</option><option v-for="effort in ['none', 'minimal', 'low', 'medium', 'high', 'xhigh']" :key="effort" :value="effort">{{ effort }}</option></select></label>
+            <p v-if="form.question_kind === 'random_reasoning'" class="text-xs text-gray-500 dark:text-gray-400 sm:col-span-2">{{ t('admin.qualityOps.randomHelp') }}</p>
+            <label class="block text-sm sm:col-span-2"><span class="field-title">{{ t('admin.qualityOps.oauth401Rounds') }}</span><input v-model.number="form.oauth_401_max_rounds" class="input w-full" data-testid="quality-oauth-401-max-rounds" type="number" min="0" max="100" step="1" :disabled="saving || presetSaving" required /><span class="mt-1 block text-xs text-gray-500 dark:text-gray-400">{{ t('admin.qualityOps.oauth401Help') }}</span></label>
+          </div>
           <label v-if="form.judge_kind === 'jev'" class="block text-sm sm:col-span-2">
             <span class="field-title">{{ t('admin.qualityOps.judgePrompt') }}</span>
             <textarea v-model="form.judge_prompt" class="input min-h-20 w-full font-mono text-sm" maxlength="16000" required />
@@ -215,13 +227,14 @@
                 <span class="field-title">{{ t('admin.qualityOps.presetName') }}</span>
                 <input v-model.trim="presetName" class="input w-full" maxlength="100" data-testid="quality-preset-name" />
               </label>
-              <button class="btn btn-secondary" type="button" data-testid="quality-save-preset" :disabled="presetSaving || !presetName.trim() || !form.model_id.trim() || !form.cron_expression.trim()" @click="savePreset">
+              <button v-if="!editingPresetId" class="btn btn-secondary" type="button" data-testid="quality-save-preset" :disabled="presetSaving || !presetName.trim() || !form.model_id.trim() || !form.cron_expression.trim()" @click="savePreset()">
                 {{ presetSaving ? t('common.saving') : t('admin.qualityOps.savePreset') }}
               </button>
             </div>
+            <button v-if="editingPresetId" class="btn btn-primary mt-3" type="button" data-testid="quality-update-preset" :disabled="presetSaving" @click="savePreset(true)">{{ t('admin.qualityOps.updatePreset') }}</button>
             <p v-if="presetSaveError" class="mt-2 text-xs text-red-700 dark:text-red-300" role="alert">{{ presetSaveError }}</p>
           </div>
-          <div class="flex justify-end sm:col-span-2">
+          <div v-if="!editingPresetId" class="flex justify-end sm:col-span-2">
             <button class="btn btn-primary" type="submit" :disabled="saving || (!bulkEditing && !form.account_id)">
               {{ saving ? t('common.saving') : t('common.save') }}
             </button>
@@ -294,6 +307,7 @@
                 <div v-for="result in history" :key="result.id" data-testid="quality-probe-result" class="min-w-0 border border-gray-100 p-3 text-sm dark:border-dark-700">
                   <div class="flex flex-wrap justify-between gap-2"><span>{{ result.status }}</span><span>{{ result.quality_action || '-' }}</span><time>{{ formatDate(result.started_at) }}</time></div>
                   <p class="mt-1 break-words text-xs text-gray-500">{{ t('admin.qualityOps.model') }}: {{ result.pelican_config?.model_id || plan.model_id }}<template v-if="result.quality_round_id"> · {{ t('admin.qualityOps.round') }}: {{ result.quality_round_id }}</template></p>
+                  <p v-if="result.pelican_config?.quality_batch" class="mt-1 break-all text-xs text-gray-500" data-testid="quality-batch-evidence">{{ batchSummary(result.pelican_config.quality_batch) }}</p>
                   <p v-if="result.error_message" class="mt-1 text-xs text-red-700 dark:text-red-300">{{ result.error_message }}</p>
                   <p v-if="result.quality_judgment" class="mt-1 text-xs text-gray-500">{{ JSON.stringify(result.quality_judgment) }}</p>
                 </div>
@@ -358,6 +372,7 @@ const presetSaveError = ref('')
 const presetSaving = ref(false)
 const presetName = ref('')
 const selectedPresetId = ref(0)
+const editingPresetId = ref<number | null>(null)
 const showPresetSave = ref(false)
 const templates = ref<QualityRuleTemplate[]>([])
 const templateLoading = ref(false)
@@ -367,11 +382,12 @@ const templateFormOpen = ref(false)
 const editingTemplateId = ref<number | null>(null)
 const templateSourceConfig = ref<PelicanTestConfig>({})
 const sourceConfig = ref<PelicanTestConfig>({})
-const templateForm = reactive({ group: '', type: '', statuses: '', search: '', model_id: '', extra_models: [] as string[], parallel_count: 1, cron_expression: '*/30 * * * *', max_results: 100, prompt: '', expected_answer: '', action: 'observe_only', remove_group_ids: [] as number[], auto_restore: false, trigger_on_upstream_5xx: false, retest_rest_minutes: 0, enabled: true })
+const templateForm = reactive({ group: '', type: '', statuses: '', search: '', model_id: '', extra_models: [] as string[], parallel_count: 1, cron_expression: '*/30 * * * *', max_results: 100, question_kind: 'text', reasoning_effort: '', oauth_401_max_rounds: 0, prompt: '', expected_answer: '', action: 'observe_only', remove_group_ids: [] as number[], auto_restore: false, trigger_on_upstream_5xx: false, retest_rest_minutes: 0, enabled: true })
 
-const form = reactive({ account_id: 0, model_id: '', extra_models: [] as string[], parallel_count: 1, cron_expression: '*/30 * * * *', max_results: 100, rule_name: '', prompt: '', expected_answer: '', judge_kind: 'expected' as 'expected' | 'jev', judge_prompt: '', action: 'observe_only', remove_group_ids: [] as number[], auto_restore: false, trigger_on_upstream_5xx: false, retest_rest_minutes: 0, enabled: true })
+const form = reactive({ account_id: 0, model_id: '', extra_models: [] as string[], parallel_count: 1, cron_expression: '*/30 * * * *', max_results: 100, rule_name: '', question_kind: 'text', reasoning_effort: '', oauth_401_max_rounds: 0, prompt: '', expected_answer: '', judge_kind: 'expected' as 'expected' | 'jev', judge_prompt: '', action: 'observe_only', remove_group_ids: [] as number[], auto_restore: false, trigger_on_upstream_5xx: false, retest_rest_minutes: 0, enabled: true })
 
 function resetForm() {
+  editingPresetId.value = null
   editingId.value = null
   bulkEditing.value = false
   bulkRuleIds.value = []
@@ -383,7 +399,7 @@ function resetForm() {
   showPresetSave.value = false
   presetSaveError.value = ''
   sourceConfig.value = {}
-  Object.assign(form, { account_id: 0, model_id: '', extra_models: [] as string[], parallel_count: 1, cron_expression: '*/30 * * * *', max_results: 100, rule_name: '', prompt: '', expected_answer: '', judge_kind: 'expected', judge_prompt: '', action: 'observe_only', remove_group_ids: [] as number[], auto_restore: false, trigger_on_upstream_5xx: false, retest_rest_minutes: 0, enabled: true })
+  Object.assign(form, { account_id: 0, model_id: '', extra_models: [] as string[], parallel_count: 1, cron_expression: '*/30 * * * *', max_results: 100, rule_name: '', question_kind: 'text', reasoning_effort: '', oauth_401_max_rounds: 0, prompt: '', expected_answer: '', judge_kind: 'expected', judge_prompt: '', action: 'observe_only', remove_group_ids: [] as number[], auto_restore: false, trigger_on_upstream_5xx: false, retest_rest_minutes: 0, enabled: true })
 }
 
 function configuredModels(primary: string, config?: PelicanTestConfig | null): string[] {
@@ -407,6 +423,10 @@ function modelSummary(primary: string, config?: PelicanTestConfig | null): strin
   return configuredModels(primary, config).join(' / ')
 }
 
+function batchSummary(batch: NonNullable<PelicanTestConfig['quality_batch']>) {
+  return t('admin.qualityOps.batchEvidence', { id: batch.id, decision: t(`admin.qualityOps.batchDecisions.${batch.decision}`), passed: batch.peer_passed, peers: batch.peer_accounts })
+}
+
 function accountName(id: number) {
   return accounts.value.find((account) => account.id === id)?.name || `#${id}`
 }
@@ -418,7 +438,7 @@ function formatDate(value?: string | null) {
 function resetTemplateForm() {
   editingTemplateId.value = null
   templateSourceConfig.value = {}
-  Object.assign(templateForm, { group: '', type: '', statuses: '', search: '', model_id: '', extra_models: [] as string[], parallel_count: 1, cron_expression: '*/30 * * * *', max_results: 100, prompt: '', expected_answer: '', action: 'observe_only', remove_group_ids: [] as number[], auto_restore: false, trigger_on_upstream_5xx: false, retest_rest_minutes: 0, enabled: true })
+  Object.assign(templateForm, { group: '', type: '', statuses: '', search: '', model_id: '', extra_models: [] as string[], parallel_count: 1, cron_expression: '*/30 * * * *', max_results: 100, question_kind: 'text', reasoning_effort: '', oauth_401_max_rounds: 0, prompt: '', expected_answer: '', action: 'observe_only', remove_group_ids: [] as number[], auto_restore: false, trigger_on_upstream_5xx: false, retest_rest_minutes: 0, enabled: true })
 }
 
 function newTemplate() {
@@ -438,7 +458,7 @@ function policyPayload(policy: QualityPolicy): QualityPolicy {
 
 function templatePelicanConfig(): PelicanTestConfig {
   const source = templateSourceConfig.value
-  return { ...source, ...probeConfig(templateForm.model_id, templateForm.extra_models, templateForm.parallel_count), question_kind: source.question_kind || 'text', prompt: templateForm.prompt, quality: policyPayload({ ...source.quality, action: templateForm.action, remove_group_ids: isolationGroups(templateForm.action, templateForm.remove_group_ids), expected_answer: templateForm.expected_answer, auto_restore: templateForm.auto_restore, trigger_on_upstream_5xx: templateForm.trigger_on_upstream_5xx, retest_rest_minutes: templateForm.retest_rest_minutes, judge: source.quality?.judge || { kind: 'expected' } }) }
+  return { ...source, ...probeConfig(templateForm.model_id, templateForm.extra_models, templateForm.parallel_count), question_kind: templateForm.question_kind, reasoning_effort: templateForm.reasoning_effort || undefined, prompt: templateForm.question_kind === 'random_reasoning' ? '' : templateForm.prompt, quality: policyPayload({ ...source.quality, action: templateForm.action, remove_group_ids: isolationGroups(templateForm.action, templateForm.remove_group_ids), expected_answer: templateForm.question_kind === 'random_reasoning' ? '' : templateForm.expected_answer, oauth_401_max_rounds: templateForm.oauth_401_max_rounds, auto_restore: templateForm.auto_restore, trigger_on_upstream_5xx: templateForm.trigger_on_upstream_5xx, retest_rest_minutes: templateForm.retest_rest_minutes, judge: source.quality?.judge || { kind: 'expected' } }) }
 }
 
 function templateRequest(): QualityRuleTemplateRequest {
@@ -463,6 +483,9 @@ function editTemplate(template: QualityRuleTemplate) {
   templateFormOpen.value = true
   templateForm.trigger_on_upstream_5xx = template.pelican_config?.quality?.trigger_on_upstream_5xx ?? false
   templateForm.retest_rest_minutes = template.pelican_config?.quality?.retest_rest_minutes ?? 0
+  templateForm.question_kind = template.pelican_config?.question_kind || 'text'
+  templateForm.reasoning_effort = template.pelican_config?.reasoning_effort || ''
+  templateForm.oauth_401_max_rounds = template.pelican_config?.quality?.oauth_401_max_rounds ?? 0
 }
 
 async function loadTemplates() {
@@ -579,6 +602,9 @@ function applyPreset() {
   form.auto_restore = config.quality?.auto_restore === true
   form.trigger_on_upstream_5xx = config.quality?.trigger_on_upstream_5xx ?? false
   form.retest_rest_minutes = config.quality?.retest_rest_minutes ?? 0
+  form.question_kind = config.question_kind || 'text'
+  form.reasoning_effort = config.reasoning_effort || ''
+  form.oauth_401_max_rounds = config.quality?.oauth_401_max_rounds ?? 0
   form.enabled = preset.enabled
   notice.value = t('admin.qualityOps.presetApplied')
 }
@@ -589,7 +615,8 @@ function pelicanConfig(validate = true): PelicanTestConfig & { quality: QualityP
     action: form.action,
     remove_group_ids: validate ? isolationGroups(form.action, form.remove_group_ids) : form.action === 'isolate_models' ? [...form.remove_group_ids] : undefined,
     auto_restore: form.auto_restore,
-    expected_answer: form.expected_answer,
+    expected_answer: form.question_kind === 'random_reasoning' ? '' : form.expected_answer,
+    oauth_401_max_rounds: form.oauth_401_max_rounds,
     trigger_on_upstream_5xx: form.trigger_on_upstream_5xx,
     retest_rest_minutes: form.retest_rest_minutes,
     judge: { ...sourceConfig.value.quality?.judge, kind: form.judge_kind, prompt: form.judge_kind === 'jev' ? form.judge_prompt || undefined : undefined }
@@ -598,13 +625,23 @@ function pelicanConfig(validate = true): PelicanTestConfig & { quality: QualityP
     ...sourceConfig.value,
     ...(validate ? probeConfig(form.model_id, form.extra_models, form.parallel_count) : { model_ids: [form.model_id, ...form.extra_models], parallel_count: form.parallel_count }),
     rule_name: form.rule_name || undefined,
-    question_kind: sourceConfig.value.question_kind || 'text',
-    prompt: form.prompt,
+    question_kind: form.question_kind,
+    reasoning_effort: form.reasoning_effort || undefined,
+    prompt: form.question_kind === 'random_reasoning' ? '' : form.prompt,
     quality: validate ? policyPayload(policy) : policy
   }
 }
 
-async function savePreset() {
+function editPreset() {
+  applyPreset()
+  const preset = presets.value.find(item => item.id === selectedPresetId.value)
+  if (!preset) return
+  editingPresetId.value = preset.id
+  presetName.value = preset.name
+  showPresetSave.value = true
+}
+
+async function savePreset(updateExisting = false) {
   if (presetSaving.value) return
   const name = presetName.value.trim()
   if (!name || Array.from(name).length > 100) {
@@ -622,10 +659,13 @@ async function savePreset() {
       max_results: form.max_results,
       pelican_config: pelicanConfig()
     }
-    const created = await accountQualityAPI.createPreset(request)
+    const created = updateExisting && editingPresetId.value
+      ? await accountQualityAPI.updatePreset(editingPresetId.value, request)
+      : await accountQualityAPI.createPreset(request)
     presets.value = [created, ...presets.value.filter((item) => item.id !== created.id)]
     selectedPresetId.value = created.id
     presetName.value = ''
+    editingPresetId.value = null
     showPresetSave.value = false
     notice.value = t('admin.qualityOps.presetSaved')
   } catch (err: any) {
@@ -675,6 +715,9 @@ function edit(plan: ScheduledTestPlan) {
   form.auto_restore = plan.pelican_config?.quality?.auto_restore === true
   form.trigger_on_upstream_5xx = plan.pelican_config?.quality?.trigger_on_upstream_5xx ?? false
   form.retest_rest_minutes = plan.pelican_config?.quality?.retest_rest_minutes ?? 0
+  form.question_kind = plan.pelican_config?.question_kind || 'text'
+  form.reasoning_effort = plan.pelican_config?.reasoning_effort || ''
+  form.oauth_401_max_rounds = plan.pelican_config?.quality?.oauth_401_max_rounds ?? 0
   form.enabled = plan.enabled
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }

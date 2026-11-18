@@ -51,6 +51,16 @@
       ],
       "fully_migrated": false,
       "local_browser_acceptance": "pending_after_exact_sha_deployment"
+    },
+    "current_delivery_baseline": {
+      "pr": "https://github.com/tqytwe/sub2api/pull/432",
+      "merge_commit": "6385c821143b2b8141bdf08106f4390b7fbace4d",
+      "remote_branch_verified_at": "2026-11-18",
+      "local_browser_acceptance": "passed_guest_user_admin_user_confirmation",
+      "production_runtime_recheck": "required_before_next_release",
+      "candidate_branch": "sync/v2212-delivery-integration-20261117",
+      "candidate_state": "local_verification_no_new_deployment",
+      "fully_migrated": false
     }
   }
 }

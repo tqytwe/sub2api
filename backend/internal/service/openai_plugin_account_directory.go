@@ -37,6 +37,7 @@ func (s *OpenAIGatewayService) ListPluginAccounts(ctx context.Context, scope Plu
 	reqAccountType := strings.TrimSpace(accountType)
 
 	infos := make([]PluginAccountInfo, 0)
+	accountsInScope := make([]Account, 0)
 	for _, scopePlatform := range scope.Platforms() {
 		if reqPlatform != "" && reqPlatform != scopePlatform {
 			continue
@@ -63,8 +64,24 @@ func (s *OpenAIGatewayService) ListPluginAccounts(ctx context.Context, scope Plu
 			if reqAccountType != "" && reqAccountType != account.Type {
 				continue
 			}
-			infos = append(infos, accountToPluginInfo(&account))
+			accountsInScope = append(accountsInScope, account)
 		}
+	}
+	if reader, ok := s.accountRepo.(PerformancePauseReader); ok && len(accountsInScope) > 0 {
+		ids := make([]int64, 0, len(accountsInScope))
+		for _, account := range accountsInScope {
+			ids = append(ids, account.ID)
+		}
+		paused, err := reader.PerformancePaused(ctx, ids)
+		if err != nil {
+			return nil, err
+		}
+		for i := range accountsInScope {
+			accountsInScope[i].PerformancePaused = paused[accountsInScope[i].ID]
+		}
+	}
+	for i := range accountsInScope {
+		infos = append(infos, accountToPluginInfo(&accountsInScope[i]))
 	}
 	return infos, nil
 }
@@ -111,6 +128,7 @@ func accountReadableSnapshotJSON(account *Account) []byte {
 	clone.Credentials = nil
 	clone.Groups = nil
 	clone.AccountGroups = nil
+	clone.PerformancePaused = false
 	data, err := json.Marshal(&clone)
 	if err != nil {
 		return nil
@@ -132,6 +150,15 @@ func (s *OpenAIGatewayService) ResolvePluginOutboundIdentity(ctx context.Context
 	}
 	if account == nil || account.IsShadow() {
 		return nil, nil
+	}
+	if reader, ok := s.accountRepo.(PerformancePauseReader); ok {
+		paused, err := reader.PerformancePaused(ctx, []int64{account.ID})
+		if err != nil {
+			return nil, err
+		}
+		if paused[account.ID] {
+			return nil, nil
+		}
 	}
 	// Scope is the authoritative permission boundary: refuse any account the
 	// plugin's declared capabilities do not cover, even if it exists.

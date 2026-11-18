@@ -33,7 +33,7 @@ func (s *OpenAIGatewayService) ForwardAsAnthropic(
 	body []byte,
 	promptCacheKey string,
 	defaultMappedModel string,
-) (*OpenAIForwardResult, error) {
+) (result *OpenAIForwardResult, forwardErr error) {
 	// Messages forwarding drains disconnected requests for metered usage, just
 	// like Chat. Admission reads remain bounded independently of the client.
 	admissionCtx, releaseAdmissionCtx := detachUpstreamContext(ctx)
@@ -46,6 +46,11 @@ func (s *OpenAIGatewayService) ForwardAsAnthropic(
 		return nil, admissionErr
 	}
 	account = latest
+	defer func() {
+		if result != nil {
+			result.AuthConnectionID = account.AuthConnectionID
+		}
+	}()
 
 	// 工具 Schema 清洗必须先于所有分流：下游每条路径（原生 Anthropic 直通、
 	// Chat Completions 转换、Responses 转换）都会把 tools 原样带给上游，而
@@ -547,7 +552,6 @@ func (s *OpenAIGatewayService) ForwardAsAnthropic(
 
 	// 9. Handle normal response
 	// Upstream is always streaming; choose response format based on client preference.
-	var result *OpenAIForwardResult
 	var handleErr error
 	if clientStream {
 		result, handleErr = s.handleAnthropicStreamingResponse(resp, c, account, originalModel, billingModel, upstreamModel, startTime)

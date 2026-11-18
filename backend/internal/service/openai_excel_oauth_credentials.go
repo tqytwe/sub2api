@@ -56,6 +56,8 @@ type OpenAIExcelOAuthRuntimeCredential struct {
 	AccessToken      string
 	ChatGPTAccountID string
 	Revision         int64
+	ConnectionID     string
+	ValidateSend     func(context.Context) error
 }
 
 type openAIExcelOAuthCredentialPayload struct {
@@ -82,6 +84,7 @@ type OpenAIExcelOAuthService struct {
 type excelOAuthCapabilityCacheEntry struct {
 	capabilities ExcelBPSCapabilities
 	revision     int64
+	connectionID string
 	loadedAt     time.Time
 }
 
@@ -174,6 +177,11 @@ func (s *OpenAIExcelOAuthService) discoverCapabilitiesWithCredential(ctx context
 	if err != nil {
 		return nil, err
 	}
+	if credential.ValidateSend != nil {
+		if err := credential.ValidateSend(ctx); err != nil {
+			return nil, err
+		}
+	}
 	body, status, err := s.access.FetchAccessModels(ctx, credential.AccessToken, credential.ChatGPTAccountID, proxyURL)
 	if err != nil {
 		return nil, infraerrors.New(http.StatusBadGateway, "OPENAI_EXCEL_BPS_DISCOVERY_FAILED", "Excel model capability discovery failed")
@@ -194,7 +202,7 @@ func (s *OpenAIExcelOAuthService) discoverCapabilitiesWithCredential(ctx context
 		return nil, infraerrors.New(http.StatusBadGateway, "OPENAI_EXCEL_BPS_DISCOVERY_INVALID", "provider returned an invalid capability catalog")
 	}
 	s.capMu.Lock()
-	s.capCache[accountID] = excelOAuthCapabilityCacheEntry{capabilities: capabilities, revision: credential.Revision, loadedAt: s.clock()}
+	s.capCache[accountID] = excelOAuthCapabilityCacheEntry{capabilities: capabilities, revision: credential.Revision, connectionID: credential.ConnectionID, loadedAt: s.clock()}
 	s.capMu.Unlock()
 	return &capabilities, nil
 }
@@ -214,12 +222,12 @@ func (s *OpenAIExcelOAuthService) EnsureModelAllowed(ctx context.Context, accoun
 	s.capMu.Lock()
 	entry, ok := s.capCache[accountID]
 	s.capMu.Unlock()
-	if !ok || entry.revision != credential.Revision || now.Sub(entry.loadedAt) >= excelOAuthCapabilityCacheTTL {
+	if !ok || entry.revision != credential.Revision || entry.connectionID != credential.ConnectionID || now.Sub(entry.loadedAt) >= excelOAuthCapabilityCacheTTL {
 		capabilities, err := s.discoverCapabilitiesWithCredential(ctx, accountID, credential)
 		if err != nil {
 			return err
 		}
-		entry = excelOAuthCapabilityCacheEntry{capabilities: *capabilities, revision: credential.Revision, loadedAt: now}
+		entry = excelOAuthCapabilityCacheEntry{capabilities: *capabilities, revision: credential.Revision, connectionID: credential.ConnectionID, loadedAt: now}
 	}
 	if !entry.capabilities.AllowsModel(model) {
 		return infraerrors.New(http.StatusForbidden, "OPENAI_EXCEL_BPS_MODEL_NOT_ALLOWED", "the requested model is not allowed for this Excel BPS account")

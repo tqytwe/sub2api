@@ -86,6 +86,17 @@ func (s *ScheduledTestService) CreateQualityPreset(ctx context.Context, input *Q
 	if err != nil {
 		return nil, err
 	}
+	preset, err := prepareQualityPreset(input)
+	if err != nil {
+		return nil, err
+	}
+	return repo.CreateQualityPreset(ctx, preset)
+}
+
+func prepareQualityPreset(input *QualityRulePreset) (*QualityRulePreset, error) {
+	if input == nil {
+		return nil, infraerrors.BadRequest("QUALITY_PRESET_INVALID", "quality preset is required")
+	}
 	name := strings.TrimSpace(input.Name)
 	if name == "" || utf8.RuneCountInString(name) > 100 {
 		return nil, infraerrors.BadRequest("QUALITY_PRESET_NAME_INVALID", "preset name must be 1-100 characters")
@@ -114,5 +125,29 @@ func (s *ScheduledTestService) CreateQualityPreset(ctx context.Context, input *Q
 		Name: name, ModelID: modelID, CronExpression: cronExpression,
 		Enabled: input.Enabled, MaxResults: maxResults, PelicanConfig: config,
 	}
-	return repo.CreateQualityPreset(ctx, preset)
+	return preset, nil
+}
+
+type QualityPresetEditor interface {
+	UpdateQualityPreset(context.Context, *QualityRulePreset) (*QualityRulePreset, error)
+}
+
+func (s *ScheduledTestService) UpdateQualityPreset(ctx context.Context, id int64, input *QualityRulePreset) (*QualityRulePreset, error) {
+	repo, err := s.qualityPresetRepo()
+	if err != nil {
+		return nil, err
+	}
+	editor, ok := repo.(QualityPresetEditor)
+	if !ok {
+		return nil, infraerrors.ServiceUnavailable("QUALITY_PRESET_EDIT_UNAVAILABLE", "preset editing unavailable")
+	}
+	if id <= 0 {
+		return nil, infraerrors.BadRequest("QUALITY_PRESET_ID_INVALID", "preset ID must be positive")
+	}
+	preset, err := prepareQualityPreset(input)
+	if err != nil {
+		return nil, err
+	}
+	preset.ID = id
+	return editor.UpdateQualityPreset(ctx, preset)
 }
