@@ -444,6 +444,16 @@
                 }}</span>
               </button>
               <button
+                v-if="!authStore.isSimpleMode"
+                type="button"
+                data-testid="group-user-denied-models"
+                class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-primary-600 dark:hover:bg-dark-700 dark:hover:text-primary-400"
+                @click="userDeniedModelsGroup = row"
+              >
+                <Icon name="shield" size="sm" />
+                <span class="text-xs">{{ t("admin.groups.userDeniedModels") }}</span>
+              </button>
+              <button
                 @click="handleDelete(row)"
                 class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400"
               >
@@ -489,26 +499,26 @@
         class="space-y-5"
       >
         <div>
-          <label class="input-label">{{ t("admin.groups.form.name") }}</label>
-          <input
+          <GroupI18nField
             v-model="createForm.name"
-            type="text"
+            v-model:i18n="createForm.i18n"
+            :label="t('admin.groups.form.name')"
+            field="name"
             required
-            class="input"
             :placeholder="t('admin.groups.enterGroupName')"
             data-tour="group-form-name"
           />
         </div>
         <div>
-          <label class="input-label">{{
-            t("admin.groups.form.description")
-          }}</label>
-          <textarea
+          <GroupI18nField
             v-model="createForm.description"
+            v-model:i18n="createForm.i18n"
+            :label="t('admin.groups.form.description')"
+            field="description"
+            multiline
             rows="3"
-            class="input"
             :placeholder="t('admin.groups.optionalDescription')"
-          ></textarea>
+          />
         </div>
         <div>
           <label class="input-label">{{
@@ -612,6 +622,41 @@
           <p class="input-hint">{{ t("admin.groups.copyAccounts.hint") }}</p>
         </div>
         <template v-if="!authStore.isSimpleMode">
+        <div v-if="!authStore.isSimpleMode" class="space-y-3">
+          <div class="flex items-start justify-between gap-4">
+            <div>
+              <span class="input-label">{{ t("admin.groups.form.codexCLIOnly") }}</span>
+              <p class="input-hint">{{ t("admin.groups.form.codexCLIOnlyHint") }}</p>
+            </div>
+            <Toggle
+              v-model="createForm.codex_cli_only"
+              data-testid="create-codex-cli-only"
+              :aria-label="t('admin.groups.form.codexCLIOnly')"
+            />
+          </div>
+          <div class="flex items-start justify-between gap-4">
+            <div>
+              <span class="input-label">{{ t("admin.groups.form.blockSubagents") }}</span>
+              <p class="input-hint">{{ t("admin.groups.form.blockSubagentsHint") }}</p>
+            </div>
+            <Toggle
+              v-model="createForm.block_subagents"
+              data-testid="create-block-subagents"
+              :aria-label="t('admin.groups.form.blockSubagents')"
+            />
+          </div>
+          <div class="flex items-start justify-between gap-4">
+            <div>
+              <span class="input-label">{{ t("admin.groups.form.streamOnly") }}</span>
+              <p class="input-hint">{{ t("admin.groups.form.streamOnlyHint") }}</p>
+            </div>
+            <Toggle
+              v-model="createForm.stream_only"
+              data-testid="create-stream-only"
+              :aria-label="t('admin.groups.form.streamOnly')"
+            />
+          </div>
+        </div>
         <div>
           <label class="input-label">{{
             t("admin.groups.form.rateMultiplier")
@@ -2153,14 +2198,49 @@
         class="space-y-5"
       >
         <div>
-          <label class="input-label">{{ t("admin.groups.form.name") }}</label>
-          <input
+          <GroupI18nField
             v-model="editForm.name"
-            type="text"
+            v-model:i18n="editForm.i18n"
+            :label="t('admin.groups.form.name')"
+            field="name"
             required
-            class="input"
             data-tour="edit-group-form-name"
           />
+        </div>
+        <div v-if="!authStore.isSimpleMode" class="space-y-3">
+          <div class="flex items-start justify-between gap-4">
+            <div>
+              <span class="input-label">{{ t("admin.groups.form.codexCLIOnly") }}</span>
+              <p class="input-hint">{{ t("admin.groups.form.codexCLIOnlyHint") }}</p>
+            </div>
+            <Toggle
+              v-model="editForm.codex_cli_only"
+              data-testid="edit-codex-cli-only"
+              :aria-label="t('admin.groups.form.codexCLIOnly')"
+            />
+          </div>
+          <div class="flex items-start justify-between gap-4">
+            <div>
+              <span class="input-label">{{ t("admin.groups.form.blockSubagents") }}</span>
+              <p class="input-hint">{{ t("admin.groups.form.blockSubagentsHint") }}</p>
+            </div>
+            <Toggle
+              v-model="editForm.block_subagents"
+              data-testid="edit-block-subagents"
+              :aria-label="t('admin.groups.form.blockSubagents')"
+            />
+          </div>
+          <div class="flex items-start justify-between gap-4">
+            <div>
+              <span class="input-label">{{ t("admin.groups.form.streamOnly") }}</span>
+              <p class="input-hint">{{ t("admin.groups.form.streamOnlyHint") }}</p>
+            </div>
+            <Toggle
+              v-model="editForm.stream_only"
+              data-testid="edit-stream-only"
+              :aria-label="t('admin.groups.form.streamOnly')"
+            />
+          </div>
         </div>
         <div class="md:col-span-2">
           <div class="grid gap-3 rounded-lg border border-gray-200 p-3 dark:border-dark-600 md:grid-cols-4" data-testid="edit-group-surcharge-panel">
@@ -2188,14 +2268,14 @@
           <p class="input-hint">{{ t("admin.groups.surcharge.hint") }}</p>
         </div>
         <div>
-          <label class="input-label">{{
-            t("admin.groups.form.description")
-          }}</label>
-          <textarea
+          <GroupI18nField
             v-model="editForm.description"
+            v-model:i18n="editForm.i18n"
+            :label="t('admin.groups.form.description')"
+            field="description"
+            multiline
             rows="3"
-            class="input"
-          ></textarea>
+          />
         </div>
         <div>
           <label class="input-label">{{
@@ -4311,6 +4391,12 @@
       @close="showRPMOverridesModal = false"
       @success="loadGroups"
     />
+    <GroupUserDeniedModelsModal
+      v-if="userDeniedModelsGroup"
+      :show="true"
+      :group="userDeniedModelsGroup"
+      @close="userDeniedModelsGroup = null"
+    />
   </AppLayout>
 </template>
 
@@ -4330,6 +4416,7 @@ import type {
   CompositeRouteDecision,
   CompositeRouteEndpoint,
   CompositeRouteMatchType,
+  GroupI18n,
   GroupPlatform,
   SubscriptionType,
 } from "@/types";
@@ -4349,7 +4436,9 @@ import EmptyState from "@/components/common/EmptyState.vue";
 import Select from "@/components/common/Select.vue";
 import PlatformIcon from "@/components/common/PlatformIcon.vue";
 import Icon from "@/components/icons/Icon.vue";
+import GroupI18nField from "@/components/admin/group/GroupI18nField.vue";
 import GroupRateMultipliersModal from "@/components/admin/group/GroupRateMultipliersModal.vue";
+import GroupUserDeniedModelsModal from "@/components/admin/group/GroupUserDeniedModelsModal.vue";
 import GroupRPMOverridesModal from "@/components/admin/group/GroupRPMOverridesModal.vue";
 import GroupCapacityBadge from "@/components/common/GroupCapacityBadge.vue";
 import ReasoningEffortPolicyFields from "@/components/admin/group/ReasoningEffortPolicyFields.vue";
@@ -4891,6 +4980,7 @@ const deletingGroup = ref<AdminGroup | null>(null);
 const duplicatingGroupIds = reactive(new Set<number>());
 const showRateMultipliersModal = ref(false);
 const rateMultipliersGroup = ref<AdminGroup | null>(null);
+const userDeniedModelsGroup = ref<AdminGroup | null>(null);
 const showRPMOverridesModal = ref(false);
 const rpmOverridesGroup = ref<AdminGroup | null>(null);
 const sortableGroups = ref<AdminGroup[]>([]);
@@ -4991,6 +5081,7 @@ const submitEditAllowlistCustomEntry = () => {
 const createForm = reactive({
   name: "",
   description: "",
+  i18n: {} as GroupI18n,
   platform: "anthropic" as GroupPlatform,
   rate_multiplier: 1.0,
   billing_surcharge_override_enabled: false,
@@ -5040,6 +5131,9 @@ const createForm = reactive({
   profit_safety_buffer_percent: 0,
   // Claude Code 客户端限制（仅 anthropic 平台使用）
   claude_code_only: false,
+  codex_cli_only: false,
+  block_subagents: false,
+  stream_only: false,
   fallback_group_id: null as number | null,
   fallback_group_id_on_invalid_request: null as number | null,
   // OpenAI Messages 调度配置（仅 openai 平台使用）
@@ -5359,6 +5453,7 @@ const convertApiFormatToRoutingRules = async (
 const editForm = reactive({
   name: "",
   description: "",
+  i18n: {} as GroupI18n,
   platform: "anthropic" as GroupPlatform,
   rate_multiplier: 1.0,
   billing_surcharge_override_enabled: false,
@@ -5409,6 +5504,9 @@ const editForm = reactive({
   profit_safety_buffer_percent: 0,
   // Claude Code 客户端限制（仅 anthropic 平台使用）
   claude_code_only: false,
+  codex_cli_only: false,
+  block_subagents: false,
+  stream_only: false,
   fallback_group_id: null as number | null,
   fallback_group_id_on_invalid_request: null as number | null,
   // OpenAI Messages 调度配置（仅 openai 平台使用）
@@ -5835,6 +5933,7 @@ const closeCreateModal = () => {
   clearAllAccountSearchState();
   createForm.name = "";
   createForm.description = "";
+  createForm.i18n = {};
   createForm.platform = "anthropic";
   createForm.rate_multiplier = 1.0;
   createForm.billing_surcharge_override_enabled = false;
@@ -5877,6 +5976,9 @@ const closeCreateModal = () => {
   createForm.profit_control_enabled = false;
   createForm.profit_min_margin_percent = 0;
   createForm.profit_safety_buffer_percent = 0;
+  createForm.codex_cli_only = false;
+  createForm.block_subagents = false;
+  createForm.stream_only = false;
   createForm.claude_code_only = false;
   createForm.fallback_group_id = null;
   createForm.fallback_group_id_on_invalid_request = null;
@@ -6107,6 +6209,7 @@ const handleCreateGroup = async () => {
       ? {
           name: createForm.name,
           description: createForm.description,
+          i18n: createForm.i18n,
           platform: createForm.platform,
         }
       : requestData;
@@ -6133,6 +6236,12 @@ const handleEdit = async (group: AdminGroup) => {
   editingGroup.value = group;
   editForm.name = group.name;
   editForm.description = group.description || "";
+  editForm.i18n = Object.fromEntries(
+    Object.entries(group.i18n ?? {}).map(([locale, text]) => [
+      locale,
+      { ...text },
+    ]),
+  );
   editForm.platform = group.platform;
   editForm.rate_multiplier = group.rate_multiplier;
   editForm.billing_surcharge_override_enabled =
@@ -6186,6 +6295,9 @@ const handleEdit = async (group: AdminGroup) => {
   editForm.profit_safety_buffer_percent = decimalToPercent(
     group.profit_safety_buffer ?? 0,
   );
+  editForm.codex_cli_only = group.codex_cli_only ?? false;
+  editForm.block_subagents = group.block_subagents ?? false;
+  editForm.stream_only = group.stream_only ?? false;
   editForm.claude_code_only = group.claude_code_only || false;
   editForm.fallback_group_id = group.fallback_group_id;
   editForm.fallback_group_id_on_invalid_request =
@@ -6466,6 +6578,7 @@ const handleUpdateGroup = async () => {
       ? {
           name: editForm.name,
           description: editForm.description,
+          i18n: editForm.i18n,
         }
       : payload;
     await adminAPI.groups.update(editingGroup.value.id, requestData);

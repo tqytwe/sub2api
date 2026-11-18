@@ -56,6 +56,8 @@ func TestMigrationsRunner_IsIdempotent_AndSchemaIsUpToDate(t *testing.T) {
 	requireIndex(t, tx, "accounts", "idx_accounts_autopause_expiry_due")
 
 	// groups: OpenAI Live 与 Fast 强制策略都默认关闭，管理员显式开启后才生效。
+	requireColumn(t, tx, "groups", "i18n", "jsonb", 0, false)
+	requireColumnDefaultContains(t, tx, "groups", "i18n", "{}")
 	requireColumn(t, tx, "groups", "allow_live", "boolean", 0, false)
 	requireColumn(t, tx, "groups", "force_openai_fast", "boolean", 0, false)
 	requireColumn(t, tx, "groups", "free_openai_fast", "boolean", 0, false)

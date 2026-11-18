@@ -78,6 +78,7 @@
           </div>
         </div>
 
+        <div v-if="!identityOnly" class="contents">
         <!-- Model Filter -->
         <div class="w-full sm:w-auto sm:min-w-[220px]">
           <label class="input-label">{{ t('usage.model') }}</label>
@@ -173,6 +174,7 @@
           <label class="input-label">{{ t('admin.usage.group') }}</label>
           <Select v-model="filters.group_id" :options="groupOptions" searchable @change="emitChange" />
         </div>
+        </div>
 
       </div>
 
@@ -215,11 +217,13 @@ interface Props {
   endDate: string
   showActions?: boolean
   modelOptions?: string[]
+  identityOnly?: boolean
+  apiKeySearch?: (userId: number | undefined, query: string) => Promise<Array<{ id: number; name: string; deleted: boolean }>>
   /**
    * errors 模式:隐藏用量专属字段/按钮,显示错误类型+状态码(错误请求 tab 用)
    * ranking 模式:同 usage 但隐藏计费模式筛选与清理/导出按钮(用户排行 tab 用)
    */
-  mode?: 'usage' | 'errors' | 'ranking' | 'connections' | 'latency'
+  mode?: 'usage' | 'errors' | 'ranking' | 'connections' | 'latency' | 'traffic'
   /** 嵌入统一卡片内使用：去掉自身卡片外观 */
   flat?: boolean
 }
@@ -255,6 +259,7 @@ const apiKeyKeyword = ref('')
 const apiKeyResults = ref<SimpleApiKey[]>([])
 const showApiKeyDropdown = ref(false)
 let apiKeySearchTimeout: ReturnType<typeof setTimeout> | null = null
+let apiKeySearchSequence = 0
 
 interface SimpleAccount {
   id: number
@@ -365,14 +370,17 @@ const debounceUserSearch = () => {
 
 const debounceApiKeySearch = () => {
   if (apiKeySearchTimeout) clearTimeout(apiKeySearchTimeout)
+  const sequence = ++apiKeySearchSequence
   apiKeySearchTimeout = setTimeout(async () => {
     try {
-      apiKeyResults.value = await adminAPI.usage.searchApiKeys(
-        filters.value.user_id,
-        apiKeyKeyword.value || ''
-      )
+      const keys = props.apiKeySearch
+        ? await props.apiKeySearch(filters.value.user_id, apiKeyKeyword.value || '')
+        : await adminAPI.usage.searchApiKeys(filters.value.user_id, apiKeyKeyword.value || '')
+      if (sequence === apiKeySearchSequence) {
+        apiKeyResults.value = keys.map((key) => ({ id: key.id, name: 'deleted' in key && key.deleted ? `${key.name} (${t('traffic.deletedKey')})` : key.name, user_id: filters.value.user_id ?? 0 }))
+      }
     } catch {
-      apiKeyResults.value = []
+      if (sequence === apiKeySearchSequence) apiKeyResults.value = []
     }
   }, 300)
 }
@@ -386,7 +394,8 @@ const selectUser = async (u: SimpleUser) => {
 
   // Auto-load API keys for this user
   try {
-    apiKeyResults.value = await adminAPI.usage.searchApiKeys(u.id, '')
+    const keys = props.apiKeySearch ? await props.apiKeySearch(u.id, '') : await adminAPI.usage.searchApiKeys(u.id, '')
+    apiKeyResults.value = keys.map((key) => ({ id: key.id, name: 'deleted' in key && key.deleted ? `${key.name} (${t('traffic.deletedKey')})` : key.name, user_id: u.id }))
   } catch {
     apiKeyResults.value = []
   }
@@ -524,6 +533,7 @@ watch(
 
 onMounted(async () => {
   document.addEventListener('click', onDocumentClick)
+  if (props.identityOnly) return
   try {
     const gs = await adminAPI.groups.list(1, 1000)
     groupOptions.value.push(...gs.items.map((g: any) => ({ value: g.id, label: g.name })))

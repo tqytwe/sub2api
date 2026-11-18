@@ -64,6 +64,7 @@ func TestProvideCleanup_WithMinimalDependencies_NoPanic(t *testing.T) {
 
 	cleanup := provideCleanup(
 		nil, // adminSettingHandler
+		nil, // adminUsageHandler
 		nil, // requestLedgerHandler
 		nil, // entClient
 		nil, // redis

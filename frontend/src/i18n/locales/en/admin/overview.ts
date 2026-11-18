@@ -971,6 +971,7 @@ export default {
       nonExclusive: 'Non-Exclusive',
       public: 'Public',
       columns: {
+        deniedModels: 'Blocked models',
         name: 'Name',
         id: 'ID',
         platform: 'Platform',
@@ -1027,6 +1028,12 @@ export default {
         disabled: 'Disabled'
       },
       form: {
+        blockSubagents: 'Block subagents',
+        blockSubagentsHint: 'Reject employee requests with subagent or parent-thread markers, including automatic review agents. Main threads, admin tests and quality judging remain available. Clients that remove all markers cannot be reliably identified.',
+        codexCLIOnly: 'Codex clients only',
+        codexCLIOnlyHint: 'Restrict employee API requests using the global Codex client policy. Account connection tests, IQ tests and quality judging remain available.',
+        streamOnly: 'Streaming requests only',
+        streamOnlyHint: 'When on, this group only accepts streaming chat requests: Messages, Chat Completions and Responses requests without "stream": true, and Gemini generateContent, are rejected with 400. Token counting, model lists, embeddings, images and videos are not affected. Note: some clients check connectivity with non-streaming requests, and those checks will fail.',
         name: 'Name',
         description: 'Description',
         platform: 'Platform',
@@ -1088,6 +1095,12 @@ export default {
         yes: 'Yes',
         no: 'No'
       },
+      i18nField: {
+        default: 'Default',
+        add: 'Add {language} version',
+        edit: 'Edit {language} version',
+        placeholder: '{language} version; leave empty to show the default text'
+      },
       enterGroupName: 'Enter group name',
       optionalDescription: 'Optional description',
       platformHint: 'Select the platform this group is associated with',
@@ -1125,6 +1138,13 @@ export default {
       rateMultipliers: 'Rate Multipliers',
       rateMultipliersTitle: 'Group Rate Multipliers',
       addUserRate: 'Add User Rate Multiplier',
+      userDeniedModels: 'Model Limits',
+      userDeniedModelsTitle: 'Per-user Model Limits',
+      userDeniedModelsHint: 'Block specific users from using some models in this group; other models are unaffected. Case-insensitive; a trailing * matches a prefix (e.g. gpt-6-*).',
+      addUserDeniedModels: 'Add a user limit',
+      deniedModelsPlaceholder: 'Type a model and press Enter',
+      noUserDeniedModels: 'No user has model limits yet',
+      userDeniedModelsSaved: 'User model limits saved',
       rpmOverrides: 'RPM Overrides',
       rpmOverridesTitle: 'Group RPM Overrides',
       addUserRpm: 'Add User RPM Override',

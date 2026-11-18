@@ -964,6 +964,7 @@ export default {
       deleteConfirmSubscription:
         "确定要删除订阅分组 '{name}' 吗？此操作会让所有绑定此订阅的用户的 API Key 失效，并删除所有相关的订阅记录。此操作无法撤销。",
       columns: {
+        deniedModels: '禁用模型',
         name: '名称',
         id: 'ID',
         platform: '平台',
@@ -1009,6 +1010,12 @@ export default {
       accountsTotal: '总量:',
       accountsUnit: '个账号',
       form: {
+        blockSubagents: '禁止子代理',
+        blockSubagentsHint: '拒绝带子代理或父线程标识的员工请求（包括自动审查等子代理）。主线程、后台测试和质量运维不受影响；客户端删除这些标识后无法可靠识别。',
+        codexCLIOnly: '仅允许 Codex 客户端',
+        codexCLIOnlyHint: '仅限制员工 API 调用，使用全局 Codex 客户端识别策略。账号管理的测试连接、智商测试及质量运维判题不受影响。',
+        streamOnly: '仅允许流式请求',
+        streamOnlyHint: '开启后本分组只接受流式对话请求：Messages、Chat Completions、Responses 里没写 "stream": true 的请求，以及 Gemini 的 generateContent，都会直接返回 400。Token 计数、模型列表、Embeddings、图片视频等本来没有流式的接口不受影响。注意：部分客户端的连通性检测是非流式请求，开启后会检测失败。',
         name: '名称',
         description: '描述',
         platform: '平台',
@@ -1122,6 +1129,12 @@ export default {
         privacySetOnlyEnabled: '已启用 — Privacy 未设置的账号将被排除',
         disabled: '未启用'
       },
+      i18nField: {
+        default: '默认',
+        add: '新增 {language} 版',
+        edit: '编辑 {language} 版',
+        placeholder: '{language} 版，留空则显示默认内容'
+      },
       enterGroupName: '请输入分组名称',
       optionalDescription: '可选描述',
       platformHint: '选择此分组关联的平台',
@@ -1142,6 +1155,13 @@ export default {
       rateMultipliers: '专属倍率',
       rateMultipliersTitle: '分组专属倍率管理',
       addUserRate: '添加用户专属倍率',
+      userDeniedModels: '用户模型限制',
+      userDeniedModelsTitle: '分组用户模型限制',
+      userDeniedModelsHint: '禁止指定用户在本分组使用某些模型，其他模型不受影响。不区分大小写，支持末尾 * 通配（如 gpt-6-*）。',
+      addUserDeniedModels: '添加用户模型限制',
+      deniedModelsPlaceholder: '输入模型名后回车',
+      noUserDeniedModels: '暂无用户设置了模型限制',
+      userDeniedModelsSaved: '用户模型限制已保存',
       rpmOverrides: '专属 RPM',
       rpmOverridesTitle: '分组专属 RPM 管理',
       addUserRpm: '添加用户专属 RPM',

@@ -89,6 +89,11 @@ func RegisterGatewayRoutes(
 	if h != nil && h.Gateway != nil && apiKeyService != nil {
 		h.Gateway.ConfigureAPIKeyGroupRouting(apiKeyService)
 	}
+	var trafficRecorder middleware.TrafficRecorder
+	if h.Admin != nil && h.Admin.Usage != nil {
+		trafficRecorder = h.Admin.Usage
+	}
+	traffic := middleware.UserTraffic(trafficRecorder)
 	bodyLimit := middleware.RequestBodyLimit(cfg.Gateway.MaxBodySize)
 	textBodyLimit := middleware.RequestBodyLimit(cfg.Gateway.TextMaxBodySize)
 	clientRequestID := middleware.GatewayClientRequestID()
@@ -97,6 +102,9 @@ func RegisterGatewayRoutes(
 	compositeTarget := compositeTargetPlatformMiddleware(compositeResolver)
 	compositeGeminiTarget := compositeGeminiTargetPlatformMiddleware(compositeResolver)
 	groupModelAllowlist := middleware.GroupModelAllowlist()
+	groupStreamOnly := middleware.GroupStreamOnly()
+	groupCodexCLIOnly := middleware.GroupCodexCLIOnly(settingService)
+	groupBlockSubagents := middleware.GroupBlockSubagents()
 	apiKeyModelPolicy := middleware.APIKeyModelPolicy()
 	apiKeyLongContext := middleware.APIKeyLongContextPolicy(h.Gateway.CheckAPIKeyLongContext)
 
@@ -257,14 +265,14 @@ func RegisterGatewayRoutes(
 
 	// API网关（Claude API兼容）
 	gateway := r.Group("/v1")
-	gateway.Use(bodyLimit)
+	gateway.Use(traffic, bodyLimit)
 	gateway.Use(clientRequestID)
 	gateway.Use(opsErrorLogger)
 	gateway.Use(endpointNorm)
 	gateway.Use(middleware.GatewayErrorProtocolForPrefix("/v1/images/", middleware.OpenAIErrorWriter))
 	gateway.Use(gin.HandlerFunc(apiKeyAuth))
 	gateway.GET("/sub2api/billing", h.Gateway.KeyBillingInfo)
-	gateway.Use(groupModelAllowlist, apiKeyModelPolicy)
+	gateway.Use(groupStreamOnly, groupCodexCLIOnly, groupBlockSubagents, groupModelAllowlist, apiKeyModelPolicy)
 	gateway.Use(compositeTarget, apiKeyLongContext)
 	gateway.Use(requireGroupAnthropic)
 	{
@@ -400,12 +408,12 @@ func RegisterGatewayRoutes(
 
 	// Gemini 原生 API 兼容层（Gemini SDK/CLI 直连）
 	gemini := r.Group("/v1beta")
-	gemini.Use(bodyLimit)
+	gemini.Use(traffic, bodyLimit)
 	gemini.Use(clientRequestID)
 	gemini.Use(opsErrorLogger)
 	gemini.Use(endpointNorm)
 	gemini.Use(middleware.APIKeyAuthWithSubscriptionGoogle(apiKeyService, subscriptionService, cfg))
-	gemini.Use(groupModelAllowlist, apiKeyModelPolicy)
+	gemini.Use(groupStreamOnly, groupCodexCLIOnly, groupBlockSubagents, groupModelAllowlist, apiKeyModelPolicy)
 	gemini.Use(compositeGeminiTarget, apiKeyLongContext)
 	gemini.Use(requireGroupGoogle)
 	{
@@ -425,7 +433,7 @@ func RegisterGatewayRoutes(
 		h.Gateway.Responses(c)
 	}
 	rootRoute := func(method, path string, limit gin.HandlerFunc, handler gin.HandlerFunc) {
-		r.Handle(method, path, limit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), groupModelAllowlist, apiKeyModelPolicy, compositeTarget, apiKeyLongContext, requireGroupAnthropic, handler)
+		r.Handle(method, path, traffic, limit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), groupStreamOnly, groupCodexCLIOnly, groupBlockSubagents, groupModelAllowlist, apiKeyModelPolicy, compositeTarget, apiKeyLongContext, requireGroupAnthropic, handler)
 	}
 	// Seedance keeps its native Ark path and is exposed under every supported
 	// gateway prefix. Register these aliases beside the other root OpenAI
@@ -441,11 +449,11 @@ func RegisterGatewayRoutes(
 	rootRoute(http.MethodGet, "/responses", bodyLimit, func(c *gin.Context) {
 		h.OpenAIGateway.ResponsesWebSocket(c)
 	})
-	r.GET("/models", modelsCompatibilityVary, bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), groupModelAllowlist, apiKeyModelPolicy, compositeTarget, apiKeyLongContext, requireGroupAnthropic, modelsHandler)
+	r.GET("/models", traffic, modelsCompatibilityVary, bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), groupStreamOnly, groupCodexCLIOnly, groupBlockSubagents, groupModelAllowlist, apiKeyModelPolicy, compositeTarget, apiKeyLongContext, requireGroupAnthropic, modelsHandler)
 	rootRoute(http.MethodGet, "/models/:model", bodyLimit, h.Gateway.Models)
 	rootRoute(http.MethodPost, "/messages/count_tokens", bodyLimit, countTokensHandler)
 	codexDirect := r.Group("/backend-api/codex")
-	codexDirect.Use(bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), groupModelAllowlist, apiKeyModelPolicy, compositeTarget, apiKeyLongContext, requireGroupAnthropic)
+	codexDirect.Use(traffic, bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), groupStreamOnly, groupCodexCLIOnly, groupBlockSubagents, groupModelAllowlist, apiKeyModelPolicy, compositeTarget, apiKeyLongContext, requireGroupAnthropic)
 	{
 		codexDirect.POST("/realtime/calls", h.OpenAIGateway.Live)
 		codexDirect.GET("/:call_id", h.OpenAIGateway.LiveSideband)
@@ -458,7 +466,7 @@ func RegisterGatewayRoutes(
 		codexDirect.GET("/models", codexModelsHandler)
 	}
 	// OpenAI Chat Completions API（不带v1前缀的别名）— auto-route based on group platform
-	r.POST("/chat/completions", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), groupModelAllowlist, apiKeyModelPolicy, compositeTarget, apiKeyLongContext, requireGroupAnthropic, func(c *gin.Context) {
+	r.POST("/chat/completions", traffic, bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), groupStreamOnly, groupCodexCLIOnly, groupBlockSubagents, groupModelAllowlist, apiKeyModelPolicy, compositeTarget, apiKeyLongContext, requireGroupAnthropic, func(c *gin.Context) {
 		if isOpenAIResponsesCompatibleGatewayPlatform(c) {
 			h.OpenAIGateway.ChatCompletions(c)
 			return
@@ -466,7 +474,7 @@ func RegisterGatewayRoutes(
 		requestledger.RoutingUnsupported(c.Request.Context())
 		h.Gateway.ChatCompletions(c)
 	})
-	r.POST("/embeddings", textBodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), groupModelAllowlist, apiKeyModelPolicy, compositeTarget, apiKeyLongContext, requireGroupAnthropic, func(c *gin.Context) {
+	r.POST("/embeddings", traffic, textBodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), groupStreamOnly, groupCodexCLIOnly, groupBlockSubagents, groupModelAllowlist, apiKeyModelPolicy, compositeTarget, apiKeyLongContext, requireGroupAnthropic, func(c *gin.Context) {
 		if !isOpenAIOnlyEndpointGatewayPlatform(c) {
 			service.MarkOpsClientBusinessLimited(c, service.OpsClientBusinessLimitedReasonLocalFeatureGate)
 			c.JSON(http.StatusNotFound, gin.H{
@@ -481,26 +489,26 @@ func RegisterGatewayRoutes(
 	})
 	openAIImagesErrorProtocol := middleware.GatewayErrorProtocol(middleware.OpenAIErrorWriter)
 	requireGroupOpenAI := middleware.RequireGroupAssignment(settingService, middleware.OpenAIErrorWriter)
-	r.POST("/images/generations", openAIImagesErrorProtocol, bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), groupModelAllowlist, apiKeyModelPolicy, compositeTarget, apiKeyLongContext, requireGroupOpenAI, imagesHandler)
-	r.POST("/images/edits", openAIImagesErrorProtocol, bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), groupModelAllowlist, apiKeyModelPolicy, compositeTarget, apiKeyLongContext, requireGroupOpenAI, imagesHandler)
-	r.POST("/images/generations/async", openAIImagesErrorProtocol, bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), groupModelAllowlist, apiKeyModelPolicy, compositeTarget, apiKeyLongContext, requireGroupOpenAI, h.AsyncImage.Submit)
-	r.POST("/images/edits/async", openAIImagesErrorProtocol, bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), groupModelAllowlist, apiKeyModelPolicy, compositeTarget, apiKeyLongContext, requireGroupOpenAI, h.AsyncImage.Submit)
-	r.GET("/images/task-assets/*filepath", openAIImagesErrorProtocol, bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupOpenAI, h.AsyncImage.GetAsset)
-	r.GET("/images/results/:result_id/:index", openAIImagesErrorProtocol, bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupOpenAI, h.AsyncImage.GetResult)
-	r.GET("/images/tasks/:task_id", openAIImagesErrorProtocol, bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupOpenAI, h.AsyncImage.Get)
-	r.POST("/videos", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), groupModelAllowlist, apiKeyModelPolicy, compositeTarget, apiKeyLongContext, requireGroupAnthropic, videoCreateHandler)
-	r.POST("/videos/generations", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), groupModelAllowlist, apiKeyModelPolicy, compositeTarget, apiKeyLongContext, requireGroupAnthropic, videoGenerationHandler)
-	r.POST("/videos/edits", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), groupModelAllowlist, apiKeyModelPolicy, compositeTarget, apiKeyLongContext, requireGroupAnthropic, videoEditHandler)
-	r.POST("/videos/extensions", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), groupModelAllowlist, apiKeyModelPolicy, compositeTarget, apiKeyLongContext, requireGroupAnthropic, videoExtensionHandler)
-	r.GET("/videos/generations/:request_id/content", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), compositeTarget, requireGroupAnthropic, videoContentHandler)
-	r.GET("/videos/edits/:request_id/content", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), compositeTarget, requireGroupAnthropic, videoContentHandler)
-	r.GET("/videos/extensions/:request_id/content", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), compositeTarget, requireGroupAnthropic, videoContentHandler)
-	r.GET("/videos/generations/:request_id", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), compositeTarget, requireGroupAnthropic, videoStatusHandler)
-	r.GET("/videos/edits/:request_id", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), compositeTarget, requireGroupAnthropic, videoStatusHandler)
-	r.GET("/videos/extensions/:request_id", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), compositeTarget, requireGroupAnthropic, videoStatusHandler)
-	r.GET("/videos/:request_id", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, videoStatusHandler)
-	r.GET("/videos/:request_id/content", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, videoContentHandler)
-	r.GET("/agnesapi", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupOpenAI, h.OpenAIGateway.AgnesVideoStatus)
+	r.POST("/images/generations", traffic, openAIImagesErrorProtocol, bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), groupStreamOnly, groupCodexCLIOnly, groupBlockSubagents, groupModelAllowlist, apiKeyModelPolicy, compositeTarget, apiKeyLongContext, requireGroupOpenAI, imagesHandler)
+	r.POST("/images/edits", traffic, openAIImagesErrorProtocol, bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), groupStreamOnly, groupCodexCLIOnly, groupBlockSubagents, groupModelAllowlist, apiKeyModelPolicy, compositeTarget, apiKeyLongContext, requireGroupOpenAI, imagesHandler)
+	r.POST("/images/generations/async", traffic, openAIImagesErrorProtocol, bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), groupStreamOnly, groupCodexCLIOnly, groupBlockSubagents, groupModelAllowlist, apiKeyModelPolicy, compositeTarget, apiKeyLongContext, requireGroupOpenAI, h.AsyncImage.Submit)
+	r.POST("/images/edits/async", traffic, openAIImagesErrorProtocol, bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), groupStreamOnly, groupCodexCLIOnly, groupBlockSubagents, groupModelAllowlist, apiKeyModelPolicy, compositeTarget, apiKeyLongContext, requireGroupOpenAI, h.AsyncImage.Submit)
+	r.GET("/images/task-assets/*filepath", traffic, openAIImagesErrorProtocol, bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupOpenAI, h.AsyncImage.GetAsset)
+	r.GET("/images/results/:result_id/:index", traffic, openAIImagesErrorProtocol, bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupOpenAI, h.AsyncImage.GetResult)
+	r.GET("/images/tasks/:task_id", traffic, openAIImagesErrorProtocol, bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupOpenAI, h.AsyncImage.Get)
+	r.POST("/videos", traffic, bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), groupStreamOnly, groupCodexCLIOnly, groupBlockSubagents, groupModelAllowlist, apiKeyModelPolicy, compositeTarget, apiKeyLongContext, requireGroupAnthropic, videoCreateHandler)
+	r.POST("/videos/generations", traffic, bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), groupStreamOnly, groupCodexCLIOnly, groupBlockSubagents, groupModelAllowlist, apiKeyModelPolicy, compositeTarget, apiKeyLongContext, requireGroupAnthropic, videoGenerationHandler)
+	r.POST("/videos/edits", traffic, bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), groupStreamOnly, groupCodexCLIOnly, groupBlockSubagents, groupModelAllowlist, apiKeyModelPolicy, compositeTarget, apiKeyLongContext, requireGroupAnthropic, videoEditHandler)
+	r.POST("/videos/extensions", traffic, bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), groupStreamOnly, groupCodexCLIOnly, groupBlockSubagents, groupModelAllowlist, apiKeyModelPolicy, compositeTarget, apiKeyLongContext, requireGroupAnthropic, videoExtensionHandler)
+	r.GET("/videos/generations/:request_id/content", traffic, bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), compositeTarget, requireGroupAnthropic, videoContentHandler)
+	r.GET("/videos/edits/:request_id/content", traffic, bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), compositeTarget, requireGroupAnthropic, videoContentHandler)
+	r.GET("/videos/extensions/:request_id/content", traffic, bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), compositeTarget, requireGroupAnthropic, videoContentHandler)
+	r.GET("/videos/generations/:request_id", traffic, bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), compositeTarget, requireGroupAnthropic, videoStatusHandler)
+	r.GET("/videos/edits/:request_id", traffic, bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), compositeTarget, requireGroupAnthropic, videoStatusHandler)
+	r.GET("/videos/extensions/:request_id", traffic, bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), compositeTarget, requireGroupAnthropic, videoStatusHandler)
+	r.GET("/videos/:request_id", traffic, bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, videoStatusHandler)
+	r.GET("/videos/:request_id/content", traffic, bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, videoContentHandler)
+	r.GET("/agnesapi", traffic, bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupOpenAI, h.OpenAIGateway.AgnesVideoStatus)
 
 	rootVoiceHandler := func(endpoint string) gin.HandlerFunc {
 		return func(c *gin.Context) {
@@ -512,9 +520,9 @@ func RegisterGatewayRoutes(
 			h.OpenAIGateway.GrokVoice(c, endpoint)
 		}
 	}
-	r.POST("/tts", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), groupModelAllowlist, apiKeyModelPolicy, compositeTarget, apiKeyLongContext, requireGroupAnthropic, rootVoiceHandler("tts"))
-	r.POST("/stt", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), groupModelAllowlist, apiKeyModelPolicy, compositeTarget, apiKeyLongContext, requireGroupAnthropic, rootVoiceHandler("stt"))
-	r.POST("/custom-voices", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), groupModelAllowlist, apiKeyModelPolicy, compositeTarget, apiKeyLongContext, requireGroupAnthropic, rootVoiceHandler("custom-voices"))
+	r.POST("/tts", traffic, bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), groupStreamOnly, groupCodexCLIOnly, groupBlockSubagents, groupModelAllowlist, apiKeyModelPolicy, compositeTarget, apiKeyLongContext, requireGroupAnthropic, rootVoiceHandler("tts"))
+	r.POST("/stt", traffic, bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), groupStreamOnly, groupCodexCLIOnly, groupBlockSubagents, groupModelAllowlist, apiKeyModelPolicy, compositeTarget, apiKeyLongContext, requireGroupAnthropic, rootVoiceHandler("stt"))
+	r.POST("/custom-voices", traffic, bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), groupStreamOnly, groupCodexCLIOnly, groupBlockSubagents, groupModelAllowlist, apiKeyModelPolicy, compositeTarget, apiKeyLongContext, requireGroupAnthropic, rootVoiceHandler("custom-voices"))
 	rootCustomVoicePathHandler := func(c *gin.Context) {
 		if getGroupPlatform(c) != service.PlatformGrok {
 			service.MarkOpsClientBusinessLimited(c, service.OpsClientBusinessLimitedReasonLocalFeatureGate)
@@ -523,25 +531,25 @@ func RegisterGatewayRoutes(
 		}
 		h.OpenAIGateway.GrokVoice(c, grokCustomVoiceEndpoint(c))
 	}
-	r.GET("/custom-voices", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), compositeTarget, requireGroupAnthropic, rootVoiceHandler("custom-voices"))
-	r.GET("/custom-voices/:voice_id/audio", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), compositeTarget, requireGroupAnthropic, rootCustomVoicePathHandler)
-	r.GET("/custom-voices/:voice_id", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), compositeTarget, requireGroupAnthropic, rootCustomVoicePathHandler)
-	r.PATCH("/custom-voices/:voice_id", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), compositeTarget, requireGroupAnthropic, rootCustomVoicePathHandler)
-	r.DELETE("/custom-voices/:voice_id", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), compositeTarget, requireGroupAnthropic, rootCustomVoicePathHandler)
-	r.GET("/realtime", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), groupModelAllowlist, apiKeyModelPolicy, compositeTarget, apiKeyLongContext, requireGroupAnthropic, h.OpenAIGateway.Realtime)
+	r.GET("/custom-voices", traffic, bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), compositeTarget, requireGroupAnthropic, rootVoiceHandler("custom-voices"))
+	r.GET("/custom-voices/:voice_id/audio", traffic, bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), compositeTarget, requireGroupAnthropic, rootCustomVoicePathHandler)
+	r.GET("/custom-voices/:voice_id", traffic, bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), compositeTarget, requireGroupAnthropic, rootCustomVoicePathHandler)
+	r.PATCH("/custom-voices/:voice_id", traffic, bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), compositeTarget, requireGroupAnthropic, rootCustomVoicePathHandler)
+	r.DELETE("/custom-voices/:voice_id", traffic, bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), compositeTarget, requireGroupAnthropic, rootCustomVoicePathHandler)
+	r.GET("/realtime", traffic, bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), groupStreamOnly, groupCodexCLIOnly, groupBlockSubagents, groupModelAllowlist, apiKeyModelPolicy, compositeTarget, apiKeyLongContext, requireGroupAnthropic, h.OpenAIGateway.Realtime)
 
 	// Antigravity 模型列表
-	r.GET("/antigravity/models", gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, h.Gateway.AntigravityModels)
+	r.GET("/antigravity/models", traffic, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, h.Gateway.AntigravityModels)
 
 	// Antigravity 专用路由（仅使用 antigravity 账户，不混合调度）
 	antigravityV1 := r.Group("/antigravity/v1")
-	antigravityV1.Use(bodyLimit)
+	antigravityV1.Use(traffic, bodyLimit)
 	antigravityV1.Use(clientRequestID)
 	antigravityV1.Use(opsErrorLogger)
 	antigravityV1.Use(endpointNorm)
 	antigravityV1.Use(middleware.ForcePlatform(service.PlatformAntigravity))
 	antigravityV1.Use(gin.HandlerFunc(apiKeyAuth))
-	antigravityV1.Use(groupModelAllowlist, apiKeyModelPolicy, apiKeyLongContext)
+	antigravityV1.Use(groupStreamOnly, groupCodexCLIOnly, groupBlockSubagents, groupModelAllowlist, apiKeyModelPolicy, apiKeyLongContext)
 	antigravityV1.Use(requireGroupAnthropic)
 	{
 		antigravityV1.POST("/messages", h.Gateway.Messages)
@@ -551,13 +559,13 @@ func RegisterGatewayRoutes(
 	}
 
 	antigravityV1Beta := r.Group("/antigravity/v1beta")
-	antigravityV1Beta.Use(bodyLimit)
+	antigravityV1Beta.Use(traffic, bodyLimit)
 	antigravityV1Beta.Use(clientRequestID)
 	antigravityV1Beta.Use(opsErrorLogger)
 	antigravityV1Beta.Use(endpointNorm)
 	antigravityV1Beta.Use(middleware.ForcePlatform(service.PlatformAntigravity))
 	antigravityV1Beta.Use(middleware.APIKeyAuthWithSubscriptionGoogle(apiKeyService, subscriptionService, cfg))
-	antigravityV1Beta.Use(groupModelAllowlist, apiKeyModelPolicy, apiKeyLongContext)
+	antigravityV1Beta.Use(groupStreamOnly, groupCodexCLIOnly, groupBlockSubagents, groupModelAllowlist, apiKeyModelPolicy, apiKeyLongContext)
 	antigravityV1Beta.Use(requireGroupGoogle)
 	{
 		antigravityV1Beta.GET("/models", h.Gateway.GeminiV1BetaListModels)

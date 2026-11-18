@@ -798,14 +798,8 @@ func parseGeminiModelAction(rest string) (model string, action string, err error
 		return "", "", &pathParseError{"missing path"}
 	}
 
-	// Standard: {model}:{action}
-	if i := strings.Index(rest, ":"); i > 0 && i < len(rest)-1 {
-		return rest[:i], rest[i+1:], nil
-	}
-
-	// Fallback: {model}/{action}
-	if i := strings.Index(rest, "/"); i > 0 && i < len(rest)-1 {
-		return rest[:i], rest[i+1:], nil
+	if model, action, ok := gemini.ParseModelAction(rest); ok {
+		return model, action, nil
 	}
 
 	return "", "", &pathParseError{"invalid model action path"}

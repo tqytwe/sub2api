@@ -60,6 +60,7 @@ const messages: Record<string, string> = {
   'usage.errors.allKeys': 'All API Keys',
   'usage.tabs.usage': 'Usage records',
   'usage.tabs.errors': 'Error records',
+  'traffic.title': 'Body traffic',
   'usage.apiKeyFilter': 'API Key',
   'usage.model': 'Model',
   'usage.time': 'Time',
@@ -175,7 +176,8 @@ function mountUsageView(realTable = false) {
         Icon: true,
         UsageStatsCards: chartStub,
         UsageTable: realTable ? false : chartStub,
-        UserErrorRequestsTable: chartStub,
+        UserErrorRequestsTable: { template: '<div data-testid="usage-errors" />' },
+        TrafficPanel: { template: '<div data-testid="usage-traffic" />' },
         ModelDistributionChart: chartStub,
         GroupDistributionChart: chartStub,
         EndpointDistributionChart: chartStub,
@@ -186,6 +188,24 @@ function mountUsageView(realTable = false) {
 }
 
 describe('user UsageView', () => {
+  it('shows only the selected request records pane', async () => {
+    const wrapper = mountUsageView()
+    await flushPromises()
+    const selectTab = (label: string) => wrapper.findAll('button').find(button => button.text() === label)!.trigger('click')
+
+    expect(wrapper.find('[data-testid="usage-errors"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="usage-traffic"]').exists()).toBe(false)
+
+    await selectTab('Error records')
+    expect(wrapper.find('[data-testid="usage-errors"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="usage-traffic"]').exists()).toBe(false)
+
+    await selectTab('Body traffic')
+    expect(wrapper.find('[data-testid="usage-errors"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="usage-traffic"]').exists()).toBe(true)
+    wrapper.unmount()
+  })
+
   it('does not expose the administrator request ledger from user usage records', async () => {
     const wrapper = mountUsageView()
     await flushPromises()

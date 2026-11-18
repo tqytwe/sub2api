@@ -167,6 +167,7 @@ interface Emits {
   (e: 'update:modelValue', value: string | number | boolean | null): void
   (e: 'change', value: string | number | boolean | null, option: SelectOption | null): void
   (e: 'search', query: string): void
+  (e: 'open'): void
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -381,6 +382,7 @@ const toggle = () => {
 
 watch(isOpen, (open) => {
   if (open) {
+    emit('open')
     calculateDropdownPosition()
     // Reset focused index to current selection or first item
     if (filteredOptions.value.length === 0) {

@@ -32,6 +32,14 @@ type SubscriptionProgressInfo struct {
 	Progress     *service.SubscriptionProgress `json:"progress"`
 }
 
+func localizeSubscriptionProgress(progress *service.SubscriptionProgress, acceptLanguage string) *service.SubscriptionProgress {
+	if progress != nil {
+		progress.GroupName = progress.I18n.LocalizeName(acceptLanguage, progress.GroupName)
+		progress.I18n = nil
+	}
+	return progress
+}
+
 // SubscriptionHandler handles user subscription operations
 type SubscriptionHandler struct {
 	subscriptionService *service.SubscriptionService
@@ -61,7 +69,7 @@ func (h *SubscriptionHandler) List(c *gin.Context) {
 
 	out := make([]dto.UserSubscription, 0, len(subscriptions))
 	for i := range subscriptions {
-		out = append(out, *dto.UserSubscriptionFromService(&subscriptions[i]))
+		out = append(out, *dto.UserSubscriptionFromService(&subscriptions[i]).Localized(c.GetHeader("Accept-Language")))
 	}
 	response.Success(c, out)
 }
@@ -83,7 +91,7 @@ func (h *SubscriptionHandler) GetActive(c *gin.Context) {
 
 	out := make([]dto.UserSubscription, 0, len(subscriptions))
 	for i := range subscriptions {
-		out = append(out, *dto.UserSubscriptionFromService(&subscriptions[i]))
+		out = append(out, *dto.UserSubscriptionFromService(&subscriptions[i]).Localized(c.GetHeader("Accept-Language")))
 	}
 	response.Success(c, out)
 }
@@ -112,8 +120,9 @@ func (h *SubscriptionHandler) GetProgress(c *gin.Context) {
 			// Skip subscriptions with errors
 			continue
 		}
+		localizeSubscriptionProgress(progress, c.GetHeader("Accept-Language"))
 		result = append(result, SubscriptionProgressInfo{
-			Subscription: dto.UserSubscriptionFromService(sub),
+			Subscription: dto.UserSubscriptionFromService(sub).Localized(c.GetHeader("Accept-Language")),
 			Progress:     progress,
 		})
 	}
@@ -142,7 +151,7 @@ func (h *SubscriptionHandler) GetProgressByID(c *gin.Context) {
 		return
 	}
 
-	response.Success(c, progress)
+	response.Success(c, localizeSubscriptionProgress(progress, c.GetHeader("Accept-Language")))
 }
 
 // GetSummary handles getting a summary of current user's subscription status
@@ -176,7 +185,7 @@ func (h *SubscriptionHandler) GetSummary(c *gin.Context) {
 
 		// Add group info if preloaded
 		if sub.Group != nil {
-			item.GroupName = sub.Group.Name
+			item.GroupName = sub.Group.I18n.LocalizeName(c.GetHeader("Accept-Language"), sub.Group.Name)
 			if sub.Group.DailyLimitUSD != nil {
 				item.DailyLimitUSD = *sub.Group.DailyLimitUSD
 			}

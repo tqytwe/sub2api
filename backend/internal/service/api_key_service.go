@@ -1190,6 +1190,18 @@ func (s *APIKeyService) GetUserGroupRates(ctx context.Context, userID int64) (ma
 	return rates, nil
 }
 
+// GetUserGroupDeniedModels returns group-specific model restrictions for display.
+func (s *APIKeyService) GetUserGroupDeniedModels(ctx context.Context, userID int64) (map[int64][]string, error) {
+	if s.userGroupRateRepo == nil {
+		return nil, nil
+	}
+	denied, err := s.userGroupRateRepo.GetDeniedModelsByUserID(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("get user group denied models: %w", err)
+	}
+	return denied, nil
+}
+
 // GetUserKeyGroups returns the active groups currently used by this user's API keys.
 // It keeps user pricing views aligned with the groups that can actually generate bills.
 func (s *APIKeyService) GetUserKeyGroups(ctx context.Context, userID int64) ([]Group, error) {

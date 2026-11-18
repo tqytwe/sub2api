@@ -2558,6 +2558,20 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 	}
 	subject, _ = middleware2.GetAuthSubjectFromContext(c)
 	reqLog = reqLog.With(zap.Any("group_id", apiKey.GroupID))
+	if middleware2.CheckGroupSubagentFrame(c, firstMessage) {
+		closeOpenAIClientWS(wsConn, coderws.StatusPolicyViolation, middleware2.GroupSubagentsBlockedMessage)
+		return
+	}
+	if result := middleware2.CheckGroupCodexClientFrame(c, firstMessage); result.Enabled && !result.Matched {
+		closeOpenAIClientWS(wsConn, coderws.StatusPolicyViolation, middleware2.GroupCodexClientMessage(result))
+		return
+	}
+	if denied := service.FirstUserGroupDeniedModel(apiKey.DeniedModelsInGroup(), service.APIKeyModelCandidates(apiKey, requestmodel.FromBodyCandidates("", "application/json", firstMessage))); denied != "" {
+		service.MarkOpsClientBusinessLimited(c, service.OpsClientBusinessLimitedReasonLocalModelConfiguration)
+		middleware2.MarkIngressRejected(c, middleware2.IngressRejectModelNotAllowed)
+		closeOpenAIClientWS(wsConn, coderws.StatusPolicyViolation, fmt.Sprintf("Model %q is not available for your account in this group", denied))
+		return
+	}
 	// 分组级模型白名单：首帧校验客户端模型，不通过则关闭连接并标记运维原因。
 	// 必须在合成路由解析和上游模型映射之前执行。
 	// 与 HTTP 准入一致：帧内重复 model 键/大小写变体可能被上游按末值绑定，
@@ -3022,6 +3036,12 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 			ReasoningEffortMappings:     reasoningEffortMappings,
 			TurnStarted:                 recordTurnStart,
 			BeforeRequest: func(turn int, payload []byte, originalModel string) error {
+				if middleware2.CheckGroupSubagentFrame(c, payload) {
+					return service.NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, middleware2.GroupSubagentsBlockedMessage, nil)
+				}
+				if result := middleware2.CheckGroupCodexClientFrame(c, payload); result.Enabled && !result.Matched {
+					return service.NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, middleware2.GroupCodexClientMessage(result), nil)
+				}
 				ledgerTurns.Bind(turn, ctx)
 				c.Set(securityAuditWSTurnContextKey, turn)
 				service.BeginOpsStreamTurn(c, turn)
@@ -3063,6 +3083,11 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 					service.MarkOpsClientBusinessLimited(c, service.OpsClientBusinessLimitedReasonLocalModelConfiguration)
 					middleware2.MarkIngressRejected(c, middleware2.IngressRejectModelNotAllowed)
 					return service.NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, fmt.Sprintf("Model %q is not available for this group", blocked), nil)
+				}
+				if denied := service.FirstUserGroupDeniedModel(apiKey.DeniedModelsInGroup(), candidates); denied != "" {
+					service.MarkOpsClientBusinessLimited(c, service.OpsClientBusinessLimitedReasonLocalModelConfiguration)
+					middleware2.MarkIngressRejected(c, middleware2.IngressRejectModelNotAllowed)
+					return service.NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, fmt.Sprintf("Model %q is not available for your account in this group", denied), nil)
 				}
 				if decision := h.checkSecurityAuditStage(c, reqLog, apiKey, subject, service.ContentModerationProtocolOpenAIResponses, model, payload, "subsequent_turn"); decision != nil && !decision.AllowNextStage {
 					writeSecurityAuditWSError(ctx, wsConn, decision)

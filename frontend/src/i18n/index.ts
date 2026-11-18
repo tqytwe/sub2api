@@ -70,7 +70,10 @@ const localeLoaders: Record<LocaleCode, Record<LocaleLoadScope, LocaleLoader>> =
       ])
       return { default: mergeLocaleMessages(mergeLocaleMessages(mergeLocaleMessages(legacy.default, dashboard.default), pelican.default), { apiKeyModelPolicy: policy.default, ipAudit: keyRisk.default }) }
     },
-    'user-usage': () => import('./locales/en/userUsage'),
+    'user-usage': async () => {
+      const [usage, traffic] = await Promise.all([import('./locales/en/userUsage'), import('./locales/en/traffic')])
+      return { default: mergeLocaleMessages(usage.default, { traffic: traffic.default }) }
+    },
     'user-wallet': () => import('./locales/en/wallet'),
     'user-batch': () => import('./locales/en/batchImage'),
     'user-misc': async () => {
@@ -120,14 +123,15 @@ const localeLoaders: Record<LocaleCode, Record<LocaleLoadScope, LocaleLoader>> =
       return { default: mergeLocaleMessages(legacy.default, adminMessages(module.default)) }
     },
     'admin-ops': async () => {
-      const [module, legacy, requestTiming, connections, latencyObservability] = await Promise.all([
+      const [module, legacy, requestTiming, connections, latencyObservability, traffic] = await Promise.all([
         import('./locales/en/admin/ops'),
         import('./locales/en/legacy/admin-ops'),
         import('./locales/en/requestTiming'),
         import('./locales/en/connections'),
         import('./locales/en/latencyObservability'),
+        import('./locales/en/traffic'),
       ])
-      return { default: mergeLocaleMessages(mergeLocaleMessages(legacy.default, adminMessages(module.default)), { requestTiming: requestTiming.default, connections: connections.default, latencyObservability: latencyObservability.default }) }
+      return { default: mergeLocaleMessages(mergeLocaleMessages(legacy.default, adminMessages(module.default)), { requestTiming: requestTiming.default, connections: connections.default, latencyObservability: latencyObservability.default, traffic: traffic.default }) }
     },
     'admin-play': async () => {
       const [module, legacy] = await Promise.all([
@@ -195,7 +199,10 @@ const localeLoaders: Record<LocaleCode, Record<LocaleLoadScope, LocaleLoader>> =
       ])
       return { default: mergeLocaleMessages(mergeLocaleMessages(mergeLocaleMessages(legacy.default, dashboard.default), pelican.default), { apiKeyModelPolicy: policy.default, ipAudit: keyRisk.default }) }
     },
-    'user-usage': () => import('./locales/zh/userUsage'),
+    'user-usage': async () => {
+      const [usage, traffic] = await Promise.all([import('./locales/zh/userUsage'), import('./locales/zh/traffic')])
+      return { default: mergeLocaleMessages(usage.default, { traffic: traffic.default }) }
+    },
     'user-wallet': () => import('./locales/zh/wallet'),
     'user-batch': () => import('./locales/zh/batchImage'),
     'user-misc': async () => {
@@ -245,14 +252,15 @@ const localeLoaders: Record<LocaleCode, Record<LocaleLoadScope, LocaleLoader>> =
       return { default: mergeLocaleMessages(legacy.default, adminMessages(module.default)) }
     },
     'admin-ops': async () => {
-      const [module, legacy, requestTiming, connections, latencyObservability] = await Promise.all([
+      const [module, legacy, requestTiming, connections, latencyObservability, traffic] = await Promise.all([
         import('./locales/zh/admin/ops'),
         import('./locales/zh/legacy/admin-ops'),
         import('./locales/zh/requestTiming'),
         import('./locales/zh/connections'),
         import('./locales/zh/latencyObservability'),
+        import('./locales/zh/traffic'),
       ])
-      return { default: mergeLocaleMessages(mergeLocaleMessages(legacy.default, adminMessages(module.default)), { requestTiming: requestTiming.default, connections: connections.default, latencyObservability: latencyObservability.default }) }
+      return { default: mergeLocaleMessages(mergeLocaleMessages(legacy.default, adminMessages(module.default)), { requestTiming: requestTiming.default, connections: connections.default, latencyObservability: latencyObservability.default, traffic: traffic.default }) }
     },
     'admin-play': async () => {
       const [module, legacy] = await Promise.all([

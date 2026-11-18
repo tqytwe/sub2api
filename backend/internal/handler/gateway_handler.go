@@ -1171,7 +1171,7 @@ func (h *GatewayHandler) Models(c *gin.Context) {
 	}
 
 	filterMembership := func(models []string) []string {
-		return h.gatewayService.FilterModelsByGroupMembership(c.Request.Context(), groupID, platform, models)
+		return service.FilterUserGroupDeniedModelIDs(h.gatewayService.FilterModelsByGroupMembership(c.Request.Context(), groupID, platform, models), apiKey.DeniedModelsInGroup())
 	}
 
 	if platform == service.PlatformOpenAI && apiKey != nil && apiKey.Group != nil &&
@@ -1260,6 +1260,7 @@ func (h *GatewayHandler) CodexModels(c *gin.Context) {
 	}
 	modelIDs := h.codexModelIDsForGroup(c.Request.Context(), apiKey.Group, forcedPlatform)
 	modelIDs = service.FilterCodexModelIDsForGroup(modelIDs, apiKey.Group)
+	modelIDs = service.FilterUserGroupDeniedModelIDs(modelIDs, apiKey.DeniedModelsInGroup())
 	body, err := h.gatewayService.BuildCodexModelsManifestForGroup(
 		c.Request.Context(),
 		apiKey.Group,
@@ -1681,7 +1682,7 @@ func (h *GatewayHandler) AntigravityModels(c *gin.Context) {
 		}
 		filtered := make([]antigravity.ClaudeModel, 0, len(models))
 		for _, model := range models {
-			if apiKey.Group.ModelAllowlist.Allows(model.ID) && (membershipIDs == nil || membershipIDs[model.ID]) {
+			if apiKey.Group.ModelAllowlist.Allows(model.ID) && !service.UserGroupDeniesModel(apiKey.DeniedModelsInGroup(), model.ID) && (membershipIDs == nil || membershipIDs[model.ID]) {
 				filtered = append(filtered, model)
 			}
 		}

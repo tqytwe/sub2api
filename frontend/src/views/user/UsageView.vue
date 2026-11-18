@@ -2,6 +2,7 @@
   <AppLayout>
     <div class="space-y-6">
       <UsageStatsCards
+        v-if="activeTab !== 'traffic'"
         :stats="usageStats"
         :show-account-cost="false"
         :strike-standard-cost="true"
@@ -9,7 +10,7 @@
       />
 
       <div
-        v-if="showUsageEmptyGuide"
+        v-if="activeTab !== 'traffic' && showUsageEmptyGuide"
         class="rounded-xl border border-dashed border-gray-200 bg-gray-50/80 p-6 dark:border-dark-600 dark:bg-dark-900/50"
       >
         <h3 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t('usage.emptyGuide.title') }}</h3>
@@ -57,7 +58,7 @@
         </div>
       </div>
 
-      <div class="space-y-4">
+      <div v-if="activeTab !== 'traffic'" class="space-y-4">
         <div class="card p-4">
           <div class="flex flex-wrap items-center gap-4">
             <div class="flex items-center gap-2">
@@ -120,7 +121,7 @@
         </div>
       </div>
 
-      <div class="card p-6">
+      <div v-if="activeTab !== 'traffic'" class="card p-6">
         <div class="flex flex-wrap items-end justify-between gap-4">
           <div v-if="activeTab === 'errors'" class="flex flex-1 flex-wrap items-end gap-4">
             <div class="w-full sm:w-auto sm:min-w-[220px]">
@@ -221,13 +222,14 @@
         </div>
       </div>
 
-      <div v-if="errorViewEnabled" class="flex gap-2 border-b border-gray-200 dark:border-dark-700">
+      <div class="flex gap-2 border-b border-gray-200 dark:border-dark-700">
         <button class="tab" :class="{ 'tab-active': activeTab === 'usage' }" @click="activeTab = 'usage'">
           {{ t('usage.tabs.usage') }}
         </button>
-        <button class="tab" :class="{ 'tab-active': activeTab === 'errors' }" @click="switchToErrors">
+        <button v-if="errorViewEnabled" class="tab" :class="{ 'tab-active': activeTab === 'errors' }" @click="switchToErrors">
           {{ t('usage.tabs.errors') }}
         </button>
+        <button class="tab" :class="{ 'tab-active': activeTab === 'traffic' }" @click="activeTab = 'traffic'">{{ t('traffic.title') }}</button>
       </div>
 
       <template v-if="activeTab === 'usage'">
@@ -254,9 +256,10 @@
           @update:pageSize="handlePageSizeChange"
         />
       </template>
+      <TrafficPanel v-else-if="activeTab === 'traffic'" :api-key-options="apiKeyOptions" />
 
       <UserErrorRequestsTable
-        v-else-if="errorViewEnabled"
+        v-else-if="activeTab === 'errors' && errorViewEnabled"
         :rows="errorRows"
         :total="errorTotal"
         :loading="errorLoading"
@@ -286,6 +289,7 @@ import DateRangePicker from '@/components/common/DateRangePicker.vue'
 import SupportContactPanel from '@/components/common/SupportContactPanel.vue'
 import UsageStatsCards from '@/components/admin/usage/UsageStatsCards.vue'
 import UsageTable from '@/components/admin/usage/UsageTable.vue'
+import TrafficPanel from '@/components/usage/TrafficPanel.vue'
 import { usageOutputTps } from '@/utils/usageTps'
 import { formatUsageCacheRate, showUsageCacheRate } from '@/utils/usageCacheRate'
 import ModelDistributionChart from '@/components/charts/ModelDistributionChart.vue'
@@ -430,7 +434,7 @@ const modelDistributionMetric = ref<DistributionMetric>('tokens')
 const groupDistributionMetric = ref<DistributionMetric>('tokens')
 const endpointDistributionMetric = ref<DistributionMetric>('tokens')
 const endpointDistributionSource = ref<EndpointSource>('inbound')
-const activeTab = ref<'usage' | 'errors'>('usage')
+const activeTab = ref<'usage' | 'errors' | 'traffic'>('usage')
 const errorViewEnabled = computed(() => appStore.cachedPublicSettings?.allow_user_view_error_requests ?? false)
 
 const filters = ref<UsageQueryParams>({

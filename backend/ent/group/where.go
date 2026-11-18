@@ -270,6 +270,21 @@ func LongContextPricingEnabled(v bool) predicate.Group {
 	return predicate.Group(sql.FieldEQ(FieldLongContextPricingEnabled, v))
 }
 
+// StreamOnly applies equality check predicate on the "stream_only" field. It's identical to StreamOnlyEQ.
+func StreamOnly(v bool) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldStreamOnly, v))
+}
+
+// CodexCliOnly applies equality check predicate on the "codex_cli_only" field. It's identical to CodexCliOnlyEQ.
+func CodexCliOnly(v bool) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldCodexCliOnly, v))
+}
+
+// BlockSubagents applies equality check predicate on the "block_subagents" field. It's identical to BlockSubagentsEQ.
+func BlockSubagents(v bool) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldBlockSubagents, v))
+}
+
 // ClaudeCodeOnly applies equality check predicate on the "claude_code_only" field. It's identical to ClaudeCodeOnlyEQ.
 func ClaudeCodeOnly(v bool) predicate.Group {
 	return predicate.Group(sql.FieldEQ(FieldClaudeCodeOnly, v))
@@ -2228,6 +2243,36 @@ func ModelPricingIsNil() predicate.Group {
 // ModelPricingNotNil applies the NotNil predicate on the "model_pricing" field.
 func ModelPricingNotNil() predicate.Group {
 	return predicate.Group(sql.FieldNotNull(FieldModelPricing))
+}
+
+// StreamOnlyEQ applies the EQ predicate on the "stream_only" field.
+func StreamOnlyEQ(v bool) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldStreamOnly, v))
+}
+
+// StreamOnlyNEQ applies the NEQ predicate on the "stream_only" field.
+func StreamOnlyNEQ(v bool) predicate.Group {
+	return predicate.Group(sql.FieldNEQ(FieldStreamOnly, v))
+}
+
+// CodexCliOnlyEQ applies the EQ predicate on the "codex_cli_only" field.
+func CodexCliOnlyEQ(v bool) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldCodexCliOnly, v))
+}
+
+// CodexCliOnlyNEQ applies the NEQ predicate on the "codex_cli_only" field.
+func CodexCliOnlyNEQ(v bool) predicate.Group {
+	return predicate.Group(sql.FieldNEQ(FieldCodexCliOnly, v))
+}
+
+// BlockSubagentsEQ applies the EQ predicate on the "block_subagents" field.
+func BlockSubagentsEQ(v bool) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldBlockSubagents, v))
+}
+
+// BlockSubagentsNEQ applies the NEQ predicate on the "block_subagents" field.
+func BlockSubagentsNEQ(v bool) predicate.Group {
+	return predicate.Group(sql.FieldNEQ(FieldBlockSubagents, v))
 }
 
 // ClaudeCodeOnlyEQ applies the EQ predicate on the "claude_code_only" field.

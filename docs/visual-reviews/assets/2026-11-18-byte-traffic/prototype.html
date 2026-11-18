@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Usage traffic prototype</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 32px; color: #202a33; background: #f5f7f8; font: 14px/1.45 Arial, sans-serif; }
+  main { max-width: 1216px; margin: auto; }
+  h1 { margin: 0 0 20px; font-size: 24px; }
+  nav { display: flex; gap: 20px; border-bottom: 1px solid #d5dce0; margin-bottom: 20px; }
+  nav span { padding: 12px 4px; color: #687782; }
+  nav strong { border-bottom: 2px solid #0ea5e9; color: #0369a1; padding: 12px 4px; }
+  .filters, .summary, .table, .series { background: #fff; border: 1px solid #d5dce0; border-radius: 6px; margin-bottom: 16px; }
+  .filters { display: flex; flex-wrap: wrap; gap: 16px; padding: 16px; }
+  label { color: #586873; font-size: 12px; }
+  .control { display: block; width: 190px; border: 1px solid #cbd4d9; border-radius: 6px; padding: 9px; margin-top: 4px; color: #202a33; }
+  .summary { display: grid; grid-template-columns: repeat(4, 1fr); }
+  .metric { padding: 18px; border-right: 1px solid #e0e5e8; }
+  .metric:last-child { border: 0; }
+  .metric small { display: block; color: #687782; }
+  .metric b { display: block; margin-top: 6px; font-size: 21px; }
+  .series { padding: 18px; }
+  .bars { height: 120px; display: flex; align-items: end; gap: 12px; border-bottom: 1px solid #cbd4d9; padding: 0 10px; }
+  .bar { flex: 1; height: var(--h); background: #0ea5e9; border-radius: 3px 3px 0 0; }
+  .bar.download { background: #10b981; }
+  .table { overflow: hidden; }
+  table { width: 100%; border-collapse: collapse; text-align: left; }
+  th, td { padding: 12px; border-bottom: 1px solid #e0e5e8; }
+  th { background: #f5f7f8; color: #586873; font-weight: 600; }
+  @media(max-width:700px) { body { padding: 16px; } .summary { grid-template-columns: repeat(2, 1fr); } .metric:nth-child(2) { border-right: 0; } table { min-width: 700px; } }
+</style>
+<main>
+  <h1>Usage</h1>
+  <nav><span>Usage records</span><span>Error requests</span><strong>Body traffic</strong></nav>
+  <p style="margin:0 0 14px;color:#52616b">HTTP and SSE body bytes · observed request traffic only</p>
+  <section class="filters">
+    <label>Period<span class="control">Month</span></label>
+    <label>Date<span class="control">2026-11-18</span></label>
+    <label>API key<span class="control">All keys</span></label>
+    <label>Actions<span class="control">Apply · Refresh</span></label>
+  </section>
+  <section class="summary">
+    <div class="metric"><small>Upload</small><b>4.82 MiB</b></div>
+    <div class="metric"><small>Download</small><b>31.60 MiB</b></div>
+    <div class="metric"><small>Total body bytes</small><b>36.42 MiB</b></div>
+    <div class="metric"><small>Requests observed</small><b>148</b></div>
+  </section>
+  <section class="series"><b>Observed body bytes by day</b><div class="bars"><i class="bar" style="--h:30%"></i><i class="bar download" style="--h:52%"></i><i class="bar" style="--h:44%"></i><i class="bar download" style="--h:73%"></i><i class="bar" style="--h:58%"></i><i class="bar download" style="--h:90%"></i><i class="bar" style="--h:65%"></i><i class="bar download" style="--h:40%"></i><i class="bar" style="--h:78%"></i><i class="bar download" style="--h:54%"></i></div></section>
+  <section class="table"><table><thead><tr><th>Started</th><th>API key</th><th>Endpoint</th><th>Upload</th><th>Download</th><th>Result</th></tr></thead><tbody><tr><td>Nov 18, 10:42</td><td>Production</td><td>POST /v1/responses</td><td>12.3 KiB</td><td>283 KiB</td><td>HTTP 200 · completed</td></tr><tr><td>Nov 18, 10:31</td><td>Production</td><td>POST /v1/messages</td><td>8.1 KiB</td><td>2.4 MiB</td><td>HTTP 200 · completed</td></tr></tbody></table></section>
+</main>
+</html>

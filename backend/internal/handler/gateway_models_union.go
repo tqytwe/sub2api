@@ -65,6 +65,14 @@ func (h *GatewayHandler) groupModelCatalog(c *gin.Context, key *service.APIKey) 
 		if err != nil {
 			return nil, err
 		}
+		if len(key.DeniedModelsInGroup()) > 0 && response != nil {
+			filtered := *response
+			filtered.Body, err = removeDeniedCatalogEntries(response.Body, key.DeniedModelsInGroup())
+			if err != nil {
+				return nil, err
+			}
+			response = &filtered
+		}
 		var catalog struct {
 			Data []json.RawMessage `json:"data"`
 		}
@@ -80,6 +88,7 @@ func (h *GatewayHandler) groupModelCatalog(c *gin.Context, key *service.APIKey) 
 	if group.ModelAllowlistEnabled() {
 		ids = group.ModelAllowlist.FilterForListing(ids)
 	}
+	ids = service.FilterUserGroupDeniedModelIDs(ids, key.DeniedModelsInGroup())
 	contracts := h.gatewayModelMediaContracts(c.Request.Context(), key, platform, ids)
 	if platform == service.PlatformComposite {
 		contracts = h.compositeGatewayModelMediaContracts(c.Request.Context(), key)

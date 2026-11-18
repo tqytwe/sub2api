@@ -1092,7 +1092,10 @@ func OpsErrorLoggerMiddleware(ops *service.OpsService) gin.HandlerFunc {
 		c.Next()
 		w.finalizeCapture()
 
-		if _, rejected := middleware2.GetIngressRejectReason(c); rejected {
+		if reason, rejected := middleware2.GetIngressRejectReason(c); rejected {
+			if reason == middleware2.IngressRejectSubagentsBlocked {
+				logOpsSubagentRejection(c, ops)
+			}
 			return
 		}
 

@@ -62,6 +62,8 @@ type AdminService interface {
 	ClearGroupRateMultipliers(ctx context.Context, groupID int64) error
 	BatchSetGroupRateMultipliers(ctx context.Context, groupID int64, entries []GroupRateMultiplierInput) error
 	ClearGroupRPMOverrides(ctx context.Context, groupID int64) error
+	ClearGroupUserDeniedModels(ctx context.Context, groupID int64) error
+	BatchSetGroupUserDeniedModels(ctx context.Context, groupID int64, entries []GroupUserDeniedModelsInput) error
 	BatchSetGroupRPMOverrides(ctx context.Context, groupID int64, entries []GroupRPMOverrideInput) error
 	UpdateGroupSortOrders(ctx context.Context, updates []GroupSortOrderUpdate) error
 
@@ -151,6 +153,7 @@ const (
 	AdminGroupOperationCompositeRoute AdminGroupOperation = "composite_route"
 	AdminGroupOperationMultiplier     AdminGroupOperation = "multiplier"
 	AdminGroupOperationRPMOverride    AdminGroupOperation = "rpm_override"
+	AdminGroupOperationDeniedModels   AdminGroupOperation = "denied_models"
 	AdminGroupOperationSort           AdminGroupOperation = "sort"
 )
 
@@ -238,6 +241,7 @@ type AdminBoundAuthIdentityChannel struct {
 type CreateGroupInput struct {
 	Name                            string
 	Description                     string
+	I18n                            GroupI18n
 	Platform                        string
 	RateMultiplier                  float64
 	BillingSurchargeOverrideEnabled bool
@@ -279,7 +283,10 @@ type CreateGroupInput struct {
 	AudioRealtimePricePerMin     *float64
 	AudioTTSPricePerMillionChars *float64
 	AudioSTTPricePerHour         *float64
-	ClaudeCodeOnly               bool   // 仅允许 Claude Code 客户端
+	ClaudeCodeOnly               bool // 仅允许 Claude Code 客户端
+	StreamOnly                   bool
+	CodexCLIOnly                 bool
+	BlockSubagents               bool
 	FallbackGroupID              *int64 // 降级分组 ID
 	// 无效请求兜底分组 ID（仅 anthropic 平台使用）
 	FallbackGroupIDOnInvalidRequest *int64
@@ -320,6 +327,7 @@ type CreateGroupInput struct {
 type UpdateGroupInput struct {
 	Name                            string
 	Description                     *string
+	I18n                            *GroupI18n
 	Platform                        string
 	RateMultiplier                  *float64 // 使用指针以支持设置为0
 	BillingSurchargeOverrideEnabled *bool
@@ -362,7 +370,10 @@ type UpdateGroupInput struct {
 	AudioRealtimePricePerMin     *float64
 	AudioTTSPricePerMillionChars *float64
 	AudioSTTPricePerHour         *float64
-	ClaudeCodeOnly               *bool  // 仅允许 Claude Code 客户端
+	ClaudeCodeOnly               *bool // 仅允许 Claude Code 客户端
+	StreamOnly                   *bool
+	CodexCLIOnly                 *bool
+	BlockSubagents               *bool
 	FallbackGroupID              *int64 // 降级分组 ID
 	// 无效请求兜底分组 ID（仅 anthropic 平台使用）
 	FallbackGroupIDOnInvalidRequest *int64

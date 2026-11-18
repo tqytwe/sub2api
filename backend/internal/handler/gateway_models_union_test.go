@@ -183,3 +183,22 @@ func TestGatewayModelCatalogUnionKeepsKeyValidityChecks(t *testing.T) {
 		})
 	}
 }
+
+func TestGatewayModelCatalogUnionUsesEachGroupsUserRestrictions(t *testing.T) {
+	f := newModelUnionFixture()
+	handler := newGatewayModelsHandlerForTest(f.accounts)
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodGet, "/v1/models", nil)
+	keys := []*service.APIKey{
+		{Group: f.groups.groups[1], User: &service.User{UserGroupDeniedModels: []string{"catalog-alpha", "shared"}}},
+		{Group: f.groups.groups[2], User: &service.User{UserGroupDeniedModels: []string{"catalog-beta"}}},
+	}
+	// The representative group's restrictions cannot remove a model allowed in
+	// another group, nor permit that group's denied model through a union.
+	c.Set(string(middleware.ContextKeyAPIKey), keys[0])
+	handler.multiGroupModels(c, keys)
+	require.Equal(t, http.StatusOK, recorder.Code, recorder.Body.String())
+	require.Equal(t, []string{"shared"}, listedModelIDs(t, recorder.Body.Bytes()))
+	require.Equal(t, []string{"catalog-alpha", "shared"}, keys[0].User.UserGroupDeniedModels)
+}

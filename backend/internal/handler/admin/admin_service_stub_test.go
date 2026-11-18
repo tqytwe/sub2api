@@ -12,6 +12,9 @@ import (
 )
 
 type stubAdminService struct {
+	userDeniedModelsGroupID             int64
+	userDeniedModelsEntries             []service.GroupUserDeniedModelsInput
+	clearUserDeniedModelsCalls          int
 	users                               []service.User
 	apiKeys                             []service.APIKey
 	groups                              []service.Group
@@ -909,4 +912,15 @@ func (s *stubAdminService) AdminUpdateAPIKeySettings(ctx context.Context, keyID 
 		result.APIKey.ContextTokenLimit = *input.ContextTokenLimit
 	}
 	return result, nil
+}
+
+func (s *stubAdminService) ClearGroupUserDeniedModels(_ context.Context, groupID int64) error {
+	s.userDeniedModelsGroupID = groupID
+	s.clearUserDeniedModelsCalls++
+	return nil
+}
+func (s *stubAdminService) BatchSetGroupUserDeniedModels(_ context.Context, groupID int64, entries []service.GroupUserDeniedModelsInput) error {
+	s.userDeniedModelsGroupID = groupID
+	s.userDeniedModelsEntries = entries
+	return nil
 }
