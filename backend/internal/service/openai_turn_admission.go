@@ -84,6 +84,18 @@ func (s *OpenAIGatewayService) admitOpenAITurnForRequest(ctx context.Context, c 
 	return s.admitOpenAITurnModels(ctx, c, selected, requestModel, outboundModel, outboundModel, s == nil || s.requireLatestTurnAdmission)
 }
 
+// admitOpenAITurnForGroup serves WebSocket callbacks after the request context
+// has been reduced to a plain context. Preserve the routed group for the final
+// authoritative membership and model checks.
+func (s *OpenAIGatewayService) admitOpenAITurnForGroup(ctx context.Context, groupID int64, enforceGroup bool, selected *Account, outboundModel string) (*Account, error) {
+	groupIDCopy := groupID
+	requestContext := &gin.Context{}
+	if enforceGroup {
+		requestContext.Set("api_key", &APIKey{GroupID: &groupIDCopy})
+	}
+	return s.admitOpenAITurnModels(ctx, requestContext, selected, outboundModel, outboundModel, outboundModel, true)
+}
+
 func (s *OpenAIGatewayService) admitOpenAITurnModels(ctx context.Context, c *gin.Context, selected *Account, requestModel, routedModel, outboundModel string, requireLatest bool) (admittedAccount *Account, admissionErr error) {
 	defer func() {
 		if atForward, _ := ctx.Value(openAITurnAdmissionLogAtForwardBoundaryKey{}).(bool); !atForward {

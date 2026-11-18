@@ -81,7 +81,8 @@ func newOpenAIWSUnsupportedModelSwitchError(model string) error {
 }
 
 func shouldReportOpenAIWSProxyAccountFailure(account *service.Account, err error) bool {
-	return err != nil && !errors.Is(err, errOpenAIWSUnsupportedModelSwitch) && !service.IsOpenAIWSSessionPreemptedError(err) && (account == nil || !account.IsOpenAI() || !service.IsOpenAITurnAdmissionError(err))
+	var recovery *service.OpenAIAgentRecoveryError
+	return err != nil && !errors.As(err, &recovery) && !errors.Is(err, errOpenAIWSUnsupportedModelSwitch) && !service.IsOpenAIWSSessionPreemptedError(err) && (account == nil || !account.IsOpenAI() || !service.IsOpenAITurnAdmissionError(err))
 }
 
 // openAIWSIngressEndedByClient reports whether a finished ingress WebSocket turn
@@ -686,6 +687,7 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 	failedAccountIDs := make(map[int64]struct{})
 	sameAccountRetryCount := make(map[int64]int)
 	var lastFailoverErr *service.UpstreamFailoverError
+	var rpmAdmission openAIRPMAdmission
 	var oauth429FailoverState service.OpenAIOAuth429FailoverState
 	var passthroughFailoverState openAIPassthroughFailoverState
 
@@ -704,6 +706,7 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 	pricingCtx, pricingAt := h.gatewayService.WithOpenAIRequestPricingContext(c.Request.Context(), apiKey.GroupID)
 	pricingCtx = service.WithPrioritySchedulingObservation(pricingCtx, apiKey.GroupID, reqModel, GetInboundEndpoint(c))
 	c.Request = c.Request.WithContext(pricingCtx)
+	c.Request = c.Request.WithContext(h.gatewayService.WithOpenAIAgentMessageRecovery(c.Request.Context(), c, body, sessionHash, forwardModel))
 
 	for {
 		// Streaming Forward intentionally detaches the upstream request so usage can
@@ -731,6 +734,15 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 		)
 		accountSelectionDone()
 		if err != nil {
+			err = rpmAdmission.selectionError(err)
+			if service.IsOpenAIRPMError(err) {
+				h.handleOpenAIRPMError(c, err, streamStarted, false, &rpmAdmission)
+				return
+			}
+			if h.handleOpenAIAgentRecoveryError(c, err, streamStarted) {
+				return
+			}
+
 			if failoverClientGone(c) {
 				reqLog.Info("openai.account_select_aborted_client_disconnected", zap.Error(err))
 				return
@@ -921,6 +933,13 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 			})
 		}
 		if err != nil {
+			if rpmAdmission.observe(err, account.ID, failedAccountIDs) {
+				continue
+			}
+			if h.handleOpenAIAgentRecoveryError(c, err, streamStarted) {
+				submitResponsesUsage(result)
+				return
+			}
 			if account.IsOpenAI() {
 				submitResponsesUsage(result)
 			}
@@ -978,6 +997,10 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 					}
 					if failoverErr.ShouldReportAccountScheduleFailure() {
 						h.gatewayService.ReportOpenAIAccountScheduleResult(account, openAIAccountScheduleModel(c, account, forwardModel, requireCompact, nil), false, nil, err)
+					}
+					if service.OpenAIAgentRecoveryNoReplay(c.Request.Context()) {
+						h.handleFailoverExhausted(c, failoverErr, streamStarted)
+						return
 					}
 					if !failoverErr.ShouldRetryNextAccount() {
 						h.handleFailoverExhausted(c, failoverErr, streamStarted)
@@ -1373,6 +1396,7 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 	failedAccountIDs := make(map[int64]struct{})
 	sameAccountRetryCount := make(map[int64]int)
 	var lastFailoverErr *service.UpstreamFailoverError
+	var rpmAdmission openAIRPMAdmission
 	var oauth429FailoverState service.OpenAIOAuth429FailoverState
 	effectiveMappedModel := preferredMappedModel
 
@@ -1407,6 +1431,11 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 		)
 		accountSelectionDone()
 		if err != nil {
+			err = rpmAdmission.selectionError(err)
+			if service.IsOpenAIRPMError(err) {
+				h.handleOpenAIRPMError(c, err, streamStarted, true, &rpmAdmission)
+				return
+			}
 			if failoverClientGone(c) {
 				reqLog.Info("openai_messages.account_select_aborted_client_disconnected", zap.Error(err))
 				return
@@ -1541,6 +1570,9 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 			})
 		}
 		if err != nil {
+			if rpmAdmission.observe(err, account.ID, failedAccountIDs) {
+				continue
+			}
 			if account.IsOpenAI() {
 				submitMessagesUsage(result)
 			}
@@ -2761,6 +2793,7 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 		firstMessage,
 		openAIWSIngressFallbackSessionSeed(subject.UserID, apiKey.ID, apiKey.GroupID),
 	)
+	ctx = h.gatewayService.WithOpenAIWSAgentRecovery(ctx, c, firstMessage, sessionHash, wsForwardModel)
 	ctx = service.WithOpenAIGuardianParentAffinity(ctx, c, firstMessage, reqModel)
 	maxAccountSwitches := h.maxAccountSwitches
 	switchCount := 0
@@ -2768,9 +2801,13 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 	failedAccountIDs := make(map[int64]struct{})
 	sameAccountRetryCount := make(map[int64]int)
 	var lastFailoverErr *service.UpstreamFailoverError
+	var rpmAdmission openAIRPMAdmission
 	var oauth429FailoverState service.OpenAIOAuth429FailoverState
 	wsAttemptMessage := append([]byte(nil), firstMessage...)
 	waitForWSSameAccountRetry := func(account *service.Account, failoverErr *service.UpstreamFailoverError) bool {
+		if !service.OpenAIWSAgentRecoveryCanRetry(ctx) {
+			return false
+		}
 		if account == nil || failoverErr == nil || failoverErr.StatusCode != http.StatusTooManyRequests || failoverErr.SameAccountRetryDeadline.IsZero() {
 			return false
 		}
@@ -2794,6 +2831,10 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 		}
 	}
 	handleWSFailover := func(account *service.Account, failoverErr *service.UpstreamFailoverError) bool {
+		if !service.OpenAIWSAgentRecoveryCanRetry(ctx) {
+			closeOpenAIClientWS(wsConn, coderws.StatusPolicyViolation, "agent task was not replayed; original context was preserved")
+			return false
+		}
 		if ctx.Err() != nil {
 			return false
 		}
@@ -2869,6 +2910,18 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 			requestPlatform,
 		)
 		if err != nil {
+			err = rpmAdmission.selectionError(err)
+			if service.IsOpenAIRPMError(err) {
+				reason := "OpenAI OAuth RPM protection is temporarily unavailable; retry later"
+				if errors.Is(err, service.ErrOpenAIRPMExhausted) {
+					reason = "OpenAI OAuth RPM limit reached; reconnect after the current minute resets"
+				}
+				closeOpenAIClientWS(wsConn, coderws.StatusTryAgainLater, reason)
+				return
+			}
+			if h.handleOpenAIWSAgentRecoveryError(ctx, wsConn, err) {
+				return
+			}
 			reqLog.Warn("openai.websocket_account_select_failed",
 				zap.Error(openAICompatibleSelectionErrorForLog(err, requestPlatform)),
 				zap.Int("excluded_account_count", len(failedAccountIDs)),
@@ -3305,7 +3358,7 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 		// 说明该会话链不属于本次调度到的账号，原样转发会触发上游会话链鉴权失败（“鉴权失败，请检查 API Key”）。
 		// 故剥离首包里的 previous_response_id，改用首包内 input 重建上下文；带 function_call_output 的
 		// 工具续链无法重建，保持原样。仅作用于首轮首包，后续 turn 的续链由 WS 转发层既有逻辑处理。
-		if previousResponseID != "" && !scheduleDecision.StickyPreviousHit && previousResponseCanMove {
+		if previousResponseID != "" && !scheduleDecision.StickyPreviousHit && previousResponseCanMove && !service.OpenAIWSAgentRecoveryBound(ctx) {
 			wsFirstMessage = service.RemovePreviousResponseIDFromBody(wsFirstMessage)
 			reqLog.Debug("openai.websocket_previous_response_id_stripped_cross_group",
 				zap.Int64("account_id", account.ID),
@@ -3328,6 +3381,15 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 			err := h.gatewayService.ProxyResponsesWebSocketFromClient(ctx, c, wsConn, account, token, wsFirstMessage, attemptHooks)
 			if err == nil {
 				reqLog.Info("openai.websocket_ingress_closed", zap.Int64("account_id", account.ID))
+				return
+			}
+			if service.IsOpenAIRPMError(err) {
+				reason := "OpenAI OAuth RPM protection is temporarily unavailable; retry later"
+				if errors.Is(err, service.ErrOpenAIRPMExhausted) {
+					reason = "OpenAI OAuth RPM limit reached; reconnect after the current minute resets"
+				}
+				releaseAccountSlot()
+				closeOpenAIClientWS(wsConn, coderws.StatusTryAgainLater, reason)
 				return
 			}
 			if service.IsOpenAIWSSessionPreemptedError(err) {

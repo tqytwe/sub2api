@@ -66,6 +66,9 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 			result.AuthConnectionID = account.AuthConnectionID
 		}
 	}()
+	if err := s.checkOpenAIAgentRecoveryDispatch(ctx, c, account, body); err != nil {
+		return nil, err
+	}
 
 	beginUpstreamResponseModelObservation(c)
 	ClearActualOpenAIUpstreamEndpoint(c)
@@ -174,6 +177,9 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 	wsDecision := s.getOpenAIWSProtocolResolver().Resolve(account)
 	// 仅允许 WS 入站请求走 WS 上游，避免出现 HTTP -> WS 协议混用。
 	wsDecision = resolveOpenAIWSDecisionByClientTransport(wsDecision, GetOpenAIClientTransport(c))
+	if openAIAgentRecoveryBound(ctx) {
+		wsDecision = openAIWSHTTPDecision("encrypted_agent_continuation")
+	}
 	passthroughEnabled := account.IsOpenAIPassthroughEnabled()
 	compactPath := isOpenAIResponsesCompactPath(c)
 	if shouldFlattenOpenAIResponsesNamespaces(account, wsDecision.Transport, passthroughEnabled, compactPath) {
@@ -807,7 +813,7 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 	lineageGroupID := getOpenAIGroupIDFromContext(c)
 	lineageEntryBody := body
 	lineageSessionHash := ""
-	if stateStore := s.getOpenAIWSStateStore(); stateStore != nil && stateStore.HasAnySessionInvalidEncryptedContent() {
+	if stateStore := s.getOpenAIWSStateStore(); !openAIAgentRecoveryPreservesHistory(ctx) && stateStore != nil && stateStore.HasAnySessionInvalidEncryptedContent() {
 		lineageSessionHash = s.GenerateSessionHash(c, body)
 		if invalidDigests := stateStore.GetSessionInvalidEncryptedContentDigests(lineageGroupID, lineageSessionHash); len(invalidDigests) > 0 {
 			strippedBody, strippedCount := s.stripSessionInvalidEncryptedContentLogged(
@@ -1079,6 +1085,9 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 			}
 			return wsResult, nil
 		}
+		if IsOpenAIRPMError(wsErr) {
+			return nil, wsErr
+		}
 		s.writeOpenAIWSFallbackErrorResponse(c, account, wsErr)
 		return nil, wsErr
 	}
@@ -1154,6 +1163,14 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 			}
 			return nil, err
 		}
+		completeAgentRecovery, recoveryErr := s.prepareOpenAIAgentRecoveryAttempt(ctx, account, upstreamReq)
+		if recoveryErr != nil {
+			if headerGuard != nil {
+				headerGuard.close()
+			}
+			return nil, recoveryErr
+		}
+		defer completeAgentRecovery(false) // revoke pending exposure on every early return
 
 		// Get proxy URL
 		proxyURL := ""
@@ -1217,7 +1234,8 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 			}
 			respBody = s.redactAgentIdentitySensitiveBody(ctx, account, respBody)
 			resp.Body = io.NopCloser(bytes.NewReader(respBody))
-			if !httpInvalidEncryptedContentRetryTried && resp.StatusCode == http.StatusBadRequest && upstreamCode == "invalid_encrypted_content" {
+			preserveAgentHistory := openAIAgentRecoveryPreservesHistory(ctx)
+			if !preserveAgentHistory && !httpInvalidEncryptedContentRetryTried && resp.StatusCode == http.StatusBadRequest && upstreamCode == "invalid_encrypted_content" {
 				decoded, decodeErr := ensureReqBody()
 				if decodeErr != nil {
 					return nil, decodeErr
@@ -1241,18 +1259,20 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 				}
 				logger.LegacyPrintf("service.openai_gateway", "[OpenAI] Skip non-WSv2 invalid_encrypted_content retry because encrypted reasoning items are missing (account: %s)", account.Name)
 			}
-			if retryBody, reason, changed, retryErr := normalizeOpenAIResponsesHTTPRejectedFieldRetryBody(resp.StatusCode, body, respBody); retryErr != nil {
-				return nil, fmt.Errorf("normalize rejected Responses field retry body: %w", retryErr)
-			} else if changed && rejectedFieldRetryState.Allow(retryBody) {
-				body = retryBody
-				requestView = newOpenAIRequestView(body)
-				reqBody = nil
-				logger.LegacyPrintf("service.openai_gateway", "[OpenAI] Retrying non-WSv2 request after %s (account: %s)", reason, account.Name)
-				continue
+			if !preserveAgentHistory {
+				if retryBody, reason, changed, retryErr := normalizeOpenAIResponsesHTTPRejectedFieldRetryBody(resp.StatusCode, body, respBody); retryErr != nil {
+					return nil, fmt.Errorf("normalize rejected Responses field retry body: %w", retryErr)
+				} else if changed && rejectedFieldRetryState.Allow(retryBody) {
+					body = retryBody
+					requestView = newOpenAIRequestView(body)
+					reqBody = nil
+					logger.LegacyPrintf("service.openai_gateway", "[OpenAI] Retrying non-WSv2 request after %s (account: %s)", reason, account.Name)
+					continue
+				}
 			}
 			if retryBody, fallbackModel, retry := s.prepareOpenAICompactFallbackRetry(
 				c, account, requestedModel, body, resp.StatusCode, upstreamMsg, respBody, compactModelFallbackRetried,
-			); retry {
+			); retry && !preserveAgentHistory {
 				s.appendOpenAICompactFallbackRetryOps(requestledger.ResponseReceipt(resp), c, account, resp, respBody, upstreamMsg, false)
 				fromModel := strings.TrimSpace(gjson.GetBytes(body, "model").String())
 				body = retryBody
@@ -1325,6 +1345,8 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 		var forwardErr error
 		var firstTokenMs *int
 		clientDisconnected := false
+		var downstreamDeliveryErr error
+		agentCompleted := false
 		responseID := ""
 		imageCount := 0
 		searchCount := 0
@@ -1333,6 +1355,7 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 			streamResult, err := s.handleStreamingResponseWithReasoning(ctx, resp, c, account, startTime, originalModel, upstreamModel, reasoningEffortValue)
 			forwardErr = err
 			if streamResult != nil {
+				agentCompleted = streamResult.agentCompleted
 				clientDisconnected = streamResult.clientDisconnect
 				usage = streamResult.usage
 				firstTokenMs = streamResult.firstTokenMs
@@ -1341,11 +1364,18 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 				imageOutputSizes = streamResult.imageOutputSizes
 				searchCount = streamResult.searchCount
 			}
+			var agentRecoveryErr *OpenAIAgentRecoveryError
+			if streamResult != nil && errors.As(err, &agentRecoveryErr) {
+				downstreamDeliveryErr = err
+				streamResult.agentCompleted = false
+				agentCompleted = false
+				err = nil
+			}
 			if err != nil && (!account.IsOpenAI() || (!hasObservedOpenAIUsage(usage, imageCount) && !hasSubscriptionOutputEvidence(ctx, usage))) {
 				if signal, ok := asOpenAICompactFallbackSignal(err); ok {
 					if retryBody, fallbackModel, retry := s.prepareOpenAICompactFallbackRetry(
 						c, account, requestedModel, body, http.StatusBadRequest, signal.message, signal.payload, compactModelFallbackRetried,
-					); retry {
+					); retry && !openAIAgentRecoveryPreservesHistory(ctx) {
 						s.appendOpenAICompactFallbackRetryOps(requestledger.ResponseReceipt(resp), c, account, resp, signal.payload, signal.message, false)
 						body = retryBody
 						requestView = newOpenAIRequestView(body)
@@ -1385,17 +1415,26 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 			nonStreamResult, err := s.handleNonStreamingResponse(ctx, resp, c, account, originalModel, upstreamModel)
 			forwardErr = err
 			if nonStreamResult != nil {
+				agentCompleted = nonStreamResult.agentCompleted
 				usage = nonStreamResult.usage
 				responseID = strings.TrimSpace(nonStreamResult.responseID)
 				imageCount = nonStreamResult.imageCount
 				imageOutputSizes = nonStreamResult.imageOutputSizes
 				searchCount = nonStreamResult.searchCount
 			}
+			var deliveryErr *openAINonStreamingDeliveryError
+			if nonStreamResult != nil && errors.As(err, &deliveryErr) {
+				downstreamDeliveryErr = err
+				var recoveryErr *OpenAIAgentRecoveryError
+				clientDisconnected = !errors.As(err, &recoveryErr)
+				agentCompleted = false
+				err = nil
+			}
 			if err != nil && (!account.IsOpenAI() || (!hasObservedOpenAIUsage(usage, imageCount) && !hasSubscriptionOutputEvidence(ctx, usage))) {
 				if signal, ok := asOpenAICompactFallbackSignal(err); ok {
 					if retryBody, fallbackModel, retry := s.prepareOpenAICompactFallbackRetry(
 						c, account, requestedModel, body, http.StatusBadRequest, signal.message, signal.payload, compactModelFallbackRetried,
-					); retry {
+					); retry && !openAIAgentRecoveryPreservesHistory(ctx) {
 						s.appendOpenAICompactFallbackRetryOps(requestledger.ResponseReceipt(resp), c, account, resp, signal.payload, signal.message, false)
 						body = retryBody
 						requestView = newOpenAIRequestView(body)
@@ -1411,6 +1450,7 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 		if forwardErr == nil {
 			s.bindHTTPResponseAccount(ctx, c, account, responseID)
 		}
+		completeAgentRecovery(agentCompleted && !clientDisconnected && downstreamDeliveryErr == nil && c.Request.Context().Err() == nil)
 
 		// Extract and save Codex usage snapshot from response headers (for OAuth accounts).
 		// 排除 spark 影子:其 codex_* 仅由 QueryUsage(/wham/usage bengalfox)更新(外审第7轮 P1)。

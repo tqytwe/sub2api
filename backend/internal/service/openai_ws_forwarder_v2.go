@@ -352,6 +352,9 @@ func (s *OpenAIGatewayService) forwardOpenAIWSV2(
 		finishLedgerWSResult(ctx, ledgerAttempt, ledgerResult, ledgerErr)
 		ledgerErr = ledgerAttempt.WrapError(ledgerErr)
 	}()
+	if err := s.acquireOpenAIRPMForSend(ctx, account); err != nil {
+		return nil, err
+	}
 	if err := lease.WriteJSONWithContextTimeout(ctx, payload, s.openAIWSWriteTimeout()); err != nil {
 		lease.MarkBroken()
 		logOpenAIWSModeInfo(

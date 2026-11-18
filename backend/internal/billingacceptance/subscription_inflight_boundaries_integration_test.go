@@ -234,7 +234,7 @@ func runInflightBoundaries(t *testing.T, db *sql.DB, client *dbent.Client) {
 		require.NoError(t, err)
 		repo := repository.NewUsageBillingRepositoryWithLedger(client, db, service.NewBalanceLedgerService(db, nil, nil))
 		// The actual production constructor starts recovery without a new request.
-		worker := service.NewOpenAIGatewayServiceWithLiveBilling(nil, nil, repo, nil, nil, nil, nil, &config.Config{}, nil, nil, service.NewBillingService(&config.Config{}, nil), nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, requestledger.New(db))
+		worker := service.NewOpenAIGatewayServiceWithLiveBilling(nil, nil, repo, nil, nil, nil, nil, &config.Config{}, nil, nil, service.NewBillingService(&config.Config{}, nil), nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, requestledger.New(db), nil)
 		t.Cleanup(worker.StopLiveSettlementWorker)
 		require.Eventually(t, func() bool {
 			var done bool

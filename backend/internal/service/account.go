@@ -2193,6 +2193,81 @@ func (a *Account) IsExcelBPSEnabled() bool {
 	return enabled
 }
 
+// IsCopilotSDKEnabled selects the stateful Responses sidecar contract. The
+// endpoint and bearer key belong to the sidecar, not GitHub OAuth.
+func (a *Account) IsCopilotSDKEnabled() bool {
+	if a == nil || a.Platform != PlatformOpenAI || a.Type != AccountTypeAPIKey || a.Extra == nil {
+		return false
+	}
+	enabled, _ := a.Extra["openai_copilot_sdk"].(bool)
+	return enabled
+}
+
+// IsExcelBPSEnabledForModel selects BPS after applying the account model map.
+// A model-scoped list selects the transport; it does not restrict account access.
+func (a *Account) IsExcelBPSEnabledForModel(requestedModel string) bool {
+	if !a.IsExcelBPSEnabled() {
+		return false
+	}
+	if _, scoped := a.Extra["openai_excel_bps_models"]; !scoped {
+		return true
+	}
+	model := strings.TrimSpace(a.GetMappedModel(requestedModel))
+	if model == "" {
+		return false
+	}
+	switch models := a.Extra["openai_excel_bps_models"].(type) {
+	case []string:
+		for _, selected := range models {
+			if strings.TrimSpace(selected) == model {
+				return true
+			}
+		}
+	case []any:
+		for _, selected := range models {
+			if name, ok := selected.(string); ok && strings.TrimSpace(name) == model {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// IsPrismBrowserEnabledForModel reports an explicitly configured OAuth route
+// after model mapping. The gateway's recovery policy uses it to avoid moving
+// state across a distinct protocol identity.
+func (a *Account) IsPrismBrowserEnabledForModel(requestedModel string) bool {
+	if a == nil || a.Platform != PlatformOpenAI || a.Type != AccountTypeOAuth || a.IsCredentialShadow() || a.Extra == nil {
+		return false
+	}
+	enabled, _ := a.Extra["openai_prism_browser"].(bool)
+	if !enabled {
+		return false
+	}
+	if _, scoped := a.Extra["openai_prism_browser_models"]; !scoped {
+		return true
+	}
+	model := strings.TrimSpace(a.GetMappedModel(requestedModel))
+	if model == "" {
+		return false
+	}
+	switch models := a.Extra["openai_prism_browser_models"].(type) {
+	case []string:
+		for _, selected := range models {
+			if strings.TrimSpace(selected) == model {
+				return true
+			}
+		}
+	case []any:
+		for _, selected := range models {
+			if name, ok := selected.(string); ok && strings.TrimSpace(name) == model {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // IsOpenAIResponsesWebSocketV2Enabled 返回 OpenAI 账号是否开启 Responses WebSocket v2。
 //
 // 分类型新字段：
@@ -3175,6 +3250,9 @@ func (a *Account) GetBaseRPM() int {
 // GetRPMStrategy 获取 RPM 策略
 // "tiered" = 三区模型（默认）, "sticky_exempt" = 粘性豁免
 func (a *Account) GetRPMStrategy() string {
+	if a != nil && a.IsOpenAIOAuth() {
+		return "strict"
+	}
 	if a.Extra == nil {
 		return "tiered"
 	}
@@ -3244,6 +3322,9 @@ func (a *Account) CheckRPMSchedulability(currentRPM int) WindowCostSchedulabilit
 	}
 
 	strategy := a.GetRPMStrategy()
+	if strategy == "strict" {
+		return WindowCostNotSchedulable
+	}
 	if strategy == "sticky_exempt" {
 		return WindowCostStickyOnly // 粘性豁免无红区
 	}
@@ -3359,6 +3440,17 @@ func parseExtraInt(value any) int {
 
 // IsShadow 报告账号是否为影子账号（parent_account_id 非空；当前唯一预设是 spark 维度）。
 func (a *Account) IsShadow() bool { return a != nil && a.ParentAccountID != nil }
+
+// RPMAccountID shares OpenAI OAuth quota between a credential shadow and its parent.
+func (a *Account) RPMAccountID() int64 {
+	if a == nil {
+		return 0
+	}
+	if a.IsOpenAIOAuth() && a.ParentAccountID != nil && *a.ParentAccountID > 0 {
+		return *a.ParentAccountID
+	}
+	return a.ID
+}
 
 // IsCredentialShadow 语义别名，供「凭据消费者跳过影子」处使用（管理/后台 OAuth 路径）。
 func (a *Account) IsCredentialShadow() bool { return a.IsShadow() }

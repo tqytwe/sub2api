@@ -459,6 +459,7 @@ var ErrNoAvailableCompactAccounts = errors.New("no available accounts support /r
 
 // OpenAIGatewayService handles OpenAI API gateway operations
 type OpenAIGatewayService struct {
+	agentMessageRecovery openAIAgentRecoveryState
 	// Set only by production constructors. Legacy direct-struct test fixtures may
 	// exercise supplied account state; the exported admission API stays strict.
 	requireLatestTurnAdmission   bool
@@ -469,6 +470,7 @@ type OpenAIGatewayService struct {
 	userRepo                     UserRepository
 	userSubRepo                  UserSubscriptionRepository
 	cache                        GatewayCache
+	rpmCache                     RPMCache
 	cfg                          *config.Config
 	codexDetector                CodexClientRestrictionDetector
 	schedulerSnapshot            *SchedulerSnapshotService
@@ -542,6 +544,14 @@ type OpenAIGatewayService struct {
 	openaiCodexTurnStateWrites  atomic.Uint64
 	priorityScheduling          prioritySchedulingState
 	priorityAnalysis            priorityAnalysisFlights
+}
+
+// SetRPMCache enables strict OpenAI OAuth RPM accounting while preserving the
+// lower-level constructor used by focused tests.
+func (s *OpenAIGatewayService) SetRPMCache(cache RPMCache) {
+	if s != nil {
+		s.rpmCache = cache
+	}
 }
 
 // NewOpenAIGatewayService creates a new OpenAIGatewayService
@@ -653,6 +663,7 @@ func NewOpenAIGatewayServiceWithLiveBilling(
 	liveSettlementOutbox LiveSettlementOutboxRepository,
 	starframeVideos StarframeVideoRepository,
 	requestLedger *requestledger.Ledger,
+	rpmCache RPMCache,
 ) *OpenAIGatewayService {
 	svc := NewOpenAIGatewayService(
 		accountRepo,
@@ -679,6 +690,7 @@ func NewOpenAIGatewayServiceWithLiveBilling(
 		userPlatformQuotaRepo,
 	)
 	svc.requestLedger = requestLedger
+	svc.rpmCache = rpmCache
 	svc.subscriptionSettlementWorker = startSubscriptionSettlementWorker(usageBillingRepo)
 	svc.SetLiveBillingAPIKeyService(apiKeyService)
 	svc.SetLiveSettlementOutbox(liveSettlementOutbox)

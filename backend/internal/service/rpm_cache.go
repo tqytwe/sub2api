@@ -1,6 +1,9 @@
 package service
 
-import "context"
+import (
+	"context"
+	"time"
+)
 
 // RPMCache RPM 计数器缓存接口
 // 用于 Anthropic OAuth/SetupToken 账号的每分钟请求数限制
@@ -14,4 +17,11 @@ type RPMCache interface {
 
 	// GetRPMBatch 批量获取多个账号的 RPM 计数（使用 Pipeline）
 	GetRPMBatch(ctx context.Context, accountIDs []int64) (map[int64]int, error)
+}
+
+// StrictRPMCache provides atomic reservations for providers with a hard
+// request ceiling. Keeping it separate preserves soft-limit implementations.
+type StrictRPMCache interface {
+	RPMCache
+	TryAcquireRPM(ctx context.Context, accountID int64, limit int) (allowed bool, count int, resetAt time.Time, err error)
 }

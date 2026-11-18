@@ -1066,6 +1066,9 @@ const (
 
 // GatewayConfig API网关相关配置
 type GatewayConfig struct {
+	// DisableEncryptedAgentOwnerBinding permits completed opaque agent history
+	// on another eligible native Responses account, retaining delivery and pointer ownership.
+	DisableEncryptedAgentOwnerBinding bool `mapstructure:"disable_encrypted_agent_owner_binding"`
 	// 等待上游响应头的超时时间（秒），0表示无超时
 	// 注意：这不影响流式数据传输，只控制等待响应头的时间
 	ResponseHeaderTimeout int `mapstructure:"response_header_timeout"`
@@ -2152,6 +2155,7 @@ func configureConfigSource(setConfigFile, addConfigPath func(string)) {
 }
 
 func setDefaults() {
+	viper.SetDefault("gateway.disable_encrypted_agent_owner_binding", false)
 	viper.SetDefault("run_mode", RunModeStandard)
 	viper.SetDefault("simple_mode.auto_create_default_groups", true)
 	viper.SetDefault("simple_mode_key_rate_limit_enabled", false)
