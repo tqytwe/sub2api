@@ -51,7 +51,7 @@ func runSubscriptionProjectionOwner(t *testing.T, db *sql.DB, client *dbent.Clie
 	repo := repository.NewUsageBillingRepositoryWithLedger(client, db, service.NewBalanceLedgerService(db, nil, nil))
 	var worker *service.OpenAIGatewayService
 	startWorker := func() {
-		worker = service.NewOpenAIGatewayServiceWithLiveBilling(nil, nil, repo, nil, nil, nil, nil, &config.Config{}, nil, nil, service.NewBillingService(&config.Config{}, nil), nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, requestledger.New(db))
+		worker = service.NewOpenAIGatewayServiceWithLiveBilling(nil, nil, repo, nil, nil, nil, nil, &config.Config{}, nil, nil, service.NewBillingService(&config.Config{}, nil), nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, requestledger.New(db), nil)
 		t.Cleanup(worker.StopLiveSettlementWorker)
 	}
 	if pendingLogs == 0 {

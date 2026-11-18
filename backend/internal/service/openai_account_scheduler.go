@@ -393,6 +393,41 @@ func (s *defaultOpenAIAccountScheduler) Select(
 	ctx context.Context,
 	req OpenAIAccountScheduleRequest,
 ) (selection *AccountSelectionResult, decision OpenAIAccountScheduleDecision, err error) {
+	recovery := openAIAgentRecoveryFromContext(ctx)
+	if recovery != nil && recovery.lookupErr != nil {
+		return nil, decision, recovery.lookupErr
+	}
+	if recovery != nil && recovery.conflict {
+		return nil, decision, openAIAgentRecoveryError("owner_conflict")
+	}
+	if recovery != nil && recovery.owner != nil {
+		if req.Platform != PlatformOpenAI || req.SessionHash != recovery.session ||
+			derefGroupID(req.GroupID) != recovery.groupID || req.RequestedModel != recovery.model {
+			return nil, decision, openAIAgentRecoveryError("owner_unavailable")
+		}
+	}
+	if recovery.ownerBindingRequired() {
+		req.StickyAccountID = recovery.owner.accountID
+		req.StickyWeighted = false
+		req.PreserveStickyBinding = true
+		req.DisableStickyEscape = true
+		req.PreviousResponseCanMove = false
+	}
+	// Agent-history opt-out does not migrate provider-side response pointers.
+	// Keep this independent of the presence of an encrypted item owner.
+	pointerOwner := int64(0)
+	if recovery != nil && recovery.previousResponseID != "" {
+		var pointerErr error
+		pointerOwner, pointerErr = s.service.getOpenAIWSStateStore().GetResponseAccount(ctx, recovery.groupID, recovery.previousResponseID)
+		if pointerErr != nil || pointerOwner <= 0 || req.PreviousResponseID != recovery.previousResponseID {
+			return nil, decision, openAIAgentRecoveryError("owner_unavailable")
+		}
+		req.StickyAccountID = pointerOwner
+		req.StickyWeighted = false
+		req.PreserveStickyBinding = true
+		req.DisableStickyEscape = true
+		req.PreviousResponseCanMove = false
+	}
 	ctx = withOpenAIForwardModelDefault(ctx, req.RequestedModel, req.RequireCompact)
 	if s != nil && s.service != nil && s.service.openAIGroupRequiresPrivacySet(ctx, req.GroupID) {
 		req.RequirePrivacySet = true
@@ -404,11 +439,62 @@ func (s *defaultOpenAIAccountScheduler) Select(
 	start := time.Now()
 	// 命名返回值保证 defer 写入的耗时同时返回给调用方。
 	defer func() {
+		if err == nil && selection != nil && selection.Account != nil {
+			if recoveryErr := s.service.checkOpenAIAgentRecoveryAccount(ctx, selection.Account); recoveryErr != nil {
+				if selection.ReleaseFunc != nil {
+					selection.ReleaseFunc()
+				}
+				selection = nil
+				err = recoveryErr
+				decision = OpenAIAccountScheduleDecision{}
+			}
+		}
 		decision.LatencyMs = time.Since(start).Milliseconds()
 		s.metrics.recordSelect(decision)
 	}()
 
+	if err := s.checkOpenAIAgentRecoveryCooldown(ctx, req, recovery); err != nil {
+		return nil, decision, err
+	}
 	previousResponseID := strings.TrimSpace(req.PreviousResponseID)
+	if recovery.ownerBindingRequired() || pointerOwner > 0 {
+		ownerID := pointerOwner
+		if recovery.ownerBindingRequired() {
+			ownerID = recovery.owner.accountID
+		}
+		if req.GuardianParentAccountID > 0 && req.GuardianParentAccountID != ownerID {
+			return nil, decision, openAIAgentRecoveryError("owner_unavailable")
+		}
+		if previousResponseID != "" {
+			previousOwner, readErr := s.service.getOpenAIWSStateStore().GetResponseAccount(ctx, derefGroupID(req.GroupID), previousResponseID)
+			if readErr != nil || previousOwner != ownerID {
+				return nil, decision, openAIAgentRecoveryError("owner_unavailable")
+			}
+		}
+		selection, _, err = s.selectBySessionHash(ctx, req)
+		if err != nil {
+			return nil, decision, err
+		}
+		if selection == nil || selection.Account == nil {
+			return nil, decision, openAIAgentRecoveryError("owner_unavailable")
+		}
+		if s.rejectPriorityStoppedStickyAccount(&req, priorityCfg, selection) {
+			return nil, decision, priorityLatencyAdmissionError(true)
+		}
+		// Reject a changed producer route before entering Forward. This also
+		// gives the explicit history-omission policy a pre-send refusal to handle.
+		if recoveryErr := s.service.checkOpenAIAgentRecoveryAccount(ctx, selection.Account); recoveryErr != nil {
+			if selection.ReleaseFunc != nil {
+				selection.ReleaseFunc()
+			}
+			return nil, decision, recoveryErr
+		}
+		decision.Layer = openAIAccountScheduleLayerSessionSticky
+		decision.StickySessionHit = true
+		decision.SelectedAccountID = selection.Account.ID
+		decision.SelectedAccountType = selection.Account.Type
+		return selection, decision, nil
+	}
 	if previousResponseID != "" && NormalizeOpenAICompatiblePlatform(req.Platform) == PlatformOpenAI &&
 		(!req.StickyWeighted || !req.PreviousResponseCanMove) {
 		selection, err := s.service.selectAccountByPreviousResponseIDForCapability(
@@ -540,7 +626,7 @@ func (s *defaultOpenAIAccountScheduler) selectBySessionHash(
 ) (*AccountSelectionResult, bool, error) {
 	ctx = requestledger.RoutingStage(ctx, "sticky")
 	sessionHash := strings.TrimSpace(req.SessionHash)
-	if sessionHash == "" || s == nil || s.service == nil || s.service.cache == nil {
+	if sessionHash == "" || s == nil || s.service == nil || (s.service.cache == nil && req.StickyAccountID <= 0) {
 		return nil, false, nil
 	}
 
@@ -606,6 +692,20 @@ func (s *defaultOpenAIAccountScheduler) selectBySessionHash(
 		recordOpenAIRoutingVeto(ctx, account, "grok_model_quota_block")
 		clearBinding()
 		return nil, false, nil
+	}
+	rpmAllowed, rpmState, rpmErr := s.service.OpenAIRPMSchedulable(ctx, account, req.PreviousResponseCanMove)
+	if rpmErr != nil {
+		return nil, false, rpmErr
+	}
+	if !rpmAllowed {
+		if rpmState.Current >= rpmState.Limit {
+			recordOpenAIRoutingVeto(ctx, account, "oauth_rpm_exhausted")
+		}
+		// A movable continuation yields to cooler candidates. Candidate fallback
+		// still retains this account below the hard cap when no cooler slot exists.
+		if req.PreviousResponseCanMove || rpmState.Current >= rpmState.Limit {
+			return nil, false, nil
+		}
 	}
 	escapeCfg := s.service.openAIStickyEscapeConfig()
 	if reason, errorRate, ttft, shouldEscape := s.shouldEscapeStickyAccount(accountID, escapeCfg); shouldEscape && !req.DisableStickyEscape {
@@ -1436,8 +1536,10 @@ func priorityLatencyStopBlocksAccount(stopped map[int64]struct{}, accountID int6
 // The reasons map is lazily allocated: on the happy path (nothing filtered
 // out, or an account is eventually selected) no extra allocation happens.
 type openAISelectionFilterStats struct {
-	pool    int
-	reasons map[string]int
+	pool         int
+	reasons      map[string]int
+	rpmEligible  int
+	rpmExhausted int
 }
 
 func (s *openAISelectionFilterStats) exclude(reason string) {
@@ -1487,6 +1589,11 @@ func (s *defaultOpenAIAccountScheduler) selectByLoadBalance(
 	}
 	if len(accounts) == 0 {
 		return nil, 0, 0, 0, noAvailableOpenAISelectionError(req.RequestedModel, false, openAISelectionFilterStats{}.summary(""))
+	}
+	var rpmErr error
+	ctx, rpmErr = withOpenAIRPMPrefetch(ctx, s.service.rpmCache, accounts)
+	if rpmErr != nil {
+		return nil, 0, 0, 0, rpmErr
 	}
 	// Local free-tier soft gate on the Grok scheduling path only (not admin probe).
 	accounts = s.filterGrokFreeQuotaAccounts(ctx, accounts)
@@ -1560,6 +1667,18 @@ func (s *defaultOpenAIAccountScheduler) selectByLoadBalance(
 			filterStats.exclude("transport_incompatible")
 			continue
 		}
+		if state, ok := accountRPMStateFromContext(ctx, account); ok {
+			filterStats.rpmEligible++
+			if state.Current >= state.Limit {
+				filterStats.rpmExhausted++
+				filterStats.exclude("oauth_rpm_exhausted")
+				continue
+			}
+			if req.PreviousResponseCanMove && state.Utilization() >= accountRPMWarningRatio {
+				filterStats.exclude("oauth_rpm_headroom")
+				continue
+			}
+		}
 		filtered = append(filtered, account)
 		loadReq = append(loadReq, AccountWithConcurrency{
 			ID:             account.ID,
@@ -1567,6 +1686,9 @@ func (s *defaultOpenAIAccountScheduler) selectByLoadBalance(
 		})
 	}
 	if len(filtered) == 0 {
+		if filterStats.rpmEligible > 0 && filterStats.rpmExhausted == filterStats.rpmEligible {
+			return nil, 0, 0, 0, ErrOpenAIRPMExhausted
+		}
 		return nil, 0, 0, 0, filterStats.noAvailableError(req.RequestedModel, false, "")
 	}
 
@@ -2470,17 +2592,36 @@ func (s *OpenAIGatewayService) selectAccountWithSchedulerOnce(
 		guardianParentAccountID = s.resolveOpenAIGuardianParentAccountID(ctx, groupID)
 	}
 	priority := s.prioritySchedulingRuntimeConfig()
-	scheduler := s.getOpenAIAccountScheduler(ctx, platform == PlatformOpenAI && requiredImageCapability == "" && useUpstreamTokenCost && priority.applies(groupID, requestedModel))
+	scheduler := s.getOpenAIAccountScheduler(ctx, openAIAgentRecoveryBound(ctx) || (platform == PlatformOpenAI && requiredImageCapability == "" && useUpstreamTokenCost && priority.applies(groupID, requestedModel)))
 	if scheduler == nil {
 		decision.Layer = openAIAccountScheduleLayerLoadBalance
+		rpmExhausted := false
 		if selection, hit, err := s.selectLegacyAccountByPreviousResponse(ctx, groupID, previousResponseID, sessionHash, requestedModel, excludedIDs, requiredTransport, requiredCapability, requiredImageCapability, requireCompact, platform); err != nil {
 			return nil, decision, err
 		} else if hit {
-			decision.Layer = openAIAccountScheduleLayerPreviousResponse
-			decision.StickyPreviousHit = true
-			decision.SelectedAccountID = selection.Account.ID
-			decision.SelectedAccountType = selection.Account.Type
-			return selection, decision, nil
+			allowed, state, rpmErr := s.OpenAIRPMSchedulable(ctx, selection.Account, false)
+			if rpmErr != nil {
+				if selection.ReleaseFunc != nil {
+					selection.ReleaseFunc()
+				}
+				return nil, decision, rpmErr
+			}
+			if allowed {
+				decision.Layer = openAIAccountScheduleLayerPreviousResponse
+				decision.StickyPreviousHit = true
+				decision.SelectedAccountID = selection.Account.ID
+				decision.SelectedAccountType = selection.Account.Type
+				return selection, decision, nil
+			}
+			if selection.ReleaseFunc != nil {
+				selection.ReleaseFunc()
+			}
+			if state.Current >= state.Limit {
+				if excludedIDs == nil {
+					excludedIDs = make(map[int64]struct{})
+				}
+				excludedIDs[selection.Account.ID] = struct{}{}
+			}
 		}
 		if guardianParentAccountID > 0 {
 			if s.checkChannelPricingRestriction(ctx, groupID, requestedModel) {
@@ -2506,11 +2647,29 @@ func (s *OpenAIGatewayService) selectAccountWithSchedulerOnce(
 				return nil, decision, err
 			}
 			if selection != nil && selection.Account != nil {
-				decision.Layer = openAIAccountScheduleLayerGuardianParent
-				decision.StickySessionHit = true
-				decision.SelectedAccountID = selection.Account.ID
-				decision.SelectedAccountType = selection.Account.Type
-				return selection, decision, nil
+				allowed, state, rpmErr := s.OpenAIRPMSchedulable(ctx, selection.Account, false)
+				if rpmErr != nil {
+					if selection.ReleaseFunc != nil {
+						selection.ReleaseFunc()
+					}
+					return nil, decision, rpmErr
+				}
+				if allowed {
+					decision.Layer = openAIAccountScheduleLayerGuardianParent
+					decision.StickySessionHit = true
+					decision.SelectedAccountID = selection.Account.ID
+					decision.SelectedAccountType = selection.Account.Type
+					return selection, decision, nil
+				}
+				if selection.ReleaseFunc != nil {
+					selection.ReleaseFunc()
+				}
+				if state.Current >= state.Limit && excludedIDs == nil {
+					excludedIDs = make(map[int64]struct{})
+				}
+				if state.Current >= state.Limit {
+					excludedIDs[selection.Account.ID] = struct{}{}
+				}
 			}
 		}
 		legacySessionHash := sessionHash
@@ -2525,7 +2684,28 @@ func (s *OpenAIGatewayService) selectAccountWithSchedulerOnce(
 					return nil, decision, err
 				}
 				if selection == nil || selection.Account == nil {
+					if rpmExhausted {
+						return nil, decision, ErrOpenAIRPMExhausted
+					}
 					return selection, decision, nil
+				}
+				allowed, state, rpmErr := s.OpenAIRPMSchedulable(ctx, selection.Account, previousResponseCanMove)
+				if rpmErr != nil {
+					if selection.ReleaseFunc != nil {
+						selection.ReleaseFunc()
+					}
+					return nil, decision, rpmErr
+				}
+				if !allowed {
+					rpmExhausted = rpmExhausted || state.Current >= state.Limit
+					if selection.ReleaseFunc != nil {
+						selection.ReleaseFunc()
+					}
+					if effectiveExcludedIDs == nil {
+						effectiveExcludedIDs = make(map[int64]struct{})
+					}
+					effectiveExcludedIDs[selection.Account.ID] = struct{}{}
+					continue
 				}
 				if !observeOpenAIRoutingVeto(ctx, selection.Account, "capability_mismatch", !accountSupportsOpenAICapabilitiesForRequest(ctx, selection.Account, requiredCapability, requiredImageCapability)) {
 					applyLegacySelectionDecision(&decision, selection)
@@ -2551,7 +2731,28 @@ func (s *OpenAIGatewayService) selectAccountWithSchedulerOnce(
 				return nil, decision, err
 			}
 			if selection == nil || selection.Account == nil {
+				if rpmExhausted {
+					return nil, decision, ErrOpenAIRPMExhausted
+				}
 				return selection, decision, nil
+			}
+			allowed, state, rpmErr := s.OpenAIRPMSchedulable(ctx, selection.Account, previousResponseCanMove)
+			if rpmErr != nil {
+				if selection.ReleaseFunc != nil {
+					selection.ReleaseFunc()
+				}
+				return nil, decision, rpmErr
+			}
+			if !allowed {
+				rpmExhausted = rpmExhausted || state.Current >= state.Limit
+				if selection.ReleaseFunc != nil {
+					selection.ReleaseFunc()
+				}
+				if effectiveExcludedIDs == nil {
+					effectiveExcludedIDs = make(map[int64]struct{})
+				}
+				effectiveExcludedIDs[selection.Account.ID] = struct{}{}
+				continue
 			}
 			if s.isOpenAIAccountTransportCompatible(selection.Account, requiredTransport) &&
 				accountSupportsOpenAICapabilitiesForRequest(ctx, selection.Account, requiredCapability, requiredImageCapability) {
@@ -2620,11 +2821,44 @@ func (s *OpenAIGatewayService) selectAccountWithSchedulerOnce(
 		RequireCompact:          requireCompact,
 		ExcludedIDs:             excludedIDs,
 	}
-	selection, decision, err := scheduler.Select(ctx, scheduleRequest)
-	if selection != nil {
+	effectiveExcludedIDs := cloneExcludedAccountIDs(excludedIDs)
+	rpmExhausted := false
+	for {
+		scheduleRequest.ExcludedIDs = effectiveExcludedIDs
+		selection, decision, err := scheduler.Select(ctx, scheduleRequest)
+		if err != nil {
+			if rpmExhausted && errors.Is(err, ErrNoAvailableAccounts) {
+				return nil, decision, ErrOpenAIRPMExhausted
+			}
+			return nil, decision, err
+		}
+		if selection == nil || selection.Account == nil {
+			if rpmExhausted {
+				return nil, decision, ErrOpenAIRPMExhausted
+			}
+			return selection, decision, nil
+		}
+		allowed, state, rpmErr := s.OpenAIRPMSchedulable(ctx, selection.Account, previousResponseCanMove)
+		if !allowed || rpmErr != nil {
+			if selection.ReleaseFunc != nil {
+				selection.ReleaseFunc()
+			}
+			if rpmErr != nil {
+				return nil, decision, rpmErr
+			}
+			if state.Current < state.Limit {
+				return nil, decision, ErrOpenAIRPMUnavailable
+			}
+			rpmExhausted = true
+			if effectiveExcludedIDs == nil {
+				effectiveExcludedIDs = make(map[int64]struct{})
+			}
+			effectiveExcludedIDs[selection.Account.ID] = struct{}{}
+			continue
+		}
 		selection.priorityRequest = &scheduleRequest
+		return selection, decision, nil
 	}
-	return selection, decision, err
 }
 
 func accountSupportsOpenAICapabilitiesForRequest(ctx context.Context, account *Account, requiredCapability OpenAIEndpointCapability, requiredImageCapability OpenAIImagesCapability) bool {

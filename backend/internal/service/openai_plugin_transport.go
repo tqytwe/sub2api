@@ -36,7 +36,10 @@ func (s *OpenAIGatewayService) doOpenAIUpstream(request *http.Request, proxyURL 
 		applySIWCRequestHeaders(request)
 		request.Host = ""
 	}
-	if account.AuthConnectionID == "" && s.pluginManager != nil {
+	if account.AuthConnectionID == "" && s.pluginManager != nil && s.pluginManager.ShouldRouteOpenAIOAuth(account) {
+		if err := s.acquireOpenAIRPMForSend(request.Context(), account); err != nil {
+			return nil, err
+		}
 		response, handled, err := s.pluginManager.RoundTripOpenAIOAuth(request.Context(), request, proxyURL, account)
 		if handled {
 			// The host can observe the plugin boundary, but cannot measure the
@@ -47,6 +50,9 @@ func (s *OpenAIGatewayService) doOpenAIUpstream(request *http.Request, proxyURL 
 		}
 	}
 	if err := s.fenceAuthConnectionEgress(request.Context(), request, account); err != nil {
+		return nil, err
+	}
+	if err := s.acquireOpenAIRPMForSend(request.Context(), account); err != nil {
 		return nil, err
 	}
 	return s.httpUpstream.Do(request, proxyURL, account.ID, account.Concurrency)

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	"github.com/Wei-Shaw/sub2api/internal/repository"
 	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/Wei-Shaw/sub2api/internal/testutil"
@@ -27,19 +28,46 @@ type openAIWSPassthroughHandlerHarness struct {
 	apiKey         *service.APIKey
 }
 
+type issue600SwitchRepo struct {
+	*openAIWSFailoverHandlerAccountRepoStub
+}
+
+func (r *issue600SwitchRepo) UpdateExtra(context.Context, int64, map[string]any) error { return nil }
+
+func issue600Finish(t *testing.T, h *openAIWSPassthroughHandlerHarness, headers http.Header) {
+	t.Helper()
+	_ = h.clientConn.CloseNow()
+	select {
+	case <-h.handlerDone:
+	case <-time.After(3 * time.Second):
+		t.Fatal("websocket handler did not finish")
+	}
+}
+
 func newOpenAIWSPassthroughHandlerHarness(t *testing.T, upstreamURL string, settings ...map[string]string) *openAIWSPassthroughHandlerHarness {
 	t.Helper()
-	gatewayCache := testutil.NewRedisGatewayCache(t)
+	extraSettings := make(map[string]string)
+	for _, overrides := range settings {
+		for key, value := range overrides {
+			extraSettings[key] = value
+		}
+	}
+	return newOpenAIWSPassthroughHandlerHarnessWithKey(t, upstreamURL, nil, extraSettings, nil, nil)
+}
+
+func newOpenAIWSPassthroughHandlerHarnessWithKey(t *testing.T, upstreamURL string, clientHeaders http.Header, extraSettings map[string]string, gatewayCache service.GatewayCache, configureKey func(*service.APIKey), configure ...func(*service.Account, *config.Config, *service.HTTPUpstream, *service.AccountRepository)) *openAIWSPassthroughHandlerHarness {
+	t.Helper()
+	if gatewayCache == nil {
+		gatewayCache = testutil.NewRedisGatewayCache(t)
+	}
 
 	settingRepo := &contentModerationHandlerSettingRepo{values: map[string]string{
 		service.SettingKeyRiskControlEnabled:          "true",
 		service.SettingKeyCyberSessionBlockEnabled:    "true",
 		service.SettingKeyCyberSessionBlockTTLSeconds: "60",
 	}}
-	for _, overrides := range settings {
-		for key, value := range overrides {
-			settingRepo.values[key] = value
-		}
+	for key, value := range extraSettings {
+		settingRepo.values[key] = value
 	}
 	moderationRepo := &contentModerationHandlerTestRepo{}
 	moderationSvc := service.NewContentModerationService(settingRepo, moderationRepo, nil, nil, nil, nil, nil, nil)
@@ -74,12 +102,16 @@ func newOpenAIWSPassthroughHandlerHarness(t *testing.T, upstreamURL string, sett
 	cfg.Gateway.OpenAIWS.WriteTimeoutSeconds = 3
 	cfg.Gateway.OpenAIWS.IngressInterTurnIdleTimeoutSeconds = 3
 
-	accountRepo := &openAIWSUsageHandlerAccountRepoStub{account: account}
-	usageRepo := &openAIWSUsageHandlerUsageLogRepoStub{created: make(chan *service.UsageLog, 2)}
+	var accountRepo service.AccountRepository = &openAIWSUsageHandlerAccountRepoStub{account: account}
+	upstream := service.HTTPUpstream(repository.NewHTTPUpstream(cfg))
+	for _, apply := range configure {
+		apply(&account, cfg, &upstream, &accountRepo)
+	}
+	usageRepo := &openAIWSUsageHandlerUsageLogRepoStub{}
 	billingCacheSvc := service.NewBillingCacheService(nil, nil, nil, nil, nil, nil, cfg, nil)
 	gatewaySvc := service.NewOpenAIGatewayService(
 		accountRepo, usageRepo, nil, nil, nil, nil, gatewayCache, cfg, nil, nil,
-		service.NewBillingService(cfg, nil), nil, billingCacheSvc, nil, &service.DeferredService{},
+		service.NewBillingService(cfg, nil), nil, billingCacheSvc, upstream, &service.DeferredService{},
 		nil, nil, nil, nil, nil, settingSvc, nil,
 	)
 	concurrencyCache := &concurrencyCacheMock{
@@ -102,6 +134,9 @@ func newOpenAIWSPassthroughHandlerHarness(t *testing.T, upstreamURL string, sett
 		GroupID: &groupID,
 		User:    &service.User{ID: 1751, Status: service.StatusActive},
 	}
+	if configureKey != nil {
+		configureKey(apiKey)
+	}
 	handlerDone := make(chan struct{})
 	router := gin.New()
 	router.Use(func(c *gin.Context) {
@@ -117,7 +152,7 @@ func newOpenAIWSPassthroughHandlerHarness(t *testing.T, upstreamURL string, sett
 	t.Cleanup(handlerServer.Close)
 
 	dialCtx, cancelDial := context.WithTimeout(context.Background(), 3*time.Second)
-	clientConn, _, err := coderws.Dial(dialCtx, "ws"+strings.TrimPrefix(handlerServer.URL, "http")+"/openai/v1/responses", nil)
+	clientConn, _, err := coderws.Dial(dialCtx, "ws"+strings.TrimPrefix(handlerServer.URL, "http")+"/openai/v1/responses", &coderws.DialOptions{HTTPHeader: clientHeaders})
 	cancelDial()
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = clientConn.CloseNow() })

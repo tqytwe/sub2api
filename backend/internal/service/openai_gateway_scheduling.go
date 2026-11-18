@@ -941,7 +941,16 @@ func (s *OpenAIGatewayService) selectAccountForModelWithExclusionsStickyHit(ctx 
 	// 1. 尝试粘性会话命中
 	// Try sticky session hit
 	if account := s.tryStickySessionHit(ctx, groupID, platform, sessionHash, requestedModel, excludedIDs, requireCompact, stickyAccountID, requiredCapability); account != nil {
-		return account, true, nil
+		allowed, state, rpmErr := s.OpenAIRPMSchedulable(ctx, account, false)
+		if rpmErr != nil {
+			return nil, false, rpmErr
+		}
+		if allowed {
+			return account, true, nil
+		}
+		if state.Current >= state.Limit {
+			requestledger.RoutingVeto(ctx, "rpm", account.ID, "oauth_rpm_exhausted")
+		}
 	}
 
 	// 2. 获取可调度的 OpenAI 账号
@@ -950,12 +959,19 @@ func (s *OpenAIGatewayService) selectAccountForModelWithExclusionsStickyHit(ctx 
 	if err != nil {
 		return nil, false, fmt.Errorf("query accounts failed: %w", err)
 	}
+	ctx, err = withOpenAIRPMPrefetch(ctx, s.rpmCache, accounts)
+	if err != nil {
+		return nil, false, err
+	}
 
 	// 3. 按优先级 + LRU 选择最佳账号
 	// Select by priority + LRU
 	selected, compactBlocked, filterStats := s.selectBestAccount(ctx, groupID, platform, accounts, requestedModel, excludedIDs, requireCompact, requiredCapability, preferLowUpstreamRate)
 
 	if selected == nil {
+		if filterStats.rpmEligible > 0 && filterStats.rpmExhausted == filterStats.rpmEligible {
+			return nil, false, ErrOpenAIRPMExhausted
+		}
 		return nil, false, filterStats.noAvailableError(requestedModel, compactBlocked, "")
 	}
 
@@ -1112,6 +1128,14 @@ func (s *OpenAIGatewayService) selectBestAccount(ctx context.Context, groupID *i
 				continue
 			}
 		}
+		if rpm, ok := accountRPMStateFromContext(ctx, fresh); ok {
+			filterStats.rpmEligible++
+			if rpm.Current >= rpm.Limit {
+				filterStats.rpmExhausted++
+				filterStats.exclude("oauth_rpm_exhausted")
+				continue
+			}
+		}
 
 		eligible = append(eligible, fresh)
 		compactTiers[fresh.ID] = compactTier
@@ -1131,6 +1155,11 @@ func (s *OpenAIGatewayService) selectBestAccount(ctx context.Context, groupID *i
 		}
 		if rateCmp := rateOrder.compare(a, b); rateCmp != 0 {
 			return rateCmp < 0
+		}
+		aRPM, aHasRPM := accountRPMStateFromContext(ctx, a)
+		bRPM, bHasRPM := accountRPMStateFromContext(ctx, b)
+		if aHasRPM && bHasRPM && aRPM.Utilization() != bRPM.Utilization() {
+			return aRPM.Utilization() < bRPM.Utilization()
 		}
 		return s.isBetterAccount(a, b)
 	})

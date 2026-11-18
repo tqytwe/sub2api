@@ -243,6 +243,10 @@ func skipOpenAIWSJSONValue(payload []byte, i int) int {
 }
 
 func prepareOpenAIWSHTTPBridgeBody(account *Account, payload []byte) ([]byte, error) {
+	return prepareOpenAIWSHTTPBridgeSessionBody(account, payload, false)
+}
+
+func prepareOpenAIWSHTTPBridgeSessionBody(account *Account, payload []byte, preservePrevious bool) ([]byte, error) {
 	var body map[string]any
 	if err := decodeOpenAIJSONUseNumber(payload, &body); err != nil {
 		return nil, err
@@ -252,7 +256,9 @@ func prepareOpenAIWSHTTPBridgeBody(account *Account, payload []byte) ([]byte, er
 	}
 	delete(body, "type")
 	delete(body, "generate")
-	delete(body, "previous_response_id")
+	if !preservePrevious {
+		delete(body, "previous_response_id")
+	}
 	deleteOpenAIResponsesNoneReasoningEffortFromObject(account, body)
 	body["stream"] = true
 	return json.Marshal(body)
@@ -346,7 +352,7 @@ func (c *openAIWSToolCallReplayCollector) addItem(item gjson.Result) {
 	c.items = append(c.items, json.RawMessage(raw))
 }
 
-func buildOpenAIWSHTTPBridgeErrorEvent(statusCode int, message string) []byte {
+func buildOpenAIWSHTTPBridgeErrorEvent(statusCode int, message string, source ...[]byte) []byte {
 	message = strings.TrimSpace(message)
 	if message == "" {
 		message = http.StatusText(statusCode)
@@ -354,14 +360,22 @@ func buildOpenAIWSHTTPBridgeErrorEvent(statusCode int, message string) []byte {
 	if message == "" {
 		message = "upstream request failed"
 	}
+	errorBody := map[string]any{"type": "upstream_error", "message": message}
+	if len(source) > 0 {
+		// Preserve only the standard error identity fields, not an arbitrary
+		// upstream envelope. The caller already sanitized the message.
+		for _, field := range []string{"code", "type", "param"} {
+			value := gjson.GetBytes(source[0], "error."+field)
+			if value.Type == gjson.String && value.String() != "" {
+				errorBody[field] = value.String()
+			}
+		}
+	}
 	event := map[string]any{
 		"type":            "error",
 		"sequence_number": 0,
 		"status":          statusCode,
-		"error": map[string]any{
-			"type":    "upstream_error",
-			"message": message,
-		},
+		"error":           errorBody,
 	}
 	body, err := json.Marshal(event)
 	if err != nil {
@@ -370,6 +384,9 @@ func buildOpenAIWSHTTPBridgeErrorEvent(statusCode int, message string) []byte {
 	return body
 }
 
+// buildOpenAIWSHTTPBridgeFailedEvent synthesizes response.failed for a turn that
+// ended on a bare error. created_at and sequence_number are always written:
+// strict clients (grok-build, Codex) reject the frame without them.
 func buildOpenAIWSHTTPBridgeFailedEvent(responseID, model string, source []byte, fallbackMessage string) []byte {
 	errorType := strings.TrimSpace(gjson.GetBytes(source, "error.type").String())
 	if errorType == "" {
@@ -436,7 +453,9 @@ func (s *OpenAIGatewayService) proxyOpenAIWSHTTPBridgeTurn(
 	}
 	responseModelObserver := &upstreamResponseModelObserver{}
 
-	body, err := prepareOpenAIWSHTTPBridgeBody(account, payload)
+	preserveAgentHistory := s.preserveOpenAIAgentHistory(payload)
+	preserveAgentPrevious := openAIWSAgentRecoveryFromContext(ctx) != nil && account.IsOpenAI() && len(openAIAgentRecoveryItemDigests(payload)) > 0
+	body, err := prepareOpenAIWSHTTPBridgeSessionBody(account, payload, preserveAgentPrevious)
 	if err != nil {
 		return nil, fmt.Errorf("prepare http bridge body: %w", err)
 	}
@@ -554,9 +573,22 @@ func (s *OpenAIGatewayService) proxyOpenAIWSHTTPBridgeTurn(
 		if admissionErr := s.admitPriorityWSSend(ctx, c, account, originalModel, body); admissionErr != nil {
 			return nil, admissionErr
 		}
+		if recovery := openAIWSAgentRecoveryFromContext(ctx); recovery != nil {
+			latest, admissionErr := s.admitOpenAITurnForRequest(ctx, c, account, openAITurnRequestModel(ctx, originalModel), actualModel)
+			if admissionErr != nil {
+				return nil, admissionErr
+			}
+			source, _ := ctx.Value(openAIWSAgentSourceKey{}).([]byte)
+			if err := recovery.begin(latest, source, body, upstreamReq, "http_bridge"); err != nil {
+				return nil, openAIWSAgentRecoveryClose(err)
+			}
+		}
 		resp, err = s.doOpenAIUpstream(upstreamReq, proxyURL, account)
 		ledgerAttempt = requestledger.ResponseAttempt(resp)
 		if err != nil {
+			if IsOpenAIRPMError(err) {
+				return nil, err
+			}
 			if turn == 1 {
 				return nil, s.handleOpenAIUpstreamTransportError(ctx, c, account, err, true)
 			}
@@ -584,7 +616,7 @@ func (s *OpenAIGatewayService) proxyOpenAIWSHTTPBridgeTurn(
 		if retryErr != nil {
 			return nil, fmt.Errorf("normalize websocket http bridge rejected field retry: %w", retryErr)
 		}
-		if changed && rejectedFieldRetryState.Allow(retryBody) {
+		if OpenAIWSAgentRecoveryCanRetry(ctx) && changed && rejectedFieldRetryState.Allow(retryBody) {
 			logOpenAIWSModeInfo(
 				"ingress_ws_http_bridge_rejected_field_retry account_id=%d turn=%d reason=%s",
 				account.ID,
@@ -607,13 +639,16 @@ func (s *OpenAIGatewayService) proxyOpenAIWSHTTPBridgeTurn(
 			if shouldFailover && (turn == 1 || resp.StatusCode == http.StatusTooManyRequests) {
 				return nil, newOpenAIUpstreamFailoverError(resp.StatusCode, resp.Header, respBody, upstreamMsg, false)
 			}
-		} else if shouldFailover && (turn == 1 || resp.StatusCode == http.StatusTooManyRequests) {
+		} else if !preserveAgentHistory && shouldFailover && (turn == 1 || resp.StatusCode == http.StatusTooManyRequests) {
 			return nil, s.handleFailoverErrorResponsePassthrough(ctx, resp, c, account, body, respBody)
 		}
 		if account.Platform != PlatformGrok && (shouldFailover || shouldCooldownOpenAITransientUpstreamError(resp.StatusCode, respBody)) {
 			s.handleOpenAIAccountUpstreamError(ctx, account, resp.StatusCode, resp.Header, respBody, actualModel)
 		}
 		clientError := buildOpenAIWSHTTPBridgeErrorEvent(resp.StatusCode, upstreamMsg)
+		if preserveAgentHistory {
+			clientError = buildOpenAIWSHTTPBridgeErrorEvent(resp.StatusCode, upstreamMsg, respBody)
+		}
 		if writeErr := writeClientMessage(clientError); writeErr == nil {
 			markOpenAIWSClientVisibleFailure(c, "error", clientError, ledgerAttempt.Receipt())
 		}
@@ -875,7 +910,7 @@ func (s *OpenAIGatewayService) proxyOpenAIWSHTTPBridgeTurn(
 			}
 			// A disconnected client needs this attempt drained for usage, not replayed,
 			// even when only non-semantic heartbeats were delivered.
-			if !clientDisconnected && !wroteDownstream && shouldFailover && (turn == 1 || statusCode == http.StatusTooManyRequests) {
+			if !preserveAgentHistory && !clientDisconnected && !wroteDownstream && shouldFailover && (turn == 1 || statusCode == http.StatusTooManyRequests) {
 				if account.Platform == PlatformGrok {
 					return finishFailure(newOpenAIUpstreamFailoverError(statusCode, resp.Header, upstreamMessage, errMessage, false), false)
 				}

@@ -49,7 +49,17 @@ func (u *openAIResponsesFailoverCancelUpstream) calls() []int64 {
 	return append([]int64(nil), u.accountIDs...)
 }
 
-func newOpenAIResponsesFailoverTestHandler(t *testing.T, upstream service.HTTPUpstream) *OpenAIGatewayHandler {
+func newOpenAIResponsesFailoverTestHandler(t *testing.T, upstream service.HTTPUpstream, fixtureAccounts ...service.Account) *OpenAIGatewayHandler {
+	t.Helper()
+	return newOpenAIResponsesFailoverTestHandlerWithSettings(t, upstream, nil, nil, fixtureAccounts...)
+}
+
+func newOpenAIResponsesFailoverTestHandlerWithCache(t *testing.T, upstream service.HTTPUpstream, cache service.GatewayCache, fixtureAccounts ...service.Account) *OpenAIGatewayHandler {
+	t.Helper()
+	return newOpenAIResponsesFailoverTestHandlerWithSettings(t, upstream, cache, nil, fixtureAccounts...)
+}
+
+func newOpenAIResponsesFailoverTestHandlerWithSettings(t *testing.T, upstream service.HTTPUpstream, cache service.GatewayCache, settings *service.SettingService, fixtureAccounts ...service.Account) *OpenAIGatewayHandler {
 	t.Helper()
 	accounts := []service.Account{
 		{
@@ -75,6 +85,9 @@ func newOpenAIResponsesFailoverTestHandler(t *testing.T, upstream service.HTTPUp
 			Credentials: map[string]any{"access_token": "token-2"},
 		},
 	}
+	if len(fixtureAccounts) > 0 {
+		accounts = fixtureAccounts
+	}
 	accountRepo := openAIImagesFailoverAccountRepo{accounts: accounts}
 	cfg := &config.Config{RunMode: config.RunModeSimple}
 	gatewayService := service.NewOpenAIGatewayService(
@@ -84,7 +97,7 @@ func newOpenAIResponsesFailoverTestHandler(t *testing.T, upstream service.HTTPUp
 		nil,
 		nil,
 		nil,
-		nil,
+		cache,
 		cfg,
 		nil,
 		nil,
@@ -98,7 +111,7 @@ func newOpenAIResponsesFailoverTestHandler(t *testing.T, upstream service.HTTPUp
 		nil,
 		nil,
 		nil,
-		nil,
+		settings,
 		nil,
 	)
 	billingService := service.NewBillingCacheService(nil, nil, nil, nil, nil, nil, cfg, nil)

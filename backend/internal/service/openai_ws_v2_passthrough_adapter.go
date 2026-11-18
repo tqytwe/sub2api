@@ -31,6 +31,7 @@ type openAIWSClientFrameConn struct {
 	// model identifier they supplied for the current turn.
 	restoreResponseModel func([]byte) []byte
 	restoreToolNames     func([]byte) []byte
+	agentRecovery        *openAIWSAgentRecovery
 }
 
 // openAIWSPolicyEnforcingFrameConn wraps a client-side FrameConn and runs
@@ -665,7 +666,10 @@ func (c *openAIWSClientFrameConn) WriteFrame(ctx context.Context, msgType coderw
 			payload = c.restoreToolNames(payload)
 		}
 	}
-	return c.conn.Write(ctx, msgType, payload)
+	if c.agentRecovery == nil {
+		return c.conn.Write(ctx, msgType, payload)
+	}
+	return c.agentRecovery.write(payload, func() error { return c.conn.Write(ctx, msgType, payload) })
 }
 
 func (c *openAIWSClientFrameConn) Close() error {
@@ -710,6 +714,7 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 		firstClientMessage = liteFirstMessage
 	}
 	originalFirstClientMessage := firstClientMessage
+	agentRecovery := openAIWSAgentRecoveryFromContext(ctx)
 	if next, policyErr := applyOpenAIWSReasoningEffortPolicy(firstClientMessage, hooks); policyErr != nil {
 		return NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, policyErr.Error(), policyErr)
 	} else {
@@ -975,6 +980,7 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 	turnLifecycle := newOpenAIWSPassthroughTurnLifecycle(true)
 	var acceptedTurnStartedAt atomic.Pointer[time.Time]
 	clientFrameConn := &openAIWSClientFrameConn{
+		agentRecovery:        agentRecovery,
 		conn:                 clientConn,
 		controlCtx:           ctx,
 		interTurnIdleTimeout: s.openAIWSIngressInterTurnIdleTimeout(),
@@ -1001,6 +1007,7 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 			if msgType != coderws.MessageText && msgType != coderws.MessageBinary {
 				return payload, nil, nil
 			}
+			clientPayload := payload
 			eventType := strings.TrimSpace(gjson.GetBytes(payload, "type").String())
 			isResponseCreate := eventType == "response.create"
 			responseCreateAt := time.Time{}
@@ -1144,6 +1151,15 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 				if err := s.admitPriorityWSSend(ctx, c, account, requestModelForThisFrame, out); err != nil {
 					return out, nil, err
 				}
+				if agentRecovery != nil {
+					latest, admissionErr := s.admitOpenAITurnForRequest(ctx, c, account, openAITurnRequestModel(ctx, requestModelForThisFrame), model)
+					if admissionErr != nil {
+						return out, nil, admissionErr
+					}
+					if err := agentRecovery.beginSocket(latest, clientPayload, out, wsURL, headers, "passthrough"); err != nil {
+						return out, nil, openAIWSAgentRecoveryClose(err)
+					}
+				}
 				usageMeta.updateFromResponseCreate(out, model, requestModelForThisFrame)
 				_, actualModel := usageMeta.turnModels(requestModelForThisFrame)
 				SetOpsUpstreamModel(c, actualModel)
@@ -1170,6 +1186,15 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 	upstreamFirstMessageSent := false
 	if err := s.admitPriorityWSSend(ctx, c, account, initialRequestModel, firstClientMessage); err != nil {
 		return err
+	}
+	if agentRecovery != nil {
+		latest, admissionErr := s.admitOpenAITurnForRequest(ctx, c, account, openAITurnRequestModel(ctx, initialRequestModel), gjson.GetBytes(firstClientMessage, "model").String())
+		if admissionErr != nil {
+			return admissionErr
+		}
+		if err := agentRecovery.beginSocket(latest, originalFirstClientMessage, firstClientMessage, wsURL, headers, "passthrough"); err != nil {
+			return openAIWSAgentRecoveryClose(err)
+		}
 	}
 	firstWriteCtx, cancelFirstWrite := context.WithTimeout(ctx, s.openAIWSWriteTimeout())
 	firstWriteErr := relayUpstreamFrameConn.WriteFrame(firstWriteCtx, coderws.MessageText, firstClientMessage)
@@ -1366,7 +1391,7 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 				if eventType != "error" {
 					return nil
 				}
-				if wroteDownstream || metered || !isOpenAIWSRateLimitError(errCodeRaw, errTypeRaw, errMsgRaw) {
+				if !OpenAIWSAgentRecoveryCanRetry(ctx) || wroteDownstream || metered || !isOpenAIWSRateLimitError(errCodeRaw, errTypeRaw, errMsgRaw) {
 					return nil
 				}
 				s.persistOpenAIWSRateLimitSignal(ctx, account, handshakeHeaders, payload, errCodeRaw, errTypeRaw, errMsgRaw, capturedSessionModel)
