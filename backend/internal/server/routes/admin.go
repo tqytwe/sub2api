@@ -33,6 +33,9 @@ func RegisterAdminRoutes(
 	// 审计中间件挂在认证之后：所有管理面变更类操作 + 敏感读取入审计日志
 	admin.Use(gin.HandlerFunc(auditLog))
 	admin.Use(middleware.AdminComplianceGuard(settingService))
+	if h != nil && h.Admin != nil && h.Admin.AccountOps != nil {
+		registerAccountOpsRoutes(admin, h.Admin.AccountOps)
+	}
 	if h.RequestLedger != nil {
 		admin.GET("/requests", h.RequestLedger.ListAdmin)
 		admin.GET("/requests/:id", h.RequestLedger.GetAdmin)
@@ -478,6 +481,23 @@ func registerOpsRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		ops.GET("/dashboard/error-distribution", h.Admin.Ops.GetDashboardErrorDistribution)
 		ops.GET("/dashboard/openai-token-stats", h.Admin.Ops.GetDashboardOpenAITokenStats)
 	}
+}
+
+func registerAccountOpsRoutes(admin *gin.RouterGroup, h *adminhandler.AccountOpsHandler) {
+	admin.GET("/account-ops/config", h.GetConfig)
+	admin.PUT("/account-ops/config", h.SaveConfig)
+	admin.PUT("/account-ops/notification-settings", h.SaveNotificationSettings)
+	admin.PUT("/account-ops/webhooks/:id", h.SaveWebhook)
+	admin.DELETE("/account-ops/webhooks/:id", h.DeleteWebhook)
+	admin.PUT("/account-ops/rules/batch", h.SaveRulesBatch)
+	admin.PUT("/account-ops/rules/:id", h.SaveRule)
+	admin.DELETE("/account-ops/rules/:id", h.DeleteRule)
+	admin.GET("/account-ops/alerts", h.List)
+	admin.GET("/account-ops/balance-accounts", h.BalanceAccounts)
+	admin.GET("/account-ops/threshold-accounts", h.ThresholdAccounts)
+	admin.GET("/account-ops/groups", h.Groups)
+	admin.PUT("/account-ops/groups", h.SaveGroups)
+	admin.POST("/account-ops/webhooks/:id/test", h.TestWebhook)
 }
 
 func registerDashboardRoutes(admin *gin.RouterGroup, h *handler.Handlers) {

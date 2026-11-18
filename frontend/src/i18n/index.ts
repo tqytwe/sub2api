@@ -181,6 +181,10 @@ const localeLoaders: Record<LocaleCode, Record<LocaleLoadScope, LocaleLoader>> =
     },
     'admin-pelican-tests': () => import('./locales/en/pelicanTests'),
     'admin-token-guard-v2': () => import('./locales/en/tokenGuardV2'),
+    'admin-account-ops': async () => {
+      const module = await import('./locales/en/accountOps')
+      return { default: { accountOps: module.default } }
+    },
   },
   zh: {
     core: async () => {
@@ -317,6 +321,10 @@ const localeLoaders: Record<LocaleCode, Record<LocaleLoadScope, LocaleLoader>> =
     },
     'admin-pelican-tests': () => import('./locales/zh/pelicanTests'),
     'admin-token-guard-v2': () => import('./locales/zh/tokenGuardV2'),
+    'admin-account-ops': async () => {
+      const module = await import('./locales/zh/accountOps')
+      return { default: { accountOps: module.default } }
+    },
   },
 }
 

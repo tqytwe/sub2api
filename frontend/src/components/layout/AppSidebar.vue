@@ -990,6 +990,7 @@ const adminNavItems = computed((): NavItem[] => {
       children: [
         { path: '/admin/priority-scheduling', label: t('nav.priorityScheduling'), icon: ChannelIcon },
         { path: '/admin/account-quality', label: t('admin.qualityOps.nav'), icon: ShieldIcon },
+        { path: '/admin/account-ops', label: t('accountOps.title'), icon: ShieldIcon },
         { path: '/admin/token-guard-v2', label: t('tokenGuardV2.title'), icon: ShieldIcon },
         { path: '/admin/pelican-tests', label: t('nav.pelicanTests'), icon: ShieldIcon },
       ],

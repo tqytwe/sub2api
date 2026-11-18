@@ -137,6 +137,9 @@ func (s *OpenAIGatewayService) handleOpenAIAccountUpstreamErrorAfterStreakReset(
 	}
 	stateCtx, cancel := openAIAccountStateContext(ctx)
 	defer cancel()
+	if s != nil {
+		stateCtx = s.rateLimitService.observeAccountOps(stateCtx, account, statusCode, headers, responseBody)
+	}
 	if account != nil && account.AuthConnectionID != "" && !isOpenAIHTTPUpstreamAccessStateError(statusCode, "", responseBody) && statusCode != http.StatusTooManyRequests {
 		if (statusCode == http.StatusUnauthorized || statusCode == http.StatusForbidden || statusCode >= 500) && s != nil && s.excelOAuthReauth != nil {
 			_ = s.excelOAuthReauth.FailAuthConnection(stateCtx, account, statusCode)

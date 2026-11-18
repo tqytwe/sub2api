@@ -25,6 +25,7 @@ import splitWorkspaceShellEn from './en/workspaceShell'
 import auditAdminEn from './en/admin/audit'
 import promptAuditAdminEn from './en/admin/promptAudit'
 import tokenGuardV2En from './en/tokenGuardV2'
+import accountOpsEn from './en/accountOps'
 import { mergeLocaleMessages } from './merge'
 
 const messages = {
@@ -40,7 +41,7 @@ const messages = {
   apiKeyModelPolicy,
   couponCampaign,
   affiliateOperations,
-  accountOps: { smartTitle: 'Account operations' },
+  accountOps: accountOpsEn,
   tokenGuardV2: tokenGuardV2En,
   requestLedger,
   batchImageGuide: {

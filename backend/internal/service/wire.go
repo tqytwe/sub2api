@@ -541,9 +541,11 @@ func ProvideRateLimitService(
 	settingService *SettingService,
 	tokenCacheInvalidator TokenCacheInvalidator,
 	ollamaCloudUsage *OllamaCloudUsageService,
+	accountOps *AccountOpsService,
 	redisClient *redis.Client,
 ) *RateLimitService {
 	svc := NewRateLimitService(accountRepo, usageRepo, cfg, geminiQuotaService, tempUnschedCache)
+	svc.accountOps = accountOps
 	if queue := qualityqueue.NewRedis(redisClient); queue != nil {
 		svc.qualityTrigger = &quality5xxTrigger{queue: queue}
 	}
@@ -889,6 +891,16 @@ func ProvideOpsService(
 	svc.authCacheInvalidationWorker = authCacheInvalidationWorker
 	svc.apiKeyService = apiKeyService
 	svc.StartRuntimeSettingsRefresh(context.Background())
+	return svc
+}
+
+func ProvideAccountOpsService(settings SettingRepository, repo AccountOpsRepository, email *EmailService, accounts AccountRepository, cfg *config.Config, encryptor SecretEncryptor, usageCache *UsageCache, usageLogs UsageLogRepository, geminiQuota *GeminiQuotaService, newAPI NewAPIAuthorizationRepository) *AccountOpsService {
+	svc := NewAccountOpsService(settings, repo, email)
+	svc.SetNotificationDependencies(accounts, encryptor, cfg.Totp.EncryptionKeyConfigured, cfg.Timezone)
+	svc.SetNewAPIGroupReader(newAPI)
+	svc.SetNotificationUsageCache(usageCache)
+	svc.SetNotificationQuotaReaders(usageLogs, geminiQuota)
+	svc.Start()
 	return svc
 }
 
@@ -1250,6 +1262,7 @@ var ProviderSet = wire.NewSet(
 	ProvideBackupService,
 	ProvideOpsSystemLogSink,
 	ProvideOpsService,
+	ProvideAccountOpsService,
 	ProvideOpsIngressRejectAggregator,
 	ProvideAuditLogService,
 	ProvideOpsMetricsCollector,

@@ -11,7 +11,7 @@ import tokenGuardV2 from '../zh/tokenGuardV2'
 export default mergeLocaleMessages(landing, mergeLocaleMessages(common, {
   requestLedger,
   couponCampaign,
-  accountOps: { smartTitle: '账号运营' },
+  accountOps: { title: '账号运维', smartTitle: '账号运营' },
   tokenGuardV2,
   platform: platformLabels.zh,
   authAside: jisudengAuthAsideZh,
