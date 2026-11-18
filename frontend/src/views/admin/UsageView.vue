@@ -86,7 +86,7 @@
           </button>
         </div>
 
-        <UsageFilters v-model="filters" ref="usageFiltersRef" flat :mode="activeTab" class="border-b border-gray-100 dark:border-dark-700/50" :start-date="startDate" :end-date="endDate" :exporting="exporting" :model-options="modelNameOptions" @change="applyFilters" @refresh="refreshData" @reset="resetFilters" @cleanup="openCleanupDialog" @export="exportToExcel">
+        <UsageFilters v-if="activeTab !== 'traffic'" v-model="filters" ref="usageFiltersRef" flat :mode="activeTab" class="border-b border-gray-100 dark:border-dark-700/50" :start-date="startDate" :end-date="endDate" :exporting="exporting" :model-options="modelNameOptions" @change="applyFilters" @refresh="refreshData" @reset="resetFilters" @cleanup="openCleanupDialog" @export="exportToExcel">
           <template #after-reset>
             <div v-if="activeTab === 'usage' || activeTab === 'errors'" class="relative" ref="columnDropdownRef">
               <button
@@ -170,6 +170,7 @@
           :group-id="filters.group_id"
           :refresh-token="connectionRefreshKey"
         />
+        <TrafficPanel v-if="activeTab === 'traffic'" admin />
         <div v-if="rankingMounted" v-show="activeTab === 'ranking'" class="overflow-hidden rounded-b-2xl">
           <UserTokenRanking
             ref="rankingRef"
@@ -215,6 +216,7 @@ import UsageStatsCards from '@/components/admin/usage/UsageStatsCards.vue'; impo
 import UsageTable from '@/components/admin/usage/UsageTable.vue'; import UsageExportProgress from '@/components/admin/usage/UsageExportProgress.vue'
 import UserTokenRanking from '@/components/admin/usage/UserTokenRanking.vue'
 import UsageConnections from '@/components/admin/usage/UsageConnections.vue'
+import TrafficPanel from '@/components/usage/TrafficPanel.vue'
 import LatencyObservabilityPanel from '@/components/admin/usage/LatencyObservabilityPanel.vue'
 import UsageCleanupDialog from '@/components/admin/usage/UsageCleanupDialog.vue'
 import UserBalanceHistoryModal from '@/components/admin/user/UserBalanceHistoryModal.vue'
@@ -841,7 +843,7 @@ const loadSavedColumns = () => {
 }
 
 // Detail tabs
-type DetailTab = 'usage' | 'errors' | 'ranking' | 'connections' | 'latency'
+type DetailTab = 'usage' | 'errors' | 'ranking' | 'connections' | 'latency' | 'traffic'
 const activeTab = ref<DetailTab>('usage')
 const detailTabs = computed(() => [
   { key: 'usage' as const, label: t('usage.tabs.usage'), icon: 'document' as const },
@@ -849,6 +851,7 @@ const detailTabs = computed(() => [
   { key: 'connections' as const, label: t('connections.title'), icon: 'clock' as const },
   { key: 'ranking' as const, label: t('usage.tabs.ranking'), icon: 'chart' as const },
   { key: 'latency' as const, label: t('latencyObservability.title'), icon: 'clock' as const },
+  { key: 'traffic' as const, label: t('traffic.title'), icon: 'chart' as const },
 ])
 const usageFiltersRef = ref<InstanceType<typeof UsageFilters> | null>(null)
 const connectionRefreshKey = ref(0)

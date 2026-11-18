@@ -136,11 +136,12 @@ func (h *GroupHandler) rejectUnsupportedSimpleModeOperation(c *gin.Context, oper
 }
 
 type simpleModeGroupResponse struct {
-	ID          int64  `json:"id"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	Platform    string `json:"platform"`
-	Status      string `json:"status"`
+	ID          int64             `json:"id"`
+	Name        string            `json:"name"`
+	Description string            `json:"description"`
+	I18n        service.GroupI18n `json:"i18n,omitempty"`
+	Platform    string            `json:"platform"`
+	Status      string            `json:"status"`
 
 	AccountCount            int64     `json:"account_count,omitempty"`
 	ActiveAccountCount      int64     `json:"active_account_count,omitempty"`
@@ -156,6 +157,7 @@ func groupForSimpleMode(group *service.Group) *simpleModeGroupResponse {
 	}
 	return &simpleModeGroupResponse{
 		ID: group.ID, Name: group.Name, Description: group.Description, Platform: group.Platform,
+		I18n:               group.I18n,
 		Status:             group.Status,
 		AccountCount:       group.AccountCount,
 		ActiveAccountCount: group.ActiveAccountCount, RateLimitedAccountCount: group.RateLimitedAccountCount,
@@ -167,7 +169,7 @@ func sanitizeCreateGroupRequestForSimpleMode(req *CreateGroupRequest) {
 	if req == nil {
 		return
 	}
-	allowed := CreateGroupRequest{Name: req.Name, Description: req.Description, Platform: req.Platform}
+	allowed := CreateGroupRequest{Name: req.Name, Description: req.Description, I18n: req.I18n, Platform: req.Platform}
 	allowed.RateMultiplier = 1
 	allowed.SubscriptionType = service.SubscriptionTypeStandard
 	*req = allowed
@@ -177,13 +179,14 @@ func sanitizeUpdateGroupRequestForSimpleMode(req *UpdateGroupRequest) {
 	if req == nil {
 		return
 	}
-	*req = UpdateGroupRequest{Name: req.Name, Description: req.Description}
+	*req = UpdateGroupRequest{Name: req.Name, Description: req.Description, I18n: req.I18n}
 }
 
 // CreateGroupRequest represents create group request
 type CreateGroupRequest struct {
 	Name                            string                        `json:"name" binding:"required"`
 	Description                     string                        `json:"description"`
+	I18n                            service.GroupI18n             `json:"i18n"`
 	Platform                        string                        `json:"platform" binding:"omitempty,oneof=anthropic openai gemini antigravity grok kimi zhipu deepseek minimax opencode_go typesafe composite"`
 	RateMultiplier                  float64                       `json:"rate_multiplier"`
 	BillingSurchargeOverrideEnabled bool                          `json:"billing_surcharge_override_enabled"`
@@ -226,6 +229,9 @@ type CreateGroupRequest struct {
 	AudioTtsPricePerMillionChars    *float64                      `json:"audio_tts_price_per_million_chars"`
 	AudioSttPricePerHour            *float64                      `json:"audio_stt_price_per_hour"`
 	ClaudeCodeOnly                  bool                          `json:"claude_code_only"`
+	StreamOnly                      bool                          `json:"stream_only"`
+	CodexCLIOnly                    bool                          `json:"codex_cli_only"`
+	BlockSubagents                  bool                          `json:"block_subagents"`
 	FallbackGroupID                 *int64                        `json:"fallback_group_id"`
 	FallbackGroupIDOnInvalidRequest *int64                        `json:"fallback_group_id_on_invalid_request"`
 	// 模型路由配置（仅 anthropic 平台使用）
@@ -262,6 +268,7 @@ type CreateGroupRequest struct {
 type UpdateGroupRequest struct {
 	Name                            string                         `json:"name"`
 	Description                     *string                        `json:"description"`
+	I18n                            *service.GroupI18n             `json:"i18n"`
 	Platform                        string                         `json:"platform" binding:"omitempty,oneof=anthropic openai gemini antigravity grok kimi zhipu deepseek minimax opencode_go typesafe composite"`
 	RateMultiplier                  *float64                       `json:"rate_multiplier"`
 	BillingSurchargeOverrideEnabled *bool                          `json:"billing_surcharge_override_enabled"`
@@ -305,6 +312,9 @@ type UpdateGroupRequest struct {
 	AudioTtsPricePerMillionChars    *float64                      `json:"audio_tts_price_per_million_chars"`
 	AudioSttPricePerHour            *float64                      `json:"audio_stt_price_per_hour"`
 	ClaudeCodeOnly                  *bool                         `json:"claude_code_only"`
+	StreamOnly                      *bool                         `json:"stream_only"`
+	CodexCLIOnly                    *bool                         `json:"codex_cli_only"`
+	BlockSubagents                  *bool                         `json:"block_subagents"`
 	FallbackGroupID                 *int64                        `json:"fallback_group_id"`
 	FallbackGroupIDOnInvalidRequest *int64                        `json:"fallback_group_id_on_invalid_request"`
 	// 模型路由配置（仅 anthropic 平台使用）
@@ -672,6 +682,7 @@ func (h *GroupHandler) Create(c *gin.Context) {
 	group, err := h.adminService.CreateGroup(c.Request.Context(), &service.CreateGroupInput{
 		Name:                            req.Name,
 		Description:                     req.Description,
+		I18n:                            req.I18n,
 		Platform:                        req.Platform,
 		RateMultiplier:                  req.RateMultiplier,
 		BillingSurchargeOverrideEnabled: req.BillingSurchargeOverrideEnabled,
@@ -713,6 +724,9 @@ func (h *GroupHandler) Create(c *gin.Context) {
 		AudioTTSPricePerMillionChars:    req.AudioTtsPricePerMillionChars,
 		AudioSTTPricePerHour:            req.AudioSttPricePerHour,
 		ClaudeCodeOnly:                  req.ClaudeCodeOnly,
+		StreamOnly:                      req.StreamOnly,
+		CodexCLIOnly:                    req.CodexCLIOnly,
+		BlockSubagents:                  req.BlockSubagents,
 		FallbackGroupID:                 req.FallbackGroupID,
 		FallbackGroupIDOnInvalidRequest: req.FallbackGroupIDOnInvalidRequest,
 		ModelRouting:                    req.ModelRouting,
@@ -821,6 +835,7 @@ func (h *GroupHandler) Update(c *gin.Context) {
 	group, err := h.adminService.UpdateGroup(c.Request.Context(), groupID, &service.UpdateGroupInput{
 		Name:                            req.Name,
 		Description:                     req.Description,
+		I18n:                            req.I18n,
 		Platform:                        req.Platform,
 		RateMultiplier:                  req.RateMultiplier,
 		BillingSurchargeOverrideEnabled: req.BillingSurchargeOverrideEnabled,
@@ -863,6 +878,9 @@ func (h *GroupHandler) Update(c *gin.Context) {
 		AudioTTSPricePerMillionChars:    req.AudioTtsPricePerMillionChars,
 		AudioSTTPricePerHour:            req.AudioSttPricePerHour,
 		ClaudeCodeOnly:                  req.ClaudeCodeOnly,
+		StreamOnly:                      req.StreamOnly,
+		CodexCLIOnly:                    req.CodexCLIOnly,
+		BlockSubagents:                  req.BlockSubagents,
 		FallbackGroupID:                 req.FallbackGroupID,
 		FallbackGroupIDOnInvalidRequest: req.FallbackGroupIDOnInvalidRequest,
 		ModelRouting:                    req.ModelRouting,
@@ -1162,4 +1180,55 @@ func (h *GroupHandler) UpdateSortOrder(c *gin.Context) {
 	}
 
 	response.Success(c, gin.H{"message": "Sort order updated successfully"})
+}
+
+// BatchSetGroupUserDeniedModelsRequest represents batch set user denied models request
+type BatchSetGroupUserDeniedModelsRequest struct {
+	Entries []service.GroupUserDeniedModelsInput `json:"entries" binding:"required"`
+}
+
+// BatchSetGroupUserDeniedModels replaces the models each user may not use in a group
+// PUT /api/v1/admin/groups/:id/user-denied-models
+func (h *GroupHandler) BatchSetGroupUserDeniedModels(c *gin.Context) {
+	if h.rejectUnsupportedSimpleModeOperation(c, "advanced") {
+		return
+	}
+	groupID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid group ID")
+		return
+	}
+
+	var req BatchSetGroupUserDeniedModelsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+
+	if err := h.adminService.BatchSetGroupUserDeniedModels(c.Request.Context(), groupID, req.Entries); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	response.Success(c, gin.H{"message": "User denied models updated successfully"})
+}
+
+// ClearGroupUserDeniedModels clears the denied models of every user in a group
+// DELETE /api/v1/admin/groups/:id/user-denied-models
+func (h *GroupHandler) ClearGroupUserDeniedModels(c *gin.Context) {
+	if h.rejectUnsupportedSimpleModeOperation(c, "advanced") {
+		return
+	}
+	groupID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid group ID")
+		return
+	}
+
+	if err := h.adminService.ClearGroupUserDeniedModels(c.Request.Context(), groupID); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	response.Success(c, gin.H{"message": "User denied models cleared successfully"})
 }

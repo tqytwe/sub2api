@@ -19,6 +19,7 @@ type Group struct {
 	ID             int64
 	Name           string
 	Description    string
+	I18n           GroupI18n // 名称与描述的界面语言译文；缺失的语言沿用 Name/Description
 	Platform       string
 	RateMultiplier float64
 	// BillingSurcharge* controls internal platform surcharge collection.
@@ -83,6 +84,9 @@ type Group struct {
 
 	// Claude Code 客户端限制
 	ClaudeCodeOnly  bool
+	StreamOnly      bool
+	CodexCLIOnly    bool
+	BlockSubagents  bool
 	FallbackGroupID *int64
 	// 无效请求兜底分组（仅 anthropic 平台使用）
 	FallbackGroupIDOnInvalidRequest *int64

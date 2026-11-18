@@ -26,6 +26,8 @@ const (
 	FieldName = "name"
 	// FieldDescription holds the string denoting the description field in the database.
 	FieldDescription = "description"
+	// FieldI18n holds the string denoting the i18n field in the database.
+	FieldI18n = "i18n"
 	// FieldRateMultiplier holds the string denoting the rate_multiplier field in the database.
 	FieldRateMultiplier = "rate_multiplier"
 	// FieldBillingSurchargeOverrideEnabled holds the string denoting the billing_surcharge_override_enabled field in the database.
@@ -106,6 +108,12 @@ const (
 	FieldLongContextPricingEnabled = "long_context_pricing_enabled"
 	// FieldModelPricing holds the string denoting the model_pricing field in the database.
 	FieldModelPricing = "model_pricing"
+	// FieldStreamOnly holds the string denoting the stream_only field in the database.
+	FieldStreamOnly = "stream_only"
+	// FieldCodexCliOnly holds the string denoting the codex_cli_only field in the database.
+	FieldCodexCliOnly = "codex_cli_only"
+	// FieldBlockSubagents holds the string denoting the block_subagents field in the database.
+	FieldBlockSubagents = "block_subagents"
 	// FieldClaudeCodeOnly holds the string denoting the claude_code_only field in the database.
 	FieldClaudeCodeOnly = "claude_code_only"
 	// FieldFallbackGroupID holds the string denoting the fallback_group_id field in the database.
@@ -236,6 +244,7 @@ var Columns = []string{
 	FieldDeletedAt,
 	FieldName,
 	FieldDescription,
+	FieldI18n,
 	FieldRateMultiplier,
 	FieldBillingSurchargeOverrideEnabled,
 	FieldBillingSurchargeEnabled,
@@ -276,6 +285,9 @@ var Columns = []string{
 	FieldAudioSttPricePerHour,
 	FieldLongContextPricingEnabled,
 	FieldModelPricing,
+	FieldStreamOnly,
+	FieldCodexCliOnly,
+	FieldBlockSubagents,
 	FieldClaudeCodeOnly,
 	FieldFallbackGroupID,
 	FieldFallbackGroupIDOnInvalidRequest,
@@ -338,6 +350,8 @@ var (
 	UpdateDefaultUpdatedAt func() time.Time
 	// NameValidator is a validator for the "name" field. It is called by the builders before save.
 	NameValidator func(string) error
+	// DefaultI18n holds the default value on creation for the "i18n" field.
+	DefaultI18n domain.GroupI18n
 	// DefaultRateMultiplier holds the default value on creation for the "rate_multiplier" field.
 	DefaultRateMultiplier float64
 	// DefaultBillingSurchargeOverrideEnabled holds the default value on creation for the "billing_surcharge_override_enabled" field.
@@ -406,6 +420,12 @@ var (
 	AudioSttPricePerHourValidator func(float64) error
 	// DefaultLongContextPricingEnabled holds the default value on creation for the "long_context_pricing_enabled" field.
 	DefaultLongContextPricingEnabled bool
+	// DefaultStreamOnly holds the default value on creation for the "stream_only" field.
+	DefaultStreamOnly bool
+	// DefaultCodexCliOnly holds the default value on creation for the "codex_cli_only" field.
+	DefaultCodexCliOnly bool
+	// DefaultBlockSubagents holds the default value on creation for the "block_subagents" field.
+	DefaultBlockSubagents bool
 	// DefaultClaudeCodeOnly holds the default value on creation for the "claude_code_only" field.
 	DefaultClaudeCodeOnly bool
 	// DefaultModelRoutingEnabled holds the default value on creation for the "model_routing_enabled" field.
@@ -679,6 +699,21 @@ func ByAudioSttPricePerHour(opts ...sql.OrderTermOption) OrderOption {
 // ByLongContextPricingEnabled orders the results by the long_context_pricing_enabled field.
 func ByLongContextPricingEnabled(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldLongContextPricingEnabled, opts...).ToFunc()
+}
+
+// ByStreamOnly orders the results by the stream_only field.
+func ByStreamOnly(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldStreamOnly, opts...).ToFunc()
+}
+
+// ByCodexCliOnly orders the results by the codex_cli_only field.
+func ByCodexCliOnly(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCodexCliOnly, opts...).ToFunc()
+}
+
+// ByBlockSubagents orders the results by the block_subagents field.
+func ByBlockSubagents(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBlockSubagents, opts...).ToFunc()
 }
 
 // ByClaudeCodeOnly orders the results by the claude_code_only field.

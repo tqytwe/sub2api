@@ -65,6 +65,7 @@ func MobileAccountSummary(wallet *WalletHandler, payment *PaymentHandler, subscr
 			Plans:         []paymentPlanResult{},
 			Subscriptions: []mobileSubscriptionResult{},
 		}
+		acceptLanguage := c.GetHeader("Accept-Language")
 		var mu sync.Mutex
 		var wg sync.WaitGroup
 		addError := func(source string, err error) {
@@ -128,7 +129,7 @@ func MobileAccountSummary(wallet *WalletHandler, payment *PaymentHandler, subscr
 				if err != nil {
 					return err
 				}
-				items := buildPaymentPlansForResponse(ctx, payment.configService, plans)
+				items := localizePaymentPlanResults(buildPaymentPlansForResponse(ctx, payment.configService, plans), acceptLanguage)
 				mu.Lock()
 				result.Plans = items
 				mu.Unlock()
@@ -146,9 +147,9 @@ func MobileAccountSummary(wallet *WalletHandler, payment *PaymentHandler, subscr
 				}
 				items := make([]mobileSubscriptionResult, 0, len(subs))
 				for i := range subs {
-					item := mobileSubscriptionResult{UserSubscription: *dto.UserSubscriptionFromService(&subs[i])}
+					item := mobileSubscriptionResult{UserSubscription: *dto.UserSubscriptionFromService(&subs[i]).Localized(acceptLanguage)}
 					if progress, progressErr := subscription.subscriptionService.GetSubscriptionProgress(ctx, subs[i].ID); progressErr == nil {
-						item.Progress = progress
+						item.Progress = localizeSubscriptionProgress(progress, acceptLanguage)
 					}
 					items = append(items, item)
 				}

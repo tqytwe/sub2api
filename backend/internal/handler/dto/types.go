@@ -110,6 +110,10 @@ type Group struct {
 	IsExclusive    bool    `json:"is_exclusive"`
 	Status         string  `json:"status"`
 
+	// I18n 名称与描述的各语言译文。只有管理端输出；用户侧接口经 Localized 把
+	// name/description 换成请求语言的版本后清空本字段。
+	I18n domain.GroupI18n `json:"i18n,omitempty"`
+
 	SubscriptionType          string   `json:"subscription_type"`
 	DailyLimitUSD             *float64 `json:"daily_limit_usd"`
 	WeeklyLimitUSD            *float64 `json:"weekly_limit_usd"`
@@ -177,6 +181,9 @@ type Group struct {
 // 注意：普通用户接口不得返回 model_routing/account_count/account_groups 等内部信息。
 type AdminGroup struct {
 	Group
+	StreamOnly     bool `json:"stream_only"`
+	CodexCLIOnly   bool `json:"codex_cli_only"`
+	BlockSubagents bool `json:"block_subagents"`
 	// ForceOpenAIFast 是管理端请求策略，用户侧分组 DTO 无需暴露。
 	ForceOpenAIFast bool `json:"force_openai_fast"`
 	// FreeOpenAIFast 是管理端计费策略，用户侧分组 DTO 无需暴露。

@@ -35,7 +35,7 @@ func GroupModelAllowlist() gin.HandlerFunc {
 		done := requesttiming.Observe(c.Request.Context(), "model_allowlist")
 		defer done()
 		apiKey, ok := GetAPIKeyFromContext(c)
-		if !ok || apiKey == nil || apiKey.Group == nil || !apiKey.Group.ModelAllowlistEnabled() {
+		if !ok || apiKey == nil || apiKey.Group == nil || (!apiKey.Group.ModelAllowlistEnabled() && len(apiKey.DeniedModelsInGroup()) == 0) {
 			done()
 			c.Next()
 			return
@@ -83,7 +83,8 @@ func GroupModelAllowlist() gin.HandlerFunc {
 				break
 			}
 		}
-		if blocked == "" {
+		denied := service.FirstUserGroupDeniedModel(apiKey.DeniedModelsInGroup(), models)
+		if blocked == "" && denied == "" {
 			done()
 			c.Next()
 			return
@@ -91,7 +92,11 @@ func GroupModelAllowlist() gin.HandlerFunc {
 
 		service.MarkOpsClientBusinessLimited(c, service.OpsClientBusinessLimitedReasonLocalModelConfiguration)
 		MarkIngressRejected(c, IngressRejectModelNotAllowed)
-		groupModelAllowlistErrorWriter(c)(c, http.StatusNotFound, "model_not_found", fmt.Sprintf("Model %q is not available for this group", blocked))
+		message := fmt.Sprintf("Model %q is not available for this group", blocked)
+		if blocked == "" {
+			message = fmt.Sprintf("Model %q is not available for your account in this group", denied)
+		}
+		groupModelAllowlistErrorWriter(c)(c, http.StatusNotFound, "model_not_found", message)
 		c.Abort()
 	}
 }

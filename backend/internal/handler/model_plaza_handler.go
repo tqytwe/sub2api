@@ -157,6 +157,7 @@ func (h *ModelPlazaHandler) Get(c *gin.Context) {
 	var allowedGroups map[int64]struct{}
 	var restrictPublicGroups bool
 	var userRates map[int64]float64
+	var deniedModels map[int64][]string
 	if authed {
 		allowedGroups, restrictPublicGroups, err = h.apiKeyService.GetUserGroupVisibility(c.Request.Context(), subject.UserID)
 		if err != nil {
@@ -170,19 +171,37 @@ func (h *ModelPlazaHandler) Get(c *gin.Context) {
 			slog.Warn("model_plaza_user_rates_failed", "error", err, "user_id", subject.UserID)
 			userRates = nil
 		}
+		deniedModels, err = h.apiKeyService.GetUserGroupDeniedModels(c.Request.Context(), subject.UserID)
+		if err != nil {
+			slog.Warn("model_plaza_user_denied_models_failed", "error", err, "user_id", subject.UserID)
+			deniedModels = nil
+		}
 	}
 
 	visible := filterPlazaVisibleGroups(groups, allowedGroups, restrictPublicGroups)
 
-	out := make([]modelPlazaGroup, 0, len(visible))
-	for i := range visible {
-		groupDTO := toModelPlazaGroupDTO(&visible[i], userRates, catalogEntries)
-		out = append(out, groupDTO)
-	}
+	c.Writer.Header().Add("Vary", "Accept-Language")
+	out := toLocalizedModelPlazaGroups(visible, userRates, deniedModels, c.GetHeader("Accept-Language"), catalogEntries)
 	response.Success(c, modelPlazaResponse{
 		Description: rt.Description,
 		Groups:      out,
 	})
+}
+
+func toLocalizedModelPlazaGroups(
+	visible []service.PlazaGroup,
+	userRates map[int64]float64,
+	deniedModels map[int64][]string,
+	acceptLanguage string,
+	catalogMaps ...map[plazaCatalogKey]service.SiteModelCatalogEntry,
+) []modelPlazaGroup {
+	out := make([]modelPlazaGroup, 0, len(visible))
+	for i := range visible {
+		group := toModelPlazaGroupDTO(&visible[i], userRates, deniedModels[visible[i].ID], catalogMaps...)
+		group.Name, group.Description = visible[i].I18n.Localize(acceptLanguage, group.Name, group.Description)
+		out = append(out, group)
+	}
+	return out
 }
 
 type plazaCatalogKey struct{ platform, model string }
@@ -357,7 +376,7 @@ func filterPlazaVisibleGroups(
 }
 
 // toModelPlazaGroupDTO 将 service 层广场分组映射为白名单 DTO,并合并用户专属倍率。
-func toModelPlazaGroupDTO(g *service.PlazaGroup, userRates map[int64]float64, catalogMaps ...map[plazaCatalogKey]service.SiteModelCatalogEntry) modelPlazaGroup {
+func toModelPlazaGroupDTO(g *service.PlazaGroup, userRates map[int64]float64, deniedModels []string, catalogMaps ...map[plazaCatalogKey]service.SiteModelCatalogEntry) modelPlazaGroup {
 	catalogEntries := map[plazaCatalogKey]service.SiteModelCatalogEntry{}
 	if len(catalogMaps) > 0 && catalogMaps[0] != nil {
 		catalogEntries = catalogMaps[0]
@@ -365,6 +384,9 @@ func toModelPlazaGroupDTO(g *service.PlazaGroup, userRates map[int64]float64, ca
 	models := make([]modelPlazaModel, 0, len(g.Models))
 	for i := range g.Models {
 		m := &g.Models[i]
+		if service.UserGroupDeniesModel(deniedModels, m.Name) {
+			continue
+		}
 		entry, managed := catalogEntryForPlazaModel(catalogEntries, *m)
 		displayPricing := displayPricingForPlazaModel(*m, entry, managed)
 		official := m.OfficialPricing

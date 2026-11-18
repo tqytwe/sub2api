@@ -91,6 +91,8 @@
 
       <LatencyObservabilityPanel v-if="opsEnabled && hasLoadedOnce" ops collapsible :platform="platform" :start-date="overview?.start_time" :end-date="overview?.end_time" :group-id="groupId ?? undefined" :refresh-token="dashboardRefreshToken" />
 
+      <OpsNetworkChart v-if="opsEnabled && hasLoadedOnce" :refresh-token="dashboardRefreshToken" />
+
       <!-- Row: Token Stats -->
       <div v-if="opsEnabled && showOpenAITokenStats && !(loading && !hasLoadedOnce)" class="grid grid-cols-1 gap-6">
         <OpsOpenAITokenStatsCard
@@ -154,6 +156,7 @@ import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import LatencyObservabilityPanel from '@/components/admin/usage/LatencyObservabilityPanel.vue'
+import OpsNetworkChart from './components/OpsNetworkChart.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import {
   opsAPI,

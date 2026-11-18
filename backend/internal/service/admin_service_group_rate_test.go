@@ -223,3 +223,16 @@ func TestAdminService_BatchSetGroupRPMOverrides(t *testing.T) {
 		require.Zero(t, repo.rpmSyncedGroupID)
 	})
 }
+
+func (s *userGroupRateRepoStubForGroupRate) GetDeniedModelsByUserAndGroup(context.Context, int64, int64) ([]string, error) {
+	return nil, nil
+}
+func (s *userGroupRateRepoStubForGroupRate) GetDeniedModelsByUserID(context.Context, int64) (map[int64][]string, error) {
+	return nil, nil
+}
+func (s *userGroupRateRepoStubForGroupRate) SyncGroupDeniedModels(context.Context, int64, []GroupUserDeniedModelsInput) error {
+	return nil
+}
+func (s *userGroupRateRepoStubForGroupRate) ClearGroupDeniedModels(context.Context, int64) error {
+	return nil
+}

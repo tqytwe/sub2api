@@ -106,8 +106,12 @@ func (a GroupModelAllowlist) Allows(model string) bool {
 	if model == "" {
 		return true
 	}
+	return modelMatchesGroupModelPatterns(a.Models, model)
+}
+
+func modelMatchesGroupModelPatterns(patterns []string, model string) bool {
 	candidates := groupModelAllowlistCandidates(model)
-	for _, entry := range a.Models {
+	for _, entry := range patterns {
 		entry = strings.TrimSpace(entry)
 		if entry == "" {
 			continue

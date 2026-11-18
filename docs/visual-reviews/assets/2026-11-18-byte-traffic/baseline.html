@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Usage baseline</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 32px; color: #202a33; background: #f5f7f8; font: 14px/1.45 Arial, sans-serif; }
+  main { max-width: 1216px; margin: auto; }
+  h1 { margin: 0 0 20px; font-size: 24px; }
+  nav { display: flex; gap: 20px; border-bottom: 1px solid #d5dce0; margin-bottom: 20px; }
+  nav strong { border-bottom: 2px solid #0ea5e9; color: #0369a1; padding: 12px 4px; }
+  nav span { padding: 12px 4px; color: #687782; }
+  section { background: #fff; border: 1px solid #d5dce0; border-radius: 6px; margin-bottom: 16px; padding: 18px; }
+  .filters { display: flex; flex-wrap: wrap; gap: 16px; }
+  label { color: #586873; font-size: 12px; }
+  .control { display: block; width: 190px; border: 1px solid #cbd4d9; border-radius: 6px; padding: 9px; margin-top: 4px; color: #202a33; }
+  table { width: 100%; border-collapse: collapse; text-align: left; }
+  th, td { padding: 12px; border-bottom: 1px solid #e0e5e8; }
+  th { background: #f5f7f8; color: #586873; font-weight: 600; }
+  @media(max-width:700px) { body { padding: 16px; } .filters { gap: 10px; } .control { width: min(190px, 40vw); } table { min-width: 700px; } }
+</style>
+<main>
+  <h1>Usage</h1>
+  <nav><strong>Usage records</strong><span>Error requests</span></nav>
+  <section class="filters">
+    <label>Period<span class="control">Month</span></label>
+    <label>Date<span class="control">2026-11-18</span></label>
+    <label>User<span class="control">All users</span></label>
+    <label>API key<span class="control">All keys</span></label>
+  </section>
+  <section><b>Usage summary</b><p>Requests, tokens, cost, and duration.</p></section>
+  <section style="overflow:auto"><table><thead><tr><th>Started</th><th>User</th><th>API key</th><th>Model</th><th>Input tokens</th><th>Output tokens</th><th>Cost</th></tr></thead><tbody><tr><td>Nov 18, 10:42</td><td>demo@example.test</td><td>Production</td><td>model-a</td><td>8,120</td><td>2,443</td><td>$0.008</td></tr><tr><td>Nov 18, 10:31</td><td>demo@example.test</td><td>Production</td><td>model-b</td><td>5,190</td><td>1,840</td><td>$0.004</td></tr></tbody></table></section>
+</main>
+</html>

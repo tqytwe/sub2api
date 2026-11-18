@@ -368,7 +368,7 @@ func normalizeCreateGroupInputForSimpleMode(input *CreateGroupInput) {
 		return
 	}
 	*input = CreateGroupInput{
-		Name: input.Name, Description: input.Description, Platform: input.Platform,
+		Name: input.Name, Description: input.Description, I18n: input.I18n, Platform: input.Platform,
 		RateMultiplier: 1, SubscriptionType: SubscriptionTypeStandard,
 	}
 }
@@ -377,7 +377,7 @@ func normalizeUpdateGroupInputForSimpleMode(input *UpdateGroupInput) {
 	if input == nil {
 		return
 	}
-	*input = UpdateGroupInput{Name: input.Name, Description: input.Description}
+	*input = UpdateGroupInput{Name: input.Name, Description: input.Description, I18n: input.I18n}
 }
 
 func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupInput) (*Group, error) {
@@ -391,6 +391,10 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 		return nil, errors.New("rate_multiplier must be > 0")
 	}
 	if err := validateBillingSurchargeConfig(input.BillingSurchargeOverrideEnabled, input.BillingSurchargeEnabled, input.BillingSurchargeMode, input.BillingSurchargeValue); err != nil {
+		return nil, err
+	}
+	i18n, err := normalizeGroupI18n(input.I18n)
+	if err != nil {
 		return nil, err
 	}
 
@@ -564,6 +568,7 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 	group := &Group{
 		Name:                            input.Name,
 		Description:                     input.Description,
+		I18n:                            i18n,
 		Platform:                        platform,
 		RateMultiplier:                  input.RateMultiplier,
 		BillingSurchargeOverrideEnabled: input.BillingSurchargeOverrideEnabled,
@@ -606,6 +611,9 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 		AudioTTSPricePerMillionChars:    audioTTSPricePerMillionChars,
 		AudioSTTPricePerHour:            audioSTTPricePerHour,
 		ClaudeCodeOnly:                  input.ClaudeCodeOnly,
+		StreamOnly:                      input.StreamOnly,
+		CodexCLIOnly:                    input.CodexCLIOnly,
+		BlockSubagents:                  input.BlockSubagents,
 		FallbackGroupID:                 input.FallbackGroupID,
 		FallbackGroupIDOnInvalidRequest: fallbackOnInvalidRequest,
 		ModelRouting:                    input.ModelRouting,
@@ -795,6 +803,13 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 	if input.Description != nil {
 		group.Description = *input.Description
 	}
+	if input.I18n != nil {
+		i18n, err := normalizeGroupI18n(*input.I18n)
+		if err != nil {
+			return nil, err
+		}
+		group.I18n = i18n
+	}
 	if input.Platform != "" {
 		group.Platform = input.Platform
 	}
@@ -969,6 +984,15 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 	}
 
 	// Claude Code 客户端限制
+	if input.StreamOnly != nil {
+		group.StreamOnly = *input.StreamOnly
+	}
+	if input.CodexCLIOnly != nil {
+		group.CodexCLIOnly = *input.CodexCLIOnly
+	}
+	if input.BlockSubagents != nil {
+		group.BlockSubagents = *input.BlockSubagents
+	}
 	if input.ClaudeCodeOnly != nil {
 		group.ClaudeCodeOnly = *input.ClaudeCodeOnly
 	}
@@ -1576,4 +1600,56 @@ func (s *adminServiceImpl) ReplaceUserGroup(ctx context.Context, userID, oldGrou
 	}
 
 	return &ReplaceUserGroupResult{MigratedKeys: migrated}, nil
+}
+
+// ClearGroupUserDeniedModels 清空分组内所有用户的禁用模型。
+func (s *adminServiceImpl) ClearGroupUserDeniedModels(ctx context.Context, groupID int64) error {
+	if err := s.ValidateSimpleModeGroupOperation(AdminGroupOperationDeniedModels); err != nil {
+		return err
+	}
+	if s.userGroupRateRepo == nil {
+		return nil
+	}
+	if err := s.userGroupRateRepo.ClearGroupDeniedModels(ctx, groupID); err != nil {
+		return err
+	}
+	// 禁用模型嵌入认证快照，变更后必须失效相关缓存。
+	if s.authCacheInvalidator != nil {
+		s.authCacheInvalidator.InvalidateAuthCacheByGroupID(ctx, groupID)
+	}
+	return nil
+}
+
+// BatchSetGroupUserDeniedModels 整组覆盖用户的禁用模型：未列出的用户、清单为空的条目都恢复为不限制。
+func (s *adminServiceImpl) BatchSetGroupUserDeniedModels(ctx context.Context, groupID int64, entries []GroupUserDeniedModelsInput) error {
+	if err := s.ValidateSimpleModeGroupOperation(AdminGroupOperationDeniedModels); err != nil {
+		return err
+	}
+	if s.userGroupRateRepo == nil {
+		return nil
+	}
+	normalized := make([]GroupUserDeniedModelsInput, 0, len(entries))
+	seen := make(map[int64]struct{}, len(entries))
+	for _, e := range entries {
+		if e.UserID <= 0 {
+			return infraerrors.BadRequest("INVALID_USER_GROUP_DENIED_MODELS", "user_id must be positive")
+		}
+		if _, dup := seen[e.UserID]; dup {
+			return infraerrors.BadRequest("INVALID_USER_GROUP_DENIED_MODELS", fmt.Sprintf("duplicate user_id %d", e.UserID))
+		}
+		seen[e.UserID] = struct{}{}
+		models, err := NormalizeUserGroupDeniedModels(e.DeniedModels)
+		if err != nil {
+			return err
+		}
+		normalized = append(normalized, GroupUserDeniedModelsInput{UserID: e.UserID, DeniedModels: models})
+	}
+	if err := s.userGroupRateRepo.SyncGroupDeniedModels(ctx, groupID, normalized); err != nil {
+		return err
+	}
+	// 禁用模型嵌入认证快照，变更后必须失效相关缓存。
+	if s.authCacheInvalidator != nil {
+		s.authCacheInvalidator.InvalidateAuthCacheByGroupID(ctx, groupID)
+	}
+	return nil
 }

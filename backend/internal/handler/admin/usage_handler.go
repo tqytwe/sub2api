@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/handler/dto"
@@ -36,10 +37,13 @@ func (h *UsageHandler) Timing(c *gin.Context) {
 }
 
 type UsageHandler struct {
-	usageService   *service.UsageService
-	apiKeyService  *service.APIKeyService
-	adminService   service.AdminService
-	cleanupService *service.UsageCleanupService
+	usageService              *service.UsageService
+	apiKeyService             *service.APIKeyService
+	adminService              service.AdminService
+	cleanupService            *service.UsageCleanupService
+	trafficDelivery           *service.TrafficDelivery
+	trafficUninitializedDrops atomic.Int64
+	trafficStop               func()
 }
 
 // NewUsageHandler creates a new admin usage handler

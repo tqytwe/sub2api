@@ -15,7 +15,7 @@ import (
 	"github.com/dgraph-io/ristretto"
 )
 
-const apiKeyAuthSnapshotVersion = 26 // v26: include administrator model and context policy
+const apiKeyAuthSnapshotVersion = 27 // v27: group ingress policies and user denied models
 
 type apiKeyAuthCacheConfig struct {
 	l1Size        int
@@ -283,6 +283,9 @@ func (s *APIKeyService) loadAuthCacheEntry(ctx context.Context, key, cacheKey st
 		return nil, fmt.Errorf("get api key: %w", err)
 	}
 	apiKey.Key = key
+	if err := s.loadUserGroupDeniedModels(ctx, apiKey); err != nil {
+		return nil, fmt.Errorf("get api key: load user group denied models: %w", err)
+	}
 	snapshot := s.snapshotFromAPIKey(ctx, apiKey)
 	if snapshot == nil {
 		return nil, fmt.Errorf("get api key: %w", ErrAPIKeyNotFound)
@@ -379,6 +382,7 @@ func (s *APIKeyService) snapshotFromAPIKey(ctx context.Context, apiKey *APIKey) 
 			BalanceNotifyExtraEmails:   apiKey.User.BalanceNotifyExtraEmails,
 			TotalRecharged:             apiKey.User.TotalRecharged,
 			RPMLimit:                   apiKey.User.RPMLimit,
+			UserGroupDeniedModels:      append([]string(nil), apiKey.User.UserGroupDeniedModels...),
 		},
 	}
 
@@ -427,6 +431,9 @@ func (s *APIKeyService) snapshotFromAPIKey(ctx context.Context, apiKey *APIKey) 
 			LongContextPricingEnabled:       apiKey.Group.LongContextPricingEnabled,
 			ModelPricing:                    apiKey.Group.ModelPricing,
 			ClaudeCodeOnly:                  apiKey.Group.ClaudeCodeOnly,
+			StreamOnly:                      apiKey.Group.StreamOnly,
+			CodexCLIOnly:                    apiKey.Group.CodexCLIOnly,
+			BlockSubagents:                  apiKey.Group.BlockSubagents,
 			FallbackGroupID:                 apiKey.Group.FallbackGroupID,
 			FallbackGroupIDOnInvalidRequest: apiKey.Group.FallbackGroupIDOnInvalidRequest,
 			ModelRouting:                    apiKey.Group.ModelRouting,
@@ -498,6 +505,7 @@ func (s *APIKeyService) snapshotToAPIKey(key string, snapshot *APIKeyAuthSnapsho
 			TotalRecharged:             snapshot.User.TotalRecharged,
 			RPMLimit:                   snapshot.User.RPMLimit,
 			UserGroupRPMOverride:       snapshot.User.UserGroupRPMOverride,
+			UserGroupDeniedModels:      append([]string(nil), snapshot.User.UserGroupDeniedModels...),
 		},
 	}
 	if snapshot.Group != nil {
@@ -538,6 +546,9 @@ func (s *APIKeyService) snapshotToAPIKey(key string, snapshot *APIKeyAuthSnapsho
 			LongContextPricingEnabled:       snapshot.Group.LongContextPricingEnabled,
 			ModelPricing:                    snapshot.Group.ModelPricing,
 			ClaudeCodeOnly:                  snapshot.Group.ClaudeCodeOnly,
+			StreamOnly:                      snapshot.Group.StreamOnly,
+			CodexCLIOnly:                    snapshot.Group.CodexCLIOnly,
+			BlockSubagents:                  snapshot.Group.BlockSubagents,
 			FallbackGroupID:                 snapshot.Group.FallbackGroupID,
 			FallbackGroupIDOnInvalidRequest: snapshot.Group.FallbackGroupIDOnInvalidRequest,
 			ModelRouting:                    snapshot.Group.ModelRouting,
@@ -567,4 +578,16 @@ func (s *APIKeyService) snapshotToAPIKey(key string, snapshot *APIKeyAuthSnapsho
 	}
 	s.compileAPIKeyIPRules(apiKey)
 	return apiKey
+}
+
+func (s *APIKeyService) loadUserGroupDeniedModels(ctx context.Context, apiKey *APIKey) error {
+	if apiKey == nil || apiKey.User == nil || apiKey.GroupID == nil || *apiKey.GroupID <= 0 || s.userGroupRateRepo == nil {
+		return nil
+	}
+	denied, err := s.userGroupRateRepo.GetDeniedModelsByUserAndGroup(ctx, apiKey.UserID, *apiKey.GroupID)
+	if err != nil {
+		return err
+	}
+	apiKey.User.UserGroupDeniedModels = denied
+	return nil
 }

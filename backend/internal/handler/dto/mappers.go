@@ -154,6 +154,9 @@ func GroupFromServiceAdmin(g *service.Group) *AdminGroup {
 	}
 	out := &AdminGroup{
 		Group:                           groupFromServiceBase(g),
+		StreamOnly:                      g.StreamOnly,
+		CodexCLIOnly:                    g.CodexCLIOnly,
+		BlockSubagents:                  g.BlockSubagents,
 		ForceOpenAIFast:                 g.ForceOpenAIFast,
 		FreeOpenAIFast:                  g.FreeOpenAIFast,
 		BillingSurchargeOverrideEnabled: g.BillingSurchargeOverrideEnabled,
@@ -192,6 +195,7 @@ func groupFromServiceBase(g *service.Group) Group {
 		ID:                              g.ID,
 		Name:                            g.Name,
 		Description:                     g.Description,
+		I18n:                            g.I18n,
 		Platform:                        g.Platform,
 		RateMultiplier:                  g.RateMultiplier,
 		IsExclusive:                     g.IsExclusive,

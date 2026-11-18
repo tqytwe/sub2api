@@ -465,7 +465,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	mobilePushWorker := service.ProvideMobilePushWorker(mobilePushService, mobilePushConfig)
 	mobileVideoGatewayProvider := handler.NewMobileVideoGatewayProvider(apiKeyService, openAIGatewayHandler, subscriptionService, ledger)
 	mobileVideoWorker := handler.ProvideMobileVideoWorker(db, mobileVideoGatewayProvider, mobileAssetStorage, usageBillingRepository)
-	v := provideCleanup(settingHandler, requestLedgerHandler, client, redisClient, opsMetricsCollector, opsAggregationService, opsAlertEvaluatorService, opsCleanupService, opsScheduledReportService, opsSystemLogSink, opsService, opsIngressRejectAggregator, apiKeyService, authCacheInvalidationWorker, schedulerSnapshotService, tokenRefreshService, accountExpiryService, cnProviderBalanceCheckService, openAICodexVersionSyncService, claudeCodeVersionSyncService, proxyExpiryService, subscriptionExpiryService, usageCleanupService, idempotencyCleanupService, batchImageCleanupService, openAIImageResultService, batchImageWorkerRuntime, asyncImageHandler, imageStudioWorkerRuntime, pricingService, emailQueueService, billingCacheService, usageRecordWorkerPool, subscriptionService, oAuthService, openAIOAuthService, geminiOAuthService, antigravityOAuthService, grokOAuthService, openAIGatewayService, scheduledTestRunnerService, accountTokenGuardV2Service, backupService, paymentOrderExpiryService, channelMonitorRunner, channelMonitorV2Aggregator, channelMonitorV3Prober, userPlatformQuotaUsageFlusher, playGrowthRunner, publicHomeStatsService, publicStatusSummaryService, publicStatusSnapshotWorker, upstreamBillingProbeService, ollamaCloudUsageService, openCodeGoUsageService, auditLogService, ipRiskService, promptService, mobilePushWorker, mobileVideoWorker, openAIQuotaAutoResetService, pluginManager)
+	v := provideCleanup(settingHandler, adminUsageHandler, requestLedgerHandler, client, redisClient, opsMetricsCollector, opsAggregationService, opsAlertEvaluatorService, opsCleanupService, opsScheduledReportService, opsSystemLogSink, opsService, opsIngressRejectAggregator, apiKeyService, authCacheInvalidationWorker, schedulerSnapshotService, tokenRefreshService, accountExpiryService, cnProviderBalanceCheckService, openAICodexVersionSyncService, claudeCodeVersionSyncService, proxyExpiryService, subscriptionExpiryService, usageCleanupService, idempotencyCleanupService, batchImageCleanupService, openAIImageResultService, batchImageWorkerRuntime, asyncImageHandler, imageStudioWorkerRuntime, pricingService, emailQueueService, billingCacheService, usageRecordWorkerPool, subscriptionService, oAuthService, openAIOAuthService, geminiOAuthService, antigravityOAuthService, grokOAuthService, openAIGatewayService, scheduledTestRunnerService, accountTokenGuardV2Service, backupService, paymentOrderExpiryService, channelMonitorRunner, channelMonitorV2Aggregator, channelMonitorV3Prober, userPlatformQuotaUsageFlusher, playGrowthRunner, publicHomeStatsService, publicStatusSummaryService, publicStatusSnapshotWorker, upstreamBillingProbeService, ollamaCloudUsageService, openCodeGoUsageService, auditLogService, ipRiskService, promptService, mobilePushWorker, mobileVideoWorker, openAIQuotaAutoResetService, pluginManager)
 	application := &Application{
 		Server:        httpServer,
 		PromptAudit:   promptService,
@@ -504,6 +504,7 @@ func providePluginHostInfo(buildInfo handler.BuildInfo) service.PluginHostInfo {
 
 func provideCleanup(
 	adminSettingHandler *admin.SettingHandler,
+	adminUsageHandler *admin.UsageHandler,
 	requestLedgerHandler *handler.RequestLedgerHandler,
 	entClient *ent.Client,
 	rdb *redis.Client,
@@ -578,6 +579,12 @@ func provideCleanup(
 		}
 
 		parallelSteps := []cleanupStep{
+			{"UserTrafficDelivery", func() error {
+				if adminUsageHandler != nil {
+					adminUsageHandler.StopTrafficDelivery()
+				}
+				return nil
+			}},
 			{"KeyRiskService", func() error {
 				if adminSettingHandler != nil {
 					adminSettingHandler.StopKeyRisk()

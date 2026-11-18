@@ -92,6 +92,12 @@ func (_c *GroupCreate) SetNillableDescription(v *string) *GroupCreate {
 	return _c
 }
 
+// SetI18n sets the "i18n" field.
+func (_c *GroupCreate) SetI18n(v domain.GroupI18n) *GroupCreate {
+	_c.mutation.SetI18n(v)
+	return _c
+}
+
 // SetRateMultiplier sets the "rate_multiplier" field.
 func (_c *GroupCreate) SetRateMultiplier(v float64) *GroupCreate {
 	_c.mutation.SetRateMultiplier(v)
@@ -636,6 +642,48 @@ func (_c *GroupCreate) SetModelPricing(v jsontext.Value) *GroupCreate {
 	return _c
 }
 
+// SetStreamOnly sets the "stream_only" field.
+func (_c *GroupCreate) SetStreamOnly(v bool) *GroupCreate {
+	_c.mutation.SetStreamOnly(v)
+	return _c
+}
+
+// SetNillableStreamOnly sets the "stream_only" field if the given value is not nil.
+func (_c *GroupCreate) SetNillableStreamOnly(v *bool) *GroupCreate {
+	if v != nil {
+		_c.SetStreamOnly(*v)
+	}
+	return _c
+}
+
+// SetCodexCliOnly sets the "codex_cli_only" field.
+func (_c *GroupCreate) SetCodexCliOnly(v bool) *GroupCreate {
+	_c.mutation.SetCodexCliOnly(v)
+	return _c
+}
+
+// SetNillableCodexCliOnly sets the "codex_cli_only" field if the given value is not nil.
+func (_c *GroupCreate) SetNillableCodexCliOnly(v *bool) *GroupCreate {
+	if v != nil {
+		_c.SetCodexCliOnly(*v)
+	}
+	return _c
+}
+
+// SetBlockSubagents sets the "block_subagents" field.
+func (_c *GroupCreate) SetBlockSubagents(v bool) *GroupCreate {
+	_c.mutation.SetBlockSubagents(v)
+	return _c
+}
+
+// SetNillableBlockSubagents sets the "block_subagents" field if the given value is not nil.
+func (_c *GroupCreate) SetNillableBlockSubagents(v *bool) *GroupCreate {
+	if v != nil {
+		_c.SetBlockSubagents(*v)
+	}
+	return _c
+}
+
 // SetClaudeCodeOnly sets the "claude_code_only" field.
 func (_c *GroupCreate) SetClaudeCodeOnly(v bool) *GroupCreate {
 	_c.mutation.SetClaudeCodeOnly(v)
@@ -1103,6 +1151,10 @@ func (_c *GroupCreate) defaults() error {
 		v := group.DefaultUpdatedAt()
 		_c.mutation.SetUpdatedAt(v)
 	}
+	if _, ok := _c.mutation.I18n(); !ok {
+		v := group.DefaultI18n
+		_c.mutation.SetI18n(v)
+	}
 	if _, ok := _c.mutation.RateMultiplier(); !ok {
 		v := group.DefaultRateMultiplier
 		_c.mutation.SetRateMultiplier(v)
@@ -1194,6 +1246,18 @@ func (_c *GroupCreate) defaults() error {
 	if _, ok := _c.mutation.LongContextPricingEnabled(); !ok {
 		v := group.DefaultLongContextPricingEnabled
 		_c.mutation.SetLongContextPricingEnabled(v)
+	}
+	if _, ok := _c.mutation.StreamOnly(); !ok {
+		v := group.DefaultStreamOnly
+		_c.mutation.SetStreamOnly(v)
+	}
+	if _, ok := _c.mutation.CodexCliOnly(); !ok {
+		v := group.DefaultCodexCliOnly
+		_c.mutation.SetCodexCliOnly(v)
+	}
+	if _, ok := _c.mutation.BlockSubagents(); !ok {
+		v := group.DefaultBlockSubagents
+		_c.mutation.SetBlockSubagents(v)
 	}
 	if _, ok := _c.mutation.ClaudeCodeOnly(); !ok {
 		v := group.DefaultClaudeCodeOnly
@@ -1301,6 +1365,9 @@ func (_c *GroupCreate) check() error {
 		if err := group.NameValidator(v); err != nil {
 			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "Group.name": %w`, err)}
 		}
+	}
+	if _, ok := _c.mutation.I18n(); !ok {
+		return &ValidationError{Name: "i18n", err: errors.New(`ent: missing required field "Group.i18n"`)}
 	}
 	if _, ok := _c.mutation.RateMultiplier(); !ok {
 		return &ValidationError{Name: "rate_multiplier", err: errors.New(`ent: missing required field "Group.rate_multiplier"`)}
@@ -1425,6 +1492,15 @@ func (_c *GroupCreate) check() error {
 	}
 	if _, ok := _c.mutation.LongContextPricingEnabled(); !ok {
 		return &ValidationError{Name: "long_context_pricing_enabled", err: errors.New(`ent: missing required field "Group.long_context_pricing_enabled"`)}
+	}
+	if _, ok := _c.mutation.StreamOnly(); !ok {
+		return &ValidationError{Name: "stream_only", err: errors.New(`ent: missing required field "Group.stream_only"`)}
+	}
+	if _, ok := _c.mutation.CodexCliOnly(); !ok {
+		return &ValidationError{Name: "codex_cli_only", err: errors.New(`ent: missing required field "Group.codex_cli_only"`)}
+	}
+	if _, ok := _c.mutation.BlockSubagents(); !ok {
+		return &ValidationError{Name: "block_subagents", err: errors.New(`ent: missing required field "Group.block_subagents"`)}
 	}
 	if _, ok := _c.mutation.ClaudeCodeOnly(); !ok {
 		return &ValidationError{Name: "claude_code_only", err: errors.New(`ent: missing required field "Group.claude_code_only"`)}
@@ -1553,6 +1629,10 @@ func (_c *GroupCreate) createSpec() (*Group, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Description(); ok {
 		_spec.SetField(group.FieldDescription, field.TypeString, value)
 		_node.Description = &value
+	}
+	if value, ok := _c.mutation.I18n(); ok {
+		_spec.SetField(group.FieldI18n, field.TypeJSON, value)
+		_node.I18n = value
 	}
 	if value, ok := _c.mutation.RateMultiplier(); ok {
 		_spec.SetField(group.FieldRateMultiplier, field.TypeFloat64, value)
@@ -1713,6 +1793,18 @@ func (_c *GroupCreate) createSpec() (*Group, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.ModelPricing(); ok {
 		_spec.SetField(group.FieldModelPricing, field.TypeJSON, value)
 		_node.ModelPricing = value
+	}
+	if value, ok := _c.mutation.StreamOnly(); ok {
+		_spec.SetField(group.FieldStreamOnly, field.TypeBool, value)
+		_node.StreamOnly = value
+	}
+	if value, ok := _c.mutation.CodexCliOnly(); ok {
+		_spec.SetField(group.FieldCodexCliOnly, field.TypeBool, value)
+		_node.CodexCliOnly = value
+	}
+	if value, ok := _c.mutation.BlockSubagents(); ok {
+		_spec.SetField(group.FieldBlockSubagents, field.TypeBool, value)
+		_node.BlockSubagents = value
 	}
 	if value, ok := _c.mutation.ClaudeCodeOnly(); ok {
 		_spec.SetField(group.FieldClaudeCodeOnly, field.TypeBool, value)
@@ -2027,6 +2119,18 @@ func (u *GroupUpsert) UpdateDescription() *GroupUpsert {
 // ClearDescription clears the value of the "description" field.
 func (u *GroupUpsert) ClearDescription() *GroupUpsert {
 	u.SetNull(group.FieldDescription)
+	return u
+}
+
+// SetI18n sets the "i18n" field.
+func (u *GroupUpsert) SetI18n(v domain.GroupI18n) *GroupUpsert {
+	u.Set(group.FieldI18n, v)
+	return u
+}
+
+// UpdateI18n sets the "i18n" field to the value that was provided on create.
+func (u *GroupUpsert) UpdateI18n() *GroupUpsert {
+	u.SetExcluded(group.FieldI18n)
 	return u
 }
 
@@ -2726,6 +2830,42 @@ func (u *GroupUpsert) ClearModelPricing() *GroupUpsert {
 	return u
 }
 
+// SetStreamOnly sets the "stream_only" field.
+func (u *GroupUpsert) SetStreamOnly(v bool) *GroupUpsert {
+	u.Set(group.FieldStreamOnly, v)
+	return u
+}
+
+// UpdateStreamOnly sets the "stream_only" field to the value that was provided on create.
+func (u *GroupUpsert) UpdateStreamOnly() *GroupUpsert {
+	u.SetExcluded(group.FieldStreamOnly)
+	return u
+}
+
+// SetCodexCliOnly sets the "codex_cli_only" field.
+func (u *GroupUpsert) SetCodexCliOnly(v bool) *GroupUpsert {
+	u.Set(group.FieldCodexCliOnly, v)
+	return u
+}
+
+// UpdateCodexCliOnly sets the "codex_cli_only" field to the value that was provided on create.
+func (u *GroupUpsert) UpdateCodexCliOnly() *GroupUpsert {
+	u.SetExcluded(group.FieldCodexCliOnly)
+	return u
+}
+
+// SetBlockSubagents sets the "block_subagents" field.
+func (u *GroupUpsert) SetBlockSubagents(v bool) *GroupUpsert {
+	u.Set(group.FieldBlockSubagents, v)
+	return u
+}
+
+// UpdateBlockSubagents sets the "block_subagents" field to the value that was provided on create.
+func (u *GroupUpsert) UpdateBlockSubagents() *GroupUpsert {
+	u.SetExcluded(group.FieldBlockSubagents)
+	return u
+}
+
 // SetClaudeCodeOnly sets the "claude_code_only" field.
 func (u *GroupUpsert) SetClaudeCodeOnly(v bool) *GroupUpsert {
 	u.Set(group.FieldClaudeCodeOnly, v)
@@ -3195,6 +3335,20 @@ func (u *GroupUpsertOne) UpdateDescription() *GroupUpsertOne {
 func (u *GroupUpsertOne) ClearDescription() *GroupUpsertOne {
 	return u.Update(func(s *GroupUpsert) {
 		s.ClearDescription()
+	})
+}
+
+// SetI18n sets the "i18n" field.
+func (u *GroupUpsertOne) SetI18n(v domain.GroupI18n) *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetI18n(v)
+	})
+}
+
+// UpdateI18n sets the "i18n" field to the value that was provided on create.
+func (u *GroupUpsertOne) UpdateI18n() *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateI18n()
 	})
 }
 
@@ -4010,6 +4164,48 @@ func (u *GroupUpsertOne) ClearModelPricing() *GroupUpsertOne {
 	})
 }
 
+// SetStreamOnly sets the "stream_only" field.
+func (u *GroupUpsertOne) SetStreamOnly(v bool) *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetStreamOnly(v)
+	})
+}
+
+// UpdateStreamOnly sets the "stream_only" field to the value that was provided on create.
+func (u *GroupUpsertOne) UpdateStreamOnly() *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateStreamOnly()
+	})
+}
+
+// SetCodexCliOnly sets the "codex_cli_only" field.
+func (u *GroupUpsertOne) SetCodexCliOnly(v bool) *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetCodexCliOnly(v)
+	})
+}
+
+// UpdateCodexCliOnly sets the "codex_cli_only" field to the value that was provided on create.
+func (u *GroupUpsertOne) UpdateCodexCliOnly() *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateCodexCliOnly()
+	})
+}
+
+// SetBlockSubagents sets the "block_subagents" field.
+func (u *GroupUpsertOne) SetBlockSubagents(v bool) *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetBlockSubagents(v)
+	})
+}
+
+// UpdateBlockSubagents sets the "block_subagents" field to the value that was provided on create.
+func (u *GroupUpsertOne) UpdateBlockSubagents() *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateBlockSubagents()
+	})
+}
+
 // SetClaudeCodeOnly sets the "claude_code_only" field.
 func (u *GroupUpsertOne) SetClaudeCodeOnly(v bool) *GroupUpsertOne {
 	return u.Update(func(s *GroupUpsert) {
@@ -4704,6 +4900,20 @@ func (u *GroupUpsertBulk) UpdateDescription() *GroupUpsertBulk {
 func (u *GroupUpsertBulk) ClearDescription() *GroupUpsertBulk {
 	return u.Update(func(s *GroupUpsert) {
 		s.ClearDescription()
+	})
+}
+
+// SetI18n sets the "i18n" field.
+func (u *GroupUpsertBulk) SetI18n(v domain.GroupI18n) *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetI18n(v)
+	})
+}
+
+// UpdateI18n sets the "i18n" field to the value that was provided on create.
+func (u *GroupUpsertBulk) UpdateI18n() *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateI18n()
 	})
 }
 
@@ -5516,6 +5726,48 @@ func (u *GroupUpsertBulk) UpdateModelPricing() *GroupUpsertBulk {
 func (u *GroupUpsertBulk) ClearModelPricing() *GroupUpsertBulk {
 	return u.Update(func(s *GroupUpsert) {
 		s.ClearModelPricing()
+	})
+}
+
+// SetStreamOnly sets the "stream_only" field.
+func (u *GroupUpsertBulk) SetStreamOnly(v bool) *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetStreamOnly(v)
+	})
+}
+
+// UpdateStreamOnly sets the "stream_only" field to the value that was provided on create.
+func (u *GroupUpsertBulk) UpdateStreamOnly() *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateStreamOnly()
+	})
+}
+
+// SetCodexCliOnly sets the "codex_cli_only" field.
+func (u *GroupUpsertBulk) SetCodexCliOnly(v bool) *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetCodexCliOnly(v)
+	})
+}
+
+// UpdateCodexCliOnly sets the "codex_cli_only" field to the value that was provided on create.
+func (u *GroupUpsertBulk) UpdateCodexCliOnly() *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateCodexCliOnly()
+	})
+}
+
+// SetBlockSubagents sets the "block_subagents" field.
+func (u *GroupUpsertBulk) SetBlockSubagents(v bool) *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetBlockSubagents(v)
+	})
+}
+
+// UpdateBlockSubagents sets the "block_subagents" field to the value that was provided on create.
+func (u *GroupUpsertBulk) UpdateBlockSubagents() *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateBlockSubagents()
 	})
 }
 

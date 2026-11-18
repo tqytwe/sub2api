@@ -622,6 +622,13 @@ export interface ReasoningEffortMapping {
   model?: string
 }
 
+export interface GroupLocaleText {
+  name?: string
+  description?: string
+}
+
+export type GroupI18n = Record<string, GroupLocaleText>
+
 export interface Group {
   id: number
   name: string
@@ -661,6 +668,9 @@ export interface Group {
   peak_end: string
   peak_rate_multiplier: number
   // Claude Code 客户端限制
+  stream_only?: boolean
+  codex_cli_only?: boolean
+  block_subagents?: boolean
   claude_code_only: boolean
   fallback_group_id: number | null
   fallback_group_id_on_invalid_request: number | null
@@ -677,6 +687,7 @@ export interface Group {
 }
 
 export interface AdminGroup extends Group {
+  i18n?: GroupI18n
   long_context_pricing_enabled?: boolean
   video_model_prices?: Record<string, Record<string, number>>
   search_price_per_1k?: number | null
@@ -859,8 +870,12 @@ export interface UpdateApiKeyRequest {
 }
 
 export interface CreateGroupRequest {
+  stream_only?: boolean
+  codex_cli_only?: boolean
+  block_subagents?: boolean
   name: string
   description?: string | null
+  i18n?: GroupI18n
   platform?: GroupPlatform
   rate_multiplier?: number
   billing_surcharge_override_enabled?: boolean
@@ -923,8 +938,12 @@ export interface CreateGroupRequest {
 }
 
 export interface UpdateGroupRequest {
+  stream_only?: boolean
+  codex_cli_only?: boolean
+  block_subagents?: boolean
   name?: string
   description?: string | null
+  i18n?: GroupI18n
   platform?: GroupPlatform
   rate_multiplier?: number
   billing_surcharge_override_enabled?: boolean

@@ -2,9 +2,9 @@ package server
 
 import (
 	"context"
-	"github.com/Wei-Shaw/sub2api/internal/requestledger"
 	"log"
 	"net/http"
+	"path/filepath"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -12,9 +12,11 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/handler"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
 	middleware2 "github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/server/routes"
 	"github.com/Wei-Shaw/sub2api/internal/service"
+	"github.com/Wei-Shaw/sub2api/internal/setup"
 	"github.com/Wei-Shaw/sub2api/internal/web"
 
 	"github.com/gin-gonic/gin"
@@ -98,6 +100,14 @@ func SetupRouter(
 	cfg *config.Config,
 	redisClient *redis.Client,
 ) *gin.Engine {
+	if handlers.Admin != nil && handlers.Admin.Usage != nil {
+		_, err := handlers.Admin.Usage.ConfigureTrafficDelivery(func() string {
+			return filepath.Join(setup.GetDataDir(), "user-traffic-pending")
+		})
+		if err != nil {
+			log.Printf("Traffic statistics disabled: %v", err)
+		}
+	}
 	middleware2.SetIngressRejectRecorder(opsService)
 	// Cache configured external iframe origins for the explicit frame-src allowlist.
 	var cachedFrameOrigins atomic.Pointer[[]string]

@@ -12,6 +12,24 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+func (h *OpsHandler) NetworkSeries(c *gin.Context) {
+	if h.opsService == nil {
+		response.Error(c, http.StatusServiceUnavailable, "Ops service not available")
+		return
+	}
+	start, end, err := parseOpsTimeRange(c, "1h")
+	if err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+	series, err := h.opsService.NetworkSeries(c.Request.Context(), start, end)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, series)
+}
+
 // GetDashboardOverview returns vNext ops dashboard overview (raw path).
 // GET /api/v1/admin/ops/dashboard/overview
 func (h *OpsHandler) GetDashboardOverview(c *gin.Context) {

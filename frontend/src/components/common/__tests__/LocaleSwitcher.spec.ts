@@ -1,5 +1,5 @@
 import { flushPromises, mount } from '@vue/test-utils'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import LocaleSwitcher from '../LocaleSwitcher.vue'
 
 const { route, routerPush, locale, setLocale } = vi.hoisted(() => ({
@@ -8,6 +8,8 @@ const { route, routerPush, locale, setLocale } = vi.hoisted(() => ({
   locale: { value: 'zh' },
   setLocale: vi.fn()
 }))
+
+const reload = vi.fn()
 
 vi.mock('vue-router', () => ({
   useRoute: () => route,
@@ -34,6 +36,12 @@ describe('LocaleSwitcher workspace routing', () => {
     routerPush.mockReset()
     routerPush.mockResolvedValue(undefined)
     setLocale.mockReset()
+    reload.mockReset()
+    vi.stubGlobal('location', { ...window.location, reload })
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
   })
 
   const mountSwitcher = () =>
@@ -53,6 +61,7 @@ describe('LocaleSwitcher workspace routing', () => {
       path: '/dashboard',
       query: { lang: 'en' }
     })
+    expect(reload).toHaveBeenCalledTimes(1)
   })
 
   it('removes explicit language query parameters when switching back to Chinese', async () => {
@@ -67,5 +76,6 @@ describe('LocaleSwitcher workspace routing', () => {
       path: '/dashboard',
       query: { tab: 'usage' }
     })
+    expect(reload).toHaveBeenCalledTimes(1)
   })
 })

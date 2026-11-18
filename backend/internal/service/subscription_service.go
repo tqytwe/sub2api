@@ -1224,6 +1224,7 @@ func (s *SubscriptionService) RecordUsage(ctx context.Context, subscriptionID in
 type SubscriptionProgress struct {
 	ID            int64                `json:"id"`
 	GroupName     string               `json:"group_name"`
+	I18n          GroupI18n            `json:"-"`
 	ExpiresAt     time.Time            `json:"expires_at"`
 	ExpiresInDays int                  `json:"expires_in_days"`
 	Daily         *UsageWindowProgress `json:"daily,omitempty"`
@@ -1290,6 +1291,7 @@ func (s *SubscriptionService) calculateProgress(sub *UserSubscription, group *Gr
 	progress := &SubscriptionProgress{
 		ID:            sub.ID,
 		GroupName:     group.Name,
+		I18n:          group.I18n,
 		ExpiresAt:     sub.ExpiresAt,
 		ExpiresInDays: sub.DaysRemaining(),
 	}

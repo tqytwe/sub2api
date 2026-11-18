@@ -134,6 +134,9 @@ func createGroupRecord(ctx context.Context, client *dbent.Client, groupIn *servi
 		SetModelPricing(modelPricing).
 		SetDefaultValidityDays(groupIn.DefaultValidityDays).
 		SetClaudeCodeOnly(groupIn.ClaudeCodeOnly).
+		SetStreamOnly(groupIn.StreamOnly).
+		SetCodexCliOnly(groupIn.CodexCLIOnly).
+		SetBlockSubagents(groupIn.BlockSubagents).
 		SetNillableFallbackGroupID(groupIn.FallbackGroupID).
 		SetNillableFallbackGroupIDOnInvalidRequest(groupIn.FallbackGroupIDOnInvalidRequest).
 		SetModelRoutingEnabled(groupIn.ModelRoutingEnabled).
@@ -170,6 +173,10 @@ func createGroupRecord(ctx context.Context, client *dbent.Client, groupIn *servi
 
 	// 设置支持的模型系列（始终设置，空数组表示不限制）
 	builder = builder.SetSupportedModelScopes(groupIn.SupportedModelScopes)
+
+	if groupIn.I18n != nil {
+		builder = builder.SetI18n(groupIn.I18n)
+	}
 
 	created, err := builder.Save(ctx)
 	if err != nil {
@@ -320,6 +327,9 @@ func (r *groupRepository) Update(ctx context.Context, groupIn *service.Group) er
 		SetModelPricing(modelPricing).
 		SetDefaultValidityDays(groupIn.DefaultValidityDays).
 		SetClaudeCodeOnly(groupIn.ClaudeCodeOnly).
+		SetStreamOnly(groupIn.StreamOnly).
+		SetCodexCliOnly(groupIn.CodexCLIOnly).
+		SetBlockSubagents(groupIn.BlockSubagents).
 		SetModelRoutingEnabled(groupIn.ModelRoutingEnabled).
 		SetMcpXMLInject(groupIn.MCPXMLInject).
 		SetAllowMessagesDispatch(groupIn.AllowMessagesDispatch).
@@ -438,6 +448,12 @@ func (r *groupRepository) Update(ctx context.Context, groupIn *service.Group) er
 
 	// 处理 SupportedModelScopes（始终设置，空数组表示不限制）
 	builder = builder.SetSupportedModelScopes(groupIn.SupportedModelScopes)
+
+	i18n := groupIn.I18n
+	if i18n == nil {
+		i18n = service.GroupI18n{}
+	}
+	builder = builder.SetI18n(i18n)
 
 	updated, err := builder.Save(ctx)
 	if err != nil {
