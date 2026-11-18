@@ -14,7 +14,7 @@ import (
 func TestPrioritySharedPerformanceReadsMonitorWindowAndScopedFinance(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 	mock.ExpectQuery("SELECT value FROM settings").WithArgs(service.SettingKeyAccountPerformanceWindowMinutes).WillReturnRows(sqlmock.NewRows([]string{"value"}).AddRow("30"))
 	mock.ExpectQuery("WITH source").WillReturnRows(sqlmock.NewRows(performanceColumns).AddRow(7, 30, 10, 100, 10, 0, 2, "{}", 0, false, 0, nil, "", 75, 10))
 	mock.ExpectQuery("SELECT account_id").WillReturnRows(sqlmock.NewRows([]string{"account_id", "samples", "ttft", "last_bad", "revenue", "cost"}).AddRow(7, 4, 250, nil, 12, 3))
@@ -29,7 +29,7 @@ func TestPrioritySharedPerformanceReadsMonitorWindowAndScopedFinance(t *testing.
 func TestPriorityLatencySeriesScopesModelGroupAndKeepsUnknownErrors(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 	groupID := int64(12)
 	since := time.Date(2026, 11, 18, 0, 0, 0, 0, time.UTC)
 	mock.ExpectQuery("date_bin").WithArgs(pq.Array([]int64{7}), since, sqlmock.AnyArg(), 5, 1000, "fixture-model", groupID).

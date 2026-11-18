@@ -13,7 +13,7 @@ import (
 func TestPriorityStickyCleanupPreservesOwnersAndOtherGroups(t *testing.T) {
 	server := miniredis.RunT(t)
 	client := redis.NewClient(&redis.Options{Addr: server.Addr()})
-	defer client.Close()
+	t.Cleanup(func() { require.NoError(t, client.Close()) })
 	cache := &gatewayCache{rdb: client}
 	ctx := context.Background()
 	for key, id := range map[string]int64{"openai:hash-a": 7, "openai:hash-b": 8, "openai:response:resp": 7, "openai:http-response-owner:resp": 7} {
