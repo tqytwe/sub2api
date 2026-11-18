@@ -1007,6 +1007,20 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/admin/account-ops',
+    name: 'AdminAccountOps',
+    component: () => import('@/views/admin/AccountOpsView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Account operations',
+      titleKey: 'accountOps.title',
+      descriptionKey: 'accountOps.description',
+      localeScopes: ['admin-account-ops', 'admin-accounts'],
+      frame: 'workspace'
+    }
+  },
+  {
     path: '/admin/accounts',
     name: 'AdminAccounts',
     component: () => import('@/views/admin/AccountsView.vue'),

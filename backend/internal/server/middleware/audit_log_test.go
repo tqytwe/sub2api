@@ -39,6 +39,42 @@ func TestAdminTeamRepairBodyIsOmittedFromAudit(t *testing.T) {
 	require.True(t, ok, "team repair reasons may contain embedded credentials and must not be persisted")
 }
 
+func TestAccountOpsAuditOmitsCredentialBearingBodies(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	repository := &auditCaptureRepository{}
+	auditService := service.NewAuditLogService(repository, nil)
+	auditService.Start()
+	defer auditService.Stop()
+
+	router := gin.New()
+	router.Use(gin.HandlerFunc(NewAuditLogMiddleware(auditService)))
+	for _, route := range []string{"/api/v1/admin/account-ops/config", "/api/v1/admin/account-ops/webhooks/:id"} {
+		router.PUT(route, func(c *gin.Context) {
+			var body any
+			require.NoError(t, c.ShouldBindJSON(&body))
+			c.Status(http.StatusNoContent)
+		})
+	}
+	for _, request := range []struct{ path, body string }{
+		{"/api/v1/admin/account-ops/config", `{"webhooks":[{"url":"https://example.test/audit-canary","secret":"audit-canary-signing-key"}]}`},
+		{"/api/v1/admin/account-ops/webhooks/fixture", `{"url":"https://example.test/audit-canary","secret":"audit-canary-signing-key"}`},
+	} {
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPut, request.path, bytes.NewBufferString(request.body))
+		req.Header.Set("Content-Type", "application/json")
+		router.ServeHTTP(rec, req)
+		require.Equal(t, http.StatusNoContent, rec.Code)
+	}
+	auditService.Stop()
+
+	repository.mu.Lock()
+	defer repository.mu.Unlock()
+	require.Len(t, repository.logs, 2)
+	for _, entry := range repository.logs {
+		require.Equal(t, "<credential-bearing body omitted>", entry.RequestBody)
+	}
+}
+
 func TestFundManagementAuditRoutesHaveStableActionsAndOmitBodies(t *testing.T) {
 	expectedActions := map[string]string{
 		"POST /api/v1/user/wallet/refund-requests":                             service.AuditActionFundRefundSubmit,

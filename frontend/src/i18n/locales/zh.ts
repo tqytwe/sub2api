@@ -25,6 +25,7 @@ import splitWorkspaceShellZh from './zh/workspaceShell'
 import auditAdminZh from './zh/admin/audit'
 import promptAuditAdminZh from './zh/admin/promptAudit'
 import tokenGuardV2Zh from './zh/tokenGuardV2'
+import accountOpsZh from './zh/accountOps'
 import { mergeLocaleMessages } from './merge'
 
 const messages = {
@@ -40,7 +41,7 @@ const messages = {
   apiKeyModelPolicy,
   couponCampaign,
   affiliateOperations,
-  accountOps: { smartTitle: '账号运营' },
+  accountOps: accountOpsZh,
   tokenGuardV2: tokenGuardV2Zh,
   requestLedger,
   batchImageGuide: {

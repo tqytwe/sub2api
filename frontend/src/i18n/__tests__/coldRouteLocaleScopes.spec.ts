@@ -18,6 +18,14 @@ type ColdRouteCase = {
 
 const COLD_ROUTE_CASES: readonly ColdRouteCase[] = [
   {
+    routeName: 'AdminAccountOps', requiredScope: 'admin-account-ops',
+    literals: [
+      { source: 'src/views/admin/AccountOpsView.vue', key: 'accountOps.recordsTab' },
+      { source: 'src/components/admin/operations/SmartOpsNav.vue', key: 'admin.qualityOps.nav' },
+      { source: 'src/components/layout/AppSidebar.vue', key: 'accountOps.title' },
+    ],
+  },
+  {
     routeName: 'Keys', requiredScope: 'user-dashboard',
     literals: [
       { source: 'src/components/admin/user/ApiKeyModelPolicyDialog.vue', key: 'apiKeyModelPolicy.title' },

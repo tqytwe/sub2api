@@ -11,7 +11,7 @@ import tokenGuardV2 from '../en/tokenGuardV2'
 export default mergeLocaleMessages(landing, mergeLocaleMessages(common, {
   requestLedger,
   couponCampaign,
-  accountOps: { smartTitle: 'Account operations' },
+  accountOps: { title: 'Account operations', smartTitle: 'Account operations' },
   tokenGuardV2,
   platform: platformLabels.en,
   authAside: jisudengAuthAsideEn,

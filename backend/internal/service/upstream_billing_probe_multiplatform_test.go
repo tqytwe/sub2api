@@ -95,10 +95,13 @@ func TestUpstreamBillingProbeGrokAccountPersistsSnapshot(t *testing.T) {
 		},
 	}
 	repo := &upstreamBillingProbeAccountRepo{accounts: map[int64]*Account{account.ID: account}}
-	upstream := &httpUpstreamRecorder{resp: &http.Response{
-		StatusCode: http.StatusOK,
-		Header:     http.Header{"Content-Type": []string{"application/json"}},
-		Body:       upstreamBillingProbeValidBody(),
+	upstream := &httpUpstreamRecorder{responses: []*http.Response{
+		{
+			StatusCode: http.StatusOK,
+			Header:     http.Header{"Content-Type": []string{"application/json"}},
+			Body:       upstreamBillingProbeValidBody(),
+		},
+		upstreamBalanceProbeJSONResponse(http.StatusOK, `{"isValid":true,"planName":"wallet","balance":42,"remaining":42,"unit":"USD"}`),
 	}}
 	svc := newUpstreamBillingProbeTestService(repo, upstream, &upstreamBillingProbeSettingRepo{})
 	fixedNow := time.Date(2026, time.July, 26, 2, 0, 0, 0, time.UTC)
@@ -108,14 +111,21 @@ func TestUpstreamBillingProbeGrokAccountPersistsSnapshot(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, UpstreamBillingProbeStatusOK, snapshot.Status)
 	require.Equal(t, 0.02, snapshot.Data["resolved_rate_multiplier"])
-	require.Equal(t, "https://relay.example/v1/sub2api/billing", upstream.lastReq.URL.String())
-	require.Equal(t, "Bearer sk-grok-relay", upstream.lastReq.Header.Get("Authorization"))
-	// 非 OpenAI 平台探测使用默认传输画像。
-	require.Equal(t, HTTPUpstreamProfileDefault, HTTPUpstreamProfileFromContext(upstream.lastReq.Context()))
+	require.Len(t, upstream.requests, 2)
+	require.Equal(t, "https://relay.example/v1/sub2api/billing", upstream.requests[0].URL.String())
+	require.Equal(t, "https://relay.example/v1/usage?days=1&end_date=2026-07-26&start_date=2026-07-26", upstream.requests[1].URL.String())
+	for _, req := range upstream.requests {
+		require.Equal(t, "Bearer sk-grok-relay", req.Header.Get("Authorization"))
+		// 非 OpenAI 平台探测使用默认传输画像。
+		require.Equal(t, HTTPUpstreamProfileDefault, HTTPUpstreamProfileFromContext(req.Context()))
+	}
 
 	persisted := decodeUpstreamBillingProbeSnapshot(account.Extra)
 	require.NotNil(t, persisted)
 	require.Equal(t, UpstreamBillingProbeStatusOK, persisted.Status)
+	require.NotNil(t, persisted.Balance)
+	require.Equal(t, UpstreamBillingProbeStatusOK, persisted.Balance.Status)
+	require.Equal(t, 42.0, persisted.Balance.Data["remaining"])
 }
 
 // 非 OpenAI 平台没有自定义 base_url 时，上游是各自官方 API，必无
