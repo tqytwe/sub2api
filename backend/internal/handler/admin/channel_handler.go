@@ -541,6 +541,41 @@ func (h *ChannelHandler) List(c *gin.Context) {
 	response.Paginated(c, out, pag.Total, page, pageSize)
 }
 
+type channelPricingBatchRequest struct {
+	Items []struct {
+		ChannelID    int64                        `json:"channel_id" binding:"required,gt=0"`
+		ModelPricing []channelModelPricingRequest `json:"model_pricing" binding:"required,max=1000,dive"`
+	} `json:"items" binding:"required,min=1,max=100,dive"`
+}
+
+// BatchUpdatePricing replaces only model pricing for a bounded set of channels.
+func (h *ChannelHandler) BatchUpdatePricing(c *gin.Context) {
+	var req channelPricingBatchRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorFrom(c, service.ErrChannelPricingBatchInvalid)
+		return
+	}
+	items := make([]service.ChannelPricingBatchItem, 0, len(req.Items))
+	channelIDs := make([]int64, 0, len(req.Items))
+	for _, row := range req.Items {
+		pricing := pricingRequestToService(row.ModelPricing, true)
+		for i := range pricing {
+			if pricing[i].Platform == "" {
+				pricing[i].Platform = service.PlatformAnthropic
+			}
+		}
+		items = append(items, service.ChannelPricingBatchItem{ChannelID: row.ChannelID, Pricing: pricing})
+		channelIDs = append(channelIDs, row.ChannelID)
+	}
+	middleware.SetAuditAction(c, "admin.channels.pricing.batch")
+	middleware.SetAuditExtra(c, map[string]any{"channel_ids": channelIDs, "channel_count": len(channelIDs)})
+	if err := h.channelService.BatchUpdateModelPricing(c.Request.Context(), items); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, gin.H{"updated": len(items)})
+}
+
 // GetByID handles getting a channel by ID
 // GET /api/v1/admin/channels/:id
 func (h *ChannelHandler) GetByID(c *gin.Context) {

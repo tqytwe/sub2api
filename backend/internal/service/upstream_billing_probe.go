@@ -19,6 +19,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/config"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/tlsfingerprint"
@@ -104,15 +105,16 @@ type UpstreamBillingProbeSettings struct {
 // UpstreamBillingProbeSnapshot is persisted in accounts.extra. Data is kept as
 // a sanitized map so future response fields do not require a database change.
 type UpstreamBillingProbeSnapshot struct {
-	Status        string         `json:"status"`
-	Data          map[string]any `json:"data,omitempty"`
-	ReceivedAt    *time.Time     `json:"received_at,omitempty"`
-	FreshUntil    *time.Time     `json:"fresh_until,omitempty"`
-	LastAttemptAt time.Time      `json:"last_attempt_at"`
-	NextProbeAt   time.Time      `json:"next_probe_at"`
-	FailureCount  int            `json:"failure_count,omitempty"`
-	HTTPStatus    int            `json:"http_status,omitempty"`
-	LastError     string         `json:"last_error,omitempty"`
+	Status        string                `json:"status"`
+	Data          map[string]any        `json:"data,omitempty"`
+	Balance       *NewAPIWalletSnapshot `json:"balance,omitempty"`
+	ReceivedAt    *time.Time            `json:"received_at,omitempty"`
+	FreshUntil    *time.Time            `json:"fresh_until,omitempty"`
+	LastAttemptAt time.Time             `json:"last_attempt_at"`
+	NextProbeAt   time.Time             `json:"next_probe_at"`
+	FailureCount  int                   `json:"failure_count,omitempty"`
+	HTTPStatus    int                   `json:"http_status,omitempty"`
+	LastError     string                `json:"last_error,omitempty"`
 	// SyncedRateMultiplier records the value this probe wrote into
 	// accounts.rate_multiplier. It is only set when the account opted into rate
 	// sync and the declared value passed the write-back range check, so the
@@ -238,6 +240,9 @@ func normalizeUpstreamBillingProbeSettings(settings *UpstreamBillingProbeSetting
 
 // UpstreamBillingProbeService discovers a remote Sub2API billing snapshot.
 type UpstreamBillingProbeService struct {
+	newAPIRepo         NewAPIAuthorizationRepository
+	newAPIEncryptor    SecretEncryptor
+	newAPIFixedKey     bool
 	accountRepo        AccountRepository
 	accountTestService *AccountTestService
 	settingService     *SettingService
@@ -298,9 +303,13 @@ func ProvideUpstreamBillingProbeService(
 	settingService *SettingService,
 	lockCache LeaderLockCache,
 	db *sql.DB,
+	cfg *config.Config,
+	newAPIRepo NewAPIAuthorizationRepository,
+	encryptor SecretEncryptor,
 ) *UpstreamBillingProbeService {
 	svc := NewUpstreamBillingProbeService(accountRepo, accountTestService, settingService)
 	svc.SetLeaderLock(lockCache, db)
+	svc.SetNewAPIAuthorization(newAPIRepo, encryptor, cfg != nil && cfg.Totp.EncryptionKeyConfigured)
 	svc.Start()
 	return svc
 }
@@ -616,6 +625,15 @@ func (s *UpstreamBillingProbeService) SetAccountEnabled(ctx context.Context, acc
 
 func (s *UpstreamBillingProbeService) probeLoadedAccount(ctx context.Context, account *Account, intervalMinutes int) (*UpstreamBillingProbeSnapshot, error) {
 	now := s.currentTime().UTC()
+	if s.newAPIRepo != nil {
+		binding, err := s.newAPIRepo.GetBinding(ctx, account.ID)
+		if err != nil {
+			return nil, newAPIError("storage_unavailable")
+		}
+		if binding != nil && binding.Fingerprint == NewAPIAccountFingerprint(account) {
+			return s.probeNewAPIAccount(ctx, account, binding, intervalMinutes)
+		}
+	}
 	if s.accountTestService == nil || s.accountTestService.httpUpstream == nil {
 		return s.persistProbeFailure(ctx, account, intervalMinutes, now, 0, "transport_unavailable", 0)
 	}

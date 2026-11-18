@@ -1,0 +1,104 @@
+{
+  "reports": [
+    {
+      "width": 360,
+      "theme": "light",
+      "locale": "en",
+      "overflow": false
+    },
+    {
+      "width": 360,
+      "theme": "light",
+      "locale": "zh",
+      "overflow": false
+    },
+    {
+      "width": 360,
+      "theme": "dark",
+      "locale": "en",
+      "overflow": false
+    },
+    {
+      "width": 360,
+      "theme": "dark",
+      "locale": "zh",
+      "overflow": false
+    },
+    {
+      "width": 768,
+      "theme": "light",
+      "locale": "en",
+      "overflow": false
+    },
+    {
+      "width": 768,
+      "theme": "light",
+      "locale": "zh",
+      "overflow": false
+    },
+    {
+      "width": 768,
+      "theme": "dark",
+      "locale": "en",
+      "overflow": false
+    },
+    {
+      "width": 768,
+      "theme": "dark",
+      "locale": "zh",
+      "overflow": false
+    },
+    {
+      "width": 1280,
+      "theme": "light",
+      "locale": "en",
+      "overflow": false
+    },
+    {
+      "width": 1280,
+      "theme": "light",
+      "locale": "zh",
+      "overflow": false
+    },
+    {
+      "width": 1280,
+      "theme": "dark",
+      "locale": "en",
+      "overflow": false
+    },
+    {
+      "width": 1280,
+      "theme": "dark",
+      "locale": "zh",
+      "overflow": false
+    },
+    {
+      "width": 1920,
+      "theme": "light",
+      "locale": "en",
+      "overflow": false
+    },
+    {
+      "width": 1920,
+      "theme": "light",
+      "locale": "zh",
+      "overflow": false
+    },
+    {
+      "width": 1920,
+      "theme": "dark",
+      "locale": "en",
+      "overflow": false
+    },
+    {
+      "width": 1920,
+      "theme": "dark",
+      "locale": "zh",
+      "overflow": false
+    }
+  ],
+  "errors": [],
+  "keyboard": "Tab and Shift+Tab wrap within dialog; Escape closes; reopen clears token",
+  "zoom": "200% has no horizontal overflow; preview action reachable",
+  "source": "actual compiled component with synthetic APIs; no server or upstream calls"
+}

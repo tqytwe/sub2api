@@ -31,7 +31,10 @@ import type {
   GrokMediaEligibilityMode,
   GrokMediaEligibilityState,
   OpenCodeGoUsageSettings,
-  OpenCodeGoUsageState
+  OpenCodeGoUsageState,
+  NewAPIUpstreamConfig,
+  NewAPIUpstreamConfigRequest,
+  NewAPIUpstreamPreview
 } from '@/types'
 
 /**
@@ -1109,6 +1112,26 @@ export async function setUpstreamBillingProbeEnabled(id: number, enabled: boolea
 
 export async function probeUpstreamBilling(id: number): Promise<UpstreamBillingProbeResult> {
   const { data } = await apiClient.post<UpstreamBillingProbeResult>(`/admin/accounts/${id}/upstream-billing-probe`)
+  return data
+}
+
+export async function getNewAPIUpstreamConfig(id: number): Promise<NewAPIUpstreamConfig> {
+  const { data } = await apiClient.get<NewAPIUpstreamConfig>(`/admin/accounts/${id}/upstream-billing-probe/config`)
+  return data
+}
+
+export async function previewNewAPIUpstreamConfig(id: number, request: NewAPIUpstreamConfigRequest): Promise<NewAPIUpstreamPreview> {
+  const { data } = await apiClient.post<NewAPIUpstreamPreview>(`/admin/accounts/${id}/upstream-billing-probe/config/preview`, request)
+  return data
+}
+
+export async function saveNewAPIUpstreamConfig(id: number, request: NewAPIUpstreamConfigRequest): Promise<NewAPIUpstreamPreview> {
+  const { data } = await apiClient.put<NewAPIUpstreamPreview>(`/admin/accounts/${id}/upstream-billing-probe/config`, request)
+  return data
+}
+
+export async function deleteNewAPIUpstreamConfig(id: number): Promise<{ account_id: number; configured: false }> {
+  const { data } = await apiClient.delete<{ account_id: number; configured: false }>(`/admin/accounts/${id}/upstream-billing-probe/config`)
   return data
 }
 

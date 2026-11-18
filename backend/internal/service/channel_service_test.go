@@ -38,6 +38,7 @@ type mockChannelRepository struct {
 	updateModelPricingFn       func(ctx context.Context, pricing *ChannelModelPricing) error
 	deleteModelPricingFn       func(ctx context.Context, id int64) error
 	replaceModelPricingFn      func(ctx context.Context, channelID int64, pricingList []ChannelModelPricing) error
+	batchReplaceModelPricingFn func(ctx context.Context, items []ChannelPricingBatchItem) error
 }
 
 func (m *mockChannelRepository) Create(ctx context.Context, channel *Channel) error {
@@ -171,6 +172,30 @@ func (m *mockChannelRepository) ListAllModelPricingEntries(ctx context.Context) 
 }
 
 func (m *mockChannelRepository) UpdateModelPricingPrices(ctx context.Context, pricing *ChannelModelPricing) error {
+	return nil
+}
+
+func TestChannelServiceBatchUpdateModelPricingValidatesBeforeRepository(t *testing.T) {
+	calls := 0
+	negativePrice := -1.0
+	repo := &mockChannelRepository{
+		batchReplaceModelPricingFn: func(context.Context, []ChannelPricingBatchItem) error { calls++; return nil },
+	}
+	svc := NewChannelService(repo, nil, nil, nil, nil)
+	for _, items := range [][]ChannelPricingBatchItem{
+		nil,
+		{{ChannelID: 4, Pricing: []ChannelModelPricing{{Platform: PlatformOpenAI, Models: []string{"gpt-x"}, InputPrice: &negativePrice}}}},
+		{{ChannelID: 4, Pricing: []ChannelModelPricing{{Platform: PlatformOpenAI, Models: []string{"gpt-x"}}}}, {ChannelID: 4, Pricing: []ChannelModelPricing{{Platform: PlatformOpenAI, Models: []string{"gpt-y"}}}}},
+	} {
+		require.Error(t, svc.BatchUpdateModelPricing(context.Background(), items))
+	}
+	require.Zero(t, calls)
+}
+
+func (m *mockChannelRepository) BatchReplaceModelPricing(ctx context.Context, items []ChannelPricingBatchItem) error {
+	if m.batchReplaceModelPricingFn != nil {
+		return m.batchReplaceModelPricingFn(ctx, items)
+	}
 	return nil
 }
 
@@ -2668,4 +2693,17 @@ func TestUpdate_MappingConflict(t *testing.T) {
 	})
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "MAPPING_PATTERN_CONFLICT")
+}
+
+func TestChannelServiceBatchUpdateModelPricingAllowsExplicitClearing(t *testing.T) {
+	calls := 0
+	repo := &mockChannelRepository{batchReplaceModelPricingFn: func(_ context.Context, items []ChannelPricingBatchItem) error {
+		calls++
+		require.NotNil(t, items[0].Pricing)
+		require.Empty(t, items[0].Pricing)
+		return nil
+	}}
+	svc := NewChannelService(repo, nil, nil, nil, nil)
+	require.NoError(t, svc.BatchUpdateModelPricing(context.Background(), []ChannelPricingBatchItem{{ChannelID: 7, Pricing: []ChannelModelPricing{}}}))
+	require.Equal(t, 1, calls)
 }

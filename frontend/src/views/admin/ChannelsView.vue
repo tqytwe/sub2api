@@ -27,10 +27,43 @@
               class="w-40"
               @change="loadChannels"
             />
+            <button
+              type="button"
+              class="btn btn-secondary"
+              :disabled="listActionBusy || readingPricing || selectedChannelIds.length === 0"
+              @click="openBulkEdit"
+            >
+              {{ t('admin.channels.bulkEdit.open', { count: selectedChannelIds.length }) }}
+            </button>
+            <button
+              type="button"
+              class="btn btn-secondary"
+              :disabled="listActionBusy || (!selectedChannelIds.length && !channels.length)"
+              data-testid="export-channel-selection"
+              @click="exportSelectedPricing"
+            >
+              {{ t(selectedChannelIds.length ? 'admin.channels.pricingTransfer.exportSelected' : 'admin.channels.pricingTransfer.exportPage') }}
+            </button>
+            <label class="btn btn-secondary cursor-pointer" :class="{ 'pointer-events-none opacity-50': listActionBusy || readingPricing || !selectedChannelIds.length }">
+              {{ t('admin.channels.pricingTransfer.importSelected') }}
+              <input
+                data-testid="selected-pricing-import"
+                type="file"
+                accept=".json,application/json"
+                class="sr-only"
+                :aria-label="t('admin.channels.pricingTransfer.importSelected')"
+                :disabled="listActionBusy || readingPricing || selectedChannelIds.length === 0"
+                @change="importSelectedPricing"
+              />
+            </label>
           </div>
 
           <!-- Right: Actions -->
           <div class="flex w-full flex-shrink-0 flex-wrap items-center justify-end gap-3 lg:w-auto">
+            <label class="btn btn-secondary cursor-pointer" :class="{ 'pointer-events-none opacity-50': listActionBusy || readingPricing }">
+              {{ t('admin.channels.pricingTransfer.import') }}
+              <input data-testid="list-pricing-import" type="file" accept=".json,application/json" class="sr-only" :aria-label="t('admin.channels.pricingTransfer.import')" :disabled="listActionBusy || readingPricing" @change="importSelectedPricing($event, false)" />
+            </label>
             <button
               @click="loadChannels"
               :disabled="loading"
@@ -52,6 +85,10 @@
           :columns="columns"
           :data="channels"
           :loading="loading"
+          selectable
+          :selection-label="(row: Channel) => row.name"
+          :selected-keys="selectedChannelKeys"
+          @update:selected-keys="selectedChannelKeys = $event"
           :server-side-sort="true"
           default-sort-key="created_at"
           default-sort-order="desc"
@@ -98,6 +135,14 @@
 
           <template #cell-actions="{ row }">
             <div class="flex items-center gap-1">
+              <button type="button" class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-primary-600 dark:hover:bg-dark-700" :disabled="listActionBusy" @click="exportChannelPricing(row)">
+                <Icon name="download" size="sm" />
+                <span class="text-xs">{{ t('admin.channels.pricingTransfer.export') }}</span>
+              </button>
+              <button type="button" class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-primary-600 dark:hover:bg-dark-700" @click="copyChannelPricing(row)">
+                <Icon name="copy" size="sm" />
+                <span class="text-xs">{{ t('admin.channels.pricingTransfer.copy') }}</span>
+              </button>
               <button
                 @click="openEditDialog(row)"
                 class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-primary-600 dark:hover:bg-dark-700 dark:hover:text-primary-400"
@@ -137,6 +182,15 @@
         />
       </template>
     </TablePageLayout>
+
+    <BulkEditChannelDialog
+      :show="showBulkEdit"
+      :channels="selectedChannels"
+      :initial-pricing-by-id="pendingPricingById || undefined"
+      :initial-pricing="pendingPricing || undefined"
+      @close="closeBulkEdit"
+      @updated="handleBulkUpdated"
+    />
 
     <!-- Create/Edit Dialog -->
     <BaseDialog
@@ -421,7 +475,12 @@
             <div>
               <div class="mb-1 flex items-center justify-between">
                 <label class="input-label text-xs mb-0">{{ t('admin.channels.form.modelPricing') }}</label>
-                <div class="flex items-center gap-2">
+                <div class="flex flex-wrap items-center gap-2">
+                  <button type="button" class="text-xs text-primary-600 hover:text-primary-700" @click="exportPricing(sIdx)">{{ t('admin.channels.pricingTransfer.export') }}</button>
+                  <label class="cursor-pointer text-xs text-primary-600 hover:text-primary-700">
+                    {{ t('admin.channels.pricingTransfer.import') }}
+                    <input type="file" accept=".json,application/json" class="sr-only" :aria-label="t('admin.channels.pricingTransfer.import')" :disabled="readingPricing" @change="importPlatformPricing(sIdx, $event)" />
+                  </label>
                   <button
                     type="button"
                     @click="syncLatestModels(sIdx)"
@@ -612,6 +671,8 @@
       </template>
     </BaseDialog>
 
+    <ConfirmDialog :show="!!pendingPlatformPricing" :title="t('admin.channels.pricingTransfer.import')" :message="t('admin.channels.pricingTransfer.replaceWarning')" :confirm-text="t('common.confirm')" :cancel-text="t('common.cancel')" @confirm="confirmPlatformPricing" @cancel="pendingPlatformPricing = null" />
+
     <!-- Delete Confirmation -->
     <ConfirmDialog
       :show="showDeleteDialog"
@@ -627,7 +688,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import { extractApiErrorMessage } from '@/utils/apiError'
@@ -650,8 +711,12 @@ import Icon from '@/components/icons/Icon.vue'
 import PlatformIcon from '@/components/common/PlatformIcon.vue'
 import Toggle from '@/components/common/Toggle.vue'
 import PricingEntryCard from '@/components/admin/channel/PricingEntryCard.vue'
+import BulkEditChannelDialog from '@/components/admin/channel/BulkEditChannelDialog.vue'
 import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
 import { useKeyedDebouncedSearch } from '@/composables/useKeyedDebouncedSearch'
+import { channelPricingToPlatforms, matchPricingImportToChannels, parsePricingImport, serializePricingBundle, serializePricingCollection, type PricingBundle } from './channelPricingBundle'
+import { saveAs } from 'file-saver'
+import { MAX_PRICING_FILE_BYTES, parseChannelPricing, serializeChannelPricing } from './channelPricingTransfer'
 
 const { t } = useI18n()
 const appStore = useAppStore()
@@ -721,9 +786,22 @@ const billingModelSourceOptions = computed(() => [
 
 // ── State ──
 const channels = ref<Channel[]>([])
+const selectedChannelKeys = ref<Array<string | number>>([])
+const showBulkEdit = ref(false)
+const listActionBusy = ref(false)
+const readingPricing = ref(false)
+const pendingPricing = ref<PricingBundle | null>(null)
+const pendingPricingById = ref<Record<number, PricingBundle> | null>(null)
+const selectedChannels = ref<Channel[]>([])
+const pricingImportQueue = ref<PricingBundle[]>([])
+const pendingPlatformPricing = ref<{ section: PlatformSection; entries: PricingFormEntry[] } | null>(null)
+let pricingActionVersion = 0
+watch(selectedChannelKeys, () => { pricingActionVersion++ }, { flush: 'sync' })
+const selectedChannelIds = computed(() => selectedChannelKeys.value.map(Number).filter(Number.isSafeInteger))
 const loading = ref(false)
 const searchQuery = ref('')
 const filters = reactive({ status: '' })
+watch(() => [searchQuery.value, filters.status], () => { selectedChannelKeys.value = [] })
 const pagination = reactive({
   page: 1,
   page_size: getPersistedPageSize(),
@@ -1272,6 +1350,157 @@ function apiToForm(channel: Channel): PlatformSection[] {
 }
 
 // ── Load data ──
+function pricingTransferError(error: unknown) {
+  const message = error instanceof Error ? error.message : ''
+  appStore.showError(message.startsWith('admin.channels.') ? t(message) : extractApiErrorMessage(error, t('admin.channels.pricingTransfer.invalidFile')))
+}
+
+async function exportChannelPricing(channel: Channel) {
+  if (listActionBusy.value) return
+  listActionBusy.value = true
+  try {
+    const source = await adminAPI.channels.getById(channel.id)
+    saveAs(new Blob([serializePricingBundle(source.name, channelPricingToPlatforms(source.model_pricing || []), t)], {type:'application/json;charset=utf-8'}), `channel-pricing-${channel.id}.json`)
+  } catch (error) { pricingTransferError(error) }
+  finally { listActionBusy.value = false }
+}
+
+async function copyChannelPricing(channel: Channel) {
+  try {
+    pricingImportQueue.value = []
+    const draft = parsePricingImport(serializePricingBundle(channel.name, channelPricingToPlatforms(channel.model_pricing || []), t), t).bundles[0]!
+    draft.name = t('admin.channels.pricingTransfer.copyName', {name:channel.name})
+    await prepareCreateDialog(draft)
+  } catch (error) { pricingTransferError(error) }
+}
+
+function exportPricing(index: number) {
+  const section = form.platforms[index]!
+  try {
+    saveAs(new Blob([serializeChannelPricing(section.platform, section.model_pricing, t)], {type:'application/json;charset=utf-8'}), `channel-pricing-${section.platform}.json`)
+  } catch (error) { pricingTransferError(error) }
+}
+
+async function importPlatformPricing(index: number, event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (!file || readingPricing.value) return
+  const section = form.platforms[index]!
+  const version = pricingActionVersion
+  readingPricing.value = true
+  try {
+    if (file.size > MAX_PRICING_FILE_BYTES) throw new Error('admin.channels.pricingTransfer.invalidFile')
+    const entries = parseChannelPricing(await file.text(), section.platform, t)
+    if (version === pricingActionVersion && form.platforms.includes(section)) pendingPlatformPricing.value = {section,entries}
+  } catch (error) { if (version === pricingActionVersion) pricingTransferError(error) }
+  finally { readingPricing.value = false }
+}
+
+function confirmPlatformPricing() {
+  const pending = pendingPlatformPricing.value
+  if (pending && form.platforms.includes(pending.section)) pending.section.model_pricing = pending.entries
+  pendingPlatformPricing.value = null
+}
+
+async function selectedChannelsForAction(ids = [...new Set(selectedChannelIds.value)]): Promise<Channel[]> {
+  const rows: Channel[] = []
+  for (let offset = 0; offset < ids.length; offset += 5) {
+    rows.push(...await Promise.all(ids.slice(offset, offset + 5).map(id => adminAPI.channels.getById(id))))
+  }
+  return rows
+}
+
+async function openBulkEdit() {
+  if (!selectedChannelIds.value.length || listActionBusy.value) return
+  const version = ++pricingActionVersion
+  listActionBusy.value = true
+  try {
+    const targets = await selectedChannelsForAction()
+    if (version !== pricingActionVersion) return
+    pendingPricing.value = null
+    pendingPricingById.value = null
+    selectedChannels.value = targets
+    showBulkEdit.value = true
+  } catch (error) {
+    appStore.showError(extractApiErrorMessage(error, t('admin.channels.loadError')))
+  } finally {
+    listActionBusy.value = false
+  }
+}
+
+function closeBulkEdit() {
+  showBulkEdit.value = false
+  pendingPricing.value = null
+  pendingPricingById.value = null
+}
+
+async function handleBulkUpdated(ids: number[]) {
+  selectedChannelKeys.value = selectedChannelKeys.value.filter(id => !ids.includes(Number(id)))
+  await loadChannels()
+}
+
+async function exportSelectedPricing() {
+  if (listActionBusy.value) return
+  const ids = [...selectedChannelIds.value]
+  const page = [...channels.value]
+  listActionBusy.value = true
+  try {
+    const rows = ids.length ? await selectedChannelsForAction(ids) : page
+    if (!rows.length) return
+    const bundles = rows.map(channel => ({
+      name: channel.name,
+      platforms: channelPricingToPlatforms(channel.model_pricing || []),
+    }))
+    saveAs(new Blob([serializePricingCollection(bundles, t)], { type: 'application/json;charset=utf-8' }), 'channel-pricing.json')
+  } catch (error) {
+    pricingTransferError(error)
+  } finally {
+    listActionBusy.value = false
+  }
+}
+
+async function importSelectedPricing(event: Event, intoSelection = true) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (!file || readingPricing.value || listActionBusy.value || (intoSelection && !selectedChannelIds.value.length)) return
+  const ids = [...selectedChannelIds.value]
+  const version = pricingActionVersion
+  readingPricing.value = true
+  try {
+    if (file.size > MAX_PRICING_FILE_BYTES) throw new Error('admin.channels.pricingTransfer.invalidFile')
+    const parsed = parsePricingImport(await file.text(), t)
+    if (version !== pricingActionVersion) return
+    if (!intoSelection) {
+      pricingImportQueue.value = parsed.bundles.slice(1)
+      await prepareCreateDialog(parsed.bundles[0])
+      return
+    }
+    const targets = await selectedChannelsForAction(ids)
+    if (version !== pricingActionVersion) return
+    if (parsed.isCollection) {
+      try {
+        pendingPricingById.value = matchPricingImportToChannels(parsed.bundles, targets)
+      } catch {
+        throw new Error('admin.channels.pricingTransfer.channelMismatch')
+      }
+      pendingPricing.value = null
+    } else {
+      pendingPricing.value = parsed.bundles[0]
+      pendingPricingById.value = null
+    }
+    selectedChannels.value = targets
+    showBulkEdit.value = true
+  } catch (error) {
+    appStore.showError(error instanceof Error && error.message.startsWith('admin.channels.')
+      ? t(error.message)
+      : extractApiErrorMessage(error, t('admin.channels.pricingTransfer.invalidFile')))
+  } finally {
+    readingPricing.value = false
+  }
+}
+
 async function loadChannels() {
   if (abortController) abortController.abort()
   const ctrl = new AbortController()
@@ -1365,13 +1594,28 @@ function resetForm() {
 }
 
 async function openCreateDialog() {
+  pricingImportQueue.value = []
+  await prepareCreateDialog()
+}
+
+async function prepareCreateDialog(draft?: PricingBundle) {
+  const version = ++pricingActionVersion
   editingChannel.value = null
   resetForm()
+  if (draft) {
+    form.name = draft.name || t('admin.channels.pricingTransfer.importedName')
+    for (const platform of draft.platforms) {
+      addPlatformSection(platform.platform)
+      form.platforms[form.platforms.length - 1].model_pricing = platform.entries
+    }
+  }
   await Promise.all([loadGroups(), loadAllChannelsForConflict()])
-  showDialog.value = true
+  if (version === pricingActionVersion) showDialog.value = true
 }
 
 async function openEditDialog(channel: Channel) {
+  pricingActionVersion++
+  pricingImportQueue.value = []
   editingChannel.value = channel
   form.name = channel.name
   form.description = channel.description || ''
@@ -1469,6 +1713,9 @@ async function populateRuleAccountNameCache() {
 }
 
 function closeDialog() {
+  pricingActionVersion++
+  pricingImportQueue.value = []
+  pendingPlatformPricing.value = null
   showDialog.value = false
   editingChannel.value = null
   resetForm()
@@ -1633,7 +1880,9 @@ async function handleSubmit() {
       await adminAPI.channels.create(req)
       appStore.showSuccess(t('admin.channels.createSuccess'))
     }
-    closeDialog()
+    const nextDraft = editingChannel.value ? undefined : pricingImportQueue.value.shift()
+    if (nextDraft) await prepareCreateDialog(nextDraft)
+    else closeDialog()
     loadChannels()
   } catch (error: unknown) {
     appStore.showError(extractApiErrorMessage(error, editingChannel.value
@@ -1690,6 +1939,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  pricingActionVersion++
   clearTimeout(searchTimeout)
   abortController?.abort()
   document.removeEventListener('click', handleRuleAccountClickOutside)

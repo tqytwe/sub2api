@@ -45,6 +45,36 @@ export default {
 
     // Channel Management
     channels: {
+      pricingTransfer: {
+        export: '导出',
+        exportPage: '导出本页定价',
+        copy: '复制定价',
+        copyName: '{name}（副本）',
+        importedName: '导入渠道',
+        replaceWarning: '替换此草稿中当前平台的定价？请审阅并保存渠道后应用。',
+        import: '导入定价',
+        exportSelected: '导出所选定价',
+        importSelected: '导入到所选渠道',
+        invalidFile: '定价包无效或超过支持上限。',
+        channelMismatch: '集合定价包必须按名称与所选渠道一一匹配。',
+        platformMismatch: '定价包的平台与当前所选平台不一致。'
+      },
+      bulkEdit: {
+        open: '批量编辑（{count}）',
+        title: '批量编辑渠道定价',
+        selectionInfo: '将修改所选的 {count} 个渠道',
+        hint: '仅勾选的字段会被修改，请核对所选渠道后提交。',
+        pricingHint: '替换导入包所含平台的定价，并保留其他平台。',
+        matchedPricingHint: '以下渠道分别使用各自匹配文件中的定价。',
+        template: '使用渠道的定价作为模板',
+        noPricing: '请选择包含平台定价的模板，或导入定价文件。',
+        emptyPlatform: '该平台规则为空，提交将清空所选渠道中此平台的定价。',
+        partial: '成功 {success} 个，失败 {failed} 个。',
+        retryFailed: '重试失败渠道',
+        apply: '应用到 {count} 个渠道',
+        failed: '渠道更新失败',
+        success: '已更新 {count} 个渠道'
+      },
       title: '渠道管理',
       description: '管理渠道和自定义模型定价',
       searchChannels: '搜索渠道...',

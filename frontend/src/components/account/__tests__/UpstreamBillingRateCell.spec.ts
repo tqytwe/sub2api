@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import UpstreamBillingRateCell from '../UpstreamBillingRateCell.vue'
 import HelpTooltip from '@/components/common/HelpTooltip.vue'
-import type { Account, UpstreamBillingMultiGroupData } from '@/types'
+import type { Account, UpstreamBillingData, UpstreamBillingMultiGroupData } from '@/types'
 
 vi.mock('vue-i18n', async () => {
   const actual = await vi.importActual<typeof import('vue-i18n')>('vue-i18n')
@@ -66,6 +66,25 @@ describe('UpstreamBillingRateCell', () => {
 
   afterEach(() => {
     vi.useRealTimers()
+  })
+
+  it('displays only the precise New API group declaration contract', async () => {
+    const group = { ...billingData, provider: 'new_api', object: 'new_api.group_billing', billing_scope: 'group', peak_rate_enabled: false }
+    const account = (data: unknown) => makeAccount({ extra: { upstream_billing_probe: {
+      status: 'ok', received_at: '2026-07-13T00:00:00Z', fresh_until: '2026-07-14T00:00:00Z',
+      last_attempt_at: '2026-07-13T00:00:00Z', next_probe_at: '2026-07-13T01:00:00Z',
+      data: data as UpstreamBillingData
+    } } })
+    const wrapper = mount(UpstreamBillingRateCell, { props: { account: account(group), now: Date.now() } })
+    expect(wrapper.get('[data-testid="upstream-billing-rate"]').text()).toBe('0.60x')
+    for (const invalid of [
+      { ...group, provider: 'other' },
+      { ...group, object: 'sub2api.key_billing' },
+      { ...group, billing_scope: 'request' }
+    ]) {
+      await wrapper.setProps({ account: account(invalid) })
+      expect(wrapper.get('[data-testid="upstream-billing-rate"]').text()).toBe('-')
+    }
   })
 
   const multiGroupAccount = () => makeAccount({

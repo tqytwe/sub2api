@@ -18,6 +18,7 @@
           <p>{{ t('admin.accounts.upstreamBilling.updatedAt', { value: formatDate(snapshot?.received_at) }) }}</p>
         </template>
         <template v-else-if="hasEffectiveRate && singleData">
+          <p v-if="singleData.object === 'new_api.group_billing'">{{ t('admin.accounts.upstreamBilling.newAPI.groupRatioHint') }}</p>
           <p>{{ t('admin.accounts.upstreamBilling.groupRate', { value: singleData.group_rate_multiplier }) }}</p>
           <p v-if="singleData.user_rate_multiplier != null">
             {{ t('admin.accounts.upstreamBilling.userRate', { value: singleData.user_rate_multiplier }) }}
@@ -85,6 +86,17 @@
     >
       <Icon name="refresh" size="xs" :class="{ 'animate-spin': probing }" />
     </button>
+    <button
+      v-if="canConfigure && account.type === 'apikey'"
+      type="button"
+      class="inline-flex h-6 w-6 flex-shrink-0 items-center justify-center rounded text-gray-600 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 dark:text-gray-300 dark:hover:bg-dark-700"
+      :aria-label="t('admin.accounts.upstreamBilling.newAPI.configure')"
+      :title="t('admin.accounts.upstreamBilling.newAPI.configure')"
+      data-testid="upstream-billing-configure"
+      @click="$emit('configure')"
+    >
+      <Icon name="cog" size="xs" />
+    </button>
     </div>
     <details v-if="isMultiGroup" class="my-1 max-w-sm text-xs" data-testid="upstream-billing-groups">
       <summary class="cursor-pointer text-blue-600 dark:text-blue-400">{{ t('admin.accounts.upstreamBilling.multiGroupCount', { count: declaredGroups.length }) }}</summary>
@@ -110,19 +122,21 @@ import { useI18n } from 'vue-i18n'
 import HelpTooltip from '@/components/common/HelpTooltip.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { formatMultiplier } from '@/utils/formatters'
-import type { Account, UpstreamBillingRateData, UpstreamBillingProbeSnapshot } from '@/types'
+import type { Account, UpstreamBillingSingleGroupData, UpstreamBillingProbeSnapshot } from '@/types'
 
 const props = withDefaults(defineProps<{
   account: Account
   now: number
   probing?: boolean
   globalProbeEnabled?: boolean
+  canConfigure?: boolean
 }>(), {
   globalProbeEnabled: true
 })
 
 defineEmits<{
   (event: 'probe'): void
+  (event: 'configure'): void
 }>()
 
 const { t } = useI18n()
@@ -182,9 +196,9 @@ const minuteInTimeZone = (timestamp: number, timeZone?: string) => {
     return null
   }
 }
-const effectiveMultiplier = (billing?: UpstreamBillingRateData) => {
+const effectiveMultiplier = (billing?: UpstreamBillingSingleGroupData) => {
   if (!billing) return null
-  if (billing.billing_scope !== 'token') return null
+  if (billing.billing_scope !== 'token' && !(billing.billing_scope === 'group' && billing.provider === 'new_api' && billing.object === 'new_api.group_billing')) return null
   const base = billing.resolved_rate_multiplier
   if (typeof base !== 'number' || !Number.isFinite(base) || base < 0) return null
   if (typeof billing.peak_rate_enabled !== 'boolean') return null
@@ -198,7 +212,7 @@ const effectiveMultiplier = (billing?: UpstreamBillingRateData) => {
   return Number.isFinite(value) ? value : null
 }
 const currentEffectiveRate = computed(() => effectiveMultiplier(singleData.value))
-const formatGroupRate = (group: UpstreamBillingRateData): string => {
+const formatGroupRate = (group: UpstreamBillingSingleGroupData): string => {
   const value = stale.value ? group.effective_rate_multiplier : effectiveMultiplier(group)
   return typeof value === 'number' && Number.isFinite(value) ? `${formatMultiplier(value)}x` : '-'
 }
