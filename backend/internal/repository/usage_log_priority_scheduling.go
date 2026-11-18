@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/lib/pq"
@@ -12,6 +13,83 @@ import (
 // ReadPrioritySchedulingSignals combines scoped latency history with account/model
 // quality rounds. Missing or inconclusive quality history never implies a pass.
 func (r *usageLogRepository) ReadPrioritySchedulingSignals(ctx context.Context, q service.PrioritySchedulingQuery) (map[int64]service.PrioritySchedulingSignal, error) {
+	if q.UseAccountPerformance {
+		// Keep scheduler health, account administration, and the performance
+		// monitor on the same account-wide timing window. Financial attribution
+		// remains model/group scoped and is merged below for the cost component.
+		performance, err := readAccountPerformance(ctx, r.sql, q.AccountIDs, time.Now())
+		if err != nil {
+			return nil, err
+		}
+		// Scoped latency still owns the Fork's existing stop/deprioritize
+		// admission policy. Shared averages only supply ranking evidence.
+		var legacy map[int64]service.PrioritySchedulingSignal
+		if q.LatencyMeasurement == "attributed_v1" {
+			legacy, err = r.readAttributedPrioritySchedulingSignals(ctx, q)
+		} else {
+			legacy, err = r.readLegacyPrioritySchedulingSignals(ctx, q)
+		}
+		if err != nil {
+			return nil, err
+		}
+		if q.LatencyMeasurement == "attributed_v1" {
+			finance, err := r.readPriorityFinancialSignals(ctx, q)
+			if err != nil {
+				return nil, err
+			}
+			for id, money := range finance {
+				signal := legacy[id]
+				signal.Revenue, signal.TheoreticalCost = money.Revenue, money.TheoreticalCost
+				legacy[id] = signal
+			}
+		}
+		for _, id := range q.AccountIDs {
+			metrics, ok := performance[id]
+			if !ok {
+				continue
+			}
+			signal := legacy[id]
+			copy := metrics
+			signal.Performance = &copy
+			signal.CachePercent = metrics.AvgCachePercent
+			signal.CacheSamples = metrics.CacheSamples
+			legacy[id] = signal
+		}
+		return legacy, nil
+	}
+	return r.readPrioritySchedulingSignalsLegacy(ctx, q)
+}
+
+func (r *usageLogRepository) readPriorityFinancialSignals(ctx context.Context, q service.PrioritySchedulingQuery) (map[int64]service.PrioritySchedulingSignal, error) {
+	out := make(map[int64]service.PrioritySchedulingSignal, len(q.AccountIDs))
+	rows, err := r.sql.QueryContext(ctx, `
+SELECT account_id, COALESCE(SUM(actual_cost),0),
+ COALESCE(SUM(COALESCE(account_stats_cost,total_cost,0)*COALESCE(account_rate_multiplier,1)),0)
+FROM usage_logs
+WHERE account_id=ANY($1::bigint[]) AND created_at >= $2 AND created_at < NOW()
+ AND COALESCE(NULLIF(BTRIM(requested_model),''),model)=$3
+ AND group_id IS NOT DISTINCT FROM $4::bigint
+ AND ($5='' OR COALESCE(NULLIF(BTRIM(inbound_endpoint),''),'')=$5)
+GROUP BY account_id`, pq.Array(q.AccountIDs), q.Since, q.Model, nullablePriorityGroup(q.GroupID), q.InboundEndpoint)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+	for rows.Next() {
+		var id int64
+		var signal service.PrioritySchedulingSignal
+		if err := rows.Scan(&id, &signal.Revenue, &signal.TheoreticalCost); err != nil {
+			return nil, err
+		}
+		out[id] = signal
+	}
+	return out, rows.Err()
+}
+
+// readPrioritySchedulingSignalsLegacy retains model-scoped financial and
+// latency evidence for callers that have not opted into the shared account
+// performance contract yet.
+func (r *usageLogRepository) readPrioritySchedulingSignalsLegacy(ctx context.Context, q service.PrioritySchedulingQuery) (map[int64]service.PrioritySchedulingSignal, error) {
 	var out map[int64]service.PrioritySchedulingSignal
 	var err error
 	if q.LatencyMeasurement == "attributed_v1" {

@@ -421,6 +421,7 @@ func (s *AccountTestService) TestAccountConnection(c *gin.Context, accountID int
 	if err != nil {
 		return s.sendErrorAndEnd(c, "Account not found")
 	}
+	recordQualityProbeRoute(ctx, account, modelID, account.Platform+":"+account.GetAPIProtocol())
 
 	// Synthetic UI load-test accounts exercise the real SSE parsing and modal
 	// interactions, but intentionally do not send their placeholder credentials
@@ -844,7 +845,15 @@ func (s *AccountTestService) testBedrockAccountConnection(c *gin.Context, ctx co
 // testOpenAIAccountConnection tests an OpenAI account's connection
 func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account *Account, modelID string, prompt string, mode string) error {
 	ctx := c.Request.Context()
+	recordQualityProbeRoute(ctx, account, modelID, "openai:account")
 	mode = normalizeAccountTestMode(mode)
+	managed, err := s.openAIAccountTestUsesManagedConnection(ctx, account)
+	if err != nil {
+		return s.sendErrorAndEnd(c, "Authorization connection state could not be verified")
+	}
+	if managed {
+		return s.testManagedOpenAIConnection(c, account, modelID, prompt, mode)
+	}
 
 	// Default to openai.DefaultTestModel for OpenAI testing
 	testModelID := modelID
@@ -1032,6 +1041,10 @@ func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account
 		}
 		// 401 Unauthorized: 标记账号为永久错误
 		if resp.StatusCode == http.StatusUnauthorized && s.accountRepo != nil {
+			if evidence, _ := ctx.Value(qualityProbeEvidenceKey{}).(*qualityProbeEvidence); evidence != nil && evidence.NativeOAuth && credentialAccount.ID == account.ID && !account.IsCredentialShadow() && !account.IsOpenAIAgentIdentity() && isOAuth {
+				evidence.Direct401 = true
+				evidence.Revoked401 = qualityOAuth401RevokedCode(body)
+			}
 			errMsg := fmt.Sprintf("Authentication failed (401): %s", string(body))
 			_ = s.accountRepo.SetError(ctx, account.ID, errMsg)
 		}
@@ -3438,6 +3451,7 @@ func (s *AccountTestService) RunQualityProbeWithEffortBackground(ctx context.Con
 			Status: "failed", ResponseText: responseText, ErrorMessage: errMsg,
 			LatencyMs: finishedAt.Sub(startedAt).Milliseconds(), StartedAt: startedAt, FinishedAt: finishedAt,
 			CostUSD: cost, CostIncomplete: costIncomplete || accountErr != nil,
+			DirectOAuth401: qualityEvidenceDirect401(ctx), DirectOAuthRevoked401: qualityEvidenceRevoked401(ctx),
 		}, nil
 	}
 	return &ScheduledTestResult{

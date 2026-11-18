@@ -69,7 +69,7 @@ func (s *OpenAIGatewayService) forwardExcelBPS(ctx context.Context, c *gin.Conte
 			return nil, err
 		}
 	}
-	scope := fmt.Sprintf("account:%d/key:%d/thread:%s", account.ID, getAPIKeyIDFromContext(c), identity)
+	scope := fmt.Sprintf("account:%d/key:%d/connection:%s/thread:%s", account.ID, getAPIKeyIDFromContext(c), account.AuthConnectionID, identity)
 	upstreamBody, bridge, err := basispoints.PrepareText(body, scope, &excelBPSReplay)
 	if err != nil {
 		return fail(400, "basispoints_request_invalid", err.Error())
@@ -77,7 +77,17 @@ func (s *OpenAIGatewayService) forwardExcelBPS(ctx context.Context, c *gin.Conte
 	if err := s.checkAPIKeyLongContextBeforeSend(ctx, c, upstreamBody, model); err != nil {
 		return nil, err
 	}
-	runtimeCredential, err := s.excelOAuthService.RuntimeCredential(ctx, account.ID)
+	var runtimeCredential *OpenAIExcelOAuthRuntimeCredential
+	if account.AuthConnectionID != "" {
+		if account.GetExtraString("openai_connection_kind") != "bps" {
+			return nil, connectionChanged()
+		}
+		token, _, tokenErr := s.GetAccessToken(ctx, account)
+		err = tokenErr
+		runtimeCredential = s.managedExcelRuntimeCredential(account, token)
+	} else {
+		runtimeCredential, err = s.excelOAuthService.RuntimeCredential(ctx, account.ID)
+	}
 	if err != nil {
 		if infraErr, ok := err.(*infraerrors.Error); ok {
 			return fail(int(infraErr.Code), infraErr.Reason, infraErr.Message)
@@ -97,13 +107,7 @@ func (s *OpenAIGatewayService) forwardExcelBPS(ctx context.Context, c *gin.Conte
 	if err != nil {
 		return nil, err
 	}
-	req.Header = http.Header{
-		"Authorization": {"Bearer " + token}, "Chatgpt-Account-Id": {accountID}, "X-Openai-Account-Id": {accountID},
-		"X-Basispoints-Auth-Mode": {"chatgpt"}, "Content-Type": {"application/json"}, "Accept": {"text/event-stream"},
-		"Origin": {"https://bps.openai.com"}, "User-Agent": {"Mozilla/5.0"},
-		"X-Openai-Internal-Basispoints-Client-Product":       {"basispoints-excel-plugin"},
-		"X-Openai-Internal-Basispoints-Client-Agent-Profile": {"excel"},
-	}
+	applyExcelBPSRequestHeaders(req, token, accountID)
 	proxyURL := ""
 	if account.Proxy != nil {
 		proxyURL = account.Proxy.URL()
@@ -111,6 +115,9 @@ func (s *OpenAIGatewayService) forwardExcelBPS(ctx context.Context, c *gin.Conte
 	SetActualOpenAIUpstreamEndpoint(c, "/basispoints/api/responses")
 	SetOpsUpstreamModel(c, model)
 	sent := time.Now()
+	if err = s.fenceAuthConnectionEgress(req.Context(), req, account); err != nil {
+		return nil, err
+	}
 	resp, err := s.httpUpstream.Do(req, proxyURL, account.ID, account.Concurrency)
 	s.rateLimitService.observeQualityResponse(req.Context(), account, resp, err)
 	SetOpsLatencyMs(c, OpsUpstreamLatencyMsKey, time.Since(sent).Milliseconds())
@@ -119,6 +126,9 @@ func (s *OpenAIGatewayService) forwardExcelBPS(ctx context.Context, c *gin.Conte
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		if account.AuthConnectionID != "" && s.excelOAuthReauth != nil && (resp.StatusCode == 401 || resp.StatusCode == 403 || resp.StatusCode >= 500) {
+			_ = s.excelOAuthReauth.FailAuthConnection(ctx, account, resp.StatusCode)
+		}
 		raw, _ := io.ReadAll(io.LimitReader(resp.Body, 512<<10))
 		code := gjson.GetBytes(raw, "error.code").String()
 		if code == "basispoints_model_access_changed" {

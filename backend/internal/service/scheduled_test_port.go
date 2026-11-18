@@ -7,43 +7,49 @@ import (
 
 // ScheduledTestPlan represents a scheduled test plan domain model.
 type ScheduledTestPlan struct {
-	ManualQualityRun  bool               `json:"-"`
-	TriggerSource     string             `json:"-"`
-	TriggerObservedAt *time.Time         `json:"-"`
-	PelicanConfig     *PelicanTestConfig `json:"pelican_config,omitempty"`
-	RunningUntil      *time.Time         `json:"running_until,omitempty"`
-	ID                int64              `json:"id"`
-	AccountID         int64              `json:"account_id"`
-	ModelID           string             `json:"model_id"`
-	CronExpression    string             `json:"cron_expression"`
-	Enabled           bool               `json:"enabled"`
-	MaxResults        int                `json:"max_results"`
-	AutoRecover       bool               `json:"auto_recover"`
-	LastRunAt         *time.Time         `json:"last_run_at"`
-	NextRunAt         *time.Time         `json:"next_run_at"`
-	CreatedAt         time.Time          `json:"created_at"`
-	UpdatedAt         time.Time          `json:"updated_at"`
+	QualityBatchEvaluated bool                  `json:"-"`
+	QualityModelOutcomes  map[string]string     `json:"-"`
+	QualityOAuth401Round  *QualityOAuth401Round `json:"-"`
+	ManualQualityRun      bool                  `json:"-"`
+	TriggerSource         string                `json:"-"`
+	TriggerObservedAt     *time.Time            `json:"-"`
+	PelicanConfig         *PelicanTestConfig    `json:"pelican_config,omitempty"`
+	RunningUntil          *time.Time            `json:"running_until,omitempty"`
+	ID                    int64                 `json:"id"`
+	AccountID             int64                 `json:"account_id"`
+	ModelID               string                `json:"model_id"`
+	CronExpression        string                `json:"cron_expression"`
+	Enabled               bool                  `json:"enabled"`
+	MaxResults            int                   `json:"max_results"`
+	AutoRecover           bool                  `json:"auto_recover"`
+	LastRunAt             *time.Time            `json:"last_run_at"`
+	NextRunAt             *time.Time            `json:"next_run_at"`
+	CreatedAt             time.Time             `json:"created_at"`
+	UpdatedAt             time.Time             `json:"updated_at"`
 }
 
 // PelicanTestConfig is an optional quality probe configuration. A nil value
 // preserves the legacy account connectivity test contract.
 type PelicanTestConfig struct {
-	TriggerSource   string           `json:"trigger_source,omitempty"`
-	RuleName        string           `json:"rule_name,omitempty"`
-	Quality         *QualityPolicy   `json:"quality,omitempty"`
-	QuestionKind    string           `json:"question_kind,omitempty"`
-	TestChannel     string           `json:"test_channel,omitempty"`
-	Prompt          string           `json:"prompt,omitempty"`
-	PromptMode      string           `json:"prompt_mode,omitempty"`
-	PelicanQuestion *PelicanQuestion `json:"pelican_question,omitempty"`
-	ActualPrompt    string           `json:"actual_prompt,omitempty"`
-	ReasoningEffort string           `json:"reasoning_effort,omitempty"`
-	ParallelCount   int              `json:"parallel_count,omitempty"`
-	ModelID         string           `json:"model_id,omitempty"`
-	ModelIDs        []string         `json:"model_ids,omitempty"`
+	RandomQuestion  *QualityRandomQuestion `json:"random_question,omitempty"`
+	QualityBatch    *QualityBatchEvidence  `json:"quality_batch,omitempty"`
+	TriggerSource   string                 `json:"trigger_source,omitempty"`
+	RuleName        string                 `json:"rule_name,omitempty"`
+	Quality         *QualityPolicy         `json:"quality,omitempty"`
+	QuestionKind    string                 `json:"question_kind,omitempty"`
+	TestChannel     string                 `json:"test_channel,omitempty"`
+	Prompt          string                 `json:"prompt,omitempty"`
+	PromptMode      string                 `json:"prompt_mode,omitempty"`
+	PelicanQuestion *PelicanQuestion       `json:"pelican_question,omitempty"`
+	ActualPrompt    string                 `json:"actual_prompt,omitempty"`
+	ReasoningEffort string                 `json:"reasoning_effort,omitempty"`
+	ParallelCount   int                    `json:"parallel_count,omitempty"`
+	ModelID         string                 `json:"model_id,omitempty"`
+	ModelIDs        []string               `json:"model_ids,omitempty"`
 }
 
 type QualityPolicy struct {
+	OAuth401MaxRounds    int                 `json:"oauth_401_max_rounds,omitempty"`
 	TriggerOnUpstream5xx bool                `json:"trigger_on_upstream_5xx"`
 	RetestRestMinutes    int                 `json:"retest_rest_minutes,omitempty"`
 	Action               string              `json:"action,omitempty"`
@@ -62,21 +68,23 @@ type QualityJudgeConfig struct {
 
 // ScheduledTestResult represents a single test execution result.
 type ScheduledTestResult struct {
-	PelicanConfig   *PelicanTestConfig `json:"pelican_config,omitempty"`
-	QualityRoundID  string             `json:"quality_round_id,omitempty"`
-	QualityAction   string             `json:"quality_action,omitempty"`
-	QualityJudgment map[string]any     `json:"quality_judgment,omitempty"`
-	ID              int64              `json:"id"`
-	PlanID          int64              `json:"plan_id"`
-	Status          string             `json:"status"`
-	ResponseText    string             `json:"response_text"`
-	ErrorMessage    string             `json:"error_message"`
-	LatencyMs       int64              `json:"latency_ms"`
-	CostUSD         *float64           `json:"cost_usd,omitempty"`
-	CostIncomplete  bool               `json:"cost_incomplete,omitempty"`
-	StartedAt       time.Time          `json:"started_at"`
-	FinishedAt      time.Time          `json:"finished_at"`
-	CreatedAt       time.Time          `json:"created_at"`
+	DirectOAuth401        bool               `json:"-"`
+	DirectOAuthRevoked401 bool               `json:"-"`
+	PelicanConfig         *PelicanTestConfig `json:"pelican_config,omitempty"`
+	QualityRoundID        string             `json:"quality_round_id,omitempty"`
+	QualityAction         string             `json:"quality_action,omitempty"`
+	QualityJudgment       map[string]any     `json:"quality_judgment,omitempty"`
+	ID                    int64              `json:"id"`
+	PlanID                int64              `json:"plan_id"`
+	Status                string             `json:"status"`
+	ResponseText          string             `json:"response_text"`
+	ErrorMessage          string             `json:"error_message"`
+	LatencyMs             int64              `json:"latency_ms"`
+	CostUSD               *float64           `json:"cost_usd,omitempty"`
+	CostIncomplete        bool               `json:"cost_incomplete,omitempty"`
+	StartedAt             time.Time          `json:"started_at"`
+	FinishedAt            time.Time          `json:"finished_at"`
+	CreatedAt             time.Time          `json:"created_at"`
 }
 
 // QualityHistoryResult is one cursor-addressable quality round. A round may

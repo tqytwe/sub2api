@@ -64,6 +64,9 @@ func (r *scheduledTestPlanRepository) ClaimQualityRun(ctx context.Context, plan 
 	if err != nil {
 		return time.Time{}, false, err
 	}
+	if err := claimQualityOAuth401Tx(ctx, tx, plan, updatedAt, until); err != nil {
+		return time.Time{}, false, err
+	}
 	return updatedAt, true, tx.Commit()
 }
 
@@ -106,8 +109,19 @@ func (r *scheduledTestPlanRepository) CommitQualityRound(ctx context.Context, pl
 		return "", err
 	}
 	defer func() { _ = tx.Rollback() }()
+	action, err := commitQualityRoundTx(ctx, tx, plan, outcome, results, maxResults)
+	if err != nil {
+		return "", err
+	}
+	if action == "stale_run" || action == "account_deleted" {
+		return action, nil
+	}
+	return action, tx.Commit()
+}
+
+func commitQualityRoundTx(ctx context.Context, tx *sql.Tx, plan *service.ScheduledTestPlan, outcome string, results []*service.ScheduledTestResult, maxResults int) (string, error) {
 	var accountID int64
-	err = tx.QueryRowContext(ctx, `SELECT account_id FROM scheduled_test_plans WHERE id=$1`, plan.ID).Scan(&accountID)
+	err := tx.QueryRowContext(ctx, `SELECT account_id FROM scheduled_test_plans WHERE id=$1`, plan.ID).Scan(&accountID)
 	if err == sql.ErrNoRows {
 		return "stale_run", nil
 	}
@@ -159,7 +173,19 @@ func (r *scheduledTestPlanRepository) CommitQualityRound(ctx context.Context, pl
 				return "", err
 			}
 		}
-		return commitQualityResults(ctx, tx, results, maxResults, action)
+		if _, err := commitQualityResults(ctx, tx, results, maxResults, action); err != nil {
+			return "", err
+		}
+		if !plan.QualityBatchEvaluated {
+			deleted, err := completeQualityOAuth401RoundTx(ctx, tx, plan, *plan.RunningUntil, plan.QualityOAuth401Round)
+			if err != nil {
+				return "", err
+			}
+			if deleted {
+				return "oauth401_rule_deleted", nil
+			}
+		}
+		return action, nil
 	}
 	if plan.PelicanConfig.Quality.Action == service.QualityActionIsolateModels {
 		action, err := applyQualityIsolationRound(ctx, tx, plan, &state, stateBytes, results, status)
@@ -235,14 +261,20 @@ func applyQualityRetestRest(ctx context.Context, tx *sql.Tx, plan *service.Sched
 func commitQualityResults(ctx context.Context, tx *sql.Tx, results []*service.ScheduledTestResult, maxResults int, action string) (string, error) {
 	for _, result := range results {
 		result.QualityAction = action
-		if _, err := insertScheduledTestResult(ctx, tx, result); err != nil {
+		var err error
+		if result.ID > 0 {
+			_, err = tx.ExecContext(ctx, `UPDATE scheduled_test_results SET quality_action=$2,pelican_config=$3 WHERE id=$1`, result.ID, action, qualityJSONArg(result.PelicanConfig))
+		} else {
+			_, err = insertScheduledTestResult(ctx, tx, result)
+		}
+		if err != nil {
 			return "", err
 		}
 	}
 	if err := pruneScheduledTestResults(ctx, tx, results[0].PlanID, maxResults); err != nil {
 		return "", err
 	}
-	return action, tx.Commit()
+	return action, nil
 }
 
 func restoreQualityRuntimeState(ctx context.Context, tx *sql.Tx, plan *service.ScheduledTestPlan, state qualityRuntimeState, schedulable bool, updatedAt time.Time) (string, error) {

@@ -1,3 +1,5 @@
+import openaiAuth from './zh/openaiAuth'
+import accountPerformance from './zh/accountPerformance'
 import ipAudit from './zh/ipAudit'
 import requestTiming from './zh/requestTiming'
 import connections from './zh/connections'
@@ -24,6 +26,8 @@ import tokenGuardV2Zh from './zh/tokenGuardV2'
 import { mergeLocaleMessages } from './merge'
 
 const messages = {
+  openaiAuth,
+  accountPerformance,
   requestTiming,
   connections,
   latencyObservability,

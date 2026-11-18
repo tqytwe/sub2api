@@ -104,16 +104,18 @@ const localeLoaders: Record<LocaleCode, Record<LocaleLoadScope, LocaleLoader>> =
       return { default: adminMessages(module.default) }
     },
     'admin-accounts': async () => {
-      const [accounts, resources, pelicanShowcase, pelicanTests, legacy] = await Promise.all([
+      const [accounts, resources, pelicanShowcase, pelicanTests, openaiAuth, accountPerformance, legacy] = await Promise.all([
         import('./locales/en/admin/accounts'),
         import('./locales/en/admin/resources'),
         import('./locales/en/pelicanShowcase'),
         import('./locales/en/pelicanTests'),
+        import('./locales/en/openaiAuth'),
+        import('./locales/en/accountPerformance'),
         import('./locales/en/legacy/admin-accounts'),
       ])
       const admin = mergeLocaleMessages(legacy.default, adminMessages(accounts.default, resources.default))
       const withShowcase = mergeLocaleMessages(admin, pelicanShowcase.default)
-      return { default: mergeLocaleMessages(withShowcase, { pelicanTests: pelicanTests.default }) }
+      return { default: mergeLocaleMessages(withShowcase, { pelicanTests: pelicanTests.default, openaiAuth: openaiAuth.default, accountPerformance: accountPerformance.default }) }
     },
     'admin-channels': async () => {
       const [module, legacy] = await Promise.all([
@@ -154,11 +156,12 @@ const localeLoaders: Record<LocaleCode, Record<LocaleLoadScope, LocaleLoader>> =
       return { default: mergeLocaleMessages(mergeLocaleMessages(legacy.default, adminMessages(overview.default, resources.default, scheduling.default, moderationUsers.default)), { pelicanTests: pelican.default, apiKeyModelPolicy: policy.default, ipAudit: keyRisk.default }) }
     },
     'admin-settings': async () => {
-      const [module, legacy] = await Promise.all([
+      const [module, legacy, accountPerformance] = await Promise.all([
         import('./locales/en/admin/settings'),
         import('./locales/en/legacy/admin-settings'),
+        import('./locales/en/accountPerformance'),
       ])
-      return { default: mergeLocaleMessages(legacy.default, adminMessages(module.default)) }
+      return { default: mergeLocaleMessages(mergeLocaleMessages(legacy.default, adminMessages(module.default)), { accountPerformance: accountPerformance.default }) }
     },
     'admin-plugins': async () => {
       const module = await import('./locales/en/admin/plugins')
@@ -233,16 +236,18 @@ const localeLoaders: Record<LocaleCode, Record<LocaleLoadScope, LocaleLoader>> =
       return { default: adminMessages(module.default) }
     },
     'admin-accounts': async () => {
-      const [accounts, resources, pelicanShowcase, pelicanTests, legacy] = await Promise.all([
+      const [accounts, resources, pelicanShowcase, pelicanTests, openaiAuth, accountPerformance, legacy] = await Promise.all([
         import('./locales/zh/admin/accounts'),
         import('./locales/zh/admin/resources'),
         import('./locales/zh/pelicanShowcase'),
         import('./locales/zh/pelicanTests'),
+        import('./locales/zh/openaiAuth'),
+        import('./locales/zh/accountPerformance'),
         import('./locales/zh/legacy/admin-accounts'),
       ])
       const admin = mergeLocaleMessages(legacy.default, adminMessages(accounts.default, resources.default))
       const withShowcase = mergeLocaleMessages(admin, pelicanShowcase.default)
-      return { default: mergeLocaleMessages(withShowcase, { pelicanTests: pelicanTests.default }) }
+      return { default: mergeLocaleMessages(withShowcase, { pelicanTests: pelicanTests.default, openaiAuth: openaiAuth.default, accountPerformance: accountPerformance.default }) }
     },
     'admin-channels': async () => {
       const [module, legacy] = await Promise.all([
@@ -283,11 +288,12 @@ const localeLoaders: Record<LocaleCode, Record<LocaleLoadScope, LocaleLoader>> =
       return { default: mergeLocaleMessages(mergeLocaleMessages(legacy.default, adminMessages(overview.default, resources.default, scheduling.default, moderationUsers.default)), { pelicanTests: pelican.default, apiKeyModelPolicy: policy.default, ipAudit: keyRisk.default }) }
     },
     'admin-settings': async () => {
-      const [module, legacy] = await Promise.all([
+      const [module, legacy, accountPerformance] = await Promise.all([
         import('./locales/zh/admin/settings'),
         import('./locales/zh/legacy/admin-settings'),
+        import('./locales/zh/accountPerformance'),
       ])
-      return { default: mergeLocaleMessages(legacy.default, adminMessages(module.default)) }
+      return { default: mergeLocaleMessages(mergeLocaleMessages(legacy.default, adminMessages(module.default)), { accountPerformance: accountPerformance.default }) }
     },
     'admin-plugins': async () => {
       const module = await import('./locales/zh/admin/plugins')

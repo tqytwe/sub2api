@@ -51,3 +51,26 @@ func (h *ScheduledTestHandler) CreateQualityPreset(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, created)
 }
+
+func (h *ScheduledTestHandler) UpdateQualityPreset(c *gin.Context) {
+	id, ok := parseQualityTemplateID(c)
+	if !ok {
+		return
+	}
+	var req qualityPresetRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+	enabled := true
+	if req.Enabled != nil {
+		enabled = *req.Enabled
+	}
+	middleware.SetAuditAction(c, "quality.preset.update")
+	saved, err := h.scheduledTestSvc.UpdateQualityPreset(c.Request.Context(), id, &service.QualityRulePreset{Name: req.Name, ModelID: req.ModelID, CronExpression: req.CronExpression, Enabled: enabled, MaxResults: req.MaxResults, PelicanConfig: req.PelicanConfig})
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, saved)
+}

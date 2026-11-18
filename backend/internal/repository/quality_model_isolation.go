@@ -95,6 +95,9 @@ func exclusiveQualityIsolationMarker(raw json.RawMessage, owner int64) bool {
 // Completed wrong answers can isolate immediately. Recovery requires every
 // configured sample to pass; missing/unknown probes never release a restriction.
 func qualityIsolationOutcomes(plan *service.ScheduledTestPlan, results []*service.ScheduledTestResult) map[string]string {
+	if plan.QualityBatchEvaluated {
+		return plan.QualityModelOutcomes
+	}
 	out := map[string]string{}
 	for _, model := range service.QualityProbeModels(plan) {
 		count, passed, failed := 0, 0, false

@@ -22,6 +22,8 @@ import (
 )
 
 type Account struct {
+	AuthConnectionID        string
+	AuthConnectionRevision  int64
 	ID                      int64
 	Name                    string
 	Notes                   *string
@@ -47,6 +49,8 @@ type Account struct {
 	UpdatedAt          time.Time
 
 	Schedulable bool
+	// PerformancePaused is an independent live hold; it never mutates Schedulable.
+	PerformancePaused bool
 
 	RateLimitedAt    *time.Time
 	RateLimitResetAt *time.Time
@@ -109,7 +113,8 @@ const (
 	// （openai_responses_supported / openai_responses_mode），而非
 	// credentials["openai_capabilities"] 配置集。仅用于生图意图的 /v1/responses
 	// 调度，避免把请求调度到会在 forward 阶段被降级为 Chat Completions 的账号（#4417）。
-	OpenAIEndpointCapabilityResponses OpenAIEndpointCapability = "responses"
+	OpenAIEndpointCapabilityResponses        OpenAIEndpointCapability = "responses"
+	OpenAIEndpointCapabilityResponsesCompact OpenAIEndpointCapability = "responses_compact"
 )
 
 const openAIEndpointCapabilitiesCredentialKey = "openai_capabilities"
@@ -185,7 +190,7 @@ func (a *Account) EffectiveLoadFactor() int {
 }
 
 func (a *Account) IsSchedulable() bool {
-	if !a.IsActive() || !a.Schedulable {
+	if !a.IsActive() || !a.Schedulable || a.PerformancePaused {
 		return false
 	}
 	now := time.Now()
@@ -1864,6 +1869,12 @@ func (a *Account) SupportsOpenAIEndpointCapability(capability OpenAIEndpointCapa
 	if a == nil {
 		return false
 	}
+	if a.HasManagedOpenAIConnections() && a.AuthConnectionID == "" {
+		return a.managedConnectionSupports(string(capability))
+	}
+	if err := validateOpenAIConnectionKind(a); err != nil {
+		return false
+	}
 	if capability == OpenAIEndpointCapabilityStarframe {
 		configured, _ := a.openAIEndpointCapabilitySet()
 		return configured["starframe"] && a.Platform == PlatformOpenAI && a.Type == AccountTypeAPIKey &&
@@ -2072,6 +2083,9 @@ func (a *Account) openAIEndpointCapabilitySet() (map[string]bool, bool) {
 }
 
 func (a *Account) SupportsOpenAIImageCapability(capability OpenAIImagesCapability) bool {
+	if a.HasManagedOpenAIConnections() && capability != "" {
+		return false
+	}
 	if capability == "" {
 		return true
 	}
@@ -2193,7 +2207,7 @@ func (a *Account) IsExcelBPSEnabled() bool {
 // 1. 按账号类型读取分类型字段
 // 2. 分类型字段缺失时，回退兼容字段
 func (a *Account) IsOpenAIResponsesWebSocketV2Enabled() bool {
-	if a.IsExcelBPSEnabled() || a == nil || !a.IsOpenAI() || a.Extra == nil {
+	if a.HasManagedOpenAIConnections() || a.IsExcelBPSEnabled() || a == nil || !a.IsOpenAI() || a.Extra == nil {
 		return false
 	}
 	if a.IsOpenAIOAuthLike() {

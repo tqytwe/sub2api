@@ -6,6 +6,7 @@ export function qualityUsesRetestRest(action?: string) {
 
 // The same runtime policy is submitted by account rules, templates and presets.
 export function qualityActionPayload(policy: QualityPolicy): QualityPolicy {
+  if (!Number.isInteger(policy.oauth_401_max_rounds ?? 0) || (policy.oauth_401_max_rounds ?? 0) < 0 || (policy.oauth_401_max_rounds ?? 0) > 100) throw new Error('admin.qualityOps.invalidOAuth401Rounds')
   const next = { ...policy, remove_group_ids: policy.remove_group_ids ? [...policy.remove_group_ids] : undefined }
   const rest = qualityUsesRetestRest(policy.action) ? policy.retest_rest_minutes ?? 0 : 0
   if (!Number.isInteger(rest) || rest < 0 || rest > 10080) throw new Error('admin.qualityOps.invalidRetestRest')
@@ -39,7 +40,7 @@ export function copyQualityRuleConfig(source: PelicanTestConfig): PelicanTestCon
   }
 }
 
-export const qualityRuleFields = ['model', 'schedule', 'test', 'action', 'restore', 'retention', 'trigger', 'enabled'] as const
+export const qualityRuleFields = ['model', 'schedule', 'test', 'action', 'restore', 'retention', 'trigger', 'oauth401', 'enabled'] as const
 export type QualityRuleField = typeof qualityRuleFields[number]
 export type QualityRuleDraft = {
   model_id: string
@@ -56,6 +57,7 @@ export function qualityRuleFieldValue(rule: Pick<ScheduledTestPlan, 'model_id' |
     case 'schedule': return rule.cron_expression
     case 'enabled': return rule.enabled
     case 'retention': return rule.max_results
+    case 'oauth401': return quality?.oauth_401_max_rounds ?? 0
     case 'trigger': return quality?.trigger_on_upstream_5xx ?? false
     case 'action': return [quality?.action, quality?.remove_group_ids || [], quality?.retest_rest_minutes ?? 0]
     case 'restore': return quality?.auto_restore ?? false
@@ -82,7 +84,7 @@ export function buildQualityRulePatch(plan: ScheduledTestPlan, draft: QualityRul
     if (!fields.includes('model') && !fields.includes('test') && patch.max_results! < (plan.pelican_config?.model_ids?.length || 1) * (plan.pelican_config?.parallel_count || 1)) throw new Error('admin.qualityOps.retentionTooSmall')
   }
   if (fields.includes('enabled')) patch.enabled = draft.enabled
-  if (!fields.some(field => ['model', 'test', 'action', 'restore', 'trigger'].includes(field))) return patch
+  if (!fields.some(field => ['model', 'test', 'action', 'restore', 'trigger', 'oauth401'].includes(field))) return patch
   if (!plan.pelican_config?.quality) throw new Error('admin.qualityOps.ruleConfigMissing')
   const config: PelicanTestConfig & { quality: QualityPolicy } = JSON.parse(JSON.stringify(plan.pelican_config))
   const source = draft.pelican_config
@@ -100,6 +102,7 @@ export function buildQualityRulePatch(plan: ScheduledTestPlan, draft: QualityRul
     const judge = source.quality.judge
     config.quality.judge = judge ? { kind: judge.kind, group_id: judge.group_id, model_id: judge.model_id, prompt: judge.prompt } : undefined
   }
+  if (fields.includes('oauth401')) config.quality.oauth_401_max_rounds = source.quality.oauth_401_max_rounds ?? 0
   if (fields.includes('trigger')) config.quality.trigger_on_upstream_5xx = source.quality.trigger_on_upstream_5xx ?? false
   if (fields.includes('action')) {
     config.quality = qualityActionPayload({ ...config.quality, action: source.quality.action, remove_group_ids: source.quality.remove_group_ids, retest_rest_minutes: source.quality.retest_rest_minutes })

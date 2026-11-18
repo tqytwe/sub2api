@@ -64,6 +64,7 @@ func ProvideAdminHandlers(
 	openAIGatewayService *service.OpenAIGatewayService,
 	pelicanGroupTestHandler *admin.PelicanGroupTestHandler,
 	apiKeyService *service.APIKeyService,
+	accountPerformance *service.AccountPerformanceService,
 ) *AdminHandlers {
 	settingHandler.SetKeyRiskAPIKeys(apiKeyService)
 	accountHandler.SetUpstreamBillingProbeService(upstreamBillingProbe)
@@ -71,6 +72,7 @@ func ProvideAdminHandlers(
 	accountHandler.SetOpenCodeGoUsageService(opencodeGoUsage)
 	accountHandler.SetClaudeResetCreditService(claudeResetCredits)
 	accountHandler.SetOpenAIGatewayService(openAIGatewayService)
+	accountHandler.SetAccountPerformanceService(accountPerformance)
 	return &AdminHandlers{
 		Dashboard:              dashboardHandler,
 		User:                   userHandler,

@@ -14,19 +14,20 @@ const scheduledTestDefaultMaxWorkers = 10
 
 // ScheduledTestRunnerService periodically scans due test plans and executes them.
 type ScheduledTestRunnerService struct {
-	planRepo          ScheduledTestPlanRepository
-	scheduledSvc      *ScheduledTestService
-	accountTestSvc    *AccountTestService
-	rateLimitSvc      *RateLimitService
-	qualityJudge      *qualityJevJudge
-	qualityTrigger    *quality5xxTrigger
-	triggerCancel     context.CancelFunc
-	triggerWG         sync.WaitGroup
-	runQualityProbe   func(context.Context, int64, string, string) (*ScheduledTestResult, error)
-	runPelican        func(context.Context, int64, string, *PelicanTestConfig) (*ScheduledTestResult, error)
-	candyService      *ChannelMonitorV2CandyService
-	pelicanGroupTests *PelicanGroupTestService
-	cfg               *config.Config
+	planRepo                  ScheduledTestPlanRepository
+	scheduledSvc              *ScheduledTestService
+	accountTestSvc            *AccountTestService
+	rateLimitSvc              *RateLimitService
+	qualityJudge              *qualityJevJudge
+	qualityTrigger            *quality5xxTrigger
+	triggerCancel             context.CancelFunc
+	triggerWG                 sync.WaitGroup
+	runQualityProbe           func(context.Context, int64, string, string) (*ScheduledTestResult, error)
+	runQualityProbeWithEffort func(context.Context, int64, string, string, string) (*ScheduledTestResult, error)
+	runPelican                func(context.Context, int64, string, *PelicanTestConfig) (*ScheduledTestResult, error)
+	candyService              *ChannelMonitorV2CandyService
+	pelicanGroupTests         *PelicanGroupTestService
+	cfg                       *config.Config
 
 	cron      *cron.Cron
 	startOnce sync.Once
@@ -43,14 +44,15 @@ func NewScheduledTestRunnerService(
 	moderationSvc *ContentModerationService,
 ) *ScheduledTestRunnerService {
 	s := &ScheduledTestRunnerService{
-		planRepo:        planRepo,
-		scheduledSvc:    scheduledSvc,
-		accountTestSvc:  accountTestSvc,
-		rateLimitSvc:    rateLimitSvc,
-		qualityJudge:    newQualityJevJudge(moderationSvc, accountTestSvc),
-		runQualityProbe: accountTestSvc.RunQualityProbeBackground,
-		runPelican:      accountTestSvc.RunPelicanBackground,
-		cfg:             cfg,
+		planRepo:                  planRepo,
+		scheduledSvc:              scheduledSvc,
+		accountTestSvc:            accountTestSvc,
+		rateLimitSvc:              rateLimitSvc,
+		qualityJudge:              newQualityJevJudge(moderationSvc, accountTestSvc),
+		runQualityProbe:           accountTestSvc.RunQualityProbeBackground,
+		runQualityProbeWithEffort: accountTestSvc.RunQualityProbeWithEffortBackground,
+		runPelican:                accountTestSvc.RunPelicanBackground,
+		cfg:                       cfg,
 	}
 	if rateLimitSvc != nil {
 		s.qualityTrigger = rateLimitSvc.qualityTrigger
@@ -116,6 +118,7 @@ func (s *ScheduledTestRunnerService) runScheduled() {
 	defer cancel()
 
 	now := time.Now()
+	s.finalizeQualityBatches(ctx)
 	if s.candyService != nil {
 		s.candyService.RunDue(ctx, now)
 	}
@@ -155,6 +158,15 @@ func (s *ScheduledTestRunnerService) runScheduled() {
 	}
 
 	wg.Wait()
+	s.finalizeQualityBatches(ctx)
+}
+
+func (s *ScheduledTestRunnerService) finalizeQualityBatches(ctx context.Context) {
+	if repo, ok := s.planRepoForQuality().(QualitySharedBatchRepository); ok {
+		if err := repo.FinalizeQualityBatches(ctx); err != nil {
+			logger.LegacyPrintf("service.scheduled_test_runner", "quality batch finalize failed: %v", err)
+		}
+	}
 }
 
 func (s *ScheduledTestRunnerService) SetChannelMonitorV2CandyService(candy *ChannelMonitorV2CandyService) {
@@ -238,6 +250,27 @@ func (s *ScheduledTestRunnerService) runQualityPlan(ctx context.Context, plan *S
 	}
 	plan.PelicanConfig = snapshot
 	ctx = context.WithValue(ctx, qualityIsolationProbeKey{}, true)
+	var batchRepo QualitySharedBatchRepository
+	if snapshot.QuestionKind == QualityRandomQuestionKind {
+		repo, ok := s.planRepoForQuality().(QualitySharedBatchRepository)
+		candidate, batchErr := newQualitySharedBatch(now)
+		var batch *QualitySharedBatch
+		if ok && batchErr == nil {
+			batch, batchErr = repo.StartQualityBatch(ctx, candidate, plan, leaseUntil)
+		}
+		if !ok || batchErr != nil {
+			logger.LegacyPrintf("service.scheduled_test_runner", "quality plan=%d shared batch unavailable", plan.ID)
+			// No paid request occurs without durable participation. Release the
+			// claim with the normal next schedule rather than retrying in a loop.
+			next, e := computeNextRun(plan.CronExpression, time.Now())
+			if e == nil {
+				_ = s.scheduledSvc.finishQualityPlan(ctx, plan, now, next)
+			}
+			return false
+		}
+		batchRepo = repo
+		ctx = context.WithValue(ctx, qualitySharedBatchContextKey{}, batch)
+	}
 
 	results, outcome := s.runQualityRound(ctx, plan, now)
 	if plan.TriggerObservedAt != nil && s.qualityTrigger != nil && !s.qualityTrigger.signalIsCurrent(ctx, plan.AccountID, *plan.TriggerObservedAt) {
@@ -251,12 +284,24 @@ func (s *ScheduledTestRunnerService) runQualityPlan(ctx context.Context, plan *S
 
 	saveCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
+	if snapshot.QuestionKind == QualityRandomQuestionKind {
+		run := &QualityBatchRun{Plan: plan, Until: leaseUntil, Apply: true, Trigger: plan.TriggerSource, ObservedAt: plan.TriggerObservedAt, Results: results, OAuth401: QualityOAuth401Evidence(plan, results)}
+		for _, result := range results {
+			result.PlanID = plan.ID
+			sanitizeQualityResult(result)
+		}
+		if err := batchRepo.CollectQualityBatch(saveCtx, run); err != nil {
+			logger.LegacyPrintf("service.scheduled_test_runner", "quality plan=%d batch collection failed: %v", plan.ID, err)
+			return false
+		}
+		return true // Finalization owns the delayed action and lease completion.
+	}
 	action, actionErr := s.scheduledSvc.CommitQualityRound(saveCtx, plan, outcome, results)
 	if actionErr != nil {
 		logger.LegacyPrintf("service.scheduled_test_runner", "quality plan=%d outcome apply failed: %v", plan.ID, actionErr)
 		return false
 	}
-	if action == "stale_run" || action == "account_deleted" {
+	if action == "stale_run" || action == "account_deleted" || action == "oauth401_rule_deleted" {
 		return false
 	}
 	for _, result := range results {
@@ -294,6 +339,17 @@ func (s *ScheduledTestRunnerService) runQualityRound(ctx context.Context, plan *
 	}
 	models := QualityProbeModels(plan)
 	config.ModelIDs = qualityProbeModelIDs(models)
+	var sharedSamples []*PelicanTestConfig
+	if config.QuestionKind == QualityRandomQuestionKind {
+		batch, _ := ctx.Value(qualitySharedBatchContextKey{}).(*QualitySharedBatch)
+		var err error
+		sharedSamples, err = sharedQualitySamples(config, batch)
+		if err != nil {
+			result, judgment, outcome := unsupportedQualityConfigResult(config, startedAt)
+			result.QualityJudgment, result.QualityRoundID = judgment, round
+			return []*ScheduledTestResult{result}, outcome
+		}
+	}
 	count := len(models) * QualityProbeParallelCount(config)
 	results := make([]*ScheduledTestResult, count)
 	outcomes := make([]string, count)
@@ -313,12 +369,24 @@ func (s *ScheduledTestRunnerService) runQualityRound(ctx context.Context, plan *
 			defer probes.Done()
 			for index := range jobs {
 				sampleConfig := cloneQualityPelicanConfig(config)
+				if len(sharedSamples) > 0 {
+					sampleConfig = cloneQualityPelicanConfig(sharedSamples[index/len(models)])
+				}
 				sampleConfig.ModelID = models[index%len(models)]
 				probeStart := time.Now()
 				var result *ScheduledTestResult
 				err := ctx.Err()
+				if sampleConfig.QualityBatch != nil && !probeStart.Before(sampleConfig.QualityBatch.StartDeadline) {
+					err = context.DeadlineExceeded
+				}
+				evidence := &qualityProbeEvidence{Batch: sampleConfig.QualityBatch}
+				probeCtx := context.WithValue(ctx, qualityProbeEvidenceKey{}, evidence)
 				if err == nil {
-					result, err = s.runQualityProbe(ctx, plan.AccountID, sampleConfig.ModelID, sampleConfig.Prompt)
+					if s.runQualityProbeWithEffort != nil {
+						result, err = s.runQualityProbeWithEffort(probeCtx, plan.AccountID, sampleConfig.ModelID, sampleConfig.Prompt, sampleConfig.ReasoningEffort)
+					} else {
+						result, err = s.runQualityProbe(probeCtx, plan.AccountID, sampleConfig.ModelID, sampleConfig.Prompt)
+					}
 				}
 				if err != nil {
 					result = &ScheduledTestResult{Status: "failed", ErrorMessage: "probe_failed", StartedAt: probeStart, FinishedAt: time.Now()}
@@ -329,9 +397,7 @@ func (s *ScheduledTestRunnerService) runQualityRound(ctx context.Context, plan *
 				} else {
 					result.QualityJudgment, outcomes[index] = judgeQualityProbe(result, sampleConfig)
 				}
-				if result.Status != "success" && result.ErrorMessage != "answer_mismatch" {
-					result.ErrorMessage = "probe_failed"
-				}
+				// Classify own-credential 401 evidence before service-side redaction.
 				result.QualityRoundID = round
 				results[index] = result
 			}
@@ -349,6 +415,8 @@ func (s *ScheduledTestRunnerService) runQualityRound(ctx context.Context, plan *
 	}
 	return results, outcome
 }
+
+type qualitySharedBatchContextKey struct{}
 
 // tryRecoverAccount attempts to recover an account from recoverable runtime state.
 func (s *ScheduledTestRunnerService) tryRecoverAccount(ctx context.Context, accountID int64, planID int64) {

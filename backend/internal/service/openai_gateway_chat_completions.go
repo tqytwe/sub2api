@@ -71,7 +71,7 @@ func (s *OpenAIGatewayService) forwardAsChatCompletions(
 	promptCacheKey string,
 	defaultMappedModel string,
 	compatPromptCacheTenantIsolated bool,
-) (*OpenAIForwardResult, error) {
+) (result *OpenAIForwardResult, forwardErr error) {
 	// Chat forwarding deliberately drains after a client disconnect. Preserve
 	// that contract for admission too; each primary read has its own deadline.
 	admissionCtx, releaseAdmissionCtx := detachUpstreamContext(ctx)
@@ -84,6 +84,11 @@ func (s *OpenAIGatewayService) forwardAsChatCompletions(
 		return nil, admissionErr
 	}
 	account = latest
+	defer func() {
+		if result != nil {
+			result.AuthConnectionID = account.AuthConnectionID
+		}
+	}()
 
 	rememberOpenCodeInboundBody(c, body)
 	beginUpstreamResponseModelObservation(c)
@@ -471,7 +476,6 @@ func (s *OpenAIGatewayService) forwardAsChatCompletions(
 	}
 
 	// 9. Handle normal response
-	var result *OpenAIForwardResult
 	var handleErr error
 	if clientStream {
 		result, handleErr = s.handleChatStreamingResponse(resp, c, account, originalModel, billingModel, upstreamModel, startTime, len(body))

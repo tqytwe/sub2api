@@ -71,6 +71,7 @@ type AccountHandler struct {
 	cfg                     *config.Config
 	opencodeGoUsage         *service.OpenCodeGoUsageService
 	openAIGatewayService    *service.OpenAIGatewayService
+	performance             *service.AccountPerformanceService
 }
 
 // SetUpstreamBillingProbeService attaches the optional remote billing probe service.
@@ -90,6 +91,10 @@ func (h *AccountHandler) SetOpenAIGatewayService(gateway *service.OpenAIGatewayS
 	h.openAIGatewayService = gateway
 }
 
+func (h *AccountHandler) SetAccountPerformanceService(performance *service.AccountPerformanceService) {
+	h.performance = performance
+}
+
 // PrioritySchedulingSnapshot returns the nullable latest candidate-pool
 // observation. It never invents an empty candidate list when no observation
 // has been recorded by this process.
@@ -99,6 +104,103 @@ func (h *AccountHandler) PrioritySchedulingSnapshot(c *gin.Context) {
 		return
 	}
 	response.Success(c, gin.H{"snapshot": h.openAIGatewayService.PrioritySchedulingSnapshot()})
+}
+
+func (h *AccountHandler) PrioritySchedulingAnalysis(c *gin.Context) {
+	if h.openAIGatewayService == nil {
+		response.Error(c, http.StatusServiceUnavailable, "Priority analysis unavailable")
+		return
+	}
+	minutes := 60
+	if raw := strings.TrimSpace(c.Query("minutes")); raw != "" {
+		value, err := strconv.Atoi(raw)
+		if err != nil || value < 5 || value > 1440 {
+			response.BadRequest(c, "minutes must be between 5 and 1440")
+			return
+		}
+		minutes = value
+	}
+	model := strings.TrimSpace(c.Query("model"))
+	if model == "" || len(model) > 200 {
+		response.BadRequest(c, "model is required")
+		return
+	}
+	var groupID *int64
+	if raw := strings.TrimSpace(c.Query("group_id")); raw != "" {
+		value, err := strconv.ParseInt(raw, 10, 64)
+		if err != nil || value <= 0 {
+			response.BadRequest(c, "group_id must be a positive integer")
+			return
+		}
+		groupID = &value
+	}
+	result, err := h.openAIGatewayService.PriorityAnalysis(c.Request.Context(), service.PriorityAnalysisQuery{Model: model, Minutes: minutes, GroupID: groupID})
+	if err != nil {
+		response.Error(c, http.StatusServiceUnavailable, "Priority analysis unavailable")
+		return
+	}
+	response.Success(c, result)
+}
+
+func (h *AccountHandler) PrioritySchedulingLatency(c *gin.Context) {
+	if h.openAIGatewayService == nil {
+		response.Error(c, http.StatusServiceUnavailable, "Priority latency series unavailable")
+		return
+	}
+	minutes, bucketMinutes := 60, 5
+	if raw := strings.TrimSpace(c.Query("minutes")); raw != "" {
+		value, err := strconv.Atoi(raw)
+		if err != nil || value < 5 || value > 1440 {
+			response.BadRequest(c, "minutes must be between 5 and 1440")
+			return
+		}
+		minutes = value
+	}
+	if raw := strings.TrimSpace(c.Query("bucket_minutes")); raw != "" {
+		value, err := strconv.Atoi(raw)
+		if err != nil || value < 1 || value > 60 {
+			response.BadRequest(c, "bucket_minutes must be between 1 and 60")
+			return
+		}
+		bucketMinutes = value
+	}
+	result, err := h.openAIGatewayService.PriorityLatencySeries(c.Request.Context(), minutes, bucketMinutes)
+	if err != nil {
+		response.Error(c, http.StatusServiceUnavailable, "Priority latency series unavailable")
+		return
+	}
+	response.Success(c, result)
+}
+
+func (h *AccountHandler) RecomputePriorityScheduling(c *gin.Context) {
+	if h.openAIGatewayService == nil {
+		response.Error(c, http.StatusServiceUnavailable, "Priority scheduling recompute unavailable")
+		return
+	}
+	result, err := h.openAIGatewayService.RecomputePriorityScheduling(c.Request.Context())
+	if err != nil {
+		response.Error(c, http.StatusServiceUnavailable, "Priority scheduling recompute unavailable")
+		return
+	}
+	response.Success(c, result)
+}
+
+func (h *AccountHandler) PrioritySchedulingModels(c *gin.Context) {
+	var groupID *int64
+	if raw := strings.TrimSpace(c.Query("group_id")); raw != "" {
+		value, err := strconv.ParseInt(raw, 10, 64)
+		if err != nil || value <= 0 {
+			response.BadRequest(c, "group_id must be a positive integer")
+			return
+		}
+		groupID = &value
+	}
+	models, err := h.openAIGatewayService.PriorityAnalysisModels(c.Request.Context(), groupID)
+	if err != nil {
+		response.Error(c, http.StatusServiceUnavailable, "Priority model catalog unavailable")
+		return
+	}
+	response.Success(c, gin.H{"models": models})
 }
 
 // NewAccountHandler creates a new admin account handler

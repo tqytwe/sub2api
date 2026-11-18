@@ -70,6 +70,7 @@ func (s *ScheduledTestService) CommitQualityRound(ctx context.Context, plan *Sch
 		return "action_error", infraerrors.BadRequest("QUALITY_ROUND_REQUIRED", "quality results require an opaque round id")
 	}
 
+	plan.QualityOAuth401Round = QualityOAuth401Evidence(plan, results)
 	for _, result := range results {
 		result.PlanID = plan.ID
 		sanitizeQualityResult(result)
@@ -86,6 +87,11 @@ func sanitizeQualityResult(result *ScheduledTestResult) {
 		result.ErrorMessage = "probe_failed"
 	}
 	config := *result.PelicanConfig
+	if config.QualityBatch != nil {
+		batch := *config.QualityBatch
+		batch.ComparisonKey = qualityComparisonKey(&config)
+		config.QualityBatch = &batch
+	}
 	config.Prompt = ""
 	config.ActualPrompt = ""
 	config.PelicanQuestion = nil
@@ -345,6 +351,9 @@ func validateQualityConfig(config *PelicanTestConfig) error {
 	if config.Quality == nil {
 		return nil
 	}
+	if config.Quality.OAuth401MaxRounds < 0 || config.Quality.OAuth401MaxRounds > 100 {
+		return infraerrors.BadRequest("QUALITY_OAUTH401_ROUNDS_INVALID", "OAuth 401 cleanup must be 0-100 rounds")
+	}
 	if config.Quality.RetestRestMinutes < 0 || config.Quality.RetestRestMinutes > 10080 {
 		return infraerrors.BadRequest("QUALITY_RETEST_REST_INVALID", "quality retest rest must be 0-10080 minutes")
 	}
@@ -374,7 +383,7 @@ func validateQualityConfig(config *PelicanTestConfig) error {
 			}
 		}
 	}
-	if strings.TrimSpace(config.Prompt) == "" || len(strings.TrimSpace(config.Quality.ExpectedAnswer)) == 0 {
+	if config.QuestionKind != QualityRandomQuestionKind && (strings.TrimSpace(config.Prompt) == "" || len(strings.TrimSpace(config.Quality.ExpectedAnswer)) == 0) {
 		return infraerrors.BadRequest("QUALITY_ANSWER_REQUIRED", "quality probes require a prompt and expected answer")
 	}
 	if config.Quality.Judge == nil || (config.Quality.Judge.Kind != "expected" && config.Quality.Judge.Kind != "jev") || config.Quality.Judge.GroupID != 0 || config.Quality.Judge.ModelID != "" {

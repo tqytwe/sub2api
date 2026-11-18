@@ -237,7 +237,8 @@ func (s *SchedulerSnapshotService) ListSchedulableAccounts(ctx context.Context, 
 		if err != nil {
 			logger.LegacyPrintf("service.scheduler_snapshot", "[Scheduler] cache read failed: bucket=%s err=%v", bucket.String(), err)
 		} else if hit {
-			return derefAccounts(cached), useMixed, nil
+			accounts, err := s.filterPerformanceAccounts(ctx, derefAccounts(cached))
+			return accounts, useMixed, err
 		}
 		token, err := s.cache.CaptureBucketWriteToken(ctx, bucket)
 		if ctxErr := ctx.Err(); ctxErr != nil {
@@ -280,7 +281,8 @@ func (s *SchedulerSnapshotService) ListSchedulableAccounts(ctx context.Context, 
 		}
 	}
 
-	return accounts, useMixed, nil
+	accounts, err = s.filterPerformanceAccounts(ctx, accounts)
+	return accounts, useMixed, err
 }
 
 func (s *SchedulerSnapshotService) GetAccount(ctx context.Context, accountID int64) (*Account, error) {
@@ -298,7 +300,11 @@ func (s *SchedulerSnapshotService) GetAccount(ctx context.Context, accountID int
 		if err != nil {
 			logger.LegacyPrintf("service.scheduler_snapshot", "[Scheduler] account cache read failed: id=%d err=%v", accountID, err)
 		} else if account != nil {
-			return account, nil
+			accounts, err := s.markPerformanceAccounts(ctx, map[int64]*Account{accountID: account})
+			if err != nil {
+				return nil, err
+			}
+			return accounts[accountID], nil
 		}
 	}
 
@@ -307,7 +313,15 @@ func (s *SchedulerSnapshotService) GetAccount(ctx context.Context, accountID int
 	}
 	fallbackCtx, cancel := s.withFallbackTimeout(ctx)
 	defer cancel()
-	return s.accountRepo.GetByID(fallbackCtx, accountID)
+	account, err := s.accountRepo.GetByID(fallbackCtx, accountID)
+	if err != nil || account == nil {
+		return account, err
+	}
+	accounts, err := s.markPerformanceAccounts(ctx, map[int64]*Account{accountID: account})
+	if err != nil {
+		return nil, err
+	}
+	return accounts[accountID], nil
 }
 
 // GetGroupByID 获取分组信息（供调度器使用）

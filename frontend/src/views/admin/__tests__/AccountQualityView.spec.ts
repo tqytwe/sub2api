@@ -10,6 +10,7 @@ const api = vi.hoisted(() => ({
   listHistory: vi.fn(),
   listPresets: vi.fn(),
   createPreset: vi.fn(),
+  updatePreset: vi.fn(),
   listTemplates: vi.fn(),
   createTemplate: vi.fn(),
   updateTemplate: vi.fn(),
@@ -44,6 +45,7 @@ vi.mock('@/api/admin/accountQuality', () => ({
   listHistory: api.listHistory,
   listPresets: api.listPresets,
   createPreset: api.createPreset,
+  updatePreset: api.updatePreset,
   listTemplates: api.listTemplates,
   createTemplate: api.createTemplate,
   updateTemplate: api.updateTemplate,
@@ -78,6 +80,41 @@ describe('admin account quality operations view', () => {
     api.listHistory.mockResolvedValue({ items: [historyItem(100)], next_cursor: 100 })
     api.listPresets.mockResolvedValue([])
     api.listTemplates.mockResolvedValue([])
+  })
+
+  it('saves random reasoning with generated references, effort and complete OAuth round threshold', async () => {
+    api.create.mockResolvedValue({ id: 5 })
+    const wrapper = mount(AccountQualityView, { global: { stubs } })
+    await flushPromises()
+    await wrapper.findAll('select')[1].setValue(7)
+    await wrapper.find('[data-testid="quality-model-id"]').setValue('model')
+    await wrapper.find('[data-testid="quality-question-kind"]').setValue('random_reasoning')
+    await wrapper.find('[data-testid="quality-reasoning-effort"]').setValue('high')
+    await wrapper.find('[data-testid="quality-oauth-401-max-rounds"]').setValue(3)
+    expect(wrapper.find('[data-testid="quality-expected-answer"]').exists()).toBe(false)
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+    expect(api.create).toHaveBeenCalledWith(expect.objectContaining({ pelican_config: expect.objectContaining({
+      question_kind: 'random_reasoning', reasoning_effort: 'high', prompt: '',
+      quality: expect.objectContaining({ expected_answer: '', oauth_401_max_rounds: 3 })
+    }) }))
+  })
+
+  it('edits a saved preset without creating or running an account plan', async () => {
+    const preset = { id: 4, name: 'saved', model_id: 'model', cron_expression: '*/30 * * * *', enabled: true, max_results: 100, pelican_config: { question_kind: 'random_reasoning', model_ids: ['model'], parallel_count: 1, quality: { action: 'observe_only', oauth_401_max_rounds: 2, judge: { kind: 'expected' } } } }
+    api.listPresets.mockResolvedValue([preset])
+    api.updatePreset.mockImplementation(async (id, body) => ({ ...body, id }))
+    const wrapper = mount(AccountQualityView, { global: { stubs } })
+    await flushPromises()
+    await wrapper.find('[data-testid="quality-preset-select"]').setValue(4)
+    await wrapper.find('[data-testid="quality-edit-preset"]').trigger('click')
+    await wrapper.find('[data-testid="quality-preset-name"]').setValue('edited')
+    await wrapper.find('[data-testid="quality-oauth-401-max-rounds"]').setValue(4)
+    await wrapper.find('[data-testid="quality-update-preset"]').trigger('click')
+    await flushPromises()
+    expect(api.updatePreset).toHaveBeenCalledWith(4, expect.objectContaining({ name: 'edited', pelican_config: expect.objectContaining({ quality: expect.objectContaining({ oauth_401_max_rounds: 4 }) }) }))
+    expect(api.create).not.toHaveBeenCalled()
+    expect(api.runPlan).not.toHaveBeenCalled()
   })
 
   it('loads older global history using the returned cursor and appends it', async () => {

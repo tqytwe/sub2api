@@ -126,6 +126,7 @@ func provideCleanup(
 	openAIGateway *service.OpenAIGatewayService,
 	scheduledTestRunner *service.ScheduledTestRunnerService,
 	accountTokenGuardV2 *service.AccountTokenGuardV2Service,
+	accountPerformance *service.AccountPerformanceService,
 	backupSvc *service.BackupService,
 	paymentOrderExpiry *service.PaymentOrderExpiryService,
 	channelMonitorRunner *service.ChannelMonitorRunner,
@@ -431,6 +432,12 @@ func provideCleanup(
 			{"AccountTokenGuardV2Service", func() error {
 				if accountTokenGuardV2 != nil {
 					accountTokenGuardV2.Stop()
+				}
+				return nil
+			}},
+			{"AccountPerformanceService", func() error {
+				if accountPerformance != nil {
+					accountPerformance.Stop()
 				}
 				return nil
 			}},

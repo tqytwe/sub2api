@@ -183,6 +183,9 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	if err := validateUsageInputOwnership(apiKey, user); err != nil {
 		return err
 	}
+	if result.AuthConnectionID != "" && account != nil && s.excelOAuthReauth != nil {
+		s.excelOAuthReauth.recordConnectionUsage(ctx, account.ID, apiKey.ID, result.AuthConnectionID, result.RequestID)
+	}
 	ctx = withModelBillingConfig(ctx, s.settingService, apiKey.GroupID)
 	if subscription != nil && subscription.UserID > 0 && subscription.UserID != user.ID {
 		return ErrUsageBillingOwnershipMismatch

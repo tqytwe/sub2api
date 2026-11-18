@@ -1,0 +1,67 @@
+import { flushPromises, mount } from '@vue/test-utils'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import PrioritySchedulingView from '../PrioritySchedulingView.vue'
+import zhScheduling from '@/i18n/locales/zh/admin/scheduling'
+const api = vi.hoisted(() => ({ getPriorityConfig: vi.fn(), savePriorityConfig: vi.fn(), getPrioritySnapshot: vi.fn(), getPriorityModels: vi.fn(), getPriorityAnalysis: vi.fn(), recomputePriorityScheduling: vi.fn(), getPriorityLatency: vi.fn(), getStickyBindings: vi.fn(), clearStickyBindings: vi.fn() }))
+const groups = vi.hoisted(() => ({ getAll: vi.fn() }))
+vi.mock('@/api/admin/priorityScheduling', () => api)
+vi.mock('@/api/admin/groups', () => ({...groups,default:groups}))
+vi.mock('vue-i18n', async (original) => ({ ...await original<typeof import('vue-i18n')>(), useI18n: () => ({ t: (key: string) => key.startsWith('admin.priorityScheduling.reasons.') ? zhScheduling.priorityScheduling.reasons[key.slice('admin.priorityScheduling.reasons.'.length) as keyof typeof zhScheduling.priorityScheduling.reasons] || key : key }) }))
+const mountView = () => mount(PrioritySchedulingView, { global: { stubs: { AppLayout: { template: '<main><slot /></main>' }, Icon: true, DataTable: { props: ['data'], template: '<div><div v-for="row in data" :key="row.account_id"><slot name="cell-account" :row="row" /><slot name="cell-performance" :row="row" /><slot name="cell-reasons" :row="row">{{ JSON.stringify(row.reasons) }}</slot></div></div>' } } } })
+beforeEach(() => {
+ vi.clearAllMocks()
+ api.getPriorityConfig.mockResolvedValue({ enabled: false, cache_weight: 0, latency_penalty_mode: 'deprioritize' })
+ api.savePriorityConfig.mockImplementation(async (config) => config)
+ api.getPrioritySnapshot.mockResolvedValue(null)
+ groups.getAll.mockResolvedValue([{ id: 7, name: 'Enterprise channel' }])
+ api.getPriorityModels.mockResolvedValue(['fixture-model'])
+ api.getPriorityAnalysis.mockResolvedValue({ snapshot: { model: 'fixture-model', candidates: [{ account_id: 7, account_name: 'Sample account', score: 60, avg_tps: 30, avg_ttft_ms: 50, cache_percent: 0, reasons: [] }] }, latency: { model: 'fixture-model', bucket_minutes: 5, accounts: [{ account_id: 7, account_name: 'Sample account', samples: 4, peak_bucket_p90_ttft_ms: 75, slow_samples: 1, error_samples: null, buckets: [] }] } })
+ api.recomputePriorityScheduling.mockResolvedValue({ before: { candidates: [] }, after: { candidates: [] }, diff: [{ account_id: 7, account_name: 'Sample account', old_score: 30, new_score: 60, old_rank: 2, new_rank: 1, changed: true }] })
+ api.getStickyBindings.mockResolvedValue({ group_id: 7, total: 2, by_account: [{ account_id: 7, count: 2 }] })
+ api.clearStickyBindings.mockResolvedValue({ deleted: 2 })
+ api.getPriorityLatency.mockResolvedValue({ accounts: [], model: 'fixture-model' })
+})
+describe('priority shared performance workflow', () => {
+ it('shows a deliberate empty-reason state and readable measured-performance reasons', async () => {
+  api.getPrioritySnapshot.mockResolvedValue({ at: '2026-11-18T00:00:00Z', model: 'fixture-model', candidates: [{ account_id: 7, account_name: 'No adjustment', tier: 'eligible', samples: 10, reasons: [] }, { account_id: 8, account_name: 'Limited sample', tier: 'insufficient', samples: 1, reasons: ['avg_ttft_above_target', 'cache_insufficient'] }] })
+  const w=mountView(); await flushPromises()
+  expect(w.text()).toContain('admin.priorityScheduling.noReasons')
+  expect(w.text()).toContain('平均 TTFT 高于目标')
+  expect(w.text()).toContain('缓存样本不足')
+  expect(w.text()).not.toContain('[]')
+  expect(w.text()).not.toContain('admin.priorityScheduling.reasons.avg_ttft_above_target')
+ })
+ it('saves explicit zero or positive cache weights without dropping config', async () => {
+  const w=mountView(); await flushPromises(); await w.get('[data-testid="cache-weight"]').setValue('40'); await w.find('form').trigger('submit'); await flushPromises()
+  expect(api.savePriorityConfig).toHaveBeenCalledWith(expect.objectContaining({enabled:false,cache_weight:40}))
+ })
+ it('uses named group scope for the catalog and analysis, and renders measured zero cache', async () => {
+  const w=mountView(); await flushPromises(); await w.get('[data-testid="analysis-group"]').setValue('7'); await flushPromises()
+  await w.get('[data-testid="load-models"]').trigger('click'); await flushPromises()
+  await w.get('[data-testid="run-analysis"]').trigger('click'); await flushPromises()
+  expect(api.getPriorityModels).toHaveBeenLastCalledWith(7)
+  expect(api.getPriorityAnalysis).toHaveBeenCalledWith('fixture-model',60,7)
+  expect(w.text()).toContain('0.0%')
+  expect(w.text()).toContain('75 ms')
+  expect(w.text()).toContain('admin.priorityScheduling.errorSamples')
+ })
+ it('keeps diagnostic ranking diff separate from observed scheduler state', async () => {
+  const w=mountView(); await flushPromises(); await w.get('[data-testid="recompute"]').trigger('click'); await flushPromises()
+  expect(w.get('[data-testid="recompute-result"]').text()).toContain('30')
+  expect(w.get('[data-testid="recompute-result"]').text()).toContain('60')
+  expect(w.text()).toContain('admin.priorityScheduling.empty')
+ })
+ it('requires an explicit confirmation before clearing selected group bindings', async () => {
+  const w=mountView();await flushPromises();await w.get('[data-testid="analysis-group"]').setValue('7');await flushPromises()
+  await w.get('[data-testid="load-bindings"]').trigger('click');await flushPromises()
+  await w.get('[data-testid="clear-bindings"]').trigger('click');await flushPromises()
+  expect(api.clearStickyBindings).not.toHaveBeenCalled()
+  await w.get('[data-testid="confirm-clear-bindings"]').trigger('click');await flushPromises()
+  expect(api.clearStickyBindings).toHaveBeenCalledWith(7)
+ })
+ it('renders latency errors as unknown rather than zero', async () => {
+  const w=mountView(); await flushPromises(); await w.get('[data-testid="run-analysis"]').trigger('click'); await flushPromises()
+  expect(w.text()).toContain('75 ms')
+  expect(w.text()).toContain('—')
+ })
+})
