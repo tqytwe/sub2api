@@ -1,11 +1,13 @@
 <template>
   <AppLayout>
-    <TablePageLayout>
+    <div class="mb-3 flex border-b border-gray-200 dark:border-dark-700" role="tablist" :aria-label="t('admin.channelOperations.views')">
+      <button type="button" role="tab" :aria-selected="viewMode === 'membership'" :class="viewMode === 'membership' ? 'border-b-2 border-primary-600 text-primary-700 dark:text-primary-300' : 'text-gray-500'" class="px-3 py-2 text-sm font-medium" @click="setViewMode('membership')">{{ t('admin.channelOperations.membershipView') }}</button>
+      <button type="button" role="tab" :aria-selected="viewMode === 'statistics'" :class="viewMode === 'statistics' ? 'border-b-2 border-primary-600 text-primary-700 dark:text-primary-300' : 'text-gray-500'" class="px-3 py-2 text-sm font-medium" @click="setViewMode('statistics')">{{ t('admin.channelOperations.statisticsView') }}</button>
+      <button type="button" role="tab" :aria-selected="viewMode === 'profit'" :class="viewMode === 'profit' ? 'border-b-2 border-primary-600 text-primary-700 dark:text-primary-300' : 'text-gray-500'" class="px-3 py-2 text-sm font-medium" @click="setViewMode('profit')">{{ t('profitOps.title') }}</button>
+    </div>
+    <ProfitAnalytics v-if="viewMode === 'profit'" />
+    <TablePageLayout v-else>
       <template #filters>
-        <div class="mb-3 flex border-b border-gray-200 dark:border-dark-700" role="tablist" :aria-label="t('admin.channelOperations.views')">
-          <button type="button" role="tab" :aria-selected="viewMode === 'membership'" :class="viewMode === 'membership' ? 'border-b-2 border-primary-600 text-primary-700 dark:text-primary-300' : 'text-gray-500'" class="px-3 py-2 text-sm font-medium" @click="setViewMode('membership')">{{ t('admin.channelOperations.membershipView') }}</button>
-          <button type="button" role="tab" :aria-selected="viewMode === 'statistics'" :class="viewMode === 'statistics' ? 'border-b-2 border-primary-600 text-primary-700 dark:text-primary-300' : 'text-gray-500'" class="px-3 py-2 text-sm font-medium" @click="setViewMode('statistics')">{{ t('admin.channelOperations.statisticsView') }}</button>
-        </div>
         <div class="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
           <div class="grid flex-1 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -193,6 +195,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import ProfitAnalytics from '@/components/admin/operations/ProfitAnalytics.vue'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import TablePageLayout from '@/components/layout/TablePageLayout.vue'
 import DataTable from '@/components/common/DataTable.vue'
@@ -210,7 +213,7 @@ const pageSize = ref(20)
 const page = ref(1)
 const total = ref(0)
 const upstreamTotal = ref(0)
-const viewMode = ref<'membership' | 'statistics'>('membership')
+const viewMode = ref<'membership' | 'statistics' | 'profit'>(new URLSearchParams(window.location.search).get('view') === 'profit' ? 'profit' : 'membership')
 const channels = ref<channelsAPI.Channel[]>([])
 const channelId = ref(0)
 const catalog = ref<operationsAPI.ChannelOperationsCatalog | null>(null)
@@ -384,15 +387,17 @@ async function loadCatalog() {
   }
 }
 
-function setViewMode(next: 'membership' | 'statistics') {
+function setViewMode(next: 'membership' | 'statistics' | 'profit') {
   if (viewMode.value === next) return
   viewMode.value = next
+  if (next === 'profit') return
   if (next === 'statistics') {
     upstreamId.value = 0
     accountId.value = 0
     qualityBefore.value = 0
   }
-  void loadCatalog()
+  if (!channels.value.length) void loadChannels().then(loadCatalog)
+  else void loadCatalog()
 }
 
 function applySnapshotFilters() {
@@ -551,6 +556,7 @@ async function confirmPending() {
 }
 
 onMounted(async () => {
+  if (viewMode.value === 'profit') return
   await loadChannels()
   await loadCatalog()
 })

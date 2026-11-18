@@ -45,6 +45,11 @@
       @submit.prevent="handleSubmit"
       class="space-y-5"
     >
+      <UpstreamChannelSelector v-model="initialChannelId" @update:model-value="initialChannelConfirmed = false" />
+      <label v-if="initialChannelId > 0" class="flex items-center gap-2 text-sm">
+        <input v-model="initialChannelConfirmed" type="checkbox" required />
+        {{ t('upstreamEntities.confirmCreate') }}
+      </label>
       <div>
         <label class="input-label">{{ t('admin.accounts.accountName') }}</label>
         <input
@@ -3914,6 +3919,8 @@
 </template>
 
 <script setup lang="ts">
+import UpstreamChannelSelector from './UpstreamChannelSelector.vue'
+import { useUpstreamChannelCreation } from './upstreamChannelCreation'
 import OpenAIRequestTimezoneField from '@/components/account/OpenAIRequestTimezoneField.vue'
 import { ref, reactive, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -4755,6 +4762,41 @@ const tempUnschedPresets = computed(() => [
   }
 ])
 
+const initialChannelId = ref(0)
+const initialChannelConfirmed = ref(false)
+const upstreamCreation = useUpstreamChannelCreation(
+  () => ({ channelID: initialChannelId.value, confirmed: initialChannelConfirmed.value }),
+  t,
+)
+
+function createWithUpstreamChannel(payload: CreateAccountRequest) {
+  if (!initialChannelId.value) return adminAPI.accounts.create(payload)
+  return adminAPI.accounts.create({
+    ...payload,
+    upstream_channel_id: initialChannelId.value,
+    confirm_upstream_channel_binding: initialChannelConfirmed.value,
+  })
+}
+
+function importCodexSessionWithUpstreamChannel(payload: Parameters<typeof adminAPI.accounts.importCodexSession>[0]) {
+  return upstreamCreation.run('codex-session', payload, () => adminAPI.accounts.importCodexSession(payload), result => {
+    const ids = (result.items ?? []).flatMap(item => item.action === 'created' && item.account_id ? [item.account_id] : [])
+    if (ids.length !== result.created) throw new Error(t('upstreamEntities.createReadbackFailed'))
+    return ids
+  })
+}
+
+function importCodexPATWithUpstreamChannel(payload: Parameters<typeof adminAPI.accounts.createOpenAICodexPAT>[0]) {
+  return upstreamCreation.run('codex-pat', payload, () => adminAPI.accounts.createOpenAICodexPAT(payload), account => [account.id])
+}
+
+function importGrokWithUpstreamChannel(payload: Parameters<typeof adminAPI.grok.createFromSSO>[0]) {
+  return upstreamCreation.run('grok-sso', payload, () => adminAPI.grok.createFromSSO(payload), result => result.created.map(item => {
+    const id = (item.account as { id?: number } | undefined)?.id
+    if (!id) throw new Error(t('upstreamEntities.createReadbackFailed'))
+    return id
+  }))
+}
 const form = reactive({
   name: '',
   notes: '',
@@ -5288,7 +5330,7 @@ const ensureAntigravityMixedChannelConfirmed = async (onConfirm: () => Promise<v
 const submitCreateAccount = async (payload: CreateAccountRequest) => {
   submitting.value = true
   try {
-    const account = await adminAPI.accounts.create(withAntigravityConfirmFlag(payload))
+    const account = await createWithUpstreamChannel(withAntigravityConfirmFlag(payload))
     const modelMapping = payload.credentials.model_mapping
     const hasConcreteMappedTarget = payload.type === 'apikey' &&
       typeof modelMapping === 'object' &&
@@ -5341,6 +5383,9 @@ const submitCreateAccount = async (payload: CreateAccountRequest) => {
 
 // Methods
 function resetForm() {
+  upstreamCreation.clear()
+  initialChannelId.value = 0
+  initialChannelConfirmed.value = false
   step.value = 1
   form.name = ''
   openAIRequestTimezone.value = 'Asia/Singapore'
@@ -6106,7 +6151,7 @@ const handleGrokValidateRT = async (refreshTokenInput: string) => {
           return
         }
 
-        await adminAPI.accounts.create({
+        await createWithUpstreamChannel({
           name: accountName,
           notes: form.notes,
           platform: 'grok',
@@ -6175,7 +6220,7 @@ const handleGrokImportSSO = async (ssoInput: string) => {
   }
 
   try {
-    const result = await adminAPI.grok.createFromSSO({
+    const result = await importGrokWithUpstreamChannel({
       sso_tokens: ssoTokens,
       name: form.name || undefined,
       notes: form.notes || undefined,
@@ -6280,7 +6325,7 @@ const handleGrokAuthorizePassword = async (emailPasswordInput: string) => {
           return
         }
 
-        await adminAPI.accounts.create({
+        await createWithUpstreamChannel({
           name: accountName,
           notes: form.notes,
           platform: 'grok',
@@ -6379,7 +6424,7 @@ const handleOpenAIExchange = async (authCode: string) => {
     }
 
     if (shouldCreateOpenAI) {
-      await adminAPI.accounts.create({
+      await createWithUpstreamChannel({
         name: form.name,
         notes: form.notes,
         platform: 'openai',
@@ -6487,7 +6532,7 @@ const handleOpenAIImportCodexSession = async (content: string) => {
 
   try {
     const extra = buildOpenAICodexImportExtra()
-    const result = await adminAPI.accounts.importCodexSession({
+    const result = await importCodexSessionWithUpstreamChannel({
       content: trimmed,
       name: form.name,
       notes: form.notes || null,
@@ -6565,7 +6610,7 @@ const handleOpenAIImportCodexPAT = async (accessToken: string) => {
 
   try {
     const extra = buildOpenAICodexImportExtra()
-    await adminAPI.accounts.createOpenAICodexPAT({
+    await importCodexPATWithUpstreamChannel({
       access_token: trimmed,
       name: form.name,
       notes: form.notes || null,
@@ -6660,7 +6705,7 @@ const handleOpenAIBatchRT = async (refreshTokenInput: string, clientId?: string)
         const accountName = refreshTokens.length > 1 ? `${baseName} #${i + 1}` : baseName
 
         if (shouldCreateOpenAI) {
-          await adminAPI.accounts.create({
+          await createWithUpstreamChannel({
             name: accountName,
             notes: form.notes,
             platform: 'openai',
@@ -6775,7 +6820,7 @@ const handleAntigravityValidateRT = async (refreshTokenInput: string) => {
           expires_at: form.expires_at,
           auto_pause_on_expired: autoPauseOnExpired.value
         })
-        await adminAPI.accounts.create(createPayload)
+        await createWithUpstreamChannel(createPayload)
         successCount++
       } catch (error: any) {
         failedCount++
@@ -7140,7 +7185,7 @@ const handleCookieAuth = async (sessionKey: string) => {
           credentials.temp_unschedulable_rules = tempUnschedPayload
         }
 
-        await adminAPI.accounts.create({
+        await createWithUpstreamChannel({
           name: accountName,
           notes: form.notes,
           platform: form.platform,

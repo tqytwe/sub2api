@@ -127,8 +127,26 @@ func newAccountRepositoryWithSQL(client *dbent.Client, sqlq sqlExecutor, schedul
 }
 
 func (r *accountRepository) Create(ctx context.Context, account *service.Account) error {
-	if err := createAccountRecord(ctx, r.client, account); err != nil {
+	client := r.client
+	var tx *dbent.Tx
+	if service.InitialUpstreamChannel(ctx) > 0 {
+		var err error
+		tx, err = client.Tx(ctx)
+		if err != nil && !errors.Is(err, dbent.ErrTxStarted) {
+			return err
+		}
+		if tx != nil {
+			defer func() { _ = tx.Rollback() }()
+			client = tx.Client()
+		}
+	}
+	if err := createAccountRecord(ctx, client, account); err != nil {
 		return err
+	}
+	if tx != nil {
+		if err := tx.Commit(); err != nil {
+			return err
+		}
 	}
 	if err := enqueueSchedulerOutbox(ctx, r.sql, service.SchedulerOutboxEventAccountChanged, &account.ID, nil, buildSchedulerGroupPayload(account.GroupIDs)); err != nil {
 		logger.LegacyPrintf("repository.account", "[SchedulerOutbox] enqueue account create failed: account=%d err=%v", account.ID, err)
@@ -199,6 +217,23 @@ func createAccountRecord(ctx context.Context, client *dbent.Client, account *ser
 	created, err := builder.Save(ctx)
 	if err != nil {
 		return translatePersistenceError(err, service.ErrAccountNotFound, nil)
+	}
+	if channelID := service.InitialUpstreamChannel(ctx); channelID > 0 {
+		// Lock the owning channel before inserting the binding, as bulk binding does.
+		var lockedID int64
+		err := scanSingleRow(ctx, client, `SELECT id FROM upstream_channels WHERE id=$1 FOR UPDATE`, []any{channelID}, &lockedID)
+		if errors.Is(err, sql.ErrNoRows) {
+			return service.ErrUpstreamChannelNotFound
+		}
+		if err != nil {
+			return err
+		}
+		if _, err := client.ExecContext(ctx, `INSERT INTO upstream_channel_bindings(account_id,channel_id,revision) VALUES($1,$2,1)`, created.ID, channelID); err != nil {
+			return err
+		}
+		if _, err := client.ExecContext(ctx, `UPDATE upstream_channels SET revision=revision+1,updated_at=CURRENT_TIMESTAMP WHERE id=$1`, channelID); err != nil {
+			return err
+		}
 	}
 
 	account.ID = created.ID
