@@ -204,5 +204,15 @@ export async function syncPricingModels(platform: string): Promise<SyncPricingMo
   return data
 }
 
-const channelsAPI = { list, getById, create, update, remove, getModelDefaultPricing, syncPricingModels }
+export interface BatchChannelPricingItem {
+  channel_id: number
+  model_pricing: ChannelModelPricing[]
+}
+
+export async function batchUpdatePricing(items: BatchChannelPricingItem[]): Promise<{ updated: number }> {
+  const { data } = await apiClient.post<{ updated: number }>('/admin/channels/pricing/batch', { items })
+  return data
+}
+
+const channelsAPI = { list, getById, create, update, remove, getModelDefaultPricing, syncPricingModels, batchUpdatePricing }
 export default channelsAPI

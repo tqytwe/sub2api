@@ -45,6 +45,36 @@ export default {
 
     // Channel Management
     channels: {
+      pricingTransfer: {
+        export: 'Export',
+        exportPage: 'Export page pricing',
+        copy: 'Copy pricing',
+        copyName: '{name} (copy)',
+        importedName: 'Imported channel',
+        replaceWarning: 'Replace the selected platform pricing in this draft? Review and save the channel to apply.',
+        import: 'Import pricing',
+        exportSelected: 'Export selected pricing',
+        importSelected: 'Import into selected channels',
+        invalidFile: 'Pricing package is invalid or exceeds supported limits.',
+        channelMismatch: 'The pricing collection must match selected channels one-to-one by name.',
+        platformMismatch: 'Pricing package platform does not match the selected platform.'
+      },
+      bulkEdit: {
+        open: 'Bulk edit ({count})',
+        title: 'Bulk edit channel pricing',
+        selectionInfo: 'Apply changes to {count} selected channels',
+        hint: 'Only checked fields will change. Review the selected channels before applying.',
+        pricingHint: 'Replace pricing for platforms in the imported package and keep other platforms.',
+        matchedPricingHint: 'Each channel uses its matching file pricing below.',
+        template: 'Use pricing from channel',
+        noPricing: 'Choose a template with platform pricing or import a pricing file.',
+        emptyPlatform: 'This platform has no rules. Applying will clear its pricing in selected channels.',
+        partial: '{success} succeeded; {failed} failed.',
+        retryFailed: 'Retry failed channels',
+        apply: 'Apply to {count} channels',
+        failed: 'Failed to update channel',
+        success: 'Updated {count} channels'
+      },
       title: 'Channel Management',
       description: 'Manage channels and custom model pricing',
       searchChannels: 'Search channels...',

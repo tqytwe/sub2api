@@ -1153,7 +1153,18 @@ export interface UpstreamBillingMultiGroupData {
   observed_at: string
 }
 
-export type UpstreamBillingData = UpstreamBillingRateData | UpstreamBillingMultiGroupData
+export interface NewAPIGroupBillingData extends Partial<Omit<UpstreamBillingRateData, 'object' | 'billing_scope' | 'observed_at'>> {
+  provider: 'new_api'
+  object: 'new_api.group_billing'
+  schema_version: 1
+  billing_scope: 'group'
+  group?: string
+  token_id?: number
+  observed_at?: string
+}
+
+export type UpstreamBillingSingleGroupData = UpstreamBillingRateData | NewAPIGroupBillingData
+export type UpstreamBillingData = UpstreamBillingSingleGroupData | UpstreamBillingMultiGroupData
 
 export type UpstreamBillingProbeStatus = 'ok' | 'unsupported' | 'failed'
 
@@ -1170,6 +1181,46 @@ export interface UpstreamBillingProbeSnapshot {
   // Value this probe wrote into the account rate multiplier; absent when the
   // probe did not sync a rate.
   synced_rate_multiplier?: number
+  balance?: {
+    status: UpstreamBillingProbeStatus
+    data?: { wallet_balance?: number; remaining?: number; unit?: string; source?: string }
+    received_at?: string
+    fresh_until?: string
+    last_attempt_at: string
+    last_error?: string
+  }
+}
+
+export interface NewAPIUpstreamConfig {
+  account_id: number
+  site_url: string
+  configured: boolean
+  user_id?: number
+  encryption_key_configured: boolean
+  accounts: Array<{ account_id: number; name: string; configured_user_id?: number }>
+}
+
+export interface NewAPIUpstreamConfigRequest {
+  user_id: number
+  access_token?: string
+  account_ids: number[]
+  token_selections?: Record<string, number>
+}
+
+export interface NewAPIUpstreamPreview {
+  site_url: string
+  user_id: number
+  wallet: { amount: number; unit: 'USD' }
+  accounts: Array<{
+    account_id: number
+    name: string
+    matched: boolean
+    token_id?: number
+    group?: string
+    rate?: number
+    error?: string
+    token_options: Array<{ token_id: number; name: string; group: string; masked_key: string }>
+  }>
 }
 
 export interface UpstreamBillingProbeSettings {

@@ -1,0 +1,98 @@
+{
+  "fixtureOrigin": "http://item17.test",
+  "productionEvidence": false,
+  "errors": [],
+  "assertions": [
+    "no document overflow; dialog focus trap and Escape return focus: 360/zh/light",
+    "no document overflow; dialog focus trap and Escape return focus: 768/en/dark",
+    "no document overflow; dialog focus trap and Escape return focus: 1280/zh/light",
+    "no document overflow; dialog focus trap and Escape return focus: 1920/en/dark",
+    "loading disables submit/close; atomic error retains targets; retry closes only on success",
+    "file import opens draft without a write",
+    "CSS 200% zoom submit reachable; reduced-motion enabled throughout"
+  ],
+  "screenshots": [
+    "updated-360-zh-light.png",
+    "updated-pricing-360-zh-light.png",
+    "updated-768-en-dark.png",
+    "updated-pricing-768-en-dark.png",
+    "updated-1280-zh-light.png",
+    "updated-pricing-1280-zh-light.png",
+    "updated-1920-en-dark.png",
+    "updated-pricing-1920-en-dark.png",
+    "updated-loading-1280.png",
+    "updated-error-1280.png",
+    "updated-success-1280.png",
+    "updated-import-draft-1280.png",
+    "updated-empty-360.png",
+    "updated-css-zoom-200.png"
+  ],
+  "writes": [
+    {
+      "path": "/api/v1/admin/channels/pricing/batch",
+      "method": "POST",
+      "payload": {
+        "items": [
+          {
+            "channel_id": 7,
+            "model_pricing": [
+              {
+                "platform": "openai",
+                "models": [
+                  "gpt-example-long-model-name"
+                ],
+                "billing_mode": "token",
+                "input_price": 0.000002,
+                "output_price": 0.000006,
+                "cache_write_price": null,
+                "cache_write_1h_price": null,
+                "cache_read_price": 0,
+                "image_input_price": null,
+                "image_output_price": null,
+                "per_request_price": null,
+                "fast_multiplier": null,
+                "flex_multiplier": null,
+                "reasoning_effort_multipliers": null,
+                "intervals": [],
+                "time_pricing": null
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "path": "/api/v1/admin/channels/pricing/batch",
+      "method": "POST",
+      "payload": {
+        "items": [
+          {
+            "channel_id": 7,
+            "model_pricing": [
+              {
+                "platform": "openai",
+                "models": [
+                  "gpt-example-long-model-name"
+                ],
+                "billing_mode": "token",
+                "input_price": 0.000002,
+                "output_price": 0.000006,
+                "cache_write_price": null,
+                "cache_write_1h_price": null,
+                "cache_read_price": 0,
+                "image_input_price": null,
+                "image_output_price": null,
+                "per_request_price": null,
+                "fast_multiplier": null,
+                "flex_multiplier": null,
+                "reasoning_effort_multipliers": null,
+                "intervals": [],
+                "time_pricing": null
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

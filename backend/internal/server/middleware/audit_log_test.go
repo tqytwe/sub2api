@@ -5,6 +5,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -224,4 +225,33 @@ func TestOllamaCloudUsageSessionRouteOmitsAuditBody(t *testing.T) {
 	require.Len(t, logs, 1)
 	require.Equal(t, "<credential-bearing body omitted>", logs[0].RequestBody)
 	require.NotContains(t, logs[0].RequestBody, "audit-canary")
+}
+
+func TestNewAPIAuthorizationRoutesOmitCredentialBodies(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	for _, route := range []struct{ method, path string }{
+		{http.MethodPost, "/api/v1/admin/accounts/:id/upstream-billing-probe/config/preview"},
+		{http.MethodPut, "/api/v1/admin/accounts/:id/upstream-billing-probe/config"},
+	} {
+		t.Run(route.method, func(t *testing.T) {
+			require.Contains(t, auditBodyOmittedRoutes, route.method+" "+route.path)
+			repository := &auditCaptureRepository{}
+			auditService := service.NewAuditLogService(repository, nil)
+			auditService.Start()
+			router := gin.New()
+			router.Use(gin.HandlerFunc(NewAuditLogMiddleware(auditService)))
+			router.Handle(route.method, route.path, func(c *gin.Context) { c.Status(http.StatusBadRequest) })
+			// Whole-body omission must cover malformed JSON, too.
+			request := httptest.NewRequest(route.method, strings.Replace(route.path, ":id", "7", 1), bytes.NewBufferString(`{"access_token":"audit-canary-management-secret"`))
+			request.Header.Set("Content-Type", "application/json")
+			router.ServeHTTP(httptest.NewRecorder(), request)
+			auditService.Stop()
+			repository.mu.Lock()
+			logs := append([]*service.AuditLog(nil), repository.logs...)
+			repository.mu.Unlock()
+			require.Len(t, logs, 1)
+			require.Equal(t, "<credential-bearing body omitted>", logs[0].RequestBody)
+			require.NotContains(t, logs[0].RequestBody, "audit-canary")
+		})
+	}
 }

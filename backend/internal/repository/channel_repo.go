@@ -170,6 +170,47 @@ func (r *channelRepository) Update(ctx context.Context, channel *service.Channel
 	})
 }
 
+func (r *channelRepository) BatchReplaceModelPricing(ctx context.Context, items []service.ChannelPricingBatchItem) error {
+	return r.runInTx(ctx, func(tx *sql.Tx) error {
+		ids := make([]int64, 0, len(items))
+		for _, item := range items {
+			ids = append(ids, item.ChannelID)
+		}
+		rows, err := tx.QueryContext(ctx, `SELECT id FROM channels WHERE id = ANY($1) ORDER BY id FOR UPDATE`, pq.Array(ids))
+		if err != nil {
+			return fmt.Errorf("lock channels for pricing batch: %w", err)
+		}
+		found := make(map[int64]struct{}, len(items))
+		for rows.Next() {
+			var id int64
+			if err := rows.Scan(&id); err != nil {
+				_ = rows.Close()
+				return err
+			}
+			found[id] = struct{}{}
+		}
+		if err := rows.Err(); err != nil {
+			_ = rows.Close()
+			return err
+		}
+		if err := rows.Close(); err != nil {
+			return err
+		}
+		if len(found) != len(items) {
+			return service.ErrChannelNotFound
+		}
+		for _, item := range items {
+			if err := replaceModelPricingTx(ctx, tx, item.ChannelID, item.Pricing); err != nil {
+				return fmt.Errorf("replace channel %d pricing: %w", item.ChannelID, err)
+			}
+		}
+		if _, err := tx.ExecContext(ctx, `UPDATE channels SET updated_at = NOW() WHERE id = ANY($1)`, pq.Array(ids)); err != nil {
+			return fmt.Errorf("update channel pricing timestamps: %w", err)
+		}
+		return nil
+	})
+}
+
 func (r *channelRepository) Delete(ctx context.Context, id int64) error {
 	result, err := r.db.ExecContext(ctx, `DELETE FROM channels WHERE id = $1`, id)
 	if err != nil {
