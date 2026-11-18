@@ -256,6 +256,8 @@ type CreateAccountRequest struct {
 	AutoPauseOnExpired      *bool          `json:"auto_pause_on_expired"`
 	ProbeEnabled            *bool          `json:"upstream_billing_probe_enabled"`
 	ConfirmMixedChannelRisk *bool          `json:"confirm_mixed_channel_risk"` // 用户确认混合渠道风险
+	UpstreamChannelID       int64          `json:"upstream_channel_id,omitempty"`
+	ConfirmUpstreamChannel  bool           `json:"confirm_upstream_channel_binding,omitempty"`
 }
 
 // UpdateAccountRequest represents update account request
@@ -1146,6 +1148,10 @@ func (h *AccountHandler) Create(c *gin.Context) {
 		response.BadRequest(c, "Invalid request: "+err.Error())
 		return
 	}
+	if req.UpstreamChannelID < 0 || (req.UpstreamChannelID > 0 && !req.ConfirmUpstreamChannel) {
+		response.ErrorFrom(c, service.ErrUpstreamChannelValidation)
+		return
+	}
 	if err := service.ValidateOpenAILongContextBillingExtra(req.Platform, req.Extra); err != nil {
 		response.ErrorFrom(c, err)
 		return
@@ -1169,6 +1175,9 @@ func (h *AccountHandler) Create(c *gin.Context) {
 	var createdAccount *service.Account
 
 	result, err := executeAdminIdempotent(c, "admin.accounts.create", req, service.DefaultWriteIdempotencyTTL(), func(ctx context.Context) (any, error) {
+		if req.UpstreamChannelID > 0 {
+			ctx = service.WithInitialUpstreamChannel(ctx, req.UpstreamChannelID)
+		}
 		account, execErr := h.adminService.CreateAccount(ctx, &service.CreateAccountInput{
 			Name:                  req.Name,
 			Notes:                 req.Notes,

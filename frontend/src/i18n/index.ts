@@ -104,25 +104,29 @@ const localeLoaders: Record<LocaleCode, Record<LocaleLoadScope, LocaleLoader>> =
       return { default: adminMessages(module.default) }
     },
     'admin-accounts': async () => {
-      const [accounts, resources, pelicanShowcase, pelicanTests, openaiAuth, accountPerformance, legacy] = await Promise.all([
+      const [accounts, resources, pelicanShowcase, pelicanTests, openaiAuth, accountPerformance, upstreamEntities, profitOps, legacy] = await Promise.all([
         import('./locales/en/admin/accounts'),
         import('./locales/en/admin/resources'),
         import('./locales/en/pelicanShowcase'),
         import('./locales/en/pelicanTests'),
         import('./locales/en/openaiAuth'),
         import('./locales/en/accountPerformance'),
+        import('./locales/en/upstreamEntities'),
+        import('./locales/en/profitOps'),
         import('./locales/en/legacy/admin-accounts'),
       ])
       const admin = mergeLocaleMessages(legacy.default, adminMessages(accounts.default, resources.default))
       const withShowcase = mergeLocaleMessages(admin, pelicanShowcase.default)
-      return { default: mergeLocaleMessages(withShowcase, { pelicanTests: pelicanTests.default, openaiAuth: openaiAuth.default, accountPerformance: accountPerformance.default }) }
+      return { default: mergeLocaleMessages(withShowcase, { pelicanTests: pelicanTests.default, openaiAuth: openaiAuth.default, accountPerformance: accountPerformance.default, upstreamEntities: upstreamEntities.default, profitOps: profitOps.default }) }
     },
     'admin-channels': async () => {
-      const [module, legacy] = await Promise.all([
+      const [module, legacy, upstreamEntities, profitOps] = await Promise.all([
         import('./locales/en/admin/channels'),
         import('./locales/en/legacy/admin-channels'),
+        import('./locales/en/upstreamEntities'),
+        import('./locales/en/profitOps'),
       ])
-      return { default: mergeLocaleMessages(legacy.default, adminMessages(module.default)) }
+      return { default: mergeLocaleMessages(mergeLocaleMessages(legacy.default, adminMessages(module.default)), { upstreamEntities: upstreamEntities.default, profitOps: profitOps.default }) }
     },
     'admin-ops': async () => {
       const [module, legacy, requestTiming, connections, latencyObservability, traffic] = await Promise.all([
@@ -236,25 +240,29 @@ const localeLoaders: Record<LocaleCode, Record<LocaleLoadScope, LocaleLoader>> =
       return { default: adminMessages(module.default) }
     },
     'admin-accounts': async () => {
-      const [accounts, resources, pelicanShowcase, pelicanTests, openaiAuth, accountPerformance, legacy] = await Promise.all([
+      const [accounts, resources, pelicanShowcase, pelicanTests, openaiAuth, accountPerformance, upstreamEntities, profitOps, legacy] = await Promise.all([
         import('./locales/zh/admin/accounts'),
         import('./locales/zh/admin/resources'),
         import('./locales/zh/pelicanShowcase'),
         import('./locales/zh/pelicanTests'),
         import('./locales/zh/openaiAuth'),
         import('./locales/zh/accountPerformance'),
+        import('./locales/zh/upstreamEntities'),
+        import('./locales/zh/profitOps'),
         import('./locales/zh/legacy/admin-accounts'),
       ])
       const admin = mergeLocaleMessages(legacy.default, adminMessages(accounts.default, resources.default))
       const withShowcase = mergeLocaleMessages(admin, pelicanShowcase.default)
-      return { default: mergeLocaleMessages(withShowcase, { pelicanTests: pelicanTests.default, openaiAuth: openaiAuth.default, accountPerformance: accountPerformance.default }) }
+      return { default: mergeLocaleMessages(withShowcase, { pelicanTests: pelicanTests.default, openaiAuth: openaiAuth.default, accountPerformance: accountPerformance.default, upstreamEntities: upstreamEntities.default, profitOps: profitOps.default }) }
     },
     'admin-channels': async () => {
-      const [module, legacy] = await Promise.all([
+      const [module, legacy, upstreamEntities, profitOps] = await Promise.all([
         import('./locales/zh/admin/channels'),
         import('./locales/zh/legacy/admin-channels'),
+        import('./locales/zh/upstreamEntities'),
+        import('./locales/zh/profitOps'),
       ])
-      return { default: mergeLocaleMessages(legacy.default, adminMessages(module.default)) }
+      return { default: mergeLocaleMessages(mergeLocaleMessages(legacy.default, adminMessages(module.default)), { upstreamEntities: upstreamEntities.default, profitOps: profitOps.default }) }
     },
     'admin-ops': async () => {
       const [module, legacy, requestTiming, connections, latencyObservability, traffic] = await Promise.all([

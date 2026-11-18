@@ -1,3 +1,5 @@
+import profitOps from './en/profitOps'
+import upstreamEntities from './en/upstreamEntities'
 import openaiAuth from './en/openaiAuth'
 import accountPerformance from './en/accountPerformance'
 import ipAudit from './en/ipAudit'
@@ -26,6 +28,8 @@ import tokenGuardV2En from './en/tokenGuardV2'
 import { mergeLocaleMessages } from './merge'
 
 const messages = {
+  profitOps,
+  upstreamEntities,
   openaiAuth,
   accountPerformance,
   requestTiming,

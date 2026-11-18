@@ -11,6 +11,12 @@
       @submit.prevent="handleSubmit"
       class="space-y-5"
     >
+      <AccountUpstreamChannelBinding v-if="show" :account-ids="[account.id]" />
+      <label class="block">
+        <span class="input-label">{{ t('upstreamEntities.estimatedCostMultiplier') }}</span>
+        <input v-model.number="estimatedCostMultiplier" class="input" type="number" min="0" max="1000000" step="any" placeholder="0.1" />
+        <span class="input-hint">{{ t('upstreamEntities.estimatedCostMultiplierHint') }}</span>
+      </label>
       <div>
         <label class="input-label">{{ t('common.name') }}</label>
         <input v-model="form.name" type="text" required class="input" data-tour="edit-account-form-name" />
@@ -3160,6 +3166,7 @@
 </template>
 
 <script setup lang="ts">
+import AccountUpstreamChannelBinding from './AccountUpstreamChannelBinding.vue'
 import OpenAIRequestTimezoneField from '@/components/account/OpenAIRequestTimezoneField.vue'
 import ExcelOAuthBinding from '@/components/account/ExcelOAuthBinding.vue'
 import OpenAIAuthConnections from '@/components/account/OpenAIAuthConnections.vue'
@@ -4188,6 +4195,9 @@ const applyOpenAIModelMappingCredentials = (credentials: Record<string, unknown>
   }
 }
 
+const estimatedCostMultiplier = ref<number | string>('')
+const savedEstimatedCostMultiplier = ref<number | string>('')
+
 const syncFormFromAccount = (newAccount: Account | null) => {
   if (!newAccount) {
     return
@@ -4202,6 +4212,9 @@ const syncFormFromAccount = (newAccount: Account | null) => {
   mixedChannelWarningDetails.value = null
   mixedChannelWarningRawMessage.value = ''
   mixedChannelWarningAction.value = null
+  const multiplier = newAccount.extra?.cost_multiplier
+  savedEstimatedCostMultiplier.value = typeof multiplier === 'number' ? multiplier : ''
+  estimatedCostMultiplier.value = savedEstimatedCostMultiplier.value
   form.name = newAccount.name
   form.notes = newAccount.notes || ''
   form.proxy_id = newAccount.proxy_id
@@ -5960,6 +5973,16 @@ const handleSubmit = async () => {
         delete newExtra.upstream_request_id_header
       }
       updatePayload.extra = newExtra
+    }
+
+    if (estimatedCostMultiplier.value !== savedEstimatedCostMultiplier.value) {
+      const multiplier = estimatedCostMultiplier.value
+      if (multiplier !== '' && (typeof multiplier !== 'number' || !Number.isFinite(multiplier) || multiplier < 0 || multiplier > 1000000)) {
+        appStore.showError(t('upstreamEntities.invalidEstimatedCostMultiplier'))
+        return
+      }
+      const extra = (updatePayload.extra as Record<string, unknown> | undefined) ?? props.account.extra ?? {}
+      updatePayload.extra = { ...extra, cost_multiplier: multiplier === '' ? null : multiplier }
     }
 
     const canContinue = await ensureAntigravityMixedChannelConfirmed(async () => {
