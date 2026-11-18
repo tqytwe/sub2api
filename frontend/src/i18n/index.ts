@@ -104,7 +104,7 @@ const localeLoaders: Record<LocaleCode, Record<LocaleLoadScope, LocaleLoader>> =
       return { default: adminMessages(module.default) }
     },
     'admin-accounts': async () => {
-      const [accounts, resources, pelicanShowcase, pelicanTests, openaiAuth, accountPerformance, upstreamEntities, profitOps, legacy] = await Promise.all([
+      const [accounts, resources, pelicanShowcase, pelicanTests, openaiAuth, accountPerformance, upstreamEntities, profitOps, legacy, modelTrace, accountTestTiming] = await Promise.all([
         import('./locales/en/admin/accounts'),
         import('./locales/en/admin/resources'),
         import('./locales/en/pelicanShowcase'),
@@ -114,10 +114,12 @@ const localeLoaders: Record<LocaleCode, Record<LocaleLoadScope, LocaleLoader>> =
         import('./locales/en/upstreamEntities'),
         import('./locales/en/profitOps'),
         import('./locales/en/legacy/admin-accounts'),
+        import('./locales/en/modelTrace'),
+        import('./locales/en/accountTestTiming'),
       ])
       const admin = mergeLocaleMessages(legacy.default, adminMessages(accounts.default, resources.default))
       const withShowcase = mergeLocaleMessages(admin, pelicanShowcase.default)
-      return { default: mergeLocaleMessages(withShowcase, { pelicanTests: pelicanTests.default, openaiAuth: openaiAuth.default, accountPerformance: accountPerformance.default, upstreamEntities: upstreamEntities.default, profitOps: profitOps.default }) }
+      return { default: mergeLocaleMessages(withShowcase, { pelicanTests: pelicanTests.default, openaiAuth: openaiAuth.default, accountPerformance: accountPerformance.default, upstreamEntities: upstreamEntities.default, profitOps: profitOps.default, modelTrace: modelTrace.default, accountTestTiming: accountTestTiming.default }) }
     },
     'admin-channels': async () => {
       const [module, legacy, upstreamEntities, profitOps] = await Promise.all([
@@ -244,7 +246,7 @@ const localeLoaders: Record<LocaleCode, Record<LocaleLoadScope, LocaleLoader>> =
       return { default: adminMessages(module.default) }
     },
     'admin-accounts': async () => {
-      const [accounts, resources, pelicanShowcase, pelicanTests, openaiAuth, accountPerformance, upstreamEntities, profitOps, legacy] = await Promise.all([
+      const [accounts, resources, pelicanShowcase, pelicanTests, openaiAuth, accountPerformance, upstreamEntities, profitOps, legacy, modelTrace, accountTestTiming] = await Promise.all([
         import('./locales/zh/admin/accounts'),
         import('./locales/zh/admin/resources'),
         import('./locales/zh/pelicanShowcase'),
@@ -254,10 +256,12 @@ const localeLoaders: Record<LocaleCode, Record<LocaleLoadScope, LocaleLoader>> =
         import('./locales/zh/upstreamEntities'),
         import('./locales/zh/profitOps'),
         import('./locales/zh/legacy/admin-accounts'),
+        import('./locales/zh/modelTrace'),
+        import('./locales/zh/accountTestTiming'),
       ])
       const admin = mergeLocaleMessages(legacy.default, adminMessages(accounts.default, resources.default))
       const withShowcase = mergeLocaleMessages(admin, pelicanShowcase.default)
-      return { default: mergeLocaleMessages(withShowcase, { pelicanTests: pelicanTests.default, openaiAuth: openaiAuth.default, accountPerformance: accountPerformance.default, upstreamEntities: upstreamEntities.default, profitOps: profitOps.default }) }
+      return { default: mergeLocaleMessages(withShowcase, { pelicanTests: pelicanTests.default, openaiAuth: openaiAuth.default, accountPerformance: accountPerformance.default, upstreamEntities: upstreamEntities.default, profitOps: profitOps.default, modelTrace: modelTrace.default, accountTestTiming: accountTestTiming.default }) }
     },
     'admin-channels': async () => {
       const [module, legacy, upstreamEntities, profitOps] = await Promise.all([

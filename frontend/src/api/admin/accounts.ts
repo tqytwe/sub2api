@@ -1136,6 +1136,29 @@ export async function deleteNewAPIUpstreamConfig(id: number): Promise<{ account_
   return data
 }
 
+export interface OpenAICodexStateProbeResult {
+  account_id: number
+  model: string
+  verdict: 'healthy' | 'degraded' | 'inconclusive'
+  reason: string
+  failure?: string
+  mint_status: number
+  continue_status: number
+  minted: boolean
+  new_ticket: boolean
+  ticket_length: number
+  continue_ticket_length: number
+  reported_model?: string
+  latency_ms: number
+  started_at: string
+  finished_at: string
+}
+
+export async function probeOpenAICodexState(id: number, modelId = ''): Promise<OpenAICodexStateProbeResult> {
+  const { data } = await apiClient.post<OpenAICodexStateProbeResult>(`/admin/accounts/${id}/state-probe`, { model_id: modelId })
+  return data
+}
+
 export async function probeUpstreamBillingBatch(accountIds: number[]): Promise<UpstreamBillingProbeResult[]> {
   const { data } = await apiClient.post<{ results: UpstreamBillingProbeResult[] }>(
     '/admin/accounts/upstream-billing-probe/batch',

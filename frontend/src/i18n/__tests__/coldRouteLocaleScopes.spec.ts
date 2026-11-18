@@ -108,6 +108,8 @@ const COLD_ROUTE_CASES: readonly ColdRouteCase[] = [
         source: 'src/components/admin/account/AccountTestModal.vue',
         key: 'admin.accounts.testAccountConnection',
       },
+      { source: 'src/components/admin/account/AccountTestModal.vue', key: 'modelTrace.stateProbe' },
+      { source: 'src/components/account/AccountTestTiming.vue', key: 'accountTestTiming.total' },
       {
         source: 'src/utils/accountStatus.ts',
         key: 'admin.accounts.status.active',

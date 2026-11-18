@@ -5,6 +5,8 @@ import apiKeyModelPolicy from './apiKeyModelPolicy'
 import dashboard from './dashboard'
 import pelicanShowcase from './pelicanShowcase'
 import pelicanTests from './pelicanTests'
+import modelTrace from './modelTrace'
+import accountTestTiming from './accountTestTiming'
 import channelMonitorV2 from './channelMonitorV2'
 import channelMonitorV3 from './channelMonitorV3'
 import batchImage from './batchImage'
@@ -19,6 +21,8 @@ export default {
   ...dashboard,
   ...pelicanShowcase,
   pelicanTests,
+  modelTrace,
+  accountTestTiming,
   ...channelMonitorV2,
   ...channelMonitorV3,
   ...batchImage,
