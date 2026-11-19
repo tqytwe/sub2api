@@ -25,3 +25,13 @@ func NewRedisGatewayCache(t *testing.T) service.GatewayCache {
 func NewHTTPUpstream(cfg *config.Config) service.HTTPUpstream {
 	return repository.NewHTTPUpstream(cfg)
 }
+
+// NewRedisConcurrencyCache uses the production Lua/cache implementation against
+// an isolated Redis test server. Callers depend only on the service interface.
+func NewRedisConcurrencyCache(t *testing.T) service.ConcurrencyCache {
+	t.Helper()
+	server := miniredis.RunT(t)
+	client := redis.NewClient(&redis.Options{Addr: server.Addr()})
+	t.Cleanup(func() { _ = client.Close() })
+	return repository.NewConcurrencyCache(client, 1, 60)
+}

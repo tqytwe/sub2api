@@ -8,6 +8,7 @@ import KeysView from '../KeysView.vue'
 
 const {
   listKeys,
+  getConcurrency,
   createKey,
   updateKey,
   getPublicSettings,
@@ -25,6 +26,7 @@ const {
   authRole,
 } = vi.hoisted(() => ({
   listKeys: vi.fn(),
+  getConcurrency: vi.fn(),
   createKey: vi.fn(),
   updateKey: vi.fn(),
   getPublicSettings: vi.fn(),
@@ -73,6 +75,21 @@ const messages: Record<string, string> = {
   'keys.group': 'Group',
   'keys.id': 'ID',
   'keys.currentConcurrency': 'Current Concurrency',
+  'keys.concurrencyAndWaiting': 'Concurrency / Waiting',
+  'keys.concurrencyCount': 'Concurrency',
+  'keys.waitingCount': 'Waiting',
+  'keys.queueFull': 'Full',
+  'keys.queueOff': 'Queuing globally disabled',
+  'keys.queuePolicy': 'This key allows {max} waiting requests for up to {seconds} seconds.',
+  'keys.queuePolicyOff': 'Queuing globally disabled; new requests are rejected at the key limit.',
+  'keys.queueNotApplicable': 'No key-level queue.',
+  'keys.queuePolicyLoading': 'Loading shared queue settings…',
+  'keys.queuePolicyUnavailable': 'Shared queue settings unavailable.',
+  'keys.concurrencyLoading': 'Loading',
+  'keys.concurrencyUnavailable': 'Statistics unavailable',
+  'keys.concurrencyStale': 'Not updated',
+  'keys.noAdditionalConcurrencyLimit': 'No additional limit',
+  'keys.concurrencyLimitInvalid': 'Enter a nonnegative whole number for the concurrency limit.',
   'keys.lastUsedAt': 'Last Used',
   'keys.lastUsedIP': 'Last Used IP',
   'keys.rateLimitColumn': 'Rate Limit',
@@ -89,6 +106,7 @@ const messages: Record<string, string> = {
 vi.mock('@/api', () => ({
   keysAPI: {
     list: listKeys,
+    getConcurrency,
     create: createKey,
     update: updateKey,
     delete: vi.fn(),
@@ -149,7 +167,8 @@ vi.mock('vue-i18n', async () => {
   return {
     ...actual,
     useI18n: () => ({
-      t: (key: string) => messages[key] ?? key,
+      t: (key: string, params: Record<string, unknown> = {}) =>
+        (messages[key] ?? key).replace(/\{(\w+)\}/g, (_, name) => String(params[name] ?? name)),
     }),
   }
 })
@@ -171,6 +190,7 @@ const createApiKey = (): ApiKey => ({
   created_at: '2026-06-27T00:00:00Z',
   updated_at: '2026-06-27T00:00:00Z',
   current_concurrency: 3,
+  concurrency_limit: 0,
   rate_limit_5h: 0,
   rate_limit_1d: 0,
   rate_limit_7d: 0,
@@ -184,6 +204,11 @@ const createApiKey = (): ApiKey => ({
   reset_1d_at: null,
   reset_7d_at: null,
 })
+
+const snapshot = () => ({ queue_policy: { max_waiting: 7, timeout_seconds: 12 }, items: [{ id: 1, current_concurrency: 3, current_waiting: 2 }] })
+const setKeys = (key: ApiKey) => {
+  listKeys.mockResolvedValue({ items: [key], total: 1, page: 1, page_size: 20, pages: 1 })
+}
 
 const AppLayoutStub = {
   template: '<div><slot /></div>',
@@ -202,8 +227,8 @@ const TablePageLayoutStub = {
 
 const DataTableStub = {
   name: 'DataTable',
-  props: ['columns', 'data'],
-  emits: ['sort'],
+  props: ['columns', 'data', 'selectedKeys'],
+  emits: ['sort', 'update:selectedKeys'],
   template: `
     <div>
       <div data-test="columns">{{ columns.map((col) => col.key).join(',') }}</div>
@@ -265,7 +290,7 @@ const PaginationStub = {
 
 const IconStub = {
   props: ['name'],
-  template: '<span data-test="icon">{{ name }}</span>',
+  template: '<span data-test="icon" :data-name="name"></span>',
 }
 
 const mountView = async () => {
@@ -286,6 +311,7 @@ const mountView = async () => {
         SearchInput: SearchInputStub,
         Icon: IconStub,
         UseKeyModal: true,
+        BulkEditKeysModal: true,
         EndpointPopover: true,
         GroupBadge: true,
         GroupOptionItem: true,
@@ -326,6 +352,8 @@ describe('user KeysView column settings', () => {
     createKey.mockReset().mockResolvedValue(createApiKey())
     updateKey.mockReset().mockResolvedValue(createApiKey())
     listKeys.mockReset()
+    getConcurrency.mockReset()
+    getConcurrency.mockResolvedValue(snapshot())
     getPublicSettings.mockReset()
     getDashboardApiKeysUsage.mockReset()
     getAvailableGroups.mockReset()
@@ -530,6 +558,21 @@ describe('user KeysView column settings', () => {
     expect(visibleColumnKeys(wrapper)).not.toContain('id')
   })
 
+  it('opens bulk editing for selected visible keys and clears selection on sort', async () => {
+    const wrapper = await mountView()
+    const table = wrapper.findComponent({ name: 'DataTable' })
+    table.vm.$emit('update:selectedKeys', [1, 99])
+    await nextTick()
+    await wrapper.get('[data-test="bulk-edit-keys"]').trigger('click')
+    const modal = wrapper.findComponent({ name: 'BulkEditKeysModal' })
+    expect(modal.props('show')).toBe(true)
+    expect(modal.props('selectedKeys').map((key: ApiKey) => key.id)).toEqual([1])
+    table.vm.$emit('sort', 'created_at', 'asc')
+    await flushPromises()
+    expect(table.props('selectedKeys')).toEqual([])
+    wrapper.unmount()
+  })
+
   it('shows a hidden column when toggled and persists the preference', async () => {
     const wrapper = await mountView()
 
@@ -606,17 +649,120 @@ describe('user KeysView column settings', () => {
     const columnMenuText = wrapper.text()
     expect(columnMenuText).toContain('API Key')
     expect(columnMenuText).toContain('ID')
-    expect(columnMenuText).toContain('Current Concurrency')
+    expect(columnMenuText).toContain('Concurrency / Waiting')
     expect(columnMenuText).toContain('Rate Limit')
     expect(columnMenuText).toContain('Last Used IP')
     expect(columnMenuText).not.toContain('Name')
     expect(columnMenuText).not.toContain('Actions')
   })
 
-  it('renders the current concurrency value', async () => {
+  it.each([0, 3])('keeps the concurrency badge at %s for an unlimited key', async (current) => {
+    getConcurrency.mockResolvedValue({ ...snapshot(), items: [
+      { id: 1, current_concurrency: current, current_waiting: 0 },
+    ] })
     const wrapper = await mountView()
+    const cell = wrapper.get('[data-test="current-concurrency"]')
+    const badge = cell.get('[title="Concurrency"]')
+    expect(badge.get('[data-test="icon"]').attributes('data-name')).toBe('user')
+    expect(badge.classes()).toContain(current === 0 ? 'bg-gray-100' : 'bg-emerald-50')
+    expect(cell.text()).toContain(String(current))
+    expect(cell.text()).not.toMatch(/\/|No additional limit|Waiting/)
+  })
 
-    expect(wrapper.get('[data-test="current-concurrency"]').text()).toBe('3')
+  it('shows current / max for a key with an additional concurrency limit', async () => {
+    listKeys.mockResolvedValueOnce({ items: [{ ...createApiKey(), concurrency_limit: 8 }], total: 1 })
+    getConcurrency.mockResolvedValue(snapshot())
+    const wrapper = await mountView()
+    const cell = wrapper.get('[data-test="current-concurrency"]')
+    expect(cell.text()).toContain('Concurrency 3 / 8')
+    expect(cell.text()).toContain('Waiting 2 / 7')
+  })
+
+  it.each([[0, 'gray'], [2, 'emerald'], [4, 'amber'], [5, 'amber']])(
+    'distinguishes concurrency %s against limit 4', async (current, color) => {
+      setKeys({ ...createApiKey(), concurrency_limit: 4 })
+      getConcurrency.mockResolvedValue({ ...snapshot(), items: [
+        { id: 1, current_concurrency: current as number, current_waiting: 0 },
+      ] })
+      const wrapper = await mountView()
+      const badge = wrapper.get('[data-test="current-concurrency"] [title="Concurrency"]')
+      expect(badge.text()).toContain(`Concurrency ${current} / 4`)
+      expect(badge.classes().join(' ')).toContain(`text-${color}-`)
+    }
+  )
+
+  it('keeps the badge and switches its denominator after saving a changed limit', async () => {
+    setKeys({ ...createApiKey(), group_id: 42, concurrency_limit: 0 })
+    getConcurrency.mockResolvedValue(snapshot())
+    const wrapper = await mountView()
+    for (const limit of [4, 0]) {
+      await getButtonByText(wrapper, 'common.edit').trigger('click')
+      if (limit === 4) expect(wrapper.get('#key-queue-policy').text()).toBe('No key-level queue.')
+      await wrapper.get('#key-concurrency-limit').setValue(limit)
+      setKeys({ ...createApiKey(), group_id: 42, concurrency_limit: limit })
+      await wrapper.get('#key-form').trigger('submit')
+      await flushPromises()
+      const cell = wrapper.get('[data-test="current-concurrency"]')
+      expect(cell.get('[title="Concurrency"] [data-test="icon"]').attributes('data-name')).toBe('user')
+      const text = cell.text()
+      if (limit === 0) expect(text).toContain('3')
+      else expect(text).toContain('Concurrency 3 / 4')
+    }
+  })
+
+  it.each([8, 0, ''])('creates a key with concurrency input %s and resets the form', async (input) => {
+    const wrapper = await mountView()
+    await getButtonByText(wrapper, 'Create API Key').trigger('click')
+    expect((wrapper.get('#key-concurrency-limit').element as HTMLInputElement).value).toBe('0')
+    await wrapper.get('[data-tour="key-form-name"]').setValue('new-key')
+    await wrapper.getComponent('[data-tour="key-form-group"]').vm.$emit('update:modelValue', 42)
+    await wrapper.get('#key-concurrency-limit').setValue(input)
+    await wrapper.get('#key-form').trigger('submit')
+    await flushPromises()
+    expect(createKey).toHaveBeenCalledWith('new-key', 42, undefined, [], [], 0, undefined,
+      { rate_limit_5h: 0, rate_limit_1d: 0, rate_limit_7d: 0 }, [42], Number(input))
+    await getButtonByText(wrapper, 'Create API Key').trigger('click')
+    expect((wrapper.get('#key-concurrency-limit').element as HTMLInputElement).value).toBe('0')
+  })
+
+  it.each([12, 0, ''])('loads the saved limit and updates concurrency input %s', async (input) => {
+    listKeys.mockResolvedValueOnce({ items: [{ ...createApiKey(), group_id: 42, concurrency_limit: 8 }], total: 1 })
+    const wrapper = await mountView()
+    await getButtonByText(wrapper, 'common.edit').trigger('click')
+    expect((wrapper.get('#key-concurrency-limit').element as HTMLInputElement).value).toBe('8')
+    await wrapper.get('#key-concurrency-limit').setValue(input)
+    await wrapper.get('#key-form').trigger('submit')
+    await flushPromises()
+    expect(updateKey).toHaveBeenCalledWith(1, expect.objectContaining({ concurrency_limit: Number(input) }))
+  })
+
+  it.each([
+    ['create', -1], ['create', 1.5], ['edit', -1], ['edit', 1.5],
+  ])('rejects invalid concurrency in %s mode: %s', async (mode, input) => {
+    listKeys.mockResolvedValueOnce({ items: [{ ...createApiKey(), group_id: 42 }], total: 1 })
+    const wrapper = await mountView()
+    await getButtonByText(wrapper, mode === 'edit' ? 'common.edit' : 'Create API Key').trigger('click')
+    await wrapper.getComponent('[data-tour="key-form-group"]').vm.$emit('update:modelValue', 42)
+    await wrapper.get('#key-concurrency-limit').setValue(input)
+    expect(wrapper.get('#key-concurrency-limit').attributes('aria-invalid')).toBe('true')
+    expect(wrapper.get('#key-concurrency-error').text()).toBe(messages['keys.concurrencyLimitInvalid'])
+    await wrapper.get('#key-form').trigger('submit')
+    expect(showError).toHaveBeenCalledWith(messages['keys.concurrencyLimitInvalid'])
+    expect(createKey).not.toHaveBeenCalled()
+    expect(updateKey).not.toHaveBeenCalled()
+  })
+
+  it('keeps the edit form and entered limit when the server rejects an update', async () => {
+    listKeys.mockResolvedValueOnce({ items: [{ ...createApiKey(), group_id: 42, concurrency_limit: 8 }], total: 1 })
+    updateKey.mockRejectedValueOnce({ response: { data: { detail: 'Concurrency limit rejected' } } })
+    const wrapper = await mountView()
+    await getButtonByText(wrapper, 'common.edit').trigger('click')
+    await wrapper.get('#key-concurrency-limit').setValue(12)
+    await wrapper.get('#key-form').trigger('submit')
+    await flushPromises()
+    expect(showError).toHaveBeenCalledWith('Concurrency limit rejected')
+    expect(showSuccess).not.toHaveBeenCalled()
+    expect((wrapper.get('#key-concurrency-limit').element as HTMLInputElement).value).toBe('12')
   })
 
   it('marks current concurrency as sortable', async () => {

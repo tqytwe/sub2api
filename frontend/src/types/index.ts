@@ -820,6 +820,7 @@ export interface ApiKey {
   created_at: string
   updated_at: string
   current_concurrency: number
+  concurrency_limit: number // 0 = no additional key limit
   group?: Group
   rate_limit_5h: number
   rate_limit_1d: number
@@ -840,8 +841,21 @@ export interface ApiKey {
   context_token_limit?: number
 }
 
+export interface ApiKeyConcurrencySnapshot {
+  queue_policy: {
+    max_waiting: number
+    timeout_seconds: number
+  }
+  items: Array<{
+    id: number
+    current_concurrency: number
+    current_waiting: number
+  }>
+}
+
 export interface CreateApiKeyRequest {
   name: string
+  concurrency_limit?: number // 0 = no additional key limit
   group_ids?: number[]
   group_id?: number | null
   custom_key?: string // Optional custom API Key
@@ -855,6 +869,7 @@ export interface CreateApiKeyRequest {
 }
 
 export interface UpdateApiKeyRequest {
+  concurrency_limit?: number // 0 = no additional key limit
   name?: string
   group_ids?: number[]
   group_id?: number | null

@@ -8,6 +8,7 @@ import (
 	"io"
 	"net"
 	"testing"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	coderws "github.com/coder/websocket"
@@ -27,6 +28,9 @@ func TestIsOpenAIWSClientDisconnectError(t *testing.T) {
 		{name: "io_eof", err: io.EOF, want: true},
 		{name: "net_closed", err: net.ErrClosed, want: true},
 		{name: "context_canceled", err: context.Canceled, want: true},
+		{name: "local_cancel", err: NewOpenAIWSClientCloseError(coderws.StatusGoingAway, "websocket request canceled", context.Canceled), want: false},
+		{name: "local_deadline", err: NewOpenAIWSClientCloseError(coderws.StatusGoingAway, "websocket request canceled", context.DeadlineExceeded), want: false},
+		{name: "local_policy_wrapping_eof", err: NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, "policy", io.EOF), want: false},
 		{name: "ws_normal_closure", err: coderws.CloseError{Code: coderws.StatusNormalClosure}, want: true},
 		{name: "ws_going_away", err: coderws.CloseError{Code: coderws.StatusGoingAway}, want: true},
 		{name: "ws_no_status", err: coderws.CloseError{Code: coderws.StatusNoStatusRcvd}, want: true},
@@ -44,6 +48,31 @@ func TestIsOpenAIWSClientDisconnectError(t *testing.T) {
 			t.Parallel()
 			require.Equal(t, tt.want, isOpenAIWSClientDisconnectError(tt.err))
 		})
+	}
+}
+
+func TestOpenAIWSDrainContextDisconnectCanDrainAndStillHonorsRequestCancellation(t *testing.T) {
+	disconnected := make(chan struct{})
+	requestCtx, cancelRequest := context.WithCancel(context.Background())
+	requestCtx = context.WithValue(requestCtx, openAIWSDisconnectKey{}, (<-chan struct{})(disconnected))
+
+	turnCtx, startDrain, release := openAIWSDrainContext(requestCtx)
+	defer release()
+	startDrain()
+	close(disconnected)
+
+	select {
+	case <-turnCtx.Done():
+		t.Fatal("client disconnect canceled the usage drain immediately")
+	default:
+	}
+
+	cancelRequest()
+	select {
+	case <-turnCtx.Done():
+		require.ErrorIs(t, context.Cause(turnCtx), context.Canceled)
+	case <-time.After(time.Second):
+		t.Fatal("request cancellation did not stop the usage drain")
 	}
 }
 

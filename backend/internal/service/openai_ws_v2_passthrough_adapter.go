@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -23,6 +24,7 @@ import (
 
 type openAIWSClientFrameConn struct {
 	conn                 *coderws.Conn
+	reader               *openAIWSIngressReader
 	controlCtx           context.Context
 	interTurnIdleTimeout time.Duration
 	interTurnStarted     chan struct{}
@@ -615,6 +617,45 @@ func (c *openAIWSClientFrameConn) ReadFrame(ctx context.Context) (coderws.Messag
 	if c == nil || c.conn == nil {
 		return coderws.MessageText, nil, errOpenAIWSConnClosed
 	}
+	if c.reader != nil {
+		var timer *time.Timer
+		var timeout <-chan time.Time
+		defer func() {
+			if timer != nil {
+				timer.Stop()
+			}
+		}()
+		for {
+			// Frames preserved while a key wait held this consumer keep their
+			// original order ahead of anything still in the channel.
+			if frame, ok := c.reader.popWaitFrame(); ok {
+				return frame.messageType, frame.payload, nil
+			}
+			if timeout == nil && c.waitingForNextTurn.Load() && c.interTurnIdleTimeout > 0 {
+				timer = time.NewTimer(c.interTurnIdleTimeout)
+				timeout = timer.C
+			}
+			select {
+			case <-ctx.Done():
+				return 0, nil, ctx.Err()
+			case <-c.reader.done:
+				if c.reader.disconnected() {
+					// Every peer close ends the input stream, including policy
+					// and application codes. Keep its original close evidence.
+					return 0, nil, errors.Join(io.EOF, c.reader.err)
+				}
+				return 0, nil, c.reader.err
+			case frame := <-c.reader.frames:
+				return frame.messageType, frame.payload, nil
+			case <-c.interTurnStarted:
+			case <-timeout:
+				if c.waitingForNextTurn.Load() {
+					return 0, nil, NewOpenAIWSClientCloseError(coderws.StatusNormalClosure, "websocket idle timeout", context.DeadlineExceeded)
+				}
+				timeout = nil
+			}
+		}
+	}
 	controlCtx := ctx
 	if c.controlCtx != nil {
 		controlCtx = c.controlCtx
@@ -977,11 +1018,27 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 	}
 
 	completedTurns := atomic.Int32{}
+	activeTurn := atomic.Int32{}
+	activeTurn.Store(1)
+	// A response.create accepted from the client is not upstream-active until
+	// its admission (including any key-queue wait) completes and the frame is
+	// about to be written. Until then a late terminal from the previous turn
+	// must not settle the pending turn's slots or usage.
+	pendingUpstreamTurn := atomic.Bool{}
+	// Relay joins both directions before returning, so no completion can race
+	// this fallback. Close upstream before releasing an unfinished turn.
+	defer func() {
+		_ = upstreamConn.Close()
+		if turn := activeTurn.Swap(0); turn != 0 && hooks != nil && hooks.AfterTurn != nil {
+			hooks.AfterTurn(int(turn), nil, errors.New("websocket turn ended before terminal event"))
+		}
+	}()
 	turnLifecycle := newOpenAIWSPassthroughTurnLifecycle(true)
 	var acceptedTurnStartedAt atomic.Pointer[time.Time]
 	clientFrameConn := &openAIWSClientFrameConn{
 		agentRecovery:        agentRecovery,
 		conn:                 clientConn,
+		reader:               openAIWSGetIngressReader(c, clientConn),
 		controlCtx:           ctx,
 		interTurnIdleTimeout: s.openAIWSIngressInterTurnIdleTimeout(),
 		interTurnStarted:     make(chan struct{}, 1),
@@ -1018,6 +1075,11 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 					err := errors.New("overlapping response.create is not supported")
 					return payload, nil, NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, err.Error(), err)
 				}
+				// A serialized request owns finalization even when admission rejects
+				// it: AfterTurn also clears per-request audit state. The previous
+				// turn has already settled, so this cannot release its slots.
+				activeTurn.Store(completedTurns.Load() + 1)
+				pendingUpstreamTurn.Store(true)
 				defer func() {
 					if !acceptedTurn {
 						turnLifecycle.cancelResponseCreate()
@@ -1077,6 +1139,11 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 				requestModelForThisFrame = usageMeta.requestModelForFrame(payload)
 				if requestModelForThisFrame == "" {
 					requestModelForThisFrame = capturedSessionModel
+				}
+				if hooks != nil && hooks.BeforePayloadParse != nil {
+					if err := hooks.BeforePayloadParse(turnNo, payload, requestModelForThisFrame); err != nil {
+						return payload, nil, err
+					}
 				}
 				if hooks != nil && hooks.BeforeRequest != nil {
 					if err := hooks.BeforeRequest(turnNo, payload, requestModelForThisFrame); err != nil {
@@ -1166,6 +1233,11 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 				responseCreateAtCopy := responseCreateAt
 				acceptedTurnStartedAt.Store(&responseCreateAtCopy)
 				acceptedTurn = true
+			}
+			if acceptedTurn {
+				// The frame is cleared for the upstream write that follows the
+				// relay's read; from here a terminal settles this turn again.
+				pendingUpstreamTurn.Store(false)
 			}
 			return out, blocked, policyErr
 		},
@@ -1280,6 +1352,7 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 		if hooks != nil && hooks.AfterTurn != nil {
 			hooks.AfterTurn(turnNo, turnResult, turnErr)
 		}
+		activeTurn.CompareAndSwap(int32(turnNo), 0)
 	}
 	var observedTurnUsage OpenAIUsage
 	var writeReceipt requestledger.Receipt
@@ -1304,7 +1377,7 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 			IdleTimeout:                     0,
 			FirstMessageType:                coderws.MessageText,
 			FirstMessageSent:                upstreamFirstMessageSent,
-			StartClientAfterFirstDownstream: true,
+			StartClientAfterFirstDownstream: false,
 			ReadClientFrame:                 readNextClientFrame,
 			OnUsageParseFailure: func(eventType string, usageRaw string) {
 				logOpenAIWSV2Passthrough(
@@ -1314,7 +1387,9 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 				)
 			},
 			OnTurnComplete: func(turn openaiwsv2.RelayTurnResult) {
-				recordTurn(int(completedTurns.Add(1)), turn, nil)
+				turnNo := int(completedTurns.Add(1))
+				recordTurn(turnNo, turn, nil)
+				activeTurn.CompareAndSwap(int32(turnNo), 0)
 				observedTurnUsage = OpenAIUsage{}
 			},
 			OnUpstreamFrame: func(msgType coderws.MessageType, payload []byte) {
@@ -1434,25 +1509,33 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 		if partialErr == nil && relayExit != nil {
 			partialErr = relayExit.Err
 		}
+		if relayResult.ClientDisconnected && (relayExit == nil || relayExit.Stage != "upstream_message") {
+			partialErr = context.Canceled
+		}
 		if partialErr == nil {
 			partialErr = errors.New("upstream websocket ended before terminal event")
 		}
-		recordTurn(int(completedTurns.Load())+1, *partial, partialErr)
+		turn := int(completedTurns.Load()) + 1
+		if relayResult.ClientDisconnected && (relayExit == nil || relayExit.Stage != "upstream_message") && !openAIWSPassthroughRelayTurnHasBillableUsage(*partial) {
+			ledgerUpstream.finishTurn(ctx, turn, nil, partialErr)
+			if hooks != nil && hooks.AfterTurn != nil {
+				hooks.AfterTurn(turn, nil, nil)
+			}
+			activeTurn.CompareAndSwap(int32(turn), 0)
+		} else {
+			recordTurn(turn, *partial, partialErr)
+		}
 	}
 
 	if cause := context.Cause(ctx); cause != nil {
 		if isOpenAIWSSessionPreempted(ctx) {
 			return errOpenAIWSSessionPreempted
 		}
-		status := coderws.StatusGoingAway
-		reason := "websocket request canceled"
-		if errors.Is(cause, ErrOpenAIWSIngressLeaseLost) {
-			status = coderws.StatusTryAgainLater
-			reason = "websocket ingress capacity lease lost; please reconnect"
+		controlErr := clientFrameConn.reader.closeForControl(ctx)
+		if turn := activeTurn.Swap(0); turn != 0 && hooks != nil && hooks.AfterTurn != nil {
+			hooks.AfterTurn(int(turn), nil, controlErr)
 		}
-		_ = clientConn.Close(status, reason)
-		_ = clientConn.CloseNow()
-		return NewOpenAIWSClientCloseError(status, reason, cause)
+		return controlErr
 	}
 
 	resultRequestModel, resultUpstreamModel := usageMeta.turnModels(relayResult.RequestModel)
@@ -1569,9 +1652,18 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 		if hooks.TurnStarted != nil {
 			hooks.TurnStarted(turnCount+1, time.Now().Add(-result.Duration))
 		}
-		hooks.AfterTurn(turnCount+1, nil, turnErr)
+		turn := turnCount + 1
+		hooks.AfterTurn(turn, nil, turnErr)
+		activeTurn.CompareAndSwap(int32(turn), 0)
+	}
+	if relayExit.ClientDisconnected && relayExit.Stage != "upstream_message" {
+		return nil
 	}
 	return turnErr
+}
+
+func openAIWSPassthroughRelayTurnHasBillableUsage(turn openaiwsv2.RelayTurnResult) bool {
+	return turn.Usage.InputTokens > 0 || turn.Usage.OutputTokens > 0 || turn.Usage.ImageOutputTokens > 0
 }
 
 func openAIWSPassthroughRelayClientClose(exit openaiwsv2.RelayExit, completedTurns int) (coderws.StatusCode, string, bool) {
