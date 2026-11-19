@@ -15,7 +15,7 @@ import (
 	"github.com/dgraph-io/ristretto"
 )
 
-const apiKeyAuthSnapshotVersion = 27 // v27: group ingress policies and user denied models
+const apiKeyAuthSnapshotVersion = 28 // v28: include API key concurrency limit
 
 type apiKeyAuthCacheConfig struct {
 	l1Size        int
@@ -347,6 +347,7 @@ func (s *APIKeyService) snapshotFromAPIKey(ctx context.Context, apiKey *APIKey) 
 		return nil
 	}
 	snapshot := &APIKeyAuthSnapshot{
+		ConcurrencyLimit: apiKey.ConcurrencyLimit,
 		ModelMapping:      maps.Clone(apiKey.ModelMapping),
 		ReasoningEffort:   apiKey.ReasoningEffort,
 		AllowLongContext:  apiKey.AllowLongContext,
@@ -469,6 +470,7 @@ func (s *APIKeyService) snapshotToAPIKey(key string, snapshot *APIKeyAuthSnapsho
 		return nil
 	}
 	apiKey := &APIKey{
+		ConcurrencyLimit: snapshot.ConcurrencyLimit,
 		ModelMapping:      maps.Clone(snapshot.ModelMapping),
 		ReasoningEffort:   snapshot.ReasoningEffort,
 		AllowLongContext:  snapshot.AllowLongContext,

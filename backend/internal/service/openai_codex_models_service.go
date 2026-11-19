@@ -1880,7 +1880,20 @@ func (s *OpenAIGatewayService) fetchCachedOpenAIModels(ctx context.Context, requ
 	if state == openAIModelsCacheFresh {
 		return openAIModelsResponseForClient(manifest, ifNoneMatch), nil
 	}
-	resultCh := s.refreshCachedOpenAIModels(ctx, cacheKey, request, fetch)
+	if HasAPIKeyAdmissionOwner(ctx) {
+		// The refresh must finish before the caller releases its key slot.
+		refreshCtx, cancel := context.WithTimeout(ctx, codexModelsManifestRequestTimeout)
+		defer cancel()
+		refreshed, err := s.runOpenAIModelsRefresh(refreshCtx, cacheKey, fetch)
+		if err != nil {
+			if refreshCtx.Err() == nil && state == openAIModelsCacheStale {
+				return openAIModelsResponseForClient(manifest, ifNoneMatch), nil
+			}
+			return nil, err
+		}
+		return openAIModelsResponseForClient(refreshed, ifNoneMatch), nil
+	}
+	resultCh := s.refreshCachedOpenAIModels(ctx, cacheKey, fetch)
 	if state == openAIModelsCacheStale {
 		return openAIModelsResponseForClient(manifest, ifNoneMatch), nil
 	}
@@ -1899,52 +1912,62 @@ func (s *OpenAIGatewayService) fetchCachedOpenAIModels(ctx context.Context, requ
 	}
 }
 
-func (s *OpenAIGatewayService) refreshCachedOpenAIModels(parentCtx context.Context, cacheKey string, request openAIModelsRequest, fetch func(ctx context.Context, ifNoneMatch string) (*OpenAIModelsResponse, error)) <-chan singleflight.Result {
+func (s *OpenAIGatewayService) refreshCachedOpenAIModels(parentCtx context.Context, cacheKey string, fetch func(ctx context.Context, ifNoneMatch string) (*OpenAIModelsResponse, error)) <-chan singleflight.Result {
 	parent := requestledger.FromContext(requestledger.CurrentContext(parentCtx))
-	return s.openAIModelsCache.refresh.DoChan(cacheKey, func() (value any, refreshErr error) {
+	return s.openAIModelsCache.refresh.DoChan(cacheKey, func() (any, error) {
 		ctx, cancel := context.WithTimeout(context.Background(), codexModelsManifestRequestTimeout)
 		defer cancel()
-		receipt, err := requestledger.BeginQueryExecution(requestledger.WithHandle(ctx, parent))
-		if err != nil {
-			return nil, infraerrors.New(http.StatusServiceUnavailable, "REQUEST_LEDGER_UNAVAILABLE", "Request audit storage is temporarily unavailable")
-		}
-		if receipt != nil {
-			ctx = requestledger.WithHandle(ctx, receipt)
-			defer func() {
-				if v := recover(); v != nil {
-					if err := receipt.Finish(ctx, "failed", 0, "internal_error"); err != nil {
-						slog.Error("request_ledger_models_refresh_finish_failed")
-					}
-					panic(v)
-				}
-				cause := refreshErr
-				if ctx.Err() != nil {
-					cause = ctx.Err()
-				}
-				if err := receipt.Finish(ctx, requestledger.Outcome(0, cause), 0, requestledger.ErrorCode(cause)); err != nil {
+		return s.runOpenAIModelsRefresh(requestledger.WithHandle(ctx, parent), cacheKey, fetch)
+	})
+}
+
+func (s *OpenAIGatewayService) runOpenAIModelsRefresh(ctx context.Context, cacheKey string, fetch func(context.Context, string) (*OpenAIModelsResponse, error)) (_ *OpenAIModelsResponse, refreshErr error) {
+	receipt, err := requestledger.BeginQueryExecution(ctx)
+	if err != nil {
+		return nil, infraerrors.New(http.StatusServiceUnavailable, "REQUEST_LEDGER_UNAVAILABLE", "Request audit storage is temporarily unavailable")
+	}
+	if receipt != nil {
+		ctx = requestledger.WithHandle(ctx, receipt)
+		defer func() {
+			if v := recover(); v != nil {
+				if err := receipt.Finish(ctx, "failed", 0, "internal_error"); err != nil {
 					slog.Error("request_ledger_models_refresh_finish_failed")
 				}
-			}()
-		}
+				panic(v)
+			}
+			cause := refreshErr
+			if ctx.Err() != nil {
+				cause = ctx.Err()
+			}
+			if err := receipt.Finish(ctx, requestledger.Outcome(0, cause), 0, requestledger.ErrorCode(cause)); err != nil {
+				slog.Error("request_ledger_models_refresh_finish_failed")
+			}
+		}()
+	}
 
-		cached, _ := s.openAIModelsCache.get(cacheKey, time.Now())
-		ifNoneMatch := ""
-		if cached != nil {
-			ifNoneMatch = cached.upstreamETag
-		}
-		manifest, err := fetch(ctx, ifNoneMatch)
-		if err != nil {
-			return nil, err
-		}
-		if manifest.NotModified && cached != nil {
-			s.openAIModelsCache.set(cacheKey, cached, time.Now())
-			return cached, nil
-		}
-		if !manifest.NotModified {
-			s.openAIModelsCache.set(cacheKey, manifest, time.Now())
-		}
-		return manifest, nil
-	})
+	cached, _ := s.openAIModelsCache.get(cacheKey, time.Now())
+	ifNoneMatch := ""
+	if cached != nil {
+		ifNoneMatch = cached.upstreamETag
+	}
+	manifest, err := fetch(ctx, ifNoneMatch)
+	if err != nil {
+		return nil, err
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if manifest == nil {
+		return nil, infraerrors.New(http.StatusInternalServerError, "OPENAI_CODEX_MODELS_REQUEST_FAILED", "invalid Codex models manifest result")
+	}
+	if manifest.NotModified && cached != nil {
+		s.openAIModelsCache.set(cacheKey, cached, time.Now())
+		return cached, nil
+	}
+	if !manifest.NotModified {
+		s.openAIModelsCache.set(cacheKey, manifest, time.Now())
+	}
+	return manifest, nil
 }
 
 func (s *OpenAIGatewayService) fetchCodexModelsManifestUpstreamForRequest(request openAIModelsRequest) func(ctx context.Context, ifNoneMatch string) (*OpenAIModelsResponse, error) {

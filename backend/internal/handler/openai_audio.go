@@ -93,7 +93,7 @@ func (h *OpenAIGatewayHandler) openAIAudio(c *gin.Context, op service.OpenAIAudi
 	}
 
 	streamStarted := false
-	userRelease, acquired := h.acquireResponsesUserSlot(c, subject.UserID, subject.Concurrency, false, &streamStarted, reqLog)
+	userRelease, acquired := h.acquireResponsesUserSlot(c, subject.UserID, subject.Concurrency, apiKey.ID, apiKey.ConcurrencyLimit, false, &streamStarted, reqLog)
 	if !acquired {
 		return
 	}

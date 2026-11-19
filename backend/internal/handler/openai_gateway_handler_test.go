@@ -1259,7 +1259,7 @@ func TestOpenAIResponsesWebSocket_PreviousResponseIDKindLoggedBeforeAcquireFailu
 	var closeErr coderws.CloseError
 	require.ErrorAs(t, err, &closeErr)
 	require.Equal(t, coderws.StatusInternalError, closeErr.Code)
-	require.Contains(t, strings.ToLower(closeErr.Reason), "failed to acquire user concurrency slot")
+	require.Contains(t, strings.ToLower(closeErr.Reason), "failed to acquire concurrency slot")
 }
 
 type contentModerationHandlerSettingRepo struct {
@@ -1942,8 +1942,8 @@ type openAIResponsesWSUsageLogCase struct {
 	closeReason             string
 	closeStatus             coderws.StatusCode
 	firstPayload            string
-	// midPayload 在首个 turn 完成后发送（如 session.update），上游桩会为它
-	// 回一个 response.completed，客户端按普通事件读取。
+	// midPayload 在首个 turn 完成后发送（如 session.update）；协议级状态更新
+	// 由上游桩回复 session.updated，不计作一次用户计费 turn。
 	midPayload                string
 	secondPayload             string
 	userAgent                 *string
@@ -2878,13 +2878,14 @@ func runOpenAIResponsesWebSocketUsageLogCase(t *testing.T, tc openAIResponsesWSU
 	gin.SetMode(gin.TestMode)
 
 	turnCount := 1
-	if strings.TrimSpace(tc.midPayload) != "" {
-		turnCount++
-	}
 	if strings.TrimSpace(tc.secondPayload) != "" {
 		turnCount++
 	}
-	upstreamPayloadCh := make(chan []byte, turnCount)
+	upstreamFrameCount := turnCount
+	if strings.TrimSpace(tc.midPayload) != "" {
+		upstreamFrameCount++
+	}
+	upstreamPayloadCh := make(chan []byte, upstreamFrameCount)
 	upstreamErrCh := make(chan error, turnCount+1)
 	var upstreamTurns, upstreamConnections atomic.Int32
 	var channelSvc *service.ChannelService
@@ -2930,6 +2931,17 @@ func runOpenAIResponsesWebSocketUsageLogCase(t *testing.T, tc openAIResponsesWSU
 			if msgType != coderws.MessageText && msgType != coderws.MessageBinary {
 				upstreamErrCh <- errors.New("unexpected upstream websocket message type")
 				return
+			}
+			if msgType == coderws.MessageText && strings.TrimSpace(gjson.GetBytes(payload, "type").String()) == "session.update" {
+				upstreamPayloadCh <- payload
+				writeCtx, cancelWrite := context.WithTimeout(r.Context(), 3*time.Second)
+				writeErr := conn.Write(writeCtx, coderws.MessageText, []byte(`{"type":"session.updated","session":{}}`))
+				cancelWrite()
+				if writeErr != nil {
+					upstreamErrCh <- writeErr
+					return
+				}
+				continue
 			}
 			turn := int(upstreamTurns.Add(1))
 			served = true
@@ -3168,7 +3180,11 @@ func runOpenAIResponsesWebSocketUsageLogCase(t *testing.T, tc openAIResponsesWSU
 		err = clientConn.Write(writeCtx, coderws.MessageText, []byte(tc.midPayload))
 		cancelWrite()
 		require.NoError(t, err)
-		readCompleted()
+		readCtx, cancelRead := context.WithTimeout(context.Background(), 3*time.Second)
+		_, event, readErr := clientConn.Read(readCtx)
+		cancelRead()
+		require.NoError(t, readErr)
+		require.Equal(t, "session.updated", gjson.GetBytes(event, "type").String())
 	}
 	if strings.TrimSpace(tc.secondPayload) != "" && (turnCount >= 2) {
 		writeCtx, cancelWrite = context.WithTimeout(context.Background(), 3*time.Second)
@@ -3192,7 +3208,11 @@ func runOpenAIResponsesWebSocketUsageLogCase(t *testing.T, tc openAIResponsesWSU
 				reason = "not available for this group"
 			}
 			require.Contains(t, closeErr.Reason, reason)
-			require.Len(t, upstreamPayloadCh, turnCount-1, "rejected turn must not reach upstream")
+			expectedFrames := 1
+			if tc.midPayload != "" {
+				expectedFrames++
+			}
+			require.Len(t, upstreamPayloadCh, expectedFrames, "rejected turn must not reach upstream")
 			_ = clientConn.CloseNow()
 			return openAIResponsesWSUsageLogResult{}
 		}
@@ -3214,8 +3234,8 @@ func runOpenAIResponsesWebSocketUsageLogCase(t *testing.T, tc openAIResponsesWSU
 		return openAIResponsesWSUsageLogResult{log: usageLogs[0], logs: usageLogs, clientEvents: clientEvents}
 	}
 
-	upstreamPayloads := make([][]byte, 0, turnCount)
-	for len(upstreamPayloads) < turnCount {
+	upstreamPayloads := make([][]byte, 0, upstreamFrameCount)
+	for len(upstreamPayloads) < upstreamFrameCount {
 		select {
 		case payload := <-upstreamPayloadCh:
 			upstreamPayloads = append(upstreamPayloads, payload)

@@ -39,6 +39,22 @@
             :api-base-url="publicSettings?.api_base_url || ''"
             :custom-endpoints="publicSettings?.custom_endpoints || []"
           />
+          <div v-if="selectedIds.length" class="flex flex-wrap items-center gap-3 text-sm">
+            <span class="text-gray-600 dark:text-gray-300">
+              {{ t('keys.bulkEdit.selectedCount', { count: selectedIds.length }) }}
+            </span>
+            <button
+              class="btn btn-primary btn-sm"
+              :disabled="loading"
+              data-test="bulk-edit-keys"
+              @click="showBulkEditModal = true"
+            >
+              {{ t('keys.bulkEdit.title') }}
+            </button>
+            <button class="btn btn-secondary btn-sm" @click="selectedIds = []">
+              {{ t('keys.bulkEdit.clearSelection') }}
+            </button>
+          </div>
         </div>
       </template>
 
@@ -96,6 +112,11 @@
           :columns="columns"
           :data="apiKeys"
           :loading="loading"
+          selectable
+          row-key="id"
+          :selected-keys="selectedIds"
+          :selection-label="(key: ApiKey) => t('keys.bulkEdit.selectKey', { name: key.name })"
+          @update:selected-keys="handleSelectionChange"
           :server-side-sort="true"
           default-sort-key="created_at"
           default-sort-order="desc"
@@ -186,16 +207,49 @@
             </div>
           </template>
 
-          <template #cell-current_concurrency="{ value }">
+          <template #cell-current_concurrency="{ row }">
             <span
+              :title="t('keys.concurrencyCount')"
               :class="[
-                'inline-flex min-w-8 items-center justify-center rounded px-2 py-1 text-sm font-semibold tabular-nums',
-                (value ?? 0) > 0
+                'inline-flex items-center gap-1 rounded-md px-1.5 py-px text-xs font-normal leading-tight tabular-nums',
+                concurrencyRows[row.id]?.concurrencyFull
+                  ? 'bg-amber-50 text-amber-700 ring-1 ring-amber-200 dark:bg-amber-900/25 dark:text-amber-300 dark:ring-amber-800'
+                  : (concurrencyRows[row.id]?.current ?? 0) > 0
                   ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-900/25 dark:text-emerald-300 dark:ring-emerald-800'
                   : 'bg-gray-100 text-gray-500 dark:bg-dark-700 dark:text-dark-400'
               ]"
             >
-              {{ value ?? 0 }}
+              <Icon name="user" size="xs" aria-hidden="true" />
+              <span class="sr-only">{{ t('keys.concurrencyCount') }}{{ ' ' }}</span>
+              <span class="whitespace-nowrap font-mono">
+                {{ concurrencyRows[row.id]?.current ?? '—' }}
+                <span v-if="concurrencyRows[row.id]?.limit > 0" class="ml-1">/ {{ concurrencyRows[row.id]?.limit }}</span>
+              </span>
+            </span>
+            <div v-if="concurrencyRows[row.id]?.limit > 0" class="mt-1 text-xs tabular-nums text-gray-500 dark:text-dark-400">
+              <template v-if="queuePolicy && concurrencyRows[row.id]?.limit > 0">
+                <span v-if="queuePolicy.max_waiting === 0" class="block">{{ t('keys.queueOff') }}</span>
+                <span v-if="queuePolicy.max_waiting > 0 || (concurrencyRows[row.id]?.waiting ?? 0) > 0"
+                  :class="{ 'text-amber-600 dark:text-amber-400': concurrencyRows[row.id]?.full }">
+                  <span :class="[
+                    'inline-flex items-center gap-1 rounded-md px-1.5 py-px font-normal leading-tight tabular-nums',
+                    concurrencyRows[row.id]?.full
+                      ? 'bg-amber-50 text-amber-700 ring-1 ring-amber-200 dark:bg-amber-900/25 dark:text-amber-300 dark:ring-amber-800'
+                      : concurrencyRows[row.id]?.waiting === 0
+                        ? 'bg-gray-100 text-gray-500 dark:bg-dark-700 dark:text-dark-400'
+                        : 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-900/25 dark:text-emerald-300 dark:ring-emerald-800'
+                  ]" :title="t('keys.waitingCount')">
+                    <Icon name="clock" size="xs" aria-hidden="true" />
+                    <span class="sr-only">{{ t('keys.waitingCount') }}{{ ' ' }}</span>
+                    <span class="whitespace-nowrap font-mono">{{ concurrencyRows[row.id]?.waiting ?? '—' }}<template v-if="queuePolicy.max_waiting > 0"> / {{ queuePolicy.max_waiting }}</template></span>
+                  </span>
+                  <span v-if="concurrencyRows[row.id]?.full"> · {{ t('keys.queueFull') }}</span>
+                </span>
+              </template>
+              <span v-else>{{ t(concurrencyState.status === 'loading' ? 'keys.queuePolicyLoading' : 'keys.queuePolicyUnavailable') }}</span>
+            </div>
+            <span v-if="concurrencyRows[row.id]?.notice" class="mt-1 block text-xs text-gray-500 dark:text-dark-400">
+              {{ concurrencyRows[row.id].notice }}
             </span>
           </template>
 
@@ -639,6 +693,31 @@
           </div>
         </div>
 
+        <div>
+          <label for="key-concurrency-limit" class="input-label">{{ t('keys.concurrencyLimit') }}</label>
+          <input
+            id="key-concurrency-limit"
+            v-model.number="formData.concurrency_limit"
+            type="number"
+            min="0"
+            step="1"
+            placeholder="0"
+            class="input"
+            :class="{ 'border-red-500 dark:border-red-500': concurrencyLimitError }"
+            :aria-invalid="!!concurrencyLimitError"
+            :aria-describedby="concurrencyLimitError ? 'key-concurrency-hint key-queue-policy key-concurrency-error' : 'key-concurrency-hint key-queue-policy'"
+          />
+          <p id="key-concurrency-hint" class="input-hint">{{ t('keys.concurrencyLimitHint') }}</p>
+          <p id="key-queue-policy" class="input-hint">
+            {{ queuePolicyDescription }}
+            <span v-if="queuePolicy && concurrencyState.status === 'stale' && Number(formData.concurrency_limit) > 0"> {{ t('keys.concurrencyStale') }}</span>
+          </p>
+          <p v-if="queuePolicy && queuePolicy.max_waiting > 0 && Number(formData.concurrency_limit) > 0" class="input-hint">{{ t('keys.queueHint') }}</p>
+          <p v-if="concurrencyLimitError" id="key-concurrency-error" class="mt-1 text-sm text-red-500" role="alert">
+            {{ concurrencyLimitError }}
+          </p>
+        </div>
+
         <!-- Quota Limit Section -->
         <div class="space-y-3">
           <label class="input-label">{{ t('keys.quotaLimit') }}</label>
@@ -996,6 +1075,14 @@
       </template>
     </BaseDialog>
 
+    <BulkEditKeysModal
+      :show="showBulkEditModal"
+      :selected-keys="selectedApiKeys"
+      :groups="groups"
+      @close="showBulkEditModal = false"
+      @updated="handleBulkUpdated"
+    />
+
     <!-- Delete Confirmation Dialog -->
     <ConfirmDialog
       :show="showDeleteDialog"
@@ -1187,6 +1274,7 @@ import { keysAPI, authAPI, usageAPI, userGroupsAPI, paymentAPI } from '@/api'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import ApiKeyModelPolicyDialog from '@/components/admin/user/ApiKeyModelPolicyDialog.vue'
 import TablePageLayout from '@/components/layout/TablePageLayout.vue'
+import BulkEditKeysModal from '@/components/keys/BulkEditKeysModal.vue'
 import DateRangePicker from '@/components/common/DateRangePicker.vue'
 	import DataTable from '@/components/common/DataTable.vue'
 	import Pagination from '@/components/common/Pagination.vue'
@@ -1201,7 +1289,7 @@ import DateRangePicker from '@/components/common/DateRangePicker.vue'
 import APIOnboardingPanel from '@/components/keys/APIOnboardingPanel.vue'
 	import GroupBadge from '@/components/common/GroupBadge.vue'
 	import GroupOptionItem from '@/components/common/GroupOptionItem.vue'
-	import type { ApiKey, Group, PublicSettings, SubscriptionType, GroupPlatform, UpdateApiKeyRequest } from '@/types'
+	import type { ApiKey, ApiKeyConcurrencySnapshot, Group, PublicSettings, SubscriptionType, GroupPlatform, UpdateApiKeyRequest } from '@/types'
 import type { Column } from '@/components/common/types'
 import type { BatchApiKeyUsageStats } from '@/api/usage'
 import type { SubscriptionPlan } from '@/types/payment'
@@ -1249,7 +1337,7 @@ const allColumns = computed<Column[]>(() => [
   { key: 'id', label: t('keys.id'), sortable: true },
   { key: 'key', label: t('keys.apiKey'), sortable: false },
   { key: 'group', label: t('keys.group'), sortable: true },
-  { key: 'current_concurrency', label: t('keys.currentConcurrency'), sortable: true },
+  { key: 'current_concurrency', label: t('keys.concurrencyAndWaiting'), sortable: true },
   { key: 'usage', label: t('keys.usage'), sortable: false },
   { key: 'rate_limit', label: t('keys.rateLimitColumn'), sortable: false },
   { key: 'expires_at', label: t('keys.expiresAt'), sortable: true },
@@ -1339,6 +1427,20 @@ const columns = computed<Column[]>(() =>
 )
 
 const apiKeys = ref<ApiKey[]>([])
+const selectedIds = ref<number[]>([])
+const showBulkEditModal = ref(false)
+const selectedApiKeys = computed(() => apiKeys.value.filter((key) => selectedIds.value.includes(key.id)))
+
+const handleSelectionChange = (ids: Array<string | number>) => {
+  const visibleIds = new Set(apiKeys.value.map((key) => key.id))
+  selectedIds.value = [...new Set(ids.map(Number))].filter((id) => visibleIds.has(id))
+}
+
+const handleBulkUpdated = (succeededIds: number[]) => {
+  const succeeded = new Set(succeededIds)
+  selectedIds.value = selectedIds.value.filter((id) => !succeeded.has(id))
+  void loadApiKeys()
+}
 const groups = ref<Group[]>([])
 const checkoutPlans = ref<SubscriptionPlan[]>([])
 const loading = ref(false)
@@ -1370,6 +1472,94 @@ const onUsageDateRangeChange = (range: { startDate: string; endDate: string; pre
 }
 const userGroupRates = ref<Record<number, number>>({})
 const userBalance = computed(() => authStore.user?.balance ?? 0)
+
+// Queue policy and active counts are reported by the backend and never inferred from stale UI data.
+const concurrencyState = ref<{
+  snapshot: ApiKeyConcurrencySnapshot | null
+  status: 'loading' | 'ready' | 'stale' | 'error'
+}>({ snapshot: null, status: 'loading' })
+const queuePolicy = computed(() => concurrencyState.value.snapshot?.queue_policy)
+const concurrencyRows = computed(() => {
+  const counts = new Map(concurrencyState.value.snapshot?.items.map(item => [item.id, item]))
+  return Object.fromEntries(apiKeys.value.map(key => {
+    const count = counts.get(key.id)
+    const current = count?.current_concurrency
+    const waiting = count?.current_waiting
+    const known = typeof current === 'number' && typeof waiting === 'number'
+    const status = concurrencyState.value.status
+    const limit = key.concurrency_limit
+    return [key.id, {
+      limit,
+      current,
+      waiting,
+      concurrencyFull: status === 'ready' && typeof current === 'number' && limit > 0 && current >= limit,
+      full: status === 'ready' && known && limit > 0 &&
+        (queuePolicy.value?.max_waiting ?? 0) > 0 && waiting >= queuePolicy.value!.max_waiting,
+      notice: status === 'stale' && count ? t('keys.concurrencyStale') :
+        !known ? t(status === 'loading' ? 'keys.concurrencyLoading' : 'keys.concurrencyUnavailable') : '',
+    }]
+  }))
+})
+let concurrencyTimer: ReturnType<typeof setTimeout> | null = null
+let concurrencyController: AbortController | null = null
+let concurrencyGeneration = 0
+let concurrencyPageReady = false
+
+const stopConcurrencyRefresh = () => {
+  concurrencyGeneration++
+  if (concurrencyTimer) clearTimeout(concurrencyTimer)
+  concurrencyTimer = null
+  concurrencyController?.abort()
+  concurrencyController = null
+  concurrencyState.value = {
+    ...concurrencyState.value,
+    status: concurrencyState.value.snapshot ? 'stale' : 'loading',
+  }
+}
+
+const refreshConcurrency = async () => {
+  if (disposed || document.hidden || !concurrencyPageReady || concurrencyController) return
+  const controller = new AbortController()
+  concurrencyController = controller
+  const generation = concurrencyGeneration
+  const ids = apiKeys.value.map(key => key.id)
+  try {
+    let snapshot: ApiKeyConcurrencySnapshot | null = null
+    // Keep to the API's 100-key limit; configured page sizes can be larger.
+    for (let offset = 0; offset < Math.max(ids.length, 1); offset += 100) {
+      const result = await keysAPI.getConcurrency(ids.slice(offset, offset + 100), { signal: controller.signal })
+      if (disposed || controller.signal.aborted || generation !== concurrencyGeneration) return
+      if (snapshot) {
+        if (snapshot.queue_policy.max_waiting !== result.queue_policy.max_waiting ||
+          snapshot.queue_policy.timeout_seconds !== result.queue_policy.timeout_seconds) {
+          throw new Error('API key queue policy changed during the statistics refresh')
+        }
+        snapshot.items.push(...result.items)
+      } else {
+        snapshot = { queue_policy: result.queue_policy, items: [...result.items] }
+      }
+    }
+    concurrencyState.value = { snapshot, status: 'ready' }
+  } catch {
+    if (!controller.signal.aborted && generation === concurrencyGeneration && !disposed) {
+      concurrencyState.value = {
+        ...concurrencyState.value,
+        status: concurrencyState.value.snapshot ? 'stale' : 'error',
+      }
+    }
+  } finally {
+    if (concurrencyController === controller) concurrencyController = null
+    if (!disposed && !document.hidden && concurrencyPageReady) {
+      if (generation !== concurrencyGeneration) void refreshConcurrency()
+      else concurrencyTimer = setTimeout(refreshConcurrency, 5000)
+    }
+  }
+}
+
+const handleConcurrencyVisibility = () => {
+  stopConcurrencyRefresh()
+  if (!document.hidden) void refreshConcurrency()
+}
 
 const pagination = ref({
   page: 1,
@@ -1424,6 +1614,7 @@ const setGroupButtonRef = (keyId: number, el: Element | ComponentPublicInstance 
 
 const createDefaultFormData = (groupId: number | null = null) => ({
   name: '',
+  concurrency_limit: 0 as number | string,
   group_id: groupId,
   group_ids: [] as number[],
   status: 'active' as 'active' | 'inactive',
@@ -1463,6 +1654,18 @@ const changePrimaryGroup = (value: string | number | boolean | null) => {
   ])].filter(id => id !== next)
   formData.value.group_id = next
 }
+
+const concurrencyLimitError = computed(() => {
+  const limit = Number(formData.value.concurrency_limit)
+  return Number.isSafeInteger(limit) && limit >= 0 ? '' : t('keys.concurrencyLimitInvalid')
+})
+
+const queuePolicyDescription = computed(() => {
+  if (Number(formData.value.concurrency_limit) === 0) return t('keys.queueNotApplicable')
+  if (!queuePolicy.value) return t(concurrencyState.value.status === 'loading' ? 'keys.queuePolicyLoading' : 'keys.queuePolicyUnavailable')
+  if (queuePolicy.value.max_waiting === 0) return t('keys.queuePolicyOff')
+  return t('keys.queuePolicy', { max: queuePolicy.value.max_waiting, seconds: queuePolicy.value.timeout_seconds })
+})
 
 // 自定义Key验证
 const customKeyError = computed(() => {
@@ -1511,6 +1714,7 @@ const statusFilterOptions = computed(() => [
 ])
 
 const onFilterChange = () => {
+  selectedIds.value = []
   pagination.value.page = 1
   loadApiKeys()
 }
@@ -1572,6 +1776,8 @@ const isAbortError = (error: unknown) => {
 }
 
 const loadApiKeys = async () => {
+  concurrencyPageReady = false
+  stopConcurrencyRefresh()
   abortController?.abort()
   const controller = new AbortController()
   abortController = controller
@@ -1599,6 +1805,7 @@ const loadApiKeys = async () => {
     })
     if (signal.aborted || disposed) return
     apiKeys.value = response.items
+    handleSelectionChange(selectedIds.value)
     pagination.value.total = response.total
     pagination.value.pages = response.pages
 
@@ -1633,6 +1840,8 @@ const loadApiKeys = async () => {
     if (abortController === controller) {
       loading.value = false
       usageLoading.value = false
+      concurrencyPageReady = true
+      void refreshConcurrency()
     }
   }
 }
@@ -1719,17 +1928,20 @@ const closeUseKeyModal = () => {
 }
 
 const handlePageChange = (page: number) => {
+  selectedIds.value = []
   pagination.value.page = page
   loadApiKeys()
 }
 
 const handlePageSizeChange = (pageSize: number) => {
+  selectedIds.value = []
   pagination.value.page_size = pageSize
   pagination.value.page = 1
   loadApiKeys()
 }
 
 const handleSort = (key: string, order: 'asc' | 'desc') => {
+  selectedIds.value = []
   sortState.value.sort_by = key
   sortState.value.sort_order = order
   pagination.value.page = 1
@@ -1742,6 +1954,7 @@ const editKey = (key: ApiKey) => {
   const hasExpiration = !!key.expires_at
   formData.value = {
     name: key.name,
+    concurrency_limit: key.concurrency_limit ?? 0,
     group_id: key.group_id,
     group_ids: (key.group_ids ?? []).filter(id => id !== key.group_id),
     status: key.status === 'quota_exhausted' || key.status === 'expired' ? 'inactive' : key.status,
@@ -1842,6 +2055,13 @@ const confirmDelete = (key: ApiKey) => {
 }
 
 const handleSubmit = async () => {
+  if (concurrencyLimitError.value) {
+    appStore.showError(concurrencyLimitError.value)
+    return
+  }
+  // An empty input explicitly clears the saved key limit.
+  const concurrencyLimit = Number(formData.value.concurrency_limit)
+
   // Validate group_id is required
   if (formData.value.group_id === null) {
     appStore.showError(t('keys.groupRequired'))
@@ -1902,6 +2122,7 @@ const handleSubmit = async () => {
         name: formData.value.name,
         group_id: formData.value.group_id,
         group_ids: selectedGroupIds.value,
+        concurrency_limit: concurrencyLimit,
         ip_whitelist: ipWhitelist,
         ip_blacklist: ipBlacklist,
         quota: quota,
@@ -1926,7 +2147,8 @@ const handleSubmit = async () => {
         quota,
         expiresInDays,
         rateLimitData,
-        selectedGroupIds.value
+        selectedGroupIds.value,
+        concurrencyLimit
       )
       appStore.showSuccess(t('keys.keyCreatedSuccess'))
       // Only advance tour if active, on submit step, and creation succeeded
@@ -2121,6 +2343,7 @@ onMounted(() => {
   loadPublicSettings()
   loadCheckoutInfo()
   document.addEventListener('click', closeGroupSelector)
+  document.addEventListener('visibilitychange', handleConcurrencyVisibility)
   resetTimer = setInterval(() => { now.value = new Date() }, 60000)
 })
 
@@ -2128,6 +2351,8 @@ onUnmounted(() => {
   disposed = true
   abortController?.abort()
   document.removeEventListener('click', closeGroupSelector)
+  document.removeEventListener('visibilitychange', handleConcurrencyVisibility)
+  stopConcurrencyRefresh()
   if (resetTimer) clearInterval(resetTimer)
 })
 </script>

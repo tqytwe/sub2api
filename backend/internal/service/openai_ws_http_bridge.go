@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
@@ -26,6 +27,32 @@ const (
 )
 
 const openAIWSHTTPBridgeToolStateContextKey = "openai_ws_http_bridge_tool_state"
+
+// openAIWSHTTPBridgeSerializedBody prevents cancellation cleanup from closing a
+// decoder while its Read method is still consuming the upstream body. The
+// transport cancellation unblocks the read; Close then joins it before closing
+// the decoder and underlying response body.
+type openAIWSHTTPBridgeSerializedBody struct {
+	mu       sync.Mutex
+	once     sync.Once
+	rc       io.ReadCloser
+	closeErr error
+}
+
+func (b *openAIWSHTTPBridgeSerializedBody) Read(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.rc.Read(p)
+}
+
+func (b *openAIWSHTTPBridgeSerializedBody) Close() error {
+	b.once.Do(func() {
+		b.mu.Lock()
+		defer b.mu.Unlock()
+		b.closeErr = b.rc.Close()
+	})
+	return b.closeErr
+}
 
 type openAIWSHTTPBridgeToolState struct {
 	ClientMapping apicompat.ResponsesClientToolMapping
@@ -509,9 +536,13 @@ func (s *OpenAIGatewayService) proxyOpenAIWSHTTPBridgeTurn(
 		}
 	}
 
+	clientDisconnect, _ := ctx.Value(openAIWSDisconnectKey{}).(<-chan struct{})
+	if ingressReader := openAIWSIngressReaderFromContext(c); ingressReader != nil {
+		clientDisconnect = ingressReader.disconnectSignal()
+	}
+	upstreamCtx, startDrain, releaseUpstreamCtx := openAIWSDrainContext(context.WithValue(ctx, openAIWSDisconnectKey{}, clientDisconnect))
+	defer releaseUpstreamCtx()
 	buildUpstreamRequest := func(requestBody []byte) (*http.Request, error) {
-		upstreamCtx, releaseUpstreamCtx := detachUpstreamContext(ctx)
-		defer releaseUpstreamCtx()
 		var upstreamReq *http.Request
 		var buildErr error
 		if account.Platform == PlatformGrok {
@@ -656,8 +687,6 @@ func (s *OpenAIGatewayService) proxyOpenAIWSHTTPBridgeTurn(
 	}
 	defer func() { _ = resp.Body.Close() }()
 	ledgerAttempt = requestledger.ResponseAttempt(resp)
-	stopCancelBody := context.AfterFunc(ctx, func() { _ = resp.Body.Close() })
-	defer stopCancelBody()
 	if account.Platform == PlatformGrok {
 		s.updateGrokUsageFromResponse(withGrokTeamRateLimitModel(ctx, resolveGrokWSUpstreamModel(account, body, originalModel)), account, resp.Header, resp.StatusCode)
 	}
@@ -757,6 +786,9 @@ func (s *OpenAIGatewayService) proxyOpenAIWSHTTPBridgeTurn(
 	if hasResponsesClientToolMapping(clientToolMapping) {
 		resp.Body = newResponsesClientToolStreamBody(resp.Body, clientToolMapping, maxLineSize)
 	}
+	resp.Body = &openAIWSHTTPBridgeSerializedBody{rc: resp.Body}
+	stopCancelBody := context.AfterFunc(ctx, func() { _ = resp.Body.Close() })
+	defer stopCancelBody()
 	scanner := bufio.NewScanner(resp.Body)
 	scanBuf := getSSEScannerBuf64K()
 	scanner.Buffer(scanBuf[:0], maxLineSize)
@@ -983,6 +1015,7 @@ func (s *OpenAIGatewayService) proxyOpenAIWSHTTPBridgeTurn(
 					if err := writeClientMessage(message); err != nil {
 						if isOpenAIWSClientDisconnectError(err) {
 							clientDisconnected = true
+							startDrain()
 							closeStatus, closeReason := summarizeOpenAIWSReadCloseError(err)
 							logOpenAIWSModeInfo(
 								"ingress_ws_http_bridge_client_disconnected_drain account_id=%d turn=%d close_status=%s close_reason=%s",
@@ -1055,6 +1088,15 @@ func (s *OpenAIGatewayService) proxyOpenAIWSHTTPBridgeTurn(
 	}
 	if err := scanner.Err(); err != nil {
 		streamErr := fmt.Errorf("read upstream http bridge stream: %w", err)
+		if errors.Is(context.Cause(upstreamCtx), errOpenAIWSUsageDrainExpired) {
+			if !observedOpenAIExpense() {
+				return nil, errOpenAIWSUsageDrainExpired
+			}
+			return finishFailure(errors.Join(context.Canceled, errOpenAIWSUsageDrainExpired), false)
+		}
+		if errors.Is(context.Cause(upstreamCtx), errOpenAIWSUsageDrainExpired) {
+			return finishFailure(streamErr, false)
+		}
 		// Metered work cannot be replayed, and local admission is not an
 		// upstream transport fault. Preserve the original wrapped read error.
 		if observedOpenAIExpense() || account.IsOpenAI() && IsOpenAITurnAdmissionError(streamErr) {

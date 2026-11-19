@@ -35,6 +35,7 @@ func ResolveDeferredAPIKeyRequestGroup(c *gin.Context, models []string) (*servic
 			return nil, err
 		}
 		delete(c.Keys, deferredAPIKeyRequestGroup)
+		c.Request = c.Request.WithContext(context.WithValue(c.Request.Context(), apiKeyQueueSelectedGroupKey{}, captureAPIKeyQueueIdentity(selected)))
 		return selected, nil
 	}
 	key, _ := GetAPIKeyFromContext(c)
@@ -52,6 +53,7 @@ func ResolveDeferredAPIKeyRequestGroupByID(c *gin.Context, id int64) (*service.A
 	key, err := resolver(id)
 	if err == nil {
 		delete(c.Keys, deferredAPIKeyRequestGroupByID)
+		c.Request = c.Request.WithContext(context.WithValue(c.Request.Context(), apiKeyQueueSelectedGroupKey{}, captureAPIKeyQueueIdentity(key)))
 	}
 	return key, err
 }

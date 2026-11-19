@@ -60,6 +60,7 @@ func (r *apiKeyRepository) create(ctx context.Context, key *service.APIKey) erro
 		SetNillableLastUsedAt(key.LastUsedAt).
 		SetQuota(key.Quota).
 		SetQuotaUsed(key.QuotaUsed).
+		SetConcurrencyLimit(key.ConcurrencyLimit).
 		SetNillableExpiresAt(key.ExpiresAt).
 		SetRateLimit5h(key.RateLimit5h).
 		SetRateLimit1d(key.RateLimit1d).
@@ -153,6 +154,7 @@ func (r *apiKeyRepository) GetByKeyForAuth(ctx context.Context, key string) (*se
 			apikey.FieldQuotaUsed,
 			apikey.FieldExpiresAt,
 			apikey.FieldRateLimit5h,
+			apikey.FieldConcurrencyLimit,
 			apikey.FieldRateLimit1d,
 			apikey.FieldRateLimit7d,
 		).
@@ -298,6 +300,9 @@ func (r *apiKeyRepository) update(ctx context.Context, key *service.APIKey, fiel
 	}
 	if fields.ContextTokenLimit {
 		builder.SetContextTokenLimit(key.ContextTokenLimit)
+	}
+	if fields.ConcurrencyLimit {
+		builder.SetConcurrencyLimit(key.ConcurrencyLimit)
 	}
 	if fields.Name {
 		builder.SetName(key.Name)
@@ -958,6 +963,7 @@ func apiKeyEntityToService(m *dbent.APIKey) *service.APIKey {
 		ReasoningEffort:   m.ReasoningEffort,
 		AllowLongContext:  m.AllowLongContext,
 		ContextTokenLimit: m.ContextTokenLimit,
+		ConcurrencyLimit:  m.ConcurrencyLimit,
 		ID:                m.ID,
 		UserID:            m.UserID,
 		Key:               m.Key,

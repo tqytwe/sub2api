@@ -55,7 +55,7 @@ func TestMultiGroupWebSocketDefersUntilModelAndExcludesUnsupportedPlatforms(t *t
 				1: {ID: 1, Platform: service.PlatformAnthropic, Status: service.StatusActive, Hydrated: true, RateMultiplier: 0.1},
 				2: {ID: 2, Platform: service.PlatformOpenAI, Status: service.StatusActive, Hydrated: true, RateMultiplier: 1},
 			}
-			key := &service.APIKey{ID: 7, UserID: 9, Key: "test-multi-key", Status: service.StatusActive, GroupID: &primary, GroupIDs: []int64{1, 2}, Group: groups[1], User: user}
+			key := &service.APIKey{ID: 7, UserID: 9, Key: "test-multi-key", Status: service.StatusActive, ConcurrencyLimit: 1, GroupID: &primary, GroupIDs: []int64{1, 2}, Group: groups[1], User: user}
 			cfg := &config.Config{RunMode: mode}
 			svc := service.NewAPIKeyService(multiGroupAuthKeyRepo{key: key}, nil, multiGroupAuthGroupRepo{groups: groups}, nil, nil, nil, cfg)
 			probes := 0
@@ -67,6 +67,17 @@ func TestMultiGroupWebSocketDefersUntilModelAndExcludesUnsupportedPlatforms(t *t
 				selected, err := ResolveDeferredAPIKeyRequestGroup(c, []string{"gpt-5.4"})
 				require.NoError(t, err)
 				require.EqualValues(t, 2, *selected.GroupID, "cheap unsupported platform must not win")
+				limit, available, err := service.NewConcurrencyService(nil).RevalidateAPIKeyQueueTurn(c.Request.Context())
+				require.True(t, available)
+				require.NoError(t, err)
+				require.Equal(t, 1, limit)
+				selectedGroup := groups[2]
+				inactive := *selectedGroup
+				inactive.Status = service.StatusDisabled
+				groups[2] = &inactive
+				_, _, err = service.NewConcurrencyService(nil).RevalidateAPIKeyQueueTurn(c.Request.Context())
+				require.Error(t, err, "the selected group, not the still-active primary, governs every turn")
+				groups[2] = selectedGroup
 				current, _ := GetAPIKeyFromContext(c)
 				require.Same(t, selected, current)
 				group, _ := c.Request.Context().Value(ctxkey.Group).(*service.Group)

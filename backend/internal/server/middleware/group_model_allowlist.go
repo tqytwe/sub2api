@@ -20,7 +20,7 @@ import (
 // 保证校验发生在合成路由改写与调度之前，且只看客户端书写的公开模型名。
 //
 // 行为：
-//   - 快速路径：未绑定分组或白名单未开启时直接放行，不读请求体。
+//   - 快速路径：未开启模型限制且 Key 未启用并发限制时直接放行，不读请求体。
 //   - Responses WebSocket 入口跳过（首帧与后续 turn 由 ResponsesWebSocket 逐帧
 //     校验）；Grok Realtime 的升级请求模型固定在查询参数里，仍走中间件校验，
 //     其他路由伪造 Upgrade 头不得绕过校验。
@@ -35,13 +35,13 @@ func GroupModelAllowlist() gin.HandlerFunc {
 		done := requesttiming.Observe(c.Request.Context(), "model_allowlist")
 		defer done()
 		apiKey, ok := GetAPIKeyFromContext(c)
-		if !ok || apiKey == nil || apiKey.Group == nil || (!apiKey.Group.ModelAllowlistEnabled() && len(apiKey.DeniedModelsInGroup()) == 0) {
+		if !ok || apiKey == nil {
 			done()
 			c.Next()
 			return
 		}
-		allowlist := apiKey.Group.ModelAllowlist
-		if c.Request == nil {
+		hasModelPolicy := apiKey.Group != nil && (apiKey.Group.ModelAllowlistEnabled() || len(apiKey.DeniedModelsInGroup()) != 0)
+		if !hasModelPolicy && apiKey.ConcurrencyLimit == 0 {
 			done()
 			c.Next()
 			return
@@ -76,6 +76,16 @@ func GroupModelAllowlist() gin.HandlerFunc {
 			}
 		}
 
+		if apiKey.ConcurrencyLimit > 0 {
+			ctx := c.Request.Context()
+			permissions := service.APIKeyQueueRequestPermissionsFromContext(ctx)
+			permissions.Models = models
+			c.Request = c.Request.WithContext(service.WithAPIKeyQueueRequestPermissions(ctx, permissions))
+		}
+		var allowlist service.GroupModelAllowlist
+		if apiKey.Group != nil {
+			allowlist = apiKey.Group.ModelAllowlist
+		}
 		blocked := ""
 		for _, candidate := range models {
 			if !allowlist.Allows(candidate) {

@@ -36,6 +36,7 @@ type RelayResult struct {
 	// UnfinishedTurn is separate from Usage, which contains completed turns only.
 	// Callers must settle this snapshot once, never re-submit the aggregate.
 	UnfinishedTurn        *RelayTurnResult
+	ClientDisconnected    bool
 	RequestModel          string
 	ResponseModel         string
 	ResponseModelConflict bool
@@ -66,10 +67,11 @@ type RelayTurnResult struct {
 }
 
 type RelayExit struct {
-	Stage           string
-	Err             error
-	Graceful        bool
-	WroteDownstream bool
+	Stage              string
+	Err                error
+	Graceful           bool
+	WroteDownstream    bool
+	ClientDisconnected bool
 }
 
 type RelayOptions struct {
@@ -290,18 +292,23 @@ func Relay(
 	exitCh := make(chan relayExitSignal, 3)
 	dropDownstreamWrites := atomic.Bool{}
 	clientReaderStarted := atomic.Bool{}
+	var readers sync.WaitGroup
 	startClientReader := func() {
 		if !clientReaderStarted.CompareAndSwap(false, true) {
 			return
 		}
-		go runClientToUpstream(relayCtx, clientConn, options.ReadClientFrame, writeClientFrameUpstream, markActivity, clientToUpstreamFrames, onTrace, exitCh)
+		readers.Add(1)
+		go func() {
+			defer readers.Done()
+			runClientToUpstream(relayCtx, clientConn, options.ReadClientFrame, writeClientFrameUpstream, markActivity, clientToUpstreamFrames, onTrace, exitCh)
+		}()
 	}
 	if !options.StartClientAfterFirstDownstream {
 		startClientReader()
 	}
-	upstreamDone := make(chan struct{})
+	readers.Add(1)
 	go func() {
-		defer close(upstreamDone)
+		defer readers.Done()
 		runUpstreamToClient(
 			relayCtx,
 			upstreamConn,
@@ -384,7 +391,7 @@ func Relay(
 	// ReadFrame observes relayCtx cancellation and Close is the transport-level
 	// fallback. Join the reader before touching relayState or firing the final
 	// turn callback; otherwise a late read can race Relay's result settlement.
-	<-upstreamDone
+	readers.Wait()
 
 	emitTurnComplete(options.OnTurnComplete, state, finalizePendingBareError(state, nowFn()))
 	enrichResult(&result, state, nowFn().Sub(startAt))
@@ -392,7 +399,9 @@ func Relay(
 	result.ClientToUpstreamFrames = clientToUpstreamFrames.Load()
 	result.UpstreamToClientFrames = upstreamToClientFrames.Load()
 	result.DroppedDownstreamFrames = droppedDownstreamFrames.Load()
-	if options.FirstMessageSent && firstExit.stage == "read_client" && firstExit.graceful {
+	clientDisconnected := firstExit.stage == "read_client" && firstExit.graceful
+	result.ClientDisconnected = clientDisconnected
+	if options.FirstMessageSent && clientDisconnected && (!hasSecondExit || secondExit.graceful) {
 		emitRelayTrace(onTrace, RelayTraceEvent{
 			Stage:           "relay_client_closed",
 			Graceful:        true,
@@ -400,7 +409,7 @@ func Relay(
 		})
 		return result, nil
 	}
-	if firstExit.stage == "read_client" && firstExit.graceful {
+	if clientDisconnected {
 		stage := "client_disconnected"
 		exitErr := firstExit.err
 		if hasSecondExit && !secondExit.graceful {
@@ -418,9 +427,10 @@ func Relay(
 			Error:           relayErrorString(exitErr),
 		})
 		return result, &RelayExit{
-			Stage:           stage,
-			Err:             exitErr,
-			WroteDownstream: combinedWroteDownstream,
+			Stage:              stage,
+			Err:                exitErr,
+			WroteDownstream:    combinedWroteDownstream,
+			ClientDisconnected: true,
 		}
 	}
 	if firstExit.graceful && (!hasSecondExit || secondExit.graceful) {
