@@ -1004,6 +1004,12 @@ export default {
         rechargeUrl: '充值页面 URL',
         rechargeUrlPlaceholder: 'https://example.com/payment',
         rechargeUrlHint: '设置后邮件中将包含充值链接按钮',
+        forecastEnabled: '启用余额耗尽预测提醒',
+        forecastEnabledHint: '按近期实际消费速度估算余额耗尽时间，仅对有可靠消费记录的用户发送提醒。',
+        forecastThresholdHours: '预测剩余小时阈值',
+        forecastThresholdHoursHint: '预计余额在此小时数内耗尽时发送提醒，范围 1–168 小时。',
+        forecastMaxNotifications: '每个用户最多提醒次数',
+        forecastMaxNotificationsHint: '达到次数后不再重复发送，范围 1–10 次。',
       },
       quotaNotify: {
         title: '账号限额通知',

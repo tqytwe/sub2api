@@ -102,6 +102,9 @@ func (s *SettingService) refreshCachedSettingsAfterWrite(ctx context.Context, se
 }
 
 func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, settings *SystemSettings) (map[string]string, error) {
+	if err := settings.normalizeBalanceForecastSettings(); err != nil {
+		return nil, err
+	}
 	if err := s.validateDefaultSubscriptionGroups(ctx, settings.DefaultSubscriptions); err != nil {
 		return nil, err
 	}
@@ -566,6 +569,9 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	updates[SettingKeyBillingSurchargeValue] = strconv.FormatFloat(settings.BillingSurchargeValue, 'f', -1, 64)
 
 	// 余额、订阅到期与账号限额通知
+	updates[SettingKeyBalanceForecastEnabled] = strconv.FormatBool(settings.BalanceForecastEnabled)
+	updates[SettingKeyBalanceForecastThresholdHours] = strconv.FormatFloat(settings.BalanceForecastThresholdHours, 'f', -1, 64)
+	updates[SettingKeyBalanceForecastMaxNotifications] = strconv.Itoa(settings.BalanceForecastMaxNotifications)
 	updates[SettingKeyBalanceLowNotifyEnabled] = strconv.FormatBool(settings.BalanceLowNotifyEnabled)
 	updates[SettingKeyBalanceLowNotifyThreshold] = strconv.FormatFloat(settings.BalanceLowNotifyThreshold, 'f', 8, 64)
 	updates[SettingKeyBalanceLowNotifyRechargeURL] = settings.BalanceLowNotifyRechargeURL

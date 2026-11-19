@@ -86,6 +86,7 @@ func provideCleanup(
 	adminSettingHandler *admin.SettingHandler,
 	adminUsageHandler *admin.UsageHandler,
 	requestLedgerHandler *handler.RequestLedgerHandler,
+	balanceNotify *service.BalanceNotifyService,
 	entClient *ent.Client,
 	rdb *redis.Client,
 	opsMetricsCollector *service.OpsMetricsCollector,
@@ -152,6 +153,9 @@ func provideCleanup(
 	server.SetPublicHomeStatsService(publicHomeStatsService)
 	server.SetPublicStatusSummaryService(publicStatusSummaryService)
 	return func() {
+		if balanceNotify != nil {
+			balanceNotify.Stop()
+		}
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 

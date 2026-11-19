@@ -40,6 +40,7 @@ type AccountQuotaReader interface {
 // BalanceNotifyService handles balance and quota threshold notifications.
 type BalanceNotifyService struct {
 	emailService             *EmailService
+	forecast                 *BalanceForecastService
 	settingRepo              SettingRepository
 	accountRepo              AccountQuotaReader
 	notificationEmailService *NotificationEmailService
@@ -552,4 +553,11 @@ func (s *BalanceNotifyService) buildQuotaAlertEmailBody(accountID int64, account
 		limitStr = "无限制 / Unlimited"
 	}
 	return fmt.Sprintf(quotaAlertEmailTemplate, siteName, accountID, accountName, platform, dimLabel, used, limitStr, remaining, thresholdDisplay)
+}
+
+// Stop joins the owned periodic job before its SQL and mail dependencies close.
+func (s *BalanceNotifyService) Stop() {
+	if s.forecast != nil {
+		s.forecast.Stop()
+	}
 }

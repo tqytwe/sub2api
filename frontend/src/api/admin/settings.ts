@@ -727,6 +727,9 @@ export interface SystemSettings {
   balance_low_notify_enabled: boolean;
   balance_low_notify_threshold: number;
   balance_low_notify_recharge_url: string;
+  balance_forecast_enabled: boolean;
+  balance_forecast_threshold_hours: number;
+  balance_forecast_max_notifications: number;
   subscription_expiry_notify_enabled: boolean;
   account_quota_notify_enabled: boolean;
   account_quota_notify_emails: NotifyEmailEntry[];
@@ -1055,6 +1058,9 @@ export interface UpdateSettingsRequest {
   balance_low_notify_enabled?: boolean;
   balance_low_notify_threshold?: number;
   balance_low_notify_recharge_url?: string;
+  balance_forecast_enabled?: boolean;
+  balance_forecast_threshold_hours?: number;
+  balance_forecast_max_notifications?: number;
   subscription_expiry_notify_enabled?: boolean;
   account_quota_notify_enabled?: boolean;
   account_quota_notify_emails?: NotifyEmailEntry[];

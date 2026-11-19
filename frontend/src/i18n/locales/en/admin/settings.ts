@@ -1009,6 +1009,12 @@ export default {
         rechargeUrl: 'Recharge Page URL',
         rechargeUrlPlaceholder: 'https://example.com/payment',
         rechargeUrlHint: 'A top-up button will appear in the email when set',
+        forecastEnabled: 'Enable balance exhaustion forecast alerts',
+        forecastEnabledHint: 'Estimate exhaustion from reliable recent usage and notify users approaching the threshold.',
+        forecastThresholdHours: 'Forecast threshold (hours)',
+        forecastThresholdHoursHint: 'Notify when the forecast is within 1–168 hours.',
+        forecastMaxNotifications: 'Maximum alerts per user',
+        forecastMaxNotificationsHint: 'Stop sending after this many alerts, from 1 to 10.',
       },
       quotaNotify: {
         title: 'Account Quota Notification',

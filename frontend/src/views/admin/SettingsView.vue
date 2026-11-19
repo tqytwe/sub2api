@@ -8837,6 +8837,39 @@
                   {{ t("admin.settings.balanceNotify.rechargeUrlHint") }}
                 </p>
               </div>
+              <div class="border-t border-gray-100 pt-4 dark:border-dark-700">
+                <div class="flex items-center justify-between gap-4">
+                  <div>
+                    <label class="mb-0 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      {{ t("admin.settings.balanceNotify.forecastEnabled") }}
+                    </label>
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                      {{ t("admin.settings.balanceNotify.forecastEnabledHint") }}
+                    </p>
+                  </div>
+                  <Toggle v-model="form.balance_forecast_enabled" />
+                </div>
+                <div v-if="form.balance_forecast_enabled" class="mt-4 grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      {{ t("admin.settings.balanceNotify.forecastThresholdHours") }}
+                    </label>
+                    <input v-model.number="form.balance_forecast_threshold_hours" type="number" min="1" max="168" step="1" class="input" />
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                      {{ t("admin.settings.balanceNotify.forecastThresholdHoursHint") }}
+                    </p>
+                  </div>
+                  <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      {{ t("admin.settings.balanceNotify.forecastMaxNotifications") }}
+                    </label>
+                    <input v-model.number="form.balance_forecast_max_notifications" type="number" min="1" max="10" step="1" class="input" />
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                      {{ t("admin.settings.balanceNotify.forecastMaxNotificationsHint") }}
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -10070,6 +10103,9 @@ const form = reactive<SettingsForm>({
   balance_low_notify_enabled: false,
   balance_low_notify_threshold: 0,
   balance_low_notify_recharge_url: "",
+  balance_forecast_enabled: false,
+  balance_forecast_threshold_hours: 12,
+  balance_forecast_max_notifications: 3,
   subscription_expiry_notify_enabled: true,
   account_quota_notify_enabled: false,
   account_quota_notify_emails: [] as NotifyEmailEntry[],
@@ -12011,6 +12047,15 @@ async function saveSettings() {
         Number(form.balance_low_notify_threshold) || 0,
       balance_low_notify_recharge_url: (form.balance_low_notify_recharge_url =
         form.balance_low_notify_recharge_url || currentOrigin),
+      balance_forecast_enabled: form.balance_forecast_enabled,
+      balance_forecast_threshold_hours: Math.min(
+        168,
+        Math.max(1, Math.floor(Number(form.balance_forecast_threshold_hours) || 12)),
+      ),
+      balance_forecast_max_notifications: Math.min(
+        10,
+        Math.max(1, Math.floor(Number(form.balance_forecast_max_notifications) || 3)),
+      ),
       subscription_expiry_notify_enabled:
         form.subscription_expiry_notify_enabled,
       account_quota_notify_enabled: form.account_quota_notify_enabled,
