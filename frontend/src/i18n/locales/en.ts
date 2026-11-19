@@ -1,3 +1,4 @@
+import autoCredit from './en/autoCredit'
 import profitOps from './en/profitOps'
 import upstreamEntities from './en/upstreamEntities'
 import openaiAuth from './en/openaiAuth'
@@ -34,6 +35,7 @@ import accountOpsEn from './en/accountOps'
 import { mergeLocaleMessages } from './merge'
 
 const messages = {
+  autoCredit,
   profitOps,
   upstreamEntities,
   openaiAuth,

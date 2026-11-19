@@ -1157,6 +1157,12 @@ func ProvidePlayService(
 }
 
 // ProvideAPIKeyService wires APIKeyService and connects rate-limit cache invalidation.
+func ProvideAutoCreditEmailWorker(repo AutoCreditEmailOutboxRepository, mail *NotificationEmailService) *AutoCreditEmailWorker {
+	worker := NewAutoCreditEmailWorker(repo, mail)
+	worker.Start()
+	return worker
+}
+
 func ProvideAPIKeyService(
 	apiKeyRepo APIKeyRepository,
 	userRepo UserRepository,
@@ -1185,9 +1191,11 @@ func ProvideAPIKeyServiceWithGroupProtection(
 	billingCacheService *BillingCacheService,
 	concurrencyService *ConcurrencyService,
 	protection *GroupAntiDistillationService,
+	autoCredit AutoCreditRepository,
 ) *APIKeyService {
 	svc := ProvideAPIKeyService(apiKeyRepo, userRepo, groupRepo, userSubRepo, userGroupRateRepo, cache, cfg, billingCacheService, concurrencyService)
 	svc.SetGroupAntiDistillationService(protection)
+	svc.SetAutoCredit(autoCredit, billingCacheService)
 	return svc
 }
 
@@ -1358,6 +1366,7 @@ var ProviderSet = wire.NewSet(
 	ProvideAccountPerformanceService,
 	NewEmailService,
 	NewNotificationEmailService,
+	ProvideAutoCreditEmailWorker,
 	NewIPRiskAlertEmailNotifier,
 	NewWithdrawalService,
 	NewFundManagementService,

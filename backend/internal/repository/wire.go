@@ -96,6 +96,8 @@ var ProviderSet = wire.NewSet(
 	wire.Bind(new(service.PublicHomeStatsRepository), new(*publicHomeStatsRepository)),
 	wire.Bind(new(service.PublicStatusSummaryRepository), new(*publicHomeStatsRepository)),
 	NewUsageBillingRepositoryWithLedger,
+	NewAutoCreditRepository,
+	ProvideAutoCreditEmailOutboxRepository,
 	NewBatchImageRepository,
 	NewImageStudioRepository,
 	NewIdempotencyRepository,

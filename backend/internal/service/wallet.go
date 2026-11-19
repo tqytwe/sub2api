@@ -35,6 +35,7 @@ const (
 	WalletPublicSourceSubscription    = "subscription"
 	WalletPublicSourceWithdrawal      = "withdrawal"
 	WalletPublicSourceGift            = "gift"
+	WalletPublicSourceAutoCredit      = "auto_credit"
 	WalletPublicSourceOther           = "other"
 )
 
@@ -469,6 +470,8 @@ func WalletPublicSourceForRawWithFundKind(raw string, fundKind string) string {
 	}
 	source := strings.ToLower(strings.TrimSpace(raw))
 	switch source {
+	case WalletPublicSourceAutoCredit:
+		return WalletPublicSourceAutoCredit
 	case "payment_recharge", "recharge", "payment_balance", FundLedgerSourceOfflineRecharge:
 		return WalletPublicSourceRecharge
 	case FundLedgerSourceOpsGift, FundLedgerSourceSignupGift, FundLedgerSourceCompensation, "auth_first_bind_grant":
@@ -521,6 +524,8 @@ func walletRawSourceFilter(publicSource string) (walletSourceFilter, error) {
 			[]string{FundLedgerSourceOpsGift, FundLedgerSourceSignupGift, FundLedgerSourceCompensation, "auth_first_bind_grant"},
 			[]string{FundSourceKindSignupGift, FundSourceKindOpsGift, FundSourceKindCompensation},
 		), nil
+	case WalletPublicSourceAutoCredit:
+		return walletIncludeRawSources(WalletPublicSourceAutoCredit), nil
 	case WalletPublicSourceRedeem:
 		return walletIncludeRawSources("balance", "redeem", "redeem_code"), nil
 	case WalletPublicSourceAffiliate:
@@ -575,6 +580,7 @@ func walletIncludeRawSourcesAndFundKinds(rawTypes []string, fundKinds []string) 
 
 func walletKnownRawSourceTypes() []string {
 	return []string{
+		WalletPublicSourceAutoCredit,
 		"payment_recharge",
 		"payment_balance",
 		"recharge",

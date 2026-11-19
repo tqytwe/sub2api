@@ -299,6 +299,8 @@ type RateLimitCacheInvalidator interface {
 
 type APIKeyService struct {
 	groupAntiDistillation     *GroupAntiDistillationService
+	autoCredit                AutoCreditRepository
+	autoCreditBilling         *BillingCacheService
 	apiKeyRepo                APIKeyRepository
 	userRepo                  UserRepository
 	groupRouter               APIKeyGroupRouter
@@ -849,6 +851,14 @@ func (s *APIKeyService) GetByKey(ctx context.Context, key string) (*APIKey, erro
 		}
 	}
 
+	return s.GetByKeyUncached(ctx, key)
+}
+
+// GetByKeyUncached refreshes the authorization snapshot after a balance recovery.
+func (s *APIKeyService) GetByKeyUncached(ctx context.Context, key string) (*APIKey, error) {
+	if len(key) == 0 || len(key) > MaxAPIKeyCredentialBytes {
+		return nil, ErrAPIKeyNotFound
+	}
 	apiKey, err := s.lookupAPIKeyForAuth(ctx, key)
 	if err != nil {
 		return nil, fmt.Errorf("get api key: %w", err)

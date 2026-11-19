@@ -477,6 +477,15 @@
                 {{ t('admin.users.deposit') }}
               </button>
             </div>
+            <button
+              v-if="creditAuth.isAdmin && Number(row.auto_credit_outstanding) > 0"
+              type="button"
+              data-testid="user-auto-credit-outstanding"
+              class="mt-1 text-left text-xs font-semibold text-amber-700 hover:underline dark:text-amber-300"
+              @click="autoCreditUser = row"
+            >
+              {{ t('autoCredit.debt', { amount: Number(row.auto_credit_outstanding).toFixed(2) }) }}
+            </button>
           </template>
 
           <template #cell-vip="{ row }">
@@ -765,6 +774,16 @@
                 {{ t('admin.users.platformQuota.menuItem') }}
               </button>
 
+              <button
+                v-if="creditAuth.isAdmin"
+                type="button"
+                @click="autoCreditUser = user; closeActionMenu()"
+                class="flex w-full items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-700"
+              >
+                <Icon name="dollar" size="sm" class="text-gray-400" :stroke-width="2" />
+                {{ t('autoCredit.title') }}
+              </button>
+
               <!-- Balance History -->
               <button
                 @click="handleBalanceHistory(user); closeActionMenu()"
@@ -816,6 +835,7 @@
     <UserApiKeysModal :show="showApiKeysModal" :user="viewingUser" @close="closeApiKeysModal" />
     <UserAllowedGroupsModal :show="showAllowedGroupsModal" :user="allowedGroupsUser" @close="closeAllowedGroupsModal" @success="loadUsers" />
     <UserBalanceModal :show="showBalanceModal" :user="balanceUser" :operation="balanceOperation" @close="closeBalanceModal" @success="loadUsers" />
+    <UserAutoCreditModal :show="autoCreditUser !== null" :user="autoCreditUser" @close="autoCreditUser = null" @success="loadUsers" />
     <UserBalanceHistoryModal :show="showBalanceHistoryModal" :user="balanceHistoryUser" @close="closeBalanceHistoryModal" @deposit="handleDepositFromHistory" @withdraw="handleWithdrawFromHistory" />
     <GroupReplaceModal :show="showGroupReplaceModal" :user="groupReplaceUser" :old-group="groupReplaceOldGroup" :all-groups="allGroups" @close="closeGroupReplaceModal" @success="loadUsers" />
     <UserAttributesConfigModal :show="showAttributesModal" @close="handleAttributesModalClose" />
@@ -849,6 +869,7 @@
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
+import { useAuthStore } from '@/stores/auth'
 import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
 import { useTableSelection } from '@/composables/useTableSelection'
 import { formatDateTime } from '@/utils/format'
@@ -886,9 +907,12 @@ import UserApiKeysModal from '@/components/admin/user/UserApiKeysModal.vue'
 import UserAllowedGroupsModal from '@/components/admin/user/UserAllowedGroupsModal.vue'
 import UserBalanceModal from '@/components/admin/user/UserBalanceModal.vue'
 import UserBalanceHistoryModal from '@/components/admin/user/UserBalanceHistoryModal.vue'
+import UserAutoCreditModal from '@/components/admin/user/UserAutoCreditModal.vue'
 import GroupReplaceModal from '@/components/admin/user/GroupReplaceModal.vue'
 
 const appStore = useAppStore()
+const creditAuth = useAuthStore()
+const autoCreditUser = ref<AdminUser | null>(null)
 
 // Generate dynamic attribute columns from enabled definitions
 const attributeColumns = computed<Column[]>(() =>

@@ -25,7 +25,8 @@ func APIKeyAuthGoogle(apiKeyService *service.APIKeyService, cfg *config.Config) 
 //
 // It is intended for Gemini native endpoints (/v1beta) to match Gemini SDK expectations.
 func APIKeyAuthWithSubscriptionGoogle(apiKeyService *service.APIKeyService, subscriptionService *service.SubscriptionService, cfg *config.Config) gin.HandlerFunc {
-	return func(c *gin.Context) {
+	var authenticate gin.HandlerFunc
+	authenticate = func(c *gin.Context) {
 		if rejectInvalidAuthAbuse(c, apiKeyService) {
 			abortWithGoogleError(c, 429, "Too many invalid authentication attempts; retry later")
 			return
@@ -60,7 +61,11 @@ func APIKeyAuthWithSubscriptionGoogle(apiKeyService *service.APIKeyService, subs
 			return
 		}
 
-		apiKey, err := apiKeyService.GetByKey(c.Request.Context(), apiKeyString)
+		lookup := apiKeyService.GetByKey
+		if c.GetBool(autoCreditAdmissionAttempted) {
+			lookup = apiKeyService.GetByKeyUncached
+		}
+		apiKey, err := lookup(c.Request.Context(), apiKeyString)
 		if err != nil {
 			if errors.Is(err, service.ErrAPIKeyNotFound) {
 				recordInvalidAuthFailure(c, apiKeyService)
@@ -237,6 +242,18 @@ func APIKeyAuthWithSubscriptionGoogle(apiKeyService *service.APIKeyService, subs
 			c.Set(string(ContextKeySubscription), subscription)
 		} else {
 			if apiKeyBalanceBelowAuthThreshold(apiKey.User.Balance, cfg) {
+				if !c.GetBool(autoCreditAdmissionAttempted) {
+					c.Set(autoCreditAdmissionAttempted, true)
+					recovered, recoveryErr := apiKeyService.RecoverAutoCreditAdmission(c.Request.Context(), apiKey)
+					if recoveryErr != nil {
+						abortWithGoogleError(c, http.StatusServiceUnavailable, "Credit authorization unavailable")
+						return
+					}
+					if recovered {
+						authenticate(c)
+						return
+					}
+				}
 				abortWithGoogleError(c, 403, "Insufficient account balance")
 				return
 			}
@@ -252,6 +269,7 @@ func APIKeyAuthWithSubscriptionGoogle(apiKeyService *service.APIKeyService, subs
 		_ = apiKeyService.TouchLastUsed(c.Request.Context(), apiKey.ID)
 		nextWithAPIKeyAdmissionOwner(c, apiKeyService, apiKeyString, ip.GetSecurityClientIP(c, cfg.TrustForwardedIPForAPIKeyACL()), apiKey, true)
 	}
+	return authenticate
 }
 
 // extractAPIKeyForGoogle extracts API key for Google/Gemini endpoints.

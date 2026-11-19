@@ -533,6 +533,7 @@ const calculateSubscriptionDays = (startsAt?: string | null, expiresAt?: string 
 const normalizeFlowType = (value?: string | null) => String(value || '').trim().toLowerCase()
 
 const typeLabelKeys: Record<string, string> = {
+  auto_credit: 'autoCredit.title',
   payment_recharge: 'admin.users.typePaymentRecharge',
   payment_balance: 'admin.users.typePaymentRecharge',
   recharge: 'admin.users.typePaymentRecharge',

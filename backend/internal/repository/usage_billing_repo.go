@@ -722,6 +722,11 @@ func (r *usageBillingRepository) applyUsageBillingEffects(ctx context.Context, t
 			if transaction.BalanceBefore != nil {
 				result.BalanceOverdrafted = *transaction.BalanceBefore < cmd.BalanceCost
 			}
+			if transaction.BalanceDelta < 0 {
+				if err := r.advanceAutoCreditAfterDebit(ctx, tx, cmd, result); err != nil {
+					return err
+				}
+			}
 		} else {
 			newBalance, sufficient, err := deductUsageBillingBalance(ctx, tx, cmd.UserID, cmd.BalanceCost)
 			if err != nil {

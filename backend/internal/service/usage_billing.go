@@ -182,7 +182,8 @@ type AccountQuotaState struct {
 }
 
 type UsageBillingApplyResult struct {
-	Applied bool
+	Applied          bool
+	AutoCreditIssued bool `json:"-"`
 	// Settlement proof is returned only after commit or an exact committed
 	// live/archive fingerprint match. Applied alone must never authorize log repair.
 	SettlementVerified    bool   `json:"-"`

@@ -370,6 +370,11 @@ const eventDisplayMeta: Record<string, EventDisplayMeta> = {
     timing: "用户余额低于全局或个人配置的提醒阈值时发送。",
     categoryLabel: "计费",
   },
+  "balance.auto_credit_success": {
+    label: "VIP 自动垫付成功",
+    timing: "垫付成功入账，且该用户已启用垫付邮件通知时发送。",
+    categoryLabel: "计费",
+  },
   "balance.recharge_success": {
     label: "余额充值成功",
     timing: "余额充值订单支付完成并入账后发送。",
@@ -431,6 +436,11 @@ const eventDisplayMetaEn: Record<string, EventDisplayMeta> = {
   "balance.low": {
     label: "Low Balance Alert",
     timing: "Sent when a user's balance drops below the global or personal reminder threshold.",
+    categoryLabel: "Billing",
+  },
+  "balance.auto_credit_success": {
+    label: "VIP Automatic Credit",
+    timing: "Sent after an automatic credit is recorded and email is enabled for this user.",
     categoryLabel: "Billing",
   },
   "balance.recharge_success": {

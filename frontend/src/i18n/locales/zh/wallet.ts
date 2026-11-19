@@ -35,6 +35,7 @@ export default {
       withdrawableChange: '可提现变动',
     },
     source: {
+      auto_credit: 'VIP 自动垫付',
       all: '全部来源',
       recharge: '充值',
       redeem: '兑换',

@@ -347,7 +347,7 @@ func (s *APIKeyService) snapshotFromAPIKey(ctx context.Context, apiKey *APIKey) 
 		return nil
 	}
 	snapshot := &APIKeyAuthSnapshot{
-		ConcurrencyLimit: apiKey.ConcurrencyLimit,
+		ConcurrencyLimit:  apiKey.ConcurrencyLimit,
 		ModelMapping:      maps.Clone(apiKey.ModelMapping),
 		ReasoningEffort:   apiKey.ReasoningEffort,
 		AllowLongContext:  apiKey.AllowLongContext,
@@ -470,7 +470,7 @@ func (s *APIKeyService) snapshotToAPIKey(key string, snapshot *APIKeyAuthSnapsho
 		return nil
 	}
 	apiKey := &APIKey{
-		ConcurrencyLimit: snapshot.ConcurrencyLimit,
+		ConcurrencyLimit:  snapshot.ConcurrencyLimit,
 		ModelMapping:      maps.Clone(snapshot.ModelMapping),
 		ReasoningEffort:   snapshot.ReasoningEffort,
 		AllowLongContext:  snapshot.AllowLongContext,

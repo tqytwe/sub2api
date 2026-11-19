@@ -35,6 +35,7 @@ export default {
       withdrawableChange: 'Withdrawable change',
     },
     source: {
+      auto_credit: 'VIP automatic credit',
       all: 'All Sources',
       recharge: 'Recharge',
       redeem: 'Redeem',

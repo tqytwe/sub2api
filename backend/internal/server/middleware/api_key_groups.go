@@ -90,7 +90,7 @@ func selectAPIKeyRequestGroup(c *gin.Context, keys *service.APIKeyService, subsc
 			}
 			var subscription *service.UserSubscription
 			if cfg.RunMode != config.RunModeSimple {
-				subscription, err = validateSelectedGroupBilling(c.Request.Context(), selected, subscriptions, cfg)
+				subscription, err = validateSelectedGroupBilling(c.Request.Context(), selected, subscriptions, nil, cfg)
 				if err != nil {
 					return nil, err
 				}
@@ -136,7 +136,7 @@ func selectAPIKeyRequestGroup(c *gin.Context, keys *service.APIKeyService, subsc
 			}
 			var subscription *service.UserSubscription
 			if cfg.RunMode != config.RunModeSimple {
-				subscription, err = validateSelectedGroupBilling(c.Request.Context(), selected, subscriptions, cfg)
+				subscription, err = validateSelectedGroupBilling(c.Request.Context(), selected, subscriptions, keys, cfg)
 				if err != nil {
 					return nil, err
 				}
@@ -188,6 +188,14 @@ func resolveAPIKeyRequestGroup(c *gin.Context, keys *service.APIKeyService, subs
 	if strings.Contains(path, "/videos") {
 		kind = "video"
 	}
+	canRecoverBalance := false
+	if checkBilling && key.User != nil && groupBalanceNeedsRecovery(key.User.Balance, cfg) {
+		var err error
+		canRecoverBalance, err = keys.CanRecoverAutoCreditAdmission(c.Request.Context(), key)
+		if err != nil {
+			return nil, infraerrors.ServiceUnavailable("AUTO_CREDIT_UNAVAILABLE", "Credit authorization unavailable")
+		}
+	}
 	accepts := func(candidate *service.APIKey) bool {
 		group := candidate.Group
 		switch endpoint {
@@ -226,7 +234,7 @@ func resolveAPIKeyRequestGroup(c *gin.Context, keys *service.APIKeyService, subs
 		if group.Platform == service.PlatformOpenAI && (strings.HasSuffix(path, "/messages") || strings.HasSuffix(path, "/messages/count_tokens")) && !group.AllowMessagesDispatch {
 			return false
 		}
-		if checkBilling && !group.IsSubscriptionType() && apiKeyBalanceBelowAuthThreshold(candidate.User.Balance, cfg) {
+		if checkBilling && !group.IsSubscriptionType() && groupBalanceNeedsRecovery(candidate.User.Balance, cfg) && !canRecoverBalance {
 			return false
 		}
 		if google && group.Platform != service.PlatformGemini && group.Platform != service.PlatformAntigravity && group.Platform != service.PlatformComposite {
@@ -246,6 +254,13 @@ func resolveAPIKeyRequestGroup(c *gin.Context, keys *service.APIKeyService, subs
 		ctx = service.WithAPIKeyGroupWebSocket(ctx)
 	}
 	return keys.SelectRequestGroup(ctx, key, models, kind, subscriptions, accepts, checkBilling)
+}
+
+const autoCreditAdmissionAttempted = "auto_credit.attempted"
+
+// A group that cannot meet the billing reserve should not outrank a usable subscription.
+func groupBalanceNeedsRecovery(balance float64, cfg *config.Config) bool {
+	return balance <= 0 || cfg != nil && cfg.Billing.MinimumBalanceReserve > 0 && balance < cfg.Billing.MinimumBalanceReserve
 }
 
 func apiKeyGroupRequestEndpoint(path string) string {
@@ -283,7 +298,7 @@ func apiKeyGroupRequestEndpoint(path string) string {
 	}
 }
 
-func validateSelectedGroupBilling(ctx context.Context, key *service.APIKey, subscriptions *service.SubscriptionService, cfg *config.Config) (*service.UserSubscription, error) {
+func validateSelectedGroupBilling(ctx context.Context, key *service.APIKey, subscriptions *service.SubscriptionService, credit *service.APIKeyService, cfg *config.Config) (*service.UserSubscription, error) {
 	if key.Group.IsSubscriptionType() && subscriptions != nil {
 		sub, err := subscriptions.GetActiveSubscription(ctx, key.UserID, key.Group.ID)
 		if err != nil {
@@ -300,6 +315,17 @@ func validateSelectedGroupBilling(ctx context.Context, key *service.APIKey, subs
 		return sub, err
 	}
 	if apiKeyBalanceBelowAuthThreshold(key.User.Balance, cfg) {
+		// A Responses WebSocket performs billing after first-frame group and
+		// model policy checks. Do not issue credit during group resolution.
+		if credit != nil {
+			eligible, err := credit.CanRecoverAutoCreditAdmission(ctx, key)
+			if err != nil {
+				return nil, infraerrors.ServiceUnavailable("AUTO_CREDIT_UNAVAILABLE", "Credit authorization unavailable")
+			}
+			if eligible {
+				return nil, nil
+			}
+		}
 		return nil, infraerrors.Forbidden("INSUFFICIENT_BALANCE", "Insufficient account balance")
 	}
 	return nil, nil

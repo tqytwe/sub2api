@@ -11,6 +11,12 @@ import (
 )
 
 // ProvideAdminHandlers creates the AdminHandlers struct
+func ProvideAdminUserHandler(adminService service.AdminService, concurrency *service.ConcurrencyService, quotas service.UserPlatformQuotaRepository, billing service.BillingCache, totp *service.TotpService, users *service.UserService, settings *service.SettingService, autoCredit service.AutoCreditRepository) *admin.UserHandler {
+	h := admin.NewUserHandler(adminService, concurrency, quotas, billing, totp, users, settings)
+	h.SetAutoCredit(autoCredit)
+	return h
+}
+
 func ProvideAdminHandlers(
 	dashboardHandler *admin.DashboardHandler,
 	userHandler *admin.UserHandler,
@@ -517,7 +523,7 @@ var ProviderSet = wire.NewSet(
 
 	// Admin handlers
 	admin.NewDashboardHandler,
-	admin.NewUserHandler,
+	ProvideAdminUserHandler,
 	admin.ProvideGroupHandlerWithProtection,
 	admin.ProvideAccountHandler,
 	ProvideAdminAnnouncementHandler,
