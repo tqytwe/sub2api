@@ -38,7 +38,7 @@ func TestAccountPerformanceSettingsRoutesRegistered(t *testing.T) {
 	admin := router.Group("/api/v1/admin")
 	registerSettingsRoutes(admin, &handler.Handlers{Admin: &handler.AdminHandlers{
 		Setting: adminhandler.NewSettingHandler(nil, nil, nil, nil, nil, nil, nil),
-	}})
+	}}, middleware.StepUpAuthMiddleware(func(c *gin.Context) { c.Next() }))
 
 	registered := map[string]bool{}
 	for _, route := range router.Routes() {

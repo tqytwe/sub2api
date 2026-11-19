@@ -558,11 +558,11 @@ func (s *adminServiceImpl) CreateAccount(ctx context.Context, input *CreateAccou
 			return nil, err
 		}
 	}
-	recordAutoConfigInitial(ctx, s.accountRepo, account, groupIDs)
-
-	// OAuth 账号：创建后异步设置隐私。
-	// 使用 Ensure（幂等）而非 Force：新建账号 Extra 为空时效果相同，但更安全。
-	if account.Type == AccountTypeOAuth {
+	AfterAccountCommit(ctx, func(committed context.Context) {
+		recordAutoConfigInitial(committed, s.accountRepo, account, groupIDs)
+		if account.Type != AccountTypeOAuth {
+			return
+		}
 		switch account.Platform {
 		case PlatformOpenAI:
 			go func() {
@@ -583,7 +583,7 @@ func (s *adminServiceImpl) CreateAccount(ctx context.Context, input *CreateAccou
 				s.EnsureAntigravityPrivacy(context.Background(), account)
 			}()
 		}
-	}
+	})
 
 	return account, nil
 }
@@ -1398,9 +1398,11 @@ func (s *adminServiceImpl) ClearAccountError(ctx context.Context, id int64) (*Ac
 	if err := s.accountRepo.ClearTempUnschedulable(ctx, id); err != nil {
 		return nil, err
 	}
-	if s.runtimeBlocker != nil {
-		s.runtimeBlocker.ClearAccountSchedulingBlock(id)
-	}
+	AfterAccountCommit(ctx, func(context.Context) {
+		if s.runtimeBlocker != nil {
+			s.runtimeBlocker.ClearAccountSchedulingBlock(id)
+		}
+	})
 	return s.accountRepo.GetByID(ctx, id)
 }
 

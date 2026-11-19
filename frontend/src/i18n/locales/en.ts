@@ -1,6 +1,7 @@
 import profitOps from './en/profitOps'
 import upstreamEntities from './en/upstreamEntities'
 import openaiAuth from './en/openaiAuth'
+import adminAccessKeys from './en/adminAccessKeys'
 import accountPerformance from './en/accountPerformance'
 import autoConfig from './en/autoConfig'
 import ipAudit from './en/ipAudit'
@@ -36,6 +37,7 @@ const messages = {
   profitOps,
   upstreamEntities,
   openaiAuth,
+  adminAccessKeys,
   accountPerformance,
   autoConfig,
   requestTiming,

@@ -43,6 +43,8 @@ func RegisterAdminRoutes(
 		admin.GET("/requests/:id/identifiers", h.RequestLedger.IdentifierAdmin)
 		admin.GET("/requests/:id/usage/:usage_id", h.RequestLedger.UsageAdmin)
 	}
+	// 受限密钥的账户操作走独立资源校验，普通管理员保持原处理器。
+	admin.Use(h.Admin.Account.ScopedAdminKeyAccounts)
 	{
 		if h.PelicanShowcase != nil && h.Admin != nil && h.Admin.PelicanGroupTest != nil {
 			registerPelicanShowcaseRoutes(admin, h)
@@ -93,7 +95,7 @@ func RegisterAdminRoutes(
 		registerPromoCodeRoutes(admin, h)
 
 		// 系统设置
-		registerSettingsRoutes(admin, h)
+		registerSettingsRoutes(admin, h, stepUpAuth)
 		registerKeyRiskRoutes(admin, h)
 
 		// 数据管理
@@ -556,6 +558,7 @@ func registerUserManagementRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 
 func registerGroupRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	groups := admin.Group("/groups")
+	groups.Use(h.Admin.Group.ScopedAdminKeyGroupModels)
 	{
 		groups.GET("", h.Admin.Group.List)
 		groups.GET("/all", h.Admin.Group.GetAll)
@@ -906,7 +909,7 @@ func registerPromoCodeRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	}
 }
 
-func registerSettingsRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+func registerSettingsRoutes(admin *gin.RouterGroup, h *handler.Handlers, stepUpAuth middleware.StepUpAuthMiddleware) {
 	modelBilling := admin.Group("/model-billing")
 	modelBilling.GET("/config", h.Admin.Setting.GetModelBillingConfig)
 	modelBilling.PUT("/config", h.Admin.Setting.SaveModelBillingConfig)
@@ -921,8 +924,8 @@ func registerSettingsRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	priorityScheduling.POST("/recompute", h.Admin.Account.RecomputePriorityScheduling)
 	priorityScheduling.GET("/sticky-bindings", h.Admin.Account.PrioritySchedulingStickyBindings)
 	priorityScheduling.POST("/sticky-bindings/clear", h.Admin.Account.ClearPrioritySchedulingStickyBindings)
-
 	adminSettings := admin.Group("/settings")
+	registerScopedAdminKeyRoutes(adminSettings, h, stepUpAuth)
 	{
 		adminSettings.GET("/account-performance", h.Admin.Setting.GetAccountPerformanceSettings)
 		adminSettings.PUT("/account-performance", h.Admin.Setting.UpdateAccountPerformanceSettings)
@@ -937,8 +940,8 @@ func registerSettingsRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		adminSettings.POST("/email-templates/:event/:locale/restore-official", h.Admin.Setting.RestoreOfficialEmailTemplate)
 		// Admin API Key 管理
 		adminSettings.GET("/admin-api-key", h.Admin.Setting.GetAdminAPIKey)
-		adminSettings.POST("/admin-api-key/regenerate", h.Admin.Setting.RegenerateAdminAPIKey)
-		adminSettings.DELETE("/admin-api-key", h.Admin.Setting.DeleteAdminAPIKey)
+		adminSettings.POST("/admin-api-key/regenerate", gin.HandlerFunc(stepUpAuth), h.Admin.Setting.RegenerateAdminAPIKey)
+		adminSettings.DELETE("/admin-api-key", gin.HandlerFunc(stepUpAuth), h.Admin.Setting.DeleteAdminAPIKey)
 		// 529过载冷却配置
 		adminSettings.GET("/overload-cooldown", h.Admin.Setting.GetOverloadCooldownSettings)
 		adminSettings.PUT("/overload-cooldown", h.Admin.Setting.UpdateOverloadCooldownSettings)

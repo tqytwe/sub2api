@@ -48,7 +48,11 @@ func (r *accountRepository) UpdateAdminAccount(ctx context.Context, account *ser
 			changedIDs = append(changedIDs, shadow.ID)
 		}
 	}
-	if options.GroupIDs != nil {
+	if options.GroupIDs != nil && options.GroupAllowedModels == nil {
+		if err := writer.BindGroups(ctx, account.ID, *options.GroupIDs); err != nil {
+			return nil, err
+		}
+	} else if options.GroupIDs != nil {
 		if err := writer.BindGroupsWithAllowedModels(ctx, account.ID, *options.GroupIDs, options.GroupAllowedModels); err != nil {
 			return nil, err
 		}

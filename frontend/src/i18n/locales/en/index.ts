@@ -1,4 +1,5 @@
 import tokenGuardV2 from './tokenGuardV2'
+import adminAccessKeys from './adminAccessKeys'
 import landing from './landing'
 import common from './common'
 import apiKeyModelPolicy from './apiKeyModelPolicy'
@@ -16,6 +17,7 @@ import misc from './misc'
 export default {
   apiKeyModelPolicy,
   tokenGuardV2,
+  adminAccessKeys,
   ...landing,
   ...common,
   ...dashboard,

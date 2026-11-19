@@ -164,12 +164,13 @@ const localeLoaders: Record<LocaleCode, Record<LocaleLoadScope, LocaleLoader>> =
       return { default: mergeLocaleMessages(mergeLocaleMessages(legacy.default, adminMessages(overview.default, resources.default, scheduling.default, moderationUsers.default)), { pelicanTests: pelican.default, apiKeyModelPolicy: policy.default, ipAudit: keyRisk.default }) }
     },
     'admin-settings': async () => {
-      const [module, legacy, accountPerformance] = await Promise.all([
+      const [module, legacy, accountPerformance, adminAccessKeys] = await Promise.all([
         import('./locales/en/admin/settings'),
         import('./locales/en/legacy/admin-settings'),
         import('./locales/en/accountPerformance'),
+        import('./locales/en/adminAccessKeys'),
       ])
-      return { default: mergeLocaleMessages(mergeLocaleMessages(legacy.default, adminMessages(module.default)), { accountPerformance: accountPerformance.default }) }
+      return { default: mergeLocaleMessages(mergeLocaleMessages(legacy.default, adminMessages(module.default)), { accountPerformance: accountPerformance.default, adminAccessKeys: adminAccessKeys.default }) }
     },
     'admin-plugins': async () => {
       const module = await import('./locales/en/admin/plugins')
@@ -311,12 +312,13 @@ const localeLoaders: Record<LocaleCode, Record<LocaleLoadScope, LocaleLoader>> =
       return { default: mergeLocaleMessages(mergeLocaleMessages(legacy.default, adminMessages(overview.default, resources.default, scheduling.default, moderationUsers.default)), { pelicanTests: pelican.default, apiKeyModelPolicy: policy.default, ipAudit: keyRisk.default }) }
     },
     'admin-settings': async () => {
-      const [module, legacy, accountPerformance] = await Promise.all([
+      const [module, legacy, accountPerformance, adminAccessKeys] = await Promise.all([
         import('./locales/zh/admin/settings'),
         import('./locales/zh/legacy/admin-settings'),
         import('./locales/zh/accountPerformance'),
+        import('./locales/zh/adminAccessKeys'),
       ])
-      return { default: mergeLocaleMessages(mergeLocaleMessages(legacy.default, adminMessages(module.default)), { accountPerformance: accountPerformance.default }) }
+      return { default: mergeLocaleMessages(mergeLocaleMessages(legacy.default, adminMessages(module.default)), { accountPerformance: accountPerformance.default, adminAccessKeys: adminAccessKeys.default }) }
     },
     'admin-plugins': async () => {
       const module = await import('./locales/zh/admin/plugins')
