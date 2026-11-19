@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/openai"
 	"github.com/Wei-Shaw/sub2api/internal/service/basispoints"
@@ -155,4 +156,12 @@ func (s *OpenAIGatewayService) managedExcelRuntimeCredential(account *Account, t
 
 func applyExcelBPSRequestHeaders(req *http.Request, token, accountID string) {
 	req.Header = http.Header{"Authorization": {"Bearer " + token}, "Chatgpt-Account-Id": {accountID}, "X-Openai-Account-Id": {accountID}, "X-Basispoints-Auth-Mode": {"chatgpt"}, "Content-Type": {"application/json"}, "Accept": {"text/event-stream"}, "Origin": {"https://bps.openai.com"}, "User-Agent": {"Mozilla/5.0"}, "X-Openai-Internal-Basispoints-Client-Product": {"basispoints-excel-plugin"}, "X-Openai-Internal-Basispoints-Client-Agent-Profile": {"excel"}}
+	// Project the user from the bearer sent on this request. The parent account
+	// may still carry a separate Codex grant or older user metadata.
+	if claims, err := openai.DecodeIDToken(token); err == nil && claims.OpenAIAuth != nil {
+		userID := firstNonEmptyReauth(claims.OpenAIAuth.ChatGPTUserID, claims.OpenAIAuth.UserID)
+		if userID != "" && !strings.ContainsAny(userID, "\r\n") {
+			req.Header.Set("X-Openai-Account-User-Id", userID)
+		}
+	}
 }

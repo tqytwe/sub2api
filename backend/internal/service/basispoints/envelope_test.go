@@ -34,10 +34,7 @@ func TestTransportEnvelopeRepairsOnlyIllegalEscapes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	args, ok := got["arguments"].(object)
-	if !ok {
-		t.Fatalf("decoded arguments are not an object: %T", got["arguments"])
-	}
+	args := mustTestValue[object](t, got["arguments"])
 	// The original valid \f escape retains its JSON meaning; guessing paths would alter arguments.
 	if args["pattern"] != `\d+\s` || args["path"] != "C:\\Projects\file" || args["line"] != "a\nb" || args["literal"] != `\n` {
 		t.Fatalf("escape repair changed valid content: %#v", args)
@@ -74,24 +71,18 @@ func TestFormattedEnvelopeAndOutputOnlyReplay(t *testing.T) {
 	}
 	source["input"] = []any{message("user", "weather"), object{"type": "function_call_output", "call_id": call["call_id"], "output": "18 C"}}
 	replayed, _ := mustPrepare(t, source, "account/key", cache)
-	items, ok := replayed["input"].([]any)
-	if !ok || len(items) < 2 {
-		t.Fatalf("replayed input is incomplete: %T", replayed["input"])
-	}
+	items := mustTestValue[[]any](t, replayed["input"])
 	if !reflect.DeepEqual(items[len(items)-2], native) {
 		t.Fatal("formatting repair must not alter the original replay envelope")
 	}
-	output, ok := items[len(items)-1].(object)
-	if !ok {
-		t.Fatalf("replayed tool output is not an object: %T", items[len(items)-1])
-	}
+	output := mustTestValue[object](t, items[len(items)-1])
 	if output["id"] != "fc_call_native" || output["call_id"] != call["call_id"] || output["output"] != "18 C" {
 		t.Fatalf("incomplete tool output identity: %+v", output)
 	}
 }
 
-func TestToolOutputIDsAreBoundedAndCallerIDsPreserved(t *testing.T) {
-	for _, suppliedID := range []string{"", "caller_output_id"} {
+func TestToolOutputIDsAreBoundedAndValidCallerIDsPreserved(t *testing.T) {
+	for _, suppliedID := range []string{"", "caller_output_id", "ctco_client_result", "fc_valid_result", "fc_" + strings.Repeat("x", 61), "fc_" + strings.Repeat("x", 62)} {
 		cache := new(ReplayCache)
 		source := testSource()
 		source["tools"] = []any{object{"type": "function", "name": "shell"}}
@@ -105,17 +96,11 @@ func TestToolOutputIDsAreBoundedAndCallerIDsPreserved(t *testing.T) {
 		source["input"] = []any{message("user", "test"), call, object{"type": "function_call_output", "id": suppliedID, "call_id": call["call_id"], "output": "done"}}
 		first, _ := mustPrepare(t, source, "account/key", cache)
 		second, _ := mustPrepare(t, source, "account/key", cache)
-		items, ok := first["input"].([]any)
-		if !ok || len(items) == 0 {
-			t.Fatalf("first input is incomplete: %T", first["input"])
-		}
-		last, ok := items[len(items)-1].(object)
-		if !ok {
-			t.Fatalf("last input is not an object: %T", items[len(items)-1])
-		}
-		id := text(last["id"])
-		if id == "" || len(id) > 64 || (suppliedID != "" && id != suppliedID) || !reflect.DeepEqual(first, second) {
-			t.Fatal("tool output ID must be bounded, stable and preserve supplied IDs")
+		items := mustTestValue[[]any](t, first["input"])
+		id := text(mustTestValue[object](t, items[len(items)-1])["id"])
+		validCallerID := strings.HasPrefix(suppliedID, "fc_") && len(suppliedID) <= 64
+		if !strings.HasPrefix(id, "fc_") || len(id) > 64 || (validCallerID && id != suppliedID) || !reflect.DeepEqual(first, second) {
+			t.Fatal("tool output ID must be valid, bounded, stable and preserve valid supplied IDs")
 		}
 	}
 }
@@ -153,7 +138,7 @@ func TestNestedTransportRetainsExactReplayAndArguments(t *testing.T) {
 			if kind == "custom" && call["input"] != "exact raw input\nwith \\ and quotes \"" {
 				t.Fatal("custom input was modified")
 			}
-			if !reflect.DeepEqual(cache.getByCallID("account/key", "call_native"), native) {
+			if !reflect.DeepEqual(cache.get("account/key", "call_native"), native) {
 				t.Fatal("nested wrapper must remain intact for upstream replay")
 			}
 		}
@@ -184,5 +169,21 @@ func TestNestedAndCustomAliasesRejectAmbiguity(t *testing.T) {
 		if _, err := bridge.translateCall(nativeCall(envelope)); err == nil {
 			t.Fatal("ambiguous or non-string custom input accepted")
 		}
+	}
+}
+
+func TestRecoverTransportEnvelopeFromWrapper(t *testing.T) {
+	catalog := map[string]tool{"functions.exec": {Name: "exec", Kind: "function"}}
+	for _, raw := range []string{
+		`functions.exec({"name":"functions.exec","arguments":{"cmd":["pwd"]}})`,
+		`The model returned: {"name":"functions.exec","arguments":{"cmd":["pwd"]}}`,
+	} {
+		got, ok := recoverTransportEnvelope(raw, catalog)
+		if !ok || got["name"] != "functions.exec" {
+			t.Fatalf("wrapper was not recovered: %q -> %#v", raw, got)
+		}
+	}
+	if _, ok := recoverTransportEnvelope(`prefix {"name":"functions.exec"} and {"name":"functions.exec"}`, catalog); ok {
+		t.Fatal("ambiguous multiple envelopes must remain rejected")
 	}
 }

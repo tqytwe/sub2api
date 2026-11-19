@@ -801,6 +801,42 @@ describe("admin SettingsView payment visible method controls", () => {
     adminSettingsFetch.mockResolvedValue(undefined);
   });
 
+  it("saves the Excel BPS relay configuration and reloads the saved policy", async () => {
+    const wrapper = mountView();
+    await flushPromises();
+    await wrapper.get('#settings-tab-features').trigger('click');
+    const card = wrapper.get('[data-testid="excel-bps-image-settings"]');
+    expect(card.isVisible()).toBe(true);
+    expect(card.find('#excel-bps-image-base-url').exists()).toBe(false);
+    await card.get('#excel-bps-image-mode').setValue('relay');
+    await card.get('#excel-bps-image-base-url').setValue('https://images.example/path');
+    await wrapper.find('form').trigger('submit.prevent');
+    await flushPromises();
+    expect(updateSettings).not.toHaveBeenCalled();
+    expect(showError).toHaveBeenCalledWith('admin.settings.features.excelBpsImages.invalidBaseUrl');
+
+    await card.get('#excel-bps-image-base-url').setValue('https://images.example/');
+    await card.get('#excel-bps-image-max-requests').setValue(24);
+    await card.get('#bps-image-limit-policy').setValue('warn');
+    await wrapper.find('form').trigger('submit.prevent');
+    await flushPromises();
+    const saved = updateSettings.mock.calls[0]?.[0];
+    expect(saved).toMatchObject({
+      excel_bps_image_mode: 'relay',
+      excel_bps_image_base_url: 'https://images.example',
+      excel_bps_image_max_requests: 24,
+      excel_bps_image_limit_policy: 'warn',
+    });
+    wrapper.unmount();
+
+    getSettings.mockResolvedValueOnce({ ...baseSettingsResponse, ...saved });
+    const reloaded = mountView();
+    await flushPromises();
+    expect((reloaded.get('#excel-bps-image-max-requests').element as HTMLInputElement).value).toBe('24');
+    expect(reloaded.find('#bps-image-compact-reserve').exists()).toBe(true);
+    reloaded.unmount();
+  });
+
   it("loads, saves and reloads cache rate visibility, disabling user visibility with the main switch", async () => {
     getSettings.mockResolvedValueOnce({ ...baseSettingsResponse, usage_show_cache_rate: true, usage_show_cache_rate_to_users: false, usage_show_long_context_badge: true });
     const wrapper = mountView();

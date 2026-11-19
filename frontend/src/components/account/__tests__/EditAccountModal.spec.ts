@@ -1794,6 +1794,27 @@ describe('EditAccountModal Excel OAuth binding', () => {
     expect(updateAccountMock.mock.calls[0]?.[1]?.extra).not.toHaveProperty('openai_excel_bps')
     enabledWrapper.unmount()
   })
+
+  it('retains the selected BPS models and cache billing option when reopened and saved', async () => {
+    const account = buildOpenAIOAuthParentAccount()
+    account.extra = {
+      openai_excel_bps: true,
+      openai_excel_bps_models: ['gpt-5.2'],
+      openai_excel_bps_cache_creation_as_input: true
+    }
+    const wrapper = mountModal(account)
+    expect(wrapper.get('[data-testid="excel-bps-all-models"]').attributes('aria-checked')).toBe('false')
+    expect(wrapper.get('[data-testid="excel-bps-model-selection"]').text()).toContain('gpt-5.2')
+    expect(wrapper.get('[data-testid="excel-bps-cache-creation-as-input"]').attributes('aria-checked')).toBe('true')
+    await wrapper.get('[data-testid="excel-bps-model-selection"] [data-testid="rewrite-to-snapshot"]').trigger('click')
+    await wrapper.get('form#edit-account-form').trigger('submit.prevent')
+    expect(updateAccountMock.mock.calls.at(-1)?.[1]?.extra).toMatchObject({
+      openai_excel_bps: true,
+      openai_excel_bps_models: ['gpt-5.2-2025-12-11'],
+      openai_excel_bps_cache_creation_as_input: true
+    })
+    wrapper.unmount()
+  })
 })
 
 

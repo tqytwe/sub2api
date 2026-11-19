@@ -16,6 +16,7 @@ import (
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/openai"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/xai"
+	"github.com/Wei-Shaw/sub2api/internal/service/basispoints"
 )
 
 // InitializeDefaultSettings 初始化默认设置
@@ -847,6 +848,37 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 	result.GrokCrossClientModelMapEnabled = !isFalseSettingValue(settings[SettingKeyGrokCrossClientModelMapEnabled])
 	result.GrokDefaultBaseURLMode = normalizeGrokDefaultBaseURLMode(settings[SettingKeyGrokDefaultBaseURLMode])
 	result.GrokVideoSourceURLEnabled = settings[SettingKeyGrokVideoSourceURLEnabled] == "true"
+	result.ExcelBPSImageMode = settings[SettingKeyExcelBPSImageMode]
+	if result.ExcelBPSImageMode == "" {
+		result.ExcelBPSImageMode = ExcelBPSImageModeNative
+	}
+	result.ExcelBPSImageRelayEnabled = settings[SettingKeyExcelBPSImageRelayEnabled] == "" || settings[SettingKeyExcelBPSImageRelayEnabled] == "true"
+	result.ExcelBPSImageBaseURL = settings[SettingKeyExcelBPSImageBaseURL]
+	result.ExcelBPSImageBodyLimitMiB, _ = parseExcelBPSImageCapacity(settings[SettingKeyExcelBPSImageBodyLimitMiB], DefaultExcelBPSImageBodyLimitMiB)
+	result.ExcelBPSImageBudgetMiB, _ = parseExcelBPSImageCapacity(settings[SettingKeyExcelBPSImageBudgetMiB], DefaultExcelBPSImageBudgetMiB)
+	result.ExcelBPSImageMaxRequests, _ = parseExcelBPSImageCapacity(settings[SettingKeyExcelBPSImageMaxRequests], DefaultExcelBPSImageMaxRequests)
+	if validateExcelBPSImageCapacity(result.ExcelBPSImageBodyLimitMiB, result.ExcelBPSImageBudgetMiB, result.ExcelBPSImageMaxRequests) != nil {
+		result.ExcelBPSImageBodyLimitMiB = DefaultExcelBPSImageBodyLimitMiB
+		result.ExcelBPSImageBudgetMiB = DefaultExcelBPSImageBudgetMiB
+		result.ExcelBPSImageMaxRequests = DefaultExcelBPSImageMaxRequests
+	}
+
+	imageLimits, imageLimitsErr := parseExcelBPSImageLimits(settings)
+	if imageLimitsErr != nil {
+		imageLimits = basispoints.DefaultImageRelayLimits()
+	}
+	result.ExcelBPSImageMaxImageMiB = imageLimits.MaxImageMiB
+	result.ExcelBPSImageMaxImages = imageLimits.MaxImages
+	result.ExcelBPSImageLimitPolicy = settings[SettingKeyExcelBPSImageLimitPolicy]
+	if result.ExcelBPSImageLimitPolicy == "" {
+		result.ExcelBPSImageLimitPolicy = "off"
+	}
+	result.ExcelBPSImageWarningRemaining, _ = parseExcelBPSImageCapacity(settings[SettingKeyExcelBPSImageWarningRemaining], 8)
+	result.ExcelBPSImageCompactReserve, _ = parseExcelBPSImageCapacity(settings[SettingKeyExcelBPSImageCompactReserve], 3)
+	result.ExcelBPSImageMaxTotalMiB = imageLimits.MaxTotalMiB
+	result.ExcelBPSImageStorageMiB = imageLimits.StorageMiB
+	result.ExcelBPSImageStorageEntries = imageLimits.StorageEntries
+	result.ExcelBPSImageTTLMinutes = imageLimits.TTLMinutes
 	result.OpenAI409OmitEncryptedHistoryEnabled = settings[SettingKeyOpenAI409OmitEncryptedHistoryEnabled] == "true"
 
 	// Available channels feature (default: disabled; strict true)

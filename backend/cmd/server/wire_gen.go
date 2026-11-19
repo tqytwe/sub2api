@@ -577,6 +577,9 @@ func provideCleanup(
 ) func() {
 	server.SetPublicHomeStatsService(publicHomeStatsService)
 	server.SetPublicStatusSummaryService(publicStatusSummaryService)
+	if openAIGateway != nil {
+		openAIGateway.StartBPS403Recovery()
+	}
 	return func() {
 		if balanceNotify != nil {
 			balanceNotify.Stop()
@@ -857,6 +860,13 @@ func provideCleanup(
 					openAIGateway.CloseOpenAIWSPool()
 				}
 				return nil
+			}},
+			{"ExcelBPSImages", func() error {
+				if openAIGateway == nil {
+					return nil
+				}
+				openAIGateway.StopBPS403Recovery()
+				return openAIGateway.CloseExcelBPSImages()
 			}},
 			{"OpenAILiveSettlementWorker", func() error {
 				if openAIGateway != nil {

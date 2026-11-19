@@ -15,24 +15,11 @@ func TestCatalogKeepsNamespacedToolContractsInProse(t *testing.T) {
 		object{"type": "custom", "name": "patch", "format": object{"type": "grammar", "definition": "start: PATCH"}},
 	}}}
 	wire, _ := mustPrepare(t, source, "test", nil)
-	items, ok := wire["input"].([]any)
-	if !ok || len(items) < 2 {
-		t.Fatalf("wire input missing protocol: %T", wire["input"])
-	}
-	protocolMessage, ok := items[1].(object)
-	if !ok {
-		t.Fatalf("protocol message is not an object: %T", items[1])
-	}
-	content, ok := protocolMessage["content"].([]any)
-	if !ok || len(content) == 0 {
-		t.Fatalf("protocol content missing: %T", protocolMessage["content"])
-	}
-	protocolPart, ok := content[0].(object)
-	if !ok {
-		t.Fatalf("protocol content part is not an object: %T", content[0])
-	}
-	protocol := text(protocolPart["text"])
-	for _, want := range []string{`Client tool "functions.shell"`, `Field "cmd" (required)`, "Command text.", `"enum":["read","check"]`, `"additionalProperties":false`, "start: PATCH", "exact raw text", "not executable code"} {
+	items := mustTestValue[[]any](t, wire["input"])
+	message := mustTestValue[object](t, items[1])
+	content := mustTestValue[[]any](t, message["content"])
+	protocol := text(mustTestValue[object](t, content[0])["text"])
+	for _, want := range []string{`Client tool "functions.shell"`, `"cmd":string`, `"mode"?:string`, "Command text.", `"enum":["read","check"]`, "Without ... extra keys are forbidden", "start: PATCH", "exact raw text", "codex2api.custom/functions.patch"} {
 		if !strings.Contains(protocol, want) {
 			t.Fatalf("catalog lost contract detail %q", want)
 		}
@@ -45,7 +32,7 @@ func TestCatalogKeepsNamespacedToolContractsInProse(t *testing.T) {
 func TestCatalogPreservesComplexSchemaConstraints(t *testing.T) {
 	schema := object{"type": "array", "items": object{"type": "object", "properties": object{"entry": object{"$ref": "#/$defs/entry"}}}, "minItems": 1, "$defs": object{"entry": object{"type": "string", "pattern": "^allowed$"}}}
 	got := describeSchema(schema, 0)
-	for _, want := range []string{"Each array item", `Field "entry" (optional)`, `"$ref":"#/$defs/entry"`, `"minItems":1`, `"pattern":"^allowed$"`} {
+	for _, want := range []string{`"items":`, `"properties":{"entry":`, `"$ref":"#/$defs/entry"`, `"minItems":1`, `"pattern":"^allowed$"`} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("schema constraint lost: %s", want)
 		}
