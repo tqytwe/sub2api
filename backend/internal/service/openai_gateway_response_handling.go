@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"sort"
 	"strconv"
@@ -1367,6 +1368,8 @@ func (s *OpenAIGatewayService) parseSSEUsageBytesWithType(data []byte, eventType
 		return
 	}
 	observeOpenAIUnpricedOutputEvent(usage, data, eventType)
+	terminalType := effectiveOpenAISSEEventType(data, eventType)
+	usage.CacheReadKnown = false
 	// Usage is absent from nearly every delta event. Avoid full JSON validation
 	// and four gjson path scans on that hot path while retaining progressive
 	// usage from compatible upstreams on any event type.
@@ -1377,8 +1380,10 @@ func (s *OpenAIGatewayService) parseSSEUsageBytesWithType(data []byte, eventType
 	if !ok {
 		return
 	}
+	mergeOpenAIProtectionUsageEvidence(*usage, &parsedUsage)
+	parsedUsage.CacheReadKnown = parsedUsage.CacheReadKnown && (terminalType == "response.completed" || terminalType == "response.done")
 	mergeOpenAIUnpricedOutputUsage(usage, parsedUsage.UnpricedOutputUsage)
-	if openAIStreamEventTypeIsTerminal(effectiveOpenAISSEEventType(data, eventType)) {
+	if openAIStreamEventTypeIsTerminal(terminalType) {
 		if len(preserveAggregate) > 0 && preserveAggregate[0] &&
 			!hasObservedOpenAIUsage(&parsedUsage, 0) && hasObservedOpenAIUsage(usage, 0) {
 			return
@@ -1401,6 +1406,10 @@ func mergeOpenAIUsageNonZero(dst *OpenAIUsage, src OpenAIUsage) {
 	mergeOpenAIUnpricedOutputUsage(dst, src.UnpricedOutputUsage)
 	if dst == nil {
 		return
+	}
+	dst.cacheReadMediaObserved = dst.cacheReadMediaObserved || src.cacheReadMediaObserved
+	if dst.cacheReadMediaObserved {
+		dst.CacheReadKnown = false
 	}
 	if src.InputTokens > 0 {
 		dst.InputTokens = src.InputTokens
@@ -1513,6 +1522,12 @@ func extractOpenAIUsageFromJSONBytes(body []byte) (OpenAIUsage, bool) {
 		if usage, ok := openAIUsageFromGJSON(gjson.GetBytes(body, candidate.usagePath)); ok {
 			mergeHostedImageGenToolUsage(gjson.GetBytes(body, candidate.imageUsagePath), &usage)
 			observeOpenAIUnpricedOutput(&usage, body)
+			for _, path := range []string{"status", "response.status", "data.status", "data.response.status"} {
+				if status := gjson.GetBytes(body, path).String(); status != "" && status != "completed" {
+					usage.CacheReadKnown = false
+				}
+			}
+			mergeOpenAIProtectionUsageEvidence(OpenAIUsage{}, &usage)
 			return usage, true
 		}
 	}
@@ -1710,15 +1725,53 @@ func openAIUsageFromGJSON(value gjson.Result) (OpenAIUsage, bool) {
 	if observedAudio.InputAudioTokens == 0 && observedAudio.OutputAudioTokens == 0 && observedAudio.CacheReadAudioTokens == 0 && observedAudio.CacheCreationAudioTokens == 0 {
 		observedAudio = nil
 	}
-	return OpenAIUsage{
+	result := OpenAIUsage{
 		InputTokens:              int(inputTokens),
 		ImageInputTokens:         imageInputTokens,
 		OutputTokens:             int(outputTokens),
 		CacheCreationInputTokens: cacheCreationTokens,
 		CacheReadInputTokens:     cacheReadTokens,
+		CacheReadKnown:           openAICacheReadKnownFromUsage(value),
 		ImageOutputTokens:        int(imageOutputTokens),
 		UnpricedOutputUsage:      observedAudio,
-	}, true
+	}
+	mergeOpenAIProtectionUsageEvidence(OpenAIUsage{}, &result)
+	return result, true
+}
+
+func mergeOpenAIProtectionUsageEvidence(previous OpenAIUsage, next *OpenAIUsage) {
+	next.cacheReadMediaObserved = previous.cacheReadMediaObserved || next.cacheReadMediaObserved ||
+		previous.ImageInputTokens > 0 || previous.ImageOutputTokens > 0 || previous.ImageCacheReadTokens > 0 || previous.UnpricedOutputUsage != nil ||
+		next.ImageInputTokens > 0 || next.ImageOutputTokens > 0 || next.ImageCacheReadTokens > 0 || next.UnpricedOutputUsage != nil
+	if next.cacheReadMediaObserved {
+		next.CacheReadKnown = false
+	}
+}
+
+func openAICacheReadKnownFromUsage(value gjson.Result) bool {
+	valid := func(field gjson.Result) bool {
+		return field.Type == gjson.Number && field.Num >= 0 && field.Num < float64(int(^uint(0)>>1)) &&
+			!math.IsNaN(field.Num) && !math.IsInf(field.Num, 0) && math.Trunc(field.Num) == field.Num
+	}
+	for _, path := range []string{"input_tokens_details.cached_tokens", "prompt_tokens_details.cached_tokens"} {
+		if field := value.Get(path); field.Exists() {
+			return valid(field)
+		}
+	}
+	known := false
+	var tokens int64
+	for _, path := range []string{"cache_read_input_tokens", "cache_read_tokens", "cached_tokens", "prompt_cache_hit_tokens"} {
+		field := value.Get(path)
+		if !field.Exists() {
+			continue
+		}
+		if !valid(field) || (known && field.Int() != tokens) {
+			return false
+		}
+		known = true
+		tokens = field.Int()
+	}
+	return known
 }
 
 func openAICacheReadTokensFromUsage(value gjson.Result) int {
@@ -1915,6 +1968,7 @@ func (s *OpenAIGatewayService) observedOpenAIBufferedReadFailure(c *gin.Context,
 			markOpenAINonStreamingCyberPolicy(c, data, usage)
 		})
 	}
+	usage.CacheReadKnown = false // Keep metered usage for billing only after a read failure.
 	if !hasObservedOpenAIUsage(usage, images.Count()) && !hasSubscriptionOutputEvidence(c.Request.Context(), usage) {
 		return nil
 	}

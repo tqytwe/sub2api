@@ -467,6 +467,9 @@ func (s *OpenAIGatewayService) streamRawChatCompletions(
 		}
 	}
 
+	if clientAborted || clientDisconnected || scanErr != nil || (!terminal.sawDone && !terminal.sawFinishReason) {
+		usage.CacheReadKnown = false
+	}
 	return resultWithUsage(), nil
 }
 

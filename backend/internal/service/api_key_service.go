@@ -298,6 +298,7 @@ type RateLimitCacheInvalidator interface {
 }
 
 type APIKeyService struct {
+	groupAntiDistillation     *GroupAntiDistillationService
 	apiKeyRepo                APIKeyRepository
 	userRepo                  UserRepository
 	groupRouter               APIKeyGroupRouter
@@ -325,6 +326,12 @@ type APIKeyService struct {
 	authInvalidationFailures  atomic.Uint64
 	lastUsedTouchL1           sync.Map // keyID -> nextAllowedAt(time.Time)
 	lastUsedTouchSF           singleflight.Group
+}
+
+func (s *APIKeyService) SetGroupAntiDistillationService(protection *GroupAntiDistillationService) {
+	if s != nil {
+		s.groupAntiDistillation = protection
+	}
 }
 
 type APIKeyAuthLookupMetrics struct {

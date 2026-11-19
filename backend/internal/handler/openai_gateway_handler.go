@@ -1096,6 +1096,9 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 				return
 			}
 			usageSubmitted = true
+			if err == nil && service.GetOpsCyberPolicy(c) == nil {
+				h.gatewayService.ObserveGroupAntiDistillationUsage(c.Request.Context(), apiKey, account, res, requestStart, body)
+			}
 			stampOpenAIRequestedReasoningEffort(res, c)
 			userAgent := c.GetHeader("User-Agent")
 			clientIP := ip.GetClientIP(c)
@@ -1735,6 +1738,9 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 				return
 			}
 			usageSubmitted = true
+			if err == nil && service.GetOpsCyberPolicy(c) == nil {
+				h.gatewayService.ObserveGroupAntiDistillationUsage(c.Request.Context(), apiKey, account, res, requestStart, body)
+			}
 			stampOpenAIRequestedReasoningEffort(res, c)
 			userAgent := c.GetHeader("User-Agent")
 			clientIP := ip.GetClientIP(c)
@@ -3541,6 +3547,9 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 				sessionID := service.ExtractClientSessionID(c)
 				turnRecordPricingAt := turnPricing.currentOr(turnStart)
 				cyberBlocked := service.GetOpsCyberPolicy(c) != nil
+				if turnErr == nil && !cyberBlocked {
+					h.gatewayService.ObserveGroupAntiDistillationUsage(ctx, apiKey, account, result, turnStart, cyberBlockBody)
+				}
 				turnRecordCtx := ledgerCtx
 				if account.IsOpenAI() {
 					turnRecordCtx = turnSettlement.context(ledgerCtx, turn)

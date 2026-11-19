@@ -286,6 +286,9 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 				return
 			}
 			usageSubmitted = true
+			if err == nil && service.GetOpsCyberPolicy(c) == nil {
+				h.gatewayService.ObserveGroupAntiDistillationUsage(c.Request.Context(), apiKey, account, res, requestStart, body)
+			}
 			stampOpenAIRequestedReasoningEffort(res, c)
 			userAgent := c.GetHeader("User-Agent")
 			clientIP := ip.GetClientIP(c)

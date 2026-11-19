@@ -162,6 +162,9 @@ func (s *OpenAIGatewayService) bufferChatCompletionsAsResponses(
 		return nil, err
 	}
 	responsesResp := apicompat.ChatCompletionsResponseToResponses(ccResp, originalModel, customTools, functionTools, toolSearch, namespaceTools)
+	if responsesResp.Status != "completed" {
+		usage.CacheReadKnown = false
+	}
 	s.cacheReasoningItemsFromOutput(responsesResp.Output)
 
 	if s.responseHeaderFilter != nil {
@@ -274,6 +277,11 @@ func (s *OpenAIGatewayService) streamChatCompletionsAsResponses(
 	}
 
 	finalEvents := apicompat.FinalizeChatCompletionsResponsesStream(state)
+	for _, event := range finalEvents {
+		if event.Response != nil && event.Response.Status != "completed" {
+			scan.Usage.CacheReadKnown = false
+		}
+	}
 	s.cacheReasoningItemsFromEvents(finalEvents)
 	writeEvents(finalEvents)
 	if !clientDisconnected {
@@ -287,6 +295,9 @@ func (s *OpenAIGatewayService) streamChatCompletionsAsResponses(
 	}
 	if !scan.SawDone {
 		logCCStreamMissingDoneSentinel("openai responses chat fallback", requestID)
+	}
+	if !scan.SawDone || clientDisconnected {
+		scan.Usage.CacheReadKnown = false
 	}
 
 	return &OpenAIForwardResult{
