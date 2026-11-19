@@ -1604,6 +1604,28 @@ describe("admin SettingsView payment visible method controls", () => {
     );
   });
 
+  it("submits balance exhaustion forecast settings", async () => {
+    getSettings.mockResolvedValueOnce({
+      ...baseSettingsResponse,
+      balance_forecast_enabled: true,
+      balance_forecast_threshold_hours: 24,
+      balance_forecast_max_notifications: 4,
+    });
+
+    const wrapper = mountView();
+    await flushPromises();
+    await wrapper.find("form").trigger("submit.prevent");
+    await flushPromises();
+
+    expect(updateSettings).toHaveBeenCalledWith(
+      expect.objectContaining({
+        balance_forecast_enabled: true,
+        balance_forecast_threshold_hours: 24,
+        balance_forecast_max_notifications: 4,
+      }),
+    );
+  });
+
   it("updates provider enablement immediately and reloads providers", async () => {
     const provider = {
       id: 7,

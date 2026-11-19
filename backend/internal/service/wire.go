@@ -1386,9 +1386,11 @@ func ProvidePaymentConfigService(entClient *dbent.Client, settingRepo SettingRep
 }
 
 // ProvideBalanceNotifyService creates BalanceNotifyService
-func ProvideBalanceNotifyService(emailService *EmailService, settingRepo SettingRepository, accountRepo AccountRepository, notificationEmailService *NotificationEmailService) *BalanceNotifyService {
+func ProvideBalanceNotifyService(emailService *EmailService, settingRepo SettingRepository, accountRepo AccountRepository, notificationEmailService *NotificationEmailService, db *sql.DB, users UserRepository) *BalanceNotifyService {
 	svc := NewBalanceNotifyService(emailService, settingRepo, accountRepo)
 	svc.SetNotificationEmailService(notificationEmailService)
+	svc.forecast = NewBalanceForecastService(db, settingRepo, users, notificationEmailService)
+	svc.forecast.Start()
 	return svc
 }
 

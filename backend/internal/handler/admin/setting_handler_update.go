@@ -298,6 +298,9 @@ type UpdateSettingsRequest struct {
 	BillingSurchargeValue                              *float64 `json:"billing_surcharge_value"`
 
 	// 余额不足提醒
+	BalanceForecastEnabled          *bool                   `json:"balance_forecast_enabled"`
+	BalanceForecastThresholdHours   *float64                `json:"balance_forecast_threshold_hours" binding:"omitempty,gt=0"`
+	BalanceForecastMaxNotifications *int                    `json:"balance_forecast_max_notifications" binding:"omitempty,gt=0"`
 	BalanceLowNotifyEnabled         *bool                   `json:"balance_low_notify_enabled"`
 	BalanceLowNotifyThreshold       *float64                `json:"balance_low_notify_threshold"`
 	BalanceLowNotifyRechargeURL     *string                 `json:"balance_low_notify_recharge_url"`
@@ -1961,6 +1964,9 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			}
 			return previousSettings.BillingSurchargeValue
 		}(),
+		BalanceForecastEnabled:          boolValueOrDefault(req.BalanceForecastEnabled, previousSettings.BalanceForecastEnabled),
+		BalanceForecastThresholdHours:   float64ValueOrDefault(req.BalanceForecastThresholdHours, previousSettings.BalanceForecastThresholdHours),
+		BalanceForecastMaxNotifications: intValueOrDefault(req.BalanceForecastMaxNotifications, previousSettings.BalanceForecastMaxNotifications),
 		BalanceLowNotifyEnabled: func() bool {
 			if req.BalanceLowNotifyEnabled != nil {
 				return *req.BalanceLowNotifyEnabled
@@ -2631,6 +2637,9 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		BillingSurchargeEnabled:                                updatedSettings.BillingSurchargeEnabled,
 		BillingSurchargeMode:                                   updatedSettings.BillingSurchargeMode,
 		BillingSurchargeValue:                                  updatedSettings.BillingSurchargeValue,
+		BalanceForecastEnabled:                                 updatedSettings.BalanceForecastEnabled,
+		BalanceForecastThresholdHours:                          updatedSettings.BalanceForecastThresholdHours,
+		BalanceForecastMaxNotifications:                        updatedSettings.BalanceForecastMaxNotifications,
 		BalanceLowNotifyEnabled:                                updatedSettings.BalanceLowNotifyEnabled,
 		BalanceLowNotifyThreshold:                              updatedSettings.BalanceLowNotifyThreshold,
 		BalanceLowNotifyRechargeURL:                            updatedSettings.BalanceLowNotifyRechargeURL,
