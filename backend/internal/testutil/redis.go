@@ -3,6 +3,7 @@ package testutil
 import (
 	"testing"
 
+	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/repository"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/alicebob/miniredis/v2"
@@ -18,4 +19,9 @@ func NewRedisGatewayCache(t *testing.T) service.GatewayCache {
 	t.Cleanup(func() { _ = redisClient.Close() })
 
 	return repository.NewGatewayCache(redisClient)
+}
+
+// NewHTTPUpstream uses the real HTTP transport for handler tests.
+func NewHTTPUpstream(cfg *config.Config) service.HTTPUpstream {
+	return repository.NewHTTPUpstream(cfg)
 }

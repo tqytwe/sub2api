@@ -463,3 +463,19 @@ func TestIssue805WSHTTPBridgeHTTPRejectionReportsOriginalCode(t *testing.T) {
 		})
 	}
 }
+
+type issue600SwitchRepo struct {
+	*openAIWSFailoverHandlerAccountRepoStub
+}
+
+func (r *issue600SwitchRepo) UpdateExtra(context.Context, int64, map[string]any) error { return nil }
+
+func issue600Finish(t *testing.T, h *openAIWSPassthroughHandlerHarness, headers http.Header) {
+	t.Helper()
+	_ = h.clientConn.CloseNow()
+	select {
+	case <-h.handlerDone:
+	case <-time.After(3 * time.Second):
+		t.Fatal("websocket handler did not finish")
+	}
+}

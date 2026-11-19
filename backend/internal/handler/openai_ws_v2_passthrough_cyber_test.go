@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
-	"github.com/Wei-Shaw/sub2api/internal/repository"
 	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/Wei-Shaw/sub2api/internal/testutil"
@@ -26,22 +25,6 @@ type openAIWSPassthroughHandlerHarness struct {
 	moderationRepo *contentModerationHandlerTestRepo
 	gatewayCache   service.GatewayCache
 	apiKey         *service.APIKey
-}
-
-type issue600SwitchRepo struct {
-	*openAIWSFailoverHandlerAccountRepoStub
-}
-
-func (r *issue600SwitchRepo) UpdateExtra(context.Context, int64, map[string]any) error { return nil }
-
-func issue600Finish(t *testing.T, h *openAIWSPassthroughHandlerHarness, headers http.Header) {
-	t.Helper()
-	_ = h.clientConn.CloseNow()
-	select {
-	case <-h.handlerDone:
-	case <-time.After(3 * time.Second):
-		t.Fatal("websocket handler did not finish")
-	}
 }
 
 func newOpenAIWSPassthroughHandlerHarness(t *testing.T, upstreamURL string, settings ...map[string]string) *openAIWSPassthroughHandlerHarness {
@@ -103,7 +86,7 @@ func newOpenAIWSPassthroughHandlerHarnessWithKey(t *testing.T, upstreamURL strin
 	cfg.Gateway.OpenAIWS.IngressInterTurnIdleTimeoutSeconds = 3
 
 	var accountRepo service.AccountRepository = &openAIWSUsageHandlerAccountRepoStub{account: account}
-	upstream := service.HTTPUpstream(repository.NewHTTPUpstream(cfg))
+	upstream := testutil.NewHTTPUpstream(cfg)
 	for _, apply := range configure {
 		apply(&account, cfg, &upstream, &accountRepo)
 	}

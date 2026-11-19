@@ -6,11 +6,11 @@
           {{ t('admin.announcements.form.targetingMode') }}
         </div>
         <div class="mt-1 text-xs text-gray-500 dark:text-dark-400">
-          {{ mode === 'all' ? t('admin.announcements.form.targetingAll') : t('admin.announcements.form.targetingCustom') }}
+          {{ modeDescription }}
         </div>
       </div>
 
-      <div class="flex items-center gap-3">
+      <div class="flex flex-wrap items-center gap-3">
         <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
           <input
             type="radio"
@@ -26,6 +26,19 @@
           <input
             type="radio"
             name="announcement-targeting-mode"
+            value="users"
+            :checked="mode === 'users'"
+            class="h-4 w-4"
+            data-testid="announcement-targeting-mode-users"
+            @change="setMode('users')"
+          />
+          {{ t('admin.announcements.form.targetingUsers') }}
+        </label>
+        <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+          <input
+            type="radio"
+            name="announcement-targeting-mode"
+            data-testid="announcement-targeting-mode-custom"
             value="custom"
             :checked="mode === 'custom'"
             @change="setMode('custom')"
@@ -36,7 +49,16 @@
       </div>
     </div>
 
-    <div v-if="mode === 'custom'" class="mt-4 space-y-4">
+    <div v-if="mode === 'users'" class="mt-4 space-y-2" data-testid="announcement-targeting-users">
+      <AnnouncementUserPicker
+        :model-value="singleConditionUserIds"
+        @update:model-value="(ids) => setUserIds(0, 0, ids)"
+      />
+      <p class="input-hint">{{ t('admin.announcements.form.targetingUsersHint') }}</p>
+      <p v-if="validationError" class="text-sm text-red-700 dark:text-red-300">{{ validationError }}</p>
+    </div>
+
+    <div v-if="mode === 'custom'" class="mt-4 space-y-4" data-testid="announcement-targeting-custom">
       <div class="flex items-center justify-between">
         <div class="text-sm font-medium text-gray-900 dark:text-white">
           OR
@@ -130,6 +152,13 @@
                 </div>
               </div>
 
+              <div v-else-if="cond.type === 'user'" class="min-w-0 flex-1">
+                <AnnouncementUserPicker
+                  :model-value="cond.user_ids ?? []"
+                  @update:model-value="(ids) => setUserIds(groupIndex, condIndex, ids)"
+                />
+              </div>
+
               <div v-else class="flex-1">
                 <label class="input-label">{{ t('admin.announcements.form.playMembership') }}</label>
                 <Select
@@ -175,7 +204,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type {
   AdminGroup,
@@ -189,6 +218,8 @@ import type {
 import Select from '@/components/common/Select.vue'
 import GroupSelector from '@/components/common/GroupSelector.vue'
 import Icon from '@/components/icons/Icon.vue'
+import { isSpecificUsersTargeting, targetingUserIds } from '@/utils/announcementTargeting'
+import AnnouncementUserPicker from './AnnouncementUserPicker.vue'
 
 const { t } = useI18n()
 
@@ -203,13 +234,31 @@ const emit = defineEmits<{
 
 const anyOf = computed(() => props.modelValue?.any_of ?? [])
 
-type Mode = 'all' | 'custom'
-const mode = computed<Mode>(() => (anyOf.value.length === 0 ? 'all' : 'custom'))
+type Mode = 'all' | 'users' | 'custom'
+function deriveMode(targeting: AnnouncementTargeting): Mode {
+  if (!targeting.any_of?.length) return 'all'
+  return isSpecificUsersTargeting(targeting) ? 'users' : 'custom'
+}
+
+// The dialog remounts for each announcement. Keep an explicitly chosen custom
+// mode when its only condition happens to be a user condition.
+const pickedMode = ref(deriveMode(props.modelValue))
+const mode = computed<Mode>(() => {
+  if (!anyOf.value.length) return 'all'
+  return pickedMode.value === 'all' ? deriveMode(props.modelValue) : pickedMode.value
+})
+const modeDescription = computed(() => t({
+  all: 'admin.announcements.form.targetingAll',
+  users: 'admin.announcements.form.targetingUsers',
+  custom: 'admin.announcements.form.targetingCustom'
+}[mode.value]))
+const singleConditionUserIds = computed(() => anyOf.value[0]?.all_of?.[0]?.user_ids ?? [])
 
 const conditionTypeOptions = computed(() => [
 	  { value: 'subscription', label: t('admin.announcements.form.conditionSubscription') },
 	  { value: 'balance', label: t('admin.announcements.form.conditionBalance') },
-	  { value: 'play_membership', label: t('admin.announcements.form.conditionPlayMembership') }
+  { value: 'play_membership', label: t('admin.announcements.form.conditionPlayMembership') },
+  { value: 'user', label: t('admin.announcements.form.conditionUser') }
 ])
 
 const playMembershipOptions = computed(() => [
@@ -226,8 +275,15 @@ const balanceOperatorOptions = computed(() => [
 ])
 
 function setMode(next: Mode) {
+  pickedMode.value = next
   if (next === 'all') {
     emit('update:modelValue', { any_of: [] })
+    return
+  }
+  if (next === 'users') {
+    if (!isSpecificUsersTargeting(props.modelValue)) {
+      emit('update:modelValue', { any_of: [{ all_of: [defaultUserCondition(targetingUserIds(props.modelValue))] }] })
+    }
     return
   }
   if (anyOf.value.length === 0) {
@@ -241,6 +297,10 @@ function defaultSubscriptionCondition(): AnnouncementCondition {
     operator: 'in' as AnnouncementOperator,
     group_ids: []
   }
+}
+
+function defaultUserCondition(userIds: number[] = []): AnnouncementCondition {
+  return { type: 'user', operator: 'in', user_ids: userIds }
 }
 
 function defaultBalanceCondition(): AnnouncementCondition {
@@ -301,13 +361,22 @@ function setConditionType(groupIndex: number, condIndex: number, nextType: Annou
     const group = draft.any_of[groupIndex]
     if (!group?.all_of) return
 
-	if (nextType === 'subscription') {
-		group.all_of[condIndex] = defaultSubscriptionCondition()
-	} else if (nextType === 'balance') {
-		group.all_of[condIndex] = defaultBalanceCondition()
-	} else {
-		group.all_of[condIndex] = defaultPlayMembershipCondition()
+    if (nextType === 'subscription') {
+      group.all_of[condIndex] = defaultSubscriptionCondition()
+    } else if (nextType === 'balance') {
+      group.all_of[condIndex] = defaultBalanceCondition()
+    } else if (nextType === 'user') {
+      group.all_of[condIndex] = defaultUserCondition()
+    } else {
+      group.all_of[condIndex] = defaultPlayMembershipCondition()
     }
+  })
+}
+
+function setUserIds(groupIndex: number, condIndex: number, userIds: number[]) {
+  updateTargeting((draft) => {
+    const condition = draft.any_of[groupIndex]?.all_of?.[condIndex]
+    if (condition?.type === 'user') condition.user_ids = userIds
   })
 }
 
@@ -415,7 +484,7 @@ watch(
 )
 
 const validationError = computed(() => {
-  if (mode.value !== 'custom') return ''
+  if (mode.value === 'all') return ''
 
   const groups = anyOf.value
   if (groups.length === 0) return t('admin.announcements.form.addOrGroup')
@@ -428,6 +497,7 @@ const validationError = computed(() => {
     if (allOf.length > 50) return 'all_of > 50'
 
     for (const c of allOf) {
+      if (c.type === 'user' && !c.user_ids?.length) return t('admin.announcements.form.selectUsersRequired')
       if (c.type === 'subscription') {
         if (!c.group_ids || c.group_ids.length === 0) return t('admin.announcements.form.selectPackages')
       }
