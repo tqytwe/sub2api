@@ -3,6 +3,7 @@ package service
 import (
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/requesttiming"
 	"github.com/Wei-Shaw/sub2api/internal/requestledger"
@@ -29,14 +30,17 @@ func (s *OpenAIGatewayService) doOpenAIUpstream(request *http.Request, proxyURL 
 	defer func() { trace.Response(response, err) }()
 	defer func() { s.rateLimitService.observeQualityResponse(request.Context(), account, response, err) }()
 	request = request.WithContext(requestledger.WithAccount(request.Context(), account.ID, ledgerCredentialAccountID(account)))
-	if account.IsSIWCEnabled() {
+	isSIWC := account.IsSIWCEnabled()
+	var siwcAuthorization string
+	if isSIWC {
 		if request.URL == nil || request.URL.Scheme != "https" || request.URL.Host != "api.openai.com" || request.URL.Path != "/v1/responses" {
 			return nil, fmt.Errorf("SIWC request must use the official Responses endpoint")
 		}
+		siwcAuthorization = request.Header.Get("Authorization")
 		applySIWCRequestHeaders(request)
 		request.Host = ""
 	}
-	if account.AuthConnectionID == "" && s.pluginManager != nil && s.pluginManager.ShouldRouteOpenAIOAuth(account) {
+	if !isSIWC && account.AuthConnectionID == "" && s.pluginManager != nil && s.pluginManager.ShouldRouteOpenAIOAuth(account) {
 		if err := s.acquireOpenAIRPMForSend(request.Context(), account); err != nil {
 			return nil, err
 		}
@@ -55,7 +59,15 @@ func (s *OpenAIGatewayService) doOpenAIUpstream(request *http.Request, proxyURL 
 	if err := s.acquireOpenAIRPMForSend(request.Context(), account); err != nil {
 		return nil, err
 	}
-	return s.httpUpstream.Do(request, proxyURL, account.ID, account.Concurrency)
+	response, err = s.httpUpstream.Do(request, proxyURL, account.ID, account.Concurrency)
+	if isSIWC && err == nil && response != nil && response.StatusCode == http.StatusUnauthorized && s.excelOAuthReauth != nil {
+		var cache OpenAITokenCache
+		if s.openAITokenProvider != nil {
+			cache = s.openAITokenProvider.tokenCache
+		}
+		s.excelOAuthReauth.rejectSIWCAccessToken(request.Context(), account, strings.TrimPrefix(siwcAuthorization, "Bearer "), cache)
+	}
+	return response, err
 }
 
 // doOpenAIAccountTestUpstream 让 OpenAI OAuth 账号测试与真实转发使用同一插件路径。

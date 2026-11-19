@@ -2,6 +2,7 @@ import profitOps from './zh/profitOps'
 import upstreamEntities from './zh/upstreamEntities'
 import openaiAuth from './zh/openaiAuth'
 import accountPerformance from './zh/accountPerformance'
+import autoConfig from './zh/autoConfig'
 import ipAudit from './zh/ipAudit'
 import requestTiming from './zh/requestTiming'
 import connections from './zh/connections'
@@ -27,6 +28,7 @@ import splitWorkspaceShellZh from './zh/workspaceShell'
 import auditAdminZh from './zh/admin/audit'
 import promptAuditAdminZh from './zh/admin/promptAudit'
 import tokenGuardV2Zh from './zh/tokenGuardV2'
+import siwcZh from './zh/siwc'
 import accountOpsZh from './zh/accountOps'
 import { mergeLocaleMessages } from './merge'
 
@@ -35,6 +37,7 @@ const messages = {
   upstreamEntities,
   openaiAuth,
   accountPerformance,
+  autoConfig,
   requestTiming,
   connections,
   latencyObservability,
@@ -45,6 +48,7 @@ const messages = {
   affiliateOperations,
   accountOps: accountOpsZh,
   tokenGuardV2: tokenGuardV2Zh,
+  siwc: siwcZh,
   requestLedger,
   batchImageGuide: {
     title: '图片批量生成',

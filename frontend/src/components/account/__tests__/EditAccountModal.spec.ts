@@ -59,6 +59,10 @@ vi.mock('@/api/admin', () => ({
 vi.mock('@/api/admin/accounts', () => ({
   getAntigravityDefaultModelMapping: vi.fn()
 }))
+vi.mock('@/api/admin/siwc', () => ({
+  getSIWCStatus: vi.fn().mockResolvedValue({ bound: true, enabled: false }),
+  authorizeSIWC: vi.fn(), completeSIWC: vi.fn(), loginSIWCWithSavedCredentials: vi.fn(), revokeSIWC: vi.fn()
+}))
 
 vi.mock('vue-i18n', async () => {
   const actual = await vi.importActual<typeof import('vue-i18n')>('vue-i18n')
@@ -370,6 +374,25 @@ describe('EditAccountModal', () => {
     expect(wrapper.getComponent(ModelWhitelistSelectorStub).props('modelMappings')).toEqual([
       { from: 'gpt-latest', to: 'deepseek-chat' }
     ])
+  })
+
+  it('shows SIWC only for an eligible OpenAI OAuth parent and preserves its explicit protocol switch', async () => {
+    const account = buildAccount()
+    account.platform = 'openai'
+    account.type = 'oauth'
+    account.extra = { ...account.extra, openai_siwc: true }
+    updateAccountMock.mockReset().mockResolvedValue(account)
+    const wrapper = mountModal(account)
+    await flushPromises()
+    expect(wrapper.find('[data-testid="siwc-settings"]').exists()).toBe(true)
+    await wrapper.get('form#edit-account-form').trigger('submit.prevent')
+    expect(updateAccountMock.mock.calls[0]?.[1]?.extra?.openai_siwc).toBe(true)
+    wrapper.unmount()
+
+    const apiKey = buildAccount()
+    apiKey.platform = 'openai'
+    apiKey.type = 'apikey'
+    expect(mountModal(apiKey).find('[data-testid="siwc-settings"]').exists()).toBe(false)
   })
 
   it('sets expiry presets from now instead of extending the saved expiry', async () => {

@@ -1,6 +1,7 @@
 
+const encryption = vi.hoisted(() => ({ status: vi.fn() }))
 vi.mock('@/api/admin/credentialEncryption', () => ({
-  getCredentialEncryption: vi.fn().mockResolvedValue({ configured: true, source: 'server_config' }),
+  getCredentialEncryption: encryption.status,
   initializeCredentialEncryption: vi.fn(),
 }))
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -56,6 +57,7 @@ let wrapper: VueWrapper | undefined
 
 beforeEach(() => {
   vi.clearAllMocks()
+  encryption.status.mockResolvedValue({ configured: true, source: 'server_config' })
   api.listGuard.mockResolvedValue({
     runtime_settings: { engine: 'local_worker', worker_concurrency: 3 },
     probe_interval_seconds: 1800,
@@ -471,11 +473,10 @@ async function mountControls() {
 it('moves engine and worker count into encryption settings and saves immediately', async () => {
   const view = await mountControls()
   const controls = view.get('[data-testid="credential-encryption-setup"]')
-  await controls.get('#token-guard-v2-engine').setValue('session_studio'); await flushPromises()
-  expect(api.saveRuntime).toHaveBeenLastCalledWith({ engine: 'session_studio', worker_concurrency: 3 })
-  expect(controls.text()).toContain('tokenGuardV2.sessionStudioGlobalHint')
+  expect(controls.find('option[value="session_studio"]').exists()).toBe(false)
+  expect(controls.text()).toContain('tokenGuardV2.localWorkerEngineHint')
   await controls.get('#token-guard-v2-concurrency').setValue('6'); await flushPromises()
-  expect(api.saveRuntime).toHaveBeenLastCalledWith({ engine: 'session_studio', worker_concurrency: 6 })
+  expect(api.saveRuntime).toHaveBeenLastCalledWith({ engine: 'local_worker', worker_concurrency: 6 })
   expect(api.updateGuard).not.toHaveBeenCalled()
 })
 
@@ -519,21 +520,21 @@ it('rolls controls back when saving fails', async () => {
   expect(view.text()).toContain('save failed')
 })
 
-it('preserves legacy engine choices when only concurrency changes', async () => {
+it('normalizes an omitted legacy engine to the supported local worker', async () => {
   const data = await api.listGuard(); data.runtime_settings.engine = ''
   api.listGuard.mockResolvedValue(data)
   const view = await mountControls()
-  expect(view.text()).toContain('tokenGuardV2.legacyEngineHint')
+  expect(view.text()).toContain('tokenGuardV2.localWorkerEngineHint')
   await view.get('#token-guard-v2-concurrency').setValue('4'); await flushPromises()
-  expect(api.saveRuntime).toHaveBeenCalledWith({ engine: '', worker_concurrency: 4 })
+  expect(api.saveRuntime).toHaveBeenCalledWith({ engine: 'local_worker', worker_concurrency: 4 })
 })
 
-it('uses local proxies for email OTP under the remote global engine', async () => {
+it('keeps account proxies available for both local login modes', async () => {
   const data = await api.listGuard(); data.runtime_settings.engine = 'session_studio'
   api.listGuard.mockResolvedValue(data)
   const view = await mountControls()
   await view.findAll('button').find(button => button.text() === 'tokenGuardV2.edit')!.trigger('click')
-  expect(view.get('#token-guard-v2-proxy').attributes('disabled')).toBeDefined()
+  expect(view.get('#token-guard-v2-proxy').attributes('disabled')).toBeUndefined()
   await view.get('input[value="email_otp_url"]').setValue()
   expect(view.get('#token-guard-v2-proxy').attributes('disabled')).toBeUndefined()
 })

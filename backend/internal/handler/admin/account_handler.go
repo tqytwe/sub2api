@@ -72,6 +72,7 @@ type AccountHandler struct {
 	opencodeGoUsage         *service.OpenCodeGoUsageService
 	openAIGatewayService    *service.OpenAIGatewayService
 	performance             *service.AccountPerformanceService
+	automation              *service.OAuthAutomationService
 }
 
 // SetUpstreamBillingProbeService attaches the optional remote billing probe service.
@@ -93,6 +94,10 @@ func (h *AccountHandler) SetOpenAIGatewayService(gateway *service.OpenAIGatewayS
 
 func (h *AccountHandler) SetAccountPerformanceService(performance *service.AccountPerformanceService) {
 	h.performance = performance
+}
+
+func (h *AccountHandler) SetOAuthAutomationService(automation *service.OAuthAutomationService) {
+	h.automation = automation
 }
 
 // PrioritySchedulingSnapshot returns the nullable latest candidate-pool

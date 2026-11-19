@@ -2468,6 +2468,7 @@
       >
         <ExcelOAuthBinding :key="account.id" :account-id="account.id" />
         <OpenAIAuthConnections :account-id="account.id" :account-type="account.type" :active="show" />
+        <SIWCAccountSettings v-if="!isAgentIdentity" :key="`siwc-${account.id}`" v-model:enabled="siwcEnabled" :account-id="account.id" :active="show" class="mt-4" />
       </div>
 
       <div
@@ -3211,6 +3212,7 @@
 <script setup lang="ts">
 import AccountUpstreamChannelBinding from './AccountUpstreamChannelBinding.vue'
 import OpenAIRequestTimezoneField from '@/components/account/OpenAIRequestTimezoneField.vue'
+import SIWCAccountSettings from './SIWCAccountSettings.vue'
 import ExcelOAuthBinding from '@/components/account/ExcelOAuthBinding.vue'
 import OpenAIAuthConnections from '@/components/account/OpenAIAuthConnections.vue'
 import { ref, reactive, computed, watch, nextTick, onMounted } from 'vue'
@@ -3345,6 +3347,8 @@ const selectableGroups = computed(() => {
 // Spark 影子账号(parent_account_id 非空):代理恒继承母账号,不可独立编辑(外审 B/P1),
 // 故隐藏代理选择器。
 const isSparkShadow = computed(() => props.account?.parent_account_id != null)
+
+const isAgentIdentity = computed(() => String(props.account?.credentials?.openai_auth_mode ?? '').trim().toLowerCase() === 'agentidentity')
 
 const isOpenAIPersonalAccessToken = computed(() => {
   if (props.account?.platform !== 'openai' || props.account.type !== 'oauth') return false
@@ -3838,6 +3842,7 @@ const excelBPS403GroupOptions = computed(() => [
   ...props.groups.filter(group => group.status === 'active' && ['openai', 'composite'].includes(group.platform))
     .map(group => ({ value: group.id, label: group.name })),
 ])
+const siwcEnabled = ref(false)
 // OpenAI Codex namespace 工具摊平兼容开关（仅 OAuth），缺省关闭即原样保留
 const openaiFlattenNamespacesEnabled = ref(false)
 const openAILongContextBillingEnabled = ref(false)
@@ -4354,6 +4359,7 @@ const syncFormFromAccount = (newAccount: Account | null) => {
   excelBPSRecoveryIntervalMinutes.value = typeof recoveryInterval === 'number' ? recoveryInterval : 60
   const recoveryGroup = extra?.openai_excel_bps_403_target_group_id
   excelBPS403TargetGroupID.value = typeof recoveryGroup === 'number' && Number.isSafeInteger(recoveryGroup) && recoveryGroup >= 0 ? recoveryGroup : ''
+  siwcEnabled.value = false
   openaiFlattenNamespacesEnabled.value = false
   openAILongContextBillingEnabled.value = false
   editPlanType.value = ''
@@ -4381,6 +4387,7 @@ const syncFormFromAccount = (newAccount: Account | null) => {
         : []
       excelBPSCacheCreationAsInput.value = extra?.openai_excel_bps_cache_creation_as_input === true
     }
+    siwcEnabled.value = newAccount.type === 'oauth' && extra?.openai_siwc === true
     openaiFlattenNamespacesEnabled.value =
       newAccount.type === 'oauth' && extra?.openai_responses_flatten_namespaces === true
     const longContextBillingValue = extra?.openai_long_context_billing_enabled
@@ -5939,6 +5946,9 @@ const handleSubmit = async () => {
           delete newExtra.openai_excel_bps_auto_move_on_403
           delete newExtra.openai_excel_bps_403_target_group_id
         }
+      }
+      if (props.account.type === 'oauth' && !isSparkShadow.value && !isOpenAIPersonalAccessToken.value && !isAgentIdentity.value) {
+        newExtra.openai_siwc = siwcEnabled.value
       }
       // 缺省即保留 namespace，不写空值，避免 extra 里堆积默认项
       if (props.account.type === 'oauth' && openaiFlattenNamespacesEnabled.value) {

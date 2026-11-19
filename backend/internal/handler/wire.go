@@ -66,6 +66,7 @@ func ProvideAdminHandlers(
 	pelicanGroupTestHandler *admin.PelicanGroupTestHandler,
 	apiKeyService *service.APIKeyService,
 	accountPerformance *service.AccountPerformanceService,
+	oauthAutomation *service.OAuthAutomationService,
 ) *AdminHandlers {
 	settingHandler.SetKeyRiskAPIKeys(apiKeyService)
 	accountHandler.SetUpstreamBillingProbeService(upstreamBillingProbe)
@@ -74,6 +75,7 @@ func ProvideAdminHandlers(
 	accountHandler.SetClaudeResetCreditService(claudeResetCredits)
 	accountHandler.SetOpenAIGatewayService(openAIGatewayService)
 	accountHandler.SetAccountPerformanceService(accountPerformance)
+	accountHandler.SetOAuthAutomationService(oauthAutomation)
 	return &AdminHandlers{
 		Dashboard:              dashboardHandler,
 		User:                   userHandler,

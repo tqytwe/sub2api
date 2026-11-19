@@ -587,6 +587,9 @@ func registerGroupRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 }
 
 func registerAccountRoutes(admin *gin.RouterGroup, h *handler.Handlers, stepUpAuth middleware.StepUpAuthMiddleware) {
+	admin.GET("/oauth-auto-config", h.Admin.Account.GetAutoConfig)
+	admin.PUT("/oauth-auto-config", h.Admin.Account.SaveAutoConfig)
+	admin.GET("/oauth-auto-config/events", h.Admin.Account.ListAutoConfigEvents)
 	accounts := admin.Group("/accounts")
 	{
 		accounts.POST("/performance", h.Admin.Account.AccountPerformanceBatch)
@@ -614,6 +617,17 @@ func registerAccountRoutes(admin *gin.RouterGroup, h *handler.Handlers, stepUpAu
 			accounts.POST("/:id/auth-connections/:connection_id/callback", h.Admin.OpenAIOAuthReauth.CompleteConnectionAuthorization)
 			accounts.POST("/:id/auth-connections/:connection_id/revoke", h.Admin.OpenAIOAuthReauth.RevokeAuthConnection)
 			accounts.GET("/:id/openai-reauth", h.Admin.OpenAIOAuthReauth.GetStatus)
+			accounts.DELETE("/:id/siwc", h.Admin.OpenAIOAuthReauth.RevokeSIWC)
+			accounts.GET("/:id/siwc", h.Admin.OpenAIOAuthReauth.SIWCStatus)
+			accounts.POST("/:id/siwc/authorize", h.Admin.OpenAIOAuthReauth.BeginSIWC)
+			accounts.POST("/:id/siwc/callback", h.Admin.OpenAIOAuthReauth.CompleteSIWC)
+			accounts.GET("/:id/totp-rotation", h.Admin.OpenAIOAuthReauth.RotationStatus)
+			accounts.POST("/:id/totp-rotation", h.Admin.OpenAIOAuthReauth.RotateTOTP)
+			accounts.POST("/:id/totp-rotation/verify", h.Admin.OpenAIOAuthReauth.RetryTOTP)
+			accounts.POST("/:id/totp-export", gin.HandlerFunc(stepUpAuth), h.Admin.OpenAIOAuthReauth.ExportTOTP)
+			accounts.POST("/:id/export-session", gin.HandlerFunc(stepUpAuth), h.Admin.OpenAIOAuthReauth.ExportOpenAISession)
+			accounts.GET("/:id/export-session/:task_id", h.Admin.OpenAIOAuthReauth.GetOpenAISessionExportTask)
+			accounts.GET("/:id/export-session/:task_id/download", gin.HandlerFunc(stepUpAuth), h.Admin.OpenAIOAuthReauth.DownloadOpenAISessionExport)
 			accounts.PUT("/:id/openai-reauth/email", h.Admin.OpenAIOAuthReauth.SaveConfig)
 			accounts.POST("/:id/openai-reauth", h.Admin.OpenAIOAuthReauth.CreateTask)
 		}
@@ -703,7 +717,16 @@ func registerAccountRoutes(admin *gin.RouterGroup, h *handler.Handlers, stepUpAu
 
 func registerOpenAIOAuthReauthWorkerRoutes(v1 *gin.RouterGroup, h *handler.Handlers) {
 	worker := v1.Group("/internal/openai-reauth")
+	worker.POST("/runtime-settings", h.Admin.OpenAIOAuthReauth.WorkerRuntimeSettings)
 	worker.POST("/claim", h.Admin.OpenAIOAuthReauth.Claim)
+	worker.POST("/session-export/claim", h.Admin.OpenAIOAuthReauth.ClaimSessionExport)
+	worker.POST("/:task_id/session-export/progress", h.Admin.OpenAIOAuthReauth.SessionExportProgress)
+	worker.POST("/:task_id/session-export/result", h.Admin.OpenAIOAuthReauth.SessionExportResult)
+	worker.POST("/:task_id/session-export/fail", h.Admin.OpenAIOAuthReauth.SessionExportFail)
+	worker.POST("/totp-claim", h.Admin.OpenAIOAuthReauth.ClaimTOTP)
+	worker.POST("/:task_id/totp-phase", h.Admin.OpenAIOAuthReauth.TOTPPhase)
+	worker.POST("/:task_id/totp-finish", h.Admin.OpenAIOAuthReauth.TOTPFinish)
+	worker.POST("/:task_id/totp-recover", h.Admin.OpenAIOAuthReauth.TOTPRecover)
 	worker.POST("/:task_id/progress", h.Admin.OpenAIOAuthReauth.Progress)
 	worker.POST("/:task_id/callback", h.Admin.OpenAIOAuthReauth.Callback)
 	worker.POST("/:task_id/credentials", h.Admin.OpenAIOAuthReauth.Credentials)
@@ -1071,7 +1094,13 @@ func registerUserAttributeRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 }
 
 func registerScheduledTestRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	if h.Admin.OpenAIOAuthReauth != nil {
+		admin.GET("/account-ops/token-guard-v2/encryption", h.Admin.OpenAIOAuthReauth.CredentialEncryption)
+		admin.POST("/account-ops/token-guard-v2/encryption/initialize", h.Admin.OpenAIOAuthReauth.InitializeCredentialEncryption)
+	}
 	admin.GET("/account-ops/token-guard-v2/accounts", h.Admin.AccountTokenGuardV2.List)
+	admin.PUT("/account-ops/token-guard-v2/runtime", h.Admin.AccountTokenGuardV2.SaveRuntime)
+	admin.PATCH("/account-ops/token-guard-v2/accounts/:id/switches", h.Admin.AccountTokenGuardV2.UpdateSwitches)
 	admin.PUT("/account-ops/token-guard-v2/rules", h.Admin.AccountTokenGuardV2.SaveRules)
 	admin.POST("/account-ops/token-guard-v2/accounts", h.Admin.AccountTokenGuardV2.Create)
 	admin.PUT("/account-ops/token-guard-v2/accounts/:id", h.Admin.AccountTokenGuardV2.Update)

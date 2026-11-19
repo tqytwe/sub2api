@@ -18,14 +18,13 @@
       <p v-if="error && !editorOpen" role="alert" class="error-banner">{{ error }}</p>
       <p v-if="notice" role="status" class="success-banner">{{ notice }}</p>
 
-      <section class="runtime-controls mb-5" data-testid="credential-encryption-setup">
+      <CredentialEncryptionSetup class="mb-5" @ready="encryptionReady = $event">
         <div class="mt-4 border-t border-gray-200 pt-4 dark:border-dark-600" data-testid="credential-runtime-controls" :aria-busy="runtimeSaving">
           <div class="grid gap-4 sm:grid-cols-2">
             <label class="field-label">{{ t('tokenGuardV2.reloginEngine') }}
               <select id="token-guard-v2-engine" :value="runtimeDraft.engine" class="input w-full" :disabled="runtimeSaving || loading || !runtimeLoaded" @change="changeRuntime('engine', $event)">
-                <option v-if="!runtimeDraft.engine" value="" disabled>{{ t('tokenGuardV2.legacyEngine') }}</option>
                 <option value="local_worker">{{ t('tokenGuardV2.localWorkerEngine') }}</option>
-                <option value="session_studio">{{ t('tokenGuardV2.sessionStudioEngine') }}</option>
+
               </select>
             </label>
             <label class="field-label">{{ t('tokenGuardV2.workerConcurrency') }}
@@ -34,11 +33,11 @@
               </select>
             </label>
           </div>
-          <p class="mt-2 text-xs leading-5 text-gray-500 dark:text-gray-400">{{ t(runtimeDraft.engine === 'session_studio' ? 'tokenGuardV2.sessionStudioGlobalHint' : runtimeDraft.engine === 'local_worker' ? 'tokenGuardV2.localWorkerEngineHint' : 'tokenGuardV2.legacyEngineHint') }}</p>
+          <p class="mt-2 text-xs leading-5 text-gray-500 dark:text-gray-400">{{ t('tokenGuardV2.localWorkerEngineHint') }}</p>
           <p class="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">{{ t('tokenGuardV2.workerConcurrencyHint') }}</p>
           <p v-if="runtimeSaving" role="status" class="mt-2 text-xs">{{ t('tokenGuardV2.saving') }}</p>
         </div>
-      </section>
+      </CredentialEncryptionSetup>
 
       <section v-if="status.worker" class="mb-5 rounded-lg border border-gray-200 p-4 dark:border-gray-700" data-testid="reauth-runtime-status" role="status">
         <strong>{{ t('tokenGuardV2.runtimeTitle') }}</strong>
@@ -110,7 +109,7 @@
                     <button class="link-btn" :disabled="busyId === item.account_id" @click="probe(item)">{{ t('tokenGuardV2.inspectNow') }}</button>
                     <button class="link-btn" :disabled="busyId === item.account_id" @click="relogin(item)">{{ t('tokenGuardV2.reloginNow') }}</button>
                     <button v-if="item.auto_relogin_exhausted" class="link-btn" :data-testid="'resume-budget-' + item.account_id" :disabled="busyId !== 0 || loading" @click="resumeBudget(item)">{{ t('tokenGuardV2.resumeReloginBudget') }}</button>
-                    <button class="link-btn danger-text" :disabled="busyId === item.account_id" @click="remove(item)">{{ t('tokenGuardV2.remove') }}</button>
+                    <OpenAITOTPDialog :account-id="item.account_id" :account-name="item.account_name" :configured="!!(item.login_config?.password_configured && item.login_config?.totp_configured)" /><button class="link-btn danger-text" :disabled="busyId === item.account_id" @click="remove(item)">{{ t('tokenGuardV2.remove') }}</button>
                   </div>
                 </td>
               </tr>
@@ -183,7 +182,7 @@
           <div v-else class="selected-account"><span>{{ t('tokenGuardV2.account') }}</span><strong>{{ editing.account_name }} (#{{ editing.account_id }})</strong></div>
           <label class="field-label">{{ t('tokenGuardV2.loginEmail') }}<input v-model.trim="draft.login_email" class="input w-full" type="email" required /></label>
           <label class="field-label">{{ t('tokenGuardV2.loginProxy') }}
-            <select id="token-guard-v2-proxy" v-model="proxyChoice" :disabled="editorEngine === 'session_studio'" class="input w-full">
+            <select id="token-guard-v2-proxy" v-model="proxyChoice" class="input w-full">
               <option value="account">{{ t('tokenGuardV2.accountProxyDefault') }}</option>
               <option value="mihomo">{{ t('tokenGuardV2.mihomoManagedPool') }}</option>
               <option v-for="proxy in proxies" :key="proxy.id" :value="`proxy:${proxy.id}`">{{ proxyOptionLabel(proxy) }}</option>
@@ -219,6 +218,8 @@ import { probeOperationFailure, taskOperationFailure, safeDiagnosticToken } from
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
+import CredentialEncryptionSetup from '@/components/account/CredentialEncryptionSetup.vue'
+import OpenAITOTPDialog from '@/components/account/OpenAITOTPDialog.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { BaseDialog, Pagination } from '@/components/common'
 import { list as listAccounts } from '@/api/admin/accounts'
@@ -241,7 +242,6 @@ import {
   type SaveTokenGuardV2Account,
   type TokenGuardV2Account,
   type TokenGuardV2CredentialMode,
-  type TokenGuardV2Engine,
   type TokenGuardV2ProxySource,
   type TokenGuardV2Rules,
   type TokenGuardV2Status,
@@ -258,7 +258,7 @@ const localeValue = (key: string): string | undefined => {
   }
   return typeof value === 'string' ? value : undefined
 }
-const t = (key: string, params?: Record<string, unknown>) => localeValue(key) || rawT(key, params as never)
+const t = (key: string, params?: Record<string, unknown>) => params ? rawT(key, params as never) : localeValue(key) || rawT(key)
 const encryptionReady = ref(false)
 const emptyStatus = (): TokenGuardV2Status => ({
   accounts: [],
@@ -280,7 +280,7 @@ const accountFilter = ref<'all' | 'healthy' | 'attention' | 'paused'>('all')
 const searchQuery = ref('')
 const accountPage = ref(1)
 const accountPageSize = ref(20)
-const runtimeDraft = reactive<TokenGuardV2RuntimeSettings>({ engine: '', worker_concurrency: 3 })
+const runtimeDraft = reactive<TokenGuardV2RuntimeSettings>({ engine: 'local_worker', worker_concurrency: 3 })
 const runtimeSaving = ref(false)
 const runtimeLoaded = ref(false)
 const rulesSaving = ref(false)
@@ -395,9 +395,6 @@ const operationFailureText = (section: 'reasons' | 'actions', key: string) => {
 }
 const date = (value?: string) => value ? new Date(value).toLocaleString() : '-'
 const modeLabel = (mode?: TokenGuardV2CredentialMode) => !mode ? '-' : mode === 'password_totp' ? t('tokenGuardV2.passwordMode') : t('tokenGuardV2.mailboxMode')
-const engineLabel = (engine?: TokenGuardV2Engine) => engine === 'session_studio' ? t('tokenGuardV2.sessionStudioEngine') : t('tokenGuardV2.localWorkerEngine')
-const effectiveEngine = (config?: TokenGuardV2Account['login_config']) => config?.credential_mode === 'email_otp_url' ? 'local_worker' : runtimeDraft.engine || config?.engine || 'local_worker'
-const editorEngine = computed(() => draft.credential_mode === 'email_otp_url' ? 'local_worker' : runtimeDraft.engine || editing.value?.login_config?.engine || 'local_worker')
 const proxyChoice = computed({
   get: () => draft.proxy_source === 'managed_proxy' && draft.proxy_id ? `proxy:${draft.proxy_id}` : draft.proxy_source,
   set: (value: string) => {
@@ -428,8 +425,7 @@ const configurationDetail = (item: TokenGuardV2Account) => {
   const credentials = config.credential_mode === 'email_otp_url'
     ? config.otp_url_masked || '-'
     : [config.password_configured ? t('tokenGuardV2.passwordSaved') : '', config.totp_configured ? t('tokenGuardV2.totpSaved') : ''].filter(Boolean).join(' · ') || '-'
-  if (effectiveEngine(config) === 'session_studio') return `${credentials} · ${engineLabel(effectiveEngine(config))} · ${t('tokenGuardV2.remoteEngineEgress')}`
-  return `${credentials} · ${engineLabel(effectiveEngine(config))} · ${t('tokenGuardV2.loginProxy')}: ${proxyLabel(config.proxy_source, config.proxy_id)}`
+  return `${credentials} · ${t('tokenGuardV2.localWorkerEngine')} · ${t('tokenGuardV2.loginProxy')}: ${proxyLabel(config.proxy_source, config.proxy_id)}`
 }
 
 function resetDraft() { Object.assign(draft, blankDraft()) }
@@ -472,11 +468,8 @@ async function load(silent = false) {
       listGroups('openai')
     ])
     Object.assign(status, guard)
-    // The API enforces the durable encryption-key prerequisite on writes.
-    // A successful status read enables the editor; write errors remain visible.
-    encryptionReady.value = true
     if (guard.runtime_settings && !runtimeSaving.value) {
-      Object.assign(runtimeDraft, guard.runtime_settings)
+      Object.assign(runtimeDraft, guard.runtime_settings, { engine: 'local_worker' })
       runtimeLoaded.value = true
     }
     if (!rulesDirty.value) syncRulesDraft(guard)

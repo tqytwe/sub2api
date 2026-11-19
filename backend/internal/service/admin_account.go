@@ -430,17 +430,18 @@ func buildAccountForCreate(input *CreateAccountInput, accountExtra map[string]an
 	delete(accountExtra, OpenCodeGoUsageSnapshotExtraKey)
 	accountExtra = prepareCodexFingerprintExtraForCreate(input.Platform, input.Type, accountExtra)
 	account := &Account{
-		Name:        input.Name,
-		Notes:       normalizeAccountNotes(input.Notes),
-		Platform:    input.Platform,
-		Type:        input.Type,
-		Credentials: input.Credentials,
-		Extra:       accountExtra,
-		ProxyID:     input.ProxyID,
-		Concurrency: normalizeAccountConcurrency(input.Platform, input.Type, input.Concurrency),
-		Priority:    input.Priority,
-		Status:      StatusActive,
-		Schedulable: true,
+		InitialQualityPlan: input.InitialQualityPlan,
+		Name:               input.Name,
+		Notes:              normalizeAccountNotes(input.Notes),
+		Platform:           input.Platform,
+		Type:               input.Type,
+		Credentials:        input.Credentials,
+		Extra:              accountExtra,
+		ProxyID:            input.ProxyID,
+		Concurrency:        normalizeAccountConcurrency(input.Platform, input.Type, input.Concurrency),
+		Priority:           input.Priority,
+		Status:             StatusActive,
+		Schedulable:        true,
 	}
 	if input.ProbeEnabled != nil && *input.ProbeEnabled {
 		if !isUpstreamBillingProbeAccount(account) {
@@ -484,6 +485,9 @@ func buildAccountForCreate(input *CreateAccountInput, accountExtra map[string]an
 }
 
 func (s *adminServiceImpl) CreateAccount(ctx context.Context, input *CreateAccountInput) (*Account, error) {
+	if err := s.ApplyOAuthAutoConfig(ctx, input); err != nil {
+		return nil, err
+	}
 	accountExtra, err := normalizeOpenAILongContextBillingExtra(input.Platform, input.Extra)
 	if err != nil {
 		return nil, err
@@ -554,6 +558,7 @@ func (s *adminServiceImpl) CreateAccount(ctx context.Context, input *CreateAccou
 			return nil, err
 		}
 	}
+	recordAutoConfigInitial(ctx, s.accountRepo, account, groupIDs)
 
 	// OAuth 账号：创建后异步设置隐私。
 	// 使用 Ensure（幂等）而非 Force：新建账号 Extra 为空时效果相同，但更安全。
@@ -584,6 +589,10 @@ func (s *adminServiceImpl) CreateAccount(ctx context.Context, input *CreateAccou
 }
 
 func (s *adminServiceImpl) UpdateAccount(ctx context.Context, id int64, input *UpdateAccountInput) (*Account, error) {
+	if input == nil {
+		return nil, ErrAccountNilInput
+	}
+	ctx = WithOAuthAutomationManualEdit(ctx, input.Concurrency != nil, OAuthAutomationModelsEdited(input.Credentials), false)
 	// Ordinary edits do not own the scheduling switch. Keep a timer's committed
 	// value and strip inherited manual intent before account/shadow writes.
 	ctx = accounttimer.WithPreservedSchedulable(accounttimer.WithoutManualIntent(ctx))

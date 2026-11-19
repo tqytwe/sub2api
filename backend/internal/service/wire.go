@@ -114,14 +114,16 @@ func ProvideOpenAIExcelOAuthService(
 // flow. The executable worker remains a separate process.
 func ProvideOpenAIOAuthReauthService(
 	repo OpenAIOAuthReauthRepository,
+	sessionExportRepo OpenAISessionExportRepository,
 	adminService AdminService,
 	accountRepo AccountRepository,
 	openaiOAuthService *OpenAIOAuthService,
-	secretEncryptor SecretEncryptor,
+	secretEncryptor OpenAICredentialEncryptor,
 	cfg *config.Config,
 	tokenCacheInvalidator TokenCacheInvalidator,
 	runtimeBlocker AccountRuntimeBlocker,
 	redisClient *redis.Client,
+	settings SettingRepository,
 ) *OpenAIOAuthReauthService {
 	credentialUpdater, _ := accountRepo.(OpenAIOAuthReauthCredentialUpdater)
 	svc := NewOpenAIOAuthReauthService(
@@ -137,8 +139,13 @@ func ProvideOpenAIOAuthReauthService(
 	if redisClient != nil {
 		svc.siwcSessionStore = redissession.New(redisClient, siwcSessionPrefix, openai.SessionTTL)
 	}
+	svc.SetSessionExportRepository(sessionExportRepo)
+	svc.settings = settings
 	if gateway, ok := runtimeBlocker.(*OpenAIGatewayService); ok {
 		gateway.SetOpenAIAuthConnectionService(svc)
+		if gateway.rateLimitService != nil {
+			gateway.rateLimitService.SetOpenAITOTP429Rotator(svc)
+		}
 	}
 	return svc
 }
@@ -894,6 +901,18 @@ func ProvideOpsService(
 	return svc
 }
 
+func ProvideOAuthAutomationService(settings SettingRepository, accounts AccountRepository, groups GroupRepository, ops *OpsService, settingSvc *SettingService, admin AdminService, crs *CRSSyncService) *OAuthAutomationService {
+	svc := NewOAuthAutomationService(settings, accounts, groups)
+	svc.AttachOps(ops, settingSvc)
+	if creator, ok := admin.(interface {
+		ApplyOAuthAutoConfig(context.Context, *CreateAccountInput) error
+	}); ok {
+		crs.SetOAuthAutoConfigure(creator.ApplyOAuthAutoConfig)
+	}
+	svc.Start()
+	return svc
+}
+
 func ProvideAccountOpsService(settings SettingRepository, repo AccountOpsRepository, email *EmailService, accounts AccountRepository, cfg *config.Config, encryptor SecretEncryptor, usageCache *UsageCache, usageLogs UsageLogRepository, geminiQuota *GeminiQuotaService, newAPI NewAPIAuthorizationRepository) *AccountOpsService {
 	svc := NewAccountOpsService(settings, repo, email)
 	svc.SetNotificationDependencies(accounts, encryptor, cfg.Totp.EncryptionKeyConfigured, cfg.Timezone)
@@ -1263,6 +1282,7 @@ var ProviderSet = wire.NewSet(
 	ProvideOpsSystemLogSink,
 	ProvideOpsService,
 	ProvideAccountOpsService,
+	ProvideOAuthAutomationService,
 	ProvideOpsIngressRejectAggregator,
 	ProvideAuditLogService,
 	ProvideOpsMetricsCollector,

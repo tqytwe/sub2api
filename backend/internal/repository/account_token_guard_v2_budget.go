@@ -109,7 +109,7 @@ func (r *accountTokenGuardV2Repository) CreateAutomaticRelogin(ctx context.Conte
         INSERT INTO openai_oauth_reauth_tasks(account_id,status,stage,expected_credentials_hash)
         VALUES($1,'queued','queued',$2)
         RETURNING id,account_id,status,stage,COALESCE(worker_id,''),COALESCE(auth_session_id,''),
-          expected_credentials_hash,COALESCE(error_message,''),attempt,created_at,updated_at,finished_at`, id, hash))
+          expected_credentials_hash,COALESCE(error_message,''),attempt,created_at,updated_at,finished_at,oauth_profile`, id, hash))
 	if err != nil {
 		var pg *pq.Error
 		if errors.As(err, &pg) && pg.Code == "23505" {
