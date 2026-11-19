@@ -175,6 +175,8 @@ func TestOpenAIConnectionDatabaseSnapshotTracksCredentialRevision(t *testing.T) 
 		return revision
 	}
 	require.Equal(t, int64(1), readRevision())
+	// A revision-only mutation must refresh the safe account snapshot and its
+	// scheduler notification, without exposing either token payload to callers.
 	_, err := f.db.Exec(`UPDATE openai_auth_connections SET revision=revision+1 WHERE id=$1`, c.ID)
 	require.NoError(t, err)
 	require.Equal(t, int64(2), readRevision())

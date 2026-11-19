@@ -129,6 +129,7 @@ func provideCleanup(
 	scheduledTestRunner *service.ScheduledTestRunnerService,
 	accountTokenGuardV2 *service.AccountTokenGuardV2Service,
 	accountPerformance *service.AccountPerformanceService,
+	oauthAutomation *service.OAuthAutomationService,
 	backupSvc *service.BackupService,
 	paymentOrderExpiry *service.PaymentOrderExpiryService,
 	channelMonitorRunner *service.ChannelMonitorRunner,
@@ -459,6 +460,12 @@ func provideCleanup(
 			{"AccountPerformanceService", func() error {
 				if accountPerformance != nil {
 					accountPerformance.Stop()
+				}
+				return nil
+			}},
+			{"OAuthAutomationService", func() error {
+				if oauthAutomation != nil {
+					oauthAutomation.Stop()
 				}
 				return nil
 			}},

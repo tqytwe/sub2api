@@ -13,6 +13,11 @@
         </button>
       </header>
 
+      <details class="space-y-4 border border-gray-200 p-4 dark:border-dark-700" data-testid="oauth-automation-section" @toggle="automationOpen = automationOpen || ($event.target as HTMLDetailsElement).open">
+        <summary class="cursor-pointer text-lg font-semibold">{{ t('autoConfig.title') }}</summary>
+        <OAuthAutomationPanel v-if="automationOpen" />
+      </details>
+
       <p v-if="error" role="alert" class="border border-red-300 bg-red-50 p-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-900/20 dark:text-red-200">
         {{ error }}
       </p>
@@ -324,6 +329,7 @@
 import { onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
+import OAuthAutomationPanel from '@/components/admin/operations/OAuthAutomationPanel.vue'
 import Icon from '@/components/icons/Icon.vue'
 import Toggle from '@/components/common/Toggle.vue'
 import QualityIsolationGroups from '@/components/admin/account/QualityIsolationGroups.vue'
@@ -335,6 +341,7 @@ import type { QualityRuleField } from '@/utils/qualityRulePatch'
 import type { AccountListItem, PelicanTestConfig, QualityPolicy, QualityHistoryResult, QualityModelRemoval, QualityOwnershipPreview, ScheduledTestPlan, ScheduledTestResult } from '@/types'
 
 const { t } = useI18n()
+const automationOpen = ref(false)
 const plans = ref<ScheduledTestPlan[]>([])
 const accounts = ref<AccountListItem[]>([])
 const loading = ref(false)

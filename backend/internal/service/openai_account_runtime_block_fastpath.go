@@ -109,7 +109,7 @@ func (s *OpenAIGatewayService) handleOpenAIAccountUpstreamError(ctx context.Cont
 
 // Response writers observe the HTTP response before their terminal policies.
 // Keep the remaining side effects shared without a second concurrent reset.
-func (s *OpenAIGatewayService) handleOpenAIAccountUpstreamErrorAfterStreakReset(ctx context.Context, account *Account, statusCode int, headers http.Header, responseBody []byte, canonicalModel ...string) bool {
+func (s *OpenAIGatewayService) handleOpenAIAccountUpstreamErrorAfterStreakReset(ctx context.Context, account *Account, statusCode int, headers http.Header, responseBody []byte, canonicalModel ...string) (shouldDisable bool) {
 	if isOpenAIUpstreamSessionBlocked(responseBody) {
 		return false
 	}
@@ -135,10 +135,21 @@ func (s *OpenAIGatewayService) handleOpenAIAccountUpstreamErrorAfterStreakReset(
 	if account != nil && account.Platform == PlatformOpenAI && isOpenAIRequestScopedCapacityShed("", responseBody) {
 		return false
 	}
+	// Legacy SIWC owns its provider grant independently. Its direct transport
+	// refreshes that grant after a 401 without touching Codex credentials.
+	if account != nil && account.IsSIWCEnabled() && account.AuthConnectionID == "" {
+		return false
+	}
 	stateCtx, cancel := openAIAccountStateContext(ctx)
 	defer cancel()
 	if s != nil {
+		stateCtx = s.rateLimitService.maybeRotateOpenAITOTPOn429(stateCtx, account, statusCode)
 		stateCtx = s.rateLimitService.observeAccountOps(stateCtx, account, statusCode, headers, responseBody)
+		var disabledOn429 bool
+		stateCtx, disabledOn429 = s.rateLimitService.maybeDisableOpenAISchedulingOn429(stateCtx, account, statusCode, headers)
+		if disabledOn429 {
+			defer func() { shouldDisable = true }()
+		}
 	}
 	if account != nil && account.AuthConnectionID != "" && !isOpenAIHTTPUpstreamAccessStateError(statusCode, "", responseBody) && statusCode != http.StatusTooManyRequests {
 		if (statusCode == http.StatusUnauthorized || statusCode == http.StatusForbidden || statusCode >= 500) && s != nil && s.excelOAuthReauth != nil {
@@ -210,7 +221,7 @@ func (s *OpenAIGatewayService) handleOpenAIAccountUpstreamErrorAfterStreakReset(
 	if s.rateLimitService == nil {
 		return false
 	}
-	shouldDisable := s.rateLimitService.handleUpstreamErrorAfterStreakReset(stateCtx, account, statusCode, headers, responseBody)
+	shouldDisable = s.rateLimitService.handleUpstreamErrorAfterStreakReset(stateCtx, account, statusCode, headers, responseBody)
 	modelTempMatched := statusCode != http.StatusUnauthorized && tempUnschedulableModel(stateCtx, nil) != "" &&
 		len(matchTempUnschedulableRules(account, statusCode, responseBody)) > 0
 	if shouldDisable && !modelTempMatched {

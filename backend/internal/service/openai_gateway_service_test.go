@@ -2493,6 +2493,34 @@ func TestOpenAIStreamingMissingTerminalEventReturnsIncompleteError(t *testing.T)
 	}
 }
 
+func TestOpenAIStreamingRecordsAccountBoundCompletion(t *testing.T) {
+	for _, passthrough := range []bool{false, true} {
+		for _, status := range []string{"completed", "incomplete", "cancelled"} {
+			t.Run(fmt.Sprintf("passthrough=%v/%s", passthrough, status), func(t *testing.T) {
+				svc := &OpenAIGatewayService{cfg: &config.Config{Gateway: config.GatewayConfig{MaxLineSize: defaultMaxLineSize}}}
+				c, _ := gin.CreateTestContext(httptest.NewRecorder())
+				c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", nil)
+				account := &Account{ID: 7, Platform: PlatformOpenAI}
+				largeOutput := strings.Repeat("x", 256*1024)
+				stream := "data: {\"type\":\"response.output_text.delta\",\"delta\":\"partial\",\"output_index\":0}\n\n" +
+					fmt.Sprintf("data: {\"type\":\"response.%[1]s\",\"response\":{\"id\":\"resp_1\",\"status\":\"%[1]s\",\"output\":[{\"type\":\"message\",\"content\":[{\"type\":\"output_text\",\"text\":\"%[2]s\"}]}]}}\n\n", status, largeOutput)
+				resp := &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(stream)), Header: http.Header{}}
+				var err error
+				if passthrough {
+					_, err = svc.handleStreamingResponsePassthrough(c.Request.Context(), resp, c, account, time.Now(), "model", "model")
+				} else {
+					_, err = svc.handleStreamingResponse(c.Request.Context(), resp, c, account, time.Now(), "model", "model")
+				}
+				if status == "completed" {
+					require.NoError(t, err)
+				}
+				require.Equal(t, status == "completed", OpsStreamCompletedForAccount(c, account.ID))
+				require.False(t, OpsStreamCompletedForAccount(c, account.ID+1))
+			})
+		}
+	}
+}
+
 func TestOpenAIStreamingPassthroughMissingTerminalEventReturnsIncompleteError(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	cfg := &config.Config{

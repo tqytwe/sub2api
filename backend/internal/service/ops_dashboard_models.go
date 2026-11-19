@@ -12,6 +12,8 @@ type OpsDashboardFilter struct {
 	// QueryMode controls whether dashboard queries should use raw logs or pre-aggregated tables.
 	// Expected values: auto/raw/preagg (see OpsQueryMode).
 	QueryMode OpsQueryMode
+	// OpenAIOAuthOnly scopes fallback health to OpenAI OAuth account outcomes.
+	OpenAIOAuthOnly bool
 }
 
 type OpsRateSummary struct {

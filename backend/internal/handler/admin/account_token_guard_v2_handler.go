@@ -46,6 +46,7 @@ func (r accountTokenGuardV2SaveRequest) input() service.AccountTokenGuardV2Accou
 		autoRelogin = *r.AutoReloginEnabled
 	}
 	return service.AccountTokenGuardV2AccountInput{
+		PreserveEnabled: r.Enabled == nil, PreserveAutoRelogin: r.AutoReloginEnabled == nil,
 		LoginEmail: r.LoginEmail, CredentialMode: r.CredentialMode,
 		ProxySource: r.ProxySource, ProxyID: r.ProxyID,
 		Password: r.Password, TOTPSecret: r.TOTPSecret, OTPURL: r.OTPURL,
@@ -74,13 +75,55 @@ func (h *AccountTokenGuardV2Handler) List(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
+	runtime, err := h.service.GetRuntimeSettings(c.Request.Context())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
 	response.Success(c, gin.H{
+		"runtime_settings": runtime, "worker": h.service.WorkerStatus(),
+		"relogin_max_failures": rules.ReloginMaxFailures, "relogin_backoff_max_seconds": rules.ReloginBackoffMaxSeconds,
 		"accounts":                 accounts,
 		"probe_interval_seconds":   rules.ProbeIntervalSeconds,
 		"retry_interval_seconds":   rules.RetryIntervalSeconds,
 		"relogin_cooldown_seconds": rules.ReloginCooldownSeconds,
 		"fail_streak_threshold":    rules.FailStreakThreshold,
 	})
+}
+
+func (h *AccountTokenGuardV2Handler) SaveRuntime(c *gin.Context) {
+	var cfg service.OpenAIOAuthReauthRuntimeSettings
+	if err := c.ShouldBindJSON(&cfg); err != nil {
+		response.BadRequest(c, "Invalid re-login settings")
+		return
+	}
+	saved, err := h.service.SaveRuntimeSettings(c.Request.Context(), cfg)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, saved)
+}
+
+func (h *AccountTokenGuardV2Handler) UpdateSwitches(c *gin.Context) {
+	id, ok := parseTokenGuardV2AccountID(c)
+	if !ok {
+		return
+	}
+	var req struct {
+		Enabled            *bool `json:"enabled"`
+		AutoReloginEnabled *bool `json:"auto_relogin_enabled"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid automation switches")
+		return
+	}
+	saved, err := h.service.UpdateSwitches(c.Request.Context(), id, req.Enabled, req.AutoReloginEnabled)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, saved)
 }
 
 func (h *AccountTokenGuardV2Handler) SaveRules(c *gin.Context) {

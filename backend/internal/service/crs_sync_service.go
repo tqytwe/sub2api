@@ -20,6 +20,7 @@ import (
 )
 
 type CRSSyncService struct {
+	autoConfigure      func(context.Context, *CreateAccountInput) error
 	accountRepo        AccountRepository
 	proxyRepo          ProxyRepository
 	oauthService       *OAuthService
@@ -390,7 +391,7 @@ func (s *CRSSyncService) SyncFromCRS(ctx context.Context, input SyncFromCRSInput
 				Status:      status,
 				Schedulable: src.Schedulable,
 			}
-			if err := s.accountRepo.Create(ctx, account); err != nil {
+			if err := s.createSyncedAccount(ctx, account); err != nil {
 				item.Action = "failed"
 				item.Error = "create failed: " + err.Error()
 				result.Failed++
@@ -526,7 +527,7 @@ func (s *CRSSyncService) SyncFromCRS(ctx context.Context, input SyncFromCRSInput
 				Status:      status,
 				Schedulable: src.Schedulable,
 			}
-			if err := s.accountRepo.Create(ctx, account); err != nil {
+			if err := s.createSyncedAccount(ctx, account); err != nil {
 				item.Action = "failed"
 				item.Error = "create failed: " + err.Error()
 				result.Failed++
@@ -681,7 +682,7 @@ func (s *CRSSyncService) SyncFromCRS(ctx context.Context, input SyncFromCRSInput
 				Status:      status,
 				Schedulable: src.Schedulable,
 			}
-			if err := s.accountRepo.Create(ctx, account); err != nil {
+			if err := s.createSyncedAccount(ctx, account); err != nil {
 				item.Action = "failed"
 				item.Error = "create failed: " + err.Error()
 				result.Failed++
@@ -832,7 +833,7 @@ func (s *CRSSyncService) SyncFromCRS(ctx context.Context, input SyncFromCRSInput
 				Status:      status,
 				Schedulable: src.Schedulable,
 			}
-			if err := s.accountRepo.Create(ctx, account); err != nil {
+			if err := s.createSyncedAccount(ctx, account); err != nil {
 				item.Action = "failed"
 				item.Error = "create failed: " + err.Error()
 				result.Failed++
@@ -962,7 +963,7 @@ func (s *CRSSyncService) SyncFromCRS(ctx context.Context, input SyncFromCRSInput
 				Status:      mapCRSStatus(src.IsActive, src.Status),
 				Schedulable: src.Schedulable,
 			}
-			if err := s.accountRepo.Create(ctx, account); err != nil {
+			if err := s.createSyncedAccount(ctx, account); err != nil {
 				item.Action = "failed"
 				item.Error = "create failed: " + err.Error()
 				result.Failed++
@@ -1092,7 +1093,7 @@ func (s *CRSSyncService) SyncFromCRS(ctx context.Context, input SyncFromCRSInput
 				Status:      mapCRSStatus(src.IsActive, src.Status),
 				Schedulable: src.Schedulable,
 			}
-			if err := s.accountRepo.Create(ctx, account); err != nil {
+			if err := s.createSyncedAccount(ctx, account); err != nil {
 				item.Action = "failed"
 				item.Error = "create failed: " + err.Error()
 				result.Failed++
@@ -1141,6 +1142,37 @@ func (s *CRSSyncService) SyncFromCRS(ctx context.Context, input SyncFromCRSInput
 	}
 
 	return result, nil
+}
+
+func (s *CRSSyncService) createSyncedAccount(ctx context.Context, account *Account) error {
+	var groups []int64
+	if s.autoConfigure != nil {
+		input := &CreateAccountInput{Platform: account.Platform, Type: account.Type, Priority: account.Priority, Concurrency: account.Concurrency, LoadFactor: account.LoadFactor, Extra: account.Extra, Credentials: account.Credentials}
+		if err := s.autoConfigure(ctx, input); err != nil {
+			return err
+		}
+		account.InitialQualityPlan = input.InitialQualityPlan
+		account.Priority = input.Priority
+		account.Concurrency = input.Concurrency
+		account.LoadFactor = input.LoadFactor
+		account.Extra = input.Extra
+		account.Credentials = input.Credentials
+		groups = input.GroupIDs
+	}
+	if err := s.accountRepo.Create(ctx, account); err != nil {
+		return err
+	}
+	if len(groups) > 0 {
+		if err := s.accountRepo.BindGroups(ctx, account.ID, groups); err != nil {
+			return err
+		}
+	}
+	recordAutoConfigInitial(ctx, s.accountRepo, account, groups)
+	return nil
+}
+
+func (s *CRSSyncService) SetOAuthAutoConfigure(fn func(context.Context, *CreateAccountInput) error) {
+	s.autoConfigure = fn
 }
 
 func mergeMap(existing map[string]any, updates map[string]any) map[string]any {

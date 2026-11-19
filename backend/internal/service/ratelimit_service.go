@@ -39,8 +39,11 @@ type RateLimitService struct {
 	// ratelimit_service_ollama_429.go for how real-Ollama 429s schedule an async
 	// probe to learn the true usage-window reset.
 	ollamaCloudUsageProbe ollamaCloudUsageProbeScheduler
-	usageCacheMu          sync.RWMutex
-	usageCache            map[int64]*geminiUsageCacheEntry
+	// openAITOTP429Rotator is optional so existing tests and deployments that
+	// do not enable credential rotation retain the current rate-limit behavior.
+	openAITOTP429Rotator openAITOTP429Rotator
+	usageCacheMu         sync.RWMutex
+	usageCache           map[int64]*geminiUsageCacheEntry
 
 	// OpenAI Team 联动熔断的进程内去重：teamID → 去重窗口截止时间
 	openaiTeamLinkedMu     sync.Mutex
@@ -133,6 +136,15 @@ func (s *RateLimitService) SetSettingService(settingService *SettingService) {
 // SetTokenCacheInvalidator 设置 token 缓存清理器（可选依赖）
 func (s *RateLimitService) SetTokenCacheInvalidator(invalidator TokenCacheInvalidator) {
 	s.tokenCacheInvalidator = invalidator
+}
+
+// SetOpenAITOTP429Rotator attaches the durable credential rotation queue.
+// Keeping this as a setter avoids making the rate-limit constructor depend on
+// the re-auth service and preserves existing provider/test call sites.
+func (s *RateLimitService) SetOpenAITOTP429Rotator(rotator openAITOTP429Rotator) {
+	if s != nil {
+		s.openAITOTP429Rotator = rotator
+	}
 }
 
 func (s *RateLimitService) SetAccountRuntimeBlocker(blocker AccountRuntimeBlocker) {
@@ -352,6 +364,11 @@ func (s *RateLimitService) HandleUpstreamError(ctx context.Context, account *Acc
 // The gateway observes the response before its own request/model policy returns.
 // Do not reset again here: that could erase a later concurrent IP-401 failure.
 func (s *RateLimitService) handleUpstreamErrorAfterStreakReset(ctx context.Context, account *Account, statusCode int, headers http.Header, responseBody []byte, requestedModel ...string) (shouldDisable bool) {
+	ctx, disabledOn429 := s.maybeDisableOpenAISchedulingOn429(ctx, account, statusCode, headers)
+	if disabledOn429 {
+		defer func() { shouldDisable = true }()
+	}
+	ctx = s.maybeRotateOpenAITOTPOn429(ctx, account, statusCode)
 	if statusCode == http.StatusForbidden && isCloudflareBotBlockResponse(responseBody) {
 		return false
 	}

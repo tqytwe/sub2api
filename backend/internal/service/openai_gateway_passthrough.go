@@ -850,6 +850,9 @@ func stripOpenAILegacyResponsesBeta(headers http.Header) {
 }
 
 func shouldFailoverOpenAIPassthroughResponse(account *Account, statusCode int, responseBody []byte) bool {
+	if isSIWCEligibilityRejection(account, statusCode, responseBody) {
+		return false
+	}
 	if hit, _, _ := detectOpenAICyberPolicy(responseBody); hit {
 		return false
 	}
@@ -965,6 +968,9 @@ func (s *OpenAIGatewayService) handleFailoverErrorResponsePassthrough(
 	requestBody []byte,
 	responseBody []byte,
 ) error {
+	if isSIWCEligibilityRejection(account, resp.StatusCode, responseBody) {
+		return writeSIWCEligibilityRejection(c, account, resp)
+	}
 	body := s.redactAgentIdentitySensitiveBody(ctx, account, responseBody)
 
 	upstreamMsg := strings.TrimSpace(extractUpstreamErrorMessage(body))
@@ -1016,6 +1022,9 @@ func (s *OpenAIGatewayService) handleErrorResponsePassthrough(
 	requestBody []byte,
 	responseBody []byte,
 ) error {
+	if isSIWCEligibilityRejection(account, resp.StatusCode, responseBody) {
+		return writeSIWCEligibilityRejection(c, account, resp)
+	}
 	MarkResponseCommitted(c)
 	body := s.redactAgentIdentitySensitiveBody(ctx, account, responseBody)
 
@@ -2002,6 +2011,7 @@ func (s *OpenAIGatewayService) handleStreamingResponsePassthrough(
 	}()
 	sawDone := false
 	sawTerminalEvent := false
+	terminalSuccessful := false
 	sawFailedEvent := false
 	sawBareError := false
 	sawResponseFailed := false
@@ -2094,6 +2104,9 @@ func (s *OpenAIGatewayService) handleStreamingResponsePassthrough(
 		flushPendingOutput()
 		if resultOut != nil {
 			resultOut.clientDisconnect = clientDisconnected
+			if responseErr == nil && !sawFailedEvent && !clientDisconnected && account != nil && c.Request.Context().Err() == nil && terminalSuccessful {
+				MarkOpsStreamCompleted(c, account.ID)
+			}
 		}
 	}()
 	writePendingLines := func() bool {
@@ -2307,6 +2320,7 @@ func (s *OpenAIGatewayService) handleStreamingResponsePassthrough(
 			}
 			if openAIStreamEventIsTerminalWithType(trimmedData, eventType) {
 				sawTerminalEvent = true
+				terminalSuccessful = IsSuccessfulStreamTerminal(dataBytes)
 				if trimmedData != "[DONE]" {
 					terminalEventType = eventType
 					ledgerTerminalType, ledgerTerminalStatus = eventType, gjson.GetBytes(dataBytes, "response.status").String()

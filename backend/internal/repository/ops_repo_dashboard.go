@@ -28,6 +28,10 @@ func (r *opsRepository) GetDashboardOverview(ctx context.Context, filter *servic
 		return nil, fmt.Errorf("start_time/end_time required")
 	}
 
+	if filter.OpenAIOAuthOnly {
+		return r.getDashboardOverviewRaw(ctx, filter)
+	}
+
 	mode := filter.QueryMode
 	if !mode.IsValid() {
 		mode = service.OpsQueryModeRaw
@@ -877,17 +881,20 @@ func (r *opsRepository) queryErrorCounts(ctx context.Context, filter *service.Op
 	err error,
 ) {
 	where, args, _ := buildErrorWhere(filter, start, end, 1)
+	slaExclusion := ""
+	if filter != nil && filter.OpenAIOAuthOnly {
+		slaExclusion = " AND error_type <> 'client_canceled' AND status_code <> 499"
+	}
 
 	q := `
 SELECT
   COALESCE(COUNT(*) FILTER (WHERE COALESCE(status_code, 0) >= 400), 0) AS error_total,
   COALESCE(COUNT(*) FILTER (WHERE COALESCE(status_code, 0) >= 400 AND is_business_limited), 0) AS business_limited,
-  COALESCE(COUNT(*) FILTER (WHERE COALESCE(status_code, 0) >= 400 AND NOT is_business_limited), 0) AS error_sla,
+  COALESCE(COUNT(*) FILTER (WHERE COALESCE(status_code, 0) >= 400 AND NOT is_business_limited` + slaExclusion + `), 0) AS error_sla,
   COALESCE(COUNT(*) FILTER (WHERE error_owner = 'provider' AND NOT is_business_limited AND COALESCE(upstream_status_code, status_code, 0) NOT IN (429, 529)), 0) AS upstream_excl,
   COALESCE(COUNT(*) FILTER (WHERE error_owner = 'provider' AND NOT is_business_limited AND COALESCE(upstream_status_code, status_code, 0) = 429), 0) AS upstream_429,
   COALESCE(COUNT(*) FILTER (WHERE error_owner = 'provider' AND NOT is_business_limited AND COALESCE(upstream_status_code, status_code, 0) = 529), 0) AS upstream_529
-FROM ops_error_logs
-` + where
+FROM ` + opsMetricErrorRowsForFilterSQL(where, filter)
 
 	if err := r.db.QueryRowContext(ctx, q, args...).Scan(
 		&errorTotal,
@@ -922,6 +929,10 @@ func (r *opsRepository) queryCurrentRates(ctx context.Context, filter *service.O
 func (r *opsRepository) queryPeakRates(ctx context.Context, filter *service.OpsDashboardFilter, start, end time.Time) (qpsPeak float64, tpsPeak float64, err error) {
 	usageJoin, usageWhere, usageArgs, next := buildUsageWhere(filter, start, end, 1)
 	errorWhere, errorArgs, _ := buildErrorWhere(filter, start, end, next)
+	errorSource := opsMetricErrorRowsForFilterSQL(errorWhere, filter)
+	if filter != nil && filter.OpenAIOAuthOnly {
+		errorSource += " WHERE TRUE"
+	}
 
 	q := `
 WITH usage_buckets AS (
@@ -936,8 +947,7 @@ WITH usage_buckets AS (
 ),
 error_buckets AS (
   SELECT date_trunc('minute', created_at) AS bucket, COUNT(*) AS err_cnt
-  FROM ops_error_logs
-  ` + errorWhere + `
+  FROM ` + errorSource + `
     AND COALESCE(status_code, 0) >= 400
   GROUP BY 1
 ),
@@ -995,6 +1005,9 @@ func buildUsageWhere(filter *service.OpsDashboardFilter, start, end time.Time, s
 		args = append(args, *groupID)
 		clauses = append(clauses, fmt.Sprintf("ul.group_id = $%d", idx))
 		idx++
+	}
+	if filter != nil && filter.OpenAIOAuthOnly {
+		clauses = append(clauses, openAIOAuthAccountSQL("ul.account_id"))
 	}
 	if platform != "" {
 		// Prefer group.platform when available; fall back to account.platform so we don't

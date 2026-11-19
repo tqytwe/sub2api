@@ -127,6 +127,9 @@ func newAccountRepositoryWithSQL(client *dbent.Client, sqlq sqlExecutor, schedul
 }
 
 func (r *accountRepository) Create(ctx context.Context, account *service.Account) error {
+	if account != nil && account.InitialQualityPlan != nil {
+		return r.createWithInitialQuality(ctx, account)
+	}
 	client := r.client
 	var tx *dbent.Tx
 	if service.InitialUpstreamChannel(ctx) > 0 {
@@ -570,6 +573,10 @@ func (r *accountRepository) updateLockedAccount(
 	if err != nil {
 		return nil, err
 	}
+	extra, err = preserveOAuthAutomationAccount(ctx, client, account, extra)
+	if err != nil {
+		return nil, err
+	}
 	account.Extra = extra
 	// The probe merge above holds the account row lock in this transaction.
 	if err := accounttimer.CancelPending(ctx, client, account.ID, time.Now().UTC()); err != nil {
@@ -970,7 +977,16 @@ func (r *accountRepository) UpdateCredentials(ctx context.Context, id int64, cre
 	result, err := client.ExecContext(ctx, `
 		UPDATE accounts
 		SET
-			credentials = $1::jsonb,
+			credentials = CASE
+				WHEN type='oauth' AND extra ? 'oauth_degradation_action' THEN
+					($1::jsonb - 'model_mapping' - 'model_mapping_mode' - 'compact_model_mapping' - 'oauth_initial_selected_models')
+					|| jsonb_strip_nulls(jsonb_build_object(
+						'model_mapping',credentials->'model_mapping',
+						'model_mapping_mode',credentials->'model_mapping_mode',
+						'compact_model_mapping',credentials->'compact_model_mapping',
+						'oauth_initial_selected_models',credentials->'oauth_initial_selected_models'))
+				ELSE $1::jsonb
+			END,
 			extra = CASE
 				-- 正确性依赖（非防御）：OpenCode 分支必须先于 Ollama 分支求值。两分支
 				-- 的 WHEN 并不互斥：Ollama 分支的守卫是宽谓词——NOT(ollamaMatch(old)
@@ -3029,7 +3045,7 @@ func (r *accountRepository) AutoPauseExpiredAccounts(ctx context.Context, now ti
 }
 
 func (r *accountRepository) UpdateExtra(ctx context.Context, id int64, updates map[string]any) error {
-	updates = stripQualityIsolationFromExtra(updates)
+	updates = stripOAuthAutomationExtra(stripQualityIsolationFromExtra(updates))
 	updates = stripCodexFingerprintSeedFromExtraUpdate(updates)
 	if len(updates) == 0 {
 		return nil
@@ -3308,7 +3324,7 @@ func (r *accountRepository) BulkUpdate(ctx context.Context, ids []int64, updates
 	if len(ids) == 0 {
 		return 0, nil
 	}
-	updates.Extra = stripCodexFingerprintSeedFromExtraUpdate(stripQualityIsolationFromExtra(updates.Extra))
+	updates.Extra = stripOAuthAutomationExtra(stripCodexFingerprintSeedFromExtraUpdate(stripQualityIsolationFromExtra(updates.Extra)))
 
 	setClauses := make([]string, 0, 8)
 	args := make([]any, 0, 8)
@@ -3574,6 +3590,11 @@ func (r *accountRepository) BulkUpdate(ctx context.Context, ids []int64, updates
 			if err = accounttimer.CancelPending(ctx, exec, id, time.Now().UTC()); err != nil {
 				return 0, err
 			}
+		}
+	}
+	if updates.Concurrency != nil {
+		if err := recordBulkOAuthConcurrencyRecovery(ctx, exec, ids, *updates.Concurrency); err != nil {
+			return 0, err
 		}
 	}
 	result, err := exec.ExecContext(ctx, query, args...)

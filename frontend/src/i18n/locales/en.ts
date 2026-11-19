@@ -2,6 +2,7 @@ import profitOps from './en/profitOps'
 import upstreamEntities from './en/upstreamEntities'
 import openaiAuth from './en/openaiAuth'
 import accountPerformance from './en/accountPerformance'
+import autoConfig from './en/autoConfig'
 import ipAudit from './en/ipAudit'
 import requestTiming from './en/requestTiming'
 import connections from './en/connections'
@@ -27,6 +28,7 @@ import splitWorkspaceShellEn from './en/workspaceShell'
 import auditAdminEn from './en/admin/audit'
 import promptAuditAdminEn from './en/admin/promptAudit'
 import tokenGuardV2En from './en/tokenGuardV2'
+import siwcEn from './en/siwc'
 import accountOpsEn from './en/accountOps'
 import { mergeLocaleMessages } from './merge'
 
@@ -35,6 +37,7 @@ const messages = {
   upstreamEntities,
   openaiAuth,
   accountPerformance,
+  autoConfig,
   requestTiming,
   connections,
   latencyObservability,
@@ -45,6 +48,7 @@ const messages = {
   affiliateOperations,
   accountOps: accountOpsEn,
   tokenGuardV2: tokenGuardV2En,
+  siwc: siwcEn,
   requestLedger,
   batchImageGuide: {
     title: 'Batch Image Generation',

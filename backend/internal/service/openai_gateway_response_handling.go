@@ -277,6 +277,7 @@ func (s *OpenAIGatewayService) handleStreamingResponseWithReasoning(ctx context.
 		requesttiming.Outcome(ctx, outcome, clientDisconnected)
 	}()
 	sawTerminalEvent := false
+	terminalSuccessful := false
 	sawFailedEvent := false
 	sawBareError := false
 	sawResponseFailed := false
@@ -468,6 +469,9 @@ func (s *OpenAIGatewayService) handleStreamingResponseWithReasoning(ctx context.
 		logOpenAISuccessMissingUsage(ctx, c, account, resp, usage, terminalEventType, clientDisconnected)
 		if !clientDisconnected {
 			requesttiming.TerminalFlushed(ctx, terminalEventType)
+			if account != nil && c.Request.Context().Err() == nil && terminalSuccessful {
+				MarkOpsStreamCompleted(c, account.ID)
+			}
 		}
 		return resultWithUsage(), nil
 	}
@@ -570,6 +574,7 @@ func (s *OpenAIGatewayService) handleStreamingResponseWithReasoning(ctx context.
 			// 初始上游 data 的 type 只解析一次：原始值保持终止事件的精确匹配，规范化值供后续分支复用。
 			if openAIStreamEventIsTerminalWithType(data, eventType) {
 				sawTerminalEvent = true
+				terminalSuccessful = IsSuccessfulStreamTerminal(dataBytes)
 				terminalEventType = eventType
 				switch eventType {
 				case "response.completed":

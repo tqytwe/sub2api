@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
@@ -44,8 +45,10 @@ const (
 )
 
 const (
-	OpenAIOAuthReauthModeEmailOTPURL  = "email_otp_url"
-	OpenAIOAuthReauthModePasswordTOTP = "password_totp"
+	openAIOAuthReauthRuntimeSettingsKey = "account_token_guard_v2_runtime"
+	OpenAIOAuthReauthEngineLocal        = "local_worker"
+	OpenAIOAuthReauthModeEmailOTPURL    = "email_otp_url"
+	OpenAIOAuthReauthModePasswordTOTP   = "password_totp"
 	// OpenAIOAuthReauthEngineSessionStudio is retained for safe diagnostics
 	// emitted by older workers. The current fork does not start that runtime.
 	OpenAIOAuthReauthEngineSessionStudio = "session_studio"
@@ -92,19 +95,26 @@ type OpenAIOAuthReauthConfigInput struct {
 	PreserveProxy  bool
 }
 
+type OpenAIOAuthReauthRuntimeSettings struct {
+	Engine                string `json:"engine"`
+	WorkerConcurrency     int    `json:"worker_concurrency"`
+	ConcurrencyConfigured bool   `json:"-"`
+}
+
 // OpenAIOAuthReauthTask is the safe task status exposed to administrators.
 type OpenAIOAuthReauthTask struct {
-	Failure    *CredentialOperationFailure `json:"failure,omitempty"`
-	Diagnostic *ReauthDiagnostic           `json:"diagnostic,omitempty"`
-	ID         int64                       `json:"id"`
-	AccountID  int64                       `json:"account_id"`
-	Status     string                      `json:"status"`
-	Stage      string                      `json:"stage"`
-	Error      string                      `json:"error,omitempty"`
-	Attempt    int                         `json:"attempt"`
-	CreatedAt  time.Time                   `json:"created_at"`
-	UpdatedAt  time.Time                   `json:"updated_at"`
-	FinishedAt *time.Time                  `json:"finished_at,omitempty"`
+	OAuthProfile string                      `json:"oauth_profile"`
+	Failure      *CredentialOperationFailure `json:"failure,omitempty"`
+	Diagnostic   *ReauthDiagnostic           `json:"diagnostic,omitempty"`
+	ID           int64                       `json:"id"`
+	AccountID    int64                       `json:"account_id"`
+	Status       string                      `json:"status"`
+	Stage        string                      `json:"stage"`
+	Error        string                      `json:"error,omitempty"`
+	Attempt      int                         `json:"attempt"`
+	CreatedAt    time.Time                   `json:"created_at"`
+	UpdatedAt    time.Time                   `json:"updated_at"`
+	FinishedAt   *time.Time                  `json:"finished_at,omitempty"`
 }
 
 // OpenAIOAuthReauthStatus combines saved configuration and the latest task.
@@ -146,6 +156,7 @@ type OpenAIOAuthReauthStoredConfig struct {
 // OpenAIOAuthReauthTaskRecord contains fields needed by the worker protocol.
 // It is never serialized directly to an administrator response.
 type OpenAIOAuthReauthTaskRecord struct {
+	OAuthProfile            string
 	ID                      int64
 	AccountID               int64
 	Status                  string
@@ -173,6 +184,11 @@ type OpenAIOAuthReauthAccountReader interface {
 }
 
 type OpenAIOAuthReauthService struct {
+	sessionExportRepo       OpenAISessionExportRepository
+	sessionExportResults    *sessionExportResultStore
+	settings                AccountTokenGuardV2Settings
+	workerLastSeen          atomic.Int64
+	totpWorkerLastSeen      atomic.Int64
 	siwcSessionStore        *redissession.Store
 	repo                    OpenAIOAuthReauthRepository
 	accounts                OpenAIOAuthReauthAccountReader
@@ -304,7 +320,11 @@ func (s *OpenAIOAuthReauthService) ensureReady() error {
 }
 
 func (s *OpenAIOAuthReauthService) ensureDurableEncryption() error {
-	if !s.encryptionKeyConfigured {
+	status, err := s.CredentialEncryptionStatus()
+	if err != nil {
+		return err
+	}
+	if !status.Configured {
 		return infraerrors.New(
 			http.StatusBadRequest,
 			"OPENAI_REAUTH_ENCRYPTION_KEY_REQUIRED",
@@ -393,6 +413,9 @@ func (s *OpenAIOAuthReauthService) SaveCredentialConfig(ctx context.Context, acc
 		return nil, infraerrors.New(http.StatusBadRequest, "OPENAI_REAUTH_MODE_INVALID", "invalid OpenAI re-login credential mode")
 	}
 	stored := &OpenAIOAuthReauthStoredConfig{AccountID: accountID, LoginEmail: email, CredentialMode: mode, ProxySource: proxySource, ProxyID: proxyID, UpdatedAt: time.Now()}
+	if existing != nil {
+		stored.UpdatedAt = existing.UpdatedAt
+	}
 	if existing != nil && existing.CredentialMode == mode {
 		stored.PasswordCiphertext = existing.PasswordCiphertext
 		stored.TOTPSecretCiphertext = existing.TOTPSecretCiphertext
@@ -441,6 +464,9 @@ func (s *OpenAIOAuthReauthService) SaveCredentialConfig(ctx context.Context, acc
 		}
 	}
 	if err := s.repo.UpsertConfig(ctx, stored); err != nil {
+		if infraerrors.Code(err) == http.StatusConflict {
+			return nil, err
+		}
 		return nil, infraerrors.New(http.StatusInternalServerError, "OPENAI_REAUTH_CONFIG_SAVE_FAILED", "failed to save re-login configuration")
 	}
 	return s.configView(ctx, stored)
@@ -528,7 +554,31 @@ func (s *OpenAIOAuthReauthService) GetStatus(ctx context.Context, accountID int6
 }
 
 func (s *OpenAIOAuthReauthService) CreateTask(ctx context.Context, accountID int64) (*OpenAIOAuthReauthTask, error) {
+	return s.CreateTaskForProfile(ctx, accountID, "codex")
+}
+
+func (s *OpenAIOAuthReauthService) CreateTaskForProfile(ctx context.Context, accountID int64, profile string) (*OpenAIOAuthReauthTask, error) {
+	if profile == "" {
+		profile = "codex"
+	}
+	if profile != "codex" && profile != "siwc" {
+		return nil, infraerrors.BadRequest("OPENAI_REAUTH_PROFILE_INVALID", "Invalid OAuth profile")
+	}
 	return s.createTask(ctx, accountID, func(createCtx context.Context, id int64, hash string) (*OpenAIOAuthReauthTaskRecord, error) {
+		if profile == "siwc" {
+			stored, err := s.repo.GetConfig(createCtx, id)
+			if err != nil {
+				return nil, err
+			}
+			if stored == nil || stored.CredentialMode != OpenAIOAuthReauthModePasswordTOTP {
+				return nil, infraerrors.BadRequest("OPENAI_SIWC_LOGIN_REQUIRED", "SIWC automatic authorization requires saved password/TOTP login")
+			}
+			repo, err := s.siwcRepository()
+			if err != nil {
+				return nil, err
+			}
+			return repo.CreateSIWCTask(createCtx, id, hash)
+		}
 		return s.repo.CreateTask(createCtx, id, hash)
 	})
 }
@@ -566,7 +616,7 @@ func (s *OpenAIOAuthReauthService) createTask(ctx context.Context, accountID int
 	}
 	record, err := creator(ctx, accountID, expectedCredentialsHash)
 	if err != nil {
-		if infraerrors.Code(err) == http.StatusConflict {
+		if infraerrors.Code(err) == http.StatusConflict || infraerrors.Code(err) == http.StatusBadRequest {
 			return nil, err
 		}
 		return nil, infraerrors.New(http.StatusInternalServerError, "OPENAI_REAUTH_TASK_CREATE_FAILED", "failed to create re-login task")
@@ -577,18 +627,22 @@ func (s *OpenAIOAuthReauthService) createTask(ctx context.Context, accountID int
 // OpenAIOAuthReauthClaim is returned only to an authenticated worker. Secret
 // fields are plaintext in this in-memory response and must never be logged.
 type OpenAIOAuthReauthClaim struct {
-	TaskID         int64  `json:"task_id"`
-	AccountID      int64  `json:"account_id"`
-	LoginEmail     string `json:"login_email"`
-	CredentialMode string `json:"credential_mode"`
-	Password       string `json:"password,omitempty"`
-	TOTPSecret     string `json:"totp_secret,omitempty"`
-	OTPURL         string `json:"otp_url,omitempty"`
-	AuthURL        string `json:"auth_url,omitempty"`
-	ProxyURL       string `json:"proxy_url,omitempty"`
+	ExpectedWorkspace string `json:"expected_workspace,omitempty"`
+	OAuthProfile      string `json:"oauth_profile"`
+	Engine            string `json:"engine"`
+	TaskID            int64  `json:"task_id"`
+	AccountID         int64  `json:"account_id"`
+	LoginEmail        string `json:"login_email"`
+	CredentialMode    string `json:"credential_mode"`
+	Password          string `json:"password,omitempty"`
+	TOTPSecret        string `json:"totp_secret,omitempty"`
+	OTPURL            string `json:"otp_url,omitempty"`
+	AuthURL           string `json:"auth_url,omitempty"`
+	ProxyURL          string `json:"proxy_url,omitempty"`
 }
 
 func (s *OpenAIOAuthReauthService) ClaimTask(ctx context.Context, workerID string) (*OpenAIOAuthReauthClaim, error) {
+	s.MarkWorkerSeen()
 	if err := s.ensureReady(); err != nil {
 		return nil, err
 	}
@@ -658,7 +712,7 @@ func (s *OpenAIOAuthReauthService) ClaimTask(ctx context.Context, workerID strin
 	}
 	claim := &OpenAIOAuthReauthClaim{
 		TaskID: record.ID, AccountID: record.AccountID, LoginEmail: stored.LoginEmail,
-		CredentialMode: mode, ProxyURL: proxyURL,
+		CredentialMode: mode, ProxyURL: proxyURL, OAuthProfile: record.OAuthProfile, Engine: OpenAIOAuthReauthEngineLocal, ExpectedWorkspace: account.GetCredential("chatgpt_account_id"),
 	}
 	switch mode {
 	case OpenAIOAuthReauthModeEmailOTPURL:
@@ -703,6 +757,23 @@ func (s *OpenAIOAuthReauthService) ClaimTask(ctx context.Context, workerID strin
 	default:
 		_ = s.repo.MarkFailed(ctx, record.ID, workerID, "re-login credential mode is invalid")
 		return nil, nil
+	}
+	if record.OAuthProfile == "siwc" {
+		if mode != OpenAIOAuthReauthModePasswordTOTP {
+			_ = s.repo.MarkFailed(ctx, record.ID, workerID, "SIWC requires password/TOTP mode")
+			return nil, nil
+		}
+		auth, authErr := s.beginSIWCAuthorization(ctx, account, proxyURL)
+		if authErr != nil {
+			_ = s.repo.MarkFailed(ctx, record.ID, workerID, "failed to prepare SIWC authorization")
+			return nil, nil
+		}
+		if err := s.repo.SetSession(ctx, record.ID, workerID, auth.SessionID); err != nil {
+			s.deleteSIWCSession(ctx, auth.SessionID)
+			_ = s.repo.MarkFailed(ctx, record.ID, workerID, "failed to persist SIWC session")
+			return nil, nil
+		}
+		claim.AuthURL = auth.AuthURL
 	}
 	if release != nil {
 		s.replaceMihomoLease(record.ID, release)
@@ -765,6 +836,16 @@ func (s *OpenAIOAuthReauthService) SubmitCallback(ctx context.Context, taskID in
 	if err != nil || subtle.ConstantTimeCompare([]byte(currentCredentialsHash), []byte(record.ExpectedCredentialsHash)) != 1 {
 		return s.failCallback(ctx, taskID, "account credentials changed while re-login was running", errors.New("credential snapshot mismatch"))
 	}
+	if record.OAuthProfile == "siwc" {
+		if err := s.CompleteSIWCAuthorization(ctx, record.AccountID, record.AuthSessionID, callback, record); err != nil {
+			return s.failCallback(ctx, taskID, "SIWC authorization failed; retry or complete browser consent", err)
+		}
+		final, err := s.repo.GetTask(ctx, taskID)
+		if err != nil {
+			return nil, err
+		}
+		return safeReauthTask(final), nil
+	}
 	code, state, err := parseReauthCallback(callback)
 	if err != nil {
 		return s.failCallback(ctx, taskID, "invalid OAuth callback", err)
@@ -804,6 +885,9 @@ func (s *OpenAIOAuthReauthService) SubmitCredentials(ctx context.Context, taskID
 	currentCredentialsHash, err := hashReauthCredentials(account.Credentials)
 	if err != nil || subtle.ConstantTimeCompare([]byte(currentCredentialsHash), []byte(record.ExpectedCredentialsHash)) != 1 {
 		return s.failCallback(ctx, taskID, "account credentials changed while re-login was running", errors.New("credential snapshot mismatch"))
+	}
+	if record.OAuthProfile == "siwc" {
+		return s.failCallback(ctx, taskID, "SIWC requires a server-bound callback", errors.New("direct SIWC credentials are not accepted"))
 	}
 	tokenInfo, extra, err := directReauthTokenInfo(credentials, workerExtra)
 	if err != nil {
@@ -1040,7 +1124,7 @@ func safeReauthTask(record *OpenAIOAuthReauthTaskRecord) *OpenAIOAuthReauthTask 
 		_, diagnostic, _ = sessionStudioError(record.Error)
 	}
 	return &OpenAIOAuthReauthTask{
-		Failure: reauthOperationFailure(record, diagnostic), Diagnostic: diagnostic,
+		OAuthProfile: record.OAuthProfile, Failure: reauthOperationFailure(record, diagnostic), Diagnostic: diagnostic,
 		ID: record.ID, AccountID: record.AccountID, Status: record.Status,
 		Stage: record.Stage, Error: sanitizeReauthError(record.Error), Attempt: record.Attempt,
 		CreatedAt: record.CreatedAt, UpdatedAt: record.UpdatedAt, FinishedAt: record.FinishedAt,

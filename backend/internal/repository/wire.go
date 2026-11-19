@@ -78,6 +78,7 @@ var ProviderSet = wire.NewSet(
 	NewAccountPerformanceRepository,
 	NewAdminAccountRepository,
 	NewOpenAIOAuthReauthRepository,
+	NewOpenAISessionExportRepository,
 	NewOpenAIExcelOAuthCredentialRepository,
 	NewOpenAIExcelOAuthAccessClient,
 	NewAccountTokenGuardV2Repository,
@@ -172,6 +173,7 @@ var ProviderSet = wire.NewSet(
 
 	// Encryptors
 	NewAESEncryptor,
+	NewOpenAICredentialEncryptor,
 	ProvideMobilePushConfig,
 	ProvideMobilePushRepository,
 	NewMobileAttributionRepository,
