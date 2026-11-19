@@ -10,13 +10,6 @@ import (
 
 const accountRPMWarningRatio = 0.8
 
-type openAIRPMMovableKey struct{}
-
-func openAIRPMMovable(ctx context.Context) bool {
-	movable, _ := ctx.Value(openAIRPMMovableKey{}).(bool)
-	return movable
-}
-
 var (
 	ErrOpenAIRPMExhausted   = errors.New("openai oauth rpm exhausted")
 	ErrOpenAIRPMUnavailable = errors.New("openai oauth rpm unavailable")

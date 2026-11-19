@@ -327,6 +327,7 @@ import EmptyState from '@/components/common/EmptyState.vue'
 import Icon from '@/components/icons/Icon.vue'
 import AnnouncementContent from '@/components/common/AnnouncementContent.vue'
 
+import { hasEmptyUserCondition, onlyTargetsSpecificUsers, targetingUserIds } from '@/utils/announcementTargeting'
 import AnnouncementTargetingEditor from '@/components/admin/announcements/AnnouncementTargetingEditor.vue'
 import AnnouncementReadStatusDialog from '@/components/admin/announcements/AnnouncementReadStatusDialog.vue'
 import AnnouncementPopup from '@/components/common/AnnouncementPopup.vue'
@@ -397,6 +398,9 @@ const statusLabel = (status: string) => {
 const targetingSummary = (targeting: AnnouncementTargeting) => {
   const anyOf = targeting?.any_of ?? []
   if (!anyOf || anyOf.length === 0) return t('admin.announcements.targetingSummaryAll')
+  if (onlyTargetsSpecificUsers(targeting)) {
+    return t('admin.announcements.targetingSummaryUsers', { count: targetingUserIds(targeting).length })
+  }
   return t('admin.announcements.targetingSummaryCustom', { groups: anyOf.length })
 }
 
@@ -661,6 +665,11 @@ async function handleSave() {
       appStore.showError(t('admin.announcements.failedToCreate'))
       return
     }
+  }
+
+  if (hasEmptyUserCondition(form.targeting)) {
+    appStore.showError(t('admin.announcements.form.selectUsersRequired'))
+    return
   }
 
   saving.value = true

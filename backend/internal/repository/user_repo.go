@@ -580,6 +580,14 @@ func (r *userRepository) ListWithFilters(ctx context.Context, params pagination.
 		)
 	}
 
+	if len(filters.UserIDs) > 0 {
+		q = q.Where(func(s *entsql.Selector) {
+			s.Where(entsql.P(func(b *entsql.Builder) {
+				b.Ident(s.C(dbuser.FieldID)).WriteString(" = ANY(").Arg(pq.Array(filters.UserIDs)).WriteString(")")
+			}))
+		})
+	}
+
 	if filters.GroupName != "" {
 		q = q.Where(dbuser.HasAllowedGroupsWith(
 			dbgroup.NameContainsFold(filters.GroupName),

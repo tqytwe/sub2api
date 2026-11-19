@@ -504,10 +504,10 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		ChannelMonitorShowQuota:              settings.ChannelMonitorShowQuota,
 		ChannelMonitorHideUserRanking:        settings.ChannelMonitorHideUserRanking,
 
-		GrokDefaultTextModel:           settings.GrokDefaultTextModel,
-		GrokCrossClientModelMapEnabled: settings.GrokCrossClientModelMapEnabled,
-		GrokDefaultBaseURLMode:         settings.GrokDefaultBaseURLMode,
-		AccountSchedulingThresholds:    settings.AccountSchedulingThresholds,
+		GrokDefaultTextModel:                 settings.GrokDefaultTextModel,
+		GrokCrossClientModelMapEnabled:       settings.GrokCrossClientModelMapEnabled,
+		GrokDefaultBaseURLMode:               settings.GrokDefaultBaseURLMode,
+		AccountSchedulingThresholds:          settings.AccountSchedulingThresholds,
 		GrokVideoSourceURLEnabled:            settings.GrokVideoSourceURLEnabled,
 		OpenAI409OmitEncryptedHistoryEnabled: settings.OpenAI409OmitEncryptedHistoryEnabled,
 

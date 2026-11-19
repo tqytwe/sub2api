@@ -278,7 +278,7 @@ func (s *AnnouncementService) ListForUser(ctx context.Context, userID int64, unr
 		if !a.IsActiveAt(now) {
 			continue
 		}
-		if !a.Targeting.MatchesWithPlayMembership(user.Balance, activeGroupIDs, playMembership) {
+		if !a.Targeting.MatchesForUser(userID, user.Balance, activeGroupIDs, playMembership) {
 			continue
 		}
 		visible = append(visible, a)
@@ -354,7 +354,7 @@ func (s *AnnouncementService) MarkRead(ctx context.Context, userID, announcement
 		return fmt.Errorf("resolve Play membership: %w", err)
 	}
 
-	if !a.Targeting.MatchesWithPlayMembership(user.Balance, activeGroupIDs, playMembership) {
+	if !a.Targeting.MatchesForUser(userID, user.Balance, activeGroupIDs, playMembership) {
 		return ErrAnnouncementNotFound
 	}
 
@@ -377,6 +377,10 @@ func (s *AnnouncementService) ListUserReadStatus(
 
 	filters := UserListFilters{
 		Search: strings.TrimSpace(search),
+	}
+
+	if userIDs, ok := ann.Targeting.ExplicitUserIDs(); ok {
+		filters.UserIDs = userIDs
 	}
 
 	users, page, err := s.userRepo.ListWithFilters(ctx, params, filters)
@@ -422,7 +426,7 @@ func (s *AnnouncementService) ListUserReadStatus(
 			Email:    u.Email,
 			Username: u.Username,
 			Balance:  u.Balance,
-			Eligible: domain.AnnouncementTargeting(ann.Targeting).MatchesWithPlayMembership(u.Balance, activeGroupIDs, playMembership),
+			Eligible: ann.Targeting.MatchesForUser(u.ID, u.Balance, activeGroupIDs, playMembership),
 			ReadAt:   ptr,
 		})
 	}

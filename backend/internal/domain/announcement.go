@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"slices"
 	"strings"
 	"time"
 
@@ -21,8 +22,12 @@ const (
 const (
 	AnnouncementConditionTypeSubscription   = "subscription"
 	AnnouncementConditionTypeBalance        = "balance"
+	AnnouncementConditionTypeUser           = "user"
 	AnnouncementConditionTypePlayMembership = "play_membership"
 )
+
+// MaxAnnouncementConditionUserIDs bounds a single explicit-user condition.
+const MaxAnnouncementConditionUserIDs = 1000
 
 const (
 	AnnouncementPlayMembershipOrdinary = "ordinary"
@@ -54,16 +59,19 @@ type AnnouncementConditionGroup struct {
 }
 
 type AnnouncementCondition struct {
-	// Type: subscription | balance
+	// Type: subscription | balance | play_membership | user
 	Type string `json:"type"`
 
 	// Operator:
-	// - subscription: in
+	// - subscription, play_membership, user: in
 	// - balance: gt/gte/lt/lte/eq
 	Operator string `json:"operator"`
 
 	// subscription 条件：匹配的订阅套餐（group_id）
 	GroupIDs []int64 `json:"group_ids,omitempty"`
+
+	// user 条件：指定可见的用户（user_id）。
+	UserIDs []int64 `json:"user_ids,omitempty"`
 
 	// balance 条件：比较阈值
 	Value float64 `json:"value,omitempty"`
@@ -73,12 +81,17 @@ type AnnouncementCondition struct {
 }
 
 func (t AnnouncementTargeting) Matches(balance float64, activeSubscriptionGroupIDs map[int64]struct{}) bool {
-	return t.MatchesWithPlayMembership(balance, activeSubscriptionGroupIDs, "")
+	return t.MatchesForUser(0, balance, activeSubscriptionGroupIDs, "")
 }
 
 // MatchesWithPlayMembership preserves the original balance/subscription
 // contract while adding a server-derived, real-time Play membership segment.
 func (t AnnouncementTargeting) MatchesWithPlayMembership(balance float64, activeSubscriptionGroupIDs map[int64]struct{}, playMembership string) bool {
+	return t.MatchesForUser(0, balance, activeSubscriptionGroupIDs, playMembership)
+}
+
+// MatchesForUser evaluates the complete audience using the authenticated user ID.
+func (t AnnouncementTargeting) MatchesForUser(userID int64, balance float64, activeSubscriptionGroupIDs map[int64]struct{}, playMembership string) bool {
 	// 空规则：展示给所有用户
 	if len(t.AnyOf) == 0 {
 		return true
@@ -91,7 +104,7 @@ func (t AnnouncementTargeting) MatchesWithPlayMembership(balance float64, active
 		}
 		allMatched := true
 		for _, cond := range group.AllOf {
-			if !cond.MatchesWithPlayMembership(balance, activeSubscriptionGroupIDs, playMembership) {
+			if !cond.matchesForUser(userID, balance, activeSubscriptionGroupIDs, playMembership) {
 				allMatched = false
 				break
 			}
@@ -109,6 +122,10 @@ func (c AnnouncementCondition) Matches(balance float64, activeSubscriptionGroupI
 }
 
 func (c AnnouncementCondition) MatchesWithPlayMembership(balance float64, activeSubscriptionGroupIDs map[int64]struct{}, playMembership string) bool {
+	return c.matchesForUser(0, balance, activeSubscriptionGroupIDs, playMembership)
+}
+
+func (c AnnouncementCondition) matchesForUser(userID int64, balance float64, activeSubscriptionGroupIDs map[int64]struct{}, playMembership string) bool {
 	switch c.Type {
 	case AnnouncementConditionTypeSubscription:
 		if c.Operator != AnnouncementOperatorIn {
@@ -126,6 +143,9 @@ func (c AnnouncementCondition) MatchesWithPlayMembership(balance float64, active
 			}
 		}
 		return false
+
+	case AnnouncementConditionTypeUser:
+		return c.Operator == AnnouncementOperatorIn && userID > 0 && slices.Contains(c.UserIDs, userID)
 
 	case AnnouncementConditionTypeBalance:
 		switch c.Operator {
@@ -186,6 +206,14 @@ func (t AnnouncementTargeting) NormalizeAndValidate() (AnnouncementTargeting, er
 				cond.GroupIDs = append(cond.GroupIDs, gid)
 			}
 
+			if cond.Type == AnnouncementConditionTypeUser {
+				ids, err := normalizeAnnouncementUserIDs(c.UserIDs)
+				if err != nil {
+					return AnnouncementTargeting{}, err
+				}
+				cond.UserIDs = ids
+			}
+
 			if err := cond.validate(); err != nil {
 				return AnnouncementTargeting{}, err
 			}
@@ -198,6 +226,53 @@ func (t AnnouncementTargeting) NormalizeAndValidate() (AnnouncementTargeting, er
 	return normalized, nil
 }
 
+func (t AnnouncementTargeting) ExplicitUserIDs() ([]int64, bool) {
+	if len(t.AnyOf) == 0 {
+		return nil, false
+	}
+	var ids []int64
+	seen := make(map[int64]struct{})
+	for _, group := range t.AnyOf {
+		restricted := false
+		for _, cond := range group.AllOf {
+			if cond.Type != AnnouncementConditionTypeUser || cond.Operator != AnnouncementOperatorIn {
+				continue
+			}
+			restricted = true
+			for _, id := range cond.UserIDs {
+				if _, ok := seen[id]; !ok {
+					seen[id] = struct{}{}
+					ids = append(ids, id)
+				}
+			}
+		}
+		if !restricted {
+			return nil, false
+		}
+	}
+	return ids, true
+}
+
+// normalizeAnnouncementUserIDs 校验并按原顺序去重「指定用户」条件里的用户 ID。
+func normalizeAnnouncementUserIDs(userIDs []int64) ([]int64, error) {
+	out := make([]int64, 0, len(userIDs))
+	seen := make(map[int64]struct{}, len(userIDs))
+	for _, id := range userIDs {
+		if id <= 0 {
+			return nil, ErrAnnouncementInvalidTarget
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		out = append(out, id)
+	}
+	if len(out) > MaxAnnouncementConditionUserIDs {
+		return nil, ErrAnnouncementInvalidTarget
+	}
+	return out, nil
+}
+
 func (c AnnouncementCondition) validate() error {
 	switch c.Type {
 	case AnnouncementConditionTypeSubscription:
@@ -205,6 +280,12 @@ func (c AnnouncementCondition) validate() error {
 			return ErrAnnouncementInvalidTarget
 		}
 		if len(c.GroupIDs) == 0 {
+			return ErrAnnouncementInvalidTarget
+		}
+		return nil
+
+	case AnnouncementConditionTypeUser:
+		if c.Operator != AnnouncementOperatorIn || len(c.UserIDs) == 0 {
 			return ErrAnnouncementInvalidTarget
 		}
 		return nil
