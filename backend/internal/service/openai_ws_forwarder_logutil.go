@@ -212,12 +212,20 @@ func openAIWSMessageLikelyContainsToolCalls(message []byte) bool {
 }
 
 func parseOpenAIWSResponseUsageFromCompletedEvent(message []byte, usage *OpenAIUsage, preserveFailedAggregate ...bool) {
-	if usage == nil || len(message) == 0 || !bytes.Contains(message, []byte(`"usage"`)) {
+	if usage == nil || len(message) == 0 {
+		return
+	}
+	eventType := effectiveOpenAISSEEventType(message, "")
+	if openAIStreamEventTypeIsTerminal(eventType) {
+		usage.CacheReadKnown = false
+	}
+	if !bytes.Contains(message, []byte(`"usage"`)) {
 		return
 	}
 	if parsedUsage, ok := extractOpenAIUsageFromJSONBytes(message); ok {
-		eventType := effectiveOpenAISSEEventType(message, "")
+		mergeOpenAIProtectionUsageEvidence(*usage, &parsedUsage)
 		if openAIStreamEventTypeIsTerminal(eventType) {
+			parsedUsage.CacheReadKnown = parsedUsage.CacheReadKnown && (eventType == "response.completed" || eventType == "response.done")
 			if len(preserveFailedAggregate) > 0 && preserveFailedAggregate[0] &&
 				(eventType == "response.failed" || eventType == "error") &&
 				!hasObservedOpenAIUsage(&parsedUsage, 0) && hasObservedOpenAIUsage(usage, 0) {

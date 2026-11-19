@@ -32,7 +32,7 @@ func openAICompatObservedFailureResult(c *gin.Context, account *Account, resp *h
 // detail subsets. Other terminals and complete typed usage keep their existing
 // precedence; details alone cannot replace or manufacture measured expense.
 func openAICompatTerminalUsage(current OpenAIUsage, terminal *apicompat.ResponsesUsage, preserveFailureAggregate bool) OpenAIUsage {
-	next := copyOpenAIUsageFromResponsesUsage(terminal)
+	next := copyOpenAIUsageFromResponsesUsage(terminal, current)
 	if preserveFailureAggregate && hasObservedOpenAIUsage(&current, 0) && !hasObservedOpenAIUsage(&next, 0) {
 		return current
 	}

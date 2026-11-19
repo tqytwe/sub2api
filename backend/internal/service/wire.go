@@ -1174,6 +1174,64 @@ func ProvideAPIKeyService(
 	return svc
 }
 
+func ProvideAPIKeyServiceWithGroupProtection(
+	apiKeyRepo APIKeyRepository,
+	userRepo UserRepository,
+	groupRepo GroupRepository,
+	userSubRepo UserSubscriptionRepository,
+	userGroupRateRepo UserGroupRateRepository,
+	cache APIKeyCache,
+	cfg *config.Config,
+	billingCacheService *BillingCacheService,
+	concurrencyService *ConcurrencyService,
+	protection *GroupAntiDistillationService,
+) *APIKeyService {
+	svc := ProvideAPIKeyService(apiKeyRepo, userRepo, groupRepo, userSubRepo, userGroupRateRepo, cache, cfg, billingCacheService, concurrencyService)
+	svc.SetGroupAntiDistillationService(protection)
+	return svc
+}
+
+func ProvideOpenAIGatewayServiceWithGroupProtection(
+	accountRepo AccountRepository,
+	usageLogRepo UsageLogRepository,
+	usageBillingRepo UsageBillingRepository,
+	userRepo UserRepository,
+	userSubRepo UserSubscriptionRepository,
+	userGroupRateRepo UserGroupRateRepository,
+	cache GatewayCache,
+	cfg *config.Config,
+	schedulerSnapshot *SchedulerSnapshotService,
+	concurrencyService *ConcurrencyService,
+	billingService *BillingService,
+	rateLimitService *RateLimitService,
+	billingCacheService *BillingCacheService,
+	httpUpstream HTTPUpstream,
+	deferredService *DeferredService,
+	openAITokenProvider *OpenAITokenProvider,
+	grokTokenProvider *GrokTokenProvider,
+	resolver *ModelPricingResolver,
+	channelService *ChannelService,
+	balanceNotifyService *BalanceNotifyService,
+	settingService *SettingService,
+	userPlatformQuotaRepo UserPlatformQuotaRepository,
+	apiKeyService *APIKeyService,
+	liveSettlementOutbox LiveSettlementOutboxRepository,
+	starframeVideos StarframeVideoRepository,
+	requestLedger *requestledger.Ledger,
+	rpmCache RPMCache,
+	protection *GroupAntiDistillationService,
+) *OpenAIGatewayService {
+	svc := NewOpenAIGatewayServiceWithLiveBilling(
+		accountRepo, usageLogRepo, usageBillingRepo, userRepo, userSubRepo, userGroupRateRepo,
+		cache, cfg, schedulerSnapshot, concurrencyService, billingService, rateLimitService,
+		billingCacheService, httpUpstream, deferredService, openAITokenProvider, grokTokenProvider,
+		resolver, channelService, balanceNotifyService, settingService, userPlatformQuotaRepo,
+		apiKeyService, liveSettlementOutbox, starframeVideos, requestLedger, rpmCache,
+	)
+	svc.SetGroupAntiDistillationService(protection)
+	return svc
+}
+
 // ProvideAccountTokenGuardV2Service starts the account credential probe loop.
 func ProvideAccountTokenGuardV2Service(
 	repo AccountTokenGuardV2Repository,
@@ -1208,7 +1266,8 @@ var ProviderSet = wire.NewSet(
 	ProvideAuthService,
 	NewPasskeyService,
 	NewUserService,
-	ProvideAPIKeyService,
+	ProvideAPIKeyServiceWithGroupProtection,
+	NewGroupAntiDistillationService,
 	ProvideAPIKeyAuthCacheInvalidator,
 	ProvideAuthCacheInvalidationWorker,
 	NewGroupService,
@@ -1235,7 +1294,7 @@ var ProviderSet = wire.NewSet(
 	wire.Bind(new(ImageStudioModelResolver), new(*GatewayService)),
 	wire.Bind(new(NextChatAvailableModelResolver), new(*GatewayService)),
 	wire.Bind(new(ChannelCacheInvalidator), new(*ChannelService)),
-	NewOpenAIGatewayServiceWithLiveBilling,
+	ProvideOpenAIGatewayServiceWithGroupProtection,
 	ProvideImageStorageSettingService,
 	ProvideAnnouncementAssetService,
 	ProvideImageTaskRuntimeState,

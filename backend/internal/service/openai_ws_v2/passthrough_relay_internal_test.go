@@ -367,6 +367,9 @@ func TestParseUsageAndAccumulateAcceptsChatUsageAliases(t *testing.T) {
 	require.Equal(t, 6, got.OutputTokens)
 	require.Equal(t, 4, got.CacheReadInputTokens)
 	require.Equal(t, 2, got.ImageOutputTokens)
+	require.True(t, got.ProtectionMediaObserved)
+	require.False(t, got.CacheReadKnown)
+	got.ProtectionMediaObserved = false // The aggregate carries billing totals only.
 	require.Equal(t, got, state.usage)
 }
 
@@ -400,7 +403,7 @@ func TestRelayUsageTerminalNonZeroReplacesFallbackAsWhole(t *testing.T) {
 	parseUsageAndAccumulate(state, []byte(`{"type":"response.in_progress","usage":{"input_tokens":9,"output_tokens":4,"input_tokens_details":{"cached_tokens":2}}}`), "response.in_progress", nil)
 	parseUsageAndAccumulate(state, []byte(`{"type":"response.completed","usage":{"input_tokens":3,"output_tokens":0,"input_tokens_details":{"cached_tokens":0}}}`), "response.completed", nil)
 
-	require.Equal(t, Usage{InputTokens: 3}, finalizeRelayTurnUsage(state))
+	require.Equal(t, Usage{InputTokens: 3, CacheReadKnown: true}, finalizeRelayTurnUsage(state))
 	require.Equal(t, Usage{InputTokens: 3}, state.usage)
 }
 

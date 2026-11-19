@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"math"
 	"net"
 	"strconv"
 	"strings"
@@ -29,6 +30,8 @@ type Usage struct {
 	OutputTokens             int
 	CacheCreationInputTokens int
 	CacheReadInputTokens     int
+	CacheReadKnown           bool
+	ProtectionMediaObserved  bool
 	ImageOutputTokens        int
 }
 
@@ -1183,7 +1186,13 @@ func parseUsageAndAccumulate(
 	eventType string,
 	onParseFailure func(eventType string, usageRaw string),
 ) Usage {
-	if state == nil || len(message) == 0 || !shouldParseUsage(eventType) || !bytes.Contains(message, []byte(`"usage"`)) {
+	if state == nil || len(message) == 0 || !shouldParseUsage(eventType) {
+		return Usage{}
+	}
+	if isTerminalEvent(eventType) {
+		state.turnUsage.CacheReadKnown = false
+	}
+	if !bytes.Contains(message, []byte(`"usage"`)) {
 		return Usage{}
 	}
 	usageResult := gjson.GetBytes(message, "response.usage")
@@ -1248,7 +1257,20 @@ func parseUsageAndAccumulate(
 		ImageOutputTokens:        int(imageTokens),
 	}
 
-	if isTerminalEvent(strings.TrimSpace(eventType)) {
+	parsedUsage.ProtectionMediaObserved = state.turnUsage.ProtectionMediaObserved || imageTokens > 0
+	for _, path := range []string{"input_tokens_details.image_tokens", "prompt_tokens_details.image_tokens", "input_tokens_details.audio_tokens", "prompt_tokens_details.audio_tokens", "output_tokens_details.audio_tokens", "completion_tokens_details.audio_tokens"} {
+		if usageResult.Get(path).Int() > 0 {
+			parsedUsage.ProtectionMediaObserved = true
+			break
+		}
+	}
+	status := gjson.GetBytes(message, "response.status").String()
+	parsedUsage.CacheReadKnown = (eventType == "response.completed" || eventType == "response.done") &&
+		(status == "" || status == "completed") && !parsedUsage.ProtectionMediaObserved &&
+		cachedResult.Type == gjson.Number && cachedResult.Num >= 0 &&
+		cachedResult.Num < float64(int(^uint(0)>>1)) && math.Trunc(cachedResult.Num) == cachedResult.Num
+
+	if isTerminalEvent(eventType) {
 		if relayUsageHasTokens(parsedUsage) || !relayUsageHasTokens(state.turnUsage) {
 			state.turnUsage = parsedUsage
 		}
@@ -1269,6 +1291,7 @@ func mergeRelayUsageNonZero(dst *Usage, src Usage) {
 	if dst == nil {
 		return
 	}
+	dst.ProtectionMediaObserved = dst.ProtectionMediaObserved || src.ProtectionMediaObserved
 	if src.InputTokens > 0 {
 		dst.InputTokens = src.InputTokens
 	}

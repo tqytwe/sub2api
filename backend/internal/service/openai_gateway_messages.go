@@ -1442,7 +1442,7 @@ func buildAnthropicStreamErrorSSE(errType, message string) string {
 	return "event: error\ndata: " + string(payload) + "\n\n"
 }
 
-func copyOpenAIUsageFromResponsesUsage(usage *apicompat.ResponsesUsage) OpenAIUsage {
+func copyOpenAIUsageFromResponsesUsage(usage *apicompat.ResponsesUsage, observed ...OpenAIUsage) OpenAIUsage {
 	if usage == nil {
 		return OpenAIUsage{}
 	}
@@ -1453,6 +1453,13 @@ func copyOpenAIUsageFromResponsesUsage(usage *apicompat.ResponsesUsage) OpenAIUs
 	}
 	if usage.InputTokensDetails != nil {
 		result.CacheReadInputTokens = usage.InputTokensDetails.CachedTokens
+		result.CacheReadKnown = len(observed) > 0 && observed[0].CacheReadKnown &&
+			observed[0].CacheReadInputTokens == result.CacheReadInputTokens &&
+			observed[0].ImageInputTokens == 0 && observed[0].ImageOutputTokens == 0 &&
+			observed[0].UnpricedOutputUsage == nil
+	}
+	if len(observed) > 0 {
+		mergeOpenAIProtectionUsageEvidence(observed[0], &result)
 	}
 	return result
 }

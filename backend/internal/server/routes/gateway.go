@@ -112,6 +112,7 @@ func RegisterGatewayRoutes(
 	groupBlockSubagents := middleware.GroupBlockSubagents()
 	apiKeyModelPolicy := middleware.APIKeyModelPolicy()
 	apiKeyLongContext := middleware.APIKeyLongContextPolicy(h.Gateway.CheckAPIKeyLongContext)
+	groupAntiDistillation := middleware.GroupAntiDistillation(apiKeyService.CheckGroupAntiDistillation)
 
 	// 未分组 Key 拦截中间件（按协议格式区分错误响应）
 	requireGroupAnthropic := middleware.RequireGroupAssignment(settingService, middleware.AnthropicErrorWriter)
@@ -275,7 +276,7 @@ func RegisterGatewayRoutes(
 	gateway.Use(opsErrorLogger)
 	gateway.Use(endpointNorm)
 	gateway.Use(middleware.GatewayErrorProtocolForPrefix("/v1/images/", middleware.OpenAIErrorWriter))
-	gateway.Use(gin.HandlerFunc(apiKeyAuth), imageAdmission)
+	gateway.Use(gin.HandlerFunc(apiKeyAuth), imageAdmission, groupAntiDistillation)
 	gateway.GET("/sub2api/billing", h.Gateway.KeyBillingInfo)
 	gateway.Use(groupStreamOnly, groupCodexCLIOnly, groupBlockSubagents, groupModelAllowlist, apiKeyModelPolicy)
 	gateway.Use(compositeTarget, apiKeyLongContext)
@@ -438,7 +439,7 @@ func RegisterGatewayRoutes(
 		h.Gateway.Responses(c)
 	}
 	rootRoute := func(method, path string, limit gin.HandlerFunc, handler gin.HandlerFunc) {
-		r.Handle(method, path, traffic, limit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), imageAdmission, groupStreamOnly, groupCodexCLIOnly, groupBlockSubagents, groupModelAllowlist, apiKeyModelPolicy, compositeTarget, apiKeyLongContext, requireGroupAnthropic, handler)
+		r.Handle(method, path, traffic, limit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), imageAdmission, groupAntiDistillation, groupStreamOnly, groupCodexCLIOnly, groupBlockSubagents, groupModelAllowlist, apiKeyModelPolicy, compositeTarget, apiKeyLongContext, requireGroupAnthropic, handler)
 	}
 	// Seedance keeps its native Ark path and is exposed under every supported
 	// gateway prefix. Register these aliases beside the other root OpenAI
@@ -458,7 +459,7 @@ func RegisterGatewayRoutes(
 	rootRoute(http.MethodGet, "/models/:model", bodyLimit, h.Gateway.Models)
 	rootRoute(http.MethodPost, "/messages/count_tokens", bodyLimit, countTokensHandler)
 	codexDirect := r.Group("/backend-api/codex")
-	codexDirect.Use(traffic, bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), imageAdmission, groupStreamOnly, groupCodexCLIOnly, groupBlockSubagents, groupModelAllowlist, apiKeyModelPolicy, compositeTarget, apiKeyLongContext, requireGroupAnthropic)
+	codexDirect.Use(traffic, bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), imageAdmission, groupAntiDistillation, groupStreamOnly, groupCodexCLIOnly, groupBlockSubagents, groupModelAllowlist, apiKeyModelPolicy, compositeTarget, apiKeyLongContext, requireGroupAnthropic)
 	{
 		codexDirect.POST("/realtime/calls", h.OpenAIGateway.Live)
 		codexDirect.GET("/:call_id", h.OpenAIGateway.LiveSideband)
@@ -471,7 +472,7 @@ func RegisterGatewayRoutes(
 		codexDirect.GET("/models", codexModelsHandler)
 	}
 	// OpenAI Chat Completions API（不带v1前缀的别名）— auto-route based on group platform
-	r.POST("/chat/completions", traffic, bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), imageAdmission, groupStreamOnly, groupCodexCLIOnly, groupBlockSubagents, groupModelAllowlist, apiKeyModelPolicy, compositeTarget, apiKeyLongContext, requireGroupAnthropic, func(c *gin.Context) {
+	r.POST("/chat/completions", traffic, bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), imageAdmission, groupAntiDistillation, groupStreamOnly, groupCodexCLIOnly, groupBlockSubagents, groupModelAllowlist, apiKeyModelPolicy, compositeTarget, apiKeyLongContext, requireGroupAnthropic, func(c *gin.Context) {
 		if isOpenAIResponsesCompatibleGatewayPlatform(c) {
 			h.OpenAIGateway.ChatCompletions(c)
 			return

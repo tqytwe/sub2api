@@ -224,7 +224,10 @@ func (s *OpenAICodexUsageSnapshot) Normalize() *NormalizedCodexLimits {
 
 // OpenAIUsage represents OpenAI API response usage
 type OpenAIUsage struct {
-	InputTokens int `json:"input_tokens"`
+	// CacheReadKnown distinguishes an explicitly reported zero from a missing counter.
+	CacheReadKnown         bool `json:"-"`
+	cacheReadMediaObserved bool
+	InputTokens            int `json:"input_tokens"`
 	// InputAudioTokens and OutputAudioTokens are subsets of the corresponding
 	// total token counts. They are kept separately because realtime providers
 	// price audio tokens differently from text tokens.
@@ -325,6 +328,7 @@ type OpenAIForwardResult struct {
 	wsReplayInput                []json.RawMessage
 	wsReplayInputExists          bool
 	wsAccountFailoverReplayInput []json.RawMessage
+	antiDistillationRequestID    string
 }
 
 // SucceededForScheduling reports whether this result is an upstream success
@@ -462,7 +466,8 @@ var ErrNoAvailableCompactAccounts = errors.New("no available accounts support /r
 
 // OpenAIGatewayService handles OpenAI API gateway operations
 type OpenAIGatewayService struct {
-	agentMessageRecovery openAIAgentRecoveryState
+	groupAntiDistillation *GroupAntiDistillationService
+	agentMessageRecovery  openAIAgentRecoveryState
 	// Set only by production constructors. Legacy direct-struct test fixtures may
 	// exercise supplied account state; the exported admission API stays strict.
 	requireLatestTurnAdmission   bool

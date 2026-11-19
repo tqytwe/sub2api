@@ -264,6 +264,9 @@ func (s *OpenAIGatewayService) streamChatCompletionsAsAnthropic(
 	if !scan.SawDone {
 		logCCStreamMissingDoneSentinel("openai messages chat fallback", requestID)
 	}
+	if !scan.SawDone || clientDisconnected {
+		usage.CacheReadKnown = false
+	}
 
 	return &OpenAIForwardResult{
 		RequestID:                   requestID,

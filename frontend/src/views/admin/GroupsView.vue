@@ -2407,6 +2407,11 @@
           />
           <p class="input-hint">{{ t("admin.groups.form.rpmLimitHint") }}</p>
         </div>
+        <GroupAntiDistillationSettings
+          v-if="editingGroup && editForm.platform === 'openai'"
+          :group-id="editingGroup.id"
+          :active="showEditModal"
+        />
         <ReasoningEffortPolicyFields
           v-if="supportsReasoningEffortPolicyPlatform(editForm.platform)"
           ref="editReasoningEffortPolicyRef"
@@ -4437,6 +4442,7 @@ import Select from "@/components/common/Select.vue";
 import PlatformIcon from "@/components/common/PlatformIcon.vue";
 import Icon from "@/components/icons/Icon.vue";
 import GroupI18nField from "@/components/admin/group/GroupI18nField.vue";
+import GroupAntiDistillationSettings from "@/components/admin/group/GroupAntiDistillationSettings.vue";
 import GroupRateMultipliersModal from "@/components/admin/group/GroupRateMultipliersModal.vue";
 import GroupUserDeniedModelsModal from "@/components/admin/group/GroupUserDeniedModelsModal.vue";
 import GroupRPMOverridesModal from "@/components/admin/group/GroupRPMOverridesModal.vue";

@@ -1228,7 +1228,13 @@ func (s *OpenAIGatewayService) tryWriteOpenAIImagesStreamEvent(
 
 func (s *OpenAIGatewayService) parseOpenAIImagesSSEUsageBytes(data []byte, usage *OpenAIUsage) {
 	s.parseSSEUsageBytes(data, usage)
-	if usage == nil || !gjson.ValidBytes(data) || gjson.GetBytes(data, "type").String() != "response.completed" {
+	if usage == nil {
+		return
+	}
+	// The Images endpoint never contributes to text-only protection samples.
+	usage.CacheReadKnown = false
+	usage.cacheReadMediaObserved = false
+	if !gjson.ValidBytes(data) || gjson.GetBytes(data, "type").String() != "response.completed" {
 		return
 	}
 	if toolUsage, ok := openAIImagesToolUsageFromGJSON(gjson.GetBytes(data, "response.tool_usage.image_gen")); ok {
