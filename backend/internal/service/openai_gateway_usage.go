@@ -217,7 +217,21 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 
 	// OpenAI input_tokens 是总输入，包含缓存读取和缓存写入明细。
 	// 将三类 token 拆成互斥桶，避免缓存写入同时按普通输入和 cache_write 重复计费。
-	actualInputTokens := result.Usage.InputTokens - result.Usage.CacheReadInputTokens - result.Usage.CacheCreationInputTokens
+	cacheCreationTokens := result.Usage.CacheCreationInputTokens
+	bpsBillingModel := result.UpstreamModel
+	if strings.TrimSpace(bpsBillingModel) == "" {
+		bpsBillingModel = result.Model
+	}
+	if result.UpstreamEndpoint == excelBPSResponsesPath {
+		asInput := account.IsExcelBPSCacheCreationAsInputEnabledForModel(bpsBillingModel)
+		if result.bpsCacheCreationAsInput != nil {
+			asInput = *result.bpsCacheCreationAsInput
+		}
+		if asInput {
+			cacheCreationTokens = 0
+		}
+	}
+	actualInputTokens := result.Usage.InputTokens - result.Usage.CacheReadInputTokens - cacheCreationTokens
 	if actualInputTokens < 0 {
 		actualInputTokens = 0
 	}
@@ -249,7 +263,7 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 		ImageCacheReadTokens:     imageCacheReadTokens,
 		OutputTokens:             result.Usage.OutputTokens,
 		OutputAudioTokens:        result.Usage.OutputAudioTokens,
-		CacheCreationTokens:      result.Usage.CacheCreationInputTokens,
+		CacheCreationTokens:      cacheCreationTokens,
 		CacheCreationAudioTokens: result.Usage.CacheCreationInputAudioTokens,
 		CacheReadTokens:          cacheReadInputTokens,
 		CacheReadAudioTokens:     result.Usage.CacheReadInputAudioTokens,
@@ -473,7 +487,7 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 		InputAudioTokens:         actualInputAudioTokens,
 		OutputTokens:             result.Usage.OutputTokens,
 		OutputAudioTokens:        result.Usage.OutputAudioTokens,
-		CacheCreationTokens:      result.Usage.CacheCreationInputTokens,
+		CacheCreationTokens:      cacheCreationTokens,
 		CacheCreationAudioTokens: result.Usage.CacheCreationInputAudioTokens,
 		CacheReadTokens:          result.Usage.CacheReadInputTokens,
 		CacheReadAudioTokens:     result.Usage.CacheReadInputAudioTokens,

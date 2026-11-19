@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -62,6 +63,46 @@ func TestAccount_IsExcelBPSEnabled(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) { require.Equal(t, tt.want, tt.account.IsExcelBPSEnabled()) })
 	}
+}
+
+func TestAccount_IsExcelBPSEnabledForModel(t *testing.T) {
+	tests := []struct {
+		name  string
+		extra map[string]any
+		model string
+		want  bool
+	}{
+		{name: "legacy account-wide setting", extra: map[string]any{"openai_excel_bps": true}, model: "gpt-5", want: true},
+		{name: "mapped model selected", extra: map[string]any{"openai_excel_bps": true, "openai_excel_bps_models": []any{"gpt-5"}}, model: "gpt-5", want: true},
+		{name: "explicit list does not widen to other models", extra: map[string]any{"openai_excel_bps": true, "openai_excel_bps_models": []any{"gpt-5"}}, model: "gpt-5-mini", want: false},
+		{name: "empty list disables protocol selection", extra: map[string]any{"openai_excel_bps": true, "openai_excel_bps_models": []any{}}, model: "gpt-5", want: false},
+		{name: "malformed list disables protocol selection", extra: map[string]any{"openai_excel_bps": true, "openai_excel_bps_models": "gpt-5"}, model: "gpt-5", want: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			account := &Account{Platform: PlatformOpenAI, Type: AccountTypeOAuth, Extra: tt.extra}
+			require.Equal(t, tt.want, account.IsExcelBPSEnabledForModel(tt.model))
+		})
+	}
+}
+
+func TestExcelBPSAdmissionUsesResponsesProtocolOnly(t *testing.T) {
+	account := &Account{Platform: PlatformOpenAI, Type: AccountTypeOAuth, Extra: map[string]any{"openai_excel_bps": true}}
+	require.True(t, accountSupportsOpenAICapabilitiesForRequest(context.Background(), account, OpenAIEndpointCapabilityResponses, ""))
+	require.False(t, accountSupportsOpenAICapabilitiesForRequest(context.Background(), account, OpenAIEndpointCapabilityChatCompletions, ""))
+	responses := context.WithValue(context.Background(), openAIConnectionCapabilityContextKey{}, "responses")
+	require.True(t, accountSupportsOpenAICapabilitiesForRequest(responses, account, OpenAIEndpointCapabilityChatCompletions, "", "gpt-5"))
+	chatCompletions := context.WithValue(context.Background(), openAIConnectionCapabilityContextKey{}, "chat_completions")
+	require.False(t, accountSupportsOpenAICapabilitiesForRequest(chatCompletions, account, OpenAIEndpointCapabilityChatCompletions, "", "gpt-5"))
+}
+
+func TestUnsupportedPrismAndCopilotFlagsDoNotClaimProtocolSupport(t *testing.T) {
+	account := &Account{Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Extra: map[string]any{
+		"openai_prism_browser": true,
+		"openai_copilot_sdk":   true,
+	}}
+	require.False(t, account.SupportsOpenAIEndpointCapability(OpenAIEndpointCapability("prism_browser")))
+	require.False(t, account.SupportsOpenAIEndpointCapability(OpenAIEndpointCapability("copilot_sdk")))
 }
 
 func TestAccount_IsOpenAIOAuthPassthroughEnabled(t *testing.T) {

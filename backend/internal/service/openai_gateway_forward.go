@@ -112,7 +112,7 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 	// Excel/BPS is a separate text Responses transport. Keep it outside the
 	// Codex ticket, WS and passthrough branches so its independent grant is the
 	// only credential sent upstream.
-	if account.IsExcelBPSEnabled() {
+	if account.IsExcelBPSEnabledForModel(gjson.GetBytes(body, "model").String()) {
 		return s.forwardExcelBPS(ctx, c, account, body, startTime)
 	}
 	if account.IsSIWCEnabled() {

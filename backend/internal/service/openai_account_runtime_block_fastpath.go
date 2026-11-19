@@ -604,6 +604,9 @@ func (s *OpenAIGatewayService) isOpenAIAccountRequestRuntimeBlockedForRequest(ct
 	if account == nil {
 		return false
 	}
+	if s.isExcelBPSCoolingDown(account, requestedModel) || s.isExcelBPSModelCoolingDown(account, requestedModel) {
+		return true
+	}
 	model := s.resolveOpenAIRequestSchedulingModel(ctx, account, requestedModel, requireCompact)
 	return s.getOpenAIAccountModelTransientState().isBlocked(account.ID, openAIAccountModelTransientModel(model), time.Now())
 }

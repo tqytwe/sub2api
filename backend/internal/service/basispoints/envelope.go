@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 )
 
@@ -79,9 +80,44 @@ func transportShape(value any) string {
 	var syntax *json.SyntaxError
 	var decoded any
 	if err := json.Unmarshal([]byte(raw), &decoded); errors.As(err, &syntax) {
-		detail += fmt.Sprintf("; json_offset=%d", syntax.Offset)
+		detail += fmt.Sprintf("; json_offset=%d; json_failure=%s", syntax.Offset, jsonFailureKind(raw, syntax))
 	}
 	return detail
+}
+
+// Classify the parser's structural context without returning its message, which
+// can contain a byte from the caller's code. Offsets use the original wire text.
+func jsonFailureKind(raw string, syntax *json.SyntaxError) string {
+	if syntax == nil {
+		return "unknown"
+	}
+	message := syntax.Error()
+	if syntax.Offset > 0 && syntax.Offset <= int64(len(raw)) && raw[syntax.Offset-1] < 0x20 {
+		return "raw_control"
+	}
+	if syntax.Offset > 1 && raw[syntax.Offset-2] == '\\' {
+		return "invalid_escape"
+	}
+	if syntax.Offset > 5 && raw[syntax.Offset-6] == '\\' && raw[syntax.Offset-5] == 'u' {
+		return "invalid_escape"
+	}
+	switch {
+	case strings.Contains(message, "unexpected end of JSON input"):
+		return "unexpected_eof"
+	case strings.Contains(message, "after top-level value"):
+		return "trailing_data"
+	case strings.Contains(message, "in string escape code"), strings.Contains(message, "in \\u hexadecimal character escape"):
+		return "invalid_escape"
+	case strings.Contains(message, "in string literal"):
+		if syntax.Offset > 0 && syntax.Offset <= int64(len(raw)) && raw[syntax.Offset-1] < 0x20 {
+			return "raw_control"
+		}
+		return "invalid_string"
+	case strings.Contains(message, "after object key"), strings.Contains(message, "after array element"):
+		return "missing_separator"
+	default:
+		return "unexpected_token"
+	}
 }
 
 func decodeTransportEnvelope(value any) (object, error) {
@@ -117,6 +153,66 @@ func decodeTransportEnvelope(value any) (object, error) {
 	return nil, fmt.Errorf("basispoints tool transport exceeds two nested wrappers")
 }
 
+var catalogInvocation = regexp.MustCompile(`^(?:(?:return\s+)?await\s+|return\s+)?([A-Za-z_][A-Za-z0-9_.-]*)\s*\(`)
+
+// recoverTransportEnvelope accepts one complete catalog invocation whose sole
+// argument is a JSON literal. It never evaluates code or extracts an object from
+// a program, batch, incomplete call or trailing text. The callee selects the tool;
+// fields named name/arguments inside the literal remain ordinary tool arguments.
+func recoverTransportEnvelope(value any, catalog map[string]tool) (object, bool) {
+	raw, ok := value.(string)
+	if !ok || len(raw) > maxEnvelopeBytes {
+		return nil, false
+	}
+	raw = strings.TrimSpace(raw)
+	match := catalogInvocation.FindStringSubmatch(raw)
+	if len(match) != 2 {
+		// Retain the existing complete JSON/fence/prose forms without searching
+		// arbitrary text for an executable-looking object.
+		envelope, err := decodeTransportEnvelope(raw)
+		if err != nil {
+			return nil, false
+		}
+		name, err := envelopeName(envelope)
+		_, known := catalog[name]
+		return envelope, err == nil && known
+	}
+	name := match[1]
+	info, known := catalog[name]
+	if !known {
+		name = strings.TrimPrefix(name, "functions.")
+		info, known = catalog[name]
+	}
+	if !known {
+		return nil, false
+	}
+	argument := raw[len(match[0]):]
+	decoder := json.NewDecoder(strings.NewReader(argument))
+	decoder.UseNumber()
+	var literal any
+	if decoder.Decode(&literal) != nil {
+		return nil, false
+	}
+	tail := strings.TrimSpace(argument[decoder.InputOffset():])
+	if !strings.HasPrefix(tail, ")") {
+		return nil, false
+	}
+	if tail = strings.TrimSpace(tail[1:]); tail != "" && tail != ";" {
+		return nil, false
+	}
+	switch info.Kind {
+	case "function":
+		if args, ok := literal.(object); ok && args != nil {
+			return object{"name": name, "arguments": args}, true
+		}
+	case "custom":
+		if input, ok := literal.(string); ok {
+			return object{"name": name, "input": input}, true
+		}
+	}
+	return nil, false
+}
+
 func envelopeName(envelope object) (string, error) {
 	name := text(envelope["name"])
 	alias := text(envelope["tool"])
@@ -150,16 +246,17 @@ func decodeEnvelopeValue(raw string) (any, bool) {
 	if decode([]byte(raw), &value) == nil {
 		return value, true
 	}
-	// Repair only illegal JSON escapes, and only after strict decoding fails.
-	// Valid escapes, quotes and argument values otherwise retain their meaning.
-	fixed := repairIllegalEscapes(raw)
+	// Escape raw line breaks and tabs inside strings, preserving those exact
+	// characters, and repair illegal backslash escapes only after strict decoding
+	// fails. Never infer missing quotes, separators, closing delimiters or values.
+	fixed := repairTransportJSONStrings(raw)
 	if fixed != raw && decode([]byte(fixed), &value) == nil {
 		return value, true
 	}
 	return nil, false
 }
 
-func repairIllegalEscapes(raw string) string {
+func repairTransportJSONStrings(raw string) string {
 	var out strings.Builder
 	out.Grow(len(raw))
 	quoted := false
@@ -167,6 +264,19 @@ func repairIllegalEscapes(raw string) string {
 		ch := raw[i]
 		if ch == '"' {
 			quoted = !quoted
+		}
+		if quoted {
+			switch ch {
+			case '\n':
+				_, _ = out.WriteString(`\n`)
+				continue
+			case '\r':
+				_, _ = out.WriteString(`\r`)
+				continue
+			case '\t':
+				_, _ = out.WriteString(`\t`)
+				continue
+			}
 		}
 		if ch != '\\' || !quoted || i+1 >= len(raw) {
 			_ = out.WriteByte(ch)

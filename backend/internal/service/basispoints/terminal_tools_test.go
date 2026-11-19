@@ -39,7 +39,7 @@ func TestToolsUseTerminalItemWhileTextStaysIncremental(t *testing.T) {
 	if err != nil || bytes.Contains(out, []byte("response.failed")) || !bytes.Contains(out, []byte(`"name":"shell"`)) {
 		t.Fatalf("terminal tool normalization failed: %s, %v", out, err)
 	}
-	if !reflect.DeepEqual(cache.getByCallID("scope", "call_native"), complete) {
+	if !reflect.DeepEqual(cache.get("scope", "call_native"), complete) {
 		t.Fatal("partial item was retained instead of the authoritative original")
 	}
 }

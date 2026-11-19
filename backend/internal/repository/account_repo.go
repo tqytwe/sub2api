@@ -566,6 +566,10 @@ func (r *accountRepository) updateLockedAccount(
 	if err != nil {
 		return nil, err
 	}
+	extra, err = mergeLockedExcelBPS403Markers(ctx, client, account, extra)
+	if err != nil {
+		return nil, err
+	}
 	account.Extra = extra
 	// The probe merge above holds the account row lock in this transaction.
 	if err := accounttimer.CancelPending(ctx, client, account.ID, time.Now().UTC()); err != nil {

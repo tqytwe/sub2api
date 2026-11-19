@@ -226,6 +226,21 @@ type SystemSettings struct {
 	GrokDefaultBaseURLMode               string         `json:"grok_default_base_url_mode"`
 	AccountSchedulingThresholds          map[string]int `json:"account_scheduling_thresholds"`
 	GrokVideoSourceURLEnabled            bool           `json:"grok_video_source_url_enabled"`
+	ExcelBPSImageMode                    string         `json:"excel_bps_image_mode"`
+	ExcelBPSImageRelayEnabled            bool           `json:"excel_bps_image_relay_enabled"`
+	ExcelBPSImageBaseURL                 string         `json:"excel_bps_image_base_url"`
+	ExcelBPSImageBodyLimitMiB            int            `json:"excel_bps_image_body_limit_mib"`
+	ExcelBPSImageBudgetMiB               int            `json:"excel_bps_image_budget_mib"`
+	ExcelBPSImageMaxRequests             int            `json:"excel_bps_image_max_requests"`
+	ExcelBPSImageMaxImageMiB             int            `json:"excel_bps_image_max_image_mib"`
+	ExcelBPSImageMaxImages               int            `json:"excel_bps_image_max_images"`
+	ExcelBPSImageLimitPolicy             string         `json:"excel_bps_image_limit_policy"`
+	ExcelBPSImageWarningRemaining        int            `json:"excel_bps_image_warning_remaining"`
+	ExcelBPSImageCompactReserve          int            `json:"excel_bps_image_compact_reserve"`
+	ExcelBPSImageMaxTotalMiB             int            `json:"excel_bps_image_max_total_mib"`
+	ExcelBPSImageStorageMiB              int            `json:"excel_bps_image_storage_mib"`
+	ExcelBPSImageStorageEntries          int            `json:"excel_bps_image_storage_entries"`
+	ExcelBPSImageTTLMinutes              int            `json:"excel_bps_image_ttl_minutes"`
 	OpenAI409OmitEncryptedHistoryEnabled bool           `json:"openai_409_omit_encrypted_history_enabled"`
 
 	// Available Channels feature (user-facing aggregate view)

@@ -352,6 +352,21 @@ type UpdateSettingsRequest struct {
 	GrokCrossClientModelMapEnabled       *bool   `json:"grok_cross_client_model_map_enabled"`
 	GrokDefaultBaseURLMode               *string `json:"grok_default_base_url_mode"`
 	GrokVideoSourceURLEnabled            *bool   `json:"grok_video_source_url_enabled"`
+	ExcelBPSImageMode                    *string `json:"excel_bps_image_mode"`
+	ExcelBPSImageRelayEnabled            *bool   `json:"excel_bps_image_relay_enabled"`
+	ExcelBPSImageBaseURL                 *string `json:"excel_bps_image_base_url"`
+	ExcelBPSImageBodyLimitMiB            *int    `json:"excel_bps_image_body_limit_mib"`
+	ExcelBPSImageBudgetMiB               *int    `json:"excel_bps_image_budget_mib"`
+	ExcelBPSImageMaxRequests             *int    `json:"excel_bps_image_max_requests"`
+	ExcelBPSImageMaxImageMiB             *int    `json:"excel_bps_image_max_image_mib"`
+	ExcelBPSImageMaxImages               *int    `json:"excel_bps_image_max_images"`
+	ExcelBPSImageLimitPolicy             *string `json:"excel_bps_image_limit_policy"`
+	ExcelBPSImageWarningRemaining        *int    `json:"excel_bps_image_warning_remaining"`
+	ExcelBPSImageCompactReserve          *int    `json:"excel_bps_image_compact_reserve"`
+	ExcelBPSImageMaxTotalMiB             *int    `json:"excel_bps_image_max_total_mib"`
+	ExcelBPSImageStorageMiB              *int    `json:"excel_bps_image_storage_mib"`
+	ExcelBPSImageStorageEntries          *int    `json:"excel_bps_image_storage_entries"`
+	ExcelBPSImageTTLMinutes              *int    `json:"excel_bps_image_ttl_minutes"`
 	OpenAI409OmitEncryptedHistoryEnabled *bool   `json:"openai_409_omit_encrypted_history_enabled"`
 
 	// Available Channels feature switch (user-facing)
@@ -2042,6 +2057,96 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			}
 			return previousSettings.GrokVideoSourceURLEnabled
 		}(),
+		ExcelBPSImageMode: func() string {
+			if req.ExcelBPSImageMode != nil {
+				return *req.ExcelBPSImageMode
+			}
+			return previousSettings.ExcelBPSImageMode
+		}(),
+		ExcelBPSImageRelayEnabled: func() bool {
+			if req.ExcelBPSImageRelayEnabled != nil {
+				return *req.ExcelBPSImageRelayEnabled
+			}
+			return previousSettings.ExcelBPSImageRelayEnabled
+		}(),
+		ExcelBPSImageBaseURL: func() string {
+			if req.ExcelBPSImageBaseURL != nil {
+				return *req.ExcelBPSImageBaseURL
+			}
+			return previousSettings.ExcelBPSImageBaseURL
+		}(),
+		ExcelBPSImageBodyLimitMiB: func() int {
+			if req.ExcelBPSImageBodyLimitMiB != nil {
+				return *req.ExcelBPSImageBodyLimitMiB
+			}
+			return previousSettings.ExcelBPSImageBodyLimitMiB
+		}(),
+		ExcelBPSImageBudgetMiB: func() int {
+			if req.ExcelBPSImageBudgetMiB != nil {
+				return *req.ExcelBPSImageBudgetMiB
+			}
+			return previousSettings.ExcelBPSImageBudgetMiB
+		}(),
+		ExcelBPSImageMaxRequests: func() int {
+			if req.ExcelBPSImageMaxRequests != nil {
+				return *req.ExcelBPSImageMaxRequests
+			}
+			return previousSettings.ExcelBPSImageMaxRequests
+		}(),
+		ExcelBPSImageMaxImageMiB: func() int {
+			if req.ExcelBPSImageMaxImageMiB != nil {
+				return *req.ExcelBPSImageMaxImageMiB
+			}
+			return previousSettings.ExcelBPSImageMaxImageMiB
+		}(),
+		ExcelBPSImageMaxImages: func() int {
+			if req.ExcelBPSImageMaxImages != nil {
+				return *req.ExcelBPSImageMaxImages
+			}
+			return previousSettings.ExcelBPSImageMaxImages
+		}(),
+		ExcelBPSImageLimitPolicy: func() string {
+			if req.ExcelBPSImageLimitPolicy != nil {
+				return *req.ExcelBPSImageLimitPolicy
+			}
+			return previousSettings.ExcelBPSImageLimitPolicy
+		}(),
+		ExcelBPSImageWarningRemaining: func() int {
+			if req.ExcelBPSImageWarningRemaining != nil {
+				return *req.ExcelBPSImageWarningRemaining
+			}
+			return previousSettings.ExcelBPSImageWarningRemaining
+		}(),
+		ExcelBPSImageCompactReserve: func() int {
+			if req.ExcelBPSImageCompactReserve != nil {
+				return *req.ExcelBPSImageCompactReserve
+			}
+			return previousSettings.ExcelBPSImageCompactReserve
+		}(),
+		ExcelBPSImageMaxTotalMiB: func() int {
+			if req.ExcelBPSImageMaxTotalMiB != nil {
+				return *req.ExcelBPSImageMaxTotalMiB
+			}
+			return previousSettings.ExcelBPSImageMaxTotalMiB
+		}(),
+		ExcelBPSImageStorageMiB: func() int {
+			if req.ExcelBPSImageStorageMiB != nil {
+				return *req.ExcelBPSImageStorageMiB
+			}
+			return previousSettings.ExcelBPSImageStorageMiB
+		}(),
+		ExcelBPSImageStorageEntries: func() int {
+			if req.ExcelBPSImageStorageEntries != nil {
+				return *req.ExcelBPSImageStorageEntries
+			}
+			return previousSettings.ExcelBPSImageStorageEntries
+		}(),
+		ExcelBPSImageTTLMinutes: func() int {
+			if req.ExcelBPSImageTTLMinutes != nil {
+				return *req.ExcelBPSImageTTLMinutes
+			}
+			return previousSettings.ExcelBPSImageTTLMinutes
+		}(),
 		OpenAI409OmitEncryptedHistoryEnabled: func() bool {
 			if req.OpenAI409OmitEncryptedHistoryEnabled != nil {
 				return *req.OpenAI409OmitEncryptedHistoryEnabled
@@ -2570,6 +2675,21 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		GrokCrossClientModelMapEnabled:       updatedSettings.GrokCrossClientModelMapEnabled,
 		GrokDefaultBaseURLMode:               updatedSettings.GrokDefaultBaseURLMode,
 		GrokVideoSourceURLEnabled:            updatedSettings.GrokVideoSourceURLEnabled,
+		ExcelBPSImageMode:                    updatedSettings.ExcelBPSImageMode,
+		ExcelBPSImageRelayEnabled:            updatedSettings.ExcelBPSImageRelayEnabled,
+		ExcelBPSImageBaseURL:                 updatedSettings.ExcelBPSImageBaseURL,
+		ExcelBPSImageBodyLimitMiB:            updatedSettings.ExcelBPSImageBodyLimitMiB,
+		ExcelBPSImageBudgetMiB:               updatedSettings.ExcelBPSImageBudgetMiB,
+		ExcelBPSImageMaxRequests:             updatedSettings.ExcelBPSImageMaxRequests,
+		ExcelBPSImageMaxImageMiB:             updatedSettings.ExcelBPSImageMaxImageMiB,
+		ExcelBPSImageMaxImages:               updatedSettings.ExcelBPSImageMaxImages,
+		ExcelBPSImageLimitPolicy:             updatedSettings.ExcelBPSImageLimitPolicy,
+		ExcelBPSImageWarningRemaining:        updatedSettings.ExcelBPSImageWarningRemaining,
+		ExcelBPSImageCompactReserve:          updatedSettings.ExcelBPSImageCompactReserve,
+		ExcelBPSImageMaxTotalMiB:             updatedSettings.ExcelBPSImageMaxTotalMiB,
+		ExcelBPSImageStorageMiB:              updatedSettings.ExcelBPSImageStorageMiB,
+		ExcelBPSImageStorageEntries:          updatedSettings.ExcelBPSImageStorageEntries,
+		ExcelBPSImageTTLMinutes:              updatedSettings.ExcelBPSImageTTLMinutes,
 		OpenAI409OmitEncryptedHistoryEnabled: updatedSettings.OpenAI409OmitEncryptedHistoryEnabled,
 
 		AvailableChannelsEnabled: updatedSettings.AvailableChannelsEnabled,

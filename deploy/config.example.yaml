@@ -488,6 +488,8 @@ gateway:
   # Stream data interval timeout (seconds), 0=disable
   # 流数据间隔超时（秒），0=禁用
   stream_data_interval_timeout: 180
+  # Excel BPS upstream read progress timeout in seconds. 0 disables it.
+  excel_bps_stream_data_interval_timeout: 120
   # Stream keepalive interval (seconds), 0=disable
   # 流式 keepalive 间隔（秒），0=禁用
   stream_keepalive_interval: 10
