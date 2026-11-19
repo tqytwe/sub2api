@@ -1740,6 +1740,29 @@ describe("admin SettingsView payment visible method controls", () => {
     expect(payload.grok_cross_client_model_map_enabled).toBe(false);
   });
 
+  it("loads and saves the 409 encrypted history omission Beta", async () => {
+    getSettings.mockResolvedValueOnce({
+      ...baseSettingsResponse,
+      openai_409_omit_encrypted_history_enabled: true,
+    });
+    const wrapper = mountView();
+
+    await flushPromises();
+    await openGatewayTab(wrapper);
+
+    const historyToggle = wrapper.get(
+      '[data-testid="openai-409-omit-encrypted-history-toggle"]',
+    );
+    expect((historyToggle.element as HTMLInputElement).checked).toBe(true);
+
+    await historyToggle.setValue(false);
+    await wrapper.find("form").trigger("submit.prevent");
+    await flushPromises();
+
+    const payload = updateSettings.mock.calls.at(-1)?.[0] as Record<string, unknown>;
+    expect(payload.openai_409_omit_encrypted_history_enabled).toBe(false);
+  });
+
   it("loads and saves the OpenAI Responses first-token metric mode", async () => {
     getSettings.mockResolvedValueOnce({
       ...baseSettingsResponse,

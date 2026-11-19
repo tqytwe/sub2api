@@ -508,6 +508,8 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		GrokCrossClientModelMapEnabled: settings.GrokCrossClientModelMapEnabled,
 		GrokDefaultBaseURLMode:         settings.GrokDefaultBaseURLMode,
 		AccountSchedulingThresholds:    settings.AccountSchedulingThresholds,
+		GrokVideoSourceURLEnabled:            settings.GrokVideoSourceURLEnabled,
+		OpenAI409OmitEncryptedHistoryEnabled: settings.OpenAI409OmitEncryptedHistoryEnabled,
 
 		AvailableChannelsEnabled: settings.AvailableChannelsEnabled,
 		SubscriptionEnabled:      settings.SubscriptionEnabled,

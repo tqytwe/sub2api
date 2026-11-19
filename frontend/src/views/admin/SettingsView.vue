@@ -5092,6 +5092,15 @@
                 </div>
               </div>
 
+              <div class="border-b border-gray-100 pb-5 dark:border-dark-700 md:col-span-2">
+                <Toggle
+                  v-model="form.openai_409_omit_encrypted_history_enabled"
+                  :label="t('admin.settings.gatewayForwarding.omitEncryptedHistory409')"
+                  :description="t('admin.settings.gatewayForwarding.omitEncryptedHistory409Hint')"
+                  data-testid="openai-409-omit-encrypted-history-toggle"
+                />
+              </div>
+
               <!-- OpenAI Responses 首 token 统计 -->
               <div class="border-b border-gray-100 pb-5 dark:border-dark-700 md:col-span-2">
                 <label
@@ -9999,6 +10008,7 @@ const form = reactive<SettingsForm>({
   fallback_model_openai: "gpt-4o",
   fallback_model_gemini: "gemini-2.5-pro",
   fallback_model_antigravity: "gemini-2.5-pro",
+  openai_409_omit_encrypted_history_enabled: false,
   // Identity patch (Claude -> Gemini)
   enable_identity_patch: true,
   identity_patch_prompt: "",
@@ -11881,6 +11891,7 @@ async function saveSettings() {
       grok_cross_client_model_map_enabled:
         form.grok_cross_client_model_map_enabled,
       grok_default_base_url_mode: form.grok_default_base_url_mode,
+      openai_409_omit_encrypted_history_enabled: form.openai_409_omit_encrypted_history_enabled,
       enable_identity_patch: form.enable_identity_patch,
       identity_patch_prompt: form.identity_patch_prompt,
       min_claude_code_version: form.min_claude_code_version,
