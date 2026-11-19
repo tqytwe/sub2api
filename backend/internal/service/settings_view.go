@@ -225,6 +225,8 @@ type SystemSettings struct {
 	GrokCrossClientModelMapEnabled bool           `json:"grok_cross_client_model_map_enabled"`
 	GrokDefaultBaseURLMode         string         `json:"grok_default_base_url_mode"`
 	AccountSchedulingThresholds    map[string]int `json:"account_scheduling_thresholds"`
+	GrokVideoSourceURLEnabled            bool   `json:"grok_video_source_url_enabled"`
+	OpenAI409OmitEncryptedHistoryEnabled bool   `json:"openai_409_omit_encrypted_history_enabled"`
 
 	// Available Channels feature (user-facing aggregate view)
 	AvailableChannelsEnabled bool `json:"available_channels_enabled"`
