@@ -2186,10 +2186,19 @@ func (a *Account) IsOpenAIPassthroughEnabled() bool {
 // separately authorized Excel/BPS text Responses transport.
 func (a *Account) IsExcelBPSEnabled() bool {
 	if a == nil || a.Platform != PlatformOpenAI || a.Type != AccountTypeOAuth ||
-		a.IsCredentialShadow() || a.IsOpenAIPersonalAccessToken() || a.Extra == nil {
+		a.IsCredentialShadow() || a.IsOpenAIPersonalAccessToken() || a.IsOpenAIAgentIdentity() || a.Extra == nil {
 		return false
 	}
 	enabled, _ := a.Extra["openai_excel_bps"].(bool)
+	return enabled
+}
+
+// IsExcelBPSAutoDisableOn403Enabled opts into disabling BPS after a generic 403.
+func (a *Account) IsExcelBPSAutoDisableOn403Enabled() bool {
+	if !a.IsExcelBPSEnabled() {
+		return false
+	}
+	enabled, _ := a.Extra["openai_excel_bps_auto_disable_on_403"].(bool)
 	return enabled
 }
 
@@ -2203,8 +2212,22 @@ func (a *Account) IsCopilotSDKEnabled() bool {
 	return enabled
 }
 
+// IsExcelBPSCacheCreationAsInputEnabled moves BPS cache creation into ordinary
+// input billing for this account; it has no effect on other protocols.
+func (a *Account) IsExcelBPSCacheCreationAsInputEnabled() bool {
+	if !a.IsExcelBPSEnabled() {
+		return false
+	}
+	enabled, _ := a.Extra["openai_excel_bps_cache_creation_as_input"].(bool)
+	return enabled
+}
+
+func (a *Account) IsExcelBPSCacheCreationAsInputEnabledForModel(model string) bool {
+	return a.IsExcelBPSCacheCreationAsInputEnabled() && a.IsExcelBPSEnabledForModel(model)
+}
+
 // IsExcelBPSEnabledForModel selects BPS after applying the account model map.
-// A model-scoped list selects the transport; it does not restrict account access.
+// An explicit model list never broadens the legacy account-wide setting.
 func (a *Account) IsExcelBPSEnabledForModel(requestedModel string) bool {
 	if !a.IsExcelBPSEnabled() {
 		return false
@@ -2268,6 +2291,14 @@ func (a *Account) IsPrismBrowserEnabledForModel(requestedModel string) bool {
 	return false
 }
 
+func (a *Account) isExcelBPSAllModelsEnabled() bool {
+	if !a.IsExcelBPSEnabled() {
+		return false
+	}
+	_, scoped := a.Extra["openai_excel_bps_models"]
+	return !scoped
+}
+
 // IsOpenAIResponsesWebSocketV2Enabled 返回 OpenAI 账号是否开启 Responses WebSocket v2。
 //
 // 分类型新字段：
@@ -2282,7 +2313,7 @@ func (a *Account) IsPrismBrowserEnabledForModel(requestedModel string) bool {
 // 1. 按账号类型读取分类型字段
 // 2. 分类型字段缺失时，回退兼容字段
 func (a *Account) IsOpenAIResponsesWebSocketV2Enabled() bool {
-	if a.HasManagedOpenAIConnections() || a.IsExcelBPSEnabled() || a == nil || !a.IsOpenAI() || a.Extra == nil {
+	if a.HasManagedOpenAIConnections() || a.isExcelBPSAllModelsEnabled() || a.IsSIWCEnabled() || a == nil || !a.IsOpenAI() || a.Extra == nil {
 		return false
 	}
 	if a.IsOpenAIOAuthLike() {
@@ -2351,7 +2382,7 @@ func normalizeOpenAIWSIngressDefaultMode(mode string) string {
 // 4. defaultMode（非法时回退 ctx_pool）
 func (a *Account) ResolveOpenAIResponsesWebSocketV2Mode(defaultMode string) string {
 	resolvedDefault := normalizeOpenAIWSIngressDefaultMode(defaultMode)
-	if a.IsExcelBPSEnabled() {
+	if a.isExcelBPSAllModelsEnabled() || a.IsSIWCEnabled() {
 		return OpenAIWSIngressModeOff
 	}
 	if a == nil || !a.IsOpenAI() {
@@ -2423,7 +2454,7 @@ func (a *Account) ResolveOpenAIResponsesWebSocketV2Mode(defaultMode string) stri
 // IsOpenAIWSForceHTTPEnabled 返回账号级"强制 HTTP"开关。
 // 字段：accounts.extra.openai_ws_force_http。
 func (a *Account) IsOpenAIWSForceHTTPEnabled() bool {
-	if a.IsExcelBPSEnabled() {
+	if a.isExcelBPSAllModelsEnabled() || a.IsSIWCEnabled() {
 		return true
 	}
 	if a == nil || !a.IsOpenAI() || a.Extra == nil {

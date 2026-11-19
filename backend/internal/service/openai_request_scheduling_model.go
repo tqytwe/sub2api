@@ -51,7 +51,8 @@ func (s *OpenAIGatewayService) isOpenAIAccountSchedulableForRequest(ctx context.
 	if !account.IsOpenAI() {
 		return account.IsSchedulableForModelWithContext(ctx, requestedModel)
 	}
-	return account.IsSchedulable() && !openAIAccountOutboundModelRateLimited(ctx, account, requestedModel,
+	return account.IsSchedulable() && !s.isExcelBPSCoolingDown(account, requestedModel) &&
+		!s.isExcelBPSModelCoolingDown(account, requestedModel) && !openAIAccountOutboundModelRateLimited(ctx, account, requestedModel,
 		s.resolveOpenAIRequestSchedulingModel(ctx, account, requestedModel, requireCompact))
 }
 

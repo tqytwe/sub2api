@@ -4,6 +4,11 @@ package routes
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/handler"
 	"github.com/Wei-Shaw/sub2api/internal/requestledger"
@@ -12,9 +17,6 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
-	"net/http/httptest"
-	"strings"
-	"testing"
 )
 
 // Enumerate the real registered gateway routes, including aliases, and reject
@@ -42,6 +44,12 @@ func TestRequestLedgerRealGatewayRouteRejectionMatrix(t *testing.T) {
 				path = strings.ReplaceAll(path, param, "fixture")
 			}
 			t.Run(route.Method+" "+route.Path, func(t *testing.T) {
+				// These upstream callbacks fetch an existing attachment using a short-lived
+				// token. The originating model request is the gateway ledger entry.
+				if route.Path == "/api/bps-images/:token" && (route.Method == http.MethodGet || route.Method == http.MethodHead) {
+					require.False(t, requestledger.ManagedPath("/api/bps-images/fixture"))
+					return
+				}
 				require.True(t, requestledger.ManagedPath(path), "registered managed gateway route missing from durable admission")
 				var before int
 				require.NoError(t, db.QueryRow(`SELECT count(*) FROM gateway_requests`).Scan(&before))

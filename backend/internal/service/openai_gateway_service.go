@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/Wei-Shaw/sub2api/internal/requestledger"
+	"github.com/Wei-Shaw/sub2api/internal/service/basispoints"
 	"log/slog"
 	"math/rand"
 	"net/http"
@@ -253,9 +254,11 @@ type OpenAIUnpricedOutputUsage struct {
 
 // OpenAIForwardResult represents the result of forwarding
 type OpenAIForwardResult struct {
-	AuthConnectionID string
-	RequestID        string
-	ResponseID       string
+	// Capture the route's usage policy so settlement matches the response even if account settings change.
+	bpsCacheCreationAsInput *bool
+	AuthConnectionID        string
+	RequestID               string
+	ResponseID              string
 	// UpstreamHeaders 是直接上游的响应头，用于按账户配置解析上游请求标识。
 	UpstreamHeaders http.Header
 	Usage           OpenAIUsage
@@ -521,6 +524,15 @@ type OpenAIGatewayService struct {
 	openaiProxyStreamCircuit       *openAIProxyStreamCircuit
 	openaiProxyStreamFailOpenLogAt atomic.Int64
 
+	excelBPSRecoveryMu                  sync.Mutex
+	excelBPSRecoveryCancel              context.CancelFunc
+	excelBPSRecoveryDone                chan struct{}
+	excelBPSRecoveryStopped             bool
+	excelBPSImageAdmission              excelBPSImageAdmission
+	excelBPSImagesMu                    sync.Mutex
+	excelBPSImages                      *basispoints.ImageRelay
+	excelBPSModelCooldowns              excelBPSModelCooldowns
+	excelBPSCooldownUntil               sync.Map // key: account ID, value: time.Time
 	openaiWSFallbackUntil               sync.Map // key: int64(accountID), value: time.Time
 	openaiAccountRuntimeBlockUntil      sync.Map // key: int64(accountID), value: time.Time
 	openaiAccountRuntimeBlockLocks      sync.Map // key: int64(accountID), value: *sync.Mutex

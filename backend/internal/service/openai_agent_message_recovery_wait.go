@@ -49,7 +49,7 @@ func (s *defaultOpenAIAccountScheduler) checkOpenAIAgentRecoveryCooldown(ctx con
 		!account.IsModelAllowedInGroup(req.GroupID, req.RequestedModel) ||
 		!pelicanGroupTestModelAllowed(ctx, account, req.RequestedModel) ||
 		!accountSupportsOpenAICapabilitiesForRequest(ctx, account, req.RequiredCapability, req.RequiredImageCapability) ||
-		!s.isAccountTransportCompatible(account, req.RequiredTransport) {
+		!s.isAccountTransportCompatible(account, req.RequiredTransport, req.RequestedModel) {
 		return openAIAgentRecoveryError("owner_unavailable")
 	}
 	if req.GroupID != nil && s.service.needsUpstreamChannelRestrictionCheck(ctx, req.GroupID) &&

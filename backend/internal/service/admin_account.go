@@ -537,6 +537,10 @@ func (s *adminServiceImpl) CreateAccount(ctx context.Context, input *CreateAccou
 	if err != nil {
 		return nil, err
 	}
+	account.Extra = StripExcelBPS403Markers(account.Extra)
+	if err := s.validateExcelBPS403GroupSettings(ctx, account); err != nil {
+		return nil, err
+	}
 	if err := s.ValidateAccountGroupBindings(ctx, groupIDs); err != nil {
 		return nil, err
 	}
@@ -893,6 +897,10 @@ func (s *adminServiceImpl) UpdateAccount(ctx context.Context, id int64, input *U
 		}
 	}
 
+	if err := s.validateExcelBPS403GroupSettings(ctx, account); err != nil {
+		return nil, err
+	}
+
 	// Production requires this capability. Attribute changes must not commit or
 	// refresh the scheduler before the same edit's bindings/policy can commit.
 	if writer, ok := s.accountRepo.(AccountAdminUpdateRepository); ok {
@@ -979,7 +987,7 @@ func (s *adminServiceImpl) UpdateAccount(ctx context.Context, id int64, input *U
 // UpdateAccountExtra 仅对 Extra JSONB 做 key 级合并，避免覆盖其它运行态键
 // （如 model_rate_limits / passive_usage_* 等）。
 func (s *adminServiceImpl) UpdateAccountExtra(ctx context.Context, id int64, updates map[string]any) error {
-	updates = sanitizedCodexFingerprintExtraUpdates(updates)
+	updates = StripExcelBPS403Markers(sanitizedCodexFingerprintExtraUpdates(updates))
 	updates = stripOpenAIAutoResetCreditManagedExtra(updates, true)
 	delete(updates, UpstreamBillingProbeEnabledExtraKey)
 	delete(updates, UpstreamBillingRateSyncEnabledExtraKey)
@@ -1009,7 +1017,7 @@ func (s *adminServiceImpl) UpdateAccountExtra(ctx context.Context, id int64, upd
 // It merges credentials/extra keys instead of overwriting the whole object.
 func (s *adminServiceImpl) BulkUpdateAccounts(ctx context.Context, input *BulkUpdateAccountsInput) (*BulkUpdateAccountsResult, error) {
 	// Managed probe/session state may only enter through dedicated typed endpoints.
-	input.Extra = sanitizedCodexFingerprintExtraUpdates(input.Extra)
+	input.Extra = StripExcelBPS403Markers(sanitizedCodexFingerprintExtraUpdates(input.Extra))
 	input.Extra = stripOpenAIAutoResetCreditManagedExtra(input.Extra, true)
 	delete(input.Extra, UpstreamBillingProbeEnabledExtraKey)
 	delete(input.Extra, UpstreamBillingRateSyncEnabledExtraKey)

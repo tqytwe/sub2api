@@ -29,8 +29,8 @@ func observeOpenAIRoutingGroupAfterCompatibility(ctx context.Context, account *A
 	}
 	return !groupCompatible
 }
-func (s *defaultOpenAIAccountScheduler) isAccountTransportCompatibleForRouting(ctx context.Context, account *Account, transport OpenAIUpstreamTransport) bool {
-	compatible := s.isAccountTransportCompatible(account, transport)
+func (s *defaultOpenAIAccountScheduler) isAccountTransportCompatibleForRouting(ctx context.Context, account *Account, transport OpenAIUpstreamTransport, requestedModels ...string) bool {
+	compatible := s.isAccountTransportCompatible(account, transport, requestedModels...)
 	if !compatible {
 		recordOpenAIRoutingVeto(ctx, account, "transport_incompatible")
 	}
