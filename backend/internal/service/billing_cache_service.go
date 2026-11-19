@@ -104,6 +104,8 @@ type subscriptionCacheInvalidationPubSub interface {
 // BillingCacheService 计费缓存服务
 // 负责余额和订阅数据的缓存管理，提供高性能的计费资格检查
 type BillingCacheService struct {
+	autoCredit            AutoCreditRepository
+	autoCreditStop        chan struct{}
 	cache                 BillingCache
 	userRepo              UserRepository
 	subRepo               UserSubscriptionRepository
@@ -158,6 +160,9 @@ func NewBillingCacheService(
 func (s *BillingCacheService) Stop() {
 	s.cacheWriteStopOnce.Do(func() {
 		s.stopped.Store(true)
+		if s.autoCreditStop != nil {
+			close(s.autoCreditStop)
+		}
 
 		s.cacheWriteMu.Lock()
 		ch := s.cacheWriteChan
@@ -309,6 +314,15 @@ func (s *BillingCacheService) logCacheWriteDrop(task cacheWriteTask, reason stri
 
 // GetUserBalance 获取用户余额（优先从缓存读取）
 func (s *BillingCacheService) GetUserBalance(ctx context.Context, userID int64) (float64, error) {
+	if s.autoCredit != nil {
+		balance, err := s.autoCredit.CreditUserBalance(ctx, userID)
+		if err != nil {
+			return 0, err
+		}
+		if balance != nil {
+			return strconv.ParseFloat(*balance, 64)
+		}
+	}
 	if s.cache == nil {
 		// Redis不可用，直接查询数据库
 		return s.getUserBalanceFromDB(ctx, userID)
@@ -754,7 +768,7 @@ func (s *BillingCacheService) CheckBillingEligibility(ctx context.Context, user 
 			return err
 		}
 	} else {
-		if err := s.checkBalanceEligibility(ctx, user.ID); err != nil {
+		if err := s.checkBalanceEligibility(ctx, user.ID, apiKey); err != nil {
 			return err
 		}
 	}
@@ -935,7 +949,7 @@ func (s *BillingCacheService) balanceBelowEligibilityThreshold(balance float64) 
 }
 
 // checkBalanceEligibility 检查余额模式资格
-func (s *BillingCacheService) checkBalanceEligibility(ctx context.Context, userID int64) error {
+func (s *BillingCacheService) checkBalanceEligibility(ctx context.Context, userID int64, apiKey *APIKey) error {
 	balance, err := s.GetUserBalance(ctx, userID)
 	if err != nil {
 		if s.circuitBreaker != nil {
@@ -949,7 +963,33 @@ func (s *BillingCacheService) checkBalanceEligibility(ctx context.Context, userI
 	}
 
 	if s.balanceBelowEligibilityThreshold(balance) {
-		return ErrInsufficientBalance
+		if s.autoCredit == nil || apiKey == nil {
+			return ErrInsufficientBalance
+		}
+		minimum := strconv.FormatFloat(s.minimumBalanceReserve(), 'f', -1, 64)
+		canRecover, err := s.autoCredit.CanRecover(ctx, userID, minimum)
+		if err != nil {
+			return ErrBillingServiceUnavailable.WithCause(err)
+		}
+		if !canRecover {
+			return ErrInsufficientBalance
+		}
+		result, err := s.autoCredit.EvaluateAdmission(ctx, userID, apiKey.ID)
+		if err != nil {
+			return ErrBillingServiceUnavailable.WithCause(err)
+		}
+		if result.Issued {
+			if err := s.InvalidateUserBalance(ctx, userID); err != nil {
+				return ErrBillingServiceUnavailable.WithCause(err)
+			}
+		}
+		fresh, err := strconv.ParseFloat(result.Balance, 64)
+		if err != nil {
+			return ErrBillingServiceUnavailable.WithCause(err)
+		}
+		if s.balanceBelowEligibilityThreshold(fresh) {
+			return ErrInsufficientBalance
+		}
 	}
 
 	return nil

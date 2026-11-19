@@ -119,6 +119,7 @@ func provideCleanup(
 	pricing *service.PricingService,
 	emailQueue *service.EmailQueueService,
 	billingCache *service.BillingCacheService,
+	autoCreditEmail *service.AutoCreditEmailWorker,
 	usageRecordWorkerPool *service.UsageRecordWorkerPool,
 	subscriptionService *service.SubscriptionService,
 	oauth *service.OAuthService,
@@ -405,6 +406,12 @@ func provideCleanup(
 			}},
 			{"EmailQueueService", func() error {
 				emailQueue.Stop()
+				return nil
+			}},
+			{"AutoCreditEmailWorker", func() error {
+				if autoCreditEmail != nil {
+					autoCreditEmail.Stop()
+				}
 				return nil
 			}},
 			{"BillingCacheService", func() error {

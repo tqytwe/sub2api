@@ -151,7 +151,7 @@ const localeLoaders: Record<LocaleCode, Record<LocaleLoadScope, LocaleLoader>> =
       return { default: mergeLocaleMessages(legacy.default, adminMessages(module.default)) }
     },
     'admin-resources': async () => {
-      const [overview, resources, scheduling, moderationUsers, pelican, policy, keyRisk, legacy] = await Promise.all([
+      const [overview, resources, scheduling, moderationUsers, pelican, policy, keyRisk, legacy, autoCredit] = await Promise.all([
         import('./locales/en/admin/overview'),
         import('./locales/en/admin/resources'),
         import('./locales/en/admin/scheduling'),
@@ -160,8 +160,9 @@ const localeLoaders: Record<LocaleCode, Record<LocaleLoadScope, LocaleLoader>> =
         import('./locales/en/apiKeyModelPolicy'),
         import('./locales/en/ipAudit'),
         import('./locales/en/legacy/admin-resources'),
+        import('./locales/en/autoCredit'),
       ])
-      return { default: mergeLocaleMessages(mergeLocaleMessages(legacy.default, adminMessages(overview.default, resources.default, scheduling.default, moderationUsers.default)), { pelicanTests: pelican.default, apiKeyModelPolicy: policy.default, ipAudit: keyRisk.default }) }
+      return { default: mergeLocaleMessages(mergeLocaleMessages(legacy.default, adminMessages(overview.default, resources.default, scheduling.default, moderationUsers.default)), { pelicanTests: pelican.default, apiKeyModelPolicy: policy.default, ipAudit: keyRisk.default, autoCredit: autoCredit.default }) }
     },
     'admin-settings': async () => {
       const [module, legacy, accountPerformance, adminAccessKeys] = await Promise.all([
@@ -299,7 +300,7 @@ const localeLoaders: Record<LocaleCode, Record<LocaleLoadScope, LocaleLoader>> =
       return { default: mergeLocaleMessages(legacy.default, adminMessages(module.default)) }
     },
     'admin-resources': async () => {
-      const [overview, resources, scheduling, moderationUsers, pelican, policy, keyRisk, legacy] = await Promise.all([
+      const [overview, resources, scheduling, moderationUsers, pelican, policy, keyRisk, legacy, autoCredit] = await Promise.all([
         import('./locales/zh/admin/overview'),
         import('./locales/zh/admin/resources'),
         import('./locales/zh/admin/scheduling'),
@@ -308,8 +309,9 @@ const localeLoaders: Record<LocaleCode, Record<LocaleLoadScope, LocaleLoader>> =
         import('./locales/zh/apiKeyModelPolicy'),
         import('./locales/zh/ipAudit'),
         import('./locales/zh/legacy/admin-resources'),
+        import('./locales/zh/autoCredit'),
       ])
-      return { default: mergeLocaleMessages(mergeLocaleMessages(legacy.default, adminMessages(overview.default, resources.default, scheduling.default, moderationUsers.default)), { pelicanTests: pelican.default, apiKeyModelPolicy: policy.default, ipAudit: keyRisk.default }) }
+      return { default: mergeLocaleMessages(mergeLocaleMessages(legacy.default, adminMessages(overview.default, resources.default, scheduling.default, moderationUsers.default)), { pelicanTests: pelican.default, apiKeyModelPolicy: policy.default, ipAudit: keyRisk.default, autoCredit: autoCredit.default }) }
     },
     'admin-settings': async () => {
       const [module, legacy, accountPerformance, adminAccessKeys] = await Promise.all([

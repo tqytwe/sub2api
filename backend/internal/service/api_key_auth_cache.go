@@ -4,7 +4,7 @@ import "time"
 
 // APIKeyAuthSnapshot API Key 认证缓存快照（仅包含认证所需字段）
 type APIKeyAuthSnapshot struct {
-	ConcurrencyLimit int                      `json:"concurrency_limit"`
+	ConcurrencyLimit  int                      `json:"concurrency_limit"`
 	ModelMapping      map[string]string        `json:"model_mapping,omitempty"`
 	ReasoningEffort   string                   `json:"reasoning_effort,omitempty"`
 	AllowLongContext  bool                     `json:"allow_long_context"`

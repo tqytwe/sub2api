@@ -158,6 +158,7 @@ export interface AdminUser extends User {
   restrict_public_groups?: boolean
   // 当前并发数（仅管理员列表接口返回）
   current_concurrency?: number
+  auto_credit_outstanding?: string
   membership_paid_amount?: number
   vip_tier?: number
   vip_label?: string

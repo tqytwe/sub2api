@@ -458,6 +458,7 @@ const sourceOptions: WalletSource[] = [
   'team_reward',
   'arena_reward',
   'recharge',
+  'auto_credit',
   'affiliate',
   'checkin',
   'quiz',

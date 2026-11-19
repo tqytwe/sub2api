@@ -3,6 +3,7 @@ import { apiClient } from '@/api/client'
 export type WalletSource =
   | 'all'
   | 'recharge'
+  | 'auto_credit'
   | 'redeem'
   | 'affiliate'
   | 'team_reward'
