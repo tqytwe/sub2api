@@ -457,6 +457,19 @@ var ErrStickySessionNotFound = errors.New("sticky session not found")
 // when no cached reasoning content exists for the reasoning item ID.
 var ErrReasoningContentNotFound = errors.New("reasoning content not found")
 
+// SessionAccountBindingSwap writes an account only when Redis still sees the
+// binding observed by the selection (or the same chosen account).
+type SessionAccountBindingSwap struct {
+	SessionHash       string
+	LegacySessionHash string
+	ExpectedAccountID int64
+	AccountID         int64
+	TTL               time.Duration
+	LegacyTTL         time.Duration
+	ReadLegacy        bool
+	WriteLegacy       bool
+}
+
 // GatewayCache 定义网关服务的缓存操作接口。
 // 提供粘性会话（Sticky Session）的存储、查询、刷新和删除功能。
 //

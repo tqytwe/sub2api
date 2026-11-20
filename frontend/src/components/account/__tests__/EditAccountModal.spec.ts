@@ -557,6 +557,36 @@ describe('EditAccountModal', () => {
     })
   })
 
+  it('preserves Command Code adaptive endpoints and ordered protocol alternatives on submit', async () => {
+    const account = buildAccount()
+    account.platform = 'command_code'
+    account.credentials_status = { has_api_key: true }
+    account.credentials = {
+      api_protocol: 'adaptive',
+      base_url: 'https://relay.example.test/v1',
+      api_base_urls: {
+        chat_completions: 'https://relay.example.test/v1',
+        anthropic: 'https://relay.example.test/anthropic',
+        responses: 'https://relay.example.test/responses/v1'
+      },
+      protocol_rules: [{
+        pattern: 'example/model',
+        protocol: 'responses',
+        protocols: ['anthropic', 'chat_completions']
+      }]
+    }
+    updateAccountMock.mockReset().mockResolvedValue(account)
+    checkMixedChannelRiskMock.mockReset().mockResolvedValue({ has_risk: false })
+
+    const wrapper = mountModal(account)
+    await wrapper.get('form#edit-account-form').trigger('submit.prevent')
+
+    expect(updateAccountMock).toHaveBeenCalledTimes(1)
+    const saved = updateAccountMock.mock.calls[0]?.[1]?.credentials
+    expect(saved).toMatchObject(account.credentials)
+    expect(saved?.account_mode).toBeUndefined()
+  })
+
   it('treats a legacy OpenCode account without account_mode as GO', async () => {
     const account = buildAccount()
     account.platform = 'opencode_go'

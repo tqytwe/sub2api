@@ -70,8 +70,9 @@ func normalizeOpenCodeGoModelID(model string) string {
 // OpenCodeGoProtocolRule is one model-pattern → native protocol mapping.
 // Pattern is an exact ID or a suffix glob (foo* / *). First match wins.
 type OpenCodeGoProtocolRule struct {
-	Pattern  string `json:"pattern"`
-	Protocol string `json:"protocol"`
+	Pattern   string   `json:"pattern"`
+	Protocol  string   `json:"protocol"`
+	Protocols []string `json:"protocols,omitempty"`
 }
 
 // DefaultOpenCodeGoProtocolRules is the built-in adaptive routing table for Go.
@@ -183,12 +184,51 @@ func parseOpenCodeGoProtocolRules(raw any) ([]OpenCodeGoProtocolRule, error) {
 			return nil, fmt.Errorf("protocol_rules[%d]: %w", i, err)
 		}
 		protocol = strings.TrimSpace(protocol)
+		protocols, err := readProtocolRuleAlternates(entry["protocols"])
+		if err != nil {
+			return nil, fmt.Errorf("protocol_rules[%d]: %w", i, err)
+		}
+		if protocol == "" && len(protocols) > 0 {
+			protocol = protocols[0]
+		}
 		if !isNativeOpenCodeGoProtocol(protocol) {
 			return nil, fmt.Errorf("protocol_rules[%d]: protocol must be chat_completions, anthropic, or responses", i)
 		}
-		rules = append(rules, OpenCodeGoProtocolRule{Pattern: pattern, Protocol: protocol})
+		rules = append(rules, OpenCodeGoProtocolRule{Pattern: pattern, Protocol: protocol, Protocols: protocols})
 	}
 	return rules, nil
+}
+
+func readProtocolRuleAlternates(raw any) ([]string, error) {
+	var protocols []string
+	switch items := raw.(type) {
+	case nil:
+		return nil, nil
+	case []string:
+		protocols = items
+	case []any:
+		for _, item := range items {
+			protocol, ok := item.(string)
+			if !ok {
+				return nil, fmt.Errorf("protocols must contain strings")
+			}
+			protocols = append(protocols, protocol)
+		}
+	default:
+		return nil, fmt.Errorf("protocols must be an array")
+	}
+	if len(protocols) > 3 {
+		return nil, fmt.Errorf("protocols supports at most 3 entries")
+	}
+	if len(protocols) == 0 {
+		return nil, nil
+	}
+	for _, protocol := range protocols {
+		if !isNativeOpenCodeGoProtocol(protocol) {
+			return nil, fmt.Errorf("protocols must only contain chat_completions, anthropic, or responses")
+		}
+	}
+	return protocols, nil
 }
 
 func openCodeGoProtocolRuleItems(raw any) ([]any, error) {
@@ -240,10 +280,11 @@ func NormalizeOpenCodeGoProtocolRulesCredentials(credentials map[string]any) err
 	}
 	encoded := make([]any, 0, len(rules))
 	for _, rule := range rules {
-		encoded = append(encoded, map[string]any{
-			"pattern":  rule.Pattern,
-			"protocol": rule.Protocol,
-		})
+		item := map[string]any{"pattern": rule.Pattern, "protocol": rule.Protocol}
+		if len(rule.Protocols) > 0 {
+			item["protocols"] = rule.Protocols
+		}
+		encoded = append(encoded, item)
 	}
 	credentials[openCodeGoProtocolRulesKey] = encoded
 	return nil

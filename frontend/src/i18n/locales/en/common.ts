@@ -1,5 +1,15 @@
 export default {
   common: {
+    qwenCache: {
+      title: 'Qwen cache and sessions',
+      enable: 'Enable official Responses session cache',
+      cacheHint: 'Uses Responses forwarding with upstream session caching. Clients must continue with previous_response_id. Cache writes may be billed; actual usage determines hits. Disabling restores the configured protocol.',
+      strict: 'Keep strict session affinity',
+      strictHint: 'Requires a stable session_id or prompt_cache_key. Sessions stay on one account, wait at capacity, and return errors after retries instead of switching channels. Assignment can change after the binding expires.',
+      tokenPlan: 'Use Token Plan endpoint',
+      payg: 'Use official pay-as-you-go endpoint',
+      endpointHint: 'These buttons replace the current endpoint. The API key must match its plan endpoint. Existing OpenAI accounts are not migrated automatically.'
+    },
     loading: 'Loading...',
     submitting: 'Submitting...',
     justNow: 'just now',

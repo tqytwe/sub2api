@@ -1196,7 +1196,11 @@ export default {
         deepseek: 'DeepSeek',
         minimax: 'MiniMax',
         opencode_go: 'OpenCode',
+        command_code: 'Command Code',
         typesafe: 'TypeSafe / Jev',
+        qwen: 'Qwen',
+        cline: 'Cline',
+        mistral: 'Mistral',
         composite: 'Composite',
       },
       deleteConfirm:

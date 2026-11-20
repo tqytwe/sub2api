@@ -53,13 +53,20 @@
             "
           />
           <p v-if="baseUrlHint" class="input-hint">{{ baseUrlHint }}</p>
+          <QwenCacheSettings
+            v-if="account.platform === 'qwen'"
+            v-model:session-cache="qwenSessionCache"
+            v-model:strict-affinity="qwenStrictAffinity"
+            class="mt-3"
+            @base-url="editBaseUrl = $event"
+          />
           <GrokBaseUrlPresets
             v-if="account.platform === 'grok'"
             class="mt-2"
             @select="editBaseUrl = $event"
           />
           <CnBaseUrlPresets
-            v-if="isCNApiKeyAccount && account.platform !== 'opencode_go'"
+            v-if="isCNApiKeyAccount && account.platform !== 'opencode_go' && account.platform !== 'command_code'"
             class="mt-2"
             :platform="cnPresetPlatform"
             :mode="editAccountMode"
@@ -135,7 +142,7 @@
           </div>
         </div>
         <!-- Account Mode Selection (CN providers) -->
-        <div v-if="isCNApiKeyAccount && account.platform !== 'opencode_go'">
+        <div v-if="isCNApiKeyAccount && account.platform !== 'opencode_go' && account.platform !== 'command_code'">
           <label class="input-label">{{ t('admin.accounts.cnProviders.accountMode.title') }}</label>
           <div class="mt-2 flex flex-wrap gap-2">
             <button
@@ -177,7 +184,8 @@
           <p class="input-hint">{{ t(`admin.accounts.cnProviders.apiProtocol.${cnProtocolDescKey}Desc`) }}</p>
         </div>
         <OpenCodeGoProtocolRulesEditor
-          v-if="account.platform === 'opencode_go' && editApiProtocol === 'adaptive'"
+          v-if="(account.platform === 'opencode_go' || account.platform === 'command_code') && editApiProtocol === 'adaptive'"
+          :use-model-catalog="account.platform === 'command_code'"
           v-model:rows="editOpenCodeGoProtocolRules"
           :plan="editOpenCodeAccountMode"
         />
@@ -3277,6 +3285,8 @@
 </template>
 
 <script setup lang="ts">
+import QwenCacheSettings from './QwenCacheSettings.vue'
+import { applyQwenCacheSettings, QWEN_DEFAULT_BASE_URL } from './qwenCacheSettings'
 import AccountUpstreamChannelBinding from './AccountUpstreamChannelBinding.vue'
 import OpenAIRequestTimezoneField from '@/components/account/OpenAIRequestTimezoneField.vue'
 import SIWCAccountSettings from './SIWCAccountSettings.vue'
@@ -3344,6 +3354,8 @@ import {
   isHeaderOverrideCapable,
   splitHeaderOverridesObject,
   validateHeaderOverrideRows,
+  CLINE_BASE_URL,
+  MISTRAL_BASE_URL,
   cnSupportsNativeResponses,
   defaultCNAdaptiveBaseUrls,
   defaultCNBaseUrl,
@@ -3533,6 +3545,8 @@ onMounted(() => {
 })
 
 // Platform-specific hint for Base URL
+const qwenSessionCache = ref(false)
+const qwenStrictAffinity = ref(false)
 const baseUrlHint = computed(() => {
   if (!props.account) return t('admin.accounts.baseUrlHint')
   if (props.account.platform === 'openai') return t('admin.accounts.openai.baseUrlHint')
@@ -3568,7 +3582,7 @@ const editApiKey = ref('')
 const isCNApiKeyAccount = computed(
   () =>
     props.account?.type === 'apikey' &&
-    (isCNProviderPlatform(props.account.platform) || props.account.platform === 'opencode_go')
+    (isCNProviderPlatform(props.account.platform) || props.account.platform === 'opencode_go' || props.account.platform === 'command_code')
 )
 // CnBaseUrlPresets 的 platform prop 是平台字面量联合类型，模板里不能写
 // `as` 断言（其中的 `|` 会被 eslint 误判为 Vue2 filter 语法），经此 computed 传递。
@@ -3579,8 +3593,8 @@ const cnPresetPlatform = computed<CnProviderPlatform>(() => {
   }
   return 'kimi'
 })
-const adaptivePresetPlatform = computed<CnProviderPlatform | 'opencode_go'>(() => {
-  if (props.account?.platform === 'opencode_go') return 'opencode_go'
+const adaptivePresetPlatform = computed<CnProviderPlatform | 'opencode_go' | 'command_code'>(() => {
+  if (props.account?.platform === 'opencode_go' || props.account?.platform === 'command_code') return props.account.platform
   return cnPresetPlatform.value
 })
 const editApiProtocol = ref<CnApiProtocol>('adaptive')
@@ -4232,7 +4246,10 @@ const defaultBaseUrl = computed(() => {
   if (props.account?.platform === 'openai') return 'https://api.openai.com'
   if (props.account?.platform === 'gemini') return 'https://generativelanguage.googleapis.com'
   if (props.account?.platform === 'grok') return 'https://api.x.ai/v1'
+  if (props.account?.platform === 'mistral') return MISTRAL_BASE_URL
   if (props.account?.platform === 'typesafe') return 'https://api.typesafe.ai'
+  if (props.account?.platform === 'qwen') return QWEN_DEFAULT_BASE_URL
+  if (props.account?.platform === 'cline') return CLINE_BASE_URL
   // CN 供应商：按当前模式/协议回落到官方预设（清空输入框提交时使用），
   // 不能落到 anthropic 默认值（会被当 CC base 拼出错误端点）。
   if (
@@ -4655,7 +4672,7 @@ const syncFormFromAccount = (newAccount: Account | null) => {
     const credentials = newAccount.credentials as Record<string, unknown>
     // 国产供应商：读取 account_mode 与 api_protocol 作为可编辑初始值
     // （编辑弹窗允许修正两者，用于修复早期存错默认值的账号）。
-    if (isCNProviderPlatform(newAccount.platform) || newAccount.platform === 'opencode_go') {
+    if (isCNProviderPlatform(newAccount.platform) || newAccount.platform === 'opencode_go' || newAccount.platform === 'command_code') {
       if (newAccount.platform === 'opencode_go') {
         editOpenCodeAccountMode.value = resolveOpenCodeAccountMode(credentials.account_mode)
       } else {
@@ -4668,7 +4685,7 @@ const syncFormFromAccount = (newAccount: Account | null) => {
         storedProtocol === 'anthropic' ||
         storedProtocol === 'responses'
           ? storedProtocol
-          : 'chat_completions'
+          : newAccount.platform === 'command_code' ? 'adaptive' : 'chat_completions'
       if (!cnSupportsNativeResponses(newAccount.platform) && editApiProtocol.value === 'responses') {
         editApiProtocol.value = 'chat_completions'
       }
@@ -4708,12 +4725,16 @@ const syncFormFromAccount = (newAccount: Account | null) => {
         editZhipuOrganization.value = typeof credentials.zhipu_organization === 'string' ? credentials.zhipu_organization : ''
         editZhipuProject.value = typeof credentials.zhipu_project === 'string' ? credentials.zhipu_project : ''
       }
-      if (newAccount.platform === 'opencode_go') {
+      if (newAccount.platform === 'command_code') {
+        editOpenCodeGoProtocolRules.value = parseOpenCodeGoProtocolRules(credentials.protocol_rules) ?? []
+      } else if (newAccount.platform === 'opencode_go') {
         editOpenCodeGoProtocolRules.value =
           parseOpenCodeGoProtocolRules(credentials.protocol_rules) ??
           cloneOpenCodeGoProtocolRules(defaultOpenCodeProtocolRules(editOpenCodeAccountMode.value))
       }
     }
+    qwenSessionCache.value = credentials.qwen_session_cache_enabled === true
+    qwenStrictAffinity.value = credentials.qwen_strict_session_affinity === true
     const platformDefaultUrl =
       newAccount.platform === 'openai'
         ? 'https://api.openai.com'
@@ -4721,12 +4742,18 @@ const syncFormFromAccount = (newAccount: Account | null) => {
           ? 'https://generativelanguage.googleapis.com'
           : newAccount.platform === 'grok'
             ? 'https://api.x.ai/v1'
-            : newAccount.platform === 'typesafe'
-              ? 'https://api.typesafe.ai'
+            : newAccount.platform === 'mistral'
+              ? MISTRAL_BASE_URL
+            : newAccount.platform === 'qwen'
+              ? QWEN_DEFAULT_BASE_URL
+            : newAccount.platform === 'cline'
+              ? CLINE_BASE_URL
+              : newAccount.platform === 'typesafe'
+                ? 'https://api.typesafe.ai'
             : newAccount.platform === 'kimi' ||
                 newAccount.platform === 'zhipu' ||
                 newAccount.platform === 'deepseek' ||
-                newAccount.platform === 'opencode_go'
+                newAccount.platform === 'opencode_go' || newAccount.platform === 'command_code'
               ? defaultCNBaseUrl(newAccount.platform, currentOpenCodeOrCNMode(), editApiProtocol.value)
               : 'https://api.anthropic.com'
     editBaseUrl.value = isCNApiKeyAccount.value && editApiProtocol.value === 'adaptive'
@@ -5494,7 +5521,7 @@ const handleSubmit = async () => {
 
       // 国产供应商：模式与协议写入凭据（决定额度/余额探测与转发端点/格式）。
       if (isCNApiKeyAccount.value) {
-        newCredentials.account_mode = currentOpenCodeOrCNMode()
+        if (props.account.platform !== 'command_code') newCredentials.account_mode = currentOpenCodeOrCNMode()
         newCredentials.api_protocol = editApiProtocol.value
         if (editApiProtocol.value === 'adaptive') {
           const defaults = defaultCNAdaptiveBaseUrls(adaptivePresetPlatform.value, currentOpenCodeOrCNMode())
@@ -5509,6 +5536,9 @@ const handleSubmit = async () => {
         }
         if (props.account.platform === 'opencode_go') {
           applyOpenCodeGoProtocolRules(newCredentials, editOpenCodeGoProtocolRules.value, 'edit')
+        } else if (props.account.platform === 'command_code') {
+          delete newCredentials.protocol_rules
+          applyOpenCodeGoProtocolRules(newCredentials, editOpenCodeGoProtocolRules.value, 'create')
         }
         // 智谱团队版 Coding Plan：组织/项目 ID 写入凭据（非空才写，清空即移除回落个人版路径）
         if (props.account.platform === 'zhipu') {
@@ -5796,6 +5826,10 @@ const handleSubmit = async () => {
       }
 
       updatePayload.credentials = newCredentials
+    }
+
+    if (props.account.platform === 'qwen' && updatePayload.credentials) {
+      applyQwenCacheSettings(updatePayload.credentials as Record<string, unknown>, qwenSessionCache.value, qwenStrictAffinity.value)
     }
 
     // Grok OAuth: 自定义上游地址 + 请求头覆写。base_url 仅改写转发端点，

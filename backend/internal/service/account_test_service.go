@@ -452,6 +452,18 @@ func (s *AccountTestService) TestAccountConnection(c *gin.Context, accountID int
 	}
 
 	// Route to platform-specific test method
+	if account.Platform == PlatformQwen {
+		if strings.TrimSpace(modelID) == "" {
+			modelID = DefaultQwenTestModel
+		}
+		return s.testCNProviderChatCompletionsConnection(c, account, modelID, prompt)
+	}
+	if account.IsMistral() {
+		if strings.TrimSpace(modelID) == "" {
+			modelID = DefaultMistralTestModel
+		}
+		return s.testCNProviderChatCompletionsConnection(c, account, modelID, prompt)
+	}
 	if account.IsCNProvider() {
 		switch account.GetAPIProtocol() {
 		case APIProtocolAdaptive:
@@ -481,8 +493,19 @@ func (s *AccountTestService) TestAccountConnection(c *gin.Context, accountID int
 		return s.routeAntigravityTest(c, account, modelID, prompt)
 	}
 
+	if account.IsCommandCode() {
+		return s.testCommandCodeAccountConnection(c, account, modelID, prompt)
+	}
+
 	if account.IsOpenCodeGo() {
 		return s.testOpenCodeGoAccountConnection(c, account, modelID, prompt)
+	}
+
+	if account.IsCline() {
+		if strings.TrimSpace(modelID) == "" {
+			modelID = account.ClineConnectionTestModel()
+		}
+		return s.testCNProviderChatCompletionsConnection(c, account, modelID, prompt)
 	}
 
 	if account.IsTypeSafe() {
@@ -490,6 +513,26 @@ func (s *AccountTestService) TestAccountConnection(c *gin.Context, accountID int
 	}
 
 	return s.testClaudeAccountConnection(c, account, modelID, qualityProbePrompt(ctx))
+}
+
+func (s *AccountTestService) testCommandCodeAccountConnection(c *gin.Context, account *Account, modelID, prompt string) error {
+	testModelID := strings.TrimSpace(modelID)
+	if testModelID == "" {
+		testModelID = DefaultCommandCodeTestModel
+	}
+	mapped := account.GetMappedModel(testModelID)
+	gateway := s.openaiGatewayService
+	if gateway == nil {
+		gateway = &OpenAIGatewayService{cfg: s.cfg, httpUpstream: s.httpUpstream}
+	}
+	switch gateway.modelRoutedUpstreamProtocol(c.Request.Context(), account, "", mapped) {
+	case APIProtocolAnthropic:
+		return s.testCNProviderAnthropicConnection(c, account, testModelID)
+	case APIProtocolResponses:
+		return s.testOpenCodeGoResponsesConnection(c, account, mapped)
+	default:
+		return s.testCNProviderChatCompletionsConnection(c, account, testModelID, prompt)
+	}
 }
 
 // testOpenCodeGoAccountConnection probes the native endpoint for the selected
@@ -539,6 +582,9 @@ func (s *AccountTestService) testCNProviderChatCompletionsConnection(c *gin.Cont
 	testModelID := strings.TrimSpace(modelID)
 	if testModelID == "" {
 		testModelID = openai.DefaultTestModel
+		if account.IsMistral() {
+			testModelID = DefaultMistralTestModel
+		}
 	}
 	testModelID = account.GetMappedModel(testModelID)
 
@@ -2220,6 +2266,10 @@ func (s *AccountTestService) testOpenAIChatCompletionsConnection(
 		}
 	}
 	payloadBytes, _ := json.Marshal(payload)
+	payloadBytes, err := normalizeMistralChatRequest(account, payloadBytes)
+	if err != nil {
+		return s.sendErrorAndEnd(c, err.Error())
+	}
 
 	s.sendEvent(c, TestEvent{Type: "test_start", Model: testModelID})
 	s.sendEvent(c, TestEvent{Type: "status", Text: "正在通过 /v1/chat/completions 测试连接"})
@@ -2263,7 +2313,7 @@ func (s *AccountTestService) testOpenAIChatCompletionsConnection(
 		return s.sendErrorAndEnd(c, fmt.Sprintf("Chat Completions API (/v1/chat/completions) returned %d: %s", resp.StatusCode, string(body)))
 	}
 
-	return s.processOpenAIChatCompletionsStream(accountTestResponseContext(c, resp), resp.Body)
+	return s.processOpenAIChatCompletionsStream(accountTestResponseContext(c, resp), resp.Body, account)
 }
 
 // testOpenAICompactConnection probes native remote compaction v2 (streaming
@@ -2975,7 +3025,7 @@ func (s *AccountTestService) processClaudeStream(c *gin.Context, body io.Reader)
 
 // processOpenAIChatCompletionsStream processes SSE chunks from the
 // OpenAI-compatible Chat Completions API.
-func (s *AccountTestService) processOpenAIChatCompletionsStream(c *gin.Context, body io.Reader) error {
+func (s *AccountTestService) processOpenAIChatCompletionsStream(c *gin.Context, body io.Reader, account *Account) error {
 	finishStream := accountTestStream(c)
 	defer finishStream()
 	reader := bufio.NewReader(body)
@@ -3015,8 +3065,12 @@ func (s *AccountTestService) processOpenAIChatCompletionsStream(c *gin.Context, 
 			return nil
 		}
 
+		normalized, normalizeErr := normalizeMistralChatResponse(account, []byte(jsonStr), false)
+		if normalizeErr != nil {
+			return s.sendErrorAndEnd(c, normalizeErr.Error())
+		}
 		var data map[string]any
-		if err := json.Unmarshal([]byte(jsonStr), &data); err != nil {
+		if err := json.Unmarshal(normalized, &data); err != nil {
 			return s.sendErrorAndEnd(c, "Invalid Chat Completions response from /v1/chat/completions: expected JSON data")
 		}
 		usage.read(jsonStr)

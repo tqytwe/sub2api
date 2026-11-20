@@ -20,7 +20,9 @@ export type Platform =
   | 'deepseek'
   | 'minimax'
   | 'opencode_go'
+  | 'command_code'
   | 'typesafe'
+  | 'cline'
   | 'composite'
 
 // ── Badge (bg + text + border, for inline badges with border) ───────
@@ -37,7 +39,9 @@ const BADGE: Record<Platform, string> = {
   deepseek: 'bg-teal-500/10 text-teal-600 border-teal-500/30 dark:text-teal-400',
   minimax: 'bg-rose-500/10 text-rose-600 border-rose-500/30 dark:text-rose-400',
   opencode_go: 'bg-amber-500/10 text-amber-700 border-amber-500/30 dark:text-amber-300',
+  command_code: 'bg-gray-500/10 text-gray-700 border-gray-500/30 dark:text-gray-300',
   typesafe: 'bg-sky-500/10 text-sky-700 border-sky-500/30 dark:text-sky-300',
+  cline: 'bg-violet-500/10 text-violet-700 border-violet-500/30 dark:text-violet-300',
   composite: 'bg-cyan-500/10 text-cyan-700 border-cyan-500/30 dark:text-cyan-300',
 }
 const BADGE_DEFAULT = 'bg-slate-500/10 text-slate-600 border-slate-500/30 dark:text-slate-400'
@@ -56,7 +60,9 @@ const BADGE_LIGHT: Record<Platform, string> = {
   deepseek: 'bg-teal-500/10 text-teal-600 dark:bg-teal-500/10 dark:text-teal-300',
   minimax: 'bg-rose-500/10 text-rose-600 dark:bg-rose-500/10 dark:text-rose-300',
   opencode_go: 'bg-amber-500/10 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300',
+  command_code: 'bg-gray-500/10 text-gray-700 dark:bg-gray-500/10 dark:text-gray-300',
   typesafe: 'bg-sky-500/10 text-sky-700 dark:bg-sky-500/10 dark:text-sky-300',
+  cline: 'bg-violet-500/10 text-violet-700 dark:bg-violet-500/10 dark:text-violet-300',
   composite: 'bg-cyan-500/10 text-cyan-700 dark:bg-cyan-500/10 dark:text-cyan-300',
 }
 
@@ -74,7 +80,9 @@ const BORDER: Record<Platform, string> = {
   deepseek: 'border-teal-500/20 dark:border-teal-500/20',
   minimax: 'border-rose-500/20 dark:border-rose-500/20',
   opencode_go: 'border-amber-500/20 dark:border-amber-500/20',
+  command_code: 'border-gray-500/20 dark:border-gray-500/20',
   typesafe: 'border-sky-500/20 dark:border-sky-500/20',
+  cline: 'border-violet-500/20 dark:border-violet-500/20',
   composite: 'border-cyan-500/20 dark:border-cyan-500/20',
 }
 const BORDER_DEFAULT = 'border-gray-200 dark:border-dark-700'
@@ -93,7 +101,9 @@ const BORDER_STRONG: Record<Platform, string> = {
   deepseek: 'border-teal-500/35 dark:border-teal-500/30',
   minimax: 'border-rose-500/35 dark:border-rose-500/30',
   opencode_go: 'border-amber-500/35 dark:border-amber-500/30',
+  command_code: 'border-gray-500/35 dark:border-gray-500/30',
   typesafe: 'border-sky-500/35 dark:border-sky-500/30',
+  cline: 'border-violet-500/35 dark:border-violet-500/30',
   composite: 'border-cyan-500/35 dark:border-cyan-500/30',
 }
 const BORDER_STRONG_DEFAULT = 'border-gray-300 dark:border-dark-600'
@@ -125,8 +135,12 @@ const ACCENT: Record<Platform, string> = {
   minimax: '#f43f5e', // rose-500
   // design-governance-allow: raw-color - platform accent values are centralized tokens used by CSS color-mix consumers.
   opencode_go: '#f59e0b', // amber-500
+  // design-governance-allow: raw-color - centralized provider accent used by CSS color-mix.
+  command_code: '#6b7280', // gray-500
   // design-governance-allow: raw-color - platform accent values are centralized tokens used by CSS color-mix consumers.
   typesafe: '#0ea5e9', // sky-500
+  // design-governance-allow: raw-color - centralized provider hue for chart and color-mix consumers.
+  cline: '#8b5cf6', // violet-500
   composite: '#06b6d4', // cyan-500
 }
 // design-governance-allow: raw-color - unknown platform accent falls back to the brand primary canvas color.
@@ -152,7 +166,10 @@ const ACCENT_BAR: Record<Platform, string> = {
   // design-governance-allow: decorative-gradient - provider accent bars use the shared status treatment.
   opencode_go: 'bg-gradient-to-r from-amber-400 to-amber-500',
   // design-governance-allow: decorative-gradient - provider accent bars use the shared status treatment.
+  command_code: 'bg-gradient-to-r from-gray-400 to-gray-500',
+  // design-governance-allow: decorative-gradient - provider accent bars use the shared status treatment.
   typesafe: 'bg-gradient-to-r from-sky-400 to-sky-500',
+  cline: 'bg-violet-500',
   // design-governance-allow: decorative-gradient - composite routing is a provider identity bar, not a section background.
   composite: 'bg-gradient-to-r from-slate-500 to-cyan-500',
 }
@@ -172,7 +189,9 @@ const TEXT: Record<Platform, string> = {
   deepseek: 'text-teal-600 dark:text-teal-400',
   minimax: 'text-rose-600 dark:text-rose-400',
   opencode_go: 'text-amber-700 dark:text-amber-300',
+  command_code: 'text-gray-700 dark:text-gray-300',
   typesafe: 'text-sky-700 dark:text-sky-300',
+  cline: 'text-violet-700 dark:text-violet-300',
   composite: 'text-cyan-700 dark:text-cyan-300',
 }
 const TEXT_DEFAULT = 'text-primary-600 dark:text-primary-400'
@@ -191,7 +210,9 @@ const ICON: Record<Platform, string> = {
   deepseek: 'text-teal-500 dark:text-teal-400',
   minimax: 'text-rose-500 dark:text-rose-400',
   opencode_go: 'text-amber-500 dark:text-amber-300',
+  command_code: 'text-gray-500 dark:text-gray-300',
   typesafe: 'text-sky-500 dark:text-sky-300',
+  cline: 'text-violet-500 dark:text-violet-300',
   composite: 'text-cyan-600 dark:text-cyan-300',
 }
 const ICON_DEFAULT = 'text-primary-500 dark:text-primary-400'
@@ -210,7 +231,9 @@ const BUTTON: Record<Platform, string> = {
   deepseek: 'bg-teal-500 text-white hover:bg-teal-600 active:bg-teal-700 dark:bg-teal-500/80 dark:hover:bg-teal-500',
   minimax: 'bg-rose-500 text-white hover:bg-rose-600 active:bg-rose-700 dark:bg-rose-500/80 dark:hover:bg-rose-500',
   opencode_go: 'bg-amber-500 text-white hover:bg-amber-600 active:bg-amber-700 dark:bg-amber-500/80 dark:hover:bg-amber-500',
+  command_code: 'bg-gray-500 text-white hover:bg-gray-600 active:bg-gray-700 dark:bg-gray-500/80 dark:hover:bg-gray-500',
   typesafe: 'bg-sky-600 text-white hover:bg-sky-700 active:bg-sky-800 dark:bg-sky-600/80 dark:hover:bg-sky-600',
+  cline: 'bg-violet-600 text-white hover:bg-violet-700 active:bg-violet-800 dark:bg-violet-600/80 dark:hover:bg-violet-600',
   composite: 'bg-cyan-700 text-white hover:bg-cyan-800 active:bg-cyan-900 dark:bg-cyan-600 dark:hover:bg-cyan-500',
 }
 const BUTTON_DEFAULT = 'bg-primary-500 text-white hover:bg-primary-600 dark:bg-primary-600 dark:hover:bg-primary-500'
@@ -229,7 +252,9 @@ const DISCOUNT: Record<Platform, string> = {
   deepseek: 'bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300',
   minimax: 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300',
   opencode_go: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300',
+  command_code: 'bg-gray-100 text-gray-800 dark:bg-gray-900/40 dark:text-gray-300',
   typesafe: 'bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-300',
+  cline: 'bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-300',
   composite: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900/40 dark:text-cyan-300',
 }
 const DISCOUNT_DEFAULT = 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
@@ -248,7 +273,9 @@ const GRADIENT: Record<Platform, string> = {
   deepseek: 'from-teal-500 to-teal-600',
   minimax: 'from-rose-500 to-rose-600',
   opencode_go: 'from-amber-500 to-amber-600',
+  command_code: 'from-gray-500 to-gray-600',
   typesafe: 'from-sky-500 to-sky-600',
+  cline: 'from-violet-500 to-violet-600',
   composite: 'from-slate-600 to-cyan-600',
 }
 const GRADIENT_DEFAULT = 'from-primary-500 to-primary-600'
@@ -267,7 +294,9 @@ const GRADIENT_TEXT: Record<Platform, string> = {
   deepseek: 'text-teal-100',
   minimax: 'text-rose-100',
   opencode_go: 'text-amber-100',
+  command_code: 'text-gray-100',
   typesafe: 'text-sky-100',
+  cline: 'text-violet-100',
   composite: 'text-cyan-100',
 }
 const GRADIENT_TEXT_DEFAULT = 'text-primary-100'
@@ -285,7 +314,9 @@ const GRADIENT_SUBTEXT: Record<Platform, string> = {
   deepseek: 'text-teal-200',
   minimax: 'text-rose-200',
   opencode_go: 'text-amber-200',
+  command_code: 'text-gray-200',
   typesafe: 'text-sky-200',
+  cline: 'text-violet-200',
   composite: 'text-cyan-200',
 }
 const GRADIENT_SUBTEXT_DEFAULT = 'text-primary-200'
@@ -306,7 +337,9 @@ function isPlatform(p: string): p is Platform {
     p === 'deepseek' ||
     p === 'minimax' ||
     p === 'opencode_go' ||
+    p === 'command_code' ||
     p === 'typesafe' ||
+    p === 'cline' ||
     p === 'composite'
   )
 }
@@ -387,7 +420,10 @@ export function platformLabel(p: string, locale = 'zh'): string {
     case 'deepseek': return 'DeepSeek'
     case 'minimax': return 'MiniMax'
     case 'opencode_go': return 'OpenCode'
+    case 'command_code': return 'Command Code'
     case 'typesafe': return 'TypeSafe / Jev'
+    case 'cline': return 'Cline'
+    case 'mistral': return 'Mistral'
     case 'composite': return 'Composite'
     default: return p || 'API'
   }

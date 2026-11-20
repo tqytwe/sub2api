@@ -62,6 +62,9 @@ func (s *AccountTestService) testCNProviderAdaptiveAnthropicConnection(c *gin.Co
 		return s.sendErrorAndEnd(c, fmt.Sprintf("Invalid adaptive Anthropic base URL: %s", err.Error()))
 	}
 	apiURL := strings.TrimRight(baseURL, "/") + "/v1/messages"
+	if account.IsCommandCode() {
+		apiURL = buildOpenAIEndpointURL(baseURL, "/v1/messages")
+	}
 
 	payload, err := createTestPayload(testModelID)
 	if err != nil {
@@ -241,6 +244,9 @@ func (s *AccountTestService) testCNProviderAnthropicConnection(c *gin.Context, a
 		return s.sendErrorAndEnd(c, hint)
 	}
 	apiURL := strings.TrimRight(baseURL, "/") + "/v1/messages"
+	if account.IsCommandCode() {
+		apiURL = buildOpenAIEndpointURL(baseURL, "/v1/messages")
+	}
 
 	c.Writer.Header().Set("Content-Type", "text/event-stream")
 	c.Writer.Header().Set("Cache-Control", "no-cache")

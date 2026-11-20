@@ -52,19 +52,21 @@ type CNQuotaTier struct {
 
 // CNProviderQuotaProbeResult 是 Coding Plan 额度探测的返回结构（管理端 + UI 消费）。
 type CNProviderQuotaProbeResult struct {
-	Provider        string        `json:"provider"`
-	Source          string        `json:"source"`
-	Success         bool          `json:"success"`
-	CredentialValid bool          `json:"credential_valid"` // false = 401/403 鉴权失败
-	Tiers           []CNQuotaTier `json:"tiers,omitempty"`
-	PlanLevel       string        `json:"plan_level,omitempty"` // 智谱套餐等级
-	StatusCode      int           `json:"status_code,omitempty"`
-	FetchedAt       int64         `json:"fetched_at"`
-	Persisted       bool          `json:"persisted"`
-	Error           string        `json:"error,omitempty"`
+	Provider        string                   `json:"provider"`
+	Balance         *CNProviderBalanceResult `json:"balance,omitempty"`
+	Source          string                   `json:"source"`
+	Success         bool                     `json:"success"`
+	CredentialValid bool                     `json:"credential_valid"` // false = 401/403 鉴权失败
+	Tiers           []CNQuotaTier            `json:"tiers,omitempty"`
+	PlanLevel       string                   `json:"plan_level,omitempty"` // 智谱套餐等级
+	StatusCode      int                      `json:"status_code,omitempty"`
+	FetchedAt       int64                    `json:"fetched_at"`
+	Persisted       bool                     `json:"persisted"`
+	Error           string                   `json:"error,omitempty"`
 }
 
-// CNProviderQuotaService 探测 Kimi / Zhipu Coding Plan 的滚动窗口用量。
+// CNProviderQuotaService 探测 Kimi / Zhipu / MiniMax Coding Plan、OpenCode Go 与
+// Command Code 的滚动窗口用量。
 type CNProviderQuotaService struct {
 	accountRepo  AccountRepository
 	proxyRepo    ProxyRepository
@@ -131,6 +133,15 @@ func (s *CNProviderQuotaService) QueryUsageForAccount(ctx context.Context, accou
 
 func (s *CNProviderQuotaService) queryUsageForAccount(ctx context.Context, account *Account) (*CNProviderQuotaProbeResult, error) {
 	provider := account.GetCodingPlanProvider()
+	if provider == PlatformCline {
+		return s.queryClineUsage(ctx, account)
+	}
+	if provider == PlatformCommandCode {
+		return s.queryCommandCodeUsage(ctx, account)
+	}
+	if provider == PlatformMistral {
+		return s.queryMistralUsage(ctx, account)
+	}
 	if provider != PlatformKimi && provider != PlatformZhipu && provider != PlatformMiniMax && provider != PlatformOpenCodeGo {
 		return nil, infraerrors.New(http.StatusBadRequest, "CN_QUOTA_NOT_CODING_PLAN", "account is not a kimi/zhipu/minimax coding plan or opencode go account")
 	}
@@ -287,7 +298,19 @@ func validateCodingPlanAccount(account *Account) error {
 	if account == nil {
 		return infraerrors.New(http.StatusNotFound, "CN_QUOTA_ACCOUNT_NOT_FOUND", "account not found")
 	}
-	if account.IsOpenCodeGoPlan() {
+	if account.IsOpenCodeGoPlan() || account.clineAccountAPISupported() {
+		return nil
+	}
+	if account.IsCommandCode() {
+		if !account.commandCodeUsageSupported() {
+			return infraerrors.New(http.StatusBadRequest, "CN_QUOTA_NOT_CODING_PLAN", "command code usage is only available for api key accounts on the official host")
+		}
+		return nil
+	}
+	if account.IsMistral() {
+		if !account.mistralUsageSupported() {
+			return infraerrors.New(http.StatusBadRequest, "CN_QUOTA_NOT_CODING_PLAN", "mistral usage is only available on the official API host")
+		}
 		return nil
 	}
 	if account.IsOpenCodeGo() {

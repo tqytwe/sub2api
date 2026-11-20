@@ -633,7 +633,7 @@ func upstreamModelRegistryBaseURL(account *Account) string {
 		return ""
 	}
 	switch {
-	case account.IsOpenAI() || account.IsCNProvider() || account.IsOpenCodeGo():
+	case account.IsOpenAI() || account.IsCNProvider() || account.IsOpenCodeGo() || account.IsCline() || account.IsCommandCode() || account.Platform == PlatformQwen || account.IsMistral():
 		return account.GetOpenAIFormatBaseURL()
 	case account.IsGrok():
 		return account.GetGrokBaseURL()
@@ -800,9 +800,8 @@ func (s *AccountTestService) buildUpstreamModelsRequest(ctx context.Context, acc
 		return s.buildAntigravityAPIKeyModelsRequest(ctx, account)
 	case account.IsGrok():
 		return s.buildGrokUpstreamModelsRequest(ctx, account)
-	case account.IsOpenAI() || account.IsCNProvider() || account.IsOpenCodeGo():
-		// 国产 OpenAI 兼容供应商（kimi/zhipu/deepseek）与 OpenCode Go
-		// 复用 OpenAI /v1/models 探测。
+	case account.IsOpenAI() || account.IsCNProvider() || account.IsOpenCodeGo() || account.IsCline() || account.IsCommandCode() || account.Platform == PlatformQwen || account.IsMistral():
+		// OpenAI 兼容供应商复用 OpenAI /v1/models 探测。
 		return s.buildOpenAIUpstreamModelsRequest(ctx, account)
 	case account.IsGemini():
 		return s.buildGeminiUpstreamModelsRequest(ctx, account)

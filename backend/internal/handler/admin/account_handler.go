@@ -3130,6 +3130,20 @@ func (h *AccountHandler) respondAvailableModels(c *gin.Context, account *service
 		return
 	}
 
+	if account.IsCline() {
+		var models []claude.Model
+		for model := range account.GetModelMapping() {
+			models = append(models, claude.Model{ID: model, Type: "model", DisplayName: model})
+		}
+		if len(models) == 0 {
+			model := account.ClineConnectionTestModel()
+			models = append(models, claude.Model{ID: model, Type: "model", DisplayName: model})
+		}
+		sort.Slice(models, func(i, j int) bool { return models[i].ID < models[j].ID })
+		response.Success(c, models)
+		return
+	}
+
 	// TypeSafe accounts serve only the native System One model.
 	if account.IsTypeSafe() {
 		response.Success(c, []claude.Model{{ID: typesafe.JevLatestModel, Type: "model", DisplayName: typesafe.JevLatestModel}})

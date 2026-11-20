@@ -314,7 +314,7 @@ func (a *Account) IsCNProvider() bool {
 // openai/grok 原生走 OpenAI 网关；国产供应商同为 OpenAI Chat Completions
 // 兼容上游，也经 OpenAI 网关转发。OpenCode 同样经 OpenAI 网关按模型分流。
 func (a *Account) IsOpenAICompatible() bool {
-	return a != nil && (a.Platform == PlatformOpenAI || a.Platform == PlatformGrok || a.IsCNProvider() || a.IsOpenCodeGo())
+	return a != nil && (a.Platform == PlatformOpenAI || a.Platform == PlatformGrok || a.IsCNProvider() || a.IsOpenCodeGo() || a.Platform == PlatformQwen || a.IsCline() || a.IsCommandCode() || a.IsMistral())
 }
 
 func (a *Account) GeminiOAuthType() string {
@@ -1400,7 +1400,7 @@ func (a *Account) IsOpenAIApiKey() bool {
 // 适用 openai、国产 OpenAI 兼容供应商（kimi/zhipu/deepseek）与 OpenCode Go；
 // grok 走 GetGrokBaseURL，此处对 grok 返回 "" 以保持原有行为。
 func (a *Account) GetOpenAIBaseURL() string {
-	if !a.IsOpenAI() && !a.IsCNProvider() && !a.IsOpenCodeGo() {
+	if !a.IsOpenAI() && !a.IsCNProvider() && !a.IsOpenCodeGo() && a.Platform != PlatformQwen && !a.IsCline() && !a.IsCommandCode() && !a.IsMistral() {
 		return ""
 	}
 	if a.IsMultiProtocolAPIKey() && a.IsAdaptiveAPIProtocol() {
@@ -1429,10 +1429,18 @@ func (a *Account) GetOpenAIBaseURL() string {
 		return DefaultZhipuPayGBaseURL
 	case PlatformDeepseek:
 		return DefaultDeepseekBaseURL
+	case PlatformQwen:
+		return DefaultQwenBaseURL
 	case PlatformMiniMax:
 		return DefaultMiniMaxBaseURL
+	case PlatformCommandCode:
+		return DefaultCommandCodeBaseURL
 	case PlatformOpenCodeGo:
 		return a.openCodeDefaultChatBaseURL()
+	case PlatformCline:
+		return DefaultClineBaseURL
+	case PlatformMistral:
+		return DefaultMistralBaseURL
 	default:
 		return "https://api.openai.com"
 	}
@@ -1461,7 +1469,10 @@ func (a *Account) IsCodingPlan() bool {
 // （与既有行为完全一致）。responses 协议仅 deepseek / kimi / minimax 支持（官方原生
 // Responses 端点，适配 Codex）；zhipu 无此端点。
 func (a *Account) GetAPIProtocol() string {
-	if a == nil || !a.IsMultiProtocolAPIKey() {
+	if a.QwenSessionCacheEnabled() {
+		return APIProtocolResponses
+	}
+	if a == nil || !a.IsMultiProtocolAPIKey() || a.IsMistral() {
 		return APIProtocolChatCompletions
 	}
 	switch strings.TrimSpace(a.GetCredential("api_protocol")) {
@@ -1476,7 +1487,7 @@ func (a *Account) GetAPIProtocol() string {
 	case APIProtocolChatCompletions:
 		return APIProtocolChatCompletions
 	}
-	if a.IsOpenCodeGo() {
+	if a.IsOpenCodeGo() || a.IsCommandCode() {
 		return APIProtocolAdaptive
 	}
 	return APIProtocolChatCompletions
@@ -1490,7 +1501,7 @@ func (a *Account) SupportsNativeCNResponses() bool {
 		return false
 	}
 	switch a.Platform {
-	case PlatformDeepseek, PlatformKimi, PlatformMiniMax, PlatformOpenCodeGo:
+	case PlatformDeepseek, PlatformKimi, PlatformMiniMax, PlatformOpenCodeGo, PlatformCommandCode:
 		return true
 	default:
 		return false
@@ -1553,6 +1564,8 @@ func (a *Account) defaultCNProtocolBaseURL(protocol string) string {
 			return DefaultDeepseekAnthropicBaseURL
 		case PlatformMiniMax:
 			return DefaultMiniMaxAnthropicBaseURL
+		case PlatformCommandCode:
+			return DefaultCommandCodeAnthropicBaseURL
 		case PlatformOpenCodeGo:
 			return a.openCodeDefaultAnthropicBaseURL()
 		}
@@ -1572,6 +1585,8 @@ func (a *Account) defaultCNProtocolBaseURL(protocol string) string {
 			return DefaultDeepseekBaseURL
 		case PlatformMiniMax:
 			return DefaultMiniMaxBaseURL
+		case PlatformCommandCode:
+			return DefaultCommandCodeBaseURL
 		case PlatformOpenCodeGo:
 			return a.openCodeDefaultChatBaseURL()
 		}
@@ -1612,6 +1627,8 @@ func (a *Account) GetAnthropicProtocolBaseURL() string {
 		return DefaultDeepseekAnthropicBaseURL
 	case PlatformMiniMax:
 		return DefaultMiniMaxAnthropicBaseURL
+	case PlatformCommandCode:
+		return DefaultCommandCodeAnthropicBaseURL
 	case PlatformOpenCodeGo:
 		return a.openCodeDefaultAnthropicBaseURL()
 	default:
@@ -1641,8 +1658,12 @@ func (a *Account) GetOpenAIFormatBaseURL() string {
 		return DefaultZhipuPayGBaseURL
 	case PlatformDeepseek:
 		return DefaultDeepseekBaseURL
+	case PlatformQwen:
+		return DefaultQwenBaseURL
 	case PlatformMiniMax:
 		return DefaultMiniMaxBaseURL
+	case PlatformCommandCode:
+		return DefaultCommandCodeBaseURL
 	case PlatformOpenCodeGo:
 		return a.openCodeDefaultChatBaseURL()
 	default:
@@ -1663,11 +1684,23 @@ func (a *Account) GetCNAPIKey() string {
 // 用于路由到对应的额度查询端点。非 coding 模式或无法识别时返回空串。
 // 只认官方域名：自定义中转不得把第三方 Key 发往厂商官方额度端点。
 func (a *Account) GetCodingPlanProvider() string {
+	if a.IsCline() {
+		if a.clineAccountAPISupported() {
+			return PlatformCline
+		}
+		return ""
+	}
 	if a == nil {
 		return ""
 	}
+	if a.mistralUsageSupported() {
+		return PlatformMistral
+	}
 	if a.IsOpenCodeGoPlan() {
 		return PlatformOpenCodeGo
+	}
+	if a.commandCodeUsageSupported() {
+		return PlatformCommandCode
 	}
 	if a.GetAccountMode() != AccountModeCoding {
 		return ""
@@ -1806,7 +1839,7 @@ func (a *Account) GetOpenAIProtocolAPIKey() string {
 	if a == nil {
 		return ""
 	}
-	if a.IsMultiProtocolAPIKey() {
+	if a.IsMultiProtocolAPIKey() || a.Platform == PlatformQwen || a.IsCline() {
 		if a.Type != AccountTypeAPIKey {
 			return ""
 		}
@@ -1905,6 +1938,9 @@ func (a *Account) SupportsOpenAIEndpointCapability(capability OpenAIEndpointCapa
 	}
 	if !a.IsOpenAICompatible() {
 		return false
+	}
+	if a.IsCline() {
+		return capability == OpenAIEndpointCapabilityChatCompletions
 	}
 	if a.IsGrok() {
 		switch capability {
