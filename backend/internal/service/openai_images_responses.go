@@ -2141,7 +2141,7 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesOAuth(
 			)
 		}
 	}
-	if imageCount <= 0 {
+	if imageCount <= 0 && !requiresObservedOpenAIImages(c, requestModel, upstreamModel) {
 		imageCount = parsed.N
 	}
 	return &OpenAIForwardResult{

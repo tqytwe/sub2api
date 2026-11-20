@@ -1235,7 +1235,15 @@ export interface NewAPIUpstreamConfig {
   configured: boolean
   user_id?: number
   encryption_key_configured: boolean
-  accounts: Array<{ account_id: number; name: string; configured_user_id?: number }>
+  accounts: Array<{
+    account_id: number
+    name: string
+    configured_user_id?: number
+    cost_multiplier_scale: number
+    cn_provider: boolean
+    apply_usd_rate: boolean
+    sync_cost: boolean
+  }>
 }
 
 export interface NewAPIUpstreamConfigRequest {
@@ -1243,12 +1251,14 @@ export interface NewAPIUpstreamConfigRequest {
   access_token?: string
   account_ids: number[]
   token_selections?: Record<string, number>
+  apply_usd_rate?: Record<string, boolean>
+  sync_cost?: Record<string, boolean>
 }
 
 export interface NewAPIUpstreamPreview {
   site_url: string
   user_id: number
-  wallet: { amount: number; unit: 'USD' }
+  wallet: { amount: number; unit: string }
   accounts: Array<{
     account_id: number
     name: string
@@ -1256,6 +1266,11 @@ export interface NewAPIUpstreamPreview {
     token_id?: number
     group?: string
     rate?: number
+    cost_multiplier_scale: number
+    cn_provider: boolean
+    apply_usd_rate: boolean
+    sync_cost: boolean
+    cost_multiplier?: number
     error?: string
     token_options: Array<{ token_id: number; name: string; group: string; masked_key: string }>
   }>
@@ -1681,7 +1696,7 @@ export interface CodexUsageSnapshot {
 
 export type OpenAICompactMode = 'auto' | 'force_on' | 'force_off'
 export type OpenAIResponsesMode = 'auto' | 'force_responses' | 'force_chat_completions'
-export type OpenAIEndpointCapability = 'chat_completions' | 'embeddings' | 'seedance'
+export type OpenAIEndpointCapability = 'chat_completions' | 'embeddings' | 'seedance' | 'videos'
 
 export interface OpenAICompactState {
   openai_compact_mode?: OpenAICompactMode

@@ -315,8 +315,11 @@ func (s *AccountOpsService) applyRule(ctx context.Context, c *AccountOpsConfig, 
 		if err != nil {
 			return err
 		}
-		if requireCurrentUnit && opsBalanceAccount(account, time.Now()).Unit != r.Unit {
-			return accountOpsConfigValidation("batch balance rules require the same current account unit")
+		if requireCurrentUnit {
+			item := opsBalanceAccount(account, time.Now())
+			if item.Unit != r.Unit && item.balanceInUnit(r.Unit) == nil {
+				return accountOpsConfigValidation("batch balance rules require the same current account unit")
+			}
 		}
 		if index < 0 {
 			c.BalanceThresholds = append(c.BalanceThresholds, r)

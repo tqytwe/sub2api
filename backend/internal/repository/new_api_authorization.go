@@ -137,7 +137,21 @@ func (r *newAPIAuthorizationRepository) Save(ctx context.Context, p *service.New
 		if e != nil {
 			return e
 		}
-		_, e = tx.ExecContext(ctx, `UPDATE accounts SET extra=(COALESCE(extra,'{}'::jsonb)-'upstream_billing_probe') || jsonb_build_object('upstream_billing_provider','new_api','upstream_billing_site',$2::text,'upstream_billing_user_id',$3::bigint,'upstream_billing_probe_enabled',true,'upstream_billing_rate_sync_enabled',false),updated_at=NOW() WHERE id=$1`, b.Account.ID, p.SiteURL, p.UserID)
+		settings := make(map[string]any, 3)
+		if b.ApplyUSDRate != nil {
+			settings[service.NewAPIApplyUSDRateExtraKey] = *b.ApplyUSDRate
+		}
+		if b.SyncCost != nil {
+			settings[service.NewAPICostSyncExtraKey] = *b.SyncCost
+		}
+		if b.CostMultiplier != nil && b.SyncCost != nil && *b.SyncCost {
+			settings[service.AccountCostMultiplierExtraKey] = *b.CostMultiplier
+		}
+		encoded, err := json.Marshal(settings)
+		if err != nil {
+			return err
+		}
+		_, e = tx.ExecContext(ctx, `UPDATE accounts SET extra=(COALESCE(extra,'{}'::jsonb)-'upstream_billing_probe') || jsonb_build_object('upstream_billing_provider','new_api','upstream_billing_site',$2::text,'upstream_billing_user_id',$3::bigint,'upstream_billing_probe_enabled',true,'upstream_billing_rate_sync_enabled',false) || $4::jsonb,updated_at=NOW() WHERE id=$1`, b.Account.ID, p.SiteURL, p.UserID, string(encoded))
 		if e != nil {
 			return e
 		}
@@ -156,7 +170,7 @@ func (r *newAPIAuthorizationRepository) Unbind(ctx context.Context, id int64) er
 		return e
 	}
 	defer func() { _ = tx.Rollback() }()
-	if _, e = tx.ExecContext(ctx, `UPDATE accounts SET extra=COALESCE(extra,'{}'::jsonb)-'upstream_billing_provider'-'upstream_billing_site'-'upstream_billing_user_id'-'upstream_billing_probe',updated_at=NOW() WHERE id=$1 AND deleted_at IS NULL`, id); e != nil {
+	if _, e = tx.ExecContext(ctx, `UPDATE accounts SET extra=COALESCE(extra,'{}'::jsonb)-'upstream_billing_provider'-'upstream_billing_site'-'upstream_billing_user_id'-'upstream_billing_probe'-'new_api_apply_usd_rate'-'new_api_cost_sync',updated_at=NOW() WHERE id=$1 AND deleted_at IS NULL`, id); e != nil {
 		return e
 	}
 	if _, e = tx.ExecContext(ctx, `DELETE FROM new_api_account_bindings WHERE account_id=$1`, id); e != nil {
@@ -183,7 +197,13 @@ func (r *newAPIAuthorizationRepository) WriteSnapshot(ctx context.Context, a *se
 	if e = matchNewAPIAccountTx(ctx, tx, a); e != nil {
 		return e
 	}
-	payload, e := json.Marshal(snap)
+	patch := map[string]any{service.UpstreamBillingProbeExtraKey: snap}
+	if service.NewAPICostSyncEnabled(a) {
+		if cost, ok := service.NewAPICostToSync(snap, service.NewAPICostScale(a)); ok {
+			patch[service.AccountCostMultiplierExtraKey] = cost
+		}
+	}
+	payload, e := json.Marshal(patch)
 	if e != nil {
 		return e
 	}
@@ -195,7 +215,11 @@ func (r *newAPIAuthorizationRepository) WriteSnapshot(ctx context.Context, a *se
 	if e != nil {
 		return e
 	}
-	result, e := tx.ExecContext(ctx, `UPDATE accounts a SET extra=COALESCE(extra,'{}'::jsonb)||jsonb_build_object('upstream_billing_probe',$1::jsonb),updated_at=NOW() WHERE a.id=$2 AND COALESCE(extra->'upstream_billing_probe','null'::jsonb)=$3::jsonb AND COALESCE(extra->'upstream_billing_probe_enabled','null'::jsonb)=$4::jsonb AND EXISTS(SELECT 1 FROM new_api_account_bindings b WHERE b.account_id=a.id AND b.authorization_id=$5 AND b.upstream_token_id=$6 AND b.account_fingerprint=$7)`, string(payload), a.ID, string(old), string(enabled), b.Profile.ID, b.TokenID, b.Fingerprint)
+	costPolicy, e := json.Marshal([]any{a.Extra[service.NewAPIApplyUSDRateExtraKey], a.Extra[service.NewAPICostSyncExtraKey]})
+	if e != nil {
+		return e
+	}
+	result, e := tx.ExecContext(ctx, `UPDATE accounts a SET extra=COALESCE(extra,'{}'::jsonb)||$1::jsonb,updated_at=NOW() WHERE a.id=$2 AND COALESCE(extra->'upstream_billing_probe','null'::jsonb)=$3::jsonb AND COALESCE(extra->'upstream_billing_probe_enabled','null'::jsonb)=$4::jsonb AND jsonb_build_array(extra->'new_api_apply_usd_rate',extra->'new_api_cost_sync')=$8::jsonb AND EXISTS(SELECT 1 FROM new_api_account_bindings b WHERE b.account_id=a.id AND b.authorization_id=$5 AND b.upstream_token_id=$6 AND b.account_fingerprint=$7)`, string(payload), a.ID, string(old), string(enabled), b.Profile.ID, b.TokenID, b.Fingerprint, string(costPolicy))
 	if e != nil {
 		return e
 	}

@@ -22,8 +22,8 @@ const (
 	updateCacheTTL     = 1200 // 20 minutes
 	upstreamRepository = "ranxi2001/sub2api"
 	forkRepository     = "tqytwe/sub2api"
-	// This is the reviewed source pin, not the installed fork's version number.
-	upstreamReviewVersion = "2.17.7"
+	// This is the upstream source target, not the installed fork's version number.
+	upstreamReviewVersion = "2.23.1"
 	// Change this identity when source, review pin or installation policy changes.
 	UpdateSourceIdentity = upstreamRepository + ":stable:v" + upstreamReviewVersion + "|" + forkRepository + ":source-only:v1"
 )

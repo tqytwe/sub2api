@@ -63,7 +63,8 @@ type SuccessfulTestRecoveryResult struct {
 
 // AccountRecoveryOptions 控制账号恢复时的附加行为。
 type AccountRecoveryOptions struct {
-	InvalidateToken bool
+	preserveGrokRuntimeState bool
+	InvalidateToken          bool
 }
 
 type geminiUsageCacheEntry struct {
@@ -2312,7 +2313,7 @@ func (s *RateLimitService) RecoverAccountState(ctx context.Context, accountID in
 		}
 	}
 
-	if hasRecoverableRuntimeState(account) {
+	if hasRecoverableRuntimeState(account) && (!account.IsGrok() || !options.preserveGrokRuntimeState) {
 		if err := s.ClearRateLimit(ctx, accountID); err != nil {
 			return nil, err
 		}

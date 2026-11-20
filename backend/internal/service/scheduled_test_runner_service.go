@@ -198,11 +198,18 @@ func (s *ScheduledTestRunnerService) runOnePlan(ctx context.Context, plan *Sched
 
 	if err := s.scheduledSvc.SaveResult(ctx, plan.ID, plan.MaxResults, result); err != nil {
 		logger.LegacyPrintf("service.scheduled_test_runner", "[ScheduledTestRunner] plan=%d SaveResult error: %v", plan.ID, err)
-	}
-
-	// Auto-recover account if test succeeded and auto_recover is enabled.
-	if result.Status == "success" && plan.AutoRecover {
-		s.tryRecoverAccount(ctx, plan.AccountID, plan.ID)
+	} else if result.Status == "success" {
+		result.grokRecovery.complete(ctx, s.accountTestSvc.accountRepo)
+		if plan.AutoRecover && s.rateLimitSvc != nil {
+			if result.grokRecovery != nil && result.grokRecovery.observed {
+				_, err := s.rateLimitSvc.RecoverAccountState(ctx, plan.AccountID, AccountRecoveryOptions{preserveGrokRuntimeState: true})
+				if err != nil {
+					logger.LegacyPrintf("service.scheduled_test_runner", "[ScheduledTestRunner] plan=%d auto-recover failed: %v", plan.ID, err)
+				}
+			} else {
+				s.tryRecoverAccount(ctx, plan.AccountID, plan.ID)
+			}
+		}
 	}
 
 	nextRun, err := computeNextRun(plan.CronExpression, time.Now())

@@ -48,12 +48,13 @@ func (e GrokMediaEndpoint) IsVideoLookupRequest() bool {
 		return e == SeedanceEndpointStatus || e == SeedanceEndpointDelete
 	}
 	return e == GrokMediaEndpointVideoStatus || e == GrokMediaEndpointVideoContent ||
-		e == MiniMaxH3EndpointStatus || e == MiniMaxH3EndpointContent
+		e == MiniMaxH3EndpointStatus || e == MiniMaxH3EndpointContent ||
+		e == OpenAIVideoEndpointStatus || e == OpenAIVideoEndpointContent
 }
 
 func (e GrokMediaEndpoint) IsGenerationRequest() bool {
 	switch e {
-	case MiniMaxH3EndpointCreate, GrokMediaEndpointImagesGenerations, GrokMediaEndpointImagesEdits, GrokMediaEndpointVideosGenerations, GrokMediaEndpointVideosEdits, GrokMediaEndpointVideosExtensions:
+	case MiniMaxH3EndpointCreate, OpenAIVideoEndpointCreate, GrokMediaEndpointImagesGenerations, GrokMediaEndpointImagesEdits, GrokMediaEndpointVideosGenerations, GrokMediaEndpointVideosEdits, GrokMediaEndpointVideosExtensions:
 		return true
 	default:
 		return false
@@ -66,7 +67,8 @@ func (e GrokMediaEndpoint) IsGenerationRequest() bool {
 // inherit this image-only gate.
 func (e GrokMediaEndpoint) RequiresImageGenerationPermission() bool {
 	switch e {
-	case GrokMediaEndpointImagesGenerations, GrokMediaEndpointImagesEdits:
+	case GrokMediaEndpointImagesGenerations, GrokMediaEndpointImagesEdits,
+		OpenAIVideoEndpointCreate, OpenAIVideoEndpointStatus, OpenAIVideoEndpointContent:
 		return true
 	default:
 		return false
@@ -252,6 +254,10 @@ func grokMediaImageObject(imageURL string) map[string]string {
 }
 
 func parseGrokMediaMultipartRequest(contentType string, body []byte, info *GrokMediaRequestInfo) error {
+	return parseGrokMediaMultipartRequestWithVisitor(contentType, body, info, nil)
+}
+
+func parseGrokMediaMultipartRequestWithVisitor(contentType string, body []byte, info *GrokMediaRequestInfo, visit func(name, value string, isFile bool) error) error {
 	if info == nil {
 		return nil
 	}
@@ -284,6 +290,15 @@ func parseGrokMediaMultipartRequest(contentType string, body []byte, info *GrokM
 		}
 		fileName := strings.TrimSpace(part.FileName())
 		partContentType := strings.TrimSpace(part.Header.Get("Content-Type"))
+		value := ""
+		if fileName == "" {
+			value = strings.TrimSpace(string(data))
+		}
+		if visit != nil {
+			if err := visit(part.FormName(), value, fileName != ""); err != nil {
+				return err
+			}
+		}
 		if fileName != "" {
 			upload := OpenAIImagesUpload{
 				FieldName:   name,
@@ -295,13 +310,13 @@ func parseGrokMediaMultipartRequest(contentType string, body []byte, info *GrokM
 				info.MaskUpload = &upload
 				continue
 			}
-			if name == "image" || strings.HasPrefix(name, "image[") {
+			if name == "image" || strings.HasPrefix(name, "image[") ||
+				(visit != nil && (name == "input_reference" || name == "first_frame" || name == "last_frame" || name == "images")) {
 				info.Uploads = append(info.Uploads, upload)
 			}
 			continue
 		}
 
-		value := strings.TrimSpace(string(data))
 		switch name {
 		case "model":
 			info.Model = value
@@ -341,6 +356,7 @@ func GrokMediaVideoRequestSessionHash(requestID string, userID, apiKeyID int64) 
 }
 
 type GrokVideoPendingBilling struct {
+	UpstreamTaskID string `json:"upstream_task_id,omitempty"`
 	// H3 prices requested seconds at submission; later edits cannot reprice a task.
 	MiniMaxH3BaseCost    *float64 `json:"minimax_h3_base_cost,omitempty"`
 	Model                string   `json:"model"`
@@ -524,7 +540,7 @@ func (s *OpenAIGatewayService) BindGrokMediaVideoRequestAccount(
 		ttl = time.Duration(s.cfg.Gateway.OpenAIWS.StickySessionTTLSeconds) * time.Second
 	}
 	// H3 completion requires the owner binding and the create-time price snapshot.
-	if pendingTTL := grokVideoPendingBillingTTL(s.cfg); strings.HasPrefix(requestID, miniMaxH3TaskPrefix) && ttl < pendingTTL {
+	if pendingTTL := grokVideoPendingBillingTTL(s.cfg); (strings.HasPrefix(requestID, miniMaxH3TaskPrefix) || IsOpenAIVideoTaskID(requestID)) && ttl < pendingTTL {
 		ttl = pendingTTL
 	}
 	return s.cache.SetSessionAccountID(ctx, derefGroupID(groupID), cacheKey, accountID, ttl)

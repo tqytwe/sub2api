@@ -468,7 +468,7 @@ export default {
     dockerRecreate: 'Recreate the container',
     loadVersionsFailed: 'Failed to load versions',
     rollbackFailed: 'Rollback Failed',
-    upstreamBaseline: "Pinned upstream source: v{version}",
+    upstreamBaseline: "Upstream source target: v{version}",
     forkInstall: "Install verified tqytwe builds",
     deploymentGuide: "Fork source build and deployment guide",
     checkFailed: "Upstream lookup failed or is using cached data. Refresh to retry.",

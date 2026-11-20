@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/config"
 	pkghttputil "github.com/Wei-Shaw/sub2api/internal/pkg/httputil"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ip"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
@@ -80,6 +81,13 @@ func (h *OpenAIGatewayHandler) Images(c *gin.Context) {
 			false,
 		)
 		return
+	}
+	var billingResponse *imageBillingResponse
+	if c.GetHeader("X-Image-Usage") == "billing" {
+		if (h.cfg != nil && h.cfg.RunMode == config.RunModeSimple) || service.IsImageStudioManagedBilling(c.Request.Context()) {
+			h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", "Image billing receipts require standard gateway billing")
+			return
+		}
 	}
 	requestModel := parsed.Model
 	ensureCompositeTargetPlatform(c, apiKey, requestModel)
@@ -197,6 +205,20 @@ func (h *OpenAIGatewayHandler) Images(c *gin.Context) {
 	}
 	defer inflightDone()
 
+	if c.GetHeader("X-Image-Usage") == "billing" {
+		baseWriter := c.Writer
+		billingResponse, err = newImageBillingResponse(baseWriter, parsed.Stream)
+		if err != nil {
+			h.errorResponse(c, http.StatusServiceUnavailable, "api_error", "Could not buffer image settlement response")
+			return
+		}
+		c.Writer = billingResponse
+		defer func() {
+			c.Writer = baseWriter
+			defer billingResponse.close()
+			billingResponse.passthrough()
+		}()
+	}
 	sessionHash := h.gatewayService.GenerateExplicitSessionHash(c, body)
 	requestCtx := service.WithOpenAIImagesEndpoint(service.WithOpenAIImageGenerationIntent(c.Request.Context()))
 
@@ -290,7 +312,7 @@ func (h *OpenAIGatewayHandler) Images(c *gin.Context) {
 		}
 
 		service.SetOpsLatencyMs(c, service.OpsRoutingLatencyMsKey, time.Since(routingStart).Milliseconds())
-		if !parsed.Stream && !jsonKeepaliveStarted {
+		if billingResponse == nil && !parsed.Stream && !jsonKeepaliveStarted {
 			stopJSONKeepalive = service.StartOpenAIImagesJSONKeepalive(c, h.openAIImagesJSONKeepaliveInterval())
 			jsonKeepaliveStarted = true
 		}
@@ -446,8 +468,8 @@ func (h *OpenAIGatewayHandler) Images(c *gin.Context) {
 			upstreamModel = result.UpstreamModel
 		}
 		sessionID := service.ExtractClientSessionID(c)
-		h.submitOpenAIUsageRecordTask(c.Request.Context(), result, func(ctx context.Context) {
-			if err := h.gatewayService.RecordUsage(ctx, &service.OpenAIRecordUsageInput{
+		recordUsage := func(ctx context.Context) error {
+			return h.gatewayService.RecordUsage(ctx, &service.OpenAIRecordUsageInput{
 				Result:             result,
 				APIKey:             apiKey,
 				User:               apiKey.User,
@@ -462,7 +484,23 @@ func (h *OpenAIGatewayHandler) Images(c *gin.Context) {
 				QuotaPlatform:      quotaPlatform,
 				SessionID:          sessionID,
 				ChannelUsageFields: clientRequestedUsageFields(c, channelMapping, requestModel, upstreamModel),
-			}); err != nil {
+			})
+		}
+		if billingResponse != nil {
+			receipt := service.ImageBillingReceipt{}
+			if result != nil && result.ImageCount > 0 {
+				billingCtx := service.WithImageBillingReceipt(context.WithoutCancel(c.Request.Context()), &receipt)
+				if err := recordUsage(billingCtx); err != nil {
+					reqLog.Error("openai.images.billing_receipt_settlement_failed", zap.Error(err))
+				}
+			}
+			if err := billingResponse.settle(receipt); err != nil && !billingResponse.flushed {
+				billingResponse.errorResponse("image_billing_unavailable", "Image settlement was not confirmed. Do not automatically retry.")
+			}
+			return
+		}
+		h.submitOpenAIUsageRecordTask(c.Request.Context(), result, func(ctx context.Context) {
+			if err := recordUsage(ctx); err != nil {
 				logger.L().With(
 					zap.String("component", "handler.openai_gateway.images"),
 					zap.Int64("user_id", subject.UserID),

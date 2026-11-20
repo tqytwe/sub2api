@@ -489,6 +489,7 @@ func registerOpsRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 func registerAccountOpsRoutes(admin *gin.RouterGroup, h *adminhandler.AccountOpsHandler) {
 	admin.GET("/account-ops/config", h.GetConfig)
 	admin.PUT("/account-ops/config", h.SaveConfig)
+	admin.PUT("/account-ops/accounts/:id/balance-notification", h.SetBalanceLowNotification)
 	admin.PUT("/account-ops/notification-settings", h.SaveNotificationSettings)
 	admin.PUT("/account-ops/webhooks/:id", h.SaveWebhook)
 	admin.DELETE("/account-ops/webhooks/:id", h.DeleteWebhook)

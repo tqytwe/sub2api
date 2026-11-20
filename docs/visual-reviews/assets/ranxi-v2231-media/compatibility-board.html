@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>v2.23.1 interaction review board</title>
+<style>
+  :root { color-scheme: light dark; font: 14px/1.5 system-ui; }
+  body { margin: 20px; }
+  main { max-width: 40rem; margin-inline: auto; }
+  section { border: 1px solid GrayText; border-radius: 8px; margin-block: 12px; padding: 12px; }
+  h1 { font-size: 18px; margin: 0; }
+  h2 { font-size: 14px; margin: 0 0 6px; }
+  p { margin: 6px 0; }
+  .trigger, .options { box-sizing: border-box; border: 1px solid GrayText; padding: 6px; border-radius: 6px; }
+  .trigger { width: 12rem; }
+  .options { margin-top: 4px; width: min(100%, 16rem); overflow-wrap: anywhere; }
+  .updated .options { width: 12rem; }
+  .amount { font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+</style>
+<main>
+  <h1>v2.23.1 · 兼容性静态审查板</h1>
+  <section><h2>New API 授权预览</h2><p class="amount" id="wallet">钱包余额（标准化 USD）：$12.34 USD</p></section>
+  <section><h2>API Key · 分组选择</h2><button class="trigger">请选择分组</button><div class="options">加速分组 · 一个较长的分组描述用于确认换行和宽度</div></section>
+  <section><h2>Pelican 作品预览</h2><p id="preview">缩略图和交互预览的布局不变。</p></section>
+</main>
+<script>
+  if (new URLSearchParams(location.search).has('updated')) {
+    document.body.classList.add('updated');
+    document.getElementById('wallet').textContent = '钱包余额：90.08 CNY';
+    document.getElementById('preview').textContent = '交互预览可使用指针锁定；缩略图不受影响。';
+  }
+</script>
+</html>

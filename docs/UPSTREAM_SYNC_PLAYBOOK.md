@@ -3,7 +3,7 @@
 > 状态：active
 > 适用分支：`play/main`
 > 生产环境：Zeabur / `https://www.jisudeng.com/`
-> 最后核验：2026-10-28
+> 最后核验：2026-11-20
 
 ## 分支模型
 
@@ -19,9 +19,10 @@ Go module/import、LICENSE、作者归属和历史 issue 链接不是更新来�
 Fork 审查、测试和 CI 的 tqytwe 自研构建。不得把 UpdateService/VersionBadge
 中的原版二进制下载地址直接换为 ranxi 发布包。
 
-版本锁定信息：`docs/upstream-migrations/source-lock.json`。当前目标为已核实的
-`v2.17.7`；`release_commit` 表示
-分析目标，不能据此声称整版已迁移；实际批次证据写入版本目录账本。旧
+版本锁定信息：`docs/upstream-migrations/source-lock.json`。当前分析目标为已核实的
+`v2.23.1`；`release_commit` 表示分析目标，不能据此声称整版已迁移。后台
+“已审查源码基线”在迁移和验收完成前仍保留既有值；最新发布与源码审核基线不是同一状态。
+实际批次证据写入版本目录账本。旧
 `v2.10.3` 迁移账本仅保留历史比较点，当前工作包及其先后关系以
 [项目推进基线](./PROJECT_REBASELINE_2026-10-28.md) 为准。
 
@@ -37,8 +38,8 @@ git fetch origin play/main
 gh api repos/ranxi2001/sub2api/releases/latest
 # 先核实正式 release/tag/commit 并更新 source-lock.json，再抓取该精确 tag。
 # 示例为当前锁定发布；后续版本必须重新核实，不能复制旧 SHA。
-git fetch --no-tags upstream-ranxi refs/tags/v2.10.3:refs/remotes/upstream-ranxi/releases/v2.10.3
-git worktree add -b sync/ranxi-v2.10.3-<batch> <isolated-path> origin/play/main
+git fetch --no-tags upstream-ranxi refs/tags/v2.23.1:refs/remotes/upstream-ranxi/releases/v2.23.1
+git worktree add -b sync/ranxi-v2.23.1-<batch> <isolated-path> origin/play/main
 # 在隔离 worktree 开始修改前运行（首次更新锁定信息需先审查）。
 python3 scripts/check_upstream_release.py --strict
 python3 -m unittest discover -s scripts -p test_upstream_release_check.py

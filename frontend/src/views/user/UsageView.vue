@@ -277,6 +277,7 @@
 </template>
 
 <script setup lang="ts">
+import { EXPORT_PAGE_SIZE, fetchAllExportPages, isExportAbortError } from '@/utils/pagedExport'
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
@@ -344,6 +345,7 @@ const chartsLoading = ref(false)
 const modelStatsLoading = ref(false)
 const endpointStatsLoading = ref(false)
 const exporting = ref(false)
+let exportAbortController: AbortController | null = null
 const errorRows = ref<UserErrorRequest[]>([])
 const errorLoading = ref(false)
 const errorPage = ref(1)
@@ -719,22 +721,23 @@ const escapeCSVValue = (value: unknown): string => {
 }
 
 const exportToCSV = async () => {
+  if (exporting.value) return
   if (pagination.total === 0) {
     appStore.showWarning(t('usage.noDataToExport'))
     return
   }
+  const controller = new AbortController()
+  exportAbortController = controller
   exporting.value = true
   appStore.showInfo(t('usage.preparingExport'))
   try {
-    const allLogs: UsageLog[] = []
-    const pageSize = 100
-    const exportParams = buildUsageListParams(1, pageSize)
+    const exportParams = buildUsageListParams(1, EXPORT_PAGE_SIZE)
     const includeCacheRate = showUsageCacheRate(appStore.cachedPublicSettings, 'user')
-    const totalPages = Math.ceil(pagination.total / pageSize)
-    for (let page = 1; page <= totalPages; page++) {
-      const response = await usageAPI.query({ ...exportParams, page })
-      allLogs.push(...response.items)
-    }
+    const allLogs = await fetchAllExportPages<UsageLog>({
+      signal: controller.signal,
+      fetchPage: (page, pageSize, signal) =>
+        usageAPI.query({ ...exportParams, page, page_size: pageSize }, { signal })
+    })
     if (allLogs.length === 0) {
       appStore.showWarning(t('usage.noDataToExport'))
       return
@@ -794,9 +797,12 @@ const exportToCSV = async () => {
     window.URL.revokeObjectURL(url)
     appStore.showSuccess(t('usage.exportSuccess'))
   } catch (error) {
-    console.error('CSV Export failed:', error)
-    appStore.showError(t('usage.exportFailed'))
+    if (!isExportAbortError(error)) {
+      console.error('CSV Export failed:', error)
+      appStore.showError(t('usage.exportFailed'))
+    }
   } finally {
+    exportAbortController = null
     exporting.value = false
   }
 }
@@ -1004,6 +1010,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   abortController?.abort()
+  exportAbortController?.abort()
   document.removeEventListener('click', handleColumnClickOutside)
 })
 

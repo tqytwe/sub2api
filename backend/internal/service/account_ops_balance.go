@@ -34,6 +34,7 @@ type AccountOpsBalanceAccount struct {
 	BalanceStatus string                  `json:"balance_status"`
 	ReceivedAt    *time.Time              `json:"received_at"`
 	UsageWindows  []AccountOpsUsageWindow `json:"usage_windows"`
+	rawNewAPIUSD  *float64
 }
 
 func opsNumber(v any) (float64, bool) {
@@ -112,8 +113,23 @@ func opsBalanceAccount(a *Account, now time.Time) AccountOpsBalanceAccount {
 		return item
 	}
 	item.Balance = &n
+	if b.Data["source"] == "new_api" && b.Data["raw_unit"] == "USD" {
+		if raw, ok := opsNumber(b.Data["raw_wallet_balance"]); ok && math.Abs(raw) <= 1e12 {
+			item.rawNewAPIUSD = &raw
+		}
+	}
 	return item
 }
+func (item AccountOpsBalanceAccount) balanceInUnit(unit string) *float64 {
+	if item.Balance == nil || item.Unit == unit {
+		return item.Balance
+	}
+	if unit == "USD" {
+		return item.rawNewAPIUSD
+	}
+	return nil
+}
+
 func opsWindow(window, label string, value any, scale float64, observed, reset *time.Time, now time.Time) AccountOpsUsageWindow {
 	w := AccountOpsUsageWindow{Window: window, Label: label, Status: "unknown", ObservedAt: observed, ResetsAt: reset}
 	n, ok := opsNumber(value)
@@ -353,13 +369,14 @@ func (s *AccountOpsService) assessThreshold(ctx context.Context, a *Account, kin
 		for _, r := range c.BalanceThresholds {
 			if r.AccountID == a.ID && r.Enabled {
 				item := opsBalanceAccount(a, now)
-				if item.Balance == nil || item.Unit != r.Unit {
+				balance := item.balanceInUnit(r.Unit)
+				if balance == nil {
 					return nil, "suppressed"
 				}
 
 				threshold := r.Threshold
-				e.Details = &AccountOpsDetails{Balance: item.Balance, Threshold: &threshold, Unit: item.Unit, ObservedAt: item.ReceivedAt}
-				if *item.Balance > r.Threshold {
+				e.Details = &AccountOpsDetails{Balance: balance, Threshold: &threshold, Unit: r.Unit, ObservedAt: item.ReceivedAt}
+				if *balance > r.Threshold {
 					return e, "resolved"
 				}
 				return e, "active"
