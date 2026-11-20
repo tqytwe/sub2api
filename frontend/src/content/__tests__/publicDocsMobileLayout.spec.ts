@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { PUBLIC_DOC_CONTENT_ZH } from '../public-docs-data.zh'
+import { PUBLIC_DOC_CONTENT_EN } from '../public-docs-data.en'
 
 const publicPagesCss = readFileSync(
   resolve(process.cwd(), 'src/styles/public-pages.css'),
@@ -38,18 +40,15 @@ describe('public docs mobile layout contracts', () => {
     )
   })
 
-  it('keeps recharge VIP docs on the balance bonus wording', () => {
-    expect(publicDocsData).toContain('VIP 分级 · 充值到账加赠')
-    expect(publicDocsData).toContain('V0-V5 六档会员等级')
-    expect(publicDocsData).toContain('VIP 不改变 API 计费公式，只影响余额充值到账加赠')
-    expect(publicDocsData).toContain('本单按充值前 VIP 等级计算')
-    expect(publicDocsData).not.toContain('VIP 分级 · 享受折扣')
-    expect(publicDocsData).not.toContain('4 档会员等级')
-    expect(publicDocsData).not.toContain('充值的钱会 1:1')
-    expect(publicDocsData).not.toContain('折扣永久生效')
-    expect(publicDocsData).not.toContain('盲盒奖池升级（暂未启用）')
-    expect(publicDocsData).toContain('VIP 专属奖池')
-    expect(publicDocsData).toContain('团队奖池 = 团队月消费 × 当前达标比例')
-    expect(publicDocsData).toContain('活动倍率只影响展示积分和排名')
+  it.each([PUBLIC_DOC_CONTENT_ZH, PUBLIC_DOC_CONTENT_EN].map((docs, index) => ({ locale: index === 0 ? 'zh' : 'en', docs })))('guides $locale account and activity readers to current settings and results', ({ docs }) => {
+    const pages = docs.find((category) => category.id === 'recharge-vip')?.pages ?? []
+    const body = (id: string) => pages.find((page) => page.id === id)?.html
+    expect(body('vip-levels')).toContain('href="/purchase"')
+    expect(body('how-to-recharge')).toContain('href="/orders"')
+    expect(body('how-to-recharge')).toContain('href="/wallet"')
+    expect(body('check-in')).toContain('href="/check-in"')
+    expect(body('check-in')).toContain('href="/redeem"')
+    expect(body('image-studio')).toContain('href="/ai-creation-space"')
+    expect(body('image-studio')).not.toContain('/api/v1/image-studio/')
   })
 })

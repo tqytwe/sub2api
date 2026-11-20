@@ -1,421 +1,363 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import DOMPurify from 'dompurify'
-import { useAuthStore, useAppStore } from '@/stores'
+import { useAppStore, useAuthStore } from '@/stores'
+import BaseDialog from '@/components/common/BaseDialog.vue'
 import PublicPageToolbar from '@/components/common/PublicPageToolbar.vue'
 import SupportFloatingCard from '@/components/common/SupportFloatingCard.vue'
+import Icon from '@/components/icons/Icon.vue'
 import DocsVipTiersTable from '@/components/public/DocsVipTiersTable.vue'
-import { PUBLIC_DOC_TREE, normalizePublicDocLocation, type PublicDocLocale } from '@/content/public-docs-tree'
-import type { PublicDocCategoryContent, PublicDocPageContent } from '@/content/public-docs-data.zh'
+import { useClipboard } from '@/composables/useClipboard'
+import { DOC_READER_COPY, DOC_TOOL_INTEGRATIONS } from '@/content/public-docs-integrations'
+import { buildDocArticle, personalizeDocCopy, searchPublicDocs } from '@/content/public-docs-reader'
+import { normalizePublicDocLocation, type PublicDocLocale } from '@/content/public-docs-tree'
+import type { PublicDocCategoryContent } from '@/content/public-docs-data.zh'
 import { localizedSiteName } from '@/utils/localizedPublicSettings'
 import { sanitizeUrl } from '@/utils/url'
 
-const { t, locale } = useI18n()
 const route = useRoute()
 const router = useRouter()
+const { t, locale } = useI18n()
 const authStore = useAuthStore()
 const appStore = useAppStore()
+const { copyToClipboard } = useClipboard()
 
-const isEnglishDocsRoute = computed(() => route.path === '/en/docs' || route.path.startsWith('/en/docs/'))
-const docLocale = computed<PublicDocLocale>(() => (locale.value === 'en' ? 'en' : 'zh'))
+const isEnglish = computed(() => route.name === 'EnglishDocs')
+const docLocale = computed<PublicDocLocale>(() => (isEnglish.value || locale.value === 'en' ? 'en' : 'zh'))
+const copy = computed(() => DOC_READER_COPY[docLocale.value])
+const docsRoute = computed(() => ({ name: docLocale.value === 'en' ? 'EnglishDocs' : 'Docs' }))
+const homeRoute = computed(() => ({ name: docLocale.value === 'en' ? 'EnglishHome' : 'Home' }))
+const modelRoute = computed(() => ({ name: docLocale.value === 'en' ? 'EnglishModels' : 'Models' }))
+const workspaceQuery = computed(() => docLocale.value === 'en' ? { lang: 'en' } : {})
+const consoleRoute = computed(() => ({ name: authStore.isAuthenticated ? 'Dashboard' : 'Login', query: workspaceQuery.value }))
+const keysRoute = computed(() => ({ name: 'Keys', query: workspaceQuery.value }))
+const siteName = computed(() => localizedSiteName(appStore.cachedPublicSettings?.site_name || appStore.siteName, docLocale.value))
+const siteLogo = computed(() => sanitizeUrl(appStore.cachedPublicSettings?.site_logo || appStore.siteLogo || '', {
+  allowRelative: true,
+  allowDataUrl: true,
+}))
+const apiBase = computed(() => (sanitizeUrl(appStore.apiBaseUrl) || 'https://api.jisudeng.com').replace(/\/+$/, '').replace(/\/v1$/i, ''))
+const apiV1 = computed(() => `${apiBase.value}/v1`)
+
 const docContent = ref<PublicDocCategoryContent[]>([])
-const loadedDocLocale = ref<PublicDocLocale | null>(null)
-const docTree = PUBLIC_DOC_TREE
-const docsRouteName = computed(() => (isEnglishDocsRoute.value ? 'EnglishDocs' : 'Docs'))
-let docContentRequestId = 0
+const loadState = ref<'loading' | 'ready' | 'error'>('loading')
+let requestId = 0
 
-const docContentReady = computed(
-  () => loadedDocLocale.value === docLocale.value && docContent.value.length > 0,
-)
-
-watch(
-  docLocale,
-  (nextLocale) => {
-    void loadDocContent(nextLocale)
-  },
-  { immediate: true },
-)
-
-async function loadDocContent(nextLocale: PublicDocLocale) {
-  const currentRequest = ++docContentRequestId
-  loadedDocLocale.value = null
+async function loadDocContent() {
+  const id = ++requestId
+  const language = docLocale.value
+  loadState.value = 'loading'
   docContent.value = []
-  const content =
-    nextLocale === 'en'
+  try {
+    const content = language === 'en'
       ? (await import('@/content/public-docs-data.en')).PUBLIC_DOC_CONTENT_EN
       : (await import('@/content/public-docs-data.zh')).PUBLIC_DOC_CONTENT_ZH
-  if (currentRequest !== docContentRequestId) return
-  docContent.value = content
-  loadedDocLocale.value = nextLocale
+    if (id !== requestId) return
+    docContent.value = content
+    loadState.value = 'ready'
+  } catch {
+    if (id === requestId) loadState.value = 'error'
+  }
 }
 
-function findLoadedDocContent(catId: string, pageId: string): PublicDocPageContent | undefined {
-  const cat = docContent.value.find((c) => c.id === catId)
-  return cat?.pages.find((p) => p.id === pageId)
+watch(docLocale, () => void loadDocContent(), { immediate: true })
+
+const activeCat = computed(() => typeof route.query.cat === 'string' ? route.query.cat : '')
+const activePage = computed(() => typeof route.query.page === 'string' ? route.query.page : '')
+const isIndex = computed(() => !activeCat.value && !activePage.value)
+const activeCategory = computed(() => docContent.value.find((category) => category.id === activeCat.value))
+const isCategoryIndex = computed(() => Boolean(activeCategory.value && !activePage.value))
+const activeArticle = computed(() => activeCategory.value?.pages.find((page) => page.id === activePage.value))
+const isVipArticle = computed(() => activeCat.value === 'recharge-vip' && activePage.value === 'vip-levels')
+const expanded = ref<Set<string>>(new Set(['deploy', 'tools']))
+const sidebarOpen = ref(false)
+const mobileToc = ref<HTMLDetailsElement | null>(null)
+
+function docLink(cat: string, page: string) {
+  return { ...docsRoute.value, query: { cat, page } }
 }
 
-function defaultLoadedDocPage(catId: string) {
-  return docContent.value.find((c) => c.id === catId)?.pages[0]?.id
+watch([activeCat, activePage, loadState], ([cat, page, state]) => {
+  if (!cat || state !== 'ready') return
+  const normalized = normalizePublicDocLocation(cat, page)
+  if (normalized.catId !== cat || normalized.pageId !== page) {
+    void router.replace({ ...docLink(normalized.catId, normalized.pageId), hash: route.hash })
+    return
+  }
+}, { immediate: true })
+
+watch([activeCat, activePage], ([cat]) => {
+  if (cat) expanded.value.add(cat)
+  sidebarOpen.value = false
+  if (mobileToc.value) mobileToc.value.open = false
+}, { immediate: true })
+
+function toggleCategory(id: string) {
+  if (expanded.value.has(id)) expanded.value.delete(id)
+  else expanded.value.add(id)
 }
 
-const backTarget = computed(() => {
-  if (authStore.isAuthenticated) return '/dashboard'
-  return isEnglishDocsRoute.value ? '/en' : '/'
-})
-const backLabel = computed(() =>
-  authStore.isAuthenticated ? t('docs.backDashboard') : t('contact.backHome'),
-)
-const siteName = computed(() =>
-  localizedSiteName(appStore.cachedPublicSettings?.site_name || appStore.siteName, locale.value),
-)
-const siteLogo = computed(() =>
-  sanitizeUrl(appStore.cachedPublicSettings?.site_logo || appStore.siteLogo || '', {
-    allowRelative: true,
-    allowDataUrl: true,
-  }),
-)
-
-const activeCat = computed(() => {
-  const cat = route.query.cat
-  return typeof cat === 'string' ? cat : ''
-})
-
-const activePage = computed(() => {
-  const page = route.query.page
-  return typeof page === 'string' ? page : ''
-})
-
-const isReaderMode = computed(() => !!activeCat.value && !!activePage.value)
-
-const activePageContent = computed(() =>
-  isReaderMode.value ? findLoadedDocContent(activeCat.value, activePage.value) : undefined,
-)
-
-const activeCategory = computed(() =>
-  docContent.value.find((c) => c.id === activeCat.value),
-)
-
-const expandedSections = ref<Set<string>>(new Set())
-
-watch(
-  activeCat,
-  (cat) => {
-    if (cat) expandedSections.value.add(cat)
-  },
-  { immediate: true },
-)
-
-function toggleSection(catId: string) {
-  const next = new Set(expandedSections.value)
-  if (next.has(catId)) next.delete(catId)
-  else next.add(catId)
-  expandedSections.value = next
+function personalize(raw: string) {
+  return personalizeDocCopy(raw, siteName.value || 'Jisudeng', apiBase.value)
 }
 
-function isSectionOpen(catId: string) {
-  return expandedSections.value.has(catId)
+const article = computed(() => buildDocArticle(personalize(activeArticle.value?.html ?? ''), copy.value.copyCode, docLocale.value))
+const headings = computed(() => article.value.headings)
+const main = ref<HTMLElement | null>(null)
+
+watch([() => route.hash, headings, loadState], async ([hash]) => {
+  if (!hash) return
+  await nextTick()
+  const id = hash.slice(1)
+  const target = [...(main.value?.querySelectorAll('[id]') ?? [])].find((element) => element.id === id)
+  requestAnimationFrame(() => target?.scrollIntoView({ block: 'start' }))
+}, { flush: 'post', immediate: true })
+
+function headingLink(id: string) {
+  return { ...docsRoute.value, query: route.query, hash: `#${id}` }
 }
 
-const categories = computed(() =>
-  docContent.value.map((cat) => ({
-    key: cat.id,
-    title: cat.title,
-    desc: personalizeDocText(cat.description),
-    pages: cat.pages.slice(0, 4).map((p) => p.title),
-    moreCount: Math.max(0, cat.pages.length - 4),
-    to: {
-      name: docsRouteName.value,
-      query: { cat: cat.id, page: defaultLoadedDocPage(cat.id) },
-    },
-  })),
-)
+const flatPages = computed(() => docContent.value.flatMap((category) => category.pages.map((page) => {
+  const integration = DOC_TOOL_INTEGRATIONS.find((tool) => tool.cat === category.id && tool.page === page.id)
+  return {
+    title: page.title,
+    cat: category.id,
+    page: page.id,
+    category: category.title,
+    summary: personalize(page.summary),
+    keywords: [category.title, page.summary, page.id, integration?.name, integration && copy.value.protocols[integration.protocol]].filter(Boolean).join(' '),
+  }
+})))
+const pageIndex = computed(() => flatPages.value.findIndex((page) => page.cat === activeCat.value && page.page === activePage.value))
+const prevPage = computed(() => pageIndex.value > 0 ? flatPages.value[pageIndex.value - 1] : undefined)
+const nextPage = computed(() => pageIndex.value >= 0 ? flatPages.value[pageIndex.value + 1] : undefined)
 
-const flatPages = computed(() =>
-  docContent.value.flatMap((cat) =>
-    cat.pages.map((page) => ({
-      catId: cat.id,
-      pageId: page.id,
-      title: page.title,
-      catTitle: cat.title,
-    })),
-  ),
-)
+const searchOpen = ref(false)
+const searchQuery = ref('')
+const searchInput = ref<HTMLInputElement | null>(null)
+const searchResults = computed(() => searchPublicDocs(flatPages.value, searchQuery.value).slice(0, 16))
 
-const currentPageIndex = computed(() =>
-  flatPages.value.findIndex(
-    (p) => p.catId === activeCat.value && p.pageId === activePage.value,
-  ),
-)
-
-const prevPage = computed(() => {
-  const i = currentPageIndex.value
-  return i > 0 ? flatPages.value[i - 1] : null
-})
-
-const nextPage = computed(() => {
-  const i = currentPageIndex.value
-  return i >= 0 && i < flatPages.value.length - 1 ? flatPages.value[i + 1] : null
-})
-
-const pageTitle = computed(() => activePageContent.value?.title ?? activePage.value)
-
-const pageSummary = computed(() =>
-  activePageContent.value?.summary ? personalizeDocText(activePageContent.value.summary) : '',
-)
-
-const DEFAULT_SOURCE_SITE_NAME_CODES = [0x672c, 0x7ad9] as const
-const SOURCE_BRAND_AI_RE = /\u968f\u60f3 AI/g
-const SOURCE_BRAND_RE = /\u968f\u60f3/g
-const SOURCE_SITE_RE = /\u672c\u7ad9/g
-
-function defaultSourceSiteName() {
-  return String.fromCharCode(...DEFAULT_SOURCE_SITE_NAME_CODES)
+async function openSearch() {
+  if (searchOpen.value) return
+  searchQuery.value = ''
+  searchOpen.value = true
+  await nextTick()
+  searchInput.value?.focus()
 }
 
-function personalizeDocText(raw: string) {
-  const siteName = appStore.siteName || defaultSourceSiteName()
-  const baseUrl = (appStore.apiBaseUrl || window.location.origin).replace(/\/$/, '')
-  return raw
-    .replace(SOURCE_BRAND_AI_RE, siteName)
-    .replace(SOURCE_BRAND_RE, siteName)
-    .replace(SOURCE_SITE_RE, siteName)
-    .replace(/https:\/\/sui-xiang\.com/g, baseUrl)
-    .replace(/https:\/\/your-host/g, baseUrl)
+function navigateToFirstResult() {
+  const result = searchResults.value[0]
+  if (!result || !searchQuery.value.trim()) return
+  searchOpen.value = false
+  void router.push(docLink(result.cat, result.page))
 }
 
-function personalizeDocHtml(raw: string) {
-  return personalizeDocText(raw)
+function onSearchShortcut(event: KeyboardEvent) {
+  if ((event.ctrlKey || event.metaKey) && !event.altKey && event.key.toLowerCase() === 'k') {
+    event.preventDefault()
+    void openSearch()
+  }
 }
 
-const pageHtml = computed(() => {
-  const html = activePageContent.value?.html
-  if (!html) return ''
-  return DOMPurify.sanitize(personalizeDocHtml(html))
-})
+onMounted(() => window.addEventListener('keydown', onSearchShortcut))
+onUnmounted(() => window.removeEventListener('keydown', onSearchShortcut))
 
-const vipLevelsTailHtml = computed(() => {
-  if (activeCat.value !== 'recharge-vip' || activePage.value !== 'vip-levels') return ''
-  return pageHtml.value
-})
+const linkCopied = ref(false)
+watch(() => route.fullPath, () => { linkCopied.value = false })
 
-function docLink(catId: string, pageId: string) {
-  return { name: docsRouteName.value, query: { cat: catId, page: pageId } }
+async function copyLink() {
+  const path = route.fullPath
+  const copied = await copyToClipboard(new URL(path, window.location.origin).href)
+  if (copied && path === route.fullPath) linkCopied.value = true
 }
 
-function isActivePage(catId: string, pageId: string) {
-  return activeCat.value === catId && activePage.value === pageId
-}
-
-function goToIndex() {
-  router.push({ name: docsRouteName.value })
-}
-
-function openCategory(catId: string) {
-  const page = defaultLoadedDocPage(catId)
-  if (page) router.push(docLink(catId, page))
-}
-
-watch(
-  [() => route.query, docContentReady],
-  ([query, ready]) => {
-    if (!ready) return
-    const cat = typeof query.cat === 'string' ? query.cat : ''
-    if (!cat) return
-    const page = typeof query.page === 'string' ? query.page : ''
-    const normalized = normalizePublicDocLocation(cat, page)
-    if (normalized.catId !== cat || normalized.pageId !== page) {
-      router.replace({
-        name: docsRouteName.value,
-        query: { cat: normalized.catId, page: normalized.pageId },
-      })
-      return
-    }
-    if (page && findLoadedDocContent(cat, page)) return
-    const fallback = defaultLoadedDocPage(cat)
-    if (fallback) {
-      router.replace({ name: docsRouteName.value, query: { cat, page: fallback } })
-    }
-  },
-  { immediate: true },
-)
-
-const categoryIcons: Record<string, string> = {
-  tutorial: '📘',
-  'recharge-vip': '⭐',
-  'about-us': '🛡️',
-  'model-learning': '🧠',
-  deploy: '🚀',
-  tools: '🧰',
-  environment: '⚙️',
-  'vibe-coding': '✨',
+async function copySnippet(event: MouseEvent) {
+  if (!(event.target instanceof Element)) return
+  const button = event.target.closest<HTMLButtonElement>('button[data-doc-copy]')
+  if (!button || button.disabled) return
+  const text = article.value.code[Number(button.dataset.docCopy)]
+  if (!text) return
+  button.disabled = true
+  const success = await copyToClipboard(text)
+  button.disabled = false
+  if (success) button.textContent = copy.value.copied
 }
 </script>
 
 <template>
-  <div class="docs-page">
-    <header class="docs-topbar">
-      <div class="docs-topbar-inner">
-        <button type="button" class="docs-back" @click="isReaderMode ? goToIndex() : router.push(backTarget)">
-          ← {{ isReaderMode ? t('docs.backToIndex') : backLabel }}
+  <div class="docs-page docs-reader">
+    <header class="docs-reader-topbar">
+      <RouterLink :to="homeRoute" class="docs-reader-brand">
+        <img :src="siteLogo || '/logo.png'" alt="" width="32" height="32" />
+        <span>{{ siteName }}</span>
+      </RouterLink>
+      <nav class="docs-reader-topnav" :aria-label="copy.docs">
+        <RouterLink :to="modelRoute">{{ copy.models }}</RouterLink>
+        <RouterLink :to="consoleRoute">{{ copy.console }}</RouterLink>
+      </nav>
+      <div class="docs-reader-actions">
+        <button type="button" class="docs-action docs-search-trigger" :aria-label="copy.search" @click="openSearch">
+          <Icon name="search" size="sm" aria-hidden="true" />
+          <span>{{ copy.search }}</span>
         </button>
-        <div class="docs-topbar-title">
-          <span class="docs-topbar-eyebrow">{{ t('docs.eyebrow') }}</span>
-          <span class="docs-topbar-cn">{{ t('docs.title') }}</span>
-        </div>
-        <div class="docs-topbar-actions">
-          <PublicPageToolbar />
-          <router-link
-            v-if="!authStore.isAuthenticated"
-            to="/register"
-            class="docs-cta"
-          >
-            {{ t('auth.signUp') }}
-          </router-link>
-        </div>
+        <PublicPageToolbar />
+        <button
+          type="button"
+          class="docs-action docs-mobile-menu"
+          :aria-label="copy.navigation"
+          :aria-expanded="sidebarOpen"
+          aria-controls="docs-site-navigation"
+          @click="sidebarOpen = !sidebarOpen"
+        >
+          <Icon :name="sidebarOpen ? 'x' : 'menu'" size="sm" aria-hidden="true" />
+        </button>
       </div>
     </header>
 
-    <div class="docs-shell" :class="{ 'is-index': !isReaderMode }">
-      <aside v-if="isReaderMode" class="docs-sidebar">
-        <button
-          type="button"
-          class="docs-sidebar-overview"
-          :class="{ 'is-active': false }"
-          @click="goToIndex"
-        >
-          <span class="docs-sidebar-overview-icon" aria-hidden="true">☰</span>
-          <span>{{ t('docs.sidebarTitle') }}</span>
-        </button>
+    <details v-if="headings.length" ref="mobileToc" class="docs-mobile-toc">
+      <summary><Icon name="document" size="sm" aria-hidden="true" />{{ copy.onPage }}</summary>
+      <nav :aria-label="copy.onPage">
+        <RouterLink v-for="heading in headings" :key="heading.id" :to="headingLink(heading.id)" @click="mobileToc && (mobileToc.open = false)">{{ heading.title }}</RouterLink>
+      </nav>
+    </details>
 
-        <div
-          v-for="cat in docTree"
-          :key="cat.id"
-          class="docs-sidebar-section"
-        >
+    <div class="docs-reader-layout">
+      <nav id="docs-site-navigation" class="docs-reader-sidebar" :class="{ 'is-open': sidebarOpen }" :aria-label="copy.navigation">
+        <RouterLink :to="docsRoute" class="docs-tree-root" :class="{ 'is-current': isIndex }" :aria-current="isIndex ? 'page' : undefined" @click="sidebarOpen = false">
+          <Icon name="terminal" size="sm" aria-hidden="true" />{{ copy.docsHome }}
+        </RouterLink>
+        <div v-for="category in docContent" :key="category.id" class="docs-tree-group">
           <button
             type="button"
-            class="docs-sidebar-section-head"
-            :class="{ 'is-active': activeCat === cat.id }"
-            @click="toggleSection(cat.id)"
+            class="docs-tree-toggle"
+            :aria-expanded="expanded.has(category.id)"
+            :aria-controls="`docs-tree-${category.id}`"
+            @click="toggleCategory(category.id)"
           >
-            <span class="docs-sidebar-section-title">
-              {{ docContent.find((c) => c.id === cat.id)?.title ?? cat.id }}
-            </span>
-            <span
-              class="docs-sidebar-section-chevron"
-              :class="{ 'is-open': isSectionOpen(cat.id) }"
-              aria-hidden="true"
-            >▾</span>
+            <span>{{ category.title }}</span>
+            <Icon :name="expanded.has(category.id) ? 'chevronDown' : 'chevronRight'" size="xs" aria-hidden="true" />
           </button>
-          <ul v-show="isSectionOpen(cat.id)" class="docs-sidebar-pages">
-            <li v-for="page in cat.pages" :key="page.id">
-              <router-link
-                :to="docLink(cat.id, page.id)"
-                class="docs-sidebar-page"
-                :class="{ 'is-active': isActivePage(cat.id, page.id) }"
-              >
-                {{ findLoadedDocContent(cat.id, page.id)?.title ?? page.id }}
-              </router-link>
+          <ul v-show="expanded.has(category.id)" :id="`docs-tree-${category.id}`" class="docs-tree-items">
+            <li v-for="page in category.pages" :key="page.id">
+              <RouterLink
+                :to="docLink(category.id, page.id)"
+                :aria-current="activeCat === category.id && activePage === page.id ? 'page' : undefined"
+                @click="sidebarOpen = false"
+              >{{ page.title }}</RouterLink>
             </li>
           </ul>
         </div>
-      </aside>
+      </nav>
 
-      <main class="docs-content">
-        <div v-if="!isReaderMode" class="docs-hero">
-          <p class="docs-hero-eyebrow">{{ t('docs.eyebrow') }}</p>
-          <h1 class="docs-hero-title">{{ t('docs.title') }}</h1>
-          <p class="docs-hero-desc">{{ t('docs.desc') }}</p>
+      <main id="docs-main" ref="main" class="docs-reader-main" :aria-busy="loadState === 'loading'">
+        <nav class="docs-reader-crumb" :aria-label="copy.docs">
+          <RouterLink v-if="!isIndex" :to="docsRoute" class="docs-back-link">
+            <Icon name="arrowLeft" size="xs" aria-hidden="true" />{{ copy.backToDocs }}
+          </RouterLink>
+          <RouterLink v-else :to="docsRoute">{{ copy.docs }}</RouterLink>
+          <Icon name="chevronRight" size="xs" aria-hidden="true" />
+          <RouterLink v-if="activeCategory && activePage" class="docs-category-link" :to="{ ...docsRoute, query: { cat: activeCat } }">{{ activeCategory.title }}</RouterLink>
+          <span v-else>{{ isIndex ? copy.docsHome : (activeCategory?.title ?? copy.navigation) }}</span>
+        </nav>
 
-          <div class="docs-cards">
-            <button
-              v-for="cat in categories"
-              :key="cat.key"
-              type="button"
-              class="docs-card"
-              @click="openCategory(cat.key)"
-            >
-              <span class="docs-card-icon" aria-hidden="true">{{ categoryIcons[cat.key] ?? '📄' }}</span>
-              <h3 class="docs-card-title">{{ cat.title }}</h3>
-              <p class="docs-card-desc">{{ cat.desc }}</p>
-              <div v-if="cat.pages.length" class="docs-card-pages">
-                <span v-for="title in cat.pages" :key="title" class="docs-card-page">{{ title }}</span>
-                <span v-if="cat.moreCount" class="docs-card-page docs-card-page-more">+{{ cat.moreCount }}</span>
-              </div>
-              <span class="docs-card-arrow" aria-hidden="true">→</span>
-            </button>
-          </div>
+        <p v-if="loadState === 'loading'" role="status" class="docs-reader-state">{{ copy.load }}</p>
+        <div v-else-if="loadState === 'error'" class="docs-reader-state" role="alert">
+          <p>{{ copy.loadError }}</p><button type="button" class="docs-action" @click="loadDocContent">{{ copy.retry }}</button>
         </div>
-
-        <article v-else class="docs-article">
-          <nav class="docs-breadcrumb" :aria-label="t('docs.title')">
-            <button type="button" class="docs-crumb" @click="goToIndex">{{ t('docs.title') }}</button>
-            <span class="docs-crumb-sep">/</span>
-            <button
-              type="button"
-              class="docs-crumb"
-              @click="openCategory(activeCat)"
-            >
-              {{ activeCategory?.title }}
-            </button>
-            <span class="docs-crumb-sep">/</span>
-            <span class="docs-crumb docs-crumb-current">{{ pageTitle }}</span>
-          </nav>
-
-          <header class="docs-article-head">
-            <span class="docs-article-brand-mark brand-logo-shell">
-              <img
-                :src="siteLogo || '/logo.png'"
-                :alt="siteName"
-                :class="[
-                  'docs-article-brand-logo',
-                  'brand-logo-asset',
-                  { 'brand-logo-asset--deng': !siteLogo },
-                ]"
-              />
-            </span>
-            <p class="docs-article-eyebrow">{{ activeCategory?.title }}</p>
-            <h1 class="docs-article-title">{{ pageTitle }}</h1>
-            <p v-if="pageSummary" class="docs-article-summary">{{ pageSummary }}</p>
+        <article v-else-if="isIndex" class="docs-reader-article">
+          <header class="docs-reader-heading">
+            <h1>{{ copy.docsHome }}</h1>
+            <p>{{ copy.intro }}</p>
           </header>
+          <div class="docs-prose">
+            <div class="docs-tip docs-integration-basics">
+              <strong>{{ copy.universal }}</strong>
+              <ul>
+                <li>{{ copy.openAIBase }}：<code>{{ apiV1 }}</code></li>
+                <li>{{ copy.anthropicBase }}：<code>{{ apiBase }}</code> ({{ copy.anthropicSuffix }})</li>
+                <li><RouterLink :to="keysRoute">{{ copy.key }}</RouterLink> · <RouterLink :to="modelRoute">{{ copy.models }}</RouterLink>. {{ copy.modelHelp }}</li>
+              </ul>
+            </div>
+            <h2>{{ copy.firstRequest }}</h2>
+            <p>{{ copy.firstRequestText }} <RouterLink :to="docLink('tutorial', 'quick-start')">{{ copy.quickStart }}</RouterLink></p>
+          </div>
+        </article>
 
-          <DocsVipTiersTable
-            v-if="activeCat === 'recharge-vip' && activePage === 'vip-levels'"
-            class="docs-prose docs-vip-tiers-wrap"
-          />
+        <article v-else-if="isCategoryIndex && activeCategory" class="docs-reader-article">
+          <header class="docs-reader-heading">
+            <h1>{{ activeCategory.title }}</h1>
+            <p>{{ activeCategory.description }}</p>
+          </header>
+          <ul v-if="activeCat !== 'tools'" class="docs-prose">
+            <li v-for="page in activeCategory.pages" :key="page.id">
+              <RouterLink :to="docLink(activeCat, page.id)">{{ page.title }}</RouterLink>
+            </li>
+          </ul>
+          <p v-else class="docs-prose">{{ copy.chooseFromDirectory }}</p>
+        </article>
 
-          <div v-if="pageHtml && !(activeCat === 'recharge-vip' && activePage === 'vip-levels')" class="docs-prose" v-html="pageHtml" />
-          <div
-            v-else-if="activeCat === 'recharge-vip' && activePage === 'vip-levels' && vipLevelsTailHtml"
-            class="docs-prose"
-            v-html="vipLevelsTailHtml"
-          />
-          <p v-else-if="!pageHtml && !(activeCat === 'recharge-vip' && activePage === 'vip-levels')" class="docs-state">{{ t('legal.empty') }}</p>
-
-          <footer v-if="prevPage || nextPage" class="docs-article-foot">
-            <router-link
-              v-if="prevPage"
-              :to="docLink(prevPage.catId, prevPage.pageId)"
-              class="docs-article-foot-btn docs-article-foot-prev"
-            >
-              <span class="docs-article-foot-dir">{{ t('docs.prevArticle') }}</span>
-              <span class="docs-article-foot-name">{{ prevPage.title }}</span>
-            </router-link>
-            <router-link
-              v-if="nextPage"
-              :to="docLink(nextPage.catId, nextPage.pageId)"
-              class="docs-article-foot-btn docs-article-foot-next"
-            >
-              <span class="docs-article-foot-dir">{{ t('docs.nextArticle') }}</span>
-              <span class="docs-article-foot-name">{{ nextPage.title }}</span>
-            </router-link>
+        <article v-else-if="activeArticle" class="docs-reader-article">
+          <header class="docs-reader-heading">
+            <h1>{{ activeArticle.title }}</h1>
+            <p v-if="activeArticle.summary">{{ personalize(activeArticle.summary) }}</p>
+          </header>
+          <DocsVipTiersTable v-if="isVipArticle" class="docs-prose docs-vip-tiers-wrap" />
+          <!-- The article builder sanitizes the localized payload before adding navigation and copy controls. -->
+          <!-- eslint-disable-next-line vue/no-v-html -->
+          <div v-if="article.html" class="docs-prose" @click="copySnippet" v-html="article.html" />
+          <p v-else-if="!isVipArticle" class="docs-reader-state">{{ t('legal.empty') }}</p>
+          <footer v-if="prevPage || nextPage" class="docs-reader-pagination">
+            <RouterLink v-if="prevPage" :to="docLink(prevPage.cat, prevPage.page)">
+              <small>{{ t('docs.prevArticle') }}</small><span>{{ prevPage.title }}</span>
+            </RouterLink>
+            <RouterLink v-if="nextPage" :to="docLink(nextPage.cat, nextPage.page)">
+              <small>{{ t('docs.nextArticle') }}</small><span>{{ nextPage.title }}</span>
+            </RouterLink>
           </footer>
         </article>
+
+        <div v-else class="docs-reader-state">
+          <p>{{ copy.notFound }}</p><RouterLink :to="docsRoute">{{ copy.docsHome }}</RouterLink>
+        </div>
       </main>
+
+      <aside class="docs-reader-rail">
+        <nav v-if="headings.length" :aria-label="copy.onPage" class="docs-reader-toc">
+          <strong><Icon name="document" size="sm" aria-hidden="true" />{{ copy.onPage }}</strong>
+          <RouterLink
+            v-for="heading in headings"
+            :key="heading.id"
+            :to="headingLink(heading.id)"
+            :class="{ 'docs-toc-child': heading.level === 3, 'is-current': route.hash === `#${heading.id}` }"
+            :aria-current="route.hash === `#${heading.id}` ? 'location' : undefined"
+          >{{ heading.title }}</RouterLink>
+        </nav>
+        <div v-if="loadState === 'ready' && (isIndex || activeArticle)" class="docs-reader-share">
+          <strong>{{ copy.share }}</strong>
+          <button type="button" class="docs-action" @click="copyLink">
+            <Icon :name="linkCopied ? 'check' : 'copy'" size="sm" aria-hidden="true" />{{ linkCopied ? copy.copied : copy.copyLink }}
+          </button>
+        </div>
+      </aside>
     </div>
 
+    <BaseDialog :show="searchOpen" :title="copy.search" close-on-click-outside @close="searchOpen = false">
+      <form role="search" class="docs-search-form" @submit.prevent="navigateToFirstResult">
+        <input ref="searchInput" v-model="searchQuery" type="search" class="input" :aria-label="copy.search" :placeholder="copy.searchHint" />
+      </form>
+      <p v-if="loadState !== 'ready'" class="docs-search-state" role="status">{{ loadState === 'error' ? copy.loadError : copy.load }}</p>
+      <p v-else-if="!searchResults.length" class="docs-search-state" role="status">{{ copy.searchEmpty }}</p>
+      <ul v-else class="docs-search-results">
+        <li v-for="result in searchResults" :key="`${result.cat}:${result.page}`">
+          <RouterLink :to="docLink(result.cat, result.page)" @click="searchOpen = false">
+            <strong>{{ result.title }}</strong><span>{{ result.category }} · {{ result.summary }}</span>
+          </RouterLink>
+        </li>
+      </ul>
+    </BaseDialog>
     <SupportFloatingCard hide-on-mobile />
   </div>
 </template>
+
+<style src="@/styles/public-docs.css"></style>

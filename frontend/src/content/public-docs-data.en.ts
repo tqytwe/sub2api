@@ -1,4 +1,6 @@
 import { PUBLIC_DOC_TREE } from './public-docs-tree'
+import { getToolGuide } from './public-docs-tool-guides'
+import { ENGLISH_ARTICLES } from './public-docs-articles.en'
 import type { PublicDocCategoryContent, PublicDocPageContent } from './public-docs-data.zh'
 
 const CATEGORY_META: Record<string, Pick<PublicDocCategoryContent, 'title' | 'description'>> = {
@@ -19,12 +21,12 @@ const CATEGORY_META: Record<string, Pick<PublicDocCategoryContent, 'title' | 'de
     description: 'Model catalog, model choice, and request best practices',
   },
   deploy: {
-    title: 'API and Tool Setup',
-    description: 'Image APIs, Claude Code, Codex, Gemini CLI, and SDK quickstarts',
+    title: 'API setup',
+    description: 'Image APIs, SDKs, and request protocol references',
   },
   tools: {
-    title: 'Coding Tools',
-    description: 'Client setup for common coding agents and development tools',
+    title: 'Tool integrations',
+    description: 'Terminal, editor, desktop, and agent setup guides',
   },
   environment: {
     title: 'Local Environment',
@@ -96,11 +98,13 @@ const PAGE_TITLES: Record<string, string> = {
 
 const MANUAL_PAGES: Record<string, Omit<PublicDocPageContent, 'id'>> = {
   'tutorial:quick-start': {
-    title: 'Use Jisudeng with your existing OpenAI SDK',
-    summary: 'Change only baseURL and API key to call AI models through one gateway.',
-    html: `<p class="docs-lead">Jisudeng is an OpenAI-compatible API gateway. Keep your existing OpenAI SDK and change only the <code>baseURL</code> and API key.</p>
+    title: 'Quick start',
+    summary: 'Create an API key, make a first request, and verify usage.',
+    html: `<h2>Get an API key and choose a model</h2>
+<ol><li><a href="/login">Sign in</a> or <a href="/register">create an account</a>. If your group charges against your balance, check your balance before making a request.</li><li>Open <a href="/keys">API Keys</a>, choose <strong>Create API Key</strong>, enter a name, and select a group. Save and copy the key from its row.</li><li>In <a href="/en/catalog">Models &amp; Pricing</a>, find the exact model ID enabled for that group and confirm it supports Chat Completions. Replace <code>YOUR_MODEL_ID</code> in the examples.</li></ol>
 <h2>Base URL</h2>
 <pre><code>https://api.jisudeng.com/v1</code></pre>
+<p>Set the environment variable <code>JISUDENG_API_KEY</code> in the shell where you run the example.</p>
 <h2>Node.js</h2>
 <pre><code>import OpenAI from "openai";
 
@@ -110,21 +114,22 @@ const client = new OpenAI({
 });
 
 const response = await client.chat.completions.create({
-  model: "deepseek-v4-pro",
+  model: "YOUR_MODEL_ID",
   messages: [{ role: "user", content: "Hello from Jisudeng" }],
 });
 
 console.log(response.choices[0]?.message?.content);</code></pre>
 <h2>Python</h2>
-<pre><code>from openai import OpenAI
+<pre><code>import os
+from openai import OpenAI
 
 client = OpenAI(
-    api_key="JISUDENG_API_KEY",
+    api_key=os.environ["JISUDENG_API_KEY"],
     base_url="https://api.jisudeng.com/v1",
 )
 
 response = client.chat.completions.create(
-    model="deepseek-v4-pro",
+    model="YOUR_MODEL_ID",
     messages=[{"role": "user", "content": "Hello from Jisudeng"}],
 )
 
@@ -134,10 +139,10 @@ print(response.choices[0].message.content)</code></pre>
   -H "Authorization: Bearer $JISUDENG_API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "model": "deepseek-v4-pro",
+    "model": "YOUR_MODEL_ID",
     "messages": [{"role": "user", "content": "Hello from Jisudeng"}]
   }'</code></pre>
-<p class="docs-tip">Use the same base URL and API key. Switch models by changing only the <code>model</code> name.</p>`,
+<h2>Verify your first request</h2><p>Check the model and charge in <a href="/usage">Usage</a>. If the request failed, check the key status, exact model ID, group and endpoint before retrying.</p>`,
   },
   'deploy:text-to-image-api': {
     title: 'Image generation API',
@@ -147,12 +152,12 @@ print(response.choices[0].message.content)</code></pre>
 POST https://api.jisudeng.com/v1/images/edits
 POST https://api.jisudeng.com/v1/images/generations/async
 GET  https://api.jisudeng.com/v1/images/tasks/{task_id}</code></pre>
-<h2>Text to image</h2>
+<h2>Text to image</h2><p>Replace <code>YOUR_IMAGE_MODEL_ID</code> with the exact ID of an Images API model available to your group in <a href="/en/catalog">Models &amp; Pricing</a>.</p>
 <pre><code>curl https://api.jisudeng.com/v1/images/generations \\
   -H "Authorization: Bearer $JISUDENG_API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "model": "gpt-image-2",
+    "model": "YOUR_IMAGE_MODEL_ID",
     "prompt": "A clean product photo of matte black wireless earbuds",
     "size": "1024x1024",
     "n": 1,
@@ -165,17 +170,23 @@ GET  https://api.jisudeng.com/v1/images/tasks/{task_id}</code></pre>
   'deploy:batch-image-api': {
     title: 'Batch image API',
     summary: 'Submit multiple image requests as one durable batch job.',
-    html: `<p class="docs-lead">Batch image jobs are useful when you have many prompts and do not need an immediate response.</p>
+    html: `<p class="docs-lead">Batch image jobs combine independent image prompts in one durable job.</p>
+<h2>Check eligibility</h2><p>Call <code>GET /v1/images/batches/models</code> with the same API key you will submit with. Choose a returned model ID and assign a unique <code>custom_id</code> to each item.</p>
+<h2>Submit and monitor</h2>
 <pre><code>POST https://api.jisudeng.com/v1/images/batches
 GET  https://api.jisudeng.com/v1/images/batches/{batch_id}
+GET  https://api.jisudeng.com/v1/images/batches/{batch_id}/items
+GET  https://api.jisudeng.com/v1/images/batches/{batch_id}/download
+POST https://api.jisudeng.com/v1/images/batches/{batch_id}/cancel
 DELETE https://api.jisudeng.com/v1/images/batches/{batch_id}</code></pre>
-<p>Use an API key in the Authorization header. The service validates every item before enqueueing the batch. Completed results are temporary download URLs and should be downloaded before expiry.</p>`,
+<p>Send the API key in the Authorization header. Use the same <code>Idempotency-Key</code> when retrying the same submission. Poll the batch status and download completed outputs before expiry. Use the cancel route to request cancellation. The DELETE route removes a batch record.</p>`,
   },
   'deploy:async-image-tasks': {
     title: 'Async image tasks',
     summary: 'Queue a long-running image request and poll its status.',
-    html: `<p class="docs-lead">Async generation returns <code>202 Accepted</code> and a task ID. Poll the task URL until it is <code>completed</code> or <code>failed</code>.</p>
+    html: `<p class="docs-lead">Async generation returns <code>202 Accepted</code> and a task ID.</p><h2>Submit and poll</h2>
 <pre><code>POST https://api.jisudeng.com/v1/images/generations/async
+POST https://api.jisudeng.com/v1/images/edits/async
 GET  https://api.jisudeng.com/v1/images/tasks/{task_id}</code></pre>
 <p>Reuse the same <code>Idempotency-Key</code> when retrying a submission. Queue and storage outages fail closed with <code>IMAGE_ASYNC_NOT_READY</code>. Result URLs are short-lived and the internal storage endpoint is never exposed.</p>`,
   },
@@ -183,21 +194,23 @@ GET  https://api.jisudeng.com/v1/images/tasks/{task_id}</code></pre>
     title: 'VIP levels',
     summary: 'Current VIP thresholds, benefits, and qualification sources.',
     html: `<p class="docs-lead">VIP is calculated from verified online payment credit and audited offline recharge net amounts.</p>
-<p>Current production tiers are V0 (0), V1 (50), V2 (500), V3 (1000), V4 (2000), V5 (5000), and V6 (10000). Amounts are in CNY unless the account shows another approved currency.</p>
+<h2>Check your level and benefits</h2><p>Use the tier table above and the live quote on <a href="/purchase">Recharge</a> for current thresholds and benefits.</p>
 <p>Gifts, check-in, quiz, blind-box, redeem codes, promotions, and compensation do not qualify. Refunds and reversals reduce the net amount. A tier upgrade affects the next recharge order.</p>`,
   },
   'recharge-vip:check-in': {
     title: 'Daily check-in',
     summary: 'Check-in participation, reward pools, and streak milestones.',
-    html: `<p class="docs-lead">Check-in participation and redeemable rewards are separate. The reward type and amount come from the published pool, not a fixed daily promise.</p>
-<p>Seven-, fourteen-, and thirty-day streak milestones are separate balance rewards. They are credited even when the daily result is a coupon or redeem code. Check-in rewards never increase VIP qualification.</p>
-<p>The production check-in and quiz switches may be disabled while the service runs a cohort or budget review.</p>`,
+    html: `<h2>Check in and confirm today's status</h2>
+<p>Sign in and open <a href="/check-in">Daily Check-in</a>, or use the check-in card in <a href="/play">Play</a>. A check-in may record participation or grant energy. If eligible for a redeemable reward, read the result for the type and amount. Check <a href="/wallet">Wallet</a> for credited balance or coupons, and <a href="/redeem">Redeem</a> for awarded codes. Check-in rewards never increase VIP qualification.</p>
+<h2>Review your streak and makeup eligibility</h2>
+<p>The check-in page shows your current streak and any available milestone. Follow the makeup prompt if it is available for your account, then confirm the result on the same page.</p>`,
   },
   'recharge-vip:image-studio': {
     title: 'AI Creation Space',
     summary: 'Create and manage image jobs in the authenticated workspace.',
-    html: `<p class="docs-lead">Open <code>/ai-creation-space</code> to create images, upload references, and review jobs. The legacy <code>/image-studio</code> route redirects to the new workspace.</p>
-<p>Account access, model permissions, billing, and job status remain managed by the main platform. Stored assets are served through temporary signed URLs; internal object-storage endpoints are not public API values.</p>`,
+    html: `<h2>Open the canvas</h2><p><a href="/ai-creation-space">AI Creation Space</a> takes you to the separate canvas app. Follow the sign-in prompt if it appears.</p>
+<h2>Create and review an image</h2><ol><li>Open the image workbench in the canvas sidebar. If no models are available, check the configured model channel and refresh its model list.</li><li>Enter a prompt and select a model and aspect ratio. Attach a reference image if supported.</li><li>Generate a single image first to verify your setup, then preview or download the result.</li></ol>
+<h2>When using the Jisudeng channel</h2><p>Check your model, group, and interface in <a href="/catalog">Models &amp; Pricing</a>. Check <a href="/usage">Usage</a> after the request. For direct integration, see the <a href="/docs?cat=deploy&amp;page=text-to-image-api">Image API</a> and <a href="/docs?cat=deploy&amp;page=batch-image-api">Batch Image API</a>.</p>`,
   },
 }
 
@@ -225,25 +238,18 @@ export function defaultDocPageIdEn(catId: string) {
 }
 
 function buildEnglishPage(catId: string, pageId: string): PublicDocPageContent {
+  if (catId === 'deploy' || catId === 'tools') {
+    const tool = getToolGuide('en', pageId)
+    if (tool) return tool
+  }
   const manual = MANUAL_PAGES[`${catId}:${pageId}`]
   if (manual) {
     return { id: pageId, ...manual }
   }
 
-  const title = PAGE_TITLES[pageId] ?? titleFromId(pageId)
-  return {
-    id: pageId,
-    title,
-    summary: `${title} guidance for Jisudeng users.`,
-    html: fallbackHtml(catId, pageId, title),
-  }
-}
-
-function fallbackHtml(catId: string, pageId: string, title: string): string {
-  const sourceHref = `/en/docs?cat=${encodeURIComponent(catId)}&page=${encodeURIComponent(pageId)}`
-  return `<p class="docs-lead"><strong>${escapeHtml(title)}</strong> for Jisudeng.</p>
-<p>This page describes the supported workflow, request boundaries, and account or API requirements for this feature. Check the live catalog and your account permissions before making a production request.</p>
-<p class="docs-tip"><a href="${sourceHref}">Open this article in English</a> or return to the documentation index for related API examples.</p>`
+  const article = ENGLISH_ARTICLES[`${catId}:${pageId}`]
+  if (!article) throw new Error(`Missing English documentation for ${catId}/${pageId}`)
+  return { id: pageId, title: PAGE_TITLES[pageId] ?? titleFromId(pageId), ...article }
 }
 
 function titleFromId(id: string): string {
@@ -256,14 +262,6 @@ function titleFromId(id: string): string {
 
 function capitalize(value: string): string {
   return value ? value[0].toUpperCase() + value.slice(1) : value
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
 }
 
 const ACRONYMS: Record<string, string> = {
