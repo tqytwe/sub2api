@@ -165,6 +165,9 @@ func (s *AuthService) createEmailOAuthUser(ctx context.Context, email, username,
 	if err := s.checkIPRiskRegistrationAllowed(ctx); err != nil {
 		return nil, err
 	}
+	if err := s.validateRegistrationEmailAlias(ctx, email); err != nil {
+		return nil, err
+	}
 	invitationRedeemCode, err := s.validateOAuthRegistrationInvitation(ctx, invitationCode)
 	if err != nil {
 		if errors.Is(err, ErrInvitationCodeRequired) {
@@ -197,13 +200,16 @@ func (s *AuthService) createEmailOAuthUser(ctx context.Context, email, username,
 		Status:       StatusActive,
 		SignupSource: providerType,
 	}
-	if err := s.userRepo.Create(ctx, user); err != nil {
+	if err := s.createUserAndClaimInvitation(ctx, user, invitationRedeemCode); err != nil {
 		if errors.Is(err, ErrEmailExists) {
 			existing, loadErr := s.userRepo.GetByEmail(ctx, email)
 			if loadErr != nil {
-				return nil, ErrServiceUnavailable
+				return nil, ErrEmailExists
 			}
 			return existing, nil
+		}
+		if errors.Is(err, ErrRegistrationIPLimit) || errors.Is(err, ErrInvitationCodeInvalid) || errors.Is(err, ErrEmailAliasNotAllowed) || errors.Is(err, ErrEmailDomainRegistrationLimit) {
+			return nil, err
 		}
 		return nil, ErrServiceUnavailable
 	}
@@ -212,12 +218,7 @@ func (s *AuthService) createEmailOAuthUser(ctx context.Context, email, username,
 	// snapshot user × platform quota（fail-open）
 	_ = s.snapshotPlatformQuotaDefaults(ctx, user.ID, &grantPlan)
 	s.bindOAuthAffiliate(ctx, user.ID, affiliateCode)
-	if invitationRedeemCode != nil {
-		if err := s.useOAuthRegistrationInvitation(ctx, invitationRedeemCode.ID, user.ID); err != nil {
-			_ = s.RollbackOAuthEmailAccountCreation(ctx, user.ID, invitationCode)
-			return nil, ErrInvitationCodeInvalid
-		}
-	}
+
 	s.recordIPRiskRegistration(ctx, user, providerType, invitationCode, affiliateCode)
 	return user, nil
 }

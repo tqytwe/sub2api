@@ -1263,7 +1263,14 @@ export async function getPerformanceEvents(id:number): Promise<PerformanceEvent[
  return data
 }
 
+/** Occupied upstream account slots at the time of the request. */
+export async function getConcurrencySummary(): Promise<{ current_concurrency: number }> {
+  const { data } = await apiClient.get<{ current_concurrency: number }>('/admin/accounts/concurrency-summary')
+  return data
+}
+
 export const accountsAPI = {
+  getConcurrencySummary,
   getPerformance,
   savePerformance,
   releasePerformance,

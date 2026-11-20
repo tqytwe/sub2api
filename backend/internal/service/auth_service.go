@@ -27,6 +27,8 @@ var (
 	ErrInvalidCredentials           = infraerrors.Unauthorized("INVALID_CREDENTIALS", "invalid email or password")
 	ErrUserNotActive                = infraerrors.Forbidden("USER_NOT_ACTIVE", "user is not active")
 	ErrEmailExists                  = infraerrors.Conflict("EMAIL_EXISTS", "email already exists")
+	ErrEmailAliasNotAllowed         = infraerrors.BadRequest("EMAIL_ALIAS_NOT_ALLOWED", "use your primary email address without aliases to register")
+	ErrRegistrationIPLimit          = infraerrors.Forbidden("REGISTRATION_IP_LIMIT", "this IP address has reached its registration limit; contact support")
 	ErrEmailReserved                = infraerrors.BadRequest("EMAIL_RESERVED", "email is reserved")
 	ErrInvalidToken                 = infraerrors.Unauthorized("INVALID_TOKEN", "invalid token")
 	ErrTokenExpired                 = infraerrors.Unauthorized("TOKEN_EXPIRED", "token has expired")
@@ -303,6 +305,9 @@ func (s *AuthService) RegisterWithVerification(ctx context.Context, email, passw
 	if isReservedEmail(email) {
 		return "", nil, ErrEmailReserved
 	}
+	if err := s.validateRegistrationEmailAlias(ctx, email); err != nil {
+		return "", nil, err
+	}
 	// 检查是否需要邀请码
 	var invitationRedeemCode *RedeemCode
 	if s.settingService != nil && s.settingService.IsInvitationCodeEnabled(ctx) {
@@ -384,8 +389,8 @@ func (s *AuthService) RegisterWithVerification(ctx context.Context, email, passw
 		switch {
 		case errors.Is(err, ErrEmailExists):
 			return "", nil, ErrEmailExists
-		case errors.Is(err, ErrEmailDomainRegistrationLimit):
-			return "", nil, ErrEmailDomainRegistrationLimit
+		case errors.Is(err, ErrEmailDomainRegistrationLimit), errors.Is(err, ErrRegistrationIPLimit), errors.Is(err, ErrEmailAliasNotAllowed):
+			return "", nil, err
 		case errors.Is(err, ErrInvitationCodeInvalid):
 			return "", nil, ErrInvitationCodeInvalid
 		default:
@@ -450,6 +455,9 @@ func (s *AuthService) SendVerifyCode(ctx context.Context, email string, locale .
 	if isReservedEmail(email) {
 		return ErrEmailReserved
 	}
+	if err := s.validateRegistrationEmailAlias(ctx, email); err != nil {
+		return err
+	}
 	// 检查邮箱是否已存在（含 +别名 / Gmail 点号变体归一化，防止单个收件箱批量派生注册）
 	existsEmail, err := s.existsByEmailOrAlias(ctx, email)
 	if err != nil {
@@ -489,6 +497,9 @@ func (s *AuthService) SendVerifyCodeAsync(ctx context.Context, email string, loc
 
 	if isReservedEmail(email) {
 		return nil, ErrEmailReserved
+	}
+	if err := s.validateRegistrationEmailAlias(ctx, email); err != nil {
+		return nil, err
 	}
 	// 检查邮箱是否已存在（含 +别名 / Gmail 点号变体归一化；在发信前拦截，避免批量脚本消耗发信配额）
 	existsEmail, err := s.existsByEmailOrAlias(ctx, email)
@@ -714,6 +725,9 @@ func (s *AuthService) LoginOrRegisterOAuth(ctx context.Context, email, username 
 			if err := s.checkIPRiskRegistrationAllowed(ctx); err != nil {
 				return "", nil, err
 			}
+			if err := s.validateRegistrationEmailAlias(ctx, email); err != nil {
+				return "", nil, err
+			}
 
 			randomPassword, err := randomHexString(32)
 			if err != nil {
@@ -745,6 +759,9 @@ func (s *AuthService) LoginOrRegisterOAuth(ctx context.Context, email, username 
 			}
 
 			if err := s.userRepo.Create(ctx, newUser); err != nil {
+				if errors.Is(err, ErrRegistrationIPLimit) {
+					return "", nil, err
+				}
 				if errors.Is(err, ErrEmailExists) {
 					// 并发场景：GetByEmail 与 Create 之间用户被创建。
 					user, err = s.userRepo.GetByEmail(ctx, email)
@@ -850,6 +867,9 @@ func (s *AuthService) loginOrRegisterOAuthWithTokenPair(ctx context.Context, ema
 			if err := s.checkIPRiskRegistrationAllowed(ctx); err != nil {
 				return nil, nil, err
 			}
+			if err := s.validateRegistrationEmailAlias(ctx, email); err != nil {
+				return nil, nil, err
+			}
 
 			// 检查是否需要邀请码
 			var invitationRedeemCode *RedeemCode
@@ -910,6 +930,9 @@ func (s *AuthService) loginOrRegisterOAuthWithTokenPair(ctx context.Context, ema
 				txCtx := dbent.NewTxContext(ctx, tx)
 
 				if err := s.userRepo.Create(txCtx, newUser); err != nil {
+					if errors.Is(err, ErrRegistrationIPLimit) {
+						return nil, nil, err
+					}
 					if errors.Is(err, ErrEmailExists) {
 						user, err = s.userRepo.GetByEmail(ctx, email)
 						if err != nil {
@@ -938,6 +961,9 @@ func (s *AuthService) loginOrRegisterOAuthWithTokenPair(ctx context.Context, ema
 				}
 			} else {
 				if err := s.userRepo.Create(ctx, newUser); err != nil {
+					if errors.Is(err, ErrRegistrationIPLimit) {
+						return nil, nil, err
+					}
 					if errors.Is(err, ErrEmailExists) {
 						user, err = s.userRepo.GetByEmail(ctx, email)
 						if err != nil {
@@ -1378,6 +1404,9 @@ func (s *AuthService) createUserWithRegistrationEmailGuard(ctx context.Context, 
 	if s == nil || s.userRepo == nil {
 		return ErrServiceUnavailable
 	}
+	if err := s.validateRegistrationEmailAlias(ctx, user.Email); err != nil {
+		return err
+	}
 	whitelist := []string{}
 	if s.settingService != nil {
 		whitelist = s.settingService.GetRegistrationEmailSuffixWhitelist(ctx)
@@ -1427,7 +1456,11 @@ func (s *AuthService) createUserAndClaimInvitation(ctx context.Context, user *Us
 		// createUserWithRegistrationEmailGuard 会回填 user.ID（applyUserEntityToService），
 		// 直接以其原子占用邀请码；占用失败即整体回滚（含用户创建，见 user_repo.create
 		// 对外部事务的复用）。
-		if err := s.redeemRepo.Use(execCtx, invitation.ID, user.ID); err != nil {
+		claim := s.useOAuthRegistrationInvitation
+		if user.SignupSource == "email" && s.redeemRepo != nil {
+			claim = s.redeemRepo.Use
+		}
+		if err := claim(execCtx, invitation.ID, user.ID); err != nil {
 			// 并发下唯一的合法失败路径：另一个注册已占用该码
 			logger.LegacyPrintf("service.auth",
 				"[Auth] Rejected registration: invitation code %s already claimed (user_id=%d err=%v)",
@@ -1440,7 +1473,7 @@ func (s *AuthService) createUserAndClaimInvitation(ctx context.Context, user *Us
 	if invitation == nil {
 		return commitUser(ctx)
 	}
-	if s.entClient == nil {
+	if s.entClient == nil || dbent.TxFromContext(ctx) != nil {
 		return commitUser(ctx)
 	}
 

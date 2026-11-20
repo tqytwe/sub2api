@@ -16,6 +16,9 @@ type SystemSettings struct {
 	EmailVerifyEnabled                  bool
 	RegistrationEmailSuffixWhitelist    []string
 	RegistrationEmailDomainQuotaEnabled bool
+	RegistrationIPLimitEnabled          bool
+	RegistrationEmailAliasBlockEnabled  bool
+	LoginRateLimitEnabled               bool
 	PromoCodeEnabled                    bool
 	PasswordResetEnabled                bool
 	FrontendURL                         string
@@ -252,6 +255,10 @@ type SystemSettings struct {
 	ModelPlazaDescription   string `json:"model_plaza_description"`
 	PluginManagementEnabled bool   `json:"plugin_management_enabled"`
 
+	// Support tickets ("网站工单") switch + form config
+	SupportTicketEnabled bool                `json:"support_ticket_enabled"`
+	SupportTicket        SupportTicketConfig `json:"support_ticket_config"`
+
 	// Claude Code version check
 	MinClaudeCodeVersion string
 	MaxClaudeCodeVersion string
@@ -455,6 +462,8 @@ type PublicSettings struct {
 	ImageStudioEnabled   bool `json:"image_studio_enabled"`
 	NextChatEnabled      bool `json:"nextchat_enabled"`
 	SoraClientEnabled    bool `json:"sora_client_enabled"`
+	// Support tickets ("网站工单") feature switch
+	SupportTicketEnabled bool `json:"support_ticket_enabled"`
 
 	// Affiliate (邀请返利) feature toggle
 	AffiliateEnabled bool `json:"affiliate_enabled"`

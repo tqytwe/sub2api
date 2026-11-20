@@ -2,6 +2,7 @@ package service
 
 import (
 	"log/slog"
+	"math"
 	"sort"
 	"strings"
 
@@ -91,6 +92,16 @@ func NormalizeVideoModelPrices(in map[string]map[string]float64) map[string]map[
 		for _, tierKey := range tierKeys {
 			price := tierPrices[tierKey]
 			if price < 0 {
+				continue
+			}
+			if key == MiniMaxH3PriceFamily {
+				if math.IsNaN(price) || math.IsInf(price, 0) {
+					continue
+				}
+				tariff := strings.ToLower(strings.TrimSpace(tierKey))
+				if _, ok := miniMaxH3RequestSeconds(tariff); ok || tariff == MiniMaxH3PerSecond {
+					normalizedTiers[tariff] = price
+				}
 				continue
 			}
 			tier, ok := LookupVideoBillingResolution(tierKey)

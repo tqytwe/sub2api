@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"maps"
 	"net/http"
 	"net/url"
 	"strings"
@@ -150,8 +152,10 @@ type GrokRealtimeUpstream struct {
 // GrokRealtimeDialError preserves an HTTP status returned before WebSocket
 // upgrade so handlers can apply the normal Grok account policy.
 type GrokRealtimeDialError struct {
-	StatusCode int
-	Err        error
+	StatusCode      int
+	ResponseBody    []byte
+	ResponseHeaders http.Header
+	Err             error
 }
 
 func (e *GrokRealtimeDialError) Error() string { return e.Err.Error() }
@@ -169,7 +173,35 @@ func (s *OpenAIGatewayService) OpenGrokRealtime(ctx context.Context, account *Ac
 	if s == nil || account == nil || account.Platform != PlatformGrok {
 		return nil, fmt.Errorf("grok realtime account is required")
 	}
-	base, err := buildGrokVoiceURL(account, s.cfg, "realtime")
+	query := url.Values{}
+	query.Set("model", firstNonEmpty(model, "grok-voice-latest"))
+	return s.openGrokVoiceWebSocket(ctx, account, token, "realtime", query)
+}
+
+// grokTTSStreamQueryFields are the xAI streaming TTS connection parameters
+// forwarded upstream; anything else on the client URL is dropped.
+var grokTTSStreamQueryFields = []string{"voice", "language", "codec", "sample_rate", "bit_rate", "optimize_streaming_latency", "speed", "text_normalization", "with_timestamps"}
+
+// OpenGrokTTSStream dials xAI streaming TTS (GET wss://api.x.ai/v1/tts). xAI
+// requires language, so it defaults to "auto" like the HTTP TTS clients do.
+func (s *OpenAIGatewayService) OpenGrokTTSStream(ctx context.Context, account *Account, token string, clientQuery url.Values) (*GrokRealtimeUpstream, error) {
+	if s == nil || account == nil || account.Platform != PlatformGrok {
+		return nil, fmt.Errorf("grok tts stream account is required")
+	}
+	query := url.Values{}
+	for _, field := range grokTTSStreamQueryFields {
+		if value := strings.TrimSpace(clientQuery.Get(field)); value != "" {
+			query.Set(field, value)
+		}
+	}
+	if query.Get("language") == "" {
+		query.Set("language", "auto")
+	}
+	return s.openGrokVoiceWebSocket(ctx, account, token, "tts", query)
+}
+
+func (s *OpenAIGatewayService) openGrokVoiceWebSocket(ctx context.Context, account *Account, token, endpoint string, query url.Values) (*GrokRealtimeUpstream, error) {
+	base, err := buildGrokVoiceURL(account, s.cfg, endpoint)
 	if err != nil {
 		return nil, err
 	}
@@ -179,7 +211,7 @@ func (s *OpenAIGatewayService) OpenGrokRealtime(ctx context.Context, account *Ac
 	}
 	u.Scheme = "wss"
 	q := u.Query()
-	q.Set("model", firstNonEmpty(model, "grok-voice-latest"))
+	maps.Copy(q, query)
 	u.RawQuery = q.Encode()
 	headers := http.Header{"Authorization": []string{"Bearer " + token}}
 	if account.IsGrokOAuth() && isGrokCLIProxyTarget(u.String()) {
@@ -190,9 +222,14 @@ func (s *OpenAIGatewayService) OpenGrokRealtime(ctx context.Context, account *Ac
 	if account.ProxyID != nil && account.Proxy != nil {
 		proxyURL = account.Proxy.URL()
 	}
-	conn, status, _, err := dialWSWithLedger(ctx, s.getOpenAIWSPassthroughDialer(), account, u.String(), headers, proxyURL)
+	conn, status, responseHeaders, err := dialWSWithLedger(ctx, s.getOpenAIWSPassthroughDialer(), account, u.String(), headers, proxyURL)
 	if err != nil {
-		return nil, &GrokRealtimeDialError{StatusCode: status, Err: err}
+		var body []byte
+		var handshakeErr *openAIWSHandshakeError
+		if errors.As(err, &handshakeErr) {
+			body = append([]byte(nil), handshakeErr.Body...)
+		}
+		return nil, &GrokRealtimeDialError{StatusCode: status, ResponseBody: body, ResponseHeaders: responseHeaders.Clone(), Err: err}
 	}
 	return &GrokRealtimeUpstream{conn: conn, account: account}, nil
 }
@@ -283,6 +320,73 @@ func (s *OpenAIGatewayService) ProxyGrokRealtimeConn(ctx context.Context, c *gin
 	// Join both directions before the handler releases its API key reservation.
 	readers.Wait()
 	return observed, err
+}
+
+// ProxyGrokTTSStreamConn relays xAI streaming TTS events (JSON text frames in
+// both directions) and returns the characters of text.delta events that reached
+// upstream, which is what xAI bills for the session.
+func (s *OpenAIGatewayService) ProxyGrokTTSStreamConn(ctx context.Context, client *coderws.Conn, upstream *GrokRealtimeUpstream) (int64, error) {
+	if s == nil || client == nil || upstream == nil || upstream.conn == nil {
+		return 0, fmt.Errorf("tts stream connection is required")
+	}
+	conn := upstream.conn
+
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	errCh := make(chan error, 2)
+	var readers sync.WaitGroup
+	readers.Add(2)
+	var chars atomic.Int64
+
+	// Upstream → client
+	go func() {
+		defer readers.Done()
+		for {
+			msg, readErr := conn.ReadMessage(ctx)
+			if readErr != nil {
+				errCh <- readErr
+				return
+			}
+			if writeErr := client.Write(ctx, coderws.MessageText, msg); writeErr != nil {
+				errCh <- writeErr
+				return
+			}
+		}
+	}()
+
+	// Client → upstream (JSON events only)
+	go func() {
+		defer readers.Done()
+		for {
+			kind, msg, readErr := client.Read(ctx)
+			if readErr != nil {
+				errCh <- readErr
+				return
+			}
+			if kind != coderws.MessageText && kind != coderws.MessageBinary {
+				continue
+			}
+			var raw json.RawMessage
+			if unmarshalErr := json.Unmarshal(msg, &raw); unmarshalErr != nil {
+				errCh <- fmt.Errorf("invalid tts stream event: %w", unmarshalErr)
+				return
+			}
+			if writeErr := conn.WriteJSON(ctx, raw); writeErr != nil {
+				errCh <- writeErr
+				return
+			}
+			if gjson.GetBytes(msg, "type").String() == "text.delta" {
+				chars.Add(int64(len([]rune(gjson.GetBytes(msg, "delta").String()))))
+			}
+		}
+	}()
+
+	err := <-errCh
+	cancel()
+	_ = upstream.Close()
+	// Join both directions before the handler bills and releases its slots.
+	readers.Wait()
+	return chars.Load(), err
 }
 
 // ProbeGrokRealtime performs the upstream WebSocket handshake without sending

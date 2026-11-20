@@ -167,7 +167,15 @@ func RegisterGatewayRoutes(
 			})
 		}
 	}
+	isMiniMaxVideoGroup := func(c *gin.Context) bool {
+		key, ok := middleware.GetAPIKeyFromContext(c)
+		return ok && key.Group != nil && key.Group.Platform == service.PlatformMiniMax
+	}
 	videoGenerationHandler := func(c *gin.Context) {
+		if isMiniMaxVideoGroup(c) {
+			h.OpenAIGateway.MiniMaxH3Videos(c)
+			return
+		}
 		// Video status/content lookups below already allow Composite groups; keep
 		// task creation aligned so composite keys that route to Grok accounts can
 		// submit video generation jobs.
@@ -191,6 +199,10 @@ func RegisterGatewayRoutes(
 		videoGenerationHandler(c)
 	}
 	videoStatusHandler := func(c *gin.Context) {
+		if isMiniMaxVideoGroup(c) {
+			h.OpenAIGateway.MiniMaxH3Videos(c)
+			return
+		}
 		switch getGroupPlatform(c) {
 		// Video status requests do not carry a model, so composite groups cannot
 		// be resolved by compositeTargetPlatformMiddleware. Route them through
@@ -211,6 +223,10 @@ func RegisterGatewayRoutes(
 		})
 	}
 	videoContentHandler := func(c *gin.Context) {
+		if isMiniMaxVideoGroup(c) {
+			h.OpenAIGateway.MiniMaxH3Videos(c)
+			return
+		}
 		if getGroupPlatform(c) == service.PlatformOpenAI {
 			h.OpenAIGateway.AgnesVideoContent(c)
 			return
@@ -394,6 +410,15 @@ func RegisterGatewayRoutes(
 			}
 		}
 		gateway.POST("/tts", voiceHandler("tts"))
+		// Streaming TTS shares the path with batch TTS: GET + Upgrade: websocket.
+		gateway.GET("/tts", func(c *gin.Context) {
+			if getGroupPlatform(c) != service.PlatformGrok {
+				service.MarkOpsClientBusinessLimited(c, service.OpsClientBusinessLimitedReasonLocalFeatureGate)
+				c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"type": "not_found_error", "message": "Voice API is not supported for this platform"}})
+				return
+			}
+			h.OpenAIGateway.GrokTTSStream(c)
+		})
 		gateway.POST("/stt", voiceHandler("stt"))
 		gateway.POST("/custom-voices", voiceHandler("custom-voices"))
 		customVoicePathHandler := func(c *gin.Context) {
@@ -541,6 +566,14 @@ func RegisterGatewayRoutes(
 	r.POST("/tts", traffic, bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), groupStreamOnly, groupCodexCLIOnly, groupBlockSubagents, groupModelAllowlist, apiKeyModelPolicy, compositeTarget, apiKeyLongContext, requireGroupAnthropic, rootVoiceHandler("tts"))
 	r.POST("/stt", traffic, bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), groupStreamOnly, groupCodexCLIOnly, groupBlockSubagents, groupModelAllowlist, apiKeyModelPolicy, compositeTarget, apiKeyLongContext, requireGroupAnthropic, rootVoiceHandler("stt"))
 	r.POST("/custom-voices", traffic, bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), groupStreamOnly, groupCodexCLIOnly, groupBlockSubagents, groupModelAllowlist, apiKeyModelPolicy, compositeTarget, apiKeyLongContext, requireGroupAnthropic, rootVoiceHandler("custom-voices"))
+	r.GET("/tts", traffic, bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), groupStreamOnly, groupCodexCLIOnly, groupBlockSubagents, groupModelAllowlist, apiKeyModelPolicy, compositeTarget, apiKeyLongContext, requireGroupAnthropic, func(c *gin.Context) {
+		if getGroupPlatform(c) != service.PlatformGrok {
+			service.MarkOpsClientBusinessLimited(c, service.OpsClientBusinessLimitedReasonLocalFeatureGate)
+			c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"type": "not_found_error", "message": "Voice API is not supported for this platform"}})
+			return
+		}
+		h.OpenAIGateway.GrokTTSStream(c)
+	})
 	rootCustomVoicePathHandler := func(c *gin.Context) {
 		if getGroupPlatform(c) != service.PlatformGrok {
 			service.MarkOpsClientBusinessLimited(c, service.OpsClientBusinessLimitedReasonLocalFeatureGate)

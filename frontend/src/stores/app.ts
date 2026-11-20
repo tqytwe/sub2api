@@ -416,6 +416,7 @@ export const useAppStore = defineStore('app', () => {
         image_studio_enabled: false,
         nextchat_enabled: false,
         plugin_management_enabled: false,
+        support_ticket_enabled: false,
         risk_control_enabled: false,
         service_quota_enabled: false,
         affiliate_enabled: false,

@@ -193,6 +193,10 @@
                 </div>
               </div>
             </div>
+            <p class="mt-2 text-xs text-gray-500 dark:text-gray-400" :title="t('admin.dashboard.accountConcurrencyHint')" data-testid="account-concurrency">
+              {{ t('admin.dashboard.accountConcurrency') }}
+              <strong class="ml-1 text-sm text-gray-900 dark:text-white">{{ accountConcurrency ?? '—' }}</strong>
+            </p>
           </div>
 
           <!-- Avg Response Time -->
@@ -1029,6 +1033,18 @@ const changeSurchargePage = (delta: number) => {
   void loadBillingSurchargeReport(nextPage)
 }
 
+const accountConcurrency = ref<number | null>(null)
+let accountConcurrencyRequest = 0
+async function loadAccountConcurrency() {
+  const request = ++accountConcurrencyRequest
+  try {
+    const { current_concurrency: current } = await adminAPI.accounts.getConcurrencySummary()
+    if (request === accountConcurrencyRequest) accountConcurrency.value = current
+  } catch {
+    if (request === accountConcurrencyRequest) accountConcurrency.value = null
+  }
+}
+
 const loadDashboardStats = async () => {
   if (appliedPreset.value === 'last24Hours') {
     const range = getLast24HoursRangeDates()
@@ -1038,6 +1054,7 @@ const loadDashboardStats = async () => {
 
   await Promise.all([
     loadDashboardSnapshot(true),
+    loadAccountConcurrency(),
     loadUsersTrend(),
     loadUserSpendingRanking(),
     loadBillingSurchargeReport(1)

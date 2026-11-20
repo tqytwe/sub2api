@@ -60,6 +60,9 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyEmailVerifyEnabled:                        "false",
 		SettingKeyRegistrationEmailSuffixWhitelist:          "[]",
 		SettingKeyRegistrationEmailDomainQuotaEnabled:       "false",
+		SettingKeyRegistrationIPLimitEnabled:                "true",
+		SettingKeyRegistrationEmailAliasBlockEnabled:        "true",
+		SettingKeyLoginRateLimitEnabled:                     "true",
 		SettingKeyPromoCodeEnabled:                          "true", // 默认启用优惠码功能
 		SettingKeyLoginAgreementEnabled:                     "false",
 		SettingKeyLoginAgreementMode:                        defaultLoginAgreementMode,
@@ -217,6 +220,9 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyModelPlazaDescription:   "",
 		SettingKeyPluginManagementEnabled: "false",
 
+		// Support tickets (default disabled; opt-in). A missing config means the defaults.
+		SettingKeySupportTicketEnabled: "false",
+
 		// Affiliate (邀请返利) feature (default disabled; opt-in)
 		SettingKeyAffiliateEnabled:              "false",
 		SettingKeyAffiliateAdminRechargeEnabled: strconv.FormatBool(AdminRechargeRebateEnabledDefault),
@@ -346,6 +352,9 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 		EmailVerifyEnabled:                     emailVerifyEnabled,
 		RegistrationEmailSuffixWhitelist:       ParseRegistrationEmailSuffixWhitelist(settings[SettingKeyRegistrationEmailSuffixWhitelist]),
 		RegistrationEmailDomainQuotaEnabled:    settings[SettingKeyRegistrationEmailDomainQuotaEnabled] == "true",
+		RegistrationIPLimitEnabled:             settings[SettingKeyRegistrationIPLimitEnabled] != "false",
+		RegistrationEmailAliasBlockEnabled:     settings[SettingKeyRegistrationEmailAliasBlockEnabled] != "false",
+		LoginRateLimitEnabled:                  settings[SettingKeyLoginRateLimitEnabled] != "false",
 		PromoCodeEnabled:                       settings[SettingKeyPromoCodeEnabled] != "false", // 默认启用
 		PasswordResetEnabled:                   emailVerifyEnabled && settings[SettingKeyPasswordResetEnabled] == "true",
 		FrontendURL:                            settings[SettingKeyFrontendURL],
@@ -892,6 +901,14 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 	result.ModelPlazaRequireAuth = settings[SettingKeyModelPlazaRequireAuth] == "true"
 	result.ModelPlazaDescription = settings[SettingKeyModelPlazaDescription]
 	result.PluginManagementEnabled = settings[SettingKeyPluginManagementEnabled] == "true"
+
+	// Support tickets (default: disabled; strict true). A corrupt config is shown as the
+	// defaults so the admin page still loads; the runtime reader fails closed on it.
+	result.SupportTicketEnabled = settings[SettingKeySupportTicketEnabled] == "true"
+	result.SupportTicket = DefaultSupportTicketConfig()
+	if ticketConfig, err := parseSupportTicketConfig(settings[SettingKeySupportTicketConfig]); err == nil {
+		result.SupportTicket = ticketConfig
+	}
 
 	// Affiliate (邀请返利) feature (default: disabled; strict true)
 	result.AffiliateEnabled = settings[SettingKeyAffiliateEnabled] == "true"

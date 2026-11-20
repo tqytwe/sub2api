@@ -4,6 +4,7 @@ export default {
     qualityOps: { nav: 'Quality Operations' },
   },
   nav: {
+    supportTickets: 'Support Tickets',
     affiliateOperations: 'Operations overview',
     imageStudio: 'AI Creation Space',
     aiCreationSpace: 'AI Creation Space',

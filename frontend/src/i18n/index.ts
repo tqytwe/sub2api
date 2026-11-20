@@ -59,6 +59,7 @@ const localeLoaders: Record<LocaleCode, Record<LocaleLoadScope, LocaleLoader>> =
       return { default: jisudengPagesEn }
     },
     'workspace-shell': () => import('./locales/en/workspaceShell'),
+    'support-tickets': () => import('./locales/en/supportTickets'),
     'admin-shell': () => import('./locales/en/adminShell'),
     'user-dashboard': async () => {
       const [dashboard, pelican, policy, keyRisk, legacy] = await Promise.all([
@@ -208,6 +209,7 @@ const localeLoaders: Record<LocaleCode, Record<LocaleLoadScope, LocaleLoader>> =
       return { default: jisudengPagesZh }
     },
     'workspace-shell': () => import('./locales/zh/workspaceShell'),
+    'support-tickets': () => import('./locales/zh/supportTickets'),
     'admin-shell': () => import('./locales/zh/adminShell'),
     'user-dashboard': async () => {
       const [dashboard, pelican, policy, keyRisk, legacy] = await Promise.all([

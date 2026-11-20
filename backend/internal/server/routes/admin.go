@@ -66,6 +66,7 @@ func RegisterAdminRoutes(
 
 		// 公告管理
 		registerAnnouncementRoutes(admin, h)
+		registerSupportTicketRoutes(admin, h)
 
 		// OpenAI OAuth
 		registerOpenAIOAuthRoutes(admin, h)
@@ -606,6 +607,7 @@ func registerAccountRoutes(admin *gin.RouterGroup, h *handler.Handlers, stepUpAu
 		accounts.GET("/:id/performance/events", h.Admin.Account.AccountPerformanceEvents)
 		accounts.GET("/openai-request-timezones", h.Admin.Account.GetOpenAIRequestTimezones)
 		accounts.GET("", h.Admin.Account.List)
+		accounts.GET("/concurrency-summary", h.Admin.Account.GetConcurrencySummary)
 		accounts.GET("/upstream-billing-rates", h.Admin.Account.GetUpstreamBillingRates)
 		accounts.GET("/upstream-billing-probe/settings", h.Admin.Account.GetUpstreamBillingProbeSettings)
 		accounts.PUT("/upstream-billing-probe/settings", h.Admin.Account.UpdateUpstreamBillingProbeSettings)
@@ -751,6 +753,20 @@ func registerAnnouncementRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		announcements.PUT("/:id", h.Admin.Announcement.Update)
 		announcements.DELETE("/:id", h.Admin.Announcement.Delete)
 		announcements.GET("/:id/read-status", h.Admin.Announcement.ListReadStatus)
+	}
+}
+
+// registerSupportTicketRoutes serves the admin side of support tickets. The
+// service answers SUPPORT_TICKET_DISABLED while the feature switch is off.
+func registerSupportTicketRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	tickets := admin.Group("/support-tickets")
+	{
+		tickets.GET("", h.SupportTicket.AdminList)
+		tickets.GET("/summary", h.SupportTicket.AdminSummary)
+		tickets.GET("/:id", h.SupportTicket.AdminGet)
+		tickets.POST("/:id/messages", h.SupportTicket.AdminReply)
+		tickets.POST("/:id/status", h.SupportTicket.AdminSetStatus)
+		tickets.DELETE("/:id", h.SupportTicket.AdminDelete)
 	}
 }
 

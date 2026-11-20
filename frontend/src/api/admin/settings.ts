@@ -12,6 +12,7 @@ import type {
   SupportContactConfig,
 } from "@/types";
 import type { RechargeBonusTier } from "@/utils/rechargeBonus";
+import type { SupportTicketConfig } from "@/api/supportTickets";
 
 export interface DefaultSubscriptionSetting {
   group_id: number;
@@ -409,6 +410,9 @@ export interface SystemSettings {
   email_verify_enabled: boolean;
   registration_email_suffix_whitelist: string[];
   registration_email_domain_quota_enabled: boolean;
+  registration_ip_limit_enabled: boolean;
+  registration_email_alias_block_enabled: boolean;
+  login_rate_limit_enabled: boolean;
   promo_code_enabled: boolean;
   password_reset_enabled: boolean;
   frontend_url: string;
@@ -758,6 +762,10 @@ export interface SystemSettings {
   model_plaza_description: string;
   plugin_management_enabled: boolean;
 
+  // Support tickets (网站工单) switch + form config
+  support_ticket_enabled: boolean;
+  support_ticket_config: SupportTicketConfig;
+
   // Affiliate (邀请返利) feature switch
   affiliate_enabled: boolean;
 
@@ -801,6 +809,9 @@ export interface UpdateSettingsRequest {
   email_verify_enabled?: boolean;
   registration_email_suffix_whitelist?: string[];
   registration_email_domain_quota_enabled?: boolean;
+  registration_ip_limit_enabled?: boolean;
+  registration_email_alias_block_enabled?: boolean;
+  login_rate_limit_enabled?: boolean;
   promo_code_enabled?: boolean;
   password_reset_enabled?: boolean;
   frontend_url?: string;
@@ -1103,6 +1114,10 @@ export interface UpdateSettingsRequest {
   model_plaza_require_auth?: boolean;
   model_plaza_description?: string;
   plugin_management_enabled?: boolean;
+
+  // Support tickets (网站工单) switch + form config
+  support_ticket_enabled?: boolean;
+  support_ticket_config?: SupportTicketConfig;
 
   // Affiliate (邀请返利) feature switch
   affiliate_enabled?: boolean;

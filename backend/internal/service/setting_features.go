@@ -16,6 +16,27 @@ import (
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 )
 
+// Login rate limiting reads the live setting to apply a saved change on the next request.
+func (s *SettingService) IsLoginRateLimitEnabled(ctx context.Context) bool {
+	return s.authProtectionEnabled(ctx, SettingKeyLoginRateLimitEnabled)
+}
+
+func (s *SettingService) IsRegistrationIPLimitEnabled(ctx context.Context) bool {
+	return s.authProtectionEnabled(ctx, SettingKeyRegistrationIPLimitEnabled)
+}
+
+func (s *SettingService) IsRegistrationEmailAliasBlockEnabled(ctx context.Context) bool {
+	return s.authProtectionEnabled(ctx, SettingKeyRegistrationEmailAliasBlockEnabled)
+}
+
+func (s *SettingService) authProtectionEnabled(ctx context.Context, key string) bool {
+	if s == nil || s.settingRepo == nil {
+		return true
+	}
+	value, err := s.settingRepo.GetValue(ctx, key)
+	return err != nil || value != "false"
+}
+
 // IsRegistrationEnabled 检查是否开放注册
 func (s *SettingService) IsRegistrationEnabled(ctx context.Context) bool {
 	value, err := s.settingRepo.GetValue(ctx, SettingKeyRegistrationEnabled)

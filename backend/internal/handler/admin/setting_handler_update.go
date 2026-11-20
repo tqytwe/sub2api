@@ -27,6 +27,9 @@ type UpdateSettingsRequest struct {
 	EmailVerifyEnabled                  bool                         `json:"email_verify_enabled"`
 	RegistrationEmailSuffixWhitelist    []string                     `json:"registration_email_suffix_whitelist"`
 	RegistrationEmailDomainQuotaEnabled *bool                        `json:"registration_email_domain_quota_enabled"` // 非白名单域名限量注册开关（省略=保持现值）
+	RegistrationIPLimitEnabled          *bool                        `json:"registration_ip_limit_enabled"`
+	RegistrationEmailAliasBlockEnabled  *bool                        `json:"registration_email_alias_block_enabled"`
+	LoginRateLimitEnabled               *bool                        `json:"login_rate_limit_enabled"`
 	PromoCodeEnabled                    bool                         `json:"promo_code_enabled"`
 	PasswordResetEnabled                bool                         `json:"password_reset_enabled"`
 	FrontendURL                         string                       `json:"frontend_url"`
@@ -387,6 +390,10 @@ type UpdateSettingsRequest struct {
 	// Plugin management menu visibility switch; plugin runtime is unaffected.
 	PluginManagementEnabled *bool `json:"plugin_management_enabled"`
 
+	// Support tickets switch + form config
+	SupportTicketEnabled *bool                        `json:"support_ticket_enabled"`
+	SupportTicket        *service.SupportTicketConfig `json:"support_ticket_config"`
+
 	// Affiliate (邀请返利) feature switch
 	AffiliateEnabled *bool `json:"affiliate_enabled"`
 
@@ -568,6 +575,18 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		passkeyEnabled = *req.PasskeyEnabled
 	}
 	registrationEmailDomainQuotaEnabled := previousSettings.RegistrationEmailDomainQuotaEnabled
+	registrationIPLimitEnabled := previousSettings.RegistrationIPLimitEnabled
+	if req.RegistrationIPLimitEnabled != nil {
+		registrationIPLimitEnabled = *req.RegistrationIPLimitEnabled
+	}
+	registrationEmailAliasBlockEnabled := previousSettings.RegistrationEmailAliasBlockEnabled
+	if req.RegistrationEmailAliasBlockEnabled != nil {
+		registrationEmailAliasBlockEnabled = *req.RegistrationEmailAliasBlockEnabled
+	}
+	loginRateLimitEnabled := previousSettings.LoginRateLimitEnabled
+	if req.LoginRateLimitEnabled != nil {
+		loginRateLimitEnabled = *req.LoginRateLimitEnabled
+	}
 	if req.RegistrationEmailDomainQuotaEnabled != nil {
 		registrationEmailDomainQuotaEnabled = *req.RegistrationEmailDomainQuotaEnabled
 	}
@@ -1573,6 +1592,9 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		EmailVerifyEnabled:                  req.EmailVerifyEnabled,
 		RegistrationEmailSuffixWhitelist:    req.RegistrationEmailSuffixWhitelist,
 		RegistrationEmailDomainQuotaEnabled: registrationEmailDomainQuotaEnabled,
+		RegistrationIPLimitEnabled:          registrationIPLimitEnabled,
+		RegistrationEmailAliasBlockEnabled:  registrationEmailAliasBlockEnabled,
+		LoginRateLimitEnabled:               loginRateLimitEnabled,
 		PromoCodeEnabled:                    req.PromoCodeEnabled,
 		PasswordResetEnabled:                req.PasswordResetEnabled,
 		FrontendURL:                         req.FrontendURL,
@@ -2195,6 +2217,18 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			}
 			return previousSettings.PluginManagementEnabled
 		}(),
+		SupportTicketEnabled: func() bool {
+			if req.SupportTicketEnabled != nil {
+				return *req.SupportTicketEnabled
+			}
+			return previousSettings.SupportTicketEnabled
+		}(),
+		SupportTicket: func() service.SupportTicketConfig {
+			if req.SupportTicket != nil {
+				return *req.SupportTicket
+			}
+			return previousSettings.SupportTicket
+		}(),
 		AffiliateEnabled: func() bool {
 			if req.AffiliateEnabled != nil {
 				return *req.AffiliateEnabled
@@ -2430,6 +2464,9 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		EmailVerifyEnabled:                                     updatedSettings.EmailVerifyEnabled,
 		RegistrationEmailSuffixWhitelist:                       updatedSettings.RegistrationEmailSuffixWhitelist,
 		RegistrationEmailDomainQuotaEnabled:                    updatedSettings.RegistrationEmailDomainQuotaEnabled,
+		RegistrationIPLimitEnabled:                             updatedSettings.RegistrationIPLimitEnabled,
+		RegistrationEmailAliasBlockEnabled:                     updatedSettings.RegistrationEmailAliasBlockEnabled,
+		LoginRateLimitEnabled:                                  updatedSettings.LoginRateLimitEnabled,
 		PromoCodeEnabled:                                       updatedSettings.PromoCodeEnabled,
 		PasswordResetEnabled:                                   updatedSettings.PasswordResetEnabled,
 		FrontendURL:                                            updatedSettings.FrontendURL,
@@ -2708,6 +2745,9 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		ModelPlazaRequireAuth:   updatedSettings.ModelPlazaRequireAuth,
 		ModelPlazaDescription:   updatedSettings.ModelPlazaDescription,
 		PluginManagementEnabled: updatedSettings.PluginManagementEnabled,
+
+		SupportTicketEnabled: updatedSettings.SupportTicketEnabled,
+		SupportTicket:        updatedSettings.SupportTicket,
 
 		AffiliateEnabled: updatedSettings.AffiliateEnabled,
 

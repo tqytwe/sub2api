@@ -801,6 +801,34 @@ describe("admin SettingsView payment visible method controls", () => {
     adminSettingsFetch.mockResolvedValue(undefined);
   });
 
+  it("edits the support ticket card and sends a cleaned config", async () => {
+    getSettings.mockResolvedValueOnce({
+      ...baseSettingsResponse,
+      support_ticket_enabled: false,
+      support_ticket_config: { categories: ["账户与充值", "其他"], max_open_per_user: 5, notice: "" },
+    });
+    const wrapper = mountView();
+    await flushPromises();
+    await wrapper.get('#settings-tab-features').trigger('click');
+    const card = wrapper.get('[data-testid="support-ticket-settings"]');
+    expect(card.find('[data-testid="support-ticket-categories"]').exists()).toBe(false);
+    await wrapper.get("#support-ticket-enabled").setValue(true);
+    const inputs = () => wrapper.get('[data-testid="support-ticket-categories"]').findAll("input");
+    expect(inputs().map((input) => (input.element as HTMLInputElement).value)).toEqual(["账户与充值", "其他"]);
+    await wrapper.get('[data-testid="support-ticket-add-category"]').trigger("click");
+    await inputs()[2].setValue("  退款  ");
+    await wrapper.get('[data-testid="support-ticket-add-category"]').trigger("click");
+    await wrapper.get("#support-ticket-max-open").setValue("8");
+    await wrapper.get("#support-ticket-notice").setValue("工作时间 9–21 点");
+    await wrapper.find("form").trigger("submit.prevent");
+    await flushPromises();
+    expect(updateSettings.mock.calls[0]?.[0]).toMatchObject({
+      support_ticket_enabled: true,
+      support_ticket_config: { categories: ["账户与充值", "其他", "退款"], max_open_per_user: 8, notice: "工作时间 9–21 点" },
+    });
+    wrapper.unmount();
+  });
+
   it("saves the Excel BPS relay configuration and reloads the saved policy", async () => {
     const wrapper = mountView();
     await flushPromises();
@@ -935,6 +963,10 @@ describe("admin SettingsView payment visible method controls", () => {
     await openSecurityTab(wrapper);
 
     expect(wrapper.get('[data-testid="registration-email-domain-quota-toggle"]').exists()).toBe(true);
+    for (const setting of ["registration-ip-limit", "registration-email-alias-block", "login-rate-limit"]) {
+      expect(wrapper.get(`[data-testid="${setting}-toggle"]`).exists()).toBe(true);
+    }
+    await wrapper.get('[data-testid="registration-email-alias-block-toggle"]').setValue(false);
     expect(wrapper.get('[data-testid="tencent-captcha-app-secret"]').attributes("type")).toBe("password");
     expect(wrapper.get('[data-testid="tencent-captcha-app-secret-status"]').text()).toContain("已配置");
     expect(wrapper.get('[data-testid="tencent-captcha-cloud-secret-id-status"]').text()).toContain("已配置");
@@ -964,6 +996,9 @@ describe("admin SettingsView payment visible method controls", () => {
     const payload = updateSettings.mock.calls.at(-1)?.[0] as Record<string, unknown>;
     expect(payload).toMatchObject({
       registration_email_domain_quota_enabled: true,
+      registration_ip_limit_enabled: true,
+      registration_email_alias_block_enabled: false,
+      login_rate_limit_enabled: true,
       account_scheduling_thresholds: {
         openai: 80,
         anthropic: 81,

@@ -1908,6 +1908,10 @@ func (a *Account) SupportsOpenAIEndpointCapability(capability OpenAIEndpointCapa
 	if a == nil {
 		return false
 	}
+	if capability == OpenAIEndpointCapabilityMiniMaxH3 {
+		return a.Platform == PlatformMiniMax && a.Type == AccountTypeAPIKey && !a.IsCodingPlan() &&
+			strings.TrimSpace(a.GetCredential("base_url")) != ""
+	}
 	if a.HasManagedOpenAIConnections() && a.AuthConnectionID == "" {
 		return a.managedConnectionSupports(string(capability))
 	}

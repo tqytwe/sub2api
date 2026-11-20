@@ -140,3 +140,18 @@ func (s *AuthService) existsByEmailOrAlias(ctx context.Context, email string) (b
 	}
 	return s.userRepo.ExistsByEmailAlias(ctx, email)
 }
+
+// IsRegistrationEmailAlias detects aliases without treating dots in non-Gmail mailboxes as aliases.
+func IsRegistrationEmailAlias(email string) bool {
+	local, domain, ok := splitEmailForAliasDedup(email)
+	return ok && (strings.HasSuffix(strings.TrimSpace(email), ".") ||
+		strings.IndexByte(local, '+') > 0 ||
+		(isGmailFamilyDomain(domain) && strings.Contains(local, ".")))
+}
+
+func (s *AuthService) validateRegistrationEmailAlias(ctx context.Context, email string) error {
+	if IsRegistrationEmailAlias(email) && (s.settingService == nil || s.settingService.IsRegistrationEmailAliasBlockEnabled(ctx)) {
+		return ErrEmailAliasNotAllowed
+	}
+	return nil
+}

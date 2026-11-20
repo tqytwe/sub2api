@@ -3900,7 +3900,7 @@ func (h *OpenAIGatewayHandler) submitOpenAIUsageRecordTask(parent context.Contex
 		h.runUsageRecordTaskSync(parent, task)
 		return
 	}
-	if result != nil && result.ImageCount > 0 {
+	if result != nil && (result.ImageCount > 0 || (result.VideoCount > 0 && result.MiniMaxH3BaseCost != nil)) {
 		h.submitMandatoryUsageRecordTask(parent, task)
 		return
 	}

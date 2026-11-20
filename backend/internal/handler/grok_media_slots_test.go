@@ -120,11 +120,12 @@ func (s *grokMediaSlotsCache) assertReleased(t *testing.T) {
 
 type grokMediaSlotBindings struct {
 	testutil.StubGatewayCache
-	owner   int64
-	writes  int
-	key     string
-	billed  map[string]bool
-	pending map[string][]byte
+	owner    int64
+	ownerTTL time.Duration
+	writes   int
+	key      string
+	billed   map[string]bool
+	pending  map[string][]byte
 }
 
 func (s *grokMediaSlotBindings) SetGrokVideoPendingBilling(_ context.Context, key string, body []byte, _ time.Duration) error {
@@ -144,8 +145,8 @@ func (s *grokMediaSlotBindings) GetSessionAccountID(_ context.Context, groupID i
 	}
 	return s.owner, nil
 }
-func (s *grokMediaSlotBindings) SetSessionAccountID(_ context.Context, _ int64, key string, owner int64, _ time.Duration) error {
-	s.key, s.owner = key, owner
+func (s *grokMediaSlotBindings) SetSessionAccountID(_ context.Context, _ int64, key string, owner int64, ttl time.Duration) error {
+	s.key, s.owner, s.ownerTTL = key, owner, ttl
 	s.writes++
 	return nil
 }

@@ -32,9 +32,11 @@ import promptAuditAdminEn from './en/admin/promptAudit'
 import tokenGuardV2En from './en/tokenGuardV2'
 import siwcEn from './en/siwc'
 import accountOpsEn from './en/accountOps'
+import supportTickets from './en/supportTickets'
 import { mergeLocaleMessages } from './merge'
 
 const messages = {
+  ...supportTickets,
   autoCredit,
   profitOps,
   upstreamEntities,

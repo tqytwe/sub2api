@@ -179,6 +179,11 @@ export const FeatureFlags = {
     mode: 'opt-in',
     label: 'Public Models',
   }),
+  supportTickets: defineFlag({
+    key: 'support_ticket_enabled',
+    mode: 'opt-in',
+    label: 'Support Tickets',
+  }),
 } as const
 
 export type RegisteredFeatureFlag = keyof typeof FeatureFlags

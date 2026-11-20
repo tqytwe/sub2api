@@ -7,6 +7,7 @@ export const LOCALE_LOAD_SCOPES = [
   'core',
   'public-pages',
   'workspace-shell',
+  'support-tickets',
   'admin-shell',
   'user-dashboard',
   'user-usage',
@@ -121,6 +122,10 @@ export type LocaleRouteName =
   | 'AdminIPRiskActions'
   | 'AdminRedeem'
   | 'AdminPromoCodes'
+  | 'SupportTickets'
+  | 'SupportTicketDetail'
+  | 'AdminSupportTickets'
+  | 'AdminSupportTicketDetail'
   | 'AdminSettings'
   | 'AdminRiskControl'
   | 'AdminPromptAudit'
@@ -249,6 +254,10 @@ export const ROUTE_LOCALE_SCOPES = {
   // the legacy admin resources fragment. Keep this dependency explicit so a
   // cold navigation cannot render raw coupon.admin.* keys.
   AdminPromoCodes: [...ADMIN, 'admin-resources', 'public-pages'],
+  SupportTickets: [...WORKSPACE, 'support-tickets'],
+  SupportTicketDetail: [...WORKSPACE, 'support-tickets'],
+  AdminSupportTickets: [...ADMIN, 'support-tickets'],
+  AdminSupportTicketDetail: [...ADMIN, 'support-tickets'],
   AdminSettings: [...ADMIN, 'admin-settings', 'admin-accounts', 'admin-overview'],
   AdminRiskControl: [...ADMIN, 'admin-resources', 'admin-channels', 'admin-accounts'],
   AdminPromptAudit: [...ADMIN, 'admin-channels', 'admin-prompt-audit'],

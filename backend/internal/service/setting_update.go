@@ -238,6 +238,9 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	}
 	updates[SettingKeyRegistrationEmailSuffixWhitelist] = string(registrationEmailSuffixWhitelistJSON)
 	updates[SettingKeyRegistrationEmailDomainQuotaEnabled] = strconv.FormatBool(settings.RegistrationEmailDomainQuotaEnabled)
+	updates[SettingKeyRegistrationIPLimitEnabled] = strconv.FormatBool(settings.RegistrationIPLimitEnabled)
+	updates[SettingKeyRegistrationEmailAliasBlockEnabled] = strconv.FormatBool(settings.RegistrationEmailAliasBlockEnabled)
+	updates[SettingKeyLoginRateLimitEnabled] = strconv.FormatBool(settings.LoginRateLimitEnabled)
 	updates[SettingKeyPromoCodeEnabled] = strconv.FormatBool(settings.PromoCodeEnabled)
 	updates[SettingKeyPasswordResetEnabled] = strconv.FormatBool(settings.PasswordResetEnabled)
 	updates[SettingKeyFrontendURL] = settings.FrontendURL
@@ -533,6 +536,15 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	updates[SettingKeyModelPlazaRequireAuth] = strconv.FormatBool(settings.ModelPlazaRequireAuth)
 	updates[SettingKeyModelPlazaDescription] = settings.ModelPlazaDescription
 	updates[SettingKeyPluginManagementEnabled] = strconv.FormatBool(settings.PluginManagementEnabled)
+
+	// Support tickets switch + form config
+	updates[SettingKeySupportTicketEnabled] = strconv.FormatBool(settings.SupportTicketEnabled)
+	ticketConfig, ticketConfigErr := NormalizeSupportTicketConfig(settings.SupportTicket)
+	if ticketConfigErr != nil {
+		return nil, infraerrors.BadRequest("INVALID_SUPPORT_TICKET_CONFIG", ticketConfigErr.Error())
+	}
+	ticketConfigJSON, _ := json.Marshal(ticketConfig)
+	updates[SettingKeySupportTicketConfig] = string(ticketConfigJSON)
 
 	// Affiliate (邀请返利) feature switch
 	updates[SettingKeyAffiliateEnabled] = strconv.FormatBool(settings.AffiliateEnabled)
