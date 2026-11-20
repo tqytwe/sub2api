@@ -65,7 +65,7 @@ import { useI18n } from 'vue-i18n'
 import { adminAPI } from '@/api/admin'
 import type { CNProviderQuotaProbeResult } from '@/api/admin/cnProviders'
 import type { Account } from '@/types'
-import { cnQuotaCellVisible } from './credentialsBuilder'
+import { cnQuotaCellVisible, commandCodeUsageVisible } from './credentialsBuilder'
 import UsageProgressBar from './UsageProgressBar.vue'
 
 const props = defineProps<{
@@ -79,7 +79,9 @@ const readMode = (): string => {
   return typeof mode === 'string' ? mode : ''
 }
 
-const visible = computed(() => cnQuotaCellVisible(props.account.platform, readMode()))
+const visible = computed(() => props.account.platform === 'command_code'
+  ? commandCodeUsageVisible(props.account)
+  : cnQuotaCellVisible(props.account.platform, readMode(), props.account))
 
 const loading = ref(false)
 const error = ref<string | null>(null)

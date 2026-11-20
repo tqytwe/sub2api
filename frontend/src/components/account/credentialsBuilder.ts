@@ -1,3 +1,4 @@
+import type { Account } from '@/types'
 import { openAIPlanTypeKey, openAIPlanTypeLabel, openAIPlanTypes } from '@/utils/planType'
 
 export function applyInterceptWarmup(
@@ -46,7 +47,8 @@ export function isHeaderOverrideCapable(platform: string, type: string): boolean
     platform === 'zhipu' ||
     platform === 'deepseek' ||
     platform === 'minimax' ||
-    platform === 'opencode_go'
+    platform === 'opencode_go' ||
+    platform === 'command_code'
   ) {
     return type === 'apikey'
   }
@@ -272,11 +274,14 @@ export function isCNProviderPlatform(platform: string): platform is CnProviderPl
 
 /** DeepSeek、Kimi 与 MiniMax 提供原生 Responses 端点。 */
 export function cnSupportsNativeResponses(platform: string): boolean {
-  return platform === 'deepseek' || platform === 'kimi' || platform === 'minimax' || platform === 'opencode_go'
+  return platform === 'deepseek' || platform === 'kimi' || platform === 'minimax' || platform === 'opencode_go' || platform === 'command_code'
 }
 
+export const MISTRAL_BASE_URL = 'https://api.mistral.ai/v1'
 export const OPENCODE_GO_BASE_URL = 'https://opencode.ai/zen/go/v1'
 export const OPENCODE_GO_ANTHROPIC_BASE_URL = 'https://opencode.ai/zen/go'
+export const CLINE_BASE_URL = 'https://api.cline.bot/api/v1'
+
 export const OPENCODE_ZEN_BASE_URL = 'https://opencode.ai/zen/v1'
 export const OPENCODE_ZEN_ANTHROPIC_BASE_URL = 'https://opencode.ai/zen'
 
@@ -289,6 +294,7 @@ export const OPENCODE_GO_PROTOCOL_RULES_KEY = 'protocol_rules'
 export interface OpenCodeGoProtocolRule {
   pattern: string
   protocol: CnNativeApiProtocol
+  protocols?: CnNativeApiProtocol[]
 }
 
 export const DEFAULT_OPENCODE_GO_PROTOCOL_RULES: OpenCodeGoProtocolRule[] = [
@@ -318,7 +324,7 @@ export function defaultOpenCodeProtocolRules(mode: OpenCodeAccountMode = 'go'): 
 export function cloneOpenCodeGoProtocolRules(
   rules: OpenCodeGoProtocolRule[] = DEFAULT_OPENCODE_GO_PROTOCOL_RULES
 ): OpenCodeGoProtocolRule[] {
-  return rules.map(rule => ({ pattern: rule.pattern, protocol: rule.protocol }))
+  return rules.map(rule => ({ ...rule, ...(rule.protocols ? { protocols: [...rule.protocols] } : {}) }))
 }
 
 function isNativeOpenCodeGoProtocol(value: unknown): value is CnNativeApiProtocol {
@@ -336,7 +342,9 @@ export function parseOpenCodeGoProtocolRules(raw: unknown): OpenCodeGoProtocolRu
       : ''
     const protocol = (item as { protocol?: unknown }).protocol
     if (!pattern || !isNativeOpenCodeGoProtocol(protocol)) continue
-    rules.push({ pattern, protocol })
+    const alternates = (item as { protocols?: unknown }).protocols
+    const protocols = Array.isArray(alternates) ? alternates.filter(isNativeOpenCodeGoProtocol) : undefined
+    rules.push({ pattern, protocol, ...(protocols?.length ? { protocols } : {}) })
   }
   return rules
 }
@@ -349,7 +357,8 @@ export function applyOpenCodeGoProtocolRules(
   const serialized = rules
     .map(rule => ({
       pattern: rule.pattern.trim().toLowerCase(),
-      protocol: rule.protocol
+      protocol: rule.protocol,
+      ...(rule.protocols?.length ? { protocols: rule.protocols.filter(value => value !== rule.protocol) } : {})
     }))
     .filter(rule => rule.pattern.length > 0 && isNativeOpenCodeGoProtocol(rule.protocol))
   if (serialized.length > 0 || mode === 'edit') {
@@ -358,7 +367,7 @@ export function applyOpenCodeGoProtocolRules(
 }
 
 export function isMultiProtocolApiKeyPlatform(platform: string): boolean {
-  return platform === 'kimi' || platform === 'zhipu' || platform === 'deepseek' || platform === 'minimax' || platform === 'opencode_go'
+  return platform === 'kimi' || platform === 'zhipu' || platform === 'deepseek' || platform === 'minimax' || platform === 'opencode_go' || platform === 'command_code'
 }
 
 export interface CnBaseUrlPreset {
@@ -412,6 +421,9 @@ export function defaultCNBaseUrl(
   mode: CnAccountMode | OpenCodeAccountMode,
   protocol: CnApiProtocol = 'chat_completions'
 ): string {
+  if (platform === 'command_code') {
+    return protocol === 'anthropic' ? 'https://api.commandcode.ai/provider' : 'https://api.commandcode.ai/provider/v1'
+  }
   if (protocol === 'anthropic') {
     switch (platform) {
       case 'kimi':
@@ -449,7 +461,7 @@ export function defaultCNBaseUrl(
 
 /** 返回自适应模式下需要配置的原生协议及其默认端点。 */
 export function defaultCNAdaptiveBaseUrls(
-  platform: CnProviderPlatform | 'opencode_go',
+  platform: CnProviderPlatform | 'opencode_go' | 'command_code',
   mode: CnAccountMode | OpenCodeAccountMode
 ): Record<CnNativeApiProtocol, string> {
   return {
@@ -463,12 +475,54 @@ export function defaultCNAdaptiveBaseUrls(
 // CNProviderQuotaCell / CNProviderBalanceCell 与 AccountUsageCell 的占位符判定
 // 共用，避免多处复制条件后一处改另一处漏改。
 
-export function cnQuotaCellVisible(platform: string, accountMode: string): boolean {
+function isOfficialClineApiKey(account: Account): boolean {
+  if (account.type !== 'apikey') return false
+  const base = account.credentials?.base_url
+  try {
+    const url = new URL(typeof base === 'string' && base.trim() ? base.trim() : CLINE_BASE_URL)
+    return url.origin === 'https://api.cline.bot' && !url.username && !url.password
+  } catch {
+    return false
+  }
+}
+
+export function commandCodeUsageVisible(account: { platform: string; type: string; credentials?: Record<string, unknown> }): boolean {
+  if (account.platform !== 'command_code' || account.type !== 'apikey') return false
+  const urls = account.credentials?.api_base_urls as Record<string, unknown> | undefined
+  const configuredProtocol = account.credentials?.api_protocol
+  const adaptive = configuredProtocol == null || configuredProtocol === '' || configuredProtocol === 'adaptive'
+  const adaptiveURL = adaptive ? urls?.chat_completions : undefined
+  const base = typeof adaptiveURL === 'string' && adaptiveURL.trim() ? adaptiveURL : account.credentials?.base_url
+  try {
+    const url = new URL(typeof base === 'string' && base.trim() ? base : 'https://api.commandcode.ai/provider/v1')
+    return url.protocol === 'https:' && url.hostname === 'api.commandcode.ai'
+  } catch {
+    return false
+  }
+}
+
+function isOfficialMistralApiKey(account?: Account): boolean {
+  if (account?.type !== 'apikey') return false
+  const endpoints = account.credentials?.api_base_urls as Record<string, unknown> | undefined
+  const base = endpoints?.chat_completions || account.credentials?.base_url
+  try {
+    const url = new URL(typeof base === 'string' && base.trim() ? base.trim() : MISTRAL_BASE_URL)
+    return url.origin === 'https://api.mistral.ai' && !url.username && !url.password
+  } catch {
+    return false
+  }
+}
+
+export function cnQuotaCellVisible(platform: string, accountMode: string, account?: Account): boolean {
+  if (platform === 'cline') return account != null && isOfficialClineApiKey(account)
+  if (platform === 'mistral') return isOfficialMistralApiKey(account)
   if (platform === 'opencode_go') return accountMode !== 'zen'
   return (platform === 'kimi' || platform === 'zhipu' || platform === 'minimax') && accountMode === 'coding'
 }
 
-export function cnBalanceCellVisible(platform: string, accountMode: string): boolean {
+export function cnBalanceCellVisible(platform: string, accountMode: string, account?: Account): boolean {
+  if (platform === 'cline') return account != null && isOfficialClineApiKey(account)
+  if (platform === 'mistral') return isOfficialMistralApiKey(account)
   return (platform === 'kimi' || platform === 'deepseek') && accountMode !== 'coding'
 }
 

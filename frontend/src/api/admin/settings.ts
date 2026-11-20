@@ -42,6 +42,8 @@ export type SchedulingThresholdPlatformType =
   | "zhipu"
   | "minimax"
   | "opencode_go"
+  | "command_code"
+  | "mistral"
 
 export type AccountSchedulingThresholdsMap = Record<SchedulingThresholdPlatformType, number>
 
@@ -55,6 +57,8 @@ export const SCHEDULING_THRESHOLD_PLATFORMS: SchedulingThresholdPlatformType[] =
   "zhipu",
   "minimax",
   "opencode_go",
+  "command_code",
+  "mistral",
 ]
 
 export function normalizeAccountSchedulingThresholdsMap(

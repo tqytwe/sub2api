@@ -235,6 +235,19 @@
           </button>
           <button
             type="button"
+            :class="[
+              'flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium transition-colors',
+              isCommandCodePlatform
+                ? 'bg-white text-gray-800 shadow-sm dark:bg-dark-600 dark:text-gray-100'
+                : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'
+            ]"
+            @click="selectCommandCodePlatform()"
+          >
+            <PlatformIcon platform="command_code" size="sm" />
+            Command Code
+          </button>
+          <button
+            type="button"
             @click="selectTypeSafePlatform()"
             :class="[
               'flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium transition',
@@ -245,6 +258,46 @@
           >
             <PlatformIcon platform="typesafe" size="sm" />
             TypeSafe / Jev
+          </button>
+          <button
+            type="button"
+            :aria-pressed="form.platform === 'qwen'"
+            :class="[
+              'flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium transition-colors',
+              form.platform === 'qwen'
+                ? 'bg-white text-primary-700 shadow-sm dark:bg-dark-600 dark:text-primary-300'
+                : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'
+            ]"
+            @click="selectQwenPlatform"
+          >
+            <PlatformIcon platform="qwen" size="sm" />
+            Qwen
+          </button>
+          <button
+            type="button"
+            :aria-pressed="form.platform === 'cline'"
+            @click="selectClinePlatform()"
+            :class="[
+              'flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium transition',
+              form.platform === 'cline'
+                ? 'bg-white text-violet-700 shadow-sm dark:bg-dark-600 dark:text-violet-300'
+                : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'
+            ]"
+          >
+            <Icon name="cloud" size="sm" />
+            Cline
+          </button>
+          <button
+            type="button"
+            :aria-pressed="form.platform === 'mistral'"
+            @click="selectMistralPlatform()"
+            :class="[
+              'flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium transition-colors',
+              form.platform === 'mistral' ? 'bg-white text-orange-700 shadow-sm dark:bg-dark-600 dark:text-orange-300' : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'
+            ]"
+          >
+            <Icon name="cloud" size="sm" />
+            Mistral
           </button>
         </div>
       </div>
@@ -1456,23 +1509,19 @@
 
       <!-- API Key input (only for apikey type, excluding Antigravity which has its own fields) -->
       <div v-if="form.type === 'apikey' && form.platform !== 'antigravity'" class="space-y-4">
+        <QwenCacheSettings
+          v-if="form.platform === 'qwen'"
+          v-model:session-cache="qwenSessionCache"
+          v-model:strict-affinity="qwenStrictAffinity"
+          @base-url="apiKeyBaseUrl = $event"
+        />
         <div v-if="!isMultiProtocolPlatform || apiProtocol !== 'adaptive'">
           <label class="input-label">{{ t('admin.accounts.baseUrl') }}</label>
           <input
             v-model="apiKeyBaseUrl"
             type="text"
             class="input"
-            :placeholder="
-              isCNPlatform
-                ? apiKeyBaseUrlPlaceholder
-                : form.platform === 'openai'
-                  ? 'https://api.openai.com'
-                  : form.platform === 'gemini'
-                    ? 'https://generativelanguage.googleapis.com'
-                    : form.platform === 'grok'
-                      ? 'https://api.x.ai/v1'
-                      : 'https://api.anthropic.com'
-            "
+            :placeholder="apiKeyBaseUrlPlaceholder"
           />
           <p v-if="baseUrlHint" class="input-hint">{{ baseUrlHint }}</p>
           <GrokBaseUrlPresets
@@ -1510,7 +1559,8 @@
           </p>
         </div>
         <OpenCodeGoProtocolRulesEditor
-          v-if="isOpenCodeGoPlatform && apiProtocol === 'adaptive'"
+          v-if="(isOpenCodeGoPlatform || isCommandCodePlatform) && apiProtocol === 'adaptive'"
+          :use-model-catalog="isCommandCodePlatform"
           v-model:rows="openCodeGoProtocolRules"
           :plan="openCodeAccountMode"
         />
@@ -4041,6 +4091,8 @@
 </template>
 
 <script setup lang="ts">
+import QwenCacheSettings from './QwenCacheSettings.vue'
+import { applyQwenCacheSettings, QWEN_DEFAULT_BASE_URL } from './qwenCacheSettings'
 import UpstreamChannelSelector from './UpstreamChannelSelector.vue'
 import { useUpstreamChannelCreation } from './upstreamChannelCreation'
 import OpenAIRequestTimezoneField from '@/components/account/OpenAIRequestTimezoneField.vue'
@@ -4100,6 +4152,8 @@ import OpenCodeGoProtocolRulesEditor from '@/components/account/OpenCodeGoProtoc
 import HeaderOverrideEditor from '@/components/account/HeaderOverrideEditor.vue'
 import { allSelectedGroupsEnableLongContextPricing } from '@/components/account/longContextBilling'
 import {
+  CLINE_BASE_URL,
+  MISTRAL_BASE_URL,
   applyAntigravityProjectID,
   applyHeaderOverride,
   applyInterceptWarmup,
@@ -4202,8 +4256,14 @@ const apiKeyBaseUrlPlaceholder = computed(() => {
       return 'https://generativelanguage.googleapis.com'
     case 'grok':
       return 'https://api.x.ai/v1'
+    case 'qwen':
+      return QWEN_DEFAULT_BASE_URL
+    case 'mistral':
+      return MISTRAL_BASE_URL
     case 'typesafe':
       return 'https://api.typesafe.ai'
+    case 'cline':
+      return CLINE_BASE_URL
     default:
       return 'https://api.anthropic.com'
   }
@@ -4224,10 +4284,15 @@ const apiKeyValuePlaceholder = computed(() => {
     case 'deepseek':
       return 'sk-...'
     case 'minimax':
+    case 'qwen':
     case 'opencode_go':
       return 'sk-...'
+    case 'mistral':
+      return 'API Key'
     case 'typesafe':
       return 'ts-...'
+    case 'cline':
+      return 'API Key'
     default:
       return 'sk-ant-...'
   }
@@ -4334,7 +4399,8 @@ const adaptiveBaseUrls = ref<Record<CnNativeApiProtocol, string>>({
 })
 const isCNPlatform = computed(() => isCNProviderPlatform(form.platform))
 const isOpenCodeGoPlatform = computed(() => form.platform === 'opencode_go')
-const isMultiProtocolPlatform = computed(() => isCNPlatform.value || isOpenCodeGoPlatform.value)
+const isCommandCodePlatform = computed(() => form.platform === 'command_code')
+const isMultiProtocolPlatform = computed(() => isCNPlatform.value || isOpenCodeGoPlatform.value || isCommandCodePlatform.value)
 function currentOpenCodeOrCNMode(): CnAccountMode | OpenCodeAccountMode {
   return isOpenCodeGoPlatform.value ? openCodeAccountMode.value : accountMode.value
 }
@@ -4346,8 +4412,8 @@ const cnPresetPlatform = computed<CnProviderPlatform>(() => {
   }
   return 'kimi'
 })
-const adaptivePresetPlatform = computed<CnProviderPlatform | 'opencode_go'>(() => {
-  if (form.platform === 'opencode_go') return 'opencode_go'
+const adaptivePresetPlatform = computed<CnProviderPlatform | 'opencode_go' | 'command_code'>(() => {
+  if (form.platform === 'opencode_go' || form.platform === 'command_code') return form.platform
   return cnPresetPlatform.value
 })
 // 当前平台可选的协议档（responses 仅 deepseek / kimi）。
@@ -4372,7 +4438,7 @@ const cnAdaptiveProtocolOptions = computed<Array<{ value: CnNativeApiProtocol; l
 })
 
 function resetAdaptiveBaseUrls(
-  platform: CnProviderPlatform | 'opencode_go',
+  platform: CnProviderPlatform | 'opencode_go' | 'command_code',
   mode: CnAccountMode | OpenCodeAccountMode
 ) {
   adaptiveBaseUrls.value = defaultCNAdaptiveBaseUrls(platform, mode)
@@ -4432,6 +4498,34 @@ function selectOpenCodeGoPlatform() {
   apiKeyBaseUrl.value = defaultCNBaseUrl('opencode_go', openCodeAccountMode.value, 'adaptive')
   resetAdaptiveBaseUrls('opencode_go', openCodeAccountMode.value)
   openCodeGoProtocolRules.value = cloneOpenCodeGoProtocolRules(defaultOpenCodeProtocolRules(openCodeAccountMode.value))
+}
+const qwenSessionCache = ref(false)
+const qwenStrictAffinity = ref(false)
+function selectQwenPlatform() {
+  form.platform = 'qwen'
+  form.type = 'apikey'
+  accountCategory.value = 'apikey'
+}
+function selectClinePlatform() {
+  form.platform = 'cline'
+  form.type = 'apikey'
+  accountCategory.value = 'apikey'
+  apiKeyBaseUrl.value = CLINE_BASE_URL
+}
+function selectCommandCodePlatform() {
+  form.platform = 'command_code'
+  form.type = 'apikey'
+  accountCategory.value = 'apikey'
+  apiProtocol.value = 'adaptive'
+  openCodeGoProtocolRules.value = []
+  apiKeyBaseUrl.value = defaultCNBaseUrl('command_code', 'payg', 'adaptive')
+  resetAdaptiveBaseUrls('command_code', 'payg')
+}
+function selectMistralPlatform() {
+  form.platform = 'mistral'
+  form.type = 'apikey'
+  accountCategory.value = 'apikey'
+  apiKeyBaseUrl.value = MISTRAL_BASE_URL
 }
 function selectTypeSafePlatform() {
   form.platform = 'typesafe'
@@ -5051,7 +5145,7 @@ watch(
   () => form.platform,
   (newPlatform) => {
     // Reset base URL based on platform
-    if (isCNProviderPlatform(newPlatform) || newPlatform === 'opencode_go') {
+    if (isCNProviderPlatform(newPlatform) || newPlatform === 'opencode_go' || newPlatform === 'command_code') {
       const mode = newPlatform === 'opencode_go' ? openCodeAccountMode.value : accountMode.value
       apiKeyBaseUrl.value = defaultCNBaseUrl(newPlatform, mode, apiProtocol.value)
     } else {
@@ -5062,8 +5156,14 @@ watch(
             ? 'https://generativelanguage.googleapis.com'
             : newPlatform === 'grok'
               ? 'https://api.x.ai/v1'
-              : newPlatform === 'typesafe'
-                ? 'https://api.typesafe.ai'
+              : newPlatform === 'qwen'
+                ? QWEN_DEFAULT_BASE_URL
+              : newPlatform === 'cline'
+                ? CLINE_BASE_URL
+                : newPlatform === 'mistral'
+                  ? MISTRAL_BASE_URL
+                : newPlatform === 'typesafe'
+                  ? 'https://api.typesafe.ai'
               : 'https://api.anthropic.com'
     }
     // Clear model-related settings
@@ -5197,9 +5297,9 @@ const handleSelectGeminiOAuthType = (oauthType: 'code_assist' | 'google_one' | '
 // Auto-fill related models when switching to whitelist mode or changing platform
 watch(
   [modelRestrictionMode, () => form.platform],
-  ([newMode]) => {
-    if (newMode === 'whitelist') {
-      allowedModels.value = [...getModelsByPlatform(form.platform)]
+  ([newMode, platform]) => {
+    if (newMode === 'whitelist' && platform !== 'cline') {
+      allowedModels.value = [...getModelsByPlatform(platform)]
     }
   }
 )
@@ -5521,6 +5621,8 @@ const submitCreateAccount = async (payload: CreateAccountRequest) => {
 
 // Methods
 function resetForm() {
+  qwenSessionCache.value = false
+  qwenStrictAffinity.value = false
   upstreamCreation.clear()
   initialChannelId.value = 0
   initialChannelConfirmed.value = false
@@ -6031,14 +6133,23 @@ const handleSubmit = async () => {
         ? 'https://generativelanguage.googleapis.com'
         : form.platform === 'grok'
           ? 'https://api.x.ai/v1'
-          : form.platform === 'typesafe'
-            ? 'https://api.typesafe.ai'
+          : form.platform === 'qwen'
+            ? QWEN_DEFAULT_BASE_URL
+          : form.platform === 'cline'
+            ? CLINE_BASE_URL
+            : form.platform === 'mistral'
+              ? MISTRAL_BASE_URL
+            : form.platform === 'typesafe'
+              ? 'https://api.typesafe.ai'
           : 'https://api.anthropic.com'
 
   // Build credentials with optional model mapping
   const credentials: Record<string, unknown> = {
     base_url: apiKeyBaseUrl.value.trim() || defaultBaseUrl,
     api_key: apiKeyValue.value.trim()
+  }
+  if (form.platform === 'qwen') {
+    applyQwenCacheSettings(credentials, qwenSessionCache.value, qwenStrictAffinity.value)
   }
   if (form.platform === 'gemini') {
     credentials.tier_id = geminiTierAIStudio.value
@@ -6047,8 +6158,8 @@ const handleSubmit = async () => {
   // 国产供应商：账号模式 + 协议 + 对应端点写入凭据；后端按 account_mode 路由
   // 额度/余额探测，按 api_protocol 路由转发端点与格式。注意 CN apikey 走本函数
   // 的通用路径（直接 doCreateAccount），不经过 createAccountAndFinish。
-  if (isCNProviderPlatform(form.platform) || form.platform === 'opencode_go') {
-    credentials.account_mode = form.platform === 'opencode_go' ? openCodeAccountMode.value : accountMode.value
+  if (isCNProviderPlatform(form.platform) || form.platform === 'opencode_go' || form.platform === 'command_code') {
+    if (form.platform !== 'command_code') credentials.account_mode = currentOpenCodeOrCNMode()
     credentials.api_protocol = apiProtocol.value
     if (apiProtocol.value === 'adaptive') {
       const defaults = defaultCNAdaptiveBaseUrls(
@@ -6073,7 +6184,7 @@ const handleSubmit = async () => {
       if (zhipuOrganization.value.trim()) credentials.zhipu_organization = zhipuOrganization.value.trim()
       if (zhipuProject.value.trim()) credentials.zhipu_project = zhipuProject.value.trim()
     }
-    if (form.platform === 'opencode_go') {
+    if (form.platform === 'opencode_go' || form.platform === 'command_code') {
       applyOpenCodeGoProtocolRules(credentials, openCodeGoProtocolRules.value, 'create')
     }
   }

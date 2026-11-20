@@ -415,8 +415,13 @@ func buildAccountForCreate(input *CreateAccountInput, accountExtra map[string]an
 	if err := ValidateOpenAIRequestTimezoneExtra(input.Platform, accountExtra); err != nil {
 		return nil, err
 	}
-	if input.Platform == PlatformTypeSafe && input.Type != AccountTypeAPIKey {
-		return nil, errors.New("typesafe accounts only support apikey credentials")
+	if (input.Platform == PlatformMistral || input.Platform == PlatformTypeSafe || input.Platform == PlatformCommandCode || input.Platform == PlatformCline || input.Platform == PlatformQwen) && input.Type != AccountTypeAPIKey {
+		return nil, fmt.Errorf("%s accounts only support apikey credentials", input.Platform)
+	}
+	if input.Platform == PlatformQwen {
+		if err := validateQwenCacheCredentials(input.Credentials); err != nil {
+			return nil, err
+		}
 	}
 	// Probe/session state is system-managed. New accounts always start with automatic refresh disabled.
 	delete(accountExtra, UpstreamBillingProbeEnabledExtraKey)
@@ -617,8 +622,8 @@ func (s *adminServiceImpl) UpdateAccount(ctx context.Context, id int64, input *U
 	if err != nil {
 		return nil, err
 	}
-	if account.Platform == PlatformTypeSafe && input.Type != "" && input.Type != AccountTypeAPIKey {
-		return nil, errors.New("typesafe accounts only support apikey credentials")
+	if (account.Platform == PlatformMistral || account.Platform == PlatformTypeSafe || account.IsCommandCode() || account.Platform == PlatformCline || account.Platform == PlatformQwen) && input.Type != "" && input.Type != AccountTypeAPIKey {
+		return nil, fmt.Errorf("%s accounts only support apikey credentials", account.Platform)
 	}
 	var normalizedExtra map[string]any
 	if input.Extra != nil {
@@ -692,6 +697,11 @@ func (s *adminServiceImpl) UpdateAccount(ctx context.Context, id int64, input *U
 		// 敏感子键采用"incoming 没提供就保留"的合并语义：前端响应已脱敏，
 		// 全对象 PUT 编辑时不会再带回 token，避免覆盖时清空已有凭证。
 		account.Credentials = MergePreservingSensitiveCreds(account.Credentials, input.Credentials)
+		if account.Platform == PlatformQwen {
+			if err := validateQwenCacheCredentials(account.Credentials); err != nil {
+				return nil, err
+			}
+		}
 		// 校验并规范化请求头覆写配置（header 名小写化、格式检查）
 		if err := NormalizeHeaderOverrideCredentials(account.Credentials); err != nil {
 			return nil, err

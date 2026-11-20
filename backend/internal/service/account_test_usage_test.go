@@ -52,7 +52,7 @@ func TestAccountTestStreamParsersCollectProviderUsage(t *testing.T) {
 			name: "chat", protocol: "chat",
 			stream: "data: {\"choices\":[{\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":12,\"completion_tokens\":7}}\n",
 			process: func(s *AccountTestService, c *gin.Context, body string) error {
-				return s.processOpenAIChatCompletionsStream(c, strings.NewReader(body))
+				return s.processOpenAIChatCompletionsStream(c, strings.NewReader(body), nil)
 			},
 		},
 		{

@@ -83,6 +83,10 @@ func (a *Account) modelRateLimitKeysForRequest(ctx context.Context, requestedMod
 
 	keys := []string{modelKey}
 	switch a.Platform {
+	case PlatformCline:
+		if wallet := clineWalletRateLimitKey(modelKey); wallet != "" && wallet != modelKey {
+			keys = append(keys, wallet)
+		}
 	case PlatformAntigravity:
 		if isAntigravityGeminiModel(modelKey) && modelKey != antigravityGeminiModelRateLimitKey {
 			keys = append(keys, antigravityGeminiModelRateLimitKey)

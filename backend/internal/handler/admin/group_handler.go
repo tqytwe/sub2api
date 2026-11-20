@@ -188,7 +188,7 @@ type CreateGroupRequest struct {
 	Name                            string                        `json:"name" binding:"required"`
 	Description                     string                        `json:"description"`
 	I18n                            service.GroupI18n             `json:"i18n"`
-	Platform                        string                        `json:"platform" binding:"omitempty,oneof=anthropic openai gemini antigravity grok kimi zhipu deepseek minimax opencode_go typesafe composite"`
+	Platform                        string                        `json:"platform" binding:"omitempty,oneof=anthropic openai gemini antigravity grok kimi zhipu deepseek minimax opencode_go typesafe qwen cline command_code mistral composite"`
 	RateMultiplier                  float64                       `json:"rate_multiplier"`
 	BillingSurchargeOverrideEnabled bool                          `json:"billing_surcharge_override_enabled"`
 	BillingSurchargeEnabled         bool                          `json:"billing_surcharge_enabled"`
@@ -270,7 +270,7 @@ type UpdateGroupRequest struct {
 	Name                            string                         `json:"name"`
 	Description                     *string                        `json:"description"`
 	I18n                            *service.GroupI18n             `json:"i18n"`
-	Platform                        string                         `json:"platform" binding:"omitempty,oneof=anthropic openai gemini antigravity grok kimi zhipu deepseek minimax opencode_go typesafe composite"`
+	Platform                        string                         `json:"platform" binding:"omitempty,oneof=anthropic openai gemini antigravity grok kimi zhipu deepseek minimax opencode_go typesafe qwen cline command_code mistral composite"`
 	RateMultiplier                  *float64                       `json:"rate_multiplier"`
 	BillingSurchargeOverrideEnabled *bool                          `json:"billing_surcharge_override_enabled"`
 	BillingSurchargeEnabled         *bool                          `json:"billing_surcharge_enabled"`
@@ -351,7 +351,7 @@ type UpdateGroupRequest struct {
 type CompositeRouteRequest struct {
 	PublicModel    string `json:"public_model" binding:"required"`
 	MatchType      string `json:"match_type" binding:"omitempty,oneof=exact prefix"`
-	TargetPlatform string `json:"target_platform" binding:"required,oneof=anthropic openai gemini antigravity grok kimi zhipu deepseek minimax opencode_go typesafe"`
+	TargetPlatform string `json:"target_platform" binding:"required,oneof=anthropic openai gemini antigravity grok kimi zhipu deepseek minimax opencode_go typesafe qwen cline command_code mistral"`
 	UpstreamModel  string `json:"upstream_model"`
 	Endpoint       string `json:"endpoint" binding:"omitempty,oneof=any messages count_tokens responses chat_completions embeddings images gemini"`
 	Priority       int    `json:"priority"`

@@ -133,7 +133,7 @@ func (s *OpenAIGatewayService) nativeAnthropicTargetURL(account *Account) (strin
 	if err != nil {
 		return "", fmt.Errorf("invalid base_url: %w", err)
 	}
-	if account.IsOpenCodeGo() {
+	if account.IsOpenCodeGo() || account.IsCommandCode() {
 		// OpenCode Go 的 Chat Completions base 带 /v1；用版本感知拼接避免 /v1/v1/messages。
 		return buildOpenAIEndpointURL(validatedURL, "/v1/messages"), nil
 	}

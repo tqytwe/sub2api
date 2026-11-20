@@ -81,6 +81,7 @@ type OpenAIAccountScheduleRequest struct {
 	PreserveStickyBinding   bool
 	// DisableStickyEscape keeps task-owner lookups on their account even when
 	// generic sticky health or concurrency heuristics would prefer another.
+	strictSession           *openAIStrictSession
 	DisableStickyEscape     bool
 	RequirePrivacySet       bool
 	PreviousResponseID      string
@@ -457,6 +458,30 @@ func (s *defaultOpenAIAccountScheduler) Select(
 		return nil, decision, err
 	}
 	previousResponseID := strings.TrimSpace(req.PreviousResponseID)
+	if !recovery.ownerBindingRequired() && pointerOwner == 0 {
+		var affinityErr error
+		req, affinityErr = s.prepareStrictSession(ctx, req)
+		if affinityErr != nil {
+			return nil, decision, affinityErr
+		}
+		if req.strictSession != nil {
+			defer func() {
+				if err == nil && selection != nil && selection.Account != nil {
+					if claimErr := s.claimStrictSession(ctx, req, selection.Account); claimErr != nil {
+						if selection.ReleaseFunc != nil {
+							selection.ReleaseFunc()
+						}
+						selection = nil
+						decision = OpenAIAccountScheduleDecision{}
+						err = claimErr
+					}
+				}
+			}()
+			if req.strictSession.enforce {
+				return s.selectStrictSession(ctx, req)
+			}
+		}
+	}
 	if recovery.ownerBindingRequired() || pointerOwner > 0 {
 		ownerID := pointerOwner
 		if recovery.ownerBindingRequired() {
@@ -2595,7 +2620,7 @@ func (s *OpenAIGatewayService) selectAccountWithSchedulerOnce(
 		guardianParentAccountID = s.resolveOpenAIGuardianParentAccountID(ctx, groupID)
 	}
 	priority := s.prioritySchedulingRuntimeConfig()
-	scheduler := s.getOpenAIAccountScheduler(ctx, openAIAgentRecoveryBound(ctx) || (platform == PlatformOpenAI && requiredImageCapability == "" && useUpstreamTokenCost && priority.applies(groupID, requestedModel)))
+	scheduler := s.getOpenAIAccountScheduler(ctx, platform == PlatformQwen || s.strictOpenAISessionAffinity(groupID, platform, requiredImageCapability) || openAIAgentRecoveryBound(ctx) || (platform == PlatformOpenAI && requiredImageCapability == "" && useUpstreamTokenCost && priority.applies(groupID, requestedModel)))
 	if scheduler == nil {
 		decision.Layer = openAIAccountScheduleLayerLoadBalance
 		rpmExhausted := false

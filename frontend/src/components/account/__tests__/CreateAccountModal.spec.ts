@@ -214,6 +214,49 @@ describe('CreateAccountModal OpenAI long-context billing', () => {
 
   afterEach(() => vi.useRealTimers())
 
+  it('creates a Qwen account with the selected upstream endpoint and opted-in cache', async () => {
+    const wrapper = mountModal()
+    await selectButtonByText(wrapper, 'Qwen')
+    const cache = wrapper.get('[data-testid="qwen-session-cache"]')
+    const sticky = wrapper.get('[data-testid="qwen-strict-affinity"]')
+    expect((cache.element as HTMLInputElement).checked).toBe(false)
+    expect((sticky.element as HTMLInputElement).checked).toBe(false)
+    await cache.setValue(true)
+    await sticky.setValue(true)
+    await wrapper.get('[data-testid="qwen-token-plan-url"]').trigger('click')
+    await wrapper.get('form#create-account-form input[type="text"]').setValue('Qwen fixture')
+    await wrapper.get('form#create-account-form input[type="password"]').setValue('fixture-key')
+    await wrapper.get('form#create-account-form').trigger('submit.prevent')
+    await flushPromises()
+    expect(createAccountMock).toHaveBeenCalledWith(expect.objectContaining({
+      platform: 'qwen',
+      type: 'apikey',
+      credentials: expect.objectContaining({
+        base_url: 'https://token-plan.maas.qianwenaiapi.com/compatible-mode/v1',
+        qwen_session_cache_enabled: true,
+        qwen_strict_session_affinity: true
+      })
+    }))
+    wrapper.unmount()
+  })
+
+  it('creates a Cline account with the official default and no protocol selector', async () => {
+    const wrapper = mountModal()
+    await selectButtonByText(wrapper, 'Cline')
+    await wrapper.get('form#create-account-form input[type="text"]').setValue('Cline account')
+    await wrapper.get('input[placeholder="https://api.cline.bot/api/v1"]').setValue('')
+    await wrapper.get('form#create-account-form input[type="password"]').setValue('test-cline-key')
+    await wrapper.get('form#create-account-form').trigger('submit.prevent')
+    await flushPromises()
+
+    expect(createAccountMock).toHaveBeenCalledWith(expect.objectContaining({
+      platform: 'cline',
+      type: 'apikey',
+      credentials: { base_url: 'https://api.cline.bot/api/v1', api_key: 'test-cline-key' },
+    }))
+    wrapper.unmount()
+  })
+
   it('sets month and year expiry presets without submitting the account form', async () => {
     vi.useFakeTimers({ toFake: ['Date'] })
     vi.setSystemTime(new Date('2026-01-31T12:34:00'))

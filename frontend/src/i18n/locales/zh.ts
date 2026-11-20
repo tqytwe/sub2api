@@ -3703,6 +3703,7 @@ const messages = {
         gemini: 'Gemini',
         antigravity: 'Antigravity',
         grok: 'Grok',
+        command_code: 'Command Code',
       },
       saving: '保存中...',
       noGroups: '暂无分组',

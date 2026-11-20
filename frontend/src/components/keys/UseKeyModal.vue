@@ -1379,6 +1379,10 @@ function generateRoutedCodexFiles(
     deepseek: 'deepseek-v4-pro',
     minimax: 'MiniMax-M3',
     opencode_go: 'glm-5.3',
+    qwen: 'qwen3.8-max',
+    mistral: 'mistral-small-latest',
+    cline: 'deepseek/deepseek-v4-flash',
+    command_code: 'deepseek/deepseek-v4-flash',
     composite: 'gpt-5.5'
   }
   const preferredModel = preferredModels[platform] || ''
@@ -1394,7 +1398,11 @@ function generateRoutedCodexFiles(
     deepseek: 'DeepSeek',
     minimax: 'MiniMax',
     opencode_go: 'OpenCode',
+    command_code: 'Command Code',
     typesafe: 'TypeSafe / Jev',
+    qwen: 'Qwen',
+    cline: 'Cline',
+    mistral: 'Mistral',
     composite: 'Composite'
   }
   const label = labels[platform]

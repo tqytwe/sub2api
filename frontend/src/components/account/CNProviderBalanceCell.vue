@@ -58,7 +58,7 @@ import { adminAPI } from '@/api/admin'
 import type { CNProviderBalanceEntry, CNProviderBalanceResult } from '@/api/admin/cnProviders'
 import type { Account } from '@/types'
 import { platformTextClass } from '@/utils/platformColors'
-import { cnBalanceCellVisible } from './credentialsBuilder'
+import { cnBalanceCellVisible, commandCodeUsageVisible } from './credentialsBuilder'
 
 const props = defineProps<{
   account: Account
@@ -72,7 +72,9 @@ const readMode = (): string => {
 }
 
 // 仅 kimi / deepseek payg 账号有公开余额端点（智谱 payg 无）。
-const visible = computed(() => cnBalanceCellVisible(props.account.platform, readMode()))
+const visible = computed(() => props.account.platform === 'command_code'
+  ? commandCodeUsageVisible(props.account)
+  : cnBalanceCellVisible(props.account.platform, readMode(), props.account))
 
 const loading = ref(false)
 const error = ref<string | null>(null)

@@ -45,13 +45,17 @@ const (
 	PlatformAntigravity = domain.PlatformAntigravity
 	PlatformGrok        = domain.PlatformGrok
 	// 国产 OpenAI 兼容供应商（与 grok 一样经 OpenAI 网关转发）。
-	PlatformKimi       = domain.PlatformKimi
-	PlatformZhipu      = domain.PlatformZhipu
-	PlatformDeepseek   = domain.PlatformDeepseek
-	PlatformMiniMax    = domain.PlatformMiniMax
-	PlatformTypeSafe   = domain.PlatformTypeSafe
-	PlatformOpenCodeGo = domain.PlatformOpenCodeGo
-	PlatformComposite  = domain.PlatformComposite
+	PlatformKimi        = domain.PlatformKimi
+	PlatformZhipu       = domain.PlatformZhipu
+	PlatformDeepseek    = domain.PlatformDeepseek
+	PlatformMiniMax     = domain.PlatformMiniMax
+	PlatformQwen        = domain.PlatformQwen
+	PlatformTypeSafe    = domain.PlatformTypeSafe
+	PlatformCline       = domain.PlatformCline
+	PlatformOpenCodeGo  = domain.PlatformOpenCodeGo
+	PlatformCommandCode = domain.PlatformCommandCode
+	PlatformMistral     = domain.PlatformMistral
+	PlatformComposite   = domain.PlatformComposite
 	// PlatformKiro is retained for unsupported-platform threshold tests and legacy
 	// account rows. Scheduling-threshold evaluation never pauses kiro accounts.
 	PlatformKiro = "kiro"
@@ -82,11 +86,17 @@ const (
 	DefaultZhipuCodingBaseURL = "https://open.bigmodel.cn/api/coding/paas/v4"
 	DefaultDeepseekBaseURL    = "https://api.deepseek.com"
 	// MiniMax 按量付费与 Coding/Token Plan 共用推理域名，靠 API Key 区分套餐。
+	DefaultQwenBaseURL    = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+	DefaultQwenTestModel  = "qwen3.8-max"
 	DefaultMiniMaxBaseURL = "https://api.minimaxi.com/v1"
 	// OpenCode Go：Chat Completions / Responses / models 共用 /v1 基址。
 	DefaultOpenCodeGoBaseURL = "https://opencode.ai/zen/go/v1"
 	// OpenCode Zen：按量付费网关，模型列表为 /zen/v1/models。
-	DefaultOpenCodeZenBaseURL = "https://opencode.ai/zen/v1"
+	DefaultOpenCodeZenBaseURL          = "https://opencode.ai/zen/v1"
+	DefaultCommandCodeBaseURL          = "https://api.commandcode.ai/provider/v1"
+	DefaultCommandCodeAnthropicBaseURL = "https://api.commandcode.ai/provider"
+	DefaultMistralBaseURL              = "https://api.mistral.ai/v1"
+	DefaultMistralTestModel            = "mistral-small-latest"
 )
 
 // 国产供应商 Anthropic 协议端点的默认 base_url（上游路径为 {base}/v1/messages）。
@@ -120,7 +130,7 @@ func IsOpenCodeGo(platform string) bool {
 // IsMultiProtocolAPIKeyProvider 报告 platform 是否为多协议 API Key 网关
 // （国产供应商 + OpenCode）：走 OpenAI 网关、支持 adaptive 协议分流。
 func IsMultiProtocolAPIKeyProvider(platform string) bool {
-	return IsCNProvider(platform) || platform == PlatformOpenCodeGo
+	return IsCNProvider(platform) || platform == PlatformOpenCodeGo || platform == PlatformCommandCode || platform == PlatformMistral
 }
 
 // AllowedQuotaPlatforms 是允许设置 user × platform quota 的平台列表（单一权威来源）。
@@ -137,7 +147,11 @@ var AllowedQuotaPlatforms = []string{
 	PlatformDeepseek,
 	PlatformMiniMax,
 	PlatformOpenCodeGo,
+	PlatformCommandCode,
 	PlatformTypeSafe,
+	PlatformQwen,
+	PlatformCline,
+	PlatformMistral,
 }
 
 // AllowedSchedulingThresholdPlatforms 是允许设置账号自动停调阈值的平台列表。
@@ -151,6 +165,8 @@ var AllowedSchedulingThresholdPlatforms = []string{
 	PlatformZhipu,
 	PlatformMiniMax,
 	PlatformOpenCodeGo,
+	PlatformCommandCode,
+	PlatformMistral,
 }
 
 // IsAllowedQuotaPlatform 报告 s 是否为合法的 quota platform 标识。

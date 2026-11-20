@@ -32,15 +32,23 @@ func DefaultModelIDsForPlatform(platform string) []string {
 		return xai.DefaultModelIDs()
 	case PlatformOpenCodeGo:
 		return DefaultOpenCodeGoModelIDs()
+	case PlatformQwen:
+		return []string{DefaultQwenTestModel}
+	case PlatformCommandCode:
+		return []string{DefaultCommandCodeTestModel}
 	case PlatformTypeSafe:
 		return []string{"jev-latest"}
+	case PlatformMistral:
+		return []string{DefaultMistralTestModel}
+	case PlatformCline:
+		return []string{DefaultClineTestModel}
 	case PlatformComposite:
 		ids := make([]string, 0)
 		seen := make(map[string]struct{})
 		// TypeSafe is deliberately absent: jev-latest only works through
 		// /v1/systemone, so the static fallback never advertises it to LLM
 		// clients. compositeAvailableModels lists it when the group can serve it.
-		for _, concretePlatform := range []string{PlatformAnthropic, PlatformGemini, PlatformOpenAI, PlatformAntigravity, PlatformGrok, PlatformKimi, PlatformZhipu, PlatformDeepseek, PlatformMiniMax, PlatformOpenCodeGo} {
+		for _, concretePlatform := range []string{PlatformAnthropic, PlatformGemini, PlatformOpenAI, PlatformAntigravity, PlatformGrok, PlatformKimi, PlatformZhipu, PlatformDeepseek, PlatformMiniMax, PlatformOpenCodeGo, PlatformCommandCode, PlatformQwen, PlatformCline, PlatformMistral} {
 			for _, id := range DefaultModelIDsForPlatform(concretePlatform) {
 				if _, ok := seen[id]; ok {
 					continue

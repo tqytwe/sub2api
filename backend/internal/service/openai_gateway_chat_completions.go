@@ -135,9 +135,13 @@ func (s *OpenAIGatewayService) forwardAsChatCompletions(
 
 	// OpenCode Go：按模型原生协议分流（与 inbound 协议正交）。
 	// 规则未命中一律兜底 Chat Completions，只有显式 Responses 才走下方转换链。
-	if account.IsOpenCodeGo() {
+	if account.IsOpenCodeGo() || account.IsCommandCode() {
 		mapped := resolveOpenCodeGoMappedModel(account, body, defaultMappedModel)
-		proto := openCodeGoNativeProtocol(account, mapped)
+		inboundProtocol := APIProtocolChatCompletions
+		if isResponsesShape {
+			inboundProtocol = APIProtocolResponses
+		}
+		proto := s.modelRoutedUpstreamProtocol(ctx, account, inboundProtocol, mapped)
 		if proto != APIProtocolResponses {
 			if isResponsesShape {
 				if proto == APIProtocolAnthropic {
@@ -170,7 +174,7 @@ func (s *OpenAIGatewayService) forwardAsChatCompletions(
 	// 自适应账号的标准 Chat Completions 入站使用供应商原生 CC 端点。
 	// Responses 形状下，DeepSeek / Kimi 继续走下方原生 Responses 链；GLM
 	// 没有 Responses 端点，先转换成 Chat Completions 再直转。
-	if account.IsAdaptiveAPIProtocol() && !account.IsOpenCodeGo() {
+	if account.IsAdaptiveAPIProtocol() && !account.IsOpenCodeGo() && !account.IsCommandCode() {
 		if !isResponsesShape {
 			return s.forwardAsRawChatCompletions(ctx, c, account, body, defaultMappedModel)
 		}

@@ -19,7 +19,7 @@ describe('CreateAccountModal OpenCode account setup', () => {
 
   it('keeps adaptive endpoints and protocol rules in the create payload', () => {
     expect(source).toContain("defaultCNAdaptiveBaseUrls('opencode_go', mode)")
-    expect(source).toContain("v-if=\"isOpenCodeGoPlatform && apiProtocol === 'adaptive'\"")
+    expect(source).toContain("v-if=\"(isOpenCodeGoPlatform || isCommandCodePlatform) && apiProtocol === 'adaptive'\"")
     expect(source).toContain('v-model:rows="openCodeGoProtocolRules"')
     expect(source).toContain(':plan="openCodeAccountMode"')
     expect(source).toContain('applyOpenCodeGoProtocolRules(credentials, openCodeGoProtocolRules.value, \'create\')')

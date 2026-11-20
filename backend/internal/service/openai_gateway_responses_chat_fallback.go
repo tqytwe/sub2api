@@ -104,6 +104,15 @@ func (s *OpenAIGatewayService) forwardResponsesViaRawChatCompletions(
 	// /v1/responses 降级到 raw CC 的出站与 forwardAsRawChatCompletions 共用同一个
 	// 独立 Ollama Cloud token 钩子；chatReq.Model 已是模型映射后的 upstreamModel。
 	chatBody = clampOllamaCloudUpstreamMaxTokens(account, chatBody)
+	chatBody, err = normalizeMistralChatRequest(account, chatBody)
+	if err != nil {
+		writeOpenAIResponsesFallbackError(c, http.StatusBadRequest, "invalid_request_error", err.Error())
+		return nil, err
+	}
+	if account.IsMistral() {
+		reasoningEffort = extractOpenAIReasoningEffortFromBody(chatBody, upstreamModel, billingModel, originalModel)
+		reasoningEffort = ApplyThinkingEnabledFallback(reasoningEffort, chatBody, upstreamModel)
+	}
 	// Keep the final outbound tier for usage-time reconciliation. A policy
 	// filter that removes the field therefore leaves this nil.
 	serviceTier := extractOpenAIServiceTierFromBody(chatBody)
@@ -137,14 +146,15 @@ func (s *OpenAIGatewayService) forwardResponsesViaRawChatCompletions(
 	}
 
 	if clientStream {
-		return s.streamChatCompletionsAsResponses(c, resp, originalModel, customTools, functionTools, toolSearch, namespaceTools, billingModel, upstreamModel, reasoningEffort, serviceTier, startTime)
+		return s.streamChatCompletionsAsResponses(c, resp, account, originalModel, customTools, functionTools, toolSearch, namespaceTools, billingModel, upstreamModel, reasoningEffort, serviceTier, startTime)
 	}
-	return s.bufferChatCompletionsAsResponses(c, resp, originalModel, customTools, functionTools, toolSearch, namespaceTools, billingModel, upstreamModel, reasoningEffort, serviceTier, startTime)
+	return s.bufferChatCompletionsAsResponses(c, resp, account, originalModel, customTools, functionTools, toolSearch, namespaceTools, billingModel, upstreamModel, reasoningEffort, serviceTier, startTime)
 }
 
 func (s *OpenAIGatewayService) bufferChatCompletionsAsResponses(
 	c *gin.Context,
 	resp *http.Response,
+	account *Account,
 	originalModel string,
 	customTools map[string]bool,
 	functionTools map[string]bool,
@@ -157,7 +167,7 @@ func (s *OpenAIGatewayService) bufferChatCompletionsAsResponses(
 	startTime time.Time,
 ) (*OpenAIForwardResult, error) {
 	requestID := resp.Header.Get("x-request-id")
-	ccResp, usage, err := s.readCCUpstreamJSONResponse(c, resp, writeOpenAIResponsesFallbackError)
+	ccResp, usage, err := s.readCCUpstreamJSONResponse(c, resp, account, writeOpenAIResponsesFallbackError)
 	if err != nil {
 		return nil, err
 	}
@@ -190,6 +200,7 @@ func (s *OpenAIGatewayService) bufferChatCompletionsAsResponses(
 func (s *OpenAIGatewayService) streamChatCompletionsAsResponses(
 	c *gin.Context,
 	resp *http.Response,
+	account *Account,
 	originalModel string,
 	customTools map[string]bool,
 	functionTools map[string]bool,
@@ -237,7 +248,7 @@ func (s *OpenAIGatewayService) streamChatCompletionsAsResponses(
 		c.Writer.Flush()
 	}
 
-	scan := s.scanCCStream(c, resp, "openai responses chat fallback", requestID, startTime, func(chunk *apicompat.ChatCompletionsChunk) {
+	scan := s.scanCCStream(c, resp, account, "openai responses chat fallback", requestID, startTime, func(chunk *apicompat.ChatCompletionsChunk) {
 		events := apicompat.ChatCompletionsChunkToResponsesEvents(chunk, state)
 		s.cacheReasoningItemsFromEvents(events)
 		writeEvents(events)
@@ -480,7 +491,57 @@ func isDeepSeekCatalogModel(model string) bool {
 //
 // 不放宽成「任意上游的 deepseek-* 模型名」：占位符是写进请求体的额外字段，
 // 对没有这条约束的上游属于无谓改写，且可能触发未知字段校验。
+// stripDisallowedMistralChatMessageExtras removes DeepSeek-only assistant extras
+// that Mistral Chat Completions rejects with 422 "Extra inputs are not permitted".
+// Real thinking text is converted earlier by normalizeMistralChatRequest; this
+// last-mile pass only deletes leftover fields (including placeholders reinjected
+// for DeepSeek-named models). Other platforms are unchanged.
+func stripDisallowedMistralChatMessageExtras(account *Account, body []byte) []byte {
+	if account == nil || account.Platform != PlatformMistral || len(body) == 0 {
+		return body
+	}
+	messages := gjson.GetBytes(body, "messages")
+	if !messages.IsArray() {
+		return body
+	}
+	items := messages.Array()
+	updated := make([]json.RawMessage, 0, len(items))
+	changed := false
+	for _, message := range items {
+		raw := []byte(message.Raw)
+		for _, field := range []string{"reasoning_content", "reasoning_details"} {
+			if !message.Get(field).Exists() {
+				continue
+			}
+			next, err := sjson.DeleteBytes(raw, field)
+			if err != nil {
+				return body
+			}
+			raw = next
+			changed = true
+		}
+		updated = append(updated, raw)
+	}
+	if !changed {
+		return body
+	}
+	// Each message is scanned locally; replace the entire array once to avoid
+	// repeatedly scanning and copying the full request for every message.
+	cleaned, err := json.Marshal(updated)
+	if err != nil {
+		return body
+	}
+	out, err := sjson.SetRawBytes(body, "messages", cleaned)
+	if err != nil {
+		return body
+	}
+	return out
+}
+
 func requiresDeepSeekChatReasoning(account *Account, body []byte) bool {
+	if account.IsMistral() {
+		return false
+	}
 	if targetsDeepSeekAPIHost(account) {
 		return true
 	}

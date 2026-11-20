@@ -228,9 +228,9 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 		return s.forwardGrokResponses(ctx, c, account, body, originalModel, reqStream, startTime)
 	}
 
-	if account.IsOpenCodeGo() {
+	if account.IsOpenCodeGo() || account.IsCommandCode() {
 		mapped := resolveOpenCodeGoMappedModel(account, body, "")
-		switch openCodeGoNativeProtocol(account, mapped) {
+		switch s.modelRoutedUpstreamProtocol(ctx, account, APIProtocolResponses, mapped) {
 		case APIProtocolAnthropic:
 			return s.forwardResponsesViaNativeAnthropic(ctx, c, account, body, "")
 		case APIProtocolResponses:
@@ -654,7 +654,7 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 		maxOutputTokens := gjson.GetBytes(body, "max_output_tokens")
 		if maxOutputTokens.Exists() {
 			switch account.Platform {
-			case PlatformOpenAI, PlatformDeepseek:
+			case PlatformOpenAI, PlatformDeepseek, PlatformQwen:
 				// Preserve Responses-native output limits unless the selected upstream
 				// explicitly rejects the field in the bounded HTTP retry loop below.
 			case PlatformAnthropic:
@@ -703,7 +703,7 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 		markPatchSet("max_output_tokens", clampedCap)
 	}
 	if wsDecision.Transport != OpenAIUpstreamTransportResponsesWebsocketV2 &&
-		!account.IsOpenAIApiKey() && gjson.GetBytes(body, "previous_response_id").Exists() {
+		!account.IsOpenAIApiKey() && !account.QwenSessionCacheEnabled() && gjson.GetBytes(body, "previous_response_id").Exists() {
 		markPatchDelete("previous_response_id")
 	}
 	if openAIRequestBodyMayContainEmptyBase64InputImage(body) {
@@ -1516,7 +1516,13 @@ func shouldForwardOpenAIResponsesViaRawChatCompletions(account *Account) bool {
 	if account == nil || account.Type != AccountTypeAPIKey {
 		return false
 	}
-	if account.IsOpenCodeGo() {
+	if account.Platform == PlatformQwen {
+		return !account.QwenSessionCacheEnabled()
+	}
+	if account.IsCline() || account.IsMistral() {
+		return true
+	}
+	if account.IsOpenCodeGo() || account.IsCommandCode() {
 		// Model protocol_rules are the authority. Probe Extra must not collapse
 		// Grok/GPT/Muse into Chat Completions.
 		return false
@@ -1696,6 +1702,9 @@ func (s *OpenAIGatewayService) buildUpstreamRequest(ctx context.Context, c *gin.
 
 	// 账号级请求头覆写（仅 openai api_key 账号启用时生效；OAuth 路径 no-op）
 	account.ApplyHeaderOverrides(req.Header)
+	if account.QwenSessionCacheEnabled() {
+		req.Header.Set("x-dashscope-session-cache", "enable")
+	}
 	applyOpenCodeSessionHeader(c, account, targetURL, req.Header, body, openCodeSessionHintBody(promptCacheKey))
 	// x-codex-beta-features：按真实 Codex 的会话级行为补注（在账号级覆写之后，
 	// 保证不被覆盖丢失）。
