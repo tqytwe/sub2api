@@ -36,7 +36,7 @@ class ReleaseMatrixTest(unittest.TestCase):
         self.pin = {
             'schema_version': 1, 'source_repository': 'ranxi2001/sub2api',
             'source_remote': 'https://github.com/ranxi2001/sub2api.git',
-            'release_tag': 'v2.17.7', 'version_file': '2.17.7',
+            'release_tag': 'v2.23.1', 'version_file': '2.23.1',
             'tag_object': 'b' * 40, 'release_commit': 'c' * 40,
             'production_repository': 'tqytwe/sub2api', 'production_branch': 'play/main',
             'analysis_base': 'd' * 40, 'fully_migrated': False,
