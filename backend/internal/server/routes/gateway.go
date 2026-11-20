@@ -418,7 +418,7 @@ func RegisterGatewayRoutes(
 	gemini.Use(clientRequestID)
 	gemini.Use(opsErrorLogger)
 	gemini.Use(endpointNorm)
-	gemini.Use(middleware.APIKeyAuthWithSubscriptionGoogle(apiKeyService, subscriptionService, cfg))
+	gemini.Use(middleware.APIKeyAuthWithSubscriptionGoogle(apiKeyService, subscriptionService, cfg, h.Gateway.GeminiCachedContentGroup))
 	gemini.Use(groupStreamOnly, groupCodexCLIOnly, groupBlockSubagents, groupModelAllowlist, apiKeyModelPolicy)
 	gemini.Use(compositeGeminiTarget, apiKeyLongContext)
 	gemini.Use(requireGroupGoogle)
@@ -426,7 +426,19 @@ func RegisterGatewayRoutes(
 		gemini.GET("/models", h.Gateway.GeminiV1BetaListModels)
 		gemini.GET("/models/:model", h.Gateway.GeminiV1BetaGetModel)
 		// Gin treats ":" as a param marker, but Gemini uses "{model}:{action}" in the same segment.
-		gemini.POST("/models/*modelAction", h.Gateway.GeminiV1BetaModels)
+		gemini.POST("/models/*modelAction", func(c *gin.Context) {
+			if handler.GeminiInboundUsesNativeUpstream(c) {
+				h.Gateway.GeminiV1BetaModels(c)
+				return
+			}
+			chat := handler.SelectGeminiChatCompletionsHandler(getGroupPlatform(c), h.OpenAIGateway, h.Gateway)
+			handler.ServeGeminiViaChatCompletions(c, chat)
+		})
+		gemini.POST("/cachedContents", h.Gateway.GeminiCachedContentsCreate)
+		gemini.GET("/cachedContents", h.Gateway.GeminiCachedContentsList)
+		gemini.GET("/cachedContents/:cacheID", h.Gateway.GeminiCachedContentsGet)
+		gemini.PATCH("/cachedContents/:cacheID", h.Gateway.GeminiCachedContentsPatch)
+		gemini.DELETE("/cachedContents/:cacheID", h.Gateway.GeminiCachedContentsDelete)
 	}
 
 	// OpenAI Responses API（不带v1前缀的别名）— auto-route based on group platform

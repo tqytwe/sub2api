@@ -99,6 +99,7 @@ var ProviderSet = wire.NewSet(
 	NewAutoCreditRepository,
 	ProvideAutoCreditEmailOutboxRepository,
 	NewBatchImageRepository,
+	NewGeminiCachedContentRepository,
 	NewImageStudioRepository,
 	NewIdempotencyRepository,
 	NewUsageCleanupRepository,

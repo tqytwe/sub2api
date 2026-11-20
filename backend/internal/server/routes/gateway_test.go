@@ -739,3 +739,22 @@ func TestGatewayRoutesOpenAICountTokensPathIsRegistered(t *testing.T) {
 	router.ServeHTTP(w, req)
 	require.NotEqual(t, http.StatusNotFound, w.Code)
 }
+
+func TestGatewayGeminiCachedContentsRoutesRequireAPIKey(t *testing.T) {
+	router := newGatewayRoutesTestRouter(service.PlatformGemini)
+	for _, route := range []struct{ method, path string }{
+		{http.MethodGet, "/v1beta/cachedContents"},
+		{http.MethodPost, "/v1beta/cachedContents"},
+		{http.MethodGet, "/v1beta/cachedContents/cache-id"},
+		{http.MethodPatch, "/v1beta/cachedContents/cache-id"},
+		{http.MethodDelete, "/v1beta/cachedContents/cache-id"},
+	} {
+		t.Run(route.method+" "+route.path, func(t *testing.T) {
+			req := httptest.NewRequest(route.method, route.path, nil)
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, req)
+			require.Equal(t, http.StatusUnauthorized, w.Code)
+			require.Contains(t, w.Body.String(), "UNAUTHENTICATED")
+		})
+	}
+}
