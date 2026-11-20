@@ -57,9 +57,6 @@ export const PUBLIC_DOC_TREE: PublicDocCategory[] = [
       { id: 'text-to-image-api' },
       { id: 'batch-image-api' },
       { id: 'async-image-tasks' },
-      { id: 'claude-code' },
-      { id: 'codex' },
-      { id: 'gemini-cli' },
       { id: 'sdk-quick' },
     ],
   },
@@ -67,6 +64,9 @@ export const PUBLIC_DOC_TREE: PublicDocCategory[] = [
     id: 'tools',
     categoryKey: 'tools',
     pages: [
+      { id: 'claude-code' },
+      { id: 'codex' },
+      { id: 'gemini-cli' },
       { id: 'cc-switch' },
       { id: 'openclaw' },
       { id: 'hermes' },
@@ -125,12 +125,17 @@ const LEGACY_TUTORIAL_PAGE_CATEGORIES: Record<string, string> = {
   'async-image-tasks': 'deploy',
 }
 
+const LEGACY_DEPLOY_TOOL_PAGES = new Set(['claude-code', 'codex', 'gemini-cli'])
+
 export function normalizePublicDocLocation(catId: string, pageId: string) {
   if (catId === 'tutorial' && LEGACY_TUTORIAL_PAGE_CATEGORIES[pageId]) {
     return {
       catId: LEGACY_TUTORIAL_PAGE_CATEGORIES[pageId],
       pageId,
     }
+  }
+  if (catId === 'deploy' && LEGACY_DEPLOY_TOOL_PAGES.has(pageId)) {
+    return { catId: 'tools', pageId }
   }
   return { catId, pageId }
 }

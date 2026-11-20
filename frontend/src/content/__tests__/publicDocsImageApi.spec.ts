@@ -47,10 +47,9 @@ describe('public image API documentation placement', () => {
     expect(imagePage?.html).toContain('UTF-8 BOM')
     expect(imagePage?.html).toContain('IMAGE_RESPONSE_FORMAT_INVALID')
     expect(imagePage?.html).toContain('同步长连接 524')
-    expect(imagePage?.html).toContain('agnes-image-2.1-flash')
-    expect(imagePage?.html).toContain('agnes-image-2.0-flash')
-    expect(imagePage?.html).toContain('gemini-3.1-flash-image-preview')
-    expect(imagePage?.html).toContain('不是所有名字里带 image 的模型都一定能提交')
+    expect(imagePage?.html).toContain('YOUR_IMAGE_MODEL_ID')
+    expect(imagePage?.html).toContain('href="/catalog"')
+    expect(imagePage?.html).toContain('不是所有名字里带 image 的模型都能提交')
     expect(imagePage?.html).toContain('每个 multipart 文件或文本字段最多 <strong>20 MiB</strong>')
     expect(imagePage?.html).toContain('413 invalid_request_error')
 

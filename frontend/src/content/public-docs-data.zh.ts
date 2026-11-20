@@ -1,3 +1,5 @@
+import { getToolGuide } from './public-docs-tool-guides'
+
 /** Public /docs content — adapted for 极速蹬 (gateway docs). */
 export interface PublicDocPageContent {
   id: string
@@ -25,25 +27,26 @@ const PUBLIC_DOC_CONTENT_ZH_SOURCE: PublicDocCategoryContent[] = [
         summary: "5 分钟创建第一个 API Key 并发起请求",
         html: `<p class="docs-lead">本教程帮助你在 5 分钟内完成账号注册、API Key 创建并发起第一次模型调用。</p>
 <h2>第 1 步 · 注册账号</h2>
-<p>访问首页右上角 <code>登录 / 注册</code>，使用邮箱注册。新用户默认为 <strong>V0</strong>，可在 <a href="/play">玩法中枢</a> 查看 VIP 进度。</p>
+<p>有账号请先<a href="/login">登录</a>，没有账号则前往<a href="/register">注册</a>，按页面提供的方式完成验证。</p>
 <h2>第 2 步 · 充值（可选）</h2>
-<p>侧边栏 <code>充值</code> 选择金额完成支付。充值成功后，基础到账金额会累加到 VIP 进度，当前等级还能带来充值到账加赠，并可能触发 <strong>24h 充值加成</strong>（签到双倍、盲盒额外次数等，需管理员开启）。</p>
+<p>如果选用按余额计费的分组，请先确认余额是否足够；需要补充时，到<a href="/purchase">充值</a>页面查看可用支付方式和预计到账金额。</p>
 <h2>第 3 步 · 创建 API Key</h2>
-<p>控制台 <code>API 密钥</code> → <code>新建</code> → 选择<strong>服务分组</strong>（决定可用模型与倍率）→ 命名保存。Key 仅展示一次，请立即复制。</p>
+<p>打开 <a href="/keys">API 密钥</a>，点击「创建密钥」，填写名称并选择支持目标模型和协议的分组。保存后，从列表对应行复制密钥。</p>
 <h2>第 4 步 · 发起请求</h2>
-<p>本站兼容 OpenAI 与 Anthropic 协议。下面两种调用方式任选其一（将 <code>your-host</code> 换成你的网关域名）：</p>
+<p>先在<a href="/catalog">模型与价格</a>核对分组、协议和模型 ID。按照该模型支持的接口选一条命令，替换 <code>YOUR_API_KEY</code> 和 <code>YOUR_MODEL_ID</code>。</p>
 <h3>OpenAI 兼容（推荐通用 SDK）</h3>
 <pre><code>curl https://your-host/v1/chat/completions \\
   -H "Authorization: Bearer YOUR_API_KEY" \\
   -H "Content-Type: application/json" \\
-  -d '{"model":"claude-sonnet-4-6","messages":[{"role":"user","content":"hi"}]}'</code></pre>
+  -d '{"model":"YOUR_MODEL_ID","messages":[{"role":"user","content":"hi"}]}'</code></pre>
 <h3>Anthropic Messages API</h3>
 <pre><code>curl https://your-host/v1/messages \\
   -H "Authorization: Bearer YOUR_API_KEY" \\
   -H "Content-Type: application/json" \\
   -H "anthropic-version: 2023-06-01" \\
-  -d '{"model":"claude-sonnet-4-6","max_tokens":1024,"messages":[{"role":"user","content":"hi"}]}'</code></pre>
-<p class="docs-tip">完整模型清单与实时单价见 <a href="/catalog">模型广场</a>。游客可看精选预览，登录后显示你分组下的<strong>真实可用模型</strong>与倍率。</p>`,
+  -d '{"model":"YOUR_MODEL_ID","max_tokens":1024,"messages":[{"role":"user","content":"hi"}]}'</code></pre>
+<h2>第 5 步 · 核对结果</h2>
+<p>收到响应后，在<a href="/usage">用量记录</a>按密钥和时间核对模型与消耗。请求失败时，先核对密钥状态、分组权限、模型 ID 和接口路径。</p>`,
       },
       {
         id: 'text-to-image-api',
@@ -57,9 +60,8 @@ GET  https://api.jisudeng.com/v1/images/tasks/{task_id}</code></pre>
 
 <h2>真实入口</h2>
 <ul>
-  <li>网站：<a href="https://www.jisudeng.com">https://www.jisudeng.com</a></li>
-  <li>API Key：<a href="https://www.jisudeng.com/keys">https://www.jisudeng.com/keys</a></li>
-  <li>模型与价格：<a href="https://www.jisudeng.com/catalog">https://www.jisudeng.com/catalog</a></li>
+  <li><a href="/keys">API 密钥</a></li>
+  <li><a href="/catalog">模型与价格</a></li>
   <li>生成接口：<code>POST https://api.jisudeng.com/v1/images/generations</code></li>
   <li>编辑接口：<code>POST https://api.jisudeng.com/v1/images/edits</code></li>
 </ul>
@@ -69,14 +71,9 @@ GET  https://api.jisudeng.com/v1/images/tasks/{task_id}</code></pre>
 Content-Type: application/json</code></pre>
 <p>也兼容 <code>x-api-key</code> 和 <code>x-goog-api-key</code>。不要把 Key 放到 URL 的 <code>key</code> / <code>api_key</code> 参数里。</p>
 
-	<h2>可用模型</h2>
-	<ul>
-	  <li>GPT：<code>gpt-image-2</code>、<code>gpt-image-1.5</code>、<code>gpt-image-1</code>。不传 <code>model</code> 时默认 <code>gpt-image-2</code>。</li>
-	  <li>Grok：<code>grok-imagine</code>、<code>grok-imagine-image-quality</code>、<code>grok-imagine-image</code>、<code>grok-imagine-edit</code>。Grok 必须传 <code>model</code>。</li>
-	  <li>Agnes：<code>agnes-image-2.1-flash</code>、<code>agnes-image-2.0-flash</code>。</li>
-	  <li>Gemini：<code>gemini-3.1-flash-image-preview</code>。</li>
-	</ul>
-	<p>最终能用哪些模型，以你的 API Key 所属分组在 <a href="/catalog">模型与价格</a> 页面显示为准。不是所有名字里带 image 的模型都一定能提交到 Images API；如果模型属于文本、视频或尚未接入的图片能力，接口会在创建任务前返回 <code>400 invalid_request_error</code>。</p>
+	<h2>选择图片模型</h2>
+	<p>先在 <a href="/catalog">模型与价格</a>中选择与 API Key 相同的分组，再确认模型明确支持 Images API。把示例中的 <code>YOUR_IMAGE_MODEL_ID</code> 替换为页面显示的精确 ID；模型名称、默认值和分组权限会变化，本页不维护静态清单。</p>
+	<p>不是所有名字里带 image 的模型都能提交到 Images API。若接口或分组不匹配，请以模型页当前能力说明及接口返回的错误为准。</p>
 
 <p class="docs-tip">单个大尺寸请求或预计超过 60-90 秒的生成请优先使用 Gateway 单请求异步；多个 prompt 的持久任务请使用 Batch Image。同步接口经过 CDN/Cloudflare 时可能在上游仍在生成期间收到 <code>524</code>；后台可能已经生成成功并计费，但调用方连接已经断开。</p>
 
@@ -104,8 +101,8 @@ Content-Type: application/json</code></pre>
     }
   ],
   "requested_size": "1024x1024",
-  "model": "gpt-image-2",
-  "upstream_model": "gpt-image-2-codex"
+  "model": "YOUR_IMAGE_MODEL_ID",
+  "upstream_model": "EXAMPLE_UPSTREAM_MODEL_ID"
 }</code></pre>
 <p>必须使用生成请求的同一把 API Key 下载临时 URL。请求 <code>size</code> 是生成档位；网关不会强制拉伸或裁剪，<code>requested_size</code> 保留请求值，每张 <code>data[].size</code> 是实际像素尺寸。</p>
 
@@ -129,7 +126,7 @@ Content-Type: application/json</code></pre>
   -H "Authorization: Bearer sk-xxxxxxxxxxxxxxx" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "model": "gpt-image-2",
+    "model": "YOUR_IMAGE_MODEL_ID",
     "prompt": "电商白底产品图：一副磨砂黑无线耳机，居中摆放，柔和棚拍光，干净阴影，高清商业摄影",
     "size": "1024x1024",
     "n": 1,
@@ -158,7 +155,7 @@ Content-Type: application/json</code></pre>
   -H "Authorization: Bearer sk-xxxxxxxxxxxxxxx" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "model": "gpt-image-2",
+    "model": "YOUR_IMAGE_MODEL_ID",
     "prompt": "小红书封面：夏日柠檬气泡水，清爽浅色背景，标题留白，真实摄影质感",
     "size": "1024x1536",
     "n": 4,
@@ -175,7 +172,7 @@ done</code></pre>
 <h2>prompt 怎么加</h2>
 <p><code>prompt</code> 就是请求 JSON 里的描述字段。建议按「主体 / 场景 / 风格 / 要求」写：</p>
 <pre><code>{
-  "model": "gpt-image-2",
+  "model": "YOUR_IMAGE_MODEL_ID",
   "prompt": "主体：一杯冰美式咖啡。场景：木质桌面、自然光。风格：真实商业摄影。要求：杯身清晰、背景干净、不要文字水印。",
   "size": "1024x1024",
   "n": 1,
@@ -198,7 +195,7 @@ async function generateImage() {
       "Content-Type": "application/json"
     },
     body: JSON.stringify({
-      model: "gpt-image-2",
+      model: "YOUR_IMAGE_MODEL_ID",
       prompt: "电商白底产品图：一只透明玻璃香水瓶，柔光，高清",
       size: "1024x1024",
       n: 1,
@@ -223,7 +220,7 @@ const res = await fetch("https://api.jisudeng.com/v1/images/generations", {
     "Content-Type": "application/json",
   },
   body: JSON.stringify({
-    model: "gpt-image-2",
+    model: "YOUR_IMAGE_MODEL_ID",
     prompt: "科技产品海报：黑色智能手表，深色背景，边缘光，商业摄影",
     size: "1024x1024",
     n: 2,
@@ -242,7 +239,7 @@ json.data.forEach((item, index) =&gt; {
   -H "Authorization: Bearer sk-xxxxxxxxxxxxxxx" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "model": "gpt-image-2",
+    "model": "YOUR_IMAGE_MODEL_ID",
     "prompt": "把背景替换成明亮的摄影棚渐变背景，保留主体",
     "images": [{"image_url": "https://example.com/source.png"}],
     "size": "1024x1024",
@@ -251,7 +248,7 @@ json.data.forEach((item, index) =&gt; {
 <p>如果要直接上传文件，用 multipart：</p>
 <pre><code>curl https://api.jisudeng.com/v1/images/edits \\
   -H "Authorization: Bearer sk-xxxxxxxxxxxxxxx" \\
-  -F "model=gpt-image-2" \\
+  -F "model=YOUR_IMAGE_MODEL_ID" \\
   -F "prompt=把背景替换成明亮的摄影棚渐变背景，保留主体" \\
   -F "image=@source.png;type=image/png" \\
   -F "size=1024x1024" \\
@@ -265,7 +262,7 @@ json.data.forEach((item, index) =&gt; {
 <table class="docs-table">
 <thead><tr><th>字段</th><th>说明</th></tr></thead>
 <tbody>
-<tr><td><code>model</code></td><td>GPT 用 <code>gpt-image-2</code>；Grok 用 <code>grok-imagine</code></td></tr>
+<tr><td><code>model</code></td><td>填写模型与价格页中当前分组明确支持 Images API 的精确模型 ID</td></tr>
 <tr><td><code>prompt</code></td><td>图片描述，生成和编辑都放这里</td></tr>
 <tr><td><code>n</code></td><td>输出张数 1-10，默认 1；流式请求只允许 1</td></tr>
 <tr><td><code>size</code></td><td>请求生成档位，不保证强制输出像素；响应看 <code>requested_size</code> 与每张实际 <code>size</code></td></tr>
@@ -319,7 +316,7 @@ DELETE https://api.jisudeng.com/v1/images/batches/{id}</code></pre>
 <p>每次创建任务前，必须使用准备提交的同一把 API Key 调用：</p>
 <pre><code>curl https://api.jisudeng.com/v1/images/batches/models \\
   -H "Authorization: Bearer sk-xxxxxxxxxxxxxxx"</code></pre>
-<p>只有预检返回的模型才可提交。预检会同时检查平台开关、Redis 队列、worker、分组权限、可调度 Gemini API Key 账号、模型映射和图片价格。</p>
+<p>只有预检返回的模型才可提交。把示例中的 <code>YOUR_BATCH_MODEL_ID</code> 换成预检返回的精确 ID。预检会检查平台开关、队列、分组权限、可调度账号、模型映射和图片价格。</p>
 <ul>
   <li><code>BATCH_IMAGE_DISABLED</code>：平台暂不接受新 Batch 提交；历史列表、预览和下载仍可读取。</li>
   <li><code>BATCH_IMAGE_NOT_READY</code>：Redis、队列或 worker 运行时异常，稍后重试或联系管理员。</li>
@@ -333,7 +330,7 @@ DELETE https://api.jisudeng.com/v1/images/batches/{id}</code></pre>
   -H "Content-Type: application/json" \\
   -H "Idempotency-Key: batch-product-20260718-001" \\
   -d '{
-    "model": "gemini-3.1-flash-image-preview",
+    "model": "YOUR_BATCH_MODEL_ID",
     "task_name": "商品主图 5 张",
     "image_size": "1K",
     "response_mime_type": "image/png",
@@ -353,7 +350,7 @@ DELETE https://api.jisudeng.com/v1/images/batches/{id}</code></pre>
   [inputs | select(length &gt; 0)]
   | to_entries
   | {
-      model: "gemini-3.1-flash-image-preview",
+      model: "YOUR_BATCH_MODEL_ID",
       task_name: "批量素材 10 张",
       image_size: "1K",
       response_mime_type: "image/png",
@@ -432,7 +429,7 @@ IMAGE_ASYNC_WORKER_COUNT=20</code></pre>
   -H "Content-Type: application/json" \\
   -H "Idempotency-Key: image-task-20260718-001" \\
   -d '{
-    "model": "gpt-image-2",
+    "model": "YOUR_IMAGE_MODEL_ID",
     "prompt": "暴风雪中的灯塔，电影感，横向构图",
     "size": "1536x1024",
     "n": 2
@@ -511,14 +508,15 @@ IMAGE_ASYNC_WORKER_COUNT=20</code></pre>
       {
         id: 'api-key',
         title: "API Key 管理",
-        summary: "Key 的创建 / 启用 / 禁用 / 删除 / 限速",
-        html: `<p class="docs-lead">API Key 是访问网关的凭据,每个 Key 绑定到一个服务分组,继承该分组的模型/费率/限制。</p>
+        summary: "创建、复制、停用和设置密钥限额",
+        html: `<p class="docs-lead">API 密钥是访问网关的凭据。可用模型、费率和限制取决于密钥所绑定的分组。</p>
 <h2>创建 Key</h2>
-<p>侧边栏 <code>API 密钥</code> → <code>新建</code>,需要选择 <strong>服务分组</strong>(决定可用模型和倍率)。</p>
+<p>进入 <a href="/keys">API 密钥</a> →「创建密钥」，填名称并选择主分组。若需要且页面提供适用分组，可在「附加分组」中选择；首次接入建议先验证一个分组。保存后使用密钥行内的复制按钮。</p>
+<figure class="docs-figure"><img src="/doc-assets/integrations/create-api-key-zh.png" alt="创建密钥表单，已填写名称并选择主分组" width="512" height="824" loading="lazy" /><figcaption>填写名称、选择分组后点「创建」。图中为演示分组。</figcaption></figure>
 <h2>启用 / 禁用</h2>
-<p>在 Key 列表点 <code>启用 / 禁用</code> 切换状态。禁用后立即生效,不影响已生成的请求。</p>
-<h2>限速</h2>
-<p>每个 Key 可设置 <code>RPM</code>(每分钟请求数)上限。0 = 不限制(走所属分组兜底)。</p>
+<p>在列表中切换目标密钥的状态。更换生产密钥时，先验证新密钥并更新应用，再禁用或删除旧密钥。</p>
+<h2>并发与消费限额</h2>
+<p>密钥表单可设置额外的并发上限与消费限额。5 小时、1 天、7 天限额按消费金额计算。将单项设为 0 代表不加该项密钥限制，账号和分组限制仍然适用。</p>
 <h2>安全建议</h2>
 <ul>
   <li>不要把 Key 提交到 git 仓库</li>
@@ -530,17 +528,17 @@ IMAGE_ASYNC_WORKER_COUNT=20</code></pre>
         id: 'concurrency',
         title: "并发与限流",
         summary: "账号 / Key / 分组 三级限流如何叠加",
-        html: `<p class="docs-lead">系统采用 三层限流 模型,优先级从高到低: <strong>Key 级别</strong> → <strong>账号级别</strong> → <strong>分组级别</strong>。</p>
+        html: `<p class="docs-lead">并发表示同时进行的请求数，RPM 表示每分钟请求数，消费限额按金额计算。一次请求可能同时受多项限制。</p>
 <h2>账号并发</h2>
-<p>个人资料页可看到 <code>并发限制</code>(默认 5)。同一时刻最多 5 个未完成请求。</p>
-<h2>Key 级 RPM</h2>
-<p>API Key 可单独设置 RPM。RPM=0 时回退到分组的 RPM 限制。</p>
+<p>以账号实际分配的并发额度为准。在<a href="/keys">API 密钥</a>列表查看密钥的并发与等待状态。</p>
+<h2>密钥限额</h2>
+<p>用密钥编辑页核对额外并发上限和 5 小时、1 天、7 天消费限额。是否等待及等待上限以列表显示的统一排队设置为准。</p>
 <h2>分组限流</h2>
-<p>分组的 RPM/TPM/日预算 是共享的兜底,所有该分组下的 Key 共用。</p>
+<p>分组或上游也可能限制请求。返回错误时先核对具体原因，降低同时发出的请求数量，并检查当前余额及消费窗口。</p>
 <h2>命中限流如何处理?</h2>
 <pre><code>HTTP/1.1 429 Too Many Requests
 {"error":{"type":"rate_limit_exceeded","message":"..."}}</code></pre>
-<p>客户端应实现 <strong>指数退避重试</strong>(初始 1s,最大 32s,最多 5 次)。</p>`,
+<p>短时限流可按 <code>Retry-After</code>（如有）或采用有上限的指数退避。额度耗尽时先处理额度；创建异步任务时按接口说明复用原幂等键，避免重复提交。</p>`,
       },
     ],
   },
@@ -552,22 +550,20 @@ IMAGE_ASYNC_WORKER_COUNT=20</code></pre>
       {
         id: 'vip-levels',
         title: "VIP 分级体系",
-        summary: "V0-V5 六档会员等级、充值加赠与升级规则",
-        html: `<p class="docs-lead">按 <strong>基础到账累计</strong> 自动升级，档位永久保留。VIP 不改变 API 计费公式，只影响余额充值到账加赠；本单按充值前 VIP 等级计算，充值成功升级后下一单生效。</p>
+        summary: "查看当前会员等级、升级门槛与充值加赠",
+        html: `<p class="docs-lead">VIP 按符合条件的充值净额计算。当前档位、升级门槛和加赠比例以本页实时等级表与充值页为准。VIP 充值加赠从升级后的下一笔订单开始生效。</p>
 
 <h2>升级规则</h2>
 <ul>
   <li>支付订单成功后，<strong>基础到账金额</strong>计入 VIP 累计，达到阈值即时升级</li>
-  <li>档位<strong>永久保留</strong>，不会因消费或时间降级</li>
 	<li>线上已验证支付基础到账与审核通过的真实线下充值净额计入 VIP；VIP 加赠、活动加赠、签到、盲盒、兑换码和赠送余额不计入</li>
   <li>退款成功后，会按订单快照回退对应的基础到账累计，避免退款后累计虚高</li>
 </ul>
 
 <h2>在哪里查看</h2>
 <ul>
-  <li><strong>玩法中枢</strong>（/play）— VIP 卡片与权益列表</li>
-  <li><strong>模型页</strong>（/catalog）— V1+ 显示 VIP 徽章</li>
-  <li><strong>充值页</strong> — 当前 VIP、基础到账、VIP 加赠、活动加赠与预计到账</li>
+  <li><a href="/play">玩法中枢</a> — 登录后查看自己的等级、累计金额与权益</li>
+  <li><a href="/purchase">充值</a> — 下单前核对基础到账、VIP 加赠、活动加赠与预计到账</li>
 </ul>`,
       },
       {
@@ -576,24 +572,16 @@ IMAGE_ASYNC_WORKER_COUNT=20</code></pre>
         summary: "支付金额、基础到账、VIP 加赠与活动加赠如何计算",
         html: `<p class="docs-lead">充值会先按后台基础倍率换算成基础到账金额，再叠加当前 VIP 加赠和活动加赠。API 扣费仍按模型价格与分组倍率计算，不因 VIP 降价。</p>
 
-<h2>支持的支付方式</h2>
-<ul>
-  <li><strong>微信支付</strong> — 扫码或在微信内 H5 直接打开</li>
-  <li><strong>支付宝</strong> — 扫码或移动端打开</li>
-  <li><strong>Stripe</strong> — 国际信用卡(Visa / Mastercard / Amex)</li>
-  <li><strong>Airwallex</strong> — 企业银行账户</li>
-</ul>
-
 <h2>三步完成充值</h2>
 <ol>
-  <li>从侧边栏点 <strong>"充值"</strong> 进入充值页</li>
-  <li>输入想充值的金额(最低 $1)→ 选择喜欢的支付方式</li>
+  <li>打开<a href="/purchase">充值</a>页面</li>
+  <li>按页面显示的币种、金额范围和可用支付方式填写订单</li>
   <li>确认页面上的当前 VIP、基础到账、VIP 加赠、活动加赠和预计到账后，按提示完成支付</li>
 </ol>
-<p>支付成功后,首页会自动弹出一张<strong>纸张小票</strong> — 上面有订单号、金额、支付时间。可以拖动它放到屏幕喜欢的位置,双击就能关上。</p>
+<p>支付完成后返回平台，在<a href="/orders">我的订单</a>查看支付状态，在<a href="/wallet">钱包</a>核对余额变化。</p>
 
 <h2>到账示例</h2>
-<p>假设你当前是 <strong>V3</strong>，VIP 加赠为 <strong>+6%</strong>，运营活动加赠为 <strong>+5%</strong>，基础倍率为 <strong>1.00</strong>：</p>
+<p>以下数字只用于说明计算方法。假设基础倍率为 1.00、VIP 加赠为 6%、活动加赠为 5%。</p>
 <div class="docs-table-wrap">
 <table class="docs-table">
 <thead><tr><th>项目</th><th>示例</th><th>说明</th></tr></thead>
@@ -606,62 +594,21 @@ IMAGE_ASYNC_WORKER_COUNT=20</code></pre>
 </tbody>
 </table>
 </div>
-<p class="docs-tip">如果这笔充值让你从 V3 升到 V4，本单仍按 V3 的 +6% 计算；升级后的 V4 加赠从下一笔充值开始生效。</p>
+<p class="docs-tip">充值升级后，新档位的加赠从下一笔订单开始生效。</p>
 
-<h2>没看到到账?</h2>
-<p>如果支付了但 1 分钟还没看到余额变化:</p>
-<ol>
-  <li>先刷新一下页面,大多数情况会立刻看到</li>
-  <li>进入侧边栏的 <strong>"我的订单"</strong>页面查看这笔订单是否已经显示完成</li>
-  <li>如果订单一直显示等待中,联系客服并提供订单号</li>
-</ol>
-
-<h2>找回历史小票</h2>
-<p>每一笔成功的充值都可以重新查看小票:进入"我的订单",找到那笔订单,点 <strong>"查看小票"</strong> 就能再次打开纸张小票。</p>`,
+<h2>支付后余额没有变化</h2>
+<p>先刷新「我的订单」并按订单号定位该笔付款。如果订单仍待确认，或订单已完成但钱包余额未更新，请通过<a href="/contact">联系支持</a>提供订单号。先核实原订单，再决定是否需要重新支付。</p>`,
       },
       {
         id: 'check-in',
         title: "每日签到",
-        summary: "随机开奖 · 连续签到里程碑 · 充值可补签",
-        html: `<p class="docs-lead">每日签到是 Play 域的日活入口。管理员可在后台营销奖励奖池中配置优惠券、兑换码和余额分支，用户完成签到后即时随机开奖。</p>
-
-<h2>怎么签到</h2>
-<ul>
-  <li>控制台侧边栏 <strong>每日签到</strong>，或 <a href="/play">玩法中枢</a> 一键签到</li>
-  <li>每天 0 点（服务器时区）重置，每人每天一次</li>
-  <li>奖励可能是优惠券、兑换码或余额，具体以后台当前发布的签到奖池为准</li>
-</ul>
-
-<h2>连续签到（Streak）</h2>
-<p>连续签到天数会累计展示。达到里程碑时额外发放 balance（默认配置）：</p>
-<div class="docs-table-wrap">
-<table class="docs-table">
-<thead><tr><th>连续天数</th><th>额外奖励</th></tr></thead>
-<tbody>
-<tr><td>7 天</td><td>+$1</td></tr>
-<tr><td>14 天</td><td>+$2</td></tr>
-<tr><td>30 天</td><td>+$5</td></tr>
-</tbody>
-</table>
-</div>
-<p class="docs-tip">里程碑金额由 <code>play_checkin_streak_milestones</code> JSON 配置，以实际后台为准。</p>
-
-<h2>充值补签</h2>
-<p>若昨日未签到，且在 <strong>24 小时内有过充值</strong>，可使用 <code>POST /play/checkin/makeup</code> 补签昨日（需开启 <code>play_checkin_makeup_enabled</code>）。</p>
-
-<h2>充值加成 24h</h2>
-<p>充值成功后若开启 <code>play_recharge_boost_enabled</code>，24 小时内享受：</p>
-<ul>
-  <li>签到余额分支可参与加成（可配）</li>
-  <li>盲盒每日额外开箱次数</li>
-  <li>Arena 展示积分倍率加成</li>
-</ul>
-
-<h2>常见问题</h2>
-<ul>
-	<li><strong>签到余额能升 VIP 吗？</strong> — 不能。签到、答题、盲盒和兑换码不计入 VIP；审核通过且有外部凭证的线下真实充值会计入。</li>
-  <li><strong>与 VIP 档位关系？</strong> — VIP 提供模型页徽章、盲盒/Arena 等玩法权益；签到奖励以后台签到奖池和活动配置为准。</li>
-</ul>`,
+        summary: "完成签到、查看结果并确认是否可补签",
+        html: `<h2>完成签到</h2>
+<p>登录后打开<a href="/check-in">每日签到</a>，也可通过<a href="/play">玩法中枢</a>的签到卡片进入。先看页面显示的参与条件，再点签到并确认今日状态。</p>
+<h2>查看结果</h2>
+<p>签到可能只记录参与，也可能积累能量。符合可兑换奖励条件时，结果取决于当前发布的奖池，可能是余额、优惠券或兑换码。余额和优惠券可在<a href="/wallet">钱包</a>核对，兑换码按结果提示前往<a href="/redeem">兑换</a>。签到奖励不计入 VIP 累计。</p>
+<h2>连续签到与补签</h2>
+<p>在签到页查看连续天数和可用的里程碑提示。如果页面显示补签入口且按钮可用，按提示补签并重新核对状态。补签资格以当前页面提示为准。</p>`,
       },
       {
         id: 'discount-examples',
@@ -672,7 +619,7 @@ IMAGE_ASYNC_WORKER_COUNT=20</code></pre>
 <h2>VIP 加赠怎么生效</h2>
 <ul>
   <li>每笔余额充值创建订单时，系统读取<strong>充值前</strong>的 VIP 等级并写入订单快照</li>
-  <li>默认加赠为 V0 0%、V1 2%、V2 4%、V3 6%、V4 8%、V5 10%，实际以后台动态配置为准</li>
+  <li>各档比例以 VIP 等级表和下单时的充值预览为准</li>
   <li>活动加赠与 VIP 加赠按加法叠加，但会在付款页、支付结果页和订单详情中分开展示</li>
   <li>订单创建后即使后台配置变化，本单也按快照完成入账</li>
 </ul>
@@ -684,33 +631,8 @@ IMAGE_ASYNC_WORKER_COUNT=20</code></pre>
   <li>不改变支付网关实付金额、手续费、每日限额或通道校验</li>
 </ul>
 
-<h2>Play 中枢（/play）聚合能力</h2>
-<ul>
-  <li><strong>AI创作空间</strong> — 画布创作、素材保存、提示词带入和首图引导</li>
-  <li><strong>每日任务</strong> — 签到 / 出图 / API 调用进度与能量等级</li>
-  <li><strong>签到</strong> — 今日是否已签、连续天数、距下一里程碑</li>
-  <li><strong>Token 农场 / Arena</strong> — 日榜 + 月榜排名、距上一名 token 差、周期结算</li>
-  <li><strong>盲盒</strong> — 今日剩余次数、是否可开</li>
-  <li><strong>答题闯关</strong> — 今日题目提交状态</li>
-  <li><strong>Agent Team</strong> — 小队进度与邀请合一链接</li>
-  <li><strong>限时活动</strong> — 充值加赠、盲盒额外次数、Arena 倍率（Campaign 引擎）</li>
-</ul>
-
-<h2>Token 农场 / Arena 奖励怎么算</h2>
-<p>Token 农场奖励按排行榜结算，不按 VIP 或活动倍率直接放大奖励金额。用户的有效 API Token 消耗进入日榜/月榜；结算时按排名命中固定奖励档，例如默认月榜第 1 名 $50、Top 3 $20、Top 10 $5。</p>
-<p class="docs-tip">Recharge Boost 与 Campaign 的 Arena 倍率只影响展示积分和排名竞争，不直接把结算奖励金额乘大。最终到账以结算快照和 Play reward ledger 为准。</p>
-
-<h2>Agent Team 奖励怎么算</h2>
-<p>Agent Team 奖励先算团队池，再按成员贡献比例分配：<strong>团队奖池 = 团队月消费 × 当前达标比例</strong>，并受每队每月封顶限制；<strong>个人奖励 = 个人消费 / 团队总消费 × 团队奖池</strong>。</p>
-<p>默认档位为 $20→2%、$100→3%、$500→4%、$2000→5%，默认封顶 $250。页面展示的是实时预计值，最终以月结快照为准。</p>
-
-<h2>充值联动</h2>
-<p>充值成功后可能触发：</p>
-<ul>
-  <li><strong>Recharge Boost 24h</strong> — 签到双倍、盲盒额外次数、Arena 展示倍率（需开启）</li>
-  <li><strong>首充 / 余额低 Banner</strong> — Dashboard 与 Hub 引导回充值页</li>
-</ul>
-<p class="docs-tip">所有 Play 模块均有 Admin 开关，未开启时 Hub 会显示引导文案而非报错。</p>`,
+<h2>查看当前活动和权益</h2>
+<p>登录后打开<a href="/play">玩法中枢</a>，查看已发布的活动、有效期及账号可用的权益。充值加赠以<a href="/purchase">充值</a>页的预计到账为准，积分、次数等玩法权益以对应活动卡片为准。</p>`,
       },
       {
         id: 'faq',
@@ -718,8 +640,8 @@ IMAGE_ASYNC_WORKER_COUNT=20</code></pre>
         summary: "VIP 与充值最常被问到的问题",
         html: `<p class="docs-lead">下面汇总充值、VIP 与 Play 玩法最常见的问题。</p>
 
-<h2>会员等级会过期吗?</h2>
-<p>不会。达到某档位后永久保留，不会因长时间未使用而降级。</p>
+<h2>为什么我的 VIP 档位变了？</h2>
+<p>档位取决于符合条件的充值净额和当前等级门槛。消费余额不会减少充值累计，退款和冲正会影响净额。登录<a href="/play">玩法中枢</a>核对账号的当前档位。</p>
 
 <h2>本单充值升级后，能立刻享受新等级加赠吗?</h2>
 <p>不能。本单按<strong>充值前</strong> VIP 等级计算加赠；充值成功后如果升级，新等级从下一笔充值订单开始生效。</p>
@@ -743,313 +665,65 @@ IMAGE_ASYNC_WORKER_COUNT=20</code></pre>
 <p>签到、Arena、盲盒、Quiz、Team 均有独立 Admin 开关。关闭后对应入口隐藏或 Hub 显示「暂未开启」引导。</p>
 
 <h2>模型列表在哪里看?</h2>
-<p>公开页 <a href="/catalog">/catalog</a>：游客看精选预览；登录后拉取你分组下的<strong>真实可用模型与单价</strong>。</p>`,
+<p>打开<a href="/catalog">模型与价格</a>，登录后核对所用密钥的分组、模型 ID 和可用协议。</p>`,
       },
       {
         id: 'blindbox-rewards',
         title: "盲盒玩法",
         summary: "扣费开箱 · 随机开奖 · 每日次数上限",
-        html: `<p class="docs-lead">盲盒是 Play 域的随机奖励玩法：消耗少量余额开箱，按后台当前发布的营销奖励奖池随机发放优惠券、兑换码或余额。余额分支仍按当前用户的 <strong>VIP 专属余额奖池</strong> 抽取。</p>
-
-<h2>基本规则（默认配置）</h2>
-<ul>
-  <li>每次开箱扣费 <strong>$0.50</strong>（<code>play_blindbox_cost</code>）</li>
-  <li>每日上限 <strong>10 次</strong>（<code>play_blindbox_daily_limit</code>）</li>
-  <li>外层奖励比例由后台配置，可在优惠券、兑换码、余额三类分支之间调整</li>
-  <li>余额分支命中后，再按 VIP 余额奖池档位抽取；净收益 = 返奖 − 扣费</li>
-</ul>
-
-<h2>VIP 专属奖池</h2>
-<ul>
-  <li>V0 使用基础奖池，默认预计回报约 $0.45</li>
-  <li>V1-V5 使用对应 VIP 奖池版本，逐级提高高奖项权重，V5 默认预计回报约 $0.495</li>
-  <li>页面展示当前 VIP、当前奖池、下一档奖池、预计回报和距下一档差额</li>
-  <li>中奖记录保存 <code>pool_version</code>，因此配置变化后仍能解释历史开箱按哪个奖池抽</li>
-</ul>
-<p class="docs-tip">VIP 奖池升级不保证稳赚；所有概率、成本和 RTP 上限都会在页面展示，最终以服务端抽奖记录为准。</p>
-
-<h2>加成与上限</h2>
-<ul>
-  <li><strong>充值 Boost 24h</strong> — 额外每日开箱次数</li>
-  <li><strong>限时活动 Campaign</strong> — 可配置 <code>blindbox_extra_opens</code></li>
-  <li><strong>VIP</strong> — 使用当前等级对应的 VIP 专属奖池</li>
-</ul>
-
-<h2>入口</h2>
-<p><a href="/blindbox">/blindbox</a> 或 <a href="/play">玩法中枢</a>。余额不足时引导充值。</p>
-
-<h2>API</h2>
-<ul>
-  <li><code>GET /api/v1/play/blindbox/status</code> — 今日次数、是否可开、当前/下一 VIP 奖池、预计回报</li>
-  <li><code>POST /api/v1/play/blindbox/open</code> — 开箱（支持幂等键），返回奖励类型、优惠券/兑换码/余额结果、净收益、VIP 与奖池版本</li>
-</ul>
-<p class="docs-tip">需管理员开启 <code>play_blindbox_enabled</code>。扣费在 Settings 调整，营销奖励比例和奖项在优惠券运营奖池中配置。</p>`,
+        html: `<h2>开箱前核对</h2>
+<p>登录后打开<a href="/blindbox">盲盒</a>，或从<a href="/play">玩法中枢</a>进入。确认页面显示的参与条件、单次扣费、剩余次数与当前奖池，再决定是否开箱。可用次数随活动变化，单次奖励随机。</p>
+<h2>核对结果</h2>
+<p>看结果提示区分余额、优惠券和兑换码。余额与优惠券可到<a href="/wallet">钱包</a>核对，兑换码按结果提示前往<a href="/redeem">兑换</a>。</p>`,
       },
       {
         id: 'image-studio',
         title: "AI创作空间",
         summary: "画布创作 · 生图工作台 · 素材保存 · 与每日任务联动",
-        html: `<p class="docs-lead">AI创作空间是极速蹬统一的创作入口：在画布中组织素材，在生图工作台确认提示词与规格后再生成。开发者批量调用请直接使用图片生成 API。</p>
-
-<h2>入口</h2>
-<ul>
-  <li>控制台侧边栏 <strong>AI创作空间</strong>（<a href="/ai-creation-space">/ai-creation-space</a>）</li>
-  <li><a href="/play">玩法中枢</a>「今日出图」卡片</li>
-  <li>首页 IMAGE 区 CTA「免费试做一张」</li>
-</ul>
-
-<h2>四步向导</h2>
+        html: `<h2>从主站进入画布</h2>
+<p>打开<a href="/ai-creation-space">AI创作空间</a>，页面会跳转到独立的「无限画布」。如果画布显示「登录」，按画布里的提示继续。</p>
+<h2>在生图工作台试一次</h2>
 <ol>
-  <li><strong>进入</strong> — 从主站“AI创作空间”进入，并继承当前账号权限</li>
-  <li><strong>组织</strong> — 在画布中整理提示词、参考图和已有成果</li>
-  <li><strong>生成</strong> — 在生图工作台确认提示词、模型、尺寸和参考图</li>
-  <li><strong>保存</strong> — 将成果保存到创作空间，空间紧张时及时导出自己的数据</li>
+  <li>在画布侧栏进入<strong>生图工作台</strong>。如果提示没有模型，在「配置与用户偏好」中核对本地模型渠道并拉取模型列表。</li>
+  <li>填写提示词，选择可用模型与画幅。所选模型支持参考图时，可添加参考图。</li>
+  <li>按界面提示发起生成。先用一张图验证配置，再预览并下载需要保留的结果。</li>
 </ol>
-<p class="docs-tip">生成请求会进入极速蹬主平台的异步队列；确认生成前会按当前账号、模型权限和余额进行校验。</p>
-
-<h2>费用与余额</h2>
-<ul>
-  <li>生成前调用 <code>GET /api/v1/image-studio/estimate</code> 展示预估费用</li>
-  <li>余额不足时引导 <code>/purchase?return=/ai-creation-space</code></li>
-  <li>扣费与 Gateway 图像 API 同源，按所选 Key 的分组计费</li>
-</ul>
-
-<h2>图库与隐私</h2>
-<ul>
-  <li>最近任务可在页面底部图库查看、下载、删除</li>
-  <li>可选 <strong>7 天自动清理</strong>（仅影响本地偏好与任务过期标记）</li>
-  <li>Gateway 请求正文仍<strong>不入库</strong>；工作室任务表仅存 template_id 与合成 prompt（可配置不落盘）</li>
-</ul>
-
-<h2>与 Play 联动</h2>
-<ul>
-  <li>每日首次成功出图 → 完成「出图 1 张」任务（+20 能量）</li>
-  <li>首次出图 → 首图仪式庆祝（客户端 localStorage）</li>
-  <li>Hub <code>pending_actions</code> 含未完成任务与首图引导</li>
-</ul>
-
-<h2>API</h2>
-<ul>
-  <li><code>GET /api/v1/image-studio/templates</code></li>
-  <li><code>GET /api/v1/image-studio/estimate</code></li>
-  <li><code>POST /api/v1/image-studio/generate</code>（异步 job，前端轮询）</li>
-  <li><code>GET /api/v1/image-studio/jobs</code> / <code>DELETE .../jobs/:id</code></li>
-</ul>
-<p class="docs-tip">需开启 <code>image_studio_enabled</code>。开发者直调请看 <a href="/docs?cat=deploy&amp;page=text-to-image-api">图片生成 API</a>；一次多张使用同步 Images 的 <code>n=1-10</code>，多个 prompt 的持久任务使用 <a href="/docs?cat=deploy&amp;page=batch-image-api">Batch Image</a>。</p>`,
+<h2>使用极速蹬渠道时</h2>
+<p>到主站的<a href="/catalog">模型与价格</a>确认模型、分组与接口，生成后在<a href="/usage">用量</a>核对记录。开发者接入可查看<a href="/docs?cat=deploy&amp;page=text-to-image-api">图片生成 API</a>或<a href="/docs?cat=deploy&amp;page=batch-image-api">批量生图 API</a>。</p>`,
       },
       {
         id: 'token-farm',
         title: "Token 农场",
-        summary: "日榜 + 月榜 · 每日任务 · RPG 能量等级",
-        html: `<p class="docs-lead">Token 农场将 API Token 消耗可视化为 Ink 风格 RPG：每日任务攒能量、日榜即时反馈、月榜赛季大奖。底层仍使用 <code>usage_logs</code> 统计，不引入玩法代币。</p>
-
-<h2>排行榜</h2>
-<ul>
-  <li><strong>日榜</strong> — 当日有效 Token 消耗排名；Top 10 次日自动发放小额余额奖励（日预算上限 $50）</li>
-  <li><strong>月榜</strong> — 赛季周期排名；Admin 调用 <code>POST /admin/play/arena/settle</code> 结算大奖</li>
-  <li>展示「距上一名还差 X tokens」与 Recharge Boost / Campaign Buff 倍率</li>
-</ul>
-
-<h2>结算奖励口径</h2>
-<ul>
-  <li>奖励按结算时排名命中固定金额档，不按 VIP 额外倍增</li>
-  <li>默认月榜：第 1 名 $50、Top 3 $20、Top 10 $5</li>
-  <li>默认日榜：第 1 名 $0.5、Top 3 $0.2、Top 10 $0.1</li>
-  <li>活动倍率只影响展示积分和排名，不直接把奖励金额乘大</li>
-</ul>
-
-<h2>每日任务（能量 → 等级，纯展示）</h2>
-<div class="docs-table-wrap">
-<table class="docs-table">
-<thead><tr><th>任务</th><th>条件</th><th>能量</th></tr></thead>
-<tbody>
-<tr><td>签到</td><td>当日完成签到</td><td>+10</td></tr>
-<tr><td>出图 1 张</td><td>AI创作空间成功生成 1 次</td><td>+20</td></tr>
-<tr><td>API 调用</td><td>当日 usage ≥ 100 tokens</td><td>+15</td></tr>
-</tbody>
-</table>
-</div>
-<p>能量与等级用于 HUD 进度条，<strong>不单独兑换余额</strong>（防刷量设计）。</p>
-
-<h2>零消耗用户</h2>
-<p>若日榜与月榜消耗均为 0，页面展示「播种指南」：创建 Key → 调用 API 或先去 AI创作空间完成创作。</p>
-
-<h2>入口与 API</h2>
-<ul>
-  <li>页面 <a href="/arena">/arena</a> 或玩法中枢 Token 农场卡片</li>
-  <li><code>GET /api/v1/play/arena/daily/current</code> · <code>.../daily/leaderboard</code></li>
-  <li><code>GET /api/v1/play/quests/today</code></li>
-</ul>
-<p class="docs-tip">需开启 <code>play_arena_enabled</code> 与 <code>play_daily_arena_enabled</code>。对外文案：<strong>每日任务有奖 · 每月赛季大奖</strong>。</p>`,
+        summary: "查看当前排行榜、参与规则和结算结果",
+        html: `<h2>查看排行榜与活动规则</h2>
+<p>打开<a href="/arena">Token 农场</a>，也可从<a href="/play">玩法中枢</a>的活动卡片进入。查看当前开放的榜单、统计周期、上榜条件和奖励档位。</p>
+<h2>核对进度与结算</h2>
+<p>先在<a href="/usage">用量</a>核对 API 请求，再到活动页核对计入的进度。榜单上的排名随周期内的有效用量变化，奖励以结算结果为准。</p>`,
       },
     ],
   },
   {
     id: 'about-us',
     title: "了解我们",
-    description: "中转技术真伪 · 隐私边界 · 我们的承诺",
+    description: "网关接入、请求核对与数据处理",
     pages: [
       {
         id: 'about-us-overview',
-        title: "为什么我们是真的中转",
-        summary: "不靠营销话术,用具体技术细节告诉你我们做了什么",
-        html: `<p class="docs-lead">AI 中转站这个赛道,劣币驱逐良币的现象很严重。本节用<strong>可验证的技术事实</strong>,
-说清楚我们做了什么、不做什么,以及你如何<strong>自己核实</strong>。营销话术不能保真,代码细节可以。</p>
-
-<h2>1. 请求正文 · 永不入库</h2>
-<p>你打过来的 prompt、消息内容、上下文、上传的图片、tool call 参数,<strong>从不写入我们的数据库或日志</strong>。
-管理后台能看到的只有:</p>
-<ul>
-  <li><code>User-Agent</code> — 你用的客户端 (SDK 版本 / IDE)</li>
-  <li><code>token 计数</code> — input_tokens, output_tokens, cached_tokens</li>
-  <li><code>model</code> — 调用的模型名</li>
-  <li><code>created_at</code> — 调用时间戳</li>
-  <li><code>status_code</code> — HTTP 状态码 (200/429/500 等)</li>
-  <li><code>upstream_account_id</code> — 调度到哪个上游账号</li>
-  <li><code>latency_ms</code> — 端到端耗时</li>
-</ul>
-<p>请求体是<strong>流式直通</strong>到上游,中间不落盘、不缓存、不分析、不审计。响应体同理。</p>
-<p class="docs-tip"><strong>自证方法:</strong> 联系客服调阅你自己 24 小时内任意一笔调用的"全部存储字段"。
-你会发现里面没有 messages 数组、没有 prompt 字符串、没有 image base64。这是设计层面承诺,不是运营自觉。</p>
-
-<h2>2. 上游账号 · 完整分类</h2>
-<p>每个上游账号在管理面板按 <code>platform</code> 字段分类,我们公开承认每种类型的稳定性差异:</p>
-<table class="docs-table">
-  <thead><tr><th>类型</th><th>稳定性</th><th>说明</th></tr></thead>
-  <tbody>
-    <tr><td>官方 API Key (Anthropic / OpenAI / Google)</td><td>最高</td><td>付费购买的官方 console key,签合规协议</td></tr>
-    <tr><td>官方 OAuth (Pro / Plus / Team / Enterprise)</td><td>高</td><td>登录 OAuth 拿 access token,有 rate limit 但稳定</td></tr>
-    <tr><td>第三方 IDE 集成 (Cursor / Windsurf / Codex)</td><td>中</td><td>逆向 IDE 内嵌的官方账号,会跟随 IDE 风控调整</td></tr>
-    <tr><td>Pro 订阅 (claude.ai / chat.openai.com)</td><td>低-中</td><td>个人账号订阅,有较严风控</td></tr>
-  </tbody>
-</table>
-<p>我们<strong>不</strong>把"IDE 集成"伪装成"官方 API"卖。如果你抽中的是 IDE 通道,
-错误日志和上游账号 ID 会明确显示来源。</p>
-
-<h2>3. 计费可对账</h2>
-<p>计费完全按上游 <code>usage</code> 字段。我们透传 <code>response_id</code> / <code>chat_id</code>,
-你拿到这个 ID 后,如果有官方账号可以去后台对账:</p>
-<pre><code># Anthropic 响应 (透传)
-{
-  "id": "msg_01ABC...",         // ← 这个 ID 在 Anthropic 后台可查
-  "type": "message",
-  "model": "claude-sonnet-4-6",
-  "usage": {
-    "input_tokens": 1234,        // ← 计费按这个
-    "output_tokens": 567,
-    "cache_read_input_tokens": 800,
-    "cache_creation_input_tokens": 0
-  }
-}</code></pre>
-<p>扣费 = 上游 <code>usage</code> token 数 × 该模型官方单价 × <strong>分组倍率</strong>。VIP 档位不改变此公式，仅影响 Play 玩法权益。</p>
-
-<h2>4. 鉴别中转真伪 · 10 个测试项</h2>
-<p>你可以拿下面 10 项去衡量<strong>任何一家</strong>中转 (包括我们):</p>
-<ol>
-  <li><strong>调用一个明确 400 的请求</strong> (例: temperature=999),看返回的 <code>error.type</code> 是否原样
-  (真官方: <code>invalid_request_error</code> + 具体字段)</li>
-  <li><strong>对比首 token 延迟</strong> 与官方 API 的差距 (官方一般 &lt;1s,中转应 &lt;1.5s)</li>
-  <li><strong>测 prompt caching</strong> (Anthropic) — 第二次同 prefix 是否命中 cache,<code>cache_read_input_tokens</code> 是否&gt;0</li>
-  <li><strong>测 vision</strong> — 上传一张图 (base64),看是否真的能 OCR/描述</li>
-  <li><strong>测 tool use</strong> — 复杂 JSON schema 的 tool calling 是否能正确执行</li>
-  <li><strong>测 stream usage</strong> — 流式响应末尾的 <code>message_delta.usage</code> 是否完整</li>
-  <li><strong>对比同 prompt 在多家中转的输出</strong> (固定 temperature=0) — 应该几乎一致</li>
-  <li><strong>查响应 header</strong> — 是否含 <code>x-request-id</code>、<code>anthropic-version</code> 等官方头</li>
-  <li><strong>测长 context</strong> (200k tokens) — 真 Opus / Sonnet 能吃下,小模型会截断</li>
-  <li><strong>测复杂推理</strong> — 数学竞赛题、代码 debug、长链条逻辑 — 这是 Opus 与 Haiku 最明显的差距</li>
-</ol>
-
-<h2>5. 行业常见掺水手法</h2>
-<p>列在这里供识别。我们不做这些,你可以拿去对照其他中转。</p>
-
-<h3>手法一 · IDE 逆向冒充官方 API</h3>
-<p>抓 KIRO、Cursor、Windsurf、Codex 等 IDE 的 Anthropic 集成 cookie,
-把这个端点伪装成"Claude 官方 API"卖。<strong>稳定性极差</strong>:
-IDE 任何一次更新、Anthropic 改协议、对方账号被风控,你的"官方 API"立刻挂。
-真官方 API 的 beta header、prompt caching、stream usage 末段统计往往不全。</p>
-
-<h3>手法二 · Cookie 中转</h3>
-<p>抓某个用户的 claude.ai / chat.openai.com 登录态 cookie 包装成 API 卖。
-原账号被风控、改密码、cookie 过期,所有买家立刻断流。
-而且明确<strong>违反服务条款</strong>,被发现可能反追溯。</p>
-
-<h3>手法三 · 模型欺诈</h3>
-<p>对外宣称 GPT-4 / Claude Opus,实际后端转发到 GPT-3.5 / Claude Haiku,
-或用开源 Llama 微调套壳。<strong>固定一个高难度 prompt 多家对比</strong>就能识破。</p>
-
-<h3>手法四 · token 虚标</h3>
-<p>上游返回 usage 是 1000 token,中转改成 1500 多扣 50%。
-<strong>对账方法:</strong> 拿透传的 <code>response_id</code> 去官方后台查实际 usage。
-我们的扣费严格按上游 usage 字段,可对账。</p>
-
-<h3>手法五 · 假"流式"</h3>
-<p>非流式生成完后切片伪装流式 (首 token 延迟 5s+),或在流中段插入广告/统计。
-我们的流是<strong>纯透传</strong>,首 token 延迟和官方差距只有网络往返。</p>
-
-<h3>手法六 · 错误码改写</h3>
-<p>把上游的 <code>overloaded_error</code> / <code>insufficient_quota</code> 等统一改写成
-"服务繁忙"。<strong>掩盖了真实问题</strong>,客户端无法做精细化退避。
-我们原样透传所有上游错误,你能定位到精确层。</p>
-
-<h2>6. 我们对自己的要求 (公开承诺)</h2>
-<ul>
-  <li><strong>事故公开</strong> — 任何超过 5 分钟的中断在公告里留痕,不删历史</li>
-  <li><strong>退款明文</strong> — 充值不可退,但余额可转给其他注册用户 (走客服)</li>
-  <li><strong>价格不暗调</strong> — 模型单价改动提前 7 天预告</li>
-  <li><strong>不卖渠道源</strong> — 不会把你的 API key、IP、调用模式打包卖给第三方画像</li>
-  <li><strong>开源策略</strong> — 平台主体代码对自部署用户开放,商业模式不靠技术黑盒</li>
-  <li><strong>日志保留 7 天</strong> — 错误响应可能保留 7 天用于排障 (仅 status + 响应头,不含正文),之后自动删除</li>
-</ul>`,
+        title: "平台概览",
+        summary: "了解网关支持的接口，核对请求和费用",
+        html: `<h2>选择接入方式</h2>
+<p>极速蹬提供 API 网关和 AI 创作空间。使用网关时，在<a href="/keys">API 密钥</a>中准备密钥，再到<a href="/catalog">模型与价格</a>核对分组、模型与接口。</p>
+<h2>核对调用结果</h2>
+<p>先发一个简短的测试请求，再到<a href="/usage">用量记录</a>核对时间、模型和费用。服务连接异常时可查看<a href="/status">系统状态</a>；如需排查单次请求，请将请求 ID、时间和错误码提供给<a href="/contact">客服</a>。</p>`,
       },
       {
         id: 'about-us-privacy',
-        title: "隐私边界 · 我们存什么",
-        summary: "详细的字段级隐私清单,逐项说明存什么不存什么",
-        html: `<p class="docs-lead">这一节用<strong>字段级清单</strong>告诉你:我们后台数据库里每张表存了什么。
-你的请求体、对话内容、上传文件,<strong>都不在这个列表里</strong>。</p>
-
-<h2>usage_logs (调用流水)</h2>
-<table class="docs-table">
-  <thead><tr><th>字段</th><th>含义</th><th>包含内容?</th></tr></thead>
-  <tbody>
-    <tr><td>id</td><td>主键</td><td>—</td></tr>
-    <tr><td>user_id</td><td>用户 ID</td><td>否</td></tr>
-    <tr><td>api_key_id</td><td>API Key ID</td><td>否</td></tr>
-    <tr><td>model</td><td>模型名</td><td>仅模型名,如 "claude-opus-4-7"</td></tr>
-    <tr><td>input_tokens</td><td>输入 token 数</td><td>只是数字</td></tr>
-    <tr><td>output_tokens</td><td>输出 token 数</td><td>只是数字</td></tr>
-    <tr><td>cache_read_tokens</td><td>缓存读 token 数</td><td>只是数字</td></tr>
-    <tr><td>actual_cost</td><td>实际扣费</td><td>金额（上游单价 × 分组倍率）</td></tr>
-    <tr><td>request_id</td><td>请求 ID</td><td>UUID,用于去重</td></tr>
-    <tr><td>response_id</td><td>上游响应 ID</td><td>上游返回的 msg_xxx</td></tr>
-    <tr><td>client_ip</td><td>客户端 IP</td><td>用于风控,30 天后 GDPR-style 截断</td></tr>
-    <tr><td>user_agent</td><td>客户端 UA</td><td>SDK/IDE 版本</td></tr>
-    <tr><td>upstream_account_id</td><td>上游账号 ID</td><td>调度到哪个账号</td></tr>
-    <tr><td>status_code</td><td>HTTP 状态码</td><td>数字</td></tr>
-    <tr><td>latency_ms</td><td>耗时</td><td>毫秒数</td></tr>
-    <tr><td>created_at</td><td>时间戳</td><td>—</td></tr>
-  </tbody>
-</table>
-<p class="docs-tip"><strong>没有的字段:</strong> messages、prompt、system、tools、tool_results、images、audio、
-上传文件 base64、response.content、stream chunks。</p>
-
-<h2>临时错误样本 (出错时,保留 7 天)</h2>
-<p>仅当上游返回 4xx/5xx 时,为了排障会临时保留:</p>
-<ul>
-  <li>响应 header (含 <code>x-request-id</code>、<code>retry-after</code> 等)</li>
-  <li>响应 body 的 <code>error</code> 对象 (如 <code>{"type":"overloaded_error","message":"..."}</code>)</li>
-  <li>请求 metadata (model, max_tokens 数值,<strong>不含 messages</strong>)</li>
-</ul>
-<p>7 天后自动删除。如果你不希望保留任何错误样本,可以在<code>个人中心 → 隐私</code>关掉。</p>
-
-<h2>不会触碰的</h2>
-<ul>
-  <li>对话原文 / prompt</li>
-  <li>tool call 参数和返回值</li>
-  <li>图片 / 音频 / 文件上传内容</li>
-  <li>streaming 中间内容</li>
-  <li>你的 API key 自身 (只存 SHA-256 hash,前 8 位明文用于识别)</li>
-</ul>`,
+        title: "隐私与请求数据",
+        summary: "了解用量记录、异步任务和安全审计的数据处理差异",
+        html: `<h2>请求与用量记录</h2>
+<p>网关会将请求转发给相应服务。用量记录包含模型、用量和计费等请求元数据。图片异步任务会保留任务所需的数据和限时结果；启用安全审计时，命中的审计事件可能保存提示内容。</p>
+<h2>排障时需要提供哪些信息</h2>
+<p>请提供请求 ID、时间和错误码，分享截图之前遮盖密钥和个人信息。涉及敏感数据时，可先向<a href="/contact">客服</a>确认相关功能的数据处理方式。</p>`,
       },
     ],
   },
@@ -1061,77 +735,42 @@ IDE 任何一次更新、Anthropic 改协议、对方账号被风控,你的"官�
       {
         id: 'model-list',
         title: "可用模型一览",
-        summary: "当前网关支持的 Claude / GPT / Gemini 模型",
-        html: `<p class="docs-lead">模型 ID 以 <a href="/catalog">模型与价格</a> 为准：游客看精选预览，登录后显示你分组下的<strong>实时可用列表与单价</strong>。下列为 2026 年 7 月主流 lineup（定价库已收录，实际上线取决于分组配置）。</p>
+        summary: "按密钥分组查看实时可用模型、协议和价格",
+        html: `<p class="docs-lead">模型会持续更新，而且不同 API 密钥分组可用的模型可能不同。本页不维护静态模型名称清单；请以登录后 <a href="/catalog">模型与价格</a> 中当前账号和分组可见的数据为准。</p>
 
-<h2>Anthropic Claude（2026-07）</h2>
-<ul>
-  <li><code>claude-opus-4-8</code> — 旗舰推理与 Agent，复杂任务首选</li>
-  <li><code>claude-sonnet-4-6</code> — 速度与质量平衡，日常开发/对话主力</li>
-  <li><code>claude-haiku-4-5</code> — 低延迟、低成本，适合高频小任务</li>
-</ul>
-<p class="docs-tip">Anthropic 于 2026-06 发布 Sonnet 5（<code>claude-sonnet-5</code>）等新模型；若你的分组已接入，会在模型页自动出现。旧版 Sonnet/Opus 4（如 <code>*-20250514</code>）已在官方侧退役，请勿在新项目中使用。</p>
-
-<h2>OpenAI · GPT-5.6 系列（2026-07 最新）</h2>
-<p>OpenAI 于 2026 年中发布 GPT-5.6 三档变体，均支持约 <strong>105 万 token</strong> 上下文窗口，适合长代码库与 Agent 工作流：</p>
-<div class="docs-table-wrap">
-<table class="docs-table">
-<thead><tr><th>模型 ID</th><th>定位</th><th>典型场景</th></tr></thead>
-<tbody>
-<tr><td><code>gpt-5.6-sol</code></td><td>Sol · 旗舰推理</td><td>复杂架构设计、深度 Debug、多步 Agent</td></tr>
-<tr><td><code>gpt-5.6-terra</code></td><td>Terra · 均衡型</td><td>日常开发、代码审查、文档生成</td></tr>
-<tr><td><code>gpt-5.6-luna</code></td><td>Luna · 轻量高速</td><td>高频小任务、批量改写、快速补全</td></tr>
-</tbody>
-</table>
-</div>
-
-<h2>OpenAI · GPT-5.5 与 Codex 系</h2>
-<ul>
-  <li><code>gpt-5.5</code> / <code>gpt-5.5-pro</code> — 上一代旗舰，<strong>OpenAI Codex CLI 默认推荐模型</strong>，工具调用与代码生成极稳</li>
-  <li><code>gpt-5-codex</code> — Codex 专用变体，走 Responses API</li>
-  <li><code>gpt-5</code> / <code>gpt-5-mini</code> — 经典旗舰与轻量版，兼容旧项目</li>
-  <li><code>gpt-4.1</code> — 指令遵循稳定，适合结构化输出</li>
-  <li><code>o4-mini</code> / <code>o3</code> — 推理向模型，数学与逻辑任务</li>
-</ul>
-<p class="docs-tip"><strong>怎么选？</strong> 新项目优先 <code>gpt-5.6-sol</code> 或 <code>gpt-5.6-terra</code>；已配好 Codex 且不想改配置可继续用 <code>gpt-5.5</code>。三档 5.6 变体均支持 reasoning effort（low / medium / high / xhigh）。</p>
-
-<h2>Google Gemini</h2>
-<ul>
-  <li><code>gemini-2.5-pro</code> — 长上下文与多模态</li>
-  <li><code>gemini-2.5-flash</code> — 极速、低成本</li>
-  <li><code>gemini-3-flash</code> — 2026 新一代 Flash 系列（分组接入后可用）</li>
-</ul>
-
-<h2>如何确认「我能用哪些」</h2>
+<h2>查看当前可用模型</h2>
 <ol>
-  <li>登录 → 打开 <a href="/catalog">/catalog</a></li>
-  <li>查看当前分组支持的模型名与 input/output 单价</li>
-  <li>调用时在 JSON 里填<strong>与列表完全一致</strong>的 model 字符串</li>
-</ol>`,
+  <li>登录极速蹬并打开 <a href="/catalog">模型与价格</a>。</li>
+  <li>确认页面当前选择的服务分组与将要使用的 API 密钥一致。</li>
+  <li>复制模型 ID，并核对协议、输入/输出价格及模型状态。</li>
+  <li>在请求或客户端设置中原样填写模型 ID；不要根据模型显示名称自行拼写。</li>
+</ol>
+
+<h2>为什么文档不列固定模型名</h2>
+<p>模型上线、下线、别名和分组权限由平台配置及上游变化决定。旧教程里的模型名、默认模型和价格可能过期；请求报模型不存在或无权限时，先回到模型页与 API 密钥分组重新确认。</p>
+<p class="docs-tip">客户端能否使用某个模型，还取决于它支持的 API 协议。模型页或密钥页提供的客户端配置优先于通用示例。</p>`,
       },
       {
         id: 'choose-model',
         title: "如何选模型",
-        summary: "按场景推荐 · 成本/速度/质量权衡",
-        html: `<p class="docs-lead">没有「最好」的模型，只有最适合场景与预算的组合。计费 = 上游 token 单价 × 分组倍率（与 VIP 档位无关）。</p>
-<h2>场景速查（2026-07 推荐）</h2>
+        summary: "按实际可用模型、协议与预算进行选型",
+        html: `<p class="docs-lead">没有适合所有任务的固定推荐。先在 <a href="/catalog">模型与价格</a>确认当前密钥分组实际可用的模型、协议和单价，再用小请求比较效果与成本。</p>
+<h2>按任务选型</h2>
 <div class="docs-table-wrap">
 <table class="docs-table">
-<thead><tr><th>场景</th><th>首选</th><th>备选</th><th>原因</th></tr></thead>
+<thead><tr><th>任务</th><th>比较维度</th><th>验证方法</th></tr></thead>
 <tbody>
-<tr><td>代码 / Agent / CLI</td><td>claude-sonnet-4-6</td><td>gpt-5.6-terra</td><td>工具调用稳、上下文长、性价比高</td></tr>
-<tr><td>Codex / OpenAI CLI</td><td>gpt-5.5</td><td>gpt-5.6-sol</td><td>Codex 默认模型；5.6 Sol 推理更深</td></tr>
-<tr><td>文档摘要 / 分类</td><td>claude-haiku-4-5</td><td>gpt-5.6-luna</td><td>便宜、延迟低</td></tr>
-<tr><td>复杂推理 / 数学</td><td>claude-opus-4-8</td><td>gpt-5.6-sol</td><td>深度推理与长链路任务</td></tr>
-<tr><td>多模态（图片）</td><td>gpt-5.6-sol</td><td>gemini-2.5-pro</td><td>视觉理解质量高</td></tr>
-<tr><td>超长文本 (&gt;100K)</td><td>gemini-2.5-pro</td><td>gpt-5.6-terra</td><td>百万级 context 窗口</td></tr>
-<tr><td>批量低成本</td><td>gpt-5.6-luna</td><td>gemini-3-flash</td><td>高并发、轻量任务</td></tr>
+<tr><td>代码与 Agent</td><td>工具调用、目标协议、上下文与价格</td><td>用小型真实任务检查修改质量及工具调用</td></tr>
+<tr><td>摘要与分类</td><td>延迟、输出长度与单价</td><td>用代表性样本比较准确率和响应时间</td></tr>
+<tr><td>复杂推理</td><td>推理能力、上下文需求与预算</td><td>用已知答案的问题检查正确性和稳定性</td></tr>
+<tr><td>图片任务</td><td>确认模型明确支持所需图片接口</td><td>按 <a href="/docs?cat=deploy&amp;page=text-to-image-api">图片生成 API</a> 文档发送低风险测试</td></tr>
+<tr><td>长文本或批量处理</td><td>上下文/批任务能力、限额和总成本</td><td>先拆小批验证，再逐步增加输入规模</td></tr>
 </tbody>
 </table>
 </div>
-<h2>性价比策略</h2>
-<p>「强模型起草 + 弱模型收尾」：例如 Opus / 5.6 Sol 出架构与关键逻辑，Haiku / 5.6 Luna 做格式化、摘要、批量改写。</p>
-<p class="docs-tip">GPT-5.6 三档（Sol / Terra / Luna）上线后优先在 <a href="/catalog">模型页</a> 确认分组是否已开放；Codex 用户可继续用 <code>gpt-5.5</code> 或升级到 <code>gpt-5.6-terra</code>。</p>`,
+<h2>控制成本并验证结果</h2>
+<p>先从较短输入和较低输出上限开始，检查回答质量与 <a href="/usage">用量记录</a>中的实际消耗，再决定是否扩大上下文或切换模型。不同模型的参数和能力并不完全相同，按对应客户端及 API 协议配置。</p>
+<p class="docs-tip">模型 ID、价格和分组权限以模型页实时显示为准。不要直接复制其他账号、旧截图或旧教程中的模型 ID。</p>`,
       },
       {
         id: 'best-practices',
@@ -1139,9 +778,9 @@ IDE 任何一次更新、Anthropic 改协议、对方账号被风控,你的"官�
         summary: "提示词模板 · 缓存策略 · 错误重试",
         html: `<p class="docs-lead">下面是经过验证的实战技巧,可以显著提升体验和降低成本。</p>
 <h2>充分利用提示词缓存</h2>
-<p>Claude 系列支持提示词缓存，缓存读取价格约为原价的 0.1 倍。如果你有固定的系统提示词，可加上缓存标记：</p>
+<p>只有明确支持提示词缓存的模型和接口才能使用缓存控制。缓存计费规则与价格以当前模型说明和实际用量记录为准；如需设置缓存标记，可按对应协议示例配置：</p>
 <pre><code>{
-  "model": "claude-sonnet-4-6",
+  "model": "YOUR_MODEL_ID",
   "system": [
     {"type":"text","text":"很长的系统提示...","cache_control":{"type":"ephemeral"}}
   ],
@@ -1162,8 +801,8 @@ IDE 任何一次更新、Anthropic 改协议、对方账号被风控,你的"官�
   },
   {
     id: 'deploy',
-    title: "接入部署",
-    description: "图片 API · 主流 AI 编程 CLI 接入本站 · 一步到位",
+    title: "API 接入",
+    description: "图片 API、SDK 与请求协议，按真实接口契约调用",
     pages: [
       {
         id: 'claude-code',
@@ -1189,13 +828,7 @@ cc --version</code></pre>
   <li>给 Key 起个识别名(如 <code>my-cc</code>)</li>
   <li>保存,复制生成的 Key — <em>只显示一次,务必先存起来</em></li>
 </ol>
-<figure class="docs-figure">
-  <div class="docs-figure-placeholder" data-shot="create-key">
-    <span class="docs-figure-tag">截图位</span>
-    <span class="docs-figure-hint">控制台 · 创建 API Key 弹窗</span>
-  </div>
-  <figcaption>在 <code>/keys</code> 页面新建 Key,选好服务分组后保存</figcaption>
-</figure>
+<div class="docs-procedure"><strong>页面路径</strong><span>控制台 → API 密钥 → 新建</span><span>选择服务分组后保存，并立即复制只显示一次的密钥。</span></div>
 
 <h2>第 4 步 · 用 CC-Switch 一键添加本站</h2>
 <p>把刚拿到的 Key 加进 CC-Switch:</p>
@@ -1207,13 +840,7 @@ cc --version</code></pre>
 
   *  anthropic      (官方)
      gateway       https://api.your-domain.com    [新增]</code></pre>
-<figure class="docs-figure">
-  <div class="docs-figure-placeholder" data-shot="cc-switch-list">
-    <span class="docs-figure-tag">截图位</span>
-    <span class="docs-figure-hint">终端 · cc list 输出</span>
-  </div>
-  <figcaption>cc list 能看到 anthropic 与 gateway 两个 provider</figcaption>
-</figure>
+<div class="docs-procedure"><strong>验证结果</strong><span>运行 <code>cc list</code>，确认列表同时显示官方 provider 和新建的 gateway。</span><span>运行 <code>cc use gateway</code> 后再启动 Claude Code。</span></div>
 
 <h2>第 5 步 · 切换到本站 并验证</h2>
 <pre><code>cc use gateway        # 切到本站
@@ -1256,7 +883,7 @@ $env:ANTHROPIC_AUTH_TOKEN = "sk-xxxxxxxxxxxxxxx"</code></pre>
 <p>Codex 通过 <code>~/.codex/config.toml</code> 读配置,也支持环境变量。推荐配置文件方式:</p>
 <pre><code># ~/.codex/config.toml
 model_provider = "gateway"
-model = "gpt-5.5"
+model = "YOUR_MODEL_ID"
 
 [model_providers.gateway]
 name = "本站"
@@ -1284,7 +911,7 @@ codex "帮我写一个 fibonacci 函数"</code></pre>
 <pre><code>npm install -g @google/gemini-cli</code></pre>
 
 <h2>第 2 步 · 创建 Key</h2>
-<p>创建一个支持 Gemini 模型的分组下的 Key。在侧边栏 <code>模型与价格</code> 可看到我们当前支持的 Gemini 模型清单(<code>gemini-2.5-pro</code> / <code>gemini-2.5-flash</code> 等)。</p>
+<p>创建或选择有 Gemini 协议权限的 API Key，并从 <a href="/catalog">模型与价格</a>复制该分组当前可用的模型 ID。不要照抄其他账号或旧教程中的型号。</p>
 
 <h2>第 3 步 · 配置</h2>
 <pre><code># 环境变量
@@ -1318,7 +945,7 @@ client = Anthropic(
     api_key="sk-xxxxxxxxxxxxxxx",
 )
 msg = client.messages.create(
-    model="claude-sonnet-4-6",
+    model="YOUR_MODEL_ID",
     max_tokens=1024,
     messages=[{"role": "user", "content": "你好"}],
 )
@@ -1332,7 +959,7 @@ client = OpenAI(
     api_key="sk-xxxxxxxxxxxxxxx",
 )
 resp = client.chat.completions.create(
-    model="gpt-5",
+    model="YOUR_MODEL_ID",
     messages=[{"role": "user", "content": "你好"}],
 )
 print(resp.choices[0].message.content)</code></pre>
@@ -1345,7 +972,7 @@ const client = new Anthropic({
   apiKey: "sk-xxxxxxxxxxxxxxx",
 })
 const msg = await client.messages.create({
-  model: "claude-sonnet-4-6",
+  model: "YOUR_MODEL_ID",
   max_tokens: 1024,
   messages: [{ role: "user", content: "你好" }],
 })
@@ -1356,18 +983,18 @@ console.log(msg.content[0].text)</code></pre>
   -H "Authorization: Bearer sk-xxxxxxxxxxxxxxx" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "model": "gpt-5",
+    "model": "YOUR_MODEL_ID",
     "messages": [{"role":"user","content":"hi"}]
   }'</code></pre>
 
-<p class="docs-tip"><strong>协议兼容性</strong>:网关同时支持 OpenAI / Anthropic / Gemini 三套协议路径,一份 Key 通吃。</p>`,
+<p class="docs-tip">模型 ID 不同于显示名称。请在 <a href="/catalog">模型与价格</a>中确认分组权限及协议后复制精确 ID；不要把占位符原样用于请求。</p>`,
       },
     ],
   },
   {
     id: 'tools',
-    title: "工具与客户端",
-    description: "主流开源 AI 编程客户端 / IDE / 配置工具 · 一键接入本站",
+    title: "工具集成",
+    description: "终端、编辑器、桌面客户端与智能体，统一从这里选择接入教程",
     pages: [
       {
         id: 'cc-switch',
@@ -1432,7 +1059,6 @@ cc list             # 看当前所有 provider</code></pre>
   </a>
 </div>
 
-<p style="text-align:center;margin:1rem 0;"><img src="/docs/agents/openclaw-logo.svg" alt="OpenClaw" style="max-width:240px;height:auto"/></p>
 
 <h2>第 1 步 · 安装 OpenClaw</h2>
 <p>OpenClaw 需要 <strong>Node.js ≥ 22.12</strong>。Windows 用户必须装在 WSL2 里(官方不支持原生 Windows)。</p>
@@ -1461,7 +1087,7 @@ openclaw --version</code></pre>
   --custom-base-url "https://api.your-domain.com/v1" \\
   --custom-api-key "sk-你的密钥" \\
   --custom-compatibility openai \\
-  --custom-model-id "claude-opus-4-7"</code></pre>
+  --custom-model-id "YOUR_MODEL_ID"</code></pre>
 
 <h2>第 3 步 · 试用</h2>
 <pre><code>openclaw doctor --non-interactive    # 自诊
@@ -1496,7 +1122,6 @@ openclaw agent --local -m "用一句话介绍你自己"</code></pre>
   </a>
 </div>
 
-<p style="text-align:center;margin:1rem 0;"><img src="/docs/agents/hermes-banner.png" alt="Hermes Agent" style="max-width:100%;height:auto;border-radius:8px"/></p>
 
 <h2>第 1 步 · 安装 Hermes</h2>
 <p>用 <strong>pipx</strong> 装(隔离环境,不污染系统 Python)。需要 Python 3.10+。</p>
@@ -1513,7 +1138,7 @@ hermes --version</code></pre>
 <p>编辑 <code>~/.hermes/config.yaml</code>(不存在则新建):</p>
 <pre><code># 由本站接入写入
 model:
-  default:  "claude-opus-4-7"
+  default:  "YOUR_MODEL_ID"
   provider: "custom"
   base_url: "https://api.your-domain.com/v1"
   api_key:  "sk-你的密钥"</code></pre>
@@ -1525,8 +1150,7 @@ hermes                          # 进交互式 TUI(/model 切模型 · /new 新�
 
 <h2>第 4 步 · 副模型 fallback(可选,推荐)</h2>
 <p>Hermes 原生支持主模型挂了自动切副模型:</p>
-<pre><code>hermes fallback add claude-sonnet-4-6
-# 之后主模型(opus)任何报错自动切到 sonnet</code></pre>
+<pre><code>hermes fallback add YOUR_FALLBACK_MODEL_ID</code></pre>
 
 <h2>常见问题</h2>
 <ul>
@@ -1563,10 +1187,7 @@ hermes                          # 进交互式 TUI(/model 切模型 · /new 新�
 
 <h2>第 2 步 · 添加本站 为自定义供应商</h2>
 <p>打开 Cherry Studio → 点左下角 <strong>设置</strong> 齿轮 → 进 <strong>模型服务</strong> → 左侧底部 <strong>「+ 添加」</strong> 自定义供应商。</p>
-<figure class="docs-figure">
-  <img src="/docs/agents/cherry-provider-settings-1.jpg" alt="Cherry Studio 模型服务设置" style="max-width:100%;height:auto;border-radius:8px;border:1px solid var(--color-border)"/>
-  <figcaption>设置 → 模型服务 → 添加</figcaption>
-</figure>
+<div class="docs-procedure"><strong>页面路径</strong><span>Cherry Studio → 设置 → 模型服务 → 添加自定义供应商</span><span>不同版本的按钮名称可能略有差异，以当前版本的模型服务设置页为准。</span></div>
 
 <h2>第 3 步 · 填两个核心字段</h2>
 <p>选 <strong>OpenAI 兼容</strong> 类型,然后填:</p>
@@ -1579,37 +1200,19 @@ hermes                          # 进交互式 TUI(/model 切模型 · /new 新�
 </tbody>
 </table>
 </div>
-<figure class="docs-figure">
-  <img src="/docs/agents/cherry-openai-provider.png" alt="Cherry Studio 填写 API Key" style="max-width:100%;height:auto;border-radius:8px;border:1px solid var(--color-border)"/>
-  <figcaption>填好 API 地址和密钥</figcaption>
-</figure>
+<div class="docs-procedure"><strong>字段填写</strong><span>类型选 OpenAI 兼容，API 地址使用文档首页显示的网关地址，密钥粘贴 API 密钥页生成的值。</span></div>
 
 <p class="docs-tip"><strong>API 地址重要细节</strong>:Cherry Studio 会自动加 <code>/v1/chat/completions</code>。如果想用<strong>完整自定义路径</strong>,地址末尾加 <code>#</code> 就不再拼接(高级用法)。</p>
 
 <h2>第 4 步 · 添加模型</h2>
 <p>填好 API 信息后,点配置页底部 <strong>「管理」</strong> 按钮,Cherry Studio 会自动拉取本站支持的模型列表。点列表里模型右侧的 <strong>「+」</strong> 把它加入你的可用列表。</p>
-<figure class="docs-figure">
-  <img src="/docs/agents/cherry-provider-settings-2.jpg" alt="管理模型列表" style="max-width:100%;height:auto;border-radius:8px;border:1px solid var(--color-border)"/>
-  <figcaption>点「管理」自动拉取模型列表,加号添加</figcaption>
-</figure>
+<div class="docs-procedure"><strong>模型列表</strong><span>点击「管理」拉取当前分组可用模型；只添加当前密钥分组实际返回的模型 ID。</span></div>
 
-<p>常用模型:</p>
-<ul>
-  <li><code>claude-opus-4-7</code> — 旗舰款,复杂编程 / 长文创作</li>
-  <li><code>claude-sonnet-4-6</code> — 平衡型,日常对话首选</li>
-  <li><code>claude-haiku-4-5</code> — 极速款,简单任务</li>
-  <li><code>gpt-5.6-sol</code> / <code>gpt-5.6-terra</code> / <code>gpt-5.6-luna</code> — GPT-5.6 三档（2026 最新）</li>
-  <li><code>gpt-5.5</code> / <code>gpt-5-codex</code> — Codex 系主力</li>
-  <li><code>gpt-5</code> — 经典旗舰</li>
-  <li><code>gemini-2.5-pro</code> — Google 系</li>
-</ul>
+<p>不在教程中列出固定模型清单。使用 Cherry Studio 的模型管理功能读取列表后，按 API Key 所属分组确认可用模型；如需手动添加，请从 <a href="/catalog">模型与价格</a>复制当前模型 ID。</p>
 
 <h2>第 5 步 · 启用 + 试用</h2>
 <p><strong>关键</strong>:别忘了点配置页右上角的「开关」把这个供应商<strong>启用</strong>,否则模型列表里看不到。</p>
-<figure class="docs-figure">
-  <img src="/docs/agents/cherry-provider-settings-3.jpg" alt="启用供应商开关" style="max-width:100%;height:auto;border-radius:8px;border:1px solid var(--color-border)"/>
-  <figcaption>右上角开关 → 启用</figcaption>
-</figure>
+<div class="docs-procedure"><strong>启用供应商</strong><span>打开供应商开关后，在新会话的模型选择器中选择刚添加的模型。</span></div>
 
 <p>启用后,主界面顶部模型选择器 → 选你刚加的模型 → 开始对话,跟 ChatGPT 一样用。</p>
 
@@ -1666,9 +1269,7 @@ npm install -g opencode-ai</code></pre>
         "apiKey": "sk-xxxxxxxxxxxxxxx"
       },
       "models": {
-        "claude-sonnet-4-6": { "name": "Claude Sonnet 4.6" },
-        "gpt-5.6-terra": { "name": "GPT-5.6 Terra" },
-        "gpt-5.5": { "name": "GPT-5.5" }
+        "YOUR_MODEL_ID": { "name": "Model shown in your Jisudeng catalog" }
       }
     }
   }
@@ -1677,7 +1278,7 @@ npm install -g opencode-ai</code></pre>
 <h2>第 3 步 · 运行</h2>
 <pre><code>cd your-project
 opencode             # 进入交互模式
-# 用 /model 命令切到 gateway/claude-sonnet-4-6</code></pre>
+# 用 /model 命令切到 gateway/YOUR_MODEL_ID</code></pre>
 
 <p class="docs-tip">OpenCode 默认会读取当前目录文件作为上下文,适合在项目根目录运行。</p>`,
       },
@@ -1711,7 +1312,7 @@ opencode             # 进入交互模式
   <li>API Provider 选 <strong>OpenAI Compatible</strong></li>
   <li>Base URL: <code>https://api.your-domain.com/v1</code></li>
   <li>API Key: 你的 Key</li>
-  <li>Model ID: <code>claude-sonnet-4-6</code></li>
+  <li>Model ID: <code>YOUR_MODEL_ID</code> (copy the exact ID from <a href="/catalog">模型与价格</a>)</li>
 </ol>
 
 <h2>第 3 步 · 开始</h2>
@@ -1753,21 +1354,21 @@ opencode             # 进入交互模式
     {
       "title": "本站 · Claude Sonnet",
       "provider": "openai",
-      "model": "claude-sonnet-4-6",
+      "model": "YOUR_MODEL_ID",
       "apiKey": "sk-xxxxxxxxxxxxxxx",
       "apiBase": "https://api.your-domain.com/v1"
     },
     {
       "title": "本站 · GPT-5.6 Terra",
       "provider": "openai",
-      "model": "gpt-5.6-terra",
+      "model": "YOUR_MODEL_ID",
       "apiKey": "sk-xxxxxxxxxxxxxxx",
       "apiBase": "https://api.your-domain.com/v1"
     },
     {
       "title": "本站 · GPT-5.5",
       "provider": "openai",
-      "model": "gpt-5.5",
+      "model": "YOUR_MODEL_ID",
       "apiKey": "sk-xxxxxxxxxxxxxxx",
       "apiBase": "https://api.your-domain.com/v1"
     }
@@ -1826,7 +1427,7 @@ export OPENAI_API_KEY=sk-xxxxxxxxxxxxxxx</code></pre>
 
 <h2>第 3 步 · 进项目跑</h2>
 <pre><code>cd your-project
-aider --model openai/claude-sonnet-4-6 file1.py file2.py</code></pre>
+aider --model openai/YOUR_MODEL_ID file1.py file2.py</code></pre>
 <p>Aider 会进入 REPL,你描述需求 → Aider 改文件 → 自动 git commit。可审计性强。</p>
 
 <p class="docs-tip">Aider 的杀手锏是 <strong>自动 git commit</strong> — 每个 AI 改动都是独立 commit,出问题 <code>git reset</code> 即可。比"AI 直接覆盖文件"安全得多。</p>`,
@@ -1842,17 +1443,11 @@ aider --model openai/claude-sonnet-4-6 file1.py file2.py</code></pre>
         id: 'nodejs-windows',
         title: "Node.js · Windows",
         summary: "一步装好 Node.js · MSI 安装包 + PowerShell 验证",
-        html: `<p class="docs-lead">所有主流 AI 编程 CLI(Claude Code / Codex / Gemini CLI)都依赖 Node.js。Windows 上推荐用官方 MSI 安装包,简单稳定。</p>
+        html: `<p class="docs-lead">通过 npm 安装工具时需要 Node.js。若工具提供独立安装包，请按该工具的官方前置要求操作。Windows 用户可用 Node.js 官方 MSI 安装包。</p>
 
 <h2>第 1 步 · 下载 Node.js LTS</h2>
-<p>访问 <code>https://nodejs.org/zh-cn/download</code>,下载 <strong>Windows Installer (.msi)</strong>,64-bit。任意 LTS 版本(18 / 20 / 22)都行。</p>
-<figure class="docs-figure">
-  <div class="docs-figure-placeholder" data-shot="nodejs-download-win">
-    <span class="docs-figure-tag">截图位</span>
-    <span class="docs-figure-hint">Node.js 官网下载页 · Windows 安装包</span>
-  </div>
-  <figcaption>下载 .msi 安装包</figcaption>
-</figure>
+<p>访问 <a href="https://nodejs.org/zh-cn/download" target="_blank" rel="noopener">Node.js 官方下载页</a>,下载当前提供的 <strong>Windows Installer (.msi)</strong> 64-bit LTS 版本。请勿按旧文章中的固定版本号选包。</p>
+<div class="docs-procedure"><strong>下载选择</strong><span>在 Node.js 官方下载页选择 Windows Installer (.msi) 的 64-bit LTS 安装包。</span><span>安装时保持 Add to PATH 勾选，完成后重新打开 PowerShell。</span></div>
 
 <h2>第 2 步 · 双击安装</h2>
 <ol>
@@ -1924,10 +1519,7 @@ which node    # 看到指向 ~/.nvm/... 路径才算 nvm 接管成功</code></pr
         html: `<p class="docs-lead">Linux 各发行版的包管理器都能装 Node.js,但版本通常滞后。推荐用 nvm,跟 macOS 路径几乎一致。</p>
 
 <h2>第 1 步 · 装 nvm</h2>
-<pre><code>curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
-
-# 安装脚本会自动追加到 ~/.bashrc 或 ~/.zshrc
-source ~/.bashrc       # 或 source ~/.zshrc</code></pre>
+<p>按 <a href="https://github.com/nvm-sh/nvm#installing-and-updating">nvm 官方安装说明</a>安装，完成后重新打开终端。</p>
 
 <h2>第 2 步 · 装 Node.js LTS</h2>
 <pre><code>nvm install --lts
@@ -1958,12 +1550,12 @@ source ~/.bashrc</code></pre>
       {
         id: 'network',
         title: "网络与代理",
-        summary: "国内直连 · 不需要科学上网 · 节点稳定性",
-        html: `<p class="docs-lead">本站 网关部署在境内 + 海外多节点,<strong>国内用户直接访问 API 域名即可</strong>,不需要科学上网。我们已经处理了与上游(Anthropic / OpenAI / Google)的网络通路。</p>
+        summary: "检查网关连通性、客户端配置与服务状态",
+        html: `<p class="docs-lead">先在运行客户端的网络和终端中检查网关能否访问，再排查鉴权、模型与协议。</p>
 
 <h2>测试连通性</h2>
-<pre><code>curl -I https://api.your-domain.com/health
-# 期望 HTTP/2 200</code></pre>
+<pre><code>curl -i https://api.your-domain.com/health</code></pre>
+<p>HTTP 200 表示网关可达。随后用<a href="/docs?cat=tutorial&amp;page=quick-start">快速开始</a>的请求验证密钥和所选模型。</p>
 
 <h2>如果你确实在用代理</h2>
 <p>大部分情况下你不需要,但如果终端默认走了系统代理,可能 cURL/SDK 会经过代理 → 增加延迟。可以临时关代理:</p>
@@ -1975,10 +1567,10 @@ $env:HTTP_PROXY=$null
 $env:HTTPS_PROXY=$null</code></pre>
 
 <h2>企业网 / 校园网</h2>
-<p>少数企业/校园出网会拦截非白名单域名。如果你 curl 失败,联系网管把 <code>*.your-domain.com</code> 加入白名单即可。</p>
+<p>企业或校园网络可能要求出站域名在允许列表中。请向网络管理员提供文档首页显示的 API 网关域名及实际错误。</p>
 
 <h2>查看真实延迟</h2>
-<p>侧边栏 <code>服务状态</code> 实时展示我们到上游各供应商的延迟统计(中位数 / P95 / SLA)。这是真实数据、不掺水,可作为你选模型的参考。</p>`,
+<p>打开<a href="/status">系统状态</a>查看平台当前公开的可用性信息。若问题持续，请将时间、错误码和请求 ID 提供给<a href="/contact">客服</a>。</p>`,
       },
     ],
   },
@@ -2123,7 +1715,7 @@ $env:HTTPS_PROXY=$null</code></pre>
 </svg>
 </figure>
 
-<p class="docs-tip">所有教程默认你已装好其中一家 CLI。还没装?先看 <a href="/docs?cat=deploy&amp;page=claude-code">Claude Code CLI 接入</a> 或 <a href="/docs?cat=deploy&amp;page=codex">Codex CLI 接入</a>,顺便把本站 Key 配上。</p>`,
+<p class="docs-tip">所有教程默认你已装好其中一家 CLI。还没装?先看 <a href="/docs?cat=tools&amp;page=claude-code">Claude Code CLI 接入</a> 或 <a href="/docs?cat=tools&amp;page=codex">Codex CLI 接入</a>,顺便把本站 Key 配上。</p>`,
       },
       {
         id: 'learn-ai',
@@ -2349,7 +1941,6 @@ git commit -m "feat: 登录按钮加转圈和错误提示"</code></pre></div>
     <div class="docs-launch-tags">
       <span class="docs-launch-tag">MCP</span>
       <span class="docs-launch-tag">零注册</span>
-      <span class="docs-launch-tag">57k stars</span>
     </div>
     <div class="docs-launch-blurb">AI 的训练数据是旧的。Context7 让它写码前先查一遍最新官方文档,告别"这个 API 早就改名了"。</div>
   </div>
@@ -2385,7 +1976,6 @@ git commit -m "feat: 登录按钮加转圈和错误提示"</code></pre></div>
     <div class="docs-launch-tags">
       <span class="docs-launch-tag">MCP</span>
       <span class="docs-launch-tag">需要 uv</span>
-      <span class="docs-launch-tag">25k stars</span>
     </div>
     <div class="docs-launch-blurb">给 AI 装"代码导航仪":按函数、类、引用关系精准读代码,不再整个文件硬吞。大仓库提效立竿见影。</div>
   </div>
@@ -2428,7 +2018,6 @@ git commit -m "feat: 登录按钮加转圈和错误提示"</code></pre></div>
     <div class="docs-launch-tags">
       <span class="docs-launch-tag">MCP</span>
       <span class="docs-launch-tag">微软官方</span>
-      <span class="docs-launch-tag">33k stars</span>
     </div>
     <div class="docs-launch-blurb">AI 自己打开浏览器:点页面、填表单、截图、看 console 报错。改完前端不用你来回切窗口,它自己验收。</div>
   </div>
@@ -2540,7 +2129,6 @@ git commit -m "feat: 登录按钮加转圈和错误提示"</code></pre></div>
     <div class="docs-launch-tags">
       <span class="docs-launch-tag">MCP</span>
       <span class="docs-launch-tag">Node.js</span>
-      <span class="docs-launch-tag">47k stars</span>
     </div>
     <div class="docs-launch-blurb">给你的仓库建一张"代码地图":谁调用谁、改这里会影响哪。AI 查图毫秒出结果,不用每次现翻代码。</div>
   </div>
@@ -2601,7 +2189,7 @@ git commit -m "feat: 登录按钮加转圈和错误提示"</code></pre></div>
   <div class="docs-step">
     <span class="docs-step-no">1</span>
     <div class="docs-step-title">装 Codex CLI</div>
-    <div class="docs-step-body"><pre><code>npm install -g @openai/codex</code></pre><p>还没配 Key?看 <a href="/docs?cat=deploy&amp;page=codex">Codex CLI 接入</a>,用本站 Key 直接跑。</p></div>
+    <div class="docs-step-body"><pre><code>npm install -g @openai/codex</code></pre><p>还没配 Key?看 <a href="/docs?cat=tools&amp;page=codex">Codex CLI 接入</a>,用本站 Key 直接跑。</p></div>
   </div>
   <div class="docs-step">
     <span class="docs-step-no">2</span>
@@ -2676,10 +2264,10 @@ git commit -m "feat: 登录按钮加转圈和错误提示"</code></pre></div>
     </div>
     <div class="docs-launch-blurb">一条命令把陌生代码库画成可交互知识图谱:模块、调用关系、业务流程全可视化。接手老项目、读开源源码的神器。</div>
   </div>
-  <a class="docs-launch-link" href="https://github.com/Lum1104/Understand-Anything" target="_blank" rel="noopener">
+  <a class="docs-launch-link" href="https://github.com/Egonex-AI/Understand-Anything" target="_blank" rel="noopener">
     <span class="docs-launch-link-icon" aria-hidden="true">↗</span>
     <span class="docs-launch-link-label">GitHub</span>
-    <span class="docs-launch-link-host">Lum1104/Understand-Anything</span>
+    <span class="docs-launch-link-host">Egonex-AI/Understand-Anything</span>
   </a>
 </div>
 
@@ -2714,7 +2302,6 @@ git commit -m "feat: 登录按钮加转圈和错误提示"</code></pre></div>
     <div class="docs-launch-tags">
       <span class="docs-launch-tag">Skill</span>
       <span class="docs-launch-tag">零代码</span>
-      <span class="docs-launch-tag">149k stars</span>
     </div>
     <div class="docs-launch-blurb">Skill 就是教 AI 新套路的 Markdown 说明书:放进目录就生效。Claude Code 和 Codex 用的是同一套开放标准,一份 Skill 两家都能吃。</div>
   </div>
@@ -2751,14 +2338,13 @@ cp -r skills/想要的技能目录 ~/.claude/skills/    # Codex 用户拷到 ~/.
       {
         id: 'superpowers',
         title: "Superpowers · 一键灌入开发方法论",
-        summary: "225k star 的超能力包 · 头脑风暴/计划/TDD/调试全套内功",
+        summary: "头脑风暴、实施计划、测试驱动与系统化调试",
         html: `<div class="docs-launch">
   <div class="docs-launch-body">
     <div class="docs-launch-title">Superpowers</div>
     <div class="docs-launch-tags">
       <span class="docs-launch-tag">插件</span>
       <span class="docs-launch-tag">方法论</span>
-      <span class="docs-launch-tag">225k stars</span>
     </div>
     <div class="docs-launch-blurb">Claude Code 圈最火的"超能力包"。一次安装,给 AI 灌进一整套久经考验的开发方法论:先头脑风暴、再写计划、测试驱动、系统化调试 — 几十个技能按需自动触发。</div>
   </div>
@@ -2838,7 +2424,7 @@ cp -r skills/想要的技能目录 ~/.claude/skills/    # Codex 用户拷到 ~/.
       {
         id: 'gsd',
         title: "GSD · Git. Ship. Done",
-        summary: "6 万 star 工作流的官方延续 · spec 驱动 · 一段一段把活 ship 出去",
+        summary: "用规格约束任务并分阶段交付",
         html: `<div class="docs-launch">
   <div class="docs-launch-body">
     <div class="docs-launch-title">GSD(Get Shit Done)</div>
@@ -2847,7 +2433,7 @@ cp -r skills/想要的技能目录 ~/.claude/skills/    # Codex 用户拷到 ~/.
       <span class="docs-launch-tag">全平台</span>
       <span class="docs-launch-tag">spec 驱动</span>
     </div>
-    <div class="docs-launch-blurb">原 Get Shit Done(64k star)的官方延续。轻量 meta-prompting + 上下文工程 + spec 驱动开发:把"想清楚再写"固化成几条命令,新项目防跑偏神器。</div>
+    <div class="docs-launch-blurb">将需求澄清、规格编写和分阶段实现组织成可复用的工作流。</div>
   </div>
   <a class="docs-launch-link" href="https://github.com/open-gsd/gsd-core" target="_blank" rel="noopener">
     <span class="docs-launch-link-icon" aria-hidden="true">↗</span>
@@ -2886,7 +2472,6 @@ cp -r skills/想要的技能目录 ~/.claude/skills/    # Codex 用户拷到 ~/.
     <div class="docs-launch-tags">
       <span class="docs-launch-tag">MCP</span>
       <span class="docs-launch-tag">两家通吃</span>
-      <span class="docs-launch-tag">27k stars</span>
     </div>
     <div class="docs-launch-blurb">AI 任务管理系统:把一份 PRD 喂给它,自动拆成带依赖关系的任务清单。AI 按序领工、做完销项,大需求不再"做着做着忘了全貌"。</div>
   </div>
@@ -2930,7 +2515,6 @@ cp -r skills/想要的技能目录 ~/.claude/skills/    # Codex 用户拷到 ~/.
       <span class="docs-launch-tag">macOS</span>
       <span class="docs-launch-tag">Windows</span>
       <span class="docs-launch-tag">Apache-2.0</span>
-      <span class="docs-launch-tag">63k stars</span>
     </div>
     <div class="docs-launch-blurb">本地优先的开源 AI 设计工作台:说句需求,出网页、海报、PPT、视频原型。被称为"agent 时代的 Figma 替代品"。</div>
   </div>
@@ -2971,6 +2555,7 @@ const IMAGE_API_PAGE_IDS = new Set([
   'batch-image-api',
   'async-image-tasks',
 ])
+const TOOL_PAGE_IDS = new Set(['claude-code', 'codex', 'gemini-cli'])
 const imageApiPages =
   PUBLIC_DOC_CONTENT_ZH_SOURCE.find((category) => category.id === 'tutorial')?.pages.filter(
     (page) => IMAGE_API_PAGE_IDS.has(page.id),
@@ -2987,7 +2572,20 @@ export const PUBLIC_DOC_CONTENT_ZH: PublicDocCategoryContent[] =
     if (category.id === 'deploy') {
       return {
         ...category,
-        pages: [...imageApiPages, ...category.pages],
+        pages: [
+          ...imageApiPages,
+          ...category.pages
+            .filter((page) => !TOOL_PAGE_IDS.has(page.id))
+            .map((page) => getToolGuide('zh', page.id) ?? page),
+        ],
+      }
+    }
+    if (category.id === 'tools') {
+      const deployToolPages =
+        PUBLIC_DOC_CONTENT_ZH_SOURCE.find((source) => source.id === 'deploy')?.pages.filter((page) => TOOL_PAGE_IDS.has(page.id)) ?? []
+      return {
+        ...category,
+        pages: [...deployToolPages, ...category.pages].map((page) => getToolGuide('zh', page.id) ?? page),
       }
     }
     return category

@@ -1557,7 +1557,7 @@ router.beforeEach(async (to, from, next) => {
         return
       }
       if (plazaSettings?.model_plaza_require_auth === true && !authStore.isAuthenticated) {
-        next({ path: '/login', query: { redirect: to.fullPath } })
+        next({ path: '/login', query: { redirect: to.fullPath, ...(getLocale() === 'en' ? { lang: 'en' } : {}) } })
         return
       }
       // Backend mode:登录的非管理员也不可见(匿名由下方公共拦截处理,广场不在白名单)
@@ -1583,7 +1583,7 @@ router.beforeEach(async (to, from, next) => {
     // Not authenticated, redirect to login
     next({
       path: '/login',
-      query: { redirect: to.fullPath } // Save intended destination
+      query: { redirect: to.fullPath, ...(getLocale() === 'en' ? { lang: 'en' } : {}) }
     })
     return
   }
