@@ -47,12 +47,13 @@ func (e GrokMediaEndpoint) IsVideoLookupRequest() bool {
 	if e.IsSeedance() {
 		return e == SeedanceEndpointStatus || e == SeedanceEndpointDelete
 	}
-	return e == GrokMediaEndpointVideoStatus || e == GrokMediaEndpointVideoContent
+	return e == GrokMediaEndpointVideoStatus || e == GrokMediaEndpointVideoContent ||
+		e == MiniMaxH3EndpointStatus || e == MiniMaxH3EndpointContent
 }
 
 func (e GrokMediaEndpoint) IsGenerationRequest() bool {
 	switch e {
-	case GrokMediaEndpointImagesGenerations, GrokMediaEndpointImagesEdits, GrokMediaEndpointVideosGenerations, GrokMediaEndpointVideosEdits, GrokMediaEndpointVideosExtensions:
+	case MiniMaxH3EndpointCreate, GrokMediaEndpointImagesGenerations, GrokMediaEndpointImagesEdits, GrokMediaEndpointVideosGenerations, GrokMediaEndpointVideosEdits, GrokMediaEndpointVideosExtensions:
 		return true
 	default:
 		return false
@@ -340,13 +341,19 @@ func GrokMediaVideoRequestSessionHash(requestID string, userID, apiKeyID int64) 
 }
 
 type GrokVideoPendingBilling struct {
-	Model                string `json:"model"`
-	BillingModel         string `json:"billing_model,omitempty"`
-	UpstreamModel        string `json:"upstream_model,omitempty"`
-	VideoResolution      string `json:"video_resolution,omitempty"`
-	VideoDurationSeconds int    `json:"video_duration_seconds,omitempty"`
-	OriginalModel        string `json:"original_model,omitempty"`
-	CreatedAt            string `json:"created_at,omitempty"`
+	// H3 prices requested seconds at submission; later edits cannot reprice a task.
+	MiniMaxH3BaseCost    *float64 `json:"minimax_h3_base_cost,omitempty"`
+	Model                string   `json:"model"`
+	BillingModel         string   `json:"billing_model,omitempty"`
+	UpstreamModel        string   `json:"upstream_model,omitempty"`
+	VideoResolution      string   `json:"video_resolution,omitempty"`
+	VideoDurationSeconds int      `json:"video_duration_seconds,omitempty"`
+	OriginalModel        string   `json:"original_model,omitempty"`
+	// CreatedAt is when the gateway accepted the async create (RFC3339Nano UTC).
+	// duration_ms for deferred billing is measured from this instant until the
+	// first official done+video.url observation (status poll or content download),
+	// not the latency of that single discovery request alone.
+	CreatedAt string `json:"created_at,omitempty"`
 }
 
 func GrokVideoPendingCreatedAtNow() string { return time.Now().UTC().Format(time.RFC3339Nano) }
@@ -515,6 +522,10 @@ func (s *OpenAIGatewayService) BindGrokMediaVideoRequestAccount(
 	ttl := openaiStickySessionTTL
 	if s.cfg != nil && s.cfg.Gateway.OpenAIWS.StickySessionTTLSeconds > 0 {
 		ttl = time.Duration(s.cfg.Gateway.OpenAIWS.StickySessionTTLSeconds) * time.Second
+	}
+	// H3 completion requires the owner binding and the create-time price snapshot.
+	if pendingTTL := grokVideoPendingBillingTTL(s.cfg); strings.HasPrefix(requestID, miniMaxH3TaskPrefix) && ttl < pendingTTL {
+		ttl = pendingTTL
 	}
 	return s.cache.SetSessionAccountID(ctx, derefGroupID(groupID), cacheKey, accountID, ttl)
 }

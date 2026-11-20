@@ -251,6 +251,9 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		EmailVerifyEnabled:                                     settings.EmailVerifyEnabled,
 		RegistrationEmailSuffixWhitelist:                       settings.RegistrationEmailSuffixWhitelist,
 		RegistrationEmailDomainQuotaEnabled:                    settings.RegistrationEmailDomainQuotaEnabled,
+		RegistrationIPLimitEnabled:                             settings.RegistrationIPLimitEnabled,
+		RegistrationEmailAliasBlockEnabled:                     settings.RegistrationEmailAliasBlockEnabled,
+		LoginRateLimitEnabled:                                  settings.LoginRateLimitEnabled,
 		PromoCodeEnabled:                                       settings.PromoCodeEnabled,
 		PasswordResetEnabled:                                   settings.PasswordResetEnabled,
 		FrontendURL:                                            settings.FrontendURL,
@@ -537,7 +540,9 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		PluginManagementEnabled: settings.PluginManagementEnabled,
 		ModelPlazaDescription:   settings.ModelPlazaDescription,
 
-		PublicModelsEnabled: settings.PublicModelsEnabled,
+		PublicModelsEnabled:  settings.PublicModelsEnabled,
+		SupportTicketEnabled: settings.SupportTicketEnabled,
+		SupportTicket:        settings.SupportTicket,
 
 		AffiliateEnabled: settings.AffiliateEnabled,
 

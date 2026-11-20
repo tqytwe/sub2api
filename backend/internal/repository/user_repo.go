@@ -20,6 +20,7 @@ import (
 	dbuser "github.com/Wei-Shaw/sub2api/ent/user"
 	"github.com/Wei-Shaw/sub2api/ent/userallowedgroup"
 	"github.com/Wei-Shaw/sub2api/ent/usersubscription"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/authguard"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/lib/pq"
@@ -141,6 +142,10 @@ func (r *userRepository) create(ctx context.Context, userIn *service.User, guard
 		}
 	}
 
+	if err := claimRegistrationIPQuota(txCtx, txClient); err != nil {
+		return err
+	}
+
 	created, err := txClient.User.Create().
 		SetEmail(userIn.Email).
 		SetUsername(userIn.Username).
@@ -174,6 +179,41 @@ func (r *userRepository) create(ctx context.Context, userIn *service.User, guard
 	}
 
 	applyUserEntityToService(userIn, created)
+	return nil
+}
+
+// ClaimPendingOAuthRegistrationIP claims quota within the pending signup transaction.
+func (r *userRepository) ClaimPendingOAuthRegistrationIP(ctx context.Context) error {
+	tx := dbent.TxFromContext(ctx)
+	if tx == nil {
+		return service.ErrServiceUnavailable
+	}
+	return claimRegistrationIPQuota(ctx, tx.Client())
+}
+
+func claimRegistrationIPQuota(ctx context.Context, client *dbent.Client) error {
+	if key, enabled := authguard.RegistrationIP(ctx); enabled {
+		if key == "" {
+			return service.ErrServiceUnavailable
+		}
+		// Atomic UPSERT serializes concurrent signups across instances. Using
+		// txClient also covers injected transaction clients without a Tx context.
+		result, err := client.ExecContext(ctx, `
+INSERT INTO registration_ip_quotas (ip_hash, account_count) VALUES ($1, 1)
+ON CONFLICT (ip_hash) DO UPDATE
+SET account_count = registration_ip_quotas.account_count + 1
+WHERE registration_ip_quotas.account_count < 2`, key)
+		if err != nil {
+			return fmt.Errorf("claim registration IP quota: %w", err)
+		}
+		count, err := result.RowsAffected()
+		if err != nil {
+			return err
+		}
+		if count == 0 {
+			return service.ErrRegistrationIPLimit
+		}
+	}
 	return nil
 }
 

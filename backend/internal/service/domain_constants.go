@@ -246,6 +246,9 @@ const (
 	// 白名单非空时，是否放行非白名单域名按主域名限量注册（每域名 1 个账户）。
 	// 默认 false：非白名单域名直接拒绝（白名单严格模式）。
 	SettingKeyRegistrationEmailDomainQuotaEnabled = "registration_email_domain_quota_enabled"
+	SettingKeyRegistrationIPLimitEnabled          = "registration_ip_limit_enabled"
+	SettingKeyRegistrationEmailAliasBlockEnabled  = "registration_email_alias_block_enabled"
+	SettingKeyLoginRateLimitEnabled               = "login_rate_limit_enabled"
 	SettingKeyPromoCodeEnabled                    = "promo_code_enabled"               // 是否启用优惠码功能
 	SettingKeyPasswordResetEnabled                = "password_reset_enabled"           // 是否启用忘记密码功能（需要先开启邮件验证）
 	SettingKeyFrontendURL                         = "frontend_url"                     // 前端基础URL，用于生成邮件中的重置密码链接
@@ -628,6 +631,12 @@ const (
 	// SettingKeyPluginManagementEnabled controls sidebar visibility only; it does
 	// not stop or otherwise change already loaded plugin runtimes.
 	SettingKeyPluginManagementEnabled = "plugin_management_enabled"
+
+	// SettingKeySupportTicketEnabled is a DB-backed soft switch for support tickets
+	// ("网站工单"). When false both user and admin endpoints answer
+	// SUPPORT_TICKET_DISABLED and the sidebar entries are hidden; stored tickets
+	// are kept. Defaults to false (opt-in feature).
+	SettingKeySupportTicketEnabled = "support_ticket_enabled"
 
 	// SettingKeyUpstreamBillingProbeSettings stores the global enable switch and interval
 	// for probing remote Sub2API API-key billing metadata.

@@ -6,7 +6,7 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 import AppSidebar from '../AppSidebar.vue'
 
 const state = vi.hoisted(() => ({ app: {} as Record<string, unknown>, auth: {} as Record<string, unknown> }))
-vi.mock('@/stores', () => ({ useAppStore: () => state.app, useAuthStore: () => state.auth, useAdminSettingsStore: () => ({ customMenuItems: [], fetch: vi.fn() }), useOnboardingStore: () => ({ isCurrentStep: () => false }) }))
+vi.mock('@/stores', () => ({ useAppStore: () => state.app, useAuthStore: () => state.auth, useAdminSettingsStore: () => ({ customMenuItems: [], fetch: vi.fn() }), useOnboardingStore: () => ({ isCurrentStep: () => false }), useSupportTicketStore: () => ({ userUnread: 0, adminPending: 0 }) }))
 vi.mock('@/stores/app', () => ({ useAppStore: () => state.app }))
 vi.mock('@/composables/useBatchImageAccess', () => ({ useBatchImageAccess: () => ({ canUseBatchImage: { value: false }, refreshBatchImageAccess: vi.fn() }) }))
 vi.mock('@/composables/useRoutePrefetch', () => ({ useRoutePrefetch: () => ({ prefetchRoute: vi.fn() }) }))

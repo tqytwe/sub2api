@@ -98,10 +98,32 @@ func (h *OpenAIGatewayHandler) handleGrokMedia(c *gin.Context, endpoint service.
 	}
 
 	contentType := c.GetHeader("Content-Type")
-	requestInfo, err := service.ParseGrokMediaRequestWithError(contentType, body)
-	if err != nil {
-		h.errorResponse(c, openAIImagesValidationErrorStatus(err), "invalid_request_error", err.Error())
-		return
+	var requestInfo service.GrokMediaRequestInfo
+	var miniMaxH3BaseCost *float64
+	switch endpoint {
+	case service.MiniMaxH3EndpointCreate:
+		requestInfo, err = service.ParseMiniMaxH3Request(body)
+		if err != nil {
+			h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", err.Error())
+			return
+		}
+		if apiKey.Group == nil {
+			h.errorResponse(c, http.StatusForbidden, "permission_error", "MiniMax-H3 requires a group video price")
+			return
+		}
+		base, quoteErr := service.QuoteMiniMaxH3Video(apiKey.Group.VideoModelPrices, requestInfo.DurationSeconds)
+		if quoteErr != nil {
+			h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", quoteErr.Error())
+			return
+		}
+		miniMaxH3BaseCost = &base
+	case service.MiniMaxH3EndpointStatus, service.MiniMaxH3EndpointContent:
+	default:
+		requestInfo, err = service.ParseGrokMediaRequestWithError(contentType, body)
+		if err != nil {
+			h.errorResponse(c, openAIImagesValidationErrorStatus(err), "invalid_request_error", err.Error())
+			return
+		}
 	}
 	requestModel := requestInfo.Model
 	routingModel := service.NormalizeGrokMediaModelForEndpoint(endpoint, requestModel, requestInfo.HasInputImage())
@@ -192,7 +214,9 @@ func (h *OpenAIGatewayHandler) handleGrokMedia(c *gin.Context, endpoint service.
 	}
 
 	// 余额模式在途预留（与计费同口径估算；计费任务扣减余额缓存后才释放）。
-	inflightDone, inflightErr := reserveInflightBalance(c, h.billingCacheService, h.gatewayService, apiKey, subscription, grokMediaInflightEstimate(endpoint, routingModel, requestInfo, body))
+	inflightEstimate := grokMediaInflightEstimate(endpoint, routingModel, requestInfo, body)
+	inflightEstimate.MiniMaxH3BaseCost = miniMaxH3BaseCost
+	inflightDone, inflightErr := reserveInflightBalance(c, h.billingCacheService, h.gatewayService, apiKey, subscription, inflightEstimate)
 	if inflightErr != nil {
 		status, code, message, retryAfter := billingErrorDetails(inflightErr)
 		if retryAfter > 0 {
@@ -242,6 +266,10 @@ func (h *OpenAIGatewayHandler) handleGrokMedia(c *gin.Context, endpoint service.
 	routingStart := time.Now()
 	requiredCapability := grokMediaRequiredCapability(endpoint)
 	routingPlatform := grokMediaRoutingPlatform(endpoint)
+	noAccountCode, noAccountMessage := "grok_media_no_eligible_account", "No eligible Grok media accounts"
+	if endpoint.IsMiniMaxH3() {
+		noAccountCode, noAccountMessage = "minimax_h3_no_eligible_account", "No eligible MiniMax-H3 accounts"
+	}
 
 	for {
 		if failoverClientGone(c) {
@@ -284,7 +312,7 @@ func (h *OpenAIGatewayHandler) handleGrokMedia(c *gin.Context, endpoint service.
 			if endpoint.IsGenerationRequest() && errors.Is(err, service.ErrNoAvailableAccounts) &&
 				(len(failedAccountIDs) == 0 || (mediaEligibilityRejected && lastFailoverErr == nil)) {
 				markOpsRoutingCapacityLimitedIfNoAvailable(c, err)
-				h.errorResponse(c, http.StatusServiceUnavailable, "grok_media_no_eligible_account", "No eligible Grok media accounts")
+				h.errorResponse(c, http.StatusServiceUnavailable, noAccountCode, noAccountMessage)
 				return
 			}
 			if len(failedAccountIDs) == 0 {
@@ -305,7 +333,7 @@ func (h *OpenAIGatewayHandler) handleGrokMedia(c *gin.Context, endpoint service.
 		if selection == nil || selection.Account == nil {
 			if endpoint.IsGenerationRequest() {
 				markOpsRoutingCapacityLimited(c)
-				h.errorResponse(c, http.StatusServiceUnavailable, "grok_media_no_eligible_account", "No eligible Grok media accounts")
+				h.errorResponse(c, http.StatusServiceUnavailable, noAccountCode, noAccountMessage)
 				return
 			}
 			cls := classifyNoAccountErrorFromGin(c, h.gatewayService, apiKey, requestModel, routingModel, routingPlatform)
@@ -345,7 +373,7 @@ func (h *OpenAIGatewayHandler) handleGrokMedia(c *gin.Context, endpoint service.
 		)
 
 		account := selection.Account
-		if endpoint.IsGenerationRequest() {
+		if endpoint.IsGenerationRequest() && routingPlatform == service.PlatformGrok {
 			eligible, eligibilityReason, eligibilityErr := h.ensureGrokMediaAccountEligibility(requestCtx, account)
 			if !eligible {
 				// Scheduler selection may have acquired a slot before the media
@@ -363,7 +391,7 @@ func (h *OpenAIGatewayHandler) handleGrokMedia(c *gin.Context, endpoint service.
 				)
 				if switchCount >= maxAccountSwitches {
 					markOpsRoutingCapacityLimited(c)
-					h.errorResponse(c, http.StatusServiceUnavailable, "grok_media_no_eligible_account", "No eligible Grok media accounts")
+					h.errorResponse(c, http.StatusServiceUnavailable, noAccountCode, noAccountMessage)
 					return
 				}
 				switchCount++
@@ -402,6 +430,9 @@ func (h *OpenAIGatewayHandler) handleGrokMedia(c *gin.Context, endpoint service.
 					accountReleaseFunc()
 				}
 			}()
+			if endpoint.IsMiniMaxH3() {
+				return h.gatewayService.ForwardMiniMaxH3(requestCtx, c, account, endpoint, requestID, body)
+			}
 			return h.gatewayService.ForwardGrokMedia(requestCtx, c, account, endpoint, requestID, body, contentType)
 		}()
 
@@ -490,6 +521,9 @@ func (h *OpenAIGatewayHandler) handleGrokMedia(c *gin.Context, endpoint service.
 		}
 
 		h.gatewayService.ReportOpenAIAccountScheduleResult(account, grokMediaScheduleModel(account, routingModel, result), true, nil)
+		if miniMaxH3BaseCost != nil {
+			result.MiniMaxH3BaseCost = miniMaxH3BaseCost
+		}
 		if endpoint == service.SeedanceEndpointCreate && strings.TrimSpace(result.ResponseID) != "" {
 			if err := h.gatewayService.BindGrokMediaVideoRequestAccount(
 				requestCtx, apiKey.GroupID, result.ResponseID, subject.UserID, apiKey.ID, account.ID,
@@ -528,6 +562,7 @@ func (h *OpenAIGatewayHandler) handleGrokMedia(c *gin.Context, endpoint service.
 			// model/duration/resolution so status can still price if upstream omits them.
 			// Retry once: missing pending causes silent underpricing (status omits resolution).
 			pending := service.GrokVideoPendingBilling{
+				MiniMaxH3BaseCost:    result.MiniMaxH3BaseCost,
 				Model:                requestModel,
 				BillingModel:         firstNonEmptyString(result.BillingModel, requestModel),
 				UpstreamModel:        result.UpstreamModel,
@@ -556,7 +591,11 @@ func (h *OpenAIGatewayHandler) handleGrokMedia(c *gin.Context, endpoint service.
 		}
 		// Status poll OR content download can observe official done+video.url.
 		// Both paths share the same claim key so the customer is charged once.
-		if endpoint == service.SeedanceEndpointStatus && result != nil && result.Usage.OutputTokens > 0 {
+		if endpoint == service.MiniMaxH3EndpointStatus || endpoint == service.MiniMaxH3EndpointContent {
+			if billResult := prepareMiniMaxH3CompletionBilling(requestCtx, h, apiKey, subject, requestID, result); billResult != nil {
+				recordGrokMediaUsage(c, h, reqLog, apiKey, subject, subscription, account, billResult, billResult.Model, body, requestID)
+			}
+		} else if endpoint == service.SeedanceEndpointStatus && result != nil && result.Usage.OutputTokens > 0 {
 			if billResult := prepareSeedanceCompletionBilling(requestCtx, h, apiKey, subject, requestID, result); billResult != nil {
 				recordGrokMediaUsage(c, h, reqLog, apiKey, subject, subscription, account, billResult, billResult.Model, body, requestID)
 			}
@@ -591,6 +630,9 @@ func (h *OpenAIGatewayHandler) ensureGrokMediaAccountEligibility(ctx context.Con
 }
 
 func grokMediaRequiredCapability(endpoint service.GrokMediaEndpoint) service.OpenAIEndpointCapability {
+	if endpoint.IsMiniMaxH3() {
+		return service.OpenAIEndpointCapabilityMiniMaxH3
+	}
 	if endpoint.IsSeedance() {
 		return service.OpenAIEndpointCapabilitySeedance
 	}
@@ -601,6 +643,9 @@ func grokMediaRequiredCapability(endpoint service.GrokMediaEndpoint) service.Ope
 }
 
 func grokMediaRoutingPlatform(endpoint service.GrokMediaEndpoint) string {
+	if endpoint.IsMiniMaxH3() {
+		return service.PlatformMiniMax
+	}
 	if endpoint.IsSeedance() {
 		return service.PlatformOpenAI
 	}
@@ -619,7 +664,7 @@ func grokMediaScheduleModel(account *service.Account, routingModel string, resul
 
 func isGrokVideoCreateEndpoint(endpoint service.GrokMediaEndpoint) bool {
 	switch endpoint {
-	case service.GrokMediaEndpointVideosGenerations,
+	case service.MiniMaxH3EndpointCreate, service.GrokMediaEndpointVideosGenerations,
 		service.GrokMediaEndpointVideosEdits,
 		service.GrokMediaEndpointVideosExtensions:
 		return true

@@ -31,6 +31,9 @@ type SystemSettings struct {
 	EmailVerifyEnabled                  bool                     `json:"email_verify_enabled"`
 	RegistrationEmailSuffixWhitelist    []string                 `json:"registration_email_suffix_whitelist"`
 	RegistrationEmailDomainQuotaEnabled bool                     `json:"registration_email_domain_quota_enabled"`
+	RegistrationIPLimitEnabled          bool                     `json:"registration_ip_limit_enabled"`
+	RegistrationEmailAliasBlockEnabled  bool                     `json:"registration_email_alias_block_enabled"`
+	LoginRateLimitEnabled               bool                     `json:"login_rate_limit_enabled"`
 	PromoCodeEnabled                    bool                     `json:"promo_code_enabled"`
 	PasswordResetEnabled                bool                     `json:"password_reset_enabled"`
 	FrontendURL                         string                   `json:"frontend_url"`
@@ -358,6 +361,10 @@ type SystemSettings struct {
 	ModelPlazaDescription   string `json:"model_plaza_description"`
 	PluginManagementEnabled bool   `json:"plugin_management_enabled"`
 
+	// Support tickets ("网站工单") switch + form config
+	SupportTicketEnabled bool                        `json:"support_ticket_enabled"`
+	SupportTicket        service.SupportTicketConfig `json:"support_ticket_config"`
+
 	// 风控中心功能开关
 	RiskControlEnabled bool `json:"risk_control_enabled"`
 
@@ -485,6 +492,8 @@ type PublicSettings struct {
 	ModelPlazaEnabled       bool `json:"model_plaza_enabled"`
 	ModelPlazaRequireAuth   bool `json:"model_plaza_require_auth"`
 	PluginManagementEnabled bool `json:"plugin_management_enabled"`
+
+	SupportTicketEnabled bool `json:"support_ticket_enabled"`
 
 	AffiliateEnabled bool `json:"affiliate_enabled"`
 

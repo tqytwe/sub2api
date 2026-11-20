@@ -436,7 +436,18 @@
           </template>
 
           <template #cell-actions="{ row }">
-            <div class="flex items-center gap-1">
+            <div class="flex flex-wrap items-center gap-1">
+              <button
+                v-if="codexQuickConfigPlatform(row)"
+                type="button"
+                data-testid="quick-config-button"
+                class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-primary-50 hover:text-primary-600 dark:hover:bg-primary-900/20 dark:hover:text-primary-400"
+                :title="t('keys.quickConfigure')"
+                @click="quickConfigKey = row"
+              >
+                <Icon name="download" size="sm" />
+                <span class="text-xs">{{ t('keys.quickConfigure') }}</span>
+              </button>
               <!-- Use Key Button -->
               <button
                 @click="openUseKeyModal(row)"
@@ -1140,6 +1151,14 @@
       @close="closeUseKeyModal"
     />
 
+    <CodexQuickConfigModal
+      :show="quickConfigKey !== null"
+      :api-key="quickConfigKey?.key || ''"
+      :base-url="publicSettings?.api_base_url || ''"
+      :platform="codexQuickConfigPlatform(quickConfigKey)"
+      @close="quickConfigKey = null"
+    />
+
     <!-- CCS Client Selection Dialog for Antigravity -->
     <BaseDialog
       :show="showCcsClientSelect"
@@ -1285,6 +1304,8 @@ import DateRangePicker from '@/components/common/DateRangePicker.vue'
 	import SearchInput from '@/components/common/SearchInput.vue'
 	import Icon from '@/components/icons/Icon.vue'
 	import UseKeyModal from '@/components/keys/UseKeyModal.vue'
+import CodexQuickConfigModal from '@/components/keys/CodexQuickConfigModal.vue'
+import { isCodexQuickConfigPlatform } from '@/utils/codexQuickConfig'
 	import EndpointPopover from '@/components/keys/EndpointPopover.vue'
 import APIOnboardingPanel from '@/components/keys/APIOnboardingPanel.vue'
 	import GroupBadge from '@/components/common/GroupBadge.vue'
@@ -1584,6 +1605,13 @@ const showDeleteDialog = ref(false)
 const showResetQuotaDialog = ref(false)
 const showResetRateLimitDialog = ref(false)
 const showUseKeyModal = ref(false)
+const quickConfigKey = ref<ApiKey | null>(null)
+function codexQuickConfigPlatform(key: ApiKey | null) {
+  const platform = key?.group?.platform
+  return key?.key && !key.group?.claude_code_only && isCodexQuickConfigPlatform(platform)
+    ? platform
+    : null
+}
 const showCcsClientSelect = ref(false)
 const showColumnDropdown = ref(false)
 const pendingCcsRow = ref<ApiKey | null>(null)

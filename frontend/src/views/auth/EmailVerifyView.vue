@@ -798,7 +798,10 @@ function buildEmailSuffixNotAllowedMessage(): string {
 }
 
 function buildRegistrationErrorMessage(error: unknown, fallback: string): string {
-  if (extractApiErrorCode(error) === 'EMAIL_DOMAIN_REGISTRATION_LIMIT') {
+  const reason = extractApiErrorCode(error)
+  if (reason === 'EMAIL_ALIAS_NOT_ALLOWED') return t('auth.emailAliasNotAllowed')
+  if (reason === 'REGISTRATION_IP_LIMIT') return t('auth.registrationIPLimit')
+  if (reason === 'EMAIL_DOMAIN_REGISTRATION_LIMIT') {
     return t('auth.emailDomainRegistrationLimit')
   }
   return buildAuthErrorMessage(error, { fallback })

@@ -89,6 +89,7 @@ vi.mock('@/stores', () => ({
   useAnnouncementStore: () => announcementStore,
   useAdminComplianceStore: () => adminComplianceStore,
   useAdminSettingsStore: () => adminSettingsStore,
+  useSupportTicketStore: () => ({ refresh: vi.fn(), reset: vi.fn() }),
 }))
 
 vi.mock('@/api/setup', () => ({

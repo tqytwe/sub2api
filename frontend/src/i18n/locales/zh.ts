@@ -32,9 +32,11 @@ import promptAuditAdminZh from './zh/admin/promptAudit'
 import tokenGuardV2Zh from './zh/tokenGuardV2'
 import siwcZh from './zh/siwc'
 import accountOpsZh from './zh/accountOps'
+import supportTickets from './zh/supportTickets'
 import { mergeLocaleMessages } from './merge'
 
 const messages = {
+  ...supportTickets,
   autoCredit,
   profitOps,
   upstreamEntities,

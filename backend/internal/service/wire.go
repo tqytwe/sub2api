@@ -1435,6 +1435,7 @@ var ProviderSet = wire.NewSet(
 	ProvideChannelMonitorV2Aggregator,
 	ProvideChannelMonitorV3Service,
 	ProvideChannelMonitorV3Prober,
+	NewSupportTicketService,
 	NewChannelMonitorRequestTemplateService,
 	ProvideUserPlatformQuotaUsageFlusher,
 	ProvidePlayService,

@@ -3,6 +3,7 @@ package admin
 import (
 	"encoding/json"
 	"log/slog"
+	"reflect"
 
 	"github.com/Wei-Shaw/sub2api/internal/handler/dto"
 	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
@@ -33,6 +34,15 @@ func (h *SettingHandler) auditSettingsUpdate(c *gin.Context, before *service.Sys
 
 func diffSettings(before *service.SystemSettings, after *service.SystemSettings, beforeAuthSourceDefaults *service.AuthSourceDefaultSettings, afterAuthSourceDefaults *service.AuthSourceDefaultSettings, req UpdateSettingsRequest) []string {
 	changed := make([]string, 0, 20)
+	if before.RegistrationIPLimitEnabled != after.RegistrationIPLimitEnabled {
+		changed = append(changed, "registration_ip_limit_enabled")
+	}
+	if before.RegistrationEmailAliasBlockEnabled != after.RegistrationEmailAliasBlockEnabled {
+		changed = append(changed, "registration_email_alias_block_enabled")
+	}
+	if before.LoginRateLimitEnabled != after.LoginRateLimitEnabled {
+		changed = append(changed, "login_rate_limit_enabled")
+	}
 	if before.RegistrationEnabled != after.RegistrationEnabled {
 		changed = append(changed, "registration_enabled")
 	}
@@ -613,6 +623,12 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	if before.ModelPlazaDescription != after.ModelPlazaDescription {
 		changed = append(changed, "model_plaza_description")
 	}
+	if before.SupportTicketEnabled != after.SupportTicketEnabled {
+		changed = append(changed, "support_ticket_enabled")
+	}
+	if supportTicketConfigChanged(before.SupportTicket, after.SupportTicket) {
+		changed = append(changed, "support_ticket_config")
+	}
 	if before.AffiliateEnabled != after.AffiliateEnabled {
 		changed = append(changed, "affiliate_enabled")
 	}
@@ -921,4 +937,12 @@ func supportContactChanged(before, after service.SupportContactConfig) bool {
 		return beforeErr != afterErr
 	}
 	return string(beforeJSON) != string(afterJSON)
+}
+
+// supportTicketConfigChanged compares normalized configs, so trimming or a zero
+// limit filled with the default is not reported as a change.
+func supportTicketConfigChanged(before, after service.SupportTicketConfig) bool {
+	normalizedBefore, errBefore := service.NormalizeSupportTicketConfig(before)
+	normalizedAfter, errAfter := service.NormalizeSupportTicketConfig(after)
+	return errBefore != nil || errAfter != nil || !reflect.DeepEqual(normalizedBefore, normalizedAfter)
 }

@@ -130,6 +130,7 @@ var ProviderSet = wire.NewSet(
 	NewChannelMonitorV3Repository,
 	NewPelicanGroupTestRepository,
 	NewPelicanShowcaseRepository,
+	NewSupportTicketRepository,
 	NewChannelMonitorRequestTemplateRepository,
 	NewContentModerationRepository,
 	NewAffiliateRepository,

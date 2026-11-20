@@ -295,6 +295,7 @@ func ProvideHandlers(
 	paymentWebhookHandler *PaymentWebhookHandler,
 	couponWalletHandler *CouponWalletHandler,
 	availableChannelHandler *AvailableChannelHandler,
+	supportTicketHandler *SupportTicketHandler,
 	modelPlazaHandler *ModelPlazaHandler,
 	asyncImageHandler *AsyncImageHandler,
 	batchImageHandler *BatchImageHandler,
@@ -360,6 +361,7 @@ func ProvideHandlers(
 		MobilePlayBilling: mobilePlayBillingHandler,
 		MobileRelease:     mobileReleaseHandler,
 		ForumSSO:          forumSSOHandler,
+		SupportTicket:     supportTicketHandler,
 	}
 }
 
@@ -499,6 +501,7 @@ var ProviderSet = wire.NewSet(
 	NewCouponWalletHandler,
 	NewAvailableChannelHandler,
 	ProvideAsyncImageHandler,
+	NewSupportTicketHandler,
 	NewModelPlazaHandler,
 	ProvideBatchImageHandler,
 	ProvidePlayHandler,

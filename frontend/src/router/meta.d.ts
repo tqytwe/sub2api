@@ -62,6 +62,12 @@ declare module 'vue-router' {
     requiresRiskControl?: boolean
 
     /**
+     * Whether the support ticket (网站工单) switch must be on
+     * @default false
+     */
+    requiresSupportTickets?: boolean
+
+    /**
      * Whether this route requires the NextChat launch switch to be enabled
      * @default false
      */

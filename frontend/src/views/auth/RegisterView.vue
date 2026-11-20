@@ -397,6 +397,7 @@ import {
   validateInvitationCode
 } from '@/api/auth'
 import { buildAuthErrorMessage } from '@/utils/authError'
+import { extractApiErrorCode } from '@/utils/apiError'
 import { markFirstLoginWelcomePending } from '@/utils/firstLoginWelcome'
 import {
   formatRegistrationEmailSuffixWhitelistForMessage,
@@ -1084,9 +1085,14 @@ async function handleRegister(): Promise<void> {
     }
 
     // Handle registration error
-    errorMessage.value = buildAuthErrorMessage(error, {
-      fallback: t('auth.registrationFailed')
-    })
+    const reason = extractApiErrorCode(error)
+    if (reason === 'EMAIL_ALIAS_NOT_ALLOWED') {
+      errorMessage.value = t('auth.emailAliasNotAllowed')
+    } else if (reason === 'REGISTRATION_IP_LIMIT') {
+      errorMessage.value = t('auth.registrationIPLimit')
+    } else {
+      errorMessage.value = buildAuthErrorMessage(error, { fallback: t('auth.registrationFailed') })
+    }
 
     // Also show error toast
     appStore.showError(errorMessage.value)

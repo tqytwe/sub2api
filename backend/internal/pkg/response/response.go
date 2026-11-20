@@ -66,9 +66,17 @@ func Error(c *gin.Context, statusCode int, message string) {
 	})
 }
 
+const errorReasonKey = "response.error_reason"
+
+// ErrorReason returns the structured reason written by the response helpers.
+func ErrorReason(c *gin.Context) string {
+	return c.GetString(errorReasonKey)
+}
+
 // ErrorWithDetails returns an error response compatible with the existing envelope while
 // optionally providing structured error fields (reason/metadata).
 func ErrorWithDetails(c *gin.Context, statusCode int, message, reason string, metadata map[string]string) {
+	c.Set(errorReasonKey, reason)
 	c.JSON(statusCode, Response{
 		Code:     statusCode,
 		Message:  message,

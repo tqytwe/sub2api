@@ -286,6 +286,8 @@ export default {
       USER_NOT_ACTIVE: '账号已被禁用',
     },
     registrationFailed: '注册失败，请重试。',
+    emailAliasNotAllowed: '请使用主邮箱注册，去掉加号后缀、Gmail 用户名里的点号或域名末尾的点号。',
+    registrationIPLimit: '当前 IP 已达到注册数量上限，请联系客服。',
     emailDomainRegistrationLimit:
       '该邮箱域名无法注册新账户。请使用主流邮箱注册；如需使用企业邮箱，请联系客服添加域名白名单。',
     emailSuffixNotAllowed: '该邮箱域名不在允许注册范围内。',

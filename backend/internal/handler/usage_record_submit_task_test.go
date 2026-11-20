@@ -160,34 +160,39 @@ func TestOpenAIGatewayHandlerSubmitMandatoryUsageRecordTask_DroppedTaskSyncFallb
 	require.True(t, called.Load(), "mandatory usage task must run synchronously when async submit is dropped")
 }
 
-func TestOpenAIGatewayHandlerSubmitOpenAIUsageRecordTask_ImageResultUsesMandatoryFallback(t *testing.T) {
-	pool := service.NewUsageRecordWorkerPoolWithOptions(service.UsageRecordWorkerPoolOptions{
-		WorkerCount:           1,
-		QueueSize:             1,
-		TaskTimeout:           time.Second,
-		OverflowPolicy:        "drop",
-		OverflowSamplePercent: 0,
-		AutoScaleEnabled:      false,
-	})
-	t.Cleanup(pool.Stop)
-	h := &OpenAIGatewayHandler{usageRecordWorkerPool: pool}
+func TestOpenAIGatewayHandlerSubmitOpenAIUsageRecordTask_MediaResultUsesMandatoryFallback(t *testing.T) {
+	baseCost := 0.08
+	for _, tt := range []struct {
+		name   string
+		result *service.OpenAIForwardResult
+	}{
+		{"image", &service.OpenAIForwardResult{ImageCount: 1}},
+		{"MiniMax H3 completed video", &service.OpenAIForwardResult{VideoCount: 1, MiniMaxH3BaseCost: &baseCost}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			pool := service.NewUsageRecordWorkerPoolWithOptions(service.UsageRecordWorkerPoolOptions{
+				WorkerCount: 1, QueueSize: 1, TaskTimeout: time.Second,
+				OverflowPolicy: "drop", AutoScaleEnabled: false,
+			})
+			t.Cleanup(pool.Stop)
+			h := &OpenAIGatewayHandler{usageRecordWorkerPool: pool}
+			started := make(chan struct{})
+			release := make(chan struct{})
+			pool.Submit(func(context.Context) {
+				close(started)
+				<-release
+			})
+			<-started
+			defer close(release)
+			pool.Submit(func(context.Context) {})
 
-	block := make(chan struct{})
-	release := make(chan struct{})
-	pool.Submit(func(ctx context.Context) {
-		close(block)
-		<-release
-	})
-	<-block
-	pool.Submit(func(ctx context.Context) {})
-
-	var called atomic.Bool
-	h.submitOpenAIUsageRecordTask(context.Background(), &service.OpenAIForwardResult{ImageCount: 1}, func(ctx context.Context) {
-		called.Store(true)
-	})
-	close(release)
-
-	require.True(t, called.Load(), "image usage task must be mandatory when async submit is dropped")
+			var called atomic.Bool
+			h.submitOpenAIUsageRecordTask(context.Background(), tt.result, func(context.Context) {
+				called.Store(true)
+			})
+			require.True(t, called.Load(), "media settlement must run even when the usage queue is full")
+		})
+	}
 }
 
 func TestOpenAIGatewayHandlerSubmitOpenAIUsageRecordTask_ImageStudioRunsSynchronously(t *testing.T) {

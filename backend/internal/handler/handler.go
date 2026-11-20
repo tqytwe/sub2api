@@ -99,6 +99,7 @@ type Handlers struct {
 	MobilePlayBilling *MobilePlayBillingHandler
 	MobileRelease     *MobileAppReleaseHandler
 	ForumSSO          *ForumSSOHandler
+	SupportTicket     *SupportTicketHandler
 }
 
 // BuildInfo contains build-time information
