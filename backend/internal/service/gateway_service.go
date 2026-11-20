@@ -655,6 +655,9 @@ type ForwardResult struct {
 	ImageSizeBreakdown map[string]int
 	SearchCount        int
 	AudioUsage         *AudioUsage
+	// CacheStorageTokenHours 显式上下文缓存的存储量（缓存 token 数 × 存储小时数），按计费模型的
+	// 存储单价折算为费用后叠加在 token 费用之上。
+	CacheStorageTokenHours float64
 }
 
 // GatewayFailureStage identifies which request stage failed. The zero value is
@@ -692,6 +695,7 @@ type GatewayFailureReason string
 // trigger account failover. Additive metadata keeps existing composite literals
 // source-compatible and preserves their legacy retry-next-account behavior.
 type UpstreamFailoverError struct {
+	BoundUpstreamPassthrough bool // A cache is pinned to this upstream gateway account.
 	StatusCode               int
 	ResponseBody             []byte        // 上游响应体，用于错误透传规则匹配
 	ResponseHeaders          http.Header   // 上游响应头，用于透传 cf-ray/cf-mitigated/content-type 等诊断信息

@@ -155,6 +155,11 @@ func (r *usageBillingRepository) applyUsageBillingTransaction(ctx context.Contex
 	if err := r.applyUsageBillingEffects(ctx, tx, cmd, result); err != nil {
 		return nil, err
 	}
+	if cmd.GeminiCacheChange != nil {
+		if err := cmd.GeminiCacheChange.Apply(ctx, &geminiCachedContentRepository{sql: tx}); err != nil {
+			return nil, err
+		}
+	}
 	if err := requestledger.VerifyBillingTx(ctx, tx, ledgerBillingIntent(cmd), applied); err != nil {
 		return nil, err
 	}
@@ -692,7 +697,11 @@ func (r *usageBillingRepository) applyUsageBillingEffects(ctx context.Context, t
 		if proof != nil && proof.revoked {
 			err = incrementRevokedEntitlement(ctx, tx, cmd)
 		} else {
-			err = incrementPackageEntitlementUsage(ctx, tx, *cmd.PackageEntitlementID, cmd.UserID, cmd.BilledCost, packageEntitlementTokenCount(cmd))
+			requestCount := 1
+			if cmd.GeminiCacheChange.StorageOnly() {
+				requestCount = 0
+			}
+			err = incrementPackageEntitlementUsage(ctx, tx, *cmd.PackageEntitlementID, cmd.UserID, cmd.BilledCost, packageEntitlementTokenCount(cmd), requestCount, cmd.GeminiCacheChange != nil)
 		}
 		if err != nil {
 			return err
@@ -805,25 +814,26 @@ func packageEntitlementTokenCount(cmd *service.UsageBillingCommand) int64 {
 	return int64(cmd.InputTokens) + int64(cmd.OutputTokens) + int64(cmd.CacheCreationTokens) + int64(cmd.CacheReadTokens)
 }
 
-func incrementPackageEntitlementUsage(ctx context.Context, tx *sql.Tx, entitlementID, userID int64, billedCost float64, tokens int64) error {
+func incrementPackageEntitlementUsage(ctx context.Context, tx *sql.Tx, entitlementID, userID int64, billedCost float64, tokens int64, requests int, enforceAmount bool) error {
 	const q = `
 		UPDATE subscription_package_entitlements
-		SET request_used = request_used + 1,
+		SET request_used = request_used + $5,
 		    amount_used_usd = amount_used_usd + $3,
 		    token_used = token_used + $4,
 		    status = CASE
-		      WHEN request_limit IS NOT NULL AND request_used + 1 >= request_limit THEN 'exhausted'
+		      WHEN request_limit IS NOT NULL AND request_used + $5 >= request_limit THEN 'exhausted'
 		      WHEN amount_limit_usd IS NOT NULL AND amount_used_usd + $3 >= amount_limit_usd THEN 'exhausted'
 		      WHEN token_limit IS NOT NULL AND token_used + $4 >= token_limit THEN 'exhausted'
 		      ELSE 'active' END,
 		    exhausted_reason = CASE
-		      WHEN request_limit IS NOT NULL AND request_used + 1 >= request_limit THEN 'request'
+		      WHEN request_limit IS NOT NULL AND request_used + $5 >= request_limit THEN 'request'
 		      WHEN amount_limit_usd IS NOT NULL AND amount_used_usd + $3 >= amount_limit_usd THEN 'amount'
 		      WHEN token_limit IS NOT NULL AND token_used + $4 >= token_limit THEN 'token'
 		      ELSE NULL END,
 		    updated_at = NOW()
-		WHERE id = $1 AND user_id = $2 AND status = 'active' AND expires_at > NOW()`
-	res, err := tx.ExecContext(ctx, q, entitlementID, userID, billedCost, tokens)
+		WHERE id = $1 AND user_id = $2 AND status = 'active' AND expires_at > NOW()
+		  AND (NOT $6 OR amount_limit_usd IS NULL OR amount_used_usd + $3 <= amount_limit_usd)`
+	res, err := tx.ExecContext(ctx, q, entitlementID, userID, billedCost, tokens, requests, enforceAmount)
 	if err != nil {
 		return err
 	}

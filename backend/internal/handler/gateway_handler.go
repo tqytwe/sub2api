@@ -40,25 +40,26 @@ var gatewayCompatibilityMetricsLogCounter atomic.Uint64
 
 // GatewayHandler handles API gateway requests
 type GatewayHandler struct {
-	gatewayService            *service.GatewayService
-	openAIGatewayService      *service.OpenAIGatewayService
-	geminiCompatService       *service.GeminiMessagesCompatService
-	antigravityGatewayService *service.AntigravityGatewayService
-	userService               *service.UserService
-	billingCacheService       *service.BillingCacheService
-	usageService              *service.UsageService
-	apiKeyService             *service.APIKeyService
-	usageRecordWorkerPool     *service.UsageRecordWorkerPool
-	errorPassthroughService   *service.ErrorPassthroughService
-	contentModerationService  *service.ContentModerationService
-	securityAuditCoordinator  *securityaudit.Coordinator
-	concurrencyHelper         *ConcurrencyHelper
-	userMsgQueueHelper        *UserMsgQueueHelper
-	maxAccountSwitches        int
-	maxAccountSwitchesGemini  int
-	cfg                       *config.Config
-	settingService            *service.SettingService
-	modelCatalogService       *service.ModelCatalogService
+	geminiCachedContentService *service.GeminiCachedContentService
+	gatewayService             *service.GatewayService
+	openAIGatewayService       *service.OpenAIGatewayService
+	geminiCompatService        *service.GeminiMessagesCompatService
+	antigravityGatewayService  *service.AntigravityGatewayService
+	userService                *service.UserService
+	billingCacheService        *service.BillingCacheService
+	usageService               *service.UsageService
+	apiKeyService              *service.APIKeyService
+	usageRecordWorkerPool      *service.UsageRecordWorkerPool
+	errorPassthroughService    *service.ErrorPassthroughService
+	contentModerationService   *service.ContentModerationService
+	securityAuditCoordinator   *securityaudit.Coordinator
+	concurrencyHelper          *ConcurrencyHelper
+	userMsgQueueHelper         *UserMsgQueueHelper
+	maxAccountSwitches         int
+	maxAccountSwitchesGemini   int
+	cfg                        *config.Config
+	settingService             *service.SettingService
+	modelCatalogService        *service.ModelCatalogService
 }
 
 // NewGatewayHandler creates a new GatewayHandler

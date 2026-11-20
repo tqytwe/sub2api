@@ -1,15 +1,16 @@
 package middleware
 
 import (
+	"context"
 	"errors"
 	"fmt"
-	"github.com/Wei-Shaw/sub2api/internal/requestledger"
 	"net/http"
 	"strings"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/googleapi"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ip"
+	"github.com/Wei-Shaw/sub2api/internal/requestledger"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 
 	"github.com/gin-gonic/gin"
@@ -20,11 +21,15 @@ func APIKeyAuthGoogle(apiKeyService *service.APIKeyService, cfg *config.Config) 
 	return APIKeyAuthWithSubscriptionGoogle(apiKeyService, nil, cfg)
 }
 
+// GoogleCacheGroupLookup returns the recorded group of a live cache owned by
+// the authenticated key. It runs before ordinary group selection and billing.
+type GoogleCacheGroupLookup func(context.Context, int64, string) (int64, error)
+
 // APIKeyAuthWithSubscriptionGoogle behaves like ApiKeyAuthWithSubscription but returns Google-style errors:
 // {"error":{"code":401,"message":"...","status":"UNAUTHENTICATED"}}
 //
 // It is intended for Gemini native endpoints (/v1beta) to match Gemini SDK expectations.
-func APIKeyAuthWithSubscriptionGoogle(apiKeyService *service.APIKeyService, subscriptionService *service.SubscriptionService, cfg *config.Config) gin.HandlerFunc {
+func APIKeyAuthWithSubscriptionGoogle(apiKeyService *service.APIKeyService, subscriptionService *service.SubscriptionService, cfg *config.Config, cacheGroupLookup ...GoogleCacheGroupLookup) gin.HandlerFunc {
 	var authenticate gin.HandlerFunc
 	authenticate = func(c *gin.Context) {
 		if rejectInvalidAuthAbuse(c, apiKeyService) {
@@ -130,7 +135,20 @@ func APIKeyAuthWithSubscriptionGoogle(apiKeyService *service.APIKeyService, subs
 			abortWithGoogleError(c, 401, "User account is not active")
 			return
 		}
-		apiKey, err = selectAPIKeyRequestGroup(c, apiKeyService, subscriptionService, cfg, apiKey, true)
+		if len(cacheGroupLookup) != 0 && cacheGroupLookup[0] != nil && len(apiKey.ConfiguredGroupIDs()) > 1 {
+			var pinned bool
+			apiKey, pinned, err = pinGoogleCachedContentGroup(c, apiKeyService, apiKey, cacheGroupLookup[0])
+			if err != nil || c.IsAborted() {
+				return
+			}
+			if pinned {
+				SetOpsFallbackAPIKey(c, apiKey)
+			} else {
+				apiKey, err = selectAPIKeyRequestGroup(c, apiKeyService, subscriptionService, cfg, apiKey, true)
+			}
+		} else {
+			apiKey, err = selectAPIKeyRequestGroup(c, apiKeyService, subscriptionService, cfg, apiKey, true)
+		}
 		if err != nil || c.IsAborted() {
 			return
 		}

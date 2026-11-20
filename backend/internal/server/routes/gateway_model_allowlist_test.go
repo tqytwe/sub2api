@@ -80,7 +80,7 @@ func TestGatewayRoutesGroupModelAllowlistMountedOnEveryGatewayRoute(t *testing.T
 		composite string
 	}{
 		{group: "gateway", auth: "gin.HandlerFunc(apiKeyAuth)", marker: "gateway.Use(groupStreamOnly, groupCodexCLIOnly, groupBlockSubagents, groupModelAllowlist, apiKeyModelPolicy)", composite: "gateway.Use(compositeTarget, apiKeyLongContext)"},
-		{group: "gemini", auth: "middleware.APIKeyAuthWithSubscriptionGoogle(apiKeyService, subscriptionService, cfg)", marker: "gemini.Use(groupStreamOnly, groupCodexCLIOnly, groupBlockSubagents, groupModelAllowlist, apiKeyModelPolicy)", composite: "gemini.Use(compositeGeminiTarget, apiKeyLongContext)"},
+		{group: "gemini", auth: "middleware.APIKeyAuthWithSubscriptionGoogle(apiKeyService, subscriptionService, cfg, h.Gateway.GeminiCachedContentGroup)", marker: "gemini.Use(groupStreamOnly, groupCodexCLIOnly, groupBlockSubagents, groupModelAllowlist, apiKeyModelPolicy)", composite: "gemini.Use(compositeGeminiTarget, apiKeyLongContext)"},
 		{group: "antigravityV1", auth: "gin.HandlerFunc(apiKeyAuth)", marker: "antigravityV1.Use(groupStreamOnly, groupCodexCLIOnly, groupBlockSubagents, groupModelAllowlist, apiKeyModelPolicy, apiKeyLongContext)", composite: "antigravityV1.Use(requireGroupAnthropic)"},
 		{group: "antigravityV1Beta", auth: "middleware.APIKeyAuthWithSubscriptionGoogle(apiKeyService, subscriptionService, cfg)", marker: "antigravityV1Beta.Use(groupStreamOnly, groupCodexCLIOnly, groupBlockSubagents, groupModelAllowlist, apiKeyModelPolicy, apiKeyLongContext)", composite: "antigravityV1Beta.Use(requireGroupGoogle)"},
 	}

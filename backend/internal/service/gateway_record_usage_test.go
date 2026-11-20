@@ -336,6 +336,7 @@ func TestGatewayServiceRecordUsage_PeakRateAffectsTokenModeImageOutputTokens(t *
 	svc.resolver = newOpenAITokenImageChannelPricingResolverForTest(t, groupID, "gemini-image")
 
 	err := svc.RecordUsage(context.Background(), &RecordUsageInput{
+		PricingAt: time.Date(2026, time.January, 2, 4, 0, 0, 0, time.UTC),
 		Result: &ForwardResult{
 			RequestID:  "gateway_peak_image_tokens",
 			Model:      "gemini-image",

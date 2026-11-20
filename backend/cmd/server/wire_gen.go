@@ -319,7 +319,9 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	openAIGatewayHandler := handler.ProvideOpenAIGatewayHandler(openAIGatewayService, pluginManager, concurrencyService, billingCacheService, apiKeyService, usageRecordWorkerPool, errorPassthroughService, contentModerationService, opsService, grokQuotaService, configConfig, coordinator, compositeRouteResolver)
 	userMsgQueueCache := repository.NewUserMsgQueueCache(redisClient)
 	userMessageQueueService := service.ProvideUserMessageQueueService(userMsgQueueCache, rpmCache, configConfig)
-	gatewayHandler := handler.ProvideGatewayHandler(gatewayService, openAIGatewayService, geminiMessagesCompatService, antigravityGatewayService, userService, concurrencyService, billingCacheService, usageService, apiKeyService, usageRecordWorkerPool, errorPassthroughService, contentModerationService, userMessageQueueService, configConfig, settingService, modelCatalogService, coordinator)
+	geminiCachedContentRepository := repository.NewGeminiCachedContentRepository(db)
+	geminiCachedContentService := service.ProvideGeminiCachedContentService(geminiCachedContentRepository, geminiMessagesCompatService, configConfig)
+	gatewayHandler := handler.ProvideGatewayHandler(gatewayService, openAIGatewayService, geminiMessagesCompatService, antigravityGatewayService, userService, concurrencyService, billingCacheService, usageService, apiKeyService, usageRecordWorkerPool, errorPassthroughService, contentModerationService, userMessageQueueService, configConfig, settingService, modelCatalogService, coordinator, geminiCachedContentService)
 	imageStudioHandler := handler.NewImageStudioHandler(imageStudioService, openAIGatewayHandler, gatewayHandler, apiKeyService)
 	imageStudioWorkerRuntime := handler.ProvideImageStudioWorkerRuntime(imageStudioService, imageStudioHandler, requestLedgerHandler)
 	opsHandler := handler.ProvideOpsHandler(opsService, imageRuntimesHealthService, imageStudioWorkerRuntime, imageStudioService)
@@ -482,7 +484,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	mobilePushWorker := service.ProvideMobilePushWorker(mobilePushService, mobilePushConfig)
 	mobileVideoGatewayProvider := handler.NewMobileVideoGatewayProvider(apiKeyService, openAIGatewayHandler, subscriptionService, ledger)
 	mobileVideoWorker := handler.ProvideMobileVideoWorker(db, mobileVideoGatewayProvider, mobileAssetStorage, usageBillingRepository)
-	v := provideCleanup(settingHandler, adminUsageHandler, requestLedgerHandler, balanceNotifyService, client, redisClient, opsMetricsCollector, opsAggregationService, opsAlertEvaluatorService, opsCleanupService, opsScheduledReportService, opsSystemLogSink, opsService, accountOpsService, opsIngressRejectAggregator, apiKeyService, concurrencyService, authCacheInvalidationWorker, schedulerSnapshotService, tokenRefreshService, accountExpiryService, cnProviderBalanceCheckService, openAICodexVersionSyncService, claudeCodeVersionSyncService, proxyExpiryService, subscriptionExpiryService, usageCleanupService, idempotencyCleanupService, batchImageCleanupService, openAIImageResultService, batchImageWorkerRuntime, asyncImageHandler, imageStudioWorkerRuntime, pricingService, emailQueueService, billingCacheService, autoCreditEmailWorker, usageRecordWorkerPool, subscriptionService, oAuthService, openAIOAuthService, geminiOAuthService, antigravityOAuthService, grokOAuthService, openAIGatewayService, scheduledTestRunnerService, accountTokenGuardV2Service, accountPerformanceService, oAuthAutomationService, backupService, paymentOrderExpiryService, channelMonitorRunner, channelMonitorV2Aggregator, channelMonitorV3Prober, userPlatformQuotaUsageFlusher, playGrowthRunner, publicHomeStatsService, publicStatusSummaryService, publicStatusSnapshotWorker, upstreamBillingProbeService, ollamaCloudUsageService, openCodeGoUsageService, auditLogService, ipRiskService, promptService, mobilePushWorker, mobileVideoWorker, openAIQuotaAutoResetService, pluginManager)
+	v := provideCleanup(settingHandler, adminUsageHandler, requestLedgerHandler, balanceNotifyService, client, redisClient, opsMetricsCollector, opsAggregationService, opsAlertEvaluatorService, opsCleanupService, opsScheduledReportService, opsSystemLogSink, opsService, accountOpsService, opsIngressRejectAggregator, apiKeyService, concurrencyService, authCacheInvalidationWorker, schedulerSnapshotService, tokenRefreshService, accountExpiryService, cnProviderBalanceCheckService, openAICodexVersionSyncService, claudeCodeVersionSyncService, proxyExpiryService, subscriptionExpiryService, usageCleanupService, idempotencyCleanupService, geminiCachedContentService, batchImageCleanupService, openAIImageResultService, batchImageWorkerRuntime, asyncImageHandler, imageStudioWorkerRuntime, pricingService, emailQueueService, billingCacheService, autoCreditEmailWorker, usageRecordWorkerPool, subscriptionService, oAuthService, openAIOAuthService, geminiOAuthService, antigravityOAuthService, grokOAuthService, openAIGatewayService, scheduledTestRunnerService, accountTokenGuardV2Service, accountPerformanceService, oAuthAutomationService, backupService, paymentOrderExpiryService, channelMonitorRunner, channelMonitorV2Aggregator, channelMonitorV3Prober, userPlatformQuotaUsageFlusher, playGrowthRunner, publicHomeStatsService, publicStatusSummaryService, publicStatusSnapshotWorker, upstreamBillingProbeService, ollamaCloudUsageService, openCodeGoUsageService, auditLogService, ipRiskService, promptService, mobilePushWorker, mobileVideoWorker, openAIQuotaAutoResetService, pluginManager)
 	application := &Application{
 		Server:        httpServer,
 		PromptAudit:   promptService,
@@ -548,6 +550,7 @@ func provideCleanup(
 	subscriptionExpiry *service.SubscriptionExpiryService,
 	usageCleanup *service.UsageCleanupService,
 	idempotencyCleanup *service.IdempotencyCleanupService,
+	geminiCachedContent *service.GeminiCachedContentService,
 	batchImageCleanup *service.BatchImageCleanupService,
 	openAIImageResults *service.OpenAIImageResultService,
 	batchImageWorker *service.BatchImageWorkerRuntime,
@@ -767,6 +770,12 @@ func provideCleanup(
 			{"IdempotencyCleanupService", func() error {
 				if idempotencyCleanup != nil {
 					idempotencyCleanup.Stop()
+				}
+				return nil
+			}},
+			{"GeminiCachedContentService", func() error {
+				if geminiCachedContent != nil {
+					geminiCachedContent.Stop()
 				}
 				return nil
 			}},

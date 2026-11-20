@@ -57,6 +57,7 @@ type UsageBillingCommand struct {
 	APIKeyQuotaCost     float64
 	APIKeyRateLimitCost float64
 	AccountQuotaCost    float64
+	GeminiCacheChange   *GeminiCachedContentChange `json:"-"`
 }
 
 func (c *UsageBillingCommand) Normalize() {

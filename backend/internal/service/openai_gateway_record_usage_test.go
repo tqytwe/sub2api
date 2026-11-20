@@ -511,6 +511,7 @@ func TestOpenAIGatewayServiceRecordUsage_PeakRateAffectsTokenModeImageOutputToke
 	svc.resolver = newOpenAITokenImageChannelPricingResolverForTest(t, groupID, "gpt-5.1")
 
 	err := svc.RecordUsage(context.Background(), &OpenAIRecordUsageInput{
+		PricingAt: time.Date(2026, time.January, 2, 4, 0, 0, 0, time.UTC),
 		Result: &OpenAIForwardResult{
 			RequestID:  "resp_peak_image_tokens",
 			Usage:      usage,

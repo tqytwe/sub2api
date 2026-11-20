@@ -237,7 +237,7 @@ func resolveAPIKeyRequestGroup(c *gin.Context, keys *service.APIKeyService, subs
 		if checkBilling && !group.IsSubscriptionType() && groupBalanceNeedsRecovery(candidate.User.Balance, cfg) && !canRecoverBalance {
 			return false
 		}
-		if google && group.Platform != service.PlatformGemini && group.Platform != service.PlatformAntigravity && group.Platform != service.PlatformComposite {
+		if google && !groupAllowsGooglePlatform(path, group) {
 			return false
 		}
 		if strings.HasPrefix(path, "/antigravity/") && group.Platform != service.PlatformAntigravity {
@@ -347,4 +347,80 @@ func readAdmissionRequestBody(c *gin.Context) ([]byte, bool) {
 	}
 	requestmodel.ResetRequestBody(c.Request, body)
 	return body, true
+}
+
+// pinGoogleCachedContentGroup prevents ordinary multi-group ranking from
+// changing the group of an existing resource between requests.
+func pinGoogleCachedContentGroup(c *gin.Context, keys *service.APIKeyService, key *service.APIKey, lookup GoogleCacheGroupLookup) (*service.APIKey, bool, error) {
+	path := c.Request.URL.Path
+	var name string
+	switch {
+	case strings.HasPrefix(path, "/v1beta/cachedContents/"):
+		name = c.Param("cacheID")
+		if name == "" {
+			return key, false, nil
+		}
+	case c.Request.Method == http.MethodPost && strings.HasPrefix(path, "/v1beta/models/"):
+		body, ok := readAdmissionRequestBody(c)
+		if !ok {
+			return key, false, nil
+		}
+		ref, err := service.FindGeminiCachedContentReference(body)
+		if err != nil {
+			abortWithGoogleError(c, http.StatusBadRequest, err.Error())
+			return nil, true, err
+		}
+		if ref == nil {
+			return key, false, nil
+		}
+		name = ref.Name
+	default:
+		return key, false, nil
+	}
+	id, err := lookup(c.Request.Context(), key.ID, name)
+	if err != nil {
+		if errors.Is(err, service.ErrGeminiCachedContentNotFound) {
+			abortWithGoogleError(c, http.StatusForbidden, service.GeminiCachedContentNotFoundMessage)
+		} else {
+			abortWithGoogleError(c, http.StatusServiceUnavailable, "Unable to load cached content")
+		}
+		return nil, true, err
+	}
+	selected, err := keys.PinAPIKeyGroup(c.Request.Context(), key, id)
+	if err != nil {
+		if infraerrors.Code(err) < http.StatusInternalServerError {
+			abortWithGoogleError(c, http.StatusForbidden, service.GeminiCachedContentNotFoundMessage)
+		} else {
+			abortWithGoogleError(c, http.StatusServiceUnavailable, "Unable to load cached content group")
+		}
+		return nil, true, err
+	}
+	if !groupAllowsGooglePlatform("/v1beta/cachedContents", selected.Group) {
+		abortWithGoogleError(c, http.StatusForbidden, service.GeminiCachedContentNotFoundMessage)
+		return nil, true, service.ErrGeminiCachedContentNotFound
+	}
+	return selected, true, nil
+}
+
+// groupAllowsGooglePlatform 决定 Google 入站（/v1beta）能否使用这个分组。
+// Gemini、Antigravity、Composite 维持原语义。其他分组只在 /v1beta/models 上放行，
+// 后续把请求转成该分组上游实际支持的协议，而不是一律打上游 /v1beta/models。
+func groupAllowsGooglePlatform(path string, group *service.Group) bool {
+	if group == nil {
+		return false
+	}
+	if path == "/v1beta/cachedContents" || strings.HasPrefix(path, "/v1beta/cachedContents/") {
+		return group.Platform == service.PlatformGemini
+	}
+	switch group.Platform {
+	case service.PlatformGemini, service.PlatformAntigravity, service.PlatformComposite:
+		return true
+	}
+	if strings.HasPrefix(path, "/antigravity/") {
+		return false
+	}
+	if path != "/v1beta/models" && !strings.HasPrefix(path, "/v1beta/models/") {
+		return false
+	}
+	return service.PlatformAcceptsGeminiInboundBridge(group.Platform)
 }

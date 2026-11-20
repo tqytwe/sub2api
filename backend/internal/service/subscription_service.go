@@ -70,6 +70,9 @@ func NewSubscriptionService(groupRepo GroupRepository, userSubRepo UserSubscript
 		entClient:           entClient,
 		now:                 time.Now,
 	}
+	if billingCacheService != nil && entClient != nil {
+		billingCacheService.fixedChargePackageReader = svc.packageEntitlementForUserGroup
+	}
 	svc.initSubCache(cfg)
 	svc.initMaintenanceQueue(cfg)
 	svc.StartSubCacheInvalidationSubscriber(context.Background())

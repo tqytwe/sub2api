@@ -1317,6 +1317,16 @@ func (s *BillingService) HasIdentifiedTokenPricing(model string) bool {
 }
 
 // GetModelPricing 获取模型价格配置
+// CacheStoragePricePerTokenHour returns the configured Gemini storage rate or the built-in rate.
+func (s *BillingService) CacheStoragePricePerTokenHour(model string) float64 {
+	if s != nil && s.pricingService != nil {
+		if price := s.pricingService.GetIdentifiedModelPricing(model); price != nil && price.CacheStorageCostPerTokenPerHour > 0 {
+			return price.CacheStorageCostPerTokenPerHour
+		}
+	}
+	return builtinGeminiCacheStoragePrice(model)
+}
+
 func (s *BillingService) GetModelPricing(model string) (*ModelPricing, error) {
 	return s.getModelPricingAt(model, timezone.Now())
 }
