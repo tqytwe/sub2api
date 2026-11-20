@@ -564,6 +564,7 @@
             :placeholder="t('keys.selectGroup')"
             :searchable="true"
             :search-placeholder="t('keys.searchGroup')"
+            match-trigger-width
             data-tour="key-form-group"
           >
             <template #selected="{ option }">

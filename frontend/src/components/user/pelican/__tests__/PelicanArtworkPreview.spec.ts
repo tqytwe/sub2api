@@ -24,10 +24,18 @@ describe('PelicanArtworkPreview', () => {
       const frame = preview.get('iframe')
       const doc = new DOMParser().parseFromString(frame.attributes('srcdoc'), 'text/html')
       expect(doc.querySelector<HTMLScriptElement>('script[data-pelican-preview]')?.nonce).toBe('current-page-nonce')
-      expect(frame.attributes('sandbox')).toBe('allow-scripts')
+      expect(frame.attributes('sandbox')).toBe('allow-scripts allow-pointer-lock')
     } finally {
       script.remove()
     }
+  })
+
+  it('grants pointer lock only to interactive previews', () => {
+    // design-governance-allow: inline-svg - The fixture is inert untrusted preview markup, not a product icon.
+    wrapper = mount(PelicanArtworkPreview, { props: { html: '<svg viewBox="0 0 1200 600"></svg>', title: 'Thumbnail', interactive: false } })
+    const frame = wrapper.get('iframe')
+    expect(frame.attributes('sandbox')).toBe('allow-scripts')
+    expect(frame.attributes('tabindex')).toBe('-1')
   })
 
   it('fits the logical client area even when the dialog enters with an ancestor scale transform', async () => {
@@ -40,7 +48,7 @@ describe('PelicanArtworkPreview', () => {
     const preview = mountPreview()
     await preview.vm.$nextTick()
     const frame = preview.get('iframe')
-    expect(frame.attributes('sandbox')).toBe('allow-scripts')
+    expect(frame.attributes('sandbox')).toBe('allow-scripts allow-pointer-lock')
     expect(frame.attributes('referrerpolicy')).toBe('no-referrer')
     expect(frame.element.style.width).toBe('1200px')
     expect(frame.element.style.height).toBe('600px')

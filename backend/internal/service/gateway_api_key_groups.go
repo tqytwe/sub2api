@@ -93,7 +93,8 @@ func (s *GatewayService) ProbeAPIKeyGroup(ctx context.Context, group *Group, mod
 		if endpoint == "live" && !account.SupportsOpenAIEndpointCapability(OpenAIEndpointCapabilityLive) {
 			continue
 		}
-		if endpoint == "videos" && platform == PlatformOpenAI && !account.SupportsOpenAIEndpointCapability(OpenAIEndpointCapabilityVideos) {
+		if endpoint == "videos" && platform == PlatformOpenAI && !account.SupportsOpenAIEndpointCapability(OpenAIEndpointCapabilityVideos) &&
+			!account.SupportsOpenAIEndpointCapability(OpenAIEndpointCapabilityOpenAIVideo) {
 			continue
 		}
 		if endpoint == CompositeRouteEndpointEmbeddings && !account.SupportsOpenAIEndpointCapability(OpenAIEndpointCapabilityEmbeddings) {

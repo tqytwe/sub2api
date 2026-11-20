@@ -231,3 +231,17 @@ func collectOpenAIImageOutputSizesFromSSEBody(body string, includeFailed ...bool
 	counter.AddSSEBody(body, includeFailed...)
 	return counter.Sizes()
 }
+
+// IsCompletedOpenAIImageEvent reports whether the event contains a delivered
+// image. Preview frames and terminal events without image data do not count.
+func IsCompletedOpenAIImageEvent(payload []byte) bool {
+	kind := gjson.GetBytes(payload, "type").String()
+	switch kind {
+	case "image_generation.completed", "image_edit.completed", "response.output_item.done", "response.completed", "response.done":
+		counter := newOpenAIImageOutputCounter()
+		counter.AddSSEData(payload)
+		return counter.Count() > 0
+	default:
+		return false
+	}
+}

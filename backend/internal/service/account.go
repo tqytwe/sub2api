@@ -1924,6 +1924,9 @@ func (a *Account) SupportsOpenAIEndpointCapability(capability OpenAIEndpointCapa
 			a.GetCredential("video_protocol") == "starframe" && strings.TrimSpace(a.GetCredential("base_url")) != ""
 	}
 	if capability == OpenAIEndpointCapabilityVideos {
+		if a.SupportsOpenAIEndpointCapability(OpenAIEndpointCapabilityOpenAIVideo) {
+			return false
+		}
 		if a.GetCredential("video_protocol") == "starframe" {
 			return a.SupportsOpenAIEndpointCapability(OpenAIEndpointCapabilityStarframe)
 		}
@@ -1931,6 +1934,13 @@ func (a *Account) SupportsOpenAIEndpointCapability(capability OpenAIEndpointCapa
 	}
 	if capability == OpenAIEndpointCapabilityAgnesVideo {
 		return a.Platform == PlatformOpenAI && (a.GetCredential("video_protocol") == "" || a.GetCredential("video_protocol") == "agnes")
+	}
+	if capability == OpenAIEndpointCapabilityOpenAIVideo {
+		configured, _ := a.openAIEndpointCapabilitySet()
+		protocol := a.GetCredential("video_protocol")
+		return configured["videos"] && (protocol == "" || protocol == "openai") &&
+			a.Platform == PlatformOpenAI && a.Type == AccountTypeAPIKey &&
+			strings.TrimSpace(a.GetCredential("base_url")) != ""
 	}
 	if capability == OpenAIEndpointCapabilitySeedance {
 		configured, _ := a.openAIEndpointCapabilitySet()

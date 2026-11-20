@@ -1,0 +1,740 @@
+{
+  "source_repository": "ranxi2001/sub2api",
+  "release_tag": "v2.23.1",
+  "release_commit": "00e00796080c632188cf9df7912050b144a1a44f",
+  "analysis_base": "9c24cd75d2369de5e65be46fbab1945c2f43f696",
+  "live_release_verified": false,
+  "fully_migrated": false,
+  "branch": "sync/ranxi-v2.23.1-20261120",
+  "isolated_worktree": true,
+  "working_tree_clean": false,
+  "file_status_counts": {
+    "D": 4703,
+    "M": 2316,
+    "A": 3660
+  },
+  "migrations": {
+    "upstream_only": [
+      "237_add_api_key_concurrency_limit.sql",
+      "239_codex_harvest_node_learning.sql",
+      "239_payment_order_subscription_renewal_mode.sql",
+      "240_codex_harvest_flow_events.sql",
+      "241_add_account_group_rate_multiplier.sql",
+      "242_group_i18n.sql",
+      "242_request_timing_details.sql",
+      "243_gemini_cached_contents.sql",
+      "243_pelican_scheduled_tests.sql",
+      "244_account_group_allowed_models.sql",
+      "244_astra_gateway_history.sql",
+      "244_gemini_cached_contents_channel_usage.sql",
+      "245_gemini_cached_contents_mutation_lease.sql",
+      "245_user_group_denied_models.sql",
+      "246_group_stream_only.sql",
+      "247_account_quality_ops.sql",
+      "248_account_quality_judgment.sql",
+      "249_account_ops_alerts.sql",
+      "249_add_usage_logs_api_key_cost_index_notx.sql",
+      "249_astra_scheduling_states.sql",
+      "249_pelican_showcase_items.sql",
+      "250_account_token_guard.sql",
+      "250_openai_cache_write_ttl.sql",
+      "251_group_force_openai_ultrafast.sql",
+      "251_group_usage_rollup_nonblocking_build.sql",
+      "251_request_captures.sql",
+      "252_channel_pricing_ultrafast_multiplier.sql",
+      "252_user_observer_groups.sql",
+      "253_pelican_group_tests.sql",
+      "254_channel_monitor_v2_candy.sql",
+      "254_openai_oauth_reauth.sql",
+      "254_quality_bps_coexist.sql",
+      "255_account_token_guard_v2.sql",
+      "256_openai_oauth_reauth_proxy_override.sql",
+      "257_openai_oauth_reauth_proxy_source.sql",
+      "258_quality_observation_scope.sql",
+      "259_account_auto_config_events.sql",
+      "261_pelican_group_test_costs.sql",
+      "262_openai_oauth_reauth_engine.sql",
+      "263_strip_pelican_prompt_restriction.sql",
+      "264_channel_monitor_v3.sql",
+      "265_new_api_site_authorizations.sql",
+      "266_account_ops_notifications.sql",
+      "267_account_ops_threshold_episodes.sql",
+      "268_controlled_experiments.sql",
+      "268_support_tickets.sql",
+      "269_openai_totp_rotation.sql",
+      "270_drop_platform_check_constraints.sql",
+      "271_openai_excel_dual_oauth.sql",
+      "272_account_ops_groups.sql",
+      "273_channel_monitor_v3_idle_probe.sql",
+      "274_mihomo_static_proxy_bindings.sql",
+      "275_channel_monitor_v2_candy_multi_model.sql",
+      "276_channel_monitor_v2_candy_history_min.sql",
+      "277_regional_scheduler_streams.sql",
+      "278_regional_auth_streams.sql",
+      "279_regional_ledgers.sql",
+      "280_regional_slot_leases.sql",
+      "281_regional_admission.sql",
+      "282_regional_pricing.sql",
+      "284_regional_allocation_billing_metadata.sql",
+      "285_openai_session_cookies.sql",
+      "285_registration_ip_quotas.sql",
+      "286_registration_ip_quota_created_at.sql",
+      "287_group_codex_cli_only.sql",
+      "287_openai_session_export_tasks.sql",
+      "288_group_block_subagents.sql",
+      "289_channel_monitor_v2_card_timeline_mode.sql",
+      "290_channel_monitor_v2_group_order.sql",
+      "291_api_key_groups.sql",
+      "292_openai_siwc.sql",
+      "293_security_penalties.sql",
+      "294_request_connection_traces.sql",
+      "295_account_schedulable_timers.sql",
+      "297_cyber_policy_evidence.sql",
+      "299_quality_rule_presets.sql",
+      "300_account_relogin_budget.sql",
+      "302_usage_billing_quotes.sql",
+      "303_usage_billing_delivery.sql",
+      "304_usage_platform_quota_deltas.sql",
+      "305_batch_image_owned_money.sql",
+      "306_usage_billing_quote_precision.sql",
+      "307_user_traffic.sql",
+      "308_user_traffic_cursor_indexes_notx.sql",
+      "309_channel_operations.sql",
+      "309_credential_operation_refresh_failure.sql",
+      "310_scoped_admin_api_keys.sql",
+      "311_group_image_count_billing.sql",
+      "312_openai_auth_connections.sql",
+      "312_upstream_channel_entities.sql",
+      "313_openai_connection_scheduling.sql",
+      "313_upstream_channel_binding_delete_revision.sql",
+      "314_openai_connection_usage_attribution.sql",
+      "315_openai_connection_affinity.sql",
+      "316_openai_connection_preserve_legacy_extra.sql",
+      "317_openai_connection_snapshot_object.sql",
+      "318_openai_connection_refresh_fencing.sql",
+      "319_openai_bps_supported_capabilities.sql",
+      "320_ops_network_minutes.sql",
+      "321_usage_log_queue_wait.sql",
+      "322_usage_log_queue_timing.sql",
+      "323_recharge_lottery.sql",
+      "324_lottery_controls.sql",
+      "325_account_performance_monitor.sql",
+      "325_lottery_invitations.sql",
+      "326_quality_shared_batches.sql",
+      "327_api_key_model_policy.sql",
+      "328_vip_auto_credit.sql",
+      "329_vip_auto_credit_cache_outbox.sql",
+      "330_vip_auto_credit_positive_threshold.sql",
+      "331_balance_forecast.sql",
+      "332_balance_forecast_delivery.sql",
+      "333_ai_ops_control_plane.sql",
+      "333_api_key_allow_long_context.sql",
+      "333_key_risk.sql",
+      "334_key_risk_delivery_evidence.sql",
+      "334_scheduler_outbox_retries.sql",
+      "335_account_daily_schedulable_timers.sql",
+      "336_key_risk_acknowledgements.sql",
+      "337_ai_ops_proposal_cancel.sql",
+      "338_oauth_degradation_native_controls.sql",
+      "338_quality_oauth_401_streaks.sql",
+      "339_quality_oauth_401_trusted_revocation.sql",
+      "340_vip_auto_credit_email.sql",
+      "341_api_key_context_token_limit.sql",
+      "342_key_risk_per_key_ip.sql",
+      "342_payment_provider_fee_rates.sql",
+      "343_usage_log_platform_snapshot.sql",
+      "344_usage_log_platform_index_notx.sql",
+      "345_mature_providers.sql",
+      "346_mature_providers_credentials.sql",
+      "347_mature_providers_key_operations.sql",
+      "348_mature_providers_refresh.sql",
+      "350_qq_bot.sql",
+      "351_qq_bot_email_binding.sql",
+      "352_qq_bot_activities.sql",
+      "353_qq_bot_activity_record_indexes.sql",
+      "354_qq_bot_message_references.sql",
+      "355_qq_bot_transfer_requests.sql",
+      "356_qq_bot_group_history.sql",
+      "357_qq_bot_reward_redemption.sql",
+      "358_qq_bot_price_notifications.sql",
+      "359_qq_bot_autonomous.sql",
+      "360_qq_bot_health_notifications.sql",
+      "361_qq_bot_growth_rewards.sql",
+      "362_qq_bot_daily_rankings.sql",
+      "363_qq_bot_ranking_claims.sql",
+      "364_qq_bot_periodic_growth.sql",
+      "365_qq_bot_image_references.sql",
+      "366_qq_bot_moderation.sql",
+      "367_qq_bot_member_hints.sql",
+      "368_qq_bot_transfer_history.sql",
+      "369_qq_bot_image_intent.sql",
+      "370_qq_bot_member_context.sql",
+      "371_qq_bot_spam_reports.sql",
+      "372_qq_bot_site_queries.sql",
+      "373_qq_bot_chat_execution.sql",
+      "374_qq_bot_autonomous_followups.sql",
+      "375_qq_bot_autonomous_delivery.sql",
+      "376_recharge_coupons.sql",
+      "377_qq_bot_growth_amount_days.sql",
+      "378_qq_bot_lottery_chance_grants.sql",
+      "379_usage_customer_cost_details.sql",
+      "380_qq_bot_sidebar_default_hidden.sql",
+      "381_group_free_openai_ultrafast.sql",
+      "382_openai_totp_binding.sql",
+      "383_provider_profit_channels.sql",
+      "384_provider_profit_charges.sql",
+      "385_usage_wallet_debit_evidence.sql",
+      "386_provider_profit_sync_runs.sql",
+      "387_provider_spend_snapshots.sql",
+      "388_provider_profit_cost_mode.sql"
+    ],
+    "fork_only_preserve": [
+      "170_play_foundation.sql",
+      "171_play_extended.sql",
+      "172_play_retention.sql",
+      "173_play_vip.sql",
+      "174_play_team_affiliate.sql",
+      "175_play_campaigns.sql",
+      "176_play_campaign_name_i18n.sql",
+      "177_marketing_fixes.sql",
+      "177_play_quiz_i18n_and_pool.sql",
+      "178_phase1_growth_world.sql",
+      "179_play_sidebar_defaults.sql",
+      "180_site_subtitle_jisudeng.sql",
+      "181_jisudeng_public_model_pricing.sql",
+      "182_image_studio_asset_storage.sql",
+      "183_model_catalog.sql",
+      "184_image_studio_asset_url_nullable.sql",
+      "185_model_catalog_official_prices.sql",
+      "186_model_catalog_billing_lookup.sql",
+      "186_model_sync_jobs_repair.sql",
+      "187_model_catalog_group_scope.sql",
+      "189_restore_growth_rollback_defaults.sql",
+      "190_restore_configurable_blindbox_pool.sql",
+      "191_agent_team_shared_rewards.sql",
+      "192_image_studio_persistent_jobs.sql",
+      "192_image_studio_persistent_jobs_indexes_notx.sql",
+      "193_image_studio_references.sql",
+      "194_image_studio_asset_derivatives.sql",
+      "194_image_studio_asset_derivatives_indexes_notx.sql",
+      "195_image_studio_billing_reconciliation.sql",
+      "196_image_studio_job_references.sql",
+      "197_image_studio_object_deletions.sql",
+      "198_image_studio_upload_slots.sql",
+      "199_prompt_library.sql",
+      "200_prompt_library_seed.sql",
+      "201_prompt_library_public_seed.sql",
+      "202_prompt_library_generic_cover_cleanup.sql",
+      "203_batch_image_owner_idempotency.sql",
+      "204_batch_image_output_image_count.sql",
+      "205_vip_recharge_bonus_snapshot.sql",
+      "206_vip_recharge_legacy_tiers_backfill.sql",
+      "207_balance_transactions.sql",
+      "207_subscription_plan_product_display.sql",
+      "208_image_studio_asset_lifecycle.sql",
+      "208_image_studio_asset_lifecycle_indexes_notx.sql",
+      "209_play_arena_daily_reward_summary.sql",
+      "210_subscription_plan_storefront.sql",
+      "210_withdrawable_entitlements.sql",
+      "211_withdrawals.sql",
+      "212_withdrawals_integer_amounts.sql",
+      "213_fund_management_batches.sql",
+      "214_ip_risk_foundation.sql",
+      "215_ip_risk_management.sql",
+      "216_mobile_feedback.sql",
+      "217_billing_surcharge_layer.sql",
+      "218_mobile_feedback_messages.sql",
+      "219_mobile_assets_and_skills.sql",
+      "220_mobile_tasks.sql",
+      "221_mobile_push.sql",
+      "222_mobile_diagnostics.sql",
+      "223_coupon_system.sql",
+      "223_mobile_task_visibility_and_image_history.sql",
+      "224_mobile_feedback_work_items.sql",
+      "224_payment_order_coupon_settlement.sql",
+      "225_coupon_reward_pool_release_gate.sql",
+      "226_payment_order_coupon_indexes_notx.sql",
+      "227_channel_monitor_account_soft_delete_unbind.sql",
+      "227_marketing_reward_pool_generalization.sql",
+      "229_quiz_question_bank_admin.sql",
+      "234_play_membership_accounting_and_campaign_audience.sql",
+      "235_mobile_feedback_context_and_admin_audit.sql",
+      "236_referral_campaign_core.sql",
+      "237_mobile_attribution.sql",
+      "238_play_membership_operations.sql",
+      "239_membership_financial_fk_guard.sql",
+      "240_mobile_attribution_referral_campaign_fk.sql",
+      "241_play_daily_arena_budget.sql",
+      "241_play_growth_competition.sql",
+      "241_referral_campaign_single_admin_review.sql",
+      "243_play_team_competition.sql",
+      "244_play_arena_period_integrity.sql",
+      "245_referral_campaign_closure.sql",
+      "246_new_user_growth_campaign.sql",
+      "248_restore_upstream_daily_subscription_usage.sql",
+      "248_usage_logs_audio_token_breakdown.sql",
+      "249_live_usage_settlement_outbox.sql",
+      "250_model_catalog_tool_capabilities.sql",
+      "251_model_catalog_official_field_sources.sql",
+      "251_vip_membership_qualification_review.sql",
+      "252_bepusdt_payment_contract.sql",
+      "253_mobile_app_releases.sql",
+      "254_subscription_package_quotas.sql",
+      "255_payment_order_coupon_release_processed.sql",
+      "256_payment_order_coupon_release_processed_index_notx.sql",
+      "259_mobile_video_jobs.sql",
+      "260_model_catalog_media_capabilities.sql",
+      "261_mobile_video_execution_billing.sql",
+      "262_play_growth_qualification.sql",
+      "263_public_status_snapshots.sql",
+      "264_public_status_ttft_window_index_notx.sql",
+      "265_play_growth_eligibility_orders_index_notx.sql",
+      "266_play_growth_reward_snapshot_links.sql",
+      "267_public_status_ops_aggregation_watermark.sql",
+      "268_play_growth_governance.sql",
+      "269_play_membership_manual_contributions.sql",
+      "270_fund_operation_records.sql",
+      "270_payment_manual_confirmation_reference.sql",
+      "271_subscription_package_grant_sources.sql",
+      "272_starframe_video_submissions.sql",
+      "273_account_group_allowed_models.sql",
+      "274_usage_log_billing_reconciliation.sql",
+      "275_gateway_request_ledger.sql",
+      "276_gateway_request_correlation.sql",
+      "277_batch_image_ledger_reconcile_index_notx.sql",
+      "278_gateway_request_task_page_index_notx.sql",
+      "279_gateway_routing_evidence.sql",
+      "280_subscription_inflight_admission.sql",
+      "281_gateway_identifier_diagnostics.sql",
+      "282_channel_operations.sql",
+      "310_gateway_request_priority_observations.sql",
+      "320_quality_operations_core.sql",
+      "330_openai_oauth_reauth.sql",
+      "331_account_token_guard_v2.sql",
+      "332_openai_oauth_reauth_proxy_override.sql",
+      "333_openai_oauth_reauth_proxy_source.sql",
+      "334_credential_operation_refresh_failure.sql",
+      "335_account_relogin_budget.sql",
+      "336_quality_rule_presets.sql",
+      "337_quality_rule_signal_revision.sql",
+      "338_api_key_groups.sql",
+      "339_openai_excel_oauth_credentials.sql",
+      "340_channel_monitor_v2_candy.sql",
+      "341_channel_monitor_v3.sql",
+      "342_channel_monitor_v3_idle_probe.sql",
+      "343_pelican_showcase_items.sql",
+      "344_pelican_group_tests.sql",
+      "345_pelican_group_test_costs.sql",
+      "346_play_arena_accounting_version.sql",
+      "347_play_checkin_milestone_evidence.sql",
+      "348_play_checkin_repair_audit.sql",
+      "349_strip_pelican_prompt_restriction.sql",
+      "350_affiliate_operations.sql",
+      "351_affiliate_operations_withdraw_evidence.sql",
+      "352_affiliate_historical_paid_evidence.sql",
+      "353_coupon_claim_campaign.sql",
+      "354_scheduler_outbox_retries.sql",
+      "355_payment_provider_fee_rates.sql",
+      "356_api_key_model_policy.sql",
+      "357_account_schedulable_timers.sql",
+      "358_account_daily_schedulable_timers.sql",
+      "359_pelican_showcase_question.sql",
+      "360_key_risk_system.sql",
+      "361_request_timing_details.sql",
+      "362_request_connection_traces.sql",
+      "363_openai_auth_connections.sql",
+      "364_new_api_site_authorizations.sql",
+      "369_account_performance_monitor.sql",
+      "370_quality_shared_batches.sql",
+      "371_quality_oauth_401_streaks.sql",
+      "372_quality_oauth_401_trusted_revocation.sql",
+      "373_openai_totp_rotation.sql",
+      "374_openai_session_export_tasks.sql",
+      "375_openai_siwc.sql",
+      "376_oauth_auto_config_events.sql",
+      "377_openai_apikey_fallback_state.sql",
+      "380_group_i18n.sql",
+      "381_user_traffic.sql",
+      "382_user_traffic_cursor_indexes_notx.sql",
+      "383_ops_network_minutes.sql",
+      "385_account_ops_alerts.sql",
+      "386_account_ops_threshold_episodes.sql",
+      "387_group_access_policies.sql",
+      "388_upstream_channel_entities.sql",
+      "389_upstream_channel_binding_delete_revision.sql",
+      "411_balance_forecast_coverage.sql",
+      "412_balance_forecast_delivery.sql",
+      "413_api_key_concurrency_limit.sql",
+      "414_scoped_admin_api_keys.sql",
+      "415_vip_auto_credit.sql",
+      "416_vip_auto_credit_cache_outbox.sql",
+      "417_vip_auto_credit_positive_threshold.sql",
+      "418_vip_auto_credit_email.sql",
+      "419_gemini_cached_contents.sql",
+      "420_gemini_cached_contents_channel_usage.sql",
+      "421_gemini_cached_contents_mutation_lease.sql",
+      "422_provider_platform_constraints.sql",
+      "423_registration_ip_quotas.sql",
+      "426_website_support_tickets.sql"
+    ],
+    "changed_existing": [
+      "226_channel_monitor_quota_mode.sql",
+      "260_quality_rule_templates.sql"
+    ],
+    "number_collisions": {
+      "237_add_api_key_concurrency_limit.sql": [
+        "237_add_minimax_platform.sql",
+        "237_mobile_attribution.sql"
+      ],
+      "239_codex_harvest_node_learning.sql": [
+        "239_channel_reasoning_effort_multipliers.sql",
+        "239_membership_financial_fk_guard.sql"
+      ],
+      "239_payment_order_subscription_renewal_mode.sql": [
+        "239_channel_reasoning_effort_multipliers.sql",
+        "239_membership_financial_fk_guard.sql"
+      ],
+      "240_codex_harvest_flow_events.sql": [
+        "240_affiliate_ledger_operation_id.sql",
+        "240_mobile_attribution_referral_campaign_fk.sql"
+      ],
+      "241_add_account_group_rate_multiplier.sql": [
+        "241_add_payment_order_bonus_amount.sql",
+        "241_add_typesafe_platform.sql",
+        "241_play_daily_arena_budget.sql",
+        "241_play_growth_competition.sql",
+        "241_referral_campaign_single_admin_review.sql"
+      ],
+      "243_gemini_cached_contents.sql": [
+        "243_play_team_competition.sql"
+      ],
+      "243_pelican_scheduled_tests.sql": [
+        "243_play_team_competition.sql"
+      ],
+      "244_account_group_allowed_models.sql": [
+        "244_play_arena_period_integrity.sql"
+      ],
+      "244_astra_gateway_history.sql": [
+        "244_play_arena_period_integrity.sql"
+      ],
+      "244_gemini_cached_contents_channel_usage.sql": [
+        "244_play_arena_period_integrity.sql"
+      ],
+      "245_gemini_cached_contents_mutation_lease.sql": [
+        "245_referral_campaign_closure.sql"
+      ],
+      "245_user_group_denied_models.sql": [
+        "245_referral_campaign_closure.sql"
+      ],
+      "246_group_stream_only.sql": [
+        "246_new_user_growth_campaign.sql"
+      ],
+      "248_account_quality_judgment.sql": [
+        "248_restore_upstream_daily_subscription_usage.sql",
+        "248_usage_logs_audio_token_breakdown.sql"
+      ],
+      "249_account_ops_alerts.sql": [
+        "249_live_usage_settlement_outbox.sql"
+      ],
+      "249_add_usage_logs_api_key_cost_index_notx.sql": [
+        "249_live_usage_settlement_outbox.sql"
+      ],
+      "249_astra_scheduling_states.sql": [
+        "249_live_usage_settlement_outbox.sql"
+      ],
+      "249_pelican_showcase_items.sql": [
+        "249_live_usage_settlement_outbox.sql"
+      ],
+      "250_account_token_guard.sql": [
+        "250_model_catalog_tool_capabilities.sql"
+      ],
+      "250_openai_cache_write_ttl.sql": [
+        "250_model_catalog_tool_capabilities.sql"
+      ],
+      "251_group_force_openai_ultrafast.sql": [
+        "251_model_catalog_official_field_sources.sql",
+        "251_vip_membership_qualification_review.sql"
+      ],
+      "251_group_usage_rollup_nonblocking_build.sql": [
+        "251_model_catalog_official_field_sources.sql",
+        "251_vip_membership_qualification_review.sql"
+      ],
+      "251_request_captures.sql": [
+        "251_model_catalog_official_field_sources.sql",
+        "251_vip_membership_qualification_review.sql"
+      ],
+      "252_channel_pricing_ultrafast_multiplier.sql": [
+        "252_bepusdt_payment_contract.sql"
+      ],
+      "252_user_observer_groups.sql": [
+        "252_bepusdt_payment_contract.sql"
+      ],
+      "253_pelican_group_tests.sql": [
+        "253_mobile_app_releases.sql"
+      ],
+      "254_channel_monitor_v2_candy.sql": [
+        "254_subscription_package_quotas.sql"
+      ],
+      "254_openai_oauth_reauth.sql": [
+        "254_subscription_package_quotas.sql"
+      ],
+      "254_quality_bps_coexist.sql": [
+        "254_subscription_package_quotas.sql"
+      ],
+      "255_account_token_guard_v2.sql": [
+        "255_payment_order_coupon_release_processed.sql"
+      ],
+      "256_openai_oauth_reauth_proxy_override.sql": [
+        "256_payment_order_coupon_release_processed_index_notx.sql"
+      ],
+      "259_account_auto_config_events.sql": [
+        "259_mobile_video_jobs.sql"
+      ],
+      "261_pelican_group_test_costs.sql": [
+        "261_mobile_video_execution_billing.sql"
+      ],
+      "262_openai_oauth_reauth_engine.sql": [
+        "262_play_growth_qualification.sql"
+      ],
+      "263_strip_pelican_prompt_restriction.sql": [
+        "263_public_status_snapshots.sql"
+      ],
+      "264_channel_monitor_v3.sql": [
+        "264_public_status_ttft_window_index_notx.sql"
+      ],
+      "265_new_api_site_authorizations.sql": [
+        "265_play_growth_eligibility_orders_index_notx.sql"
+      ],
+      "266_account_ops_notifications.sql": [
+        "266_play_growth_reward_snapshot_links.sql"
+      ],
+      "267_account_ops_threshold_episodes.sql": [
+        "267_public_status_ops_aggregation_watermark.sql"
+      ],
+      "268_controlled_experiments.sql": [
+        "268_play_growth_governance.sql"
+      ],
+      "268_support_tickets.sql": [
+        "268_play_growth_governance.sql"
+      ],
+      "269_openai_totp_rotation.sql": [
+        "269_play_membership_manual_contributions.sql"
+      ],
+      "270_drop_platform_check_constraints.sql": [
+        "270_fund_operation_records.sql",
+        "270_payment_manual_confirmation_reference.sql"
+      ],
+      "271_openai_excel_dual_oauth.sql": [
+        "271_subscription_package_grant_sources.sql"
+      ],
+      "272_account_ops_groups.sql": [
+        "272_starframe_video_submissions.sql"
+      ],
+      "273_channel_monitor_v3_idle_probe.sql": [
+        "273_account_group_allowed_models.sql"
+      ],
+      "274_mihomo_static_proxy_bindings.sql": [
+        "274_usage_log_billing_reconciliation.sql"
+      ],
+      "275_channel_monitor_v2_candy_multi_model.sql": [
+        "275_gateway_request_ledger.sql"
+      ],
+      "276_channel_monitor_v2_candy_history_min.sql": [
+        "276_gateway_request_correlation.sql"
+      ],
+      "277_regional_scheduler_streams.sql": [
+        "277_batch_image_ledger_reconcile_index_notx.sql"
+      ],
+      "278_regional_auth_streams.sql": [
+        "278_gateway_request_task_page_index_notx.sql"
+      ],
+      "279_regional_ledgers.sql": [
+        "279_gateway_routing_evidence.sql"
+      ],
+      "280_regional_slot_leases.sql": [
+        "280_subscription_inflight_admission.sql"
+      ],
+      "281_regional_admission.sql": [
+        "281_gateway_identifier_diagnostics.sql"
+      ],
+      "282_regional_pricing.sql": [
+        "282_channel_operations.sql"
+      ],
+      "310_scoped_admin_api_keys.sql": [
+        "310_gateway_request_priority_observations.sql"
+      ],
+      "320_ops_network_minutes.sql": [
+        "320_quality_operations_core.sql"
+      ],
+      "330_vip_auto_credit_positive_threshold.sql": [
+        "330_openai_oauth_reauth.sql"
+      ],
+      "331_balance_forecast.sql": [
+        "331_account_token_guard_v2.sql"
+      ],
+      "332_balance_forecast_delivery.sql": [
+        "332_openai_oauth_reauth_proxy_override.sql"
+      ],
+      "333_ai_ops_control_plane.sql": [
+        "333_openai_oauth_reauth_proxy_source.sql"
+      ],
+      "333_api_key_allow_long_context.sql": [
+        "333_openai_oauth_reauth_proxy_source.sql"
+      ],
+      "333_key_risk.sql": [
+        "333_openai_oauth_reauth_proxy_source.sql"
+      ],
+      "334_key_risk_delivery_evidence.sql": [
+        "334_credential_operation_refresh_failure.sql"
+      ],
+      "334_scheduler_outbox_retries.sql": [
+        "334_credential_operation_refresh_failure.sql"
+      ],
+      "335_account_daily_schedulable_timers.sql": [
+        "335_account_relogin_budget.sql"
+      ],
+      "336_key_risk_acknowledgements.sql": [
+        "336_quality_rule_presets.sql"
+      ],
+      "337_ai_ops_proposal_cancel.sql": [
+        "337_quality_rule_signal_revision.sql"
+      ],
+      "338_oauth_degradation_native_controls.sql": [
+        "338_api_key_groups.sql"
+      ],
+      "338_quality_oauth_401_streaks.sql": [
+        "338_api_key_groups.sql"
+      ],
+      "339_quality_oauth_401_trusted_revocation.sql": [
+        "339_openai_excel_oauth_credentials.sql"
+      ],
+      "340_vip_auto_credit_email.sql": [
+        "340_channel_monitor_v2_candy.sql"
+      ],
+      "341_api_key_context_token_limit.sql": [
+        "341_channel_monitor_v3.sql"
+      ],
+      "342_key_risk_per_key_ip.sql": [
+        "342_channel_monitor_v3_idle_probe.sql"
+      ],
+      "342_payment_provider_fee_rates.sql": [
+        "342_channel_monitor_v3_idle_probe.sql"
+      ],
+      "343_usage_log_platform_snapshot.sql": [
+        "343_pelican_showcase_items.sql"
+      ],
+      "344_usage_log_platform_index_notx.sql": [
+        "344_pelican_group_tests.sql"
+      ],
+      "345_mature_providers.sql": [
+        "345_pelican_group_test_costs.sql"
+      ],
+      "346_mature_providers_credentials.sql": [
+        "346_play_arena_accounting_version.sql"
+      ],
+      "347_mature_providers_key_operations.sql": [
+        "347_play_checkin_milestone_evidence.sql"
+      ],
+      "348_mature_providers_refresh.sql": [
+        "348_play_checkin_repair_audit.sql"
+      ],
+      "350_qq_bot.sql": [
+        "350_affiliate_operations.sql"
+      ],
+      "351_qq_bot_email_binding.sql": [
+        "351_affiliate_operations_withdraw_evidence.sql"
+      ],
+      "352_qq_bot_activities.sql": [
+        "352_affiliate_historical_paid_evidence.sql"
+      ],
+      "353_qq_bot_activity_record_indexes.sql": [
+        "353_coupon_claim_campaign.sql"
+      ],
+      "354_qq_bot_message_references.sql": [
+        "354_scheduler_outbox_retries.sql"
+      ],
+      "355_qq_bot_transfer_requests.sql": [
+        "355_payment_provider_fee_rates.sql"
+      ],
+      "356_qq_bot_group_history.sql": [
+        "356_api_key_model_policy.sql"
+      ],
+      "357_qq_bot_reward_redemption.sql": [
+        "357_account_schedulable_timers.sql"
+      ],
+      "358_qq_bot_price_notifications.sql": [
+        "358_account_daily_schedulable_timers.sql"
+      ],
+      "359_qq_bot_autonomous.sql": [
+        "359_pelican_showcase_question.sql"
+      ],
+      "360_qq_bot_health_notifications.sql": [
+        "360_key_risk_system.sql"
+      ],
+      "361_qq_bot_growth_rewards.sql": [
+        "361_request_timing_details.sql"
+      ],
+      "362_qq_bot_daily_rankings.sql": [
+        "362_request_connection_traces.sql"
+      ],
+      "363_qq_bot_ranking_claims.sql": [
+        "363_openai_auth_connections.sql"
+      ],
+      "364_qq_bot_periodic_growth.sql": [
+        "364_new_api_site_authorizations.sql"
+      ],
+      "369_qq_bot_image_intent.sql": [
+        "369_account_performance_monitor.sql"
+      ],
+      "370_qq_bot_member_context.sql": [
+        "370_quality_shared_batches.sql"
+      ],
+      "371_qq_bot_spam_reports.sql": [
+        "371_quality_oauth_401_streaks.sql"
+      ],
+      "372_qq_bot_site_queries.sql": [
+        "372_quality_oauth_401_trusted_revocation.sql"
+      ],
+      "373_qq_bot_chat_execution.sql": [
+        "373_openai_totp_rotation.sql"
+      ],
+      "374_qq_bot_autonomous_followups.sql": [
+        "374_openai_session_export_tasks.sql"
+      ],
+      "375_qq_bot_autonomous_delivery.sql": [
+        "375_openai_siwc.sql"
+      ],
+      "376_recharge_coupons.sql": [
+        "376_oauth_auto_config_events.sql"
+      ],
+      "377_qq_bot_growth_amount_days.sql": [
+        "377_openai_apikey_fallback_state.sql"
+      ],
+      "380_qq_bot_sidebar_default_hidden.sql": [
+        "380_group_i18n.sql"
+      ],
+      "381_group_free_openai_ultrafast.sql": [
+        "381_user_traffic.sql"
+      ],
+      "382_openai_totp_binding.sql": [
+        "382_user_traffic_cursor_indexes_notx.sql"
+      ],
+      "383_provider_profit_channels.sql": [
+        "383_ops_network_minutes.sql"
+      ],
+      "385_usage_wallet_debit_evidence.sql": [
+        "385_account_ops_alerts.sql"
+      ],
+      "386_provider_profit_sync_runs.sql": [
+        "386_account_ops_threshold_episodes.sql"
+      ],
+      "387_provider_spend_snapshots.sql": [
+        "387_group_access_policies.sql"
+      ],
+      "388_provider_profit_cost_mode.sql": [
+        "388_upstream_channel_entities.sql"
+      ]
+    }
+  },
+  "action": "report only; all collisions and schema changes require review; no production mutations"
+}

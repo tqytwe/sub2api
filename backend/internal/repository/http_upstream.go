@@ -172,6 +172,7 @@ type httpUpstreamService struct {
 	clients map[string]*upstreamClientEntry // 客户端缓存池，key 由隔离策略决定
 	// OpenAI 走 HTTP/HTTPS 代理时的 H2->H1 回退状态（key=标准化 proxyKey）
 	openAIHTTP2Fallbacks sync.Map
+	compressionCooldowns sync.Map
 }
 
 // NewHTTPUpstream 创建通用 HTTP 上游服务
@@ -223,6 +224,7 @@ func (s *httpUpstreamService) Do(req *http.Request, proxyURL string, accountID i
 
 	// 执行请求
 	client := s.httpClientForUpstreamRequest(entry.client, req)
+	client = s.httpClientWithUpstreamRequestCompression(client)
 	client = httpClientWithRequestLedger(client, accountID)
 	client = httpClientWithGrokAccessDeniedFallback(client)
 	resp, err := doUpstreamRequest(client, req)
@@ -285,6 +287,7 @@ func (s *httpUpstreamService) DoWithTLS(req *http.Request, proxyURL string, acco
 	}
 
 	client := s.httpClientForUpstreamRequest(entry.client, req)
+	client = s.httpClientWithUpstreamRequestCompression(client)
 	client = httpClientWithRequestLedger(client, accountID)
 	client = httpClientWithGrokAccessDeniedFallback(client)
 	resp, err := doUpstreamRequest(client, req)

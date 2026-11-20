@@ -68,6 +68,7 @@ type QualityJudgeConfig struct {
 
 // ScheduledTestResult represents a single test execution result.
 type ScheduledTestResult struct {
+	grokRecovery          *grokTestRecovery
 	DirectOAuth401        bool               `json:"-"`
 	DirectOAuthRevoked401 bool               `json:"-"`
 	PelicanConfig         *PelicanTestConfig `json:"pelican_config,omitempty"`

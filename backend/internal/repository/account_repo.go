@@ -638,15 +638,17 @@ func (r *accountRepository) updateLockedAccount(
 	} else {
 		builder.ClearExpiresAt()
 	}
-	if account.RateLimitedAt != nil {
-		builder.SetRateLimitedAt(*account.RateLimitedAt)
-	} else {
-		builder.ClearRateLimitedAt()
-	}
-	if account.RateLimitResetAt != nil {
-		builder.SetRateLimitResetAt(*account.RateLimitResetAt)
-	} else {
-		builder.ClearRateLimitResetAt()
+	if !account.IsGrokOAuth() {
+		if account.RateLimitedAt != nil {
+			builder.SetRateLimitedAt(*account.RateLimitedAt)
+		} else {
+			builder.ClearRateLimitedAt()
+		}
+		if account.RateLimitResetAt != nil {
+			builder.SetRateLimitResetAt(*account.RateLimitResetAt)
+		} else {
+			builder.ClearRateLimitResetAt()
+		}
 	}
 	if account.OverloadUntil != nil {
 		builder.SetOverloadUntil(*account.OverloadUntil)
@@ -740,7 +742,8 @@ func lockAndMergeAccountProbeExtra(
 			extra -> 'opencode_go_usage_snapshot',
 			extra -> 'quality_model_isolation',
 			extra -> 'upstream_model_sync',
-			extra -> 'upstream_billing_provider'
+			extra -> 'upstream_billing_provider',
+			extra -> 'grok_rate_limit_history'
 		FROM accounts
 		WHERE id = $1 AND deleted_at IS NULL
 		FOR NO KEY UPDATE
@@ -772,6 +775,7 @@ func lockAndMergeAccountProbeExtra(
 		currentQualityIsolation        []byte
 		currentUpstreamModelSync       []byte
 		currentBillingProvider         []byte
+		currentGrokHistory             []byte
 	)
 	if err := rows.Scan(
 		&identityUnchanged,
@@ -789,6 +793,7 @@ func lockAndMergeAccountProbeExtra(
 		&currentQualityIsolation,
 		&currentUpstreamModelSync,
 		&currentBillingProvider,
+		&currentGrokHistory,
 	); err != nil {
 		return nil, err
 	}
@@ -799,14 +804,15 @@ func lockAndMergeAccountProbeExtra(
 		return nil, err
 	}
 	validNewAPIBinding := false
+	var applyNewAPIUSD, syncNewAPICost []byte
 	if string(currentBillingProvider) == `"new_api"` {
 		var fingerprint string
-		bindingRows, err := client.QueryContext(ctx, `SELECT account_fingerprint FROM new_api_account_bindings WHERE account_id=$1`, account.ID)
+		bindingRows, err := client.QueryContext(ctx, `SELECT b.account_fingerprint, a.extra->'new_api_apply_usd_rate', a.extra->'new_api_cost_sync' FROM new_api_account_bindings b JOIN accounts a ON a.id=b.account_id WHERE b.account_id=$1`, account.ID)
 		if err != nil {
 			return nil, err
 		}
 		if bindingRows.Next() {
-			err = bindingRows.Scan(&fingerprint)
+			err = bindingRows.Scan(&fingerprint, &applyNewAPIUSD, &syncNewAPICost)
 		}
 		if err == nil {
 			err = bindingRows.Err()
@@ -827,9 +833,26 @@ func lockAndMergeAccountProbeExtra(
 	}
 
 	extra := copyJSONMap(normalizeJSONMap(stripQualityIsolationFromExtra(account.Extra)))
+	delete(extra, service.GrokRateLimitHistoryExtraKey)
+	if account.IsGrokOAuth() {
+		if state, present, err := decodeAccountExtraJSON(currentGrokHistory); err != nil {
+			return nil, err
+		} else if present {
+			extra[service.GrokRateLimitHistoryExtraKey] = state
+		}
+	}
 	delete(extra, service.UpstreamBillingProviderExtraKey)
+	delete(extra, service.NewAPIApplyUSDRateExtraKey)
+	delete(extra, service.NewAPICostSyncExtraKey)
 	if validNewAPIBinding {
 		extra[service.UpstreamBillingProviderExtraKey] = "new_api"
+		for key, raw := range map[string][]byte{service.NewAPIApplyUSDRateExtraKey: applyNewAPIUSD, service.NewAPICostSyncExtraKey: syncNewAPICost} {
+			if value, present, err := decodeAccountExtraJSON(raw); err != nil {
+				return nil, err
+			} else if present {
+				extra[key] = value
+			}
+		}
 	}
 	delete(extra, service.UpstreamModelSyncExtraKey)
 	if state, present, err := decodeAccountExtraJSON(currentUpstreamModelSync); err != nil {
@@ -2623,18 +2646,41 @@ func (r *accountRepository) SetRateLimited(ctx context.Context, id int64, resetA
 // requests may finish concurrently, so an older response must not overwrite a
 // later reset boundary observed by another request or instance.
 func (r *accountRepository) SetRateLimitedIfLater(ctx context.Context, id int64, resetAt time.Time) error {
+	if scoped := r.accountTransactionScope(ctx); scoped != r {
+		return scoped.SetRateLimitedIfLater(ctx, id, resetAt)
+	}
 	now := time.Now()
-	updated, err := r.client.Account.Update().
-		Where(
-			dbaccount.IDEQ(id),
-			dbaccount.Or(
-				dbaccount.RateLimitResetAtIsNil(),
-				dbaccount.RateLimitResetAtLT(resetAt),
-			),
-		).
-		SetRateLimitedAt(now).
-		SetRateLimitResetAt(resetAt).
-		Save(ctx)
+	// One row update serializes observations across replicas. Using only a Go
+	// clock could repeat a timestamp; advance at least one PostgreSQL microsecond
+	// beyond the locked generation so a deferred positive can never match it.
+	// Keep adaptive cooldown duration separate from the recovery generation.
+	// Lock before deriving either value, and bind history to the exact new pair
+	// so an external clear/re-arm cannot inherit another cooldown's evidence.
+	result, err := r.client.ExecContext(ctx, `WITH observed AS MATERIALIZED (
+ SELECT id,platform,type,rate_limited_at,rate_limit_reset_at,extra FROM accounts
+ WHERE id=$1 AND deleted_at IS NULL AND
+ (rate_limit_reset_at IS NULL OR rate_limit_reset_at<$2 OR (platform='grok' AND type='oauth')) FOR UPDATE
+ ), next AS MATERIALIZED (
+ SELECT *,CASE WHEN platform='grok' AND type='oauth'
+ THEN GREATEST(clock_timestamp(),rate_limited_at+interval '1 microsecond') ELSE $3 END AS generation,
+ GREATEST(rate_limit_reset_at,$2::timestamptz) AS boundary FROM observed
+ ) UPDATE accounts a SET rate_limited_at=n.generation,rate_limit_reset_at=n.boundary,updated_at=$3,
+ extra=CASE WHEN n.platform='grok' AND n.type='oauth' THEN
+ jsonb_set(COALESCE(n.extra,'{}'::jsonb),ARRAY[$4]::text[],jsonb_build_object(
+ 'generation_us',((extract(epoch FROM n.generation)*1000000)::bigint)::text,
+ 'reset_us',((extract(epoch FROM n.boundary)*1000000)::bigint)::text,
+ 'cooldown_us',CASE WHEN n.rate_limited_at IS NOT NULL AND n.rate_limit_reset_at>=$2 THEN
+ CASE WHEN n.extra->$4->>'generation_us'=((extract(epoch FROM n.rate_limited_at)*1000000)::bigint)::text
+ AND n.extra->$4->>'reset_us'=((extract(epoch FROM n.rate_limit_reset_at)*1000000)::bigint)::text
+ AND n.extra->$4->>'cooldown_us' ~ '^[1-9][0-9]{0,15}$'
+ THEN n.extra->$4->>'cooldown_us'
+ ELSE ((extract(epoch FROM (n.rate_limit_reset_at-n.rate_limited_at))*1000000)::bigint)::text END
+ ELSE ((extract(epoch FROM (n.boundary-n.generation))*1000000)::bigint)::text END),true)
+ ELSE n.extra END FROM next n WHERE a.id=n.id`, id, resetAt, now, service.GrokRateLimitHistoryExtraKey)
+	if err != nil {
+		return err
+	}
+	updated, err := result.RowsAffected()
 	if err != nil {
 		return err
 	}

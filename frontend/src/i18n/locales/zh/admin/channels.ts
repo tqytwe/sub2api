@@ -166,6 +166,7 @@ export default {
         cacheWrite5mPriceShort: '缓存写 5m',
         cacheWrite1hPriceShort: '缓存写 1h',
         cacheReadPriceShort: '缓存读',
+        imageMinimumCharge: '每张图片最低收费（USD）',
         imageInputPrice: '图片输入',
         imageTokenPrice: '图片输出',
         imageOutputPrice: '图片输出价格',

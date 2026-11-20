@@ -399,7 +399,6 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 			}
 		}
 	}
-	applyImageStudioBillingActualCostCap(ctx, cost)
 
 	// Free Fast changes only the customer charge. Keep priority TotalCost and
 	// service_tier for upstream accounting, but evaluate ActualCost once more at
@@ -436,6 +435,13 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 			cost.ActualCost = standardCost.ActualCost
 		}
 	}
+	var minimumCharge, minimumAdjustment float64
+	if floor := imageMinimumCharge(apiKey.Group, billingModels...); floor != nil && frozen == nil {
+		minimumCharge, minimumAdjustment = applyImageMinimumCharge(cost, result.ImageCount, *floor)
+	}
+	beforeCap := cost.ActualCost
+	applyImageStudioBillingActualCostCap(ctx, cost)
+	minimumAdjustment = math.Max(0, minimumAdjustment-math.Max(0, beforeCap-cost.ActualCost))
 	// Determine billing type
 	isSubscriptionBilling := subscription != nil && apiKey.Group != nil && apiKey.Group.IsSubscriptionType()
 	billingType := BillingTypeBalance
@@ -512,7 +518,7 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 		if result.MiniMaxH3BaseCost != nil {
 			usageLog.VideoResolution = optionalTrimmedStringPtr(result.VideoResolution)
 		}
-		videoDurationSeconds := NormalizeVideoBillingDurationSecondsOrDefault(result.VideoDurationSeconds)
+		videoDurationSeconds := result.VideoBillingDuration()
 		usageLog.VideoDurationSeconds = &videoDurationSeconds
 	}
 	if cost != nil {
@@ -675,6 +681,13 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	}
 	writeUsageLogBestEffort(ctx, s.usageLogRepo, usageLog, "service.openai_gateway")
 	RecordImageStudioManagedBillingCost(ctx, cost.ActualCost)
+	if receipt, ok := ctx.Value(imageBillingReceiptKey{}).(*ImageBillingReceipt); ok && receipt != nil && usageLog.BillingSettled && result.ImageCount > 0 {
+		*receipt = ImageBillingReceipt{
+			Settled: true, ActualCost: QuantizeUsageBillingAmount(surcharge.BilledCost),
+			BillingMode: cost.BillingMode, ImageCount: result.ImageCount,
+			MinimumCharge: minimumCharge, MinimumChargeAdjustment: minimumAdjustment,
+		}
+	}
 
 	return nil
 }
@@ -1127,7 +1140,7 @@ func (s *OpenAIGatewayService) calculateOpenAIVideoCost(
 		videoCount = 1
 	}
 	resolution := NormalizeVideoBillingResolutionOrDefault(result.VideoResolution)
-	durationSeconds := NormalizeVideoBillingDurationSecondsOrDefault(result.VideoDurationSeconds)
+	durationSeconds := result.VideoBillingDuration()
 	if resolved := s.resolveOpenAIChannelPricing(ctx, billingModel, apiKey); resolved != nil && resolved.Mode == BillingModeVideo {
 		// A channel video price is explicitly a per-second price. Keep this
 		// ahead of legacy group/default cards so the administrator's configured
@@ -1153,13 +1166,13 @@ func (s *OpenAIGatewayService) calculateOpenAIVideoCost(
 	}
 	groupConfig := videoPriceConfigFromAPIKey(apiKey)
 	if apiKeyHasConfiguredVideoPrice(apiKey, billingModel, resolution) {
-		return s.billingService.CalculateVideoCost(billingModel, resolution, videoCount, durationSeconds, groupConfig, multiplier)
+		return s.billingService.calculateVideoCost(billingModel, resolution, videoCount, durationSeconds, groupConfig, multiplier)
 	}
 	if refreshed := s.apiKeyWithFreshGroupMediaPricing(ctx, apiKey); refreshed != apiKey {
 		apiKey = refreshed
 		groupConfig = videoPriceConfigFromAPIKey(apiKey)
 		if apiKeyHasConfiguredVideoPrice(apiKey, billingModel, resolution) {
-			return s.billingService.CalculateVideoCost(billingModel, resolution, videoCount, durationSeconds, groupConfig, multiplier)
+			return s.billingService.calculateVideoCost(billingModel, resolution, videoCount, durationSeconds, groupConfig, multiplier)
 		}
 	}
 	if resolved := s.resolveOpenAIChannelPricing(ctx, billingModel, apiKey); resolved != nil &&
@@ -1185,7 +1198,7 @@ func (s *OpenAIGatewayService) calculateOpenAIVideoCost(
 		logger.LegacyPrintf("service.openai_gateway", "Calculate video channel cost failed: %v", err)
 	}
 
-	return s.billingService.CalculateVideoCost(billingModel, resolution, videoCount, durationSeconds, groupConfig, multiplier)
+	return s.billingService.calculateVideoCost(billingModel, resolution, videoCount, durationSeconds, groupConfig, multiplier)
 }
 
 func (s *OpenAIGatewayService) apiKeyWithFreshGroupMediaPricing(ctx context.Context, apiKey *APIKey) *APIKey {

@@ -53,7 +53,12 @@ describe('account page New API configuration', () => {
     expect(wrapper.get<HTMLInputElement>('[data-testid="new-api-user-id"]').element.value).toBe('42')
     await wrapper.get('[data-testid="new-api-save"]').trigger('click')
     await flushPromises()
-    expect(saveConfig).toHaveBeenCalledWith(7, { user_id: 42, account_ids: [7] })
+    expect(saveConfig).toHaveBeenCalledWith(7, {
+      user_id: 42,
+      account_ids: [7],
+      apply_usd_rate: { '7': false },
+      sync_cost: { '7': false }
+    })
     expect(list).toHaveBeenCalledTimes(2)
     expect(wrapper.find('[data-testid="new-api-user-id"]').exists()).toBe(false)
   })

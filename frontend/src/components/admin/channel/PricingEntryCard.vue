@@ -142,6 +142,13 @@
               <input :value="entry.image_output_price" @input="emitField('image_output_price', ($event.target as HTMLInputElement).value)"
                 type="number" step="any" min="0" class="input mt-0.5 text-sm" :placeholder="t('admin.channels.form.pricePlaceholder')" />
             </div>
+            <div v-if="allowImageMinimumCharge && platform === 'openai'">
+              <label class="block text-xs text-gray-400">
+                {{ t('admin.channels.form.imageMinimumCharge') }}
+                <input :value="entry.image_minimum_charge" @input="emitField('image_minimum_charge', ($event.target as HTMLInputElement).value)"
+                  type="number" min="0" max="1000" step="0.00000001" class="input mt-0.5 text-sm" />
+              </label>
+            </div>
           </div>
 
           <div v-if="enableTierMultipliers" class="mt-3 grid max-w-md grid-cols-1 gap-2 sm:grid-cols-2">
@@ -318,6 +325,7 @@ const props = withDefaults(defineProps<{
   entry: PricingFormEntry
   platform?: string
   hideTokenIntervals?: boolean
+  allowImageMinimumCharge?: boolean
   enableTimePricing?: boolean
   enableTierMultipliers?: boolean
 }>(), {

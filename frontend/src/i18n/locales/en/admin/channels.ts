@@ -166,6 +166,7 @@ export default {
         cacheWrite5mPriceShort: 'Cache W 5m',
         cacheWrite1hPriceShort: 'Cache W 1h',
         cacheReadPriceShort: 'Cache R',
+        imageMinimumCharge: 'Minimum charge per image (USD)',
         imageInputPrice: 'Image Input',
         imageTokenPrice: 'Image Output',
         imageOutputPrice: 'Image Output Price',

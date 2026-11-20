@@ -122,6 +122,23 @@ func (h *AccountOpsHandler) SaveGroups(c *gin.Context) {
 	h.scopedResult(c, cfg, err)
 }
 
+func (h *AccountOpsHandler) SetBalanceLowNotification(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	var request struct {
+		Enabled *bool `json:"enabled"`
+	}
+	if err != nil || id <= 0 || c.ShouldBindJSON(&request) != nil || request.Enabled == nil {
+		response.BadRequest(c, "Invalid balance notification request")
+		return
+	}
+	cfg, err := h.svc.SetBalanceLowNotification(c.Request.Context(), id, *request.Enabled)
+	if errors.Is(err, service.ErrAccountNotFound) {
+		response.NotFound(c, "Account not found")
+		return
+	}
+	h.scopedResult(c, cfg, err)
+}
+
 func (h *AccountOpsHandler) scopedResult(c *gin.Context, cfg service.AccountOpsConfig, err error) {
 	if err != nil {
 		if errors.Is(err, service.ErrAccountOpsConfigValidation) {

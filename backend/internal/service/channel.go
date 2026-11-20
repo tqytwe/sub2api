@@ -103,6 +103,7 @@ type ChannelModelPricing struct {
 	ReasoningEffortMultipliers map[string]float64  `json:"reasoning_effort_multipliers,omitempty"`
 	ImageInputPrice            *float64            `json:"image_input_price"`
 	ImageOutputPrice           *float64            `json:"image_output_price"`
+	ImageMinimumCharge         *float64            `json:"image_minimum_charge,omitempty"`
 	PerRequestPrice            *float64            `json:"per_request_price"`
 	Intervals                  []PricingInterval   `json:"intervals"`
 	TimePricing                *ChannelTimePricing `json:"time_pricing,omitempty"`

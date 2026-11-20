@@ -33,6 +33,7 @@ export interface PricingFormEntry {
   reasoning_effort_multipliers?: Record<string, number | string> | null
   image_input_price: number | string | null
   image_output_price: number | string | null
+  image_minimum_charge?: number | string | null
   per_request_price: number | string | null
   intervals: IntervalFormEntry[]
   time_pricing: TimePricingFormEntry

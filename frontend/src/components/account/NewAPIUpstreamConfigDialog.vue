@@ -26,16 +26,28 @@
               <legend class="px-1 text-sm font-medium text-gray-700 dark:text-gray-200">{{ t('admin.accounts.upstreamBilling.newAPI.applyToPeers') }}</legend>
               <label v-for="candidate in config.accounts" :key="candidate.account_id" class="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-200">
                 <input v-model="accountIds" :value="candidate.account_id" type="checkbox" :disabled="candidate.account_id === account?.id" class="mt-0.5 h-4 w-4 rounded border-gray-300" :data-testid="`new-api-account-${candidate.account_id}`" />
-                <span class="min-w-0 break-words">{{ candidate.name }}
+                <span class="min-w-0 flex-1 break-words">
+                  {{ candidate.name }}
                   <span v-if="candidate.account_id === account?.id" class="text-xs text-gray-500 dark:text-gray-400"> · {{ t('admin.accounts.upstreamBilling.newAPI.currentAccount') }}</span>
                   <span v-if="candidate.configured_user_id != null" class="text-xs text-gray-500 dark:text-gray-400"> · {{ t('admin.accounts.upstreamBilling.newAPI.boundUser', { id: candidate.configured_user_id }) }}</span>
+                  <span class="mt-2 flex flex-wrap gap-x-4 gap-y-2">
+                    <label class="inline-flex items-center gap-2 text-xs">
+                      <input v-model="applyUSDRate[candidate.account_id]" type="checkbox" class="h-4 w-4 rounded border-gray-300" :data-testid="`new-api-usd-rate-${candidate.account_id}`" />
+                      {{ candidate.cn_provider ? t('admin.accounts.upstreamBilling.newAPI.cnCost') : t('admin.accounts.upstreamBilling.newAPI.usdConversion') }}
+                    </label>
+                    <label class="inline-flex items-center gap-2 text-xs">
+                      <input v-model="syncCost[candidate.account_id]" type="checkbox" class="h-4 w-4 rounded border-gray-300" :data-testid="`new-api-sync-cost-${candidate.account_id}`" />
+                      {{ t('admin.accounts.upstreamBilling.newAPI.syncCost') }}
+                    </label>
+                  </span>
+                  <span class="block mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t('admin.accounts.upstreamBilling.newAPI.costScale', { value: candidate.cost_multiplier_scale }) }}</span>
                 </span>
               </label>
             </fieldset>
           </fieldset>
         </form>
         <div v-if="result" class="space-y-3 rounded-lg bg-gray-50 p-4 dark:bg-dark-800" aria-live="polite">
-          <p class="text-sm font-medium text-gray-800 dark:text-gray-100" data-testid="new-api-wallet">{{ t('admin.accounts.upstreamBilling.newAPI.wallet', { amount: formatWallet(result.wallet.amount) }) }}</p>
+          <p class="break-words text-sm font-medium tabular-nums text-gray-800 dark:text-gray-100" data-testid="new-api-wallet">{{ t('admin.accounts.upstreamBilling.newAPI.wallet', { amount: formatWallet(result.wallet.amount, result.wallet.unit) }) }}</p>
           <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('admin.accounts.upstreamBilling.newAPI.groupRatioHint') }}</p>
           <div v-for="row in result.accounts" :key="row.account_id" class="space-y-2 border-t border-gray-200 pt-3 text-sm dark:border-dark-600" :data-testid="`new-api-result-${row.account_id}`">
             <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -92,6 +104,8 @@ const error = ref('')
 const userId = ref<string | number>('')
 const accessToken = ref('')
 const accountIds = ref<number[]>([])
+const applyUSDRate = ref<Record<number, boolean>>({})
+const syncCost = ref<Record<number, boolean>>({})
 const tokenSelections = ref<Record<string, number | undefined>>({})
 const result = ref<NewAPIUpstreamPreview | null>(null)
 const confirmRemove = ref(false)
@@ -111,7 +125,7 @@ const defaults = () => {
 const invalidatePreview = () => { result.value = null; tokenSelections.value = {}; error.value = '' }
 watch(userId, () => { accessToken.value = ''; invalidatePreview(); accountIds.value = defaults() }, { flush: 'sync' })
 watch(accessToken, invalidatePreview, { flush: 'sync' })
-watch(accountIds, invalidatePreview, { deep: true, flush: 'sync' })
+watch([accountIds, applyUSDRate, syncCost], invalidatePreview, { deep: true, flush: 'sync' })
 
 const close = () => {
   session++
@@ -127,6 +141,8 @@ watch(() => [props.show, props.account?.id] as const, async ([show, id]) => {
   config.value = null
   userId.value = ''
   accountIds.value = []
+  applyUSDRate.value = {}
+  syncCost.value = {}
   result.value = null
   tokenSelections.value = {}
   error.value = ''
@@ -140,6 +156,8 @@ watch(() => [props.show, props.account?.id] as const, async ([show, id]) => {
     config.value = loaded
     userId.value = loaded.user_id ?? ''
     accountIds.value = defaults()
+    applyUSDRate.value = Object.fromEntries(loaded.accounts.map(candidate => [candidate.account_id, candidate.apply_usd_rate]))
+    syncCost.value = Object.fromEntries(loaded.accounts.map(candidate => [candidate.account_id, candidate.sync_cost]))
     if (!loaded.encryption_key_configured) error.value = t('admin.accounts.upstreamBilling.newAPI.encryptionRequired')
   } catch (cause) {
     if (session === currentSession) error.value = errorMessage(cause, t('admin.accounts.upstreamBilling.newAPI.loadFailed'))
@@ -161,7 +179,15 @@ const buildRequest = (): NewAPIUpstreamConfigRequest | null => {
     return null
   }
   const selected = Object.fromEntries(Object.entries(tokenSelections.value).filter((entry): entry is [string, number] => typeof entry[1] === 'number' && Number.isSafeInteger(entry[1]) && entry[1] > 0))
-  return { user_id: id, ...(token ? { access_token: token } : {}), account_ids: [...new Set([props.account!.id, ...accountIds.value])], ...(Object.keys(selected).length ? { token_selections: selected } : {}) }
+  const account_ids = [...new Set([props.account!.id, ...accountIds.value])]
+  return {
+    user_id: id,
+    ...(token ? { access_token: token } : {}),
+    account_ids,
+    ...(Object.keys(selected).length ? { token_selections: selected } : {}),
+    apply_usd_rate: Object.fromEntries(account_ids.map(accountId => [String(accountId), !!applyUSDRate.value[accountId]])),
+    sync_cost: Object.fromEntries(account_ids.map(accountId => [String(accountId), !!syncCost.value[accountId]]))
+  }
 }
 const verify = async (save: boolean) => {
   if (!canVerify.value || !props.account) return
@@ -208,7 +234,10 @@ const remove = async () => {
   }
 }
 const isFixedRate = (value?: number) => typeof value === 'number' && Number.isFinite(value) && value >= 0
-const formatWallet = (amount: number) => Number.isFinite(amount) ? `$${amount.toFixed(2)} USD` : '-'
+const formatWallet = (amount: number, unit = 'USD') => {
+  if (!Number.isFinite(amount)) return '-'
+  return unit === 'USD' ? `$${amount.toFixed(2)} USD` : `${amount.toFixed(2)} ${unit}`
+}
 const rowError = (value: string) => {
   switch (value) {
     case 'ambiguous_token':

@@ -1237,7 +1237,7 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesAPIKey(
 			upstreamModel,
 		)
 		if err != nil {
-			if nonStreamCount > 0 {
+			if nonStreamCount > 0 || requiresObservedOpenAIImages(c, requestModel, upstreamModel) {
 				return &OpenAIForwardResult{
 					RequestID:        resp.Header.Get("x-request-id"),
 					Usage:            nonStreamUsage,

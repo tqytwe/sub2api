@@ -14,17 +14,17 @@ const account = { id: 7, name: 'current' } as Account
 const config: NewAPIUpstreamConfig = {
   account_id: 7, site_url: 'https://upstream.example/tenant', configured: true, user_id: 42,
   encryption_key_configured: true, accounts: [
-    { account_id: 7, name: 'current', configured_user_id: 42 },
-    { account_id: 8, name: 'same user', configured_user_id: 42 },
-    { account_id: 9, name: 'other user', configured_user_id: 55 },
-    { account_id: 10, name: 'unconfigured' }
+    { account_id: 7, name: 'current', configured_user_id: 42, cost_multiplier_scale: 7, cn_provider: false, apply_usd_rate: true, sync_cost: false },
+    { account_id: 8, name: 'same user', configured_user_id: 42, cost_multiplier_scale: 1, cn_provider: true, apply_usd_rate: true, sync_cost: false },
+    { account_id: 9, name: 'other user', configured_user_id: 55, cost_multiplier_scale: 7, cn_provider: false, apply_usd_rate: true, sync_cost: false },
+    { account_id: 10, name: 'unconfigured', cost_multiplier_scale: 7, cn_provider: false, apply_usd_rate: true, sync_cost: false }
   ]
 }
 const preview: NewAPIUpstreamPreview = {
   site_url: config.site_url, user_id: 42, wallet: { amount: 12.34, unit: 'USD' },
   accounts: [
-    { account_id: 7, name: 'current', matched: true, token_id: 101, group: 'auto', rate: 0.5, token_options: [] },
-    { account_id: 8, name: 'same user', matched: false, error: 'ambiguous_token', token_options: [
+    { account_id: 7, name: 'current', matched: true, token_id: 101, group: 'auto', rate: 0.5, cost_multiplier_scale: 7, cn_provider: false, apply_usd_rate: true, sync_cost: false, token_options: [] },
+    { account_id: 8, name: 'same user', matched: false, error: 'ambiguous_token', cost_multiplier_scale: 1, cn_provider: true, apply_usd_rate: true, sync_cost: false, token_options: [
       { token_id: 102, name: 'candidate one', group: 'default', masked_key: 'ab***yz' },
       { token_id: 103, name: 'candidate two', group: 'premium', masked_key: 'ab***yz' }
     ] }
@@ -49,6 +49,16 @@ beforeEach(() => {
 afterEach(() => { wrappers.forEach(wrapper => wrapper.unmount()); wrappers = [] })
 
 describe('New API shared authorization dialog', () => {
+  it.each([['CNY', 90.082, '90.08 CNY'], ['EUR', 11.106, '11.11 EUR'], ['USD', 12.34, '$12.34 USD']])(
+    'labels the verified wallet with its %s unit', async (unit, amount, display) => {
+      api.preview.mockResolvedValue({ ...preview, wallet: { unit, amount } })
+      const wrapper = await open()
+      await wrapper.get('[data-testid="new-api-preview"]').trigger('click')
+      await flushPromises()
+      expect(wrapper.get('[data-testid="new-api-wallet"]').text()).toContain(display)
+    }
+  )
+
   it('loads full same-site candidates without reading a secret or selecting another user', async () => {
     const wrapper = await open()
     expect(wrapper.text()).toContain(config.site_url)
@@ -60,8 +70,13 @@ describe('New API shared authorization dialog', () => {
     expect(checkbox(wrapper, 9).element.checked).toBe(false)
     expect(checkbox(wrapper, 10).element.checked).toBe(false)
     await checkbox(wrapper, 10).setValue(true)
+    await wrapper.get('[data-testid="new-api-sync-cost-10"]').setValue(true)
     await wrapper.get('[data-testid="new-api-preview"]').trigger('click')
-    expect(api.preview).toHaveBeenCalledWith(7, { user_id: 42, account_ids: [7, 8, 10] })
+    expect(api.preview).toHaveBeenCalledWith(7, {
+      user_id: 42, account_ids: [7, 8, 10],
+      apply_usd_rate: { '7': true, '8': true, '10': true },
+      sync_cost: { '7': false, '8': false, '10': true }
+    })
   })
 
   it('requires a non-whitespace access token for a new upstream user', async () => {
@@ -87,7 +102,10 @@ describe('New API shared authorization dialog', () => {
     await select.setValue('103')
     await wrapper.get('[data-testid="new-api-save"]').trigger('click')
     await flushPromises()
-    expect(api.save).toHaveBeenCalledWith(7, { user_id: 42, account_ids: [7, 8], token_selections: { '8': 103 } })
+    expect(api.save).toHaveBeenCalledWith(7, {
+      user_id: 42, account_ids: [7, 8], token_selections: { '8': 103 },
+      apply_usd_rate: { '7': true, '8': true }, sync_cost: { '7': false, '8': false }
+    })
     expect(wrapper.emitted('saved')).toHaveLength(1)
     expect(wrapper.emitted('close')).toHaveLength(1)
   })
@@ -111,7 +129,10 @@ describe('New API shared authorization dialog', () => {
     await wrapper.get('[data-testid="new-api-access-token"]').setValue(' replacement ')
     await wrapper.get('[data-testid="new-api-save"]').trigger('click')
     await flushPromises()
-    expect(api.save).toHaveBeenCalledWith(7, { user_id: 42, access_token: 'replacement', account_ids: [7, 8] })
+    expect(api.save).toHaveBeenCalledWith(7, {
+      user_id: 42, access_token: 'replacement', account_ids: [7, 8],
+      apply_usd_rate: { '7': true, '8': true }, sync_cost: { '7': false, '8': false }
+    })
     expect(wrapper.get<HTMLInputElement>('[data-testid="new-api-access-token"]').element.value).toBe('')
     await wrapper.get('[data-testid="new-api-access-token"]').setValue('temporary')
     await wrapper.get('[data-testid="new-api-close"]').trigger('click')

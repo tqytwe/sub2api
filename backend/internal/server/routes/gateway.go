@@ -193,12 +193,27 @@ func RegisterGatewayRoutes(
 	}
 	videoCreateHandler := func(c *gin.Context) {
 		if getGroupPlatform(c) == service.PlatformOpenAI {
+			if h.OpenAIGateway.TryOpenAIVideoGeneration(c) {
+				return
+			}
 			h.OpenAIGateway.AgnesVideoCreate(c)
 			return
 		}
 		videoGenerationHandler(c)
 	}
+	openAIVideoLookup := func(c *gin.Context, suffix string) bool {
+		platform := getGroupPlatform(c)
+		if (platform != service.PlatformOpenAI && platform != service.PlatformComposite) ||
+			!strings.HasSuffix(c.FullPath(), suffix) || !service.IsOpenAIVideoTaskID(c.Param("request_id")) {
+			return false
+		}
+		h.OpenAIGateway.OpenAIVideoLookup(c)
+		return true
+	}
 	videoStatusHandler := func(c *gin.Context) {
+		if openAIVideoLookup(c, "/videos/:request_id") {
+			return
+		}
 		if isMiniMaxVideoGroup(c) {
 			h.OpenAIGateway.MiniMaxH3Videos(c)
 			return
@@ -223,6 +238,9 @@ func RegisterGatewayRoutes(
 		})
 	}
 	videoContentHandler := func(c *gin.Context) {
+		if openAIVideoLookup(c, "/videos/:request_id/content") {
+			return
+		}
 		if isMiniMaxVideoGroup(c) {
 			h.OpenAIGateway.MiniMaxH3Videos(c)
 			return
