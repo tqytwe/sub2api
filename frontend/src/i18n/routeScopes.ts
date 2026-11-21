@@ -104,6 +104,7 @@ export type LocaleRouteName =
   | 'AdminUsers'
   | 'AdminGroups'
   | 'AdminChannels'
+  | 'AdminMatureProviders'
   | 'AdminChannelOperations'
   | 'AdminPriorityScheduling'
   | 'AdminAccountQuality'
@@ -228,6 +229,7 @@ export const ROUTE_LOCALE_SCOPES = {
   // Groups reuse account status labels in their filters and tables.
   AdminGroups: [...ADMIN, 'admin-resources', 'admin-accounts', 'admin-channels'],
   AdminChannels: [...ADMIN, 'admin-channels'],
+  AdminMatureProviders: [...ADMIN, 'admin-channels', 'admin-account-ops'],
   AdminChannelOperations: [...ADMIN, 'admin-channels'],
   AdminPriorityScheduling: [...ADMIN, 'admin-resources'],
   AdminAccountQuality: [...ADMIN, 'admin-resources', 'admin-accounts'],
