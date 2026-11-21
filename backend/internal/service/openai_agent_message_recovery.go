@@ -49,6 +49,7 @@ type openAIAgentRecoveryRequest struct {
 	disableOwnerBinding bool
 	previousResponseID  string
 	inputDigest         [32]byte
+	replayControls      [6][32]byte
 	keyID               int64
 	userID              int64
 	delivery            *openAIAgentRecoveryDelivery
@@ -365,6 +366,21 @@ func (s *OpenAIGatewayService) prepareOpenAIAgentRecoveryAttempt(ctx context.Con
 			logger.FromContext(ctx).Warn("openai.encrypted_history_409_refused", zap.String("stage", "input_integrity"))
 		}
 		return noop, openAIAgentRecoveryError("wire_changed")
+	}
+	if request.omittedHistory {
+		actual := openAI409FingerprintControls(body)
+		expected := request.replayControls
+		if actual != expected {
+			logger.FromContext(ctx).Warn("openai.encrypted_history_409_refused",
+				zap.String("stage", "controls_integrity"),
+				zap.Bool("tools_changed", actual[0] != expected[0]),
+				zap.Bool("tool_choice_changed", actual[1] != expected[1]),
+				zap.Bool("parallel_tool_calls_changed", actual[2] != expected[2]),
+				zap.Bool("instructions_changed", actual[3] != expected[3]),
+				zap.Bool("previous_response_id_changed", actual[4] != expected[4]),
+				zap.Bool("conversation_changed", actual[5] != expected[5]))
+			return noop, openAIAgentRecoveryError("wire_changed")
+		}
 	}
 	if request.previousResponseID != "" && gjson.GetBytes(body, "previous_response_id").String() != request.previousResponseID {
 		return noop, openAIAgentRecoveryError("owner_unavailable")

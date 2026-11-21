@@ -3280,3 +3280,41 @@ func TestOpenAIGatewayServiceForwardImages_OAuthStreamingDrainsAfterClientDiscon
 	require.Equal(t, 9, result.Usage.OutputTokens)
 	require.Equal(t, 4, result.Usage.ImageOutputTokens)
 }
+
+func TestOpenAIGatewayServiceForwardImages_EmptyDataRequiresObservedBillingCount(t *testing.T) {
+	for _, policy := range []string{"legacy", "receipt", "minimum", "per-image"} {
+		t.Run(policy, func(t *testing.T) {
+			body := []byte(`{"model":"gpt-image-2","prompt":"draw a cat","response_format":"b64_json"}`)
+			c, _ := gin.CreateTestContext(httptest.NewRecorder())
+			c.Request = httptest.NewRequest(http.MethodPost, "/v1/images/generations", bytes.NewReader(body))
+			c.Request.Header.Set("Content-Type", "application/json")
+			want := 0
+			switch policy {
+			case "legacy":
+				want = 1
+			case "receipt":
+				c.Request.Header.Set("X-Image-Usage", "billing")
+			case "minimum", "per-image":
+				floor := 0.02
+				price := ChannelModelPricing{Models: []string{"gpt-image-2"}, BillingMode: BillingModeToken, ImageMinimumCharge: &floor}
+				if policy == "per-image" {
+					price.BillingMode, price.ImageMinimumCharge = BillingModeImage, nil
+				}
+				c.Set("api_key", &APIKey{Group: &Group{ModelPricing: []ChannelModelPricing{price}}})
+			}
+			svc := &OpenAIGatewayService{cfg: &config.Config{}, httpUpstream: &httpUpstreamRecorder{resp: &http.Response{
+				StatusCode: http.StatusOK,
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+				Body:       io.NopCloser(strings.NewReader(`{"created":1710000007,"data":[]}`)),
+			}}}
+			parsed, err := svc.ParseOpenAIImagesRequest(c, body)
+			require.NoError(t, err)
+			account := &Account{ID: 6, Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Credentials: map[string]any{
+				"api_key": "fixture-key", "base_url": "https://image-upstream.example/v1",
+			}}
+			result, err := svc.ForwardImages(context.Background(), c, account, body, parsed, "")
+			require.NoError(t, err)
+			require.Equal(t, want, result.ImageCount)
+		})
+	}
+}

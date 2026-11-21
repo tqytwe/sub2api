@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"strings"
@@ -62,6 +63,7 @@ func (s *OpenAIGatewayService) TryOmitOpenAI409History(ctx context.Context, c *g
 	// native HTTP delivery fence and no-replay gates. Old owner records stay put.
 	request.omittedHistory = true
 	request.inputDigest = openAIAgentRecoveryInputDigest(clean)
+	request.replayControls = openAI409FingerprintControls(clean)
 	return next, clean, true
 }
 
@@ -228,4 +230,26 @@ func normalizeOpenAI409ReplayMetadata(raw []byte) ([]byte, error) {
 		return nil, err
 	}
 	return sjson.SetRawBytes(clean, "input", encoded)
+}
+
+// Only equality outcomes leave this check. Values and digests are never logged.
+func openAI409FingerprintControls(body []byte) [6][32]byte {
+	var fingerprints [6][32]byte
+	for i, field := range [...]string{"tools", "tool_choice", "parallel_tool_calls", "instructions", "previous_response_id", "conversation"} {
+		value := gjson.GetBytes(body, field)
+		if !value.Exists() {
+			continue
+		}
+		decoder := json.NewDecoder(strings.NewReader(value.Raw))
+		decoder.UseNumber()
+		var decoded any
+		if decoder.Decode(&decoded) != nil {
+			continue
+		}
+		canonical, err := json.Marshal(decoded)
+		if err == nil {
+			fingerprints[i] = sha256.Sum256(canonical)
+		}
+	}
+	return fingerprints
 }
