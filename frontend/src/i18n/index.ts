@@ -58,7 +58,13 @@ const localeLoaders: Record<LocaleCode, Record<LocaleLoadScope, LocaleLoader>> =
       const { jisudengPagesEn } = await import('./locales/jisudeng-pages.en')
       return { default: jisudengPagesEn }
     },
-    'workspace-shell': () => import('./locales/en/workspaceShell'),
+    'workspace-shell': async () => {
+      const [shell, matureProviders] = await Promise.all([
+        import('./locales/en/workspaceShell'),
+        import('./locales/en/matureProviders'),
+      ])
+      return { default: mergeLocaleMessages(shell.default, { matureProviders: matureProviders.default }) }
+    },
     'support-tickets': () => import('./locales/en/supportTickets'),
     'admin-shell': () => import('./locales/en/adminShell'),
     'user-dashboard': async () => {
@@ -125,13 +131,14 @@ const localeLoaders: Record<LocaleCode, Record<LocaleLoadScope, LocaleLoader>> =
       return { default: mergeLocaleMessages(withShowcase, { pelicanTests: pelicanTests.default, openaiAuth: openaiAuth.default, accountPerformance: accountPerformance.default, upstreamEntities: upstreamEntities.default, profitOps: profitOps.default, modelTrace: modelTrace.default, accountTestTiming: accountTestTiming.default, autoConfig: autoConfig.default, siwc: siwc.default }) }
     },
     'admin-channels': async () => {
-      const [module, legacy, upstreamEntities, profitOps] = await Promise.all([
+      const [module, legacy, upstreamEntities, profitOps, matureProviders] = await Promise.all([
         import('./locales/en/admin/channels'),
         import('./locales/en/legacy/admin-channels'),
         import('./locales/en/upstreamEntities'),
         import('./locales/en/profitOps'),
+        import('./locales/en/matureProviders'),
       ])
-      return { default: mergeLocaleMessages(mergeLocaleMessages(legacy.default, adminMessages(module.default)), { upstreamEntities: upstreamEntities.default, profitOps: profitOps.default }) }
+      return { default: mergeLocaleMessages(mergeLocaleMessages(legacy.default, adminMessages(module.default)), { upstreamEntities: upstreamEntities.default, profitOps: profitOps.default, matureProviders: matureProviders.default, channelConfig: { costMode: 'Cost mode', estimate: 'Estimate', wallet: 'Provider wallet', costHelp: 'Estimate uses the current accounting projection; wallet uses a verified provider spend snapshot when available.' } }) }
     },
     'admin-ops': async () => {
       const [module, legacy, requestTiming, connections, latencyObservability, traffic] = await Promise.all([
@@ -208,7 +215,13 @@ const localeLoaders: Record<LocaleCode, Record<LocaleLoadScope, LocaleLoader>> =
       const { jisudengPagesZh } = await import('./locales/jisudeng-pages.zh')
       return { default: jisudengPagesZh }
     },
-    'workspace-shell': () => import('./locales/zh/workspaceShell'),
+    'workspace-shell': async () => {
+      const [shell, matureProviders] = await Promise.all([
+        import('./locales/zh/workspaceShell'),
+        import('./locales/zh/matureProviders'),
+      ])
+      return { default: mergeLocaleMessages(shell.default, { matureProviders: matureProviders.default }) }
+    },
     'support-tickets': () => import('./locales/zh/supportTickets'),
     'admin-shell': () => import('./locales/zh/adminShell'),
     'user-dashboard': async () => {
@@ -275,13 +288,14 @@ const localeLoaders: Record<LocaleCode, Record<LocaleLoadScope, LocaleLoader>> =
       return { default: mergeLocaleMessages(withShowcase, { pelicanTests: pelicanTests.default, openaiAuth: openaiAuth.default, accountPerformance: accountPerformance.default, upstreamEntities: upstreamEntities.default, profitOps: profitOps.default, modelTrace: modelTrace.default, accountTestTiming: accountTestTiming.default, autoConfig: autoConfig.default, siwc: siwc.default }) }
     },
     'admin-channels': async () => {
-      const [module, legacy, upstreamEntities, profitOps] = await Promise.all([
+      const [module, legacy, upstreamEntities, profitOps, matureProviders] = await Promise.all([
         import('./locales/zh/admin/channels'),
         import('./locales/zh/legacy/admin-channels'),
         import('./locales/zh/upstreamEntities'),
         import('./locales/zh/profitOps'),
+        import('./locales/zh/matureProviders'),
       ])
-      return { default: mergeLocaleMessages(mergeLocaleMessages(legacy.default, adminMessages(module.default)), { upstreamEntities: upstreamEntities.default, profitOps: profitOps.default }) }
+      return { default: mergeLocaleMessages(mergeLocaleMessages(legacy.default, adminMessages(module.default)), { upstreamEntities: upstreamEntities.default, profitOps: profitOps.default, matureProviders: matureProviders.default, channelConfig: { costMode: '成本模式', estimate: '估算', wallet: '服务商钱包', costHelp: '估算使用当前账务投影；钱包模式在有可验证的服务商消费快照时使用该快照。' } }) }
     },
     'admin-ops': async () => {
       const [module, legacy, requestTiming, connections, latencyObservability, traffic] = await Promise.all([

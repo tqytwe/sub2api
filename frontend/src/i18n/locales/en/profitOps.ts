@@ -83,5 +83,21 @@ export default {
   "errorRecords": "Log records",
   "queryFailed": "Query failed; retry. Failure has not been displayed as zero.",
   "queryTimeout": "This aggregation took too long to complete. Please retry later; failure has not been displayed as zero.",
-  "invalidRange": "Choose a valid half-open range of at most 32 days."
+  "invalidRange": "Choose a valid half-open range of at most 32 days.",
+  "profitChannel": "Provider profit channels",
+  "providersEmpty": "No provider profit channels are configured.",
+  "noLink": "No channel bound",
+  "providerLoadFailed": "Provider profit channels could not be loaded.",
+  "linkChannel": "Change channel",
+  "linkTitle": "Bind an analytics channel for {provider}",
+  "currentLink": "Current channel: {channel}",
+  "linkImpact": "This changes future profit attribution for this provider. Historical records keep their existing evidence.",
+  "existingId": "Analytics channel ID",
+  "checkChannel": "Verify channel",
+  "proposedLink": "Channel {id}: {name} ({code})",
+  "confirmLink": "I confirm binding {provider} to {channel}.",
+  "saveLink": "Save binding",
+  "channelNotVerified": "The channel could not be verified. Reload the channel list and try again.",
+  "linkConflict": "The provider or channel changed. Reload and retry.",
+  "linkUnconfirmed": "The write result could not be confirmed. Reload before trying again."
 }
