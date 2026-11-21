@@ -1,3 +1,5 @@
+import { DOC_TOOL_INTEGRATIONS } from './public-docs-integrations'
+
 /** Public docs category/page ids shared by localized documentation payloads. */
 export interface PublicDocPage {
   id: string
@@ -63,19 +65,7 @@ export const PUBLIC_DOC_TREE: PublicDocCategory[] = [
   {
     id: 'tools',
     categoryKey: 'tools',
-    pages: [
-      { id: 'claude-code' },
-      { id: 'codex' },
-      { id: 'gemini-cli' },
-      { id: 'cc-switch' },
-      { id: 'openclaw' },
-      { id: 'hermes' },
-      { id: 'cherry-studio' },
-      { id: 'opencode' },
-      { id: 'cline' },
-      { id: 'continue' },
-      { id: 'aider' },
-    ],
+    pages: DOC_TOOL_INTEGRATIONS.map(({ page: id }) => ({ id })),
   },
   {
     id: 'environment',

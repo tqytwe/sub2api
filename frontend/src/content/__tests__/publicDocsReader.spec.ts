@@ -83,3 +83,23 @@ describe('public document reader', () => {
     }
   })
 })
+
+describe('integration benchmark coverage', () => {
+  it('has an authored bilingual article for every topic in the reference directory', () => {
+    const referenceIds = [
+      'claude-code', 'codex', 'vscode-claude-code', 'vscode-codex', 'factory-droid-cli',
+      'codex-app', 'cursor', 'cc-switch', 'cherry-studio', 'aionui', 'dify', 'nextchat',
+      'lobechat', 'fluent-read', 'openclaw', 'langbot', 'astrbot', 'luna-translator', 'app-deployment',
+    ]
+    const ids: string[] = DOC_TOOL_INTEGRATIONS.map(({ page }) => page)
+    expect(ids).toEqual(expect.arrayContaining(referenceIds))
+    for (const docs of [PUBLIC_DOC_CONTENT_ZH, PUBLIC_DOC_CONTENT_EN]) {
+      const pages = docs.find(({ id }) => id === 'tools')?.pages ?? []
+      expect(pages.map(({ id }) => id)).toEqual(ids)
+      for (const page of pages) {
+        expect(page.html).toContain('id="verify"')
+        expect(page.html).toContain('/usage')
+      }
+    }
+  })
+})

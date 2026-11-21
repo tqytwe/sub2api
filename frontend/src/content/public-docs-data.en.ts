@@ -26,7 +26,7 @@ const CATEGORY_META: Record<string, Pick<PublicDocCategoryContent, 'title' | 'de
   },
   tools: {
     title: 'Tool integrations',
-    description: 'Terminal, editor, desktop, and agent setup guides',
+    description: 'Setup guides for coding tools, chat and translation clients, bots, and self-hosted apps.',
   },
   environment: {
     title: 'Local Environment',
