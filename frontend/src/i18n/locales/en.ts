@@ -1,5 +1,6 @@
 import autoCredit from './en/autoCredit'
 import profitOps from './en/profitOps'
+import matureProviders from './en/matureProviders'
 import upstreamEntities from './en/upstreamEntities'
 import openaiAuth from './en/openaiAuth'
 import adminAccessKeys from './en/adminAccessKeys'
@@ -39,6 +40,7 @@ const messages = {
   ...supportTickets,
   autoCredit,
   profitOps,
+  matureProviders,
   upstreamEntities,
   openaiAuth,
   adminAccessKeys,
@@ -52,6 +54,12 @@ const messages = {
   apiKeyModelPolicy,
   couponCampaign,
   affiliateOperations,
+  channelConfig: {
+    costMode: 'Cost mode',
+    estimate: 'Estimate',
+    wallet: 'Provider wallet',
+    costHelp: 'Estimate uses the current accounting projection; wallet uses a verified provider spend snapshot when available.',
+  },
   accountOps: accountOpsEn,
   tokenGuardV2: tokenGuardV2En,
   siwc: siwcEn,

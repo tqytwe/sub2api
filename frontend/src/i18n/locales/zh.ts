@@ -1,5 +1,6 @@
 import autoCredit from './zh/autoCredit'
 import profitOps from './zh/profitOps'
+import matureProviders from './zh/matureProviders'
 import upstreamEntities from './zh/upstreamEntities'
 import openaiAuth from './zh/openaiAuth'
 import adminAccessKeys from './zh/adminAccessKeys'
@@ -39,6 +40,7 @@ const messages = {
   ...supportTickets,
   autoCredit,
   profitOps,
+  matureProviders,
   upstreamEntities,
   openaiAuth,
   adminAccessKeys,
@@ -52,6 +54,12 @@ const messages = {
   apiKeyModelPolicy,
   couponCampaign,
   affiliateOperations,
+  channelConfig: {
+    costMode: '成本模式',
+    estimate: '估算',
+    wallet: '服务商钱包',
+    costHelp: '估算使用当前账务投影；钱包模式在有可验证的服务商消费快照时使用该快照。',
+  },
   accountOps: accountOpsZh,
   tokenGuardV2: tokenGuardV2Zh,
   siwc: siwcZh,

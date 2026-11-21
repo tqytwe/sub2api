@@ -1509,6 +1509,16 @@
 
       <!-- API Key input (only for apikey type, excluding Antigravity which has its own fields) -->
       <div v-if="form.type === 'apikey' && form.platform !== 'antigravity'" class="space-y-4">
+        <div class="flex flex-wrap items-center gap-2">
+          <button type="button" class="btn btn-secondary" :aria-pressed="!providerImportMode" @click="providerImportMode = false">
+            {{ t('matureProviders.manual') }}
+          </button>
+          <button type="button" class="btn btn-secondary" data-testid="provider-import-mode" :aria-pressed="providerImportMode" @click="providerImportMode = true; apiKeyValue = ''">
+            {{ t('matureProviders.useProvider') }}
+          </button>
+        </div>
+        <MatureProviderImport v-if="providerImportMode" :platform="form.platform" @select="providerSelection = $event" />
+        <template v-if="!providerImportMode">
         <QwenCacheSettings
           v-if="form.platform === 'qwen'"
           v-model:session-cache="qwenSessionCache"
@@ -1575,6 +1585,7 @@
           />
           <p v-if="apiKeyHint" class="input-hint">{{ apiKeyHint }}</p>
         </div>
+        </template>
 
         <!-- 上游倍率自动探测：全部 API-key 平台可用（所在区块已限定 apikey 类型） -->
         <div
@@ -1588,6 +1599,7 @@
           </div>
           <Toggle
             v-model="upstreamBillingAutoProbeEnabled"
+            :disabled="providerImportMode"
             data-testid="upstream-billing-auto-probe"
             :aria-label="t('admin.accounts.upstreamBilling.autoProbe')"
           />
@@ -4137,6 +4149,7 @@ import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import Select from '@/components/common/Select.vue'
 import HelpTooltip from '@/components/common/HelpTooltip.vue'
 import UpstreamRequestIdHeaderField from '@/components/account/UpstreamRequestIdHeaderField.vue'
+import MatureProviderImport, { type ProviderSelection } from './MatureProviderImport.vue'
 import PlatformIcon from '@/components/common/PlatformIcon.vue'
 import Icon from '@/components/icons/Icon.vue'
 import ProxySelector from '@/components/common/ProxySelector.vue'
@@ -4378,6 +4391,8 @@ const accountCategory = ref<'oauth-based' | 'apikey' | 'bedrock' | 'service_acco
 const addMethod = ref<AddMethod>('oauth') // For oauth-based: 'oauth' or 'setup-token'
 const apiKeyBaseUrl = ref('https://api.anthropic.com')
 const apiKeyValue = ref('')
+const providerImportMode = ref(false)
+const providerSelection = ref<ProviderSelection | null>(null)
 const upstreamBillingAutoProbeEnabled = ref(true)
 
 // ── 国产供应商（Kimi / Zhipu / DeepSeek）账号类型、API 协议与端点 ──
@@ -5001,6 +5016,17 @@ const upstreamCreation = useUpstreamChannelCreation(
 )
 
 function createWithUpstreamChannel(payload: CreateAccountRequest) {
+  if (providerImportMode.value && payload.type === 'apikey' && providerSelection.value) {
+    const credentials = { ...payload.credentials }
+    delete credentials.api_key
+    delete credentials.base_url
+    payload = {
+      ...payload,
+      credentials,
+      ...providerSelection.value,
+      upstream_billing_probe_enabled: false,
+    }
+  }
   if (!initialChannelId.value) return adminAPI.accounts.create(payload)
   return adminAPI.accounts.create({
     ...payload,
@@ -5648,6 +5674,8 @@ function resetForm() {
   apiProtocol.value = 'adaptive'
   openCodeGoProtocolRules.value = cloneOpenCodeGoProtocolRules(defaultOpenCodeProtocolRules('zen'))
   adaptiveBaseUrls.value = { chat_completions: '', anthropic: '', responses: '' }
+  providerImportMode.value = false
+  providerSelection.value = null
   apiKeyBaseUrl.value = 'https://api.anthropic.com'
   apiKeyValue.value = ''
   upstreamRequestIdHeader.value = ''
@@ -6120,8 +6148,12 @@ const handleSubmit = async () => {
     return
   }
 
-  // For apikey type, create directly
-  if (!apiKeyValue.value.trim()) {
+  // For apikey type, create directly or import a server-resolved provider key.
+  if (providerImportMode.value && !providerSelection.value) {
+    appStore.showError(t('matureProviders.selectKeyRequired'))
+    return
+  }
+  if (!providerImportMode.value && !apiKeyValue.value.trim()) {
     appStore.showError(t('admin.accounts.pleaseEnterApiKey'))
     return
   }
@@ -6145,10 +6177,12 @@ const handleSubmit = async () => {
           : 'https://api.anthropic.com'
 
   // Build credentials with optional model mapping
-  const credentials: Record<string, unknown> = {
-    base_url: apiKeyBaseUrl.value.trim() || defaultBaseUrl,
-    api_key: apiKeyValue.value.trim()
-  }
+  const credentials: Record<string, unknown> = providerImportMode.value
+    ? {}
+    : {
+        base_url: apiKeyBaseUrl.value.trim() || defaultBaseUrl,
+        api_key: apiKeyValue.value.trim(),
+      }
   if (form.platform === 'qwen') {
     applyQwenCacheSettings(credentials, qwenSessionCache.value, qwenStrictAffinity.value)
   }
@@ -6251,7 +6285,7 @@ const handleSubmit = async () => {
     ...form,
     group_ids: form.group_ids,
     extra: withUpstreamRequestIdHeader(extra),
-    upstream_billing_probe_enabled: upstreamBillingAutoProbeEnabled.value,
+    upstream_billing_probe_enabled: providerImportMode.value ? false : upstreamBillingAutoProbeEnabled.value,
     auto_pause_on_expired: autoPauseOnExpired.value
   })
 }
@@ -7515,4 +7549,12 @@ const handleCookieAuth = async (sessionKey: string) => {
     oauth.loading.value = false
   }
 }
+
+watch(
+  () => [form.platform, form.type],
+  () => {
+    providerSelection.value = null
+    if (form.type !== 'apikey') providerImportMode.value = false
+  },
+)
 </script>

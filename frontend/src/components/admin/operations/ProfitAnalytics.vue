@@ -2,6 +2,7 @@
     <div class="min-w-0 space-y-5">
       <header class="flex flex-wrap items-start justify-between gap-3"><div><h1 class="text-2xl font-semibold">{{ t('profitOps.title') }}</h1><p class="mt-2 text-sm text-gray-500">{{ t('profitOps.description') }}</p></div><button class="btn btn-secondary" data-testid="refresh-operations" :disabled="loading" @click="load">{{ t('profitOps.refresh') }}</button></header>
       <UpstreamChannelManager @changed="load" />
+      <ProfitProviders v-if="auth.isAdmin" @changed="load" />
       <p class="rounded-lg bg-primary-50 p-4 text-sm leading-6 dark:bg-dark-800">{{ t('profitOps.attribution') }}</p>
       <details class="card p-4" open><summary class="font-semibold">{{ t('profitOps.method') }}</summary><p class="mt-3 text-sm leading-6">{{ t('profitOps.formula') }}</p><p class="mt-2 text-sm leading-6">{{ t('profitOps.incomeNote') }}</p><p class="mt-2 text-sm leading-6">{{ t('profitOps.unknownNote') }}</p></details>
       <form data-testid="profit-filters" class="card grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4" @submit.prevent="apply">
@@ -52,8 +53,11 @@
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import UpstreamChannelManager from './UpstreamChannelManager.vue'
+import ProfitProviders from './ProfitProviders.vue'
+import { useAuthStore } from '@/stores/auth'
 import { readProfitOperations, type OperationsQuery, type OperationsSnapshot, type OperationsRow, type ProfitMetrics } from '@/api/admin/profitOperations'
 const { t } = useI18n()
+const auth = useAuthStore()
 const amountKeys = ['requests','standard_charge','request_income','estimated_cost','estimated_profit','margin'] as const
 const sortKeys = [...amountKeys, 'name']
 const timePresets = ['today', 'yesterday', 'thisWeek', 'lastWeek', 'last24h', 'last48h', 'thisMonth', 'lastMonth'] as const

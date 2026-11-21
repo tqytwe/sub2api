@@ -21,6 +21,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/domain"
 	"github.com/Wei-Shaw/sub2api/internal/handler/dto"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/adminaccess"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/antigravity"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/claude"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
@@ -50,6 +51,7 @@ func NewOAuthHandler(oauthService *service.OAuthService) *OAuthHandler {
 
 // AccountHandler handles admin account management
 type AccountHandler struct {
+	providerCatalog         *ChannelHandler
 	claudeResetCredits      claudeResetReader
 	adminService            service.AdminService
 	oauthService            *service.OAuthService
@@ -73,6 +75,10 @@ type AccountHandler struct {
 	openAIGatewayService    *service.OpenAIGatewayService
 	performance             *service.AccountPerformanceService
 	automation              *service.OAuthAutomationService
+}
+
+func (h *AccountHandler) SetMatureProviderCatalog(catalog *ChannelHandler) {
+	h.providerCatalog = catalog
 }
 
 // SetUpstreamBillingProbeService attaches the optional remote billing probe service.
@@ -245,6 +251,8 @@ func NewAccountHandler(
 
 // CreateAccountRequest represents create account request
 type CreateAccountRequest struct {
+	ProviderID              int64          `json:"provider_id"`
+	ProviderKeyID           string         `json:"provider_key_id"`
 	Name                    string         `json:"name" binding:"required"`
 	Notes                   *string        `json:"notes"`
 	Platform                string         `json:"platform" binding:"required"`
@@ -1153,6 +1161,18 @@ func (h *AccountHandler) Create(c *gin.Context) {
 		response.BadRequest(c, "Invalid request: "+err.Error())
 		return
 	}
+	providerImport := req.ProviderID != 0 || req.ProviderKeyID != ""
+	if providerImport {
+		if adminaccess.FromContext(c.Request.Context()) != nil {
+			response.Forbidden(c, "Provider imports require an unrestricted administrator")
+			return
+		}
+		manual, _ := req.Credentials["api_key"].(string)
+		if req.ProviderID < 1 || !validProviderKeyID(req.ProviderKeyID) || req.Type != service.AccountTypeAPIKey || strings.TrimSpace(manual) != "" {
+			response.BadRequest(c, "Choose a provider key without a manual credential")
+			return
+		}
+	}
 	if req.UpstreamChannelID < 0 || (req.UpstreamChannelID > 0 && !req.ConfirmUpstreamChannel) {
 		response.ErrorFrom(c, service.ErrUpstreamChannelValidation)
 		return
@@ -1180,6 +1200,27 @@ func (h *AccountHandler) Create(c *gin.Context) {
 	var createdAccount *service.Account
 
 	result, err := executeAdminIdempotent(c, "admin.accounts.create", req, service.DefaultWriteIdempotencyTTL(), func(ctx context.Context) (any, error) {
+		if providerImport {
+			if h.providerCatalog == nil {
+				return nil, infraerrors.ServiceUnavailable("PROVIDER_UNAVAILABLE", "Provider catalog unavailable")
+			}
+			credentials, binding, resolveErr := h.providerCatalog.resolveMatureProviderKey(ctx, req.ProviderID, req.ProviderKeyID, req.Platform)
+			if resolveErr != nil {
+				return nil, providerKeyError(resolveErr)
+			}
+			if req.Credentials == nil {
+				req.Credentials = map[string]any{}
+			}
+			for key, value := range credentials {
+				req.Credentials[key] = value
+			}
+			if req.Extra == nil {
+				req.Extra = map[string]any{}
+			}
+			req.Extra[providerKeyBindingExtraKey] = binding
+			probe := false
+			req.ProbeEnabled = &probe
+		}
 		if req.UpstreamChannelID > 0 {
 			ctx = service.WithInitialUpstreamChannel(ctx, req.UpstreamChannelID)
 		}
@@ -1235,8 +1276,10 @@ func (h *AccountHandler) Create(c *gin.Context) {
 	}
 	// OpenAI APIKey 账号创建后异步探测上游 /v1/responses 能力。
 	// 探测失败不影响账号创建响应。
-	h.scheduleOpenAIResponsesProbe(createdAccount)
-	h.scheduleGrokImportProbe(createdAccount)
+	if !providerImport {
+		h.scheduleOpenAIResponsesProbe(createdAccount)
+		h.scheduleGrokImportProbe(createdAccount)
+	}
 	response.Success(c, result.Data)
 }
 

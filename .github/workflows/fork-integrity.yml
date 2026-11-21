@@ -149,6 +149,22 @@ jobs:
         working-directory: backend
         run: go test -tags=integration -count=1 -timeout=10m ./migrations ./internal/repository -run '^TestAffiliate(HistoricalFirstPayment|Operations)'
 
+  mature-provider-contract:
+    name: Provider catalog PostgreSQL and HTTP contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+      - name: Verify isolated catalog, credential encryption, key idempotency and refresh
+        working-directory: backend
+        run: go test -tags=integration -count=1 -timeout=8m ./internal/repository ./internal/server/routes -run '^TestMatureProvider'
+
   documentation:
     name: Documentation
     runs-on: ubuntu-latest

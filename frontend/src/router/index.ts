@@ -932,6 +932,19 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/admin/providers',
+    name: 'AdminMatureProviders',
+    component: () => import('@/views/admin/MatureProvidersView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Provider Operations',
+      titleKey: 'matureProviders.title',
+      descriptionKey: 'matureProviders.description',
+      frame: 'workspace',
+    },
+  },
+  {
     path: '/admin/priority-scheduling',
     name: 'AdminPriorityScheduling',
     component: () => import('@/views/admin/PrioritySchedulingView.vue'),
