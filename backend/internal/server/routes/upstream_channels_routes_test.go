@@ -36,6 +36,16 @@ func TestUpstreamChannelRoutesRequireAdminAuthentication(t *testing.T) {
 
 	for _, route := range []struct{ method, path string }{
 		{method: http.MethodGet, path: "/api/v1/admin/profit-operations/snapshot"},
+		{method: http.MethodGet, path: "/api/v1/admin/providers"},
+		{method: http.MethodGet, path: "/api/v1/admin/providers/options"},
+		{method: http.MethodPost, path: "/api/v1/admin/providers/1/refresh"},
+		{method: http.MethodGet, path: "/api/v1/admin/providers/1/keys"},
+		{method: http.MethodGet, path: "/api/v1/admin/providers/1/groups"},
+		{method: http.MethodPost, path: "/api/v1/admin/providers/1/keys"},
+		{method: http.MethodPost, path: "/api/v1/admin/providers"},
+		{method: http.MethodGet, path: "/api/v1/admin/providers/1"},
+		{method: http.MethodPut, path: "/api/v1/admin/providers/1"},
+		{method: http.MethodDelete, path: "/api/v1/admin/providers/1"},
 		{method: http.MethodGet, path: "/api/v1/admin/upstream-channels"},
 		{method: http.MethodPost, path: "/api/v1/admin/upstream-channels"},
 		{method: http.MethodGet, path: "/api/v1/admin/upstream-channels/1"},

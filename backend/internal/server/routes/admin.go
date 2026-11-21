@@ -1199,6 +1199,16 @@ func registerPluginRoutes(admin *gin.RouterGroup, h *handler.Handlers, stepUpAut
 }
 
 func registerChannelRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	admin.GET("/providers", h.Admin.Channel.ListMatureProviders)
+	admin.GET("/providers/options", h.Admin.Channel.MatureProviderOptions)
+	admin.POST("/providers", h.Admin.Channel.MutateMatureProvider)
+	admin.GET("/providers/:id", h.Admin.Channel.GetMatureProvider)
+	admin.PUT("/providers/:id", h.Admin.Channel.MutateMatureProvider)
+	admin.DELETE("/providers/:id", h.Admin.Channel.MutateMatureProvider)
+	admin.POST("/providers/:id/refresh", h.Admin.Channel.RefreshMatureProvider)
+	admin.GET("/providers/:id/keys", h.Admin.Channel.MatureProviderKeys)
+	admin.GET("/providers/:id/groups", h.Admin.Channel.MatureProviderGroups)
+	admin.POST("/providers/:id/keys", h.Admin.Channel.CreateMatureProviderKey)
 	admin.GET("/upstream-channels", h.Admin.Channel.ListUpstreamChannels)
 	admin.POST("/upstream-channels", h.Admin.Channel.MutateUpstreamChannel)
 	admin.GET("/upstream-channels/:id", h.Admin.Channel.GetUpstreamChannel)

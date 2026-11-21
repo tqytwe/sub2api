@@ -84,6 +84,7 @@ func providePluginHostInfo(buildInfo handler.BuildInfo) service.PluginHostInfo {
 
 func provideCleanup(
 	adminSettingHandler *admin.SettingHandler,
+	providerChannels *admin.ChannelHandler,
 	adminUsageHandler *admin.UsageHandler,
 	requestLedgerHandler *handler.RequestLedgerHandler,
 	balanceNotify *service.BalanceNotifyService,
@@ -173,6 +174,12 @@ func provideCleanup(
 
 		// 应用层清理步骤可并行执行，基础设施资源（Redis/Ent）最后按顺序关闭。
 		parallelSteps := []cleanupStep{
+			{"MatureProviderRefresh", func() error {
+				if providerChannels != nil {
+					providerChannels.StopMatureProviderRefresh()
+				}
+				return nil
+			}},
 			{"UserTrafficDelivery", func() error {
 				if adminUsageHandler != nil {
 					adminUsageHandler.StopTrafficDelivery()

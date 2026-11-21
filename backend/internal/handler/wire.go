@@ -559,7 +559,7 @@ var ProviderSet = wire.NewSet(
 	admin.NewAccountOpsHandler,
 	admin.NewPelicanGroupTestHandler,
 	admin.NewAccountTokenGuardV2Handler,
-	admin.NewChannelHandler,
+	admin.ProvideMatureChannelHandler,
 	admin.NewChannelMonitorHandler,
 	admin.NewChannelMonitorRequestTemplateHandler,
 	admin.NewContentModerationHandler,
