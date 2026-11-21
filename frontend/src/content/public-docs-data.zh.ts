@@ -1,3 +1,4 @@
+import { DOC_TOOL_INTEGRATIONS } from './public-docs-integrations'
 import { getToolGuide } from './public-docs-tool-guides'
 
 /** Public /docs content — adapted for 极速蹬 (gateway docs). */
@@ -2581,11 +2582,14 @@ export const PUBLIC_DOC_CONTENT_ZH: PublicDocCategoryContent[] =
       }
     }
     if (category.id === 'tools') {
-      const deployToolPages =
-        PUBLIC_DOC_CONTENT_ZH_SOURCE.find((source) => source.id === 'deploy')?.pages.filter((page) => TOOL_PAGE_IDS.has(page.id)) ?? []
       return {
         ...category,
-        pages: [...deployToolPages, ...category.pages].map((page) => getToolGuide('zh', page.id) ?? page),
+        description: '命令行、编辑器、聊天与翻译客户端、机器人和自托管应用的接入教程。',
+        pages: DOC_TOOL_INTEGRATIONS.map(({ page }) => {
+          const guide = getToolGuide('zh', page)
+          if (!guide) throw new Error(`Missing Chinese documentation for tools/${page}`)
+          return guide
+        }),
       }
     }
     return category

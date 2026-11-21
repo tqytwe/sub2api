@@ -1,3 +1,4 @@
+import { getAdditionalToolGuide } from './public-docs-additional-guides'
 import type { PublicDocPageContent } from './public-docs-data.zh'
 import type { PublicDocLocale } from './public-docs-tree'
 
@@ -150,8 +151,8 @@ const OTHER_GUIDES: Record<string, { name: string; official: string; use: Biling
     name: 'CC Switch', official: 'https://github.com/farion1231/cc-switch/releases',
     use: { zh: '在桌面端集中管理 Claude Code、Codex 等客户端的服务商配置。', en: 'Manage provider configurations for supported clients such as Claude Code and Codex in one desktop app.' },
     setup: {
-      zh: `<ol><li>从发布页下载并安装对应系统的桌面版本，先启动 CC Switch。</li><li>在极速蹬「API 密钥」找到目标密钥。如果操作列提供导入 CC Switch 的按钮，点击后选客户端，在 CC Switch 中核对并确认导入。</li><li>如果没有导入入口，在 CC Switch 选对应客户端，手动新增服务商。Claude Code 使用 <code>${ROOT}</code>，Codex 使用 <code>${V1}</code> 和 Responses。保存后启用该服务商，重启目标客户端。</li></ol>`,
-      en: `<ol><li>Install and open the desktop release for your OS.</li><li>In Jisudeng API keys, use the CC Switch import action if that key offers it. Choose the target client and review the provider before confirming in CC Switch.</li><li>If no import action is available, add a provider manually in CC Switch. Use <code>${ROOT}</code> for Claude Code or <code>${V1}</code> with Responses for Codex. Activate the provider and restart the target client.</li></ol>`,
+      zh: `<ol><li>从发布页下载并安装对应系统的桌面版本，先启动 CC Switch。</li><li>在极速蹬「API 密钥」找到目标密钥。如果操作列提供导入 CC Switch 的按钮，点击后在 CC Switch 中核对并确认导入。仅当平台弹出客户端选择时再选择。</li><li>如果没有导入入口，在 CC Switch 选对应客户端，手动新增服务商。Claude Code 使用 <code>${ROOT}</code>，Codex 使用 <code>${V1}</code> 和 Responses。保存后启用该服务商，重启目标客户端。</li></ol>`,
+      en: `<ol><li>Install and open the desktop release for your OS.</li><li>In Jisudeng API keys, use the CC Switch import action if that key offers it. Review the provider before confirming in CC Switch. Choose a target client if the console prompts you.</li><li>If no import action is available, add a provider manually in CC Switch. Use <code>${ROOT}</code> for Claude Code or <code>${V1}</code> with Responses for Codex. Activate the provider and restart the target client.</li></ol>`,
     },
     check: { zh: '若链接没唤起客户端，先确认已安装并允许系统打开 CC Switch，再试手动新增。', en: 'If importing does not open CC Switch, check the installation and OS link handler, or add the provider manually.' },
   },
@@ -213,16 +214,23 @@ const OTHER_GUIDES: Record<string, { name: string; official: string; use: Biling
 
 export function getToolGuide(language: PublicDocLocale, pageId: string): PublicDocPageContent | undefined {
   if (Object.prototype.hasOwnProperty.call(GUIDES[language], pageId)) return { id: pageId, ...GUIDES[language][pageId] }
-  if (!Object.prototype.hasOwnProperty.call(OTHER_GUIDES, pageId)) return undefined
-  const guide = OTHER_GUIDES[pageId]
+  const existing = Object.prototype.hasOwnProperty.call(OTHER_GUIDES, pageId) ? OTHER_GUIDES[pageId] : undefined
+  const guide = existing ? {
+    name: existing.name,
+    official: existing.official,
+    use: existing.use[language],
+    setup: existing.setup[language],
+    check: existing.check[language],
+  } : getAdditionalToolGuide(language, pageId)
+  if (!guide) return undefined
   const zh = language === 'zh'
   return {
     id: pageId,
-    title: zh ? `${guide.name} 接入` : `${guide.name} setup`,
-    summary: guide.use[language],
-    html: `<p class="docs-lead">${guide.use[language]}</p>
-<h2 id="prerequisites">${zh ? '前置要求' : 'Prerequisites'}</h2><p><a href="${guide.official}">${zh ? '官方安装与资料' : 'Official setup and resources'}</a> · <a href="/keys">${zh ? '创建 API 密钥' : 'Create an API key'}</a> · <a href="${zh ? '/catalog' : '/en/catalog'}">${zh ? '确认分组中的模型 ID' : 'Find the exact model ID for your group'}</a></p>
-<h2 id="configure">${zh ? '安装与配置' : 'Install and configure'}</h2>${guide.setup[language]}
-${docsVerify(language)}${issueList(language, guide.check[language])}`,
+    title: pageId === 'app-deployment' ? guide.name : zh ? `${guide.name} 接入` : `${guide.name} setup`,
+    summary: guide.use,
+    html: `<p class="docs-lead">${guide.use}</p>
+<h2 id="prerequisites">${zh ? '前置要求' : 'Prerequisites'}</h2><p><a href="${guide.official}">${zh ? '官方安装与配置资料' : 'Official installation and setup'}</a> · <a href="/keys">${zh ? '创建 API 密钥' : 'Create an API key'}</a> · <a href="${zh ? '/catalog' : '/en/catalog'}">${zh ? '确认分组中的模型 ID' : 'Find the exact model ID for your group'}</a> · <a href="/docs?cat=tutorial&amp;page=api-key">${zh ? '创建密钥图解' : 'Illustrated API key guide'}</a></p>
+<h2 id="configure">${zh ? '安装与配置' : 'Install and configure'}</h2>${guide.setup}
+${docsVerify(language)}${issueList(language, guide.check)}`,
   }
 }

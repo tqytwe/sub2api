@@ -9,7 +9,7 @@ import SupportFloatingCard from '@/components/common/SupportFloatingCard.vue'
 import Icon from '@/components/icons/Icon.vue'
 import DocsVipTiersTable from '@/components/public/DocsVipTiersTable.vue'
 import { useClipboard } from '@/composables/useClipboard'
-import { DOC_READER_COPY, DOC_TOOL_INTEGRATIONS } from '@/content/public-docs-integrations'
+import { DOC_READER_COPY, DOC_TOOL_GROUPS, DOC_TOOL_INTEGRATIONS } from '@/content/public-docs-integrations'
 import { buildDocArticle, personalizeDocCopy, searchPublicDocs } from '@/content/public-docs-reader'
 import { normalizePublicDocLocation, type PublicDocLocale } from '@/content/public-docs-tree'
 import type { PublicDocCategoryContent } from '@/content/public-docs-data.zh'
@@ -69,13 +69,28 @@ const isIndex = computed(() => !activeCat.value && !activePage.value)
 const activeCategory = computed(() => docContent.value.find((category) => category.id === activeCat.value))
 const isCategoryIndex = computed(() => Boolean(activeCategory.value && !activePage.value))
 const activeArticle = computed(() => activeCategory.value?.pages.find((page) => page.id === activePage.value))
+const isToolsIndex = computed(() => isCategoryIndex.value && activeCat.value === 'tools')
+const toolSections = computed(() => DOC_TOOL_GROUPS.map((group) => ({
+  id: `tools-${group}`,
+  title: copy.value.groups[group],
+  tools: DOC_TOOL_INTEGRATIONS.filter((tool) => tool.group === group).flatMap((tool) => {
+    const page = activeCategory.value?.pages.find(({ id }) => id === tool.page)
+    if (!page) return []
+    return [{
+      id: page.id,
+      name: page.id === 'app-deployment' ? page.title : tool.name,
+      summary: page.summary,
+      protocol: copy.value.protocols[tool.protocol],
+    }]
+  }),
+})))
 const isVipArticle = computed(() => activeCat.value === 'recharge-vip' && activePage.value === 'vip-levels')
-const expanded = ref<Set<string>>(new Set(['deploy', 'tools']))
+const expanded = ref<Set<string>>(new Set(['deploy']))
 const sidebarOpen = ref(false)
 const mobileToc = ref<HTMLDetailsElement | null>(null)
 
-function docLink(cat: string, page: string) {
-  return { ...docsRoute.value, query: { cat, page } }
+function docLink(cat: string, page?: string) {
+  return { ...docsRoute.value, query: page ? { cat, page } : { cat } }
 }
 
 watch([activeCat, activePage, loadState], ([cat, page, state]) => {
@@ -103,7 +118,12 @@ function personalize(raw: string) {
 }
 
 const article = computed(() => buildDocArticle(personalize(activeArticle.value?.html ?? ''), copy.value.copyCode, docLocale.value))
-const headings = computed(() => article.value.headings)
+const headings = computed(() => isToolsIndex.value ? [
+  { id: 'tools-basics', title: copy.value.universal, level: 2 },
+  ...toolSections.value.map(({ id, title }) => ({ id, title, level: 2 })),
+  { id: 'tools-choice', title: copy.value.choose, level: 2 },
+  { id: 'tools-diagnose', title: copy.value.diagnose, level: 2 },
+] : article.value.headings)
 const main = ref<HTMLElement | null>(null)
 
 watch([() => route.hash, headings, loadState], async ([hash]) => {
@@ -228,7 +248,26 @@ async function copySnippet(event: MouseEvent) {
           <Icon name="terminal" size="sm" aria-hidden="true" />{{ copy.docsHome }}
         </RouterLink>
         <div v-for="category in docContent" :key="category.id" class="docs-tree-group">
+          <div v-if="category.id === 'tools'" class="docs-tree-category-row">
+            <RouterLink
+              :to="docLink(category.id)"
+              class="docs-tree-toggle docs-tree-category-link"
+              :aria-current="isToolsIndex ? 'page' : undefined"
+              @click="sidebarOpen = false"
+            >{{ category.title }}</RouterLink>
+            <button
+              type="button"
+              class="docs-tree-category-expand"
+              :aria-label="`${copy.navigation}: ${category.title}`"
+              :aria-expanded="expanded.has(category.id)"
+              :aria-controls="`docs-tree-${category.id}`"
+              @click="toggleCategory(category.id)"
+            >
+              <Icon :name="expanded.has(category.id) ? 'chevronDown' : 'chevronRight'" size="xs" aria-hidden="true" />
+            </button>
+          </div>
           <button
+            v-else
             type="button"
             class="docs-tree-toggle"
             :aria-expanded="expanded.has(category.id)"
@@ -252,13 +291,15 @@ async function copySnippet(event: MouseEvent) {
 
       <main id="docs-main" ref="main" class="docs-reader-main" :aria-busy="loadState === 'loading'">
         <nav class="docs-reader-crumb" :aria-label="copy.docs">
-          <RouterLink v-if="!isIndex" :to="docsRoute" class="docs-back-link">
+          <RouterLink v-if="activeCategory && activePage" :to="docLink(activeCat)" class="docs-back-link">
+            <Icon name="arrowLeft" size="xs" aria-hidden="true" />{{ copy.backToCategory }}
+          </RouterLink>
+          <RouterLink v-else-if="!isIndex" :to="docsRoute" class="docs-back-link">
             <Icon name="arrowLeft" size="xs" aria-hidden="true" />{{ copy.backToDocs }}
           </RouterLink>
           <RouterLink v-else :to="docsRoute">{{ copy.docs }}</RouterLink>
           <Icon name="chevronRight" size="xs" aria-hidden="true" />
-          <RouterLink v-if="activeCategory && activePage" class="docs-category-link" :to="{ ...docsRoute, query: { cat: activeCat } }">{{ activeCategory.title }}</RouterLink>
-          <span v-else>{{ isIndex ? copy.docsHome : (activeCategory?.title ?? copy.navigation) }}</span>
+          <span>{{ isIndex ? copy.docsHome : (activeCategory?.title ?? copy.navigation) }}</span>
         </nav>
 
         <p v-if="loadState === 'loading'" role="status" class="docs-reader-state">{{ copy.load }}</p>
@@ -289,12 +330,41 @@ async function copySnippet(event: MouseEvent) {
             <h1>{{ activeCategory.title }}</h1>
             <p>{{ activeCategory.description }}</p>
           </header>
-          <ul v-if="activeCat !== 'tools'" class="docs-prose">
+          <div v-if="isToolsIndex" class="docs-prose">
+            <h2 id="tools-basics">{{ copy.universal }}</h2>
+            <div class="docs-tip docs-integration-basics">
+              <ul>
+                <li><RouterLink :to="docLink('tutorial', 'api-key')">{{ copy.key }}</RouterLink> · <RouterLink :to="modelRoute">{{ copy.models }}</RouterLink> · {{ copy.modelHelp }}</li>
+                <li>{{ copy.openAIBase }} <code>{{ apiV1 }}</code></li>
+                <li>{{ copy.anthropicBase }} <code>{{ apiBase }}</code> ({{ copy.anthropicSuffix }})</li>
+                <li>{{ copy.geminiBase }} <code>{{ apiBase }}</code> (<RouterLink :to="docLink('tools', 'gemini-cli')">Gemini CLI</RouterLink>)</li>
+              </ul>
+            </div>
+            <section v-for="section in toolSections" :key="section.id" :aria-labelledby="section.id">
+              <h2 :id="section.id">{{ section.title }}</h2>
+              <table class="docs-table docs-tool-table" :aria-labelledby="section.id">
+                <thead><tr><th scope="col">{{ copy.tool }}</th><th scope="col">{{ copy.protocol }}</th></tr></thead>
+                <tbody>
+                  <tr v-for="tool in section.tools" :key="tool.id">
+                    <td>
+                      <RouterLink :to="docLink('tools', tool.id)" class="docs-tool-link">{{ tool.name }}</RouterLink>
+                      <span class="docs-tool-summary">{{ personalize(tool.summary) }}</span>
+                    </td>
+                    <td>{{ tool.protocol }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </section>
+            <h2 id="tools-choice">{{ copy.choose }}</h2>
+            <p>{{ copy.chooseText }}</p>
+            <h2 id="tools-diagnose">{{ copy.diagnose }}</h2>
+            <ol><li>{{ copy.diagnoseKey }}</li><li>{{ copy.diagnoseUrl }}</li><li>{{ copy.diagnoseUsage }}</li></ol>
+          </div>
+          <ul v-else class="docs-prose">
             <li v-for="page in activeCategory.pages" :key="page.id">
               <RouterLink :to="docLink(activeCat, page.id)">{{ page.title }}</RouterLink>
             </li>
           </ul>
-          <p v-else class="docs-prose">{{ copy.chooseFromDirectory }}</p>
         </article>
 
         <article v-else-if="activeArticle" class="docs-reader-article">
@@ -333,7 +403,7 @@ async function copySnippet(event: MouseEvent) {
             :aria-current="route.hash === `#${heading.id}` ? 'location' : undefined"
           >{{ heading.title }}</RouterLink>
         </nav>
-        <div v-if="loadState === 'ready' && (isIndex || activeArticle)" class="docs-reader-share">
+        <div v-if="loadState === 'ready' && (isIndex || isCategoryIndex || activeArticle)" class="docs-reader-share">
           <strong>{{ copy.share }}</strong>
           <button type="button" class="docs-action" @click="copyLink">
             <Icon :name="linkCopied ? 'check' : 'copy'" size="sm" aria-hidden="true" />{{ linkCopied ? copy.copied : copy.copyLink }}
