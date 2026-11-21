@@ -24,6 +24,8 @@ const (
 	forkRepository     = "tqytwe/sub2api"
 	// This is the upstream source target, not the installed fork's version number.
 	upstreamReviewVersion = "2.23.1"
+	// Keep this aligned with the committed source lock.
+	upstreamFullyMigrated = false
 	// Change this identity when source, review pin or installation policy changes.
 	UpdateSourceIdentity = upstreamRepository + ":stable:v" + upstreamReviewVersion + "|" + forkRepository + ":source-only:v1"
 )
@@ -64,18 +66,19 @@ func NewUpdateService(cache UpdateCache, githubClient GitHubReleaseClient, versi
 
 // UpdateInfo contains update information
 type UpdateInfo struct {
-	UpstreamRepository string       `json:"upstream_repository"`
-	UpstreamBaseline   string       `json:"upstream_baseline"`
-	InstallRepository  string       `json:"install_repository"`
-	InstallSupported   bool         `json:"install_supported"`
-	DeploymentGuideURL string       `json:"deployment_guide_url"`
-	CurrentVersion     string       `json:"current_version"`
-	LatestVersion      string       `json:"latest_version"`
-	HasUpdate          bool         `json:"has_update"`
-	ReleaseInfo        *ReleaseInfo `json:"release_info,omitempty"`
-	Cached             bool         `json:"cached"`
-	Warning            string       `json:"warning,omitempty"`
-	BuildType          string       `json:"build_type"` // "source" or "release"
+	UpstreamRepository    string       `json:"upstream_repository"`
+	UpstreamBaseline      string       `json:"upstream_baseline"`
+	UpstreamFullyMigrated bool         `json:"upstream_fully_migrated"`
+	InstallRepository     string       `json:"install_repository"`
+	InstallSupported      bool         `json:"install_supported"`
+	DeploymentGuideURL    string       `json:"deployment_guide_url"`
+	CurrentVersion        string       `json:"current_version"`
+	LatestVersion         string       `json:"latest_version"`
+	HasUpdate             bool         `json:"has_update"`
+	ReleaseInfo           *ReleaseInfo `json:"release_info,omitempty"`
+	Cached                bool         `json:"cached"`
+	Warning               string       `json:"warning,omitempty"`
+	BuildType             string       `json:"build_type"` // "source" or "release"
 }
 
 // ReleaseInfo contains GitHub release details
@@ -168,13 +171,14 @@ func (s *UpdateService) ListRollbackVersions(context.Context) ([]RollbackVersion
 
 func (s *UpdateService) baseInfo() *UpdateInfo {
 	return &UpdateInfo{
-		CurrentVersion:     s.currentVersion,
-		BuildType:          s.buildType,
-		UpstreamRepository: upstreamRepository,
-		UpstreamBaseline:   upstreamReviewVersion,
-		InstallRepository:  forkRepository,
-		InstallSupported:   false,
-		DeploymentGuideURL: "https://github.com/tqytwe/sub2api/blob/play/main/deploy/FORK_SOURCE_BUILD.md",
+		CurrentVersion:        s.currentVersion,
+		BuildType:             s.buildType,
+		UpstreamRepository:    upstreamRepository,
+		UpstreamBaseline:      upstreamReviewVersion,
+		UpstreamFullyMigrated: upstreamFullyMigrated,
+		InstallRepository:     forkRepository,
+		InstallSupported:      false,
+		DeploymentGuideURL:    "https://github.com/tqytwe/sub2api/blob/play/main/deploy/FORK_SOURCE_BUILD.md",
 	}
 }
 

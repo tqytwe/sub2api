@@ -34,10 +34,9 @@
           <p class="text-center text-2xl font-bold text-gray-900 dark:text-white">{{ currentVersion ? 'v' + currentVersion : '--' }}</p>
           <p v-if="loading" role="status" class="text-xs text-gray-500 dark:text-dark-400">{{ t('common.loading') }}</p>
           <p v-else-if="warning" role="status" class="text-xs text-amber-700 dark:text-amber-400">{{ t('version.checkFailed') }}</p>
-          <template v-else>
-            <p class="text-xs text-gray-500 dark:text-dark-400">{{ t('version.latestVersion') }}: {{ latestVersion ? 'v' + latestVersion : '--' }}</p>
-            <p class="text-xs text-gray-500 dark:text-dark-400">{{ t('version.upstreamBaseline', { version: upstreamBaseline || '--' }) }}</p>
-          </template>
+          <p v-if="latestVersion || (!loading && !warning)" class="text-xs text-gray-500 dark:text-dark-400">{{ t('version.latestVersion') }}: {{ latestVersion ? 'v' + latestVersion : '--' }}</p>
+          <p v-if="upstreamBaseline" class="text-xs text-gray-500 dark:text-dark-400">{{ t('version.upstreamBaseline', { version: upstreamBaseline }) }}</p>
+          <p v-if="upstreamBaseline && upstreamFullyMigrated !== undefined" class="text-xs text-gray-500 dark:text-dark-400">{{ t(upstreamFullyMigrated ? 'version.upstreamSyncComplete' : 'version.upstreamSyncPartial') }}</p>
           <p v-if="hasUpdate && !loading" role="status" class="text-xs text-amber-700 dark:text-amber-400">{{ t('version.updateAvailable') }}</p>
           <a :href="upstreamReleaseURL" target="_blank" rel="noopener noreferrer" class="flex items-center gap-2 text-sm text-primary-700 underline dark:text-primary-300">
             <Icon name="externalLink" size="sm" />
@@ -72,6 +71,7 @@ const badgeRef = ref<HTMLElement | null>(null)
 const currentVersion = computed(() => appStore.currentVersion || props.version || '')
 const latestVersion = computed(() => appStore.latestVersion)
 const upstreamBaseline = computed(() => appStore.upstreamBaseline)
+const upstreamFullyMigrated = computed(() => appStore.upstreamFullyMigrated)
 const hasUpdate = computed(() => appStore.hasUpdate)
 const loading = computed(() => appStore.versionLoading)
 const warning = computed(() => appStore.versionWarning)

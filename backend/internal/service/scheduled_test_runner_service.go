@@ -196,9 +196,14 @@ func (s *ScheduledTestRunnerService) runOnePlan(ctx context.Context, plan *Sched
 		return
 	}
 
-	if err := s.scheduledSvc.SaveResult(ctx, plan.ID, plan.MaxResults, result); err != nil {
-		logger.LegacyPrintf("service.scheduled_test_runner", "[ScheduledTestRunner] plan=%d SaveResult error: %v", plan.ID, err)
-	} else if result.Status == "success" {
+	saved, saveErr := s.scheduledSvc.saveResult(ctx, plan.ID, plan.MaxResults, result)
+	if saveErr != nil {
+		logger.LegacyPrintf("service.scheduled_test_runner", "[ScheduledTestRunner] plan=%d SaveResult error: %v", plan.ID, saveErr)
+	}
+	if !saved {
+		return
+	}
+	if result.Status == "success" {
 		result.grokRecovery.complete(ctx, s.accountTestSvc.accountRepo)
 		if plan.AutoRecover && s.rateLimitSvc != nil {
 			if result.grokRecovery != nil && result.grokRecovery.observed {

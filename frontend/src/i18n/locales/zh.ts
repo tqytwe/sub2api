@@ -8948,6 +8948,8 @@ const messages = {
     dockerEditCompose: '修改 docker-compose.yml 中的镜像版本',
     dockerRecreate: '重新创建容器',
     upstreamBaseline: "上游源码目标：v{version}",
+    upstreamSyncPartial: "同步状态：部分已同步",
+    upstreamSyncComplete: "同步状态：已完整同步",
     forkInstall: "安装已验证的 tqytwe 构建",
     deploymentGuide: "查看 fork 源码构建部署说明",
     checkFailed: "上游版本查询失败或正在使用缓存，请刷新重试。",

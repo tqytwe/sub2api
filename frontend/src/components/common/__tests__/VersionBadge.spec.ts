@@ -7,7 +7,7 @@ import zh from '@/i18n/locales/zh/legacy/core'
 import en from '@/i18n/locales/en/legacy/core'
 
 const { state, auth, api } = vi.hoisted(() => ({
-  state: { currentVersion: '0.2.14', latestVersion: '2.23.1', upstreamBaseline: '2.23.1', hasUpdate: false, buildType: 'release', versionLoading: false, versionWarning: '', releaseInfo: { html_url: 'https://github.com/ranxi2001/sub2api/releases/tag/v2.23.1' }, fetchVersion: vi.fn() },
+  state: { currentVersion: '0.2.14', latestVersion: '2.23.1', upstreamBaseline: '2.23.1', upstreamFullyMigrated: undefined as boolean | undefined, hasUpdate: false, buildType: 'release', versionLoading: false, versionWarning: '', releaseInfo: { html_url: 'https://github.com/ranxi2001/sub2api/releases/tag/v2.23.1' }, fetchVersion: vi.fn() },
   auth: { isAdmin: true },
   api: { performUpdate: vi.fn(), restartService: vi.fn(), getRollbackVersions: vi.fn(), rollback: vi.fn() }
 }))
@@ -22,7 +22,7 @@ function runtimeMessages(version: Record<string, string>) {
 function mountBadge(locale = 'zh') {
   return mount(VersionBadge, { global: { plugins: [createI18n({ legacy: false, locale, messages: { zh: runtimeMessages(zh.version), en: runtimeMessages(en.version) } })] } })
 }
-beforeEach(() => { vi.clearAllMocks(); auth.isAdmin = true; state.hasUpdate = false; state.versionLoading = false; state.versionWarning = ''; state.releaseInfo.html_url = 'https://github.com/ranxi2001/sub2api/releases/tag/v2.23.1' })
+beforeEach(() => { vi.clearAllMocks(); auth.isAdmin = true; state.hasUpdate = false; state.upstreamFullyMigrated = undefined; state.versionLoading = false; state.versionWarning = ''; state.releaseInfo.html_url = 'https://github.com/ranxi2001/sub2api/releases/tag/v2.23.1' })
 
 describe('VersionBadge fork source policy', () => {
   it.each(['source', 'release'])('never offers upstream installation or rollback for %s builds', async (buildType) => {
@@ -66,6 +66,16 @@ describe('VersionBadge fork source policy', () => {
     await warningWrapper.find('button').trigger('click')
     expect(warningWrapper.find('[role="status"]').text()).toContain('查询失败')
     warningWrapper.unmount()
+  })
+  it.each([[false, '同步状态：部分已同步'], [true, '同步状态：已完整同步']])('shows explicit completeness even if GitHub lookup fails (%s)', async (fullyMigrated, label) => {
+    state.upstreamFullyMigrated = fullyMigrated
+    state.versionWarning = 'offline'
+    const wrapper = mountBadge()
+    await wrapper.find('button').trigger('click')
+    expect(wrapper.text()).toContain('上游源码目标')
+    expect(wrapper.text()).toContain(label)
+    expect(wrapper.text()).toContain('查询失败')
+    wrapper.unmount()
   })
   it('does not query or offer admin actions to regular users', async () => {
     auth.isAdmin = false

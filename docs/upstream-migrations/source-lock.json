@@ -15,10 +15,13 @@
   "current_target": {
     "release_tag": "v2.23.1",
     "release_commit": "00e00796080c632188cf9df7912050b144a1a44f",
-    "checked_at": "2026-11-20",
-    "state": "analysis_in_progress",
-    "sync_branch": "sync/ranxi-v2.23.1-20261120",
-    "fully_migrated": false
+    "checked_at": "2026-11-21",
+    "state": "deployed_partial",
+    "sync_branch": "sync/ranxi-v2.23.1-closure-20261121",
+    "fully_migrated": false,
+    "first_batch_pr": 452,
+    "first_batch_merge_commit": "99db0e5f7b4db87d02c581be8bef39bfc6ad9388",
+    "first_batch_deployment_id": 7943807040
   },
   "pending_sync": {
     "release_tag": "v2.21.2",

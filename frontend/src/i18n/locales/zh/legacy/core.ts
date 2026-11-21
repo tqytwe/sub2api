@@ -469,6 +469,8 @@ export default {
     loadVersionsFailed: '获取版本列表失败',
     rollbackFailed: '回退失败',
     upstreamBaseline: "上游源码目标：v{version}",
+    upstreamSyncPartial: "同步状态：部分已同步",
+    upstreamSyncComplete: "同步状态：已完整同步",
     forkInstall: "安装已验证的 tqytwe 构建",
     deploymentGuide: "查看 fork 源码构建部署说明",
     checkFailed: "上游版本查询失败或正在使用缓存，请刷新重试。",
