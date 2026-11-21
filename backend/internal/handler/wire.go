@@ -82,6 +82,7 @@ func ProvideAdminHandlers(
 	accountHandler.SetOpenAIGatewayService(openAIGatewayService)
 	accountHandler.SetAccountPerformanceService(accountPerformance)
 	accountHandler.SetOAuthAutomationService(oauthAutomation)
+	accountHandler.SetMatureProviderCatalog(channelHandler)
 	return &AdminHandlers{
 		Dashboard:              dashboardHandler,
 		User:                   userHandler,

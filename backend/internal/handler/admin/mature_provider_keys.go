@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
@@ -189,4 +190,29 @@ func (h *ChannelHandler) CreateMatureProviderKey(c *gin.Context) {
 		return
 	}
 	c.Data(status, "application/json", body)
+}
+
+func (h *ChannelHandler) resolveMatureProviderKey(ctx context.Context, id int64, keyID, platform string) (map[string]any, map[string]any, error) {
+	if id < 1 || !validProviderKeyID(keyID) {
+		return nil, nil, service.ErrMatureProviderValidation
+	}
+	var credentials, provenance map[string]any
+	err := h.withMatureProviderSession(ctx, id, 0, func(ctx context.Context, s *providerSession) error {
+		key, err := s.resolveKey(ctx, keyID)
+		if err != nil {
+			return err
+		}
+		base := strings.TrimRight(s.record.BaseURL, "/")
+		if platform == service.PlatformGrok || platform == service.PlatformComposite {
+			base += "/v1"
+		}
+		credentials = map[string]any{"api_key": key.secret, "base_url": base}
+		provenance = map[string]any{
+			"provider_id": id, "provider_name": s.record.Name,
+			"site_type": s.record.SiteType, "key_id": key.ID, "key_name": key.Name,
+			"group_id": key.GroupID, "group_name": key.GroupName, "group_multiplier": key.GroupMultiplier,
+		}
+		return nil
+	})
+	return credentials, provenance, err
 }

@@ -10,6 +10,7 @@ import (
 	"html"
 	"math"
 	"net/http"
+	"net/url"
 	"sort"
 	"strconv"
 	"strings"
@@ -55,6 +56,39 @@ func (s *providerSession) createKey(ctx context.Context, group providerGroupView
 		return s.createSub2APIKey(ctx, group)
 	}
 	return s.createNewAPIKey(ctx, group)
+}
+
+// resolveKey reads a currently active provider key and obtains a complete
+// secret server-side. The UI only receives metadata and never sees this value.
+func (s *providerSession) resolveKey(ctx context.Context, keyID string) (providerKeyView, error) {
+	keys, err := s.listKeys(ctx)
+	if err != nil {
+		return providerKeyView{}, err
+	}
+	for _, key := range keys {
+		if key.ID != keyID {
+			continue
+		}
+		if !key.Available {
+			return providerKeyView{}, errProviderKeyUnavailable
+		}
+		if s.record.SiteType == "newapi" {
+			if !completeProviderSecret(key.secret) {
+				key.secret, err = s.newAPIKeySecret(ctx, key.ID)
+				if err != nil {
+					return providerKeyView{}, err
+				}
+			}
+			if key.secret != "" && !strings.HasPrefix(key.secret, "sk-") {
+				key.secret = "sk-" + key.secret
+			}
+		}
+		if !completeProviderSecret(key.secret) {
+			return providerKeyView{}, errProviderKeySecretUnavailable
+		}
+		return key, nil
+	}
+	return providerKeyView{}, errProviderKeyMissing
 }
 
 func (s *providerSession) listSub2APIKeys(ctx context.Context) ([]providerKeyView, error) {
@@ -127,6 +161,7 @@ func sub2apiKeyView(item map[string]any, rates map[string]float64) providerKeyVi
 		GroupMultiplier: multiplier,
 		Status:          status,
 		Available:       status == "active",
+		secret:          providerText(item["key"]),
 	}
 }
 
@@ -269,7 +304,33 @@ func newAPIKeyView(item map[string]any) providerKeyView {
 		GroupID:   providerText(item["group"]),
 		Status:    status,
 		Available: status == "active",
+		secret:    providerText(item["key"]),
 	}
+}
+
+// newAPIKeySecret reads one complete key. Current releases mask keys in the
+// list and reveal a single key through this endpoint.
+func (s *providerSession) newAPIKeySecret(ctx context.Context, keyID string) (string, error) {
+	path := "/api/token/" + url.PathEscape(keyID) + "/key"
+	data, _, err := s.call(ctx, http.MethodPost, path, map[string]any{}, nil, true)
+	var remote *providerRemoteError
+	if errors.As(err, &remote) && (remote.status == http.StatusNotFound || remote.status == http.StatusMethodNotAllowed) {
+		data, _, err = s.call(ctx, http.MethodGet, path, nil, nil, true)
+	}
+	if err != nil {
+		return "", err
+	}
+	switch value := data.(type) {
+	case string:
+		return strings.TrimSpace(value), nil
+	case map[string]any:
+		for _, field := range []string{"key", "token", "api_key"} {
+			if secret := providerText(value[field]); secret != "" {
+				return secret, nil
+			}
+		}
+	}
+	return "", errProviderKeySecretUnavailable
 }
 
 func (s *providerSession) newAPIGroups(ctx context.Context) ([]providerGroupView, error) {

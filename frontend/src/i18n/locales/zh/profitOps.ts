@@ -83,5 +83,21 @@ export default {
   "errorRecords": "日志条数",
   "queryFailed": "查询失败，请重试；未将失败显示为零。",
   "queryTimeout": "本次统计耗时过长，未能完成，请稍后重试；未将失败显示为零。",
-  "invalidRange": "请选择不超过32天、结束晚于开始的有效时间范围。"
+  "invalidRange": "请选择不超过32天、结束晚于开始的有效时间范围。",
+  "profitChannel": "服务商利润渠道",
+  "providersEmpty": "暂无服务商利润渠道配置。",
+  "noLink": "未绑定渠道",
+  "providerLoadFailed": "服务商利润渠道读取失败。",
+  "linkChannel": "更换渠道",
+  "linkTitle": "为 {provider} 绑定分析渠道",
+  "currentLink": "当前渠道：{channel}",
+  "linkImpact": "此操作会影响该服务商后续利润归属；历史记录保留已有证据。",
+  "existingId": "分析渠道 ID",
+  "checkChannel": "核验渠道",
+  "proposedLink": "渠道 {id}：{name}（{code}）",
+  "confirmLink": "确认将 {provider} 绑定到 {channel}。",
+  "saveLink": "保存绑定",
+  "channelNotVerified": "无法核验该渠道，请刷新渠道列表后重试。",
+  "linkConflict": "服务商或渠道已变化，请刷新后重试。",
+  "linkUnconfirmed": "写入结果无法确认，请刷新核对后再试。"
 }

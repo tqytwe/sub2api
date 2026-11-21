@@ -6,7 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
+	"unicode"
 
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 )
@@ -66,6 +68,7 @@ type providerKeyView struct {
 	GroupMultiplier *float64 `json:"group_multiplier"`
 	Status          string   `json:"status"`
 	Available       bool     `json:"available"`
+	secret          string
 }
 
 type providerGroupView struct {
@@ -141,6 +144,20 @@ func providerKeyError(err error) error {
 	default:
 		return infraerrors.New(http.StatusBadGateway, "PROVIDER_REMOTE_FAILED", providerFailureMessage(err))
 	}
+}
+
+// completeProviderSecret rejects masked or malformed keys before they can be
+// copied into an account credential.
+func completeProviderSecret(secret string) bool {
+	if secret == "" || len(secret) > 4096 || strings.Contains(secret, "*") || strings.Contains(secret, "...") {
+		return false
+	}
+	for _, r := range secret {
+		if r > unicode.MaxASCII || unicode.IsSpace(r) || unicode.IsControl(r) {
+			return false
+		}
+	}
+	return true
 }
 
 func providerFailureMessage(err error) string {
