@@ -14,6 +14,7 @@ export interface ReleaseInfo {
 export interface VersionInfo {
   upstream_repository?: string
   upstream_baseline?: string
+  upstream_fully_migrated?: boolean
   install_repository?: string
   install_supported?: boolean
   deployment_guide_url?: string

@@ -1,0 +1,109 @@
+# dbed7697aa56e76c6eb48c4914fa441496b67bdd..00e00796080c632188cf9df7912050b144a1a44f
+commit	subject
+ccf997c73868083d96c0bec56e71c1a34d26c98a	chore: sync VERSION to 2.21.2 [skip ci]
+f895ea743f34a4c4ab6c9d01c01e13c931625a6e	Merge pull request #832 from ranxi2001/test/issue795-scheduled-e2e-20261113
+6914182116aa8f6904ebb3b69cdcbd5fc1b1d4b8	Merge pull request #837 from ranxi2001/feat/account-ops-quality-selector
+e10fe8c43f7ccc6bf3360824c0ed11031f596389	Merge pull request #836 from ranxi2001/feat/admin-usage-platform-filter
+0b9cbfbabb2d0ff03adc7f3f5f65b9b4edaa029b	Merge pull request #835 from ranxi2001/codex/400-encrypted-history-beta
+dfc0219a9e66a19642eb73875e4914e540b49575	Merge pull request #839 from ranxi2001/fix/oauth429-weekly-only
+ea1f3a28d8d1839e92ac5e48c6e9d7aeb90b0fff	Merge pull request #833 from ranxi2001/fix/http2-stream-error-clarity
+7827a2f5f900ce50aafa37ab71ca1918dfe7cf8a	Merge pull request #841 from ranxi2001/test/issue795-complete-rounds-20261114
+fa9ec49d433a9898becdb779e0b3f7960df4dfae	Merge pull request #843 from ranxi2001/fix/account-alert-data-ux-20261114
+0bde0ea69024018c0060db34f807aa5291ee5d64	Merge pull request #847 from pixcook-ai/codex/bps-service-tier-422-20261114
+b347249687db84dac3f5272189fda6cf86eb9035	Merge pull request #846 from ranxi2001/fix/http2-reset-review-followup-20261114
+89e06c086fcdcc200238e5d208af2219e2d21e43	Merge pull request #840 from ranxi2001/codex/cpa-bps-diagnostics-auth-20261114
+cdd9d7901041d02aa39291ae0e1615c5a6853da0	Merge pull request #845 from akihitohyh/feat/usage-trend-tooltip-rpm-tpm
+4189ed821d6e4308b2f5fc3791b73d2eb53cda8a	Merge pull request #838 from spake404/cursor/temp-unsched-controls-0093
+9aeeeb3a235014a09994ce5dc6c441edcdd9f1b3	Merge pull request #848 from ranxi2001/feat/moderation-upstream-account-scope
+37dc4620a41a68abaeab329358c15821c41e3f7f	Merge pull request #849 from ranxi2001/fix/issue817-ack-fencing-20261114
+02c30b748944dd7a405b33f3757293d15d7a5578	Merge pull request #834 from ranxi2001/fix/agent409-readable-continuation
+f6ac19ffe390124e3a951f4d107ecbdad591317b	Merge pull request #851 from ranxi2001/fix/responses-moderation-continuation-20261114
+602808e179aded7d908d01a79e2f6572e3209298	Merge pull request #852: 原账号限流或过载时继续重建可读会话
+aa8e596e6d6f3e4648d6beba73b39b240dd5357a	chore: release 2.21.3
+aa0b1abfe5b32c483b32c70fe0c813659ef58083	Merge pull request #857 from ranxi2001/fix/bps-context-boundaries-20261115
+999d599f411040de435a012765bff031f72c5df1	Merge pull request #856 from ranxi2001/feat/bps-tool-choice-20261115
+e90811e27bc442763a496027f935a7bb1fb4396b	Merge pull request #858 from ranxi2001/feat/bps-account-search-20261115
+713cb0f3efe3f838d159cd57998128c2cdaa84b1	Merge pull request #860: 修复重建会话的规范化冲突与 WS 首帧恢复
+236200c670cbc7d674aeb484d1405fc0e96e9f7a	Merge pull request #850 from ranxi2001/feat/mature-channel-community-ops
+7d87624a908fffa7940f0493c3070e8e4aa99dae	Merge pull request #863 from Cd1s/fix/antigravity-strip-claude-code-security-policy
+0293bfa7977ce229a8a2cc2119fdfc98e72a6cf3	Merge pull request #859 from ranxi2001/feat/bps-search-settings-20261115
+efb19a4df2ed1d3828f5464d585824ea3fc38f31	Merge pull request #862 from ranxi2001/feat/account-ops-multi-email-20261115
+ab9b4d9135a246b395aec45a22e184388fe73c96	Merge pull request #861 from spake404/feat/magpie-import-upstream
+820d349f701c7e9c6420dcd63f61c6c94858d240	Merge pull request #853 from ranxi2001/fix/issue842-nonbeta-normalization-20261115
+36dd3d1b6b3aff63dff8ab025205a3032878a9ec	Merge pull request #855 from ranxi2001/fix/issue854-ws-owner-continuation
+0e8e97aa23afd8e88a61ea64a84a8fb84f1bfdc6	chore: release v2.21.4
+c115bef917eae22fc2f5a4d0ba6ac6cbe600e8e4	Merge pull request #864 from ranxi2001/fix/free-fast-customer-cost-details
+70413f1404f4f09515223c6e941cd4458a2eb32f	Merge pull request #868 from ranxi2001/fix/qq-bot-smart-ops-sidebar-20261115
+4c660794b89279dcbf699275091340eb2c87959a	Merge pull request #867 from ranxi2001/fix/rpm-http409-projection-20261115
+e6b2afde0485301a14f8dc653a87262fbbfd8e21	Merge pull request #866 from ranxi2001/fix/ws-owner-conflict-safe-continuation-20261115
+4bb98d75f270f46f70f5c9d0d12bea5822dd01c6	Merge pull request #869: 移除余额耗尽预测后台扫描
+b9feadf7dd6228a4117e360821d9994b7cc54897	chore: release v2.21.5
+ff1082fd51038f10dcb3a8ecb1d5a738258b0f66	Merge pull request #870 from ranxi2001/fix/ws-plaintext-response-owner-20261116
+8d8661d1c9d06781cf171cf29aa666a225105bc4	Merge pull request #872 from ranxi2001/fix/issue871-bps-search-diagnostics-20261116
+5d7ebb9bf5d4b680c524098c39bf3aeb13b80eb1	Merge pull request #874: OAuth 首次配置后自动处置 API Key 账号调度
+2927209f5492d8cb690b83a1964b2f093c19ad7a	Merge pull request #875 from ranxi2001/fix/ws-bridge-residual-409-20261116
+f3e2f3333a023d53388e4f7597163f9abece33f3	Merge pull request #877 from ranxi2001/fix/ws-unsent-delta-context-20261116
+da526bfbab47efd40549cab98f1069f9b2b45b9f	Merge pull request #878: 免费 UltraFast 分组计费开关
+c16da7d8658787b5fa88f3ad23108ced1a8ac49c	Merge pull request #879 from ranxi2001/fix/maintenance-playwright-runner-20261116
+f260e3055c95930aabf06c4f9689dfb2d916f52a	Merge pull request #880 from ranxi2001/fix/ws-followup-capture-20261116
+41778efe6f7cb28dd2c70a4b70c6c8b6f04a352c	Merge pull request #882 from ranxi2001/fix/issue881-totp-factor-binding
+58628d98b9e0781c1b8e3df6259ab487a1490f70	Merge pull request #884 from ranxi2001/fix/ws-inherited-model-proof-20261116
+af24e0f1add122a95d46ad3cc02c63d26ea9f6bf	Merge pull request #883 from ranxi2001/fix/issue871-search-business-followup-20261116
+e3f238e3f173271a82b43d7fd504462c553b495c	Merge pull request #886: 保留 Gemini 结构化输出约束并拒绝静默降级
+dc3a5403be7053397c43c2ef4b1e4fff01536433	Merge pull request #887 from ranxi2001/fix/gpt62-max-effort-20261116
+d4cd664271d822e0c1743802e25cdd8196f97aa8	fix: 清理历史 CI、消除重复检查并提高前端堆上限 (#890)
+c269390a8d2a3ecd718ec6d71f24bc808e1bb52b	feat: 用户管理显示当前并发与 RPM (#889)
+5cc5d608c55f4cb37ad184f5cdfa647354c94390	fix: CI 按改动范围运行并复用相同输入的成功结果 (#893)
+d7d611cf3054ba66cbd92c935a0dbe706e994771	fix: 避免恢复等待截止掩盖独立存储错误 (#891) [skip ci]
+ef34fdb20e3ca142b230042b9de3b71e9c9e6335	fix: 支持 HTTP 与 WS 丢弃冲突历史后续接 (#888) [skip ci]
+65010e176e5e0695791995072c3861e40c6a68de	feat: OpenAI 账号按请求多代理分流及刷新出口保护 (#885) [skip ci]
+321f11c1a4d23302961c223ac030fd09e3f9e6e8	chore: release v2.21.6 with 6 GiB frontend build heap [skip ci]
+dd84ac1da71391a9a112aec89f549c188a4ebe97	Merge pull request #894 from pixcook-ai/codex/pr885-historical-fixture-followup-20261117
+5c48f4b324dd794b1d51d85755d488650ad62825	Merge pull request #898 from ranxi2001/fix/sol61-no-default-instructions-20261117
+9c0ee2298661da0a12b4109511a4b4345a3e5d08	Merge pull request #896 from ranxi2001/fix/user-live-load-review-followup-20261117
+58a54543fa385d603176ff2916104f3e01bbb4f4	Merge pull request #897 from ArnonEnbar/fix/api-key-range-usage-sort
+4b78bceae41c42b9e1241cb0a7515f4b314222d0	Merge pull request #895 from ranxi2001/fix/issue892-timezone-integrity-20261117
+8750ec1956be7c8de327e384c884bb737f943017	Merge pull request #903 from ranxi2001/fix/pr899-platform-credential-takeover
+e1c28b3704859bbcff2e3258ee092fc551151e6b	Merge pull request #901 from ranxi2001/fix/lossy-compaction-tool-history-20261117
+a2ed69304aeb20d1ae007d00845c548abdd2ccf3	Merge pull request #900 from ranxi2001/cherry/upstream-v0.2.22-pr
+4ba33f8713cbf6c6406e0f2639ffcc2ef1e31c87	Merge pull request #904 from ranxi2001/release/v2.22.0-20261117
+dcb228eb8f077a52a223fb998bc0c83e073e7394	Merge pull request #906 from ranxi2001/fix/issue905-ws-upstream-close
+d1ec21ebd35a19530dbb77e9e89e195e5a8a8c4a	Merge pull request #911 from ranxi2001/fix/openai-official-pricing-20261118
+883fa395dc06e6dbf6c9529ca8caf7e3197bcf1b	Merge pull request #912 from ranxi2001/fix/issue905-pool-session-affinity
+d01dd5c26f239e9fdb18e8f048a4e0f207d7b964	Merge pull request #910: 修复 WS 模型冷却与上下文安全
+1c345720d465206606bb680ea6fc5045ed6bb0ec	Merge pull request #913 from spake404/cursor/profit-ops-spend-windows-e407
+693d46621fd493849135373c7b2513ef635488c9	Merge pull request #915 from ranxi2001/ci/go-test-sharding-20261118
+701612f6e9f7b697eb36397b9fb49bf7324e56a1	Merge pull request #909 from Yukino-Akane/codex/cache-ttl-billing-from-request
+657bb38d141901abcbeef2f178d9234109d37167	Merge pull request #916 from ranxi2001/fix/issue905-http-bridge-warmup
+52a745d9405cc41ad64edf41c327fb978017f7ff	Merge pull request #923: 修复工具增量续接及 Pod 取消归因
+73b958ad07babaf56a3f998d8c682e0f84525f4a	Merge pull request #925 from Roins-hub/fix/account-test-managed-connection
+ee7a978ac5a86c3f32777b3fc99ae1f021841ac7	Merge pull request #919 from ranxi2001/maintenance/pr916-proof-20261118
+2552ccd084f48846f1a8a756062acae48366781c	Merge pull request #920 from ranxi2001/fix/issue917-initial-sse-cooldown
+bcf4cc37dc4433c747c871b1b3b8fed62c1aa13a	Merge pull request #927: 多分组余额不足返回明确错误码
+812a164957a42d9f1977d8d4b405ed1fc9c681ab	Merge pull request #922 from ranxi2001/cherry/upstream-v0.2.23
+c2a335ce59356b5f4bb323b34b42a5ce4c115195	Merge pull request #918 from ranxi2001/feat/account-batch-upstream-model-sync
+b6404034c9234e0ae552c419454a14d8f5cb59b8	Merge pull request #928 from ranxi2001/maintenance/issue926-responses-gemini-20261118
+1dcd7628743701918f331b26c85aaceb16201b10	Merge pull request #924 from Yukino-Akane/codex/relogin-interaction-diagnostics
+da85b1c2e2343f8079f646b5e13c9b75a3b21639	Merge pull request #930: VIP 自动垫付金额显示两位小数
+e687827fcb5c2bbb347dfb1d15f116c0ab0580c9	Merge pull request #929 from ranxi2001/fix/remove-token-guard-harvest-pages-20261118
+f5f9648277e9e8b600b90f86e14ec739fd203c50	Merge pull request #931: 对齐官方 UltraFast 促销与长上下文计费
+338f73dfa31032972d8860adab9c25016115c18d	Merge pull request #932 from ranxi2001/fix/issue817-save-result-ack-20261119
+5bef330d5edf039fe390a2b17bb9dc2e5731ba92	Merge pull request #933: 准备发布 v2.23.0
+a71bcd6238777630bb74f18106097689ce7a5836	Merge pull request #935 from ranxi2001/fix/account-balance-notification-mute-20261119
+270ae1710353371552dd9f11be0dc3374de4bc9d	Merge pull request #934: 增加 OpenAI 旧版兼容模式
+45ebcb708867dd61caae10435d19d2df17cd41f3	Merge pull request #936 from ranxi2001/fix/newapi-query-user-agent-20261119
+feb761541918d25a73779c6ea42ee28f61b5591e	Merge pull request #937 from ranxi2001/fix/issue817-persistence-followup-20261119
+afcef2d6811cb860b04dcba45ae1c6477671f5bc	Merge pull request #939: 生图 usage 计费保底与结算金额折算回包
+6ed27208b7dc1f0c3e615f7c7b4e00ad16aec309	Merge pull request #942 from akihitohyh/fix/usage-csv-export-rate-limit
+587ccb28e498c3ac8101306e1a5c565412cd802c	Merge pull request #943 from Yukino-Akane/feat/pelican-preview-pointer-lock
+009eefc27c1dd02f27b39f54f23ed1e51d24b300	Merge pull request #940 from ranxi2001/maintenance/pr938-safe-compression-20261119
+8f4e0d2b225df1f53d83fe3a66e7f62451f91b24	Merge pull request #945 from ranxi2001/fix/newapi-wallet-currency-20261119
+5a51997112d0f93c8ec06747748680a9d7e8e4a7	Merge pull request #944 from ranxi2001/fix/account-performance-query-load-20261119
+72e4545a0f1232a1ded49dac3b6383700089569c	Merge pull request #948 from ranxi2001/fix/issue-947-group-dropdown-width
+4f1bfa96d760711197b692ce94d8f11f0f895c58	Merge pull request #949: 统一渠道配置并分离钱包成本模式
+d846d9e592c3a472074b92f2f041f90798bc0025	Merge pull request #952 from QQQHHHDDD/fix/minimax-h3-model-aliases
+48dee26a76d9430a6e883a66d069075e921a91e9	Merge pull request #950 from ranxi2001/fix/image-billing-followup-20261119
+b107d07da2af136995f154b57ff67f5597018844	Merge pull request #951 from ranxi2001/codex/encrypted-controls-integrity-diagnostics
+7563b886943a510e8d2e0bbd0af5618df2cecff7	Merge pull request #955 from ranxi2001/fix/profit-snapshot-954
+3b79c7d9a9a2f1a7b46c1c993e4b86812535cfb7	Merge pull request #953 from QQQHHHDDD/feat/openai-compatible-videos
+00e00796080c632188cf9df7912050b144a1a44f	Merge pull request #956 from ranxi2001/release/prepare-v2.23.1

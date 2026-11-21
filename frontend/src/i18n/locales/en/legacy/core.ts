@@ -469,6 +469,8 @@ export default {
     loadVersionsFailed: 'Failed to load versions',
     rollbackFailed: 'Rollback Failed',
     upstreamBaseline: "Upstream source target: v{version}",
+    upstreamSyncPartial: "Sync status: Partial",
+    upstreamSyncComplete: "Sync status: Complete",
     forkInstall: "Install verified tqytwe builds",
     deploymentGuide: "Fork source build and deployment guide",
     checkFailed: "Upstream lookup failed or is using cached data. Refresh to retry.",

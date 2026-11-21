@@ -375,3 +375,12 @@ func TestDetectOpenAIPassthroughInstructionsRejectReason(t *testing.T) {
 		})
 	}
 }
+
+func TestNormalizeOpenAIResponsesWebSocketImageToolPreservesNumberPrecision(t *testing.T) {
+	body := []byte(`{"type":"response.create","tools":[{"type":"image_generation","format":"png","compression":60}],"metadata":{"sequence":9007199254740993}}`)
+	normalized, changed, err := normalizeOpenAIResponsesWebSocketCompatibilityBody(body, &Account{Platform: PlatformOpenAI, Type: AccountTypeAPIKey}, false)
+	require.NoError(t, err)
+	require.True(t, changed)
+	require.Equal(t, "png", gjson.GetBytes(normalized, "tools.0.output_format").String())
+	require.Equal(t, "9007199254740993", gjson.GetBytes(normalized, "metadata.sequence").Raw)
+}

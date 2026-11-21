@@ -452,17 +452,23 @@ func sanitizeQualityHistoryResult(result *ScheduledTestResult) {
 
 // SaveResult inserts a result and prunes old entries beyond maxResults.
 func (s *ScheduledTestService) SaveResult(ctx context.Context, planID int64, maxResults int, result *ScheduledTestResult) error {
+	_, err := s.saveResult(ctx, planID, maxResults, result)
+	return err
+}
+
+// saveResult reports whether the result was persisted even if retention fails.
+func (s *ScheduledTestService) saveResult(ctx context.Context, planID int64, maxResults int, result *ScheduledTestResult) (bool, error) {
 	if result != nil && result.PelicanConfig != nil && result.PelicanConfig.Quality != nil && result.QualityRoundID == "" {
 		result.QualityRoundID = NewQualityRoundID()
 	}
 	if err := validateQualityResult(result); err != nil {
-		return err
+		return false, err
 	}
 	result.PlanID = planID
 	if _, err := s.resultRepo.Create(ctx, result); err != nil {
-		return err
+		return false, err
 	}
-	return s.resultRepo.PruneOldResults(ctx, planID, maxResults)
+	return true, s.resultRepo.PruneOldResults(ctx, planID, maxResults)
 }
 
 // NewQualityRoundID returns an opaque identifier shared by all probes in one

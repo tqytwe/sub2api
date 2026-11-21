@@ -3,7 +3,7 @@
 > 状态：active
 > 适用分支：`play/main`
 > 生产环境：Zeabur / `https://www.jisudeng.com/`
-> 最后核验：2026-11-20
+> 最后核验：2026-11-21
 
 ## 分支模型
 
@@ -21,7 +21,7 @@ Fork 审查、测试和 CI 的 tqytwe 自研构建。不得把 UpdateService/Ver
 
 版本锁定信息：`docs/upstream-migrations/source-lock.json`。当前分析目标为已核实的
 `v2.23.1`；`release_commit` 表示分析目标，不能据此声称整版已迁移。后台
-“已审查源码基线”在迁移和验收完成前仍保留既有值；最新发布与源码审核基线不是同一状态。
+分别显示 Fork 构建号、ranxi 最新正式版、上游源码目标和同步状态。仅在完整差异审查与验收通过后将 `fully_migrated` 设为 `true`。
 实际批次证据写入版本目录账本。旧
 `v2.10.3` 迁移账本仅保留历史比较点，当前工作包及其先后关系以
 [项目推进基线](./PROJECT_REBASELINE_2026-10-28.md) 为准。

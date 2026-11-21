@@ -1,0 +1,20 @@
+# 5bef330d5edf039fe390a2b17bb9dc2e5731ba92..00e00796080c632188cf9df7912050b144a1a44f
+commit	subject
+a71bcd6238777630bb74f18106097689ce7a5836	Merge pull request #935 from ranxi2001/fix/account-balance-notification-mute-20261119
+270ae1710353371552dd9f11be0dc3374de4bc9d	Merge pull request #934: 增加 OpenAI 旧版兼容模式
+45ebcb708867dd61caae10435d19d2df17cd41f3	Merge pull request #936 from ranxi2001/fix/newapi-query-user-agent-20261119
+feb761541918d25a73779c6ea42ee28f61b5591e	Merge pull request #937 from ranxi2001/fix/issue817-persistence-followup-20261119
+afcef2d6811cb860b04dcba45ae1c6477671f5bc	Merge pull request #939: 生图 usage 计费保底与结算金额折算回包
+6ed27208b7dc1f0c3e615f7c7b4e00ad16aec309	Merge pull request #942 from akihitohyh/fix/usage-csv-export-rate-limit
+587ccb28e498c3ac8101306e1a5c565412cd802c	Merge pull request #943 from Yukino-Akane/feat/pelican-preview-pointer-lock
+009eefc27c1dd02f27b39f54f23ed1e51d24b300	Merge pull request #940 from ranxi2001/maintenance/pr938-safe-compression-20261119
+8f4e0d2b225df1f53d83fe3a66e7f62451f91b24	Merge pull request #945 from ranxi2001/fix/newapi-wallet-currency-20261119
+5a51997112d0f93c8ec06747748680a9d7e8e4a7	Merge pull request #944 from ranxi2001/fix/account-performance-query-load-20261119
+72e4545a0f1232a1ded49dac3b6383700089569c	Merge pull request #948 from ranxi2001/fix/issue-947-group-dropdown-width
+4f1bfa96d760711197b692ce94d8f11f0f895c58	Merge pull request #949: 统一渠道配置并分离钱包成本模式
+d846d9e592c3a472074b92f2f041f90798bc0025	Merge pull request #952 from QQQHHHDDD/fix/minimax-h3-model-aliases
+48dee26a76d9430a6e883a66d069075e921a91e9	Merge pull request #950 from ranxi2001/fix/image-billing-followup-20261119
+b107d07da2af136995f154b57ff67f5597018844	Merge pull request #951 from ranxi2001/codex/encrypted-controls-integrity-diagnostics
+7563b886943a510e8d2e0bbd0af5618df2cecff7	Merge pull request #955 from ranxi2001/fix/profit-snapshot-954
+3b79c7d9a9a2f1a7b46c1c993e4b86812535cfb7	Merge pull request #953 from QQQHHHDDD/feat/openai-compatible-videos
+00e00796080c632188cf9df7912050b144a1a44f	Merge pull request #956 from ranxi2001/release/prepare-v2.23.1

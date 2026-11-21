@@ -62,6 +62,8 @@ export default {
     dockerEditCompose: 'Edit the image tag in docker-compose.yml',
     dockerRecreate: 'Recreate the container',
     upstreamBaseline: "Upstream source target: v{version}",
+    upstreamSyncPartial: "Sync status: Partial",
+    upstreamSyncComplete: "Sync status: Complete",
     forkInstall: "Install verified tqytwe builds",
     deploymentGuide: "Fork source build and deployment guide",
     checkFailed: "Upstream lookup failed or is using cached data. Refresh to retry.",

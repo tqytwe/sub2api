@@ -77,6 +77,9 @@ func TestUpdateSourcePolicyCheckAndCache(t *testing.T) {
 	body, _ := json.Marshal(info)
 	var response map[string]any
 	_ = json.Unmarshal(body, &response)
+	if response["upstream_fully_migrated"] != false || response["upstream_baseline"] != "2.23.1" {
+		t.Fatalf("upstream source target must be independent of migration completion: %s", body)
+	}
 	if response["install_supported"] != false || response["install_repository"] != "tqytwe/sub2api" {
 		t.Fatalf("missing installation policy: %s", body)
 	}
@@ -91,7 +94,7 @@ func TestUpdateSourcePolicyCheckAndCache(t *testing.T) {
 	cache.data = string(changed)
 	client.err = fmt.Errorf("offline")
 	info, err = svc.CheckUpdate(context.Background(), true)
-	if err != nil || info.Cached || info.HasUpdate || info.Warning == "" {
+	if err != nil || info.Cached || info.HasUpdate || info.Warning == "" || info.UpstreamBaseline != "2.23.1" {
 		t.Fatalf("wrong-source cache accepted on failure: %+v %v", info, err)
 	}
 }

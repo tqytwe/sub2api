@@ -47,6 +47,7 @@ export const useAppStore = defineStore('app', () => {
   const latestVersion = ref<string>('')
   const hasUpdate = ref<boolean>(false)
   const upstreamBaseline = ref('')
+  const upstreamFullyMigrated = ref<boolean>()
   const versionWarning = ref('')
   const buildType = ref<string>('source')
   const releaseInfo = ref<ReleaseInfo | null>(null)
@@ -258,6 +259,7 @@ export const useAppStore = defineStore('app', () => {
         release_info: releaseInfo.value || undefined,
         cached: true,
         upstream_baseline: upstreamBaseline.value,
+        upstream_fully_migrated: upstreamFullyMigrated.value,
         warning: versionWarning.value,
         install_supported: false,
         install_repository: 'tqytwe/sub2api'
@@ -277,6 +279,7 @@ export const useAppStore = defineStore('app', () => {
       hasUpdate.value = data.has_update
       buildType.value = data.build_type || 'source'
       upstreamBaseline.value = data.upstream_baseline || ''
+      upstreamFullyMigrated.value = data.upstream_fully_migrated
       versionWarning.value = data.warning || ''
       releaseInfo.value = data.release_info || null
       versionLoaded.value = true
@@ -502,6 +505,7 @@ export const useAppStore = defineStore('app', () => {
     versionLoaded,
     versionLoading,
     upstreamBaseline,
+    upstreamFullyMigrated,
     versionWarning,
     currentVersion,
     latestVersion,
