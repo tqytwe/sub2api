@@ -77,7 +77,12 @@ func requiresObservedOpenAIImages(c *gin.Context, models ...string) bool {
 		return true
 	}
 	if key := getAPIKeyFromContext(c); key != nil {
-		return imageMinimumCharge(key.Group, models...) != nil
+		for _, model := range models {
+			if price := matchGroupModelPricing(key.Group, model); price != nil &&
+				(price.BillingMode == BillingModeImage || (price.BillingMode == BillingModeToken && price.ImageMinimumCharge != nil)) {
+				return true
+			}
+		}
 	}
 	return false
 }

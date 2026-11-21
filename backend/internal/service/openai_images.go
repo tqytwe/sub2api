@@ -1255,7 +1255,7 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesAPIKey(
 			return nil, err
 		}
 		usage = nonStreamUsage
-		if nonStreamCount > 0 {
+		if nonStreamCount > 0 || requiresObservedOpenAIImages(c, requestModel, upstreamModel) {
 			imageCount = nonStreamCount
 		}
 		return &OpenAIForwardResult{

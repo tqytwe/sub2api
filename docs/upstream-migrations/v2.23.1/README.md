@@ -7,7 +7,7 @@
 - ranxi 正式版 `v2.23.1`。Annotated tag `3297a4f4547076ed5c5b21e0471a12490985fb80`，源码 `00e00796080c632188cf9df7912050b144a1a44f`，版本文件 `2.23.1`。
 - 初始 Fork 基线为 `play/main@9c24cd75d2369de5e65be46fbab1945c2f43f696`。
 - 首批 [PR #452](https://github.com/tqytwe/sub2api/pull/452) 合并至 `99db0e5f7b4db87d02c581be8bef39bfc6ad9388`，Zeabur 部署 `7943807040` 于 2026-11-20 成功。随后 [PR #453](https://github.com/tqytwe/sub2api/pull/453) 的 `db2a21a268e09cb734e4bf60612052d0a2e30b86` 部署 `7946533971` 成功，包含首批改动。
-- 首批后管理员 API 返回上游源码目标 `2.23.1`。本批弹窗显示 Fork 构建号、ranxi 正式版本、源码目标、完整同步状态。GitHub 查询失败时仍显示已知源码目标与同步状态。
+- [PR #455](https://github.com/tqytwe/sub2api/pull/455) 通过 10 项 CI 并合入 `f3c4e62fcc0919b4f3b46a4fc821e30832c91b48`。Zeabur 部署 `7958153329` 成功。`/health` 返回 200，匿名访问管理员版本查询接口返回 401。弹窗显示 Fork 构建号、ranxi 正式版本、源码目标及同步状态。GitHub 查询失败时仍显示已知目标和状态。
 
 ## v2.23.0 至 v2.23.1 的逐项处置
 
@@ -28,8 +28,8 @@
 | #948 `72e4545a0` | 首批已纳入 | `Select.vue` 的 `matchTriggerWidth` 用于 `KeysView.vue`，见 `Select.spec.ts`。 |
 | #949 `4f1bfa96d` | 待适配 | 统一渠道配置、供应商成本模式与报表复用依赖历史证据和迁移，见下节。 |
 | #952 `d846d9e59` | 首批已纳入 | MiniMax H3 模型别名，见 `minimax_h3_test.go`。 |
-| #950 `48dee26a7` | 部分纳入 | `image_billing_response.go` 与 `image_usage_billing.go` 包含回执和保底逻辑。异步恢复、用量费用和样例覆盖仍需对照。 |
-| #951 `b107d07da` | 待适配 | 加密历史最终发送的 controls 快照和诊断依赖 Fork 尚未迁入的重建及投影层，Fork 现有 input/route 检查和投递保护必须保留。 |
+| #950 `48dee26a7` | 部分纳入 | API Key 非流式图片返回空数组时，结算回执、保底与按张定价均按实际产出计数。异步恢复、用量费用和映射模型价格仍需对照。 |
+| #951 `b107d07da` | 部分纳入 | Fork 的 HTTP 加密历史省略路径冻结工具、指令和会话状态。发送前验证指定字段，日志只记录字段是否变化。上游投影层、WS 重建和运维事件接口仍待适配。 |
 | #955 `7563b8869` | 待适配 | 报表归属依赖 #949 前置数据模型，见下节。 |
 | #953 `3b79c7d9a` | 首批已纳入 | `/v1/videos` 创建、状态、下载及完成结算，见 `openai_videos_test.go` 和路由测试。 |
 | #956 `00e007960` | 来源锁已记录 | 源码版本由锁定 tag 和 commit 确认，Fork 构建号独立发布。 |
