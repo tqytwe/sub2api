@@ -11,8 +11,19 @@ var errOpenAIAgentRecoveryUnavailable = errors.New("encrypted agent continuation
 // OpenAIAgentRecoveryError is a local compatibility refusal, not a failure of
 // the entire account pool. Reasons contain no route IDs, credentials or input.
 type OpenAIAgentRecoveryError struct {
-	Reason  string
-	RetryAt time.Time
+	Reason   string
+	RetryAt  time.Time
+	Controls *OpenAIRecoveryControls `json:"-"`
+}
+
+// OpenAIRecoveryControls records only which protected fields changed.
+type OpenAIRecoveryControls struct {
+	ToolsChanged              bool `json:"tools_changed"`
+	ToolChoiceChanged         bool `json:"tool_choice_changed"`
+	ParallelToolCallsChanged  bool `json:"parallel_tool_calls_changed"`
+	InstructionsChanged       bool `json:"instructions_changed"`
+	PreviousResponseIDChanged bool `json:"previous_response_id_changed"`
+	ConversationChanged       bool `json:"conversation_changed"`
 }
 
 func (e *OpenAIAgentRecoveryError) Error() string { return e.ClientMessage() }

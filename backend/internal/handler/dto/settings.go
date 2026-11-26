@@ -351,6 +351,7 @@ type SystemSettings struct {
 	ExcelBPSImageStorageEntries          int            `json:"excel_bps_image_storage_entries"`
 	ExcelBPSImageTTLMinutes              int            `json:"excel_bps_image_ttl_minutes"`
 	OpenAI409OmitEncryptedHistoryEnabled bool           `json:"openai_409_omit_encrypted_history_enabled"`
+	OpenAI400OmitEncryptedHistoryEnabled bool           `json:"openai_400_omit_encrypted_history_enabled"`
 
 	// Available Channels feature switch (user-facing aggregate view)
 	AvailableChannelsEnabled bool `json:"available_channels_enabled"`

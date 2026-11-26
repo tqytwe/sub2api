@@ -2141,9 +2141,11 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesOAuth(
 			)
 		}
 	}
-	if imageCount <= 0 && !requiresObservedOpenAIImages(c, requestModel, upstreamModel) {
-		imageCount = parsed.N
+	requestedCount := parsed.N
+	if parsed.Stream {
+		requestedCount = 0
 	}
+	imageCount = s.resolveOpenAIImagesBillingCount(upstreamCtx, c, requestModel, upstreamModel, imageCount, requestedCount)
 	return &OpenAIForwardResult{
 		RequestID:                     resp.Header.Get("x-request-id"),
 		UpstreamHeaders:               resp.Header,

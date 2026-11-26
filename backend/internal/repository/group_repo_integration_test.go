@@ -777,44 +777,52 @@ func (s *GroupRepoSuite) TestListBindableWithFiltersAppliesFilterBeforePaginatio
 }
 
 func (s *GroupRepoSuite) TestListActiveByPlatform() {
-	s.Require().NoError(s.repo.Create(s.ctx, &service.Group{
+	activeGroup := &service.Group{
 		Name:             "g1",
 		Platform:         service.PlatformAnthropic,
 		RateMultiplier:   1.0,
 		IsExclusive:      false,
 		Status:           service.StatusActive,
 		SubscriptionType: service.SubscriptionTypeStandard,
-	}))
-	s.Require().NoError(s.repo.Create(s.ctx, &service.Group{
+	}
+	s.Require().NoError(s.repo.Create(s.ctx, activeGroup))
+	wrongPlatform := &service.Group{
 		Name:             "g2",
 		Platform:         service.PlatformOpenAI,
 		RateMultiplier:   1.0,
 		IsExclusive:      false,
 		Status:           service.StatusActive,
 		SubscriptionType: service.SubscriptionTypeStandard,
-	}))
-	s.Require().NoError(s.repo.Create(s.ctx, &service.Group{
+	}
+	s.Require().NoError(s.repo.Create(s.ctx, wrongPlatform))
+	disabledGroup := &service.Group{
 		Name:             "g3",
 		Platform:         service.PlatformAnthropic,
 		RateMultiplier:   1.0,
 		IsExclusive:      false,
 		Status:           service.StatusDisabled,
 		SubscriptionType: service.SubscriptionTypeStandard,
-	}))
+	}
+	s.Require().NoError(s.repo.Create(s.ctx, disabledGroup))
 
 	groups, err := s.repo.ListActiveByPlatform(s.ctx, service.PlatformAnthropic)
 	s.Require().NoError(err, "ListActiveByPlatform")
-	// 1 default anthropic group + 1 test active anthropic group = 2 total
-	s.Require().Len(groups, 2)
-	// Verify our test group is in the results
-	var found bool
+	foundActive, foundWrongPlatform, foundDisabled := false, false, false
 	for _, g := range groups {
-		if g.Name == "g1" {
-			found = true
-			break
+		s.Require().Equal(service.PlatformAnthropic, g.Platform)
+		s.Require().Equal(service.StatusActive, g.Status)
+		switch g.ID {
+		case activeGroup.ID:
+			foundActive = true
+		case wrongPlatform.ID:
+			foundWrongPlatform = true
+		case disabledGroup.ID:
+			foundDisabled = true
 		}
 	}
-	s.Require().True(found, "g1 group should be in results")
+	s.Require().True(foundActive, "the active Anthropic group should be returned")
+	s.Require().False(foundWrongPlatform, "a group from another platform must not be returned")
+	s.Require().False(foundDisabled, "a disabled group must not be returned")
 }
 
 // --- ExistsByName ---

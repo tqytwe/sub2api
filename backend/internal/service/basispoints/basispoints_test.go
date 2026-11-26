@@ -84,8 +84,8 @@ func TestPrepareWireShapeAndDeterminism(t *testing.T) {
 			t.Fatalf("unsupported field leaked: %s", field)
 		}
 	}
-	if first["service_tier"] != "priority" {
-		t.Fatal("explicit priority tier must reach BPS")
+	if _, exists := first["service_tier"]; exists {
+		t.Fatal("compatibility tier must not reach BPS")
 	}
 	other, _ := mustPrepare(t, source, "account-2/key-1", nil)
 	if first["prompt_cache_key"] == other["prompt_cache_key"] {

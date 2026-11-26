@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -69,20 +70,79 @@ func applyImageMinimumCharge(cost *CostBreakdown, count int, perImage float64) (
 	return floor, adjustment
 }
 
-func requiresObservedOpenAIImages(c *gin.Context, models ...string) bool {
+func openAIUsageBillingModels(result *OpenAIForwardResult, fields ChannelUsageFields) []string {
+	// Use the rewrite captured during forwarding, never current key settings:
+	// skipped endpoints and policy changes after admission retain their price.
+	requestedBillingModel := fields.OriginalModel
+	if fields.APIKeyMappedModel != "" {
+		requestedBillingModel = fields.APIKeyMappedModel
+	}
+	channelBillingModel := fields.ChannelMappedModel
+	if !fields.ChannelMappingApplied && channelBillingModel == fields.OriginalModel {
+		// An unchanged channel field is the audit alias, not an explicit price
+		// override. Do not resurrect its price when the key target is unpriced.
+		channelBillingModel = requestedBillingModel
+	}
+	resultBillingModel := result.Model
+	if !fields.ChannelMappingApplied && result.Model == fields.OriginalModel {
+		resultBillingModel = requestedBillingModel
+	}
+	billingModel := forwardResultBillingModel(resultBillingModel, result.UpstreamModel)
+	if result.BillingModel != "" {
+		billingModel = strings.TrimSpace(result.BillingModel)
+	}
+	if fields.BillingModelSource == BillingModelSourceChannelMapped && fields.ChannelMappedModel != "" &&
+		((fields.APIKeyMappedModel != "" && fields.ChannelMappingApplied) || fields.ChannelMappedModel != fields.OriginalModel) {
+		billingModel = fields.ChannelMappedModel
+	}
+	if fields.BillingModelSource == BillingModelSourceRequested && fields.OriginalModel != "" {
+		billingModel = requestedBillingModel
+	}
+	if result.StarframeVideoBilling != nil {
+		billingModel = result.StarframeVideoBilling.Model
+	}
+	return usageBillingModelCandidates(
+		billingModel,
+		result.BillingModel,
+		channelBillingModel,
+		requestedBillingModel,
+		result.UpstreamModel,
+		resultBillingModel,
+	)
+}
+
+type imageBillingModelKey struct{}
+
+func WithImageBillingModel(ctx context.Context, fields ChannelUsageFields) context.Context {
+	return context.WithValue(ctx, imageBillingModelKey{}, fields)
+}
+
+func (s *OpenAIGatewayService) requiresObservedOpenAIImages(ctx context.Context, c *gin.Context, model, upstreamModel string) bool {
 	if c == nil {
 		return false
 	}
 	if c.GetHeader("X-Image-Usage") == "billing" {
 		return true
 	}
-	if key := getAPIKeyFromContext(c); key != nil {
-		for _, model := range models {
-			if price := matchGroupModelPricing(key.Group, model); price != nil &&
-				(price.BillingMode == BillingModeImage || (price.BillingMode == BillingModeToken && price.ImageMinimumCharge != nil)) {
-				return true
-			}
-		}
+	key := getAPIKeyFromContext(c)
+	if key == nil || key.Group == nil {
+		return false
 	}
-	return false
+	fields, _ := ctx.Value(imageBillingModelKey{}).(ChannelUsageFields)
+	models := openAIUsageBillingModels(&OpenAIForwardResult{Model: model, UpstreamModel: upstreamModel}, fields)
+	primary := firstUsageBillingModel(models)
+	if price := s.resolveOpenAIChannelPricing(ctx, primary, key); price != nil && price.Mode == BillingModeImage {
+		return true
+	}
+	if price := matchGroupModelPricing(key.Group, primary); price != nil && price.BillingMode == BillingModeImage {
+		return true
+	}
+	return imageMinimumCharge(key.Group, models...) != nil
+}
+
+func (s *OpenAIGatewayService) resolveOpenAIImagesBillingCount(ctx context.Context, c *gin.Context, model, upstreamModel string, reported, requested int) int {
+	if reported > 0 || s.requiresObservedOpenAIImages(ctx, c, model, upstreamModel) {
+		return max(0, reported)
+	}
+	return resolveBillableImageCount(reported, requested, c != nil && imageCountBillingEnabled(getAPIKeyFromContext(c)))
 }

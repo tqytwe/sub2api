@@ -88,3 +88,54 @@ func TestImageBillingMultilineSSEReplacesUsageOnce(t *testing.T) {
 	require.Contains(t, rec.Body.String(), `"output_tokens":1000000`)
 	require.NotContains(t, rec.Body.String(), "999")
 }
+
+func TestImageBillingStreamJSONFallbackDoesNotCommitSSE(t *testing.T) {
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	w, err := newImageBillingResponse(c.Writer, true)
+	require.NoError(t, err)
+	defer w.close()
+	w.Header().Set("Content-Type", "text/event-stream")
+	_, err = w.WriteString(": keepalive\n\n")
+	require.NoError(t, err)
+	w.Flush()
+	require.False(t, c.Writer.Written())
+	for _, chunk := range []string{"{\n", ": keepalive\n\n", `"data":[{"b64_json":"fixture"}],"usage":{"output_tokens":5}}`} {
+		_, err = w.WriteString(chunk)
+		require.NoError(t, err)
+		w.Flush()
+	}
+	require.False(t, c.Writer.Written())
+	require.NoError(t, w.settle(service.ImageBillingReceipt{Settled: true, ActualCost: .01, BillingMode: "image", ImageCount: 1}))
+	require.Equal(t, "application/json", rec.Header().Get("Content-Type"))
+	require.NotContains(t, rec.Body.String(), "keepalive")
+	var response struct {
+		Billing struct {
+			ImageCount int `json:"image_count"`
+		}
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &response))
+	require.Equal(t, 1, response.Billing.ImageCount)
+}
+
+func TestImageBillingReceiptSkipsPreviewAndEmptyCompletion(t *testing.T) {
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	w, err := newImageBillingResponse(c.Writer, true)
+	require.NoError(t, err)
+	defer w.close()
+	w.Header().Set("Content-Type", "text/event-stream")
+	raw := "event: image_edit.completed\ndata: {\"b64_json\":\"final\"}\n\n" +
+		"event: image_edit.partial_image\ndata: {\"b64_json\":\"preview\"}\n\n" +
+		"event: image_edit.completed\ndata: {\"usage\":{\"output_tokens\":9}}\n\n"
+	_, err = w.WriteString(raw)
+	require.NoError(t, err)
+	require.NoError(t, w.settle(service.ImageBillingReceipt{Settled: true, ActualCost: .01, BillingMode: "image", ImageCount: 1}))
+	body := rec.Body.String()
+	require.Equal(t, 1, strings.Count(body, `"billing":`))
+	events := strings.Split(body, "\n\n")
+	require.Contains(t, events[0], `"billing":`)
+	require.Contains(t, events[0], `"b64_json":"final"`)
+	require.Contains(t, events[1], `"b64_json":"preview"`)
+	require.Contains(t, events[2], `"upstream_usage":{"output_tokens":9}`)
+}

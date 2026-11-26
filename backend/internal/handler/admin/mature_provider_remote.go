@@ -413,6 +413,10 @@ func probeProviderAccount(ctx context.Context, provider providerRecord, secret s
 	return probeProviderAccountWindow(ctx, provider, secret, client, providerSpendWindow{})
 }
 
+func probeProviderSpend(ctx context.Context, provider providerRecord, secret string, client *http.Client, from, until time.Time) (providerProbe, error) {
+	return probeProviderAccountWindow(ctx, provider, secret, client, providerSpendWindow{From: from, Until: until})
+}
+
 func providerRecordID(provider providerRecord) int64 {
 	id, err := strconv.ParseInt(provider.ID, 10, 64)
 	if err != nil || id < 1 {
@@ -427,7 +431,7 @@ func providerRecordID(provider providerRecord) int64 {
 func (r *providerRemote) spendGet(ctx context.Context, providerID int64, path string, renew func() error) (map[string]any, error) {
 	var data map[string]any
 	renewed := false
-	err := matureProviderRetry(ctx, func() error {
+	err := profitRetry(ctx, providerID, "wallet_spend", func() error {
 		var err error
 		data, err = r.request(ctx, http.MethodGet, path, nil)
 		if errors.Is(err, errProviderAuthentication) && renew != nil && !renewed {

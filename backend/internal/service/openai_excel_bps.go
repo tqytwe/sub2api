@@ -196,7 +196,7 @@ func (s *OpenAIGatewayService) forwardExcelBPS(ctx context.Context, c *gin.Conte
 		if err != nil {
 			var rejection *excelBPSAttachmentRejection
 			if errors.As(err, &rejection) && rejection.status == http.StatusTooManyRequests {
-				s.applyExcelBPSCooldown(ctx, account, rejection.headers)
+				s.applyExcelBPSCooldown(context.WithValue(ctx, openAI429ObservedAtKey{}, rejection.observedAt), account, rejection.headers)
 				return nil, newExcelBPSRateLimitedFailoverError(rejection.headers.Get("Retry-After"))
 			}
 			return fail(502, "basispoints_attachment_error", "Excel BPS attachment upload failed; generation was not sent")
@@ -233,6 +233,7 @@ func (s *OpenAIGatewayService) forwardExcelBPS(ctx context.Context, c *gin.Conte
 		SetActualOpenAIUpstreamEndpoint(c, excelBPSResponsesPath)
 		SetOpsUpstreamModel(c, model)
 		compactResp, sendErr := s.httpUpstream.Do(compactReq, proxyURL, account.ID, account.Concurrency)
+		compactCtx := context.WithValue(ctx, openAI429ObservedAtKey{}, time.Now())
 		if sendErr != nil {
 			return fail(http.StatusBadGateway, "basispoints_image_compaction_failed", "Image history compaction connection failed; generation was not started")
 		}
@@ -240,11 +241,11 @@ func (s *OpenAIGatewayService) forwardExcelBPS(ctx context.Context, c *gin.Conte
 		if compactResp.StatusCode < 200 || compactResp.StatusCode >= 300 {
 			_ = compactResp.Body.Close()
 			if compactResp.StatusCode == http.StatusTooManyRequests {
-				s.applyExcelBPSCooldown(ctx, account, compactResp.Header)
+				s.applyExcelBPSCooldown(compactCtx, account, compactResp.Header)
 			}
 			return fail(compactResp.StatusCode, "basispoints_image_compaction_failed", "Image history compaction was rejected; generation was not started")
 		}
-		s.UpdateCodexUsageSnapshotFromHeaders(ctx, account.ID, compactResp.Header)
+		s.UpdateCodexUsageSnapshotFromHeaders(compactCtx, account.ID, compactResp.Header)
 		compactStream := s.guardExcelBPSProgress(requestCtx, compactResp.Body)
 		compactResponse, compactErr := basispoints.ReadImageCompaction(compactStream, func(payload []byte) { s.parseSSEUsageBytes(payload, &compactUsage) })
 		_ = compactStream.Close()
@@ -287,6 +288,7 @@ func (s *OpenAIGatewayService) forwardExcelBPS(ctx context.Context, c *gin.Conte
 		return nil, err
 	}
 	resp, err := s.httpUpstream.Do(req, proxyURL, account.ID, account.Concurrency)
+	ctx = context.WithValue(ctx, openAI429ObservedAtKey{}, time.Now())
 	s.rateLimitService.observeQualityResponse(req.Context(), account, resp, err)
 	SetOpsLatencyMs(c, OpsUpstreamLatencyMsKey, time.Since(sent).Milliseconds())
 	if err != nil {
@@ -329,6 +331,7 @@ func (s *OpenAIGatewayService) forwardExcelBPS(ctx context.Context, c *gin.Conte
 			return nil, sendErr
 		}
 		repaired, sendErr := s.httpUpstream.Do(request, proxyURL, account.ID, account.Concurrency)
+		repairCtx = context.WithValue(repairCtx, openAI429ObservedAtKey{}, time.Now())
 		if sendErr != nil {
 			return nil, fmt.Errorf("excel BPS tool correction transport failed")
 		}

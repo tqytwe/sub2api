@@ -1474,6 +1474,7 @@ func (s *GatewayService) buildRecordUsageLog(
 		requestID = result.RequestID
 	}
 	usageLog := &UsageLog{
+		Platform:                 account.Platform,
 		UserID:                   user.ID,
 		APIKeyID:                 apiKey.ID,
 		AccountID:                account.ID,

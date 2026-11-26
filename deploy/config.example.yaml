@@ -217,6 +217,9 @@ security:
 # 网关配置
 # =============================================================================
 gateway:
+  # Opt-in legacy OpenAI agent-history behavior; weakens newer recovery safeguards.
+  # Startup-only, default false. Restart all gateway nodes together when changing.
+  openai_legacy_compatibility_mode: false
   # Timeout for waiting upstream response headers (seconds)
   # 等待上游响应头超时时间（秒）
   response_header_timeout: 600

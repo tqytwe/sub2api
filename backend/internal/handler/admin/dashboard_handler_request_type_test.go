@@ -14,6 +14,12 @@ import (
 )
 
 type dashboardUsageRepoCapture struct {
+	trendPlatform string
+	trendModel    string
+	modelPlatform string
+	modelFilter   string
+	groupPlatform string
+	groupModel    string
 	service.UsageLogRepository
 	trendRequestType      *int16
 	trendStream           *bool
@@ -40,6 +46,8 @@ func (s *dashboardUsageRepoCapture) GetUsageTrendWithUsageFilters(
 	s.trendStream = filters.Stream
 	s.trendNativeCompaction = filters.NativeCompactionV2
 	s.trendMismatch = filters.UpstreamModelMismatch
+	s.trendPlatform = filters.Platform
+	s.trendModel = filters.Model
 	return []usagestats.TrendDataPoint{}, nil
 }
 
@@ -68,6 +76,8 @@ func (s *dashboardUsageRepoCapture) GetModelStatsWithUsageFiltersBySource(
 	s.modelStream = filters.Stream
 	s.modelNativeCompaction = filters.NativeCompactionV2
 	s.modelMismatch = filters.UpstreamModelMismatch
+	s.modelPlatform = filters.Platform
+	s.modelFilter = filters.Model
 	return []usagestats.ModelStat{}, nil
 }
 
@@ -78,6 +88,8 @@ func (s *dashboardUsageRepoCapture) GetGroupStatsWithUsageFilters(
 ) ([]usagestats.GroupStat, error) {
 	s.groupNativeCompaction = filters.NativeCompactionV2
 	s.groupMismatch = filters.UpstreamModelMismatch
+	s.groupPlatform = filters.Platform
+	s.groupModel = filters.Model
 	return []usagestats.GroupStat{}, nil
 }
 
@@ -116,6 +128,7 @@ func newDashboardRequestTypeTestRouter(repo *dashboardUsageRepoCapture) *gin.Eng
 	router.GET("/admin/dashboard/trend", handler.GetUsageTrend)
 	router.GET("/admin/dashboard/models", handler.GetModelStats)
 	router.GET("/admin/dashboard/groups", handler.GetGroupStats)
+	router.GET("/admin/dashboard/snapshot", handler.GetSnapshotV2)
 	router.GET("/admin/dashboard/users-ranking", handler.GetUserSpendingRanking)
 	return router
 }
@@ -323,4 +336,49 @@ func TestDashboardUsersRankingLimitAndCache(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, rec2.Code)
 	require.Equal(t, "hit", rec2.Header().Get("X-Snapshot-Cache"))
+}
+
+func TestDashboardPlatformFiltersAndCacheIsolation(t *testing.T) {
+	t.Cleanup(resetDashboardReadCachesForTest)
+	platforms := []string{"openai", "gemini", "unknown"}
+	for _, endpoint := range []string{"trend", "models", "groups", "snapshot"} {
+		t.Run(endpoint, func(t *testing.T) {
+			resetDashboardReadCachesForTest()
+			repo := &dashboardUsageRepoCapture{}
+			router := newDashboardRequestTypeTestRouter(repo)
+			for _, platform := range platforms {
+				query := "?start_date=2026-11-01&end_date=2026-11-07&platform=" + platform + "&model=requested-model&include_stats=false&include_trend=true&include_model_stats=true&include_group_stats=true"
+				rec := httptest.NewRecorder()
+				router.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/admin/dashboard/"+endpoint+query, nil))
+				require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+				require.Equal(t, "miss", rec.Header().Get("X-Snapshot-Cache"))
+				if endpoint == "trend" || endpoint == "snapshot" {
+					require.Equal(t, platform, repo.trendPlatform)
+					require.Equal(t, "requested-model", repo.trendModel)
+				}
+				if endpoint == "models" || endpoint == "snapshot" {
+					require.Equal(t, platform, repo.modelPlatform)
+					require.Equal(t, "requested-model", repo.modelFilter)
+				}
+				if endpoint == "groups" || endpoint == "snapshot" {
+					require.Equal(t, platform, repo.groupPlatform)
+					require.Equal(t, "requested-model", repo.groupModel)
+				}
+				repeat := httptest.NewRecorder()
+				router.ServeHTTP(repeat, httptest.NewRequest(http.MethodGet, "/admin/dashboard/"+endpoint+query, nil))
+				require.Equal(t, http.StatusOK, repeat.Code)
+				require.Equal(t, "hit", repeat.Header().Get("X-Snapshot-Cache"))
+			}
+		})
+	}
+}
+
+func TestDashboardRejectsInvalidPlatform(t *testing.T) {
+	for _, endpoint := range []string{"trend", "models", "groups", "snapshot"} {
+		repo := &dashboardUsageRepoCapture{}
+		router := newDashboardRequestTypeTestRouter(repo)
+		rec := httptest.NewRecorder()
+		router.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/admin/dashboard/"+endpoint+"?platform=composite", nil))
+		require.Equal(t, http.StatusBadRequest, rec.Code, endpoint)
+	}
 }

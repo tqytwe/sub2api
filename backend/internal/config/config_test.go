@@ -2958,3 +2958,20 @@ func TestLoadOpenAICodexRequestCompression(t *testing.T) {
 		})
 	}
 }
+
+func TestOpenAILegacyCompatibilityModeConfiguration(t *testing.T) {
+	t.Run("defaults disabled", func(t *testing.T) {
+		resetViperWithJWTSecret(t)
+		cfg, err := Load()
+		require.NoError(t, err)
+		require.False(t, cfg.OpenAILegacyCompatibilityEnabled())
+	})
+
+	t.Run("environment enables startup policy", func(t *testing.T) {
+		resetViperWithJWTSecret(t)
+		t.Setenv("GATEWAY_OPENAI_LEGACY_COMPATIBILITY_MODE", "true")
+		cfg, err := Load()
+		require.NoError(t, err)
+		require.True(t, cfg.OpenAILegacyCompatibilityEnabled())
+	})
+}

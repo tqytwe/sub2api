@@ -19,8 +19,8 @@ const excelBPSRateLimitedClientMessage = "Excel BPS rate limit exceeded, please 
 // BPS throttles its own endpoint independently of the account's Codex quota.
 // A BPS 429 is therefore handed back to the handler's account-switch loop
 // before any response byte is written, and cools only this account's BPS
-// route. Natively forwarded models, persisted quota fields and the shared
-// scheduler health score are left alone. Like other runtime blocks, the
+// route. Only explicit weekly evidence participates in the separate permanent
+// policy; this local cooldown does not write the ordinary quota fields. Like other runtime blocks, the
 // cooldown is local to this process.
 func newExcelBPSRateLimitedFailoverError(retryAfter string) *UpstreamFailoverError {
 	failoverErr := &UpstreamFailoverError{
@@ -58,10 +58,13 @@ func (s *OpenAIGatewayService) coolDownExcelBPS(ctx context.Context, account *Ac
 		headers = responseHeaders[0].Clone()
 	}
 	headers.Set("Retry-After", retryAfter)
+	ctx, _ = s.rateLimitService.maybeDisableOpenAISchedulingOn429(ctx, account, http.StatusTooManyRequests, headers)
+	ctx = s.rateLimitService.maybeRotateOpenAITOTPOn429(ctx, account, http.StatusTooManyRequests)
 	if account.AuthConnectionID != "" {
 		s.handleOpenAIAccountUpstreamError(ctx, account, http.StatusTooManyRequests, headers, nil)
 		return
 	}
+	s.rateLimitService.persistOpenAI429WeeklyEvidence(ctx, account, headers)
 	cooldown, ok := excelBPSRetryAfter(retryAfter, time.Now())
 	if !ok {
 		if cooldown, ok = s.excelBPS429FallbackCooldown(ctx, account); !ok {

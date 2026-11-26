@@ -287,6 +287,24 @@ describe('GroupsView group surcharge controls', () => {
     wrapper.unmount()
   })
 
+  it('reads and clears dedicated image billing when image generation is disabled', async () => {
+    listGroups.mockResolvedValue({ items: [{ ...persistedGroup, allow_image_generation: true, image_count_billing: true }], total: 1 })
+    const wrapper = mountView()
+    await flushPromises()
+    await findButton(wrapper, 'common.edit').trigger('click')
+    await flushPromises()
+
+    const fallback = wrapper.get('#edit-image-count-billing')
+    expect((fallback.element as HTMLInputElement).checked).toBe(true)
+    await wrapper.get('#edit-allow-image-generation').setValue(false)
+    expect(wrapper.find('#edit-image-count-billing').exists()).toBe(false)
+    await wrapper.get('#edit-group-form').trigger('submit')
+    await flushPromises()
+
+    expect(updateGroup).toHaveBeenCalledWith(42, expect.objectContaining({ allow_image_generation: false, image_count_billing: false }))
+    wrapper.unmount()
+  })
+
   it('disables the override controls without erasing their persisted values', async () => {
     const wrapper = mountView()
     await flushPromises()

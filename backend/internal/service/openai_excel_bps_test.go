@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -10,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/tlsfingerprint"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
@@ -23,6 +25,7 @@ type excelBPSHTTPUpstreamStub struct {
 	requests  []*http.Request
 	bodies    [][]byte
 	responses []*http.Response
+	answer    func([]byte) *http.Response
 	err       error
 }
 
@@ -35,6 +38,9 @@ func (s *excelBPSHTTPUpstreamStub) Do(req *http.Request, _ string, _ int64, _ in
 		response := s.responses[0]
 		s.responses = s.responses[1:]
 		return response, s.err
+	}
+	if s.answer != nil {
+		return s.answer(s.body), s.err
 	}
 	return s.resp, s.err
 }
@@ -128,8 +134,8 @@ func TestForwardExcelBPSUsesIndependentGrantAndParsesTerminalUsage(t *testing.T)
 	require.Empty(t, upstream.request.Header.Get("X-Codex-Turn-Metadata"))
 	require.Equal(t, "https://bps.openai.com/basispoints/api/responses", upstream.request.URL.String())
 	require.Equal(t, "gpt-5", gjson.GetBytes(upstream.body, "model").String())
-	require.Equal(t, "priority", gjson.GetBytes(upstream.body, "service_tier").String())
-	require.Equal(t, "priority", optionalStringValue(result.ServiceTier))
+	require.False(t, gjson.GetBytes(upstream.body, "service_tier").Exists())
+	require.Nil(t, result.ServiceTier)
 	require.Equal(t, "default", result.UpstreamResponseServiceTier)
 	require.Equal(t, "xhigh", optionalStringValue(result.RequestedReasoningEffort))
 	require.Equal(t, "resp-bps-1", result.ResponseID)
@@ -360,5 +366,45 @@ func TestForwardExcelBPSModelPermissionDoesNotBlockOtherModels(t *testing.T) {
 			account.Extra["openai_excel_bps"] = false
 			require.False(t, gateway.isOpenAIAccountRequestRuntimeBlocked(account, "second-alias"))
 		})
+	}
+}
+
+func TestForwardExcelBPSOmitsRejectedServiceTier(t *testing.T) {
+	for _, tier := range []string{"auto", "default", "priority", "fast", "group-force", "global-force"} {
+		for _, stream := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/stream=%t", tier, stream), func(t *testing.T) {
+				account := excelAccount()
+				upstream := &excelBPSHTTPUpstreamStub{answer: func(body []byte) *http.Response {
+					if gjson.GetBytes(body, "service_tier").Exists() {
+						return &http.Response{StatusCode: http.StatusUnprocessableEntity, Body: io.NopCloser(strings.NewReader(`{"error":{"message":"Invalid request body"}}`))}
+					}
+					return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(`data: {"type":"response.completed","response":{"id":"resp-bps","status":"completed","model":"gpt-5","service_tier":"priority","output":[],"usage":{"input_tokens":2,"output_tokens":1}}}` + "\n\n"))}
+				}}
+				gateway := newExcelBPSRuntime(t, account, `{"allowed":true,"model_catalog":{"models":[{"id":"gpt-5","available":true}]}}`, true, upstream)
+				c, rec := newExcelBPSContext()
+				ctx := t.Context()
+				request := map[string]any{"model": "gpt-5", "input": "hello", "stream": stream}
+				switch tier {
+				case "group-force":
+					ctx = context.WithValue(ctx, ctxkey.Group, &Group{ID: 7, Platform: PlatformOpenAI, Status: StatusActive, Hydrated: true, ForceOpenAIFast: true})
+				case "global-force":
+					gateway.settingService = newOpenAIGatewayServiceWithSettings(t, &OpenAIFastPolicySettings{Rules: []OpenAIFastPolicyRule{{
+						ServiceTier: OpenAIFastTierMissing, Action: OpenAIFastPolicyActionForcePriority, Scope: BetaPolicyScopeAll,
+					}}}).settingService
+				default:
+					request["service_tier"] = tier
+				}
+				body, encodeErr := json.Marshal(request)
+				require.NoError(t, encodeErr)
+				result, err := gateway.forwardExcelBPS(ctx, c, account, body, time.Now())
+				require.NoError(t, err)
+				require.Equal(t, http.StatusOK, rec.Code)
+				require.Len(t, upstream.bodies, 1, "the first send must succeed without a failover or replay")
+				require.False(t, gjson.GetBytes(upstream.bodies[0], "service_tier").Exists())
+				require.Nil(t, result.ServiceTier, "provider metadata must not turn an omitted tier into billable Fast")
+				require.Equal(t, "priority", result.UpstreamResponseServiceTier)
+				require.Equal(t, 2, result.Usage.InputTokens)
+			})
+		}
 	}
 }

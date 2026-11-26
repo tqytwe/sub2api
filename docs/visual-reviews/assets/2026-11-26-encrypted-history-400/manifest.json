@@ -1,0 +1,6 @@
+{
+  "source_commit": "81090b0cdec8c35ed31f00938e28717e6a94d1e5",
+  "working_tree": "The preview ran against the checked-out files; uncommitted changes may be present.",
+  "surface": "Production EncryptedHistory400Settings.vue component with synthetic settings state; no API or production data.",
+  "browser_errors": []
+}

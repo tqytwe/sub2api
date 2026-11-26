@@ -465,6 +465,17 @@
                 <Icon name="upload" size="sm" />
                 <span class="text-xs">{{ t('keys.importToCcSwitch') }}</span>
               </button>
+              <button
+                type="button"
+                data-testid="magpie-import-button"
+                :disabled="publicSettingsLoading"
+                :title="t('keys.magpieImport.preview')"
+                class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-blue-50 hover:text-blue-600 disabled:opacity-50 dark:hover:bg-blue-900/20 dark:hover:text-blue-400"
+                @click="importToMagpie(row)"
+              >
+                <Icon name="externalLink" size="sm" />
+                <span class="text-xs">{{ t('keys.importToMagpie') }}</span>
+              </button>
               <!-- Toggle Status Button -->
               <button
                 @click="toggleKeyStatus(row)"
@@ -1326,6 +1337,7 @@ import {
   isCcSwitchSupportedPlatform,
   type CcSwitchClientType
 } from '@/utils/ccswitchImport'
+import { buildMagpieImportLink } from '@/utils/magpieImport'
 
 // Helper to format date for datetime-local input
 const formatDateTimeLocal = (isoDate: string): string => {
@@ -1620,6 +1632,7 @@ const selectedKey = ref<ApiKey | null>(null)
 const copiedKeyId = ref<number | null>(null)
 const groupSelectorKeyId = ref<number | null>(null)
 const publicSettings = ref<PublicSettings | null>(null)
+const publicSettingsLoading = ref(true)
 const dropdownRef = ref<HTMLElement | null>(null)
 const columnDropdownRef = ref<HTMLElement | null>(null)
 const dropdownPosition = ref<{ top?: number; bottom?: number; left: number } | null>(null)
@@ -1896,6 +1909,8 @@ const loadPublicSettings = async () => {
     publicSettings.value = await authAPI.getPublicSettings()
   } catch (error) {
     console.error('Failed to load public settings:', error)
+  } finally {
+    publicSettingsLoading.value = false
   }
 }
 
@@ -2308,6 +2323,32 @@ const importToCcswitch = (row: ApiKey) => {
 
   // For other platforms, execute directly
   executeCcsImport(row, platform === 'gemini' ? 'gemini' : 'claude')
+}
+
+const importToMagpie = (row: ApiKey) => {
+  const settings = publicSettings.value
+  if (!settings) {
+    appStore.showError(t('keys.magpieImport.settingsUnavailable'))
+    return
+  }
+  const result = buildMagpieImportLink({
+    dashboardOrigin: window.location.origin,
+    baseUrl: settings.api_base_url,
+    siteName: settings.site_name,
+    row
+  })
+  if ('error' in result) {
+    appStore.showError(t(`keys.magpieImport.${result.error}`))
+    return
+  }
+
+  try {
+    window.open(result.url, '_self')
+  } catch {
+    appStore.showError(t('keys.magpieImport.openHelp'))
+    return
+  }
+  appStore.showInfo(t('keys.magpieImport.openHelp'), 6500)
 }
 
 const executeCcsImport = (row: ApiKey, clientType: CcSwitchClientType) => {

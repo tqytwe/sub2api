@@ -704,9 +704,9 @@ readLoop:
 		}
 
 		if eventType == "error" {
-			s.handleOpenAIWSErrorEventTransientFailure(ctx, account, mappedModel, lease.HandshakeHeaders(), message)
+			s.handleOpenAIWSErrorEventTransientFailure(openAI429LeaseObservation(ctx, lease), account, mappedModel, lease.HandshakeHeaders(), message)
 			errCodeRaw, errTypeRaw, errMsgRaw := parseOpenAIWSErrorEventFields(message)
-			s.persistOpenAIWSRateLimitSignal(ctx, account, lease.HandshakeHeaders(), message, errCodeRaw, errTypeRaw, errMsgRaw, mappedModel)
+			s.persistOpenAIWSRateLimitSignal(openAI429LeaseObservation(ctx, lease), account, lease.HandshakeHeaders(), message, errCodeRaw, errTypeRaw, errMsgRaw, mappedModel)
 			errMsg := strings.TrimSpace(errMsgRaw)
 			if errMsg == "" {
 				errMsg = "Upstream websocket error"
@@ -813,7 +813,7 @@ readLoop:
 			if !clientDisconnected {
 				markOpenAIWSClientVisibleFailure(c, eventType, message, ledgerAttempt.Receipt())
 			}
-			upstreamTerminalEvent = s.handleOpenAIWSTerminalTransientFailure(ctx, account, mappedModel, lease.HandshakeHeaders(), message)
+			upstreamTerminalEvent = s.handleOpenAIWSTerminalTransientFailure(openAI429LeaseObservation(ctx, lease), account, mappedModel, lease.HandshakeHeaders(), message)
 			// A terminal event must be the final JSON document in its WS message.
 			// Ignore any tail for the completed client turn, but never reuse the
 			// ambiguous upstream connection for another request.

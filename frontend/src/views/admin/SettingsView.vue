@@ -5088,6 +5088,11 @@
                 />
               </div>
 
+              <EncryptedHistory400Settings
+                v-model="form.openai_400_omit_encrypted_history_enabled"
+                :user-id="authStore.user?.id"
+              />
+
               <!-- OpenAI Responses 首 token 统计 -->
               <div class="border-b border-gray-100 pb-5 dark:border-dark-700 md:col-span-2">
                 <label
@@ -9251,9 +9256,11 @@
 </template>
 
 <script setup lang="ts">
+import EncryptedHistory400Settings from "@/components/settings/EncryptedHistory400Settings.vue";
 import { ref, reactive, computed, onMounted, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { adminAPI } from "@/api";
+import { useAuthStore } from "@/stores/auth";
 import {
   appendAuthSourceDefaultsToUpdateRequest,
   buildAuthSourceDefaultsState,
@@ -9343,6 +9350,7 @@ import {
 } from "./codexFingerprintSignals";
 
 const { t, locale } = useI18n();
+const authStore = useAuthStore();
 const appStore = useAppStore();
 // 关闭 step-up 开关是敏感操作：后端返回 STEP_UP_REQUIRED 时弹 TOTP 码重试
 const settingsStepUp = useStepUp();
@@ -10268,6 +10276,7 @@ const form = reactive<SettingsForm>({
   fallback_model_gemini: "gemini-2.5-pro",
   fallback_model_antigravity: "gemini-2.5-pro",
   openai_409_omit_encrypted_history_enabled: false,
+  openai_400_omit_encrypted_history_enabled: false,
   // Identity patch (Claude -> Gemini)
   enable_identity_patch: true,
   identity_patch_prompt: "",
@@ -12214,6 +12223,7 @@ async function saveSettings() {
         form.grok_cross_client_model_map_enabled,
       grok_default_base_url_mode: form.grok_default_base_url_mode,
       openai_409_omit_encrypted_history_enabled: form.openai_409_omit_encrypted_history_enabled,
+      openai_400_omit_encrypted_history_enabled: form.openai_400_omit_encrypted_history_enabled,
       enable_identity_patch: form.enable_identity_patch,
       identity_patch_prompt: form.identity_patch_prompt,
       min_claude_code_version: form.min_claude_code_version,

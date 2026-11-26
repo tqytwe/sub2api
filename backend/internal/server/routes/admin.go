@@ -1211,6 +1211,8 @@ func registerChannelRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	admin.POST("/providers/:id/keys", h.Admin.Channel.CreateMatureProviderKey)
 	admin.GET("/profit-operations/providers", h.Admin.Channel.ListProviderProfitLinks)
 	admin.PUT("/providers/:id/profit-channel", h.Admin.Channel.SetProviderProfitLink)
+	admin.POST("/providers/:id/profit-charges/sync", h.Admin.Channel.SyncProviderProfitCharges)
+	admin.GET("/providers/:id/profit-charges/sync/:job", h.Admin.Channel.ProviderProfitSyncStatus)
 	admin.GET("/upstream-channels", h.Admin.Channel.ListUpstreamChannels)
 	admin.POST("/upstream-channels", h.Admin.Channel.MutateUpstreamChannel)
 	admin.GET("/upstream-channels/:id", h.Admin.Channel.GetUpstreamChannel)

@@ -23,9 +23,10 @@ export interface OperationsSnapshot {
  usage: { summary: ProfitMetrics; rows: OperationsRow[]; total: number; accounts: AccountBasis[]; members: AccountBasis[]; member_total: number; capacity: { accounts: number; schedulable: number; configured_concurrency: number }; account_details_limit: number; catalog: Array<{key: string; name: string; accounts: number; channel_id?: number; channel_code?: string; channel_remark?: string; assignment?: string}>; catalog_total: number; historical_upstream_snapshot_requests: number; historical_cost_multiplier_snapshot_requests: number; cost_formula: string; income_source: string; standard_source: string }
  quality: OperationsSection<Omit<OperationsQuality, 'has_more' | 'scope'> & { total: number }>; errors: OperationsSection<Omit<OperationsErrors, 'scope'>>
 }
-export async function readProfitOperations( params: OperationsQuery, signal?: AbortSignal): Promise<OperationsSnapshot> {
+export async function readProfitOperations(params: OperationsQuery, signal?: AbortSignal, refresh = false): Promise<OperationsSnapshot> {
  // Full-range accounting may take minutes; leave time for the server's five-minute budget and response.
- return (await apiClient.get<OperationsSnapshot>('/admin/profit-operations/snapshot', { params, signal, timeout: 330_000 })).data
+ const query = refresh ? { ...params, refresh_report: '1' } : params
+ return (await apiClient.get<OperationsSnapshot>('/admin/profit-operations/snapshot', { params: query, signal, timeout: 330_000 })).data
 }
 
 export interface ProfitProvider extends Pick<MatureProvider, 'site_type' | 'status' | 'observed_at' | 'revision'> {

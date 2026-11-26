@@ -3728,6 +3728,8 @@ const messages = {
         title: 'Image Generation Pricing',
         description: 'Configure image generation access and base image prices. Leave empty to use default prices.',
         allowImageGeneration: 'Allow image generation for this group',
+        imageCountFallback: 'Use one-image fallback for image billing',
+        imageCountFallbackHint: 'Applies to dedicated image generation and edit endpoints. A successful response without an image count falls back to one image. Pricing rules and settlement receipts that require observed output still use the observed count.',
         allowBatchImageGeneration: 'Allow batch image generation for this group',
         independentMultiplier: 'Use independent image multiplier',
         imageMultiplier: 'Image multiplier',

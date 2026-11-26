@@ -271,6 +271,7 @@ func (s *OpenAIGatewayService) forwardExcelBPSImages(ctx context.Context, c *gin
 	}
 	sent := time.Now()
 	resp, err := s.httpUpstream.Do(req, proxyURL, account.ID, account.Concurrency)
+	ctx = context.WithValue(ctx, openAI429ObservedAtKey{}, time.Now())
 	SetOpsLatencyMs(c, OpsUpstreamLatencyMsKey, time.Since(sent).Milliseconds())
 	if err != nil {
 		return fail(http.StatusBadGateway, "basispoints_transport_error", "Excel BPS image request failed after sending")

@@ -324,7 +324,8 @@ func (h *OpenAIGatewayHandler) Images(c *gin.Context) {
 					accountReleaseFunc()
 				}
 			}()
-			return h.gatewayService.ForwardImages(requestCtx, c, account, body, parsed, channelMapping.MappedModel)
+			billingCtx := service.WithImageBillingModel(requestCtx, clientRequestedUsageFields(c, channelMapping, requestModel, ""))
+			return h.gatewayService.ForwardImages(billingCtx, c, account, body, parsed, channelMapping.MappedModel)
 		}()
 		forwardDurationMs := time.Since(forwardStart).Milliseconds()
 		upstreamLatencyMs, _ := getContextInt64(c, service.OpsUpstreamLatencyMsKey)

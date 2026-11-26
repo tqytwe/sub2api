@@ -613,8 +613,12 @@ func (s *OpenAIGatewayService) proxyOpenAIWSHTTPBridgeTurn(
 			if err := recovery.begin(latest, source, body, upstreamReq, "http_bridge"); err != nil {
 				return nil, openAIWSAgentRecoveryClose(err)
 			}
+			if !OpenAIWSAgentRecoveryCanRetry(ctx) {
+				upstreamReq = upstreamReq.WithContext(WithPlainUpstreamRequestBody(upstreamReq.Context()))
+			}
 		}
 		resp, err = s.doOpenAIUpstream(upstreamReq, proxyURL, account)
+		ctx = bindOpenAI429ResponseObservation(ctx, c, resp)
 		ledgerAttempt = requestledger.ResponseAttempt(resp)
 		if err != nil {
 			if IsOpenAIRPMError(err) {

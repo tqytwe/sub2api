@@ -37,7 +37,7 @@ func CodexUsageFieldVersions(updates map[string]any, observed time.Time) map[str
 
 func IsCodexUsageExtraKey(key string) bool {
 	return key == "codex_usage_updated_at" || key == CodexUsageObservationVersionKey ||
-		key == CodexUsageFieldVersionsKey || IsCodexUsageFieldKey(key)
+		key == CodexUsageFieldVersionsKey || key == openAI429LegacyWeeklySupersededKey || IsCodexUsageFieldKey(key)
 }
 
 // The callback runs while the shared database publication locks are held.

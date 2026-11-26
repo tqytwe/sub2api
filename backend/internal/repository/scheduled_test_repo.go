@@ -82,7 +82,7 @@ func (r *scheduledTestPlanRepository) TriggerQuality(ctx context.Context, id int
 	result, err := r.db.ExecContext(ctx, `
 		UPDATE scheduled_test_plans
 		SET next_run_at = NOW(), updated_at = clock_timestamp(),
-		 pelican_config=jsonb_set(pelican_config,'{_manual_quality_run}','true'::jsonb)
+		 pelican_config=pelican_config || jsonb_build_object('_manual_quality_run',true,'_manual_quality_run_id',gen_random_uuid()::text)
 		WHERE id = $1 AND enabled
 		  AND pelican_config->'quality' IS NOT NULL
 		  AND (running_until IS NULL OR running_until < NOW())
@@ -448,12 +448,14 @@ func scanPlan(row scannable) (*service.ScheduledTestPlan, error) {
 	}
 	if len(config) > 0 {
 		var marker struct {
-			Manual bool `json:"_manual_quality_run"`
+			Manual bool   `json:"_manual_quality_run"`
+			ID     string `json:"_manual_quality_run_id"`
 		}
 		if err := json.Unmarshal(config, &marker); err != nil {
 			return nil, err
 		}
 		p.ManualQualityRun = marker.Manual
+		p.ManualQualityRunID = marker.ID
 		p.PelicanConfig = &service.PelicanTestConfig{}
 		if err := json.Unmarshal(config, p.PelicanConfig); err != nil {
 			return nil, err

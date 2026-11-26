@@ -276,6 +276,36 @@ func TestNormalizeOpsUpstreamErrorsJSONPreservesUnknownKeysAndOrder(t *testing.T
 	require.Error(t, err)
 }
 
+func TestOpsEncryptedHistory400DiagnosticSerialization(t *testing.T) {
+	valid := &OpenAI400HistoryDiagnostic{Applied: true, After409: true, Decision: "same_account_retry_scheduled"}
+	entry := &OpsInsertErrorLogInput{UpstreamErrors: []*OpsUpstreamErrorEvent{
+		{UpstreamStatusCode: 400, EncryptedHistory400: valid},
+		{UpstreamStatusCode: 400, EncryptedHistory400: &OpenAI400HistoryDiagnostic{Decision: "fixture-sensitive"}},
+	}}
+	require.NoError(t, SanitizeOpsUpstreamErrorsForQueue(entry))
+	require.NotNil(t, entry.UpstreamErrorsJSON)
+	require.NotContains(t, *entry.UpstreamErrorsJSON, "fixture-sensitive")
+	events, err := ParseOpsUpstreamErrors(*entry.UpstreamErrorsJSON)
+	require.NoError(t, err)
+	require.Len(t, events, 2)
+	require.Equal(t, valid, events[0].EncryptedHistory400)
+	require.Nil(t, events[1].EncryptedHistory400)
+
+	stored := `[{"legacy_key":"retain-me","encrypted_history_400":{"decision":"disabled","applied":false,"after_409":false,"detail":"fixture-sensitive"}},` +
+		`{"encrypted_history_400":{"decision":"fixture-sensitive"}},` +
+		`{"encrypted_history_400":{"decision":"disabled","applied":"fixture-sensitive","after_409":false}}]`
+	read, err := normalizeOpsUpstreamErrorsJSON(stored)
+	require.NoError(t, err)
+	require.NotContains(t, read, "fixture-sensitive")
+	require.Contains(t, read, `"legacy_key":"retain-me"`)
+	events, err = ParseOpsUpstreamErrors(read)
+	require.NoError(t, err)
+	require.Len(t, events, 3)
+	require.Equal(t, &OpenAI400HistoryDiagnostic{Decision: "disabled"}, events[0].EncryptedHistory400)
+	require.Nil(t, events[1].EncryptedHistory400)
+	require.Nil(t, events[2].EncryptedHistory400)
+}
+
 func TestParseOpsUpstreamErrorsMarksLegacyProxyAttributionUnknown(t *testing.T) {
 	events, err := ParseOpsUpstreamErrors(`[{"account_id":42,"account_name":"legacy","kind":"http_error"}]`)
 	require.NoError(t, err)

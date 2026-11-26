@@ -90,6 +90,7 @@ func (h *ChannelHandler) MutateUpstreamChannel(c *gin.Context) {
 		upstreamChannelError(c, e)
 		return
 	}
+	h.profitReports.clear()
 	if out == nil {
 		response.Success(c, gin.H{"deleted": id})
 		return
@@ -117,6 +118,7 @@ func (h *ChannelHandler) ReadUpstreamChannelBindings(c *gin.Context) {
 		upstreamChannelError(c, e)
 		return
 	}
+	h.profitReports.clear()
 	response.Success(c, gin.H{"items": out})
 }
 func (h *ChannelHandler) BindUpstreamChannelAccounts(c *gin.Context) {

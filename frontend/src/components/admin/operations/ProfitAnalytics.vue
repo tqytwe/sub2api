@@ -1,6 +1,6 @@
 <template>
     <div class="min-w-0 space-y-5">
-      <header class="flex flex-wrap items-start justify-between gap-3"><div><h1 class="text-2xl font-semibold">{{ t('profitOps.title') }}</h1><p class="mt-2 text-sm text-gray-500">{{ t('profitOps.description') }}</p></div><button class="btn btn-secondary" data-testid="refresh-operations" :disabled="loading" @click="load">{{ t('profitOps.refresh') }}</button></header>
+      <header class="flex flex-wrap items-start justify-between gap-3"><div><h1 class="text-2xl font-semibold">{{ t('profitOps.title') }}</h1><p class="mt-2 text-sm text-gray-500">{{ t('profitOps.description') }}</p></div><button class="btn btn-secondary" data-testid="refresh-operations" :disabled="loading" @click="load(true)">{{ t('profitOps.refresh') }}</button></header>
       <UpstreamChannelManager @changed="load" />
       <ProfitProviders v-if="auth.isAdmin" @changed="load" />
       <p class="rounded-lg bg-primary-50 p-4 text-sm leading-6 dark:bg-dark-800">{{ t('profitOps.attribution') }}</p>
@@ -71,9 +71,9 @@ const snapshot=ref<OperationsSnapshot|null>(null), loading=ref(false), error=ref
 let request=0, alive=true, controller: AbortController|undefined
 function number(v: number|null|undefined, decimals=6) { return v==null || !Number.isFinite(v) ? t('profitOps.unknown') : v.toLocaleString(undefined,{minimumFractionDigits:decimals,maximumFractionDigits:decimals}) }
 function formatMetric(m:ProfitMetrics,key:typeof amountKeys[number]) { return key==='margin' ? (m.margin==null || !Number.isFinite(m.margin) ? t('profitOps.unknown') : `${(m.margin*100).toFixed(2)}%`) : number(m[key]) }
-async function load() {
+async function load(refresh = false) {
  const id=++request; controller?.abort(); controller=new AbortController(); loading.value=true; error.value=''; snapshot.value=null
- try { const next=await readProfitOperations({...applied.value},controller.signal); if(alive && request===id) snapshot.value=next }
+ try { const next=await readProfitOperations({...applied.value},controller.signal,refresh); if(alive && request===id) snapshot.value=next }
  catch (cause) {
   if(alive && request===id) {
    const failure=cause as { status?: number; reason?: string; code?: string } | null

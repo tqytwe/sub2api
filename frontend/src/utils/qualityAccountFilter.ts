@@ -9,7 +9,7 @@ export const qualityAccountStatusOptions = [
 ]
 
 export const qualityAccountTypeOptions = [
-  { value: 'oauth', label: 'qualityOps.oauthAccounts' },
-  { value: 'setup-token', label: 'qualityOps.setupTokenAccounts' },
-  { value: 'apikey', label: 'qualityOps.apiKeyAccounts' },
+  { value: 'oauth', label: 'admin.qualityOps.oauthAccounts' },
+  { value: 'setup-token', label: 'admin.qualityOps.setupTokenAccounts' },
+  { value: 'apikey', label: 'admin.qualityOps.apiKeyAccounts' },
 ]

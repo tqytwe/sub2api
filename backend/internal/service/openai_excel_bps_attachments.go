@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/service/basispoints"
 )
@@ -20,8 +21,9 @@ func newExcelBPSRequest(ctx context.Context, body []byte, token, accountID strin
 }
 
 type excelBPSAttachmentRejection struct {
-	status  int
-	headers http.Header
+	status     int
+	headers    http.Header
+	observedAt time.Time
 }
 
 func (e *excelBPSAttachmentRejection) Error() string {
@@ -56,6 +58,7 @@ func (s *OpenAIGatewayService) uploadExcelBPSAttachment(ctx context.Context, acc
 		proxyURL = account.Proxy.URL()
 	}
 	resp, err := s.httpUpstream.Do(req, proxyURL, account.ID, account.Concurrency)
+	observedAt := time.Now()
 	if err != nil {
 		return "", fmt.Errorf("BPS attachment upload failed")
 	}
@@ -65,7 +68,7 @@ func (s *OpenAIGatewayService) uploadExcelBPSAttachment(ctx context.Context, acc
 			(resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden) {
 			_ = s.excelOAuthReauth.FailAuthConnection(ctx, account, resp.StatusCode)
 		}
-		return "", &excelBPSAttachmentRejection{status: resp.StatusCode, headers: resp.Header.Clone()}
+		return "", &excelBPSAttachmentRejection{status: resp.StatusCode, headers: resp.Header.Clone(), observedAt: observedAt}
 	}
 	return basispoints.ReadAttachmentID(resp.Body)
 }
@@ -79,6 +82,7 @@ func (s *OpenAIGatewayService) repairExcelBPSResponse(ctx context.Context, accou
 		return nil, err
 	}
 	resp, err := s.httpUpstream.Do(req, proxyURL, account.ID, account.Concurrency)
+	ctx = context.WithValue(ctx, openAI429ObservedAtKey{}, time.Now())
 	if err != nil {
 		return nil, fmt.Errorf("BPS tool correction transport failed")
 	}

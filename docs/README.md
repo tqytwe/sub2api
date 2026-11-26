@@ -1,7 +1,7 @@
 # 项目文档索引
 
 > 状态：active
-> 最后索引/本地链接核验：2026-10-27（不代表逐篇业务内容重新验收）
+> 最后索引/本地链接核验：2026-11-26（不代表逐篇业务内容重新验收）
 > 维护规则：当前实现以代码和测试为准；未登记在本索引中的 `docs/` 文档不得作为项目依据。
 
 ## 状态定义
@@ -40,6 +40,11 @@
 | [前端全链路体验与性能基线报告](./PERFORMANCE_BASELINE_20260723.md) | `active` | 首页、登录、钱包、Play、支付和管理员入口的加载性能基线与优化优先级 | 前端维护者 | 2026-07-23 |
 | [Fork 定制登记](./FORK_CUSTOMIZATIONS.md) | `active` | 极速蹬定制的唯一权威登记表 | Fork 维护者 | 2026-07-20 |
 | [上游同步手册](./UPSTREAM_SYNC_PLAYBOOK.md) | `active` | ranxi 正式版源码核验、单批次集成、Fork 部署和回滚 | 发布负责人 | 2026-10-28 |
+| [v2.23.1 上游同步账本](./upstream-migrations/v2.23.1/README.md) | `active` | 固定来源、逐提交处置与当前交付状态 | 主线程协调；工作包负责人待分配 | 2026-11-25 |
+| [v2.23.1 项目清单](./upstream-migrations/v2.23.1/DEVELOPMENT_CHECKLIST.md) | `active` | 107 项累计差异、94 项开放工作包、责任人分配与放行门禁 | 同步负责人；领域负责人待分配 | 2026-11-26 |
+| [OpenAI 旧版兼容模式](./openai-legacy-compatibility.md) | `active` | startup-only 兼容开关、安全边界与回滚流程 | 网关维护者 | 2026-11-25 |
+| [HTTP 400 加密历史有损恢复（中文）](./encrypted-history-400-beta.zh.md) | `active` | 管理员开关、恢复边界和验证说明 | 网关维护者 | 2026-11-26 |
+| [Lossy encrypted history recovery on HTTP 400](./encrypted-history-400-beta.md) | `active` | Administrator setting, recovery boundaries, and verification | Gateway maintainer | 2026-11-26 |
 | [v2.17.7 同步批次账本](./upstream-migrations/v2.17.7/README.md) | `active` | 当前目标正式版本来源锁、功能验收合同及同步批次状态；当前生产为 PR #399 | 主线程协调；工作包负责人待分配 | 2026-11-01 |
 | [v2.17.7 功能域矩阵](./upstream-migrations/v2.17.7/feature-matrix.md) | `active` | 按功能域区分已等价、已部署、未完成和隐私阻断 | 主线程协调 | 2026-11-01 |
 | [v2.17.7 开发清单指南](./upstream-migrations/v2.17.7/DEVELOPMENT_CHECKLIST.md) | `active` | 逐 merge 审计范围、功能工作包、验收和发布门禁；生产账务复核见首段 | 主线程协调 | 2026-11-01 |

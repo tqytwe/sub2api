@@ -45,6 +45,10 @@ type openAIAgentRecoveryState struct {
 }
 
 type openAIAgentRecoveryRequest struct {
+	omitted400History   bool // one authorized same-route HTTP 400 history replacement
+	retry400Route       *openAIAgentRecoveryBinding
+	retry400Proxy       [32]byte
+	pluginAttempt       bool
 	omittedHistory      bool // explicit Beta sanitization; preserve the resulting input and prohibit replay
 	disableOwnerBinding bool
 	previousResponseID  string
@@ -75,6 +79,11 @@ type openAIAgentRecoveryRequest struct {
 // producer; it cannot prove a provider will accept its own output in the future.
 // Ordinary sticky writes, HTTP 200 and reasoning are not proof.
 func (s *OpenAIGatewayService) WithOpenAIAgentMessageRecovery(ctx context.Context, c *gin.Context, body []byte, sessionHash, model string) context.Context {
+	if s.openAILegacyCompatibility() {
+		// Mask inherited ownership state: compatibility mode must not consult or
+		// publish agent-owner records, or establish bound/no-replay state.
+		return context.WithValue(ctx, openAIAgentRecoveryContextKey{}, (*openAIAgentRecoveryRequest)(nil))
+	}
 	request := &openAIAgentRecoveryRequest{groupID: getOpenAIGroupIDFromContext(c), model: model, session: sessionHash}
 	request.disableOwnerBinding = s != nil && s.cfg != nil && s.cfg.Gateway.DisableEncryptedAgentOwnerBinding
 	if request.disableOwnerBinding {
@@ -148,7 +157,7 @@ func (r *openAIAgentRecoveryRequest) ownerBindingRequired() bool {
 }
 
 func (r *openAIAgentRecoveryRequest) preservesHistory() bool {
-	return r != nil && (r.omittedHistory || (r.disableOwnerBinding && len(r.items) > 0))
+	return r != nil && (r.omitted400History || r.omittedHistory || (r.disableOwnerBinding && len(r.items) > 0))
 }
 
 func openAIAgentRecoveryPreservesHistory(ctx context.Context) bool {
@@ -172,7 +181,7 @@ func openAIAgentRecoveryInputDigest(body []byte) [32]byte {
 }
 
 func (s *OpenAIGatewayService) preserveOpenAIAgentHistory(body []byte) bool {
-	return s != nil && s.cfg != nil && s.cfg.Gateway.DisableEncryptedAgentOwnerBinding && len(openAIAgentRecoveryItemDigests(body)) > 0
+	return s != nil && !s.openAILegacyCompatibility() && s.cfg != nil && s.cfg.Gateway.DisableEncryptedAgentOwnerBinding && len(openAIAgentRecoveryItemDigests(body)) > 0
 }
 
 func openAIAgentRecoveryItemDigests(body []byte) [][32]byte {
@@ -249,6 +258,10 @@ func (s *OpenAIGatewayService) checkOpenAIAgentRecoveryAccount(ctx context.Conte
 	if request == nil {
 		return nil
 	}
+	if request.omitted400History && (request.retry400Route == nil || account == nil ||
+		account.ID != request.retry400Route.accountID || openAIAgentRecoveryConfig(account, request.model) != request.retry400Route.config) {
+		return openAIAgentRecoveryError("route_changed")
+	}
 	if request.lookupErr != nil {
 		return request.lookupErr
 	}
@@ -323,26 +336,28 @@ func (s *OpenAIGatewayService) prepareOpenAIAgentRecoveryAttempt(ctx context.Con
 	}
 	request.outputs = nil
 	request.delivery = nil
+	request.pluginAttempt = false
 	if err := s.checkOpenAIAgentRecoveryAccount(ctx, account); err != nil {
 		return noop, err
 	}
 	// Managed credentials and adapters need their own route ownership contract.
 	if !account.IsOpenAI() || account.HasManagedOpenAIConnections() || account.AuthConnectionID != "" ||
 		account.IsOpenAIPassthroughEnabled() || account.IsCopilotSDKEnabled() || account.IsSIWCEnabled() {
-		if request.owner != nil {
+		if request.owner != nil || request.omitted400History {
 			return noop, openAIAgentRecoveryError("wire_changed")
 		}
 		return noop, nil
 	}
+	canSkipBodyCheck := !request.omitted400History && len(request.items) == 0 && request.owner == nil && request.previousResponseID == ""
 	if req.GetBody == nil {
-		if len(request.items) == 0 && request.owner == nil && request.previousResponseID == "" {
+		if canSkipBodyCheck {
 			return noop, nil
 		}
 		return noop, openAIAgentRecoveryError("wire_changed")
 	}
 	reader, err := req.GetBody()
 	if err != nil {
-		if len(request.items) == 0 && request.owner == nil && request.previousResponseID == "" {
+		if canSkipBodyCheck {
 			return noop, nil
 		}
 		return noop, openAIAgentRecoveryError("wire_changed")
@@ -350,13 +365,13 @@ func (s *OpenAIGatewayService) prepareOpenAIAgentRecoveryAttempt(ctx context.Con
 	body, err := io.ReadAll(reader)
 	_ = reader.Close()
 	if err != nil {
-		if len(request.items) == 0 && request.owner == nil && request.previousResponseID == "" {
+		if canSkipBodyCheck {
 			return noop, nil
 		}
 		return noop, openAIAgentRecoveryError("wire_changed")
 	}
 	if !utf8.Valid(body) || !openAIEncryptedJSONUnambiguous(body) {
-		if len(request.items) == 0 && request.owner == nil && request.previousResponseID == "" {
+		if canSkipBodyCheck {
 			return noop, nil
 		}
 		return noop, openAIAgentRecoveryError("wire_changed")
@@ -371,15 +386,13 @@ func (s *OpenAIGatewayService) prepareOpenAIAgentRecoveryAttempt(ctx context.Con
 		actual := openAI409FingerprintControls(body)
 		expected := request.replayControls
 		if actual != expected {
-			logger.FromContext(ctx).Warn("openai.encrypted_history_409_refused",
-				zap.String("stage", "controls_integrity"),
-				zap.Bool("tools_changed", actual[0] != expected[0]),
-				zap.Bool("tool_choice_changed", actual[1] != expected[1]),
-				zap.Bool("parallel_tool_calls_changed", actual[2] != expected[2]),
-				zap.Bool("instructions_changed", actual[3] != expected[3]),
-				zap.Bool("previous_response_id_changed", actual[4] != expected[4]),
-				zap.Bool("conversation_changed", actual[5] != expected[5]))
-			return noop, openAIAgentRecoveryError("wire_changed")
+			controls := &OpenAIRecoveryControls{
+				ToolsChanged: actual[0] != expected[0], ToolChoiceChanged: actual[1] != expected[1],
+				ParallelToolCallsChanged: actual[2] != expected[2], InstructionsChanged: actual[3] != expected[3],
+				PreviousResponseIDChanged: actual[4] != expected[4], ConversationChanged: actual[5] != expected[5],
+			}
+			logger.FromContext(ctx).Warn("openai.encrypted_history_409_refused", zap.String("stage", "controls_integrity"), zap.Any("controls", controls))
+			return noop, &OpenAIAgentRecoveryError{Reason: "wire_changed", Controls: controls}
 		}
 	}
 	if request.previousResponseID != "" && gjson.GetBytes(body, "previous_response_id").String() != request.previousResponseID {
@@ -402,6 +415,10 @@ func (s *OpenAIGatewayService) prepareOpenAIAgentRecoveryAttempt(ctx context.Con
 	}
 	wire := openAIAgentRecoveryWireDigest(req.URL.String(), req.Header, gjson.GetBytes(body, "model").String())
 	binding := openAIAgentRecoveryBinding{accountID: account.ID, config: openAIAgentRecoveryConfig(account, request.model), wire: wire, expiresAt: time.Now().Add(s.openAIWSSessionStickyTTL())}
+	proxy := openAI400ProxyDigest(account)
+	if request.omitted400History && (request.retry400Route == nil || !sameOpenAIAgentRecoveryRoute(*request.retry400Route, binding) || request.retry400Proxy != proxy) {
+		return noop, openAIAgentRecoveryError("wire_changed")
+	}
 	if request.ownerBindingRequired() && !sameOpenAIAgentRecoveryRoute(*request.owner, binding) {
 		return noop, openAIAgentRecoveryError("wire_changed")
 	}
@@ -409,10 +426,11 @@ func (s *OpenAIGatewayService) prepareOpenAIAgentRecoveryAttempt(ctx context.Con
 		return noop, err
 	}
 	delivery := newOpenAIAgentRecoveryDelivery(s, ctx, request, binding)
+	delivery.proxy = proxy
 	request.delivery = delivery
 	return func(completed bool) {
 		delivery.finish(completed && ctx.Err() == nil)
-		if !completed || ctx.Err() != nil || request.disableOwnerBinding {
+		if !completed || ctx.Err() != nil || request.disableOwnerBinding || request.omitted400History {
 			// Consumption is not production. In opt-out mode inputs retain their
 			// original records (including concurrent fences); only actual new
 			// outputs receive the admitted producer's transactional grant above.

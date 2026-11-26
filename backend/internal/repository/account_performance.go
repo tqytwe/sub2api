@@ -56,7 +56,7 @@ func (r *accountPerformanceRepository) Stop() {
 // needs an explicit UTC offset; all supported versions accept microseconds.
 const performanceMetricsSQL = `
 WITH source AS MATERIALIZED (
- SELECT u.account_id,u.output_tokens,u.duration_ms,u.first_token_ms,u.stream,
+ SELECT u.account_id,u.group_id,u.requested_model,u.model,u.output_tokens,u.duration_ms,u.first_token_ms,u.stream,
   u.input_tokens,u.cache_read_tokens,u.cache_creation_tokens,
   (jsonb_path_query_first_tz(jsonb_build_object('at',
    regexp_replace(regexp_replace(d.started_at,'Z$','+00:00'),

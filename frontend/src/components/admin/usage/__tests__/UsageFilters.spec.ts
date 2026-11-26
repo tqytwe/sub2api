@@ -2,6 +2,7 @@ import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 
 import UsageFilters from '../UsageFilters.vue'
+import { CONCRETE_PLATFORM_OPTIONS } from '@/constants/platforms'
 
 // --- i18n messages (only what UsageFilters needs) ---
 const messages: Record<string, string> = {
@@ -11,6 +12,11 @@ const messages: Record<string, string> = {
   'usage.apiKeyFilter': 'API Key',
   'admin.usage.searchApiKeyPlaceholder': 'Search API key...',
   'usage.model': 'Model',
+  'admin.usage.platform': 'Platform',
+  'admin.usage.allPlatforms': 'All platforms',
+  'admin.usage.unknownPlatform': 'Unknown',
+  'admin.usage.platformCleanupUnavailable': 'Cleanup is unavailable while a platform filter is active',
+  'admin.usage.platformHistoryHint': 'Platform filtering uses the request-time platform snapshot. Historical rows without one are Unknown.',
   'admin.usage.allModels': 'All Models',
   'admin.usage.account': 'Account',
   'admin.usage.searchAccountPlaceholder': 'Search account...',
@@ -79,6 +85,7 @@ const defaultFilters = () => ({
   api_key_id: undefined,
   account_id: undefined,
   model: null,
+  platform: undefined,
   request_type: null,
   native_compaction_v2: null,
   billing_type: null,
@@ -89,14 +96,15 @@ const defaultFilters = () => ({
   end_date: '',
 })
 
-function mountFilters(filters = defaultFilters()) {
+function mountFilters(filters = defaultFilters(), options: { mode?: 'usage' | 'errors' | 'ranking' | 'connections' | 'latency' | 'traffic'; showActions?: boolean } = {}) {
   return mount(UsageFilters, {
     props: {
       modelValue: filters,
       exporting: false,
       startDate: '2026-05-01',
       endDate: '2026-05-28',
-      showActions: false,
+      showActions: options.showActions ?? false,
+      mode: options.mode ?? 'usage',
       modelOptions: [],
     },
     global: {
@@ -303,5 +311,37 @@ describe('UsageFilters — native compaction filter', () => {
 
     expect(filters.native_compaction_v2).toBe(true)
     expect(wrapper.emitted('change')).toBeTruthy()
+  })
+})
+
+
+describe('UsageFilters — request-time platform filtering', () => {
+  it('shows the platform selector only in the usage mode and includes supported plus unknown choices', async () => {
+    const usage = mountFilters()
+    await flushPromises()
+    expect(usage.find('[data-testid="usage-platform-filter"]').exists()).toBe(true)
+    expect((usage.vm as any).platformOptions).toEqual([
+      { value: null, label: 'All platforms' },
+      ...CONCRETE_PLATFORM_OPTIONS,
+      { value: 'unknown', label: 'Unknown' },
+    ])
+    usage.unmount()
+
+    for (const mode of ['errors', 'ranking', 'connections', 'latency', 'traffic'] as const) {
+      const other = mountFilters(defaultFilters(), { mode })
+      expect(other.find('[data-testid="usage-platform-filter"]').exists()).toBe(false)
+      other.unmount()
+    }
+  })
+
+  it('disables cleanup and explains why when a platform filter is active', async () => {
+    const wrapper = mountFilters({ ...defaultFilters(), platform: 'openai' }, { showActions: true })
+    await flushPromises()
+    const cleanup = wrapper.findAll('button').find(button => button.classes().includes('btn-danger'))
+    expect(cleanup).toBeDefined()
+    expect(cleanup!.attributes('disabled')).toBeDefined()
+    expect(cleanup!.attributes('title')).toBe('Cleanup is unavailable while a platform filter is active')
+    expect(wrapper.text()).toContain('Platform filtering uses the request-time platform snapshot. Historical rows without one are Unknown.')
+    wrapper.unmount()
   })
 })

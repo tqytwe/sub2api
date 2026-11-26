@@ -206,6 +206,7 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyGrokDefaultBaseURLMode:               GrokDefaultBaseURLModeCLI,
 		SettingKeyGrokVideoSourceURLEnabled:            "false",
 		SettingKeyOpenAI409OmitEncryptedHistoryEnabled: "false",
+		SettingKeyOpenAI400OmitEncryptedHistoryEnabled: "false",
 
 		// Available channels feature (default disabled; opt-in)
 		SettingKeyAvailableChannelsEnabled: "false",
@@ -889,6 +890,7 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 	result.ExcelBPSImageStorageEntries = imageLimits.StorageEntries
 	result.ExcelBPSImageTTLMinutes = imageLimits.TTLMinutes
 	result.OpenAI409OmitEncryptedHistoryEnabled = settings[SettingKeyOpenAI409OmitEncryptedHistoryEnabled] == "true"
+	result.OpenAI400OmitEncryptedHistoryEnabled = settings[SettingKeyOpenAI400OmitEncryptedHistoryEnabled] == "true"
 
 	// Available channels feature (default: disabled; strict true)
 	result.AvailableChannelsEnabled = settings[SettingKeyAvailableChannelsEnabled] == "true"

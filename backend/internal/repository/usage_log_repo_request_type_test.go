@@ -107,12 +107,13 @@ func TestUsageLogRepositoryCreateSyncRequestTypeAndLegacyFields(t *testing.T) {
 			log.BilledCost,
 			service.BillingSurchargeModeNone,
 			log.BillingSurchargeValue,
-			0,     // input_audio_tokens
-			0,     // output_audio_tokens
-			0,     // cache_creation_audio_tokens
-			0,     // cache_read_audio_tokens
-			nil,   // billing_request_fingerprint: legacy logs have no settlement proof
-			false, // billing_settled
+			0,                // input_audio_tokens
+			0,                // output_audio_tokens
+			0,                // cache_creation_audio_tokens
+			0,                // cache_read_audio_tokens
+			nil,              // billing_request_fingerprint: legacy logs have no settlement proof
+			false,            // billing_settled
+			sql.NullString{}, // platform
 		).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "created_at"}).AddRow(int64(99), createdAt))
 
@@ -212,12 +213,13 @@ func TestUsageLogRepositoryCreate_PersistsServiceTier(t *testing.T) {
 			log.BilledCost,
 			service.BillingSurchargeModeNone,
 			log.BillingSurchargeValue,
-			0,     // input_audio_tokens
-			0,     // output_audio_tokens
-			0,     // cache_creation_audio_tokens
-			0,     // cache_read_audio_tokens
-			nil,   // billing_request_fingerprint: legacy logs have no settlement proof
-			false, // billing_settled
+			0,                // input_audio_tokens
+			0,                // output_audio_tokens
+			0,                // cache_creation_audio_tokens
+			0,                // cache_read_audio_tokens
+			nil,              // billing_request_fingerprint: legacy logs have no settlement proof
+			false,            // billing_settled
+			sql.NullString{}, // platform
 		).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "created_at"}).AddRow(int64(100), createdAt))
 
@@ -294,7 +296,7 @@ func TestPrepareUsageLogInsert_PersistsAudioUsageBreakdown(t *testing.T) {
 		CacheReadAudioTokens:     3,
 	})
 	require.Len(t, prepared.args, len(usageLogInsertArgTypes))
-	require.Equal(t, []any{36, 5, 4, 3}, prepared.args[len(prepared.args)-6:len(prepared.args)-2])
+	require.Equal(t, []any{36, 5, 4, 3}, prepared.args[len(prepared.args)-7:len(prepared.args)-3])
 }
 
 func TestPrepareUsageLogInsert_PersistsBillingSurchargeSnapshot(t *testing.T) {
@@ -313,10 +315,10 @@ func TestPrepareUsageLogInsert_PersistsBillingSurchargeSnapshot(t *testing.T) {
 		CreatedAt:             time.Date(2025, 1, 5, 12, 0, 0, 0, time.UTC),
 	})
 
-	require.Equal(t, 0.05, prepared.args[len(prepared.args)-10])
-	require.Equal(t, 0.30, prepared.args[len(prepared.args)-9])
-	require.Equal(t, service.BillingSurchargeModeAdditiveMultiplier, prepared.args[len(prepared.args)-8])
-	require.Equal(t, 0.2, prepared.args[len(prepared.args)-7])
+	require.Equal(t, 0.05, prepared.args[len(prepared.args)-11])
+	require.Equal(t, 0.30, prepared.args[len(prepared.args)-10])
+	require.Equal(t, service.BillingSurchargeModeAdditiveMultiplier, prepared.args[len(prepared.args)-9])
+	require.Equal(t, 0.2, prepared.args[len(prepared.args)-8])
 }
 
 func TestPrepareUsageLogInsert_PersistsImageSizeMetadata(t *testing.T) {
@@ -929,6 +931,7 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			"none",
 			0.0,
 			0, 0, 0, 0,
+			sql.NullString{}, // platform
 		}})
 		require.NoError(t, err)
 		require.Equal(t, 2, log.ImageCount)
@@ -1014,6 +1017,7 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			"none",
 			0.0,
 			0, 0, 0, 0,
+			sql.NullString{}, // platform
 		}})
 		require.NoError(t, err)
 		require.NotNil(t, log.ServiceTier)
@@ -1082,6 +1086,7 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			"none",
 			0.0,
 			0, 0, 0, 0,
+			sql.NullString{}, // platform
 		}})
 		require.NoError(t, err)
 		require.NotNil(t, log.ServiceTier)
@@ -1150,6 +1155,7 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			service.BillingSurchargeModeAdditiveMultiplier,
 			0.1,
 			0, 0, 0, 0,
+			sql.NullString{}, // platform
 		}})
 		require.NoError(t, err)
 		require.NotNil(t, log.ServiceTier)

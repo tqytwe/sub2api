@@ -32,6 +32,9 @@ func (s *SettingService) IsOpenAI409OmitEncryptedHistoryEnabled(ctx context.Cont
 // TryOmitOpenAI409History is called only after initial account selection fails,
 // before any upstream attempt. It never handles provider responses or retries.
 func (s *OpenAIGatewayService) TryOmitOpenAI409History(ctx context.Context, c *gin.Context, body []byte, session, model string, cause error) (context.Context, []byte, bool) {
+	if s.openAILegacyCompatibility() {
+		return ctx, body, false
+	}
 	if c == nil || c.Request == nil || c.IsWebsocket() || strings.EqualFold(strings.TrimSpace(c.GetHeader("Upgrade")), "websocket") {
 		return ctx, body, false
 	}

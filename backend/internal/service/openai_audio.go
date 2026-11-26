@@ -91,6 +91,9 @@ func (s *OpenAIGatewayService) ForwardOpenAIAudio(
 	if s == nil || account == nil {
 		return nil, fmt.Errorf("openai audio service/account is required")
 	}
+	if err := CheckUpstreamModeration(ctx, c, account); err != nil {
+		return nil, err
+	}
 	if !op.valid() {
 		return nil, fmt.Errorf("unsupported openai audio operation: %s", op)
 	}

@@ -22541,6 +22541,7 @@ type GroupMutation struct {
 	adddefault_validity_days                *int
 	allow_image_generation                  *bool
 	allow_batch_image_generation            *bool
+	image_count_billing                     *bool
 	image_rate_independent                  *bool
 	image_rate_multiplier                   *float64
 	addimage_rate_multiplier                *float64
@@ -23890,6 +23891,42 @@ func (m *GroupMutation) OldAllowBatchImageGeneration(ctx context.Context) (v boo
 // ResetAllowBatchImageGeneration resets all changes to the "allow_batch_image_generation" field.
 func (m *GroupMutation) ResetAllowBatchImageGeneration() {
 	m.allow_batch_image_generation = nil
+}
+
+// SetImageCountBilling sets the "image_count_billing" field.
+func (m *GroupMutation) SetImageCountBilling(b bool) {
+	m.image_count_billing = &b
+}
+
+// ImageCountBilling returns the value of the "image_count_billing" field in the mutation.
+func (m *GroupMutation) ImageCountBilling() (r bool, exists bool) {
+	v := m.image_count_billing
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldImageCountBilling returns the old "image_count_billing" field's value of the Group entity.
+// If the Group object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GroupMutation) OldImageCountBilling(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldImageCountBilling is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldImageCountBilling requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldImageCountBilling: %w", err)
+	}
+	return oldValue.ImageCountBilling, nil
+}
+
+// ResetImageCountBilling resets all changes to the "image_count_billing" field.
+func (m *GroupMutation) ResetImageCountBilling() {
+	m.image_count_billing = nil
 }
 
 // SetImageRateIndependent sets the "image_rate_independent" field.
@@ -26665,7 +26702,7 @@ func (m *GroupMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *GroupMutation) Fields() []string {
-	fields := make([]string, 0, 74)
+	fields := make([]string, 0, 75)
 	if m.created_at != nil {
 		fields = append(fields, group.FieldCreatedAt)
 	}
@@ -26743,6 +26780,9 @@ func (m *GroupMutation) Fields() []string {
 	}
 	if m.allow_batch_image_generation != nil {
 		fields = append(fields, group.FieldAllowBatchImageGeneration)
+	}
+	if m.image_count_billing != nil {
+		fields = append(fields, group.FieldImageCountBilling)
 	}
 	if m.image_rate_independent != nil {
 		fields = append(fields, group.FieldImageRateIndependent)
@@ -26948,6 +26988,8 @@ func (m *GroupMutation) Field(name string) (ent.Value, bool) {
 		return m.AllowImageGeneration()
 	case group.FieldAllowBatchImageGeneration:
 		return m.AllowBatchImageGeneration()
+	case group.FieldImageCountBilling:
+		return m.ImageCountBilling()
 	case group.FieldImageRateIndependent:
 		return m.ImageRateIndependent()
 	case group.FieldImageRateMultiplier:
@@ -27105,6 +27147,8 @@ func (m *GroupMutation) OldField(ctx context.Context, name string) (ent.Value, e
 		return m.OldAllowImageGeneration(ctx)
 	case group.FieldAllowBatchImageGeneration:
 		return m.OldAllowBatchImageGeneration(ctx)
+	case group.FieldImageCountBilling:
+		return m.OldImageCountBilling(ctx)
 	case group.FieldImageRateIndependent:
 		return m.OldImageRateIndependent(ctx)
 	case group.FieldImageRateMultiplier:
@@ -27391,6 +27435,13 @@ func (m *GroupMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetAllowBatchImageGeneration(v)
+		return nil
+	case group.FieldImageCountBilling:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetImageCountBilling(v)
 		return nil
 	case group.FieldImageRateIndependent:
 		v, ok := value.(bool)
@@ -28328,6 +28379,9 @@ func (m *GroupMutation) ResetField(name string) error {
 		return nil
 	case group.FieldAllowBatchImageGeneration:
 		m.ResetAllowBatchImageGeneration()
+		return nil
+	case group.FieldImageCountBilling:
+		m.ResetImageCountBilling()
 		return nil
 	case group.FieldImageRateIndependent:
 		m.ResetImageRateIndependent()
@@ -56183,6 +56237,7 @@ type UsageLogMutation struct {
 	op                           Op
 	typ                          string
 	id                           *int64
+	platform                     *string
 	request_id                   *string
 	model                        *string
 	requested_model              *string
@@ -56365,6 +56420,55 @@ func (m *UsageLogMutation) IDs(ctx context.Context) ([]int64, error) {
 	default:
 		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
 	}
+}
+
+// SetPlatform sets the "platform" field.
+func (m *UsageLogMutation) SetPlatform(s string) {
+	m.platform = &s
+}
+
+// Platform returns the value of the "platform" field in the mutation.
+func (m *UsageLogMutation) Platform() (r string, exists bool) {
+	v := m.platform
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPlatform returns the old "platform" field's value of the UsageLog entity.
+// If the UsageLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageLogMutation) OldPlatform(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPlatform is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPlatform requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPlatform: %w", err)
+	}
+	return oldValue.Platform, nil
+}
+
+// ClearPlatform clears the value of the "platform" field.
+func (m *UsageLogMutation) ClearPlatform() {
+	m.platform = nil
+	m.clearedFields[usagelog.FieldPlatform] = struct{}{}
+}
+
+// PlatformCleared returns if the "platform" field was cleared in this mutation.
+func (m *UsageLogMutation) PlatformCleared() bool {
+	_, ok := m.clearedFields[usagelog.FieldPlatform]
+	return ok
+}
+
+// ResetPlatform resets all changes to the "platform" field.
+func (m *UsageLogMutation) ResetPlatform() {
+	m.platform = nil
+	delete(m.clearedFields, usagelog.FieldPlatform)
 }
 
 // SetUserID sets the "user_id" field.
@@ -59143,7 +59247,10 @@ func (m *UsageLogMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UsageLogMutation) Fields() []string {
-	fields := make([]string, 0, 51)
+	fields := make([]string, 0, 52)
+	if m.platform != nil {
+		fields = append(fields, usagelog.FieldPlatform)
+	}
 	if m.user != nil {
 		fields = append(fields, usagelog.FieldUserID)
 	}
@@ -59305,6 +59412,8 @@ func (m *UsageLogMutation) Fields() []string {
 // schema.
 func (m *UsageLogMutation) Field(name string) (ent.Value, bool) {
 	switch name {
+	case usagelog.FieldPlatform:
+		return m.Platform()
 	case usagelog.FieldUserID:
 		return m.UserID()
 	case usagelog.FieldAPIKeyID:
@@ -59416,6 +59525,8 @@ func (m *UsageLogMutation) Field(name string) (ent.Value, bool) {
 // database failed.
 func (m *UsageLogMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
 	switch name {
+	case usagelog.FieldPlatform:
+		return m.OldPlatform(ctx)
 	case usagelog.FieldUserID:
 		return m.OldUserID(ctx)
 	case usagelog.FieldAPIKeyID:
@@ -59527,6 +59638,13 @@ func (m *UsageLogMutation) OldField(ctx context.Context, name string) (ent.Value
 // type.
 func (m *UsageLogMutation) SetField(name string, value ent.Value) error {
 	switch name {
+	case usagelog.FieldPlatform:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPlatform(v)
+		return nil
 	case usagelog.FieldUserID:
 		v, ok := value.(int64)
 		if !ok {
@@ -60205,6 +60323,9 @@ func (m *UsageLogMutation) AddField(name string, value ent.Value) error {
 // mutation.
 func (m *UsageLogMutation) ClearedFields() []string {
 	var fields []string
+	if m.FieldCleared(usagelog.FieldPlatform) {
+		fields = append(fields, usagelog.FieldPlatform)
+	}
 	if m.FieldCleared(usagelog.FieldRequestedModel) {
 		fields = append(fields, usagelog.FieldRequestedModel)
 	}
@@ -60285,6 +60406,9 @@ func (m *UsageLogMutation) FieldCleared(name string) bool {
 // error if the field is not defined in the schema.
 func (m *UsageLogMutation) ClearField(name string) error {
 	switch name {
+	case usagelog.FieldPlatform:
+		m.ClearPlatform()
+		return nil
 	case usagelog.FieldRequestedModel:
 		m.ClearRequestedModel()
 		return nil
@@ -60359,6 +60483,9 @@ func (m *UsageLogMutation) ClearField(name string) error {
 // It returns an error if the field is not defined in the schema.
 func (m *UsageLogMutation) ResetField(name string) error {
 	switch name {
+	case usagelog.FieldPlatform:
+		m.ResetPlatform()
+		return nil
 	case usagelog.FieldUserID:
 		m.ResetUserID()
 		return nil

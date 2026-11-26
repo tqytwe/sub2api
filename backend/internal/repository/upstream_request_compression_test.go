@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/klauspost/compress/zstd"
 	"github.com/stretchr/testify/require"
 )
@@ -188,6 +189,9 @@ func TestUpstreamRequestCompressionSkipsIneligibleBodies(t *testing.T) {
 		{name: "already encoded", mutate: func(r *http.Request) { r.Header["content-encoding"] = []string{"gzip"} }},
 		{name: "integrity protected", mutate: func(r *http.Request) { r.Header.Set("Content-Digest", "test") }},
 		{name: "signed authorization", mutate: func(r *http.Request) { r.Header.Set("Authorization", "AWS4-HMAC-SHA256 fixture") }},
+		{name: "frozen wire", mutate: func(r *http.Request) {
+			*r = *r.WithContext(service.WithPlainUpstreamRequestBody(r.Context()))
+		}},
 		{name: "not replayable", mutate: func(r *http.Request) { r.GetBody = nil }},
 		{name: "local compression failure", mutate: func(r *http.Request) {
 			r.GetBody = func() (io.ReadCloser, error) { return nil, io.ErrUnexpectedEOF }

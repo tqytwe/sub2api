@@ -46,6 +46,14 @@ func TestUpstreamChannelUpgradePreservesLegacyAccountsAndBilling(t *testing.T) {
 	candidateMigrations := map[string]bool{
 		"388_upstream_channel_entities.sql":                true,
 		"389_upstream_channel_binding_delete_revision.sql": true,
+		// These provider-profit migrations depend on upstream_channels and must
+		// be part of the upgrade phase, not the pre-upgrade fixture.
+		"431_provider_profit_links.sql":             true,
+		"433_provider_profit_ownership_history.sql": true,
+		"434_provider_profit_charges.sql":           true,
+		"435_provider_profit_sync_runs.sql":         true,
+		"436_provider_spend_snapshots.sql":          true,
+		"437_provider_profit_ownership_lookup.sql":  true,
 	}
 	files, err := fs.Glob(migrations.FS, "*.sql")
 	require.NoError(t, err)

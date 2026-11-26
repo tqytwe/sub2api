@@ -651,6 +651,7 @@ export interface Group {
   monthly_limit_usd: number | null
   // 图片生成计费配置
   allow_image_generation: boolean
+  image_count_billing?: boolean
   allow_batch_image_generation: boolean
   image_rate_independent: boolean
   image_rate_multiplier: number
@@ -911,6 +912,7 @@ export interface CreateGroupRequest {
   free_openai_fast?: boolean
   model_pricing?: import('@/api/admin/channels').ChannelModelPricing[]
   allow_image_generation?: boolean
+  image_count_billing?: boolean
   allow_batch_image_generation?: boolean
   image_rate_independent?: boolean
   image_rate_multiplier?: number
@@ -980,6 +982,7 @@ export interface UpdateGroupRequest {
   free_openai_fast?: boolean
   model_pricing?: import('@/api/admin/channels').ChannelModelPricing[]
   allow_image_generation?: boolean
+  image_count_billing?: boolean
   allow_batch_image_generation?: boolean
   image_rate_independent?: boolean
   image_rate_multiplier?: number
@@ -1390,6 +1393,7 @@ export interface OpenCodeGoUsageSettings {
 }
 
 export interface Account {
+  moderation_scope_eligible?: boolean
   id: number
   name: string
   notes?: string | null

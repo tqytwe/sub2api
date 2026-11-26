@@ -29,8 +29,21 @@ jobs:
           source "$RUNNER_TEMP/release-policy/bin/activate"
           python -m pip install -r .github/release-tools/requirements-release.txt
           python -m unittest discover -s scripts -p test_upstream_release_check.py
+          python -m unittest discover -s scripts -p test_upstream_dispositions.py
+          python scripts/check_upstream_dispositions.py
           python -m unittest discover -s .github/release-tools -p test_release_matrix.py
           bash -n .github/release-tools/release-images.sh
+      - name: Require source-verified, merge-ready scope for upstream sync PRs
+        if: startsWith(github.event.pull_request.head.ref, 'sync/')
+        run: |
+          tag="$(python3 -c 'import json; print(json.load(open("docs/upstream-migrations/source-lock.json"))["release_tag"])')"
+          git fetch --no-tags https://github.com/ranxi2001/sub2api.git \
+            "refs/tags/${tag}:refs/tags/upstream-sync-${tag}"
+          expected_tag="$(python3 -c 'import json; print(json.load(open("docs/upstream-migrations/source-lock.json"))["tag_object"])')"
+          expected_commit="$(python3 -c 'import json; print(json.load(open("docs/upstream-migrations/source-lock.json"))["release_commit"])')"
+          test "$(git rev-parse "refs/tags/upstream-sync-${tag}")" = "$expected_tag"
+          test "$(git rev-parse "refs/tags/upstream-sync-${tag}^{commit}")" = "$expected_commit"
+          python scripts/check_upstream_dispositions.py --verify-git --require-merge-ready
 
   protected-behavior:
     name: Protected behavior
@@ -163,7 +176,7 @@ jobs:
           cache-dependency-path: backend/go.sum
       - name: Verify isolated catalog, credential encryption, key idempotency and refresh
         working-directory: backend
-        run: go test -tags=integration -count=1 -timeout=8m ./internal/repository ./internal/server/routes -run '^TestMatureProvider'
+        run: go test -tags=integration -count=1 -timeout=8m ./internal/repository ./internal/server/routes -run '^Test(MatureProvider|ProfitOperationsFollowsEventTime)'
 
   documentation:
     name: Documentation
@@ -189,3 +202,79 @@ jobs:
             './docs/**/*.md'
             './deploy/*.md'
           fail: true
+
+  account-ops-selector-browser:
+    name: Account-ops selector browser regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271
+        with:
+          version: 10.34.4
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - run: pnpm --dir frontend install --frozen-lockfile
+      - name: Install isolated Playwright browser
+        run: |
+          npm install --prefix "$RUNNER_TEMP/account-ops-browser" --no-save --ignore-scripts playwright@1.56.1
+          node "$RUNNER_TEMP/account-ops-browser/node_modules/playwright/cli.js" install --with-deps chromium
+      - name: Verify actual selector UI and interactions with synthetic data only
+        env:
+          EVIDENCE_DIR: ${{ runner.temp }}/account-ops-selector
+          ACCOUNT_OPS_SELECTOR_BASE: ${{ github.event.pull_request.base.sha || 'origin/play/main' }}
+          ACCOUNT_OPS_SELECTOR_EXPECTED_HEAD: ${{ github.sha }}
+          SUB2API_PLAYWRIGHT_MODULE: ${{ runner.temp }}/account-ops-browser/node_modules/playwright/index.mjs
+        run: node .github/scripts/account-ops-selector-preview.mjs
+      - name: Preserve browser evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: account-ops-selector-${{ github.sha }}
+          path: ${{ runner.temp }}/account-ops-selector
+          if-no-files-found: warn
+          retention-days: 30
+
+  encrypted-history-400-browser:
+    name: Encrypted history 400 settings browser regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271
+        with:
+          version: 10.34.4
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - run: pnpm --dir frontend install --frozen-lockfile
+      - name: Install isolated Playwright browser
+        run: |
+          npm install --prefix "$RUNNER_TEMP/encrypted-history-400-browser" --no-save --ignore-scripts playwright@1.56.1
+          node "$RUNNER_TEMP/encrypted-history-400-browser/node_modules/playwright/cli.js" install --with-deps chromium
+      - name: Verify actual setting component with synthetic state
+        env:
+          ENCRYPTED_HISTORY_400_OUTPUT: ${{ runner.temp }}/encrypted-history-400
+          ENCRYPTED_HISTORY_400_PLAYWRIGHT_MODULE: ${{ runner.temp }}/encrypted-history-400-browser/node_modules/playwright/index.mjs
+        run: node .github/scripts/encrypted-history-400-preview.mjs
+      - name: Preserve browser evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: encrypted-history-400-${{ github.sha }}
+          path: ${{ runner.temp }}/encrypted-history-400
+          if-no-files-found: error
+          retention-days: 30

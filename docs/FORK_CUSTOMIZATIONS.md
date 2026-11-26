@@ -123,6 +123,8 @@
 
 ## FORK-DEPLOY-006 分支与 Zeabur 部署
 
+- 上游版本差异以固定范围逐提交登记。PR CI 校验清单覆盖、处置证据与后台同步状态。整版关闭要求精确生产 SHA、CI、健康、关键 API、适用对账与三身份验收。见 [上游同步与发布手册](./UPSTREAM_SYNC_PLAYBOOK.md#版本差异与完成门禁)。
+
 - 产品目的：极速蹬在服务器完成可复现开发与验证，从 `origin/play/main` 触发 Zeabur 构建，并由用户本地电脑完成生产验收。
 - 不变量：服务器使用隔离 Git worktree，业务行为执行 TDD 和逐任务规格/代码质量审查；测试、完整构建和 Fork integrity 全通过后才提交并先推送审查分支；完整 GitHub CI 只在目标为 `play/main` 的 PR 上执行一次，普通分支 push 和生产 push 不重复完整测试；确认后以非 rebase、非强推方式进入 `play/main`；只有 `origin/play/main` 触发 Zeabur；官方 Web 与 Android APK 必须能从 `jisudeng.com`、`www.jisudeng.com`、Android WebView 的 `https://localhost` / `capacitor://localhost` 安全访问 `api.jisudeng.com`，不能要求用户手填后端地址；部署 commit 和健康状态确认后，由用户本地电脑浏览器访问 `https://www.jisudeng.com/`，以游客、普通用户和管理员三种身份验收；禁止用本地服务、localhost 或服务器浏览器作为最终验收结论。
 - 关键位置：`AGENTS.md`、[服务器开发与生产验收流程](./DELIVERY_WORKFLOW.md)、`scripts/push-github-and-deploy.sh`、`deploy/zeabur.template.yaml`、`deploy/config.example.yaml`、`backend/internal/server/middleware/cors.go`、`.cursor/rules/sub2api-server-only-verify.mdc`、[上游同步手册](./UPSTREAM_SYNC_PLAYBOOK.md)。
@@ -142,6 +144,7 @@
 - 产品目的：复用已绑定的独立 Excel OAuth，为启用 BPS 的 OpenAI OAuth 账号转发所选模型的 Responses 请求。
 - 不变量：只发送选中的 Excel 授权，模型须通过该授权版本的能力目录。网关验证文本、声明的客户端工具和原生图片引用，拒绝不支持的文件、音频、视频及无效历史。本地不执行 OfficeJS。图片上传使用同一授权，附件和续轮状态按会话及授权范围隔离。未启用 BPS 的模型继续使用原路由。
 - 关键位置：`backend/internal/service/basispoints/`、`backend/internal/service/openai_excel_bps.go`、`backend/internal/service/openai_excel_oauth_credentials.go`、`frontend/src/components/account/EditAccountModal.vue`。
+- 服务层级：BPS 转换前仍执行管理员 Fast 策略；合法兼容值 `auto`、`default`、`priority`、`fast` 不发送给拒绝该字段的 BPS 端点。分组或全局强制规则也不能令 BPS 请求携带该字段。计费不得因请求或上游声明而把未发送的层级记成 Fast；原生 OpenAI 路由不变。
 - 验证：BPS 输入验证、工具续轮、图片上传、授权边界、模型准入和流式/非流式缓存计费测试。上线后使用独立 Excel 授权的测试账号核对返回和用量。
 
 ## FORK-RISK-013 IP 风险检测与批量注册发现

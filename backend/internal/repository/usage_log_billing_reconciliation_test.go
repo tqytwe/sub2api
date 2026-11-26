@@ -24,7 +24,7 @@ func TestUsageLogBillingPreparedMetadataAndPromotion(t *testing.T) {
 	settled.BillingSurchargeMode, settled.BillingSurchargeValue = "percent_on_charged_cost", 0.1
 	settled.BillingSettled = true
 	a, b := prepareUsageLogInsert(first), prepareUsageLogInsert(&settled)
-	require.Len(t, a.args, 72)
+	require.Len(t, a.args, 73)
 	require.Equal(t, "fp", a.args[usageLogBillingFingerprintArg])
 	require.Equal(t, false, a.args[usageLogBillingSettledArg])
 	promoted := mergeUsageLogBillingPrepared(a, b)

@@ -43,6 +43,9 @@ on:
       - backend/internal/service/admin_account.go
       - backend/internal/repository/account_repo.go
       - backend/internal/repository/account_repo_integration_test.go
+      - backend/internal/repository/openai_weekly_429_integration_test.go
+      - backend/internal/service/openai_disable_scheduling_429.go
+      - backend/internal/service/openai_quota_weekly_evidence.go
       - backend/internal/repository/api_key_groups*.go
       - backend/internal/repository/api_key_repo*.go
       - backend/internal/repository/group_copy_policy*.go
@@ -53,6 +56,7 @@ on:
       - backend/internal/repository/usage_billing_repo*.go
       - backend/internal/repository/usage_log_billing_reconciliation*.go
       - backend/internal/repository/usage_log_repo*.go
+      - backend/internal/repository/usage_log_platform*.go
       - backend/internal/repository/billing_cache*.go
       - backend/internal/service/account.go
       - backend/internal/service/account_group.go
@@ -114,7 +118,9 @@ jobs:
           core_tests+='TestMigration253ConvertsShowcaseGroupsToPausedPlans|TestPelicanGroupTestRepo_.*|TestPelicanAccountRoundLeaseAndAtomicSnapshots|TestPelicanShowcaseRepo_PublishListGetPrune|TestAutomaticModelSync.*|TestApplyUpstreamModelsPreservesCredentials.*|TestOAuthDegradationNativeModelSyncFences.*|TestApplyUpstreamModelsAtomicOutbox.*|TestAPIKeyUpdatePreservesConcurrentOppositeACL|'
           core_tests+='TestModelBillingPostgres.*|TestSettingRepoSuite|'
           core_tests+='TestAccountRepoSuite|TestAPIKeyRepoSuite|TestAPIKeyGroupsConcurrentReplacementIsAtomic|TestGroupRepoSuite|TestBillingCacheSuite|'
-          core_tests+='TestMigrationsRunner_ConcurrentInstancesSerializeOnSessionLock|'
+          core_tests+='TestOAuth429WeeklyOnly.*|'
+          core_tests+='TestMigrationsRunner_ConcurrentInstancesSerializeOnSessionLock|TestMigrationsRunner_IsIdempotent_AndSchemaIsUpToDate|'
+          core_tests+='TestUsagePlatformHistoricalQuery|TestUsagePlatformAllInsertPaths|TestUsagePlatformIndexRetryRebuildsInvalidRemnant|'
           core_tests+='TestUsageBillingRepositoryApply_(DeduplicatesBalanceBilling|WithLedgerWritesUsageCharge|'
           core_tests+='RejectsCrossUserCharge|RejectsCrossUserSubscriptionCharge|DeduplicatesSubscriptionBilling|'
           core_tests+='RequestFingerprintConflict|DeletedAPIKeyStillBillsBalance|UpdatesAccountQuota|'
@@ -192,6 +198,11 @@ jobs:
                   "TestAPIKeyRepoSuite/TestMultiGroupMigrationIncludesAdditionalBindings",
                   "TestAPIKeyGroupsConcurrentReplacementIsAtomic",
                   "TestAccountRepoSuite/TestGroupAllowedModels_SetBindAndLoad",
+                  "TestAccountRepoSuite/TestUpdateExtra_Weekly429EvidenceKeepsLatestObservation",
+                  "TestOAuth429WeeklyOnlyRotationPreservesScheduling",
+                  "TestOAuth429WeeklyOnlyInvalidWeeklyPersistence",
+                  "TestOAuth429WeeklyOnlyNonweeklyPersistenceRetainsEvidence",
+                  "TestOAuth429WeeklyOnlyQueryUsageSupersedesEvidence",
                   "TestAccountRepoSuite/TestGroupAllowedModels_CreateWithAccountGroups",
                   "TestAccountRepoSuite/TestGroupAllowedModels_OutboxFailureRollsBack",
                   "TestAccountRepoSuite/TestGroupAllowedModels_CombinedFailureRestoresBindingsAndPolicy",
@@ -215,6 +226,10 @@ jobs:
                   "TestBillingCacheSuite/TestDeductUserBalance_ErrorPropagation",
                   "TestBillingCacheSuite/TestUpdateSubscriptionUsage_ErrorPropagation",
                   "TestMigrationsRunner_ConcurrentInstancesSerializeOnSessionLock",
+                  "TestMigrationsRunner_IsIdempotent_AndSchemaIsUpToDate",
+                  "TestUsagePlatformHistoricalQuery",
+                  "TestUsagePlatformAllInsertPaths",
+                  "TestUsagePlatformIndexRetryRebuildsInvalidRemnant",
                   "TestUsageBillingRepositoryApply_DeduplicatesBalanceBilling",
                   "TestUsageBillingRepositoryApply_WithLedgerWritesUsageCharge",
                   "TestUsageBillingRepositoryApply_RejectsCrossUserCharge",

@@ -1317,6 +1317,9 @@ func (s *RateLimitService) handle429(ctx context.Context, account *Account, head
 		if checker, ok := s.runtimeBlocker.(interface {
 			ShouldRetryOpenAIOAuth429(*Account, http.Header, []byte) bool
 		}); ok && checker.ShouldRetryOpenAIOAuth429(account, headers, responseBody) {
+			// Keep the weekly observation without making the next retry
+			// ineligible via the regular cooldown and quota snapshot path.
+			s.persistOpenAI429WeeklyEvidence(ctx, account, headers)
 			return
 		}
 	}
@@ -1896,7 +1899,7 @@ func pickSooner(a, b *time.Time) *time.Time {
 }
 
 func (s *RateLimitService) persistOpenAICodexSnapshot(ctx context.Context, account *Account, headers http.Header) {
-	if s == nil || s.accountRepo == nil || account == nil || headers == nil {
+	if s == nil || s.accountRepo == nil || account == nil {
 		return
 	}
 	// spark 影子的 codex_* 仅由 QueryUsage(/wham/usage bengalfox 道)更新,不能被 /responses 的
@@ -1904,11 +1907,34 @@ func (s *RateLimitService) persistOpenAICodexSnapshot(ctx context.Context, accou
 	if account.IsShadow() {
 		return
 	}
-	snapshot := ParseCodexRateLimitHeaders(headers)
-	if snapshot == nil {
-		return
+	now := time.Now()
+	observed, hasReceipt := ctx.Value(openAI429ObservedAtKey{}).(time.Time)
+	if !hasReceipt {
+		observed = now
 	}
-	updates := buildCodexUsageExtraUpdates(snapshot, time.Now())
+	snapshot := ParseCodexRateLimitHeaders(headers)
+	if snapshot != nil && !observed.IsZero() {
+		snapshot.UpdatedAt = observed.UTC().Format(time.RFC3339Nano)
+	}
+	updates := buildCodexUsageExtraUpdates(snapshot, now)
+	// The original stream/WS headers are evidence for the permanent policy
+	// only. Do not feed them back into the temporary cooldown snapshot.
+	if unfiltered, ok := ctx.Value(openAI429HeadersKey{}).(http.Header); ok {
+		used, resetAfter, present, valid := openAI429WeeklyHeaderEvidence(unfiltered)
+		if present && !observed.IsZero() {
+			var reset time.Time
+			if resetAfter > 0 {
+				reset = observed.Add(resetAfter)
+			}
+			if updates == nil {
+				updates = make(map[string]any)
+			}
+			updates[OpenAI429WeeklyEvidenceKey] = openAI429Evidence(used, observed, reset, valid)
+		}
+	}
+	if observed.IsZero() {
+		delete(updates, OpenAI429WeeklyEvidenceKey)
+	}
 	if len(updates) == 0 {
 		return
 	}

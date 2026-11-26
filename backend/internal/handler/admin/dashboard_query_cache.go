@@ -18,6 +18,7 @@ var (
 )
 
 type dashboardTrendCacheKey struct {
+	Platform              string `json:"platform"`
 	StartTime             string `json:"start_time"`
 	EndTime               string `json:"end_time"`
 	Granularity           string `json:"granularity"`
@@ -34,6 +35,8 @@ type dashboardTrendCacheKey struct {
 }
 
 type dashboardModelGroupCacheKey struct {
+	Platform              string `json:"platform"`
+	Model                 string `json:"model"`
 	StartTime             string `json:"start_time"`
 	EndTime               string `json:"end_time"`
 	UserID                int64  `json:"user_id"`
@@ -91,8 +94,10 @@ func (h *DashboardHandler) getUsageTrendCached(
 	nativeCompactionV2 *bool,
 	billingType *int8,
 	upstreamModelMismatch *bool,
+	platform string,
 ) ([]usagestats.TrendDataPoint, bool, error) {
 	key := mustMarshalDashboardCacheKey(dashboardTrendCacheKey{
+		Platform:              platform,
 		StartTime:             startTime.UTC().Format(time.RFC3339Nano),
 		EndTime:               endTime.UTC().Format(time.RFC3339Nano),
 		Granularity:           granularity,
@@ -109,7 +114,7 @@ func (h *DashboardHandler) getUsageTrendCached(
 	})
 	entry, hit, err := dashboardTrendCache.GetOrLoad(key, func() (any, error) {
 		return h.dashboardService.GetUsageTrendWithUsageFilters(ctx, startTime, endTime, granularity, usagestats.UsageLogFilters{
-			UserID: userID, APIKeyID: apiKeyID, AccountID: accountID, GroupID: groupID,
+			UserID: userID, APIKeyID: apiKeyID, AccountID: accountID, GroupID: groupID, Platform: platform,
 			Model: model, RequestType: requestType, Stream: stream, NativeCompactionV2: nativeCompactionV2, BillingType: billingType,
 			UpstreamModelMismatch: upstreamModelMismatch,
 		})
@@ -131,8 +136,11 @@ func (h *DashboardHandler) getModelStatsCached(
 	nativeCompactionV2 *bool,
 	billingType *int8,
 	upstreamModelMismatch *bool,
+	platform, model string,
 ) ([]usagestats.ModelStat, bool, error) {
 	key := mustMarshalDashboardCacheKey(dashboardModelGroupCacheKey{
+		Platform:              platform,
+		Model:                 model,
 		StartTime:             startTime.UTC().Format(time.RFC3339Nano),
 		EndTime:               endTime.UTC().Format(time.RFC3339Nano),
 		UserID:                userID,
@@ -148,7 +156,7 @@ func (h *DashboardHandler) getModelStatsCached(
 	})
 	entry, hit, err := dashboardModelStatsCache.GetOrLoad(key, func() (any, error) {
 		return h.dashboardService.GetModelStatsWithUsageFiltersBySource(ctx, startTime, endTime, usagestats.UsageLogFilters{
-			UserID: userID, APIKeyID: apiKeyID, AccountID: accountID, GroupID: groupID,
+			UserID: userID, APIKeyID: apiKeyID, AccountID: accountID, GroupID: groupID, Platform: platform, Model: model, ModelFilterSource: usagestats.ModelSourceRequested,
 			RequestType: requestType, Stream: stream, NativeCompactionV2: nativeCompactionV2, BillingType: billingType,
 			UpstreamModelMismatch: upstreamModelMismatch,
 		}, modelSource)
@@ -169,8 +177,11 @@ func (h *DashboardHandler) getGroupStatsCached(
 	nativeCompactionV2 *bool,
 	billingType *int8,
 	upstreamModelMismatch *bool,
+	platform, model string,
 ) ([]usagestats.GroupStat, bool, error) {
 	key := mustMarshalDashboardCacheKey(dashboardModelGroupCacheKey{
+		Platform:              platform,
+		Model:                 model,
 		StartTime:             startTime.UTC().Format(time.RFC3339Nano),
 		EndTime:               endTime.UTC().Format(time.RFC3339Nano),
 		UserID:                userID,
@@ -185,7 +196,7 @@ func (h *DashboardHandler) getGroupStatsCached(
 	})
 	entry, hit, err := dashboardGroupStatsCache.GetOrLoad(key, func() (any, error) {
 		return h.dashboardService.GetGroupStatsWithUsageFilters(ctx, startTime, endTime, usagestats.UsageLogFilters{
-			UserID: userID, APIKeyID: apiKeyID, AccountID: accountID, GroupID: groupID,
+			UserID: userID, APIKeyID: apiKeyID, AccountID: accountID, GroupID: groupID, Platform: platform, Model: model, ModelFilterSource: usagestats.ModelSourceRequested,
 			RequestType: requestType, Stream: stream, NativeCompactionV2: nativeCompactionV2, BillingType: billingType,
 			UpstreamModelMismatch: upstreamModelMismatch,
 		})

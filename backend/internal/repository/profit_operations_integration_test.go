@@ -302,7 +302,7 @@ func TestProfitOperationsExplicitChannelIsolatesUsageQualityAndErrors(t *testing
 		require.NoError(t, err)
 		_, err = integrationDB.Exec(`UPDATE accounts SET type='apikey',credentials='{"base_url":"https://same.example/v1"}' WHERE id=$1`, accountID)
 		require.NoError(t, err)
-		_, err = integrationDB.Exec(`INSERT INTO usage_logs(user_id,api_key_id,account_id,request_id,model,total_cost,actual_cost,created_at) VALUES($1,$2,$3,$4,'model',2,1,$5)`, fixture.user, fixture.key, accountID, name, at)
+		_, err = integrationDB.Exec(`INSERT INTO usage_logs(user_id,api_key_id,account_id,request_id,model,total_cost,actual_cost,created_at) VALUES($1,$2,$3,$4,'model',2,1,clock_timestamp())`, fixture.user, fixture.key, accountID, name)
 		require.NoError(t, err)
 		_, err = integrationDB.Exec(`INSERT INTO ops_error_logs(account_id,error_phase,error_type,severity,status_code,created_at) VALUES($1,'upstream','upstream_error','error',500,$2)`, accountID, at)
 		require.NoError(t, err)
@@ -337,4 +337,61 @@ func TestProfitOperationsExplicitChannelIsolatesUsageQualityAndErrors(t *testing
 		require.Equal(t, 1, quality.Total)
 		require.Equal(t, 1, errors.Records)
 	}
+}
+
+func TestProfitOperationsFollowsEventTimeOwnershipAfterRelinkAndUnlink(t *testing.T) {
+	f := newProfitOperationsFixture(t)
+	ctx := context.Background()
+	provider, err := f.repo.CreateMatureProvider(ctx, service.MatureProviderInput{
+		Name: fmt.Sprintf("profit-fixture-%d", f.account), SiteType: "newapi", BaseURL: "https://fixture.example",
+	})
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_, err := integrationDB.Exec(`DELETE FROM mature_providers WHERE id=$1`, provider.ID)
+		require.NoError(t, err)
+	})
+	var importedChannel int64
+	require.NoError(t, integrationDB.QueryRow(`SELECT channel_id FROM provider_profit_links WHERE provider_id=$1`, provider.ID).Scan(&importedChannel))
+	manualName := fmt.Sprintf("profit-override-%d", f.account)
+	manual, err := f.repo.CreateUpstreamChannel(ctx, service.UpstreamChannelMutation{Code: manualName, Name: manualName, Confirm: true})
+	require.NoError(t, err)
+	_, err = integrationDB.Exec(`UPDATE accounts SET type='apikey',platform='openai',
+		credentials='{"base_url":"https://fixture.example","api_key":"fixture"}',
+		extra=jsonb_build_object('provider_binding',jsonb_build_object('provider_id',$2::bigint,'provider_revision',$3::bigint,'key_id','1')) WHERE id=$1`, f.account, provider.ID, provider.Revision)
+	require.NoError(t, err)
+	start := time.Now().UTC().Add(-time.Minute)
+	insertUsage := func(request string) {
+		t.Helper()
+		_, err := integrationDB.Exec(`INSERT INTO usage_logs(user_id,api_key_id,account_id,request_id,model,total_cost,actual_cost,created_at)
+			VALUES($1,$2,$3,$4,'model',2,1,clock_timestamp())`, f.user, f.key, f.account, request)
+		require.NoError(t, err)
+	}
+	insertUsage("provider-import")
+	_, err = integrationDB.Exec(`INSERT INTO upstream_channel_bindings(account_id,channel_id,revision) VALUES($1,$2,1)`, f.account, manual.ID)
+	require.NoError(t, err)
+	insertUsage("manual-override")
+	_, err = integrationDB.Exec(`UPDATE upstream_channel_bindings SET channel_id=NULL,revision=2 WHERE account_id=$1`, f.account)
+	require.NoError(t, err)
+	insertUsage("manual-unlink")
+	filt := service.UpstreamOperationsFilter{From: start, Until: time.Now().UTC().Add(time.Second), AccountID: f.account, Dimension: "upstream", ModelScope: "public", Sort: "requests", Direction: "desc", Page: 1, PageSize: 20}
+	read := func() map[int64]int {
+		t.Helper()
+		out, err := f.repo.ReadProfitOperations(ctx, filt)
+		require.NoError(t, err)
+		var data struct {
+			Rows []struct {
+				ChannelID int64 `json:"channel_id"`
+				Requests  int   `json:"requests"`
+			} `json:"rows"`
+		}
+		require.NoError(t, json.Unmarshal(out.Usage, &data))
+		byChannel := map[int64]int{}
+		for _, row := range data.Rows {
+			byChannel[row.ChannelID] += row.Requests
+		}
+		return byChannel
+	}
+	require.Equal(t, map[int64]int{importedChannel: 1, manual.ID: 1, 0: 1}, read())
+	filt.ChannelID = importedChannel
+	require.Equal(t, map[int64]int{importedChannel: 1}, read())
 }

@@ -3,7 +3,7 @@
 > 状态：active
 > 适用分支：`play/main`
 > 生产环境：Zeabur / `https://www.jisudeng.com/`
-> 最后核验：2026-11-21
+> 最后核验：2026-11-25
 
 ## 分支模型
 
@@ -70,6 +70,17 @@ python3 -m unittest discover -s scripts -p test_upstream_release_check.py
 - 已部署迁移不可改写；对同编号不同文件名也必须审查表结构和顺序，优先使用未占用的新编号，禁止覆盖自研 270/271。
 - 保留 Fork 产品不变量，同时吸收上游安全、协议和兼容性修复。
 - 用完整 upstream commit 记录基线，不能只依赖 tag 或 merge 标题。
+
+## 版本差异与完成门禁
+
+以最近一个已完整验收的上游基线和前一正式版分别生成 first-parent 清单，锁定两个起点、目标 SHA 和清单摘要。每个 release 同时维护机器可读的 `dispositions.json` 与人工工作包清单（示例：`docs/upstream-migrations/v2.23.1/DEVELOPMENT_CHECKLIST.md`），逐项分配责任人、依赖和交付证据。立项时把累计范围的每条提交登记到 `dispositions.json`，同一提交可有多个验收行为。按后端、前端、数据迁移、协议及部署分配责任人，记录依赖、Fork 处置、测试和真实数据对账。每个 PR 更新同一账本。仍待审查的提交保留 `unreviewed`，部分适配保留 `partial`，依赖未齐保留 `blocked`；三者都不能通过合并门禁。
+
+迁入记录为 `migrated`，复用 Fork 能力须有等效验证并记为 `equivalent`，明确排除须有审批记录并记为 `approved_exclusion`。这些处置需要仓库内的实现或回归证据。
+
+1. **合并前**：`sync/` PR 的保护检查取回上游 tag，验证 tag 对象与源码 SHA，执行 `python3 scripts/check_upstream_dispositions.py --verify-git --require-merge-ready`。累计清单必须零开放项，每项须有证据，来源锁须与管理员端状态一致。必需 CI 一并通过才允许合并到 `play/main`，首次部署前继续保持 `fully_migrated=false`。
+2. **部署后**：核对同步 PR 的 CI、合并与部署 SHA、生产健康和关键 API、适用的数据对账，以及用户本机游客、普通用户、管理员三身份验收。证据写入 `dispositions.json` 的 `delivery`；同步调整来源锁、账本和后台状态，通过 `python3 scripts/check_upstream_dispositions.py --verify-git --require-complete` 后再以状态关闭变更发布。此变更引用已验收的功能合并 SHA，不预填自身的未来部署，发布后再核对实际后台显示。
+
+下一版本立项继承仍未关闭的范围，已部署批次的状态留在对应版本账本。历史批次证据不能替代本次整版验收。
 
 ## 本地非服务验证
 

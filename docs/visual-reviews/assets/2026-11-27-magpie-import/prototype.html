@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>API key actions prototype</title>
+    <style>
+      * { box-sizing: border-box; }
+      body { margin: 0; background: #f8fafc; color: #172033; font: 14px/1.5 system-ui, sans-serif; }
+      main { max-width: 1280px; margin: 0 auto; padding: 32px 24px; }
+      h1 { margin: 0 0 18px; font-size: 18px; font-weight: 650; }
+      .row { display: grid; grid-template-columns: minmax(150px, 1fr) minmax(120px, 1fr) auto; align-items: center; gap: 20px; border: 1px solid #e5e7eb; border-radius: 8px; background: #fff; padding: 16px; }
+      .name { font-weight: 600; }
+      .muted { color: #6b7280; font-size: 12px; }
+      .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+      button { min-width: 62px; border: 0; border-radius: 6px; background: transparent; color: #6b7280; padding: 6px; font: inherit; font-size: 11px; cursor: pointer; }
+      button:hover, button:focus-visible { outline: 2px solid #2563eb; outline-offset: 1px; background: #eff6ff; color: #2563eb; }
+      button span { display: block; }
+      .glyph { font-size: 16px; line-height: 1.2; }
+      @media (max-width: 640px) {
+        main { padding: 20px 12px; }
+        .row { grid-template-columns: 1fr; gap: 10px; padding: 12px; }
+        .actions { justify-content: flex-start; }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1 id="heading">API 密钥</h1>
+      <section class="row" aria-label="示例 API 密钥">
+        <div><div class="name" id="key-name">开发密钥</div><div class="muted">••••••••••••••••</div></div>
+        <div><div id="group-name">OpenAI 标准组</div><div class="muted" id="key-status">有效</div></div>
+        <div class="actions">
+          <button><span class="glyph">›_</span><span id="use-key">使用 Key</span></button>
+          <button><span class="glyph">⇧</span><span id="import-ccs">导入 CCS</span></button>
+          <button id="magpie" hidden><span class="glyph">↗</span><span id="import-magpie">导入 Magpie</span></button>
+          <button><span class="glyph">⊘</span><span id="disable-key">禁用</span></button>
+          <button><span class="glyph">✎</span><span id="edit-key">编辑</span></button>
+          <button><span class="glyph">×</span><span id="delete-key">删除</span></button>
+        </div>
+      </section>
+    </main>
+    <script>
+      const params = new URLSearchParams(location.search)
+      if (params.has('magpie')) document.querySelector('#magpie').hidden = false
+      if (params.get('locale') === 'en') {
+        document.documentElement.lang = 'en-US'
+        document.title = 'API key actions prototype'
+        document.querySelector('#heading').textContent = 'API keys'
+        document.querySelector('.row').setAttribute('aria-label', 'Example API key')
+        document.querySelector('#key-name').textContent = 'Development key'
+        document.querySelector('#group-name').textContent = 'OpenAI standard group'
+        document.querySelector('#key-status').textContent = 'Active'
+        document.querySelector('#use-key').textContent = 'Use key'
+        document.querySelector('#import-ccs').textContent = 'Import CCS'
+        document.querySelector('#import-magpie').textContent = 'Import Magpie'
+        document.querySelector('#disable-key').textContent = 'Disable'
+        document.querySelector('#edit-key').textContent = 'Edit'
+        document.querySelector('#delete-key').textContent = 'Delete'
+      }
+    </script>
+  </body>
+</html>

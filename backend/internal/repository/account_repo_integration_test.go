@@ -5,6 +5,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -83,9 +84,20 @@ type failAtomicSchedulerOutboxSQLExecutor struct {
 }
 
 func (e *failAtomicSchedulerOutboxSQLExecutor) ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error) {
-	if strings.Contains(query, "WITH updated AS") && strings.Contains(query, "INSERT INTO scheduler_outbox") && len(args) > 0 {
-		args = append([]any(nil), args...)
-		args[len(args)-2] = nil // event_type is NOT NULL; the whole statement must roll back.
+	insertAt := strings.Index(query, "INSERT INTO scheduler_outbox")
+	if strings.Contains(query, "WITH updated AS") && insertAt >= 0 {
+		selectAt := strings.Index(query[insertAt:], "SELECT $")
+		if selectAt >= 0 {
+			argStart := insertAt + selectAt + len("SELECT $")
+			argEnd := argStart
+			for argEnd < len(query) && query[argEnd] >= '0' && query[argEnd] <= '9' {
+				argEnd++
+			}
+			if eventTypeArg, err := strconv.Atoi(query[argStart:argEnd]); err == nil && eventTypeArg > 0 && eventTypeArg <= len(args) {
+				args = append([]any(nil), args...)
+				args[eventTypeArg-1] = nil // event_type is NOT NULL; the whole statement must roll back.
+			}
+		}
 	}
 	return e.sqlExecutor.ExecContext(ctx, query, args...)
 }
@@ -1574,6 +1586,20 @@ func (s *AccountRepoSuite) TestUpdateExtra_MergesFields() {
 	s.Require().Equal("2", got.Extra["b"])
 }
 
+func (s *AccountRepoSuite) TestUpdateExtra_Weekly429EvidenceKeepsLatestObservation() {
+	account := mustCreateAccount(s.T(), s.client, &service.Account{Name: "weekly-429-order", Platform: service.PlatformOpenAI})
+	key := service.OpenAI429WeeklyEvidenceKey
+	older := map[string]any{"observed_at_ns": "100", "window_minutes": 10080, "used_percent": 99}
+	newer := map[string]any{"observed_at_ns": "200"}
+	s.Require().NoError(s.repo.UpdateExtra(s.ctx, account.ID, map[string]any{key: newer}))
+	s.Require().NoError(s.repo.UpdateExtra(s.ctx, account.ID, map[string]any{key: older, "other": "retained"}))
+	s.Require().NoError(s.repo.UpdateExtra(s.ctx, account.ID, map[string]any{key: map[string]any{"observed_at_ns": "200", "used_percent": 99}}))
+	got, err := s.repo.GetByID(s.ctx, account.ID)
+	s.Require().NoError(err)
+	s.Require().Equal(newer, got.Extra[key])
+	s.Require().Equal("retained", got.Extra["other"])
+}
+
 func (s *AccountRepoSuite) TestUpdateExtra_EmptyUpdates() {
 	account := mustCreateAccount(s.T(), s.client, &service.Account{Name: "acc-extra-empty"})
 	s.Require().NoError(s.repo.UpdateExtra(s.ctx, account.ID, map[string]any{}))
@@ -1613,6 +1639,10 @@ func (s *AccountRepoSuite) TestUpdateExtra_SchedulerNeutralSkipsOutboxAndSyncsFr
 		"codex_5h_used_percent":      88.5,
 		"session_window_utilization": 0.42,
 	}
+	const countAccountOutbox = "SELECT COUNT(*) FROM scheduler_outbox WHERE account_id = $1"
+	args := []any{account.ID}
+	var before int
+	s.Require().NoError(scanSingleRow(s.ctx, s.repo.sql, countAccountOutbox, args, &before))
 	s.Require().NoError(s.repo.UpdateExtra(s.ctx, account.ID, updates))
 
 	got, err := s.repo.GetByID(s.ctx, account.ID)
@@ -1622,8 +1652,8 @@ func (s *AccountRepoSuite) TestUpdateExtra_SchedulerNeutralSkipsOutboxAndSyncsFr
 	s.Require().Equal(0.42, got.Extra["session_window_utilization"])
 
 	var outboxCount int
-	s.Require().NoError(scanSingleRow(s.ctx, s.repo.sql, "SELECT COUNT(*) FROM scheduler_outbox", nil, &outboxCount))
-	s.Require().Zero(outboxCount)
+	s.Require().NoError(scanSingleRow(s.ctx, s.repo.sql, countAccountOutbox, args, &outboxCount))
+	s.Require().Equal(before, outboxCount)
 	s.Require().Len(cacheRecorder.setAccounts, 1)
 	s.Require().NotNil(cacheRecorder.accounts[account.ID])
 	s.Require().Equal(service.StatusActive, cacheRecorder.accounts[account.ID].Status)

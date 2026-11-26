@@ -146,6 +146,18 @@ vi.mock("@/stores/adminSettings", () => ({
   }),
 }));
 
+vi.mock("@/stores/auth", () => ({
+  useAuthStore: () => ({ user: { id: 41 } }),
+}));
+
+vi.mock("@/stores/newFeatureNotices", () => ({
+  useNewFeatureNoticeStore: () => ({
+    loadUser: vi.fn(),
+    isDismissed: () => false,
+    dismiss: vi.fn(),
+  }),
+}));
+
 vi.mock("@/composables/useClipboard", () => ({
   useClipboard: () => ({
     copyToClipboard: vi.fn(),
@@ -1853,6 +1865,29 @@ describe("admin SettingsView payment visible method controls", () => {
     await flushPromises();
 
     const payload = updateSettings.mock.calls.at(-1)?.[0] as Record<string, unknown>;
+    expect(payload.openai_409_omit_encrypted_history_enabled).toBe(false);
+  });
+
+  it("loads and saves the 400 encrypted history recovery Beta", async () => {
+    getSettings.mockResolvedValueOnce({
+      ...baseSettingsResponse,
+      openai_400_omit_encrypted_history_enabled: true,
+      openai_409_omit_encrypted_history_enabled: false,
+    });
+    const wrapper = mountView();
+
+    await flushPromises();
+    await openGatewayTab(wrapper);
+
+    const toggle = wrapper.get('[data-testid="openai-400-omit-encrypted-history-toggle"]');
+    expect((toggle.element as HTMLInputElement).checked).toBe(true);
+
+    await toggle.setValue(false);
+    await wrapper.find("form").trigger("submit.prevent");
+    await flushPromises();
+
+    const payload = updateSettings.mock.calls.at(-1)?.[0] as Record<string, unknown>;
+    expect(payload.openai_400_omit_encrypted_history_enabled).toBe(false);
     expect(payload.openai_409_omit_encrypted_history_enabled).toBe(false);
   });
 

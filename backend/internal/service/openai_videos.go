@@ -322,6 +322,9 @@ func (s *OpenAIGatewayService) ForwardOpenAIVideo(
 	ctx context.Context, c *gin.Context, account *Account, endpoint GrokMediaEndpoint,
 	taskID, upstreamTaskID string, body []byte, contentType string, info GrokMediaRequestInfo,
 ) (*OpenAIForwardResult, *OpenAIVideoCreation, error) {
+	if err := CheckUpstreamModeration(ctx, c, account); err != nil {
+		return nil, nil, err
+	}
 	if !endpoint.IsOpenAIVideo() || !account.SupportsOpenAIEndpointCapability(OpenAIEndpointCapabilityOpenAIVideo) {
 		return nil, nil, fmt.Errorf("OpenAI Videos requires an enabled API Key account")
 	}

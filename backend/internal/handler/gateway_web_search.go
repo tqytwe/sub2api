@@ -193,6 +193,11 @@ func (h *GatewayHandler) WebSearch(c *gin.Context) {
 		}
 		account = selected.Account
 		accountReleaseFunc = release
+		if gateErr := service.CheckUpstreamModeration(c.Request.Context(), c, account); gateErr != nil {
+			accountReleaseFunc()
+			accountReleaseFunc = nil
+			return
+		}
 
 		if isXSearch {
 			nativeResp, providerName, err = h.doGrokNativeXSearch(c.Request.Context(), c, account, req, searchModel, maxResults)

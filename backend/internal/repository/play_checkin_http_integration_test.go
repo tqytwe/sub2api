@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/handler"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/timezone"
 	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/server/routes"
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -475,10 +476,8 @@ func TestCheckinSeventhDayAfterEarlierMilestoneDoesNotReuseOldKey(t *testing.T) 
 func TestCheckinLegacySameDateMilestoneIsNotPaidAgain(t *testing.T) {
 	seedCheckinCashPool(t)
 	id := newCheckinMilestoneUser(t, false)
-	loc, err := time.LoadLocation("Asia/Shanghai")
-	require.NoError(t, err)
-	today := time.Now().In(loc).Format("2006-01-02")
-	_, err = integrationDB.Exec(`INSERT INTO play_reward_ledger(user_id,source,amount,idempotency_key,detail)
+	today := timezone.Now().Format("2006-01-02")
+	_, err := integrationDB.Exec(`INSERT INTO play_reward_ledger(user_id,source,amount,idempotency_key,detail)
 		VALUES ($1,'checkin_milestone',1,$2,jsonb_build_object('checkin_date',$3::text,'streak_count',7))`, id, fmt.Sprintf("checkin_milestone:%d:7", id), today)
 	require.NoError(t, err)
 	server := newCheckinContractServer(t, true, id)

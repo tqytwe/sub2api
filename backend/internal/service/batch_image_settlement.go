@@ -284,6 +284,7 @@ func (s *BatchImageSettlementService) recordUsageLog(ctx context.Context, job *B
 	upstreamEndpoint := batchImageUsageUpstreamEndpoint(job.Provider)
 	imageSize := "1K"
 	usageLog := &UsageLog{
+		Platform:                  batchImageProviderPlatform(job.Provider),
 		BillingRequestFingerprint: captureFingerprint,
 		BillingSettled:            captureFingerprint != "",
 		UserID:                    job.UserID,

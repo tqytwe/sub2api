@@ -976,6 +976,7 @@
           <div class="mb-4 grid grid-cols-1 gap-3 md:grid-cols-2">
             <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
               <input
+                id="create-allow-image-generation"
                 v-model="createForm.allow_image_generation"
                 type="checkbox"
                 class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
@@ -990,6 +991,21 @@
               />
               {{ t(imagePricingI18nKey(createForm.platform, "independentMultiplier")) }}
             </label>
+          </div>
+          <div v-if="canConfigureImageCountBilling(createForm)" class="mb-4">
+            <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+              <input
+                id="create-image-count-billing"
+                v-model="createForm.image_count_billing"
+                type="checkbox"
+                aria-describedby="create-image-count-billing-hint"
+                class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              {{ t("admin.groups.imagePricing.imageCountFallback") }}
+            </label>
+            <p id="create-image-count-billing-hint" class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              {{ t("admin.groups.imagePricing.imageCountFallbackHint") }}
+            </p>
           </div>
           <div
             v-if="createForm.image_rate_independent"
@@ -2686,6 +2702,7 @@
           <div class="mb-4 grid grid-cols-1 gap-3 md:grid-cols-2">
             <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
               <input
+                id="edit-allow-image-generation"
                 v-model="editForm.allow_image_generation"
                 type="checkbox"
                 class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
@@ -2700,6 +2717,21 @@
               />
               {{ t(imagePricingI18nKey(editForm.platform, "independentMultiplier")) }}
             </label>
+          </div>
+          <div v-if="canConfigureImageCountBilling(editForm)" class="mb-4">
+            <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+              <input
+                id="edit-image-count-billing"
+                v-model="editForm.image_count_billing"
+                type="checkbox"
+                aria-describedby="edit-image-count-billing-hint"
+                class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              {{ t("admin.groups.imagePricing.imageCountFallback") }}
+            </label>
+            <p id="edit-image-count-billing-hint" class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              {{ t("admin.groups.imagePricing.imageCountFallbackHint") }}
+            </p>
           </div>
           <div
             v-if="editForm.image_rate_independent"
@@ -5120,6 +5152,7 @@ const createForm = reactive({
   model_pricing: [] as PricingFormEntry[],
   // 图片生成计费配置
   allow_image_generation: false,
+  image_count_billing: false,
   allow_batch_image_generation: false,
   image_rate_independent: false,
   image_rate_multiplier: 1,
@@ -5493,6 +5526,7 @@ const editForm = reactive({
   model_pricing: [] as PricingFormEntry[],
   // 图片生成计费配置
   allow_image_generation: false,
+  image_count_billing: false,
   allow_batch_image_generation: false,
   image_rate_independent: false,
   image_rate_multiplier: 1,
@@ -5702,6 +5736,9 @@ const createWebSearchFinalPricePreview = computed(() =>
 const editWebSearchFinalPricePreview = computed(() =>
   buildWebSearchFinalPricePreview(editForm),
 );
+
+const canConfigureImageCountBilling = (form: Pick<ImagePricingFormState, "platform" | "allow_image_generation">) =>
+  form.allow_image_generation && (form.platform === "openai" || form.platform === "composite");
 
 const resetDisabledBatchImagePricing = (
   form: Pick<
@@ -5967,6 +6004,7 @@ const closeCreateModal = () => {
   createForm.weekly_limit_usd = null;
   createForm.monthly_limit_usd = null;
   createForm.allow_image_generation = false;
+  createForm.image_count_billing = false;
   createForm.allow_batch_image_generation = false;
   createForm.image_rate_independent = false;
   createForm.image_rate_multiplier = 1;
@@ -6187,6 +6225,7 @@ const handleCreateGroup = async () => {
     requestData.image_rate_multiplier = normalizeRateMultiplier(
       requestData.image_rate_multiplier,
     );
+    requestData.image_count_billing = canConfigureImageCountBilling(requestData) && requestData.image_count_billing;
     resetDisabledBatchImagePricing(requestData);
     requestData.batch_image_discount_multiplier = normalizeRateMultiplier(
       requestData.batch_image_discount_multiplier,
@@ -6282,6 +6321,7 @@ const handleEdit = async (group: AdminGroup) => {
   editForm.free_openai_fast = group.free_openai_fast ?? false;
   editForm.model_pricing = groupPricingFromAPI(group.model_pricing);
   editForm.allow_image_generation = group.allow_image_generation ?? false;
+  editForm.image_count_billing = canConfigureImageCountBilling(editForm) && (group.image_count_billing ?? false);
   editForm.allow_batch_image_generation =
     group.allow_batch_image_generation ?? false;
   editForm.image_rate_independent = group.image_rate_independent ?? false;
@@ -6554,6 +6594,7 @@ const handleUpdateGroup = async () => {
     payload.image_rate_multiplier = normalizeRateMultiplier(
       payload.image_rate_multiplier,
     );
+    payload.image_count_billing = canConfigureImageCountBilling(payload) && payload.image_count_billing;
     resetDisabledBatchImagePricing(payload);
     payload.batch_image_discount_multiplier = normalizeRateMultiplier(
       payload.batch_image_discount_multiplier,
@@ -6939,6 +6980,9 @@ watch(
       createForm.require_oauth_only = false;
       createForm.require_privacy_set = false;
     }
+    if (!canConfigureImageCountBilling(createForm)) {
+      createForm.image_count_billing = false;
+    }
     resetDisabledBatchImagePricing(createForm);
     resetModelAllowlistState(createModelAllowlistState);
     loadModelAllowlistCandidates("create", 0, newVal);
@@ -6948,6 +6992,9 @@ watch(
 watch(
   () => createForm.allow_image_generation,
   () => {
+    if (!canConfigureImageCountBilling(createForm)) {
+      createForm.image_count_billing = false;
+    }
     resetDisabledBatchImagePricing(createForm);
   },
 );
@@ -6996,6 +7043,9 @@ watch(
       editForm.require_oauth_only = false;
       editForm.require_privacy_set = false;
     }
+    if (!canConfigureImageCountBilling(editForm)) {
+      editForm.image_count_billing = false;
+    }
     resetDisabledBatchImagePricing(editForm);
     if (editingGroup.value) {
       resetModelAllowlistState(editModelAllowlistState, editForm.platform === editingGroup.value.platform ? editingGroup.value.model_allowlist : undefined);
@@ -7007,6 +7057,9 @@ watch(
 watch(
   () => editForm.allow_image_generation,
   () => {
+    if (!canConfigureImageCountBilling(editForm)) {
+      editForm.image_count_billing = false;
+    }
     resetDisabledBatchImagePricing(editForm);
   },
 );

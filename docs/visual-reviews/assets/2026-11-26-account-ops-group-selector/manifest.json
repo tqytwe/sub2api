@@ -1,0 +1,223 @@
+{
+  "head": "81090b0cdec8c35ed31f00938e28717e6a94d1e5",
+  "base": "81090b0cdec8c35ed31f00938e28717e6a94d1e5",
+  "changed_files": [
+    "frontend/src/components/admin/operations/AccountOpsGroupDialog.vue",
+    "frontend/src/components/admin/operations/QualityAccountSelector.vue",
+    "frontend/src/i18n/locales/en/accountOps.ts",
+    "frontend/src/i18n/locales/zh/accountOps.ts",
+    "frontend/src/views/admin/AccountOpsView.vue"
+  ],
+  "sources": {
+    "frontend/src/components/admin/operations/AccountOpsGroupDialog.vue": {
+      "before": "effe7e675f654442478cf6db88f096447e61e3a76b1140dbe79a61dc7a9f62c5",
+      "after": "f0a7f84a0c2f699f7c7f377aecf872088bd451cca2442388db705212a27f5f8c"
+    },
+    "frontend/src/components/admin/operations/QualityAccountSelector.vue": {
+      "before": "4e03b21eee3977d3f858b97d013aab089fb5f9a0d4076bb7ac144d3f935aa730",
+      "after": "619a972465afdddbd56d0e3fb2fd527beed48dae2461d45c71f3cf1e3fbdde10"
+    },
+    "frontend/src/utils/qualityAccountFilter.ts": {
+      "before": "5a2e2309a5afce29292afe9f2b209dd1e2aa6d6159f43e0481d9a13904ee9b11",
+      "after": "f946c44f69b5d9fd95640fd51f6d4db6254cd5f2a11dcdf72787a96b79423b75"
+    },
+    "frontend/src/i18n/locales/en/admin/resources.ts": {
+      "before": "261e4db9391f9aa760478e2c2e2b7172d570de42b3a82891d93d1e8e4c04a2a7",
+      "after": "b00af9cbff45515e37643c142ec7bd9ff8af303be7ef49012fcd1304d8914972"
+    },
+    "frontend/src/i18n/locales/zh/admin/resources.ts": {
+      "before": "e10238d229c187f6a61f4c073b39b44a5190121137f577bfa638cf64ccb436e5",
+      "after": "399fd183d6006772b6f1f666e861c56d73caedaf50e6ebec0f41fb200aef86eb"
+    },
+    "frontend/src/components/common/BaseDialog.vue": {
+      "before": "305aa4ea2a34d3d544e8720b53df4d6407a2ab634b4a1399b41a6450a7e4b0e9",
+      "after": "305aa4ea2a34d3d544e8720b53df4d6407a2ab634b4a1399b41a6450a7e4b0e9"
+    },
+    "frontend/src/style.css": {
+      "before": "920bebb7d4687e3617d72b4e4fcd3455e4524812e26e28969a5dd735074d292f",
+      "after": "920bebb7d4687e3617d72b4e4fcd3455e4524812e26e28969a5dd735074d292f"
+    },
+    "frontend/tailwind.config.js": {
+      "before": "2a75d045b365fb93a3afff3a5a93dfca50879da25af0a0767db7d71311c4db6c",
+      "after": "2a75d045b365fb93a3afff3a5a93dfca50879da25af0a0767db7d71311c4db6c"
+    },
+    "frontend/postcss.config.js": {
+      "before": "096ec8db734319974f2c154ad88660ac084688a42382ab38e3792f332d09e969",
+      "after": "096ec8db734319974f2c154ad88660ac084688a42382ab38e3792f332d09e969"
+    },
+    "frontend/src/i18n/locales/en/accountOps.ts": {
+      "before": "943076f0cfab51c0c0fefe55722a550bde5f499251efcbf598f35a3fdc0de8a7",
+      "after": "8e034708a8616b7c173fe676aca0e7f3fa28d37da5221a91a7925858f493f21f"
+    },
+    "frontend/src/i18n/locales/zh/accountOps.ts": {
+      "before": "82da563072a39c8725f14399443e195f643bc498e25f4b46b79f3cfd29a1b959",
+      "after": "c54a8c35eca014292037c9385d74b3f33efc256f736ddaae6321e48c4343263d"
+    }
+  },
+  "sourceHashNormalization": "trimEnd",
+  "captures": [
+    {
+      "file": "before-desktop-zh.png",
+      "sha256": "28957fd356c28b466157eec19f1982cb31e69436b22c39e15628184ff3ecbf12",
+      "viewport": {
+        "width": 1280,
+        "height": 1000
+      }
+    },
+    {
+      "file": "before-mobile-en.png",
+      "sha256": "a5596b64e77fe0a8ed13102abd8d840244b5134d914aa5265ce1dffad1f1aa42",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "file": "after-desktop-zh.png",
+      "sha256": "87dbea3c7c29b1873e050e0e321e47e06856d469c21aba126e4dbe8478689c1b",
+      "viewport": {
+        "width": 1280,
+        "height": 1000
+      }
+    },
+    {
+      "file": "after-desktop-hidden-selection.png",
+      "sha256": "8e0457beda2f8de3f21e962462064289cd3d9fbba32dd16cb0f5ca3e0e79b7ea",
+      "viewport": {
+        "width": 1280,
+        "height": 1000
+      }
+    },
+    {
+      "file": "after-tablet-zh.png",
+      "sha256": "b6258f166d1c810d09755581098a9646a2a90194f7583e85bb28cd705f94515b",
+      "viewport": {
+        "width": 768,
+        "height": 1024
+      }
+    },
+    {
+      "file": "after-wide-en.png",
+      "sha256": "ace470f6861030aaf452e4097997fcbe062b5dc9b064ea73570c1e114fc7afb2",
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      }
+    },
+    {
+      "file": "after-desktop-en.png",
+      "sha256": "ffe889c3b2608651a420f7a06d12cf664037f095bc5dc88eb31487164c80b07d",
+      "viewport": {
+        "width": 1280,
+        "height": 1000
+      }
+    },
+    {
+      "file": "after-mobile-en-overview.png",
+      "sha256": "3e4c08fad89f123ffeca468bd2ce672a296d3aa51e22f0d0f7737d55ea9aa39b",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "file": "after-mobile-add-group.png",
+      "sha256": "9c324d8d39f6d7cabb7be9d97439fc90991fa5ed3d629f98b821268ec2c83e6e",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "file": "after-mobile-en.png",
+      "sha256": "3e8d3c22ed9e0191b2c8b1d81c95bb46b21ad3fe760f7f0b3e4cc259fcf63400",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "file": "after-mobile-zh-dark.png",
+      "sha256": "0533ac0ff165f2de263ffe1dff552a057e31a980b771caa18a7fac500ef512ec",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "file": "quality-existing-disabled-contract.png",
+      "sha256": "256c359594cf412d10083a72be20556d2083ba595399c01a3e1d447f9dadcb19",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    }
+  ],
+  "assertions": [
+    "Name/ID search and Enter; pagination keeps hidden selections; page/all-match selection unions IDs; moving ID 2 keeps unselected listed ID 60 and hidden ID 998 in Beta; complete target payload retains ID 999; busy controls disabled",
+    "768px tablet and 1920px wide viewport render without horizontal overflow",
+    "Actual draft-group and API key filters; select all matching across pages; cancel makes no API write",
+    "390px phone layout and top overview; natural wheel scrolling makes search, both page buttons and Add group fully visible with clear center hit-tests; Add group click works; keyboard Tab/Enter/Space/Escape; Chinese/English; dark mode; no viewport overflow",
+    "Shared selector still honors existing already-used disabledReason; hidden selection retained by page union"
+  ],
+  "reachability": [
+    {
+      "name": "mobile search input",
+      "x": 42,
+      "y": 552.09375,
+      "width": 44.46875,
+      "height": 42,
+      "top": 83.09375,
+      "bottom": 756.890625,
+      "inside": true,
+      "centerHit": true
+    },
+    {
+      "name": "mobile next page",
+      "x": 109.171875,
+      "y": 478.09375,
+      "width": 11.734375,
+      "height": 20,
+      "top": 83.09375,
+      "bottom": 756.890625,
+      "inside": true,
+      "centerHit": true
+    },
+    {
+      "name": "mobile previous page",
+      "x": 42,
+      "y": 478.09375,
+      "width": 11.734375,
+      "height": 20,
+      "top": 83.09375,
+      "bottom": 756.890625,
+      "inside": true,
+      "centerHit": true
+    },
+    {
+      "name": "mobile add group",
+      "x": 25,
+      "y": 709.09375,
+      "width": 166.453125,
+      "height": 40,
+      "top": 83.09375,
+      "bottom": 756.890625,
+      "inside": true,
+      "centerHit": true
+    },
+    {
+      "name": "mobile search input after reopening",
+      "x": 42,
+      "y": 552.09375,
+      "width": 44.46875,
+      "height": 42,
+      "top": 83.09375,
+      "bottom": 756.890625,
+      "inside": true,
+      "centerHit": true
+    }
+  ],
+  "errors": [],
+  "browserWarnings": [],
+  "boundary": "Actual GroupDialog, QualityAccountSelector, BaseDialog, project Tailwind/PostCSS, real locales. Synthetic DTOs and offline axios adapter only. Before uses pinned base source overrides; after uses final checkout. No production or upstream requests; not a substitute for deployed guest/user/admin acceptance."
+}

@@ -1225,6 +1225,8 @@ export default {
         title: '图片生成计费',
         description: '配置图片生成能力和图片基础单价，留空则使用默认价格',
         allowImageGeneration: '允许当前分组生图',
+        imageCountFallback: '缺少图片数量时按 1 张计费',
+        imageCountFallbackHint: '适用于专用生图和图片编辑接口。成功响应未报告图片数量时按 1 张兜底。明确要求实际产出数量的定价规则和结算回执仍使用观察到的数量。',
         allowBatchImageGeneration: '允许当前分组批量生图',
         independentMultiplier: '生图倍率独立',
         imageMultiplier: '生图独立倍率',

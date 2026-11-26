@@ -384,6 +384,42 @@ func TestPrepareUpstreamCallShadowResolve(t *testing.T) {
 		"prepareUpstreamCall should use parent's chatgpt_account_id after shadow resolve")
 }
 
+func TestQueryUsageWeekly429Evidence(t *testing.T) {
+	for _, tc := range []struct {
+		name, payload string
+		wantEvidence  bool
+		wantUsage     float64
+	}{
+		{"valid week with malformed short window", `{"account_id":"fixture-account","rate_limit":{"primary_window":{"limit_window_seconds":18000,"used_percent":"invalid"},"secondary_window":{"limit_window_seconds":604800,"used_percent":99,"reset_after_seconds":3600}}}`, true, 99},
+		{"malformed week invalidates older usage", `{"account_id":"fixture-account","rate_limit":{"primary_window":{"limit_window_seconds":604800,"used_percent":"invalid"}}}`, true, 0},
+		{"other account supplies no evidence", `{"account_id":"other-account","rate_limit":{"primary_window":{"limit_window_seconds":604800,"used_percent":99}}}`, false, 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			account := &Account{ID: 100, Platform: PlatformOpenAI, Type: AccountTypeOAuth, Credentials: map[string]any{"chatgpt_account_id": "fixture-account"}}
+			repo := &stubQuotaAccountRepo{accounts: map[int64]*Account{account.ID: account}}
+			tokens := &stubQuotaTokenCache{tokens: map[string]string{OpenAITokenCacheKey(account): "fixture"}}
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = w.Write([]byte(tc.payload))
+			}))
+			defer srv.Close()
+			svc := NewOpenAIQuotaService(repo, nil, NewOpenAITokenProvider(repo, tokens, nil), newQuotaRedirectingFactory(srv), nil)
+			_, err := svc.QueryUsageSnapshot(t.Context(), account.ID)
+			require.NoError(t, err)
+			evidence := repo.extraUpdates[account.ID][OpenAI429WeeklyEvidenceKey]
+			if !tc.wantEvidence {
+				require.Nil(t, evidence)
+				return
+			}
+			require.NotNil(t, evidence)
+			account.Extra = map[string]any{OpenAI429WeeklyEvidenceKey: evidence}
+			used, valid := openAI429WeeklyUsage(account, nil, time.Now())
+			require.Equal(t, tc.wantUsage > 0, valid)
+			require.Equal(t, tc.wantUsage, used)
+		})
+	}
+}
+
 func TestQueryUsageAgentIdentityUsesAssertionWithoutOAuthToken(t *testing.T) {
 	_, privateKey, err := ed25519.GenerateKey(rand.Reader)
 	require.NoError(t, err)

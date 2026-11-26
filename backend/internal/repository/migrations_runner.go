@@ -69,6 +69,8 @@ const usageLogsEffectiveRequestedModelIndex = "idx_usage_logs_effective_requeste
 const usageLogsEffectiveUpstreamModelIndex = "idx_usage_logs_effective_upstream_model_created"
 const usageLogsUpstreamRequestIDIndexMigration = "233_add_usage_log_upstream_request_id_index_notx.sql"
 const usageLogsUpstreamRequestIDIndex = "idx_usage_logs_upstream_request_id"
+const usageLogsPlatformIndexMigration = "440_usage_log_platform_index_notx.sql"
+const usageLogsPlatformIndex = "idx_usage_logs_platform_created"
 const publicStatusTTFTWindowIndexMigration = "264_public_status_ttft_window_index_notx.sql"
 const publicStatusTTFTWindowIndex = "idx_usage_logs_public_status_ttft_window"
 const growthEligibilityOrdersIndexMigration = "265_play_growth_eligibility_orders_index_notx.sql"
@@ -396,6 +398,8 @@ func prepareNonTransactionalMigration(ctx context.Context, db migrationConnectio
 		return nil
 	case usageLogsUpstreamRequestIDIndexMigration:
 		return dropInvalidIndexIfPresent(ctx, db, usageLogsUpstreamRequestIDIndex)
+	case usageLogsPlatformIndexMigration:
+		return dropInvalidIndexIfPresent(ctx, db, usageLogsPlatformIndex)
 	case publicStatusTTFTWindowIndexMigration:
 		return dropInvalidIndexIfPresent(ctx, db, publicStatusTTFTWindowIndex)
 	case growthEligibilityOrdersIndexMigration:

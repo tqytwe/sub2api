@@ -10,6 +10,8 @@ export default {
       payg: 'Use official pay-as-you-go endpoint',
       endpointHint: 'These buttons replace the current endpoint. The API key must match its plan endpoint. Existing OpenAI accounts are not migrated automatically.'
     },
+    newFeature: 'New',
+    dismissNewFeature: 'Dismiss new feature notice',
     loading: 'Loading...',
     submitting: 'Submitting...',
     justNow: 'just now',

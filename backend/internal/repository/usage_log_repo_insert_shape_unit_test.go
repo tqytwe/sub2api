@@ -129,7 +129,7 @@ func TestPrepareUsageLogInsert_UpstreamRequestIDArgWiring(t *testing.T) {
 	})
 	require.Len(t, prepared.args, len(usageLogInsertArgTypes))
 
-	idx := len(prepared.args) - 14
+	idx := len(prepared.args) - 15
 	arg, ok := prepared.args[idx].(sql.NullString)
 	require.True(t, ok, "upstream_request_id arg should be sql.NullString, got %T", prepared.args[idx])
 	require.True(t, arg.Valid)
@@ -142,4 +142,23 @@ func TestPrepareUsageLogInsert_UpstreamRequestIDArgWiring(t *testing.T) {
 	require.False(t, nullArg.Valid, "absent upstream request id must be NULL")
 
 	require.Contains(t, usageLogSelectColumns, "upstream_request_id")
+}
+
+func TestPrepareUsageLogInsert_PlatformArgWiring(t *testing.T) {
+	prepared := prepareUsageLogInsert(&service.UsageLog{
+		UserID: 1, APIKeyID: 2, AccountID: 3, RequestID: "platform-wiring", Model: "gpt-5",
+		Platform: service.PlatformOpenAI, CreatedAt: time.Now().UTC(),
+	})
+	require.Len(t, prepared.args, len(usageLogInsertArgTypes))
+	idx := len(prepared.args) - 1
+	arg, ok := prepared.args[idx].(sql.NullString)
+	require.True(t, ok, "platform arg should be sql.NullString, got %T", prepared.args[idx])
+	require.True(t, arg.Valid)
+	require.Equal(t, service.PlatformOpenAI, arg.String)
+	require.Equal(t, "text", usageLogInsertArgTypes[idx])
+
+	absent := prepareUsageLogInsert(&service.UsageLog{UserID: 1, APIKeyID: 2, RequestID: "platform-unknown", Model: "gpt-5", CreatedAt: time.Now().UTC()})
+	nullArg, ok := absent.args[idx].(sql.NullString)
+	require.True(t, ok)
+	require.False(t, nullArg.Valid, "unknown request-time platform must remain NULL")
 }

@@ -55,6 +55,25 @@ func TestBatchImagePublicService_Submit(t *testing.T) {
 		require.Len(t, svc.BillingRepo.(*fakeBatchImageBillingRepo).reserves, 1)
 	})
 
+	t.Run("runs account admission before persistence and billing", func(t *testing.T) {
+		svc, repo, queue, gemini, _ := newTestBatchImagePublicService(true)
+		req := validBatchImageSubmitRequest()
+		var selectedAccountID int64
+		req.BeforeGeneration = func(_ context.Context, account *Account) error {
+			selectedAccountID = account.ID
+			return errors.New("moderation denied")
+		}
+
+		_, err := svc.Submit(ctx, testBatchImageOwner(), req, testBatchImageIdempotencyKey)
+
+		require.EqualError(t, err, "moderation denied")
+		require.Equal(t, int64(101), selectedAccountID)
+		require.Empty(t, repo.jobs)
+		require.Empty(t, queue.enqueued)
+		require.Empty(t, gemini.submits)
+		require.Empty(t, svc.BillingRepo.(*fakeBatchImageBillingRepo).reserves)
+	})
+
 	t.Run("rejects oversized idempotency key", func(t *testing.T) {
 		svc, repo, queue, gemini, _ := newTestBatchImagePublicService(true)
 

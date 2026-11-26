@@ -104,6 +104,9 @@ func ApplyLegacyRequestFields(requestType RequestType, fallbackStream bool, fall
 }
 
 type UsageLog struct {
+	// Platform is the immutable concrete upstream provider captured for this request.
+	// Empty values represent historical or manually-created logs with unknown provider.
+	Platform      string
 	ContentTiming *requesttiming.ContentObservation `json:"-"`
 	QueueTiming   *requesttiming.QueueObservation   `json:"-"`
 	ID            int64

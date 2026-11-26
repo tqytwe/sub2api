@@ -70,6 +70,7 @@ func runSecurityAudit(c *gin.Context, reqLog *zap.Logger, coordinator *securitya
 	if c == nil || c.Request == nil {
 		return nil
 	}
+	prepareUpstreamAudit(c, reqLog, coordinator, legacy, apiKey, subject, protocol, model, body, stage)
 	if legacy != nil {
 		c.Set(contentModerationUserVersionContextKey, legacy.CaptureModerationUserVersion(c.Request.Context(), subject.UserID))
 	}

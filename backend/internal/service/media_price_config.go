@@ -1,5 +1,9 @@
 package service
 
+func imageCountBillingEnabled(apiKey *APIKey) bool {
+	return apiKey != nil && apiKey.Group != nil && apiKey.Group.ImageCountBilling
+}
+
 func imagePriceConfigFromAPIKey(apiKey *APIKey) *ImagePriceConfig {
 	if apiKey == nil || apiKey.Group == nil {
 		return nil

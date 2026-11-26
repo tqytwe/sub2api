@@ -1733,7 +1733,7 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 				markOpenAICyberPolicyEvent(c, upstreamMessage, http.StatusOK, &usage)
 			}
 			if eventType == "error" {
-				s.handleOpenAIWSErrorEventTransientFailure(turnContext, account, mappedModel, lease.HandshakeHeaders(), upstreamMessage)
+				s.handleOpenAIWSErrorEventTransientFailure(openAI429LeaseObservation(turnContext, lease), account, mappedModel, lease.HandshakeHeaders(), upstreamMessage)
 				errCodeRaw, errTypeRaw, errMsgRaw := parseOpenAIWSErrorEventFields(upstreamMessage)
 				statusCode := openAIWSRejectedFieldRetryHTTPStatus(upstreamMessage)
 				if OpenAIWSAgentRecoveryCanRetry(turnContext) && !buildResult("").HasObservedUsage() && !wroteDownstream && statusCode == http.StatusBadRequest && rejectedFieldRetryState != nil {
@@ -1759,7 +1759,7 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 						}
 					}
 				}
-				s.persistOpenAIWSRateLimitSignal(turnContext, account, lease.HandshakeHeaders(), upstreamMessage, errCodeRaw, errTypeRaw, errMsgRaw, mappedModel)
+				s.persistOpenAIWSRateLimitSignal(openAI429LeaseObservation(turnContext, lease), account, lease.HandshakeHeaders(), upstreamMessage, errCodeRaw, errTypeRaw, errMsgRaw, mappedModel)
 				fallbackReason, _ := classifyOpenAIWSErrorEventFromRaw(errCodeRaw, errTypeRaw, errMsgRaw)
 				if fallbackReason == openAIWSFallbackReasonInvalidEncryptedContent {
 					// 记录被上游拒绝的密文摘要；错误照旧透传，下一轮进场时按摘要预剥离。
@@ -1901,7 +1901,7 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 				}
 			}
 			if isTerminalEvent {
-				terminalEvent := s.handleOpenAIWSTerminalTransientFailure(turnContext, account, mappedModel, lease.HandshakeHeaders(), upstreamMessage)
+				terminalEvent := s.handleOpenAIWSTerminalTransientFailure(openAI429LeaseObservation(turnContext, lease), account, mappedModel, lease.HandshakeHeaders(), upstreamMessage)
 				if eventOwnershipID != "" {
 					ownedResponseID = eventOwnershipID
 				}
