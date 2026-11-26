@@ -460,13 +460,48 @@ func setOpsUpstreamError(c *gin.Context, upstreamStatusCode int, upstreamMessage
 	}
 }
 
+const openAI400HistoryDiagnosticKey = "openai_400_history_diagnostic"
+
+// Only fixed decisions and booleans are persisted in Ops attempt details.
+type OpenAI400HistoryDiagnostic struct {
+	Applied  bool   `json:"applied"`
+	After409 bool   `json:"after_409"`
+	Decision string `json:"decision"`
+}
+
+func sanitizeOpenAI400HistoryDiagnostic(d *OpenAI400HistoryDiagnostic) *OpenAI400HistoryDiagnostic {
+	if d == nil {
+		return nil
+	}
+	switch d.Decision {
+	case "disabled", "retry_exhausted", "canceled_or_output_started", "unsupported_context",
+		"delivery_unconfirmed", "history_integrity", "ownership_unavailable", "no_eligible_history",
+		"same_account_retry_scheduled":
+		copy := *d
+		return &copy
+	default:
+		return nil
+	}
+}
+
+func openAI400HistoryDiagnostic(c *gin.Context) *OpenAI400HistoryDiagnostic {
+	if c == nil {
+		return nil
+	}
+	v, _ := c.Get(openAI400HistoryDiagnosticKey)
+	d, _ := v.(*OpenAI400HistoryDiagnostic)
+	return sanitizeOpenAI400HistoryDiagnostic(d)
+}
+
 // OpsUpstreamErrorEvent describes one upstream error attempt during a single gateway request.
 // It is stored in ops_error_logs.upstream_errors as a JSON array.
 type OpsUpstreamErrorEvent struct {
-	LedgerCorrelation  *requestledger.Correlation `json:"ledger_correlation,omitempty"`
-	LedgerReceipt      requestledger.Receipt      `json:"-"`
-	UpstreamResponseID string                     `json:"upstream_response_id,omitempty"`
-	AtUnixMs           int64                      `json:"at_unix_ms,omitempty"`
+	EncryptedHistory400 *OpenAI400HistoryDiagnostic `json:"encrypted_history_400,omitempty"`
+	RecoveryControls    *OpenAIRecoveryControls     `json:"recovery_controls,omitempty"`
+	LedgerCorrelation   *requestledger.Correlation  `json:"ledger_correlation,omitempty"`
+	LedgerReceipt       requestledger.Receipt       `json:"-"`
+	UpstreamResponseID  string                      `json:"upstream_response_id,omitempty"`
+	AtUnixMs            int64                       `json:"at_unix_ms,omitempty"`
 
 	// Passthrough 表示本次请求是否命中“原样透传（仅替换认证）”分支。
 	// 该字段用于排障与灰度评估；存入 JSON，不涉及 DB schema 变更。
@@ -529,6 +564,11 @@ const (
 func appendOpsUpstreamError(c *gin.Context, ev OpsUpstreamErrorEvent) {
 	if c == nil {
 		return
+	}
+	if ev.EncryptedHistory400 == nil {
+		ev.EncryptedHistory400 = openAI400HistoryDiagnostic(c)
+	} else {
+		ev.EncryptedHistory400 = sanitizeOpenAI400HistoryDiagnostic(ev.EncryptedHistory400)
 	}
 	// Only the capture site can supply an exact attempt. Account/time/current
 	// pointers are insufficient proof after retries or auxiliary transfers.
@@ -713,15 +753,16 @@ func ParseOpsUpstreamErrors(raw string) ([]*OpsUpstreamErrorEvent, error) {
 		return nil, err
 	}
 	for _, ev := range out {
+		if ev != nil {
+			ev.EncryptedHistory400 = sanitizeOpenAI400HistoryDiagnostic(ev.EncryptedHistory400)
+		}
 		normalizeOpsUpstreamProxyAttribution(ev)
 	}
 	return out, nil
 }
 
-// normalizeOpsUpstreamErrorsJSON materializes missing proxy attribution on
-// stored JSON for detail reads. It edits only the attribution keys of events
-// that lack them, so keys written by older struct versions and the original
-// key order survive; nothing is re-marshaled through the current struct.
+// normalizeOpsUpstreamErrorsJSON materializes missing proxy attribution and
+// bounds recovery diagnostics on detail reads without rewriting legacy keys.
 func normalizeOpsUpstreamErrorsJSON(raw string) (string, error) {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
@@ -740,6 +781,19 @@ func normalizeOpsUpstreamErrorsJSON(raw string) (string, error) {
 			continue
 		}
 		prefix := strconv.Itoa(i) + "."
+		if diagnostic := ev.Get("encrypted_history_400"); diagnostic.Exists() {
+			var parsed OpenAI400HistoryDiagnostic
+			var err error
+			key := prefix + "encrypted_history_400"
+			if json.Unmarshal([]byte(diagnostic.Raw), &parsed) == nil && sanitizeOpenAI400HistoryDiagnostic(&parsed) != nil {
+				out, err = sjson.Set(out, key, parsed)
+			} else {
+				out, err = sjson.Delete(out, key)
+			}
+			if err != nil {
+				return "", err
+			}
+		}
 		proxyID := ev.Get("proxy_id")
 		proxyName := strings.TrimSpace(ev.Get("proxy_name").String())
 		hasValidID := proxyID.Exists() && proxyID.Type == gjson.Number && proxyID.Int() > 0

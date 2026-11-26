@@ -244,3 +244,75 @@ func TestAdminUsageStatsInvalidStream(t *testing.T) {
 
 	require.Equal(t, http.StatusBadRequest, rec.Code)
 }
+
+func TestAdminUsagePlatformFilterValidationAndPropagation(t *testing.T) {
+	platforms := []string{
+		service.PlatformAnthropic,
+		service.PlatformOpenAI,
+		service.PlatformGemini,
+		service.PlatformAntigravity,
+		service.PlatformGrok,
+		service.PlatformKimi,
+		service.PlatformZhipu,
+		service.PlatformDeepseek,
+		service.PlatformMiniMax,
+		service.PlatformQwen,
+		service.PlatformTypeSafe,
+		service.PlatformOpenCodeGo,
+		service.PlatformCline,
+		service.PlatformCommandCode,
+		service.PlatformMistral,
+	}
+	cases := []struct {
+		path, platform string
+		wantStatus     int
+	}{
+		{path: "/admin/usage", platform: "", wantStatus: http.StatusOK},
+		{path: "/admin/usage/stats", platform: "unknown", wantStatus: http.StatusOK},
+		{path: "/admin/usage", platform: "composite", wantStatus: http.StatusBadRequest},
+		{path: "/admin/usage/stats", platform: "invented", wantStatus: http.StatusBadRequest},
+	}
+	for _, path := range []string{"/admin/usage", "/admin/usage/stats"} {
+		for _, platform := range platforms {
+			cases = append(cases, struct {
+				path, platform string
+				wantStatus     int
+			}{path: path, platform: platform, wantStatus: http.StatusOK})
+		}
+	}
+	for _, tc := range cases {
+		t.Run(tc.path+"/"+tc.platform, func(t *testing.T) {
+			repo := &adminUsageRepoCapture{}
+			router := newAdminUsageRequestTypeTestRouter(repo)
+			query := "?platform=" + tc.platform + "&group_id=7&start_date=2026-11-01&end_date=2026-11-07&timezone=UTC"
+			rec := httptest.NewRecorder()
+			router.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, tc.path+query, nil))
+			require.Equal(t, tc.wantStatus, rec.Code)
+			if tc.wantStatus != http.StatusOK {
+				return
+			}
+			filters := repo.listFilters
+			if tc.path == "/admin/usage/stats" {
+				filters = repo.statsFilters
+			}
+			require.Equal(t, tc.platform, filters.Platform)
+			require.Equal(t, int64(7), filters.GroupID)
+			require.NotNil(t, filters.StartTime)
+			require.NotNil(t, filters.EndTime)
+			require.Equal(t, 7*24*time.Hour, filters.EndTime.Sub(*filters.StartTime))
+		})
+	}
+}
+
+func TestUsageStatsCacheKeyIncludesPlatform(t *testing.T) {
+	base := usagestats.UsageLogFilters{Model: "same-model"}
+	openAI := base
+	openAI.Platform = service.PlatformOpenAI
+	gemini := base
+	gemini.Platform = service.PlatformGemini
+	unknown := base
+	unknown.Platform = "unknown"
+	require.NotEqual(t, usageStatsCacheKey(base), usageStatsCacheKey(openAI))
+	require.NotEqual(t, usageStatsCacheKey(openAI), usageStatsCacheKey(gemini))
+	require.NotEqual(t, usageStatsCacheKey(gemini), usageStatsCacheKey(unknown))
+}

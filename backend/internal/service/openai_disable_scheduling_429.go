@@ -7,13 +7,18 @@ import (
 	"math"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
+
+	"github.com/gin-gonic/gin"
 )
 
 const (
 	OpenAIDisableSchedulingOn429ExtraKey                  = "openai_disable_scheduling_on_429"
 	OpenAIDisableSchedulingOn4297dThresholdExtraKey       = "openai_disable_scheduling_on_429_7d_threshold_percent"
 	DefaultOpenAIDisableSchedulingOn4297dThresholdPercent = 98.0
+	OpenAI429WeeklyEvidenceKey                            = "codex_7d_permanent_disable_evidence"
+	openAI429LegacyWeeklySupersededKey                    = "codex_7d_permanent_disable_legacy_superseded"
 )
 
 func openAI429WeeklyThreshold(account *Account) (float64, bool) {
@@ -31,55 +36,53 @@ func validOpenAI429Percent(value float64) bool {
 // Read this response directly: persistence happens later and may be throttled.
 // A present but invalid/low weekly observation must never fall back to an older
 // high snapshot. The five-hour window does not participate in this policy.
-func openAI429WeeklyHeaderUsage(headers http.Header) (used float64, present, valid bool) {
-	hasObservation := false
-	for _, window := range []string{"primary", "secondary"} {
-		for _, field := range []string{"used-percent", "window-minutes", "reset-after-seconds"} {
-			_, exists := headers[http.CanonicalHeaderKey("x-codex-"+window+"-"+field)]
-			hasObservation = hasObservation || exists
-		}
-	}
-	if !hasObservation {
-		return 0, false, false
-	}
-	snapshot := ParseCodexRateLimitHeaders(headers)
-	if snapshot == nil {
-		return 0, true, false
-	}
+func openAI429WeeklyHeaderEvidence(headers http.Header) (used float64, reset time.Duration, present, valid bool) {
 	// A permanent pause must not rely on Normalize's legacy primary=7d
 	// assumption. Require exactly one explicitly identified weekly window.
 	prefix := ""
 	for _, window := range []string{"primary", "secondary"} {
-		if key := "x-codex-" + window + "-window-minutes"; len(headers.Values(key)) > 0 {
-			minutes, err := strconv.Atoi(headers.Get(key))
-			if err != nil || minutes <= 0 {
-				return 0, true, false
-			}
-			if minutes == 7*24*60 {
-				if prefix != "" {
-					return 0, true, false
+		values := headers.Values("x-codex-" + window + "-window-minutes")
+		claimsWeekly := false
+		for _, value := range values {
+			for _, part := range strings.Split(value, ",") {
+				if minutes, err := strconv.Atoi(strings.TrimSpace(part)); err == nil && minutes == 7*24*60 {
+					claimsWeekly = true
 				}
-				prefix = "x-codex-" + window + "-"
 			}
 		}
+		if !claimsWeekly {
+			continue
+		}
+		if prefix != "" || len(values) != 1 {
+			return 0, 0, true, false
+		}
+		if minutes, err := strconv.Atoi(values[0]); err != nil || minutes != 7*24*60 {
+			return 0, 0, true, false
+		}
+		prefix = "x-codex-" + window + "-"
 	}
 	if prefix == "" {
-		return 0, true, false
+		return 0, 0, false, false
 	}
-	weekly := snapshot.PrimaryUsedPercent
-	if prefix == "x-codex-secondary-" {
-		weekly = snapshot.SecondaryUsedPercent
+	values := headers.Values(prefix + "used-percent")
+	if len(values) != 1 {
+		return 0, 0, true, false
 	}
-	if weekly == nil || !validOpenAI429Percent(*weekly) {
-		return 0, true, false
+	weekly, err := strconv.ParseFloat(values[0], 64)
+	if err != nil || !validOpenAI429Percent(weekly) {
+		return 0, 0, true, false
 	}
-	if key := prefix + "reset-after-seconds"; len(headers.Values(key)) > 0 {
-		seconds, err := strconv.ParseInt(headers.Get(key), 10, 64)
-		if err != nil || seconds <= 0 || seconds > int64((7*24*time.Hour)/time.Second) {
-			return 0, true, false
+	if values, exists := headers[http.CanonicalHeaderKey(prefix+"reset-after-seconds")]; exists {
+		if len(values) != 1 {
+			return 0, 0, true, false
 		}
+		seconds, err := strconv.ParseInt(values[0], 10, 64)
+		if err != nil || seconds <= 0 || seconds > int64((7*24*time.Hour)/time.Second) {
+			return 0, 0, true, false
+		}
+		reset = time.Duration(seconds) * time.Second
 	}
-	return *weekly, true, true
+	return weekly, reset, true, true
 }
 
 func openAI429SnapshotTime(extra map[string]any) time.Time {
@@ -87,19 +90,64 @@ func openAI429SnapshotTime(extra map[string]any) time.Time {
 	return observed
 }
 
-func openAI429WeeklyUsage(account *Account, headers http.Header, now time.Time) (float64, bool) {
-	if used, present, valid := openAI429WeeklyHeaderUsage(headers); present {
-		return used, valid
+func openAI429FreshObservation(observed, now time.Time) bool {
+	return !observed.IsZero() && !observed.After(now) && now.Sub(observed) < openAICodexAutoPauseStaleAfter
+}
+
+func openAI429Evidence(used float64, observed, reset time.Time, valid bool) map[string]any {
+	evidence := map[string]any{
+		"observed_at":    observed.UTC().Format(time.RFC3339Nano),
+		"observed_at_ns": strconv.FormatInt(observed.UnixNano(), 10),
 	}
-	if !openAICodexSnapshotIdentityTrusted(account) {
+	if valid {
+		evidence["used_percent"] = used
+		evidence["window_minutes"] = 7 * 24 * 60
+		if !reset.IsZero() {
+			evidence["reset_at"] = reset.UTC().Format(time.RFC3339Nano)
+		}
+	}
+	return evidence
+}
+
+func openAI429WeeklyUsage(account *Account, headers http.Header, now time.Time, receipts ...time.Time) (float64, bool) {
+	if used, reset, present, valid := openAI429WeeklyHeaderEvidence(headers); present {
+		observed := now
+		if len(receipts) > 0 {
+			observed = receipts[0]
+		}
+		return used, valid && openAI429FreshObservation(observed, now) && (reset == 0 || observed.Add(reset).After(now))
+	}
+	if account == nil || !openAICodexSnapshotIdentityTrusted(account) {
 		return 0, false
 	}
 	extra := account.Extra
-	if _, exists := extra["codex_7d_window_minutes"]; exists {
-		minutes, ok := resolveAccountExtraNumber(extra, "codex_7d_window_minutes")
-		if !ok || minutes != 7*24*60 {
+	if raw, exists := extra[OpenAI429WeeklyEvidenceKey]; exists {
+		evidence, ok := raw.(map[string]any)
+		if !ok {
 			return 0, false
 		}
+		observed, _ := parseTime(fmt.Sprint(evidence["observed_at"]))
+		version, err := strconv.ParseInt(fmt.Sprint(evidence["observed_at_ns"]), 10, 64)
+		minutes, known := resolveAccountExtraNumber(evidence, "window_minutes")
+		used, valid := resolveAccountExtraNumber(evidence, "used_percent")
+		if err != nil || version <= 0 || !observed.Equal(time.Unix(0, version)) ||
+			!openAI429FreshObservation(observed, now) || !known || minutes != 7*24*60 || !valid || !validOpenAI429Percent(used) {
+			return 0, false
+		}
+		if rawReset, exists := evidence["reset_at"]; exists {
+			reset, err := parseTime(fmt.Sprint(rawReset))
+			if err != nil || !reset.After(now) {
+				return 0, false
+			}
+		}
+		return used, true
+	}
+	if _, superseded := extra[openAI429LegacyWeeklySupersededKey]; superseded {
+		return 0, false
+	}
+	minutes, ok := resolveAccountExtraNumber(extra, "codex_7d_window_minutes")
+	if !ok || minutes != 7*24*60 {
+		return 0, false
 	}
 	used, ok := resolveAccountExtraNumber(extra, "codex_7d_used_percent")
 	if !ok || !validOpenAI429Percent(used) {
@@ -112,14 +160,15 @@ func openAI429WeeklyUsage(account *Account, headers http.Header, now time.Time) 
 			return 0, false
 		}
 		stamp, err := strconv.ParseInt(fmt.Sprint(fields["codex_7d_used_percent"]), 10, 64)
-		if err != nil || stamp <= 0 {
+		windowStamp, windowErr := strconv.ParseInt(fmt.Sprint(fields["codex_7d_window_minutes"]), 10, 64)
+		if err != nil || windowErr != nil || stamp <= 0 || stamp != windowStamp {
 			return 0, false
 		}
 		observed = time.Unix(0, stamp)
 	}
 	// Permanent pauses require a known, recent observation, unlike temporary
 	// scheduling guards that may retain legacy snapshots without timestamps.
-	if observed.IsZero() || observed.After(now) || now.Sub(observed) >= openAICodexAutoPauseStaleAfter {
+	if !openAI429FreshObservation(observed, now) {
 		return 0, false
 	}
 	if raw, exists := extra["codex_7d_reset_at"]; exists {
@@ -158,6 +207,57 @@ func openAIDisableSchedulingOn429Enabled(account *Account) bool {
 }
 
 type openAIDisableScheduling429ObservedKey struct{}
+type openAI429ObservedAtKey struct{}
+type openAI429HeadersKey struct{}
+
+func bindOpenAI429ResponseObservation(ctx context.Context, c *gin.Context, resp *http.Response) context.Context {
+	var observed time.Time
+	if resp != nil && resp.Request != nil {
+		observed, _ = resp.Request.Context().Value(openAI429ObservedAtKey{}).(time.Time)
+	}
+	if observed.IsZero() {
+		return ctx
+	}
+	if c != nil && c.Request != nil {
+		c.Request = c.Request.WithContext(context.WithValue(c.Request.Context(), openAI429ObservedAtKey{}, observed))
+	}
+	return context.WithValue(ctx, openAI429ObservedAtKey{}, observed)
+}
+
+func openAI429LeaseObservation(ctx context.Context, lease *openAIWSConnLease) context.Context {
+	var observed time.Time
+	if lease != nil && lease.conn != nil {
+		observed = lease.conn.createdAt()
+	}
+	return context.WithValue(ctx, openAI429ObservedAtKey{}, observed)
+}
+
+func (s *RateLimitService) persistOpenAI429WeeklyEvidence(ctx context.Context, account *Account, headers http.Header) {
+	if s == nil || s.accountRepo == nil || account == nil || account.Platform != PlatformOpenAI || account.IsShadow() {
+		return
+	}
+	if original, ok := ctx.Value(openAI429HeadersKey{}).(http.Header); ok {
+		headers = original
+	}
+	observed, hasReceipt := ctx.Value(openAI429ObservedAtKey{}).(time.Time)
+	if !hasReceipt {
+		observed = time.Now()
+	}
+	used, resetAfter, present, valid := openAI429WeeklyHeaderEvidence(headers)
+	if !present || observed.IsZero() {
+		return
+	}
+	var reset time.Time
+	if resetAfter > 0 {
+		reset = observed.Add(resetAfter)
+	}
+	stateCtx, cancel := openAIAccountStateContext(ctx)
+	defer cancel()
+	updates := map[string]any{OpenAI429WeeklyEvidenceKey: openAI429Evidence(used, observed, reset, valid)}
+	if err := s.accountRepo.UpdateExtra(stateCtx, account.ID, updates); err != nil {
+		slog.Warn("openai_429_weekly_evidence_persist_failed", "account_id", account.ID)
+	}
+}
 
 type openAIDisableScheduling429Observation struct {
 	accountID int64
@@ -199,7 +299,14 @@ func (s *RateLimitService) maybeDisableOpenAISchedulingOn429(ctx context.Context
 		return ctx, false
 	}
 	threshold, thresholdValid := openAI429WeeklyThreshold(owner)
-	used, usageValid := openAI429WeeklyUsage(owner, headers, time.Now())
+	if unfiltered, ok := ctx.Value(openAI429HeadersKey{}).(http.Header); ok {
+		headers = unfiltered
+	}
+	var receipts []time.Time
+	if receipt, ok := ctx.Value(openAI429ObservedAtKey{}).(time.Time); ok {
+		receipts = []time.Time{receipt}
+	}
+	used, usageValid := openAI429WeeklyUsage(owner, headers, time.Now(), receipts...)
 	if !thresholdValid || !usageValid || used <= threshold {
 		return ctx, false
 	}

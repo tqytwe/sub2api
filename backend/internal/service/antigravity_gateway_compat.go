@@ -61,6 +61,9 @@ func (s *AntigravityGatewayService) ForwardAsChatCompletions(
 	body []byte,
 	_ *ParsedRequest,
 ) (*ForwardResult, error) {
+	if err := CheckUpstreamModeration(ctx, c, account); err != nil {
+		return nil, err
+	}
 	if err := s.validateAntigravityCompatAccount(c, account); err != nil {
 		return nil, err
 	}
@@ -108,6 +111,9 @@ func (s *AntigravityGatewayService) ForwardAsResponses(
 	body []byte,
 	_ *ParsedRequest,
 ) (*ForwardResult, error) {
+	if err := CheckUpstreamModeration(ctx, c, account); err != nil {
+		return nil, err
+	}
 	if err := s.validateAntigravityCompatAccount(c, account); err != nil {
 		return nil, err
 	}

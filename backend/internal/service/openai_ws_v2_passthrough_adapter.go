@@ -934,6 +934,7 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 	var upstreamConn openAIWSClientConn
 	statusCode := 0
 	var handshakeHeaders http.Header
+	var handshakeObservedAt time.Time
 	for {
 		headers, err = s.refreshOpenAIAgentIdentityHeaders(ctx, account, headers)
 		if err != nil {
@@ -941,6 +942,7 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 		}
 		dialCtx, cancelDial := context.WithTimeout(ctx, s.openAIWSDialTimeout())
 		upstreamConn, statusCode, handshakeHeaders, err = dialWSWithLedger(dialCtx, dialer, account, wsURL, headers, proxyURL)
+		handshakeObservedAt = time.Now()
 		cancelDial()
 		if err == nil {
 			break
@@ -1463,7 +1465,7 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 				errCodeRaw, errTypeRaw, errMsgRaw := parseOpenAIWSErrorEventFields(payload)
 				isPreOutputRateLimit := eventType == "error" && !wroteDownstream && !metered && isOpenAIWSRateLimitError(errCodeRaw, errTypeRaw, errMsgRaw)
 				if (eventType == "error" || eventType == "response.failed") && !failureAccountSideEffectsApplied && !isPreOutputRateLimit {
-					failureAccountSideEffectsApplied = s.handleOpenAIWSFailureAccountSideEffects(ctx, account, capturedSessionModel, handshakeHeaders, payload)
+					failureAccountSideEffectsApplied = s.handleOpenAIWSFailureAccountSideEffects(context.WithValue(ctx, openAI429ObservedAtKey{}, handshakeObservedAt), account, capturedSessionModel, handshakeHeaders, payload)
 				}
 				if eventType != "error" {
 					return nil
@@ -1471,7 +1473,7 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 				if !OpenAIWSAgentRecoveryCanRetry(ctx) || wroteDownstream || metered || !isOpenAIWSRateLimitError(errCodeRaw, errTypeRaw, errMsgRaw) {
 					return nil
 				}
-				s.persistOpenAIWSRateLimitSignal(ctx, account, handshakeHeaders, payload, errCodeRaw, errTypeRaw, errMsgRaw, capturedSessionModel)
+				s.persistOpenAIWSRateLimitSignal(context.WithValue(ctx, openAI429ObservedAtKey{}, handshakeObservedAt), account, handshakeHeaders, payload, errCodeRaw, errTypeRaw, errMsgRaw, capturedSessionModel)
 				logOpenAIWSV2Passthrough(
 					"relay_rate_limit_failover account_id=%d err_code=%s err_type=%s err_message=%s",
 					account.ID,

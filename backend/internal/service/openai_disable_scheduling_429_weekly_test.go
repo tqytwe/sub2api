@@ -32,6 +32,141 @@ func weekly429Headers(weekly, fiveHour string, reverse bool) http.Header {
 	return headers
 }
 
+func TestWeekly429EvidenceRequiresAnUnambiguousExplicitWindow(t *testing.T) {
+	now := time.Now()
+	account := scheduling429Account()
+	delete(account.Extra, "codex_7d_window_minutes")
+	_, valid := openAI429WeeklyUsage(account, nil, now)
+	require.False(t, valid, "legacy normalized fields without a window identity are not enough")
+	account.Extra["codex_7d_window_minutes"] = 7 * 24 * 60
+	for _, tc := range []struct {
+		name, key, value string
+		duplicate, valid bool
+	}{
+		{"duplicate usage", "x-codex-primary-used-percent", "20", true, false},
+		{"duplicate reset", "x-codex-primary-reset-after-seconds", "100", true, false},
+		{"hidden weekly claim", "x-codex-primary-window-minutes", "300, 10080", false, false},
+		{"malformed short identity", "x-codex-secondary-window-minutes", "invalid", false, true},
+		{"short identity in weekly slot uses independent cache", "x-codex-primary-window-minutes", "60", false, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			h := weekly429Headers("99", "100", false)
+			h.Set("x-codex-primary-reset-after-seconds", "300")
+			if tc.duplicate {
+				h.Add(tc.key, tc.value)
+			} else {
+				h.Set(tc.key, tc.value)
+			}
+			used, valid := openAI429WeeklyUsage(account, h, now)
+			require.Equal(t, tc.valid, valid)
+			if valid {
+				require.Equal(t, 99.0, used)
+			}
+		})
+	}
+}
+
+func TestWeekly429SnapshotEvidenceSurvivesUnrelatedUpdatesAndRejectsInvalidWeek(t *testing.T) {
+	now := time.Now().UTC().Truncate(time.Second)
+	account := scheduling429Account()
+	apply := func(headers http.Header, observed time.Time) {
+		snapshot := ParseCodexRateLimitHeaders(headers)
+		require.NotNil(t, snapshot)
+		snapshot.UpdatedAt = observed.Format(time.RFC3339Nano)
+		for key, value := range buildCodexUsageExtraUpdates(snapshot, observed) {
+			account.Extra[key] = value
+		}
+	}
+	apply(weekly429Headers("99", "15", false), now.Add(-time.Minute))
+	unrelated := http.Header{}
+	unrelated.Set("x-codex-primary-used-percent", "10")
+	apply(unrelated, now.Add(-30*time.Second))
+	used, valid := openAI429WeeklyUsage(account, nil, now)
+	require.True(t, valid)
+	require.Equal(t, 99.0, used, "unidentified observations must not overwrite weekly evidence")
+	invalid := weekly429Headers("99", "15", false)
+	invalid.Add("x-codex-primary-used-percent", "20")
+	apply(invalid, now.Add(-20*time.Second))
+	_, valid = openAI429WeeklyUsage(account, nil, now)
+	require.False(t, valid, "a more recent ambiguous weekly packet must invalidate the old high")
+	apply(weekly429Headers("20", "99", true), now.Add(-10*time.Second))
+	used, valid = openAI429WeeklyUsage(account, nil, now)
+	require.True(t, valid)
+	require.Equal(t, 20.0, used)
+}
+
+func TestWeekly429LegacyCacheCannotBorrowNewObservation(t *testing.T) {
+	account := scheduling429Account()
+	headers := http.Header{}
+	headers.Set("x-codex-primary-used-percent", "99")
+	for key, value := range buildCodexUsageExtraUpdates(ParseCodexRateLimitHeaders(headers), time.Now()) {
+		account.Extra[key] = value
+	}
+	_, valid := openAI429WeeklyUsage(account, nil, time.Now())
+	require.False(t, valid)
+}
+
+func TestWeekly429ExcelBPSPreservesTemporaryCooldown(t *testing.T) {
+	for _, used := range []string{"98", "99"} {
+		t.Run(used, func(t *testing.T) {
+			account := scheduling429Account()
+			repo := &scheduling429Repo{}
+			rates := NewRateLimitService(repo, nil, &config.Config{}, nil, nil)
+			gateway := &OpenAIGatewayService{rateLimitService: rates}
+			gateway.coolDownExcelBPS(t.Context(), account, "60", weekly429Headers(used, "100", false))
+			require.Equal(t, used == "99", len(repo.ids) != 0)
+			until, ok := gateway.excelBPSCooldownUntil.Load(account.ID)
+			require.True(t, ok)
+			require.WithinDuration(t, time.Now().Add(time.Minute), until.(time.Time), time.Second)
+		})
+	}
+}
+
+func TestWeekly429ObservationUsesReceiptTime(t *testing.T) {
+	now := time.Now()
+	headers := weekly429Headers("99", "10", false)
+	headers.Set("x-codex-primary-reset-after-seconds", "60")
+	for _, tc := range []struct {
+		name string
+		at   time.Time
+		want bool
+	}{
+		{"live", now.Add(-30 * time.Second), true},
+		{"expired", now.Add(-2 * time.Minute), false},
+		{"missing", time.Time{}, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			account := scheduling429Account()
+			repo := &scheduling429Repo{}
+			rates := NewRateLimitService(repo, nil, &config.Config{}, nil, nil)
+			ctx := context.WithValue(t.Context(), openAI429ObservedAtKey{}, tc.at)
+			ctx = context.WithValue(ctx, openAI429HeadersKey{}, headers)
+			_, disabled := rates.maybeDisableOpenAISchedulingOn429(ctx, account, 429, nil)
+			require.Equal(t, tc.want, disabled)
+		})
+	}
+}
+
+func TestWeekly429PersistenceKeepsReceiptTimeAndFilteredHeaders(t *testing.T) {
+	now := time.Now()
+	observed := now.Add(-2 * time.Minute)
+	headers := weekly429Headers("99", "20", false)
+	headers.Set("x-codex-primary-reset-after-seconds", "60")
+	ctx := context.WithValue(t.Context(), openAI429ObservedAtKey{}, observed)
+	ctx = context.WithValue(ctx, openAI429HeadersKey{}, headers)
+	account := scheduling429Account()
+	repo := &scheduling429Repo{}
+	rates := NewRateLimitService(repo, nil, &config.Config{}, nil, nil)
+	rates.persistOpenAICodexSnapshot(ctx, account, nil)
+	evidence, ok := repo.lastExtraUpdates[OpenAI429WeeklyEvidenceKey].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, observed.UTC().Format(time.RFC3339Nano), evidence["observed_at"])
+	require.NotContains(t, repo.lastExtraUpdates, "codex_7d_used_percent")
+	account.Extra[OpenAI429WeeklyEvidenceKey] = evidence
+	_, valid := openAI429WeeklyUsage(account, nil, now)
+	require.False(t, valid, "writing an expired observation cannot renew it")
+}
+
 func TestDisableScheduling429RequiresWeeklyUsageStrictlyAboveThreshold(t *testing.T) {
 	for _, tc := range []struct {
 		name    string
@@ -90,7 +225,7 @@ func TestDisableScheduling429RequiresWeeklyUsageStrictlyAboveThreshold(t *testin
 			h.Set("x-codex-primary-reset-after-seconds", "")
 			return h
 		}()},
-		{name: "reset-only response cannot reuse cached high usage", headers: func() http.Header { h := http.Header{}; h.Set("x-codex-primary-reset-after-seconds", "0"); return h }()},
+		{name: "reset without window identity permits weekly cache", want: true, headers: func() http.Header { h := http.Header{}; h.Set("x-codex-primary-reset-after-seconds", "0"); return h }()},
 		{name: "weekly reset and window without usage cannot reuse cached high", headers: func() http.Header {
 			h := http.Header{}
 			h.Set("x-codex-primary-reset-after-seconds", "0")
@@ -98,25 +233,25 @@ func TestDisableScheduling429RequiresWeeklyUsageStrictlyAboveThreshold(t *testin
 			return h
 		}()},
 		{name: "weekly window alone cannot reuse cached high", headers: func() http.Header { h := http.Header{}; h.Set("x-codex-primary-window-minutes", "10080"); return h }()},
-		{name: "short window alone cannot reuse cached high", headers: func() http.Header { h := http.Header{}; h.Set("x-codex-primary-window-minutes", "300"); return h }()},
-		{name: "empty window cannot reuse cached high", headers: func() http.Header { h := http.Header{}; h.Set("x-codex-primary-window-minutes", ""); return h }()},
-		{name: "empty weekly window invalidates current high usage", headers: func() http.Header {
+		{name: "short window alone permits weekly cache", want: true, headers: func() http.Header { h := http.Header{}; h.Set("x-codex-primary-window-minutes", "300"); return h }()},
+		{name: "empty window permits weekly cache", want: true, headers: func() http.Header { h := http.Header{}; h.Set("x-codex-primary-window-minutes", ""); return h }()},
+		{name: "empty current window permits weekly cache", want: true, headers: func() http.Header {
 			h := weekly429Headers("99", "100", false)
 			h.Set("x-codex-primary-window-minutes", "")
 			return h
 		}()},
-		{name: "nil header values still invalidate observation", headers: http.Header{http.CanonicalHeaderKey("x-codex-primary-window-minutes"): nil}},
+		{name: "nil window values permit weekly cache", want: true, headers: http.Header{http.CanonicalHeaderKey("x-codex-primary-window-minutes"): nil}},
 		{name: "invalid current reset", headers: func() http.Header {
 			h := weekly429Headers("99", "100", false)
 			h.Set("x-codex-primary-reset-after-seconds", "invalid")
 			return h
 		}()},
-		{name: "two short windows cannot invent weekly quota", headers: func() http.Header {
+		{name: "two short windows permit weekly cache", want: true, headers: func() http.Header {
 			h := weekly429Headers("99", "100", false)
 			h.Set("x-codex-primary-window-minutes", "60")
 			return h
 		}()},
-		{name: "legacy unclassified primary may be five hour", headers: func() http.Header { h := http.Header{}; h.Set("x-codex-primary-used-percent", "100"); return h }()},
+		{name: "unclassified primary permits weekly cache", want: true, headers: func() http.Header { h := http.Header{}; h.Set("x-codex-primary-used-percent", "100"); return h }()},
 		{name: "two weekly windows are ambiguous", headers: func() http.Header {
 			h := weekly429Headers("99", "100", false)
 			h.Set("x-codex-secondary-window-minutes", "10080")
@@ -127,7 +262,7 @@ func TestDisableScheduling429RequiresWeeklyUsageStrictlyAboveThreshold(t *testin
 			h.Set("x-codex-primary-used-percent", "")
 			return h
 		}()},
-		{name: "invalid current window", headers: func() http.Header {
+		{name: "invalid unidentified current window permits weekly cache", want: true, headers: func() http.Header {
 			h := weekly429Headers("99", "100", false)
 			h.Set("x-codex-primary-window-minutes", "invalid")
 			return h
@@ -230,5 +365,83 @@ func (r *scheduling429Repo) SetSchedulable(ctx context.Context, id int64, enable
 
 func scheduling429Account() *Account {
 	return &Account{ID: 42, Platform: PlatformOpenAI, Type: AccountTypeOAuth, Schedulable: true,
-		Extra: map[string]any{OpenAIDisableSchedulingOn429ExtraKey: true, "codex_7d_used_percent": 99.0, "codex_usage_updated_at": time.Now().Add(-time.Minute).UTC().Format(time.RFC3339Nano)}}
+		Extra: map[string]any{OpenAIDisableSchedulingOn429ExtraKey: true, "codex_7d_used_percent": 99.0, "codex_7d_window_minutes": 10080, "codex_usage_updated_at": time.Now().Add(-time.Minute).UTC().Format(time.RFC3339Nano)}}
+}
+
+func TestWeekly429SuccessfulSnapshotKeepsInvalidEvidenceDuringThrottle(t *testing.T) {
+	repo := &openAICodexSnapshotAsyncRepo{updateExtraCh: make(chan map[string]any, 2)}
+	gateway := &OpenAIGatewayService{accountRepo: repo, codexSnapshotThrottle: newAccountWriteThrottle(time.Hour)}
+	account := scheduling429Account()
+	awaitWrite := func() map[string]any {
+		t.Helper()
+		select {
+		case update := <-repo.updateExtraCh:
+			return update
+		case <-time.After(time.Second):
+			t.Fatal("missing weekly observation")
+			return nil
+		}
+	}
+	gateway.UpdateCodexUsageSnapshotFromHeaders(t.Context(), account.ID, weekly429Headers("99", "20", false))
+	first := awaitWrite()
+	require.Contains(t, first, "codex_7d_used_percent")
+	invalid := weekly429Headers("99", "20", false)
+	invalid.Add("x-codex-primary-used-percent", "0")
+	gateway.UpdateCodexUsageSnapshotFromHeaders(t.Context(), account.ID, invalid)
+	second := awaitWrite()
+	require.Len(t, second, 1, "weekly evidence must not bypass throttling for ordinary quota fields")
+	evidence := second[OpenAI429WeeklyEvidenceKey]
+	require.NotNil(t, evidence)
+	account.Extra[OpenAI429WeeklyEvidenceKey] = evidence
+	_, valid := openAI429WeeklyUsage(account, nil, time.Now())
+	require.False(t, valid)
+}
+
+func TestWeekly429ExcelBPSPersistsInvalidEvidenceWithoutQuotaCooldown(t *testing.T) {
+	account := scheduling429Account()
+	repo := &scheduling429Repo{}
+	rates := NewRateLimitService(repo, nil, &config.Config{}, nil, nil)
+	gateway := &OpenAIGatewayService{rateLimitService: rates}
+	invalid := weekly429Headers("99", "100", false)
+	invalid.Add("x-codex-primary-used-percent", "0")
+	gateway.coolDownExcelBPS(t.Context(), account, "60", invalid)
+	require.Empty(t, repo.ids)
+	require.Zero(t, repo.rateLimitedCalls, "a BPS cooldown must remain route-local")
+	_, cooling := gateway.excelBPSCooldownUntil.Load(account.ID)
+	require.True(t, cooling)
+	require.Len(t, repo.lastExtraUpdates, 1)
+	evidence := repo.lastExtraUpdates[OpenAI429WeeklyEvidenceKey]
+	require.NotNil(t, evidence)
+	account.Extra[OpenAI429WeeklyEvidenceKey] = evidence
+	_, valid := openAI429WeeklyUsage(account, nil, time.Now())
+	require.False(t, valid)
+}
+
+type weekly429SameAccountRetry struct{ AccountRuntimeBlocker }
+
+func (weekly429SameAccountRetry) ShouldRetryOpenAIOAuth429(*Account, http.Header, []byte) bool {
+	return true
+}
+
+func TestWeekly429SameAccountRetryKeepsInvalidEvidence(t *testing.T) {
+	account := scheduling429Account()
+	repo := &scheduling429Repo{}
+	rates := NewRateLimitService(repo, nil, &config.Config{}, nil, nil)
+	rates.SetAccountRuntimeBlocker(weekly429SameAccountRetry{})
+	invalid := weekly429Headers("99", "20", false)
+	invalid.Add("x-codex-primary-used-percent", "0")
+	// WS/semantic 429 passes filtered headers to the temporary policy.
+	observed := time.Now().Add(-time.Minute)
+	ctx := context.WithValue(t.Context(), openAI429ObservedAtKey{}, observed)
+	ctx = context.WithValue(ctx, openAI429HeadersKey{}, invalid)
+	shouldDisable := rates.HandleUpstreamError(ctx, account, http.StatusTooManyRequests, nil, nil)
+	require.False(t, shouldDisable)
+	require.Zero(t, repo.rateLimitedCalls)
+	require.Equal(t, observed.UTC().Format(time.RFC3339Nano), repo.lastExtraUpdates[OpenAI429WeeklyEvidenceKey].(map[string]any)["observed_at"])
+	require.Len(t, repo.lastExtraUpdates, 1)
+	evidence := repo.lastExtraUpdates[OpenAI429WeeklyEvidenceKey]
+	require.NotNil(t, evidence)
+	account.Extra[OpenAI429WeeklyEvidenceKey] = evidence
+	_, valid := openAI429WeeklyUsage(account, nil, time.Now())
+	require.False(t, valid)
 }

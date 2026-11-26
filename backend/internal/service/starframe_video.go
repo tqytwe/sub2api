@@ -181,6 +181,9 @@ func (s *OpenAIGatewayService) LoadStarframeVideoTask(ctx context.Context, id st
 // ForwardStarframeVideo never follows response URLs or retries a submitted create.
 // Its caller obtains lookup tasks only through the owner-scoped binding above.
 func (s *OpenAIGatewayService) ForwardStarframeVideo(ctx context.Context, c *gin.Context, account *Account, endpoint AgnesVideoEndpoint, task *StarframeVideoTask, body []byte, owner StarframeVideoOwner, billing ...*StarframeVideoBilling) (*OpenAIForwardResult, error) {
+	if err := CheckUpstreamModeration(ctx, c, account); err != nil {
+		return nil, err
+	}
 	if !account.SupportsOpenAIEndpointCapability(OpenAIEndpointCapabilityStarframe) {
 		return nil, fmt.Errorf("StarFrame requires explicit protocol, capability and API base on an OpenAI API-key account")
 	}

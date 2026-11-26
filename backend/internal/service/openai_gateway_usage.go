@@ -295,44 +295,7 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	}
 
 	var cost *CostBreakdown
-	// Use the rewrite captured during forwarding, never current key settings:
-	// skipped endpoints and policy changes after admission retain their price.
-	requestedBillingModel := input.OriginalModel
-	if input.APIKeyMappedModel != "" {
-		requestedBillingModel = input.APIKeyMappedModel
-	}
-	channelBillingModel := input.ChannelMappedModel
-	if !input.ChannelMappingApplied && channelBillingModel == input.OriginalModel {
-		// An unchanged channel field is the audit alias, not an explicit price
-		// override. Do not resurrect its price when the key target is unpriced.
-		channelBillingModel = requestedBillingModel
-	}
-	resultBillingModel := result.Model
-	if !input.ChannelMappingApplied && result.Model == input.OriginalModel {
-		resultBillingModel = requestedBillingModel
-	}
-	billingModel := forwardResultBillingModel(resultBillingModel, result.UpstreamModel)
-	if result.BillingModel != "" {
-		billingModel = strings.TrimSpace(result.BillingModel)
-	}
-	if input.BillingModelSource == BillingModelSourceChannelMapped && input.ChannelMappedModel != "" &&
-		((input.APIKeyMappedModel != "" && input.ChannelMappingApplied) || input.ChannelMappedModel != input.OriginalModel) {
-		billingModel = input.ChannelMappedModel
-	}
-	if input.BillingModelSource == BillingModelSourceRequested && input.OriginalModel != "" {
-		billingModel = requestedBillingModel
-	}
-	if result.StarframeVideoBilling != nil {
-		billingModel = result.StarframeVideoBilling.Model
-	}
-	billingModels := usageBillingModelCandidates(
-		billingModel,
-		result.BillingModel,
-		channelBillingModel,
-		requestedBillingModel,
-		result.UpstreamModel,
-		resultBillingModel,
-	)
+	billingModels := openAIUsageBillingModels(result, input.ChannelUsageFields)
 	if result.StarframeVideoBilling == nil {
 		billingModels = s.filterCNProviderBillingModelCandidates(ctx, account, apiKey, billingModels)
 	}
@@ -478,6 +441,7 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 		)
 	}
 	usageLog := &UsageLog{
+		Platform:                 account.Platform,
 		UserID:                   user.ID,
 		APIKeyID:                 apiKey.ID,
 		AccountID:                account.ID,
@@ -1297,7 +1261,7 @@ func ParseCodexRateLimitHeaders(headers http.Header) *OpenAICodexUsageSnapshot {
 	// Helper to parse float64 from header
 	parseFloat := func(key string) *float64 {
 		if v := headers.Get(key); v != "" {
-			if f, err := strconv.ParseFloat(v, 64); err == nil {
+			if f, err := strconv.ParseFloat(v, 64); err == nil && !math.IsNaN(f) && !math.IsInf(f, 0) {
 				return &f
 			}
 		}
@@ -1348,11 +1312,12 @@ func ParseCodexRateLimitHeaders(headers http.Header) *OpenAICodexUsageSnapshot {
 		hasData = true
 	}
 
-	if !hasData {
+	snapshot.weekly429Used, snapshot.weekly429Reset, snapshot.weekly429Present, snapshot.weekly429Valid = openAI429WeeklyHeaderEvidence(headers)
+	if !hasData && !snapshot.weekly429Present {
 		return nil
 	}
 
-	snapshot.UpdatedAt = time.Now().Format(time.RFC3339)
+	snapshot.UpdatedAt = time.Now().UTC().Format(time.RFC3339Nano)
 	return snapshot
 }
 
@@ -1389,6 +1354,17 @@ func buildCodexUsageExtraUpdates(snapshot *OpenAICodexUsageSnapshot, fallbackNow
 
 	baseTime := codexSnapshotBaseTime(snapshot, fallbackNow)
 	updates := make(map[string]any)
+	if snapshot.weekly429Present {
+		var reset time.Time
+		if snapshot.weekly429Reset > 0 {
+			reset = baseTime.Add(snapshot.weekly429Reset)
+		}
+		updates[OpenAI429WeeklyEvidenceKey] = openAI429Evidence(snapshot.weekly429Used, baseTime, reset, snapshot.weekly429Valid)
+	} else {
+		// A partial update can change the shared observation time without
+		// replacing both legacy weekly fields. Only independent proof survives.
+		updates[openAI429LegacyWeeklySupersededKey] = true
+	}
 
 	// 保存原始 primary/secondary 字段，便于排查问题
 	if snapshot.PrimaryUsedPercent != nil {
@@ -1459,12 +1435,23 @@ func (s *OpenAIGatewayService) updateCodexUsageSnapshot(ctx context.Context, acc
 	}
 
 	now := time.Now()
+	if observed, ok := ctx.Value(openAI429ObservedAtKey{}).(time.Time); ok && !observed.IsZero() {
+		copy := *snapshot
+		copy.UpdatedAt = observed.UTC().Format(time.RFC3339Nano)
+		snapshot = &copy
+	}
 	updates := buildCodexUsageExtraUpdates(snapshot, now)
 	if len(updates) == 0 {
 		return
 	}
 	if !s.getCodexSnapshotThrottle().Allow(accountID, now) {
-		return
+		// A newer explicit weekly observation (even an invalid one) must
+		// supersede old evidence independently of the ordinary UI snapshot.
+		evidence, exists := updates[OpenAI429WeeklyEvidenceKey]
+		if !exists {
+			return
+		}
+		updates = map[string]any{OpenAI429WeeklyEvidenceKey: evidence}
 	}
 
 	go func() {

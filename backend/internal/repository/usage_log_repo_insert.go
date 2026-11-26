@@ -98,6 +98,7 @@ var usageLogInsertArgTypes = [...]string{
 	"integer",     // cache_read_audio_tokens
 	"text",        // billing_request_fingerprint
 	"boolean",     // billing_settled
+	"text",        // platform
 }
 
 const (
@@ -310,14 +311,15 @@ func (r *usageLogRepository) createSingle(ctx context.Context, sqlq sqlExecutor,
 			cache_creation_audio_tokens,
 			cache_read_audio_tokens,
 			billing_request_fingerprint,
-			billing_settled
+			billing_settled,
+			platform
 		) VALUES (
 			$1, $2, $3, $4, $5, $6, $7, $8, $9,
 			$10, $11,
 			$12, $13, $14, $15,
 			$16, $17, $18, $19,
 			$20, $21, $22, $23, $24, $25,
-			$26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54, $55, $56, $57, $58, $59, $60, $61, $62, $63, $64, $65, $66, $67, $68, $69, $70, $71, $72
+			$26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54, $55, $56, $57, $58, $59, $60, $61, $62, $63, $64, $65, $66, $67, $68, $69, $70, $71, $72, $73
 		)
 		ON CONFLICT (request_id, api_key_id) DO NOTHING
 		RETURNING id, created_at
@@ -796,7 +798,8 @@ func buildUsageLogBatchInsertQuery(keys []string, preparedByKey map[string]usage
 			cache_creation_audio_tokens,
 			cache_read_audio_tokens,
 			billing_request_fingerprint,
-			billing_settled
+			billing_settled,
+			platform
 		) AS (VALUES `)
 
 	// Each batch row prepends the synthetic input_index before usage-log values.
@@ -900,7 +903,8 @@ func buildUsageLogBatchInsertQuery(keys []string, preparedByKey map[string]usage
 			cache_creation_audio_tokens,
 			cache_read_audio_tokens,
 			billing_request_fingerprint,
-			billing_settled
+			billing_settled,
+			platform
 			)
 			SELECT
 				user_id,
@@ -974,7 +978,8 @@ func buildUsageLogBatchInsertQuery(keys []string, preparedByKey map[string]usage
 			cache_creation_audio_tokens,
 			cache_read_audio_tokens,
 			billing_request_fingerprint,
-			billing_settled
+			billing_settled,
+			platform
 			FROM input
 			ON CONFLICT (request_id, api_key_id) DO NOTHING
 			RETURNING request_id, api_key_id, id, created_at
@@ -1092,7 +1097,8 @@ func buildUsageLogBestEffortInsertQuery(preparedList []usageLogInsertPrepared) (
 			cache_creation_audio_tokens,
 			cache_read_audio_tokens,
 			billing_request_fingerprint,
-			billing_settled
+			billing_settled,
+			platform
 		) AS (VALUES `)
 
 	args := make([]any, 0, len(preparedList)*len(usageLogInsertArgTypes))
@@ -1192,7 +1198,8 @@ func buildUsageLogBestEffortInsertQuery(preparedList []usageLogInsertPrepared) (
 			cache_creation_audio_tokens,
 			cache_read_audio_tokens,
 			billing_request_fingerprint,
-			billing_settled
+			billing_settled,
+			platform
 		)
 		SELECT
 			user_id,
@@ -1266,7 +1273,8 @@ func buildUsageLogBestEffortInsertQuery(preparedList []usageLogInsertPrepared) (
 			cache_creation_audio_tokens,
 			cache_read_audio_tokens,
 			billing_request_fingerprint,
-			billing_settled
+			billing_settled,
+			platform
 		FROM input
 		ON CONFLICT (request_id, api_key_id) DO NOTHING
 	`)
@@ -1348,14 +1356,15 @@ func execUsageLogInsertNoResult(ctx context.Context, sqlq sqlExecutor, prepared 
 			cache_creation_audio_tokens,
 			cache_read_audio_tokens,
 			billing_request_fingerprint,
-			billing_settled
+			billing_settled,
+			platform
 		) VALUES (
 			$1, $2, $3, $4, $5, $6, $7, $8, $9,
 			$10, $11,
 			$12, $13, $14, $15,
 			$16, $17, $18, $19,
 			$20, $21, $22, $23, $24, $25,
-			$26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54, $55, $56, $57, $58, $59, $60, $61, $62, $63, $64, $65, $66, $67, $68, $69, $70, $71, $72
+			$26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54, $55, $56, $57, $58, $59, $60, $61, $62, $63, $64, $65, $66, $67, $68, $69, $70, $71, $72, $73
 		)
 		ON CONFLICT (request_id, api_key_id) DO NOTHING
 	`
@@ -1502,6 +1511,7 @@ func prepareUsageLogInsert(log *service.UsageLog) usageLogInsertPrepared {
 			log.CacheReadAudioTokens,
 			fingerprintArg,
 			settled,
+			nullString(&log.Platform),
 		},
 	}
 }

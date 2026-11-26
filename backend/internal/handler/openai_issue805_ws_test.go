@@ -106,7 +106,7 @@ func (u *issue805Oracle) server(t *testing.T) *httptest.Server {
 	return srv
 }
 
-func issue805WSNode(t *testing.T, mode, upstream string, cache service.GatewayCache, disabled, limited bool) *openAIWSPassthroughHandlerHarness {
+func issue805WSNode(t *testing.T, mode, upstream string, cache service.GatewayCache, disabled, limited bool, legacyCompatibility ...bool) *openAIWSPassthroughHandlerHarness {
 	t.Helper()
 	return newOpenAIWSPassthroughHandlerHarnessWithKey(t, upstream,
 		http.Header{"Session_id": {"fixture-ws715-session"}, "Thread-Id": {"fixture-ws715-thread"}},
@@ -118,6 +118,9 @@ func issue805WSNode(t *testing.T, mode, upstream string, cache service.GatewayCa
 			a.Extra["openai_apikey_responses_websockets_v2_mode"] = mode
 			a.Extra["codex_fingerprint_mode"] = "off"
 			cfg.Gateway.OpenAIWS.IngressInterTurnIdleTimeoutSeconds = 15
+			if len(legacyCompatibility) > 0 {
+				cfg.Gateway.OpenAILegacyCompatibilityMode = legacyCompatibility[0]
+			}
 			issue805Policy(t, cfg, disabled)
 			require.Equal(t, mode, a.ResolveOpenAIResponsesWebSocketV2Mode(cfg.Gateway.OpenAIWS.IngressModeDefault))
 			other := *a

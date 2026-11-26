@@ -80,6 +80,26 @@ type OpenAIRateLimit struct {
 	SecondaryWindow *OpenAIRateLimitWindow `json:"secondary_window,omitempty"`
 }
 
+func (r *OpenAIRateLimit) UnmarshalJSON(data []byte) error {
+	var raw struct {
+		Allowed      bool            `json:"allowed"`
+		LimitReached bool            `json:"limit_reached"`
+		Primary      json.RawMessage `json:"primary_window"`
+		Secondary    json.RawMessage `json:"secondary_window"`
+	}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	*r = OpenAIRateLimit{Allowed: raw.Allowed, LimitReached: raw.LimitReached}
+	if err := json.Unmarshal(raw.Primary, &r.PrimaryWindow); err != nil {
+		r.PrimaryWindow = nil
+	}
+	if err := json.Unmarshal(raw.Secondary, &r.SecondaryWindow); err != nil {
+		r.SecondaryWindow = nil
+	}
+	return nil
+}
+
 // OpenAIAdditionalRateLimit describes a per-feature rate limit (e.g. Codex Spark).
 type OpenAIAdditionalRateLimit struct {
 	LimitName      string           `json:"limit_name"`
@@ -218,10 +238,10 @@ func (s *OpenAIQuotaService) queryUsage(ctx context.Context, accountID int64, in
 		if headerErr != nil {
 			return nil, infraerrors.Newf(http.StatusBadGateway, "OPENAI_QUOTA_AUTH_FAILED", "failed to build upstream authentication: %v", headerErr)
 		}
+		observed := time.Now()
 		resp, err := client.R().
 			SetContext(callCtx).
 			SetHeaders(quotaHeaders).
-			SetSuccessResult(&payload).
 			Get(chatGPTUsageURL)
 		if err != nil {
 			return nil, infraerrors.Newf(http.StatusBadGateway, "OPENAI_QUOTA_REQUEST_FAILED", "upstream request failed: %v", err)
@@ -242,6 +262,19 @@ func (s *OpenAIQuotaService) queryUsage(ctx context.Context, accountID int64, in
 			body := truncate(s.redactQuotaErrorBody(ctx, accountID, resp.String()), 240)
 			slog.Warn("openai_quota_query_failed", "account_id", accountID, "status", status, "body", body)
 			return nil, infraerrors.Newf(mapUpstreamStatus(status), "OPENAI_QUOTA_UPSTREAM_ERROR", "upstream returned %d: %s", status, body)
+		}
+		raw := resp.Bytes()
+		account, lookupErr := s.accountRepo.GetByID(callCtx, accountID)
+		if lookupErr == nil && account != nil && !account.IsShadow() &&
+			!identityValuesConflict(chatGPTAccountID, firstNonEmpty(account.GetCredential("chatgpt_account_id"), account.GetCredential("organization_id"))) {
+			if evidence := openAIQuotaWeekly429Evidence(raw, chatGPTAccountID, observed, time.Now()); evidence != nil {
+				if err := s.accountRepo.UpdateExtra(callCtx, accountID, map[string]any{OpenAI429WeeklyEvidenceKey: evidence}); err != nil {
+					slog.Warn("openai_quota_weekly_evidence_write_failed", "account_id", accountID)
+				}
+			}
+		}
+		if err := json.Unmarshal(raw, &payload); err != nil {
+			return nil, infraerrors.New(http.StatusBadGateway, "OPENAI_QUOTA_RESPONSE_INVALID", "upstream quota response has invalid fields")
 		}
 		break
 	}

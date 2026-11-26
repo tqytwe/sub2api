@@ -26,6 +26,7 @@ type openAIAgentRecoveryDelivery struct {
 	ctx     context.Context
 	request *openAIAgentRecoveryRequest
 	binding openAIAgentRecoveryBinding
+	proxy   [32]byte // Local HTTP attempt evidence; not part of the shared owner record.
 	pending string
 	keys    map[[32]byte]bool
 	once    sync.Once
@@ -90,7 +91,7 @@ func (d *openAIAgentRecoveryDelivery) reserve(items [][32]byte) error {
 	defer cancel()
 	for _, item := range items {
 		key := d.request.itemKey(item)
-		if d.request.disableOwnerBinding && d.request.known[key] {
+		if (d.request.disableOwnerBinding || d.request.omitted400History) && d.request.known[key] {
 			// An echoed completed input is still its original producer's item.
 			// Never reserve/publish it as the account consuming this history.
 			continue

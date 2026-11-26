@@ -10,6 +10,8 @@ export default {
       payg: '使用官方按量付费地址',
       endpointHint: '按钮替换当前接入地址；API Key 必须与套餐地址配套。已有 OpenAI 账号不会自动迁移。'
     },
+    newFeature: '新功能',
+    dismissNewFeature: '关闭新功能提示',
     loading: '加载中...',
     submitting: '提交中...',
     justNow: '刚刚',

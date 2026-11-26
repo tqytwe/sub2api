@@ -37,6 +37,7 @@ type dashboardSnapshotV2Response struct {
 }
 
 type dashboardSnapshotV2Filters struct {
+	Platform              string
 	UserID                int64
 	APIKeyID              int64
 	AccountID             int64
@@ -50,6 +51,7 @@ type dashboardSnapshotV2Filters struct {
 }
 
 type dashboardSnapshotV2CacheKey struct {
+	Platform              string `json:"platform"`
 	StartTime             string `json:"start_time"`
 	EndTime               string `json:"end_time"`
 	Granularity           string `json:"granularity"`
@@ -104,6 +106,7 @@ func (h *DashboardHandler) GetSnapshotV2(c *gin.Context) {
 		StartTime:             startTime.UTC().Format(time.RFC3339Nano),
 		EndTime:               endTime.UTC().Format(time.RFC3339Nano),
 		Granularity:           granularity,
+		Platform:              filters.Platform,
 		UserID:                filters.UserID,
 		APIKeyID:              filters.APIKeyID,
 		AccountID:             filters.AccountID,
@@ -196,6 +199,7 @@ func (h *DashboardHandler) buildSnapshotV2Response(
 			filters.NativeCompactionV2,
 			filters.BillingType,
 			filters.UpstreamModelMismatch,
+			filters.Platform,
 		)
 		if err != nil {
 			return nil, errors.New("failed to get usage trend")
@@ -218,6 +222,8 @@ func (h *DashboardHandler) buildSnapshotV2Response(
 			filters.NativeCompactionV2,
 			filters.BillingType,
 			filters.UpstreamModelMismatch,
+			filters.Platform,
+			filters.Model,
 		)
 		if err != nil {
 			return nil, errors.New("failed to get model statistics")
@@ -239,6 +245,8 @@ func (h *DashboardHandler) buildSnapshotV2Response(
 			filters.NativeCompactionV2,
 			filters.BillingType,
 			filters.UpstreamModelMismatch,
+			filters.Platform,
+			filters.Model,
 		)
 		if err != nil {
 			return nil, errors.New("failed to get group statistics")
@@ -261,6 +269,11 @@ func parseDashboardSnapshotV2Filters(c *gin.Context) (*dashboardSnapshotV2Filter
 	filters := &dashboardSnapshotV2Filters{
 		Model: strings.TrimSpace(c.Query("model")),
 	}
+	platform, err := parseUsagePlatform(c)
+	if err != nil {
+		return nil, err
+	}
+	filters.Platform = platform
 
 	if userIDStr := strings.TrimSpace(c.Query("user_id")); userIDStr != "" {
 		id, err := strconv.ParseInt(userIDStr, 10, 64)

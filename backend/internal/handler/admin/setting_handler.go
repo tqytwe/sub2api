@@ -531,6 +531,7 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		ExcelBPSImageStorageEntries:          settings.ExcelBPSImageStorageEntries,
 		ExcelBPSImageTTLMinutes:              settings.ExcelBPSImageTTLMinutes,
 		OpenAI409OmitEncryptedHistoryEnabled: settings.OpenAI409OmitEncryptedHistoryEnabled,
+		OpenAI400OmitEncryptedHistoryEnabled: settings.OpenAI400OmitEncryptedHistoryEnabled,
 
 		AvailableChannelsEnabled: settings.AvailableChannelsEnabled,
 		SubscriptionEnabled:      settings.SubscriptionEnabled,

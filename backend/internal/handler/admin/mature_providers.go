@@ -118,6 +118,7 @@ func (h *ChannelHandler) MutateMatureProvider(c *gin.Context) {
 		matureProviderError(c, err)
 		return
 	}
+	h.profitReports.clear()
 	if out == nil {
 		response.Success(c, gin.H{"deleted": id})
 		return

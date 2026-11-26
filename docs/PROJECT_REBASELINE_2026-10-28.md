@@ -1,5 +1,7 @@
 # 当前项目推进基线
 
+> **2026-11-25 当前上游交付**：目标仍为 `v2.23.1@00e00796080c632188cf9df7912050b144a1a44f`。生产基线是 [PR #457](https://github.com/tqytwe/sub2api/pull/457) 的 `81090b0cdec8c35ed31f00938e28717e6a94d1e5`，Zeabur 部署 `7962954907` 成功。当前为 `deployed_partial`。以 [版本账本](./upstream-migrations/v2.23.1/README.md) 与 [逐提交处置](./upstream-migrations/v2.23.1/dispositions.json) 跟进所有差异。后续版本立项、审查、部署和验收执行 [版本差异与完成门禁](./UPSTREAM_SYNC_PLAYBOOK.md#版本差异与完成门禁)。
+
 > **2026-11-20 上游同步启动**：上游正式发布目标更新为 `v2.23.1@00e00796080c632188cf9df7912050b144a1a44f`，tag object `3297a4f4547076ed5c5b21e0471a12490985fb80`。当前工作分支 `sync/ranxi-v2.23.1-20261120` 基于 `play/main@9c24cd75d2369de5e65be46fbab1945c2f43f696`；同步尚未完成，`fully_migrated=false`，也没有新的部署或浏览器验收证据。具体差异和工作包见 [v2.23.1 同步账本](./upstream-migrations/v2.23.1/README.md)。
 
 > **2026-11-18 当前交付基线**：固定目标为 `v2.21.2@dbed7697aa56e76c6eb48c4914fa441496b67bdd`，`fully_migrated=false`。已部署并由用户三身份验收的最后批次是 [PR #432](https://github.com/tqytwe/sub2api/pull/432)，merge SHA `6385c821143b2b8141bdf08106f4390b7fbace4d`；2026-11-18 复核远端 `play/main` 仍指向该 SHA。#431 的 Token 列缓存率及导出、#432 的请求时序/详情、延迟分析、连接诊断、TPS 配色、长上下文标记与手机/键盘交互已验收，不再作为新开发项。新批次发布前仍需直接核对 Zeabur 运行态和迁移，不以远端分支代替部署证据。

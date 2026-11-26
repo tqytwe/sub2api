@@ -28,6 +28,11 @@
 
 本批迁入范围与账本：`docs/upstream-migrations/...`；未迁入项：
 
+- [ ] 上游同步 PR 已锁定发布及累计范围，逐提交维护 `dispositions.json`，并通过 `python3 scripts/check_upstream_dispositions.py --verify-git`。
+- [ ] 上游同步 PR 合并前：累计账本全部终态、核验上游 tag 与历史，`python3 scripts/check_upstream_dispositions.py --verify-git --require-merge-ready` 和必需 CI 全部通过。
+- [ ] 整版关闭操作（部署后）：生产部署 SHA、健康/API、适用的数据对账和本机三身份验收已记录；声明 `fully_migrated=true` 的变更通过 `python3 scripts/check_upstream_dispositions.py --verify-git --require-complete`。首次部署前此项不适用，继续保持 `fully_migrated=false`。
+- [ ] 整版关闭 PR 已补齐逐项处置和生产验收证据，并同步来源锁与管理员端状态。
+
 交接记录 ID / 核查时间（规则见 `docs/PROJECT_HYGIENE.md`）：
 
 模块/文件归属、负责人或待分配、并行冲突协调：

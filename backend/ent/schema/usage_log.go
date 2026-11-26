@@ -31,6 +31,7 @@ func (UsageLog) Annotations() []schema.Annotation {
 // Fields 定义使用日志实体的所有字段。
 func (UsageLog) Fields() []ent.Field {
 	return []ent.Field{
+		field.String("platform").MaxLen(50).Optional().Nillable().Comment("Request-time provider snapshot; NULL means unknown"),
 		// 关联字段
 		field.Int64("user_id"),
 		field.Int64("api_key_id"),

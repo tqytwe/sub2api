@@ -447,3 +447,25 @@ func TestCreateLiveCallSafeRetryRetainsJointLease(t *testing.T) {
 		"a live call keeps its joint Key/user lease; terminal release comes from finalize")
 	require.Equal(t, 1, store.saves)
 }
+
+func TestCreateLiveCallAdmissionRunsBeforeLeaseAndUpstream(t *testing.T) {
+	upstream := &liveLoopUpstreamStub{failures: 0}
+	svc, cacheStub, store := newLiveLoopFixture(t, upstream, true)
+	identity := liveLoopIdentity()
+	called := 0
+	identity.BeforeGeneration = func(_ context.Context, account *Account) error {
+		called++
+		require.Equal(t, int64(1), account.ID)
+		return errors.New("moderation denied")
+	}
+
+	created, err := svc.CreateLiveCall(context.Background(), liveLoopRequest(), identity, 1)
+
+	require.Nil(t, created)
+	require.EqualError(t, err, "moderation denied")
+	require.Equal(t, 1, called)
+	require.Zero(t, cacheStub.transferCalls)
+	require.Zero(t, cacheStub.releaseLeaseCall)
+	require.Zero(t, upstream.calls)
+	require.Zero(t, store.saves)
+}

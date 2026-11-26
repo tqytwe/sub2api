@@ -333,6 +333,7 @@ type CheckMixedChannelRequest struct {
 
 // AccountWithConcurrency extends Account with real-time concurrency info
 type AccountWithConcurrency struct {
+	ModerationScopeEligible bool `json:"moderation_scope_eligible"`
 	*dto.Account
 	simpleMode         bool                         `json:"-"`
 	CurrentConcurrency int                          `json:"current_concurrency"`
@@ -348,6 +349,7 @@ type AccountWithConcurrency struct {
 // for lite=1. It embeds dto.AccountListItem instead of the full dto.Account,
 // so groups/account_groups never appear in the list payload.
 type AccountListItemWithConcurrency struct {
+	ModerationScopeEligible bool `json:"moderation_scope_eligible"`
 	*dto.AccountListItem
 	CurrentConcurrency int                          `json:"current_concurrency"`
 	SchedulerScore     *AccountSchedulerScore       `json:"scheduler_score,omitempty"`
@@ -502,9 +504,10 @@ func (h *AccountHandler) isSimpleMode() bool {
 
 func (h *AccountHandler) buildAccountResponseWithRuntime(ctx context.Context, account *service.Account) AccountWithConcurrency {
 	item := AccountWithConcurrency{
-		Account:            h.accountResponseFromService(account),
-		simpleMode:         h.isSimpleMode(),
-		CurrentConcurrency: 0,
+		Account:                 h.accountResponseFromService(account),
+		ModerationScopeEligible: service.ModerationUpstreamAccountEligible(account),
+		simpleMode:              h.isSimpleMode(),
+		CurrentConcurrency:      0,
 	}
 	if account == nil {
 		return item
@@ -951,11 +954,12 @@ func (h *AccountHandler) List(c *gin.Context) {
 			}
 		}
 		item := AccountWithConcurrency{
-			Account:            accountResponse,
-			simpleMode:         h.isSimpleMode(),
-			CurrentConcurrency: concurrencyCounts[acc.ID],
-			SchedulerScore:     schedulerScores[acc.ID],
-			SchedulerScores:    schedulerGroupScores[acc.ID],
+			Account:                 accountResponse,
+			ModerationScopeEligible: service.ModerationUpstreamAccountEligible(acc),
+			simpleMode:              h.isSimpleMode(),
+			CurrentConcurrency:      concurrencyCounts[acc.ID],
+			SchedulerScore:          schedulerScores[acc.ID],
+			SchedulerScores:         schedulerGroupScores[acc.ID],
 		}
 
 		// 添加窗口费用（仅当启用时）
@@ -989,13 +993,14 @@ func (h *AccountHandler) List(c *gin.Context) {
 		for i := range result {
 			item := result[i]
 			compact[i] = AccountListItemWithConcurrency{
-				AccountListItem:    dto.AccountListItemFromAccount(item.Account),
-				CurrentConcurrency: item.CurrentConcurrency,
-				SchedulerScore:     item.SchedulerScore,
-				SchedulerScores:    item.SchedulerScores,
-				CurrentWindowCost:  item.CurrentWindowCost,
-				ActiveSessions:     item.ActiveSessions,
-				CurrentRPM:         item.CurrentRPM,
+				AccountListItem:         dto.AccountListItemFromAccount(item.Account),
+				ModerationScopeEligible: item.ModerationScopeEligible,
+				CurrentConcurrency:      item.CurrentConcurrency,
+				SchedulerScore:          item.SchedulerScore,
+				SchedulerScores:         item.SchedulerScores,
+				CurrentWindowCost:       item.CurrentWindowCost,
+				ActiveSessions:          item.ActiveSessions,
+				CurrentRPM:              item.CurrentRPM,
 			}
 		}
 		etag := buildAccountsListETag(compact, total, page, pageSize, platform, accountType, status, search, true)

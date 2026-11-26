@@ -121,6 +121,8 @@ vi.mock('@/api/admin/ops', () => ({
   listErrorLogs,
 }))
 
+vi.mock('@/stores/auth', () => ({ useAuthStore: () => ({ user: { id: 41 } }) }))
+
 vi.mock('@/stores/app', () => ({
   useAppStore: () => ({
     showError: vi.fn(),

@@ -11,6 +11,7 @@ type ScheduledTestPlan struct {
 	QualityModelOutcomes  map[string]string     `json:"-"`
 	QualityOAuth401Round  *QualityOAuth401Round `json:"-"`
 	ManualQualityRun      bool                  `json:"-"`
+	ManualQualityRunID    string                `json:"-"`
 	TriggerSource         string                `json:"-"`
 	TriggerObservedAt     *time.Time            `json:"-"`
 	PelicanConfig         *PelicanTestConfig    `json:"pelican_config,omitempty"`

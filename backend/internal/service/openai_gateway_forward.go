@@ -61,6 +61,9 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 		return nil, admissionErr
 	}
 	account = latest
+	if err := CheckUpstreamModeration(ctx, c, account); err != nil {
+		return nil, err
+	}
 	defer func() {
 		if result != nil {
 			result.AuthConnectionID = account.AuthConnectionID
@@ -1104,6 +1107,7 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 	}
 
 	httpInvalidEncryptedContentRetryTried := false
+	nativeHTTPAttempts := 0
 	compactModelFallbackRetried := false
 	agentTaskRecoveryTried := false
 	rejectedFieldRetryState := openAIResponsesRejectedFieldRetryStateForRequest(c, body)
@@ -1164,6 +1168,14 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 		}
 		completeAgentRecovery, recoveryErr := s.prepareOpenAIAgentRecoveryAttempt(ctx, account, upstreamReq)
 		if recoveryErr != nil {
+			var refusal *OpenAIAgentRecoveryError
+			if errors.As(recoveryErr, &refusal) && refusal.Controls != nil {
+				appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+					Kind: "gateway_refusal", Stage: "controls_integrity", Reason: refusal.Reason,
+					Message:          "Gateway refused a request with changed recovery controls",
+					RecoveryControls: refusal.Controls,
+				})
+			}
 			if headerGuard != nil {
 				headerGuard.close()
 			}
@@ -1172,14 +1184,13 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 		defer completeAgentRecovery(false) // revoke pending exposure on every early return
 
 		// Get proxy URL
-		proxyURL := ""
-		if account.ProxyID != nil && account.Proxy != nil {
-			proxyURL = account.Proxy.URL()
-		}
+		proxyURL := openAINativeHTTPProxyURL(account)
 
 		// Send request
 		upstreamStart := time.Now()
+		nativeHTTPAttempts++
 		resp, err := s.doOpenAIUpstream(upstreamReq, proxyURL, account)
+		ctx = bindOpenAI429ResponseObservation(ctx, c, resp)
 		beginResponsesCacheHTTPAttempt(c, body, resp)
 		SetOpsLatencyMs(c, OpsUpstreamLatencyMsKey, time.Since(upstreamStart).Milliseconds())
 		if headerGuard != nil && headerGuard.stopHeaderWait() {
@@ -1223,7 +1234,7 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 			upstreamMsg := strings.TrimSpace(extractUpstreamErrorMessage(respBody))
 			upstreamMsg = sanitizeUpstreamErrorMessage(upstreamMsg)
 			upstreamCode := extractUpstreamErrorCode(respBody)
-			if !agentTaskRecoveryTried && s.isAgentIdentityAccount(ctx, account) && isAgentIdentityTaskInvalidHTTPResponse(resp.StatusCode, respBody) {
+			if !openAI400HistoryRecoveryApplied(ctx) && !agentTaskRecoveryTried && s.isAgentIdentityAccount(ctx, account) && isAgentIdentityTaskInvalidHTTPResponse(resp.StatusCode, respBody) {
 				agentTaskRecoveryTried = true
 				expectedTaskID := account.GetCredential("task_id")
 				if err := s.recoverAgentIdentityTask(ctx, account, expectedTaskID); err != nil {
@@ -1239,8 +1250,8 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 				if decodeErr != nil {
 					return nil, decodeErr
 				}
-				invalidDigests := collectOpenAIEncryptedContentDigestsRaw(lineageEntryBody)
-				if trimOpenAIEncryptedReasoningItems(decoded) {
+				invalidDigests := openAIRejectedEncryptedDigests(body, respBody)
+				if stripOpenAIInvalidEncryptedContentItems(decoded, openAIEncryptedDigestSet(invalidDigests)) > 0 {
 					body, err = marshalOpenAIUpstreamJSON(decoded)
 					if err != nil {
 						return nil, fmt.Errorf("serialize invalid_encrypted_content retry body: %w", err)
@@ -1257,6 +1268,28 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 					continue
 				}
 				logger.LegacyPrintf("service.openai_gateway", "[OpenAI] Skip non-WSv2 invalid_encrypted_content retry because encrypted reasoning items are missing (account: %s)", account.Name)
+			}
+			// Validate the complete error envelope before allowing lossy recovery.
+			if rejectionCode, rejectionMessage := openAIEncryptedRejectionFields(respBody); resp.StatusCode == http.StatusBadRequest && isOpenAIInvalidEncryptedContentError(rejectionCode, rejectionMessage) {
+				if next, clean, changed := s.prepareOpenAI400HistoryRecovery(ctx, c, account, body, nativeHTTPAttempts); changed {
+					ctx, body = next, clean
+					c.Request = c.Request.WithContext(next)
+					requestView, reqBody = newOpenAIRequestView(body), nil
+					rejectedFieldRetryState.remember(body)
+					appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+						LedgerReceipt: requestledger.ResponseReceipt(resp),
+						ProxyID:       opsUpstreamProxyID(account), ProxyName: opsUpstreamProxyName(account),
+						Platform: account.Platform, AccountID: account.ID, AccountName: account.Name,
+						UpstreamStatusCode: resp.StatusCode, UpstreamRequestID: resp.Header.Get("x-request-id"),
+						Kind: "retry", Reason: "encrypted_history_400_omitted",
+						Message: "Eligible historical ciphertext omitted; one same-account retry scheduled with context loss",
+					})
+					beginUpstreamResponseModelObservation(c)
+					continue
+				}
+			}
+			if openAIAgentRecoveryPreservesHistory(ctx) {
+				return s.handleErrorResponse(ctx, resp, c, account, body, resolveOpenAIErrorSchedulingModel(billingModel, upstreamModel))
 			}
 			if !preserveAgentHistory {
 				if retryBody, reason, changed, retryErr := normalizeOpenAIResponsesHTTPRejectedFieldRetryBody(resp.StatusCode, body, respBody); retryErr != nil {
@@ -1611,6 +1644,7 @@ func (s *OpenAIGatewayService) buildUpstreamRequest(ctx context.Context, c *gin.
 	if account.UsesOpenAICodexProtocol() {
 		// Required: set Host for ChatGPT API (must use req.Host, not Header.Set)
 		req.Host = "chatgpt.com"
+		req = markOpenAICodexHTTPRequest(req)
 		if err := resolveAndSetOpenAIChatGPTAccountHeaders(ctx, s.accountRepo, req.Header, account); err != nil {
 			return nil, fmt.Errorf("resolve chatgpt account headers: %w", err)
 		}

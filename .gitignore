@@ -126,6 +126,10 @@ scripts/*
 !scripts/push-github-and-deploy.sh
 !scripts/check-jisudeng-branding.sh
 !scripts/check-fork-integrity.sh
+!scripts/check_upstream_dispositions.py
+!scripts/test_upstream_dispositions.py
+!scripts/check_upstream_dispositions.py
+!scripts/test_upstream_dispositions.py
 !scripts/test-checkin-contract.sh
 !scripts/test-welfare-contract.sh
 !scripts/check-doc-links.mjs
@@ -145,6 +149,8 @@ deploy/docker-compose.override.yml
 .gocache/
 vite.config.js
 docs/*
+!docs/encrypted-history-400-beta.md
+!docs/encrypted-history-400-beta.zh.md
 !docs/api-key-multi-group.md
 !docs/ZEABUR_POSTGRES_RUNBOOK.md
 !docs/ANTIGRAVITY_ATTRIBUTION_429.md

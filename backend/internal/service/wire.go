@@ -70,6 +70,20 @@ func ProvideBatchImageModelPricingResolver(resolver *ModelPricingResolver) *Batc
 	return &BatchImageModelPricingResolver{Resolver: resolver}
 }
 
+func ProvideContentModerationService(
+	settings SettingRepository,
+	repo ContentModerationRepository,
+	hashes ContentModerationHashCache,
+	groups GroupRepository,
+	users UserRepository,
+	proxies ProxyRepository,
+	invalidator APIKeyAuthCacheInvalidator,
+	email *EmailService,
+	accounts AccountRepository,
+) *ContentModerationService {
+	return NewContentModerationService(settings, repo, hashes, groups, users, proxies, invalidator, email, accounts)
+}
+
 // ProvideMobileAttributionService derives a domain-separated signing key from
 // the server JWT secret. The raw attribution token is never persisted.
 func ProvideMobileAttributionService(repo MobileAttributionRepository, cfg *config.Config) *MobileAttributionService {
@@ -1422,7 +1436,7 @@ var ProviderSet = wire.NewSet(
 	NewChannelService,
 	NewModelPricingResolver,
 	NewModelPlazaService,
-	NewContentModerationService,
+	ProvideContentModerationService,
 	ProvideAffiliateService,
 	ProvidePaymentConfigService,
 	ProvidePaymentService,

@@ -158,7 +158,7 @@ func (t *upstreamRequestCompressionTransport) coding(req *http.Request, origin s
 		}
 	}
 	if strings.EqualFold(origin, "https://chatgpt.com") && req.URL.EscapedPath() == "/backend-api/codex/responses" &&
-		service.HTTPUpstreamProfileFromContext(req.Context()) == service.HTTPUpstreamProfileOpenAI && !service.IsOpenAICodexStateProbeRequest(req.Context()) {
+		service.IsOpenAICodexHTTPRequest(req.Context()) {
 		if t.codexMode == "" {
 			return "zstd"
 		}
@@ -172,7 +172,7 @@ func canCompressUpstreamRequest(req *http.Request) bool {
 		req.ContentLength < minUpstreamCompressionSize || req.ContentLength > maxUpstreamCompressionSize ||
 		len(req.TransferEncoding) != 0 || len(req.Trailer) != 0 ||
 		(req.Host != "" && !strings.EqualFold(req.Host, req.URL.Host)) ||
-		service.IsOpenAICodexStateProbeRequest(req.Context()) ||
+		service.UpstreamCompressionRequiresPlainBody(req.Context()) ||
 		strings.HasPrefix(req.Header.Get("Authorization"), "AWS4-") {
 		return false
 	}

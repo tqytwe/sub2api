@@ -50,6 +50,9 @@ type openAIWSAgentRecovery struct {
 }
 
 func newOpenAIWSAgentRecovery(s *OpenAIGatewayService, ctx context.Context, c *gin.Context) *openAIWSAgentRecovery {
+	if s.openAILegacyCompatibility() {
+		return nil
+	}
 	r := openAIAgentRecoveryFromContext(ctx)
 	if r == nil {
 		return nil

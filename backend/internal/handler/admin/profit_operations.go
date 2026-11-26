@@ -14,6 +14,7 @@ import (
 
 // ProfitOperations reads the administrator profit report.
 func (h *ChannelHandler) ProfitOperations(c *gin.Context) {
+	c.Header("Cache-Control", "no-store")
 	account, e1 := channelOperationsInt(c, "account_id", 0)
 	group, e2 := channelOperationsInt(c, "group_id", 0)
 	channel, e7 := channelOperationsInt(c, "channel_id", 0)
@@ -30,8 +31,18 @@ func (h *ChannelHandler) ProfitOperations(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
+	force := c.Query("refresh_spend") == "1" || c.Query("refresh_spend") == "true"
+	if force || c.Query("refresh_report") == "1" || c.Query("refresh_report") == "true" {
+		h.profitReports.clear()
+	}
 	started := time.Now()
-	out, err := h.channelService.ProfitOperations(c.Request.Context(), f)
+	out, err := h.profitReports.read(c.Request.Context(), f, func(ctx context.Context, collect bool) (*service.ProfitOperationsSnapshot, error) {
+		h.refreshBoundProviderSpend(ctx, f.From, f.Until, force)
+		if collect {
+			ctx = service.WithProfitRowCollection(ctx)
+		}
+		return h.channelService.ProfitOperations(ctx, f)
+	})
 	if err != nil {
 		status, reason, message := http.StatusInternalServerError, "PROFIT_OPERATIONS_QUERY_FAILED", "Upstream operations query failed; retry"
 		if errors.Is(err, context.DeadlineExceeded) {

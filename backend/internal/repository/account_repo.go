@@ -3174,6 +3174,18 @@ func (r *accountRepository) UpdateExtra(ctx context.Context, id int64, updates m
 		}
 	}
 	extraExpression := "COALESCE(extra, '{}'::jsonb) || $1::jsonb"
+	if _, hasWeeklyEvidence := updates[service.OpenAI429WeeklyEvidenceKey]; hasWeeklyEvidence {
+		// Keep this complete observation together while independently merging
+		// unrelated Extra fields. Compare numeric versions under the row lock.
+		key := "'" + service.OpenAI429WeeklyEvidenceKey + "'"
+		existing := "extra -> " + key + " ->> 'observed_at_ns'"
+		incoming := "$1::jsonb -> " + key + " ->> 'observed_at_ns'"
+		numericVersion := func(expression string) string {
+			return "(CASE WHEN (" + expression + ") ~ '^[1-9][0-9]{0,18}$' THEN (" + expression + ")::numeric ELSE 0 END)"
+		}
+		extraExpression = "COALESCE(extra, '{}'::jsonb) || CASE WHEN " + numericVersion(incoming) + " > " + numericVersion(existing) +
+			" THEN $1::jsonb ELSE $1::jsonb - " + key + " END"
+	}
 	if clearProbeSnapshot {
 		extraExpression = "(" + extraExpression + ") - 'upstream_billing_probe'"
 	}

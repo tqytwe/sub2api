@@ -50,13 +50,26 @@ func TestQualityRuntimePostgreSQLManualMarkerAndSiblingLease(t *testing.T) {
 	plan, err = repo.GetByID(ctx, plan.ID)
 	require.NoError(t, err)
 	require.True(t, plan.ManualQualityRun)
+	require.NotEmpty(t, plan.ManualQualityRunID)
+	manualID := plan.ManualQualityRunID
+	triggered := *plan
+	triggered.TriggerSource = "upstream_5xx"
+	observed := time.Now()
+	triggered.TriggerObservedAt = &observed
+	_, claimed, err := repo.ClaimQualityRun(ctx, &triggered, time.Now().Add(time.Minute))
+	require.NoError(t, err)
+	require.False(t, claimed, "a 5xx replacement must not consume a pending manual run")
+	pending, err := repo.GetByID(ctx, plan.ID)
+	require.NoError(t, err)
+	require.True(t, pending.ManualQualityRun)
+	require.Equal(t, manualID, pending.ManualQualityRunID)
 	claimQualityRuntimeScheduling(t, repo, plan)
 	current, err := repo.GetByID(ctx, plan.ID)
 	require.NoError(t, err)
 	require.False(t, current.ManualQualityRun, "manual quota bypass is one-shot")
-	_, claimed, err := repo.ClaimQualityRun(ctx, sibling, time.Now().Add(time.Minute))
-	require.NoError(t, err)
-	require.False(t, claimed, "one account cannot run overlapping rules")
+	_, siblingClaimed, siblingErr := repo.ClaimQualityRun(ctx, sibling, time.Now().Add(time.Minute))
+	require.NoError(t, siblingErr)
+	require.False(t, siblingClaimed, "one account cannot run overlapping rules")
 	stale := *plan
 	stale.UpdatedAt = plan.UpdatedAt.Add(-time.Second)
 	require.ErrorIs(t, repo.FinishQualityPlan(ctx, &stale, time.Now(), time.Now().Add(time.Hour)), sql.ErrNoRows)

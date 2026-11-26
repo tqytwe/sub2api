@@ -374,6 +374,7 @@ type UpdateSettingsRequest struct {
 	ExcelBPSImageStorageEntries          *int    `json:"excel_bps_image_storage_entries"`
 	ExcelBPSImageTTLMinutes              *int    `json:"excel_bps_image_ttl_minutes"`
 	OpenAI409OmitEncryptedHistoryEnabled *bool   `json:"openai_409_omit_encrypted_history_enabled"`
+	OpenAI400OmitEncryptedHistoryEnabled *bool   `json:"openai_400_omit_encrypted_history_enabled"`
 
 	// Available Channels feature switch (user-facing)
 	AvailableChannelsEnabled *bool `json:"available_channels_enabled"`
@@ -2181,6 +2182,12 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			}
 			return previousSettings.OpenAI409OmitEncryptedHistoryEnabled
 		}(),
+		OpenAI400OmitEncryptedHistoryEnabled: func() bool {
+			if req.OpenAI400OmitEncryptedHistoryEnabled != nil {
+				return *req.OpenAI400OmitEncryptedHistoryEnabled
+			}
+			return previousSettings.OpenAI400OmitEncryptedHistoryEnabled
+		}(),
 		AvailableChannelsEnabled: func() bool {
 			if req.AvailableChannelsEnabled != nil {
 				return *req.AvailableChannelsEnabled
@@ -2737,6 +2744,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		ExcelBPSImageStorageEntries:          updatedSettings.ExcelBPSImageStorageEntries,
 		ExcelBPSImageTTLMinutes:              updatedSettings.ExcelBPSImageTTLMinutes,
 		OpenAI409OmitEncryptedHistoryEnabled: updatedSettings.OpenAI409OmitEncryptedHistoryEnabled,
+		OpenAI400OmitEncryptedHistoryEnabled: updatedSettings.OpenAI400OmitEncryptedHistoryEnabled,
 
 		AvailableChannelsEnabled: updatedSettings.AvailableChannelsEnabled,
 		SubscriptionEnabled:      updatedSettings.SubscriptionEnabled,

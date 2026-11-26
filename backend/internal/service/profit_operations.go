@@ -6,9 +6,38 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	_ "time/tzdata"
 
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 )
+
+// Internal collection hint for bounded report caching; never accepted from HTTP.
+type profitCollectionKey struct{}
+
+func WithProfitRowCollection(ctx context.Context) context.Context {
+	return context.WithValue(ctx, profitCollectionKey{}, true)
+}
+func CollectProfitRows(ctx context.Context) bool {
+	value, _ := ctx.Value(profitCollectionKey{}).(bool)
+	return value
+}
+
+// Provider wallet snapshots are refreshed sparingly for one report window.
+const ProfitSpendFreshness = 2 * time.Minute
+
+type ProviderSpendTarget struct{ ID, Revision int64 }
+type ProviderSpendSnapshot struct {
+	ProviderID       int64
+	From, Until      time.Time
+	Amount           *float64
+	Currency, Source string
+}
+type ProviderSpendStore interface {
+	ListProviderSpendTargets(context.Context) ([]ProviderSpendTarget, error)
+	ProviderSpendFresh(context.Context, int64, time.Time, time.Time, time.Duration) (bool, error)
+	SaveProviderSpend(context.Context, ProviderSpendSnapshot) error
+	RecordProviderSpendError(context.Context, int64, time.Time, time.Time, string) error
+}
 
 const profitOperationsQueryTimeout = 5 * time.Minute
 
@@ -22,7 +51,7 @@ type ProfitOperationsRepository interface {
 }
 
 func ValidateProfitOperationsFilter(f UpstreamOperationsFilter) error {
-	if !slices.Contains([]string{"requests", "standard_charge", "request_income", "estimated_cost", "estimated_profit", "margin", "name"}, f.Sort) {
+	if !slices.Contains([]string{"requests", "standard_charge", "request_income", "estimated_cost", "estimated_profit", "margin", "upstream_cost", "gross_profit", "gross_margin", "name"}, f.Sort) {
 		return ErrUpstreamOperationsValidation
 	}
 	if strings.HasPrefix(f.Upstream, "channel:") {

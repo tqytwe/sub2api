@@ -3282,25 +3282,40 @@ func TestOpenAIGatewayServiceForwardImages_OAuthStreamingDrainsAfterClientDiscon
 }
 
 func TestOpenAIGatewayServiceForwardImages_EmptyDataRequiresObservedBillingCount(t *testing.T) {
-	for _, policy := range []string{"legacy", "receipt", "minimum", "per-image"} {
+	for _, policy := range []string{"legacy", "fallback", "receipt", "minimum", "per-image", "key-mapped-image", "channel-mapped-image"} {
 		t.Run(policy, func(t *testing.T) {
 			body := []byte(`{"model":"gpt-image-2","prompt":"draw a cat","response_format":"b64_json"}`)
 			c, _ := gin.CreateTestContext(httptest.NewRecorder())
 			c.Request = httptest.NewRequest(http.MethodPost, "/v1/images/generations", bytes.NewReader(body))
 			c.Request.Header.Set("Content-Type", "application/json")
 			want := 0
+			ctx := context.Background()
+			channelModel := ""
 			switch policy {
 			case "legacy":
 				want = 1
+			case "fallback":
+				want = 1
+				c.Set("api_key", &APIKey{Group: &Group{ImageCountBilling: true}})
 			case "receipt":
+				c.Set("api_key", &APIKey{Group: &Group{ImageCountBilling: true}})
 				c.Request.Header.Set("X-Image-Usage", "billing")
-			case "minimum", "per-image":
+			case "minimum", "per-image", "key-mapped-image", "channel-mapped-image":
 				floor := 0.02
 				price := ChannelModelPricing{Models: []string{"gpt-image-2"}, BillingMode: BillingModeToken, ImageMinimumCharge: &floor}
-				if policy == "per-image" {
+				if policy != "minimum" {
 					price.BillingMode, price.ImageMinimumCharge = BillingModeImage, nil
 				}
-				c.Set("api_key", &APIKey{Group: &Group{ModelPricing: []ChannelModelPricing{price}}})
+				if policy == "key-mapped-image" {
+					price.Models = []string{"priced-key-target"}
+					ctx = WithImageBillingModel(ctx, ChannelUsageFields{OriginalModel: "gpt-image-2", APIKeyMappedModel: "priced-key-target", BillingModelSource: BillingModelSourceRequested})
+				}
+				if policy == "channel-mapped-image" {
+					price.Models = []string{"gpt-image-2-priced"}
+					channelModel = "gpt-image-2-priced"
+					ctx = WithImageBillingModel(ctx, ChannelUsageFields{OriginalModel: "gpt-image-2", ChannelMappedModel: channelModel, ChannelMappingApplied: true, BillingModelSource: BillingModelSourceChannelMapped})
+				}
+				c.Set("api_key", &APIKey{Group: &Group{ImageCountBilling: true, ModelPricing: []ChannelModelPricing{price}}})
 			}
 			svc := &OpenAIGatewayService{cfg: &config.Config{}, httpUpstream: &httpUpstreamRecorder{resp: &http.Response{
 				StatusCode: http.StatusOK,
@@ -3312,7 +3327,7 @@ func TestOpenAIGatewayServiceForwardImages_EmptyDataRequiresObservedBillingCount
 			account := &Account{ID: 6, Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Credentials: map[string]any{
 				"api_key": "fixture-key", "base_url": "https://image-upstream.example/v1",
 			}}
-			result, err := svc.ForwardImages(context.Background(), c, account, body, parsed, "")
+			result, err := svc.ForwardImages(ctx, c, account, body, parsed, channelModel)
 			require.NoError(t, err)
 			require.Equal(t, want, result.ImageCount)
 		})

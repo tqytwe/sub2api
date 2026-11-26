@@ -31,7 +31,7 @@ func (c *Coordinator) Check(ctx context.Context, req Request) Decision {
 		return allowDecision(nil, nil)
 	}
 	mode := ModeOff
-	if c.prompt != nil {
+	if c.prompt != nil && !req.SkipPrompt {
 		mode = c.prompt.EffectiveMode()
 	}
 	switch mode {

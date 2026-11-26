@@ -18,6 +18,7 @@ const {
   getCheckoutInfo,
   showError,
   showSuccess,
+  showInfo,
   copyToClipboard,
   isCurrentStep,
   nextStep,
@@ -36,6 +37,7 @@ const {
   getCheckoutInfo: vi.fn(),
   showError: vi.fn(),
   showSuccess: vi.fn(),
+  showInfo: vi.fn(),
   copyToClipboard: vi.fn(),
   isCurrentStep: vi.fn(),
   nextStep: vi.fn(),
@@ -131,6 +133,7 @@ vi.mock('@/stores/app', () => ({
   useAppStore: () => ({
     showError,
     showSuccess,
+    showInfo,
   }),
 }))
 
@@ -361,6 +364,7 @@ describe('user KeysView column settings', () => {
     getCheckoutInfo.mockReset()
     showError.mockReset()
     showSuccess.mockReset()
+    showInfo.mockReset()
     copyToClipboard.mockReset()
     isCurrentStep.mockReset()
     nextStep.mockReset()
@@ -387,6 +391,64 @@ describe('user KeysView column settings', () => {
     id: index + 1, name: `Group ${index + 1}`, platform: 'openai', rate_multiplier: 1,
     subscription_type: 'standard', status: 'active',
   }))
+
+  it('hands off only the selected key and does not depend on the CCS import setting', async () => {
+    const group = { id: 9, platform: 'openai' } as Group
+    const first = { ...createApiKey(), group_id: group.id, group }
+    const second = { ...first, id: 2, name: '第二把密钥', key: 'sk-test-second+a&b' }
+    listKeys.mockResolvedValue({ items: [first, second], total: 2, page: 1, page_size: 20, pages: 1 })
+    getPublicSettings.mockResolvedValue({
+      api_base_url: 'https://gateway.example/relay/v1/',
+      site_name: '示例站',
+      hide_ccs_import_button: true
+    })
+    const open = vi.spyOn(window, 'open').mockReturnValue(null)
+    const wrapper = await mountView()
+    const buttons = wrapper.findAll('[data-testid="magpie-import-button"]')
+    expect(buttons).toHaveLength(2)
+    expect(wrapper.text()).not.toContain('keys.importToCcSwitch')
+    expect(open).not.toHaveBeenCalled()
+    await buttons[1].trigger('click')
+
+    expect(open).toHaveBeenCalledTimes(1)
+    const [href, target] = open.mock.calls[0]
+    const url = new URL(String(href))
+    expect(target).toBe('_self')
+    expect(url.protocol).toBe('magpie:')
+    expect(url.host).toBe('import')
+    expect(url.searchParams.get('name')).toBe('第二把密钥 · 示例站')
+    expect(url.searchParams.getAll('key')).toEqual(['sk-test-second+a&b'])
+    expect(url.searchParams.get('responses')).toBe('https://gateway.example/relay/v1')
+    expect(showInfo).toHaveBeenCalledWith('keys.magpieImport.openHelp', 6500)
+    expect(showError).not.toHaveBeenCalled()
+  })
+
+  it('keeps the import action disabled until public settings are loaded', async () => {
+    let resolveSettings: (settings: { api_base_url: string }) => void = () => undefined
+    getPublicSettings.mockReturnValue(new Promise(resolve => { resolveSettings = resolve }))
+    const group = { id: 9, platform: 'openai' } as Group
+    setKeys({ ...createApiKey(), group_id: group.id, group })
+    const open = vi.spyOn(window, 'open').mockReturnValue(null)
+    const wrapper = await mountView()
+    const button = wrapper.get('[data-testid="magpie-import-button"]')
+    expect(button.attributes('disabled')).toBeDefined()
+    await button.trigger('click')
+    expect(open).not.toHaveBeenCalled()
+
+    resolveSettings({ api_base_url: 'https://gateway.example' })
+    await flushPromises()
+    expect(button.attributes('disabled')).toBeUndefined()
+    await button.trigger('click')
+    expect(new URL(String(open.mock.calls[0][0])).searchParams.get('chat')).toBe('https://gateway.example/v1')
+  })
+
+  it('does not guess import endpoints for a key without an assigned group', async () => {
+    const open = vi.spyOn(window, 'open').mockReturnValue(null)
+    const wrapper = await mountView()
+    await wrapper.get('[data-testid="magpie-import-button"]').trigger('click')
+    expect(open).not.toHaveBeenCalled()
+    expect(showError).toHaveBeenCalledWith('keys.magpieImport.unsupportedGroup')
+  })
 
   it('queries 30 calendar days and keeps the selected range across paging', async () => {
     const wrapper = await mountView()

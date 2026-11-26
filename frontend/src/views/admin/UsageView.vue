@@ -38,6 +38,7 @@
             :start-date="startDate"
             :end-date="endDate"
             :filters="breakdownFilters"
+            :enable-breakdown="!filters.platform"
           />
           <GroupDistributionChart
             v-model:metric="groupDistributionMetric"
@@ -47,6 +48,7 @@
             :start-date="startDate"
             :end-date="endDate"
             :filters="breakdownFilters"
+            :enable-breakdown="!filters.platform"
           />
         </div>
         <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -63,6 +65,7 @@
             :start-date="startDate"
             :end-date="endDate"
             :filters="breakdownFilters"
+            :enable-breakdown="!filters.platform"
           />
           <TokenUsageTrend :trend-data="trendData" :loading="chartsLoading" />
         </div>
@@ -86,7 +89,7 @@
           </button>
         </div>
 
-        <UsageFilters v-if="activeTab !== 'traffic'" v-model="filters" ref="usageFiltersRef" flat :mode="activeTab" class="border-b border-gray-100 dark:border-dark-700/50" :start-date="startDate" :end-date="endDate" :exporting="exporting" :model-options="modelNameOptions" @change="applyFilters" @refresh="refreshData" @reset="resetFilters" @cleanup="openCleanupDialog" @export="exportToExcel">
+        <UsageFilters v-if="activeTab !== 'traffic'" v-model="filters" ref="usageFiltersRef" flat :mode="activeTab" :notice-user-id="authStore.user?.id" class="border-b border-gray-100 dark:border-dark-700/50" :start-date="startDate" :end-date="endDate" :exporting="exporting" :model-options="modelNameOptions" @change="applyFilters" @refresh="refreshData" @reset="resetFilters" @cleanup="openCleanupDialog" @export="exportToExcel">
           <template #after-reset>
             <div v-if="activeTab === 'usage' || activeTab === 'errors'" class="relative" ref="columnDropdownRef">
               <button
@@ -207,7 +210,7 @@ import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { saveAs } from 'file-saver'
 import { useRoute } from 'vue-router'
-import { useAppStore } from '@/stores/app'; import { adminAPI } from '@/api/admin'; import { adminUsageAPI } from '@/api/admin/usage'
+import { useAppStore } from '@/stores/app'; import { useAuthStore } from '@/stores/auth'; import { adminAPI } from '@/api/admin'; import { adminUsageAPI } from '@/api/admin/usage'
 import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
 import { formatReasoningEffort } from '@/utils/format'
 import { resolveUsageRequestType, requestTypeToLegacyStream } from '@/utils/usageRequestType'
@@ -234,6 +237,7 @@ import type { AdminUsageLog, TrendDataPoint, ModelStat, GroupStat, EndpointStat,
 
 const { t } = useI18n()
 const appStore = useAppStore()
+const authStore = useAuthStore()
 type DistributionMetric = 'tokens' | 'actual_cost'
 type EndpointSource = 'inbound' | 'upstream' | 'path'
 type ModelDistributionSource = 'requested' | 'upstream' | 'mapping'
@@ -266,6 +270,8 @@ const balanceHistoryUser = ref<AdminUser | null>(null)
 
 const breakdownFilters = computed(() => {
   const f: Record<string, any> = {}
+  if (filters.value.model) f.model = filters.value.model
+  if (filters.value.platform) f.platform = filters.value.platform
   if (filters.value.user_id) f.user_id = filters.value.user_id
   if (filters.value.api_key_id) f.api_key_id = filters.value.api_key_id
   if (filters.value.account_id) f.account_id = filters.value.account_id
@@ -436,7 +442,7 @@ const loadLogs = async () => {
   abortController?.abort(); const c = new AbortController(); abortController = c; loading.value = true
   try {
     const res = await adminAPI.usage.list(
-      buildUsageListParams(pagination.page, pagination.page_size, false),
+      buildUsageListParams(pagination.page, pagination.page_size, !!filters.value.platform),
       { signal: c.signal }
     )
     if(!c.signal.aborted) { usageLogs.value = res.items; pagination.total = res.total }
@@ -498,6 +504,7 @@ const loadModelStats = async (source: ModelDistributionSource, force = false) =>
       api_key_id: filters.value.api_key_id,
       account_id: filters.value.account_id,
       group_id: filters.value.group_id,
+      platform: filters.value.platform,
       request_type: requestType,
       stream: legacyStream === null ? undefined : legacyStream,
       native_compaction_v2: filters.value.native_compaction_v2,
@@ -549,6 +556,7 @@ const loadChartData = async () => {
       api_key_id: filters.value.api_key_id,
       account_id: filters.value.account_id,
       group_id: filters.value.group_id,
+      platform: filters.value.platform,
       request_type: requestType,
       stream: legacyStream === null ? undefined : legacyStream,
       native_compaction_v2: filters.value.native_compaction_v2,
@@ -613,6 +621,10 @@ const handleIpGeoBatchFailed = () => {
 }
 const cancelExport = () => exportAbortController?.abort()
 const openCleanupDialog = () => {
+  if (filters.value.platform) {
+    appStore.showWarning(t('admin.usage.platformCleanupUnavailable'))
+    return
+  }
   if (!cleanupUsesCalendarDates.value) {
     appStore.showWarning(t('admin.usage.cleanup.calendarRangeRequired'))
     return
@@ -632,6 +644,7 @@ const getRequestTypeLabel = (log: AdminUsageLog): string => {
 const exportToExcel = async () => {
   if (exporting.value) return; exporting.value = true; exportProgress.show = true
   const c = new AbortController(); exportAbortController = c
+  const exportParams = buildUsageListParams(1, 100, true)
   try {
     let p = 1; let total = pagination.total; let exportedCount = 0
     const XLSX = await import('xlsx')
@@ -653,7 +666,7 @@ const exportToExcel = async () => {
     const ws = XLSX.utils.aoa_to_sheet([headers])
     while (true) {
       const res = await adminUsageAPI.list(
-        buildUsageListParams(p, 100, true),
+        { ...exportParams, page: p },
         { signal: c.signal }
       )
       if (c.signal.aborted) break; if (p === 1) { total = res.total; exportProgress.total = total }
@@ -681,7 +694,7 @@ const exportToExcel = async () => {
     if(!c.signal.aborted) {
       const wb = XLSX.utils.book_new()
       XLSX.utils.book_append_sheet(wb, ws, t('usage.tabs.usage'))
-      saveAs(new Blob([XLSX.write(wb, { bookType: 'xlsx', type: 'array' })], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), `usage_${filters.value.start_date}_to_${filters.value.end_date}.xlsx`)
+      saveAs(new Blob([XLSX.write(wb, { bookType: 'xlsx', type: 'array' })], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), `usage_${exportParams.start_date}_to_${exportParams.end_date}.xlsx`)
       appStore.showSuccess(t('usage.exportSuccess'))
     }
   } catch (error) { console.error('Failed to export:', error); appStore.showError(t('usage.exportFailed')) }
@@ -868,7 +881,10 @@ const rankingMounted = ref(false)
 const rankingRef = ref<InstanceType<typeof UserTokenRanking> | null>(null)
 
 const switchTab = (tab: DetailTab) => {
+  const clearPlatform = tab !== 'usage' && !!filters.value.platform
+  if (clearPlatform) filters.value.platform = undefined
   activeTab.value = tab
+  if (clearPlatform) applyFilters()
   if (tab === 'errors' && errRows.value.length === 0) loadAdminErrors()
   if (tab === 'ranking') rankingMounted.value = true
 }

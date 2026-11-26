@@ -143,12 +143,15 @@ func ContentModerationCategories() []string {
 }
 
 type ContentModerationConfig struct {
-	Engine   string                         `json:"engine,omitempty"`
-	TypeSafe *ContentModerationEngineConfig `json:"typesafe,omitempty"`
-	Enabled  bool                           `json:"enabled"`
-	Mode     string                         `json:"mode"`
-	BaseURL  string                         `json:"base_url"`
-	Model    string                         `json:"model"`
+	UpstreamAccountScope    string                              `json:"upstream_account_scope"`
+	UpstreamAccountIDs      []int64                             `json:"upstream_account_ids"`
+	UpstreamAccountBindings map[int64]ModerationUpstreamBinding `json:"upstream_account_bindings,omitempty"`
+	Engine                  string                              `json:"engine,omitempty"`
+	TypeSafe                *ContentModerationEngineConfig      `json:"typesafe,omitempty"`
+	Enabled                 bool                                `json:"enabled"`
+	Mode                    string                              `json:"mode"`
+	BaseURL                 string                              `json:"base_url"`
+	Model                   string                              `json:"model"`
 	// ProxyID 指定审计请求使用的代理服务器（IP管理-代理服务器），nil 表示直连。
 	ProxyID              *int64                       `json:"proxy_id,omitempty"`
 	APIKey               string                       `json:"api_key,omitempty"`
@@ -182,6 +185,8 @@ type ContentModerationConfig struct {
 }
 
 type ContentModerationConfigView struct {
+	UpstreamAccountScope           string                                  `json:"upstream_account_scope"`
+	UpstreamAccountIDs             []int64                                 `json:"upstream_account_ids"`
 	Engine                         string                                  `json:"engine"`
 	EngineConfigs                  map[string]*ContentModerationConfigView `json:"engine_configs,omitempty"`
 	Enabled                        bool                                    `json:"enabled"`
@@ -278,12 +283,14 @@ type ContentModerationTestAuditResult struct {
 }
 
 type UpdateContentModerationConfigInput struct {
-	Engine        *string                                       `json:"engine"`
-	EngineConfigs map[string]UpdateContentModerationEngineInput `json:"engine_configs"`
-	Enabled       *bool                                         `json:"enabled"`
-	Mode          *string                                       `json:"mode"`
-	BaseURL       *string                                       `json:"base_url"`
-	Model         *string                                       `json:"model"`
+	UpstreamAccountScope *string                                       `json:"upstream_account_scope"`
+	UpstreamAccountIDs   *[]int64                                      `json:"upstream_account_ids"`
+	Engine               *string                                       `json:"engine"`
+	EngineConfigs        map[string]UpdateContentModerationEngineInput `json:"engine_configs"`
+	Enabled              *bool                                         `json:"enabled"`
+	Mode                 *string                                       `json:"mode"`
+	BaseURL              *string                                       `json:"base_url"`
+	Model                *string                                       `json:"model"`
 	// ProxyID nil 表示不修改；<=0 表示清除代理（恢复直连）；>0 表示指定代理。
 	ProxyID                        *int64                        `json:"proxy_id"`
 	APIKey                         *string                       `json:"api_key"`
@@ -321,6 +328,8 @@ type ContentModerationModelFilter struct {
 }
 
 type ContentModerationCheckInput struct {
+	UpstreamAccount    *Account
+	UpstreamConfig     *ContentModerationConfig
 	riskControlLogOnly bool // Captured at admission and retained by asynchronous tasks.
 	moderationVersion  *int64
 	RequestID          string
@@ -513,6 +522,7 @@ type ContentModerationHashCache interface {
 }
 
 type ContentModerationService struct {
+	accountRepo              AccountRepository
 	settingRepo              SettingRepository
 	repo                     ContentModerationRepository
 	hashCache                ContentModerationHashCache
@@ -595,6 +605,7 @@ func NewContentModerationService(
 	proxyRepo ProxyRepository,
 	authCacheInvalidator APIKeyAuthCacheInvalidator,
 	emailService *EmailService,
+	accounts ...AccountRepository,
 ) *ContentModerationService {
 	svc := &ContentModerationService{
 		settingRepo:          settingRepo,
@@ -609,6 +620,9 @@ func NewContentModerationService(
 		workerCount:          maxContentModerationWorkerCount,
 		asyncQueue:           make(chan contentModerationTask, maxContentModerationQueueSize),
 		keyHealth:            make(map[string]*contentModerationKeyHealth),
+	}
+	if len(accounts) > 0 {
+		svc.accountRepo = accounts[0]
 	}
 	if settingRepo != nil && repo != nil {
 		for i := 0; i < svc.workerCount; i++ {
@@ -630,6 +644,9 @@ func (s *ContentModerationService) GetConfig(ctx context.Context) (*ContentModer
 func (s *ContentModerationService) UpdateConfig(ctx context.Context, input UpdateContentModerationConfigInput) (*ContentModerationConfigView, error) {
 	cfg, err := s.loadConfig(ctx)
 	if err != nil {
+		return nil, err
+	}
+	if err := s.updateUpstreamScope(ctx, cfg, input); err != nil {
 		return nil, err
 	}
 	if input.Engine != nil {
@@ -858,6 +875,9 @@ func (s *ContentModerationService) Check(ctx context.Context, input ContentModer
 		}
 	}()
 	cfg := runtimeSnapshot.config
+	if input.UpstreamConfig != nil {
+		cfg = input.UpstreamConfig
+	}
 	inGroupScope := cfg.includesGroup(input.GroupID)
 	inModelScope := cfg.includesModel(input.Model)
 	slog.Info("content_moderation.config_loaded",
@@ -923,6 +943,18 @@ func (s *ContentModerationService) Check(ctx context.Context, input ContentModer
 			"model_filter_type", cfg.ModelFilter.Type,
 			"configured_models", cfg.ModelFilter.Models)
 		return allow, nil
+	}
+	if cfg.UpstreamAccountScope != "" && cfg.UpstreamAccountScope != ModerationUpstreamAll {
+		if input.UpstreamAccount == nil && cfg.UpstreamAccountScope == ModerationUpstreamSelected {
+			return allow, nil
+		}
+		applies, scopeErr := s.UpstreamModerationApplies(ctx, cfg, input)
+		if scopeErr != nil {
+			return moderationUpstreamUnavailable(input, scopeErr), nil
+		}
+		if !applies {
+			return allow, nil
+		}
 	}
 	if cfg.Mode == ContentModerationModePreBlock {
 		if (moderationState == nil || !moderationState.KeywordExempt) && cfg.KeywordBlockingMode != ContentModerationKeywordModeAPIOnly && len(cfg.BlockedKeywords) > 0 {
@@ -2196,6 +2228,12 @@ func cloneContentModerationConfig(cfg *ContentModerationConfig) *ContentModerati
 	clone.APIKeyBaseURLs = cloneModerationKeyURLs(cfg.APIKeyBaseURLs)
 	clone.APIKeys = append([]string(nil), cfg.APIKeys...)
 	clone.GroupIDs = append([]int64(nil), cfg.GroupIDs...)
+	clone.UpstreamAccountIDs = append([]int64(nil), cfg.UpstreamAccountIDs...)
+	clone.UpstreamAccountBindings = make(map[int64]ModerationUpstreamBinding, len(cfg.UpstreamAccountBindings))
+	for id, binding := range cfg.UpstreamAccountBindings {
+		binding.GroupIDs = append([]int64(nil), binding.GroupIDs...)
+		clone.UpstreamAccountBindings[id] = binding
+	}
 	clone.BlockedKeywords = append([]string(nil), cfg.BlockedKeywords...)
 	clone.Thresholds = cloneFloatMap(cfg.Thresholds)
 	clone.ModelFilter = ContentModerationModelFilter{
@@ -2207,6 +2245,10 @@ func cloneContentModerationConfig(cfg *ContentModerationConfig) *ContentModerati
 
 func (cfg *ContentModerationConfig) normalize() {
 	cfg.Engine = moderationEngine(cfg.Engine)
+	if cfg.UpstreamAccountScope == "" {
+		cfg.UpstreamAccountScope = ModerationUpstreamAll
+	}
+	cfg.UpstreamAccountIDs = normalizeInt64IDs(cfg.UpstreamAccountIDs)
 	if cfg.APIKey != "" {
 		cfg.APIKeys = normalizeModerationAPIKeys(append(cfg.APIKeys, cfg.APIKey))
 		cfg.APIKey = ""
@@ -2486,6 +2528,8 @@ func (s *ContentModerationService) configView(cfg *ContentModerationConfig) *Con
 		apiKeyMasked = masks[0]
 	}
 	return &ContentModerationConfigView{
+		UpstreamAccountScope:           cfg.UpstreamAccountScope,
+		UpstreamAccountIDs:             append([]int64(nil), cfg.UpstreamAccountIDs...),
 		Engine:                         cfg.Engine,
 		Enabled:                        cfg.Enabled,
 		Mode:                           cfg.Mode,

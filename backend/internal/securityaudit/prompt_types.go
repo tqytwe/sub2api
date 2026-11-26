@@ -3,6 +3,8 @@ package securityaudit
 import (
 	"context"
 	"time"
+
+	"github.com/Wei-Shaw/sub2api/internal/service"
 )
 
 const (
@@ -67,20 +69,23 @@ const (
 )
 
 type Request struct {
-	RequestID  string
-	UserID     int64
-	Username   string
-	UserEmail  string
-	APIKeyID   int64
-	APIKeyName string
-	GroupID    *int64
-	GroupName  string
-	Provider   string
-	Endpoint   string
-	Protocol   string
-	Model      string
-	Body       []byte
-	Stage      string
+	UpstreamAccount *service.Account
+	UpstreamConfig  *service.ContentModerationConfig
+	SkipPrompt      bool
+	RequestID       string
+	UserID          int64
+	Username        string
+	UserEmail       string
+	APIKeyID        int64
+	APIKeyName      string
+	GroupID         *int64
+	GroupName       string
+	Provider        string
+	Endpoint        string
+	Protocol        string
+	Model           string
+	Body            []byte
+	Stage           string
 }
 
 func (r Request) Clone() Request {

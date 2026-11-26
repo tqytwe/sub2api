@@ -273,6 +273,8 @@ type PlatformDashboardStats struct {
 
 // UsageLogFilters represents filters for usage log queries
 type UsageLogFilters struct {
+	// Platform filters on the immutable request-time provider snapshot; unknown selects NULL/empty legacy values.
+	Platform  string
 	UserID    int64
 	APIKeyID  int64
 	AccountID int64

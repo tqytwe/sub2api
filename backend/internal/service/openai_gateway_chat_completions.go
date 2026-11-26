@@ -84,6 +84,9 @@ func (s *OpenAIGatewayService) forwardAsChatCompletions(
 		return nil, admissionErr
 	}
 	account = latest
+	if err := CheckUpstreamModeration(ctx, c, account); err != nil {
+		return nil, err
+	}
 	defer func() {
 		if result != nil {
 			result.AuthConnectionID = account.AuthConnectionID
@@ -444,6 +447,7 @@ func (s *OpenAIGatewayService) forwardAsChatCompletions(
 		proxyURL = account.Proxy.URL()
 	}
 	resp, err := s.doOpenAIUpstream(upstreamReq, proxyURL, account)
+	ctx = bindOpenAI429ResponseObservation(ctx, c, resp)
 	if err != nil {
 		return nil, s.handleOpenAIUpstreamTransportError(ctx, c, account, err, false)
 	}

@@ -885,6 +885,12 @@ func (c *Config) TrustForwardedIPForAPIKeyACL() bool {
 	return c.ForwardedClientIPSettings().TrustForwardedIP
 }
 
+// OpenAILegacyCompatibilityEnabled reports whether the startup-only legacy
+// Responses forwarding mode is enabled.
+func (c *Config) OpenAILegacyCompatibilityEnabled() bool {
+	return c != nil && c.Gateway.OpenAILegacyCompatibilityMode
+}
+
 // ForwardedClientIPTrustEnabled reports whether the legacy forwarded-header
 // compatibility mode currently overrides server.trusted_proxies.
 func (c *Config) ForwardedClientIPTrustEnabled() bool {
@@ -1171,6 +1177,9 @@ type GatewayConfig struct {
 	// DisableEncryptedAgentOwnerBinding permits completed opaque agent history
 	// on another eligible native Responses account, retaining delivery and pointer ownership.
 	DisableEncryptedAgentOwnerBinding bool `mapstructure:"disable_encrypted_agent_owner_binding"`
+	// OpenAILegacyCompatibilityMode bypasses the newer agent-history owner and
+	// recovery gates. It is startup-only and disabled by default.
+	OpenAILegacyCompatibilityMode bool `mapstructure:"openai_legacy_compatibility_mode"`
 	// 等待上游响应头的超时时间（秒），0表示无超时
 	// 注意：这不影响流式数据传输，只控制等待响应头的时间
 	ResponseHeaderTimeout int `mapstructure:"response_header_timeout"`
@@ -2279,6 +2288,7 @@ func configureConfigSource(setConfigFile, addConfigPath func(string)) {
 
 func setDefaults() {
 	viper.SetDefault("gateway.disable_encrypted_agent_owner_binding", false)
+	viper.SetDefault("gateway.openai_legacy_compatibility_mode", false)
 	viper.SetDefault("run_mode", RunModeStandard)
 	viper.SetDefault("simple_mode.auto_create_default_groups", true)
 	viper.SetDefault("simple_mode_key_rate_limit_enabled", false)

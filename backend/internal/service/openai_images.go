@@ -715,8 +715,17 @@ func (s *OpenAIGatewayService) ForwardImages(
 	parsed *OpenAIImagesRequest,
 	channelMappedModel string,
 ) (*OpenAIForwardResult, error) {
+	if err := CheckUpstreamModeration(ctx, c, account); err != nil {
+		return nil, err
+	}
 	if parsed == nil {
 		return nil, fmt.Errorf("parsed images request is required")
+	}
+	if _, ok := ctx.Value(imageBillingModelKey{}).(ChannelUsageFields); !ok {
+		ctx = WithImageBillingModel(ctx, ChannelUsageFields{
+			OriginalModel: parsed.Model, ChannelMappedModel: channelMappedModel,
+			ChannelMappingApplied: channelMappedModel != "" && channelMappedModel != parsed.Model,
+		})
 	}
 	if parsed.Stream && strings.EqualFold(strings.TrimSpace(parsed.ResponseFormat), "url") {
 		if !s.OpenAIImageResultStorageReady() {
@@ -1185,7 +1194,6 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesAPIKey(
 	defer func() { _ = resp.Body.Close() }()
 
 	var usage OpenAIUsage
-	imageCount := parsed.N
 	var firstTokenMs *int
 	if parsed.Stream && isEventStreamResponse(resp.Header) {
 		streamUsage, streamCount, streamSizes, ttft, err := s.handleOpenAIImagesStreamingResponse(resp, c, startTime, parsed, false)
@@ -1209,7 +1217,7 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesAPIKey(
 			return nil, err
 		}
 		usage = streamUsage
-		imageCount = streamCount
+		imageCount := s.resolveOpenAIImagesBillingCount(upstreamCtx, c, requestModel, upstreamModel, streamCount, 0)
 		imageOutputSizes := streamSizes
 		firstTokenMs = ttft
 		return &OpenAIForwardResult{
@@ -1237,7 +1245,7 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesAPIKey(
 			upstreamModel,
 		)
 		if err != nil {
-			if nonStreamCount > 0 || requiresObservedOpenAIImages(c, requestModel, upstreamModel) {
+			if nonStreamCount > 0 || s.requiresObservedOpenAIImages(upstreamCtx, c, requestModel, upstreamModel) {
 				return &OpenAIForwardResult{
 					RequestID:        resp.Header.Get("x-request-id"),
 					Usage:            nonStreamUsage,
@@ -1255,9 +1263,7 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesAPIKey(
 			return nil, err
 		}
 		usage = nonStreamUsage
-		if nonStreamCount > 0 || requiresObservedOpenAIImages(c, requestModel, upstreamModel) {
-			imageCount = nonStreamCount
-		}
+		imageCount := s.resolveOpenAIImagesBillingCount(upstreamCtx, c, requestModel, upstreamModel, nonStreamCount, parsed.N)
 		return &OpenAIForwardResult{
 			RequestID:        resp.Header.Get("x-request-id"),
 			Usage:            usage,

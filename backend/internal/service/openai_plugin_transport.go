@@ -1,9 +1,11 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/requesttiming"
 	"github.com/Wei-Shaw/sub2api/internal/requestledger"
@@ -17,6 +19,14 @@ func (s *OpenAIGatewayService) SetPluginManager(manager *PluginManager) {
 // doOpenAIUpstream 只在 OpenAI OAuth 能力绑定已启用时把真实请求交给插件。
 // 插件返回标准 http.Response，响应解析、错误映射、SSE 和计费仍由现有核心链处理。
 func (s *OpenAIGatewayService) doOpenAIUpstream(request *http.Request, proxyURL string, account *Account) (response *http.Response, err error) {
+	defer func() {
+		if response != nil {
+			if response.Request == nil {
+				response.Request = request
+			}
+			response.Request = response.Request.WithContext(context.WithValue(response.Request.Context(), openAI429ObservedAtKey{}, time.Now()))
+		}
+	}()
 	if s.excelOAuthReauth != nil {
 		if err := s.excelOAuthReauth.validateAuthConnectionPolicy(request.Context(), account); err != nil {
 			return nil, err
@@ -41,11 +51,18 @@ func (s *OpenAIGatewayService) doOpenAIUpstream(request *http.Request, proxyURL 
 		request.Host = ""
 	}
 	if !isSIWC && account.AuthConnectionID == "" && s.pluginManager != nil && s.pluginManager.ShouldRouteOpenAIOAuth(account) {
+		recovery := openAIAgentRecoveryFromContext(request.Context())
+		if recovery != nil && recovery.omitted400History {
+			return nil, openAIAgentRecoveryError("route_changed")
+		}
 		if err := s.acquireOpenAIRPMForSend(request.Context(), account); err != nil {
 			return nil, err
 		}
 		response, handled, err := s.pluginManager.RoundTripOpenAIOAuth(request.Context(), request, proxyURL, account)
 		if handled {
+			if recovery != nil {
+				recovery.pluginAttempt = true
+			}
 			// The host can observe the plugin boundary, but cannot measure the
 			// network calls performed inside the plugin process.
 			requesttiming.SetRoute(request.Context(), transportdiag.Route{Downstream: "http", Upstream: "plugin", Mode: "plugin", Endpoint: transportdiag.EndpointCategory(request.URL.Path)})

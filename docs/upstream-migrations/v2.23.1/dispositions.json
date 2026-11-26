@@ -1,0 +1,798 @@
+{
+  "release_commit": "00e00796080c632188cf9df7912050b144a1a44f",
+  "entries": {
+    "ccf997c73868083d96c0bec56e71c1a34d26c98a": {
+      "state": "equivalent",
+      "summary": "Fork-only CI/fixture/release maintenance or a source-only change; the production contract is unchanged and repository-wide CI/release gates cover the relevant behavior.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-CCF997C7"
+      ]
+    },
+    "f895ea743f34a4c4ab6c9d01c01e13c931625a6e": {
+      "state": "equivalent",
+      "summary": "Fork-only CI/fixture/release maintenance or a source-only change; the production contract is unchanged and repository-wide CI/release gates cover the relevant behavior.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-F895EA74"
+      ]
+    },
+    "6914182116aa8f6904ebb3b69cdcbd5fc1b1d4b8": {
+      "state": "equivalent",
+      "summary": "The Fork uses its account-operations/auth model; matching admin API, repository and frontend contract tests cover the behavior without copying upstream-only paths.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-69141821"
+      ]
+    },
+    "e10fe8c43f7ccc6bf3360824c0ed11031f596389": {
+      "state": "equivalent",
+      "summary": "Audited against the locked upstream diff; no additional supported Fork runtime contract was missing. Existing full backend/frontend and integrity gates cover the affected surface.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-E10FE8C4"
+      ]
+    },
+    "0b9cbfbabb2d0ff03adc7f3f5f65b9b4edaa029b": {
+      "state": "equivalent",
+      "summary": "Audited against the locked upstream diff; no additional supported Fork runtime contract was missing. Existing full backend/frontend and integrity gates cover the affected surface.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-0B9CBFBA"
+      ]
+    },
+    "dfc0219a9e66a19642eb73875e4914e540b49575": {
+      "state": "equivalent",
+      "summary": "The Fork uses its account-operations/auth model; matching admin API, repository and frontend contract tests cover the behavior without copying upstream-only paths.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-DFC0219A"
+      ]
+    },
+    "ea1f3a28d8d1839e92ac5e48c6e9d7aeb90b0fff": {
+      "state": "equivalent",
+      "summary": "Audited against the locked upstream diff; no additional supported Fork runtime contract was missing. Existing full backend/frontend and integrity gates cover the affected surface.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-EA1F3A28"
+      ]
+    },
+    "7827a2f5f900ce50aafa37ab71ca1918dfe7cf8a": {
+      "state": "equivalent",
+      "summary": "Fork-only CI/fixture/release maintenance or a source-only change; the production contract is unchanged and repository-wide CI/release gates cover the relevant behavior.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-7827A2F5"
+      ]
+    },
+    "fa9ec49d433a9898becdb779e0b3f7960df4dfae": {
+      "state": "equivalent",
+      "summary": "The Fork uses its account-operations/auth model; matching admin API, repository and frontend contract tests cover the behavior without copying upstream-only paths.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-FA9EC49D"
+      ]
+    },
+    "0bde0ea69024018c0060db34f807aa5291ee5d64": {
+      "state": "equivalent",
+      "summary": "The Fork keeps the BPS adapter boundary and covers the upstream request, tool, search and diagnostic contract with BPS unit/forwarding suites.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-0BDE0EA6"
+      ]
+    },
+    "b347249687db84dac3f5272189fda6cf86eb9035": {
+      "state": "equivalent",
+      "summary": "Audited against the locked upstream diff; no additional supported Fork runtime contract was missing. Existing full backend/frontend and integrity gates cover the affected surface.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-B3472496"
+      ]
+    },
+    "89e06c086fcdcc200238e5d208af2219e2d21e43": {
+      "state": "equivalent",
+      "summary": "The Fork keeps the BPS adapter boundary and covers the upstream request, tool, search and diagnostic contract with BPS unit/forwarding suites.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-89E06C08"
+      ]
+    },
+    "cdd9d7901041d02aa39291ae0e1615c5a6853da0": {
+      "state": "equivalent",
+      "summary": "The Fork uses its own billing/projection model, with the same customer-facing contract covered by billing, balance, usage and pricing regression suites.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-CDD9D790"
+      ]
+    },
+    "4189ed821d6e4308b2f5fc3791b73d2eb53cda8a": {
+      "state": "equivalent",
+      "summary": "Audited against the locked upstream diff; no additional supported Fork runtime contract was missing. Existing full backend/frontend and integrity gates cover the affected surface.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-4189ED82"
+      ]
+    },
+    "9aeeeb3a235014a09994ce5dc6c441edcdd9f1b3": {
+      "state": "equivalent",
+      "summary": "The Fork keeps its centralized moderation/security adapter and preserves the upstream safety contract through existing request-gate and protocol regression suites.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-9AEEEB3A"
+      ]
+    },
+    "37dc4620a41a68abaeab329358c15821c41e3f7f": {
+      "state": "migrated",
+      "summary": "PR #849 manual quality runs now carry a database-generated fence ID; configuration edits preserve a pending marker and upstream-5xx replacement cannot consume it. PostgreSQL integration coverage proves the one-shot and stale-worker behavior.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-37DC4620",
+        "backend/internal/repository/quality_runtime.go",
+        "backend/internal/repository/quality_runtime_scheduling_integration_test.go"
+      ]
+    },
+    "02c30b748944dd7a405b33f3757293d15d7a5578": {
+      "state": "equivalent",
+      "summary": "The Fork carries the behavior through its native HTTP/WS recovery and request-ledger implementation; gateway and ownership regression suites are the evidence surface.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-02C30B74"
+      ]
+    },
+    "f6ac19ffe390124e3a951f4d107ecbdad591317b": {
+      "state": "equivalent",
+      "summary": "The Fork keeps its centralized moderation/security adapter and preserves the upstream safety contract through existing request-gate and protocol regression suites.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-F6AC19FF"
+      ]
+    },
+    "602808e179aded7d908d01a79e2f6572e3209298": {
+      "state": "equivalent",
+      "summary": "Audited against the locked upstream diff; no additional supported Fork runtime contract was missing. Existing full backend/frontend and integrity gates cover the affected surface.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-602808E1"
+      ]
+    },
+    "aa8e596e6d6f3e4648d6beba73b39b240dd5357a": {
+      "state": "equivalent",
+      "summary": "Fork-only CI/fixture/release maintenance or a source-only change; the production contract is unchanged and repository-wide CI/release gates cover the relevant behavior.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-AA8E596E"
+      ]
+    },
+    "aa0b1abfe5b32c483b32c70fe0c813659ef58083": {
+      "state": "equivalent",
+      "summary": "The Fork keeps the BPS adapter boundary and covers the upstream request, tool, search and diagnostic contract with BPS unit/forwarding suites.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-AA0B1ABF"
+      ]
+    },
+    "999d599f411040de435a012765bff031f72c5df1": {
+      "state": "equivalent",
+      "summary": "The Fork keeps the BPS adapter boundary and covers the upstream request, tool, search and diagnostic contract with BPS unit/forwarding suites.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-999D599F"
+      ]
+    },
+    "e90811e27bc442763a496027f935a7bb1fb4396b": {
+      "state": "equivalent",
+      "summary": "The Fork keeps the BPS adapter boundary and covers the upstream request, tool, search and diagnostic contract with BPS unit/forwarding suites.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-E90811E2"
+      ]
+    },
+    "713cb0f3efe3f838d159cd57998128c2cdaa84b1": {
+      "state": "equivalent",
+      "summary": "The Fork carries the behavior through its native HTTP/WS recovery and request-ledger implementation; gateway and ownership regression suites are the evidence surface.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-713CB0F3"
+      ]
+    },
+    "236200c670cbc7d674aeb484d1405fc0e96e9f7a": {
+      "state": "migrated",
+      "summary": "PR #850 mature provider catalog, key import, wallet refresh and admin operations are implemented in the Fork; provider session revision fencing and route-scope locale tests are covered.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-236200C6",
+        "backend/internal/handler/admin/mature_providers.go",
+        "backend/internal/repository/mature_providers_catalog_integration_test.go"
+      ]
+    },
+    "7d87624a908fffa7940f0493c3070e8e4aa99dae": {
+      "state": "equivalent",
+      "summary": "The Fork keeps its centralized moderation/security adapter and preserves the upstream safety contract through existing request-gate and protocol regression suites.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-7D87624A"
+      ]
+    },
+    "0293bfa7977ce229a8a2cc2119fdfc98e72a6cf3": {
+      "state": "equivalent",
+      "summary": "The Fork keeps the BPS adapter boundary and covers the upstream request, tool, search and diagnostic contract with BPS unit/forwarding suites.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-0293BFA7"
+      ]
+    },
+    "efb19a4df2ed1d3828f5464d585824ea3fc38f31": {
+      "state": "equivalent",
+      "summary": "The Fork uses its account-operations/auth model; matching admin API, repository and frontend contract tests cover the behavior without copying upstream-only paths.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-EFB19A4D"
+      ]
+    },
+    "ab9b4d9135a246b395aec45a22e184388fe73c96": {
+      "state": "equivalent",
+      "summary": "Audited against the locked upstream diff; no additional supported Fork runtime contract was missing. Existing full backend/frontend and integrity gates cover the affected surface.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-AB9B4D91"
+      ]
+    },
+    "820d349f701c7e9c6420dcd63f61c6c94858d240": {
+      "state": "equivalent",
+      "summary": "Audited against the locked upstream diff; no additional supported Fork runtime contract was missing. Existing full backend/frontend and integrity gates cover the affected surface.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-820D349F"
+      ]
+    },
+    "36dd3d1b6b3aff63dff8ab025205a3032878a9ec": {
+      "state": "equivalent",
+      "summary": "The Fork carries the behavior through its native HTTP/WS recovery and request-ledger implementation; gateway and ownership regression suites are the evidence surface.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-36DD3D1B"
+      ]
+    },
+    "0e8e97aa23afd8e88a61ea64a84a8fb84f1bfdc6": {
+      "state": "equivalent",
+      "summary": "Fork-only CI/fixture/release maintenance or a source-only change; the production contract is unchanged and repository-wide CI/release gates cover the relevant behavior.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-0E8E97AA"
+      ]
+    },
+    "c115bef917eae22fc2f5a4d0ba6ac6cbe600e8e4": {
+      "state": "equivalent",
+      "summary": "The Fork uses its own billing/projection model, with the same customer-facing contract covered by billing, balance, usage and pricing regression suites.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-C115BEF9"
+      ]
+    },
+    "70413f1404f4f09515223c6e941cd4458a2eb32f": {
+      "state": "equivalent",
+      "summary": "The Fork uses its account-operations/auth model; matching admin API, repository and frontend contract tests cover the behavior without copying upstream-only paths.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-70413F14"
+      ]
+    },
+    "4c660794b89279dcbf699275091340eb2c87959a": {
+      "state": "equivalent",
+      "summary": "The Fork carries the behavior through its native HTTP/WS recovery and request-ledger implementation; gateway and ownership regression suites are the evidence surface.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-4C660794"
+      ]
+    },
+    "e6b2afde0485301a14f8dc653a87262fbbfd8e21": {
+      "state": "equivalent",
+      "summary": "The Fork carries the behavior through its native HTTP/WS recovery and request-ledger implementation; gateway and ownership regression suites are the evidence surface.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-E6B2AFDE"
+      ]
+    },
+    "4bb98d75f270f46f70f5c9d0d12bea5822dd01c6": {
+      "state": "equivalent",
+      "summary": "Audited against the locked upstream diff; no additional supported Fork runtime contract was missing. Existing full backend/frontend and integrity gates cover the affected surface.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-4BB98D75"
+      ]
+    },
+    "b9feadf7dd6228a4117e360821d9994b7cc54897": {
+      "state": "equivalent",
+      "summary": "Fork-only CI/fixture/release maintenance or a source-only change; the production contract is unchanged and repository-wide CI/release gates cover the relevant behavior.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-B9FEADF7"
+      ]
+    },
+    "ff1082fd51038f10dcb3a8ecb1d5a738258b0f66": {
+      "state": "equivalent",
+      "summary": "The Fork carries the behavior through its native HTTP/WS recovery and request-ledger implementation; gateway and ownership regression suites are the evidence surface.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-FF1082FD"
+      ]
+    },
+    "8d8661d1c9d06781cf171cf29aa666a225105bc4": {
+      "state": "equivalent",
+      "summary": "The Fork keeps the BPS adapter boundary and covers the upstream request, tool, search and diagnostic contract with BPS unit/forwarding suites.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-8D8661D1"
+      ]
+    },
+    "5d7ebb9bf5d4b680c524098c39bf3aeb13b80eb1": {
+      "state": "equivalent",
+      "summary": "The Fork uses its account-operations/auth model; matching admin API, repository and frontend contract tests cover the behavior without copying upstream-only paths.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-5D7EBB9B"
+      ]
+    },
+    "2927209f5492d8cb690b83a1964b2f093c19ad7a": {
+      "state": "equivalent",
+      "summary": "The Fork carries the behavior through its native HTTP/WS recovery and request-ledger implementation; gateway and ownership regression suites are the evidence surface.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-2927209F"
+      ]
+    },
+    "f3e2f3333a023d53388e4f7597163f9abece33f3": {
+      "state": "equivalent",
+      "summary": "The Fork carries the behavior through its native HTTP/WS recovery and request-ledger implementation; gateway and ownership regression suites are the evidence surface.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-F3E2F333"
+      ]
+    },
+    "da526bfbab47efd40549cab98f1069f9b2b45b9f": {
+      "state": "equivalent",
+      "summary": "The Fork uses its own billing/projection model, with the same customer-facing contract covered by billing, balance, usage and pricing regression suites.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-DA526BFB"
+      ]
+    },
+    "c16da7d8658787b5fa88f3ad23108ced1a8ac49c": {
+      "state": "equivalent",
+      "summary": "Fork-only CI/fixture/release maintenance or a source-only change; the production contract is unchanged and repository-wide CI/release gates cover the relevant behavior.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-C16DA7D8"
+      ]
+    },
+    "f260e3055c95930aabf06c4f9689dfb2d916f52a": {
+      "state": "equivalent",
+      "summary": "The Fork carries the behavior through its native HTTP/WS recovery and request-ledger implementation; gateway and ownership regression suites are the evidence surface.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-F260E305"
+      ]
+    },
+    "41778efe6f7cb28dd2c70a4b70c6c8b6f04a352c": {
+      "state": "equivalent",
+      "summary": "The Fork uses its account-operations/auth model; matching admin API, repository and frontend contract tests cover the behavior without copying upstream-only paths.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-41778EFE"
+      ]
+    },
+    "58628d98b9e0781c1b8e3df6259ab487a1490f70": {
+      "state": "equivalent",
+      "summary": "The Fork carries the behavior through its native HTTP/WS recovery and request-ledger implementation; gateway and ownership regression suites are the evidence surface.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-58628D98"
+      ]
+    },
+    "af24e0f1add122a95d46ad3cc02c63d26ea9f6bf": {
+      "state": "equivalent",
+      "summary": "Audited against the locked upstream diff; no additional supported Fork runtime contract was missing. Existing full backend/frontend and integrity gates cover the affected surface.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-AF24E0F1"
+      ]
+    },
+    "e3f238e3f173271a82b43d7fd504462c553b495c": {
+      "state": "equivalent",
+      "summary": "The Fork preserves the protocol compatibility contract through provider adapters and response translation tests.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-E3F238E3"
+      ]
+    },
+    "dc3a5403be7053397c43c2ef4b1e4fff01536433": {
+      "state": "equivalent",
+      "summary": "Audited against the locked upstream diff; no additional supported Fork runtime contract was missing. Existing full backend/frontend and integrity gates cover the affected surface.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-DC3A5403"
+      ]
+    },
+    "d4cd664271d822e0c1743802e25cdd8196f97aa8": {
+      "state": "equivalent",
+      "summary": "Audited against the locked upstream diff; no additional supported Fork runtime contract was missing. Existing full backend/frontend and integrity gates cover the affected surface.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-D4CD6642"
+      ]
+    },
+    "c269390a8d2a3ecd718ec6d71f24bc808e1bb52b": {
+      "state": "equivalent",
+      "summary": "The Fork uses its own billing/projection model, with the same customer-facing contract covered by billing, balance, usage and pricing regression suites.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-C269390A"
+      ]
+    },
+    "5cc5d608c55f4cb37ad184f5cdfa647354c94390": {
+      "state": "equivalent",
+      "summary": "Audited against the locked upstream diff; no additional supported Fork runtime contract was missing. Existing full backend/frontend and integrity gates cover the affected surface.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-5CC5D608"
+      ]
+    },
+    "d7d611cf3054ba66cbd92c935a0dbe706e994771": {
+      "state": "equivalent",
+      "summary": "Audited against the locked upstream diff; no additional supported Fork runtime contract was missing. Existing full backend/frontend and integrity gates cover the affected surface.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-D7D611CF"
+      ]
+    },
+    "ef34fdb20e3ca142b230042b9de3b71e9c9e6335": {
+      "state": "equivalent",
+      "summary": "The Fork carries the behavior through its native HTTP/WS recovery and request-ledger implementation; gateway and ownership regression suites are the evidence surface.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-EF34FDB2"
+      ]
+    },
+    "65010e176e5e0695791995072c3861e40c6a68de": {
+      "state": "equivalent",
+      "summary": "Audited against the locked upstream diff; no additional supported Fork runtime contract was missing. Existing full backend/frontend and integrity gates cover the affected surface.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-65010E17"
+      ]
+    },
+    "321f11c1a4d23302961c223ac030fd09e3f9e6e8": {
+      "state": "equivalent",
+      "summary": "Fork-only CI/fixture/release maintenance or a source-only change; the production contract is unchanged and repository-wide CI/release gates cover the relevant behavior.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-321F11C1"
+      ]
+    },
+    "dd84ac1da71391a9a112aec89f549c188a4ebe97": {
+      "state": "equivalent",
+      "summary": "Audited against the locked upstream diff; no additional supported Fork runtime contract was missing. Existing full backend/frontend and integrity gates cover the affected surface.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-DD84AC1D"
+      ]
+    },
+    "5c48f4b324dd794b1d51d85755d488650ad62825": {
+      "state": "equivalent",
+      "summary": "Audited against the locked upstream diff; no additional supported Fork runtime contract was missing. Existing full backend/frontend and integrity gates cover the affected surface.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-5C48F4B3"
+      ]
+    },
+    "9c0ee2298661da0a12b4109511a4b4345a3e5d08": {
+      "state": "equivalent",
+      "summary": "The Fork uses its account-operations/auth model; matching admin API, repository and frontend contract tests cover the behavior without copying upstream-only paths.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-9C0EE229"
+      ]
+    },
+    "58a54543fa385d603176ff2916104f3e01bbb4f4": {
+      "state": "equivalent",
+      "summary": "Audited against the locked upstream diff; no additional supported Fork runtime contract was missing. Existing full backend/frontend and integrity gates cover the affected surface.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-58A54543"
+      ]
+    },
+    "4b78bceae41c42b9e1241cb0a7515f4b314222d0": {
+      "state": "equivalent",
+      "summary": "Audited against the locked upstream diff; no additional supported Fork runtime contract was missing. Existing full backend/frontend and integrity gates cover the affected surface.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-4B78BCEA"
+      ]
+    },
+    "8750ec1956be7c8de327e384c884bb737f943017": {
+      "state": "equivalent",
+      "summary": "Audited against the locked upstream diff; no additional supported Fork runtime contract was missing. Existing full backend/frontend and integrity gates cover the affected surface.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-8750EC19"
+      ]
+    },
+    "e1c28b3704859bbcff2e3258ee092fc551151e6b": {
+      "state": "equivalent",
+      "summary": "Audited against the locked upstream diff; no additional supported Fork runtime contract was missing. Existing full backend/frontend and integrity gates cover the affected surface.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-E1C28B37"
+      ]
+    },
+    "a2ed69304aeb20d1ae007d00845c548abdd2ccf3": {
+      "state": "equivalent",
+      "summary": "Audited against the locked upstream diff; no additional supported Fork runtime contract was missing. Existing full backend/frontend and integrity gates cover the affected surface.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-A2ED6930"
+      ]
+    },
+    "4ba33f8713cbf6c6406e0f2639ffcc2ef1e31c87": {
+      "state": "equivalent",
+      "summary": "Fork-only CI/fixture/release maintenance or a source-only change; the production contract is unchanged and repository-wide CI/release gates cover the relevant behavior.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-4BA33F87"
+      ]
+    },
+    "dcb228eb8f077a52a223fb998bc0c83e073e7394": {
+      "state": "equivalent",
+      "summary": "The Fork carries the behavior through its native HTTP/WS recovery and request-ledger implementation; gateway and ownership regression suites are the evidence surface.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-DCB228EB"
+      ]
+    },
+    "d1ec21ebd35a19530dbb77e9e89e195e5a8a8c4a": {
+      "state": "equivalent",
+      "summary": "The Fork uses its own billing/projection model, with the same customer-facing contract covered by billing, balance, usage and pricing regression suites.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-D1EC21EB"
+      ]
+    },
+    "883fa395dc06e6dbf6c9529ca8caf7e3197bcf1b": {
+      "state": "equivalent",
+      "summary": "The Fork carries the behavior through its native HTTP/WS recovery and request-ledger implementation; gateway and ownership regression suites are the evidence surface.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-883FA395"
+      ]
+    },
+    "d01dd5c26f239e9fdb18e8f048a4e0f207d7b964": {
+      "state": "equivalent",
+      "summary": "The Fork carries the behavior through its native HTTP/WS recovery and request-ledger implementation; gateway and ownership regression suites are the evidence surface.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-D01DD5C2"
+      ]
+    },
+    "1c345720d465206606bb680ea6fc5045ed6bb0ec": {
+      "state": "migrated",
+      "summary": "PR #913 provider wallet cost mode is closed with point-in-time ownership, wallet spend snapshots, charge receipts, idempotent sync runs and historical report integration coverage.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-1C345720",
+        "backend/internal/repository/provider_profit_charge_integration_test.go",
+        "backend/internal/repository/provider_profit_report_integration_test.go",
+        "backend/internal/repository/provider_profit_charge.go"
+      ]
+    },
+    "693d46621fd493849135373c7b2513ef635488c9": {
+      "state": "equivalent",
+      "summary": "Fork-only CI/fixture/release maintenance or a source-only change; the production contract is unchanged and repository-wide CI/release gates cover the relevant behavior.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-693D4662"
+      ]
+    },
+    "701612f6e9f7b697eb36397b9fb49bf7324e56a1": {
+      "state": "equivalent",
+      "summary": "The Fork uses its own billing/projection model, with the same customer-facing contract covered by billing, balance, usage and pricing regression suites.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-701612F6"
+      ]
+    },
+    "657bb38d141901abcbeef2f178d9234109d37167": {
+      "state": "equivalent",
+      "summary": "Audited against the locked upstream diff; no additional supported Fork runtime contract was missing. Existing full backend/frontend and integrity gates cover the affected surface.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-657BB38D"
+      ]
+    },
+    "52a745d9405cc41ad64edf41c327fb978017f7ff": {
+      "state": "equivalent",
+      "summary": "Audited against the locked upstream diff; no additional supported Fork runtime contract was missing. Existing full backend/frontend and integrity gates cover the affected surface.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-52A745D9"
+      ]
+    },
+    "73b958ad07babaf56a3f998d8c682e0f84525f4a": {
+      "state": "equivalent",
+      "summary": "The Fork uses its account-operations/auth model; matching admin API, repository and frontend contract tests cover the behavior without copying upstream-only paths.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-73B958AD"
+      ]
+    },
+    "ee7a978ac5a86c3f32777b3fc99ae1f021841ac7": {
+      "state": "equivalent",
+      "summary": "Fork-only CI/fixture/release maintenance or a source-only change; the production contract is unchanged and repository-wide CI/release gates cover the relevant behavior.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-EE7A978A"
+      ]
+    },
+    "2552ccd084f48846f1a8a756062acae48366781c": {
+      "state": "equivalent",
+      "summary": "Audited against the locked upstream diff; no additional supported Fork runtime contract was missing. Existing full backend/frontend and integrity gates cover the affected surface.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-2552CCD0"
+      ]
+    },
+    "bcf4cc37dc4433c747c871b1b3b8fed62c1aa13a": {
+      "state": "equivalent",
+      "summary": "Audited against the locked upstream diff; no additional supported Fork runtime contract was missing. Existing full backend/frontend and integrity gates cover the affected surface.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-BCF4CC37"
+      ]
+    },
+    "812a164957a42d9f1977d8d4b405ed1fc9c681ab": {
+      "state": "equivalent",
+      "summary": "Audited against the locked upstream diff; no additional supported Fork runtime contract was missing. Existing full backend/frontend and integrity gates cover the affected surface.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-812A1649"
+      ]
+    },
+    "c2a335ce59356b5f4bb323b34b42a5ce4c115195": {
+      "state": "equivalent",
+      "summary": "The Fork uses its account-operations/auth model; matching admin API, repository and frontend contract tests cover the behavior without copying upstream-only paths.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-C2A335CE"
+      ]
+    },
+    "b6404034c9234e0ae552c419454a14d8f5cb59b8": {
+      "state": "equivalent",
+      "summary": "Fork-only CI/fixture/release maintenance or a source-only change; the production contract is unchanged and repository-wide CI/release gates cover the relevant behavior.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-B6404034"
+      ]
+    },
+    "1dcd7628743701918f331b26c85aaceb16201b10": {
+      "state": "equivalent",
+      "summary": "Audited against the locked upstream diff; no additional supported Fork runtime contract was missing. Existing full backend/frontend and integrity gates cover the affected surface.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-1DCD7628"
+      ]
+    },
+    "da85b1c2e2343f8079f646b5e13c9b75a3b21639": {
+      "state": "equivalent",
+      "summary": "Audited against the locked upstream diff; no additional supported Fork runtime contract was missing. Existing full backend/frontend and integrity gates cover the affected surface.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-DA85B1C2"
+      ]
+    },
+    "e687827fcb5c2bbb347dfb1d15f116c0ab0580c9": {
+      "state": "equivalent",
+      "summary": "The Fork uses its account-operations/auth model; matching admin API, repository and frontend contract tests cover the behavior without copying upstream-only paths.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-E687827F"
+      ]
+    },
+    "f5f9648277e9e8b600b90f86e14ec739fd203c50": {
+      "state": "equivalent",
+      "summary": "The Fork uses its own billing/projection model, with the same customer-facing contract covered by billing, balance, usage and pricing regression suites.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-F5F96482"
+      ]
+    },
+    "338f73dfa31032972d8860adab9c25016115c18d": {
+      "state": "equivalent",
+      "summary": "Audited against the locked upstream diff; no additional supported Fork runtime contract was missing. Existing full backend/frontend and integrity gates cover the affected surface.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-338F73DF"
+      ]
+    },
+    "5bef330d5edf039fe390a2b17bb9dc2e5731ba92": {
+      "state": "equivalent",
+      "summary": "Audited against the locked upstream diff; no additional supported Fork runtime contract was missing. Existing full backend/frontend and integrity gates cover the affected surface.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-5BEF330D"
+      ]
+    },
+    "a71bcd6238777630bb74f18106097689ce7a5836": {
+      "state": "migrated",
+      "summary": "余额告警静默期",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-A71BCD62",
+        "backend/internal/service/account_ops_balance_notification_test.go",
+        "backend/internal/service/account_ops_balance_notification.go"
+      ]
+    },
+    "270ae1710353371552dd9f11be0dc3374de4bc9d": {
+      "state": "migrated",
+      "summary": "PR #934 legacy OpenAI compatibility is closed for ordinary HTTP pool retry, HTTP/WS recovery masking, three WS ingress modes, no-owner publication and no-replay controls.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-270AE171",
+        "backend/internal/service/openai_legacy_compatibility.go",
+        "backend/internal/handler/openai_legacy_compatibility_test.go"
+      ]
+    },
+    "45ebcb708867dd61caae10435d19d2df17cd41f3": {
+      "state": "migrated",
+      "summary": "New API 钱包查询 UA、授权和成本配置",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-45EBCB70",
+        "backend/internal/service/new_api_upstream_user_agent_test.go",
+        "backend/internal/service/new_api_upstream.go"
+      ]
+    },
+    "feb761541918d25a73779c6ea42ee28f61b5591e": {
+      "state": "migrated",
+      "summary": "探测冷却持久化与写入失败时保留计划",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-FEB76154",
+        "backend/internal/service/scheduled_test_durable_result_test.go",
+        "backend/internal/service/scheduled_test_runner_service.go"
+      ]
+    },
+    "afcef2d6811cb860b04dcba45ae1c6477671f5bc": {
+      "state": "migrated",
+      "summary": "PR #939 image billing is closed for observed output counts, per-image fallback policy, mapped billing model selection, all image entry paths and settlement response evidence.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-AFCEF2D6",
+        "backend/internal/service/image_usage_billing.go",
+        "backend/internal/handler/image_billing_response_test.go"
+      ]
+    },
+    "6ed27208b7dc1f0c3e615f7c7b4e00ad16aec309": {
+      "state": "migrated",
+      "summary": "用量 CSV 分页、429 重试和取消",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-6ED27208",
+        "frontend/src/utils/pagedExport.ts",
+        "frontend/src/utils/__tests__/pagedExport.spec.ts"
+      ]
+    },
+    "587ccb28e498c3ac8101306e1a5c565412cd802c": {
+      "state": "migrated",
+      "summary": "交互预览 pointer lock，静态预览隔离",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-587CCB28",
+        "frontend/src/components/user/pelican/__tests__/PelicanArtworkPreview.spec.ts",
+        "frontend/src/components/user/pelican/PelicanArtworkPreview.vue"
+      ]
+    },
+    "009eefc27c1dd02f27b39f54f23ed1e51d24b300": {
+      "state": "migrated",
+      "summary": "PR #940 safe compression is closed for Codex/WS eligibility, region-aware upstream transport, plain-body gates and at-most-once physical send regression coverage.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-009EEFC2",
+        "backend/internal/repository/upstream_request_compression.go",
+        "backend/internal/repository/upstream_request_compression_rpm_test.go"
+      ]
+    },
+    "8f4e0d2b225df1f53d83fe3a66e7f62451f91b24": {
+      "state": "migrated",
+      "summary": "钱包币种与换算",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-8F4E0D2B",
+        "backend/internal/service/new_api_wallet_test.go",
+        "backend/internal/service/new_api_wallet.go"
+      ]
+    },
+    "5a51997112d0f93c8ec06747748680a9d7e8e4a7": {
+      "state": "migrated",
+      "summary": "账号性能展示缓存及查询减负",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-5A519971",
+        "backend/internal/repository/account_performance_display_cache_test.go",
+        "backend/internal/repository/account_performance_display_cache.go"
+      ]
+    },
+    "72e4545a0f1232a1ded49dac3b6383700089569c": {
+      "state": "migrated",
+      "summary": "Key 选择框触发宽度",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-72E4545A",
+        "frontend/src/components/common/__tests__/Select.spec.ts",
+        "frontend/src/components/common/Select.vue"
+      ]
+    },
+    "4f1bfa96d760711197b692ce94d8f11f0f895c58": {
+      "state": "migrated",
+      "summary": "PR #949 provider wallet cost mode is closed for window snapshots, charge evidence, historical ownership, idempotent reconciliation and report-side cost attribution.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-4F1BFA96",
+        "backend/internal/repository/provider_profit_charge_integration_test.go",
+        "backend/internal/repository/provider_profit_report_integration_test.go",
+        "backend/internal/repository/provider_profit_charge.go"
+      ]
+    },
+    "d846d9e592c3a472074b92f2f041f90798bc0025": {
+      "state": "migrated",
+      "summary": "MiniMax H3 模型别名",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-D846D9E5",
+        "backend/internal/service/minimax_h3_test.go",
+        "backend/internal/service/minimax_h3.go"
+      ]
+    },
+    "48dee26a76d9430a6e883a66d069075e921a91e9": {
+      "state": "migrated",
+      "summary": "PR #950 image follow-up is closed for synchronous and asynchronous settlement, SSE/JSON receipts, mapped model pricing and zero-output customer explanation.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-48DEE26A",
+        "backend/internal/service/image_count_billing_switch_test.go",
+        "backend/internal/handler/image_billing_response_test.go",
+        "backend/internal/service/image_usage_billing.go"
+      ]
+    },
+    "b107d07da2af136995f154b57ff67f5597018844": {
+      "state": "migrated",
+      "summary": "PR #951 recovery diagnostics are closed for HTTP/WS control fingerprints, reconstruction refusal, sanitized Ops projection and security-field non-disclosure.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-B107D07D",
+        "backend/internal/service/openai_409_controls_integrity_test.go",
+        "backend/internal/service/ops_upstream_context.go"
+      ]
+    },
+    "7563b886943a510e8d2e0bbd0af5618df2cecff7": {
+      "state": "migrated",
+      "summary": "PR #955 is closed after PR #949: manual/imported ownership history, half-open event boundaries, frozen charge identity and report historical joins are covered by PostgreSQL integration fixtures.",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-7563B886",
+        "backend/internal/repository/provider_profit_report_integration_test.go",
+        "backend/internal/repository/provider_profit_links.go"
+      ]
+    },
+    "3b79c7d9a9a2f1a7b46c1c993e4b86812535cfb7": {
+      "state": "migrated",
+      "summary": "视频创建、状态、下载和完成结算",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-3B79C7D9",
+        "backend/internal/service/openai_videos_test.go",
+        "backend/internal/service/openai_videos.go"
+      ]
+    },
+    "00e00796080c632188cf9df7912050b144a1a44f": {
+      "state": "equivalent",
+      "summary": "采用固定的上游源码版本。Fork 构建号独立发布。",
+      "evidence": [
+        "docs/upstream-migrations/v2.23.1/DIFFERENCE_AUDIT.md#SYNC-00E00796",
+        "docs/upstream-migrations/source-lock.json"
+      ]
+    }
+  }
+}

@@ -1,6 +1,9 @@
 package service
 
-import "context"
+import (
+	"context"
+	"net/http"
+)
 
 // HTTPUpstreamProfile marks HTTP upstream requests that need provider-specific
 // transport policy.
@@ -12,6 +15,29 @@ const (
 	HTTPUpstreamProfileGrok       HTTPUpstreamProfile = "grok"
 	HTTPUpstreamProfileLongStream HTTPUpstreamProfile = "long_stream"
 )
+
+type plainUpstreamRequestBodyKey struct{}
+type openAICodexHTTPRequestKey struct{}
+
+// WithPlainUpstreamRequestBody protects the final body of a single-submission
+// or integrity-checked request from transport encoding.
+func WithPlainUpstreamRequestBody(ctx context.Context) context.Context {
+	return context.WithValue(ctx, plainUpstreamRequestBodyKey{}, true)
+}
+
+func UpstreamCompressionRequiresPlainBody(ctx context.Context) bool {
+	plain, _ := ctx.Value(plainUpstreamRequestBodyKey{}).(bool)
+	return plain || IsOpenAICodexStateProbeRequest(ctx) || OpenAIAgentRecoveryNoReplay(ctx)
+}
+
+func markOpenAICodexHTTPRequest(req *http.Request) *http.Request {
+	return req.WithContext(context.WithValue(req.Context(), openAICodexHTTPRequestKey{}, true))
+}
+
+func IsOpenAICodexHTTPRequest(ctx context.Context) bool {
+	marked, _ := ctx.Value(openAICodexHTTPRequestKey{}).(bool)
+	return marked
+}
 
 type httpUpstreamProfileContextKey struct{}
 type httpUpstreamDisableRedirectsContextKey struct{}

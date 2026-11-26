@@ -40,9 +40,26 @@ func (r *scheduledTestPlanRepository) ClaimQualityRun(ctx context.Context, plan 
 	}
 	var updatedAt time.Time
 	err = tx.QueryRowContext(ctx, `
+		WITH candidate AS (
+			SELECT id AS candidate_id,
+			       COALESCE(pelican_config->>'_manual_quality_run','false')='true' AS manual_quality_run,
+			       COALESCE(pelican_config->>'_manual_quality_run_id','') AS manual_quality_run_id
+			FROM scheduled_test_plans
+			WHERE id=$1
+			FOR UPDATE
+		)
 		UPDATE scheduled_test_plans
-		SET running_until=$3, updated_at=clock_timestamp(),pelican_config=pelican_config-'_manual_quality_run'
+		SET running_until=$3,
+		    updated_at=clock_timestamp(),
+		    pelican_config=pelican_config-'_manual_quality_run'-'_manual_quality_run_id'
+		FROM candidate
 		WHERE id=$1 AND enabled AND updated_at=$2
+		  AND id=candidate_id
+		  AND manual_quality_run=$6
+		  AND manual_quality_run_id=$7
+		  -- A 5xx-triggered probe may use a replacement configuration. It must
+		  -- never consume a pending administrator-triggered run.
+		  AND (NOT $4 OR NOT manual_quality_run)
 		  AND pelican_config->'quality' IS NOT NULL
 		  AND EXISTS(SELECT 1 FROM accounts live WHERE live.id=scheduled_test_plans.account_id AND live.deleted_at IS NULL)
 		  AND (running_until IS NULL OR running_until < clock_timestamp())
@@ -57,7 +74,7 @@ func (r *scheduledTestPlanRepository) ClaimQualityRun(ctx context.Context, plan 
 		  AND NOT EXISTS(SELECT 1 FROM scheduled_test_plans other WHERE other.account_id=scheduled_test_plans.account_id
 		    AND other.id<>scheduled_test_plans.id AND other.pelican_config->'quality' IS NOT NULL AND other.running_until>clock_timestamp())
 		RETURNING updated_at
-	`, plan.ID, plan.UpdatedAt, until, plan.TriggerSource == "upstream_5xx", plan.TriggerObservedAt).Scan(&updatedAt)
+	`, plan.ID, plan.UpdatedAt, until, plan.TriggerSource == "upstream_5xx", plan.TriggerObservedAt, plan.ManualQualityRun, plan.ManualQualityRunID).Scan(&updatedAt)
 	if err == sql.ErrNoRows {
 		return time.Time{}, false, nil
 	}

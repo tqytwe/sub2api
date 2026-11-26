@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"net/http"
 	"strings"
 	"testing"
@@ -50,6 +51,13 @@ func TestOpenAI409OmissionPreservesRequestControlsAtSend(t *testing.T) {
 				var refusal *OpenAIAgentRecoveryError
 				require.ErrorAs(t, err, &refusal)
 				require.Equal(t, "wire_changed", refusal.Reason)
+				diag, err := json.Marshal(refusal.Controls)
+				require.NoError(t, err)
+				require.NotNil(t, refusal.Controls)
+				require.NotContains(t, string(diag), "retain these instructions")
+				require.NotContains(t, string(diag), "resp_unrelated")
+				require.NotContains(t, string(diag), "9007199254740993")
+				require.NotContains(t, string(diag), "null")
 			} else {
 				require.NoError(t, err)
 			}
