@@ -1,6 +1,6 @@
 # v2.23.1 上游同步账本
 
-`merge_ready`，`fully_migrated=false`。固定累计范围 107 个提交已全部完成逐 SHA 处置（87 项 `equivalent`、20 项 `migrated`），0 项开放。整版交付由 [PR #458](https://github.com/tqytwe/sub2api/pull/458) 跟踪，目标为 `play/main`；截至 2026-11-27，仍在修复和复验 CI，尚未合并或部署。只有精确合并 SHA 完成生产部署、数据对账和游客/普通用户/管理员验收后，才将管理员状态切换为 `fully_migrated=true`。逐项任务、固定跟踪号和放行条件见[项目清单](./DEVELOPMENT_CHECKLIST.md)。
+`deployed_partial`，`fully_migrated=false`。固定累计范围 107 个提交已全部完成逐 SHA 处置（87 项 `equivalent`、20 项 `migrated`），0 项开放。整版代码由 [PR #458](https://github.com/tqytwe/sub2api/pull/458) 合入 `play/main`，精确合并 SHA 已成功部署到生产。生产数据对账和游客/普通用户/管理员验收仍待证据，因此后台继续如实显示未完全迁移；不得把代码合并或健康检查当作整版验收。固定跟踪项、责任角色和放行条件见[项目清单](./DEVELOPMENT_CHECKLIST.md)。
 
 ## 来源与生产基线
 
@@ -10,55 +10,62 @@
 - [PR #455](https://github.com/tqytwe/sub2api/pull/455) 通过 10 项 CI 并合入 `f3c4e62fcc0919b4f3b46a4fc821e30832c91b48`。Zeabur 部署 `7958153329` 成功。`/health` 返回 200，匿名访问管理员版本查询接口返回 401。弹窗显示 Fork 构建号、ranxi 正式版本、源码目标及同步状态。GitHub 查询失败时仍显示已知目标和状态。
 - [PR #456](https://github.com/tqytwe/sub2api/pull/456) 通过 9 项 CI 并合入 `3131b73c689f007964e23ffbfd4de6f0e65ab16d`。Zeabur 部署 `7958851461` 于 2026-11-21 13:03:46（北京时间）成功，`/health` 返回 200。
 
+## 本批合并与部署
+
+- [PR #458](https://github.com/tqytwe/sub2api/pull/458) 于 2026-11-26 20:17:49 UTC 合入 `play/main`，合并 SHA 为 `6c9c7b9dbc74052535426dae1fbccb1b413c3c4a`；PR 所有必需 CI 检查通过。
+- Zeabur 于 2026-11-26 20:23:54 UTC 对同一 SHA 部署成功。GitHub production deployment ID：`8095175284`；Zeabur deployment ID：`6b0893f09a6efec056d2e968`。GitHub 部署记录的 SHA 与 PR 合并 SHA 完全一致。
+- 2026-11-27 生产探测：`https://www.jisudeng.com/health` 返回 HTTP 200、`{"status":"ok"}`；匿名 `GET /api/v1/admin/system/check-updates` 返回预期 HTTP 401 `UNAUTHORIZED`。管理员运行时代码配置上游基线 `2.23.1`、`fully_migrated=false`；因没有执行管理员登录验收，未宣称生产管理员页面已核实。
+- 尚未关闭的 G5 项：生产确认迁移 `431_provider_profit_links.sql` 已应用，并对供应商链接/历史成本数据完成只读对账；生产游客、普通用户、管理员浏览器验收。完成前后台保持 `fully_migrated=false`。
+
 ## v2.23.0 至 v2.23.1 的逐项处置
 
 比较范围包含 [18 个 first-parent 提交](v2.23.0-first-parent.tsv)、248 个变更文件、1 个新增 SQL。表中“已纳入”指对应行为在列出的 Fork 实现中有证据。表中未核完的事项继续保留为未完成。
 
 | 上游 | 处置 | Fork 行为和待验证范围 |
 |---|---|---|
-| #935 `a71bcd623` | 首批已纳入 | 余额通知静默期，见 `account_ops_balance_notification_test.go`。 |
-| #934 `270ae1710` | 部分纳入 | 候选已补默认关闭/环境配置、HTTP 普通账号池重试，以及三种 WS 模式双轮变更控制字段续接和 owner 不写入测试。完整上游兼容矩阵及其他历史恢复差异仍待审查，未 PR/部署。 |
-| #936 `45ebcb708` | 首批已纳入 | New API 钱包查询的 UA、授权和费用配置，见 `new_api_upstream_user_agent_test.go` 及 `new_api_cost_test.go`。 |
-| #937 `feb761541` | 本批补齐结果写入行为 | 首批包含 Grok 探测冷却状态持久化。结果入库失败保留原计划，历史清理失败继续推进，见 `scheduled_test_durable_result_test.go`。 |
-| #939 `afcef2d68` | 部分纳入 | 有生图计费保底及 `X-Image-Usage: billing` 回执。分组开关、客户费用明细、价格 UI 和入口覆盖待逐项对照。 |
-| #942 `6ed27208b` | 首批已纳入 | `pagedExport.ts`、`UsageView.vue` 和 `client.ts` 覆盖 429 重试、分页大小和取消。 |
-| #943 `587ccb28e` | 首批已纳入 | 交互预览启用 pointer lock，静态预览继续隔离，见 `PelicanArtworkPreview.spec.ts`。 |
-| #940 `009eefc27` | 部分纳入 | `upstream_request_compression.go` 和 `http_upstream.go` 有安全压缩实现。区域和 WS 回退行为待逐项对照。 |
-| #945 `8f4e0d2b2` | 首批已纳入 | 钱包币种与换算，见 `new_api_wallet_test.go`。 |
-| #944 `5a5199711` | 首批已纳入 | 账号统计展示缓存和查询侧减负，见 `account_performance_display_cache_test.go`。 |
-| #948 `72e4545a0` | 首批已纳入 | `Select.vue` 的 `matchTriggerWidth` 用于 `KeysView.vue`，见 `Select.spec.ts`。 |
-| #949 `4f1bfa96d` | 待适配 | 统一渠道配置、供应商成本模式与报表复用依赖历史证据和迁移，见下节。 |
-| #952 `d846d9e59` | 首批已纳入 | MiniMax H3 模型别名，见 `minimax_h3_test.go`。 |
-| #950 `48dee26a7` | 部分纳入 | API Key 非流式图片返回空数组时，结算回执、保底与按张定价均按实际产出计数。异步恢复、用量费用和映射模型价格仍需对照。 |
-| #951 `b107d07da` | 部分纳入 | Fork 的 HTTP 加密历史省略路径冻结工具、指令和会话状态。发送前验证指定字段，日志只记录字段是否变化。上游投影层、WS 重建和运维事件接口仍待适配。 |
-| #955 `7563b8869` | 待适配 | 报表归属依赖 #949 前置数据模型，见下节。 |
-| #953 `3b79c7d9a` | 首批已纳入 | `/v1/videos` 创建、状态、下载及完成结算，见 `openai_videos_test.go` 和路由测试。 |
-| #956 `00e007960` | 来源锁已记录 | 源码版本由锁定 tag 和 commit 确认，Fork 构建号独立发布。 |
+| #935 `a71bcd623` | migrated | 余额通知静默期，见 `account_ops_balance_notification_test.go`。 |
+| #934 `270ae1710` | migrated | 默认关闭/环境配置、HTTP 账号池重试、三种 WS 模式双轮续接、owner 不写入和 no-replay 控制已完成；证据见 `dispositions.json` 与对应差异审计。 |
+| #936 `45ebcb708` | migrated | New API 钱包查询的 UA、授权和费用配置，见 `new_api_upstream_user_agent_test.go` 及 `new_api_cost_test.go`。 |
+| #937 `feb761541` | migrated | Grok 探测冷却状态持久化；结果入库失败保留原计划，历史清理失败继续推进，见 `scheduled_test_durable_result_test.go`。 |
+| #939 `afcef2d68` | migrated | 生图实际产出计数、分组策略、映射模型价格、各入口和结算回执均已覆盖；生产数据验收另见 G5。 |
+| #942 `6ed27208b` | migrated | `pagedExport.ts`、`UsageView.vue` 和 `client.ts` 覆盖 429 重试、分页大小和取消。 |
+| #943 `587ccb28e` | migrated | 交互预览启用 pointer lock，静态预览继续隔离，见 `PelicanArtworkPreview.spec.ts`。 |
+| #940 `009eefc27` | migrated | 安全压缩、区域传输、Codex/WS 准入、明文回退边界及仅发送一次的回归已完成。 |
+| #945 `8f4e0d2b2` | migrated | 钱包币种与换算，见 `new_api_wallet_test.go`。 |
+| #944 `5a5199711` | migrated | 账号统计展示缓存和查询侧减负，见 `account_performance_display_cache_test.go`。 |
+| #948 `72e4545a0` | migrated | `Select.vue` 的 `matchTriggerWidth` 用于 `KeysView.vue`，见 `Select.spec.ts`。 |
+| #949 `4f1bfa96d` | migrated | 供应商成本模式、钱包窗口快照、扣费证据、历史归属和按窗口报表已完成代码及集成测试；生产历史数据对账仍属 G5。 |
+| #952 `d846d9e59` | migrated | MiniMax H3 模型别名，见 `minimax_h3_test.go`。 |
+| #950 `48dee26a7` | migrated | 同步/异步结算、SSE/JSON 回执、映射模型定价和零产出解释均有回归覆盖。 |
+| #951 `b107d07da` | migrated | HTTP/WS 恢复控制、重建拒绝、脱敏运维诊断和安全字段防泄露已完成。 |
+| #955 `7563b8869` | migrated | 手工/导入归属历史、时段边界、冻结扣费身份和历史报表联接已有 PostgreSQL 集成覆盖。 |
+| #953 `3b79c7d9a` | migrated | `/v1/videos` 创建、状态、下载及完成结算，见 `openai_videos_test.go` 和路由测试。 |
+| #956 `00e007960` | equivalent | 源码版本由锁定 tag 和 commit 确认，Fork 构建号独立发布。 |
 
 ## 自 v2.21.2 累计差异和迁移依赖
 
-此范围另有 [107 个 first-parent 提交](v2.21.2-first-parent.tsv)、1,100 个可达提交和 2,185 个变更文件，仍需核对旧批次等效实现以及 QQ Bot 等缺项。初始 [整树报告](release-check.json) 比对 Fork 分析基线与上游目标，发现 172 个仅上游存在的迁移、187 个仅 Fork 存在的迁移、2 个同名内容变更和 113 个编号冲突。
+此范围为 [107 个 first-parent 提交](v2.21.2-first-parent.tsv)、1,100 个可达提交和 2,185 个变更文件。逐 SHA 审查现已全部结束：87 项 `equivalent`、20 项 `migrated`、0 项开放。初始 [整树报告](release-check.json) 是历史比对快照，不代表当前仍有未审查代码差异。剩余工作是 G5 所列生产数据和产品验收，不是已知代码差异。
 
 | 上游迁移或提交 | 依赖与 Fork 现状 |
 |---|---|
-| `345`–`348`，`236200c67` | Fork 迁移为 `427`–`430`：独立供应商目录、加密凭证、Key 操作、定时钱包刷新和余额告警。此批接入管理员 API，不改变现有渠道表、用户余额或利润口径。管理页面、账号关联和利润报表仍待接入。 |
-| `383`–`387`，`1c345720d` | 供应商渠道绑定与归属历史、供应商扣费凭证、钱包借记证据、同步日志和钱包快照。需与 Fork 原有 `profit_operations.go` 的计费口径及生产历史对账。 |
-| `388`，`4f1bfa96d` | 在 `provider_profit_links` 上增加 `wallet` / `estimate` 模式。旧行维持钱包模式，新行默认估算。该 DDL 依赖前置表和对应的授权、管理端、钱包采集、报表运行时。 |
-| `7563b8869` | 按事件时点连接手工及导入归属时间线。手工解绑阻止导入回补，同时保留既有 URL 回退。需覆盖历史时点、区间边界和联接基数。 |
+| `345`–`348`，`236200c67` | Fork 迁移 `427`–`430` 和关联管理端能力已合入；凭证不自动导入。生产环境中现有供应商/凭证配置由授权管理员确认。 |
+| `383`–`388`，`1c345720d`、`4f1bfa96d` | 供应商渠道归属、成本模式、扣费证据、钱包快照和报表运行时已纳入；Fork 迁移 `431_provider_profit_links.sql` 为既有供应商创建明确链接。生产需核对迁移版本、链接行数和历史成本归属，见 G5-DATA。 |
+| `7563b8869` | 手工及导入归属时间线、时段边界和历史报表联接已由 PostgreSQL 集成测试覆盖；生产历史数据只读对账仍待 G5-DATA。 |
 
-供应商目录基于编号至 `426` 的生产分支；`427`–`430` 为新增迁移，不会自动导入现有渠道或账号凭证。后续新增迁移须重新检查远端编号及真实数据库结构，保留既有迁移校验和。
+供应商目录基于编号至 `426` 的生产分支；`427`–`431` 为本 Fork 新增迁移，不会自动导入账号凭证。后续新增迁移须重新检查远端编号及真实数据库结构，保留既有迁移校验和。
 
-`427`–`430` 与上游原始迁移逐字节一致，仅变更文件编号。协议代码的 [LGPL 来源记录](mature-provider-provenance.json) 保留在本账本目录。PostgreSQL 16 定向回归覆盖迁移重放、目录版本冲突、渠道隔离、凭证加密、Key 幂等和自动刷新。
+`427`–`430` 与上游原始迁移逐字节一致，仅变更文件编号；`431` 增加 Fork 供应商利润归属。协议代码的 [LGPL 来源记录](mature-provider-provenance.json) 保留在本账本目录。PostgreSQL 定向 CI 覆盖迁移重放、目录版本冲突、渠道隔离、凭证加密、Key 幂等和自动刷新；生产 `431` 应用及历史数据核对尚未取得证据。
 
 ## 验收状态
 
-- 2026-11-27：累计 107 项全部达到终态，`python3 scripts/check_upstream_dispositions.py --verify-git --require-merge-ready` 通过；后端 default/unit 全量测试、前端 design governance、前端生产构建均通过。管理员运行时已锁定上游 `2.23.1`，但在精确合并 SHA 部署和生产验收完成前继续显示 `fully_migrated=false`，避免把候选代码误报为已部署。
+- 2026-11-27：PR #458 已合并，精确 SHA `6c9c7b9dbc74052535426dae1fbccb1b413c3c4a` 的 Zeabur 部署成功（deployment `6b0893f09a6efec056d2e968`）。生产 `/health` 为 HTTP 200；匿名管理员版本接口为预期 401。后台目标代码为 `2.23.1`、`fully_migrated=false`。生产迁移/历史数据核对及游客、普通用户、管理员验收仍 pending；不得据部署成功提前关闭整版。
+- 2026-11-27：累计 107 项全部达到终态，`python3 scripts/check_upstream_dispositions.py --verify-git --require-merge-ready` 通过；PR 必需 CI、后端 default/unit 全量测试、前端 design governance 和生产构建均通过。代码差异关闭，生产验收仍由 G5 跟踪。
 
 - 2026-11-26：完成 #836 历史平台筛选逐文件审查与处置，补强 15 种 provider 的 handler 传播测试，并将 PostgreSQL 历史/插入/index 与迁移 schema 回归纳入 core CI。全量前端 639 文件通过（3 跳过，5,077 测试通过、40 跳过），生产构建及 disposition 单测通过；定向 PostgreSQL 用例通过。累计 107 项现为 13 项终态、94 项开放（85 未审查、8 部分、1 阻塞）。同步 PR 完成门禁已加入候选 CI，但需随完整同步一同交付；开放项目标不得合并/部署。
 
 - 2026-11-21 复核 GitHub 最新正式版、tag 对象及源码提交，验证固定版本来源。
 - 管理员弹窗视觉证据见 [管理员版本信息](../../visual-reviews/2026-11-21-v2231-admin-version.md)。生产浏览器游客、普通用户、管理员验收待记录。
-- 完整迁移仍取决于累计差异处置、供应商相关数据迁移和会计对账，以及最终的部署与产品验收。
+- 代码层累计差异处置已完成并部署；整版仍取决于 G5-DATA 的供应商历史数据对账，以及 G5-GUEST/G5-USER/G5-ADMIN 生产产品验收。
 
 - 2026-11-26：完成 #837 上游差异审查并适配账号组成员选择器与保存/重开并发保护；修复浏览器验收中发现的中英文未解析质量运维文案，补齐视觉记录与 fork-integrity PR 浏览器回归 job。合成数据 Playwright 交互/多视口检查通过；定向组件和 locale 13 项通过。全量前端 641 个测试文件通过、3 个跳过；5,091 项通过、40 项跳过；前端 lint、typecheck、生产构建均通过；后端 `go test -count=1 ./...` 与 `go test -tags=unit ./...` 通过；`./scripts/check-fork-integrity.sh`、文档链接、YAML 与账本校验通过。候选累计状态现为 13 项终态、94 项开放（85 未审查、8 部分、1 阻塞）；全量交付与生产部署仍未完成。
 - 2026-11-26：继续核对 #934 并修复 handler 测试对 service 私有字段的跨包访问；补三种 WebSocket 模式双轮兼容续接回归。配置、HTTP/WS 定向测试和前端完整测试/构建通过。#934 仍保持 `partial`，完整累计同步与部署未完成。
