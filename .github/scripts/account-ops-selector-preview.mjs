@@ -146,7 +146,9 @@ app.use(createPinia());app.use(i18n);app.mount('#app');window.__selected=()=>sel
     throw Error('Control unreachable by natural modal scrolling: ' + name)
   }
   await load('?locale=zh')
-  assert.equal(await page.locator('[data-testid^="account-group-member-manual-alpha-"]').count(), 125)
+  const alphaPicker = page.getByTestId('account-ops-member-picker')
+  assert.equal(await alphaPicker.locator('[data-account-id]').count(), 50, 'first page renders 50 of 125 matching accounts')
+  assert.match(await alphaPicker.innerText(), /\b1 \/ 3\b/, '125 matching accounts are paginated into three pages')
   await capture('before-desktop-zh')
   await page.setViewportSize({ width: 390, height: 844 })
   await load('?locale=en')
