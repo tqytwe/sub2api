@@ -1,6 +1,6 @@
 # v2.23.1 上游同步账本
 
-`merge_ready`，`fully_migrated=false`。固定累计范围 107 个提交已全部完成逐 SHA 处置（87 项 `equivalent`、20 项 `migrated`），0 项开放。当前候选尚未 PR/部署；生产部署、数据对账和三身份验收完成后，才将管理员状态切换为 `fully_migrated=true`。逐项任务、固定跟踪号和放行条件见[项目清单](./DEVELOPMENT_CHECKLIST.md)。
+`merge_ready`，`fully_migrated=false`。固定累计范围 107 个提交已全部完成逐 SHA 处置（87 项 `equivalent`、20 项 `migrated`），0 项开放。整版交付由 [PR #458](https://github.com/tqytwe/sub2api/pull/458) 跟踪，目标为 `play/main`；截至 2026-11-27，仍在修复和复验 CI，尚未合并或部署。只有精确合并 SHA 完成生产部署、数据对账和游客/普通用户/管理员验收后，才将管理员状态切换为 `fully_migrated=true`。逐项任务、固定跟踪号和放行条件见[项目清单](./DEVELOPMENT_CHECKLIST.md)。
 
 ## 来源与生产基线
 
