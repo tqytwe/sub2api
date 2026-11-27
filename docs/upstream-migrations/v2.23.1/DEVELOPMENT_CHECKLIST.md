@@ -7,7 +7,7 @@
 - 上游：`ranxi2001/sub2api` tag `v2.23.1`，commit `00e00796080c632188cf9df7912050b144a1a44f`。
 - 范围：从 `v2.21.2` 起累计 107 个 first-parent 提交，其中本次 v2.23.0→v2.23.1 有 18 个。
 - 状态：107 项均已完成逐 SHA 处置（87 项 `equivalent`、20 项 `migrated`），0 项开放。代码差异闭环不等于生产交付；合并、部署、数据对账和三身份验收仍单独记录。
-- 当前整版已由 [PR #458](https://github.com/tqytwe/sub2api/pull/458) 合入并部署：合并 SHA `6c9c7b9dbc74052535426dae1fbccb1b413c3c4a`，Zeabur deployment `6b0893f09a6efec056d2e968` 成功且 SHA 一致。生产数据核对及三身份浏览器验收未完成，故 G5 和 `fully_migrated` 保持未关闭。
+- 当前整版已由 [PR #460](https://github.com/tqytwe/sub2api/pull/460) 的合并 SHA `4ba7e6a64c44a2f676fd3ff5fff56322f4a8fd24` 部署到生产，GitHub production deployment `8096214204` 和 Zeabur deployment `6b08a34b9a6efec056d2e9a8` 均成功。游客验收已通过；生产数据核对、普通用户和管理员登录态验收未完成，故 G5 和 `fully_migrated` 保持未关闭。证据见 [生产验收记录](./PRODUCTION_ACCEPTANCE_2026-11-27.md)。
 - 合并门禁：`python3 scripts/check_upstream_dispositions.py --verify-git --require-merge-ready`。锁定来源、累计零开放项、终态证据及必需 CI 均通过才允许合并部署；此时不预填生产证据，后台仍保持 `fully_migrated=false`。
 - 整版关闭门禁：部署后核对同 SHA 的 Zeabur、健康/关键 API、适用的数据对账及三身份本机验收，记录证据并通过 `python3 scripts/check_upstream_dispositions.py --verify-git --require-complete`，才能切换后台同步状态。状态关闭变更部署后单独核对后台显示。
 - 上游 v2.25.0 已于 2026-11-24 发布；此项目仍锁定 v2.23.1。后续版本另立来源锁和账本，禁止悄悄漂移。
@@ -25,17 +25,17 @@
 | G2 | #939/#950 生图计费闭环 | 计费后端 + 前端 | 已完成 | 所有入口、异步恢复、SSE/JSON 回执、映射价格和零产出解释已覆盖 |
 | G3 | #949/#955 供应商利润、钱包快照、事件归属 | 数据/会计 + 后端 | 已完成 | 钱包窗口快照、扣费证据、报表成本和历史边界集成测试已覆盖 |
 | G4 | 其余累计差异：调度、BPS、迁移、UI、部署 | 分域负责人（逐项分派） | 已完成 | 107 项均已迁入、等效或有批准排除，且有仓库证据 |
-| G5 | 整版发布与验收（PR #458） | 发布负责人 | 已部署，待生产验收 | 合并、CI、精确 SHA 部署及公开健康检查已通过；完成 G5-DATA、G5-GUEST、G5-USER、G5-ADMIN 并记录证据后才关闭 |
+| G5 | 整版发布与验收（PR #460） | 发布负责人 | 已部署，游客验收已完成，待生产数据及登录态验收 | 合并、CI、精确 SHA 部署及公开健康检查已通过；完成 G5-DATA、G5-GUEST、G5-USER、G5-ADMIN 并记录证据后才关闭 |
 
 ### G5 交付关项
 
 | 跟踪号 | 状态 | 已核实/待完成证据 | 责任角色 |
 |---|---|---|---|
-| G5-CI | 已完成 | PR #458 必需检查全部通过；合并 SHA `6c9c7b9dbc74052535426dae1fbccb1b413c3c4a` | 发布负责人 |
-| G5-DEPLOY | 已完成 | GitHub production deployment `8095175284`；Zeabur `6b0893f09a6efec056d2e968` 成功，部署 SHA 与合并 SHA 一致 | 发布负责人 |
+| G5-CI | 已完成 | PR #460 必需检查全部通过；合并 SHA `4ba7e6a64c44a2f676fd3ff5fff56322f4a8fd24` | 发布负责人 |
+| G5-DEPLOY | 已完成 | GitHub production deployment `8096214204`；Zeabur `6b08a34b9a6efec056d2e9a8` 成功，部署 revision 与合并 SHA 一致 | 发布负责人 |
 | G5-HEALTH | 已完成 | 2026-11-27 `https://www.jisudeng.com/health` HTTP 200；匿名管理员版本 API HTTP 401（预期认证边界） | 发布负责人 |
 | G5-DATA | 待生产只读核对 | 由授权数据库维护者确认 `431_provider_profit_links.sql` 已应用；核对供应商记录与显式渠道链接覆盖率、`cost_mode` 分布及历史成本归属，并检查异常关联。只记录脱敏汇总，不导出凭证或用户数据 | 数据库维护者 + 财务/运营负责人 |
-| G5-GUEST | 待生产浏览器验收 | 游客访问、公开页面与未登录权限边界；记录浏览器、时间、结果 | 产品验收人 |
+| G5-GUEST | 已完成 | Chromium `141.0.7390.37` 无 Cookie 验收：首页、模型目录、登录页 HTTP 200；用户/管理员受限路由均跳转登录；详见 [生产验收记录](./PRODUCTION_ACCEPTANCE_2026-11-27.md) | 发布负责人 |
 | G5-USER | 待生产浏览器验收 | 普通用户关键登录、用量/账单页面及其权限边界；记录浏览器、时间、结果 | 产品验收人 |
 | G5-ADMIN | 待生产管理员验收 | 登录管理员确认版本弹窗显示上游 `2.23.1` 与当前未完全迁移状态；抽验新管理功能、保存/刷新和权限；匿名 API 401 不能代替此验收 | 管理员 + 发布负责人 |
 
